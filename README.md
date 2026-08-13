@@ -367,6 +367,9 @@ data cannot strand cleanup of an immutable merged head. Claude Code and Cursor
 use hook-captured session identity, while Codex Desktop may use its authenticated
 `CODEX_THREAD_ID` when the one-shot hook bridge is unavailable. Missing, stale,
 malformed, dirty-state, or wrong-head proof blocks the remaining branch cleanup.
+If the bound transcript grows between preview and apply, closeout refreshes the
+mandatory retrospective while preserving authorization for unchanged cleanup
+targets; newly unresolved retrospective work still blocks every mutation.
 
 **MCP Servers** (in `.mcp.json` / `.cursor/mcp.json`): Auto-configured integrations
 
@@ -412,6 +415,11 @@ Normal releases are CI-driven: merge the version bump, create the annotated
 tests without publish credentials, then publishes the packed artifact through
 npm OIDC with provenance. See the `versioning` skill for the complete procedure;
 local `bun publish` is defense-in-depth recovery tooling, not the release path.
+
+When a release changes the native Claude plugin or a source asset it bundles,
+run `bun run --cwd packages/cli generate:claude-release-assets` before merging
+the version bump. It refreshes the historical catalogue first, then rebuilds
+the plugin that embeds it; commit the resulting source and `plugin/` changes.
 
 When a release changes the native Claude plugin or its profile installer, stable
 publication also requires the previous-stable-to-candidate upgrade in the

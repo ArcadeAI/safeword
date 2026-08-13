@@ -27,21 +27,19 @@ function withConfigured(value: string | undefined): number {
 
 describe('attempt deadline', () => {
   it('gives every attempt the same default, well above the slowest observed review', () => {
-    // 91 real runs: 47s median, 75s slowest success. 300s is four times that.
-    expect(withConfigured(undefined)).toBe(300_000);
+    // 91 real runs: 47s median, 75s slowest success. 120s preserves headroom.
+    expect(withConfigured(undefined)).toBe(120_000);
   });
 
   it('honours an explicitly configured deadline', () => {
     expect(withConfigured('120000')).toBe(120_000);
-    expect(withConfigured('450000')).toBe(450_000);
+    expect(withConfigured('240000')).toBe(240_000);
   });
 
   it('never lets a configured deadline exceed the run bound', () => {
-    // Every caller invokes the command through a tool capped at 600s, so a
-    // longer deadline would be killed mid-flight rather than honoured.
-    expect(withConfigured('540000')).toBe(540_000);
-    expect(withConfigured('600000')).toBe(540_000);
-    expect(withConfigured('99999999')).toBe(540_000);
+    expect(withConfigured('270000')).toBe(270_000);
+    expect(withConfigured('600000')).toBe(270_000);
+    expect(withConfigured('99999999')).toBe(270_000);
   });
 
   it.each([
@@ -52,20 +50,21 @@ describe('attempt deadline', () => {
     ['a blank value', ' '.repeat(3)],
     ['a unit-bearing string', '90s'],
   ])('ignores a meaningless configured deadline: %s', (_label, value) => {
-    expect(withConfigured(value)).toBe(300_000);
+    expect(withConfigured(value)).toBe(120_000);
   });
 });
 
 describe('run bound', () => {
   it('defaults to the documented ceiling', () => {
-    expect(withConfiguredBound(undefined)).toBe(540_000);
+    expect(withConfiguredBound(undefined)).toBe(270_000);
+    expect(withConfiguredBound(undefined)).toBeLessThan(300_000);
   });
 
   it('reserves enough default time to fund a route after one full attempt', () => {
     const remainingAfterTimeout = withConfiguredBound(undefined) - withConfigured(undefined);
 
-    expect(minimumRouteMs()).toBe(120_000);
-    expect(remainingAfterTimeout).toBe(240_000);
+    expect(minimumRouteMs()).toBe(60_000);
+    expect(remainingAfterTimeout).toBe(150_000);
     expect(remainingAfterTimeout).toBeGreaterThanOrEqual(minimumRouteMs());
   });
 
@@ -76,8 +75,8 @@ describe('run bound', () => {
   it('never exceeds the ceiling, however it is configured', () => {
     // A run that outlived the tool invoking it would be killed mid-flight with
     // nothing to show, so the ceiling is a guarantee, not a default.
-    expect(withConfiguredBound('540000')).toBe(540_000);
-    expect(withConfiguredBound('600000')).toBe(540_000);
-    expect(withConfiguredBound('3600000')).toBe(540_000);
+    expect(withConfiguredBound('270000')).toBe(270_000);
+    expect(withConfiguredBound('600000')).toBe(270_000);
+    expect(withConfiguredBound('3600000')).toBe(270_000);
   });
 });

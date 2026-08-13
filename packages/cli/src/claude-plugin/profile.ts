@@ -7,28 +7,27 @@ import {
   mkdtempSync,
   openSync,
   readFileSync,
-  realpathSync,
   rmSync,
   statSync,
 } from 'node:fs';
-import { homedir, tmpdir } from 'node:os';
+import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
-import { parse, type ParseError } from 'jsonc-parser';
+import { applyEdits, modify, parse, type ParseError } from 'jsonc-parser';
 
 import { type CliResult, createResult, type Effect } from '../cli-protocol/result.js';
 import { writeDurableFile } from '../codex-plugin/durable-write.js';
-import { SAFEWORD_SCHEMA } from '../schema.js';
+import { canonicalDirectory } from '../utils/fs.js';
 import { compareVersions, isSafePackageVersion } from '../utils/version.js';
+import { VERSION } from '../version.js';
 import {
   CLAUDE_NATIVE_METADATA_FILES,
   CLAUDE_NATIVE_REQUIRED_ASSETS,
   CLAUDE_PLUGIN_ID,
   claudeNativePayloadFiles,
 } from './inventory.js';
+import { claudeConfigDirectory } from './migration-state.js';
 import { canonicalClaudeProjectRoot } from './project-root.js';
-
-export { canonicalClaudeProjectRoot } from './project-root.js';
 
 const MINIMUM_CLAUDE_VERSION = [2, 1, 170] as const;
 const CLAUDE_COMMAND_TIMEOUT_MS = 30_000;
@@ -182,22 +181,8 @@ function assertSupportedHost(cwd: string): void {
 }
 
 function officialMarketplaceSource(): string {
-  const ref = SAFEWORD_SCHEMA.version.includes('-') ? `v${SAFEWORD_SCHEMA.version}` : 'stable';
+  const ref = VERSION.includes('-') ? `v${VERSION}` : 'stable';
   return `${MARKETPLACE_BASE}#${ref}`;
-}
-
-function claudeConfigDirectory(): string {
-  return process.env.CLAUDE_CONFIG_DIR ?? nodePath.join(homedir(), '.claude');
-}
-
-function canonicalDirectory(path: unknown): string | undefined {
-  if (typeof path !== 'string' || path.trim() === '') return undefined;
-  try {
-    if (!statSync(path).isDirectory()) return undefined;
-    return nodePath.normalize(realpathSync(path));
-  } catch {
-    return undefined;
-  }
 }
 
 function scopedSettingsPath(cwd: string, scope: ClaudePluginScope): string {
@@ -220,7 +205,10 @@ function readScopedSettings(cwd: string, scope: ClaudePluginScope): JsonObject |
   let settings: unknown;
   try {
     const errors: ParseError[] = [];
-    settings = parse(readFileSync(path, 'utf8'), errors) as unknown;
+    settings = parse(readFileSync(path, 'utf8'), errors, {
+      allowTrailingComma: true,
+      disallowComments: false,
+    }) as unknown;
     if (errors.length > 0) throw new SyntaxError(`parse error at offset ${errors[0]?.offset ?? 0}`);
   } catch (error) {
     invalidScopeSettings(
@@ -325,20 +313,20 @@ function enableMarketplaceAutoUpdate(
   const autoUpdateEnabled = marketplaceAutoUpdatePreference(declaration, scope) === true;
   if (autoUpdateEnabled && failurePolicy.configured) return;
 
-  const updated = {
-    ...settings,
-    env: failurePolicy.configured
-      ? failurePolicy.environment
-      : {
-          ...failurePolicy.environment,
-          CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE: '1',
-        },
-    extraKnownMarketplaces: {
-      ...marketplaces,
-      [MARKETPLACE_NAME]: { ...declaration, autoUpdate: true },
-    },
-  };
-  writeDurableFile(path, `${JSON.stringify(updated, undefined, 2)}\n`, {
+  let updated = readFileSync(path, 'utf8');
+  if (!autoUpdateEnabled) {
+    updated = applyEdits(
+      updated,
+      modify(updated, ['extraKnownMarketplaces', MARKETPLACE_NAME, 'autoUpdate'], true, {}),
+    );
+  }
+  if (!failurePolicy.configured) {
+    updated = applyEdits(
+      updated,
+      modify(updated, ['env', 'CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE'], '1', {}),
+    );
+  }
+  writeDurableFile(path, updated, {
     mode: metadata.mode & 0o777,
   });
   recordMarketplaceSafetyEffects(effects, scope, {
@@ -386,15 +374,15 @@ function marketplaceReferenceStatus(ref: unknown): MarketplaceSourceStatus {
   if (typeof ref !== 'string' || !ref.startsWith('v')) return 'conflict';
   const version = ref.slice(1);
   if (!isSafePackageVersion(version)) return 'conflict';
-  if (version === SAFEWORD_SCHEMA.version) {
-    return SAFEWORD_SCHEMA.version.includes('-') ? 'current' : 'stale';
+  if (version === VERSION) {
+    return VERSION.includes('-') ? 'current' : 'stale';
   }
   // Only the exact version being exercised by a prerelease build is trusted.
   // Historical marketplace refs must be canonical release tags: treating an
   // older prerelease or build-qualified tag as a normal upgrade source would
   // silently bless a channel that `stable` never promoted.
   if (version.includes('-') || version.includes('+')) return 'conflict';
-  const comparison = compareVersions(version, SAFEWORD_SCHEMA.version);
+  const comparison = compareVersions(version, VERSION);
   return comparison < 0 ? 'stale' : 'conflict';
 }
 
@@ -610,10 +598,10 @@ function assertConvergeablePluginVersion(plugin: JsonObject): void {
       `Claude reported malformed ${CLAUDE_PLUGIN_ID} version metadata in the selected scope.`,
     );
   }
-  if (compareVersions(plugin.version, SAFEWORD_SCHEMA.version) > 0) {
+  if (compareVersions(plugin.version, VERSION) > 0) {
     throw new ClaudeProfileError(
       'CLAUDE_PLUGIN_DOWNGRADE_REFUSED',
-      `Claude reported ${CLAUDE_PLUGIN_ID} ${plugin.version}, which is newer than ${SAFEWORD_SCHEMA.version}; refusing an implicit downgrade.`,
+      `Claude reported ${CLAUDE_PLUGIN_ID} ${plugin.version}, which is newer than ${VERSION}; refusing an implicit downgrade.`,
     );
   }
 }
@@ -625,7 +613,7 @@ function convergePlugin(cwd: string, scope: ClaudePluginScope, effects: Effect[]
     effects.push({ kind: 'install', target: CLAUDE_PLUGIN_ID, operation: scope });
   } else {
     assertConvergeablePluginVersion(plugin);
-    if (plugin.version !== SAFEWORD_SCHEMA.version) {
+    if (plugin.version !== VERSION) {
       runClaude(cwd, ['plugin', 'update', CLAUDE_PLUGIN_ID, '--scope', scope], effects);
       effects.push({ kind: 'update', target: CLAUDE_PLUGIN_ID, operation: scope });
     }
@@ -665,7 +653,7 @@ function assertInstalledIdentity(
 ): asserts inventory is JsonObject & { assets: JsonObject[] } {
   if (
     identity.schema_version !== 1 ||
-    identity.plugin_version !== SAFEWORD_SCHEMA.version ||
+    identity.plugin_version !== VERSION ||
     identity.inventory_sha256 !== createHash('sha256').update(inventoryContent).digest('hex') ||
     inventory.schema_version !== 1 ||
     !Array.isArray(inventory.assets)
@@ -766,7 +754,7 @@ export function observeApplicableClaudePlugins(cwd: string): ClaudeApplicablePlu
 /** Backward-compatible single-installation view used by the legacy status flow. */
 function observeInstalledPlugin(plugin: JsonObject | undefined): ClaudeProfileObservation {
   if (plugin === undefined) return { health: 'missing' };
-  if (plugin.version !== SAFEWORD_SCHEMA.version) return { health: 'wrong-version', plugin };
+  if (plugin.version !== VERSION) return { health: 'wrong-version', plugin };
   if (plugin.enabled !== true) return { health: 'disabled', plugin };
   try {
     validateNativePayload(plugin);
@@ -823,17 +811,13 @@ function verifyPlugin(
     );
   }
   const plugin = safewordPlugin(entries, scope, cwd);
-  if (
-    plugin?.version === SAFEWORD_SCHEMA.version &&
-    plugin.enabled === true &&
-    pluginScope(plugin) === scope
-  ) {
+  if (plugin?.version === VERSION && plugin.enabled === true && pluginScope(plugin) === scope) {
     assertNativePayload(plugin, effects);
     return entries;
   }
   throw new ClaudeProfileError(
     'CLAUDE_PLUGIN_UNVERIFIED',
-    `Claude did not report ${CLAUDE_PLUGIN_ID} ${SAFEWORD_SCHEMA.version} as enabled at ${scope} scope.`,
+    `Claude did not report ${CLAUDE_PLUGIN_ID} ${VERSION} as enabled at ${scope} scope.`,
     effects,
   );
 }
@@ -911,7 +895,7 @@ export function installClaudePlugin(cwd: string, scope: ClaudePluginScope = 'pro
       data: {
         command: 'claude install',
         plugin: CLAUDE_PLUGIN_ID,
-        version: SAFEWORD_SCHEMA.version,
+        version: VERSION,
         scope,
         ...(overlap && { classification: 'scope-overlap' }),
       },

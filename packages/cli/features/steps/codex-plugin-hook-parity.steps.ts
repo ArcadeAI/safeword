@@ -30,6 +30,15 @@ const TEST_DEFINITIONS_PATCH = `*** Begin Patch
 +# Test Definitions
 *** End Patch
 `;
+const PACKAGE_OWNED_BOOTSTRAP = [
+  'Current Safeword authority: tickets and their user stories/test definitions live under `.project/` (or the configured namespace root), and the applicable Safeword guides provide the current workflows.',
+  'These current paths supersede retired Safeword instructions that require `planning/` or `docs/` story/test-definition trees or `~/.agents/coding/guides/`.',
+  '',
+  'Safeword session bootstrap:',
+  'Before non-trivial work, read the packaged Safeword handbook and the applicable guide in the packaged Safeword guides.',
+  'Current tickets, learnings, and project context are under `.project/` (or the configured namespace root).',
+  'Follow the active Safeword workflow and its gates.',
+].join('\n');
 
 interface CodexPluginHookParityWorld extends SafewordWorld {
   codexHookInput?: object;
@@ -687,16 +696,15 @@ Then('SessionStart performs no implicit upgrade', function (this: SafewordWorld)
 });
 
 Then(
-  'it emits SessionStart additionalContext containing package-owned SAFEWORD.md',
+  'it emits the exact compact package-owned bootstrap once in SessionStart additionalContext',
   function (this: SafewordWorld) {
     const parsed = JSON.parse(this.result.stdout) as {
       hookSpecificOutput?: { hookEventName?: string; additionalContext?: string };
     };
     assert.equal(parsed.hookSpecificOutput?.hookEventName, 'SessionStart');
-    assert.match(
-      parsed.hookSpecificOutput?.additionalContext ?? '',
-      /SAFEWORD Agent Instructions/u,
-    );
+    const context = parsed.hookSpecificOutput?.additionalContext ?? '';
+    assert.equal(context, PACKAGE_OWNED_BOOTSTRAP);
+    assert.equal(context.split('Safeword session bootstrap:').length, 2);
   },
 );
 
@@ -710,10 +718,7 @@ Then(
     };
     assert.doesNotMatch(parsed.systemMessage ?? '', /v2\.0\.0 available \(major\)/u);
     assert.equal(parsed.hookSpecificOutput?.hookEventName, 'SessionStart');
-    assert.match(
-      parsed.hookSpecificOutput?.additionalContext ?? '',
-      /SAFEWORD Agent Instructions/u,
-    );
+    assert.match(parsed.hookSpecificOutput?.additionalContext ?? '', /Safeword session bootstrap/u);
   },
 );
 

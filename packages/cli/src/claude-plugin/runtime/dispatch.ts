@@ -3,11 +3,15 @@ import { createHash } from 'node:crypto';
 import { existsSync, lstatSync, readFileSync, realpathSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { parse } from 'jsonc-parser';
+import { parse, type ParseError } from 'jsonc-parser';
 
 import { writeDurableFile } from '../../codex-plugin/durable-write.js';
-import { migrateClaudeLegacyAutomatically } from '../cleanup.js';
-import { historicalCatalogueDigest } from '../historical-ownership.js';
+import { claudeLegacyMutations, migrateClaudeLegacyAutomatically } from '../cleanup.js';
+import {
+  historicalCatalogueDigest,
+  isAcceptedHistoricalHook,
+  isAcceptedHistoricalHookFile,
+} from '../historical-ownership.js';
 import {
   CLAUDE_MIGRATION_SCHEMA,
   CLAUDE_NATIVE_METADATA_FILES,
@@ -20,14 +24,10 @@ import {
   claimClaudeMigrationAttempt,
   claudeConfigDirectory,
   claudeWatchedSettingsDigest,
-  createClaudePluginMode,
-  hasLegacyClaudePluginMode,
   pluginModeIsTerminal,
-  readClaudeMigrationAttention,
   readClaudePluginMode,
   removeLegacyClaudePluginMode,
   writeClaudeMigrationAttention,
-  writeClaudePluginMode,
 } from '../migration-state.js';
 import { canonicalClaudeProjectRoot } from '../project-root.js';
 
@@ -49,6 +49,7 @@ interface PluginInventoryV1 {
 }
 
 interface HookInput {
+  readonly tool_name?: string;
   readonly cwd?: string;
   readonly session_id?: string;
   readonly source?: string;
@@ -76,39 +77,57 @@ interface VerifiedPlugin {
   readonly identity: PluginIdentityV1;
 }
 
-function legacyHookCommand(value: unknown, projectRoot: string): boolean {
-  if (typeof value === 'string') {
-    const reference = /\.safeword\/hooks\/[^\s"';&|)]+/u.exec(value)?.[0];
-    if (reference === undefined) return false;
-    try {
-      const hooksRoot = nodePath.resolve(projectRoot, '.safeword/hooks');
-      const target = nodePath.resolve(projectRoot, reference);
-      if (!target.startsWith(`${hooksRoot}${nodePath.sep}`)) return false;
-      return lstatSync(target).isFile();
-    } catch {
-      return false;
-    }
-  }
-  if (Array.isArray(value)) return value.some(child => legacyHookCommand(child, projectRoot));
-  if (typeof value !== 'object' || value === null) return false;
-  return Object.values(value).some(child => legacyHookCommand(child, projectRoot));
+function parseSettings(path: string): Record<string, unknown> | undefined {
+  if (!existsSync(path)) return undefined;
+  const errors: ParseError[] = [];
+  const parsed = parse(readFileSync(path, 'utf8'), errors, {
+    allowTrailingComma: true,
+    disallowComments: false,
+  }) as unknown;
+  return errors.length === 0 &&
+    typeof parsed === 'object' &&
+    parsed !== null &&
+    !Array.isArray(parsed)
+    ? (parsed as Record<string, unknown>)
+    : undefined;
 }
 
-function viableLegacyAuthority(event: string): boolean {
-  const projectRoot = process.env.CLAUDE_PROJECT_DIR;
-  if (projectRoot === undefined || projectRoot === '') return false;
-  const settingsPath = nodePath.join(projectRoot, '.claude/settings.json');
-  if (!existsSync(settingsPath)) return false;
+function acceptedLegacyHookReference(value: string, projectRoot: string): boolean {
+  const reference = /\.safeword\/hooks\/[^\s"';&|)]+/u.exec(value)?.[0];
+  if (reference === undefined) return false;
   try {
-    const settings = parse(readFileSync(settingsPath, 'utf8')) as {
-      hooks?: Record<string, unknown>;
-    };
-    return legacyHookCommand(settings.hooks?.[event], projectRoot);
+    const hooksRoot = nodePath.resolve(projectRoot, '.safeword/hooks');
+    const target = nodePath.resolve(projectRoot, reference);
+    if (!target.startsWith(`${hooksRoot}${nodePath.sep}`)) return false;
+    if (realpathSync(hooksRoot) !== hooksRoot || realpathSync(target) !== target) return false;
+    return (
+      lstatSync(target).isFile() && isAcceptedHistoricalHookFile(reference, readFileSync(target))
+    );
   } catch {
-    // Malformed legacy configuration is not viable authority. The plugin stays
-    // functional, while status reports the project conflict before cleanup.
     return false;
   }
+}
+
+function acceptedLegacyHookFile(value: unknown, projectRoot: string): boolean {
+  if (typeof value === 'string') return acceptedLegacyHookReference(value, projectRoot);
+  if (Array.isArray(value)) {
+    return value.some(child => acceptedLegacyHookFile(child, projectRoot));
+  }
+  if (typeof value !== 'object' || value === null) return false;
+  return Object.values(value).some(child => acceptedLegacyHookFile(child, projectRoot));
+}
+
+function viableLegacyAuthority(event: string, projectRoot: string): boolean {
+  const settings = parseSettings(nodePath.join(projectRoot, '.claude/settings.json'));
+  const hooks = settings?.hooks;
+  if (typeof hooks !== 'object' || hooks === null || Array.isArray(hooks)) return false;
+  const entries = (hooks as Record<string, unknown>)[event];
+  return (
+    Array.isArray(entries) &&
+    entries.some(
+      entry => isAcceptedHistoricalHook(event, entry) && acceptedLegacyHookFile(entry, projectRoot),
+    )
+  );
 }
 
 function requiredEnvironment(name: 'CLAUDE_PLUGIN_DATA' | 'CLAUDE_PLUGIN_ROOT'): string {
@@ -220,16 +239,29 @@ function writeDurableRecord(
   );
 }
 
-function setupRanForSession(pluginData: string, sessionId: string | undefined): boolean {
+function setupRanForSession(
+  pluginData: string,
+  sessionId: string | undefined,
+  pluginRoot: string,
+  projectRoot: string,
+  identity: PluginIdentityV1,
+): boolean {
   if (sessionId === undefined) return false;
   const path = nodePath.join(pluginData, 'cache-smoke-v1.json');
   if (!existsSync(path)) return false;
   try {
-    const smoke = JSON.parse(readFileSync(path, 'utf8')) as {
-      event?: string;
-      session_id?: string;
+    const smoke = JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>;
+    const expected: Record<string, unknown> = {
+      schema_version: 1,
+      event: 'Setup',
+      session_id: sessionId,
+      project_root: projectRoot,
+      plugin_version: identity.plugin_version,
+      hook_manifest_sha256: identity.hook_manifest_sha256,
+      inventory_sha256: identity.inventory_sha256,
+      canonical_plugin_root: pluginRoot,
     };
-    return smoke.event === 'Setup' && smoke.session_id === sessionId;
+    return Object.entries(expected).every(([key, value]) => smoke[key] === value);
   } catch {
     return false;
   }
@@ -243,8 +275,13 @@ function recordExecutionProof(
 ): void {
   if (event !== 'SessionStart' && event !== 'UserPromptSubmit') return;
   const pluginData = requiredEnvironment('CLAUDE_PLUGIN_DATA');
-  if (event === 'SessionStart' && setupRanForSession(pluginData, input.session_id)) return;
   const projectRoot = canonicalClaudeProjectRoot(input.cwd ?? process.cwd());
+  if (
+    event === 'SessionStart' &&
+    setupRanForSession(pluginData, input.session_id, pluginRoot, projectRoot, identity)
+  ) {
+    return;
+  }
   const projectDigest = createHash('sha256').update(projectRoot).digest('hex');
   writeDurableRecord(nodePath.join(pluginData, 'execution-proofs-v2'), `${projectDigest}.json`, {
     schema_version: 2,
@@ -265,12 +302,14 @@ function recordCacheSmoke(
   input: HookInput,
 ): void {
   if (event !== 'Setup') return;
+  const projectRoot = canonicalClaudeProjectRoot(input.cwd ?? process.cwd());
   writeDurableRecord(requiredEnvironment('CLAUDE_PLUGIN_DATA'), 'cache-smoke-v1.json', {
     schema_version: 1,
     plugin_version: identity.plugin_version,
     hook_manifest_sha256: identity.hook_manifest_sha256,
     inventory_sha256: identity.inventory_sha256,
     canonical_plugin_root: pluginRoot,
+    project_root: projectRoot,
     event,
     session_id: input.session_id,
     recorded_at: new Date().toISOString(),
@@ -301,9 +340,18 @@ function runFunctionalCommand(
   };
 }
 
-function eventEntryMatches(entry: EventGroupEntryV1, input: HookInput): boolean {
+const TOOL_EVENTS = new Set([
+  'PermissionDenied',
+  'PermissionRequest',
+  'PostToolUse',
+  'PostToolUseFailure',
+  'PreToolUse',
+]);
+
+function eventEntryMatches(event: string, entry: EventGroupEntryV1, input: HookInput): boolean {
   if (entry.matcher === undefined || entry.matcher === '') return true;
-  return entry.matcher.split('|').includes(input.source ?? '');
+  const subject = TOOL_EVENTS.has(event) ? input.tool_name : input.source;
+  return entry.matcher.split('|').includes(subject ?? '');
 }
 
 function readEventEntries(event: string, eventGroupsContent: Buffer): readonly EventGroupEntryV1[] {
@@ -473,14 +521,19 @@ function stableJson(value: unknown): string {
 }
 
 function scopeDeclaration(path: string): { enabled: boolean; marketplace: unknown } {
-  if (!existsSync(path)) return { enabled: false, marketplace: undefined };
-  const settings = parse(readFileSync(path, 'utf8')) as {
-    enabledPlugins?: Record<string, unknown>;
-    extraKnownMarketplaces?: Record<string, unknown>;
-  };
+  const settings = parseSettings(path);
+  const enabledPlugins = settings?.enabledPlugins;
+  const marketplaces = settings?.extraKnownMarketplaces;
   return {
-    enabled: settings?.enabledPlugins?.['safeword@safeword'] === true,
-    marketplace: settings?.extraKnownMarketplaces?.safeword,
+    enabled:
+      typeof enabledPlugins === 'object' &&
+      enabledPlugins !== null &&
+      !Array.isArray(enabledPlugins) &&
+      (enabledPlugins as Record<string, unknown>)['safeword@safeword'] === true,
+    marketplace:
+      typeof marketplaces === 'object' && marketplaces !== null && !Array.isArray(marketplaces)
+        ? (marketplaces as Record<string, unknown>).safeword
+        : undefined,
   };
 }
 
@@ -514,15 +567,6 @@ function advisoryExecution(
   };
 }
 
-function terminalMarkerExecution(
-  context: MigrationExecutionContext,
-  marker: NonNullable<ReturnType<typeof readClaudePluginMode>>,
-): FunctionalCommandResult {
-  return marker.advisory === undefined
-    ? context.execution
-    : advisoryExecution(context, marker.advisory);
-}
-
 function scopeOverlapExecution(
   context: MigrationExecutionContext,
   identity: PluginIdentityV1,
@@ -544,22 +588,6 @@ function scopeOverlapExecution(
   return advisoryExecution(context, advisory, stateDigest);
 }
 
-function matchingAttention(
-  projectRoot: string,
-  identity: PluginIdentityV1,
-  catalogueSha256: string,
-): ReturnType<typeof readClaudeMigrationAttention> {
-  const attention = readClaudeMigrationAttention(projectRoot);
-  if (
-    attention?.plugin_version !== identity.plugin_version ||
-    attention.catalogue_sha256 !== catalogueSha256 ||
-    attention.watched_settings_sha256 !== claudeWatchedSettingsDigest(projectRoot)
-  ) {
-    return undefined;
-  }
-  return attention;
-}
-
 function automaticMigrationAttemptKind(projectRoot: string): 'migration' | 'recovery' {
   return existsSync(nodePath.join(projectRoot, CLAUDE_MIGRATION_SCHEMA.paths.transaction))
     ? 'recovery'
@@ -574,32 +602,6 @@ function automaticMigrationProjectRoot(
   return canonicalClaudeProjectRoot(hookCwd ?? process.cwd());
 }
 
-function upgradeConsistentLegacyMarker(
-  event: string,
-  projectRoot: string,
-  identity: PluginIdentityV1,
-  catalogueSha256: string,
-): boolean {
-  if (
-    !hasLegacyClaudePluginMode(projectRoot) ||
-    viableLegacyAuthority(event) ||
-    incompatibleScopeOverlap(projectRoot)
-  ) {
-    return false;
-  }
-  writeClaudePluginMode(
-    projectRoot,
-    createClaudePluginMode({
-      plugin_version: identity.plugin_version,
-      hook_manifest_sha256: identity.hook_manifest_sha256,
-      catalogue_sha256: catalogueSha256,
-      unresolved_paths: [],
-    }),
-  );
-  removeLegacyClaudePluginMode(projectRoot);
-  return true;
-}
-
 function automaticMigrationUnsafe(
   event: string,
   identity: PluginIdentityV1,
@@ -611,18 +613,20 @@ function automaticMigrationUnsafe(
   if (projectRoot === undefined) return execution;
   const context = { event, execution, projectRoot, sessionId };
   const catalogueSha256 = historicalCatalogueDigest();
-  const marker = readClaudePluginMode(projectRoot);
-  if (upgradeConsistentLegacyMarker(event, projectRoot, identity, catalogueSha256))
-    return execution;
-  if (marker !== undefined && pluginModeIsTerminal(marker, catalogueSha256)) {
-    return terminalMarkerExecution(context, marker);
-  }
   if (incompatibleScopeOverlap(projectRoot)) {
     return scopeOverlapExecution(context, identity, catalogueSha256);
   }
-  const attention = matchingAttention(projectRoot, identity, catalogueSha256);
-  if (attention !== undefined) {
-    return advisoryExecution(context, attention.advisory, attention.state_digest);
+  const marker = readClaudePluginMode(projectRoot);
+  if (
+    marker !== undefined &&
+    pluginModeIsTerminal(marker, {
+      plugin_version: identity.plugin_version,
+      hook_manifest_sha256: identity.hook_manifest_sha256,
+      catalogue_sha256: catalogueSha256,
+    }) &&
+    claudeLegacyMutations(projectRoot).length === 0
+  ) {
+    return execution;
   }
   if (
     !claimClaudeMigrationAttempt(projectRoot, sessionId, automaticMigrationAttemptKind(projectRoot))
@@ -663,7 +667,7 @@ function executionProofFailure(
   error: unknown,
 ): FunctionalCommandResult {
   if (event !== 'UserPromptSubmit') return execution;
-  const advisory = `Safeword could not record native plugin proof: ${error instanceof Error ? error.message : String(error)} The prompt was not blocked and the old integration was preserved.`;
+  const advisory = `Safeword could not record native plugin proof: ${error instanceof Error ? error.message : String(error)} The prompt was not blocked; verify protection with \`safeword claude status\`.`;
   return { ...execution, stdout: safeAppendMigrationAdvisory(event, execution.stdout, advisory) };
 }
 
@@ -699,7 +703,7 @@ function verifiedIdentity(event: string, pluginRoot: string): VerifiedPlugin | u
     return { eventGroupsContent, identity };
   } catch (error) {
     if (event !== 'UserPromptSubmit') throw error;
-    const advisory = `Safeword detected a damaged native plugin cache: ${error instanceof Error ? error.message : String(error)} The prompt was not blocked and the old integration was preserved.`;
+    const advisory = `Safeword detected a damaged native plugin cache: ${error instanceof Error ? error.message : String(error)} The prompt was not blocked; no native Safeword hook result was applied.`;
     try {
       process.stdout.write(safeAppendMigrationAdvisory(event, '', advisory));
     } catch {
@@ -720,7 +724,12 @@ function runEventHooks(
       throw new Error(`Safeword Claude plugin event group has an unsupported ${event} hook.`);
     }
     const result = runFunctionalCommand(['bash', '-lc', hook.command], standardInput, true);
-    if (result.status !== 0) return result.status;
+    if (result.status !== 0) {
+      // Claude treats exit 1 as a non-blocking hook error. A blockable event
+      // must therefore fail closed even when an earlier sibling already
+      // produced a denial that would otherwise be discarded by this return.
+      return event === 'UserPromptSubmit' ? result.status : 2;
+    }
     mergeHookOutput(event, response, result.stdout);
   }
   return 0;
@@ -735,7 +744,7 @@ function runEventGroup(
   const entries = readEventEntries(event, eventGroupsContent);
   const response: HookResponse = {};
   for (const entry of entries) {
-    if (!eventEntryMatches(entry, hookInput)) continue;
+    if (!eventEntryMatches(event, entry, hookInput)) continue;
     const hooks = entry.hooks ?? [];
     const status = runEventHooks(event, hooks, standardInput, response);
     if (status !== 0) return { status, stdout: '' };
@@ -755,7 +764,7 @@ function functionalExecutionFailure(event: string, error: unknown): FunctionalCo
     );
     return { status: 2, stdout: '' };
   }
-  const advisory = `Safeword could not combine its Claude hook output: ${error instanceof Error ? error.message : String(error)} The prompt was not blocked and the old integration was preserved.`;
+  const advisory = `Safeword could not combine its Claude hook output: ${error instanceof Error ? error.message : String(error)} The prompt was not blocked; no combined Safeword hook result was applied.`;
   return { status: 0, stdout: safeAppendMigrationAdvisory(event, '', advisory) };
 }
 
@@ -775,9 +784,10 @@ function executeConfiguredHooks(input: {
   readonly command: string[];
   readonly eventGroupsContent: Buffer;
   readonly hookInput: HookInput;
+  readonly projectRoot: string;
   readonly standardInput: Buffer;
 }): FunctionalCommandResult {
-  if (viableLegacyAuthority(input.event)) return { status: 0, stdout: '' };
+  if (viableLegacyAuthority(input.event, input.projectRoot)) return { status: 0, stdout: '' };
   try {
     return input.mode === '--event-group'
       ? runEventGroup(input.event, input.eventGroupsContent, input.hookInput, input.standardInput)
@@ -795,10 +805,14 @@ function mainUnsafe(event: string, mode: string | undefined, command: string[]):
   if (mode !== undefined && mode !== '--' && mode !== '--event-group') {
     throw new Error('Expected -- or --event-group after the hook event.');
   }
+  if (mode !== '--event-group' && command.length === 0) {
+    throw new Error('A direct hook command is required.');
+  }
   const pluginRoot = realpathSync(requiredEnvironment('CLAUDE_PLUGIN_ROOT'));
   process.env.SAFEWORD_PLUGIN_CLI = nodePath.join(pluginRoot, 'runtime', 'cli.js');
   const standardInput = readFileSync(0);
   const hookInput = parseHookInput(standardInput);
+  const projectRoot = canonicalClaudeProjectRoot(hookInput.cwd ?? process.cwd());
   const verifiedPlugin = verifiedIdentity(event, pluginRoot);
   if (verifiedPlugin === undefined) return 0;
   const { eventGroupsContent, identity } = verifiedPlugin;
@@ -808,6 +822,7 @@ function mainUnsafe(event: string, mode: string | undefined, command: string[]):
     command,
     eventGroupsContent,
     hookInput,
+    projectRoot,
     standardInput,
   });
   if (execution.status === 0) {
@@ -820,7 +835,7 @@ function mainUnsafe(event: string, mode: string | undefined, command: string[]):
 function startupFailure(event: string, error: unknown): number {
   const detail = error instanceof Error ? error.message : String(error);
   if (event === 'UserPromptSubmit') {
-    const advisory = `Safeword could not start its Claude hook: ${detail} The prompt was not blocked and the old integration was preserved.`;
+    const advisory = `Safeword could not start its Claude hook: ${detail} The prompt was not blocked; no Safeword hook result was applied.`;
     try {
       process.stdout.write(safeAppendMigrationAdvisory(event, '', advisory));
     } catch {

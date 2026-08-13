@@ -8,6 +8,7 @@ import type { ReviewerOutput } from '../../src/review/contract.js';
 import {
   parseReviewerOutput,
   reviewTimeoutMilliseconds,
+  runBoundMs,
   runHeadlessReviewer,
 } from '../../src/review/runtime.js';
 
@@ -25,6 +26,12 @@ function temporaryDirectory(): string {
   return directory;
 }
 
+function trustedTemporaryDirectory(): string {
+  const directory = mkdtempSync(nodePath.join(process.cwd(), '.safeword-review-runtime-'));
+  temporaryDirectories.push(directory);
+  return directory;
+}
+
 const output: ReviewerOutput = {
   schema_version: 1,
   dispatch_id: 'dispatch-1',
@@ -36,16 +43,38 @@ const output: ReviewerOutput = {
 
 describe('headless reviewer timeout budgets', () => {
   // 91 real review runs put successful reviews at 47s median, 75s slowest, so
-  // 300s is four times the observed ceiling — see runtime.ts's
+  // 120s leaves headroom while preserving a fallback inside the host deadline — see runtime.ts's
   // DEFAULT_ATTEMPT_DEADLINE_MS for the full evidence trail.
-  it.each(['claude', 'codex'] as const)('gives %s a five-minute default budget', reviewer => {
-    expect(reviewTimeoutMilliseconds(reviewer, {})).toBe(300_000);
+  it.each(['claude', 'codex'] as const)('gives %s a two-minute default budget', reviewer => {
+    expect(reviewTimeoutMilliseconds(reviewer, {})).toBe(120_000);
   });
 
   it.each(['claude', 'codex'] as const)('honors the explicit timeout override for %s', reviewer => {
     expect(reviewTimeoutMilliseconds(reviewer, { SAFEWORD_REVIEW_TIMEOUT_MS: '45000' })).toBe(
       45_000,
     );
+  });
+
+  it('gives a detached review worker the larger absolute and attempt budgets', () => {
+    vi.stubEnv('SAFEWORD_REVIEW_WORKER', '1');
+
+    expect(runBoundMs()).toBe(1_800_000);
+    expect(reviewTimeoutMilliseconds('claude')).toBe(600_000);
+  });
+
+  it('lets worker overrides shorten but not extend the background budgets', () => {
+    vi.stubEnv('SAFEWORD_REVIEW_WORKER', '1');
+    vi.stubEnv('SAFEWORD_REVIEW_RUN_BOUND_MS', '900000');
+    expect(runBoundMs()).toBe(900_000);
+    vi.stubEnv('SAFEWORD_REVIEW_RUN_BOUND_MS', '3600000');
+    expect(runBoundMs()).toBe(1_800_000);
+
+    expect(
+      reviewTimeoutMilliseconds('claude', {
+        SAFEWORD_REVIEW_WORKER: '1',
+        SAFEWORD_REVIEW_TIMEOUT_MS: '3600000',
+      }),
+    ).toBe(1_800_000);
   });
 });
 
@@ -130,7 +159,7 @@ describe('headless reviewer process lifecycle', () => {
       failure: 'launch_failed',
     },
   ])('classifies $name separately from a missing executable', async ({ help, failure }) => {
-    const bin = temporaryDirectory();
+    const bin = trustedTemporaryDirectory();
     const project = temporaryDirectory();
     const untrustedRoot = temporaryDirectory();
     const executable = nodePath.join(bin, 'claude');
@@ -156,7 +185,7 @@ describe('headless reviewer process lifecycle', () => {
   it.skipIf(process.platform === 'win32')(
     'kills reviewer descendants after a timeout',
     async () => {
-      const bin = temporaryDirectory();
+      const bin = trustedTemporaryDirectory();
       const project = temporaryDirectory();
       const untrustedRoot = temporaryDirectory();
       const childPidPath = nodePath.join(project, 'child.pid');

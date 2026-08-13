@@ -2,10 +2,10 @@
 import { spawnSync as spawnSync2 } from 'node:child_process';
 import { createHash as createHash4 } from 'node:crypto';
 import {
-  existsSync as existsSync5,
-  lstatSync as lstatSync4,
-  readFileSync as readFileSync4,
-  realpathSync as realpathSync2,
+  existsSync as existsSync6,
+  lstatSync as lstatSync5,
+  readFileSync as readFileSync5,
+  realpathSync as realpathSync3,
 } from 'node:fs';
 import nodePath8 from 'node:path';
 
@@ -1630,16 +1630,24 @@ function durableRename(source, destination) {
 }
 
 // claude-plugin/cleanup.ts
-import { createHash as createHash3, randomUUID as randomUUID2 } from 'node:crypto';
+import { createHash as createHash3, randomUUID as randomUUID3 } from 'node:crypto';
 import {
-  chmodSync,
-  existsSync as existsSync4,
-  lstatSync as lstatSync3,
-  mkdirSync as mkdirSync3,
-  readdirSync as readdirSync2,
-  readFileSync as readFileSync3,
-  rmdirSync,
-  rmSync as rmSync3,
+  closeSync as closeSync3,
+  constants as fsConstants2,
+  existsSync as existsSync5,
+  fchmodSync,
+  fstatSync as fstatSync2,
+  fsyncSync as fsyncSync2,
+  ftruncateSync,
+  lstatSync as lstatSync4,
+  mkdirSync as mkdirSync4,
+  openSync as openSync3,
+  readFileSync as readFileSync4,
+  readSync as readSync2,
+  renameSync as renameSync2,
+  rmdirSync as rmdirSync2,
+  rmSync as rmSync4,
+  writeSync,
 } from 'node:fs';
 import nodePath7 from 'node:path';
 
@@ -1703,54 +1711,6 @@ function assertSafeClaudeCleanupTarget(cwd, relative) {
   return target;
 }
 
-// claude-plugin/inventory.ts
-import { readdirSync } from 'node:fs';
-import nodePath3 from 'node:path';
-var CLAUDE_MIGRATION_SCHEMA = {
-  paths: {
-    proof: 'plugins/data/safeword-safeword/execution-proof-v1.json',
-    proofDirectory: 'plugins/data/safeword-safeword/execution-proofs-v2',
-    pluginMarker: '.safeword/claude-plugin/plugin-mode-v1.json',
-    pluginMarkerV2: '.safeword/claude-plugin/plugin-mode-v2.json',
-    attention: '.safeword/claude-plugin/attention-v1.json',
-    attemptsDirectory: '.safeword/claude-plugin/attempts-v1',
-    transaction: '.safeword/claude-plugin/cleanup-transaction-v1.json',
-  },
-};
-var CLAUDE_NATIVE_REQUIRED_ASSETS = [
-  '.claude-plugin/plugin.json',
-  'hooks/hooks.json',
-  'runtime/cli.js',
-  'runtime/dispatch.js',
-  'runtime/event-groups.json',
-];
-var CLAUDE_NATIVE_METADATA_FILES = ['README.md', 'identity.json', 'inventory.json'];
-var BENIGN_CACHE_METADATA_BASENAMES = /* @__PURE__ */ new Set([
-  '.DS_Store',
-  'Thumbs.db',
-  'desktop.ini',
-]);
-function claudeNativePayloadFiles(root) {
-  const files = [];
-  const visit3 = (physicalDirectory, logicalDirectory) => {
-    const entries = readdirSync(physicalDirectory, { withFileTypes: true });
-    for (const entry of entries) {
-      if (logicalDirectory === '' && entry.isDirectory() && entry.name === '.in_use') continue;
-      const physicalPath = nodePath3.join(physicalDirectory, entry.name);
-      const logicalPath =
-        logicalDirectory === '' ? entry.name : nodePath3.posix.join(logicalDirectory, entry.name);
-      if (entry.isDirectory()) visit3(physicalPath, logicalPath);
-      else if (!BENIGN_CACHE_METADATA_BASENAMES.has(entry.name)) files.push(logicalPath);
-    }
-  };
-  visit3(root, '');
-  return files;
-}
-
-// claude-plugin/legacy-classifier.ts
-import { existsSync as existsSync2, lstatSync as lstatSync2, readFileSync } from 'node:fs';
-import nodePath4 from 'node:path';
-
 // claude-plugin/historical-ownership.ts
 import { createHash } from 'node:crypto';
 
@@ -1797,13 +1757,13 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/bdd/PLAN_IMPLEMENTATION.md':
         '8ed89fca82f6e71b77351674f12d5d7c1380574e326e05ca1912caf84ff4ff9b',
       '.claude/skills/bdd/SCENARIOS.md':
-        '2cf7c403e6a50c5ee1574f6e0a0965ee4afcbda9d0ec4580b425723ec5d4f83d',
+        'a2cf8937e4c555c6e42f3f33a45cd5355dc61337a75ea220561bc0b6d9be3ad8',
       '.claude/skills/bdd/SKILL.md':
-        '53b66c5ee888c6d9a1dc05119ee9d197d3d6b01d36b747fe62d686852e3715c9',
+        'df9f7927be3289f3ffb0444d49ae25fe601ce33b9661f7a809f74dff8da40ff0',
       '.claude/skills/bdd/SPLITTING.md':
         'e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708',
       '.claude/skills/bdd/TDD.md':
-        '9cb3e98b453fd3ca4378a43b07e4bd389aa1c6fb40875f9fb50d04319cb8b72b',
+        'fc596bf79b97eae1545a62b799b5ea29543c33eae65e722155125875421efa91',
       '.claude/skills/bdd/VERIFY.md':
         '85abadfe756a3f391779fe500cd5c66597a33e0cab7fcef55f6b633b30818f31',
       '.claude/skills/brainstorm/SKILL.md':
@@ -1827,7 +1787,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/lint/SKILL.md':
         '208ec54032cabdcb532d1070e5ef5f1fcd6f0f0bfe8daf08e4ecf007aa285f66',
       '.claude/skills/quality-review/SKILL.md':
-        '5e480b2d38b704ed221cddeab938dea0ac3c904c6745147eb192e42ffb4d3bbb',
+        'b940905d31cd4931665e023a65824a923a2bd5d7f590358355576cff8f3bc42a',
       '.claude/skills/refactor/SKILL.md':
         'a51a858fb13b50cbc86789edbde8a39e364b5cdd7d5d3b025d555d90b221760e',
       '.claude/skills/retro-filer/SKILL.md':
@@ -1835,19 +1795,87 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/retro/SKILL.md':
         '166e5109193bad4c26e060f6841d71c03f9155c7e74e1853c43b99b01c25d379',
       '.claude/skills/review-spec/SKILL.md':
-        'c8e4f3e4ecf7629c8cf32ce6770753ab1fc6c7a20470ae8b735f4b6961f3a53c',
+        '5c707432234f2d6893b6b3ebd340820990040d81006e1550b419f032ce8fda08',
       '.claude/skills/self-review/SKILL.md':
         'dcc667823790f18e1fa8cf35aaf10c40464664929c7bbb093531fd684f673e15',
       '.claude/skills/spike/SKILL.md':
         '905aab56037ad5a258bafa91cb2ebf05cff1acffbc9e1fd6f7a1f27230672f37',
       '.claude/skills/tdd-review/SKILL.md':
-        'f49a7e07dea7a62f39e9919c0c4251ede4ec2dec72b9892e7e0c42205d510e6f',
+        '4b945f122a90d23462845d7bdbbd0b736aa69d423a2d7e99ebf646bf118faa4f',
       '.claude/skills/testing/SKILL.md':
         '697a4b090935989e0c8a53462d2b44087afafa50adc69e9a98da14bed23dbde9',
       '.claude/skills/ticket-system/SKILL.md':
         '1edd1d2c546dae594124c8846c43f78f81d4579370589eaf1476b894c0a9750e',
       '.claude/skills/verify/SKILL.md':
         '26763f7fbc900b6994938db93e3b1e1e601ccded59d74c45f528a73fe71ec92f',
+    },
+    hook_files: {
+      '.safeword/hooks/post-tool-bypass-warn.ts':
+        'f7f9d408e58e2f3f223b9a2a94447560671dcdc7e7bac8d35e786417337fce8a',
+      '.safeword/hooks/post-tool-dependency-readiness.ts':
+        '21bc470f5f84f1ad11f7d757738ca09f1a2fbd509ecf20beea7d77e1a46f93f4',
+      '.safeword/hooks/post-tool-lint.ts':
+        'f563b8f7ceebbed051d261ed87ed908199555274cdcc795ba0619f78d07876fa',
+      '.safeword/hooks/post-tool-quality.ts':
+        '15563ef325306e9ed63db14a15129b68f602dbe3648989eb70cab8f61a6da0ab',
+      '.safeword/hooks/post-tool-skill-nudge.ts':
+        'a50c50975135af4183d52056b81234c2feb989e0ca3396fc5bee91662876bfe4',
+      '.safeword/hooks/post-tool-sync-learnings.ts':
+        'bc272acc87b1d52db960b2c96ac36ea553e21fdf161122312b74cd61157acb82',
+      '.safeword/hooks/post-tool-work-log.ts':
+        'f8816f7799c564006aad2b6469fbd4d04a51ba2ca3d6f3bdbe93bb03d17b6978',
+      '.safeword/hooks/pre-tool-architecture-stage.ts':
+        'b730b5c63eb5b860203a2b453aaddbf8271050cab8b3479c23bc8fcc47d79205',
+      '.safeword/hooks/pre-tool-config-guard.ts':
+        '6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084',
+      '.safeword/hooks/pre-tool-dependency-readiness.ts':
+        'd23343dc3185916140a4b25572f3bb413aece93311f5084444c0debe188f85b8',
+      '.safeword/hooks/pre-tool-git-bare-fix.sh':
+        '0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414',
+      '.safeword/hooks/pre-tool-quality.ts':
+        '333f73426106e09d3ce2ec0b2b1681cfb6923a33e5ee0acc1265134eb2fd39b7',
+      '.safeword/hooks/pre-tool-stale-main.ts':
+        'cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e',
+      '.safeword/hooks/prompt-questions.ts':
+        '57182cccb8550bb2b585c27672bc9bfef56f4688d0afc1afc18bf52661b7c2a6',
+      '.safeword/hooks/prompt-retro-nudge.ts':
+        '78353d6f47adb0ed9969e83b40429d5792a98789dff67ec0bc4d5a024b1da457',
+      '.safeword/hooks/prompt-timestamp.ts':
+        'd7939e98528717fed556adf65dcb9fd3c24fac530ba76be2db9c5faebbac27f3',
+      '.safeword/hooks/session-architecture-heal.ts':
+        '76f1b55c3173d3ebc2a819a41e06a814a57d78b94faf30108afed439dc7ce747',
+      '.safeword/hooks/session-author-model.ts':
+        '9cead0101141497aec277d6609ab1bfcbf7048cc02650e7f284ac15141eaf291',
+      '.safeword/hooks/session-auto-upgrade.ts':
+        '51cb48954d5b6154d1b4f831f9689fc5044cc8abf6aa9eb664fcddbf6fa859c0',
+      '.safeword/hooks/session-bun-check.sh':
+        '7365954b09c157e45e213981ebd0b609b97b81fb3e6b6b73571e23e459ef09ef',
+      '.safeword/hooks/session-cleanup-quality.ts':
+        'b43a169e86d240ecc12ece40d5375a84c59db6dc9708c91849a55038144736a2',
+      '.safeword/hooks/session-compact-context.ts':
+        '4810e508b3ef79e162c6e74e169e24f8eb7ae7980549ba3f53e640424ae10773',
+      '.safeword/hooks/session-dependency-readiness.ts':
+        '28c0268265f0dcbce04844faac5cbc9f9903ac4f8fa893a470ca6b102498613f',
+      '.safeword/hooks/session-lint-check.ts':
+        '54bfe1e63777fbed4f3a002a76cd627410ccc627832d1a1d2ef41bed1ea80cc2',
+      '.safeword/hooks/session-reply-format.ts':
+        '41f7578e93188d5efacdd9ecbf29f72753a6fe98bca71fe321c61f547aeb8532',
+      '.safeword/hooks/session-safeword-context.ts':
+        '56c7a97a760c978e747010192855709baad66adda31e04f6c35d9279b87b19a5',
+      '.safeword/hooks/session-start-reentry.ts':
+        'b9f02a92eec2b195833660e9f5becab80e44a217094c188cd47b4ca9f7d1900d',
+      '.safeword/hooks/session-version.ts':
+        'c6160a3ea0ef65345c89b3c1dcf5a4177a408d94ab7efda82d86f9d455815c64',
+      '.safeword/hooks/stop-quality.ts':
+        '34da4375dd284343bdae0f112a253d2aa2ea5d06d096dadd8774831e41018ffd',
+      '.safeword/hooks/stop-reentry.ts':
+        'a84d34d0798c83177d6ccc733299e9632e8485b700ef92ec53f153d68a1cfba5',
+      '.safeword/hooks/stop-retro-filing.ts':
+        'ae5693347a530547701c7fd9efd9d76ee4f690cd235b7e28b409d59d6090417d',
+      '.safeword/hooks/stop-retro.ts':
+        '5b0767121376bac1ad9f2b57765f0e705b1c34bff72724133014d31e39c0b916',
+      '.safeword/hooks/stop-self-report.ts':
+        'baf9f946918f74d2ec2916024c6a5e9818b5468a45ac177bbdb73443f66399e0',
     },
     hooks: {
       SessionStart: [
@@ -1951,6 +1979,72 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
         '.claude/skills/verify/SKILL.md':
           '23900f59b8ba03fd4d5a0d49fbbe03f6fe54364d6eef009870e9a5694b97cd12',
       },
+      hook_files: {
+        '.safeword/hooks/post-tool-bypass-warn.ts':
+          'f7f9d408e58e2f3f223b9a2a94447560671dcdc7e7bac8d35e786417337fce8a',
+        '.safeword/hooks/post-tool-dependency-readiness.ts':
+          '21bc470f5f84f1ad11f7d757738ca09f1a2fbd509ecf20beea7d77e1a46f93f4',
+        '.safeword/hooks/post-tool-lint.ts':
+          'f563b8f7ceebbed051d261ed87ed908199555274cdcc795ba0619f78d07876fa',
+        '.safeword/hooks/post-tool-quality.ts':
+          'cc40e780a91da05a5b75eff4fc9385cefed69a13e71550cecf89293228a9a4eb',
+        '.safeword/hooks/post-tool-skill-nudge.ts':
+          'b4a1565cb734efc5a4209dee04402fab88a0bd0b27b3f4877df9bd91e58ee272',
+        '.safeword/hooks/post-tool-sync-learnings.ts':
+          '9ad40afef962e0133eb80d958f21c2c2e8e5d692c59ed5c7a325914ad05812aa',
+        '.safeword/hooks/post-tool-work-log.ts':
+          'f8816f7799c564006aad2b6469fbd4d04a51ba2ca3d6f3bdbe93bb03d17b6978',
+        '.safeword/hooks/pre-tool-architecture-stage.ts':
+          '5186a34d7ab8a79ceb069ec5342f360d02db6c0b62c626503e53d7ea0f49b0f5',
+        '.safeword/hooks/pre-tool-config-guard.ts':
+          '6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084',
+        '.safeword/hooks/pre-tool-dependency-readiness.ts':
+          '5b1f06f286f7d2ec6816ed923ca37aed7115e1b888b214b7c3d0ea19f819874a',
+        '.safeword/hooks/pre-tool-git-bare-fix.sh':
+          '0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414',
+        '.safeword/hooks/pre-tool-quality.ts':
+          '1fbb02f389eb1716d95f9ac91a75589894dbfbc0e030a91427b3b86e932e9002',
+        '.safeword/hooks/pre-tool-stale-main.ts':
+          'cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e',
+        '.safeword/hooks/prompt-questions.ts':
+          '029f3be85a3adb23aed34075a67ec49e9e0cac48c0c0dff325544d9fe6651af0',
+        '.safeword/hooks/prompt-retro-nudge.ts':
+          'e434a748999ac32bc2ed09db019c7def95b67efb2cedb84a563a72ff2dbb4dfd',
+        '.safeword/hooks/prompt-timestamp.ts':
+          'd7939e98528717fed556adf65dcb9fd3c24fac530ba76be2db9c5faebbac27f3',
+        '.safeword/hooks/session-architecture-heal.ts':
+          '351495796bebcc97b031043ec6d17ce801be121a5fe76c81535f7b2eab6802d5',
+        '.safeword/hooks/session-author-model.ts':
+          '9cead0101141497aec277d6609ab1bfcbf7048cc02650e7f284ac15141eaf291',
+        '.safeword/hooks/session-auto-upgrade.ts':
+          '0fe2e7f68fdc30cea429e4d5b58d02a4430467f5508cde040fa620413f14e339',
+        '.safeword/hooks/session-bun-check.sh':
+          '7365954b09c157e45e213981ebd0b609b97b81fb3e6b6b73571e23e459ef09ef',
+        '.safeword/hooks/session-cleanup-quality.ts':
+          'b43a169e86d240ecc12ece40d5375a84c59db6dc9708c91849a55038144736a2',
+        '.safeword/hooks/session-compact-context.ts':
+          '5acc8a0359a3ea4c9b41bb37b9a539676c83531c3836c919520b4fc4b7c050b1',
+        '.safeword/hooks/session-dependency-readiness.ts':
+          '8522c9213d00378139751028ce37875e5b005bfa15d56da6698b25005a0ca792',
+        '.safeword/hooks/session-lint-check.ts':
+          '54bfe1e63777fbed4f3a002a76cd627410ccc627832d1a1d2ef41bed1ea80cc2',
+        '.safeword/hooks/session-safeword-context.ts':
+          '56c7a97a760c978e747010192855709baad66adda31e04f6c35d9279b87b19a5',
+        '.safeword/hooks/session-start-reentry.ts':
+          'ec44f19d57a0750d03816d146f64417bc1dd3f1edf4bb03d9386e9bb4a9f5583',
+        '.safeword/hooks/session-version.ts':
+          '60e487ff1b29ee6bf7ace671a39aad3ab7f3569a8b5f7694ba13c8f8720862af',
+        '.safeword/hooks/stop-quality.ts':
+          '7c96bf0f152c6864c50787d62859172a316d19e8ed730fec5106ea7d41b2326d',
+        '.safeword/hooks/stop-reentry.ts':
+          'cdf258da12fae6844ec9334cfa61521f5cc6a9b4cb0dbadb08c4ba798df7403e',
+        '.safeword/hooks/stop-retro-filing.ts':
+          '8938c5fa7da5ea232eb5a45526b207727e676cae2eb6f862104f8fad85d9db20',
+        '.safeword/hooks/stop-retro.ts':
+          '406496aa4c461aeeda7d659a4cc28a2c3f9e8d08596c3c74f1af8e8248275cbd',
+        '.safeword/hooks/stop-self-report.ts':
+          'cbe0fabdd2f42070a7f5277c77d18bcabad81f4c8ac1c18e9b459a7e111cb483',
+      },
       hooks: {
         SessionStart: [
           '98ed934c8e5cef5e3f94332b56968c980fde50fc79603e4dfe80ecaca49d77c0',
@@ -2053,6 +2147,72 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
           'f8312db9cf377906cef931e5e2a63917e76cffed5626c57dbf4a3239e7b0825a',
         '.claude/skills/verify/SKILL.md':
           '23900f59b8ba03fd4d5a0d49fbbe03f6fe54364d6eef009870e9a5694b97cd12',
+      },
+      hook_files: {
+        '.safeword/hooks/post-tool-bypass-warn.ts':
+          'f7f9d408e58e2f3f223b9a2a94447560671dcdc7e7bac8d35e786417337fce8a',
+        '.safeword/hooks/post-tool-dependency-readiness.ts':
+          '21bc470f5f84f1ad11f7d757738ca09f1a2fbd509ecf20beea7d77e1a46f93f4',
+        '.safeword/hooks/post-tool-lint.ts':
+          'f563b8f7ceebbed051d261ed87ed908199555274cdcc795ba0619f78d07876fa',
+        '.safeword/hooks/post-tool-quality.ts':
+          'cc40e780a91da05a5b75eff4fc9385cefed69a13e71550cecf89293228a9a4eb',
+        '.safeword/hooks/post-tool-skill-nudge.ts':
+          'b4a1565cb734efc5a4209dee04402fab88a0bd0b27b3f4877df9bd91e58ee272',
+        '.safeword/hooks/post-tool-sync-learnings.ts':
+          '9ad40afef962e0133eb80d958f21c2c2e8e5d692c59ed5c7a325914ad05812aa',
+        '.safeword/hooks/post-tool-work-log.ts':
+          'f8816f7799c564006aad2b6469fbd4d04a51ba2ca3d6f3bdbe93bb03d17b6978',
+        '.safeword/hooks/pre-tool-architecture-stage.ts':
+          '5186a34d7ab8a79ceb069ec5342f360d02db6c0b62c626503e53d7ea0f49b0f5',
+        '.safeword/hooks/pre-tool-config-guard.ts':
+          '6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084',
+        '.safeword/hooks/pre-tool-dependency-readiness.ts':
+          '5b1f06f286f7d2ec6816ed923ca37aed7115e1b888b214b7c3d0ea19f819874a',
+        '.safeword/hooks/pre-tool-git-bare-fix.sh':
+          '0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414',
+        '.safeword/hooks/pre-tool-quality.ts':
+          '8278457053db9a25f7c07b62d52836d3d60e9f092b3650013ee1b1ea6b044fb1',
+        '.safeword/hooks/pre-tool-stale-main.ts':
+          'cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e',
+        '.safeword/hooks/prompt-questions.ts':
+          '395cfc48c6c32bc3825e00ad30083ec647404b32386afd897a9af03be628ed65',
+        '.safeword/hooks/prompt-retro-nudge.ts':
+          'e434a748999ac32bc2ed09db019c7def95b67efb2cedb84a563a72ff2dbb4dfd',
+        '.safeword/hooks/prompt-timestamp.ts':
+          'd7939e98528717fed556adf65dcb9fd3c24fac530ba76be2db9c5faebbac27f3',
+        '.safeword/hooks/session-architecture-heal.ts':
+          '351495796bebcc97b031043ec6d17ce801be121a5fe76c81535f7b2eab6802d5',
+        '.safeword/hooks/session-author-model.ts':
+          '9cead0101141497aec277d6609ab1bfcbf7048cc02650e7f284ac15141eaf291',
+        '.safeword/hooks/session-auto-upgrade.ts':
+          '0fe2e7f68fdc30cea429e4d5b58d02a4430467f5508cde040fa620413f14e339',
+        '.safeword/hooks/session-bun-check.sh':
+          '7365954b09c157e45e213981ebd0b609b97b81fb3e6b6b73571e23e459ef09ef',
+        '.safeword/hooks/session-cleanup-quality.ts':
+          'b43a169e86d240ecc12ece40d5375a84c59db6dc9708c91849a55038144736a2',
+        '.safeword/hooks/session-compact-context.ts':
+          '5acc8a0359a3ea4c9b41bb37b9a539676c83531c3836c919520b4fc4b7c050b1',
+        '.safeword/hooks/session-dependency-readiness.ts':
+          '8522c9213d00378139751028ce37875e5b005bfa15d56da6698b25005a0ca792',
+        '.safeword/hooks/session-lint-check.ts':
+          '54bfe1e63777fbed4f3a002a76cd627410ccc627832d1a1d2ef41bed1ea80cc2',
+        '.safeword/hooks/session-safeword-context.ts':
+          '56c7a97a760c978e747010192855709baad66adda31e04f6c35d9279b87b19a5',
+        '.safeword/hooks/session-start-reentry.ts':
+          'ec44f19d57a0750d03816d146f64417bc1dd3f1edf4bb03d9386e9bb4a9f5583',
+        '.safeword/hooks/session-version.ts':
+          '60e487ff1b29ee6bf7ace671a39aad3ab7f3569a8b5f7694ba13c8f8720862af',
+        '.safeword/hooks/stop-quality.ts':
+          'eb251bb97bf1fd70776d6217d70da08823479b0c3e58cadc1a41c56ad0b09f89',
+        '.safeword/hooks/stop-reentry.ts':
+          'cdf258da12fae6844ec9334cfa61521f5cc6a9b4cb0dbadb08c4ba798df7403e',
+        '.safeword/hooks/stop-retro-filing.ts':
+          '8938c5fa7da5ea232eb5a45526b207727e676cae2eb6f862104f8fad85d9db20',
+        '.safeword/hooks/stop-retro.ts':
+          '406496aa4c461aeeda7d659a4cc28a2c3f9e8d08596c3c74f1af8e8248275cbd',
+        '.safeword/hooks/stop-self-report.ts':
+          'cbe0fabdd2f42070a7f5277c77d18bcabad81f4c8ac1c18e9b459a7e111cb483',
       },
       hooks: {
         SessionStart: [
@@ -2158,6 +2318,72 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
           '12798a8ebd1fb2bb65b4ee42fb3611d12f6817bc6cd27af829294ef31bfed27b',
         '.claude/skills/verify/SKILL.md':
           'e342a8fec91c403383f5ebce5c31c9eb4db555e77e56a6453b5b8ea0b97c118c',
+      },
+      hook_files: {
+        '.safeword/hooks/post-tool-bypass-warn.ts':
+          'f7f9d408e58e2f3f223b9a2a94447560671dcdc7e7bac8d35e786417337fce8a',
+        '.safeword/hooks/post-tool-dependency-readiness.ts':
+          '21bc470f5f84f1ad11f7d757738ca09f1a2fbd509ecf20beea7d77e1a46f93f4',
+        '.safeword/hooks/post-tool-lint.ts':
+          'f563b8f7ceebbed051d261ed87ed908199555274cdcc795ba0619f78d07876fa',
+        '.safeword/hooks/post-tool-quality.ts':
+          '15563ef325306e9ed63db14a15129b68f602dbe3648989eb70cab8f61a6da0ab',
+        '.safeword/hooks/post-tool-skill-nudge.ts':
+          'a50c50975135af4183d52056b81234c2feb989e0ca3396fc5bee91662876bfe4',
+        '.safeword/hooks/post-tool-sync-learnings.ts':
+          '9ad40afef962e0133eb80d958f21c2c2e8e5d692c59ed5c7a325914ad05812aa',
+        '.safeword/hooks/post-tool-work-log.ts':
+          'f8816f7799c564006aad2b6469fbd4d04a51ba2ca3d6f3bdbe93bb03d17b6978',
+        '.safeword/hooks/pre-tool-architecture-stage.ts':
+          '6a9db8288c41ec3e66c0fc8281cd752ffb61ed017d44f952416384a0c8d339ae',
+        '.safeword/hooks/pre-tool-config-guard.ts':
+          '6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084',
+        '.safeword/hooks/pre-tool-dependency-readiness.ts':
+          '5b1f06f286f7d2ec6816ed923ca37aed7115e1b888b214b7c3d0ea19f819874a',
+        '.safeword/hooks/pre-tool-git-bare-fix.sh':
+          '0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414',
+        '.safeword/hooks/pre-tool-quality.ts':
+          '0a6cc9568d795b1da37a06416061be0fe2bdc4724f578b3e6a94bd999edded7e',
+        '.safeword/hooks/pre-tool-stale-main.ts':
+          'cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e',
+        '.safeword/hooks/prompt-questions.ts':
+          '57182cccb8550bb2b585c27672bc9bfef56f4688d0afc1afc18bf52661b7c2a6',
+        '.safeword/hooks/prompt-retro-nudge.ts':
+          '0800c8949b5cf2671173816d45e857f1759329e27b33fda7c7b16ecd54a9398a',
+        '.safeword/hooks/prompt-timestamp.ts':
+          'd7939e98528717fed556adf65dcb9fd3c24fac530ba76be2db9c5faebbac27f3',
+        '.safeword/hooks/session-architecture-heal.ts':
+          '351495796bebcc97b031043ec6d17ce801be121a5fe76c81535f7b2eab6802d5',
+        '.safeword/hooks/session-author-model.ts':
+          '9cead0101141497aec277d6609ab1bfcbf7048cc02650e7f284ac15141eaf291',
+        '.safeword/hooks/session-auto-upgrade.ts':
+          '65ddec922bb677b58b82e96567624aabb15f2deba77ce3ce8af5ca73ef6c928a',
+        '.safeword/hooks/session-bun-check.sh':
+          '7365954b09c157e45e213981ebd0b609b97b81fb3e6b6b73571e23e459ef09ef',
+        '.safeword/hooks/session-cleanup-quality.ts':
+          'b43a169e86d240ecc12ece40d5375a84c59db6dc9708c91849a55038144736a2',
+        '.safeword/hooks/session-compact-context.ts':
+          '5acc8a0359a3ea4c9b41bb37b9a539676c83531c3836c919520b4fc4b7c050b1',
+        '.safeword/hooks/session-dependency-readiness.ts':
+          '28c0268265f0dcbce04844faac5cbc9f9903ac4f8fa893a470ca6b102498613f',
+        '.safeword/hooks/session-lint-check.ts':
+          '54bfe1e63777fbed4f3a002a76cd627410ccc627832d1a1d2ef41bed1ea80cc2',
+        '.safeword/hooks/session-safeword-context.ts':
+          '56c7a97a760c978e747010192855709baad66adda31e04f6c35d9279b87b19a5',
+        '.safeword/hooks/session-start-reentry.ts':
+          'b9f02a92eec2b195833660e9f5becab80e44a217094c188cd47b4ca9f7d1900d',
+        '.safeword/hooks/session-version.ts':
+          '60e487ff1b29ee6bf7ace671a39aad3ab7f3569a8b5f7694ba13c8f8720862af',
+        '.safeword/hooks/stop-quality.ts':
+          '0b30324e00532f095ded4f711d06f3dd4c25737beea29f4432690e91fed8c9b9',
+        '.safeword/hooks/stop-reentry.ts':
+          'a84d34d0798c83177d6ccc733299e9632e8485b700ef92ec53f153d68a1cfba5',
+        '.safeword/hooks/stop-retro-filing.ts':
+          '89346f357126706623237a0c79c0ea5947b6b95493a7689b1aee5a4546e034de',
+        '.safeword/hooks/stop-retro.ts':
+          '7f8d11fe57ba4ea86c71eb3c6b7e44912501076e32eaf63aff8c802aaa1850bf',
+        '.safeword/hooks/stop-self-report.ts':
+          'baf9f946918f74d2ec2916024c6a5e9818b5468a45ac177bbdb73443f66399e0',
       },
       hooks: {
         SessionStart: [
@@ -2266,6 +2492,72 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
         '.claude/skills/verify/SKILL.md':
           '1980ba580e89d5c0ec1d47a6ff60aefd9d12a19922efbae18da61333a97bf13e',
       },
+      hook_files: {
+        '.safeword/hooks/post-tool-bypass-warn.ts':
+          'f7f9d408e58e2f3f223b9a2a94447560671dcdc7e7bac8d35e786417337fce8a',
+        '.safeword/hooks/post-tool-dependency-readiness.ts':
+          '21bc470f5f84f1ad11f7d757738ca09f1a2fbd509ecf20beea7d77e1a46f93f4',
+        '.safeword/hooks/post-tool-lint.ts':
+          'f563b8f7ceebbed051d261ed87ed908199555274cdcc795ba0619f78d07876fa',
+        '.safeword/hooks/post-tool-quality.ts':
+          '15563ef325306e9ed63db14a15129b68f602dbe3648989eb70cab8f61a6da0ab',
+        '.safeword/hooks/post-tool-skill-nudge.ts':
+          'a50c50975135af4183d52056b81234c2feb989e0ca3396fc5bee91662876bfe4',
+        '.safeword/hooks/post-tool-sync-learnings.ts':
+          '9ad40afef962e0133eb80d958f21c2c2e8e5d692c59ed5c7a325914ad05812aa',
+        '.safeword/hooks/post-tool-work-log.ts':
+          'f8816f7799c564006aad2b6469fbd4d04a51ba2ca3d6f3bdbe93bb03d17b6978',
+        '.safeword/hooks/pre-tool-architecture-stage.ts':
+          '6a9db8288c41ec3e66c0fc8281cd752ffb61ed017d44f952416384a0c8d339ae',
+        '.safeword/hooks/pre-tool-config-guard.ts':
+          '6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084',
+        '.safeword/hooks/pre-tool-dependency-readiness.ts':
+          '5b1f06f286f7d2ec6816ed923ca37aed7115e1b888b214b7c3d0ea19f819874a',
+        '.safeword/hooks/pre-tool-git-bare-fix.sh':
+          '0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414',
+        '.safeword/hooks/pre-tool-quality.ts':
+          '0a6cc9568d795b1da37a06416061be0fe2bdc4724f578b3e6a94bd999edded7e',
+        '.safeword/hooks/pre-tool-stale-main.ts':
+          'cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e',
+        '.safeword/hooks/prompt-questions.ts':
+          '57182cccb8550bb2b585c27672bc9bfef56f4688d0afc1afc18bf52661b7c2a6',
+        '.safeword/hooks/prompt-retro-nudge.ts':
+          '0800c8949b5cf2671173816d45e857f1759329e27b33fda7c7b16ecd54a9398a',
+        '.safeword/hooks/prompt-timestamp.ts':
+          'd7939e98528717fed556adf65dcb9fd3c24fac530ba76be2db9c5faebbac27f3',
+        '.safeword/hooks/session-architecture-heal.ts':
+          '351495796bebcc97b031043ec6d17ce801be121a5fe76c81535f7b2eab6802d5',
+        '.safeword/hooks/session-author-model.ts':
+          '9cead0101141497aec277d6609ab1bfcbf7048cc02650e7f284ac15141eaf291',
+        '.safeword/hooks/session-auto-upgrade.ts':
+          '65ddec922bb677b58b82e96567624aabb15f2deba77ce3ce8af5ca73ef6c928a',
+        '.safeword/hooks/session-bun-check.sh':
+          '7365954b09c157e45e213981ebd0b609b97b81fb3e6b6b73571e23e459ef09ef',
+        '.safeword/hooks/session-cleanup-quality.ts':
+          'b43a169e86d240ecc12ece40d5375a84c59db6dc9708c91849a55038144736a2',
+        '.safeword/hooks/session-compact-context.ts':
+          '5acc8a0359a3ea4c9b41bb37b9a539676c83531c3836c919520b4fc4b7c050b1',
+        '.safeword/hooks/session-dependency-readiness.ts':
+          '28c0268265f0dcbce04844faac5cbc9f9903ac4f8fa893a470ca6b102498613f',
+        '.safeword/hooks/session-lint-check.ts':
+          '54bfe1e63777fbed4f3a002a76cd627410ccc627832d1a1d2ef41bed1ea80cc2',
+        '.safeword/hooks/session-safeword-context.ts':
+          '56c7a97a760c978e747010192855709baad66adda31e04f6c35d9279b87b19a5',
+        '.safeword/hooks/session-start-reentry.ts':
+          'b9f02a92eec2b195833660e9f5becab80e44a217094c188cd47b4ca9f7d1900d',
+        '.safeword/hooks/session-version.ts':
+          '60e487ff1b29ee6bf7ace671a39aad3ab7f3569a8b5f7694ba13c8f8720862af',
+        '.safeword/hooks/stop-quality.ts':
+          '0b30324e00532f095ded4f711d06f3dd4c25737beea29f4432690e91fed8c9b9',
+        '.safeword/hooks/stop-reentry.ts':
+          'a84d34d0798c83177d6ccc733299e9632e8485b700ef92ec53f153d68a1cfba5',
+        '.safeword/hooks/stop-retro-filing.ts':
+          '89346f357126706623237a0c79c0ea5947b6b95493a7689b1aee5a4546e034de',
+        '.safeword/hooks/stop-retro.ts':
+          '7f8d11fe57ba4ea86c71eb3c6b7e44912501076e32eaf63aff8c802aaa1850bf',
+        '.safeword/hooks/stop-self-report.ts':
+          'baf9f946918f74d2ec2916024c6a5e9818b5468a45ac177bbdb73443f66399e0',
+      },
       hooks: {
         SessionStart: [
           '98ed934c8e5cef5e3f94332b56968c980fde50fc79603e4dfe80ecaca49d77c0',
@@ -2371,6 +2663,72 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
         '.claude/skills/verify/SKILL.md':
           'e342a8fec91c403383f5ebce5c31c9eb4db555e77e56a6453b5b8ea0b97c118c',
       },
+      hook_files: {
+        '.safeword/hooks/post-tool-bypass-warn.ts':
+          'f7f9d408e58e2f3f223b9a2a94447560671dcdc7e7bac8d35e786417337fce8a',
+        '.safeword/hooks/post-tool-dependency-readiness.ts':
+          '21bc470f5f84f1ad11f7d757738ca09f1a2fbd509ecf20beea7d77e1a46f93f4',
+        '.safeword/hooks/post-tool-lint.ts':
+          'f563b8f7ceebbed051d261ed87ed908199555274cdcc795ba0619f78d07876fa',
+        '.safeword/hooks/post-tool-quality.ts':
+          '15563ef325306e9ed63db14a15129b68f602dbe3648989eb70cab8f61a6da0ab',
+        '.safeword/hooks/post-tool-skill-nudge.ts':
+          'a50c50975135af4183d52056b81234c2feb989e0ca3396fc5bee91662876bfe4',
+        '.safeword/hooks/post-tool-sync-learnings.ts':
+          '9ad40afef962e0133eb80d958f21c2c2e8e5d692c59ed5c7a325914ad05812aa',
+        '.safeword/hooks/post-tool-work-log.ts':
+          'f8816f7799c564006aad2b6469fbd4d04a51ba2ca3d6f3bdbe93bb03d17b6978',
+        '.safeword/hooks/pre-tool-architecture-stage.ts':
+          '6a9db8288c41ec3e66c0fc8281cd752ffb61ed017d44f952416384a0c8d339ae',
+        '.safeword/hooks/pre-tool-config-guard.ts':
+          '6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084',
+        '.safeword/hooks/pre-tool-dependency-readiness.ts':
+          '5b1f06f286f7d2ec6816ed923ca37aed7115e1b888b214b7c3d0ea19f819874a',
+        '.safeword/hooks/pre-tool-git-bare-fix.sh':
+          '0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414',
+        '.safeword/hooks/pre-tool-quality.ts':
+          '0a6cc9568d795b1da37a06416061be0fe2bdc4724f578b3e6a94bd999edded7e',
+        '.safeword/hooks/pre-tool-stale-main.ts':
+          'cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e',
+        '.safeword/hooks/prompt-questions.ts':
+          '57182cccb8550bb2b585c27672bc9bfef56f4688d0afc1afc18bf52661b7c2a6',
+        '.safeword/hooks/prompt-retro-nudge.ts':
+          '0800c8949b5cf2671173816d45e857f1759329e27b33fda7c7b16ecd54a9398a',
+        '.safeword/hooks/prompt-timestamp.ts':
+          'd7939e98528717fed556adf65dcb9fd3c24fac530ba76be2db9c5faebbac27f3',
+        '.safeword/hooks/session-architecture-heal.ts':
+          '351495796bebcc97b031043ec6d17ce801be121a5fe76c81535f7b2eab6802d5',
+        '.safeword/hooks/session-author-model.ts':
+          '9cead0101141497aec277d6609ab1bfcbf7048cc02650e7f284ac15141eaf291',
+        '.safeword/hooks/session-auto-upgrade.ts':
+          '65ddec922bb677b58b82e96567624aabb15f2deba77ce3ce8af5ca73ef6c928a',
+        '.safeword/hooks/session-bun-check.sh':
+          '7365954b09c157e45e213981ebd0b609b97b81fb3e6b6b73571e23e459ef09ef',
+        '.safeword/hooks/session-cleanup-quality.ts':
+          'b43a169e86d240ecc12ece40d5375a84c59db6dc9708c91849a55038144736a2',
+        '.safeword/hooks/session-compact-context.ts':
+          '5acc8a0359a3ea4c9b41bb37b9a539676c83531c3836c919520b4fc4b7c050b1',
+        '.safeword/hooks/session-dependency-readiness.ts':
+          '28c0268265f0dcbce04844faac5cbc9f9903ac4f8fa893a470ca6b102498613f',
+        '.safeword/hooks/session-lint-check.ts':
+          '54bfe1e63777fbed4f3a002a76cd627410ccc627832d1a1d2ef41bed1ea80cc2',
+        '.safeword/hooks/session-safeword-context.ts':
+          '56c7a97a760c978e747010192855709baad66adda31e04f6c35d9279b87b19a5',
+        '.safeword/hooks/session-start-reentry.ts':
+          'b9f02a92eec2b195833660e9f5becab80e44a217094c188cd47b4ca9f7d1900d',
+        '.safeword/hooks/session-version.ts':
+          '60e487ff1b29ee6bf7ace671a39aad3ab7f3569a8b5f7694ba13c8f8720862af',
+        '.safeword/hooks/stop-quality.ts':
+          '0b30324e00532f095ded4f711d06f3dd4c25737beea29f4432690e91fed8c9b9',
+        '.safeword/hooks/stop-reentry.ts':
+          'a84d34d0798c83177d6ccc733299e9632e8485b700ef92ec53f153d68a1cfba5',
+        '.safeword/hooks/stop-retro-filing.ts':
+          '89346f357126706623237a0c79c0ea5947b6b95493a7689b1aee5a4546e034de',
+        '.safeword/hooks/stop-retro.ts':
+          '7f8d11fe57ba4ea86c71eb3c6b7e44912501076e32eaf63aff8c802aaa1850bf',
+        '.safeword/hooks/stop-self-report.ts':
+          'baf9f946918f74d2ec2916024c6a5e9818b5468a45ac177bbdb73443f66399e0',
+      },
       hooks: {
         SessionStart: [
           '98ed934c8e5cef5e3f94332b56968c980fde50fc79603e4dfe80ecaca49d77c0',
@@ -2475,6 +2833,72 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
           '12798a8ebd1fb2bb65b4ee42fb3611d12f6817bc6cd27af829294ef31bfed27b',
         '.claude/skills/verify/SKILL.md':
           '1980ba580e89d5c0ec1d47a6ff60aefd9d12a19922efbae18da61333a97bf13e',
+      },
+      hook_files: {
+        '.safeword/hooks/post-tool-bypass-warn.ts':
+          'f7f9d408e58e2f3f223b9a2a94447560671dcdc7e7bac8d35e786417337fce8a',
+        '.safeword/hooks/post-tool-dependency-readiness.ts':
+          '21bc470f5f84f1ad11f7d757738ca09f1a2fbd509ecf20beea7d77e1a46f93f4',
+        '.safeword/hooks/post-tool-lint.ts':
+          'f563b8f7ceebbed051d261ed87ed908199555274cdcc795ba0619f78d07876fa',
+        '.safeword/hooks/post-tool-quality.ts':
+          '15563ef325306e9ed63db14a15129b68f602dbe3648989eb70cab8f61a6da0ab',
+        '.safeword/hooks/post-tool-skill-nudge.ts':
+          'a50c50975135af4183d52056b81234c2feb989e0ca3396fc5bee91662876bfe4',
+        '.safeword/hooks/post-tool-sync-learnings.ts':
+          '9ad40afef962e0133eb80d958f21c2c2e8e5d692c59ed5c7a325914ad05812aa',
+        '.safeword/hooks/post-tool-work-log.ts':
+          'f8816f7799c564006aad2b6469fbd4d04a51ba2ca3d6f3bdbe93bb03d17b6978',
+        '.safeword/hooks/pre-tool-architecture-stage.ts':
+          '6a9db8288c41ec3e66c0fc8281cd752ffb61ed017d44f952416384a0c8d339ae',
+        '.safeword/hooks/pre-tool-config-guard.ts':
+          '6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084',
+        '.safeword/hooks/pre-tool-dependency-readiness.ts':
+          '5b1f06f286f7d2ec6816ed923ca37aed7115e1b888b214b7c3d0ea19f819874a',
+        '.safeword/hooks/pre-tool-git-bare-fix.sh':
+          '0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414',
+        '.safeword/hooks/pre-tool-quality.ts':
+          '0a6cc9568d795b1da37a06416061be0fe2bdc4724f578b3e6a94bd999edded7e',
+        '.safeword/hooks/pre-tool-stale-main.ts':
+          'cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e',
+        '.safeword/hooks/prompt-questions.ts':
+          '57182cccb8550bb2b585c27672bc9bfef56f4688d0afc1afc18bf52661b7c2a6',
+        '.safeword/hooks/prompt-retro-nudge.ts':
+          '0800c8949b5cf2671173816d45e857f1759329e27b33fda7c7b16ecd54a9398a',
+        '.safeword/hooks/prompt-timestamp.ts':
+          'd7939e98528717fed556adf65dcb9fd3c24fac530ba76be2db9c5faebbac27f3',
+        '.safeword/hooks/session-architecture-heal.ts':
+          '351495796bebcc97b031043ec6d17ce801be121a5fe76c81535f7b2eab6802d5',
+        '.safeword/hooks/session-author-model.ts':
+          '9cead0101141497aec277d6609ab1bfcbf7048cc02650e7f284ac15141eaf291',
+        '.safeword/hooks/session-auto-upgrade.ts':
+          '65ddec922bb677b58b82e96567624aabb15f2deba77ce3ce8af5ca73ef6c928a',
+        '.safeword/hooks/session-bun-check.sh':
+          '7365954b09c157e45e213981ebd0b609b97b81fb3e6b6b73571e23e459ef09ef',
+        '.safeword/hooks/session-cleanup-quality.ts':
+          'b43a169e86d240ecc12ece40d5375a84c59db6dc9708c91849a55038144736a2',
+        '.safeword/hooks/session-compact-context.ts':
+          '5acc8a0359a3ea4c9b41bb37b9a539676c83531c3836c919520b4fc4b7c050b1',
+        '.safeword/hooks/session-dependency-readiness.ts':
+          '28c0268265f0dcbce04844faac5cbc9f9903ac4f8fa893a470ca6b102498613f',
+        '.safeword/hooks/session-lint-check.ts':
+          '54bfe1e63777fbed4f3a002a76cd627410ccc627832d1a1d2ef41bed1ea80cc2',
+        '.safeword/hooks/session-safeword-context.ts':
+          '56c7a97a760c978e747010192855709baad66adda31e04f6c35d9279b87b19a5',
+        '.safeword/hooks/session-start-reentry.ts':
+          'b9f02a92eec2b195833660e9f5becab80e44a217094c188cd47b4ca9f7d1900d',
+        '.safeword/hooks/session-version.ts':
+          '60e487ff1b29ee6bf7ace671a39aad3ab7f3569a8b5f7694ba13c8f8720862af',
+        '.safeword/hooks/stop-quality.ts':
+          '0b30324e00532f095ded4f711d06f3dd4c25737beea29f4432690e91fed8c9b9',
+        '.safeword/hooks/stop-reentry.ts':
+          'a84d34d0798c83177d6ccc733299e9632e8485b700ef92ec53f153d68a1cfba5',
+        '.safeword/hooks/stop-retro-filing.ts':
+          '89346f357126706623237a0c79c0ea5947b6b95493a7689b1aee5a4546e034de',
+        '.safeword/hooks/stop-retro.ts':
+          '7f8d11fe57ba4ea86c71eb3c6b7e44912501076e32eaf63aff8c802aaa1850bf',
+        '.safeword/hooks/stop-self-report.ts':
+          'baf9f946918f74d2ec2916024c6a5e9818b5468a45ac177bbdb73443f66399e0',
       },
       hooks: {
         SessionStart: [
@@ -2583,6 +3007,72 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
         '.claude/skills/verify/SKILL.md':
           '1980ba580e89d5c0ec1d47a6ff60aefd9d12a19922efbae18da61333a97bf13e',
       },
+      hook_files: {
+        '.safeword/hooks/post-tool-bypass-warn.ts':
+          'f7f9d408e58e2f3f223b9a2a94447560671dcdc7e7bac8d35e786417337fce8a',
+        '.safeword/hooks/post-tool-dependency-readiness.ts':
+          '21bc470f5f84f1ad11f7d757738ca09f1a2fbd509ecf20beea7d77e1a46f93f4',
+        '.safeword/hooks/post-tool-lint.ts':
+          'f563b8f7ceebbed051d261ed87ed908199555274cdcc795ba0619f78d07876fa',
+        '.safeword/hooks/post-tool-quality.ts':
+          '15563ef325306e9ed63db14a15129b68f602dbe3648989eb70cab8f61a6da0ab',
+        '.safeword/hooks/post-tool-skill-nudge.ts':
+          'a50c50975135af4183d52056b81234c2feb989e0ca3396fc5bee91662876bfe4',
+        '.safeword/hooks/post-tool-sync-learnings.ts':
+          '9ad40afef962e0133eb80d958f21c2c2e8e5d692c59ed5c7a325914ad05812aa',
+        '.safeword/hooks/post-tool-work-log.ts':
+          'f8816f7799c564006aad2b6469fbd4d04a51ba2ca3d6f3bdbe93bb03d17b6978',
+        '.safeword/hooks/pre-tool-architecture-stage.ts':
+          '6a9db8288c41ec3e66c0fc8281cd752ffb61ed017d44f952416384a0c8d339ae',
+        '.safeword/hooks/pre-tool-config-guard.ts':
+          '6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084',
+        '.safeword/hooks/pre-tool-dependency-readiness.ts':
+          '5b1f06f286f7d2ec6816ed923ca37aed7115e1b888b214b7c3d0ea19f819874a',
+        '.safeword/hooks/pre-tool-git-bare-fix.sh':
+          '0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414',
+        '.safeword/hooks/pre-tool-quality.ts':
+          '0a6cc9568d795b1da37a06416061be0fe2bdc4724f578b3e6a94bd999edded7e',
+        '.safeword/hooks/pre-tool-stale-main.ts':
+          'cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e',
+        '.safeword/hooks/prompt-questions.ts':
+          '57182cccb8550bb2b585c27672bc9bfef56f4688d0afc1afc18bf52661b7c2a6',
+        '.safeword/hooks/prompt-retro-nudge.ts':
+          '0800c8949b5cf2671173816d45e857f1759329e27b33fda7c7b16ecd54a9398a',
+        '.safeword/hooks/prompt-timestamp.ts':
+          'd7939e98528717fed556adf65dcb9fd3c24fac530ba76be2db9c5faebbac27f3',
+        '.safeword/hooks/session-architecture-heal.ts':
+          '351495796bebcc97b031043ec6d17ce801be121a5fe76c81535f7b2eab6802d5',
+        '.safeword/hooks/session-author-model.ts':
+          '9cead0101141497aec277d6609ab1bfcbf7048cc02650e7f284ac15141eaf291',
+        '.safeword/hooks/session-auto-upgrade.ts':
+          '65ddec922bb677b58b82e96567624aabb15f2deba77ce3ce8af5ca73ef6c928a',
+        '.safeword/hooks/session-bun-check.sh':
+          '7365954b09c157e45e213981ebd0b609b97b81fb3e6b6b73571e23e459ef09ef',
+        '.safeword/hooks/session-cleanup-quality.ts':
+          'b43a169e86d240ecc12ece40d5375a84c59db6dc9708c91849a55038144736a2',
+        '.safeword/hooks/session-compact-context.ts':
+          '5acc8a0359a3ea4c9b41bb37b9a539676c83531c3836c919520b4fc4b7c050b1',
+        '.safeword/hooks/session-dependency-readiness.ts':
+          '28c0268265f0dcbce04844faac5cbc9f9903ac4f8fa893a470ca6b102498613f',
+        '.safeword/hooks/session-lint-check.ts':
+          '54bfe1e63777fbed4f3a002a76cd627410ccc627832d1a1d2ef41bed1ea80cc2',
+        '.safeword/hooks/session-safeword-context.ts':
+          '56c7a97a760c978e747010192855709baad66adda31e04f6c35d9279b87b19a5',
+        '.safeword/hooks/session-start-reentry.ts':
+          'b9f02a92eec2b195833660e9f5becab80e44a217094c188cd47b4ca9f7d1900d',
+        '.safeword/hooks/session-version.ts':
+          '60e487ff1b29ee6bf7ace671a39aad3ab7f3569a8b5f7694ba13c8f8720862af',
+        '.safeword/hooks/stop-quality.ts':
+          '0b30324e00532f095ded4f711d06f3dd4c25737beea29f4432690e91fed8c9b9',
+        '.safeword/hooks/stop-reentry.ts':
+          'a84d34d0798c83177d6ccc733299e9632e8485b700ef92ec53f153d68a1cfba5',
+        '.safeword/hooks/stop-retro-filing.ts':
+          '89346f357126706623237a0c79c0ea5947b6b95493a7689b1aee5a4546e034de',
+        '.safeword/hooks/stop-retro.ts':
+          '7f8d11fe57ba4ea86c71eb3c6b7e44912501076e32eaf63aff8c802aaa1850bf',
+        '.safeword/hooks/stop-self-report.ts':
+          'baf9f946918f74d2ec2916024c6a5e9818b5468a45ac177bbdb73443f66399e0',
+      },
       hooks: {
         SessionStart: [
           '98ed934c8e5cef5e3f94332b56968c980fde50fc79603e4dfe80ecaca49d77c0',
@@ -2689,6 +3179,72 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
           '12798a8ebd1fb2bb65b4ee42fb3611d12f6817bc6cd27af829294ef31bfed27b',
         '.claude/skills/verify/SKILL.md':
           '1980ba580e89d5c0ec1d47a6ff60aefd9d12a19922efbae18da61333a97bf13e',
+      },
+      hook_files: {
+        '.safeword/hooks/post-tool-bypass-warn.ts':
+          'f7f9d408e58e2f3f223b9a2a94447560671dcdc7e7bac8d35e786417337fce8a',
+        '.safeword/hooks/post-tool-dependency-readiness.ts':
+          '21bc470f5f84f1ad11f7d757738ca09f1a2fbd509ecf20beea7d77e1a46f93f4',
+        '.safeword/hooks/post-tool-lint.ts':
+          'f563b8f7ceebbed051d261ed87ed908199555274cdcc795ba0619f78d07876fa',
+        '.safeword/hooks/post-tool-quality.ts':
+          '15563ef325306e9ed63db14a15129b68f602dbe3648989eb70cab8f61a6da0ab',
+        '.safeword/hooks/post-tool-skill-nudge.ts':
+          'a50c50975135af4183d52056b81234c2feb989e0ca3396fc5bee91662876bfe4',
+        '.safeword/hooks/post-tool-sync-learnings.ts':
+          '9ad40afef962e0133eb80d958f21c2c2e8e5d692c59ed5c7a325914ad05812aa',
+        '.safeword/hooks/post-tool-work-log.ts':
+          'f8816f7799c564006aad2b6469fbd4d04a51ba2ca3d6f3bdbe93bb03d17b6978',
+        '.safeword/hooks/pre-tool-architecture-stage.ts':
+          '6a9db8288c41ec3e66c0fc8281cd752ffb61ed017d44f952416384a0c8d339ae',
+        '.safeword/hooks/pre-tool-config-guard.ts':
+          '6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084',
+        '.safeword/hooks/pre-tool-dependency-readiness.ts':
+          '5b1f06f286f7d2ec6816ed923ca37aed7115e1b888b214b7c3d0ea19f819874a',
+        '.safeword/hooks/pre-tool-git-bare-fix.sh':
+          '0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414',
+        '.safeword/hooks/pre-tool-quality.ts':
+          '0a6cc9568d795b1da37a06416061be0fe2bdc4724f578b3e6a94bd999edded7e',
+        '.safeword/hooks/pre-tool-stale-main.ts':
+          'cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e',
+        '.safeword/hooks/prompt-questions.ts':
+          '57182cccb8550bb2b585c27672bc9bfef56f4688d0afc1afc18bf52661b7c2a6',
+        '.safeword/hooks/prompt-retro-nudge.ts':
+          '0800c8949b5cf2671173816d45e857f1759329e27b33fda7c7b16ecd54a9398a',
+        '.safeword/hooks/prompt-timestamp.ts':
+          'd7939e98528717fed556adf65dcb9fd3c24fac530ba76be2db9c5faebbac27f3',
+        '.safeword/hooks/session-architecture-heal.ts':
+          '351495796bebcc97b031043ec6d17ce801be121a5fe76c81535f7b2eab6802d5',
+        '.safeword/hooks/session-author-model.ts':
+          '9cead0101141497aec277d6609ab1bfcbf7048cc02650e7f284ac15141eaf291',
+        '.safeword/hooks/session-auto-upgrade.ts':
+          '65ddec922bb677b58b82e96567624aabb15f2deba77ce3ce8af5ca73ef6c928a',
+        '.safeword/hooks/session-bun-check.sh':
+          '7365954b09c157e45e213981ebd0b609b97b81fb3e6b6b73571e23e459ef09ef',
+        '.safeword/hooks/session-cleanup-quality.ts':
+          'b43a169e86d240ecc12ece40d5375a84c59db6dc9708c91849a55038144736a2',
+        '.safeword/hooks/session-compact-context.ts':
+          '5acc8a0359a3ea4c9b41bb37b9a539676c83531c3836c919520b4fc4b7c050b1',
+        '.safeword/hooks/session-dependency-readiness.ts':
+          '28c0268265f0dcbce04844faac5cbc9f9903ac4f8fa893a470ca6b102498613f',
+        '.safeword/hooks/session-lint-check.ts':
+          '54bfe1e63777fbed4f3a002a76cd627410ccc627832d1a1d2ef41bed1ea80cc2',
+        '.safeword/hooks/session-safeword-context.ts':
+          '56c7a97a760c978e747010192855709baad66adda31e04f6c35d9279b87b19a5',
+        '.safeword/hooks/session-start-reentry.ts':
+          'b9f02a92eec2b195833660e9f5becab80e44a217094c188cd47b4ca9f7d1900d',
+        '.safeword/hooks/session-version.ts':
+          '60e487ff1b29ee6bf7ace671a39aad3ab7f3569a8b5f7694ba13c8f8720862af',
+        '.safeword/hooks/stop-quality.ts':
+          '0b30324e00532f095ded4f711d06f3dd4c25737beea29f4432690e91fed8c9b9',
+        '.safeword/hooks/stop-reentry.ts':
+          'a84d34d0798c83177d6ccc733299e9632e8485b700ef92ec53f153d68a1cfba5',
+        '.safeword/hooks/stop-retro-filing.ts':
+          '89346f357126706623237a0c79c0ea5947b6b95493a7689b1aee5a4546e034de',
+        '.safeword/hooks/stop-retro.ts':
+          '7f8d11fe57ba4ea86c71eb3c6b7e44912501076e32eaf63aff8c802aaa1850bf',
+        '.safeword/hooks/stop-self-report.ts':
+          'baf9f946918f74d2ec2916024c6a5e9818b5468a45ac177bbdb73443f66399e0',
       },
       hooks: {
         SessionStart: [
@@ -2798,6 +3354,72 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
           '12798a8ebd1fb2bb65b4ee42fb3611d12f6817bc6cd27af829294ef31bfed27b',
         '.claude/skills/verify/SKILL.md':
           'e412319f4df946e146a377fb1581f4a6cc69faee92b4c25129593787506a2dd9',
+      },
+      hook_files: {
+        '.safeword/hooks/post-tool-bypass-warn.ts':
+          'f7f9d408e58e2f3f223b9a2a94447560671dcdc7e7bac8d35e786417337fce8a',
+        '.safeword/hooks/post-tool-dependency-readiness.ts':
+          '21bc470f5f84f1ad11f7d757738ca09f1a2fbd509ecf20beea7d77e1a46f93f4',
+        '.safeword/hooks/post-tool-lint.ts':
+          'f563b8f7ceebbed051d261ed87ed908199555274cdcc795ba0619f78d07876fa',
+        '.safeword/hooks/post-tool-quality.ts':
+          '15563ef325306e9ed63db14a15129b68f602dbe3648989eb70cab8f61a6da0ab',
+        '.safeword/hooks/post-tool-skill-nudge.ts':
+          'a50c50975135af4183d52056b81234c2feb989e0ca3396fc5bee91662876bfe4',
+        '.safeword/hooks/post-tool-sync-learnings.ts':
+          'bc272acc87b1d52db960b2c96ac36ea553e21fdf161122312b74cd61157acb82',
+        '.safeword/hooks/post-tool-work-log.ts':
+          'f8816f7799c564006aad2b6469fbd4d04a51ba2ca3d6f3bdbe93bb03d17b6978',
+        '.safeword/hooks/pre-tool-architecture-stage.ts':
+          '4d0c4506dc25d3988bf307eabdc8b3f65cf0712f4ed41cbc05d459222f472b8c',
+        '.safeword/hooks/pre-tool-config-guard.ts':
+          '6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084',
+        '.safeword/hooks/pre-tool-dependency-readiness.ts':
+          '5b1f06f286f7d2ec6816ed923ca37aed7115e1b888b214b7c3d0ea19f819874a',
+        '.safeword/hooks/pre-tool-git-bare-fix.sh':
+          '0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414',
+        '.safeword/hooks/pre-tool-quality.ts':
+          '29f5f59378aa21c020ed2c182549628bf6ccf8f8417d74abede79c5353c26c5f',
+        '.safeword/hooks/pre-tool-stale-main.ts':
+          'cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e',
+        '.safeword/hooks/prompt-questions.ts':
+          '57182cccb8550bb2b585c27672bc9bfef56f4688d0afc1afc18bf52661b7c2a6',
+        '.safeword/hooks/prompt-retro-nudge.ts':
+          '0800c8949b5cf2671173816d45e857f1759329e27b33fda7c7b16ecd54a9398a',
+        '.safeword/hooks/prompt-timestamp.ts':
+          'd7939e98528717fed556adf65dcb9fd3c24fac530ba76be2db9c5faebbac27f3',
+        '.safeword/hooks/session-architecture-heal.ts':
+          '76f1b55c3173d3ebc2a819a41e06a814a57d78b94faf30108afed439dc7ce747',
+        '.safeword/hooks/session-author-model.ts':
+          '9cead0101141497aec277d6609ab1bfcbf7048cc02650e7f284ac15141eaf291',
+        '.safeword/hooks/session-auto-upgrade.ts':
+          '51cb48954d5b6154d1b4f831f9689fc5044cc8abf6aa9eb664fcddbf6fa859c0',
+        '.safeword/hooks/session-bun-check.sh':
+          '7365954b09c157e45e213981ebd0b609b97b81fb3e6b6b73571e23e459ef09ef',
+        '.safeword/hooks/session-cleanup-quality.ts':
+          'b43a169e86d240ecc12ece40d5375a84c59db6dc9708c91849a55038144736a2',
+        '.safeword/hooks/session-compact-context.ts':
+          '5acc8a0359a3ea4c9b41bb37b9a539676c83531c3836c919520b4fc4b7c050b1',
+        '.safeword/hooks/session-dependency-readiness.ts':
+          '28c0268265f0dcbce04844faac5cbc9f9903ac4f8fa893a470ca6b102498613f',
+        '.safeword/hooks/session-lint-check.ts':
+          '54bfe1e63777fbed4f3a002a76cd627410ccc627832d1a1d2ef41bed1ea80cc2',
+        '.safeword/hooks/session-safeword-context.ts':
+          '56c7a97a760c978e747010192855709baad66adda31e04f6c35d9279b87b19a5',
+        '.safeword/hooks/session-start-reentry.ts':
+          'b9f02a92eec2b195833660e9f5becab80e44a217094c188cd47b4ca9f7d1900d',
+        '.safeword/hooks/session-version.ts':
+          '60e487ff1b29ee6bf7ace671a39aad3ab7f3569a8b5f7694ba13c8f8720862af',
+        '.safeword/hooks/stop-quality.ts':
+          '9355b30aa20b3087c99332be4162ab98eec3c7b790ded0df7ac91d1bf2d2e58c',
+        '.safeword/hooks/stop-reentry.ts':
+          'a84d34d0798c83177d6ccc733299e9632e8485b700ef92ec53f153d68a1cfba5',
+        '.safeword/hooks/stop-retro-filing.ts':
+          '89346f357126706623237a0c79c0ea5947b6b95493a7689b1aee5a4546e034de',
+        '.safeword/hooks/stop-retro.ts':
+          '56cad026d6fb399c910c348623d92fe459011fb58b53ba9f18b861dd0f80caa9',
+        '.safeword/hooks/stop-self-report.ts':
+          'baf9f946918f74d2ec2916024c6a5e9818b5468a45ac177bbdb73443f66399e0',
       },
       hooks: {
         SessionStart: [
@@ -3199,6 +3821,10 @@ function isAcceptedHistoricalFile(relativePath, content) {
   const digest2 = sha256(content);
   return acceptedReleases().some(release => release.files[relativePath] === digest2);
 }
+function isAcceptedHistoricalHookFile(relativePath, content) {
+  const digest2 = sha256(content);
+  return acceptedReleases().some(release => release.hook_files[relativePath] === digest2);
+}
 function isAcceptedHistoricalHook(event, entry) {
   const canonical = JSON.stringify(stable(normalizeSafewordHookCommands(entry)));
   const fingerprint = sha256(canonical);
@@ -3210,7 +3836,163 @@ function cataloguedClaudeLegacyPaths() {
   );
 }
 
+// claude-plugin/inventory.ts
+import {
+  closeSync as closeSync2,
+  constants as fsConstants,
+  fstatSync,
+  lstatSync as lstatSync2,
+  openSync as openSync2,
+  readdirSync,
+  readSync,
+  realpathSync,
+} from 'node:fs';
+import nodePath3 from 'node:path';
+var CLAUDE_MIGRATION_SCHEMA = {
+  paths: {
+    proof: 'plugins/data/safeword-safeword/execution-proof-v1.json',
+    proofDirectory: 'plugins/data/safeword-safeword/execution-proofs-v2',
+    pluginMarker: '.safeword/claude-plugin/plugin-mode-v1.json',
+    pluginMarkerV2: '.safeword/claude-plugin/plugin-mode-v2.json',
+    attention: '.safeword/claude-plugin/attention-v1.json',
+    attemptsDirectory: '.safeword/claude-plugin/attempts-v1',
+    transaction: '.safeword/claude-plugin/cleanup-transaction-v1.json',
+  },
+};
+var CLAUDE_NATIVE_REQUIRED_ASSETS = [
+  '.claude-plugin/plugin.json',
+  'hooks/hooks.json',
+  'runtime/cli.js',
+  'runtime/dispatch.js',
+  'runtime/event-groups.json',
+];
+var CLAUDE_NATIVE_METADATA_FILES = ['README.md', 'identity.json', 'inventory.json'];
+var MAX_CLAUDE_CACHE_METADATA_BYTES = 1024;
+function isSmallRegularMetadata(metadata) {
+  return (
+    metadata.isFile() &&
+    !metadata.isSymbolicLink() &&
+    metadata.size <= MAX_CLAUDE_CACHE_METADATA_BYTES
+  );
+}
+function isSameSmallMetadata(before, opened, after) {
+  return (
+    opened.isFile() &&
+    isSmallRegularMetadata(after) &&
+    opened.dev === before.dev &&
+    opened.ino === before.ino &&
+    opened.dev === after.dev &&
+    opened.ino === after.ino &&
+    opened.nlink === 1 &&
+    opened.size <= MAX_CLAUDE_CACHE_METADATA_BYTES
+  );
+}
+function readSmallDescriptor(descriptor) {
+  const buffer = Buffer.alloc(MAX_CLAUDE_CACHE_METADATA_BYTES + 1);
+  let offset = 0;
+  while (offset < buffer.length) {
+    const count = readSync(descriptor, buffer, offset, buffer.length - offset, offset);
+    if (count === 0) break;
+    offset += count;
+  }
+  return offset > MAX_CLAUDE_CACHE_METADATA_BYTES
+    ? void 0
+    : buffer.subarray(0, offset).toString('utf8');
+}
+function readSmallMetadataFile(path) {
+  let descriptor;
+  try {
+    const linkedBefore = lstatSync2(path);
+    if (!isSmallRegularMetadata(linkedBefore)) return void 0;
+    descriptor = openSync2(
+      path,
+      fsConstants.O_RDONLY | fsConstants.O_NONBLOCK | (fsConstants.O_NOFOLLOW ?? 0),
+    );
+    const opened = fstatSync(descriptor);
+    const linkedAfter = lstatSync2(path);
+    if (!isSameSmallMetadata(linkedBefore, opened, linkedAfter)) return void 0;
+    const content = readSmallDescriptor(descriptor);
+    const final = fstatSync(descriptor);
+    return content !== void 0 && isSameSmallMetadata(linkedBefore, final, linkedAfter)
+      ? content
+      : void 0;
+  } catch {
+    return void 0;
+  } finally {
+    if (descriptor !== void 0) closeSync2(descriptor);
+  }
+}
+function isLeaseRecord(value, expectedPid) {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const record2 = value;
+  const hasExactFields =
+    Object.keys(record2).length === 2 &&
+    Object.hasOwn(record2, 'pid') &&
+    Object.hasOwn(record2, 'procStart');
+  return (
+    hasExactFields &&
+    Number.isSafeInteger(record2.pid) &&
+    record2.pid === expectedPid &&
+    typeof record2.procStart === 'string' &&
+    record2.procStart.length > 0
+  );
+}
+function isClaudeLeaseMarker(path, name) {
+  if (!/^\d+$/u.test(name)) return false;
+  const content = readSmallMetadataFile(path);
+  if (content === void 0) return false;
+  try {
+    return isLeaseRecord(JSON.parse(content), Number(name));
+  } catch {
+    return false;
+  }
+}
+function isClaudeCacheMetadataFile(logicalDirectory, physicalPath, entry) {
+  if (!entry.isFile()) return false;
+  if (logicalDirectory === '.in_use') return isClaudeLeaseMarker(physicalPath, entry.name);
+  if (logicalDirectory !== '' || entry.name !== '.orphaned_at') return false;
+  return /^\d{13}\n?$/u.test(readSmallMetadataFile(physicalPath) ?? '');
+}
+function directoryIdentity(physicalDirectory, logicalDirectory, canonicalRoot) {
+  const metadata = lstatSync2(physicalDirectory);
+  const canonical = realpathSync(physicalDirectory);
+  const insideRoot =
+    canonical === canonicalRoot || canonical.startsWith(`${canonicalRoot}${nodePath3.sep}`);
+  if (!metadata.isDirectory() || !insideRoot) {
+    throw new Error(`Claude plugin cache traversal escaped its root: ${logicalDirectory || '.'}`);
+  }
+  return { canonical, device: metadata.dev, inode: metadata.ino };
+}
+function claudeNativePayloadFiles(root) {
+  const files = [];
+  const canonicalRoot = realpathSync(root);
+  const visit3 = (physicalDirectory, logicalDirectory) => {
+    const before = directoryIdentity(physicalDirectory, logicalDirectory, canonicalRoot);
+    const entries = readdirSync(physicalDirectory, { withFileTypes: true });
+    const after = directoryIdentity(physicalDirectory, logicalDirectory, canonicalRoot);
+    if (
+      before.device !== after.device ||
+      before.inode !== after.inode ||
+      before.canonical !== after.canonical
+    ) {
+      throw new Error(`Claude plugin cache changed during traversal: ${logicalDirectory || '.'}`);
+    }
+    for (const entry of entries) {
+      const physicalPath = nodePath3.join(physicalDirectory, entry.name);
+      const logicalPath =
+        logicalDirectory === '' ? entry.name : nodePath3.posix.join(logicalDirectory, entry.name);
+      if (isClaudeCacheMetadataFile(logicalDirectory, physicalPath, entry)) continue;
+      if (entry.isDirectory()) visit3(physicalPath, logicalPath);
+      else files.push(logicalPath);
+    }
+  };
+  visit3(root, '');
+  return files;
+}
+
 // claude-plugin/legacy-classifier.ts
+import { existsSync as existsSync2, lstatSync as lstatSync3, readFileSync } from 'node:fs';
+import nodePath4 from 'node:path';
 function referencesLegacyHook(value) {
   if (typeof value === 'string') return value.includes('.safeword/hooks/');
   if (Array.isArray(value)) return value.some(child => referencesLegacyHook(child));
@@ -3225,7 +4007,7 @@ function observeFiles(cwd) {
     if (!existsSync2(path)) continue;
     try {
       const safePath = assertSafeClaudeCleanupTarget(cwd, relativePath);
-      const regular = lstatSync2(safePath).isFile();
+      const regular = lstatSync3(safePath).isFile();
       if (regular && isAcceptedHistoricalFile(relativePath, readFileSync(safePath))) {
         recognizedFiles.push(relativePath);
       } else {
@@ -3240,7 +4022,7 @@ function observeFiles(cwd) {
 function observeSettings(cwd) {
   const settingsPath = nodePath4.join(cwd, '.claude/settings.json');
   if (!existsSync2(settingsPath)) return { recognizedHooks: [], conflictingHooks: [] };
-  if (!lstatSync2(settingsPath).isFile()) {
+  if (!lstatSync3(settingsPath).isFile()) {
     return {
       recognizedHooks: [],
       conflictingHooks: [],
@@ -3283,7 +4065,7 @@ function observeClaudeLegacy(cwd) {
 }
 
 // claude-plugin/migration-state.ts
-import { createHash as createHash2 } from 'node:crypto';
+import { createHash as createHash2, randomUUID as randomUUID2 } from 'node:crypto';
 import {
   existsSync as existsSync3,
   mkdirSync as mkdirSync2,
@@ -3298,6 +4080,10 @@ function createClaudePluginMode(marker) {
     schema_version: 2,
     state: marker.unresolved_paths.length === 0 ? 'clean' : 'unresolved',
   };
+}
+var PROCESS_SESSION_ID = `process-${randomUUID2()}`;
+function migrationSessionDigest(sessionId, fallbackSessionId) {
+  return digest(sessionId?.trim() || fallbackSessionId);
 }
 function digest(value) {
   return createHash2('sha256').update(value).digest('hex');
@@ -3333,8 +4119,13 @@ function initialSessionDigest(cwd, sessionDigest) {
     return '';
   }
 }
-function claimClaudeMigrationAttempt(cwd, sessionId, kind = 'migration') {
-  const sessionDigest = digest(sessionId?.trim() || 'unknown-session');
+function claimClaudeMigrationAttempt(
+  cwd,
+  sessionId,
+  kind = 'migration',
+  fallbackSessionId = PROCESS_SESSION_ID,
+) {
+  const sessionDigest = migrationSessionDigest(sessionId, fallbackSessionId);
   const initialSession = initialSessionDigest(cwd, sessionDigest) === sessionDigest;
   const limit = initialSession ? 3 : 1;
   const directory = nodePath5.join(
@@ -3355,10 +4146,17 @@ function claimClaudeMigrationAttempt(cwd, sessionId, kind = 'migration') {
   }
   return false;
 }
-function claimClaudeMigrationAdvisory(cwd, sessionId, stateDigest) {
+function claimClaudeMigrationAdvisory(
+  cwd,
+  sessionId,
+  stateDigest,
+  fallbackSessionId = PROCESS_SESSION_ID,
+) {
+  if (!validDigest(stateDigest))
+    throw new TypeError('Claude migration advisory digest is invalid.');
   const directory = nodePath5.join(attemptsPath(cwd), 'advisories');
   mkdirSync2(directory, { recursive: true, mode: 448 });
-  const sessionDigest = digest(sessionId?.trim() || 'unknown-session');
+  const sessionDigest = migrationSessionDigest(sessionId, fallbackSessionId);
   return exclusiveRecord(nodePath5.join(directory, `${sessionDigest}-${stateDigest}.json`), {
     schema_version: 1,
     session_digest: sessionDigest,
@@ -3368,8 +4166,8 @@ function claimClaudeMigrationAdvisory(cwd, sessionId, stateDigest) {
 function advisoryStateDigest(advisory) {
   return digest(advisory);
 }
-function claudeConfigDirectory() {
-  const configured = (process.env.CLAUDE_CONFIG_DIR ?? '').trim();
+function claudeConfigDirectory(environment = process.env) {
+  const configured = (environment.CLAUDE_CONFIG_DIR ?? '').trim();
   return configured === '' ? nodePath5.join(homedir(), '.claude') : configured;
 }
 function claudeWatchedSettingsDigest(cwd) {
@@ -3395,6 +4193,9 @@ function validDigest(value) {
 }
 function validPluginMode(value) {
   const unresolvedPaths2 = value.unresolved_paths;
+  const consistentState =
+    (value.state === 'clean' && unresolvedPaths2?.length === 0) ||
+    (value.state === 'unresolved' && (unresolvedPaths2?.length ?? 0) > 0);
   return [
     value.schema_version === 2,
     ['clean', 'unresolved'].includes(value.state ?? ''),
@@ -3403,6 +4204,7 @@ function validPluginMode(value) {
     validDigest(value.catalogue_sha256),
     Array.isArray(unresolvedPaths2),
     Array.isArray(unresolvedPaths2) && unresolvedPaths2.every(item => typeof item === 'string'),
+    consistentState,
   ].every(Boolean);
 }
 function readClaudePluginMode(cwd) {
@@ -3415,37 +4217,30 @@ function readClaudePluginMode(cwd) {
     return void 0;
   }
 }
-function pluginModeIsTerminal(marker, catalogueSha256) {
-  return marker.state === 'clean' || marker.catalogue_sha256 === catalogueSha256;
-}
-function writeClaudePluginMode(cwd, marker) {
-  writeDurableFile(
-    markerPath(cwd),
-    `${JSON.stringify(marker, void 0, 2)}
-`,
-    { mode: 384 },
+function pluginModeIsTerminal(marker, identity) {
+  return (
+    marker.plugin_version === identity.plugin_version &&
+    marker.hook_manifest_sha256 === identity.hook_manifest_sha256 &&
+    marker.catalogue_sha256 === identity.catalogue_sha256
   );
 }
-function readClaudeMigrationAttention(cwd) {
-  const path = nodePath5.join(cwd, CLAUDE_MIGRATION_SCHEMA.paths.attention);
-  if (!existsSync3(path)) return void 0;
-  try {
-    const value = JSON.parse(readFileSync2(path, 'utf8'));
-    if (
-      value.schema_version !== 1 ||
-      !validDigest(value.state_digest) ||
-      typeof value.plugin_version !== 'string' ||
-      !validDigest(value.catalogue_sha256) ||
-      !validDigest(value.watched_settings_sha256) ||
-      typeof value.classification !== 'string' ||
-      typeof value.advisory !== 'string'
-    ) {
-      return void 0;
-    }
-    return value;
-  } catch {
-    return void 0;
-  }
+function writeClaudePluginMode(cwd, marker) {
+  const normalized = createClaudePluginMode({
+    plugin_version: marker.plugin_version,
+    hook_manifest_sha256: marker.hook_manifest_sha256,
+    catalogue_sha256: marker.catalogue_sha256,
+    unresolved_paths: marker.unresolved_paths,
+    ...(marker.advisory !== void 0 && { advisory: marker.advisory }),
+    ...(marker.transaction_id !== void 0 && { transaction_id: marker.transaction_id }),
+  });
+  writeDurableFile(
+    markerPath(cwd),
+    `${JSON.stringify(normalized, void 0, 2)}
+`,
+    {
+      mode: 384,
+    },
+  );
 }
 function writeClaudeMigrationAttention(cwd, attention) {
   writeDurableFile(
@@ -3455,26 +4250,39 @@ function writeClaudeMigrationAttention(cwd, attention) {
     { mode: 384 },
   );
 }
-function hasLegacyClaudePluginMode(cwd) {
-  return existsSync3(nodePath5.join(cwd, CLAUDE_MIGRATION_SCHEMA.paths.pluginMarker));
-}
 function removeLegacyClaudePluginMode(cwd) {
   rmSync2(nodePath5.join(cwd, CLAUDE_MIGRATION_SCHEMA.paths.pluginMarker), { force: true });
 }
 
 // claude-plugin/project-root.ts
 import { spawnSync } from 'node:child_process';
-import { realpathSync, statSync } from 'node:fs';
+
+// utils/fs.ts
+import {
+  chmodSync,
+  existsSync as existsSync4,
+  mkdirSync as mkdirSync3,
+  readdirSync as readdirSync2,
+  readFileSync as readFileSync3,
+  realpathSync as realpathSync2,
+  rmdirSync,
+  rmSync as rmSync3,
+  statSync,
+  writeFileSync as writeFileSync2,
+} from 'node:fs';
 import nodePath6 from 'node:path';
+var __dirname = import.meta.dirname;
 function canonicalDirectory(path) {
   if (typeof path !== 'string' || path.trim() === '') return void 0;
   try {
     if (!statSync(path).isDirectory()) return void 0;
-    return nodePath6.normalize(realpathSync(path));
+    return nodePath6.normalize(realpathSync2(path));
   } catch {
     return void 0;
   }
 }
+
+// claude-plugin/project-root.ts
 function canonicalClaudeProjectRoot(cwd) {
   const configuredRoot = process.env.CLAUDE_PROJECT_DIR;
   const environmentRoot = configuredRoot === void 0 ? void 0 : configuredRoot.trim();
@@ -3507,23 +4315,49 @@ function containsJsonComments(content) {
 function settingsMutation(cwd, legacy) {
   const relative = '.claude/settings.json';
   const path = nodePath7.join(cwd, relative);
-  if (!existsSync4(path) || legacy.recognizedHooks.length === 0) return void 0;
-  const original = readFileSync3(path, 'utf8');
-  const parsed = parse2(original);
+  if (!existsSync5(path) || legacy.recognizedHooks.length === 0) return void 0;
+  const original = readFileSync4(path, 'utf8');
+  return { path: relative, content: contractHistoricalClaudeSettings(original) };
+}
+function contractHistoricalClaudeSettings(original) {
+  const parsed = parse2(original, [], {
+    allowTrailingComma: true,
+    disallowComments: false,
+  });
+  const hooks = parsed.hooks ?? {};
+  const recognizedHooks = Object.entries(hooks).flatMap(([event, entries]) =>
+    Array.isArray(entries)
+      ? entries.flatMap((entry, index) =>
+          isAcceptedHistoricalHook(event, entry) ? [{ event, index, entry }] : [],
+        )
+      : [],
+  );
+  if (recognizedHooks.length === 0)
+    throw new Error('Claude settings transaction has no legacy hooks.');
+  return settingsMutationFromContent(original, recognizedHooks);
+}
+function settingsMutationFromContent(original, recognizedHooks) {
+  const parsed = parse2(original, [], {
+    allowTrailingComma: true,
+    disallowComments: false,
+  });
   const hooks = parsed.hooks ?? {};
   const allHookValuesAreArrays = Object.values(hooks).every(entries => Array.isArray(entries));
   const hookCount = Object.values(hooks).reduce(
     (count, entries) => count + (Array.isArray(entries) ? entries.length : 0),
     0,
   );
-  const generatedHookOnlyFile =
+  if (
     Object.keys(parsed).length === 1 &&
     allHookValuesAreArrays &&
-    hookCount === legacy.recognizedHooks.length &&
-    !containsJsonComments(original);
-  if (generatedHookOnlyFile) return { path: relative, content: null };
+    Object.values(hooks).every(entries => entries.length > 0) &&
+    hookCount === recognizedHooks.length &&
+    !containsJsonComments(original)
+  ) {
+    return null;
+  }
   let content = original;
-  const references = legacy.recognizedHooks.toSorted((left, right) => {
+  const references = recognizedHooks.toSorted((left, right) => {
     const eventOrder = right.event.localeCompare(left.event);
     return eventOrder === 0 ? right.index - left.index : eventOrder;
   });
@@ -3535,10 +4369,7 @@ function settingsMutation(cwd, legacy) {
       }),
     );
   }
-  return {
-    path: relative,
-    content,
-  };
+  return content;
 }
 function claudeLegacyMutations(cwd) {
   const legacy = observeClaudeLegacy(cwd);
@@ -3555,76 +4386,195 @@ function transactionPath(cwd) {
 }
 function writeTransaction(cwd, transaction) {
   const path = transactionPath(cwd);
-  mkdirSync3(nodePath7.dirname(path), { recursive: true, mode: 448 });
-  writeDurableFileExclusive(
-    path,
-    `${JSON.stringify(transaction, void 0, 2)}
-`,
-    {
-      mode: 384,
-    },
-  );
+  mkdirSync4(nodePath7.dirname(path), { recursive: true, mode: 448 });
+  const content = `${JSON.stringify(transaction, void 0, 2)}
+`;
+  if (
+    transaction.entries.length > 1024 ||
+    Buffer.byteLength(content) > MAX_CLAUDE_TRANSACTION_BYTES
+  ) {
+    throw new Error('Claude cleanup transaction exceeds its recoverable size limit.');
+  }
+  writeDurableFileExclusive(path, content, {
+    mode: 384,
+  });
 }
 function entryFor(cwd, mutation) {
   const path = assertSafeClaudeCleanupTarget(cwd, mutation.path);
-  const before = readFileSync3(path);
+  const before = readFileSync4(path);
   const after = mutation.content === null ? null : Buffer.from(mutation.content);
+  const mode = lstatSync4(path).mode & 511;
   return {
     path: mutation.path,
     before_sha256: sha2562(before),
     before_base64: before.toString('base64'),
-    before_mode: lstatSync3(path).mode & 511,
+    before_mode: mode,
     after_sha256: after === null ? null : sha2562(after),
     after_base64: after === null ? null : after.toString('base64'),
-    after_mode: after === null ? null : lstatSync3(path).mode & 511,
+    after_mode: after === null ? null : mode,
+    ...(after === null && {
+      quarantine_path: `.safeword/claude-plugin/quarantine/${randomUUID3()}.retired`,
+    }),
   };
 }
 function observedSha(path) {
-  return existsSync4(path) ? sha2562(readFileSync3(path)) : null;
+  return existsSync5(path) ? sha2562(readFileSync4(path)) : null;
 }
-function pruneEmptyAncestors(root, path) {
-  const canonicalRoot = nodePath7.resolve(root);
-  let directory = nodePath7.dirname(nodePath7.resolve(path));
-  while (directory.startsWith(`${canonicalRoot}${nodePath7.sep}`)) {
-    try {
-      if (readdirSync2(directory).length > 0) return;
-      rmdirSync(directory);
-    } catch {
+function sameFile(left, right) {
+  return left.dev === right.dev && left.ino === right.ino;
+}
+function isValidOpenCleanupTarget(snapshot) {
+  const { targetBefore, opened, targetAfter, parentBefore, openedParent, parentAfter } = snapshot;
+  return (
+    opened.isFile() &&
+    opened.nlink === 1 &&
+    sameFile(targetBefore, opened) &&
+    sameFile(opened, targetAfter) &&
+    sameFile(parentBefore, openedParent) &&
+    sameFile(parentBefore, parentAfter)
+  );
+}
+function openCleanupTarget(root, relative, flags) {
+  const path = assertSafeClaudeCleanupTarget(root, relative);
+  const parentPath = nodePath7.dirname(path);
+  const targetBefore = lstatSync4(path);
+  const parentBefore = lstatSync4(parentPath);
+  const parentDescriptor = openSync3(
+    parentPath,
+    fsConstants2.O_RDONLY | (fsConstants2.O_DIRECTORY ?? 0) | (fsConstants2.O_NOFOLLOW ?? 0),
+  );
+  let descriptor;
+  try {
+    descriptor = openSync3(path, flags | (fsConstants2.O_NOFOLLOW ?? 0));
+    const targetAfter = lstatSync4(path);
+    const parentAfter = lstatSync4(parentPath);
+    const opened = fstatSync2(descriptor);
+    const openedParent = fstatSync2(parentDescriptor);
+    if (
+      !isValidOpenCleanupTarget({
+        targetBefore,
+        opened,
+        targetAfter,
+        parentBefore,
+        openedParent,
+        parentAfter,
+      })
+    ) {
+      throw new Error(`Claude cleanup target changed during validation: ${relative}`);
+    }
+    return { descriptor, parentDescriptor, path, target: opened, parent: parentAfter };
+  } catch (error) {
+    if (descriptor !== void 0) closeSync3(descriptor);
+    closeSync3(parentDescriptor);
+    throw error;
+  }
+}
+function quarantineOpenTarget(root, opened, quarantinePath, beforeQuarantine) {
+  if (process.platform !== 'darwin' && process.platform !== 'linux') {
+    throw new Error('Atomic Claude cleanup quarantine is unavailable on this platform.');
+  }
+  const safeQuarantinePath = containedClaudeCleanupPath(root, quarantinePath);
+  const quarantineDirectory = nodePath7.dirname(safeQuarantinePath);
+  mkdirSync4(quarantineDirectory, { recursive: true, mode: 448 });
+  beforeQuarantine?.();
+  renameSync2(opened.path, safeQuarantinePath);
+  const quarantined = lstatSync4(safeQuarantinePath);
+  const descriptor = fstatSync2(opened.descriptor);
+  if (!sameFile(quarantined, descriptor) || descriptor.size !== opened.target.size) {
+    throw new Error('Claude cleanup quarantined a replacement target; retained it for recovery.');
+  }
+  ftruncateSync(opened.descriptor, 0);
+  fchmodSync(opened.descriptor, 384);
+  fsyncSync2(opened.descriptor);
+}
+function revalidateOpenTarget(root, relative, opened) {
+  const path = assertSafeClaudeCleanupTarget(root, relative);
+  const target = lstatSync4(path);
+  const parent = lstatSync4(nodePath7.dirname(path));
+  const descriptor = fstatSync2(opened.descriptor);
+  if (
+    path !== opened.path ||
+    !sameFile(opened.target, descriptor) ||
+    !sameFile(descriptor, target) ||
+    !sameFile(opened.parent, parent) ||
+    descriptor.size !== opened.target.size ||
+    descriptor.nlink !== 1
+  ) {
+    throw new Error(`Claude cleanup target changed before mutation: ${relative}`);
+  }
+}
+function descriptorSha256(descriptor, size) {
+  if (size > MAX_CLAUDE_TRANSACTION_BYTES) throw new Error('Claude cleanup target is too large.');
+  const bytes = Buffer.alloc(size);
+  let offset = 0;
+  while (offset < bytes.length) {
+    const count = readSync2(descriptor, bytes, offset, bytes.length - offset, offset);
+    if (count === 0) break;
+    offset += count;
+  }
+  return sha2562(bytes.subarray(0, offset));
+}
+function writeImage(root, relative, expectedSha256, content, options) {
+  const opened = openCleanupTarget(root, relative, fsConstants2.O_RDWR);
+  try {
+    revalidateOpenTarget(root, relative, opened);
+    if (descriptorSha256(opened.descriptor, opened.target.size) !== expectedSha256) {
+      throw new Error(`Claude cleanup target changed before mutation: ${relative}`);
+    }
+    revalidateOpenTarget(root, relative, opened);
+    if (content === null) {
+      if (options.quarantinePath === void 0) {
+        throw new Error(`Claude cleanup transaction has no quarantine path: ${relative}`);
+      }
+      quarantineOpenTarget(root, opened, options.quarantinePath, options.beforeQuarantine);
       return;
     }
-    directory = nodePath7.dirname(directory);
+    const bytes = Buffer.from(content, 'base64');
+    ftruncateSync(opened.descriptor, 0);
+    let offset = 0;
+    while (offset < bytes.length) {
+      offset += writeSync(opened.descriptor, bytes, offset, bytes.length - offset, offset);
+    }
+    fchmodSync(opened.descriptor, options.mode ?? 420);
+    fsyncSync2(opened.descriptor);
+  } finally {
+    closeSync3(opened.descriptor);
+    closeSync3(opened.parentDescriptor);
   }
 }
-function writeImage(root, path, content, mode) {
-  if (content === null) {
-    rmSync3(path, { force: true });
-    pruneEmptyAncestors(root, path);
-    return;
-  }
-  mkdirSync3(nodePath7.dirname(path), { recursive: true });
-  writeDurableFile(path, Buffer.from(content, 'base64'), { mode: mode ?? 420 });
-  chmodSync(path, mode ?? 420);
-}
-function applyEntries(cwd, entries, shouldDefer = () => false) {
+function applyEntries(cwd, entries, shouldDefer = () => false, beforeQuarantine) {
   for (const entry of entries) {
     if (shouldDefer()) return false;
     const path = assertSafeClaudeCleanupTarget(cwd, entry.path);
     if (observedSha(path) !== entry.before_sha256) {
       throw new Error(`Claude cleanup target changed after planning: ${entry.path}`);
     }
-    writeImage(cwd, path, entry.after_base64, entry.after_mode);
+    writeImage(cwd, entry.path, entry.before_sha256, entry.after_base64, {
+      mode: entry.after_mode,
+      quarantinePath: entry.quarantine_path,
+      beforeQuarantine,
+    });
   }
   return true;
 }
-function writePluginModeMarker(cwd, transactionId) {
-  const marker = containedClaudeCleanupPath(cwd, CLAUDE_MIGRATION_SCHEMA.paths.pluginMarker);
-  mkdirSync3(nodePath7.dirname(marker), { recursive: true });
-  writeDurableFile(
-    marker,
-    `${JSON.stringify({ schema_version: 1, mode: 'plugin', transaction_id: transactionId })}
-`,
-    { mode: 384 },
+function pruneEmptyLegacyDirectories(cwd, entries) {
+  const candidates = /* @__PURE__ */ new Set();
+  for (const entry of entries) {
+    if (entry.after_sha256 !== null) continue;
+    let directory = nodePath7.dirname(entry.path);
+    while (directory === '.claude' || directory.startsWith('.claude/')) {
+      candidates.add(directory);
+      directory = nodePath7.dirname(directory);
+    }
+  }
+  const deepestFirst = [...candidates].toSorted(
+    (left, right) => right.split('/').length - left.split('/').length,
   );
+  for (const directory of deepestFirst) {
+    try {
+      rmdirSync2(containedClaudeCleanupPath(cwd, directory));
+    } catch {}
+  }
 }
 function unresolvedPaths(legacy) {
   return [
@@ -3655,18 +4605,14 @@ function waitForPluginMode(cwd, deadline, now) {
   const pause = new Int32Array(new SharedArrayBuffer(4));
   const maximumChecks = 25;
   for (let checks = 0; checks < maximumChecks && now() < deadline; checks += 1) {
-    if (existsSync4(marker)) return true;
+    if (existsSync5(marker)) return true;
     const remaining = Math.max(1, deadline - now());
     Atomics.wait(pause, 0, 0, Math.min(20, remaining));
   }
-  return existsSync4(marker);
+  return existsSync5(marker);
 }
 function writeAutomaticPluginMode(cwd, transaction) {
   const pluginMode = transaction.plugin_mode;
-  if (pluginMode === void 0) {
-    writePluginModeMarker(cwd, transaction.transaction_id);
-    return;
-  }
   writeClaudePluginMode(
     cwd,
     createClaudePluginMode({
@@ -3679,12 +4625,12 @@ function writeAutomaticPluginMode(cwd, transaction) {
     }),
   );
 }
-function cleanupFailure(error, classification = 'coexistence') {
+function cleanupFailure(error) {
   return createResult({
     state: 'failed',
     errors: [{ code: 'CLAUDE_CLEANUP_FAILED', message: String(error), retryable: true }],
     nextActions: [{ command: 'safeword claude recover', mutates: true, requiresHuman: true }],
-    data: { command: 'claude cleanup', classification },
+    data: { command: 'claude cleanup', classification: 'recovery-required' },
   });
 }
 function migrateClaudeLegacyAutomatically(cwd, options) {
@@ -3709,7 +4655,9 @@ function migrateClaudeLegacyAutomatically(cwd, options) {
 }
 function recoveredAutomaticResult(projectRoot) {
   const recovered = recoverClaudeCleanup(projectRoot);
-  if (recovered.state !== 'failed') return { state: 'complete', unresolvedPaths: [] };
+  if (recovered.state !== 'failed') {
+    return observedPluginModeResult(projectRoot);
+  }
   const detail =
     recovered.errors?.[0]?.message ?? 'the recorded cleanup transaction could not be read safely';
   return {
@@ -3718,7 +4666,16 @@ function recoveredAutomaticResult(projectRoot) {
     unresolvedPaths: [],
   };
 }
+function observedPluginModeResult(projectRoot) {
+  const marker = readClaudePluginMode(projectRoot);
+  return {
+    state: 'complete',
+    advisory: marker?.advisory,
+    unresolvedPaths: marker?.unresolved_paths ?? [],
+  };
+}
 function writeObservedPluginMode(projectRoot, options, unresolved, advisory) {
+  const existing = readClaudePluginMode(projectRoot);
   writeClaudePluginMode(
     projectRoot,
     createClaudePluginMode({
@@ -3727,9 +4684,21 @@ function writeObservedPluginMode(projectRoot, options, unresolved, advisory) {
       catalogue_sha256: options.catalogueSha256,
       unresolved_paths: unresolved,
       advisory,
+      ...(existing?.transaction_id !== void 0 && {
+        transaction_id: existing.transaction_id,
+      }),
     }),
   );
   return { state: 'complete', advisory, unresolvedPaths: unresolved };
+}
+var CONCURRENT_MIGRATION_ADVISORY =
+  'Another Safeword process is retiring the old Claude integration. Your prompt was not blocked; the next prompt will verify that it finished.';
+function deferredConcurrentMigration(paths) {
+  return {
+    state: 'deferred',
+    advisory: CONCURRENT_MIGRATION_ADVISORY,
+    unresolvedPaths: paths,
+  };
 }
 function claimAutomaticTransaction(projectRoot, transaction, options, now, unresolved) {
   try {
@@ -3738,36 +4707,37 @@ function claimAutomaticTransaction(projectRoot, transaction, options, now, unres
   } catch (error) {
     if (error.code !== 'EEXIST') throw error;
     if (waitForPluginMode(projectRoot, options.deadline, now)) {
-      return { state: 'complete', unresolvedPaths: unresolved };
+      return observedPluginModeResult(projectRoot);
     }
-    return {
-      state: 'deferred',
-      advisory:
-        'Another Safeword process is retiring the old Claude integration. Your prompt was not blocked; the next prompt will verify that it finished.',
-      unresolvedPaths: unresolved,
-    };
+    return deferredConcurrentMigration(unresolved);
   }
 }
 function concurrentMigrationResult(projectRoot, options, now) {
+  try {
+    const transaction = parseTransaction(projectRoot);
+    if (transactionCanRecover(transaction)) return recoveredAutomaticResult(projectRoot);
+  } catch {}
   const concurrentDeadline = Math.min(options.deadline, now() + 500);
   if (waitForPluginMode(projectRoot, concurrentDeadline, now)) {
-    return { state: 'complete', unresolvedPaths: [] };
+    return observedPluginModeResult(projectRoot);
   }
   if (now() >= options.deadline) {
-    return {
-      state: 'deferred',
-      advisory:
-        'Another Safeword process is retiring the old Claude integration. Your prompt was not blocked; the next prompt will verify that it finished.',
-      unresolvedPaths: [],
-    };
+    return deferredConcurrentMigration([]);
   }
-  return recoveredAutomaticResult(projectRoot);
+  try {
+    const transaction = parseTransaction(projectRoot);
+    return transactionCanRecover(transaction)
+      ? recoveredAutomaticResult(projectRoot)
+      : deferredConcurrentMigration([]);
+  } catch {
+    return recoveredAutomaticResult(projectRoot);
+  }
 }
 function planCleanupEntries(projectRoot, mutations) {
   try {
     return mutations.map(mutation => entryFor(projectRoot, mutation));
   } catch (error) {
-    if (existsSync4(transactionPath(projectRoot))) return void 0;
+    if (existsSync5(transactionPath(projectRoot))) return void 0;
     throw error;
   }
 }
@@ -3779,7 +4749,7 @@ function performAutomaticMigration(projectRoot, options, now) {
       unresolvedPaths: [],
     };
   }
-  if (existsSync4(transactionPath(projectRoot)))
+  if (existsSync5(transactionPath(projectRoot)))
     return concurrentMigrationResult(projectRoot, options, now);
   const legacy = observeClaudeLegacy(projectRoot);
   const unresolved = unresolvedPaths(legacy);
@@ -3792,8 +4762,10 @@ function performAutomaticMigration(projectRoot, options, now) {
   if (entries === void 0) return concurrentMigrationResult(projectRoot, options, now);
   const transaction = {
     schema_version: 1,
-    transaction_id: randomUUID2(),
+    transaction_id: randomUUID3(),
     disposition: 'complete-forward',
+    state: 'active',
+    owner_pid: process.pid,
     entries,
     plugin_mode: {
       plugin_version: options.pluginVersion,
@@ -3805,7 +4777,31 @@ function performAutomaticMigration(projectRoot, options, now) {
   };
   const contention = claimAutomaticTransaction(projectRoot, transaction, options, now, unresolved);
   if (contention !== void 0) return contention;
-  if (!applyEntries(projectRoot, transaction.entries, () => now() >= options.deadline)) {
+  options.beforeApply?.();
+  let applied;
+  try {
+    applied = applyEntries(
+      projectRoot,
+      transaction.entries,
+      () => now() >= options.deadline,
+      options.beforeQuarantine,
+    );
+  } catch (error) {
+    writeDurableFile(
+      transactionPath(projectRoot),
+      `${JSON.stringify({ ...transaction, state: 'recoverable' }, void 0, 2)}
+`,
+      { mode: 384 },
+    );
+    throw error;
+  }
+  if (!applied) {
+    writeDurableFile(
+      transactionPath(projectRoot),
+      `${JSON.stringify({ ...transaction, state: 'recoverable' }, void 0, 2)}
+`,
+      { mode: 384 },
+    );
     return {
       state: 'deferred',
       advisory: 'Safeword will finish removing its old Claude integration on the next prompt.',
@@ -3813,52 +4809,323 @@ function performAutomaticMigration(projectRoot, options, now) {
     };
   }
   writeAutomaticPluginMode(projectRoot, transaction);
-  rmSync3(transactionPath(projectRoot), { force: true });
+  rmSync4(transactionPath(projectRoot), { force: true });
+  pruneEmptyLegacyDirectories(projectRoot, transaction.entries);
   return { state: 'complete', advisory, unresolvedPaths: unresolved };
 }
-function parseTransaction(cwd) {
-  const value = JSON.parse(readFileSync3(transactionPath(cwd), 'utf8'));
-  if (value.schema_version !== 1 || !Array.isArray(value.entries))
+var MAX_CLAUDE_TRANSACTION_BYTES = 8 * 1024 * 1024;
+var SHA256_PATTERN = /^[\da-f]{64}$/u;
+var UUID_PATTERN = /^[\da-f]{8}-[\da-f]{4}-[1-8][\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/iu;
+function isTransactionFile(before, opened, after) {
+  return (
+    isSafeTransactionMetadata(before) &&
+    isSafeTransactionMetadata(opened) &&
+    isSafeTransactionMetadata(after) &&
+    before.dev === opened.dev &&
+    before.ino === opened.ino &&
+    opened.dev === after.dev &&
+    opened.ino === after.ino
+  );
+}
+function isSafeTransactionMetadata(metadata) {
+  return (
+    metadata.isFile() &&
+    !metadata.isSymbolicLink() &&
+    metadata.nlink === 1 &&
+    metadata.size <= MAX_CLAUDE_TRANSACTION_BYTES
+  );
+}
+function readTransactionBytes(path) {
+  let descriptor;
+  try {
+    const before = lstatSync4(path);
+    descriptor = openSync3(
+      path,
+      fsConstants2.O_RDONLY | fsConstants2.O_NONBLOCK | (fsConstants2.O_NOFOLLOW ?? 0),
+    );
+    const opened = fstatSync2(descriptor);
+    const after = lstatSync4(path);
+    if (!isTransactionFile(before, opened, after)) throw new Error('Unsafe transaction file.');
+    const buffer = Buffer.alloc(MAX_CLAUDE_TRANSACTION_BYTES + 1);
+    let offset = 0;
+    while (offset < buffer.length) {
+      const count = readSync2(descriptor, buffer, offset, buffer.length - offset, offset);
+      if (count === 0) break;
+      offset += count;
+    }
+    const final = fstatSync2(descriptor);
+    if (
+      offset > MAX_CLAUDE_TRANSACTION_BYTES ||
+      !isTransactionFile(before, final, lstatSync4(path))
+    ) {
+      throw new Error('Unsafe transaction file.');
+    }
+    return buffer.subarray(0, offset);
+  } finally {
+    if (descriptor !== void 0) closeSync3(descriptor);
+  }
+}
+function record(value) {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     throw new Error('Claude cleanup transaction is malformed.');
+  }
   return value;
 }
+function canonicalBase64(value) {
+  if (typeof value !== 'string') throw new Error('Claude cleanup image is malformed.');
+  const bytes = Buffer.from(value, 'base64');
+  if (bytes.toString('base64') !== value) throw new Error('Claude cleanup image is malformed.');
+  return bytes;
+}
+function hasExactKeys(value, keys) {
+  const actual = Object.keys(value).toSorted((left, right) => left.localeCompare(right));
+  return actual.length === keys.length && actual.every((key, index) => key === keys[index]);
+}
+var CLEANUP_ENTRY_KEYS = [
+  'after_base64',
+  'after_mode',
+  'after_sha256',
+  'before_base64',
+  'before_mode',
+  'before_sha256',
+  'path',
+];
+function expectedCleanupEntryKeys(entry) {
+  return [
+    ...CLEANUP_ENTRY_KEYS,
+    ...(entry.quarantine_path === void 0 ? [] : ['quarantine_path']),
+  ].toSorted((left, right) => left.localeCompare(right));
+}
+function hasValidBeforeImage(entry, before) {
+  return (
+    hasExactKeys(entry, expectedCleanupEntryKeys(entry)) &&
+    typeof entry.path === 'string' &&
+    typeof entry.before_sha256 === 'string' &&
+    SHA256_PATTERN.test(entry.before_sha256) &&
+    sha2562(before) === entry.before_sha256 &&
+    Number.isSafeInteger(entry.before_mode) &&
+    entry.before_mode >= 0 &&
+    entry.before_mode <= 511
+  );
+}
+function deterministicAfterImage(path, before) {
+  if (path === '.claude/settings.json')
+    return contractHistoricalClaudeSettings(before.toString('utf8'));
+  if (cataloguedClaudeLegacyPaths().includes(path) && isAcceptedHistoricalFile(path, before)) {
+    return null;
+  }
+  return void 0;
+}
+function hasExpectedAfterImage(entry, expectedBytes) {
+  const expectedHash = expectedBytes === null ? null : sha2562(expectedBytes);
+  const expectedBase64 = expectedBytes === null ? null : expectedBytes.toString('base64');
+  const expectedMode = expectedBytes === null ? null : entry.before_mode;
+  return (
+    entry.after_sha256 === expectedHash &&
+    entry.after_base64 === expectedBase64 &&
+    entry.after_mode === expectedMode
+  );
+}
+function hasValidQuarantinePath(entry, deleting) {
+  if (entry.quarantine_path === void 0) return true;
+  if (!deleting || typeof entry.quarantine_path !== 'string') return false;
+  return (
+    entry.quarantine_path.startsWith('.safeword/claude-plugin/quarantine/') &&
+    entry.quarantine_path.endsWith('.retired') &&
+    !nodePath7.isAbsolute(entry.quarantine_path) &&
+    !entry.quarantine_path.split('/').includes('..')
+  );
+}
+function validateCleanupEntry(value) {
+  const entry = record(value);
+  const before = canonicalBase64(entry.before_base64);
+  if (!hasValidBeforeImage(entry, before)) {
+    throw new Error('Claude cleanup entry is malformed.');
+  }
+  const expectedAfter = deterministicAfterImage(entry.path, before);
+  if (expectedAfter === void 0) throw new Error('Claude cleanup entry is not catalogued.');
+  const expectedBytes = expectedAfter === null ? null : Buffer.from(expectedAfter);
+  if (!hasExpectedAfterImage(entry, expectedBytes)) {
+    throw new Error('Claude cleanup after-image is not the deterministic legacy contraction.');
+  }
+  if (!hasValidQuarantinePath(entry, expectedAfter === null)) {
+    throw new Error('Claude cleanup quarantine path is malformed.');
+  }
+  return entry;
+}
+function expectedPluginModeKeys(pluginMode) {
+  return [
+    ...(pluginMode.advisory === void 0 ? [] : ['advisory']),
+    'catalogue_sha256',
+    'hook_manifest_sha256',
+    'plugin_version',
+    'unresolved_paths',
+  ].toSorted((left, right) => left.localeCompare(right));
+}
+function hasValidPluginModeDigests(pluginMode) {
+  return (
+    typeof pluginMode.hook_manifest_sha256 === 'string' &&
+    SHA256_PATTERN.test(pluginMode.hook_manifest_sha256) &&
+    typeof pluginMode.catalogue_sha256 === 'string' &&
+    SHA256_PATTERN.test(pluginMode.catalogue_sha256)
+  );
+}
+function hasValidPluginModeMetadata(pluginMode) {
+  return (
+    typeof pluginMode.plugin_version === 'string' &&
+    Array.isArray(pluginMode.unresolved_paths) &&
+    pluginMode.unresolved_paths.every(path => typeof path === 'string') &&
+    (pluginMode.advisory === void 0 || typeof pluginMode.advisory === 'string')
+  );
+}
+function validatePluginMode(value) {
+  const pluginMode = record(value);
+  const expectedKeys = expectedPluginModeKeys(pluginMode);
+  if (
+    !hasExactKeys(pluginMode, expectedKeys) ||
+    !hasValidPluginModeDigests(pluginMode) ||
+    !hasValidPluginModeMetadata(pluginMode)
+  ) {
+    throw new Error('Claude cleanup plugin mode is malformed.');
+  }
+  return pluginMode;
+}
+function hasValidTransactionHeader(value) {
+  return (
+    hasExactKeys(value, [
+      'disposition',
+      'entries',
+      'owner_pid',
+      'plugin_mode',
+      'schema_version',
+      'state',
+      'transaction_id',
+    ]) &&
+    value.schema_version === 1 &&
+    typeof value.transaction_id === 'string' &&
+    UUID_PATTERN.test(value.transaction_id) &&
+    value.disposition === 'complete-forward' &&
+    (value.state === 'active' || value.state === 'recoverable') &&
+    Number.isSafeInteger(value.owner_pid) &&
+    value.owner_pid > 0
+  );
+}
+function hasValidTransactionEntries(value) {
+  return Array.isArray(value.entries) && value.entries.length > 0 && value.entries.length <= 1024;
+}
+function parseTransaction(cwd) {
+  const bytes = readTransactionBytes(transactionPath(cwd));
+  const parsed = JSON.parse(bytes.toString('utf8'));
+  const value = record(parsed);
+  if (!hasValidTransactionHeader(value) || !hasValidTransactionEntries(value)) {
+    throw new Error('Claude cleanup transaction is malformed.');
+  }
+  const entryValues = value.entries;
+  const entries = entryValues.map(entry => validateCleanupEntry(entry));
+  if (new Set(entries.map(entry => entry.path)).size !== entries.length) {
+    throw new Error('Claude cleanup transaction repeats a target.');
+  }
+  return {
+    schema_version: 1,
+    transaction_id: value.transaction_id,
+    disposition: 'complete-forward',
+    state: value.state,
+    owner_pid: value.owner_pid,
+    entries,
+    plugin_mode: validatePluginMode(value.plugin_mode),
+  };
+}
+function processIsRunning(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error.code === 'EPERM';
+  }
+}
+function transactionCanRecover(transaction) {
+  return transaction.state === 'recoverable' || !processIsRunning(transaction.owner_pid);
+}
+function ensureQuarantinePaths(projectRoot, transaction) {
+  if (
+    transaction.entries.every(
+      entry => entry.after_sha256 !== null || entry.quarantine_path !== void 0,
+    )
+  ) {
+    return transaction;
+  }
+  const upgraded = {
+    ...transaction,
+    entries: transaction.entries.map(entry =>
+      entry.after_sha256 === null && entry.quarantine_path === void 0
+        ? {
+            ...entry,
+            quarantine_path: `.safeword/claude-plugin/quarantine/${randomUUID3()}.retired`,
+          }
+        : entry,
+    ),
+  };
+  writeDurableFile(
+    transactionPath(projectRoot),
+    `${JSON.stringify(upgraded, void 0, 2)}
+`,
+    {
+      mode: 384,
+    },
+  );
+  return upgraded;
+}
+function interruptedAfterImage(path, entry) {
+  if (entry.after_base64 === null) return false;
+  const current = readFileSync4(path);
+  const after = Buffer.from(entry.after_base64, 'base64');
+  return current.length < after.length && after.subarray(0, current.length).equals(current);
+}
 function pendingRecoveryEntries(projectRoot, transaction) {
-  const forward = transaction.disposition === 'complete-forward';
   const pending = [];
   for (const entry of transaction.entries) {
+    if (entry.quarantine_path !== void 0) {
+      const quarantine = assertSafeClaudeCleanupTarget(projectRoot, entry.quarantine_path);
+      if (existsSync5(quarantine) && lstatSync4(quarantine).size > 0) {
+        throw new Error(
+          `Claude recovery preserved unverified bytes at ${entry.quarantine_path}; inspect and move or remove that file before retrying recovery`,
+        );
+      }
+    }
     const path = assertSafeClaudeCleanupTarget(projectRoot, entry.path);
     const current = observedSha(path);
-    const source = forward ? entry.before_sha256 : entry.after_sha256;
-    const destination = forward ? entry.after_sha256 : entry.before_sha256;
+    const source = entry.before_sha256;
+    const destination = entry.after_sha256;
     if (current === destination) continue;
-    if (current !== source) throw new Error(`Claude recovery conflict at ${entry.path}`);
-    pending.push(entry);
+    if (current === source) {
+      pending.push({ entry, expectedSha256: source });
+      continue;
+    }
+    if (current !== null && interruptedAfterImage(path, entry)) {
+      pending.push({ entry, expectedSha256: current });
+      continue;
+    }
+    throw new Error(`Claude recovery conflict at ${entry.path}`);
   }
   return pending;
 }
-function applyRecoveryEntries(projectRoot, transaction, pending) {
-  const forward = transaction.disposition === 'complete-forward';
-  for (const entry of pending) {
-    const path = containedClaudeCleanupPath(projectRoot, entry.path);
-    writeImage(
-      projectRoot,
-      path,
-      forward ? entry.after_base64 : entry.before_base64,
-      forward ? entry.after_mode : entry.before_mode,
-    );
+function applyRecoveryEntries(projectRoot, pending) {
+  for (const { entry, expectedSha256 } of pending) {
+    writeImage(projectRoot, entry.path, expectedSha256, entry.after_base64, {
+      mode: entry.after_mode,
+      quarantinePath: entry.quarantine_path,
+    });
   }
 }
 function completedRecoveryResult(projectRoot, transaction) {
-  if (transaction.disposition === 'complete-forward') {
-    writeAutomaticPluginMode(projectRoot, transaction);
-  }
-  rmSync3(transactionPath(projectRoot), { force: true });
+  writeAutomaticPluginMode(projectRoot, transaction);
+  rmSync4(transactionPath(projectRoot), { force: true });
+  pruneEmptyLegacyDirectories(projectRoot, transaction.entries);
   return createResult({
     state: 'changed',
     data: {
       command: 'claude recover',
-      classification:
-        transaction.disposition === 'complete-forward' ? 'plugin-mode' : 'cleanup-ready',
+      classification: 'plugin-mode',
     },
   });
 }
@@ -3867,21 +5134,23 @@ function recoverClaudeCleanup(cwd) {
   try {
     projectRoot = canonicalClaudeProjectRoot(cwd);
   } catch (error) {
-    return cleanupFailure(error, 'recovery-required');
+    return cleanupFailure(error);
   }
-  if (!existsSync4(transactionPath(projectRoot))) {
+  if (!existsSync5(transactionPath(projectRoot))) {
     return createResult({
       state: 'healthy',
       data: { command: 'claude recover', classification: 'plugin-mode' },
     });
   }
   try {
-    const transaction = parseTransaction(projectRoot);
-    applyRecoveryEntries(
-      projectRoot,
-      transaction,
-      pendingRecoveryEntries(projectRoot, transaction),
-    );
+    let transaction = parseTransaction(projectRoot);
+    if (!transactionCanRecover(transaction)) {
+      throw new Error(
+        `Claude cleanup transaction is still owned by process ${transaction.owner_pid}.`,
+      );
+    }
+    transaction = ensureQuarantinePaths(projectRoot, transaction);
+    applyRecoveryEntries(projectRoot, pendingRecoveryEntries(projectRoot, transaction));
     return completedRecoveryResult(projectRoot, transaction);
   } catch (error) {
     return createResult({
@@ -3896,34 +5165,54 @@ function recoverClaudeCleanup(cwd) {
 }
 
 // claude-plugin/runtime/dispatch.ts
-function legacyHookCommand(value, projectRoot) {
-  if (typeof value === 'string') {
-    const reference = /\.safeword\/hooks\/[^\s"';&|)]+/u.exec(value)?.[0];
-    if (reference === void 0) return false;
-    try {
-      const hooksRoot = nodePath8.resolve(projectRoot, '.safeword/hooks');
-      const target = nodePath8.resolve(projectRoot, reference);
-      if (!target.startsWith(`${hooksRoot}${nodePath8.sep}`)) return false;
-      return lstatSync4(target).isFile();
-    } catch {
-      return false;
-    }
-  }
-  if (Array.isArray(value)) return value.some(child => legacyHookCommand(child, projectRoot));
-  if (typeof value !== 'object' || value === null) return false;
-  return Object.values(value).some(child => legacyHookCommand(child, projectRoot));
+function parseSettings(path) {
+  if (!existsSync6(path)) return void 0;
+  const errors = [];
+  const parsed = parse2(readFileSync5(path, 'utf8'), errors, {
+    allowTrailingComma: true,
+    disallowComments: false,
+  });
+  return errors.length === 0 &&
+    typeof parsed === 'object' &&
+    parsed !== null &&
+    !Array.isArray(parsed)
+    ? parsed
+    : void 0;
 }
-function viableLegacyAuthority(event) {
-  const projectRoot = process.env.CLAUDE_PROJECT_DIR;
-  if (projectRoot === void 0 || projectRoot === '') return false;
-  const settingsPath = nodePath8.join(projectRoot, '.claude/settings.json');
-  if (!existsSync5(settingsPath)) return false;
+function acceptedLegacyHookReference(value, projectRoot) {
+  const reference = /\.safeword\/hooks\/[^\s"';&|)]+/u.exec(value)?.[0];
+  if (reference === void 0) return false;
   try {
-    const settings = parse2(readFileSync4(settingsPath, 'utf8'));
-    return legacyHookCommand(settings.hooks?.[event], projectRoot);
+    const hooksRoot = nodePath8.resolve(projectRoot, '.safeword/hooks');
+    const target = nodePath8.resolve(projectRoot, reference);
+    if (!target.startsWith(`${hooksRoot}${nodePath8.sep}`)) return false;
+    if (realpathSync3(hooksRoot) !== hooksRoot || realpathSync3(target) !== target) return false;
+    return (
+      lstatSync5(target).isFile() && isAcceptedHistoricalHookFile(reference, readFileSync5(target))
+    );
   } catch {
     return false;
   }
+}
+function acceptedLegacyHookFile(value, projectRoot) {
+  if (typeof value === 'string') return acceptedLegacyHookReference(value, projectRoot);
+  if (Array.isArray(value)) {
+    return value.some(child => acceptedLegacyHookFile(child, projectRoot));
+  }
+  if (typeof value !== 'object' || value === null) return false;
+  return Object.values(value).some(child => acceptedLegacyHookFile(child, projectRoot));
+}
+function viableLegacyAuthority(event, projectRoot) {
+  const settings = parseSettings(nodePath8.join(projectRoot, '.claude/settings.json'));
+  const hooks = settings?.hooks;
+  if (typeof hooks !== 'object' || hooks === null || Array.isArray(hooks)) return false;
+  const entries = hooks[event];
+  return (
+    Array.isArray(entries) &&
+    entries.some(
+      entry => isAcceptedHistoricalHook(event, entry) && acceptedLegacyHookFile(entry, projectRoot),
+    )
+  );
 }
 function requiredEnvironment(name) {
   const value = process.env[name];
@@ -3931,7 +5220,7 @@ function requiredEnvironment(name) {
   return value;
 }
 function readIdentity(pluginRoot) {
-  const value = JSON.parse(readFileSync4(nodePath8.join(pluginRoot, 'identity.json'), 'utf8'));
+  const value = JSON.parse(readFileSync5(nodePath8.join(pluginRoot, 'identity.json'), 'utf8'));
   if (
     value.schema_version !== 1 ||
     typeof value.plugin_version !== 'string' ||
@@ -3956,10 +5245,10 @@ function assertSafeInventoryAsset(asset) {
 function verifyInventoryAsset(pluginRoot, asset) {
   assertSafeInventoryAsset(asset);
   const assetPath = nodePath8.join(pluginRoot, asset.path);
-  if (!lstatSync4(assetPath).isFile()) {
+  if (!lstatSync5(assetPath).isFile()) {
     throw new Error(`Safeword Claude plugin asset is not a regular file: ${asset.path}`);
   }
-  const content = readFileSync4(assetPath);
+  const content = readFileSync5(assetPath);
   const actualDigest = createHash4('sha256').update(content).digest('hex');
   if (actualDigest !== asset.sha256) {
     throw new Error(
@@ -3969,7 +5258,7 @@ function verifyInventoryAsset(pluginRoot, asset) {
   return content;
 }
 function verifyInventory(pluginRoot, identity) {
-  const inventoryContent = readFileSync4(nodePath8.join(pluginRoot, 'inventory.json'), 'utf8');
+  const inventoryContent = readFileSync5(nodePath8.join(pluginRoot, 'inventory.json'), 'utf8');
   const inventoryDigest = createHash4('sha256').update(inventoryContent).digest('hex');
   if (inventoryDigest !== identity.inventory_sha256) {
     throw new Error('Safeword Claude plugin inventory does not match its bundled identity.');
@@ -4004,29 +5293,39 @@ function verifyInventory(pluginRoot, identity) {
   return verifiedAssets;
 }
 function verifyManifest(pluginRoot, identity) {
-  const manifest = readFileSync4(nodePath8.join(pluginRoot, 'hooks', 'hooks.json'));
+  const manifest = readFileSync5(nodePath8.join(pluginRoot, 'hooks', 'hooks.json'));
   const digest2 = createHash4('sha256').update(manifest).digest('hex');
   if (digest2 !== identity.hook_manifest_sha256) {
     throw new Error('Safeword Claude plugin hook manifest does not match its bundled identity.');
   }
 }
-function writeDurableRecord(pluginData, filename, record) {
+function writeDurableRecord(pluginData, filename, record2) {
   writeDurableFile(
     nodePath8.join(pluginData, filename),
-    `${JSON.stringify(record, void 0, 2)}
+    `${JSON.stringify(record2, void 0, 2)}
 `,
     {
       mode: 384,
     },
   );
 }
-function setupRanForSession(pluginData, sessionId) {
+function setupRanForSession(pluginData, sessionId, pluginRoot, projectRoot, identity) {
   if (sessionId === void 0) return false;
   const path = nodePath8.join(pluginData, 'cache-smoke-v1.json');
-  if (!existsSync5(path)) return false;
+  if (!existsSync6(path)) return false;
   try {
-    const smoke = JSON.parse(readFileSync4(path, 'utf8'));
-    return smoke.event === 'Setup' && smoke.session_id === sessionId;
+    const smoke = JSON.parse(readFileSync5(path, 'utf8'));
+    const expected = {
+      schema_version: 1,
+      event: 'Setup',
+      session_id: sessionId,
+      project_root: projectRoot,
+      plugin_version: identity.plugin_version,
+      hook_manifest_sha256: identity.hook_manifest_sha256,
+      inventory_sha256: identity.inventory_sha256,
+      canonical_plugin_root: pluginRoot,
+    };
+    return Object.entries(expected).every(([key, value]) => smoke[key] === value);
   } catch {
     return false;
   }
@@ -4034,8 +5333,13 @@ function setupRanForSession(pluginData, sessionId) {
 function recordExecutionProof(event, pluginRoot, identity, input) {
   if (event !== 'SessionStart' && event !== 'UserPromptSubmit') return;
   const pluginData = requiredEnvironment('CLAUDE_PLUGIN_DATA');
-  if (event === 'SessionStart' && setupRanForSession(pluginData, input.session_id)) return;
   const projectRoot = canonicalClaudeProjectRoot(input.cwd ?? process.cwd());
+  if (
+    event === 'SessionStart' &&
+    setupRanForSession(pluginData, input.session_id, pluginRoot, projectRoot, identity)
+  ) {
+    return;
+  }
   const projectDigest = createHash4('sha256').update(projectRoot).digest('hex');
   writeDurableRecord(nodePath8.join(pluginData, 'execution-proofs-v2'), `${projectDigest}.json`, {
     schema_version: 2,
@@ -4050,12 +5354,14 @@ function recordExecutionProof(event, pluginRoot, identity, input) {
 }
 function recordCacheSmoke(event, pluginRoot, identity, input) {
   if (event !== 'Setup') return;
+  const projectRoot = canonicalClaudeProjectRoot(input.cwd ?? process.cwd());
   writeDurableRecord(requiredEnvironment('CLAUDE_PLUGIN_DATA'), 'cache-smoke-v1.json', {
     schema_version: 1,
     plugin_version: identity.plugin_version,
     hook_manifest_sha256: identity.hook_manifest_sha256,
     inventory_sha256: identity.inventory_sha256,
     canonical_plugin_root: pluginRoot,
+    project_root: projectRoot,
     event,
     session_id: input.session_id,
     recorded_at: /* @__PURE__ */ new Date().toISOString(),
@@ -4080,9 +5386,17 @@ function runFunctionalCommand(arguments_, input, captureOutput = false) {
     stdout: captureOutput ? (result.stdout?.toString('utf8') ?? '') : '',
   };
 }
-function eventEntryMatches(entry, input) {
+var TOOL_EVENTS = /* @__PURE__ */ new Set([
+  'PermissionDenied',
+  'PermissionRequest',
+  'PostToolUse',
+  'PostToolUseFailure',
+  'PreToolUse',
+]);
+function eventEntryMatches(event, entry, input) {
   if (entry.matcher === void 0 || entry.matcher === '') return true;
-  return entry.matcher.split('|').includes(input.source ?? '');
+  const subject = TOOL_EVENTS.has(event) ? input.tool_name : input.source;
+  return entry.matcher.split('|').includes(subject ?? '');
 }
 function readEventEntries(event, eventGroupsContent) {
   const value = JSON.parse(eventGroupsContent.toString('utf8'));
@@ -4221,11 +5535,19 @@ function stableJson(value) {
     .join(',')}}`;
 }
 function scopeDeclaration(path) {
-  if (!existsSync5(path)) return { enabled: false, marketplace: void 0 };
-  const settings = parse2(readFileSync4(path, 'utf8'));
+  const settings = parseSettings(path);
+  const enabledPlugins = settings?.enabledPlugins;
+  const marketplaces = settings?.extraKnownMarketplaces;
   return {
-    enabled: settings?.enabledPlugins?.['safeword@safeword'] === true,
-    marketplace: settings?.extraKnownMarketplaces?.safeword,
+    enabled:
+      typeof enabledPlugins === 'object' &&
+      enabledPlugins !== null &&
+      !Array.isArray(enabledPlugins) &&
+      enabledPlugins['safeword@safeword'] === true,
+    marketplace:
+      typeof marketplaces === 'object' && marketplaces !== null && !Array.isArray(marketplaces)
+        ? marketplaces.safeword
+        : void 0,
   };
 }
 function incompatibleScopeOverlap(projectRoot) {
@@ -4245,11 +5567,6 @@ function advisoryExecution(context, advisory, stateDigest = advisoryStateDigest(
     stdout: appendMigrationAdvisory(event, execution.stdout, advisory),
   };
 }
-function terminalMarkerExecution(context, marker) {
-  return marker.advisory === void 0
-    ? context.execution
-    : advisoryExecution(context, marker.advisory);
-}
 function scopeOverlapExecution(context, identity, catalogueSha256) {
   const { projectRoot } = context;
   const advisory =
@@ -4266,19 +5583,8 @@ function scopeOverlapExecution(context, identity, catalogueSha256) {
   });
   return advisoryExecution(context, advisory, stateDigest);
 }
-function matchingAttention(projectRoot, identity, catalogueSha256) {
-  const attention = readClaudeMigrationAttention(projectRoot);
-  if (
-    attention?.plugin_version !== identity.plugin_version ||
-    attention.catalogue_sha256 !== catalogueSha256 ||
-    attention.watched_settings_sha256 !== claudeWatchedSettingsDigest(projectRoot)
-  ) {
-    return void 0;
-  }
-  return attention;
-}
 function automaticMigrationAttemptKind(projectRoot) {
-  return existsSync5(nodePath8.join(projectRoot, CLAUDE_MIGRATION_SCHEMA.paths.transaction))
+  return existsSync6(nodePath8.join(projectRoot, CLAUDE_MIGRATION_SCHEMA.paths.transaction))
     ? 'recovery'
     : 'migration';
 }
@@ -4286,43 +5592,25 @@ function automaticMigrationProjectRoot(event, hookCwd) {
   if (event !== 'UserPromptSubmit') return void 0;
   return canonicalClaudeProjectRoot(hookCwd ?? process.cwd());
 }
-function upgradeConsistentLegacyMarker(event, projectRoot, identity, catalogueSha256) {
-  if (
-    !hasLegacyClaudePluginMode(projectRoot) ||
-    viableLegacyAuthority(event) ||
-    incompatibleScopeOverlap(projectRoot)
-  ) {
-    return false;
-  }
-  writeClaudePluginMode(
-    projectRoot,
-    createClaudePluginMode({
-      plugin_version: identity.plugin_version,
-      hook_manifest_sha256: identity.hook_manifest_sha256,
-      catalogue_sha256: catalogueSha256,
-      unresolved_paths: [],
-    }),
-  );
-  removeLegacyClaudePluginMode(projectRoot);
-  return true;
-}
 function automaticMigrationUnsafe(event, identity, execution, sessionId, hookCwd) {
   const projectRoot = automaticMigrationProjectRoot(event, hookCwd);
   if (projectRoot === void 0) return execution;
   const context = { event, execution, projectRoot, sessionId };
   const catalogueSha256 = historicalCatalogueDigest();
-  const marker = readClaudePluginMode(projectRoot);
-  if (upgradeConsistentLegacyMarker(event, projectRoot, identity, catalogueSha256))
-    return execution;
-  if (marker !== void 0 && pluginModeIsTerminal(marker, catalogueSha256)) {
-    return terminalMarkerExecution(context, marker);
-  }
   if (incompatibleScopeOverlap(projectRoot)) {
     return scopeOverlapExecution(context, identity, catalogueSha256);
   }
-  const attention = matchingAttention(projectRoot, identity, catalogueSha256);
-  if (attention !== void 0) {
-    return advisoryExecution(context, attention.advisory, attention.state_digest);
+  const marker = readClaudePluginMode(projectRoot);
+  if (
+    marker !== void 0 &&
+    pluginModeIsTerminal(marker, {
+      plugin_version: identity.plugin_version,
+      hook_manifest_sha256: identity.hook_manifest_sha256,
+      catalogue_sha256: catalogueSha256,
+    }) &&
+    claudeLegacyMutations(projectRoot).length === 0
+  ) {
+    return execution;
   }
   if (
     !claimClaudeMigrationAttempt(projectRoot, sessionId, automaticMigrationAttemptKind(projectRoot))
@@ -4351,7 +5639,7 @@ function automaticMigration(event, identity, execution, sessionId, hookCwd) {
 }
 function executionProofFailure(event, execution, error) {
   if (event !== 'UserPromptSubmit') return execution;
-  const advisory = `Safeword could not record native plugin proof: ${error instanceof Error ? error.message : String(error)} The prompt was not blocked and the old integration was preserved.`;
+  const advisory = `Safeword could not record native plugin proof: ${error instanceof Error ? error.message : String(error)} The prompt was not blocked; verify protection with \`safeword claude status\`.`;
   return { ...execution, stdout: safeAppendMigrationAdvisory(event, execution.stdout, advisory) };
 }
 function postExecutionLifecycle(event, pluginRoot, identity, hookInput, execution) {
@@ -4377,7 +5665,7 @@ function verifiedIdentity(event, pluginRoot) {
     return { eventGroupsContent, identity };
   } catch (error) {
     if (event !== 'UserPromptSubmit') throw error;
-    const advisory = `Safeword detected a damaged native plugin cache: ${error instanceof Error ? error.message : String(error)} The prompt was not blocked and the old integration was preserved.`;
+    const advisory = `Safeword detected a damaged native plugin cache: ${error instanceof Error ? error.message : String(error)} The prompt was not blocked; no native Safeword hook result was applied.`;
     try {
       process.stdout.write(safeAppendMigrationAdvisory(event, '', advisory));
     } catch {}
@@ -4390,7 +5678,9 @@ function runEventHooks(event, hooks, standardInput, response) {
       throw new Error(`Safeword Claude plugin event group has an unsupported ${event} hook.`);
     }
     const result = runFunctionalCommand(['bash', '-lc', hook.command], standardInput, true);
-    if (result.status !== 0) return result.status;
+    if (result.status !== 0) {
+      return event === 'UserPromptSubmit' ? result.status : 2;
+    }
     mergeHookOutput(event, response, result.stdout);
   }
   return 0;
@@ -4399,7 +5689,7 @@ function runEventGroup(event, eventGroupsContent, hookInput, standardInput) {
   const entries = readEventEntries(event, eventGroupsContent);
   const response = {};
   for (const entry of entries) {
-    if (!eventEntryMatches(entry, hookInput)) continue;
+    if (!eventEntryMatches(event, entry, hookInput)) continue;
     const hooks = entry.hooks ?? [];
     const status = runEventHooks(event, hooks, standardInput, response);
     if (status !== 0) return { status, stdout: '' };
@@ -4421,7 +5711,7 @@ function functionalExecutionFailure(event, error) {
     );
     return { status: 2, stdout: '' };
   }
-  const advisory = `Safeword could not combine its Claude hook output: ${error instanceof Error ? error.message : String(error)} The prompt was not blocked and the old integration was preserved.`;
+  const advisory = `Safeword could not combine its Claude hook output: ${error instanceof Error ? error.message : String(error)} The prompt was not blocked; no combined Safeword hook result was applied.`;
   return { status: 0, stdout: safeAppendMigrationAdvisory(event, '', advisory) };
 }
 function parseHookInput(standardInput) {
@@ -4433,7 +5723,7 @@ function parseHookInput(standardInput) {
   }
 }
 function executeConfiguredHooks(input) {
-  if (viableLegacyAuthority(input.event)) return { status: 0, stdout: '' };
+  if (viableLegacyAuthority(input.event, input.projectRoot)) return { status: 0, stdout: '' };
   try {
     return input.mode === '--event-group'
       ? runEventGroup(input.event, input.eventGroupsContent, input.hookInput, input.standardInput)
@@ -4450,10 +5740,14 @@ function mainUnsafe(event, mode, command) {
   if (mode !== void 0 && mode !== '--' && mode !== '--event-group') {
     throw new Error('Expected -- or --event-group after the hook event.');
   }
-  const pluginRoot = realpathSync2(requiredEnvironment('CLAUDE_PLUGIN_ROOT'));
+  if (mode !== '--event-group' && command.length === 0) {
+    throw new Error('A direct hook command is required.');
+  }
+  const pluginRoot = realpathSync3(requiredEnvironment('CLAUDE_PLUGIN_ROOT'));
   process.env.SAFEWORD_PLUGIN_CLI = nodePath8.join(pluginRoot, 'runtime', 'cli.js');
-  const standardInput = readFileSync4(0);
+  const standardInput = readFileSync5(0);
   const hookInput = parseHookInput(standardInput);
+  const projectRoot = canonicalClaudeProjectRoot(hookInput.cwd ?? process.cwd());
   const verifiedPlugin = verifiedIdentity(event, pluginRoot);
   if (verifiedPlugin === void 0) return 0;
   const { eventGroupsContent, identity } = verifiedPlugin;
@@ -4463,6 +5757,7 @@ function mainUnsafe(event, mode, command) {
     command,
     eventGroupsContent,
     hookInput,
+    projectRoot,
     standardInput,
   });
   if (execution.status === 0) {
@@ -4474,7 +5769,7 @@ function mainUnsafe(event, mode, command) {
 function startupFailure(event, error) {
   const detail = error instanceof Error ? error.message : String(error);
   if (event === 'UserPromptSubmit') {
-    const advisory = `Safeword could not start its Claude hook: ${detail} The prompt was not blocked and the old integration was preserved.`;
+    const advisory = `Safeword could not start its Claude hook: ${detail} The prompt was not blocked; no Safeword hook result was applied.`;
     try {
       process.stdout.write(safeAppendMigrationAdvisory(event, '', advisory));
     } catch {}

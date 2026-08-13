@@ -1,16 +1,6 @@
 import { spawnSync } from 'node:child_process';
-import { realpathSync, statSync } from 'node:fs';
-import nodePath from 'node:path';
 
-function canonicalDirectory(path: unknown): string | undefined {
-  if (typeof path !== 'string' || path.trim() === '') return undefined;
-  try {
-    if (!statSync(path).isDirectory()) return undefined;
-    return nodePath.normalize(realpathSync(path));
-  } catch {
-    return undefined;
-  }
-}
+import { canonicalDirectory } from '../utils/fs.js';
 
 export function canonicalClaudeProjectRoot(cwd: string): string {
   const configuredRoot = process.env.CLAUDE_PROJECT_DIR;

@@ -34,6 +34,10 @@ function configuredFeatureFiles(): string[] {
 
 const VITEST_PROVEN_FEATURES = [
   [
+    'packages/cli/features/durable-independent-review.feature',
+    'packages/cli/tests/review/job.test.ts',
+  ],
+  [
     'features/architecture-narrative-blindspots.feature',
     'packages/cli/tests/hooks/architecture-document-nudge.test.ts',
   ],
@@ -44,6 +48,10 @@ const VITEST_PROVEN_FEATURES = [
   [
     'features/bash-ledger-write-gate.feature',
     'packages/cli/tests/integration/bash-ledger-write-gate.test.ts',
+  ],
+  [
+    'features/close-completed-sessions-safely.feature',
+    'packages/cli/tests/closeout-cleanup.test.ts',
   ],
   [
     'features/closeout-preview-apply-convergence.feature',

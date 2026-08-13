@@ -10,6 +10,12 @@ import type { SafewordWorld } from './world.js';
 
 const PROJECT_ROOT = nodePath.resolve(import.meta.dirname, '..');
 const CLI_PATH = nodePath.join(PROJECT_ROOT, 'packages/cli/src/cli.ts');
+const PROJECT_HANDBOOK_BOOTSTRAP = [
+  'Safeword session bootstrap:',
+  'Before non-trivial work, read `.safeword/SAFEWORD.md` and the applicable guide in `.safeword/guides/`.',
+  'Current tickets, learnings, and project context are under `.project/` (or the configured namespace root).',
+  'Follow the active Safeword workflow and its gates.',
+].join('\n');
 
 interface SafewordMdWorld extends SafewordWorld {
   contextFiles?: {
@@ -259,11 +265,20 @@ Then('Cursor sessionStart runs the SAFEWORD context hook', function (this: Safew
 });
 
 Then(
-  'each output contains the SAFEWORD.md standing instructions as model-visible context',
+  'each output contains the exact compact project-handbook bootstrap once as model-visible context',
   function (this: SafewordMdWorld) {
-    const outputs = this.hookOutputs ?? {};
-    assert.match(JSON.stringify(outputs.claude), /SAFEWORD Agent Instructions/);
-    assert.match(JSON.stringify(outputs.cursor), /SAFEWORD Agent Instructions/);
+    const outputs = this.hookOutputs as {
+      claude?: { hookSpecificOutput?: { additionalContext?: string } };
+      cursor?: { additional_context?: string };
+    };
+    const contexts = [
+      outputs.claude?.hookSpecificOutput?.additionalContext,
+      outputs.cursor?.additional_context,
+    ];
+    for (const context of contexts) {
+      assert.equal(context, PROJECT_HANDBOOK_BOOTSTRAP);
+      assert.equal(context?.split('Safeword session bootstrap:').length, 2);
+    }
   },
 );
 

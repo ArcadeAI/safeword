@@ -9,6 +9,7 @@ import {
   mkdirSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   rmdirSync,
   rmSync,
   statSync,
@@ -59,6 +60,17 @@ export function isDirectory(path: string): boolean {
     return statSync(path).isDirectory();
   } catch {
     return false;
+  }
+}
+
+/** Resolve an existing directory to a normalized canonical path. */
+export function canonicalDirectory(path: unknown): string | undefined {
+  if (typeof path !== 'string' || path.trim() === '') return undefined;
+  try {
+    if (!statSync(path).isDirectory()) return undefined;
+    return nodePath.normalize(realpathSync(path));
+  } catch {
+    return undefined;
   }
 }
 

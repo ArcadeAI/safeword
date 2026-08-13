@@ -20,20 +20,27 @@ import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import process from 'node:process';
 
-import { resolveWindowsVitest } from './test-runner-executable.mjs';
+import { environmentPathKey, resolveTestRunnerInvocation } from './test-runner-executable.mjs';
 
 const scriptDirectory = import.meta.dirname;
 const cliRoot = nodePath.resolve(scriptDirectory, '..');
 // Vitest runs with cwd=cliRoot, so a repo-root-relative path — the natural
 // spelling when invoking `bun run test` from the workspace root (#723) —
 // would act as a filter that matches nothing. Rebase those onto the package.
-// Only standalone arguments are rebased; `=`-joined flag values
-// (`--config=packages/cli/x.ts`) pass through untouched.
-const vitestArguments = process.argv
-  .slice(2)
-  .map(argument =>
-    argument.startsWith('packages/cli/') ? argument.slice('packages/cli/'.length) : argument,
-  );
+// Rebase both standalone paths and `=`-joined flag values so equivalent flag
+// spellings resolve consistently from cwd=cliRoot.
+function rebaseVitestArgument(argument) {
+  const packagePrefix = 'packages/cli/';
+  if (argument.startsWith(packagePrefix)) return argument.slice(packagePrefix.length);
+  const equalsIndex = argument.indexOf('=');
+  if (equalsIndex === -1) return argument;
+  const value = argument.slice(equalsIndex + 1);
+  return value.startsWith(packagePrefix)
+    ? `${argument.slice(0, equalsIndex + 1)}${value.slice(packagePrefix.length)}`
+    : argument;
+}
+
+const vitestArguments = process.argv.slice(2).map(argument => rebaseVitestArgument(argument));
 
 // The package-local bin directory holds the `vitest` executable. `bun run test`
 // (and npm) inject it into PATH, but invoking this wrapper directly — e.g.
@@ -47,7 +54,7 @@ const localBinDirectory = nodePath.join(cliRoot, 'node_modules', '.bin');
 // Windows names the variable `Path`; spreading process.env into a plain object
 // loses Node's case-insensitive access, so append to whatever key already holds
 // the path (else a stray `PATH` key would sit alongside `Path` and be ignored).
-const pathKey = Object.keys(process.env).find(key => key.toUpperCase() === 'PATH') ?? 'PATH';
+const pathKey = environmentPathKey(process.env);
 const inheritedPath = process.env[pathKey] ?? '';
 const childEnvironment = {
   ...process.env,
@@ -60,6 +67,7 @@ const lockName = 'safeword-package-test';
 const defaultMaximumLockWaitMilliseconds = 20 * 60 * 1000;
 const defaultLockStatusIntervalMilliseconds = 30_000;
 const initialLockStatusDelayMilliseconds = 1000;
+const usesCustomLockDirectory = Boolean(process.env.SAFEWORD_TEST_LOCK_DIR);
 const lockDirectory = process.env.SAFEWORD_TEST_LOCK_DIR
   ? nodePath.resolve(process.env.SAFEWORD_TEST_LOCK_DIR)
   : nodePath.join(lockParent, `${lockName}.lock`);
@@ -67,10 +75,13 @@ const ownerPath = nodePath.join(lockDirectory, 'owner.json');
 const transitionDirectory = `${lockDirectory}.transition`;
 const transitionOwnerPath = nodePath.join(transitionDirectory, 'owner.json');
 const transitionRecoveryDirectory = nodePath.join(transitionDirectory, 'recovery');
+const transitionRecoveryOwnerPath = nodePath.join(transitionRecoveryDirectory, 'owner.json');
 const checkoutRoot = nodePath.resolve(cliRoot, '..', '..');
 const minimumLockStatusIntervalMilliseconds = 50;
 const maximumTransitionWaitMilliseconds = 30_000;
 const lockOwnerKind = 'safeword-package-test-lock';
+const transitionOwnerKind = 'safeword-package-test-transition';
+const transitionRecoveryOwnerKind = 'safeword-package-test-transition-recovery';
 
 function resolveSafeIntegerEnvironmentVariable(name, fallback, minimum, allowZero = true) {
   const raw = process.env[name];
@@ -117,6 +128,33 @@ function hasUsableOwnerTimestamp(value) {
   return typeof value === 'string' && Number.isFinite(Date.parse(value));
 }
 
+function hasExactKeys(value, expectedKeys) {
+  const keys = Object.keys(value);
+  return (
+    keys.length === expectedKeys.length && expectedKeys.every(key => Object.hasOwn(value, key))
+  );
+}
+
+function isLegacyLockOwner(owner) {
+  return [
+    hasExactKeys(owner, ['checkoutRoot', 'createdAt', 'pid', 'token']),
+    typeof owner.checkoutRoot === 'string' && nodePath.isAbsolute(owner.checkoutRoot),
+    hasUsableOwnerTimestamp(owner.createdAt),
+    isUsableOwnerPid(owner.pid),
+    typeof owner.token === 'string' &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(owner.token),
+  ].every(Boolean);
+}
+
+function isRecognizedTransitionOwner(owner) {
+  return (
+    owner.kind === transitionOwnerKind ||
+    (hasExactKeys(owner, ['createdAt', 'pid']) &&
+      hasUsableOwnerTimestamp(owner.createdAt) &&
+      isUsableOwnerPid(owner.pid))
+  );
+}
+
 function readOwnerAt(path) {
   try {
     const parsed = JSON.parse(readFileSync(path, 'utf8'));
@@ -126,7 +164,7 @@ function readOwnerAt(path) {
     return {
       owner,
       readable,
-      valid: owner.kind === lockOwnerKind,
+      valid: owner.kind === lockOwnerKind || isLegacyLockOwner(owner),
     };
   } catch {
     return { owner: {}, readable: false, valid: false };
@@ -137,17 +175,32 @@ function readOwner() {
   return readOwnerAt(ownerPath);
 }
 
+function directoryAgeMilliseconds(path) {
+  try {
+    return Date.now() - statSync(path).mtimeMs;
+  } catch (error) {
+    if (error?.code === 'ENOENT') return false;
+    throw error;
+  }
+}
+
+function removeAgedUnreadableLock(allowCustomPath) {
+  if (!allowCustomPath && usesCustomLockDirectory) return false;
+  const lockAgeMilliseconds = directoryAgeMilliseconds(lockDirectory);
+  if (lockAgeMilliseconds === false) return true;
+  if (lockAgeMilliseconds <= 30_000) return false;
+  rmSync(lockDirectory, { force: true, recursive: true });
+  return true;
+}
+
 function removeStaleLock() {
   const { owner, readable, valid } = readOwner();
-  if (!valid) return false;
-  if (!readable) {
-    const lockAgeMilliseconds = Date.now() - statSync(lockDirectory).mtimeMs;
-    if (lockAgeMilliseconds > 30_000) {
-      rmSync(lockDirectory, { force: true, recursive: true });
-      return true;
-    }
-    return false;
+  if (!valid) {
+    // Only the dedicated default tmp namespace is safe to reclaim when a
+    // creator died after mkdir but before publishing recognizable metadata.
+    return !readable && removeAgedUnreadableLock(false);
   }
+  if (!readable) return removeAgedUnreadableLock(true);
 
   if (isUsableOwnerPid(owner.pid) && !isProcessAlive(owner.pid)) {
     rmSync(lockDirectory, { force: true, recursive: true });
@@ -198,11 +251,10 @@ function reportLockWait(waitedMilliseconds) {
 }
 
 function createLock(token) {
-  const candidateDirectory = `${lockDirectory}.candidate-${token}`;
+  mkdirSync(lockDirectory);
   try {
-    mkdirSync(candidateDirectory);
     writeFileSync(
-      nodePath.join(candidateDirectory, 'owner.json'),
+      ownerPath,
       `${JSON.stringify(
         {
           createdAt: new Date().toISOString(),
@@ -215,18 +267,28 @@ function createLock(token) {
         2,
       )}\n`,
     );
-    renameSync(candidateDirectory, lockDirectory);
-  } finally {
-    rmSync(candidateDirectory, { force: true, recursive: true });
+  } catch (error) {
+    rmSync(lockDirectory, { force: true, recursive: true });
+    throw error;
   }
 }
 
-function createLockTransition() {
+function tryCreateLock(token) {
+  try {
+    createLock(token);
+    return true;
+  } catch (error) {
+    if (error?.code === 'EEXIST' || error?.code === 'ENOTEMPTY') return false;
+    throw error;
+  }
+}
+
+function createLockTransition(token) {
   mkdirSync(transitionDirectory);
   try {
     writeFileSync(
       transitionOwnerPath,
-      `${JSON.stringify({ createdAt: new Date().toISOString(), pid: process.pid })}\n`,
+      `${JSON.stringify({ createdAt: new Date().toISOString(), kind: transitionOwnerKind, pid: process.pid, token })}\n`,
     );
   } catch (error) {
     rmSync(transitionDirectory, { force: true, recursive: true });
@@ -234,88 +296,188 @@ function createLockTransition() {
   }
 }
 
-function tryCreateLockTransition() {
+function tryCreateLockTransition(token) {
   try {
-    createLockTransition();
+    createLockTransition(token);
     return true;
   } catch (error) {
-    if (error?.code === 'EEXIST') return false;
+    if (error?.code === 'EEXIST' || error?.code === 'ENOTEMPTY') return false;
     throw error;
   }
 }
 
-function lockTransitionIsAbandoned() {
-  const { owner, readable } = readOwnerAt(transitionOwnerPath);
-  if (isUsableOwnerPid(owner.pid)) return !isProcessAlive(owner.pid);
-  if (readable) return false;
+function unreadableTransitionIsAgedSafewordResidue() {
+  if (usesCustomLockDirectory) return false;
   try {
-    return Date.now() - statSync(transitionDirectory).mtimeMs > 30_000;
+    const entries = readdirSync(transitionDirectory);
+    const hasOnlySafewordResidue = entries.every(entry =>
+      ['owner.json', 'recovery'].includes(entry),
+    );
+    return hasOnlySafewordResidue && Date.now() - statSync(transitionDirectory).mtimeMs > 30_000;
   } catch {
     return false;
   }
 }
 
-function tryEnterTransitionRecovery() {
+function lockTransitionIsAbandoned(unreadableFallback) {
+  const { owner, readable } = readOwnerAt(transitionOwnerPath);
+  if (readable && !isRecognizedTransitionOwner(owner)) return false;
+  if (isUsableOwnerPid(owner.pid)) return !isProcessAlive(owner.pid);
+  if (readable) return false;
+  if (typeof unreadableFallback === 'boolean') return unreadableFallback;
+  return unreadableTransitionIsAgedSafewordResidue();
+}
+
+function transitionRecoveryIsAbandoned() {
+  const { owner, readable } = readOwnerAt(transitionRecoveryOwnerPath);
+  if (owner.kind === transitionRecoveryOwnerKind && isUsableOwnerPid(owner.pid))
+    return !isProcessAlive(owner.pid);
+  if (readable) return false;
+  try {
+    return (
+      Date.now() - statSync(transitionRecoveryDirectory).mtimeMs > maximumTransitionWaitMilliseconds
+    );
+  } catch {
+    return false;
+  }
+}
+
+function removeAbandonedTransitionRecovery() {
+  if (!transitionRecoveryIsAbandoned()) return false;
+
+  const abandonedRecoveryDirectory = `${transitionRecoveryDirectory}.abandoned-${randomUUID()}`;
+  try {
+    renameSync(transitionRecoveryDirectory, abandonedRecoveryDirectory);
+  } catch (error) {
+    if (error?.code === 'ENOENT') return false;
+    throw error;
+  }
+  rmSync(abandonedRecoveryDirectory, { force: true, recursive: true });
+  return true;
+}
+
+function tryEnterTransitionRecovery(token) {
   try {
     mkdirSync(transitionRecoveryDirectory);
+    writeFileSync(
+      transitionRecoveryOwnerPath,
+      `${JSON.stringify({ createdAt: new Date().toISOString(), kind: transitionRecoveryOwnerKind, pid: process.pid, token })}\n`,
+    );
     return true;
   } catch (error) {
-    if (error?.code === 'EEXIST' || error?.code === 'ENOENT' || error?.code === 'EINVAL')
-      return false;
+    if (error?.code === 'EEXIST') {
+      return removeAbandonedTransitionRecovery() && tryEnterTransitionRecovery(token);
+    }
+    rmSync(transitionRecoveryDirectory, { force: true, recursive: true });
+    if (error?.code === 'ENOENT' || error?.code === 'EINVAL') return false;
     throw error;
   }
 }
 
-function tryRecoverLockTransition() {
-  if (!tryEnterTransitionRecovery()) return false;
+function leaveTransitionRecovery(token) {
+  const { owner } = readOwnerAt(transitionRecoveryOwnerPath);
+  if (owner.pid !== process.pid || owner.token !== token) return false;
+  const releasedRecoveryDirectory = `${transitionRecoveryDirectory}.released-${randomUUID()}`;
   try {
-    if (!lockTransitionIsAbandoned()) return false;
+    renameSync(transitionRecoveryDirectory, releasedRecoveryDirectory);
+  } catch (error) {
+    if (error?.code === 'ENOENT') return false;
+    throw error;
+  }
+  rmSync(releasedRecoveryDirectory, { force: true, recursive: true });
+  return true;
+}
+
+function tryRecoverLockTransition(token) {
+  // Check age before changing the directory: creating a child would refresh
+  // the mtime and make an abandoned empty transition look fresh forever.
+  const wasAbandoned = lockTransitionIsAbandoned();
+  if (!wasAbandoned) return false;
+  if (!tryEnterTransitionRecovery(token)) return false;
+  try {
+    // Another contender may have claimed the transition after our first
+    // observation but before we acquired the recovery marker.
+    if (!lockTransitionIsAbandoned(wasAbandoned)) return false;
     writeFileSync(
       transitionOwnerPath,
-      `${JSON.stringify({ createdAt: new Date().toISOString(), pid: process.pid })}\n`,
+      `${JSON.stringify({ createdAt: new Date().toISOString(), kind: transitionOwnerKind, pid: process.pid, token })}\n`,
     );
     return true;
   } finally {
-    rmSync(transitionRecoveryDirectory, { force: true, recursive: true });
+    leaveTransitionRecovery(token);
   }
 }
 
-function tryEnterLockTransition() {
-  if (tryCreateLockTransition()) return true;
-  return tryRecoverLockTransition();
+function tryEnterLockTransition(token) {
+  if (tryCreateLockTransition(token)) return true;
+  const { owner } = readOwnerAt(transitionOwnerPath);
+  if (owner.pid === process.pid && owner.token === token) return true;
+  return tryRecoverLockTransition(token);
 }
 
-function leaveLockTransition() {
-  while (!tryEnterTransitionRecovery()) {
+function leaveLockTransitionUnsafe(token) {
+  let waitedMilliseconds = 0;
+  while (!tryEnterTransitionRecovery(token)) {
+    if (!existsSync(transitionDirectory)) return true;
+    if (waitedMilliseconds >= maximumTransitionWaitMilliseconds) {
+      throw new Error('Could not safely leave the safeword package test lock transition.');
+    }
     sleep(10);
+    waitedMilliseconds += 10;
   }
-  rmSync(transitionDirectory, { force: true, recursive: true });
+
+  const { owner } = readOwnerAt(transitionOwnerPath);
+  if (owner.pid !== process.pid || owner.token !== token) {
+    leaveTransitionRecovery(token);
+    throw new Error(
+      'Could not safely leave the safeword package test lock transition because its ownership changed.',
+    );
+  }
+
+  const releasedTransitionDirectory = `${transitionDirectory}.released-${randomUUID()}`;
+  try {
+    // Move the parent while holding its recovery marker. Contenders can no
+    // longer recreate a child between recursive traversal and parent removal.
+    renameSync(transitionDirectory, releasedTransitionDirectory);
+  } catch (error) {
+    if (error?.code === 'ENOENT') return true;
+    leaveTransitionRecovery(token);
+    throw error;
+  }
+  rmSync(releasedTransitionDirectory, { force: true, recursive: true });
+  return true;
+}
+
+function leaveLockTransition(token) {
+  try {
+    return leaveLockTransitionUnsafe(token);
+  } catch (error) {
+    console.error('Could not safely leave the safeword package test lock transition:', error);
+    return false;
+  }
 }
 
 function tryAcquireLock(token) {
-  if (!tryEnterLockTransition()) {
+  if (!tryEnterLockTransition(token)) {
     return false;
   }
 
+  let acquired = false;
+  let failure;
   try {
-    try {
-      createLock(token);
-      return true;
-    } catch (error) {
-      if (error?.code !== 'EEXIST' && error?.code !== 'ENOTEMPTY') {
-        throw error;
-      }
-    }
-
-    if (!removeStaleLock()) {
-      return false;
-    }
-
-    createLock(token);
-    return true;
-  } finally {
-    leaveLockTransition();
+    acquired = tryCreateLock(token) || (removeStaleLock() && tryCreateLock(token));
+  } catch (error) {
+    failure = error;
   }
+  if (failure) {
+    leaveLockTransition(token);
+    throw failure;
+  }
+  // A failed transition cleanup must not turn a lock we already own into
+  // contention against ourselves. Keep the token so the outer finally can
+  // still release the lock (and report failure if the transition remains).
+  leaveLockTransition(token);
+  return acquired;
 }
 
 function acquireLock() {
@@ -334,7 +496,7 @@ function acquireLock() {
 
     if (waitedMilliseconds >= maximumLockWaitMilliseconds) {
       console.error(
-        `Could not acquire safeword package test lock after waiting ${formatElapsedWait(maximumLockWaitMilliseconds)}; no test was started.`,
+        `Could not acquire safeword package test lock at ${lockDirectory} after waiting ${formatElapsedWait(maximumLockWaitMilliseconds)}; no test was started. A transition may be blocked at ${transitionDirectory}. Remove either directory only if you are sure no package test is running.`,
       );
       return false;
     }
@@ -356,7 +518,7 @@ function acquireLock() {
 
 function releaseLock(token) {
   let waitedMilliseconds = 0;
-  while (!tryEnterLockTransition()) {
+  while (!tryEnterLockTransition(token)) {
     if (waitedMilliseconds >= maximumTransitionWaitMilliseconds) {
       console.error(
         'Could not safely release the safeword package test lock; the lock was left in place.',
@@ -371,27 +533,32 @@ function releaseLock(token) {
     waitedMilliseconds += nextSleepMilliseconds;
   }
 
+  let released = false;
+  let failure;
   try {
     const { owner } = readOwner();
     // eslint-disable-next-line security/detect-possible-timing-attacks -- UUID ownership identifiers are not secrets.
-    if (owner.token !== token) {
+    if (owner.token === token) {
+      rmSync(lockDirectory, { force: true, recursive: true });
+      released = true;
+    } else {
       console.error(
         'Could not safely release the safeword package test lock because its ownership changed; the lock was left in place.',
       );
-      return false;
     }
-    rmSync(lockDirectory, { force: true, recursive: true });
-    return true;
-  } finally {
-    leaveLockTransition();
+  } catch (error) {
+    failure = error;
   }
+  if (failure) {
+    leaveLockTransition(token);
+    throw failure;
+  }
+  return leaveLockTransition(token) && released;
 }
 
 function run(command, args, environment = childEnvironment) {
-  const windowsVitest = windowsVitestInvocation(command, environment);
-  const executable = windowsVitest?.executable ?? command;
-  const executableArguments = windowsVitest ? [...windowsVitest.arguments, ...args] : args;
-  const result = spawnSync(executable, executableArguments, {
+  const invocation = resolveTestRunnerInvocation(command, args, environment, cliRoot);
+  const result = spawnSync(invocation.executable, invocation.arguments, {
     cwd: cliRoot,
     env: environment,
     stdio: 'inherit',
@@ -409,21 +576,21 @@ function run(command, args, environment = childEnvironment) {
   return result.status ?? 1;
 }
 
-function windowsVitestInvocation(command, environment) {
-  if (process.platform !== 'win32' || command !== 'vitest') return false;
-  return resolveWindowsVitest(environment[pathKey] ?? '', cliRoot);
-}
-
 function packageSnapshotEntries() {
   const packageJsonPath = nodePath.join(cliRoot, 'package.json');
-  if (!existsSync(packageJsonPath)) return ['dist'];
   const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
-  return [
-    'package.json',
-    ...(Array.isArray(packageJson.files)
-      ? packageJson.files.filter(entry => typeof entry === 'string')
-      : []),
-  ];
+  if (!Array.isArray(packageJson.files) || packageJson.files.length === 0) {
+    throw new Error('Package snapshot requires a non-empty package.json files array.');
+  }
+  for (const entry of packageJson.files) {
+    if (typeof entry !== 'string' || entry.trim() === '') {
+      throw new Error('Package snapshot entries must be non-empty strings.');
+    }
+    if (entry.startsWith('!') || /[*?[\]{}()]/u.test(entry)) {
+      throw new Error(`Package snapshot does not support package.json files patterns: ${entry}`);
+    }
+  }
+  return ['package.json', ...packageJson.files];
 }
 
 function pathEscapesRoot(relativePath) {
@@ -452,7 +619,9 @@ function packageSnapshotSource(entry, canonicalCliRoot) {
   if (pathEscapesRoot(packageRelativeSource)) {
     throw new Error(`Package snapshot entry escapes the CLI package: ${entry}`);
   }
-  if (!existsSync(source)) return false;
+  if (!existsSync(source)) {
+    throw new Error(`Package snapshot entry does not exist: ${entry}`);
+  }
   const canonicalRelativeSource = nodePath.relative(canonicalCliRoot, realpathSync(source));
   if (pathEscapesRoot(canonicalRelativeSource)) {
     throw new Error(`Package snapshot entry resolves outside the CLI package: ${entry}`);
@@ -461,13 +630,43 @@ function packageSnapshotSource(entry, canonicalCliRoot) {
   return { packageRelativeSource, source };
 }
 
+function canonicalActivePackageSnapshot() {
+  if (!process.env.SAFEWORD_TEST_CLI_ROOT) return false;
+  try {
+    return realpathSync(process.env.SAFEWORD_TEST_CLI_ROOT);
+  } catch (error) {
+    if (error?.code === 'ENOENT') return false;
+    throw error;
+  }
+}
+
+function removeAgedPackageSnapshots(snapshotParent) {
+  const activeSnapshot = canonicalActivePackageSnapshot();
+  for (const entry of readdirSync(snapshotParent)) {
+    if (!entry.startsWith('safeword-test-package-')) continue;
+    const snapshot = nodePath.join(snapshotParent, entry);
+    try {
+      if (realpathSync(snapshot) === activeSnapshot) continue;
+      if (Date.now() - statSync(snapshot).mtimeMs <= 6 * 60 * 60 * 1000) continue;
+      rmSync(snapshot, { force: true, recursive: true });
+    } catch (error) {
+      if (error?.code !== 'ENOENT') throw error;
+    }
+  }
+}
+
 function createPackageSnapshot() {
-  const snapshotRoot = mkdtempSync(nodePath.join(cliRoot, '.test-package-'));
+  // Keep the snapshot under node_modules so externalized runtime dependencies
+  // resolve naturally, but outside the tracked package tree so a killed run
+  // cannot leave `.test-package-*` worktree residue.
+  const snapshotParent = nodePath.join(cliRoot, 'node_modules', '.cache');
+  mkdirSync(snapshotParent, { recursive: true });
+  removeAgedPackageSnapshots(snapshotParent);
+  const snapshotRoot = mkdtempSync(nodePath.join(snapshotParent, 'safeword-test-package-'));
   const canonicalCliRoot = realpathSync(cliRoot);
   try {
     for (const entry of packageSnapshotEntries()) {
       const snapshotSource = packageSnapshotSource(entry, canonicalCliRoot);
-      if (!snapshotSource) continue;
       const { packageRelativeSource, source } = snapshotSource;
       const destination = nodePath.join(snapshotRoot, packageRelativeSource);
       mkdirSync(nodePath.dirname(destination), { recursive: true });
@@ -514,9 +713,7 @@ try {
     }
   }
 } finally {
-  if (packageSnapshot && !removePackageSnapshot(packageSnapshot)) {
-    status = 1;
-  }
+  if (packageSnapshot) removePackageSnapshot(packageSnapshot);
   if (lockToken && !releaseLock(lockToken)) {
     status = 1;
   }

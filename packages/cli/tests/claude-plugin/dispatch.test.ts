@@ -8,6 +8,7 @@ import {
   readFileSync,
   realpathSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -16,7 +17,11 @@ import nodePath from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { CLAUDE_HISTORICAL_CATALOGUE } from '../../src/claude-plugin/historical-catalogue.generated.js';
-import { historicalHookEntry } from '../../src/claude-plugin/historical-ownership.js';
+import {
+  historicalCatalogueDigest,
+  historicalHookEntry,
+} from '../../src/claude-plugin/historical-ownership.js';
+import { claudeWatchedSettingsDigest } from '../../src/claude-plugin/migration-state.js';
 import { SAFEWORD_SCHEMA } from '../../src/schema.js';
 
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
@@ -38,6 +43,10 @@ function releasedAsset(projectDirectory: string): string {
   const release = CLAUDE_HISTORICAL_CATALOGUE.releases['0.72.0'];
   const installedPath = Object.keys(release.files)[0];
   if (installedPath === undefined) throw new Error('Release 0.72.0 has no Claude fixture.');
+  return releasedFile(projectDirectory, installedPath);
+}
+
+function releasedFile(projectDirectory: string, installedPath: string): string {
   const schema = execFileSync('git', ['show', 'v0.72.0:packages/cli/src/schema.ts'], {
     cwd: REPO_ROOT,
     encoding: 'utf8',
@@ -65,9 +74,7 @@ function promptSettings(projectDirectory: string, marketplace: unknown): void {
   const hook = historicalHookEntry(fingerprint);
   const command = /\.safeword\/hooks\/[\w./-]+/u.exec(JSON.stringify(hook))?.[0];
   if (command === undefined) throw new Error('Historical prompt hook has no project hook path.');
-  const hookTarget = nodePath.join(projectDirectory, command);
-  mkdirSync(nodePath.dirname(hookTarget), { recursive: true });
-  writeFileSync(hookTarget, '// viable legacy authority\n');
+  releasedFile(projectDirectory, command);
   const settings = nodePath.join(projectDirectory, '.claude/settings.json');
   mkdirSync(nodePath.dirname(settings), { recursive: true });
   writeFileSync(
@@ -101,6 +108,7 @@ function dispatchEvent(
   options: {
     readonly event: string;
     readonly homeDirectory?: string;
+    readonly hookInput?: Readonly<Record<string, unknown>>;
     readonly omitProjectDirectory?: boolean;
     readonly pluginRoot?: string;
   },
@@ -128,6 +136,7 @@ function dispatchEvent(
         cwd: projectDirectory,
         hook_event_name: event,
         session_id: sessionId,
+        ...options.hookInput,
       }),
     },
   );
@@ -194,6 +203,32 @@ describe('Claude plugin dispatcher', () => {
     });
   });
 
+  it('does not let stale Setup metadata suppress SessionStart proof', () => {
+    const projectDirectory = temporary('safeword-plugin-stale-smoke-project-');
+    const pluginData = temporary('safeword-plugin-stale-smoke-data-');
+    const identity = JSON.parse(readFileSync(nodePath.join(PLUGIN_ROOT, 'identity.json'), 'utf8'));
+    writeFileSync(
+      nodePath.join(pluginData, 'cache-smoke-v1.json'),
+      `${JSON.stringify({
+        schema_version: 1,
+        ...identity,
+        canonical_plugin_root: '/different/plugin/root',
+        project_root: realpathSync(projectDirectory),
+        event: 'Setup',
+        session_id: 'shared-session',
+      })}\n`,
+    );
+
+    const result = dispatchEvent(projectDirectory, pluginData, undefined, 'shared-session', {
+      event: 'SessionStart',
+    });
+    expect(result.status, result.stderr).toBe(0);
+    const projectDigest = createHash('sha256').update(realpathSync(projectDirectory)).digest('hex');
+    expect(
+      existsSync(nodePath.join(pluginData, 'execution-proofs-v2', `${projectDigest}.json`)),
+    ).toBe(true);
+  });
+
   it('automatically contracts a released project through the generated runtime', () => {
     const projectDirectory = temporary('safeword-plugin-migration-project-');
     const pluginData = temporary('safeword-plugin-migration-data-');
@@ -219,28 +254,117 @@ describe('Claude plugin dispatcher', () => {
     expect(settings.extraKnownMarketplaces.safeword).toEqual(marketplace);
   });
 
+  it('rescans when legacy integration appears after a clean marker', () => {
+    const projectDirectory = temporary('safeword-plugin-reintroduced-legacy-project-');
+    const pluginData = temporary('safeword-plugin-reintroduced-legacy-data-');
+    const configDirectory = temporary('safeword-plugin-reintroduced-legacy-config-');
+
+    const initial = dispatchPrompt(projectDirectory, pluginData, configDirectory, 'initial-clean');
+    expect(initial.status, initial.stderr).toBe(0);
+    const target = releasedAsset(projectDirectory);
+    promptSettings(projectDirectory, { source: { source: 'github', repo: 'ArcadeAI/safeword' } });
+
+    const rescanned = dispatchPrompt(projectDirectory, pluginData, configDirectory, 'rescanned');
+    expect(rescanned.status, rescanned.stderr).toBe(0);
+    expect(existsSync(target)).toBe(false);
+  });
+
+  it('retries migration despite cached transient-error attention', () => {
+    const projectDirectory = temporary('safeword-plugin-transient-attention-project-');
+    const pluginData = temporary('safeword-plugin-transient-attention-data-');
+    const configDirectory = temporary('safeword-plugin-transient-attention-config-');
+    const target = releasedAsset(projectDirectory);
+    promptSettings(projectDirectory, { source: { source: 'github', repo: 'ArcadeAI/safeword' } });
+    const attentionPath = nodePath.join(
+      projectDirectory,
+      '.safeword/claude-plugin/attention-v1.json',
+    );
+    mkdirSync(nodePath.dirname(attentionPath), { recursive: true });
+    writeFileSync(
+      attentionPath,
+      `${JSON.stringify({
+        schema_version: 1,
+        state_digest: 'a'.repeat(64),
+        plugin_version: SAFEWORD_SCHEMA.version,
+        catalogue_sha256: historicalCatalogueDigest(),
+        watched_settings_sha256: claudeWatchedSettingsDigest(projectDirectory),
+        classification: 'migration-error',
+        advisory: 'transient failure',
+      })}\n`,
+    );
+
+    const result = dispatchPrompt(projectDirectory, pluginData, configDirectory, 'retry-attention');
+    expect(result.status, result.stderr).toBe(0);
+    expect(existsSync(target)).toBe(false);
+  });
+
+  it('does not record proof or migrate when a direct hook command is missing', () => {
+    const projectDirectory = temporary('safeword-plugin-empty-command-project-');
+    const pluginData = temporary('safeword-plugin-empty-command-data-');
+    const target = releasedAsset(projectDirectory);
+    promptSettings(projectDirectory, { source: { source: 'github', repo: 'ArcadeAI/safeword' } });
+    const environment: NodeJS.ProcessEnv = {
+      ...process.env,
+      CLAUDE_PLUGIN_DATA: pluginData,
+      CLAUDE_PLUGIN_ROOT: PLUGIN_ROOT,
+      CLAUDE_PROJECT_DIR: projectDirectory,
+    };
+
+    const result = spawnSync(
+      'bun',
+      [nodePath.join(PLUGIN_ROOT, 'runtime/dispatch.js'), 'UserPromptSubmit', '--'],
+      {
+        cwd: projectDirectory,
+        env: environment,
+        encoding: 'utf8',
+        input: JSON.stringify({
+          cwd: projectDirectory,
+          hook_event_name: 'UserPromptSubmit',
+          session_id: 'empty-command',
+        }),
+      },
+    );
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain('A direct hook command is required');
+    expect(existsSync(target)).toBe(true);
+    expect(existsSync(nodePath.join(pluginData, 'execution-proofs-v2'))).toBe(false);
+  });
+
   it('uses the hook cwd when Claude omits CLAUDE_PROJECT_DIR', () => {
     const projectDirectory = temporary('safeword-plugin-cwd-fallback-project-');
     const pluginData = temporary('safeword-plugin-cwd-fallback-data-');
     const configDirectory = temporary('safeword-plugin-cwd-fallback-config-');
+    const pluginRoot = nodePath.join(temporary('safeword-plugin-cwd-fallback-root-'), 'plugin');
+    cpSync(PLUGIN_ROOT, pluginRoot, { recursive: true });
     const target = releasedAsset(projectDirectory);
     promptSettings(projectDirectory, {
       source: { source: 'github', repo: 'ArcadeAI/safeword' },
     });
+    const eventGroupsPath = nodePath.join(pluginRoot, 'runtime/event-groups.json');
+    const eventGroups = JSON.parse(readFileSync(eventGroupsPath, 'utf8')) as {
+      groups: Record<string, unknown>;
+    };
+    eventGroups.groups.UserPromptSubmit = [
+      { hooks: [{ type: 'command', command: String.raw`printf '{"nativeRan":true}\n'` }] },
+    ];
+    writeFileSync(eventGroupsPath, `${JSON.stringify(eventGroups, undefined, 2)}\n`);
+    refreshPluginIdentity(pluginRoot, ['runtime/event-groups.json']);
 
     const result = dispatchEvent(projectDirectory, pluginData, configDirectory, 'cwd-fallback', {
       event: 'UserPromptSubmit',
       omitProjectDirectory: true,
+      pluginRoot,
     });
 
     expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).not.toContain('nativeRan');
     expect(existsSync(target)).toBe(false);
     expect(
       existsSync(nodePath.join(projectDirectory, '.safeword/claude-plugin/plugin-mode-v2.json')),
     ).toBe(true);
   });
 
-  it('recognizes legacy hook authority in Claude JSONC settings', () => {
+  it('recognizes exact legacy hook authority in Claude JSONC settings', () => {
     const projectDirectory = temporary('safeword-plugin-jsonc-project-');
     const pluginData = temporary('safeword-plugin-jsonc-data-');
     const configDirectory = temporary('safeword-plugin-jsonc-config-');
@@ -269,6 +393,158 @@ describe('Claude plugin dispatcher', () => {
     });
     expect(result.status, result.stderr).toBe(0);
     expect(result.stdout).not.toContain('nativeRan');
+  });
+
+  it('does not treat partially parsed malformed settings as legacy authority', () => {
+    const projectDirectory = temporary('safeword-plugin-malformed-settings-project-');
+    const pluginData = temporary('safeword-plugin-malformed-settings-data-');
+    const configDirectory = temporary('safeword-plugin-malformed-settings-config-');
+    const pluginRoot = nodePath.join(
+      temporary('safeword-plugin-malformed-settings-root-'),
+      'plugin',
+    );
+    cpSync(PLUGIN_ROOT, pluginRoot, { recursive: true });
+    promptSettings(projectDirectory, { source: { source: 'github', repo: 'ArcadeAI/safeword' } });
+    const settingsPath = nodePath.join(projectDirectory, '.claude/settings.json');
+    writeFileSync(settingsPath, `${readFileSync(settingsPath, 'utf8')} unexpected-token\n`);
+
+    const eventGroupsPath = nodePath.join(pluginRoot, 'runtime/event-groups.json');
+    const eventGroups = JSON.parse(readFileSync(eventGroupsPath, 'utf8')) as {
+      groups: Record<string, unknown>;
+    };
+    eventGroups.groups.UserPromptSubmit = [
+      { hooks: [{ type: 'command', command: String.raw`printf '{"nativeRan":true}\n'` }] },
+    ];
+    writeFileSync(eventGroupsPath, `${JSON.stringify(eventGroups, undefined, 2)}\n`);
+    refreshPluginIdentity(pluginRoot, ['runtime/event-groups.json']);
+
+    const result = dispatchPrompt(projectDirectory, pluginData, configDirectory, 'malformed', {
+      pluginRoot,
+    });
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain('nativeRan');
+  });
+
+  it('does not let an unrecognized legacy-looking entry suppress native hooks', () => {
+    const projectDirectory = temporary('safeword-plugin-unrecognized-authority-project-');
+    const pluginData = temporary('safeword-plugin-unrecognized-authority-data-');
+    const configDirectory = temporary('safeword-plugin-unrecognized-authority-config-');
+    const pluginRoot = nodePath.join(
+      temporary('safeword-plugin-unrecognized-authority-root-'),
+      'plugin',
+    );
+    cpSync(PLUGIN_ROOT, pluginRoot, { recursive: true });
+    const customHook = nodePath.join(projectDirectory, '.safeword/hooks/custom.ts');
+    mkdirSync(nodePath.dirname(customHook), { recursive: true });
+    writeFileSync(customHook, '// not owned by Safeword\n');
+    const settingsPath = nodePath.join(projectDirectory, '.claude/settings.json');
+    mkdirSync(nodePath.dirname(settingsPath), { recursive: true });
+    writeFileSync(
+      settingsPath,
+      `${JSON.stringify({
+        hooks: {
+          UserPromptSubmit: [
+            {
+              hooks: [
+                {
+                  type: 'command',
+                  command: 'bun "$CLAUDE_PROJECT_DIR"/.safeword/hooks/custom.ts',
+                },
+              ],
+            },
+          ],
+        },
+      })}\n`,
+    );
+
+    const eventGroupsPath = nodePath.join(pluginRoot, 'runtime/event-groups.json');
+    const eventGroups = JSON.parse(readFileSync(eventGroupsPath, 'utf8')) as {
+      groups: Record<string, unknown>;
+    };
+    eventGroups.groups.UserPromptSubmit = [
+      { hooks: [{ type: 'command', command: String.raw`printf '{"nativeRan":true}\n'` }] },
+    ];
+    writeFileSync(eventGroupsPath, `${JSON.stringify(eventGroups, undefined, 2)}\n`);
+    refreshPluginIdentity(pluginRoot, ['runtime/event-groups.json']);
+
+    const result = dispatchPrompt(projectDirectory, pluginData, configDirectory, 'unrecognized', {
+      pluginRoot,
+    });
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain('nativeRan');
+  });
+
+  it('does not let a corrupted historical hook suppress native hooks', () => {
+    const projectDirectory = temporary('safeword-plugin-corrupt-authority-project-');
+    const pluginData = temporary('safeword-plugin-corrupt-authority-data-');
+    const configDirectory = temporary('safeword-plugin-corrupt-authority-config-');
+    const pluginRoot = nodePath.join(
+      temporary('safeword-plugin-corrupt-authority-root-'),
+      'plugin',
+    );
+    cpSync(PLUGIN_ROOT, pluginRoot, { recursive: true });
+    promptSettings(projectDirectory, { source: { source: 'github', repo: 'ArcadeAI/safeword' } });
+    const settings = readFileSync(nodePath.join(projectDirectory, '.claude/settings.json'), 'utf8');
+    const hookReference = /\.safeword\/hooks\/[^\s"';&|)]+/u.exec(settings)?.[0];
+    if (hookReference === undefined) throw new Error('Historical settings have no hook path.');
+    writeFileSync(nodePath.join(projectDirectory, hookReference), '');
+
+    const eventGroupsPath = nodePath.join(pluginRoot, 'runtime/event-groups.json');
+    const eventGroups = JSON.parse(readFileSync(eventGroupsPath, 'utf8')) as {
+      groups: Record<string, unknown>;
+    };
+    eventGroups.groups.UserPromptSubmit = [
+      { hooks: [{ type: 'command', command: String.raw`printf '{"nativeRan":true}\n'` }] },
+    ];
+    writeFileSync(eventGroupsPath, `${JSON.stringify(eventGroups, undefined, 2)}\n`);
+    refreshPluginIdentity(pluginRoot, ['runtime/event-groups.json']);
+
+    const result = dispatchPrompt(projectDirectory, pluginData, configDirectory, 'corrupt', {
+      pluginRoot,
+    });
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain('nativeRan');
+  });
+
+  it('does not let a symlinked legacy hook directory suppress native hooks', () => {
+    const projectDirectory = temporary('safeword-plugin-symlink-authority-project-');
+    const pluginData = temporary('safeword-plugin-symlink-authority-data-');
+    const configDirectory = temporary('safeword-plugin-symlink-authority-config-');
+    const pluginRoot = nodePath.join(
+      temporary('safeword-plugin-symlink-authority-root-'),
+      'plugin',
+    );
+    cpSync(PLUGIN_ROOT, pluginRoot, { recursive: true });
+    promptSettings(projectDirectory, { source: { source: 'github', repo: 'ArcadeAI/safeword' } });
+    const settings = readFileSync(nodePath.join(projectDirectory, '.claude/settings.json'), 'utf8');
+    const hookReference = /\.safeword\/hooks\/[^\s"';&|)]+/u.exec(settings)?.[0];
+    if (hookReference === undefined) throw new Error('Historical settings have no hook path.');
+    const hooksRoot = nodePath.join(projectDirectory, '.safeword/hooks');
+    rmSync(hooksRoot, { recursive: true });
+    const externalHooks = temporary('safeword-plugin-external-hooks-');
+    const externalTarget = nodePath.join(
+      externalHooks,
+      nodePath.relative('.safeword/hooks', hookReference),
+    );
+    mkdirSync(nodePath.dirname(externalTarget), { recursive: true });
+    writeFileSync(externalTarget, '// outside the project\n');
+    symlinkSync(externalHooks, hooksRoot, 'dir');
+
+    const eventGroupsPath = nodePath.join(pluginRoot, 'runtime/event-groups.json');
+    const eventGroups = JSON.parse(readFileSync(eventGroupsPath, 'utf8')) as {
+      groups: Record<string, unknown>;
+    };
+    eventGroups.groups.UserPromptSubmit = [
+      { hooks: [{ type: 'command', command: String.raw`printf '{"nativeRan":true}\n'` }] },
+    ];
+    writeFileSync(eventGroupsPath, `${JSON.stringify(eventGroups, undefined, 2)}\n`);
+    refreshPluginIdentity(pluginRoot, ['runtime/event-groups.json']);
+
+    const result = dispatchPrompt(projectDirectory, pluginData, configDirectory, 'symlinked', {
+      pluginRoot,
+    });
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain('nativeRan');
   });
 
   it('treats valid non-object hook input as empty input', () => {
@@ -391,7 +667,7 @@ describe('Claude plugin dispatcher', () => {
     expect(existsSync(nodePath.join(pluginData, 'execution-proofs-v2'))).toBe(false);
   });
 
-  it('ignores known operating-system metadata in an otherwise verified cache', () => {
+  it('rejects unlisted operating-system metadata in an otherwise verified cache', () => {
     const projectDirectory = temporary('safeword-plugin-os-metadata-project-');
     const pluginData = temporary('safeword-plugin-os-metadata-data-');
     const configDirectory = temporary('safeword-plugin-os-metadata-config-');
@@ -403,7 +679,8 @@ describe('Claude plugin dispatcher', () => {
       pluginRoot,
     });
     expect(result.status, result.stderr).toBe(0);
-    expect(result.stdout).not.toContain('damaged native plugin cache');
+    expect(result.stdout).toContain('damaged native plugin cache');
+    expect(result.stdout).toContain('contains an unlisted asset: .DS_Store');
   });
 
   it('returns one JSON response when a direct prompt hook also needs an advisory', () => {
@@ -573,6 +850,55 @@ describe('Claude plugin dispatcher', () => {
     });
   });
 
+  it('matches aggregate tool hooks against the Claude tool name', () => {
+    const projectDirectory = temporary('safeword-plugin-tool-matcher-project-');
+    const pluginData = temporary('safeword-plugin-tool-matcher-data-');
+    const configDirectory = temporary('safeword-plugin-tool-matcher-config-');
+    const pluginRoot = nodePath.join(temporary('safeword-plugin-tool-matcher-root-'), 'plugin');
+    cpSync(PLUGIN_ROOT, pluginRoot, { recursive: true });
+
+    const eventGroupsPath = nodePath.join(pluginRoot, 'runtime/event-groups.json');
+    const eventGroups = JSON.parse(readFileSync(eventGroupsPath, 'utf8')) as {
+      groups: Record<string, unknown>;
+    };
+    eventGroups.groups.PreToolUse = [
+      {
+        matcher: 'Bash',
+        hooks: [
+          {
+            type: 'command',
+            command: String.raw`printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","permissionDecisionReason":"bash matched"}}\n'`,
+          },
+        ],
+      },
+      {
+        matcher: 'Edit',
+        hooks: [
+          {
+            type: 'command',
+            command: String.raw`printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"edit matched"}}\n'`,
+          },
+        ],
+      },
+    ];
+    writeFileSync(eventGroupsPath, `${JSON.stringify(eventGroups, undefined, 2)}\n`);
+    refreshPluginIdentity(pluginRoot, ['runtime/event-groups.json']);
+
+    const result = dispatchEvent(projectDirectory, pluginData, configDirectory, 'tool-matcher', {
+      event: 'PreToolUse',
+      hookInput: { source: 'startup', tool_name: 'Bash', tool_input: { command: 'pwd' } },
+      pluginRoot,
+    });
+    expect(result.status, result.stderr).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      hookSpecificOutput: {
+        hookEventName: 'PreToolUse',
+        permissionDecision: 'allow',
+        permissionDecisionReason: 'bash matched',
+      },
+    });
+  });
+
   it('returns Claude blocking status for unmergeable blockable hook output', () => {
     const projectDirectory = temporary('safeword-plugin-unmergeable-output-project-');
     const pluginData = temporary('safeword-plugin-unmergeable-output-data-');
@@ -604,6 +930,39 @@ describe('Claude plugin dispatcher', () => {
     expect(result.status).toBe(2);
     expect(result.stderr).toContain('could not safely combine its PreToolUse hook output');
     expect(result.stderr).toContain('sibling hooks returned conflicting scalar values');
+  });
+
+  it('fails closed when a sibling errors after an authorization denial', () => {
+    const projectDirectory = temporary('safeword-plugin-sibling-error-project-');
+    const pluginData = temporary('safeword-plugin-sibling-error-data-');
+    const configDirectory = temporary('safeword-plugin-sibling-error-config-');
+    const pluginRoot = nodePath.join(temporary('safeword-plugin-sibling-error-root-'), 'plugin');
+    cpSync(PLUGIN_ROOT, pluginRoot, { recursive: true });
+
+    const eventGroupsPath = nodePath.join(pluginRoot, 'runtime/event-groups.json');
+    const eventGroups = JSON.parse(readFileSync(eventGroupsPath, 'utf8')) as {
+      groups: Record<string, unknown>;
+    };
+    eventGroups.groups.PreToolUse = [
+      {
+        hooks: [
+          {
+            type: 'command',
+            command: String.raw`printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny"}}\n'`,
+          },
+          { type: 'command', command: 'exit 1' },
+        ],
+      },
+    ];
+    writeFileSync(eventGroupsPath, `${JSON.stringify(eventGroups, undefined, 2)}\n`);
+    refreshPluginIdentity(pluginRoot, ['runtime/event-groups.json']);
+
+    const result = dispatchEvent(projectDirectory, pluginData, configDirectory, 'sibling-error', {
+      event: 'PreToolUse',
+      pluginRoot,
+    });
+    expect(result.status).toBe(2);
+    expect(result.stdout).toBe('');
   });
 
   it('preserves legacy delivery when project and user declarations differ', () => {

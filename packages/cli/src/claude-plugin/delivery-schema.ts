@@ -1,10 +1,6 @@
-import { existsSync } from 'node:fs';
-import nodePath from 'node:path';
-
 import { SAFEWORD_SCHEMA, type SafewordSchema } from '../schema.js';
-import { CLAUDE_MIGRATION_SCHEMA } from './inventory.js';
 import { legacyObservationIsEmpty, observeClaudeLegacy } from './legacy-classifier.js';
-import { readClaudePluginMode } from './migration-state.js';
+import { hasLegacyClaudePluginMode, readClaudePluginMode } from './migration-state.js';
 
 function withoutLegacyClaude<T>(values: Record<string, T>): Record<string, T> {
   return Object.fromEntries(
@@ -14,9 +10,7 @@ function withoutLegacyClaude<T>(values: Record<string, T>): Record<string, T> {
 
 /** Select the project schema for native versus retained legacy Claude delivery. */
 export function schemaForClaudeDelivery(cwd: string): SafewordSchema {
-  const legacyPluginMode = existsSync(
-    nodePath.join(cwd, CLAUDE_MIGRATION_SCHEMA.paths.pluginMarker),
-  );
+  const legacyPluginMode = hasLegacyClaudePluginMode(cwd);
   const nativePluginMode = readClaudePluginMode(cwd) !== undefined;
   if (
     !legacyPluginMode &&

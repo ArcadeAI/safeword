@@ -50,18 +50,36 @@ const PROCESS_VARIABLES = new Set([
   'no_proxy',
 ]);
 
-export function reviewerEnvironment(
-  reviewer: ReviewAgent,
+function filteredEnvironment(
+  reviewer: ReviewAgent | undefined,
   source: NodeJS.ProcessEnv = process.env,
   platform: NodeJS.Platform = process.platform,
 ): NodeJS.ProcessEnv {
   const normalize = (name: string): string => (platform === 'win32' ? name.toUpperCase() : name);
   const allowed = new Set(
-    [...PROCESS_VARIABLES, ...VENDOR_VARIABLES[reviewer]].map(name => normalize(name)),
+    [...PROCESS_VARIABLES, ...(reviewer === undefined ? [] : VENDOR_VARIABLES[reviewer])].map(
+      name => normalize(name),
+    ),
   );
   return Object.fromEntries(
     Object.entries(source).filter(
       ([name]) => allowed.has(normalize(name)) || normalize(name).startsWith('SAFEWORD_REVIEW_'),
     ),
   );
+}
+
+export function reviewerEnvironment(
+  reviewer: ReviewAgent,
+  source: NodeJS.ProcessEnv = process.env,
+  platform: NodeJS.Platform = process.platform,
+): NodeJS.ProcessEnv {
+  return filteredEnvironment(reviewer, source, platform);
+}
+
+/** Capability probes must never receive vendor credentials. */
+export function reviewerProbeEnvironment(
+  source: NodeJS.ProcessEnv = process.env,
+  platform: NodeJS.Platform = process.platform,
+): NodeJS.ProcessEnv {
+  return filteredEnvironment(undefined, source, platform);
 }

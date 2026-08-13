@@ -1,10 +1,16 @@
 import { chmodSync, mkdirSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 
 import { createTemporaryDirectory, runCli } from '../helpers.js';
-import { REVIEWER_CAPABILITIES } from '../review-fixtures.js';
+import {
+  cleanupTrustedReviewerDirectories,
+  createTrustedReviewerDirectory,
+  REVIEWER_CAPABILITIES,
+} from '../review-fixtures.js';
+
+afterAll(cleanupTrustedReviewerDirectories);
 
 const SECRET = 'sk-live-do-not-leak-9f3a';
 
@@ -46,7 +52,7 @@ printf '{"verdict":"looks fine","severity":"high"}\n'
 describe('explaining an exhausted run', () => {
   it('names each route its own cause, offers one next step, and leaks nothing', async () => {
     const directory = createTemporaryDirectory();
-    const host = createTemporaryDirectory();
+    const host = createTrustedReviewerDirectory('safeword-explanations-');
     writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
     const bin = installFailingReviewers(host);
 

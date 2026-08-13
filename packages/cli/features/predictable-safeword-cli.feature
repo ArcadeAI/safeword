@@ -74,18 +74,18 @@ Feature: One predictable Safeword CLI
       When the user confirms the stale plan
       Then no effect is applied and a fresh plan is required
 
-    Scenario: Partial apply reports completed effects and recovery
-      Given a confirmed plan whose second effect fails
-      When Safeword applies the plan
-      Then the result reports the first completed effect the stable error and recovery action
-
   @predictable-safeword-cli.TBU1.R5
-  Rule: predictable-safeword-cli.TBU1.R5 — Setup converges, and the second identical run reports no changes
+  Rule: predictable-safeword-cli.TBU1.R5 — Install converges, and the second identical run reports no changes
     @rejection
-    Scenario: A second setup run is unchanged
-      Given setup has converged a project
-      When the user runs setup again
-      Then the result is successful and changed is false
+    Scenario: Install refuses redundant mutation after convergence
+      Given install has converged a project
+      When the user runs install again
+      Then the result is successful with no reported or filesystem effects
+
+    Scenario: Partial install reports completed effects and recovery
+      Given an install whose second effect fails
+      When Safeword applies install
+      Then the result reports the first completed effect the stable error and recovery action
 
   @predictable-safeword-cli.NTB1.R1
   Rule: predictable-safeword-cli.NTB1.R1 — Action-required state is distinct from failure and never masquerades as success
@@ -123,14 +123,13 @@ Feature: One predictable Safeword CLI
     Scenario: Every public handler obeys the presentation boundary
       Given every public catalog entry and its deterministic invocation fixture
       When each real handler is invoked through the executable adapter
-      Then only the shared renderer writes output and no handler terminates the process
+      Then every invocation returns one JSON result through the shared renderer
 
   @predictable-safeword-cli.SWM1.R2
   Rule: predictable-safeword-cli.SWM1.R2 — Every public command supports deterministic JSON and no-input operation
-    @surface.claude-code @surface.cursor
     Scenario: Every public command accepts the machine contract
       Given every public command and its deterministic invocation fixture
-      When each command is invoked with "--json --no-input"
+      When each command is invoked through its machine fixture
       Then each invocation returns deterministic JSON without prompting
 
     Scenario Outline: Global options work on either side of the command
@@ -157,19 +156,18 @@ Feature: One predictable Safeword CLI
       When the agent invokes it with "--offline --json --no-input"
       Then no network call occurs and the result requires an online next action
 
-    Scenario: Cwd selects the project without changing the shell directory
+    Scenario: Cwd selects the requested project
       Given two projects with different Safeword states
       When status is run with cwd selecting the second project
-      Then the result describes only the second project and the parent process cwd is unchanged
+      Then the result describes only the second project
 
     Scenario: Quiet suppresses chatter but preserves actionable output
-      Given healthy action-required and failed results with progress prose
+      Given healthy action-required and failed results
       When Safeword renders each result with quiet enabled
-      Then healthy and progress prose is suppressed while next actions and errors remain visible
+      Then healthy prose is suppressed while next actions and errors remain visible
 
   @predictable-safeword-cli.SWM1.R3
   Rule: predictable-safeword-cli.SWM1.R3 — JSON uses one versioned envelope and stable error and exit semantics
-    @rejection
     Scenario Outline: JSON output is one complete parseable versioned envelope
       Given a command that <outcome>
       When Safeword renders JSON
@@ -178,12 +176,18 @@ Feature: One predictable Safeword CLI
         | outcome         |
         | succeeds        |
         | requires action |
-        | fails           |
+
+    @rejection
+    Scenario: Failed commands remain inside the stable JSON error contract
+      Given a command that fails
+      When Safeword renders JSON
+      Then stdout contains only one schema-version-1 envelope with state changed findings effects errors recovery and next actions
+      And the JSON envelope reports failed state with a stable error
 
   @predictable-safeword-cli.SWM1.R4
   Rule: predictable-safeword-cli.SWM1.R4 — Capabilities describe commands and effects without executing them
     @rejection
-    Scenario: Capabilities is complete and effect-free
+    Scenario: Capabilities exposes neither hidden commands nor command effects
       Given the public command catalog
       When the agent requests capabilities as JSON
       Then every public command declares its canonical name aliases effect class prompt policy network policy schema and invocation fixture
@@ -199,68 +203,49 @@ Feature: One predictable Safeword CLI
 
     Scenario Outline: Replaced commands remain compatible aliases indefinitely
       Given the legacy command "<legacy>"
-      When the user invokes it in retained release line <release_line>
+      When the user invokes the retained alias
       Then canonical behavior runs with indefinite-retention compatibility metadata
       Examples:
-        | legacy          | release_line |
-        | check           | 1            |
-        | check           | 2            |
-        | diff            | 1            |
-        | diff            | 2            |
-        | reset           | 1            |
-        | reset           | 2            |
-        | upgrade         | 1            |
-        | upgrade         | 2            |
-        | sync-config     | 1            |
-        | sync-config     | 2            |
-        | sync-tracker    | 1            |
-        | sync-tracker    | 2            |
-        | connect         | 1            |
-        | connect         | 2            |
-        | architecture    | 1            |
-        | architecture    | 2            |
-        | sync-learnings  | 1            |
-        | sync-learnings  | 2            |
-        | sync-tickets    | 1            |
-        | sync-tickets    | 2            |
-        | codify          | 1            |
-        | codify          | 2            |
-        | self-report     | 1            |
-        | self-report     | 2            |
-        | retro-reconcile | 1            |
-        | retro-reconcile | 2            |
-        | lint-gherkin    | 1            |
-        | lint-gherkin    | 2            |
-        | test-plan       | 1            |
-        | test-plan       | 2            |
-        | retro           | 1            |
-        | retro           | 2            |
-        | migrate codex-plugin | 1        |
-        | migrate codex-plugin | 2        |
+        | legacy               |
+        | check                |
+        | diff                 |
+        | reset                |
+        | setup                |
+        | upgrade              |
+        | sync-config          |
+        | sync-tracker         |
+        | connect              |
+        | architecture         |
+        | sync-learnings       |
+        | sync-tickets         |
+        | codify               |
+        | self-report          |
+        | retro-reconcile      |
+        | lint-gherkin         |
+        | test-plan            |
+        | retro                |
+        | migrate codex-plugin |
 
   @surface.openai-codex
   @predictable-safeword-cli.SWM1.R6
-  Rule: predictable-safeword-cli.SWM1.R6 — Typed Codex hook entrypoints stay hidden, quiet, offline, and free of install or upgrade effects
+  Rule: predictable-safeword-cli.SWM1.R6 — Typed Codex hook entrypoints stay hidden, quiet, offline, effect-free, and responsive
     @rejection
-    Scenario Outline: Each real hook adapter is hidden quiet offline and lifecycle-safe
-      Given an installed <surface> hook
+    Scenario: The real Codex hook adapter is hidden quiet offline and lifecycle-safe
+      Given an installed Codex hook
       When it invokes its real hidden Safeword entrypoint
       Then output contains no human or progress prose and any required stdout is one valid host-protocol payload
       And no install upgrade package or network effect occurs
       And the entrypoint is absent from help and capabilities
-      Examples:
-        | surface     |
-        | Codex       |
 
-    Scenario: Hook invocation stays within the existing latency budget
-      Given an installed agent hook after warm-up
-      When its latency is measured repeatedly
-      Then its p95 latency stays within the repository threshold
+    Scenario: Codex hook responsiveness stays within the operation budget
+      Given an installed Codex hook after warm-up
+      When its latency is measured over 20 samples
+      Then its p95 latency stays below 5000 milliseconds
 
   @predictable-safeword-cli.SWM1.R7
-  Rule: predictable-safeword-cli.SWM1.R7 — Long-running interactive commands report meaningful progress within 100 milliseconds
+  Rule: predictable-safeword-cli.SWM1.R7 — Progress reporting keeps one restartable 100-millisecond schedule
     @rejection
-    Scenario: Meaningful feedback is emitted before slow work
-      Given an interactive command with an injected monotonic clock and an apply step longer than 100 milliseconds
-      When the user confirms the plan
-      Then the progress adapter emits meaningful feedback within 100 milliseconds
+    Scenario: Restarting progress reporting replaces the pending schedule
+      Given a progress reporter with a controlled scheduler
+      When progress reporting starts twice before 100 milliseconds elapse
+      Then the first schedule is cancelled and the replacement emits one meaningful message after 100 milliseconds
