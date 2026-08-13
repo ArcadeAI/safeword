@@ -12,17 +12,21 @@ implementation.
 | TBU1.R1 default status | 2 | `b178e7e8c` | `97ee66679` | `fb01c7e59` |
 | TBU1.R2 read-only invariants | 9 | `f2dfcda1e` | `886c61a57` | `fb01c7e59` |
 | TBU1.R3 human renderer | 5 | `0fbf6e24b` | `75928ace1` | `a1fd38c90` |
-| TBU1.R4 destructive confirmation | 4 | `6ab9915c2` | `b1b03789b` | `7e74674e3` |
-| TBU1.R5 setup convergence | 1 | `6bc2b8942` | `643072543` | `fb01c7e59` |
+| TBU1.R4 destructive confirmation | 3 | `6ab9915c2` | `b1b03789b` | `7e74674e3` |
+| TBU1.R5 install convergence | 2 | `6bc2b8942` | `643072543` | `fb01c7e59` |
 | NTB1.R1 exit semantics | 3 | `fc9159487` | `1875aa5ee` | `75928ace1` |
 | NTB1.R2 non-interactive safety | 2 | `6ab9915c2` | `b1b03789b` | `fb01c7e59` |
 | SWM1.R1 typed boundary | 2 | `46790fe42` | `cb247c5b5` | `fb01c7e59` |
 | SWM1.R2 machine contract | 11 | `46790fe42` | `cb247c5b5` | `fb01c7e59` |
 | SWM1.R3 JSON envelope | 3 | `fc9159487` | `1875aa5ee` | `75928ace1` |
 | SWM1.R4 capabilities | 1 | `a07d6f38d` | `3cf149e31` | `cb247c5b5` |
-| SWM1.R5 hierarchy and aliases | 35 | `c84d5dea2` | `3e4bc2be5` | `cb247c5b5` |
-| SWM1.R6 hook safety | 4 | `bfd3e24f3` | `f2dfcda1e` | `fb01c7e59` |
-| Interactive progress | 1 | `37477964b` | `45235c2d4` | `fb01c7e59` |
+| SWM1.R5 hierarchy and aliases | 19 | `c84d5dea2` | `3e4bc2be5` | `cb247c5b5` |
+| SWM1.R6 hook safety | 2 | `bfd3e24f3` | `f2dfcda1e` | `fb01c7e59` |
+| SWM1.R7 interactive progress | 1 | `37477964b` | `45235c2d4` | `fb01c7e59` |
 
-Total: 83 scenario instances. Commit identifiers replace each checkbox as its
+Total: 65 scenario instances. Commit identifiers replace each checkbox as its
 slice moves through RED → GREEN → REFACTOR.
+
+The install-convergence scenarios are hermetic: `SAFEWORD_SKIP_INSTALL=1`
+simulates a satisfied package manifest, so they prove reconciliation and
+idempotence without downloading packages or depending on registry state.

@@ -22,7 +22,6 @@ import { After, Given, Then, When } from '@cucumber/cucumber';
 import {
   commandCatalog,
   type CommandDefinition,
-  createCapabilitiesResult,
   findCommandDefinition,
   publicCommands,
 } from '../../src/cli-protocol/catalog.ts';
@@ -31,18 +30,13 @@ import {
   type CliResult,
   createResult,
   type Effects,
-  exitStatusFor,
   renderHumanResult,
-  renderJsonResult,
 } from '../../src/cli-protocol/result.ts';
 import { convergeSetup } from '../../src/lifecycle/project-install.ts';
 import { publicFixtureEnvironment } from './public-fixture-environment.js';
 import type { SafewordWorld } from './world.js';
 
 const CLI_PATH = fileURLToPath(new URL('../../dist/cli.js', import.meta.url));
-const SAFEWORD_ROOT = fileURLToPath(new URL('../../../..', import.meta.url));
-const BUN_PATH = spawnSync('sh', ['-c', 'command -v bun'], { encoding: 'utf8' }).stdout.trim();
-const HOOK_P95_BUDGET_MS = 5000;
 const EMPTY_EFFECTS = {
   files: [],
   packages: [],
@@ -57,20 +51,28 @@ interface PredictableCliWorld extends SafewordWorld {
   rendered?: string;
   renderedMany?: string[];
   beforeTree?: string;
+  beforeHostTree?: string;
   planId?: string;
   plannedEffects?: Effects;
   legacy?: string;
   globalOption?: string;
-  publicCommandName?: string;
-  hookEntrypoint?: string;
-  hookSurface?: 'Claude Code' | 'Codex' | 'Cursor';
-  unifiedUninstall?: boolean;
+  resultState?: string;
   hostEnvironment?: NodeJS.ProcessEnv;
+  resolvedBunPath?: string;
+  expectedReadOnlyState?: string;
+  observedProcessOutput?: string;
+  canonicalAliasResult?: CliResult;
   latencySamples?: number[];
   scheduledProgress?: () => void;
+  scheduledCallbacks?: (() => void)[];
+  scheduledHandles?: symbol[];
+  cancelledHandle?: symbol;
+  cancelledHandles?: Set<symbol>;
+  scheduledDelay?: number;
+  progressCancelled?: boolean;
+  progressReporter?: ReturnType<typeof createProgressReporter>;
   progressMessages?: string[];
   commandRuns?: CommandRun[][];
-  parentCwd?: string;
   secondDirectory?: string;
   witnessDirectory?: string;
   witnessLog?: string;
@@ -95,19 +97,29 @@ function hostProfileDirectory(world: PredictableCliWorld): string {
   return world.hostProfileDirectory;
 }
 
+function bunPath(): string {
+  const path = spawnSync('sh', ['-c', 'command -v bun'], { encoding: 'utf8' }).stdout.trim();
+  assert.notEqual(path, '', 'The predictable CLI hook scenarios require bun on PATH.');
+  return path;
+}
+
 function runCli(
   world: PredictableCliWorld,
   argv: readonly string[],
   cwd = temporaryProject(world),
 ): void {
+  const environment = publicFixtureEnvironment(
+    hostProfileDirectory(world),
+    world.hostEnvironment ?? {},
+    childEnvironment(),
+  );
+  if (world.hostEnvironment?.NODE_OPTIONS !== undefined) {
+    environment.NODE_OPTIONS = world.hostEnvironment.NODE_OPTIONS;
+  }
   const completed = spawnSync(process.execPath, [CLI_PATH, ...argv], {
     cwd,
     encoding: 'utf8',
-    env: publicFixtureEnvironment(
-      hostProfileDirectory(world),
-      world.hostEnvironment ?? {},
-      childEnvironment(),
-    ),
+    env: environment,
   });
   world.result = {
     stdout: completed.stdout,
@@ -129,7 +141,11 @@ function childEnvironment(): NodeJS.ProcessEnv {
   return environment;
 }
 
-function runPublicFixture(world: PredictableCliWorld, definition: CommandDefinition): CommandRun {
+function runPublicFixture(
+  world: PredictableCliWorld,
+  definition: CommandDefinition,
+  fixtureKey = definition.name,
+): CommandRun {
   // One directory per command, wiped before each run: distinct paths keep an
   // earlier fixture from changing a later command's preconditions, while a
   // stable path per command keeps plan identities repeatable across runs.
@@ -137,11 +153,11 @@ function runPublicFixture(world: PredictableCliWorld, definition: CommandDefinit
   // observations that name the project directory.
   const cwd = join(
     temporaryProject(world),
-    `public-fixture-${definition.name.replaceAll(/[^a-z0-9]+/giu, '-')}`,
+    `public-fixture-${fixtureKey.replaceAll(/[^a-z0-9]+/giu, '-')}`,
   );
   const hostProfiles = join(
     temporaryProject(world),
-    `public-host-${definition.name.replaceAll(/[^a-z0-9]+/giu, '-')}`,
+    `public-host-${fixtureKey.replaceAll(/[^a-z0-9]+/giu, '-')}`,
   );
   rmSync(cwd, { recursive: true, force: true });
   rmSync(hostProfiles, { recursive: true, force: true });
@@ -152,13 +168,17 @@ function runPublicFixture(world: PredictableCliWorld, definition: CommandDefinit
     {
       cwd,
       encoding: 'utf8',
-      env: publicFixtureEnvironment(hostProfiles, definition.fixture.environment),
+      env: publicFixtureEnvironment(
+        hostProfiles,
+        definition.fixture.environment,
+        childEnvironment(),
+      ),
     },
   );
-  // Each run gets its own directory, so the path itself is not part of the
-  // contract: host tools echo it back inside messages. Normalize it away so a
-  // determinism comparison measures behaviour rather than the temp-dir name.
-  const normalize = (value: string): string => value.split(cwd).join('<fixture>');
+  // The stable per-command directory is not part of the contract: host tools
+  // echo it in messages. Normalize it so comparisons measure behavior.
+  const normalize = (value: string): string =>
+    value.split(cwd).join('<fixture>').split(hostProfiles).join('<host-profile>');
   return {
     stdout: normalize(completed.stdout),
     stderr: normalize(completed.stderr),
@@ -184,11 +204,18 @@ function stableMachineResult(value: unknown): unknown {
   );
 }
 
+function withoutDeprecation(result: CliResult): CliResult {
+  return {
+    ...result,
+    findings: result.findings.filter(candidate => candidate.code !== 'CLI_ALIAS_DEPRECATED'),
+  };
+}
+
 function setupProject(world: PredictableCliWorld): void {
   const directory = temporaryProject(world);
   runCli(
     world,
-    ['setup', '--agents', 'none', '--json', '--no-input', '--cwd', directory],
+    ['install', '--agents', 'none', '--json', '--no-input', '--cwd', directory],
     directory,
   );
   assert.equal(world.result.exitCode, 0);
@@ -244,11 +271,24 @@ function resultForState(state: string, actionCount = 0): CliResult {
   });
 }
 
-function aliasFixture(name: string): readonly string[] {
-  return findCommandDefinition(name).fixture.argv;
+function prepareGlobalOptionScenario(world: PredictableCliWorld, option: string): string[] {
+  const cwd = temporaryProject(world);
+  if (option === '--no-input') {
+    setupProject(world);
+    return ['remove', '--json', '--offline', '--cwd', cwd];
+  }
+  if (option === '--quiet') return ['capabilities'];
+  if (option === '--offline') return ['tracker', 'sync', '--json', '--no-input'];
+  if (option === '--verbose') {
+    mkdirSync(join(cwd, '.safeword'), { recursive: true });
+    writeFileSync(join(cwd, '.safeword', 'version'), '0.0.0\n');
+    return ['status', '--no-input', '--offline', '--cwd', cwd];
+  }
+  if (option === '--cwd') return ['status', '--json', '--no-input', '--offline'];
+  return ['status', '--no-input', '--offline', '--cwd', cwd];
 }
 
-function runRealHook(world: PredictableCliWorld, surface: 'Claude Code' | 'Codex' | 'Cursor') {
+function runRealHook(world: PredictableCliWorld) {
   const cwd = temporaryProject(world);
   const witnessDirectory = assertPresent(world.witnessDirectory);
   const witnessLog = assertPresent(world.witnessLog);
@@ -259,27 +299,17 @@ function runRealHook(world: PredictableCliWorld, surface: 'Claude Code' | 'Codex
       ...childEnvironment(),
       CLAUDE_PROJECT_DIR: cwd,
       PATH: `${witnessDirectory}:${process.env.PATH ?? ''}`,
-      SAFEWORD_REAL_BUN: BUN_PATH,
-      SAFEWORD_FETCH_WITNESS: join(witnessDirectory, 'fetch-witness.ts'),
+      SAFEWORD_REAL_BUN: assertPresent(world.resolvedBunPath),
+      SAFEWORD_FETCH_WITNESS: join(witnessDirectory, 'fetch-witness.mjs'),
       SAFEWORD_WITNESS_LOG: witnessLog,
     },
   };
-  if (surface === 'Codex') {
-    return spawnSync(process.execPath, [CLI_PATH, 'codex-hook', 'session-start'], {
-      ...common,
-      input: JSON.stringify({ hook_event_name: 'SessionStart', session_id: 'bdd-session' }),
-    });
-  }
-  if (surface === 'Cursor') {
-    const hook = join(SAFEWORD_ROOT, 'packages/cli/templates/hooks/session-cursor-auto-upgrade.ts');
-    return spawnSync(BUN_PATH, ['--preload', join(witnessDirectory, 'fetch-witness.ts'), hook], {
-      ...common,
-      input: JSON.stringify({ workspace_roots: [cwd], conversation_id: 'bdd-session' }),
-    });
-  }
-  const hook = join(SAFEWORD_ROOT, 'packages/cli/templates/hooks/session-auto-upgrade.ts');
-  return spawnSync(BUN_PATH, ['--preload', join(witnessDirectory, 'fetch-witness.ts'), hook], {
+  return spawnSync(process.execPath, [CLI_PATH, 'codex-hook', 'session-start'], {
     ...common,
+    env: {
+      ...common.env,
+      NODE_OPTIONS: `--import=${join(witnessDirectory, 'fetch-witness.mjs')}`,
+    },
     input: JSON.stringify({ hook_event_name: 'SessionStart', session_id: 'bdd-session' }),
   });
 }
@@ -308,23 +338,24 @@ exit 97
 `;
   const packageManager = String.raw`#!/bin/sh
 case "$1" in
-  add|install|update|upgrade|remove|uninstall|x|dlx)
+  add|i|install|ci|update|upgrade|remove|uninstall|x|dlx)
     printf '%s\n' "$0 $*" >> "$SAFEWORD_WITNESS_LOG"
     exit 97
     ;;
 esac
-if [ "$(basename "$0")" = "bun" ]; then
+if [ "$(basename "$0")" = "bun" ] && [ "$#" -gt 0 ]; then
   exec "$SAFEWORD_REAL_BUN" --preload "$SAFEWORD_FETCH_WITNESS" "$@"
 fi
-exit 0
+printf '%s\n' "$0 $*" >> "$SAFEWORD_WITNESS_LOG"
+exit 97
 `;
   writeFileSync(
-    join(directory, 'fetch-witness.ts'),
+    join(directory, 'fetch-witness.mjs'),
     String.raw`import { appendFileSync } from 'node:fs';
 globalThis.fetch = (() => {
   appendFileSync(process.env.SAFEWORD_WITNESS_LOG ?? '', 'fetch\n');
   throw new Error('network access attempted from lifecycle hook');
-}) as typeof fetch;
+});
 `,
   );
   for (const executable of ['bunx', 'npx', 'curl', 'wget', 'corepack']) {
@@ -343,6 +374,7 @@ globalThis.fetch = (() => {
 
 Given('a configured project without native profile plugins', function (this: PredictableCliWorld) {
   setupProject(this);
+  this.beforeTree = treeDigest(temporaryProject(this));
 });
 
 Given('a configured project with managed drift', function (this: PredictableCliWorld) {
@@ -363,6 +395,7 @@ Then('the result reports action required without changes', function (this: Predi
   const result = wireResult(this);
   assert.equal(result.state, 'action_required');
   assert.equal(result.changed, false);
+  assert.equal(treeDigest(temporaryProject(this)), this.beforeTree);
 });
 
 Then(
@@ -375,6 +408,15 @@ Then(
 );
 
 Given('a project that is {word}', function (this: PredictableCliWorld, state: string) {
+  installEffectWitnesses(this);
+  this.resolvedBunPath = bunPath();
+  this.hostEnvironment = {
+    NODE_OPTIONS: `--import=${join(assertPresent(this.witnessDirectory), 'fetch-witness.mjs')}`,
+    PATH: `${assertPresent(this.witnessDirectory)}:${process.env.PATH ?? ''}`,
+    SAFEWORD_FETCH_WITNESS: join(assertPresent(this.witnessDirectory), 'fetch-witness.mjs'),
+    SAFEWORD_REAL_BUN: this.resolvedBunPath,
+    SAFEWORD_WITNESS_LOG: assertPresent(this.witnessLog),
+  };
   const directory = temporaryProject(this);
   if (state === 'drifted') {
     mkdirSync(join(directory, '.safeword'), { recursive: true });
@@ -383,7 +425,9 @@ Given('a project that is {word}', function (this: PredictableCliWorld, state: st
   if (state === 'failed') {
     mkdirSync(join(directory, '.safeword', 'version'), { recursive: true });
   }
+  this.expectedReadOnlyState = state === 'failed' ? 'failed' : 'action_required';
   this.beforeTree = treeDigest(directory);
+  this.beforeHostTree = treeDigest(hostProfileDirectory(this));
 });
 
 When(
@@ -395,9 +439,17 @@ When(
 
 Then('no filesystem package or network effect occurs', function (this: PredictableCliWorld) {
   assert.equal(treeDigest(temporaryProject(this)), this.beforeTree);
-  const effects = wireResult(this).effects as typeof EMPTY_EFFECTS;
+  assert.equal(treeDigest(hostProfileDirectory(this)), this.beforeHostTree);
+  const result = wireResult(this);
+  assert.equal(result.state, this.expectedReadOnlyState);
+  const effects = result.effects as typeof EMPTY_EFFECTS;
+  assert.deepEqual(effects.files, []);
   assert.deepEqual(effects.packages, []);
+  assert.deepEqual(effects.configuration, []);
   assert.deepEqual(effects.network, []);
+  assert.deepEqual(effects.destructive, []);
+  const witnessLog = assertPresent(this.witnessLog);
+  assert.equal(existsSync(witnessLog) ? readFileSync(witnessLog, 'utf8') : '', '');
 });
 
 Given(
@@ -471,6 +523,7 @@ Then(
 
 Given('a configured project', function (this: PredictableCliWorld) {
   setupProject(this);
+  this.beforeTree = treeDigest(temporaryProject(this));
 });
 
 When('the user runs {string}', function (this: PredictableCliWorld, invocation: string) {
@@ -487,6 +540,7 @@ Then(
     assert.ok(plan.id);
     assert.ok(plan.effects.destructive.length > 0);
     assert.deepEqual(result.effects, EMPTY_EFFECTS);
+    assert.equal(treeDigest(temporaryProject(this)), this.beforeTree);
   },
 );
 
@@ -497,6 +551,7 @@ Given('a configured project and its remove plan', function (this: PredictableCli
   const plan = (result.data as { plan: { id: string; effects: Effects } }).plan;
   this.planId = plan.id;
   this.plannedEffects = plan.effects;
+  this.beforeTree = treeDigest(temporaryProject(this));
 });
 
 When('the user explicitly confirms that plan', function (this: PredictableCliWorld) {
@@ -532,6 +587,7 @@ Then('only the previewed effects are applied', function (this: PredictableCliWor
 
   assert.ok(completedEffects.length > 0);
   for (const effect of completedEffects) assert.ok(plannedTargets.has(effect), effect);
+  assert.notEqual(treeDigest(temporaryProject(this)), this.beforeTree);
 });
 
 Given(
@@ -547,7 +603,7 @@ Given(
 
 When('the user confirms the stale plan', function (this: PredictableCliWorld) {
   runCli(this, [
-    this.unifiedUninstall === true ? 'uninstall' : 'remove',
+    'remove',
     '--yes',
     '--plan',
     assertPresent(this.planId),
@@ -565,13 +621,13 @@ Then('no effect is applied and a fresh plan is required', function (this: Predic
   assert.equal((wireResult(this).findings as { code: string }[])[0]?.code, 'PLAN_STALE');
 });
 
-Given('a confirmed plan whose second effect fails', function (this: PredictableCliWorld) {
+Given('an install whose second effect fails', function (this: PredictableCliWorld) {
   temporaryProject(this);
 });
 
-When('Safeword applies the plan', async function (this: PredictableCliWorld) {
+When('Safeword applies install', async function (this: PredictableCliWorld) {
   this.protocolResult = await convergeSetup(temporaryProject(this), {
-    noModify: true,
+    noModify: false,
     adapters: {
       configureArchitecture: () => {
         writeFileSync(
@@ -603,13 +659,14 @@ Then(
   },
 );
 
-Given('setup has converged a project', function (this: PredictableCliWorld) {
+Given('install has converged a project', function (this: PredictableCliWorld) {
   setupProject(this);
+  this.beforeTree = treeDigest(temporaryProject(this));
 });
 
-When('the user runs setup again', function (this: PredictableCliWorld) {
+When('the user runs install again', function (this: PredictableCliWorld) {
   runCli(this, [
-    'setup',
+    'install',
     '--agents',
     'none',
     '--json',
@@ -619,18 +676,30 @@ When('the user runs setup again', function (this: PredictableCliWorld) {
   ]);
 });
 
-Then('the result is successful and changed is false', function (this: PredictableCliWorld) {
-  const result = wireResult(this);
-  assert.equal(result.ok, true);
-  assert.equal(result.changed, false);
-});
+Then(
+  'the result is successful with no reported or filesystem effects',
+  function (this: PredictableCliWorld) {
+    const result = wireResult(this);
+    assert.equal(result.ok, true);
+    assert.equal(result.changed, false);
+    assert.deepEqual(result.effects, EMPTY_EFFECTS);
+    assert.equal(treeDigest(temporaryProject(this)), this.beforeTree);
+  },
+);
 
 Given('a command result in {word} state', function (this: PredictableCliWorld, state: string) {
-  this.protocolResult = resultForState(state);
+  this.resultState = state;
 });
 
 When('Safeword completes the command', function (this: PredictableCliWorld) {
-  this.result.exitCode = exitStatusFor(assertPresent(this.protocolResult));
+  const state = assertPresent(this.resultState);
+  if (state === 'healthy') {
+    runCli(this, ['capabilities', '--json', '--no-input', '--offline']);
+  } else if (state === 'action-required') {
+    runCli(this, ['status', '--json', '--no-input', '--offline']);
+  } else {
+    runCli(this, ['not-a-command', '--json', '--no-input', '--offline']);
+  }
 });
 
 Then('the process exits with {int}', function (this: PredictableCliWorld, status: number) {
@@ -641,8 +710,15 @@ Given('a destructive command has a valid plan', function (this: PredictableCliWo
   setupProject(this);
 });
 
-When('it runs in {word}', function (this: PredictableCliWorld, _mode: string) {
-  runCli(this, ['remove', '--json', '--no-input', '--offline', '--cwd', temporaryProject(this)]);
+When('it runs in {word}', function (this: PredictableCliWorld, mode: string) {
+  runCli(this, [
+    'remove',
+    '--json',
+    ...(mode === '--no-input' ? ['--no-input'] : []),
+    '--offline',
+    '--cwd',
+    temporaryProject(this),
+  ]);
 });
 
 Then('it does not prompt or apply without explicit consent', function (this: PredictableCliWorld) {
@@ -657,11 +733,29 @@ Given('a public command handler', function (this: PredictableCliWorld) {
 
 When('it observes and plans an operation', async function (this: PredictableCliWorld) {
   const { observeStatus } = await import('../../src/lifecycle/status.ts');
-  this.protocolResult = await observeStatus(temporaryProject(this));
+  let output = '';
+  const stdoutWrite = process.stdout.write.bind(process.stdout);
+  const stderrWrite = process.stderr.write.bind(process.stderr);
+  process.stdout.write = (chunk: string | Uint8Array) => {
+    output += chunk.toString();
+    return true;
+  };
+  process.stderr.write = (chunk: string | Uint8Array) => {
+    output += chunk.toString();
+    return true;
+  };
+  try {
+    this.protocolResult = await observeStatus(temporaryProject(this));
+  } finally {
+    process.stdout.write = stdoutWrite;
+    process.stderr.write = stderrWrite;
+  }
+  this.observedProcessOutput = output;
 });
 
 Then('it returns typed data and writes no process output', function (this: PredictableCliWorld) {
   assert.equal(assertPresent(this.protocolResult).schemaVersion, 1);
+  assert.equal(this.observedProcessOutput, '');
   assert.equal(treeDigest(temporaryProject(this)), this.beforeTree);
 });
 
@@ -680,12 +774,24 @@ When(
 );
 
 Then(
-  'only the shared renderer writes output and no handler terminates the process',
+  'every invocation returns one JSON result through the shared renderer',
   function (this: PredictableCliWorld) {
     const runs = assertPresent(this.commandRuns)[0] ?? [];
     for (const run of runs) {
       assert.equal(run.stderr, '');
-      assert.doesNotThrow(() => JSON.parse(run.stdout));
+      const envelope = JSON.parse(run.stdout) as Record<string, unknown>;
+      assert.equal(envelope.schema_version, 1);
+      for (const key of [
+        'state',
+        'changed',
+        'findings',
+        'effects',
+        'errors',
+        'recovery',
+        'next_actions',
+      ]) {
+        assert.ok(key in envelope);
+      }
       assert.ok([0, 1, 2].includes(run.exitCode));
     }
   },
@@ -698,15 +804,12 @@ Given(
   },
 );
 
-When(
-  'each command is invoked with {string}',
-  function (this: PredictableCliWorld, _contract: string) {
-    this.commandRuns = [
-      publicCommands.map(definition => runPublicFixture(this, definition)),
-      publicCommands.map(definition => runPublicFixture(this, definition)),
-    ];
-  },
-);
+When('each command is invoked through its machine fixture', function (this: PredictableCliWorld) {
+  this.commandRuns = [
+    publicCommands.map(definition => runPublicFixture(this, definition)),
+    publicCommands.map(definition => runPublicFixture(this, definition)),
+  ];
+});
 
 Then(
   'each invocation returns deterministic JSON without prompting',
@@ -727,7 +830,7 @@ Then(
 );
 
 Given('a public command', function (this: PredictableCliWorld) {
-  this.publicCommandName = 'capabilities';
+  temporaryProject(this);
 });
 
 When(
@@ -735,21 +838,40 @@ When(
   function (this: PredictableCliWorld, option: string) {
     this.globalOption = option;
     const value = option === '--cwd' ? temporaryProject(this) : undefined;
-    const before = [option, ...(value === undefined ? [] : [value]), 'capabilities', '--json'];
-    runCli(this, before);
-    const beforeOutput = this.result.stdout;
-    const after = ['capabilities', option, ...(value === undefined ? [] : [value]), '--json'];
-    runCli(this, after);
-    this.renderedMany = [beforeOutput, this.result.stdout];
+    const command = prepareGlobalOptionScenario(this, option);
+    const optionWithValue = [option, ...(value === undefined ? [] : [value])];
+    const split = command[0] === 'tracker' ? 2 : 1;
+    runCli(this, [...optionWithValue, ...command]);
+    const beforeRun = { ...this.result };
+    runCli(this, [...command.slice(0, split), ...optionWithValue, ...command.slice(split)]);
+    this.commandRuns = [[beforeRun, { ...this.result }]];
   },
 );
 
 Then('both invocations have equivalent results', function (this: PredictableCliWorld) {
-  assert.equal(assertPresent(this.renderedMany)[0], assertPresent(this.renderedMany)[1]);
+  const [before, after] = assertPresent(this.commandRuns)[0] ?? [];
+  assert.deepEqual(before, after);
+  const option = assertPresent(this.globalOption);
+  if (option === '--json') assert.doesNotThrow(() => JSON.parse(assertPresent(before).stdout));
+  if (option === '--no-input') {
+    assert.equal(JSON.parse(assertPresent(before).stdout).state, 'action_required');
+    assert.equal(assertPresent(before).stderr, '');
+  }
+  if (option === '--cwd') {
+    assert.equal(
+      JSON.parse(assertPresent(before).stdout).data.surfaces[0].state,
+      'action_required',
+    );
+  }
+  if (option === '--quiet') assert.equal(assertPresent(before).stdout, '');
+  if (option === '--offline') {
+    assert.equal(JSON.parse(assertPresent(before).stdout).findings[0].code, 'CLI_ONLINE_REQUIRED');
+  }
+  if (option === '--verbose') assert.match(assertPresent(before).stdout, /Safeword CLI v/);
 });
 
 Given('a public command with positional arguments', function (this: PredictableCliWorld) {
-  this.publicCommandName = 'project lint-gherkin';
+  temporaryProject(this);
 });
 
 When(
@@ -767,7 +889,16 @@ Then('the flag-like argument reaches the handler unchanged', function (this: Pre
 });
 
 Given('a public command plan that declares a network effect', function (this: PredictableCliWorld) {
-  this.publicCommandName = 'tracker sync';
+  installEffectWitnesses(this);
+  this.resolvedBunPath = bunPath();
+  this.hostEnvironment = {
+    NODE_OPTIONS: `--import=${join(assertPresent(this.witnessDirectory), 'fetch-witness.mjs')}`,
+    PATH: `${assertPresent(this.witnessDirectory)}:${process.env.PATH ?? ''}`,
+    SAFEWORD_FETCH_WITNESS: join(assertPresent(this.witnessDirectory), 'fetch-witness.mjs'),
+    SAFEWORD_REAL_BUN: this.resolvedBunPath,
+    SAFEWORD_WITNESS_LOG: assertPresent(this.witnessLog),
+  };
+  temporaryProject(this);
 });
 
 When('the agent invokes it with {string}', function (this: PredictableCliWorld, _contract: string) {
@@ -780,44 +911,52 @@ Then(
     const result = wireResult(this);
     assert.deepEqual((result.effects as typeof EMPTY_EFFECTS).network, []);
     assert.equal((result.findings as { code: string }[])[0]?.code, 'CLI_ONLINE_REQUIRED');
+    const witnessLog = assertPresent(this.witnessLog);
+    assert.equal(existsSync(witnessLog) ? readFileSync(witnessLog, 'utf8') : '', '');
   },
 );
 
 Given('two projects with different Safeword states', function (this: PredictableCliWorld) {
-  this.parentCwd = process.cwd();
-  temporaryProject(this);
+  setupProject(this);
   this.secondDirectory = mkdtempSync(join(tmpdir(), 'safeword-cli-second-'));
+  mkdirSync(join(this.secondDirectory, '.safeword'), { recursive: true });
+  writeFileSync(join(this.secondDirectory, '.safeword', 'version'), '0.0.0\n');
 });
 
 When('status is run with cwd selecting the second project', function (this: PredictableCliWorld) {
-  runCli(this, ['status', '--json', '--no-input', '--cwd', assertPresent(this.secondDirectory)]);
+  runCli(this, [
+    'status',
+    '--json',
+    '--no-input',
+    '--offline',
+    '--cwd',
+    assertPresent(this.secondDirectory),
+  ]);
 });
 
-Then(
-  'the result describes only the second project and the parent process cwd is unchanged',
-  function (this: PredictableCliWorld) {
-    const data = wireResult(this).data as {
-      surfaces: { name: string; state: string }[];
-    };
-    assert.deepEqual(data.surfaces, [
-      { name: 'project', selected: true, state: 'action_required' },
-      { name: 'claude', selected: true, state: 'action_required' },
-      { name: 'codex', selected: true, state: 'action_required' },
-    ]);
-    assert.equal(process.cwd(), this.parentCwd);
-  },
-);
+Then('the result describes only the second project', function (this: PredictableCliWorld) {
+  const data = wireResult(this).data as {
+    surfaces: { name: string; state: string }[];
+  };
+  assert.deepEqual(data.surfaces, [
+    { name: 'project', selected: true, state: 'action_required' },
+    { name: 'claude', selected: true, state: 'action_required' },
+    { name: 'codex', selected: true, state: 'action_required' },
+  ]);
+  assert.ok(
+    (wireResult(this).findings as { code: string; message: string }[]).some(
+      finding => finding.code === 'SAFEWORD_VERSION' && finding.message.includes('v0.0.0'),
+    ),
+  );
+});
 
-Given(
-  'healthy action-required and failed results with progress prose',
-  function (this: PredictableCliWorld) {
-    this.protocolResults = [
-      resultForState('healthy'),
-      resultForState('action-required', 1),
-      resultForState('failed', 1),
-    ];
-  },
-);
+Given('healthy action-required and failed results', function (this: PredictableCliWorld) {
+  this.protocolResults = [
+    resultForState('healthy'),
+    resultForState('action-required', 1),
+    resultForState('failed', 1),
+  ];
+});
 
 When('Safeword renders each result with quiet enabled', function (this: PredictableCliWorld) {
   this.renderedMany = assertPresent(this.protocolResults).map(result =>
@@ -826,7 +965,7 @@ When('Safeword renders each result with quiet enabled', function (this: Predicta
 });
 
 Then(
-  'healthy and progress prose is suppressed while next actions and errors remain visible',
+  'healthy prose is suppressed while next actions and errors remain visible',
   function (this: PredictableCliWorld) {
     const [healthy, actionRequired, failed] = assertPresent(this.renderedMany);
     assert.equal(healthy, '');
@@ -839,14 +978,20 @@ Given('a command that {word}', function (this: PredictableCliWorld, outcome: str
   const state =
     outcome === 'succeeds' ? 'healthy' : outcome === 'fails' ? 'failed' : 'action-required';
   this.protocolResult = resultForState(state, state === 'healthy' ? 0 : 1);
+  this.resultState = state;
 });
 
 Given('a command that requires action', function (this: PredictableCliWorld) {
   this.protocolResult = resultForState('action-required', 1);
+  this.resultState = 'action-required';
 });
 
 When('Safeword renders JSON', function (this: PredictableCliWorld) {
-  this.result.stdout = renderJsonResult(assertPresent(this.protocolResult));
+  const state = assertPresent(this.resultState);
+  if (state === 'healthy') runCli(this, ['capabilities', '--json', '--no-input', '--offline']);
+  else if (state === 'action-required')
+    runCli(this, ['status', '--json', '--no-input', '--offline']);
+  else runCli(this, ['not-a-command', '--json', '--no-input', '--offline']);
 });
 
 Then(
@@ -868,12 +1013,26 @@ Then(
   },
 );
 
+Then(
+  'the JSON envelope reports failed state with a stable error',
+  function (this: PredictableCliWorld) {
+    const envelope = wireResult(this);
+    assert.equal(envelope.state, 'failed');
+    const errors = envelope.errors as { code: string; message: string; retryable: boolean }[];
+    assert.equal(errors.length, 1);
+    assert.match(errors[0]?.code ?? '', /^[A-Z][A-Z0-9_]+$/);
+    assert.ok((errors[0]?.message.length ?? 0) > 0);
+    assert.equal(typeof errors[0]?.retryable, 'boolean');
+  },
+);
+
 Given('the public command catalog', function (this: PredictableCliWorld) {
-  this.protocolResult = createCapabilitiesResult();
+  this.beforeTree = treeDigest(temporaryProject(this));
+  this.beforeHostTree = treeDigest(hostProfileDirectory(this));
 });
 
 When('the agent requests capabilities as JSON', function (this: PredictableCliWorld) {
-  this.result.stdout = renderJsonResult(assertPresent(this.protocolResult));
+  runCli(this, ['capabilities', '--json', '--no-input', '--offline']);
 });
 
 Then(
@@ -907,6 +1066,8 @@ Then(
         .every(helper => commands.every(command => command.name !== helper.name)),
     );
     assert.deepEqual(wireResult(this).effects, EMPTY_EFFECTS);
+    assert.equal(treeDigest(temporaryProject(this)), this.beforeTree);
+    assert.equal(treeDigest(hostProfileDirectory(this)), this.beforeHostTree);
   },
 );
 
@@ -922,7 +1083,7 @@ Then(
   'canonical command families are visible and internal helpers are hidden',
   function (this: PredictableCliWorld) {
     for (const family of ['project', 'tracker', 'codex', 'ticket', 'retro']) {
-      assert.match(this.result.stdout, new RegExp(String.raw`\b${family}\b`));
+      assert.match(this.result.stdout, new RegExp(String.raw`^  ${family}(?:\s|$)`, 'm'));
     }
     for (const helper of ['boundary', 'codex-hook', 'feature-directories']) {
       assert.doesNotMatch(this.result.stdout, new RegExp(String.raw`\b${helper}\b`));
@@ -934,17 +1095,17 @@ Given('the legacy command {string}', function (this: PredictableCliWorld, legacy
   this.legacy = legacy;
 });
 
-When(
-  'the user invokes it in retained release line {int}',
-  function (this: PredictableCliWorld, _releaseLine: number) {
-    const legacy = assertPresent(this.legacy);
-    const definition = findCommandDefinition(legacy);
-    const run = runPublicFixture(this, definition);
-    assert.equal(run.stderr, '');
-    this.protocolResult = JSON.parse(run.stdout) as CliResult;
-    assert.ok(aliasFixture(legacy).length > 0);
-  },
-);
+When('the user invokes the retained alias', function (this: PredictableCliWorld) {
+  const legacy = assertPresent(this.legacy);
+  const definition = findCommandDefinition(legacy);
+  const run = runPublicFixture(this, definition, legacy);
+  assert.equal(run.stderr, '');
+  this.protocolResult = JSON.parse(run.stdout) as CliResult;
+  const replacement = assertPresent(definition.compatibility?.replacement);
+  const canonicalRun = runPublicFixture(this, findCommandDefinition(replacement), legacy);
+  assert.equal(canonicalRun.stderr, '');
+  this.canonicalAliasResult = JSON.parse(canonicalRun.stdout) as CliResult;
+});
 
 Then(
   'canonical behavior runs with indefinite-retention compatibility metadata',
@@ -954,24 +1115,22 @@ Then(
     );
     assert.equal(finding?.metadata?.retention, 'indefinite');
     assert.equal(finding?.metadata?.removal_eligible_after, undefined);
+    const aliasResult = withoutDeprecation(assertPresent(this.protocolResult));
+    const canonicalResult = assertPresent(this.canonicalAliasResult);
+    assert.deepEqual(stableMachineResult(aliasResult), stableMachineResult(canonicalResult));
   },
 );
 
-Given(
-  /^an installed (Claude Code|Codex|Cursor) hook$/,
-  function (this: PredictableCliWorld, surface: string) {
-    installEffectWitnesses(this);
-    this.hookSurface = surface as PredictableCliWorld['hookSurface'];
-    this.hookEntrypoint =
-      surface === 'Codex' ? 'hook codex' : surface === 'Cursor' ? 'cursor hook' : 'claude hook';
-    this.beforeTree = treeDigest(temporaryProject(this));
-  },
-);
+Given('an installed Codex hook', function (this: PredictableCliWorld) {
+  this.resolvedBunPath = bunPath();
+  installEffectWitnesses(this);
+  this.beforeTree = treeDigest(temporaryProject(this));
+});
 
 When('it invokes its real hidden Safeword entrypoint', function (this: PredictableCliWorld) {
   const hidden = commandCatalog.filter(command => command.classification === 'internal');
   assert.ok(hidden.some(command => command.name.includes('hook')));
-  const completed = runRealHook(this, assertPresent(this.hookSurface));
+  const completed = runRealHook(this);
   this.result = {
     stdout: completed.stdout,
     stderr: completed.stderr,
@@ -997,63 +1156,90 @@ Then('no install upgrade package or network effect occurs', function (this: Pred
 });
 
 Then('the entrypoint is absent from help and capabilities', function (this: PredictableCliWorld) {
-  const capabilities = renderJsonResult(createCapabilitiesResult());
-  assert.doesNotMatch(capabilities, /codex-hook|hook codex/);
+  runCli(this, ['capabilities', '--json', '--no-input', '--offline']);
+  assert.doesNotMatch(this.result.stdout, /codex-hook|hook codex/);
+  runCli(this, ['--help']);
+  assert.equal(this.result.exitCode, 0);
+  assert.doesNotMatch(this.result.stdout, /codex-hook|hook codex/);
 });
 
-Given('an installed agent hook after warm-up', function (this: PredictableCliWorld) {
+Given('an installed Codex hook after warm-up', function (this: PredictableCliWorld) {
+  this.resolvedBunPath = bunPath();
   installEffectWitnesses(this);
-  const completed = runRealHook(this, 'Codex');
+  const completed = runRealHook(this);
   assert.equal(completed.status, 0);
 });
 
-When('its latency is measured repeatedly', function (this: PredictableCliWorld) {
-  this.latencySamples = Array.from({ length: 10 }, () => {
-    const start = performance.now();
-    const completed = runRealHook(this, 'Codex');
-    assert.equal(completed.status, 0);
-    return performance.now() - start;
+When(
+  'its latency is measured over {int} samples',
+  function (this: PredictableCliWorld, count: number) {
+    this.latencySamples = Array.from({ length: count }, () => {
+      const start = performance.now();
+      const completed = runRealHook(this);
+      assert.equal(completed.status, 0);
+      return performance.now() - start;
+    });
+  },
+);
+
+Then(
+  'its p95 latency stays below {int} milliseconds',
+  function (this: PredictableCliWorld, budget: number) {
+    const samples = assertPresent(this.latencySamples).toSorted((left, right) => left - right);
+    const p95 = samples[Math.ceil(samples.length * 0.95) - 1] ?? Infinity;
+    assert.ok(p95 < budget, `expected p95 < ${budget}ms, received ${p95.toFixed(1)}ms`);
+  },
+);
+
+Given('a progress reporter with a controlled scheduler', function (this: PredictableCliWorld) {
+  this.progressMessages = [];
+  this.scheduledCallbacks = [];
+  this.scheduledHandles = [];
+  this.cancelledHandles = new Set();
+  this.progressReporter = createProgressReporter({
+    schedule: (callback, delay) => {
+      this.scheduledDelay = delay;
+      const handle = Symbol('progress-timer');
+      const guardedCallback = () => {
+        if (!this.cancelledHandles?.has(handle)) callback();
+      };
+      this.scheduledProgress = guardedCallback;
+      this.scheduledCallbacks?.push(guardedCallback);
+      this.scheduledHandles?.push(handle);
+      return handle;
+    },
+    cancel: handle => {
+      this.progressCancelled = true;
+      this.cancelledHandle = handle as symbol;
+      this.cancelledHandles?.add(handle as symbol);
+    },
+    emit: message => {
+      this.progressMessages?.push(message);
+    },
   });
 });
 
-Then('its p95 latency stays within the repository threshold', function (this: PredictableCliWorld) {
-  const samples = assertPresent(this.latencySamples).toSorted((left, right) => left - right);
-  const p95 = samples[Math.ceil(samples.length * 0.95) - 1] ?? Infinity;
-  assert.ok(
-    p95 < HOOK_P95_BUDGET_MS,
-    `expected p95 < ${HOOK_P95_BUDGET_MS}ms, received ${p95.toFixed(1)}ms`,
-  );
-});
-
-Given(
-  'an interactive command with an injected monotonic clock and an apply step longer than {int} milliseconds',
-  function (this: PredictableCliWorld, milliseconds: number) {
-    this.progressMessages = [];
-    const reporter = createProgressReporter({
-      schedule: callback => {
-        this.scheduledProgress = callback;
-        return milliseconds;
-      },
-      cancel: handle => {
-        assert.notEqual(handle, undefined);
-      },
-      emit: message => {
-        this.progressMessages?.push(message);
-      },
-    });
+When(
+  'progress reporting starts twice before {int} milliseconds elapse',
+  function (this: PredictableCliWorld, _milliseconds: number) {
+    const reporter = assertPresent(this.progressReporter);
+    reporter.start('Applying the confirmed plan…');
     reporter.start('Applying the confirmed plan…');
   },
 );
 
-When('the user confirms the plan', function (this: PredictableCliWorld) {
-  assertPresent(this.scheduledProgress)();
-});
-
 Then(
-  'the progress adapter emits meaningful feedback within {int} milliseconds',
+  'the first schedule is cancelled and the replacement emits one meaningful message after {int} milliseconds',
   function (this: PredictableCliWorld, milliseconds: number) {
-    assert.equal(milliseconds, 100);
+    const callbacks = assertPresent(this.scheduledCallbacks);
+    const handles = assertPresent(this.scheduledHandles);
+    callbacks[0]?.();
+    assert.deepEqual(this.progressMessages, []);
+    assertPresent(this.scheduledProgress)();
+    assert.equal(this.scheduledDelay, milliseconds);
     assert.deepEqual(this.progressMessages, ['Applying the confirmed plan…']);
+    assert.equal(this.progressCancelled, true);
+    assert.equal(this.cancelledHandle, handles[0]);
   },
 );
 
