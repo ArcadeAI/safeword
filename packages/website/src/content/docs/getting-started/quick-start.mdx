@@ -45,7 +45,7 @@ You use Claude Code, Cursor, or Codex the same way you always have. Type a promp
 
     **Install enrolls each repository.** Installing a profile plugin does not enroll every repository you open. Until `safeword install` creates `.safeword/SAFEWORD.md`, project gates fail open and plugin hooks do not create `.project/` or other project state.
 
-    **Native gates run through the plugin.** The project SessionStart bootstrap enrolls each developer's profile automatically; `safeword install --agents=codex` is available when you want to enroll immediately. Restart Codex after installation and start a new task to load one coherent skills-and-hooks catalogue. Until then, the bootstrap warns without blocking work. Native plugin hooks use version-pinned Bunx commands.
+    **Native gates run through the plugin.** Project SessionStart hooks enroll each developer's profile and prepare missing dependencies in trusted fresh worktrees; `safeword install --agents=codex` is available when you want to enroll immediately. Restart Codex after installation and start a new task to load one coherent skills-and-hooks catalogue. Startup warnings remain advisory. Native plugin hooks use version-pinned Bunx commands.
 
     **Stop completion and nudges run through Codex continuations.** The packaged `safeword hook codex stop` entrypoint checks shared evidence for the session-bound, in-progress done-phase ticket and marks it done only when that evidence passes. It otherwise continues the turn with exact remediation or advisory text such as an ARCHITECTURE.md drift nudge; it never stages, commits, or opens a PR.
 
@@ -82,7 +82,7 @@ Open your project and ask your agent to build something real:
   <TabItem label="Codex">
     Watch what happens:
 
-    1. Install commits one project SessionStart bootstrap
+    1. Install commits project SessionStart hooks for enrollment and dependency preparation
     2. On each teammate's first task, it enrolls that teammate's Codex profile in the stable plugin channel
     3. If the current task cannot load the plugin yet, it warns loudly and asks for one new task; it does not block edits or commands
     4. In the next task, your agent follows scoped plugin skills such as `safeword:bdd`
@@ -106,7 +106,7 @@ Safeword added a few folders to your project:
 | `.cursor/commands/`    | Slash commands for Cursor                                       |
 | `.safeword/`           | Project configuration, guides, and templates                    |
 
-Project-scope Claude activation commits in `.claude/settings.json`; Claude keeps the plugin payload in each user's cache and follows the verified stable channel unless native updates were explicitly disabled. Codex install commits one non-blocking SessionStart bootstrap, and each collaborator's first task enrolls only that collaborator's profile. Until a later task records exact native proof, the bootstrap warns that work is unprotected but permits it to continue. Each repository is enrolled with `safeword install`, which creates the project namespace before plugin hooks write project state.
+Project-scope Claude activation commits in `.claude/settings.json`; Claude keeps the plugin payload in each user's cache and follows the verified stable channel unless native updates were explicitly disabled. Codex install commits advisory SessionStart hooks for profile enrollment and dependency preparation, and each collaborator's first task enrolls only that collaborator's profile. Until a later task records exact native proof, startup warns that work is unprotected but permits it to continue. Each repository is enrolled with `safeword install`, which creates the project namespace before plugin hooks write project state.
 
 For JS/TS projects, safeword also adds ESLint and Prettier as **devDependencies** in your `package.json`. These are development-only code quality tools — they don't ship with your application.
 
