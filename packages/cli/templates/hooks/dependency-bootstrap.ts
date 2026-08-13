@@ -12,6 +12,7 @@ if (!existsSync(`${projectDirectory}/.safeword`)) process.exit(0);
 const result = bootstrapDependencies(projectDirectory);
 if (result.status === 'ready' || result.status === 'unsupported') process.exit(0);
 
-const output = result.status === 'failed' ? console.error : console.log;
+const output =
+  result.status === 'failed' || result.status === 'action_required' ? console.error : console.log;
 output(result.message);
-process.exit(result.status === 'failed' ? 1 : 0);
+process.exit(result.status === 'failed' || result.status === 'action_required' ? 1 : 0);

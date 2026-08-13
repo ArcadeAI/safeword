@@ -876,6 +876,33 @@ describe('dependency readiness hook support', () => {
     expect(getDependencyReadiness(projectDirectory).status).toBe('ready');
   });
 
+  it('host-neutral bootstrap blocks when stale dependencies require manual action', () => {
+    writeMinimalBunProject();
+    markSafewordProject();
+    writeGeneratedBunLock();
+    mkdirSync(path.join(projectDirectory, 'node_modules'));
+    writeTestFile(projectDirectory, 'node_modules/.safeword-deps-fingerprint', 'old-fingerprint');
+    writeJson('.safeword/config.json', { dependencyBootstrap: { autoInstall: false } });
+    expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
+
+    const result = runHook(DEPENDENCY_BOOTSTRAP_HOOK);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("the project's tool list changed");
+    expect(result.stderr).toContain('bun ci');
+    expect(result.stdout).toBe('');
+  });
+
+  it('host-neutral bootstrap abstains successfully for unsupported projects', () => {
+    markSafewordProject();
+
+    const result = runHook(DEPENDENCY_BOOTSTRAP_HOOK);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toBe('');
+    expect(result.stderr).toBe('');
+  });
+
   it('host-neutral bootstrap fails loudly when a fresh worktree cannot be prepared', () => {
     writeBunProject();
     markSafewordProject();
