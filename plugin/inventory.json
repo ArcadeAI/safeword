@@ -95,7 +95,7 @@
     },
     {
       "path": "resources/scripts/closeout-cleanup.ts",
-      "sha256": "76204badce88a4de06fbbcd3a527cb57f2d5651011e68be7dda92c39f4dd5295"
+      "sha256": "7cc5787b24b93eeb5337757ee7715691ae7a42cd8e29ff09ec964b5da4c38c71"
     },
     {
       "path": "resources/templates/adr-template.md",
@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "a6b4b15b1da2fd8e352d26b29bc3086ec33d18d7ed413ac5b12a2d2517817771"
+      "sha256": "3bfc4f3e3effc1bf45c785a5ee7b30470aeb6bd1094481409d17a8c318329744"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "c2b730781ffb4e5d992d3829f3a36bae6084c0e286d31783845f79f7102bf250"
+      "sha256": "aa7c3d35f7cf14023d4664fd3f4ad5cee075c602b1299b2d9c59e13d0d58b556"
     },
     {
       "path": "runtime/event-groups.json",
@@ -490,6 +490,10 @@
       "sha256": "baa1f87f55c9479bfdca57496ea8b2207277977746fc439888ce899a908756ab"
     },
     {
+      "path": "runtime/hooks/resolve-verify-ticket.ts",
+      "sha256": "0752de0d5d2701235ec00667bda595f11dae9a91a563e630cade52183da5f2bd"
+    },
+    {
       "path": "runtime/hooks/run-review.ts",
       "sha256": "f609448a24711ba5d5bb87228632fe6a34b0a93d12c964c7304e240f3ddd4561"
     },
@@ -603,7 +607,7 @@
     },
     {
       "path": "skills/bdd/TDD.md",
-      "sha256": "623bf5e2f73cb5b211a936d3f858eae28d2d4c873602344a124bd567fd8121f8"
+      "sha256": "bbba8b95ca9accf44e7a3b9c84d749610f2b876ef0457af7b9e9be92a007765f"
     },
     {
       "path": "skills/bdd/VERIFY.md",
@@ -619,7 +623,7 @@
     },
     {
       "path": "skills/closeout/SKILL.md",
-      "sha256": "11bbe164c568668f67a31b60b1e23b2f43c80560d15942875e5ebc3e24c4a276"
+      "sha256": "32c4ddc3d7679e22f43fe2e93370e431514c5eb3423684ed150e015d1866a017"
     },
     {
       "path": "skills/debug/SKILL.md",
@@ -691,7 +695,7 @@
     },
     {
       "path": "skills/verify/SKILL.md",
-      "sha256": "dafdf07cacd7fbb65906616b7df5a5933c2f40a7fce6770b0cc44105f80d00dc"
+      "sha256": "441d6bb08a5fe90e79c35679f06720b382492306f8c000ba458a2fe0ea04ecf6"
     }
   ]
 }
