@@ -12,6 +12,7 @@ import { normalizeSafewordHookCommands } from '../src/utils/hooks.js';
 
 interface ReleaseRecord {
   files: Record<string, string>;
+  hook_files: Record<string, string>;
   hooks: Record<string, string[]>;
 }
 
@@ -110,12 +111,48 @@ function filesFromSchema(
   );
 }
 
+function hookFiles(
+  hooks: Record<string, unknown[]>,
+  readTemplate: (templatePath: string) => string,
+): Record<string, string> {
+  const references = JSON.stringify(hooks).match(/\.safeword\/hooks\/[\w./-]+/gu) ?? [];
+  return Object.fromEntries(
+    [...new Set(references)]
+      .toSorted((left, right) => left.localeCompare(right))
+      .map(reference => [reference, sha256(readTemplate(reference.replace(/^\.safeword\//u, '')))]),
+  );
+}
+
 /**
  * Names the first release, path, and fingerprint the committed catalogue is
  * missing. A bare "regenerate it" message tells a maintainer nothing about
  * which historical asset would have been left unrecognized — and an
  * unrecognized asset is one Safeword refuses to contract.
  */
+function releaseDriftMessage(
+  committed: string,
+  release: string,
+  record: ReleaseRecord,
+): string | undefined {
+  for (const [path, fingerprint] of Object.entries(record.files)) {
+    if (!committed.includes(fingerprint)) {
+      return `Claude historical catalogue is missing release ${release} asset ${path} (fingerprint ${fingerprint}); regenerate it with bun run generate:claude-historical-catalogue.`;
+    }
+  }
+  for (const [path, fingerprint] of Object.entries(record.hook_files)) {
+    if (!committed.includes(fingerprint)) {
+      return `Claude historical catalogue is missing release ${release} hook file ${path} (fingerprint ${fingerprint}); regenerate it with bun run generate:claude-historical-catalogue.`;
+    }
+  }
+  for (const [event, fingerprints] of Object.entries(record.hooks)) {
+    const missing = fingerprints.find(fingerprint => !committed.includes(fingerprint));
+    if (missing !== undefined) {
+      return `Claude historical catalogue is missing release ${release} hook ${event} (fingerprint ${missing}); regenerate it with bun run generate:claude-historical-catalogue.`;
+    }
+  }
+  return undefined;
+}
+
 function catalogueDriftMessage(
   committed: string,
   derived: { current: ReleaseRecord; releases: Record<string, ReleaseRecord> },
@@ -125,17 +162,8 @@ function catalogueDriftMessage(
     ...Object.entries(derived.releases),
   ];
   for (const [release, record] of scanned) {
-    for (const [path, fingerprint] of Object.entries(record.files)) {
-      if (!committed.includes(fingerprint)) {
-        return `Claude historical catalogue is missing release ${release} asset ${path} (fingerprint ${fingerprint}); regenerate it with bun run generate:claude-historical-catalogue.`;
-      }
-    }
-    for (const [event, fingerprints] of Object.entries(record.hooks)) {
-      const missing = fingerprints.find(fingerprint => !committed.includes(fingerprint));
-      if (missing !== undefined) {
-        return `Claude historical catalogue is missing release ${release} hook ${event} (fingerprint ${missing}); regenerate it with bun run generate:claude-historical-catalogue.`;
-      }
-    }
+    const drift = releaseDriftMessage(committed, release, record);
+    if (drift !== undefined) return drift;
   }
   const versions = Object.keys(derived.releases).join(', ');
   return `Claude historical catalogue is stale for releases ${versions}; regenerate it with bun run generate:claude-historical-catalogue.`;
@@ -165,6 +193,7 @@ async function main(): Promise<void> {
       files: filesFromSchema(git('show', `${tag}:packages/cli/src/schema.ts`), path =>
         git('show', `${tag}:packages/cli/templates/${path}`),
       ),
+      hook_files: hookFiles(hooks, path => git('show', `${tag}:packages/cli/templates/${path}`)),
       hooks: fingerprintHooks(hooks),
     };
   }
@@ -179,6 +208,9 @@ async function main(): Promise<void> {
     files: filesFromSchema(
       readFileSync(nodePath.join(root, 'packages/cli/src/schema.ts'), 'utf8'),
       path => readFileSync(nodePath.join(root, 'packages/cli/templates', path), 'utf8'),
+    ),
+    hook_files: hookFiles(await hooksFromSource(currentConfig, 'current-hook-files'), path =>
+      readFileSync(nodePath.join(root, 'packages/cli/templates', path), 'utf8'),
     ),
     hooks: fingerprintHooks(await hooksFromSource(currentConfig, 'current')),
   };

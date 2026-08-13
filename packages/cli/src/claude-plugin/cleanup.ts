@@ -569,6 +569,7 @@ function writeObservedPluginMode(
   unresolved: readonly string[],
   advisory: string | undefined,
 ): AutomaticClaudeMigrationResult {
+  const existing = readClaudePluginMode(projectRoot);
   writeClaudePluginMode(
     projectRoot,
     createClaudePluginMode({
@@ -577,6 +578,9 @@ function writeObservedPluginMode(
       catalogue_sha256: options.catalogueSha256,
       unresolved_paths: unresolved,
       advisory,
+      ...(existing?.transaction_id !== undefined && {
+        transaction_id: existing.transaction_id,
+      }),
     }),
   );
   return { state: 'complete', advisory, unresolvedPaths: unresolved };

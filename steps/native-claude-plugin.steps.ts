@@ -1583,15 +1583,22 @@ Given(
   'a viable recognized legacy PreToolUse hook and the matching plugin hook coexist',
   function (this: NativeClaudePluginWorld) {
     assert.ok(this.cacheFixture?.effectLog);
-    const legacyHook = nodePath.join(this.cacheFixture.project, '.safeword/hooks/legacy.ts');
+    const fingerprint = CLAUDE_HISTORICAL_CATALOGUE.current.hooks.PreToolUse.find(candidate =>
+      JSON.stringify(historicalHookEntry(candidate)).includes('pre-tool-quality'),
+    );
+    assert.ok(fingerprint, 'catalogue has no accepted pre-tool-quality hook');
+    const acceptedHook = historicalHookEntry(fingerprint);
+    const hookReference = /\.safeword\/hooks\/[\w./-]+/u.exec(JSON.stringify(acceptedHook))?.[0];
+    assert.ok(hookReference, 'accepted PreToolUse hook has no project hook path');
+    const legacyHook = nodePath.join(this.cacheFixture.project, hookReference);
     const settings = nodePath.join(this.cacheFixture.project, '.claude/settings.json');
     mkdirSync(nodePath.dirname(legacyHook), { recursive: true });
     mkdirSync(nodePath.dirname(settings), { recursive: true });
-    writeFileSync(legacyHook, '// recognized legacy authority\n');
-    writeFileSync(
-      settings,
-      `${JSON.stringify({ hooks: { PreToolUse: [{ hooks: [{ type: 'command', command: 'bun .safeword/hooks/legacy.ts' }] }] } })}\n`,
+    cpSync(
+      nodePath.join(REPO_ROOT, 'packages/cli/templates', hookReference.replace('.safeword/', '')),
+      legacyHook,
     );
+    writeFileSync(settings, `${JSON.stringify({ hooks: { PreToolUse: [acceptedHook] } })}\n`);
     writeFileSync(this.cacheFixture.effectLog, 'legacy\n');
   },
 );

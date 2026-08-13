@@ -357,14 +357,14 @@ describe('Claude plugin dispatcher', () => {
     });
 
     expect(result.status, result.stderr).toBe(0);
-    expect(result.stdout).toContain('nativeRan');
+    expect(result.stdout).not.toContain('nativeRan');
     expect(existsSync(target)).toBe(false);
     expect(
       existsSync(nodePath.join(projectDirectory, '.safeword/claude-plugin/plugin-mode-v2.json')),
     ).toBe(true);
   });
 
-  it('preserves native delivery alongside legacy hooks in Claude JSONC settings', () => {
+  it('recognizes exact legacy hook authority in Claude JSONC settings', () => {
     const projectDirectory = temporary('safeword-plugin-jsonc-project-');
     const pluginData = temporary('safeword-plugin-jsonc-data-');
     const configDirectory = temporary('safeword-plugin-jsonc-config-');
@@ -392,7 +392,7 @@ describe('Claude plugin dispatcher', () => {
       pluginRoot,
     });
     expect(result.status, result.stderr).toBe(0);
-    expect(result.stdout).toContain('nativeRan');
+    expect(result.stdout).not.toContain('nativeRan');
   });
 
   it('does not treat partially parsed malformed settings as legacy authority', () => {

@@ -7,7 +7,11 @@ import { parse, type ParseError } from 'jsonc-parser';
 
 import { writeDurableFile } from '../../codex-plugin/durable-write.js';
 import { migrateClaudeLegacyAutomatically } from '../cleanup.js';
-import { historicalCatalogueDigest } from '../historical-ownership.js';
+import {
+  historicalCatalogueDigest,
+  isAcceptedHistoricalHook,
+  isAcceptedHistoricalHookFile,
+} from '../historical-ownership.js';
 import {
   CLAUDE_MIGRATION_SCHEMA,
   CLAUDE_NATIVE_METADATA_FILES,
@@ -84,6 +88,44 @@ function parseSettings(path: string): Record<string, unknown> | undefined {
     !Array.isArray(parsed)
     ? (parsed as Record<string, unknown>)
     : undefined;
+}
+
+function acceptedLegacyHookReference(value: string, projectRoot: string): boolean {
+  const reference = /\.safeword\/hooks\/[^\s"';&|)]+/u.exec(value)?.[0];
+  if (reference === undefined) return false;
+  try {
+    const hooksRoot = nodePath.resolve(projectRoot, '.safeword/hooks');
+    const target = nodePath.resolve(projectRoot, reference);
+    if (!target.startsWith(`${hooksRoot}${nodePath.sep}`)) return false;
+    if (realpathSync(hooksRoot) !== hooksRoot || realpathSync(target) !== target) return false;
+    return (
+      lstatSync(target).isFile() && isAcceptedHistoricalHookFile(reference, readFileSync(target))
+    );
+  } catch {
+    return false;
+  }
+}
+
+function acceptedLegacyHookFile(value: unknown, projectRoot: string): boolean {
+  if (typeof value === 'string') return acceptedLegacyHookReference(value, projectRoot);
+  if (Array.isArray(value)) {
+    return value.some(child => acceptedLegacyHookFile(child, projectRoot));
+  }
+  if (typeof value !== 'object' || value === null) return false;
+  return Object.values(value).some(child => acceptedLegacyHookFile(child, projectRoot));
+}
+
+function viableLegacyAuthority(event: string, projectRoot: string): boolean {
+  const settings = parseSettings(nodePath.join(projectRoot, '.claude/settings.json'));
+  const hooks = settings?.hooks;
+  if (typeof hooks !== 'object' || hooks === null || Array.isArray(hooks)) return false;
+  const entries = (hooks as Record<string, unknown>)[event];
+  return (
+    Array.isArray(entries) &&
+    entries.some(
+      entry => isAcceptedHistoricalHook(event, entry) && acceptedLegacyHookFile(entry, projectRoot),
+    )
+  );
 }
 
 function requiredEnvironment(name: 'CLAUDE_PLUGIN_DATA' | 'CLAUDE_PLUGIN_ROOT'): string {
@@ -723,8 +765,10 @@ function executeConfiguredHooks(input: {
   readonly command: string[];
   readonly eventGroupsContent: Buffer;
   readonly hookInput: HookInput;
+  readonly projectRoot: string;
   readonly standardInput: Buffer;
 }): FunctionalCommandResult {
+  if (viableLegacyAuthority(input.event, input.projectRoot)) return { status: 0, stdout: '' };
   try {
     return input.mode === '--event-group'
       ? runEventGroup(input.event, input.eventGroupsContent, input.hookInput, input.standardInput)
@@ -749,6 +793,7 @@ function mainUnsafe(event: string, mode: string | undefined, command: string[]):
   process.env.SAFEWORD_PLUGIN_CLI = nodePath.join(pluginRoot, 'runtime', 'cli.js');
   const standardInput = readFileSync(0);
   const hookInput = parseHookInput(standardInput);
+  const projectRoot = canonicalClaudeProjectRoot(hookInput.cwd ?? process.cwd());
   const verifiedPlugin = verifiedIdentity(event, pluginRoot);
   if (verifiedPlugin === undefined) return 0;
   const { eventGroupsContent, identity } = verifiedPlugin;
@@ -758,6 +803,7 @@ function mainUnsafe(event: string, mode: string | undefined, command: string[]):
     command,
     eventGroupsContent,
     hookInput,
+    projectRoot,
     standardInput,
   });
   if (execution.status === 0) {

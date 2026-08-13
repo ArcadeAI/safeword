@@ -142,6 +142,19 @@ describe('automatic Claude migration', () => {
     expect(readClaudePluginMode(root)?.state).toBe('clean');
   });
 
+  it('preserves the winning transaction identity during no-op convergence', () => {
+    const { root } = fixture();
+
+    expect(migrate(root).state).toBe('complete');
+    const winningTransactionId = readClaudePluginMode(root)?.transaction_id;
+    expect(winningTransactionId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u,
+    );
+
+    expect(migrate(root).state).toBe('complete');
+    expect(readClaudePluginMode(root)?.transaction_id).toBe(winningTransactionId);
+  });
+
   it('preserves the unresolved-path advisory when a deferred transaction recovers', () => {
     const { root } = fixture();
     const conflictingPath = Object.keys(CLAUDE_HISTORICAL_CATALOGUE.releases['0.72.0'].files)[1];
