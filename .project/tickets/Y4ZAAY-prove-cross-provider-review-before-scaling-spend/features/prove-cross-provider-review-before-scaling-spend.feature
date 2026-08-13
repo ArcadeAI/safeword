@@ -174,6 +174,20 @@ Feature: Prove cross-provider review before scaling spend
       Then the attempt is blocked before secrets are loaded
       And no paid request is made
 
+    @rejection
+    Scenario: Validated paid input cannot change before child execution
+      Given paid child input matches its authorized frozen corpus case
+      When those input bytes change after parent validation
+      Then the child rejects the input before provider execution
+      And no paid request is made
+
+    @rejection
+    Scenario: Existing attempt evidence blocks before paid execution
+      Given a fresh authorized attempt ID already has retained evidence bytes
+      When live execution is requested
+      Then the attempt is blocked before its durable start
+      And no paid request is made
+
   @prove-cross-provider-review-before-scaling-spend.SWM1.R3
   Rule: prove-cross-provider-review-before-scaling-spend.SWM1.R3 — Development evidence remains permanently separate from confirmatory evidence
 

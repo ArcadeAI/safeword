@@ -122,6 +122,18 @@ fixture scenarios do not substitute for its RED, GREEN, or REFACTOR record.
 - [x] GREEN 24b70ee54
 - [x] REFACTOR 2c8d717e4
 
+### Scenario: Validated paid input cannot change before child execution
+
+- [x] RED skip: independent review supplied the failing byte-swap counterexample before the test and fix landed together
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Existing attempt evidence blocks before paid execution
+
+- [x] RED skip: independent review supplied the failing paid-call counterexample before the test and fix landed together
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: prove-cross-provider-review-before-scaling-spend.SWM1.R3 — Development evidence remains permanently separate from confirmatory evidence
 
 ### Scenario: A development result is durably diagnostic-only

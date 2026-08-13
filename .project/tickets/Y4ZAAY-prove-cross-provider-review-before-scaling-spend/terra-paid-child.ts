@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { isAbsolute, join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -129,9 +130,12 @@ async function main(): Promise<void> {
   if (requireEnvironment("SAFEWORD_PAID_CANARY_RETRIES") !== "0") {
     throw new Error("paid canary retries must be disabled");
   }
-  const request = JSON.parse(
-    await readFile(inputPath, "utf8")
-  ) as TerraPaidChildInput;
+  const inputBytes = await readFile(inputPath, "utf8");
+  const expectedDigest = requireEnvironment("SAFEWORD_PAID_CANARY_INPUT_SHA256");
+  if (createHash("sha256").update(inputBytes).digest("hex") !== expectedDigest) {
+    throw new Error("paid child input changed after authorization");
+  }
+  const request = JSON.parse(inputBytes) as TerraPaidChildInput;
   const output = await executeTerraPaidChild({
     adapterRoot: process.cwd(),
     openAIKey: requireEnvironment("OPENAI_API_KEY"),

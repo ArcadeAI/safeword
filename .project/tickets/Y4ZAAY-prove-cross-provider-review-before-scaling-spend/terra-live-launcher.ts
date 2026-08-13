@@ -326,7 +326,7 @@ export async function verifyAuthorizedPaidChildInput(input: {
   inputPath: string;
   registration: CorpusRegistration;
   registrationCommit: string;
-}): Promise<void> {
+}): Promise<string> {
   const [inputBytes, primaryBytes, reserveBytes] = await Promise.all([
     readFile(input.inputPath, "utf8"),
     gitBytes(input.checkout.directory, `${input.registrationCommit}:${PRIMARY_MANIFEST_PATH}`),
@@ -420,6 +420,7 @@ export async function verifyAuthorizedPaidChildInput(input: {
   ) {
     throw new Error("paid child review does not match its frozen corpus case");
   }
+  return createHash("sha256").update(inputBytes).digest("hex");
 }
 
 function canonicalJson(value: unknown): string {
@@ -468,6 +469,7 @@ function requireSecret(value: string, label: string): string {
 
 function paidChildEnvironment(
   environment: Readonly<Record<string, string | undefined>>,
+  inputDigest: string,
   openAIKey: string
 ): Record<string, string> {
   const child: Record<string, string> = {};
@@ -478,6 +480,7 @@ function paidChildEnvironment(
     }
   }
   child.OPENAI_API_KEY = openAIKey;
+  child.SAFEWORD_PAID_CANARY_INPUT_SHA256 = inputDigest;
   child.SAFEWORD_PAID_CANARY_RETRIES = "0";
   return child;
 }
@@ -486,6 +489,7 @@ async function runCredentialedChild<T>(input: {
   adapterDirectory: string;
   child: { args: string[]; command: string };
   environment: Readonly<Record<string, string | undefined>>;
+  inputDigest: string;
   loadGitHubToken(): Promise<string>;
   loadOpenAIKey(): Promise<string>;
   parent(context: {
@@ -501,7 +505,7 @@ async function runCredentialedChild<T>(input: {
       args: [...input.child.args],
       command: input.child.command,
       cwd: input.adapterDirectory,
-      env: paidChildEnvironment(input.environment, openAIKey),
+      env: paidChildEnvironment(input.environment, input.inputDigest, openAIKey),
     });
   return input.parent({ dispatch, githubToken });
 }
@@ -531,7 +535,7 @@ export async function runTerraPaidCanary(input: {
     corpusDigest: input.registration.corpusDigest,
     registrationCommit: input.registration.registrationCommit,
   });
-  await verifyAuthorizedPaidChildInput({
+  const inputDigest = await verifyAuthorizedPaidChildInput({
     checkout: input.harnessCheckout,
     inputPath: input.inputPath,
     registration,
@@ -544,6 +548,7 @@ export async function runTerraPaidCanary(input: {
       inputPath: input.inputPath,
     }),
     environment: input.environment ?? process.env,
+    inputDigest,
     loadGitHubToken: input.loadGitHubToken,
     loadOpenAIKey: input.loadOpenAIKey,
     parent: ({ dispatch, githubToken }) =>
@@ -554,13 +559,16 @@ export async function runTerraPaidCanary(input: {
         intentId: input.intentId,
         outputDirectory: input.outputDirectory,
         prepare: async (context) => {
-          await verifyAuthorizedPaidChildInput({
+          const preparedDigest = await verifyAuthorizedPaidChildInput({
             checkout: input.harnessCheckout,
             expectedContext: context,
             inputPath: input.inputPath,
             registration,
             registrationCommit: input.registration.registrationCommit,
           });
+          if (preparedDigest !== inputDigest) {
+            throw new Error("paid child input changed during authorization");
+          }
         },
         upstream: input.createUpstream(githubToken),
       }),
@@ -605,14 +613,15 @@ export async function runAuthorizedTerraPaidCanary(input: {
     attemptId: input.attemptId,
     binding,
     createUpstream: (githubToken) =>
-      input.createUpstream?.(binding, githubToken) ??
-      createGitHubCanaryUpstream({
+      input.createUpstream === undefined
+        ? createGitHubCanaryUpstream({
         allowlistedMaintainers: input.allowlistedMaintainers,
         authorization: input.authorization,
         http: createAuthenticatedGitHubHttp({ fetch: input.fetch, token: githubToken }),
         issueNumber: input.issueNumber,
         nextReceiptId: randomUUID,
-      }),
+          })
+        : input.createUpstream(binding, githubToken),
     environment: input.environment,
     harnessCheckout: input.harnessCheckout,
     inputPath: input.inputPath,

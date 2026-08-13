@@ -797,6 +797,39 @@ describe("Terra canary write-side attempt lifecycle", () => {
     });
   });
 
+  test("serializes overlapping provider journal appends without losing records", async () => {
+    const directory = outputDirectory();
+    mkdirSync(directory, { recursive: true });
+    const recorder = await createCanaryProviderRecorder({
+      attemptId: "attempt-1",
+      intentId: "intent-1",
+      outputDirectory: directory,
+      sequence: 1,
+    });
+    const intents = ["turn-1", "turn-2"].map((intentId) =>
+      recorder.recordIntent({
+        endpoint: "https://api.openai.com/v1/responses",
+        intentId,
+        requestBody: { model: "gpt-5.6-terra" },
+        requestedModel: "gpt-5.6-terra",
+        requestedServiceTier: "default",
+        stage: "repository-reading",
+      })
+    );
+    await Promise.all(intents);
+
+    const records = readFileSync(recorder.journalPath, "utf8")
+      .trimEnd()
+      .split("\n")
+      .map((line) => JSON.parse(line) as Record<string, unknown>);
+    expect(records).toHaveLength(3);
+    expect(records.map((record) => record.sequence)).toEqual([1, 2, 3]);
+    expect(records.slice(1).map((record) => record.turnIntentId)).toEqual([
+      "turn-1",
+      "turn-2",
+    ]);
+  });
+
   test("edited retained response evidence makes cost accounting incomplete", async () => {
     const directory = outputDirectory();
     const upstream = fakeUpstream();
@@ -1176,19 +1209,24 @@ describe("Terra canary write-side attempt lifecycle", () => {
     mkdirSync(join(directory, EVIDENCE_DIRECTORY));
     const evidencePath = join(directory, EVIDENCE_DIRECTORY, "attempt-1.json");
     writeFileSync(evidencePath, "planted evidence");
+    let dispatches = 0;
 
     await expect(
       runCanaryAttempt({
         attemptId: "attempt-1",
         binding: BINDING,
-        dispatch: async () => validDispatchEvidence(),
+        dispatch: async () => {
+          dispatches += 1;
+          return validDispatchEvidence();
+        },
         intentId: "intent-1",
         outputDirectory: directory,
         upstream,
       })
-    ).rejects.toMatchObject({ code: "EEXIST" });
+    ).rejects.toThrow("evidence already exists before dispatch");
+    expect(dispatches).toBe(0);
     expect(readFileSync(evidencePath, "utf8")).toBe("planted evidence");
-    expect(upstream.events).not.toContain("upstream-completion");
+    expect(upstream.events).toEqual([]);
   });
 
   test("a stale ownership lock is preserved and blocks execution", async () => {
@@ -1819,19 +1857,28 @@ describe("Terra canary initialization and reload", () => {
     const upstream = fakeUpstream();
     await initializeCanary({ binding: BINDING, outputDirectory: directory, upstream });
     const upstreamRecords = progressedRecords(2);
-    const localRecords = structuredClone(upstreamRecords);
+    writeProgressedRecords(directory, upstreamRecords);
+    const costPath = join(directory, COST_JOURNAL);
+    const localCostRecords = readFileSync(costPath, "utf8")
+      .trimEnd()
+      .split("\n")
+      .map((line) => JSON.parse(line) as Record<string, unknown>);
+    const second = localCostRecords[2]!;
     if (defect === "different-response-digest") {
-      localRecords.completions[1]!.responseDigest = "response-local-other";
+      second.responseDigest = "response-local-other";
     } else if (defect === "different-native-usage-digest") {
-      localRecords.completions[1]!.nativeUsageDigest = "usage-local-other";
+      second.nativeUsageDigest = "usage-local-other";
     } else if (defect === "different-cost") {
-      localRecords.completions[1]!.observedCostPicodollars = "201";
+      second.observedCostPicodollars = "201";
     } else {
-      localRecords.completions.pop();
+      localCostRecords.pop();
     }
     upstream.setReceipts(upstreamRecords);
     upstream.setHead({ observedCostPicodollars: "200", startedAttempts: 2 });
-    writeProgressedRecords(directory, localRecords);
+    writeFileSync(
+      costPath,
+      `${localCostRecords.map((record) => JSON.stringify(record)).join("\n")}\n`
+    );
     const before = retainedBytes(directory);
 
     const inspected = await inspectCanaryAccounting({

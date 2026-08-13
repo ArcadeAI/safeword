@@ -571,6 +571,14 @@ export async function createCanaryProviderRecorder(
   const name = `${input.attemptId}${PROVIDER_TURN_JOURNAL_SUFFIX}`;
   const journalPath = join(directory, name);
   let nextSequence = 2;
+  let appendQueue = Promise.resolve();
+  const appendRecord = (value: unknown): Promise<void> => {
+    const pending = appendQueue.then(() =>
+      appendDurableJsonLine(directory, name, value)
+    );
+    appendQueue = pending.catch(() => undefined);
+    return pending;
+  };
   await writeExclusiveJson(directory, name, {
     attemptId: input.attemptId,
     intentId: input.intentId,
@@ -654,7 +662,7 @@ export async function createCanaryProviderRecorder(
     },
     journalPath,
     recordIntent: async (intent) => {
-      await appendDurableJsonLine(directory, name, {
+      await appendRecord({
         attemptId: input.attemptId,
         attemptIntentId: input.intentId,
         endpoint: intent.endpoint,
@@ -668,7 +676,7 @@ export async function createCanaryProviderRecorder(
       });
     },
     recordResponse: async (response) => {
-      await appendDurableJsonLine(directory, name, {
+      await appendRecord({
         attemptId: input.attemptId,
         attemptIntentId: input.intentId,
         errorMessage: response.errorMessage,
@@ -1330,6 +1338,14 @@ async function runCanaryAttemptWhileLocked(input: {
     throw new Error("receipt budget cannot fund another complete attempt");
   }
   await ensureEvidenceDirectory(input.outputDirectory);
+
+  const evidenceDirectory = join(input.outputDirectory, EVIDENCE_DIRECTORY);
+  if (
+    (await exists(join(evidenceDirectory, `${input.attemptId}.json`))) ||
+    (await exists(join(evidenceDirectory, `${input.attemptId}.usage.json`)))
+  ) {
+    throw new Error("attempt evidence already exists before dispatch");
+  }
 
   const sequence = inspected.startedAttempts + 1;
   const context = {

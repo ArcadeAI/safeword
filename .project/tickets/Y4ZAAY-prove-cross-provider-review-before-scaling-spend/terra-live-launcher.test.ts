@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -419,6 +420,81 @@ describe("credential-separated live launcher", () => {
     })).resolves.toMatchObject({ attemptId: "attempt-1", sequence: 1 });
   });
 
+  test("constructs the production GitHub upstream with the authorized issue and token", async () => {
+    const adapter = await pinnedCheckout("default-upstream-adapter");
+    const harness = await pinnedCheckout("default-upstream-harness");
+    const authorization: CanaryAuthorization = {
+      adapterCommit: adapter.commit,
+      adapterTag: adapter.tag,
+      attemptLimit: 10,
+      authorizationId: "authorization-1",
+      canonicalRepository: "ArcadeAI/safeword",
+      corpusDigest: CORPUS_DIGEST,
+      costLimitPicodollars: "15000000000000",
+      diagnosticOnly: true,
+      evidenceRole: "development",
+      harnessCommit: harness.commit,
+      harnessTag: harness.tag,
+      model: "gpt-5.6-terra",
+      outputIdentity: "terra-default-upstream",
+      receiptBudget: 21,
+      registrationCommentId: 1,
+      registrationCommit: harness.commit,
+      serviceTier: "default",
+      ticketId: "Y4ZAAY",
+    };
+    const corpusDirectory = join(import.meta.dirname, "../CWGYH0-pr-review-eval");
+    const manifest = JSON.parse(
+      await readFile(join(corpusDirectory, "scored-cases-frozen-2026-08-01.json"), "utf8")
+    ) as { cases: Array<Record<string, unknown>>; modelCutoff: string; runnerRef: string };
+    const corpusCase = manifest.cases[0]!;
+    const outputDirectory = join(await mkdtemp(join(tmpdir(), "terra-default-output-")), "output");
+    await mkdir(outputDirectory);
+    const inputPath = join(await mkdtemp(join(tmpdir(), "terra-default-input-")), "input.json");
+    await writeFile(inputPath, JSON.stringify({
+      context: { attemptId: "attempt-1", intentId: "intent-1", outputDirectory, sequence: 1 },
+      expertsDirectory: join(tmpdir(), "terra-experts"),
+      policy: { maxVerifications: 2, toolCallsPerExpert: 3, wallClockMsPerExpert: 4_000 },
+      review: {
+        caseId: corpusCase.id,
+        causalPaths: corpusCase.causalPaths,
+        failureDescription: corpusCase.failureDescription,
+        modelCutoff: manifest.modelCutoff,
+        reviewBaseSha: corpusCase.reviewBaseSha,
+        runnerRef: manifest.runnerRef,
+        sourceSha: corpusCase.baseSha,
+        variant: "buggy",
+      },
+      target: { baseRef: "eval-base", root: join(tmpdir(), "terra-target") },
+    }), "utf8");
+    let observedUrl = "";
+    let observedAuthorization = "";
+
+    await expect(runAuthorizedTerraPaidCanary({
+      adapterCheckout: adapter,
+      allowlistedMaintainers: ["maintainer"],
+      attemptId: "attempt-1",
+      authorization,
+      fetch: async (url, init) => {
+        observedUrl = String(url);
+        observedAuthorization = new Headers(init?.headers).get("authorization") ?? "";
+        return new Response("unavailable", { status: 503 });
+      },
+      harnessCheckout: harness,
+      inputPath,
+      intentId: "intent-1",
+      issueNumber: 1909,
+      loadGitHubToken: async () => "github-secret",
+      loadOpenAIKey: async () => "openai-secret",
+      outputDirectory,
+      spawnChild: async () => {
+        throw new Error("child must not run");
+      },
+    })).rejects.toThrow("canary dispatch blocked");
+    expect(observedUrl).toContain("/repos/ArcadeAI/safeword/issues/1909/comments");
+    expect(observedAuthorization).toBe("Bearer github-secret");
+  });
+
   test("binds the paid child review to an exact frozen corpus case", async () => {
     const harness = await pinnedCheckout("harness-corpus-input");
     const corpusDirectory = join(import.meta.dirname, "../CWGYH0-pr-review-eval");
@@ -463,7 +539,7 @@ describe("credential-separated live launcher", () => {
       inputPath,
       registration,
       registrationCommit: harness.commit,
-    })).resolves.toBeUndefined();
+    })).resolves.toMatch(/^[0-9a-f]{64}$/);
 
     await writeFile(inputPath, JSON.stringify({
       ...request,
@@ -552,6 +628,34 @@ describe("credential-separated live launcher", () => {
 
     expect(result.exitCode).not.toBe(0);
     expect(result.stderr).toContain("paid canary retries must be disabled");
+  });
+
+  test("the physical child rejects input changed after parent authorization", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "terra-child-digest-"));
+    const inputPath = join(directory, "input.json");
+    const authorizedBytes = "{}";
+    await writeFile(inputPath, authorizedBytes, "utf8");
+    const child = createTerraPaidChildCommand({
+      harnessDirectory: join(import.meta.dirname, "../../.."),
+      inputPath,
+    });
+    await writeFile(inputPath, '{"changed":true}', "utf8");
+
+    const result = await spawnPaidChild({
+      ...child,
+      cwd: process.cwd(),
+      env: {
+        OPENAI_API_KEY: "fake-key",
+        PATH: process.env.PATH ?? "",
+        SAFEWORD_PAID_CANARY_INPUT_SHA256: createHash("sha256")
+          .update(authorizedBytes)
+          .digest("hex"),
+        SAFEWORD_PAID_CANARY_RETRIES: "0",
+      },
+    });
+
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr).toContain("input changed after authorization");
   });
 
   test("strictly converts one successful child result for the controller", () => {
