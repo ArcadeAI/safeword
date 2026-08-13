@@ -155,6 +155,45 @@ describe('automatic Claude migration', () => {
     expect(readClaudePluginMode(root)?.transaction_id).toBe(winningTransactionId);
   });
 
+  it('retains a quarantined raced replacement and recovery evidence', () => {
+    const { root, installedPath } = fixture();
+    const target = nodePath.join(root, installedPath);
+    const replacement = Buffer.from('concurrent replacement bytes\n');
+    process.env.CLAUDE_PROJECT_DIR = root;
+
+    const result = migrateClaudeLegacyAutomatically(root, {
+      pluginVersion: '0.73.0',
+      hookManifestSha256: hookDigest,
+      catalogueSha256: historicalCatalogueDigest(),
+      deadline: 10,
+      now: () => 0,
+      beforeQuarantine: () => {
+        rmSync(target);
+        writeFileSync(target, replacement);
+      },
+    });
+
+    expect(result.state).toBe('attention');
+    const transactionPath = nodePath.join(
+      root,
+      '.safeword/claude-plugin/cleanup-transaction-v1.json',
+    );
+    const transaction = JSON.parse(readFileSync(transactionPath, 'utf8')) as {
+      entries: { quarantine_path?: string }[];
+    };
+    const quarantinePath = transaction.entries.find(
+      entry => entry.quarantine_path,
+    )?.quarantine_path;
+    expect(quarantinePath).toBeDefined();
+    expect(readFileSync(nodePath.join(root, quarantinePath ?? ''))).toEqual(replacement);
+    expect(existsSync(target)).toBe(false);
+
+    expect(migrate(root).state).toBe('attention');
+    expect(readFileSync(nodePath.join(root, quarantinePath ?? ''))).toEqual(replacement);
+    expect(existsSync(transactionPath)).toBe(true);
+    expect(readClaudePluginMode(root)).toBeUndefined();
+  });
+
   it('preserves the unresolved-path advisory when a deferred transaction recovers', () => {
     const { root } = fixture();
     const conflictingPath = Object.keys(CLAUDE_HISTORICAL_CATALOGUE.releases['0.72.0'].files)[1];

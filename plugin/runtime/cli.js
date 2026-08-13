@@ -40142,7 +40142,10 @@ function entryFor(cwd, mutation) {
     before_mode: lstatSync14(path4).mode & 511,
     after_sha256: after === null ? null : sha2564(after),
     after_base64: after === null ? null : after.toString("base64"),
-    after_mode: after === null ? null : lstatSync14(path4).mode & 511
+    after_mode: after === null ? null : lstatSync14(path4).mode & 511,
+    ...after === null && {
+      quarantine_path: `.safeword/claude-plugin/quarantine/${randomUUID6()}.retired`
+    }
   };
 }
 function observedSha(path4) {
@@ -40186,15 +40189,17 @@ function openCleanupTarget(root, relative, flags) {
     throw error2;
   }
 }
-function quarantineOpenTarget(root, opened) {
+function quarantineOpenTarget(root, opened, quarantinePath, beforeQuarantine) {
   if (process.platform !== "darwin" && process.platform !== "linux") {
     throw new Error("Atomic Claude cleanup quarantine is unavailable on this platform.");
   }
-  const quarantineDirectory = containedClaudeCleanupPath(root, ".safeword/claude-plugin/quarantine");
+  const safeQuarantinePath = containedClaudeCleanupPath(root, quarantinePath);
+  const quarantineDirectory = nodePath70.dirname(safeQuarantinePath);
   mkdirSync11(quarantineDirectory, { recursive: true, mode: 448 });
   const quarantineDescriptor = openSync7(quarantineDirectory, fsConstants5.O_RDONLY | (fsConstants5.O_DIRECTORY ?? 0) | (fsConstants5.O_NOFOLLOW ?? 0));
-  const quarantineName = `${randomUUID6()}.retired`;
+  const quarantineName = nodePath70.basename(safeQuarantinePath);
   try {
+    beforeQuarantine?.();
     const result = spawnSync6("bun", ["-e", RENAME_AT_SCRIPT, nodePath70.basename(opened.path), quarantineName], {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe", opened.parentDescriptor, quarantineDescriptor]
@@ -40236,7 +40241,7 @@ function descriptorSha256(descriptor, size) {
   }
   return sha2564(bytes.subarray(0, offset));
 }
-function writeImage(root, relative, expectedSha256, content, mode) {
+function writeImage(root, relative, expectedSha256, content, options) {
   const opened = openCleanupTarget(root, relative, fsConstants5.O_RDWR);
   try {
     revalidateOpenTarget(root, relative, opened);
@@ -40244,7 +40249,10 @@ function writeImage(root, relative, expectedSha256, content, mode) {
       throw new Error(`Claude cleanup target changed before mutation: ${relative}`);
     }
     if (content === null) {
-      quarantineOpenTarget(root, opened);
+      if (options.quarantinePath === undefined) {
+        throw new Error(`Claude cleanup transaction has no quarantine path: ${relative}`);
+      }
+      quarantineOpenTarget(root, opened, options.quarantinePath, options.beforeQuarantine);
       return;
     }
     const bytes = Buffer.from(content, "base64");
@@ -40253,14 +40261,14 @@ function writeImage(root, relative, expectedSha256, content, mode) {
     while (offset < bytes.length) {
       offset += writeSync(opened.descriptor, bytes, offset, bytes.length - offset, offset);
     }
-    fchmodSync(opened.descriptor, mode ?? 420);
+    fchmodSync(opened.descriptor, options.mode ?? 420);
     fsyncSync2(opened.descriptor);
   } finally {
     closeSync7(opened.descriptor);
     closeSync7(opened.parentDescriptor);
   }
 }
-function applyEntries(cwd, entries, shouldDefer = () => false) {
+function applyEntries(cwd, entries, shouldDefer = () => false, beforeQuarantine) {
   for (const entry of entries) {
     if (shouldDefer())
       return false;
@@ -40268,7 +40276,11 @@ function applyEntries(cwd, entries, shouldDefer = () => false) {
     if (observedSha(path4) !== entry.before_sha256) {
       throw new Error(`Claude cleanup target changed after planning: ${entry.path}`);
     }
-    writeImage(cwd, entry.path, entry.before_sha256, entry.after_base64, entry.after_mode);
+    writeImage(cwd, entry.path, entry.before_sha256, entry.after_base64, {
+      mode: entry.after_mode,
+      quarantinePath: entry.quarantine_path,
+      beforeQuarantine
+    });
   }
   return true;
 }
@@ -40497,7 +40509,7 @@ function performAutomaticMigration(projectRoot, options, now) {
   options.beforeApply?.();
   let applied;
   try {
-    applied = applyEntries(projectRoot, transaction.entries, () => now() >= options.deadline);
+    applied = applyEntries(projectRoot, transaction.entries, () => now() >= options.deadline, options.beforeQuarantine);
   } catch (error2) {
     writeDurableFile(transactionPath(projectRoot), `${JSON.stringify({ ...transaction, state: "recoverable" }, undefined, 2)}
 `, { mode: 384 });
@@ -40568,8 +40580,14 @@ function hasExactKeys(value, keys) {
   const actual = Object.keys(value).toSorted((left, right) => left.localeCompare(right));
   return actual.length === keys.length && actual.every((key, index) => key === keys[index]);
 }
+function expectedCleanupEntryKeys(entry) {
+  return [
+    ...CLEANUP_ENTRY_KEYS,
+    ...entry.quarantine_path === undefined ? [] : ["quarantine_path"]
+  ].toSorted((left, right) => left.localeCompare(right));
+}
 function hasValidBeforeImage(entry, before) {
-  return hasExactKeys(entry, CLEANUP_ENTRY_KEYS) && typeof entry.path === "string" && typeof entry.before_sha256 === "string" && SHA256_PATTERN.test(entry.before_sha256) && sha2564(before) === entry.before_sha256 && Number.isSafeInteger(entry.before_mode) && entry.before_mode >= 0 && entry.before_mode <= 511;
+  return hasExactKeys(entry, expectedCleanupEntryKeys(entry)) && typeof entry.path === "string" && typeof entry.before_sha256 === "string" && SHA256_PATTERN.test(entry.before_sha256) && sha2564(before) === entry.before_sha256 && Number.isSafeInteger(entry.before_mode) && entry.before_mode >= 0 && entry.before_mode <= 511;
 }
 function deterministicAfterImage(path4, before) {
   if (path4 === ".claude/settings.json")
@@ -40597,6 +40615,9 @@ function validateCleanupEntry(value) {
   const expectedBytes = expectedAfter === null ? null : Buffer.from(expectedAfter);
   if (!hasExpectedAfterImage(entry, expectedBytes)) {
     throw new Error("Claude cleanup after-image is not the deterministic legacy contraction.");
+  }
+  if (entry.quarantine_path !== undefined && (expectedAfter !== null || typeof entry.quarantine_path !== "string" || !entry.quarantine_path.startsWith(".safeword/claude-plugin/quarantine/") || !entry.quarantine_path.endsWith(".retired"))) {
+    throw new Error("Claude cleanup quarantine path is malformed.");
   }
   return entry;
 }
@@ -40670,9 +40691,30 @@ function processIsRunning(pid) {
 function transactionCanRecover(transaction) {
   return transaction.state === "recoverable" || !processIsRunning(transaction.owner_pid);
 }
+function ensureQuarantinePaths(projectRoot, transaction) {
+  if (transaction.entries.every((entry) => entry.after_sha256 !== null || entry.quarantine_path !== undefined)) {
+    return transaction;
+  }
+  const upgraded = {
+    ...transaction,
+    entries: transaction.entries.map((entry) => entry.after_sha256 === null && entry.quarantine_path === undefined ? {
+      ...entry,
+      quarantine_path: `.safeword/claude-plugin/quarantine/${randomUUID6()}.retired`
+    } : entry)
+  };
+  writeDurableFile(transactionPath(projectRoot), `${JSON.stringify(upgraded, undefined, 2)}
+`, { mode: 384 });
+  return upgraded;
+}
 function pendingRecoveryEntries(projectRoot, transaction) {
   const pending = [];
   for (const entry of transaction.entries) {
+    if (entry.quarantine_path !== undefined) {
+      const quarantine = assertSafeClaudeCleanupTarget(projectRoot, entry.quarantine_path);
+      if (existsSync37(quarantine) && lstatSync14(quarantine).size > 0) {
+        throw new Error(`Claude recovery preserved unverified bytes at ${entry.quarantine_path}`);
+      }
+    }
     const path4 = assertSafeClaudeCleanupTarget(projectRoot, entry.path);
     const current = observedSha(path4);
     const source = entry.before_sha256;
@@ -40687,7 +40729,10 @@ function pendingRecoveryEntries(projectRoot, transaction) {
 }
 function applyRecoveryEntries(projectRoot, pending) {
   for (const entry of pending) {
-    writeImage(projectRoot, entry.path, entry.before_sha256, entry.after_base64, entry.after_mode);
+    writeImage(projectRoot, entry.path, entry.before_sha256, entry.after_base64, {
+      mode: entry.after_mode,
+      quarantinePath: entry.quarantine_path
+    });
   }
 }
 function completedRecoveryResult(projectRoot, transaction) {
@@ -40716,10 +40761,11 @@ function recoverClaudeCleanup(cwd) {
     });
   }
   try {
-    const transaction = parseTransaction(projectRoot);
+    let transaction = parseTransaction(projectRoot);
     if (!transactionCanRecover(transaction)) {
       throw new Error(`Claude cleanup transaction is still owned by process ${transaction.owner_pid}.`);
     }
+    transaction = ensureQuarantinePaths(projectRoot, transaction);
     applyRecoveryEntries(projectRoot, pendingRecoveryEntries(projectRoot, transaction));
     return completedRecoveryResult(projectRoot, transaction);
   } catch (error2) {
