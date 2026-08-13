@@ -118,7 +118,7 @@
     "eslint": "^10.6.0",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "esbuild": "0.28.1",
-    "knip": "6.31.0",
+    "knip": "6.32.2",
     "prettier": "^3.9.5",
     "publint": "^0.3.22",
     "tsup": "^8.5.1",

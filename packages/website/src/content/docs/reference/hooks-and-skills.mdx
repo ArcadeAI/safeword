@@ -15,6 +15,7 @@ Quick actions you type in your agent. Cursor keeps the short command names below
 | `/audit`           | Find dead code and architecture drift     |
 | `/quality-review`  | Deep review against latest research       |
 | `/cleanup-zombies` | Clean current-project zombie processes    |
+| `/closeout`        | Safely clean up a merged delivery session |
 | `/bdd`             | Start BDD workflow (includes TDD)         |
 | `/debug`           | Start structured debugging workflow       |
 | `/refactor`        | Start safe refactoring workflow           |
@@ -162,6 +163,9 @@ receipt. The cleanup guard previews a digest-bound plan before applying it and
 removes only the exact linked worktree, remote branch, and local branch—in that
 order. Dirty, locked, protected, changed, default, main, ambiguous, or otherwise
 unverifiable targets are preserved and reported with recovery actions.
+Transcript growth between preview and apply refreshes the mandatory
+retrospective without invalidating authorization for unchanged cleanup targets.
+If that refresh finds unresolved work, cleanup remains blocked before mutation.
 
 The dependency audit is a delivery-readiness gate and must pass before merge.
 After merge, closeout rechecks the immutable head's verification, build,
