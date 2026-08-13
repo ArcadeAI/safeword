@@ -23,7 +23,9 @@
  * so no pinned issue number goes stale when an issue is closed.
  *
  * Token-gated and opt-in, like reconcile.live.test.ts: the assertions run only in
- * the live lane and only when a real GitHub token resolves.
+ * the live lane and only when a real GitHub token resolves. The two source-only
+ * GitHub smokes may run via `bun run test:smoke:live:github` without a fresh build
+ * or the package-test lock (#1484).
  *
  * Without a token the lane FAILS rather than skipping quietly. An earlier version
  * warned via a module-scope `console.warn` and called that "skipping loudly" — it

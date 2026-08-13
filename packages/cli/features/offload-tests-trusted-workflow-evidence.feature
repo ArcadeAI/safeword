@@ -1,7 +1,6 @@
-@wip
 Feature: Trust only the managed verification workflow
 
-  @offload-tests.TBU1.R12
+  @wip @offload-tests.TBU1.R12
   @public-cli @surface.safeword-cli
   Rule: offload-tests.TBU1.R12 — Only the exact trusted managed workflow version can produce authoritative remote evidence
 

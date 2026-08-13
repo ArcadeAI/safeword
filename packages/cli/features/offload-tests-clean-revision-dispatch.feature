@@ -1,7 +1,6 @@
-@wip
 Feature: Dispatch verification from a clean revision
 
-  @offload-tests.TBU1.R2
+  @wip @offload-tests.TBU1.R2
   @public-cli @surface.safeword-cli
   Rule: offload-tests.TBU1.R2 — Remote verification runs the requested Safeword test-plan lane against a clean commit confirmed as its same-repository branch tip immediately before workflow checkout
 
@@ -9,7 +8,8 @@ Feature: Dispatch verification from a clean revision
     Scenario Outline: Each supported lane dispatches its resolved identity at the immutable pushed tip
       Given clean local HEAD is the same-repository remote branch tip
       When the builder runs `safeword project test --lane <lane>` under effective remote-preferred mode
-      Then it selects remote plan kind <plan-kind> without locally invoking the plan resolver or any plan command before POST, and the observed dispatch contains exactly that lane, full local commit SHA, canonical branch ref, its SHA-256 digest and request token
+      Then it selects remote plan kind <plan-kind> without local plan resolution or execution before POST
+      And the dispatch contains exactly that lane, full commit SHA, canonical branch ref, ref digest, and request token
       Examples:
         | lane | plan-kind |
         | done | test |
@@ -73,7 +73,9 @@ Feature: Dispatch verification from a clean revision
     Scenario Outline: A checkout that is not an eligible same-repository branch tip preserves either requested lane locally
       Given a valid <lane> request and the local checkout is <state>
       When a valid remote request is evaluated
-      Then remote dispatch is not attempted and the public CLI resolves <plan-kind>, reports local HEAD and dirty state, fingerprints both invocation boundaries, invokes that unchanged plan once, and applies fingerprint precedence to its exit
+      Then remote dispatch is not attempted and the public CLI resolves <plan-kind>
+      And it reports local HEAD and dirty state and fingerprints both invocation boundaries
+      And it invokes the unchanged plan once and applies fingerprint precedence to its exit
       Examples:
         | lane | plan-kind | state |
         | done | test | dirty |

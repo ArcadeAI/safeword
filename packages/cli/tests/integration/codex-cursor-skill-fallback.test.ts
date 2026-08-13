@@ -32,8 +32,8 @@ import {
   initGitRepo,
   INSTALL_DEPENDENCIES_ENV,
   removeTemporaryDirectory,
-  repoRoot,
   setupOrThrow,
+  testCliPath,
 } from '../helpers.js';
 import { runDoneGate, writeFeatureTicketAtDone } from './done-gate-harness.js';
 
@@ -86,20 +86,16 @@ function logContents(projectDirectory: string): string {
 // the short-lived cache the fallback then reads — no env var, no explicit arg.
 function bindCodexSession(projectDirectory: string, skill: string, sessionId: string): void {
   const command = `bun "${projectDirectory}/.safeword/hooks/record-skill-invocation.ts" "${projectDirectory}" ${skill}`;
-  const result = spawnSync(
-    process.execPath,
-    [nodePath.join(repoRoot, 'packages/cli/dist/cli.js'), 'hook', 'codex', 'pre-tool-use'],
-    {
-      cwd: projectDirectory,
-      input: JSON.stringify({
-        session_id: sessionId,
-        tool_name: 'Bash',
-        tool_input: { command },
-      }),
-      env: fallbackEnvironment(projectDirectory),
-      encoding: 'utf8',
-    },
-  );
+  const result = spawnSync(process.execPath, [testCliPath, 'hook', 'codex', 'pre-tool-use'], {
+    cwd: projectDirectory,
+    input: JSON.stringify({
+      session_id: sessionId,
+      tool_name: 'Bash',
+      tool_input: { command },
+    }),
+    env: fallbackEnvironment(projectDirectory),
+    encoding: 'utf8',
+  });
   expect(result.status ?? 0).toBe(0);
 }
 

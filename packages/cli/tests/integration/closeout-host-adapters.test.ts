@@ -34,6 +34,7 @@ import {
   repoRoot,
   sealedRetroDraft,
   setupOrThrow,
+  testCliPath,
 } from '../helpers.js';
 
 const temporaryProjects: string[] = [];
@@ -235,13 +236,7 @@ function bindHostSession(input_: BindHostSessionInput): void {
       tool_input: { command },
     };
   } else if (runtime === 'codex') {
-    hook = [
-      process.execPath,
-      nodePath.join(repoRoot, 'packages/cli/dist/cli.js'),
-      'hook',
-      'codex',
-      'pre-tool-use',
-    ];
+    hook = [process.execPath, testCliPath, 'hook', 'codex', 'pre-tool-use'];
     hookInput = { session_id: id, tool_name: 'Bash', tool_input: { command } };
   } else {
     hook = [
@@ -1472,19 +1467,15 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
 
   it('binds the exact Codex session through the shipped pre-tool hook', () => {
     const directory = project();
-    const result = spawnSync(
-      process.execPath,
-      [nodePath.join(repoRoot, 'packages/cli/dist/cli.js'), 'hook', 'codex', 'pre-tool-use'],
-      {
-        cwd: directory,
-        input: JSON.stringify({
-          session_id: 'codex-closeout-42',
-          tool_name: 'Bash',
-          tool_input: { command: closeoutCommand(directory) },
-        }),
-        encoding: 'utf8',
-      },
-    );
+    const result = spawnSync(process.execPath, [testCliPath, 'hook', 'codex', 'pre-tool-use'], {
+      cwd: directory,
+      input: JSON.stringify({
+        session_id: 'codex-closeout-42',
+        tool_name: 'Bash',
+        tool_input: { command: closeoutCommand(directory) },
+      }),
+      encoding: 'utf8',
+    });
 
     expect(result.status, result.stderr).toBe(0);
     expect(readFreshCloseoutBinding({ projectDirectory: directory })).toEqual({
