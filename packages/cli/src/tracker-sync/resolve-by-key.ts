@@ -11,6 +11,7 @@
 import { existsSync, readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { findTicketFolderMatches } from '../utils/ticket-folder-matches.js';
 import type { TrackerMap } from './tracker-map.js';
 
 /**
@@ -30,7 +31,8 @@ function resolveTicketFolder(ticketsDirectory: string, ticketId: string): string
   } catch {
     return undefined;
   }
-  const match = entries.find(name => name === ticketId || name.startsWith(`${ticketId}-`));
+  const matches = findTicketFolderMatches(entries, ticketId);
+  const match = matches.all[0];
   return match === undefined ? undefined : nodePath.join(ticketsDirectory, match);
 }
 
