@@ -40398,12 +40398,16 @@ function observedPluginModeResult(projectRoot) {
   };
 }
 function writeObservedPluginMode(projectRoot, options, unresolved, advisory) {
+  const existing = readClaudePluginMode(projectRoot);
   writeClaudePluginMode(projectRoot, createClaudePluginMode({
     plugin_version: options.pluginVersion,
     hook_manifest_sha256: options.hookManifestSha256,
     catalogue_sha256: options.catalogueSha256,
     unresolved_paths: unresolved,
-    advisory
+    advisory,
+    ...existing?.transaction_id !== undefined && {
+      transaction_id: existing.transaction_id
+    }
   }));
   return { state: "complete", advisory, unresolvedPaths: unresolved };
 }

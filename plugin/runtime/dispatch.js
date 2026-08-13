@@ -4693,6 +4693,7 @@ function observedPluginModeResult(projectRoot) {
   };
 }
 function writeObservedPluginMode(projectRoot, options, unresolved, advisory) {
+  const existing = readClaudePluginMode(projectRoot);
   writeClaudePluginMode(
     projectRoot,
     createClaudePluginMode({
@@ -4701,6 +4702,9 @@ function writeObservedPluginMode(projectRoot, options, unresolved, advisory) {
       catalogue_sha256: options.catalogueSha256,
       unresolved_paths: unresolved,
       advisory,
+      ...(existing?.transaction_id !== void 0 && {
+        transaction_id: existing.transaction_id,
+      }),
     }),
   );
   return { state: 'complete', advisory, unresolvedPaths: unresolved };
@@ -5110,21 +5114,23 @@ function parseSettings(path) {
     ? parsed
     : void 0;
 }
-function acceptedLegacyHookFile(value, projectRoot) {
-  if (typeof value === 'string') {
-    const reference = /\.safeword\/hooks\/[^\s"';&|)]+/u.exec(value)?.[0];
-    if (reference === void 0) return false;
-    try {
-      const hooksRoot = nodePath8.resolve(projectRoot, '.safeword/hooks');
-      const target = nodePath8.resolve(projectRoot, reference);
-      if (!target.startsWith(`${hooksRoot}${nodePath8.sep}`)) return false;
-      if (realpathSync3(hooksRoot) !== hooksRoot || realpathSync3(target) !== target) return false;
-      if (!lstatSync5(target).isFile()) return false;
-      return isAcceptedHistoricalHookFile(reference, readFileSync5(target));
-    } catch {
-      return false;
-    }
+function acceptedLegacyHookReference(value, projectRoot) {
+  const reference = /\.safeword\/hooks\/[^\s"';&|)]+/u.exec(value)?.[0];
+  if (reference === void 0) return false;
+  try {
+    const hooksRoot = nodePath8.resolve(projectRoot, '.safeword/hooks');
+    const target = nodePath8.resolve(projectRoot, reference);
+    if (!target.startsWith(`${hooksRoot}${nodePath8.sep}`)) return false;
+    if (realpathSync3(hooksRoot) !== hooksRoot || realpathSync3(target) !== target) return false;
+    return (
+      lstatSync5(target).isFile() && isAcceptedHistoricalHookFile(reference, readFileSync5(target))
+    );
+  } catch {
+    return false;
   }
+}
+function acceptedLegacyHookFile(value, projectRoot) {
+  if (typeof value === 'string') return acceptedLegacyHookReference(value, projectRoot);
   if (Array.isArray(value)) {
     return value.some(child => acceptedLegacyHookFile(child, projectRoot));
   }
