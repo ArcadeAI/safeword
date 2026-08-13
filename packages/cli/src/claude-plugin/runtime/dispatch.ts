@@ -243,16 +243,29 @@ function writeDurableRecord(
   );
 }
 
-function setupRanForSession(pluginData: string, sessionId: string | undefined): boolean {
+function setupRanForSession(
+  pluginData: string,
+  sessionId: string | undefined,
+  pluginRoot: string,
+  projectRoot: string,
+  identity: PluginIdentityV1,
+): boolean {
   if (sessionId === undefined) return false;
   const path = nodePath.join(pluginData, 'cache-smoke-v1.json');
   if (!existsSync(path)) return false;
   try {
-    const smoke = JSON.parse(readFileSync(path, 'utf8')) as {
-      event?: string;
-      session_id?: string;
+    const smoke = JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>;
+    const expected: Record<string, unknown> = {
+      schema_version: 1,
+      event: 'Setup',
+      session_id: sessionId,
+      project_root: projectRoot,
+      plugin_version: identity.plugin_version,
+      hook_manifest_sha256: identity.hook_manifest_sha256,
+      inventory_sha256: identity.inventory_sha256,
+      canonical_plugin_root: pluginRoot,
     };
-    return smoke.event === 'Setup' && smoke.session_id === sessionId;
+    return Object.entries(expected).every(([key, value]) => smoke[key] === value);
   } catch {
     return false;
   }
@@ -266,8 +279,13 @@ function recordExecutionProof(
 ): void {
   if (event !== 'SessionStart' && event !== 'UserPromptSubmit') return;
   const pluginData = requiredEnvironment('CLAUDE_PLUGIN_DATA');
-  if (event === 'SessionStart' && setupRanForSession(pluginData, input.session_id)) return;
   const projectRoot = canonicalClaudeProjectRoot(input.cwd ?? process.cwd());
+  if (
+    event === 'SessionStart' &&
+    setupRanForSession(pluginData, input.session_id, pluginRoot, projectRoot, identity)
+  ) {
+    return;
+  }
   const projectDigest = createHash('sha256').update(projectRoot).digest('hex');
   writeDurableRecord(nodePath.join(pluginData, 'execution-proofs-v2'), `${projectDigest}.json`, {
     schema_version: 2,
@@ -288,12 +306,14 @@ function recordCacheSmoke(
   input: HookInput,
 ): void {
   if (event !== 'Setup') return;
+  const projectRoot = canonicalClaudeProjectRoot(input.cwd ?? process.cwd());
   writeDurableRecord(requiredEnvironment('CLAUDE_PLUGIN_DATA'), 'cache-smoke-v1.json', {
     schema_version: 1,
     plugin_version: identity.plugin_version,
     hook_manifest_sha256: identity.hook_manifest_sha256,
     inventory_sha256: identity.inventory_sha256,
     canonical_plugin_root: pluginRoot,
+    project_root: projectRoot,
     event,
     session_id: input.session_id,
     recorded_at: new Date().toISOString(),

@@ -199,6 +199,32 @@ describe('Claude plugin dispatcher', () => {
     });
   });
 
+  it('does not let stale Setup metadata suppress SessionStart proof', () => {
+    const projectDirectory = temporary('safeword-plugin-stale-smoke-project-');
+    const pluginData = temporary('safeword-plugin-stale-smoke-data-');
+    const identity = JSON.parse(readFileSync(nodePath.join(PLUGIN_ROOT, 'identity.json'), 'utf8'));
+    writeFileSync(
+      nodePath.join(pluginData, 'cache-smoke-v1.json'),
+      `${JSON.stringify({
+        schema_version: 1,
+        ...identity,
+        canonical_plugin_root: '/different/plugin/root',
+        project_root: realpathSync(projectDirectory),
+        event: 'Setup',
+        session_id: 'shared-session',
+      })}\n`,
+    );
+
+    const result = dispatchEvent(projectDirectory, pluginData, undefined, 'shared-session', {
+      event: 'SessionStart',
+    });
+    expect(result.status, result.stderr).toBe(0);
+    const projectDigest = createHash('sha256').update(realpathSync(projectDirectory)).digest('hex');
+    expect(
+      existsSync(nodePath.join(pluginData, 'execution-proofs-v2', `${projectDigest}.json`)),
+    ).toBe(true);
+  });
+
   it('automatically contracts a released project through the generated runtime', () => {
     const projectDirectory = temporary('safeword-plugin-migration-project-');
     const pluginData = temporary('safeword-plugin-migration-data-');

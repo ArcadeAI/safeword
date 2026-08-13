@@ -4573,13 +4573,23 @@ function writeDurableRecord(pluginData, filename, record2) {
     },
   );
 }
-function setupRanForSession(pluginData, sessionId) {
+function setupRanForSession(pluginData, sessionId, pluginRoot, projectRoot, identity) {
   if (sessionId === void 0) return false;
   const path = nodePath8.join(pluginData, 'cache-smoke-v1.json');
   if (!existsSync6(path)) return false;
   try {
     const smoke = JSON.parse(readFileSync5(path, 'utf8'));
-    return smoke.event === 'Setup' && smoke.session_id === sessionId;
+    const expected = {
+      schema_version: 1,
+      event: 'Setup',
+      session_id: sessionId,
+      project_root: projectRoot,
+      plugin_version: identity.plugin_version,
+      hook_manifest_sha256: identity.hook_manifest_sha256,
+      inventory_sha256: identity.inventory_sha256,
+      canonical_plugin_root: pluginRoot,
+    };
+    return Object.entries(expected).every(([key, value]) => smoke[key] === value);
   } catch {
     return false;
   }
@@ -4587,8 +4597,13 @@ function setupRanForSession(pluginData, sessionId) {
 function recordExecutionProof(event, pluginRoot, identity, input) {
   if (event !== 'SessionStart' && event !== 'UserPromptSubmit') return;
   const pluginData = requiredEnvironment('CLAUDE_PLUGIN_DATA');
-  if (event === 'SessionStart' && setupRanForSession(pluginData, input.session_id)) return;
   const projectRoot = canonicalClaudeProjectRoot(input.cwd ?? process.cwd());
+  if (
+    event === 'SessionStart' &&
+    setupRanForSession(pluginData, input.session_id, pluginRoot, projectRoot, identity)
+  ) {
+    return;
+  }
   const projectDigest = createHash4('sha256').update(projectRoot).digest('hex');
   writeDurableRecord(nodePath8.join(pluginData, 'execution-proofs-v2'), `${projectDigest}.json`, {
     schema_version: 2,
@@ -4603,12 +4618,14 @@ function recordExecutionProof(event, pluginRoot, identity, input) {
 }
 function recordCacheSmoke(event, pluginRoot, identity, input) {
   if (event !== 'Setup') return;
+  const projectRoot = canonicalClaudeProjectRoot(input.cwd ?? process.cwd());
   writeDurableRecord(requiredEnvironment('CLAUDE_PLUGIN_DATA'), 'cache-smoke-v1.json', {
     schema_version: 1,
     plugin_version: identity.plugin_version,
     hook_manifest_sha256: identity.hook_manifest_sha256,
     inventory_sha256: identity.inventory_sha256,
     canonical_plugin_root: pluginRoot,
+    project_root: projectRoot,
     event,
     session_id: input.session_id,
     recorded_at: /* @__PURE__ */ new Date().toISOString(),
