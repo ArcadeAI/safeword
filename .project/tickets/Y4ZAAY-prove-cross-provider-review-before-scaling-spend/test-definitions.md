@@ -106,9 +106,9 @@ fixture scenarios do not substitute for its RED, GREEN, or REFACTOR record.
 
 ### Scenario: Authorized corpus cannot dispatch unrelated paid input
 
-- [x] RED
-- [x] GREEN
-- [x] REFACTOR: one manifest-backed validator binds case membership and immutable review identity before credential loading
+- [x] RED 47712ea29
+- [x] GREEN 47712ea29
+- [x] REFACTOR 2c8d717e4
 
 ## Rule: prove-cross-provider-review-before-scaling-spend.SWM1.R3 — Development evidence remains permanently separate from confirmatory evidence
 
@@ -142,4 +142,4 @@ fixture scenarios do not substitute for its RED, GREEN, or REFACTOR record.
 
 ## Feature-level cross-scenario refactor
 
-- [ ] cross-scenario
+- [x] cross-scenario skip: the new manifest binding and existing authorization scenarios share no further behavior-preserving simplification

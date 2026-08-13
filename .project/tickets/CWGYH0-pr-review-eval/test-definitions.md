@@ -58,7 +58,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 8eb575194
 - [x] GREEN 8eb31e5ca
-- [x] REFACTOR: one finding identity relation validates matching subsets while requiring consolidated findings to exactly equal the routed reviewer output
+- [x] REFACTOR 47712ea29
 
 ## Rule: pr-review-eval.SWM1.R2 — Failure handling preserves paired experimental validity
 
