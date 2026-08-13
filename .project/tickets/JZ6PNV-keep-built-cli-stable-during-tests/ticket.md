@@ -3,11 +3,11 @@ id: JZ6PNV
 slug: keep-built-cli-stable-during-tests
 type: patch
 subtype: bug-investigated
-phase: intake
-status: in_progress
+phase: done
+status: done
 external_issue: https://github.com/ArcadeAI/safeword/issues/1823
 created: 2026-08-12T22:13:03.364Z
-last_modified: 2026-08-12T22:13:03.364Z
+last_modified: 2026-08-13T00:23:00.000Z
 ---
 
 # Keep package tests from deleting the CLI they exercise
@@ -48,3 +48,4 @@ isolation boundary, regardless of which concurrent source-tree operation exposes
 - 2026-08-12T22:30:00.000Z Regression proof: Temporarily moved the live generated `dist` after Vitest started; all 11 TypeScript install/ESLint tests still passed from the snapshot, then the live directory was restored.
 - 2026-08-13T00:20:00.000Z Quality review: Hardened stale-transition recovery, typed lock ownership, snapshot path/symlink containment, argv-safe synchronous CLI execution, timeout classification, and shell-free Windows Vitest resolution. Focused runner/helper suite passed 31/31.
 - 2026-08-13T00:20:00.000Z Full verification: 490 files and 7,595 tests passed; 1,469 BDD scenarios/64,549 steps plus 50 proof scenarios/240 proof steps passed; builds, TypeScript, Bun audit, and govulncheck passed. The aggregate verifier exits 2 only because the repository-wide generated type plan incorrectly runs `mypy .` where no Python files exist.
+- 2026-08-13T00:23:00.000Z Completed: Verification evidence recorded and PR #2659 opened to close GitHub issue #1823.
