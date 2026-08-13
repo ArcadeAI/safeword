@@ -90,12 +90,6 @@ successful result whose `data.agent_filing_needed` is `false` and whose derived
 current session has an empty filing spool. Zero substantial findings and every
 finding successfully filed are both complete outcomes.
 
-Each successful run seals the last complete JSONL record from one immutable
-transcript read. If preview reporting appends more complete records, apply
-validates the sealed byte prefix and runs retro only over the bounded appended
-window before advancing the receipt. A partial trailing record is neither
-sealed nor lost; mutation or truncation of the sealed prefix fails closed.
-
 Failed extraction, failed filing, pending drafts, malformed output, or an
 identity mismatch means no cleanup. Report every failure and its recovery
 action. A request to skip retro does not create a bypass: preserve the worktree
@@ -120,11 +114,9 @@ or mints one from terminal green hosted CI. Only when neither proof is available
 does it run the project's verification, build, typecheck, and BDD plans. It does not rerun
 dependency audit: that changing intelligence is enforced at the
 delivery-time, pre-merge boundary and cannot repair an immutable merged head.
-It reuses the exact verification snapshot and sealed retrospective evidence
-through matching preview and apply invocations. Append-only transcript progress
-advances through the bounded retrospective window without changing the cleanup
-authorization digest. Changed repository state, cleanup targets, or any mutation
-of the sealed transcript prefix still makes the plan stale.
+It reuses the exact verification and retrospective snapshots through matching
+preview and apply invocations. New transcript content or changed repository
+state makes the plan stale instead of silently expanding its evidence window.
 After the topic worktree is gone, preview requires its fresh clean-head receipt.
 It binds the resulting repository state and exact PR identity to `PLAN_DIGEST`.
 Report the complete operation list and all blockers. Do not apply a blocked plan.

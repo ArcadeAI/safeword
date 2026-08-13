@@ -223,8 +223,8 @@
         "hooks": [
           {
             "type": "command",
-            "if": "Bash(git *)",
-            "command": "bash \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/pre-tool-git-bare-fix.sh"
+            "command": "bash \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/pre-tool-git-bare-fix.sh",
+            "if": "Bash(git *)"
           }
         ]
       },
@@ -233,8 +233,8 @@
         "hooks": [
           {
             "type": "command",
-            "if": "Bash(git commit*)",
-            "command": "bun \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/pre-tool-architecture-stage.ts"
+            "command": "bun \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/pre-tool-architecture-stage.ts",
+            "if": "Bash(git commit*)"
           }
         ]
       },
@@ -243,8 +243,8 @@
         "hooks": [
           {
             "type": "command",
-            "if": "Bash(git checkout*)",
-            "command": "bun \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/pre-tool-stale-main.ts"
+            "command": "bun \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/pre-tool-stale-main.ts",
+            "if": "Bash(git checkout*)"
           }
         ]
       },
@@ -253,8 +253,8 @@
         "hooks": [
           {
             "type": "command",
-            "if": "Bash(git switch*)",
-            "command": "bun \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/pre-tool-stale-main.ts"
+            "command": "bun \"$CLAUDE_PROJECT_DIR\"/.safeword/hooks/pre-tool-stale-main.ts",
+            "if": "Bash(git switch*)"
           }
         ]
       }
@@ -335,6 +335,9 @@
       }
     ]
   },
+  "enabledPlugins": {
+    "safeword@safeword": true
+  },
   "extraKnownMarketplaces": {
     "safeword": {
       "source": {
@@ -344,8 +347,5 @@
       },
       "autoUpdate": true
     }
-  },
-  "enabledPlugins": {
-    "safeword@safeword": true
   }
 }
