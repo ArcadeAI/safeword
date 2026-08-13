@@ -41364,6 +41364,22 @@ var init_run_identity = __esm(() => {
   RUNTIMES = new Set(["claude", "codex", "cursor", "unknown"]);
 });
 
+// src/review/command.ts
+function shellQuote3(value) {
+  if (/^[\w./-]+$/u.test(value))
+    return value;
+  const escaped = value.replaceAll("'", `'"'"'`);
+  return `'${escaped}'`;
+}
+function contextArgument(target) {
+  return `--context ${shellQuote3(target)}`;
+}
+function retryCommand(kind, targets, context = []) {
+  const quoted = targets.map((target) => shellQuote3(target)).join(" ");
+  const contextOption = context.length === 0 ? "" : ` ${context.map((target) => contextArgument(target)).join(" ")}`;
+  return `safeword review run ${kind}${contextOption} -- ${quoted}`;
+}
+
 // src/review/packet.ts
 var exports_packet = {};
 __export(exports_packet, {
@@ -41956,7 +41972,7 @@ async function stopReviewerOrThrow(child, reviewer) {
 }
 async function stopReviewerOnce(child) {
   const pid = child.pid;
-  if (pid === undefined)
+  if (pid === undefined || child.exitCode !== null || child.signalCode !== null)
     return true;
   if (process.platform === "win32") {
     return stopWindowsReviewer(child, pid);
@@ -41996,6 +42012,10 @@ async function runCandidate(executable, attempt, timeoutMs) {
     stdio: ["pipe", "pipe", "pipe"],
     detached: process.platform !== "win32"
   });
+  const terminateReviewer = () => {
+    stopReviewer(child).finally(() => process.exit(143));
+  };
+  process.once("SIGTERM", terminateReviewer);
   try {
     const output = await new Promise((resolve, reject) => {
       let overflow = false;
@@ -42061,11 +42081,13 @@ async function runCandidate(executable, attempt, timeoutMs) {
       });
       child.stdin.end(reviewPrompt(reviewer, packet));
     });
-    await stopReviewer(child);
+    await stopReviewerOrThrow(child, reviewer);
     return output;
   } catch (error2) {
     await stopReviewerOrThrow(child, reviewer);
     throw error2;
+  } finally {
+    process.off("SIGTERM", terminateReviewer);
   }
 }
 async function runReviewerCandidates(attempt, candidates, deadline) {
@@ -42320,17 +42342,6 @@ function assessFallback(outcome, reviewer, dispatchId) {
     return outcome;
   const provenance = verifyProvenance(outcome.output, reviewer, dispatchId);
   return provenance.kind === "failed" ? { kind: "failed", failure: provenance.code, terminal: false } : { kind: "completed", output: provenance.output };
-}
-function shellQuote3(value) {
-  if (/^[\w./-]+$/u.test(value))
-    return value;
-  const escaped = value.replaceAll("'", `'"'"'`);
-  return `'${escaped}'`;
-}
-function retryCommand(kind, targets, context = []) {
-  const quoted = targets.map((target) => shellQuote3(target)).join(" ");
-  const contextOption = context.length === 0 ? "" : ` --context ${context.map((target) => shellQuote3(target)).join(" ")}`;
-  return `safeword review run ${kind}${contextOption} -- ${quoted}`;
 }
 function agentName(agent) {
   return agent === "codex" ? "Codex" : "Claude";
@@ -42819,11 +42830,15 @@ __export(exports_job, {
 import { spawn as spawn2, spawnSync as spawnSync9 } from "child_process";
 import { createHash as createHash20, randomUUID as randomUUID7 } from "crypto";
 import {
+  closeSync as closeSync5,
   existsSync as existsSync43,
   mkdirSync as mkdirSync13,
+  openSync as openSync5,
   readdirSync as readdirSync29,
   readFileSync as readFileSync51,
   renameSync as renameSync7,
+  statSync as statSync6,
+  unlinkSync as unlinkSync3,
   writeFileSync as writeFileSync20
 } from "fs";
 import nodePath84 from "path";
@@ -42831,7 +42846,7 @@ function jobsDirectory(cwd) {
   return nodePath84.join(cwd, ".safeword", "state", "reviews");
 }
 function jobPath(cwd, id) {
-  if (!/^[a-f\d-]{36}$/u.test(id))
+  if (!isJobId(id))
     throw new Error("invalid review job id");
   return nodePath84.join(jobsDirectory(cwd), `${id}.json`);
 }
@@ -42857,12 +42872,66 @@ function writeJob(cwd, record) {
   if (!isReviewJobRecord(record))
     throw new Error("invalid review job record");
   const directory = jobsDirectory(cwd);
-  mkdirSync13(directory, { recursive: true });
+  mkdirSync13(directory, { recursive: true, mode: 448 });
   const destination = jobPath(cwd, record.id);
   const temporary = `${destination}.${process.pid}.tmp`;
   writeFileSync20(temporary, `${JSON.stringify(record)}
 `, { mode: 384 });
   renameSync7(temporary, destination);
+}
+function withJobLock(cwd, id, operation) {
+  const lock = `${jobPath(cwd, id)}.lock`;
+  const deadline = Date.now() + JOB_LOCK_WAIT_MS;
+  let descriptor;
+  while (descriptor === undefined) {
+    try {
+      descriptor = openSync5(lock, "wx", 384);
+      try {
+        writeFileSync20(descriptor, String(process.pid));
+      } catch (error2) {
+        closeSync5(descriptor);
+        descriptor = undefined;
+        try {
+          unlinkSync3(lock);
+        } catch {}
+        throw error2;
+      }
+    } catch (error2) {
+      if (!isFileExistsError(error2) || Date.now() >= deadline)
+        throw error2;
+      recoverStaleLock(lock);
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10);
+    }
+  }
+  try {
+    return operation();
+  } finally {
+    closeSync5(descriptor);
+    try {
+      unlinkSync3(lock);
+    } catch {}
+  }
+}
+function recoverStaleLock(lock) {
+  try {
+    const owner = Number(readFileSync51(lock, "utf8"));
+    const invalidOwnerIsOld = !isProcessId(owner) && Date.now() - statSync6(lock).mtimeMs >= JOB_LOCK_WAIT_MS;
+    if (isProcessId(owner) && !processExists(owner) || invalidOwnerIsOld)
+      unlinkSync3(lock);
+  } catch {}
+}
+function isFileExistsError(error2) {
+  return error2 instanceof Error && "code" in error2 && error2.code === "EEXIST";
+}
+function updateRunningJob(cwd, id, update) {
+  return withJobLock(cwd, id, () => {
+    const latest = readJob(cwd, id);
+    if (latest.state !== "running")
+      return latest;
+    const next = update(latest);
+    writeJob(cwd, next);
+    return next;
+  });
 }
 function isReviewJobRecord(value) {
   if (typeof value !== "object" || value === null || Array.isArray(value))
@@ -42929,7 +42998,7 @@ function pendingResult(record) {
     ],
     nextActions: [
       {
-        command: `bun .safeword/hooks/run-review.ts --json review status ${record.id}`,
+        command: `safeword review status ${record.id}`,
         mutates: false,
         requiresHuman: false
       }
@@ -42954,7 +43023,7 @@ function staleResult(record) {
     ],
     nextActions: [
       {
-        command: `bun .safeword/hooks/run-review.ts --json review run ${record.kind}${record.context === undefined || record.context.length === 0 ? "" : ` --context ${record.context.map((target) => shellQuote4(target)).join(" ")}`} -- ${record.targets.map((target) => shellQuote4(target)).join(" ")}`,
+        command: retryCommand(record.kind, record.targets, record.context),
         mutates: true,
         requiresHuman: false
       }
@@ -42962,17 +43031,9 @@ function staleResult(record) {
     data: { command: "review status", status: "stale", review_id: record.id }
   });
 }
-function shellQuote4(value) {
-  if (/^[\w./-]+$/u.test(value))
-    return value;
-  return ["'", value.replaceAll("'", `'"'"'`), "'"].join("");
-}
 function currentResult(cwd, record) {
   if (record.state === "running") {
-    if (record.pid !== undefined && !processExists(record.pid)) {
-      const latest = readJob(cwd, record.id);
-      if (latest.state !== "running")
-        return terminalResult(cwd, latest);
+    if (record.pid !== undefined && !isReviewWorker(record.pid)) {
       const failed = createResult({
         state: "failed",
         errors: [
@@ -42984,13 +43045,13 @@ function currentResult(cwd, record) {
         ],
         data: { command: "review status", status: "failed", review_id: record.id }
       });
-      writeJob(cwd, {
-        ...latest,
+      const latest = updateRunningJob(cwd, record.id, (current) => ({
+        ...current,
         state: "failed",
         result: failed,
         updated_at: new Date().toISOString()
-      });
-      return failed;
+      }));
+      return latest.state === "failed" && latest.result === failed ? failed : terminalResult(cwd, latest);
     }
     return pendingResult(record);
   }
@@ -43006,8 +43067,12 @@ function terminalResult(cwd, record) {
       data: { command: "review status", status: "canceled", review_id: record.id }
     });
   }
-  if (fingerprint(cwd, record.kind, record.targets, record.context) !== record.source_fingerprint)
+  try {
+    if (fingerprint(cwd, record.kind, record.targets, record.context) !== record.source_fingerprint)
+      return staleResult(record);
+  } catch {
     return staleResult(record);
+  }
   if (record.result !== undefined)
     return record.result;
   return createResult({
@@ -43033,8 +43098,8 @@ function configuredCourtesyWait() {
 }
 function cliEntrypoint() {
   const configured = process.env.SAFEWORD_CLI_ENTRYPOINT;
-  if (configured !== undefined)
-    return configured;
+  if (configured !== undefined && false)
+    ;
   const invoked = process.argv[1];
   if (invoked !== undefined && /^cli\.(?:js|ts)$/u.test(nodePath84.basename(invoked)))
     return invoked;
@@ -43093,15 +43158,14 @@ async function startReviewJob(input) {
       ],
       data: { command: "review run", status: "failed", review_id: id }
     });
-    const latest = readJob(input.cwd, id);
-    if (latest.state !== "running")
-      return;
-    writeJob(input.cwd, {
-      ...latest,
-      state: "failed",
-      result: failed,
-      updated_at: new Date().toISOString()
-    });
+    try {
+      updateRunningJob(input.cwd, id, (latest) => ({
+        ...latest,
+        state: "failed",
+        result: failed,
+        updated_at: new Date().toISOString()
+      }));
+    } catch {}
   });
   child.unref();
   if (child.pid === undefined) {
@@ -43124,10 +43188,11 @@ async function startReviewJob(input) {
     });
     return failed;
   }
-  const spawned = readJob(input.cwd, id);
-  if (spawned.state === "running") {
-    writeJob(input.cwd, { ...spawned, pid: child.pid, updated_at: new Date().toISOString() });
-  }
+  updateRunningJob(input.cwd, id, (spawned) => ({
+    ...spawned,
+    pid: child.pid,
+    updated_at: new Date().toISOString()
+  }));
   input.progress?.start("Running the independent review in the background\u2026");
   input.progress?.heartbeat?.("Still waiting for the independent review\u2026");
   const deadline = Date.now() + configuredCourtesyWait();
@@ -43137,18 +43202,15 @@ async function startReviewJob(input) {
       return currentResult(input.cwd, latest);
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
   }
-  return pendingResult(readJob(input.cwd, id));
+  return currentResult(input.cwd, readJob(input.cwd, id));
 }
 function completeReviewJob(cwd, id, result) {
-  const record = readJob(cwd, id);
-  if (record.state !== "running")
-    return;
-  writeJob(cwd, {
+  updateRunningJob(cwd, id, (record) => ({
     ...record,
     state: result.state === "failed" ? "failed" : "completed",
     result,
     updated_at: new Date().toISOString()
-  });
+  }));
 }
 function latestJobId(cwd) {
   const directory = jobsDirectory(cwd);
@@ -43162,7 +43224,7 @@ function latestJobId(cwd) {
     } catch {
       return [];
     }
-  }).toSorted((left, right) => right.record.started_at.localeCompare(left.record.started_at))[0]?.record.id;
+  }).toSorted((left, right) => right.record.started_at < left.record.started_at ? -1 : Number(right.record.started_at > left.record.started_at))[0]?.record.id;
 }
 function runningJob(cwd, kind, sourceFingerprint) {
   const directory = jobsDirectory(cwd);
@@ -43173,7 +43235,7 @@ function runningJob(cwd, kind, sourceFingerprint) {
       continue;
     try {
       const record = readJob(cwd, name.slice(0, -5));
-      if (record.state === "running" && record.kind === kind && record.source_fingerprint === sourceFingerprint && record.pid !== undefined && processExists(record.pid)) {
+      if (record.state === "running" && record.kind === kind && record.source_fingerprint === sourceFingerprint && record.pid !== undefined && isReviewWorker(record.pid)) {
         return record;
       }
     } catch {}
@@ -43200,7 +43262,7 @@ function reviewJobStatus(cwd, requestedId) {
   try {
     record = readJob(cwd, id);
   } catch {
-    const exists2 = existsSync43(jobPath(cwd, id));
+    const exists2 = isJobId(id) && existsSync43(jobPath(cwd, id));
     return createResult({
       state: "failed",
       errors: [
@@ -43220,8 +43282,8 @@ function reviewJobStatus(cwd, requestedId) {
       state: "action_required",
       findings: [
         {
-          code: "REVIEW_SOURCE_UNAVAILABLE",
-          message: "The review exists, but its source files cannot be read to validate freshness.",
+          code: "REVIEW_STATUS_FAILED",
+          message: "The review exists, but its current status could not be validated or saved.",
           severity: "warning"
         }
       ],
@@ -43234,24 +43296,30 @@ function cancelReviewJob(cwd, requestedId) {
     const id = requestedId ?? latestJobId(cwd);
     if (id === undefined)
       return reviewJobStatus(cwd, id);
-    const record = readJob(cwd, id);
-    if (record.state !== "running")
-      return currentResult(cwd, record);
-    if (record.pid !== undefined && isReviewWorker(record.pid)) {
-      try {
-        process.kill(process.platform === "win32" ? record.pid : -record.pid, "SIGTERM");
-      } catch {}
-    }
-    const canceled = {
-      ...record,
-      state: "canceled",
-      updated_at: new Date().toISOString()
-    };
-    writeJob(cwd, canceled);
+    const canceled = withJobLock(cwd, id, () => {
+      const record = readJob(cwd, id);
+      if (record.state !== "running")
+        return record;
+      if (record.pid !== undefined && isReviewWorker(record.pid)) {
+        try {
+          process.kill(process.platform === "win32" ? record.pid : -record.pid, "SIGTERM");
+        } catch {}
+      }
+      const next = {
+        ...record,
+        state: "canceled",
+        updated_at: new Date().toISOString()
+      };
+      writeJob(cwd, next);
+      return next;
+    });
     return currentResult(cwd, canceled);
   } catch {
     return reviewJobStatus(cwd, requestedId);
   }
+}
+function isJobId(value) {
+  return /^[a-f\d-]{36}$/u.test(value);
 }
 function isReviewWorker(pid) {
   if (process.platform === "win32")
@@ -43262,7 +43330,7 @@ function isReviewWorker(pid) {
   });
   return inspected.status === 0 && /\breview run\b/u.test(inspected.stdout);
 }
-var COURTESY_WAIT_MS = 75000, POLL_INTERVAL_MS = 100;
+var COURTESY_WAIT_MS = 75000, POLL_INTERVAL_MS = 100, JOB_LOCK_WAIT_MS = 2000;
 var init_job = __esm(() => {
   init_result();
   init_contract();
@@ -53054,7 +53122,7 @@ import {
   mkdtempSync as mkdtempSync7,
   readFileSync as readFileSync56,
   realpathSync as realpathSync10,
-  statSync as statSync6,
+  statSync as statSync7,
   writeFileSync as writeFileSync23
 } from "fs";
 import { tmpdir as tmpdir5 } from "os";
@@ -53409,7 +53477,7 @@ function physicalProjectPath(projectDirectory) {
 function physicalOutboxPath(outboxDirectory) {
   try {
     const physicalOutbox = realpathSync10(outboxDirectory);
-    return statSync6(physicalOutbox).isDirectory() ? physicalOutbox : undefined;
+    return statSync7(physicalOutbox).isDirectory() ? physicalOutbox : undefined;
   } catch {
     return;
   }
@@ -57966,8 +58034,19 @@ function reviewContext(rawContext) {
 }
 async function runReviewWorker(invocation, kind, targets, context) {
   const id = process.env.SAFEWORD_REVIEW_JOB_ID;
-  if (id === undefined)
-    return invalidOperand("review run", "Review worker ID is missing.");
+  if (id === undefined) {
+    return createResult({
+      state: "failed",
+      errors: [
+        {
+          code: "REVIEW_WORKER_ID_MISSING",
+          message: "The detached review worker has no job ID.",
+          retryable: false
+        }
+      ],
+      data: { command: "review run", status: "failed" }
+    });
+  }
   const [{ runReview: runReview2 }, { completeReviewJob: completeReviewJob2 }, { ReviewPacketError: ReviewPacketError2 }] = await Promise.all([
     Promise.resolve().then(() => (init_coordinator(), exports_coordinator)),
     Promise.resolve().then(() => (init_job(), exports_job)),
@@ -57986,7 +58065,21 @@ async function runReviewWorker(invocation, kind, targets, context) {
     const packetError = error2 instanceof ReviewPacketError2;
     result = reviewExecutionFailure(error2, packetError);
   }
-  completeReviewJob2(invocation.cwd, id, result);
+  try {
+    completeReviewJob2(invocation.cwd, id, result);
+  } catch (error2) {
+    return createResult({
+      state: "failed",
+      errors: [
+        {
+          code: "REVIEW_RESULT_PERSIST_FAILED",
+          message: error2 instanceof Error ? `The review finished but its result could not be saved: ${error2.message}` : "The review finished but its result could not be saved.",
+          retryable: true
+        }
+      ],
+      data: { command: "review run", status: "failed", review_id: id }
+    });
+  }
   return result;
 }
 function reviewExecutionFailure(error2, packetError) {
@@ -58197,7 +58290,7 @@ function cleanGuidanceRefusal(cleanup) {
     data: { command: "codex clean-guidance", cleanup }
   });
 }
-function shellQuote5(value) {
+function shellQuote4(value) {
   const escaped = (value ?? "").replaceAll("'", `'"'"'`);
   return `'${escaped}'`;
 }
@@ -58220,7 +58313,7 @@ function cleanGuidanceSuccess(cleanup) {
     },
     recovery: [
       {
-        command: `mv -- ${shellQuote5(cleanup.backupPath)} ${shellQuote5(cleanup.sourcePath)}`,
+        command: `mv -- ${shellQuote4(cleanup.backupPath)} ${shellQuote4(cleanup.sourcePath)}`,
         description: "Restore the backed-up profile guidance if it is still wanted.",
         requiresHuman: true
       }

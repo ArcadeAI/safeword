@@ -139,7 +139,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "2cb8a1618c79cc25519354f539e9248dc5f2406ae494e1488f6c4e5aa13d7a7c"
+      "sha256": "a72ce2b8cc7619b6e485c052fbfbf3ee6dd9931a104a2866924a25021048e531"
     },
     {
       "path": "runtime/dispatch.js",
