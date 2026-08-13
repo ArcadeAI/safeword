@@ -1,10 +1,13 @@
 import { spawnSync } from 'node:child_process';
+import { createHmac } from 'node:crypto';
 import {
   existsSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
+  realpathSync,
+  symlinkSync,
   unlinkSync,
   writeFileSync,
 } from 'node:fs';
@@ -26,8 +29,8 @@ import {
 } from '../review-fixtures.js';
 
 const COMPLETE_WORKER = String.raw`
-import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs';
+import { createHmac, randomBytes } from 'node:crypto';
+import { mkdirSync, openSync, closeSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 const id = process.env.SAFEWORD_REVIEW_JOB_ID;
 const path = join(process.cwd(), '.safeword', 'state', 'reviews', id + '.json');
@@ -48,22 +51,26 @@ record.result = {
     }
   }
 };
-writeFileSync(path + '.worker.tmp', JSON.stringify(record) + '\n', { mode: 0o600 });
 const canonicalProject = realpathSync.native(process.cwd());
-const project = createHash('sha256').update(canonicalProject).digest('hex');
-const receipt = join(process.env.SAFEWORD_REVIEW_RECEIPT_ROOT, 'safeword', 'review-receipts', project, id + '.sha256');
-const digest = createHash('sha256')
+const keyPath = join(process.env.SAFEWORD_REVIEW_KEY_ROOT, 'safeword', 'review-integrity.key');
+mkdirSync(dirname(keyPath), { recursive: true, mode: 0o700 });
+let key;
+try { key = Buffer.from(readFileSync(keyPath, 'utf8').trim(), 'hex'); }
+catch {
+  key = randomBytes(32);
+  try { const descriptor = openSync(keyPath, 'wx', 0o600); writeFileSync(descriptor, key.toString('hex') + '\n'); closeSync(descriptor); }
+  catch { key = Buffer.from(readFileSync(keyPath, 'utf8').trim(), 'hex'); }
+}
+record.integrity = createHmac('sha256', key)
   .update(canonicalProject).update('\0').update(JSON.stringify(record)).digest('hex');
-mkdirSync(dirname(receipt), { recursive: true, mode: 0o700 });
-writeFileSync(receipt + '.worker.tmp', digest + '\n', { mode: 0o600 });
-renameSync(receipt + '.worker.tmp', receipt);
+writeFileSync(path + '.worker.tmp', JSON.stringify(record) + '\n', { mode: 0o600 });
 renameSync(path + '.worker.tmp', path);
 `;
 
 function project(): string {
   const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-job-test-'));
-  const receiptPrefix = nodePath.join(tmpdir(), 'safeword-review-receipt-test-');
-  vi.stubEnv('SAFEWORD_REVIEW_RECEIPT_ROOT', mkdtempSync(receiptPrefix));
+  const keyPrefix = nodePath.join(tmpdir(), 'safeword-review-key-test-');
+  vi.stubEnv('SAFEWORD_REVIEW_KEY_ROOT', mkdtempSync(keyPrefix));
   writeFileSync(nodePath.join(directory, 'input.md'), 'review me\n');
   return directory;
 }
@@ -78,6 +85,21 @@ function worker(directory: string, source: string): string {
   const path = nodePath.join(directory, 'worker.mjs');
   writeFileSync(path, source);
   return path;
+}
+
+function signRecord(cwd: string, record: Record<string, unknown>): string {
+  const keyRoot = process.env.SAFEWORD_REVIEW_KEY_ROOT;
+  if (keyRoot === undefined) throw new Error('test key root is unavailable');
+  const key = Buffer.from(
+    readFileSync(nodePath.join(keyRoot, 'safeword', 'review-integrity.key'), 'utf8').trim(),
+    'hex',
+  );
+  const { integrity: _integrity, ...unsigned } = record;
+  return createHmac('sha256', key)
+    .update(realpathSync.native(cwd))
+    .update('\0')
+    .update(JSON.stringify(unsigned))
+    .digest('hex');
 }
 
 function delayedReviewer(): { bin: string; log: string } {
@@ -430,6 +452,49 @@ describe('durable review jobs', () => {
     expect(result.state).toBe('failed');
     expect(result.errors[0]?.code).toBe('REVIEW_JOB_INVALID');
   });
+
+  it('preserves completed history beyond 128 reviews with one host key', async () => {
+    const cwd = project();
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, COMPLETE_WORKER));
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '3000');
+    await startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
+    const records = nodePath.join(cwd, '.safeword', 'state', 'reviews');
+    const originalName = readdirSync(records).find(candidate => candidate.endsWith('.json'));
+    if (originalName === undefined) throw new Error('completed job record was not written');
+    const original = JSON.parse(
+      readFileSync(nodePath.join(records, originalName), 'utf8'),
+    ) as Record<string, unknown>;
+
+    for (let index = 0; index < 129; index += 1) {
+      const id = `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`;
+      const clone: Record<string, unknown> = { ...original, id, integrity: undefined };
+      clone.integrity = signRecord(cwd, clone);
+      writeFileSync(nodePath.join(records, `${id}.json`), `${JSON.stringify(clone)}\n`);
+    }
+
+    expect(reviewJobStatus(cwd, String(original.id)).state).toBe('healthy');
+    const keyRoot = process.env.SAFEWORD_REVIEW_KEY_ROOT;
+    if (keyRoot === undefined) throw new Error('test key root is unavailable');
+    expect(readdirSync(nodePath.join(keyRoot, 'safeword'))).toEqual(['review-integrity.key']);
+  });
+
+  it.runIf(process.platform !== 'win32')(
+    'validates a completed job through a canonical project path alias',
+    async () => {
+      const cwd = project();
+      const alias = `${cwd}-alias`;
+      symlinkSync(cwd, alias);
+      vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, COMPLETE_WORKER));
+      vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '3000');
+      await startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
+      const recordName = readdirSync(nodePath.join(cwd, '.safeword', 'state', 'reviews')).find(
+        candidate => candidate.endsWith('.json'),
+      );
+      if (recordName === undefined) throw new Error('completed job record was not written');
+
+      expect(reviewJobStatus(alias, recordName.slice(0, -5)).state).toBe('healthy');
+    },
+  );
 
   it('refuses a completed result after its reviewed source changes', async () => {
     const cwd = project();

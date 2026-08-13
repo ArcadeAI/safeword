@@ -1,5 +1,5 @@
 import { type ChildProcess, spawn, spawnSync } from 'node:child_process';
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import {
   closeSync,
   existsSync,
@@ -38,13 +38,13 @@ interface ReviewJobRecord {
   readonly updated_at: string;
   readonly pid?: number;
   readonly result?: CliResult;
+  readonly integrity?: string;
 }
 
 const COURTESY_WAIT_MS = 75_000;
 const POLL_INTERVAL_MS = 100;
 const WORKER_INSPECTION_INTERVAL_MS = 1000;
 const JOB_LOCK_WAIT_MS = 2000;
-const MAX_COMPLETION_RECEIPTS_PER_PROJECT = 128;
 
 function jobsDirectory(cwd: string): string {
   return nodePath.join(cwd, '.safeword', 'state', 'reviews');
@@ -55,57 +55,64 @@ function jobPath(cwd: string, id: string): string {
   return nodePath.join(jobsDirectory(cwd), `${id}.json`);
 }
 
-function completionReceiptPath(cwd: string, id: string): string {
-  const project = createHash('sha256').update(realpathSync.native(cwd)).digest('hex');
-  const testRoot = process.env.SAFEWORD_REVIEW_RECEIPT_ROOT;
+function integrityKeyPath(): string {
+  const testRoot = process.env.SAFEWORD_REVIEW_KEY_ROOT;
   const stateRoot =
     process.env.NODE_ENV === 'test' && testRoot !== undefined
       ? testRoot
       : (process.env.XDG_STATE_HOME ?? nodePath.join(homedir(), '.local', 'state'));
-  return nodePath.join(stateRoot, 'safeword', 'review-receipts', project, `${id}.sha256`);
+  return nodePath.join(stateRoot, 'safeword', 'review-integrity.key');
 }
 
-function completionReceiptDigest(cwd: string, record: ReviewJobRecord): string {
-  return createHash('sha256')
-    .update(realpathSync.native(cwd))
-    .update('\0')
-    .update(JSON.stringify(record))
-    .digest('hex');
-}
-
-function writeCompletionReceipt(cwd: string, record: ReviewJobRecord): void {
-  const destination = completionReceiptPath(cwd, record.id);
-  mkdirSync(nodePath.dirname(destination), { recursive: true, mode: 0o700 });
-  const temporary = `${destination}.${process.pid}.tmp`;
-  writeFileSync(temporary, `${completionReceiptDigest(cwd, record)}\n`, { mode: 0o600 });
-  renameSync(temporary, destination);
-  pruneCompletionReceipts(nodePath.dirname(destination), destination);
-}
-
-function pruneCompletionReceipts(directory: string, keep: string): void {
+function integrityKey(): Buffer {
+  const path = integrityKeyPath();
   try {
-    const receipts = readdirSync(directory)
-      .filter(name => name.endsWith('.sha256'))
-      .map(name => {
-        const path = nodePath.join(directory, name);
-        return { path, modified: statSync(path).mtimeMs };
-      })
-      .toSorted((left, right) => right.modified - left.modified);
-    for (const receipt of receipts.slice(MAX_COMPLETION_RECEIPTS_PER_PROJECT)) {
-      if (receipt.path !== keep) unlinkSync(receipt.path);
-    }
+    return decodeIntegrityKey(readFileSync(path, 'utf8'));
   } catch {
-    // Receipt pruning is bounded housekeeping; the just-written proof remains authoritative.
+    mkdirSync(nodePath.dirname(path), { recursive: true, mode: 0o700 });
+    const key = randomBytes(32);
+    try {
+      const descriptor = openSync(path, 'wx', 0o600);
+      try {
+        writeFileSync(descriptor, `${key.toString('hex')}\n`);
+      } finally {
+        closeSync(descriptor);
+      }
+      return key;
+    } catch (error) {
+      if (!isFileExistsError(error)) throw error;
+      return decodeIntegrityKey(readFileSync(path, 'utf8'));
+    }
   }
 }
 
-function hasValidCompletionReceipt(cwd: string, record: ReviewJobRecord): boolean {
+function decodeIntegrityKey(value: string): Buffer {
+  const encoded = value.trim();
+  if (!/^[a-f\d]{64}$/u.test(encoded)) throw new Error('invalid review integrity key');
+  return Buffer.from(encoded, 'hex');
+}
+
+function unsignedRecord(record: ReviewJobRecord): Omit<ReviewJobRecord, 'integrity'> {
+  const unsigned: Record<string, unknown> = { ...record };
+  delete unsigned.integrity;
+  return unsigned as unknown as Omit<ReviewJobRecord, 'integrity'>;
+}
+
+function recordIntegrity(cwd: string, record: ReviewJobRecord): string {
+  return createHmac('sha256', integrityKey())
+    .update(realpathSync.native(cwd))
+    .update('\0')
+    .update(JSON.stringify(unsignedRecord(record)))
+    .digest('hex');
+}
+
+function hasValidIntegrity(cwd: string, record: ReviewJobRecord): boolean {
   if (record.state !== 'completed') return true;
+  if (record.integrity === undefined || !/^[a-f\d]{64}$/u.test(record.integrity)) return false;
   try {
-    return (
-      readFileSync(completionReceiptPath(cwd, record.id), 'utf8').trim() ===
-      completionReceiptDigest(cwd, record)
-    );
+    const actual = Buffer.from(record.integrity, 'hex');
+    const expected = Buffer.from(recordIntegrity(cwd, record), 'hex');
+    return timingSafeEqual(actual, expected);
   } catch {
     return false;
   }
@@ -446,7 +453,7 @@ function terminalResult(cwd: string, record: ReviewJobRecord): CliResult {
   } catch {
     return staleResult(record);
   }
-  if (!hasValidCompletionReceipt(cwd, record)) {
+  if (!hasValidIntegrity(cwd, record)) {
     return createResult({
       state: 'failed',
       errors: [
@@ -702,13 +709,15 @@ export function completeReviewJob(cwd: string, id: string, result: CliResult): v
   withJobLock(cwd, id, () => {
     const record = readJob(cwd, id);
     if (record.state !== 'launching' && record.state !== 'running') return;
-    const completed: ReviewJobRecord = {
+    let completed: ReviewJobRecord = {
       ...record,
       state: result.state === 'failed' ? 'failed' : 'completed',
       result,
       updated_at: new Date().toISOString(),
     };
-    if (completed.state === 'completed') writeCompletionReceipt(cwd, completed);
+    if (completed.state === 'completed') {
+      completed = { ...completed, integrity: recordIntegrity(cwd, completed) };
+    }
     writeJob(cwd, completed);
   });
 }

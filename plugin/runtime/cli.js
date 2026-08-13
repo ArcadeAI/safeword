@@ -44430,7 +44430,7 @@ __export(exports_job, {
   cancelReviewJob: () => cancelReviewJob
 });
 import { spawn as spawn2, spawnSync as spawnSync9 } from "child_process";
-import { createHash as createHash21, randomUUID as randomUUID8 } from "crypto";
+import { createHash as createHash21, createHmac, randomBytes, randomUUID as randomUUID8, timingSafeEqual } from "crypto";
 import {
   closeSync as closeSync10,
   existsSync as existsSync42,
@@ -44455,41 +44455,57 @@ function jobPath(cwd, id) {
     throw new Error("invalid review job id");
   return nodePath82.join(jobsDirectory(cwd), `${id}.json`);
 }
-function completionReceiptPath(cwd, id) {
-  const project = createHash21("sha256").update(realpathSync11.native(cwd)).digest("hex");
-  const testRoot = process.env.SAFEWORD_REVIEW_RECEIPT_ROOT;
+function integrityKeyPath() {
+  const testRoot = process.env.SAFEWORD_REVIEW_KEY_ROOT;
   const stateRoot = process.env.XDG_STATE_HOME ?? nodePath82.join(homedir6(), ".local", "state");
-  return nodePath82.join(stateRoot, "safeword", "review-receipts", project, `${id}.sha256`);
+  return nodePath82.join(stateRoot, "safeword", "review-integrity.key");
 }
-function completionReceipt(cwd, record2) {
-  return createHash21("sha256").update(realpathSync11.native(cwd)).update("\x00").update(JSON.stringify(record2)).digest("hex");
-}
-function writeCompletionReceipt(cwd, record2) {
-  const destination = completionReceiptPath(cwd, record2.id);
-  mkdirSync14(nodePath82.dirname(destination), { recursive: true, mode: 448 });
-  const temporary = `${destination}.${process.pid}.tmp`;
-  writeFileSync19(temporary, `${completionReceipt(cwd, record2)}
-`, { mode: 384 });
-  renameSync8(temporary, destination);
-  pruneCompletionReceipts(nodePath82.dirname(destination), destination);
-}
-function pruneCompletionReceipts(directory, keep) {
+function integrityKey() {
+  const path4 = integrityKeyPath();
   try {
-    const receipts = readdirSync29(directory).filter((name) => name.endsWith(".sha256")).map((name) => {
-      const path4 = nodePath82.join(directory, name);
-      return { path: path4, modified: statSync6(path4).mtimeMs };
-    }).toSorted((left, right) => right.modified - left.modified);
-    for (const receipt of receipts.slice(MAX_COMPLETION_RECEIPTS_PER_PROJECT)) {
-      if (receipt.path !== keep)
-        unlinkSync3(receipt.path);
+    return decodeIntegrityKey(readFileSync51(path4, "utf8"));
+  } catch {
+    mkdirSync14(nodePath82.dirname(path4), { recursive: true, mode: 448 });
+    const key = randomBytes(32);
+    try {
+      const descriptor = openSync10(path4, "wx", 384);
+      try {
+        writeFileSync19(descriptor, `${key.toString("hex")}
+`);
+      } finally {
+        closeSync10(descriptor);
+      }
+      return key;
+    } catch (error2) {
+      if (!isFileExistsError(error2))
+        throw error2;
+      return decodeIntegrityKey(readFileSync51(path4, "utf8"));
     }
-  } catch {}
+  }
 }
-function hasValidCompletionReceipt(cwd, record2) {
+function decodeIntegrityKey(value) {
+  const encoded = value.trim();
+  if (!/^[a-f\d]{64}$/u.test(encoded))
+    throw new Error("invalid review integrity key");
+  return Buffer.from(encoded, "hex");
+}
+function unsignedRecord(record2) {
+  const unsigned = { ...record2 };
+  delete unsigned.integrity;
+  return unsigned;
+}
+function recordIntegrity(cwd, record2) {
+  return createHmac("sha256", integrityKey()).update(realpathSync11.native(cwd)).update("\x00").update(JSON.stringify(unsignedRecord(record2))).digest("hex");
+}
+function hasValidIntegrity(cwd, record2) {
   if (record2.state !== "completed")
     return true;
+  if (record2.integrity === undefined || !/^[a-f\d]{64}$/u.test(record2.integrity))
+    return false;
   try {
-    return readFileSync51(completionReceiptPath(cwd, record2.id), "utf8").trim() === completionReceipt(cwd, record2);
+    const actual = Buffer.from(record2.integrity, "hex");
+    const expected = Buffer.from(recordIntegrity(cwd, record2), "hex");
+    return timingSafeEqual(actual, expected);
   } catch {
     return false;
   }
@@ -44776,7 +44792,7 @@ function terminalResult(cwd, record2) {
   } catch {
     return staleResult(record2);
   }
-  if (!hasValidCompletionReceipt(cwd, record2)) {
+  if (!hasValidIntegrity(cwd, record2)) {
     return createResult({
       state: "failed",
       errors: [
@@ -44851,7 +44867,7 @@ function launchReviewWorker(input) {
     stdio: input.managedProgress ? ["ignore", "ignore", "inherit"] : "ignore"
   });
 }
-function workerSpawned(child) {
+function workerLaunchSettled(child) {
   return new Promise((resolve) => {
     child.once("spawn", resolve);
     child.once("error", resolve);
@@ -44902,7 +44918,7 @@ async function startReviewJob(input) {
     managedProgress,
     targets: input.targets
   });
-  const spawned = workerSpawned(child);
+  const launchSettled = workerLaunchSettled(child);
   child.once("error", (error2) => {
     const failed = createResult({
       state: "failed",
@@ -44951,7 +44967,7 @@ async function startReviewJob(input) {
     pid: child.pid,
     updated_at: new Date().toISOString()
   }));
-  await spawned;
+  await launchSettled;
   const observed = readJob(input.cwd, id);
   if (!isActivatedChild(observed, child.pid)) {
     terminateUnactivatedWorker(observed, child.pid);
@@ -44981,7 +44997,7 @@ function workerDefinitelyMismatches(record2) {
   return record2.pid !== undefined && inspectReviewWorker(record2.pid, record2.id) === "mismatch";
 }
 function terminateUnactivatedWorker(record2, pid) {
-  if (["launching", "running", "canceled"].includes(record2.state))
+  if (record2.state !== "completed" && record2.state !== "failed")
     terminateReviewWorker(pid);
 }
 function terminateReviewWorker(pid) {
@@ -45002,14 +45018,15 @@ function completeReviewJob(cwd, id, result) {
     const record2 = readJob(cwd, id);
     if (record2.state !== "launching" && record2.state !== "running")
       return;
-    const completed = {
+    let completed = {
       ...record2,
       state: result.state === "failed" ? "failed" : "completed",
       result,
       updated_at: new Date().toISOString()
     };
-    if (completed.state === "completed")
-      writeCompletionReceipt(cwd, completed);
+    if (completed.state === "completed") {
+      completed = { ...completed, integrity: recordIntegrity(cwd, completed) };
+    }
     writeJob(cwd, completed);
   });
 }
@@ -45158,7 +45175,7 @@ function inspectReviewWorker(pid, id) {
     return processExists(pid) ? "unavailable" : "mismatch";
   return /\breview run\b/u.test(inspected.stdout) && inspected.stdout.includes(`--worker-job-id ${id}`) ? "match" : "mismatch";
 }
-var COURTESY_WAIT_MS = 75000, POLL_INTERVAL_MS = 100, WORKER_INSPECTION_INTERVAL_MS = 1000, JOB_LOCK_WAIT_MS = 2000, MAX_COMPLETION_RECEIPTS_PER_PROJECT = 128;
+var COURTESY_WAIT_MS = 75000, POLL_INTERVAL_MS = 100, WORKER_INSPECTION_INTERVAL_MS = 1000, JOB_LOCK_WAIT_MS = 2000;
 var init_job = __esm(() => {
   init_result();
   init_contract();
