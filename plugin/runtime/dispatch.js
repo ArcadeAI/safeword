@@ -4166,8 +4166,8 @@ function claimClaudeMigrationAdvisory(
 function advisoryStateDigest(advisory) {
   return digest(advisory);
 }
-function claudeConfigDirectory() {
-  const configured = (process.env.CLAUDE_CONFIG_DIR ?? '').trim();
+function claudeConfigDirectory(environment = process.env) {
+  const configured = (environment.CLAUDE_CONFIG_DIR ?? '').trim();
   return configured === '' ? nodePath5.join(homedir(), '.claude') : configured;
 }
 function claudeWatchedSettingsDigest(cwd) {
@@ -5087,7 +5087,9 @@ function ensureQuarantinePaths(projectRoot, transaction) {
     transactionPath(projectRoot),
     `${JSON.stringify(upgraded, void 0, 2)}
 `,
-    { mode: 384 },
+    {
+      mode: 384,
+    },
   );
   return upgraded;
 }

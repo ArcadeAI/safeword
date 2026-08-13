@@ -20590,8 +20590,8 @@ function digest(value) {
 function advisoryStateDigest(advisory) {
   return digest(advisory);
 }
-function claudeConfigDirectory() {
-  const configured = (process.env.CLAUDE_CONFIG_DIR ?? "").trim();
+function claudeConfigDirectory(environment = process.env) {
+  const configured = (environment.CLAUDE_CONFIG_DIR ?? "").trim();
   return configured === "" ? nodePath33.join(homedir2(), ".claude") : configured;
 }
 function claudeWatchedSettingsDigest(cwd) {
@@ -33945,7 +33945,7 @@ import {
   rmSync as rmSync5,
   statSync as statSync3
 } from "fs";
-import { homedir as homedir3, tmpdir } from "os";
+import { tmpdir } from "os";
 import nodePath49 from "path";
 function runClaude(cwd, arguments_, effects) {
   const outputDirectory = mkdtempSync3(nodePath49.join(tmpdir(), "safeword-claude-output-"));
@@ -34023,11 +34023,8 @@ function officialMarketplaceSource() {
   const ref = VERSION.includes("-") ? `v${VERSION}` : "stable";
   return `${MARKETPLACE_BASE}#${ref}`;
 }
-function claudeConfigDirectory2() {
-  return process.env.CLAUDE_CONFIG_DIR ?? nodePath49.join(homedir3(), ".claude");
-}
 function scopedSettingsPath(cwd, scope) {
-  return scope === "project" ? nodePath49.join(cwd, ".claude/settings.json") : nodePath49.join(claudeConfigDirectory2(), "settings.json");
+  return scope === "project" ? nodePath49.join(cwd, ".claude/settings.json") : nodePath49.join(claudeConfigDirectory(), "settings.json");
 }
 function isJsonObject(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -34595,6 +34592,7 @@ var init_profile = __esm(() => {
   init_fs();
   init_version();
   init_inventory2();
+  init_migration_state();
   init_project_root();
   MINIMUM_CLAUDE_VERSION = [2, 1, 170];
   MAXIMUM_CLAUDE_OUTPUT_BYTES = 10 * 1024 * 1024;
@@ -34639,11 +34637,7 @@ __export(exports_status, {
 });
 import { createHash as createHash12 } from "crypto";
 import { existsSync as existsSync30, readFileSync as readFileSync27, realpathSync as realpathSync5 } from "fs";
-import { homedir as homedir4 } from "os";
 import nodePath50 from "path";
-function claudeConfigDirectory3(environment = process.env) {
-  return environment.CLAUDE_CONFIG_DIR ?? nodePath50.join(homedir4(), ".claude");
-}
 function jsonObject(path4) {
   try {
     const value = JSON.parse(readFileSync27(path4, "utf8"));
@@ -34685,7 +34679,7 @@ function proofIsCurrent(plugin, cwd) {
     return false;
   }
   const projectDigest = createHash12("sha256").update(canonicalProjectRoot).digest("hex");
-  const proof = jsonObject(nodePath50.join(claudeConfigDirectory3(), CLAUDE_MIGRATION_SCHEMA.paths.proofDirectory, `${projectDigest}.json`));
+  const proof = jsonObject(nodePath50.join(claudeConfigDirectory(), CLAUDE_MIGRATION_SCHEMA.paths.proofDirectory, `${projectDigest}.json`));
   if (identity === undefined || proof === undefined)
     return false;
   return proofMatches(proof, identity, plugin, canonicalProjectRoot, canonicalRoot);
@@ -34851,6 +34845,7 @@ var init_status = __esm(() => {
   init_hook_manifest();
   init_inventory2();
   init_legacy_classifier();
+  init_migration_state();
   init_profile();
   init_project_root();
   ACTIONS = {
@@ -35427,10 +35422,10 @@ var init_migration = __esm(() => {
 // src/codex-plugin/profile-lock.ts
 import { randomUUID as randomUUID4 } from "crypto";
 import { mkdirSync as mkdirSync9, readFileSync as readFileSync30, rmSync as rmSync6, statSync as statSync4, writeFileSync as writeFileSync11 } from "fs";
-import { homedir as homedir5 } from "os";
+import { homedir as homedir3 } from "os";
 import nodePath53 from "path";
 function profileDirectory(environment) {
-  return environment.CODEX_HOME ?? nodePath53.join(homedir5(), ".codex");
+  return environment.CODEX_HOME ?? nodePath53.join(homedir3(), ".codex");
 }
 function lockPath(environment) {
   return nodePath53.join(profileDirectory(environment), "safeword/profile-mutation.lock");
@@ -35607,10 +35602,10 @@ import {
   realpathSync as realpathSync6,
   rmSync as rmSync7
 } from "fs";
-import { homedir as homedir6 } from "os";
+import { homedir as homedir4 } from "os";
 import nodePath54 from "path";
 function codexProfileDirectory(environment = process.env) {
-  return environment.CODEX_HOME ?? nodePath54.join(homedir6(), ".codex");
+  return environment.CODEX_HOME ?? nodePath54.join(homedir4(), ".codex");
 }
 function codexProofPath(environment = process.env, event = "session-start") {
   return nodePath54.join(codexProfileDirectory(environment), "safeword/hook-proof-v2", `${event}.json`);
@@ -36032,7 +36027,7 @@ __export(exports_operations, {
 import { spawnSync as spawnSync5 } from "child_process";
 import { createHash as createHash14 } from "crypto";
 import { existsSync as existsSync32, lstatSync as lstatSync10, readFileSync as readFileSync33 } from "fs";
-import { homedir as homedir7 } from "os";
+import { homedir as homedir5 } from "os";
 import nodePath56 from "path";
 function run(command, arguments_) {
   const result = spawnSync5(command, arguments_, { encoding: "utf8" });
@@ -36088,7 +36083,7 @@ function runCodexMarketplace(arguments_, failureContext) {
   }
 }
 function configuredSafewordMarketplace(environment = process.env) {
-  const configPath2 = nodePath56.join(environment.CODEX_HOME ?? nodePath56.join(homedir7(), ".codex"), "config.toml");
+  const configPath2 = nodePath56.join(environment.CODEX_HOME ?? nodePath56.join(homedir5(), ".codex"), "config.toml");
   if (!existsSync32(configPath2))
     return;
   try {
@@ -40703,7 +40698,9 @@ function ensureQuarantinePaths(projectRoot, transaction) {
     } : entry)
   };
   writeDurableFile(transactionPath(projectRoot), `${JSON.stringify(upgraded, undefined, 2)}
-`, { mode: 384 });
+`, {
+    mode: 384
+  });
   return upgraded;
 }
 function pendingRecoveryEntries(projectRoot, transaction) {
