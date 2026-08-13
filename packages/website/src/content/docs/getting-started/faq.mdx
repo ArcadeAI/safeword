@@ -37,7 +37,7 @@ Both tools coexist — ESLint handles code analysis while Biome handles formatti
 
 ### Do my teammates need to install Safeword?
 
-No global Safeword install is required. Commit the Safeword project configuration for the surfaces your team uses, including the project-scope Claude declaration and Codex SessionStart bootstrap. Claude keeps payloads in each user's cache; eligible stable declarations use its native updater, while an explicit update opt-out remains untouched. The Codex bootstrap enrolls each teammate's separate profile automatically. If the plugin cannot protect the current task yet, it warns prominently and gives one next action without blocking work. The linting devDependencies install with their normal `npm install` / `bun install`.
+No global Safeword install is required. Commit the Safeword project configuration for the surfaces your team uses, including the project-scope Claude declaration and Codex SessionStart hooks. Claude keeps payloads in each user's cache; eligible stable declarations use its native updater, while an explicit update opt-out remains untouched. Codex enrolls each teammate's separate profile and prepares missing dependencies in trusted fresh worktrees. If the plugin cannot protect the current task yet, it warns prominently and gives one next action without blocking work.
 
 ### Will it interfere with my development workflow?
 

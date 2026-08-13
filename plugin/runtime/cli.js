@@ -6143,7 +6143,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/session-bun-check.sh": "7365954b09c157e45e213981ebd0b609b97b81fb3e6b6b73571e23e459ef09ef",
         ".safeword/hooks/session-cleanup-quality.ts": "b43a169e86d240ecc12ece40d5375a84c59db6dc9708c91849a55038144736a2",
         ".safeword/hooks/session-compact-context.ts": "4810e508b3ef79e162c6e74e169e24f8eb7ae7980549ba3f53e640424ae10773",
-        ".safeword/hooks/session-dependency-readiness.ts": "28c0268265f0dcbce04844faac5cbc9f9903ac4f8fa893a470ca6b102498613f",
+        ".safeword/hooks/session-dependency-readiness.ts": "295d14c5a3d8112b01259cf89ce718144a568e62e0baf5aaa19eca3fcfdc50ff",
         ".safeword/hooks/session-lint-check.ts": "54bfe1e63777fbed4f3a002a76cd627410ccc627832d1a1d2ef41bed1ea80cc2",
         ".safeword/hooks/session-reply-format.ts": "41f7578e93188d5efacdd9ecbf29f72753a6fe98bca71fe321c61f547aeb8532",
         ".safeword/hooks/session-safeword-context.ts": "56c7a97a760c978e747010192855709baad66adda31e04f6c35d9279b87b19a5",
@@ -18405,6 +18405,9 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
       },
       ".safeword/hooks/session-dependency-readiness.ts": {
         template: "hooks/session-dependency-readiness.ts"
+      },
+      ".safeword/hooks/dependency-bootstrap.ts": {
+        template: "hooks/dependency-bootstrap.ts"
       },
       ".safeword/hooks/session-version.ts": {
         template: "hooks/session-version.ts"
@@ -35930,7 +35933,7 @@ function withoutManagedBlock(content) {
   const begin = content.indexOf(BEGIN_MARKER);
   const end = content.indexOf(END_MARKER);
   if (begin === -1 && end === -1) {
-    if (content.includes(BOOTSTRAP_COMMAND)) {
+    if (content.includes(BOOTSTRAP_COMMAND) || content.includes("dependency-bootstrap.ts")) {
       throw new Error("Codex configuration contains an unrecognized Safeword bootstrap command; no changes were made.");
     }
     return content;
@@ -35942,7 +35945,9 @@ function withoutManagedBlock(content) {
   if (content.includes(END_MARKER, afterEnd)) {
     throw new Error("Codex configuration contains duplicate Safeword bootstrap markers; no changes were made.");
   }
-  return `${content.slice(0, begin)}${content.slice(afterEnd)}`.replaceAll(/\n{3,}/gu, `
+  const before = content.slice(0, begin).trimEnd();
+  const after = content.slice(afterEnd).trimStart();
+  return [before, after].filter((section) => section !== "").join(`
 
 `);
 }
@@ -35988,7 +35993,7 @@ function installCodexProjectBootstrap(cwd) {
   });
   return true;
 }
-var BEGIN_MARKER = "# --- safeword codex bootstrap: begin ---", END_MARKER = "# --- safeword codex bootstrap: end ---", BOOTSTRAP_COMMAND = "bunx --bun safeword@latest codex bootstrap", BOOTSTRAP_BLOCK;
+var BEGIN_MARKER = "# --- safeword codex bootstrap: begin ---", END_MARKER = "# --- safeword codex bootstrap: end ---", BOOTSTRAP_COMMAND = "bunx --bun safeword@latest codex bootstrap", DEPENDENCY_BOOTSTRAP_COMMAND = 'SAFEWORD_PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)" && { [ ! -f "$SAFEWORD_PROJECT_ROOT/.safeword/hooks/dependency-bootstrap.ts" ] || bun "$SAFEWORD_PROJECT_ROOT/.safeword/hooks/dependency-bootstrap.ts" "$SAFEWORD_PROJECT_ROOT"; }', BOOTSTRAP_BLOCK;
 var init_project_bootstrap = __esm(() => {
   init_dist();
   init_durable_write();
@@ -36003,6 +36008,15 @@ type = "command"
 command = "${BOOTSTRAP_COMMAND}"
 timeout = 120
 statusMessage = "Checking Safeword for this project"
+
+[[hooks.SessionStart]]
+matcher = ""
+
+[[hooks.SessionStart.hooks]]
+type = "command"
+command = '${DEPENDENCY_BOOTSTRAP_COMMAND}'
+timeout = 120
+statusMessage = "Preparing safeword dependencies"
 ${END_MARKER}
 `;
 });
