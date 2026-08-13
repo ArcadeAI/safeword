@@ -31,18 +31,18 @@ Feature: Keep quality reviews observable and actionable
     Scenario Outline: Completion cancels lifecycle output at exact timer boundaries
       Given a managed JSON review observed with a deterministic clock
       When completion occurs at <boundary> with <event_order>
-      Then stderr contains <line_count> lifecycle lines
-      And advancing the clock afterwards emits no further lifecycle lines
+      Then stderr consists of <expected_lines>
+      And advancing the clock through two further heartbeat intervals emits no further lifecycle lines
       And stdout contains exactly one schema-1 result
 
       Examples:
-        | boundary | event_order             | line_count |
-        | 99 ms    | completion before timer | 0          |
-        | 100 ms   | completion before timer | 0          |
-        | 100 ms   | timer before completion | 1          |
-        | 29.999 s | completion before timer | 1          |
-        | 30 s     | completion before timer | 1          |
-        | 30 s     | timer before completion | 2          |
+        | boundary | event_order             | expected_lines                              |
+        | 99 ms    | completion before timer | no lifecycle lines                          |
+        | 100 ms   | completion before timer | no lifecycle lines                          |
+        | 100 ms   | timer before completion | the active-review line                      |
+        | 29.999 s | completion before timer | the active-review line                      |
+        | 30 s     | completion before timer | the active-review line                      |
+        | 30 s     | timer before completion | the active-review line, then the heartbeat  |
 
     Scenario: Heartbeats are rate-limited and suspended clocks do not replay missed intervals
       Given a managed JSON review observed with a deterministic clock
@@ -54,6 +54,7 @@ Feature: Keep quality reviews observable and actionable
     Scenario: Managed timing starts with each asynchronous reviewer route
       Given packet preparation remains active for 60 seconds before reviewer work starts
       And the preferred and fallback routes each remain active through their first heartbeat
+      And the review is observed with a deterministic clock
       When the review transitions from its preferred route to a fallback route
       Then stderr consists exactly of the preferred active-review line 100 milliseconds after reviewer work starts, its heartbeat 30 seconds after reviewer work starts, the fallback active-review line 100 milliseconds after transition, and its heartbeat 30 seconds after transition
       And no preferred-route lifecycle line appears after the fallback route starts
@@ -67,24 +68,33 @@ Feature: Keep quality reviews observable and actionable
       And the review remains active through one heartbeat
       And the review is observed with a deterministic clock
       When the review completes with <stderr_kind> stderr
-      Then stderr contains <progress_lines> lifecycle lines
+      Then stderr consists of <expected_lines>
       And stdout contains exactly one typed result
 
       Examples:
-        | value   | stderr_kind | progress_lines |
-        | <unset> | non-TTY     | 0              |
-        | <unset> | TTY         | 0              |
-        | "1"     | non-TTY     | 2              |
-        | "1"     | TTY         | 2              |
-        | ""      | non-TTY     | 0              |
-        | " "     | non-TTY     | 0              |
-        | "0"     | non-TTY     | 0              |
-        | "01"    | non-TTY     | 0              |
-        | " 1"    | non-TTY     | 0              |
-        | "1 "    | non-TTY     | 0              |
-        | "1\n"   | non-TTY     | 0              |
-        | "true"  | non-TTY     | 0              |
-        | "TRUE"  | non-TTY     | 0              |
+        | value   | stderr_kind | expected_lines                             |
+        | <unset> | non-TTY     | no lifecycle lines                         |
+        | <unset> | TTY         | no lifecycle lines                         |
+        | "1"     | non-TTY     | the active-review line, then the heartbeat |
+        | "1"     | TTY         | the active-review line, then the heartbeat |
+        | ""      | non-TTY     | no lifecycle lines                         |
+        | ""      | TTY         | no lifecycle lines                         |
+        | " "     | non-TTY     | no lifecycle lines                         |
+        | " "     | TTY         | no lifecycle lines                         |
+        | "0"     | non-TTY     | no lifecycle lines                         |
+        | "0"     | TTY         | no lifecycle lines                         |
+        | "01"    | non-TTY     | no lifecycle lines                         |
+        | "01"    | TTY         | no lifecycle lines                         |
+        | " 1"    | non-TTY     | no lifecycle lines                         |
+        | " 1"    | TTY         | no lifecycle lines                         |
+        | "1 "    | non-TTY     | no lifecycle lines                         |
+        | "1 "    | TTY         | no lifecycle lines                         |
+        | "1\n"   | non-TTY     | no lifecycle lines                         |
+        | "1\n"   | TTY         | no lifecycle lines                         |
+        | "true"  | non-TTY     | no lifecycle lines                         |
+        | "true"  | TTY         | no lifecycle lines                         |
+        | "TRUE"  | non-TTY     | no lifecycle lines                         |
+        | "TRUE"  | TTY         | no lifecycle lines                         |
 
     Scenario Outline: Quiet mode wins over managed progress
       Given a managed JSON review with quiet mode enabled
@@ -103,14 +113,14 @@ Feature: Keep quality reviews observable and actionable
       Given a human-readable review with no managed-progress signal
       And the review is observed with a deterministic clock
       When the reviewer returns an approved result after one heartbeat
-      Then stderr contains the existing packet, active-review, and heartbeat lines exactly once
+      Then stderr consists exactly of the packet, active-review, and heartbeat lines in that order
       And stdout contains the human-readable verdict exactly once
 
     Scenario: The private signal does not duplicate human-readable progress
       Given a human-readable review with managed-progress signal value "1"
       And the review is observed with a deterministic clock
       When the reviewer returns an approved result after one heartbeat
-      Then stderr contains the packet, active-review, and heartbeat lines exactly once
+      Then stderr consists exactly of the packet, active-review, and heartbeat lines in that order
       And stdout contains the human-readable verdict exactly once
 
   @reliable-observable-quality-reviews.SWM1.R1 @surface.safeword-cli @proof.vitest
@@ -118,8 +128,10 @@ Feature: Keep quality reviews observable and actionable
 
     Scenario Outline: A failed progress destination cannot alter the terminal result
       Given a managed JSON review whose operating-system progress descriptor has <failure> before a write
+      And the review remains active through an attempted active-review write and heartbeat write
       When the reviewer completes with <classification>
-      Then stdout contains the canonical typed result
+      Then both lifecycle writes are attempted and their failures are swallowed
+      And stdout contains the canonical typed result
       And no fallback diagnostic is written to stdout
       And the command exits with status <status>
 
@@ -137,7 +149,7 @@ Feature: Keep quality reviews observable and actionable
       Then stdout contains the accepted summary secret
       And stdout contains exactly one parseable schema-1 result
       And serialized stdout contains no literal injected line break or ANSI escape
-      And stderr contains a positive lifecycle line naming only the closed reviewer kind
+      And stderr contains a positive lifecycle line naming only the assigned reviewer kind
       And stderr contains no summary secret, model secret, control character, or configured model name
 
     Scenario Outline: Rejected reviewer data never enters public output
