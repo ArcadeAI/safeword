@@ -831,12 +831,13 @@ schema-1 envelope. Raw presentation is an output form, not a second command
 protocol.
 
 The typed Codex protocol adapters are observation-only unless their catalog
-entry explicitly declares mutation. Existing Claude and Cursor SessionStart
-automation remains a separate, fail-open lifecycle feature: it may wire the
-committed Git guard, bootstrap missing dependencies, and apply compatible
-Safeword upgrades. Those actions are surfaced through their established hook
-contracts and never turn a failed background convenience into a blocked
-session. `safeword install` is the explicit convergence path.
+entry explicitly declares mutation. Project SessionStart automation is a
+separate, fail-open lifecycle feature across Claude, Cursor, and Codex: it may
+wire the committed Git guard, bootstrap missing dependencies, and apply
+compatible Safeword upgrades. Codex uses a host-neutral dependency adapter in
+its managed project bootstrap; startup remains advisory, while the repo-owned
+composed CLI script can require readiness. `safeword install` is the explicit
+convergence path.
 
 ### Next-Task Codex Plugin Activation and Migration Result v2
 

@@ -139,7 +139,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "5661b68d5061532fd9911afca7e9050591fdda1e4bcc8aec0be44c5a36c54249"
+      "sha256": "ab039dc3b387dd3595e3f93e139f350616ab561574da4f149d67d4bd7af4477e"
     },
     {
       "path": "runtime/dispatch.js",
@@ -155,7 +155,7 @@
     },
     {
       "path": "runtime/hooks/dependency-bootstrap.ts",
-      "sha256": "455cf5ef0ebbdd8b4f69dfeba4e25f4251f1b95b650f8a5aae118db63ccdcef4"
+      "sha256": "aa161864bebea30a70ad2597e817b482a50c402f2bf510e8da42bc9ef543a510"
     },
     {
       "path": "runtime/hooks/lib/active-ticket.ts",
@@ -211,7 +211,7 @@
     },
     {
       "path": "runtime/hooks/lib/dependency-readiness.ts",
-      "sha256": "b5dfac64f3083ea6e913e904098d3486bc376489ab68c795f4f322e05e8ebaa3"
+      "sha256": "44461bc4ba104918ed53b8aa37edf9d2fbaa111de36550f7e11b5c17470a8729"
     },
     {
       "path": "runtime/hooks/lib/dogfood.ts",
@@ -535,7 +535,7 @@
     },
     {
       "path": "runtime/hooks/session-dependency-readiness.ts",
-      "sha256": "9bc5e810c86dd3f9d5eff2f0d53ea9ef560251424e9008570a01877e470c4195"
+      "sha256": "295d14c5a3d8112b01259cf89ce718144a568e62e0baf5aaa19eca3fcfdc50ff"
     },
     {
       "path": "runtime/hooks/session-lint-check.ts",

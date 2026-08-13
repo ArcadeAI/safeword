@@ -35933,7 +35933,7 @@ function withoutManagedBlock(content) {
   const begin = content.indexOf(BEGIN_MARKER);
   const end = content.indexOf(END_MARKER);
   if (begin === -1 && end === -1) {
-    if (content.includes(BOOTSTRAP_COMMAND)) {
+    if (content.includes(BOOTSTRAP_COMMAND) || content.includes("dependency-bootstrap.ts")) {
       throw new Error("Codex configuration contains an unrecognized Safeword bootstrap command; no changes were made.");
     }
     return content;
@@ -35945,7 +35945,9 @@ function withoutManagedBlock(content) {
   if (content.includes(END_MARKER, afterEnd)) {
     throw new Error("Codex configuration contains duplicate Safeword bootstrap markers; no changes were made.");
   }
-  return `${content.slice(0, begin)}${content.slice(afterEnd)}`.replaceAll(/\n{3,}/gu, `
+  const before = content.slice(0, begin).trimEnd();
+  const after = content.slice(afterEnd).trimStart();
+  return [before, after].filter((section) => section !== "").join(`
 
 `);
 }

@@ -25,6 +25,7 @@ import {
   isDependencyInstallCommand,
   isDependencyReadinessRecoveryCommand,
   readDependencyBootstrapConfig,
+  readDependencyReadinessState,
   shouldBootstrapDependencies,
   writeInstallMarker,
 } from '../../templates/hooks/lib/dependency-readiness.js';
@@ -890,8 +891,8 @@ describe('dependency readiness hook support', () => {
     const result = runHook(DEPENDENCY_BOOTSTRAP_HOOK);
 
     expect(result.status).toBe(0);
-    expect(result.stdout).toContain('dependencies bootstrapped with `bun ci`.');
-    expect(result.stdout).not.toContain('hookSpecificOutput');
+    expect(result.stderr).toContain('dependencies bootstrapped with `bun ci`.');
+    expect(result.stdout).toBe('');
     expect(existsSync(path.join(projectDirectory, 'node_modules'))).toBe(true);
 
     const state = JSON.parse(readTestFile(projectDirectory, '.project/dependency-readiness.json'));
@@ -899,6 +900,25 @@ describe('dependency readiness hook support', () => {
       status: 'ready',
       installCommand: 'bun ci',
     });
+  });
+
+  it('host-neutral bootstrap wires a committed git guard before reporting readiness', () => {
+    writeMinimalBunProject();
+    markSafewordProject();
+    writeGeneratedBunLock();
+    mkdirSync(path.join(projectDirectory, '.husky'));
+    writeTestFile(projectDirectory, '.husky/pre-commit', '#!/bin/sh\n');
+    expect(spawnSync('git', ['init', '--quiet'], { cwd: projectDirectory }).status).toBe(0);
+
+    const result = runHook(DEPENDENCY_BOOTSTRAP_HOOK);
+
+    expect(result.status).toBe(0);
+    expect(
+      spawnSync('git', ['config', '--get', 'core.hooksPath'], {
+        cwd: projectDirectory,
+        encoding: 'utf8',
+      }).stdout.trim(),
+    ).toBe('.husky');
   });
 
   it('host-neutral bootstrap refreshes a stale marker after a successful install', () => {
@@ -913,7 +933,7 @@ describe('dependency readiness hook support', () => {
     const result = runHook(DEPENDENCY_BOOTSTRAP_HOOK);
 
     expect(result.status).toBe(0);
-    expect(result.stdout).toContain('dependencies bootstrapped with `bun ci`.');
+    expect(result.stderr).toContain('dependencies bootstrapped with `bun ci`.');
     expect(getDependencyReadiness(projectDirectory).status).toBe('ready');
   });
 
@@ -943,11 +963,11 @@ describe('dependency readiness hook support', () => {
     });
 
     expect(result.status).toBe(0);
-    expect(result.stdout).toContain('dependencies bootstrapped with `npm ci`.');
+    expect(result.stderr).toContain('dependencies bootstrapped with `npm ci`.');
     expect(getDependencyReadiness(projectDirectory).status).toBe('ready');
   });
 
-  it('host-neutral bootstrap reports manual action without failing SessionStart', () => {
+  it('host-neutral bootstrap reports manual action without failing advisory mode', () => {
     writeMinimalBunProject();
     markSafewordProject();
     writeGeneratedBunLock();
@@ -1001,7 +1021,7 @@ describe('dependency readiness hook support', () => {
     }
   });
 
-  it('leaves an in-progress sentinel stale when an install is interrupted or fails', () => {
+  it('preserves missing readiness when npm deletes and partially recreates node_modules', () => {
     writeJson('package.json', {
       name: 'interrupted-install-project',
       packageManager: 'npm@11.0.0',
@@ -1013,18 +1033,54 @@ describe('dependency readiness hook support', () => {
     });
     markSafewordProject();
 
-    const originalPath = process.env.PATH;
-    process.env.PATH = path.join(projectDirectory, 'missing-bin');
-    try {
-      expect(bootstrapDependencies(projectDirectory).status).toBe('failed');
-    } finally {
-      process.env.PATH = originalPath;
-    }
-
-    expect(readTestFile(projectDirectory, 'node_modules/.safeword-deps-fingerprint')).toBe(
-      'safeword-install-in-progress',
+    const fakeBin = path.join(projectDirectory, 'fake-bin');
+    mkdirSync(fakeBin);
+    const fakeNpm = path.join(fakeBin, 'npm');
+    writeFileSync(
+      fakeNpm,
+      '#!/bin/sh\nrm -rf node_modules\nmkdir node_modules\nprintf partial > node_modules/partial\nexit 1\n',
     );
-    expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
+    chmodSync(fakeNpm, 0o755);
+
+    const result = runHook(DEPENDENCY_BOOTSTRAP_HOOK, undefined, {
+      PATH: `${fakeBin}:${process.env.PATH ?? ''}`,
+    });
+
+    expect(result.status).toBe(1);
+    expect(getDependencyReadiness(projectDirectory).status).toBe('missing');
+    expect(readDependencyReadinessState(projectDirectory)).toMatchObject({
+      status: 'failed',
+      reason: 'install_artifact_missing',
+    });
+    expect(existsSync(path.join(projectDirectory, 'node_modules/.safeword-deps-fingerprint'))).toBe(
+      false,
+    );
+  });
+
+  it('does not start a second installer while another bootstrap owns the lock', () => {
+    writeJson('package.json', {
+      name: 'concurrent-install-project',
+      packageManager: 'npm@11.0.0',
+    });
+    writeJson('package-lock.json', {
+      name: 'concurrent-install-project',
+      lockfileVersion: 3,
+      packages: {},
+    });
+    markSafewordProject();
+    mkdirSync(path.join(projectDirectory, '.project/.dependency-bootstrap.lock'), {
+      recursive: true,
+    });
+    writeTestFile(projectDirectory, '.project/.dependency-bootstrap.lock/pid', String(process.pid));
+
+    const result = bootstrapDependencies(projectDirectory);
+
+    expect(result).toEqual({
+      status: 'action_required',
+      message:
+        'another dependency bootstrap is already running; wait for it to finish, then retry.',
+    });
+    expect(existsSync(path.join(projectDirectory, 'node_modules'))).toBe(false);
   });
 
   it('host-neutral bootstrap abstains successfully for unsupported projects', () => {

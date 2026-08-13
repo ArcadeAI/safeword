@@ -6,6 +6,7 @@ import {
   readdirSync,
   readFileSync,
   realpathSync,
+  rmSync,
   statSync,
   writeFileSync,
   type Dirent,
@@ -48,7 +49,7 @@ export interface DependencyBootstrapConfig {
 }
 
 export interface DependencyReadinessState {
-  status: DependencyReadinessStatus | 'failed';
+  status: DependencyReadinessStatus | 'installing' | 'failed';
   reason?: string;
   fingerprint?: string;
   installCommand?: string;
@@ -63,8 +64,8 @@ export type DependencyBootstrapResult =
 
 const INSTALL_ARTIFACT = 'node_modules';
 const INSTALL_MARKER_FILENAME = '.safeword-deps-fingerprint';
-const INSTALL_IN_PROGRESS_MARKER = 'safeword-install-in-progress';
 const DEPENDENCY_STATE_FILENAME = 'dependency-readiness.json';
+const DEPENDENCY_BOOTSTRAP_LOCK_DIRECTORY = '.dependency-bootstrap.lock';
 const BUN_LOCKFILES = ['bun.lock', 'bun.lockb'];
 const WORKSPACE_SCAN_EXCLUDED_DIRECTORIES = new Set([
   '.git',
@@ -345,6 +346,25 @@ export function getDependencyReadiness(projectDirectory: string): DependencyRead
   const fingerprint = dependencyInputFingerprint(projectDirectory, plan);
   const installCommand = plan.installCommand.display;
   const artifactPath = nodePath.join(projectDirectory, plan.installArtifact);
+  const previousState = readDependencyReadinessState(projectDirectory);
+
+  // An installer may delete and partially recreate node_modules before it is
+  // interrupted. Preserve the pre-install classification in durable state so
+  // a partial tree can never be mistaken for ready merely because it is new.
+  if (
+    (previousState?.status === 'installing' || previousState?.status === 'failed') &&
+    previousState.fingerprint === fingerprint &&
+    (previousState.reason === 'install_artifact_missing' ||
+      previousState.reason === 'install_artifact_stale')
+  ) {
+    return {
+      status: previousState.reason === 'install_artifact_missing' ? 'missing' : 'stale',
+      reason: previousState.reason,
+      installCommand,
+      fingerprint,
+      plan,
+    };
+  }
 
   if (!isDirectory(artifactPath)) {
     return {
@@ -436,51 +456,69 @@ export function bootstrapDependencies(projectDirectory: string): DependencyBoots
     shouldBootstrapDependencies(readiness.status, config.autoInstall) &&
     readiness.plan !== undefined
   ) {
-    const { binary, args, display } = readiness.plan.installCommand;
-    markInstallInProgress(projectDirectory, readiness.plan);
-    const result = spawnSync(binary, args, {
-      cwd: projectDirectory,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-
-    readiness = getDependencyReadiness(projectDirectory);
-    if (
-      result.status === 0 &&
-      readiness.plan !== undefined &&
-      readiness.fingerprint !== undefined &&
-      isDirectory(nodePath.join(projectDirectory, readiness.plan.installArtifact))
-    ) {
-      // A successful stale install commonly preserves our old marker. Refresh
-      // that Safeword-owned proof before asking readiness to validate it.
-      stampInstallMarker(projectDirectory, readiness.plan, readiness.fingerprint);
-      readiness = getDependencyReadiness(projectDirectory);
+    const releaseLock = acquireDependencyBootstrapLock(projectDirectory);
+    if (releaseLock === undefined) {
+      return {
+        status: 'action_required',
+        message:
+          'another dependency bootstrap is already running; wait for it to finish, then retry.',
+      };
     }
-    if (result.status === 0 && readiness.status === 'ready') {
-      writeDependencyReadinessState(projectDirectory, toDependencyReadinessState(readiness));
-      return { status: 'bootstrapped', message: `dependencies bootstrapped with \`${display}\`.` };
+    const initialReadiness = readiness;
+    const plan = readiness.plan;
+    const { binary, args, display } = plan.installCommand;
+    try {
+      writeDependencyReadinessState(projectDirectory, {
+        status: 'installing',
+        reason: initialReadiness.reason,
+        fingerprint: initialReadiness.fingerprint,
+        installCommand: initialReadiness.installCommand,
+      });
+      const result = spawnSync(binary, args, {
+        cwd: projectDirectory,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+
+      if (
+        result.status === 0 &&
+        initialReadiness.fingerprint !== undefined &&
+        isDirectory(nodePath.join(projectDirectory, plan.installArtifact))
+      ) {
+        stampInstallMarker(projectDirectory, plan, initialReadiness.fingerprint);
+        readiness = getDependencyReadinessIgnoringInstallState(projectDirectory);
+      }
+      if (result.status === 0 && readiness.status === 'ready') {
+        writeDependencyReadinessState(projectDirectory, toDependencyReadinessState(readiness));
+        return {
+          status: 'bootstrapped',
+          message: `dependencies bootstrapped with \`${display}\`.`,
+        };
+      }
+
+      const summary = [
+        `dependency bootstrap failed while running \`${display}\`.`,
+        'Run the install command manually, inspect the package manager output, then retry.',
+      ].join('\n');
+      const message = [
+        summary,
+        result.error?.message,
+        trimBootstrapOutput(result.stderr) || trimBootstrapOutput(result.stdout),
+      ]
+        .filter(Boolean)
+        .join('\n');
+
+      writeDependencyReadinessState(projectDirectory, {
+        status: 'failed',
+        reason: initialReadiness.reason,
+        fingerprint: initialReadiness.fingerprint,
+        installCommand: initialReadiness.installCommand,
+        message: summary,
+      });
+      return { status: 'failed', message };
+    } finally {
+      releaseLock();
     }
-
-    const summary = [
-      `dependency bootstrap failed while running \`${display}\`.`,
-      'Run the install command manually, inspect the package manager output, then retry.',
-    ].join('\n');
-    const message = [
-      summary,
-      result.error?.message,
-      trimBootstrapOutput(result.stderr) || trimBootstrapOutput(result.stdout),
-    ]
-      .filter(Boolean)
-      .join('\n');
-
-    writeDependencyReadinessState(projectDirectory, {
-      status: 'failed',
-      reason: readiness.reason,
-      fingerprint: readiness.fingerprint,
-      installCommand: readiness.installCommand,
-      message: summary,
-    });
-    return { status: 'failed', message };
   }
 
   writeDependencyReadinessState(projectDirectory, toDependencyReadinessState(readiness));
@@ -665,13 +703,46 @@ function stampInstallMarker(
   }
 }
 
-function markInstallInProgress(projectDirectory: string, plan: DependencyPlan): void {
+function getDependencyReadinessIgnoringInstallState(projectDirectory: string): DependencyReadiness {
+  rmSync(getDependencyReadinessStatePath(projectDirectory), { force: true });
+  return getDependencyReadiness(projectDirectory);
+}
+
+function acquireDependencyBootstrapLock(projectDirectory: string): (() => void) | undefined {
+  const lockPath = nodePath.join(
+    resolveNamespaceRoot(projectDirectory),
+    DEPENDENCY_BOOTSTRAP_LOCK_DIRECTORY,
+  );
+  mkdirSync(nodePath.dirname(lockPath), { recursive: true });
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      mkdirSync(lockPath);
+      writeFileSync(nodePath.join(lockPath, 'pid'), String(process.pid));
+      return () => rmSync(lockPath, { recursive: true, force: true });
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') return undefined;
+      const pid = Number.parseInt(readTextFile(nodePath.join(lockPath, 'pid')) ?? '', 10);
+      if (Number.isFinite(pid) && processIsRunning(pid)) return undefined;
+      rmSync(lockPath, { recursive: true, force: true });
+    }
+  }
+  return undefined;
+}
+
+function processIsRunning(pid: number): boolean {
   try {
-    mkdirSync(nodePath.join(projectDirectory, plan.installArtifact), { recursive: true });
-    writeFileSync(installMarkerPath(projectDirectory, plan), INSTALL_IN_PROGRESS_MARKER);
+    process.kill(pid, 0);
+    return true;
   } catch {
-    // Best-effort like the final marker. If this cannot be written, the
-    // install still gets a chance to repair the checkout.
+    return false;
+  }
+}
+
+function readTextFile(filePath: string): string | undefined {
+  try {
+    return readFileSync(filePath, 'utf8');
+  } catch {
+    return undefined;
   }
 }
 
@@ -1278,4 +1349,27 @@ export function decideGitHooksWiring(input: GitHooksWiringInput): GitHooksWiring
   if (input.currentHooksPathActive) return { action: 'none' };
   if (!isHuskyManagedHooksPath(input.currentHooksPath)) return { action: 'none' };
   return { action: 'wire', hooksPath: COMMITTED_HOOKS_DIR };
+}
+
+export function readGitHooksPath(cwd: string): string {
+  const result = spawnSync('git', ['config', '--get', 'core.hooksPath'], {
+    cwd,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'ignore'],
+  });
+  return result.status === 0 ? result.stdout.trim() : '';
+}
+
+export function wireGitHooksIfNeeded(cwd: string): void {
+  const committedHookExists = existsSync(nodePath.join(cwd, COMMITTED_HOOKS_DIR, 'pre-commit'));
+  const currentHooksPath = readGitHooksPath(cwd);
+  const currentHooksPathActive =
+    currentHooksPath !== '' && existsSync(nodePath.resolve(cwd, currentHooksPath, 'pre-commit'));
+  const decision = decideGitHooksWiring({
+    committedHookExists,
+    currentHooksPath,
+    currentHooksPathActive,
+  });
+  if (decision.action !== 'wire' || decision.hooksPath === undefined) return;
+  spawnSync('git', ['config', 'core.hooksPath', decision.hooksPath], { cwd, stdio: 'ignore' });
 }

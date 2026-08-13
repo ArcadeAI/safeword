@@ -4,17 +4,28 @@
 import { existsSync } from 'node:fs';
 import process from 'node:process';
 
-import { bootstrapDependencies } from './lib/dependency-readiness.ts';
+import { bootstrapDependencies, wireGitHooksIfNeeded } from './lib/dependency-readiness.ts';
 
 const projectDirectory =
   process.argv.slice(2).find(argument => !argument.startsWith('-')) ?? process.cwd();
 const requireReady = process.argv.includes('--require-ready');
 if (!existsSync(`${projectDirectory}/.safeword`)) process.exit(0);
 
+wireGitHooksIfNeeded(projectDirectory);
 const result = bootstrapDependencies(projectDirectory);
-if (result.status === 'ready' || result.status === 'unsupported') process.exit(0);
-
-const failed = result.status === 'failed' || (requireReady && result.status === 'action_required');
-const output = failed ? console.error : console.log;
-output(result.message);
-process.exit(failed ? 1 : 0);
+switch (result.status) {
+  case 'ready':
+  case 'unsupported':
+    break;
+  case 'bootstrapped':
+    console.error(result.message);
+    break;
+  case 'action_required':
+    (requireReady ? console.error : console.log)(result.message);
+    if (requireReady) process.exitCode = 1;
+    break;
+  case 'failed':
+    console.error(result.message);
+    process.exitCode = 1;
+    break;
+}

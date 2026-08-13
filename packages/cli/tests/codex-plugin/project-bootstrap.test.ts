@@ -34,5 +34,21 @@ describe('Codex project bootstrap configuration', () => {
         '[[hooks.SessionStart.hooks]]\ncommand = "bunx --bun safeword@latest codex bootstrap"\n',
       ),
     ).toThrow('unrecognized Safeword bootstrap command');
+    expect(() =>
+      codexProjectBootstrapContent(
+        "[[hooks.SessionStart.hooks]]\ncommand = 'bun .safeword/hooks/dependency-bootstrap.ts'\n",
+      ),
+    ).toThrow('unrecognized Safeword bootstrap command');
+  });
+
+  it('preserves user-owned blank-line formatting outside its managed block', () => {
+    const original =
+      '[mcp_servers.one]\ncommand = "one"\n\n\n\n[mcp_servers.two]\ncommand = "two"\n';
+    const installed = codexProjectBootstrapContent(original);
+
+    expect(installed).toContain(
+      '[mcp_servers.one]\ncommand = "one"\n\n\n\n[mcp_servers.two]\ncommand = "two"',
+    );
+    expect(codexProjectBootstrapContent(installed)).toBe(installed);
   });
 });
