@@ -7,7 +7,7 @@ import { parse, type ParseError } from 'jsonc-parser';
 
 import { writeDurableFile } from '../../codex-plugin/durable-write.js';
 import { migrateClaudeLegacyAutomatically } from '../cleanup.js';
-import { historicalCatalogueDigest, isAcceptedHistoricalHook } from '../historical-ownership.js';
+import { historicalCatalogueDigest } from '../historical-ownership.js';
 import {
   CLAUDE_MIGRATION_SCHEMA,
   CLAUDE_NATIVE_METADATA_FILES,
@@ -20,14 +20,11 @@ import {
   claimClaudeMigrationAttempt,
   claudeConfigDirectory,
   claudeWatchedSettingsDigest,
-  createClaudePluginMode,
-  hasLegacyClaudePluginMode,
   pluginModeIsTerminal,
   readClaudeMigrationAttention,
   readClaudePluginMode,
   removeLegacyClaudePluginMode,
   writeClaudeMigrationAttention,
-  writeClaudePluginMode,
 } from '../migration-state.js';
 import { canonicalClaudeProjectRoot } from '../project-root.js';
 
@@ -77,27 +74,6 @@ interface VerifiedPlugin {
   readonly identity: PluginIdentityV1;
 }
 
-function safeLegacyHookReference(value: string, projectRoot: string): boolean {
-  const reference = /\.safeword\/hooks\/[^\s"';&|)]+/u.exec(value)?.[0];
-  if (reference === undefined) return false;
-  try {
-    const hooksRoot = nodePath.resolve(projectRoot, '.safeword/hooks');
-    const target = nodePath.resolve(projectRoot, reference);
-    if (!target.startsWith(`${hooksRoot}${nodePath.sep}`)) return false;
-    if (realpathSync(hooksRoot) !== hooksRoot || realpathSync(target) !== target) return false;
-    return lstatSync(target).isFile();
-  } catch {
-    return false;
-  }
-}
-
-function legacyHookCommand(value: unknown, projectRoot: string): boolean {
-  if (typeof value === 'string') return safeLegacyHookReference(value, projectRoot);
-  if (Array.isArray(value)) return value.some(child => legacyHookCommand(child, projectRoot));
-  if (typeof value !== 'object' || value === null) return false;
-  return Object.values(value).some(child => legacyHookCommand(child, projectRoot));
-}
-
 function parseSettings(path: string): Record<string, unknown> | undefined {
   if (!existsSync(path)) return undefined;
   const errors: ParseError[] = [];
@@ -111,27 +87,6 @@ function parseSettings(path: string): Record<string, unknown> | undefined {
     !Array.isArray(parsed)
     ? (parsed as Record<string, unknown>)
     : undefined;
-}
-
-function viableLegacyAuthority(event: string, projectRoot: string | undefined): boolean {
-  if (projectRoot === undefined || projectRoot === '') return false;
-  const settingsPath = nodePath.join(projectRoot, '.claude/settings.json');
-  try {
-    const settings = parseSettings(settingsPath);
-    const hooks = settings?.hooks;
-    if (typeof hooks !== 'object' || hooks === null || Array.isArray(hooks)) return false;
-    const entries = (hooks as Record<string, unknown>)[event];
-    return (
-      Array.isArray(entries) &&
-      entries.some(
-        entry => isAcceptedHistoricalHook(event, entry) && legacyHookCommand(entry, projectRoot),
-      )
-    );
-  } catch {
-    // Malformed legacy configuration is not viable authority. The plugin stays
-    // functional, while status reports the project conflict before cleanup.
-    return false;
-  }
 }
 
 function requiredEnvironment(name: 'CLAUDE_PLUGIN_DATA' | 'CLAUDE_PLUGIN_ROOT'): string {
@@ -631,32 +586,6 @@ function automaticMigrationProjectRoot(
   return canonicalClaudeProjectRoot(hookCwd ?? process.cwd());
 }
 
-function upgradeConsistentLegacyMarker(
-  event: string,
-  projectRoot: string,
-  identity: PluginIdentityV1,
-  catalogueSha256: string,
-): boolean {
-  if (
-    !hasLegacyClaudePluginMode(projectRoot) ||
-    viableLegacyAuthority(event, projectRoot) ||
-    incompatibleScopeOverlap(projectRoot)
-  ) {
-    return false;
-  }
-  writeClaudePluginMode(
-    projectRoot,
-    createClaudePluginMode({
-      plugin_version: identity.plugin_version,
-      hook_manifest_sha256: identity.hook_manifest_sha256,
-      catalogue_sha256: catalogueSha256,
-      unresolved_paths: [],
-    }),
-  );
-  removeLegacyClaudePluginMode(projectRoot);
-  return true;
-}
-
 function automaticMigrationUnsafe(
   event: string,
   identity: PluginIdentityV1,
@@ -669,9 +598,14 @@ function automaticMigrationUnsafe(
   const context = { event, execution, projectRoot, sessionId };
   const catalogueSha256 = historicalCatalogueDigest();
   const marker = readClaudePluginMode(projectRoot);
-  if (upgradeConsistentLegacyMarker(event, projectRoot, identity, catalogueSha256))
-    return execution;
-  if (marker !== undefined && pluginModeIsTerminal(marker, catalogueSha256)) {
+  if (
+    marker !== undefined &&
+    pluginModeIsTerminal(marker, {
+      plugin_version: identity.plugin_version,
+      hook_manifest_sha256: identity.hook_manifest_sha256,
+      catalogue_sha256: catalogueSha256,
+    })
+  ) {
     return terminalMarkerExecution(context, marker);
   }
   if (incompatibleScopeOverlap(projectRoot)) {

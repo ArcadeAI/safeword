@@ -3531,8 +3531,12 @@ function readClaudePluginMode(cwd) {
     return void 0;
   }
 }
-function pluginModeIsTerminal(marker, catalogueSha256) {
-  return marker.state === 'clean' || marker.catalogue_sha256 === catalogueSha256;
+function pluginModeIsTerminal(marker, identity) {
+  return (
+    marker.plugin_version === identity.plugin_version &&
+    marker.hook_manifest_sha256 === identity.hook_manifest_sha256 &&
+    marker.catalogue_sha256 === identity.catalogue_sha256
+  );
 }
 function writeClaudePluginMode(cwd, marker) {
   writeDurableFile(
@@ -3570,9 +3574,6 @@ function writeClaudeMigrationAttention(cwd, attention) {
 `,
     { mode: 384 },
   );
-}
-function hasLegacyClaudePluginMode(cwd) {
-  return existsSync3(nodePath5.join(cwd, CLAUDE_MIGRATION_SCHEMA.paths.pluginMarker));
 }
 function removeLegacyClaudePluginMode(cwd) {
   rmSync2(nodePath5.join(cwd, CLAUDE_MIGRATION_SCHEMA.paths.pluginMarker), { force: true });
@@ -4427,25 +4428,6 @@ function recoverClaudeCleanup(cwd) {
 }
 
 // claude-plugin/runtime/dispatch.ts
-function safeLegacyHookReference(value, projectRoot) {
-  const reference = /\.safeword\/hooks\/[^\s"';&|)]+/u.exec(value)?.[0];
-  if (reference === void 0) return false;
-  try {
-    const hooksRoot = nodePath8.resolve(projectRoot, '.safeword/hooks');
-    const target = nodePath8.resolve(projectRoot, reference);
-    if (!target.startsWith(`${hooksRoot}${nodePath8.sep}`)) return false;
-    if (realpathSync3(hooksRoot) !== hooksRoot || realpathSync3(target) !== target) return false;
-    return lstatSync5(target).isFile();
-  } catch {
-    return false;
-  }
-}
-function legacyHookCommand(value, projectRoot) {
-  if (typeof value === 'string') return safeLegacyHookReference(value, projectRoot);
-  if (Array.isArray(value)) return value.some(child => legacyHookCommand(child, projectRoot));
-  if (typeof value !== 'object' || value === null) return false;
-  return Object.values(value).some(child => legacyHookCommand(child, projectRoot));
-}
 function parseSettings(path) {
   if (!existsSync6(path)) return void 0;
   const errors = [];
@@ -4459,24 +4441,6 @@ function parseSettings(path) {
     !Array.isArray(parsed)
     ? parsed
     : void 0;
-}
-function viableLegacyAuthority(event, projectRoot) {
-  if (projectRoot === void 0 || projectRoot === '') return false;
-  const settingsPath = nodePath8.join(projectRoot, '.claude/settings.json');
-  try {
-    const settings = parseSettings(settingsPath);
-    const hooks = settings?.hooks;
-    if (typeof hooks !== 'object' || hooks === null || Array.isArray(hooks)) return false;
-    const entries = hooks[event];
-    return (
-      Array.isArray(entries) &&
-      entries.some(
-        entry => isAcceptedHistoricalHook(event, entry) && legacyHookCommand(entry, projectRoot),
-      )
-    );
-  } catch {
-    return false;
-  }
 }
 function requiredEnvironment(name) {
   const value = process.env[name];
@@ -4872,35 +4836,20 @@ function automaticMigrationProjectRoot(event, hookCwd) {
   if (event !== 'UserPromptSubmit') return void 0;
   return canonicalClaudeProjectRoot(hookCwd ?? process.cwd());
 }
-function upgradeConsistentLegacyMarker(event, projectRoot, identity, catalogueSha256) {
-  if (
-    !hasLegacyClaudePluginMode(projectRoot) ||
-    viableLegacyAuthority(event, projectRoot) ||
-    incompatibleScopeOverlap(projectRoot)
-  ) {
-    return false;
-  }
-  writeClaudePluginMode(
-    projectRoot,
-    createClaudePluginMode({
-      plugin_version: identity.plugin_version,
-      hook_manifest_sha256: identity.hook_manifest_sha256,
-      catalogue_sha256: catalogueSha256,
-      unresolved_paths: [],
-    }),
-  );
-  removeLegacyClaudePluginMode(projectRoot);
-  return true;
-}
 function automaticMigrationUnsafe(event, identity, execution, sessionId, hookCwd) {
   const projectRoot = automaticMigrationProjectRoot(event, hookCwd);
   if (projectRoot === void 0) return execution;
   const context = { event, execution, projectRoot, sessionId };
   const catalogueSha256 = historicalCatalogueDigest();
   const marker = readClaudePluginMode(projectRoot);
-  if (upgradeConsistentLegacyMarker(event, projectRoot, identity, catalogueSha256))
-    return execution;
-  if (marker !== void 0 && pluginModeIsTerminal(marker, catalogueSha256)) {
+  if (
+    marker !== void 0 &&
+    pluginModeIsTerminal(marker, {
+      plugin_version: identity.plugin_version,
+      hook_manifest_sha256: identity.hook_manifest_sha256,
+      catalogue_sha256: catalogueSha256,
+    })
+  ) {
     return terminalMarkerExecution(context, marker);
   }
   if (incompatibleScopeOverlap(projectRoot)) {

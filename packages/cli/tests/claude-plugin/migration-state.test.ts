@@ -22,7 +22,7 @@ afterEach(() => {
 });
 
 describe('Claude plugin mode v2', () => {
-  it('keeps clean mode terminal across catalogue upgrades', () => {
+  it('re-arms clean mode when the verified plugin identity changes', () => {
     const root = mkdtempSync(nodePath.join(tmpdir(), 'claude-plugin-mode-'));
     roots.push(root);
     writeClaudePluginMode(root, {
@@ -36,7 +36,13 @@ describe('Claude plugin mode v2', () => {
     const marker = readClaudePluginMode(root);
     expect(marker).toBeDefined();
     if (marker === undefined) throw new Error('Plugin mode marker was not readable.');
-    expect(pluginModeIsTerminal(marker, 'b'.repeat(64))).toBe(true);
+    expect(
+      pluginModeIsTerminal(marker, {
+        plugin_version: '0.73.0',
+        hook_manifest_sha256: digest,
+        catalogue_sha256: 'b'.repeat(64),
+      }),
+    ).toBe(false);
   });
 
   it('re-arms unresolved paths when the catalogue changes', () => {
@@ -48,8 +54,20 @@ describe('Claude plugin mode v2', () => {
       catalogue_sha256: digest,
       unresolved_paths: ['.claude/skills/custom/SKILL.md'],
     };
-    expect(pluginModeIsTerminal(marker, digest)).toBe(true);
-    expect(pluginModeIsTerminal(marker, 'b'.repeat(64))).toBe(false);
+    expect(
+      pluginModeIsTerminal(marker, {
+        plugin_version: '0.73.0',
+        hook_manifest_sha256: digest,
+        catalogue_sha256: digest,
+      }),
+    ).toBe(true);
+    expect(
+      pluginModeIsTerminal(marker, {
+        plugin_version: '0.73.0',
+        hook_manifest_sha256: digest,
+        catalogue_sha256: 'b'.repeat(64),
+      }),
+    ).toBe(false);
   });
 
   it('allows three launches for the first session and one for each later session', () => {

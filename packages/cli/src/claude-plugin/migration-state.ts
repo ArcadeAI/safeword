@@ -189,8 +189,19 @@ export function readClaudePluginMode(cwd: string): ClaudePluginModeV2 | undefine
   }
 }
 
-export function pluginModeIsTerminal(marker: ClaudePluginModeV2, catalogueSha256: string): boolean {
-  return marker.state === 'clean' || marker.catalogue_sha256 === catalogueSha256;
+export function pluginModeIsTerminal(
+  marker: ClaudePluginModeV2,
+  identity: {
+    readonly plugin_version: string;
+    readonly hook_manifest_sha256: string;
+    readonly catalogue_sha256: string;
+  },
+): boolean {
+  return (
+    marker.plugin_version === identity.plugin_version &&
+    marker.hook_manifest_sha256 === identity.hook_manifest_sha256 &&
+    marker.catalogue_sha256 === identity.catalogue_sha256
+  );
 }
 
 export function writeClaudePluginMode(cwd: string, marker: ClaudePluginModeV2): void {
