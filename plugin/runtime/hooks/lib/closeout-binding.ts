@@ -1,4 +1,5 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 import {
   appendFileSync,
   existsSync,
@@ -8,6 +9,7 @@ import {
   realpathSync,
   renameSync,
   rmSync,
+  writeFileSync,
 } from 'node:fs';
 import { homedir } from 'node:os';
 import nodePath from 'node:path';
@@ -18,6 +20,143 @@ import { commandWords, splitShellSegments } from './shell-segments.js';
 const CLOSEOUT_BINDING_CACHE = 'closeout-session-binding.json';
 const DEFAULT_MAX_AGE_MS = 5 * 60 * 1000;
 const CLOSEOUT_RUNTIMES = ['claude', 'codex', 'cursor'] as const;
+const CLOSEOUT_HANDOFF_TTL_MS = 24 * 60 * 60 * 1000;
+
+interface CloseoutHandoff {
+  schema_version: 1;
+  profile_id: string;
+  repository: string;
+  pull_request: number;
+  head_oid: string;
+  written_at: string;
+  expires_at: string;
+}
+
+function codexHome(environment: NodeJS.ProcessEnv = process.env): string {
+  return environment.CODEX_HOME ?? nodePath.join(homedir(), '.codex');
+}
+
+function handoffDirectory(environment: NodeJS.ProcessEnv = process.env): string {
+  return nodePath.join(codexHome(environment), 'safeword/closeout-handoff-v1');
+}
+
+function profileId(environment: NodeJS.ProcessEnv = process.env): string {
+  return createHash('sha256')
+    .update(nodePath.resolve(codexHome(environment)))
+    .digest('hex');
+}
+
+function canonicalGithubRepository(value: string): string | undefined {
+  const match = /github\.com[/:]([^/]+)\/([^/#]+?)(?:\.git)?(?:\/|$)/u.exec(value.trim());
+  return match ? `${match[1]}/${match[2]}`.toLowerCase() : undefined;
+}
+
+function currentRepository(projectDirectory: string): string | undefined {
+  const result = spawnSync('git', ['remote', 'get-url', 'origin'], {
+    cwd: projectDirectory,
+    encoding: 'utf8',
+    timeout: 5_000,
+  });
+  return result.status === 0 ? canonicalGithubRepository(result.stdout) : undefined;
+}
+
+function validHandoff(
+  value: unknown,
+  environment: NodeJS.ProcessEnv,
+  now: number,
+): value is CloseoutHandoff {
+  if (typeof value !== 'object' || value === null) return false;
+  const record = value as Partial<CloseoutHandoff>;
+  const writtenAt = Date.parse(record.written_at ?? '');
+  const expiresAt = Date.parse(record.expires_at ?? '');
+  return (
+    record.schema_version === 1 &&
+    record.profile_id === profileId(environment) &&
+    typeof record.repository === 'string' &&
+    /^[^/]+\/[^/]+$/u.test(record.repository) &&
+    Number.isSafeInteger(record.pull_request) &&
+    (record.pull_request ?? 0) > 0 &&
+    typeof record.head_oid === 'string' &&
+    /^[0-9a-f]{40}$/u.test(record.head_oid) &&
+    Number.isFinite(writtenAt) &&
+    writtenAt <= now &&
+    expiresAt === writtenAt + CLOSEOUT_HANDOFF_TTL_MS &&
+    now < expiresAt
+  );
+}
+
+export function recordCodexCloseoutHandoff(input: {
+  projectDirectory: string;
+  repositoryUrl: string;
+  pullRequest: number;
+  headOid: string;
+  environment?: NodeJS.ProcessEnv;
+  now?: Date;
+}): boolean {
+  const environment = input.environment ?? process.env;
+  if (!environment.CODEX_HOME && !environment.CODEX_THREAD_ID) return false;
+  const repository = canonicalGithubRepository(input.repositoryUrl);
+  if (
+    !repository ||
+    !Number.isSafeInteger(input.pullRequest) ||
+    input.pullRequest <= 0 ||
+    !/^[0-9a-f]{40}$/u.test(input.headOid)
+  )
+    return false;
+  const directory = handoffDirectory(environment);
+  const path = nodePath.join(
+    directory,
+    `${createHash('sha256').update(repository).digest('hex')}.json`,
+  );
+  const now = input.now ?? new Date();
+  try {
+    mkdirSync(directory, { recursive: true });
+    writeFileSync(
+      path,
+      `${JSON.stringify({
+        schema_version: 1,
+        profile_id: profileId(environment),
+        repository,
+        pull_request: input.pullRequest,
+        head_oid: input.headOid,
+        written_at: now.toISOString(),
+        expires_at: new Date(now.getTime() + CLOSEOUT_HANDOFF_TTL_MS).toISOString(),
+      } satisfies CloseoutHandoff)}\n`,
+      { encoding: 'utf8', flag: 'wx', mode: 0o600 },
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function claimCodexCloseoutHandoff(input: {
+  projectDirectory: string;
+  sessionId: string;
+  environment?: NodeJS.ProcessEnv;
+  now?: Date;
+}): CloseoutHandoff | undefined {
+  const environment = input.environment ?? process.env;
+  const repository = currentRepository(input.projectDirectory);
+  if (!repository || input.sessionId.trim() === '') return undefined;
+  const directory = handoffDirectory(environment);
+  if (!existsSync(directory)) return undefined;
+  const now = (input.now ?? new Date()).getTime();
+  for (const name of readdirSync(directory)) {
+    if (!name.endsWith('.json')) continue;
+    const path = nodePath.join(directory, name);
+    const claimPath = `${path}.claim-${createHash('sha256').update(input.sessionId).digest('hex')}`;
+    try {
+      const parsed = JSON.parse(readFileSync(path, 'utf8')) as unknown;
+      if (!validHandoff(parsed, environment, now) || parsed.repository !== repository) continue;
+      renameSync(path, claimPath);
+      return parsed;
+    } catch {
+      continue;
+    }
+  }
+  return undefined;
+}
 
 export interface CloseoutBinding {
   runtime: 'claude' | 'codex' | 'cursor';
