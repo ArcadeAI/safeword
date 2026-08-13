@@ -90,16 +90,7 @@ export function createBestEffortProgressSink(
 }
 
 export function createManagedReviewProgress(progress: ProgressReporter): ProgressReporter {
-  return {
-    managed: true,
-    start(message, phase): void {
-      if (phase === 'preparation') return;
-      if (phase === undefined) progress.start(message);
-      else progress.start(message, phase);
-    },
-    heartbeat: progress.heartbeat?.bind(progress),
-    stop: progress.stop.bind(progress),
-  };
+  return { ...progress, managed: true };
 }
 
 /** Operations finishing faster than this are not worth announcing. */

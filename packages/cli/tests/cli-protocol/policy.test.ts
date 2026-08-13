@@ -70,21 +70,16 @@ describe('CLI execution policy', () => {
     },
   );
 
-  it('suppresses packet preparation only for managed JSON progress', () => {
+  it('marks managed JSON progress without changing lifecycle forwarding', () => {
     const progress = { start: vi.fn(), heartbeat: vi.fn(), stop: vi.fn() };
     const managed = createManagedReviewProgress(progress);
 
-    managed.start('Copy-independent packet preparation text', 'preparation');
-    managed.start('Preparing the review packet for user-authored content…', 'active');
     managed.start('Requesting an independent Codex review…');
     managed.heartbeat?.('Still waiting for a response from Codex…');
     managed.stop();
 
-    expect(progress.start).toHaveBeenCalledTimes(2);
-    expect(progress.start).toHaveBeenCalledWith(
-      'Preparing the review packet for user-authored content…',
-      'active',
-    );
+    expect(managed.managed).toBe(true);
+    expect(progress.start).toHaveBeenCalledTimes(1);
     expect(progress.start).toHaveBeenCalledWith('Requesting an independent Codex review…');
     expect(progress.heartbeat).toHaveBeenCalledTimes(1);
     expect(progress.stop).toHaveBeenCalledTimes(1);

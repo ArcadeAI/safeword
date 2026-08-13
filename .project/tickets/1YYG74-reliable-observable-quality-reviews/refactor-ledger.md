@@ -10,9 +10,8 @@ Scope: `origin/main...codex/reliable-quality-review`
 2. **Name the wrapper responsibility** — renamed `reviewEnvironment` to
    `reviewChildEnvironment`; the helper sanitizes inherited state and opts only
    a JSON review child into managed progress.
-3. **Remove copy-dependent filtering** — added the explicit `preparation`
-   progress phase and suppress that phase structurally for managed JSON reviews.
-   User-facing copy can now change without silently changing output policy.
+3. **Start progress at real reviewer work** — packet preparation emits no
+   lifecycle event; progress starts at the first asynchronous reviewer route.
 4. **Consolidate managed-review fixtures** — the public wiring tests share one
    setup helper while keeping outcome assertions local; quiet-mode coverage now
    includes approved and action-required results.
@@ -23,8 +22,8 @@ Scope: `origin/main...codex/reliable-quality-review`
 7. **Consolidate repeated test cases** — descriptor-failure ordering and BDD
    manifest dispatch use parameterized cases while retaining named proof
    provenance.
-8. **Name the progress phase contract** — `ProgressPhase` makes the coordinator
-   and policy boundary explicit without widening runtime behavior.
+8. **Keep the reporter contract minimal** — lifecycle starts carry user-facing
+   messages only; the removed preparation phase had no observable execution.
 9. **Scrub managed progress case-insensitively** — wrapper children remove every
    casing of the private signal before deliberate JSON-review opt-in, matching
    Windows environment semantics.
@@ -38,7 +37,7 @@ Scope: `origin/main...codex/reliable-quality-review`
     and re-opt the detached CLI worker into progress, so real coordinator route
     messages reach the wrapper while stdout remains typed.
 14. **Preserve managed mode and worker identity** — detached managed workers
-    receive `--json`, keeping preparation filtering structural, and POSIX worker
+    receive `--json`, keeping managed progress active, and POSIX worker
     inspection requests untruncated command lines before matching the job ID.
 15. **Match collection types to their use** — reviewer environment allowlists
     are readonly arrays because the filter only iterates them; the constructed

@@ -21,7 +21,7 @@ up either the change or rollback only after reinstall.
 
 1. **Vertical walking skeleton.** Land the minimum complete path together: a
    best-effort descriptor sink as the sole reporter writer, unconditional signal
-   consumption/deletion, quiet precedence, managed-only preparation filtering,
+   consumption/deletion, quiet precedence, reviewer-work lifecycle reporting,
    the private-signal wrapper environment, and generated wrapper parity. The exact
    generated artifact that ships must run a real CLI/coordinator fixture,
    expose `Requesting an independent Claude review…` before child exit, expose
@@ -93,9 +93,9 @@ up either the change or rollback only after reinstall.
 | Decision | Choice | Alternatives considered | Rejected because |
 | --- | --- | --- | --- |
 | Scope managed JSON progress through a consumed private environment signal | `run-review.ts` sets exact value `1`; the tested registration helper reads and deletes it before dispatch | Hidden flag; documented public flag; wrapper-owned progress | The ticket excludes a public option; older CLIs ignore unknown environment variables but reject unknown arguments; wrapper-owned progress cannot know coordinator stages or cancellation |
-| Reuse the existing progress reporter for managed route work | Filter preparation starts only on the managed JSON path; keep its delay, heartbeat, transitions, and cancellation; leave ordinary human timing unchanged | Remove preparation progress globally; new reporter or event protocol | Global removal widens scope; a second reporter duplicates policy and increases drift |
+| Reuse the existing progress reporter for managed route work | Begin lifecycle reporting at the first asynchronous reviewer route; keep its delay, heartbeat, transitions, and cancellation | Report synchronous packet preparation; new reporter or event protocol | A delayed event cannot observe synchronous preparation without adding latency; a second reporter duplicates policy and increases drift |
 | Isolate progress-write failures from process lifecycle | Use a synchronous descriptor writer under `try/catch`; contain rejected promises only within injected sink adapters; attach no process-wide stream listener | Write through `process.stderr`; listener lifetime management; buffer into stdout/result data | Descriptor writes turn production failures into locally owned synchronous errors; stream listeners either miss late errors or swallow unrelated ones; stdout/result changes break the machine contract |
-| Preserve existing human mode and make suspended-clock behavior explicit | Human mode retains preparation progress and quiet suppression; a missed heartbeat burst coalesces to one line and re-arms from that emission | Replay every missed interval; apply managed filtering globally | Bursts are not rate-limited; global filtering changes direct public CLI timing |
+| Preserve existing human mode and make suspended-clock behavior explicit | Human mode retains reviewer-route progress and quiet suppression; a missed heartbeat burst coalesces to one line and re-arms from that emission | Replay every missed interval | Bursts are not rate-limited and would create noisy output after a suspended clock resumes |
 | Keep durable/background review out of this change | Preserve the current synchronous coordinator and budgets | Persisted jobs and status collection | Durable execution is a separate active design with storage, lifecycle, and stale-source semantics; mixing it here would enlarge and destabilize the small observability fix |
 
 ## Design alignment

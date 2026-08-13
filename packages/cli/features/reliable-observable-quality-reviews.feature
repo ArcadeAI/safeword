@@ -25,11 +25,10 @@ Feature: Keep quality reviews observable and actionable
         | approve         | approved        | 0      |
         | request_changes | action-required | 2      |
 
-    Scenario: Packet preparation stays quiet until reviewer work begins
+    Scenario: Progress begins when reviewer work begins
       Given a managed JSON review is preparing its review packet
-      When preparation hands off to active reviewer work
-      Then packet-preparation progress is omitted from stderr
-      And active reviewer progress is reported on stderr
+      When active reviewer work begins
+      Then active reviewer progress is reported on stderr
 
     Scenario: Completion cancels pending lifecycle output
       Given a managed review has pending active and heartbeat reports

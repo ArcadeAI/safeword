@@ -381,8 +381,8 @@ describe('cross-agent review public-command wiring', () => {
             PATH: `${bin}:/usr/bin:/bin`,
             SAFEWORD_AGENT_RUNTIME: 'claude',
             SAFEWORD_REVIEW_FAKE_FAILURE_CODEX: failure,
-            SAFEWORD_REVIEW_FAKE_FINDING: 'DISTINCTIVE_ACTIONABLE_FINDING',
-            SAFEWORD_REVIEW_FAKE_SUMMARY: 'DISTINCTIVE_REVIEW_SUMMARY',
+            SAFEWORD_REVIEW_FAKE_FINDING: String.raw`DISTINCTIVE\u001b[31mACTIONABLE_FINDING`,
+            SAFEWORD_REVIEW_FAKE_SUMMARY: String.raw`DISTINCTIVE\u0007REVIEW_SUMMARY`,
             SAFEWORD_REVIEW_FAKE_VERDICT: 'request_changes',
             SAFEWORD_REVIEW_LOG: log,
             SAFEWORD_NO_UPDATE_CHECK: '1',
@@ -391,8 +391,10 @@ describe('cross-agent review public-command wiring', () => {
       );
 
       expect(result.exitCode, result.stdout).toBe(2);
-      expect(result.stdout).toContain('DISTINCTIVE_REVIEW_SUMMARY');
-      expect(result.stdout).toContain('DISTINCTIVE_ACTIONABLE_FINDING');
+      expect(result.stdout).toContain('DISTINCTIVE REVIEW_SUMMARY');
+      expect(result.stdout).toContain('DISTINCTIVE [31mACTIONABLE_FINDING');
+      expect(result.stdout).not.toContain('\u{1B}');
+      expect(result.stdout).not.toContain('\u{7}');
     },
   );
 
@@ -737,7 +739,8 @@ describe('cross-agent review public-command wiring', () => {
       );
 
       expect(result.exitCode).toBe(2);
-      expect(JSON.parse(result.stdout)).toMatchObject({
+      const payload = JSON.parse(result.stdout);
+      expect(payload).toMatchObject({
         state: 'action_required',
         findings: [{ code: 'REVIEW_STALE' }],
         data: { status: 'stale' },
@@ -973,8 +976,15 @@ describe('cross-agent review public-command wiring', () => {
       );
 
       expect(result.exitCode).toBe(2);
-      expect(JSON.parse(result.stdout)).toMatchObject({
+      const payload = JSON.parse(result.stdout);
+      expect(payload).toMatchObject({
         state: 'action_required',
+        effects: {
+          network:
+            classification === 'not_installed'
+              ? []
+              : [{ kind: 'review', target: 'codex', operation: 'request' }],
+        },
         recovery: [{ description: action }],
         data: {
           status: 'blocked',
@@ -983,7 +993,7 @@ describe('cross-agent review public-command wiring', () => {
           independence: 'none',
         },
       });
-      expect(JSON.parse(result.stdout).recovery).toHaveLength(1);
+      expect(payload.recovery).toHaveLength(1);
     },
   );
 
@@ -1038,6 +1048,7 @@ describe('cross-agent review public-command wiring', () => {
       expect(result.exitCode).toBe(2);
       expect(JSON.parse(result.stdout)).toMatchObject({
         state: 'action_required',
+        effects: { network: [] },
         recovery: [{ description: action }],
         data: {
           status: 'blocked',

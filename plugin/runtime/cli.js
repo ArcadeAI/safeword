@@ -43817,7 +43817,10 @@ function independentReviewResult(input) {
       ...reviewerFeedback(input.output)
     ],
     effects: {
-      network: independentNetworkEffects(input.reviewer, input.preferredFailure !== undefined)
+      network: [
+        ...networkEffectsForFailure(input.reviewer, input.preferredFailure),
+        reviewRequest(input.reviewer)
+      ]
     },
     data: {
       command: "review run",
@@ -43837,15 +43840,18 @@ function reviewerFeedback(output) {
   return [
     {
       code: "REVIEWER_SUMMARY",
-      message: output.summary,
+      message: terminalSafeReviewerText(output.summary),
       severity: "info"
     },
     ...output.findings.map((finding) => ({
       code: "REVIEWER_FINDING",
-      message: finding.message,
+      message: terminalSafeReviewerText(finding.message),
       severity: finding.severity
     }))
   ];
+}
+function terminalSafeReviewerText(value) {
+  return value.replaceAll(/\p{Cc}/gu, " ");
 }
 async function executeReview(reviewer, prepared, model, runDeadline) {
   let outcome;
@@ -44004,18 +44010,22 @@ function routeFailureData(input) {
     }
   };
 }
-function degradedNetworkEffects(assignedReviewer, author, alternateAttempted) {
-  const preferred = { kind: "review", target: assignedReviewer, operation: "request" };
-  const fallback = { kind: "review", target: author, operation: "request" };
-  return alternateAttempted ? [preferred, preferred, fallback] : [preferred, fallback];
+function reviewRequest(reviewer) {
+  return { kind: "review", target: reviewer, operation: "request" };
 }
-function independentNetworkEffects(reviewer, retried) {
-  const request = { kind: "review", target: reviewer, operation: "request" };
-  return retried ? [request, request] : [request];
+function networkEffectsForFailure(reviewer, failure) {
+  return failure === undefined || ["not_installed", "unsupported", "launch_failed", "probe_timed_out"].includes(failure) ? [] : [reviewRequest(reviewer)];
+}
+function degradedNetworkEffects(input) {
+  return [
+    ...networkEffectsForFailure(input.assignedReviewer, input.preferredFailure),
+    ...networkEffectsForFailure(input.assignedReviewer, input.alternateFailure),
+    ...networkEffectsForFailure(input.author, input.fallbackFailure),
+    ...input.fallbackCompleted ? [reviewRequest(input.author)] : []
+  ];
 }
 function preparePrimaryReview(input, reviewer) {
   const name = agentName(reviewer);
-  input.progress?.start(`Preparing the review packet for ${name}\u2026`, "preparation");
   const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets, input.context);
   input.progress?.start(`Requesting an independent ${name} review\u2026`);
   input.progress?.heartbeat?.(`Still waiting for a response from ${name}\u2026`);
@@ -44040,7 +44050,13 @@ async function runDegradedFallback(input) {
     context: input.context,
     sourceChanged,
     snapshotChanged,
-    network: degradedNetworkEffects(input.assignedReviewer, input.author, input.alternateFailure !== undefined)
+    network: degradedNetworkEffects({
+      assignedReviewer: input.assignedReviewer,
+      author: input.author,
+      preferredFailure: input.preferredFailure,
+      alternateFailure: input.alternateFailure,
+      fallbackCompleted: true
+    })
   });
   if (changedResult !== undefined)
     return changedResult;
@@ -44072,7 +44088,13 @@ async function runDegradedFallback(input) {
         }
       ],
       effects: {
-        network: degradedNetworkEffects(input.assignedReviewer, input.author, input.alternateFailure !== undefined)
+        network: degradedNetworkEffects({
+          assignedReviewer: input.assignedReviewer,
+          author: input.author,
+          preferredFailure: input.preferredFailure,
+          alternateFailure: input.alternateFailure,
+          fallbackFailure: assessment.failure
+        })
       },
       recovery: [
         {
@@ -44106,7 +44128,13 @@ async function runDegradedFallback(input) {
         ...reviewerFeedback(completedOutput)
       ],
       effects: {
-        network: degradedNetworkEffects(input.assignedReviewer, input.author, input.alternateFailure !== undefined)
+        network: degradedNetworkEffects({
+          assignedReviewer: input.assignedReviewer,
+          author: input.author,
+          preferredFailure: input.preferredFailure,
+          alternateFailure: input.alternateFailure,
+          fallbackCompleted: true
+        })
       },
       recovery: [
         {
@@ -44139,7 +44167,13 @@ async function runDegradedFallback(input) {
       ...reviewerFeedback(completedOutput)
     ],
     effects: {
-      network: degradedNetworkEffects(input.assignedReviewer, input.author, input.alternateFailure !== undefined)
+      network: degradedNetworkEffects({
+        assignedReviewer: input.assignedReviewer,
+        author: input.author,
+        preferredFailure: input.preferredFailure,
+        alternateFailure: input.alternateFailure,
+        fallbackCompleted: true
+      })
     },
     data: {
       command: "review run",
@@ -44170,7 +44204,10 @@ async function runAlternateModelRoute(input) {
     context: input.context,
     sourceChanged,
     snapshotChanged,
-    network: independentNetworkEffects(input.reviewer, true)
+    network: [
+      ...networkEffectsForFailure(input.reviewer, input.preferredFailure),
+      reviewRequest(input.reviewer)
+    ]
   });
   if (changedResult !== undefined)
     return { kind: "completed", result: changedResult };
@@ -44243,7 +44280,10 @@ function exhaustedRunResult(input) {
       }
     ],
     effects: {
-      network: independentNetworkEffects(input.assignedReviewer, input.alternateFailure !== undefined)
+      network: [
+        ...networkEffectsForFailure(input.assignedReviewer, input.preferredFailure),
+        ...networkEffectsForFailure(input.assignedReviewer, input.alternateFailure)
+      ]
     },
     recovery: [
       {
@@ -61688,19 +61728,7 @@ function createBestEffortProgressSink(write) {
   };
 }
 function createManagedReviewProgress(progress) {
-  return {
-    managed: true,
-    start(message, phase) {
-      if (phase === "preparation")
-        return;
-      if (phase === undefined)
-        progress.start(message);
-      else
-        progress.start(message, phase);
-    },
-    heartbeat: progress.heartbeat?.bind(progress),
-    stop: progress.stop.bind(progress)
-  };
+  return { ...progress, managed: true };
 }
 var PROGRESS_ANNOUNCE_DELAY_MS = 100;
 var PROGRESS_HEARTBEAT_INTERVAL_MS = 30000;

@@ -5,7 +5,7 @@
       ["packages/cli/tests/cli-protocol/review-wiring.test.ts", "keeps managed machine output typed while reporting only active reviewer work"],
       ["packages/cli/tests/cli-protocol/review-wiring.test.ts", "preserves an action-required result after managed progress"]
     ],
-    "Packet preparation stays quiet until reviewer work begins": ["packages/cli/tests/cli-protocol/policy.test.ts", "suppresses packet preparation only for managed JSON progress"],
+    "Progress begins when reviewer work begins": ["packages/cli/tests/cli-protocol/review-wiring.test.ts", "keeps managed machine output typed while reporting only active reviewer work"],
     "Completion cancels pending lifecycle output": ["packages/cli/tests/cli-protocol/policy.test.ts", "cancels a pending announcement as well as the heartbeat when the command ends"],
     "Only the exact private signal enables JSON progress": ["packages/cli/tests/cli-protocol/policy.test.ts", "consumes only the exact managed-progress signal and always removes it"],
     "Quiet mode wins over managed progress": ["packages/cli/tests/cli-protocol/review-wiring.test.ts", "lets quiet mode suppress managed progress for %s without suppressing the JSON result"],

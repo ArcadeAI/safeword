@@ -15,7 +15,7 @@ contracts owned by their focused tests, not claims made by this feature.
 - [x] GREEN 7b675263b
 - [x] REFACTOR skip: The result and progress boundaries remain independently asserted.
 
-### Scenario: Packet preparation stays quiet until reviewer work begins
+### Scenario: Progress begins when reviewer work begins
 
 - [x] RED b9cf90383
 - [x] GREEN 53e94d96f
