@@ -105,7 +105,7 @@ taxonomy (`not_installed`, `unsupported`, `probe_timed_out`,
 - [x] GREEN 53e94d96f
 - [x] REFACTOR skip: A shared catalogue assertion is the least duplicated representation.
 
-### Scenario: The wrapper remains compatible with a CLI that predates progress support
+### Scenario Outline: The wrapper remains compatible with a CLI that predates progress support
 
 - [x] RED skip: Compatibility follows from using an environment signal; the live harness records the invariant.
 - [x] GREEN e812b8c96

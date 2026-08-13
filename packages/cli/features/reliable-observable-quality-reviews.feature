@@ -2,6 +2,8 @@ Feature: Keep quality reviews observable and actionable
 
   Safeword-managed independent reviews should remain visibly active during long
   work without corrupting the typed result consumed by agents and automation.
+  A managed JSON review is a public CLI review carrying the exact private signal;
+  the installed wrapper is its supported producer.
   Executable proof: packages/cli/tests/cli-protocol/review-wiring.test.ts,
   packages/cli/tests/cli-protocol/policy.test.ts,
   packages/cli/tests/review/surface-parity.test.ts, and
@@ -31,6 +33,7 @@ Feature: Keep quality reviews observable and actionable
       When completion occurs at <boundary> with <event_order>
       Then stderr contains <line_count> lifecycle lines
       And advancing the clock afterwards emits no further lifecycle lines
+      And stdout contains exactly one schema-1 result
 
       Examples:
         | boundary | event_order             | line_count |
@@ -52,7 +55,7 @@ Feature: Keep quality reviews observable and actionable
       Given packet preparation remains active for 60 seconds before reviewer work starts
       And the preferred and fallback routes each remain active through their first heartbeat
       When the review transitions from its preferred route to a fallback route
-      Then stderr consists exactly of the preferred active-review line at 100 milliseconds, its heartbeat at 30 seconds, the fallback active-review line at 100 milliseconds after transition, and its heartbeat at 30 seconds after transition
+      Then stderr consists exactly of the preferred active-review line 100 milliseconds after reviewer work starts, its heartbeat 30 seconds after reviewer work starts, the fallback active-review line 100 milliseconds after transition, and its heartbeat 30 seconds after transition
       And no preferred-route lifecycle line appears after the fallback route starts
       And stdout contains exactly one schema-1 result
 
@@ -63,21 +66,25 @@ Feature: Keep quality reviews observable and actionable
       Given a direct JSON review with managed-progress signal value <value>
       And the review remains active through one heartbeat
       And the review is observed with a deterministic clock
-      When the review completes on TTY and non-TTY stderr
+      When the review completes with <stderr_kind> stderr
       Then stderr contains <progress_lines> lifecycle lines
       And stdout contains exactly one typed result
 
       Examples:
-        | value | progress_lines |
-        | <unset> | 0              |
-        | "1"   | 2              |
-        | ""    | 0              |
-        | " "   | 0              |
-        | "0"   | 0              |
-        | "01"  | 0              |
-        | "1 "  | 0              |
-        | "1\n" | 0              |
-        | "true" | 0              |
+        | value   | stderr_kind | progress_lines |
+        | <unset> | non-TTY     | 0              |
+        | <unset> | TTY         | 0              |
+        | "1"     | non-TTY     | 2              |
+        | "1"     | TTY         | 2              |
+        | ""      | non-TTY     | 0              |
+        | " "     | non-TTY     | 0              |
+        | "0"     | non-TTY     | 0              |
+        | "01"    | non-TTY     | 0              |
+        | " 1"    | non-TTY     | 0              |
+        | "1 "    | non-TTY     | 0              |
+        | "1\n"   | non-TTY     | 0              |
+        | "true"  | non-TTY     | 0              |
+        | "TRUE"  | non-TTY     | 0              |
 
     Scenario Outline: Quiet mode wins over managed progress
       Given a managed JSON review with quiet mode enabled
@@ -112,8 +119,7 @@ Feature: Keep quality reviews observable and actionable
     Scenario Outline: A failed progress destination cannot alter the terminal result
       Given a managed JSON review whose operating-system progress descriptor has <failure> before a write
       When the reviewer completes with <classification>
-      Then the process remains alive
-      And stdout contains the canonical typed result
+      Then stdout contains the canonical typed result
       And no fallback diagnostic is written to stdout
       And the command exits with status <status>
 
@@ -139,6 +145,7 @@ Feature: Keep quality reviews observable and actionable
       And rejected reviewer bytes, model names, targets, and context contain disjoint unique secrets and control characters
       When a managed review <termination>
       Then stderr contains positive lifecycle lines naming only <reviewer_kinds>
+      And stdout contains exactly one schema-1 action-required result
       And the rejected reviewer bytes are absent from stdout and stderr
       And stderr contains no injected secret, control character, or model name
       And serialized stdout contains no literal injected line break or ANSI escape
@@ -155,7 +162,7 @@ Feature: Keep quality reviews observable and actionable
       Then stdout contains exactly one schema-1 action-required result
       And the result contains finding code "REVIEW_ROUTES_EXHAUSTED"
       And the result records preferred failure "timed_out"
-      And recovery equals the canonical independent-review retry fixture for target "change.ts"
+      And recovery equals the independently authored retry fixture for target "change.ts"
       And the command exits with status 2
 
   @reliable-observable-quality-reviews.SWM1.R2 @surface.safeword-cli @surface.claude-code @surface.openai-codex @proof.vitest
@@ -167,8 +174,7 @@ Feature: Keep quality reviews observable and actionable
       When it launches a JSON review
       Then the CLI child receives managed-progress signal value "1"
       And capability probes do not contain the signal
-      And a lifecycle line is observable on stderr before the final stdout result
-      And stdout, stderr, and exit status are preserved without reinterpretation
+      And lifecycle stderr, typed stdout, and exit status are preserved without reinterpretation
 
     Scenario: The public CLI removes the wrapper signal from reviewer processes
       Given a direct JSON review with managed-progress signal value "1"
@@ -176,17 +182,21 @@ Feature: Keep quality reviews observable and actionable
       Then the reviewer process environment does not contain the managed-progress signal
 
     Scenario: Required-review workflows cannot bypass the managed wrapper
-      Given the complete generated Claude Code and OpenAI Codex workflow catalogue
+      Given the generated Claude Code, OpenAI Codex, and Cursor trees are discovered and non-empty
       When its independent-review launch commands are inspected
-      Then the catalogue is discovered from generated output and is non-empty
-      And its size matches the generator's declared required-review surfaces
-      And every workflow invokes the managed wrapper with JSON output
+      Then the required-review surfaces are exactly Claude Code and OpenAI Codex
+      And every required-review workflow invokes the managed wrapper with JSON output
       And no workflow invokes the public CLI or a reviewer directly
       And Cursor contains no independent-review launch command
 
-    Scenario: The wrapper remains compatible with a CLI that predates progress support
-      Given a review-capable CLI that rejects unknown arguments but ignores unknown environment variables
+    Scenario Outline: The wrapper remains compatible with a CLI that predates progress support
+      Given a review-capable CLI that returns <classification> with status <status>, rejects unknown arguments, and ignores unknown environment variables
       When the wrapper launches a JSON review
       Then stderr contains no Safeword-authored lifecycle line
       And the CLI's typed result is preserved byte for byte
-      And the wrapper exits with the CLI's status 2
+      And the wrapper exits with the CLI's status <status>
+
+      Examples:
+        | classification  | status |
+        | approved        | 0      |
+        | action-required | 2      |
