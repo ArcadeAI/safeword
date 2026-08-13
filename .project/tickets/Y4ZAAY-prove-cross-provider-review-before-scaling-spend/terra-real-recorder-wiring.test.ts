@@ -20,7 +20,7 @@ describe("real Terra recorder wiring", () => {
     };
     expect(qualification).toMatchObject({
       adapterCommit: "e1d54b2d12e4a97fba84e8302de31bfe8b60ba17",
-      harnessCommit: "c2c6175c8d9d818f1e9942c2c903b34b94bb7926",
+      harnessCommit: "0a534a249be7565ef82299bd1fa8aee6e1e83f62",
       result: "passed",
     });
     for (const [filename, expectedDigest] of Object.entries(
