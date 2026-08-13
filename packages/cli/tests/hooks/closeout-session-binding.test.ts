@@ -277,6 +277,7 @@ describe('closeout host identity bridge (93C14D NTB1.R2/TBU1.R4)', () => {
 
     expect(resolveExactCodexTranscript('thread-42', { CODEX_HOME: codexHome })).toBe(transcript);
     expect(resolveExactCodexTranscript('', { CODEX_HOME: codexHome })).toBeUndefined();
+    expect(resolveExactCodexTranscript('thread-4', { CODEX_HOME: codexHome })).toBeUndefined();
     expect(
       resolveExactCodexTranscript('another-thread', { CODEX_HOME: codexHome }),
     ).toBeUndefined();
@@ -334,6 +335,16 @@ describe('closeout host identity bridge (93C14D NTB1.R2/TBU1.R4)', () => {
     expect(readFreshCloseoutBinding({ projectDirectory, now })?.id).toBe('thread-42');
     expect(existsSync(bindingPath)).toBe(false);
     expect(readFreshCloseoutBinding({ projectDirectory, now })).toBeUndefined();
+  });
+
+  it('deduplicates repeated proof for the same runtime session', () => {
+    const projectDirectory = project();
+    const now = new Date('2026-08-02T12:00:00.000Z');
+    const input = { projectDirectory, runtime: 'codex' as const, id: 'thread-42', now };
+    expect(rememberCloseoutBinding(input)).toBe(true);
+    expect(rememberCloseoutBinding(input)).toBe(true);
+
+    expect(readFreshCloseoutBinding({ projectDirectory, now })?.id).toBe('thread-42');
   });
 
   it('fails closed instead of adopting either of two pending session bindings', () => {

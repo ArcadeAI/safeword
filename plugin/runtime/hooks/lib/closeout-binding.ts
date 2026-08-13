@@ -178,6 +178,7 @@ export function claimCodexCloseoutHandoff(input: {
   now?: Date;
 }): CloseoutHandoff | undefined {
   const environment = input.environment ?? process.env;
+  if (!environment.CODEX_HOME && !environment.CODEX_THREAD_ID) return undefined;
   const repository = currentRepository(input.projectDirectory);
   if (!repository || input.sessionId.trim() === '') return undefined;
   const directory = handoffDirectory(environment);
@@ -224,7 +225,7 @@ export function resolveExactCodexTranscript(
         else if (
           entry.isFile() &&
           entry.name.endsWith('.jsonl') &&
-          entry.name.includes(sessionId)
+          entry.name.endsWith(`${sessionId}.jsonl`)
         ) {
           matches.push(path);
         }
@@ -372,7 +373,15 @@ export function readFreshCloseoutBinding(
         const candidate = parseFreshBindingRecord(line, now, maxAgeMs);
         return candidate === undefined ? [] : [candidate];
       });
-    const candidate = candidates.length === 1 ? candidates[0] : undefined;
+    const currentProjectRoot = realpathSync(input.projectDirectory);
+    const distinctCandidates = [
+      ...new Map(
+        candidates
+          .filter(candidate => candidate.projectRoot === currentProjectRoot)
+          .map(candidate => [JSON.stringify(candidate), candidate]),
+      ).values(),
+    ];
+    const candidate = distinctCandidates.length === 1 ? distinctCandidates[0] : undefined;
     return candidate;
   } catch {
     return undefined;
