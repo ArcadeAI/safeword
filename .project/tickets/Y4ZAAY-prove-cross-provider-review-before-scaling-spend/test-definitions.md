@@ -51,8 +51,8 @@ fixture scenarios do not substitute for its RED, GREEN, or REFACTOR record.
 ### Scenario: The paid child receives only its provider credential
 
 - [x] RED skip: independent review supplied the failing composition gap before the test and fix landed together
-- [x] GREEN `terra-live-launcher.test.ts`
-- [x] REFACTOR `terra-live-launcher.ts`
+- [x] GREEN 24b70ee54
+- [x] REFACTOR 24b70ee54
 
 ## Rule: prove-cross-provider-review-before-scaling-spend.SWM1.R2 — Durable attempt and cost evidence bounds every new paid attempt
 
@@ -65,8 +65,8 @@ fixture scenarios do not substitute for its RED, GREEN, or REFACTOR record.
 ### Scenario: Initialization refuses a redirected output root
 
 - [x] RED skip: independent review supplied the failing symlink counterexample before the test and fix landed together
-- [x] GREEN `terra-development-canary.test.ts`
-- [x] REFACTOR `terra-development-canary.ts`
+- [x] GREEN 24b70ee54
+- [x] REFACTOR 24b70ee54
 
 ### Scenario Outline: Complete accounting enforces both paid limits after restart
 
@@ -119,7 +119,7 @@ fixture scenarios do not substitute for its RED, GREEN, or REFACTOR record.
 ### Scenario: Authorized corpus cannot dispatch unrelated paid input
 
 - [x] RED skip: quality review supplied the failing counterexample before the test and fix landed together
-- [x] GREEN 47712ea29 plus `terra-development-canary.test.ts` for pre-start attempt-context binding
+- [x] GREEN 24b70ee54
 - [x] REFACTOR 2c8d717e4
 
 ## Rule: prove-cross-provider-review-before-scaling-spend.SWM1.R3 — Development evidence remains permanently separate from confirmatory evidence
