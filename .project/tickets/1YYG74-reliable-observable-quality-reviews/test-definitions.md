@@ -23,8 +23,8 @@ recovery, and action-required exit status. The feature lane retains the
 
 ### Scenario: The exact managed-progress signal enables JSON progress
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED 008be3662
+- [x] GREEN bde13b50b
 - [ ] REFACTOR
 
 ### Scenario Outline: Completion cancels the delayed active line at its boundary
@@ -47,8 +47,8 @@ recovery, and action-required exit status. The feature lane retains the
 
 ### Scenario: Managed JSON deliberately suppresses packet-preparation progress
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED 008be3662
+- [x] GREEN bde13b50b
 - [ ] REFACTOR
 
 ### Scenario: A large clock advance coalesces missed heartbeats
@@ -103,8 +103,8 @@ recovery, and action-required exit status. The feature lane retains the
 
 ### Scenario: Quiet mode suppresses progress even for a managed review
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED 008be3662
+- [x] GREEN bde13b50b
 - [ ] REFACTOR
 
 ### Scenario: Quiet mode suppresses progress for a human-readable review
@@ -147,8 +147,8 @@ recovery, and action-required exit status. The feature lane retains the
 
 ### Scenario Outline: Progress write failures do not change terminal review results
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED 008be3662
+- [x] GREEN bde13b50b
 - [ ] REFACTOR
 
 ### Scenario: Rejected reviewer bytes never become progress output
@@ -191,15 +191,19 @@ recovery, and action-required exit status. The feature lane retains the
 
 ### Scenario: The real wrapper scopes managed progress to its CLI child
 
-- [x] RED — `9c53a5441`
-- [x] GREEN — `b4f05e1a8`
+- [x] RED 9c53a5441
+- [x] GREEN b4f05e1a8
 - [ ] REFACTOR
 
 ### Scenario: The real public command removes managed progress from the reviewer environment
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED 008be3662
+- [x] GREEN bde13b50b
 - [ ] REFACTOR
+
+## Feature-level cross-scenario refactor
+
+- [ ] cross-scenario
 
 ### Scenario: No generated required-review workflow bypasses the managed wrapper
 
