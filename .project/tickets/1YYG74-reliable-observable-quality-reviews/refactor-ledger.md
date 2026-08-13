@@ -28,6 +28,12 @@ Scope: `origin/main...codex/reliable-quality-review`
 9. **Scrub managed progress case-insensitively** — wrapper children remove every
    casing of the private signal before deliberate JSON-review opt-in, matching
    Windows environment semantics.
+10. **Make reviewer transitions explicit** — starting a new progress stage now
+    cancels the prior stage's heartbeat, preventing stale route messages.
+11. **Harden source-route discovery** — the wrapper trusts a source checkout
+    only when its CLI package identifies itself as Safeword.
+12. **Name effect and reviewer failures precisely** — effect diagnostics use an
+    explicit noun map and degraded reviews explain early process exits.
 
 ## Struck or deferred
 
@@ -38,6 +44,9 @@ Scope: `origin/main...codex/reliable-quality-review`
 - The filesystem acknowledgement loop in the wrapper integration test directly
   proves progress arrives before process completion; abstracting it would hide
   the temporal contract.
+- Forwarding `start(message)` as `start(message, undefined)` was rejected after
+  its focused test exposed an observable adapter-call-shape change; retain the
+  small branch that preserves compatibility.
 - Repository-wide Knip, experiment, and clone findings predate this ticket and
   are outside this delivery's single purpose.
 

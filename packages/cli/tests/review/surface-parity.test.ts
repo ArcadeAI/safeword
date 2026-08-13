@@ -88,6 +88,7 @@ function runResolver(
       case 'source': {
         mkdirSync(nodePath.join(fixture, 'packages/cli/src'), { recursive: true });
         writeFileSync(nodePath.join(fixture, 'packages/cli/src/cli.ts'), '');
+        writeFileSync(nodePath.join(fixture, 'packages/cli/package.json'), '{"name":"safeword"}');
 
         break;
       }
@@ -361,6 +362,31 @@ exit ${status}`,
     } finally {
       rmSync(fixture, { recursive: true, force: true });
     }
+  });
+
+  it('rejects a lookalike source checkout that is not the Safeword package', () => {
+    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-source-'));
+    try {
+      mkdirSync(nodePath.join(fixture, 'packages/cli/src'), { recursive: true });
+      writeFileSync(nodePath.join(fixture, 'packages/cli/src/cli.ts'), '');
+      writeFileSync(nodePath.join(fixture, 'packages/cli/package.json'), '{"name":"other-cli"}');
+
+      expect(reviewCandidates(fixture, {})).toHaveLength(0);
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
+  it('keeps every tracked wrapper copy byte-identical to the source template', () => {
+    const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
+    const canonical = readFileSync(nodePath.join(templates, 'hooks/run-review.ts'), 'utf8');
+
+    expect(readFileSync(nodePath.join(repoRoot, '.safeword/hooks/run-review.ts'), 'utf8')).toBe(
+      canonical,
+    );
+    expect(
+      readFileSync(nodePath.join(repoRoot, 'plugin/runtime/hooks/run-review.ts'), 'utf8'),
+    ).toBe(canonical);
   });
 
   it('runs the real source checkout CLI', () => {

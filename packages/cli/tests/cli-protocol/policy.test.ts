@@ -112,6 +112,19 @@ describe('CLI execution policy', () => {
     }).toThrow(/offline/);
   });
 
+  it('names network effects without truncating the effect class', () => {
+    const result = createResult({
+      state: 'action_required',
+      effects: { network: [{ kind: 'request', target: 'registry.npmjs.org' }] },
+    });
+
+    expect(() => {
+      assertEffectPolicy({ ...definition('status'), networkPolicy: 'declared' }, result, {
+        offline: false,
+      });
+    }).toThrow(/observe command status reported network effects/);
+  });
+
   it('rejects completed effects from a plan command', () => {
     const result = createResult({
       state: 'action_required',
@@ -203,6 +216,21 @@ describe('CLI execution policy', () => {
     expect(cancel).toHaveBeenCalledWith(1);
     expect(cancel).toHaveBeenCalledWith(2);
     expect(emit).not.toHaveBeenCalled();
+  });
+
+  it('cancels a previous stage heartbeat when a new stage starts', () => {
+    const cancel = vi.fn();
+    let nextHandle = 0;
+    const progress = createProgressReporter({
+      schedule: () => (nextHandle += 1),
+      cancel,
+      emit: vi.fn(),
+    });
+
+    progress.heartbeat?.('Still waiting for the preferred reviewer…');
+    progress.start('Requesting the alternate reviewer…');
+
+    expect(cancel).toHaveBeenCalledWith(1);
   });
 
   it('ignores a heartbeat interval override that is not a positive value under the default', () => {

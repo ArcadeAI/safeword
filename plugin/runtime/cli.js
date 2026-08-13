@@ -44313,6 +44313,7 @@ var init_coordinator = __esm(() => {
   init_policy();
   init_runtime();
   FAILURE_CAUSES = {
+    process_failed: "exited before returning a review",
     timed_out: "ran out of time",
     not_installed: "was not found on PATH",
     unsupported: "does not support the required review flags",
@@ -61558,6 +61559,13 @@ import nodePath90 from "path";
 import process18 from "process";
 
 // src/cli-protocol/policy.ts
+var EFFECT_NOUNS = {
+  files: "file",
+  packages: "package",
+  configuration: "configuration",
+  network: "network",
+  destructive: "destructive"
+};
 function firstNonEmptyEffect(effects) {
   return Object.keys(effects).find((effectClass) => effects[effectClass].length > 0);
 }
@@ -61574,7 +61582,7 @@ function assertEffectPolicy(definition, result, options) {
   if (definition.effectClass === "observe" || definition.effectClass === "plan") {
     const effectClass = firstNonEmptyEffect(result.effects);
     if (effectClass !== undefined) {
-      throw new Error(`The ${definition.effectClass} command ${definition.name} reported ${effectClass.slice(0, -1)} effects`);
+      throw new Error(`The ${definition.effectClass} command ${definition.name} reported ${EFFECT_NOUNS[effectClass]} effects`);
     }
   }
   if (definition.effectClass === "hook" && (result.effects.packages.length > 0 || result.effects.network.length > 0 || result.effects.destructive.length > 0)) {
@@ -61635,6 +61643,9 @@ function createProgressReporter(adapters) {
     start(message) {
       if (announcementHandle !== undefined)
         adapters.cancel(announcementHandle);
+      if (heartbeatHandle !== undefined)
+        adapters.cancel(heartbeatHandle);
+      heartbeatHandle = undefined;
       announcementHandle = adapters.schedule(() => {
         adapters.emit(message);
         announcementHandle = undefined;

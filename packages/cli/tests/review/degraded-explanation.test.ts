@@ -32,15 +32,26 @@ function scratch(trusted = false): string {
 }
 
 /** Installs a reviewer that fails a given way, plus an author runtime that answers. */
-function installReviewers(host: string, assignedFails: 'hang' | 'unauthenticated'): string {
+function installReviewers(
+  host: string,
+  assignedFails: 'hang' | 'process' | 'unauthenticated',
+): string {
   const bin = nodePath.join(host, 'bin');
   mkdirSync(bin, { recursive: true });
 
-  const codexBody =
-    assignedFails === 'hang'
-      ? 'exec /bin/sleep 3600'
-      : String.raw`printf 'not logged in\n' >&2
+  let codexBody = 'exit 3';
+  switch (assignedFails) {
+    case 'hang': {
+      codexBody = 'exec /bin/sleep 3600';
+      break;
+    }
+    case 'unauthenticated': {
+      codexBody = String.raw`printf 'not logged in\n' >&2
 exit 1`;
+      break;
+    }
+    case 'process':
+  }
   writeFileSync(
     nodePath.join(bin, 'codex'),
     String.raw`#!/bin/sh
@@ -67,7 +78,9 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
   return bin;
 }
 
-async function degradedMessage(assignedFails: 'hang' | 'unauthenticated'): Promise<string> {
+async function degradedMessage(
+  assignedFails: 'hang' | 'process' | 'unauthenticated',
+): Promise<string> {
   const directory = scratch();
   writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
   const bin = installReviewers(scratch(true), assignedFails);
@@ -116,6 +129,13 @@ describe('a degraded review explains why it fell back', () => {
     const message = await degradedMessage('unauthenticated');
 
     expect(message).toMatch(/not signed in/iu);
+    expect(message).toMatch(/not independent/iu);
+  }, 30_000);
+
+  it('explains when a reviewer process exits without a review', async () => {
+    const message = await degradedMessage('process');
+
+    expect(message).toMatch(/exited before returning a review/iu);
     expect(message).toMatch(/not independent/iu);
   }, 30_000);
 });

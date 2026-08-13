@@ -60,8 +60,16 @@ export function reviewCandidates(
   const localCli = nodePath.join(projectDirectory, 'node_modules', '.bin', 'safeword');
   if (existsSync(localCli)) candidates.push([localCli, []]);
 
+  const sourcePackage = nodePath.join(projectDirectory, 'packages', 'cli', 'package.json');
   const sourceCli = nodePath.join(projectDirectory, 'packages', 'cli', 'src', 'cli.ts');
-  if (existsSync(sourceCli)) candidates.push(['bun', [sourceCli]]);
+  if (existsSync(sourceCli) && existsSync(sourcePackage)) {
+    try {
+      const manifest = JSON.parse(readFileSync(sourcePackage, 'utf8')) as { name?: unknown };
+      if (manifest.name === 'safeword') candidates.push(['bun', [sourceCli]]);
+    } catch {
+      // A malformed lookalike checkout is not a trusted Safeword source route.
+    }
+  }
 
   const versionPath = nodePath.join(projectDirectory, '.safeword', 'version');
   if (existsSync(versionPath)) {

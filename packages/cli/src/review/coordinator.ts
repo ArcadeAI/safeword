@@ -180,6 +180,7 @@ function agentName(agent: ReviewAgent): string {
 }
 
 const FAILURE_CAUSES: Readonly<Record<string, string>> = {
+  process_failed: 'exited before returning a review',
   timed_out: 'ran out of time',
   not_installed: 'was not found on PATH',
   unsupported: 'does not support the required review flags',

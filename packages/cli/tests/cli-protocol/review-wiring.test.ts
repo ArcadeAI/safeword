@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { chmodSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -1543,6 +1544,53 @@ describe('cross-agent review public-command wiring', () => {
     expect(result.stderr).not.toContain('Preparing the review packet');
     expect(result.stderr).toContain('Running the independent review in the background…');
     expect(result.stderr).toContain('Still waiting for the independent review…');
+  });
+
+  it('carries managed progress through the wrapper, real CLI, and real coordinator', () => {
+    const directory = createTemporaryDirectory();
+    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+    const log = nodePath.join(directory, 'review.log');
+    const bin = installFakeReviewer(directory, 'codex');
+    const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
+    const result = spawnSync(
+      process.execPath,
+      [
+        nodePath.join(repoRoot, 'packages/cli/templates/hooks/run-review.ts'),
+        'review',
+        'run',
+        'quality-review',
+        'review-input.md',
+        '--agent-handoff',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: repoRoot,
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          PATH: `${bin}:${process.env.PATH ?? '/usr/bin:/bin'}`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_PROGRESS_HEARTBEAT_MS: '150',
+          SAFEWORD_REVIEW_FAKE_DELAY_AGENT: 'codex',
+          SAFEWORD_REVIEW_LOG: log,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+        timeout: 30_000,
+      },
+    );
+
+    expect(result.status, result.stderr || result.stdout).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      schema_version: 1,
+      state: 'healthy',
+      data: { actual_reviewer: 'codex', reviewer_output: { verdict: 'approve' } },
+    });
+    expect(result.stderr).not.toContain('Preparing the review packet');
+    expect(result.stderr).toContain('Running the independent review in the background…');
+    expect(readFileSync(log, 'utf8')).toBe('codex\n');
   });
 
   it('preserves an action-required result after managed progress', async () => {
