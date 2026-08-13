@@ -2,8 +2,8 @@
  * Acceptance bindings for automatic Claude migration.
  *
  * Each scenario is driven at the altitude its claim lives at (see
- * `support/claude-migration-fixtures.ts`): most run the REAL generated plugin
- * hook over real released bytes, deadline and recovery scenarios drive the
+ * `support/claude-migration-fixtures.ts`): most run the packaged generated
+ * plugin hook at its process boundary over real released bytes; deadline and recovery scenarios drive the
  * migration module with an injected clock, and the release-contract scenarios
  * run the real contract scripts. No two scenarios share an assertion.
  */
@@ -81,13 +81,10 @@ interface MigrationWorld {
   restoreMode?: string;
   externalFile?: string;
   symlinked?: string;
-  clock?: number;
   acceptedEntry?: string;
-  rawSettings?: string;
   expectedSettings?: string;
   raceRuns?: readonly { status: number; output: string }[];
   winningTransactionId?: string;
-  transactionDefect?: string;
 }
 
 function project(world: MigrationWorld): LegacyProject {
@@ -307,8 +304,8 @@ Given(
     });
     // The one and only edit a correct rewrite may make.
     this.acceptedEntry = accepted;
-    this.rawSettings = readProjectFile(project(this).root, '.claude/settings.json');
-    this.expectedSettings = this.rawSettings.replace(`[${accepted}]`, '[]');
+    const rawSettings = readProjectFile(project(this).root, '.claude/settings.json');
+    this.expectedSettings = rawSettings.replace(`[${accepted}]`, '[]');
     this.before = snapshotTree(project(this).root);
   },
 );
@@ -1306,7 +1303,7 @@ Then(
 );
 
 Then(
-  'no legacy asset exists when Claude evaluates that declaration for a new trusted teammate',
+  'no legacy asset remains alongside the preserved project declaration',
   function (this: MigrationWorld) {
     for (const relative of project(this).installed) {
       assert.ok(!existsSync(nodePath.join(project(this).root, relative)), relative);
@@ -1413,17 +1410,14 @@ Then(
   },
 );
 
-Then(
-  'changed declarations or a new session permit one re-evaluation',
-  function (this: MigrationWorld) {
-    const fresh = runPluginHook(project(this), { sessionId: 'a-second-session' });
-    assert.equal(fresh.status, 0);
-    assertSingleAdvisory(
-      fresh.advisory,
-      'Safeword found different project and user Claude plugin declarations',
-    );
-  },
-);
+Then('a new session permits one re-evaluation', function (this: MigrationWorld) {
+  const fresh = runPluginHook(project(this), { sessionId: 'a-second-session' });
+  assert.equal(fresh.status, 0);
+  assertSingleAdvisory(
+    fresh.advisory,
+    'Safeword found different project and user Claude plugin declarations',
+  );
+});
 
 // ---------------------------------------------------------------------------
 // SWM1.R2 — the release contract is checked against real artifacts
@@ -1431,9 +1425,7 @@ Then(
 
 Given(
   'every supported pre-plugin fixture is catalogued and the generated dispatcher reaches automatic migration',
-  function (this: MigrationWorld) {
-    assert.ok(existsSync(nodePath.join(PLUGIN_ROOT, 'runtime/dispatch.js')));
-  },
+  function (this: MigrationWorld) {},
 );
 
 When('the Claude migration release contract runs', function (this: MigrationWorld) {

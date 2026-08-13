@@ -5,8 +5,9 @@
  * make it happen, so a scenario can be exercised at the altitude its claim
  * actually lives at:
  *
- * - `runPluginHook` drives the REAL generated plugin through its real
- *   `hooks.json` command, in a real temp project, over real legacy bytes. This
+ * - `runPluginHook` drives the packaged generated plugin through its
+ *   `hooks.json` command at the process boundary, in a real temp project, over
+ *   real legacy bytes. This
  *   is the default: most scenarios are about what happens "after the exact
  *   plugin handles a prompt", so anything below the hook would not prove it.
  * - `migrateDirectly` / `recoverDirectly` drive the migration module with an

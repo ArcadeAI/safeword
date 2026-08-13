@@ -187,7 +187,7 @@ Feature: Migrate legacy Claude projects automatically
       Given a cleanup-ready project declares the exact marketplace and plugin at project scope
       When automatic contraction completes
       Then the exact project-scoped declaration and unrelated settings remain byte-for-byte intact
-      And no legacy asset exists when Claude evaluates that declaration for a new trusted teammate
+      And no legacy asset remains alongside the preserved project declaration
 
     Scenario: Identical project and user declarations resolve to one effective plugin
       Given the exact plugin is declared at both project and user scope
@@ -202,7 +202,7 @@ Feature: Migrate legacy Claude projects automatically
       Then legacy delivery and both declarations remain unchanged
       And the prompt continues with one scope-conflict advisory
       And unchanged declarations suppress another migration launch in that session
-      And changed declarations or a new session permit one re-evaluation
+      And a new session permits one re-evaluation
 
   @automatic-claude-migration.SWM1.R2 @surface.safeword-cli
   Rule: automatic-claude-migration.SWM1.R2 — Every supported historical fingerprint and generated migration entrypoint is release-checked against real artifacts
