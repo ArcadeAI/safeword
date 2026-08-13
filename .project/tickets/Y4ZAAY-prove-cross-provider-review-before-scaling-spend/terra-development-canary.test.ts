@@ -542,6 +542,48 @@ describe("Terra canary pre-dispatch decision", () => {
 });
 
 describe("Terra canary write-side attempt lifecycle", () => {
+  test("rejects a symlinked output root before consuming authorization", async () => {
+    const root = mkdtempSync(join(tmpdir(), "terra-canary-symlink-"));
+    const target = join(root, "target");
+    const output = join(root, "output");
+    mkdirSync(target);
+    symlinkSync(target, output);
+    const upstream = fakeUpstream();
+
+    await expect(
+      initializeCanary({ binding: BINDING, outputDirectory: output, upstream })
+    ).rejects.toThrow("output path must be a real directory");
+    expect(upstream.consumeCalls).toBe(0);
+  });
+
+  test("validates the exact dispatch context before posting an attempt start", async () => {
+    const directory = outputDirectory();
+    const upstream = fakeUpstream();
+    await initializeCanary({ binding: BINDING, outputDirectory: directory, upstream });
+    upstream.events.length = 0;
+
+    await expect(
+      runCanaryAttempt({
+        attemptId: "attempt-1",
+        binding: BINDING,
+        dispatch: async () => validDispatchEvidence(),
+        intentId: "intent-1",
+        outputDirectory: directory,
+        prepare: async (context) => {
+          expect(context).toEqual({
+            attemptId: "attempt-1",
+            intentId: "intent-1",
+            outputDirectory: directory,
+            sequence: 1,
+          });
+          throw new Error("input context mismatch");
+        },
+        upstream,
+      })
+    ).rejects.toThrow("input context mismatch");
+    expect(upstream.events).toEqual([]);
+  });
+
   test("durably brackets one dispatch between its upstream start and completion", async () => {
     const directory = outputDirectory();
     const upstream = fakeUpstream();

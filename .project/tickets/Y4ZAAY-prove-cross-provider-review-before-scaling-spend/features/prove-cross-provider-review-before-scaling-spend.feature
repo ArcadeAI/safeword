@@ -59,6 +59,12 @@ Feature: Prove cross-provider review before scaling spend
       And every retained turn has exactly one earlier matching intent and one native response
       And every matched response proves OpenAI GPT-5.6 Terra at standard service tier
 
+    Scenario: The paid child receives only its provider credential
+      Given the parent holds separate GitHub and OpenAI credentials for an authorized live attempt
+      When the parent launches the paid child
+      Then the child receives the OpenAI credential
+      And the child receives no GitHub credential
+
   @prove-cross-provider-review-before-scaling-spend.SWM1.R2
   Rule: prove-cross-provider-review-before-scaling-spend.SWM1.R2 — Durable attempt and cost evidence bounds every new paid attempt
 
@@ -66,6 +72,14 @@ Feature: Prove cross-provider review before scaling spend
       Given trusted upstream registration contains an unused one-time initialization authorization
       When the maintainer explicitly initializes the canary
       Then the authorization is consumed and durable accounting starts at zero attempts and zero spend
+      And no paid request is made
+
+    @rejection
+    Scenario: Initialization refuses a redirected output root
+      Given trusted upstream registration contains an unused one-time initialization authorization
+      And the requested output root is a symbolic link
+      When the maintainer explicitly initializes the canary
+      Then initialization is rejected before the authorization is consumed
       And no paid request is made
 
     Scenario Outline: Complete accounting enforces both paid limits after restart
@@ -155,7 +169,7 @@ Feature: Prove cross-provider review before scaling spend
     @rejection
     Scenario: Authorized corpus cannot dispatch unrelated paid input
       Given a durable authorization names one frozen development corpus
-      And the paid child input names a case or immutable review identity that differs from its frozen manifest
+      And the paid child input names a case, immutable review identity, or attempt context that differs from its frozen manifest or authorized attempt
       When live execution is requested
       Then the attempt is blocked before secrets are loaded
       And no paid request is made

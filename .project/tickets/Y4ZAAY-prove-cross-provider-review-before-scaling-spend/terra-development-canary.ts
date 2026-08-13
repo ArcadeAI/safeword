@@ -2,10 +2,7 @@ import { createHash } from "node:crypto";
 import { lstat, mkdir, open, readFile, stat, unlink } from "node:fs/promises";
 import { join } from "node:path";
 
-import {
-  priceProviderInventory,
-  validateProviderInventory,
-} from "./terra-canary-evidence";
+import { priceProviderInventory } from "./terra-canary-evidence";
 
 export const PICODOLLARS_PER_DOLLAR = 1_000_000_000_000n;
 export const INITIALIZATION_MARKER = "initialization.json";
@@ -343,6 +340,26 @@ async function ensureEvidenceDirectory(outputDirectory: string): Promise<void> {
   }
 }
 
+async function ensureOutputDirectory(outputDirectory: string): Promise<void> {
+  await mkdir(outputDirectory, { mode: 0o700, recursive: true });
+  const details = await lstat(outputDirectory);
+  if (details.isSymbolicLink() || !details.isDirectory()) {
+    throw new Error("canary output path must be a real directory");
+  }
+}
+
+async function requireUnredirectedOutputPath(outputDirectory: string): Promise<void> {
+  try {
+    if ((await lstat(outputDirectory)).isSymbolicLink()) {
+      throw new Error("canary output path must be a real directory");
+    }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+      throw error;
+    }
+  }
+}
+
 function validateReceipt(
   receipt: CanaryInitializationReceipt,
   expected: { authorizationId?: string; bindingDigest: string }
@@ -399,6 +416,7 @@ export async function initializeCanary(input: {
   receiptId: string;
   startedAttempts: 0;
 }> {
+  await requireUnredirectedOutputPath(input.outputDirectory);
   const digest = canaryBindingDigest(input.binding);
   const snapshot = await input.upstream.inspect(digest);
   if (snapshot.kind === "unavailable" || snapshot.kind === "unreadable") {
@@ -429,7 +447,7 @@ export async function initializeCanary(input: {
     bindingDigest: digest,
   });
 
-  await mkdir(input.outputDirectory, { recursive: true });
+  await ensureOutputDirectory(input.outputDirectory);
   await writeExclusiveJson(input.outputDirectory, INITIALIZATION_MARKER, {
     authorizationId: receipt.authorizationId,
     bindingDigest: digest,
@@ -614,7 +632,7 @@ export async function createCanaryProviderRecorder(
         requests,
         responses,
       };
-      const validated = validateProviderInventory(inventory);
+      const validated = priceProviderInventory(inventory);
       if (
         validated.attemptId !== input.attemptId ||
         validated.intentId !== input.intentId
@@ -969,13 +987,21 @@ async function retainedEvidenceRouteIsValid(
       )
     );
     return inventories.every((bytes) => {
-      const inventory = priceProviderInventory(JSON.parse(bytes));
-      return inventory.routeValid;
+      const parsed: unknown = JSON.parse(bytes);
+      if (
+        typeof parsed === "object" &&
+        parsed !== null &&
+        !Array.isArray(parsed) &&
+        Object.keys(parsed).length === 1 &&
+        typeof (parsed as Record<string, unknown>).id === "string"
+      ) {
+        // The pre-route recorder retained only the validated native response ID.
+        return true;
+      }
+      return priceProviderInventory(parsed).routeValid;
     });
   } catch {
-    // Completions created before route status was retained could only pass the
-    // then-strict validator, so they are necessarily route-valid.
-    return true;
+    return false;
   }
 }
 
@@ -1289,6 +1315,7 @@ async function runCanaryAttemptWhileLocked(input: {
   }>;
   intentId: string;
   outputDirectory: string;
+  prepare?(context: CanaryDispatchContext): Promise<void>;
   upstream: CanaryUpstream;
 }): Promise<{
   attemptId: string;
@@ -1316,6 +1343,13 @@ async function runCanaryAttemptWhileLocked(input: {
   await ensureEvidenceDirectory(input.outputDirectory);
 
   const sequence = inspected.startedAttempts + 1;
+  const context = {
+    attemptId: input.attemptId,
+    intentId: input.intentId,
+    outputDirectory: input.outputDirectory,
+    sequence,
+  };
+  await input.prepare?.(context);
   const digest = canaryBindingDigest(input.binding);
   const start = await input.upstream.postAttemptStart({
     attemptId: input.attemptId,
@@ -1341,12 +1375,7 @@ async function runCanaryAttemptWhileLocked(input: {
     kind: "attempt-start",
   });
 
-  const completed = await input.dispatch({
-    attemptId: input.attemptId,
-    intentId: input.intentId,
-    outputDirectory: input.outputDirectory,
-    sequence,
-  });
+  const completed = await input.dispatch(context);
   requirePicodollars(
     completed.attemptCostPicodollars,
     "attemptCostPicodollars"

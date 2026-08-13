@@ -18,6 +18,7 @@ import {
 
 const execFileAsync = promisify(execFile);
 const PAID_CHILD_MAX_BUFFER_BYTES = 32 * 1024 * 1024;
+const GIT_MAX_BUFFER_BYTES = 32 * 1024 * 1024;
 const CHILD_ENVIRONMENT_ALLOWLIST = [
   "NODE_EXTRA_CA_CERTS",
   "PATH",
@@ -26,7 +27,8 @@ const CHILD_ENVIRONMENT_ALLOWLIST = [
 ] as const;
 const REGISTRATION_PATH =
   ".project/tickets/CWGYH0-pr-review-eval/corpus-registration-development-2026-08-11.json";
-const REGISTRATION_DIGEST_PATH = `${REGISTRATION_PATH.slice(0, -5)}.sha256`;
+const REGISTRATION_DIGEST_PATH =
+  ".project/tickets/CWGYH0-pr-review-eval/corpus-registration-development-2026-08-11.sha256";
 const PRIMARY_MANIFEST_PATH =
   ".project/tickets/CWGYH0-pr-review-eval/scored-cases-frozen-2026-08-01.json";
 const RESERVE_MANIFEST_PATH =
@@ -67,7 +69,7 @@ export function createTerraPaidChildCommand(input: {
       ),
       input.inputPath,
     ],
-    command: "bun",
+    command: process.execPath,
   };
 }
 
@@ -150,6 +152,7 @@ async function git(directory: string, args: string[]): Promise<string> {
     const { stdout } = await execFileAsync("git", args, {
       cwd: directory,
       encoding: "utf8",
+      maxBuffer: GIT_MAX_BUFFER_BYTES,
     });
     return stdout.trim();
   } catch (error) {
@@ -228,9 +231,16 @@ export async function preflightPinnedCheckout(
     throw new Error("canonical origin main is unavailable");
   }
   try {
-    await execFileAsync("git", ["merge-base", "--is-ancestor", checkout.commit, mainCommit], {
-      cwd: checkout.directory,
-    });
+    await execFileAsync(
+      "git",
+      ["fetch", "--quiet", "--no-tags", "origin", "refs/heads/main"],
+      { cwd: checkout.directory, maxBuffer: GIT_MAX_BUFFER_BYTES }
+    );
+    await execFileAsync(
+      "git",
+      ["merge-base", "--is-ancestor", checkout.commit, "FETCH_HEAD"],
+      { cwd: checkout.directory, maxBuffer: GIT_MAX_BUFFER_BYTES }
+    );
   } catch {
     throw new Error("pinned commit is not reachable from canonical origin main");
   }
@@ -247,6 +257,7 @@ async function gitBytes(directory: string, objectPath: string): Promise<string> 
     const { stdout } = await execFileAsync("git", ["show", objectPath], {
       cwd: directory,
       encoding: "utf8",
+      maxBuffer: GIT_MAX_BUFFER_BYTES,
     });
     return stdout;
   } catch (error) {
@@ -319,7 +330,12 @@ export async function verifyAuthorizedPaidChildInput(input: {
   ) {
     throw new Error("committed corpus manifest digest does not match registration");
   }
-  const request = JSON.parse(inputBytes) as Record<string, unknown>;
+  let request: Record<string, unknown>;
+  try {
+    request = JSON.parse(inputBytes) as Record<string, unknown>;
+  } catch {
+    throw new Error("paid child input is invalid JSON");
+  }
   const exactKeys = (value: unknown, keys: readonly string[]): value is Record<string, unknown> =>
     typeof value === "object" &&
     value !== null &&
@@ -352,7 +368,7 @@ export async function verifyAuthorizedPaidChildInput(input: {
   }
   if (
     input.expectedContext !== undefined &&
-    JSON.stringify(context) !== JSON.stringify(input.expectedContext)
+    canonicalJson(context) !== canonicalJson(input.expectedContext)
   ) {
     throw new Error("paid child context does not match the authorized attempt");
   }
@@ -389,10 +405,45 @@ export async function verifyAuthorizedPaidChildInput(input: {
     review?.sourceSha !== expectedSourceSha ||
     review?.modelCutoff !== manifest?.modelCutoff ||
     review?.runnerRef !== manifest?.runnerRef ||
-    JSON.stringify(review?.causalPaths) !== JSON.stringify(corpusCase.causalPaths) ||
-    JSON.stringify(review?.failureDescription) !== JSON.stringify(corpusCase.failureDescription)
+    canonicalJson(review?.causalPaths) !== canonicalJson(corpusCase.causalPaths) ||
+    canonicalJson(review?.failureDescription) !== canonicalJson(corpusCase.failureDescription)
   ) {
     throw new Error("paid child review does not match its frozen corpus case");
+  }
+}
+
+function canonicalJson(value: unknown): string {
+  const canonicalize = (item: unknown): unknown => {
+    if (Array.isArray(item)) {
+      return item.map(canonicalize);
+    }
+    if (typeof item === "object" && item !== null) {
+      return Object.fromEntries(
+        Object.entries(item)
+          .sort(([left], [right]) => left.localeCompare(right))
+          .map(([key, nested]) => [key, canonicalize(nested)])
+      );
+    }
+    return item;
+  };
+  return JSON.stringify(canonicalize(value));
+}
+
+function requireAuthorizedCheckouts(input: {
+  adapterCheckout: PinnedCheckout;
+  binding: CanaryInitializationBinding;
+  harnessCheckout: PinnedCheckout;
+}): void {
+  const { adapterCheckout, binding, harnessCheckout } = input;
+  if (
+    adapterCheckout.canonicalRepository !== binding.canonicalRepository ||
+    harnessCheckout.canonicalRepository !== binding.canonicalRepository ||
+    adapterCheckout.commit !== binding.adapterCommit ||
+    adapterCheckout.tag !== binding.adapterTag ||
+    harnessCheckout.commit !== binding.harnessCommit ||
+    harnessCheckout.tag !== binding.harnessTag
+  ) {
+    throw new Error("pinned checkouts do not match the canary authorization");
   }
 }
 
@@ -443,7 +494,7 @@ async function runCredentialedChild<T>(input: {
   return input.parent({ dispatch, githubToken });
 }
 
-async function runTerraPaidCanary(input: {
+export async function runTerraPaidCanary(input: {
   adapterCheckout: PinnedCheckout;
   attemptId: string;
   binding: CanaryInitializationBinding;
@@ -456,7 +507,9 @@ async function runTerraPaidCanary(input: {
   loadOpenAIKey(): Promise<string>;
   outputDirectory: string;
   registration: { corpusDigest: string; registrationCommit: string };
+  spawnChild?: (request: PaidChildRequest) => Promise<PaidChildResult>;
 }): Promise<Awaited<ReturnType<typeof runCanaryAttempt>>> {
+  requireAuthorizedCheckouts(input);
   await Promise.all([
     preflightPinnedCheckout(input.adapterCheckout),
     preflightPinnedCheckout(input.harnessCheckout),
@@ -485,7 +538,10 @@ async function runTerraPaidCanary(input: {
       runCanaryAttempt({
         attemptId: input.attemptId,
         binding: input.binding,
-        dispatch: async (context) => {
+        dispatch: async () => parseTerraPaidChildResult(await dispatch()),
+        intentId: input.intentId,
+        outputDirectory: input.outputDirectory,
+        prepare: async (context) => {
           await verifyAuthorizedPaidChildInput({
             checkout: input.harnessCheckout,
             expectedContext: context,
@@ -493,13 +549,10 @@ async function runTerraPaidCanary(input: {
             registration,
             registrationCommit: input.registration.registrationCommit,
           });
-          return parseTerraPaidChildResult(await dispatch());
         },
-        intentId: input.intentId,
-        outputDirectory: input.outputDirectory,
         upstream: input.createUpstream(githubToken),
       }),
-    spawnChild: spawnPaidChild,
+    spawnChild: input.spawnChild ?? spawnPaidChild,
   });
 }
 
@@ -517,6 +570,7 @@ export async function runAuthorizedTerraPaidCanary(input: {
   loadGitHubToken(): Promise<string>;
   loadOpenAIKey(): Promise<string>;
   outputDirectory: string;
+  spawnChild?: (request: PaidChildRequest) => Promise<PaidChildResult>;
 }): Promise<Awaited<ReturnType<typeof runCanaryAttempt>>> {
   const binding: CanaryInitializationBinding = {
     adapterCommit: input.authorization.adapterCommit,
@@ -556,5 +610,6 @@ export async function runAuthorizedTerraPaidCanary(input: {
       corpusDigest: input.authorization.corpusDigest,
       registrationCommit: input.authorization.registrationCommit,
     },
+    ...(input.spawnChild === undefined ? {} : { spawnChild: input.spawnChild }),
   });
 }

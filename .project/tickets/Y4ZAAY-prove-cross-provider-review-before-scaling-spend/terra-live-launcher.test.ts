@@ -7,9 +7,16 @@ import { promisify } from "node:util";
 import { describe, expect, test } from "vitest";
 
 import {
+  initializeCanary,
+  type CanaryInitializationBinding,
+  type CanaryUpstream,
+} from "./terra-development-canary";
+
+import {
   createTerraPaidChildCommand,
   parseTerraPaidChildResult,
   preflightPinnedCheckout,
+  runTerraPaidCanary,
   spawnPaidChild,
   verifyAuthorizedPaidChildInput,
   type PaidChildRequest,
@@ -18,6 +25,117 @@ import {
 
 const execFileAsync = promisify(execFile);
 const CORPUS_DIGEST = "4bf3fd10c20222088ccf11bd2b187561021608cb07a646bc4b9294babfc33c75";
+
+function memoryUpstream(): CanaryUpstream {
+  let receipt: Awaited<ReturnType<CanaryUpstream["consumeInitialization"]>> | undefined;
+  let head = { observedCostPicodollars: "0", startedAttempts: 0 };
+  const starts: Awaited<ReturnType<CanaryUpstream["postAttemptStart"]>>[] = [];
+  const completions: Awaited<ReturnType<CanaryUpstream["postAttemptCompletion"]>>[] = [];
+  return {
+    consumeInitialization: async ({ authorizationId, bindingDigest }) => {
+      receipt = {
+        authorizationId,
+        bindingDigest,
+        observedCostPicodollars: "0",
+        receiptId: "initialization-receipt",
+        startedAttempts: 0,
+      };
+      return receipt;
+    },
+    inspect: async () =>
+      receipt === undefined
+        ? { authorizationId: "authorization-1", kind: "ready" }
+        : { completions, head, kind: "consumed", receipt, starts },
+    postAttemptCompletion: async (input) => {
+      const completion = {
+        attemptCostPicodollars: input.attemptCostPicodollars,
+        attemptId: input.attemptId,
+        nativeUsageDigest: input.nativeUsageDigest,
+        observedCostPicodollars: input.observedCostPicodollars,
+        receiptId: `completion-${input.sequence}`,
+        responseDigest: input.responseDigest,
+        sequence: input.sequence,
+        startReceiptId: input.startReceiptId,
+      };
+      completions.push(completion);
+      head = { ...head, observedCostPicodollars: input.observedCostPicodollars };
+      return completion;
+    },
+    postAttemptStart: async (input) => {
+      const start = {
+        attemptId: input.attemptId,
+        intentId: input.intentId,
+        receiptId: `start-${input.sequence}`,
+        sequence: input.sequence,
+        startedAttempts: input.sequence,
+      };
+      starts.push(start);
+      head = { ...head, startedAttempts: input.sequence };
+      return start;
+    },
+  };
+}
+
+function validChildOutput(): PaidChildResult {
+  const rawUsage = {
+    input_tokens: 10,
+    input_tokens_details: { cached_tokens: 2 },
+    output_tokens: 3,
+  };
+  const rawBody = JSON.stringify({
+    id: "resp-terra-1",
+    model: "gpt-5.6-terra",
+    output: [],
+    service_tier: "default",
+    status: "completed",
+    usage: rawUsage,
+  });
+  const rawResponseBytes = JSON.stringify({
+    intent: { attemptId: "attempt-1", intentId: "intent-1", sequence: 1 },
+    requests: [{
+      endpoint: "https://api.openai.com/v1/responses",
+      intentId: "intent-1",
+      model: "gpt-5.6-terra",
+      sequence: 2,
+      serviceTier: "default",
+      stage: "repository-reading",
+      turnIntentId: "turn-intent-1",
+    }],
+    responses: [{
+      errorMessage: null,
+      errorName: null,
+      httpStatus: 200,
+      intentId: "intent-1",
+      nativeUsage: rawUsage,
+      outcome: "response",
+      rawBody,
+      requestId: "req-terra-1",
+      responseId: "resp-terra-1",
+      returnedModel: "gpt-5.6-terra",
+      returnedServiceTier: "default",
+      sequence: 3,
+      stage: "repository-reading",
+      turnIntentId: "turn-intent-1",
+    }],
+  });
+  const nativeUsageBytes = JSON.stringify({
+    turns: [{
+      rawUsage,
+      requestId: "req-terra-1",
+      responseId: "resp-terra-1",
+      stage: "repository-reading",
+    }],
+  });
+  return {
+    exitCode: 0,
+    stderr: "",
+    stdout: `${JSON.stringify({
+      attemptCostPicodollars: "65500000",
+      nativeUsageBytes,
+      rawResponseBytes,
+    })}\n`,
+  };
+}
 
 async function pinnedCheckout(name: string): Promise<PinnedCheckout> {
   const directory = await mkdtemp(join(tmpdir(), `${name}-`));
@@ -79,6 +197,139 @@ async function pinnedCheckout(name: string): Promise<PinnedCheckout> {
 }
 
 describe("credential-separated live launcher", () => {
+
+  test.each([
+    ["adapter commit", { adapterCommit: "0".repeat(40) }],
+    ["adapter tag", { adapterTag: "other-adapter-tag" }],
+    ["harness commit", { harnessCommit: "0".repeat(40) }],
+    ["harness tag", { harnessTag: "other-harness-tag" }],
+    ["canonical repository", { canonicalRepository: "ArcadeAI/other" }],
+  ])("rejects a checkout that differs from the authorized %s before loading credentials", async (_label, patch) => {
+    const adapter = await pinnedCheckout("bound-adapter");
+    const harness = await pinnedCheckout("bound-harness");
+    const binding: CanaryInitializationBinding = {
+      adapterCommit: adapter.commit,
+      adapterTag: adapter.tag,
+      attemptLimit: 10,
+      canonicalRepository: adapter.canonicalRepository,
+      corpusDigest: CORPUS_DIGEST,
+      costLimitPicodollars: "15000000000000",
+      harnessCommit: harness.commit,
+      harnessTag: harness.tag,
+      model: "gpt-5.6-terra",
+      outputIdentity: "terra-canary-test",
+      receiptBudget: 21,
+      serviceTier: "default",
+      ticketId: "Y4ZAAY",
+      ...patch,
+    };
+    let secretLoads = 0;
+
+    await expect(runTerraPaidCanary({
+      adapterCheckout: adapter,
+      attemptId: "attempt-1",
+      binding,
+      createUpstream: () => {
+        throw new Error("upstream must not be constructed");
+      },
+      harnessCheckout: harness,
+      inputPath: join(tmpdir(), "unused-input.json"),
+      intentId: "intent-1",
+      loadGitHubToken: async () => {
+        secretLoads += 1;
+        return "github-token";
+      },
+      loadOpenAIKey: async () => {
+        secretLoads += 1;
+        return "openai-key";
+      },
+      outputDirectory: join(tmpdir(), "unused-output"),
+      registration: {
+        corpusDigest: CORPUS_DIGEST,
+        registrationCommit: harness.commit,
+      },
+    })).rejects.toThrow("do not match the canary authorization");
+    expect(secretLoads).toBe(0);
+  });
+
+  test("runs the authorized composition while keeping GitHub credentials out of the paid child", async () => {
+    const adapter = await pinnedCheckout("composed-adapter");
+    const harness = await pinnedCheckout("composed-harness");
+    const binding: CanaryInitializationBinding = {
+      adapterCommit: adapter.commit,
+      adapterTag: adapter.tag,
+      attemptLimit: 10,
+      canonicalRepository: "ArcadeAI/safeword",
+      corpusDigest: CORPUS_DIGEST,
+      costLimitPicodollars: "15000000000000",
+      harnessCommit: harness.commit,
+      harnessTag: harness.tag,
+      model: "gpt-5.6-terra",
+      outputIdentity: "terra-canary-composed",
+      receiptBudget: 21,
+      serviceTier: "default",
+      ticketId: "Y4ZAAY",
+    };
+    const outputDirectory = join(await mkdtemp(join(tmpdir(), "terra-composed-")), "output");
+    const upstream = memoryUpstream();
+    await initializeCanary({ binding, outputDirectory, upstream });
+
+    const corpusDirectory = join(import.meta.dirname, "../CWGYH0-pr-review-eval");
+    const manifest = JSON.parse(
+      await readFile(join(corpusDirectory, "scored-cases-frozen-2026-08-01.json"), "utf8")
+    ) as { cases: Array<Record<string, unknown>>; modelCutoff: string; runnerRef: string };
+    const corpusCase = manifest.cases[0]!;
+    const inputPath = join(await mkdtemp(join(tmpdir(), "terra-composed-input-")), "input.json");
+    await writeFile(inputPath, JSON.stringify({
+      context: { attemptId: "attempt-1", intentId: "intent-1", outputDirectory, sequence: 1 },
+      expertsDirectory: join(tmpdir(), "terra-experts"),
+      policy: { maxVerifications: 2, toolCallsPerExpert: 3, wallClockMsPerExpert: 4_000 },
+      review: {
+        caseId: corpusCase.id,
+        causalPaths: corpusCase.causalPaths,
+        failureDescription: corpusCase.failureDescription,
+        modelCutoff: manifest.modelCutoff,
+        reviewBaseSha: corpusCase.reviewBaseSha,
+        runnerRef: manifest.runnerRef,
+        sourceSha: corpusCase.baseSha,
+        variant: "buggy",
+      },
+      target: { baseRef: "eval-base", root: join(tmpdir(), "terra-target") },
+    }), "utf8");
+    let childEnvironment: Record<string, string> | undefined;
+
+    await expect(runTerraPaidCanary({
+      adapterCheckout: adapter,
+      attemptId: "attempt-1",
+      binding,
+      createUpstream: (githubToken) => {
+        expect(githubToken).toBe("github-secret");
+        return upstream;
+      },
+      environment: { GITHUB_TOKEN: "ambient-github", PATH: process.env.PATH },
+      harnessCheckout: harness,
+      inputPath,
+      intentId: "intent-1",
+      loadGitHubToken: async () => "github-secret",
+      loadOpenAIKey: async () => "openai-secret",
+      outputDirectory,
+      registration: { corpusDigest: CORPUS_DIGEST, registrationCommit: harness.commit },
+      spawnChild: async (request) => {
+        childEnvironment = request.env;
+        return validChildOutput();
+      },
+    })).resolves.toMatchObject({
+      attemptId: "attempt-1",
+      observedCostPicodollars: 65_500_000n,
+      sequence: 1,
+    });
+    expect(childEnvironment).toMatchObject({
+      OPENAI_API_KEY: "openai-secret",
+      SAFEWORD_PAID_CANARY_RETRIES: "0",
+    });
+    expect(childEnvironment).not.toHaveProperty("GITHUB_TOKEN");
+    expect(JSON.stringify(childEnvironment)).not.toContain("github-secret");
+  });
 
   test("binds the paid child review to an exact frozen corpus case", async () => {
     const harness = await pinnedCheckout("harness-corpus-input");
@@ -156,7 +407,7 @@ describe("credential-separated live launcher", () => {
         "/tmp/pinned-harness/.project/tickets/Y4ZAAY-prove-cross-provider-review-before-scaling-spend/terra-paid-child.ts",
         "/tmp/attempt-input.json",
       ],
-      command: "bun",
+      command: process.execPath,
     });
   });
 
