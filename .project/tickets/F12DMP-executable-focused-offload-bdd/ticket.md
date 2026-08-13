@@ -11,6 +11,7 @@ phase_skips:
   - scenario-gate: The original independent coordinator timed out; the completed scenarios were subsequently covered by full diff quality review, public-CLI proof, real-Cucumber proof, and exact RGR provenance in test-definitions.md.
   - plan-implementation: The implementation was delivered in two behavior slices followed by two leaf refactors, as recorded in test-definitions.md and the commit history.
   - implement: The work log and verification record identify the completed implementation, review findings, refactors, and executable evidence.
+  - verify: The committed verify.md records full-suite, acceptance-lane, public-CLI, generated-artifact, audit, and review evidence gathered before completion.
 scope:
   - Enforce an explicit contract between offload Rule delivery tags and the executable Cucumber lane.
   - Replace bundled conjunction steps in the offload corpus with atomic observable steps.
