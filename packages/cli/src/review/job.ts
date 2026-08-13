@@ -275,7 +275,7 @@ function hasReviewJobLifecycle(candidate: Record<string, unknown>): boolean {
       return isCoherentTerminalResult(candidate, true);
     }
     case 'canceled': {
-      return candidate.result === undefined && typeof candidate.integrity === 'string';
+      return candidate.result === undefined;
     }
   }
 }
@@ -367,7 +367,8 @@ function hasReviewerIdentity(reviewer: Record<string, unknown>): boolean {
 
 function readJob(cwd: string, id: string): ReviewJobRecord {
   const parsed: unknown = JSON.parse(readFileSync(jobPath(cwd, id), 'utf8'));
-  if (!isReviewJobRecord(parsed) || parsed.id !== id) throw new Error('invalid review job record');
+  if (!isReviewJobRecord(parsed) || parsed.id !== id || !hasValidIntegrity(cwd, parsed))
+    throw new Error('invalid review job record');
   return parsed;
 }
 
@@ -457,6 +458,7 @@ function failExitedJob(cwd: string, record: ReviewJobRecord): CliResult {
 }
 
 function terminalResult(cwd: string, record: ReviewJobRecord): CliResult {
+  if (!hasValidIntegrity(cwd, record)) return invalidJobResult(record.id);
   if (record.state === 'canceled') {
     return createResult({
       state: 'action_required',
@@ -472,19 +474,6 @@ function terminalResult(cwd: string, record: ReviewJobRecord): CliResult {
   } catch {
     return staleResult(record);
   }
-  if (!hasValidIntegrity(cwd, record)) {
-    return createResult({
-      state: 'failed',
-      errors: [
-        {
-          code: 'REVIEW_JOB_INVALID',
-          message: 'The completed review could not be verified as worker-produced.',
-          retryable: true,
-        },
-      ],
-      data: { command: 'review status', status: 'failed', review_id: record.id },
-    });
-  }
   if (record.result !== undefined) return record.result;
   return createResult({
     state: 'failed',
@@ -492,6 +481,20 @@ function terminalResult(cwd: string, record: ReviewJobRecord): CliResult {
       { code: 'REVIEW_JOB_INVALID', message: 'The review job has no result.', retryable: true },
     ],
     data: { command: 'review status', status: 'failed', review_id: record.id },
+  });
+}
+
+function invalidJobResult(id: string): CliResult {
+  return createResult({
+    state: 'failed',
+    errors: [
+      {
+        code: 'REVIEW_JOB_INVALID',
+        message: 'The review job could not be verified as Safeword-produced.',
+        retryable: true,
+      },
+    ],
+    data: { command: 'review status', status: 'failed', review_id: id },
   });
 }
 

@@ -67,6 +67,8 @@ Scope: `origin/main...codex/reliable-quality-review`
 23. **Make integrity helpers explicit** — typed destructuring omits the MAC from
     serialization, and `readOrCreateIntegrityKey` names its persistence side
     effect at the signing boundary.
+24. **Name terminal job states once** — a typed terminal-state set centralizes
+    the classification used by persistence signing and verification.
 
 ## Struck or deferred
 

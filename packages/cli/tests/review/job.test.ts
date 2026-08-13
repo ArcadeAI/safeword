@@ -472,6 +472,27 @@ describe('durable review jobs', () => {
     expect(result.errors[0]?.code).toBe('REVIEW_JOB_INVALID');
   });
 
+  it('rejects tampered review inputs before computing staleness or retry guidance', async () => {
+    const cwd = project();
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, COMPLETE_WORKER));
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '3000');
+    await startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
+    const records = nodePath.join(cwd, '.safeword', 'state', 'reviews');
+    const recordName = readdirSync(records).find(candidate => candidate.endsWith('.json'));
+    if (recordName === undefined) throw new Error('completed job record was not written');
+    const recordPath = nodePath.join(records, recordName);
+    const record = JSON.parse(readFileSync(recordPath, 'utf8')) as Record<string, unknown>;
+    record.targets = ['attacker-controlled.md'];
+    writeFileSync(recordPath, `${JSON.stringify(record)}\n`);
+
+    const result = reviewJobStatus(cwd, String(record.id));
+
+    expect(result.state).toBe('failed');
+    expect(result.errors[0]?.code).toBe('REVIEW_JOB_INVALID');
+    expect(result.findings).toEqual([]);
+    expect(result.nextActions).toEqual([]);
+  });
+
   it('preserves completed history beyond 128 reviews with one host key', async () => {
     const cwd = project();
     vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, COMPLETE_WORKER));
@@ -624,6 +645,24 @@ ${COMPLETE_WORKER}`,
       createResult({ state: 'healthy', data: { command: 'review run', status: 'approved' } }),
     );
     expect(reviewJobStatus(cwd, id).findings[0]?.code).toBe('REVIEW_CANCELED');
+  });
+
+  it('rejects a tampered canceled record before using its payload', async () => {
+    const cwd = project();
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, 'setTimeout(() => {}, 10_000);'));
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '0');
+    const pending = await startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
+    const id = (pending.data as { review_id: string }).review_id;
+    cancelReviewJob(cwd, id);
+    const recordPath = nodePath.join(cwd, '.safeword', 'state', 'reviews', `${id}.json`);
+    const record = JSON.parse(readFileSync(recordPath, 'utf8')) as Record<string, unknown>;
+    record.targets = ['attacker-controlled.md'];
+    writeFileSync(recordPath, `${JSON.stringify(record)}\n`);
+
+    const result = reviewJobStatus(cwd, id);
+
+    expect(result.state).toBe('failed');
+    expect(result.errors[0]?.code).toBe('REVIEW_JOB_INVALID');
   });
 
   it.runIf(process.platform !== 'win32')(
