@@ -453,6 +453,25 @@ describe('durable review jobs', () => {
     expect(result.errors[0]?.code).toBe('REVIEW_JOB_INVALID');
   });
 
+  it('rejects an approved completed result relabeled as failed to bypass integrity', async () => {
+    const cwd = project();
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, COMPLETE_WORKER));
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '3000');
+    await startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
+    const records = nodePath.join(cwd, '.safeword', 'state', 'reviews');
+    const recordName = readdirSync(records).find(candidate => candidate.endsWith('.json'));
+    if (recordName === undefined) throw new Error('completed job record was not written');
+    const recordPath = nodePath.join(records, recordName);
+    const record = JSON.parse(readFileSync(recordPath, 'utf8')) as Record<string, unknown>;
+    record.state = 'failed';
+    writeFileSync(recordPath, `${JSON.stringify(record)}\n`);
+
+    const result = reviewJobStatus(cwd, String(record.id));
+
+    expect(result.state).toBe('failed');
+    expect(result.errors[0]?.code).toBe('REVIEW_JOB_INVALID');
+  });
+
   it('preserves completed history beyond 128 reviews with one host key', async () => {
     const cwd = project();
     vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, COMPLETE_WORKER));

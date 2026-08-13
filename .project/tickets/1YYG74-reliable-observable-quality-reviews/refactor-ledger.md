@@ -61,6 +61,12 @@ Scope: `origin/main...codex/reliable-quality-review`
 21. **Name receipt and launch artifacts precisely** — digest helpers and the
     non-rejecting launch-settlement barrier now describe their actual values;
     the cleanup guard directly excludes legitimate terminal results.
+22. **Authenticate retained review history** — one host-owned HMAC key signs
+    terminal records across canonical project aliases, preserving unlimited
+    retained job history without per-result external receipt pruning.
+23. **Make integrity helpers explicit** — typed destructuring omits the MAC from
+    serialization, and `readOrCreateIntegrityKey` names its persistence side
+    effect at the signing boundary.
 
 ## Struck or deferred
 

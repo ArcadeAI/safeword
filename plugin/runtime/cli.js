@@ -44460,15 +44460,15 @@ function integrityKeyPath() {
   const stateRoot = process.env.XDG_STATE_HOME ?? nodePath82.join(homedir6(), ".local", "state");
   return nodePath82.join(stateRoot, "safeword", "review-integrity.key");
 }
-function integrityKey() {
-  const path4 = integrityKeyPath();
+function readOrCreateIntegrityKey() {
+  const keyPath = integrityKeyPath();
   try {
-    return decodeIntegrityKey(readFileSync51(path4, "utf8"));
+    return decodeIntegrityKey(readFileSync51(keyPath, "utf8"));
   } catch {
-    mkdirSync14(nodePath82.dirname(path4), { recursive: true, mode: 448 });
+    mkdirSync14(nodePath82.dirname(keyPath), { recursive: true, mode: 448 });
     const key = randomBytes(32);
     try {
-      const descriptor = openSync10(path4, "wx", 384);
+      const descriptor = openSync10(keyPath, "wx", 384);
       try {
         writeFileSync19(descriptor, `${key.toString("hex")}
 `);
@@ -44479,7 +44479,7 @@ function integrityKey() {
     } catch (error2) {
       if (!isFileExistsError(error2))
         throw error2;
-      return decodeIntegrityKey(readFileSync51(path4, "utf8"));
+      return decodeIntegrityKey(readFileSync51(keyPath, "utf8"));
     }
   }
 }
@@ -44495,10 +44495,10 @@ function unsignedRecord(record2) {
   return unsigned;
 }
 function recordIntegrity(cwd, record2) {
-  return createHmac("sha256", integrityKey()).update(realpathSync11.native(cwd)).update("\x00").update(JSON.stringify(unsignedRecord(record2))).digest("hex");
+  return createHmac("sha256", readOrCreateIntegrityKey()).update(realpathSync11.native(cwd)).update("\x00").update(JSON.stringify(unsignedRecord(record2))).digest("hex");
 }
 function hasValidIntegrity(cwd, record2) {
-  if (record2.state !== "completed")
+  if (!isTerminalJobState(record2.state))
     return true;
   if (record2.integrity === undefined || !/^[a-f\d]{64}$/u.test(record2.integrity))
     return false;
@@ -44509,6 +44509,15 @@ function hasValidIntegrity(cwd, record2) {
   } catch {
     return false;
   }
+}
+function isTerminalJobState(state) {
+  return ["completed", "failed", "canceled"].includes(state);
+}
+function withRecordIntegrity(cwd, record2) {
+  if (!isTerminalJobState(record2.state))
+    return record2;
+  const unsigned = { ...record2, integrity: undefined };
+  return { ...unsigned, integrity: recordIntegrity(cwd, unsigned) };
 }
 function fingerprint(cwd, kind, targets, context = []) {
   const prepared = prepareReviewPacket(cwd, kind, targets, context);
@@ -44533,15 +44542,17 @@ function fingerprint(cwd, kind, targets, context = []) {
   }
 }
 function writeJob(cwd, record2) {
-  if (!isReviewJobRecord(record2))
+  const secured = withRecordIntegrity(cwd, record2);
+  if (!isReviewJobRecord(secured))
     throw new Error("invalid review job record");
   const directory = jobsDirectory(cwd);
   mkdirSync14(directory, { recursive: true, mode: 448 });
-  const destination = jobPath(cwd, record2.id);
+  const destination = jobPath(cwd, secured.id);
   const temporary = `${destination}.${process.pid}.tmp`;
-  writeFileSync19(temporary, `${JSON.stringify(record2)}
+  writeFileSync19(temporary, `${JSON.stringify(secured)}
 `, { mode: 384 });
   renameSync8(temporary, destination);
+  return secured;
 }
 function withJobLock(cwd, id, operation) {
   return withFileLock(`${jobPath(cwd, id)}.lock`, operation);
@@ -44602,8 +44613,7 @@ function updateActiveJob(cwd, id, update) {
     if (latest.state !== "launching" && latest.state !== "running")
       return latest;
     const next = update(latest);
-    writeJob(cwd, next);
-    return next;
+    return writeJob(cwd, next);
   });
 }
 function isReviewJobRecord(value) {
@@ -44617,23 +44627,26 @@ function hasReviewJobIdentity(candidate) {
   return candidate.schema_version === 1 && hasStrings && isStringArray(candidate.targets) && isOptional(candidate.context, isStringArray) && isReviewKind(candidate.kind);
 }
 function hasReviewJobLifecycle(candidate) {
-  const hasPid = isOptional(candidate.pid, isProcessId);
-  const hasResult = isOptional(candidate.result, isCliResult);
-  if (!hasPid || !hasResult || !isJobState(candidate.state))
+  if (!isJobState(candidate.state))
     return false;
   switch (candidate.state) {
     case "launching":
     case "running": {
       return isProcessId(candidate.pid) && candidate.result === undefined;
     }
-    case "completed":
+    case "completed": {
+      return isCoherentTerminalResult(candidate, false);
+    }
     case "failed": {
-      return isCliResult(candidate.result);
+      return isCoherentTerminalResult(candidate, true);
     }
     case "canceled": {
-      return candidate.result === undefined;
+      return candidate.result === undefined && typeof candidate.integrity === "string";
     }
   }
+}
+function isCoherentTerminalResult(candidate, failed) {
+  return isCliResult(candidate.result) && candidate.result.state === "failed" === failed && typeof candidate.integrity === "string";
 }
 function isOptional(value, predicate) {
   return value === undefined || predicate(value);
@@ -45018,15 +45031,12 @@ function completeReviewJob(cwd, id, result) {
     const record2 = readJob(cwd, id);
     if (record2.state !== "launching" && record2.state !== "running")
       return;
-    let completed = {
+    const completed = {
       ...record2,
       state: result.state === "failed" ? "failed" : "completed",
       result,
       updated_at: new Date().toISOString()
     };
-    if (completed.state === "completed") {
-      completed = { ...completed, integrity: recordIntegrity(cwd, completed) };
-    }
     writeJob(cwd, completed);
   });
 }
@@ -45150,8 +45160,7 @@ function cancelReviewJob(cwd, requestedId) {
         state: "canceled",
         updated_at: new Date().toISOString()
       };
-      writeJob(cwd, next);
-      return next;
+      return writeJob(cwd, next);
     });
     return currentResult(cwd, canceled);
   } catch {
