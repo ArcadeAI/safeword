@@ -105,6 +105,12 @@ taxonomy (`not_installed`, `unsupported`, `probe_timed_out`,
 - [x] GREEN e339e2e42
 - [x] REFACTOR skip: Reviewer environment allowlisting remains the independent defense-in-depth boundary.
 
+### Scenario: Managed progress has no public CLI option
+
+- [x] RED skip: The option catalogue had no public progress flag before this internal opt-in was added.
+- [x] GREEN 7b675263b
+- [x] REFACTOR skip: The environment signal avoids adding a second public API surface.
+
 ### Scenario: Required-review workflows cannot bypass the managed wrapper
 
 - [x] RED skip: Generated surfaces already delegated through the wrapper; this is parity protection against future bypasses.

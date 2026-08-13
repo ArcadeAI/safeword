@@ -14,6 +14,11 @@ Feature: Keep quality reviews observable and actionable
   The active-review line is due 100 milliseconds after route start. A route's
   first heartbeat is due 30 seconds after route start; every later
   heartbeat is re-armed 30 seconds after its most recent emission.
+  For reviewer kind Claude, the fixed lines are "Requesting an independent
+  Claude review…" and "Still waiting for a response from Claude…". For Codex,
+  they are "Claude did not complete; trying a Codex fallback…" and "Still
+  waiting for a response from the Codex fallback…". No reviewer-controlled
+  value is interpolated into these lines.
 
   @reliable-observable-quality-reviews.TBU1.R1 @surface.safeword-cli @proof.vitest
   Rule: reliable-observable-quality-reviews.TBU1.R1 — A managed JSON review reports rate-limited lifecycle progress separately from its final typed result
@@ -56,6 +61,7 @@ Feature: Keep quality reviews observable and actionable
 
     Scenario: Managed timing starts with each asynchronous reviewer route
       Given packet preparation remains active for 60 seconds before reviewer work starts
+      And the preferred reviewer kind is Claude and fallback reviewer kind is Codex
       And the preferred route transitions at 45 seconds after reviewer work starts
       And the fallback route remains active through its first heartbeat and completes before its second
       And the review is observed with a deterministic clock
@@ -177,14 +183,15 @@ Feature: Keep quality reviews observable and actionable
 
     Scenario Outline: Rejected reviewer data never enters public output
       Given route configuration <route_configuration>
-      And rejected reviewer bytes, model names, targets, and context contain disjoint unique secrets and control characters
+      And rejected reviewer bytes are emitted before termination
+      And model names, targets, and context contain disjoint unique secrets and control characters
       And the review is observed with a deterministic clock
       And every attempted route remains active through its active-review line but completes before its heartbeat
       When a managed review <termination>
       Then stderr consists exactly of <expected_lifecycle_lines>
       And stdout consists exactly of one complete parseable schema-1 action-required result followed by EOF
       And the rejected reviewer bytes are absent from stdout and stderr
-      And stderr contains no injected secret, control character, or model name
+      And stdout and stderr contain no injected secret, control character, or model name
       And serialized stdout contains no literal injected line break or ANSI escape
       And the command exits with status 2
 
@@ -213,7 +220,7 @@ Feature: Keep quality reviews observable and actionable
       And the wrapper resolves a review-capable Safeword CLI
       When it launches a JSON review
       Then the CLI child receives managed-progress signal value "1"
-      And at least one capability probe is observed without the signal
+      And every capability probe and every non-review child is launched without the managed-progress signal
       And stdout equals the CLI fixture's typed result byte for byte
       And stderr equals the CLI fixture's lifecycle lines byte for byte
       And the wrapper exits with the CLI fixture's status 2
@@ -222,6 +229,11 @@ Feature: Keep quality reviews observable and actionable
       Given a direct JSON review with managed-progress signal value "1"
       When the public CLI launches a reviewer process
       Then the reviewer process environment does not contain the managed-progress signal
+
+    Scenario: Managed progress has no public CLI option
+      Given the public review command help and option catalogue
+      When its supported options are inspected
+      Then no public progress option is present
 
     Scenario: Required-review workflows cannot bypass the managed wrapper
       Given the generated Claude Code, OpenAI Codex, and Cursor trees are discovered and non-empty
