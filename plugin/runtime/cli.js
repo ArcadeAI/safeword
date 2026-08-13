@@ -43369,8 +43369,16 @@ function isActivatedChild(record, pid) {
   return record.state === "running" && record.pid === pid;
 }
 function terminateReviewWorker(pid) {
+  if (process.platform === "win32") {
+    spawnSync9("taskkill", ["/PID", String(pid), "/T", "/F"], {
+      stdio: "ignore",
+      timeout: 5000,
+      windowsHide: true
+    });
+    return;
+  }
   try {
-    process.kill(process.platform === "win32" ? pid : -pid, "SIGTERM");
+    process.kill(-pid, "SIGTERM");
   } catch {}
 }
 function completeReviewJob(cwd, id, result) {
@@ -43468,7 +43476,8 @@ function reviewJobStatus(cwd, requestedId) {
     });
   }
   try {
-    return currentResult(cwd, record);
+    const result = currentResult(cwd, record);
+    return { ...result, effects: { ...result.effects, network: [] } };
   } catch {
     return createResult({
       state: "action_required",
@@ -43493,9 +43502,7 @@ function cancelReviewJob(cwd, requestedId) {
       if (record.state !== "launching" && record.state !== "running")
         return record;
       if (record.state === "running" && record.pid !== undefined && isReviewWorker(record.pid, record.id)) {
-        try {
-          process.kill(process.platform === "win32" ? record.pid : -record.pid, "SIGTERM");
-        } catch {}
+        terminateReviewWorker(record.pid);
       }
       const next = {
         ...record,
@@ -43514,9 +43521,12 @@ function isJobId(value) {
   return /^[a-f\d-]{36}$/u.test(value);
 }
 function isReviewWorker(pid, id) {
-  if (process.platform === "win32")
-    return processExists(pid);
-  const inspected = spawnSync9("ps", ["-p", String(pid), "-o", "command="], {
+  const inspected = process.platform === "win32" ? spawnSync9("powershell.exe", [
+    "-NoProfile",
+    "-NonInteractive",
+    "-Command",
+    `(Get-CimInstance Win32_Process -Filter "ProcessId = ${pid}").CommandLine`
+  ], { encoding: "utf8", timeout: 1000, windowsHide: true }) : spawnSync9("ps", ["-p", String(pid), "-o", "command="], {
     encoding: "utf8",
     timeout: 1000
   });

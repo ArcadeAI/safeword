@@ -112,7 +112,10 @@ describe('durable review jobs', () => {
   it('collects a detached review after the initiating CLI process exits', async () => {
     const cwd = project();
     mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
-    writeFileSync(nodePath.join(cwd, '.safeword', 'config.json'), '{"crossAgentReview":"on"}\n');
+    writeFileSync(
+      nodePath.join(cwd, '.safeword', 'config.json'),
+      '{"crossAgentReview":"require"}\n',
+    );
     const reviewer = delayedReviewer(cwd);
     const cli = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
     const started = spawnSync(
@@ -132,13 +135,12 @@ describe('durable review jobs', () => {
     );
     const pending = JSON.parse(started.stdout) as { data: { review_id: string } };
 
-    await vi.waitFor(() => {
-      expect(reviewJobStatus(cwd, pending.data.review_id).findings[0]?.code).not.toBe(
-        'REVIEW_PENDING',
-      );
-    });
-
-    expect(reviewJobStatus(cwd, pending.data.review_id).state).toBe('healthy');
+    await vi.waitFor(
+      () => {
+        expect(reviewJobStatus(cwd, pending.data.review_id).state).toBe('healthy');
+      },
+      { timeout: 5000 },
+    );
     expect(readFileSync(reviewer.log, 'utf8').trim().split('\n')).toEqual(['called']);
   });
   it('returns a quick completed review inline', async () => {
