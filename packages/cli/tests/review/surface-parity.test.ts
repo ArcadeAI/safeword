@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import {
   chmodSync,
   mkdirSync,
@@ -113,6 +113,100 @@ function runResolver(
 }
 
 describe('class-1 review surface parity', () => {
+  it('forwards managed progress before the selected CLI exits', async () => {
+    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-stream-'));
+    try {
+      const localBin = nodePath.join(fixture, 'node_modules/.bin');
+      const acknowledgement = nodePath.join(fixture, 'acknowledged');
+      mkdirSync(localBin, { recursive: true });
+      executable(
+        nodePath.join(localBin, 'safeword'),
+        String.raw`if [ "$*" = "review run --help" ]; then exit 0; fi
+if [ "$SAFEWORD_REVIEW_PROGRESS" != "1" ]; then exit 9; fi
+printf 'PROGRESS\n' >&2
+while [ ! -f "$ACKNOWLEDGEMENT" ]; do sleep 0.01; done
+printf 'RESULT\n'
+exit 2`,
+      );
+
+      const child = spawn(
+        process.execPath,
+        [
+          nodePath.join(templates, 'hooks/run-review.ts'),
+          'review',
+          'run',
+          'quality-review',
+          'target',
+          '--agent-handoff',
+          '--json',
+        ],
+        {
+          cwd: fixture,
+          env: { ...process.env, ACKNOWLEDGEMENT: acknowledgement },
+          stdio: ['ignore', 'pipe', 'pipe'],
+        },
+      );
+      let stdout = '';
+      let stderr = '';
+      child.stdout.setEncoding('utf8');
+      child.stderr.setEncoding('utf8');
+      child.stdout.on('data', (chunk: string) => {
+        stdout += chunk;
+      });
+      child.stderr.on('data', (chunk: string) => {
+        stderr += chunk;
+        if (stderr.includes('PROGRESS\n')) {
+          expect(stdout).toBe('');
+          writeFileSync(acknowledgement, 'ok\n');
+        }
+      });
+
+      const status = await new Promise<number | null>((resolve, reject) => {
+        child.once('error', reject);
+        child.once('close', resolve);
+      });
+      expect(status).toBe(2);
+      expect(stderr).toBe('PROGRESS\n');
+      expect(stdout).toBe('RESULT\n');
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
+  it('preserves an older CLI result and status without adding an argument', () => {
+    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-older-cli-'));
+    try {
+      const localBin = nodePath.join(fixture, 'node_modules/.bin');
+      mkdirSync(localBin, { recursive: true });
+      executable(
+        nodePath.join(localBin, 'safeword'),
+        String.raw`if [ "$*" = "review run --help" ]; then exit 0; fi
+if [ "$*" != "review run quality-review target --agent-handoff --json" ]; then exit 64; fi
+printf '{"schema_version":1,"state":"action_required"}\n'
+exit 2`,
+      );
+
+      const result = spawnSync(
+        process.execPath,
+        [
+          nodePath.join(templates, 'hooks/run-review.ts'),
+          'review',
+          'run',
+          'quality-review',
+          'target',
+          '--agent-handoff',
+          '--json',
+        ],
+        { cwd: fixture, encoding: 'utf8' },
+      );
+      expect(result.status).toBe(2);
+      expect(result.stdout).toBe('{"schema_version":1,"state":"action_required"}\n');
+      expect(result.stderr).toBe('');
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
   it('scopes managed progress to the JSON review child despite inherited contamination', () => {
     const contaminated = {
       PATH: '/usr/bin',
