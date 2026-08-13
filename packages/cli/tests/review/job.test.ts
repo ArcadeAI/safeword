@@ -209,6 +209,23 @@ describe('durable review jobs', () => {
     expect(reviewJobStatus(cwd, id).errors[0]?.code).toBe('REVIEW_WORKER_EXITED');
   });
 
+  it('rejects a running job record without its worker pid', async () => {
+    const cwd = project();
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, 'setTimeout(() => {}, 10_000);'));
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '0');
+    const pending = await startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
+    const id = (pending.data as { review_id: string }).review_id;
+    const recordPath = nodePath.join(cwd, '.safeword', 'state', 'reviews', `${id}.json`);
+    const record = JSON.parse(readFileSync(recordPath, 'utf8')) as Record<string, unknown>;
+    delete record.pid;
+    writeFileSync(recordPath, `${JSON.stringify(record)}\n`);
+
+    const result = reviewJobStatus(cwd, id);
+
+    expect(result.state).toBe('failed');
+    expect(result.errors[0]?.code).toBe('REVIEW_JOB_INVALID');
+  });
+
   it('collects a completed result without rerunning the reviewer', async () => {
     const cwd = project();
     vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, COMPLETE_WORKER));

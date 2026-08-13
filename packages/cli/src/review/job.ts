@@ -182,7 +182,20 @@ function hasReviewJobIdentity(candidate: Record<string, unknown>): boolean {
 function hasReviewJobLifecycle(candidate: Record<string, unknown>): boolean {
   const hasPid = isOptional(candidate.pid, isProcessId);
   const hasResult = isOptional(candidate.result, isCliResult);
-  return hasPid && hasResult && isJobState(candidate.state);
+  if (!hasPid || !hasResult || !isJobState(candidate.state)) return false;
+  switch (candidate.state) {
+    case 'launching':
+    case 'running': {
+      return isProcessId(candidate.pid) && candidate.result === undefined;
+    }
+    case 'completed':
+    case 'failed': {
+      return isCliResult(candidate.result);
+    }
+    case 'canceled': {
+      return candidate.result === undefined;
+    }
+  }
 }
 
 function isOptional(value: unknown, predicate: (candidate: unknown) => boolean): boolean {
