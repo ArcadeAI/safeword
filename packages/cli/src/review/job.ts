@@ -207,15 +207,19 @@ function isCliResult(value: unknown): value is CliResult {
   const state = candidate.state;
   const effects = candidate.effects;
   const data = candidate.data;
+  const expectedOk = state !== 'failed';
+  const expectedChanged = state === 'changed';
   const hasHeader =
     candidate.schemaVersion === 1 &&
-    typeof candidate.ok === 'boolean' &&
-    typeof candidate.changed === 'boolean';
+    candidate.ok === expectedOk &&
+    candidate.changed === expectedChanged;
   const hasState = ['healthy', 'changed', 'action_required', 'failed'].includes(String(state));
   const hasArrays = ['findings', 'errors', 'recovery', 'nextActions'].every(key =>
     Array.isArray(candidate[key]),
   );
-  return hasHeader && hasState && hasArrays && isEffects(effects) && isReviewResultData(data);
+  return (
+    hasHeader && hasState && hasArrays && isEffects(effects) && isReviewResultData(data, state)
+  );
 }
 
 function isEffects(value: unknown): boolean {
@@ -225,9 +229,36 @@ function isEffects(value: unknown): boolean {
   );
 }
 
-function isReviewResultData(value: unknown): boolean {
+function isReviewResultData(value: unknown, state: unknown): boolean {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const data = value as Record<string, unknown>;
+  if (!['review run', 'review status'].includes(String(data.command))) return false;
+  if (typeof data.status !== 'string') return false;
+  if (data.command === 'review status') return ['failed', 'stale'].includes(data.status);
+  if (data.status !== 'approved' && data.status !== 'changes_requested')
+    return ['blocked', 'existing_route', 'failed'].includes(data.status);
+  return isCompletedReviewData(data, state);
+}
+
+function isCompletedReviewData(data: Record<string, unknown>, state: unknown): boolean {
+  const output = data.reviewer_output;
+  if (typeof output !== 'object' || output === null || Array.isArray(output)) return false;
+  const reviewer = output as Record<string, unknown>;
+  const verdict = data.status === 'approved' ? 'approve' : 'request_changes';
   return (
-    value === undefined || (typeof value === 'object' && value !== null && !Array.isArray(value))
+    hasReviewerIdentity(reviewer) &&
+    reviewer.verdict === verdict &&
+    typeof reviewer.summary === 'string' &&
+    Array.isArray(reviewer.findings) &&
+    state === (data.status === 'approved' ? 'healthy' : 'action_required')
+  );
+}
+
+function hasReviewerIdentity(reviewer: Record<string, unknown>): boolean {
+  return (
+    typeof reviewer.dispatch_id === 'string' &&
+    reviewer.dispatch_id.length > 0 &&
+    ['claude', 'codex'].includes(String(reviewer.reviewer_agent))
   );
 }
 
@@ -523,9 +554,19 @@ export function reviewJobWorkerInput(
   readonly targets: readonly string[];
   readonly context: readonly string[];
 } {
-  const record = readJob(cwd, id);
-  if (record.state !== 'launching' && record.state !== 'running')
-    throw new Error('review job is not active');
+  const record = withJobLock(cwd, id, () => {
+    const current = readJob(cwd, id);
+    if (current.state !== 'launching' && current.state !== 'running')
+      throw new Error('review job is not active');
+    const claimed: ReviewJobRecord = {
+      ...current,
+      state: 'running',
+      pid: process.pid,
+      updated_at: new Date().toISOString(),
+    };
+    writeJob(cwd, claimed);
+    return claimed;
+  });
   return { kind: record.kind, targets: record.targets, context: record.context ?? [] };
 }
 

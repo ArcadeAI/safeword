@@ -33,7 +33,14 @@ record.result = {
   findings: [{ code: 'REVIEWER_SUMMARY', message: 'Independent review complete.', severity: 'info' }],
   effects: { files: [], packages: [], configuration: [], network: [], destructive: [] },
   errors: [], recovery: [], nextActions: [],
-  data: { command: 'review run', status: 'approved' }
+  data: {
+    command: 'review run', status: 'approved', author_agent: 'claude',
+    actual_reviewer: 'codex', independence: 'cross-agent',
+    reviewer_output: {
+      schema_version: 1, dispatch_id: 'fixture-dispatch', reviewer_agent: 'codex',
+      verdict: 'approve', summary: 'Independent review complete.', findings: []
+    }
+  }
 };
 writeFileSync(path + '.worker.tmp', JSON.stringify(record) + '\n', { mode: 0o600 });
 import { renameSync } from 'node:fs';
