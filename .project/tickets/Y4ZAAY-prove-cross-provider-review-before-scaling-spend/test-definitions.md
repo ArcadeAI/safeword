@@ -106,7 +106,7 @@ fixture scenarios do not substitute for its RED, GREEN, or REFACTOR record.
 
 ### Scenario: Authorized corpus cannot dispatch unrelated paid input
 
-- [x] RED 47712ea29
+- [x] RED skip: quality review supplied the failing counterexample before the test and fix landed together
 - [x] GREEN 47712ea29
 - [x] REFACTOR 2c8d717e4
 
