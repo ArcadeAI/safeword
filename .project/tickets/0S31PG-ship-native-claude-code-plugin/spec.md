@@ -81,9 +81,10 @@ Unaffected:
 
 ### Lifecycle and scope
 
-- Default installation is **user-scoped**: one explicit
-  `safeword claude install` manages the active Claude profile across projects.
-  Project scope remains an opt-in team policy, not a migration side effect.
+- Explicit `safeword claude install` defaults to **user scope** and manages the
+  active Claude profile across projects. Fresh `safeword setup` is the one
+  intentional automatic path: it enables the exact plugin at project scope for
+  that project, so a new Claude user is protected without a second command.
 - Public lifecycle commands are `safeword claude install`, `safeword claude
   status`, `safeword claude cleanup`, and `safeword claude recover`. Install
   mutates only the profile; cleanup/recover mutate only the current project;
@@ -102,11 +103,11 @@ Unaffected:
   legacy is `plugin-mode`. `errored` exits 1, action-required states exit 2,
   and `plugin-mode` exits 0 with no next action. Status never mutates either
   profile or project.
-- Fresh `safeword setup` creates project state but no Claude-only legacy
-  surface, and recommends explicit plugin installation. Ordinary setup/upgrade
-  never installs or updates a profile plugin and never cleans existing legacy
-  protection. A durable plugin-mode marker prevents later reconciliation from
-  recreating retired Claude assets.
+- Fresh `safeword setup` creates project state, enables the exact project-scoped
+  plugin, and creates no Claude-only legacy surface. Ordinary setup/upgrade of
+  an existing project never installs or updates a profile plugin and never
+  cleans existing legacy protection. A durable plugin-mode marker prevents
+  later reconciliation from recreating retired Claude assets.
 - Ordinary setup of an existing legacy project preserves every viable legacy
   asset and the complete Claude profile; it may recommend, but never invoke, a
   Claude lifecycle command.

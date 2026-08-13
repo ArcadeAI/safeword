@@ -335,6 +335,9 @@
       }
     ]
   },
+  "enabledPlugins": {
+    "safeword@safeword": true
+  },
   "extraKnownMarketplaces": {
     "safeword": {
       "source": {
@@ -344,8 +347,5 @@
       },
       "autoUpdate": true
     }
-  },
-  "enabledPlugins": {
-    "safeword@safeword": true
   }
 }

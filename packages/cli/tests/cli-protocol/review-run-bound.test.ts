@@ -1,22 +1,23 @@
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 
 import { createTemporaryDirectory, runCli } from '../helpers.js';
-import { REVIEWER_CAPABILITIES } from '../review-fixtures.js';
+import {
+  cleanupTrustedReviewerDirectories,
+  createTrustedReviewerDirectory,
+  REVIEWER_CAPABILITIES,
+} from '../review-fixtures.js';
+
+afterAll(cleanupTrustedReviewerDirectories);
 
 /**
  * Reviewers that record the route they were launched as and then never answer,
  * so a test can see exactly which routes the run reached before it stopped.
  */
-function installSilentReviewers(directory: string): string {
-  const bin = nodePath.join(
-    tmpdir(),
-    `safeword-runbound-${Buffer.from(directory).toString('hex')}`,
-    'bin',
-  );
+function installSilentReviewers(): string {
+  const bin = nodePath.join(createTrustedReviewerDirectory('safeword-runbound-'), 'bin');
   mkdirSync(bin, { recursive: true });
   for (const agent of ['claude', 'codex'] as const) {
     const executable = nodePath.join(bin, agent);
@@ -61,7 +62,7 @@ async function runWithBounds(bounds: {
     nodePath.join(directory, '.safeword', 'config.json'),
     JSON.stringify({ crossAgentReviewAlternateModel: { codex: 'alternate-model' } }),
   );
-  const bin = installSilentReviewers(directory);
+  const bin = installSilentReviewers();
 
   const result = await runCli(
     [

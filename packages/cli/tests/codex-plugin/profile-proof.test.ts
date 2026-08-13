@@ -1,6 +1,17 @@
 /* eslint-disable unicorn/no-null -- null explicitly models an unavailable host observation */
 
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  linkSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  renameSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -79,6 +90,7 @@ describe('Codex profile hook proof', () => {
         recorded_at: '2026-07-28T00:00:00.000Z',
         ...override,
       }),
+      { mode: 0o600 },
     );
 
     expect(observeCodexHookProof(environment).status).toBe(expectedStatus);
@@ -88,10 +100,40 @@ describe('Codex profile hook proof', () => {
     const { environment } = createProfileFixture();
     const proofPath = codexProofPath(environment);
     mkdirSync(nodePath.dirname(proofPath), { recursive: true });
-    writeFileSync(proofPath, '{"schema_version":');
+    writeFileSync(proofPath, '{"schema_version":', { mode: 0o600 });
 
     expect(observeCodexHookProof(environment).status).toBe('malformed');
   });
+
+  it.each(['symlink', 'hardlink', 'permissive-mode'] as const)(
+    'rejects %s substitution of cleanup-authorizing proof',
+    attack => {
+      const { codexHome, environment } = createProfileFixture();
+      for (const event of CODEX_PLUGIN_HOOK_EVENTS) {
+        recordCodexHookProof(event, environment, new Date(), {
+          projectDirectory: codexHome,
+          sessionId: 'current-task',
+        });
+      }
+      const proofPath = codexProofPath(environment, 'stop');
+      if (attack === 'symlink') {
+        const target = `${proofPath}.target`;
+        renameSync(proofPath, target);
+        symlinkSync(target, proofPath);
+      } else if (attack === 'hardlink') {
+        linkSync(proofPath, `${proofPath}.alias`);
+      } else {
+        chmodSync(proofPath, 0o644);
+      }
+
+      expect(
+        observeCodexHookProof(environment, {
+          projectDirectory: codexHome,
+          sessionId: 'current-task',
+        }).status,
+      ).toBe('malformed');
+    },
+  );
 
   it('requires current identity-bound proof from every packaged hook event', () => {
     const { environment } = createProfileFixture();
@@ -108,6 +150,33 @@ describe('Codex profile hook proof', () => {
       recordCodexHookProof(event, environment);
     }
     expect(observeCodexHookProof(environment).status).toBe('current');
+  });
+
+  it('requires every cleanup-authorizing event from the same canonical project and task', () => {
+    const { codexHome, environment } = createProfileFixture();
+    const project = nodePath.join(codexHome, 'project');
+    const otherProject = nodePath.join(codexHome, 'other-project');
+    mkdirSync(project);
+    mkdirSync(otherProject);
+    for (const event of CODEX_PLUGIN_HOOK_EVENTS) {
+      recordCodexHookProof(event, environment, new Date(), {
+        projectDirectory: project,
+        sessionId: 'task-a',
+      });
+    }
+
+    expect(
+      observeCodexHookProof(environment, { projectDirectory: project, sessionId: 'task-a' }).status,
+    ).toBe('current');
+    expect(
+      observeCodexHookProof(environment, {
+        projectDirectory: otherProject,
+        sessionId: 'task-a',
+      }).status,
+    ).toBe('stale');
+    expect(
+      observeCodexHookProof(environment, { projectDirectory: project, sessionId: 'task-b' }).status,
+    ).toBe('stale');
   });
 
   it('binds SessionStart proof to one canonical project and Codex task', () => {

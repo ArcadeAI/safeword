@@ -150,7 +150,7 @@ function installReviewer(
   behaviour: Behaviour,
   label: string = agent,
 ): void {
-  const host = mkdtempSync(nodePath.join(tmpdir(), `safeword-bin-${label}-`));
+  const host = mkdtempSync(nodePath.join(process.cwd(), `.safeword-bin-${label}-`));
   const bin = nodePath.join(host, 'bin');
   mkdirSync(bin, { recursive: true });
   const capabilities = behaviour === 'no typed output' ? '--json --sandbox' : CAPABILITIES[agent];

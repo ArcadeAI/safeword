@@ -237,6 +237,11 @@ async function observeProjectStatus(
         'MISSING_PACKAGE',
         'error',
       ),
+      ...healthFindings(
+        health.missingPythonTools.map(tool => `${tool} is not declared for this Python project.`),
+        'MISSING_PYTHON_TOOL',
+        'error',
+      ),
       ...healthFindings(health.issues, 'PROJECT_DRIFT', 'warning'),
     ];
     const versionGuidance = projectVersionFinding(cwd, health.projectVersion, health.cliVersion);

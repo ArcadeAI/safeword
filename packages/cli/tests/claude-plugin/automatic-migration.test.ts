@@ -1,5 +1,14 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -75,6 +84,10 @@ describe('automatic Claude migration', () => {
       expect(result.advisory).toBeUndefined();
       expect(existsSync(nodePath.join(root, installedPath))).toBe(false);
       expect(readClaudePluginMode(root)).toMatchObject({ state: 'clean', unresolved_paths: [] });
+      const quarantine = nodePath.join(root, '.safeword/claude-plugin/quarantine');
+      const tombstones = readdirSync(quarantine);
+      expect(tombstones).toHaveLength(1);
+      expect(statSync(nodePath.join(quarantine, tombstones[0] ?? '')).size).toBe(0);
     },
   );
 
@@ -127,6 +140,135 @@ describe('automatic Claude migration', () => {
     expect(migrate(root).state).toBe('complete');
     expect(existsSync(nodePath.join(root, installedPath))).toBe(false);
     expect(readClaudePluginMode(root)?.state).toBe('clean');
+  });
+
+  it('recovers a deferred settings contraction through the validated transaction', () => {
+    const { root } = fixture();
+    const settings = nodePath.join(root, '.claude/settings.json');
+    const fingerprint =
+      CLAUDE_HISTORICAL_CATALOGUE.releases['0.72.0'].hooks.SessionStart?.[0] ?? '';
+    mkdirSync(nodePath.dirname(settings), { recursive: true });
+    writeFileSync(
+      settings,
+      `${JSON.stringify({
+        hooks: { SessionStart: [historicalHookEntry(fingerprint)] },
+        userSetting: true,
+      })}\n`,
+    );
+
+    let reads = 0;
+    expect(migrate(root, () => (reads++ === 0 ? 0 : 10)).state).toBe('deferred');
+    expect(migrate(root).state).toBe('complete');
+    expect(JSON.parse(readFileSync(settings, 'utf8'))).toEqual({
+      hooks: { SessionStart: [] },
+      userSetting: true,
+    });
+  });
+
+  it('finishes recovery from an interrupted deterministic settings write', () => {
+    const { root } = fixture();
+    const settings = nodePath.join(root, '.claude/settings.json');
+    const fingerprint =
+      CLAUDE_HISTORICAL_CATALOGUE.releases['0.72.0'].hooks.SessionStart?.[0] ?? '';
+    mkdirSync(nodePath.dirname(settings), { recursive: true });
+    writeFileSync(
+      settings,
+      `${JSON.stringify({
+        hooks: { SessionStart: [historicalHookEntry(fingerprint)] },
+        userSetting: true,
+      })}\n`,
+    );
+
+    let reads = 0;
+    expect(migrate(root, () => (reads++ === 0 ? 0 : 10)).state).toBe('deferred');
+    const transaction = JSON.parse(
+      readFileSync(
+        nodePath.join(root, '.safeword/claude-plugin/cleanup-transaction-v1.json'),
+        'utf8',
+      ),
+    ) as { entries: { path: string; after_base64: string | null }[] };
+    const after = transaction.entries.find(
+      entry => entry.path === '.claude/settings.json',
+    )?.after_base64;
+    expect(after).toBeTypeOf('string');
+    const afterBytes = Buffer.from(after ?? '', 'base64');
+    const partialLength = Math.max(1, Math.floor(afterBytes.length / 2));
+    writeFileSync(settings, afterBytes.subarray(0, partialLength));
+
+    expect(migrate(root).state).toBe('complete');
+    expect(readFileSync(settings)).toEqual(afterBytes);
+  });
+
+  it('preserves the winning transaction identity during no-op convergence', () => {
+    const { root } = fixture();
+
+    expect(migrate(root).state).toBe('complete');
+    const winningTransactionId = readClaudePluginMode(root)?.transaction_id;
+    expect(winningTransactionId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u,
+    );
+
+    expect(migrate(root).state).toBe('complete');
+    expect(readClaudePluginMode(root)?.transaction_id).toBe(winningTransactionId);
+  });
+
+  it('retains a quarantined raced replacement and recovery evidence', () => {
+    const { root, installedPath } = fixture();
+    const target = nodePath.join(root, installedPath);
+    const replacement = Buffer.from('concurrent replacement bytes\n');
+    process.env.CLAUDE_PROJECT_DIR = root;
+
+    const result = migrateClaudeLegacyAutomatically(root, {
+      pluginVersion: '0.73.0',
+      hookManifestSha256: hookDigest,
+      catalogueSha256: historicalCatalogueDigest(),
+      deadline: 10,
+      now: () => 0,
+      beforeQuarantine: () => {
+        rmSync(target);
+        writeFileSync(target, replacement);
+      },
+    });
+
+    expect(result.state).toBe('attention');
+    const transactionPath = nodePath.join(
+      root,
+      '.safeword/claude-plugin/cleanup-transaction-v1.json',
+    );
+    const transaction = JSON.parse(readFileSync(transactionPath, 'utf8')) as {
+      entries: { quarantine_path?: string }[];
+    };
+    const quarantinePath = transaction.entries.find(
+      entry => entry.quarantine_path,
+    )?.quarantine_path;
+    expect(quarantinePath).toBeDefined();
+    expect(readFileSync(nodePath.join(root, quarantinePath ?? ''))).toEqual(replacement);
+    expect(existsSync(target)).toBe(false);
+
+    expect(migrate(root).state).toBe('attention');
+    expect(readFileSync(nodePath.join(root, quarantinePath ?? ''))).toEqual(replacement);
+    expect(existsSync(transactionPath)).toBe(true);
+    expect(readClaudePluginMode(root)).toBeUndefined();
+  });
+
+  it('preserves the unresolved-path advisory when a deferred transaction recovers', () => {
+    const { root } = fixture();
+    const conflictingPath = Object.keys(CLAUDE_HISTORICAL_CATALOGUE.releases['0.72.0'].files)[1];
+    expect(conflictingPath).toBeDefined();
+    const conflict = nodePath.join(root, conflictingPath ?? 'missing');
+    mkdirSync(nodePath.dirname(conflict), { recursive: true });
+    writeFileSync(conflict, 'user-owned change\n');
+
+    let reads = 0;
+    expect(migrate(root, () => (reads++ === 0 ? 0 : 10)).state).toBe('deferred');
+
+    const recovered = migrate(root);
+    expect(recovered).toMatchObject({
+      state: 'complete',
+      unresolvedPaths: [conflictingPath],
+    });
+    expect(recovered.advisory).toContain(conflictingPath);
+    expect(readFileSync(conflict, 'utf8')).toBe('user-owned change\n');
   });
 
   it('removes the directories contracted legacy assets leave behind', () => {

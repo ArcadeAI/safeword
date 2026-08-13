@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { homedir } from 'node:os';
 import nodePath from 'node:path';
@@ -38,6 +38,12 @@ export function createClaudePluginMode(
 interface InitialSessionV1 {
   readonly schema_version: 1;
   readonly session_digest: string;
+}
+
+const PROCESS_SESSION_ID = `process-${randomUUID()}`;
+
+function migrationSessionDigest(sessionId: string | undefined, fallbackSessionId: string): string {
+  return digest(sessionId?.trim() || fallbackSessionId);
 }
 
 export interface ClaudeMigrationAttentionV1 {
@@ -88,8 +94,9 @@ export function claimClaudeMigrationAttempt(
   cwd: string,
   sessionId: string | undefined,
   kind: 'migration' | 'recovery' = 'migration',
+  fallbackSessionId = PROCESS_SESSION_ID,
 ): boolean {
-  const sessionDigest = digest(sessionId?.trim() || 'unknown-session');
+  const sessionDigest = migrationSessionDigest(sessionId, fallbackSessionId);
   const initialSession = initialSessionDigest(cwd, sessionDigest) === sessionDigest;
   const limit = initialSession ? 3 : 1;
   const directory = nodePath.join(
@@ -116,10 +123,13 @@ export function claimClaudeMigrationAdvisory(
   cwd: string,
   sessionId: string | undefined,
   stateDigest: string,
+  fallbackSessionId = PROCESS_SESSION_ID,
 ): boolean {
+  if (!validDigest(stateDigest))
+    throw new TypeError('Claude migration advisory digest is invalid.');
   const directory = nodePath.join(attemptsPath(cwd), 'advisories');
   mkdirSync(directory, { recursive: true, mode: 0o700 });
-  const sessionDigest = digest(sessionId?.trim() || 'unknown-session');
+  const sessionDigest = migrationSessionDigest(sessionId, fallbackSessionId);
   return exclusiveRecord(nodePath.join(directory, `${sessionDigest}-${stateDigest}.json`), {
     schema_version: 1,
     session_digest: sessionDigest,
@@ -136,8 +146,10 @@ export function advisoryStateDigest(advisory: string): string {
  * whitespace-only `CLAUDE_CONFIG_DIR` falls back to the default, so every
  * caller watches and reads the same user settings file.
  */
-export function claudeConfigDirectory(): string {
-  const configured = (process.env.CLAUDE_CONFIG_DIR ?? '').trim();
+export function claudeConfigDirectory(
+  environment: Readonly<Record<string, string | undefined>> = process.env,
+): string {
+  const configured = (environment.CLAUDE_CONFIG_DIR ?? '').trim();
   return configured === '' ? nodePath.join(homedir(), '.claude') : configured;
 }
 
@@ -167,6 +179,9 @@ function validDigest(value: unknown): value is string {
 
 function validPluginMode(value: Partial<ClaudePluginModeV2>): value is ClaudePluginModeV2 {
   const unresolvedPaths = value.unresolved_paths;
+  const consistentState =
+    (value.state === 'clean' && unresolvedPaths?.length === 0) ||
+    (value.state === 'unresolved' && (unresolvedPaths?.length ?? 0) > 0);
   return [
     value.schema_version === 2,
     ['clean', 'unresolved'].includes(value.state ?? ''),
@@ -175,6 +190,7 @@ function validPluginMode(value: Partial<ClaudePluginModeV2>): value is ClaudePlu
     validDigest(value.catalogue_sha256),
     Array.isArray(unresolvedPaths),
     Array.isArray(unresolvedPaths) && unresolvedPaths.every(item => typeof item === 'string'),
+    consistentState,
   ].every(Boolean);
 }
 
@@ -189,12 +205,33 @@ export function readClaudePluginMode(cwd: string): ClaudePluginModeV2 | undefine
   }
 }
 
-export function pluginModeIsTerminal(marker: ClaudePluginModeV2, catalogueSha256: string): boolean {
-  return marker.state === 'clean' || marker.catalogue_sha256 === catalogueSha256;
+export function pluginModeIsTerminal(
+  marker: ClaudePluginModeV2,
+  identity: {
+    readonly plugin_version: string;
+    readonly hook_manifest_sha256: string;
+    readonly catalogue_sha256: string;
+  },
+): boolean {
+  return (
+    marker.plugin_version === identity.plugin_version &&
+    marker.hook_manifest_sha256 === identity.hook_manifest_sha256 &&
+    marker.catalogue_sha256 === identity.catalogue_sha256
+  );
 }
 
 export function writeClaudePluginMode(cwd: string, marker: ClaudePluginModeV2): void {
-  writeDurableFile(markerPath(cwd), `${JSON.stringify(marker, undefined, 2)}\n`, { mode: 0o600 });
+  const normalized = createClaudePluginMode({
+    plugin_version: marker.plugin_version,
+    hook_manifest_sha256: marker.hook_manifest_sha256,
+    catalogue_sha256: marker.catalogue_sha256,
+    unresolved_paths: marker.unresolved_paths,
+    ...(marker.advisory !== undefined && { advisory: marker.advisory }),
+    ...(marker.transaction_id !== undefined && { transaction_id: marker.transaction_id }),
+  });
+  writeDurableFile(markerPath(cwd), `${JSON.stringify(normalized, undefined, 2)}\n`, {
+    mode: 0o600,
+  });
 }
 
 export function readClaudeMigrationAttention(cwd: string): ClaudeMigrationAttentionV1 | undefined {

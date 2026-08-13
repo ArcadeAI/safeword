@@ -19,6 +19,10 @@ import {
   reviewJobStatus,
   startReviewJob,
 } from '../../src/review/job.js';
+import {
+  cleanupTrustedReviewerDirectories,
+  createTrustedReviewerDirectory,
+} from '../review-fixtures.js';
 
 const COMPLETE_WORKER = String.raw`
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -69,7 +73,7 @@ function delayedReviewer(): { bin: string; log: string } {
   // Reviewer executables inside the reviewed project are deliberately rejected:
   // project code could replace them after validation. Model a trusted host tool
   // by placing this process-boundary fixture outside the untrusted project root.
-  const host = mkdtempSync(nodePath.join(tmpdir(), 'safeword-reviewer-host-'));
+  const host = createTrustedReviewerDirectory('safeword-reviewer-host-');
   const bin = nodePath.join(host, 'bin');
   const log = nodePath.join(host, 'reviewer.log');
   mkdirSync(bin, { recursive: true });
@@ -95,6 +99,7 @@ printf '{"type":"item.completed","item":{"type":"agent_message","text":"{\\"sche
 
 afterEach(() => {
   vi.unstubAllEnvs();
+  cleanupTrustedReviewerDirectories();
 });
 
 describe('durable review jobs', () => {

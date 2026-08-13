@@ -1740,7 +1740,7 @@ Then(
 );
 
 Then(
-  'the hook output includes Safeword standing instructions as Codex additional context',
+  'the hook output includes the compact Safeword bootstrap as Codex additional context',
   function (this: CodexPluginMigrationWorld) {
     const result = this.codexPluginHookResult;
     assert.ok(result, 'hook result was not captured');
@@ -1751,7 +1751,7 @@ Then(
     };
     assert.match(
       String(parsed.hookSpecificOutput?.additionalContext),
-      /SAFEWORD Agent Instructions/u,
+      /Safeword session bootstrap/u,
     );
   },
 );

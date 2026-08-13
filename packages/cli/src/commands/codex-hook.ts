@@ -308,11 +308,16 @@ function deny(reason: string): void {
 function readPackagedSafewordInstructions(): string | undefined {
   const instructionsPath = findPackagedTemplate('SAFEWORD.md');
   if (!instructionsPath) return undefined;
+  if (!readFileSync(instructionsPath, 'utf8').trim()) return undefined;
+
   return [
     'Current Safeword authority: tickets and their user stories/test definitions live under `.project/` (or the configured namespace root), and current workflow guides live under `.safeword/guides/`.',
     'These current paths supersede retired Safeword instructions that require `planning/` or `docs/` story/test-definition trees or `~/.agents/coding/guides/`.',
     '',
-    readFileSync(instructionsPath, 'utf8'),
+    'Safeword session bootstrap:',
+    'Before non-trivial work, read the packaged Safeword handbook and the applicable guide in `.safeword/guides/`.',
+    'Current tickets, learnings, and project context are under `.project/` (or the configured namespace root).',
+    'Follow the active Safeword workflow and its gates.',
   ].join('\n');
 }
 

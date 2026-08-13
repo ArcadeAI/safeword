@@ -90,6 +90,7 @@ export const CODEX_MIGRATION_SCHEMA = {
     config: '.codex/config.toml',
     backupRoot: '.safeword/codex-migration-backup',
     pluginMarker: '.safeword/codex-plugin.json',
+    handoffReceipt: '.safeword/codex-plugin-handoff.json',
     bootstrapSkill: '.agents/skills/safeword-plugin-setup/SKILL.md',
     hookRuntimeRoot: '.safeword/hooks',
   },

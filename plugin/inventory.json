@@ -19,7 +19,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "6030e2db88687a057cb6e9c44391a108a184a5be121aa02d971dd1961acba48f"
+      "sha256": "7d18236896c04691fe7628a61c0affa21016833815b2c1adf1e7ee64f5ea66e0"
     },
     {
       "path": "resources/guides/architecture-guide.md",
@@ -95,7 +95,7 @@
     },
     {
       "path": "resources/scripts/closeout-cleanup.ts",
-      "sha256": "7cc5787b24b93eeb5337757ee7715691ae7a42cd8e29ff09ec964b5da4c38c71"
+      "sha256": "e86e05edbda9981ff954eddfc56ada0be93545495162032103dabc43e33df298"
     },
     {
       "path": "resources/templates/adr-template.md",
@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "2489ce1d5a2e03c4ee709ce4e98987b96867285f9625edd920af8c643205dec9"
+      "sha256": "50a1740d7f786bad6861191551400ca099ceca1d5e939c8f0ff00218ce23aa8f"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "6f2e0541ea9507f4bc1cae81ec6442039bbbb970c7147da9982588eae16e6eee"
+      "sha256": "f729c6ed575e91e77ab45a1a3b8d5df6978b707cbc822f78d05d02d8839d3265"
     },
     {
       "path": "runtime/event-groups.json",
@@ -371,7 +371,7 @@
     },
     {
       "path": "runtime/hooks/lib/safeword-context.ts",
-      "sha256": "7b76d145dc4b40cc41afd8f4c3719333ed407349631f030f193d71cd2057bc38"
+      "sha256": "10882fbe1815bd848c12281be1f6d26e9f0e60bb21b08c7c2e7359d4352cc75e"
     },
     {
       "path": "runtime/hooks/lib/scenario-format.ts",
@@ -523,7 +523,7 @@
     },
     {
       "path": "runtime/hooks/session-compact-context.ts",
-      "sha256": "5acc8a0359a3ea4c9b41bb37b9a539676c83531c3836c919520b4fc4b7c050b1"
+      "sha256": "4810e508b3ef79e162c6e74e169e24f8eb7ae7980549ba3f53e640424ae10773"
     },
     {
       "path": "runtime/hooks/session-cursor-auto-upgrade.ts",

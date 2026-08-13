@@ -301,6 +301,7 @@ export const used = 2;
     beforeAll(async () => {
       projectDirectory = realpathSync(createTemporaryDirectory());
       createPythonProject(projectDirectory);
+      writeTestFile(projectDirectory, 'requirements.txt', 'ruff\nmypy\ndeadcode\n');
       // Pre-create ruff.toml BEFORE setup so safeword generates .safeword/ruff.toml
       // with `extend = "../ruff.toml"` (inheriting from customer config).
       writeTestFile(
@@ -413,6 +414,7 @@ extend-select = ["D"]
       beforeAll(async () => {
         projectDirectory = realpathSync(createTemporaryDirectory());
         createPythonProject(projectDirectory);
+        writeTestFile(projectDirectory, 'requirements.txt', 'ruff\nmypy\ndeadcode\n');
         // Note: NO pre-existing ruff.toml — let safeword generate the bare one.
         initGitRepo(projectDirectory);
         await setupOrThrow(projectDirectory);
