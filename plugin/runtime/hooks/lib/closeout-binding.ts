@@ -311,7 +311,7 @@ function isCloseoutCleanupPath(token: string | undefined, pluginRoot?: string): 
   );
 }
 
-/** True only when an executable shell segment runs the installed closeout guard. */
+/** True only when an executable shell segment runs a recognized closeout-guard path. */
 export function commandInvokesCloseoutCleanup(
   command: string,
   pluginRoot: string | undefined = process.env.CLAUDE_PLUGIN_ROOT,
@@ -378,7 +378,10 @@ export function readFreshCloseoutBinding(
       ...new Map(
         candidates
           .filter(candidate => candidate.projectRoot === currentProjectRoot)
-          .map(candidate => [JSON.stringify(candidate), candidate]),
+          .map(candidate => [
+            `${candidate.runtime}\0${candidate.id}\0${candidate.projectRoot}`,
+            candidate,
+          ]),
       ).values(),
     ];
     const candidate = distinctCandidates.length === 1 ? distinctCandidates[0] : undefined;

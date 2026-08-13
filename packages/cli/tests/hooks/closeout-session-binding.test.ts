@@ -1,5 +1,12 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, realpathSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  writeFileSync,
+} from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
@@ -133,11 +140,18 @@ describe('closeout host identity bridge (93C14D NTB1.R2/TBU1.R4)', () => {
     expect(recordCodexCloseoutHandoff({ ...input, environment: { CODEX_HOME: codexHome } })).toBe(
       true,
     );
+    const handoffDirectory = nodePath.join(codexHome, 'safeword', 'closeout-handoff-v1');
+    const handoffName = readdirSync(handoffDirectory)[0];
+    expect(handoffName).toBeDefined();
+    if (handoffName === undefined) throw new Error('expected a handoff record');
+    const handoffPath = nodePath.join(handoffDirectory, handoffName);
+    const handoff = JSON.parse(readFileSync(handoffPath, 'utf8')) as { profile_id: string };
+    writeFileSync(handoffPath, `${JSON.stringify({ ...handoff, profile_id: 'foreign' })}\n`);
     expect(
       claimCodexCloseoutHandoff({
         projectDirectory,
         sessionId: 'foreign-profile',
-        environment: { CODEX_HOME: project() },
+        environment: { CODEX_HOME: codexHome },
       }),
     ).toBeUndefined();
   });
@@ -343,8 +357,14 @@ describe('closeout host identity bridge (93C14D NTB1.R2/TBU1.R4)', () => {
     const input = { projectDirectory, runtime: 'codex' as const, id: 'thread-42', now };
     expect(rememberCloseoutBinding(input)).toBe(true);
     expect(rememberCloseoutBinding(input)).toBe(true);
+    expect(rememberCloseoutBinding({ ...input, transcriptPath: '/exact/thread-42.jsonl' })).toBe(
+      true,
+    );
 
-    expect(readFreshCloseoutBinding({ projectDirectory, now })?.id).toBe('thread-42');
+    expect(readFreshCloseoutBinding({ projectDirectory, now })).toMatchObject({
+      id: 'thread-42',
+      transcriptPath: '/exact/thread-42.jsonl',
+    });
   });
 
   it('fails closed instead of adopting either of two pending session bindings', () => {
