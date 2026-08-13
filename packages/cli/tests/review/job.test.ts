@@ -413,9 +413,18 @@ describe('durable review jobs', () => {
 
   it('binds detached reviews to their bounded context files', async () => {
     const cwd = project();
+    const releasePath = nodePath.join(cwd, 'release-worker');
     writeFileSync(nodePath.join(cwd, 'context.md'), 'review context\n');
     writeFileSync(nodePath.join(cwd, 'other context.md'), 'more review context\n');
-    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, COMPLETE_WORKER));
+    vi.stubEnv(
+      'SAFEWORD_CLI_ENTRYPOINT',
+      worker(
+        cwd,
+        `import { existsSync } from 'node:fs';
+while (!existsSync(${JSON.stringify(releasePath)})) await new Promise(resolve => setTimeout(resolve, 10));
+${COMPLETE_WORKER}`,
+      ),
+    );
     vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '0');
     const pending = await startReviewJob({
       cwd,
@@ -425,6 +434,7 @@ describe('durable review jobs', () => {
     });
     const id = (pending.data as { review_id: string }).review_id;
     const recordPath = nodePath.join(cwd, '.safeword', 'state', 'reviews', `${id}.json`);
+    writeFileSync(releasePath, 'go\n');
     await vi.waitFor(() => {
       const record = JSON.parse(readFileSync(recordPath, 'utf8')) as { state: string };
       expect(record.state).toBe('completed');
