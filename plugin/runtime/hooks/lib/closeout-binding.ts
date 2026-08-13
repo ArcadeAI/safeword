@@ -105,6 +105,25 @@ function validHandoff(
   );
 }
 
+function removeExpiredHandoffRecords(
+  path: string,
+  environment: NodeJS.ProcessEnv,
+  now: number,
+): void {
+  const directory = nodePath.dirname(path);
+  const basename = nodePath.basename(path);
+  for (const name of readdirSync(directory)) {
+    if (name !== basename && !name.startsWith(`${basename}.claim-`)) continue;
+    const candidatePath = nodePath.join(directory, name);
+    try {
+      const parsed = JSON.parse(readFileSync(candidatePath, 'utf8')) as unknown;
+      if (!validHandoff(parsed, environment, now)) rmSync(candidatePath, { force: true });
+    } catch {
+      // Unknown or unreadable records remain inert for manual inspection.
+    }
+  }
+}
+
 export function recordCodexCloseoutHandoff(input: {
   projectDirectory: string;
   repositoryUrl: string;
@@ -118,6 +137,7 @@ export function recordCodexCloseoutHandoff(input: {
   const repository = canonicalGithubRepository(input.repositoryUrl);
   if (
     !repository ||
+    currentRepository(input.projectDirectory) !== repository ||
     !Number.isSafeInteger(input.pullRequest) ||
     input.pullRequest <= 0 ||
     !/^[0-9a-f]{40}$/u.test(input.headOid)
@@ -130,7 +150,8 @@ export function recordCodexCloseoutHandoff(input: {
   );
   const now = input.now ?? new Date();
   try {
-    mkdirSync(directory, { recursive: true });
+    mkdirSync(directory, { recursive: true, mode: 0o700 });
+    removeExpiredHandoffRecords(path, environment, now.getTime());
     writeFileSync(
       path,
       `${JSON.stringify({
@@ -190,20 +211,30 @@ export function resolveExactCodexTranscript(
   id: string,
   env: Record<string, string | undefined> = process.env,
 ): string | undefined {
-  const root = nodePath.join(env.CODEX_HOME ?? nodePath.join(homedir(), '.codex'), 'sessions');
-  if (!existsSync(root)) return undefined;
-  const matches: string[] = [];
-  const visit = (directory: string): void => {
-    for (const entry of readdirSync(directory, { withFileTypes: true })) {
-      const path = nodePath.join(directory, entry.name);
-      if (entry.isDirectory()) visit(path);
-      else if (entry.isFile() && entry.name.endsWith('.jsonl') && entry.name.includes(id)) {
-        matches.push(path);
+  const sessionId = nonEmptyString(id);
+  if (sessionId === undefined) return undefined;
+  const root = nodePath.join(codexHome(env), 'sessions');
+  try {
+    if (!existsSync(root)) return undefined;
+    const matches: string[] = [];
+    const visit = (directory: string): void => {
+      for (const entry of readdirSync(directory, { withFileTypes: true })) {
+        const path = nodePath.join(directory, entry.name);
+        if (entry.isDirectory()) visit(path);
+        else if (
+          entry.isFile() &&
+          entry.name.endsWith('.jsonl') &&
+          entry.name.includes(sessionId)
+        ) {
+          matches.push(path);
+        }
       }
-    }
-  };
-  visit(root);
-  return matches.length === 1 ? matches[0] : undefined;
+    };
+    visit(root);
+    return matches.length === 1 ? matches[0] : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 interface CloseoutBindingCache extends CloseoutBinding {

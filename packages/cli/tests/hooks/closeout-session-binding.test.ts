@@ -37,6 +37,10 @@ describe('closeout host identity bridge (93C14D NTB1.R2/TBU1.R4)', () => {
   ])('accepts an exact GitHub repository identity from %s', repoUrl => {
     const projectDirectory = project();
     const codexHome = project();
+    spawnSync('git', ['init', '-q'], { cwd: projectDirectory });
+    spawnSync('git', ['remote', 'add', 'origin', 'https://github.com/ArcadeAI/safeword.git'], {
+      cwd: projectDirectory,
+    });
 
     expect(
       recordCodexCloseoutHandoff({
@@ -56,6 +60,10 @@ describe('closeout host identity bridge (93C14D NTB1.R2/TBU1.R4)', () => {
   ])('rejects a lookalike or traversal-shaped repository identity from %s', repoUrl => {
     const projectDirectory = project();
     const codexHome = project();
+    spawnSync('git', ['init', '-q'], { cwd: projectDirectory });
+    spawnSync('git', ['remote', 'add', 'origin', 'https://github.com/ArcadeAI/safeword.git'], {
+      cwd: projectDirectory,
+    });
 
     expect(
       recordCodexCloseoutHandoff({
@@ -66,6 +74,72 @@ describe('closeout host identity bridge (93C14D NTB1.R2/TBU1.R4)', () => {
         environment: { CODEX_HOME: codexHome },
       }),
     ).toBe(false);
+  });
+
+  it('replaces an expired handoff instead of blocking the repository forever', () => {
+    const projectDirectory = project();
+    const codexHome = project();
+    spawnSync('git', ['init', '-q'], { cwd: projectDirectory });
+    spawnSync('git', ['remote', 'add', 'origin', 'https://github.com/ArcadeAI/safeword.git'], {
+      cwd: projectDirectory,
+    });
+    const environment = { CODEX_HOME: codexHome };
+    const base = {
+      projectDirectory,
+      repositoryUrl: 'https://github.com/ArcadeAI/safeword/pull/2802',
+      environment,
+    };
+
+    expect(
+      recordCodexCloseoutHandoff({
+        ...base,
+        pullRequest: 2802,
+        headOid: 'a'.repeat(40),
+        now: new Date('2026-08-13T12:00:00.000Z'),
+      }),
+    ).toBe(true);
+    expect(
+      recordCodexCloseoutHandoff({
+        ...base,
+        pullRequest: 2840,
+        headOid: 'b'.repeat(40),
+        now: new Date('2026-08-14T12:00:00.000Z'),
+      }),
+    ).toBe(true);
+  });
+
+  it('rejects missing host proof, foreign profiles, and repository mismatches', () => {
+    const projectDirectory = project();
+    const codexHome = project();
+    spawnSync('git', ['init', '-q'], { cwd: projectDirectory });
+    spawnSync('git', ['remote', 'add', 'origin', 'https://github.com/ArcadeAI/safeword.git'], {
+      cwd: projectDirectory,
+    });
+    const input = {
+      projectDirectory,
+      repositoryUrl: 'https://github.com/ArcadeAI/safeword/pull/2802',
+      pullRequest: 2802,
+      headOid: 'a'.repeat(40),
+    };
+
+    expect(recordCodexCloseoutHandoff({ ...input, environment: {} })).toBe(false);
+    expect(
+      recordCodexCloseoutHandoff({
+        ...input,
+        repositoryUrl: 'https://github.com/ArcadeAI/other/pull/2802',
+        environment: { CODEX_HOME: codexHome },
+      }),
+    ).toBe(false);
+    expect(recordCodexCloseoutHandoff({ ...input, environment: { CODEX_HOME: codexHome } })).toBe(
+      true,
+    );
+    expect(
+      claimCodexCloseoutHandoff({
+        projectDirectory,
+        sessionId: 'foreign-profile',
+        environment: { CODEX_HOME: project() },
+      }),
+    ).toBeUndefined();
   });
 
   it('round-trips a profile handoff into exactly one restarted Codex task', () => {
@@ -202,6 +276,7 @@ describe('closeout host identity bridge (93C14D NTB1.R2/TBU1.R4)', () => {
     writeFileSync(transcript, '{}\n');
 
     expect(resolveExactCodexTranscript('thread-42', { CODEX_HOME: codexHome })).toBe(transcript);
+    expect(resolveExactCodexTranscript('', { CODEX_HOME: codexHome })).toBeUndefined();
     expect(
       resolveExactCodexTranscript('another-thread', { CODEX_HOME: codexHome }),
     ).toBeUndefined();
