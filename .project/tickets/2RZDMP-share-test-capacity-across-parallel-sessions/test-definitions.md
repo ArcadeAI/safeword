@@ -13,7 +13,19 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Every focused permit reconciles with durable ownership and the complete process trace
+### Scenario: Every focused process lifetime has one durable ownership interval
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Duplicate owner releases do not change durable state
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Reservation failure starts no repository process
 
 - [ ] RED
 - [ ] GREEN
@@ -189,7 +201,13 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Deliberately detached POSIX descendants remain an explicit evidence limitation
+### Scenario: POSIX capacity commands disclose detached-descendant limits
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Detached POSIX descendants remain an explicit unsupported fixture
 
 - [ ] RED
 - [ ] GREEN
@@ -323,7 +341,25 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: The public package-test entrypoint exercises every lifecycle through real collaborators
+### Scenario: Public focused invocations reach Vitest once under one permit
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Public broad invocations reach Vitest unchanged under exclusive capacity
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Public contention drains focused work before one broad invocation
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Public active cancellation returns capacity only after descendants exit
 
 - [ ] RED
 - [ ] GREEN
