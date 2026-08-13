@@ -73,11 +73,11 @@ describe("immutable raw artifact reuse", () => {
 	});
 
 	test.each([
-		["mutated artifact", (fixture: ReturnType<typeof frozenArtifacts>) => writeFileSync(join(fixture.root, "case-a", "attempt.json"), "changed")],
-		["extra artifact", (fixture: ReturnType<typeof frozenArtifacts>) => writeFileSync(join(fixture.root, "extra.json"), "extra")],
-		["mutated manifest", (fixture: ReturnType<typeof frozenArtifacts>) => { fixture.bytes += " "; }],
-		["manifest retained after reuse", (fixture: ReturnType<typeof frozenArtifacts>) => { fixture.bytes = fixture.bytes.replace("2026-08-01", "2026-08-03"); fixture.digest = sha256(fixture.bytes); }],
-	] as const)("rejects %s", (_label, mutate) => {
+		["mutated artifact", (fixture: ReturnType<typeof frozenArtifacts>) => writeFileSync(join(fixture.root, "case-a", "attempt.json"), "changed"), "raw artifact digest mismatch"],
+		["extra artifact", (fixture: ReturnType<typeof frozenArtifacts>) => writeFileSync(join(fixture.root, "extra.json"), "extra"), "raw artifact inventory differs"],
+		["mutated manifest", (fixture: ReturnType<typeof frozenArtifacts>) => { fixture.bytes += " "; }, "raw manifest bytes changed"],
+		["manifest retained after reuse", (fixture: ReturnType<typeof frozenArtifacts>) => { fixture.bytes = fixture.bytes.replace("2026-08-01", "2026-08-03"); fixture.digest = sha256(fixture.bytes); }, "raw manifest was retained after artifact reuse"],
+	] as const)("rejects %s", (_label, mutate, expectedError) => {
 		const fixture = frozenArtifacts();
 		mutate(fixture);
 		expect(() => verifyRawArtifactManifest({
@@ -86,16 +86,21 @@ describe("immutable raw artifact reuse", () => {
 			retainedAt: "2026-08-01T12:00:00.000Z",
 			reusedAt: "2026-08-02T00:00:00.000Z",
 			root: fixture.root,
-		})).toThrow();
+		})).toThrow(expectedError);
 	});
 
-	test("rejects traversal and symlink identities", () => {
+	test("rejects traversal identities", () => {
 		const fixture = frozenArtifacts();
-		symlinkSync(join(fixture.root, "case-a", "attempt.json"), join(fixture.root, "alias.json"));
 		const manifest = JSON.parse(fixture.bytes);
 		manifest.artifacts = [{ identity: "../escape", digest: "0".repeat(64) }];
 		const bytes = JSON.stringify(manifest);
-		expect(() => verifyRawArtifactManifest({ expectedManifestDigest: sha256(bytes), manifestBytes: bytes, retainedAt: "2026-08-01T12:00:00.000Z", reusedAt: "2026-08-02T00:00:00.000Z", root: fixture.root })).toThrow();
+		expect(() => verifyRawArtifactManifest({ expectedManifestDigest: sha256(bytes), manifestBytes: bytes, retainedAt: "2026-08-01T12:00:00.000Z", reusedAt: "2026-08-02T00:00:00.000Z", root: fixture.root })).toThrow("unsafe artifact identity");
+	});
+
+	test("rejects symlink artifacts", () => {
+		const fixture = frozenArtifacts();
+		symlinkSync(join(fixture.root, "case-a", "attempt.json"), join(fixture.root, "alias.json"));
+		expect(() => verifyRawArtifactManifest({ expectedManifestDigest: fixture.digest, manifestBytes: fixture.bytes, retainedAt: "2026-08-01T12:00:00.000Z", reusedAt: "2026-08-02T00:00:00.000Z", root: fixture.root })).toThrow("symlink is not reusable");
 	});
 });
 
@@ -114,14 +119,14 @@ describe("corpus role separation", () => {
 	});
 
 	test.each([
-		["void corpus", { voidForInstrumentFailure: true }],
-		["development overlap", { caseIds: ["d1", "h2"] }],
-		["development reserve overlap", { developmentCaseIds: ["r1"] }],
-		["primary reserve overlap", { reserveIds: ["h1"], preregisteredReserveIds: ["h1"] }],
-		["late registration", { preregisteredAt: "2026-08-03T00:00:00.000Z" }],
-		["unregistered reserve", { reserveIds: ["r2"] }],
-		["underpowered holdout", { minimumPoweredCases: 3 }],
-	] as const)("rejects %s", (_label, change) => {
+		["void corpus", { voidForInstrumentFailure: true }, "void corpus is diagnostic-only"],
+		["development overlap", { caseIds: ["d1", "h2"] }, "overlaps scorer development cases"],
+		["development reserve overlap", { developmentCaseIds: ["r1"] }, "overlaps scorer development cases"],
+		["primary reserve overlap", { reserveIds: ["h1"], preregisteredReserveIds: ["h1"] }, "reserves overlap the primary holdout"],
+		["late registration", { preregisteredAt: "2026-08-03T00:00:00.000Z" }, "was not preregistered before review"],
+		["unregistered reserve", { reserveIds: ["r2"] }, "reserves differ from preregistration"],
+		["underpowered holdout", { minimumPoweredCases: 3 }, "confirmatory holdout is underpowered"],
+	] as const)("rejects %s", (_label, change, expectedError) => {
 		expect(() => validateConfirmatoryCorpus({
 			caseIds: ["h1", "h2"],
 			developmentCaseIds: ["d1"],
@@ -132,6 +137,6 @@ describe("corpus role separation", () => {
 			reviewStartedAt: "2026-08-02T00:00:00.000Z",
 			voidForInstrumentFailure: false,
 			...change,
-		})).toThrow();
+		})).toThrow(expectedError);
 	});
 });

@@ -223,12 +223,12 @@ describe("paid canary authorization", () => {
 	});
 
 	test.each([
-		["missing fixture taxonomy", (input: ReturnType<typeof validInput>) => input.fixtures.pop()],
-		["failed operational injection", (input: ReturnType<typeof validInput>) => { input.operational[0]!.passed = false; }],
-		["unusable paid call", (input: ReturnType<typeof validInput>) => { input.paidOutcomes[3]!.usable = false; }],
-		["missing durable call intent", (input: ReturnType<typeof validInput>) => { input.callIntents.pop(); }],
-		["call intent label mismatch", (input: ReturnType<typeof validInput>) => { input.callIntents[2]!.labelBinding = "0".repeat(64); }],
-		["call intent attempt mismatch", (input: ReturnType<typeof validInput>) => { input.callIntents[0]!.attemptIds = ["attempt-1"]; }],
+		["missing fixture taxonomy", (input: ReturnType<typeof validInput>) => input.fixtures.pop(), "fixture inventory does not exactly cover"],
+		["failed operational injection", (input: ReturnType<typeof validInput>) => { input.operational[0]!.passed = false; }, "operational scenario"],
+		["unusable paid call", (input: ReturnType<typeof validInput>) => { input.paidOutcomes[3]!.usable = false; }, "is unusable"],
+		["missing durable call intent", (input: ReturnType<typeof validInput>) => { input.callIntents.pop(); }, "durable call intents must identify exactly"],
+		["call intent label mismatch", (input: ReturnType<typeof validInput>) => { input.callIntents[2]!.labelBinding = "0".repeat(64); }, "disagrees with its durable pre-call intent"],
+		["call intent attempt mismatch", (input: ReturnType<typeof validInput>) => { input.callIntents[0]!.attemptIds = ["attempt-1"]; }, "disagrees with its durable pre-call intent"],
 		["label disagreement", (input: ReturnType<typeof validInput>) => { input.preregisteredLabels[4]!.expectedOutputClass = "finding"; }],
 		["unsupported label vocabulary", (input: ReturnType<typeof validInput>) => { input.preregisteredLabels[2]!.expectedOutputClass = "unsupported" as "empty"; }],
 		["fabricated raw system", (input: ReturnType<typeof validInput>) => { input.attempts.find(({ attemptId }) => attemptId === "attempt-2")!.system = "full"; }],
@@ -255,12 +255,16 @@ describe("paid canary authorization", () => {
 		["hidden failure scorer succeeded", (input: ReturnType<typeof validInput>) => { input.hiddenFailureEvidence.scorer.exitStatus = 0; }],
 		["changed executable binding", (input: ReturnType<typeof validInput>) => { input.observedBindings.runner = "c".repeat(64); }],
 		["missing required binding", (input: ReturnType<typeof validInput>) => { delete input.expectedBindings.labels; delete input.observedBindings.labels; }],
-	] as const)("blocks more spend for %s", (_label, mutate) => {
+	] as const)("blocks more spend for %s", (_label, mutate, expectedReason) => {
 		const input = validInput();
 		mutate(input);
 		const result = evaluateCanaryGate(input);
 		expect(result.authorized).toBe(false);
-		if (!result.authorized) expect(result.reasons.length).toBeGreaterThan(0);
+		if (!result.authorized && expectedReason !== undefined) {
+			expect(result.reasons.join("\n")).toContain(expectedReason);
+		} else if (!result.authorized) {
+			expect(result.reasons.length).toBeGreaterThan(0);
+		}
 	});
 
 	test("reports all-attempt cost separately from usable cost", () => {
