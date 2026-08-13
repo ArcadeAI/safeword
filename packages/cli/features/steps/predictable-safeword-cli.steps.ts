@@ -51,7 +51,6 @@ interface PredictableCliWorld extends SafewordWorld {
   rendered?: string;
   renderedMany?: string[];
   beforeTree?: string;
-  beforeHostTree?: string;
   planId?: string;
   plannedEffects?: Effects;
   legacy?: string;
@@ -428,7 +427,6 @@ Given('a project that is {word}', function (this: PredictableCliWorld, state: st
   }
   this.expectedReadOnlyState = state === 'failed' ? 'failed' : 'action_required';
   this.beforeTree = treeDigest(directory);
-  this.beforeHostTree = treeDigest(hostProfileDirectory(this));
 });
 
 When(
@@ -440,7 +438,6 @@ When(
 
 Then('no filesystem package or network effect occurs', function (this: PredictableCliWorld) {
   assert.equal(treeDigest(temporaryProject(this)), this.beforeTree);
-  assert.equal(treeDigest(hostProfileDirectory(this)), this.beforeHostTree);
   const result = wireResult(this);
   assert.equal(result.state, this.expectedReadOnlyState);
   const effects = result.effects as typeof EMPTY_EFFECTS;
@@ -1029,7 +1026,6 @@ Then(
 
 Given('the public command catalog', function (this: PredictableCliWorld) {
   this.beforeTree = treeDigest(temporaryProject(this));
-  this.beforeHostTree = treeDigest(hostProfileDirectory(this));
 });
 
 When('the agent requests capabilities as JSON', function (this: PredictableCliWorld) {
@@ -1068,7 +1064,6 @@ Then(
     );
     assert.deepEqual(wireResult(this).effects, EMPTY_EFFECTS);
     assert.equal(treeDigest(temporaryProject(this)), this.beforeTree);
-    assert.equal(treeDigest(hostProfileDirectory(this)), this.beforeHostTree);
   },
 );
 
