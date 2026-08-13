@@ -25,4 +25,25 @@ describe("attempt cost evidence", () => {
 			]),
 		).toMatchObject({ complete: false, inputTokens: 10, outputTokens: 5 });
 	});
+
+	test.each([
+		["fractional", 1.5, 2],
+		["unsafe", Number.MAX_SAFE_INTEGER + 1, 2],
+	])("marks %s token counts as incomplete", (_label, inputTokens, outputTokens) => {
+		expect(
+			estimateAttemptUsage([{ output: { report: { usage: { inputTokens, outputTokens } } } }]),
+		).toEqual({
+			complete: false,
+			costUsd: 0,
+			inputTokens: 0,
+			outputTokens: 0,
+		});
+	});
+
+	test("marks a token aggregate beyond the safe integer range as incomplete", () => {
+		const output = { output: { report: { usage: { inputTokens: Number.MAX_SAFE_INTEGER, outputTokens: 0 } } } };
+		expect(
+			estimateAttemptUsage([output, { output: { report: { usage: { inputTokens: 1, outputTokens: 0 } } } }]),
+		).toMatchObject({ complete: false, inputTokens: Number.MAX_SAFE_INTEGER });
+	});
 });

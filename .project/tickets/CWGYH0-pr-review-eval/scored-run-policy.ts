@@ -493,6 +493,7 @@ export function classifyTrialOutput(
 		outcomeFindingKeys.size !== outcome.findings.length ||
 		new Set(matchingFindingKeys).size !== matchingFindingKeys.length ||
 		new Set(consolidatedFindingKeys).size !== consolidatedFindingKeys.length ||
+		consolidatedFindingKeys.length !== outcomeFindingKeys.size ||
 		value.score.namedFailure !== (matchingFindingKeys.length > 0) ||
 		matchingFindingKeys.some((key) => !outcomeFindingKeys.has(key)) ||
 		consolidatedFindingKeys.some((key) => !outcomeFindingKeys.has(key))

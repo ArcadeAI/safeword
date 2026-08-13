@@ -209,6 +209,12 @@ describe("positive trial admission", () => {
 	);
 
 	test.each([
+		["routed finding absent from the consolidated report", (() => {
+			const finding = { file: "a.ts", line: 1, title: "bug" };
+			const output = completedOutput([finding]);
+			output.report.consolidated.findings = [];
+			return output;
+		})()],
 		["matching finding absent from the routed outcome", (() => {
 			const output = completedOutput();
 			output.score = {

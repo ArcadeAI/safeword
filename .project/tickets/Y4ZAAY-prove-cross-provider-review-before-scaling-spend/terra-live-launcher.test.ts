@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -12,6 +12,7 @@ import {
   preflightPinnedCheckout,
   runCredentialSeparatedCanary,
   spawnPaidChild,
+  verifyAuthorizedPaidChildInput,
   type PaidChildRequest,
   type PinnedCheckout,
 } from "./terra-live-launcher";
@@ -38,11 +39,17 @@ async function pinnedCheckout(name: string): Promise<PinnedCheckout> {
     ".project/tickets/CWGYH0-pr-review-eval"
   );
   await mkdir(registrationDirectory, { recursive: true });
-  await writeFile(
-    join(registrationDirectory, "corpus-registration-development-2026-08-11.json"),
-    JSON.stringify({ role: "development", voidForInstrumentFailure: true }),
-    "utf8"
-  );
+  const corpusDirectory = join(import.meta.dirname, "../CWGYH0-pr-review-eval");
+  await Promise.all([
+    "corpus-registration-development-2026-08-11.json",
+    "scored-cases-frozen-2026-08-01.json",
+    "reserve-cases-frozen-2026-08-01.json",
+  ].map(async (filename) =>
+    writeFile(
+      join(registrationDirectory, filename),
+      await readFile(join(corpusDirectory, filename)),
+    )
+  ));
   await writeFile(
     join(registrationDirectory, "corpus-registration-development-2026-08-11.sha256"),
     `${CORPUS_DIGEST}\n`,
@@ -73,6 +80,45 @@ async function pinnedCheckout(name: string): Promise<PinnedCheckout> {
 }
 
 describe("credential-separated live launcher", () => {
+
+  test("binds the paid child review to an exact frozen corpus case", async () => {
+    const harness = await pinnedCheckout("harness-corpus-input");
+    const corpusDirectory = join(import.meta.dirname, "../CWGYH0-pr-review-eval");
+    const registration = JSON.parse(
+      await readFile(join(corpusDirectory, "corpus-registration-development-2026-08-11.json"), "utf8")
+    );
+    const manifest = JSON.parse(
+      await readFile(join(corpusDirectory, "scored-cases-frozen-2026-08-01.json"), "utf8")
+    ) as { cases: Array<Record<string, unknown>>; modelCutoff: string; runnerRef: string };
+    const corpusCase = manifest.cases[0]!;
+    const inputPath = join(await mkdtemp(join(tmpdir(), "terra-input-")), "input.json");
+    const review = {
+      caseId: corpusCase.id,
+      causalPaths: corpusCase.causalPaths,
+      failureDescription: corpusCase.failureDescription,
+      modelCutoff: manifest.modelCutoff,
+      reviewBaseSha: corpusCase.reviewBaseSha,
+      runnerRef: manifest.runnerRef,
+      sourceSha: corpusCase.baseSha,
+      variant: "buggy",
+    };
+    await writeFile(inputPath, JSON.stringify({ review }), "utf8");
+
+    await expect(verifyAuthorizedPaidChildInput({
+      checkout: harness,
+      inputPath,
+      registration,
+      registrationCommit: harness.commit,
+    })).resolves.toBeUndefined();
+
+    await writeFile(inputPath, JSON.stringify({ review: { ...review, sourceSha: "0".repeat(40) } }), "utf8");
+    await expect(verifyAuthorizedPaidChildInput({
+      checkout: harness,
+      inputPath,
+      registration,
+      registrationCommit: harness.commit,
+    })).rejects.toThrow("does not match its frozen corpus case");
+  });
   test("builds the pinned harness child command with absolute paths", () => {
     expect(
       createTerraPaidChildCommand({

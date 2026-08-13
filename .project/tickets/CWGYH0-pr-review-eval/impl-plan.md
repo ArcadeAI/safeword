@@ -38,9 +38,9 @@ The internal evaluation harness is the only affected surface; no installed Safew
 
 | Principle | Consequence | Proof | Conflict |
 | --- | --- | --- | --- |
-| 1. Structure enforces; instructions suggest | The scorer physically cannot consume provisional, quarantined, unknown, or matrix-incomplete trials. | `.project/tickets/CWGYH0-pr-review-eval/scored-run-policy.test.ts` and new scorer integration tests | |
+| 1. Structure enforces; instructions suggest | The scorer physically cannot consume provisional, quarantined, unknown, or matrix-incomplete trials. | `.project/tickets/CWGYH0-pr-review-eval/scored-run-policy.test.ts` | |
 | 2. Fire at boundaries, not every turn | Validity checks run at attempt completion, case sealing, scoring, and paid-checkpoint authorization. | `.project/tickets/CWGYH0-pr-review-eval/features/reject-incomplete-evaluation-trials.feature` | |
-| 5. Clarity before correctness | One named admission predicate and one durable case lifecycle replace scattered implicit assumptions. | `.project/tickets/CWGYH0-pr-review-eval/scored-run-policy.ts` | |
+| 5. Correct and safe; then clear; then simple | One named admission predicate and one durable case lifecycle replace scattered implicit assumptions. | `.project/tickets/CWGYH0-pr-review-eval/scored-run-policy.ts` | |
 
 Architecture alignment: this remains ticket-local research tooling and follows `ARCHITECTURE.md`'s separation of generated state from human decisions. It does not change package or published CLI architecture.
 

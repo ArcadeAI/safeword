@@ -1,4 +1,6 @@
 import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import { isAbsolute, join } from "node:path";
 import { promisify } from "node:util";
 
@@ -19,6 +21,10 @@ const CHILD_ENVIRONMENT_ALLOWLIST = [
 const REGISTRATION_PATH =
   ".project/tickets/CWGYH0-pr-review-eval/corpus-registration-development-2026-08-11.json";
 const REGISTRATION_DIGEST_PATH = `${REGISTRATION_PATH.slice(0, -5)}.sha256`;
+const PRIMARY_MANIFEST_PATH =
+  ".project/tickets/CWGYH0-pr-review-eval/scored-cases-frozen-2026-08-01.json";
+const RESERVE_MANIFEST_PATH =
+  ".project/tickets/CWGYH0-pr-review-eval/reserve-cases-frozen-2026-08-01.json";
 
 export type PinnedCheckout = {
   canonicalRepository: string;
@@ -224,11 +230,30 @@ export async function preflightPinnedCheckout(
   }
 }
 
+type CorpusRegistration = {
+  developmentCaseIds: string[];
+  primaryManifestSha256: string;
+  reserveManifestSha256: string;
+};
+
+async function gitBytes(directory: string, objectPath: string): Promise<string> {
+  try {
+    const { stdout } = await execFileAsync("git", ["show", objectPath], {
+      cwd: directory,
+      encoding: "utf8",
+    });
+    return stdout;
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(`committed corpus evidence is unavailable: ${detail}`);
+  }
+}
+
 async function verifyCommittedCorpusRegistration(input: {
   checkout: PinnedCheckout;
   corpusDigest: string;
   registrationCommit: string;
-}): Promise<void> {
+}): Promise<CorpusRegistration> {
   if (!/^[0-9a-f]{40}$/.test(input.registrationCommit)) {
     throw new Error("registration commit must be a full lowercase SHA-1");
   }
@@ -242,11 +267,8 @@ async function verifyCommittedCorpusRegistration(input: {
     throw new Error("registration commit is not reachable from the authorized checkout");
   }
   const [registrationBytes, digestBytes] = await Promise.all([
-    git(input.checkout.directory, ["show", `${input.registrationCommit}:${REGISTRATION_PATH}`]),
-    git(input.checkout.directory, [
-      "show",
-      `${input.registrationCommit}:${REGISTRATION_DIGEST_PATH}`,
-    ]),
+    gitBytes(input.checkout.directory, `${input.registrationCommit}:${REGISTRATION_PATH}`),
+    gitBytes(input.checkout.directory, `${input.registrationCommit}:${REGISTRATION_DIGEST_PATH}`),
   ]);
   let registration: unknown;
   try {
@@ -260,9 +282,62 @@ async function verifyCommittedCorpusRegistration(input: {
     Array.isArray(registration) ||
     (registration as Record<string, unknown>).role !== "development" ||
     (registration as Record<string, unknown>).voidForInstrumentFailure !== true ||
-    digestBytes !== input.corpusDigest
+    !Array.isArray((registration as Record<string, unknown>).developmentCaseIds) ||
+    typeof (registration as Record<string, unknown>).primaryManifestSha256 !== "string" ||
+    typeof (registration as Record<string, unknown>).reserveManifestSha256 !== "string" ||
+    digestBytes.trim() !== input.corpusDigest ||
+    createHash("sha256").update(registrationBytes).digest("hex") !== input.corpusDigest
   ) {
     throw new Error("committed corpus registration does not match authorization");
+  }
+  return registration as CorpusRegistration;
+}
+
+export async function verifyAuthorizedPaidChildInput(input: {
+  checkout: PinnedCheckout;
+  inputPath: string;
+  registration: CorpusRegistration;
+  registrationCommit: string;
+}): Promise<void> {
+  const [inputBytes, primaryBytes, reserveBytes] = await Promise.all([
+    readFile(input.inputPath, "utf8"),
+    gitBytes(input.checkout.directory, `${input.registrationCommit}:${PRIMARY_MANIFEST_PATH}`),
+    gitBytes(input.checkout.directory, `${input.registrationCommit}:${RESERVE_MANIFEST_PATH}`),
+  ]);
+  if (
+    createHash("sha256").update(primaryBytes).digest("hex") !==
+      input.registration.primaryManifestSha256 ||
+    createHash("sha256").update(reserveBytes).digest("hex") !==
+      input.registration.reserveManifestSha256
+  ) {
+    throw new Error("committed corpus manifest digest does not match registration");
+  }
+  const request = JSON.parse(inputBytes) as Record<string, unknown>;
+  const review = request.review as Record<string, unknown> | undefined;
+  const caseId = review?.caseId;
+  if (typeof caseId !== "string" || !input.registration.developmentCaseIds.includes(caseId)) {
+    throw new Error("paid child case is not authorized by the corpus registration");
+  }
+  const manifests = [JSON.parse(primaryBytes), JSON.parse(reserveBytes)] as Array<{
+    cases?: Array<Record<string, unknown>>;
+    modelCutoff?: unknown;
+    runnerRef?: unknown;
+  }>;
+  const manifest = manifests.find((candidate) => candidate.cases?.some((item) => item.id === caseId));
+  const corpusCase = manifest?.cases?.find((item) => item.id === caseId);
+  const variant = review?.variant;
+  const expectedSourceSha =
+    variant === "buggy" ? corpusCase?.baseSha : variant === "fixed" ? corpusCase?.fixedSha : undefined;
+  if (
+    corpusCase === undefined ||
+    review?.reviewBaseSha !== corpusCase.reviewBaseSha ||
+    review?.sourceSha !== expectedSourceSha ||
+    review?.modelCutoff !== manifest?.modelCutoff ||
+    review?.runnerRef !== manifest?.runnerRef ||
+    JSON.stringify(review?.causalPaths) !== JSON.stringify(corpusCase.causalPaths) ||
+    JSON.stringify(review?.failureDescription) !== JSON.stringify(corpusCase.failureDescription)
+  ) {
+    throw new Error("paid child review does not match its frozen corpus case");
   }
 }
 
@@ -363,6 +438,17 @@ export async function runTerraPaidCanary(input: {
   outputDirectory: string;
   registration: { corpusDigest: string; registrationCommit: string };
 }): Promise<Awaited<ReturnType<typeof runCanaryAttempt>>> {
+  const registration = await verifyCommittedCorpusRegistration({
+    checkout: input.harnessCheckout,
+    corpusDigest: input.registration.corpusDigest,
+    registrationCommit: input.registration.registrationCommit,
+  });
+  await verifyAuthorizedPaidChildInput({
+    checkout: input.harnessCheckout,
+    inputPath: input.inputPath,
+    registration,
+    registrationCommit: input.registration.registrationCommit,
+  });
   return runCredentialSeparatedCanary({
     adapterDirectory: input.adapterCheckout.directory,
     authorization: {

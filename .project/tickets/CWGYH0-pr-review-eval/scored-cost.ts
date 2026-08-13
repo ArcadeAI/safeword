@@ -23,10 +23,10 @@ function usageFromOutput(output: unknown): {
 		!("inputTokens" in usage) ||
 		!("outputTokens" in usage) ||
 		typeof usage.inputTokens !== "number" ||
-		!Number.isFinite(usage.inputTokens) ||
+		!Number.isSafeInteger(usage.inputTokens) ||
 		usage.inputTokens < 0 ||
 		typeof usage.outputTokens !== "number" ||
-		!Number.isFinite(usage.outputTokens) ||
+		!Number.isSafeInteger(usage.outputTokens) ||
 		usage.outputTokens < 0
 	) {
 		return null;
@@ -46,6 +46,11 @@ export function estimateAttemptUsage(
 			if (attempt.output === null) return { ...total, complete: false };
 			const usage = usageFromOutput(attempt.output);
 			if (usage === null) return { ...total, complete: false };
+			const inputTokens = total.inputTokens + usage.inputTokens;
+			const outputTokens = total.outputTokens + usage.outputTokens;
+			if (!Number.isSafeInteger(inputTokens) || !Number.isSafeInteger(outputTokens)) {
+				return { ...total, complete: false };
+			}
 			return {
 				complete: total.complete,
 				costUsd:
@@ -53,8 +58,8 @@ export function estimateAttemptUsage(
 					(usage.inputTokens * prices.inputPerMillionUsd +
 						usage.outputTokens * prices.outputPerMillionUsd) /
 						1_000_000,
-				inputTokens: total.inputTokens + usage.inputTokens,
-				outputTokens: total.outputTokens + usage.outputTokens,
+				inputTokens,
+				outputTokens,
 			};
 		},
 		{ complete: true, costUsd: 0, inputTokens: 0, outputTokens: 0 },
