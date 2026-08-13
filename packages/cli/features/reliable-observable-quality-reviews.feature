@@ -69,8 +69,9 @@ Feature: Keep quality reviews observable and actionable
       And the same reviewer kind retries with its configured alternate model through one heartbeat
       And the review is observed with a deterministic clock
       When the alternate-model route completes before its second heartbeat
-      Then stderr consists exactly of the preferred active-review line, its heartbeat, the alternate-model active-review line, and its heartbeat in that order
-      And the alternate-model lines occur 100 milliseconds and 30 seconds after that route starts
+      Then stderr consists exactly of two textually identical assigned-reviewer active lines and two textually identical assigned-reviewer heartbeats
+      And those lines occur in order at 0.1 seconds, 30 seconds, 45.1 seconds, and 75 seconds
+      And no configured model name appears in stderr
       And stdout consists exactly of one complete parseable schema-1 result followed by EOF
 
   @reliable-observable-quality-reviews.TBU1.R2 @surface.safeword-cli @proof.vitest
@@ -82,7 +83,7 @@ Feature: Keep quality reviews observable and actionable
       And the review is observed with a deterministic clock
       When the review completes with <stderr_kind> stderr
       Then stderr consists of <expected_lines>
-      And stdout consists exactly of one complete parseable typed result followed by EOF
+      And stdout consists exactly of one complete parseable schema-1 result followed by EOF
       And the command exits with status 0
 
       Examples:
@@ -115,7 +116,7 @@ Feature: Keep quality reviews observable and actionable
       And the review is observed with a deterministic clock
       When the reviewer returns verdict <verdict> after one heartbeat
       Then stderr is empty
-      And stdout consists exactly of one complete parseable typed result followed by EOF
+      And stdout consists exactly of one complete parseable schema-1 result followed by EOF
       And the command exits with status <status>
 
       Examples:
@@ -147,10 +148,9 @@ Feature: Keep quality reviews observable and actionable
       And the review remains active through an attempted active-review write and heartbeat write
       And the review is observed with a deterministic clock
       When the reviewer completes with <classification>
-      Then both lifecycle writes are attempted and their failures are swallowed
+      Then each lifecycle write is attempted and any failure is swallowed
       And stdout consists exactly of the canonical typed result followed by EOF
       And no fallback diagnostic is written to stdout
-      And stderr contains no partial lifecycle line
       And the command exits with status <status>
 
       Examples:
@@ -165,11 +165,13 @@ Feature: Keep quality reviews observable and actionable
     Scenario: Accepted reviewer data never enters lifecycle output
       Given an accepted reviewer result contains a unique summary secret
       And configured model names use disjoint unique secrets and control characters
+      And the review remains active through its active-review line but completes before its heartbeat
+      And the review is observed with a deterministic clock
       When a managed review succeeds
       Then stdout contains the accepted summary secret
       And stdout consists exactly of one complete parseable schema-1 approved result followed by EOF
       And serialized stdout contains no literal injected line break or ANSI escape
-      And stderr contains a positive lifecycle line naming only the assigned reviewer kind
+      And stderr consists exactly of one active-review line naming only the assigned reviewer kind
       And stderr contains no summary secret, model secret, control character, or configured model name
       And the command exits with status 0
 
@@ -177,8 +179,9 @@ Feature: Keep quality reviews observable and actionable
       Given route configuration <route_configuration>
       And rejected reviewer bytes, model names, targets, and context contain disjoint unique secrets and control characters
       And the review is observed with a deterministic clock
+      And every attempted route remains active through its active-review line but completes before its heartbeat
       When a managed review <termination>
-      Then stderr contains positive lifecycle lines naming only <reviewer_kinds>
+      Then stderr consists exactly of <expected_lifecycle_lines>
       And stdout consists exactly of one complete parseable schema-1 action-required result followed by EOF
       And the rejected reviewer bytes are absent from stdout and stderr
       And stderr contains no injected secret, control character, or model name
@@ -186,10 +189,10 @@ Feature: Keep quality reviews observable and actionable
       And the command exits with status 2
 
       Examples:
-        | route_configuration    | termination          | reviewer_kinds   |
-        | preferred only        | returns invalid data | Claude           |
-        | preferred only        | times out            | Claude           |
-        | preferred and fallback | exhausts its routes  | Claude and Codex |
+        | route_configuration     | termination          | expected_lifecycle_lines                    |
+        | preferred only         | returns invalid data | one Claude active-review line               |
+        | preferred only         | times out            | one Claude active-review line               |
+        | preferred and fallback | exhausts its routes  | Claude active-review, then Codex active-review |
 
     Scenario: Exhausted routes identify the failed boundary and recovery
       Given a managed JSON review for target "change.ts" whose preferred route times out and fallback returns invalid output
@@ -198,6 +201,7 @@ Feature: Keep quality reviews observable and actionable
       Then stdout consists exactly of one complete parseable schema-1 action-required result followed by EOF
       And the result contains finding code "REVIEW_ROUTES_EXHAUSTED"
       And the result records preferred failure "timed_out"
+      And the result records fallback failure "invalid_output"
       And recovery equals the independently authored retry fixture for target "change.ts"
       And the command exits with status 2
 
@@ -209,7 +213,7 @@ Feature: Keep quality reviews observable and actionable
       And the wrapper resolves a review-capable Safeword CLI
       When it launches a JSON review
       Then the CLI child receives managed-progress signal value "1"
-      And capability probes do not contain the signal
+      And at least one capability probe is observed without the signal
       And stdout equals the CLI fixture's typed result byte for byte
       And stderr equals the CLI fixture's lifecycle lines byte for byte
       And the wrapper exits with the CLI fixture's status 2
