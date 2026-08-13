@@ -511,7 +511,7 @@ else if (args[0] === 'retro' && args[1] === 'run') {
   }, 30_000);
 
   it.each([true, false])(
-    'requires local verification despite a green rollup (required checks: %s)',
+    'uses a green hosted rollup instead of local verification (required checks: %s)',
     requiredChecks => {
       const fixture = deliveryFixture();
       installBoundaryFakes(fixture, requiredChecks, 'green');
@@ -551,9 +551,9 @@ if (args[0] === 'retro' && args[1] === 'run') {
         { cwd: fixture.topic, env: environment, encoding: 'utf8' },
       );
 
-      expect(preview.status).toBe(2);
-      expect(existsSync(localPlanMarker)).toBe(true);
-      expect(existsSync(verificationReceiptPath(fixture))).toBe(false);
+      expect(preview.status).toBe(0);
+      expect(existsSync(localPlanMarker)).toBe(false);
+      expect(existsSync(verificationReceiptPath(fixture))).toBe(true);
     },
     30_000,
   );

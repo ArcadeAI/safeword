@@ -1,11 +1,14 @@
+import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, realpathSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
 import {
+  claimCodexCloseoutHandoff,
   commandInvokesCloseoutCleanup,
   readFreshCloseoutBinding,
+  recordCodexCloseoutHandoff,
   rememberCloseoutBinding,
   resolveExactCodexTranscript,
 } from '../../templates/hooks/lib/closeout-binding.ts';
@@ -27,6 +30,73 @@ afterEach(() => {
 });
 
 describe('closeout host identity bridge (93C14D NTB1.R2/TBU1.R4)', () => {
+  it('round-trips a profile handoff into exactly one restarted Codex task', () => {
+    const projectDirectory = project();
+    const codexHome = project();
+    spawnSync('git', ['init', '-q'], { cwd: projectDirectory });
+    spawnSync('git', ['remote', 'add', 'origin', 'git@github.com:ArcadeAI/safeword.git'], {
+      cwd: projectDirectory,
+    });
+    const environment = { CODEX_HOME: codexHome, CODEX_THREAD_ID: 'old-task' };
+    const now = new Date('2026-08-13T12:00:00.000Z');
+
+    expect(
+      recordCodexCloseoutHandoff({
+        projectDirectory,
+        repositoryUrl: 'https://github.com/ArcadeAI/safeword/pull/2802',
+        pullRequest: 2802,
+        headOid: 'a'.repeat(40),
+        environment,
+        now,
+      }),
+    ).toBe(true);
+    expect(
+      claimCodexCloseoutHandoff({
+        projectDirectory,
+        sessionId: 'new-task',
+        environment,
+        now,
+      }),
+    ).toMatchObject({ pull_request: 2802, repository: 'arcadeai/safeword' });
+    expect(
+      claimCodexCloseoutHandoff({
+        projectDirectory,
+        sessionId: 'second-task',
+        environment,
+        now,
+      }),
+    ).toBeUndefined();
+  });
+
+  it('rejects an expired profile handoff after an ordinary plugin-version-independent write', () => {
+    const projectDirectory = project();
+    const codexHome = project();
+    spawnSync('git', ['init', '-q'], { cwd: projectDirectory });
+    spawnSync('git', ['remote', 'add', 'origin', 'https://github.com/ArcadeAI/safeword.git'], {
+      cwd: projectDirectory,
+    });
+    const environment = { CODEX_HOME: codexHome };
+    const writtenAt = new Date('2026-08-13T12:00:00.000Z');
+    expect(
+      recordCodexCloseoutHandoff({
+        projectDirectory,
+        repositoryUrl: 'git@github.com:ArcadeAI/safeword.git',
+        pullRequest: 2802,
+        headOid: 'b'.repeat(40),
+        environment,
+        now: writtenAt,
+      }),
+    ).toBe(true);
+    expect(
+      claimCodexCloseoutHandoff({
+        projectDirectory,
+        sessionId: 'new-task',
+        environment,
+        now: new Date('2026-08-14T12:00:00.000Z'),
+      }),
+    ).toBeUndefined();
+  });
+
   it('matches only an executable closeout guard command', () => {
     expect(commandInvokesCloseoutCleanup('bun .safeword/scripts/closeout-cleanup.ts --pr 42')).toBe(
       true,
