@@ -92,16 +92,14 @@ const log = ${JSON.stringify(logPath)};
 const snapshotLog = ${JSON.stringify(snapshotLogPath)};
 const parent = process.ppid;
 const snapshotRoot = process.env.SAFEWORD_TEST_CLI_ROOT;
-if (!snapshotRoot) {
-  process.stderr.write('SAFEWORD_TEST_CLI_ROOT was not provided\\n');
-  process.exit(2);
+if (snapshotRoot) {
+  const { readFileSync } = await import('node:fs');
+  const { join } = await import('node:path');
+  appendFileSync(snapshotLog, JSON.stringify({
+    root: snapshotRoot,
+    cli: readFileSync(join(snapshotRoot, 'dist', 'cli.js'), 'utf8'),
+  }) + '\\n');
 }
-const { readFileSync } = await import('node:fs');
-const { join } = await import('node:path');
-appendFileSync(snapshotLog, JSON.stringify({
-  root: snapshotRoot,
-  cli: readFileSync(join(snapshotRoot, 'dist', 'cli.js'), 'utf8'),
-}) + '\\n');
 appendFileSync(log, \`vitest:start:\${parent}:\${process.argv.slice(2).join(',')}\\n\`);
 await new Promise(resolve => setTimeout(resolve, ${delayMilliseconds}));
 appendFileSync(log, \`vitest:end:\${parent}\\n\`);
