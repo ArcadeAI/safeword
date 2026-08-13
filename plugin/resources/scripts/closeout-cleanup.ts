@@ -28,6 +28,7 @@ import {
 import { resolveRunIdentity } from '../../runtime/hooks/lib/run-identity.ts';
 
 export const POST_MERGE_VERIFICATION_KINDS = ['verify', 'build', 'typecheck', 'bdd'] as const;
+export const VERIFICATION_COMMAND_TIMEOUT_MS = 15 * 60 * 1000;
 
 export interface PullRequestIdentity {
   url: string;
@@ -497,13 +498,18 @@ function run(
   command: string,
   arguments_: string[],
   cwd: string,
-  options: { shell?: boolean; env?: Record<string, string | undefined> } = {},
+  options: {
+    shell?: boolean;
+    env?: Record<string, string | undefined>;
+    timeout?: number;
+  } = {},
 ): ProcessResult {
   const result = spawnSync(command, arguments_, {
     cwd,
     encoding: 'utf8',
     shell: options.shell ?? false,
     env: { ...process.env, ...options.env },
+    timeout: options.timeout,
   });
   return {
     status: result.status ?? 1,
@@ -823,9 +829,11 @@ function runBoundRetroWindows(
   if (!transcript) return { bound: false, complete: false, pendingDrafts: 0, evidenceHash: '' };
   const cached = readRetroReceipt(root, binding, transcript);
   if (cached) {
-    const cachedObservation = retroObservationFromReceipt(root, binding.id, cached);
-    const current = transcriptSnapshot(transcript);
-    if (!cachedObservation.complete || current.byteLength === cached.snapshot.byteLength) {
+    const cachedObservation = retroObservationFromReceipt(root, binding, cached);
+    if (
+      !cachedObservation.complete ||
+      !hasMeaningfulTranscriptGrowth(transcript, cached.snapshot, binding.runtime)
+    ) {
       return cachedObservation;
     }
   }
@@ -872,7 +880,11 @@ function runBoundRetroWindows(
     retro.status === 0 &&
     (result?.state === 'healthy' || result?.state === 'changed') &&
     typeof agentFilingNeeded === 'boolean';
-  const transcriptAdvanced = transcriptSnapshot(transcript).byteLength > snapshot.byteLength;
+  const transcriptAdvanced = hasMeaningfulTranscriptGrowth(
+    transcript,
+    snapshot.receipt,
+    binding.runtime,
+  );
   const complete =
     successful && agentFilingNeeded === false && pendingDrafts === 0 && !transcriptAdvanced;
   const errorText = [result?.errors?.map(error => error.message ?? '').join('\n'), retro.stderr]
@@ -988,6 +1000,33 @@ function transcriptSnapshot(path: string): SealedTranscriptSnapshot {
   };
 }
 
+function hasMeaningfulTranscriptGrowth(
+  path: string,
+  snapshot: TranscriptSnapshot,
+  runtime: CloseoutBinding['runtime'],
+): boolean {
+  const current = transcriptSnapshot(path);
+  if (current.byteLength <= snapshot.byteLength) return false;
+  if (runtime !== 'codex') return true;
+  const appended = current.content.subarray(snapshot.byteLength).toString('utf8');
+  return appended
+    .split('\n')
+    .filter(Boolean)
+    .some(line => {
+      try {
+        const record = JSON.parse(line) as { type?: unknown; payload?: { type?: unknown } };
+        return !(
+          record.type === 'response_item' &&
+          ['custom_tool_call', 'custom_tool_call_output', 'function_call', 'function_call_output'].includes(
+            typeof record.payload?.type === 'string' ? record.payload.type : '',
+          )
+        );
+      } catch {
+        return true;
+      }
+    });
+}
+
 function snapshotStillMatches(snapshot: TranscriptSnapshot): boolean {
   try {
     const content = readFileSync(snapshot.path);
@@ -1089,9 +1128,10 @@ function writeRetroReceipt(root: string, receipt: Omit<RetroReceipt, 'version'>)
 
 function retroObservationFromReceipt(
   root: string,
-  sessionId: string,
+  binding: CloseoutBinding,
   receipt: RetroReceipt,
 ): CloseoutObservation['retro'] {
+  const sessionId = binding.id;
   const pendingDrafts = readSpooledDrafts(root, sessionId).length;
   const acknowledgedSignatures = new Set(readAcks(root, sessionId).map(ack => ack.signature));
   const capturedDraftsAcknowledged =
@@ -1107,7 +1147,7 @@ function retroObservationFromReceipt(
     bound: true,
     complete,
     pendingDrafts,
-    evidenceHash: transcriptSnapshot(receipt.snapshot.path).digest,
+    evidenceHash: receipt.snapshot.digest,
     ...(pendingDrafts > 0 ? { spoolPath: realpathSync(draftSpoolPath(root, sessionId)) } : {}),
     failure: complete ? undefined : 'filing',
   };
@@ -1179,7 +1219,11 @@ function passedVerification(
   return { current: true, passed, headOid, stateHash };
 }
 
-function runVerification(root: string, expectedOid: string): CloseoutObservation['verification'] {
+function runVerification(
+  root: string,
+  expectedOid: string,
+  ciChecks: PullRequestIdentity['ciChecks'],
+): CloseoutObservation['verification'] {
   const observedHead = git(root, 'rev-parse', 'HEAD').stdout.trim();
   const observedStateHash = workingStateHash(root, observedHead);
   if (!observedStateHash) {
@@ -1199,6 +1243,9 @@ function runVerification(root: string, expectedOid: string): CloseoutObservation
       headOid: receipt.headOid,
       stateHash: receipt.stateHash,
     };
+  }
+  if (observedHead === expectedOid && observedStateHash === cleanWorkingStateHash(expectedOid)) {
+    if (ciChecks === 'passed') return passedVerification(root, observedHead, observedStateHash);
   }
   if (observedHead !== expectedOid) {
     return receipt
@@ -1232,7 +1279,13 @@ function runVerification(root: string, expectedOid: string): CloseoutObservation
       continue;
     }
     for (const entry of plan) {
-      if (run(entry.command, [], entry.cwd, { shell: true }).status !== 0) passed = false;
+      if (
+        run(entry.command, [], entry.cwd, {
+          shell: true,
+          timeout: VERIFICATION_COMMAND_TIMEOUT_MS,
+        }).status !== 0
+      )
+        passed = false;
       if (git(root, 'rev-parse', 'HEAD').stdout.trim() !== expectedOid) passed = false;
     }
   }
@@ -1590,7 +1643,7 @@ function observeCloseout(root: string, pr: string, binding: CloseoutBinding): Cl
     defaultBranch,
     protection: observeCurrentProtection(root, identity, mutableTargets.remoteResolution),
     deliveryWorktreePath: nodePath.resolve(root),
-    verification: runVerification(root, expectedOid),
+    verification: runVerification(root, expectedOid, identity?.ciChecks ?? 'unknown'),
     retro: retroForMergedPullRequest(root, binding, mutableTargets.pullRequests),
   };
 }

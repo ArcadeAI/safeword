@@ -43,6 +43,7 @@ import {
   runBoundRetro,
   safewordCliCommand,
   transcriptMatchesBinding,
+  VERIFICATION_COMMAND_TIMEOUT_MS,
   workingStateHash,
 } from '../templates/scripts/closeout-cleanup.ts';
 
@@ -177,6 +178,7 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
   it('revalidates immutable merged code without rerunning mutable dependency intelligence', () => {
     expect(POST_MERGE_VERIFICATION_KINDS).toEqual(['verify', 'build', 'typecheck', 'bdd']);
     expect(POST_MERGE_VERIFICATION_KINDS).not.toContain('deps');
+    expect(VERIFICATION_COMMAND_TIMEOUT_MS).toBeGreaterThan(0);
   });
 
   it('uses Codex Desktop identity only when a fresh bridge agrees with the authenticated task', () => {
@@ -549,6 +551,47 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
         failure: 'unknown',
       });
       expect(runs).toBe(3);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('ignores only Codex tool lifecycle records appended by the running closeout', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'closeout-retro-tool-progress-'));
+    const id = 'codex-tool-progress';
+    const transcript = nodePath.join(root, 'transcript.jsonl');
+    try {
+      spawnSync('git', ['init', '--quiet', root], { encoding: 'utf8' });
+      writeFileSync(
+        transcript,
+        `${JSON.stringify({ type: 'session_meta', payload: { id, cwd: root } })}\n`,
+      );
+      const binding = {
+        runtime: 'codex' as const,
+        id,
+        projectRoot: root,
+        transcriptPath: transcript,
+      };
+      let runs = 0;
+      const runner = () => {
+        runs += 1;
+        writeFileSync(
+          transcript,
+          `${JSON.stringify({
+            type: 'response_item',
+            payload: {
+              type: 'custom_tool_call_output',
+              call_id: 'closeout-exec',
+              output: 'Script running',
+            },
+          })}\n`,
+          { flag: 'a' },
+        );
+        return completedRetroResult();
+      };
+
+      expect(runBoundRetro(root, binding, runner).complete).toBe(true);
+      expect(runs).toBe(1);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -1672,6 +1715,7 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     const transcript = nodePath.join(sandbox, 'codex-thread-42.jsonl');
     const fakeSafeword = nodePath.join(sandbox, 'fake-safeword.ts');
     const retroLog = nodePath.join(sandbox, 'retro.log');
+    const verificationLog = nodePath.join(sandbox, 'verification.log');
     const script = nodePath.join(repoRoot, 'packages/cli/templates/scripts/closeout-cleanup.ts');
     try {
       runGit('init', '--bare', bare);
@@ -1716,7 +1760,7 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       chmodSync(ssh, 0o755);
       writeFileSync(
         fakeSafeword,
-        `import { appendFileSync } from 'node:fs';\nconst args = process.argv.slice(2);\nif (args[0] === 'project' && args[1] === 'test-plan') {\n  process.stdout.write(JSON.stringify([{ available: true, command: 'true', cwd: process.cwd() }]));\n} else {\n  appendFileSync(process.env.SAFEWORD_TEST_RETRO_LOG ?? '', 'run\\n');\n  process.stdout.write(JSON.stringify({ state: 'healthy', data: { agent_filing_needed: process.env.SAFEWORD_TEST_RETRO_INCOMPLETE === '1' }, errors: [] }));\n}\n`,
+        `import { appendFileSync } from 'node:fs';\nconst args = process.argv.slice(2);\nif (args[0] === 'project' && args[1] === 'test-plan') {\n  appendFileSync(process.env.SAFEWORD_TEST_VERIFICATION_LOG ?? '', args.join(' ') + '\\n');\n  process.stdout.write(JSON.stringify([{ available: true, command: 'true', cwd: process.cwd() }]));\n} else {\n  appendFileSync(process.env.SAFEWORD_TEST_RETRO_LOG ?? '', 'run\\n');\n  process.stdout.write(JSON.stringify({ state: 'healthy', data: { agent_filing_needed: process.env.SAFEWORD_TEST_RETRO_INCOMPLETE === '1' }, errors: [] }));\n}\n`,
       );
       writeFileSync(
         transcript,
@@ -1737,6 +1781,7 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
         GIT_SSH_COMMAND: ssh,
         SAFEWORD_TEST_BARE: bare,
         SAFEWORD_TEST_RETRO_LOG: retroLog,
+        SAFEWORD_TEST_VERIFICATION_LOG: verificationLog,
       };
       const preview = spawnSync('bun', [script, '--pr', '42'], {
         cwd: topic,
@@ -1744,6 +1789,7 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
         env: environment,
       });
       expect(preview.status, `${preview.stderr}\n${preview.stdout}`).toBe(0);
+      expect(existsSync(verificationLog)).toBe(false);
       const digest = (JSON.parse(preview.stdout) as { digest: string }).digest;
       writeFileSync(
         transcript,
