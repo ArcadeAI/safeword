@@ -53,6 +53,45 @@ interface ProgressAdapters {
   readonly emit: (message: string) => void;
 }
 
+const MANAGED_PROGRESS_SIGNAL = 'SAFEWORD_REVIEW_PROGRESS';
+const PREPARING_REVIEW_PACKET_PREFIX = 'Preparing the review packet for ';
+
+export function consumeManagedProgressSignal(environment: NodeJS.ProcessEnv): boolean {
+  const enabled = environment[MANAGED_PROGRESS_SIGNAL] === '1';
+  delete environment.SAFEWORD_REVIEW_PROGRESS;
+  return enabled;
+}
+
+export function shouldReportProgress(options: {
+  readonly json: boolean;
+  readonly managedReview: boolean;
+  readonly quiet: boolean;
+}): boolean {
+  return !options.quiet && (!options.json || options.managedReview);
+}
+
+export function createBestEffortProgressSink(
+  write: (message: string) => void,
+): (message: string) => void {
+  return message => {
+    try {
+      write(`${message}\n`);
+    } catch {
+      // Progress is advisory and must never affect the typed command result.
+    }
+  };
+}
+
+export function createManagedReviewProgress(progress: ProgressReporter): ProgressReporter {
+  return {
+    start(message): void {
+      if (!message.startsWith(PREPARING_REVIEW_PACKET_PREFIX)) progress.start(message);
+    },
+    heartbeat: progress.heartbeat?.bind(progress),
+    stop: progress.stop.bind(progress),
+  };
+}
+
 /** Operations finishing faster than this are not worth announcing. */
 const PROGRESS_ANNOUNCE_DELAY_MS = 100;
 /** A long wait needs proof that the coordinator is still responsive. */

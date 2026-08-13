@@ -1,3 +1,4 @@
+import { writeSync } from 'node:fs';
 import process from 'node:process';
 
 import { type Command, InvalidArgumentError, Option } from 'commander';
@@ -15,8 +16,15 @@ import {
   readGlobalOptions,
   reportResult,
 } from './execute.js';
+import type { ProgressReporter } from './handler.js';
 import { isPlanIdentity } from './plan.js';
-import { createProgressReporter } from './policy.js';
+import {
+  consumeManagedProgressSignal,
+  createBestEffortProgressSink,
+  createManagedReviewProgress,
+  createProgressReporter,
+  shouldReportProgress,
+} from './policy.js';
 import { type CliResult, createResult, withDeprecation } from './result.js';
 
 function familyNames(): Set<string> {
@@ -169,6 +177,23 @@ function withCompatibilityDeprecation(
   );
 }
 
+function commandProgress(
+  definition: CommandDefinition,
+  options: { readonly json: boolean; readonly quiet: boolean },
+): ProgressReporter | undefined {
+  const managedReview =
+    consumeManagedProgressSignal(process.env) && definition.name === 'review run';
+  if (!shouldReportProgress({ ...options, managedReview })) return undefined;
+  const progress = createProgressReporter({
+    schedule: (callback, delay) => setTimeout(callback, delay),
+    cancel: handle => {
+      clearTimeout(handle as ReturnType<typeof setTimeout>);
+    },
+    emit: createBestEffortProgressSink(message => writeSync(2, message)),
+  });
+  return managedReview && options.json ? createManagedReviewProgress(progress) : progress;
+}
+
 async function executeDefinition(
   command: Command,
   definition: CommandDefinition,
@@ -176,16 +201,7 @@ async function executeDefinition(
 ): Promise<void> {
   const globalOptions = readGlobalOptions(command);
   const commandOptions = readCommandOptions(command);
-  const progress =
-    globalOptions.json || globalOptions.quiet
-      ? undefined
-      : createProgressReporter({
-          schedule: (callback, delay) => setTimeout(callback, delay),
-          cancel: handle => {
-            clearTimeout(handle as ReturnType<typeof setTimeout>);
-          },
-          emit: message => process.stderr.write(`${message}\n`),
-        });
+  const progress = commandProgress(definition, globalOptions);
   let result;
   try {
     try {

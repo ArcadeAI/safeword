@@ -59,9 +59,12 @@ export function reviewerEnvironment(
   const allowed = new Set(
     [...PROCESS_VARIABLES, ...VENDOR_VARIABLES[reviewer]].map(name => normalize(name)),
   );
+  const managedProgressSignal = normalize('SAFEWORD_REVIEW_PROGRESS');
   return Object.fromEntries(
     Object.entries(source).filter(
-      ([name]) => allowed.has(normalize(name)) || normalize(name).startsWith('SAFEWORD_REVIEW_'),
+      ([name]) =>
+        normalize(name) !== managedProgressSignal &&
+        (allowed.has(normalize(name)) || normalize(name).startsWith('SAFEWORD_REVIEW_')),
     ),
   );
 }
