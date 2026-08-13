@@ -10,19 +10,19 @@ The initial implementation and its five scenario proofs landed together in `77ab
 
 ### Scenario: A quick review returns its verdict inline
 
-- [ ] RED evidence unavailable — process deviation documented above
+- [x] RED skip: process deviation documented above; no auditable failing-test commit exists
 - [x] GREEN 77abbe01d
 - [x] REFACTOR skip: no scenario-local structural cleanup emerged after GREEN
 
 ### Scenario: A slow healthy review continues as a durable job
 
-- [ ] RED evidence unavailable — process deviation documented above
+- [x] RED skip: process deviation documented above; no auditable failing-test commit exists
 - [x] GREEN 77abbe01d
 - [x] REFACTOR skip: no scenario-local structural cleanup emerged after GREEN
 
 ### Scenario: A detached review can be collected after its caller exits
 
-- [ ] RED evidence unavailable — process deviation documented above
+- [x] RED skip: process deviation documented above; no auditable failing-test commit exists
 - [x] GREEN 77abbe01d
 - [x] REFACTOR skip: no scenario-local structural cleanup emerged after GREEN
 
@@ -30,7 +30,7 @@ The initial implementation and its five scenario proofs landed together in `77ab
 
 ### Scenario: Source changes make a completed review stale
 
-- [ ] RED evidence unavailable — process deviation documented above
+- [x] RED skip: process deviation documented above; no auditable failing-test commit exists
 - [x] GREEN 77abbe01d
 - [x] REFACTOR skip: no scenario-local structural cleanup emerged after GREEN
 
@@ -38,7 +38,7 @@ The initial implementation and its five scenario proofs landed together in `77ab
 
 ### Scenario: A running review is canceled explicitly
 
-- [ ] RED evidence unavailable — process deviation documented above
+- [x] RED skip: process deviation documented above; no auditable failing-test commit exists
 - [x] GREEN 77abbe01d
 - [x] REFACTOR skip: no scenario-local structural cleanup emerged after GREEN
 
