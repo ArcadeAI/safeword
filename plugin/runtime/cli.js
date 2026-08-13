@@ -34039,7 +34039,10 @@ function readScopedSettings(cwd, scope) {
   let settings;
   try {
     const errors = [];
-    settings = parse3(readFileSync26(path4, "utf8"), errors);
+    settings = parse3(readFileSync26(path4, "utf8"), errors, {
+      allowTrailingComma: true,
+      disallowComments: false
+    });
     if (errors.length > 0)
       throw new SyntaxError(`parse error at offset ${errors[0]?.offset ?? 0}`);
   } catch (error2) {
@@ -34115,19 +34118,14 @@ function enableMarketplaceAutoUpdate(cwd, scope, effects) {
   const autoUpdateEnabled = marketplaceAutoUpdatePreference(declaration, scope) === true;
   if (autoUpdateEnabled && failurePolicy.configured)
     return;
-  const updated = {
-    ...settings,
-    env: failurePolicy.configured ? failurePolicy.environment : {
-      ...failurePolicy.environment,
-      CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE: "1"
-    },
-    extraKnownMarketplaces: {
-      ...marketplaces,
-      [MARKETPLACE_NAME]: { ...declaration, autoUpdate: true }
-    }
-  };
-  writeDurableFile(path4, `${JSON.stringify(updated, undefined, 2)}
-`, {
+  let updated = readFileSync26(path4, "utf8");
+  if (!autoUpdateEnabled) {
+    updated = applyEdits(updated, modify(updated, ["extraKnownMarketplaces", MARKETPLACE_NAME, "autoUpdate"], true, {}));
+  }
+  if (!failurePolicy.configured) {
+    updated = applyEdits(updated, modify(updated, ["env", "CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE"], "1", {}));
+  }
+  writeDurableFile(path4, updated, {
     mode: metadata.mode & 511
   });
   recordMarketplaceSafetyEffects(effects, scope, {
@@ -40184,6 +40182,13 @@ function openCleanupTarget(root, relative, flags) {
     throw error2;
   }
 }
+function quarantineFailureDetail(result) {
+  if (result.error !== undefined)
+    return result.error.message;
+  if (typeof result.stderr === "string" && result.stderr.trim() !== "")
+    return result.stderr.trim();
+  return `exit ${String(result.status)}`;
+}
 function quarantineOpenTarget(root, opened, quarantinePath, beforeQuarantine) {
   if (process.platform !== "darwin" && process.platform !== "linux") {
     throw new Error("Atomic Claude cleanup quarantine is unavailable on this platform.");
@@ -40200,7 +40205,7 @@ function quarantineOpenTarget(root, opened, quarantinePath, beforeQuarantine) {
       stdio: ["ignore", "pipe", "pipe", opened.parentDescriptor, quarantineDescriptor]
     });
     if (result.status !== 0) {
-      throw new Error(`Atomic Claude cleanup quarantine failed: ${result.stderr.trim()}`);
+      throw new Error(`Atomic Claude cleanup quarantine failed for ${opened.path}: ${quarantineFailureDetail(result)}`);
     }
     const quarantined = lstatSync14(nodePath70.join(quarantineDirectory, quarantineName));
     const descriptor = fstatSync5(opened.descriptor);

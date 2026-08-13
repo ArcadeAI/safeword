@@ -24,6 +24,8 @@ import {
   claimClaudeMigrationAttempt,
   claudeConfigDirectory,
   claudeWatchedSettingsDigest,
+  pluginModeIsTerminal,
+  readClaudePluginMode,
   removeLegacyClaudePluginMode,
   writeClaudeMigrationAttention,
 } from '../migration-state.js';
@@ -613,6 +615,17 @@ function automaticMigrationUnsafe(
   const catalogueSha256 = historicalCatalogueDigest();
   if (incompatibleScopeOverlap(projectRoot)) {
     return scopeOverlapExecution(context, identity, catalogueSha256);
+  }
+  const marker = readClaudePluginMode(projectRoot);
+  if (
+    marker !== undefined &&
+    pluginModeIsTerminal(marker, {
+      plugin_version: identity.plugin_version,
+      hook_manifest_sha256: identity.hook_manifest_sha256,
+      catalogue_sha256: catalogueSha256,
+    })
+  ) {
+    return execution;
   }
   if (
     !claimClaudeMigrationAttempt(projectRoot, sessionId, automaticMigrationAttemptKind(projectRoot))

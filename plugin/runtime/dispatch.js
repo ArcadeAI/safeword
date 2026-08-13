@@ -4217,6 +4217,13 @@ function readClaudePluginMode(cwd) {
     return void 0;
   }
 }
+function pluginModeIsTerminal(marker, identity) {
+  return (
+    marker.plugin_version === identity.plugin_version &&
+    marker.hook_manifest_sha256 === identity.hook_manifest_sha256 &&
+    marker.catalogue_sha256 === identity.catalogue_sha256
+  );
+}
 function writeClaudePluginMode(cwd, marker) {
   const normalized = createClaudePluginMode({
     plugin_version: marker.plugin_version,
@@ -4462,6 +4469,11 @@ const result = handle.symbols.renameat(3, source, 4, destination);
 handle.close();
 process.exit(result === 0 ? 0 : 1);
 `;
+function quarantineFailureDetail(result) {
+  if (result.error !== void 0) return result.error.message;
+  if (typeof result.stderr === 'string' && result.stderr.trim() !== '') return result.stderr.trim();
+  return `exit ${String(result.status)}`;
+}
 function quarantineOpenTarget(root, opened, quarantinePath, beforeQuarantine) {
   if (process.platform !== 'darwin' && process.platform !== 'linux') {
     throw new Error('Atomic Claude cleanup quarantine is unavailable on this platform.');
@@ -4485,7 +4497,9 @@ function quarantineOpenTarget(root, opened, quarantinePath, beforeQuarantine) {
       },
     );
     if (result.status !== 0) {
-      throw new Error(`Atomic Claude cleanup quarantine failed: ${result.stderr.trim()}`);
+      throw new Error(
+        `Atomic Claude cleanup quarantine failed for ${opened.path}: ${quarantineFailureDetail(result)}`,
+      );
     }
     const quarantined = lstatSync4(nodePath7.join(quarantineDirectory, quarantineName));
     const descriptor = fstatSync2(opened.descriptor);
@@ -5602,6 +5616,17 @@ function automaticMigrationUnsafe(event, identity, execution, sessionId, hookCwd
   const catalogueSha256 = historicalCatalogueDigest();
   if (incompatibleScopeOverlap(projectRoot)) {
     return scopeOverlapExecution(context, identity, catalogueSha256);
+  }
+  const marker = readClaudePluginMode(projectRoot);
+  if (
+    marker !== void 0 &&
+    pluginModeIsTerminal(marker, {
+      plugin_version: identity.plugin_version,
+      hook_manifest_sha256: identity.hook_manifest_sha256,
+      catalogue_sha256: catalogueSha256,
+    })
+  ) {
+    return execution;
   }
   if (
     !claimClaudeMigrationAttempt(projectRoot, sessionId, automaticMigrationAttemptKind(projectRoot))

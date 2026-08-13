@@ -299,6 +299,12 @@ handle.close();
 process.exit(result === 0 ? 0 : 1);
 `;
 
+function quarantineFailureDetail(result: ReturnType<typeof spawnSync>): string {
+  if (result.error !== undefined) return result.error.message;
+  if (typeof result.stderr === 'string' && result.stderr.trim() !== '') return result.stderr.trim();
+  return `exit ${String(result.status)}`;
+}
+
 function quarantineOpenTarget(
   root: string,
   opened: OpenCleanupTarget,
@@ -327,7 +333,9 @@ function quarantineOpenTarget(
       },
     );
     if (result.status !== 0) {
-      throw new Error(`Atomic Claude cleanup quarantine failed: ${result.stderr.trim()}`);
+      throw new Error(
+        `Atomic Claude cleanup quarantine failed for ${opened.path}: ${quarantineFailureDetail(result)}`,
+      );
     }
     const quarantined = lstatSync(nodePath.join(quarantineDirectory, quarantineName));
     const descriptor = fstatSync(opened.descriptor);

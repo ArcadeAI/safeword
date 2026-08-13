@@ -13,7 +13,7 @@ import {
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
-import { parse, type ParseError } from 'jsonc-parser';
+import { applyEdits, modify, parse, type ParseError } from 'jsonc-parser';
 
 import { type CliResult, createResult, type Effect } from '../cli-protocol/result.js';
 import { writeDurableFile } from '../codex-plugin/durable-write.js';
@@ -205,7 +205,10 @@ function readScopedSettings(cwd: string, scope: ClaudePluginScope): JsonObject |
   let settings: unknown;
   try {
     const errors: ParseError[] = [];
-    settings = parse(readFileSync(path, 'utf8'), errors) as unknown;
+    settings = parse(readFileSync(path, 'utf8'), errors, {
+      allowTrailingComma: true,
+      disallowComments: false,
+    }) as unknown;
     if (errors.length > 0) throw new SyntaxError(`parse error at offset ${errors[0]?.offset ?? 0}`);
   } catch (error) {
     invalidScopeSettings(
@@ -310,20 +313,20 @@ function enableMarketplaceAutoUpdate(
   const autoUpdateEnabled = marketplaceAutoUpdatePreference(declaration, scope) === true;
   if (autoUpdateEnabled && failurePolicy.configured) return;
 
-  const updated = {
-    ...settings,
-    env: failurePolicy.configured
-      ? failurePolicy.environment
-      : {
-          ...failurePolicy.environment,
-          CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE: '1',
-        },
-    extraKnownMarketplaces: {
-      ...marketplaces,
-      [MARKETPLACE_NAME]: { ...declaration, autoUpdate: true },
-    },
-  };
-  writeDurableFile(path, `${JSON.stringify(updated, undefined, 2)}\n`, {
+  let updated = readFileSync(path, 'utf8');
+  if (!autoUpdateEnabled) {
+    updated = applyEdits(
+      updated,
+      modify(updated, ['extraKnownMarketplaces', MARKETPLACE_NAME, 'autoUpdate'], true, {}),
+    );
+  }
+  if (!failurePolicy.configured) {
+    updated = applyEdits(
+      updated,
+      modify(updated, ['env', 'CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE'], '1', {}),
+    );
+  }
+  writeDurableFile(path, updated, {
     mode: metadata.mode & 0o777,
   });
   recordMarketplaceSafetyEffects(effects, scope, {
