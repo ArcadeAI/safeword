@@ -412,6 +412,21 @@ export async function runCredentialSeparatedCanary<T>(input: {
     registrationCommit: input.authorization.registrationCommit,
   });
 
+  return runCredentialedChild(input);
+}
+
+async function runCredentialedChild<T>(input: {
+  adapterDirectory: string;
+  child: { args: string[]; command: string };
+  environment: Readonly<Record<string, string | undefined>>;
+  loadGitHubToken(): Promise<string>;
+  loadOpenAIKey(): Promise<string>;
+  parent(context: {
+    dispatch(): Promise<PaidChildResult>;
+    githubToken: string;
+  }): Promise<T>;
+  spawnChild(request: PaidChildRequest): Promise<PaidChildResult>;
+}): Promise<T> {
   const githubToken = requireSecret(await input.loadGitHubToken(), "GitHub token");
   const openAIKey = requireSecret(await input.loadOpenAIKey(), "OpenAI API key");
   const dispatch = (): Promise<PaidChildResult> =>
@@ -438,6 +453,10 @@ export async function runTerraPaidCanary(input: {
   outputDirectory: string;
   registration: { corpusDigest: string; registrationCommit: string };
 }): Promise<Awaited<ReturnType<typeof runCanaryAttempt>>> {
+  await Promise.all([
+    preflightPinnedCheckout(input.adapterCheckout),
+    preflightPinnedCheckout(input.harnessCheckout),
+  ]);
   const registration = await verifyCommittedCorpusRegistration({
     checkout: input.harnessCheckout,
     corpusDigest: input.registration.corpusDigest,
@@ -449,24 +468,13 @@ export async function runTerraPaidCanary(input: {
     registration,
     registrationCommit: input.registration.registrationCommit,
   });
-  return runCredentialSeparatedCanary({
+  return runCredentialedChild({
     adapterDirectory: input.adapterCheckout.directory,
-    authorization: {
-      adapterCommit: input.adapterCheckout.commit,
-      adapterTag: input.adapterCheckout.tag,
-      adapterCanonicalRepository: input.adapterCheckout.canonicalRepository,
-      corpusDigest: input.registration.corpusDigest,
-      harnessCommit: input.harnessCheckout.commit,
-      harnessCanonicalRepository: input.harnessCheckout.canonicalRepository,
-      harnessTag: input.harnessCheckout.tag,
-      registrationCommit: input.registration.registrationCommit,
-    },
     child: createTerraPaidChildCommand({
       harnessDirectory: input.harnessCheckout.directory,
       inputPath: input.inputPath,
     }),
     environment: input.environment ?? process.env,
-    harnessDirectory: input.harnessCheckout.directory,
     loadGitHubToken: input.loadGitHubToken,
     loadOpenAIKey: input.loadOpenAIKey,
     parent: ({ dispatch, githubToken }) =>
