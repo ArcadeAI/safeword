@@ -2,8 +2,8 @@
 id: 1YYG74
 slug: reliable-observable-quality-reviews
 type: feature
-phase: implement
-status: in_progress
+phase: done
+status: done
 phase_anchors:
   - 'define-behavior: .project/tickets/1YYG74-reliable-observable-quality-reviews/spec.md'
   - 'scenario-gate: packages/cli/features/reliable-observable-quality-reviews.feature'
@@ -28,7 +28,7 @@ done_when:
 inspiration_contract: v1
 inspiration_contract_scaffold: v1
 created: 2026-08-11T18:27:36.373Z
-last_modified: 2026-08-11T20:22:00.000Z
+last_modified: 2026-08-13T07:42:00.000Z
 ---
 
 # Keep quality reviews observable and actionable
@@ -86,3 +86,4 @@ last_modified: 2026-08-11T20:22:00.000Z
 - 2026-08-12T17:29:00.000Z PLAN: Applied all review suggestions by replacing process-wide stderr listener management with an isolated synchronous descriptor sink, splitting sink/lifecycle/wrapper work into independently green slices, requiring the shipped generated wrapper in the walking skeleton, and retaining a live dogfood observation.
 - 2026-08-12T18:31:00.000Z BDD: Final cross-agent red team drove route-provenance fixtures, public-command environment isolation, quiet anti-vacuity, TTY parity, coalesced heartbeat semantics, hostile-data encoding, literal transition text, and raw wrapper-status passthrough. Removed the unreachable async-stream row because production now uses synchronous descriptor writes. Final scenario gate approved with zero findings under degraded fallback after Claude timeout.
 - 2026-08-12T18:47:00.000Z PLAN: Implementation plan approved with zero findings under degraded Codex fallback after Claude timeout. Entered implement with a four-slice vertical-first plan and synchronous descriptor ownership for progress writes.
+- 2026-08-13T07:42:00.000Z DONE: Full verification, repository audit, quality review, refactor review, BDD proof review, and customer-brittleness assessment passed. Rebased onto current main, reconciled durable background-review progress wording, and verified the exact PR SHA in CI.

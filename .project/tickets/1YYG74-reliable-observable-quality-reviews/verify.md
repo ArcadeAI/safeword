@@ -44,4 +44,4 @@ changed modules.
   findings. Customer brittleness is low: public argv/schema are unchanged,
   older CLIs ignore the private environment signal, quiet mode wins, reviewer
   children cannot inherit the signal, and progress write failures are advisory.
-- Final remote evidence: <https://github.com/ArcadeAI/safeword/actions/runs/31670668862>.
+- Final remote evidence: <https://github.com/ArcadeAI/safeword/actions/runs/31677374796>.
