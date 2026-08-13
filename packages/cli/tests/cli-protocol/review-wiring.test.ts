@@ -131,6 +131,50 @@ function installIncompatibleReviewer(directory: string, agent: ReviewAgent, log:
 }
 
 describe('cross-agent review public-command wiring', () => {
+  it('collects review status offline because durable job state is local', async () => {
+    const directory = createTemporaryDirectory();
+
+    const result = await runCli([
+      'review',
+      'status',
+      'not-a-uuid',
+      '--offline',
+      '--json',
+      '--no-input',
+      '--cwd',
+      directory,
+    ]);
+
+    expect(result.exitCode).toBe(1);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      errors: [{ code: 'REVIEW_JOB_NOT_FOUND' }],
+    });
+  });
+
+  it.each(['status', 'cancel'] as const)(
+    'returns a typed JSON failure for review %s through the public CLI',
+    async command => {
+      const directory = createTemporaryDirectory();
+
+      const result = await runCli([
+        'review',
+        command,
+        'not-a-uuid',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ]);
+
+      expect(result.exitCode).toBe(1);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        state: 'failed',
+        errors: [{ code: 'REVIEW_JOB_NOT_FOUND' }],
+        data: { command: 'review status' },
+      });
+    },
+  );
+
   it('marks supporting context separately from review targets through the public CLI', async () => {
     const directory = createTemporaryDirectory();
     const reviewLog = nodePath.join(directory, 'review.log');
@@ -612,7 +656,7 @@ describe('cross-agent review public-command wiring', () => {
   );
 
   it.each(['prefer', 'require'] as const)(
-    'blocks when the reviewed source changes under $policy policy',
+    'marks the completed review stale when the reviewed source changes under $policy policy',
     async policy => {
       const directory = createTemporaryDirectory();
       const target = nodePath.join(directory, 'review-input.md');
@@ -648,11 +692,11 @@ describe('cross-agent review public-command wiring', () => {
         },
       );
 
-      expect(result.exitCode).toBe(1);
+      expect(result.exitCode).toBe(2);
       expect(JSON.parse(result.stdout)).toMatchObject({
-        state: 'failed',
-        errors: [{ code: 'REVIEW_SOURCE_CHANGED' }],
-        data: { review_policy: policy, independence: 'none' },
+        state: 'action_required',
+        findings: [{ code: 'REVIEW_STALE' }],
+        data: { status: 'stale' },
       });
     },
   );
@@ -1330,7 +1374,7 @@ describe('cross-agent review public-command wiring', () => {
     expect(readFileSync(log, 'utf8')).toBe('codex\nclaude\ncodex\nclaude\n');
   });
 
-  it('reports the assigned reviewer while a long independent check is running', async () => {
+  it('reports that a long independent check is running', async () => {
     const directory = createTemporaryDirectory();
     writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
     const log = nodePath.join(directory, 'review.log');
@@ -1351,10 +1395,10 @@ describe('cross-agent review public-command wiring', () => {
     );
 
     expect(result.exitCode, result.stdout).toBe(0);
-    expect(result.stderr).toContain('Requesting an independent Codex review…');
+    expect(result.stderr).toContain('Running the independent review in the background…');
   });
 
-  it('reports when an unavailable independent reviewer moves to a fallback', async () => {
+  it('keeps reporting progress while an unavailable reviewer moves to a fallback', async () => {
     const directory = createTemporaryDirectory();
     writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
     const log = nodePath.join(directory, 'review.log');
@@ -1377,7 +1421,7 @@ describe('cross-agent review public-command wiring', () => {
     );
 
     expect(result.exitCode, result.stdout).toBe(0);
-    expect(result.stderr).toContain('Codex did not complete; trying a Claude fallback…');
+    expect(result.stderr).toContain('Running the independent review in the background…');
   });
 
   it('repeats a waiting heartbeat while the independent reviewer has not answered', async () => {
@@ -1404,7 +1448,7 @@ describe('cross-agent review public-command wiring', () => {
     expect(result.exitCode, result.stdout).toBe(0);
     const heartbeats = result.stderr
       .split('\n')
-      .filter(line => line.includes('Still waiting for a response from Codex…'));
+      .filter(line => line.includes('Still waiting for the independent review…'));
     expect(heartbeats.length).toBeGreaterThan(1);
   });
 

@@ -178,6 +178,14 @@ Each pass:
    bun .safeword/hooks/run-review.ts review run quality-review changed-file [more-changed-files...] --agent-handoff --json
    ```
 
+   A healthy deep review may return `REVIEW_PENDING` after its foreground
+   courtesy wait. That is a handoff, not a failed route: keep the returned
+   `review_id`, continue other useful work, then run the typed `nextActions`
+   status command until it reaches a terminal result. Never start a second
+   review for the same sources merely because the first is still running.
+   Apply the normal verdict rules only to the collected terminal result; if it
+   is `REVIEW_STALE`, rerun against the current sources.
+
    Claude-authored work prefers headless Codex; Codex-authored work prefers
    headless Claude. The coordinator uses a neutral snapshot, checks reviewer
    provenance, preserves the exact preferred-route failure, and records any

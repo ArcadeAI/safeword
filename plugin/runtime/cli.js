@@ -6093,10 +6093,10 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/bdd/DISCOVERY.md": "c229895c53030b8f44ff563dd3728d8f4a4e4e593d8c29ae9349283ea25b5d91",
         ".claude/skills/bdd/DONE.md": "e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60",
         ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "8ed89fca82f6e71b77351674f12d5d7c1380574e326e05ca1912caf84ff4ff9b",
-        ".claude/skills/bdd/SCENARIOS.md": "2cf7c403e6a50c5ee1574f6e0a0965ee4afcbda9d0ec4580b425723ec5d4f83d",
-        ".claude/skills/bdd/SKILL.md": "53b66c5ee888c6d9a1dc05119ee9d197d3d6b01d36b747fe62d686852e3715c9",
+        ".claude/skills/bdd/SCENARIOS.md": "a2cf8937e4c555c6e42f3f33a45cd5355dc61337a75ea220561bc0b6d9be3ad8",
+        ".claude/skills/bdd/SKILL.md": "df9f7927be3289f3ffb0444d49ae25fe601ce33b9661f7a809f74dff8da40ff0",
         ".claude/skills/bdd/SPLITTING.md": "e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708",
-        ".claude/skills/bdd/TDD.md": "9cb3e98b453fd3ca4378a43b07e4bd389aa1c6fb40875f9fb50d04319cb8b72b",
+        ".claude/skills/bdd/TDD.md": "fc596bf79b97eae1545a62b799b5ea29543c33eae65e722155125875421efa91",
         ".claude/skills/bdd/VERIFY.md": "85abadfe756a3f391779fe500cd5c66597a33e0cab7fcef55f6b633b30818f31",
         ".claude/skills/brainstorm/SKILL.md": "fe99638bd1621cbd5fe3780a8d39023d4b175e3be2aef2e60d0ebe7558848f2e",
         ".claude/skills/cleanup-zombies/SKILL.md": "e0af9635774767cf36eb69726e11c642ec1dad42839c11407ea8ef60f89fc289",
@@ -6108,14 +6108,14 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/finish-review/REVIEWER.md": "0ecee21a63f91e09d3136f62cf8f7590ba9a640b85cad7b7b35c1ae334ff43c2",
         ".claude/skills/finish-review/SKILL.md": "8ff3fbeb2ba9eb6f9278bea718aacd747682dae4245bdb87356988c53611a69b",
         ".claude/skills/lint/SKILL.md": "208ec54032cabdcb532d1070e5ef5f1fcd6f0f0bfe8daf08e4ecf007aa285f66",
-        ".claude/skills/quality-review/SKILL.md": "5e480b2d38b704ed221cddeab938dea0ac3c904c6745147eb192e42ffb4d3bbb",
+        ".claude/skills/quality-review/SKILL.md": "b940905d31cd4931665e023a65824a923a2bd5d7f590358355576cff8f3bc42a",
         ".claude/skills/refactor/SKILL.md": "a51a858fb13b50cbc86789edbde8a39e364b5cdd7d5d3b025d555d90b221760e",
         ".claude/skills/retro-filer/SKILL.md": "ea126f3805a2befefb4db2011439f075ebfd6eca31b78bd5f284ac11d667b4f0",
         ".claude/skills/retro/SKILL.md": "166e5109193bad4c26e060f6841d71c03f9155c7e74e1853c43b99b01c25d379",
-        ".claude/skills/review-spec/SKILL.md": "c8e4f3e4ecf7629c8cf32ce6770753ab1fc6c7a20470ae8b735f4b6961f3a53c",
+        ".claude/skills/review-spec/SKILL.md": "5c707432234f2d6893b6b3ebd340820990040d81006e1550b419f032ce8fda08",
         ".claude/skills/self-review/SKILL.md": "dcc667823790f18e1fa8cf35aaf10c40464664929c7bbb093531fd684f673e15",
         ".claude/skills/spike/SKILL.md": "905aab56037ad5a258bafa91cb2ebf05cff1acffbc9e1fd6f7a1f27230672f37",
-        ".claude/skills/tdd-review/SKILL.md": "f49a7e07dea7a62f39e9919c0c4251ede4ec2dec72b9892e7e0c42205d510e6f",
+        ".claude/skills/tdd-review/SKILL.md": "4b945f122a90d23462845d7bdbbd0b736aa69d423a2d7e99ebf646bf118faa4f",
         ".claude/skills/testing/SKILL.md": "697a4b090935989e0c8a53462d2b44087afafa50adc69e9a98da14bed23dbde9",
         ".claude/skills/ticket-system/SKILL.md": "1edd1d2c546dae594124c8846c43f78f81d4579370589eaf1476b894c0a9750e",
         ".claude/skills/verify/SKILL.md": "26763f7fbc900b6994938db93e3b1e1e601ccded59d74c45f528a73fe71ec92f"
@@ -18118,6 +18118,7 @@ var init_schema = __esm(() => {
     ".safeword/self-reports/",
     ".safeword/boundary-audit.jsonl",
     ".safeword/claude-plugin/",
+    ".safeword/state/reviews/",
     ...[".project", ".safeword-project"].flatMap((root) => NAMESPACE_TRANSIENT_BASENAMES.map((name) => `${root}/${name}`))
   ];
   NAMESPACE_GITIGNORE_PATTERNS = NAMESPACE_TRANSIENT_BASENAMES.map((name) => `/${name}`).join(`
@@ -18805,7 +18806,7 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
 ${SAFEWORD_TRANSIENT_PATHS.join(`
 `)}
 `,
-        marker: ".safeword/claude-plugin/"
+        marker: ".safeword/state/reviews/"
       },
       ".prettierignore": {
         operation: "append",
@@ -42762,6 +42763,22 @@ var init_run_identity = __esm(() => {
   RUNTIMES = new Set(["claude", "codex", "cursor", "unknown"]);
 });
 
+// src/review/command.ts
+function shellQuote3(value) {
+  if (/^[\w./-]+$/u.test(value))
+    return value;
+  const escaped = value.replaceAll("'", `'"'"'`);
+  return `'${escaped}'`;
+}
+function contextArgument(target) {
+  return `--context ${shellQuote3(target)}`;
+}
+function retryCommand(kind, targets, context = []) {
+  const quoted = targets.map((target) => shellQuote3(target)).join(" ");
+  const contextOption = context.length === 0 ? "" : ` ${context.map((target) => contextArgument(target)).join(" ")}`;
+  return `safeword review run ${kind}${contextOption} -- ${quoted}`;
+}
+
 // src/review/packet.ts
 var exports_packet = {};
 __export(exports_packet, {
@@ -43129,9 +43146,13 @@ function reviewerArguments(reviewer, model, schemaPath) {
   const stdinMarker = base.lastIndexOf("-");
   return stdinMarker === -1 ? [...base, ...extra] : [...base.slice(0, stdinMarker), ...extra, ...base.slice(stdinMarker)];
 }
+function reviewRunCeiling(env) {
+  return env.SAFEWORD_REVIEW_WORKER === "1" ? BACKGROUND_RUN_BOUND_MS : RUN_BOUND_MS;
+}
 function runBoundMs() {
   const configured = Number(process.env.SAFEWORD_REVIEW_RUN_BOUND_MS);
-  return Number.isFinite(configured) && configured > 0 ? Math.min(configured, RUN_BOUND_MS) : RUN_BOUND_MS;
+  const ceiling = reviewRunCeiling(process.env);
+  return Number.isFinite(configured) && configured > 0 ? Math.min(configured, ceiling) : ceiling;
 }
 function minimumRouteMs() {
   return Math.min(60000, attemptDeadlineMs());
@@ -43139,7 +43160,9 @@ function minimumRouteMs() {
 function reviewTimeoutMilliseconds(_reviewer, env = process.env) {
   const raw = env.SAFEWORD_REVIEW_TIMEOUT_MS;
   const configured = raw === undefined ? NaN : Number(raw);
-  return Number.isFinite(configured) && configured > 0 ? Math.min(configured, RUN_BOUND_MS) : DEFAULT_ATTEMPT_DEADLINE_MS;
+  const ceiling = reviewRunCeiling(env);
+  const defaultDeadline = env.SAFEWORD_REVIEW_WORKER === "1" ? BACKGROUND_ATTEMPT_DEADLINE_MS : DEFAULT_ATTEMPT_DEADLINE_MS;
+  return Number.isFinite(configured) && configured > 0 ? Math.min(configured, ceiling) : defaultDeadline;
 }
 function attemptDeadlineMs() {
   return reviewTimeoutMilliseconds("claude");
@@ -43434,8 +43457,12 @@ async function runCandidate(executable, attempt, timeoutMs) {
     stdio: ["pipe", "pipe", "pipe"],
     detached: process.platform !== "win32"
   });
+  const terminateReviewer = () => {
+    stopReviewer(child).finally(() => process.exit(143));
+  };
+  process.once("SIGTERM", terminateReviewer);
   try {
-    return await new Promise((resolve, reject) => {
+    const output = await new Promise((resolve, reject) => {
       let overflow = false;
       let settled = false;
       const settle = (finish) => {
@@ -43499,8 +43526,13 @@ async function runCandidate(executable, attempt, timeoutMs) {
       });
       child.stdin.end(reviewPrompt(reviewer, packet));
     });
-  } finally {
     await stopReviewerOrThrow(child, reviewer);
+    return output;
+  } catch (error2) {
+    await stopReviewerOrThrow(child, reviewer);
+    throw error2;
+  } finally {
+    process.off("SIGTERM", terminateReviewer);
   }
 }
 async function runReviewerCandidates(attempt, candidates, deadline) {
@@ -43566,7 +43598,7 @@ function writeContractFile() {
     }
   };
 }
-var REVIEW_OUTPUT_SCHEMA_SHAPE, REVIEW_OUTPUT_SCHEMA, ARGUMENTS, HELP_ARGUMENTS, REQUIRED_CAPABILITIES, MAX_OUTPUT_BYTES, REVIEW_RUBRICS, ReviewRuntimeError, DEFAULT_ATTEMPT_DEADLINE_MS = 120000, RUN_BOUND_MS = 270000, CLEANUP_BUDGET_MS = 250, WINDOWS_CLEANUP_BUDGET_MS = 1000, reviewerStops;
+var REVIEW_OUTPUT_SCHEMA_SHAPE, REVIEW_OUTPUT_SCHEMA, ARGUMENTS, HELP_ARGUMENTS, REQUIRED_CAPABILITIES, MAX_OUTPUT_BYTES, REVIEW_RUBRICS, ReviewRuntimeError, DEFAULT_ATTEMPT_DEADLINE_MS = 120000, RUN_BOUND_MS = 270000, BACKGROUND_RUN_BOUND_MS = 1800000, BACKGROUND_ATTEMPT_DEADLINE_MS = 600000, CLEANUP_BUDGET_MS = 250, WINDOWS_CLEANUP_BUDGET_MS = 1000, reviewerStops;
 var init_runtime = __esm(() => {
   init_environment();
   REVIEW_OUTPUT_SCHEMA_SHAPE = {
@@ -43756,17 +43788,6 @@ function assessFallback(outcome, reviewer, dispatchId) {
     return outcome;
   const provenance = verifyProvenance(outcome.output, reviewer, dispatchId);
   return provenance.kind === "failed" ? { kind: "failed", failure: provenance.code, terminal: false } : { kind: "completed", output: provenance.output };
-}
-function shellQuote3(value) {
-  if (/^[\w./-]+$/u.test(value))
-    return value;
-  const escaped = value.replaceAll("'", `'"'"'`);
-  return `'${escaped}'`;
-}
-function retryCommand(kind, targets, context = []) {
-  const quoted = targets.map((target) => shellQuote3(target)).join(" ");
-  const contextOption = context.length === 0 ? "" : ` --context ${context.map((target) => shellQuote3(target)).join(" ")}`;
-  return `safeword review run ${kind}${contextOption} -- ${quoted}`;
 }
 function agentName(agent) {
   return agent === "codex" ? "Codex" : "Claude";
@@ -44262,6 +44283,637 @@ var init_coordinator = __esm(() => {
   };
 });
 
+// src/review/job.ts
+var exports_job = {};
+__export(exports_job, {
+  startReviewJob: () => startReviewJob,
+  reviewJobWorkerInput: () => reviewJobWorkerInput,
+  reviewJobStatus: () => reviewJobStatus,
+  completeReviewJob: () => completeReviewJob,
+  cancelReviewJob: () => cancelReviewJob
+});
+import { spawn as spawn2, spawnSync as spawnSync10 } from "child_process";
+import { createHash as createHash21, randomUUID as randomUUID8 } from "crypto";
+import {
+  closeSync as closeSync10,
+  existsSync as existsSync42,
+  mkdirSync as mkdirSync14,
+  openSync as openSync10,
+  readdirSync as readdirSync29,
+  readFileSync as readFileSync51,
+  renameSync as renameSync7,
+  statSync as statSync6,
+  unlinkSync as unlinkSync3,
+  writeFileSync as writeFileSync19
+} from "fs";
+import nodePath82 from "path";
+function jobsDirectory(cwd) {
+  return nodePath82.join(cwd, ".safeword", "state", "reviews");
+}
+function jobPath(cwd, id) {
+  if (!isJobId(id))
+    throw new Error("invalid review job id");
+  return nodePath82.join(jobsDirectory(cwd), `${id}.json`);
+}
+function fingerprint(cwd, kind, targets, context = []) {
+  const prepared = prepareReviewPacket(cwd, kind, targets, context);
+  try {
+    const hash = createHash21("sha256");
+    hash.update(`kind\x00${kind}\x00`);
+    for (const [section, files] of [
+      ["targets", prepared.packet.logical_files],
+      ["context", prepared.packet.context_files ?? []]
+    ]) {
+      hash.update(`${section}\x00${files.length}\x00`);
+      for (const file of files) {
+        hash.update(file.path);
+        hash.update("\x00");
+        hash.update(file.content);
+        hash.update("\x00");
+      }
+    }
+    return hash.digest("hex");
+  } finally {
+    prepared.cleanup();
+  }
+}
+function writeJob(cwd, record2) {
+  if (!isReviewJobRecord(record2))
+    throw new Error("invalid review job record");
+  const directory = jobsDirectory(cwd);
+  mkdirSync14(directory, { recursive: true, mode: 448 });
+  const destination = jobPath(cwd, record2.id);
+  const temporary = `${destination}.${process.pid}.tmp`;
+  writeFileSync19(temporary, `${JSON.stringify(record2)}
+`, { mode: 384 });
+  renameSync7(temporary, destination);
+}
+function withJobLock(cwd, id, operation) {
+  return withFileLock(`${jobPath(cwd, id)}.lock`, operation);
+}
+function withFileLock(lock, operation) {
+  const deadline = Date.now() + JOB_LOCK_WAIT_MS;
+  let descriptor;
+  while (descriptor === undefined) {
+    try {
+      descriptor = openSync10(lock, "wx", 384);
+      try {
+        writeFileSync19(descriptor, String(process.pid));
+      } catch (error2) {
+        closeSync10(descriptor);
+        descriptor = undefined;
+        try {
+          unlinkSync3(lock);
+        } catch {}
+        throw error2;
+      }
+    } catch (error2) {
+      if (!isFileExistsError(error2) || Date.now() >= deadline)
+        throw error2;
+      recoverStaleLock(lock);
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10);
+    }
+  }
+  try {
+    return operation();
+  } finally {
+    closeSync10(descriptor);
+    try {
+      unlinkSync3(lock);
+    } catch {}
+  }
+}
+function recoverStaleLock(lock) {
+  try {
+    const inspected = statSync6(lock);
+    const owner = Number(readFileSync51(lock, "utf8"));
+    const invalidOwnerIsOld = !isProcessId(owner) && Date.now() - statSync6(lock).mtimeMs >= JOB_LOCK_WAIT_MS;
+    if (isProcessId(owner) && !processExists(owner) || invalidOwnerIsOld) {
+      const current = statSync6(lock);
+      if (current.dev === inspected.dev && current.ino === inspected.ino)
+        unlinkSync3(lock);
+    }
+  } catch {}
+}
+function isFileExistsError(error2) {
+  return error2 instanceof Error && "code" in error2 && error2.code === "EEXIST";
+}
+function updateActiveJob(cwd, id, update) {
+  return withJobLock(cwd, id, () => {
+    const latest = readJob(cwd, id);
+    if (latest.state !== "launching" && latest.state !== "running")
+      return latest;
+    const next = update(latest);
+    writeJob(cwd, next);
+    return next;
+  });
+}
+function isReviewJobRecord(value) {
+  if (typeof value !== "object" || value === null || Array.isArray(value))
+    return false;
+  const candidate = value;
+  return hasReviewJobIdentity(candidate) && hasReviewJobLifecycle(candidate);
+}
+function hasReviewJobIdentity(candidate) {
+  const hasStrings = ["id", "source_fingerprint", "started_at", "updated_at"].every((key) => typeof candidate[key] === "string");
+  return candidate.schema_version === 1 && hasStrings && isStringArray(candidate.targets) && isOptional(candidate.context, isStringArray) && isReviewKind(candidate.kind);
+}
+function hasReviewJobLifecycle(candidate) {
+  const hasPid = isOptional(candidate.pid, isProcessId);
+  const hasResult = isOptional(candidate.result, isCliResult);
+  if (!hasPid || !hasResult || !isJobState(candidate.state))
+    return false;
+  switch (candidate.state) {
+    case "launching":
+    case "running": {
+      return isProcessId(candidate.pid) && candidate.result === undefined;
+    }
+    case "completed":
+    case "failed": {
+      return isCliResult(candidate.result);
+    }
+    case "canceled": {
+      return candidate.result === undefined;
+    }
+  }
+}
+function isOptional(value, predicate) {
+  return value === undefined || predicate(value);
+}
+function isStringArray(value) {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+function isProcessId(value) {
+  return Number.isSafeInteger(value) && Number(value) > 1;
+}
+function isJobState(value) {
+  return ["launching", "running", "completed", "failed", "canceled"].includes(String(value));
+}
+function isCliResult(value) {
+  if (typeof value !== "object" || value === null || Array.isArray(value))
+    return false;
+  const candidate = value;
+  const state = candidate.state;
+  const effects = candidate.effects;
+  const data = candidate.data;
+  const expectedOk = state !== "failed";
+  const expectedChanged = state === "changed";
+  const hasHeader = candidate.schemaVersion === 1 && candidate.ok === expectedOk && candidate.changed === expectedChanged;
+  const hasState = ["healthy", "changed", "action_required", "failed"].includes(String(state));
+  const hasArrays = ["findings", "errors", "recovery", "nextActions"].every((key) => Array.isArray(candidate[key]));
+  return hasHeader && hasState && hasArrays && isEffects(effects) && isReviewResultData(data, state);
+}
+function isEffects(value) {
+  if (typeof value !== "object" || value === null || Array.isArray(value))
+    return false;
+  return ["files", "packages", "configuration", "network", "destructive"].every((key) => Array.isArray(value[key]));
+}
+function isReviewResultData(value, state) {
+  if (typeof value !== "object" || value === null || Array.isArray(value))
+    return false;
+  const data = value;
+  if (!["review run", "review status"].includes(String(data.command)))
+    return false;
+  if (typeof data.status !== "string")
+    return false;
+  if (data.command === "review status")
+    return ["failed", "stale"].includes(data.status);
+  if (data.status !== "approved" && data.status !== "changes_requested")
+    return ["blocked", "existing_route", "failed"].includes(data.status);
+  return isCompletedReviewData(data, state);
+}
+function isCompletedReviewData(data, state) {
+  const output = data.reviewer_output;
+  if (typeof output !== "object" || output === null || Array.isArray(output))
+    return false;
+  const reviewer = output;
+  const verdict = data.status === "approved" ? "approve" : "request_changes";
+  return hasReviewerIdentity(reviewer) && reviewer.verdict === verdict && typeof reviewer.summary === "string" && Array.isArray(reviewer.findings) && state === (data.status === "approved" ? "healthy" : "action_required");
+}
+function hasReviewerIdentity(reviewer) {
+  return typeof reviewer.dispatch_id === "string" && reviewer.dispatch_id.length > 0 && ["claude", "codex"].includes(String(reviewer.reviewer_agent));
+}
+function readJob(cwd, id) {
+  const parsed2 = JSON.parse(readFileSync51(jobPath(cwd, id), "utf8"));
+  if (!isReviewJobRecord(parsed2) || parsed2.id !== id)
+    throw new Error("invalid review job record");
+  return parsed2;
+}
+function pendingResult(record2) {
+  return createResult({
+    state: "action_required",
+    findings: [
+      {
+        code: "REVIEW_PENDING",
+        message: "The independent review is still working in the background. Collect its result when it finishes.",
+        severity: "info"
+      }
+    ],
+    nextActions: [
+      {
+        command: `safeword review status ${record2.id}`,
+        mutates: false,
+        requiresHuman: false
+      }
+    ],
+    data: {
+      command: "review run",
+      status: "pending",
+      review_id: record2.id,
+      started_at: record2.started_at
+    }
+  });
+}
+function staleResult(record2) {
+  return createResult({
+    state: "action_required",
+    findings: [
+      {
+        code: "REVIEW_STALE",
+        message: "The reviewed source changed after this review started; run a fresh review.",
+        severity: "warning"
+      }
+    ],
+    nextActions: [
+      {
+        command: retryCommand(record2.kind, record2.targets, record2.context),
+        mutates: true,
+        requiresHuman: false
+      }
+    ],
+    data: { command: "review status", status: "stale", review_id: record2.id }
+  });
+}
+function currentResult(cwd, record2) {
+  if (record2.state === "launching") {
+    if (record2.pid !== undefined && processExists(record2.pid))
+      return pendingResult(record2);
+    return failExitedJob(cwd, record2);
+  }
+  if (record2.state === "running") {
+    if (record2.pid !== undefined && !isReviewWorker(record2.pid, record2.id)) {
+      return failExitedJob(cwd, record2);
+    }
+    return pendingResult(record2);
+  }
+  return terminalResult(cwd, record2);
+}
+function failExitedJob(cwd, record2) {
+  const failed = createResult({
+    state: "failed",
+    errors: [
+      {
+        code: "REVIEW_WORKER_EXITED",
+        message: "The background review worker exited before recording a result.",
+        retryable: true
+      }
+    ],
+    data: { command: "review status", status: "failed", review_id: record2.id }
+  });
+  const latest = updateActiveJob(cwd, record2.id, (current) => ({
+    ...current,
+    state: "failed",
+    result: failed,
+    updated_at: new Date().toISOString()
+  }));
+  return latest.state === "failed" && latest.result === failed ? failed : terminalResult(cwd, latest);
+}
+function terminalResult(cwd, record2) {
+  if (record2.state === "canceled") {
+    return createResult({
+      state: "action_required",
+      findings: [
+        { code: "REVIEW_CANCELED", message: "The review was canceled.", severity: "warning" }
+      ],
+      data: { command: "review status", status: "canceled", review_id: record2.id }
+    });
+  }
+  try {
+    if (fingerprint(cwd, record2.kind, record2.targets, record2.context) !== record2.source_fingerprint)
+      return staleResult(record2);
+  } catch {
+    return staleResult(record2);
+  }
+  if (record2.result !== undefined)
+    return record2.result;
+  return createResult({
+    state: "failed",
+    errors: [
+      { code: "REVIEW_JOB_INVALID", message: "The review job has no result.", retryable: true }
+    ],
+    data: { command: "review status", status: "failed", review_id: record2.id }
+  });
+}
+function processExists(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+function configuredCourtesyWait() {
+  const raw = process.env.SAFEWORD_REVIEW_FOREGROUND_MS;
+  const value = raw === undefined || raw.trim() === "" ? NaN : Number(raw);
+  return Number.isFinite(value) && value >= 0 ? Math.min(value, 540000) : COURTESY_WAIT_MS;
+}
+function cliEntrypoint() {
+  const configured = process.env.SAFEWORD_CLI_ENTRYPOINT;
+  if (configured !== undefined && false)
+    ;
+  const invoked = process.argv[1];
+  if (invoked !== undefined && /^cli\.(?:js|ts)$/u.test(nodePath82.basename(invoked)))
+    return invoked;
+  const bundled = nodePath82.join(import.meta.dirname, "cli.js");
+  if (existsSync42(bundled))
+    return bundled;
+  const developmentBuild = nodePath82.resolve(import.meta.dirname, "../../dist/cli.js");
+  if (existsSync42(developmentBuild))
+    return developmentBuild;
+  throw new Error("Safeword CLI entrypoint is unavailable");
+}
+async function startReviewJob(input) {
+  const context = input.context ?? [];
+  const sourceFingerprint = fingerprint(input.cwd, input.kind, input.targets, context);
+  mkdirSync14(jobsDirectory(input.cwd), { recursive: true, mode: 448 });
+  const reserved = withFileLock(nodePath82.join(jobsDirectory(input.cwd), "start.lock"), () => {
+    const existing = runningJob(input.cwd, input.kind, sourceFingerprint);
+    if (existing !== undefined)
+      return { existing: true, record: existing };
+    const now = new Date().toISOString();
+    const record3 = {
+      schema_version: 1,
+      id: randomUUID8(),
+      state: "launching",
+      kind: input.kind,
+      targets: input.targets,
+      context,
+      source_fingerprint: sourceFingerprint,
+      started_at: now,
+      updated_at: now,
+      pid: process.pid
+    };
+    writeJob(input.cwd, record3);
+    return { existing: false, record: record3 };
+  });
+  if (reserved.existing)
+    return pendingResult(reserved.record);
+  const record2 = reserved.record;
+  const id = record2.id;
+  const entrypoint = cliEntrypoint();
+  const child = spawn2(process.execPath, [
+    entrypoint,
+    "review",
+    "run",
+    input.kind,
+    "--worker-job-id",
+    id,
+    ...context.flatMap((target) => ["--context", target]),
+    "--",
+    ...input.targets
+  ], {
+    cwd: input.cwd,
+    env: { ...process.env, SAFEWORD_REVIEW_JOB_ID: id, SAFEWORD_REVIEW_WORKER: "1" },
+    detached: true,
+    stdio: "ignore"
+  });
+  child.once("error", (error2) => {
+    const failed = createResult({
+      state: "failed",
+      errors: [
+        {
+          code: "REVIEW_WORKER_START_FAILED",
+          message: `The background review worker could not start: ${error2.message}`,
+          retryable: true
+        }
+      ],
+      data: { command: "review run", status: "failed", review_id: id }
+    });
+    try {
+      updateActiveJob(input.cwd, id, (latest) => ({
+        ...latest,
+        state: "failed",
+        result: failed,
+        updated_at: new Date().toISOString()
+      }));
+    } catch {}
+  });
+  child.unref();
+  if (child.pid === undefined) {
+    const failed = createResult({
+      state: "failed",
+      errors: [
+        {
+          code: "REVIEW_WORKER_START_FAILED",
+          message: "The background review worker could not be started.",
+          retryable: true
+        }
+      ],
+      data: { command: "review run", status: "failed", review_id: id }
+    });
+    writeJob(input.cwd, {
+      ...record2,
+      state: "failed",
+      result: failed,
+      updated_at: new Date().toISOString()
+    });
+    return failed;
+  }
+  const activated = updateActiveJob(input.cwd, id, (spawned) => ({
+    ...spawned,
+    state: "running",
+    pid: child.pid,
+    updated_at: new Date().toISOString()
+  }));
+  if (!isActivatedChild(activated, child.pid)) {
+    terminateReviewWorker(child.pid);
+    return currentResult(input.cwd, activated);
+  }
+  input.progress?.start("Running the independent review in the background\u2026");
+  input.progress?.heartbeat?.("Still waiting for the independent review\u2026");
+  const deadline = Date.now() + configuredCourtesyWait();
+  while (Date.now() < deadline) {
+    const latest = readJob(input.cwd, id);
+    if (latest.state !== "running")
+      return currentResult(input.cwd, latest);
+    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+  }
+  return currentResult(input.cwd, readJob(input.cwd, id));
+}
+function isActivatedChild(record2, pid) {
+  return record2.state === "running" && record2.pid === pid;
+}
+function terminateReviewWorker(pid) {
+  if (process.platform === "win32") {
+    spawnSync10("taskkill", ["/PID", String(pid), "/T", "/F"], {
+      stdio: "ignore",
+      timeout: 5000,
+      windowsHide: true
+    });
+    return;
+  }
+  try {
+    process.kill(-pid, "SIGTERM");
+  } catch {}
+}
+function completeReviewJob(cwd, id, result) {
+  updateActiveJob(cwd, id, (record2) => ({
+    ...record2,
+    state: result.state === "failed" ? "failed" : "completed",
+    result,
+    updated_at: new Date().toISOString()
+  }));
+}
+function reviewJobWorkerInput(cwd, id) {
+  const record2 = withJobLock(cwd, id, () => {
+    const current = readJob(cwd, id);
+    if (current.state !== "launching" && current.state !== "running")
+      throw new Error("review job is not active");
+    const claimed = {
+      ...current,
+      state: "running",
+      pid: process.pid,
+      updated_at: new Date().toISOString()
+    };
+    writeJob(cwd, claimed);
+    return claimed;
+  });
+  return { kind: record2.kind, targets: record2.targets, context: record2.context ?? [] };
+}
+function latestJobId(cwd) {
+  const directory = jobsDirectory(cwd);
+  if (!existsSync42(directory))
+    return;
+  return readdirSync29(directory).flatMap((name) => {
+    if (!/^[a-f\d-]{36}\.json$/u.test(name))
+      return [];
+    try {
+      return [{ record: readJob(cwd, name.slice(0, -5)) }];
+    } catch {
+      return [];
+    }
+  }).toSorted((left, right) => right.record.started_at < left.record.started_at ? -1 : Number(right.record.started_at > left.record.started_at))[0]?.record.id;
+}
+function runningJob(cwd, kind, sourceFingerprint) {
+  const directory = jobsDirectory(cwd);
+  if (!existsSync42(directory))
+    return;
+  for (const name of readdirSync29(directory)) {
+    if (!/^[a-f\d-]{36}\.json$/u.test(name))
+      continue;
+    try {
+      const record2 = readJob(cwd, name.slice(0, -5));
+      if (isActiveReviewJob(record2) && record2.kind === kind && record2.source_fingerprint === sourceFingerprint) {
+        return record2;
+      }
+    } catch {}
+  }
+  return;
+}
+function isActiveReviewJob(record2) {
+  if (record2.pid === undefined)
+    return false;
+  if (record2.state === "launching")
+    return processExists(record2.pid);
+  return record2.state === "running" && isReviewWorker(record2.pid, record2.id);
+}
+function reviewJobStatus(cwd, requestedId) {
+  let id;
+  try {
+    id = requestedId ?? latestJobId(cwd);
+  } catch {
+    id = requestedId;
+  }
+  if (id === undefined) {
+    return createResult({
+      state: "failed",
+      errors: [
+        { code: "REVIEW_JOB_NOT_FOUND", message: "No review job was found.", retryable: false }
+      ],
+      data: { command: "review status" }
+    });
+  }
+  let record2;
+  try {
+    record2 = readJob(cwd, id);
+  } catch {
+    const exists2 = isJobId(id) && existsSync42(jobPath(cwd, id));
+    return createResult({
+      state: "failed",
+      errors: [
+        {
+          code: exists2 ? "REVIEW_JOB_INVALID" : "REVIEW_JOB_NOT_FOUND",
+          message: exists2 ? `Review job ${id} is invalid.` : `Review job ${id} was not found.`,
+          retryable: false
+        }
+      ],
+      data: { command: "review status", review_id: id }
+    });
+  }
+  try {
+    const result = currentResult(cwd, record2);
+    return { ...result, effects: { ...result.effects, network: [] } };
+  } catch {
+    return createResult({
+      state: "action_required",
+      findings: [
+        {
+          code: "REVIEW_STATUS_FAILED",
+          message: "The review exists, but its current status could not be validated or saved.",
+          severity: "warning"
+        }
+      ],
+      data: { command: "review status", status: "blocked", review_id: id }
+    });
+  }
+}
+function cancelReviewJob(cwd, requestedId) {
+  try {
+    const id = requestedId ?? latestJobId(cwd);
+    if (id === undefined)
+      return reviewJobStatus(cwd, id);
+    const canceled = withJobLock(cwd, id, () => {
+      const record2 = readJob(cwd, id);
+      if (record2.state !== "launching" && record2.state !== "running")
+        return record2;
+      if (record2.state === "running" && record2.pid !== undefined && isReviewWorker(record2.pid, record2.id)) {
+        terminateReviewWorker(record2.pid);
+      }
+      const next = {
+        ...record2,
+        state: "canceled",
+        updated_at: new Date().toISOString()
+      };
+      writeJob(cwd, next);
+      return next;
+    });
+    return currentResult(cwd, canceled);
+  } catch {
+    return reviewJobStatus(cwd, requestedId);
+  }
+}
+function isJobId(value) {
+  return /^[a-f\d-]{36}$/u.test(value);
+}
+function isReviewWorker(pid, id) {
+  const inspected = process.platform === "win32" ? spawnSync10("powershell.exe", [
+    "-NoProfile",
+    "-NonInteractive",
+    "-Command",
+    `(Get-CimInstance Win32_Process -Filter "ProcessId = ${pid}").CommandLine`
+  ], { encoding: "utf8", timeout: 1000, windowsHide: true }) : spawnSync10("ps", ["-p", String(pid), "-o", "command="], {
+    encoding: "utf8",
+    timeout: 1000
+  });
+  return inspected.status === 0 && /\breview run\b/u.test(inspected.stdout) && inspected.stdout.includes(`--worker-job-id ${id}`);
+}
+var COURTESY_WAIT_MS = 75000, POLL_INTERVAL_MS = 100, JOB_LOCK_WAIT_MS = 2000;
+var init_job = __esm(() => {
+  init_result();
+  init_contract();
+  init_packet();
+});
+
 // src/pr-review/providers/openai.ts
 function isRecord4(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -44546,8 +45198,8 @@ var exports_review_pr = {};
 __export(exports_review_pr, {
   inspectPullRequestCommand: () => inspectPullRequestCommand
 });
-import { readFileSync as readFileSync51, writeFileSync as writeFileSync19 } from "fs";
-import nodePath82 from "path";
+import { readFileSync as readFileSync52, writeFileSync as writeFileSync20 } from "fs";
+import nodePath83 from "path";
 import process12 from "process";
 function isRecord5(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -44564,7 +45216,7 @@ function hasValidInputEnvelope(raw) {
   return raw.schemaVersion === 1 && validHead && validState && Array.isArray(raw.artifacts) && Array.isArray(raw.checks) && Array.isArray(raw.statuses) && typeof raw.markerReceiptExists === "boolean";
 }
 function parseConfig(cwd) {
-  const raw = JSON.parse(readFileSync51(nodePath82.join(cwd, ".safeword", "config.json"), "utf8"));
+  const raw = JSON.parse(readFileSync52(nodePath83.join(cwd, ".safeword", "config.json"), "utf8"));
   if (!isRecord5(raw) || !isRecord5(raw.prReview)) {
     throw new Error("review-pr: .safeword/config.json must define prReview");
   }
@@ -44575,7 +45227,7 @@ function parseConfig(cwd) {
   return config;
 }
 function parseInput(inputPath) {
-  const raw = JSON.parse(readFileSync51(inputPath, "utf8"));
+  const raw = JSON.parse(readFileSync52(inputPath, "utf8"));
   if (!isRecord5(raw) || !hasValidInputEnvelope(raw)) {
     throw new Error("review-pr: invalid inspection input");
   }
@@ -44774,7 +45426,7 @@ async function inspectPullRequestCommand(options) {
       kind: "noop",
       schemaVersion: 1
     };
-    writeFileSync19(options.outputPath, `${JSON.stringify(handoff2)}
+    writeFileSync20(options.outputPath, `${JSON.stringify(handoff2)}
 `, { mode: 384 });
     return handoff2;
   }
@@ -44785,7 +45437,7 @@ async function inspectPullRequestCommand(options) {
     receipt,
     schemaVersion: 1
   };
-  writeFileSync19(options.outputPath, `${JSON.stringify(handoff)}
+  writeFileSync20(options.outputPath, `${JSON.stringify(handoff)}
 `, { mode: 384 });
   return handoff;
 }
@@ -44904,7 +45556,7 @@ __export(exports_review_pr_publication, {
   invalidatePullRequestCommand: () => invalidatePullRequestCommand,
   createGitHubReviewBoundary: () => createGitHubReviewBoundary
 });
-import { readFileSync as readFileSync52 } from "fs";
+import { readFileSync as readFileSync53 } from "fs";
 import process13 from "process";
 function isRecord6(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -44993,7 +45645,7 @@ function hasConsistentRoute(receipt) {
   return receipt.route === "looks_ready" === mayLookReady;
 }
 function parseHandoffEnvelope(path4) {
-  const value = JSON.parse(readFileSync52(path4, "utf8"));
+  const value = JSON.parse(readFileSync53(path4, "utf8"));
   if (!isRecord6(value) || value.schemaVersion !== 1 || value.kind !== "noop" && value.kind !== "receipt") {
     throw new Error("review-pr: invalid advisory result artifact");
   }
@@ -45296,13 +45948,13 @@ var init_codex_bootstrap = __esm(() => {
 });
 
 // templates/hooks/lib/dogfood.ts
-import { existsSync as existsSync42, readFileSync as readFileSync53 } from "fs";
-import nodePath83 from "path";
+import { existsSync as existsSync43, readFileSync as readFileSync54 } from "fs";
+import nodePath84 from "path";
 function isDogfoodRepo(projectDirectory) {
-  if (existsSync42(nodePath83.join(projectDirectory, "packages", "cli", "templates")))
+  if (existsSync43(nodePath84.join(projectDirectory, "packages", "cli", "templates")))
     return true;
   try {
-    const pkg2 = JSON.parse(readFileSync53(nodePath83.join(projectDirectory, "package.json"), "utf8"));
+    const pkg2 = JSON.parse(readFileSync54(nodePath84.join(projectDirectory, "package.json"), "utf8"));
     return pkg2.name === "safeword";
   } catch {
     return false;
@@ -45311,8 +45963,8 @@ function isDogfoodRepo(projectDirectory) {
 var init_dogfood = () => {};
 
 // templates/hooks/lib/retro-debug.ts
-import { appendFileSync as appendFileSync2, mkdirSync as mkdirSync14 } from "fs";
-import nodePath84 from "path";
+import { appendFileSync as appendFileSync2, mkdirSync as mkdirSync15 } from "fs";
+import nodePath85 from "path";
 import process14 from "process";
 function sanitizeDebugValue(key, value) {
   if (value === undefined)
@@ -45347,7 +45999,7 @@ function recordRetroDebugEvent(event, env = process14.env) {
   if (!logPath)
     return;
   try {
-    mkdirSync14(nodePath84.dirname(logPath), { recursive: true });
+    mkdirSync15(nodePath85.dirname(logPath), { recursive: true });
     appendFileSync2(logPath, `${JSON.stringify({ timestamp: new Date().toISOString(), ...sanitizedEvent(event) })}
 `);
   } catch {}
@@ -45373,13 +46025,13 @@ __export(exports_retro_draft_spool, {
   canonicalSignatureForDraft: () => canonicalSignatureForDraft,
   ackFilePath: () => ackFilePath
 });
-import { createHash as createHash21 } from "crypto";
-import nodePath85 from "path";
+import { createHash as createHash22 } from "crypto";
+import nodePath86 from "path";
 function spoolName(sessionId) {
   return `${sessionId.replaceAll(/[^\w.-]/g, "_").slice(0, 80) || "unknown"}${SPOOL_EXTENSION}`;
 }
 function draftSpoolPath(projectDirectory, sessionId) {
-  return nodePath85.join(projectDirectory, SPOOL_DIR, spoolName(sessionId));
+  return nodePath86.join(projectDirectory, SPOOL_DIR, spoolName(sessionId));
 }
 function spoolSiblingPath(projectDirectory, sessionId, suffix) {
   const spool = draftSpoolPath(projectDirectory, sessionId);
@@ -45436,7 +46088,7 @@ function draftForPosting(draft) {
 function verifyDraftBody(draft) {
   if (draft.bodyDigest === undefined)
     return true;
-  return createHash21("sha256").update(draft.body).digest("hex").slice(0, 12) === draft.bodyDigest;
+  return createHash22("sha256").update(draft.body).digest("hex").slice(0, 12) === draft.bodyDigest;
 }
 function markDraftsFiled(projectDirectory, sessionId, filedSignatures) {
   try {
@@ -45507,7 +46159,7 @@ function spoolDrafts(projectDirectory, sessionId, drafts) {
 var MAX_DRAFTS_PER_SESSION = 20, SPOOL_DIR, SPOOL_EXTENSION = ".jsonl";
 var init_retro_draft_spool = __esm(() => {
   init_jsonl_spool();
-  SPOOL_DIR = nodePath85.join(".safeword", "retro-drafts");
+  SPOOL_DIR = nodePath86.join(".safeword", "retro-drafts");
 });
 
 // templates/hooks/lib/retro-extract.ts
@@ -45537,8 +46189,8 @@ __export(exports_retro_extract, {
   DEFAULT_CLAUDE_RETRO_MODEL: () => DEFAULT_CLAUDE_RETRO_MODEL,
   CODEX_RETRO_OUTPUT_SCHEMA: () => CODEX_RETRO_OUTPUT_SCHEMA
 });
-import { readFileSync as readFileSync54, writeFileSync as writeFileSync20 } from "fs";
-import nodePath86 from "path";
+import { readFileSync as readFileSync55, writeFileSync as writeFileSync21 } from "fs";
+import nodePath87 from "path";
 function defaultRetroModel(agent) {
   if (agent === "codex")
     return DEFAULT_CODEX_RETRO_MODEL;
@@ -45548,7 +46200,7 @@ function defaultRetroModel(agent) {
 }
 function resolveRetroModel(projectDirectory, agent = "claude") {
   try {
-    const raw = readFileSync54(nodePath86.join(projectDirectory, ".safeword", "config.json"), "utf8");
+    const raw = readFileSync55(nodePath87.join(projectDirectory, ".safeword", "config.json"), "utf8");
     const parsed2 = JSON.parse(raw);
     const model = parsed2.retro?.model;
     return typeof model === "string" && model.length > 0 ? model : defaultRetroModel(agent);
@@ -45708,10 +46360,10 @@ async function runCodexHeadlessExtractionChecked(transcript, dependencies) {
     const digest3 = buildDigest(transcript);
     if (digest3.trim() === "")
       return { ok: false, failureReason: "empty_digest", findings: [] };
-    const schemaPath = dependencies.schemaPath ?? nodePath86.join(dependencies.cwd, "schema.json");
-    const outputPath = dependencies.outputPath ?? nodePath86.join(dependencies.cwd, "output.json");
-    const writeFile2 = dependencies.writeFile ?? writeFileSync20;
-    const readFile2 = dependencies.readFile ?? ((path4) => readFileSync54(path4, "utf8"));
+    const schemaPath = dependencies.schemaPath ?? nodePath87.join(dependencies.cwd, "schema.json");
+    const outputPath = dependencies.outputPath ?? nodePath87.join(dependencies.cwd, "output.json");
+    const writeFile2 = dependencies.writeFile ?? writeFileSync21;
+    const readFile2 = dependencies.readFile ?? ((path4) => readFileSync55(path4, "utf8"));
     writeFile2(schemaPath, JSON.stringify(CODEX_RETRO_OUTPUT_SCHEMA));
     const argv = buildCodexExtractArgv({
       model: dependencies.model ?? DEFAULT_CODEX_RETRO_MODEL,
@@ -51681,9 +52333,9 @@ var init_finding = __esm(() => {
 });
 
 // src/retro/hash.ts
-import { createHash as createHash22 } from "crypto";
+import { createHash as createHash23 } from "crypto";
 function shortHash(material) {
-  return createHash22("sha256").update(material).digest("hex").slice(0, 12);
+  return createHash23("sha256").update(material).digest("hex").slice(0, 12);
 }
 var init_hash = () => {};
 
@@ -51950,7 +52602,7 @@ var init_durable_fs = __esm(() => {
 });
 
 // src/retro/relay-delivery.ts
-import { createHash as createHash23, randomUUID as randomUUID8 } from "crypto";
+import { createHash as createHash24, randomUUID as randomUUID9 } from "crypto";
 import { access, readdir, readFile as readFile2, stat as stat2, unlink as unlink2 } from "fs/promises";
 import path6 from "path";
 function normalizeRelayOrigin(value) {
@@ -51987,22 +52639,22 @@ function relaySourcePayloadDigest(request) {
     repository: request.repository,
     title: request.title
   };
-  return createHash23("sha256").update(JSON.stringify(payload)).digest("hex");
+  return createHash24("sha256").update(JSON.stringify(payload)).digest("hex");
 }
 function relayRequestDigest(request) {
-  return createHash23("sha256").update(JSON.stringify(request)).digest("hex");
+  return createHash24("sha256").update(JSON.stringify(request)).digest("hex");
 }
 function createRelayRequest(input, dependencies) {
   const createdAt = (dependencies?.now ?? Date.now)();
   return {
-    requestId: (dependencies?.randomUUID ?? randomUUID8)(),
+    requestId: (dependencies?.randomUUID ?? randomUUID9)(),
     createdAt: new Date(createdAt).toISOString(),
     retryDeadlineAt: new Date(createdAt + RELAY_RETRY_WINDOW_MS).toISOString(),
     ...input
   };
 }
 function relaySourceKey(sessionIdentity, windowStart, payload) {
-  return createHash23("sha256").update(`relay-source-v3\x00${sessionIdentity}\x00${windowStart}\x00${relaySourcePayloadDigest(payload)}`).digest("hex");
+  return createHash24("sha256").update(`relay-source-v3\x00${sessionIdentity}\x00${windowStart}\x00${relaySourcePayloadDigest(payload)}`).digest("hex");
 }
 function relayDirectory(projectDirectory) {
   return path6.join(projectDirectory, ".safeword", "retro-drafts", "relay");
@@ -52042,7 +52694,7 @@ function discardIntentTokenPath(projectDirectory, requestId, token) {
   return path6.join(relayDirectory(projectDirectory), `${requestId}.discarding.${token}.json`);
 }
 function sourcePath(projectDirectory, sourceKey, suffix) {
-  const key = createHash23("sha256").update(sourceKey).digest("hex");
+  const key = createHash24("sha256").update(sourceKey).digest("hex");
   return path6.join(relayDirectory(projectDirectory), `source-${key}${suffix}.json`);
 }
 function sourceReservationPath(projectDirectory, sourceKey) {
@@ -52082,7 +52734,7 @@ async function sortedFilenames(directory) {
   return filenames.toSorted((left, right) => left.localeCompare(right));
 }
 async function writeAtomic(file, bytes, faults = {}) {
-  const temporary = `${file}.tmp.${randomUUID8()}`;
+  const temporary = `${file}.tmp.${randomUUID9()}`;
   try {
     await writeNewDurable(temporary, bytes, faults);
     try {
@@ -52104,7 +52756,7 @@ async function removeAtomicTemporary(temporary, faults) {
   } catch {}
 }
 async function replaceAtomic(file, bytes, faults = {}) {
-  const temporary = `${file}.tmp.${randomUUID8()}`;
+  const temporary = `${file}.tmp.${randomUUID9()}`;
   try {
     await writeNewDurable(temporary, bytes, faults);
     await renameDurable(temporary, file, faults);
@@ -52564,7 +53216,7 @@ async function quarantineMalformedActiveRequests(projectDirectory, active) {
     if (parseDurableRequest(candidate) !== undefined)
       continue;
     const claim = await claimSpecificRelayRequest(projectDirectory, candidate.requestId, {
-      claimId: randomUUID8(),
+      claimId: randomUUID9(),
       leaseMs: 1000,
       now: Date.now()
     });
@@ -52905,7 +53557,7 @@ async function releaseDiscardOwnership(projectDirectory, ownership, rearm) {
   }
 }
 async function createDiscardIntent(projectDirectory, requestId, claimId) {
-  const token = randomUUID8();
+  const token = randomUUID9();
   const tokenPath = discardIntentTokenPath(projectDirectory, requestId, token);
   const startedAt = Date.now();
   const expiresAt = startedAt + DISCARD_INTENT_LEASE_MS;
@@ -52990,7 +53642,7 @@ async function removeRelayFiles(directory, filenames) {
 }
 async function discardOwnedRelayRequest(projectDirectory, requestId, options = {}) {
   const directory = relayDirectory(projectDirectory);
-  const discardClaimId = `discard-${randomUUID8()}`;
+  const discardClaimId = `discard-${randomUUID9()}`;
   const discardClaim = await claimSpecificRelayRequest(projectDirectory, requestId, {
     claimId: discardClaimId,
     leaseMs: DISCARD_CLAIM_LEASE_MS,
@@ -53221,7 +53873,7 @@ async function recoverExpiredRecoveryClaims(projectDirectory, filenames, now, re
 async function rearmRelayDeadLetter(projectDirectory, requestId) {
   if (!UUID_V4_PATTERN.test(requestId))
     throw new Error("invalid relay request identity");
-  const claim = await claimRelayDeadLetter(projectDirectory, requestId, `rearm-${randomUUID8()}`);
+  const claim = await claimRelayDeadLetter(projectDirectory, requestId, `rearm-${randomUUID9()}`);
   if (claim === undefined)
     return false;
   const primary = primaryPath(projectDirectory, requestId);
@@ -53343,7 +53995,7 @@ async function recoverRelayDeadLetter(projectDirectory, requestId, options) {
     throw new Error("invalid relay request identity");
   await recoverRelaySpool(projectDirectory, Date.now());
   const relayOrigin = relayRecoveryOrigin(options);
-  const claim = await claimRelayDeadLetter(projectDirectory, requestId, `recover-${randomUUID8()}`);
+  const claim = await claimRelayDeadLetter(projectDirectory, requestId, `recover-${randomUUID9()}`);
   if (claim === undefined)
     return false;
   try {
@@ -53451,7 +54103,7 @@ async function deliverRelayRequests(projectDirectory, options) {
     if (retrySchedule !== undefined && retrySchedule.nextAttemptAt > options.now())
       continue;
     const claim = await claimSpecificRelayRequest(projectDirectory, request.requestId, {
-      claimId: randomUUID8(),
+      claimId: randomUUID9(),
       leaseMs: Math.max(options.deadlineMs * 2, 1000),
       now: options.now()
     });
@@ -53567,7 +54219,7 @@ var init_relay_readiness_manifest = __esm(() => {
 });
 
 // src/retro/relay-readiness.ts
-import { createHash as createHash24 } from "crypto";
+import { createHash as createHash25 } from "crypto";
 function validDate(value) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) || date.toISOString() !== value ? undefined : date;
@@ -53698,7 +54350,7 @@ async function validateRelayReadiness(manifest, dependencies) {
   }
 }
 function manifestSha256(manifest) {
-  return createHash24("sha256").update(JSON.stringify(manifest)).digest("hex");
+  return createHash25("sha256").update(JSON.stringify(manifest)).digest("hex");
 }
 function validateBuildAttestedRelayReadiness(manifest, attestation, now) {
   if (!manifest.enabled || !attestation.enabled || attestation.manifestSha256 !== manifestSha256(manifest)) {
@@ -54041,17 +54693,17 @@ __export(exports_retro, {
   buildProvenanceResolver: () => buildProvenanceResolver,
   buildAutoExtractor: () => buildAutoExtractor
 });
-import { spawnSync as spawnSync10 } from "child_process";
+import { spawnSync as spawnSync11 } from "child_process";
 import {
-  mkdirSync as mkdirSync15,
+  mkdirSync as mkdirSync16,
   mkdtempSync as mkdtempSync7,
-  readFileSync as readFileSync55,
+  readFileSync as readFileSync56,
   realpathSync as realpathSync11,
-  statSync as statSync6,
-  writeFileSync as writeFileSync21
+  statSync as statSync7,
+  writeFileSync as writeFileSync22
 } from "fs";
 import { tmpdir as tmpdir5 } from "os";
-import nodePath87 from "path";
+import nodePath88 from "path";
 import process17 from "process";
 function buildProvenanceResolver(options) {
   return () => {
@@ -54175,7 +54827,7 @@ async function runRetro(options, dependencies) {
       errorMessage: "safeword retro requires --transcript <path>; it never guesses the session path."
     };
   }
-  const read = dependencies.readFile ?? ((path7) => readFileSync55(path7, "utf8"));
+  const read = dependencies.readFile ?? ((path7) => readFileSync56(path7, "utf8"));
   let transcript;
   try {
     transcript = read(options.transcript);
@@ -54198,7 +54850,7 @@ async function runRetro(options, dependencies) {
       sessionId,
       draftsPassed: drafts.length,
       skippedAppend: drafts.length === 0,
-      spoolFile: nodePath87.relative(projectDirectory, draftSpoolPath(projectDirectory, sessionId))
+      spoolFile: nodePath88.relative(projectDirectory, draftSpoolPath(projectDirectory, sessionId))
     });
     spoolDrafts(projectDirectory, sessionId, drafts);
   }
@@ -54231,7 +54883,7 @@ function headlessEnvironment(environment) {
   }));
 }
 function spawnClaudeExtractor(argv, spawnOptions) {
-  const result = spawnSync10("claude", argv, {
+  const result = spawnSync11("claude", argv, {
     cwd: spawnOptions.cwd,
     env: spawnOptions.env,
     encoding: "utf8",
@@ -54241,7 +54893,7 @@ function spawnClaudeExtractor(argv, spawnOptions) {
   return Promise.resolve({ code: result.status, stdout: result.stdout ?? "" });
 }
 function spawnCodexExtractor(argv, spawnOptions) {
-  const result = spawnSync10("codex", argv, {
+  const result = spawnSync11("codex", argv, {
     cwd: spawnOptions.cwd,
     env: spawnOptions.env,
     stdio: spawnOptions.stdio,
@@ -54250,7 +54902,7 @@ function spawnCodexExtractor(argv, spawnOptions) {
   return Promise.resolve({ code: result.status, stdout: "" });
 }
 function spawnCursorExtractor(argv, spawnOptions) {
-  const result = spawnSync10("cursor-agent", argv, {
+  const result = spawnSync11("cursor-agent", argv, {
     cwd: spawnOptions.cwd,
     env: spawnOptions.env,
     encoding: "utf8",
@@ -54260,16 +54912,16 @@ function spawnCursorExtractor(argv, spawnOptions) {
   return Promise.resolve({ code: result.status, stdout: result.stdout ?? "" });
 }
 function prepareCursorExtractionDirectory(directory) {
-  const gitInit = spawnSync10("git", ["init", "--quiet"], { cwd: directory, encoding: "utf8" });
+  const gitInit = spawnSync11("git", ["init", "--quiet"], { cwd: directory, encoding: "utf8" });
   if (gitInit.status !== 0)
     throw new Error(gitInit.stderr || "could not initialize Cursor sandbox");
-  const cursorDirectory = nodePath87.join(directory, ".cursor");
-  mkdirSync15(cursorDirectory, { recursive: true });
-  writeFileSync21(nodePath87.join(cursorDirectory, "cli.json"), JSON.stringify({
+  const cursorDirectory = nodePath88.join(directory, ".cursor");
+  mkdirSync16(cursorDirectory, { recursive: true });
+  writeFileSync22(nodePath88.join(cursorDirectory, "cli.json"), JSON.stringify({
     permissions: { allow: [], deny: CURSOR_RETRO_DENY_RULES },
     approvalMode: "allowlist"
   }));
-  writeFileSync21(nodePath87.join(cursorDirectory, "sandbox.json"), JSON.stringify({
+  writeFileSync22(nodePath88.join(cursorDirectory, "sandbox.json"), JSON.stringify({
     type: "workspace_readwrite",
     disableTmpWrite: true,
     networkPolicy: { default: "deny", allow: [] }
@@ -54287,20 +54939,20 @@ async function buildAutoExtractor(projectDirectory, dependencies = {}) {
   const spawnClaude = dependencies.spawn ?? spawnClaudeExtractor;
   const spawnCodex = dependencies.spawn ?? spawnCodexExtractor;
   const spawnCursor = dependencies.spawn ?? spawnCursorExtractor;
-  const workDirectory = mkdtempSync7(nodePath87.join(tmpdir5(), "safeword-retro-"));
+  const workDirectory = mkdtempSync7(nodePath88.join(tmpdir5(), "safeword-retro-"));
   if (agent === "codex") {
     return async (transcript) => {
       const result = await runCodexHeadlessExtractionChecked2(transcript, {
         spawn: spawnCodex,
         writeFile: (path7, content) => {
-          writeFileSync21(path7, content);
+          writeFileSync22(path7, content);
         },
-        readFile: (path7) => readFileSync55(path7, "utf8"),
+        readFile: (path7) => readFileSync56(path7, "utf8"),
         env: headlessEnvironment(process17.env),
         cwd: workDirectory,
         model,
-        schemaPath: nodePath87.join(workDirectory, "schema.json"),
-        outputPath: nodePath87.join(workDirectory, "output.json")
+        schemaPath: nodePath88.join(workDirectory, "schema.json"),
+        outputPath: nodePath88.join(workDirectory, "output.json")
       });
       recordRetroDebugEvent({
         event: "retro_cli_extraction",
@@ -54339,8 +54991,8 @@ async function buildAutoExtractor(projectDirectory, dependencies = {}) {
     const result = await runHeadlessExtractionChecked2(transcript, {
       spawn: spawnClaude,
       writeDigest: (digest4) => {
-        const path7 = nodePath87.join(workDirectory, "digest.txt");
-        writeFileSync21(path7, digest4);
+        const path7 = nodePath88.join(workDirectory, "digest.txt");
+        writeFileSync22(path7, digest4);
         return path7;
       },
       env: headlessEnvironment(process17.env),
@@ -54393,7 +55045,7 @@ function physicalProjectPath(projectDirectory) {
     return realpathSync11(projectDirectory);
   } catch {
     try {
-      return nodePath87.join(realpathSync11(nodePath87.dirname(projectDirectory)), nodePath87.basename(projectDirectory));
+      return nodePath88.join(realpathSync11(nodePath88.dirname(projectDirectory)), nodePath88.basename(projectDirectory));
     } catch {
       return;
     }
@@ -54402,22 +55054,22 @@ function physicalProjectPath(projectDirectory) {
 function physicalOutboxPath(outboxDirectory) {
   try {
     const physicalOutbox = realpathSync11(outboxDirectory);
-    return statSync6(physicalOutbox).isDirectory() ? physicalOutbox : undefined;
+    return statSync7(physicalOutbox).isDirectory() ? physicalOutbox : undefined;
   } catch {
     return;
   }
 }
 function isOutsideProject(projectDirectory, outboxDirectory) {
-  const relative = nodePath87.relative(projectDirectory, outboxDirectory);
-  return relative === ".." || relative.startsWith(`..${nodePath87.sep}`);
+  const relative = nodePath88.relative(projectDirectory, outboxDirectory);
+  return relative === ".." || relative.startsWith(`..${nodePath88.sep}`);
 }
 function resolveRelayOutboxDirectory(projectDirectory, configuredDirectory) {
   const configured = configuredDirectory?.trim();
-  if (configured === undefined || configured.length === 0 || !nodePath87.isAbsolute(configured)) {
+  if (configured === undefined || configured.length === 0 || !nodePath88.isAbsolute(configured)) {
     return;
   }
-  const resolved = nodePath87.resolve(configured);
-  if (resolved === nodePath87.parse(resolved).root)
+  const resolved = nodePath88.resolve(configured);
+  if (resolved === nodePath88.parse(resolved).root)
     return;
   const physicalProject = physicalProjectPath(projectDirectory);
   if (physicalProject === undefined)
@@ -54548,7 +55200,7 @@ async function executeRetroWithDependencies(options, dependencies) {
     extract: dependencies.extract,
     harness: dependencies.harness,
     projectDirectory: dependencies.projectDirectory,
-    readFile: (path7) => readFileSync55(path7, "utf8"),
+    readFile: (path7) => readFileSync56(path7, "utf8"),
     ...relay !== undefined && { relay },
     resolveProvenance: dependencies.resolveProvenance,
     sessionId: dependencies.sessionId,
@@ -54741,7 +55393,7 @@ async function executeRetroCliCommand(options, cwd) {
     sessionId: options.sessionId ?? process17.env.CLAUDE_SESSION_ID ?? options.transcript ?? "unknown",
     resolveProvenance: buildProvenanceResolver({
       projectDirectory,
-      runGit: () => spawnSync10("git", ["rev-parse", "--short", "HEAD"], {
+      runGit: () => spawnSync11("git", ["rev-parse", "--short", "HEAD"], {
         cwd: projectDirectory,
         encoding: "utf8",
         timeout: 1e4
@@ -54766,7 +55418,7 @@ async function retroCommand(options) {
 }
 function readFindings(path7) {
   try {
-    const parsed2 = JSON.parse(readFileSync55(path7, "utf8"));
+    const parsed2 = JSON.parse(readFileSync56(path7, "utf8"));
     return Array.isArray(parsed2) ? parsed2 : [];
   } catch {
     return [];
@@ -55357,8 +56009,8 @@ __export(exports_boundary, {
   boundary: () => boundary
 });
 import { execFileSync as execFileSync9 } from "child_process";
-import { appendFileSync as appendFileSync3, existsSync as existsSync44, mkdirSync as mkdirSync16 } from "fs";
-import nodePath90 from "path";
+import { appendFileSync as appendFileSync3, existsSync as existsSync45, mkdirSync as mkdirSync17 } from "fs";
+import nodePath91 from "path";
 import process20 from "process";
 function tryGit(cwd, args) {
   try {
@@ -55437,10 +56089,10 @@ function collectChanges(cwd, range, at, ticketsDirectories, configuredFeatures) 
     byTicket.set(ticketPath, change);
   }
   for (const change of byTicket.values()) {
-    const folder = nodePath90.join(cwd, change.anchorScope.ticketPath);
+    const folder = nodePath91.join(cwd, change.anchorScope.ticketPath);
     const staged = change.artifacts.find((a) => a.artifact === "ticket.md")?.proposed;
-    change.ticketCurrent = staged ?? readFileSafe(nodePath90.join(folder, "ticket.md"));
-    change.hasLedger = change.artifacts.some((a) => a.artifact === "test-definitions.md" && a.proposed !== undefined) || existsSync44(nodePath90.join(folder, "test-definitions.md"));
+    change.ticketCurrent = staged ?? readFileSafe(nodePath91.join(folder, "ticket.md"));
+    change.hasLedger = change.artifacts.some((a) => a.artifact === "test-definitions.md" && a.proposed !== undefined) || existsSync45(nodePath91.join(folder, "test-definitions.md"));
     if (at === "push" && change.artifacts.some((a) => a.artifact === "ticket.md")) {
       const path7 = `${change.anchorScope.ticketPath}/ticket.md`;
       change.legalitySteps = legalityStepsFor(cwd, path7, range.priorRef);
@@ -55458,8 +56110,8 @@ function legalityStepsFor(cwd, path7, priorReference) {
   }));
 }
 function appendAudit(cwd, entry2) {
-  const auditPath = nodePath90.join(cwd, AUDIT_RELATIVE_PATH);
-  mkdirSync16(nodePath90.dirname(auditPath), { recursive: true });
+  const auditPath = nodePath91.join(cwd, AUDIT_RELATIVE_PATH);
+  mkdirSync17(nodePath91.dirname(auditPath), { recursive: true });
   appendFileSync3(auditPath, `${JSON.stringify(entry2)}
 `);
 }
@@ -55503,7 +56155,7 @@ function boundary(options) {
   try {
     const at = options.at === "push" ? "push" : "commit";
     const cwd = process20.cwd();
-    if (existsSync44(nodePath90.join(cwd, ".safeword"))) {
+    if (existsSync45(nodePath91.join(cwd, ".safeword"))) {
       reconcileBoundary(cwd, at);
     }
   } catch (error2) {
@@ -55518,7 +56170,7 @@ var init_boundary = __esm(() => {
   init_configured_paths();
   init_feature_source();
   init_fs();
-  AUDIT_RELATIVE_PATH = nodePath90.join(".safeword", "boundary-audit.jsonl");
+  AUDIT_RELATIVE_PATH = nodePath91.join(".safeword", "boundary-audit.jsonl");
 });
 
 // src/commands/codex-hook.ts
@@ -55528,19 +56180,19 @@ __export(exports_codex_hook, {
   normalizeNamespaceRootLabel: () => normalizeNamespaceRootLabel,
   codexHook: () => codexHook
 });
-import { execFileSync as execFileSync10, spawnSync as spawnSync11 } from "child_process";
+import { execFileSync as execFileSync10, spawnSync as spawnSync12 } from "child_process";
 import {
   cpSync as cpSync2,
-  existsSync as existsSync45,
-  mkdirSync as mkdirSync17,
+  existsSync as existsSync46,
+  mkdirSync as mkdirSync18,
   mkdtempSync as mkdtempSync8,
-  readFileSync as readFileSync57,
-  renameSync as renameSync7,
+  readFileSync as readFileSync58,
+  renameSync as renameSync8,
   rmSync as rmSync13,
-  writeFileSync as writeFileSync22
+  writeFileSync as writeFileSync23
 } from "fs";
 import { tmpdir as tmpdir6 } from "os";
-import nodePath91 from "path";
+import nodePath92 from "path";
 import process21 from "process";
 async function readStdin() {
   stdinCache.body ??= (async () => {
@@ -55629,9 +56281,9 @@ function writeCodexIdentityCache(input) {
   if (!sessionId || !skillName)
     return;
   try {
-    const cachePath = nodePath91.join(resolveNamespaceRoot(input.projectDirectory), input.cacheFile);
-    mkdirSync17(nodePath91.dirname(cachePath), { recursive: true });
-    writeFileSync22(cachePath, JSON.stringify({ id: sessionId, skillName, recordedAt: new Date().toISOString() }), "utf8");
+    const cachePath = nodePath92.join(resolveNamespaceRoot(input.projectDirectory), input.cacheFile);
+    mkdirSync18(nodePath92.dirname(cachePath), { recursive: true });
+    writeFileSync23(cachePath, JSON.stringify({ id: sessionId, skillName, recordedAt: new Date().toISOString() }), "utf8");
   } catch {}
 }
 function rememberCodexRunIdentity(input) {
@@ -55723,7 +56375,7 @@ function readPackagedSafewordInstructions() {
   const instructionsPath = findPackagedTemplate("SAFEWORD.md");
   if (!instructionsPath)
     return;
-  if (!readFileSync57(instructionsPath, "utf8").trim())
+  if (!readFileSync58(instructionsPath, "utf8").trim())
     return;
   return [
     "Current Safeword authority: tickets and their user stories/test definitions live under `.project/` (or the configured namespace root), and current workflow guides live under `.safeword/guides/`.",
@@ -55737,13 +56389,13 @@ function readPackagedSafewordInstructions() {
 `);
 }
 function findPackagedTemplate(relativePath) {
-  return TEMPLATE_DIRECTORIES.map((directory) => nodePath91.join(directory, relativePath)).find((candidate) => existsSync45(candidate));
+  return TEMPLATE_DIRECTORIES.map((directory) => nodePath92.join(directory, relativePath)).find((candidate) => existsSync46(candidate));
 }
 function resolvePackagedHook(relativePath) {
-  return findPackagedTemplate(nodePath91.join("hooks", relativePath));
+  return findPackagedTemplate(nodePath92.join("hooks", relativePath));
 }
 function runHookFile(hookPath, rawInput, projectDirectory, packagedContextPath = "") {
-  const result = spawnSync11("bun", [hookPath], {
+  const result = spawnSync12("bun", [hookPath], {
     cwd: projectDirectory,
     input: rawInput,
     encoding: "utf8",
@@ -55767,7 +56419,7 @@ function normalizeNamespaceRootLabel(label) {
   return normalizedLabel === "." || normalizedLabel.startsWith("..") || [".project", ".safeword-project"].includes(normalizedLabel) ? undefined : normalizedLabel;
 }
 function packagedNamespaceRootLabel(projectDirectory) {
-  return normalizeNamespaceRootLabel(nodePath91.relative(projectDirectory, resolveNamespaceRoot(projectDirectory)) || ".");
+  return normalizeNamespaceRootLabel(nodePath92.relative(projectDirectory, resolveNamespaceRoot(projectDirectory)) || ".");
 }
 function runPackagedHook(relativePath, rawInput, projectDirectory) {
   const hookPath = resolvePackagedHook(relativePath);
@@ -55782,10 +56434,10 @@ function runPackagedHook(relativePath, rawInput, projectDirectory) {
   let temporaryHookDirectory;
   try {
     if (relativePath === "session-codex-start.ts") {
-      temporaryHookDirectory = mkdtempSync8(nodePath91.join(tmpdir6(), "safeword-codex-hook-"));
-      cpSync2(nodePath91.dirname(hookPath), temporaryHookDirectory, { recursive: true });
-      writeFileSync22(nodePath91.join(temporaryHookDirectory, "lib", "owned-paths.ts"), generateOwnedPathsModule(SAFEWORD_SCHEMA, packagedNamespaceRootLabel(projectDirectory)), "utf8");
-      executableHookPath = nodePath91.join(temporaryHookDirectory, nodePath91.basename(hookPath));
+      temporaryHookDirectory = mkdtempSync8(nodePath92.join(tmpdir6(), "safeword-codex-hook-"));
+      cpSync2(nodePath92.dirname(hookPath), temporaryHookDirectory, { recursive: true });
+      writeFileSync23(nodePath92.join(temporaryHookDirectory, "lib", "owned-paths.ts"), generateOwnedPathsModule(SAFEWORD_SCHEMA, packagedNamespaceRootLabel(projectDirectory)), "utf8");
+      executableHookPath = nodePath92.join(temporaryHookDirectory, nodePath92.basename(hookPath));
     }
     const packagedContextPath = relativePath === "session-codex-start.ts" ? findPackagedTemplate("SAFEWORD.md") ?? "" : "";
     return runHookFile(executableHookPath, rawInput, projectDirectory, packagedContextPath);
@@ -55799,14 +56451,14 @@ function snapshotPackagedHook(relativePath) {
   if (!packagedHooksDirectory) {
     return { error: new Error(`Safeword packaged hook is missing: ${relativePath}`) };
   }
-  const directory = mkdtempSync8(nodePath91.join(tmpdir6(), `safeword-codex-hook-snapshot-${process21.pid}-`));
-  const stagingHooksDirectory = nodePath91.join(directory, "hooks-copying");
-  const snapshotHooksDirectory = nodePath91.join(directory, "hooks");
+  const directory = mkdtempSync8(nodePath92.join(tmpdir6(), `safeword-codex-hook-snapshot-${process21.pid}-`));
+  const stagingHooksDirectory = nodePath92.join(directory, "hooks-copying");
+  const snapshotHooksDirectory = nodePath92.join(directory, "hooks");
   try {
     cpSync2(packagedHooksDirectory, stagingHooksDirectory, { recursive: true });
-    renameSync7(stagingHooksDirectory, snapshotHooksDirectory);
-    const hookPath = nodePath91.join(snapshotHooksDirectory, relativePath);
-    return existsSync45(hookPath) ? { directory, hookPath } : { directory, error: new Error(`Safeword packaged hook is missing: ${relativePath}`) };
+    renameSync8(stagingHooksDirectory, snapshotHooksDirectory);
+    const hookPath = nodePath92.join(snapshotHooksDirectory, relativePath);
+    return existsSync46(hookPath) ? { directory, hookPath } : { directory, error: new Error(`Safeword packaged hook is missing: ${relativePath}`) };
   } catch (error2) {
     return {
       directory,
@@ -55832,8 +56484,8 @@ function emitPackagedPreToolResult(result) {
   return true;
 }
 function readProjectTextFile(projectDirectory, relativePath) {
-  const filePath = nodePath91.join(projectDirectory, relativePath);
-  return existsSync45(filePath) ? readFileSync57(filePath, "utf8") : undefined;
+  const filePath = nodePath92.join(projectDirectory, relativePath);
+  return existsSync46(filePath) ? readFileSync58(filePath, "utf8") : undefined;
 }
 function emitAdditionalContext(output) {
   process21.stdout.write(`${JSON.stringify(output)}
@@ -55880,8 +56532,8 @@ function maybeDenyTestDefinitionsWrite(projectDirectory, targetPath) {
   const ticketFolder = testDefinitionsTicketFolder(targetPath);
   if (!ticketFolder)
     return false;
-  const ticketPath = nodePath91.join(projectDirectory, ".project/tickets", ticketFolder, "ticket.md");
-  const ticketContent = existsSync45(ticketPath) ? readFileSync57(ticketPath, "utf8") : "";
+  const ticketPath = nodePath92.join(projectDirectory, ".project/tickets", ticketFolder, "ticket.md");
+  const ticketContent = existsSync46(ticketPath) ? readFileSync58(ticketPath, "utf8") : "";
   const missing = missingIntakeFields(ticketContent);
   if (missing.length === 0)
     return false;
@@ -55946,7 +56598,7 @@ function postToolLintInputs(input, rawInput, projectDirectory) {
   if (input?.tool_name !== "apply_patch")
     return [rawInput];
   return extractTargetPaths(input).map((filePath) => JSON.stringify({
-    tool_input: { file_path: nodePath91.resolve(projectDirectory, filePath) }
+    tool_input: { file_path: nodePath92.resolve(projectDirectory, filePath) }
   }));
 }
 function collectPostToolLintContexts(lintInputs, projectDirectory) {
@@ -56068,8 +56720,8 @@ var init_codex_hook = __esm(() => {
   REQUIRED_INTAKE_FIELDS = ["scope", "out_of_scope", "done_when"];
   MODULE_DIRECTORY = import.meta.dirname;
   TEMPLATE_DIRECTORIES = [
-    nodePath91.resolve(MODULE_DIRECTORY, "../templates"),
-    nodePath91.resolve(MODULE_DIRECTORY, "../../templates")
+    nodePath92.resolve(MODULE_DIRECTORY, "../templates"),
+    nodePath92.resolve(MODULE_DIRECTORY, "../../templates")
   ];
   SKILL_NAME_PATTERN = /^[a-z][a-z0-9-]*$/u;
   SHELL_WHITESPACE = [" ", `
@@ -58192,8 +58844,8 @@ init_migration_error();
 init_architecture_document();
 init_agent_selection();
 init_online_required();
-import { existsSync as existsSync43, lstatSync as lstatSync19, readFileSync as readFileSync56, readlinkSync as readlinkSync4 } from "fs";
-import nodePath88 from "path";
+import { existsSync as existsSync44, lstatSync as lstatSync19, readFileSync as readFileSync57, readlinkSync as readlinkSync4 } from "fs";
+import nodePath89 from "path";
 
 // src/cli-protocol/option-values.ts
 function stringOption(options, name) {
@@ -58579,14 +59231,14 @@ async function uninstallHandler(invocation) {
   return uninstallLifecycle2(invocation);
 }
 async function syncConfigHandler(invocation) {
-  const safewordDirectory = nodePath88.join(invocation.cwd, ".safeword");
-  if (!existsSync43(safewordDirectory))
+  const safewordDirectory = nodePath89.join(invocation.cwd, ".safeword");
+  if (!existsSync44(safewordDirectory))
     return notConfigured("project sync-config");
   const { buildArchitecture: buildArchitecture2, inspectConfig: inspectConfig2, syncConfigCore: syncConfigCore2 } = await Promise.resolve().then(() => (init_sync_config(), exports_sync_config));
   const architecture2 = buildArchitecture2(invocation.cwd);
   const before = inspectConfig2(invocation.cwd, architecture2);
-  const mainConfigExists = existsSync43(nodePath88.join(invocation.cwd, ".dependency-cruiser.cjs"));
-  const generatedConfigExists = existsSync43(nodePath88.join(invocation.cwd, ".safeword/depcruise-config.cjs"));
+  const mainConfigExists = existsSync44(nodePath89.join(invocation.cwd, ".dependency-cruiser.cjs"));
+  const generatedConfigExists = existsSync44(nodePath89.join(invocation.cwd, ".safeword/depcruise-config.cjs"));
   if (invocation.options.check === true) {
     return configCheckResult(completeConfigInspection(before, mainConfigExists));
   }
@@ -58666,7 +59318,7 @@ function architectureModeResult(input) {
       files: [
         ...changed.map((result) => ({
           kind: result.action === "created" ? "create" : "update",
-          target: nodePath88.relative(input.cwd, result.path)
+          target: nodePath89.relative(input.cwd, result.path)
         })),
         ...input.stagedPaths.map((target) => ({ kind: "stage", target, operation: "stage" }))
       ]
@@ -58808,7 +59460,7 @@ function healedDocumentFindings(cwd, changed) {
       }
     ];
   }
-  const healed = changed.map((result) => nodePath88.relative(cwd, result.path)).join(", ");
+  const healed = changed.map((result) => nodePath89.relative(cwd, result.path)).join(", ");
   return [
     {
       code: "ARCHITECTURE_REFRESHED",
@@ -58825,7 +59477,7 @@ function architectureHealResult(input) {
     effects: {
       files: input.changed.map((result) => ({
         kind: result.action === "created" ? "create" : "update",
-        target: nodePath88.relative(input.cwd, result.path)
+        target: nodePath89.relative(input.cwd, result.path)
       }))
     },
     findings: [...healedDocumentFindings(input.cwd, input.changed), ...input.advisories],
@@ -58844,7 +59496,7 @@ async function syncLearningsHandler(invocation) {
       files: result.wrote ? [
         {
           kind: "write",
-          target: nodePath88.relative(invocation.cwd, result.indexPath)
+          target: nodePath89.relative(invocation.cwd, result.indexPath)
         }
       ] : []
     },
@@ -58864,7 +59516,7 @@ async function syncTicketsHandler(invocation) {
     effects: {
       files: result.wrote ? [result.indexPath, result.completedIndexPath].map((target) => ({
         kind: "write",
-        target: nodePath88.relative(invocation.cwd, target)
+        target: nodePath89.relative(invocation.cwd, target)
       })) : []
     },
     findings: result.skipped.map((skip) => ({
@@ -58952,41 +59604,153 @@ async function reviewRunHandler(invocation) {
     });
   }
   const targets = Array.isArray(rawTargets) ? rawTargets.filter((target) => typeof target === "string") : [];
-  const rawContext = invocation.options.context;
-  let context = [];
-  if (Array.isArray(rawContext)) {
-    context = rawContext.filter((target) => typeof target === "string");
-  } else if (typeof rawContext === "string") {
-    context = [rawContext];
+  const context = reviewContext(invocation.options.context);
+  if (process.env.SAFEWORD_REVIEW_WORKER === "1")
+    return runReviewWorker(invocation);
+  return startReviewInBackground(invocation, rawKind, targets, context);
+}
+function reviewContext(rawContext) {
+  if (Array.isArray(rawContext))
+    return rawContext.filter((target) => typeof target === "string");
+  return typeof rawContext === "string" ? [rawContext] : [];
+}
+async function runReviewWorker(invocation) {
+  const id = process.env.SAFEWORD_REVIEW_JOB_ID;
+  if (id === undefined) {
+    return createResult({
+      state: "failed",
+      errors: [
+        {
+          code: "REVIEW_WORKER_ID_MISSING",
+          message: "The detached review worker has no job ID.",
+          retryable: false
+        }
+      ],
+      data: { command: "review run", status: "failed" }
+    });
   }
-  const [{ runReview: runReview2 }, { ReviewPacketError: ReviewPacketError2 }] = await Promise.all([
+  if (invocation.options.workerJobId !== id) {
+    return createResult({
+      state: "failed",
+      errors: [
+        {
+          code: "REVIEW_WORKER_ID_INVALID",
+          message: "The detached review worker identity does not match its job.",
+          retryable: false
+        }
+      ],
+      data: { command: "review run", status: "failed" }
+    });
+  }
+  const [{ runReview: runReview2 }, { completeReviewJob: completeReviewJob2, reviewJobWorkerInput: reviewJobWorkerInput2 }, { ReviewPacketError: ReviewPacketError2 }] = await Promise.all([
     Promise.resolve().then(() => (init_coordinator(), exports_coordinator)),
+    Promise.resolve().then(() => (init_job(), exports_job)),
+    Promise.resolve().then(() => (init_packet(), exports_packet))
+  ]);
+  let persistedInput;
+  try {
+    persistedInput = reviewJobWorkerInput2(invocation.cwd, id);
+  } catch (error2) {
+    return createResult({
+      state: "failed",
+      errors: [
+        {
+          code: "REVIEW_WORKER_JOB_INVALID",
+          message: error2 instanceof Error ? `The detached review worker could not load its job: ${error2.message}` : "The detached review worker could not load its job.",
+          retryable: false
+        }
+      ],
+      data: { command: "review run", status: "failed", review_id: id }
+    });
+  }
+  let result;
+  try {
+    result = await runReview2({
+      cwd: invocation.cwd,
+      ...persistedInput,
+      progress: invocation.progress
+    });
+  } catch (error2) {
+    const packetError = error2 instanceof ReviewPacketError2;
+    result = reviewExecutionFailure(error2, packetError);
+  }
+  try {
+    completeReviewJob2(invocation.cwd, id, result);
+  } catch (error2) {
+    return createResult({
+      state: "failed",
+      errors: [
+        {
+          code: "REVIEW_RESULT_PERSIST_FAILED",
+          message: error2 instanceof Error ? `The review finished but its result could not be saved: ${error2.message}` : "The review finished but its result could not be saved.",
+          retryable: true
+        }
+      ],
+      data: { command: "review run", status: "failed", review_id: id }
+    });
+  }
+  return result;
+}
+function reviewExecutionFailure(error2, packetError) {
+  return createResult({
+    state: "failed",
+    errors: [
+      {
+        code: packetError ? "REVIEW_PACKET_INVALID" : "REVIEW_WORKER_FAILED",
+        message: error2 instanceof Error ? error2.message : "The review worker failed.",
+        retryable: !packetError
+      }
+    ],
+    data: { command: "review run", status: "failed" }
+  });
+}
+async function startReviewInBackground(invocation, kind, targets, context) {
+  const [{ startReviewJob: startReviewJob2 }, { ReviewPacketError: ReviewPacketError2 }] = await Promise.all([
+    Promise.resolve().then(() => (init_job(), exports_job)),
     Promise.resolve().then(() => (init_packet(), exports_packet))
   ]);
   try {
-    return await runReview2({
+    return await startReviewJob2({
       cwd: invocation.cwd,
-      kind: rawKind,
+      kind,
       targets,
       context,
       progress: invocation.progress
     });
   } catch (error2) {
-    if (!(error2 instanceof ReviewPacketError2))
-      throw error2;
-    return createResult({
-      state: "failed",
-      errors: [{ code: "REVIEW_PACKET_INVALID", message: error2.message, retryable: false }],
-      recovery: [
-        {
-          command: "safeword review run <kind> <targets...>",
-          description: "Correct the review target and context paths or reduce the packet, then run the review again.",
-          requiresHuman: true
-        }
-      ],
-      data: { command: "review run", status: "blocked" }
-    });
+    const packetError = error2 instanceof ReviewPacketError2;
+    return reviewStartFailure(error2, packetError);
   }
+}
+function reviewStartFailure(error2, packetError) {
+  return createResult({
+    state: "failed",
+    errors: [
+      {
+        code: packetError ? "REVIEW_PACKET_INVALID" : "REVIEW_JOB_START_FAILED",
+        message: error2 instanceof Error ? error2.message : "The review job could not be started.",
+        retryable: !packetError
+      }
+    ],
+    recovery: packetError ? [
+      {
+        command: "safeword review run <kind> <targets...>",
+        description: "Correct the review target and context paths or reduce the packet, then run the review again.",
+        requiresHuman: true
+      }
+    ] : [],
+    data: { command: "review run", status: packetError ? "blocked" : "failed" }
+  });
+}
+async function reviewStatusHandler(invocation) {
+  const id = typeof invocation.operands[0] === "string" ? invocation.operands[0] : undefined;
+  const { reviewJobStatus: reviewJobStatus2 } = await Promise.resolve().then(() => (init_job(), exports_job));
+  return reviewJobStatus2(invocation.cwd, id);
+}
+async function reviewCancelHandler(invocation) {
+  const id = typeof invocation.operands[0] === "string" ? invocation.operands[0] : undefined;
+  const { cancelReviewJob: cancelReviewJob2 } = await Promise.resolve().then(() => (init_job(), exports_job));
+  return cancelReviewJob2(invocation.cwd, id);
 }
 async function reviewPrInspectHandler(invocation) {
   if (invocation.offline)
@@ -59290,8 +60054,8 @@ async function runCodexRecovery(invocation, migration) {
   if (suppliedPlan !== undefined && suppliedPlan !== plan.id)
     return staleCodexPlan(plan);
   const before = recovery.effects.map((effect) => ({
-    path: nodePath88.join(invocation.cwd, effect.path),
-    content: observeFile(nodePath88.join(invocation.cwd, effect.path))
+    path: nodePath89.join(invocation.cwd, effect.path),
+    content: observeFile(nodePath89.join(invocation.cwd, effect.path))
   }));
   let changed;
   try {
@@ -59322,7 +60086,7 @@ async function runCodexFinalization(invocation, migration) {
   if (suppliedPlan !== undefined && suppliedPlan !== current.plan.id) {
     return staleCodexPlan(current.plan);
   }
-  const paths = current.plan.effects.files.map((effect) => nodePath88.join(invocation.cwd, effect.target));
+  const paths = current.plan.effects.files.map((effect) => nodePath89.join(invocation.cwd, effect.target));
   const before = paths.map((path7) => ({ path: path7, snapshot: observeFile(path7) }));
   let changed;
   try {
@@ -59385,7 +60149,7 @@ async function codexBootstrapHandler(invocation) {
   const { bootstrapCodexPlugin: bootstrapCodexPlugin2 } = await Promise.resolve().then(() => (init_codex_bootstrap(), exports_codex_bootstrap));
   let rawInput = "";
   try {
-    rawInput = readFileSync56(0, "utf8");
+    rawInput = readFileSync57(0, "utf8");
   } catch {}
   return bootstrapCodexPlugin2(invocation.cwd, rawInput, { offline: invocation.offline });
 }
@@ -59856,8 +60620,8 @@ function isRelayRequestId(value) {
 function retroOptions(invocation, transcript) {
   const findings = stringOption(invocation.options, "findings");
   return {
-    transcript: nodePath88.resolve(invocation.cwd, transcript),
-    findings: findings === undefined ? undefined : nodePath88.resolve(invocation.cwd, findings),
+    transcript: nodePath89.resolve(invocation.cwd, transcript),
+    findings: findings === undefined ? undefined : nodePath89.resolve(invocation.cwd, findings),
     autoExtract: invocation.options.autoExtract === true,
     windowStart: numericOption(invocation.options, "windowStart"),
     sessionId: stringOption(invocation.options, "sessionId")
@@ -59929,7 +60693,7 @@ function snapshotKind(stats) {
 }
 function snapshotBytes(path7, stats) {
   if (stats.isFile())
-    return readFileSync56(path7).toString("base64");
+    return readFileSync57(path7).toString("base64");
   if (stats.isSymbolicLink())
     return Buffer.from(readlinkSync4(path7)).toString("base64");
   return;
@@ -59948,7 +60712,7 @@ function observedFileEffect(cwd, path7, before) {
   const after = observeFile(path7);
   if (JSON.stringify(before) === JSON.stringify(after))
     return [];
-  const target = nodePath88.relative(cwd, path7).split(nodePath88.sep).join("/");
+  const target = nodePath89.relative(cwd, path7).split(nodePath89.sep).join("/");
   if (before === undefined)
     return [{ kind: "create", target }];
   if (after === undefined)
@@ -60035,6 +60799,8 @@ var HANDLERS = {
   "ticket list": ticketListHandler,
   "ticket new": ticketNewHandler,
   "review run": reviewRunHandler,
+  "review status": reviewStatusHandler,
+  "review cancel": reviewCancelHandler,
   "review-pr inspect": reviewPrInspectHandler,
   "review-pr invalidate": (invocation) => reviewPrPublicationHandler("invalidate", invocation),
   "review-pr publish": (invocation) => reviewPrPublicationHandler("publish", invocation),
@@ -60386,11 +61152,29 @@ var CANONICAL_COMMANDS = [
       {
         flags: "--agent-handoff",
         description: "Treat action-required output as a successful author-agent handoff"
+      },
+      {
+        flags: "--worker-job-id <id>",
+        description: "Internal detached-worker identity"
       }
     ],
     exitPolicy: { actionRequiredAsSuccessOption: "agentHandoff" },
     fixture: {
       argv: ["review", "run", "quality-review", "fixture"],
+      environment: MACHINE_ENVIRONMENT
+    }
+  }),
+  command("review status", "Collect a durable independent review", "mutate", {
+    syntax: "status [review-id]",
+    fixture: {
+      argv: ["review", "status"],
+      environment: MACHINE_ENVIRONMENT
+    }
+  }),
+  command("review cancel", "Cancel a durable independent review", "mutate", {
+    syntax: "cancel [review-id]",
+    fixture: {
+      argv: ["review", "cancel"],
       environment: MACHINE_ENVIRONMENT
     }
   }),
@@ -60727,7 +61511,7 @@ function createCapabilitiesResult() {
 }
 
 // src/cli-protocol/execute.ts
-import nodePath89 from "path";
+import nodePath90 from "path";
 import process18 from "process";
 
 // src/cli-protocol/policy.ts
@@ -60819,7 +61603,7 @@ function readGlobalOptions(command2) {
   return {
     json: options.json === true,
     noInput: options.noInput === true,
-    cwd: nodePath89.resolve(process18.cwd(), options.cwd ?? "."),
+    cwd: nodePath90.resolve(process18.cwd(), options.cwd ?? "."),
     quiet: options.quiet === true,
     offline: options.offline === true,
     verbose: options.verbose === true

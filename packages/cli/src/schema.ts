@@ -313,7 +313,7 @@ const NAMESPACE_TRANSIENT_BASENAMES: readonly string[] = [
  * by the per-root `.gitignore` (`NAMESPACE_GITIGNORE_CONTENT`) instead, since a
  * static repo-root block cannot name an arbitrary root (issue #272).
  */
-const SAFEWORD_TRANSIENT_PATHS: readonly string[] = [
+export const SAFEWORD_TRANSIENT_PATHS: readonly string[] = [
   '.safeword/.update-cache.json',
   '.safeword/retro-drafts/',
   '.safeword/self-reports/',
@@ -324,6 +324,7 @@ const SAFEWORD_TRANSIENT_PATHS: readonly string[] = [
   // cleanup transaction. `attempts-v1/` in particular grows one file per Claude
   // session, so tracking it would commit churn to every customer repository.
   '.safeword/claude-plugin/',
+  '.safeword/state/reviews/',
   ...['.project', '.safeword-project'].flatMap(root =>
     NAMESPACE_TRANSIENT_BASENAMES.map(name => `${root}/${name}`),
   ),
@@ -1405,8 +1406,8 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.gitignore': {
       operation: 'append',
       content: `\n# Safeword - Local cache and transient state\n${SAFEWORD_TRANSIENT_PATHS.join('\n')}\n`,
-      // Marker is the NEWEST line (.safeword/claude-plugin/, the native Claude
-      // plugin's per-session migration state — GZZEY7) so customers with any
+      // Marker is the NEWEST line (.safeword/state/reviews/, durable review
+      // job state) so customers with any
       // older block re-apply on upgrade and pick up the latest transient paths.
       // This patch has no `rerender`, so moving the marker is the ONLY way an
       // existing install ever sees a newly added path — bump it whenever
@@ -1414,7 +1415,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       // root, so fresh installs generate these under .project/. Without them,
       // those generated files show as untracked in `git status --porcelain` —
       // churning the tree and blocking the auto-upgrade gate.
-      marker: '.safeword/claude-plugin/',
+      marker: '.safeword/state/reviews/',
     },
     // Prettier ignores: safeword owns the dot-directories in SAFEWORD_IGNORE_DIRS
     // (.safeword/, .claude/, .cursor/, .codex/, .agents/, and both namespace

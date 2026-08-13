@@ -1757,13 +1757,13 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/bdd/PLAN_IMPLEMENTATION.md':
         '8ed89fca82f6e71b77351674f12d5d7c1380574e326e05ca1912caf84ff4ff9b',
       '.claude/skills/bdd/SCENARIOS.md':
-        '2cf7c403e6a50c5ee1574f6e0a0965ee4afcbda9d0ec4580b425723ec5d4f83d',
+        'a2cf8937e4c555c6e42f3f33a45cd5355dc61337a75ea220561bc0b6d9be3ad8',
       '.claude/skills/bdd/SKILL.md':
-        '53b66c5ee888c6d9a1dc05119ee9d197d3d6b01d36b747fe62d686852e3715c9',
+        'df9f7927be3289f3ffb0444d49ae25fe601ce33b9661f7a809f74dff8da40ff0',
       '.claude/skills/bdd/SPLITTING.md':
         'e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708',
       '.claude/skills/bdd/TDD.md':
-        '9cb3e98b453fd3ca4378a43b07e4bd389aa1c6fb40875f9fb50d04319cb8b72b',
+        'fc596bf79b97eae1545a62b799b5ea29543c33eae65e722155125875421efa91',
       '.claude/skills/bdd/VERIFY.md':
         '85abadfe756a3f391779fe500cd5c66597a33e0cab7fcef55f6b633b30818f31',
       '.claude/skills/brainstorm/SKILL.md':
@@ -1787,7 +1787,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/lint/SKILL.md':
         '208ec54032cabdcb532d1070e5ef5f1fcd6f0f0bfe8daf08e4ecf007aa285f66',
       '.claude/skills/quality-review/SKILL.md':
-        '5e480b2d38b704ed221cddeab938dea0ac3c904c6745147eb192e42ffb4d3bbb',
+        'b940905d31cd4931665e023a65824a923a2bd5d7f590358355576cff8f3bc42a',
       '.claude/skills/refactor/SKILL.md':
         'a51a858fb13b50cbc86789edbde8a39e364b5cdd7d5d3b025d555d90b221760e',
       '.claude/skills/retro-filer/SKILL.md':
@@ -1795,13 +1795,13 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/retro/SKILL.md':
         '166e5109193bad4c26e060f6841d71c03f9155c7e74e1853c43b99b01c25d379',
       '.claude/skills/review-spec/SKILL.md':
-        'c8e4f3e4ecf7629c8cf32ce6770753ab1fc6c7a20470ae8b735f4b6961f3a53c',
+        '5c707432234f2d6893b6b3ebd340820990040d81006e1550b419f032ce8fda08',
       '.claude/skills/self-review/SKILL.md':
         'dcc667823790f18e1fa8cf35aaf10c40464664929c7bbb093531fd684f673e15',
       '.claude/skills/spike/SKILL.md':
         '905aab56037ad5a258bafa91cb2ebf05cff1acffbc9e1fd6f7a1f27230672f37',
       '.claude/skills/tdd-review/SKILL.md':
-        'f49a7e07dea7a62f39e9919c0c4251ede4ec2dec72b9892e7e0c42205d510e6f',
+        '4b945f122a90d23462845d7bdbbd0b736aa69d423a2d7e99ebf646bf118faa4f',
       '.claude/skills/testing/SKILL.md':
         '697a4b090935989e0c8a53462d2b44087afafa50adc69e9a98da14bed23dbde9',
       '.claude/skills/ticket-system/SKILL.md':

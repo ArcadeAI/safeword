@@ -181,6 +181,12 @@ const DEFAULT_ATTEMPT_DEADLINE_MS = 120_000;
  * presentation so callers receive the coordinator's typed result.
  */
 const RUN_BOUND_MS = 270_000;
+const BACKGROUND_RUN_BOUND_MS = 1_800_000;
+const BACKGROUND_ATTEMPT_DEADLINE_MS = 600_000;
+
+function reviewRunCeiling(env: Readonly<Record<string, string | undefined>>): number {
+  return env.SAFEWORD_REVIEW_WORKER === '1' ? BACKGROUND_RUN_BOUND_MS : RUN_BOUND_MS;
+}
 
 /**
  * The absolute reviewer-work deadline shared by every route. Packet preparation
@@ -190,11 +196,10 @@ const RUN_BOUND_MS = 270_000;
  */
 export function runBoundMs(): number {
   const configured = Number(process.env.SAFEWORD_REVIEW_RUN_BOUND_MS);
+  const ceiling = reviewRunCeiling(process.env);
   // Shorter is allowed; longer is not. The ceiling is what makes "the command
   // returns before its caller gives up" a guarantee rather than a default.
-  return Number.isFinite(configured) && configured > 0
-    ? Math.min(configured, RUN_BOUND_MS)
-    : RUN_BOUND_MS;
+  return Number.isFinite(configured) && configured > 0 ? Math.min(configured, ceiling) : ceiling;
 }
 
 /**
@@ -215,9 +220,14 @@ export function reviewTimeoutMilliseconds(
   // `Number('')` and `Number('  ')` are 0, and `Number('90s')` is NaN — both
   // fall through to the default rather than silently shortening a review.
   const configured = raw === undefined ? NaN : Number(raw);
+  const ceiling = reviewRunCeiling(env);
+  const defaultDeadline =
+    env.SAFEWORD_REVIEW_WORKER === '1'
+      ? BACKGROUND_ATTEMPT_DEADLINE_MS
+      : DEFAULT_ATTEMPT_DEADLINE_MS;
   return Number.isFinite(configured) && configured > 0
-    ? Math.min(configured, RUN_BOUND_MS)
-    : DEFAULT_ATTEMPT_DEADLINE_MS;
+    ? Math.min(configured, ceiling)
+    : defaultDeadline;
 }
 
 export function attemptDeadlineMs(): number {
@@ -640,8 +650,12 @@ async function runCandidate(
     // Its own process group, so cleanup can reach descendants.
     detached: process.platform !== 'win32',
   });
+  const terminateReviewer = (): void => {
+    void stopReviewer(child).finally(() => process.exit(143));
+  };
+  process.once('SIGTERM', terminateReviewer);
   try {
-    return await new Promise((resolve, reject) => {
+    const output = await new Promise<UnverifiedReviewerOutput>((resolve, reject) => {
       let overflow = false;
       // One outcome per attempt, settled once. A late answer arriving after a
       // deadline never changes a verdict that is already decided.
@@ -725,10 +739,17 @@ async function runCandidate(
       });
       child.stdin.end(reviewPrompt(reviewer, packet));
     });
-  } finally {
+    // A validated verdict remains usable even if a descendant is slow to die:
+    // executeReview's source/snapshot checks still reject any late mutation.
+    await stopReviewerOrThrow(child, reviewer);
+    return output;
+  } catch (error) {
     // Do not let a timed-out reviewer or its descendants overlap integrity
     // checks, packet cleanup, or a later candidate.
     await stopReviewerOrThrow(child, reviewer);
+    throw error;
+  } finally {
+    process.off('SIGTERM', terminateReviewer);
   }
 }
 
