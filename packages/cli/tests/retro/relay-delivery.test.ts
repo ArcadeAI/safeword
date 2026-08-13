@@ -1382,7 +1382,7 @@ describe('immutable relay delivery spool', () => {
     }
   });
 
-  it('[ORR-005, ORR-006] excludes active claims and rearms expired claims unchanged', async () => {
+  it('[ORR-005] An active spool claim excludes another session', async () => {
     const project = temporaryProject();
     const original = request();
     await persistRelayRequest(project, original);
@@ -1395,7 +1395,17 @@ describe('immutable relay delivery spool', () => {
     await expect(
       claimRelayRequest(project, { claimId: 'second', leaseMs: 100, now: 1050 }),
     ).resolves.toBeUndefined();
+  });
 
+  it('[ORR-006] An expired spool claim is rearmed without changing the request', async () => {
+    const project = temporaryProject();
+    const original = request();
+    await persistRelayRequest(project, original);
+    const first = await claimRelayRequest(project, {
+      claimId: 'first',
+      leaseMs: 100,
+      now: 1000,
+    });
     const successor = await claimRelayRequest(project, {
       claimId: 'second',
       leaseMs: 100,
@@ -2538,7 +2548,7 @@ describe('relay readiness provenance', () => {
     expect(CHECKED_IN_RELAY_READINESS).toEqual({ enabled: false, version: 1 });
   });
 
-  it('accepts only fresh evidence reachable from the immutable build', async () => {
+  it('[ORR-011] Complete fresh readiness proof selects the relay path', async () => {
     const manifest = validManifest();
     const result = await validateRelayReadiness(manifest, {
       buildCommit: 'b'.repeat(40),
@@ -2784,7 +2794,7 @@ describe('relay readiness provenance', () => {
     ).resolves.toEqual({ enabled: false });
   });
 
-  it('[ORR-011] uses build-embedded evidence without consulting the customer repository', async () => {
+  it('uses build-embedded evidence without consulting the customer repository', async () => {
     const manifest = validManifest();
     const buildCommit = 'b'.repeat(40);
     for (const artifact of Object.values(manifest.measurements)) {
@@ -2824,7 +2834,7 @@ describe('relay readiness provenance', () => {
     expect(result).toEqual({ enabled: true });
   });
 
-  it('[ORR-011] refuses a disabled build attestation even when its evidence is populated', async () => {
+  it('refuses a disabled build attestation even when its evidence is populated', async () => {
     const manifest = validManifest();
     const manifestContent = JSON.stringify(manifest);
 
