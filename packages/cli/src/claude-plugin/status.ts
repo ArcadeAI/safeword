@@ -1,6 +1,5 @@
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
-import { homedir } from 'node:os';
 import nodePath from 'node:path';
 
 import { type CliResult, createResult } from '../cli-protocol/result.js';
@@ -12,6 +11,7 @@ import {
   legacyObservationIsEmpty,
   observeClaudeLegacy,
 } from './legacy-classifier.js';
+import { claudeConfigDirectory } from './migration-state.js';
 import {
   type ClaudeApplicablePluginsObservation,
   type ClaudePluginScope,
@@ -32,10 +32,6 @@ type ClaudeStatusClassification =
   | 'coexistence'
   | 'cleanup-ready'
   | 'plugin-mode';
-
-function claudeConfigDirectory(environment: NodeJS.ProcessEnv = process.env): string {
-  return environment.CLAUDE_CONFIG_DIR ?? nodePath.join(homedir(), '.claude');
-}
 
 function jsonObject(path: string): JsonObject | undefined {
   try {

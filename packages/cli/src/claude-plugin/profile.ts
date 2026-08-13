@@ -10,7 +10,7 @@ import {
   rmSync,
   statSync,
 } from 'node:fs';
-import { homedir, tmpdir } from 'node:os';
+import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { parse, type ParseError } from 'jsonc-parser';
@@ -26,6 +26,7 @@ import {
   CLAUDE_PLUGIN_ID,
   claudeNativePayloadFiles,
 } from './inventory.js';
+import { claudeConfigDirectory } from './migration-state.js';
 import { canonicalClaudeProjectRoot } from './project-root.js';
 
 const MINIMUM_CLAUDE_VERSION = [2, 1, 170] as const;
@@ -182,10 +183,6 @@ function assertSupportedHost(cwd: string): void {
 function officialMarketplaceSource(): string {
   const ref = VERSION.includes('-') ? `v${VERSION}` : 'stable';
   return `${MARKETPLACE_BASE}#${ref}`;
-}
-
-function claudeConfigDirectory(): string {
-  return process.env.CLAUDE_CONFIG_DIR ?? nodePath.join(homedir(), '.claude');
 }
 
 function scopedSettingsPath(cwd: string, scope: ClaudePluginScope): string {

@@ -146,8 +146,10 @@ export function advisoryStateDigest(advisory: string): string {
  * whitespace-only `CLAUDE_CONFIG_DIR` falls back to the default, so every
  * caller watches and reads the same user settings file.
  */
-export function claudeConfigDirectory(): string {
-  const configured = (process.env.CLAUDE_CONFIG_DIR ?? '').trim();
+export function claudeConfigDirectory(
+  environment: Readonly<Record<string, string | undefined>> = process.env,
+): string {
+  const configured = (environment.CLAUDE_CONFIG_DIR ?? '').trim();
   return configured === '' ? nodePath.join(homedir(), '.claude') : configured;
 }
 
