@@ -52,8 +52,8 @@ const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
 function normalizedCloseoutScript(path: string): string {
   return readFileSync(path, 'utf8')
     .replace(
-      /import \{\s*type CloseoutBinding,\s*readFreshCloseoutBinding,\s*\} from '\.\.\/\.\.\/runtime\/hooks\/lib\/closeout-binding\.ts';/u,
-      "import { type CloseoutBinding, readFreshCloseoutBinding } from '../hooks/lib/closeout-binding.ts';",
+      /import \{\s*type CloseoutBinding,\s*readFreshCloseoutBinding,\s*recordCodexCloseoutHandoff,?\s*\} from '\.\.\/\.\.\/runtime\/hooks\/lib\/closeout-binding\.ts';/u,
+      "import {\n  type CloseoutBinding,\n  readFreshCloseoutBinding,\n  recordCodexCloseoutHandoff,\n} from '../hooks/lib/closeout-binding.ts';",
     )
     .replace(
       /import \{\s*draftSpoolPath,\s*readAcks,\s*readSpooledDrafts,?\s*\} from '\.\.\/\.\.\/runtime\/hooks\/lib\/retro-draft-spool\.ts';/u,
