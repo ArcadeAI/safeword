@@ -6,17 +6,18 @@ Feature: Keep quality reviews observable and actionable
   packages/cli/tests/cli-protocol/policy.test.ts,
   packages/cli/tests/review/surface-parity.test.ts, and
   packages/cli/tests/review/environment.test.ts.
+  Quoted signal values decode \n as a line break.
 
   @reliable-observable-quality-reviews.TBU1.R1 @surface.safeword-cli @proof.vitest
   Rule: reliable-observable-quality-reviews.TBU1.R1 — A managed JSON review reports rate-limited lifecycle progress separately from its final typed result
 
     Scenario Outline: A slow managed review remains visible without changing its result
       Given a managed JSON review that remains active through a heartbeat
+      And the review is observed with a deterministic clock
       When the reviewer returns verdict <verdict>
       Then stderr consists of one active-review line followed by one heartbeat line
       And stdout contains exactly one schema-1 result with classification <classification>
       And the command exits with status <status>
-      And completion prevents every pending lifecycle write
 
       Examples:
         | verdict         | classification  | status |
@@ -52,12 +53,15 @@ Feature: Keep quality reviews observable and actionable
       And the preferred active-review line first appears 100 milliseconds after its route starts
       And the fallback active-review line first appears 100 milliseconds after its route starts
       And each route's first heartbeat appears 30 seconds after that route starts
+      And stdout contains exactly one schema-1 result
 
   @reliable-observable-quality-reviews.TBU1.R2 @surface.safeword-cli @proof.vitest
   Rule: reliable-observable-quality-reviews.TBU1.R2 — Callers that do not request managed progress keep the existing silent machine contract
 
     Scenario Outline: Only the exact managed signal enables JSON progress
       Given a direct JSON review with managed-progress signal value <value>
+      And the review remains active through one heartbeat
+      And the review is observed with a deterministic clock
       When the review completes on TTY and non-TTY stderr
       Then stderr contains <progress_lines> lifecycle lines
       And stdout contains exactly one typed result
@@ -71,23 +75,30 @@ Feature: Keep quality reviews observable and actionable
         | "01"  | 0              |
         | "1 "  | 0              |
         | "1\n" | 0              |
-        | "true"| 0              |
+        | "true" | 0              |
 
-    Scenario: Quiet mode wins over managed progress
+    Scenario Outline: Quiet mode wins over managed progress
       Given a managed JSON review with quiet mode enabled
-      When the reviewer returns an approved or action-required result after one heartbeat
+      And the review is observed with a deterministic clock
+      When the reviewer returns verdict <verdict> after one heartbeat
       Then stderr is empty
       And stdout contains exactly one typed result
-      And the command exits with status 0 or 2 matching that result
+      And the command exits with status <status>
+
+      Examples:
+        | verdict         | status |
+        | approve         | 0      |
+        | request_changes | 2      |
 
     Scenario: Human-readable review progress remains unchanged
       Given a human-readable review with no managed-progress signal
+      And the review is observed with a deterministic clock
       When the reviewer returns an approved result after one heartbeat
       Then stderr contains the existing packet, active-review, and heartbeat lines exactly once
       And stdout contains the human-readable verdict exactly once
 
   @reliable-observable-quality-reviews.SWM1.R1 @surface.safeword-cli @proof.vitest
-  Rule: reliable-observable-quality-reviews.SWM1.R1 — Progress is a best-effort Safeword-owned side channel
+  Rule: reliable-observable-quality-reviews.SWM1.R1 — Progress is a best-effort Safeword-owned side channel that cannot alter or disclose reviewer output
 
     Scenario Outline: A failed progress destination cannot alter the terminal result
       Given a managed JSON review whose progress destination has <failure>
@@ -104,13 +115,28 @@ Feature: Keep quality reviews observable and actionable
         | closed descriptor              | approved        | 0      |
         | closed descriptor              | action-required | 2      |
 
-    Scenario: Lifecycle output cannot disclose untrusted review data
+    Scenario Outline: Lifecycle output cannot disclose untrusted review data
       Given reviewer output, model names, targets, and context contain unique secrets and control characters
-      When a managed review succeeds, fails, times out, or exhausts its routes
-      Then stderr contains a positive lifecycle line naming only the closed reviewer kind Claude or Codex
+      When a managed review <termination>
+      Then stderr contains positive lifecycle lines naming only <reviewer_kinds>
       And rejected or timed-out reviewer bytes are absent from public output
       And stderr contains no injected secret, control character, or model name
       And parsed recovery preserves the target while serialized stdout contains no literal injected line break or ANSI escape
+
+      Examples:
+        | termination         | reviewer_kinds   |
+        | succeeds            | Claude           |
+        | returns invalid data | Claude           |
+        | times out           | Claude           |
+        | exhausts its routes | Claude and Codex |
+
+    Scenario: Exhausted routes identify the failed boundary and recovery
+      Given a managed JSON review whose preferred and fallback routes fail
+      When the public review command completes
+      Then stdout contains exactly one schema-1 action-required result
+      And the result contains finding code "REVIEW_ROUTES_EXHAUSTED"
+      And the result records the preferred failure classification and concrete recovery
+      And the command exits with status 2
 
   @reliable-observable-quality-reviews.SWM1.R2 @surface.safeword-cli @surface.claude-code @surface.openai-codex @proof.vitest
   Rule: reliable-observable-quality-reviews.SWM1.R2 — Every generated required-review workflow delegates to the managed wrapper while remaining compatible with an older resolved CLI

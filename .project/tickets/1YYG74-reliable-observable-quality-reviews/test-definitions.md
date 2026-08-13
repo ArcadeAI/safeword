@@ -35,13 +35,13 @@ taxonomy (`not_installed`, `unsupported`, `probe_timed_out`,
 
 ## Rule: reliable-observable-quality-reviews.TBU1.R2 — Callers that do not request managed progress keep the existing silent machine contract
 
-### Scenario: Only the exact managed signal enables JSON progress
+### Scenario Outline: Only the exact managed signal enables JSON progress
 
 - [x] RED b9cf90383
 - [x] GREEN 7b675263b
 - [x] REFACTOR skip: Exact signal consumption is already isolated in a single policy helper.
 
-### Scenario: Quiet mode wins over managed progress
+### Scenario Outline: Quiet mode wins over managed progress
 
 - [x] RED b9cf90383
 - [x] GREEN 53e94d96f
@@ -53,7 +53,7 @@ taxonomy (`not_installed`, `unsupported`, `probe_timed_out`,
 - [x] GREEN 53e94d96f
 - [x] REFACTOR skip: Managed JSON filtering is already wrapped separately from human progress.
 
-## Rule: reliable-observable-quality-reviews.SWM1.R1 — Progress is a best-effort Safeword-owned side channel
+## Rule: reliable-observable-quality-reviews.SWM1.R1 — Progress is a best-effort Safeword-owned side channel that cannot alter or disclose reviewer output
 
 ### Scenario Outline: A failed progress destination cannot alter the terminal result
 
@@ -61,11 +61,17 @@ taxonomy (`not_installed`, `unsupported`, `probe_timed_out`,
 - [x] GREEN 7b675263b
 - [x] REFACTOR skip: The narrow sink wrapper is the smallest safe failure boundary.
 
-### Scenario: Lifecycle output cannot disclose untrusted review data
+### Scenario Outline: Lifecycle output cannot disclose untrusted review data
 
 - [x] RED skip: Reviewer-output isolation was a landed invariant; this ticket adds adversarial regression coverage.
 - [x] GREEN 81d35a8aa
 - [x] REFACTOR skip: Fixed-message rendering already centralizes the non-disclosure boundary.
+
+### Scenario: Exhausted routes identify the failed boundary and recovery
+
+- [x] RED skip: The route-exhaustion taxonomy landed in ticket 3FK4DC; this ticket revalidates it with managed progress enabled.
+- [x] GREEN 53e94d96f
+- [x] REFACTOR skip: Result classification remains owned by the existing coordinator result builder.
 
 ## Rule: reliable-observable-quality-reviews.SWM1.R2 — Every generated required-review workflow delegates to the managed wrapper while remaining compatible with an older resolved CLI
 
