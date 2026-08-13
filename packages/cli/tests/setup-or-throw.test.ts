@@ -210,4 +210,8 @@ describe('wasKilledByTimeout', () => {
     const spawnFailure = { killed: false, code: 'ENOENT' };
     expect(wasKilledByTimeout(spawnFailure)).toBe(false);
   });
+
+  it('is false for a signal termination that the caller did not initiate', () => {
+    expect(wasKilledByTimeout({ killed: false, signal: 'SIGTERM' })).toBe(false);
+  });
 });
