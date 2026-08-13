@@ -287,6 +287,51 @@ describe('runRetro', () => {
     }
   });
 
+  it('keeps the real command on native filing when the build attestation is disabled', async () => {
+    const project = mkdtempSync(nodePath.join(tmpdir(), 'retro-disabled-attestation-project-'));
+    const outbox = mkdtempSync(nodePath.join(tmpdir(), 'retro-disabled-attestation-outbox-'));
+    const transcript = nodePath.join(project, 'transcript.jsonl');
+    writeFileSync(transcript, 'transcript content');
+    const send = vi.fn<typeof fetch>();
+    const transport = new FakeGitHub();
+    const previousExitCode = process.exitCode;
+
+    try {
+      const outcome = await executeRetroCommand(
+        { transcript },
+        {
+          environment: {
+            SAFEWORD_RETRO_RELAY_CREDENTIAL: 'swc_test',
+            SAFEWORD_RETRO_RELAY_INSTALLATION_ID: '42',
+            SAFEWORD_RETRO_RELAY_OUTBOX: outbox,
+            SAFEWORD_RETRO_RELAY_REPOSITORY: 'arcadeai/safeword',
+            SAFEWORD_RETRO_RELAY_URL: 'https://relay.invalid',
+          },
+          extract: () => Promise.resolve([rawFinding()]),
+          extractionSucceeded: () => true,
+          harness: 'codex',
+          output: { error: vi.fn(), info: vi.fn(), success: vi.fn() },
+          projectDirectory: project,
+          relay: {
+            fetch: send,
+            manifest: { enabled: false, version: 1 },
+          },
+          restTransportAvailable: true,
+          sessionId: 'session-disabled-attestation',
+          transport,
+        },
+      );
+
+      expect(outcome.ok).toBe(true);
+      expect(send).not.toHaveBeenCalled();
+      expect(transport.issues).toHaveLength(1);
+    } finally {
+      process.exitCode = previousExitCode;
+      rmSync(project, { force: true, recursive: true });
+      rmSync(outbox, { force: true, recursive: true });
+    }
+  });
+
   it('always gives an enabled relay at least one complete request budget', async () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-budget-'));
     const send = vi.fn<typeof fetch>((_input, init) => {

@@ -48,9 +48,27 @@ interface RelayDraftPersistenceSnapshot {
   durableRequestsBySource: Map<string, RelayDraftRequest>;
 }
 
-interface RelayDraftPersistenceOptions {
-  faultAfterStateSnapshot?: () => Promise<void>;
+interface RelayFaultHooks {
+  afterAck?: () => Promise<void>;
+  afterClaims?: () => Promise<void>;
+  afterConflictCheck?: () => Promise<void>;
+  afterDiscardCheck?: () => Promise<void>;
+  afterOwnershipCheck?: () => Promise<void>;
+  afterSourceDiscardWrite?: () => Promise<void>;
+  afterStateSnapshot?: () => Promise<void>;
+  afterTombstone?: () => Promise<void>;
+  beforeDirectorySync?: () => Promise<void>;
+  beforeDuplicateRead?: (claimPath: string, siblingPath: string) => Promise<void>;
+  beforeFileSync?: () => Promise<void>;
+  beforeTemporaryUnlink?: () => Promise<void>;
 }
+
+interface RelayFaultOptions {
+  /** @internal Crash-consistency injection used only by the source test suite. */
+  faults?: RelayFaultHooks;
+}
+
+type RelayDraftPersistenceOptions = RelayFaultOptions;
 
 interface RelayStateSnapshot {
   directory: string;
@@ -447,23 +465,20 @@ function parseRecoveryClaim(
   return { claimId, expiresAt: Number(expiresAt), requestId };
 }
 
+// eslint-disable-next-line complexity -- Durable identity reconciliation keeps each filesystem transition explicit.
 export async function persistRelayRequest(
   projectDirectory: string,
   request: RelayDraftRequest,
-  options: {
-    faultAfterDiscardCheck?: () => Promise<void>;
-    faultBeforeDirectorySync?: () => Promise<void>;
-    faultBeforeFileSync?: () => Promise<void>;
-    faultBeforeTemporaryUnlink?: () => Promise<void>;
-  } = {},
+  options: RelayFaultOptions = {},
 ): Promise<{ bytes: Buffer; path: string }> {
+  const faults = options.faults ?? {};
   await ensureRelayDirectory(projectDirectory, {
-    beforeDirectorySync: options.faultBeforeDirectorySync,
+    beforeDirectorySync: faults.beforeDirectorySync,
   });
   if (await discardBlocksRequest(projectDirectory, request.requestId)) {
     throw new Error('relay request identity was discarded');
   }
-  await options.faultAfterDiscardCheck?.();
+  await faults.afterDiscardCheck?.();
   const bytes = Buffer.from(JSON.stringify(request), 'utf8');
   const deadLetter = deadLetterPath(projectDirectory, request.requestId);
   if (await exists(deadLetter)) {
@@ -480,9 +495,9 @@ export async function persistRelayRequest(
   const file = primaryPath(projectDirectory, request.requestId);
   if (
     !(await writeAtomic(file, bytes, {
-      beforeDirectorySync: options.faultBeforeDirectorySync,
-      beforeFileSync: options.faultBeforeFileSync,
-      beforeTemporaryUnlink: options.faultBeforeTemporaryUnlink,
+      beforeDirectorySync: faults.beforeDirectorySync,
+      beforeFileSync: faults.beforeFileSync,
+      beforeTemporaryUnlink: faults.beforeTemporaryUnlink,
     }))
   ) {
     const existing = await readFile(file);
@@ -864,8 +879,7 @@ async function resolveSourceReservation(
   projectDirectory: string,
   draft: RelayDraftInput,
   reservation: RelaySourceReservation,
-  options: {
-    faultAfterStateSnapshot?: () => Promise<void>;
+  options: RelayFaultOptions & {
     stateSnapshot?: RelayStateSnapshot;
   } = {},
 ): Promise<RelayDraftRequest | undefined> {
@@ -882,7 +896,7 @@ async function resolveSourceReservation(
   }
   if (await compactIfAcknowledged(projectDirectory, reservation.request)) return undefined;
   const snapshot = await captureRelayStateSnapshot(projectDirectory, options.stateSnapshot);
-  await options.faultAfterStateSnapshot?.();
+  await options.faults?.afterStateSnapshot?.();
   const requestId = reservation.request.requestId;
   const state = snapshot.statesByRequestId.get(requestId) ?? { kind: 'missing' };
   if (state.kind !== 'missing') {
@@ -965,7 +979,7 @@ async function compactSourceReservation(
 async function compactDiscardedSourceReservation(
   projectDirectory: string,
   reservation: Extract<RelaySourceReservation, { state: 'active' }>,
-  options: { faultAfterSourceDiscardWrite?: () => Promise<void> } = {},
+  options: RelayFaultOptions = {},
 ): Promise<void> {
   if (await exists(sourceAcknowledgementPath(projectDirectory, reservation.sourceKey))) {
     await removeIfPresent(sourceReservationPath(projectDirectory, reservation.sourceKey));
@@ -986,7 +1000,7 @@ async function compactDiscardedSourceReservation(
       throw new Error('relay discard conflicts with the durable source tombstone');
     }
   }
-  await options.faultAfterSourceDiscardWrite?.();
+  await options.faults?.afterSourceDiscardWrite?.();
   if (await exists(sourceAcknowledgementPath(projectDirectory, reservation.sourceKey))) {
     await removeIfPresent(discarded);
   }
@@ -1150,7 +1164,7 @@ export async function persistRelayDraftBatch(
   let filenames: string[];
   try {
     filenames = await sortedFilenames(snapshot.directory);
-    await options.faultAfterStateSnapshot?.();
+    await options.faults?.afterStateSnapshot?.();
   } catch (error) {
     return drafts.map(() => ({ reason: error, status: 'rejected' }));
   }
@@ -1270,7 +1284,7 @@ async function removeDuplicateClaimIfMatching(
   siblingPath: string,
   recoveryOptions: RelaySpoolRecoveryOptions,
 ): Promise<void> {
-  await recoveryOptions.faultBeforeDuplicateRead?.(claimPath, siblingPath);
+  await recoveryOptions.faults?.beforeDuplicateRead?.(claimPath, siblingPath);
   const pair = await readPairIfPresent(claimPath, siblingPath);
   if (pair === undefined) return;
   const [claimBytes, siblingBytes] = pair;
@@ -1339,16 +1353,15 @@ async function assertCompatibleAcknowledgement(
   }
 }
 
+// eslint-disable-next-line complexity -- Durable acknowledgement validates ownership and reconciles every committed sibling.
 export async function acknowledgeRelayClaim(
   claim: RelayClaim,
   receipt: RelayReceipt,
-  options: {
-    faultAfterAck?: () => Promise<void>;
-    faultAfterOwnershipCheck?: () => Promise<void>;
-  } = {},
+  options: RelayFaultOptions = {},
 ): Promise<boolean> {
   if (receipt.requestId !== claim.requestId || !(await exists(claim.path))) return false;
-  await options.faultAfterOwnershipCheck?.();
+  const faults = options.faults ?? {};
+  await faults.afterOwnershipCheck?.();
   const projectDirectory = path.resolve(path.dirname(claim.path), '..', '..', '..');
   const durableAck = ackPath(projectDirectory, claim.requestId);
   const { request, sourceKey, sourcePayloadHash } = acknowledgementSourceMetadata(claim.bytes);
@@ -1365,7 +1378,7 @@ export async function acknowledgeRelayClaim(
   );
   if (!written) await assertCompatibleAcknowledgement(durableAck, receipt);
   if (request !== undefined) await compactSourceReservation(projectDirectory, request);
-  await options.faultAfterAck?.();
+  await faults.afterAck?.();
   await removeIfPresent(discardedPath(projectDirectory, claim.requestId));
   await cancelDiscardIntents(projectDirectory, claim.requestId);
   await removeIfPresent(claim.path);
@@ -1373,9 +1386,7 @@ export async function acknowledgeRelayClaim(
   return true;
 }
 
-interface RelaySpoolRecoveryOptions {
-  faultBeforeDuplicateRead?: (claimPath: string, siblingPath: string) => Promise<void>;
-}
+type RelaySpoolRecoveryOptions = RelayFaultOptions;
 
 export async function recoverRelaySpool(
   projectDirectory: string,
@@ -1516,7 +1527,7 @@ async function compactDiscardedReservationFiles(
   directory: string,
   filenames: string[],
   requestId: string,
-  options: { faultAfterSourceDiscardWrite?: () => Promise<void> } = {},
+  options: RelayFaultOptions = {},
 ): Promise<void> {
   for (const filename of filenames) {
     try {
@@ -1717,18 +1728,14 @@ async function removeRelayFiles(directory: string, filenames: string[]): Promise
   for (const filename of filenames) await removeIfPresent(path.join(directory, filename));
 }
 
-interface RelayDiscardFaults {
-  faultAfterClaims?: () => Promise<void>;
-  faultAfterConflictCheck?: () => Promise<void>;
-  faultAfterSourceDiscardWrite?: () => Promise<void>;
-  faultAfterTombstone?: () => Promise<void>;
-}
+type RelayDiscardFaults = RelayFaultOptions;
 
 async function discardOwnedRelayRequest(
   projectDirectory: string,
   requestId: string,
   options: RelayDiscardFaults = {},
 ): Promise<boolean> {
+  const faults = options.faults ?? {};
   const directory = relayDirectory(projectDirectory);
   const discardClaimId = `discard-${randomUUID()}`;
   const discardClaim = await claimSpecificRelayRequest(projectDirectory, requestId, {
@@ -1743,14 +1750,14 @@ async function discardOwnedRelayRequest(
   );
   const ownership = { delivery: discardClaim, recovery: discardRecoveryClaim };
   const intent = await createDiscardIntent(projectDirectory, requestId, discardClaimId);
-  await options.faultAfterClaims?.();
+  await faults.afterClaims?.();
   const filenames = await sortedFilenames(directory);
   if (discardHasConflict(filenames, requestId, discardClaimId)) {
     await cancelDiscardIntent(intent);
     await releaseDiscardOwnership(projectDirectory, ownership, true);
     throw new Error('relay request is actively claimed; retry discard after delivery completes');
   }
-  await options.faultAfterConflictCheck?.();
+  await faults.afterConflictCheck?.();
   if (await exists(ackPath(projectDirectory, requestId))) {
     await cancelDiscardIntent(intent);
     await releaseDiscardOwnership(projectDirectory, ownership, false);
@@ -1771,9 +1778,9 @@ async function discardOwnedRelayRequest(
     await releaseDiscardOwnership(projectDirectory, ownership, true);
     throw new Error('relay request discard lost its transition ownership');
   }
-  await options.faultAfterTombstone?.();
+  await faults.afterTombstone?.();
   await compactDiscardedReservationFiles(projectDirectory, directory, reservationFiles, requestId, {
-    faultAfterSourceDiscardWrite: options.faultAfterSourceDiscardWrite,
+    faults: options.faults,
   });
   await removeRelayFiles(directory, durableFiles);
   await removeRetrySchedule(projectDirectory, requestId);

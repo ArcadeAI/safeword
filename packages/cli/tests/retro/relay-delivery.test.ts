@@ -149,6 +149,10 @@ function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
   };
 }
 
+function sequenceClock(...times: number[]): () => number {
+  return () => times.shift() ?? Infinity;
+}
+
 describe('immutable relay delivery spool', () => {
   it('reports the owning transient state when durable siblings coexist', async () => {
     const project = temporaryProject();
@@ -220,18 +224,20 @@ describe('immutable relay delivery spool', () => {
       .digest('hex');
 
     await discardRelayRequest(project, persisted.requestId, {
-      faultAfterSourceDiscardWrite: () => {
-        writeFileSync(
-          path.join(directory, `source-${sourceHash}.acknowledged.json`),
-          JSON.stringify({
-            requestId: persisted.requestId,
-            sourceKey: draft.sourceKey,
-            sourcePayloadHash,
-            state: 'acknowledged',
-            version: 1,
-          }),
-        );
-        return Promise.resolve();
+      faults: {
+        afterSourceDiscardWrite: () => {
+          writeFileSync(
+            path.join(directory, `source-${sourceHash}.acknowledged.json`),
+            JSON.stringify({
+              requestId: persisted.requestId,
+              sourceKey: draft.sourceKey,
+              sourcePayloadHash,
+              state: 'acknowledged',
+              version: 1,
+            }),
+          );
+          return Promise.resolve();
+        },
       },
     });
 
@@ -281,9 +287,11 @@ describe('immutable relay delivery spool', () => {
     const attempted = deferred<boolean>();
     const resumeDiscard = deferred<boolean>();
     const discard = discardRelayRequest(project, persisted.requestId, {
-      faultAfterClaims: async () => {
-        attempted.resolve(true);
-        await resumeDiscard.promise;
+      faults: {
+        afterClaims: async () => {
+          attempted.resolve(true);
+          await resumeDiscard.promise;
+        },
       },
     });
     await attempted.promise;
@@ -310,9 +318,11 @@ describe('immutable relay delivery spool', () => {
     const attempted = deferred<boolean>();
     const resumeDiscard = deferred<boolean>();
     const discard = discardRelayRequest(project, persisted.requestId, {
-      faultAfterClaims: async () => {
-        attempted.resolve(true);
-        await resumeDiscard.promise;
+      faults: {
+        afterClaims: async () => {
+          attempted.resolve(true);
+          await resumeDiscard.promise;
+        },
       },
     });
     await attempted.promise;
@@ -350,9 +360,11 @@ describe('immutable relay delivery spool', () => {
         state: 'filed',
       },
       {
-        faultAfterAck: async () => {
-          acknowledged.resolve(true);
-          await resumeAcknowledgement.promise;
+        faults: {
+          afterAck: async () => {
+            acknowledged.resolve(true);
+            await resumeAcknowledgement.promise;
+          },
         },
       },
     );
@@ -396,18 +408,22 @@ describe('immutable relay delivery spool', () => {
         state: 'filed',
       },
       {
-        faultAfterOwnershipCheck: async () => {
-          ownershipChecked.resolve(true);
-          await resumeAcknowledgement.promise;
+        faults: {
+          afterOwnershipCheck: async () => {
+            ownershipChecked.resolve(true);
+            await resumeAcknowledgement.promise;
+          },
         },
       },
     );
     await ownershipChecked.promise;
     await recoverRelaySpool(project, 2);
     const discard = discardRelayRequest(project, persisted.requestId, {
-      faultAfterTombstone: async () => {
-        tombstoned.resolve(true);
-        await resumeDiscard.promise;
+      faults: {
+        afterTombstone: async () => {
+          tombstoned.resolve(true);
+          await resumeDiscard.promise;
+        },
       },
     });
     await tombstoned.promise;
@@ -463,7 +479,7 @@ describe('immutable relay delivery spool', () => {
 
     await expect(
       discardRelayRequest(project, persisted.requestId, {
-        faultAfterClaims: () => Promise.reject(new Error('simulated discard crash')),
+        faults: { afterClaims: () => Promise.reject(new Error('simulated discard crash')) },
       }),
     ).rejects.toThrow('simulated discard crash');
     await recoverRelaySpool(project, now + 120_000);
@@ -489,9 +505,11 @@ describe('immutable relay delivery spool', () => {
     const paused = deferred<boolean>();
     const resume = deferred<boolean>();
     const discard = discardRelayRequest(project, persisted.requestId, {
-      faultAfterClaims: async () => {
-        paused.resolve(true);
-        await resume.promise;
+      faults: {
+        afterClaims: async () => {
+          paused.resolve(true);
+          await resume.promise;
+        },
       },
     });
     await paused.promise;
@@ -516,9 +534,11 @@ describe('immutable relay delivery spool', () => {
     const paused = deferred<boolean>();
     const resume = deferred<boolean>();
     const discard = discardRelayRequest(project, persisted.requestId, {
-      faultAfterClaims: async () => {
-        paused.resolve(true);
-        await resume.promise;
+      faults: {
+        afterClaims: async () => {
+          paused.resolve(true);
+          await resume.promise;
+        },
       },
     });
     await paused.promise;
@@ -547,16 +567,20 @@ describe('immutable relay delivery spool', () => {
     const secondPause = deferred<boolean>();
     const secondResume = deferred<boolean>();
     const first = discardRelayRequest(project, persisted.requestId, {
-      faultAfterClaims: async () => {
-        firstPause.resolve(true);
-        await firstResume.promise;
+      faults: {
+        afterClaims: async () => {
+          firstPause.resolve(true);
+          await firstResume.promise;
+        },
       },
     });
     await firstPause.promise;
     const second = discardRelayRequest(project, persisted.requestId, {
-      faultAfterClaims: async () => {
-        secondPause.resolve(true);
-        await secondResume.promise;
+      faults: {
+        afterClaims: async () => {
+          secondPause.resolve(true);
+          await secondResume.promise;
+        },
       },
     });
     await secondPause.promise;
@@ -585,9 +609,11 @@ describe('immutable relay delivery spool', () => {
     const snapshotted = deferred<boolean>();
     const resumePersist = deferred<boolean>();
     const persistence = persistRelayDraft(project, draft, {
-      faultAfterStateSnapshot: async () => {
-        snapshotted.resolve(true);
-        await resumePersist.promise;
+      faults: {
+        afterStateSnapshot: async () => {
+          snapshotted.resolve(true);
+          await resumePersist.promise;
+        },
       },
     });
     await snapshotted.promise;
@@ -646,9 +672,11 @@ describe('immutable relay delivery spool', () => {
     const snapshotted = deferred<boolean>();
     const resumePersistence = deferred<boolean>();
     const persistence = persistRelayDraft(project, draft, {
-      faultAfterStateSnapshot: async () => {
-        snapshotted.resolve(true);
-        await resumePersistence.promise;
+      faults: {
+        afterStateSnapshot: async () => {
+          snapshotted.resolve(true);
+          await resumePersistence.promise;
+        },
       },
     });
 
@@ -674,16 +702,20 @@ describe('immutable relay delivery spool', () => {
     const conflictChecked = deferred<boolean>();
     const resumeDiscard = deferred<boolean>();
     const persistence = persistRelayDraft(project, draft, {
-      faultAfterStateSnapshot: async () => {
-        persistencePaused.resolve(true);
-        await resumePersistence.promise;
+      faults: {
+        afterStateSnapshot: async () => {
+          persistencePaused.resolve(true);
+          await resumePersistence.promise;
+        },
       },
     });
     await persistencePaused.promise;
     const discard = discardRelayRequest(project, persisted.requestId, {
-      faultAfterConflictCheck: async () => {
-        conflictChecked.resolve(true);
-        await resumeDiscard.promise;
+      faults: {
+        afterConflictCheck: async () => {
+          conflictChecked.resolve(true);
+          await resumeDiscard.promise;
+        },
       },
     });
     await conflictChecked.promise;
@@ -714,9 +746,11 @@ describe('immutable relay delivery spool', () => {
     const tombstoned = deferred<boolean>();
     const resumeDiscard = deferred<boolean>();
     const discard = discardRelayRequest(project, persisted.requestId, {
-      faultAfterTombstone: async () => {
-        tombstoned.resolve(true);
-        await resumeDiscard.promise;
+      faults: {
+        afterTombstone: async () => {
+          tombstoned.resolve(true);
+          await resumeDiscard.promise;
+        },
       },
     });
 
@@ -762,9 +796,11 @@ describe('immutable relay delivery spool', () => {
     const checked = deferred<boolean>();
     const resumePersistence = deferred<boolean>();
     const persistence = persistRelayRequest(project, persisted, {
-      faultAfterDiscardCheck: async () => {
-        checked.resolve(true);
-        await resumePersistence.promise;
+      faults: {
+        afterDiscardCheck: async () => {
+          checked.resolve(true);
+          await resumePersistence.promise;
+        },
       },
     });
 
@@ -881,9 +917,11 @@ describe('immutable relay delivery spool', () => {
     const claimed = deferred<boolean>();
     const continueDiscard = deferred<boolean>();
     const discard = discardRelayRequest(project, persisted.requestId, {
-      faultAfterClaims: async () => {
-        claimed.resolve(true);
-        await continueDiscard.promise;
+      faults: {
+        afterClaims: async () => {
+          claimed.resolve(true);
+          await continueDiscard.promise;
+        },
       },
     });
 
@@ -1001,7 +1039,7 @@ describe('immutable relay delivery spool', () => {
             requestId: persisted.requestId,
             state: 'filed',
           },
-          { faultAfterAck: () => Promise.reject(new Error('cleanup crash')) },
+          { faults: { afterAck: () => Promise.reject(new Error('cleanup crash')) } },
         ),
       ).rejects.toThrow('cleanup crash');
       await recoverRelaySpool(project, 2);
@@ -1050,9 +1088,11 @@ describe('immutable relay delivery spool', () => {
 
       await expect(
         recoverRelaySpool(project, 2, {
-          faultBeforeDuplicateRead: claimPath => {
-            rmSync(claimPath);
-            return Promise.resolve();
+          faults: {
+            beforeDuplicateRead: claimPath => {
+              rmSync(claimPath);
+              return Promise.resolve();
+            },
           },
         }),
       ).resolves.toBeUndefined();
@@ -1290,7 +1330,7 @@ describe('immutable relay delivery spool', () => {
 
     await expect(
       persistRelayRequest(project, original, {
-        faultBeforeFileSync: () => Promise.reject(new Error('simulated fsync failure')),
+        faults: { beforeFileSync: () => Promise.reject(new Error('simulated fsync failure')) },
       }),
     ).rejects.toThrow('simulated fsync failure');
   });
@@ -1301,8 +1341,9 @@ describe('immutable relay delivery spool', () => {
 
     await expect(
       persistRelayRequest(project, original, {
-        faultBeforeDirectorySync: () =>
-          Promise.reject(new Error('simulated directory fsync failure')),
+        faults: {
+          beforeDirectorySync: () => Promise.reject(new Error('simulated directory fsync failure')),
+        },
       }),
     ).rejects.toThrow('simulated directory fsync failure');
     expect(readdirSync(path.join(project, '.safeword', 'retro-drafts', 'relay'))).toHaveLength(0);
@@ -1318,9 +1359,11 @@ describe('immutable relay delivery spool', () => {
     const winnerAtSync = deferred<undefined>();
     const winnerCanSync = deferred<undefined>();
     const winner = persistRelayRequest(project, original, {
-      faultBeforeDirectorySync: async () => {
-        winnerAtSync.resolve(undefined);
-        await winnerCanSync.promise;
+      faults: {
+        beforeDirectorySync: async () => {
+          winnerAtSync.resolve(undefined);
+          await winnerCanSync.promise;
+        },
       },
     });
     await winnerAtSync.promise;
@@ -1329,7 +1372,7 @@ describe('immutable relay delivery spool', () => {
     try {
       await expect(
         persistRelayRequest(project, original, {
-          faultBeforeDirectorySync: loserDirectorySync,
+          faults: { beforeDirectorySync: loserDirectorySync },
         }),
       ).resolves.toMatchObject({ bytes: Buffer.from(JSON.stringify(original), 'utf8') });
       expect(loserDirectorySync).toHaveBeenCalledOnce();
@@ -1339,10 +1382,7 @@ describe('immutable relay delivery spool', () => {
     }
   });
 
-  it.each([
-    '[ORR-005] an active spool claim excludes another session',
-    '[ORR-006] an expired spool claim is rearmed without changing the request',
-  ])('%s', async () => {
+  it('[ORR-005, ORR-006] excludes active claims and rearms expired claims unchanged', async () => {
     const project = temporaryProject();
     const original = request();
     await persistRelayRequest(project, original);
@@ -1392,7 +1432,7 @@ describe('immutable relay delivery spool', () => {
           state: 'filed',
           issueNumber: 1479,
         },
-        { faultAfterAck: () => Promise.reject(new Error('crash')) },
+        { faults: { afterAck: () => Promise.reject(new Error('crash')) } },
       ),
     ).rejects.toThrow('crash');
 
@@ -2022,7 +2062,9 @@ describe('immutable relay delivery spool', () => {
     const relayRequest = request({ sourceKey: 'best-effort-temp-cleanup' });
 
     const persisted = await persistRelayRequest(project, relayRequest, {
-      faultBeforeTemporaryUnlink: () => Promise.reject(new Error('temporary unlink failed')),
+      faults: {
+        beforeTemporaryUnlink: () => Promise.reject(new Error('temporary unlink failed')),
+      },
     });
 
     expect(readFileSync(persisted.path)).toEqual(persisted.bytes);
@@ -2057,9 +2099,11 @@ describe('immutable relay delivery spool', () => {
     // have to invoke this seam once per draft.
     const stateSnapshot = vi.fn();
     const outcomes = await persistRelayDraftBatch(project, drafts, {
-      faultAfterStateSnapshot: () => {
-        stateSnapshot();
-        return Promise.resolve();
+      faults: {
+        afterStateSnapshot: () => {
+          stateSnapshot();
+          return Promise.resolve();
+        },
       },
     });
 
@@ -2094,9 +2138,11 @@ describe('immutable relay delivery spool', () => {
 
     await expect(
       persistRelayDraft(project, draft, {
-        faultAfterStateSnapshot: () => {
-          rmSync(intent);
-          return Promise.resolve();
+        faults: {
+          afterStateSnapshot: () => {
+            rmSync(intent);
+            return Promise.resolve();
+          },
         },
       }),
     ).resolves.toMatchObject({ requestId: persisted.requestId });
@@ -2112,7 +2158,7 @@ describe('immutable relay delivery spool', () => {
 
     await expect(
       persistRelayDraftBatch(project, drafts, {
-        faultAfterStateSnapshot: () => Promise.reject(new Error('snapshot failed')),
+        faults: { afterStateSnapshot: () => Promise.reject(new Error('snapshot failed')) },
       }),
     ).resolves.toEqual([
       { reason: expect.objectContaining({ message: 'snapshot failed' }), status: 'rejected' },
@@ -2331,17 +2377,20 @@ describe('immutable relay delivery spool', () => {
     const project = temporaryProject();
     await persistRelayRequest(project, request());
     const observedUrls: string[] = [];
-    const send = vi.fn<typeof fetch>((input, _init) => {
+    const send = vi.fn<typeof fetch>((input, init) => {
       let observedUrl: string;
       if (typeof input === 'string') observedUrl = input;
       else if (input instanceof URL) observedUrl = input.href;
       else observedUrl = input.url;
       observedUrls.push(observedUrl);
+      const submitted = JSON.parse(
+        Buffer.from(init?.body as Uint8Array).toString('utf8'),
+      ) as RelayDraftRequest;
       return Promise.resolve(
         Response.json(
           {
             receiptId: 'receipt-normalized-url',
-            requestId: request().requestId,
+            requestId: submitted.requestId,
             state: 'filed',
           },
           { status: 201 },
@@ -2359,6 +2408,30 @@ describe('immutable relay delivery spool', () => {
 
     expect(send).toHaveBeenCalledOnce();
     expect(observedUrls).toEqual(['https://relay.invalid/v1/retro-filings']);
+  });
+
+  it('rearms a claim when the relay receipt belongs to another request', async () => {
+    const project = temporaryProject();
+    await persistRelayRequest(project, request());
+
+    const outcome = await deliverRelayRequests(project, {
+      credential: 'swc_client_secret',
+      deadlineMs: 500,
+      fetch: () =>
+        Promise.resolve(
+          Response.json({
+            receiptId: 'receipt-wrong-request',
+            requestId: '00000000-0000-4000-8000-000000000000',
+            state: 'filed',
+          }),
+        ),
+      now: Date.now,
+      relayUrl: 'https://relay.invalid',
+    });
+
+    expect(outcome.accepted).toBe(0);
+    expect(outcome.retryable).toBe(1);
+    await expect(listRelayRequests(project)).resolves.toHaveLength(1);
   });
 
   it('does not start an HTTP attempt without its full deadline plus cleanup reserve', async () => {
@@ -2388,7 +2461,6 @@ describe('immutable relay delivery spool', () => {
   it('does not extend the default drain beyond the session budget after durable overhead', async () => {
     const project = temporaryProject();
     await persistRelayRequest(project, request());
-    const monotonicTimes = [0, 751, 751, 751];
     const send = vi.fn<typeof fetch>((_input, init) => {
       const sent = JSON.parse(
         Buffer.from(init?.body as Uint8Array).toString('utf8'),
@@ -2409,7 +2481,7 @@ describe('immutable relay delivery spool', () => {
       credential: 'swc_client_secret',
       deadlineMs: 25,
       fetch: send,
-      monotonicNow: () => monotonicTimes.shift() ?? 9000,
+      monotonicNow: sequenceClock(0, 751, 751, 751),
       now: () => 0,
       relayUrl: 'https://relay.invalid',
     });
@@ -2640,6 +2712,29 @@ describe('relay readiness provenance', () => {
     expect(result).toEqual({ enabled: false });
   });
 
+  it.each(['sameSignatureCollisions', 'spooledNeverFiled'] as const)(
+    'fails closed when %s records any failure',
+    async metric => {
+      const manifest = validManifest();
+      const result = await validateRelayReadiness(manifest, {
+        buildCommit: 'b'.repeat(40),
+        isAncestor: () => Promise.resolve(true),
+        now: new Date('2026-07-26T12:00:00.000Z'),
+        readArtifactAtCommit: (_commit, artifactPath) => {
+          const artifact = measurementArtifact(manifest, artifactPath);
+          if (artifactPath !== manifest.measurements[metric].path) {
+            return Promise.resolve(artifact);
+          }
+          const evidence = JSON.parse(artifact.content) as { result: { count: number } };
+          evidence.result.count = 1;
+          return Promise.resolve({ content: JSON.stringify(evidence), sha256: artifact.sha256 });
+        },
+      });
+
+      expect(result).toEqual({ enabled: false });
+    },
+  );
+
   it('fails closed when hash-attested content describes the wrong measurement', async () => {
     const manifest = validManifest();
 
@@ -2661,38 +2756,92 @@ describe('relay readiness provenance', () => {
     expect(result).toEqual({ enabled: false });
   });
 
+  it.each([
+    [
+      'an extra prerequisite',
+      (manifest: RelayReadinessManifest) => {
+        manifest.prerequisites.push({ ...manifest.prerequisites[1] });
+      },
+    ],
+    [
+      'a review timestamp before its evidence',
+      (manifest: RelayReadinessManifest) => {
+        manifest.reviewedAt = '2026-07-24T12:00:00.000Z';
+      },
+    ],
+  ])('fails closed for %s', async (_description, mutate) => {
+    const manifest = validManifest();
+    mutate(manifest);
+
+    await expect(
+      validateRelayReadiness(manifest, {
+        buildCommit: 'b'.repeat(40),
+        isAncestor: () => Promise.resolve(true),
+        now: new Date('2026-07-26T12:00:00.000Z'),
+        readArtifactAtCommit: (_commit, artifactPath) =>
+          Promise.resolve(measurementArtifact(manifest, artifactPath)),
+      }),
+    ).resolves.toEqual({ enabled: false });
+  });
+
   it('[ORR-011] uses build-embedded evidence without consulting the customer repository', async () => {
     const manifest = validManifest();
     const buildCommit = 'b'.repeat(40);
+    for (const artifact of Object.values(manifest.measurements)) {
+      artifact.sha256 = createHash('sha256')
+        .update(measurementContent(manifest, artifact.path))
+        .digest('hex');
+    }
     const result = await validateBuildAttestedRelayReadiness(
       manifest,
       {
         ancestorPairs: [
-          `${manifest.evidenceCommit}:${buildCommit}`,
-          ...manifest.prerequisites.map(
-            prerequisite => `${prerequisite.mergedCommit}:${manifest.evidenceCommit}`,
-          ),
+          { ancestor: manifest.evidenceCommit, descendant: buildCommit },
+          ...manifest.prerequisites.map(prerequisite => ({
+            ancestor: prerequisite.mergedCommit,
+            descendant: manifest.evidenceCommit,
+          })),
         ],
-        artifactContents: Object.fromEntries(
-          Object.values(manifest.measurements).map(artifact => [
-            `${manifest.evidenceCommit}:${artifact.path}`,
-            measurementContent(manifest, artifact.path),
-          ]),
-        ),
-        artifactHashes: Object.fromEntries(
-          Object.values(manifest.measurements).map(artifact => [
-            `${manifest.evidenceCommit}:${artifact.path}`,
-            artifact.sha256,
+        artifacts: Object.fromEntries(
+          Object.entries(manifest.measurements).map(([metric, artifact]) => [
+            metric,
+            {
+              contentBase64: Buffer.from(measurementContent(manifest, artifact.path)).toString(
+                'base64',
+              ),
+              sha256: artifact.sha256,
+            },
           ]),
         ),
         buildCommit,
         enabled: true,
+        manifestBase64: Buffer.from(JSON.stringify(manifest)).toString('base64'),
         manifestSha256: createHash('sha256').update(JSON.stringify(manifest)).digest('hex'),
       },
       new Date('2026-07-26T12:00:00.000Z'),
     );
 
     expect(result).toEqual({ enabled: true });
+  });
+
+  it('[ORR-011] refuses a disabled build attestation even when its evidence is populated', async () => {
+    const manifest = validManifest();
+    const manifestContent = JSON.stringify(manifest);
+
+    const result = await validateBuildAttestedRelayReadiness(
+      manifest,
+      {
+        ancestorPairs: [],
+        artifacts: {},
+        buildCommit: 'b'.repeat(40),
+        enabled: false,
+        manifestBase64: Buffer.from(manifestContent).toString('base64'),
+        manifestSha256: createHash('sha256').update(manifestContent).digest('hex'),
+      },
+      new Date('2026-07-26T12:00:00.000Z'),
+    );
+
+    expect(result).toEqual({ enabled: false });
   });
 
   it.each([

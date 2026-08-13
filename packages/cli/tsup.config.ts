@@ -4,9 +4,10 @@ import { readFileSync } from 'node:fs';
 
 import { defineConfig } from 'tsup';
 
-const manifest = JSON.parse(
-  readFileSync(new URL('src/retro/relay-readiness-manifest.json', import.meta.url), 'utf8'),
-) as {
+const manifestBytes = readFileSync(
+  new URL('src/retro/relay-readiness-manifest.json', import.meta.url),
+);
+const manifest = JSON.parse(manifestBytes.toString('utf8')) as {
   enabled: boolean;
   evidenceCommit?: string;
   measurements?: Record<string, { path: string }>;
@@ -14,7 +15,24 @@ const manifest = JSON.parse(
 };
 
 function gitText(arguments_: string[]): string {
-  return execFileSync('git', arguments_, { encoding: 'utf8' }).trim();
+  return execFileSync('git', arguments_, { encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 }).trim();
+}
+
+const COMMIT_PATTERN = /^[\da-f]{40}$/u;
+const SAFE_ARTIFACT_PATH = /^(?!-)(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$))[^\r\n]+$/u;
+
+function assertSafeRelayInputs(
+  evidenceCommit: string,
+  measurements: Record<string, { path: string }>,
+  prerequisites: { mergedCommit: string }[],
+): void {
+  if (
+    !COMMIT_PATTERN.test(evidenceCommit) ||
+    prerequisites.some(item => !COMMIT_PATTERN.test(item.mergedCommit)) ||
+    Object.values(measurements).some(item => !SAFE_ARTIFACT_PATH.test(item.path))
+  ) {
+    throw new Error('enabled relay readiness manifest contains an unsafe commit or artifact path');
+  }
 }
 
 let buildCommit = 'development-source';
@@ -25,55 +43,62 @@ try {
 }
 
 function buildRelayAttestation(): {
-  ancestorPairs: string[];
-  artifactContents: Record<string, string>;
-  artifactHashes: Record<string, string>;
+  ancestorPairs: { ancestor: string; descendant: string }[];
+  artifacts: Record<string, { contentBase64: string; sha256: string }>;
   buildCommit: string;
   enabled: boolean;
+  manifestBase64: string;
   manifestSha256: string;
 } {
   const disabled = {
     ancestorPairs: [],
-    artifactContents: {},
-    artifactHashes: {},
+    artifacts: {},
     buildCommit,
     enabled: false,
-    manifestSha256: createHash('sha256').update(JSON.stringify(manifest)).digest('hex'),
+    manifestBase64: manifestBytes.toString('base64'),
+    manifestSha256: createHash('sha256').update(manifestBytes).digest('hex'),
   };
   if (!manifest.enabled) return disabled;
   if (
-    !/^[\da-f]{40}$/u.test(buildCommit) ||
+    !COMMIT_PATTERN.test(buildCommit) ||
     manifest.evidenceCommit === undefined ||
     manifest.measurements === undefined ||
     manifest.prerequisites === undefined
   ) {
     throw new Error('enabled relay readiness manifest cannot be attested by this build');
   }
+  const { evidenceCommit, measurements, prerequisites } = manifest;
+  assertSafeRelayInputs(evidenceCommit, measurements, prerequisites);
   if (gitText(['status', '--porcelain']).length > 0) {
     throw new Error('enabled relay readiness manifest requires a clean source tree');
   }
   const ancestorPairs = [
-    `${manifest.evidenceCommit}:${buildCommit}`,
-    ...manifest.prerequisites.map(
-      prerequisite => `${prerequisite.mergedCommit}:${manifest.evidenceCommit}`,
-    ),
+    { ancestor: evidenceCommit, descendant: buildCommit },
+    ...prerequisites.map(prerequisite => ({
+      ancestor: prerequisite.mergedCommit,
+      descendant: evidenceCommit,
+    })),
   ];
-  for (const pair of ancestorPairs) {
-    const [ancestor, descendant] = pair.split(':', 2);
-    execFileSync('git', ['merge-base', '--is-ancestor', ancestor ?? '', descendant ?? '']);
+  for (const { ancestor, descendant } of ancestorPairs) {
+    execFileSync('git', ['merge-base', '--is-ancestor', ancestor, descendant], {
+      maxBuffer: 10 * 1024 * 1024,
+    });
   }
-  const artifactEntries = Object.values(manifest.measurements).map(artifact => {
-    const bytes = execFileSync('git', ['show', `${manifest.evidenceCommit}:${artifact.path}`]);
-    const key = `${manifest.evidenceCommit}:${artifact.path}`;
-    return [key, bytes.toString('utf8'), createHash('sha256').update(bytes).digest('hex')] as const;
-  });
-  const artifactContents = Object.fromEntries(
-    artifactEntries.map(([key, content]) => [key, content]),
+  const artifacts = Object.fromEntries(
+    Object.entries(measurements).map(([metric, artifact]) => {
+      const bytes = execFileSync('git', ['show', `${evidenceCommit}:${artifact.path}`], {
+        maxBuffer: 10 * 1024 * 1024,
+      });
+      return [
+        metric,
+        {
+          contentBase64: bytes.toString('base64'),
+          sha256: createHash('sha256').update(bytes).digest('hex'),
+        },
+      ];
+    }),
   );
-  const artifactHashes = Object.fromEntries(
-    artifactEntries.map(([key, _content, sha256]) => [key, sha256]),
-  );
-  return { ...disabled, ancestorPairs, artifactContents, artifactHashes, enabled: true };
+  return { ...disabled, ancestorPairs, artifacts, enabled: true };
 }
 
 const relayBuildAttestation = buildRelayAttestation();
@@ -87,7 +112,9 @@ export default defineConfig({
   target: 'node18',
   shims: false,
   // Exclude devDependencies that have native bindings from bundling
-  noExternal: [],
+  // Recovery commands must still start when they are upgrading an older
+  // dependency tree that predates our TOML parser dependency.
+  noExternal: ['smol-toml'],
   skipNodeModulesBundle: true,
   define: {
     __SAFEWORD_BUILD_COMMIT__: JSON.stringify(buildCommit),
