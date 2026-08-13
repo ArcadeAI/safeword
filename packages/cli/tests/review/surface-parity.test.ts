@@ -48,7 +48,7 @@ function runResolver(
     const log = nodePath.join(fixture, 'calls.log');
     executable(
       nodePath.join(bin, 'bun'),
-      String.raw`${hangPlugin ? 'case "$1" in */plugin/runtime/cli.js) sleep 2;; esac\n' : ''}${rejectPlugin ? 'case "$1" in */plugin/runtime/cli.js) exit 1;; esac\n' : ''}printf 'bun:%s\n' "$*" >> "$CALL_LOG"`,
+      String.raw`${hangPlugin ? 'case "$1" in */plugin/runtime/cli.js) sleep 5;; esac\n' : ''}${rejectPlugin ? 'case "$1" in */plugin/runtime/cli.js) exit 1;; esac\n' : ''}printf 'bun:%s\n' "$*" >> "$CALL_LOG"`,
     );
     executable(nodePath.join(bin, 'bunx'), String.raw`printf 'bunx:%s\n' "$*" >> "$CALL_LOG"`);
 
@@ -56,7 +56,7 @@ function runResolver(
       ...process.env,
       CALL_LOG: log,
       PATH: `${bin}:/usr/bin:/bin`,
-      SAFEWORD_REVIEW_CLI_PROBE_TIMEOUT_MS: '500',
+      SAFEWORD_REVIEW_CLI_PROBE_TIMEOUT_MS: '2000',
     };
     delete env.CLAUDE_PLUGIN_ROOT;
     switch (route) {
