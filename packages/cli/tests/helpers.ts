@@ -1,4 +1,10 @@
-import { execFile, execSync, spawnSync, type SpawnSyncReturns } from 'node:child_process';
+import {
+  execFile,
+  execFileSync,
+  execSync,
+  spawnSync,
+  type SpawnSyncReturns,
+} from 'node:child_process';
 import {
   existsSync,
   mkdirSync,
@@ -51,16 +57,17 @@ export const TIMEOUT_ACCEPTANCE_LANE = 120_000;
 export const TIMEOUT_BUN_INSTALL = 120_000;
 
 const __dirname = import.meta.dirname;
+export const testCliRoot = process.env.SAFEWORD_TEST_CLI_ROOT ?? nodePath.join(__dirname, '..');
 
 /**
  * Path to the CLI entry point (built)
  */
-const CLI_PATH = nodePath.join(__dirname, '../dist/cli.js');
+export const testCliPath = nodePath.join(testCliRoot, 'dist/cli.js');
 
 /**
  * Path to the local safeword CLI package (for file: references in tests)
  */
-const SAFEWORD_PATH = nodePath.join(__dirname, '..');
+const SAFEWORD_PATH = testCliRoot;
 
 /**
  * safeword reference for test package.json files.
@@ -317,7 +324,7 @@ export function wasKilledByTimeout(execError: {
   killed?: boolean;
   signal?: string | null;
 }): boolean {
-  return execError.killed === true || (execError.signal !== undefined && execError.signal !== null);
+  return execError.killed === true && execError.signal !== undefined && execError.signal !== null;
 }
 
 const SOURCE_DIRECTORY = nodePath.join(__dirname, '../src');
@@ -381,7 +388,7 @@ function warnIfDistributionStale(): void {
   distributionStaleness.checked = true;
   let distributionMtime;
   try {
-    distributionMtime = statSync(CLI_PATH).mtimeMs;
+    distributionMtime = statSync(testCliPath).mtimeMs;
   } catch {
     return;
   }
@@ -434,12 +441,16 @@ async function executeCli(cliArguments: string[], options: RunCliOptions): Promi
   warnIfDistributionStale();
 
   try {
-    const { stdout, stderr } = await execFileAsync(process.execPath, [CLI_PATH, ...cliArguments], {
-      cwd,
-      env: { ...process.env, ...env },
-      timeout,
-      maxBuffer: CLI_MACHINE_OUTPUT_LIMIT_BYTES,
-    });
+    const { stdout, stderr } = await execFileAsync(
+      process.execPath,
+      [testCliPath, ...cliArguments],
+      {
+        cwd,
+        env: { ...process.env, ...env },
+        timeout,
+        maxBuffer: CLI_MACHINE_OUTPUT_LIMIT_BYTES,
+      },
+    );
     return { stdout, stderr, exitCode: 0, timedOut: false };
   } catch (error: unknown) {
     const execError = error as {
@@ -542,10 +553,8 @@ export function runCliSync(
   const cliArguments = projectFixtureArguments(args);
   warnIfDistributionStale();
 
-  const command = `${process.execPath} ${CLI_PATH} ${cliArguments.join(' ')}`;
-
   try {
-    const stdout = execSync(command, {
+    const stdout = execFileSync(process.execPath, [testCliPath, ...cliArguments], {
       cwd,
       env: { ...process.env, ...env },
       timeout,

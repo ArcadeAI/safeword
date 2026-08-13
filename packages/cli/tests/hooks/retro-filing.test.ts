@@ -1,5 +1,13 @@
 import { spawnSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -221,6 +229,37 @@ describe('fileSpooledDrafts (BNGK9W — the agent filing seam: post each verbati
     expect(readSpooledDrafts(projectDirectory, 'sess-1')).toEqual([sealed]);
   });
 
+  it('validates and drains an authenticated spool outside the active worktree and session', () => {
+    const otherWorktree = mkdtempSync(nodePath.join(tmpdir(), 'retro-filing-other-worktree-'));
+    try {
+      const sealed = sealedRetroDraft('retro:bbbbbbbbbbbb', 'Cross-worktree recovery');
+      const spool = draftSpoolPath(otherWorktree, 'older-session');
+      spoolDrafts(otherWorktree, 'older-session', [sealed]);
+
+      const validation = spawnSync('bun', [DRAIN_RETRO_SPOOL, spool, '--validated-jsonl'], {
+        cwd: projectDirectory,
+        encoding: 'utf8',
+      });
+      expect(validation.status).toBe(0);
+      expect(JSON.parse(validation.stdout)).toEqual(sealed);
+
+      expect(
+        recordFiledAck(otherWorktree, 'older-session', {
+          signature: sealed.signature,
+          issue: 1942,
+        }),
+      ).toBe(true);
+      const drain = spawnSync('bun', [DRAIN_RETRO_SPOOL, spool], {
+        cwd: projectDirectory,
+        encoding: 'utf8',
+      });
+      expect(drain.status).toBe(0);
+      expect(readSpooledDrafts(otherWorktree, 'older-session')).toEqual([]);
+    } finally {
+      rmSync(otherWorktree, { recursive: true, force: true });
+    }
+  });
+
   it('the shipped helper emits no filing input when a sealed body was modified', () => {
     const sealed = sealedRetroDraft('retro:aaaaaaaaaaaa', 'Validated');
     const spool = draftSpoolPath(projectDirectory, 'sess-1');
@@ -251,6 +290,25 @@ describe('fileSpooledDrafts (BNGK9W — the agent filing seam: post each verbati
     expect(result.status).toBe(1);
     expect(result.stdout).toBe('');
     expect(result.stderr).toContain('Refusing a symlinked retro spool');
+  });
+
+  it.each([
+    ['a direct path outside a retro-drafts directory', 'caller-selected.jsonl'],
+    ['an in-root noncanonical path', nodePath.join('.safeword', 'caller-selected.jsonl')],
+    ['a non-JSONL path', nodePath.join('.safeword', 'retro-drafts', 'caller-selected.txt')],
+  ])('refuses caller-selected noncanonical paths: %s', (_case, relativePath) => {
+    const path = nodePath.join(projectDirectory, relativePath);
+    mkdirSync(nodePath.dirname(path), { recursive: true });
+    writeFileSync(path, `${JSON.stringify(sealedRetroDraft('retro:aaaaaaaaaaaa', 'Refused'))}\n`);
+    const before = readFileSync(path, 'utf8');
+
+    const result = spawnSync('bun', [DRAIN_RETRO_SPOOL, path, '--validated-jsonl'], {
+      encoding: 'utf8',
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toBe('');
+    expect(readFileSync(path, 'utf8')).toBe(before);
   });
 
   it('leaves an un-postable draft spooled for retry, and a later boundary still nudges for it', async () => {
