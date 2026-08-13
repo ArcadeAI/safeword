@@ -13,7 +13,7 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { reviewCandidates } from '../../templates/hooks/run-review';
+import { reviewCandidates, reviewEnvironment } from '../../templates/hooks/run-review';
 
 const templates = nodePath.resolve(import.meta.dirname, '../../templates');
 
@@ -113,6 +113,27 @@ function runResolver(
 }
 
 describe('class-1 review surface parity', () => {
+  it('scopes managed progress to the JSON review child despite inherited contamination', () => {
+    const contaminated = {
+      PATH: '/usr/bin',
+      SAFEWORD_REVIEW_PROGRESS: 'inherited',
+    };
+
+    expect(reviewEnvironment(contaminated, ['review', 'run', '--help'])).toEqual({
+      PATH: '/usr/bin',
+    });
+    expect(
+      reviewEnvironment(contaminated, [
+        'review',
+        'run',
+        'quality-review',
+        'target',
+        '--agent-handoff',
+        '--json',
+      ]),
+    ).toEqual({ PATH: '/usr/bin', SAFEWORD_REVIEW_PROGRESS: '1' });
+  });
+
   it.each([
     ['skills/quality-review/SKILL.md', 'quality-review'],
     ['skills/review-spec/SKILL.md', 'scenario-gate'],
