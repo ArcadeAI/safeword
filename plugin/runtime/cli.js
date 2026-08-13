@@ -44490,8 +44490,7 @@ function decodeIntegrityKey(value) {
   return Buffer.from(encoded, "hex");
 }
 function unsignedRecord(record2) {
-  const unsigned = { ...record2 };
-  delete unsigned.integrity;
+  const { integrity: _integrity, ...unsigned } = record2;
   return unsigned;
 }
 function recordIntegrity(cwd, record2) {
@@ -44511,7 +44510,7 @@ function hasValidIntegrity(cwd, record2) {
   }
 }
 function isTerminalJobState(state) {
-  return ["completed", "failed", "canceled"].includes(state);
+  return TERMINAL_JOB_STATES.has(state);
 }
 function withRecordIntegrity(cwd, record2) {
   if (!isTerminalJobState(record2.state))
@@ -45186,11 +45185,16 @@ function inspectReviewWorker(pid, id) {
     return processExists(pid) ? "unavailable" : "mismatch";
   return /\breview run\b/u.test(inspected.stdout) && inspected.stdout.includes(`--worker-job-id ${id}`) ? "match" : "mismatch";
 }
-var COURTESY_WAIT_MS = 75000, POLL_INTERVAL_MS = 100, WORKER_INSPECTION_INTERVAL_MS = 1000, JOB_LOCK_WAIT_MS = 2000;
+var TERMINAL_JOB_STATES, COURTESY_WAIT_MS = 75000, POLL_INTERVAL_MS = 100, WORKER_INSPECTION_INTERVAL_MS = 1000, JOB_LOCK_WAIT_MS = 2000;
 var init_job = __esm(() => {
   init_result();
   init_contract();
   init_packet();
+  TERMINAL_JOB_STATES = new Set([
+    "completed",
+    "failed",
+    "canceled"
+  ]);
 });
 
 // src/pr-review/providers/openai.ts
