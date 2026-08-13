@@ -42944,14 +42944,18 @@ function fingerprint(cwd, kind, targets, context = []) {
   const prepared = prepareReviewPacket(cwd, kind, targets, context);
   try {
     const hash = createHash20("sha256");
-    for (const file of [
-      ...prepared.packet.logical_files,
-      ...prepared.packet.context_files ?? []
+    hash.update(`kind\x00${kind}\x00`);
+    for (const [section, files] of [
+      ["targets", prepared.packet.logical_files],
+      ["context", prepared.packet.context_files ?? []]
     ]) {
-      hash.update(file.path);
-      hash.update("\x00");
-      hash.update(file.content);
-      hash.update("\x00");
+      hash.update(`${section}\x00${files.length}\x00`);
+      for (const file of files) {
+        hash.update(file.path);
+        hash.update("\x00");
+        hash.update(file.content);
+        hash.update("\x00");
+      }
     }
     return hash.digest("hex");
   } finally {

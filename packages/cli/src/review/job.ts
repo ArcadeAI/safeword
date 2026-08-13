@@ -58,14 +58,18 @@ function fingerprint(
   const prepared = prepareReviewPacket(cwd, kind, targets, context);
   try {
     const hash = createHash('sha256');
-    for (const file of [
-      ...prepared.packet.logical_files,
-      ...(prepared.packet.context_files ?? []),
-    ]) {
-      hash.update(file.path);
-      hash.update('\0');
-      hash.update(file.content);
-      hash.update('\0');
+    hash.update(`kind\0${kind}\0`);
+    for (const [section, files] of [
+      ['targets', prepared.packet.logical_files],
+      ['context', prepared.packet.context_files ?? []],
+    ] as const) {
+      hash.update(`${section}\0${files.length}\0`);
+      for (const file of files) {
+        hash.update(file.path);
+        hash.update('\0');
+        hash.update(file.content);
+        hash.update('\0');
+      }
     }
     return hash.digest('hex');
   } finally {

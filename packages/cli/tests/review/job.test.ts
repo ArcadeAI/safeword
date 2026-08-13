@@ -148,6 +148,30 @@ describe('durable review jobs', () => {
     cancelReviewJob(cwd, (first.data as { review_id: string }).review_id);
   });
 
+  it('does not reuse a review when a context file becomes a target', async () => {
+    const cwd = project();
+    writeFileSync(nodePath.join(cwd, 'context.md'), 'supporting context\n');
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, 'setTimeout(() => {}, 10_000);'));
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '0');
+    const first = await startReviewJob({
+      cwd,
+      kind: 'quality-review',
+      targets: ['input.md'],
+      context: ['context.md'],
+    });
+    const second = await startReviewJob({
+      cwd,
+      kind: 'quality-review',
+      targets: ['input.md', 'context.md'],
+    });
+    const firstId = (first.data as { review_id: string }).review_id;
+    const secondId = (second.data as { review_id: string }).review_id;
+
+    expect(secondId).not.toBe(firstId);
+    cancelReviewJob(cwd, firstId);
+    cancelReviewJob(cwd, secondId);
+  });
+
   it('reserves one worker for simultaneous starts of the same source', async () => {
     const cwd = project();
     vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, 'setTimeout(() => {}, 10_000);'));
