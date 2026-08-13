@@ -3,8 +3,12 @@ import { describe, expect, it, vi } from 'vitest';
 import { commandCatalog } from '../../src/cli-protocol/catalog.js';
 import {
   assertEffectPolicy,
+  consumeManagedProgressSignal,
+  createBestEffortProgressSink,
+  createManagedReviewProgress,
   createProgressReporter,
   resolveHeartbeatIntervalMs,
+  shouldReportProgress,
 } from '../../src/cli-protocol/policy.js';
 import { createResult } from '../../src/cli-protocol/result.js';
 
@@ -17,6 +21,55 @@ function definition(name: string) {
 }
 
 describe('CLI execution policy', () => {
+  it('consumes only the exact managed-progress signal and always removes it', () => {
+    for (const [value, expected] of [
+      ['1', true],
+      ['true', false],
+      ['', false],
+    ] as const) {
+      const environment = { SAFEWORD_REVIEW_PROGRESS: value };
+      expect(consumeManagedProgressSignal(environment)).toBe(expected);
+      expect(environment).not.toHaveProperty('SAFEWORD_REVIEW_PROGRESS');
+    }
+  });
+
+  it('reports JSON progress only for an opted-in managed review and never in quiet mode', () => {
+    expect(shouldReportProgress({ json: true, managedReview: true, quiet: false })).toBe(true);
+    expect(shouldReportProgress({ json: true, managedReview: false, quiet: false })).toBe(false);
+    expect(shouldReportProgress({ json: false, managedReview: false, quiet: false })).toBe(true);
+    expect(shouldReportProgress({ json: true, managedReview: true, quiet: true })).toBe(false);
+  });
+
+  it('keeps descriptor write failures best-effort and retries later writes', () => {
+    const write = vi
+      .fn<(message: string) => void>()
+      .mockImplementationOnce(() => {
+        throw new Error('EBADF');
+      })
+      .mockImplementation(() => {});
+    const emit = createBestEffortProgressSink(write);
+
+    expect(() => emit('first')).not.toThrow();
+    expect(() => emit('second')).not.toThrow();
+    expect(write).toHaveBeenNthCalledWith(1, 'first\n');
+    expect(write).toHaveBeenNthCalledWith(2, 'second\n');
+  });
+
+  it('suppresses packet preparation only for managed JSON progress', () => {
+    const progress = { start: vi.fn(), heartbeat: vi.fn(), stop: vi.fn() };
+    const managed = createManagedReviewProgress(progress);
+
+    managed.start('Preparing the review packet for quality review…');
+    managed.start('Requesting an independent Codex review…');
+    managed.heartbeat?.('Still waiting for a response from Codex…');
+    managed.stop();
+
+    expect(progress.start).toHaveBeenCalledTimes(1);
+    expect(progress.start).toHaveBeenCalledWith('Requesting an independent Codex review…');
+    expect(progress.heartbeat).toHaveBeenCalledTimes(1);
+    expect(progress.stop).toHaveBeenCalledTimes(1);
+  });
+
   it('rejects effects from an observe command', () => {
     const result = createResult({
       state: 'healthy',

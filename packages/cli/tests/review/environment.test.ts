@@ -3,6 +3,15 @@ import { describe, expect, it } from 'vitest';
 import { reviewerEnvironment } from '../../src/review/environment.js';
 
 describe('reviewer-scoped environment', () => {
+  it('never exposes the wrapper-only managed-progress signal to reviewers', () => {
+    expect(
+      reviewerEnvironment('claude', {
+        SAFEWORD_REVIEW_PROGRESS: '1',
+        SAFEWORD_REVIEW_TIMEOUT_MS: '1000',
+      }),
+    ).toEqual({ SAFEWORD_REVIEW_TIMEOUT_MS: '1000' });
+  });
+
   it('passes only process essentials, reviewer credentials, and coordinator controls', () => {
     const environment = reviewerEnvironment('claude', {
       PATH: '/bin',

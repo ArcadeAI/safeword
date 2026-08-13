@@ -191,8 +191,8 @@ recovery, and action-required exit status. The feature lane retains the
 
 ### Scenario: The real wrapper scopes managed progress to its CLI child
 
-- [ ] RED
-- [ ] GREEN
+- [x] RED — `9c53a5441`
+- [x] GREEN — `b4f05e1a8`
 - [ ] REFACTOR
 
 ### Scenario: The real public command removes managed progress from the reviewer environment
