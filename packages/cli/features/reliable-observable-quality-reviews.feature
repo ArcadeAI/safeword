@@ -11,6 +11,8 @@ Feature: Keep quality reviews observable and actionable
   Quoted signal values decode \n as a line break; <unset> means the variable is absent.
   Progress writes target operating-system descriptor 2 synchronously; deferred
   stream error events and stream backpressure are not part of this boundary.
+  A route's first heartbeat is due 30 seconds after route start; every later
+  heartbeat is re-armed 30 seconds after its most recent emission.
 
   @reliable-observable-quality-reviews.TBU1.R1 @surface.safeword-cli @proof.vitest
   Rule: reliable-observable-quality-reviews.TBU1.R1 — A managed JSON review reports rate-limited lifecycle progress separately from its final typed result
@@ -20,7 +22,7 @@ Feature: Keep quality reviews observable and actionable
       And the review is observed with a deterministic clock
       When the reviewer returns verdict <verdict>
       Then stderr consists of one active-review line followed by one heartbeat line
-      And stdout contains exactly one schema-1 result with classification <classification>
+      And stdout consists exactly of one complete parseable schema-1 result with classification <classification> followed by EOF
       And the command exits with status <status>
 
       Examples:
@@ -33,7 +35,7 @@ Feature: Keep quality reviews observable and actionable
       When completion occurs at <boundary> with <event_order>
       Then stderr consists of <expected_lines>
       And advancing the clock through two further heartbeat intervals emits no further lifecycle lines
-      And stdout contains exactly one schema-1 result
+      And stdout consists exactly of one complete parseable schema-1 result followed by EOF
 
       Examples:
         | boundary | event_order             | expected_lines                              |
@@ -58,7 +60,7 @@ Feature: Keep quality reviews observable and actionable
       When the review transitions from its preferred route to a fallback route
       Then stderr consists exactly of the preferred active-review line 100 milliseconds after reviewer work starts, its heartbeat 30 seconds after reviewer work starts, the fallback active-review line 100 milliseconds after transition, and its heartbeat 30 seconds after transition
       And no preferred-route lifecycle line appears after the fallback route starts
-      And stdout contains exactly one schema-1 result
+      And stdout consists exactly of one complete parseable schema-1 result followed by EOF
 
   @reliable-observable-quality-reviews.TBU1.R2 @surface.safeword-cli @proof.vitest
   Rule: reliable-observable-quality-reviews.TBU1.R2 — Callers that do not request managed progress keep the existing silent machine contract
@@ -69,7 +71,7 @@ Feature: Keep quality reviews observable and actionable
       And the review is observed with a deterministic clock
       When the review completes with <stderr_kind> stderr
       Then stderr consists of <expected_lines>
-      And stdout contains exactly one typed result
+      And stdout consists exactly of one complete parseable typed result followed by EOF
 
       Examples:
         | value   | stderr_kind | expected_lines                             |
@@ -101,7 +103,7 @@ Feature: Keep quality reviews observable and actionable
       And the review is observed with a deterministic clock
       When the reviewer returns verdict <verdict> after one heartbeat
       Then stderr is empty
-      And stdout contains exactly one typed result
+      And stdout consists exactly of one complete parseable typed result followed by EOF
       And the command exits with status <status>
 
       Examples:
@@ -131,7 +133,7 @@ Feature: Keep quality reviews observable and actionable
       And the review remains active through an attempted active-review write and heartbeat write
       When the reviewer completes with <classification>
       Then both lifecycle writes are attempted and their failures are swallowed
-      And stdout contains the canonical typed result
+      And stdout consists exactly of the canonical typed result followed by EOF
       And no fallback diagnostic is written to stdout
       And the command exits with status <status>
 
@@ -147,20 +149,22 @@ Feature: Keep quality reviews observable and actionable
       And configured model names use disjoint unique secrets and control characters
       When a managed review succeeds
       Then stdout contains the accepted summary secret
-      And stdout contains exactly one parseable schema-1 result
+      And stdout consists exactly of one complete parseable schema-1 approved result followed by EOF
       And serialized stdout contains no literal injected line break or ANSI escape
       And stderr contains a positive lifecycle line naming only the assigned reviewer kind
       And stderr contains no summary secret, model secret, control character, or configured model name
+      And the command exits with status 0
 
     Scenario Outline: Rejected reviewer data never enters public output
       Given route configuration <route_configuration>
       And rejected reviewer bytes, model names, targets, and context contain disjoint unique secrets and control characters
       When a managed review <termination>
       Then stderr contains positive lifecycle lines naming only <reviewer_kinds>
-      And stdout contains exactly one schema-1 action-required result
+      And stdout consists exactly of one complete parseable schema-1 action-required result followed by EOF
       And the rejected reviewer bytes are absent from stdout and stderr
       And stderr contains no injected secret, control character, or model name
       And serialized stdout contains no literal injected line break or ANSI escape
+      And the command exits with status 2
 
       Examples:
         | route_configuration    | termination          | reviewer_kinds   |
@@ -171,7 +175,7 @@ Feature: Keep quality reviews observable and actionable
     Scenario: Exhausted routes identify the failed boundary and recovery
       Given a managed JSON review for target "change.ts" whose preferred route times out and fallback returns invalid output
       When the public review command completes
-      Then stdout contains exactly one schema-1 action-required result
+      Then stdout consists exactly of one complete parseable schema-1 action-required result followed by EOF
       And the result contains finding code "REVIEW_ROUTES_EXHAUSTED"
       And the result records preferred failure "timed_out"
       And recovery equals the independently authored retry fixture for target "change.ts"
