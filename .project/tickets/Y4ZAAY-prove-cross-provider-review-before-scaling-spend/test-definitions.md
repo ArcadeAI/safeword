@@ -104,6 +104,12 @@ fixture scenarios do not substitute for its RED, GREEN, or REFACTOR record.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Authorized corpus cannot dispatch unrelated paid input
+
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR: one manifest-backed validator binds case membership and immutable review identity before credential loading
+
 ## Rule: prove-cross-provider-review-before-scaling-spend.SWM1.R3 — Development evidence remains permanently separate from confirmatory evidence
 
 ### Scenario: A development result is durably diagnostic-only

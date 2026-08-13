@@ -150,6 +150,14 @@ Feature: Prove cross-provider review before scaling spend
         | authorization for another repository, corpus, output, route, or limit |
         | authorization for different code or a dirty checkout |
 
+    @rejection
+    Scenario: Authorized corpus cannot dispatch unrelated paid input
+      Given a durable authorization names one frozen development corpus
+      And the paid child input names a case or immutable review identity that differs from its frozen manifest
+      When live execution is requested
+      Then the attempt is blocked before secrets are loaded
+      And no paid request is made
+
   @prove-cross-provider-review-before-scaling-spend.SWM1.R3
   Rule: prove-cross-provider-review-before-scaling-spend.SWM1.R3 — Development evidence remains permanently separate from confirmatory evidence
 
