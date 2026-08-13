@@ -1,7 +1,6 @@
-@wip
 Feature: Revalidate remote verification before execution
 
-  @offload-tests.TBU1.R10
+  @wip @offload-tests.TBU1.R10
   @public-cli @surface.safeword-cli
   Rule: offload-tests.TBU1.R10 — The remote workflow independently revalidates revision and lane before executing repository code
 
@@ -44,9 +43,10 @@ Feature: Revalidate remote verification before execution
         | a target-ref digest that is missing, duplicated, non-lowercase-hex, not 64 characters or inconsistent with target-ref bytes |
         | duplicate lane fields in raw event JSON |
 
-    @rejection @surface.github-actions-execution-sandbox
+    @rejection @surface.github-actions-execution-sandbox @proof.pending-vitest
     Scenario: The workflow identity-input boundary matrix is complete
-      Given a test-owned literal manifest crosses request token, target SHA, target ref, target-ref digest and lane with omission, empty string, wrong JSON type, first-short, first-long, noncanonical character or encoding, equal duplicate and unequal duplicate where applicable
+      Given a literal manifest crosses every workflow identity field with each applicable boundary defect
+      And those defects cover omission, emptiness, type, length, encoding, and duplicate values
       When an independent raw-event generator compares its fixture IDs with validator executions without importing production parser tables
       Then expected field-by-boundary ID set and cardinality equal generated and executed result sets and cardinalities, every invalid cell fails before checkout, and exactly one canonical control per field is accepted
 

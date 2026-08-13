@@ -22,8 +22,9 @@ import {
   type CodexHostProcessIdentity,
   writeCodexActivationMarker,
 } from '../../src/codex-plugin/profile-proof.js';
+import { testCliPath } from '../helpers.js';
 
-const CLI_PATH = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
+const CLI_PATH = testCliPath;
 const OLD_HOST: CodexHostProcessIdentity = {
   pid: 9001,
   started_at: '2026-08-03T00:00:00.000Z',

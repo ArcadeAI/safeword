@@ -17,6 +17,7 @@ import vitestConfig from '../../vitest.config.js';
 import { TIMEOUT_ACCEPTANCE_LANE } from '../helpers.js';
 
 const CLI_DIRECTORY = nodePath.resolve(import.meta.dirname, '../..');
+const REPO_ROOT = nodePath.resolve(CLI_DIRECTORY, '../..');
 const CUCUMBER_WIRING_CHECK_ARGS = ['cucumber-js', '--dry-run', '--format', 'summary'];
 
 // spawnSync blocks the event loop, so Vitest's outer TIMEOUT_ACCEPTANCE_LANE
@@ -101,6 +102,51 @@ describe('cucumber-js acceptance lane (SM1.AC1)', () => {
         // (undefined — the fixture ships no step definitions); R2's scenario is
         // filtered out entirely, so the total is 2, not 3.
         expect(output).toMatch(/\b2 scenarios? \(2 undefined\)/);
+      } finally {
+        rmSync(fixtureDirectory, { recursive: true, force: true });
+      }
+    },
+    TIMEOUT_ACCEPTANCE_LANE,
+  );
+
+  it(
+    'executable-offload-bdd.SWM1.R1.real_lane_selects_graduated_Rule_and_excludes_wip_Rule',
+    () => {
+      const fixtureDirectory = mkdtempSync(nodePath.join(nodeOs.tmpdir(), 'offload-proof-'));
+      try {
+        const featurePath = nodePath.join(fixtureDirectory, 'offload.feature');
+        writeFileSync(
+          featurePath,
+          [
+            'Feature: Remote execution',
+            '',
+            '  @proof.cucumber @offload-tests.TBU1.R1',
+            '  Rule: offload-tests.TBU1.R1 — Remote execution is explicit',
+            '',
+            '    Scenario: Remote execution starts',
+            '      Given a deliberately undefined offload graduation step',
+            '',
+            '  @wip @offload-tests.TBU1.R2',
+            '  Rule: offload-tests.TBU1.R2 — Pending execution remains excluded',
+            '',
+            '    Scenario: Pending remote execution',
+            '      Given a deliberately undefined pending offload step',
+            '',
+          ].join('\n'),
+        );
+
+        const result = spawnSync('bunx', ['cucumber-js', '--format', 'summary', featurePath], {
+          ...CUCUMBER_SPAWN_OPTIONS,
+          cwd: REPO_ROOT,
+        });
+
+        const output = combinedOutput(result);
+        expect(result.status, output).toBe(1);
+        expect(output).not.toContain('Configuration error');
+        expect(output).not.toContain('Parse error');
+        expect(output).toMatch(/\b1 scenario \(1 undefined\)/);
+        expect(output).toContain('a deliberately undefined offload graduation step');
+        expect(output).not.toContain('a deliberately undefined pending offload step');
       } finally {
         rmSync(fixtureDirectory, { recursive: true, force: true });
       }

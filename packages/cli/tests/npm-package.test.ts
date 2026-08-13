@@ -10,6 +10,8 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { testCliRoot } from './helpers.js';
+
 const __dirname = import.meta.dirname;
 const cliRoot = nodePath.join(__dirname, '..');
 
@@ -23,7 +25,7 @@ describe('NPM Package Structure', () => {
   });
 
   it('should have dist directory with CLI entry point', () => {
-    const distributionPath = nodePath.join(cliRoot, 'dist');
+    const distributionPath = nodePath.join(testCliRoot, 'dist');
     expect(existsSync(distributionPath)).toBe(true);
     expect(existsSync(nodePath.join(distributionPath, 'cli.js'))).toBe(true);
   });
@@ -104,7 +106,7 @@ describe('NPM Package Structure', () => {
 
   it('should resolve templates from dist context', () => {
     // Simulate the path resolution that getTemplatesDirectory() does
-    const distributionDirectory = nodePath.join(cliRoot, 'dist');
+    const distributionDirectory = nodePath.join(testCliRoot, 'dist');
     const templatesFromDistribution = nodePath.join(distributionDirectory, '..', 'templates');
 
     expect(existsSync(templatesFromDistribution)).toBe(true);
