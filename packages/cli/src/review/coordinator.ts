@@ -11,7 +11,12 @@ import type {
   UnverifiedReviewerOutput,
 } from './contract.js';
 import { prepareReviewPacket } from './packet.js';
-import { oppositeReviewPair, readAlternateReviewerModel, readReviewPolicy } from './policy.js';
+import {
+  oppositeReviewPair,
+  readAlternateReviewerModel,
+  readPrimaryReviewerModel,
+  readReviewPolicy,
+} from './policy.js';
 import { minimumRouteMs, ReviewRuntimeError, runBoundMs, runHeadlessReviewer } from './runtime.js';
 
 /** The command runner owns reporter shutdown; review routing only updates it. */
@@ -21,6 +26,7 @@ type ReviewRunInput = {
   readonly cwd: string;
   readonly kind: ReviewKind;
   readonly targets: readonly string[];
+  readonly context?: readonly string[];
   readonly progress?: ReviewProgress;
 };
 
@@ -62,6 +68,7 @@ function independentReviewResult(input: {
   readonly reviewer: ReviewAgent;
   readonly output: ReviewerOutput;
   readonly model?: string;
+  readonly preferredModel?: string;
   readonly preferredFailure?: ReviewFailure;
 }): CliResult {
   return createResult({
@@ -84,6 +91,7 @@ function independentReviewResult(input: {
       assigned_reviewer: input.reviewer,
       actual_reviewer: input.output.reviewer_agent,
       ...(input.model !== undefined && { reviewer_model: input.model }),
+      ...(input.preferredModel !== undefined && { preferred_model: input.preferredModel }),
       ...(input.preferredFailure !== undefined && { preferred_failure: input.preferredFailure }),
       independence: 'cross-agent',
       reviewer_output: input.output,
@@ -171,12 +179,18 @@ function shellQuote(value: string): string {
   return `'${escaped}'`;
 }
 
-function retryCommand(kind: ReviewKind, targets: readonly string[]): string {
+function retryCommand(
+  kind: ReviewKind,
+  targets: readonly string[],
+  context: readonly string[] = [],
+): string {
   // `--` ends option parsing, so a reviewed file named `--help` or `-r` reaches
   // the command as a target rather than as a flag. Shell quoting cannot do this:
   // it is the argument parser, not the shell, that would misread the name.
   const quoted = targets.map(target => shellQuote(target)).join(' ');
-  return `safeword review run ${kind} -- ${quoted}`;
+  const contextOption =
+    context.length === 0 ? '' : ` --context ${context.map(target => shellQuote(target)).join(' ')}`;
+  return `safeword review run ${kind}${contextOption} -- ${quoted}`;
 }
 
 /** How an agent is written for a reader: the product name, not the runtime id. */
@@ -184,36 +198,26 @@ function agentName(agent: ReviewAgent): string {
   return agent === 'codex' ? 'Codex' : 'Claude';
 }
 
+const FAILURE_CAUSES: Readonly<Record<string, string>> = {
+  timed_out: 'ran out of time',
+  not_installed: 'was not found on PATH',
+  unsupported: 'does not support the required review flags',
+  probe_timed_out: 'did not complete its compatibility check in time',
+  launch_failed: 'could not launch its compatibility check',
+  not_authenticated: 'is not signed in',
+  invalid_output: 'gave an answer that could not be accepted',
+  source_changed: 'was reviewing files that changed underneath it',
+  REVIEWER_PROVENANCE_MISSING: 'gave an answer that did not identify it as the reviewer',
+  REVIEWER_PROVENANCE_CONTRADICTORY: 'gave an answer that did not identify it as the reviewer',
+};
+
 /**
  * What went wrong on one route, in words a reader who cannot see the code can
  * act on. Built only from Safeword's own classification — never from anything
  * the reviewer printed, which may carry credentials or a rejected answer.
  */
 function causePhrase(failure: string): string {
-  switch (failure) {
-    case 'timed_out': {
-      return 'ran out of time';
-    }
-    case 'not_installed': {
-      return 'is not installed, or is too old to be used';
-    }
-    case 'not_authenticated': {
-      return 'is not signed in';
-    }
-    case 'invalid_output': {
-      return 'gave an answer that could not be accepted';
-    }
-    case 'source_changed': {
-      return 'was reviewing files that changed underneath it';
-    }
-    case 'REVIEWER_PROVENANCE_MISSING':
-    case 'REVIEWER_PROVENANCE_CONTRADICTORY': {
-      return 'gave an answer that did not identify it as the reviewer';
-    }
-    default: {
-      return 'could not be run';
-    }
-  }
+  return FAILURE_CAUSES[failure] ?? 'could not be run';
 }
 
 /** One sentence per attempted route, each naming its own cause. */
@@ -221,12 +225,14 @@ function exhaustedExplanation(
   routes: readonly {
     readonly agent: ReviewAgent;
     readonly role: string;
+    readonly model?: string;
     readonly failure: string;
   }[],
 ): string {
-  const sentences = routes.map(
-    route => `The ${route.role} (${agentName(route.agent)}) ${causePhrase(route.failure)}.`,
-  );
+  const sentences = routes.map(route => {
+    const modelPhrase = route.model === undefined ? '' : ` using ${route.model}`;
+    return `The ${route.role}${modelPhrase} (${agentName(route.agent)}) ${causePhrase(route.failure)}.`;
+  });
   return [...sentences, 'No independent check was recorded.'].join(' ');
 }
 
@@ -234,6 +240,10 @@ function exhaustedExplanation(
 function nextStepFor(reviewer: ReviewAgent, failure: ReviewFailure): string {
   const name = agentName(reviewer);
   if (failure === 'not_installed') return `Install or update ${name}, then run the review again.`;
+  if (failure === 'unsupported') return `Update ${name}, then run the review again.`;
+  if (failure === 'probe_timed_out') return `Run ${name} --help to diagnose it, then retry review.`;
+  if (failure === 'launch_failed')
+    return `Run ${name} --help and fix its launch failure, then retry review.`;
   if (failure === 'not_authenticated') return `Sign in to ${name}, then run the review again.`;
   return 'Run the review again.';
 }
@@ -260,6 +270,7 @@ function unsupportedAuthorResult(input: {
   readonly policy: ReviewPolicy;
   readonly kind: ReviewKind;
   readonly targets: readonly string[];
+  readonly context?: readonly string[];
 }): CliResult {
   return createResult({
     state: 'action_required',
@@ -274,7 +285,7 @@ function unsupportedAuthorResult(input: {
       input.policy === 'require'
         ? [
             {
-              command: retryCommand(input.kind, input.targets),
+              command: retryCommand(input.kind, input.targets, input.context),
               description: 'Run this review in an environment with a usable independent reviewer.',
               requiresHuman: true,
             },
@@ -296,6 +307,7 @@ function changedReviewResult(input: {
   readonly policy: ReviewPolicy;
   readonly kind: ReviewKind;
   readonly targets: readonly string[];
+  readonly context?: readonly string[];
   readonly sourceChanged: boolean;
   readonly snapshotChanged: boolean;
   readonly network?: readonly Effect[];
@@ -342,7 +354,7 @@ function changedReviewResult(input: {
     },
     recovery: [
       {
-        command: retryCommand(input.kind, input.targets),
+        command: retryCommand(input.kind, input.targets, input.context),
         description: 'Retry the independent review against the current source.',
         requiresHuman: false,
       },
@@ -358,10 +370,20 @@ function changedReviewResult(input: {
   });
 }
 
-function alternateFailureData(
-  failure: string | undefined,
-): Record<string, never> | { readonly alternate_model_failure: string } {
-  return failure === undefined ? {} : { alternate_model_failure: failure };
+function routeFailureData(input: {
+  readonly preferredFailure: ReviewFailure;
+  readonly preferredModel?: string;
+  readonly alternateFailure?: string;
+  readonly alternateModel?: string;
+}): Record<string, unknown> {
+  return {
+    ...(input.preferredModel !== undefined && { preferred_model: input.preferredModel }),
+    preferred_failure: input.preferredFailure,
+    ...(input.alternateFailure !== undefined && {
+      alternate_model_failure: input.alternateFailure,
+      ...(input.alternateModel !== undefined && { alternate_model: input.alternateModel }),
+    }),
+  };
 }
 
 function degradedNetworkEffects(
@@ -385,7 +407,7 @@ function preparePrimaryReview(
 ): ReturnType<typeof prepareReviewPacket> {
   const name = agentName(reviewer);
   input.progress?.start(`Preparing the review packet for ${name}…`);
-  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets);
+  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets, input.context);
   input.progress?.start(`Requesting an independent ${name} review…`);
   input.progress?.heartbeat?.(`Still waiting for a response from ${name}…`);
   return prepared;
@@ -400,7 +422,7 @@ function prepareFallbackReview(
   input.progress?.start(
     `${agentName(assignedReviewer)} did not complete; trying a ${fallbackName} fallback…`,
   );
-  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets);
+  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets, input.context);
   input.progress?.heartbeat?.(`Still waiting for a response from the ${fallbackName} fallback…`);
   return prepared;
 }
@@ -409,10 +431,12 @@ async function runDegradedFallback(
   input: ReviewRunInput & {
     readonly author: ReviewAgent;
     readonly assignedReviewer: ReviewAgent;
+    readonly preferredModel?: string;
     readonly preferredFailure: ReviewFailure;
     readonly policy: ReviewPolicy;
     readonly runDeadline: number;
     readonly alternateFailure?: string;
+    readonly alternateModel?: string;
   },
 ): Promise<CliResult> {
   const prepared = prepareFallbackReview(input, input.assignedReviewer, input.author);
@@ -428,6 +452,7 @@ async function runDegradedFallback(
     policy: input.policy,
     kind: input.kind,
     targets: input.targets,
+    context: input.context,
     sourceChanged,
     snapshotChanged,
     network: degradedNetworkEffects(
@@ -448,6 +473,7 @@ async function runDegradedFallback(
             {
               agent: input.assignedReviewer,
               role: 'independent reviewer',
+              model: input.preferredModel,
               failure: input.preferredFailure,
             },
             ...(input.alternateFailure === undefined
@@ -456,6 +482,7 @@ async function runDegradedFallback(
                   {
                     agent: input.assignedReviewer,
                     role: 'same reviewer on its alternate model',
+                    model: input.alternateModel,
                     failure: input.alternateFailure,
                   },
                 ]),
@@ -473,7 +500,7 @@ async function runDegradedFallback(
       },
       recovery: [
         {
-          command: retryCommand(input.kind, input.targets),
+          command: retryCommand(input.kind, input.targets, input.context),
           description: nextStepFor(input.assignedReviewer, input.preferredFailure),
           requiresHuman: true,
         },
@@ -483,8 +510,7 @@ async function runDegradedFallback(
         status: 'blocked',
         author_agent: input.author,
         assigned_reviewer: input.assignedReviewer,
-        preferred_failure: input.preferredFailure,
-        ...alternateFailureData(input.alternateFailure),
+        ...routeFailureData(input),
         fallback_failure: assessment.failure,
         review_policy: input.policy,
         independence: 'none',
@@ -513,7 +539,7 @@ async function runDegradedFallback(
       },
       recovery: [
         {
-          command: retryCommand(input.kind, input.targets),
+          command: retryCommand(input.kind, input.targets, input.context),
           description: `Restore the ${agentName(input.assignedReviewer)} reviewer, then retry the independent review.`,
           requiresHuman: true,
         },
@@ -524,8 +550,7 @@ async function runDegradedFallback(
         author_agent: input.author,
         assigned_reviewer: input.assignedReviewer,
         actual_reviewer: completedOutput.reviewer_agent,
-        preferred_failure: input.preferredFailure,
-        ...alternateFailureData(input.alternateFailure),
+        ...routeFailureData(input),
         review_policy: input.policy,
         independence: 'degraded',
         reviewer_output: completedOutput,
@@ -560,8 +585,7 @@ async function runDegradedFallback(
       author_agent: input.author,
       assigned_reviewer: input.assignedReviewer,
       actual_reviewer: completedOutput.reviewer_agent,
-      preferred_failure: input.preferredFailure,
-      ...alternateFailureData(input.alternateFailure),
+      ...routeFailureData(input),
       independence: 'degraded',
       reviewer_output: completedOutput,
     },
@@ -578,13 +602,19 @@ async function runAlternateModelRoute(
   input: ReviewRunInput & {
     readonly author: ReviewAgent;
     readonly reviewer: ReviewAgent;
+    readonly preferredModel?: string;
     readonly preferredFailure: ReviewFailure;
     readonly policy: ReviewPolicy;
     readonly runDeadline: number;
   },
 ): Promise<
   | { readonly kind: 'completed'; readonly result: CliResult }
-  | { readonly kind: 'failed'; readonly failure: string; readonly terminal: boolean }
+  | {
+      readonly kind: 'failed';
+      readonly failure: string;
+      readonly terminal: boolean;
+      readonly model: string;
+    }
   | { readonly kind: 'skipped' }
 > {
   const model = readAlternateReviewerModel(input.cwd, input.reviewer);
@@ -593,7 +623,7 @@ async function runAlternateModelRoute(
   input.progress?.start(
     `Trying ${agentName(input.reviewer)} again with the configured alternate model…`,
   );
-  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets);
+  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets, input.context);
   input.progress?.heartbeat?.(
     `Still waiting for ${agentName(input.reviewer)} on the alternate model…`,
   );
@@ -609,6 +639,7 @@ async function runAlternateModelRoute(
     policy: input.policy,
     kind: input.kind,
     targets: input.targets,
+    context: input.context,
     sourceChanged,
     snapshotChanged,
     network: independentNetworkEffects(input.reviewer, true),
@@ -619,8 +650,9 @@ async function runAlternateModelRoute(
     // A configured model is not a usable route when no installed candidate
     // advertises model selection. Capability rejection is a skip, not a review
     // attempt or failure, so it must not displace the funded fallback route.
-    if (assessment.failure === 'not_installed') return { kind: 'skipped' };
-    return assessment;
+    if (assessment.failure === 'not_installed' || assessment.failure === 'unsupported')
+      return { kind: 'skipped' };
+    return { ...assessment, model };
   }
   const output = assessment.output;
 
@@ -629,6 +661,7 @@ async function runAlternateModelRoute(
     reviewer: input.reviewer,
     output,
     model,
+    preferredModel: input.preferredModel,
     preferredFailure: input.preferredFailure,
   });
   return { kind: 'completed', result };
@@ -642,6 +675,7 @@ async function runRemainingRoutes(
   input: ReviewRunInput & {
     readonly author: ReviewAgent;
     readonly assignedReviewer: ReviewAgent;
+    readonly preferredModel?: string;
     readonly preferredFailure: ReviewFailure;
     readonly policy: ReviewPolicy;
     readonly runDeadline: number;
@@ -651,8 +685,11 @@ async function runRemainingRoutes(
     cwd: input.cwd,
     kind: input.kind,
     targets: input.targets,
+    context: input.context,
+    progress: input.progress,
     author: input.author,
     reviewer: input.assignedReviewer,
+    preferredModel: input.preferredModel,
     preferredFailure: input.preferredFailure,
     policy: input.policy,
     runDeadline: input.runDeadline,
@@ -661,22 +698,28 @@ async function runRemainingRoutes(
   // An attempted-and-failed alternate model is part of the story; a skipped one
   // never happened and must not be reported as a route that failed.
   const alternateFailure = alternate.kind === 'failed' ? alternate.failure : undefined;
+  const alternateModel = alternate.kind === 'failed' ? alternate.model : undefined;
   if (alternate.kind === 'failed' && alternate.terminal) {
-    return exhaustedRunResult({ ...input, alternateFailure });
+    return exhaustedRunResult({ ...input, alternateFailure, alternateModel });
   }
-  if (!canFundRoute(input.runDeadline)) return exhaustedRunResult({ ...input, alternateFailure });
-  return runDegradedFallback({ ...input, alternateFailure });
+  if (!canFundRoute(input.runDeadline)) {
+    return exhaustedRunResult({ ...input, alternateFailure, alternateModel });
+  }
+  return runDegradedFallback({ ...input, alternateFailure, alternateModel });
 }
 
 /** The run bound arrived before a later route could be funded. */
 function exhaustedRunResult(input: {
   readonly author: ReviewAgent;
   readonly assignedReviewer: ReviewAgent;
+  readonly preferredModel?: string;
   readonly preferredFailure: ReviewFailure;
   readonly kind: ReviewKind;
   readonly targets: readonly string[];
+  readonly context?: readonly string[];
   readonly policy: ReviewPolicy;
   readonly alternateFailure?: string;
+  readonly alternateModel?: string;
 }): CliResult {
   return createResult({
     state: 'action_required',
@@ -687,6 +730,7 @@ function exhaustedRunResult(input: {
           {
             agent: input.assignedReviewer,
             role: 'independent reviewer',
+            model: input.preferredModel,
             failure: input.preferredFailure,
           },
           ...(input.alternateFailure === undefined
@@ -695,6 +739,7 @@ function exhaustedRunResult(input: {
                 {
                   agent: input.assignedReviewer,
                   role: 'same reviewer on its alternate model',
+                  model: input.alternateModel,
                   failure: input.alternateFailure,
                 },
               ]),
@@ -710,7 +755,7 @@ function exhaustedRunResult(input: {
     },
     recovery: [
       {
-        command: retryCommand(input.kind, input.targets),
+        command: retryCommand(input.kind, input.targets, input.context),
         description: nextStepFor(input.assignedReviewer, input.preferredFailure),
         requiresHuman: true,
       },
@@ -720,8 +765,7 @@ function exhaustedRunResult(input: {
       status: 'blocked',
       author_agent: input.author,
       assigned_reviewer: input.assignedReviewer,
-      preferred_failure: input.preferredFailure,
-      ...alternateFailureData(input.alternateFailure),
+      ...routeFailureData(input),
       review_policy: input.policy,
       independence: 'none',
     },
@@ -752,9 +796,16 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
   }
   const pair = oppositeReviewPair(author);
   if (pair === undefined) {
-    return unsupportedAuthorResult({ author, policy, kind: input.kind, targets: input.targets });
+    return unsupportedAuthorResult({
+      author,
+      policy,
+      kind: input.kind,
+      targets: input.targets,
+      context: input.context,
+    });
   }
   const { reviewer } = pair;
+  const primaryModel = readPrimaryReviewerModel(input.cwd, reviewer);
 
   const prepared = preparePrimaryReview(input, reviewer);
   // One bound for reviewer work across the whole run. Initial packet sealing is
@@ -763,7 +814,7 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
   const { outcome, sourceChanged, snapshotChanged } = await executeReview(
     reviewer,
     prepared,
-    undefined,
+    primaryModel,
     runDeadline,
   );
   const changedResult = changedReviewResult({
@@ -772,6 +823,7 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
     policy,
     kind: input.kind,
     targets: input.targets,
+    context: input.context,
     sourceChanged,
     snapshotChanged,
   });
@@ -782,6 +834,7 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
         ...input,
         author: pair.author,
         assignedReviewer: reviewer,
+        preferredModel: primaryModel,
         preferredFailure: outcome.failure,
         policy,
       });
@@ -793,6 +846,7 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
       ...input,
       author: pair.author,
       assignedReviewer: reviewer,
+      preferredModel: primaryModel,
       preferredFailure: outcome.failure,
       policy,
       runDeadline,
@@ -807,12 +861,13 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
       ...input,
       author: pair.author,
       assignedReviewer: reviewer,
-      preferredFailure: 'invalid_output',
+      preferredModel: primaryModel,
+      preferredFailure: provenance.code,
       policy,
       runDeadline,
     });
   }
   const output = provenance.output;
 
-  return independentReviewResult({ author: pair.author, reviewer, output });
+  return independentReviewResult({ author: pair.author, reviewer, output, model: primaryModel });
 }

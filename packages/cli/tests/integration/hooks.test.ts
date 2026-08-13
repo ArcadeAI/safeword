@@ -161,9 +161,10 @@ function createMultiMessageTranscript(
 function runStopHook(
   targetDirectory: string,
   transcriptPath: string,
+  overrides: { session_id?: string; last_assistant_message?: string } = {},
 ): { stdout: string; stderr: string; exitCode: number } {
   const result = spawnSync('bun', ['.safeword/hooks/stop-quality.ts'], {
-    input: JSON.stringify({ transcript_path: transcriptPath }),
+    input: JSON.stringify({ transcript_path: transcriptPath, ...overrides }),
     cwd: targetDirectory,
     env: { ...process.env, CLAUDE_PROJECT_DIR: targetDirectory },
     encoding: 'utf8',
@@ -349,7 +350,7 @@ describe('E2E: SessionStart Hooks', () => {
         encoding: 'utf8',
       });
 
-      expect(output).toContain('SAFE WORD');
+      expect(output).toContain('Safeword');
       expect(output).toContain('installed');
       expect(output).toMatch(/v\d+\.\d+\.\d+/); // Version format
     });
@@ -1205,6 +1206,79 @@ describe('E2E: Phase-Aware Quality Review', () => {
 
 describe('E2E: Stop Hook', () => {
   describe('stop-quality.ts', () => {
+    it('returns the concise correction through the installed Stop entry point', () => {
+      const transcriptPath = createMultiMessageTranscript(shared.projectDirectory, [
+        { text: 'Let me edit that file.', toolUse: 'Edit' },
+      ]);
+
+      const result = runStopHook(shared.projectDirectory, transcriptPath, {
+        last_assistant_message: 'Implemented and checked the requested change.',
+      });
+      const output = parseStopOutput(result);
+
+      expect(result.exitCode).toBe(0);
+      expect(output.decision).toBe('block');
+      expect(output.reason).toContain('no recognized verdict');
+      expect(output.reason).not.toContain('Apply SAFEWORD.md');
+      expect(output.reason).not.toContain('Phase: implement');
+    });
+
+    it('repairs a null quality-state root so the next Stop review is deduplicated', () => {
+      const sessionId = 'malformed-root-review';
+      const statePath = `.project/quality-state-${sessionId}.json`;
+      const transcriptPath = createMultiMessageTranscript(shared.projectDirectory, [
+        { text: 'Let me edit that file.', toolUse: 'Edit' },
+      ]);
+      writeTestFile(shared.projectDirectory, statePath, 'null');
+
+      try {
+        const first = runStopHook(shared.projectDirectory, transcriptPath, {
+          session_id: sessionId,
+          last_assistant_message: 'Implemented and checked the requested change.',
+        });
+        const repairedState = JSON.parse(readTestFile(shared.projectDirectory, statePath));
+        const second = runStopHook(shared.projectDirectory, transcriptPath, {
+          session_id: sessionId,
+          last_assistant_message: 'Implemented and checked the requested change.',
+        });
+
+        expect(parseStopOutput(first).decision).toBe('block');
+        expect(repairedState).toMatchObject({ stopQualityReviewAwaitingUserPrompt: true });
+        expect(second.exitCode).toBe(0);
+        expect(second.stdout.trim()).toBe('');
+      } finally {
+        rmSync(`${shared.projectDirectory}/${statePath}`, { force: true });
+      }
+    });
+
+    it('repairs malformed quality-state JSON so the next Stop review is deduplicated', () => {
+      const sessionId = 'malformed-json-review';
+      const statePath = `.project/quality-state-${sessionId}.json`;
+      const transcriptPath = createMultiMessageTranscript(shared.projectDirectory, [
+        { text: 'Let me edit that file.', toolUse: 'Edit' },
+      ]);
+      writeTestFile(shared.projectDirectory, statePath, '{not valid json');
+
+      try {
+        const first = runStopHook(shared.projectDirectory, transcriptPath, {
+          session_id: sessionId,
+          last_assistant_message: 'Implemented and checked the requested change.',
+        });
+        const repairedState = JSON.parse(readTestFile(shared.projectDirectory, statePath));
+        const second = runStopHook(shared.projectDirectory, transcriptPath, {
+          session_id: sessionId,
+          last_assistant_message: 'Implemented and checked the requested change.',
+        });
+
+        expect(parseStopOutput(first).decision).toBe('block');
+        expect(repairedState).toMatchObject({ stopQualityReviewAwaitingUserPrompt: true });
+        expect(second.exitCode).toBe(0);
+        expect(second.stdout.trim()).toBe('');
+      } finally {
+        rmSync(`${shared.projectDirectory}/${statePath}`, { force: true });
+      }
+    });
+
     it('triggers quality review when edit tools are used', () => {
       const transcriptPath = createMultiMessageTranscript(shared.projectDirectory, [
         { text: 'Let me edit that file.', toolUse: 'Edit' },

@@ -160,7 +160,7 @@ may miss issues, and is not merge-safety evidence.
 
 Install auto-detects your stack. A TypeScript project won't get Go (beta), Python (beta), Rust (beta), or SQL/dbt (beta) tooling.
 
-Claude Code delivery is separate from project reconciliation. `safeword install --agents=claude` defaults to project scope and records Claude's marketplace and plugin activation in `.claude/settings.json`; `--scope user` activates the same cached plugin across projects. Eligible stable declarations use the verified `stable` channel and opt into Claude's native marketplace updater. An explicit `autoUpdate: false` remains authoritative. Fresh install does not create legacy Safe Word-owned Claude hooks or skills.
+Claude Code delivery is separate from project reconciliation. `safeword install --agents=claude` defaults to project scope and records Claude's marketplace and plugin activation in `.claude/settings.json`; `--scope user` activates the same cached plugin across projects. Eligible stable declarations use the verified `stable` channel and opt into Claude's native marketplace updater. An explicit `autoUpdate: false` remains authoritative. Fresh install does not create legacy Safeword-owned Claude hooks or skills.
 
 ## Claude Code plugin
 
@@ -326,7 +326,7 @@ Safeword manages two types of files:
 
 ### safeword install --agents=codex
 
-Install the Safe Word plugin into the active Codex profile and verify Codex reports it enabled from the verified `stable` channel. This explicit command is useful for immediate enrollment; ordinary install also commits a project SessionStart bootstrap that performs the same profile-only enrollment for each collaborator. Restart Codex after installation and start a new task to load one coherent skills-and-hooks catalogue.
+Install the Safeword plugin into the active Codex profile and verify Codex reports it enabled from the verified `stable` channel. This explicit command is useful for immediate enrollment; ordinary install also commits a project SessionStart bootstrap that performs the same profile-only enrollment for each collaborator. Restart Codex after installation and start a new task to load one coherent skills-and-hooks catalogue.
 
 ```bash
 bunx safeword@latest install --agents=codex
@@ -369,7 +369,7 @@ and restart the Codex application before checking activation again.
 
 ### safeword codex clean-guidance
 
-Preview destructive deactivation of recognized legacy Safe Word profile
+Preview destructive deactivation of recognized legacy Safeword profile
 guidance while preserving unrelated profile content and a recovery backup:
 
 ```bash
@@ -407,7 +407,7 @@ The preview includes the exact paths, removed config blocks, immutable plan
 identity, and a copyable apply command. Safeword rejects the apply if any
 planned repository input changed after preview. Finalization requires current
 hook-execution proof. It backs up the complete
-pre-migration state, removes only the finite Safe Word-owned legacy inventory,
+pre-migration state, removes only the finite Safeword-owned legacy inventory,
 preserves custom Codex content, records plugin mode, and installs a concise
 repository bootstrap for teammates without the profile plugin.
 

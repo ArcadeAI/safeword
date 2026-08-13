@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, statSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -52,6 +52,20 @@ describe('CLI plan protocol', () => {
     });
 
     expect(unreadable).not.toBe(absent);
+  });
+
+  it('frames directory names and file contents unambiguously in plan preconditions', () => {
+    const first = createTemporaryDirectory();
+    const second = createTemporaryDirectory();
+    mkdirSync(nodePath.join(first, 'state'));
+    mkdirSync(nodePath.join(second, 'state'));
+    writeFileSync(nodePath.join(first, 'state/a'), 'placeholder');
+    const fileMode = statSync(nodePath.join(first, 'state/a')).mode.toString();
+    writeFileSync(nodePath.join(first, 'state/a'), `${fileMode}x`);
+    writeFileSync(nodePath.join(second, `state/a${fileMode}`), 'x');
+    const actions = [{ type: 'rm', path: 'state' }] as const;
+
+    expect(preconditionDigest(first, actions)).not.toBe(preconditionDigest(second, actions));
   });
 
   it('normalizes every effect category even when empty', () => {

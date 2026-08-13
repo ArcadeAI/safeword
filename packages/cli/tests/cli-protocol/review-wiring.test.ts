@@ -26,6 +26,10 @@ if [ "$#" -gt 0 ] && [ "$1" = "--version" ]; then
   exit 0
 fi
 if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then
+  help_failure=$(printenv SAFEWORD_REVIEW_FAKE_HELP_FAILURE || true)
+  if [ "$help_failure" = "unsupported" ]; then printf '%s\n' '--json'; exit 0; fi
+  if [ "$help_failure" = "timeout" ]; then /bin/sleep 1; fi
+  if [ "$help_failure" = "launch" ]; then printf 'probe failed\n' >&2; exit 7; fi
   help_mutate=$(printenv SAFEWORD_REVIEW_HELP_MUTATE || true)
   if [ "$help_mutate" = "1" ]; then printf 'probe mutation\n' > review-input.md; fi
   swap_alias=$(printenv SAFEWORD_REVIEW_SWAP_ALIAS || true)
@@ -50,6 +54,10 @@ if [ "$failure" = "auth" ] && { [ -z "$failure_agent" ] || [ "$failure_agent" = 
   exit 1
 fi
 payload=$(cat)
+prompt_log=$(printenv SAFEWORD_REVIEW_PROMPT_LOG || true)
+model_prompt_log=$(printenv SAFEWORD_REVIEW_MODEL_PROMPT_LOG || true)
+if [ -n "$model_prompt_log" ] && printf '%s' "$*" | /usr/bin/grep -q -- '--model'; then prompt_log="$model_prompt_log"; fi
+if [ -n "$prompt_log" ]; then printf '%s' "$payload" > "$prompt_log"; fi
 dispatch_id=$(printf '%s' "$payload" | sed -n 's/.*"dispatch_id":"\([^"]*\)".*/\1/p')
 if [ "$delay_agent" = "${agent}" ]; then /bin/sleep 1; fi
 if { [ -z "$failure_agent" ] || [ "$failure_agent" = "${agent}" ]; } && { [ -z "$failure_path" ] || printf '%s' "$0" | /usr/bin/grep -q "$failure_path"; }; then
@@ -112,6 +120,46 @@ function installIncompatibleReviewer(directory: string, agent: ReviewAgent, log:
 }
 
 describe('cross-agent review public-command wiring', () => {
+  it('marks supporting context separately from review targets through the public CLI', async () => {
+    const directory = createTemporaryDirectory();
+    const reviewLog = nodePath.join(directory, 'review.log');
+    const promptLog = nodePath.join(directory, 'prompt.log');
+    writeFileSync(nodePath.join(directory, 'target.md'), 'review this\n');
+    writeFileSync(nodePath.join(directory, 'context.md'), 'supporting evidence\n');
+    const bin = installFakeReviewer(directory, 'claude');
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'target.md',
+        '--context',
+        'context.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'codex',
+          SAFEWORD_REVIEW_LOG: reviewLog,
+          SAFEWORD_REVIEW_PROMPT_LOG: promptLog,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode, result.stdout).toBe(0);
+    const prompt = readFileSync(promptLog, 'utf8');
+    expect(prompt).toContain('"logical_files":[{"path":"target.md"');
+    expect(prompt).toContain('"context_files":[{"path":"context.md"');
+    expect(prompt).toContain('supporting context, not work under review');
+  });
+
   it.each([
     { author: 'claude', reviewer: 'codex' },
     { author: 'codex', reviewer: 'claude' },
@@ -455,9 +503,12 @@ describe('cross-agent review public-command wiring', () => {
     });
   });
 
-  it.each([{ identity: 'missing' }, { identity: 'contradictory' }])(
+  it.each([
+    { identity: 'missing', failure: 'REVIEWER_PROVENANCE_MISSING' },
+    { identity: 'contradictory', failure: 'REVIEWER_PROVENANCE_CONTRADICTORY' },
+  ])(
     'rejects $identity reviewer provenance and continues through the bounded fallback routes',
-    async ({ identity }) => {
+    async ({ identity, failure }) => {
       const directory = createTemporaryDirectory();
       const log = nodePath.join(directory, 'review.log');
       writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
@@ -492,7 +543,7 @@ describe('cross-agent review public-command wiring', () => {
         state: 'action_required',
         findings: [{ code: 'REVIEW_ROUTES_EXHAUSTED' }],
         data: {
-          preferred_failure: 'invalid_output',
+          preferred_failure: failure,
           review_policy: 'prefer',
           independence: 'none',
         },
@@ -813,7 +864,7 @@ describe('cross-agent review public-command wiring', () => {
             SAFEWORD_AGENT_RUNTIME: 'claude',
             SAFEWORD_REVIEW_FAKE_FAILURE: failure,
             SAFEWORD_REVIEW_LOG: log,
-            SAFEWORD_REVIEW_TIMEOUT_MS: failure === 'timeout' ? '250' : '5000',
+            SAFEWORD_REVIEW_TIMEOUT_MS: failure === 'timeout' ? '750' : '5000',
             SAFEWORD_NO_UPDATE_CHECK: '1',
           },
         },
@@ -831,6 +882,67 @@ describe('cross-agent review public-command wiring', () => {
         },
       });
       expect(JSON.parse(result.stdout).recovery).toHaveLength(1);
+    },
+  );
+
+  it.each([
+    {
+      failure: 'unsupported',
+      classification: 'unsupported',
+      action: 'Update Codex, then run the review again.',
+    },
+    {
+      failure: 'timeout',
+      classification: 'probe_timed_out',
+      action: 'Run Codex --help to diagnose it, then retry review.',
+    },
+    {
+      failure: 'launch',
+      classification: 'launch_failed',
+      action: 'Run Codex --help and fix its launch failure, then retry review.',
+    },
+  ])(
+    'reports a $classification capability failure through the public CLI',
+    async ({ failure, classification, action }) => {
+      const directory = createTemporaryDirectory();
+      const log = nodePath.join(directory, 'review.log');
+      writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+      const bin = installFakeReviewer(directory, 'codex');
+
+      const result = await runCli(
+        [
+          'review',
+          'run',
+          'quality-review',
+          'review-input.md',
+          '--json',
+          '--no-input',
+          '--cwd',
+          directory,
+        ],
+        {
+          cwd: directory,
+          env: {
+            PATH: `${bin}:/usr/bin:/bin`,
+            SAFEWORD_AGENT_RUNTIME: 'claude',
+            SAFEWORD_REVIEW_FAKE_HELP_FAILURE: failure,
+            SAFEWORD_REVIEW_LOG: log,
+            SAFEWORD_REVIEW_TIMEOUT_MS: failure === 'timeout' ? '750' : '5000',
+            SAFEWORD_NO_UPDATE_CHECK: '1',
+          },
+        },
+      );
+
+      expect(result.exitCode).toBe(2);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        state: 'action_required',
+        recovery: [{ description: action }],
+        data: {
+          status: 'blocked',
+          preferred_failure: classification,
+          independence: 'none',
+        },
+      });
     },
   );
 
@@ -883,12 +995,14 @@ describe('cross-agent review public-command wiring', () => {
   it('records an attempted alternate-model failure before a degraded fallback', async () => {
     const directory = createTemporaryDirectory();
     const log = nodePath.join(directory, 'review.log');
+    const alternatePromptLog = nodePath.join(directory, 'alternate-prompt.log');
     mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
     writeFileSync(
       nodePath.join(directory, '.safeword', 'config.json'),
       JSON.stringify({ crossAgentReviewAlternateModel: { codex: 'vendor-model-2' } }),
     );
     writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+    writeFileSync(nodePath.join(directory, 'context.md'), 'supporting evidence\n');
     const bin = installFakeReviewer(directory, 'codex');
     installFakeReviewer(directory, 'claude');
 
@@ -898,6 +1012,8 @@ describe('cross-agent review public-command wiring', () => {
         'run',
         'quality-review',
         'review-input.md',
+        '--context',
+        'context.md',
         '--json',
         '--no-input',
         '--cwd',
@@ -911,6 +1027,7 @@ describe('cross-agent review public-command wiring', () => {
           SAFEWORD_REVIEW_FAKE_FAILURE: 'process',
           SAFEWORD_REVIEW_FAKE_FAILURE_AGENT: 'codex',
           SAFEWORD_REVIEW_LOG: log,
+          SAFEWORD_REVIEW_MODEL_PROMPT_LOG: alternatePromptLog,
           SAFEWORD_NO_UPDATE_CHECK: '1',
         },
       },
@@ -929,11 +1046,15 @@ describe('cross-agent review public-command wiring', () => {
       data: {
         status: 'approved',
         preferred_failure: 'process_failed',
+        alternate_model: 'vendor-model-2',
         alternate_model_failure: 'process_failed',
         independence: 'degraded',
       },
     });
     expect(readFileSync(log, 'utf8')).toBe('codex\ncodex\nclaude\n');
+    expect(readFileSync(alternatePromptLog, 'utf8')).toContain(
+      String.raw`"context_files":[{"path":"context.md","content":"supporting evidence\n"}]`,
+    );
   });
 
   it('skips an alternate-model route when the reviewer does not advertise model selection', async () => {

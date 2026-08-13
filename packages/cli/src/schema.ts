@@ -733,6 +733,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/resolve-namespace-root.ts': {
       template: 'hooks/resolve-namespace-root.ts',
     },
+    '.safeword/hooks/resolve-verify-ticket.ts': {
+      template: 'hooks/resolve-verify-ticket.ts',
+    },
     '.safeword/hooks/resolve-project-knowledge.ts': {
       template: 'hooks/resolve-project-knowledge.ts',
     },
@@ -1497,8 +1500,11 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
         'REPLY_FORMAT_LEAD',
         'REPLY_FORMAT_REMINDER',
         'DECISION_BRIEF_GRAMMAR',
+        'GENERIC_REVIEW_EVIDENCE',
         'renderDecisionBriefContract',
+        'renderDecisionBriefCorrection',
         'evaluateDecisionBriefCompliance',
+        'getQualityEvidence',
       ],
     },
     'packages/cli/templates/doc-templates/test-definitions-feature.md': {

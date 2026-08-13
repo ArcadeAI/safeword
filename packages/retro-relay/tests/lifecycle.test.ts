@@ -165,7 +165,7 @@ describe('schema version four migration', () => {
     database.close();
   });
 
-  it('rolls back every migration mutation when an injected step fails', () => {
+  it('[ORR-028] rolls back every migration mutation when an injected step fails', () => {
     const file = databasePath();
     createVersionOne(file);
 
@@ -194,7 +194,7 @@ describe('schema version four migration', () => {
   });
 
   it.each(['partial', 'newer', 'duplicate-version', 'missing-version'] as const)(
-    'rejects %s schema metadata before use',
+    '[ORR-029] rejects %s schema metadata before use',
     condition => {
       const file = databasePath();
       createVersionOne(file);
@@ -321,7 +321,7 @@ describe('schema version four migration', () => {
 });
 
 describe('durable retry and terminal lifecycle', () => {
-  it('persists due scheduling and exponential backoff across restart', () => {
+  it('[ORR-025] persists due scheduling and exponential backoff across restart', () => {
     const file = databasePath();
     let now = new Date('2026-01-01T00:00:00.000Z');
     let store = RelayStore.open(file, { now: () => now });
@@ -370,7 +370,7 @@ describe('durable retry and terminal lifecycle', () => {
     store.close();
   });
 
-  it('prevents a new dispatch at 24 hours and dead-letters exactly once', () => {
+  it('[ORR-024] [ORR-026] prevents a new dispatch at 24 hours and dead-letters exactly once', () => {
     const file = databasePath();
     const acceptedAt = new Date('2026-01-01T00:00:00.000Z');
     const store = RelayStore.open(file, { now: () => acceptedAt });
@@ -415,7 +415,7 @@ describe('durable retry and terminal lifecycle', () => {
     store.close();
   });
 
-  it('allows exactly one filed or ambiguous winner at the 25-hour CAS boundary', () => {
+  it('[ORR-024] [ORR-027] allows exactly one filed or ambiguous winner at the 25-hour CAS boundary', () => {
     for (const winner of ['filed', 'ambiguous'] as const) {
       const file = databasePath();
       const acceptedAt = new Date('2026-01-01T00:00:00.000Z');
@@ -443,7 +443,7 @@ describe('durable retry and terminal lifecycle', () => {
     }
   });
 
-  it('compacts payload access at 30 days while retaining non-reusable identity', () => {
+  it('[ORR-024] compacts payload access at 30 days while retaining non-reusable identity', () => {
     const file = databasePath();
     const acceptedAt = new Date('2026-01-01T00:00:00.000Z');
     let store = RelayStore.open(file, { now: () => acceptedAt });
@@ -483,7 +483,7 @@ describe('durable retry and terminal lifecycle', () => {
     store.close();
   });
 
-  it('reports lifecycle counts and stable deduplicable alert event IDs', () => {
+  it('[ORR-033] reports lifecycle counts and stable deduplicable alert event IDs', () => {
     const file = databasePath();
     const acceptedAt = new Date('2026-01-01T00:00:00.000Z');
     let store = RelayStore.open(file, { now: () => acceptedAt });
@@ -502,7 +502,7 @@ describe('durable retry and terminal lifecycle', () => {
     store.close();
   });
 
-  it('atomically records an alert when a request becomes immediately ambiguous', () => {
+  it('[ORR-034] atomically records an alert when a request becomes immediately ambiguous', () => {
     const file = databasePath();
     const now = new Date('2026-01-01T00:00:00.000Z');
     const store = RelayStore.open(file, { now: () => now });

@@ -41,6 +41,19 @@ same actor-facing entry point and actor-visible result that the `When` and
 - **Observe the `Then` as the actor-visible result.** Store, editor, or component
   state is supporting evidence; it does not prove a visible UI result, emitted
   CLI output, or external API response.
+- **Assert the result's material values.** A proxy property is not enough: when a
+  `Then` names an actor or typed result, assert those fields in the emitted
+  output. Assert attempt order only when that order is part of the promised
+  behavior.
+- **Prove the whole scenario in its primary test.** Material `Given`, `When`,
+  and `Then` clauses must hold together at the claimed boundary; evidence
+  scattered across separate tests does not prove their interaction.
+- **Preserve timing and cardinality.** If the scenario promises behavior within
+  the same invocation, attempt, or session, a retry or second call is not
+  equivalent proof.
+- **Prove every material outline row.** A `Scenario Outline` is complete only
+  when each behaviorally distinct example traverses the claimed boundary;
+  otherwise narrow the scenario or add the missing proof.
 - **Keep evidence limits explicit.** When the real boundary cannot be automated
   reliably, use the existing `@manual` or `@live` path and perform and record
   that check separately. A tag, skip reason, or narrower automated test does

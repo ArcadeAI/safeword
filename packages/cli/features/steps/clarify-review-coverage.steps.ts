@@ -715,7 +715,14 @@ function reviewerInvocationValidation(agent: 'claude' | 'codex'): string {
     return String.raw`[ "$#" -gt 0 ] && ${predicate} || { printf 'invalid ${agent} review argument at position ${position}\n' >&2; exit 64; }
 shift`;
   });
-  return `${checks.join('\n')}\n[ "$#" -eq 0 ] || { printf 'unexpected extra ${agent} review arguments\\n' >&2; exit 64; }`;
+  const trailingModel =
+    agent === 'claude'
+      ? String.raw`if [ "$#" -gt 0 ]; then
+[ "$#" -eq 2 ] && [ "$1" = "--model" ] && [ -n "$2" ] || { printf 'invalid claude model arguments\n' >&2; exit 64; }
+shift 2
+fi`
+      : '';
+  return `${checks.join('\n')}\n${trailingModel}\n[ "$#" -eq 0 ] || { printf 'unexpected extra ${agent} review arguments\\n' >&2; exit 64; }`;
 }
 
 function shellSingleQuoted(value: string): string {
@@ -880,7 +887,7 @@ function assertBlockedQuietMode(result: CliExecution): void {
   assert.deepEqual(result, {
     stdout:
       'Review incomplete — required independent coverage is unsatisfied.\n' +
-      'The independent reviewer (Claude) could not be run. The fallback review (Codex) could not be run. No independent check was recorded.\n',
+      'The independent reviewer using opus (Claude) could not be run. The same reviewer on its alternate model using sonnet (Claude) could not be run. The fallback review (Codex) could not be run. No independent check was recorded.\n',
     stderr: '',
     exitCode: 2,
   });

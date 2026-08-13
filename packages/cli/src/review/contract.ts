@@ -4,10 +4,15 @@ export type ReviewKind = 'quality-review' | 'scenario-gate' | 'plan-implementati
 export type ReviewPolicy = 'prefer' | 'require' | 'off';
 export type ReviewFailure =
   | 'not_installed'
+  | 'unsupported'
+  | 'probe_timed_out'
+  | 'launch_failed'
   | 'not_authenticated'
   | 'process_failed'
   | 'timed_out'
   | 'invalid_output'
+  | 'REVIEWER_PROVENANCE_MISSING'
+  | 'REVIEWER_PROVENANCE_CONTRADICTORY'
   | 'source_changed';
 
 interface ReviewFinding {
@@ -38,6 +43,11 @@ export interface ReviewPacket {
   readonly dispatch_id: string;
   readonly kind: ReviewKind;
   readonly logical_files: readonly {
+    readonly path: string;
+    readonly content: string;
+  }[];
+  /** Bounded evidence available to the reviewer, but not part of the work product. */
+  readonly context_files?: readonly {
     readonly path: string;
     readonly content: string;
   }[];
