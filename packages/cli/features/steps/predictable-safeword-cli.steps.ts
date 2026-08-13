@@ -145,6 +145,7 @@ function runPublicFixture(
   world: PredictableCliWorld,
   definition: CommandDefinition,
   fixtureKey = definition.name,
+  argv: readonly string[] = definition.fixture.argv,
 ): CommandRun {
   // One directory per command, wiped before each run: distinct paths keep an
   // earlier fixture from changing a later command's preconditions, while a
@@ -164,7 +165,7 @@ function runPublicFixture(
   mkdirSync(cwd, { recursive: true });
   const completed = spawnSync(
     process.execPath,
-    [CLI_PATH, ...definition.fixture.argv, '--json', '--no-input', '--offline', '--cwd', cwd],
+    [CLI_PATH, ...argv, '--json', '--no-input', '--offline', '--cwd', cwd],
     {
       cwd,
       encoding: 'utf8',
@@ -1101,8 +1102,10 @@ When('the user invokes the retained alias', function (this: PredictableCliWorld)
   const run = runPublicFixture(this, definition, legacy);
   assert.equal(run.stderr, '');
   this.protocolResult = JSON.parse(run.stdout) as CliResult;
-  const replacement = assertPresent(definition.compatibility?.replacement);
-  const canonicalRun = runPublicFixture(this, findCommandDefinition(replacement), legacy);
+  const replacement = definition.compatibility?.replacement ?? assertPresent(definition.aliasFor);
+  const fixtureArguments = definition.fixture.argv.slice(legacy.split(' ').length);
+  const canonicalArgv = [...replacement.split(' '), ...fixtureArguments];
+  const canonicalRun = runPublicFixture(this, definition, legacy, canonicalArgv);
   assert.equal(canonicalRun.stderr, '');
   this.canonicalAliasResult = JSON.parse(canonicalRun.stdout) as CliResult;
 });
@@ -1115,6 +1118,10 @@ Then(
     );
     assert.equal(finding?.metadata?.retention, 'indefinite');
     assert.equal(finding?.metadata?.removal_eligible_after, undefined);
+    if (assertPresent(this.legacy) === 'reset') {
+      assert.equal(finding?.metadata?.replacement, 'uninstall --agents=none');
+      return;
+    }
     const aliasResult = withoutDeprecation(assertPresent(this.protocolResult));
     const canonicalResult = assertPresent(this.canonicalAliasResult);
     assert.deepEqual(stableMachineResult(aliasResult), stableMachineResult(canonicalResult));
