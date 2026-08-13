@@ -29,6 +29,20 @@ describe('reviewer-scoped environment', () => {
     }
   });
 
+  it('admits only the named acceptance-fixture controls in test mode', () => {
+    expect(
+      reviewerEnvironment('claude', {
+        NODE_ENV: 'test',
+        SAFEWORD_REVIEW_BDD_EXPECTED_MODEL: 'sonnet',
+        SAFEWORD_REVIEW_COVERAGE_VERDICT: 'request_changes',
+        SAFEWORD_REVIEW_UNKNOWN_FIXTURE: 'hidden',
+      }),
+    ).toEqual({
+      SAFEWORD_REVIEW_BDD_EXPECTED_MODEL: 'sonnet',
+      SAFEWORD_REVIEW_COVERAGE_VERDICT: 'request_changes',
+    });
+  });
+
   it('keeps vendor credentials out of capability probes', () => {
     expect(
       reviewerProbeEnvironment({

@@ -804,6 +804,7 @@ async function runFixtureCli(
         cwd: fixture.directory,
         env: {
           ...sanitizedFixtureEnvironment(),
+          NODE_ENV: 'test',
           PATH: `${fixture.bin}:/usr/bin:/bin`,
           SAFEWORD_AGENT_RUNTIME: 'codex',
           SAFEWORD_NO_UPDATE_CHECK: '1',

@@ -79,6 +79,9 @@ Scope: `origin/main...codex/reliable-quality-review`
 27. **Count terminal reviewer text by code point** — terminal projection removes
     Unicode line and paragraph separators before applying its bounded code-point
     limit, preventing forged lines and cap bypasses.
+28. **Declare acceptance-fixture controls explicitly** — real-review Cucumber
+    subprocesses opt into test mode, and their named controls join the test-only
+    reviewer allowlist without reopening the production prefix wildcard.
 
 ## Struck or deferred
 
