@@ -16,6 +16,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   dogfood-parity:
     name: Dogfood parity
@@ -61,6 +64,25 @@ jobs:
 
       - name: Check public CLI contract
         run: bun run check:cli-contract
+
+  dependency-audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - name: Block high and critical advisories
+        # Lower-severity advisories remain visible to local/repository audits
+        # without making an unpatchable development-only advisory halt delivery.
+        run: bun audit --audit-level high
 
   test:
     name: test (node ${{ matrix.node-version }})
@@ -283,6 +305,7 @@ jobs:
   relay-inputs:
     name: Retro relay deployment inputs
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       deploy: ${{ steps.changed.outputs.deploy }}
     steps:
@@ -292,6 +315,7 @@ jobs:
 
       - id: changed
         name: Detect relay deployment inputs
+        shell: bash
         env:
           BEFORE: ${{ github.event.before }}
           SHA: ${{ github.sha }}
@@ -305,21 +329,24 @@ jobs:
             exit 0
           fi
           git fetch --no-tags --depth=1 origin "$BEFORE"
-          git diff --name-only "$BEFORE" "$SHA" | while IFS= read -r changed; do
+          changed_files="$(git diff --name-only "$BEFORE" "$SHA")"
+          deploy=false
+          while IFS= read -r changed; do
             case "$changed" in
               packages/retro-relay/*|packages/cli/package.json|packages/website/package.json|package.json|bun.lock|tsconfig.json|.dockerignore|railway.json|.github/workflows/deploy-retro-relay.yml|.github/workflows/ci.yml)
-                echo 'deploy=true' >> "$GITHUB_OUTPUT"
-                exit 0
+                deploy=true
+                break
                 ;;
             esac
-          done
-          if ! grep -q '^deploy=true$' "$GITHUB_OUTPUT"; then
-            echo 'deploy=false' >> "$GITHUB_OUTPUT"
-          fi
+          done <<< "$changed_files"
+          echo "deploy=$deploy" >> "$GITHUB_OUTPUT"
 
   deploy-retro-relay:
     name: Deploy Retro Relay
-    needs: [dogfood-parity, test, lint, relay-inputs]
+    # High/critical advisories block automatic production delivery. The
+    # environment-protected deploy-retro-relay workflow remains the manual
+    # break-glass path for an urgent relay security fix.
+    needs: [dogfood-parity, cli-contract, dependency-audit, test, lint, relay-inputs]
     if: github.ref == 'refs/heads/main' && needs.relay-inputs.outputs.deploy == 'true'
     runs-on: ubuntu-latest
     environment: retro-relay-production

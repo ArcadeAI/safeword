@@ -53,7 +53,14 @@ describe('Retro Relay deployment workflow', () => {
     const deployment = workflow.jobs['deploy-retro-relay'];
     expect(deployment).toBeDefined();
     if (deployment === undefined) throw new Error('missing deploy-retro-relay job');
-    expect(deployment.needs).toEqual(['dogfood-parity', 'test', 'lint', 'relay-inputs']);
+    expect(deployment.needs).toEqual([
+      'dogfood-parity',
+      'cli-contract',
+      'dependency-audit',
+      'test',
+      'lint',
+      'relay-inputs',
+    ]);
     expect(deployment.environment).toBe('retro-relay-production');
     expect(deployment.if).toContain("github.ref == 'refs/heads/main'");
     expect(source).toContain('git diff --name-only "$BEFORE" "$SHA"');
