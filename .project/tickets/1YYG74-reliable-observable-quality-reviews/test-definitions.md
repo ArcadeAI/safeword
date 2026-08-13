@@ -61,11 +61,17 @@ taxonomy (`not_installed`, `unsupported`, `probe_timed_out`,
 - [x] GREEN 7b675263b
 - [x] REFACTOR skip: The narrow sink wrapper is the smallest safe failure boundary.
 
-### Scenario Outline: Lifecycle output cannot disclose untrusted review data
+### Scenario: Accepted reviewer data never enters lifecycle output
 
 - [x] RED skip: Reviewer-output isolation was a landed invariant; this ticket adds adversarial regression coverage.
 - [x] GREEN 81d35a8aa
 - [x] REFACTOR skip: Fixed-message rendering already centralizes the non-disclosure boundary.
+
+### Scenario Outline: Rejected reviewer data never enters public output
+
+- [x] RED skip: Rejected-output isolation was a landed invariant; this ticket adds managed-progress regression coverage.
+- [x] GREEN 81d35a8aa
+- [x] REFACTOR skip: Rejected bytes remain owned by the coordinator's bounded parser.
 
 ### Scenario: Exhausted routes identify the failed boundary and recovery
 
@@ -80,6 +86,12 @@ taxonomy (`not_installed`, `unsupported`, `probe_timed_out`,
 - [x] RED 80e55391d
 - [x] GREEN e339e2e42
 - [x] REFACTOR skip: Environment construction is already a single explicit wrapper function.
+
+### Scenario: The public CLI removes the wrapper signal from reviewer processes
+
+- [x] RED 80e55391d
+- [x] GREEN e339e2e42
+- [x] REFACTOR skip: Reviewer environment allowlisting remains the independent defense-in-depth boundary.
 
 ### Scenario: Required-review workflows cannot bypass the managed wrapper
 
