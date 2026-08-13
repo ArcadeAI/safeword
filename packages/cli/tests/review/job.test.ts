@@ -65,9 +65,13 @@ function worker(directory: string, source: string): string {
   return path;
 }
 
-function delayedReviewer(directory: string): { bin: string; log: string } {
-  const bin = nodePath.join(directory, 'bin');
-  const log = nodePath.join(directory, 'reviewer.log');
+function delayedReviewer(): { bin: string; log: string } {
+  // Reviewer executables inside the reviewed project are deliberately rejected:
+  // project code could replace them after validation. Model a trusted host tool
+  // by placing this process-boundary fixture outside the untrusted project root.
+  const host = mkdtempSync(nodePath.join(tmpdir(), 'safeword-reviewer-host-'));
+  const bin = nodePath.join(host, 'bin');
+  const log = nodePath.join(host, 'reviewer.log');
   mkdirSync(bin, { recursive: true });
   const executable = nodePath.join(bin, 'codex');
   writeFileSync(
@@ -116,7 +120,7 @@ describe('durable review jobs', () => {
       nodePath.join(cwd, '.safeword', 'config.json'),
       '{"crossAgentReview":"require"}\n',
     );
-    const reviewer = delayedReviewer(cwd);
+    const reviewer = delayedReviewer();
     const cli = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
     const started = spawnSync(
       process.execPath,
