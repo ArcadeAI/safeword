@@ -36,8 +36,8 @@ duplicated here as acceptance scenarios.
 ### Scenario Outline: Development provenance cannot be replaced
 
 - [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN cb71377ec
+- [x] REFACTOR skip: the digest handshake is already the smallest process-boundary contract
 
 ### Scenario: One authorized live attempt proves the paid route
 
@@ -45,8 +45,8 @@ This manual, one-time operational proof must produce its own evidence. Passing
 fixture scenarios do not substitute for its RED, GREEN, or REFACTOR record.
 
 - [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN cb71377ec
+- [x] REFACTOR skip: the pre-start existence guard is already a single focused check
 
 ### Scenario: The paid child receives only its provider credential
 
