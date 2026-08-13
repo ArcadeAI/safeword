@@ -38,6 +38,8 @@ type Behaviour =
   | 'fails'
   | 'never answers'
   | 'answers only with a model'
+  | 'answers only with the expected model'
+  | 'times out on opus and answers on sonnet'
   | 'answers off contract'
   | 'answers after termination'
   | 'leaves a grandchild'
@@ -58,6 +60,27 @@ interface ReviewScenario {
 }
 
 type ReviewWorld = SafewordWorld & { review?: ReviewScenario };
+
+function modelSpecificBehaviour(behaviour: Behaviour, answer: string): string | undefined {
+  if (behaviour === 'answers only with a model') {
+    return `if ! printf '%s' "$*" | /usr/bin/grep -q -- '--model'; then\n  printf 'default model unavailable\\n' >&2\n  exit 7\nfi\n${answer}`;
+  }
+  if (behaviour === 'answers only with the expected model') {
+    return `model=''\nprevious=''\nfor argument in "$@"; do\n  if [ "$previous" = "--model" ]; then model="$argument"; fi\n  previous="$argument"\ndone\nif [ "$model" != "$SAFEWORD_REVIEW_BDD_EXPECTED_MODEL" ]; then\n  printf 'model unavailable: %s\\n' "$model" >&2\n  exit 7\nfi\n${answer}`;
+  }
+  if (behaviour === 'times out on opus and answers on sonnet') {
+    return String.raw`model=''
+previous=''
+for argument in "$@"; do
+  if [ "$previous" = "--model" ]; then model="$argument"; fi
+  previous="$argument"
+done
+if [ "$model" = "opus" ]; then exec /bin/sleep 3600; fi
+if [ "$model" != "sonnet" ]; then printf 'unexpected model: %s\n' "$model" >&2; exit 7; fi
+${answer}`;
+  }
+  return undefined;
+}
 
 function state(world: SafewordWorld): ReviewScenario {
   const world_ = world as ReviewWorld;
@@ -100,6 +123,8 @@ answer=$(printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"AGENT"
 printf '{"type":"item.completed","item":{"id":"i0","type":"agent_message","text":"%s"}}\n' "$escaped"`
       : String.raw`printf '%s\n' "$answer"`;
   const answer = `${body}\n${emit}`;
+  const modelBehaviour = modelSpecificBehaviour(behaviour, answer);
+  if (modelBehaviour !== undefined) return modelBehaviour;
 
   if (behaviour === 'answers') return answer;
   if (behaviour === 'fails') return "printf 'reviewer unavailable\\n' >&2\nexit 7";
@@ -110,9 +135,6 @@ printf '{"type":"item.completed","item":{"id":"i0","type":"agent_message","text"
   if (behaviour === 'leaves a grandchild') {
     return `/bin/sh -c 'printf "%s" "$$" > "$SAFEWORD_REVIEW_DESCENDANT_PID_FILE"; exec /bin/sleep 3600' &
 exec /bin/sleep 3600`;
-  }
-  if (behaviour === 'answers only with a model') {
-    return `if ! printf '%s' "$*" | /usr/bin/grep -q -- '--model'; then\n  printf 'default model unavailable\\n' >&2\n  exit 7\nfi\n${answer}`;
   }
   if (behaviour === 'emits a credential') {
     return `printf 'trace token=${CREDENTIAL}\\n' >&2\nprintf 'not-a-review\\n'`;
@@ -397,6 +419,14 @@ Given("the reviewer agent's default model never answers", function (this: Safewo
   installReviewer(state(this), 'codex', 'answers only with a model');
 });
 
+Given('the default Claude Opus model never answers', function (this: SafewordWorld) {
+  const current = state(this);
+  current.environment.SAFEWORD_AGENT_RUNTIME = 'codex';
+  current.environment.SAFEWORD_REVIEW_TIMEOUT_MS = '3000';
+  current.environment.SAFEWORD_REVIEW_RUN_BOUND_MS = '12000';
+  installReviewer(current, 'claude', 'times out on opus and answers on sonnet');
+});
+
 Given("the reviewer agent's alternate model answers promptly", function (this: SafewordWorld) {
   state(this);
 });
@@ -482,8 +512,9 @@ Given(
     const reviewer = reviewerName.toLowerCase() as Agent;
     assert.notEqual(author, reviewer);
     current.environment.SAFEWORD_AGENT_RUNTIME = author;
+    current.environment.SAFEWORD_REVIEW_BDD_EXPECTED_MODEL = model;
     writeConfig(current, { crossAgentReviewAlternateModel: { [reviewer]: model } });
-    installReviewer(current, reviewer, 'answers only with a model');
+    installReviewer(current, reviewer, 'answers only with the expected model');
   },
 );
 
@@ -728,6 +759,26 @@ Then('the alternate model still receives its own attempt', function (this: Safew
   // The first route being stopped at its own budget is what leaves the second
   // one able to answer at all.
   assert.equal(payload(this).data.reviewer_model, 'vendor-model-2');
+});
+
+Then('the Sonnet review returns an independent verdict', function (this: SafewordWorld) {
+  assert.deepEqual(
+    {
+      independence: payload(this).data.independence,
+      reviewerModel: payload(this).data.reviewer_model,
+    },
+    { independence: 'cross-agent', reviewerModel: 'sonnet' },
+  );
+});
+
+Then('the result names Opus as the timed-out primary model', function (this: SafewordWorld) {
+  assert.deepEqual(
+    {
+      preferredModel: payload(this).data.preferred_model,
+      preferredFailure: payload(this).data.preferred_failure,
+    },
+    { preferredModel: 'opus', preferredFailure: 'timed_out' },
+  );
 });
 
 Then('the routes were attempted in their fixed order', function (this: SafewordWorld) {
