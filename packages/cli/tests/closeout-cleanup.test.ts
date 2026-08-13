@@ -1717,8 +1717,13 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       });
 
       expect(blockedApply.status, blockedApply.stderr).toBe(2);
-      expect(blockedApply.stderr).toContain(
-        'closeout blocked: --plan must equal the fresh preview digest',
+      const blockedResult = JSON.parse(blockedApply.stdout) as {
+        digest: string;
+        result: { blockers: string[] };
+      };
+      expect(blockedResult.digest).toBe(digest);
+      expect(blockedResult.result.blockers).toContain(
+        'retrospective filing failed; resolve the filing failure',
       );
       expect(existsSync(topic)).toBe(true);
       expect(readFileSync(retroLog, 'utf8').trim().split('\n')).toHaveLength(2);
