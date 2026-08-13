@@ -5585,7 +5585,8 @@ function automaticMigrationUnsafe(event, identity, execution, sessionId, hookCwd
       plugin_version: identity.plugin_version,
       hook_manifest_sha256: identity.hook_manifest_sha256,
       catalogue_sha256: catalogueSha256,
-    })
+    }) &&
+    claudeLegacyMutations(projectRoot).length === 0
   ) {
     return execution;
   }

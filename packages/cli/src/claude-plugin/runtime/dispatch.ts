@@ -6,7 +6,7 @@ import nodePath from 'node:path';
 import { parse, type ParseError } from 'jsonc-parser';
 
 import { writeDurableFile } from '../../codex-plugin/durable-write.js';
-import { migrateClaudeLegacyAutomatically } from '../cleanup.js';
+import { claudeLegacyMutations, migrateClaudeLegacyAutomatically } from '../cleanup.js';
 import {
   historicalCatalogueDigest,
   isAcceptedHistoricalHook,
@@ -623,7 +623,8 @@ function automaticMigrationUnsafe(
       plugin_version: identity.plugin_version,
       hook_manifest_sha256: identity.hook_manifest_sha256,
       catalogue_sha256: catalogueSha256,
-    })
+    }) &&
+    claudeLegacyMutations(projectRoot).length === 0
   ) {
     return execution;
   }

@@ -143,7 +143,7 @@
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "eab848e36f6d4ea6b0b6a8e3aaab4c2124eae4e757c815cfc1f5a3b3c8d732b9"
+      "sha256": "4db15c0669cc437852bc5de4458301c8a06e34103f2e32698f69ef8b27568550"
     },
     {
       "path": "runtime/event-groups.json",
