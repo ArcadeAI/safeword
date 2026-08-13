@@ -45,6 +45,12 @@ Scope: `origin/main...codex/reliable-quality-review`
 16. **Name worker inspection outcomes** — `WorkerInspection` distinguishes a
     matching worker, a definite mismatch, and an unavailable process probe so
     each caller states its fail-open or fail-closed policy explicitly.
+17. **Name failures that never launch a review** — the typed
+    `NON_ATTEMPT_FAILURES` set makes network-effect accounting follow the
+    `ReviewFailure` contract without rebuilding or comparing magic strings.
+18. **Make fallback outcomes mutually exclusive** — fallback effect accounting
+    accepts a completed-or-failed discriminated union, so impossible flag
+    combinations cannot fabricate or omit a reviewer request.
 
 ## Struck or deferred
 

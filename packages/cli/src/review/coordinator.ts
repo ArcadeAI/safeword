@@ -173,7 +173,7 @@ function assessFallback(
   dispatchId: string,
 ):
   | { readonly kind: 'completed'; readonly output: ReviewerOutput }
-  | { readonly kind: 'failed'; readonly failure: string; readonly terminal: boolean } {
+  | { readonly kind: 'failed'; readonly failure: ReviewFailure; readonly terminal: boolean } {
   if (outcome.kind === 'failed') return outcome;
   const provenance = verifyProvenance(outcome.output, reviewer, dispatchId);
   return provenance.kind === 'failed'
@@ -362,7 +362,7 @@ function changedReviewResult(input: {
 function routeFailureData(input: {
   readonly preferredFailure: ReviewFailure;
   readonly preferredModel?: string;
-  readonly alternateFailure?: string;
+  readonly alternateFailure?: ReviewFailure;
   readonly alternateModel?: string;
 }): Record<string, unknown> {
   return {
@@ -379,12 +379,18 @@ function reviewRequest(reviewer: ReviewAgent): Effect {
   return { kind: 'review', target: reviewer, operation: 'request' };
 }
 
+const NON_ATTEMPT_FAILURES: ReadonlySet<ReviewFailure> = new Set([
+  'not_installed',
+  'unsupported',
+  'launch_failed',
+  'probe_timed_out',
+]);
+
 function networkEffectsForFailure(
   reviewer: ReviewAgent,
-  failure: string | undefined,
+  failure: ReviewFailure | undefined,
 ): readonly Effect[] {
-  return failure === undefined ||
-    ['not_installed', 'unsupported', 'launch_failed', 'probe_timed_out'].includes(failure)
+  return failure === undefined || NON_ATTEMPT_FAILURES.has(failure)
     ? []
     : [reviewRequest(reviewer)];
 }
@@ -392,16 +398,17 @@ function networkEffectsForFailure(
 function degradedNetworkEffects(input: {
   readonly assignedReviewer: ReviewAgent;
   readonly author: ReviewAgent;
-  readonly preferredFailure: string;
-  readonly alternateFailure: string | undefined;
-  readonly fallbackFailure?: string;
-  readonly fallbackCompleted?: boolean;
+  readonly preferredFailure: ReviewFailure;
+  readonly alternateFailure: ReviewFailure | undefined;
+  readonly fallback:
+    { readonly kind: 'completed' } | { readonly kind: 'failed'; failure: ReviewFailure };
 }): readonly Effect[] {
   return [
     ...networkEffectsForFailure(input.assignedReviewer, input.preferredFailure),
     ...networkEffectsForFailure(input.assignedReviewer, input.alternateFailure),
-    ...networkEffectsForFailure(input.author, input.fallbackFailure),
-    ...(input.fallbackCompleted ? [reviewRequest(input.author)] : []),
+    ...(input.fallback.kind === 'completed'
+      ? [reviewRequest(input.author)]
+      : networkEffectsForFailure(input.author, input.fallback.failure)),
   ];
 }
 
@@ -438,7 +445,7 @@ async function runDegradedFallback(
     readonly preferredFailure: ReviewFailure;
     readonly policy: ReviewPolicy;
     readonly runDeadline: number;
-    readonly alternateFailure?: string;
+    readonly alternateFailure?: ReviewFailure;
     readonly alternateModel?: string;
   },
 ): Promise<CliResult> {
@@ -463,7 +470,7 @@ async function runDegradedFallback(
       author: input.author,
       preferredFailure: input.preferredFailure,
       alternateFailure: input.alternateFailure,
-      fallbackCompleted: true,
+      fallback: { kind: 'completed' },
     }),
   });
   if (changedResult !== undefined) return changedResult;
@@ -502,7 +509,7 @@ async function runDegradedFallback(
           author: input.author,
           preferredFailure: input.preferredFailure,
           alternateFailure: input.alternateFailure,
-          fallbackFailure: assessment.failure,
+          fallback: { kind: 'failed', failure: assessment.failure },
         }),
       },
       recovery: [
@@ -543,7 +550,7 @@ async function runDegradedFallback(
           author: input.author,
           preferredFailure: input.preferredFailure,
           alternateFailure: input.alternateFailure,
-          fallbackCompleted: true,
+          fallback: { kind: 'completed' },
         }),
       },
       recovery: [
@@ -587,7 +594,7 @@ async function runDegradedFallback(
         author: input.author,
         preferredFailure: input.preferredFailure,
         alternateFailure: input.alternateFailure,
-        fallbackCompleted: true,
+        fallback: { kind: 'completed' },
       }),
     },
     data: {
@@ -622,7 +629,7 @@ async function runAlternateModelRoute(
   | { readonly kind: 'completed'; readonly result: CliResult }
   | {
       readonly kind: 'failed';
-      readonly failure: string;
+      readonly failure: ReviewFailure;
       readonly terminal: boolean;
       readonly model: string;
     }
@@ -732,7 +739,7 @@ function exhaustedRunResult(input: {
   readonly targets: readonly string[];
   readonly context?: readonly string[];
   readonly policy: ReviewPolicy;
-  readonly alternateFailure?: string;
+  readonly alternateFailure?: ReviewFailure;
   readonly alternateModel?: string;
 }): CliResult {
   return createResult({

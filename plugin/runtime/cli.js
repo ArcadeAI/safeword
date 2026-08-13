@@ -44014,14 +44014,13 @@ function reviewRequest(reviewer) {
   return { kind: "review", target: reviewer, operation: "request" };
 }
 function networkEffectsForFailure(reviewer, failure) {
-  return failure === undefined || ["not_installed", "unsupported", "launch_failed", "probe_timed_out"].includes(failure) ? [] : [reviewRequest(reviewer)];
+  return failure === undefined || NON_ATTEMPT_FAILURES.has(failure) ? [] : [reviewRequest(reviewer)];
 }
 function degradedNetworkEffects(input) {
   return [
     ...networkEffectsForFailure(input.assignedReviewer, input.preferredFailure),
     ...networkEffectsForFailure(input.assignedReviewer, input.alternateFailure),
-    ...networkEffectsForFailure(input.author, input.fallbackFailure),
-    ...input.fallbackCompleted ? [reviewRequest(input.author)] : []
+    ...input.fallback.kind === "completed" ? [reviewRequest(input.author)] : networkEffectsForFailure(input.author, input.fallback.failure)
   ];
 }
 function preparePrimaryReview(input, reviewer) {
@@ -44055,7 +44054,7 @@ async function runDegradedFallback(input) {
       author: input.author,
       preferredFailure: input.preferredFailure,
       alternateFailure: input.alternateFailure,
-      fallbackCompleted: true
+      fallback: { kind: "completed" }
     })
   });
   if (changedResult !== undefined)
@@ -44093,7 +44092,7 @@ async function runDegradedFallback(input) {
           author: input.author,
           preferredFailure: input.preferredFailure,
           alternateFailure: input.alternateFailure,
-          fallbackFailure: assessment.failure
+          fallback: { kind: "failed", failure: assessment.failure }
         })
       },
       recovery: [
@@ -44133,7 +44132,7 @@ async function runDegradedFallback(input) {
           author: input.author,
           preferredFailure: input.preferredFailure,
           alternateFailure: input.alternateFailure,
-          fallbackCompleted: true
+          fallback: { kind: "completed" }
         })
       },
       recovery: [
@@ -44172,7 +44171,7 @@ async function runDegradedFallback(input) {
         author: input.author,
         preferredFailure: input.preferredFailure,
         alternateFailure: input.alternateFailure,
-        fallbackCompleted: true
+        fallback: { kind: "completed" }
       })
     },
     data: {
@@ -44388,7 +44387,7 @@ async function runReview(input) {
   const output = provenance.output;
   return independentReviewResult({ author: pair.author, reviewer, output, model: primaryModel });
 }
-var FAILURE_CAUSES;
+var FAILURE_CAUSES, NON_ATTEMPT_FAILURES;
 var init_coordinator = __esm(() => {
   init_run_identity();
   init_result();
@@ -44408,6 +44407,12 @@ var init_coordinator = __esm(() => {
     REVIEWER_PROVENANCE_MISSING: "gave an answer that did not identify it as the reviewer",
     REVIEWER_PROVENANCE_CONTRADICTORY: "gave an answer that did not identify it as the reviewer"
   };
+  NON_ATTEMPT_FAILURES = new Set([
+    "not_installed",
+    "unsupported",
+    "launch_failed",
+    "probe_timed_out"
+  ]);
 });
 
 // src/review/job.ts
