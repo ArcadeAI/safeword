@@ -28,9 +28,9 @@ feature at all, or a leaner task. -->
 - **Cost of inaction:** Developers keep learning more than twenty inconsistent
   verbs, agents keep scraping prose, read-only-looking commands remain
   untrustworthy, and each new command creates another bespoke output contract.
-- **Reversibility:** One-way public contract with a two-release compatibility
-  bridge. The internals are replaceable, but command names, JSON fields, and
-  exit semantics become user-facing APIs once released.
+- **Reversibility:** One-way public contract with indefinitely retained
+  compatibility aliases. The internals are replaceable, but command names,
+  JSON fields, and exit semantics become user-facing APIs once released.
 
 ## References
 
@@ -53,12 +53,13 @@ feature at all, or a leaner task. -->
 Affected:
 
 - Safeword CLI
-- Claude Code
 - OpenAI Codex
-- Cursor
 
 Unaffected:
 
+- Claude Code and Cursor host behavior — both consume the shared CLI contract,
+  but this ticket does not change or require proof through their host-specific
+  runtime boundaries.
 - Cloud-only agent lifecycle mechanics — agents consume the same repository
   CLI contract; this ticket does not change their hosting environments.
 
@@ -95,7 +96,7 @@ Unaffected:
 
 #### predictable-safeword-cli.TBU1.R4 — Destructive work shows an exact plan and requires explicit confirmation
 
-#### predictable-safeword-cli.TBU1.R5 — Setup converges, and the second identical run reports no changes
+#### predictable-safeword-cli.TBU1.R5 — Install converges, and the second identical run reports no changes
 
 ### predictable-safeword-cli.NTB1 — Get safe, understandable guidance
 
@@ -127,9 +128,9 @@ Unaffected:
 
 #### predictable-safeword-cli.SWM1.R5 — Normal help exposes the simplified hierarchy while old names remain deprecated aliases
 
-#### predictable-safeword-cli.SWM1.R6 — Hook entrypoints stay hidden, quiet, offline, and free of install or upgrade effects
+#### predictable-safeword-cli.SWM1.R6 — Typed Codex hook entrypoints stay hidden, quiet, offline, effect-free, and responsive
 
-#### predictable-safeword-cli.SWM1.R7 — Long-running interactive commands report meaningful progress within 100 milliseconds
+#### predictable-safeword-cli.SWM1.R7 — Progress reporting keeps one restartable 100-millisecond schedule
 
 ## Rave Moment
 
@@ -153,13 +154,14 @@ Unaffected:
 - Read-only command tests prove zero file, package, and network effects.
 - Adding a public command requires a catalog entry and a typed handler, not a
   new presentation convention.
-- Existing automation keeps working through explicit deprecated aliases during
-  the compatibility window.
+- Existing automation keeps working through indefinitely retained deprecated
+  aliases.
 
 ## Open Questions
 
-- Resolved: `upgrade` remains public during the compatibility window but
-  `setup` is the preferred convergent mutation; `plan` previews reconciliation.
+- Resolved: `upgrade` is an indefinitely retained deprecated alias of `install`;
+  `setup` is also a retained alias, while `install` is the canonical convergent
+  mutation and `plan` previews reconciliation.
 - Resolved: `status`, `plan`, and `doctor` are the read-only allowlist. Any
   future read-only command must declare that effect class in the catalog.
 - Resolved: `doctor` remains a canonical diagnostic spelling required by the
@@ -171,8 +173,6 @@ Unaffected:
 - Resolved: global flags are accepted before or after the command so shell
   authors and agents do not need positional special cases.
 - Resolved: aliases retain existing side effects and arguments, add a
-  machine-readable deprecation finding, and remain for the next two release
-  lines.
-- Resolved: hook latency is measured at p95 after one warm-up; the existing
-  repository threshold remains authoritative rather than inventing a second
-  number here.
+  machine-readable deprecation finding, and remain indefinitely.
+- Resolved: hook latency is measured after one warm-up over twenty samples;
+  p95 must remain below the five-second hook-operation budget.
