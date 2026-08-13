@@ -131,7 +131,7 @@ jobs:
         env:
           TEST_POETRY: '1'
 
-      - name: Qualify paid-canary wiring against pinned adapter
+      - name: Verify retained paid-canary qualification
         if: matrix.node-version == '24.18.1'
         run: |
           (

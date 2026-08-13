@@ -364,57 +364,6 @@ function paidChildEnvironment(
   return child;
 }
 
-export async function runCredentialSeparatedCanary<T>(input: {
-  adapterDirectory: string;
-  authorization: {
-    adapterCommit: string;
-    adapterTag: string;
-    adapterCanonicalRepository: string;
-    corpusDigest: string;
-    harnessCommit: string;
-    harnessCanonicalRepository: string;
-    harnessTag: string;
-    registrationCommit: string;
-  };
-  child: { args: string[]; command: string };
-  environment: Readonly<Record<string, string | undefined>>;
-  harnessDirectory: string;
-  loadGitHubToken(): Promise<string>;
-  loadOpenAIKey(): Promise<string>;
-  parent(context: {
-    dispatch(): Promise<PaidChildResult>;
-    githubToken: string;
-  }): Promise<T>;
-  spawnChild(request: PaidChildRequest): Promise<PaidChildResult>;
-}): Promise<T> {
-  await Promise.all([
-    preflightPinnedCheckout({
-      canonicalRepository: input.authorization.adapterCanonicalRepository,
-      commit: input.authorization.adapterCommit,
-      directory: input.adapterDirectory,
-      tag: input.authorization.adapterTag,
-    }),
-    preflightPinnedCheckout({
-      canonicalRepository: input.authorization.harnessCanonicalRepository,
-      commit: input.authorization.harnessCommit,
-      directory: input.harnessDirectory,
-      tag: input.authorization.harnessTag,
-    }),
-  ]);
-  await verifyCommittedCorpusRegistration({
-    checkout: {
-      canonicalRepository: input.authorization.harnessCanonicalRepository,
-      commit: input.authorization.harnessCommit,
-      directory: input.harnessDirectory,
-      tag: input.authorization.harnessTag,
-    },
-    corpusDigest: input.authorization.corpusDigest,
-    registrationCommit: input.authorization.registrationCommit,
-  });
-
-  return runCredentialedChild(input);
-}
-
 async function runCredentialedChild<T>(input: {
   adapterDirectory: string;
   child: { args: string[]; command: string };

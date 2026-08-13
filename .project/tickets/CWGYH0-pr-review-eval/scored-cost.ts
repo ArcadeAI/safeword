@@ -41,6 +41,14 @@ export function estimateAttemptUsage(
 		outputPerMillionUsd: 15,
 	},
 ): AttemptUsage {
+	if (
+		!Number.isFinite(prices.inputPerMillionUsd) ||
+		prices.inputPerMillionUsd < 0 ||
+		!Number.isFinite(prices.outputPerMillionUsd) ||
+		prices.outputPerMillionUsd < 0
+	) {
+		return { complete: false, costUsd: 0, inputTokens: 0, outputTokens: 0 };
+	}
 	return attempts.reduce<AttemptUsage>(
 		(total, attempt) => {
 			if (attempt.output === null) return { ...total, complete: false };
@@ -51,13 +59,15 @@ export function estimateAttemptUsage(
 			if (!Number.isSafeInteger(inputTokens) || !Number.isSafeInteger(outputTokens)) {
 				return { ...total, complete: false };
 			}
+			const costUsd =
+				total.costUsd +
+				(usage.inputTokens * prices.inputPerMillionUsd +
+					usage.outputTokens * prices.outputPerMillionUsd) /
+					1_000_000;
+			if (!Number.isFinite(costUsd)) return { ...total, complete: false };
 			return {
 				complete: total.complete,
-				costUsd:
-					total.costUsd +
-					(usage.inputTokens * prices.inputPerMillionUsd +
-						usage.outputTokens * prices.outputPerMillionUsd) /
-						1_000_000,
+				costUsd,
 				inputTokens,
 				outputTokens,
 			};

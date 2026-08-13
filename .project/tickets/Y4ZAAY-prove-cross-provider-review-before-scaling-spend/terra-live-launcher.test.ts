@@ -10,7 +10,6 @@ import {
   createTerraPaidChildCommand,
   parseTerraPaidChildResult,
   preflightPinnedCheckout,
-  runCredentialSeparatedCanary,
   spawnPaidChild,
   verifyAuthorizedPaidChildInput,
   type PaidChildRequest,
@@ -214,154 +213,8 @@ describe("credential-separated live launcher", () => {
     ).toThrow("one JSON line");
   });
 
-  test("preflights both pins before loading secrets and isolates child credentials", async () => {
-    const adapter = await pinnedCheckout("adapter");
-    const harness = await pinnedCheckout("harness");
-    const events: string[] = [];
-    let child: PaidChildRequest | undefined;
 
-    const result = await runCredentialSeparatedCanary({
-      adapterDirectory: adapter.directory,
-      authorization: {
-        adapterCommit: adapter.commit,
-        adapterTag: adapter.tag,
-        adapterCanonicalRepository: adapter.canonicalRepository,
-        corpusDigest: CORPUS_DIGEST,
-        harnessCommit: harness.commit,
-        harnessCanonicalRepository: harness.canonicalRepository,
-        harnessTag: harness.tag,
-        registrationCommit: harness.commit,
-      },
-      child: { args: ["run-canary"], command: "node" },
-      environment: {
-        GH_TOKEN: "ambient-github-secret",
-        HOME: "/ambient/home",
-        OP_SERVICE_ACCOUNT_TOKEN: "ambient-op-secret",
-        PATH: "/safe/bin",
-        TMPDIR: "/safe/tmp",
-      },
-      harnessDirectory: harness.directory,
-      loadGitHubToken: async () => {
-        events.push("github-secret");
-        return "github-token";
-      },
-      loadOpenAIKey: async () => {
-        events.push("openai-secret");
-        return "openai-key";
-      },
-      parent: async ({ dispatch, githubToken }) => {
-        events.push(`parent:${githubToken}`);
-        return dispatch();
-      },
-      spawnChild: async (request) => {
-        events.push("child");
-        child = request;
-        return { exitCode: 0, stderr: "", stdout: "complete" };
-      },
-    });
 
-    expect(result).toEqual({ exitCode: 0, stderr: "", stdout: "complete" });
-    expect(events).toEqual([
-      "github-secret",
-      "openai-secret",
-      "parent:github-token",
-      "child",
-    ]);
-    expect(child).toEqual({
-      args: ["run-canary"],
-      command: "node",
-      cwd: adapter.directory,
-      env: {
-        OPENAI_API_KEY: "openai-key",
-        PATH: "/safe/bin",
-        SAFEWORD_PAID_CANARY_RETRIES: "0",
-        TMPDIR: "/safe/tmp",
-      },
-    });
-  });
-
-  test("rejects a dirty checkout before loading either secret", async () => {
-    const adapter = await pinnedCheckout("adapter-dirty");
-    const harness = await pinnedCheckout("harness-clean");
-    await writeFile(join(adapter.directory, "untracked.txt"), "dirty\n", "utf8");
-    const events: string[] = [];
-
-    await expect(
-      runCredentialSeparatedCanary({
-        adapterDirectory: adapter.directory,
-        authorization: {
-          adapterCommit: adapter.commit,
-          adapterTag: adapter.tag,
-          adapterCanonicalRepository: adapter.canonicalRepository,
-          corpusDigest: CORPUS_DIGEST,
-          harnessCommit: harness.commit,
-          harnessCanonicalRepository: harness.canonicalRepository,
-          harnessTag: harness.tag,
-          registrationCommit: harness.commit,
-        },
-        child: { args: [], command: "node" },
-        environment: { PATH: "/safe/bin" },
-        harnessDirectory: harness.directory,
-        loadGitHubToken: async () => {
-          events.push("github-secret");
-          return "github-token";
-        },
-        loadOpenAIKey: async () => {
-          events.push("openai-secret");
-          return "openai-key";
-        },
-        parent: async () => {
-          events.push("parent");
-        },
-        spawnChild: async () => {
-          events.push("child");
-          return { exitCode: 0, stderr: "", stdout: "" };
-        },
-      })
-    ).rejects.toThrow("must be clean");
-    expect(events).toEqual([]);
-  });
-
-  test("rejects caller-supplied corpus provenance that is absent from the committed registration", async () => {
-    const adapter = await pinnedCheckout("adapter-fake-corpus");
-    const harness = await pinnedCheckout("harness-fake-corpus");
-    const events: string[] = [];
-
-    await expect(
-      runCredentialSeparatedCanary({
-        adapterDirectory: adapter.directory,
-        authorization: {
-          adapterCommit: adapter.commit,
-          adapterTag: adapter.tag,
-          adapterCanonicalRepository: adapter.canonicalRepository,
-          corpusDigest: "0".repeat(64),
-          harnessCommit: harness.commit,
-          harnessCanonicalRepository: harness.canonicalRepository,
-          harnessTag: harness.tag,
-          registrationCommit: harness.commit,
-        },
-        child: { args: [], command: "node" },
-        environment: { PATH: "/safe/bin" },
-        harnessDirectory: harness.directory,
-        loadGitHubToken: async () => {
-          events.push("github-secret");
-          return "github-token";
-        },
-        loadOpenAIKey: async () => {
-          events.push("openai-secret");
-          return "openai-key";
-        },
-        parent: async () => {
-          events.push("parent");
-        },
-        spawnChild: async () => {
-          events.push("child");
-          return { exitCode: 0, stderr: "", stdout: "" };
-        },
-      })
-    ).rejects.toThrow("committed corpus registration does not match");
-    expect(events).toEqual([]);
-  });
 
   test("rejects a lightweight tag even when it points to the expected commit", async () => {
     const checkout = await pinnedCheckout("lightweight");
@@ -392,35 +245,5 @@ describe("credential-separated live launcher", () => {
     );
   });
 
-  test("does not enter the parent when a secret is empty", async () => {
-    const adapter = await pinnedCheckout("adapter-secret");
-    const harness = await pinnedCheckout("harness-secret");
-    let enteredParent = false;
-
-    await expect(
-      runCredentialSeparatedCanary({
-        adapterDirectory: adapter.directory,
-        authorization: {
-          adapterCommit: adapter.commit,
-          adapterTag: adapter.tag,
-          adapterCanonicalRepository: adapter.canonicalRepository,
-          corpusDigest: CORPUS_DIGEST,
-          harnessCommit: harness.commit,
-          harnessCanonicalRepository: harness.canonicalRepository,
-          harnessTag: harness.tag,
-          registrationCommit: harness.commit,
-        },
-        child: { args: [], command: "node" },
-        environment: {},
-        harnessDirectory: harness.directory,
-        loadGitHubToken: async () => "",
-        loadOpenAIKey: async () => "openai-key",
-        parent: async () => {
-          enteredParent = true;
-        },
-        spawnChild: async () => ({ exitCode: 0, stderr: "", stdout: "" }),
-      })
-    ).rejects.toThrow("GitHub token is invalid");
-    expect(enteredParent).toBe(false);
-  });
 });
+

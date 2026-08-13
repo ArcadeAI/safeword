@@ -46,4 +46,16 @@ describe("attempt cost evidence", () => {
 			estimateAttemptUsage([output, { output: { report: { usage: { inputTokens: 1, outputTokens: 0 } } } }]),
 		).toMatchObject({ complete: false, inputTokens: Number.MAX_SAFE_INTEGER });
 	});
+
+	test.each([-1, Number.NaN, Number.POSITIVE_INFINITY])(
+		"marks invalid price %s as incomplete",
+		(inputPerMillionUsd) => {
+			expect(
+				estimateAttemptUsage(
+					[{ output: { report: { usage: { inputTokens: 1, outputTokens: 1 } } } }],
+					{ inputPerMillionUsd, outputPerMillionUsd: 1 },
+				),
+			).toMatchObject({ complete: false, costUsd: 0 });
+		},
+	);
 });
