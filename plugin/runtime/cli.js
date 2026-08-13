@@ -42929,10 +42929,10 @@ function recoverStaleLock(lock) {
 function isFileExistsError(error2) {
   return error2 instanceof Error && "code" in error2 && error2.code === "EEXIST";
 }
-function updateRunningJob(cwd, id, update) {
+function updateActiveJob(cwd, id, update) {
   return withJobLock(cwd, id, () => {
     const latest = readJob(cwd, id);
-    if (latest.state !== "running")
+    if (latest.state !== "launching" && latest.state !== "running")
       return latest;
     const next = update(latest);
     writeJob(cwd, next);
@@ -42964,7 +42964,7 @@ function isProcessId(value) {
   return Number.isSafeInteger(value) && Number(value) > 1;
 }
 function isJobState(value) {
-  return ["running", "completed", "failed", "canceled"].includes(String(value));
+  return ["launching", "running", "completed", "failed", "canceled"].includes(String(value));
 }
 function isCliResult(value) {
   if (typeof value !== "object" || value === null || Array.isArray(value))
@@ -42988,7 +42988,7 @@ function isReviewResultData(value) {
 }
 function readJob(cwd, id) {
   const parsed2 = JSON.parse(readFileSync51(jobPath(cwd, id), "utf8"));
-  if (!isReviewJobRecord(parsed2))
+  if (!isReviewJobRecord(parsed2) || parsed2.id !== id)
     throw new Error("invalid review job record");
   return parsed2;
 }
@@ -43038,30 +43038,38 @@ function staleResult(record) {
   });
 }
 function currentResult(cwd, record) {
+  if (record.state === "launching") {
+    if (record.pid !== undefined && processExists(record.pid))
+      return pendingResult(record);
+    return failExitedJob(cwd, record);
+  }
   if (record.state === "running") {
     if (record.pid !== undefined && !isReviewWorker(record.pid, record.id)) {
-      const failed = createResult({
-        state: "failed",
-        errors: [
-          {
-            code: "REVIEW_WORKER_EXITED",
-            message: "The background review worker exited before recording a result.",
-            retryable: true
-          }
-        ],
-        data: { command: "review status", status: "failed", review_id: record.id }
-      });
-      const latest = updateRunningJob(cwd, record.id, (current) => ({
-        ...current,
-        state: "failed",
-        result: failed,
-        updated_at: new Date().toISOString()
-      }));
-      return latest.state === "failed" && latest.result === failed ? failed : terminalResult(cwd, latest);
+      return failExitedJob(cwd, record);
     }
     return pendingResult(record);
   }
   return terminalResult(cwd, record);
+}
+function failExitedJob(cwd, record) {
+  const failed = createResult({
+    state: "failed",
+    errors: [
+      {
+        code: "REVIEW_WORKER_EXITED",
+        message: "The background review worker exited before recording a result.",
+        retryable: true
+      }
+    ],
+    data: { command: "review status", status: "failed", review_id: record.id }
+  });
+  const latest = updateActiveJob(cwd, record.id, (current) => ({
+    ...current,
+    state: "failed",
+    result: failed,
+    updated_at: new Date().toISOString()
+  }));
+  return latest.state === "failed" && latest.result === failed ? failed : terminalResult(cwd, latest);
 }
 function terminalResult(cwd, record) {
   if (record.state === "canceled") {
@@ -43129,13 +43137,14 @@ async function startReviewJob(input) {
     const record2 = {
       schema_version: 1,
       id: randomUUID7(),
-      state: "running",
+      state: "launching",
       kind: input.kind,
       targets: input.targets,
       context,
       source_fingerprint: sourceFingerprint,
       started_at: now,
-      updated_at: now
+      updated_at: now,
+      pid: process.pid
     };
     writeJob(input.cwd, record2);
     return { existing: false, record: record2 };
@@ -43174,7 +43183,7 @@ async function startReviewJob(input) {
       data: { command: "review run", status: "failed", review_id: id }
     });
     try {
-      updateRunningJob(input.cwd, id, (latest) => ({
+      updateActiveJob(input.cwd, id, (latest) => ({
         ...latest,
         state: "failed",
         result: failed,
@@ -43203,8 +43212,9 @@ async function startReviewJob(input) {
     });
     return failed;
   }
-  updateRunningJob(input.cwd, id, (spawned) => ({
+  updateActiveJob(input.cwd, id, (spawned) => ({
     ...spawned,
+    state: "running",
     pid: child.pid,
     updated_at: new Date().toISOString()
   }));
@@ -43220,7 +43230,7 @@ async function startReviewJob(input) {
   return currentResult(input.cwd, readJob(input.cwd, id));
 }
 function completeReviewJob(cwd, id, result) {
-  updateRunningJob(cwd, id, (record) => ({
+  updateActiveJob(cwd, id, (record) => ({
     ...record,
     state: result.state === "failed" ? "failed" : "completed",
     result,
@@ -43250,12 +43260,19 @@ function runningJob(cwd, kind, sourceFingerprint) {
       continue;
     try {
       const record = readJob(cwd, name.slice(0, -5));
-      if (record.state === "running" && record.kind === kind && record.source_fingerprint === sourceFingerprint && (record.pid === undefined || isReviewWorker(record.pid, record.id))) {
+      if (isActiveReviewJob(record) && record.kind === kind && record.source_fingerprint === sourceFingerprint) {
         return record;
       }
     } catch {}
   }
   return;
+}
+function isActiveReviewJob(record) {
+  if (record.pid === undefined)
+    return false;
+  if (record.state === "launching")
+    return processExists(record.pid);
+  return record.state === "running" && isReviewWorker(record.pid, record.id);
 }
 function reviewJobStatus(cwd, requestedId) {
   let id;
@@ -43313,9 +43330,9 @@ function cancelReviewJob(cwd, requestedId) {
       return reviewJobStatus(cwd, id);
     const canceled = withJobLock(cwd, id, () => {
       const record = readJob(cwd, id);
-      if (record.state !== "running")
+      if (record.state !== "launching" && record.state !== "running")
         return record;
-      if (record.pid !== undefined && isReviewWorker(record.pid, record.id)) {
+      if (record.state === "running" && record.pid !== undefined && isReviewWorker(record.pid, record.id)) {
         try {
           process.kill(process.platform === "win32" ? record.pid : -record.pid, "SIGTERM");
         } catch {}

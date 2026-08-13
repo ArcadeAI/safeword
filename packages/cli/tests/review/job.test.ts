@@ -1,5 +1,12 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -317,6 +324,63 @@ describe('durable review jobs', () => {
 
     expect(result.state).toBe('failed');
     expect(result.errors[0]?.code).toBe('REVIEW_JOB_INVALID');
+  });
+
+  it('fails a launch record whose initiating process exited before persisting a worker', () => {
+    const cwd = project();
+    const id = 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa';
+    const directory = nodePath.join(cwd, '.safeword', 'state', 'reviews');
+    mkdirSync(directory, { recursive: true });
+    writeFileSync(
+      nodePath.join(directory, `${id}.json`),
+      JSON.stringify({
+        schema_version: 1,
+        id,
+        state: 'launching',
+        kind: 'quality-review',
+        targets: ['input.md'],
+        source_fingerprint: 'reserved',
+        started_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        pid: 2_147_483_647,
+      }),
+    );
+
+    const result = reviewJobStatus(cwd, id);
+
+    expect(result.state).toBe('failed');
+    expect(result.errors[0]?.code).toBe('REVIEW_WORKER_EXITED');
+    const stored = JSON.parse(readFileSync(nodePath.join(directory, `${id}.json`), 'utf8'));
+    expect(stored).toMatchObject({
+      id,
+      state: 'failed',
+    });
+  });
+
+  it('rejects a record whose embedded identity differs from its filename', () => {
+    const cwd = project();
+    const requestedId = 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa';
+    const embeddedId = 'bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb';
+    const directory = nodePath.join(cwd, '.safeword', 'state', 'reviews');
+    mkdirSync(directory, { recursive: true });
+    writeFileSync(
+      nodePath.join(directory, `${requestedId}.json`),
+      JSON.stringify({
+        schema_version: 1,
+        id: embeddedId,
+        state: 'running',
+        kind: 'quality-review',
+        targets: ['input.md'],
+        source_fingerprint: 'forged',
+        started_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        pid: process.pid,
+      }),
+    );
+
+    expect(reviewJobStatus(cwd, requestedId).errors[0]?.code).toBe('REVIEW_JOB_INVALID');
+    expect(cancelReviewJob(cwd, requestedId).errors[0]?.code).toBe('REVIEW_JOB_INVALID');
+    expect(existsSync(nodePath.join(directory, `${embeddedId}.json`))).toBe(false);
   });
 
   it('returns typed failures for malformed and unknown review ids', () => {
