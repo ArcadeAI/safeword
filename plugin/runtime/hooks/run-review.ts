@@ -28,9 +28,10 @@ export function reviewChildEnvironment(
   }
   const optionBoundary = arguments_.indexOf('--');
   const commandArguments = optionBoundary === -1 ? arguments_ : arguments_.slice(0, optionBoundary);
+  const reviewCommandIndex = commandArguments.indexOf('review');
   if (
-    commandArguments[0] === 'review' &&
-    commandArguments[1] === 'run' &&
+    reviewCommandIndex >= 0 &&
+    commandArguments[reviewCommandIndex + 1] === 'run' &&
     commandArguments.includes('--json')
   ) {
     childEnvironment[MANAGED_PROGRESS_SIGNAL] = '1';

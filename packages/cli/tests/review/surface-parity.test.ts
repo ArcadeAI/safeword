@@ -247,6 +247,9 @@ exit ${status}`,
       ]),
     ).toEqual({ PATH: '/usr/bin', SAFEWORD_REVIEW_PROGRESS: '1' });
     expect(
+      reviewChildEnvironment(contaminated, ['--json', 'review', 'run', 'quality-review', 'target']),
+    ).toEqual({ PATH: '/usr/bin', SAFEWORD_REVIEW_PROGRESS: '1' });
+    expect(
       reviewChildEnvironment(contaminated, [
         'review',
         'run',

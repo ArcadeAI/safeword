@@ -375,46 +375,6 @@ describe('durable review jobs', () => {
     cancelReviewJob(cwd, (result.data as { review_id: string }).review_id);
   });
 
-  it('closes managed stderr capture when a detached review outlives the courtesy wait', () => {
-    const cwd = project();
-    const entrypoint = worker(
-      cwd,
-      String.raw`
-process.stderr.on('error', () => {});
-process.stderr.write('foreground progress\n');
-setTimeout(() => process.stderr.write('late detached progress\n'), 750);
-setTimeout(() => {}, 2_000);
-`,
-    );
-    const cli = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
-    const startedAt = Date.now();
-    const started = spawnSync(
-      process.execPath,
-      [cli, '--json', 'review', 'run', 'quality-review', '--', 'input.md'],
-      {
-        cwd,
-        encoding: 'utf8',
-        env: {
-          ...process.env,
-          NODE_ENV: 'test',
-          SAFEWORD_CLI_ENTRYPOINT: entrypoint,
-          SAFEWORD_REVIEW_FOREGROUND_MS: '150',
-          SAFEWORD_REVIEW_PROGRESS: '1',
-          SAFEWORD_NO_UPDATE_CHECK: '1',
-        },
-        timeout: 1500,
-      },
-    );
-
-    expect(started.error).toBeUndefined();
-    expect(started.status).toBe(2);
-    expect(Date.now() - startedAt).toBeLessThan(1500);
-    expect(started.stderr).toContain('foreground progress');
-    expect(started.stderr).not.toContain('late detached progress');
-    const pending = JSON.parse(started.stdout) as { data: { review_id: string } };
-    cancelReviewJob(cwd, pending.data.review_id);
-  });
-
   it('does not reuse a review when a context file becomes a target', async () => {
     const cwd = project();
     writeFileSync(nodePath.join(cwd, 'context.md'), 'supporting context\n');

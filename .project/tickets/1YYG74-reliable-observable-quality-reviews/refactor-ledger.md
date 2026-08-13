@@ -72,6 +72,10 @@ Scope: `origin/main...codex/reliable-quality-review`
 25. **Share byte-safe progress forwarding** — one best-effort byte sink owns
     synchronous short-write and closed-pipe handling; line progress composes
     newline encoding on top, while the worker relay forwards exact bytes.
+26. **Recognize global JSON mode at the wrapper boundary** — managed progress
+    follows `--json` whether the global option appears before or after the
+    `review run` command, while the `--` operand boundary still prevents false
+    opt-in.
 
 ## Struck or deferred
 
@@ -95,6 +99,9 @@ Scope: `origin/main...codex/reliable-quality-review`
 - A process-wide stderr error handler was rejected because it would hide
   unrelated worker output failures; closed-pipe tolerance stays scoped to the
   managed progress byte sink.
+- A partial OS write cannot be rolled back after bytes reach stderr. The
+  best-effort sink stops on the first subsequent failure instead of buffering
+  or retrying indefinitely; lifecycle output is advisory and remains bounded.
 
 ## Verification
 

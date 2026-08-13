@@ -82,7 +82,7 @@ The transferable principle is progressive disclosure at the stream boundary: the
 
 ### reliable-observable-quality-reviews — The review was working the whole time
 
-- **Moment:** Once the packet is prepared and asynchronous reviewer work begins, a long review explains which reviewer is active, periodically confirms it is still waiting, and ends with one precise result without the agent retrying blindly.
+- **Moment:** Once the packet is prepared and a Safeword-managed asynchronous review begins, the workflow explains which reviewer is active, periodically confirms it is still waiting, and ends with one precise result without the agent retrying blindly.
 - **Beats:** The current several-minute silence followed by an opaque route-exhausted message.
 - **They'd say:** "Safeword showed me the independent review was still healthy, then gave my agent the exact recovery without breaking its JSON."
 
