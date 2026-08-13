@@ -65,7 +65,7 @@ function completionReceiptPath(cwd: string, id: string): string {
   return nodePath.join(stateRoot, 'safeword', 'review-receipts', project, `${id}.sha256`);
 }
 
-function completionReceipt(cwd: string, record: ReviewJobRecord): string {
+function completionReceiptDigest(cwd: string, record: ReviewJobRecord): string {
   return createHash('sha256')
     .update(realpathSync.native(cwd))
     .update('\0')
@@ -77,7 +77,7 @@ function writeCompletionReceipt(cwd: string, record: ReviewJobRecord): void {
   const destination = completionReceiptPath(cwd, record.id);
   mkdirSync(nodePath.dirname(destination), { recursive: true, mode: 0o700 });
   const temporary = `${destination}.${process.pid}.tmp`;
-  writeFileSync(temporary, `${completionReceipt(cwd, record)}\n`, { mode: 0o600 });
+  writeFileSync(temporary, `${completionReceiptDigest(cwd, record)}\n`, { mode: 0o600 });
   renameSync(temporary, destination);
   pruneCompletionReceipts(nodePath.dirname(destination), destination);
 }
@@ -104,7 +104,7 @@ function hasValidCompletionReceipt(cwd: string, record: ReviewJobRecord): boolea
   try {
     return (
       readFileSync(completionReceiptPath(cwd, record.id), 'utf8').trim() ===
-      completionReceipt(cwd, record)
+      completionReceiptDigest(cwd, record)
     );
   } catch {
     return false;
@@ -535,7 +535,7 @@ function launchReviewWorker(input: {
   );
 }
 
-function workerSpawned(child: ChildProcess): Promise<void> {
+function workerLaunchSettled(child: ChildProcess): Promise<void> {
   return new Promise(resolve => {
     child.once('spawn', resolve);
     child.once('error', resolve);
@@ -594,7 +594,7 @@ export async function startReviewJob(input: {
     managedProgress,
     targets: input.targets,
   });
-  const spawned = workerSpawned(child);
+  const launchSettled = workerLaunchSettled(child);
   child.once('error', error => {
     const failed = createResult({
       state: 'failed',
@@ -645,7 +645,7 @@ export async function startReviewJob(input: {
     pid: child.pid,
     updated_at: new Date().toISOString(),
   }));
-  await spawned;
+  await launchSettled;
   const observed = readJob(input.cwd, id);
   if (!isActivatedChild(observed, child.pid)) {
     terminateUnactivatedWorker(observed, child.pid);
@@ -679,7 +679,7 @@ function workerDefinitelyMismatches(record: ReviewJobRecord): boolean {
 function terminateUnactivatedWorker(record: ReviewJobRecord, pid: number): void {
   // A cancellation can win after spawn but before the worker PID is published.
   // Completed/failed records won the race legitimately and must remain untouched.
-  if (['launching', 'running', 'canceled'].includes(record.state)) terminateReviewWorker(pid);
+  if (record.state !== 'completed' && record.state !== 'failed') terminateReviewWorker(pid);
 }
 
 function terminateReviewWorker(pid: number): void {

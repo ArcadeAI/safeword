@@ -51,6 +51,16 @@ Scope: `origin/main...codex/reliable-quality-review`
 18. **Make fallback outcomes mutually exclusive** — fallback effect accounting
     accepts a completed-or-failed discriminated union, so impossible flag
     combinations cannot fabricate or omit a reviewer request.
+19. **Harden detached review lifecycle boundaries** — throttled synchronous
+    worker inspection, external completion receipts, canonical project identity,
+    and explicit launch-race cleanup make durable results safer without changing
+    the public review contract.
+20. **Bound untrusted reviewer prose** — terminal projections remove control and
+    formatting characters and cap messages while typed JSON evidence remains
+    faithful for automation.
+21. **Name receipt and launch artifacts precisely** — digest helpers and the
+    non-rejecting launch-settlement barrier now describe their actual values;
+    the cleanup guard directly excludes legitimate terminal results.
 
 ## Struck or deferred
 
