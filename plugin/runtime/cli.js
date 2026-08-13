@@ -20231,7 +20231,7 @@ var init_inventory2 = __esm(() => {
 });
 
 // src/claude-plugin/migration-state.ts
-import { createHash as createHash7 } from "crypto";
+import { createHash as createHash7, randomUUID as randomUUID2 } from "crypto";
 import { existsSync as existsSync21, mkdirSync as mkdirSync7, readFileSync as readFileSync21, rmSync as rmSync3 } from "fs";
 import { homedir as homedir2 } from "os";
 import nodePath33 from "path";
@@ -20307,9 +20307,11 @@ function writeClaudeMigrationAttention(cwd, attention) {
 function hasLegacyClaudePluginMode(cwd) {
   return existsSync21(nodePath33.join(cwd, CLAUDE_MIGRATION_SCHEMA.paths.pluginMarker));
 }
+var PROCESS_SESSION_ID;
 var init_migration_state = __esm(() => {
   init_durable_write();
   init_inventory2();
+  PROCESS_SESSION_ID = `process-${randomUUID2()}`;
 });
 
 // src/claude-plugin/delivery-schema.ts
@@ -32864,7 +32866,7 @@ __export(exports_finalization, {
   codexFinalizationIsComplete: () => codexFinalizationIsComplete,
   applyCodexFinalization: () => applyCodexFinalization
 });
-import { createHash as createHash9, randomUUID as randomUUID2 } from "crypto";
+import { createHash as createHash9, randomUUID as randomUUID3 } from "crypto";
 import {
   chmodSync as chmodSync2,
   existsSync as existsSync27,
@@ -33216,7 +33218,7 @@ function prepareCodexFinalization(cwd, backupDirectory, mutations, beforePrepara
       recursive: true,
       mode: 448
     });
-    const transactionId = randomUUID2();
+    const transactionId = randomUUID3();
     let effectiveMutations = mutations.map((mutation) => ({ ...mutation }));
     let entries = effectiveMutations.map((mutation, index) => {
       const before = beforeImage(cwd, stagingDirectory, mutation, index, beforePreparationStep);
@@ -35003,7 +35005,7 @@ var init_migration = __esm(() => {
 });
 
 // src/codex-plugin/profile-lock.ts
-import { randomUUID as randomUUID3 } from "crypto";
+import { randomUUID as randomUUID4 } from "crypto";
 import { mkdirSync as mkdirSync9, readFileSync as readFileSync30, rmSync as rmSync6, statSync as statSync4, writeFileSync as writeFileSync11 } from "fs";
 import { homedir as homedir5 } from "os";
 import nodePath53 from "path";
@@ -35046,7 +35048,7 @@ function createLock(path4, owner, now) {
 }
 function acquireCodexProfileLock(environment = process.env, options = {}) {
   const path4 = lockPath(environment);
-  const owner = options.owner ?? randomUUID3();
+  const owner = options.owner ?? randomUUID4();
   const now = (options.now ?? Date.now)();
   mkdirSync9(nodePath53.dirname(path4), { recursive: true });
   const gate = acquisitionGatePath(path4);
@@ -35173,7 +35175,7 @@ var WINDOWS_PROCESS_COMMAND = 'Get-CimInstance Win32_Process | ForEach-Object { 
 var init_host_process = () => {};
 
 // src/codex-plugin/profile-proof.ts
-import { createHash as createHash13, randomUUID as randomUUID4 } from "crypto";
+import { createHash as createHash13, randomUUID as randomUUID5 } from "crypto";
 import {
   closeSync as closeSync4,
   constants as fsConstants2,
@@ -35249,7 +35251,7 @@ function writeCodexActivationMarker(environment = process.env, now = new Date, o
   const marker = {
     schema_version: 2,
     ...currentCodexPluginIdentity(),
-    activation_id: options.activationId ?? randomUUID4(),
+    activation_id: options.activationId ?? randomUUID5(),
     installed_at: now.toISOString(),
     host_observation: activeHosts === null ? "unavailable" : "observed",
     active_hosts: activeHosts ?? []
@@ -39618,7 +39620,7 @@ __export(exports_cleanup, {
   claudeCleanupPreconditionDigest: () => claudeCleanupPreconditionDigest
 });
 import { spawnSync as spawnSync6 } from "child_process";
-import { createHash as createHash19, randomUUID as randomUUID5 } from "crypto";
+import { createHash as createHash19, randomUUID as randomUUID6 } from "crypto";
 import {
   closeSync as closeSync7,
   constants as fsConstants5,
@@ -39771,7 +39773,7 @@ function quarantineOpenTarget(root, opened) {
   const quarantineDirectory = containedClaudeCleanupPath(root, ".safeword/claude-plugin/quarantine");
   mkdirSync11(quarantineDirectory, { recursive: true, mode: 448 });
   const quarantineDescriptor = openSync7(quarantineDirectory, fsConstants5.O_RDONLY | (fsConstants5.O_DIRECTORY ?? 0) | (fsConstants5.O_NOFOLLOW ?? 0));
-  const quarantineName = `${randomUUID5()}.retired`;
+  const quarantineName = `${randomUUID6()}.retired`;
   try {
     const result = spawnSync6("bun", ["-e", RENAME_AT_SCRIPT, nodePath70.basename(opened.path), quarantineName], {
       encoding: "utf8",
@@ -40052,7 +40054,7 @@ function performAutomaticMigration(projectRoot, options, now) {
     return concurrentMigrationResult(projectRoot, options, now);
   const transaction = {
     schema_version: 1,
-    transaction_id: randomUUID5(),
+    transaction_id: randomUUID6(),
     disposition: "complete-forward",
     state: "active",
     owner_pid: process.pid,
@@ -42320,7 +42322,7 @@ __export(exports_packet, {
   prepareReviewPacket: () => prepareReviewPacket,
   ReviewPacketError: () => ReviewPacketError
 });
-import { createHash as createHash20, randomUUID as randomUUID6 } from "crypto";
+import { createHash as createHash20, randomUUID as randomUUID7 } from "crypto";
 import {
   closeSync as closeSync9,
   constants as constants3,
@@ -42470,7 +42472,7 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = []) {
   }
   const packet = {
     schema_version: 1,
-    dispatch_id: randomUUID6(),
+    dispatch_id: randomUUID7(),
     kind,
     logical_files: logicalFiles,
     ...contextFiles.length > 0 && { context_files: contextFiles }
@@ -51472,7 +51474,7 @@ var init_durable_fs = __esm(() => {
 });
 
 // src/retro/relay-delivery.ts
-import { createHash as createHash23, randomUUID as randomUUID7 } from "crypto";
+import { createHash as createHash23, randomUUID as randomUUID8 } from "crypto";
 import { access, readdir, readFile as readFile2, stat as stat2, unlink as unlink2 } from "fs/promises";
 import path6 from "path";
 function normalizeRelayOrigin(value) {
@@ -51517,7 +51519,7 @@ function relayRequestDigest(request) {
 function createRelayRequest(input, dependencies) {
   const createdAt = (dependencies?.now ?? Date.now)();
   return {
-    requestId: (dependencies?.randomUUID ?? randomUUID7)(),
+    requestId: (dependencies?.randomUUID ?? randomUUID8)(),
     createdAt: new Date(createdAt).toISOString(),
     retryDeadlineAt: new Date(createdAt + RELAY_RETRY_WINDOW_MS).toISOString(),
     ...input
@@ -51604,7 +51606,7 @@ async function sortedFilenames(directory) {
   return filenames.toSorted((left, right) => left.localeCompare(right));
 }
 async function writeAtomic(file, bytes, faults = {}) {
-  const temporary = `${file}.tmp.${randomUUID7()}`;
+  const temporary = `${file}.tmp.${randomUUID8()}`;
   try {
     await writeNewDurable(temporary, bytes, faults);
     try {
@@ -51626,7 +51628,7 @@ async function removeAtomicTemporary(temporary, faults) {
   } catch {}
 }
 async function replaceAtomic(file, bytes, faults = {}) {
-  const temporary = `${file}.tmp.${randomUUID7()}`;
+  const temporary = `${file}.tmp.${randomUUID8()}`;
   try {
     await writeNewDurable(temporary, bytes, faults);
     await renameDurable(temporary, file, faults);
@@ -52086,7 +52088,7 @@ async function quarantineMalformedActiveRequests(projectDirectory, active) {
     if (parseDurableRequest(candidate) !== undefined)
       continue;
     const claim = await claimSpecificRelayRequest(projectDirectory, candidate.requestId, {
-      claimId: randomUUID7(),
+      claimId: randomUUID8(),
       leaseMs: 1000,
       now: Date.now()
     });
@@ -52427,7 +52429,7 @@ async function releaseDiscardOwnership(projectDirectory, ownership, rearm) {
   }
 }
 async function createDiscardIntent(projectDirectory, requestId, claimId) {
-  const token = randomUUID7();
+  const token = randomUUID8();
   const tokenPath = discardIntentTokenPath(projectDirectory, requestId, token);
   const startedAt = Date.now();
   const expiresAt = startedAt + DISCARD_INTENT_LEASE_MS;
@@ -52512,7 +52514,7 @@ async function removeRelayFiles(directory, filenames) {
 }
 async function discardOwnedRelayRequest(projectDirectory, requestId, options = {}) {
   const directory = relayDirectory(projectDirectory);
-  const discardClaimId = `discard-${randomUUID7()}`;
+  const discardClaimId = `discard-${randomUUID8()}`;
   const discardClaim = await claimSpecificRelayRequest(projectDirectory, requestId, {
     claimId: discardClaimId,
     leaseMs: DISCARD_CLAIM_LEASE_MS,
@@ -52743,7 +52745,7 @@ async function recoverExpiredRecoveryClaims(projectDirectory, filenames, now, re
 async function rearmRelayDeadLetter(projectDirectory, requestId) {
   if (!UUID_V4_PATTERN.test(requestId))
     throw new Error("invalid relay request identity");
-  const claim = await claimRelayDeadLetter(projectDirectory, requestId, `rearm-${randomUUID7()}`);
+  const claim = await claimRelayDeadLetter(projectDirectory, requestId, `rearm-${randomUUID8()}`);
   if (claim === undefined)
     return false;
   const primary = primaryPath(projectDirectory, requestId);
@@ -52865,7 +52867,7 @@ async function recoverRelayDeadLetter(projectDirectory, requestId, options) {
     throw new Error("invalid relay request identity");
   await recoverRelaySpool(projectDirectory, Date.now());
   const relayOrigin = relayRecoveryOrigin(options);
-  const claim = await claimRelayDeadLetter(projectDirectory, requestId, `recover-${randomUUID7()}`);
+  const claim = await claimRelayDeadLetter(projectDirectory, requestId, `recover-${randomUUID8()}`);
   if (claim === undefined)
     return false;
   try {
@@ -52973,7 +52975,7 @@ async function deliverRelayRequests(projectDirectory, options) {
     if (retrySchedule !== undefined && retrySchedule.nextAttemptAt > options.now())
       continue;
     const claim = await claimSpecificRelayRequest(projectDirectory, request.requestId, {
-      claimId: randomUUID7(),
+      claimId: randomUUID8(),
       leaseMs: Math.max(options.deadlineMs * 2, 1000),
       now: options.now()
     });

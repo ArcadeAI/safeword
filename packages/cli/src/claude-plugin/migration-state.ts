@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { homedir } from 'node:os';
 import nodePath from 'node:path';
@@ -38,6 +38,12 @@ export function createClaudePluginMode(
 interface InitialSessionV1 {
   readonly schema_version: 1;
   readonly session_digest: string;
+}
+
+const PROCESS_SESSION_ID = `process-${randomUUID()}`;
+
+function migrationSessionDigest(sessionId: string | undefined, fallbackSessionId: string): string {
+  return digest(sessionId?.trim() || fallbackSessionId);
 }
 
 export interface ClaudeMigrationAttentionV1 {
@@ -88,8 +94,9 @@ export function claimClaudeMigrationAttempt(
   cwd: string,
   sessionId: string | undefined,
   kind: 'migration' | 'recovery' = 'migration',
+  fallbackSessionId = PROCESS_SESSION_ID,
 ): boolean {
-  const sessionDigest = digest(sessionId?.trim() || 'unknown-session');
+  const sessionDigest = migrationSessionDigest(sessionId, fallbackSessionId);
   const initialSession = initialSessionDigest(cwd, sessionDigest) === sessionDigest;
   const limit = initialSession ? 3 : 1;
   const directory = nodePath.join(
@@ -116,10 +123,11 @@ export function claimClaudeMigrationAdvisory(
   cwd: string,
   sessionId: string | undefined,
   stateDigest: string,
+  fallbackSessionId = PROCESS_SESSION_ID,
 ): boolean {
   const directory = nodePath.join(attemptsPath(cwd), 'advisories');
   mkdirSync(directory, { recursive: true, mode: 0o700 });
-  const sessionDigest = digest(sessionId?.trim() || 'unknown-session');
+  const sessionDigest = migrationSessionDigest(sessionId, fallbackSessionId);
   return exclusiveRecord(nodePath.join(directory, `${sessionDigest}-${stateDigest}.json`), {
     schema_version: 1,
     session_digest: sessionDigest,

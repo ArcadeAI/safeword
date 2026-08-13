@@ -1631,7 +1631,7 @@ function durableRename(source, destination) {
 
 // claude-plugin/cleanup.ts
 import { spawnSync as spawnSync2 } from 'node:child_process';
-import { createHash as createHash3, randomUUID as randomUUID2 } from 'node:crypto';
+import { createHash as createHash3, randomUUID as randomUUID3 } from 'node:crypto';
 import {
   closeSync as closeSync3,
   constants as fsConstants2,
@@ -3399,7 +3399,7 @@ function observeClaudeLegacy(cwd) {
 }
 
 // claude-plugin/migration-state.ts
-import { createHash as createHash2 } from 'node:crypto';
+import { createHash as createHash2, randomUUID as randomUUID2 } from 'node:crypto';
 import {
   existsSync as existsSync3,
   mkdirSync as mkdirSync2,
@@ -3414,6 +3414,10 @@ function createClaudePluginMode(marker) {
     schema_version: 2,
     state: marker.unresolved_paths.length === 0 ? 'clean' : 'unresolved',
   };
+}
+var PROCESS_SESSION_ID = `process-${randomUUID2()}`;
+function migrationSessionDigest(sessionId, fallbackSessionId) {
+  return digest(sessionId?.trim() || fallbackSessionId);
 }
 function digest(value) {
   return createHash2('sha256').update(value).digest('hex');
@@ -3449,8 +3453,13 @@ function initialSessionDigest(cwd, sessionDigest) {
     return '';
   }
 }
-function claimClaudeMigrationAttempt(cwd, sessionId, kind = 'migration') {
-  const sessionDigest = digest(sessionId?.trim() || 'unknown-session');
+function claimClaudeMigrationAttempt(
+  cwd,
+  sessionId,
+  kind = 'migration',
+  fallbackSessionId = PROCESS_SESSION_ID,
+) {
+  const sessionDigest = migrationSessionDigest(sessionId, fallbackSessionId);
   const initialSession = initialSessionDigest(cwd, sessionDigest) === sessionDigest;
   const limit = initialSession ? 3 : 1;
   const directory = nodePath5.join(
@@ -3471,10 +3480,15 @@ function claimClaudeMigrationAttempt(cwd, sessionId, kind = 'migration') {
   }
   return false;
 }
-function claimClaudeMigrationAdvisory(cwd, sessionId, stateDigest) {
+function claimClaudeMigrationAdvisory(
+  cwd,
+  sessionId,
+  stateDigest,
+  fallbackSessionId = PROCESS_SESSION_ID,
+) {
   const directory = nodePath5.join(attemptsPath(cwd), 'advisories');
   mkdirSync2(directory, { recursive: true, mode: 448 });
-  const sessionDigest = digest(sessionId?.trim() || 'unknown-session');
+  const sessionDigest = migrationSessionDigest(sessionId, fallbackSessionId);
   return exclusiveRecord(nodePath5.join(directory, `${sessionDigest}-${stateDigest}.json`), {
     schema_version: 1,
     session_digest: sessionDigest,
@@ -3804,7 +3818,7 @@ function quarantineOpenTarget(root, opened) {
     quarantineDirectory,
     fsConstants2.O_RDONLY | (fsConstants2.O_DIRECTORY ?? 0) | (fsConstants2.O_NOFOLLOW ?? 0),
   );
-  const quarantineName = `${randomUUID2()}.retired`;
+  const quarantineName = `${randomUUID3()}.retired`;
   try {
     const result = spawnSync2(
       'bun',
@@ -4104,7 +4118,7 @@ function performAutomaticMigration(projectRoot, options, now) {
   if (entries === void 0) return concurrentMigrationResult(projectRoot, options, now);
   const transaction = {
     schema_version: 1,
-    transaction_id: randomUUID2(),
+    transaction_id: randomUUID3(),
     disposition: 'complete-forward',
     state: 'active',
     owner_pid: process.pid,

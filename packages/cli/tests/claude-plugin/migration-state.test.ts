@@ -125,4 +125,23 @@ describe('Claude plugin mode v2', () => {
     expect(claimClaudeMigrationAdvisory(root, 'session-a', digest)).toBe(false);
     expect(claimClaudeMigrationAdvisory(root, 'session-b', digest)).toBe(true);
   });
+
+  it('gives missing and blank session IDs a fresh budget in a later process', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'claude-missing-session-attempts-'));
+    roots.push(root);
+    expect(
+      [1, 2, 3, 4].map(() =>
+        claimClaudeMigrationAttempt(root, undefined, 'migration', 'process-a'),
+      ),
+    ).toEqual([true, true, true, false]);
+    expect(claimClaudeMigrationAttempt(root, '  ', 'migration', 'process-b')).toBe(true);
+  });
+
+  it('shows the same advisory again when a missing-ID session starts in a later process', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'claude-missing-session-advisory-'));
+    roots.push(root);
+    expect(claimClaudeMigrationAdvisory(root, undefined, digest, 'process-a')).toBe(true);
+    expect(claimClaudeMigrationAdvisory(root, '', digest, 'process-a')).toBe(false);
+    expect(claimClaudeMigrationAdvisory(root, undefined, digest, 'process-b')).toBe(true);
+  });
 });
