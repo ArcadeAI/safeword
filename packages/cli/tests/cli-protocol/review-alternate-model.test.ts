@@ -20,7 +20,7 @@ type ReviewAgent = 'claude' | 'codex';
  * records the model it was given so the test can prove the configured value
  * reached the executable as a real argument rather than as routing metadata.
  */
-function installModelDependentReviewer(agent: ReviewAgent): string {
+function installModelDependentReviewer(_directory: string, agent: ReviewAgent): string {
   const bin = nodePath.join(createTrustedReviewerDirectory('safeword-altmodel-'), 'bin');
   mkdirSync(bin, { recursive: true });
   const executable = nodePath.join(bin, agent);
@@ -43,6 +43,13 @@ if [ -z "$model" ]; then
   exit 7
 fi
 printf '%s\n' "$model" >> "$SAFEWORD_REVIEW_MODEL_LOG"
+accepted_model=$(printenv SAFEWORD_REVIEW_ACCEPTED_MODEL || true)
+if [ -n "$accepted_model" ] && [ "$model" != "$accepted_model" ]; then
+  rejected_model_behaviour=$(printenv SAFEWORD_REVIEW_REJECTED_MODEL_BEHAVIOUR || true)
+  if [ "$rejected_model_behaviour" = "timeout" ]; then exec /bin/sleep 3600; fi
+  printf 'model unavailable\n' >&2
+  exit 7
+fi
 payload=$(cat)
 dispatch_id=$(printf '%s' "$payload" | sed -n 's/.*"dispatch_id":"\([^"]*\)".*/\1/p')
 printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verdict":"approve","summary":"reviewed","findings":[]}\n' "$dispatch_id"
@@ -53,7 +60,7 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verd
   return bin;
 }
 
-function installAlwaysAnsweringReviewer(agent: ReviewAgent): string {
+function installAlwaysAnsweringReviewer(_directory: string, agent: ReviewAgent): string {
   const bin = nodePath.join(createTrustedReviewerDirectory('safeword-answering-'), 'bin');
   mkdirSync(bin, { recursive: true });
   const executable = nodePath.join(bin, agent);
@@ -97,7 +104,7 @@ describe('alternate-model review route', () => {
         crossAgentReview: 'require',
         crossAgentReviewAlternateModel: { [reviewer]: 'vendor-model-2' },
       });
-      const bin = installModelDependentReviewer(reviewer);
+      const bin = installModelDependentReviewer(directory, reviewer);
 
       const result = await runCli(
         [
@@ -118,6 +125,7 @@ describe('alternate-model review route', () => {
             PATH: `${bin}:/usr/bin:/bin`,
             SAFEWORD_AGENT_RUNTIME: author,
             SAFEWORD_REVIEW_MODEL_LOG: modelLog,
+            SAFEWORD_REVIEW_ACCEPTED_MODEL: 'vendor-model-2',
             SAFEWORD_NO_UPDATE_CHECK: '1',
           },
         },
@@ -143,9 +151,98 @@ describe('alternate-model review route', () => {
         },
       });
       // The required cross-agent check is satisfied by the alternate model.
-      expect(readFileSync(modelLog, 'utf8').trim()).toBe('vendor-model-2');
+      expect(readFileSync(modelLog, 'utf8').trim().split('\n')).toEqual(
+        reviewer === 'claude' ? ['opus', 'vendor-model-2'] : ['vendor-model-2'],
+      );
     },
   );
+
+  it('uses Opus for the primary Claude review when no model is configured', async () => {
+    const directory = createTemporaryDirectory();
+    const modelLog = nodePath.join(directory, 'model.log');
+    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+    writeConfig(directory, { crossAgentReview: 'require' });
+    const bin = installModelDependentReviewer(directory, 'claude');
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'review-input.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'codex',
+          SAFEWORD_REVIEW_MODEL_LOG: modelLog,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode, result.stdout).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      data: {
+        actual_reviewer: 'claude',
+        reviewer_model: 'opus',
+        independence: 'cross-agent',
+      },
+    });
+    expect(readFileSync(modelLog, 'utf8').trim()).toBe('opus');
+  });
+
+  it('falls back from Opus to Sonnet without project configuration', async () => {
+    const directory = createTemporaryDirectory();
+    const modelLog = nodePath.join(directory, 'model.log');
+    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+    writeConfig(directory, { crossAgentReview: 'require' });
+    const bin = installModelDependentReviewer(directory, 'claude');
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'review-input.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'codex',
+          SAFEWORD_REVIEW_MODEL_LOG: modelLog,
+          SAFEWORD_REVIEW_ACCEPTED_MODEL: 'sonnet',
+          SAFEWORD_REVIEW_REJECTED_MODEL_BEHAVIOUR: 'timeout',
+          SAFEWORD_REVIEW_TIMEOUT_MS: '1500',
+          SAFEWORD_REVIEW_RUN_BOUND_MS: '5000',
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode, result.stdout).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      data: {
+        assigned_reviewer: 'claude',
+        actual_reviewer: 'claude',
+        reviewer_model: 'sonnet',
+        preferred_model: 'opus',
+        preferred_failure: 'timed_out',
+        independence: 'cross-agent',
+      },
+    });
+    expect(readFileSync(modelLog, 'utf8').trim().split('\n')).toEqual(['opus', 'sonnet']);
+  });
 
   it('refuses to let the author reviewing itself satisfy a required check', async () => {
     const directory = createTemporaryDirectory();
@@ -153,7 +250,7 @@ describe('alternate-model review route', () => {
     writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
     writeConfig(directory, { crossAgentReview: 'require' });
     // Only the author's own runtime is installed, and it answers happily.
-    const bin = installAlwaysAnsweringReviewer('claude');
+    const bin = installAlwaysAnsweringReviewer(directory, 'claude');
 
     const result = await runCli(
       [
@@ -177,9 +274,16 @@ describe('alternate-model review route', () => {
       },
     );
 
-    const payload = JSON.parse(result.stdout) as { data: Record<string, unknown> };
-    expect(payload.data.status).toBe('blocked');
-    expect(payload.data.independence).not.toBe('cross-agent');
+    const payload = JSON.parse(result.stdout) as {
+      findings: readonly { code: string }[];
+      data: Record<string, unknown>;
+    };
+    expect(payload.data).toMatchObject({
+      status: 'blocked',
+      actual_reviewer: 'claude',
+      independence: 'degraded',
+    });
+    expect(payload.findings.map(finding => finding.code)).toContain('REVIEW_INDEPENDENCE_REQUIRED');
   });
 
   it('passes no model at all when none is configured', async () => {
@@ -187,7 +291,7 @@ describe('alternate-model review route', () => {
     const modelLog = nodePath.join(directory, 'model.log');
     writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
     writeConfig(directory, { crossAgentReview: 'prefer' });
-    const bin = installModelDependentReviewer('codex');
+    const bin = installModelDependentReviewer(directory, 'codex');
 
     const result = await runCli(
       [
@@ -213,10 +317,12 @@ describe('alternate-model review route', () => {
       },
     );
 
-    // The reviewer refuses without a model, so no route completes — proving
-    // Safeword never supplied a model of its own choosing.
+    // The reviewer refuses without a model, so the exhausted result and absent
+    // model log together prove the real executable ran without `--model`.
     const payload = JSON.parse(result.stdout) as { data: Record<string, unknown> };
-    expect(payload.data.independence).not.toBe('cross-agent');
+    expect(payload.data).toMatchObject({ status: 'blocked', independence: 'none' });
+    expect(payload.data.preferred_failure).toBe('process_failed');
     expect(payload.data).not.toHaveProperty('reviewer_model');
+    expect(() => readFileSync(modelLog, 'utf8')).toThrow();
   });
 });

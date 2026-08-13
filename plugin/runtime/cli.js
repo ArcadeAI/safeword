@@ -42649,19 +42649,25 @@ function oppositeReviewPair(author) {
     return { author, reviewer: "claude" };
   return;
 }
-function readAlternateReviewerModel(cwd, reviewer) {
-  const sources = [
-    process.env[`SAFEWORD_REVIEW_ALTERNATE_MODEL_${reviewer.toUpperCase()}`],
-    readConfiguredAlternateModel(cwd, reviewer)
-  ];
-  return sources.find((value) => value !== undefined && MODEL_NAME.test(value));
+function readPrimaryReviewerModel(cwd, reviewer) {
+  return readReviewerModel(cwd, reviewer, "PRIMARY", "crossAgentReviewPrimaryModel") ?? DEFAULT_PRIMARY_MODEL[reviewer];
 }
-function readConfiguredAlternateModel(cwd, reviewer) {
+function readAlternateReviewerModel(cwd, reviewer) {
+  return readReviewerModel(cwd, reviewer, "ALTERNATE", "crossAgentReviewAlternateModel") ?? DEFAULT_ALTERNATE_MODEL[reviewer];
+}
+function readReviewerModel(cwd, reviewer, route, configKey) {
+  const environmentValue = process.env[`SAFEWORD_REVIEW_${route}_MODEL_${reviewer.toUpperCase()}`];
+  if (environmentValue !== undefined && MODEL_NAME.test(environmentValue))
+    return environmentValue;
+  const configuredValue = readConfiguredModel(cwd, reviewer, configKey);
+  return configuredValue !== undefined && MODEL_NAME.test(configuredValue) ? configuredValue : undefined;
+}
+function readConfiguredModel(cwd, reviewer, configKey) {
   try {
     const raw = JSON.parse(readFileSync50(nodePath80.join(cwd, ".safeword", "config.json"), "utf8"));
     if (typeof raw !== "object" || raw === null)
       return;
-    const models = raw.crossAgentReviewAlternateModel;
+    const models = raw[configKey];
     if (typeof models !== "object" || models === null)
       return;
     const value = models[reviewer];
@@ -42673,15 +42679,20 @@ function readConfiguredAlternateModel(cwd, reviewer) {
 function readReviewPolicy(cwd) {
   try {
     const raw = readFileSync50(nodePath80.join(cwd, ".safeword", "config.json"), "utf8");
+    const config = JSON.parse(raw);
+    if (typeof config !== "object" || config === null || Array.isArray(config))
+      return "require";
     return readCrossAgentReviewPolicy(raw);
-  } catch {
-    return "prefer";
+  } catch (error2) {
+    return error2.code === "ENOENT" ? "prefer" : "require";
   }
 }
-var MODEL_NAME;
+var MODEL_NAME, DEFAULT_PRIMARY_MODEL, DEFAULT_ALTERNATE_MODEL;
 var init_policy = __esm(() => {
   init_review_ledger();
   MODEL_NAME = /^[\w.:/][\w.:/-]{0,199}$/u;
+  DEFAULT_PRIMARY_MODEL = { claude: "opus" };
+  DEFAULT_ALTERNATE_MODEL = { claude: "sonnet" };
 });
 
 // src/review/environment.ts
@@ -43352,6 +43363,7 @@ function independentReviewResult(input) {
       assigned_reviewer: input.reviewer,
       actual_reviewer: input.output.reviewer_agent,
       ...input.model !== undefined && { reviewer_model: input.model },
+      ...input.preferredModel !== undefined && { preferred_model: input.preferredModel },
       ...input.preferredFailure !== undefined && { preferred_failure: input.preferredFailure },
       independence: "cross-agent",
       reviewer_output: input.output
@@ -43418,7 +43430,10 @@ function causePhrase(failure) {
   return FAILURE_CAUSES[failure] ?? "could not be run";
 }
 function exhaustedExplanation(routes) {
-  const sentences = routes.map((route) => `The ${route.role} (${agentName(route.agent)}) ${causePhrase(route.failure)}.`);
+  const sentences = routes.map((route) => {
+    const modelPhrase = route.model === undefined ? "" : ` using ${route.model}`;
+    return `The ${route.role}${modelPhrase} (${agentName(route.agent)}) ${causePhrase(route.failure)}.`;
+  });
   return [...sentences, "No independent check was recorded."].join(" ");
 }
 function nextStepFor(reviewer, failure) {
@@ -43527,8 +43542,15 @@ function changedReviewResult(input) {
     }
   });
 }
-function alternateFailureData(failure) {
-  return failure === undefined ? {} : { alternate_model_failure: failure };
+function routeFailureData(input) {
+  return {
+    ...input.preferredModel !== undefined && { preferred_model: input.preferredModel },
+    preferred_failure: input.preferredFailure,
+    ...input.alternateFailure !== undefined && {
+      alternate_model_failure: input.alternateFailure,
+      ...input.alternateModel !== undefined && { alternate_model: input.alternateModel }
+    }
+  };
 }
 function degradedNetworkEffects(assignedReviewer, author, alternateAttempted) {
   const preferred = { kind: "review", target: assignedReviewer, operation: "request" };
@@ -43581,12 +43603,14 @@ async function runDegradedFallback(input) {
             {
               agent: input.assignedReviewer,
               role: "independent reviewer",
+              model: input.preferredModel,
               failure: input.preferredFailure
             },
             ...input.alternateFailure === undefined ? [] : [
               {
                 agent: input.assignedReviewer,
                 role: "same reviewer on its alternate model",
+                model: input.alternateModel,
                 failure: input.alternateFailure
               }
             ],
@@ -43610,8 +43634,7 @@ async function runDegradedFallback(input) {
         status: "blocked",
         author_agent: input.author,
         assigned_reviewer: input.assignedReviewer,
-        preferred_failure: input.preferredFailure,
-        ...alternateFailureData(input.alternateFailure),
+        ...routeFailureData(input),
         fallback_failure: assessment.failure,
         review_policy: input.policy,
         independence: "none"
@@ -43646,8 +43669,7 @@ async function runDegradedFallback(input) {
         author_agent: input.author,
         assigned_reviewer: input.assignedReviewer,
         actual_reviewer: completedOutput.reviewer_agent,
-        preferred_failure: input.preferredFailure,
-        ...alternateFailureData(input.alternateFailure),
+        ...routeFailureData(input),
         review_policy: input.policy,
         independence: "degraded",
         reviewer_output: completedOutput
@@ -43673,8 +43695,7 @@ async function runDegradedFallback(input) {
       author_agent: input.author,
       assigned_reviewer: input.assignedReviewer,
       actual_reviewer: completedOutput.reviewer_agent,
-      preferred_failure: input.preferredFailure,
-      ...alternateFailureData(input.alternateFailure),
+      ...routeFailureData(input),
       independence: "degraded",
       reviewer_output: completedOutput
     }
@@ -43705,7 +43726,7 @@ async function runAlternateModelRoute(input) {
   if (assessment.kind === "failed") {
     if (assessment.failure === "not_installed" || assessment.failure === "unsupported")
       return { kind: "skipped" };
-    return assessment;
+    return { ...assessment, model };
   }
   const output = assessment.output;
   const result = independentReviewResult({
@@ -43713,6 +43734,7 @@ async function runAlternateModelRoute(input) {
     reviewer: input.reviewer,
     output,
     model,
+    preferredModel: input.preferredModel,
     preferredFailure: input.preferredFailure
   });
   return { kind: "completed", result };
@@ -43726,6 +43748,7 @@ async function runRemainingRoutes(input) {
     progress: input.progress,
     author: input.author,
     reviewer: input.assignedReviewer,
+    preferredModel: input.preferredModel,
     preferredFailure: input.preferredFailure,
     policy: input.policy,
     runDeadline: input.runDeadline
@@ -43733,12 +43756,14 @@ async function runRemainingRoutes(input) {
   if (alternate.kind === "completed")
     return alternate.result;
   const alternateFailure = alternate.kind === "failed" ? alternate.failure : undefined;
+  const alternateModel = alternate.kind === "failed" ? alternate.model : undefined;
   if (alternate.kind === "failed" && alternate.terminal) {
-    return exhaustedRunResult({ ...input, alternateFailure });
+    return exhaustedRunResult({ ...input, alternateFailure, alternateModel });
   }
-  if (!canFundRoute(input.runDeadline))
-    return exhaustedRunResult({ ...input, alternateFailure });
-  return runDegradedFallback({ ...input, alternateFailure });
+  if (!canFundRoute(input.runDeadline)) {
+    return exhaustedRunResult({ ...input, alternateFailure, alternateModel });
+  }
+  return runDegradedFallback({ ...input, alternateFailure, alternateModel });
 }
 function exhaustedRunResult(input) {
   return createResult({
@@ -43750,12 +43775,14 @@ function exhaustedRunResult(input) {
           {
             agent: input.assignedReviewer,
             role: "independent reviewer",
+            model: input.preferredModel,
             failure: input.preferredFailure
           },
           ...input.alternateFailure === undefined ? [] : [
             {
               agent: input.assignedReviewer,
               role: "same reviewer on its alternate model",
+              model: input.alternateModel,
               failure: input.alternateFailure
             }
           ]
@@ -43778,8 +43805,7 @@ function exhaustedRunResult(input) {
       status: "blocked",
       author_agent: input.author,
       assigned_reviewer: input.assignedReviewer,
-      preferred_failure: input.preferredFailure,
-      ...alternateFailureData(input.alternateFailure),
+      ...routeFailureData(input),
       review_policy: input.policy,
       independence: "none"
     }
@@ -43818,9 +43844,10 @@ async function runReview(input) {
     });
   }
   const { reviewer } = pair;
+  const primaryModel = readPrimaryReviewerModel(input.cwd, reviewer);
   const prepared = preparePrimaryReview(input, reviewer);
   const runDeadline = Date.now() + runBoundMs();
-  const { outcome, sourceChanged, snapshotChanged } = await executeReview(reviewer, prepared, undefined, runDeadline);
+  const { outcome, sourceChanged, snapshotChanged } = await executeReview(reviewer, prepared, primaryModel, runDeadline);
   const changedResult = changedReviewResult({
     author: pair.author,
     reviewer,
@@ -43839,6 +43866,7 @@ async function runReview(input) {
         ...input,
         author: pair.author,
         assignedReviewer: reviewer,
+        preferredModel: primaryModel,
         preferredFailure: outcome.failure,
         policy
       });
@@ -43847,6 +43875,7 @@ async function runReview(input) {
       ...input,
       author: pair.author,
       assignedReviewer: reviewer,
+      preferredModel: primaryModel,
       preferredFailure: outcome.failure,
       policy,
       runDeadline
@@ -43858,13 +43887,14 @@ async function runReview(input) {
       ...input,
       author: pair.author,
       assignedReviewer: reviewer,
-      preferredFailure: "invalid_output",
+      preferredModel: primaryModel,
+      preferredFailure: provenance.code,
       policy,
       runDeadline
     });
   }
   const output = provenance.output;
-  return independentReviewResult({ author: pair.author, reviewer, output });
+  return independentReviewResult({ author: pair.author, reviewer, output, model: primaryModel });
 }
 var FAILURE_CAUSES;
 var init_coordinator = __esm(() => {
