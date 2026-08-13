@@ -42061,7 +42061,7 @@ async function stopReviewerOrThrow(child, reviewer) {
 }
 async function stopReviewerOnce(child) {
   const pid = child.pid;
-  if (pid === undefined || child.exitCode !== null || child.signalCode !== null)
+  if (pid === undefined)
     return true;
   if (process.platform === "win32") {
     return stopWindowsReviewer(child, pid);
@@ -43046,7 +43046,21 @@ function hasReviewJobIdentity(candidate) {
 function hasReviewJobLifecycle(candidate) {
   const hasPid = isOptional(candidate.pid, isProcessId);
   const hasResult = isOptional(candidate.result, isCliResult);
-  return hasPid && hasResult && isJobState(candidate.state);
+  if (!hasPid || !hasResult || !isJobState(candidate.state))
+    return false;
+  switch (candidate.state) {
+    case "launching":
+    case "running": {
+      return isProcessId(candidate.pid) && candidate.result === undefined;
+    }
+    case "completed":
+    case "failed": {
+      return isCliResult(candidate.result);
+    }
+    case "canceled": {
+      return candidate.result === undefined;
+    }
+  }
 }
 function isOptional(value, predicate) {
   return value === undefined || predicate(value);
