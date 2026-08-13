@@ -316,6 +316,55 @@ describe('Claude plugin dispatcher', () => {
     expect(result.stdout).toContain('nativeRan');
   });
 
+  it('does not let an unrecognized legacy-looking entry suppress native hooks', () => {
+    const projectDirectory = temporary('safeword-plugin-unrecognized-authority-project-');
+    const pluginData = temporary('safeword-plugin-unrecognized-authority-data-');
+    const configDirectory = temporary('safeword-plugin-unrecognized-authority-config-');
+    const pluginRoot = nodePath.join(
+      temporary('safeword-plugin-unrecognized-authority-root-'),
+      'plugin',
+    );
+    cpSync(PLUGIN_ROOT, pluginRoot, { recursive: true });
+    const customHook = nodePath.join(projectDirectory, '.safeword/hooks/custom.ts');
+    mkdirSync(nodePath.dirname(customHook), { recursive: true });
+    writeFileSync(customHook, '// not owned by Safeword\n');
+    const settingsPath = nodePath.join(projectDirectory, '.claude/settings.json');
+    mkdirSync(nodePath.dirname(settingsPath), { recursive: true });
+    writeFileSync(
+      settingsPath,
+      `${JSON.stringify({
+        hooks: {
+          UserPromptSubmit: [
+            {
+              hooks: [
+                {
+                  type: 'command',
+                  command: 'bun "$CLAUDE_PROJECT_DIR"/.safeword/hooks/custom.ts',
+                },
+              ],
+            },
+          ],
+        },
+      })}\n`,
+    );
+
+    const eventGroupsPath = nodePath.join(pluginRoot, 'runtime/event-groups.json');
+    const eventGroups = JSON.parse(readFileSync(eventGroupsPath, 'utf8')) as {
+      groups: Record<string, unknown>;
+    };
+    eventGroups.groups.UserPromptSubmit = [
+      { hooks: [{ type: 'command', command: String.raw`printf '{"nativeRan":true}\n'` }] },
+    ];
+    writeFileSync(eventGroupsPath, `${JSON.stringify(eventGroups, undefined, 2)}\n`);
+    refreshPluginIdentity(pluginRoot, ['runtime/event-groups.json']);
+
+    const result = dispatchPrompt(projectDirectory, pluginData, configDirectory, 'unrecognized', {
+      pluginRoot,
+    });
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain('nativeRan');
+  });
+
   it('treats valid non-object hook input as empty input', () => {
     const projectDirectory = temporary('safeword-plugin-non-object-input-project-');
     const pluginData = temporary('safeword-plugin-non-object-input-data-');

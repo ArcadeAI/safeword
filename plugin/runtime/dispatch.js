@@ -4464,9 +4464,13 @@ function viableLegacyAuthority(event, projectRoot) {
   try {
     const settings = parseSettings(settingsPath);
     const hooks = settings?.hooks;
-    return legacyHookCommand(
-      typeof hooks === 'object' && hooks !== null && !Array.isArray(hooks) ? hooks[event] : void 0,
-      projectRoot,
+    if (typeof hooks !== 'object' || hooks === null || Array.isArray(hooks)) return false;
+    const entries = hooks[event];
+    return (
+      Array.isArray(entries) &&
+      entries.some(
+        entry => isAcceptedHistoricalHook(event, entry) && legacyHookCommand(entry, projectRoot),
+      )
     );
   } catch {
     return false;

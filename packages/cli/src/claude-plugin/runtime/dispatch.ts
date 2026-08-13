@@ -7,7 +7,7 @@ import { parse, type ParseError } from 'jsonc-parser';
 
 import { writeDurableFile } from '../../codex-plugin/durable-write.js';
 import { migrateClaudeLegacyAutomatically } from '../cleanup.js';
-import { historicalCatalogueDigest } from '../historical-ownership.js';
+import { historicalCatalogueDigest, isAcceptedHistoricalHook } from '../historical-ownership.js';
 import {
   CLAUDE_MIGRATION_SCHEMA,
   CLAUDE_NATIVE_METADATA_FILES,
@@ -116,11 +116,13 @@ function viableLegacyAuthority(event: string, projectRoot: string | undefined): 
   try {
     const settings = parseSettings(settingsPath);
     const hooks = settings?.hooks;
-    return legacyHookCommand(
-      typeof hooks === 'object' && hooks !== null && !Array.isArray(hooks)
-        ? (hooks as Record<string, unknown>)[event]
-        : undefined,
-      projectRoot,
+    if (typeof hooks !== 'object' || hooks === null || Array.isArray(hooks)) return false;
+    const entries = (hooks as Record<string, unknown>)[event];
+    return (
+      Array.isArray(entries) &&
+      entries.some(
+        entry => isAcceptedHistoricalHook(event, entry) && legacyHookCommand(entry, projectRoot),
+      )
     );
   } catch {
     // Malformed legacy configuration is not viable authority. The plugin stays
