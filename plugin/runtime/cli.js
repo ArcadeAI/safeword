@@ -20304,11 +20304,13 @@ function writeClaudePluginMode(cwd, marker) {
     hook_manifest_sha256: marker.hook_manifest_sha256,
     catalogue_sha256: marker.catalogue_sha256,
     unresolved_paths: marker.unresolved_paths,
-    ...marker.advisory === undefined ? {} : { advisory: marker.advisory },
-    ...marker.transaction_id === undefined ? {} : { transaction_id: marker.transaction_id }
+    ...marker.advisory !== undefined && { advisory: marker.advisory },
+    ...marker.transaction_id !== undefined && { transaction_id: marker.transaction_id }
   });
   writeDurableFile(markerPath(cwd), `${JSON.stringify(normalized, undefined, 2)}
-`, { mode: 384 });
+`, {
+    mode: 384
+  });
 }
 function writeClaudeMigrationAttention(cwd, attention) {
   writeDurableFile(nodePath33.join(cwd, CLAUDE_MIGRATION_SCHEMA.paths.attention), `${JSON.stringify(attention, undefined, 2)}
