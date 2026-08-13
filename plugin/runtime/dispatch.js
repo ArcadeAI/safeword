@@ -4444,14 +4444,30 @@ function legacyHookCommand(value, projectRoot) {
   if (typeof value !== 'object' || value === null) return false;
   return Object.values(value).some(child => legacyHookCommand(child, projectRoot));
 }
-function viableLegacyAuthority(event) {
-  const projectRoot = process.env.CLAUDE_PROJECT_DIR;
+function parseSettings(path) {
+  if (!existsSync6(path)) return void 0;
+  const errors = [];
+  const parsed = parse2(readFileSync5(path, 'utf8'), errors, {
+    allowTrailingComma: true,
+    disallowComments: false,
+  });
+  return errors.length === 0 &&
+    typeof parsed === 'object' &&
+    parsed !== null &&
+    !Array.isArray(parsed)
+    ? parsed
+    : void 0;
+}
+function viableLegacyAuthority(event, projectRoot) {
   if (projectRoot === void 0 || projectRoot === '') return false;
   const settingsPath = nodePath8.join(projectRoot, '.claude/settings.json');
-  if (!existsSync6(settingsPath)) return false;
   try {
-    const settings = parse2(readFileSync5(settingsPath, 'utf8'));
-    return legacyHookCommand(settings.hooks?.[event], projectRoot);
+    const settings = parseSettings(settingsPath);
+    const hooks = settings?.hooks;
+    return legacyHookCommand(
+      typeof hooks === 'object' && hooks !== null && !Array.isArray(hooks) ? hooks[event] : void 0,
+      projectRoot,
+    );
   } catch {
     return false;
   }
@@ -4752,11 +4768,19 @@ function stableJson(value) {
     .join(',')}}`;
 }
 function scopeDeclaration(path) {
-  if (!existsSync6(path)) return { enabled: false, marketplace: void 0 };
-  const settings = parse2(readFileSync5(path, 'utf8'));
+  const settings = parseSettings(path);
+  const enabledPlugins = settings?.enabledPlugins;
+  const marketplaces = settings?.extraKnownMarketplaces;
   return {
-    enabled: settings?.enabledPlugins?.['safeword@safeword'] === true,
-    marketplace: settings?.extraKnownMarketplaces?.safeword,
+    enabled:
+      typeof enabledPlugins === 'object' &&
+      enabledPlugins !== null &&
+      !Array.isArray(enabledPlugins) &&
+      enabledPlugins['safeword@safeword'] === true,
+    marketplace:
+      typeof marketplaces === 'object' && marketplaces !== null && !Array.isArray(marketplaces)
+        ? marketplaces.safeword
+        : void 0,
   };
 }
 function incompatibleScopeOverlap(projectRoot) {
@@ -4820,7 +4844,7 @@ function automaticMigrationProjectRoot(event, hookCwd) {
 function upgradeConsistentLegacyMarker(event, projectRoot, identity, catalogueSha256) {
   if (
     !hasLegacyClaudePluginMode(projectRoot) ||
-    viableLegacyAuthority(event) ||
+    viableLegacyAuthority(event, projectRoot) ||
     incompatibleScopeOverlap(projectRoot)
   ) {
     return false;
@@ -4964,7 +4988,7 @@ function parseHookInput(standardInput) {
   }
 }
 function executeConfiguredHooks(input) {
-  if (viableLegacyAuthority(input.event)) return { status: 0, stdout: '' };
+  if (viableLegacyAuthority(input.event, input.projectRoot)) return { status: 0, stdout: '' };
   try {
     return input.mode === '--event-group'
       ? runEventGroup(input.event, input.eventGroupsContent, input.hookInput, input.standardInput)
@@ -4985,6 +5009,9 @@ function mainUnsafe(event, mode, command) {
   process.env.SAFEWORD_PLUGIN_CLI = nodePath8.join(pluginRoot, 'runtime', 'cli.js');
   const standardInput = readFileSync5(0);
   const hookInput = parseHookInput(standardInput);
+  const projectRoot = canonicalClaudeProjectRoot(
+    typeof hookInput.cwd === 'string' && hookInput.cwd !== '' ? hookInput.cwd : process.cwd(),
+  );
   const verifiedPlugin = verifiedIdentity(event, pluginRoot);
   if (verifiedPlugin === void 0) return 0;
   const { eventGroupsContent, identity } = verifiedPlugin;
@@ -4994,6 +5021,7 @@ function mainUnsafe(event, mode, command) {
     command,
     eventGroupsContent,
     hookInput,
+    projectRoot,
     standardInput,
   });
   if (execution.status === 0) {

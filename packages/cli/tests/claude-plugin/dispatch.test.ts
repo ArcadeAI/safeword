@@ -223,17 +223,30 @@ describe('Claude plugin dispatcher', () => {
     const projectDirectory = temporary('safeword-plugin-cwd-fallback-project-');
     const pluginData = temporary('safeword-plugin-cwd-fallback-data-');
     const configDirectory = temporary('safeword-plugin-cwd-fallback-config-');
+    const pluginRoot = nodePath.join(temporary('safeword-plugin-cwd-fallback-root-'), 'plugin');
+    cpSync(PLUGIN_ROOT, pluginRoot, { recursive: true });
     const target = releasedAsset(projectDirectory);
     promptSettings(projectDirectory, {
       source: { source: 'github', repo: 'ArcadeAI/safeword' },
     });
+    const eventGroupsPath = nodePath.join(pluginRoot, 'runtime/event-groups.json');
+    const eventGroups = JSON.parse(readFileSync(eventGroupsPath, 'utf8')) as {
+      groups: Record<string, unknown>;
+    };
+    eventGroups.groups.UserPromptSubmit = [
+      { hooks: [{ type: 'command', command: String.raw`printf '{"nativeRan":true}\n'` }] },
+    ];
+    writeFileSync(eventGroupsPath, `${JSON.stringify(eventGroups, undefined, 2)}\n`);
+    refreshPluginIdentity(pluginRoot, ['runtime/event-groups.json']);
 
     const result = dispatchEvent(projectDirectory, pluginData, configDirectory, 'cwd-fallback', {
       event: 'UserPromptSubmit',
       omitProjectDirectory: true,
+      pluginRoot,
     });
 
     expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).not.toContain('nativeRan');
     expect(existsSync(target)).toBe(false);
     expect(
       existsSync(nodePath.join(projectDirectory, '.safeword/claude-plugin/plugin-mode-v2.json')),
@@ -269,6 +282,36 @@ describe('Claude plugin dispatcher', () => {
     });
     expect(result.status, result.stderr).toBe(0);
     expect(result.stdout).not.toContain('nativeRan');
+  });
+
+  it('does not treat partially parsed malformed settings as legacy authority', () => {
+    const projectDirectory = temporary('safeword-plugin-malformed-settings-project-');
+    const pluginData = temporary('safeword-plugin-malformed-settings-data-');
+    const configDirectory = temporary('safeword-plugin-malformed-settings-config-');
+    const pluginRoot = nodePath.join(
+      temporary('safeword-plugin-malformed-settings-root-'),
+      'plugin',
+    );
+    cpSync(PLUGIN_ROOT, pluginRoot, { recursive: true });
+    promptSettings(projectDirectory, { source: { source: 'github', repo: 'ArcadeAI/safeword' } });
+    const settingsPath = nodePath.join(projectDirectory, '.claude/settings.json');
+    writeFileSync(settingsPath, `${readFileSync(settingsPath, 'utf8')} unexpected-token\n`);
+
+    const eventGroupsPath = nodePath.join(pluginRoot, 'runtime/event-groups.json');
+    const eventGroups = JSON.parse(readFileSync(eventGroupsPath, 'utf8')) as {
+      groups: Record<string, unknown>;
+    };
+    eventGroups.groups.UserPromptSubmit = [
+      { hooks: [{ type: 'command', command: String.raw`printf '{"nativeRan":true}\n'` }] },
+    ];
+    writeFileSync(eventGroupsPath, `${JSON.stringify(eventGroups, undefined, 2)}\n`);
+    refreshPluginIdentity(pluginRoot, ['runtime/event-groups.json']);
+
+    const result = dispatchPrompt(projectDirectory, pluginData, configDirectory, 'malformed', {
+      pluginRoot,
+    });
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain('nativeRan');
   });
 
   it('treats valid non-object hook input as empty input', () => {

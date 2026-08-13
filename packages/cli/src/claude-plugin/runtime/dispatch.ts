@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, lstatSync, readFileSync, realpathSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { parse } from 'jsonc-parser';
+import { parse, type ParseError } from 'jsonc-parser';
 
 import { writeDurableFile } from '../../codex-plugin/durable-write.js';
 import { migrateClaudeLegacyAutomatically } from '../cleanup.js';
@@ -94,16 +94,33 @@ function legacyHookCommand(value: unknown, projectRoot: string): boolean {
   return Object.values(value).some(child => legacyHookCommand(child, projectRoot));
 }
 
-function viableLegacyAuthority(event: string): boolean {
-  const projectRoot = process.env.CLAUDE_PROJECT_DIR;
+function parseSettings(path: string): Record<string, unknown> | undefined {
+  if (!existsSync(path)) return undefined;
+  const errors: ParseError[] = [];
+  const parsed = parse(readFileSync(path, 'utf8'), errors, {
+    allowTrailingComma: true,
+    disallowComments: false,
+  }) as unknown;
+  return errors.length === 0 &&
+    typeof parsed === 'object' &&
+    parsed !== null &&
+    !Array.isArray(parsed)
+    ? (parsed as Record<string, unknown>)
+    : undefined;
+}
+
+function viableLegacyAuthority(event: string, projectRoot: string | undefined): boolean {
   if (projectRoot === undefined || projectRoot === '') return false;
   const settingsPath = nodePath.join(projectRoot, '.claude/settings.json');
-  if (!existsSync(settingsPath)) return false;
   try {
-    const settings = parse(readFileSync(settingsPath, 'utf8')) as {
-      hooks?: Record<string, unknown>;
-    };
-    return legacyHookCommand(settings.hooks?.[event], projectRoot);
+    const settings = parseSettings(settingsPath);
+    const hooks = settings?.hooks;
+    return legacyHookCommand(
+      typeof hooks === 'object' && hooks !== null && !Array.isArray(hooks)
+        ? (hooks as Record<string, unknown>)[event]
+        : undefined,
+      projectRoot,
+    );
   } catch {
     // Malformed legacy configuration is not viable authority. The plugin stays
     // functional, while status reports the project conflict before cleanup.
@@ -473,14 +490,19 @@ function stableJson(value: unknown): string {
 }
 
 function scopeDeclaration(path: string): { enabled: boolean; marketplace: unknown } {
-  if (!existsSync(path)) return { enabled: false, marketplace: undefined };
-  const settings = parse(readFileSync(path, 'utf8')) as {
-    enabledPlugins?: Record<string, unknown>;
-    extraKnownMarketplaces?: Record<string, unknown>;
-  };
+  const settings = parseSettings(path);
+  const enabledPlugins = settings?.enabledPlugins;
+  const marketplaces = settings?.extraKnownMarketplaces;
   return {
-    enabled: settings?.enabledPlugins?.['safeword@safeword'] === true,
-    marketplace: settings?.extraKnownMarketplaces?.safeword,
+    enabled:
+      typeof enabledPlugins === 'object' &&
+      enabledPlugins !== null &&
+      !Array.isArray(enabledPlugins) &&
+      (enabledPlugins as Record<string, unknown>)['safeword@safeword'] === true,
+    marketplace:
+      typeof marketplaces === 'object' && marketplaces !== null && !Array.isArray(marketplaces)
+        ? (marketplaces as Record<string, unknown>).safeword
+        : undefined,
   };
 }
 
@@ -582,7 +604,7 @@ function upgradeConsistentLegacyMarker(
 ): boolean {
   if (
     !hasLegacyClaudePluginMode(projectRoot) ||
-    viableLegacyAuthority(event) ||
+    viableLegacyAuthority(event, projectRoot) ||
     incompatibleScopeOverlap(projectRoot)
   ) {
     return false;
@@ -775,9 +797,10 @@ function executeConfiguredHooks(input: {
   readonly command: string[];
   readonly eventGroupsContent: Buffer;
   readonly hookInput: HookInput;
+  readonly projectRoot: string | undefined;
   readonly standardInput: Buffer;
 }): FunctionalCommandResult {
-  if (viableLegacyAuthority(input.event)) return { status: 0, stdout: '' };
+  if (viableLegacyAuthority(input.event, input.projectRoot)) return { status: 0, stdout: '' };
   try {
     return input.mode === '--event-group'
       ? runEventGroup(input.event, input.eventGroupsContent, input.hookInput, input.standardInput)
@@ -799,6 +822,9 @@ function mainUnsafe(event: string, mode: string | undefined, command: string[]):
   process.env.SAFEWORD_PLUGIN_CLI = nodePath.join(pluginRoot, 'runtime', 'cli.js');
   const standardInput = readFileSync(0);
   const hookInput = parseHookInput(standardInput);
+  const projectRoot = canonicalClaudeProjectRoot(
+    typeof hookInput.cwd === 'string' && hookInput.cwd !== '' ? hookInput.cwd : process.cwd(),
+  );
   const verifiedPlugin = verifiedIdentity(event, pluginRoot);
   if (verifiedPlugin === undefined) return 0;
   const { eventGroupsContent, identity } = verifiedPlugin;
@@ -808,6 +834,7 @@ function mainUnsafe(event: string, mode: string | undefined, command: string[]):
     command,
     eventGroupsContent,
     hookInput,
+    projectRoot,
     standardInput,
   });
   if (execution.status === 0) {
