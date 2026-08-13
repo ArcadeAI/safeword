@@ -20,9 +20,7 @@ import {
   claimClaudeMigrationAttempt,
   claudeConfigDirectory,
   claudeWatchedSettingsDigest,
-  pluginModeIsTerminal,
   readClaudeMigrationAttention,
-  readClaudePluginMode,
   removeLegacyClaudePluginMode,
   writeClaudeMigrationAttention,
 } from '../migration-state.js';
@@ -526,15 +524,6 @@ function advisoryExecution(
   };
 }
 
-function terminalMarkerExecution(
-  context: MigrationExecutionContext,
-  marker: NonNullable<ReturnType<typeof readClaudePluginMode>>,
-): FunctionalCommandResult {
-  return marker.advisory === undefined
-    ? context.execution
-    : advisoryExecution(context, marker.advisory);
-}
-
 function scopeOverlapExecution(
   context: MigrationExecutionContext,
   identity: PluginIdentityV1,
@@ -597,17 +586,6 @@ function automaticMigrationUnsafe(
   if (projectRoot === undefined) return execution;
   const context = { event, execution, projectRoot, sessionId };
   const catalogueSha256 = historicalCatalogueDigest();
-  const marker = readClaudePluginMode(projectRoot);
-  if (
-    marker !== undefined &&
-    pluginModeIsTerminal(marker, {
-      plugin_version: identity.plugin_version,
-      hook_manifest_sha256: identity.hook_manifest_sha256,
-      catalogue_sha256: catalogueSha256,
-    })
-  ) {
-    return terminalMarkerExecution(context, marker);
-  }
   if (incompatibleScopeOverlap(projectRoot)) {
     return scopeOverlapExecution(context, identity, catalogueSha256);
   }

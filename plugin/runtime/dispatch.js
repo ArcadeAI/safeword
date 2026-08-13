@@ -3551,13 +3551,6 @@ function readClaudePluginMode(cwd) {
     return void 0;
   }
 }
-function pluginModeIsTerminal(marker, identity) {
-  return (
-    marker.plugin_version === identity.plugin_version &&
-    marker.hook_manifest_sha256 === identity.hook_manifest_sha256 &&
-    marker.catalogue_sha256 === identity.catalogue_sha256
-  );
-}
 function writeClaudePluginMode(cwd, marker) {
   const normalized = createClaudePluginMode({
     plugin_version: marker.plugin_version,
@@ -4825,11 +4818,6 @@ function advisoryExecution(context, advisory, stateDigest = advisoryStateDigest(
     stdout: appendMigrationAdvisory(event, execution.stdout, advisory),
   };
 }
-function terminalMarkerExecution(context, marker) {
-  return marker.advisory === void 0
-    ? context.execution
-    : advisoryExecution(context, marker.advisory);
-}
 function scopeOverlapExecution(context, identity, catalogueSha256) {
   const { projectRoot } = context;
   const advisory =
@@ -4871,17 +4859,6 @@ function automaticMigrationUnsafe(event, identity, execution, sessionId, hookCwd
   if (projectRoot === void 0) return execution;
   const context = { event, execution, projectRoot, sessionId };
   const catalogueSha256 = historicalCatalogueDigest();
-  const marker = readClaudePluginMode(projectRoot);
-  if (
-    marker !== void 0 &&
-    pluginModeIsTerminal(marker, {
-      plugin_version: identity.plugin_version,
-      hook_manifest_sha256: identity.hook_manifest_sha256,
-      catalogue_sha256: catalogueSha256,
-    })
-  ) {
-    return terminalMarkerExecution(context, marker);
-  }
   if (incompatibleScopeOverlap(projectRoot)) {
     return scopeOverlapExecution(context, identity, catalogueSha256);
   }

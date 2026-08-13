@@ -250,6 +250,21 @@ describe('Claude plugin dispatcher', () => {
     expect(settings.extraKnownMarketplaces.safeword).toEqual(marketplace);
   });
 
+  it('rescans when legacy integration appears after a clean marker', () => {
+    const projectDirectory = temporary('safeword-plugin-reintroduced-legacy-project-');
+    const pluginData = temporary('safeword-plugin-reintroduced-legacy-data-');
+    const configDirectory = temporary('safeword-plugin-reintroduced-legacy-config-');
+
+    const initial = dispatchPrompt(projectDirectory, pluginData, configDirectory, 'initial-clean');
+    expect(initial.status, initial.stderr).toBe(0);
+    const target = releasedAsset(projectDirectory);
+    promptSettings(projectDirectory, { source: { source: 'github', repo: 'ArcadeAI/safeword' } });
+
+    const rescanned = dispatchPrompt(projectDirectory, pluginData, configDirectory, 'rescanned');
+    expect(rescanned.status, rescanned.stderr).toBe(0);
+    expect(existsSync(target)).toBe(false);
+  });
+
   it('does not record proof or migrate when a direct hook command is missing', () => {
     const projectDirectory = temporary('safeword-plugin-empty-command-project-');
     const pluginData = temporary('safeword-plugin-empty-command-data-');
