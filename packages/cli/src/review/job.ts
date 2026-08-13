@@ -13,6 +13,7 @@ import {
   statSync,
   unlinkSync,
   writeFileSync,
+  writeSync,
 } from 'node:fs';
 import { homedir } from 'node:os';
 import nodePath from 'node:path';
@@ -51,6 +52,17 @@ const COURTESY_WAIT_MS = 75_000;
 const POLL_INTERVAL_MS = 100;
 const WORKER_INSPECTION_INTERVAL_MS = 1000;
 const JOB_LOCK_WAIT_MS = 2000;
+
+if (process.env.SAFEWORD_REVIEW_WORKER === '1' && process.env.SAFEWORD_REVIEW_PROGRESS === '1') {
+  process.stderr.on('error', error => {
+    if (!isClosedProgressPipeError(error)) throw error;
+  });
+}
+
+function isClosedProgressPipeError(error: unknown): boolean {
+  if (!(error instanceof Error) || !('code' in error)) return false;
+  return error.code === 'EPIPE' || error.code === 'ERR_STREAM_DESTROYED';
+}
 
 function jobsDirectory(cwd: string): string {
   return nodePath.join(cwd, '.safeword', 'state', 'reviews');
@@ -572,9 +584,15 @@ function launchReviewWorker(input: {
 
 function forwardManagedWorkerStderr(chunk: Buffer | string): void {
   try {
-    process.stderr.write(chunk);
+    const buffer = typeof chunk === 'string' ? Buffer.from(chunk) : chunk;
+    let offset = 0;
+    while (offset < buffer.length) {
+      const written = writeSync(2, buffer, offset, buffer.length - offset);
+      if (written <= 0) return;
+      offset += written;
+    }
   } catch {
-    // Progress is best-effort; a caller may close its capture stream first.
+    // Progress is best-effort; a caller may close fd 2 first.
   }
 }
 

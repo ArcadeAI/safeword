@@ -44443,10 +44443,16 @@ import {
   renameSync as renameSync8,
   statSync as statSync6,
   unlinkSync as unlinkSync3,
-  writeFileSync as writeFileSync19
+  writeFileSync as writeFileSync19,
+  writeSync as writeSync2
 } from "fs";
 import { homedir as homedir6 } from "os";
 import nodePath82 from "path";
+function isClosedProgressPipeError(error2) {
+  if (!(error2 instanceof Error) || !("code" in error2))
+    return false;
+  return error2.code === "EPIPE" || error2.code === "ERR_STREAM_DESTROYED";
+}
 function jobsDirectory(cwd) {
   return nodePath82.join(cwd, ".safeword", "state", "reviews");
 }
@@ -44883,7 +44889,14 @@ function launchReviewWorker(input) {
 }
 function forwardManagedWorkerStderr(chunk) {
   try {
-    process.stderr.write(chunk);
+    const buffer = typeof chunk === "string" ? Buffer.from(chunk) : chunk;
+    let offset = 0;
+    while (offset < buffer.length) {
+      const written = writeSync2(2, buffer, offset, buffer.length - offset);
+      if (written <= 0)
+        return;
+      offset += written;
+    }
   } catch {}
 }
 function closeNoManagedProgress() {
@@ -45218,6 +45231,12 @@ var init_job = __esm(() => {
     "failed",
     "canceled"
   ]);
+  if (process.env.SAFEWORD_REVIEW_WORKER === "1" && process.env.SAFEWORD_REVIEW_PROGRESS === "1") {
+    process.stderr.on("error", (error2) => {
+      if (!isClosedProgressPipeError(error2))
+        throw error2;
+    });
+  }
 });
 
 // src/pr-review/providers/openai.ts
@@ -62011,7 +62030,7 @@ function machineOutputRequested(arguments_) {
 }
 
 // src/cli-protocol/register.ts
-import { writeSync as writeSync2 } from "fs";
+import { writeSync as writeSync3 } from "fs";
 import process19 from "process";
 init_plan();
 init_result();
@@ -62138,7 +62157,7 @@ function commandProgress(definition, options) {
     cancel: (handle) => {
       clearTimeout(handle);
     },
-    emit: createBestEffortProgressSink((buffer, offset, length) => writeSync2(2, buffer, offset, length))
+    emit: createBestEffortProgressSink((buffer, offset, length) => writeSync3(2, buffer, offset, length))
   });
   return managedReview && options.json ? createManagedReviewProgress(progress) : progress;
 }

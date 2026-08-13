@@ -171,6 +171,7 @@ describe('durable review jobs', () => {
           PATH: `${reviewer.bin}:/usr/bin:/bin`,
           SAFEWORD_AGENT_RUNTIME: 'claude',
           SAFEWORD_REVIEW_FOREGROUND_MS: '0',
+          SAFEWORD_PROGRESS_HEARTBEAT_MS: '100',
           SAFEWORD_NO_UPDATE_CHECK: '1',
         },
       },
@@ -191,6 +192,43 @@ describe('durable review jobs', () => {
       { timeout: 20_000 },
     );
     expect(readFileSync(reviewer.log, 'utf8').trim().split('\n')).toEqual(['called']);
+  });
+
+  it('emits only managed lifecycle lines without disclosing reviewer bytes', () => {
+    const cwd = project();
+    mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(cwd, '.safeword', 'config.json'),
+      '{"crossAgentReview":"require"}\n',
+    );
+    const reviewer = delayedReviewer();
+    const cli = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
+    const completed = spawnSync(
+      process.execPath,
+      [cli, '--json', 'review', 'run', 'quality-review', '--', 'input.md'],
+      {
+        cwd,
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          PATH: `${reviewer.bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_REVIEW_PROGRESS: '1',
+          SAFEWORD_REVIEW_FOREGROUND_MS: '3000',
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+        timeout: 10_000,
+      },
+    );
+
+    expect(completed.error).toBeUndefined();
+    expect(completed.status).toBe(0);
+    expect(completed.stderr).toBe('Requesting an independent Codex review…\n');
+    expect(completed.stderr).not.toContain('reviewed after caller exit');
+    expect(JSON.parse(completed.stdout)).toMatchObject({
+      state: 'healthy',
+      data: { status: 'approved' },
+    });
   });
   it('returns a quick completed review inline', async () => {
     const cwd = project();
