@@ -1,7 +1,6 @@
-@wip
 Feature: Resume interrupted remote verification
 
-  @offload-tests.TBU1.R11
+  @wip @offload-tests.TBU1.R11
   @public-cli @surface.safeword-cli
   Rule: offload-tests.TBU1.R11 — An accepted or pending dispatch remains resumable after local interruption without redispatching
 
@@ -44,7 +43,9 @@ Feature: Resume interrupted remote verification
       Given a pending record has <unsafe-state>
       When the builder resumes it
       Then Safeword neither accepts a run, redispatches, nor falls back locally and prints manual recovery guidance
-      And an unauthenticated record emits only a fixed ASCII error code and fixed bundled guidance with no record-derived URL, identifier, control character, terminal sequence, clickable target or automatically opened destination, while an authenticated unsafe record may print only its validated canonical non-secret identity fields as inert escaped text
+      And an unauthenticated record emits only a fixed ASCII error code and bundled guidance
+      And it emits no record-derived target, control character, terminal sequence, or opened destination
+      And an authenticated unsafe record prints only validated non-secret identity as inert escaped text
       Examples:
         | unsafe-state |
         | an invalid MAC |
@@ -84,10 +85,11 @@ Feature: Resume interrupted remote verification
       When the harness changes each field's bytes once without MAC recomputation while holding all other bytes at the authenticated control
       Then every tampered case fails MAC authentication with zero GET, zero POST, zero acceptance and zero record rewrite while the control authenticates
 
-    @rejection @public-cli @surface.safeword-cli
+    @rejection @public-cli @surface.safeword-cli @proof.pending-vitest
     Scenario: The malformed pending-record fixture matrix is complete
       Given the test harness recomputes a valid MAC over each test-owned malformed raw-record fixture
-      And an independent literal field-defect applicability matrix marks every omission, equal duplication, unequal duplication, wrong JSON type, noncanonical encoding, out-of-range value and incompatible-version cell as applicable or impossible with a fixed reason
+      And an independent matrix classifies every field-defect cell as applicable or impossible
+      And defects cover omission, duplication, JSON type, encoding, range, and version compatibility
       When the harness enumerates fixture IDs and impossible-cell reasons without invoking resume
       Then exact set and cardinality equality covers every applicable cell once, asserts every impossible reason, and rejects unsupported, collapsed, missing or extra cells
 
@@ -113,7 +115,9 @@ Feature: Resume interrupted remote verification
     Scenario Outline: Concurrent pending-state operations have one scheduled linearization
       Given two public CLI processes pause at synchronized read and commit barriers for <race>
       When the harness releases them in <schedule>
-      Then <linearized-outcome>, each process has the literal expected output and exit, only winner-owned durable files or key material remain, all loser temp files are removed, no unrelated journal exists, and interruption immediately before and after the selected commit recovers to the same linearized state
+      Then <linearized-outcome> and each process has its expected output and exit
+      And only winner-owned durable files or key material remain while loser temporary files are removed
+      And both interruption boundaries recover to the same linearized state without an unrelated journal
       Examples:
         | race | schedule | linearized-outcome |
         | duplicate token preparation | first commit before second compare-and-swap | one authenticated record and one POST exist; the loser may create only owner-scoped temporary bytes that are removed, publishes no final record, commits no key material, and sends no network byte |

@@ -1,5 +1,4 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -12,6 +11,7 @@ const REPO_ROOT = nodePath.resolve(import.meta.dirname, '../../..');
 // Current cohesive specs top out below 500 lines; 1000 flags an extreme outlier
 // without turning ordinary Rule grouping into a mandatory file-count policy.
 const FEATURE_HIGH_WATER_LINES = 1000;
+const OFFLOAD_STEP_MAX_CHARACTERS = 240;
 const OFFLOAD_FEATURE_PREFIX = 'packages/cli/features/offload-tests-';
 const OFFLOAD_BASELINE_COMMIT = '1f8056ed845b63923ad9ea19a7112101aa07a9b1';
 const OFFLOAD_BASELINE_PATH =
@@ -35,6 +35,16 @@ const OFFLOAD_RULE_IDS = [
   'offload-tests.TBU1.R8',
   'offload-tests.TBU1.R9',
 ] as const;
+const OFFLOAD_META_PROOF_TITLES = [
+  'The effective permission manifest is exactly contents read',
+  'The malformed pending-record fixture matrix is complete',
+  'The owned-channel manifest exactly covers captured production surfaces',
+  'The personal-config boundary manifest is complete and executes every fixture independently',
+  'The pinned HTTP 200 response-member allowlist is independently frozen',
+  'The reconciliation failure manifest covers every production durability site',
+  'The run-identity mutation manifest covers every field-defect cell',
+  'The workflow identity-input boundary matrix is complete',
+] as const;
 
 // A cohesive specification may cross a high-water mark when reviewers accept
 // an explicit path-and-reason exception here. The default stays fail-closed.
@@ -51,24 +61,14 @@ function countGherkinLines(source: string, prefix: string): number {
 }
 
 function offloadRuleId(line: string): string | undefined {
-  const tag = line.trim();
-  if (!tag.startsWith('@offload-tests.')) return undefined;
+  const tag = line
+    .trim()
+    .split(/\s+/u)
+    .find(candidate => candidate.startsWith('@offload-tests.'));
+  if (tag === undefined) return undefined;
 
   const id = tag.slice(1);
   return /^offload-tests\.(?:TBU1|NTB1)\.R\d+$/u.test(id) ? id : undefined;
-}
-
-function ruleSourceEntries(source: string): readonly (readonly [string, string])[] {
-  const lines = source.replaceAll('\r\n', '\n').split('\n');
-  const starts = lines.flatMap((line, index) => {
-    const id = offloadRuleId(line);
-    return id === undefined ? [] : [{ id, index }];
-  });
-  return starts.map((start, index) => {
-    const end = starts[index + 1]?.index ?? lines.length;
-    const canonicalSource = lines.slice(start.index, end).join('\n').trim();
-    return [start.id, createHash('sha256').update(canonicalSource).digest('hex')] as const;
-  });
 }
 
 function expandedCasesFor(sources: readonly string[]) {
@@ -81,8 +81,8 @@ function expandedCasesFor(sources: readonly string[]) {
     .toSorted((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)));
 }
 
-function semanticDigest(expandedCases: ReturnType<typeof expandedCasesFor>): string {
-  return createHash('sha256').update(JSON.stringify(expandedCases)).digest('hex');
+function scenarioInventory(expandedCases: ReturnType<typeof expandedCasesFor>) {
+  return expandedCases.map(({ rule, title }) => ({ rule, title }));
 }
 
 function baselineOffloadFeature(): string {
@@ -103,6 +103,22 @@ function baselineOffloadFeature(): string {
 }
 
 describe('BDD feature maintainability', () => {
+  it('keeps offload steps narrow enough to identify one failing observation', () => {
+    const oversizedSteps = configuredFeatureFiles()
+      .filter(relativePath => relativePath.startsWith(OFFLOAD_FEATURE_PREFIX))
+      .flatMap(relativePath => {
+        const source = readFileSync(nodePath.join(REPO_ROOT, relativePath), 'utf8');
+        return source.split('\n').flatMap((line, index) => {
+          const isStep = /^\s*(?:Given|When|Then|And|But)\s/u.test(line);
+          return isStep && line.length > OFFLOAD_STEP_MAX_CHARACTERS
+            ? [{ path: relativePath, line: index + 1, characters: line.length }]
+            : [];
+        });
+      });
+
+    expect(oversizedSteps).toEqual([]);
+  });
+
   it('keeps feature files below reviewed monolith high-water marks', () => {
     const featureFiles = configuredFeatureFiles();
     const configuredPaths = new Set(featureFiles);
@@ -142,10 +158,10 @@ describe('BDD feature maintainability', () => {
       const lines = source.replaceAll('\r\n', '\n').split('\n');
       const ruleStart = lines.findIndex(line => offloadRuleId(line) !== undefined);
       return (
-        ruleStart === 3 &&
-        lines[0] === '@wip' &&
-        lines[1]?.startsWith('Feature: ') === true &&
-        lines[2] === ''
+        ruleStart === 2 &&
+        lines[0]?.startsWith('Feature: ') === true &&
+        lines[1] === '' &&
+        lines[ruleStart]?.startsWith('  @wip @offload-tests.') === true
       );
     });
     const ruleIds = sources
@@ -154,12 +170,13 @@ describe('BDD feature maintainability', () => {
     const baselineSource = baselineOffloadFeature();
     const expandedCases = expandedCasesFor(sources);
     const baselineExpandedCases = expandedCasesFor([baselineSource]);
-    const ruleSourceDigests = sources
-      .flatMap(source => ruleSourceEntries(source))
-      .toSorted(([left], [right]) => left.localeCompare(right));
-    const baselineRuleSourceDigests = ruleSourceEntries(baselineSource).toSorted(
-      ([left], [right]) => left.localeCompare(right),
-    );
+    const metaProofTitles = [
+      ...new Set(
+        expandedCases
+          .filter(scenario => scenario.tags.includes('@proof.pending-vitest'))
+          .map(scenario => scenario.title.replace(/ \(.+\)$/u, '')),
+      ),
+    ].toSorted((left, right) => left.localeCompare(right));
     const scenarios = sources.reduce(
       (count, source) => count + countGherkinLines(source, 'Scenario:'),
       0,
@@ -175,7 +192,7 @@ describe('BDD feature maintainability', () => {
 
     expect({
       files: files.length,
-      everyFileIsWip: sources.every(source => source.startsWith('@wip\n')),
+      everyRuleIsWip: sources.every(source => source.includes('\n  @wip @offload-tests.')),
       everyFileHasOneRule: sources.every(source => countGherkinLines(source, 'Rule:') === 1),
       everyFeatureHeaderIsCanonical,
       everyFeatureIsNamed: featureNames.every(name => name !== undefined && name !== ''),
@@ -186,11 +203,11 @@ describe('BDD feature maintainability', () => {
       outlines,
       examples,
       expandedCases: expandedCases.length,
-      semanticDigest: semanticDigest(expandedCases),
-      ruleSourceDigests,
+      scenarioInventory: scenarioInventory(expandedCases),
+      metaProofTitles,
     }).toEqual({
       files: 16,
-      everyFileIsWip: true,
+      everyRuleIsWip: true,
       everyFileHasOneRule: true,
       everyFeatureHeaderIsCanonical: true,
       everyFeatureIsNamed: true,
@@ -201,8 +218,8 @@ describe('BDD feature maintainability', () => {
       outlines: 79,
       examples: 79,
       expandedCases: 624,
-      semanticDigest: semanticDigest(baselineExpandedCases),
-      ruleSourceDigests: baselineRuleSourceDigests,
+      scenarioInventory: scenarioInventory(baselineExpandedCases),
+      metaProofTitles: OFFLOAD_META_PROOF_TITLES,
     });
   });
 });

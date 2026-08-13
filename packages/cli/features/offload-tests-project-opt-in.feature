@@ -1,7 +1,6 @@
-@wip
 Feature: Configure remote verification for a project
 
-  @offload-tests.TBU1.R1
+  @wip @offload-tests.TBU1.R1
   @public-cli @surface.safeword-cli
   Rule: offload-tests.TBU1.R1 — Projects use remote verification only after an explicit opt-in
 
@@ -60,11 +59,15 @@ Feature: Configure remote verification for a project
         | a parent directory is replaced between resolution, child open and final verification | the pinned-parent identity check fails both commands closed with SAFEWORD_TEST_EXECUTION_INVALID, zero execution and zero mutation |
         | a valid file in the current worktree while another worktree has a different valid file | each status and request uses only its own resolved worktree origin and never silently shares personal mode across worktrees |
 
-    @rejection @public-cli @surface.safeword-cli
+    @rejection @public-cli @surface.safeword-cli @proof.pending-vitest
     Scenario: The personal-config boundary manifest is complete and executes every fixture independently
-      Given `packages/cli/tests/fixtures/test-execution-personal-config-v1.json` is a test-owned literal manifest with stable fixture IDs for absence, both valid modes, every raw JSON syntax and duplicate-key defect, each required or unknown key, every JSON type and unsupported value for each field, byte limits, read failures, every regular or special object kind, symlink and hard-link states, namespace escape, leaf and parent replacement points, and cross-worktree separation
+      Given the personal-config manifest assigns stable IDs to absence and both valid modes
+      And it covers JSON grammar, keys, types, values, byte limits, and read failures
+      And it covers object kinds, links, namespace escape, replacement races, and worktree separation
       When an independent manifest parser compares those IDs with the generated fixtures and runs each ID in one isolated process without importing production parser tables
-      Then expected ID set and cardinality equal generated and executed result sets and cardinalities, every ID reaches its one prescribed output, execution, mutation and origin result, and missing, extra, collapsed, skipped or early-terminated cases fail the test
+      Then generated and executed fixture IDs exactly equal the manifest
+      And every fixture reaches its prescribed output, execution, mutation, and origin result
+      And missing, extra, collapsed, skipped, or early-terminated fixtures fail the proof
 
     @public-cli @surface.safeword-cli
     Scenario Outline: Each request resolves the project mode and a non-persistent execution override
@@ -109,13 +112,17 @@ Feature: Configure remote verification for a project
     Scenario: Setup gitignores personal configuration without overwriting authored ignore rules
       Given the resolved namespace root has byte-recorded authored ignore rules and may use the default, legacy or custom configured path
       When `safeword setup` runs twice
-      Then the first run adds exactly one anchored `/personal/` ignore entry under a Safeword comment without changing existing lines, the second run is byte-idempotent, no personal directory or config file is created, and an already tracked personal file is preserved but status warns it is not private
+      Then the first run adds one anchored `/personal/` ignore entry without changing authored lines
+      And the second run is byte-idempotent and creates no personal directory or config file
+      And an already tracked personal file is preserved while status warns that it is not private
 
     @rejection @public-cli @surface.safeword-cli
     Scenario Outline: Requested opt-in publication failures leave only an absent or complete intent
       Given workflow and identity paths are absent and requested-intent publication encounters <intent-failure>
       When public invocation `failed-setup` attempts setup
-      Then `failed-setup` has its own captured nonzero exit, error output, filesystem trace and zero network trace; zero workflow or identity mutation occurred; and requested intent is either absent or complete according to the frozen observed rename state
+      Then `failed-setup` records its own nonzero exit, error output, filesystem trace, and zero network trace
+      And no workflow or identity mutation occurs
+      And requested intent is absent or complete according to the frozen observed rename state
       Examples:
         | intent-failure |
         | permission failure before write |
@@ -145,7 +152,9 @@ Feature: Configure remote verification for a project
 
     @public-cli @surface.safeword-cli
     Scenario: Opted-in setup commits one exact workflow identity pair
-      Given project configuration durably records requested opt-in, an independent syscall interceptor enumerates every production initial-install durability site, and a literal manifest maps before-and-after restart at each site to exact observed workflow, identity, configuration, staged and journal states
+      Given project configuration durably records requested opt-in
+      And an independent interceptor enumerates every production initial-install durability site
+      And a literal manifest maps both restart boundaries to exact workflow, identity, configuration, staged, and journal states
       When the harness enumerates production sites, generates both restart boundaries for each, and runs each public CLI restart in isolation
       Then production-site and restart-result labels have exact set and cardinality equality with the literal manifest, and each result enters its manifested row before the final three members agree and the journal is removed
 

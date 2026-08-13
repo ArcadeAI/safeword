@@ -30947,7 +30947,7 @@ function findGherkinLintIssues(featureContent, options = {}) {
     if (feature === undefined) {
       return [...issues, issue("no-feature", "Feature file has no Feature.")];
     }
-    return [...issues, ...findDocumentLintIssues(feature)];
+    return [...issues, ...findDocumentLintIssues(feature, options.ruleProofPolicy)];
   } catch (error2) {
     if (error2 instanceof FeatureParseError) {
       return [
@@ -31109,12 +31109,12 @@ function findTextLintIssues(content, filePath) {
   }
   return issues;
 }
-function findDocumentLintIssues(feature) {
+function findDocumentLintIssues(feature, ruleProofPolicy) {
   const issues = [];
   if (feature.name.trim() === "") {
     issues.push(issue("no-unnamed-features", "Feature must have a name.", feature.location.line));
   }
-  issues.push(...findDuplicateTagIssues(feature.tags, "Feature"));
+  issues.push(...findDuplicateTagIssues(feature.tags, "Feature"), ...findRuleProofIssues(feature, ruleProofPolicy));
   const scenarios = [];
   for (const child of feature.children) {
     if (child.scenario)
@@ -31133,6 +31133,62 @@ function findDocumentLintIssues(feature) {
   issues.push(...findScenarioLintIssues(scenarios));
   return issues;
 }
+function findRuleProofIssues(feature, policy) {
+  if (policy === undefined)
+    return [];
+  const issues = [
+    ...findMisplacedRuleLineageIssues(feature, policy),
+    ...findMisplacedRuleProofTagIssues(feature, policy)
+  ];
+  for (const child of feature.children) {
+    const rule = child.rule;
+    if (rule?.tags.some((tag) => isRuleLineageTag(tag.name, policy)) === true) {
+      issues.push(...findRuleDeliveryIssue(rule, policy));
+    }
+  }
+  return issues;
+}
+function findRuleDeliveryIssue(rule, policy) {
+  const ruleTags = new Set(rule.tags.map((tag) => tag.name));
+  const hasProof = ruleTags.has(policy.proofTag);
+  const isWorkInProgress = ruleTags.has(policy.workInProgressTag);
+  if (isWorkInProgress && hasProof) {
+    return [
+      issue(policyIssue(policy, "proof-conflict"), `An ${policy.ruleLabel} cannot declare both ${policy.workInProgressTag} and ${policy.proofTag}; choose unfinished or executable.`, rule.location.line)
+    ];
+  }
+  if (isWorkInProgress || hasProof)
+    return [];
+  return [
+    issue(policyIssue(policy, "executable-proof"), `An ${policy.ruleLabel} that leaves ${policy.workInProgressTag} must declare ${policy.proofTag} so executable coverage is explicit.`, rule.location.line)
+  ];
+}
+function findMisplacedRuleLineageIssues(feature, policy) {
+  const misplacedTags = nonRuleTags(feature).filter((tag) => isRuleLineageTag(tag.name, policy));
+  return misplacedTags.map((tag) => issue(policyIssue(policy, "lineage-placement"), `An ${policy.ruleLabel} lineage tag must be declared on its Rule, not on Feature, Scenario, or Examples scope.`, tag.location.line));
+}
+function findMisplacedRuleProofTagIssues(feature, policy) {
+  return nonRuleTags(feature).filter((tag) => tag.name === policy.proofTag).map((tag) => issue(policyIssue(policy, "proof-placement"), `${policy.proofTag} must be declared on each ${policy.ruleLabel} it proves, not on Feature, Scenario, or Examples scope.`, tag.location.line));
+}
+function nonRuleTags(feature) {
+  return [
+    ...feature.tags,
+    ...feature.children.flatMap((child) => {
+      if (child.scenario)
+        return scenarioAndExamplesTags(child.scenario);
+      return child.rule?.children.flatMap((ruleChild) => ruleChild.scenario === undefined ? [] : scenarioAndExamplesTags(ruleChild.scenario)) ?? [];
+    })
+  ];
+}
+function scenarioAndExamplesTags(scenario) {
+  return [...scenario.tags, ...scenario.examples.flatMap((example) => example.tags)];
+}
+function isRuleLineageTag(tag, policy) {
+  return tag.startsWith(policy.lineageTagPrefix);
+}
+function policyIssue(policy, suffix) {
+  return `${policy.issuePrefix}-${suffix}`;
+}
 function findScenarioLintIssues(scenarios) {
   const issues = [];
   const firstLineByName = new Map;
@@ -31148,9 +31204,19 @@ function findScenarioLintIssues(scenarios) {
     if (scenario.keyword.toLowerCase().includes("outline") && scenario.examples.length === 0) {
       issues.push(issue("no-scenario-outlines-without-examples", "Scenario Outline must include Examples.", scenario.location.line));
     }
-    issues.push(...findScenarioOutlineVariableIssues(scenario), ...findDuplicateTagIssues(scenario.tags, `Scenario "${scenario.name}"`), ...scenario.examples.flatMap((example) => findDuplicateTagIssues(example.tags, `Examples "${example.name}"`)));
+    issues.push(...findScenarioOutlineVariableIssues(scenario), ...findDuplicateTagIssues(scenario.tags, `Scenario "${scenario.name}"`), ...scenario.examples.flatMap((example) => [
+      ...findEmptyExamplesIssues(scenario, example),
+      ...findDuplicateTagIssues(example.tags, `Examples "${example.name}"`)
+    ]));
   }
   return issues;
+}
+function findEmptyExamplesIssues(scenario, example) {
+  if (example.tableBody.length > 0)
+    return [];
+  return [
+    issue("no-empty-examples", `Examples "${example.name || "Examples"}" for Scenario Outline "${scenario.name}" must include at least one data row.`, example.location.line)
+  ];
 }
 function findScenarioOutlineVariableIssues(scenario) {
   if (!scenario.keyword.toLowerCase().includes("outline") || scenario.examples.length === 0) {
@@ -41202,7 +41268,7 @@ var exports_lint_gherkin = {};
 __export(exports_lint_gherkin, {
   observeGherkinLint: () => observeGherkinLint
 });
-import { existsSync as existsSync42, readFileSync as readFileSync48 } from "fs";
+import { existsSync as existsSync42, readFileSync as readFileSync48, statSync as statSync6 } from "fs";
 import nodePath80 from "path";
 function observeGherkinLint(cwd, files) {
   const featureFiles = files.length === 0 ? discoverFeatureFiles(cwd) : resolveInputFiles(cwd, files);
@@ -41238,8 +41304,23 @@ function lintFile(cwd, filePath) {
       }
     ];
   }
-  const content = readFileSync48(filePath, "utf8");
-  return findGherkinLintIssues(content, { filePath }).map((issue2) => ({
+  let content;
+  try {
+    if (!statSync6(filePath).isFile())
+      throw new Error("not a regular file");
+    content = readFileSync48(filePath, "utf8");
+  } catch {
+    return [
+      {
+        code: "GHERKIN_FILE_UNREADABLE",
+        message: `${formatPath(cwd, filePath)}: not a readable regular file [file-readable]`
+      }
+    ];
+  }
+  return findGherkinLintIssues(content, {
+    filePath,
+    ruleProofPolicy: OFFLOAD_RULE_PROOF_POLICY
+  }).map((issue2) => ({
     code: `GHERKIN_${issue2.rule.toUpperCase().replaceAll("-", "_")}`,
     message: formatIssue(cwd, filePath, issue2)
   }));
@@ -41251,10 +41332,18 @@ function formatIssue(cwd, filePath, issue2) {
 function formatPath(cwd, filePath) {
   return nodePath80.relative(cwd, filePath) || nodePath80.basename(filePath);
 }
+var OFFLOAD_RULE_PROOF_POLICY;
 var init_lint_gherkin = __esm(() => {
   init_result();
   init_feature_source();
   init_gherkin_feature();
+  OFFLOAD_RULE_PROOF_POLICY = {
+    issuePrefix: "offload",
+    lineageTagPrefix: "@offload-tests.",
+    proofTag: "@proof.cucumber",
+    ruleLabel: "offload Rule",
+    workInProgressTag: "@wip"
+  };
 });
 
 // src/review/contract.ts
@@ -52583,7 +52672,7 @@ import {
   mkdtempSync as mkdtempSync7,
   readFileSync as readFileSync55,
   realpathSync as realpathSync10,
-  statSync as statSync6,
+  statSync as statSync7,
   writeFileSync as writeFileSync22
 } from "fs";
 import { tmpdir as tmpdir5 } from "os";
@@ -52938,7 +53027,7 @@ function physicalProjectPath(projectDirectory) {
 function physicalOutboxPath(outboxDirectory) {
   try {
     const physicalOutbox = realpathSync10(outboxDirectory);
-    return statSync6(physicalOutbox).isDirectory() ? physicalOutbox : undefined;
+    return statSync7(physicalOutbox).isDirectory() ? physicalOutbox : undefined;
   } catch {
     return;
   }
