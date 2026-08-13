@@ -547,9 +547,12 @@ describe('cross-agent review public-command wiring', () => {
     });
   });
 
-  it.each([{ identity: 'missing' }, { identity: 'contradictory' }])(
+  it.each([
+    { identity: 'missing', failure: 'REVIEWER_PROVENANCE_MISSING' },
+    { identity: 'contradictory', failure: 'REVIEWER_PROVENANCE_CONTRADICTORY' },
+  ])(
     'rejects $identity reviewer provenance and continues through the bounded fallback routes',
-    async ({ identity }) => {
+    async ({ identity, failure }) => {
       const directory = createTemporaryDirectory();
       const log = nodePath.join(directory, 'review.log');
       writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
@@ -584,7 +587,7 @@ describe('cross-agent review public-command wiring', () => {
         state: 'action_required',
         findings: [{ code: 'REVIEW_ROUTES_EXHAUSTED' }],
         data: {
-          preferred_failure: 'invalid_output',
+          preferred_failure: failure,
           review_policy: 'prefer',
           independence: 'none',
         },
@@ -1087,6 +1090,7 @@ describe('cross-agent review public-command wiring', () => {
       data: {
         status: 'approved',
         preferred_failure: 'process_failed',
+        alternate_model: 'vendor-model-2',
         alternate_model_failure: 'process_failed',
         independence: 'degraded',
       },

@@ -88,9 +88,14 @@ describe('when all three routes fail', () => {
     expect(explanation).toMatch(/ran out of time/i);
     expect(explanation).toMatch(/not signed in/i);
     expect(explanation).toMatch(/could not be accepted/i);
-    // The alternate-model attempt is named as such, without naming the model.
+    // The alternate-model attempt names the selected model so operators can
+    // distinguish a failed override from the primary route.
     expect(explanation).toMatch(/alternate model/i);
-    expect(explanation).not.toContain('vendor-model-2');
+    expect(explanation).toContain('vendor-model-2');
+    expect(payload.data).toMatchObject({
+      alternate_model: 'vendor-model-2',
+      alternate_model_failure: 'not_authenticated',
+    });
     expect(payload.data.independence).toBe('none');
   }, 30_000);
 });

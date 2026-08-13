@@ -12,7 +12,12 @@ import type {
   UnverifiedReviewerOutput,
 } from './contract.js';
 import { prepareReviewPacket } from './packet.js';
-import { oppositeReviewPair, readAlternateReviewerModel, readReviewPolicy } from './policy.js';
+import {
+  oppositeReviewPair,
+  readAlternateReviewerModel,
+  readPrimaryReviewerModel,
+  readReviewPolicy,
+} from './policy.js';
 import { minimumRouteMs, ReviewRuntimeError, runBoundMs, runHeadlessReviewer } from './runtime.js';
 
 /** The command runner owns reporter shutdown; review routing only updates it. */
@@ -64,6 +69,7 @@ function independentReviewResult(input: {
   readonly reviewer: ReviewAgent;
   readonly output: ReviewerOutput;
   readonly model?: string;
+  readonly preferredModel?: string;
   readonly preferredFailure?: ReviewFailure;
 }): CliResult {
   return createResult({
@@ -86,6 +92,7 @@ function independentReviewResult(input: {
       assigned_reviewer: input.reviewer,
       actual_reviewer: input.output.reviewer_agent,
       ...(input.model !== undefined && { reviewer_model: input.model }),
+      ...(input.preferredModel !== undefined && { preferred_model: input.preferredModel }),
       ...(input.preferredFailure !== undefined && { preferred_failure: input.preferredFailure }),
       independence: 'cross-agent',
       reviewer_output: input.output,
@@ -199,12 +206,14 @@ function exhaustedExplanation(
   routes: readonly {
     readonly agent: ReviewAgent;
     readonly role: string;
+    readonly model?: string;
     readonly failure: string;
   }[],
 ): string {
-  const sentences = routes.map(
-    route => `The ${route.role} (${agentName(route.agent)}) ${causePhrase(route.failure)}.`,
-  );
+  const sentences = routes.map(route => {
+    const modelPhrase = route.model === undefined ? '' : ` using ${route.model}`;
+    return `The ${route.role}${modelPhrase} (${agentName(route.agent)}) ${causePhrase(route.failure)}.`;
+  });
   return [...sentences, 'No independent check was recorded.'].join(' ');
 }
 
@@ -342,10 +351,20 @@ function changedReviewResult(input: {
   });
 }
 
-function alternateFailureData(
-  failure: string | undefined,
-): Record<string, never> | { readonly alternate_model_failure: string } {
-  return failure === undefined ? {} : { alternate_model_failure: failure };
+function routeFailureData(input: {
+  readonly preferredFailure: ReviewFailure;
+  readonly preferredModel?: string;
+  readonly alternateFailure?: string;
+  readonly alternateModel?: string;
+}): Record<string, unknown> {
+  return {
+    ...(input.preferredModel !== undefined && { preferred_model: input.preferredModel }),
+    preferred_failure: input.preferredFailure,
+    ...(input.alternateFailure !== undefined && {
+      alternate_model_failure: input.alternateFailure,
+      ...(input.alternateModel !== undefined && { alternate_model: input.alternateModel }),
+    }),
+  };
 }
 
 function degradedNetworkEffects(
@@ -393,10 +412,12 @@ async function runDegradedFallback(
   input: ReviewRunInput & {
     readonly author: ReviewAgent;
     readonly assignedReviewer: ReviewAgent;
+    readonly preferredModel?: string;
     readonly preferredFailure: ReviewFailure;
     readonly policy: ReviewPolicy;
     readonly runDeadline: number;
     readonly alternateFailure?: string;
+    readonly alternateModel?: string;
   },
 ): Promise<CliResult> {
   const prepared = prepareFallbackReview(input, input.assignedReviewer, input.author);
@@ -433,6 +454,7 @@ async function runDegradedFallback(
             {
               agent: input.assignedReviewer,
               role: 'independent reviewer',
+              model: input.preferredModel,
               failure: input.preferredFailure,
             },
             ...(input.alternateFailure === undefined
@@ -441,6 +463,7 @@ async function runDegradedFallback(
                   {
                     agent: input.assignedReviewer,
                     role: 'same reviewer on its alternate model',
+                    model: input.alternateModel,
                     failure: input.alternateFailure,
                   },
                 ]),
@@ -468,8 +491,7 @@ async function runDegradedFallback(
         status: 'blocked',
         author_agent: input.author,
         assigned_reviewer: input.assignedReviewer,
-        preferred_failure: input.preferredFailure,
-        ...alternateFailureData(input.alternateFailure),
+        ...routeFailureData(input),
         fallback_failure: assessment.failure,
         review_policy: input.policy,
         independence: 'none',
@@ -509,8 +531,7 @@ async function runDegradedFallback(
         author_agent: input.author,
         assigned_reviewer: input.assignedReviewer,
         actual_reviewer: completedOutput.reviewer_agent,
-        preferred_failure: input.preferredFailure,
-        ...alternateFailureData(input.alternateFailure),
+        ...routeFailureData(input),
         review_policy: input.policy,
         independence: 'degraded',
         reviewer_output: completedOutput,
@@ -545,8 +566,7 @@ async function runDegradedFallback(
       author_agent: input.author,
       assigned_reviewer: input.assignedReviewer,
       actual_reviewer: completedOutput.reviewer_agent,
-      preferred_failure: input.preferredFailure,
-      ...alternateFailureData(input.alternateFailure),
+      ...routeFailureData(input),
       independence: 'degraded',
       reviewer_output: completedOutput,
     },
@@ -563,13 +583,19 @@ async function runAlternateModelRoute(
   input: ReviewRunInput & {
     readonly author: ReviewAgent;
     readonly reviewer: ReviewAgent;
+    readonly preferredModel?: string;
     readonly preferredFailure: ReviewFailure;
     readonly policy: ReviewPolicy;
     readonly runDeadline: number;
   },
 ): Promise<
   | { readonly kind: 'completed'; readonly result: CliResult }
-  | { readonly kind: 'failed'; readonly failure: string; readonly terminal: boolean }
+  | {
+      readonly kind: 'failed';
+      readonly failure: string;
+      readonly terminal: boolean;
+      readonly model: string;
+    }
   | { readonly kind: 'skipped' }
 > {
   const model = readAlternateReviewerModel(input.cwd, input.reviewer);
@@ -607,7 +633,7 @@ async function runAlternateModelRoute(
     // attempt or failure, so it must not displace the funded fallback route.
     if (assessment.failure === 'not_installed' || assessment.failure === 'unsupported')
       return { kind: 'skipped' };
-    return assessment;
+    return { ...assessment, model };
   }
   const output = assessment.output;
 
@@ -616,6 +642,7 @@ async function runAlternateModelRoute(
     reviewer: input.reviewer,
     output,
     model,
+    preferredModel: input.preferredModel,
     preferredFailure: input.preferredFailure,
   });
   return { kind: 'completed', result };
@@ -629,6 +656,7 @@ async function runRemainingRoutes(
   input: ReviewRunInput & {
     readonly author: ReviewAgent;
     readonly assignedReviewer: ReviewAgent;
+    readonly preferredModel?: string;
     readonly preferredFailure: ReviewFailure;
     readonly policy: ReviewPolicy;
     readonly runDeadline: number;
@@ -642,6 +670,7 @@ async function runRemainingRoutes(
     progress: input.progress,
     author: input.author,
     reviewer: input.assignedReviewer,
+    preferredModel: input.preferredModel,
     preferredFailure: input.preferredFailure,
     policy: input.policy,
     runDeadline: input.runDeadline,
@@ -650,23 +679,28 @@ async function runRemainingRoutes(
   // An attempted-and-failed alternate model is part of the story; a skipped one
   // never happened and must not be reported as a route that failed.
   const alternateFailure = alternate.kind === 'failed' ? alternate.failure : undefined;
+  const alternateModel = alternate.kind === 'failed' ? alternate.model : undefined;
   if (alternate.kind === 'failed' && alternate.terminal) {
-    return exhaustedRunResult({ ...input, alternateFailure });
+    return exhaustedRunResult({ ...input, alternateFailure, alternateModel });
   }
-  if (!canFundRoute(input.runDeadline)) return exhaustedRunResult({ ...input, alternateFailure });
-  return runDegradedFallback({ ...input, alternateFailure });
+  if (!canFundRoute(input.runDeadline)) {
+    return exhaustedRunResult({ ...input, alternateFailure, alternateModel });
+  }
+  return runDegradedFallback({ ...input, alternateFailure, alternateModel });
 }
 
 /** The run bound arrived before a later route could be funded. */
 function exhaustedRunResult(input: {
   readonly author: ReviewAgent;
   readonly assignedReviewer: ReviewAgent;
+  readonly preferredModel?: string;
   readonly preferredFailure: ReviewFailure;
   readonly kind: ReviewKind;
   readonly targets: readonly string[];
   readonly context?: readonly string[];
   readonly policy: ReviewPolicy;
   readonly alternateFailure?: string;
+  readonly alternateModel?: string;
 }): CliResult {
   return createResult({
     state: 'action_required',
@@ -677,6 +711,7 @@ function exhaustedRunResult(input: {
           {
             agent: input.assignedReviewer,
             role: 'independent reviewer',
+            model: input.preferredModel,
             failure: input.preferredFailure,
           },
           ...(input.alternateFailure === undefined
@@ -685,6 +720,7 @@ function exhaustedRunResult(input: {
                 {
                   agent: input.assignedReviewer,
                   role: 'same reviewer on its alternate model',
+                  model: input.alternateModel,
                   failure: input.alternateFailure,
                 },
               ]),
@@ -710,8 +746,7 @@ function exhaustedRunResult(input: {
       status: 'blocked',
       author_agent: input.author,
       assigned_reviewer: input.assignedReviewer,
-      preferred_failure: input.preferredFailure,
-      ...alternateFailureData(input.alternateFailure),
+      ...routeFailureData(input),
       review_policy: input.policy,
       independence: 'none',
     },
@@ -751,6 +786,7 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
     });
   }
   const { reviewer } = pair;
+  const primaryModel = readPrimaryReviewerModel(input.cwd, reviewer);
 
   const prepared = preparePrimaryReview(input, reviewer);
   // One bound for reviewer work across the whole run. Initial packet sealing is
@@ -759,7 +795,7 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
   const { outcome, sourceChanged, snapshotChanged } = await executeReview(
     reviewer,
     prepared,
-    undefined,
+    primaryModel,
     runDeadline,
   );
   const changedResult = changedReviewResult({
@@ -779,6 +815,7 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
         ...input,
         author: pair.author,
         assignedReviewer: reviewer,
+        preferredModel: primaryModel,
         preferredFailure: outcome.failure,
         policy,
       });
@@ -790,6 +827,7 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
       ...input,
       author: pair.author,
       assignedReviewer: reviewer,
+      preferredModel: primaryModel,
       preferredFailure: outcome.failure,
       policy,
       runDeadline,
@@ -804,12 +842,13 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
       ...input,
       author: pair.author,
       assignedReviewer: reviewer,
-      preferredFailure: 'invalid_output',
+      preferredModel: primaryModel,
+      preferredFailure: provenance.code,
       policy,
       runDeadline,
     });
   }
   const output = provenance.output;
 
-  return independentReviewResult({ author: pair.author, reviewer, output });
+  return independentReviewResult({ author: pair.author, reviewer, output, model: primaryModel });
 }
