@@ -19,7 +19,7 @@ contracts owned by their focused tests, not claims made by this feature.
 
 - [x] RED b9cf90383
 - [x] GREEN 53e94d96f
-- [x] REFACTOR pending: Replace copy-prefix filtering with an explicit progress phase.
+- [x] REFACTOR b57369073
 
 ### Scenario: Completion cancels pending lifecycle output
 
@@ -33,13 +33,13 @@ contracts owned by their focused tests, not claims made by this feature.
 
 - [x] RED b9cf90383
 - [x] GREEN 7b675263b
-- [x] REFACTOR pending: Use the signal constant for both consumption operations.
+- [x] REFACTOR b57369073
 
 ### Scenario Outline: Quiet mode wins over managed progress
 
 - [x] RED b9cf90383
 - [x] GREEN 53e94d96f
-- [x] REFACTOR pending: Consolidate repeated managed-review wiring setup.
+- [x] REFACTOR b57369073
 
 ### Scenario: Human-readable progress remains enabled without the private signal
 
@@ -67,7 +67,7 @@ contracts owned by their focused tests, not claims made by this feature.
 
 - [x] RED 80e55391d
 - [x] GREEN e339e2e42
-- [x] REFACTOR pending: Rename the environment helper to describe its child-process responsibility.
+- [x] REFACTOR b57369073
 
 ### Scenario Outline: The wrapper remains compatible with an older review-capable CLI
 
@@ -83,4 +83,4 @@ contracts owned by their focused tests, not claims made by this feature.
 
 ## Feature-level cross-scenario refactor
 
-- [x] cross-scenario pending: Finish the three leaf-first improvements above, then record their commit.
+- [x] cross-scenario b57369073
