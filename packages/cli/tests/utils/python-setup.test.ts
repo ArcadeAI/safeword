@@ -4,10 +4,14 @@
  * Tests for package manager detection and dependency installation logic.
  */
 
+import { symlinkSync } from 'node:fs';
+import nodePath from 'node:path';
+
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   detectPythonPackageManager,
+  getMissingPythonToolDependencies,
   getPythonTools,
   hasRuffDependency,
   installPythonDependencies,
@@ -45,6 +49,156 @@ describe('getPythonTools', () => {
 
   it('adds import-linter when a config would be scaffolded', () => {
     expect(getPythonTools(true)).toEqual(['ruff', 'mypy', 'deadcode', 'import-linter']);
+  });
+
+  it('returns only required Python tools that the project has not declared', () => {
+    writeTestFile(
+      context.projectDirectory,
+      'pyproject.toml',
+      `[project]
+name = "test"
+dependencies = ["ruff>=0.8.0", "mypy"]
+`,
+    );
+
+    expect(getMissingPythonToolDependencies(context.projectDirectory, false)).toEqual(['deadcode']);
+  });
+
+  it('recognizes tools in multiline dependency arrays with PEP 508 extras and comments', () => {
+    writeTestFile(
+      context.projectDirectory,
+      'pyproject.toml',
+      `[project]
+name = "test"
+dependencies = [
+  "ruff[format]>=0.8.0",
+  # The ] in this comment does not close the dependency list.
+  "mypy",
+  "deadcode",
+]
+`,
+    );
+
+    expect(getMissingPythonToolDependencies(context.projectDirectory, false)).toEqual([]);
+  });
+
+  it('recognizes required Python tools declared in requirements.txt', () => {
+    writeTestFile(
+      context.projectDirectory,
+      'requirements.txt',
+      ['ruff>=0.8.0', 'mypy', 'deadcode==1.0.0'].join('\n'),
+    );
+
+    expect(getMissingPythonToolDependencies(context.projectDirectory, false)).toEqual([]);
+  });
+
+  it('does not treat descriptive or tool-config strings as Python dependency declarations', () => {
+    writeTestFile(
+      context.projectDirectory,
+      'pyproject.toml',
+      `[project]
+name = "test"
+description = "mypy plugins"
+
+[tool.ruff]
+extend = "ruff"
+`,
+    );
+
+    expect(getMissingPythonToolDependencies(context.projectDirectory, false)).toEqual([
+      'ruff',
+      'mypy',
+      'deadcode',
+    ]);
+  });
+
+  it('recognizes requirement markers and direct references', () => {
+    writeTestFile(
+      context.projectDirectory,
+      'requirements.txt',
+      [
+        'ruff; python_version >= "3.10"',
+        'mypy @ git+https://github.com/python/mypy.git',
+        'deadcode==1.0.0',
+      ].join('\n'),
+    );
+
+    expect(getMissingPythonToolDependencies(context.projectDirectory, false)).toEqual([]);
+  });
+
+  it.each([
+    [
+      'PEP 621',
+      'pyproject.toml',
+      `[project]
+name = "test"
+dependencies = ["ruff", "mypy", "deadcode", "import_linter"]
+`,
+    ],
+    [
+      'Poetry',
+      'pyproject.toml',
+      `[tool.poetry.group.dev.dependencies]
+ruff = "*"
+mypy = "*"
+deadcode = "*"
+"import.linter" = "*"
+`,
+    ],
+    ['requirements', 'requirements.txt', 'ruff\nmypy\ndeadcode\nimport_linter\n'],
+  ])('normalizes equivalent import-linter names in %s declarations', (_format, path, content) => {
+    writeTestFile(context.projectDirectory, path, content);
+    writeTestFile(context.projectDirectory, 'src/test/__init__.py', '');
+
+    expect(getMissingPythonToolDependencies(context.projectDirectory, true)).toEqual([]);
+  });
+
+  it('reads local requirements includes', () => {
+    writeTestFile(context.projectDirectory, 'requirements.txt', '-r requirements-dev.txt\n');
+    writeTestFile(
+      context.projectDirectory,
+      'requirements-dev.txt',
+      'ruff\nmypy\ndeadcode\nimport-linter\n',
+    );
+    writeTestFile(context.projectDirectory, 'src/test/__init__.py', '');
+
+    expect(getMissingPythonToolDependencies(context.projectDirectory, true)).toEqual([]);
+  });
+
+  it('does not follow requirements includes that escape through a symlink', () => {
+    const externalDirectory = createTemporaryDirectory();
+    try {
+      writeTestFile(externalDirectory, 'requirements-dev.txt', 'ruff\nmypy\ndeadcode\n');
+      writeTestFile(context.projectDirectory, 'requirements.txt', '-r requirements-dev.txt\n');
+      symlinkSync(
+        nodePath.join(externalDirectory, 'requirements-dev.txt'),
+        nodePath.join(context.projectDirectory, 'requirements-dev.txt'),
+      );
+
+      expect(getMissingPythonToolDependencies(context.projectDirectory, false)).toEqual([
+        'ruff',
+        'mypy',
+        'deadcode',
+      ]);
+    } finally {
+      removeTemporaryDirectory(externalDirectory);
+    }
+  });
+
+  it('requires import-linter for an importable Python package', () => {
+    writeTestFile(
+      context.projectDirectory,
+      'pyproject.toml',
+      `[project]
+name = "test"
+dependencies = ["ruff", "mypy", "deadcode"]
+`,
+    );
+    writeTestFile(context.projectDirectory, 'src/test/__init__.py', '');
+
+    expect(getMissingPythonToolDependencies(context.projectDirectory, true)).toEqual([
+      'import-linter',
+    ]);
   });
 });
 

@@ -54,6 +54,7 @@ type BeforePreparationStep = (step: PreparationStep, index?: number) => void;
 
 const BACKUP_PATH = CODEX_MIGRATION_SCHEMA.paths.backupRoot;
 const PROJECT_MARKER_PATH = CODEX_MIGRATION_SCHEMA.paths.pluginMarker;
+const HANDOFF_RECEIPT_PATH = CODEX_MIGRATION_SCHEMA.paths.handoffReceipt;
 const BOOTSTRAP_PATH = CODEX_MIGRATION_SCHEMA.paths.bootstrapSkill;
 const CODEX_CONFIG_PATH = CODEX_MIGRATION_SCHEMA.paths.config;
 
@@ -87,11 +88,25 @@ export function codexFinalizationIsComplete(cwd: string): boolean {
       marker.transaction_id === manifest.transaction_id &&
       marker.plan_sha256 === manifest.plan_sha256 &&
       manifestPlanDigest(manifest.entries) === manifest.plan_sha256 &&
-      backupPayloadsAreValid(cwd, manifest)
+      backupPayloadsAreValid(cwd, manifest) &&
+      authorizationReceiptIsValid(cwd, manifest)
     );
   } catch {
     return false;
   }
+}
+
+function requiredFinalizationEntriesArePresent(manifest: BackupManifestV1): boolean {
+  return [PROJECT_MARKER_PATH, BOOTSTRAP_PATH].every(path => {
+    const entry = manifest.entries.find(candidate => candidate.path === path);
+    return entry?.after.kind === 'file';
+  });
+}
+
+function authorizationReceiptIsValid(cwd: string, manifest: BackupManifestV1): boolean {
+  if (!requiredFinalizationEntriesArePresent(manifest)) return false;
+  const receipt = manifest.entries.find(entry => entry.path === HANDOFF_RECEIPT_PATH);
+  return receipt === undefined || imagesMatch(observedImage(cwd, receipt.path), receipt.after);
 }
 
 function pathEntryExists(path: string): boolean {
@@ -365,6 +380,7 @@ function entryPathIsAllowed(path: string): boolean {
   return (
     path === CODEX_CONFIG_PATH ||
     path === PROJECT_MARKER_PATH ||
+    path === HANDOFF_RECEIPT_PATH ||
     path === BOOTSTRAP_PATH ||
     CODEX_MIGRATION_SCHEMA.legacyFiles.includes(path)
   );
@@ -594,6 +610,7 @@ export function applyCodexFinalization(
     afterPrepared?: () => void;
     beforePreparationStep?: BeforePreparationStep;
     beforeMutation?: (index: number) => void;
+    beforeFinalizedManifestWrite?: () => void;
     beforeRollback?: () => void;
   } = {},
 ): BackupManifestV1 {
@@ -611,6 +628,10 @@ export function applyCodexFinalization(
     mutations,
     options.beforePreparationStep,
   );
+
+  // This boundary models an abrupt process stop after the recovery manifest is
+  // durable. It intentionally runs outside the handled-failure rollback path so
+  // the next invocation can discover and recover the interrupted transaction.
   options.afterPrepared?.();
 
   let appliedCount = 0;
@@ -627,6 +648,9 @@ export function applyCodexFinalization(
       applyMutation(cwd, mutation, entry.after);
       appliedCount += 1;
     }
+    manifest.status = 'finalized';
+    options.beforeFinalizedManifestWrite?.();
+    writeManifest(backupDirectory, manifest);
   } catch (error) {
     rollbackAppliedEntries({
       cwd,
@@ -639,7 +663,5 @@ export function applyCodexFinalization(
     throw error;
   }
 
-  manifest.status = 'finalized';
-  writeManifest(backupDirectory, manifest);
   return manifest;
 }

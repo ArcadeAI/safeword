@@ -151,6 +151,13 @@ Feature: Ship Safeword as a native Claude Code plugin
       When its generated SessionStart entrypoint executes
       Then Claude receives independently valid SessionStart responses containing every sibling context
 
+    Scenario: A valid Claude lifecycle lease does not make a verified cache unsafe
+      Given the installed plugin cache is available without its source checkout or package registry
+      And its .in_use lifecycle lease has exact Claude ownership metadata
+      When a Safeword plugin hook executes
+      Then it writes plugin proof without reporting an unlisted plugin asset
+      And the exact lifecycle lease remains byte-identical
+
     @rejection
     Scenario: A failed sibling hook prevents event-level plugin proof
       Given an intact cached UserPromptSubmit event whose final sibling hook fails

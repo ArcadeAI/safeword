@@ -416,6 +416,11 @@ tests without publish credentials, then publishes the packed artifact through
 npm OIDC with provenance. See the `versioning` skill for the complete procedure;
 local `bun publish` is defense-in-depth recovery tooling, not the release path.
 
+When a release changes the native Claude plugin or a source asset it bundles,
+run `bun run --cwd packages/cli generate:claude-release-assets` before merging
+the version bump. It refreshes the historical catalogue first, then rebuilds
+the plugin that embeds it; commit the resulting source and `plugin/` changes.
+
 When a release changes the native Claude plugin or its profile installer, stable
 publication also requires the previous-stable-to-candidate upgrade in the
 [Claude plugin manual acceptance runbook](packages/cli/tests/smoke/claude-plugin-manual-acceptance.md).

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { reviewerEnvironment } from '../../src/review/environment.js';
+import { reviewerEnvironment, reviewerProbeEnvironment } from '../../src/review/environment.js';
 
 describe('reviewer-scoped environment', () => {
   it('never exposes the wrapper-only managed-progress signal to reviewers', () => {
@@ -10,6 +10,17 @@ describe('reviewer-scoped environment', () => {
         SAFEWORD_REVIEW_TIMEOUT_MS: '1000',
       }),
     ).toEqual({ SAFEWORD_REVIEW_TIMEOUT_MS: '1000' });
+  });
+
+  it('keeps vendor credentials out of capability probes', () => {
+    expect(
+      reviewerProbeEnvironment({
+        PATH: '/bin',
+        ANTHROPIC_API_KEY: 'anthropic',
+        OPENAI_API_KEY: 'openai',
+        SAFEWORD_REVIEW_TIMEOUT_MS: '1000',
+      }),
+    ).toEqual({ PATH: '/bin', SAFEWORD_REVIEW_TIMEOUT_MS: '1000' });
   });
 
   it('passes only process essentials, reviewer credentials, and coordinator controls', () => {

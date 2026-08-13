@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -22,7 +22,7 @@ afterEach(() => {
 });
 
 describe('Claude plugin mode v2', () => {
-  it('keeps clean mode terminal across catalogue upgrades', () => {
+  it('re-arms clean mode when the verified plugin identity changes', () => {
     const root = mkdtempSync(nodePath.join(tmpdir(), 'claude-plugin-mode-'));
     roots.push(root);
     writeClaudePluginMode(root, {
@@ -36,7 +36,13 @@ describe('Claude plugin mode v2', () => {
     const marker = readClaudePluginMode(root);
     expect(marker).toBeDefined();
     if (marker === undefined) throw new Error('Plugin mode marker was not readable.');
-    expect(pluginModeIsTerminal(marker, 'b'.repeat(64))).toBe(true);
+    expect(
+      pluginModeIsTerminal(marker, {
+        plugin_version: '0.73.0',
+        hook_manifest_sha256: digest,
+        catalogue_sha256: 'b'.repeat(64),
+      }),
+    ).toBe(false);
   });
 
   it('re-arms unresolved paths when the catalogue changes', () => {
@@ -48,8 +54,20 @@ describe('Claude plugin mode v2', () => {
       catalogue_sha256: digest,
       unresolved_paths: ['.claude/skills/custom/SKILL.md'],
     };
-    expect(pluginModeIsTerminal(marker, digest)).toBe(true);
-    expect(pluginModeIsTerminal(marker, 'b'.repeat(64))).toBe(false);
+    expect(
+      pluginModeIsTerminal(marker, {
+        plugin_version: '0.73.0',
+        hook_manifest_sha256: digest,
+        catalogue_sha256: digest,
+      }),
+    ).toBe(true);
+    expect(
+      pluginModeIsTerminal(marker, {
+        plugin_version: '0.73.0',
+        hook_manifest_sha256: digest,
+        catalogue_sha256: 'b'.repeat(64),
+      }),
+    ).toBe(false);
   });
 
   it('allows three launches for the first session and one for each later session', () => {
@@ -106,5 +124,66 @@ describe('Claude plugin mode v2', () => {
     expect(claimClaudeMigrationAdvisory(root, 'session-a', digest)).toBe(true);
     expect(claimClaudeMigrationAdvisory(root, 'session-a', digest)).toBe(false);
     expect(claimClaudeMigrationAdvisory(root, 'session-b', digest)).toBe(true);
+  });
+
+  it('gives missing and blank session IDs a fresh budget in a later process', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'claude-missing-session-attempts-'));
+    roots.push(root);
+    expect(
+      [1, 2, 3, 4].map(() =>
+        claimClaudeMigrationAttempt(root, undefined, 'migration', 'process-a'),
+      ),
+    ).toEqual([true, true, true, false]);
+    expect(claimClaudeMigrationAttempt(root, '  ', 'migration', 'process-b')).toBe(true);
+  });
+
+  it('shows the same advisory again when a missing-ID session starts in a later process', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'claude-missing-session-advisory-'));
+    roots.push(root);
+    expect(claimClaudeMigrationAdvisory(root, undefined, digest, 'process-a')).toBe(true);
+    expect(claimClaudeMigrationAdvisory(root, '', digest, 'process-a')).toBe(false);
+    expect(claimClaudeMigrationAdvisory(root, undefined, digest, 'process-b')).toBe(true);
+  });
+
+  it('rejects advisory digests that could escape the claims directory', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'claude-advisory-traversal-'));
+    roots.push(root);
+    expect(() => claimClaudeMigrationAdvisory(root, 'session', '../escaped')).toThrow(
+      'advisory digest is invalid',
+    );
+    expect(existsSync(nodePath.join(root, '.safeword/claude-plugin/escaped.json'))).toBe(false);
+  });
+
+  it('normalizes inconsistent plugin-mode state when writing', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'claude-plugin-mode-normalize-'));
+    roots.push(root);
+    writeClaudePluginMode(root, {
+      schema_version: 2,
+      state: 'clean',
+      plugin_version: '0.73.0',
+      hook_manifest_sha256: digest,
+      catalogue_sha256: digest,
+      unresolved_paths: ['legacy-path'],
+    });
+    expect(readClaudePluginMode(root)?.state).toBe('unresolved');
+  });
+
+  it('rejects inconsistent plugin-mode state persisted outside the writer', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'claude-plugin-mode-corrupt-'));
+    roots.push(root);
+    const markerPath = nodePath.join(root, '.safeword/claude-plugin/plugin-mode-v2.json');
+    mkdirSync(nodePath.dirname(markerPath), { recursive: true });
+    writeFileSync(
+      markerPath,
+      JSON.stringify({
+        schema_version: 2,
+        state: 'unresolved',
+        plugin_version: '0.73.0',
+        hook_manifest_sha256: digest,
+        catalogue_sha256: digest,
+        unresolved_paths: [],
+      }),
+    );
+    expect(readClaudePluginMode(root)).toBeUndefined();
   });
 });

@@ -1,3 +1,16 @@
+import { chmodSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { homedir } from 'node:os';
+import nodePath from 'node:path';
+
+const trustedReviewerDirectories = new Set<string>();
+
+export function cleanupTrustedReviewerDirectories(): void {
+  for (const directory of trustedReviewerDirectories) {
+    rmSync(directory, { recursive: true, force: true });
+  }
+  trustedReviewerDirectories.clear();
+}
+
 /**
  * What a compatible reviewer advertises when asked what it supports.
  *
@@ -33,3 +46,18 @@ export const REVIEWER_CAPABILITIES = {
     '--output-schema',
   ].join(' '),
 } as const satisfies Record<'claude' | 'codex', string>;
+
+/**
+ * Reviewer discovery deliberately rejects executables beneath writable
+ * ancestry such as /tmp. Put positive-path fake binaries under a private,
+ * current-user-owned directory so tests exercise the real trust policy instead
+ * of bypassing it. Rejection tests should continue to use ordinary temp roots.
+ */
+export function createTrustedReviewerDirectory(prefix: string): string {
+  const root = nodePath.join(homedir(), '.cache', 'safeword-test-reviewers');
+  mkdirSync(root, { recursive: true, mode: 0o700 });
+  chmodSync(root, 0o700);
+  const directory = mkdtempSync(nodePath.join(root, prefix));
+  trustedReviewerDirectories.add(directory);
+  return directory;
+}

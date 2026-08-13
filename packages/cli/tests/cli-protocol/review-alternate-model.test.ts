@@ -1,11 +1,16 @@
 import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 
 import { createTemporaryDirectory, runCli } from '../helpers.js';
-import { REVIEWER_CAPABILITIES } from '../review-fixtures.js';
+import {
+  cleanupTrustedReviewerDirectories,
+  createTrustedReviewerDirectory,
+  REVIEWER_CAPABILITIES,
+} from '../review-fixtures.js';
+
+afterAll(cleanupTrustedReviewerDirectories);
 
 type ReviewAgent = 'claude' | 'codex';
 
@@ -15,12 +20,8 @@ type ReviewAgent = 'claude' | 'codex';
  * records the model it was given so the test can prove the configured value
  * reached the executable as a real argument rather than as routing metadata.
  */
-function installModelDependentReviewer(directory: string, agent: ReviewAgent): string {
-  const bin = nodePath.join(
-    tmpdir(),
-    `safeword-altmodel-${Buffer.from(directory).toString('hex')}`,
-    'bin',
-  );
+function installModelDependentReviewer(_directory: string, agent: ReviewAgent): string {
+  const bin = nodePath.join(createTrustedReviewerDirectory('safeword-altmodel-'), 'bin');
   mkdirSync(bin, { recursive: true });
   const executable = nodePath.join(bin, agent);
   writeFileSync(
@@ -59,12 +60,8 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verd
   return bin;
 }
 
-function installAlwaysAnsweringReviewer(directory: string, agent: ReviewAgent): string {
-  const bin = nodePath.join(
-    tmpdir(),
-    `safeword-answering-${Buffer.from(directory).toString('hex')}`,
-    'bin',
-  );
+function installAlwaysAnsweringReviewer(_directory: string, agent: ReviewAgent): string {
+  const bin = nodePath.join(createTrustedReviewerDirectory('safeword-answering-'), 'bin');
   mkdirSync(bin, { recursive: true });
   const executable = nodePath.join(bin, agent);
   writeFileSync(

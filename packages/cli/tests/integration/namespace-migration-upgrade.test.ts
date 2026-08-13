@@ -1,10 +1,9 @@
 /**
  * Upgrade-vehicle namespace migration, end to end (ticket 9MMWS7, epic AQJ95G).
  *
- * `safeword upgrade` offers/performs the legacy → `.project/` move via the
- * consent flags (the TTY prompt pair is proven at the unit layer against the
- * injected confirm seam — subprocesses have no TTY), and `safeword check`
- * carries the both-dirs advisory.
+ * `safeword upgrade` automatically performs the legacy → `.project/` move,
+ * while retaining an explicit opt-out, and `safeword check` carries the
+ * both-dirs advisory until the next setup or upgrade converges it.
  *
  * Scenario lineage: upgrade-namespace-migration.TB1.* (test-definitions.md).
  */
@@ -87,6 +86,9 @@ describe('upgrade --migrate-namespace (9MMWS7)', () => {
       const result = await runCli(['upgrade', '--no-migrate-namespace'], { cwd });
 
       expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}${result.stderr}`).toContain(
+        'automatic namespace migration was explicitly disabled',
+      );
       expect(existsSync(nodePath.join(cwd, '.project'))).toBe(false);
       // Legacy root still reconciled (upgrade scaffolds missing glossary there).
       expect(existsSync(nodePath.join(cwd, '.safeword-project', 'glossary.md'))).toBe(true);
@@ -98,15 +100,14 @@ describe('upgrade --migrate-namespace (9MMWS7)', () => {
   );
 
   it(
-    'TB1.AC2.non_interactive_nudges_only',
+    'TB1.AC2.non_interactive_migrates_and_notifies',
     async () => {
-      // Subprocess has no TTY and no flag → nudge, no move.
       const result = await runCli(['upgrade'], { cwd });
 
       expect(result.exitCode).toBe(0);
-      expect(`${result.stdout}${result.stderr}`).toContain('--migrate-namespace');
-      expect(existsSync(nodePath.join(cwd, '.project'))).toBe(false);
-      expect(existsSync(nodePath.join(cwd, '.safeword-project'))).toBe(true);
+      expect(`${result.stdout}${result.stderr}`).toContain('Project namespace moved to .project');
+      expect(existsSync(nodePath.join(cwd, '.project'))).toBe(true);
+      expect(existsSync(nodePath.join(cwd, '.safeword-project'))).toBe(false);
     },
     TIMEOUT_BUN_INSTALL,
   );
@@ -132,21 +133,72 @@ describe('upgrade --migrate-namespace (9MMWS7)', () => {
   );
 
   it(
-    'TB1.AC4.both_dirs_refuses_move_and_advises',
+    'TB1.AC4.both_dirs_merges_and_archives_collisions',
     async () => {
       mkdirSync(nodePath.join(cwd, '.project'));
       writeFileSync(nodePath.join(cwd, '.project', 'user-file.md'), 'pre-existing\n');
-      const legacyBefore = listTree(nodePath.join(cwd, '.safeword-project'));
+      writeFileSync(nodePath.join(cwd, '.project', 'personas.md'), 'current personas\n');
 
-      const result = await runCli(['upgrade', '--migrate-namespace'], { cwd });
+      const result = await runCli(['upgrade'], { cwd });
 
-      expect(result.exitCode).toBe(2);
-      expect(`${result.stdout}${result.stderr}`).toMatch(/\.project.*already exists/i);
-      expect(listTree(nodePath.join(cwd, '.safeword-project'))).toEqual(
-        expect.arrayContaining(legacyBefore),
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}${result.stderr}`).toMatch(
+        /Project namespace merged into \.project; 1 conflicting file/u,
       );
+      expect(existsSync(nodePath.join(cwd, '.safeword-project'))).toBe(false);
       expect(readFileSync(nodePath.join(cwd, '.project', 'user-file.md'), 'utf8')).toBe(
         'pre-existing\n',
+      );
+      expect(readFileSync(nodePath.join(cwd, '.project', 'personas.md'), 'utf8')).toBe(
+        'current personas\n',
+      );
+      expect(
+        listTree(nodePath.join(cwd, '.safeword', 'namespace-migration-conflicts-v1')),
+      ).toContainEqual(expect.stringMatching(/personas\.md$/u));
+    },
+    TIMEOUT_BUN_INSTALL,
+  );
+
+  it.each([
+    ['legacy directory and current file', 'ordered', 'directory'],
+    ['legacy file and current directory', 'personas.md', 'file'],
+  ] as const)(
+    'TB1.AC4.structural_collision_preserves_both_trees — %s',
+    async (_label, collisionPath, legacyKind) => {
+      writeFileSync(
+        nodePath.join(cwd, '.safeword-project', 'a-before-collision.md'),
+        'legacy before\n',
+      );
+      if (legacyKind === 'directory') {
+        mkdirSync(nodePath.join(cwd, '.safeword-project', collisionPath));
+        writeFileSync(
+          nodePath.join(cwd, '.safeword-project', collisionPath, 'child.md'),
+          'legacy child\n',
+        );
+      }
+
+      mkdirSync(nodePath.join(cwd, '.project'));
+      if (legacyKind === 'directory') {
+        writeFileSync(nodePath.join(cwd, '.project', collisionPath), 'current file\n');
+      } else {
+        mkdirSync(nodePath.join(cwd, '.project', collisionPath));
+        writeFileSync(nodePath.join(cwd, '.project', collisionPath, 'child.md'), 'current child\n');
+      }
+      const legacyBefore = listTree(nodePath.join(cwd, '.safeword-project'));
+      const currentBefore = listTree(nodePath.join(cwd, '.project'));
+      const recoveryBefore = listTree(
+        nodePath.join(cwd, '.safeword', 'namespace-migration-conflicts-v1'),
+      );
+
+      const result = await runCli(['upgrade'], { cwd });
+
+      expect(result.exitCode).not.toBe(0);
+      expect(`${result.stdout}${result.stderr}`).toMatch(/conflicts with a (file|directory)/u);
+      expect(listTree(nodePath.join(cwd, '.safeword-project'))).toEqual(legacyBefore);
+      expect(listTree(nodePath.join(cwd, '.project'))).toEqual(currentBefore);
+      expect(existsSync(nodePath.join(cwd, '.project', 'a-before-collision.md'))).toBe(false);
+      expect(listTree(nodePath.join(cwd, '.safeword', 'namespace-migration-conflicts-v1'))).toEqual(
+        recoveryBefore,
       );
     },
     TIMEOUT_BUN_INSTALL,
@@ -293,14 +345,15 @@ describe('upgrade stale tooling-config warning (JYWZG1)', () => {
   );
 
   it(
-    'TB1.AC4.silent_when_no_move — both-dirs',
+    'TB1.AC4.warning_fires_after_automatic_both-dirs_merge',
     async () => {
       mkdirSync(nodePath.join(cwd, '.project'));
 
-      const result = await runCli(['upgrade', '--migrate-namespace'], { cwd });
+      const result = await runCli(['upgrade'], { cwd });
 
       expect(result.exitCode).toBe(2);
-      expect(`${result.stdout}${result.stderr}`).not.toContain(WARNING_PHRASE);
+      expect(`${result.stdout}${result.stderr}`).toContain(WARNING_PHRASE);
+      expect(existsSync(nodePath.join(cwd, '.safeword-project'))).toBe(false);
     },
     TIMEOUT_BUN_INSTALL,
   );

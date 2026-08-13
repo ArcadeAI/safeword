@@ -76,7 +76,7 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN 011cb21d
 - [x] REFACTOR skip: hook manifest is intentionally explicit per Codex event
 
-## Rule: test-codex-plugin-migration.TB1.R4 — Upgrading an old project-local Codex install leaves user-owned project data and fallback assets intact until an explicit proven handoff
+## Rule: test-codex-plugin-migration.TB1.R4 — Normal Codex use automatically completes a proven handoff while preserving user-owned project data
 
 ### Scenario: Unavailable profile enrollment preserves an old project's authored data and fallback
 
@@ -84,11 +84,47 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN d38dba27
 - [x] REFACTOR skip: migration cleanup is already file-scoped for shared skill dirs and source-only for legacy hook templates
 
-### Scenario: Successful handoff preserves authored project data while removing managed fallback
+### Scenario: Current native proof makes normal Codex use finish the handoff automatically
 
 - [x] RED ae935d66
 - [x] GREEN bf5e436e
 - [x] REFACTOR 7352a6dc
+
+### Scenario: Tampering with a completed authorization receipt requires recovery
+
+- [x] RED working-tree scenario hardening
+- [x] GREEN packages/cli/tests/commands/migrate-codex-plugin.test.ts authorization receipt integrity
+- [x] REFACTOR skip: receipt validation reuses finalization image hashing
+
+### Scenario: Invalid native proof cannot authorize automatic legacy cleanup
+
+- [x] RED working-tree scenario hardening
+- [x] GREEN tests/commands/migrate-codex-plugin.test.ts proof rejection matrix
+- [x] REFACTOR skip: proof classification is centralized in profile-proof
+
+### Scenario: Substituted or conflicting proof cannot authorize automatic cleanup
+
+- [x] RED working-tree scenario hardening
+- [x] GREEN packages/cli/tests/codex-plugin/profile-proof.test.ts and executable BDD adversary matrix
+- [x] REFACTOR skip: trusted no-follow proof reads are centralized in profile-proof
+
+### Scenario: Interrupted automatic cleanup restores the complete legacy state
+
+- [x] RED working-tree scenario hardening
+- [x] GREEN tests/codex-plugin/finalization.test.ts rollback matrix
+- [x] REFACTOR skip: the finalization transaction already owns rollback
+
+### Scenario: A completed automatic cleanup backup can restore the pre-migration project
+
+- [x] RED working-tree scenario hardening
+- [x] GREEN tests/commands/migrate-codex-plugin.test.ts recovery coverage
+- [x] REFACTOR skip: recovery reuses the durable finalization manifest
+
+### Scenario: A symbolic-link legacy asset blocks automatic cleanup before mutation
+
+- [x] RED working-tree scenario hardening
+- [x] GREEN tests/commands/migrate-codex-plugin.test.ts unsafe-path coverage
+- [x] REFACTOR skip: finalization path validation is shared
 
 ### Scenario: User-authored Codex skills survive the migration
 
@@ -96,7 +132,7 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN ba64937a
 - [x] REFACTOR skip: deprecated file and empty-dir cleanup both derive from the canonical Codex skill list
 
-### Scenario: Customized Codex config is not clobbered while stale Safe Word hooks await explicit migration
+### Scenario: Customized Codex config is not clobbered while stale Safe Word hooks await native proof
 
 - [x] RED eb760fa5
 - [x] GREEN cb6cc277
@@ -137,6 +173,36 @@ test-definitions.md is the R/G/R ledger.
 - [x] RED 388880e4
 - [x] GREEN 705ceb77
 - [x] REFACTOR skip: hook contract fixture builder and command parser already isolate the manifest-wide coverage path
+
+### Scenario: A fixture declaring a different event cannot create native proof
+
+- [x] RED working-tree scenario hardening
+- [x] GREEN packages/cli/src/commands/codex-hook.ts rejects proof on command/payload event mismatch
+- [x] REFACTOR skip: event identity mapping is centralized beside supported event names
+
+### Scenario: A plugin hook rejects input larger than the fixed one-mebibyte boundary without proof
+
+- [x] RED working-tree scenario hardening
+- [x] GREEN packages/cli/tests/commands/codex-hook.test.ts oversized-input proof rejection
+- [x] REFACTOR skip: bounded stdin is centralized in the packaged hook dispatcher
+
+### Scenario: A valid payload exactly at the one-mebibyte boundary is accepted
+
+- [x] RED working-tree scenario hardening
+- [x] GREEN packages/cli/tests/commands/codex-hook.test.ts exact byte-boundary acceptance
+- [x] REFACTOR skip: shares the same centralized byte-boundary predicate
+
+### Scenario: Multibyte input is limited by UTF-8 bytes rather than characters
+
+- [x] RED working-tree scenario hardening
+- [x] GREEN packages/cli/tests/commands/codex-hook.test.ts UTF-8 byte-boundary rejection
+- [x] REFACTOR skip: Buffer.byteLength is the single encoding-aware boundary
+
+### Scenario: The packaged manifest fixes host-enforced hook deadlines by event
+
+- [x] RED working-tree scenario hardening
+- [x] GREEN steps/test-codex-plugin-migration.steps.ts exact manifest deadline assertions
+- [x] REFACTOR skip: the generated hook manifest remains the single event deadline table
 
 ### Scenario: Malformed Codex hook input fails open through the packaged entrypoint
 

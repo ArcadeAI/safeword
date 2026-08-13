@@ -25,7 +25,13 @@ import {
 
 const languageFixtures: [string, (directory: string) => void][] = [
   ['TypeScript', createTypeScriptProjectReadyForSetup],
-  ['Python', createPythonProject],
+  [
+    'Python',
+    directory => {
+      createPythonProject(directory);
+      writeTestFile(directory, 'requirements.txt', 'ruff\nmypy\ndeadcode\n');
+    },
+  ],
   ['Go', createGoProject],
   ['Rust', createRustProject],
 ];

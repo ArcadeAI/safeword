@@ -5,7 +5,7 @@ import nodePath from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { runCli } from '../helpers.js';
-import { REVIEWER_CAPABILITIES } from '../review-fixtures.js';
+import { createTrustedReviewerDirectory, REVIEWER_CAPABILITIES } from '../review-fixtures.js';
 
 /**
  * When the assigned reviewer fails and the author's own runtime completes the
@@ -23,8 +23,10 @@ afterEach(() => {
   directories.length = 0;
 });
 
-function scratch(): string {
-  const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-degraded-'));
+function scratch(trusted = false): string {
+  const directory = trusted
+    ? createTrustedReviewerDirectory('safeword-degraded-reviewer-')
+    : mkdtempSync(nodePath.join(tmpdir(), 'safeword-degraded-'));
   directories.push(directory);
   return directory;
 }
@@ -68,7 +70,7 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
 async function degradedMessage(assignedFails: 'hang' | 'unauthenticated'): Promise<string> {
   const directory = scratch();
   writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
-  const bin = installReviewers(scratch(), assignedFails);
+  const bin = installReviewers(scratch(true), assignedFails);
 
   const result = await runCli(
     [

@@ -89,6 +89,12 @@ function createFixtureDirectory(prefix: string): string {
   return directory;
 }
 
+function createTrustedFixtureDirectory(prefix: string): string {
+  const directory = mkdtempSync(nodePath.join(process.cwd(), `.${prefix}`));
+  fixtureDirectories.add(directory);
+  return directory;
+}
+
 function sanitizedFixtureEnvironment(): NodeJS.ProcessEnv {
   return Object.fromEntries(
     Object.entries(process.env).filter(([name]) => !fixtureControlVariables.has(name)),
@@ -668,7 +674,7 @@ Then('requested changes remain the first review line', function (this: ReviewWor
 
 function createCliFixture(): CliFixture {
   const directory = createFixtureDirectory('safeword-coverage-bdd-');
-  const bin = createFixtureDirectory('safeword-coverage-bin-');
+  const bin = createTrustedFixtureDirectory('safeword-coverage-bin-');
   writeFileSync(nodePath.join(directory, 'spec.md'), `bounded review input ${directory}\n`);
   return { directory, bin };
 }

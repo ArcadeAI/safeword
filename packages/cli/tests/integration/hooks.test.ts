@@ -1503,7 +1503,7 @@ describe('E2E: Python Lint Hook', () => {
 });
 
 describe('session-safeword-context.ts', () => {
-  it('emits Claude/Codex additionalContext with SAFEWORD.md content', () => {
+  it('emits a compact Claude bootstrap that points to SAFEWORD.md', () => {
     const result = spawnSync(
       'bun',
       ['.safeword/hooks/session-safeword-context.ts', '--agent=claude'],
@@ -1517,11 +1517,13 @@ describe('session-safeword-context.ts', () => {
     expect(result.status, result.stderr || result.stdout).toBe(0);
     const output = JSON.parse(result.stdout);
     expect(output.hookSpecificOutput.hookEventName).toBe('SessionStart');
-    expect(output.hookSpecificOutput.additionalContext).toContain('SAFEWORD Agent Instructions');
-    expect(output.hookSpecificOutput.additionalContext).toContain('## Workflow');
+    expect(output.hookSpecificOutput.additionalContext).toContain('Safeword session bootstrap');
+    expect(output.hookSpecificOutput.additionalContext).toContain('.safeword/SAFEWORD.md');
+    expect(output.hookSpecificOutput.additionalContext).not.toContain('## Workflow');
+    expect(output.hookSpecificOutput.additionalContext.length).toBeLessThanOrEqual(1000);
   });
 
-  it('emits Cursor additional_context with SAFEWORD.md content', () => {
+  it('emits a compact Cursor bootstrap that points to SAFEWORD.md', () => {
     const result = spawnSync(
       'bun',
       ['.safeword/hooks/session-safeword-context.ts', '--agent=cursor'],
@@ -1534,8 +1536,10 @@ describe('session-safeword-context.ts', () => {
 
     expect(result.status, result.stderr || result.stdout).toBe(0);
     const output = JSON.parse(result.stdout);
-    expect(output.additional_context).toContain('SAFEWORD Agent Instructions');
-    expect(output.additional_context).toContain('## Workflow');
+    expect(output.additional_context).toContain('Safeword session bootstrap');
+    expect(output.additional_context).toContain('.safeword/SAFEWORD.md');
+    expect(output.additional_context).not.toContain('## Workflow');
+    expect(output.additional_context.length).toBeLessThanOrEqual(1000);
   });
 
   it('uses hook stdin cwd when the process starts from a subdirectory', () => {
@@ -1558,7 +1562,7 @@ describe('session-safeword-context.ts', () => {
     expect(result.status).toBe(0);
     const output = JSON.parse(result.stdout);
     expect(output.hookSpecificOutput.hookEventName).toBe('SessionStart');
-    expect(output.hookSpecificOutput.additionalContext).toContain('SAFEWORD Agent Instructions');
+    expect(output.hookSpecificOutput.additionalContext).toContain('Safeword session bootstrap');
   });
 
   it('falls back to hook stdin cwd when CLAUDE_PROJECT_DIR is stale', () => {
@@ -1581,7 +1585,7 @@ describe('session-safeword-context.ts', () => {
       expect(result.status).toBe(0);
       const output = JSON.parse(result.stdout);
       expect(output.hookSpecificOutput.hookEventName).toBe('SessionStart');
-      expect(output.hookSpecificOutput.additionalContext).toContain('SAFEWORD Agent Instructions');
+      expect(output.hookSpecificOutput.additionalContext).toContain('Safeword session bootstrap');
     } finally {
       rmSync(staleDirectory, { recursive: true, force: true });
     }
@@ -1589,7 +1593,7 @@ describe('session-safeword-context.ts', () => {
 });
 
 describe('session-codex-start.ts', () => {
-  it('runs the Codex SessionStart dispatcher and emits SAFEWORD.md context', () => {
+  it('runs the Codex SessionStart dispatcher and emits a compact bootstrap', () => {
     const result = spawnSync('bun', [TEMPLATE_CODEX_SESSION_START], {
       cwd: shared.projectDirectory,
       env: { ...process.env, SAFEWORD_NO_AUTO_UPGRADE: '1' },
@@ -1600,8 +1604,10 @@ describe('session-codex-start.ts', () => {
     expect(result.status, result.stderr || result.stdout).toBe(0);
     const output = JSON.parse(result.stdout);
     expect(output.hookSpecificOutput.hookEventName).toBe('SessionStart');
-    expect(output.hookSpecificOutput.additionalContext).toContain('SAFEWORD Agent Instructions');
-    expect(output.hookSpecificOutput.additionalContext).toContain('## Workflow');
+    expect(output.hookSpecificOutput.additionalContext).toContain('Safeword session bootstrap');
+    expect(output.hookSpecificOutput.additionalContext).toContain('.safeword/SAFEWORD.md');
+    expect(output.hookSpecificOutput.additionalContext).not.toContain('## Workflow');
+    expect(output.hookSpecificOutput.additionalContext.length).toBeLessThanOrEqual(1000);
   });
 });
 

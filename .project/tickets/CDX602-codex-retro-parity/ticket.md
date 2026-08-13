@@ -4,6 +4,8 @@ slug: codex-retro-parity
 type: feature
 phase: verify
 status: in_progress
+phase_anchors:
+  - 'verify: .project/tickets/CDX602-codex-retro-parity/test-definitions.md'
 parent: RV9JT4-retro-transcript-mining
 depends_on: [BNGK9W]
 external_issue: https://github.com/ArcadeAI/safeword/issues/602
