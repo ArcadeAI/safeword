@@ -79,6 +79,10 @@ const VITEST_PROVEN_FEATURES = [
     'features/whole-ticket-quality-refactor.feature',
     'packages/cli/tests/integration/whole-ticket-quality-refactor.test.ts',
   ],
+  [
+    'packages/cli/features/reliable-observable-quality-reviews.feature',
+    'packages/cli/tests/cli-protocol/review-wiring.test.ts',
+  ],
 ] as const;
 
 interface ScenarioProofManifest {

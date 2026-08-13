@@ -7,6 +7,10 @@ Feature: Keep quality reviews observable and actionable
   A managed JSON review is launched by Safeword's wrapper; a direct JSON review
   invokes the public command without that wrapper. Quoted expected-lines values
   decode \n as a line break and omit the final line terminator.
+  Executable proof: packages/cli/tests/cli-protocol/review-wiring.test.ts,
+  packages/cli/tests/cli-protocol/policy.test.ts,
+  packages/cli/tests/review/surface-parity.test.ts, and
+  packages/cli/tests/review/environment.test.ts.
 
   @reliable-observable-quality-reviews.TBU1.R1 @surface.safeword-cli @proof.vitest
   Rule: reliable-observable-quality-reviews.TBU1.R1 — A managed JSON review reports rate-limited lifecycle progress separately from its final typed result
