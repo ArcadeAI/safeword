@@ -367,6 +367,9 @@ data cannot strand cleanup of an immutable merged head. Claude Code and Cursor
 use hook-captured session identity, while Codex Desktop may use its authenticated
 `CODEX_THREAD_ID` when the one-shot hook bridge is unavailable. Missing, stale,
 malformed, dirty-state, or wrong-head proof blocks the remaining branch cleanup.
+If the bound transcript grows between preview and apply, closeout refreshes the
+mandatory retrospective while preserving authorization for unchanged cleanup
+targets; newly unresolved retrospective work still blocks every mutation.
 
 **MCP Servers** (in `.mcp.json` / `.cursor/mcp.json`): Auto-configured integrations
 
