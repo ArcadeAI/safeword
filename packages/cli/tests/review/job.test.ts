@@ -137,9 +137,16 @@ describe('durable review jobs', () => {
 
     await vi.waitFor(
       () => {
-        expect(reviewJobStatus(cwd, pending.data.review_id).state).toBe('healthy');
+        const collected = reviewJobStatus(cwd, pending.data.review_id);
+        expect(collected, JSON.stringify(collected)).toMatchObject({
+          state: 'healthy',
+          data: { status: 'approved' },
+        });
       },
-      { timeout: 5000 },
+      // The detached worker competes with the full CI suite for CPU. Its own
+      // reviewer only sleeps for one second, but process startup can take
+      // materially longer under the Node matrix's peak load.
+      { timeout: 20_000 },
     );
     expect(readFileSync(reviewer.log, 'utf8').trim().split('\n')).toEqual(['called']);
   });
