@@ -26,6 +26,12 @@ import { prepareReviewPacket } from './packet.js';
 type ReviewJobState = 'launching' | 'running' | 'completed' | 'failed' | 'canceled';
 type WorkerInspection = 'match' | 'mismatch' | 'unavailable';
 
+const TERMINAL_JOB_STATES: ReadonlySet<ReviewJobState> = new Set([
+  'completed',
+  'failed',
+  'canceled',
+]);
+
 interface ReviewJobRecord {
   readonly schema_version: 1;
   readonly id: string;
@@ -93,9 +99,9 @@ function decodeIntegrityKey(value: string): Buffer {
 }
 
 function unsignedRecord(record: ReviewJobRecord): Omit<ReviewJobRecord, 'integrity'> {
-  const unsigned: Record<string, unknown> = { ...record };
-  delete unsigned.integrity;
-  return unsigned as unknown as Omit<ReviewJobRecord, 'integrity'>;
+  // eslint-disable-next-line sonarjs/no-unused-vars -- destructuring is the typed omission seam
+  const { integrity: _integrity, ...unsigned } = record;
+  return unsigned;
 }
 
 function recordIntegrity(cwd: string, record: ReviewJobRecord): string {
@@ -119,7 +125,7 @@ function hasValidIntegrity(cwd: string, record: ReviewJobRecord): boolean {
 }
 
 function isTerminalJobState(state: ReviewJobState): boolean {
-  return ['completed', 'failed', 'canceled'].includes(state);
+  return TERMINAL_JOB_STATES.has(state);
 }
 
 function withRecordIntegrity(cwd: string, record: ReviewJobRecord): ReviewJobRecord {
