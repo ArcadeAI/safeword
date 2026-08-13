@@ -468,12 +468,16 @@ export async function startReviewJob(input: {
     });
     return failed;
   }
-  updateActiveJob(input.cwd, id, spawned => ({
+  const activated = updateActiveJob(input.cwd, id, spawned => ({
     ...spawned,
     state: 'running',
     pid: child.pid,
     updated_at: new Date().toISOString(),
   }));
+  if (!isActivatedChild(activated, child.pid)) {
+    terminateReviewWorker(child.pid);
+    return currentResult(input.cwd, activated);
+  }
   input.progress?.start('Running the independent review in the background…');
   // ProgressReporter schedules and repeats this heartbeat until command teardown.
   input.progress?.heartbeat?.('Still waiting for the independent review…');
@@ -486,6 +490,18 @@ export async function startReviewJob(input: {
   return currentResult(input.cwd, readJob(input.cwd, id));
 }
 
+function isActivatedChild(record: ReviewJobRecord, pid: number): boolean {
+  return record.state === 'running' && record.pid === pid;
+}
+
+function terminateReviewWorker(pid: number): void {
+  try {
+    process.kill(process.platform === 'win32' ? pid : -pid, 'SIGTERM');
+  } catch {
+    // The child may have exited before the canceled launch was observed.
+  }
+}
+
 export function completeReviewJob(cwd: string, id: string, result: CliResult): void {
   updateActiveJob(cwd, id, record => ({
     ...record,
@@ -493,6 +509,20 @@ export function completeReviewJob(cwd: string, id: string, result: CliResult): v
     result,
     updated_at: new Date().toISOString(),
   }));
+}
+
+export function reviewJobWorkerInput(
+  cwd: string,
+  id: string,
+): {
+  readonly kind: ReviewKind;
+  readonly targets: readonly string[];
+  readonly context: readonly string[];
+} {
+  const record = readJob(cwd, id);
+  if (record.state !== 'launching' && record.state !== 'running')
+    throw new Error('review job is not active');
+  return { kind: record.kind, targets: record.targets, context: record.context ?? [] };
 }
 
 function latestJobId(cwd: string): string | undefined {

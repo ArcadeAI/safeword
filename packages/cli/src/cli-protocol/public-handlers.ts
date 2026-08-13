@@ -680,8 +680,7 @@ async function reviewRunHandler(invocation: CommandInvocation): Promise<CliResul
     ? rawTargets.filter((target): target is string => typeof target === 'string')
     : [];
   const context = reviewContext(invocation.options.context);
-  if (process.env.SAFEWORD_REVIEW_WORKER === '1')
-    return runReviewWorker(invocation, rawKind, targets, context);
+  if (process.env.SAFEWORD_REVIEW_WORKER === '1') return runReviewWorker(invocation);
   return startReviewInBackground(invocation, rawKind, targets, context);
 }
 
@@ -691,12 +690,7 @@ function reviewContext(rawContext: unknown): string[] {
   return typeof rawContext === 'string' ? [rawContext] : [];
 }
 
-async function runReviewWorker(
-  invocation: CommandInvocation,
-  kind: ReviewKind,
-  targets: readonly string[],
-  context: readonly string[],
-): Promise<CliResult> {
+async function runReviewWorker(invocation: CommandInvocation): Promise<CliResult> {
   const id = process.env.SAFEWORD_REVIEW_JOB_ID;
   if (id === undefined) {
     return createResult({
@@ -724,18 +718,36 @@ async function runReviewWorker(
       data: { command: 'review run', status: 'failed' },
     });
   }
-  const [{ runReview }, { completeReviewJob }, { ReviewPacketError }] = await Promise.all([
-    import('../review/coordinator.js'),
-    import('../review/job.js'),
-    import('../review/packet.js'),
-  ]);
+  const [{ runReview }, { completeReviewJob, reviewJobWorkerInput }, { ReviewPacketError }] =
+    await Promise.all([
+      import('../review/coordinator.js'),
+      import('../review/job.js'),
+      import('../review/packet.js'),
+    ]);
+  let persistedInput: ReturnType<typeof reviewJobWorkerInput>;
+  try {
+    persistedInput = reviewJobWorkerInput(invocation.cwd, id);
+  } catch (error) {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'REVIEW_WORKER_JOB_INVALID',
+          message:
+            error instanceof Error
+              ? `The detached review worker could not load its job: ${error.message}`
+              : 'The detached review worker could not load its job.',
+          retryable: false,
+        },
+      ],
+      data: { command: 'review run', status: 'failed', review_id: id },
+    });
+  }
   let result: CliResult;
   try {
     result = await runReview({
       cwd: invocation.cwd,
-      kind,
-      targets,
-      context,
+      ...persistedInput,
       progress: invocation.progress,
     });
   } catch (error) {

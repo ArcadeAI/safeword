@@ -42823,6 +42823,7 @@ var init_coordinator = __esm(() => {
 var exports_job = {};
 __export(exports_job, {
   startReviewJob: () => startReviewJob,
+  reviewJobWorkerInput: () => reviewJobWorkerInput,
   reviewJobStatus: () => reviewJobStatus,
   completeReviewJob: () => completeReviewJob,
   cancelReviewJob: () => cancelReviewJob
@@ -43212,12 +43213,16 @@ async function startReviewJob(input) {
     });
     return failed;
   }
-  updateActiveJob(input.cwd, id, (spawned) => ({
+  const activated = updateActiveJob(input.cwd, id, (spawned) => ({
     ...spawned,
     state: "running",
     pid: child.pid,
     updated_at: new Date().toISOString()
   }));
+  if (!isActivatedChild(activated, child.pid)) {
+    terminateReviewWorker(child.pid);
+    return currentResult(input.cwd, activated);
+  }
   input.progress?.start("Running the independent review in the background\u2026");
   input.progress?.heartbeat?.("Still waiting for the independent review\u2026");
   const deadline = Date.now() + configuredCourtesyWait();
@@ -43229,6 +43234,14 @@ async function startReviewJob(input) {
   }
   return currentResult(input.cwd, readJob(input.cwd, id));
 }
+function isActivatedChild(record, pid) {
+  return record.state === "running" && record.pid === pid;
+}
+function terminateReviewWorker(pid) {
+  try {
+    process.kill(process.platform === "win32" ? pid : -pid, "SIGTERM");
+  } catch {}
+}
 function completeReviewJob(cwd, id, result) {
   updateActiveJob(cwd, id, (record) => ({
     ...record,
@@ -43236,6 +43249,12 @@ function completeReviewJob(cwd, id, result) {
     result,
     updated_at: new Date().toISOString()
   }));
+}
+function reviewJobWorkerInput(cwd, id) {
+  const record = readJob(cwd, id);
+  if (record.state !== "launching" && record.state !== "running")
+    throw new Error("review job is not active");
+  return { kind: record.kind, targets: record.targets, context: record.context ?? [] };
 }
 function latestJobId(cwd) {
   const directory = jobsDirectory(cwd);
@@ -58056,7 +58075,7 @@ async function reviewRunHandler(invocation) {
   const targets = Array.isArray(rawTargets) ? rawTargets.filter((target) => typeof target === "string") : [];
   const context = reviewContext(invocation.options.context);
   if (process.env.SAFEWORD_REVIEW_WORKER === "1")
-    return runReviewWorker(invocation, rawKind, targets, context);
+    return runReviewWorker(invocation);
   return startReviewInBackground(invocation, rawKind, targets, context);
 }
 function reviewContext(rawContext) {
@@ -58064,7 +58083,7 @@ function reviewContext(rawContext) {
     return rawContext.filter((target) => typeof target === "string");
   return typeof rawContext === "string" ? [rawContext] : [];
 }
-async function runReviewWorker(invocation, kind, targets, context) {
+async function runReviewWorker(invocation) {
   const id = process.env.SAFEWORD_REVIEW_JOB_ID;
   if (id === undefined) {
     return createResult({
@@ -58092,18 +58111,32 @@ async function runReviewWorker(invocation, kind, targets, context) {
       data: { command: "review run", status: "failed" }
     });
   }
-  const [{ runReview: runReview2 }, { completeReviewJob: completeReviewJob2 }, { ReviewPacketError: ReviewPacketError2 }] = await Promise.all([
+  const [{ runReview: runReview2 }, { completeReviewJob: completeReviewJob2, reviewJobWorkerInput: reviewJobWorkerInput2 }, { ReviewPacketError: ReviewPacketError2 }] = await Promise.all([
     Promise.resolve().then(() => (init_coordinator(), exports_coordinator)),
     Promise.resolve().then(() => (init_job(), exports_job)),
     Promise.resolve().then(() => (init_packet(), exports_packet))
   ]);
+  let persistedInput;
+  try {
+    persistedInput = reviewJobWorkerInput2(invocation.cwd, id);
+  } catch (error2) {
+    return createResult({
+      state: "failed",
+      errors: [
+        {
+          code: "REVIEW_WORKER_JOB_INVALID",
+          message: error2 instanceof Error ? `The detached review worker could not load its job: ${error2.message}` : "The detached review worker could not load its job.",
+          retryable: false
+        }
+      ],
+      data: { command: "review run", status: "failed", review_id: id }
+    });
+  }
   let result;
   try {
     result = await runReview2({
       cwd: invocation.cwd,
-      kind,
-      targets,
-      context,
+      ...persistedInput,
       progress: invocation.progress
     });
   } catch (error2) {
