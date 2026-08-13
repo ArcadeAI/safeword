@@ -1,7 +1,6 @@
-@wip
 Feature: Run remote verification with least privilege
 
-  @offload-tests.TBU1.R7
+  @wip @offload-tests.TBU1.R7
   @public-cli @surface.safeword-cli
   Rule: offload-tests.TBU1.R7 — The managed workflow uses least privilege, treats dispatch inputs as data, and receives no Safeword-provided secrets
 
@@ -9,7 +8,9 @@ Feature: Run remote verification with least privilege
     Scenario: The managed workflow completes trusted validation before repository checkout
       Given a valid managed workflow invocation
       When the GitHub-hosted job starts
-      Then a test-owned event recorder observes raw input grammar and target-ref-digest checks, immutable `github.workflow_sha` context validation, and one contents-authorized refs API branch-tip comparison before the first checkout or repository-controlled process, with no Actions metadata API request
+      Then a test-owned recorder observes raw input grammar and target-ref-digest checks
+      And it observes immutable workflow-source validation and one contents-authorized branch-tip comparison
+      And all checks precede checkout or repository code without an Actions metadata request
 
     @rejection
     Scenario: Authenticated dispatch never follows redirects or forwards authorization
@@ -21,7 +22,9 @@ Feature: Run remote verification with least privilege
     Scenario: Dispatch serialization has one exact nested JSON shape
       Given a test-owned literal expected JSON byte structure and independently chosen identity values
       When a test-owned TLS endpoint captures the real public CLI invocation's wire request
-      Then exactly one POST targets the canonical workflow-dispatch path, headers contain one canonical-host Authorization placement, API version 2026-03-10 and GitHub JSON Accept value, and captured body bytes parse to exact top-level `ref` and five-field `inputs` with duplicates rejected before transmission
+      Then exactly one POST targets the canonical workflow-dispatch path
+      And headers contain one canonical authorization placement, API version, and GitHub JSON accept value
+      And the body has exact top-level `ref` and five-field `inputs` with duplicates rejected before transmission
 
     @rejection @public-cli @surface.safeword-cli
     Scenario: Pending recovery is durably published before dispatch can escape
@@ -47,7 +50,9 @@ Feature: Run remote verification with least privilege
     Scenario Outline: Pending-publication syscall failures send no dispatch
       Given one eligible request and a test filesystem injects <pending-failure> at the pending-record durability boundary
       When public invocation `failed-dispatch` attempts dispatch
-      Then `failed-dispatch` has its own captured nonzero exit, error output, filesystem trace and zero network bytes; pre-rename failure exposes no final record; and post-rename failure exposes only a complete authenticated record or absence in the frozen restart snapshot
+      Then `failed-dispatch` records its own nonzero exit, error output, filesystem trace, and zero network bytes
+      And pre-rename failure exposes no final record
+      And post-rename failure exposes only a complete authenticated record or absence in the restart snapshot
       Examples:
         | pending-failure |
         | permission failure before the first write |
@@ -61,7 +66,9 @@ Feature: Run remote verification with least privilege
     Scenario Outline: Dispatch safely retries from the frozen pending-record state
       Given `failed-dispatch` encountered <pending-failure> and the recorder froze its absent-or-complete authenticated pending-record state
       When public invocation `retry-dispatch` starts after the fault is removed
-      Then `retry-dispatch` has a separately captured exit, output, filesystem and network trace, classifies only the frozen observed state, completes directory durability, and sends exactly one POST without changing `failed-dispatch` evidence
+      Then `retry-dispatch` records a separate exit, output, filesystem trace, and network trace
+      And it classifies only the frozen state and completes directory durability
+      And it sends one POST without changing `failed-dispatch` evidence
       Examples:
         | pending-failure |
         | permission failure before the first write |
@@ -120,7 +127,10 @@ Feature: Run remote verification with least privilege
     Scenario: GitHub's contents-read job token is an explicit bounded non-Safeword exception
       Given a disposable private repository independently captures workflow AST mappings, effective runtime action inputs, canonical GitHub requests, checkout Git configuration, repository-process environment and arguments
       When the exact managed job validates the target ref, checks out the immutable SHA with `persist-credentials: false`, and runs one sentinel repository command
-      Then the GitHub-provided job token has effective permission exactly `contents: read`, appears only as canonical GitHub API authorization and the checkout action's effective token input, is absent from declared workflow environment and run source, is not persisted in Git configuration or files, is absent from repository-process environment and arguments, and no Safeword or local API credential reaches the job
+      Then the GitHub job token has effective permission exactly `contents: read`
+      And it appears only in canonical API authorization and checkout's effective token input
+      And it is absent from workflow source, persisted files, and repository-process inputs
+      And no Safeword or local API credential reaches the job
 
     @live @real-github @surface.github-actions-execution-sandbox
     Scenario: One valid immutable checkout resolves and executes its plan once
@@ -134,9 +144,9 @@ Feature: Run remote verification with least privilege
       When its trusted pre-checks and repository execution complete
       Then a unique attempted contents-write operation returns permission denied, creates no ref or file, and the job's required contents-read operation succeeds
 
-    @rejection @surface.github-actions-execution-sandbox
+    @rejection @surface.github-actions-execution-sandbox @proof.pending-vitest
     Scenario: The effective permission manifest is exactly contents read
-      Given an independent test manifest enumerates GitHub scopes `actions`, `attestations`, `checks`, `contents`, `deployments`, `discussions`, `id-token`, `issues`, `models`, `packages`, `pages`, `pull-requests`, `security-events` and `statuses`
+      Given an independent manifest enumerates every supported GitHub permission scope
       When a version-pinned official GitHub workflow-schema artifact independently enumerates recognized permission keys and a separate YAML parser reads workflow-level and job-level permissions including defaults
       Then schema-to-manifest set equality succeeds, effective YAML yields only `contents: read`, every other recognized scope is `none`, and a fixture schema containing one future key fails equality until explicitly classified
 
@@ -169,7 +179,8 @@ Feature: Run remote verification with least privilege
     Scenario Outline: Every independently enumerated owned channel has its expected clean state
       Given a test-owned literal manifest independent of production discovery fixes <owned-channel> as <expected-state>
       When an opted-in request exercises real serializers, HTTP construction and bundled managed workflow bytes
-      Then independently captured bytes and runtime events for that one channel show the expected state with no Safeword-provided secret value or reference and with GitHub's job token allowed only in the explicitly bounded effective-runtime positions named by the row
+      Then captured bytes and runtime events show the expected state without a Safeword secret
+      And GitHub's job token appears only in the bounded runtime positions named by the row
       Examples:
         | owned-channel | expected-state |
         | project configuration serialization | present but never serialized into dispatch |
@@ -183,7 +194,7 @@ Feature: Run remote verification with least privilege
         | files created by the managed workflow | explicitly absent before checkout |
         | Git or HTTP credential-helper configuration | explicitly absent in the job |
 
-    @rejection @public-cli @surface.safeword-cli @surface.github-actions-execution-sandbox
+    @rejection @public-cli @surface.safeword-cli @surface.github-actions-execution-sandbox @proof.pending-vitest
     Scenario: The owned-channel manifest exactly covers captured production surfaces
       Given the fixed ten-category manifest and independent capture adapters for configuration, pending bytes, HTTP headers and body, workflow AST, process environment and argv, filesystem, action inputs and Git configuration
       When the harness enumerates capture-adapter category IDs without evaluating secret absence
