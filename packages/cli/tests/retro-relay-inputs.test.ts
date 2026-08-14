@@ -1,19 +1,31 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
 const detector = nodePath.join(repoRoot, 'scripts/detect-retro-relay-deploy.sh');
+const temporaryDirectories: string[] = [];
+const isolatedGitEnvironment = {
+  ...process.env,
+  GIT_CONFIG_GLOBAL: '/dev/null',
+  GIT_CONFIG_SYSTEM: '/dev/null',
+};
 
 function git(cwd: string, ...arguments_: string[]): string {
-  return execFileSync('git', arguments_, { cwd, encoding: 'utf8' }).trim();
+  return execFileSync('git', arguments_, {
+    cwd,
+    encoding: 'utf8',
+    env: isolatedGitEnvironment,
+  }).trim();
 }
 
 function temporaryDirectory(prefix: string): string {
-  return mkdtempSync(nodePath.join(tmpdir(), prefix));
+  const directory = mkdtempSync(nodePath.join(tmpdir(), prefix));
+  temporaryDirectories.push(directory);
+  return directory;
 }
 
 function repoWithChange(path: string): string {
@@ -36,7 +48,10 @@ function detect(
   execFileSync(detector, [], {
     cwd,
     env: {
-      ...process.env,
+      PATH: process.env.PATH,
+      HOME: process.env.HOME,
+      GIT_CONFIG_GLOBAL: '/dev/null',
+      GIT_CONFIG_SYSTEM: '/dev/null',
       BEFORE: before,
       GITHUB_OUTPUT: output,
       GITHUB_REF: githubReference,
@@ -47,6 +62,13 @@ function detect(
 }
 
 describe('Retro Relay deployment input detection', () => {
+  afterEach(() => {
+    for (const directory of temporaryDirectories) {
+      rmSync(directory, { recursive: true, force: true });
+    }
+    temporaryDirectories.length = 0;
+  });
+
   it('deploys for relay changes and ignores unrelated changes', () => {
     const project = temporaryDirectory('relay-inputs-');
     const remote = temporaryDirectory('relay-remote-');
@@ -70,13 +92,31 @@ describe('Retro Relay deployment input detection', () => {
     expect(detect(project, current, relaySha)).toBe('deploy=true');
   });
 
+  it('ignores paths that only share the relay prefix', () => {
+    const project = temporaryDirectory('relay-inputs-');
+    const remote = temporaryDirectory('relay-remote-');
+    const before = repoWithChange(project);
+    git(remote, 'init', '--bare');
+    git(project, 'remote', 'add', 'origin', remote);
+    git(project, 'push', 'origin', 'main');
+
+    mkdirSync(nodePath.join(project, 'packages/retro-relay-docs'), { recursive: true });
+    writeFileSync(nodePath.join(project, 'packages/retro-relay-docs/README.md'), 'docs\n');
+    git(project, 'add', '.');
+    git(project, 'commit', '-m', 'adjacent path');
+    const sha = git(project, 'rev-parse', 'HEAD');
+
+    expect(detect(project, before, sha)).toBe('deploy=false');
+  });
+
   it('deploys conservatively when the previous revision is unreachable', () => {
     const project = temporaryDirectory('relay-inputs-');
-    repoWithChange(project);
+    const sha = repoWithChange(project);
     const emptyRemote = temporaryDirectory('empty-remote-');
+    git(emptyRemote, 'init', '--bare');
     git(project, 'remote', 'add', 'origin', emptyRemote);
 
-    expect(detect(project, '1111111111111111111111111111111111111111', 'HEAD')).toBe('deploy=true');
+    expect(detect(project, '1111111111111111111111111111111111111111', sha)).toBe('deploy=true');
   });
 
   it('does not deploy outside main or without a previous revision', () => {

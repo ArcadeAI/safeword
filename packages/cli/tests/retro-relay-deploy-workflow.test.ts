@@ -34,7 +34,9 @@ describe('Retro Relay deployment workflow', () => {
     expect(deployStep.run).toContain('--project "$RAILWAY_PROJECT_ID"');
     expect(deployStep.run).toContain('--environment "$RAILWAY_ENVIRONMENT"');
     expect(deployStep.run).toContain('--service "$RAILWAY_SERVICE"');
-    expect(deployStep.run).not.toContain('echo "$RAILWAY_TOKEN"');
+    expect(deployStep.run?.trim()).toBe(
+      'railway up --ci --project "$RAILWAY_PROJECT_ID" --environment "$RAILWAY_ENVIRONMENT" --service "$RAILWAY_SERVICE"',
+    );
   });
 
   it('deploys relevant main changes only after every CI gate passes', () => {
@@ -43,14 +45,17 @@ describe('Retro Relay deployment workflow', () => {
     const inputs = requiredJob(workflow, 'relay-inputs');
     const detectStep = requiredStep(inputs, 'Detect relay deployment inputs');
     const deployStep = requiredStep(deployment, 'Deploy through Railway');
-    expect(deployment.needs).toEqual([
-      'dogfood-parity',
-      'cli-contract',
-      'dependency-audit',
-      'test',
-      'lint',
-      'relay-inputs',
-    ]);
+    expect(new Set(deployment.needs)).toEqual(
+      new Set([
+        'dogfood-parity',
+        'cli-contract',
+        'dependency-audit',
+        'test',
+        'lint',
+        'relay-inputs',
+      ]),
+    );
+    expect(workflow.permissions).toEqual({ contents: 'read' });
     expect(deployment.environment).toBe('retro-relay-production');
     expect(deployment['timeout-minutes']).toBe(15);
     expect(deployment.concurrency).toEqual({
@@ -62,7 +67,17 @@ describe('Retro Relay deployment workflow', () => {
     expect(deployment.if).toContain("needs.relay-inputs.outputs.deploy == 'true'");
     expect(inputs.outputs?.deploy).toBe('${{ steps.changed.outputs.deploy }}');
     expect(detectStep.run).toBe('scripts/detect-retro-relay-deploy.sh');
-    expect(deployStep.env?.RAILWAY_TOKEN).toBe('${{ secrets.RAILWAY_TOKEN }}');
-    expect(deployStep.run).toContain('railway up --ci');
+    const validationStep = requiredStep(deployment, 'Validate deployment configuration');
+    expect(validationStep.env).toMatchObject({
+      RAILWAY_TOKEN: '${{ secrets.RAILWAY_TOKEN }}',
+      RAILWAY_PROJECT_ID: '${{ vars.RAILWAY_RETRO_RELAY_PROJECT_ID }}',
+      RAILWAY_ENVIRONMENT: '${{ vars.RAILWAY_RETRO_RELAY_ENVIRONMENT }}',
+      RAILWAY_SERVICE: '${{ vars.RAILWAY_RETRO_RELAY_SERVICE }}',
+    });
+    expect(validationStep.run).toContain('Missing RAILWAY_TOKEN environment secret');
+    expect(deployStep.env).toEqual(validationStep.env);
+    expect(deployStep.run?.trim()).toBe(
+      'railway up --ci --project "$RAILWAY_PROJECT_ID" --environment "$RAILWAY_ENVIRONMENT" --service "$RAILWAY_SERVICE"',
+    );
   });
 });
