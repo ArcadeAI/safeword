@@ -52,6 +52,7 @@ describe('Retro Relay deployment workflow', () => {
       'relay-inputs',
     ]);
     expect(deployment.environment).toBe('retro-relay-production');
+    expect(deployment.if).toContain("github.event_name == 'push'");
     expect(deployment.if).toContain("github.ref == 'refs/heads/main'");
     expect(detectStep.run).toContain('git diff --name-only "$BEFORE" "$SHA"');
     expect(detectStep.run).toContain('Previous main revision is unreachable');

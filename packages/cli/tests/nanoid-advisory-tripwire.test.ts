@@ -18,13 +18,16 @@ type DependencyMaps = Partial<
     Record<string, string>
   >
 >;
-type LockfilePackage = [string, string, DependencyMaps?];
 const dependencyMapNames = [
   'dependencies',
   'devDependencies',
   'optionalDependencies',
   'peerDependencies',
 ] as const;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
 
 function nanoidRanges(maps: DependencyMaps): string[] {
   return dependencyMapNames.flatMap(name => {
@@ -34,24 +37,47 @@ function nanoidRanges(maps: DependencyMaps): string[] {
   });
 }
 
+function packageNanoidRanges(entry: unknown): string[] {
+  if (!Array.isArray(entry)) return [];
+  return entry.flatMap(part => (isRecord(part) ? nanoidRanges(part as DependencyMaps) : []));
+}
+
 function nanoidLockfileContract(lockfile: string): {
   consumerRanges: string[];
   resolvedVersions: string[];
 } {
   const parsed = parseJsonc(lockfile) as {
-    packages?: Record<string, LockfilePackage>;
+    packages?: Record<string, unknown>;
     workspaces?: Record<string, DependencyMaps>;
   };
+  const packages = parsed.packages ?? {};
   return {
-    resolvedVersions: Array.from(lockfile.matchAll(/"nanoid@([^"]+)"/gu), match => match[1] ?? ''),
+    resolvedVersions: Object.entries(packages).flatMap(([name, entry]) => {
+      if (name !== 'nanoid' || !Array.isArray(entry)) return [];
+      const resolution = entry[0];
+      if (typeof resolution !== 'string') return [];
+      const match = /^nanoid@(.+)$/u.exec(resolution);
+      return match?.[1] === undefined ? [] : [match[1]];
+    }),
     consumerRanges: [
       ...Object.values(parsed.workspaces ?? {}).flatMap(nanoidRanges),
-      ...Object.values(parsed.packages ?? {}).flatMap(entry => nanoidRanges(entry[2] ?? {})),
+      ...Object.values(packages).flatMap(packageNanoidRanges),
     ],
   };
 }
 
 describe('GHSA-2v37-7h3g-55p8 workaround', () => {
+  it('rejects an incompatible future consumer even when the override controls resolution', () => {
+    const contract = nanoidLockfileContract(`{
+      "workspaces": { "packages/new-consumer": { "dependencies": { "nanoid": "^5.0.0" } } },
+      "packages": { "nanoid": ["nanoid@3.3.18", "", {}] }
+    }`);
+
+    expect(contract.resolvedVersions).toEqual(['3.3.18']);
+    expect(contract.consumerRanges).toEqual(['^5.0.0']);
+    expect(contract.consumerRanges.every(range => satisfies('3.3.18', range))).toBe(false);
+  });
+
   it('keeps the manifest override and frozen lockfile on the patched 3.x release', () => {
     const manifest = JSON.parse(readFileSync(nodePath.join(repoRoot, 'package.json'), 'utf8')) as {
       overrides?: Record<string, string>;

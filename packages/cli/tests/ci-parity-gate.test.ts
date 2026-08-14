@@ -15,7 +15,14 @@ describe('CI workflow contract', () => {
     expect(auditStep.run?.replaceAll(/\s+/gu, ' ').trim()).toBe('bun audit --audit-level high');
     expect(auditStep['continue-on-error']).toBeUndefined();
     expect(auditStep.if).toBeUndefined();
-    expect(requiredJob(workflow, 'deploy-retro-relay').needs).toContain('dependency-audit');
+    expect(requiredJob(workflow, 'deploy-retro-relay').needs).toEqual([
+      'dogfood-parity',
+      'cli-contract',
+      'dependency-audit',
+      'test',
+      'lint',
+      'relay-inputs',
+    ]);
   });
 
   it('runs the all-mode parity check in a standalone job', () => {

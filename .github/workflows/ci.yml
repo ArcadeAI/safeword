@@ -351,7 +351,7 @@ jobs:
     # environment-protected deploy-retro-relay workflow remains the manual
     # break-glass path for an urgent relay security fix.
     needs: [dogfood-parity, cli-contract, dependency-audit, test, lint, relay-inputs]
-    if: github.ref == 'refs/heads/main' && needs.relay-inputs.outputs.deploy == 'true'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.relay-inputs.outputs.deploy == 'true'
     runs-on: ubuntu-latest
     environment: retro-relay-production
     concurrency:
