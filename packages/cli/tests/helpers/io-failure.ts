@@ -52,6 +52,7 @@ function ensureParent(path: string): void {
  */
 export function sinkWrites(path: string): string {
   ensureParent(path);
+  rmSync(path, { force: true, recursive: true });
   symlinkSync('/dev/null', path);
   return path;
 }
@@ -81,9 +82,15 @@ export function blockWrites(path: string): string {
  *
  * Use when the code picks its own filename under a directory you control, so
  * there is no single target path to block.
+ *
+ * DESTRUCTIVE, for the same reason as {@link blockWrites}: `writeFileSync`
+ * throws EISDIR against a path that is already a directory — which is the
+ * usual state of a directory worth blocking — so anything there is removed
+ * first. Capture the prior contents before calling if the assertion needs them.
  */
 export function blockChildren(directory: string): string {
   ensureParent(directory);
+  rmSync(directory, { force: true, recursive: true });
   writeFileSync(directory, '');
   return directory;
 }
@@ -99,6 +106,8 @@ export function blockChildren(directory: string): string {
  */
 export function blockScan(directory: string, entryName = 'hooks'): string {
   mkdirSync(directory, { recursive: true });
-  symlinkSync(entryName, nodePath.join(directory, entryName));
+  const loop = nodePath.join(directory, entryName);
+  rmSync(loop, { force: true, recursive: true });
+  symlinkSync(entryName, loop);
   return directory;
 }
