@@ -194,8 +194,11 @@ function canonicalRepositoryUrl(repository: string): string {
   return `https://github.com/${repository}.git`;
 }
 
-export async function preflightPinnedCheckout(
-  checkout: PinnedCheckout
+const ALLOW_SYNTHETIC_TEST_REMOTE = Symbol("allow-synthetic-test-remote");
+
+async function preflightPinnedCheckoutInternal(
+  checkout: PinnedCheckout,
+  testRemote?: typeof ALLOW_SYNTHETIC_TEST_REMOTE
 ): Promise<void> {
   if (!isAbsolute(checkout.directory)) {
     throw new Error("checkout directory must be absolute");
@@ -207,7 +210,8 @@ export async function preflightPinnedCheckout(
     throw new Error("pinned tag is invalid");
   }
 
-  const [head, status, tagType, taggedCommit, originUrl, remoteRefs] = await Promise.all([
+  const [head, status, tagType, taggedCommit, originUrl, effectiveOriginUrl] =
+    await Promise.all([
     git(checkout.directory, ["rev-parse", "--verify", "HEAD"]),
     git(checkout.directory, ["status", "--porcelain=v1", "--untracked-files=all"]),
     git(checkout.directory, ["cat-file", "-t", `refs/tags/${checkout.tag}`]),
@@ -217,15 +221,14 @@ export async function preflightPinnedCheckout(
       `refs/tags/${checkout.tag}^{commit}`,
     ]),
     git(checkout.directory, ["config", "--get", "remote.origin.url"]),
-    git(checkout.directory, [
-      "ls-remote",
-      "origin",
-      "refs/heads/main",
-      `refs/tags/${checkout.tag}`,
-      `refs/tags/${checkout.tag}^{}`,
-    ]),
+    git(checkout.directory, ["remote", "get-url", "origin"]),
   ]);
-  if (originUrl !== canonicalRepositoryUrl(checkout.canonicalRepository)) {
+  const expectedOriginUrl = canonicalRepositoryUrl(checkout.canonicalRepository);
+  if (
+    originUrl !== expectedOriginUrl ||
+    (testRemote !== ALLOW_SYNTHETIC_TEST_REMOTE &&
+      effectiveOriginUrl !== expectedOriginUrl)
+  ) {
     throw new Error("origin does not match the canonical repository");
   }
   if (status !== "") {
@@ -240,6 +243,13 @@ export async function preflightPinnedCheckout(
   if (taggedCommit !== checkout.commit) {
     throw new Error("pinned tag does not resolve to its authorized commit");
   }
+  const remoteRefs = await git(checkout.directory, [
+    "ls-remote",
+    "origin",
+    "refs/heads/main",
+    `refs/tags/${checkout.tag}`,
+    `refs/tags/${checkout.tag}^{}`,
+  ]);
   const refs = new Map(
     remoteRefs.split("\n").filter(Boolean).map((line) => {
       const [sha, ref] = line.split("\t");
@@ -270,6 +280,12 @@ export async function preflightPinnedCheckout(
   } catch {
     throw new Error("pinned commit is not reachable from canonical origin main");
   }
+}
+
+export async function preflightPinnedCheckout(
+  checkout: PinnedCheckout
+): Promise<void> {
+  return preflightPinnedCheckoutInternal(checkout);
 }
 
 type CorpusRegistration = {
@@ -526,7 +542,7 @@ async function runCredentialedChild<T>(input: {
   return input.parent({ dispatch, githubToken });
 }
 
-export async function runTerraPaidCanary(input: {
+type TerraPaidCanaryInput = {
   adapterCheckout: PinnedCheckout;
   attemptId: string;
   binding: CanaryInitializationBinding;
@@ -540,11 +556,16 @@ export async function runTerraPaidCanary(input: {
   outputDirectory: string;
   registration: { corpusDigest: string; registrationCommit: string };
   spawnChild?: (request: PaidChildRequest) => Promise<PaidChildResult>;
-}): Promise<Awaited<ReturnType<typeof runCanaryAttempt>>> {
+};
+
+async function runTerraPaidCanaryInternal(
+  input: TerraPaidCanaryInput,
+  testRemote?: typeof ALLOW_SYNTHETIC_TEST_REMOTE
+): Promise<Awaited<ReturnType<typeof runCanaryAttempt>>> {
   requireAuthorizedCheckouts(input);
   await Promise.all([
-    preflightPinnedCheckout(input.adapterCheckout),
-    preflightPinnedCheckout(input.harnessCheckout),
+    preflightPinnedCheckoutInternal(input.adapterCheckout, testRemote),
+    preflightPinnedCheckoutInternal(input.harnessCheckout, testRemote),
   ]);
   const registration = await verifyCommittedCorpusRegistration({
     checkout: input.harnessCheckout,
@@ -577,8 +598,8 @@ export async function runTerraPaidCanary(input: {
             throw new Error("paid child dispatch was not prepared");
           }
           await Promise.all([
-            preflightPinnedCheckout(input.adapterCheckout),
-            preflightPinnedCheckout(input.harnessCheckout),
+            preflightPinnedCheckoutInternal(input.adapterCheckout, testRemote),
+            preflightPinnedCheckoutInternal(input.harnessCheckout, testRemote),
           ]);
           const dispatchDigest = await verifyAuthorizedPaidChildInput({
             checkout: input.harnessCheckout,
@@ -616,7 +637,13 @@ export async function runTerraPaidCanary(input: {
   });
 }
 
-export async function runAuthorizedTerraPaidCanary(input: {
+export async function runTerraPaidCanary(
+  input: TerraPaidCanaryInput
+): Promise<Awaited<ReturnType<typeof runCanaryAttempt>>> {
+  return runTerraPaidCanaryInternal(input);
+}
+
+type AuthorizedTerraPaidCanaryInput = {
   adapterCheckout: PinnedCheckout;
   allowlistedMaintainers: readonly string[];
   attemptId: string;
@@ -632,7 +659,12 @@ export async function runAuthorizedTerraPaidCanary(input: {
   loadOpenAIKey(): Promise<string>;
   outputDirectory: string;
   spawnChild?: (request: PaidChildRequest) => Promise<PaidChildResult>;
-}): Promise<Awaited<ReturnType<typeof runCanaryAttempt>>> {
+};
+
+async function runAuthorizedTerraPaidCanaryInternal(
+  input: AuthorizedTerraPaidCanaryInput,
+  testRemote?: typeof ALLOW_SYNTHETIC_TEST_REMOTE
+): Promise<Awaited<ReturnType<typeof runCanaryAttempt>>> {
   const binding: CanaryInitializationBinding = {
     adapterCommit: input.authorization.adapterCommit,
     adapterTag: input.authorization.adapterTag,
@@ -648,7 +680,7 @@ export async function runAuthorizedTerraPaidCanary(input: {
     serviceTier: input.authorization.serviceTier,
     ticketId: input.authorization.ticketId,
   };
-  return runTerraPaidCanary({
+  return runTerraPaidCanaryInternal({
     adapterCheckout: input.adapterCheckout,
     attemptId: input.attemptId,
     binding,
@@ -674,5 +706,24 @@ export async function runAuthorizedTerraPaidCanary(input: {
       registrationCommit: input.authorization.registrationCommit,
     },
     ...(input.spawnChild === undefined ? {} : { spawnChild: input.spawnChild }),
-  });
+  }, testRemote);
 }
+
+export async function runAuthorizedTerraPaidCanary(
+  input: AuthorizedTerraPaidCanaryInput
+): Promise<Awaited<ReturnType<typeof runCanaryAttempt>>> {
+  return runAuthorizedTerraPaidCanaryInternal(input);
+}
+
+export const terraLiveLauncherTestSupport = {
+  preflightPinnedCheckout: (checkout: PinnedCheckout): Promise<void> =>
+    preflightPinnedCheckoutInternal(checkout, ALLOW_SYNTHETIC_TEST_REMOTE),
+  runAuthorizedTerraPaidCanary: (
+    input: AuthorizedTerraPaidCanaryInput
+  ): Promise<Awaited<ReturnType<typeof runCanaryAttempt>>> =>
+    runAuthorizedTerraPaidCanaryInternal(input, ALLOW_SYNTHETIC_TEST_REMOTE),
+  runTerraPaidCanary: (
+    input: TerraPaidCanaryInput
+  ): Promise<Awaited<ReturnType<typeof runCanaryAttempt>>> =>
+    runTerraPaidCanaryInternal(input, ALLOW_SYNTHETIC_TEST_REMOTE),
+};

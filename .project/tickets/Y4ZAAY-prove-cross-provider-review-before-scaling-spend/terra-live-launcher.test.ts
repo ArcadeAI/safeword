@@ -21,13 +21,18 @@ import {
   parseTerraPaidChildResult,
   preflightPinnedCheckout,
   reconcilePaidChildEvidence,
-  runAuthorizedTerraPaidCanary,
-  runTerraPaidCanary,
   spawnPaidChild,
+  terraLiveLauncherTestSupport,
   verifyAuthorizedPaidChildInput,
   type PaidChildRequest,
   type PinnedCheckout,
 } from "./terra-live-launcher";
+
+const {
+  preflightPinnedCheckout: preflightSyntheticPinnedCheckout,
+  runAuthorizedTerraPaidCanary,
+  runTerraPaidCanary,
+} = terraLiveLauncherTestSupport;
 
 const execFileAsync = promisify(execFile);
 const CORPUS_DIGEST = "4bf3fd10c20222088ccf11bd2b187561021608cb07a646bc4b9294babfc33c75";
@@ -772,7 +777,7 @@ describe("credential-separated live launcher", () => {
       cwd: checkout.directory,
     });
 
-    await expect(preflightPinnedCheckout(checkout)).rejects.toThrow(
+    await expect(preflightSyntheticPinnedCheckout(checkout)).rejects.toThrow(
       "must be annotated"
     );
   });
@@ -787,8 +792,16 @@ describe("credential-separated live launcher", () => {
       cwd: checkout.directory,
     });
 
-    await expect(preflightPinnedCheckout(checkout)).rejects.toThrow(
+    await expect(preflightSyntheticPinnedCheckout(checkout)).rejects.toThrow(
       "HEAD does not match"
+    );
+  });
+
+  test("rejects checkout-local URL rewrites before contacting the rewritten origin", async () => {
+    const checkout = await pinnedCheckout("rewritten-origin");
+
+    await expect(preflightPinnedCheckout(checkout)).rejects.toThrow(
+      "origin does not match the canonical repository"
     );
   });
 
