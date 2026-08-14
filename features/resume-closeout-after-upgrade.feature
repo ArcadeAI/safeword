@@ -1,4 +1,4 @@
-# Behavior source for 07VEZF. Executable proof lives in
+# Behavior source for 07VEZF. Executable proof is intended to live in
 # packages/cli/tests/hooks/closeout-session-binding.test.ts and
 # packages/cli/tests/commands/codex-hook.test.ts,
 # packages/cli/tests/closeout-cleanup.test.ts, and
@@ -211,14 +211,14 @@ Feature: Resume interrupted closeout after a Codex upgrade
       Given one fresh handoff is claimed by a different current task and blocked closeout never held that claim at a controlled time
       When blocked closeout attempts to record another pull request for that repository
       Then the claimed handoff and claim record bytes remain unchanged
-      And the current task output reports the existing pending closeout
+      And the blocked task output reports that its protection is no longer current
 
     @rejection
     Scenario: A blocked former claim owner cannot rewrite its handoff
       Given blocked closeout previously owned a fresh handoff claim that now belongs to the current task
       When blocked closeout attempts to record that pull request again
       Then the handoff and current claim record bytes remain unchanged
-      And the blocked task output reports that its claim is no longer current
+      And the blocked task output reports that its protection is no longer current
       And no branch, worktree, merge, approval, or pull-request state-changing command is run
 
     @rejection
@@ -542,7 +542,7 @@ Feature: Resume interrupted closeout after a Codex upgrade
     @rejection
     Scenario: A missing activation marker does not authorize reclaim
       Given a protected Codex task passed its startup proof, claimed a fresh matching handoff, and then its profile activation marker was removed
-      When a protected Codex task starts in the same repository at a controlled time
+      When an unprotected Codex task runs SessionStart in the same repository at a controlled time
       Then SessionStart output reports that claim ownership cannot be established
       And the handoff and claim record bytes remain unchanged
       And no continuation or destructive command is emitted
@@ -653,7 +653,7 @@ Feature: Resume interrupted closeout after a Codex upgrade
 
     @rejection
     Scenario: A handoff without current-profile provenance is rejected
-      Given a schema-valid handoff was not provably written by the current Codex profile
+      Given a schema-valid handoff has no profile provenance field
       When a protected Codex task starts in the matching repository at a controlled time
       Then SessionStart output reports an untrusted pending closeout without echoing its contents
       And no continuation or destructive command is emitted
