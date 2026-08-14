@@ -1683,7 +1683,7 @@ if (import.meta.main) {
       if (identity && identity.state === 'MERGED') {
         recordCodexCloseoutHandoff({
           projectDirectory: root,
-          repositoryUrl: identity.url,
+          repositoryUrl: `https://github.com/${identity.headOwner}/${identity.headRepository}`,
           pullRequest,
           headOid: identity.headRefOid,
         });

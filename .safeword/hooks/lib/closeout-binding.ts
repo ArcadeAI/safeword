@@ -36,14 +36,21 @@ function codexHome(environment: NodeJS.ProcessEnv = process.env): string {
   return environment.CODEX_HOME ?? nodePath.join(homedir(), '.codex');
 }
 
+function canonicalCodexHome(environment: NodeJS.ProcessEnv = process.env): string {
+  const resolved = nodePath.resolve(codexHome(environment));
+  try {
+    return realpathSync(resolved);
+  } catch {
+    return resolved;
+  }
+}
+
 function handoffDirectory(environment: NodeJS.ProcessEnv = process.env): string {
-  return nodePath.join(codexHome(environment), 'safeword/closeout-handoff-v1');
+  return nodePath.join(canonicalCodexHome(environment), 'safeword/closeout-handoff-v1');
 }
 
 function profileId(environment: NodeJS.ProcessEnv = process.env): string {
-  return createHash('sha256')
-    .update(nodePath.resolve(codexHome(environment)))
-    .digest('hex');
+  return createHash('sha256').update(canonicalCodexHome(environment)).digest('hex');
 }
 
 function canonicalGithubRepository(value: string): string | undefined {
@@ -149,11 +156,12 @@ export function recordCodexCloseoutHandoff(input: {
     `${createHash('sha256').update(repository).digest('hex')}.json`,
   );
   const now = input.now ?? new Date();
+  const temporaryPath = `${path}.tmp-${randomUUID()}`;
   try {
     mkdirSync(directory, { recursive: true, mode: 0o700 });
     removeExpiredHandoffRecords(path, environment, now.getTime());
     writeFileSync(
-      path,
+      temporaryPath,
       `${JSON.stringify({
         schema_version: 1,
         profile_id: profileId(environment),
@@ -165,9 +173,12 @@ export function recordCodexCloseoutHandoff(input: {
       } satisfies CloseoutHandoff)}\n`,
       { encoding: 'utf8', flag: 'wx', mode: 0o600 },
     );
+    renameSync(temporaryPath, path);
     return true;
   } catch {
     return false;
+  } finally {
+    rmSync(temporaryPath, { force: true });
   }
 }
 

@@ -95,7 +95,7 @@
     },
     {
       "path": "resources/scripts/closeout-cleanup.ts",
-      "sha256": "a727667be41a7352aa181bceaff5c58478a90eb6cf52576abc117171204c17db"
+      "sha256": "87d565d0d3a7e1a2b43871f1c598187a3b129685846028797df7fa3446175337"
     },
     {
       "path": "resources/templates/adr-template.md",
@@ -199,7 +199,7 @@
     },
     {
       "path": "runtime/hooks/lib/closeout-binding.ts",
-      "sha256": "e37e02ae5fa73ff0cf37bcffe3d03cac5ccac49f0fea11e5294def6e7cba2315"
+      "sha256": "bd131add0b879c49682e4664516a51e28972ef785726cd24dbabc8be21bfa71c"
     },
     {
       "path": "runtime/hooks/lib/cursor-run-identity.ts",

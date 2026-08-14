@@ -5,6 +5,7 @@ import {
   readdirSync,
   readFileSync,
   realpathSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import nodePath from 'node:path';
@@ -113,6 +114,75 @@ describe('closeout host identity bridge (93C14D NTB1.R2/TBU1.R4)', () => {
         now: new Date('2026-08-14T12:00:00.000Z'),
       }),
     ).toBe(true);
+  });
+
+  it('atomically refreshes a live or corrupt pending handoff with the latest state', () => {
+    const projectDirectory = project();
+    const codexHome = project();
+    spawnSync('git', ['init', '-q'], { cwd: projectDirectory });
+    spawnSync('git', ['remote', 'add', 'origin', 'https://github.com/ArcadeAI/safeword.git'], {
+      cwd: projectDirectory,
+    });
+    const environment = { CODEX_HOME: codexHome };
+    const base = {
+      projectDirectory,
+      repositoryUrl: 'https://github.com/ArcadeAI/safeword',
+      environment,
+    };
+    expect(
+      recordCodexCloseoutHandoff({
+        ...base,
+        pullRequest: 2802,
+        headOid: 'a'.repeat(40),
+      }),
+    ).toBe(true);
+    const directory = nodePath.join(codexHome, 'safeword', 'closeout-handoff-v1');
+    const recordName = readdirSync(directory).find(name => name.endsWith('.json'));
+    expect(recordName).toBeDefined();
+    if (recordName === undefined) throw new Error('expected a handoff record');
+    writeFileSync(nodePath.join(directory, recordName), '{truncated');
+
+    expect(
+      recordCodexCloseoutHandoff({
+        ...base,
+        pullRequest: 2840,
+        headOid: 'b'.repeat(40),
+      }),
+    ).toBe(true);
+    expect(
+      claimCodexCloseoutHandoff({
+        projectDirectory,
+        sessionId: 'new-task',
+        environment,
+      }),
+    ).toMatchObject({ pull_request: 2840, head_oid: 'b'.repeat(40) });
+  });
+
+  it('uses one profile identity across symlinked CODEX_HOME spellings', () => {
+    const projectDirectory = project();
+    const codexHome = project();
+    const symlinkedHome = nodePath.join(project(), 'codex-home-link');
+    symlinkSync(codexHome, symlinkedHome);
+    spawnSync('git', ['init', '-q'], { cwd: projectDirectory });
+    spawnSync('git', ['remote', 'add', 'origin', 'https://github.com/ArcadeAI/safeword.git'], {
+      cwd: projectDirectory,
+    });
+    expect(
+      recordCodexCloseoutHandoff({
+        projectDirectory,
+        repositoryUrl: 'https://github.com/ArcadeAI/safeword',
+        pullRequest: 2840,
+        headOid: 'b'.repeat(40),
+        environment: { CODEX_HOME: symlinkedHome },
+      }),
+    ).toBe(true);
+    expect(
+      claimCodexCloseoutHandoff({
+        projectDirectory,
+        sessionId: 'new-task',
+        environment: { CODEX_HOME: codexHome },
+      }),
+    ).toMatchObject({ pull_request: 2840 });
   });
 
   it('rejects missing host proof, foreign profiles, and repository mismatches', () => {
