@@ -197,6 +197,25 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
     if (ownsProcessLock) processLock?.release();
   });
 
+  const recordReconciliationOutcome = (entry: {
+    receiptId: string;
+    subject: string;
+    disposition: string;
+    alert?: boolean;
+  }): void => {
+    observability.logs.push({
+      event: 'retro_reconciliation',
+      receiptId: entry.receiptId,
+      subject: entry.subject,
+      disposition: entry.disposition,
+      ...(entry.alert === true && { alert: true }),
+    });
+    observability.metrics.push({
+      metric: 'retro_reconciliation_outcome',
+      disposition: entry.disposition,
+    });
+  };
+
   // eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- A single composition-root router keeps the public contract visible.
   async function handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
     try {
@@ -271,14 +290,9 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
         const decodedReceipt = decodePathSegment(reconciliation[1]);
         try {
           const receipt = await service.reconcile(principal, decodedReceipt);
-          observability.logs.push({
-            event: 'retro_reconciliation',
+          recordReconciliationOutcome({
             receiptId: decodedReceipt,
             subject: principal.subject,
-            disposition: 'adopted',
-          });
-          observability.metrics.push({
-            metric: 'retro_reconciliation_outcome',
             disposition: 'adopted',
           });
           sendJson(response, 200, receipt);
@@ -288,16 +302,11 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
               ? error.details.disposition
               : undefined;
           if (disposition !== undefined) {
-            observability.logs.push({
-              event: 'retro_reconciliation',
+            recordReconciliationOutcome({
               receiptId: decodedReceipt,
               subject: principal.subject,
               disposition,
               alert: true,
-            });
-            observability.metrics.push({
-              metric: 'retro_reconciliation_outcome',
-              disposition,
             });
           }
           throw error;
@@ -309,14 +318,9 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
         const decodedReceipt = decodePathSegment(recovery[1]);
         try {
           const recovered = await service.recover(principal, decodedReceipt);
-          observability.logs.push({
-            event: 'retro_reconciliation',
+          recordReconciliationOutcome({
             receiptId: decodedReceipt,
             subject: principal.subject,
-            disposition: recovered.disposition,
-          });
-          observability.metrics.push({
-            metric: 'retro_reconciliation_outcome',
             disposition: recovered.disposition,
           });
           sendJson(response, 200, recovered.receipt);
@@ -326,16 +330,11 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
               ? error.details.disposition
               : undefined;
           if (disposition !== undefined) {
-            observability.logs.push({
-              event: 'retro_reconciliation',
+            recordReconciliationOutcome({
               receiptId: decodedReceipt,
               subject: principal.subject,
               disposition,
               alert: true,
-            });
-            observability.metrics.push({
-              metric: 'retro_reconciliation_outcome',
-              disposition,
             });
           }
           throw error;
