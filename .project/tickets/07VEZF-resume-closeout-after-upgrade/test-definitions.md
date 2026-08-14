@@ -10,6 +10,18 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario Outline: Valid pull-request integer boundaries are persisted [1]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Valid pull-request integer boundaries are persisted [9007199254740991]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A normally protected closeout does not create a handoff
 
 - [ ] RED
@@ -34,7 +46,13 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A traversal-shaped repository identity cannot escape the handoff store
+### Scenario Outline: Hostile observed identities are not persisted [a negative pull request value]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Hostile observed identities are not persisted [a non-integer pull request value]
 
 - [ ] RED
 - [ ] GREEN
@@ -46,25 +64,37 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario Outline: Hostile observed identities are not persisted [an uppercase hexadecimal observed head]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario Outline: Hostile observed identities are not persisted [pull request zero]
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario Outline: Hostile observed identities are not persisted [an overflowing pull request value]
+### Scenario Outline: Hostile observed identities are not persisted [pull request 9007199254740992, one above the maximum safe integer]
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario Outline: Hostile observed identities are not persisted [a shortened hexadecimal observed head]
+### Scenario Outline: Hostile observed identities are not persisted [a 39-character hexadecimal observed head]
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario Outline: Hostile observed identities are not persisted [an overlong hexadecimal observed head]
+### Scenario Outline: Hostile observed identities are not persisted [a 41-character hexadecimal observed head]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A traversal-shaped repository identity cannot escape the handoff store
 
 - [ ] RED
 - [ ] GREEN
@@ -95,6 +125,42 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] REFACTOR
 
 ### Scenario: An ambiguous existing store is not rewritten
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Foreign handoffs do not block writing for the current repository
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: One invalid existing handoff is replaced explicitly [a malformed schema]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: One invalid existing handoff is replaced explicitly [missing profile provenance]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: One invalid existing handoff is replaced explicitly [foreign profile provenance]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: One invalid existing handoff is replaced explicitly [an impossible clock]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: One invalid existing handoff is replaced explicitly [an excessive lifetime]
 
 - [ ] RED
 - [ ] GREEN
@@ -166,6 +232,24 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Installed Codex SessionStart wiring delivers the pending closeout
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Shipped blocked-closeout wiring records the pending closeout
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A handoff with unknown fields remains forward compatible
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A handoff written before a profile upgrade is consumed afterward
 
 - [ ] RED
@@ -173,6 +257,18 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] REFACTOR
 
 ### Scenario: Equivalent repository remote spellings match one handoff
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Case-only repository spelling differences match one handoff
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Discovery selects one matching handoff among foreign handoffs
 
 - [ ] RED
 - [ ] GREEN
@@ -211,6 +307,12 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] REFACTOR
 
 ### Scenario: A foreign handoff is not presented as current work
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A same-named repository under another owner is foreign
 
 - [ ] RED
 - [ ] GREEN
@@ -282,6 +384,12 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: An empty handoff store emits no continuation
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: resume-closeout-after-upgrade.TBU1.R1 — A handoff is bound to one repository and claimed by at most one current Codex task
 
 ### Scenario: The first matching task atomically claims the handoff
@@ -297,6 +405,18 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] REFACTOR
 
 ### Scenario: A task reclaims a claim whose owner is no longer current
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A missing activation marker does not authorize reclaim
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A claim from another profile installation is not reclaimed
 
 - [ ] RED
 - [ ] GREEN
@@ -368,6 +488,18 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario Outline: Injection-shaped handoff identities are rejected [a negative pull request value]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Injection-shaped handoff identities are rejected [a non-integer pull request value]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario Outline: Injection-shaped handoff identities are rejected [a repository identity with path traversal]
 
 - [ ] RED
@@ -380,25 +512,31 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario Outline: Injection-shaped handoff identities are rejected [an uppercase hexadecimal observed head]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario Outline: Injection-shaped handoff identities are rejected [pull request zero]
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario Outline: Injection-shaped handoff identities are rejected [an overflowing pull request value]
+### Scenario Outline: Injection-shaped handoff identities are rejected [pull request 9007199254740992, one above the maximum safe integer]
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario Outline: Injection-shaped handoff identities are rejected [a shortened hexadecimal observed head]
+### Scenario Outline: Injection-shaped handoff identities are rejected [a 39-character hexadecimal observed head]
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario Outline: Injection-shaped handoff identities are rejected [an overlong hexadecimal observed head]
+### Scenario Outline: Injection-shaped handoff identities are rejected [a 41-character hexadecimal observed head]
 
 - [ ] RED
 - [ ] GREEN
@@ -478,13 +616,25 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Cleared closeout is absent from later discovery
+### Scenario Outline: Receipt removal failure is reported after cleanup [the handoff record]
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Receipt removal failure leaves an inert recoverable record
+### Scenario Outline: Receipt removal failure is reported after cleanup [the claim record]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: A later task safely resolves a receipt left after cleanup [the branch target]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: A later task safely resolves a receipt left after cleanup [the worktree target]
 
 - [ ] RED
 - [ ] GREEN
@@ -496,7 +646,13 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Restarted closeout cannot remove its current branch or worktree
+### Scenario Outline: Restarted closeout cannot remove its current execution context [the current branch]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Restarted closeout cannot remove its current execution context [the current worktree]
 
 - [ ] RED
 - [ ] GREEN

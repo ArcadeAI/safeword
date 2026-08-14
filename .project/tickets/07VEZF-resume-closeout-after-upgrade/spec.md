@@ -39,8 +39,9 @@ Unaffected:
 
 - **Closeout handoff:** A repository-bound advisory receipt naming an observed pull request identity, expiring exactly 24 hours after its millisecond-precision write timestamp. It grants no cleanup or merge authority.
 - **Structural decoding:** Parsing the expected JSON object and required field types; it does not make persisted values or timestamps trusted.
-- **Identity validation:** Rejecting values that are not a bounded positive pull-request integer, canonical repository identity, exact 40-character lowercase hexadecimal commit head, or current-profile provenance after structural decoding.
-- **Profile provenance:** Proof that the current Codex profile wrote the handoff. It is bound to the profile installation identity, not the Safeword plugin version, so an ordinary plugin upgrade preserves trust while a different profile does not.
+- **Identity validation:** Rejecting values that are not a positive safe integer no greater than 9,007,199,254,740,991 for the pull request, a canonical case-insensitive GitHub owner/repository identity, an exact 40-character lowercase hexadecimal commit head, or current-profile provenance after structural decoding.
+- **Profile provenance:** Evidence that the handoff carries the current Codex profile installation identity. It detects records copied from another profile, but it is not a secret or a defense against another local writer that can read and copy the current profile identity. It is bound to the profile installation identity, not the Safeword plugin version, so an ordinary plugin upgrade preserves trust while a different profile does not.
+- **Closeout claim:** An atomic owner record bound to a handoff and current profile task. It has no independent clock or lifetime; the handoff's fixed expiry governs both records.
 
 ## Product Inspiration
 
