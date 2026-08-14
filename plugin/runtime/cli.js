@@ -53656,19 +53656,9 @@ function persistenceSnapshot(active, deadLetters, directory) {
   return { directory, durableRequestsBySource };
 }
 async function reservedRequestIds(directory) {
-  const requestIds = new Set;
   const filenames = await sortedFilenames(directory);
-  for (const filename of filenames) {
-    if (!SOURCE_RESERVATION_FILENAME_PATTERN.test(filename))
-      continue;
-    try {
-      const reservation = JSON.parse(await readFile2(path6.join(directory, filename), "utf8"));
-      if (sourceReservationShape(reservation) && reservation.state === "active") {
-        requestIds.add(reservation.request.requestId);
-      }
-    } catch {}
-  }
-  return requestIds;
+  const reservations = await activeSourceReservations(directory, filenames);
+  return new Set(reservations.map(({ reservation }) => reservation.request.requestId));
 }
 async function quarantineMalformedActiveRequests(projectDirectory, active) {
   for (const candidate of active) {
@@ -53827,7 +53817,7 @@ async function claimSpecificRelayRequest(projectDirectory, requestId, options) {
   ]) {
     try {
       await renameDurable(candidate, claimed);
-      if (await discardBlocksRequest(projectDirectory, requestId)) {
+      if (await exists2(discardedPath(projectDirectory, requestId))) {
         await removeIfPresent(claimed);
         return;
       }
@@ -53937,9 +53927,7 @@ async function cleanupStaleAtomicTemporaries(directory, filenames, now) {
     let retentionMs;
     if (ATOMIC_TEMPORARY_FILENAME_PATTERN.test(filename)) {
       retentionMs = ATOMIC_TEMPORARY_STALE_MS;
-    } else if (SOURCE_ACKNOWLEDGEMENT_CONFLICT_FILENAME_PATTERN.test(filename)) {
-      retentionMs = SOURCE_ACKNOWLEDGEMENT_CONFLICT_RETENTION_MS;
-    } else if (CLAIM_CONFLICT_FILENAME_PATTERN.test(filename)) {
+    } else if (SOURCE_ACKNOWLEDGEMENT_CONFLICT_FILENAME_PATTERN.test(filename) || CLAIM_CONFLICT_FILENAME_PATTERN.test(filename)) {
       retentionMs = SOURCE_ACKNOWLEDGEMENT_CONFLICT_RETENTION_MS;
     }
     if (retentionMs === undefined)
@@ -53970,7 +53958,7 @@ async function cleanupAcknowledgedFile(projectDirectory, directory, filename, ac
     throw error2;
   }
   const request = parseDurableRequest({ bytes });
-  if (request !== undefined) {
+  if (request?.requestId === requestId) {
     await compactSourceReservation(projectDirectory, request, recoveryOptions);
   } else {
     await compactAcknowledgedReservationByRequestId(projectDirectory, directory, requestId, recoveryOptions);
@@ -53980,18 +53968,11 @@ async function cleanupAcknowledgedFile(projectDirectory, directory, filename, ac
 }
 async function compactAcknowledgedReservationByRequestId(projectDirectory, directory, requestId, recoveryOptions) {
   const filenames = await readdir(directory);
-  for (const filename of filenames) {
-    if (!SOURCE_RESERVATION_FILENAME_PATTERN.test(filename))
-      continue;
-    try {
-      const reservation = JSON.parse(await readFile2(path6.join(directory, filename), "utf8"));
-      if (sourceReservationShape(reservation) && reservation.state === "active" && reservation.request.requestId === requestId) {
-        await compactSourceReservation(projectDirectory, reservation.request, recoveryOptions);
-        return;
-      }
-    } catch (error2) {
-      if (errorCode2(error2) !== "ENOENT")
-        throw error2;
+  const reservations = await activeSourceReservations(directory, filenames);
+  for (const { reservation } of reservations) {
+    if (reservation.request.requestId === requestId) {
+      await compactSourceReservation(projectDirectory, reservation.request, recoveryOptions);
+      return;
     }
   }
 }
@@ -54051,44 +54032,45 @@ async function recoverDiscardedRequests(projectDirectory, filenames) {
   }
 }
 async function compactDiscardedReservationFiles(projectDirectory, directory, filenames, requestId, options = {}) {
-  for (const filename of filenames) {
-    try {
-      const reservation = JSON.parse(await readFile2(path6.join(directory, filename), "utf8"));
-      if (sourceReservationShape(reservation) && reservation.state === "active" && reservation.request.requestId === requestId) {
-        await compactDiscardedSourceReservation(projectDirectory, reservation, options);
-      }
-    } catch (error2) {
-      if (errorCode2(error2) !== "ENOENT")
-        throw error2;
+  const reservations = await activeSourceReservations(directory, filenames);
+  for (const { reservation } of reservations) {
+    if (reservation.request.requestId === requestId) {
+      await compactDiscardedSourceReservation(projectDirectory, reservation, options);
     }
   }
 }
-async function reservationFilesForRequest(directory, filenames, requestId) {
-  const matching = [];
+async function activeSourceReservations(directory, filenames) {
+  const reservations = [];
   for (const filename of filenames) {
     if (!SOURCE_RESERVATION_FILENAME_PATTERN.test(filename))
       continue;
+    let serialized;
     try {
-      const reservation = JSON.parse(await readFile2(path6.join(directory, filename), "utf8"));
-      if (sourceReservationShape(reservation) && reservation.state === "active" && reservation.request.requestId === requestId) {
-        matching.push(filename);
+      serialized = await readFile2(path6.join(directory, filename), "utf8");
+    } catch (error2) {
+      if (errorCode2(error2) === "ENOENT")
+        continue;
+      throw error2;
+    }
+    try {
+      const reservation = JSON.parse(serialized);
+      if (sourceReservationShape(reservation) && reservation.state === "active") {
+        reservations.push({ filename, reservation });
       }
     } catch {}
   }
-  return matching;
+  return reservations;
+}
+async function reservationFilesForRequest(directory, filenames, requestId) {
+  const reservations = await activeSourceReservations(directory, filenames);
+  return reservations.filter(({ reservation }) => reservation.request.requestId === requestId).map(({ filename }) => filename);
 }
 async function reservationFileMap(directory, filenames) {
   const byRequestId = new Map;
-  for (const filename of filenames) {
-    if (!SOURCE_RESERVATION_FILENAME_PATTERN.test(filename))
-      continue;
-    try {
-      const reservation = JSON.parse(await readFile2(path6.join(directory, filename), "utf8"));
-      if (!sourceReservationShape(reservation) || reservation.state !== "active")
-        continue;
-      const requestId = reservation.request.requestId;
-      byRequestId.set(requestId, [...byRequestId.get(requestId) ?? [], filename]);
-    } catch {}
+  const reservations = await activeSourceReservations(directory, filenames);
+  for (const { filename, reservation } of reservations) {
+    const requestId = reservation.request.requestId;
+    byRequestId.set(requestId, [...byRequestId.get(requestId) ?? [], filename]);
   }
   return byRequestId;
 }
@@ -54334,8 +54316,8 @@ async function readRelayFiles(directory, filenames, requestIdFor) {
   }
   return requests;
 }
-async function rearmClaim(projectDirectory, claim) {
-  if (await hasDiscardIntent(projectDirectory, claim.requestId))
+async function rearmClaim(projectDirectory, claim, stateSnapshot) {
+  if (await discardBlocksReservation(projectDirectory, claim.requestId, stateSnapshot))
     return;
   if (await exists2(ackPath(projectDirectory, claim.requestId)) || await exists2(discardedPath(projectDirectory, claim.requestId))) {
     await removeIfPresent(claim.path);
@@ -54349,8 +54331,8 @@ async function rearmClaim(projectDirectory, claim) {
       throw error2;
   }
 }
-async function deadLetterClaim(projectDirectory, claim) {
-  if (await hasDiscardIntent(projectDirectory, claim.requestId))
+async function deadLetterClaim(projectDirectory, claim, stateSnapshot) {
+  if (await discardBlocksReservation(projectDirectory, claim.requestId, stateSnapshot))
     return false;
   if (await exists2(discardedPath(projectDirectory, claim.requestId))) {
     await removeIfPresent(claim.path);
@@ -54377,7 +54359,7 @@ async function claimRelayDeadLetter(projectDirectory, requestId, claimId, now = 
   const claimed = path6.join(relayDirectory(projectDirectory), `${requestId}.recovery-claim.${claimId}.${expiresAt}.json`);
   try {
     await renameDurable(deadLetterPath(projectDirectory, requestId), claimed);
-    if (await discardBlocksRequest(projectDirectory, requestId)) {
+    if (await exists2(discardedPath(projectDirectory, requestId))) {
       await removeIfPresent(claimed);
       return;
     }
@@ -54492,7 +54474,7 @@ function assertValidRelayReceipt(receipt, requestId) {
 function assertAcknowledgeableRelayReceipt(receipt, requestId) {
   assertValidRelayReceipt(receipt, requestId);
   if (!ACKNOWLEDGEABLE_RELAY_RECEIPT_STATES.has(receipt.state)) {
-    throw new Error("relay returned an unrecognized durable ownership state");
+    throw new RetryableRelayDeliveryError("relay returned an unrecognized durable ownership state");
   }
 }
 async function relayResponseBody(response) {
@@ -54536,14 +54518,17 @@ async function recoverRelayReceipt(relayOrigin, request, receipt, deadLetter, op
   if (options.operatorCredential === undefined)
     return false;
   const response = await options.fetch(`${relayOrigin}/v1/retro-filings/${encodeURIComponent(receipt.receiptId)}/recover`, {
-    headers: { authorization: `Bearer ${options.operatorCredential}` },
+    headers: {
+      authorization: `Bearer ${options.operatorCredential}`,
+      [RELAY_API_VERSION_HEADER]: RELAY_API_VERSION
+    },
     method: "POST",
     signal: AbortSignal.timeout(options.timeoutMs ?? 750)
   });
   if (!response.ok)
     return false;
-  const recovered = await response.json();
-  if (recovered.requestId !== request.requestId || recovered.receiptId !== receipt.receiptId || !["filed", "tombstone"].includes(recovered.state)) {
+  const recovered = relayReceiptFromBody(await relayResponseBody(response), request.requestId);
+  if (recovered?.receiptId !== receipt.receiptId || !["filed", "tombstone"].includes(recovered?.state ?? "")) {
     return false;
   }
   return acknowledgeRelayClaim({
@@ -54561,7 +54546,9 @@ async function recoverRelayDeadLetter(projectDirectory, requestId, options) {
   if (claim === undefined)
     return false;
   try {
-    const original = JSON.parse(claim.bytes.toString("utf8"));
+    const original = parseDurableRequest(claim);
+    if (original?.requestId !== requestId)
+      return false;
     const initial = await submitRelayRecoveryAttempt(relayOrigin, original, options);
     const attempt = needsDeadlineRenewal(initial, original) ? await renewRelayRecovery(relayOrigin, original, claim.bytes, claim.path, options) : { ...initial, request: original };
     const receipt = relayReceiptFromBody(attempt.body, requestId);
@@ -54645,12 +54632,12 @@ async function retryScheduleFor(projectDirectory, requestId) {
     return;
   }
 }
-async function deferRelayClaim(projectDirectory, claim, now) {
+async function deferRelayClaim(projectDirectory, claim, now, stateSnapshot) {
   const previous = await retryScheduleFor(projectDirectory, claim.requestId);
   const attemptCount = (previous?.attemptCount ?? 0) + 1;
   const delay = Math.min(RELAY_RETRY_BACKOFF_MS * 2 ** (attemptCount - 1), MAX_RELAY_RETRY_BACKOFF_MS);
   await replaceAtomic(retrySchedulePath(projectDirectory, claim.requestId), Buffer.from(JSON.stringify({ attemptCount, nextAttemptAt: now + delay, version: 1 }), "utf8"));
-  await rearmClaim(projectDirectory, claim);
+  await rearmClaim(projectDirectory, claim, stateSnapshot);
 }
 async function removeRetrySchedule(projectDirectory, requestId) {
   await removeIfPresent(retrySchedulePath(projectDirectory, requestId));
@@ -54694,21 +54681,21 @@ async function deliverRelayRequests(projectDirectory, options) {
       continue;
     processed.add(claim.requestId);
     const parsedRequest = parseDurableRequest(claim);
-    if (parsedRequest === undefined) {
-      const deadLettered = Number(await deadLetterClaim(projectDirectory, claim));
+    if (parsedRequest?.requestId !== claim.requestId) {
+      const deadLettered = Number(await deadLetterClaim(projectDirectory, claim, deliveryStateSnapshot));
       deadLetteredThisRun += deadLettered;
       deadLetterBacklog += deadLettered;
       continue;
     }
     if (options.now() >= Date.parse(parsedRequest.retryDeadlineAt)) {
-      const deadLettered = Number(await deadLetterClaim(projectDirectory, claim));
+      const deadLettered = Number(await deadLetterClaim(projectDirectory, claim, deliveryStateSnapshot));
       deadLetteredThisRun += deadLettered;
       deadLetterBacklog += deadLettered;
       continue;
     }
     const remainingOverallMs = overallDeadline - monotonicNow();
     if (remainingOverallMs <= RELAY_CLEANUP_RESERVE_MS) {
-      await rearmClaim(projectDirectory, claim);
+      await rearmClaim(projectDirectory, claim, deliveryStateSnapshot);
       break;
     }
     const attemptDeadlineMs2 = Math.min(options.deadlineMs, remainingOverallMs - RELAY_CLEANUP_RESERVE_MS);
@@ -54718,25 +54705,31 @@ async function deliverRelayRequests(projectDirectory, options) {
     }, attemptDeadlineMs2);
     timer.unref();
     try {
-      const response = await options.fetch(`${relayOrigin}/v1/retro-filings`, {
-        body: relayRequestBytes(parsedRequest),
-        headers: relaySubmissionHeaders(options.credential),
-        method: "POST",
-        signal: controller.signal
-      });
+      let response;
+      try {
+        response = await options.fetch(`${relayOrigin}/v1/retro-filings`, {
+          body: relayRequestBytes(parsedRequest),
+          headers: relaySubmissionHeaders(options.credential),
+          method: "POST",
+          signal: controller.signal
+        });
+      } catch (error2) {
+        throw new RetryableRelayDeliveryError("relay request failed", { cause: error2 });
+      }
       if (!response.ok) {
         const body2 = await relayResponseBody(response);
         if (!retryableRelayStatus(response.status) && !isIncompatibleRelayVersion(response, body2)) {
-          const deadLettered = Number(await deadLetterClaim(projectDirectory, claim));
+          const deadLettered = Number(await deadLetterClaim(projectDirectory, claim, deliveryStateSnapshot));
           deadLetteredThisRun += deadLettered;
           deadLetterBacklog += deadLettered;
           continue;
         }
-        throw new Error("relay returned a retryable response");
+        throw new RetryableRelayDeliveryError("relay returned a retryable response");
       }
       const body = relayReceiptFromBody(await relayResponseBody(response), claim.requestId);
-      if (body === undefined)
-        throw new Error("relay returned an invalid durable receipt");
+      if (body === undefined) {
+        throw new RetryableRelayDeliveryError("relay returned an invalid durable receipt");
+      }
       assertAcknowledgeableRelayReceipt(body, claim.requestId);
       if (await acknowledgeRelayClaim(claim, body)) {
         await removeRetrySchedule(projectDirectory, claim.requestId);
@@ -54744,8 +54737,13 @@ async function deliverRelayRequests(projectDirectory, options) {
         if (isReportedTerminalRelayReceipt(body))
           serverReportedTerminalReceipts.push(body);
       }
-    } catch {
-      await deferRelayClaim(projectDirectory, claim, options.now());
+    } catch (error2) {
+      if (controller.signal.aborted || error2 instanceof TypeError || error2 instanceof RetryableRelayDeliveryError) {
+        await deferRelayClaim(projectDirectory, claim, options.now(), deliveryStateSnapshot);
+      } else {
+        await rearmClaim(projectDirectory, claim, deliveryStateSnapshot);
+        throw error2;
+      }
     } finally {
       clearTimeout(timer);
     }
@@ -54760,7 +54758,7 @@ async function deliverRelayRequests(projectDirectory, options) {
     ...serverReportedTerminalReceipts.length > 0 && { serverReportedTerminalReceipts }
   };
 }
-var DEFAULT_RELAY_REQUEST_DEADLINE_MS = 500, RELAY_OVERALL_HEADROOM_MS = 250, RELAY_CLEANUP_RESERVE_MS = 100, RELAY_RETRY_BACKOFF_MS = 60000, MAX_RELAY_RETRY_BACKOFF_MS, RELAY_API_VERSION = "1", RELAY_API_VERSION_HEADER = "x-safeword-relay-api-version", UUID_V4_SOURCE, UUID_V4_PATTERN, PRIMARY_FILENAME_PATTERN, DEAD_LETTER_FILENAME_PATTERN, MATERIALIZING_FILENAME_PATTERN, DISCARDED_FILENAME_PATTERN, CLAIM_FILENAME_PATTERN, RECOVERY_CLAIM_FILENAME_PATTERN, DISCARD_INTENT_FILENAME_PATTERN, CLAIM_ID_PATTERN, SOURCE_RESERVATION_FILENAME_PATTERN, ATOMIC_TEMPORARY_FILENAME_PATTERN, SOURCE_ACKNOWLEDGEMENT_CONFLICT_FILENAME_PATTERN, CLAIM_CONFLICT_FILENAME_PATTERN, ATOMIC_TEMPORARY_STALE_MS = 60000, SOURCE_ACKNOWLEDGEMENT_CONFLICT_RETENTION_MS, DISCARD_CLAIM_LEASE_MS = 60000, DISCARD_INTENT_LEASE_MS = 60000, RECOVERY_CLAIM_LEASE_MS = 60000, RELAY_FILE_CONCURRENCY = 64, RELAY_RETRY_WINDOW_MS, RelaySpoolCorruptionError, ACKNOWLEDGEABLE_RELAY_RECEIPT_STATES, REPORTED_TERMINAL_RELAY_RECEIPT_STATES;
+var DEFAULT_RELAY_REQUEST_DEADLINE_MS = 500, RELAY_OVERALL_HEADROOM_MS = 250, RELAY_CLEANUP_RESERVE_MS = 100, RELAY_RETRY_BACKOFF_MS = 60000, MAX_RELAY_RETRY_BACKOFF_MS, RELAY_API_VERSION = "1", RELAY_API_VERSION_HEADER = "x-safeword-relay-api-version", UUID_V4_SOURCE, UUID_V4_PATTERN, PRIMARY_FILENAME_PATTERN, DEAD_LETTER_FILENAME_PATTERN, MATERIALIZING_FILENAME_PATTERN, DISCARDED_FILENAME_PATTERN, CLAIM_FILENAME_PATTERN, RECOVERY_CLAIM_FILENAME_PATTERN, DISCARD_INTENT_FILENAME_PATTERN, CLAIM_ID_PATTERN, SOURCE_RESERVATION_FILENAME_PATTERN, ATOMIC_TEMPORARY_FILENAME_PATTERN, SOURCE_ACKNOWLEDGEMENT_CONFLICT_FILENAME_PATTERN, CLAIM_CONFLICT_FILENAME_PATTERN, ATOMIC_TEMPORARY_STALE_MS = 60000, SOURCE_ACKNOWLEDGEMENT_CONFLICT_RETENTION_MS, DISCARD_CLAIM_LEASE_MS = 60000, DISCARD_INTENT_LEASE_MS = 60000, RECOVERY_CLAIM_LEASE_MS = 60000, RELAY_FILE_CONCURRENCY = 64, RELAY_RETRY_WINDOW_MS, RelaySpoolCorruptionError, ACKNOWLEDGEABLE_RELAY_RECEIPT_STATES, REPORTED_TERMINAL_RELAY_RECEIPT_STATES, RetryableRelayDeliveryError;
 var init_relay_delivery = __esm(() => {
   init_durable_fs();
   MAX_RELAY_RETRY_BACKOFF_MS = 60 * 60 * 1000;
@@ -54803,6 +54801,8 @@ var init_relay_delivery = __esm(() => {
     "rejected",
     "tombstone"
   ]);
+  RetryableRelayDeliveryError = class RetryableRelayDeliveryError extends Error {
+  };
 });
 
 // src/retro/relay-readiness-manifest.json
