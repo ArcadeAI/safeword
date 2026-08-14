@@ -24,7 +24,7 @@ describe('python tool readiness', () => {
     removeTemporaryDirectory(projectDirectory);
   });
 
-  it('reports undeclared Safe Word Python tools through doctor', async () => {
+  it('reports undeclared Safeword Python tools through doctor', async () => {
     writeTestFile(
       projectDirectory,
       'pyproject.toml',
@@ -57,7 +57,7 @@ dependencies = ["ruff>=0.8.0"]
     );
   });
 
-  it('reports undeclared Safe Word Python tools through status', async () => {
+  it('reports undeclared Safeword Python tools through status', async () => {
     writeTestFile(
       projectDirectory,
       'pyproject.toml',
@@ -245,7 +245,7 @@ dependencies = ["ruff"]
     );
   });
 
-  it('requires import-linter when Safe Word would scaffold its contract', async () => {
+  it('requires import-linter when Safeword would scaffold its contract', async () => {
     writeTestFile(
       projectDirectory,
       'pyproject.toml',
