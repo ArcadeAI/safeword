@@ -309,6 +309,27 @@ function closeoutCommand(directory: string): string {
   return `bun "${directory}/.safeword/scripts/closeout-cleanup.ts" --pr 42`;
 }
 
+/**
+ * Strips Claude's identity from an environment that means to present a CODEX
+ * host.
+ *
+ * Run identity resolves Claude before Codex deliberately — see
+ * templates/hooks/lib/run-identity.ts: "Keep this after Claude detection so an
+ * explicit Claude environment never adopts a Codex runtime accidentally." So a
+ * fixture that inherits `process.env` while running inside a Claude Code
+ * session hands the child its own CLAUDE_CODE_SESSION_ID, the child resolves
+ * runtime `claude`, and the Codex binding under test never resolves.
+ *
+ * CI has no agent session, so leaving these in place passes there and fails
+ * for anyone running the suite from Claude Code.
+ */
+function codexHostEnvironment<T extends Record<string, string | undefined>>(environment: T): T {
+  const scrubbed = { ...environment };
+  delete scrubbed.CLAUDE_SESSION_ID;
+  delete scrubbed.CLAUDE_CODE_SESSION_ID;
+  return scrubbed;
+}
+
 describe('closeout production host adapters (93C14D TBU1.R4)', () => {
   it('completes freshly verified cleanup without a host session binding', () => {
     const fixture = deliveryFixture();
@@ -364,7 +385,7 @@ describe('closeout production host adapters (93C14D TBU1.R4)', () => {
       transcript,
       `${JSON.stringify({ type: 'session_meta', payload: { id, cwd: fixture.main } })}\n`,
     );
-    const environment = {
+    const environment = codexHostEnvironment({
       ...process.env,
       PATH: `${fixture.bin}:${process.env.PATH ?? ''}`,
       GIT_SSH_COMMAND: nodePath.join(fixture.bin, 'ssh'),
@@ -373,7 +394,7 @@ describe('closeout production host adapters (93C14D TBU1.R4)', () => {
       CODEX_HOME: codexHome,
       CODEX_THREAD_ID: id,
       CLAUDE_PROJECT_DIR: fixture.topic,
-    };
+    });
 
     const preview = spawnSync(
       'bun',
@@ -750,7 +771,7 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
         );
       }
 
-      const environment = {
+      const baseEnvironment = {
         ...process.env,
         PATH: `${fixture.bin}:${process.env.PATH ?? ''}`,
         GIT_SSH_COMMAND: nodePath.join(fixture.bin, 'ssh'),
@@ -760,6 +781,8 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
         ...(runtime === 'codex' && { CODEX_THREAD_ID: id }),
         CLAUDE_PROJECT_DIR: fixture.topic,
       };
+      const environment =
+        runtime === 'codex' ? codexHostEnvironment(baseEnvironment) : baseEnvironment;
       const guard = nodePath.join(fixture.topic, '.safeword/scripts/closeout-cleanup.ts');
 
       bindHostSession({ runtime, fixture, environment, id, transcript });
@@ -834,7 +857,7 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
         payload: { id: bridgedId, cwd: fixture.topic },
       })}\n`,
     );
-    const environment = {
+    const environment = codexHostEnvironment({
       ...process.env,
       PATH: `${fixture.bin}:${process.env.PATH ?? ''}`,
       GIT_SSH_COMMAND: nodePath.join(fixture.bin, 'ssh'),
@@ -843,7 +866,7 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
       CODEX_HOME: codexHome,
       CODEX_THREAD_ID: authenticatedId,
       CLAUDE_PROJECT_DIR: fixture.topic,
-    };
+    });
 
     bindHostSession({
       runtime: 'codex',
@@ -1465,11 +1488,11 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
       );
       const execution = spawnSync('bun', [installedGuard, '--pr', '42'], {
         cwd: directory,
-        env: {
+        env: codexHostEnvironment({
           ...process.env,
           CODEX_HOME: nominatedCodexHome,
           CODEX_THREAD_ID: 'caller-thread',
-        },
+        }),
         encoding: 'utf8',
       });
       expect(execution.status).toBe(2);
