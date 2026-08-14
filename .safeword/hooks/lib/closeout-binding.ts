@@ -315,12 +315,13 @@ function isCloseoutCleanupPath(
   const pluginPath = pluginRoot
     ? nodePath.join(pluginRoot, 'resources/scripts/closeout-cleanup.ts').replaceAll('\\', '/')
     : undefined;
+  const projectRelativePath = ['.safeword', 'scripts', 'closeout-cleanup.ts'].join('/');
   const projectPath = projectDirectory
     ? nodePath
         .join(projectDirectory, '.safeword', 'scripts', 'closeout-cleanup.ts')
         .replaceAll('\\', '/')
     : undefined;
-  const projectSuffix = '/.safeword/scripts/closeout-cleanup.ts';
+  const projectSuffix = `/${projectRelativePath}`;
   let resolvesInsideProject = false;
   if (projectDirectory && normalized.endsWith(projectSuffix)) {
     const candidateRoot = normalized.slice(0, -projectSuffix.length);
@@ -331,7 +332,7 @@ function isCloseoutCleanupPath(
     }
   }
   return (
-    normalized === '.safeword/scripts/closeout-cleanup.ts' ||
+    normalized === projectRelativePath ||
     normalized === projectPath ||
     resolvesInsideProject ||
     normalized === '${CLAUDE_PLUGIN_ROOT}/resources/scripts/closeout-cleanup.ts' ||

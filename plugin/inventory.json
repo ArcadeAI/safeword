@@ -199,7 +199,7 @@
     },
     {
       "path": "runtime/hooks/lib/closeout-binding.ts",
-      "sha256": "8bede18ce39cedf3c6722ffd4641a9291e978b008ae031af325e78b4501df3d4"
+      "sha256": "e37e02ae5fa73ff0cf37bcffe3d03cac5ccac49f0fea11e5294def6e7cba2315"
     },
     {
       "path": "runtime/hooks/lib/cursor-run-identity.ts",
