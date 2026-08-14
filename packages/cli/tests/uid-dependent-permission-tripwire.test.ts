@@ -21,7 +21,7 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-const TEST_ROOT = nodePath.join(import.meta.dirname);
+const TEST_ROOT = import.meta.dirname;
 
 /** Owner read+write. A mode missing either bit is a permission simulation. */
 const OWNER_READ_WRITE = 0o600;
