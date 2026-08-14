@@ -9,6 +9,8 @@
 # would duplicate the integration harness without adding confidence.
 # Every phrase saying no destructive command is run or emitted is checked through
 # the command observer for branch, worktree, merge, approval, and pull-request mutations.
+# NTB1.R2 rejection behavior is falsified by the positive matching-continuation
+# scenarios in NTB1.R1 and TBU1.R1, which run in the same proof suites.
 @proof.vitest @surface.openai-codex @surface.closeout-cleanup-guard
 Feature: Resume interrupted closeout after a Codex upgrade
 
@@ -170,6 +172,7 @@ Feature: Resume interrupted closeout after a Codex upgrade
       When blocked closeout records one exact pull request for that repository
       Then exactly one fresh handoff contains the newly observed pull request identity
       And no unusable matching handoff remains
+      And no claim record bound to any superseded handoff remains
       And the command observer records no branch, worktree, merge, approval, or pull-request state-changing command
 
       Examples:
@@ -204,6 +207,7 @@ Feature: Resume interrupted closeout after a Codex upgrade
       When blocked closeout records one exact pull request for that repository
       Then exactly one fresh handoff contains the newly observed pull request identity
       And the previous invalid handoff is no longer discoverable
+      And no claim record bound to the previous invalid handoff remains
       And the current task output reports that invalid pending closeout state was replaced
 
       Examples:
@@ -470,6 +474,7 @@ Feature: Resume interrupted closeout after a Codex upgrade
         | unusable state |
         | expired |
         | schema-invalid but repository-decodable |
+        | foreign profile provenance |
 
     @rejection
     Scenario: A same-named repository under another owner is foreign
@@ -756,7 +761,7 @@ Feature: Resume interrupted closeout after a Codex upgrade
       Given a symlink to a known external target is already in place at the profile store path when <mutation> begins
       When the protected closeout flow attempts that mutation at a controlled time
       Then the external target bytes remain unchanged
-      And pending closeout output reports invalid or unavailable store state without echoing external contents
+      And pending closeout output reports an unsafe handoff-store path without echoing external contents
       And no continuation or destructive command is emitted
 
       Examples:
@@ -907,7 +912,7 @@ Feature: Resume interrupted closeout after a Codex upgrade
       When the existing closeout guard proves cleanup completed
       Then the command observer records removal of only the branch and worktree targets recorded by the fresh cleanup preview
       And every cleanup target comes only from that fresh preview and not from the advisory handoff
-      And those targets correspond to the handoff-recorded pull request head and branch
+      And those targets correspond to the handoff-recorded pull request and head as re-observed by the fresh preview
       And no other state-changing command is run
       And the handoff and claim record are removed
 

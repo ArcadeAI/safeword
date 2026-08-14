@@ -450,6 +450,12 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario Outline: An unusable foreign handoff remains silent [foreign profile provenance]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A same-named repository under another owner is foreign
 
 - [ ] RED
