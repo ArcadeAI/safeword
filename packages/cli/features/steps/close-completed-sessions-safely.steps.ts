@@ -14,6 +14,7 @@ import type { SafewordWorld } from './world.js';
 interface CloseoutWorld extends SafewordWorld {
   closeoutObservation?: CloseoutObservation;
   closeoutOperations?: CleanupOperation[];
+  closeoutAdvisories?: string[];
   closeoutResult?: ReturnType<typeof applyCleanupPlan>;
 }
 
@@ -99,6 +100,7 @@ When(
     const plan = buildCleanupPlan(preview);
     const refreshed = this.closeoutObservation;
     assert.ok(refreshed);
+    this.closeoutAdvisories = buildCleanupPlan(refreshed).advisories;
     let current: CloseoutObservation = refreshed;
 
     this.closeoutResult = applyCleanupPlan({
@@ -127,10 +129,6 @@ Then('cleanup completes with the previewed exact targets', function (this: Close
   );
 });
 
-Then('cleanup is blocked without mutating any target', function (this: CloseoutWorld) {
-  assert.equal(this.closeoutResult?.applied, false);
-  assert.deepEqual(this.closeoutOperations, []);
-  assert.ok(
-    this.closeoutResult?.blockers.includes('the current session retrospective is incomplete'),
-  );
+Then('the incomplete retrospective is reported as an advisory', function (this: CloseoutWorld) {
+  assert.ok(this.closeoutAdvisories?.includes('the current session retrospective is incomplete'));
 });
