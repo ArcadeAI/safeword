@@ -8,6 +8,8 @@ import { promisify } from "node:util";
 import { describe, expect, test } from "vitest";
 
 import {
+  EVIDENCE_DIRECTORY,
+  PROVIDER_TURN_JOURNAL_SUFFIX,
   initializeCanary,
   type CanaryInitializationBinding,
   type CanaryUpstream,
@@ -18,6 +20,7 @@ import {
   createTerraPaidChildCommand,
   parseTerraPaidChildResult,
   preflightPinnedCheckout,
+  reconcilePaidChildEvidence,
   runAuthorizedTerraPaidCanary,
   runTerraPaidCanary,
   spawnPaidChild,
@@ -138,6 +141,61 @@ function validChildOutput(): PaidChildResult {
       rawResponseBytes,
     })}\n`,
   };
+}
+
+async function retainValidChildJournal(outputDirectory: string): Promise<PaidChildResult> {
+  const output = validChildOutput();
+  const parsed = JSON.parse(output.stdout) as { rawResponseBytes: string };
+  const inventory = JSON.parse(parsed.rawResponseBytes) as {
+    intent: { attemptId: string; intentId: string; sequence: number };
+    requests: Array<Record<string, unknown>>;
+    responses: Array<Record<string, unknown>>;
+  };
+  const records = [
+    {
+      attemptId: inventory.intent.attemptId,
+      intentId: inventory.intent.intentId,
+      kind: "attempt-intent",
+      sequence: inventory.intent.sequence,
+    },
+    ...inventory.requests.map((request) => ({
+      attemptIntentId: request.intentId,
+      endpoint: request.endpoint,
+      kind: "provider-turn-intent",
+      requestedModel: request.model,
+      requestedServiceTier: request.serviceTier,
+      sequence: request.sequence,
+      stage: request.stage,
+      turnIntentId: request.turnIntentId,
+    })),
+    ...inventory.responses.map((response) => ({
+      attemptIntentId: response.intentId,
+      errorMessage: response.errorMessage,
+      errorName: response.errorName,
+      httpStatus: response.httpStatus,
+      kind: "provider-turn-response",
+      nativeUsage: response.nativeUsage,
+      outcome: response.outcome,
+      rawBody: response.rawBody,
+      requestId: response.requestId,
+      responseId: response.responseId,
+      returnedModel: response.returnedModel,
+      returnedServiceTier: response.returnedServiceTier,
+      sequence: response.sequence,
+      stage: response.stage,
+      turnIntentId: response.turnIntentId,
+    })),
+  ];
+  await writeFile(
+    join(
+      outputDirectory,
+      EVIDENCE_DIRECTORY,
+      `attempt-1${PROVIDER_TURN_JOURNAL_SUFFIX}`
+    ),
+    `${records.map((record) => JSON.stringify(record)).join("\n")}\n`,
+    "utf8"
+  );
+  return output;
 }
 
 async function pinnedCheckout(name: string): Promise<PinnedCheckout> {
@@ -320,7 +378,7 @@ describe("credential-separated live launcher", () => {
       registration: { corpusDigest: CORPUS_DIGEST, registrationCommit: harness.commit },
       spawnChild: async (request) => {
         childEnvironment = request.env;
-        return validChildOutput();
+        return retainValidChildJournal(outputDirectory);
       },
     })).resolves.toMatchObject({
       attemptId: "attempt-1",
@@ -416,7 +474,7 @@ describe("credential-separated live launcher", () => {
       loadGitHubToken: async () => "github-secret",
       loadOpenAIKey: async () => "openai-secret",
       outputDirectory,
-      spawnChild: async () => validChildOutput(),
+      spawnChild: async () => retainValidChildJournal(outputDirectory),
     })).resolves.toMatchObject({ attemptId: "attempt-1", sequence: 1 });
   });
 
@@ -591,6 +649,25 @@ describe("credential-separated live launcher", () => {
       stderr: "diagnostic",
       stdout: "complete",
     });
+  });
+
+  test("rejects child evidence that omits or changes durably retained spend", async () => {
+    const outputDirectory = await mkdtemp(join(tmpdir(), "terra-reconcile-"));
+    await mkdir(join(outputDirectory, EVIDENCE_DIRECTORY));
+    const output = await retainValidChildJournal(outputDirectory);
+    const reported = parseTerraPaidChildResult(output);
+
+    await expect(
+      reconcilePaidChildEvidence(
+        {
+          attemptId: "attempt-1",
+          intentId: "intent-1",
+          outputDirectory,
+          sequence: 1,
+        },
+        { ...reported, attemptCostPicodollars: reported.attemptCostPicodollars - 1n }
+      )
+    ).rejects.toThrow("does not match its durable turn journal");
   });
 
   test("returns a paid child's non-zero exit and diagnostics", async () => {

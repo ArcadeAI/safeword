@@ -8,6 +8,7 @@ import {
   type CanaryDispatchContext,
   type CanaryInitializationBinding,
   type CanaryUpstream,
+  completeCanaryProviderJournal,
   runCanaryAttempt,
 } from "./terra-development-canary";
 import type { CanaryAuthorization } from "./terra-github-authorization";
@@ -122,6 +123,21 @@ export function parseTerraPaidChildResult(result: PaidChildResult): {
     nativeUsageBytes: output.nativeUsageBytes,
     rawResponseBytes: output.rawResponseBytes,
   };
+}
+
+export async function reconcilePaidChildEvidence(
+  context: CanaryDispatchContext,
+  reported: ReturnType<typeof parseTerraPaidChildResult>
+): Promise<ReturnType<typeof parseTerraPaidChildResult>> {
+  const retained = await completeCanaryProviderJournal(context);
+  if (
+    reported.attemptCostPicodollars !== retained.attemptCostPicodollars ||
+    reported.nativeUsageBytes !== retained.nativeUsageBytes ||
+    reported.rawResponseBytes !== retained.rawResponseBytes
+  ) {
+    throw new Error("paid child evidence does not match its durable turn journal");
+  }
+  return retained;
 }
 
 export async function spawnPaidChild(
@@ -541,6 +557,7 @@ export async function runTerraPaidCanary(input: {
     registration,
     registrationCommit: input.registration.registrationCommit,
   });
+  let preparedContext: CanaryDispatchContext | undefined;
   return runCredentialedChild({
     adapterDirectory: input.adapterCheckout.directory,
     child: createTerraPaidChildCommand({
@@ -555,7 +572,29 @@ export async function runTerraPaidCanary(input: {
       runCanaryAttempt({
         attemptId: input.attemptId,
         binding: input.binding,
-        dispatch: async () => parseTerraPaidChildResult(await dispatch()),
+        dispatch: async () => {
+          if (preparedContext === undefined) {
+            throw new Error("paid child dispatch was not prepared");
+          }
+          await Promise.all([
+            preflightPinnedCheckout(input.adapterCheckout),
+            preflightPinnedCheckout(input.harnessCheckout),
+          ]);
+          const dispatchDigest = await verifyAuthorizedPaidChildInput({
+            checkout: input.harnessCheckout,
+            expectedContext: preparedContext,
+            inputPath: input.inputPath,
+            registration,
+            registrationCommit: input.registration.registrationCommit,
+          });
+          if (dispatchDigest !== inputDigest) {
+            throw new Error("paid child input changed at dispatch");
+          }
+          return reconcilePaidChildEvidence(
+            preparedContext,
+            parseTerraPaidChildResult(await dispatch())
+          );
+        },
         intentId: input.intentId,
         outputDirectory: input.outputDirectory,
         prepare: async (context) => {
@@ -569,6 +608,7 @@ export async function runTerraPaidCanary(input: {
           if (preparedDigest !== inputDigest) {
             throw new Error("paid child input changed during authorization");
           }
+          preparedContext = context;
         },
         upstream: input.createUpstream(githubToken),
       }),

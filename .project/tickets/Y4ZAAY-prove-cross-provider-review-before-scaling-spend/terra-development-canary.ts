@@ -551,6 +551,91 @@ async function readRecords(
   }
 }
 
+export async function completeCanaryProviderJournal(
+  input: CanaryDispatchContext
+): Promise<{
+  attemptCostPicodollars: bigint;
+  nativeUsageBytes: string;
+  rawResponseBytes: string;
+}> {
+  if (!isSafeIdentifier(input.attemptId) || !isSafeIdentifier(input.intentId)) {
+    throw new Error("attemptId and intentId must be safe identifiers");
+  }
+  const directory = join(input.outputDirectory, EVIDENCE_DIRECTORY);
+  const name = `${input.attemptId}${PROVIDER_TURN_JOURNAL_SUFFIX}`;
+  const records = await readRecords(directory, name);
+  if (records === null || records.length < 3) {
+    throw new Error("provider turn journal is incomplete");
+  }
+  const [intent, ...turns] = records;
+  const requests = turns
+    .filter((record) => record.kind === "provider-turn-intent")
+    .map((record) => ({
+      endpoint: record.endpoint,
+      intentId: record.attemptIntentId,
+      model: record.requestedModel,
+      sequence: record.sequence,
+      serviceTier: record.requestedServiceTier,
+      stage: record.stage,
+      turnIntentId: record.turnIntentId,
+    }));
+  const responses = turns
+    .filter((record) => record.kind === "provider-turn-response")
+    .map((record) => ({
+      errorMessage: record.errorMessage,
+      errorName: record.errorName,
+      httpStatus: record.httpStatus,
+      intentId: record.attemptIntentId,
+      nativeUsage: record.nativeUsage,
+      outcome: record.outcome,
+      rawBody: record.rawBody,
+      requestId: record.requestId,
+      responseId: record.responseId,
+      returnedModel: record.returnedModel,
+      returnedServiceTier: record.returnedServiceTier,
+      sequence: record.sequence,
+      stage: record.stage,
+      turnIntentId: record.turnIntentId,
+    }));
+  if (
+    turns.some(
+      (record) =>
+        record.kind !== "provider-turn-intent" &&
+        record.kind !== "provider-turn-response"
+    )
+  ) {
+    throw new Error("provider turn journal contains an unknown record");
+  }
+  const inventory = {
+    intent: {
+      attemptId: intent?.attemptId,
+      intentId: intent?.intentId,
+      sequence: intent?.sequence,
+    },
+    requests,
+    responses,
+  };
+  const validated = priceProviderInventory(inventory);
+  if (
+    validated.attemptId !== input.attemptId ||
+    validated.intentId !== input.intentId
+  ) {
+    throw new Error("provider inventory belongs to a different attempt");
+  }
+  return {
+    attemptCostPicodollars: validated.totalCostPicodollars,
+    nativeUsageBytes: JSON.stringify({
+      turns: validated.turns.map((turn) => ({
+        rawUsage: turn.rawUsage,
+        requestId: turn.requestId,
+        responseId: turn.responseId,
+        stage: turn.stage,
+      })),
+    }),
+    rawResponseBytes: JSON.stringify(inventory),
+  };
+}
+
 export async function createCanaryProviderRecorder(
   input: CanaryDispatchContext
 ): Promise<{
@@ -587,79 +672,7 @@ export async function createCanaryProviderRecorder(
   });
 
   return {
-    complete: async () => {
-      const records = await readRecords(directory, name);
-      if (records === null || records.length < 3) {
-        throw new Error("provider turn journal is incomplete");
-      }
-      const [intent, ...turns] = records;
-      const requests = turns
-        .filter((record) => record.kind === "provider-turn-intent")
-        .map((record) => ({
-          endpoint: record.endpoint,
-          intentId: record.attemptIntentId,
-          model: record.requestedModel,
-          sequence: record.sequence,
-          serviceTier: record.requestedServiceTier,
-          stage: record.stage,
-          turnIntentId: record.turnIntentId,
-        }));
-      const responses = turns
-        .filter((record) => record.kind === "provider-turn-response")
-        .map((record) => ({
-          errorMessage: record.errorMessage,
-          errorName: record.errorName,
-          httpStatus: record.httpStatus,
-          intentId: record.attemptIntentId,
-          nativeUsage: record.nativeUsage,
-          outcome: record.outcome,
-          rawBody: record.rawBody,
-          requestId: record.requestId,
-          responseId: record.responseId,
-          returnedModel: record.returnedModel,
-          returnedServiceTier: record.returnedServiceTier,
-          sequence: record.sequence,
-          stage: record.stage,
-          turnIntentId: record.turnIntentId,
-        }));
-      if (
-        turns.some(
-          (record) =>
-            record.kind !== "provider-turn-intent" &&
-            record.kind !== "provider-turn-response"
-        )
-      ) {
-        throw new Error("provider turn journal contains an unknown record");
-      }
-      const inventory = {
-        intent: {
-          attemptId: intent?.attemptId,
-          intentId: intent?.intentId,
-          sequence: intent?.sequence,
-        },
-        requests,
-        responses,
-      };
-      const validated = priceProviderInventory(inventory);
-      if (
-        validated.attemptId !== input.attemptId ||
-        validated.intentId !== input.intentId
-      ) {
-        throw new Error("provider inventory belongs to a different attempt");
-      }
-      return {
-        attemptCostPicodollars: validated.totalCostPicodollars,
-        nativeUsageBytes: JSON.stringify({
-          turns: validated.turns.map((turn) => ({
-            rawUsage: turn.rawUsage,
-            requestId: turn.requestId,
-            responseId: turn.responseId,
-            stage: turn.stage,
-          })),
-        }),
-        rawResponseBytes: JSON.stringify(inventory),
-      };
-    },
+    complete: () => completeCanaryProviderJournal(input),
     journalPath,
     recordIntent: async (intent) => {
       await appendRecord({
