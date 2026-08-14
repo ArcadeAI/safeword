@@ -19,8 +19,11 @@ const projectDir = resolveProjectDir(hookInput);
 const context = readSafewordContext(projectDir);
 const sessionId = typeof hookInput.session_id === 'string' ? hookInput.session_id : '';
 const handoff = claimCodexCloseoutHandoff({ projectDirectory: projectDir, sessionId });
+const closeoutScript = process.env.CLAUDE_PLUGIN_ROOT
+  ? `"${process.env.CLAUDE_PLUGIN_ROOT}/resources/scripts/closeout-cleanup.ts"`
+  : '.safeword/scripts/closeout-cleanup.ts';
 const closeoutContext = handoff
-  ? `\n\nPending closeout recovered after restart: run bun .safeword/scripts/closeout-cleanup.ts --pr ${handoff.pull_request}. Re-observe and preview before applying; this handoff grants no cleanup authority.`
+  ? `\n\nPending closeout recovered after restart: run bun ${closeoutScript} --pr ${handoff.pull_request}. Re-observe and preview before applying; this handoff grants no cleanup authority.`
   : '';
 const response = toCodexSessionStartResponse({
   outcome: { kind: 'skipped', reason: 'upgrades require an explicit CLI command' },
