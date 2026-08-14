@@ -420,6 +420,18 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario Outline: An unusable foreign handoff remains silent [expired]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: An unusable foreign handoff remains silent [schema-invalid but repository-decodable]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A same-named repository under another owner is foreign
 
 - [ ] RED
@@ -608,6 +620,18 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Foreign profile provenance takes precedence over expiry
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Unsafe path takes precedence over malformed contents
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A claim bound to another handoff is rejected
 
 - [ ] RED
@@ -728,6 +752,18 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario Outline: Valid pull-request integer boundaries are delivered [1]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Valid pull-request integer boundaries are delivered [9007199254740991]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: An unprotected Codex task cannot discover or claim a handoff
 
 - [ ] RED
@@ -797,6 +833,24 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] REFACTOR
 
 ### Scenario: Pull-request identity drift takes precedence over a missing cleanup target
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Repository drift takes precedence over pull-request head drift
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: An unmerged pull request takes precedence over recreated cleanup targets
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Recreated target identity takes precedence over a missing target
 
 - [ ] RED
 - [ ] GREEN

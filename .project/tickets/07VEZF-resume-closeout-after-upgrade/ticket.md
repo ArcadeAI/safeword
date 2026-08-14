@@ -46,3 +46,4 @@ last_modified: 2026-08-13T18:15:59.751Z
 - 2026-08-14T07:48:00.000Z Scenario gate: Unified unprotected startup output and specified current-owner idempotence, atomic multi-record replacement, and recovery after cleanup already completed.
 - 2026-08-14T07:55:00.000Z Scenario gate: Closed the final ambiguity fixture, current-owner identity-conflict, discovery precedence, cleanup precedence, and store-key mismatch cells identified by independent review.
 - 2026-08-14T08:08:00.000Z Scenario gate: Made foreign-claim absence observable, distinguished claimed idempotence from conflicts, isolated unrelated malformed records on read and write, and specified partial-cleanup recovery state.
+- 2026-08-14T09:03:00.000Z Scenario gate: Proved foreign-unusable silence, every adjacent discovery and cleanup precedence boundary, discovery integer boundaries, and removed the last vacuous or duplicated steps before remote verification.
