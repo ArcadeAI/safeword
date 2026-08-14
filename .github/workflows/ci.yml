@@ -328,7 +328,11 @@ jobs:
             echo 'deploy=true' >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          git fetch --no-tags --depth=1 origin "$BEFORE"
+          if ! git fetch --no-tags --depth=1 origin "$BEFORE"; then
+            echo '::warning::Previous main revision is unreachable; deploying conservatively.'
+            echo 'deploy=true' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           changed_files="$(git diff --name-only "$BEFORE" "$SHA")"
           deploy=false
           while IFS= read -r changed; do

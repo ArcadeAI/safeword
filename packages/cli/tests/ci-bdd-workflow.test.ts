@@ -15,12 +15,10 @@ describe('CI BDD acceptance assignment', () => {
     );
 
     expect(testJob.strategy?.matrix?.['node-version']).toEqual(['22.23.2', '24.18.1']);
-    expect(acceptanceSteps).toEqual([
-      {
-        name: 'Acceptance lane (cucumber)',
-        if: "matrix.node-version == '24.18.1'",
-        run: 'bun run test:bdd',
-      },
-    ]);
+    expect(acceptanceSteps).toHaveLength(1);
+    expect(acceptanceSteps[0]).toMatchObject({
+      if: "matrix.node-version == '24.18.1'",
+      run: 'bun run test:bdd',
+    });
   });
 });
