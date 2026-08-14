@@ -42,6 +42,8 @@ Unaffected:
 - **Identity validation:** Rejecting values that are not a positive safe integer no greater than 9,007,199,254,740,991 for the pull request, a canonical case-insensitive GitHub owner/repository identity, an exact 40-character lowercase hexadecimal commit head, or current-profile provenance after structural decoding.
 - **Profile provenance:** Evidence that the handoff carries the current Codex profile installation identity. It detects records copied from another profile, but it is not a secret or a defense against another local writer that can read and copy the current profile identity. It is bound to the profile installation identity, not the Safeword plugin version, so an ordinary plugin upgrade preserves trust while a different profile does not.
 - **Closeout claim:** An atomic owner record bound to a handoff and current profile task. It has no independent clock or lifetime; the handoff's fixed expiry governs both records.
+- **Filesystem trust boundary:** Static symlinks and path escapes are rejected before advisory records are read or mutated. An active process running as the same user can race profile-owned files and is outside this advisory receipt's threat model; the existing closeout guard remains the authority boundary.
+- **Persistence guarantee:** A completed operation exposes one complete old or new record and never a torn mixture. Surviving sudden power loss after success is not guaranteed beyond the host filesystem's rename semantics.
 
 ## Product Inspiration
 

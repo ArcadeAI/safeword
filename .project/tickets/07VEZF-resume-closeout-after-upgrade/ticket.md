@@ -14,6 +14,8 @@ out_of_scope:
   - selecting or impersonating the original task transcript
   - general Codex task persistence or handoff of arbitrary work
   - Claude Code, Cursor, or cloud-agent restart semantics
+  - defending profile-owned advisory files from an active same-user process racing filesystem operations after validation
+  - power-loss durability beyond atomic visibility of one complete old or new record
 done_when:
   - a matching new Codex task discovers the exact pending PR without user-supplied identifiers
   - foreign, expired, malformed, or already-claimed handoffs do not authorize or trigger cleanup
