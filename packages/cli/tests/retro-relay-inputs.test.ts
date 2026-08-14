@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -58,11 +58,13 @@ describe('Retro Relay deployment input detection', () => {
     writeFileSync(nodePath.join(project, 'README.md'), 'unrelated\n');
     git(project, 'commit', '-am', 'unrelated');
     const unrelatedSha = git(project, 'rev-parse', 'HEAD');
+    git(project, 'push', 'origin', 'main');
     expect(detect(project, before, unrelatedSha)).toBe('deploy=false');
 
     const current = git(project, 'rev-parse', 'HEAD');
-    writeFileSync(nodePath.join(project, 'package.json'), '{}\n');
-    git(project, 'add', 'package.json');
+    mkdirSync(nodePath.join(project, 'packages/retro-relay'), { recursive: true });
+    writeFileSync(nodePath.join(project, 'packages/retro-relay/index.ts'), 'export {};\n');
+    git(project, 'add', 'packages/retro-relay/index.ts');
     git(project, 'commit', '-m', 'relay input');
     const relaySha = git(project, 'rev-parse', 'HEAD');
     expect(detect(project, current, relaySha)).toBe('deploy=true');

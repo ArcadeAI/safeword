@@ -15,6 +15,7 @@ export interface WorkflowStep {
 
 export interface WorkflowJob {
   'continue-on-error'?: boolean;
+  concurrency?: unknown;
   environment?: string;
   if?: string;
   name?: string;

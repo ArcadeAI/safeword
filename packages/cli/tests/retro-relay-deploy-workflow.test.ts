@@ -53,6 +53,10 @@ describe('Retro Relay deployment workflow', () => {
     ]);
     expect(deployment.environment).toBe('retro-relay-production');
     expect(deployment['timeout-minutes']).toBe(15);
+    expect(deployment.concurrency).toEqual({
+      group: 'retro-relay-production',
+      'cancel-in-progress': false,
+    });
     expect(deployment.if).toContain("github.event_name == 'push'");
     expect(deployment.if).toContain("github.ref == 'refs/heads/main'");
     expect(deployment.if).toContain("needs.relay-inputs.outputs.deploy == 'true'");
