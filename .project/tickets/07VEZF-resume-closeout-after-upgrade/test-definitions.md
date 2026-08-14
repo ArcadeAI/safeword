@@ -244,6 +244,18 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario Outline: Authorized creation clears an unbound repository claim [an orphan claim without a handoff]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Authorized creation clears an unbound repository claim [a claim naming a different absent handoff]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario Outline: A handoff at its expiry boundary can be replaced [no claim]
 
 - [ ] RED
@@ -316,7 +328,25 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario Outline: Installed Codex SessionStart wiring rejects an unusable handoff [expired handoff]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Installed Codex SessionStart wiring rejects an unusable handoff [handoff carrying foreign profile provenance]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: The installed continuation invokes the shipped guarded closeout surface
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Shipped guarded cleanup removes the real profile receipt
 
 - [ ] RED
 - [ ] GREEN
@@ -329,6 +359,12 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] REFACTOR
 
 ### Scenario: A handoff with unknown fields remains forward compatible
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A matching repository handoff from another checkout is not delivered
 
 - [ ] RED
 - [ ] GREEN
@@ -480,7 +516,7 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario Outline: An impossible handoff clock is not presented as current work [a write time in the future]
+### Scenario Outline: An impossible handoff clock is not presented as current work [a write time more than five minutes in the future]
 
 - [ ] RED
 - [ ] GREEN
@@ -498,7 +534,13 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario Outline: An impossible handoff clock is not presented as current work [an expiry less than 24 hours after its write time]
+### Scenario Outline: Reader tolerance accepts bounded handoff clocks [a write time exactly five minutes in the future]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Reader tolerance accepts bounded handoff clocks [an expiry one hour after its write time]
 
 - [ ] RED
 - [ ] GREEN
@@ -560,13 +602,19 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 
 ## Rule: resume-closeout-after-upgrade.TBU1.R1 — A handoff is bound to one repository and claimed by at most one current Codex task
 
-### Scenario: The first matching task atomically claims the handoff
+### Scenario: Concurrent protected starts elect one current claimant
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: A different task cannot consume a live claim
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A repeated startup in the same current task does not duplicate delivery
 
 - [ ] RED
 - [ ] GREEN
@@ -632,12 +680,6 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Repeated discovery by the current claim owner re-emits the same advisory
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
 ### Scenario: An orphan claim record cannot trigger discovery
 
 - [ ] RED
@@ -650,6 +692,12 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Repository disagreement takes precedence over foreign provenance
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Structural failure takes precedence over foreign provenance
 
 - [ ] RED
@@ -657,6 +705,12 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] REFACTOR
 
 ### Scenario: Foreign profile provenance takes precedence over expiry
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Handoff rejection takes precedence over malformed claim state
 
 - [ ] RED
 - [ ] GREEN
@@ -710,6 +764,12 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario Outline: A store path replaced by a symlink before mutation is rejected [repository-store generation swap]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario Outline: A store path replaced by a symlink before mutation is rejected [receipt removal]
 
 - [ ] RED
@@ -723,6 +783,12 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] REFACTOR
 
 ### Scenario: A handoff from a different profile installation is rejected
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Reinstalling the Codex profile invalidates an old pending handoff
 
 - [ ] RED
 - [ ] GREEN
@@ -806,6 +872,72 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario Outline: The command observer covers destructive escape routes [a force-push]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: The command observer covers destructive escape routes [local branch deletion]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: The command observer covers destructive escape routes [remote ref deletion]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: The command observer covers destructive escape routes [a hard reset]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: The command observer covers destructive escape routes [tag mutation]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: The command observer covers destructive escape routes [remote mutation]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: The command observer covers destructive escape routes [a worktree command]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: The command observer covers destructive escape routes [direct filesystem removal of a cleanup target]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: The command observer covers destructive escape routes [a merge mutation]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: The command observer covers destructive escape routes [an approval mutation]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: The command observer covers destructive escape routes [a pull-request mutation]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario Outline: Unaffected agent hosts cannot discover or claim a Codex handoff [Claude Code]
 
 - [ ] RED
@@ -880,6 +1012,12 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: An unavailable pull request takes precedence over recorded head mismatch
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Repository drift takes precedence over pull-request head drift
 
 - [ ] RED
@@ -940,6 +1078,12 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A user dismisses a permanently undeliverable handoff
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Expiry revokes an in-flight cleanup before destructive apply
 
 - [ ] RED
@@ -953,6 +1097,18 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] REFACTOR
 
 ### Scenario Outline: Restarted closeout cannot remove its current execution context [the current worktree]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Current execution context follows earlier safety observations and precedes target drift [an unmerged pull request]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Current execution context follows earlier safety observations and precedes target drift [a recreated target identity]
 
 - [ ] RED
 - [ ] GREEN
