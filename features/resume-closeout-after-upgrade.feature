@@ -7,6 +7,8 @@
 #
 # Reproducing the same filesystem, profile, and hook fixtures as Cucumber steps
 # would duplicate the integration harness without adding confidence.
+# Every phrase saying no destructive command is run or emitted is checked through
+# the command observer for branch, worktree, merge, approval, and pull-request mutations.
 @proof.vitest @surface.openai-codex @surface.closeout-cleanup-guard
 Feature: Resume interrupted closeout after a Codex upgrade
 
@@ -155,6 +157,14 @@ Feature: Resume interrupted closeout after a Codex upgrade
         | expired |
         | invalid |
 
+    @rejection
+    Scenario: A valid match and a store-key identity disagreement remain ambiguous
+      Given one fresh valid matching handoff and one record under the current repository key naming a different validated canonical repository exist at a controlled time
+      When blocked closeout attempts to record another pull request for that repository
+      Then both existing handoff bytes remain unchanged
+      And no third handoff is created
+      And the current task output reports ambiguous pending closeout state
+
     Scenario Outline: Authorized creation replaces multiple unusable matching handoffs
       Given <unusable records> all normalize to the current canonical repository at a controlled time
       When blocked closeout records one exact pull request for that repository
@@ -199,6 +209,7 @@ Feature: Resume interrupted closeout after a Codex upgrade
       Examples:
         | invalid state |
         | a malformed schema |
+        | a store key whose decoded repository identity disagrees |
         | missing profile provenance |
         | foreign profile provenance |
         | an impossible clock |
@@ -299,6 +310,13 @@ Feature: Resume interrupted closeout after a Codex upgrade
       And the real profile-store claim names that new protected task
       And the existing protected SessionStart proof is still emitted
       And no branch, worktree, merge, approval, or pull-request state-changing command is run
+
+    Scenario: The installed continuation invokes the shipped guarded closeout surface
+      Given the CLI-installed SessionStart hook emits its exact continuation and atomically claims a fresh matching handoff
+      When the protected task invokes that exact continuation against the CLI-installed closeout surface
+      Then the shipped closeout guard accepts the numeric pull request without requiring a prior transcript
+      And the guard creates a fresh cleanup preview before any destructive apply
+      And the command observer records no branch, worktree, merge, approval, or pull-request state-changing command
 
     Scenario: Shipped blocked-closeout wiring records the pending closeout
       Given the CLI-installed Codex closeout surface observes one exact pull request at a controlled time
@@ -640,6 +658,24 @@ Feature: Resume interrupted closeout after a Codex upgrade
       Then SessionStart output reports that pending closeout could not be claimed
       And no continuation or destructive command is emitted
       And the handoff remains unchanged
+      And the existing protected SessionStart proof is still emitted
+
+    @rejection
+    Scenario: Interrupted first claim creation exposes no partial owner
+      Given a fresh matching handoff has no claim and claim persistence is interrupted after staging complete bytes but before atomic commit
+      When a protected Codex task starts in the same repository at a controlled time
+      Then no committed claim or staged claim is treated as a live owner
+      And the handoff bytes remain unchanged
+      And SessionStart emits no closeout continuation
+      And the existing protected SessionStart proof is still emitted
+
+    @rejection
+    Scenario: Interrupted claim reclaim preserves the complete former owner
+      Given a fresh matching handoff has one complete stale-owner claim and reclaim is interrupted after staging the new owner but before atomic commit
+      When the new protected Codex task starts in the same repository at a controlled time
+      Then the former claim owner bytes remain unchanged and no staged claim is treated as current
+      And the handoff bytes remain unchanged
+      And SessionStart emits no closeout continuation
       And the existing protected SessionStart proof is still emitted
 
     Scenario: Repeated discovery by the current claim owner re-emits the same advisory

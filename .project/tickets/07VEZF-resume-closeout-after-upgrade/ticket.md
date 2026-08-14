@@ -48,3 +48,4 @@ last_modified: 2026-08-13T18:15:59.751Z
 - 2026-08-14T08:08:00.000Z Scenario gate: Made foreign-claim absence observable, distinguished claimed idempotence from conflicts, isolated unrelated malformed records on read and write, and specified partial-cleanup recovery state.
 - 2026-08-14T09:03:00.000Z Scenario gate: Proved foreign-unusable silence, every adjacent discovery and cleanup precedence boundary, discovery integer boundaries, and removed the last vacuous or duplicated steps before remote verification.
 - 2026-08-14T10:31:00.000Z Scenario gate: Unified stale-protection output, removed a vacuous reclaim assertion, completed cleanup precedence and losing-writer recovery, made advisory non-authority structural, and restored atomic interruption scenarios.
+- 2026-08-14T10:39:00.000Z Scenario gate: Defined write-side key mismatch handling, claim/reclaim interruption atomicity, installed continuation-to-guard wiring, and a uniform command-observer contract.

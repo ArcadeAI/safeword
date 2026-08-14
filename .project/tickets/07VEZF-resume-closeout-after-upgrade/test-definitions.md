@@ -160,6 +160,12 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A valid match and a store-key identity disagreement remain ambiguous
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario Outline: Authorized creation replaces multiple unusable matching handoffs [two expired handoffs]
 
 - [ ] RED
@@ -191,6 +197,12 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] REFACTOR
 
 ### Scenario Outline: One invalid existing handoff is replaced explicitly [a malformed schema]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: One invalid existing handoff is replaced explicitly [a store key whose decoded repository identity disagrees]
 
 - [ ] RED
 - [ ] GREEN
@@ -299,6 +311,12 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] REFACTOR
 
 ### Scenario: Installed Codex SessionStart wiring delivers the pending closeout
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: The installed continuation invokes the shipped guarded closeout surface
 
 - [ ] RED
 - [ ] GREEN
@@ -591,6 +609,18 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] REFACTOR
 
 ### Scenario: A failed atomic claim does not emit a continuation
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Interrupted first claim creation exposes no partial owner
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Interrupted claim reclaim preserves the complete former owner
 
 - [ ] RED
 - [ ] GREEN
