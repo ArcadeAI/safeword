@@ -74,6 +74,7 @@ Feature: Filer ack + bare-drain tripwire — a drained spool no longer self-cert
     @filer-ack-tripwire.SM1.AC3
     Scenario: Capture-off suppresses the tripwire; file-off alone does not
       Given an unacked removal is present at evaluation time
+      When the tripwire evaluates each self-report configuration
       Then no signal is captured when selfReport.capture is false
       And a signal is still captured when capture is true and selfReport.file is false
 
@@ -89,6 +90,7 @@ Feature: Filer ack + bare-drain tripwire — a drained spool no longer self-cert
     @filer-ack-tripwire.SM2.AC1
     Scenario: Shipped prompts and the guide carry the ack procedure and drain prohibition
       Given the installed filer agent definitions, the dispatch text, and the filing guide
+      When their acknowledgement guidance is inspected
       Then both agent definitions instruct ack-after-post-before-drain
       And the dispatch text states that only the filer drains the spool
       And the guide's inline-fallback section documents appending the signature-and-issue ack record
@@ -105,5 +107,6 @@ Feature: Filer ack + bare-drain tripwire — a drained spool no longer self-cert
     @filer-ack-tripwire.TB1.AC1
     Scenario: The captured signal is allowlist-shaped and the retro spool is untouched
       Given a tripped bare drain
+      When the captured signal and spool are inspected
       Then the captured record carries errorClass RetroBareDrain with allowlist-only fields deduping to one signature group
       And the retro draft spool contents are byte-identical before and after the trip

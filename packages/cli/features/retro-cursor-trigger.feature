@@ -110,7 +110,7 @@ Feature: retro auto-trigger — Cursor
       And it leaves the once-per-session sentinel unset
 
     @retro-cursor-trigger.TB1.AC1
-    Scenario Outline: A malformed or unreadable input fails open
+    Scenario Outline: A malformed or unreadable Cursor adapter input fails open
       Given a Cursor stop adapter invoked with <bad-input>
       When the adapter runs
       Then the output has no retro followup

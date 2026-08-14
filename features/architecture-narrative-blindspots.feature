@@ -102,9 +102,11 @@ Feature: Architecture narrative reconciliation reaches configured narratives
     @proof.vitest @architecture-narrative-blindspots.TB1.AC4
     Scenario: The architecture review prompt resolves the narrative via paths.architecture
       Given the installed architecture review prompt
+      When its narrative-resolution instructions are inspected
       Then it directs the agent to the paths.architecture narrative with root ARCHITECTURE.md as the fallback
 
     @proof.vitest @architecture-narrative-blindspots.TB1.AC4
     Scenario: The audit skill's structural-drift check resolves the narrative via paths.architecture
       Given the installed audit skill
+      When its structural-drift instructions are inspected
       Then its structural-drift check directs the agent to the paths.architecture narrative with root ARCHITECTURE.md as the fallback

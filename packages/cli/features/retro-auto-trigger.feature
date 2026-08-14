@@ -89,7 +89,7 @@ Feature: retro auto-trigger (Claude-first)
   Rule: The hook never breaks the turn (TB1.AC2)
 
     @retro-auto-trigger.TB1.AC2
-    Scenario Outline: A malformed or unreadable input fails open
+    Scenario Outline: A malformed or unreadable Claude Stop input fails open
       Given a Stop hook is invoked with <bad-input>
       When the hook runs
       Then it exits zero

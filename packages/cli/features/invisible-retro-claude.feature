@@ -43,6 +43,7 @@ Feature: Invisible retro — synchronous headless claude -p extraction
     @invisible-retro-claude.TB2.AC1
     Scenario: invisible-retro-claude.TB2.AC1.headless_argv_omits_bare_flag
       Given the Claude headless extractor argv is constructed
+      When the headless invocation is inspected
       Then it contains `-p` and `--output-format json`
       And it does not contain `--bare`
       And `--allowed-tools` permits `Read` and excludes write and Bash tools

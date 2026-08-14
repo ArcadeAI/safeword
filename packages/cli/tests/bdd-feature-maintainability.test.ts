@@ -103,6 +103,19 @@ function baselineOffloadFeature(): string {
 }
 
 describe('BDD feature maintainability', () => {
+  it('expresses an observable event in every production scenario', () => {
+    const staticScenarios = configuredFeatureFiles().flatMap(relativePath => {
+      const source = readFileSync(nodePath.join(REPO_ROOT, relativePath), 'utf8');
+      return parseFeatureScenarios(source).flatMap(scenario =>
+        scenario.steps.some(step => step.startsWith('When '))
+          ? []
+          : [{ path: relativePath, scenario: scenario.title }],
+      );
+    });
+
+    expect(staticScenarios).toEqual([]);
+  });
+
   it('keeps offload steps narrow enough to identify one failing observation', () => {
     const oversizedSteps = configuredFeatureFiles()
       .filter(relativePath => relativePath.startsWith(OFFLOAD_FEATURE_PREFIX))
