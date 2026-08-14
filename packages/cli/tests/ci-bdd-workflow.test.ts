@@ -3,38 +3,18 @@
  * identical cross-stack Cucumber acceptance lane runs exactly once.
  */
 
-import { readFileSync } from 'node:fs';
-import nodePath from 'node:path';
-
 import { describe, expect, it } from 'vitest';
-import { parse } from 'yaml';
 
-const workflowPath = nodePath.resolve(import.meta.dirname, '../../../.github/workflows/ci.yml');
-
-interface WorkflowStep {
-  if?: string;
-  name?: string;
-  run?: string;
-}
-
-interface Workflow {
-  jobs: {
-    test: {
-      steps: WorkflowStep[];
-      strategy: { matrix: { 'node-version': string[] } };
-    };
-  };
-}
+import { readGitHubWorkflow, requiredJob } from './helpers/github-workflow.js';
 
 describe('CI BDD acceptance assignment', () => {
   it('keeps both supported Node package suites but runs Cucumber once', () => {
-    const workflow = parse(readFileSync(workflowPath, 'utf8')) as Workflow;
-    const testJob = workflow.jobs.test;
-    const acceptanceSteps = testJob.steps.filter(
+    const testJob = requiredJob(readGitHubWorkflow('ci.yml'), 'test');
+    const acceptanceSteps = (testJob.steps ?? []).filter(
       step => step.name === 'Acceptance lane (cucumber)',
     );
 
-    expect(testJob.strategy.matrix['node-version']).toEqual(['22.23.2', '24.18.1']);
+    expect(testJob.strategy?.matrix?.['node-version']).toEqual(['22.23.2', '24.18.1']);
     expect(acceptanceSteps).toEqual([
       {
         name: 'Acceptance lane (cucumber)',

@@ -3,26 +3,16 @@
  * manually operable production deployment path.
  */
 
-import { readFileSync } from 'node:fs';
-import nodePath from 'node:path';
-
 import { describe, expect, it } from 'vitest';
-import { parse } from 'yaml';
 
-const workflowPath = nodePath.resolve(
-  import.meta.dirname,
-  '../../../.github/workflows/deploy-retro-relay.yml',
-);
-const ciWorkflowPath = nodePath.resolve(import.meta.dirname, '../../../.github/workflows/ci.yml');
+import { readGitHubWorkflow, requiredJob, requiredStep } from './helpers/github-workflow.js';
 
 describe('Retro Relay deployment workflow', () => {
   it('keeps an environment-protected manual recovery path', () => {
-    const source = readFileSync(workflowPath, 'utf8');
-    const workflow = parse(source) as {
-      on: string;
-      permissions: { contents: string };
-      concurrency: { group: string; 'cancel-in-progress': boolean };
-    };
+    const workflow = readGitHubWorkflow('deploy-retro-relay.yml');
+    const deployment = requiredJob(workflow, 'deploy');
+    const validationStep = requiredStep(deployment, 'Validate deployment configuration');
+    const deployStep = requiredStep(deployment, 'Deploy through Railway');
 
     expect(workflow.on).toBe('workflow_dispatch');
     expect(workflow.permissions).toEqual({ contents: 'read' });
@@ -30,29 +20,29 @@ describe('Retro Relay deployment workflow', () => {
       group: 'retro-relay-production',
       'cancel-in-progress': false,
     });
-    expect(source).toContain('environment: retro-relay-production');
-    expect(source).toContain('actions/setup-node@v7');
-    expect(source).toContain('RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}');
-    expect(source).toContain('RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_RETRO_RELAY_PROJECT_ID }}');
-    expect(source).toContain('RAILWAY_ENVIRONMENT: ${{ vars.RAILWAY_RETRO_RELAY_ENVIRONMENT }}');
-    expect(source).toContain('RAILWAY_SERVICE: ${{ vars.RAILWAY_RETRO_RELAY_SERVICE }}');
-    expect(source).toContain('Missing RAILWAY_TOKEN environment secret');
-    expect(source).toContain('railway up --ci');
-    expect(source).toContain('--project "$RAILWAY_PROJECT_ID"');
-    expect(source).toContain('--environment "$RAILWAY_ENVIRONMENT"');
-    expect(source).toContain('--service "$RAILWAY_SERVICE"');
-    expect(source).not.toContain('echo "$RAILWAY_TOKEN"');
+    expect(deployment.environment).toBe('retro-relay-production');
+    expect(deployment.steps?.some(step => step.uses === 'actions/setup-node@v7')).toBe(true);
+    expect(validationStep.env).toMatchObject({
+      RAILWAY_TOKEN: '${{ secrets.RAILWAY_TOKEN }}',
+      RAILWAY_PROJECT_ID: '${{ vars.RAILWAY_RETRO_RELAY_PROJECT_ID }}',
+      RAILWAY_ENVIRONMENT: '${{ vars.RAILWAY_RETRO_RELAY_ENVIRONMENT }}',
+      RAILWAY_SERVICE: '${{ vars.RAILWAY_RETRO_RELAY_SERVICE }}',
+    });
+    expect(validationStep.run).toContain('Missing RAILWAY_TOKEN environment secret');
+    expect(deployStep.env).toEqual(validationStep.env);
+    expect(deployStep.run).toContain('railway up --ci');
+    expect(deployStep.run).toContain('--project "$RAILWAY_PROJECT_ID"');
+    expect(deployStep.run).toContain('--environment "$RAILWAY_ENVIRONMENT"');
+    expect(deployStep.run).toContain('--service "$RAILWAY_SERVICE"');
+    expect(deployStep.run).not.toContain('echo "$RAILWAY_TOKEN"');
   });
 
   it('deploys relevant main changes only after every CI gate passes', () => {
-    const source = readFileSync(ciWorkflowPath, 'utf8');
-    const workflow = parse(source) as {
-      jobs: Record<string, { needs?: string[]; environment?: string; if?: string }>;
-    };
-
-    const deployment = workflow.jobs['deploy-retro-relay'];
-    expect(deployment).toBeDefined();
-    if (deployment === undefined) throw new Error('missing deploy-retro-relay job');
+    const workflow = readGitHubWorkflow('ci.yml');
+    const deployment = requiredJob(workflow, 'deploy-retro-relay');
+    const inputs = requiredJob(workflow, 'relay-inputs');
+    const detectStep = requiredStep(inputs, 'Detect relay deployment inputs');
+    const deployStep = requiredStep(deployment, 'Deploy through Railway');
     expect(deployment.needs).toEqual([
       'dogfood-parity',
       'cli-contract',
@@ -63,9 +53,9 @@ describe('Retro Relay deployment workflow', () => {
     ]);
     expect(deployment.environment).toBe('retro-relay-production');
     expect(deployment.if).toContain("github.ref == 'refs/heads/main'");
-    expect(source).toContain('git diff --name-only "$BEFORE" "$SHA"');
-    expect(source).toContain('packages/retro-relay/*');
-    expect(source).toContain('RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}');
-    expect(source).toContain('railway up --ci');
+    expect(detectStep.run).toContain('git diff --name-only "$BEFORE" "$SHA"');
+    expect(detectStep.run).toContain('packages/retro-relay/*');
+    expect(deployStep.env?.RAILWAY_TOKEN).toBe('${{ secrets.RAILWAY_TOKEN }}');
+    expect(deployStep.run).toContain('railway up --ci');
   });
 });
