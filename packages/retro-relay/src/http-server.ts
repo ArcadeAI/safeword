@@ -57,6 +57,22 @@ function decodePathSegment(value: string): string {
   }
 }
 
+const RECONCILE_ROUTE = /^\/v1\/retro-filings\/([^/]+)\/reconcile$/u;
+const RECOVER_ROUTE = /^\/v1\/retro-filings\/([^/]+)\/recover$/u;
+const RECEIPT_ROUTE = /^\/v1\/retro-filings\/([^/]+)$/u;
+
+/** Returns the decoded receipt id when the request matches the route, else undefined. */
+function matchReceiptRoute(
+  requestMethod: string | undefined,
+  pathname: string,
+  expectedMethod: string,
+  pattern: RegExp,
+): string | undefined {
+  if (requestMethod !== expectedMethod) return undefined;
+  const segment = pattern.exec(pathname)?.[1];
+  return segment === undefined ? undefined : decodePathSegment(segment);
+}
+
 export interface RelayServerFaults extends RelayFaults {
   afterReceiptCommit?: () => void;
 }
@@ -319,27 +335,25 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
         await respondWithSubmission(request, response, principal);
         return;
       }
-      const reconciliation = /^\/v1\/retro-filings\/([^/]+)\/reconcile$/u.exec(url.pathname);
-      if (request.method === 'POST' && reconciliation?.[1] !== undefined) {
-        const decodedReceipt = decodePathSegment(reconciliation[1]);
-        await respondWithReconciliation(response, decodedReceipt, principal.subject, async () => ({
+      const toReconcile = matchReceiptRoute(request.method, url.pathname, 'POST', RECONCILE_ROUTE);
+      if (toReconcile !== undefined) {
+        await respondWithReconciliation(response, toReconcile, principal.subject, async () => ({
           disposition: 'adopted',
-          receipt: await service.reconcile(principal, decodedReceipt),
+          receipt: await service.reconcile(principal, toReconcile),
         }));
         return;
       }
-      const recovery = /^\/v1\/retro-filings\/([^/]+)\/recover$/u.exec(url.pathname);
-      if (request.method === 'POST' && recovery?.[1] !== undefined) {
-        const decodedReceipt = decodePathSegment(recovery[1]);
-        await respondWithReconciliation(response, decodedReceipt, principal.subject, async () => {
-          const recovered = await service.recover(principal, decodedReceipt);
+      const toRecover = matchReceiptRoute(request.method, url.pathname, 'POST', RECOVER_ROUTE);
+      if (toRecover !== undefined) {
+        await respondWithReconciliation(response, toRecover, principal.subject, async () => {
+          const recovered = await service.recover(principal, toRecover);
           return { disposition: recovered.disposition, receipt: recovered.receipt };
         });
         return;
       }
-      const status = /^\/v1\/retro-filings\/([^/]+)$/u.exec(url.pathname);
-      if (request.method === 'GET' && status?.[1] !== undefined) {
-        const receipt = service.status(principal, decodePathSegment(status[1]));
+      const toRead = matchReceiptRoute(request.method, url.pathname, 'GET', RECEIPT_ROUTE);
+      if (toRead !== undefined) {
+        const receipt = service.status(principal, toRead);
         if (!isTerminalReceiptState(receipt.state)) {
           response.setHeader('retry-after', '1');
         }
