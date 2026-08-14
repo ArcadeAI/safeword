@@ -214,13 +214,14 @@ Feature: Resume interrupted closeout after a Codex upgrade
       Given the CLI-installed Codex profile has one fresh handoff for the current repository at a controlled time
       When the installed profile dispatches its real SessionStart hook for a new protected task
       Then the hook output contains one continuation naming the numeric pending pull request
+      And the real profile-store claim names that new protected task
       And the existing protected SessionStart proof is still emitted
       And no branch, worktree, merge, approval, or pull-request state-changing command is run
 
     Scenario: Shipped blocked-closeout wiring records the pending closeout
       Given the CLI-installed Codex closeout surface observes one exact pull request at a controlled time
       When that shipped surface reaches its blocked restart path
-      Then one advisory handoff records the observed pull request identity
+      Then the real profile store contains one advisory handoff recording the observed pull request identity
       And the shipped output directs the user to start a new protected Codex task
       And the command observer records no branch, worktree, merge, approval, or pull-request state-changing command
 
@@ -261,7 +262,7 @@ Feature: Resume interrupted closeout after a Codex upgrade
 
     @rejection
     Scenario: A handoff-store failure still tells the user how to recover
-      Given closeout has observed one exact pull request and handoff-store writes fail while reads remain available
+      Given an initially empty store, one exact observed pull request, and handoff-store writes that fail while reads remain available
       When closeout cannot obtain a protected current-task binding
       Then no restart handoff is reported as saved
       And no handoff or claim record exists for that repository afterward
@@ -272,7 +273,7 @@ Feature: Resume interrupted closeout after a Codex upgrade
     Scenario: Interrupted first handoff creation exposes no partial record
       Given no handoff exists and persistence is interrupted after staging complete bytes but before atomic commit
       When blocked closeout records one exact pull request at a controlled time
-      Then no committed or temporary handoff is discoverable
+      Then no committed handoff or staged temporary file is treated as discoverable current work
       And the current task output directs the user to retry with the numeric pull request
       And no branch, worktree, merge, approval, or pull-request state-changing command is run
 
@@ -281,7 +282,7 @@ Feature: Resume interrupted closeout after a Codex upgrade
       Given one <existing state> handoff exists and replacement is interrupted after staging complete bytes but before atomic commit
       When blocked closeout records one exact pull request at a controlled time
       Then the original handoff bytes remain unchanged
-      And no temporary handoff is discoverable
+      And no staged temporary file is treated as discoverable current work
       And SessionStart observes the complete original state rather than a torn mixture
 
       Examples:
