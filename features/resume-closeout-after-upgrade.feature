@@ -163,6 +163,15 @@ Feature: Resume interrupted closeout after a Codex upgrade
         | two expired handoffs |
         | one expired and one invalid handoff |
 
+    @rejection
+    Scenario: Interrupted multi-record replacement preserves the complete old generation
+      Given two unusable matching handoffs exist and their repository-store generation swap is interrupted before atomic commit
+      When blocked closeout records one exact pull request for that repository at a controlled time
+      Then both original unusable handoffs remain byte-for-byte complete
+      And no fresh handoff or staged generation is discoverable
+      And the current task output directs the user to retry with the numeric pull request
+      And the command observer records no branch, worktree, merge, approval, or pull-request state-changing command
+
     Scenario: Foreign handoffs do not block writing for the current repository
       Given one fresh handoff exists for a foreign repository at a controlled time
       When blocked closeout records one exact pull request for the current repository
@@ -220,6 +229,13 @@ Feature: Resume interrupted closeout after a Codex upgrade
       Then the handoff and current claim record bytes remain unchanged
       And the blocked task output reports that its protection is no longer current
       And no branch, worktree, merge, approval, or pull-request state-changing command is run
+
+    Scenario: A current claim owner records the same pending closeout idempotently
+      Given blocked closeout's current protected task already claims a fresh matching handoff with the same pull-request identity at a controlled time
+      When blocked closeout attempts to record that pull request again
+      Then the handoff and current claim record bytes remain unchanged
+      And the current task output reports the existing pending closeout
+      And the command observer records no branch, worktree, merge, approval, or pull-request state-changing command
 
     @rejection
     Scenario: A fresh handoff with a stale claim is preserved for restart discovery
@@ -543,7 +559,7 @@ Feature: Resume interrupted closeout after a Codex upgrade
     Scenario: A missing activation marker does not authorize reclaim
       Given a protected Codex task passed its startup proof, claimed a fresh matching handoff, and then its profile activation marker was removed
       When an unprotected Codex task runs SessionStart in the same repository at a controlled time
-      Then SessionStart output reports that claim ownership cannot be established
+      Then startup output reports that protected handoff discovery was skipped
       And the handoff and claim record bytes remain unchanged
       And no continuation or destructive command is emitted
 
@@ -766,6 +782,13 @@ Feature: Resume interrupted closeout after a Codex upgrade
         | target | observation |
         | the branch target | branch target is missing |
         | the worktree target | worktree target is missing |
+
+    Scenario: A later task clears a receipt after cleanup already completed
+      Given a merged pull request has a surviving fresh handoff receipt but both preview-recorded branch and worktree targets are absent at a controlled time
+      When a later protected task resumes guarded closeout from that receipt
+      Then closeout output reports that cleanup was already complete for the numeric pull request
+      And the command observer records no branch, worktree, merge, approval, or pull-request state-changing command
+      And the surviving handoff and current claim record are removed
 
     @rejection
     Scenario: Failed guarded cleanup preserves the handoff until expiry

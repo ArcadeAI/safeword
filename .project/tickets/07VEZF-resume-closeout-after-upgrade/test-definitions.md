@@ -172,6 +172,12 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Interrupted multi-record replacement preserves the complete old generation
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Foreign handoffs do not block writing for the current repository
 
 - [ ] RED
@@ -239,6 +245,12 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] REFACTOR
 
 ### Scenario: A blocked former claim owner cannot rewrite its handoff
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A current claim owner records the same pending closeout idempotently
 
 - [ ] RED
 - [ ] GREEN
@@ -785,6 +797,12 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] REFACTOR
 
 ### Scenario Outline: A later task safely resolves a receipt left after cleanup [the worktree target]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A later task clears a receipt after cleanup already completed
 
 - [ ] RED
 - [ ] GREEN
