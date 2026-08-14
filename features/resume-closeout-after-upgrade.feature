@@ -178,6 +178,13 @@ Feature: Resume interrupted closeout after a Codex upgrade
       Then one fresh handoff contains the newly observed pull request identity for the current repository
       And the foreign handoff bytes remain unchanged
 
+    Scenario: An unrelated malformed store entry does not block authorized creation
+      Given one malformed handoff is stored under a normalized key for a different repository at a controlled time
+      When blocked closeout records one exact pull request for the current repository
+      Then one fresh handoff contains the newly observed pull request identity for the current repository
+      And the unrelated malformed handoff bytes remain unchanged
+      And the command observer records no branch, worktree, merge, approval, or pull-request state-changing command
+
     Scenario Outline: One invalid existing handoff is replaced explicitly
       Given one existing handoff for the current repository has <invalid state> at a controlled time
       When blocked closeout records one exact pull request for that repository
@@ -234,7 +241,7 @@ Feature: Resume interrupted closeout after a Codex upgrade
       Given blocked closeout's current protected task already claims a fresh matching handoff with the same pull-request identity at a controlled time
       When blocked closeout attempts to record that pull request again
       Then the handoff and current claim record bytes remain unchanged
-      And the current task output reports the existing pending closeout
+      And the current task output reports that the same pending closeout was already saved and remains claimed by this task
       And the command observer records no branch, worktree, merge, approval, or pull-request state-changing command
 
     @rejection
@@ -337,6 +344,14 @@ Feature: Resume interrupted closeout after a Codex upgrade
       Then SessionStart output contains one continuation naming the matching numeric pull request
       And the matching handoff is claimed by the current task
       And the foreign handoff bytes remain unchanged
+
+    Scenario: Discovery ignores an unrelated malformed store entry
+      Given one fresh matching handoff and one malformed handoff under a normalized key for a different repository exist at a controlled time
+      When a protected Codex task starts in the matching repository
+      Then SessionStart output contains one continuation naming the matching numeric pull request
+      And the matching handoff is claimed by the current task
+      And the unrelated malformed handoff bytes remain unchanged
+      And the existing protected SessionStart proof is still emitted
       And the existing protected SessionStart proof is still emitted
 
     @rejection
@@ -416,7 +431,8 @@ Feature: Resume interrupted closeout after a Codex upgrade
       When a protected Codex task starts at a controlled time
       Then SessionStart output does not disclose or name the foreign handoff
       And no continuation or destructive command is emitted
-      And the foreign handoff and claim record bytes remain unchanged
+      And the foreign handoff bytes remain unchanged
+      And no claim record is created for the foreign handoff
       And the existing protected SessionStart proof is still emitted
       And SessionStart output contains no pending-closeout selection notice
 
@@ -801,6 +817,8 @@ Feature: Resume interrupted closeout after a Codex upgrade
       Then closeout output reports <observation> for the numeric pull request
       And no branch or worktree removal command is run
       And no merge, approval, or pull-request state-changing command is run
+      And the surviving handoff and current claim record remain unchanged for guarded recovery until expiry
+      And closeout output directs the user to resolve the remaining cleanup target
 
       Examples:
         | target | observation |

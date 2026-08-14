@@ -184,6 +184,12 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: An unrelated malformed store entry does not block authorized creation
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario Outline: One invalid existing handoff is replaced explicitly [a malformed schema]
 
 - [ ] RED
@@ -335,6 +341,12 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] REFACTOR
 
 ### Scenario: Discovery selects one matching handoff among foreign handoffs
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Discovery ignores an unrelated malformed store entry
 
 - [ ] RED
 - [ ] GREEN
