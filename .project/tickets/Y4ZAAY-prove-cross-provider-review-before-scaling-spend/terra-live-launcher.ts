@@ -58,17 +58,22 @@ export type PaidChildResult = {
 export function createTerraPaidChildCommand(input: {
   harnessDirectory: string;
   inputPath: string;
+  runtime?: { bunInstall?: string; execPath: string; isBun: boolean };
 }): { args: string[]; command: string } {
   if (!isAbsolute(input.harnessDirectory) || !isAbsolute(input.inputPath)) {
     throw new Error("paid child paths must be absolute");
   }
-  const bunInstall = process.env.BUN_INSTALL;
+  const runtime = input.runtime ?? {
+    bunInstall: process.env.BUN_INSTALL,
+    execPath: process.execPath,
+    isBun: process.versions.bun !== undefined,
+  };
   const command =
-    process.versions.bun !== undefined
-      ? process.execPath
-      : bunInstall === undefined
+    runtime.isBun
+      ? runtime.execPath
+      : runtime.bunInstall === undefined
         ? ""
-        : join(bunInstall, "bin/bun");
+        : join(runtime.bunInstall, "bin/bun");
   if (!isAbsolute(command)) {
     throw new Error("an absolute Bun runtime path is required");
   }
@@ -272,9 +277,17 @@ async function preflightPinnedCheckoutInternal(
       ["fetch", "--quiet", "--no-tags", "origin", "refs/heads/main"],
       { cwd: checkout.directory, maxBuffer: GIT_MAX_BUFFER_BYTES }
     );
+    const fetchedMain = await git(checkout.directory, [
+      "rev-parse",
+      "--verify",
+      "FETCH_HEAD",
+    ]);
+    if (fetchedMain !== mainCommit) {
+      throw new Error("fetched canonical main does not match its advertised ref");
+    }
     await execFileAsync(
       "git",
-      ["merge-base", "--is-ancestor", checkout.commit, "FETCH_HEAD"],
+      ["merge-base", "--is-ancestor", checkout.commit, mainCommit],
       { cwd: checkout.directory, maxBuffer: GIT_MAX_BUFFER_BYTES }
     );
   } catch {
@@ -308,7 +321,7 @@ async function gitBytes(directory: string, objectPath: string): Promise<string> 
   }
 }
 
-async function verifyCommittedCorpusRegistration(input: {
+export async function verifyCommittedCorpusRegistration(input: {
   checkout: PinnedCheckout;
   corpusDigest: string;
   registrationCommit: string;
@@ -455,7 +468,7 @@ export async function verifyAuthorizedPaidChildInput(input: {
   return createHash("sha256").update(inputBytes).digest("hex");
 }
 
-function canonicalJson(value: unknown): string {
+function canonicalJson(value: unknown): string | undefined {
   const canonicalize = (item: unknown): unknown => {
     if (Array.isArray(item)) {
       return item.map(canonicalize);

@@ -1,7 +1,7 @@
-import { execFileSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { readFileSync, readdirSync } from "node:fs";
+import { isAbsolute, join } from "node:path";
 
 import { describe, expect, test } from "vitest";
 
@@ -14,15 +14,28 @@ describe("real Terra recorder wiring", () => {
       )
     ) as {
       adapterCommit: string;
+      adapterTag: string;
       harnessCommit: string;
+      harnessTag: string;
       result: string;
       sha256: Record<string, string>;
+      verificationCommand: string;
     };
     expect(qualification).toMatchObject({
       adapterCommit: "e1d54b2d12e4a97fba84e8302de31bfe8b60ba17",
+      adapterTag: "terra-adapter-v1",
       harnessCommit: "e0eb2787b4ad99ff6c6d01f114b6cd69f8ff1e27",
+      harnessTag: "terra-harness-v1",
       result: "passed",
+      verificationCommand:
+        "Y4ZAAY_ADAPTER_ROOT=<pinned-adapter> bun terra-real-recorder-wiring.fixture.ts",
     });
+    expect(Object.keys(qualification.sha256).sort()).toEqual(
+      readdirSync(import.meta.dirname)
+        .filter((filename) => filename.startsWith("terra-") && filename.endsWith(".ts"))
+        .filter((filename) => !filename.endsWith(".test.ts"))
+        .sort()
+    );
     for (const [filename, expectedDigest] of Object.entries(
       qualification.sha256
     )) {
@@ -34,21 +47,27 @@ describe("real Terra recorder wiring", () => {
     }
   });
 
-  test(
+  test.skipIf(process.env.Y4ZAAY_ADAPTER_ROOT === undefined)(
     "puts every real runner HTTP request downstream of durable canary intent using the explicitly pinned adapter",
     () => {
-      expect(process.env.Y4ZAAY_ADAPTER_ROOT).toBeTruthy();
-      expect(() =>
-        execFileSync(
-          "bun",
-          [join(import.meta.dirname, "terra-real-recorder-wiring.fixture.ts")],
-          {
-            encoding: "utf8",
-            env: process.env,
-            stdio: "pipe",
-          }
-        )
-      ).not.toThrow();
+      const bunExecutable =
+        process.versions.bun === undefined
+          ? join(process.env.BUN_INSTALL ?? "", "bin/bun")
+          : process.execPath;
+      expect(isAbsolute(bunExecutable)).toBe(true);
+      const result = spawnSync(
+        bunExecutable,
+        [join(import.meta.dirname, "terra-real-recorder-wiring.fixture.ts")],
+        {
+          encoding: "utf8",
+          env: {
+            BUN_INSTALL: process.env.BUN_INSTALL,
+            PATH: process.env.PATH,
+            Y4ZAAY_ADAPTER_ROOT: process.env.Y4ZAAY_ADAPTER_ROOT,
+          },
+        }
+      );
+      expect(result.status, result.stderr).toBe(0);
     },
     30_000
   );

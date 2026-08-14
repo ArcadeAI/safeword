@@ -21,9 +21,11 @@ import {
   parseTerraPaidChildResult,
   preflightPinnedCheckout,
   reconcilePaidChildEvidence,
+  runTerraPaidCanary as runProductionTerraPaidCanary,
   spawnPaidChild,
   terraLiveLauncherTestSupport,
   verifyAuthorizedPaidChildInput,
+  verifyCommittedCorpusRegistration,
   type PaidChildRequest,
   type PinnedCheckout,
 } from "./terra-live-launcher";
@@ -263,6 +265,49 @@ async function pinnedCheckout(name: string): Promise<PinnedCheckout> {
 }
 
 describe("credential-separated live launcher", () => {
+  test("the production composition rejects a rewritten origin before loading credentials", async () => {
+    const adapter = await pinnedCheckout("production-wrapper-adapter");
+    const harness = await pinnedCheckout("production-wrapper-harness");
+    const binding: CanaryInitializationBinding = {
+      adapterCommit: adapter.commit,
+      adapterTag: adapter.tag,
+      attemptLimit: 10,
+      canonicalRepository: adapter.canonicalRepository,
+      corpusDigest: CORPUS_DIGEST,
+      costLimitPicodollars: "15000000000000",
+      harnessCommit: harness.commit,
+      harnessTag: harness.tag,
+      model: "gpt-5.6-terra",
+      outputIdentity: "terra-production-wrapper",
+      receiptBudget: 21,
+      serviceTier: "default",
+      ticketId: "Y4ZAAY",
+    };
+    let secretLoads = 0;
+
+    await expect(
+      runProductionTerraPaidCanary({
+        adapterCheckout: adapter,
+        attemptId: "attempt-1",
+        binding,
+        createUpstream: () => memoryUpstream(),
+        harnessCheckout: harness,
+        inputPath: join(tmpdir(), "unused-production-wrapper-input.json"),
+        intentId: "intent-1",
+        loadGitHubToken: async () => {
+          secretLoads += 1;
+          return "github-secret";
+        },
+        loadOpenAIKey: async () => {
+          secretLoads += 1;
+          return "openai-secret";
+        },
+        outputDirectory: join(tmpdir(), "unused-production-wrapper-output"),
+        registration: { corpusDigest: CORPUS_DIGEST, registrationCommit: harness.commit },
+      })
+    ).rejects.toThrow("origin does not match the canonical repository");
+    expect(secretLoads).toBe(0);
+  });
 
   test.each([
     ["adapter commit", { adapterCommit: "0".repeat(40) }],
@@ -623,19 +668,105 @@ describe("credential-separated live launcher", () => {
       registrationCommit: harness.commit,
     })).rejects.toThrow("unexpected or missing fields");
   });
+
+  test("rejects corpus registration outside the authorized checkout history", async () => {
+    const harness = await pinnedCheckout("unreachable-registration");
+    await expect(
+      verifyCommittedCorpusRegistration({
+        checkout: harness,
+        corpusDigest: CORPUS_DIGEST,
+        registrationCommit: "0".repeat(40),
+      })
+    ).rejects.toThrow("not reachable from the authorized checkout");
+  });
+
+  test.each([
+    ["wrong evidence role", { role: "reserve" }],
+    ["instrument failures are not void", { voidForInstrumentFailure: false }],
+  ])("rejects committed corpus registration with %s", async (_label, patch) => {
+    const harness = await pinnedCheckout(`invalid-registration-${String(_label).replaceAll(" ", "-")}`);
+    const registrationPath = join(
+      harness.directory,
+      ".project/tickets/CWGYH0-pr-review-eval/corpus-registration-development-2026-08-11.json"
+    );
+    const registration = JSON.parse(await readFile(registrationPath, "utf8"));
+    const registrationBytes = JSON.stringify({ ...registration, ...patch });
+    const digest = createHash("sha256").update(registrationBytes).digest("hex");
+    await writeFile(registrationPath, registrationBytes, "utf8");
+    await writeFile(
+      join(
+        harness.directory,
+        ".project/tickets/CWGYH0-pr-review-eval/corpus-registration-development-2026-08-11.sha256"
+      ),
+      `${digest}\n`,
+      "utf8"
+    );
+    await execFileAsync("git", ["add", "."], { cwd: harness.directory });
+    await execFileAsync("git", ["commit", "--quiet", "-m", "invalid registration"], {
+      cwd: harness.directory,
+    });
+    const { stdout } = await execFileAsync("git", ["rev-parse", "HEAD"], {
+      cwd: harness.directory,
+    });
+    const checkout = { ...harness, commit: stdout.trim() };
+
+    await expect(
+      verifyCommittedCorpusRegistration({
+        checkout,
+        corpusDigest: digest,
+        registrationCommit: checkout.commit,
+      })
+    ).rejects.toThrow("does not match authorization");
+  });
+
+  test("rejects a committed digest file that disagrees with registration bytes", async () => {
+    const harness = await pinnedCheckout("mismatched-registration-digest");
+    await expect(
+      verifyCommittedCorpusRegistration({
+        checkout: harness,
+        corpusDigest: "0".repeat(64),
+        registrationCommit: harness.commit,
+      })
+    ).rejects.toThrow("does not match authorization");
+  });
   test("builds the pinned harness child command with absolute paths", () => {
     expect(
       createTerraPaidChildCommand({
         harnessDirectory: "/tmp/pinned-harness",
         inputPath: "/tmp/attempt-input.json",
+        runtime: {
+          bunInstall: "/opt/bun",
+          execPath: "/usr/bin/node",
+          isBun: false,
+        },
       })
     ).toEqual({
       args: [
         "/tmp/pinned-harness/.project/tickets/Y4ZAAY-prove-cross-provider-review-before-scaling-spend/terra-paid-child.ts",
         "/tmp/attempt-input.json",
       ],
-      command: join(process.env.BUN_INSTALL!, "bin/bun"),
+      command: "/opt/bun/bin/bun",
     });
+    expect(
+      createTerraPaidChildCommand({
+        harnessDirectory: "/tmp/pinned-harness",
+        inputPath: "/tmp/attempt-input.json",
+        runtime: { execPath: "/opt/bun/bin/bun", isBun: true },
+      }).command
+    ).toBe("/opt/bun/bin/bun");
+    expect(() =>
+      createTerraPaidChildCommand({
+        harnessDirectory: "/tmp/pinned-harness",
+        inputPath: "/tmp/attempt-input.json",
+        runtime: { execPath: "/usr/bin/node", isBun: false },
+      })
+    ).toThrow("absolute Bun runtime path is required");
+    expect(() =>
+      createTerraPaidChildCommand({
+        harnessDirectory: "relative-harness",
+        inputPath: "/tmp/attempt-input.json",
+      })
+    ).toThrow("paid child paths must be absolute");
   });
 
   test("runs the paid child without a shell and captures its result", async () => {

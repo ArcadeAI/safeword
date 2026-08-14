@@ -1,6 +1,8 @@
 {
   "adapterCommit": "e1d54b2d12e4a97fba84e8302de31bfe8b60ba17",
+  "adapterTag": "terra-adapter-v1",
   "harnessCommit": "e0eb2787b4ad99ff6c6d01f114b6cd69f8ff1e27",
+  "harnessTag": "terra-harness-v1",
   "qualifiedAt": "2026-08-14T21:27:28Z",
   "result": "passed",
   "sha256": {
@@ -11,5 +13,6 @@
     "terra-live-launcher.ts": "0724d36237f81e46f7a60a38071143e2ba96883dbe83402261aeededd857901a",
     "terra-paid-child.ts": "5c3b329d380c8a892035aa2dae699dad0322e1177bc764d69e9666e9471f5606",
     "terra-real-recorder-wiring.fixture.ts": "d6bcb25c3d674dc85568ec7086f4363bca4619d50dc09cb9f621208e030b6975"
-  }
+  },
+  "verificationCommand": "Y4ZAAY_ADAPTER_ROOT=<pinned-adapter> bun terra-real-recorder-wiring.fixture.ts"
 }
