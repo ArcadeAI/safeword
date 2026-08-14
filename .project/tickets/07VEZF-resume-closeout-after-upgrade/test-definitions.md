@@ -838,6 +838,12 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Pull-request head drift takes precedence over an unmerged state
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Repository drift takes precedence over pull-request head drift
 
 - [ ] RED
