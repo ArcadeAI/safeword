@@ -52,8 +52,8 @@ const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
 function normalizedCloseoutScript(path: string): string {
   return readFileSync(path, 'utf8')
     .replace(
-      /import \{\s*type CloseoutBinding,\s*readFreshCloseoutBinding,\s*recordCodexCloseoutHandoff,?\s*\} from '\.\.\/\.\.\/runtime\/hooks\/lib\/closeout-binding\.ts';/u,
-      "import {\n  type CloseoutBinding,\n  readFreshCloseoutBinding,\n  recordCodexCloseoutHandoff,\n} from '../hooks/lib/closeout-binding.ts';",
+      /import \{\s*type CloseoutBinding,\s*readFreshCloseoutBinding,\s*recordCodexCloseoutHandoff,\s*resolveExactCodexTranscript,?\s*\} from '\.\.\/\.\.\/runtime\/hooks\/lib\/closeout-binding\.ts';/u,
+      "import {\n  type CloseoutBinding,\n  readFreshCloseoutBinding,\n  recordCodexCloseoutHandoff,\n  resolveExactCodexTranscript,\n} from '../hooks/lib/closeout-binding.ts';",
     )
     .replace(
       /import \{\s*draftSpoolPath,\s*readAcks,\s*readSpooledDrafts,?\s*\} from '\.\.\/\.\.\/runtime\/hooks\/lib\/retro-draft-spool\.ts';/u,
@@ -63,6 +63,10 @@ function normalizedCloseoutScript(path: string): string {
     .replace(
       'bun "${CLAUDE_PLUGIN_ROOT}"/resources/scripts/closeout-cleanup.ts',
       'bun .safeword/scripts/closeout-cleanup.ts',
+    )
+    .replace(
+      `'"\${CLAUDE_PLUGIN_ROOT}"/resources/scripts/closeout-cleanup.ts'`,
+      "'.safeword/scripts/closeout-cleanup.ts'",
     );
 }
 

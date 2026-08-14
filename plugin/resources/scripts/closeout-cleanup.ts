@@ -6,20 +6,19 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
-  readdirSync,
   realpathSync,
   renameSync,
   statSync,
   unlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { homedir } from 'node:os';
 import nodePath from 'node:path';
 
 import {
   type CloseoutBinding,
   readFreshCloseoutBinding,
   recordCodexCloseoutHandoff,
+  resolveExactCodexTranscript,
 } from '../../runtime/hooks/lib/closeout-binding.ts';
 import {
   draftSpoolPath,
@@ -693,26 +692,6 @@ export function retroAgentForRuntime(runtime: CloseoutBinding['runtime']): strin
   return runtime;
 }
 
-function exactCodexTranscript(id: string): string | undefined {
-  const root = nodePath.join(
-    process.env.CODEX_HOME ?? nodePath.join(homedir(), '.codex'),
-    'sessions',
-  );
-  if (!existsSync(root)) return undefined;
-  const matches: string[] = [];
-  const visit = (directory: string): void => {
-    for (const entry of readdirSync(directory, { withFileTypes: true })) {
-      const path = nodePath.join(directory, entry.name);
-      if (entry.isDirectory()) visit(path);
-      else if (entry.isFile() && entry.name.endsWith('.jsonl') && entry.name.includes(id)) {
-        matches.push(path);
-      }
-    }
-  };
-  visit(root);
-  return matches.length === 1 ? matches[0] : undefined;
-}
-
 interface TranscriptMetadata {
   sessionId?: unknown;
   session_id?: unknown;
@@ -788,7 +767,7 @@ export function transcriptMatchesBinding(
 function resolveTranscript(binding: CloseoutBinding, root: string): string | undefined {
   const candidate =
     binding.transcriptPath ??
-    (binding.runtime === 'codex' ? exactCodexTranscript(binding.id) : undefined);
+    (binding.runtime === 'codex' ? resolveExactCodexTranscript(binding.id) : undefined);
   return candidate && transcriptMatchesBinding(candidate, binding, root) ? candidate : undefined;
 }
 
@@ -1671,9 +1650,17 @@ function argumentValue(name: string): string | undefined {
   return index >= 0 ? process.argv[index + 1] : undefined;
 }
 
+function closeoutRecoveryCommand(pr: string): string {
+  const script = process.env.CLAUDE_PLUGIN_ROOT
+    ? `"${process.env.CLAUDE_PLUGIN_ROOT}/resources/scripts/closeout-cleanup.ts"`
+    : '"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/closeout-cleanup.ts';
+  return `bun ${script} --pr ${pr}`;
+}
+
 if (import.meta.main) {
   const root = resolveRepositoryRoot(process.cwd());
-  const pr = argumentValue('--pr');
+  const requestedPr = argumentValue('--pr');
+  const pr = requestedPr && /^[1-9]\d*$/u.test(requestedPr) ? requestedPr : undefined;
   const binding = root ? resolveCloseoutBinding(root) : undefined;
   if (!root || !pr || !binding) {
     if (root && pr && !binding) {
@@ -1683,16 +1670,14 @@ if (import.meta.main) {
       if (identity && identity.state === 'MERGED') {
         recordCodexCloseoutHandoff({
           projectDirectory: root,
-          repositoryUrl: identity.url,
+          repositoryUrl: `https://github.com/${identity.headOwner}/${identity.headRepository}`,
           pullRequest,
           headOid: identity.headRefOid,
         });
       }
     }
     const recovery =
-      root && pr && !binding
-        ? ` Start one fresh task and run bun "${CLAUDE_PLUGIN_ROOT}"/resources/scripts/closeout-cleanup.ts --pr ${pr}.`
-        : '';
+      root && pr && !binding ? ` Start one fresh task and run ${closeoutRecoveryCommand(pr)}.` : '';
     console.error(
       `closeout blocked: repository, --pr, and a fresh host session binding are required.${recovery}`,
     );

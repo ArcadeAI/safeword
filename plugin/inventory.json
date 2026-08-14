@@ -95,7 +95,7 @@
     },
     {
       "path": "resources/scripts/closeout-cleanup.ts",
-      "sha256": "a727667be41a7352aa181bceaff5c58478a90eb6cf52576abc117171204c17db"
+      "sha256": "a50f2b543b5ccf9a3a4daba42e569129bcef864329c5fb2b8f37461866ad04e8"
     },
     {
       "path": "resources/templates/adr-template.md",
@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "db69d54557e073ce8cd8457c4fe5daf4736d14bf4a108d69ebf55c42b00e8847"
+      "sha256": "046dde0d7b96d8b8c748f6e4ab3784a199b6e55068d48dc3de2f73c773bf7e9e"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "1e30d619dbcc1e83354887679040e8f3fefa0eb75241b79fcdd4cd7849bb69da"
+      "sha256": "7af37952765659564df30822ab5513bf240c39989daab3b447414afb581c4a25"
     },
     {
       "path": "runtime/event-groups.json",
@@ -199,7 +199,7 @@
     },
     {
       "path": "runtime/hooks/lib/closeout-binding.ts",
-      "sha256": "3af40ac89194af0a6953499bc6bcc89ff3c3e81e0cf01caad6657b570dee35e7"
+      "sha256": "9a7e35d35ed97bec61ce010f6d6fbe5256f34e9d425729a318287589f29ae5f8"
     },
     {
       "path": "runtime/hooks/lib/cursor-run-identity.ts",
@@ -463,7 +463,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "fa0d5821452243da350e25856f841d1d3344c5a746733af92a5f18d095f253ae"
+      "sha256": "aa40eb1f1d341b632aed450057c27945faf9132b58609a7b0a680175d981aa87"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -523,7 +523,7 @@
     },
     {
       "path": "runtime/hooks/session-codex-start.ts",
-      "sha256": "0f27c37b5c62dbe722ed424963d6fed07eb3d1c241655fbaf6fd80b77715eb3b"
+      "sha256": "d419a42809d370e7fe70aec5f0ef32f73e31685eb651c3ccfaddf508fae7ef9c"
     },
     {
       "path": "runtime/hooks/session-compact-context.ts",

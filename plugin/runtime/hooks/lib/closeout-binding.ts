@@ -36,19 +36,46 @@ function codexHome(environment: NodeJS.ProcessEnv = process.env): string {
   return environment.CODEX_HOME ?? nodePath.join(homedir(), '.codex');
 }
 
+function canonicalCodexHome(environment: NodeJS.ProcessEnv = process.env): string {
+  const resolved = nodePath.resolve(codexHome(environment));
+  try {
+    return realpathSync(resolved);
+  } catch {
+    return resolved;
+  }
+}
+
 function handoffDirectory(environment: NodeJS.ProcessEnv = process.env): string {
-  return nodePath.join(codexHome(environment), 'safeword/closeout-handoff-v1');
+  return nodePath.join(canonicalCodexHome(environment), 'safeword/closeout-handoff-v1');
 }
 
 function profileId(environment: NodeJS.ProcessEnv = process.env): string {
-  return createHash('sha256')
-    .update(nodePath.resolve(codexHome(environment)))
-    .digest('hex');
+  return createHash('sha256').update(canonicalCodexHome(environment)).digest('hex');
 }
 
 function canonicalGithubRepository(value: string): string | undefined {
-  const match = /github\.com[/:]([^/]+)\/([^/#]+?)(?:\.git)?(?:\/|$)/u.exec(value.trim());
-  return match ? `${match[1]}/${match[2]}`.toLowerCase() : undefined;
+  const trimmed = value.trim();
+  const scpMatch = /^git@github\.com:([^/]+)\/([^/]+)$/u.exec(trimmed);
+  let owner: string | undefined;
+  let repository: string | undefined;
+
+  if (scpMatch) {
+    [, owner, repository] = scpMatch;
+  } else {
+    try {
+      const url = new URL(trimmed);
+      if (url.hostname.toLowerCase() !== 'github.com') return undefined;
+      [owner, repository] = url.pathname.split('/').filter(Boolean);
+    } catch {
+      return undefined;
+    }
+  }
+
+  repository = repository?.replace(/\.git$/u, '');
+  const validSegment = /^[a-z\d](?:[a-z\d._-]*[a-z\d])?$/iu;
+  return owner && repository && validSegment.test(owner) && validSegment.test(repository)
+    ? `${owner}/${repository}`.toLowerCase()
+    : undefined;
 }
 
 function currentRepository(projectDirectory: string): string | undefined {
@@ -85,6 +112,25 @@ function validHandoff(
   );
 }
 
+function removeExpiredHandoffRecords(
+  path: string,
+  environment: NodeJS.ProcessEnv,
+  now: number,
+): void {
+  const directory = nodePath.dirname(path);
+  const basename = nodePath.basename(path);
+  for (const name of readdirSync(directory)) {
+    if (name !== basename && !name.startsWith(`${basename}.claim-`)) continue;
+    const candidatePath = nodePath.join(directory, name);
+    try {
+      const parsed = JSON.parse(readFileSync(candidatePath, 'utf8')) as unknown;
+      if (!validHandoff(parsed, environment, now)) rmSync(candidatePath, { force: true });
+    } catch {
+      // Unknown or unreadable records remain inert for manual inspection.
+    }
+  }
+}
+
 export function recordCodexCloseoutHandoff(input: {
   projectDirectory: string;
   repositoryUrl: string;
@@ -98,6 +144,7 @@ export function recordCodexCloseoutHandoff(input: {
   const repository = canonicalGithubRepository(input.repositoryUrl);
   if (
     !repository ||
+    currentRepository(input.projectDirectory) !== repository ||
     !Number.isSafeInteger(input.pullRequest) ||
     input.pullRequest <= 0 ||
     !/^[0-9a-f]{40}$/u.test(input.headOid)
@@ -109,10 +156,12 @@ export function recordCodexCloseoutHandoff(input: {
     `${createHash('sha256').update(repository).digest('hex')}.json`,
   );
   const now = input.now ?? new Date();
+  const temporaryPath = `${path}.tmp-${randomUUID()}`;
   try {
-    mkdirSync(directory, { recursive: true });
+    mkdirSync(directory, { recursive: true, mode: 0o700 });
+    removeExpiredHandoffRecords(path, environment, now.getTime());
     writeFileSync(
-      path,
+      temporaryPath,
       `${JSON.stringify({
         schema_version: 1,
         profile_id: profileId(environment),
@@ -124,9 +173,12 @@ export function recordCodexCloseoutHandoff(input: {
       } satisfies CloseoutHandoff)}\n`,
       { encoding: 'utf8', flag: 'wx', mode: 0o600 },
     );
+    renameSync(temporaryPath, path);
     return true;
   } catch {
     return false;
+  } finally {
+    rmSync(temporaryPath, { force: true });
   }
 }
 
@@ -137,25 +189,28 @@ export function claimCodexCloseoutHandoff(input: {
   now?: Date;
 }): CloseoutHandoff | undefined {
   const environment = input.environment ?? process.env;
+  if (!environment.CODEX_HOME && !environment.CODEX_THREAD_ID) return undefined;
   const repository = currentRepository(input.projectDirectory);
   if (!repository || input.sessionId.trim() === '') return undefined;
   const directory = handoffDirectory(environment);
   if (!existsSync(directory)) return undefined;
   const now = (input.now ?? new Date()).getTime();
+  const matches: Array<{ handoff: CloseoutHandoff; path: string }> = [];
   for (const name of readdirSync(directory)) {
     if (!name.endsWith('.json')) continue;
     const path = nodePath.join(directory, name);
-    const claimPath = `${path}.claim-${createHash('sha256').update(input.sessionId).digest('hex')}`;
     try {
       const parsed = JSON.parse(readFileSync(path, 'utf8')) as unknown;
       if (!validHandoff(parsed, environment, now) || parsed.repository !== repository) continue;
-      renameSync(path, claimPath);
-      return parsed;
+      matches.push({ handoff: parsed, path });
     } catch {
       continue;
     }
   }
-  return undefined;
+  if (matches.length !== 1) return undefined;
+  const match = matches[0];
+  if (match === undefined) return undefined;
+  return match.handoff;
 }
 
 export interface CloseoutBinding {
@@ -170,20 +225,30 @@ export function resolveExactCodexTranscript(
   id: string,
   env: Record<string, string | undefined> = process.env,
 ): string | undefined {
-  const root = nodePath.join(env.CODEX_HOME ?? nodePath.join(homedir(), '.codex'), 'sessions');
-  if (!existsSync(root)) return undefined;
-  const matches: string[] = [];
-  const visit = (directory: string): void => {
-    for (const entry of readdirSync(directory, { withFileTypes: true })) {
-      const path = nodePath.join(directory, entry.name);
-      if (entry.isDirectory()) visit(path);
-      else if (entry.isFile() && entry.name.endsWith('.jsonl') && entry.name.includes(id)) {
-        matches.push(path);
+  const sessionId = nonEmptyString(id);
+  if (sessionId === undefined) return undefined;
+  const root = nodePath.join(codexHome(env), 'sessions');
+  try {
+    if (!existsSync(root)) return undefined;
+    const matches: string[] = [];
+    const visit = (directory: string): void => {
+      for (const entry of readdirSync(directory, { withFileTypes: true })) {
+        const path = nodePath.join(directory, entry.name);
+        if (entry.isDirectory()) visit(path);
+        else if (
+          entry.isFile() &&
+          entry.name.endsWith('.jsonl') &&
+          entry.name.endsWith(`${sessionId}.jsonl`)
+        ) {
+          matches.push(path);
+        }
       }
-    }
-  };
-  visit(root);
-  return matches.length === 1 ? matches[0] : undefined;
+    };
+    visit(root);
+    return matches.length === 1 ? matches[0] : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 interface CloseoutBindingCache extends CloseoutBinding {
@@ -245,29 +310,52 @@ function parseFreshBindingRecord(
   }
 }
 
-function isCloseoutCleanupPath(token: string | undefined, pluginRoot?: string): boolean {
+function isCloseoutCleanupPath(
+  token: string | undefined,
+  pluginRoot?: string,
+  projectDirectory?: string,
+): boolean {
   if (token === undefined) return false;
   const normalized = token.replaceAll('"', '').replaceAll('\\', '/');
   const pluginPath = pluginRoot
     ? nodePath.join(pluginRoot, 'resources/scripts/closeout-cleanup.ts').replaceAll('\\', '/')
     : undefined;
+  const projectRelativePath = ['.safeword', 'scripts', 'closeout-cleanup.ts'].join('/');
+  const projectPath = projectDirectory
+    ? nodePath
+        .join(projectDirectory, '.safeword', 'scripts', 'closeout-cleanup.ts')
+        .replaceAll('\\', '/')
+    : undefined;
+  const projectSuffix = `/${projectRelativePath}`;
+  let resolvesInsideProject = false;
+  if (projectDirectory && normalized.endsWith(projectSuffix)) {
+    const candidateRoot = normalized.slice(0, -projectSuffix.length);
+    try {
+      resolvesInsideProject = realpathSync(candidateRoot) === realpathSync(projectDirectory);
+    } catch {
+      resolvesInsideProject = false;
+    }
+  }
   return (
-    normalized === '"\${CLAUDE_PLUGIN_ROOT}"/resources/scripts/closeout-cleanup.ts' ||
-    normalized.endsWith('/"\${CLAUDE_PLUGIN_ROOT}"/resources/scripts/closeout-cleanup.ts') ||
+    normalized === projectRelativePath ||
+    normalized === projectPath ||
+    resolvesInsideProject ||
     normalized === '\${CLAUDE_PLUGIN_ROOT}/resources/scripts/closeout-cleanup.ts' ||
     normalized === pluginPath
   );
 }
 
-/** True only when an executable shell segment runs the installed closeout guard. */
+/** True only when an executable shell segment runs a recognized closeout-guard path. */
 export function commandInvokesCloseoutCleanup(
   command: string,
   pluginRoot: string | undefined = process.env.CLAUDE_PLUGIN_ROOT,
+  projectDirectory: string | undefined = process.cwd(),
 ): boolean {
   return splitShellSegments(command).some(segment => {
     const words = commandWords(segment);
     return (
-      nodePath.basename(words[0] ?? '') === 'bun' && isCloseoutCleanupPath(words[1], pluginRoot)
+      nodePath.basename(words[0] ?? '') === 'bun' &&
+      isCloseoutCleanupPath(words[1], pluginRoot, projectDirectory)
     );
   });
 }
@@ -321,7 +409,18 @@ export function readFreshCloseoutBinding(
         const candidate = parseFreshBindingRecord(line, now, maxAgeMs);
         return candidate === undefined ? [] : [candidate];
       });
-    const candidate = candidates.length === 1 ? candidates[0] : undefined;
+    const currentProjectRoot = realpathSync(input.projectDirectory);
+    const distinctCandidates = [
+      ...new Map(
+        candidates
+          .filter(candidate => candidate.projectRoot === currentProjectRoot)
+          .map(candidate => [
+            `${candidate.runtime}\0${candidate.id}\0${candidate.projectRoot}`,
+            candidate,
+          ]),
+      ).values(),
+    ];
+    const candidate = distinctCandidates.length === 1 ? distinctCandidates[0] : undefined;
     return candidate;
   } catch {
     return undefined;
