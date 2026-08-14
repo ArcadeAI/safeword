@@ -55,6 +55,7 @@ function normalizedCloseoutScript(path: string): string {
       /import \{\s*type CloseoutBinding,\s*readFreshCloseoutBinding,\s*recordCodexCloseoutHandoff,\s*resolveExactCodexTranscript,?\s*\} from '\.\.\/\.\.\/runtime\/hooks\/lib\/closeout-binding\.ts';/u,
       "import {\n  type CloseoutBinding,\n  readFreshCloseoutBinding,\n  recordCodexCloseoutHandoff,\n  resolveExactCodexTranscript,\n} from '../hooks/lib/closeout-binding.ts';",
     )
+    .replace('../../runtime/hooks/lib/closeout-binding.ts', '../hooks/lib/closeout-binding.ts')
     .replace(
       /import \{\s*draftSpoolPath,\s*readAcks,\s*readSpooledDrafts,?\s*\} from '\.\.\/\.\.\/runtime\/hooks\/lib\/retro-draft-spool\.ts';/u,
       "import { draftSpoolPath, readAcks, readSpooledDrafts } from '../hooks/lib/retro-draft-spool.ts';",
@@ -936,7 +937,7 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     expect(cleanupPlanDigest(later)).toBe(cleanupPlanDigest(first));
   });
 
-  it('exposes pending filing recovery without changing cleanup authorization', () => {
+  it('blocks cleanup while exposing the pending filing recovery path', () => {
     const pendingRetro = {
       ...safeObservation().retro,
       complete: false,
@@ -1166,21 +1167,6 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       'local verification failed',
     ],
     [
-      'missing session binding',
-      { retro: { ...safeObservation().retro, bound: false } },
-      'the current host session binding is missing or expired',
-    ],
-    [
-      'incomplete retro',
-      { retro: { ...safeObservation().retro, complete: false } },
-      'the current session retrospective is incomplete',
-    ],
-    [
-      'failed retro extraction',
-      { retro: { ...safeObservation().retro, complete: false, failure: 'extraction' } },
-      'retrospective extraction failed; resolve the extraction failure',
-    ],
-    [
       'failed retro filing',
       { retro: { ...safeObservation().retro, complete: false, failure: 'filing' } },
       'retrospective filing failed; resolve the filing failure',
@@ -1207,6 +1193,33 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       });
       expect(result.applied).toBe(false);
       expect(executions).toBe(0);
+    },
+  );
+
+  it.each([
+    [
+      'missing session binding',
+      { retro: { ...safeObservation().retro, bound: false } },
+      'the current host session binding is missing or expired',
+    ],
+    [
+      'incomplete retro',
+      { retro: { ...safeObservation().retro, complete: false } },
+      'the current session retrospective is incomplete',
+    ],
+    [
+      'failed retro extraction',
+      { retro: { ...safeObservation().retro, complete: false, failure: 'extraction' } },
+      'retrospective extraction failed; resolve the extraction failure',
+    ],
+  ] satisfies [string, Partial<CloseoutObservation>, string][])(
+    '%s is advisory for cleanup',
+    (_name, overrides, expectedAdvisory) => {
+      const plan = buildCleanupPlan(safeObservation(overrides));
+
+      expect(plan.blockers).toEqual([]);
+      expect(plan.advisories).toContain(expectedAdvisory);
+      expect(plan.operations).toHaveLength(3);
     },
   );
 
@@ -1317,29 +1330,22 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     expect(result.applied).toBe(true);
   });
 
-  it('blocks transcript growth until refreshed retrospective work is complete', () => {
+  it('reports transcript growth as advisory without changing cleanup authorization', () => {
     const preview = safeObservation();
     const plan = buildCleanupPlan(preview);
-    const execute = () => {
-      throw new Error('must not execute');
-    };
+    const refreshed = buildCleanupPlan(
+      safeObservation({
+        retro: {
+          ...preview.retro,
+          complete: false,
+          evidenceHash: 'retro-appended-not-reviewed',
+        },
+      }),
+    );
 
-    const result = applyCleanupPlan({
-      plan,
-      digest: cleanupPlanDigest(plan),
-      observe: () =>
-        safeObservation({
-          retro: {
-            ...preview.retro,
-            complete: false,
-            evidenceHash: 'retro-appended-not-reviewed',
-          },
-        }),
-      execute,
-    });
-
-    expect(result.applied).toBe(false);
-    expect(result.blockers).toContain('the current session retrospective is incomplete');
+    expect(refreshed.blockers).toEqual([]);
+    expect(refreshed.advisories).toContain('the current session retrospective is incomplete');
+    expect(cleanupPlanDigest(refreshed)).toBe(cleanupPlanDigest(plan));
   });
 
   it('invalidates stale digests and changed observations before mutation', () => {

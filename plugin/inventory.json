@@ -19,7 +19,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "9035147df5c64c9c0de40ab559848ba28fe0e117e82e73def79328982170a0d0"
+      "sha256": "9a5d1773138bf2ea3c5c31784de81a6cba20b175f229625a257967bd0e5453d1"
     },
     {
       "path": "resources/guides/architecture-guide.md",
@@ -95,7 +95,7 @@
     },
     {
       "path": "resources/scripts/closeout-cleanup.ts",
-      "sha256": "a50f2b543b5ccf9a3a4daba42e569129bcef864329c5fb2b8f37461866ad04e8"
+      "sha256": "fdeec3e0de6ab4775c8c6a7c4b51e138d90c6f69c3f13ab53a0a62821677aa09"
     },
     {
       "path": "resources/templates/adr-template.md",
