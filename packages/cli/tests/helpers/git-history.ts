@@ -95,7 +95,18 @@ export function requireHistoricalReleaseTags(versions: readonly string[]): void 
  * silently reports fewer commits rather than failing.
  */
 export function requireFullHistory(): void {
-  if (git(['rev-parse', '--is-shallow-repository']).stdout !== 'true') return;
+  const depth = git(['rev-parse', '--is-shallow-repository']);
+  // Failing open here would reproduce the exact hazard this file exists to
+  // prevent: a git that cannot run returns empty stdout, which is not 'true',
+  // so the shallow check would silently pass and the provenance guarantee
+  // would evaporate in whichever environment broke git.
+  if (!depth.ok) {
+    throw new Error(
+      'git could not report whether this clone is shallow, so the history this suite ' +
+        'needs cannot be confirmed. Check that git is installed and this is a repository.',
+    );
+  }
+  if (depth.stdout !== 'true') return;
   throw new Error(
     'This suite walks commit ancestry to verify sealed inputs, and this is a shallow clone, ' +
       'so history is truncated and the walk silently returns too few commits.\n' +
