@@ -43236,6 +43236,8 @@ import {
   constants as constants4,
   lstatSync as lstatSync18,
   mkdtempSync as mkdtempSync6,
+  readdirSync as readdirSync29,
+  readFileSync as readFileSync51,
   realpathSync as realpathSync10,
   rmSync as rmSync12,
   writeFileSync as writeFileSync18
@@ -43523,6 +43525,38 @@ async function stopReviewerOrThrow(child, reviewer) {
     return;
   throw new ReviewRuntimeError("process_failed", `${reviewer} reviewer processes could not be stopped`, true);
 }
+function parseProcessStat(line) {
+  const commEnd = line.lastIndexOf(")");
+  if (commEnd === -1)
+    return;
+  const [state, , group] = line.slice(commEnd + 1).trim().split(/\s+/u, 3);
+  const groupId = Number(group);
+  if (state === undefined || !Number.isSafeInteger(groupId))
+    return;
+  return { state, group: groupId };
+}
+function procGroupHasRunningMember(group) {
+  let entries;
+  try {
+    entries = readdirSync29("/proc");
+  } catch {
+    return;
+  }
+  for (const entry2 of entries) {
+    if (!/^\d+$/u.test(entry2))
+      continue;
+    let line;
+    try {
+      line = readFileSync51(`/proc/${entry2}/stat`, "utf8");
+    } catch {
+      continue;
+    }
+    const parsed2 = parseProcessStat(line);
+    if (parsed2?.group === group && parsed2.state !== "Z")
+      return true;
+  }
+  return false;
+}
 async function stopReviewerOnce(child) {
   const pid = child.pid;
   if (pid === undefined)
@@ -43544,18 +43578,19 @@ async function stopReviewerOnce(child) {
       return false;
     }
   };
+  const groupIsRunning = () => procGroupHasRunningMember(pid) ?? groupExists();
   const deadline = Date.now() + CLEANUP_BUDGET_MS;
-  while (groupExists() && Date.now() < deadline) {
+  while (groupIsRunning() && Date.now() < deadline) {
     await new Promise((resolve) => setTimeout(resolve, 5));
   }
-  if (groupExists()) {
+  if (groupIsRunning()) {
     signalGroup("SIGKILL");
     const forcedDeadline = Date.now() + CLEANUP_BUDGET_MS;
-    while (groupExists() && Date.now() < forcedDeadline) {
+    while (groupIsRunning() && Date.now() < forcedDeadline) {
       await new Promise((resolve) => setTimeout(resolve, 5));
     }
   }
-  return !groupExists();
+  return !groupIsRunning();
 }
 async function runCandidate(executable, attempt, timeoutMs) {
   const { reviewer, packet, cwd, model, schemaPath } = attempt;
@@ -44573,8 +44608,8 @@ import {
   fstatSync as fstatSync8,
   mkdirSync as mkdirSync14,
   openSync as openSync10,
-  readdirSync as readdirSync29,
-  readFileSync as readFileSync51,
+  readdirSync as readdirSync30,
+  readFileSync as readFileSync52,
   realpathSync as realpathSync11,
   renameSync as renameSync8,
   statSync as statSync6,
@@ -44600,7 +44635,7 @@ function integrityKeyPath() {
 function readOrCreateIntegrityKey() {
   const keyPath = integrityKeyPath();
   try {
-    return decodeIntegrityKey(readFileSync51(keyPath, "utf8"));
+    return decodeIntegrityKey(readFileSync52(keyPath, "utf8"));
   } catch {
     mkdirSync14(nodePath82.dirname(keyPath), { recursive: true, mode: 448 });
     const key = randomBytes(32);
@@ -44616,7 +44651,7 @@ function readOrCreateIntegrityKey() {
     } catch (error2) {
       if (!isFileExistsError(error2))
         throw error2;
-      return decodeIntegrityKey(readFileSync51(keyPath, "utf8"));
+      return decodeIntegrityKey(readFileSync52(keyPath, "utf8"));
     }
   }
 }
@@ -44731,7 +44766,7 @@ function withFileLock(lock, operation) {
 function recoverStaleLock(lock) {
   try {
     const inspected = statSync6(lock);
-    const owner = Number(readFileSync51(lock, "utf8"));
+    const owner = Number(readFileSync52(lock, "utf8"));
     const invalidOwnerIsOld = !isProcessId(owner) && Date.now() - statSync6(lock).mtimeMs >= JOB_LOCK_WAIT_MS;
     if (isProcessId(owner) && !processExists(owner) || invalidOwnerIsOld) {
       const current = statSync6(lock);
@@ -44841,7 +44876,7 @@ function hasReviewerIdentity(reviewer) {
   return typeof reviewer.dispatch_id === "string" && reviewer.dispatch_id.length > 0 && ["claude", "codex"].includes(String(reviewer.reviewer_agent));
 }
 function readJob(cwd, id) {
-  const parsed2 = JSON.parse(readFileSync51(jobPath(cwd, id), "utf8"));
+  const parsed2 = JSON.parse(readFileSync52(jobPath(cwd, id), "utf8"));
   if (!isReviewJobRecord(parsed2) || parsed2.id !== id || !hasValidIntegrity(cwd, parsed2))
     throw new Error("invalid review job record");
   return parsed2;
@@ -45223,7 +45258,7 @@ function latestJobId(cwd) {
   const directory = jobsDirectory(cwd);
   if (!existsSync42(directory))
     return;
-  return readdirSync29(directory).flatMap((name) => {
+  return readdirSync30(directory).flatMap((name) => {
     if (!/^[a-f\d-]{36}\.json$/u.test(name))
       return [];
     try {
@@ -45237,7 +45272,7 @@ function runningJob(cwd, kind, sourceFingerprint) {
   const directory = jobsDirectory(cwd);
   if (!existsSync42(directory))
     return;
-  for (const name of readdirSync29(directory)) {
+  for (const name of readdirSync30(directory)) {
     if (!/^[a-f\d-]{36}\.json$/u.test(name))
       continue;
     try {
@@ -45644,7 +45679,7 @@ var exports_review_pr = {};
 __export(exports_review_pr, {
   inspectPullRequestCommand: () => inspectPullRequestCommand
 });
-import { readFileSync as readFileSync52, writeFileSync as writeFileSync20 } from "fs";
+import { readFileSync as readFileSync53, writeFileSync as writeFileSync20 } from "fs";
 import nodePath83 from "path";
 import process12 from "process";
 function isRecord5(value) {
@@ -45662,7 +45697,7 @@ function hasValidInputEnvelope(raw) {
   return raw.schemaVersion === 1 && validHead && validState && Array.isArray(raw.artifacts) && Array.isArray(raw.checks) && Array.isArray(raw.statuses) && typeof raw.markerReceiptExists === "boolean";
 }
 function parseConfig(cwd) {
-  const raw = JSON.parse(readFileSync52(nodePath83.join(cwd, ".safeword", "config.json"), "utf8"));
+  const raw = JSON.parse(readFileSync53(nodePath83.join(cwd, ".safeword", "config.json"), "utf8"));
   if (!isRecord5(raw) || !isRecord5(raw.prReview)) {
     throw new Error("review-pr: .safeword/config.json must define prReview");
   }
@@ -45673,7 +45708,7 @@ function parseConfig(cwd) {
   return config;
 }
 function parseInput(inputPath) {
-  const raw = JSON.parse(readFileSync52(inputPath, "utf8"));
+  const raw = JSON.parse(readFileSync53(inputPath, "utf8"));
   if (!isRecord5(raw) || !hasValidInputEnvelope(raw)) {
     throw new Error("review-pr: invalid inspection input");
   }
@@ -46002,7 +46037,7 @@ __export(exports_review_pr_publication, {
   invalidatePullRequestCommand: () => invalidatePullRequestCommand,
   createGitHubReviewBoundary: () => createGitHubReviewBoundary
 });
-import { readFileSync as readFileSync53 } from "fs";
+import { readFileSync as readFileSync54 } from "fs";
 import process13 from "process";
 function isRecord6(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -46091,7 +46126,7 @@ function hasConsistentRoute(receipt) {
   return receipt.route === "looks_ready" === mayLookReady;
 }
 function parseHandoffEnvelope(path4) {
-  const value = JSON.parse(readFileSync53(path4, "utf8"));
+  const value = JSON.parse(readFileSync54(path4, "utf8"));
   if (!isRecord6(value) || value.schemaVersion !== 1 || value.kind !== "noop" && value.kind !== "receipt") {
     throw new Error("review-pr: invalid advisory result artifact");
   }
@@ -46394,13 +46429,13 @@ var init_codex_bootstrap = __esm(() => {
 });
 
 // templates/hooks/lib/dogfood.ts
-import { existsSync as existsSync43, readFileSync as readFileSync54 } from "fs";
+import { existsSync as existsSync43, readFileSync as readFileSync55 } from "fs";
 import nodePath84 from "path";
 function isDogfoodRepo(projectDirectory) {
   if (existsSync43(nodePath84.join(projectDirectory, "packages", "cli", "templates")))
     return true;
   try {
-    const pkg2 = JSON.parse(readFileSync54(nodePath84.join(projectDirectory, "package.json"), "utf8"));
+    const pkg2 = JSON.parse(readFileSync55(nodePath84.join(projectDirectory, "package.json"), "utf8"));
     return pkg2.name === "safeword";
   } catch {
     return false;
@@ -46635,7 +46670,7 @@ __export(exports_retro_extract, {
   DEFAULT_CLAUDE_RETRO_MODEL: () => DEFAULT_CLAUDE_RETRO_MODEL,
   CODEX_RETRO_OUTPUT_SCHEMA: () => CODEX_RETRO_OUTPUT_SCHEMA
 });
-import { readFileSync as readFileSync55, writeFileSync as writeFileSync21 } from "fs";
+import { readFileSync as readFileSync56, writeFileSync as writeFileSync21 } from "fs";
 import nodePath87 from "path";
 function defaultRetroModel(agent) {
   if (agent === "codex")
@@ -46646,7 +46681,7 @@ function defaultRetroModel(agent) {
 }
 function resolveRetroModel(projectDirectory, agent = "claude") {
   try {
-    const raw = readFileSync55(nodePath87.join(projectDirectory, ".safeword", "config.json"), "utf8");
+    const raw = readFileSync56(nodePath87.join(projectDirectory, ".safeword", "config.json"), "utf8");
     const parsed2 = JSON.parse(raw);
     const model = parsed2.retro?.model;
     return typeof model === "string" && model.length > 0 ? model : defaultRetroModel(agent);
@@ -46809,7 +46844,7 @@ async function runCodexHeadlessExtractionChecked(transcript, dependencies) {
     const schemaPath = dependencies.schemaPath ?? nodePath87.join(dependencies.cwd, "schema.json");
     const outputPath = dependencies.outputPath ?? nodePath87.join(dependencies.cwd, "output.json");
     const writeFile2 = dependencies.writeFile ?? writeFileSync21;
-    const readFile2 = dependencies.readFile ?? ((path4) => readFileSync55(path4, "utf8"));
+    const readFile2 = dependencies.readFile ?? ((path4) => readFileSync56(path4, "utf8"));
     writeFile2(schemaPath, JSON.stringify(CODEX_RETRO_OUTPUT_SCHEMA));
     const argv = buildCodexExtractArgv({
       model: dependencies.model ?? DEFAULT_CODEX_RETRO_MODEL,
@@ -55143,7 +55178,7 @@ import { spawnSync as spawnSync10 } from "child_process";
 import {
   mkdirSync as mkdirSync16,
   mkdtempSync as mkdtempSync7,
-  readFileSync as readFileSync56,
+  readFileSync as readFileSync57,
   realpathSync as realpathSync12,
   statSync as statSync7,
   writeFileSync as writeFileSync22
@@ -55273,7 +55308,7 @@ async function runRetro(options, dependencies) {
       errorMessage: "safeword retro requires --transcript <path>; it never guesses the session path."
     };
   }
-  const read = dependencies.readFile ?? ((path7) => readFileSync56(path7, "utf8"));
+  const read = dependencies.readFile ?? ((path7) => readFileSync57(path7, "utf8"));
   let transcript;
   try {
     transcript = read(options.transcript);
@@ -55393,7 +55428,7 @@ async function buildAutoExtractor(projectDirectory, dependencies = {}) {
         writeFile: (path7, content) => {
           writeFileSync22(path7, content);
         },
-        readFile: (path7) => readFileSync56(path7, "utf8"),
+        readFile: (path7) => readFileSync57(path7, "utf8"),
         env: headlessEnvironment(process17.env),
         cwd: workDirectory,
         model,
@@ -55646,7 +55681,7 @@ async function executeRetroWithDependencies(options, dependencies) {
     extract: dependencies.extract,
     harness: dependencies.harness,
     projectDirectory: dependencies.projectDirectory,
-    readFile: (path7) => readFileSync56(path7, "utf8"),
+    readFile: (path7) => readFileSync57(path7, "utf8"),
     ...relay !== undefined && { relay },
     resolveProvenance: dependencies.resolveProvenance,
     sessionId: dependencies.sessionId,
@@ -55864,7 +55899,7 @@ async function retroCommand(options) {
 }
 function readFindings(path7) {
   try {
-    const parsed2 = JSON.parse(readFileSync56(path7, "utf8"));
+    const parsed2 = JSON.parse(readFileSync57(path7, "utf8"));
     return Array.isArray(parsed2) ? parsed2 : [];
   } catch {
     return [];
@@ -56632,7 +56667,7 @@ import {
   existsSync as existsSync46,
   mkdirSync as mkdirSync18,
   mkdtempSync as mkdtempSync8,
-  readFileSync as readFileSync58,
+  readFileSync as readFileSync59,
   renameSync as renameSync9,
   rmSync as rmSync13,
   writeFileSync as writeFileSync23
@@ -56821,7 +56856,7 @@ function readPackagedSafewordInstructions() {
   const instructionsPath = findPackagedTemplate("SAFEWORD.md");
   if (!instructionsPath)
     return;
-  if (!readFileSync58(instructionsPath, "utf8").trim())
+  if (!readFileSync59(instructionsPath, "utf8").trim())
     return;
   return [
     "Current Safeword authority: tickets and their user stories/test definitions live under `.project/` (or the configured namespace root), and current workflow guides live under `.safeword/guides/`.",
@@ -56931,7 +56966,7 @@ function emitPackagedPreToolResult(result) {
 }
 function readProjectTextFile(projectDirectory, relativePath) {
   const filePath = nodePath92.join(projectDirectory, relativePath);
-  return existsSync46(filePath) ? readFileSync58(filePath, "utf8") : undefined;
+  return existsSync46(filePath) ? readFileSync59(filePath, "utf8") : undefined;
 }
 function emitAdditionalContext(output) {
   process21.stdout.write(`${JSON.stringify(output)}
@@ -56979,7 +57014,7 @@ function maybeDenyTestDefinitionsWrite(projectDirectory, targetPath) {
   if (!ticketFolder)
     return false;
   const ticketPath = nodePath92.join(projectDirectory, ".project/tickets", ticketFolder, "ticket.md");
-  const ticketContent = existsSync46(ticketPath) ? readFileSync58(ticketPath, "utf8") : "";
+  const ticketContent = existsSync46(ticketPath) ? readFileSync59(ticketPath, "utf8") : "";
   const missing = missingIntakeFields(ticketContent);
   if (missing.length === 0)
     return false;
@@ -59290,7 +59325,7 @@ init_migration_error();
 init_architecture_document();
 init_agent_selection();
 init_online_required();
-import { existsSync as existsSync44, lstatSync as lstatSync19, readFileSync as readFileSync57, readlinkSync as readlinkSync4 } from "fs";
+import { existsSync as existsSync44, lstatSync as lstatSync19, readFileSync as readFileSync58, readlinkSync as readlinkSync4 } from "fs";
 import nodePath89 from "path";
 
 // src/cli-protocol/option-values.ts
@@ -60595,7 +60630,7 @@ async function codexBootstrapHandler(invocation) {
   const { bootstrapCodexPlugin: bootstrapCodexPlugin2 } = await Promise.resolve().then(() => (init_codex_bootstrap(), exports_codex_bootstrap));
   let rawInput = "";
   try {
-    rawInput = readFileSync57(0, "utf8");
+    rawInput = readFileSync58(0, "utf8");
   } catch {}
   return bootstrapCodexPlugin2(invocation.cwd, rawInput, { offline: invocation.offline });
 }
@@ -61139,7 +61174,7 @@ function snapshotKind(stats) {
 }
 function snapshotBytes(path7, stats) {
   if (stats.isFile())
-    return readFileSync57(path7).toString("base64");
+    return readFileSync58(path7).toString("base64");
   if (stats.isSymbolicLink())
     return Buffer.from(readlinkSync4(path7)).toString("base64");
   return;
