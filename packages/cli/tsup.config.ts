@@ -4,6 +4,8 @@ import { readFileSync } from 'node:fs';
 
 import { defineConfig } from 'tsup';
 
+const GIT_MAX_BUFFER_BYTES = 10 * 1024 * 1024;
+
 const manifestBytes = readFileSync(
   new URL('src/retro/relay-readiness-manifest.json', import.meta.url),
 );
@@ -15,7 +17,10 @@ const manifest = JSON.parse(manifestBytes.toString('utf8')) as {
 };
 
 function gitText(arguments_: string[]): string {
-  return execFileSync('git', arguments_, { encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 }).trim();
+  return execFileSync('git', arguments_, {
+    encoding: 'utf8',
+    maxBuffer: GIT_MAX_BUFFER_BYTES,
+  }).trim();
 }
 
 const COMMIT_PATTERN = /^[\da-f]{40}$/u;
@@ -42,15 +47,17 @@ try {
   // Source archives build fail-closed with no relay attestation.
 }
 
-function buildRelayAttestation(): {
+type RelayBuildAttestation = {
   ancestorPairs: { ancestor: string; descendant: string }[];
   artifacts: Record<string, { contentBase64: string; sha256: string }>;
   buildCommit: string;
   enabled: boolean;
   manifestBase64: string;
   manifestSha256: string;
-} {
-  const disabled = {
+};
+
+function disabledRelayAttestation(): RelayBuildAttestation {
+  return {
     ancestorPairs: [],
     artifacts: {},
     buildCommit,
@@ -58,6 +65,43 @@ function buildRelayAttestation(): {
     manifestBase64: manifestBytes.toString('base64'),
     manifestSha256: createHash('sha256').update(manifestBytes).digest('hex'),
   };
+}
+
+function relayAncestorPairs(
+  evidenceCommit: string,
+  prerequisites: { mergedCommit: string }[],
+): { ancestor: string; descendant: string }[] {
+  return [
+    { ancestor: evidenceCommit, descendant: buildCommit },
+    ...prerequisites.map(prerequisite => ({
+      ancestor: prerequisite.mergedCommit,
+      descendant: evidenceCommit,
+    })),
+  ];
+}
+
+function attestArtifacts(
+  evidenceCommit: string,
+  measurements: Record<string, { path: string }>,
+): RelayBuildAttestation['artifacts'] {
+  return Object.fromEntries(
+    Object.entries(measurements).map(([metric, artifact]) => {
+      const bytes = execFileSync('git', ['show', `${evidenceCommit}:${artifact.path}`], {
+        maxBuffer: GIT_MAX_BUFFER_BYTES,
+      });
+      return [
+        metric,
+        {
+          contentBase64: bytes.toString('base64'),
+          sha256: createHash('sha256').update(bytes).digest('hex'),
+        },
+      ];
+    }),
+  );
+}
+
+function buildRelayAttestation(): RelayBuildAttestation {
+  const disabled = disabledRelayAttestation();
   if (!manifest.enabled) return disabled;
   if (
     !COMMIT_PATTERN.test(buildCommit) ||
@@ -72,32 +116,13 @@ function buildRelayAttestation(): {
   if (gitText(['status', '--porcelain']).length > 0) {
     throw new Error('enabled relay readiness manifest requires a clean source tree');
   }
-  const ancestorPairs = [
-    { ancestor: evidenceCommit, descendant: buildCommit },
-    ...prerequisites.map(prerequisite => ({
-      ancestor: prerequisite.mergedCommit,
-      descendant: evidenceCommit,
-    })),
-  ];
+  const ancestorPairs = relayAncestorPairs(evidenceCommit, prerequisites);
   for (const { ancestor, descendant } of ancestorPairs) {
     execFileSync('git', ['merge-base', '--is-ancestor', ancestor, descendant], {
-      maxBuffer: 10 * 1024 * 1024,
+      maxBuffer: GIT_MAX_BUFFER_BYTES,
     });
   }
-  const artifacts = Object.fromEntries(
-    Object.entries(measurements).map(([metric, artifact]) => {
-      const bytes = execFileSync('git', ['show', `${evidenceCommit}:${artifact.path}`], {
-        maxBuffer: 10 * 1024 * 1024,
-      });
-      return [
-        metric,
-        {
-          contentBase64: bytes.toString('base64'),
-          sha256: createHash('sha256').update(bytes).digest('hex'),
-        },
-      ];
-    }),
-  );
+  const artifacts = attestArtifacts(evidenceCommit, measurements);
   return { ...disabled, ancestorPairs, artifacts, enabled: true };
 }
 

@@ -22,6 +22,7 @@ import {
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
@@ -74,6 +75,65 @@ function copyPublishedPackage(destination: string): void {
   }
 }
 
+function installOlderDependencyBase(fixture: string): {
+  binaryDirectory: string;
+  codexHome: string;
+  homeDirectory: string;
+  installedPackage: string;
+  projectDirectory: string;
+} {
+  const installedModules = nodePath.join(fixture, 'node_modules');
+  const installedPackage = nodePath.join(installedModules, 'safeword');
+  const binaryDirectory = nodePath.join(fixture, 'bin');
+  const projectDirectory = nodePath.join(fixture, 'project');
+  const codexHome = nodePath.join(fixture, 'codex-home');
+  const homeDirectory = nodePath.join(fixture, 'home');
+  mkdirSync(installedModules);
+  mkdirSync(binaryDirectory);
+  mkdirSync(projectDirectory);
+  mkdirSync(codexHome);
+  mkdirSync(homeDirectory);
+  copyPublishedPackage(installedPackage);
+
+  const runtimeDependencies = Object.keys(packageJson().dependencies ?? {});
+  for (const dependency of runtimeDependencies) {
+    if (dependency === 'smol-toml') continue;
+    const destination = nodePath.join(installedModules, dependency);
+    mkdirSync(nodePath.dirname(destination), { recursive: true });
+    symlinkSync(installedDependencyRoot(dependency), destination, 'dir');
+  }
+
+  const codex = nodePath.join(binaryDirectory, 'codex');
+  writeFileSync(codex, '#!/bin/sh\nprintf \'{"installed":[]}\\n\'\n');
+  chmodSync(codex, 0o755);
+  return { binaryDirectory, codexHome, homeDirectory, installedPackage, projectDirectory };
+}
+
+function runIsolatedDoctor(
+  fixture: string,
+  installation: ReturnType<typeof installOlderDependencyBase>,
+) {
+  const { binaryDirectory, codexHome, homeDirectory, installedPackage, projectDirectory } =
+    installation;
+  return spawnSync(
+    process.execPath,
+    [nodePath.join(installedPackage, 'dist/cli.js'), 'doctor', '--json', '--no-input'],
+    {
+      cwd: projectDirectory,
+      encoding: 'utf8',
+      env: {
+        CODEX_HOME: codexHome,
+        HOME: homeDirectory,
+        NO_COLOR: '1',
+        PATH: `${binaryDirectory}${nodePath.delimiter}/usr/bin${nodePath.delimiter}/bin`,
+        XDG_CACHE_HOME: nodePath.join(fixture, 'xdg-cache'),
+        XDG_CONFIG_HOME: nodePath.join(fixture, 'xdg-config'),
+        XDG_DATA_HOME: nodePath.join(fixture, 'xdg-data'),
+      },
+    },
+  );
+}
+
 describe('NPM Package Structure', () => {
   it('should have package.json with correct files array', () => {
     const manifest = packageJson();
@@ -96,9 +156,20 @@ describe('NPM Package Structure', () => {
     expect(existsSync(nodePath.join(distributionPath, 'cli.js'))).toBe(true);
   });
 
-  it('does not publish individual crash-injection hooks in the package API', () => {
-    const declarations = readFileSync(nodePath.join(testCliRoot, 'dist', 'index.d.ts'), 'utf8');
-    expect(declarations).not.toMatch(/fault(?:After|Before)/u);
+  it('publishes only the documented runtime API and package subpaths', async () => {
+    const manifest = packageJson();
+    expect(Object.keys(manifest.exports ?? {})).toEqual([
+      '.',
+      './schemas/cli-result-v1.json',
+      './eslint',
+    ]);
+    const publicApi = await import(
+      `${pathToFileURL(nodePath.join(testCliRoot, 'dist', 'index.js')).href}?api-surface-test`
+    );
+    const documentedRuntimeExports = ['VERSION', 'detect', 'eslint'];
+    expect(Object.keys(publicApi).toSorted((left, right) => left.localeCompare(right))).toEqual(
+      documentedRuntimeExports.toSorted((left, right) => left.localeCompare(right)),
+    );
   });
 
   it('should have templates directory with all required subdirectories', () => {
@@ -187,48 +258,7 @@ describe('NPM Package Structure', () => {
   it('runs default doctor when an older dependency base lacks smol-toml', () => {
     const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-older-base-'));
     try {
-      const installedModules = nodePath.join(fixture, 'node_modules');
-      const installedPackage = nodePath.join(installedModules, 'safeword');
-      const binaryDirectory = nodePath.join(fixture, 'bin');
-      const projectDirectory = nodePath.join(fixture, 'project');
-      const codexHome = nodePath.join(fixture, 'codex-home');
-      const homeDirectory = nodePath.join(fixture, 'home');
-      mkdirSync(installedModules);
-      mkdirSync(binaryDirectory);
-      mkdirSync(projectDirectory);
-      mkdirSync(codexHome);
-      mkdirSync(homeDirectory);
-      copyPublishedPackage(installedPackage);
-
-      const runtimeDependencies = Object.keys(packageJson().dependencies ?? {});
-      for (const dependency of runtimeDependencies) {
-        if (dependency === 'smol-toml') continue;
-        const source = installedDependencyRoot(dependency);
-        const destination = nodePath.join(installedModules, dependency);
-        mkdirSync(nodePath.dirname(destination), { recursive: true });
-        symlinkSync(source, destination, 'dir');
-      }
-
-      const codex = nodePath.join(binaryDirectory, 'codex');
-      writeFileSync(codex, '#!/bin/sh\nprintf \'{"installed":[]}\\n\'\n');
-      chmodSync(codex, 0o755);
-      const result = spawnSync(
-        process.execPath,
-        [nodePath.join(installedPackage, 'dist/cli.js'), 'doctor', '--json', '--no-input'],
-        {
-          cwd: projectDirectory,
-          encoding: 'utf8',
-          env: {
-            CODEX_HOME: codexHome,
-            HOME: homeDirectory,
-            NO_COLOR: '1',
-            PATH: `${binaryDirectory}${nodePath.delimiter}/usr/bin${nodePath.delimiter}/bin`,
-            XDG_CACHE_HOME: nodePath.join(fixture, 'xdg-cache'),
-            XDG_CONFIG_HOME: nodePath.join(fixture, 'xdg-config'),
-            XDG_DATA_HOME: nodePath.join(fixture, 'xdg-data'),
-          },
-        },
-      );
+      const result = runIsolatedDoctor(fixture, installOlderDependencyBase(fixture));
 
       expect(result.status).toBe(2);
       expect(result.error).toBeUndefined();
