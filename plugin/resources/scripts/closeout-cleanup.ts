@@ -6,14 +6,12 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
-  readdirSync,
   realpathSync,
   renameSync,
   statSync,
   unlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { homedir } from 'node:os';
 import nodePath from 'node:path';
 
 import {
