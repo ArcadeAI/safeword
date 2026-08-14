@@ -516,7 +516,7 @@ Feature sources: `features/resume-closeout-after-upgrade.feature` and `features/
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario Outline: An impossible handoff clock is not presented as current work [a write time more than five minutes in the future]
+### Scenario Outline: An impossible handoff clock is not presented as current work [a write time five minutes and one tick in the future]
 
 - [ ] RED
 - [ ] GREEN
@@ -559,6 +559,24 @@ Feature sources: `features/resume-closeout-after-upgrade.feature` and `features/
 - [ ] REFACTOR
 
 ### Scenario Outline: Discovery without one canonical repository cannot claim a handoff [two]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Missing or invalid checkout identity is rejected before provenance [no checkout identity]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Missing or invalid checkout identity is rejected before provenance [a non-canonical checkout identity]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: An unsafe foreign-key entry remains unobserved
 
 - [ ] RED
 - [ ] GREEN
@@ -1024,6 +1042,12 @@ Feature sources: `features/resume-closeout-after-upgrade.feature` and `features/
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Repository drift takes precedence over an unavailable pull request
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: An unmerged pull request takes precedence over recreated cleanup targets
 
 - [ ] RED
@@ -1079,6 +1103,30 @@ Feature sources: `features/resume-closeout-after-upgrade.feature` and `features/
 - [ ] REFACTOR
 
 ### Scenario: A user dismisses a permanently undeliverable handoff
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Unsafe dismissal preserves a pending handoff [the acting task is not marker-current | this task is not the current protected task]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Unsafe dismissal preserves a pending handoff [guarded closeout has not reported terminal drift | the pending closeout remains deliverable]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Unsafe dismissal preserves a pending handoff [explicit confirmation is absent | explicit confirmation is required]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: The shipped closeout surface dismisses terminal drift only after confirmation
 
 - [ ] RED
 - [ ] GREEN

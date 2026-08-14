@@ -87,7 +87,7 @@ Feature: Reject unusable closeout handoffs after a Codex restart
 
     @rejection
     Scenario: A handoff with an excessive lifetime is not presented as current work
-      Given a structurally valid handoff expires more than 24 hours after its recorded write time
+      Given a structurally valid handoff expires 24 hours and one tick after its recorded write time
       When a protected Codex task starts in the matching repository at a controlled time
       Then SessionStart output reports invalid pending closeout state without naming its target
       And no continuation or destructive command is emitted
@@ -103,7 +103,7 @@ Feature: Reject unusable closeout handoffs after a Codex restart
 
       Examples:
         | clock defect |
-        | a write time more than five minutes in the future |
+        | a write time five minutes and one tick in the future |
         | an expiry at its write time |
         | an expiry before its write time |
 
@@ -139,6 +139,25 @@ Feature: Reject unusable closeout handoffs after a Codex restart
         | repository count |
         | zero |
         | two |
+
+    @rejection
+    Scenario Outline: Missing or invalid checkout identity is rejected before provenance
+      Given a matching handoff has <checkout defect> and also carries foreign profile provenance
+      When a protected Codex task starts at a controlled time
+      Then SessionStart output reports invalid checkout identity without reporting provenance or naming its target
+      And no continuation or destructive command is emitted
+
+      Examples:
+        | checkout defect |
+        | no checkout identity |
+        | a non-canonical checkout identity |
+
+    Scenario: An unsafe foreign-key entry remains unobserved
+      Given an unsafe-path handoff entry is stored only under a foreign repository key
+      When a protected Codex task starts in the current repository at a controlled time
+      Then SessionStart output contains no unsafe-path notice or foreign contents
+      And the external target is not read
+      And no continuation or claim is emitted
 
     @rejection
     Scenario: Multiple matching handoffs are rejected as ambiguous

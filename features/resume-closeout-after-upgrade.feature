@@ -9,8 +9,6 @@
 # would duplicate the integration harness without adding confidence.
 # Every phrase saying no destructive command is run or emitted is checked through
 # the command observer for branch, worktree, merge, approval, and pull-request mutations.
-# NTB1.R2 rejection behavior is falsified by the positive matching-continuation
-# scenarios in NTB1.R1 and TBU1.R1, which run in the same proof suites.
 @proof.vitest @surface.openai-codex @surface.closeout-cleanup-guard
 Feature: Resume interrupted closeout after a Codex upgrade
 
@@ -20,7 +18,7 @@ Feature: Resume interrupted closeout after a Codex upgrade
     Scenario: A blocked old task records the one observed pending pull request
       Given closeout has observed one exact pull request at a controlled write time in a Codex task still named by the current profile activation marker
       When closeout attempts and cannot obtain its transcript-bound protected current-task binding
-      Then one advisory handoff records current-profile provenance, the canonical repository identity, numeric pull request, observed head, the millisecond-precision write time, and an expiry exactly 24 hours later
+      Then one advisory handoff records current-profile provenance, the canonical repository identity, canonical local checkout identity, numeric pull request, observed head, the millisecond-precision write time, and an expiry exactly 24 hours later
       And the handoff contains no branch, worktree, transcript, merge-decision, approval, or cleanup-authority field
       And no claim record exists for the new handoff
       And the current task output directs the user to start a new protected Codex task
@@ -69,7 +67,7 @@ Feature: Resume interrupted closeout after a Codex upgrade
 
     @rejection
     Scenario Outline: An ambiguous closeout target does not create a handoff
-      Given closeout observes <count> pull requests in a Codex task that must restart
+      Given marker-current protected closeout observes <count> pull requests in a Codex task that must restart
       When closeout cannot obtain a protected current-task binding
       Then no restart handoff is stored
       And the current task output reports that one exact pull request is required
@@ -82,7 +80,7 @@ Feature: Resume interrupted closeout after a Codex upgrade
 
     @rejection
     Scenario Outline: Hostile observed identities are not persisted
-      Given blocked closeout observes <hostile identity>
+      Given marker-current blocked closeout observes <hostile identity>
       When closeout cannot obtain a protected current-task binding
       Then no handoff exists in the profile store
       And the current task output reports invalid observed closeout identity
@@ -102,7 +100,7 @@ Feature: Resume interrupted closeout after a Codex upgrade
 
     @rejection
     Scenario: A traversal-shaped repository identity cannot escape the handoff store
-      Given blocked closeout observes a repository identity whose normalized key targets a known path outside the profile store
+      Given marker-current blocked closeout observes a repository identity whose normalized key targets a known path outside the profile store
       When closeout cannot obtain a protected current-task binding
       Then no handoff exists in the profile store or at that known external target
       And the current task output reports invalid repository identity
@@ -201,6 +199,7 @@ Feature: Resume interrupted closeout after a Codex upgrade
       When blocked closeout records one exact pull request for the current repository
       Then one fresh handoff contains the newly observed pull request identity for the current repository
       And the foreign handoff bytes remain unchanged
+      And the command observer records no branch, worktree, merge, approval, or pull-request state-changing command
 
     Scenario: An unrelated malformed store entry does not block authorized creation
       Given one malformed handoff is stored under a normalized key for a different repository at a controlled time
@@ -230,6 +229,7 @@ Feature: Resume interrupted closeout after a Codex upgrade
       Given one expired handoff exists for the current repository at a controlled time
       When blocked closeout records one exact pull request for that repository
       Then exactly one fresh handoff contains the newly observed pull request identity
+      And the previous expired handoff is no longer discoverable
 
     Scenario: An expired claimed handoff can be replaced
       Given one expired handoff and claim record exist for the current repository at a controlled time
@@ -300,7 +300,7 @@ Feature: Resume interrupted closeout after a Codex upgrade
 
     @rejection
     Scenario Outline: Closeout without one canonical repository does not create a handoff
-      Given blocked closeout resolves <repository count> canonical repository identities
+      Given marker-current blocked closeout resolves <repository count> canonical repository identities
       When closeout cannot obtain a protected current-task binding
       Then no restart handoff is stored
       And the current task output directs the user to retry with the numeric pull request from a canonical repository checkout
@@ -410,6 +410,7 @@ Feature: Resume interrupted closeout after a Codex upgrade
       When a protected Codex task starts from the same owner and repository with different letter case
       Then SessionStart output contains one continuation naming the numeric pending pull request
       And the existing protected SessionStart proof is still emitted
+      And the command observer records no branch, worktree, merge, approval, or pull-request state-changing command
 
     Scenario: Discovery selects one matching handoff among foreign handoffs
       Given one fresh matching handoff and two fresh foreign handoffs exist at a controlled time
@@ -835,6 +836,14 @@ Feature: Resume interrupted closeout after a Codex upgrade
       And the handoff and current claim record remain unchanged
 
     @rejection
+    Scenario: Repository drift takes precedence over an unavailable pull request
+      Given a claimed handoff whose canonical repository changed and whose pull request no longer resolves
+      When the restarted task invokes the existing closeout guard at a controlled time
+      Then closeout output reports that repository identity changed for the numeric pull request
+      And the command observer records no branch, worktree, merge, approval, or pull-request state-changing command
+      And the handoff and current claim record remain unchanged
+
+    @rejection
     Scenario: An unmerged pull request takes precedence over recreated cleanup targets
       Given a claimed handoff whose pull request is unmerged and whose preview-recorded branch target was recreated
       When the restarted task invokes the existing closeout guard at a controlled time
@@ -906,6 +915,25 @@ Feature: Resume interrupted closeout after a Codex upgrade
       When the current protected task explicitly confirms dismissal of that numeric pending pull request
       Then the handoff and its claim are removed
       And no branch, worktree, merge, approval, or pull-request state-changing command is run
+
+    @rejection
+    Scenario Outline: Unsafe dismissal preserves a pending handoff
+      Given <dismissal state> for a pending closeout handoff at a controlled time
+      When dismissal is attempted
+      Then the handoff and claim bytes remain unchanged
+      And closeout output reports <dismissal result>
+
+      Examples:
+        | dismissal state | dismissal result |
+        | the acting task is not marker-current | this task is not the current protected task |
+        | guarded closeout has not reported terminal drift | the pending closeout remains deliverable |
+        | explicit confirmation is absent | explicit confirmation is required |
+
+    Scenario: The shipped closeout surface dismisses terminal drift only after confirmation
+      Given the CLI-installed closeout surface reports terminal checkout identity drift for a claimed handoff
+      When the marker-current protected task explicitly confirms dismissal through that shipped surface
+      Then the real profile store contains neither the handoff nor its claim
+      And the command observer records no branch, worktree, merge, approval, or pull-request state-changing command
 
     @rejection
     Scenario: Expiry revokes an in-flight cleanup before destructive apply
