@@ -329,6 +329,7 @@ jobs:
     needs: [dogfood-parity, cli-contract, dependency-audit, test, lint, relay-inputs]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.relay-inputs.outputs.deploy == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     environment: retro-relay-production
     concurrency:
       group: retro-relay-production

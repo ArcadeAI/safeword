@@ -52,8 +52,11 @@ describe('Retro Relay deployment workflow', () => {
       'relay-inputs',
     ]);
     expect(deployment.environment).toBe('retro-relay-production');
+    expect(deployment['timeout-minutes']).toBe(15);
     expect(deployment.if).toContain("github.event_name == 'push'");
     expect(deployment.if).toContain("github.ref == 'refs/heads/main'");
+    expect(deployment.if).toContain("needs.relay-inputs.outputs.deploy == 'true'");
+    expect(inputs.outputs?.deploy).toBe('${{ steps.changed.outputs.deploy }}');
     expect(detectStep.run).toBe('scripts/detect-retro-relay-deploy.sh');
     expect(deployStep.env?.RAILWAY_TOKEN).toBe('${{ secrets.RAILWAY_TOKEN }}');
     expect(deployStep.run).toContain('railway up --ci');

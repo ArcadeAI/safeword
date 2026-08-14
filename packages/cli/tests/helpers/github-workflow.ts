@@ -19,6 +19,7 @@ export interface WorkflowJob {
   if?: string;
   name?: string;
   needs?: string | string[];
+  outputs?: Record<string, string>;
   steps?: WorkflowStep[];
   strategy?: { matrix?: Record<string, unknown> };
   'timeout-minutes'?: number;

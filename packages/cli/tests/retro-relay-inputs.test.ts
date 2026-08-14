@@ -26,7 +26,12 @@ function repoWithChange(path: string): string {
   return git(path, 'rev-parse', 'HEAD');
 }
 
-function detect(cwd: string, before: string, sha: string): string {
+function detect(
+  cwd: string,
+  before: string,
+  sha: string,
+  githubReference = 'refs/heads/main',
+): string {
   const output = nodePath.join(temporaryDirectory('relay-output-'), 'result');
   execFileSync(detector, [], {
     cwd,
@@ -34,7 +39,7 @@ function detect(cwd: string, before: string, sha: string): string {
       ...process.env,
       BEFORE: before,
       GITHUB_OUTPUT: output,
-      GITHUB_REF: 'refs/heads/main',
+      GITHUB_REF: githubReference,
       SHA: sha,
     },
   });
@@ -70,5 +75,20 @@ describe('Retro Relay deployment input detection', () => {
     git(project, 'remote', 'add', 'origin', emptyRemote);
 
     expect(detect(project, '1111111111111111111111111111111111111111', 'HEAD')).toBe('deploy=true');
+  });
+
+  it('does not deploy outside main or without a previous revision', () => {
+    const project = temporaryDirectory('relay-inputs-');
+    const sha = repoWithChange(project);
+
+    expect(detect(project, sha, sha, 'refs/heads/feature')).toBe('deploy=false');
+    expect(detect(project, '', sha)).toBe('deploy=false');
+  });
+
+  it('deploys a new main branch conservatively', () => {
+    const project = temporaryDirectory('relay-inputs-');
+    const sha = repoWithChange(project);
+
+    expect(detect(project, '0000000000000000000000000000000000000000', sha)).toBe('deploy=true');
   });
 });
