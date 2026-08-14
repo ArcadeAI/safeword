@@ -210,13 +210,7 @@ export function claimCodexCloseoutHandoff(input: {
   if (matches.length !== 1) return undefined;
   const match = matches[0];
   if (match === undefined) return undefined;
-  const claimPath = `${match.path}.claim-${createHash('sha256').update(input.sessionId).digest('hex')}`;
-  try {
-    renameSync(match.path, claimPath);
-    return match.handoff;
-  } catch {
-    return undefined;
-  }
+  return match.handoff;
 }
 
 export interface CloseoutBinding {

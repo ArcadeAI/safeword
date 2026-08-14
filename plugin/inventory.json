@@ -95,7 +95,7 @@
     },
     {
       "path": "resources/scripts/closeout-cleanup.ts",
-      "sha256": "87d565d0d3a7e1a2b43871f1c598187a3b129685846028797df7fa3446175337"
+      "sha256": "38da94c9a98a5f038588d087f81a71caff42f063713c71d66038ab06db5fd5d1"
     },
     {
       "path": "resources/templates/adr-template.md",
@@ -199,7 +199,7 @@
     },
     {
       "path": "runtime/hooks/lib/closeout-binding.ts",
-      "sha256": "bd131add0b879c49682e4664516a51e28972ef785726cd24dbabc8be21bfa71c"
+      "sha256": "9a7e35d35ed97bec61ce010f6d6fbe5256f34e9d425729a318287589f29ae5f8"
     },
     {
       "path": "runtime/hooks/lib/cursor-run-identity.ts",
@@ -523,7 +523,7 @@
     },
     {
       "path": "runtime/hooks/session-codex-start.ts",
-      "sha256": "0f27c37b5c62dbe722ed424963d6fed07eb3d1c241655fbaf6fd80b77715eb3b"
+      "sha256": "d419a42809d370e7fe70aec5f0ef32f73e31685eb651c3ccfaddf508fae7ef9c"
     },
     {
       "path": "runtime/hooks/session-compact-context.ts",

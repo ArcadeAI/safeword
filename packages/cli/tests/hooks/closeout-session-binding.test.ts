@@ -261,7 +261,7 @@ describe('closeout host identity bridge (93C14D NTB1.R2/TBU1.R4)', () => {
         environment,
         now,
       }),
-    ).toBeUndefined();
+    ).toMatchObject({ pull_request: 2802, repository: 'arcadeai/safeword' });
   });
 
   it('rejects ambiguous repository handoffs without claiming either record', () => {

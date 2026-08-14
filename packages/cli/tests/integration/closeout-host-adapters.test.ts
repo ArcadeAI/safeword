@@ -352,7 +352,7 @@ describe('closeout production host adapters (93C14D TBU1.R4)', () => {
 
     const second = restart('another-task');
     expect(second.status, second.stderr).toBe(0);
-    expect(second.stdout).not.toContain('Pending closeout recovered after restart');
+    expect(second.stdout).toContain('Pending closeout recovered after restart');
   });
 
   it('binds the authenticated Codex Desktop task across linked worktrees without a hook bridge', () => {
