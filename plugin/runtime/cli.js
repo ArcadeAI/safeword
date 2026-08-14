@@ -6132,7 +6132,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/pre-tool-config-guard.ts": "6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084",
         ".safeword/hooks/pre-tool-dependency-readiness.ts": "d23343dc3185916140a4b25572f3bb413aece93311f5084444c0debe188f85b8",
         ".safeword/hooks/pre-tool-git-bare-fix.sh": "0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414",
-        ".safeword/hooks/pre-tool-quality.ts": "333f73426106e09d3ce2ec0b2b1681cfb6923a33e5ee0acc1265134eb2fd39b7",
+        ".safeword/hooks/pre-tool-quality.ts": "b97d1639e4598197baa11c71d640f0cbff79f5bf72b38736ad1f4484bb06e1cf",
         ".safeword/hooks/pre-tool-stale-main.ts": "cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e",
         ".safeword/hooks/prompt-questions.ts": "57182cccb8550bb2b585c27672bc9bfef56f4688d0afc1afc18bf52661b7c2a6",
         ".safeword/hooks/prompt-retro-nudge.ts": "78353d6f47adb0ed9969e83b40429d5792a98789dff67ec0bc4d5a024b1da457",
