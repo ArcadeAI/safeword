@@ -1,6 +1,6 @@
 # Test Definitions: Resume interrupted closeout after a Codex upgrade
 
-Feature source: `features/resume-closeout-after-upgrade.feature`
+Feature sources: `features/resume-closeout-after-upgrade.feature` and `features/resume-closeout-after-upgrade-rejections.feature`
 
 ## Rule: resume-closeout-after-upgrade.NTB1.R1 — Blocked closeout records one bounded handoff and the first matching protected task receives its continuation
 

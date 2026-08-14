@@ -78,6 +78,10 @@ const VITEST_PROVEN_FEATURES = [
     'packages/cli/tests/cli-protocol/cli-contract.test.ts',
   ],
   [
+    'features/resume-closeout-after-upgrade-rejections.feature',
+    'packages/cli/tests/hooks/closeout-session-binding.test.ts',
+  ],
+  [
     'features/resume-closeout-after-upgrade.feature',
     'packages/cli/tests/hooks/closeout-session-binding.test.ts',
   ],
