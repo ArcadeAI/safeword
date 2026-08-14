@@ -8,7 +8,9 @@
 # Reproducing the same filesystem, profile, and hook fixtures as Cucumber steps
 # would duplicate the integration harness without adding confidence.
 # Every phrase saying no destructive command is run or emitted is checked through
-# the command observer for branch, worktree, merge, approval, and pull-request mutations.
+# the command observer for local and remote branch or ref deletion, force-push,
+# hard reset, tag or remote mutation, worktree commands, direct filesystem removal
+# of cleanup targets, merge, approval, and pull-request mutations.
 # NTB1.R2 rejection behavior is falsified by the positive matching-continuation
 # scenarios in NTB1.R1 and TBU1.R1, which run in the same proof suites.
 @proof.vitest @surface.openai-codex @surface.closeout-cleanup-guard
@@ -152,6 +154,7 @@ Feature: Reject unusable closeout handoffs after a Codex restart
         | no checkout identity |
         | a non-canonical checkout identity |
 
+    @rejection
     Scenario: An unsafe foreign-key entry remains unobserved
       Given an unsafe-path handoff entry is stored only under a foreign repository key
       When a protected Codex task starts in the current repository at a controlled time
@@ -181,6 +184,8 @@ Feature: Reject unusable closeout handoffs after a Codex restart
         | unusable state |
         | expired |
         | invalid |
+        | an unsafe-path match |
+        | a store-key identity disagreement |
 
     @rejection
     Scenario Outline: Multiple unusable matching handoffs remain inert during discovery

@@ -1,6 +1,6 @@
 # Test Definitions: Resume interrupted closeout after a Codex upgrade
 
-Feature sources: `features/resume-closeout-after-upgrade.feature` and `features/resume-closeout-after-upgrade-rejections.feature`
+Feature sources: `features/resume-closeout-after-upgrade.feature`, `features/resume-closeout-after-upgrade-rejections.feature`, and `features/resume-closeout-after-upgrade-cleanup.feature`
 
 ## Rule: resume-closeout-after-upgrade.NTB1.R1 — Blocked closeout records one bounded handoff and the first matching protected task receives its continuation
 
@@ -124,6 +124,12 @@ Feature sources: `features/resume-closeout-after-upgrade.feature` and `features/
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A newer task revokes a staged handoff before commit
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A second pending handoff does not overwrite the first
 
 - [ ] RED
@@ -155,6 +161,18 @@ Feature sources: `features/resume-closeout-after-upgrade.feature` and `features/
 - [ ] REFACTOR
 
 ### Scenario Outline: One valid and one unusable matching handoff block blind replacement [invalid]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: One valid and one unusable matching handoff block blind replacement [an unsafe-path match]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: One valid and one unusable matching handoff block blind replacement [a store-key identity disagreement]
 
 - [ ] RED
 - [ ] GREEN
@@ -268,13 +286,13 @@ Feature sources: `features/resume-closeout-after-upgrade.feature` and `features/
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A handoff claimed by a current task is not overwritten
+### Scenario: A non-current task cannot overwrite the current task's claim
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A blocked former claim owner cannot rewrite its handoff
+### Scenario: A superseded marker task cannot rewrite its former claim
 
 - [ ] RED
 - [ ] GREEN
@@ -305,6 +323,18 @@ Feature sources: `features/resume-closeout-after-upgrade.feature` and `features/
 - [ ] REFACTOR
 
 ### Scenario Outline: Closeout without one canonical repository does not create a handoff [two]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Closeout without one canonical checkout identity does not create a handoff [no checkout identity]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Closeout without one canonical checkout identity does not create a handoff [a non-canonical checkout identity]
 
 - [ ] RED
 - [ ] GREEN
@@ -600,6 +630,18 @@ Feature sources: `features/resume-closeout-after-upgrade.feature` and `features/
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario Outline: One valid and one unusable matching handoff remain ambiguous [an unsafe-path match]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: One valid and one unusable matching handoff remain ambiguous [a store-key identity disagreement]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario Outline: Multiple unusable matching handoffs remain inert during discovery [two expired handoffs]
 
 - [ ] RED
@@ -621,6 +663,18 @@ Feature sources: `features/resume-closeout-after-upgrade.feature` and `features/
 ## Rule: resume-closeout-after-upgrade.TBU1.R1 — A handoff is bound to one repository and claimed by at most one current Codex task
 
 ### Scenario: Concurrent protected starts elect one current claimant
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: A newer task revokes a staged claim mutation before commit [first claim creation]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: A newer task revokes a staged claim mutation before commit [stale-claim reclaim]
 
 - [ ] RED
 - [ ] GREEN
