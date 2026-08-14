@@ -1,4 +1,4 @@
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { Command } from 'commander';
@@ -480,11 +480,14 @@ describe('quality-review regressions for the public CLI boundary', () => {
 
   it('does not claim a mutation when removal fails during preflight', async () => {
     const directory = createTemporaryDirectory();
+    // A self-referential symlink makes the preflight scan fail with ELOOP for
+    // every uid. chmod 0o000 cannot express this for uid 0, because root
+    // bypasses directory permission bits.
     const safewordDirectory = nodePath.join(directory, '.safeword');
     mkdirSync(safewordDirectory);
-    chmodSync(safewordDirectory, 0o000);
+    symlinkSync('hooks', nodePath.join(safewordDirectory, 'hooks'));
 
-    try {
+    {
       const result = await runCli(['remove', '--json', '--no-input', '--cwd', directory], {
         cwd: directory,
       });
@@ -501,8 +504,6 @@ describe('quality-review regressions for the public CLI boundary', () => {
           destructive: [],
         },
       });
-    } finally {
-      chmodSync(safewordDirectory, 0o700);
     }
   });
 

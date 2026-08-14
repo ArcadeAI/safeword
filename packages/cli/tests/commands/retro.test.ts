@@ -1,6 +1,5 @@
 import { spawnSync } from 'node:child_process';
 import {
-  chmodSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -1197,10 +1196,12 @@ describe('runRetro transport selection (BNGK9W — spool → try-REST → drain 
   });
 
   it('retains tracker-filed drafts when acknowledgement writes cannot be read back', async () => {
+    // Point the ack path at /dev/null: appends succeed, read-back is always
+    // empty. A write-only file (chmod 0o200) cannot express this for uid 0,
+    // because root bypasses the read bit and the read-back would succeed.
     const path = ackFilePath(projectDirectory, 'sess-a');
     mkdirSync(nodePath.dirname(path), { recursive: true });
-    writeFileSync(path, '');
-    chmodSync(path, 0o200);
+    symlinkSync('/dev/null', path);
 
     const transport = new FakeGitHub();
     const outcome = await runRetro(

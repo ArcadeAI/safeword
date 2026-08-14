@@ -370,12 +370,15 @@ describe('configured public-command wiring', () => {
   it('reports a remote issue and pending sidecar when local ticket creation fails', async () => {
     const directory = createTemporaryDirectory();
     configuredGitHubProject(directory);
+    // A regular file where the tickets directory belongs makes every write
+    // beneath it fail with ENOTDIR for every uid. chmod 0o000 cannot express
+    // this for uid 0, because root bypasses directory permission bits.
     const ticketsDirectory = nodePath.join(directory, '.project/tickets');
-    mkdirSync(ticketsDirectory, { recursive: true });
-    chmodSync(ticketsDirectory, 0o000);
+    mkdirSync(nodePath.dirname(ticketsDirectory), { recursive: true });
+    writeFileSync(ticketsDirectory, '');
     const github = installFakeGitHubCli(directory);
 
-    try {
+    {
       const result = await runCli(
         [
           'ticket',
@@ -413,8 +416,6 @@ describe('configured public-command wiring', () => {
           '321': { status: 'pending', ref: { provider: 'github', id: '321' } },
         },
       });
-    } finally {
-      chmodSync(ticketsDirectory, 0o700);
     }
   });
 
