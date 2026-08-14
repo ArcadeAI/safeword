@@ -216,6 +216,28 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
     });
   };
 
+  const respondWithReconciliation = async (
+    response: ServerResponse,
+    receiptId: string,
+    subject: string,
+    run: () => Promise<{ disposition: string; receipt: unknown }>,
+  ): Promise<void> => {
+    try {
+      const { disposition, receipt } = await run();
+      recordReconciliationOutcome({ receiptId, subject, disposition });
+      sendJson(response, 200, receipt);
+    } catch (error) {
+      const disposition =
+        error instanceof RelayError && typeof error.details?.disposition === 'string'
+          ? error.details.disposition
+          : undefined;
+      if (disposition !== undefined) {
+        recordReconciliationOutcome({ receiptId, subject, disposition, alert: true });
+      }
+      throw error;
+    }
+  };
+
   // eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- A single composition-root router keeps the public contract visible.
   async function handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
     try {
@@ -288,57 +310,19 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
       const reconciliation = /^\/v1\/retro-filings\/([^/]+)\/reconcile$/u.exec(url.pathname);
       if (request.method === 'POST' && reconciliation?.[1] !== undefined) {
         const decodedReceipt = decodePathSegment(reconciliation[1]);
-        try {
-          const receipt = await service.reconcile(principal, decodedReceipt);
-          recordReconciliationOutcome({
-            receiptId: decodedReceipt,
-            subject: principal.subject,
-            disposition: 'adopted',
-          });
-          sendJson(response, 200, receipt);
-        } catch (error) {
-          const disposition =
-            error instanceof RelayError && typeof error.details?.disposition === 'string'
-              ? error.details.disposition
-              : undefined;
-          if (disposition !== undefined) {
-            recordReconciliationOutcome({
-              receiptId: decodedReceipt,
-              subject: principal.subject,
-              disposition,
-              alert: true,
-            });
-          }
-          throw error;
-        }
+        await respondWithReconciliation(response, decodedReceipt, principal.subject, async () => ({
+          disposition: 'adopted',
+          receipt: await service.reconcile(principal, decodedReceipt),
+        }));
         return;
       }
       const recovery = /^\/v1\/retro-filings\/([^/]+)\/recover$/u.exec(url.pathname);
       if (request.method === 'POST' && recovery?.[1] !== undefined) {
         const decodedReceipt = decodePathSegment(recovery[1]);
-        try {
+        await respondWithReconciliation(response, decodedReceipt, principal.subject, async () => {
           const recovered = await service.recover(principal, decodedReceipt);
-          recordReconciliationOutcome({
-            receiptId: decodedReceipt,
-            subject: principal.subject,
-            disposition: recovered.disposition,
-          });
-          sendJson(response, 200, recovered.receipt);
-        } catch (error) {
-          const disposition =
-            error instanceof RelayError && typeof error.details?.disposition === 'string'
-              ? error.details.disposition
-              : undefined;
-          if (disposition !== undefined) {
-            recordReconciliationOutcome({
-              receiptId: decodedReceipt,
-              subject: principal.subject,
-              disposition,
-              alert: true,
-            });
-          }
-          throw error;
-        }
+          return { disposition: recovered.disposition, receipt: recovered.receipt };
+        });
         return;
       }
       const status = /^\/v1\/retro-filings\/([^/]+)$/u.exec(url.pathname);
