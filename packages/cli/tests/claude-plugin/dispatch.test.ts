@@ -14,7 +14,7 @@ import {
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import { CLAUDE_HISTORICAL_CATALOGUE } from '../../src/claude-plugin/historical-catalogue.generated.js';
 import {
@@ -23,6 +23,7 @@ import {
 } from '../../src/claude-plugin/historical-ownership.js';
 import { claudeWatchedSettingsDigest } from '../../src/claude-plugin/migration-state.js';
 import { SAFEWORD_SCHEMA } from '../../src/schema.js';
+import { requireHistoricalReleaseTags } from '../helpers/git-history.js';
 
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 const PLUGIN_ROOT = nodePath.join(REPO_ROOT, 'plugin');
@@ -165,7 +166,14 @@ function refreshPluginIdentity(pluginRoot: string, changedAssets: readonly strin
   writeFileSync(identityPath, `${JSON.stringify(identity, undefined, 2)}\n`);
 }
 
+/** Releases this suite reads real bytes from; shared with the history preflight. */
+const FIXTURE_VERSIONS = ['0.72.0'];
+
 describe('Claude plugin dispatcher', () => {
+  beforeAll(() => {
+    requireHistoricalReleaseTags(FIXTURE_VERSIONS);
+  });
+
   it('passes the bundled CLI path to aggregate child hooks', () => {
     const projectDirectory = temporary('safeword-plugin-project-');
     const pluginData = temporary('safeword-plugin-data-');

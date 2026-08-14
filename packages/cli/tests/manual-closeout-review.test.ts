@@ -3,9 +3,10 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 
 import { parseFeatureScenarios } from '../src/utils/gherkin-feature.js';
+import { requireFullHistory } from './helpers/git-history.js';
 
 const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
 const ticketRoot = nodePath.join(
@@ -193,6 +194,10 @@ describe('sealed-commit resolution', () => {
 });
 
 describe('hash-bound independent closeout review (93C14D)', () => {
+  // Only this suite walks real ancestry; the sealed-commit resolution suite
+  // above drives the parser with synthetic git results and needs no history.
+  beforeAll(requireFullHistory);
+
   it('rejects multiple conflicting review result blocks', () => {
     const result = JSON.stringify({
       reviewer: { identity: 'reviewer-1', model: 'gpt-5' },

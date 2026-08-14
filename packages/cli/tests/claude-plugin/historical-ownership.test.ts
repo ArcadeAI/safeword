@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 
 import { CLAUDE_HISTORICAL_CATALOGUE } from '../../src/claude-plugin/historical-catalogue.generated.js';
 import {
@@ -10,6 +10,7 @@ import {
   isAcceptedHistoricalHook,
   supportedClaudeLegacyReleases,
 } from '../../src/claude-plugin/historical-ownership.js';
+import { requireHistoricalReleaseTags } from '../helpers/git-history.js';
 
 const repoRoot = new URL('../../../..', import.meta.url).pathname;
 
@@ -20,7 +21,14 @@ function gitShow(tag: string, path: string): string {
   });
 }
 
+/** Releases this suite reads real bytes from; shared with the history preflight. */
+const FIXTURE_VERSIONS = ['0.68.0', '0.69.0', '0.72.0'];
+
 describe('Claude historical ownership catalogue', () => {
+  beforeAll(() => {
+    requireHistoricalReleaseTags(FIXTURE_VERSIONS);
+  });
+
   it('contains the required released migration fixtures and prerelease history', () => {
     expect(supportedClaudeLegacyReleases()).toEqual(
       expect.arrayContaining(['0.68.0', '0.69.0', '0.71.0-rc.0', '0.72.0']),
@@ -28,7 +36,7 @@ describe('Claude historical ownership catalogue', () => {
     expect(historicalCatalogueDigest()).toMatch(/^[\da-f]{64}$/u);
   });
 
-  it.each(['0.68.0', '0.69.0', '0.72.0'])('recognizes real %s released file bytes', version => {
+  it.each(FIXTURE_VERSIONS)('recognizes real %s released file bytes', version => {
     const release =
       CLAUDE_HISTORICAL_CATALOGUE.releases[
         version as keyof typeof CLAUDE_HISTORICAL_CATALOGUE.releases

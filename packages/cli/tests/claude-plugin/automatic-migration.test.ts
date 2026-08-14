@@ -12,7 +12,7 @@ import {
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import { migrateClaudeLegacyAutomatically } from '../../src/claude-plugin/cleanup.js';
 import { CLAUDE_HISTORICAL_CATALOGUE } from '../../src/claude-plugin/historical-catalogue.generated.js';
@@ -21,6 +21,7 @@ import {
   historicalHookEntry,
 } from '../../src/claude-plugin/historical-ownership.js';
 import { readClaudePluginMode } from '../../src/claude-plugin/migration-state.js';
+import { requireHistoricalReleaseTags } from '../helpers/git-history.js';
 
 const repoRoot = new URL('../../../..', import.meta.url).pathname;
 const roots: string[] = [];
@@ -74,8 +75,15 @@ afterEach(() => {
   roots.length = 0;
 });
 
+/** Releases this suite reads real bytes from; shared with the history preflight. */
+const FIXTURE_VERSIONS = ['0.68.0', '0.69.0', '0.72.0'];
+
 describe('automatic Claude migration', () => {
-  it.each(['0.68.0', '0.69.0', '0.72.0'])(
+  beforeAll(() => {
+    requireHistoricalReleaseTags(FIXTURE_VERSIONS);
+  });
+
+  it.each(FIXTURE_VERSIONS)(
     'contracts exact %s released bytes and writes clean plugin mode silently',
     version => {
       const { root, installedPath } = fixture(version);
