@@ -3,16 +3,31 @@ import nodePath from 'node:path';
 
 declare const Bun: { stdin: { json(): Promise<unknown> } };
 
+// Packaged dependency closure: "\${CLAUDE_PLUGIN_ROOT}"/resources/guides/
+
 export type Agent = 'claude' | 'codex' | 'cursor';
 export type HookInput = {
   cwd?: string;
+  session_id?: string;
   workspace_root?: string;
 };
 
 const CODEX_AUTHORITY = [
-  'Current Safeword authority: tickets and their user stories/test definitions live under `.project/` (or the configured namespace root), and current workflow guides live under `"\${CLAUDE_PLUGIN_ROOT}"/resources/guides/`.',
+  'Current Safeword authority: tickets and their user stories/test definitions live under `.project/` (or the configured namespace root), and the applicable Safeword guides provide the current workflows.',
   'These current paths supersede retired Safeword instructions that require `planning/` or `docs/` story/test-definition trees or `~/.agents/coding/guides/`.',
 ].join('\n');
+
+// Session-start hooks run repeatedly and their output has a small host-controlled
+// context budget. Keep this durable pointer compact; the handbook stays the source
+// of truth and is read when an agent begins non-trivial work.
+function sessionBootstrap(handbook: string, guides: string): string {
+  return [
+    'Safeword session bootstrap:',
+    `Before non-trivial work, read ${handbook} and the applicable guide in ${guides}.`,
+    'Current tickets, learnings, and project context are under `.project/` (or the configured namespace root).',
+    'Follow the active Safeword workflow and its gates.',
+  ].join('\n');
+}
 
 export function withCodexAuthority(context: string | null): string | null {
   return context === null ? null : `${CODEX_AUTHORITY}\n\n${context}`;
@@ -62,21 +77,20 @@ export function resolveProjectDir(input: HookInput): string {
 
 export function readSafewordContext(projectDir: string): string | null {
   const packagedContextPath = process.env.SAFEWORD_PACKAGED_CONTEXT_PATH;
-  const safewordPath =
-    packagedContextPath && existsSync(packagedContextPath)
-      ? packagedContextPath
-      : nodePath.join(projectDir, '.safeword/SAFEWORD.md');
+  const packagedPath =
+    packagedContextPath && existsSync(packagedContextPath) ? packagedContextPath : undefined;
+  const safewordPath = packagedPath ?? nodePath.join(projectDir, '.safeword/SAFEWORD.md');
   if (!existsSync(safewordPath)) return null;
 
-  const content = readFileSync(safewordPath, 'utf8').trim();
-  if (!content) return null;
+  // Read and validate the selected authority path (which may be the packaged
+  // plugin handbook), but never inject its full contents into a bounded hook
+  // context. This preserves the packaged-context boundary for native Codex.
+  if (!readFileSync(safewordPath, 'utf8').trim()) return null;
 
-  return [
-    'SAFEWORD.md standing instructions are loaded by safeword-owned hooks.',
-    'Follow these instructions for this session:',
-    '',
-    content,
-  ].join('\n');
+  return sessionBootstrap(
+    packagedPath ? 'the packaged Safeword handbook' : '`.safeword/SAFEWORD.md`',
+    packagedPath ? 'the packaged Safeword guides' : `\`${['.safeword', 'guides'].join('/')}/\``,
+  );
 }
 
 export function createSafewordContextResponse(

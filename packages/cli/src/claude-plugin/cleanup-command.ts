@@ -1,6 +1,6 @@
 import { type CliPlan, createPlan, toWirePlan } from '../cli-protocol/plan.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
-import { SAFEWORD_SCHEMA } from '../schema.js';
+import { VERSION } from '../version.js';
 import {
   claudeCleanupPreconditionDigest,
   claudeLegacyMutations,
@@ -74,7 +74,7 @@ export function cleanupClaudeLegacy(
     }
     const mutations = claudeLegacyMutations(projectRoot);
     const migrated = migrateClaudeLegacyAutomatically(projectRoot, {
-      pluginVersion: SAFEWORD_SCHEMA.version,
+      pluginVersion: VERSION,
       hookManifestSha256: currentClaudePluginHookManifestSha256(),
       catalogueSha256: historicalCatalogueDigest(),
       deadline: Number.MAX_SAFE_INTEGER,

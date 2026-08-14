@@ -22,6 +22,8 @@
  *
  * It is token-gated and opt-in: the assertion runs only in the live lane and only
  * when a real GitHub token is resolvable (env `GITHUB_TOKEN` or `gh auth token`).
+ * The two source-only GitHub smokes may run via `bun run test:smoke:live:github`
+ * without a fresh build or the package-test lock (#1484).
  * (One edge: in an environment with `gh` auth but no `api.github.com` egress, the
  * gate passes and the fetch fails closed → the assertion fails rather than skips;
  * that is the right signal for a deliberately-invoked manual lane.)

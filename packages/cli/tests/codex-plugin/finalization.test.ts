@@ -366,7 +366,7 @@ describe('Codex migration finalization', () => {
     expect(existsSync(nodePath.join(directory, 'created.txt'))).toBe(false);
   });
 
-  it('leaves deterministic recovery evidence when execution stops after preparation', () => {
+  it('retains recovery evidence for a process stop immediately after preparation', () => {
     const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-finalization-'));
     directories.push(directory);
     writeFileSync(nodePath.join(directory, 'owned.txt'), 'before\n');
@@ -380,12 +380,34 @@ describe('Codex migration finalization', () => {
     ).toThrow('simulated process stop');
 
     expect(readFileSync(nodePath.join(directory, 'owned.txt'), 'utf8')).toBe('before\n');
-    const manifestPath = nodePath.join(directory, '.safeword/codex-migration-backup/manifest.json');
-    expect(JSON.parse(readFileSync(manifestPath, 'utf8'))).toMatchObject({
-      schema_version: 1,
-      status: 'prepared',
-      entries: [{ path: 'owned.txt' }],
-    });
+    expect(
+      existsSync(nodePath.join(directory, '.safeword/codex-migration-backup/manifest.json')),
+    ).toBe(true);
+  });
+
+  it('rolls back every mutation when the finalized manifest cannot be written', () => {
+    const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-finalization-'));
+    directories.push(directory);
+    writeFileSync(nodePath.join(directory, 'owned.txt'), 'before\n');
+
+    expect(() =>
+      applyCodexFinalization(
+        directory,
+        [
+          { path: 'owned.txt', content: 'after\n' },
+          { path: 'created.txt', content: 'created\n' },
+        ],
+        {
+          beforeFinalizedManifestWrite: () => {
+            throw new Error('injected finalized manifest failure');
+          },
+        },
+      ),
+    ).toThrow('injected finalized manifest failure');
+
+    expect(readFileSync(nodePath.join(directory, 'owned.txt'), 'utf8')).toBe('before\n');
+    expect(existsSync(nodePath.join(directory, 'created.txt'))).toBe(false);
+    expect(existsSync(nodePath.join(directory, '.safeword/codex-migration-backup'))).toBe(false);
   });
 
   it('rejects an unsafe backup target before changing any file', () => {

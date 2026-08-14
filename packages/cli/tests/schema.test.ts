@@ -669,6 +669,8 @@ describe('Schema - Single Source of Truth', () => {
       const NON_LIFECYCLE_HOOK_MODULES = new Set([
         // Codex-only dispatcher wired through .codex/config.toml, not Claude SETTINGS_HOOKS.
         'session-codex-start.ts',
+        // Codex invokes this bootstrap directly; Claude uses the lifecycle adapter.
+        'dependency-bootstrap.ts',
         // Codex-only Stop adapter wired through .codex/config.toml, not Claude SETTINGS_HOOKS.
         'stop.ts',
         // Cursor-only wrapper wired through .cursor/hooks.json, not Claude SETTINGS_HOOKS.
@@ -715,7 +717,7 @@ describe('Schema - Single Source of Truth', () => {
     });
 
     it('should track all deployed .safeword/ files in the schema', async () => {
-      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+      const { SAFEWORD_SCHEMA, SAFEWORD_TRANSIENT_PATHS } = await import('../src/schema.js');
       const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
       const safewordDirectory = nodePath.join(repoRoot, '.safeword');
 
@@ -768,6 +770,12 @@ describe('Schema - Single Source of Truth', () => {
         if (ownedPaths.has(file)) continue;
         if (managedPaths.has(file)) continue;
         if (deprecatedPaths.has(file)) continue;
+        if (
+          SAFEWORD_TRANSIENT_PATHS.some(path =>
+            path.endsWith('/') ? file.startsWith(path) : file === path,
+          )
+        )
+          continue;
         if (file.startsWith('.safeword/codex-migration-backup/')) continue;
         if (preservedDirectories.some(dir => file === dir || file.startsWith(`${dir}/`))) continue;
         untracked.push(file);

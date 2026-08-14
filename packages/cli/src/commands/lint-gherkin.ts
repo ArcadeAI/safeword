@@ -3,12 +3,20 @@
  * legacy `gherkin-lint` dependency tree into customer repos.
  */
 
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import { collectExecutableFeatureFiles } from '../utils/feature-source.js';
 import { findGherkinLintIssues, type GherkinLintIssue } from '../utils/gherkin-feature.js';
+
+const OFFLOAD_RULE_PROOF_POLICY = {
+  issuePrefix: 'offload',
+  lineageTagPrefix: '@offload-tests.',
+  proofTag: '@proof.cucumber',
+  ruleLabel: 'offload Rule',
+  workInProgressTag: '@wip',
+} as const;
 
 export function observeGherkinLint(cwd: string, files: readonly string[]): CliResult {
   const featureFiles =
@@ -50,8 +58,22 @@ function lintFile(cwd: string, filePath: string): { code: string; message: strin
     ];
   }
 
-  const content = readFileSync(filePath, 'utf8');
-  return findGherkinLintIssues(content, { filePath }).map(issue => ({
+  let content: string;
+  try {
+    if (!statSync(filePath).isFile()) throw new Error('not a regular file');
+    content = readFileSync(filePath, 'utf8');
+  } catch {
+    return [
+      {
+        code: 'GHERKIN_FILE_UNREADABLE',
+        message: `${formatPath(cwd, filePath)}: not a readable regular file [file-readable]`,
+      },
+    ];
+  }
+  return findGherkinLintIssues(content, {
+    filePath,
+    ruleProofPolicy: OFFLOAD_RULE_PROOF_POLICY,
+  }).map(issue => ({
     code: `GHERKIN_${issue.rule.toUpperCase().replaceAll('-', '_')}`,
     message: formatIssue(cwd, filePath, issue),
   }));

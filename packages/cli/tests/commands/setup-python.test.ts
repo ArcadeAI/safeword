@@ -108,7 +108,7 @@ describe('Test Suite 3: Conditional Setup for Python Projects', () => {
         });
 
         // Should mention Python tooling (JS toolchain now also installs — BDD lane, 102b)
-        expect(result.stdout).toMatch(/pip install|ruff|mypy/i);
+        expect(result.stdout + result.stderr).toMatch(/pip install|ruff|mypy/i);
       },
       TIMEOUT_SETUP,
     );
@@ -164,7 +164,7 @@ describe('Test Suite 3: Conditional Setup for Python Projects', () => {
         expect(fileExists(projectDirectory, 'eslint.config.mjs')).toBe(true);
 
         // Should mention Python tooling guidance
-        expect(result.stdout).toMatch(/ruff|python/i);
+        expect(result.stdout + result.stderr).toMatch(/ruff|python/i);
       },
       TIMEOUT_BUN_INSTALL,
     );

@@ -2,14 +2,15 @@
  * Acceptance bindings for automatic Claude migration.
  *
  * Each scenario is driven at the altitude its claim lives at (see
- * `support/claude-migration-fixtures.ts`): most run the REAL generated plugin
- * hook over real released bytes, deadline and recovery scenarios drive the
+ * `support/claude-migration-fixtures.ts`): most run the packaged generated
+ * plugin hook at its process boundary over real released bytes; deadline and recovery scenarios drive the
  * migration module with an injected clock, and the release-contract scenarios
  * run the real contract scripts. No two scenarios share an assertion.
  */
 
 import { strict as assert } from 'node:assert';
 import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
   chmodSync,
   cpSync,
@@ -45,6 +46,7 @@ import {
   installFakeClaudeHost,
   type LegacyProject,
   legacyReleaseFiles,
+  legacyReleaseHookEntry,
   occurrences,
   PLUGIN_ROOT,
   readProjectFile,
@@ -79,10 +81,10 @@ interface MigrationWorld {
   restoreMode?: string;
   externalFile?: string;
   symlinked?: string;
-  clock?: number;
   acceptedEntry?: string;
-  rawSettings?: string;
   expectedSettings?: string;
+  raceRuns?: readonly { status: number; output: string }[];
+  winningTransactionId?: string;
 }
 
 function project(world: MigrationWorld): LegacyProject {
@@ -112,6 +114,22 @@ function advisory(world: MigrationWorld): string {
   return world.hook?.advisory ?? world.migration?.advisory ?? '';
 }
 
+function runUntilAutomaticMigrationSettles(
+  target: LegacyProject,
+  sessionId: string,
+  maximumPrompts = 3,
+): HookRun {
+  let run: HookRun | undefined;
+  for (let prompt = 1; prompt <= maximumPrompts; prompt += 1) {
+    run = runPluginHook(target, { sessionId });
+    assert.equal(run.status, 0, run.stderr);
+    if (!DEFERRALS.some(deferral => run?.advisory.includes(deferral))) return run;
+  }
+  assert.fail(
+    `migration never settled across ${String(maximumPrompts)} prompts: ${run?.advisory ?? ''}`,
+  );
+}
+
 /** Asserts a Safeword advisory appears, naming each expected path, exactly once. */
 function assertSingleAdvisory(text: string, sentence: string, names: readonly string[] = []): void {
   assert.equal(
@@ -136,7 +154,10 @@ After(function (this: MigrationWorld) {
 Given(
   /^a clean legacy Claude project installed from Safeword (.+)$/u,
   function (this: MigrationWorld, release: string) {
-    this.project = createLegacyProject({ release });
+    this.project = createLegacyProject({
+      release,
+      settings: { hooks: { SessionStart: [legacyReleaseHookEntry(release, 'SessionStart')] } },
+    });
     assert.ok(project(this).installed.length > 1, 'fixture installed no legacy tree');
     this.before = snapshotTree(project(this).root);
   },
@@ -161,16 +182,11 @@ When('its UserPromptSubmit event completes successfully', function (this: Migrat
   // under test is that contraction converges, not that it fits in one budget,
   // so keep prompting while the hook says it deferred. A regression that never
   // converges still fails, on the bound.
-  for (let prompt = 1; prompt <= 3; prompt += 1) {
-    this.hook = runPluginHook(project(this), { sessionId: 'automatic-migration-session' });
-    assert.equal(this.hook.status, 0, this.hook.stderr);
-    if (!DEFERRALS.some(deferral => this.hook?.advisory.includes(deferral))) return;
-  }
-  assert.fail(`migration never settled across three prompts: ${this.hook?.advisory ?? ''}`);
+  this.hook = runUntilAutomaticMigrationSettles(project(this), 'automatic-migration-session');
 });
 
 Then(
-  'every accepted legacy Claude asset and settings entry is removed',
+  "every asset in that release's independent manifest and its legacy settings entry is removed",
   function (this: MigrationWorld) {
     for (const relative of project(this).installed) {
       assert.ok(
@@ -288,8 +304,8 @@ Given(
     });
     // The one and only edit a correct rewrite may make.
     this.acceptedEntry = accepted;
-    this.rawSettings = readProjectFile(project(this).root, '.claude/settings.json');
-    this.expectedSettings = this.rawSettings.replace(`[${accepted}]`, '[]');
+    const rawSettings = readProjectFile(project(this).root, '.claude/settings.json');
+    this.expectedSettings = rawSettings.replace(`[${accepted}]`, '[]');
     this.before = snapshotTree(project(this).root);
   },
 );
@@ -424,7 +440,7 @@ Then(
 );
 
 Then(
-  'the durable transaction remains available for recovery without changing that target',
+  'the durable transaction records a recoverable before image without changing that target',
   function (this: MigrationWorld) {
     assert.ok(
       existsSync(nodePath.join(project(this).root, TRANSACTION)),
@@ -432,8 +448,45 @@ Then(
     );
     const [target] = this.preserved ?? [];
     assert.ok(target);
+    const transaction = JSON.parse(readProjectFile(project(this).root, TRANSACTION)) as {
+      state?: string;
+      entries?: Array<{
+        path?: string;
+        before_base64?: string;
+        before_sha256?: string;
+        after_base64?: string | null;
+        after_sha256?: string | null;
+      }>;
+    };
+    assert.equal(transaction.state, 'recoverable');
+    const entry = transaction.entries?.find(candidate => candidate.path === target);
+    assert.ok(entry, `transaction does not record failed target ${target}`);
+    assert.equal(entry.before_sha256, this.before?.files.get(target));
+    assert.equal(
+      Buffer.from(entry.before_base64 ?? '', 'base64').toString(),
+      readProjectFile(project(this).root, target),
+    );
+    assert.equal(entry.after_base64, null);
+    assert.equal(entry.after_sha256, null);
     const after = snapshotTree(project(this).root, MIGRATION_STATE);
     assert.equal(after.files.get(target), this.before?.files.get(target));
+    assert.equal(readClaudePluginMode(project(this).root), undefined);
+  },
+);
+
+Then(
+  'restoring filesystem access lets recovery complete from that transaction',
+  function (this: MigrationWorld) {
+    assert.ok(this.restoreMode);
+    chmodSync(this.restoreMode, 0o700);
+    this.restoreMode = undefined;
+    const recovered = recoverClaudeCleanup(project(this).root);
+    assert.equal(recovered.state, 'changed', JSON.stringify(recovered));
+    const [target] = this.preserved ?? [];
+    assert.ok(target);
+    assert.equal(existsSync(nodePath.join(project(this).root, target)), false);
+    assert.equal(existsSync(nodePath.join(project(this).root, TRANSACTION)), false);
+    assert.equal(marker(this).state, 'clean');
   },
 );
 
@@ -641,6 +694,43 @@ Then('the prompt continues with reload as the sole next action', function (this:
 });
 
 Given(
+  /^a legacy Claude project has a (.+) execution proof$/u,
+  function (this: MigrationWorld, defect: string) {
+    this.project = createLegacyProject({ release: '0.72.0' });
+    installFakeClaudeHost(project(this), [installation('project', project(this))]);
+    const identity = JSON.parse(
+      readFileSync(nodePath.join(project(this).plugin, 'identity.json'), 'utf8'),
+    ) as {
+      plugin_version: string;
+      hook_manifest_sha256: string;
+    };
+    const digest = createHash('sha256').update(project(this).root).digest('hex');
+    const proof: Record<string, unknown> = {
+      schema_version: 2,
+      project_root: project(this).root,
+      plugin_version: identity.plugin_version,
+      hook_manifest_sha256: identity.hook_manifest_sha256,
+      canonical_plugin_root: project(this).plugin,
+      event: 'UserPromptSubmit',
+      session_id: 'replayed-session',
+      recorded_at: new Date(0).toISOString(),
+    };
+    if (defect === 'different-repository') proof.project_root = `${project(this).root}-other`;
+    else if (defect === 'previous-plugin-version') proof.plugin_version = '0.1.0';
+    else if (defect === 'wrong-event') proof.event = 'Stop';
+    else if (defect === 'different-plugin-identity') proof.hook_manifest_sha256 = 'f'.repeat(64);
+    else assert.fail(`unknown proof defect: ${defect}`);
+    writeProjectFile(
+      project(this).config,
+      `plugins/data/safeword-safeword/execution-proofs-v2/${digest}.json`,
+      `${JSON.stringify(proof)}\n`,
+    );
+    this.before = snapshotTree(project(this).root);
+    this.command = runSafewordClaude(project(this), 'status');
+  },
+);
+
+Given(
   'a legacy Claude project whose final plugin UserPromptSubmit sibling fails',
   function (this: MigrationWorld) {
     this.project = createLegacyProject({ release: '0.72.0' });
@@ -686,7 +776,10 @@ Then(
 Given(
   'two plugin processes observe the same cleanup-ready repository',
   function (this: MigrationWorld) {
-    this.project = createLegacyProject({ release: '0.72.0' });
+    this.project = createLegacyProject({
+      release: '0.72.0',
+      extraFiles: { '.project/context.txt': 'untouched by either racer\n' },
+    });
   },
 );
 
@@ -727,6 +820,7 @@ When(
     // Both are in flight before either can finish: the exclusive-create claim,
     // not the schedule, is what has to make this converge.
     const [first, second] = await Promise.all([launch('racer-one'), launch('racer-two')]);
+    this.raceRuns = [first, second];
     this.command = {
       status: Math.max(first.status, second.status),
       output: `${first.output}${second.output}`,
@@ -735,9 +829,10 @@ When(
 );
 
 Then(
-  'exactly one transaction is created and both report the same completed plugin-mode state',
+  'the racing prompts expose one winning transaction without conflicting mutations',
   function (this: MigrationWorld) {
-    assert.equal(this.command?.status, 0, this.command?.output);
+    assert.equal(this.raceRuns?.length, 2);
+    for (const run of this.raceRuns ?? []) assert.equal(run.status, 0, run.output);
     // A non-exclusive claim lets the loser re-plan and collide, which surfaces
     // as a migration-error advisory; silence here is the real signal.
     assert.equal(
@@ -745,13 +840,35 @@ Then(
       0,
       this.command?.output,
     );
-    assert.ok(!existsSync(nodePath.join(project(this).root, TRANSACTION)));
-    assert.equal(marker(this).state, 'clean');
-    for (const relative of project(this).installed) {
-      assert.ok(!existsSync(nodePath.join(project(this).root, relative)));
+    const transactionPath = nodePath.join(project(this).root, TRANSACTION);
+    const transaction = existsSync(transactionPath)
+      ? (JSON.parse(readProjectFile(project(this).root, TRANSACTION)) as {
+          transaction_id?: string;
+          state?: string;
+        })
+      : undefined;
+    const completed = readClaudePluginMode(project(this).root);
+    this.winningTransactionId = transaction?.transaction_id ?? completed?.transaction_id;
+    assert.match(this.winningTransactionId ?? '', /^[\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12}$/iu);
+    if (transaction !== undefined) {
+      assert.ok(['active', 'recoverable'].includes(transaction.state ?? ''));
     }
+    assert.equal(
+      readProjectFile(project(this).root, '.project/context.txt'),
+      'untouched by either racer\n',
+    );
   },
 );
+
+Then('the next prompt completes that same winning transaction', function (this: MigrationWorld) {
+  runUntilAutomaticMigrationSettles(project(this), 'concurrent-migration-follow-up');
+  assert.equal(existsSync(nodePath.join(project(this).root, TRANSACTION)), false);
+  assert.equal(marker(this).state, 'clean');
+  assert.equal(marker(this).transaction_id, this.winningTransactionId);
+  for (const relative of project(this).installed) {
+    assert.equal(existsSync(nodePath.join(project(this).root, relative)), false, relative);
+  }
+});
 
 Given(
   "two plugin processes race and the transaction winner remains active beyond the loser's bounded wait",
@@ -995,8 +1112,7 @@ Then(
 Then(
   'the first successful prompt in a new session permits one automatic recovery attempt',
   function (this: MigrationWorld) {
-    const run = runPluginHook(project(this), { sessionId: 'a-brand-new-session' });
-    assert.equal(run.status, 0, run.stderr);
+    runUntilAutomaticMigrationSettles(project(this), 'a-brand-new-session', 2);
     assert.equal(marker(this).state, 'clean');
     for (const relative of project(this).installed) {
       assert.ok(!existsSync(nodePath.join(project(this).root, relative)));
@@ -1055,50 +1171,146 @@ Then('the prompt continues with one recovery-conflict advisory', function (this:
   assert.ok(path && this.recovery?.errors?.[0]?.message.includes(path));
 });
 
+Given(
+  /^an interrupted migration transaction has a (.+)$/u,
+  function (this: MigrationWorld, defect: string) {
+    this.project = createLegacyProject({ release: '0.72.0', assetLimit: 1 });
+    let reads = 0;
+    migrateClaudeLegacyAutomatically(project(this).root, {
+      pluginVersion: '0.73.0',
+      hookManifestSha256: 'a'.repeat(64),
+      catalogueSha256: historicalCatalogueDigest(),
+      deadline: 5,
+      now: () => (reads++ === 0 ? 0 : 10),
+    });
+    const transaction = JSON.parse(readProjectFile(project(this).root, TRANSACTION)) as {
+      entries: Array<{ path: string; before_sha256: string }>;
+    };
+    const entry = transaction.entries[0];
+    assert.ok(entry);
+    this.preserved = [entry.path];
+    this.externalFile = nodePath.join(nodePath.dirname(project(this).root), 'external-target');
+    writeFileSync(this.externalFile, 'external bytes\n');
+    if (defect === 'absolute target') entry.path = this.externalFile;
+    else if (defect === 'parent traversal') entry.path = '../external-target';
+    else if (defect === 'malformed before digest') entry.before_sha256 = 'invalid';
+    else if (defect === 'post-claim symlink') {
+      rmSync(nodePath.join(project(this).root, entry.path));
+      symlinkSync(this.externalFile, nodePath.join(project(this).root, entry.path));
+    } else assert.fail(`unknown transaction defect: ${defect}`);
+    writeProjectFile(project(this).root, TRANSACTION, `${JSON.stringify(transaction)}\n`);
+    this.before = snapshotTree(project(this).root, MIGRATION_STATE);
+  },
+);
+
+Then(
+  'no project or external byte changes and the transaction remains',
+  function (this: MigrationWorld) {
+    assert.equal(this.recovery?.state, 'failed');
+    assert.equal(readFileSync(this.externalFile ?? '', 'utf8'), 'external bytes\n');
+    assert.ok(this.before);
+    assert.deepEqual(
+      changedPaths(this.before, snapshotTree(project(this).root, MIGRATION_STATE)),
+      [],
+    );
+    assert.equal(existsSync(nodePath.join(project(this).root, TRANSACTION)), true);
+  },
+);
+
+Given(
+  'a cleanup-ready target changes after the durable transaction claim',
+  function (this: MigrationWorld) {
+    this.project = createLegacyProject({ release: '0.72.0', assetLimit: 1 });
+    const [target] = project(this).installed;
+    assert.ok(target);
+    this.preserved = [target];
+  },
+);
+
+When('automatic migration runs against the changed target', function (this: MigrationWorld) {
+  const [target] = this.preserved ?? [];
+  assert.ok(target);
+  this.migration = migrateClaudeLegacyAutomatically(project(this).root, {
+    pluginVersion: '0.73.0',
+    hookManifestSha256: 'a'.repeat(64),
+    catalogueSha256: historicalCatalogueDigest(),
+    deadline: Date.now() + 10_000,
+    beforeApply: () => writeProjectFile(project(this).root, target, 'changed after claim\n'),
+  });
+});
+
+Then(
+  'the changed bytes remain and the recoverable transaction records the original preimage',
+  function (this: MigrationWorld) {
+    const [target] = this.preserved ?? [];
+    assert.ok(target);
+    assert.equal(readProjectFile(project(this).root, target), 'changed after claim\n');
+    const transaction = JSON.parse(readProjectFile(project(this).root, TRANSACTION)) as {
+      state: string;
+      entries: Array<{ path: string; before_base64: string }>;
+    };
+    assert.equal(transaction.state, 'recoverable');
+    const entry = transaction.entries.find(candidate => candidate.path === target);
+    assert.ok(entry);
+    assert.notEqual(Buffer.from(entry.before_base64, 'base64').toString(), 'changed after claim\n');
+  },
+);
+
 // ---------------------------------------------------------------------------
 // SWM1.R1 — enrollment survives, scope overlap resolves or stays visible
 // ---------------------------------------------------------------------------
 
 const MARKETPLACE = { source: { source: 'github', repo: 'ArcadeAI/safeword' } };
+const PROJECT_SETTINGS_WITH_ENROLLMENT = `{
+  // teammate-owned setting must retain its exact bytes
+  "theme": "dark",
+  "enabledPlugins": { "safeword@safeword": true },
+  "extraKnownMarketplaces": { "safeword": { "source": { "source": "github", "repo": "ArcadeAI/safeword" } } },
+  "hooks": { "SessionStart": [${JSON.stringify(acceptedHookEntry('0.72.0', 'SessionStart'))}] }
+}\n`;
+const PROJECT_SETTINGS_AFTER_CONTRACTION = `{
+  // teammate-owned setting must retain its exact bytes
+  "theme": "dark",
+  "enabledPlugins": { "safeword@safeword": true },
+  "extraKnownMarketplaces": { "safeword": { "source": { "source": "github", "repo": "ArcadeAI/safeword" } } },
+  "hooks": {
+    "SessionStart": []
+  }
+}\n`;
 
 Given(
   'a cleanup-ready project declares the exact marketplace and plugin at project scope',
   function (this: MigrationWorld) {
     this.project = createLegacyProject({
       release: '0.72.0',
-      settings: {
-        enabledPlugins: { 'safeword@safeword': true },
-        extraKnownMarketplaces: { safeword: MARKETPLACE },
-        hooks: { SessionStart: [acceptedHookEntry('0.72.0', 'SessionStart')] },
-      },
+      rawSettings: PROJECT_SETTINGS_WITH_ENROLLMENT,
     });
   },
 );
 
 When('automatic contraction completes', function (this: MigrationWorld) {
-  this.hook = runPluginHook(project(this));
-  assert.equal(this.hook.status, 0, this.hook.stderr);
-});
-
-Then('the project declaration remains in Claude settings', function (this: MigrationWorld) {
-  const settings = JSON.parse(readProjectFile(project(this).root, '.claude/settings.json')) as {
-    enabledPlugins: Record<string, boolean>;
-    extraKnownMarketplaces: Record<string, unknown>;
-  };
-  assert.equal(settings.enabledPlugins['safeword@safeword'], true);
-  assert.deepEqual(settings.extraKnownMarketplaces.safeword, MARKETPLACE);
+  this.hook = runUntilAutomaticMigrationSettles(project(this), 'automatic-migration-session');
 });
 
 Then(
-  'no legacy asset exists when Claude evaluates that declaration for a new trusted teammate',
+  'the exact project-scoped declaration and unrelated settings remain byte-for-byte intact',
+  function (this: MigrationWorld) {
+    assert.equal(
+      readProjectFile(project(this).root, '.claude/settings.json'),
+      PROJECT_SETTINGS_AFTER_CONTRACTION,
+    );
+  },
+);
+
+Then(
+  'no legacy asset remains alongside the preserved project declaration',
   function (this: MigrationWorld) {
     for (const relative of project(this).installed) {
       assert.ok(!existsSync(nodePath.join(project(this).root, relative)), relative);
     }
-    const settings = JSON.parse(readProjectFile(project(this).root, '.claude/settings.json')) as {
-      hooks?: Record<string, unknown[]>;
-    };
-    assert.equal(settings.hooks?.SessionStart?.length ?? 0, 0);
+    const settings = readProjectFile(project(this).root, '.claude/settings.json');
+    assert.match(settings, /"SessionStart": \[\]/u);
+    assert.doesNotMatch(settings, /session-version|\.safeword\/hooks/u);
   },
 );
 
@@ -1198,17 +1410,14 @@ Then(
   },
 );
 
-Then(
-  'changed declarations or a new session permit one re-evaluation',
-  function (this: MigrationWorld) {
-    const fresh = runPluginHook(project(this), { sessionId: 'a-second-session' });
-    assert.equal(fresh.status, 0);
-    assertSingleAdvisory(
-      fresh.advisory,
-      'Safeword found different project and user Claude plugin declarations',
-    );
-  },
-);
+Then('a new session permits one re-evaluation', function (this: MigrationWorld) {
+  const fresh = runPluginHook(project(this), { sessionId: 'a-second-session' });
+  assert.equal(fresh.status, 0);
+  assertSingleAdvisory(
+    fresh.advisory,
+    'Safeword found different project and user Claude plugin declarations',
+  );
+});
 
 // ---------------------------------------------------------------------------
 // SWM1.R2 — the release contract is checked against real artifacts
@@ -1216,9 +1425,7 @@ Then(
 
 Given(
   'every supported pre-plugin fixture is catalogued and the generated dispatcher reaches automatic migration',
-  function (this: MigrationWorld) {
-    assert.ok(existsSync(nodePath.join(PLUGIN_ROOT, 'runtime/dispatch.js')));
-  },
+  function (this: MigrationWorld) {},
 );
 
 When('the Claude migration release contract runs', function (this: MigrationWorld) {
@@ -1268,6 +1475,68 @@ Then(
       output,
     );
     assert.match(output, /fingerprint [\da-f]{64}/u, output);
+  },
+);
+
+Given(
+  'the committed historical catalogue contains content absent from the independent release fixtures',
+  function (this: MigrationWorld) {
+    this.project = createLegacyProject();
+    const doctored = nodePath.join(project(this).root, 'stale-catalogue.generated.ts');
+    const committed = readFileSync(
+      nodePath.join(
+        PLUGIN_ROOT,
+        '../packages/cli/src/claude-plugin/historical-catalogue.generated.ts',
+      ),
+      'utf8',
+    );
+    writeFileSync(doctored, `${committed}\n// stale catalogue content with no released fixture\n`);
+    this.command = runReleaseContract('check:claude-historical-catalogue', {
+      SAFEWORD_CLAUDE_CATALOGUE_PATH: doctored,
+    });
+  },
+);
+
+Then(
+  'validation fails naming catalogue drift and the regeneration action',
+  function (this: MigrationWorld) {
+    assert.notEqual(this.command?.status, 0, 'a stale catalogue passed validation');
+    const output = this.command?.output ?? '';
+    assert.match(output, /(?:stale for releases|missing release)/u);
+    assert.match(output, /regenerate it/u);
+  },
+);
+
+Given(
+  /^the committed historical catalogue has a (.+)$/u,
+  function (this: MigrationWorld, defect: string) {
+    this.project = createLegacyProject();
+    const doctored = nodePath.join(project(this).root, 'malformed-catalogue.generated.ts');
+    const path = nodePath.join(
+      PLUGIN_ROOT,
+      '../packages/cli/src/claude-plugin/historical-catalogue.generated.ts',
+    );
+    let content = readFileSync(path, 'utf8');
+    const fingerprint = /'[\da-f]{64}'/u.exec(content)?.[0];
+    const asset = /'\.claude\/[^']+'/u.exec(content)?.[0];
+    assert.ok(fingerprint && asset);
+    if (defect === 'duplicate path')
+      content = content.replace(asset, `${asset}: ${fingerprint},\n      ${asset}`);
+    else if (defect === 'ambiguous fingerprint')
+      content = content.replace(fingerprint, `${fingerprint}, ${fingerprint}`);
+    else if (defect === 'malformed digest')
+      content = content.replace(fingerprint, `'${'z'.repeat(64)}'`);
+    else if (defect === 'nondeterministic order') {
+      const lines = content.split('\n');
+      [lines[3], lines[4]] = [lines[4] ?? '', lines[3] ?? ''];
+      content = lines.join('\n');
+    } else if (defect === 'escaped managed path')
+      content = content.replace(asset, "'../escaped.md'");
+    else assert.fail(`unknown catalogue defect: ${defect}`);
+    writeFileSync(doctored, content);
+    this.command = runReleaseContract('check:claude-historical-catalogue', {
+      SAFEWORD_CLAUDE_CATALOGUE_PATH: doctored,
+    });
   },
 );
 

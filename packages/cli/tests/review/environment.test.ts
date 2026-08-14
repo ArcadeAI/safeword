@@ -1,8 +1,63 @@
 import { describe, expect, it } from 'vitest';
 
-import { reviewerEnvironment } from '../../src/review/environment.js';
+import { reviewerEnvironment, reviewerProbeEnvironment } from '../../src/review/environment.js';
 
 describe('reviewer-scoped environment', () => {
+  it('excludes the wrapper-only managed-progress signal from the reviewer allowlist', () => {
+    expect(
+      reviewerEnvironment('claude', {
+        SAFEWORD_REVIEW_PROGRESS: '1',
+        SAFEWORD_REVIEW_TIMEOUT_MS: '1000',
+      }),
+    ).toEqual({ SAFEWORD_REVIEW_TIMEOUT_MS: '1000' });
+  });
+
+  it('does not expose unknown review-prefixed variables in production', () => {
+    const originalNodeEnvironment = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    try {
+      expect(
+        reviewerEnvironment('claude', {
+          SAFEWORD_REVIEW_CUSTOM_SECRET: 'hidden',
+          SAFEWORD_REVIEW_FAKE_VERDICT: 'request_changes',
+          SAFEWORD_REVIEW_TIMEOUT_MS: '1000',
+        }),
+      ).toEqual({ SAFEWORD_REVIEW_TIMEOUT_MS: '1000' });
+    } finally {
+      if (originalNodeEnvironment === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = originalNodeEnvironment;
+    }
+  });
+
+  it('admits only the named acceptance-fixture controls in test mode', () => {
+    expect(
+      reviewerEnvironment('claude', {
+        NODE_ENV: 'test',
+        SAFEWORD_REVIEW_BDD_EXPECTED_MODEL: 'sonnet',
+        SAFEWORD_REVIEW_COVERAGE_VERDICT: 'request_changes',
+        SAFEWORD_REVIEW_DESCENDANT_PID_FILE: '/tmp/descendant.pid',
+        SAFEWORD_REVIEW_LAUNCH_LOG: '/tmp/reviewer-launches.log',
+        SAFEWORD_REVIEW_UNKNOWN_FIXTURE: 'hidden',
+      }),
+    ).toEqual({
+      SAFEWORD_REVIEW_BDD_EXPECTED_MODEL: 'sonnet',
+      SAFEWORD_REVIEW_COVERAGE_VERDICT: 'request_changes',
+      SAFEWORD_REVIEW_DESCENDANT_PID_FILE: '/tmp/descendant.pid',
+      SAFEWORD_REVIEW_LAUNCH_LOG: '/tmp/reviewer-launches.log',
+    });
+  });
+
+  it('keeps vendor credentials out of capability probes', () => {
+    expect(
+      reviewerProbeEnvironment({
+        PATH: '/bin',
+        ANTHROPIC_API_KEY: 'anthropic',
+        OPENAI_API_KEY: 'openai',
+        SAFEWORD_REVIEW_TIMEOUT_MS: '1000',
+      }),
+    ).toEqual({ PATH: '/bin', SAFEWORD_REVIEW_TIMEOUT_MS: '1000' });
+  });
+
   it('passes only process essentials, reviewer credentials, and coordinator controls', () => {
     const environment = reviewerEnvironment('claude', {
       PATH: '/bin',
@@ -44,6 +99,7 @@ describe('reviewer-scoped environment', () => {
         USERPROFILE: String.raw`C:\Users\reviewer`,
         http_proxy: 'https://proxy.example',
         Safeword_Review_Timeout_Ms: '1000',
+        Safeword_Review_Progress: '1',
       },
       'win32',
     );

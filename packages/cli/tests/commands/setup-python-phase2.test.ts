@@ -345,11 +345,12 @@ describe('Suite 6: Auto-Install Python Tools', () => {
       const result = await runCli(['setup'], {
         cwd: state.projectDirectory,
         timeout: TIMEOUT_SETUP,
+        env: SKIP_INSTALL_ENV,
       });
 
       // Assert - should show manual install instruction
-      expect(result.stdout).toContain('Install Python tools');
-      expect(result.stdout).toContain('pip install');
+      expect(result.stderr).toContain('Install Python tools');
+      expect(result.stderr).toContain('pip install');
     },
     TIMEOUT_SETUP,
   );
@@ -365,18 +366,18 @@ describe('Suite 6: Auto-Install Python Tools', () => {
       const result = await runCli(['setup'], {
         cwd: state.projectDirectory,
         timeout: TIMEOUT_SETUP,
-        env: { SAFEWORD_SKIP_INSTALL: '1' },
+        env: SKIP_INSTALL_ENV,
       });
 
       // Explicit no-install mode reports the exact recovery command without network access.
-      expect(result.stdout).toContain('Install Python tools: uv add --dev');
-      expect(result.stdout).not.toContain('Python tools installed');
+      expect(result.stderr).toContain('Install Python tools: uv add --dev');
+      expect(result.stderr).not.toContain('Python tools installed');
     },
     TIMEOUT_SETUP,
   );
 
   it(
-    'Test 6.3: Skips install if ruff already in dependencies',
+    'Test 6.3: Installs the remaining tools when ruff is already declared',
     async () => {
       // Arrange - project with ruff already declared
       writeTestFile(
@@ -397,11 +398,12 @@ dev = ["ruff>=0.8.0"]
       const result = await runCli(['setup'], {
         cwd: state.projectDirectory,
         timeout: TIMEOUT_SETUP,
+        env: SKIP_INSTALL_ENV,
       });
 
-      // Assert - should NOT show install message (already has ruff)
-      expect(result.stdout).not.toContain('Installing Python tools');
-      expect(result.stdout).not.toContain('Install Python tools:');
+      // Ruff alone is not the full Safe Word Python tool contract.
+      expect(result.stderr).toContain('Install Python tools: pip install mypy deadcode');
+      expect(result.stderr).not.toContain('Python tools installed');
     },
     TIMEOUT_SETUP,
   );
@@ -431,11 +433,12 @@ python = "^3.12"
       const result = await runCli(['setup'], {
         cwd: state.projectDirectory,
         timeout: TIMEOUT_SETUP,
+        env: SKIP_INSTALL_ENV,
       });
 
       // Assert - Poetry project detected, shows poetry command in fallback
       // (install fails without poetry.lock, so fallback shown)
-      expect(result.stdout).toMatch(/poetry add/);
+      expect(result.stderr).toMatch(/poetry add/);
     },
     TIMEOUT_SETUP,
   );
@@ -452,10 +455,11 @@ python = "^3.12"
       const result = await runCli(['setup'], {
         cwd: state.projectDirectory,
         timeout: TIMEOUT_SETUP,
+        env: SKIP_INSTALL_ENV,
       });
 
       // Assert - Pipenv project detected
-      expect(result.stdout).toMatch(/pipenv install/);
+      expect(result.stderr).toMatch(/pipenv install/);
     },
     TIMEOUT_SETUP,
   );

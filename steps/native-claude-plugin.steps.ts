@@ -70,6 +70,7 @@ interface NativeClaudePluginWorld {
     legacySentinel?: string;
     effectLog?: string;
     priorProof?: string;
+    lifecycleLease?: { path: string; content: string };
   };
 }
 
@@ -257,6 +258,18 @@ Given(
   },
 );
 
+Given(
+  'its .in_use lifecycle lease has exact Claude ownership metadata',
+  function (this: NativeClaudePluginWorld) {
+    assert.ok(this.cacheFixture);
+    const path = nodePath.join(this.cacheFixture.plugin, '.in_use', '3455');
+    const content = `${JSON.stringify({ pid: 3455, procStart: '2026-08-09T00:00:00.000Z' })}\n`;
+    mkdirSync(nodePath.dirname(path), { recursive: true });
+    writeFileSync(path, content);
+    this.cacheFixture.lifecycleLease = { path, content };
+  },
+);
+
 When('a Safeword plugin hook executes', function (this: NativeClaudePluginWorld) {
   assert.ok(this.cacheFixture);
   const manifest = JSON.parse(
@@ -370,6 +383,24 @@ Then(
     assert.equal(proof.canonical_plugin_root, realpathSync(this.cacheFixture.plugin));
   },
 );
+
+Then(
+  'it writes plugin proof without reporting an unlisted plugin asset',
+  function (this: NativeClaudePluginWorld) {
+    assert.equal(this.cacheFixture?.result?.status, 0, this.cacheFixture?.result?.output);
+    assert.doesNotMatch(this.cacheFixture?.result?.output ?? '', /unlisted asset/u);
+    assert.ok(this.cacheFixture);
+    assert.ok(existsSync(executionProofV2Path(this.cacheFixture.data, this.cacheFixture.project)));
+  },
+);
+
+Then('the exact lifecycle lease remains byte-identical', function (this: NativeClaudePluginWorld) {
+  assert.ok(this.cacheFixture?.lifecycleLease);
+  assert.equal(
+    readFileSync(this.cacheFixture.lifecycleLease.path, 'utf8'),
+    this.cacheFixture.lifecycleLease.content,
+  );
+});
 
 Then(
   'execution proof is written beneath CLAUDE_PLUGIN_DATA',
@@ -1132,6 +1163,7 @@ function runLifecycleCommand(
         CODEX_HOME: world.lifecycle.codexHome,
         FAKE_CLAUDE_STATE: world.lifecycle.statePath,
         SAFEWORD_CODEX_LOG: world.lifecycle.codexLogPath,
+        SAFEWORD_SKIP_INSTALL: '1',
         PATH: `${nodePath.join(world.lifecycle.root, 'bin')}:${process.env.PATH ?? ''}`,
       },
       encoding: 'utf8',
@@ -1551,15 +1583,22 @@ Given(
   'a viable recognized legacy PreToolUse hook and the matching plugin hook coexist',
   function (this: NativeClaudePluginWorld) {
     assert.ok(this.cacheFixture?.effectLog);
-    const legacyHook = nodePath.join(this.cacheFixture.project, '.safeword/hooks/legacy.ts');
+    const fingerprint = CLAUDE_HISTORICAL_CATALOGUE.current.hooks.PreToolUse.find(candidate =>
+      JSON.stringify(historicalHookEntry(candidate)).includes('pre-tool-quality'),
+    );
+    assert.ok(fingerprint, 'catalogue has no accepted pre-tool-quality hook');
+    const acceptedHook = historicalHookEntry(fingerprint);
+    const hookReference = /\.safeword\/hooks\/[\w./-]+/u.exec(JSON.stringify(acceptedHook))?.[0];
+    assert.ok(hookReference, 'accepted PreToolUse hook has no project hook path');
+    const legacyHook = nodePath.join(this.cacheFixture.project, hookReference);
     const settings = nodePath.join(this.cacheFixture.project, '.claude/settings.json');
     mkdirSync(nodePath.dirname(legacyHook), { recursive: true });
     mkdirSync(nodePath.dirname(settings), { recursive: true });
-    writeFileSync(legacyHook, '// recognized legacy authority\n');
-    writeFileSync(
-      settings,
-      `${JSON.stringify({ hooks: { PreToolUse: [{ hooks: [{ type: 'command', command: 'bun .safeword/hooks/legacy.ts' }] }] } })}\n`,
+    cpSync(
+      nodePath.join(REPO_ROOT, 'packages/cli/templates', hookReference.replace('.safeword/', '')),
+      legacyHook,
     );
+    writeFileSync(settings, `${JSON.stringify({ hooks: { PreToolUse: [acceptedHook] } })}\n`);
     writeFileSync(this.cacheFixture.effectLog, 'legacy\n');
   },
 );

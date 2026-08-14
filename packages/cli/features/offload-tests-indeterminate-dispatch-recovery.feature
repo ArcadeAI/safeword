@@ -1,7 +1,6 @@
-@wip
 Feature: Recover from indeterminate remote dispatches
 
-  @offload-tests.TBU1.R5
+  @wip @offload-tests.TBU1.R5
   @public-cli @surface.safeword-cli
   Rule: offload-tests.TBU1.R5 — An indeterminate dispatch is reported for recovery and never automatically duplicated locally
 

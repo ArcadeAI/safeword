@@ -1,10 +1,16 @@
 import { chmodSync, mkdirSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 
 import { createTemporaryDirectory, runCli } from '../helpers.js';
-import { REVIEWER_CAPABILITIES } from '../review-fixtures.js';
+import {
+  cleanupTrustedReviewerDirectories,
+  createTrustedReviewerDirectory,
+  REVIEWER_CAPABILITIES,
+} from '../review-fixtures.js';
+
+afterAll(cleanupTrustedReviewerDirectories);
 
 /**
  * Three routes, three different causes: the reviewer's default model never
@@ -46,7 +52,7 @@ printf 'not-a-review\n'
 describe('when all three routes fail', () => {
   it('keeps each route its own cause, including the alternate model', async () => {
     const directory = createTemporaryDirectory();
-    const host = createTemporaryDirectory();
+    const host = createTrustedReviewerDirectory('safeword-three-route-');
     writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
     mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
     writeFileSync(
@@ -88,9 +94,14 @@ describe('when all three routes fail', () => {
     expect(explanation).toMatch(/ran out of time/i);
     expect(explanation).toMatch(/not signed in/i);
     expect(explanation).toMatch(/could not be accepted/i);
-    // The alternate-model attempt is named as such, without naming the model.
+    // The alternate-model attempt names the selected model so operators can
+    // distinguish a failed override from the primary route.
     expect(explanation).toMatch(/alternate model/i);
-    expect(explanation).not.toContain('vendor-model-2');
+    expect(explanation).toContain('vendor-model-2');
+    expect(payload.data).toMatchObject({
+      alternate_model: 'vendor-model-2',
+      alternate_model_failure: 'not_authenticated',
+    });
     expect(payload.data.independence).toBe('none');
   }, 30_000);
 });

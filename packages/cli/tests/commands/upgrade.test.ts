@@ -387,7 +387,7 @@ if (args.includes(\`safeword@\${version}\`)) {
   // ==========================================================================
 
   describe('Installs packs for newly detected languages', () => {
-    it('should install Python pack when pyproject.toml detected', async () => {
+    it('installs the Python pack and reports undeclared required tools', async () => {
       await createConfiguredProject(temporaryDirectory);
       writeTestFile(temporaryDirectory, 'pyproject.toml', `[project]\nname = "test"\n`);
       // TypeScript already installed (from setup), Python missing
@@ -397,13 +397,16 @@ if (args.includes(\`safeword@\${version}\`)) {
 
       const result = await runCli(['upgrade'], { cwd: temporaryDirectory });
 
-      expect(result.exitCode).toBe(0);
+      expect(result.exitCode).toBe(2);
       expect(readSafewordConfig(temporaryDirectory).installedPacks).toContain('python');
+      expect(result.stdout + result.stderr).toContain(
+        'Install Python tools: pip install ruff mypy deadcode',
+      );
     });
   });
 
   describe('Skips already-installed packs silently', () => {
-    it('should not re-install existing packs', async () => {
+    it('does not re-install the Python pack but reports undeclared required tools', async () => {
       await createConfiguredProject(temporaryDirectory);
       writeTestFile(temporaryDirectory, 'pyproject.toml', `[project]\nname = "test"\n`);
       // Both TypeScript and Python already installed
@@ -413,9 +416,12 @@ if (args.includes(\`safeword@\${version}\`)) {
 
       const result = await runCli(['upgrade'], { cwd: temporaryDirectory });
 
-      expect(result.exitCode).toBe(0);
+      expect(result.exitCode).toBe(2);
       expect(result.stdout).not.toMatch(/installed.*python.*pack/i);
       expect(readSafewordConfig(temporaryDirectory).installedPacks).toContain('python');
+      expect(result.stdout + result.stderr).toContain(
+        'Install Python tools: pip install ruff mypy deadcode',
+      );
     });
   });
 

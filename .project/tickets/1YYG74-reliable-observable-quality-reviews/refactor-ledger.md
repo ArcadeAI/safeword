@@ -1,0 +1,126 @@
+# Refactor Ledger: Keep quality reviews observable and actionable
+
+Scope: `origin/main...codex/reliable-quality-review`
+
+## Applied leaf-first
+
+1. **Use one managed-signal name** — `consumeManagedProgressSignal` now reads
+   and deletes through `MANAGED_PROGRESS_SIGNAL`, preventing a future rename
+   from splitting consumption and cleanup.
+2. **Name the wrapper responsibility** — renamed `reviewEnvironment` to
+   `reviewChildEnvironment`; the helper sanitizes inherited state and opts only
+   a JSON review child into managed progress.
+3. **Start progress at real reviewer work** — packet preparation emits no
+   lifecycle event; progress starts at the first asynchronous reviewer route.
+4. **Consolidate managed-review fixtures** — the public wiring tests share one
+   setup helper while keeping outcome assertions local; quiet-mode coverage now
+   includes approved and action-required results.
+5. **Make BDD proof traceable** — narrowed the feature to executable customer
+   behavior and added a scenario-to-Vitest proof manifest checked in CI.
+6. **Reuse recursive surface discovery** — Markdown discovery now filters the
+   generic file walker instead of maintaining a second traversal.
+7. **Consolidate repeated test cases** — descriptor-failure ordering and BDD
+   manifest dispatch use parameterized cases while retaining named proof
+   provenance.
+8. **Keep the reporter contract minimal** — lifecycle starts carry user-facing
+   messages only; the removed preparation phase had no observable execution.
+9. **Scrub managed progress case-insensitively** — wrapper children remove every
+   casing of the private signal before deliberate JSON-review opt-in, matching
+   Windows environment semantics.
+10. **Make reviewer transitions explicit** — starting a new progress stage now
+    cancels the prior stage's heartbeat, preventing stale route messages.
+11. **Harden source-route discovery** — the wrapper trusts a source checkout
+    only when its CLI package identifies itself as Safeword.
+12. **Name effect and reviewer failures precisely** — effect diagnostics use an
+    explicit noun map and degraded reviews explain early process exits.
+13. **Forward managed worker progress** — managed JSON jobs inherit only stderr
+    and re-opt the detached CLI worker into progress, so real coordinator route
+    messages reach the wrapper while stdout remains typed.
+14. **Preserve managed mode and worker identity** — detached managed workers
+    receive `--json`, keeping managed progress active, and POSIX worker
+    inspection requests untruncated command lines before matching the job ID.
+15. **Match collection types to their use** — reviewer environment allowlists
+    are readonly arrays because the filter only iterates them; the constructed
+    normalized allowlist remains the sole membership set.
+16. **Name worker inspection outcomes** — `WorkerInspection` distinguishes a
+    matching worker, a definite mismatch, and an unavailable process probe so
+    each caller states its fail-open or fail-closed policy explicitly.
+17. **Name failures that never launch a review** — the typed
+    `NON_ATTEMPT_FAILURES` set makes network-effect accounting follow the
+    `ReviewFailure` contract without rebuilding or comparing magic strings.
+18. **Make fallback outcomes mutually exclusive** — fallback effect accounting
+    accepts a completed-or-failed discriminated union, so impossible flag
+    combinations cannot fabricate or omit a reviewer request.
+19. **Harden detached review lifecycle boundaries** — throttled synchronous
+    worker inspection, external completion receipts, canonical project identity,
+    and explicit launch-race cleanup make durable results safer without changing
+    the public review contract.
+20. **Bound untrusted reviewer prose** — terminal projections remove control and
+    formatting characters and cap messages while typed JSON evidence remains
+    faithful for automation.
+21. **Name receipt and launch artifacts precisely** — digest helpers and the
+    non-rejecting launch-settlement barrier now describe their actual values;
+    the cleanup guard directly excludes legitimate terminal results.
+22. **Authenticate retained review history** — one host-owned HMAC key signs
+    terminal records across canonical project aliases, preserving unlimited
+    retained job history without per-result external receipt pruning.
+23. **Make integrity helpers explicit** — typed destructuring omits the MAC from
+    serialization, and `readOrCreateIntegrityKey` names its persistence side
+    effect at the signing boundary.
+24. **Name terminal job states once** — a typed terminal-state set centralizes
+    the classification used by persistence signing and verification.
+25. **Share byte-safe progress forwarding** — one best-effort byte sink owns
+    synchronous short-write and closed-pipe handling; line progress composes
+    newline encoding on top, while the worker relay forwards exact bytes.
+26. **Recognize global JSON mode at the wrapper boundary** — managed progress
+    uses route-aware global-option parsing, so `--json` works before or after
+    `review run` without mistaking `--cwd` values or post-`--` operands for the
+    command route.
+27. **Count terminal reviewer text by code point** — terminal projection removes
+    Unicode line and paragraph separators before applying its bounded code-point
+    limit, preventing forged lines and cap bypasses.
+28. **Declare acceptance-fixture controls explicitly** — real-review Cucumber
+    subprocesses opt into test mode, and their named controls join the test-only
+    reviewer allowlist without reopening the production prefix wildcard.
+29. **Distinguish global flags from option values** — JSON-mode detection skips
+    the value consumed by `--cwd`, so a path literally named `--json` cannot
+    activate the private progress channel.
+30. **Verify wrapper and CLI option parity** — wrapper option sets are exported
+    as a testable contract and compared with Commander's real global option
+    definitions, preventing a new CLI global from silently changing route parsing.
+31. **Fail safe against duplicate review spend** — when worker identity
+    inspection is temporarily unavailable but its PID is still live, status and
+    same-source deduplication both retain the existing pending review; only a
+    definite mismatch permits a replacement launch.
+
+## Struck or deferred
+
+- Re-normalizing reviewer environment keys once per entry adds machinery for no
+  observable clarity gain; keep the direct predicate.
+- The template, dogfood, generated plugin hook, and bundled runtime copies are
+  deliberate installed-surface parity, not accidental duplication.
+- The filesystem acknowledgement loop in the wrapper integration test directly
+  proves progress arrives before process completion; abstracting it would hide
+  the temporal contract.
+- Forwarding `start(message)` as `start(message, undefined)` was rejected after
+  its focused test exposed an observable adapter-call-shape change; retain the
+  small branch that preserves compatibility.
+- Durable-job fingerprinting, liveness, and lock mechanics predate this ticket;
+  the touched release path now checks inode ownership and early worker death.
+  Replacing its synchronous lock protocol or packet fingerprinting would be a
+  separate behavior-changing subsystem redesign, not a safe refactor of the
+  managed-progress side channel.
+- Repository-wide Knip, experiment, and clone findings predate this ticket and
+  are outside this delivery's single purpose.
+- A process-wide stderr error handler was rejected because it would hide
+  unrelated worker output failures; closed-pipe tolerance stays scoped to the
+  managed progress byte sink.
+- A partial OS write cannot be rolled back after bytes reach stderr. The
+  best-effort sink stops on the first subsequent failure instead of buffering
+  or retrying indefinitely; lifecycle output is advisory and remains bounded.
+
+## Verification
+
+Focused policy, public wiring, environment, wrapper parity, and BDD provenance
+tests are the characterization boundary. Full local and remote verification are
+recorded in `verify.md` after completion.

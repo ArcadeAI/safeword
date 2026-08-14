@@ -9,9 +9,11 @@
  * - Package manager detection for install guidance
  */
 
-import { execSync } from 'node:child_process';
-import { readdirSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { readdirSync, realpathSync } from 'node:fs';
 import nodePath from 'node:path';
+
+import { parse } from 'smol-toml';
 
 import { exists, readFileSafe } from '../../utils/fs.js';
 import type { SetupResult } from '../types.js';
@@ -150,21 +152,227 @@ export function detectSolePackage(cwd: string): string | undefined {
 }
 
 type PythonPackageManager = 'uv' | 'poetry' | 'pipenv' | 'pip';
+export type PythonTool = 'ruff' | 'mypy' | 'deadcode' | 'import-linter';
+
+const PYTHON_DEPENDENCY_SEPARATORS = new Set(['[', '<', '>', '=', '!', '~', ';', '@']);
+
+function normalizePythonDistributionName(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replaceAll(/[-_.]+/g, '-');
+}
+
+function startsPythonDependency(value: string, dependency: PythonTool): boolean {
+  const candidate = normalizePythonDistributionName(value);
+  const normalizedDependency = normalizePythonDistributionName(dependency);
+  if (!candidate.startsWith(normalizedDependency)) return false;
+
+  const next = candidate.at(normalizedDependency.length);
+  return next === undefined || PYTHON_DEPENDENCY_SEPARATORS.has(next) || next.trim() === '';
+}
+
+type TomlTable = Record<string, unknown>;
+
+function asTomlTable(value: unknown): TomlTable | undefined {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? (value as TomlTable)
+    : undefined;
+}
+
+function parseTomlTable(content: string): TomlTable | undefined {
+  try {
+    return asTomlTable(parse(content));
+  } catch {
+    return undefined;
+  }
+}
+
+function tomlTableAt(table: TomlTable, path: readonly string[]): TomlTable | undefined {
+  let current: TomlTable | undefined = table;
+  for (const key of path) {
+    current = current === undefined ? undefined : asTomlTable(current[key]);
+  }
+  return current;
+}
+
+function tomlStringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string')
+    : [];
+}
+
+function dependencyGroupSpecs(
+  groups: TomlTable,
+  groupName: string,
+  visited: Set<string> = new Set<string>(),
+): string[] {
+  if (visited.has(groupName)) return [];
+  visited.add(groupName);
+
+  return (Array.isArray(groups[groupName]) ? groups[groupName] : []).flatMap(item => {
+    if (typeof item === 'string') return [item];
+    const includeGroup = asTomlTable(item)?.['include-group'];
+    return typeof includeGroup === 'string'
+      ? dependencyGroupSpecs(groups, includeGroup, visited)
+      : [];
+  });
+}
+
+function pyprojectDependencySpecs(document: TomlTable): string[] {
+  const project = asTomlTable(document.project);
+  const optionalDependencies = asTomlTable(project?.['optional-dependencies']);
+  const dependencyGroups = asTomlTable(document['dependency-groups']);
+  const uv = tomlTableAt(document, ['tool', 'uv']);
+
+  return [
+    ...tomlStringArray(project?.dependencies),
+    ...Object.values(optionalDependencies ?? {}).flatMap(value => tomlStringArray(value)),
+    ...(dependencyGroups === undefined
+      ? []
+      : Object.keys(dependencyGroups).flatMap(groupName =>
+          dependencyGroupSpecs(dependencyGroups, groupName),
+        )),
+    ...tomlStringArray(uv?.['dev-dependencies']),
+  ];
+}
+
+function poetryDependencyNames(document: TomlTable): string[] {
+  const poetry = tomlTableAt(document, ['tool', 'poetry']);
+  const groups = asTomlTable(poetry?.group);
+  const groupNames = Object.values(groups ?? {}).flatMap(group =>
+    Object.keys(asTomlTable(asTomlTable(group)?.dependencies) ?? {}),
+  );
+
+  return [
+    ...Object.keys(asTomlTable(poetry?.dependencies) ?? {}),
+    ...Object.keys(asTomlTable(poetry?.['dev-dependencies']) ?? {}),
+    ...groupNames,
+  ];
+}
+
+function hasPythonDependencyName(names: readonly string[], dependency: PythonTool): boolean {
+  const normalizedDependency = normalizePythonDistributionName(dependency);
+  return names.some(name => normalizePythonDistributionName(name) === normalizedDependency);
+}
+
+function containsPyprojectPythonDependency(content: string, dependency: PythonTool): boolean {
+  const document = parseTomlTable(content);
+  if (document === undefined) return false;
+
+  return (
+    hasPythonDependencyName(poetryDependencyNames(document), dependency) ||
+    pyprojectDependencySpecs(document).some(specification =>
+      startsPythonDependency(specification, dependency),
+    )
+  );
+}
+
+function containsPipfilePythonDependency(content: string, dependency: PythonTool): boolean {
+  const document = parseTomlTable(content);
+  if (document === undefined) return false;
+
+  return hasPythonDependencyName(
+    [
+      ...Object.keys(asTomlTable(document.packages) ?? {}),
+      ...Object.keys(asTomlTable(document['dev-packages']) ?? {}),
+    ],
+    dependency,
+  );
+}
+
+function shortRequirementsInclude(declaration: string): string | undefined {
+  if (!declaration.startsWith('-r')) return undefined;
+  return declaration.slice(2).trim() || undefined;
+}
+
+function longRequirementsInclude(declaration: string): string | undefined {
+  const longOption = '--requirement';
+  if (!declaration.startsWith(longOption)) return undefined;
+
+  const suffix = declaration.slice(longOption.length);
+  if (suffix.startsWith('=')) return suffix.slice(1).trim() || undefined;
+  if (suffix.trimStart().length === suffix.length) return undefined;
+  return suffix.trim() || undefined;
+}
+
+function unquoteRequirementsInclude(include: string): string {
+  if (
+    (include.startsWith('"') && include.endsWith('"')) ||
+    (include.startsWith("'") && include.endsWith("'"))
+  ) {
+    return include.slice(1, -1);
+  }
+  return include;
+}
+
+function requirementsIncludePath(line: string): string | undefined {
+  const declaration = (line.split('#', 1)[0] ?? '').trim();
+  const include = shortRequirementsInclude(declaration) ?? longRequirementsInclude(declaration);
+  return include === undefined ? undefined : unquoteRequirementsInclude(include);
+}
+
+function isPathWithinDirectory(candidate: string, directory: string): boolean {
+  const relative = nodePath.relative(directory, candidate);
+  return relative === '' || (relative !== '..' && !relative.startsWith(`..${nodePath.sep}`));
+}
+
+function isRealPathWithinDirectory(candidate: string, directory: string): boolean {
+  try {
+    return isPathWithinDirectory(realpathSync(candidate), realpathSync(directory));
+  } catch {
+    return false;
+  }
+}
+
+function containsRequirementsPythonDependency(
+  projectDirectory: string,
+  requirementsPath: string,
+  dependency: PythonTool,
+  visited: Set<string> = new Set<string>(),
+): boolean {
+  const resolvedRequirementsPath = nodePath.resolve(requirementsPath);
+  if (
+    !isRealPathWithinDirectory(resolvedRequirementsPath, projectDirectory) ||
+    visited.has(resolvedRequirementsPath)
+  ) {
+    return false;
+  }
+  visited.add(resolvedRequirementsPath);
+
+  const content = readFileSafe(resolvedRequirementsPath);
+  if (content === undefined) return false;
+
+  return content.split('\n').some(line => {
+    if (line.trimStart().startsWith('#')) return false;
+    const declaration = line.split('#', 1)[0] ?? '';
+    if (startsPythonDependency(declaration, dependency)) return true;
+
+    const include = requirementsIncludePath(line);
+    if (include === undefined || nodePath.isAbsolute(include)) return false;
+    const includePath = nodePath.resolve(nodePath.dirname(resolvedRequirementsPath), include);
+    return containsRequirementsPythonDependency(projectDirectory, includePath, dependency, visited);
+  });
+}
+
+function hasPythonDependency(cwd: string, dependency: PythonTool): boolean {
+  const pyprojectContent = readFileSafe(nodePath.join(cwd, 'pyproject.toml'));
+  const pipfileContent = readFileSafe(nodePath.join(cwd, 'Pipfile'));
+
+  return (
+    (pyprojectContent !== undefined &&
+      containsPyprojectPythonDependency(pyprojectContent, dependency)) ||
+    (pipfileContent !== undefined && containsPipfilePythonDependency(pipfileContent, dependency)) ||
+    containsRequirementsPythonDependency(cwd, nodePath.join(cwd, 'requirements.txt'), dependency)
+  );
+}
 
 /**
- * Check if ruff is already declared as a dependency in pyproject.toml.
- * Only checks dependency sections, not [tool.ruff] config.
+ * Check whether ruff is declared in a project dependency manifest rather than
+ * merely configured under [tool.ruff].
  */
 export function hasRuffDependency(cwd: string): boolean {
-  const pyprojectPath = nodePath.join(cwd, 'pyproject.toml');
-  const content = readFileSafe(pyprojectPath);
-  if (!content) return false;
-
-  // Check for ruff in dependency arrays or Poetry table format:
-  // - PEP 621: "ruff", "ruff>=0.1", 'ruff' (quoted in array)
-  // - Poetry: ruff = "^0.8.0" (unquoted key)
-  // Does NOT match: [tool.ruff]
-  return /["']ruff[^"']*["']/.test(content) || /^ruff\s*=/m.test(content);
+  return hasPythonDependency(cwd, 'ruff');
 }
 
 /**
@@ -223,6 +431,26 @@ export function getPythonInstallCommand(cwd: string, tools: string[] = ['ruff'])
   }
 }
 
+function pythonInstallInvocation(
+  cwd: string,
+  tools: readonly PythonTool[],
+): { command: string; arguments: string[] } {
+  switch (detectPythonPackageManager(cwd)) {
+    case 'uv': {
+      return { command: 'uv', arguments: ['add', '--dev', ...tools] };
+    }
+    case 'poetry': {
+      return { command: 'poetry', arguments: ['add', '--group', 'dev', ...tools] };
+    }
+    case 'pipenv': {
+      return { command: 'pipenv', arguments: ['install', '--dev', ...tools] };
+    }
+    case 'pip': {
+      return { command: 'pip', arguments: ['install', ...tools] };
+    }
+  }
+}
+
 /**
  * Install Python development dependencies using detected package manager.
  * Matches TypeScript parity where we auto-install ESLint/Prettier.
@@ -238,13 +466,26 @@ export function getPythonInstallCommand(cwd: string, tools: string[] = ['ruff'])
  * `setup` and `upgrade` install the same set; they had drifted (upgrade shipped
  * only ruff + mypy).
  */
-export function getPythonTools(includeImportLinter: boolean): string[] {
-  const tools = ['ruff', 'mypy', 'deadcode'];
+export function getPythonTools(includeImportLinter: boolean): PythonTool[] {
+  const tools: PythonTool[] = ['ruff', 'mypy', 'deadcode'];
   if (includeImportLinter) tools.push('import-linter');
   return tools;
 }
 
-export function installPythonDependencies(cwd: string, tools: string[]): boolean {
+/**
+ * Safe Word's Python tooling is project configuration, not a global shell
+ * prerequisite: uv and Poetry keep project tools in managed environments. Read
+ * declarations only so health checks stay filesystem-only and never invoke a
+ * package manager merely to inspect readiness.
+ */
+export function getMissingPythonToolDependencies(
+  cwd: string,
+  includeImportLinter: boolean,
+): PythonTool[] {
+  return getPythonTools(includeImportLinter).filter(tool => !hasPythonDependency(cwd, tool));
+}
+
+export function installPythonDependencies(cwd: string, tools: readonly PythonTool[]): boolean {
   if (tools.length === 0) return true;
   if (process.env.SAFEWORD_SKIP_INSTALL) return true;
 
@@ -253,7 +494,8 @@ export function installPythonDependencies(cwd: string, tools: string[]): boolean
   if (pm === 'pip') return false;
 
   try {
-    execSync(getPythonInstallCommand(cwd, tools), {
+    const invocation = pythonInstallInvocation(cwd, tools);
+    execFileSync(invocation.command, invocation.arguments, {
       cwd,
       stdio: 'pipe',
       timeout: 60_000, // 60s timeout to prevent hanging on network/resolution issues

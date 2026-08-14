@@ -73,10 +73,10 @@ Cleanup never installs, enables, reloads, or changes plugin trust. Automatic
 migration is bounded, never blocks a successful prompt, and resumes from a
 durable transaction after interruption or a competing developer process.
 
-**Codex enrollment.** Installing also commits a small project-level
-`SessionStart` bootstrap. It enrolls each developer's Codex profile in the
-released `stable` channel the first time they open the repository, so teammates
-need no extra command.
+**Codex startup.** Installing commits project-level `SessionStart` hooks. One
+enrolls each developer's Codex profile in the released `stable` channel; the
+other prepares missing project dependencies in trusted fresh worktrees so the
+repository's checks are available before work begins.
 
 The running Codex app cannot load a newly installed plugin into a task that has
 already started — and starting a new task alone isn't enough either, since the
@@ -302,8 +302,9 @@ Key directories created in your project:
 Codex hooks live in the Safeword plugin and run from the package with
 `bunx --bun safeword@<plugin-version> hook codex <event>`. Install and verify
 the profile-scoped plugin immediately with `safeword install --agents=codex`; install also
-creates one non-blocking project-level SessionStart enrollment hook, never an
-edit or shell-command interception hook. The plugin does not
+creates project-level SessionStart hooks for enrollment and dependency
+preparation, never an edit or shell-command interception hook. Startup remains
+advisory, while repository-owned composed commands require readiness. The plugin does not
 implicitly enroll repositories: until `safeword install` creates
 `.safeword/SAFEWORD.md`, project gates fail open and hooks do not create
 `.project/` or other project state. Codex visibly skips
@@ -367,6 +368,9 @@ data cannot strand cleanup of an immutable merged head. Claude Code and Cursor
 use hook-captured session identity, while Codex Desktop may use its authenticated
 `CODEX_THREAD_ID` when the one-shot hook bridge is unavailable. Missing, stale,
 malformed, dirty-state, or wrong-head proof blocks the remaining branch cleanup.
+If the bound transcript grows between preview and apply, closeout refreshes the
+mandatory retrospective while preserving authorization for unchanged cleanup
+targets; newly unresolved retrospective work still blocks every mutation.
 
 **MCP Servers** (in `.mcp.json` / `.cursor/mcp.json`): Auto-configured integrations
 
@@ -412,6 +416,11 @@ Normal releases are CI-driven: merge the version bump, create the annotated
 tests without publish credentials, then publishes the packed artifact through
 npm OIDC with provenance. See the `versioning` skill for the complete procedure;
 local `bun publish` is defense-in-depth recovery tooling, not the release path.
+
+When a release changes the native Claude plugin or a source asset it bundles,
+run `bun run --cwd packages/cli generate:claude-release-assets` before merging
+the version bump. It refreshes the historical catalogue first, then rebuilds
+the plugin that embeds it; commit the resulting source and `plugin/` changes.
 
 When a release changes the native Claude plugin or its profile installer, stable
 publication also requires the previous-stable-to-candidate upgrade in the
@@ -610,7 +619,7 @@ For JS/TS projects: ESLint, Prettier, supporting plugins, and `jiti` for TypeScr
 No. Safeword detects a non-Prettier formatter (`biome.json`, `dprint.json`, `.oxfmtrc.*`, `deno.json`) and steps aside: it skips Prettier at install **and** its auto-format hook leaves all formatting to your tool — agent edits are never run through Prettier, for any file type (JS/TS, JSON, CSS, YAML). Files your formatter doesn't cover are left untouched rather than Prettier-formatted. ESLint still runs, because those formatters don't cover security scanning (`eslint-plugin-security`), cyclomatic complexity (`sonarjs`), or framework rules (React hooks, Next.js, Astro); safeword's ESLint config disables formatting rules, so it lints without fighting your formatter.
 
 **Do teammates need to install safeword separately?**
-No. Commit the Safeword project configuration your team uses, including the Claude declaration and Codex SessionStart bootstrap. Claude keeps each user's payload cache locally. The Codex bootstrap enrolls every teammate's separate profile automatically and warns loudly until a new task loads the plugin; it never blocks their work. The linting devDependencies install automatically with `npm install` / `bun install`.
+No. Commit the Safeword project configuration your team uses, including the Claude declaration and Codex SessionStart hooks. Claude keeps each user's payload cache locally. Codex enrolls every teammate's separate profile automatically and prepares missing dependencies in trusted fresh worktrees; startup warnings remain advisory. The linting devDependencies also install with the normal package-manager workflow.
 
 **Will it interfere with my development workflow?**
 No. Safeword's hooks and stricter linting rules only fire during AI agent sessions. They don't run when you code normally. In husky repos, install appends one warn-only boundary-check line to `pre-commit`/`pre-push` — it reports workflow-evidence gaps, never blocks a commit, and `safeword uninstall --agents=none` removes it. Safeword never installs a hook manager. It also adds `lint`, `format`, and `test:bdd` scripts to `package.json` that you can optionally use in CI or precommit hooks.

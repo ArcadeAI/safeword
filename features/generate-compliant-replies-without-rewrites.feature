@@ -65,7 +65,7 @@ Feature: Generate compliant replies without correction loops
       When the configured SessionStart hook group runs
       Then the context contains the exact phase-neutral decision-brief contract
       And the contract appears exactly once
-      And existing SAFEWORD standing instructions remain intact
+      And the exact compact authority bootstrap appears once
 
       Examples:
         | boundary   |

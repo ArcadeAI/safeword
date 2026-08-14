@@ -1,7 +1,6 @@
-@wip
 Feature: Preserve authoritative remote conclusions
 
-  @offload-tests.TBU1.R6
+  @wip @offload-tests.TBU1.R6
   @public-cli @surface.safeword-cli
   Rule: offload-tests.TBU1.R6 — Every accepted remote conclusion remains authoritative and never triggers a result-masking local rerun
 

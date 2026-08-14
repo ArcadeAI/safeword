@@ -59,7 +59,7 @@ Feature: Test Codex plugin migration
     Scenario: SessionStart context runs through the packaged CLI entrypoint
       Given the Safeword package has been packed and installed into a fixture project
       When the packaged Codex SessionStart entrypoint receives a SessionStart JSON fixture
-      Then the hook output includes Safeword standing instructions as Codex additional context
+      Then the hook output includes the compact Safeword bootstrap as Codex additional context
       And the entrypoint does not read standing instructions from repo-local `.safeword/SAFEWORD.md`
 
     Scenario: PreToolUse allow runs through the packaged CLI entrypoint

@@ -6,20 +6,25 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
-  readdirSync,
   realpathSync,
   renameSync,
+  statSync,
   unlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { homedir } from 'node:os';
 import nodePath from 'node:path';
 
-import { type CloseoutBinding, readFreshCloseoutBinding } from '../hooks/lib/closeout-binding.ts';
+import {
+  type CloseoutBinding,
+  readFreshCloseoutBinding,
+  recordCodexCloseoutHandoff,
+  resolveExactCodexTranscript,
+} from '../hooks/lib/closeout-binding.ts';
 import { draftSpoolPath, readAcks, readSpooledDrafts } from '../hooks/lib/retro-draft-spool.ts';
 import { resolveRunIdentity } from '../hooks/lib/run-identity.ts';
 
 export const POST_MERGE_VERIFICATION_KINDS = ['verify', 'build', 'typecheck', 'bdd'] as const;
+export const VERIFICATION_COMMAND_TIMEOUT_MS = 15 * 60 * 1000;
 
 export interface PullRequestIdentity {
   url: string;
@@ -46,6 +51,10 @@ export interface WorktreeIdentity {
   dirty?: boolean;
   locked?: boolean;
   prunable?: boolean;
+  realPath?: string;
+  device?: number;
+  inode?: number;
+  gitDirectory?: string;
 }
 
 export interface CloseoutObservation {
@@ -69,7 +78,17 @@ export interface CloseoutObservation {
 }
 
 export type CleanupOperation =
-  | { kind: 'remove-worktree'; cwd: string; path: string; oid: string }
+  | {
+      kind: 'remove-worktree';
+      cwd: string;
+      path: string;
+      oid: string;
+      branch: string;
+      realPath?: string;
+      device?: number;
+      inode?: number;
+      gitDirectory?: string;
+    }
   | {
       kind: 'delete-remote-ref';
       cwd: string;
@@ -176,13 +195,22 @@ function collectRefBlockers(
 function collectWorktreeBlockers(
   plan: CleanupPlan,
   pullRequest: PullRequestIdentity,
+  deliveryWorktree: WorktreeIdentity | undefined,
   topicWorktrees: WorktreeIdentity[],
   defaultBranchWorktrees: WorktreeIdentity[],
   deliveryWorktreePath: string,
 ): void {
+  if (deliveryWorktree?.branch === '') {
+    block(plan, `the delivery worktree is detached: ${deliveryWorktree.path}`);
+  }
   if (defaultBranchWorktrees.length !== 1) {
     block(plan, 'exactly one surviving default-branch worktree is required');
   }
+  const survivor = defaultBranchWorktrees[0];
+  if (survivor?.dirty) block(plan, `the surviving worktree is dirty: ${survivor.path}`);
+  if (survivor?.locked) block(plan, `the surviving worktree is locked: ${survivor.path}`);
+  if (survivor?.prunable)
+    block(plan, `the surviving worktree registration is stale: ${survivor.path}`);
   if (topicWorktrees.length > 1) block(plan, 'the linked topic worktree is ambiguous');
   const worktree = topicWorktrees[0];
   if (worktree && nodePath.resolve(worktree.path) !== nodePath.resolve(deliveryWorktreePath)) {
@@ -210,6 +238,11 @@ function assembleOperations(
       cwd: survivingWorktree.path,
       path: worktree.path,
       oid: pullRequest.headRefOid,
+      branch: pullRequest.headRefName,
+      realPath: worktree.realPath,
+      device: worktree.device,
+      inode: worktree.inode,
+      gitDirectory: worktree.gitDirectory,
     });
   } else {
     plan.completed.push('worktree');
@@ -268,6 +301,10 @@ export function buildCleanupPlan(observation: CloseoutObservation): CleanupPlan 
   collectWorktreeBlockers(
     plan,
     pullRequest,
+    observation.worktrees.find(
+      worktree =>
+        nodePath.resolve(worktree.path) === nodePath.resolve(observation.deliveryWorktreePath),
+    ),
     topicWorktrees,
     defaultBranchWorktrees,
     observation.deliveryWorktreePath,
@@ -395,6 +432,9 @@ export function applyCleanupPlan(input: ApplyCleanupPlanInput): ApplyCleanupPlan
   }
 
   const current = buildCleanupPlan(input.observe());
+  if (current.blockers.length > 0) {
+    return blockedApply(input.plan, [...current.blockers]);
+  }
   if (current.stateHash !== input.plan.stateHash) {
     return blockedApply(input.plan, ['repository state changed after preview']);
   }
@@ -454,13 +494,18 @@ function run(
   command: string,
   arguments_: string[],
   cwd: string,
-  options: { shell?: boolean; env?: Record<string, string | undefined> } = {},
+  options: {
+    shell?: boolean;
+    env?: Record<string, string | undefined>;
+    timeout?: number;
+  } = {},
 ): ProcessResult {
   const result = spawnSync(command, arguments_, {
     cwd,
     encoding: 'utf8',
     shell: options.shell ?? false,
     env: { ...process.env, ...options.env },
+    timeout: options.timeout,
   });
   return {
     status: result.status ?? 1,
@@ -471,23 +516,121 @@ function run(
 
 type ProcessRunner = (command: string, arguments_: string[], cwd: string) => ProcessResult;
 
+type PathIdentity = Pick<WorktreeIdentity, 'realPath' | 'device' | 'inode'>;
+
+function inspectPathIdentity(path: string): PathIdentity | undefined {
+  try {
+    const stat = statSync(path);
+    return { realPath: realpathSync(path), device: stat.dev, inode: stat.ino };
+  } catch {
+    return undefined;
+  }
+}
+
+function registryEntryMatches(
+  operation: Extract<CleanupOperation, { kind: 'remove-worktree' }>,
+  output: string,
+  expectedPath = operation.path,
+): boolean {
+  const matches = parseWorktreePorcelain(output).filter(
+    candidate => candidate.path === expectedPath,
+  );
+  const candidate = matches[0];
+  return (
+    matches.length === 1 &&
+    candidate?.branch === operation.branch &&
+    candidate.oid === operation.oid &&
+    !candidate.main &&
+    !candidate.locked &&
+    !candidate.prunable
+  );
+}
+
+function removeWorktreeSafely(
+  operation: Extract<CleanupOperation, { kind: 'remove-worktree' }>,
+  runner: ProcessRunner,
+  inspectIdentity: (path: string) => PathIdentity | undefined,
+): ProcessResult {
+  const registry = runner(
+    'git',
+    ['-C', operation.cwd, 'worktree', 'list', '--porcelain', '-z'],
+    operation.cwd,
+  );
+  if (registry.status !== 0 || !registryEntryMatches(operation, registry.stdout)) {
+    return { status: 1, stdout: '', stderr: 'worktree registration changed before removal' };
+  }
+  const quarantinePath = nodePath.join(
+    nodePath.dirname(operation.path),
+    `.${nodePath.basename(operation.path)}.safeword-closeout-${randomUUID()}`,
+  );
+  const moved = runner(
+    'git',
+    ['-C', operation.cwd, 'worktree', 'move', operation.path, quarantinePath],
+    operation.cwd,
+  );
+  if (moved.status !== 0) {
+    return { status: 1, stdout: '', stderr: 'worktree could not be quarantined before removal' };
+  }
+  const blockedAfterQuarantine = (message: string): ProcessResult => {
+    const restored = runner(
+      'git',
+      ['-C', operation.cwd, 'worktree', 'move', quarantinePath, operation.path],
+      operation.cwd,
+    );
+    return {
+      status: 1,
+      stdout: '',
+      stderr:
+        restored.status === 0
+          ? message
+          : `${message}; worktree restoration failed: ${restored.stderr.trim() || 'unknown error'}`,
+    };
+  };
+  const identity = inspectIdentity(quarantinePath);
+  if (!identity || identity.device !== operation.device || identity.inode !== operation.inode) {
+    return blockedAfterQuarantine('worktree filesystem identity changed before removal');
+  }
+  const quarantinedRegistry = runner(
+    'git',
+    ['-C', operation.cwd, 'worktree', 'list', '--porcelain', '-z'],
+    operation.cwd,
+  );
+  if (
+    quarantinedRegistry.status !== 0 ||
+    !registryEntryMatches(operation, quarantinedRegistry.stdout, quarantinePath)
+  ) {
+    return blockedAfterQuarantine('quarantined worktree registration changed');
+  }
+  const gitDirectory = runner(
+    'git',
+    ['-C', quarantinePath, 'rev-parse', '--absolute-git-dir'],
+    operation.cwd,
+  );
+  if (gitDirectory.status !== 0 || gitDirectory.stdout.trim() !== operation.gitDirectory) {
+    return blockedAfterQuarantine('worktree git identity changed before removal');
+  }
+  const head = runner('git', ['-C', quarantinePath, 'rev-parse', 'HEAD'], operation.cwd);
+  if (head.status !== 0 || head.stdout.trim() !== operation.oid) {
+    return blockedAfterQuarantine('worktree HEAD changed before removal');
+  }
+  const status = runner(
+    'git',
+    ['-C', quarantinePath, 'status', '--porcelain=v1', '-z', '--untracked-files=all'],
+    operation.cwd,
+  );
+  if (status.status !== 0 || status.stdout !== '') {
+    return blockedAfterQuarantine('worktree became dirty before removal');
+  }
+  return runner('git', ['-C', operation.cwd, 'worktree', 'remove', quarantinePath], operation.cwd);
+}
+
 export function executeCleanupOperation(
   operation: CleanupOperation,
   runner: ProcessRunner = run,
+  inspectIdentity: (path: string) => PathIdentity | undefined = inspectPathIdentity,
 ): ProcessResult {
   if (operation.kind === 'remove-worktree') {
-    const head = runner('git', ['-C', operation.path, 'rev-parse', 'HEAD'], operation.cwd);
-    if (head.status !== 0 || head.stdout.trim() !== operation.oid) {
-      return { status: 1, stdout: '', stderr: 'worktree HEAD changed before removal' };
-    }
-    const status = runner(
-      'git',
-      ['-C', operation.path, 'status', '--porcelain=v1', '-z', '--untracked-files=all'],
-      operation.cwd,
-    );
-    if (status.status !== 0 || status.stdout !== '') {
-      return { status: 1, stdout: '', stderr: 'worktree became dirty before removal' };
-    }
+    return removeWorktreeSafely(operation, runner, inspectIdentity);
   }
   const [command, ...arguments_] = operationCommand(operation);
   if (!command) return { status: 1, stdout: '', stderr: 'cleanup command is empty' };
@@ -543,26 +686,6 @@ type SafewordRunner = (
 
 export function retroAgentForRuntime(runtime: CloseoutBinding['runtime']): string {
   return runtime;
-}
-
-function exactCodexTranscript(id: string): string | undefined {
-  const root = nodePath.join(
-    process.env.CODEX_HOME ?? nodePath.join(homedir(), '.codex'),
-    'sessions',
-  );
-  if (!existsSync(root)) return undefined;
-  const matches: string[] = [];
-  const visit = (directory: string): void => {
-    for (const entry of readdirSync(directory, { withFileTypes: true })) {
-      const path = nodePath.join(directory, entry.name);
-      if (entry.isDirectory()) visit(path);
-      else if (entry.isFile() && entry.name.endsWith('.jsonl') && entry.name.includes(id)) {
-        matches.push(path);
-      }
-    }
-  };
-  visit(root);
-  return matches.length === 1 ? matches[0] : undefined;
 }
 
 interface TranscriptMetadata {
@@ -640,7 +763,7 @@ export function transcriptMatchesBinding(
 function resolveTranscript(binding: CloseoutBinding, root: string): string | undefined {
   const candidate =
     binding.transcriptPath ??
-    (binding.runtime === 'codex' ? exactCodexTranscript(binding.id) : undefined);
+    (binding.runtime === 'codex' ? resolveExactCodexTranscript(binding.id) : undefined);
   return candidate && transcriptMatchesBinding(candidate, binding, root) ? candidate : undefined;
 }
 
@@ -662,18 +785,31 @@ export function classifyRetroFailure(
   return 'unknown';
 }
 
+const MAX_RETRO_EXTRACTION_WINDOWS = 3;
+
 export function runBoundRetro(
   root: string,
   binding: CloseoutBinding,
   runner: SafewordRunner = runSafeword,
 ): CloseoutObservation['retro'] {
+  return runBoundRetroWindows(root, binding, runner, MAX_RETRO_EXTRACTION_WINDOWS);
+}
+
+function runBoundRetroWindows(
+  root: string,
+  binding: CloseoutBinding,
+  runner: SafewordRunner,
+  windowsRemaining: number,
+): CloseoutObservation['retro'] {
   const transcript = resolveTranscript(binding, root);
   if (!transcript) return { bound: false, complete: false, pendingDrafts: 0, evidenceHash: '' };
   const cached = readRetroReceipt(root, binding, transcript);
   if (cached) {
-    const cachedObservation = retroObservationFromReceipt(root, binding.id, cached);
-    const current = transcriptSnapshot(transcript);
-    if (!cachedObservation.complete || current.byteLength === cached.snapshot.byteLength) {
+    const cachedObservation = retroObservationFromReceipt(root, binding, cached);
+    if (
+      !cachedObservation.complete ||
+      !hasMeaningfulTranscriptGrowth(transcript, cached.snapshot, binding.runtime)
+    ) {
       return cachedObservation;
     }
   }
@@ -720,7 +856,11 @@ export function runBoundRetro(
     retro.status === 0 &&
     (result?.state === 'healthy' || result?.state === 'changed') &&
     typeof agentFilingNeeded === 'boolean';
-  const transcriptAdvanced = transcriptSnapshot(transcript).byteLength > snapshot.byteLength;
+  const transcriptAdvanced = hasMeaningfulTranscriptGrowth(
+    transcript,
+    snapshot.receipt,
+    binding.runtime,
+  );
   const complete =
     successful && agentFilingNeeded === false && pendingDrafts === 0 && !transcriptAdvanced;
   const errorText = [result?.errors?.map(error => error.message ?? '').join('\n'), retro.stderr]
@@ -744,6 +884,11 @@ export function runBoundRetro(
       pendingDraftSignatures: pendingDraftRecords.map(draft => draft.signature),
       recordedAt: new Date().toISOString(),
     });
+  }
+  if (successful && agentFilingNeeded === false && pendingDrafts === 0 && transcriptAdvanced) {
+    if (windowsRemaining > 1) {
+      return runBoundRetroWindows(root, binding, runner, windowsRemaining - 1);
+    }
   }
   return {
     bound: true,
@@ -829,6 +974,36 @@ function transcriptSnapshot(path: string): SealedTranscriptSnapshot {
     content: Buffer.from(sealed),
     receipt,
   };
+}
+
+function hasMeaningfulTranscriptGrowth(
+  path: string,
+  snapshot: TranscriptSnapshot,
+  runtime: CloseoutBinding['runtime'],
+): boolean {
+  const current = transcriptSnapshot(path);
+  if (current.byteLength <= snapshot.byteLength) return false;
+  if (runtime !== 'codex') return true;
+  const appended = current.content.subarray(snapshot.byteLength).toString('utf8');
+  return appended
+    .split('\n')
+    .filter(Boolean)
+    .some(line => {
+      try {
+        const record = JSON.parse(line) as { type?: unknown; payload?: { type?: unknown } };
+        return !(
+          record.type === 'response_item' &&
+          [
+            'custom_tool_call',
+            'custom_tool_call_output',
+            'function_call',
+            'function_call_output',
+          ].includes(typeof record.payload?.type === 'string' ? record.payload.type : '')
+        );
+      } catch {
+        return true;
+      }
+    });
 }
 
 function snapshotStillMatches(snapshot: TranscriptSnapshot): boolean {
@@ -932,9 +1107,10 @@ function writeRetroReceipt(root: string, receipt: Omit<RetroReceipt, 'version'>)
 
 function retroObservationFromReceipt(
   root: string,
-  sessionId: string,
+  binding: CloseoutBinding,
   receipt: RetroReceipt,
 ): CloseoutObservation['retro'] {
+  const sessionId = binding.id;
   const pendingDrafts = readSpooledDrafts(root, sessionId).length;
   const acknowledgedSignatures = new Set(readAcks(root, sessionId).map(ack => ack.signature));
   const capturedDraftsAcknowledged =
@@ -950,7 +1126,7 @@ function retroObservationFromReceipt(
     bound: true,
     complete,
     pendingDrafts,
-    evidenceHash: transcriptSnapshot(receipt.snapshot.path).digest,
+    evidenceHash: receipt.snapshot.digest,
     ...(pendingDrafts > 0 ? { spoolPath: realpathSync(draftSpoolPath(root, sessionId)) } : {}),
     failure: complete ? undefined : 'filing',
   };
@@ -1082,7 +1258,13 @@ function runVerification(
       continue;
     }
     for (const entry of plan) {
-      if (run(entry.command, [], entry.cwd, { shell: true }).status !== 0) passed = false;
+      if (
+        run(entry.command, [], entry.cwd, {
+          shell: true,
+          timeout: VERIFICATION_COMMAND_TIMEOUT_MS,
+        }).status !== 0
+      )
+        passed = false;
       if (git(root, 'rev-parse', 'HEAD').stdout.trim() !== expectedOid) passed = false;
     }
   }
@@ -1298,10 +1480,8 @@ export function resolveRemoteRef(
   return oid ? { resolution: 'matched', oid } : { resolution: 'absent' };
 }
 
-export function parseWorktrees(root: string): WorktreeIdentity[] {
-  const records = git(root, 'worktree', 'list', '--porcelain', '-z')
-    .stdout.split('\0\0')
-    .filter(record => record !== '');
+function parseWorktreePorcelain(output: string): WorktreeIdentity[] {
+  const records = output.split('\0\0').filter(record => record !== '');
   return records.flatMap((record, index) => {
     const fields = new Map(
       record.split('\0').map(field => {
@@ -1312,20 +1492,34 @@ export function parseWorktrees(root: string): WorktreeIdentity[] {
     const path = fields.get('worktree');
     const oid = fields.get('HEAD');
     const branchRef = fields.get('branch');
-    if (!path || !oid || !branchRef?.startsWith('refs/heads/')) return [];
-    const status = git(path, 'status', '--porcelain=v1');
+    if (!path || !oid) return [];
     return [
       {
         path,
         oid,
-        branch: branchRef.slice('refs/heads/'.length),
+        branch: branchRef?.startsWith('refs/heads/') ? branchRef.slice('refs/heads/'.length) : '',
         main: index === 0,
-        dirty: status.status !== 0 || status.stdout.trim() !== '',
         locked: fields.has('locked'),
         prunable: fields.has('prunable'),
       },
     ];
   });
+}
+
+export function parseWorktrees(root: string): WorktreeIdentity[] {
+  return parseWorktreePorcelain(git(root, 'worktree', 'list', '--porcelain', '-z').stdout).map(
+    worktree => {
+      const status = git(worktree.path, 'status', '--porcelain=v1');
+      const pathIdentity = inspectPathIdentity(worktree.path);
+      const gitDirectory = git(worktree.path, 'rev-parse', '--absolute-git-dir');
+      return {
+        ...worktree,
+        ...pathIdentity,
+        gitDirectory: gitDirectory.status === 0 ? gitDirectory.stdout.trim() : undefined,
+        dirty: status.status !== 0 || status.stdout.trim() !== '',
+      };
+    },
+  );
 }
 
 function observeProtection(
@@ -1452,15 +1646,34 @@ function argumentValue(name: string): string | undefined {
   return index >= 0 ? process.argv[index + 1] : undefined;
 }
 
+function closeoutRecoveryCommand(pr: string): string {
+  const script = process.env.CLAUDE_PLUGIN_ROOT
+    ? `"${process.env.CLAUDE_PLUGIN_ROOT}/resources/scripts/closeout-cleanup.ts"`
+    : '.safeword/scripts/closeout-cleanup.ts';
+  return `bun ${script} --pr ${pr}`;
+}
+
 if (import.meta.main) {
   const root = resolveRepositoryRoot(process.cwd());
-  const pr = argumentValue('--pr');
+  const requestedPr = argumentValue('--pr');
+  const pr = requestedPr && /^[1-9]\d*$/u.test(requestedPr) ? requestedPr : undefined;
   const binding = root ? resolveCloseoutBinding(root) : undefined;
   if (!root || !pr || !binding) {
+    if (root && pr && !binding) {
+      const pullRequests = observePullRequest(root, pr);
+      const identity = pullRequests.length === 1 ? pullRequests[0] : undefined;
+      const pullRequest = Number.parseInt(pr, 10);
+      if (identity && identity.state === 'MERGED') {
+        recordCodexCloseoutHandoff({
+          projectDirectory: root,
+          repositoryUrl: `https://github.com/${identity.headOwner}/${identity.headRepository}`,
+          pullRequest,
+          headOid: identity.headRefOid,
+        });
+      }
+    }
     const recovery =
-      root && pr && !binding
-        ? ` Start one fresh task and run bun .safeword/scripts/closeout-cleanup.ts --pr ${pr}.`
-        : '';
+      root && pr && !binding ? ` Start one fresh task and run ${closeoutRecoveryCommand(pr)}.` : '';
     console.error(
       `closeout blocked: repository, --pr, and a fresh host session binding are required.${recovery}`,
     );

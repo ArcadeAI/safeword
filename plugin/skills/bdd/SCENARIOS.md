@@ -198,7 +198,7 @@ delivery retries on exponential backoff`). IDs are 1-indexed per job and
 
 **Entry:** Agent enters `scenario-gate` phase.
 
-Run the **`/review-spec`** skill — it is the gate procedure (vacuous-pass, AODI, determinism risks, adversarial pass + negative-case, cross-cutting checks, and the findings format). It reads the active ticket's `.feature` source when present, using `test-definitions.md` only as the R/G/R ledger, reports findings, and is re-invokable standalone after scenario edits. Apply its findings, then complete the plain-language completeness check and exit below.
+Run the **`/review-spec`** skill — it is the gate procedure (vacuous-pass, AODI, determinism risks, adversarial pass + negative-case, cross-cutting checks, and the findings format). It reads the active ticket's `.feature` source when present, using `test-definitions.md` only as the R/G/R ledger, reports findings, and is re-invokable standalone after scenario edits. Its final reconciliation maps material dimensions, affected surfaces, and declared public outcomes to scenarios or explicit deferrals, then challenges whether the planned proof exercises the boundary each load-bearing scenario claims. Apply its findings, then complete the plain-language completeness check and exit below.
 
 ### Are the reviewed scenarios complete?
 
@@ -207,7 +207,7 @@ Ask the user: **Do these scenarios now fully cover the intended behavior and imp
 ### Scenario Gate Exit
 
 1. Each scenario passes the vacuous-pass test and AODI (Atomic, Observable, Deterministic, Independent)
-2. Adversarial pass + cross-cutting checks complete; findings presented in the findings format (or confirmed clean)
+2. Adversarial pass + cross-cutting checks complete, including coverage reconciliation and the proof-claim challenge; findings presented in the findings format (or confirmed clean)
 3. **Check for one build-only kill-risk.** Run this checkpoint only here, after
    items 1–2 pass — never during intake, define-behavior, or while scenario
    validation is incomplete. While items 1–2 are incomplete, remain in

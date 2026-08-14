@@ -27,8 +27,8 @@ try {
 }
 
 // Belt-and-suspenders for ticket #130: re-inject the learnings pointer after
-// compaction. session-safeword-context.ts re-injects SAFEWORD.md standing
-// instructions; this hook restores ticket and learning context.
+// compaction. session-safeword-context.ts re-injects the standing bootstrap;
+// this hook restores ticket and learning context.
 const learningsIndex = `${namespaceRoot}/learnings/INDEX.md`;
 if (existsSync(learningsIndex)) {
   console.log(

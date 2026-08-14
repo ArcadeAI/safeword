@@ -60,6 +60,7 @@ const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
 const execFileAsync = promisify(execFile);
 const productionCliBuild = { completed: false };
 const fixtureControlVariables = new Set([
+  'SAFEWORD_REVIEW_PROGRESS',
   'SAFEWORD_REVIEW_COVERAGE_FAIL',
   'SAFEWORD_REVIEW_COVERAGE_FAIL_CLAUDE',
   'SAFEWORD_REVIEW_COVERAGE_FAIL_CODEX',
@@ -85,6 +86,12 @@ AfterAll(() => {
 
 function createFixtureDirectory(prefix: string): string {
   const directory = mkdtempSync(nodePath.join(tmpdir(), prefix));
+  fixtureDirectories.add(directory);
+  return directory;
+}
+
+function createTrustedFixtureDirectory(prefix: string): string {
+  const directory = mkdtempSync(nodePath.join(process.cwd(), `.${prefix}`));
   fixtureDirectories.add(directory);
   return directory;
 }
@@ -668,7 +675,7 @@ Then('requested changes remain the first review line', function (this: ReviewWor
 
 function createCliFixture(): CliFixture {
   const directory = createFixtureDirectory('safeword-coverage-bdd-');
-  const bin = createFixtureDirectory('safeword-coverage-bin-');
+  const bin = createTrustedFixtureDirectory('safeword-coverage-bin-');
   writeFileSync(nodePath.join(directory, 'spec.md'), `bounded review input ${directory}\n`);
   return { directory, bin };
 }
@@ -715,7 +722,14 @@ function reviewerInvocationValidation(agent: 'claude' | 'codex'): string {
     return String.raw`[ "$#" -gt 0 ] && ${predicate} || { printf 'invalid ${agent} review argument at position ${position}\n' >&2; exit 64; }
 shift`;
   });
-  return `${checks.join('\n')}\n[ "$#" -eq 0 ] || { printf 'unexpected extra ${agent} review arguments\\n' >&2; exit 64; }`;
+  const trailingModel =
+    agent === 'claude'
+      ? String.raw`if [ "$#" -gt 0 ]; then
+[ "$#" -eq 2 ] && [ "$1" = "--model" ] && [ -n "$2" ] || { printf 'invalid claude model arguments\n' >&2; exit 64; }
+shift 2
+fi`
+      : '';
+  return `${checks.join('\n')}\n${trailingModel}\n[ "$#" -eq 0 ] || { printf 'unexpected extra ${agent} review arguments\\n' >&2; exit 64; }`;
 }
 
 function shellSingleQuoted(value: string): string {
@@ -791,6 +805,7 @@ async function runFixtureCli(
         cwd: fixture.directory,
         env: {
           ...sanitizedFixtureEnvironment(),
+          NODE_ENV: 'test',
           PATH: `${fixture.bin}:/usr/bin:/bin`,
           SAFEWORD_AGENT_RUNTIME: 'codex',
           SAFEWORD_NO_UPDATE_CHECK: '1',
@@ -880,7 +895,7 @@ function assertBlockedQuietMode(result: CliExecution): void {
   assert.deepEqual(result, {
     stdout:
       'Review incomplete — required independent coverage is unsatisfied.\n' +
-      'The independent reviewer (Claude) could not be run. The fallback review (Codex) could not be run. No independent check was recorded.\n',
+      'The independent reviewer using opus (Claude) exited before returning a review. The same reviewer on its alternate model using sonnet (Claude) exited before returning a review. The fallback review (Codex) exited before returning a review. No independent check was recorded.\n',
     stderr: '',
     exitCode: 2,
   });

@@ -1,10 +1,16 @@
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 
 import { createTemporaryDirectory, runCli } from '../helpers.js';
-import { REVIEWER_CAPABILITIES } from '../review-fixtures.js';
+import {
+  cleanupTrustedReviewerDirectories,
+  createTrustedReviewerDirectory,
+  REVIEWER_CAPABILITIES,
+} from '../review-fixtures.js';
+
+afterAll(cleanupTrustedReviewerDirectories);
 
 /**
  * Installs one `codex` per directory, each either hanging forever or answering
@@ -89,7 +95,7 @@ describe('dividing a route between its candidates', () => {
     const candidateLog = nodePath.join(directory, 'candidates.log');
     writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
     // Outside the reviewed project, so candidate selection keeps them.
-    const host = createTemporaryDirectory();
+    const host = createTrustedReviewerDirectory('safeword-candidate-');
     const stale = installCandidate(host, 'stale', 'hang');
     const working = installCandidate(host, 'working', 'answer');
 
@@ -134,7 +140,7 @@ describe('dividing a route between its candidates', () => {
     const directory = createTemporaryDirectory();
     const candidateLog = nodePath.join(directory, 'candidates.log');
     writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
-    const host = createTemporaryDirectory();
+    const host = createTrustedReviewerDirectory('safeword-candidate-');
     const stale = installHangingProbe(host);
     const working = installCandidate(host, 'working-after-probe', 'answer');
 
@@ -175,7 +181,7 @@ describe('dividing a route between its candidates', () => {
     const candidateLog = nodePath.join(directory, 'candidates.log');
     const pidLog = nodePath.join(directory, 'stubborn.pid');
     writeFileSync(target, 'bounded review input\n');
-    const host = createTemporaryDirectory();
+    const host = createTrustedReviewerDirectory('safeword-candidate-');
     const stale = installTermResistantCandidate(host);
     const working = installCandidate(host, 'working-after-stubborn', 'answer');
 

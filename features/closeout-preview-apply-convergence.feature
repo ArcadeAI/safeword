@@ -39,13 +39,19 @@ Feature: Closeout preview and apply convergence
       When apply evaluates the appended preview report
       Then the seal advances only to the end of file captured when extraction began
 
-    @rejection @surface.openai-codex @surface.closeout-cleanup-guard @surface.retro-filer
-    Scenario: A finding appended during extraction remains visible to the next invocation
+    @surface.openai-codex @surface.closeout-cleanup-guard @surface.retro-filer
+    Scenario: A finding appended during extraction is evaluated in the same invocation
       Given preview captured a fixed transcript end and began evaluating the bounded delta
       And a new finding is appended after that captured end but before the receipt is written
       And filing occurs outside the closeout invocation
-      When the next apply invocation evaluates transcript progress
-      Then that finding is durably spooled and cleanup remains blocked
+      When the current closeout invocation observes transcript progress
+      Then that finding is durably spooled from a subsequent bounded window and cleanup remains blocked
+
+    @rejection @surface.openai-codex @surface.closeout-cleanup-guard
+    Scenario: Continuously expanding extraction input fails closed after bounded windows
+      Given every retrospective extraction window advances the live transcript
+      When the current closeout invocation reaches its extraction-window limit
+      Then the retrospective remains incomplete and cleanup remains blocked
 
     @rejection @surface.openai-codex @surface.closeout-cleanup-guard @surface.retro-filer
     Scenario: A partially written transcript record is not sealed or lost

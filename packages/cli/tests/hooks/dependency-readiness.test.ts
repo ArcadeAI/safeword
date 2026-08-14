@@ -1,5 +1,6 @@
 import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
 import {
+  chmodSync,
   existsSync,
   mkdirSync,
   readFileSync,
@@ -10,9 +11,11 @@ import {
 } from 'node:fs';
 import path from 'node:path';
 
+import { parse } from 'smol-toml';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
+  bootstrapDependencies,
   decideGitHooksWiring,
   dependencyInputFingerprint,
   detectDependencyPlan,
@@ -22,6 +25,7 @@ import {
   isDependencyInstallCommand,
   isDependencyReadinessRecoveryCommand,
   readDependencyBootstrapConfig,
+  readDependencyReadinessState,
   shouldBootstrapDependencies,
   writeInstallMarker,
 } from '../../templates/hooks/lib/dependency-readiness.js';
@@ -35,6 +39,10 @@ import {
 const SESSION_HOOK = path.resolve(
   import.meta.dirname,
   '../../templates/hooks/session-dependency-readiness.ts',
+);
+const DEPENDENCY_BOOTSTRAP_HOOK = path.resolve(
+  import.meta.dirname,
+  '../../templates/hooks/dependency-bootstrap.ts',
 );
 const PRE_TOOL_HOOK = path.resolve(
   import.meta.dirname,
@@ -56,8 +64,71 @@ it('keeps the dogfood dependency-readiness helper identical to its source templa
     path.join(REPOSITORY_ROOT, '.safeword/hooks/lib/dependency-readiness.ts'),
     'utf8',
   );
+  const plugin = readFileSync(
+    path.join(REPOSITORY_ROOT, 'plugin/runtime/hooks/lib/dependency-readiness.ts'),
+    'utf8',
+  );
 
   expect(dogfood).toBe(template);
+  expect(plugin).toBe(template);
+});
+
+it('keeps the dogfood dependency bootstrap identical to its source template', () => {
+  const template = readFileSync(
+    path.join(REPOSITORY_ROOT, 'packages/cli/templates/hooks/dependency-bootstrap.ts'),
+    'utf8',
+  );
+  const dogfood = readFileSync(
+    path.join(REPOSITORY_ROOT, '.safeword/hooks/dependency-bootstrap.ts'),
+    'utf8',
+  );
+  const plugin = readFileSync(
+    path.join(REPOSITORY_ROOT, 'plugin/runtime/hooks/dependency-bootstrap.ts'),
+    'utf8',
+  );
+
+  expect(dogfood).toBe(template);
+  expect(plugin).toBe(template);
+});
+
+it('wires the dogfood Codex SessionStart to the managed dependency bootstrap', () => {
+  const config = parse(readFileSync(path.join(REPOSITORY_ROOT, '.codex/config.toml'), 'utf8')) as {
+    features?: { hooks?: boolean };
+    hooks?: { SessionStart?: { hooks?: { command?: string }[] }[] };
+  };
+  const commands =
+    config.hooks?.SessionStart?.flatMap(entry => entry.hooks ?? []).map(hook => hook.command) ?? [];
+  const command = commands.find(candidate => candidate?.includes('dependency-bootstrap.ts'));
+
+  expect(config.features?.hooks).toBe(true);
+  expect(command).toBeDefined();
+  expect(existsSync(path.join(REPOSITORY_ROOT, '.safeword/hooks/dependency-bootstrap.ts'))).toBe(
+    true,
+  );
+  const wiredProject = createTemporaryDirectory();
+  try {
+    expect(spawnSync('git', ['init', '--quiet'], { cwd: wiredProject }).status).toBe(0);
+    mkdirSync(path.join(wiredProject, '.safeword/hooks'), { recursive: true });
+    writeFileSync(
+      path.join(wiredProject, '.safeword/hooks/dependency-bootstrap.ts'),
+      "import { writeFileSync } from 'node:fs'; writeFileSync(`${process.argv[2]}/.wiring-proof`, 'ok');\n",
+    );
+
+    expect(spawnSync('sh', ['-c', command ?? 'false'], { cwd: wiredProject }).status).toBe(0);
+    expect(readFileSync(path.join(wiredProject, '.wiring-proof'), 'utf8')).toBe('ok');
+  } finally {
+    removeTemporaryDirectory(wiredProject);
+  }
+});
+
+it('guards the repository-owned Safeword command with strict dependency readiness', () => {
+  const packageJson = JSON.parse(
+    readFileSync(path.join(REPOSITORY_ROOT, 'package.json'), 'utf8'),
+  ) as { scripts?: Record<string, string> };
+
+  expect(packageJson.scripts?.safeword).toBe(
+    'bun packages/cli/templates/hooks/dependency-bootstrap.ts --require-ready . && bun packages/cli/src/cli.ts',
+  );
 });
 
 describe('dependency readiness hook support', () => {
@@ -107,12 +178,18 @@ describe('dependency readiness hook support', () => {
     mkdirSync(path.join(projectDirectory, '.safeword'), { recursive: true });
   }
 
-  function runHook(scriptPath: string, input?: string): SpawnSyncReturns<string> {
-    return spawnSync('bun', [scriptPath], {
+  function runHook(
+    scriptPath: string,
+    input?: string,
+    environment: NodeJS.ProcessEnv = {},
+    args: string[] = [],
+  ): SpawnSyncReturns<string> {
+    return spawnSync('bun', [scriptPath, ...args], {
       cwd: projectDirectory,
       env: {
         ...process.env,
         CLAUDE_PROJECT_DIR: projectDirectory,
+        ...environment,
       },
       input,
       encoding: 'utf8',
@@ -285,13 +362,11 @@ describe('dependency readiness hook support', () => {
     );
   });
 
-  it('plans an immutable install for yarn berry (#327)', () => {
+  it("abstains from yarn berry Plug'n'Play projects (#327)", () => {
     writeJson('package.json', { name: 'yarn-berry', packageManager: 'yarn@4.3.1' });
     writeTestFile(projectDirectory, 'yarn.lock', '# yarn lockfile');
 
-    expect(detectDependencyPlan(projectDirectory)?.installCommand.display).toBe(
-      'yarn install --immutable',
-    );
+    expect(detectDependencyPlan(projectDirectory)).toBeUndefined();
   });
 
   it('detects yarn berry from .yarnrc.yml when no packageManager is declared (#327)', () => {
@@ -302,6 +377,29 @@ describe('dependency readiness hook support', () => {
     const plan = detectDependencyPlan(projectDirectory);
     expect(plan?.manager).toBe('yarn');
     expect(plan?.installCommand.display).toBe('yarn install --immutable');
+    expect(plan?.installArtifact).toBe('node_modules');
+    expect(plan?.inputPaths).toContain('.yarnrc.yml');
+  });
+
+  it.each(['"node-modules"', "'node-modules'"])(
+    'accepts quoted yarn berry nodeLinker %s (#327)',
+    nodeLinker => {
+      writeJson('package.json', { name: 'yarn-berry-quoted', packageManager: 'yarn@4.3.1' });
+      writeTestFile(projectDirectory, 'yarn.lock', '# yarn lockfile');
+      writeTestFile(projectDirectory, '.yarnrc.yml', `nodeLinker: ${nodeLinker}\n`);
+
+      expect(detectDependencyPlan(projectDirectory)?.installCommand.display).toBe(
+        'yarn install --immutable',
+      );
+    },
+  );
+
+  it("abstains when yarn berry explicitly selects Plug'n'Play (#327)", () => {
+    writeJson('package.json', { name: 'yarn-berry-pnp', packageManager: 'yarn@4.3.1' });
+    writeTestFile(projectDirectory, 'yarn.lock', '# yarn lockfile');
+    writeTestFile(projectDirectory, '.yarnrc.yml', 'nodeLinker: pnp\n');
+
+    expect(detectDependencyPlan(projectDirectory)).toBeUndefined();
   });
 
   it('tracks pnpm workspace package manifests globbed from pnpm-workspace.yaml (#327)', () => {
@@ -616,8 +714,9 @@ describe('dependency readiness hook support', () => {
   });
 
   it('bootstraps a missing install artifact even when auto-install is off (JNVP4W)', () => {
-    // The fix: a fresh worktree (no node_modules) installs unconditionally, so a
-    // commit never bypasses the husky guard chain — even with autoInstall off.
+    // Host trust gates run before project SessionStart hooks. Once trusted, a
+    // fresh worktree installs unconditionally so it cannot bypass the husky
+    // guard chain merely because node_modules was absent.
     expect(shouldBootstrapDependencies('missing', false)).toBe(true);
     expect(shouldBootstrapDependencies('missing', true)).toBe(true);
   });
@@ -782,6 +881,228 @@ describe('dependency readiness hook support', () => {
       status: 'ready',
       installCommand: 'bun ci',
     });
+  });
+
+  it('host-neutral bootstrap prepares a fresh worktree without Claude hook output', () => {
+    writeMinimalBunProject();
+    markSafewordProject();
+    writeGeneratedBunLock();
+
+    const result = runHook(DEPENDENCY_BOOTSTRAP_HOOK);
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toContain('dependencies bootstrapped with `bun ci`.');
+    expect(result.stdout).toBe('');
+    expect(existsSync(path.join(projectDirectory, 'node_modules'))).toBe(true);
+
+    const state = JSON.parse(readTestFile(projectDirectory, '.project/dependency-readiness.json'));
+    expect(state).toMatchObject({
+      status: 'ready',
+      installCommand: 'bun ci',
+    });
+  });
+
+  it('host-neutral bootstrap wires a committed git guard before reporting readiness', () => {
+    writeMinimalBunProject();
+    markSafewordProject();
+    writeGeneratedBunLock();
+    mkdirSync(path.join(projectDirectory, '.husky'));
+    writeTestFile(projectDirectory, '.husky/pre-commit', '#!/bin/sh\n');
+    expect(spawnSync('git', ['init', '--quiet'], { cwd: projectDirectory }).status).toBe(0);
+
+    const result = runHook(DEPENDENCY_BOOTSTRAP_HOOK);
+
+    expect(result.status).toBe(0);
+    expect(
+      spawnSync('git', ['config', '--get', 'core.hooksPath'], {
+        cwd: projectDirectory,
+        encoding: 'utf8',
+      }).stdout.trim(),
+    ).toBe('.husky');
+  });
+
+  it('host-neutral bootstrap refreshes a stale marker after a successful install', () => {
+    writeMinimalBunProject();
+    markSafewordProject();
+    writeGeneratedBunLock();
+    mkdirSync(path.join(projectDirectory, 'node_modules'));
+    writeTestFile(projectDirectory, 'node_modules/.safeword-deps-fingerprint', 'old-fingerprint');
+    writeJson('.safeword/config.json', { dependencyBootstrap: { autoInstall: true } });
+    expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
+
+    const result = runHook(DEPENDENCY_BOOTSTRAP_HOOK);
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toContain('dependencies bootstrapped with `bun ci`.');
+    expect(getDependencyReadiness(projectDirectory).status).toBe('ready');
+  });
+
+  it('refreshes a stale marker when a successful installer preserves node_modules', () => {
+    writeJson('package.json', {
+      name: 'marker-preserving-project',
+      packageManager: 'npm@11.0.0',
+    });
+    writeJson('package-lock.json', {
+      name: 'marker-preserving-project',
+      lockfileVersion: 3,
+      packages: {},
+    });
+    markSafewordProject();
+    writeJson('.safeword/config.json', { dependencyBootstrap: { autoInstall: true } });
+    mkdirSync(path.join(projectDirectory, 'node_modules'));
+    writeTestFile(projectDirectory, 'node_modules/.safeword-deps-fingerprint', 'old-fingerprint');
+
+    const fakeBin = path.join(projectDirectory, 'fake-bin');
+    mkdirSync(fakeBin);
+    const fakeNpm = path.join(fakeBin, 'npm');
+    writeFileSync(fakeNpm, '#!/bin/sh\nexit 0\n');
+    chmodSync(fakeNpm, 0o755);
+
+    const result = runHook(DEPENDENCY_BOOTSTRAP_HOOK, undefined, {
+      PATH: `${fakeBin}:${process.env.PATH ?? ''}`,
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toContain('dependencies bootstrapped with `npm ci`.');
+    expect(getDependencyReadiness(projectDirectory).status).toBe('ready');
+  });
+
+  it('host-neutral bootstrap reports manual action without failing advisory mode', () => {
+    writeMinimalBunProject();
+    markSafewordProject();
+    writeGeneratedBunLock();
+    mkdirSync(path.join(projectDirectory, 'node_modules'));
+    writeTestFile(projectDirectory, 'node_modules/.safeword-deps-fingerprint', 'old-fingerprint');
+    writeJson('.safeword/config.json', { dependencyBootstrap: { autoInstall: false } });
+    expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
+
+    const result = runHook(DEPENDENCY_BOOTSTRAP_HOOK);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("the project's tool list changed");
+    expect(result.stdout).toContain('bun ci');
+    expect(result.stderr).toBe('');
+  });
+
+  it('host-neutral bootstrap blocks composed commands when readiness is required', () => {
+    writeMinimalBunProject();
+    markSafewordProject();
+    writeGeneratedBunLock();
+    mkdirSync(path.join(projectDirectory, 'node_modules'));
+    writeTestFile(projectDirectory, 'node_modules/.safeword-deps-fingerprint', 'old-fingerprint');
+
+    const result = runHook(DEPENDENCY_BOOTSTRAP_HOOK, undefined, {}, ['--require-ready']);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("the project's tool list changed");
+    expect(result.stdout).toBe('');
+  });
+
+  it('reports the spawn error when the declared package manager is unavailable', () => {
+    writeJson('package.json', {
+      name: 'missing-package-manager-project',
+      packageManager: 'npm@11.0.0',
+    });
+    writeJson('package-lock.json', {
+      name: 'missing-package-manager-project',
+      lockfileVersion: 3,
+      packages: {},
+    });
+    markSafewordProject();
+
+    const originalPath = process.env.PATH;
+    process.env.PATH = path.join(projectDirectory, 'missing-bin');
+    try {
+      const result = bootstrapDependencies(projectDirectory);
+      expect(result.status).toBe('failed');
+      expect(result).toMatchObject({ message: expect.stringContaining('ENOENT') });
+    } finally {
+      process.env.PATH = originalPath;
+    }
+  });
+
+  it('preserves missing readiness when npm deletes and partially recreates node_modules', () => {
+    writeJson('package.json', {
+      name: 'interrupted-install-project',
+      packageManager: 'npm@11.0.0',
+    });
+    writeJson('package-lock.json', {
+      name: 'interrupted-install-project',
+      lockfileVersion: 3,
+      packages: {},
+    });
+    markSafewordProject();
+
+    const fakeBin = path.join(projectDirectory, 'fake-bin');
+    mkdirSync(fakeBin);
+    const fakeNpm = path.join(fakeBin, 'npm');
+    writeFileSync(
+      fakeNpm,
+      '#!/bin/sh\nrm -rf node_modules\nmkdir node_modules\nprintf partial > node_modules/partial\nexit 1\n',
+    );
+    chmodSync(fakeNpm, 0o755);
+
+    const result = runHook(DEPENDENCY_BOOTSTRAP_HOOK, undefined, {
+      PATH: `${fakeBin}:${process.env.PATH ?? ''}`,
+    });
+
+    expect(result.status).toBe(1);
+    expect(getDependencyReadiness(projectDirectory).status).toBe('missing');
+    expect(readDependencyReadinessState(projectDirectory)).toMatchObject({
+      status: 'failed',
+      reason: 'install_artifact_missing',
+    });
+    expect(existsSync(path.join(projectDirectory, 'node_modules/.safeword-deps-fingerprint'))).toBe(
+      false,
+    );
+  });
+
+  it('does not start a second installer while another bootstrap owns the lock', () => {
+    writeJson('package.json', {
+      name: 'concurrent-install-project',
+      packageManager: 'npm@11.0.0',
+    });
+    writeJson('package-lock.json', {
+      name: 'concurrent-install-project',
+      lockfileVersion: 3,
+      packages: {},
+    });
+    markSafewordProject();
+    mkdirSync(path.join(projectDirectory, '.project/.dependency-bootstrap.lock'), {
+      recursive: true,
+    });
+    writeTestFile(projectDirectory, '.project/.dependency-bootstrap.lock/pid', String(process.pid));
+
+    const result = bootstrapDependencies(projectDirectory);
+
+    expect(result).toEqual({
+      status: 'action_required',
+      message:
+        'another dependency bootstrap is already running; wait for it to finish, then retry.',
+    });
+    expect(existsSync(path.join(projectDirectory, 'node_modules'))).toBe(false);
+  });
+
+  it('host-neutral bootstrap abstains successfully for unsupported projects', () => {
+    markSafewordProject();
+
+    const result = runHook(DEPENDENCY_BOOTSTRAP_HOOK);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toBe('');
+    expect(result.stderr).toBe('');
+  });
+
+  it('host-neutral bootstrap fails loudly when a fresh worktree cannot be prepared', () => {
+    writeBunProject();
+    markSafewordProject();
+
+    const result = runHook(DEPENDENCY_BOOTSTRAP_HOOK);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('dependency bootstrap failed while running `bun ci`.');
+    expect(result.stderr).toContain('Run the install command manually');
+    expect(result.stdout).not.toContain('hookSpecificOutput');
   });
 
   it('session hook reports an attempted install that fails', () => {

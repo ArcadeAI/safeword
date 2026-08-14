@@ -3,8 +3,9 @@
   "scenarios": {
     "An unsealed finding remains observable to retrospective extraction": ["packages/cli/tests/commands/retro.test.ts", "retro-transcript-mining.TB1.AC2.planted_friction_signal_is_extracted"],
     "Distinct findings survive signature deduplication": ["packages/cli/tests/commands/retro.test.ts", "keys same-window relay drafts by finding evidence rather than extractor position"],
-    "Preview reporting advances only a bounded retrospective delta": ["packages/cli/tests/closeout-cleanup.test.ts", "blocks cleanup until transcript content appended during extraction is evaluated"],
-    "A finding appended during extraction remains visible to the next invocation": ["packages/cli/tests/closeout-cleanup.test.ts", "blocks cleanup until transcript content appended during extraction is evaluated"],
+    "Preview reporting advances only a bounded retrospective delta": ["packages/cli/tests/closeout-cleanup.test.ts", "evaluates transcript content appended during extraction before returning complete"],
+    "A finding appended during extraction is evaluated in the same invocation": ["packages/cli/tests/closeout-cleanup.test.ts", "evaluates transcript content appended during extraction before returning complete"],
+    "Continuously expanding extraction input fails closed after bounded windows": ["packages/cli/tests/closeout-cleanup.test.ts", "fails closed after bounded extraction windows when the transcript never settles"],
     "A partially written transcript record is not sealed or lost": ["packages/cli/tests/closeout-cleanup.test.ts", "derives the delta offset from the sealed UTF-16 prefix and defers a partial tail"],
     "A previously partial record is evaluated after completion": ["packages/cli/tests/closeout-cleanup.test.ts", "derives the delta offset from the sealed UTF-16 prefix and defers a partial tail"],
     "A successful retro with no pending filing is reusable": ["packages/cli/tests/integration/closeout-host-adapters.test.ts", "drives the installed %s hook through the actual guard and real Git cleanup"],
@@ -24,7 +25,7 @@
     "A noncanonical fallback spool is refused": ["packages/cli/tests/hooks/retro-filing.test.ts", "refuses caller-selected noncanonical paths"],
     "Repeated apply preserves one unacknowledged draft": ["packages/cli/tests/closeout-cleanup.test.ts", "does not treat disappearance of an unacknowledged draft as filing proof"],
     "A fallback spool with a modified sealed body is refused": ["packages/cli/tests/hooks/retro-filing.test.ts", "the shipped helper emits no filing input when a sealed body was modified"],
-    "Unavailable filing preserves authenticated drafts for retry": ["packages/cli/tests/hooks/retro-filing.test.ts", "leaves an un-postable draft spooled for retry"],
+    "Unavailable filing preserves authenticated drafts for retry": ["packages/cli/tests/hooks/retro-filing.test.ts", "leaves an un-postable draft spooled for retry, and a later boundary still nudges for it"],
     "Retrospective progress alone preserves cleanup authorization": ["packages/cli/tests/closeout-cleanup.test.ts", "keeps the cleanup authorization stable when only transcript evidence advances"],
     "Cleanup-target drift remains blocking when retro progress also advances": ["packages/cli/tests/closeout-cleanup.test.ts", "invalidates stale digests and changed observations before mutation"]
   }

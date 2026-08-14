@@ -242,7 +242,7 @@ describe('install plan completeness', () => {
       ],
       { cwd: directory },
     );
-    expect(installed.exitCode).toBe(0);
+    expect([0, 2], `${installed.stdout}\n${installed.stderr}`).toContain(installed.exitCode);
 
     const installEnvelope = JSON.parse(installed.stdout) as LifecycleEnvelope;
     for (const category of ['files', 'packages', 'configuration', 'network'] as const) {

@@ -28,6 +28,7 @@ export function historicalCatalogueDigest(): string {
 
 interface CatalogueRelease {
   readonly files: Record<string, string>;
+  readonly hook_files: Record<string, string>;
   readonly hooks: Record<string, readonly string[]>;
 }
 
@@ -50,6 +51,14 @@ function acceptedHookFingerprints(event: string): string[] {
 export function isAcceptedHistoricalFile(relativePath: string, content: Buffer | string): boolean {
   const digest = sha256(content);
   return acceptedReleases().some(release => release.files[relativePath] === digest);
+}
+
+export function isAcceptedHistoricalHookFile(
+  relativePath: string,
+  content: Buffer | string,
+): boolean {
+  const digest = sha256(content);
+  return acceptedReleases().some(release => release.hook_files[relativePath] === digest);
 }
 
 export function isAcceptedHistoricalHook(event: string, entry: unknown): boolean {
