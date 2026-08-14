@@ -7,9 +7,10 @@ allowed-tools: '*'
 
 # Finish Review After Route Exhaustion
 
-Use this workflow only as the immediate continuation of a class-1 coordinator
-result. It adds best-effort feedback when no CLI reviewer completed; it never
-creates independent-review evidence.
+Use this workflow only as the immediate continuation of a class-1 (requires
+independent/cross-model review, unlike class-2's self-verifiable checks)
+coordinator result. It adds best-effort feedback when no CLI reviewer
+completed; it never creates independent-review evidence.
 
 ## Entry gate
 

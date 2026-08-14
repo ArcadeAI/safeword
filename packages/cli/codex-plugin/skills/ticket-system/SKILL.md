@@ -166,5 +166,8 @@ single-action task.
 | Need test definitions for a feature OR acceptance criteria             | `./.safeword/templates/test-definitions-feature.md`                   |
 | Feature spans 3+ components OR needs technical spec                    | `./.safeword/templates/design-doc-template.md`                        |
 | Making decision with long-term impact OR trade-offs                    | `./.safeword/templates/architecture-template.md`                      |
+| Recording a structural or hard-to-reverse decision as its own record   | `./.safeword/templates/adr-template.md`                               |
+| Planning a feature's implementation before TDD starts                  | `./.safeword/templates/impl-plan-template.md`                         |
+| Guarding a temporary upstream workaround so its removal isn't missed   | `./.safeword/templates/tripwire-template.md`                          |
 | Task needs context anchoring                                           | `./.safeword/templates/ticket-template.md`                            |
 | Starting execution of a plan, ticket, or spec                          | `./.safeword/templates/work-log-template.md`                          |

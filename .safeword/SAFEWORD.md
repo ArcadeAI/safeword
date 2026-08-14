@@ -114,7 +114,7 @@ Calibration the rules don't capture:
 
 - **patch:** restate what you're fixing, fix it. `/bdd` to override.
 - **task:** restate scope, run TDD (RED → GREEN → REFACTOR). `/bdd` to override.
-- **feature:** include sizing in the proposal ("this touches N components with new state — I'd write scenarios"). Run `/bdd`. `/tdd` to override.
+- **feature:** include sizing in the proposal ("this touches N components with new state — I'd write scenarios"). Run `/bdd`; skip straight to TDD to override.
 
 ### 4. Verify
 
