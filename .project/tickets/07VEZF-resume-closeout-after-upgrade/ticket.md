@@ -50,3 +50,4 @@ last_modified: 2026-08-13T18:15:59.751Z
 - 2026-08-14T10:31:00.000Z Scenario gate: Unified stale-protection output, removed a vacuous reclaim assertion, completed cleanup precedence and losing-writer recovery, made advisory non-authority structural, and restored atomic interruption scenarios.
 - 2026-08-14T10:39:00.000Z Scenario gate: Defined write-side key mismatch handling, claim/reclaim interruption atomicity, installed continuation-to-guard wiring, and a uniform command-observer contract.
 - 2026-08-14T10:44:00.000Z Scenario gate: Removed the cleanup-schema contradiction, required superseded claim cleanup, made symlink rejection deterministic, and closed foreign-provenance silence.
+- 2026-08-14T12:21:00.000Z Scenario gate: Isolated expiry from receipt replacement, unified unsafe-path notices, made cleanup target selection observable, corrected repository-first discovery precedence, and completed write-path observer coverage.

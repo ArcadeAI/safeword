@@ -124,12 +124,14 @@ Feature: Resume interrupted closeout after a Codex upgrade
       Then the original handoff bytes remain unchanged
       And the current task output reports the existing pending closeout
       And the current task output names the rejected numeric pull request and directs the user to resume it from a new protected task
+      And the command observer records no branch, worktree, merge, approval, or pull-request state-changing command
 
     Scenario: Re-recording the same pending pull request is idempotent
       Given one fresh unclaimed handoff exists for the same pull request, observed head, and repository at a controlled time
       When blocked closeout attempts to record that identical pull request identity again
       Then the original handoff bytes remain unchanged
       And the current task output reports that the pending closeout is already saved
+      And the command observer records no branch, worktree, merge, approval, or pull-request state-changing command
 
     @rejection
     Scenario: A changed head does not rewrite a saved pull request
@@ -137,6 +139,7 @@ Feature: Resume interrupted closeout after a Codex upgrade
       When blocked closeout observes the same pull request number with a different head
       Then the original handoff bytes remain unchanged
       And the current task output reports that the saved pull request head changed
+      And the command observer records no branch, worktree, merge, approval, or pull-request state-changing command
 
     @rejection
     Scenario: An ambiguous existing store is not rewritten
@@ -145,6 +148,7 @@ Feature: Resume interrupted closeout after a Codex upgrade
       Then both existing handoff bytes remain unchanged
       And no third handoff is created
       And the current task output reports ambiguous pending closeout state
+      And the command observer records no branch, worktree, merge, approval, or pull-request state-changing command
 
     @rejection
     Scenario Outline: One valid and one unusable matching handoff block blind replacement
@@ -247,6 +251,7 @@ Feature: Resume interrupted closeout after a Codex upgrade
       When blocked closeout attempts to record another pull request for that repository
       Then the claimed handoff and claim record bytes remain unchanged
       And the blocked task output reports that its protection is no longer current
+      And the command observer records no branch, worktree, merge, approval, or pull-request state-changing command
 
     @rejection
     Scenario: A blocked former claim owner cannot rewrite its handoff
@@ -277,6 +282,7 @@ Feature: Resume interrupted closeout after a Codex upgrade
       When blocked closeout attempts to record another pull request for that repository
       Then the original handoff and stale claim record bytes remain unchanged
       And the current task output reports the existing pending closeout
+      And the command observer records no branch, worktree, merge, approval, or pull-request state-changing command
 
     @rejection
     Scenario Outline: Closeout without one canonical repository does not create a handoff
@@ -556,8 +562,8 @@ Feature: Resume interrupted closeout after a Codex upgrade
 
     @rejection
     Scenario Outline: One valid and one unusable matching handoff remain ambiguous
-      Given one fresh valid handoff and one <unusable state> handoff both normalize to the current canonical repository
-      When a protected Codex task starts at a controlled time
+      Given one fresh valid handoff and one <unusable state> handoff both normalize to the current canonical repository at a controlled time
+      When a protected Codex task starts
       Then SessionStart output reports ambiguous pending closeout state without naming either target
       And neither handoff is claimed or mutated
       And the existing protected SessionStart proof is still emitted
@@ -744,7 +750,7 @@ Feature: Resume interrupted closeout after a Codex upgrade
     Scenario: A handoff symlink escaping the store is rejected
       Given a handoff directory entry resolves outside the profile handoff store
       When a protected Codex task starts in the matching repository at a controlled time
-      Then SessionStart output reports invalid pending closeout state without reading the external target
+      Then SessionStart output reports an unsafe handoff-store path without reading the external target
       And no continuation or destructive command is emitted
       And the existing protected SessionStart proof is still emitted
 
@@ -752,7 +758,7 @@ Feature: Resume interrupted closeout after a Codex upgrade
     Scenario: A claim-record symlink escaping the store is rejected
       Given a claim directory entry resolves outside the profile handoff store
       When a protected Codex task starts in the matching repository at a controlled time
-      Then SessionStart output reports invalid pending closeout state without reading the external target
+      Then SessionStart output reports an unsafe handoff-store path without reading the external target
       And no continuation or destructive command is emitted
       And the existing protected SessionStart proof is still emitted
 
@@ -908,10 +914,9 @@ Feature: Resume interrupted closeout after a Codex upgrade
       And the handoff and current claim record remain unchanged
 
     Scenario: Successful guarded cleanup clears the handoff
-      Given the restarted task claimed an unchanged pending closeout handoff at a controlled time
-      When the existing closeout guard proves cleanup completed
+      Given the restarted task claimed an unchanged pending closeout handoff one tick before its controlled expiry
+      When the existing closeout guard proves cleanup completed at that time
       Then the command observer records removal of only the branch and worktree targets recorded by the fresh cleanup preview
-      And every cleanup target comes only from that fresh preview and not from the advisory handoff
       And those targets correspond to the handoff-recorded pull request and head as re-observed by the fresh preview
       And no other state-changing command is run
       And the handoff and claim record are removed
@@ -961,11 +966,11 @@ Feature: Resume interrupted closeout after a Codex upgrade
 
     @rejection
     Scenario: Expiry revokes an in-flight cleanup before destructive apply
-      Given a claimed handoff expires after guarded preview but before apply while a new blocked closeout replaces the expired receipt
+      Given an unchanged claimed handoff expires after guarded preview but before apply
       When the original task invokes guarded apply at the controlled expiry
-      Then closeout output reports that the original handoff and claim are no longer current
+      Then closeout output reports that the handoff and claim expired before apply
       And the command observer records no branch, worktree, merge, approval, or pull-request state-changing command
-      And the replacement handoff bytes remain unchanged
+      And the expired handoff and claim record bytes remain unchanged
 
     @rejection
     Scenario Outline: Restarted closeout cannot remove its current execution context
