@@ -5,6 +5,7 @@ import nodePath from 'node:path';
 
 import { parse, type ParseError } from 'jsonc-parser';
 
+import { isDogfoodRepo } from '../../../templates/hooks/lib/dogfood.js';
 import { writeDurableFile } from '../../codex-plugin/durable-write.js';
 import { claudeLegacyMutations, migrateClaudeLegacyAutomatically } from '../cleanup.js';
 import {
@@ -599,7 +600,14 @@ function automaticMigrationProjectRoot(
   hookCwd: string | undefined,
 ): string | undefined {
   if (event !== 'UserPromptSubmit') return undefined;
-  return canonicalClaudeProjectRoot(hookCwd ?? process.cwd());
+  const projectRoot = canonicalClaudeProjectRoot(hookCwd ?? process.cwd());
+  // The dogfood repo's .claude/ mirrors are the LOCAL canonical source
+  // (packages/cli/templates/), routinely ahead of what this same plugin
+  // build ships. Auto-retiring them here as "legacy" would delete
+  // in-progress framework work and desync the repo's own dogfood-parity
+  // contract (ticket 2598) — the same reason session-auto-upgrade.ts skips
+  // this repo.
+  return isDogfoodRepo(projectRoot) ? undefined : projectRoot;
 }
 
 function automaticMigrationUnsafe(
