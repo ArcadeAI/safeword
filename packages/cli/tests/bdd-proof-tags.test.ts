@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '../../..');
@@ -76,6 +77,10 @@ const VITEST_PROVEN_FEATURES = [
     'features/prevent-public-cli-contract-drift.feature',
     'packages/cli/tests/cli-protocol/cli-contract.test.ts',
   ],
+  [
+    'features/resume-closeout-after-upgrade.feature',
+    'packages/cli/tests/hooks/closeout-session-binding.test.ts',
+  ],
   ['features/sync-tracker.feature', 'packages/cli/tests/tracker-sync/wiring.test.ts'],
   ['features/ticket-deps-schema.feature', 'packages/cli/tests/integration/blocked-on-gate.test.ts'],
   ['features/tracker-connect-flow.feature', 'packages/cli/tests/tracker-connect/connect.test.ts'],
@@ -87,11 +92,95 @@ const VITEST_PROVEN_FEATURES = [
     'features/whole-ticket-quality-refactor.feature',
     'packages/cli/tests/integration/whole-ticket-quality-refactor.test.ts',
   ],
+  [
+    'packages/cli/features/reliable-observable-quality-reviews.feature',
+    'packages/cli/tests/cli-protocol/review-wiring.test.ts',
+  ],
 ] as const;
+
+type ScenarioProof = [string, string];
+type ScenarioProofRegistration = ScenarioProof | ScenarioProof[];
 
 interface ScenarioProofManifest {
   feature: string;
-  scenarios: Record<string, [string, string]>;
+  scenarios: Record<string, ScenarioProofRegistration>;
+}
+
+function registeredProofs(registration: ScenarioProofRegistration): ScenarioProof[] {
+  return typeof registration[0] === 'string'
+    ? [registration as ScenarioProof]
+    : (registration as ScenarioProof[]);
+}
+
+function executableVitestNames(source: string): string[] {
+  const sourceFile = ts.createSourceFile('proof.test.ts', source, ts.ScriptTarget.Latest, true);
+  const names: string[] = [];
+
+  function hasSkippedSuiteAncestor(node: ts.Node): boolean {
+    for (let ancestor = node.parent; ancestor !== undefined; ancestor = ancestor.parent) {
+      if (!ts.isCallExpression(ancestor)) continue;
+      const expression = ancestor.expression;
+      if (
+        ts.isPropertyAccessExpression(expression) &&
+        expression.name.text === 'skip' &&
+        ts.isIdentifier(expression.expression) &&
+        (expression.expression.text === 'describe' || expression.expression.text === 'suite')
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function vitestCallName(call: ts.CallExpression): string | undefined {
+    if (ts.isIdentifier(call.expression)) return call.expression.text;
+    if (!ts.isCallExpression(call.expression)) return undefined;
+    const eachAccess = call.expression.expression;
+    if (!ts.isPropertyAccessExpression(eachAccess) || eachAccess.name.text !== 'each') {
+      return undefined;
+    }
+    return ts.isIdentifier(eachAccess.expression) ? eachAccess.expression.text : undefined;
+  }
+
+  function visit(node: ts.Node): void {
+    if (ts.isCallExpression(node) && node.arguments[0] !== undefined) {
+      const testName = vitestCallName(node);
+      const nameArgument = node.arguments[0];
+      if (
+        (testName === 'it' || testName === 'test') &&
+        !hasSkippedSuiteAncestor(node) &&
+        (ts.isStringLiteral(nameArgument) || ts.isNoSubstitutionTemplateLiteral(nameArgument))
+      ) {
+        names.push(nameArgument.text);
+      }
+    }
+    ts.forEachChild(node, visit);
+  }
+
+  visit(sourceFile);
+  return names;
+}
+
+function expectScenarioProofs(manifest: ScenarioProofManifest): void {
+  expect(
+    Object.keys(manifest.scenarios).toSorted((left, right) => left.localeCompare(right)),
+  ).toEqual(scenarioNames(manifest.feature).toSorted((left, right) => left.localeCompare(right)));
+
+  for (const [scenario, registration] of Object.entries(manifest.scenarios)) {
+    const proofs = registeredProofs(registration);
+    expect(proofs.length, `${scenario} must register at least one proof`).toBeGreaterThan(0);
+    for (const [proofPath, testName] of proofs) {
+      const proof = readFileSync(nodePath.join(REPO_ROOT, proofPath), 'utf8');
+      const executableNames = executableVitestNames(proof);
+      expect(
+        executableNames.some(
+          executableName =>
+            executableName === testName || executableName.startsWith(`${testName}:`),
+        ),
+        `${scenario} -> ${proofPath} must declare ${testName}`,
+      ).toBe(true);
+    }
+  }
 }
 
 function scenarioNames(featurePath: string): string[] {
@@ -154,19 +243,35 @@ describe('BDD proof provenance', () => {
     expect(result.status, result.stderr || result.stdout).toBe(0);
   });
 
-  it('maps every closeout convergence scenario to a named executable proof', () => {
-    const manifestPath = nodePath.join(
-      REPO_ROOT,
+  it.each([
+    [
+      'closeout convergence',
       '.project/tickets/TFG4CR-closeout-preview-apply-convergence/bdd-proof.json',
-    );
+    ],
+    [
+      'observable review',
+      '.project/tickets/1YYG74-reliable-observable-quality-reviews/bdd-proof.json',
+    ],
+  ])('maps every %s scenario to a named executable proof', (_label, manifestRelativePath) => {
+    const manifestPath = nodePath.join(REPO_ROOT, manifestRelativePath);
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as ScenarioProofManifest;
-    expect(
-      Object.keys(manifest.scenarios).toSorted((left, right) => left.localeCompare(right)),
-    ).toEqual(scenarioNames(manifest.feature).toSorted((left, right) => left.localeCompare(right)));
+    expectScenarioProofs(manifest);
+  });
 
-    for (const [scenario, [proofPath, testName]] of Object.entries(manifest.scenarios)) {
-      const proof = readFileSync(nodePath.join(REPO_ROOT, proofPath), 'utf8');
-      expect(proof, `${scenario} -> ${proofPath} must name ${testName}`).toContain(testName);
-    }
+  it('accepts executable Vitest declarations but rejects comments and skipped lookalikes', () => {
+    expect(executableVitestNames("it('real behavior', () => {});")).toContain('real behavior');
+    expect(executableVitestNames("it.each([1, 2])('row %s', () => {});")).toContain('row %s');
+    expect(executableVitestNames("// it('comment only', () => {});")).not.toContain('comment only');
+    expect(executableVitestNames("it.skip('disabled behavior', () => {});")).not.toContain(
+      'disabled behavior',
+    );
+    expect(
+      executableVitestNames(
+        "describe.skip('disabled suite', () => it('nested behavior', () => {}));",
+      ),
+    ).not.toContain('nested behavior');
+    expect(executableVitestNames("it.each([1, 2])('registered prefix: %s', () => {});")).toContain(
+      'registered prefix: %s',
+    );
   });
 });

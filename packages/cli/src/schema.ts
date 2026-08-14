@@ -866,6 +866,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/session-dependency-readiness.ts': {
       template: 'hooks/session-dependency-readiness.ts',
     },
+    '.safeword/hooks/dependency-bootstrap.ts': {
+      template: 'hooks/dependency-bootstrap.ts',
+    },
     '.safeword/hooks/session-version.ts': {
       template: 'hooks/session-version.ts',
     },

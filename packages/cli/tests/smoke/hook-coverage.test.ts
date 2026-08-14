@@ -50,6 +50,8 @@ const EXEMPT_HOOKS: Record<string, string> = {
     'session hook; shells to `safeword architecture` whose selfHeal is covered by tests/utils/architecture-document.test.ts and tests/commands/architecture.test.ts',
   'session-dependency-readiness.ts':
     'session hook; deterministic temp-project coverage in tests/hooks/dependency-readiness.test.ts',
+  'dependency-bootstrap.ts':
+    'manual executable adapter; exercised through its real Bun process boundary by tests/hooks/dependency-readiness.test.ts',
   // Prompt hooks fire at prompt-submit, not on tool calls.
   'prompt-timestamp.ts': PROMPT_TURN,
   'prompt-questions.ts': PROMPT_TURN,

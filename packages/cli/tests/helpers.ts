@@ -446,7 +446,7 @@ async function executeCli(cliArguments: string[], options: RunCliOptions): Promi
       [testCliPath, ...cliArguments],
       {
         cwd,
-        env: { ...process.env, ...env },
+        env: { ...process.env, NODE_ENV: 'test', ...env },
         timeout,
         maxBuffer: CLI_MACHINE_OUTPUT_LIMIT_BYTES,
       },
@@ -556,7 +556,7 @@ export function runCliSync(
   try {
     const stdout = execFileSync(process.execPath, [testCliPath, ...cliArguments], {
       cwd,
-      env: { ...process.env, ...env },
+      env: { ...process.env, NODE_ENV: 'test', ...env },
       timeout,
       encoding: 'utf8',
       stdio: ['pipe', 'pipe', 'pipe'],

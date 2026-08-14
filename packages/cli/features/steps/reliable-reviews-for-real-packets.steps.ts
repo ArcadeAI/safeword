@@ -94,6 +94,7 @@ function state(world: SafewordWorld): ReviewScenario {
     targets: ['review-input.md'],
     context: [],
     environment: {
+      NODE_ENV: 'test',
       SAFEWORD_AGENT_RUNTIME: 'claude',
       SAFEWORD_REVIEW_TIMEOUT_MS: '2000',
       SAFEWORD_REVIEW_RUN_BOUND_MS: '12000',

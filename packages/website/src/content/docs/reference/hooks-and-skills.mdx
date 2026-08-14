@@ -81,7 +81,7 @@ Hooks run automatically at key moments. You don't invoke them—they work in the
 
   </TabItem>
   <TabItem label="Codex">
-    Safeword's Codex support is plugin-backed. Install writes one project SessionStart bootstrap that enrolls each active Codex profile automatically; `safeword install --agents=codex` remains available for immediate manual enrollment. Restart Codex after a new installation and start a new task to load the plugin. Install writes no repository workflow tree or mutation-event hook.
+    Safeword's Codex support is plugin-backed. Install writes project SessionStart hooks that enroll each active Codex profile and prepare missing dependencies in trusted fresh worktrees; `safeword install --agents=codex` remains available for immediate manual enrollment. Restart Codex after a new installation and start a new task to load the plugin. Install writes no repository workflow tree or mutation-event hook.
 
 | When                            | What happens                                                                      |
 | ------------------------------- | --------------------------------------------------------------------------------- |
@@ -99,7 +99,7 @@ Hooks run automatically at key moments. You don't invoke them—they work in the
 
     ### Hook trust
 
-    Codex hooks run only after the host trusts them; Safeword never bypasses that boundary. Install commits one project SessionStart bootstrap that enrolls the current profile and warns prominently until a later task has exact native proof. The warning never blocks edits or commands. Ordinary maintenance automatically backs up and removes a fully recognized legacy installation only after native installation succeeds; edited or unknown content is preserved. The plugin hook manifest uses version-pinned `bunx --bun safeword@<version> hook codex <event>` commands; Bun is required for this integration.
+    Codex hooks run only after the host trusts them; Safeword never bypasses that boundary. Install commits project SessionStart hooks that enroll the current profile, warn until a later task has exact native proof, and prepare missing dependencies. Startup remains advisory; repository-owned composed commands can require dependency readiness. Ordinary maintenance automatically backs up and removes a fully recognized legacy installation only after native installation succeeds; edited or unknown content is preserved. The plugin hook manifest uses version-pinned `bunx --bun safeword@<version> hook codex <event>` commands; Bun is required for this integration.
 
     Plugin skill files: bundled in the Safeword package under `codex-plugin/skills/`
 
@@ -219,6 +219,15 @@ Deep review that checks your code against latest research using web search.
 Your agent will check against official library docs, look for known security issues, and verify you're using current versions.
 
 Quality review, the BDD scenario gate, and implementation-plan review share the same `safeword review run` coordinator. Positional files are the bounded work product; `--context <paths...>` adds bounded supporting evidence without making it review targets. The coordinator snapshots and integrity-checks both roles, treats their contents as untrusted, sends Claude-authored work to headless Codex (and Codex-authored work to headless Claude), validates the returned JSON and reviewer identity, and records raw machine provenance as `cross-agent`, `degraded`, or `none`. Human output presents validated cross-agent results as independent coverage and permitted same-agent results as standard coverage. Discovery, unsupported capabilities, compatibility-probe timeout, launch failure, authentication, and runtime failure remain distinct typed outcomes with targeted recovery guidance.
+
+Safeword-managed review workflows also emit bounded lifecycle progress on stderr
+while a reviewer is active. The final machine result remains the only stdout
+artifact. During the foreground courtesy window, Safeword relays worker progress
+through stderr. The relay closes when a background handoff returns, so detached
+work cannot hold a caller's capture stream open or interleave with later host
+output; use the returned status command to collect the terminal result. Quiet
+mode suppresses the progress. Direct callers of
+`safeword review run --json` retain the existing silent-stderr contract.
 
 The coordinator tries the opposite agent's default and configured alternate model before same-agent headless review. If every CLI route fails, foreground agent workflows can continue once through the internal `finish-review` skill: first one host-native fresh-context reviewer, then one bounded main-thread self-review. This continuation is best-effort because only the foreground host can invoke its session agent. It is reported as supplemental feedback with its live-worktree source limits; it never becomes completed standard or independent machine coverage, never creates an independent stamp, and cannot satisfy `crossAgentReview: "require"`. Project-owned Claude assets make the fresh-context route available in Claude Code Cloud even when no external agent CLI is installed. See [Configuration](/reference/configuration#review-gates).
 

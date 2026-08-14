@@ -310,6 +310,51 @@ function closeoutCommand(directory: string): string {
 }
 
 describe('closeout production host adapters (93C14D TBU1.R4)', () => {
+  it('hands a blocked Codex closeout to exactly one restarted task through shipped hooks', () => {
+    const fixture = deliveryFixture();
+    installBoundaryFakes(fixture);
+    const codexHome = nodePath.join(nodePath.dirname(fixture.bare), 'codex-home');
+    const environment = {
+      ...process.env,
+      PATH: `${fixture.bin}:${process.env.PATH ?? ''}`,
+      CODEX_HOME: codexHome,
+      CODEX_THREAD_ID: '',
+      CLAUDE_PROJECT_DIR: fixture.topic,
+    };
+    const guard = nodePath.join(fixture.topic, '.safeword/scripts/closeout-cleanup.ts');
+    const blocked = spawnSync('bun', [guard, '--pr', '42'], {
+      cwd: fixture.topic,
+      env: environment,
+      encoding: 'utf8',
+    });
+    expect(blocked.status, `${blocked.stderr}\n${blocked.stdout}`).toBe(2);
+    const handoffDirectory = nodePath.join(codexHome, 'safeword', 'closeout-handoff-v1');
+    expect(
+      existsSync(handoffDirectory),
+      JSON.stringify({ stderr: blocked.stderr, stdout: blocked.stdout }),
+    ).toBe(true);
+
+    const sessionHook = nodePath.join(
+      repoRoot,
+      'packages/cli/templates/hooks/session-codex-start.ts',
+    );
+    const restart = (sessionId: string) =>
+      spawnSync('bun', [sessionHook], {
+        cwd: fixture.topic,
+        env: environment,
+        input: JSON.stringify({ session_id: sessionId, cwd: fixture.topic }),
+        encoding: 'utf8',
+      });
+    const first = restart('restarted-task');
+    expect(first.status, first.stderr).toBe(0);
+    expect(first.stdout).toContain('Pending closeout recovered after restart');
+    expect(first.stdout).toContain('--pr 42');
+
+    const second = restart('another-task');
+    expect(second.status, second.stderr).toBe(0);
+    expect(second.stdout).toContain('Pending closeout recovered after restart');
+  });
+
   it('binds the authenticated Codex Desktop task across linked worktrees without a hook bridge', () => {
     const fixture = deliveryFixture();
     installBoundaryFakes(fixture);
@@ -511,7 +556,7 @@ else if (args[0] === 'retro' && args[1] === 'run') {
   }, 30_000);
 
   it.each([true, false])(
-    'requires local verification despite a green rollup (required checks: %s)',
+    'uses a green hosted rollup instead of local verification (required checks: %s)',
     requiredChecks => {
       const fixture = deliveryFixture();
       installBoundaryFakes(fixture, requiredChecks, 'green');
@@ -551,9 +596,9 @@ if (args[0] === 'retro' && args[1] === 'run') {
         { cwd: fixture.topic, env: environment, encoding: 'utf8' },
       );
 
-      expect(preview.status).toBe(2);
-      expect(existsSync(localPlanMarker)).toBe(true);
-      expect(existsSync(verificationReceiptPath(fixture))).toBe(false);
+      expect(preview.status).toBe(0);
+      expect(existsSync(localPlanMarker)).toBe(false);
+      expect(existsSync(verificationReceiptPath(fixture))).toBe(true);
     },
     30_000,
   );

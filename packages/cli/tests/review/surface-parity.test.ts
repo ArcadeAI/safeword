@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import {
   chmodSync,
   mkdirSync,
@@ -11,9 +11,16 @@ import {
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
+import { Option } from 'commander';
 import { describe, expect, it } from 'vitest';
 
-import { reviewCandidates } from '../../templates/hooks/run-review';
+import { GLOBAL_OPTION_DEFINITIONS } from '../../src/cli-protocol/execute.js';
+import {
+  reviewCandidates,
+  reviewChildEnvironment,
+  VALUED_GLOBAL_OPTIONS,
+  VALUELESS_GLOBAL_OPTIONS,
+} from '../../templates/hooks/run-review';
 
 const templates = nodePath.resolve(import.meta.dirname, '../../templates');
 
@@ -22,11 +29,15 @@ function readTemplate(relativePath: string): string {
 }
 
 function markdownFiles(directory: string, prefix = ''): string[] {
+  return filesUnder(directory, prefix).filter(path => path.endsWith('.md'));
+}
+
+function filesUnder(directory: string, prefix = ''): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
     const relativePath = nodePath.join(prefix, entry.name);
     const absolutePath = nodePath.join(directory, entry.name);
-    if (entry.isDirectory()) return markdownFiles(absolutePath, relativePath);
-    return entry.isFile() && entry.name.endsWith('.md') ? [relativePath] : [];
+    if (entry.isDirectory()) return filesUnder(absolutePath, relativePath);
+    return entry.isFile() ? [relativePath] : [];
   });
 }
 
@@ -84,6 +95,7 @@ function runResolver(
       case 'source': {
         mkdirSync(nodePath.join(fixture, 'packages/cli/src'), { recursive: true });
         writeFileSync(nodePath.join(fixture, 'packages/cli/src/cli.ts'), '');
+        writeFileSync(nodePath.join(fixture, 'packages/cli/package.json'), '{"name":"safeword"}');
 
         break;
       }
@@ -113,6 +125,183 @@ function runResolver(
 }
 
 describe('class-1 review surface parity', () => {
+  it('keeps wrapper global-option parsing aligned with the CLI contract', () => {
+    const valueless = new Set<string>();
+    const valued = new Set<string>();
+    for (const definition of GLOBAL_OPTION_DEFINITIONS) {
+      const option = new Option(definition.flags);
+      const destination = option.required || option.optional ? valued : valueless;
+      if (option.short !== undefined) destination.add(option.short);
+      if (option.long !== undefined) destination.add(option.long);
+    }
+
+    const lexical = (left: string, right: string): number => left.localeCompare(right);
+    expect([...VALUELESS_GLOBAL_OPTIONS].toSorted(lexical)).toEqual(
+      [...valueless].toSorted(lexical),
+    );
+    expect([...VALUED_GLOBAL_OPTIONS].toSorted(lexical)).toEqual([...valued].toSorted(lexical));
+  });
+
+  it('forwards managed progress before the selected CLI exits', async () => {
+    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-stream-'));
+    try {
+      const localBin = nodePath.join(fixture, 'node_modules/.bin');
+      const acknowledgement = nodePath.join(fixture, 'acknowledged');
+      const probeEnvironment = nodePath.join(fixture, 'probe-environment.log');
+      mkdirSync(localBin, { recursive: true });
+      executable(
+        nodePath.join(localBin, 'safeword'),
+        `if [ "$*" = "review run --help" ]; then printf '%s\n' "\${SAFEWORD_REVIEW_PROGRESS-unset}" > "$PROBE_ENVIRONMENT"; exit 0; fi
+if [ "$SAFEWORD_REVIEW_PROGRESS" != "1" ]; then exit 9; fi
+printf 'PROGRESS\n' >&2
+while [ ! -f "$ACKNOWLEDGEMENT" ]; do sleep 0.01; done
+printf 'RESULT\n'
+exit 2`,
+      );
+
+      const child = spawn(
+        process.execPath,
+        [
+          nodePath.join(templates, 'hooks/run-review.ts'),
+          'review',
+          'run',
+          'quality-review',
+          'target',
+          '--agent-handoff',
+          '--json',
+        ],
+        {
+          cwd: fixture,
+          env: {
+            ...process.env,
+            ACKNOWLEDGEMENT: acknowledgement,
+            PROBE_ENVIRONMENT: probeEnvironment,
+            SAFEWORD_REVIEW_PROGRESS: 'hostile-inherited-value',
+          },
+          signal: AbortSignal.timeout(5000),
+          stdio: ['ignore', 'pipe', 'pipe'],
+        },
+      );
+      let stdout = '';
+      let stderr = '';
+      child.stdout.setEncoding('utf8');
+      child.stderr.setEncoding('utf8');
+      child.stdout.on('data', (chunk: string) => {
+        stdout += chunk;
+      });
+      child.stderr.on('data', (chunk: string) => {
+        stderr += chunk;
+        if (stderr.includes('PROGRESS\n')) {
+          expect(stdout).toBe('');
+          writeFileSync(acknowledgement, 'ok\n');
+        }
+      });
+
+      const status = await new Promise<number | null>((resolve, reject) => {
+        child.once('error', reject);
+        child.once('close', resolve);
+      });
+      expect(status).toBe(2);
+      expect(readFileSync(probeEnvironment, 'utf8')).toBe('unset\n');
+      expect(stderr).toBe('PROGRESS\n');
+      expect(stdout).toBe('RESULT\n');
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
+  it.each([
+    ['approved', 0, '{"schema_version":1,"state":"healthy"}'],
+    ['action-required', 2, '{"schema_version":1,"state":"action_required"}'],
+  ] as const)(
+    'preserves an older CLI %s result and status without adding an argument',
+    (_, status, output) => {
+      const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-older-cli-'));
+      try {
+        const localBin = nodePath.join(fixture, 'node_modules/.bin');
+        mkdirSync(localBin, { recursive: true });
+        executable(
+          nodePath.join(localBin, 'safeword'),
+          `if [ "$*" = "review run --help" ]; then exit 0; fi
+if [ "$*" != "review run quality-review target --agent-handoff --json" ]; then exit 64; fi
+printf '%s\n' ${JSON.stringify(output)}
+exit ${status}`,
+        );
+
+        const result = spawnSync(
+          process.execPath,
+          [
+            nodePath.join(templates, 'hooks/run-review.ts'),
+            'review',
+            'run',
+            'quality-review',
+            'target',
+            '--agent-handoff',
+            '--json',
+          ],
+          { cwd: fixture, encoding: 'utf8' },
+        );
+        expect(result.status).toBe(status);
+        expect(result.stdout).toBe(`${output}\n`);
+        expect(result.stderr).toBe('');
+      } finally {
+        rmSync(fixture, { recursive: true, force: true });
+      }
+    },
+  );
+
+  it('scopes managed progress to the JSON review child despite inherited contamination', () => {
+    const contaminated = {
+      PATH: '/usr/bin',
+      SAFEWORD_REVIEW_PROGRESS: 'inherited',
+      Safeword_Review_Progress: 'windows-inherited',
+    };
+
+    expect(reviewChildEnvironment(contaminated, ['review', 'run', '--help'])).toEqual({
+      PATH: '/usr/bin',
+    });
+    expect(
+      reviewChildEnvironment(contaminated, [
+        'review',
+        'run',
+        'quality-review',
+        'target',
+        '--agent-handoff',
+        '--json',
+      ]),
+    ).toEqual({ PATH: '/usr/bin', SAFEWORD_REVIEW_PROGRESS: '1' });
+    for (const arguments_ of [
+      ['--json', 'review', 'run', 'quality-review', 'target'],
+      ['--cwd', '/project', '--json', 'review', 'run', 'quality-review', 'target'],
+      ['--cwd=/project', 'review', 'run', 'quality-review', 'target', '--json'],
+    ]) {
+      expect(reviewChildEnvironment(contaminated, arguments_)).toEqual({
+        PATH: '/usr/bin',
+        SAFEWORD_REVIEW_PROGRESS: '1',
+      });
+    }
+    for (const arguments_ of [
+      ['--cwd', 'review', 'run', '--json'],
+      ['--cwd=review', 'run', '--json'],
+      ['--cwd', '--json', 'review', 'run'],
+      ['review', 'run', '--cwd', '--json'],
+      ['review', 'run', '--cwd=--json'],
+      ['status', '--json', 'review', 'run'],
+    ]) {
+      expect(reviewChildEnvironment(contaminated, arguments_)).toEqual({ PATH: '/usr/bin' });
+    }
+    expect(
+      reviewChildEnvironment(contaminated, [
+        'review',
+        'run',
+        'quality-review',
+        'target',
+        '--',
+        '--json',
+      ]),
+    ).toEqual({ PATH: '/usr/bin' });
+  });
+
   it.each([
     ['skills/quality-review/SKILL.md', 'quality-review'],
     ['skills/review-spec/SKILL.md', 'scenario-gate'],
@@ -127,6 +316,58 @@ describe('class-1 review surface parity', () => {
       relativePath,
     ).toBe(false);
     expect(content, relativePath).toContain('bun .safeword/hooks/run-review.ts');
+  });
+
+  it('keeps generated required-review surfaces on the managed wrapper and Cursor unwired', () => {
+    const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
+    const generatedSurfaces = [
+      {
+        root: nodePath.join(repoRoot, 'plugin/skills'),
+        requiredReviewFiles: [
+          'quality-review/SKILL.md',
+          'review-spec/SKILL.md',
+          'bdd/SKILL.md',
+          'bdd/PLAN_IMPLEMENTATION.md',
+          'bdd/TDD.md',
+        ],
+      },
+      {
+        root: nodePath.join(repoRoot, 'packages/cli/codex-plugin/skills'),
+        requiredReviewFiles: [
+          'quality-review/SKILL.md',
+          'review-spec/SKILL.md',
+          'bdd/SKILL.md',
+          'bdd/references/PLAN_IMPLEMENTATION.md',
+          'bdd/references/TDD.md',
+        ],
+      },
+    ];
+
+    for (const { root, requiredReviewFiles } of generatedSurfaces) {
+      for (const relativePath of requiredReviewFiles) {
+        const content = readFileSync(nodePath.join(root, relativePath), 'utf8');
+        expect(content, relativePath).toContain('run-review.ts review run');
+        expect(content, relativePath).toContain('--agent-handoff --json');
+        for (const line of content.split('\n')) {
+          if (line.includes('review run')) {
+            expect(line, `${relativePath}: ${line}`).toContain('run-review.ts');
+          }
+        }
+      }
+    }
+
+    const cursorRoots = [
+      nodePath.join(repoRoot, '.cursor/commands'),
+      nodePath.join(repoRoot, '.cursor/rules'),
+    ];
+    for (const cursorRoot of cursorRoots) {
+      for (const relativePath of filesUnder(cursorRoot)) {
+        expect(
+          readFileSync(nodePath.join(cursorRoot, relativePath), 'utf8'),
+          relativePath,
+        ).not.toContain('run-review.ts review run');
+      }
+    }
   });
 
   it.each([
@@ -182,6 +423,31 @@ describe('class-1 review surface parity', () => {
     } finally {
       rmSync(fixture, { recursive: true, force: true });
     }
+  });
+
+  it('rejects a lookalike source checkout that is not the Safeword package', () => {
+    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-source-'));
+    try {
+      mkdirSync(nodePath.join(fixture, 'packages/cli/src'), { recursive: true });
+      writeFileSync(nodePath.join(fixture, 'packages/cli/src/cli.ts'), '');
+      writeFileSync(nodePath.join(fixture, 'packages/cli/package.json'), '{"name":"other-cli"}');
+
+      expect(reviewCandidates(fixture, {})).toHaveLength(0);
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
+  it('keeps every tracked wrapper copy byte-identical to the source template', () => {
+    const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
+    const canonical = readFileSync(nodePath.join(templates, 'hooks/run-review.ts'), 'utf8');
+
+    expect(readFileSync(nodePath.join(repoRoot, '.safeword/hooks/run-review.ts'), 'utf8')).toBe(
+      canonical,
+    );
+    expect(
+      readFileSync(nodePath.join(repoRoot, 'plugin/runtime/hooks/run-review.ts'), 'utf8'),
+    ).toBe(canonical);
   });
 
   it('runs the real source checkout CLI', () => {

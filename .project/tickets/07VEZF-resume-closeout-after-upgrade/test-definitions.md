@@ -1,0 +1,503 @@
+# Test Definitions: Resume interrupted closeout after a Codex upgrade
+
+Feature source: `features/resume-closeout-after-upgrade.feature`
+
+## Rule: resume-closeout-after-upgrade.NTB1.R1 — Blocked closeout records one bounded handoff and the first matching protected task receives its continuation
+
+### Scenario: A blocked old task records the one observed pending pull request
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A normally protected closeout does not create a handoff
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: An ambiguous closeout target does not create a handoff [zero]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: An ambiguous closeout target does not create a handoff [two]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Hostile observed identities are not persisted [a flag-shaped pull request value]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A traversal-shaped repository identity cannot escape the handoff store
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Hostile observed identities are not persisted [a non-hexadecimal observed head]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Hostile observed identities are not persisted [pull request zero]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Hostile observed identities are not persisted [an overflowing pull request value]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Hostile observed identities are not persisted [a shortened hexadecimal observed head]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Hostile observed identities are not persisted [an overlong hexadecimal observed head]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Concurrent blocked closeouts create only one handoff
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A second pending handoff does not overwrite the first
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Re-recording the same pending pull request is idempotent
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A changed head does not rewrite a saved pull request
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: An ambiguous existing store is not rewritten
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: An expired handoff can be replaced
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: An expired claimed handoff can be replaced
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: A handoff at its expiry boundary can be replaced [no claim]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: A handoff at its expiry boundary can be replaced [a claim record]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A handoff claimed by a current task is not overwritten
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A blocked former claim owner cannot rewrite its handoff
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A fresh handoff with a stale claim is preserved for restart discovery
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Closeout without one canonical repository does not create a handoff [zero]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Closeout without one canonical repository does not create a handoff [two]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: The matching restarted task receives one concrete continuation
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: The handoff written by blocked closeout is consumed after restart
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A handoff written before a profile upgrade is consumed afterward
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Equivalent repository remote spellings match one handoff
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A handoff-store failure still tells the user how to recover
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Unaffected hosts do not create Codex restart handoffs [Claude Code]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Unaffected hosts do not create Codex restart handoffs [Cursor]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: resume-closeout-after-upgrade.NTB1.R2 — Expired, malformed, or foreign handoffs never surface as current work
+
+### Scenario: An expired handoff is not presented as current work
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A malformed handoff is not presented as current work
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A foreign handoff is not presented as current work
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A handoff expires at the exact lifetime boundary
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: An expired claimed handoff is not presented as current work
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A handoff with an excessive lifetime is not presented as current work
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: An impossible handoff clock is not presented as current work [a write time in the future]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: An impossible handoff clock is not presented as current work [an expiry at its write time]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: An impossible handoff clock is not presented as current work [an expiry before its write time]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: An impossible handoff clock is not presented as current work [an expiry less than 24 hours after its write time]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: An unreadable handoff store does not break protected startup
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Discovery without one canonical repository cannot claim a handoff [zero]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Discovery without one canonical repository cannot claim a handoff [two]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Multiple matching handoffs are rejected as ambiguous
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: resume-closeout-after-upgrade.TBU1.R1 — A handoff is bound to one repository and claimed by at most one current Codex task
+
+### Scenario: The first matching task atomically claims the handoff
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A different task cannot consume a live claim
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A task reclaims a claim whose owner is no longer current
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A superseded claim owner cannot resume after reclaim
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: A malformed claim record cannot trigger reclaim [a truncated owner claim record]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: A malformed claim record cannot trigger reclaim [a structurally valid claim record with an invalid owner identity]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A failed atomic claim does not emit a continuation
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Repeated discovery by the current claim owner is idempotent
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: An orphan claim record cannot trigger discovery
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A handoff symlink escaping the store is rejected
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A claim-record symlink escaping the store is rejected
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A handoff without current-profile provenance is rejected
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A handoff from a different profile installation is rejected
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Injection-shaped handoff identities are rejected [a flag-shaped pull request value]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Injection-shaped handoff identities are rejected [a repository identity with path traversal]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Injection-shaped handoff identities are rejected [a non-hexadecimal observed head]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Injection-shaped handoff identities are rejected [pull request zero]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Injection-shaped handoff identities are rejected [an overflowing pull request value]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Injection-shaped handoff identities are rejected [a shortened hexadecimal observed head]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Injection-shaped handoff identities are rejected [an overlong hexadecimal observed head]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: An unprotected Codex task cannot discover or claim a handoff
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Unaffected agent hosts cannot discover or claim a Codex handoff [Claude Code]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Unaffected agent hosts cannot discover or claim a Codex handoff [Cursor]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: resume-closeout-after-upgrade.TBU1.R2 — Resumption re-observes pull-request and repository state and never carries merge or cleanup authority
+
+### Scenario Outline: Changed closeout targets remain untouched after restart [a different pull-request head | head changed since handoff]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Changed closeout targets remain untouched after restart [a pull request that is not merged | pull request is not merged]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Changed closeout targets remain untouched after restart [a changed canonical repository remote | repository identity changed]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Changed closeout targets remain untouched after restart [a missing branch target | branch target is missing]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Changed closeout targets remain untouched after restart [a recreated branch target | branch target identity changed]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Changed closeout targets remain untouched after restart [a missing worktree target | worktree target is missing]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Changed closeout targets remain untouched after restart [a recreated worktree target | worktree target identity changed]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Changed closeout targets remain untouched after restart [a pull request that no longer resolves | pull request is unavailable]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Successful guarded cleanup clears the handoff
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Cleared closeout is absent from later discovery
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Receipt removal failure leaves an inert recoverable record
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Failed guarded cleanup preserves the handoff until expiry
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Restarted closeout cannot remove its current branch or worktree
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR

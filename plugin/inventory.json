@@ -19,7 +19,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "7d18236896c04691fe7628a61c0affa21016833815b2c1adf1e7ee64f5ea66e0"
+      "sha256": "9035147df5c64c9c0de40ab559848ba28fe0e117e82e73def79328982170a0d0"
     },
     {
       "path": "resources/guides/architecture-guide.md",
@@ -95,7 +95,7 @@
     },
     {
       "path": "resources/scripts/closeout-cleanup.ts",
-      "sha256": "c952c786fc21d037fe1ef385c43ff0d8040b660228dc424cef5a8d33b89df3ec"
+      "sha256": "a50f2b543b5ccf9a3a4daba42e569129bcef864329c5fb2b8f37461866ad04e8"
     },
     {
       "path": "resources/templates/adr-template.md",
@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "50a1740d7f786bad6861191551400ca099ceca1d5e939c8f0ff00218ce23aa8f"
+      "sha256": "dd1cc7ee8970520380eb1f8553d95a863f507ccfb69a737fcd5e4956947c378b"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "f729c6ed575e91e77ab45a1a3b8d5df6978b707cbc822f78d05d02d8839d3265"
+      "sha256": "3e6d65a2d0a9790a52dd00214c8f6253ad4205291969dbfca96ea7767608aa72"
     },
     {
       "path": "runtime/event-groups.json",
@@ -152,6 +152,10 @@
     {
       "path": "runtime/hooks/audit-principle-trace.ts",
       "sha256": "a1656cd0f74b2e8c5b2a0ebedad3acf01557d9d9ea9764a2bccdf52d0525a193"
+    },
+    {
+      "path": "runtime/hooks/dependency-bootstrap.ts",
+      "sha256": "aa161864bebea30a70ad2597e817b482a50c402f2bf510e8da42bc9ef543a510"
     },
     {
       "path": "runtime/hooks/lib/active-ticket.ts",
@@ -195,7 +199,7 @@
     },
     {
       "path": "runtime/hooks/lib/closeout-binding.ts",
-      "sha256": "46e0b74d9cde5067aae5c253a89feca10ccc9c48bb1d9259bdd7f2596d19b3ac"
+      "sha256": "9a7e35d35ed97bec61ce010f6d6fbe5256f34e9d425729a318287589f29ae5f8"
     },
     {
       "path": "runtime/hooks/lib/cursor-run-identity.ts",
@@ -207,7 +211,7 @@
     },
     {
       "path": "runtime/hooks/lib/dependency-readiness.ts",
-      "sha256": "22b82cb936a8309f2432a36d3000f343c47f14756af5636aaaa3893b7c69c568"
+      "sha256": "44461bc4ba104918ed53b8aa37edf9d2fbaa111de36550f7e11b5c17470a8729"
     },
     {
       "path": "runtime/hooks/lib/dogfood.ts",
@@ -371,7 +375,7 @@
     },
     {
       "path": "runtime/hooks/lib/safeword-context.ts",
-      "sha256": "10882fbe1815bd848c12281be1f6d26e9f0e60bb21b08c7c2e7359d4352cc75e"
+      "sha256": "49a39a1b38af9d1025704ef1bbe0e95f4970d784f212a222863454add2b3af7f"
     },
     {
       "path": "runtime/hooks/lib/scenario-format.ts",
@@ -459,7 +463,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "fa0d5821452243da350e25856f841d1d3344c5a746733af92a5f18d095f253ae"
+      "sha256": "aa40eb1f1d341b632aed450057c27945faf9132b58609a7b0a680175d981aa87"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -495,7 +499,7 @@
     },
     {
       "path": "runtime/hooks/run-review.ts",
-      "sha256": "f609448a24711ba5d5bb87228632fe6a34b0a93d12c964c7304e240f3ddd4561"
+      "sha256": "b9676ad0d742502ab540c0a37ff15abd613675f26e4aa93e0deed23011e4487f"
     },
     {
       "path": "runtime/hooks/session-architecture-heal.ts",
@@ -519,7 +523,7 @@
     },
     {
       "path": "runtime/hooks/session-codex-start.ts",
-      "sha256": "16d41f71b90fa89501b6e0856b3da19e676159281f42b8f1a760341ff1feddb3"
+      "sha256": "d419a42809d370e7fe70aec5f0ef32f73e31685eb651c3ccfaddf508fae7ef9c"
     },
     {
       "path": "runtime/hooks/session-compact-context.ts",
@@ -531,7 +535,7 @@
     },
     {
       "path": "runtime/hooks/session-dependency-readiness.ts",
-      "sha256": "28c0268265f0dcbce04844faac5cbc9f9903ac4f8fa893a470ca6b102498613f"
+      "sha256": "295d14c5a3d8112b01259cf89ce718144a568e62e0baf5aaa19eca3fcfdc50ff"
     },
     {
       "path": "runtime/hooks/session-lint-check.ts",

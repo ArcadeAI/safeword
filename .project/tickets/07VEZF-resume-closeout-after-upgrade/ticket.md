@@ -1,0 +1,41 @@
+---
+id: 07VEZF
+slug: resume-closeout-after-upgrade
+type: feature
+phase: scenario-gate
+status: in_progress
+scope:
+  - persist an observed closeout PR identity when the current Codex task cannot supply a protected closeout binding
+  - surface and atomically claim the repository-bound handoff in the next matching protected Codex SessionStart
+  - expire stale handoffs and remove them only after successful guarded cleanup
+  - prove real persistence, restart discovery, repository binding, single-consumer behavior, and fresh target revalidation
+out_of_scope:
+  - carrying merge or cleanup authority across tasks
+  - selecting or impersonating the original task transcript
+  - general Codex task persistence or handoff of arbitrary work
+  - Claude Code, Cursor, or cloud-agent restart semantics
+done_when:
+  - a matching new Codex task discovers the exact pending PR without user-supplied identifiers
+  - foreign, expired, malformed, or already-claimed handoffs do not authorize or trigger cleanup
+  - resumed closeout uses the existing guard to re-observe every target and authority boundary
+  - successful cleanup clears the handoff while failed attempts remain recoverable until expiry
+inspiration_contract: v1
+inspiration_contract_scaffold: v1
+parent: KMB053
+created: 2026-08-13T18:15:59.751Z
+last_modified: 2026-08-13T18:15:59.751Z
+---
+
+# Resume interrupted closeout after a Codex upgrade
+
+**Goal:** Carry exact pending closeout targets safely into the next protected Codex task.
+
+**See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.
+
+## Work Log
+
+- 2026-08-13T18:15:59.751Z Started: Created ticket 07VEZF
+- 2026-08-13T18:26:00.000Z Intake: Confirmed NTB and TBU restart-continuation jobs, repository-bound single-consumer rules, expiry, fresh target revalidation, and no transferred authority; advanced to define behavior.
+- 2026-08-13T18:35:00.000Z Scenario gate: Defined restart, expiry, repository isolation, atomic claim, target drift, and recovery behaviors for independent review.
+- 2026-08-13T19:00:00.000Z Scenario gate: Cross-agent review requested stronger single-deviation rejection proofs, exact expiry, stale-claim recovery, normal-path non-persistence, and observable non-destructive reporting; revised the feature and ledger.
+- 2026-08-13T19:05:00.000Z Scenario gate: Added current-profile provenance, hostile identity rejection, protected-host isolation, exact contention and split-brain outcomes, unambiguous target drift observations, dedup boundaries, and claim cleanup after two further adversarial passes.

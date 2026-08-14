@@ -25,7 +25,7 @@
     "A noncanonical fallback spool is refused": ["packages/cli/tests/hooks/retro-filing.test.ts", "refuses caller-selected noncanonical paths"],
     "Repeated apply preserves one unacknowledged draft": ["packages/cli/tests/closeout-cleanup.test.ts", "does not treat disappearance of an unacknowledged draft as filing proof"],
     "A fallback spool with a modified sealed body is refused": ["packages/cli/tests/hooks/retro-filing.test.ts", "the shipped helper emits no filing input when a sealed body was modified"],
-    "Unavailable filing preserves authenticated drafts for retry": ["packages/cli/tests/hooks/retro-filing.test.ts", "leaves an un-postable draft spooled for retry"],
+    "Unavailable filing preserves authenticated drafts for retry": ["packages/cli/tests/hooks/retro-filing.test.ts", "leaves an un-postable draft spooled for retry, and a later boundary still nudges for it"],
     "Retrospective progress alone preserves cleanup authorization": ["packages/cli/tests/closeout-cleanup.test.ts", "keeps the cleanup authorization stable when only transcript evidence advances"],
     "Cleanup-target drift remains blocking when retro progress also advances": ["packages/cli/tests/closeout-cleanup.test.ts", "invalidates stale digests and changed observations before mutation"]
   }
