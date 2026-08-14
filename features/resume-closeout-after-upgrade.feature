@@ -46,6 +46,20 @@ Feature: Resume interrupted closeout after a Codex upgrade
       Then no handoff or claim record is stored
       And a later protected task receives no closeout continuation from that attempt
       And the command observer records no branch, worktree, merge, approval, or pull-request state-changing command
+      And the unprotected task's normal blocked-closeout output is still emitted
+
+    @rejection
+    Scenario Outline: A formerly protected task without the current marker cannot create a handoff
+      Given no handoff exists and blocked closeout's task id <marker state> at a controlled time
+      When closeout runs its blocked-restart path
+      Then no handoff or claim record is created
+      And the current task output reports that its protection is no longer current
+      And the command observer records no branch, worktree, merge, approval, or pull-request state-changing command
+
+      Examples:
+        | marker state |
+        | is superseded by another task in the profile activation marker |
+        | has no profile activation marker |
 
     @rejection
     Scenario Outline: An ambiguous closeout target does not create a handoff

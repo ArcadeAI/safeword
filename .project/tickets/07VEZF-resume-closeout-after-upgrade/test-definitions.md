@@ -34,6 +34,18 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario Outline: A formerly protected task without the current marker cannot create a handoff [is superseded by another task in the profile activation marker]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: A formerly protected task without the current marker cannot create a handoff [has no profile activation marker]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario Outline: An ambiguous closeout target does not create a handoff [zero]
 
 - [ ] RED
