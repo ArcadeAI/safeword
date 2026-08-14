@@ -53,7 +53,7 @@ function nanoidLockfileContract(lockfile: string): {
   const packages = parsed.packages ?? {};
   return {
     resolvedVersions: Object.entries(packages).flatMap(([name, entry]) => {
-      if (name !== 'nanoid' || !Array.isArray(entry)) return [];
+      if (!(name === 'nanoid' || name.endsWith('/nanoid')) || !Array.isArray(entry)) return [];
       const resolution = entry[0];
       if (typeof resolution !== 'string') return [];
       const match = /^nanoid@(.+)$/u.exec(resolution);
@@ -76,6 +76,17 @@ describe('GHSA-2v37-7h3g-55p8 workaround', () => {
     expect(contract.resolvedVersions).toEqual(['3.3.18']);
     expect(contract.consumerRanges).toEqual(['^5.0.0']);
     expect(contract.consumerRanges.every(range => satisfies('3.3.18', range))).toBe(false);
+  });
+
+  it('includes a nested vulnerable Nano ID resolution in the resolved-version contract', () => {
+    const contract = nanoidLockfileContract(`{
+      "packages": {
+        "nanoid": ["nanoid@3.3.18", "", {}],
+        "legacy-tool/nanoid": ["nanoid@3.3.11", "", {}]
+      }
+    }`);
+
+    expect(new Set(contract.resolvedVersions)).toEqual(new Set(['3.3.18', '3.3.11']));
   });
 
   it('keeps the manifest override and frozen lockfile on the patched 3.x release', () => {

@@ -54,10 +54,7 @@ describe('Retro Relay deployment workflow', () => {
     expect(deployment.environment).toBe('retro-relay-production');
     expect(deployment.if).toContain("github.event_name == 'push'");
     expect(deployment.if).toContain("github.ref == 'refs/heads/main'");
-    expect(detectStep.run).toContain('git diff --name-only "$BEFORE" "$SHA"');
-    expect(detectStep.run).toContain('Previous main revision is unreachable');
-    expect(detectStep.run).toMatch(/if ! git fetch[\s\S]+deploy=true[\s\S]+exit 0/u);
-    expect(detectStep.run).toContain('packages/retro-relay/*');
+    expect(detectStep.run).toBe('scripts/detect-retro-relay-deploy.sh');
     expect(deployStep.env?.RAILWAY_TOKEN).toBe('${{ secrets.RAILWAY_TOKEN }}');
     expect(deployStep.run).toContain('railway up --ci');
   });
