@@ -4,6 +4,8 @@ import {
   constants,
   lstatSync,
   mkdtempSync,
+  readdirSync,
+  readFileSync,
   realpathSync,
   rmSync,
   writeFileSync,
@@ -601,6 +603,52 @@ async function stopReviewerOrThrow(
   );
 }
 
+/**
+ * Reads the state and process-group id out of one `/proc/<pid>/stat` line.
+ *
+ * The comm field is parenthesised and may itself contain spaces and
+ * parentheses, so the fixed fields are taken after its LAST closing paren:
+ * state, ppid, pgrp. Returns undefined for anything that does not parse, so a
+ * process that exits mid-scan is skipped rather than miscounted.
+ */
+export function parseProcessStat(line: string): { state: string; group: number } | undefined {
+  const commEnd = line.lastIndexOf(')');
+  if (commEnd === -1) return undefined;
+  const [state, , group] = line
+    .slice(commEnd + 1)
+    .trim()
+    .split(/\s+/u, 3);
+  const groupId = Number(group);
+  if (state === undefined || !Number.isSafeInteger(groupId)) return undefined;
+  return { state, group: groupId };
+}
+
+/**
+ * Whether any process in `group` can still run, per `/proc`. Undefined when
+ * `/proc` cannot be read, so the caller keeps its own answer.
+ */
+function procGroupHasRunningMember(group: number): boolean | undefined {
+  let entries: string[];
+  try {
+    entries = readdirSync('/proc');
+  } catch {
+    return undefined;
+  }
+  for (const entry of entries) {
+    if (!/^\d+$/u.test(entry)) continue;
+    let line: string;
+    try {
+      line = readFileSync(`/proc/${entry}/stat`, 'utf8');
+    } catch {
+      // Exited between the listing and the read; it cannot be running.
+      continue;
+    }
+    const parsed = parseProcessStat(line);
+    if (parsed?.group === group && parsed.state !== 'Z') return true;
+  }
+  return false;
+}
+
 async function stopReviewerOnce(child: ReturnType<typeof spawn>): Promise<boolean> {
   const pid = child.pid;
   if (pid === undefined) return true;
@@ -623,18 +671,34 @@ async function stopReviewerOnce(child: ReturnType<typeof spawn>): Promise<boolea
       return false;
     }
   };
+  /**
+   * A zombie is already dead — it holds a slot until its parent reaps it, and
+   * nothing more. `kill(-pgid, 0)` cannot tell one apart from a live process,
+   * so a group holding only zombies still answers "yes" and cleanup reports
+   * failure for a tree it already stopped.
+   *
+   * That misreport is invisible wherever PID 1 reaps promptly, which is why CI
+   * never sees it. It bites in a container whose PID 1 is the application or a
+   * lazy init: the reviewer's orphaned grandchildren are reparented to PID 1
+   * and linger as zombies for seconds, so a review that timed out is reported
+   * as `process_failed` and cleanup claims the processes could not be stopped.
+   *
+   * `/proc` distinguishes the two. Where it is unavailable the kill probe
+   * stands, keeping the previous behaviour on platforms without it.
+   */
+  const groupIsRunning = (): boolean => procGroupHasRunningMember(pid) ?? groupExists();
   const deadline = Date.now() + CLEANUP_BUDGET_MS;
-  while (groupExists() && Date.now() < deadline) {
+  while (groupIsRunning() && Date.now() < deadline) {
     await new Promise(resolve => setTimeout(resolve, 5));
   }
-  if (groupExists()) {
+  if (groupIsRunning()) {
     signalGroup('SIGKILL');
     const forcedDeadline = Date.now() + CLEANUP_BUDGET_MS;
-    while (groupExists() && Date.now() < forcedDeadline) {
+    while (groupIsRunning() && Date.now() < forcedDeadline) {
       await new Promise(resolve => setTimeout(resolve, 5));
     }
   }
-  return !groupExists();
+  return !groupIsRunning();
 }
 
 async function runCandidate(

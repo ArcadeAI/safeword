@@ -51,13 +51,16 @@ describe('an uncleanable reviewer process group', () => {
     vi.stubEnv('SAFEWORD_REVIEW_TIMEOUT_MS', '100');
     const realKill = process.kill.bind(process);
     let abandonedGroup: number | undefined;
+    // Swallow every signal aimed at the reviewer's process group, so the tree
+    // genuinely survives cleanup and stays RUNNING. Faking only the liveness
+    // probe is not enough: liveness is read from /proc so that a group holding
+    // nothing but zombies is correctly seen as stopped, and a fake probe would
+    // no longer describe an uncleanable group.
     vi.spyOn(process, 'kill').mockImplementation((pid, signal) => {
-      if (typeof pid === 'number' && pid < 0 && signal === 'SIGTERM') {
-        const signalled = realKill(pid, signal);
+      if (typeof pid === 'number' && pid < 0) {
         abandonedGroup = pid;
-        return signalled;
+        return true;
       }
-      if (pid === abandonedGroup && signal === 0) return true;
       return realKill(pid, signal);
     });
 
@@ -68,6 +71,15 @@ describe('an uncleanable reviewer process group', () => {
       });
       expect(existsSync(fallbackLaunch)).toBe(false);
     } finally {
+      // The mock kept the tree alive on purpose; stop it for real, or a
+      // `sleep 3600` outlives the suite.
+      if (abandonedGroup !== undefined) {
+        try {
+          realKill(abandonedGroup, 'SIGKILL');
+        } catch {
+          // Already gone.
+        }
+      }
       rmSync(project, { recursive: true, force: true });
       rmSync(host, { recursive: true, force: true });
       rmSync(fallbackHost, { recursive: true, force: true });

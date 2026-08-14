@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { ReviewerOutput } from '../../src/review/contract.js';
 import {
+  parseProcessStat,
   parseReviewerOutput,
   reviewTimeoutMilliseconds,
   runBoundMs,
@@ -143,6 +144,30 @@ describe('headless reviewer output adapters', () => {
     expect(() => parseReviewerOutput('claude', JSON.stringify(invalidOutput))).toThrow(
       'invalid reviewer output',
     );
+  });
+});
+
+describe('reviewer process-group liveness', () => {
+  // A group holding only zombies answers "yes" to kill(-pgid, 0), so cleanup
+  // used to report failure for a tree it had already stopped, and a timed-out
+  // review surfaced as process_failed. Reading state from /proc is what
+  // separates "already dead, not yet reaped" from "still running".
+  it('reads state and process group from a stat line', () => {
+    expect(parseProcessStat('42 (sleep) S 1 7 0 0 -1 0')).toEqual({ state: 'S', group: 7 });
+  });
+
+  it('reports a zombie by its state rather than its presence', () => {
+    expect(parseProcessStat('42 (sleep) Z 1 7 0 0 -1 0')?.state).toBe('Z');
+  });
+
+  it('reads past a comm containing spaces and parentheses', () => {
+    // comm is the only field that can hold the delimiters, so the fixed fields
+    // are taken after its LAST closing paren, not its first.
+    expect(parseProcessStat('42 (odd (name) here) R 1 99 0')).toEqual({ state: 'R', group: 99 });
+  });
+
+  it.each(['', 'no parens here', '42 (sleep)'])('rejects an unparseable line: %s', line => {
+    expect(parseProcessStat(line)).toBeUndefined();
   });
 });
 
