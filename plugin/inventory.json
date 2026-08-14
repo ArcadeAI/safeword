@@ -199,7 +199,7 @@
     },
     {
       "path": "runtime/hooks/lib/closeout-binding.ts",
-      "sha256": "fc090660dbbd925ebbc73cf93661cf252433ea6c39189fea6c481328b040d5ad"
+      "sha256": "8bede18ce39cedf3c6722ffd4641a9291e978b008ae031af325e78b4501df3d4"
     },
     {
       "path": "runtime/hooks/lib/cursor-run-identity.ts",
@@ -463,7 +463,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "fa0d5821452243da350e25856f841d1d3344c5a746733af92a5f18d095f253ae"
+      "sha256": "aa40eb1f1d341b632aed450057c27945faf9132b58609a7b0a680175d981aa87"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",

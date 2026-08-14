@@ -184,20 +184,28 @@ export function claimCodexCloseoutHandoff(input: {
   const directory = handoffDirectory(environment);
   if (!existsSync(directory)) return undefined;
   const now = (input.now ?? new Date()).getTime();
+  const matches: Array<{ handoff: CloseoutHandoff; path: string }> = [];
   for (const name of readdirSync(directory)) {
     if (!name.endsWith('.json')) continue;
     const path = nodePath.join(directory, name);
-    const claimPath = `${path}.claim-${createHash('sha256').update(input.sessionId).digest('hex')}`;
     try {
       const parsed = JSON.parse(readFileSync(path, 'utf8')) as unknown;
       if (!validHandoff(parsed, environment, now) || parsed.repository !== repository) continue;
-      renameSync(path, claimPath);
-      return parsed;
+      matches.push({ handoff: parsed, path });
     } catch {
       continue;
     }
   }
-  return undefined;
+  if (matches.length !== 1) return undefined;
+  const match = matches[0];
+  if (match === undefined) return undefined;
+  const claimPath = `${match.path}.claim-${createHash('sha256').update(input.sessionId).digest('hex')}`;
+  try {
+    renameSync(match.path, claimPath);
+    return match.handoff;
+  } catch {
+    return undefined;
+  }
 }
 
 export interface CloseoutBinding {
@@ -297,15 +305,35 @@ function parseFreshBindingRecord(
   }
 }
 
-function isCloseoutCleanupPath(token: string | undefined, pluginRoot?: string): boolean {
+function isCloseoutCleanupPath(
+  token: string | undefined,
+  pluginRoot?: string,
+  projectDirectory?: string,
+): boolean {
   if (token === undefined) return false;
   const normalized = token.replaceAll('"', '').replaceAll('\\', '/');
   const pluginPath = pluginRoot
     ? nodePath.join(pluginRoot, 'resources/scripts/closeout-cleanup.ts').replaceAll('\\', '/')
     : undefined;
+  const projectPath = projectDirectory
+    ? nodePath
+        .join(projectDirectory, '.safeword', 'scripts', 'closeout-cleanup.ts')
+        .replaceAll('\\', '/')
+    : undefined;
+  const projectSuffix = '/.safeword/scripts/closeout-cleanup.ts';
+  let resolvesInsideProject = false;
+  if (projectDirectory && normalized.endsWith(projectSuffix)) {
+    const candidateRoot = normalized.slice(0, -projectSuffix.length);
+    try {
+      resolvesInsideProject = realpathSync(candidateRoot) === realpathSync(projectDirectory);
+    } catch {
+      resolvesInsideProject = false;
+    }
+  }
   return (
     normalized === '.safeword/scripts/closeout-cleanup.ts' ||
-    normalized.endsWith('/.safeword/scripts/closeout-cleanup.ts') ||
+    normalized === projectPath ||
+    resolvesInsideProject ||
     normalized === '${CLAUDE_PLUGIN_ROOT}/resources/scripts/closeout-cleanup.ts' ||
     normalized === pluginPath
   );
@@ -315,11 +343,13 @@ function isCloseoutCleanupPath(token: string | undefined, pluginRoot?: string): 
 export function commandInvokesCloseoutCleanup(
   command: string,
   pluginRoot: string | undefined = process.env.CLAUDE_PLUGIN_ROOT,
+  projectDirectory: string | undefined = process.cwd(),
 ): boolean {
   return splitShellSegments(command).some(segment => {
     const words = commandWords(segment);
     return (
-      nodePath.basename(words[0] ?? '') === 'bun' && isCloseoutCleanupPath(words[1], pluginRoot)
+      nodePath.basename(words[0] ?? '') === 'bun' &&
+      isCloseoutCleanupPath(words[1], pluginRoot, projectDirectory)
     );
   });
 }

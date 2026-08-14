@@ -194,6 +194,45 @@ describe('closeout host identity bridge (93C14D NTB1.R2/TBU1.R4)', () => {
     ).toBeUndefined();
   });
 
+  it('rejects ambiguous repository handoffs without claiming either record', () => {
+    const projectDirectory = project();
+    const codexHome = project();
+    spawnSync('git', ['init', '-q'], { cwd: projectDirectory });
+    spawnSync('git', ['remote', 'add', 'origin', 'https://github.com/ArcadeAI/safeword.git'], {
+      cwd: projectDirectory,
+    });
+    const environment = { CODEX_HOME: codexHome };
+    const now = new Date('2026-08-13T12:00:00.000Z');
+    expect(
+      recordCodexCloseoutHandoff({
+        projectDirectory,
+        repositoryUrl: 'https://github.com/ArcadeAI/safeword',
+        pullRequest: 2802,
+        headOid: 'a'.repeat(40),
+        environment,
+        now,
+      }),
+    ).toBe(true);
+    const directory = nodePath.join(codexHome, 'safeword', 'closeout-handoff-v1');
+    const originalName = readdirSync(directory)[0];
+    expect(originalName).toBeDefined();
+    if (originalName === undefined) throw new Error('expected a handoff record');
+    const originalPath = nodePath.join(directory, originalName);
+    const duplicatePath = nodePath.join(directory, 'duplicate.json');
+    writeFileSync(duplicatePath, readFileSync(originalPath));
+
+    expect(
+      claimCodexCloseoutHandoff({
+        projectDirectory,
+        sessionId: 'new-task',
+        environment,
+        now,
+      }),
+    ).toBeUndefined();
+    expect(existsSync(originalPath)).toBe(true);
+    expect(existsSync(duplicatePath)).toBe(true);
+  });
+
   it('rejects an expired profile handoff after an ordinary plugin-version-independent write', () => {
     const projectDirectory = project();
     const codexHome = project();
@@ -230,6 +269,8 @@ describe('closeout host identity bridge (93C14D NTB1.R2/TBU1.R4)', () => {
     expect(
       commandInvokesCloseoutCleanup(
         'env SAFE=1 bun "/repo/.safeword/scripts/closeout-cleanup.ts" --pr 42',
+        undefined,
+        '/repo',
       ),
     ).toBe(true);
     expect(commandInvokesCloseoutCleanup('echo "bun .safeword/scripts/closeout-cleanup.ts"')).toBe(
@@ -238,6 +279,13 @@ describe('closeout host identity bridge (93C14D NTB1.R2/TBU1.R4)', () => {
     expect(commandInvokesCloseoutCleanup('bun foo.safeword/scripts/closeout-cleanup.ts')).toBe(
       false,
     );
+    expect(
+      commandInvokesCloseoutCleanup(
+        'bun /tmp/attacker/.safeword/scripts/closeout-cleanup.ts --pr 42',
+        undefined,
+        '/repo',
+      ),
+    ).toBe(false);
   });
 
   it('matches the generated native-plugin guard command without matching arbitrary resources', () => {

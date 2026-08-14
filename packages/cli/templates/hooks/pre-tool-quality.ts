@@ -299,7 +299,7 @@ if (tool === 'Bash') {
     enforceRefactorCommitGate(input.session_id);
   }
   if (
-    commandInvokesCloseoutCleanup(command) &&
+    commandInvokesCloseoutCleanup(command, process.env.CLAUDE_PLUGIN_ROOT, projectDirectory) &&
     (process.env.SAFEWORD_AGENT_RUNTIME === undefined ||
       process.env.SAFEWORD_AGENT_RUNTIME === 'claude')
   ) {

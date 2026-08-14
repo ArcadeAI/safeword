@@ -126,7 +126,14 @@ if (failedResult === undefined && commandInvokesWriteReviewStamp(input.tool_inpu
   });
 }
 
-if (failedResult === undefined && commandInvokesCloseoutCleanup(input.tool_input?.command ?? '')) {
+if (
+  failedResult === undefined &&
+  commandInvokesCloseoutCleanup(
+    input.tool_input?.command ?? '',
+    process.env.CLAUDE_PLUGIN_ROOT,
+    resolveProjectRoot(),
+  )
+) {
   const transcriptPath = input.session_id
     ? resolveExactCodexTranscript(input.session_id)
     : undefined;

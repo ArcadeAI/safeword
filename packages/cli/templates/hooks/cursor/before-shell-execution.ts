@@ -73,7 +73,8 @@ function stashReviewStampIdentity(): void {
 }
 
 function stashCloseoutBinding(): void {
-  if (!commandInvokesCloseoutCleanup(command)) return;
+  if (!commandInvokesCloseoutCleanup(command, process.env.CLAUDE_PLUGIN_ROOT, process.cwd()))
+    return;
   rememberCloseoutBinding({
     projectDirectory: process.cwd(),
     runtime: 'cursor',
