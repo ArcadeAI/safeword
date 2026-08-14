@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { Command } from 'commander';
@@ -10,6 +10,7 @@ import { publicHandler } from '../../src/cli-protocol/public-handlers.js';
 import { registerPublicCommandCatalog } from '../../src/cli-protocol/register.js';
 import { createResult } from '../../src/cli-protocol/result.js';
 import { createTemporaryDirectory, runCli } from '../helpers.js';
+import { blockScan } from '../helpers/io-failure.js';
 
 describe('quality-review regressions for the public CLI boundary', () => {
   afterEach(() => {
@@ -480,12 +481,7 @@ describe('quality-review regressions for the public CLI boundary', () => {
 
   it('does not claim a mutation when removal fails during preflight', async () => {
     const directory = createTemporaryDirectory();
-    // A self-referential symlink makes the preflight scan fail with ELOOP for
-    // every uid. chmod 0o000 cannot express this for uid 0, because root
-    // bypasses directory permission bits.
-    const safewordDirectory = nodePath.join(directory, '.safeword');
-    mkdirSync(safewordDirectory);
-    symlinkSync('hooks', nodePath.join(safewordDirectory, 'hooks'));
+    blockScan(nodePath.join(directory, '.safeword'));
 
     {
       const result = await runCli(['remove', '--json', '--no-input', '--cwd', directory], {

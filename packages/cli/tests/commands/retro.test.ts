@@ -53,6 +53,7 @@ import { DIGEST_CAP, runHeadlessExtraction } from '../../templates/hooks/lib/ret
 import { decideRetroFilingGate } from '../../templates/hooks/lib/retro-filing-gate.js';
 import { captureRetroFilingFault, readReports } from '../../templates/hooks/lib/self-report.js';
 import { readJsonlFile } from '../helpers.js';
+import { sinkWrites } from '../helpers/io-failure.js';
 import { relayReadinessArtifact, validRelayReadinessManifest } from '../helpers/relay-readiness.js';
 
 vi.mock('../../src/retro/github-rest.js', () => ({
@@ -1196,12 +1197,7 @@ describe('runRetro transport selection (BNGK9W — spool → try-REST → drain 
   });
 
   it('retains tracker-filed drafts when acknowledgement writes cannot be read back', async () => {
-    // Point the ack path at /dev/null: appends succeed, read-back is always
-    // empty. A write-only file (chmod 0o200) cannot express this for uid 0,
-    // because root bypasses the read bit and the read-back would succeed.
-    const path = ackFilePath(projectDirectory, 'sess-a');
-    mkdirSync(nodePath.dirname(path), { recursive: true });
-    symlinkSync('/dev/null', path);
+    sinkWrites(ackFilePath(projectDirectory, 'sess-a'));
 
     const transport = new FakeGitHub();
     const outcome = await runRetro(

@@ -40,6 +40,7 @@ import {
   removeTemporaryDirectory,
   runCli,
 } from '../helpers.js';
+import { blockWrites } from '../helpers/io-failure.js';
 
 const context: { directory: string } = { directory: '' };
 
@@ -511,10 +512,14 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
     );
     git(context.directory, 'add', '--', 'src/billing/index.ts');
 
+    // The clean filter runs mid-`git add`, after git has read the content off
+    // stdin, and swaps the document for a directory — so the later worktree
+    // restore fails with EISDIR. `chmod a-w` cannot express this for uid 0,
+    // because root bypasses the write bit and the restore would succeed.
     const filterPath = nodePath.join(context.directory, '.git', 'lock-architecture-filter.sh');
     writeFileSync(
       filterPath,
-      '#!/bin/sh\nchmod a-w "$SAFEWORD_TEST_ARCHITECTURE_DIRECTORY"\ncat\n',
+      '#!/bin/sh\nrm -rf "$SAFEWORD_TEST_ARCHITECTURE_DOCUMENT"\nmkdir "$SAFEWORD_TEST_ARCHITECTURE_DOCUMENT"\ncat\n',
     );
     chmodSync(filterPath, 0o755);
     git(context.directory, 'config', 'filter.architecture-lock.clean', filterPath);
@@ -524,17 +529,12 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
     );
     git(context.directory, 'add', '--', '.gitattributes');
 
-    let result;
-    try {
-      result = await runCli(['architecture', '--stage'], {
-        cwd: context.directory,
-        env: {
-          SAFEWORD_TEST_ARCHITECTURE_DIRECTORY: nodePath.dirname(documentPath),
-        },
-      });
-    } finally {
-      chmodSync(nodePath.dirname(documentPath), 0o755);
-    }
+    const result = await runCli(['architecture', '--stage'], {
+      cwd: context.directory,
+      env: {
+        SAFEWORD_TEST_ARCHITECTURE_DOCUMENT: documentPath,
+      },
+    });
     const output = `${result.stdout}\n${result.stderr}`;
     expect(result.exitCode).toBe(0);
     expect(output).toContain('was staged but unstaged worktree edits could not be restored');
@@ -1072,18 +1072,15 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
       'packages/c/src/index.ts',
     );
 
-    chmodSync(packageB, 0o555);
-    try {
-      const result = await runCli(['architecture', '--stage'], { cwd: context.directory });
+    blockWrites(nodePath.join(packageB, 'architecture.generated.md'));
 
-      expect(result.exitCode).toBe(0);
-      expect(`${result.stdout}\n${result.stderr}`).toContain('nothing was auto-staged');
-      expect(readFileSync(rootDocument, 'utf8')).toBe(rootWithSentinel);
-      expect(stagedFiles(context.directory)).not.toContain(DOC_RELATIVE);
-      expect(stagedFiles(context.directory)).not.toContain('packages/b/architecture.generated.md');
-    } finally {
-      chmodSync(packageB, 0o755);
-    }
+    const result = await runCli(['architecture', '--stage'], { cwd: context.directory });
+
+    expect(result.exitCode).toBe(0);
+    expect(`${result.stdout}\n${result.stderr}`).toContain('nothing was auto-staged');
+    expect(readFileSync(rootDocument, 'utf8')).toBe(rootWithSentinel);
+    expect(stagedFiles(context.directory)).not.toContain(DOC_RELATIVE);
+    expect(stagedFiles(context.directory)).not.toContain('packages/b/architecture.generated.md');
   });
 
   it.each([

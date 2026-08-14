@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { ReviewPacket } from '../../src/review/contract.js';
 import { ReviewRuntimeError, runHeadlessReviewer } from '../../src/review/runtime.js';
+import { blockChildren } from '../helpers/io-failure.js';
 import { createTrustedReviewerDirectory, REVIEWER_CAPABILITIES } from '../review-fixtures.js';
 
 const packet: ReviewPacket = {
@@ -37,9 +38,7 @@ async function withUnwritableTemporaryRoot(
   );
   chmodSync(executable, 0o755);
 
-  const readonly = nodePath.join(scratch, 'readonly');
-  mkdirSync(readonly);
-  chmodSync(readonly, 0o500);
+  const readonly = blockChildren(nodePath.join(scratch, 'readonly'));
 
   const originalTemporary = process.env.TMPDIR;
   const originalPath = process.env.PATH;
@@ -52,7 +51,6 @@ async function withUnwritableTemporaryRoot(
     else process.env.TMPDIR = originalTemporary;
     if (originalPath === undefined) delete process.env.PATH;
     else process.env.PATH = originalPath;
-    chmodSync(readonly, 0o700);
     rmSync(scratch, { recursive: true, force: true });
     rmSync(binRoot, { recursive: true, force: true });
   }

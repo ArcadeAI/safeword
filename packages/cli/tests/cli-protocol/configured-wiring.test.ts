@@ -4,6 +4,7 @@ import nodePath from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { createTemporaryDirectory, runCli } from '../helpers.js';
+import { blockChildren } from '../helpers/io-failure.js';
 
 function installFakeGitHubCli(directory: string): { bin: string; log: string } {
   const bin = nodePath.join(directory, 'bin');
@@ -370,12 +371,7 @@ describe('configured public-command wiring', () => {
   it('reports a remote issue and pending sidecar when local ticket creation fails', async () => {
     const directory = createTemporaryDirectory();
     configuredGitHubProject(directory);
-    // A regular file where the tickets directory belongs makes every write
-    // beneath it fail with ENOTDIR for every uid. chmod 0o000 cannot express
-    // this for uid 0, because root bypasses directory permission bits.
-    const ticketsDirectory = nodePath.join(directory, '.project/tickets');
-    mkdirSync(nodePath.dirname(ticketsDirectory), { recursive: true });
-    writeFileSync(ticketsDirectory, '');
+    blockChildren(nodePath.join(directory, '.project/tickets'));
     const github = installFakeGitHubCli(directory);
 
     {

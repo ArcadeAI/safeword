@@ -8,7 +8,7 @@
  * that strips the actionable frame must also fail).
  */
 
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -34,6 +34,7 @@ import {
   summarizeReports,
   surfacedMarkerPath,
 } from '../../templates/hooks/lib/self-report.js';
+import { blockWrites } from '../helpers/io-failure.js';
 
 describe('self-report capture (QYYC5Y)', () => {
   let projectDirectory: string;
@@ -411,14 +412,8 @@ describe('self-report capture (QYYC5Y)', () => {
     it('reports failure when the marker cannot be written, so the caller stays silent', () => {
       // The loop guard proper: emitting without a durable marker is what loops.
       // An unwritable spool dir must be reported, never silently swallowed.
-      const spoolDirectory = nodePath.dirname(spoolPath(projectDirectory, 's'));
-      mkdirSync(spoolDirectory, { recursive: true });
-      chmodSync(spoolDirectory, 0o555);
-      try {
-        expect(markSignaturesSurfaced(projectDirectory, 's', ['claude:exit1@check'])).toBe(false);
-      } finally {
-        chmodSync(spoolDirectory, 0o755);
-      }
+      blockWrites(surfacedMarkerPath(projectDirectory, 's'));
+      expect(markSignaturesSurfaced(projectDirectory, 's', ['claude:exit1@check'])).toBe(false);
     });
 
     it('does not burn marker headroom on a repeated signature', () => {
