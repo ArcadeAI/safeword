@@ -280,6 +280,24 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Interrupted first handoff creation exposes no partial record
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Interrupted handoff replacement preserves the complete old state [invalid]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Interrupted handoff replacement preserves the complete old state [expired]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario Outline: Unaffected hosts do not create Codex restart handoffs [Claude Code]
 
 - [ ] RED

@@ -269,6 +269,27 @@ Feature: Resume interrupted closeout after a Codex upgrade
       And no branch, worktree, merge, approval, or pull-request state-changing command is run
 
     @rejection
+    Scenario: Interrupted first handoff creation exposes no partial record
+      Given no handoff exists and persistence is interrupted after staging complete bytes but before atomic commit
+      When blocked closeout records one exact pull request at a controlled time
+      Then no committed or temporary handoff is discoverable
+      And the current task output directs the user to retry with the numeric pull request
+      And no branch, worktree, merge, approval, or pull-request state-changing command is run
+
+    @rejection
+    Scenario Outline: Interrupted handoff replacement preserves the complete old state
+      Given one <existing state> handoff exists and replacement is interrupted after staging complete bytes but before atomic commit
+      When blocked closeout records one exact pull request at a controlled time
+      Then the original handoff bytes remain unchanged
+      And no temporary handoff is discoverable
+      And SessionStart observes the complete original state rather than a torn mixture
+
+      Examples:
+        | existing state |
+        | invalid |
+        | expired |
+
+    @rejection
     Scenario Outline: Unaffected hosts do not create Codex restart handoffs
       Given blocked closeout runs in a <host> session with one exact pull request
       When that host reaches its normal blocked-closeout path
