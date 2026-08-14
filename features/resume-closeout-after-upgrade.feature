@@ -14,7 +14,7 @@ Feature: Resume interrupted closeout after a Codex upgrade
   Rule: resume-closeout-after-upgrade.NTB1.R1 — Blocked closeout records one bounded handoff and the first matching protected task receives its continuation
 
     Scenario: A blocked old task records the one observed pending pull request
-      Given closeout has observed one exact pull request at a controlled write time in a Codex task that must restart
+      Given closeout has observed one exact pull request at a controlled write time in a Codex task still named by the current profile activation marker but unable to obtain its transcript-bound closeout binding
       When closeout cannot obtain a protected current-task binding
       Then one advisory handoff records current-profile provenance, the canonical repository identity, numeric pull request, observed head, the millisecond-precision write time, and an expiry exactly 24 hours later
       And no claim record exists for the new handoff
@@ -38,6 +38,14 @@ Feature: Resume interrupted closeout after a Codex upgrade
       When closeout obtains the protected current-task binding
       Then no restart handoff is stored
       And closeout proceeds with its normal protected binding
+
+    @rejection
+    Scenario: A never-protected Codex task cannot create a restart handoff
+      Given a Codex task that never held the current profile activation marker observes one exact pull request
+      When it reaches the blocked-closeout path
+      Then no handoff or claim record is stored
+      And a later protected task receives no closeout continuation from that attempt
+      And the command observer records no branch, worktree, merge, approval, or pull-request state-changing command
 
     @rejection
     Scenario Outline: An ambiguous closeout target does not create a handoff
@@ -110,11 +118,24 @@ Feature: Resume interrupted closeout after a Codex upgrade
 
     @rejection
     Scenario: An ambiguous existing store is not rewritten
-      Given two distinct handoff records normalize to the current canonical repository
+      Given two distinct fresh valid handoff records normalize to the current canonical repository at a controlled time
       When blocked closeout attempts to record another pull request for that repository
       Then both existing handoff bytes remain unchanged
       And no third handoff is created
       And the current task output reports ambiguous pending closeout state
+
+    @rejection
+    Scenario Outline: One valid and one unusable matching handoff block blind replacement
+      Given one fresh valid handoff and one <unusable state> handoff both normalize to the current canonical repository at a controlled time
+      When blocked closeout attempts to record another pull request for that repository
+      Then both existing handoff bytes remain unchanged
+      And no third handoff is created
+      And the current task output reports ambiguous pending closeout state
+
+      Examples:
+        | unusable state |
+        | expired |
+        | invalid |
 
     Scenario: Foreign handoffs do not block writing for the current repository
       Given one fresh handoff exists for a foreign repository at a controlled time
@@ -231,13 +252,21 @@ Feature: Resume interrupted closeout after a Codex upgrade
       Then SessionStart output contains one continuation naming the numeric pending pull request
       And the existing protected SessionStart proof is still emitted
 
-    Scenario: A handoff written before a profile upgrade is consumed afterward
+    Scenario: A handoff written before a plugin-version change is consumed afterward
       Given blocked protected closeout writes its observed numeric pull request under the current profile identity and old plugin version at a controlled time
       When the plugin version is upgraded and the next protected Codex task starts in the same canonical repository before expiry
       Then SessionStart output contains one command naming that same numeric pull request
       And SessionStart output contains no untrusted-provenance notice
       And the existing protected SessionStart proof is still emitted
       And no branch, worktree, merge, approval, or pull-request state-changing command is run
+
+    Scenario: The installed profile upgrade preserves a pending handoff end to end
+      Given the CLI-installed pre-upgrade Codex profile writes one pending handoff at a controlled time
+      When the CLI performs the real profile-plugin upgrade and a new protected task starts in that repository
+      Then SessionStart output contains one continuation naming the same numeric pending pull request
+      And the real profile-store claim names the new protected task
+      And SessionStart output contains no untrusted-provenance notice
+      And the existing protected SessionStart proof is still emitted
 
     Scenario: Equivalent repository remote spellings match one handoff
       Given a fresh handoff records the canonical identity derived from an HTTPS remote at a controlled time
@@ -270,6 +299,14 @@ Feature: Resume interrupted closeout after a Codex upgrade
       And no branch, worktree, merge, approval, or pull-request state-changing command is run
 
     @rejection
+    Scenario: An unreadable store blocks handoff creation without writing blind
+      Given closeout has observed one exact pull request but the profile handoff store cannot be enumerated or read
+      When closeout cannot obtain a protected current-task binding at a controlled time
+      Then no handoff or claim record is created or mutated
+      And the current task output reports that pending-closeout storage is unavailable
+      And the current task output directs the user to retry with the numeric pull request
+
+    @rejection
     Scenario: Interrupted first handoff creation exposes no partial record
       Given no handoff exists and persistence is interrupted after staging complete bytes but before atomic commit
       When blocked closeout records one exact pull request at a controlled time
@@ -283,12 +320,13 @@ Feature: Resume interrupted closeout after a Codex upgrade
       When blocked closeout records one exact pull request at a controlled time
       Then the original handoff bytes remain unchanged
       And no staged temporary file is treated as discoverable current work
-      And SessionStart observes the complete original state rather than a torn mixture
+      And SessionStart <startup observation>
 
       Examples:
-        | existing state |
-        | invalid |
-        | expired |
+        | existing state | startup observation |
+        | invalid | reports invalid pending closeout state without naming its target |
+        | expired | reports an expired pending closeout without naming its pull request or head |
+        | expired with a claim | reports an expired pending closeout without naming its pull request or head |
 
     @rejection
     Scenario Outline: Unaffected hosts do not create Codex restart handoffs
@@ -330,7 +368,7 @@ Feature: Resume interrupted closeout after a Codex upgrade
       And no continuation or destructive command is emitted
       And the foreign handoff and claim record bytes remain unchanged
       And the existing protected SessionStart proof is still emitted
-      And SessionStart output reports that no matching pending closeout was selected
+      And SessionStart output contains no pending-closeout selection notice
 
     @rejection
     Scenario: A same-named repository under another owner is foreign
@@ -345,7 +383,7 @@ Feature: Resume interrupted closeout after a Codex upgrade
     Scenario: A handoff expires at the exact lifetime boundary
       Given an otherwise matching unclaimed handoff for the current repository reaches its expiry at a controlled time
       When a protected Codex task starts at that time
-      Then SessionStart output reports an expired pending closeout
+      Then SessionStart output reports an expired pending closeout without naming its pull request or head
       And no continuation or destructive command is emitted
       And the existing protected SessionStart proof is still emitted
 
@@ -353,7 +391,7 @@ Feature: Resume interrupted closeout after a Codex upgrade
     Scenario: An expired claimed handoff is not presented as current work
       Given an otherwise matching handoff and claim record reach expiry at a controlled time
       When a protected Codex task starts at that time
-      Then SessionStart output reports an expired pending closeout
+      Then SessionStart output reports an expired pending closeout without naming its pull request or head
       And no continuation or destructive command is emitted
       And the existing protected SessionStart proof is still emitted
 
@@ -409,6 +447,19 @@ Feature: Resume interrupted closeout after a Codex upgrade
       Then SessionStart output reports ambiguous pending closeout state without naming either target
       And neither handoff is claimed or mutated
       And the existing protected SessionStart proof is still emitted
+
+    @rejection
+    Scenario Outline: One valid and one unusable matching handoff remain ambiguous
+      Given one fresh valid handoff and one <unusable state> handoff both normalize to the current canonical repository
+      When a protected Codex task starts at a controlled time
+      Then SessionStart output reports ambiguous pending closeout state without naming either target
+      And neither handoff is claimed or mutated
+      And the existing protected SessionStart proof is still emitted
+
+      Examples:
+        | unusable state |
+        | expired |
+        | invalid |
 
     @rejection
     Scenario: An empty handoff store emits no continuation
@@ -546,8 +597,8 @@ Feature: Resume interrupted closeout after a Codex upgrade
       And the existing protected SessionStart proof is still emitted
 
     @rejection
-    Scenario Outline: Store symlink swaps cannot escape during mutation
-      Given the profile store path is replaced by a symlink to a known external target immediately before <mutation>
+    Scenario Outline: A store path replaced by a symlink before mutation is rejected
+      Given a symlink to a known external target is already in place at the profile store path when <mutation> begins
       When the protected closeout flow attempts that mutation at a controlled time
       Then the external target bytes remain unchanged
       And pending closeout output reports invalid or unavailable store state without echoing external contents
@@ -648,6 +699,7 @@ Feature: Resume interrupted closeout after a Codex upgrade
       Given the restarted task claimed an unchanged pending closeout handoff at a controlled time
       When the existing closeout guard proves cleanup completed
       Then the command observer records removal of only the branch and worktree targets recorded by the fresh cleanup preview
+      And those targets correspond to the handoff-recorded pull request head and branch
       And no other state-changing command is run
       And the handoff and claim record are removed
 
@@ -684,6 +736,14 @@ Feature: Resume interrupted closeout after a Codex upgrade
       And closeout output reports the blocker
       And no branch or worktree removal command is run
       And no merge, approval, or pull-request state-changing command is run
+
+    @rejection
+    Scenario: Expiry revokes an in-flight cleanup before destructive apply
+      Given a claimed handoff expires after guarded preview but before apply while a new blocked closeout replaces the expired receipt
+      When the original task invokes guarded apply at the controlled expiry
+      Then closeout output reports that the original handoff and claim are no longer current
+      And the command observer records no branch, worktree, merge, approval, or pull-request state-changing command
+      And the replacement handoff bytes remain unchanged
 
     @rejection
     Scenario Outline: Restarted closeout cannot remove its current execution context

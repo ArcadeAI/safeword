@@ -28,6 +28,12 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A never-protected Codex task cannot create a restart handoff
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario Outline: An ambiguous closeout target does not create a handoff [zero]
 
 - [ ] RED
@@ -125,6 +131,18 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] REFACTOR
 
 ### Scenario: An ambiguous existing store is not rewritten
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: One valid and one unusable matching handoff block blind replacement [expired]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: One valid and one unusable matching handoff block blind replacement [invalid]
 
 - [ ] RED
 - [ ] GREEN
@@ -250,7 +268,13 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A handoff written before a profile upgrade is consumed afterward
+### Scenario: A handoff written before a plugin-version change is consumed afterward
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: The installed profile upgrade preserves a pending handoff end to end
 
 - [ ] RED
 - [ ] GREEN
@@ -280,6 +304,12 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: An unreadable store blocks handoff creation without writing blind
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Interrupted first handoff creation exposes no partial record
 
 - [ ] RED
@@ -293,6 +323,12 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] REFACTOR
 
 ### Scenario Outline: Interrupted handoff replacement preserves the complete old state [expired]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Interrupted handoff replacement preserves the complete old state [expired with a claim]
 
 - [ ] RED
 - [ ] GREEN
@@ -402,6 +438,18 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario Outline: One valid and one unusable matching handoff remain ambiguous [expired]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: One valid and one unusable matching handoff remain ambiguous [invalid]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: An empty handoff store emits no continuation
 
 - [ ] RED
@@ -506,31 +554,31 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario Outline: Store symlink swaps cannot escape during mutation [handoff creation]
+### Scenario Outline: A store path replaced by a symlink before mutation is rejected [handoff creation]
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario Outline: Store symlink swaps cannot escape during mutation [invalid-handoff replacement]
+### Scenario Outline: A store path replaced by a symlink before mutation is rejected [invalid-handoff replacement]
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario Outline: Store symlink swaps cannot escape during mutation [claim creation]
+### Scenario Outline: A store path replaced by a symlink before mutation is rejected [claim creation]
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario Outline: Store symlink swaps cannot escape during mutation [claim reclaim]
+### Scenario Outline: A store path replaced by a symlink before mutation is rejected [claim reclaim]
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario Outline: Store symlink swaps cannot escape during mutation [receipt removal]
+### Scenario Outline: A store path replaced by a symlink before mutation is rejected [receipt removal]
 
 - [ ] RED
 - [ ] GREEN
@@ -682,13 +730,13 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario Outline: Receipt removal failure is reported after cleanup [the handoff record]
+### Scenario Outline: Receipt removal failure is reported after cleanup [the claim record]
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario Outline: Receipt removal failure is reported after cleanup [the claim record]
+### Scenario Outline: Receipt removal failure is reported after cleanup [the handoff record]
 
 - [ ] RED
 - [ ] GREEN
@@ -707,6 +755,12 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] REFACTOR
 
 ### Scenario: Failed guarded cleanup preserves the handoff until expiry
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Expiry revokes an in-flight cleanup before destructive apply
 
 - [ ] RED
 - [ ] GREEN

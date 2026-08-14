@@ -44,6 +44,8 @@ Unaffected:
 - **Closeout claim:** An atomic owner record bound to a handoff and current profile task. It has no independent clock or lifetime; the handoff's fixed expiry governs both records.
 - **Filesystem trust boundary:** Static symlinks and path escapes are rejected before advisory records are read or mutated. An active process running as the same user can race profile-owned files and is outside this advisory receipt's threat model; the existing closeout guard remains the authority boundary.
 - **Persistence guarantee:** A completed operation exposes one complete old or new record and never a torn mixture. Surviving sudden power loss after success is not guaranteed beyond the host filesystem's rename semantics.
+- **Creation boundary:** A blocked Codex closeout may write the advisory handoff only while its task id is still named by the current profile activation marker, even though it cannot obtain the transcript-bound closeout binding. A task never named by that marker cannot write. Only a newly protected Codex task may discover and claim the receipt, and neither record carries cleanup authority.
+- **Tick:** One millisecond, matching the persisted timestamp precision.
 
 ## Product Inspiration
 
