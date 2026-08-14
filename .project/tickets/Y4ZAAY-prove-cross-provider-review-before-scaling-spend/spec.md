@@ -25,7 +25,7 @@ Prove that the paid benchmark can genuinely use OpenAI GPT-5.6 Terra for review 
 Affected:
 
 - Internal PR-review evaluation harness — `skip: ticket-local research surface, not reusable product runtime`
-- GitHub Actions Execution Sandbox — `skip: the ticket-local retained-qualification check is proved by its dedicated wiring test rather than a product BDD scenario`
+- GitHub Actions Execution Sandbox — `skip: the private pinned-adapter qualification remains an explicit manual proof and installs no product workflow or release gate`
 
 Unaffected:
 

@@ -73,10 +73,10 @@ Recommend **the separate OpenAI `AgentRunner` plus shared provider-turn observer
 | --- | --- | --- | --- |
 | 1. Structure enforces; instructions suggest | Paid dispatch is physically downstream of trusted initialization, durable intent, complete accounting, route validation, and observed-cost gates. | `.project/tickets/Y4ZAAY-prove-cross-provider-review-before-scaling-spend/features/prove-cross-provider-review-before-scaling-spend.feature` | |
 | 2. Fire at boundaries, not every turn | Guards run before initialization, before an attempt, around the HTTP boundary for evidence, and after an attempt; they do not add general Safeword per-turn hooks. | `.project/tickets/Y4ZAAY-prove-cross-provider-review-before-scaling-spend/terra-development-canary.test.ts` | |
-| 3. Add, never replace | The OpenAI loop is additive behind `AgentRunner`; existing Anthropic behavior remains unchanged. | The pinned external adapter's runner integration tests are retained by `.project/tickets/Y4ZAAY-prove-cross-provider-review-before-scaling-spend/terra-real-recorder-qualification.json`; this repository verifies that qualification artifact but cannot independently rerun the external Anthropic regression without the pinned adapter checkout. | External adapter checkout required for direct regression execution. |
+| 3. Add, never replace | The OpenAI loop is additive behind `AgentRunner`; existing Anthropic behavior remains unchanged. | The manual pinned-adapter run retains its exact snapshot in `.project/tickets/Y4ZAAY-prove-cross-provider-review-before-scaling-spend/terra-real-recorder-qualification.json`; the snapshot is historical evidence, not an independently authenticated CI proof. | External adapter checkout required for direct regression execution. |
 | 5. Correct and safe; then clear; then simple | Provider-specific replay remains in a named adapter; accounting and validation are pure, strict modules rather than a premature generic framework. | `.project/tickets/Y4ZAAY-prove-cross-provider-review-before-scaling-spend/terra-canary-evidence.ts` | |
 
-This honors the accepted **Advisory PR Review as a Split-Privilege Evidence Pipeline** decision in `ARCHITECTURE.md` by using an explicit OpenAI Responses implementation and configured provider/model identity, the **Frozen Transcript Fixture Testing** decision by retaining realistic native envelopes, and the architecture's existing typed-runner/test-boundary pattern. No ADR update is warranted: the implementation is ticket-local research tooling plus an additive adapter on a non-main branch, and the main-CI qualification check is verification-only rather than a new product or package boundary. The deliberately durable tag/comments remain evidence anchors.
+This honors the accepted **Advisory PR Review as a Split-Privilege Evidence Pipeline** decision in `ARCHITECTURE.md` by using an explicit OpenAI Responses implementation and configured provider/model identity, the **Frozen Transcript Fixture Testing** decision by retaining realistic native envelopes, and the architecture's existing typed-runner/test-boundary pattern. No ADR update is warranted: the implementation is ticket-local research tooling plus an additive adapter on a non-main branch. The pinned-adapter qualification remains an explicit manual proof because this repository has no least-privilege credential for the private collaborator repository; promotion to a supported release invariant requires a separately reviewed provenance design. The deliberately durable tag/comments remain evidence anchors.
 
 ## Known deviations
 
@@ -88,7 +88,7 @@ This honors the accepted **Advisory PR Review as a Split-Privilege Evidence Pipe
 
 ## Doc impact
 
-No customer documentation changes. The ticket adds a verification-only retained paid-canary qualification check to `.github/workflows/ci.yml`; it changes no customer-visible README, website, installed guide, or CLI command.
+No customer documentation changes. The pinned paid-canary qualification is manual ticket evidence and is deliberately not presented as an independently authenticated main-CI gate; the ticket changes no customer-visible README, website, installed guide, or CLI command.
 
 ## Assessment triggers
 

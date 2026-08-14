@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 
 describe("real Terra recorder wiring", () => {
-  test("retains a passing qualification bound to the pinned adapter and current harness bytes", () => {
+  test("retains the exact bytes from the last manual pinned-adapter qualification", () => {
     const qualification = JSON.parse(
       readFileSync(
         join(import.meta.dirname, "terra-real-recorder-qualification.json"),
@@ -34,9 +34,10 @@ describe("real Terra recorder wiring", () => {
     }
   });
 
-  test.skipIf(process.env.Y4ZAAY_ADAPTER_ROOT === undefined)(
-    "puts every real runner HTTP request downstream of durable canary intent",
+  test(
+    "puts every real runner HTTP request downstream of durable canary intent using the explicitly pinned adapter",
     () => {
+      expect(process.env.Y4ZAAY_ADAPTER_ROOT).toBeTruthy();
       expect(() =>
         execFileSync(
           "bun",

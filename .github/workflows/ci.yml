@@ -131,16 +131,6 @@ jobs:
         env:
           TEST_POETRY: '1'
 
-      - name: Verify retained paid-canary qualification
-        if: matrix.node-version == '24.18.1'
-        run: |
-          (
-            cd packages/cli
-            node scripts/run-vitest-with-build-lock.mjs \
-              --config ../../.project/tickets/Y4ZAAY-prove-cross-provider-review-before-scaling-spend/vitest.config.ts \
-              terra-real-recorder-wiring.test.ts
-          )
-
       - name: Non-git physical install proof
         # Keeps the expensive install path out of the default suite while
         # preserving automated coverage for setup outside a Git repository.
