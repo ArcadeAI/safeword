@@ -45,7 +45,7 @@ function git(arguments_: readonly string[]): { ok: boolean; stdout: string } {
 }
 
 /** Every catalogued release version, i.e. the keys that have a release tag. */
-export function catalogueReleaseVersions(): string[] {
+function catalogueReleaseVersions(): string[] {
   return supportedClaudeLegacyReleases().filter(key => RELEASE_VERSION.test(key));
 }
 
