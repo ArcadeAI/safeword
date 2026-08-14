@@ -160,6 +160,18 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario Outline: Authorized creation replaces multiple unusable matching handoffs [two expired handoffs]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Authorized creation replaces multiple unusable matching handoffs [one expired and one invalid handoff]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Foreign handoffs do not block writing for the current repository
 
 - [ ] RED
@@ -457,6 +469,18 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] REFACTOR
 
 ### Scenario Outline: One valid and one unusable matching handoff remain ambiguous [invalid]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Multiple unusable matching handoffs remain inert during discovery [two expired handoffs]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Multiple unusable matching handoffs remain inert during discovery [one expired and one invalid handoff]
 
 - [ ] RED
 - [ ] GREEN

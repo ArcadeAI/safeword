@@ -151,6 +151,18 @@ Feature: Resume interrupted closeout after a Codex upgrade
         | expired |
         | invalid |
 
+    Scenario Outline: Authorized creation replaces multiple unusable matching handoffs
+      Given <unusable records> all normalize to the current canonical repository at a controlled time
+      When blocked closeout records one exact pull request for that repository
+      Then exactly one fresh handoff contains the newly observed pull request identity
+      And no unusable matching handoff remains
+      And the command observer records no branch, worktree, merge, approval, or pull-request state-changing command
+
+      Examples:
+        | unusable records |
+        | two expired handoffs |
+        | one expired and one invalid handoff |
+
     Scenario: Foreign handoffs do not block writing for the current repository
       Given one fresh handoff exists for a foreign repository at a controlled time
       When blocked closeout records one exact pull request for the current repository
@@ -476,6 +488,19 @@ Feature: Resume interrupted closeout after a Codex upgrade
         | invalid |
 
     @rejection
+    Scenario Outline: Multiple unusable matching handoffs remain inert during discovery
+      Given <unusable records> all normalize to the current canonical repository at a controlled time
+      When a protected Codex task starts
+      Then SessionStart output reports unusable pending closeout state without naming any target
+      And no handoff is claimed or mutated
+      And the existing protected SessionStart proof is still emitted
+
+      Examples:
+        | unusable records |
+        | two expired handoffs |
+        | one expired and one invalid handoff |
+
+    @rejection
     Scenario: An empty handoff store emits no continuation
       Given no handoff or claim record exists for the repository at a controlled time
       When a protected Codex task starts in that repository at that time
@@ -516,7 +541,7 @@ Feature: Resume interrupted closeout after a Codex upgrade
 
     @rejection
     Scenario: A missing activation marker does not authorize reclaim
-      Given a fresh matching handoff has a live claim but the profile activation marker is absent
+      Given a protected Codex task passed its startup proof, claimed a fresh matching handoff, and then its profile activation marker was removed
       When a protected Codex task starts in the same repository at a controlled time
       Then SessionStart output reports that claim ownership cannot be established
       And the handoff and claim record bytes remain unchanged

@@ -46,6 +46,7 @@ Unaffected:
 - **Persistence guarantee:** A completed operation exposes one complete old or new record and never a torn mixture. Surviving sudden power loss after success is not guaranteed beyond the host filesystem's rename semantics.
 - **Creation boundary:** A blocked Codex closeout may write the advisory handoff only while its task id is still named by the current profile activation marker, even though it cannot obtain the transcript-bound closeout binding. A task never named by that marker cannot write. Only a newly protected Codex task may discover and claim the receipt, and neither record carries cleanup authority.
 - **Tick:** One millisecond, matching the persisted timestamp precision.
+- **Validation precedence:** Reject unsafe paths and unreadable structure before decoding identity; then validate profile provenance and time; then select repository matches. More than one match is ambiguous if any is usable. If every matching record is unusable, discovery reports inert unusable state without mutation and an authorized write may replace all of them with one fresh handoff.
 
 ## Product Inspiration
 
