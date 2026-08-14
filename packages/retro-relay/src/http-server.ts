@@ -16,6 +16,12 @@ import {
 const RELAY_API_VERSION = '1';
 const RELAY_API_VERSION_HEADER = 'x-safeword-relay-api-version';
 
+const DEFAULT_MAX_BODY_BYTES = 256 * 1024;
+const DEFAULT_MAX_REQUESTS_PER_WINDOW = 60;
+const DEFAULT_RATE_WINDOW_MS = 60_000;
+const DEFAULT_MAINTENANCE_INTERVAL_MS = 60_000;
+const SOCKET_TIMEOUT_MS = 10_000;
+
 async function readJson(request: IncomingMessage, maximumBytes: number): Promise<unknown> {
   const contentLength = Number(request.headers['content-length'] ?? '0');
   if (Number.isFinite(contentLength) && contentLength > maximumBytes) {
@@ -157,9 +163,10 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
     faults: serviceFaults,
     ...(input.now !== undefined && { now: input.now }),
   });
-  const maxBodyBytes = input.resourceLimits?.maxBodyBytes ?? 256 * 1024;
-  const maxRequestsPerWindow = input.resourceLimits?.maxRequestsPerWindow ?? 60;
-  const rateWindowMs = input.resourceLimits?.windowMs ?? 60_000;
+  const maxBodyBytes = input.resourceLimits?.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES;
+  const maxRequestsPerWindow =
+    input.resourceLimits?.maxRequestsPerWindow ?? DEFAULT_MAX_REQUESTS_PER_WINDOW;
+  const rateWindowMs = input.resourceLimits?.windowMs ?? DEFAULT_RATE_WINDOW_MS;
   const rateWindows = new Map<string, { count: number; startedAt: number }>();
   const consumeRequestCapacity = (credentialId: string): boolean => {
     const now = (input.now?.() ?? new Date()).getTime();
@@ -203,14 +210,14 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
   const server = createServer((request, response) => {
     void handle(request, response);
   });
-  server.requestTimeout = 10_000;
-  server.headersTimeout = 10_000;
+  server.requestTimeout = SOCKET_TIMEOUT_MS;
+  server.headersTimeout = SOCKET_TIMEOUT_MS;
   const maintenanceTimer =
     input.mode === 'spike'
       ? undefined
       : setInterval(() => {
           void maintain();
-        }, input.maintenanceIntervalMs ?? 60_000);
+        }, input.maintenanceIntervalMs ?? DEFAULT_MAINTENANCE_INTERVAL_MS);
   maintenanceTimer?.unref();
   server.once('close', () => {
     if (maintenanceTimer !== undefined) clearInterval(maintenanceTimer);
