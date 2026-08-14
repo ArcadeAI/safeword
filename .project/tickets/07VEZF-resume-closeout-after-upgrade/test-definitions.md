@@ -410,6 +410,12 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A newer protected task revokes an overlapping former owner before re-delivery
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A missing activation marker does not authorize reclaim
 
 - [ ] RED
@@ -446,13 +452,25 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Repeated discovery by the current claim owner is idempotent
+### Scenario: Repeated discovery by the current claim owner re-emits the same advisory
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: An orphan claim record cannot trigger discovery
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A store key that disagrees with its handoff repository is rejected
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A claim bound to another handoff is rejected
 
 - [ ] RED
 - [ ] GREEN
@@ -465,6 +483,36 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] REFACTOR
 
 ### Scenario: A claim-record symlink escaping the store is rejected
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Store symlink swaps cannot escape during mutation [handoff creation]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Store symlink swaps cannot escape during mutation [invalid-handoff replacement]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Store symlink swaps cannot escape during mutation [claim creation]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Store symlink swaps cannot escape during mutation [claim reclaim]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario Outline: Store symlink swaps cannot escape during mutation [receipt removal]
 
 - [ ] RED
 - [ ] GREEN

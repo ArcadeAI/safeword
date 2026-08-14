@@ -222,6 +222,7 @@ Feature: Resume interrupted closeout after a Codex upgrade
       When that shipped surface reaches its blocked restart path
       Then one advisory handoff records the observed pull request identity
       And the shipped output directs the user to start a new protected Codex task
+      And the command observer records no branch, worktree, merge, approval, or pull-request state-changing command
 
     Scenario: A handoff with unknown fields remains forward compatible
       Given a fresh matching handoff contains one unrecognized field at a controlled time
@@ -419,6 +420,13 @@ Feature: Resume interrupted closeout after a Codex upgrade
       And the handoff bytes remain unchanged
       And only the new current task receives the continuation
 
+    Scenario: A newer protected task revokes an overlapping former owner before re-delivery
+      Given one running protected task owns a fresh claim and a newer protected task becomes the profile activation marker at a controlled time
+      When the newer task atomically reclaims the handoff
+      Then only the newer task receives the continuation after reclaim
+      And the former owner is denied by the existing closeout guard before any state-changing command
+      And the handoff bytes remain unchanged
+
     @rejection
     Scenario: A missing activation marker does not authorize reclaim
       Given a fresh matching handoff has a live claim but the profile activation marker is absent
@@ -466,12 +474,11 @@ Feature: Resume interrupted closeout after a Codex upgrade
       And the handoff remains unchanged
       And the existing protected SessionStart proof is still emitted
 
-    Scenario: Repeated discovery by the current claim owner is idempotent
+    Scenario: Repeated discovery by the current claim owner re-emits the same advisory
       Given this protected Codex task already owns the live claim for a fresh matching handoff
       When SessionStart discovery runs again at a controlled time
-      Then no second closeout continuation is emitted
+      Then the same closeout continuation is emitted to the current claim owner
       And the claim record remains unchanged
-      And SessionStart output reports that the continuation was already delivered to this task
       And the existing protected SessionStart proof is still emitted
 
     @rejection
@@ -479,6 +486,24 @@ Feature: Resume interrupted closeout after a Codex upgrade
       Given a claim record exists without its corresponding handoff
       When a protected Codex task starts in the same repository at a controlled time
       Then SessionStart output reports invalid pending closeout state without crashing
+      And no continuation or destructive command is emitted
+      And the existing protected SessionStart proof is still emitted
+
+    @rejection
+    Scenario: A store key that disagrees with its handoff repository is rejected
+      Given a handoff stored under the current repository key names a different validated canonical repository
+      When a protected Codex task starts in the current repository at a controlled time
+      Then SessionStart output reports invalid pending closeout state without naming its target
+      And the handoff bytes remain unchanged
+      And no continuation or destructive command is emitted
+      And the existing protected SessionStart proof is still emitted
+
+    @rejection
+    Scenario: A claim bound to another handoff is rejected
+      Given a fresh matching handoff is paired with a claim bound to a different handoff
+      When a protected Codex task starts in the same repository at a controlled time
+      Then SessionStart output reports invalid pending closeout state without naming its target
+      And the handoff and claim record bytes remain unchanged
       And no continuation or destructive command is emitted
       And the existing protected SessionStart proof is still emitted
 
@@ -497,6 +522,22 @@ Feature: Resume interrupted closeout after a Codex upgrade
       Then SessionStart output reports invalid pending closeout state without reading the external target
       And no continuation or destructive command is emitted
       And the existing protected SessionStart proof is still emitted
+
+    @rejection
+    Scenario Outline: Store symlink swaps cannot escape during mutation
+      Given the profile store path is replaced by a symlink to a known external target immediately before <mutation>
+      When the protected closeout flow attempts that mutation at a controlled time
+      Then the external target bytes remain unchanged
+      And pending closeout output reports invalid or unavailable store state without echoing external contents
+      And no continuation or destructive command is emitted
+
+      Examples:
+        | mutation |
+        | handoff creation |
+        | invalid-handoff replacement |
+        | claim creation |
+        | claim reclaim |
+        | receipt removal |
 
     @rejection
     Scenario: A handoff without current-profile provenance is rejected
@@ -593,13 +634,12 @@ Feature: Resume interrupted closeout after a Codex upgrade
       Given destructive cleanup completed before expiry but removing <failed record> fails at a controlled time
       When closeout reports its final state
       Then closeout output reports incomplete receipt cleanup
-      And <surviving record> remains available for guarded recovery
-      And <removed record> is absent
+      And <remaining state>
 
       Examples:
-        | failed record | surviving record | removed record |
-        | the handoff record | the handoff record | the claim record |
-        | the claim record | the claim record | the handoff record |
+        | failed record | remaining state |
+        | the claim record | the handoff and claim record remain available for guarded recovery |
+        | the handoff record | the handoff remains available for a new claim and the old claim is absent |
 
     @rejection
     Scenario Outline: A later task safely resolves a receipt left after cleanup
