@@ -256,6 +256,12 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A current claim owner cannot overwrite its handoff with a different identity
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A fresh handoff with a stale claim is preserved for restart discovery
 
 - [ ] RED
@@ -584,6 +590,12 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Structural failure takes precedence over foreign provenance
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A claim bound to another handoff is rejected
 
 - [ ] RED
@@ -767,6 +779,12 @@ Feature source: `features/resume-closeout-after-upgrade.feature`
 - [ ] REFACTOR
 
 ### Scenario Outline: Changed closeout targets remain untouched after restart [a pull request that no longer resolves | pull request is unavailable]
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Pull-request identity drift takes precedence over a missing cleanup target
 
 - [ ] RED
 - [ ] GREEN

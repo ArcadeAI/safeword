@@ -238,6 +238,14 @@ Feature: Resume interrupted closeout after a Codex upgrade
       And the command observer records no branch, worktree, merge, approval, or pull-request state-changing command
 
     @rejection
+    Scenario: A current claim owner cannot overwrite its handoff with a different identity
+      Given blocked closeout's current protected task already claims a fresh matching handoff at a controlled time
+      When blocked closeout attempts to record a different pull-request identity for that repository
+      Then the handoff and current claim record bytes remain unchanged
+      And the current task output reports the existing pending closeout identity conflict
+      And the command observer records no branch, worktree, merge, approval, or pull-request state-changing command
+
+    @rejection
     Scenario: A fresh handoff with a stale claim is preserved for restart discovery
       Given one fresh handoff is claimed by a task whose profile activation marker is no longer current at a controlled time
       When blocked closeout attempts to record another pull request for that repository
@@ -359,7 +367,7 @@ Feature: Resume interrupted closeout after a Codex upgrade
     @rejection
     Scenario Outline: Interrupted handoff replacement preserves the complete old state
       Given one <existing state> handoff exists and replacement is interrupted after staging complete bytes but before atomic commit
-      When blocked closeout records one exact pull request at a controlled time
+      When blocked closeout records one exact pull request and a protected task then runs SessionStart at a controlled time
       Then the original handoff bytes remain unchanged
       And no staged temporary file is treated as discoverable current work
       And SessionStart <startup observation>
@@ -484,7 +492,7 @@ Feature: Resume interrupted closeout after a Codex upgrade
 
     @rejection
     Scenario: Multiple matching handoffs are rejected as ambiguous
-      Given two distinct on-disk handoff records have repository identities that normalize to the current canonical repository
+      Given two distinct fresh valid on-disk handoff records normalize to the current canonical repository at a controlled time
       When a protected Codex task starts at a controlled time
       Then SessionStart output reports ambiguous pending closeout state without naming either target
       And neither handoff is claimed or mutated
@@ -627,6 +635,14 @@ Feature: Resume interrupted closeout after a Codex upgrade
       And the existing protected SessionStart proof is still emitted
 
     @rejection
+    Scenario: Structural failure takes precedence over foreign provenance
+      Given a matching handoff has unreadable structure and bytes that also resemble foreign profile provenance
+      When a protected Codex task starts in the repository at a controlled time
+      Then SessionStart output reports invalid pending closeout structure without echoing its contents
+      And no continuation or destructive command is emitted
+      And the existing protected SessionStart proof is still emitted
+
+    @rejection
     Scenario: A claim bound to another handoff is rejected
       Given a fresh matching handoff is paired with a claim bound to a different handoff
       When a protected Codex task starts in the same repository at a controlled time
@@ -749,6 +765,14 @@ Feature: Resume interrupted closeout after a Codex upgrade
         | preview-recorded worktree target | a missing worktree target | worktree target is missing |
         | preview-recorded worktree identity | a recreated worktree target | worktree target identity changed |
         | freshly observed pull request | a pull request that no longer resolves | pull request is unavailable |
+
+    @rejection
+    Scenario: Pull-request identity drift takes precedence over a missing cleanup target
+      Given a claimed handoff whose pull-request head changed and whose preview-recorded branch target is also missing
+      When the restarted task invokes the existing closeout guard at a controlled time
+      Then closeout output reports that the head changed since handoff for the numeric pull request
+      And the command observer records no branch, worktree, merge, approval, or pull-request state-changing command
+      And the handoff and current claim record remain unchanged
 
     Scenario: Successful guarded cleanup clears the handoff
       Given the restarted task claimed an unchanged pending closeout handoff at a controlled time
