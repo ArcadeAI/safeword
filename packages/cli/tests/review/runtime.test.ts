@@ -172,6 +172,53 @@ describe('reviewer process-group liveness', () => {
 });
 
 describe('headless reviewer process lifecycle', () => {
+  // The only real-process test of the SUCCESS path. Every other real-process
+  // case here ends in a timeout, a rejected probe, or an uncleanable tree, so
+  // without this one a break in the spawn → stdin → stdout → parse → cleanup
+  // chain would only surface once a real reviewer ran. Cleanup in particular
+  // runs on this path too, after the capability probe.
+  it.skipIf(process.platform === 'win32')(
+    'resolves a review that a real spawned process completed',
+    async () => {
+      vi.stubEnv('NODE_ENV', 'test');
+      const bin = trustedTemporaryDirectory();
+      const project = temporaryDirectory();
+      const untrustedRoot = temporaryDirectory();
+      const executable = nodePath.join(bin, 'claude');
+      writeFileSync(
+        executable,
+        `#!/bin/sh
+if [ "\${1:-}" = "--help" ]; then
+  echo '--output-format --json-schema --no-session-persistence --disable-slash-commands --setting-sources --strict-mcp-config --tools'
+  exit 0
+fi
+cat > /dev/null
+printf '%s' '${JSON.stringify({ structured_output: output })}'
+`,
+      );
+      chmodSync(executable, 0o755);
+      vi.stubEnv('PATH', bin);
+
+      await expect(
+        runHeadlessReviewer(
+          'claude',
+          {
+            schema_version: 1,
+            dispatch_id: 'dispatch-1',
+            kind: 'quality-review',
+            logical_files: [],
+          },
+          project,
+          untrustedRoot,
+        ),
+      ).resolves.toMatchObject({
+        dispatch_id: 'dispatch-1',
+        reviewer_agent: 'claude',
+        verdict: 'approve',
+      });
+    },
+  );
+
   it.each([
     {
       name: 'unsupported capabilities',
