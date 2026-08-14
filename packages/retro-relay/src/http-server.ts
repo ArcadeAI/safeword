@@ -7,7 +7,11 @@ import type { PayloadKeyring } from './payload.js';
 import { ProcessLock } from './process-lock.js';
 import { type RelayFaults, RelayService } from './service.js';
 import type { RelayStore } from './store.js';
-import { type FileRetroDraftRequest, isTerminalReceiptState } from './types.js';
+import {
+  type FileRetroDraftRequest,
+  isTerminalReceiptState,
+  type RelayPrincipal,
+} from './types.js';
 
 const RELAY_API_VERSION = '1';
 const RELAY_API_VERSION_HEADER = 'x-safeword-relay-api-version';
@@ -238,6 +242,47 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
     }
   };
 
+  const respondWithSubmission = async (
+    request: IncomingMessage,
+    response: ServerResponse,
+    principal: RelayPrincipal,
+  ): Promise<void> => {
+    const requestedVersion = Reflect.get(request.headers, RELAY_API_VERSION_HEADER);
+    if (requestedVersion !== undefined && requestedVersion !== RELAY_API_VERSION) {
+      throw new RelayError(400, 'unsupported relay API version', {
+        supportedVersion: RELAY_API_VERSION,
+      });
+    }
+    const receipt = await service.submit(
+      principal,
+      (await readJson(request, maxBodyBytes)) as FileRetroDraftRequest,
+    );
+    observability.logs.push({
+      event: 'retro_filing',
+      harness: principal.harness,
+      requestId: receipt.requestId,
+      state: receipt.state,
+    });
+    observability.metrics.push({
+      metric: 'retro_filing_outcome',
+      requestId: receipt.requestId,
+      state: receipt.state,
+    });
+    try {
+      afterReceiptCommit?.();
+    } catch {
+      response.destroy();
+      return;
+    }
+    const terminal = isTerminalReceiptState(receipt.state);
+    if (!terminal) response.setHeader('retry-after', '1');
+    let statusCode = 202;
+    if (receipt.state === 'filed') statusCode = 201;
+    else if (terminal) statusCode = 200;
+    response.setHeader(RELAY_API_VERSION_HEADER, RELAY_API_VERSION);
+    sendJson(response, statusCode, receipt);
+  };
+
   // eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- A single composition-root router keeps the public contract visible.
   async function handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
     try {
@@ -271,40 +316,7 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
         return;
       }
       if (request.method === 'POST' && url.pathname === '/v1/retro-filings') {
-        const requestedVersion = Reflect.get(request.headers, RELAY_API_VERSION_HEADER);
-        if (requestedVersion !== undefined && requestedVersion !== RELAY_API_VERSION) {
-          throw new RelayError(400, 'unsupported relay API version', {
-            supportedVersion: RELAY_API_VERSION,
-          });
-        }
-        const receipt = await service.submit(
-          principal,
-          (await readJson(request, maxBodyBytes)) as FileRetroDraftRequest,
-        );
-        observability.logs.push({
-          event: 'retro_filing',
-          harness: principal.harness,
-          requestId: receipt.requestId,
-          state: receipt.state,
-        });
-        observability.metrics.push({
-          metric: 'retro_filing_outcome',
-          requestId: receipt.requestId,
-          state: receipt.state,
-        });
-        try {
-          afterReceiptCommit?.();
-        } catch {
-          response.destroy();
-          return;
-        }
-        const terminal = isTerminalReceiptState(receipt.state);
-        if (!terminal) response.setHeader('retry-after', '1');
-        let statusCode = 202;
-        if (receipt.state === 'filed') statusCode = 201;
-        else if (terminal) statusCode = 200;
-        response.setHeader(RELAY_API_VERSION_HEADER, RELAY_API_VERSION);
-        sendJson(response, statusCode, receipt);
+        await respondWithSubmission(request, response, principal);
         return;
       }
       const reconciliation = /^\/v1\/retro-filings\/([^/]+)\/reconcile$/u.exec(url.pathname);
