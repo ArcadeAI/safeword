@@ -53527,7 +53527,7 @@ async function resolveSourceReservation(projectDirectory, draft, reservation, op
   if (await compactIfAcknowledged(projectDirectory, reservation.request))
     return;
   const snapshot = await captureRelayStateSnapshot(projectDirectory, options.stateSnapshot);
-  await options.faultAfterStateSnapshot?.();
+  await options.faults?.afterStateSnapshot?.();
   const requestId = reservation.request.requestId;
   const state = snapshot.statesByRequestId.get(requestId) ?? { kind: "missing" };
   if (state.kind !== "missing") {
@@ -53606,7 +53606,7 @@ async function compactDiscardedSourceReservation(projectDirectory, reservation, 
       throw new Error("relay discard conflicts with the durable source tombstone");
     }
   }
-  await options.faultAfterSourceDiscardWrite?.();
+  await options.faults?.afterSourceDiscardWrite?.();
   if (await exists2(sourceAcknowledgementPath(projectDirectory, reservation.sourceKey))) {
     await removeIfPresent(discarded);
   }
@@ -53724,7 +53724,7 @@ async function persistRelayDraftBatch(projectDirectory, drafts, options = {}) {
   let filenames;
   try {
     filenames = await sortedFilenames(snapshot.directory);
-    await options.faultAfterStateSnapshot?.();
+    await options.faults?.afterStateSnapshot?.();
   } catch (error2) {
     return drafts.map(() => ({ reason: error2, status: "rejected" }));
   }
@@ -53785,7 +53785,7 @@ async function recoverExpiredClaim(projectDirectory, claimPath, requestId, recov
   }
 }
 async function removeDuplicateClaimIfMatching(claimPath, siblingPath, recoveryOptions) {
-  await recoveryOptions.faultBeforeDuplicateRead?.(claimPath, siblingPath);
+  await recoveryOptions.faults?.beforeDuplicateRead?.(claimPath, siblingPath);
   const pair = await readPairIfPresent(claimPath, siblingPath);
   if (pair === undefined)
     return;
@@ -53838,7 +53838,8 @@ async function assertCompatibleAcknowledgement(durableAck, receipt) {
 async function acknowledgeRelayClaim(claim, receipt, options = {}) {
   if (receipt.requestId !== claim.requestId || !await exists2(claim.path))
     return false;
-  await options.faultAfterOwnershipCheck?.();
+  const faults = options.faults ?? {};
+  await faults.afterOwnershipCheck?.();
   const projectDirectory = path6.resolve(path6.dirname(claim.path), "..", "..", "..");
   const durableAck = ackPath(projectDirectory, claim.requestId);
   const { request, sourceKey, sourcePayloadHash } = acknowledgementSourceMetadata(claim.bytes);
@@ -53851,7 +53852,7 @@ async function acknowledgeRelayClaim(claim, receipt, options = {}) {
     await assertCompatibleAcknowledgement(durableAck, receipt);
   if (request !== undefined)
     await compactSourceReservation(projectDirectory, request);
-  await options.faultAfterAck?.();
+  await faults.afterAck?.();
   await removeIfPresent(discardedPath(projectDirectory, claim.requestId));
   await cancelDiscardIntents(projectDirectory, claim.requestId);
   await removeIfPresent(claim.path);
@@ -54087,6 +54088,7 @@ async function removeRelayFiles(directory, filenames) {
     await removeIfPresent(path6.join(directory, filename));
 }
 async function discardOwnedRelayRequest(projectDirectory, requestId, options = {}) {
+  const faults = options.faults ?? {};
   const directory = relayDirectory(projectDirectory);
   const discardClaimId = `discard-${randomUUID9()}`;
   const discardClaim = await claimSpecificRelayRequest(projectDirectory, requestId, {
@@ -54097,14 +54099,14 @@ async function discardOwnedRelayRequest(projectDirectory, requestId, options = {
   const discardRecoveryClaim = await claimRelayDeadLetter(projectDirectory, requestId, discardClaimId);
   const ownership = { delivery: discardClaim, recovery: discardRecoveryClaim };
   const intent = await createDiscardIntent(projectDirectory, requestId, discardClaimId);
-  await options.faultAfterClaims?.();
+  await faults.afterClaims?.();
   const filenames = await sortedFilenames(directory);
   if (discardHasConflict(filenames, requestId, discardClaimId)) {
     await cancelDiscardIntent(intent);
     await releaseDiscardOwnership(projectDirectory, ownership, true);
     throw new Error("relay request is actively claimed; retry discard after delivery completes");
   }
-  await options.faultAfterConflictCheck?.();
+  await faults.afterConflictCheck?.();
   if (await exists2(ackPath(projectDirectory, requestId))) {
     await cancelDiscardIntent(intent);
     await releaseDiscardOwnership(projectDirectory, ownership, false);
@@ -54120,9 +54122,9 @@ async function discardOwnedRelayRequest(projectDirectory, requestId, options = {
     await releaseDiscardOwnership(projectDirectory, ownership, true);
     throw new Error("relay request discard lost its transition ownership");
   }
-  await options.faultAfterTombstone?.();
+  await faults.afterTombstone?.();
   await compactDiscardedReservationFiles(projectDirectory, directory, reservationFiles, requestId, {
-    faultAfterSourceDiscardWrite: options.faultAfterSourceDiscardWrite
+    faults: options.faults
   });
   await removeRelayFiles(directory, durableFiles);
   await removeRetrySchedule(projectDirectory, requestId);
@@ -54682,7 +54684,8 @@ function parseObject(content) {
   }
 }
 function hasExactKeys3(record2, expectedKeys) {
-  return Object.keys(record2).toSorted((left, right) => left.localeCompare(right)).join("\x00") === expectedKeys.join("\x00");
+  const actualKeys = Object.keys(record2);
+  return actualKeys.length === expectedKeys.length && expectedKeys.every((key) => Object.hasOwn(record2, key));
 }
 function hasMeasurementShape(record2) {
   return hasExactKeys3(record2, [
@@ -54694,25 +54697,25 @@ function hasMeasurementShape(record2) {
     "version"
   ]);
 }
-function hasValidCountResult(result, sampleSize) {
+function hasValidCountResult(result) {
   if (typeof result !== "object" || result === null || Array.isArray(result))
     return false;
   if (!hasExactKeys3(result, ["count"]))
     return false;
   const count = result.count;
-  return Number.isSafeInteger(count) && count >= 0 && count <= sampleSize;
+  return count === 0;
 }
-function drainThroughputResult(result, version2) {
+function drainThroughputResult(result) {
   if (typeof result !== "object" || result === null || Array.isArray(result))
     return;
-  const expected = version2 === 2 ? [
+  const expected = [
     "acceptedCount",
     "backlogSize",
     "durationMs",
     "overallDeadlineMs",
     "relayLatencyMs",
     "requestDeadlineMs"
-  ] : ["acceptedCount", "backlogSize", "durationMs", "relayLatencyMs"];
+  ];
   if (!hasExactKeys3(result, expected)) {
     return;
   }
@@ -54730,15 +54733,12 @@ function validDrainDuration(value) {
 function validRelayLatency(value) {
   return typeof value === "number" && Number.isFinite(value) && value >= MIN_RELAY_LATENCY_MS;
 }
-function validDrainBudget(value) {
-  return typeof value === "number" && Number.isFinite(value) && value > 0;
-}
-function hasValidDrainThroughputResult(result, sampleSize, version2) {
-  const measurement = drainThroughputResult(result, version2);
-  return measurement !== undefined && validAcceptedCount(measurement.acceptedCount, sampleSize) && validBacklogSize(measurement.backlogSize, sampleSize) && validDrainDuration(measurement.durationMs) && validRelayLatency(measurement.relayLatencyMs) && version2 === 2 && validDrainBudget(measurement.requestDeadlineMs) && validDrainBudget(measurement.overallDeadlineMs) && measurement.requestDeadlineMs === DEFAULT_RELAY_REQUEST_DEADLINE_MS && measurement.overallDeadlineMs === DEFAULT_RELAY_REQUEST_DEADLINE_MS + RELAY_OVERALL_HEADROOM_MS;
+function hasValidDrainThroughputResult(result, sampleSize) {
+  const measurement = drainThroughputResult(result);
+  return measurement !== undefined && validAcceptedCount(measurement.acceptedCount, sampleSize) && validBacklogSize(measurement.backlogSize, sampleSize) && validDrainDuration(measurement.durationMs) && validRelayLatency(measurement.relayLatencyMs) && measurement.requestDeadlineMs === DEFAULT_RELAY_REQUEST_DEADLINE_MS && measurement.overallDeadlineMs === DEFAULT_RELAY_REQUEST_DEADLINE_MS + RELAY_OVERALL_HEADROOM_MS;
 }
 function hasValidResult(result, sampleSize, metric, version2) {
-  return metric === "drainThroughput" ? hasValidDrainThroughputResult(result, sampleSize, version2) : hasValidCountResult(result, sampleSize);
+  return metric === "drainThroughput" ? version2 === 2 && hasValidDrainThroughputResult(result, sampleSize) : version2 === 1 && hasValidCountResult(result);
 }
 function validMeasurementEvidence(content, metric, artifact) {
   const record2 = parseObject(content);
@@ -54753,7 +54753,7 @@ async function validateRelayReadiness(manifest, dependencies) {
     if (manifest.version !== 1 || !COMMIT_PATTERN.test(dependencies.buildCommit) || !COMMIT_PATTERN.test(manifest.evidenceCommit)) {
       return { enabled: false };
     }
-    if (!hasExactKeys3(manifest.measurements, REQUIRED_MEASUREMENTS)) {
+    if (!hasExactKeys3(manifest.measurements, REQUIRED_MEASUREMENTS) || manifest.prerequisites.length !== 2) {
       return { enabled: false };
     }
     const expectedIssues = [1474, 1481];
@@ -54777,12 +54777,12 @@ async function validateRelayReadiness(manifest, dependencies) {
       return { enabled: false };
     }
     const latestClose = Math.max(...closedDates.map((date) => date?.getTime() ?? NaN));
-    if (latestClose > dependencies.now.getTime() || reviewedAt.getTime() > dependencies.now.getTime()) {
+    if (latestClose > dependencies.now.getTime() || reviewedAt.getTime() > dependencies.now.getTime() || reviewedAt.getTime() < latestClose || dependencies.now.getTime() - reviewedAt.getTime() > MAX_EVIDENCE_AGE_MS) {
       return { enabled: false };
     }
     for (const [metric, artifact] of Object.entries(manifest.measurements)) {
       const measuredAt = validDate(artifact.measuredAt);
-      if (!validArtifact(artifact) || measuredAt === undefined || measuredAt.getTime() < latestClose || measuredAt.getTime() > dependencies.now.getTime() || dependencies.now.getTime() - measuredAt.getTime() > MAX_EVIDENCE_AGE_MS || dependencies.now.getTime() - reviewedAt.getTime() > MAX_EVIDENCE_AGE_MS) {
+      if (!validArtifact(artifact) || measuredAt === undefined || measuredAt.getTime() < latestClose || measuredAt.getTime() > dependencies.now.getTime() || reviewedAt.getTime() < measuredAt.getTime() || dependencies.now.getTime() - measuredAt.getTime() > MAX_EVIDENCE_AGE_MS) {
         return { enabled: false };
       }
       const durableArtifact = await dependencies.readArtifactAtCommit(manifest.evidenceCommit, artifact.path);
@@ -54795,23 +54795,32 @@ async function validateRelayReadiness(manifest, dependencies) {
     return { enabled: false };
   }
 }
-function manifestSha256(manifest) {
-  return createHash25("sha256").update(JSON.stringify(manifest)).digest("hex");
+function matchesAttestedManifest(manifest, attestation) {
+  try {
+    const bytes = Buffer.from(attestation.manifestBase64, "base64");
+    const parsed2 = JSON.parse(bytes.toString("utf8"));
+    return createHash25("sha256").update(bytes).digest("hex") === attestation.manifestSha256 && JSON.stringify(parsed2) === JSON.stringify(manifest);
+  } catch {
+    return false;
+  }
 }
 function validateBuildAttestedRelayReadiness(manifest, attestation, now) {
-  if (!manifest.enabled || !attestation.enabled || attestation.manifestSha256 !== manifestSha256(manifest)) {
+  if (!manifest.enabled || !attestation.enabled || !matchesAttestedManifest(manifest, attestation)) {
     return Promise.resolve({ enabled: false });
   }
-  const ancestors = new Set(attestation.ancestorPairs);
   return validateRelayReadiness(manifest, {
     buildCommit: attestation.buildCommit,
-    isAncestor: (ancestor, descendant) => Promise.resolve(ancestors.has(`${ancestor}:${descendant}`)),
+    isAncestor: (ancestor, descendant) => Promise.resolve(attestation.ancestorPairs.some((pair) => pair.ancestor === ancestor && pair.descendant === descendant)),
     now,
     readArtifactAtCommit: (commit, path7) => {
-      const key = `${commit}:${path7}`;
-      const content = attestation.artifactContents[key];
-      const sha2565 = attestation.artifactHashes[key];
-      return Promise.resolve(content === undefined || sha2565 === undefined ? undefined : { content, sha256: sha2565 });
+      const metric = REQUIRED_MEASUREMENTS.find((name) => manifest.measurements[name].path === path7);
+      const artifact = metric === undefined ? undefined : attestation.artifacts[metric];
+      if (commit !== manifest.evidenceCommit || artifact === undefined) {
+        return Promise.resolve(undefined);
+      }
+      const bytes = Buffer.from(artifact.contentBase64, "base64");
+      const sha2565 = createHash25("sha256").update(bytes).digest("hex");
+      return Promise.resolve(sha2565 === artifact.sha256 ? { content: bytes.toString("utf8"), sha256: sha2565 } : undefined);
     }
   });
 }
@@ -54828,10 +54837,10 @@ var init_relay_readiness = __esm(() => {
   SAFEWORD_BUILD_COMMIT = typeof __SAFEWORD_BUILD_COMMIT__ === "string" ? __SAFEWORD_BUILD_COMMIT__ : "development-source";
   SAFEWORD_RELAY_BUILD_ATTESTATION = typeof __SAFEWORD_RELAY_BUILD_ATTESTATION__ === "object" ? __SAFEWORD_RELAY_BUILD_ATTESTATION__ : {
     ancestorPairs: [],
-    artifactContents: {},
-    artifactHashes: {},
+    artifacts: {},
     buildCommit: "development-source",
     enabled: false,
+    manifestBase64: "",
     manifestSha256: ""
   };
   COMMIT_PATTERN = /^[\da-f]{40}$/u;
