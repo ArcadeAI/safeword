@@ -4,6 +4,7 @@ Feature: Let parallel sessions share test capacity safely
   Background:
     Given process evidence keys every started wrapper, ticket, container, command and descendant with monotonic sequence events
     And every predetermined result, trusted attestation, independently verified identity and empty-container proof is fixed or authenticated before the action and is never derived from the outcome under assertion
+    And every scenario that opens capacity state uses a test-isolated domain root with deterministic machine and user identity fixtures
 
   @share-test-capacity.TBU1.R1
   Rule: share-test-capacity.TBU1.R1 — Separate worktrees using the current scheduler protocol may overlap focused file checks only within their shared bounded capacity
@@ -141,7 +142,7 @@ Feature: Let parallel sessions share test capacity safely
         | leading-zero value `02` |
         | whitespace-padded token ` 2 ` |
         | exponent token `2e0` |
-        | an integer larger than the implementation's numeric range |
+        | integer `999999999999999999999999999999999999` beyond the parser's numeric range |
         | duplicate positional values `2 3` |
         | duplicate `--confirm-current-protocol` flags |
         | conflicting `--confirm-current-protocol` and `--confirm-current-protocol=false` flags |
@@ -706,5 +707,5 @@ Feature: Let parallel sessions share test capacity safely
       Examples:
         | public-command | disclosure-contract |
         | `safeword project test-capacity set 2 --confirm-current-protocol` | before the zero exit and capacity-two commit, confirmation output states that deliberately detached descendants are not contained, directs the project to disable detachment, and says capacity one is only an additional participating-wrapper safeguard rather than containment |
-        | `safeword project test-capacity status` while capacity is two | the zero-exit output repeats that detached descendants are not contained, directs the project to disable detachment, and never describes the current overlap guarantee as covering escape |
-        | `safeword project test-capacity status` while capacity is one | the zero-exit output never claims capacity one contains, repairs, or makes safe a deliberately escaped descendant |
+        | `safeword project test-capacity status` while capacity is two | the zero-exit output repeats that detached descendants are not contained, directs the project to disable detachment, and states the overlap guarantee applies only to participating wrappers |
+        | `safeword project test-capacity status` while capacity is one | the zero-exit output states deliberate escape remains unsupported, directs the project to disable detachment before sharing capacity, and states capacity one adds no containment |
