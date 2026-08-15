@@ -489,6 +489,13 @@ describe('CLI result protocol', () => {
   it('renders an explicit review opt-out as not requested', () => {
     const result = createResult({
       state: 'healthy',
+      findings: [
+        {
+          code: 'REVIEW_NOT_REQUESTED',
+          message: 'An independent agent check was not requested.',
+          severity: 'info',
+        },
+      ],
       data: {
         command: 'review run',
         status: 'existing_route',
@@ -499,6 +506,22 @@ describe('CLI result protocol', () => {
     });
 
     expect(renderHumanResult(result)).toBe('Review not requested.');
+  });
+
+  it('renders an in-flight review as running', () => {
+    const result = createResult({
+      state: 'action_required',
+      findings: [
+        {
+          code: 'REVIEW_PENDING',
+          message: 'The independent review is still working in the background.',
+          severity: 'info',
+        },
+      ],
+      data: { command: 'review run', status: 'pending' },
+    });
+
+    expect(renderHumanResult(result).split('\n', 1)[0]).toBe('Review running in the background.');
   });
 
   it('renders a source-changed review as stale', () => {
@@ -521,7 +544,19 @@ describe('CLI result protocol', () => {
       },
     });
 
-    expect(renderHumanResult(result)).toContain('Review stale — sources changed during the check.');
+    expect(renderHumanResult(result)).toBe('Review stale — sources changed during the check.');
+  });
+
+  it('keeps failed reviews on the generic failure presentation', () => {
+    const result = createResult({
+      state: 'failed',
+      errors: [
+        { code: 'REVIEWER_WRITE_ATTEMPT', message: 'Review packet changed.', retryable: false },
+      ],
+      data: { command: 'review run', status: 'blocked', review_policy: 'require' },
+    });
+
+    expect(renderHumanResult(result).split('\n', 1)[0]).toBe('Failed');
   });
 
   it.each([

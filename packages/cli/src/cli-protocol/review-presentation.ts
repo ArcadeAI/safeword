@@ -5,7 +5,11 @@ type ReviewVerdict = 'approve' | 'request_changes';
 
 const REVIEW_AGENTS = new Set(['claude', 'codex']);
 const REVIEW_AUTHORS = new Set(['claude', 'codex', 'cursor']);
-const REPLACED_REVIEW_FINDINGS = new Set(['REVIEW_INDEPENDENCE']);
+const REPLACED_REVIEW_FINDINGS = new Set([
+  'REVIEW_INDEPENDENCE',
+  'REVIEW_NOT_REQUESTED',
+  'REVIEW_STALE',
+]);
 const RETRYABLE_REVIEW_FAILURES = new Set([
   'timed_out',
   'process_failed',
@@ -101,6 +105,9 @@ function blockedReviewCoverageLine(
 
 function specialReviewCoverageLine(status: unknown, state: CliResult['state']): string | undefined {
   if (status === 'existing_route' && state === 'healthy') return 'Review not requested.';
+  if (status === 'pending' && state === 'action_required') {
+    return 'Review running in the background.';
+  }
   if (status === 'stale' && state === 'action_required') {
     return 'Review stale — sources changed during the check.';
   }
@@ -112,14 +119,13 @@ function reviewCoverageLine(data: Record<string, unknown>, state: CliResult['sta
   const specialLine = specialReviewCoverageLine(status, state);
   if (specialLine !== undefined) return specialLine;
 
-  const coverage = reviewCoverage(data);
   const verdict = reviewVerdict(data);
   if (!reviewStateMatchesStatus(state, status)) return incompleteCoverageLine(data);
   if (!reviewPolicyMatchesStatus(data)) return 'Review incomplete.';
   if (!reviewVerdictMatchesStatus(status, verdict)) return incompleteCoverageLine(data);
-  if (status === 'blocked' && verdict !== undefined) {
-    return blockedReviewCoverageLine(data, coverage, verdict);
-  }
+  if (verdict === undefined) return incompleteCoverageLine(data);
+  const coverage = reviewCoverage(data);
+  if (status === 'blocked') return blockedReviewCoverageLine(data, coverage, verdict);
   if (coverage === 'incomplete') return 'Review incomplete.';
   if (verdict === 'request_changes') return `Review changes requested — ${coverage} coverage.`;
   return `Review complete — ${coverage} coverage.`;
@@ -182,7 +188,8 @@ export function reviewResultLines(
   result: CliResult,
   options: { verbose?: boolean },
 ): string[] | undefined {
-  if (!isRecord(result.data) || result.data.command !== 'review run') return undefined;
+  if (result.state === 'failed' || !isRecord(result.data) || result.data.command !== 'review run')
+    return undefined;
   const messages = result.findings
     .filter(finding => !REPLACED_REVIEW_FINDINGS.has(finding.code))
     .map(finding => finding.message);

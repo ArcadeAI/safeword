@@ -589,7 +589,9 @@ function stopWindowsReviewer(child: ReturnType<typeof spawn>, pid: number): Prom
       child.kill('SIGKILL');
       resolve(stopped);
     };
-    const killer = spawn('taskkill', ['/PID', String(pid), '/T', '/F'], {
+    const systemRoot = process.env.SystemRoot ?? String.raw`C:\Windows`;
+    const taskkill = nodePath.join(systemRoot, 'System32', 'taskkill.exe');
+    const killer = spawn(taskkill, ['/PID', String(pid), '/T', '/F'], {
       stdio: 'ignore',
       windowsHide: true,
     });

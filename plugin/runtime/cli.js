@@ -2461,6 +2461,9 @@ function blockedReviewCoverageLine(data, coverage, verdict) {
 function specialReviewCoverageLine(status, state) {
   if (status === "existing_route" && state === "healthy")
     return "Review not requested.";
+  if (status === "pending" && state === "action_required") {
+    return "Review running in the background.";
+  }
   if (status === "stale" && state === "action_required") {
     return "Review stale \u2014 sources changed during the check.";
   }
@@ -2471,7 +2474,6 @@ function reviewCoverageLine(data, state) {
   const specialLine = specialReviewCoverageLine(status, state);
   if (specialLine !== undefined)
     return specialLine;
-  const coverage = reviewCoverage(data);
   const verdict = reviewVerdict(data);
   if (!reviewStateMatchesStatus(state, status))
     return incompleteCoverageLine(data);
@@ -2479,9 +2481,11 @@ function reviewCoverageLine(data, state) {
     return "Review incomplete.";
   if (!reviewVerdictMatchesStatus(status, verdict))
     return incompleteCoverageLine(data);
-  if (status === "blocked" && verdict !== undefined) {
+  if (verdict === undefined)
+    return incompleteCoverageLine(data);
+  const coverage = reviewCoverage(data);
+  if (status === "blocked")
     return blockedReviewCoverageLine(data, coverage, verdict);
-  }
   if (coverage === "incomplete")
     return "Review incomplete.";
   if (verdict === "request_changes")
@@ -2525,7 +2529,7 @@ function suggestionForFailure(failure, label) {
   return;
 }
 function reviewResultLines(result, options) {
-  if (!isRecord(result.data) || result.data.command !== "review run")
+  if (result.state === "failed" || !isRecord(result.data) || result.data.command !== "review run")
     return;
   const messages = result.findings.filter((finding) => !REPLACED_REVIEW_FINDINGS.has(finding.code)).map((finding) => finding.message);
   messages.push(...result.errors.map((error2) => error2.message));
@@ -2541,7 +2545,11 @@ var REVIEW_AGENTS, REVIEW_AUTHORS, REPLACED_REVIEW_FINDINGS, RETRYABLE_REVIEW_FA
 var init_review_presentation = __esm(() => {
   REVIEW_AGENTS = new Set(["claude", "codex"]);
   REVIEW_AUTHORS = new Set(["claude", "codex", "cursor"]);
-  REPLACED_REVIEW_FINDINGS = new Set(["REVIEW_INDEPENDENCE"]);
+  REPLACED_REVIEW_FINDINGS = new Set([
+    "REVIEW_INDEPENDENCE",
+    "REVIEW_NOT_REQUESTED",
+    "REVIEW_STALE"
+  ]);
   RETRYABLE_REVIEW_FAILURES = new Set([
     "timed_out",
     "process_failed",
@@ -44008,7 +44016,9 @@ function stopWindowsReviewer(child, pid) {
       child.kill("SIGKILL");
       resolve(stopped);
     };
-    const killer = spawn("taskkill", ["/PID", String(pid), "/T", "/F"], {
+    const systemRoot = process.env.SystemRoot ?? String.raw`C:\Windows`;
+    const taskkill = nodePath82.join(systemRoot, "System32", "taskkill.exe");
+    const killer = spawn(taskkill, ["/PID", String(pid), "/T", "/F"], {
       stdio: "ignore",
       windowsHide: true
     });
