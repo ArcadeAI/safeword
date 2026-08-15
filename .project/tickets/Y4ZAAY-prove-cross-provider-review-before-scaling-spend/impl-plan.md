@@ -86,6 +86,8 @@ This honors the accepted **Advisory PR Review as a Split-Privilege Evidence Pipe
 - The live implementation is single-writer and refuses a second process through an exclusive output lock. Automatic stale-lock recovery and distributed ownership are outside a ten-attempt local canary.
 - The legacy corpus is already contaminated by the old scorer defect and has legacy author provenance. Its results remain diagnostic-only even if every mechanical check passes.
 - Direct regression execution for the unchanged Anthropic route requires the external pinned adapter checkout. The retained qualification snapshot is historical evidence of that manual run, not an independently authenticated CI proof.
+- GitHub issue comments are a repository-governance trust root, so an untrusted marker-shaped comment can deliberately force the canary into its unreadable fail-closed state. Recovery requires a newly authorized output identity; the public issue is not an availability boundary against hostile commenters.
+- The ticket-local launcher validates the frozen corpus fields and paid-input digest, while the pinned external adapter remains responsible for proving the target checkout head/base pair before provider execution. The retained qualification is historical evidence for that dependency, not a self-contained proof in this repository.
 
 ## Doc impact
 

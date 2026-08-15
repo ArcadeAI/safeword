@@ -135,8 +135,8 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario Outline: Ambiguous lock ownership fails closed
 
 - [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 57d1d2349
+- [x] REFACTOR skip: the fail-closed ownership predicate remains a single lock-acquisition seam
 
 ### Scenario: A failed durable write does not poison the next write
 

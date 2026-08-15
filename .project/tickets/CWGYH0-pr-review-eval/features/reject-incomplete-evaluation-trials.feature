@@ -92,7 +92,7 @@ Feature: Keep failed reviews out of benchmark scores
 
       Examples:
         | defect |
-        | a failure outcome |
+        | an extra failure outcome outside the frozen route |
         | a drifted route |
 
     @rejection
@@ -127,6 +127,9 @@ Feature: Keep failed reviews out of benchmark scores
         | HTTP 408 |
         | HTTP 429 |
         | HTTP 500 |
+        | HTTP 502 |
+        | HTTP 503 |
+        | HTTP 504 |
 
     @rejection
     Scenario Outline: A second retryable transport failure excludes the paired case
@@ -220,9 +223,10 @@ Feature: Keep failed reviews out of benchmark scores
       When the harness restarts against the same output directory
       Then it safely reclaims the stale lock and becomes the sole owner
 
+    @rejection
     Scenario: Contending restarts cannot both reclaim one stale lock
       Given one stale run lock with an exact process-instance identity and two harness processes waiting to restart
-      When both processes try to reclaim the lock at the same time
+      When both processes pass the stale-owner probe and contend at the atomic reclaim rename
       Then exactly one process becomes the sole owner
       And the other process stops without disturbing the new owner's lock
 
@@ -450,6 +454,7 @@ Feature: Keep failed reviews out of benchmark scores
       And the real-wiring hidden failure produced no scoreable record
       When the maintainer evaluates the canary gate
       Then the next paid checkpoint is authorized
+      And a later provider call is permitted by the gate
 
     @rejection
     Scenario Outline: A canary prerequisite defect blocks more spend
@@ -512,7 +517,7 @@ Feature: Keep failed reviews out of benchmark scores
       And every raw artifact still matches its recorded identity and hash
       When the evaluation harness reuses the artifacts
       Then it verifies the pinned commit object from the trusted repository without branch or tag resolution
-      And reuse atomically binds the verified artifact bytes and identity independently of derived scores or reports
+      And the exact verified bytes and identities are returned even when no score or report artifact exists
 
     @rejection
     Scenario Outline: Drifted raw evidence cannot be reused

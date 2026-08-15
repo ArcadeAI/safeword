@@ -296,15 +296,28 @@ describe("GitHub canary upstream", () => {
             input_tokens_details: { cached_tokens: 2 },
             output_tokens: 3,
           };
+          const verificationUsage = {
+            input_tokens: 0,
+            input_tokens_details: { cached_tokens: 0 },
+            output_tokens: 0,
+          };
           return {
             attemptCostPicodollars: 65_500_000n,
             nativeUsageBytes: JSON.stringify({
-              turns: [{
-                rawUsage,
-                requestId: "req-terra-1",
-                responseId: "resp-terra-1",
-                stage: "repository-reading",
-              }],
+              turns: [
+                {
+                  rawUsage,
+                  requestId: "req-terra-1",
+                  responseId: "resp-terra-1",
+                  stage: "repository-reading",
+                },
+                {
+                  rawUsage: verificationUsage,
+                  requestId: "req-terra-2",
+                  responseId: "resp-terra-2",
+                  stage: "finding-verification",
+                },
+              ],
             }),
             rawResponseBytes: JSON.stringify({
               intent: { attemptId: "attempt-1", intentId: "intent-1", sequence: 1 },
@@ -316,6 +329,14 @@ describe("GitHub canary upstream", () => {
                 serviceTier: "default",
                 stage: "repository-reading",
                 turnIntentId: "turn-intent-1",
+              }, {
+                endpoint: "https://api.openai.com/v1/responses",
+                intentId: "intent-1",
+                model: "gpt-5.6-terra",
+                sequence: 4,
+                serviceTier: "default",
+                stage: "finding-verification",
+                turnIntentId: "turn-intent-2",
               }],
               responses: [{
                 errorMessage: null,
@@ -339,6 +360,28 @@ describe("GitHub canary upstream", () => {
                 sequence: 3,
                 stage: "repository-reading",
                 turnIntentId: "turn-intent-1",
+              }, {
+                errorMessage: null,
+                errorName: null,
+                httpStatus: 200,
+                intentId: "intent-1",
+                nativeUsage: verificationUsage,
+                outcome: "response",
+                rawBody: JSON.stringify({
+                  id: "resp-terra-2",
+                  model: "gpt-5.6-terra",
+                  output: [],
+                  service_tier: "default",
+                  status: "completed",
+                  usage: verificationUsage,
+                }),
+                requestId: "req-terra-2",
+                responseId: "resp-terra-2",
+                returnedModel: "gpt-5.6-terra",
+                returnedServiceTier: "default",
+                sequence: 5,
+                stage: "finding-verification",
+                turnIntentId: "turn-intent-2",
               }],
             }),
           };

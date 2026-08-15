@@ -472,7 +472,6 @@ function analyzeProviderInventory(value: unknown): ValidatedProviderInventory {
       );
     }
   }
-
   return {
     attemptId: intent.attemptId,
     intentId: intent.intentId,
@@ -495,6 +494,10 @@ export function validateProviderInventory(
   value: unknown
 ): ValidatedProviderInventory {
   const inventory = analyzeProviderInventory(value);
+  const stages = new Set(inventory.turns.map(({ stage }) => stage));
+  if (!stages.has("repository-reading") || !stages.has("finding-verification")) {
+    throw new Error("provider inventory must retain both review stages");
+  }
   if (!inventory.routeValid) {
     throw new Error("provider inventory used the wrong route");
   }

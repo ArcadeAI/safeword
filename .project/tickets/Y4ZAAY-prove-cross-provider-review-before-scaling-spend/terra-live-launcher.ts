@@ -554,14 +554,18 @@ async function runCredentialedChild<T>(input: {
   spawnChild(request: PaidChildRequest): Promise<PaidChildResult>;
 }): Promise<T> {
   const githubToken = requireSecret(await input.loadGitHubToken(), "GitHub token");
-  const openAIKey = requireSecret(await input.loadOpenAIKey(), "OpenAI API key");
-  const dispatch = (): Promise<PaidChildResult> =>
-    input.spawnChild({
+  const dispatch = async (): Promise<PaidChildResult> => {
+    const openAIKey = requireSecret(
+      await input.loadOpenAIKey(),
+      "OpenAI API key"
+    );
+    return input.spawnChild({
       args: [...input.child.args],
       command: input.child.command,
       cwd: input.adapterDirectory,
       env: paidChildEnvironment(input.environment, input.inputDigest, openAIKey),
     });
+  };
   return input.parent({ dispatch, githubToken });
 }
 

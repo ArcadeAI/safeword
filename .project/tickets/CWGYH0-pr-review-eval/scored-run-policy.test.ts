@@ -424,7 +424,7 @@ class RequestError extends Error {
 }
 
 describe("infrastructure classification", () => {
-	test.each([408, 429, 500, 503, 599])("accepts retryable HTTP %d", (status) => {
+	test.each([408, 429, 500, 502, 503, 504, 599])("accepts retryable HTTP %d", (status) => {
 		expect(isInfrastructureError(new RequestError(status))).toBe(true);
 	});
 

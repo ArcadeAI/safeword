@@ -407,7 +407,7 @@ function validateHead(
   }
 }
 
-export async function initializeCanary(input: {
+async function initializeCanaryWhileLocked(input: {
   binding: CanaryInitializationBinding;
   outputDirectory: string;
   upstream: CanaryUpstream;
@@ -416,7 +416,6 @@ export async function initializeCanary(input: {
   receiptId: string;
   startedAttempts: 0;
 }> {
-  await requireUnredirectedOutputPath(input.outputDirectory);
   const digest = canaryBindingDigest(input.binding);
   const snapshot = await input.upstream.inspect(digest);
   if (snapshot.kind === "unavailable" || snapshot.kind === "unreadable") {
@@ -470,6 +469,22 @@ export async function initializeCanary(input: {
     receiptId: receipt.receiptId,
     startedAttempts: 0,
   };
+}
+
+export async function initializeCanary(input: {
+  binding: CanaryInitializationBinding;
+  outputDirectory: string;
+  upstream: CanaryUpstream;
+}): Promise<{
+  observedCostPicodollars: 0n;
+  receiptId: string;
+  startedAttempts: 0;
+}> {
+  await requireUnredirectedOutputPath(input.outputDirectory);
+  await ensureOutputDirectory(input.outputDirectory);
+  return withCanaryLock(input.outputDirectory, () =>
+    initializeCanaryWhileLocked(input)
+  );
 }
 
 function hasExactKeys(
@@ -996,25 +1011,6 @@ async function retainedEvidenceMatches(
   }
 }
 
-async function retainedEvidenceRouteIsValid(
-  directory: string,
-  completions: CanaryAttemptCompletionReceipt[]
-): Promise<boolean> {
-  try {
-    const evidenceDirectory = join(directory, EVIDENCE_DIRECTORY);
-    const inventories = await Promise.all(
-      completions.map((completion) =>
-        readFile(join(evidenceDirectory, `${completion.attemptId}.json`), "utf8")
-      )
-    );
-    return inventories.every(
-      (bytes) => priceProviderInventory(JSON.parse(bytes)).routeValid
-    );
-  } catch {
-    return false;
-  }
-}
-
 export async function inspectCanaryAccounting(input: {
   binding: CanaryInitializationBinding;
   outputDirectory: string;
@@ -1094,13 +1090,9 @@ export async function inspectCanaryAccounting(input: {
       completions
     ) &&
     (await retainedEvidenceMatches(input.outputDirectory, completions));
-  const routeValid =
-    costAccountingComplete &&
-    completions !== null &&
-    (await retainedEvidenceRouteIsValid(input.outputDirectory, completions));
   return {
     attemptAccountingComplete,
-    authorizationPresent: !costAccountingComplete || routeValid,
+    authorizationPresent: true,
     costAccountingComplete,
     observedCostPicodollars: costAccountingComplete
       ? BigInt(snapshot.head.observedCostPicodollars)
@@ -1355,7 +1347,10 @@ async function runCanaryAttemptWhileLocked(input: {
   const evidenceDirectory = join(input.outputDirectory, EVIDENCE_DIRECTORY);
   if (
     (await exists(join(evidenceDirectory, `${input.attemptId}.json`))) ||
-    (await exists(join(evidenceDirectory, `${input.attemptId}.usage.json`)))
+    (await exists(join(evidenceDirectory, `${input.attemptId}.usage.json`))) ||
+    (await exists(
+      join(evidenceDirectory, `${input.attemptId}${PROVIDER_TURN_JOURNAL_SUFFIX}`)
+    ))
   ) {
     throw new Error("attempt evidence already exists before dispatch");
   }
@@ -1510,9 +1505,12 @@ async function withCanaryLock<T>(
   }
 }
 
-export function runCanaryAttempt(
+export async function runCanaryAttempt(
   input: Parameters<typeof runCanaryAttemptWhileLocked>[0]
 ): ReturnType<typeof runCanaryAttemptWhileLocked> {
+  if (!(await exists(input.outputDirectory))) {
+    throw new Error("canary output is not initialized");
+  }
   return withCanaryLock(input.outputDirectory, () =>
     runCanaryAttemptWhileLocked(input)
   );

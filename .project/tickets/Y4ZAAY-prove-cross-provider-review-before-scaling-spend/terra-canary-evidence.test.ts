@@ -122,6 +122,10 @@ describe("retained Terra provider evidence", () => {
     ["a duplicate response", (value: ReturnType<typeof completeInventory>) => {
       value.responses.push({ ...value.responses[0]! });
     }],
+    ["a missing finding-verification stage", (value: ReturnType<typeof completeInventory>) => {
+      value.requests.pop();
+      value.responses.pop();
+    }],
     ["swapped response pairings", (value: ReturnType<typeof completeInventory>) => {
       const first = value.responses[0]!.turnIntentId;
       value.responses[0]!.turnIntentId = value.responses[1]!.turnIntentId;

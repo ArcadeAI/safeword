@@ -26,6 +26,7 @@ import {
   inspectCanaryAccounting,
   INITIALIZATION_MARKER,
   PICODOLLARS_PER_DOLLAR,
+  PROVIDER_TURN_JOURNAL_SUFFIX,
   runCanaryAttempt,
 } from "./terra-development-canary";
 
@@ -75,6 +76,19 @@ function validDispatchEvidence(
     status: "completed",
     usage: rawUsage,
   });
+  const verificationUsage = {
+    input_tokens: 0,
+    input_tokens_details: { cached_tokens: 0 },
+    output_tokens: 0,
+  };
+  const verificationBody = JSON.stringify({
+    id: "resp-terra-2",
+    model: "gpt-5.6-terra",
+    output: [],
+    service_tier: "default",
+    status: "completed",
+    usage: verificationUsage,
+  });
   const inventory = {
     intent: { attemptId, intentId, sequence: 1 },
     requests: [
@@ -86,6 +100,15 @@ function validDispatchEvidence(
         serviceTier: "default",
         stage: "repository-reading",
         turnIntentId: "turn-intent-1",
+      },
+      {
+        endpoint: "https://api.openai.com/v1/responses",
+        intentId,
+        model: "gpt-5.6-terra",
+        sequence: 4,
+        serviceTier: "default",
+        stage: "finding-verification",
+        turnIntentId: "turn-intent-2",
       },
     ],
     responses: [
@@ -105,6 +128,22 @@ function validDispatchEvidence(
         stage: "repository-reading",
         turnIntentId: "turn-intent-1",
       },
+      {
+        errorMessage: null,
+        errorName: null,
+        httpStatus: 200,
+        intentId,
+        nativeUsage: verificationUsage,
+        outcome: "response",
+        rawBody: verificationBody,
+        requestId: "req-terra-2",
+        responseId: "resp-terra-2",
+        returnedModel: "gpt-5.6-terra",
+        returnedServiceTier: "default",
+        sequence: 5,
+        stage: "finding-verification",
+        turnIntentId: "turn-intent-2",
+      },
     ],
   };
   return {
@@ -116,6 +155,12 @@ function validDispatchEvidence(
           requestId: "req-terra-1",
           responseId: "resp-terra-1",
           stage: "repository-reading",
+        },
+        {
+          rawUsage: verificationUsage,
+          requestId: "req-terra-2",
+          responseId: "resp-terra-2",
+          stage: "finding-verification",
         },
       ],
     }),
@@ -886,12 +931,12 @@ describe("Terra canary write-side attempt lifecycle", () => {
     });
     expect(inspected).toEqual({
       attemptAccountingComplete: true,
-      authorizationPresent: false,
+      authorizationPresent: true,
       costAccountingComplete: true,
       observedCostPicodollars: 65_500_900n,
       startedAttempts: 10,
     });
-    expect(decision({ ...inspected, authorizationPresent: true })).toEqual({
+    expect(decision(inspected)).toEqual({
       eligible: false,
       reasons: ["attempt-stop"],
     });
@@ -904,7 +949,7 @@ describe("Terra canary write-side attempt lifecycle", () => {
         outputDirectory: directory,
         upstream,
       })
-    ).rejects.toThrow("missing-authorization");
+    ).rejects.toThrow("attempt-stop");
   });
 
   test.each(["../escaped", "nested/attempt", "..", "attempt\\name"])(
@@ -1213,12 +1258,15 @@ describe("Terra canary write-side attempt lifecycle", () => {
     expect(existsSync(join(directory, COST_JOURNAL))).toBe(false);
   });
 
-  test("pre-existing evidence bytes are preserved and prevent completion", async () => {
+  test.each([
+    "attempt-1.json",
+    `attempt-1${PROVIDER_TURN_JOURNAL_SUFFIX}`,
+  ])("pre-existing evidence %s is preserved and prevents dispatch", async (filename) => {
     const directory = outputDirectory();
     const upstream = fakeUpstream();
     await initializeCanary({ binding: BINDING, outputDirectory: directory, upstream });
     mkdirSync(join(directory, EVIDENCE_DIRECTORY));
-    const evidencePath = join(directory, EVIDENCE_DIRECTORY, "attempt-1.json");
+    const evidencePath = join(directory, EVIDENCE_DIRECTORY, filename);
     writeFileSync(evidencePath, "planted evidence");
     let dispatches = 0;
 
@@ -1291,7 +1339,7 @@ describe("Terra canary initialization and reload", () => {
   test("consumes upstream authorization before exclusively creating zero state", async () => {
     const directory = outputDirectory();
     const upstream = fakeUpstream("ready", () => {
-      expect(existsSync(directory)).toBe(false);
+      expect(existsSync(join(directory, CANARY_LOCK))).toBe(true);
     });
 
     const initialized = await initializeCanary({

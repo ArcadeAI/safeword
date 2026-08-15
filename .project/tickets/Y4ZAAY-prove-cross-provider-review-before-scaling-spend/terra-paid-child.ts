@@ -94,6 +94,7 @@ export async function executeTerraPaidChild(input: {
   ) => ({
     apiKey: input.openAIKey,
     fetch: input.fetch,
+    maxRetries: 0,
     recorder,
     serviceTier: "default" as const,
     stage,
