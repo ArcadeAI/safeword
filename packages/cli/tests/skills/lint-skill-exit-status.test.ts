@@ -43,6 +43,20 @@ function readCommandLog(logPath: string): string[] {
     : [];
 }
 
+function installFakeLintTools(
+  binDirectory: string,
+  bunCommandsPath: string,
+  goCommandsPath: string,
+): void {
+  writeExecutable(binDirectory, 'bun', String.raw`printf '%s\n' "$*" >> "${bunCommandsPath}"`);
+  writeExecutable(binDirectory, 'bunx', 'exit 0');
+  writeExecutable(
+    binDirectory,
+    'golangci-lint',
+    String.raw`printf '%s\n' "$*" >> "${goCommandsPath}"`,
+  );
+}
+
 function runLintInstructions(
   relativePath: string,
   options: { hasGoManifest?: boolean } = {},
@@ -58,13 +72,7 @@ function runLintInstructions(
     if (options.hasGoManifest)
       writeFileSync(nodePath.join(projectDirectory, 'go.mod'), 'module example\n');
 
-    writeExecutable(binDirectory, 'bun', String.raw`printf '%s\n' "$*" >> "${bunCommandsPath}"`);
-    writeExecutable(binDirectory, 'bunx', 'exit 0');
-    writeExecutable(
-      binDirectory,
-      'golangci-lint',
-      String.raw`printf '%s\n' "$*" >> "${goCommandsPath}"`,
-    );
+    installFakeLintTools(binDirectory, bunCommandsPath, goCommandsPath);
 
     const result = spawnSync('bash', ['-c', extractLintBlock(relativePath)], {
       cwd: projectDirectory,
