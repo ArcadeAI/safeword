@@ -1,5 +1,8 @@
 import { createHash, randomUUID } from 'node:crypto';
 import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
@@ -48,6 +51,8 @@ import {
 
 const directories: string[] = [];
 const servers: ReturnType<typeof createServer>[] = [];
+const READINESS_BUILD_COMMIT = 'b'.repeat(40);
+const READINESS_NOW = new Date('2026-07-26T12:00:00.000Z');
 
 afterEach(async () => {
   const openServers = [...servers];
@@ -97,6 +102,7 @@ function retrySchedulePath(project: string, requestId: string): string {
 }
 
 function request(overrides: Record<string, unknown> = {}) {
+  const { createdAt, requestId, retryDeadlineAt, ...input } = overrides;
   return createRelayRequest(
     {
       installationId: 42,
@@ -107,10 +113,75 @@ function request(overrides: Record<string, unknown> = {}) {
       body: 'Sanitized body',
       labels: ['retro'],
       sourceKey: 'source-default',
-      ...overrides,
+      ...input,
     },
-    { randomUUID },
+    {
+      ...(typeof createdAt === 'string' && { now: () => Date.parse(createdAt) }),
+      randomUUID: () => (typeof requestId === 'string' ? requestId : randomUUID()),
+      ...(typeof retryDeadlineAt === 'string' && {
+        retryDeadlineAt: () => retryDeadlineAt,
+      }),
+    },
   );
+}
+
+type ReadinessDependencies = Parameters<typeof validateRelayReadiness>[1];
+type BuildAttestation = Parameters<typeof validateBuildAttestedRelayReadiness>[1];
+
+function validReadinessDependencies(
+  manifest: RelayReadinessManifest,
+  overrides: Partial<ReadinessDependencies> = {},
+): ReadinessDependencies {
+  return {
+    buildCommit: READINESS_BUILD_COMMIT,
+    isAncestor: (ancestor, descendant) =>
+      Promise.resolve(
+        (ancestor === manifest.evidenceCommit && descendant === READINESS_BUILD_COMMIT) ||
+          (manifest.prerequisites.map(item => item.mergedCommit).includes(ancestor) &&
+            descendant === manifest.evidenceCommit),
+      ),
+    now: READINESS_NOW,
+    readArtifactAtCommit: (_commit, artifactPath) =>
+      Promise.resolve(measurementArtifact(manifest, artifactPath)),
+    ...overrides,
+  };
+}
+
+function buildAttestation(
+  manifest: RelayReadinessManifest,
+  overrides: Partial<BuildAttestation> = {},
+): BuildAttestation {
+  for (const artifact of Object.values(manifest.measurements)) {
+    artifact.sha256 = createHash('sha256')
+      .update(measurementContent(manifest, artifact.path))
+      .digest('hex');
+  }
+  const manifestContent = JSON.stringify(manifest);
+  return {
+    ancestorPairs: [
+      { ancestor: manifest.evidenceCommit, descendant: READINESS_BUILD_COMMIT },
+      ...manifest.prerequisites.map(prerequisite => ({
+        ancestor: prerequisite.mergedCommit,
+        descendant: manifest.evidenceCommit,
+      })),
+    ],
+    artifacts: Object.fromEntries(
+      Object.entries(manifest.measurements).map(([metric, artifact]) => [
+        metric,
+        {
+          contentBase64: Buffer.from(measurementContent(manifest, artifact.path)).toString(
+            'base64',
+          ),
+          sha256: artifact.sha256,
+        },
+      ]),
+    ),
+    buildCommit: READINESS_BUILD_COMMIT,
+    enabled: true,
+    manifestBase64: Buffer.from(manifestContent).toString('base64'),
+    manifestSha256: createHash('sha256').update(manifestContent).digest('hex'),
+    ...overrides,
+  };
 }
 
 function acceptedRelayFetch(
@@ -149,7 +220,188 @@ function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
   };
 }
 
+function sequenceClock(...times: number[]): () => number {
+  return () => times.shift() ?? Infinity;
+}
+
 describe('immutable relay delivery spool', () => {
+  it('keeps generated identity fields authoritative over runtime input', () => {
+    const generatedId = randomUUID();
+    const generatedAt = Date.parse('2026-08-14T00:00:00.000Z');
+    const draft = request({ sourceKey: 'generated-identity' });
+    const created = createRelayRequest(
+      {
+        ...draft,
+        createdAt: '2000-01-01T00:00:00.000Z',
+        requestId: randomUUID(),
+        retryDeadlineAt: '2000-01-02T00:00:00.000Z',
+      } as Parameters<typeof createRelayRequest>[0],
+      { now: () => generatedAt, randomUUID: () => generatedId },
+    );
+
+    expect(created).toMatchObject({
+      createdAt: new Date(generatedAt).toISOString(),
+      requestId: generatedId,
+      retryDeadlineAt: new Date(generatedAt + 86_400_000).toISOString(),
+    });
+  });
+
+  it('rejects claim identities that could escape the relay spool', async () => {
+    const project = temporaryProject();
+    const persisted = await persistRelayRequest(project, request({ sourceKey: 'claim-path' }));
+
+    await expect(
+      claimRelayRequest(project, {
+        claimId: '../../../outside',
+        leaseMs: 60_000,
+        now: Date.now(),
+      }),
+    ).rejects.toThrow('invalid relay claim identity');
+    expect(readFileSync(persisted.path, 'utf8')).toBe(persisted.bytes.toString('utf8'));
+  });
+
+  it.each([
+    ['NaN clock', { leaseMs: 60_000, now: NaN }],
+    ['fractional clock', { leaseMs: 60_000, now: 1.5 }],
+    ['negative clock', { leaseMs: 60_000, now: -1 }],
+    ['infinite lease', { leaseMs: Infinity, now: 0 }],
+    ['zero lease', { leaseMs: 0, now: 0 }],
+    ['overflowing expiry', { leaseMs: 1, now: Number.MAX_SAFE_INTEGER }],
+  ])('rejects %s before mutating the durable request', async (_case, timing) => {
+    const project = temporaryProject();
+    const persisted = await persistRelayRequest(project, request({ sourceKey: `timing-${_case}` }));
+
+    await expect(
+      claimRelayRequest(project, { claimId: 'timing-owner', ...timing }),
+    ).rejects.toThrow('invalid relay claim timing');
+    expect(readFileSync(persisted.path, 'utf8')).toBe(persisted.bytes.toString('utf8'));
+  });
+
+  it('rejects malformed claim bytes without acknowledging or resurrecting the source', async () => {
+    const project = temporaryProject();
+    const draft = request({ sourceKey: 'malformed-acknowledgement' });
+    const persisted = await persistRelayDraft(project, draft);
+    if (persisted === undefined) throw new Error('missing relay request');
+    const claim = await claimRelayRequest(project, {
+      claimId: 'malformed-owner',
+      leaseMs: 60_000,
+      now: Date.now(),
+    });
+    if (claim === undefined) throw new Error('missing relay claim');
+    const malformedBytes = Buffer.from('{not-json', 'utf8');
+    writeFileSync(claim.path, malformedBytes);
+
+    await expect(
+      acknowledgeRelayClaim(
+        { ...claim, bytes: malformedBytes },
+        { receiptId: 'malformed-receipt', requestId: persisted.requestId, state: 'filed' },
+      ),
+    ).rejects.toThrow('cannot acknowledge malformed relay request bytes');
+    expect(readFileSync(claim.path)).toEqual(malformedBytes);
+    await expect(persistRelayDraft(project, draft)).rejects.toThrow('corrupt durable identity');
+  });
+
+  it('rejects valid claim bytes belonging to a different durable request', async () => {
+    const project = temporaryProject();
+    const firstDraft = request({ sourceKey: 'substituted-first', title: 'first' });
+    const secondDraft = request({ sourceKey: 'substituted-second', title: 'second' });
+    const first = await persistRelayDraft(project, firstDraft);
+    const second = await persistRelayDraft(project, secondDraft);
+    if (first === undefined || second === undefined) throw new Error('missing relay request');
+    const claim = await claimRelayRequest(project, {
+      claimId: 'substitution-owner',
+      leaseMs: 60_000,
+      now: Date.now(),
+    });
+    if (claim === undefined) throw new Error('missing relay claim');
+    const substitute = claim.requestId === first.requestId ? second : first;
+    const substituteBytes = Buffer.from(JSON.stringify(substitute), 'utf8');
+
+    await expect(
+      acknowledgeRelayClaim(
+        { ...claim, bytes: substituteBytes },
+        { receiptId: 'substitution-receipt', requestId: claim.requestId, state: 'filed' },
+      ),
+    ).rejects.toThrow('relay claim bytes do not match the durable claim');
+    expect(readFileSync(claim.path)).toEqual(claim.bytes);
+    await expect(persistRelayDraft(project, firstDraft)).resolves.toMatchObject({
+      requestId: first.requestId,
+    });
+    await expect(persistRelayDraft(project, secondDraft)).resolves.toMatchObject({
+      requestId: second.requestId,
+    });
+  });
+
+  it('rejects same-identity payload substitution against durable claim bytes', async () => {
+    const project = temporaryProject();
+    await persistRelayRequest(project, request({ sourceKey: 'same-id-substitution' }));
+    const claim = await claimRelayRequest(project, {
+      claimId: 'same-id-owner',
+      leaseMs: 60_000,
+      now: Date.now(),
+    });
+    if (claim === undefined) throw new Error('missing relay claim');
+    const forged = {
+      ...(JSON.parse(claim.bytes.toString('utf8')) as RelayDraftRequest),
+      body: 'forged body',
+      sourceKey: 'forged source',
+    };
+    const forgedBytes = Buffer.from(JSON.stringify(forged), 'utf8');
+
+    await expect(
+      acknowledgeRelayClaim(
+        { ...claim, bytes: forgedBytes },
+        { receiptId: 'same-id-receipt', requestId: claim.requestId, state: 'filed' },
+      ),
+    ).rejects.toThrow('relay claim bytes do not match the durable claim');
+    expect(readFileSync(claim.path)).toEqual(claim.bytes);
+  });
+
+  it('rejects a claim path outside the canonical spool layout', async () => {
+    const project = temporaryProject();
+    await persistRelayRequest(project, request({ sourceKey: 'claim-layout' }));
+    const claim = await claimRelayRequest(project, {
+      claimId: 'layout-owner',
+      leaseMs: 60_000,
+      now: Date.now(),
+    });
+    if (claim === undefined) throw new Error('missing relay claim');
+    const outside = path.join(project, path.basename(claim.path));
+    renameSync(claim.path, outside);
+
+    await expect(
+      acknowledgeRelayClaim(
+        { ...claim, path: outside },
+        { receiptId: 'layout-receipt', requestId: claim.requestId, state: 'filed' },
+      ),
+    ).rejects.toThrow('invalid relay claim path');
+    expect(readFileSync(outside, 'utf8')).toBe(claim.bytes.toString('utf8'));
+  });
+
+  it.each(['primary', 'materializing', 'dead-letter'] as const)(
+    'rejects an in-spool %s path as acknowledgement ownership',
+    async state => {
+      const project = temporaryProject();
+      const original = request({ sourceKey: `wrong-claim-kind-${state}` });
+      const persisted = await persistRelayRequest(project, original);
+      const suffix = state === 'primary' ? '' : `.${state}`;
+      const candidate = path.join(
+        path.dirname(persisted.path),
+        `${original.requestId}${suffix}.json`,
+      );
+      if (candidate !== persisted.path) renameSync(persisted.path, candidate);
+      const bytes = readFileSync(candidate);
+
+      await expect(
+        acknowledgeRelayClaim(
+          { bytes, path: candidate, requestId: original.requestId },
+          { receiptId: `wrong-${state}`, requestId: original.requestId, state: 'filed' },
+        ),
+      ).rejects.toThrow('invalid relay claim path');
+      expect(readFileSync(candidate)).toEqual(bytes);
+    },
+  );
+
   it('reports the owning transient state when durable siblings coexist', async () => {
     const project = temporaryProject();
     const persisted = await persistRelayDraft(
@@ -220,18 +472,20 @@ describe('immutable relay delivery spool', () => {
       .digest('hex');
 
     await discardRelayRequest(project, persisted.requestId, {
-      faultAfterSourceDiscardWrite: () => {
-        writeFileSync(
-          path.join(directory, `source-${sourceHash}.acknowledged.json`),
-          JSON.stringify({
-            requestId: persisted.requestId,
-            sourceKey: draft.sourceKey,
-            sourcePayloadHash,
-            state: 'acknowledged',
-            version: 1,
-          }),
-        );
-        return Promise.resolve();
+      faults: {
+        afterSourceDiscardWrite: () => {
+          writeFileSync(
+            path.join(directory, `source-${sourceHash}.acknowledged.json`),
+            JSON.stringify({
+              requestId: persisted.requestId,
+              sourceKey: draft.sourceKey,
+              sourcePayloadHash,
+              state: 'acknowledged',
+              version: 1,
+            }),
+          );
+          return Promise.resolve();
+        },
       },
     });
 
@@ -239,6 +493,190 @@ describe('immutable relay delivery spool', () => {
       readdirSync(directory).filter(filename => filename.startsWith(`source-${sourceHash}`)),
     ).toEqual([`source-${sourceHash}.acknowledged.json`]);
     await expect(persistRelayDraft(project, draft)).resolves.toBeUndefined();
+  });
+
+  it('quarantines a conflicting source acknowledgement without wedging spool recovery', async () => {
+    const project = temporaryProject();
+    const draft = request({ sourceKey: 'source-conflicting-ack', title: 'conflicting ack' });
+    const persisted = await persistRelayDraft(project, draft);
+    if (persisted === undefined) throw new Error('missing relay request');
+    const directory = path.dirname(activeRequestPath(project, persisted.requestId));
+    const sourceHash = createHash('sha256').update(draft.sourceKey).digest('hex');
+    const conflictingAcknowledgement = JSON.stringify({
+      requestId: randomUUID(),
+      state: 'acknowledged',
+      version: 1,
+    });
+    writeFileSync(path.join(directory, `${persisted.requestId}.ack.json`), '{}');
+    writeFileSync(
+      path.join(directory, `source-${sourceHash}.acknowledged.json`),
+      conflictingAcknowledgement,
+    );
+
+    await expect(recoverRelaySpool(project, Date.now())).resolves.toBeUndefined();
+
+    const sourceFiles = readdirSync(directory).filter(filename =>
+      filename.startsWith(`source-${sourceHash}.acknowledged`),
+    );
+    expect(sourceFiles).toContain(`source-${sourceHash}.acknowledged.json`);
+    const conflictFile = sourceFiles.find(filename => filename.includes('.conflict.'));
+    expect(conflictFile).toBeDefined();
+    expect(readFileSync(path.join(directory, conflictFile ?? ''), 'utf8')).toBe(
+      conflictingAcknowledgement,
+    );
+    await expect(persistRelayDraft(project, draft)).resolves.toBeUndefined();
+
+    const conflictPath = path.join(directory, conflictFile ?? '');
+    utimesSync(conflictPath, new Date(0), new Date(0));
+    await recoverRelaySpool(project, 8 * 24 * 60 * 60 * 1000);
+    expect(readdirSync(directory)).not.toContain(conflictFile);
+  });
+
+  it('recovers an acknowledged malformed claim without wedging operator commands', async () => {
+    const project = temporaryProject();
+    const draft = request({ sourceKey: 'source-malformed-ack', title: 'malformed ack' });
+    const persisted = await persistRelayDraft(project, draft);
+    if (persisted === undefined) throw new Error('missing relay request');
+    const claim = await claimRelayRequest(project, {
+      claimId: 'malformed-ack-owner',
+      leaseMs: 60_000,
+      now: Date.now(),
+    });
+    if (claim === undefined) throw new Error('missing relay claim');
+    const directory = path.dirname(claim.path);
+    writeFileSync(claim.path, '{"requestId":');
+    writeFileSync(path.join(directory, `${persisted.requestId}.ack.json`), '{}');
+
+    await expect(recoverRelaySpool(project, Date.now())).resolves.toBeUndefined();
+
+    expect(
+      readdirSync(directory).filter(filename => filename.startsWith(persisted.requestId)),
+    ).toEqual([]);
+    await expect(persistRelayDraft(project, draft)).resolves.toBeUndefined();
+    await expect(discardRelayRequest(project, persisted.requestId)).resolves.toBe(false);
+  });
+
+  it('uses filename identity when acknowledged bytes name another request', async () => {
+    const project = temporaryProject();
+    const firstDraft = request({ sourceKey: 'source-ack-filename-first', title: 'first' });
+    const secondDraft = request({ sourceKey: 'source-ack-filename-second', title: 'second' });
+    const first = await persistRelayDraft(project, firstDraft);
+    const second = await persistRelayDraft(project, secondDraft);
+    if (first === undefined || second === undefined) throw new Error('missing relay requests');
+    const firstPath = activeRequestPath(project, first.requestId);
+    const directory = path.dirname(firstPath);
+    writeFileSync(firstPath, JSON.stringify(second));
+    writeFileSync(path.join(directory, `${first.requestId}.ack.json`), '{}');
+
+    await recoverRelaySpool(project, Date.now());
+
+    await expect(persistRelayDraft(project, firstDraft)).resolves.toBeUndefined();
+    await expect(persistRelayDraft(project, secondDraft)).resolves.toMatchObject({
+      requestId: second.requestId,
+    });
+  });
+
+  it('removes an orphan durable acknowledgement after interrupted cleanup', async () => {
+    const project = temporaryProject();
+    const requestId = randomUUID();
+    const directory = path.join(project, '.safeword', 'retro-drafts', 'relay');
+    mkdirSync(directory, { recursive: true });
+    const orphan = path.join(directory, `${requestId}.ack.json`);
+    writeFileSync(orphan, '{}');
+
+    await recoverRelaySpool(project, Date.now());
+
+    expect(existsSync(orphan)).toBe(false);
+  });
+
+  it('quarantines a diverged expired claim and keeps its durable sibling claimable', async () => {
+    const project = temporaryProject();
+    const persisted = await persistRelayDraft(
+      project,
+      request({ sourceKey: 'source-diverged-claim', title: 'diverged claim' }),
+    );
+    if (persisted === undefined) throw new Error('missing relay request');
+    const claim = await claimRelayRequest(project, {
+      claimId: 'diverged-owner',
+      leaseMs: 1,
+      now: 0,
+    });
+    if (claim === undefined) throw new Error('missing relay claim');
+    const directory = path.dirname(claim.path);
+    const sibling = path.join(directory, `${persisted.requestId}.json`);
+    const siblingBytes = Buffer.from(
+      JSON.stringify({ ...persisted, title: 'canonical sibling' }),
+      'utf8',
+    );
+    writeFileSync(sibling, siblingBytes);
+
+    await recoverRelaySpool(project, 2);
+
+    expect(existsSync(claim.path)).toBe(false);
+    expect(readFileSync(sibling)).toEqual(siblingBytes);
+    const conflict = readdirSync(directory).find(filename =>
+      filename.startsWith(`${persisted.requestId}.claim-conflict.`),
+    );
+    expect(conflict).toBeDefined();
+    expect(readFileSync(path.join(directory, conflict ?? ''))).toEqual(claim.bytes);
+    await expect(
+      claimRelayRequest(project, { claimId: 'successor', leaseMs: 60_000, now: 2 }),
+    ).resolves.toMatchObject({ requestId: persisted.requestId });
+  });
+
+  it('keeps the canonical source tombstone visible while quarantining a conflict', async () => {
+    const project = temporaryProject();
+    const draft = request({ sourceKey: 'source-conflict-race', title: 'conflict race' });
+    const persisted = await persistRelayDraft(project, draft);
+    if (persisted === undefined) throw new Error('missing relay request');
+    const claim = await claimRelayRequest(project, {
+      claimId: 'conflict-race-owner',
+      leaseMs: 60_000,
+      now: Date.now(),
+    });
+    if (claim === undefined) throw new Error('missing relay claim');
+    const directory = path.dirname(claim.path);
+    const sourceHash = createHash('sha256').update(draft.sourceKey).digest('hex');
+    const conflictingAcknowledgement = JSON.stringify({
+      requestId: randomUUID(),
+      sourceKey: draft.sourceKey,
+      sourcePayloadHash: '0'.repeat(64),
+      state: 'acknowledged',
+      version: 1,
+    });
+    writeFileSync(
+      path.join(directory, `source-${sourceHash}.acknowledged.json`),
+      conflictingAcknowledgement,
+    );
+    const quarantined = deferred<boolean>();
+    const resumeReplacement = deferred<boolean>();
+    const acknowledgement = acknowledgeRelayClaim(
+      claim,
+      {
+        receiptId: 'receipt-conflict-race',
+        requestId: persisted.requestId,
+        state: 'filed',
+      },
+      {
+        faults: {
+          afterSourceAcknowledgementQuarantine: async () => {
+            quarantined.resolve(true);
+            await resumeReplacement.promise;
+          },
+        },
+      },
+    );
+    await quarantined.promise;
+    expect(
+      readFileSync(path.join(directory, `source-${sourceHash}.acknowledged.json`), 'utf8'),
+    ).toBe(conflictingAcknowledgement);
+
+    await expect(persistRelayDraft(project, draft)).resolves.toBeUndefined();
+    expect(
+      readdirSync(directory).filter(filename => filename.endsWith('.materializing.json')),
+    ).toEqual([]);
+    resumeReplacement.resolve(true);
+    await expect(acknowledgement).resolves.toBe(true);
   });
 
   it('refuses to discard a request owned by an active delivery claim', async () => {
@@ -281,9 +719,11 @@ describe('immutable relay delivery spool', () => {
     const attempted = deferred<boolean>();
     const resumeDiscard = deferred<boolean>();
     const discard = discardRelayRequest(project, persisted.requestId, {
-      faultAfterClaims: async () => {
-        attempted.resolve(true);
-        await resumeDiscard.promise;
+      faults: {
+        afterClaims: async () => {
+          attempted.resolve(true);
+          await resumeDiscard.promise;
+        },
       },
     });
     await attempted.promise;
@@ -310,9 +750,11 @@ describe('immutable relay delivery spool', () => {
     const attempted = deferred<boolean>();
     const resumeDiscard = deferred<boolean>();
     const discard = discardRelayRequest(project, persisted.requestId, {
-      faultAfterClaims: async () => {
-        attempted.resolve(true);
-        await resumeDiscard.promise;
+      faults: {
+        afterClaims: async () => {
+          attempted.resolve(true);
+          await resumeDiscard.promise;
+        },
       },
     });
     await attempted.promise;
@@ -350,9 +792,11 @@ describe('immutable relay delivery spool', () => {
         state: 'filed',
       },
       {
-        faultAfterAck: async () => {
-          acknowledged.resolve(true);
-          await resumeAcknowledgement.promise;
+        faults: {
+          afterAck: async () => {
+            acknowledged.resolve(true);
+            await resumeAcknowledgement.promise;
+          },
         },
       },
     );
@@ -396,18 +840,22 @@ describe('immutable relay delivery spool', () => {
         state: 'filed',
       },
       {
-        faultAfterOwnershipCheck: async () => {
-          ownershipChecked.resolve(true);
-          await resumeAcknowledgement.promise;
+        faults: {
+          afterOwnershipCheck: async () => {
+            ownershipChecked.resolve(true);
+            await resumeAcknowledgement.promise;
+          },
         },
       },
     );
     await ownershipChecked.promise;
     await recoverRelaySpool(project, 2);
     const discard = discardRelayRequest(project, persisted.requestId, {
-      faultAfterTombstone: async () => {
-        tombstoned.resolve(true);
-        await resumeDiscard.promise;
+      faults: {
+        afterTombstone: async () => {
+          tombstoned.resolve(true);
+          await resumeDiscard.promise;
+        },
       },
     });
     await tombstoned.promise;
@@ -463,7 +911,7 @@ describe('immutable relay delivery spool', () => {
 
     await expect(
       discardRelayRequest(project, persisted.requestId, {
-        faultAfterClaims: () => Promise.reject(new Error('simulated discard crash')),
+        faults: { afterClaims: () => Promise.reject(new Error('simulated discard crash')) },
       }),
     ).rejects.toThrow('simulated discard crash');
     await recoverRelaySpool(project, now + 120_000);
@@ -489,9 +937,11 @@ describe('immutable relay delivery spool', () => {
     const paused = deferred<boolean>();
     const resume = deferred<boolean>();
     const discard = discardRelayRequest(project, persisted.requestId, {
-      faultAfterClaims: async () => {
-        paused.resolve(true);
-        await resume.promise;
+      faults: {
+        afterClaims: async () => {
+          paused.resolve(true);
+          await resume.promise;
+        },
       },
     });
     await paused.promise;
@@ -516,9 +966,11 @@ describe('immutable relay delivery spool', () => {
     const paused = deferred<boolean>();
     const resume = deferred<boolean>();
     const discard = discardRelayRequest(project, persisted.requestId, {
-      faultAfterClaims: async () => {
-        paused.resolve(true);
-        await resume.promise;
+      faults: {
+        afterClaims: async () => {
+          paused.resolve(true);
+          await resume.promise;
+        },
       },
     });
     await paused.promise;
@@ -547,16 +999,20 @@ describe('immutable relay delivery spool', () => {
     const secondPause = deferred<boolean>();
     const secondResume = deferred<boolean>();
     const first = discardRelayRequest(project, persisted.requestId, {
-      faultAfterClaims: async () => {
-        firstPause.resolve(true);
-        await firstResume.promise;
+      faults: {
+        afterClaims: async () => {
+          firstPause.resolve(true);
+          await firstResume.promise;
+        },
       },
     });
     await firstPause.promise;
     const second = discardRelayRequest(project, persisted.requestId, {
-      faultAfterClaims: async () => {
-        secondPause.resolve(true);
-        await secondResume.promise;
+      faults: {
+        afterClaims: async () => {
+          secondPause.resolve(true);
+          await secondResume.promise;
+        },
       },
     });
     await secondPause.promise;
@@ -585,9 +1041,11 @@ describe('immutable relay delivery spool', () => {
     const snapshotted = deferred<boolean>();
     const resumePersist = deferred<boolean>();
     const persistence = persistRelayDraft(project, draft, {
-      faultAfterStateSnapshot: async () => {
-        snapshotted.resolve(true);
-        await resumePersist.promise;
+      faults: {
+        afterStateSnapshot: async () => {
+          snapshotted.resolve(true);
+          await resumePersist.promise;
+        },
       },
     });
     await snapshotted.promise;
@@ -646,9 +1104,11 @@ describe('immutable relay delivery spool', () => {
     const snapshotted = deferred<boolean>();
     const resumePersistence = deferred<boolean>();
     const persistence = persistRelayDraft(project, draft, {
-      faultAfterStateSnapshot: async () => {
-        snapshotted.resolve(true);
-        await resumePersistence.promise;
+      faults: {
+        afterStateSnapshot: async () => {
+          snapshotted.resolve(true);
+          await resumePersistence.promise;
+        },
       },
     });
 
@@ -674,16 +1134,20 @@ describe('immutable relay delivery spool', () => {
     const conflictChecked = deferred<boolean>();
     const resumeDiscard = deferred<boolean>();
     const persistence = persistRelayDraft(project, draft, {
-      faultAfterStateSnapshot: async () => {
-        persistencePaused.resolve(true);
-        await resumePersistence.promise;
+      faults: {
+        afterStateSnapshot: async () => {
+          persistencePaused.resolve(true);
+          await resumePersistence.promise;
+        },
       },
     });
     await persistencePaused.promise;
     const discard = discardRelayRequest(project, persisted.requestId, {
-      faultAfterConflictCheck: async () => {
-        conflictChecked.resolve(true);
-        await resumeDiscard.promise;
+      faults: {
+        afterConflictCheck: async () => {
+          conflictChecked.resolve(true);
+          await resumeDiscard.promise;
+        },
       },
     });
     await conflictChecked.promise;
@@ -714,9 +1178,11 @@ describe('immutable relay delivery spool', () => {
     const tombstoned = deferred<boolean>();
     const resumeDiscard = deferred<boolean>();
     const discard = discardRelayRequest(project, persisted.requestId, {
-      faultAfterTombstone: async () => {
-        tombstoned.resolve(true);
-        await resumeDiscard.promise;
+      faults: {
+        afterTombstone: async () => {
+          tombstoned.resolve(true);
+          await resumeDiscard.promise;
+        },
       },
     });
 
@@ -762,9 +1228,11 @@ describe('immutable relay delivery spool', () => {
     const checked = deferred<boolean>();
     const resumePersistence = deferred<boolean>();
     const persistence = persistRelayRequest(project, persisted, {
-      faultAfterDiscardCheck: async () => {
-        checked.resolve(true);
-        await resumePersistence.promise;
+      faults: {
+        afterDiscardCheck: async () => {
+          checked.resolve(true);
+          await resumePersistence.promise;
+        },
       },
     });
 
@@ -774,6 +1242,44 @@ describe('immutable relay delivery spool', () => {
 
     await expect(persistence).rejects.toThrow('relay request identity was discarded');
     await expect(listRelayRequests(project)).resolves.toEqual([]);
+  });
+
+  it('does not let a cancelable discard intent delete a directly persisted request', async () => {
+    const project = temporaryProject();
+    const direct = createRelayRequest(
+      request({ sourceKey: 'source-direct-intent-race', title: 'direct intent race' }),
+    );
+    const checked = deferred<boolean>();
+    const resumePersistence = deferred<boolean>();
+    const persistence = persistRelayRequest(project, direct, {
+      faults: {
+        afterDiscardCheck: async () => {
+          checked.resolve(true);
+          await resumePersistence.promise;
+        },
+      },
+    });
+    await checked.promise;
+    const directory = path.join(project, '.safeword', 'retro-drafts', 'relay');
+    const token = randomUUID();
+    const now = Date.now();
+    writeFileSync(
+      path.join(directory, `${direct.requestId}.discarding.${token}.json`),
+      JSON.stringify({
+        claimId: 'cancelable-discard',
+        expiresAt: now + 60_000,
+        requestId: direct.requestId,
+        startedAt: new Date(now).toISOString(),
+        token,
+        version: 1,
+      }),
+    );
+    resumePersistence.resolve(true);
+
+    const persisted = await persistence;
+    const active = activeRequestPath(project, direct.requestId);
+    expect(persisted.path).toBe(active);
+    expect(readFileSync(active)).toEqual(Buffer.from(JSON.stringify(direct), 'utf8'));
   });
 
   it('refuses to discard a dead letter while recovery owns it', async () => {
@@ -819,6 +1325,74 @@ describe('immutable relay delivery spool', () => {
     await expect(listRelayRequests(project)).resolves.toEqual([]);
   });
 
+  it('does not submit a structurally invalid dead letter during recovery', async () => {
+    const project = temporaryProject();
+    const requestId = randomUUID();
+    const directory = path.join(project, '.safeword', 'retro-drafts', 'relay');
+    mkdirSync(directory, { recursive: true });
+    writeFileSync(
+      path.join(directory, `${requestId}.dead-letter.json`),
+      JSON.stringify({ requestId, title: 'missing required fields' }),
+    );
+    const fetch = vi.fn<typeof globalThis.fetch>();
+
+    await expect(
+      recoverRelayDeadLetter(project, requestId, {
+        credential: 'swc_client_secret',
+        fetch,
+        relayUrl: 'https://relay.example.test',
+      }),
+    ).resolves.toBe(false);
+
+    expect(fetch).not.toHaveBeenCalled();
+    expect(readFileSync(deadLetterRequestPath(project, requestId), 'utf8')).toContain(
+      'missing required fields',
+    );
+  });
+
+  it('versions operator recovery and rejects an invalid recovered receipt shape', async () => {
+    const project = temporaryProject();
+    const persisted = await persistRelayDraft(
+      project,
+      request({ sourceKey: 'source-invalid-recovered-receipt', title: 'invalid receipt' }),
+    );
+    if (persisted === undefined) throw new Error('missing relay request');
+    renameSync(
+      activeRequestPath(project, persisted.requestId),
+      deadLetterRequestPath(project, persisted.requestId),
+    );
+    let recoveryHeaders: Headers | undefined;
+    const fetch = vi.fn<typeof globalThis.fetch>(async (_input, init) => {
+      await Promise.resolve();
+      if (fetch.mock.calls.length === 1) {
+        return Response.json({
+          receiptId: 'ambiguous-receipt',
+          requestId: persisted.requestId,
+          state: 'ambiguous',
+        });
+      }
+      recoveryHeaders = new Headers(init?.headers);
+      return Response.json({
+        issueNumber: 'not-a-number',
+        receiptId: 'ambiguous-receipt',
+        requestId: persisted.requestId,
+        state: 'filed',
+      });
+    });
+
+    await expect(
+      recoverRelayDeadLetter(project, persisted.requestId, {
+        credential: 'swc_client_secret',
+        fetch,
+        operatorCredential: 'swc_operator_secret',
+        relayUrl: 'https://relay.example.test',
+      }),
+    ).resolves.toBe(false);
+
+    expect(recoveryHeaders?.get('x-safeword-relay-api-version')).toBe('1');
+    await expect(listRelayDeadLetters(project)).resolves.toHaveLength(1);
+  });
+
   it('does not advance the reservation before a renewed recovery is accepted', async () => {
     const project = temporaryProject();
     const draft = request({
@@ -827,7 +1401,13 @@ describe('immutable relay delivery spool', () => {
       sourceKey: 'source-renewal-rollback',
       title: 'renewal rollback',
     });
-    const persisted = await persistRelayDraft(project, draft);
+    const persisted = await persistRelayDraft(project, draft, {
+      requestDependencies: {
+        now: () => 0,
+        randomUUID,
+        retryDeadlineAt: () => new Date(1).toISOString(),
+      },
+    });
     if (persisted === undefined) throw new Error('missing relay request');
     const primary = activeRequestPath(project, persisted.requestId);
     renameSync(primary, deadLetterRequestPath(project, persisted.requestId));
@@ -881,9 +1461,11 @@ describe('immutable relay delivery spool', () => {
     const claimed = deferred<boolean>();
     const continueDiscard = deferred<boolean>();
     const discard = discardRelayRequest(project, persisted.requestId, {
-      faultAfterClaims: async () => {
-        claimed.resolve(true);
-        await continueDiscard.promise;
+      faults: {
+        afterClaims: async () => {
+          claimed.resolve(true);
+          await continueDiscard.promise;
+        },
       },
     });
 
@@ -972,45 +1554,39 @@ describe('immutable relay delivery spool', () => {
     await expect(listRelayRequests(project)).resolves.toEqual([]);
   });
 
-  it.each(['dead-letter', 'recovery-claim'] as const)(
-    'lets a durable acknowledgement clean up a stranded %s',
-    async state => {
-      const project = temporaryProject();
-      const draft = request({ sourceKey: `source-ack-${state}`, title: `ack ${state}` });
-      const persisted = await persistRelayDraft(project, draft);
-      if (persisted === undefined) throw new Error('missing relay request');
-      const active = activeRequestPath(project, persisted.requestId);
-      const activeStem = active.replace(/(?:\.materializing)?\.json$/u, '');
-      const stranded =
-        state === 'dead-letter'
-          ? `${activeStem}.dead-letter.json`
-          : `${activeStem}.recovery-claim.crashed-recovery.1.json`;
-      renameSync(active, stranded);
-      const claim = {
-        bytes: Buffer.from(JSON.stringify(persisted), 'utf8'),
-        path: stranded,
-        requestId: persisted.requestId,
-      };
+  it('lets a durable acknowledgement clean up a stranded recovery claim', async () => {
+    const project = temporaryProject();
+    const draft = request({ sourceKey: 'source-ack-recovery-claim', title: 'ack recovery-claim' });
+    const persisted = await persistRelayDraft(project, draft);
+    if (persisted === undefined) throw new Error('missing relay request');
+    const active = activeRequestPath(project, persisted.requestId);
+    const activeStem = active.replace(/(?:\.materializing)?\.json$/u, '');
+    const stranded = `${activeStem}.recovery-claim.crashed-recovery.1.json`;
+    renameSync(active, stranded);
+    const claim = {
+      bytes: Buffer.from(JSON.stringify(persisted), 'utf8'),
+      path: stranded,
+      requestId: persisted.requestId,
+    };
 
-      await expect(
-        acknowledgeRelayClaim(
-          claim,
-          {
-            issueNumber: 1479,
-            receiptId: `receipt-${state}`,
-            requestId: persisted.requestId,
-            state: 'filed',
-          },
-          { faultAfterAck: () => Promise.reject(new Error('cleanup crash')) },
-        ),
-      ).rejects.toThrow('cleanup crash');
-      await recoverRelaySpool(project, 2);
+    await expect(
+      acknowledgeRelayClaim(
+        claim,
+        {
+          issueNumber: 1479,
+          receiptId: 'receipt-recovery-claim',
+          requestId: persisted.requestId,
+          state: 'filed',
+        },
+        { faults: { afterAck: () => Promise.reject(new Error('cleanup crash')) } },
+      ),
+    ).rejects.toThrow('cleanup crash');
+    await recoverRelaySpool(project, 2);
 
-      await expect(listRelayDeadLetters(project)).resolves.toEqual([]);
-      await expect(listRelayRequests(project)).resolves.toEqual([]);
-      await expect(persistRelayDraft(project, draft)).resolves.toBeUndefined();
-    },
-  );
+    await expect(listRelayDeadLetters(project)).resolves.toEqual([]);
+    await expect(listRelayRequests(project)).resolves.toEqual([]);
+    await expect(persistRelayDraft(project, draft)).resolves.toBeUndefined();
+  });
 
   it('restores expired recovery claims before listing operator dead letters', async () => {
     const project = temporaryProject();
@@ -1050,9 +1626,11 @@ describe('immutable relay delivery spool', () => {
 
       await expect(
         recoverRelaySpool(project, 2, {
-          faultBeforeDuplicateRead: claimPath => {
-            rmSync(claimPath);
-            return Promise.resolve();
+          faults: {
+            beforeDuplicateRead: claimPath => {
+              rmSync(claimPath);
+              return Promise.resolve();
+            },
           },
         }),
       ).resolves.toBeUndefined();
@@ -1290,7 +1868,7 @@ describe('immutable relay delivery spool', () => {
 
     await expect(
       persistRelayRequest(project, original, {
-        faultBeforeFileSync: () => Promise.reject(new Error('simulated fsync failure')),
+        faults: { beforeFileSync: () => Promise.reject(new Error('simulated fsync failure')) },
       }),
     ).rejects.toThrow('simulated fsync failure');
   });
@@ -1301,8 +1879,9 @@ describe('immutable relay delivery spool', () => {
 
     await expect(
       persistRelayRequest(project, original, {
-        faultBeforeDirectorySync: () =>
-          Promise.reject(new Error('simulated directory fsync failure')),
+        faults: {
+          beforeDirectorySync: () => Promise.reject(new Error('simulated directory fsync failure')),
+        },
       }),
     ).rejects.toThrow('simulated directory fsync failure');
     expect(readdirSync(path.join(project, '.safeword', 'retro-drafts', 'relay'))).toHaveLength(0);
@@ -1318,9 +1897,11 @@ describe('immutable relay delivery spool', () => {
     const winnerAtSync = deferred<undefined>();
     const winnerCanSync = deferred<undefined>();
     const winner = persistRelayRequest(project, original, {
-      faultBeforeDirectorySync: async () => {
-        winnerAtSync.resolve(undefined);
-        await winnerCanSync.promise;
+      faults: {
+        beforeDirectorySync: async () => {
+          winnerAtSync.resolve(undefined);
+          await winnerCanSync.promise;
+        },
       },
     });
     await winnerAtSync.promise;
@@ -1329,7 +1910,7 @@ describe('immutable relay delivery spool', () => {
     try {
       await expect(
         persistRelayRequest(project, original, {
-          faultBeforeDirectorySync: loserDirectorySync,
+          faults: { beforeDirectorySync: loserDirectorySync },
         }),
       ).resolves.toMatchObject({ bytes: Buffer.from(JSON.stringify(original), 'utf8') });
       expect(loserDirectorySync).toHaveBeenCalledOnce();
@@ -1339,10 +1920,7 @@ describe('immutable relay delivery spool', () => {
     }
   });
 
-  it.each([
-    '[ORR-005] an active spool claim excludes another session',
-    '[ORR-006] an expired spool claim is rearmed without changing the request',
-  ])('%s', async () => {
+  it('[ORR-005] An active spool claim excludes another session', async () => {
     const project = temporaryProject();
     const original = request();
     await persistRelayRequest(project, original);
@@ -1355,7 +1933,17 @@ describe('immutable relay delivery spool', () => {
     await expect(
       claimRelayRequest(project, { claimId: 'second', leaseMs: 100, now: 1050 }),
     ).resolves.toBeUndefined();
+  });
 
+  it('[ORR-006] An expired spool claim is rearmed without changing the request', async () => {
+    const project = temporaryProject();
+    const original = request();
+    await persistRelayRequest(project, original);
+    const first = await claimRelayRequest(project, {
+      claimId: 'first',
+      leaseMs: 100,
+      now: 1000,
+    });
     const successor = await claimRelayRequest(project, {
       claimId: 'second',
       leaseMs: 100,
@@ -1364,6 +1952,23 @@ describe('immutable relay delivery spool', () => {
     if (first === undefined || successor === undefined) throw new Error('expected both claims');
     expect(successor?.requestId).toBe(original.requestId);
     expect(successor?.bytes).toEqual(first?.bytes);
+  });
+
+  it('prevents an expired claimant from acknowledging its successor', async () => {
+    const project = temporaryProject();
+    const original = request();
+    await persistRelayRequest(project, original);
+    const first = await claimRelayRequest(project, {
+      claimId: 'first',
+      leaseMs: 100,
+      now: 1000,
+    });
+    const successor = await claimRelayRequest(project, {
+      claimId: 'second',
+      leaseMs: 100,
+      now: 1101,
+    });
+    if (first === undefined || successor === undefined) throw new Error('expected both claims');
 
     await expect(
       acknowledgeRelayClaim(first, {
@@ -1392,7 +1997,7 @@ describe('immutable relay delivery spool', () => {
           state: 'filed',
           issueNumber: 1479,
         },
-        { faultAfterAck: () => Promise.reject(new Error('crash')) },
+        { faults: { afterAck: () => Promise.reject(new Error('crash')) } },
       ),
     ).rejects.toThrow('crash');
 
@@ -2022,7 +2627,9 @@ describe('immutable relay delivery spool', () => {
     const relayRequest = request({ sourceKey: 'best-effort-temp-cleanup' });
 
     const persisted = await persistRelayRequest(project, relayRequest, {
-      faultBeforeTemporaryUnlink: () => Promise.reject(new Error('temporary unlink failed')),
+      faults: {
+        beforeTemporaryUnlink: () => Promise.reject(new Error('temporary unlink failed')),
+      },
     });
 
     expect(readFileSync(persisted.path)).toEqual(persisted.bytes);
@@ -2057,9 +2664,11 @@ describe('immutable relay delivery spool', () => {
     // have to invoke this seam once per draft.
     const stateSnapshot = vi.fn();
     const outcomes = await persistRelayDraftBatch(project, drafts, {
-      faultAfterStateSnapshot: () => {
-        stateSnapshot();
-        return Promise.resolve();
+      faults: {
+        afterStateSnapshot: () => {
+          stateSnapshot();
+          return Promise.resolve();
+        },
       },
     });
 
@@ -2094,9 +2703,11 @@ describe('immutable relay delivery spool', () => {
 
     await expect(
       persistRelayDraft(project, draft, {
-        faultAfterStateSnapshot: () => {
-          rmSync(intent);
-          return Promise.resolve();
+        faults: {
+          afterStateSnapshot: () => {
+            rmSync(intent);
+            return Promise.resolve();
+          },
         },
       }),
     ).resolves.toMatchObject({ requestId: persisted.requestId });
@@ -2112,7 +2723,7 @@ describe('immutable relay delivery spool', () => {
 
     await expect(
       persistRelayDraftBatch(project, drafts, {
-        faultAfterStateSnapshot: () => Promise.reject(new Error('snapshot failed')),
+        faults: { afterStateSnapshot: () => Promise.reject(new Error('snapshot failed')) },
       }),
     ).resolves.toEqual([
       { reason: expect.objectContaining({ message: 'snapshot failed' }), status: 'rejected' },
@@ -2220,11 +2831,15 @@ describe('immutable relay delivery spool', () => {
     );
   });
 
-  it('self-heals a malformed retry schedule before delivering the persisted request', async () => {
+  it.each([
+    ['invalid JSON', '{not-json'],
+    ['negative attempt count', JSON.stringify({ attemptCount: -1, nextAttemptAt: 0, version: 1 })],
+    ['negative next attempt', JSON.stringify({ attemptCount: 1, nextAttemptAt: -1, version: 1 })],
+  ])('self-heals a retry schedule with %s before delivery', async (_case, serialized) => {
     const project = temporaryProject();
     const original = request({ sourceKey: 'malformed-schedule' });
     const persisted = await persistRelayRequest(project, original);
-    writeFileSync(retrySchedulePath(project, original.requestId), '{not-json');
+    writeFileSync(retrySchedulePath(project, original.requestId), serialized);
 
     await expect(
       deliverRelayRequests(project, {
@@ -2239,6 +2854,31 @@ describe('immutable relay delivery spool', () => {
     expect(readdirSync(path.dirname(persisted.path))).not.toContain(
       `${original.requestId}.retry-schedule.json`,
     );
+  });
+
+  it.skipIf(
+    process.platform === 'win32' ||
+      (typeof process.getuid === 'function' && process.getuid() === 0),
+  )('surfaces retry schedule filesystem errors without deleting the schedule', async () => {
+    const project = temporaryProject();
+    const original = request({ sourceKey: 'unreadable-schedule' });
+    const persisted = await persistRelayRequest(project, original);
+    const schedule = retrySchedulePath(project, original.requestId);
+    writeFileSync(schedule, JSON.stringify({ attemptCount: 1, nextAttemptAt: 0, version: 1 }));
+    chmodSync(schedule, 0o000);
+
+    await expect(
+      deliverRelayRequests(project, {
+        credential: 'swc_client_secret',
+        deadlineMs: 25,
+        fetch: acceptedRelayFetch(),
+        now: Date.now,
+        relayUrl: 'https://relay.invalid',
+      }),
+    ).rejects.toMatchObject({ code: 'EACCES' });
+
+    expect(readdirSync(path.dirname(persisted.path))).toContain(path.basename(schedule));
+    chmodSync(schedule, 0o600);
   });
 
   it('removes a retry schedule when the request is discarded', async () => {
@@ -2331,17 +2971,20 @@ describe('immutable relay delivery spool', () => {
     const project = temporaryProject();
     await persistRelayRequest(project, request());
     const observedUrls: string[] = [];
-    const send = vi.fn<typeof fetch>((input, _init) => {
+    const send = vi.fn<typeof fetch>((input, init) => {
       let observedUrl: string;
       if (typeof input === 'string') observedUrl = input;
       else if (input instanceof URL) observedUrl = input.href;
       else observedUrl = input.url;
       observedUrls.push(observedUrl);
+      const submitted = JSON.parse(
+        Buffer.from(init?.body as Uint8Array).toString('utf8'),
+      ) as RelayDraftRequest;
       return Promise.resolve(
         Response.json(
           {
             receiptId: 'receipt-normalized-url',
-            requestId: request().requestId,
+            requestId: submitted.requestId,
             state: 'filed',
           },
           { status: 201 },
@@ -2359,6 +3002,30 @@ describe('immutable relay delivery spool', () => {
 
     expect(send).toHaveBeenCalledOnce();
     expect(observedUrls).toEqual(['https://relay.invalid/v1/retro-filings']);
+  });
+
+  it('rearms a claim when the relay receipt belongs to another request', async () => {
+    const project = temporaryProject();
+    await persistRelayRequest(project, request());
+
+    const outcome = await deliverRelayRequests(project, {
+      credential: 'swc_client_secret',
+      deadlineMs: 500,
+      fetch: () =>
+        Promise.resolve(
+          Response.json({
+            receiptId: 'receipt-wrong-request',
+            requestId: '00000000-0000-4000-8000-000000000000',
+            state: 'filed',
+          }),
+        ),
+      now: Date.now,
+      relayUrl: 'https://relay.invalid',
+    });
+
+    expect(outcome.accepted).toBe(0);
+    expect(outcome.retryable).toBe(1);
+    await expect(listRelayRequests(project)).resolves.toHaveLength(1);
   });
 
   it('does not start an HTTP attempt without its full deadline plus cleanup reserve', async () => {
@@ -2388,7 +3055,6 @@ describe('immutable relay delivery spool', () => {
   it('does not extend the default drain beyond the session budget after durable overhead', async () => {
     const project = temporaryProject();
     await persistRelayRequest(project, request());
-    const monotonicTimes = [0, 751, 751, 751];
     const send = vi.fn<typeof fetch>((_input, init) => {
       const sent = JSON.parse(
         Buffer.from(init?.body as Uint8Array).toString('utf8'),
@@ -2409,7 +3075,7 @@ describe('immutable relay delivery spool', () => {
       credential: 'swc_client_secret',
       deadlineMs: 25,
       fetch: send,
-      monotonicNow: () => monotonicTimes.shift() ?? 9000,
+      monotonicNow: sequenceClock(0, 751, 751, 751),
       now: () => 0,
       relayUrl: 'https://relay.invalid',
     });
@@ -2419,7 +3085,41 @@ describe('immutable relay delivery spool', () => {
     expect(outcome.retryable).toBe(1);
   });
 
-  it('[ORR-004] bounds a multi-draft blackhole below 1.5 seconds with the default aggregate budget', async () => {
+  it('[ORR-004] A multi-draft drain shares one aggregate latency budget', async () => {
+    const project = temporaryProject();
+    for (const [index, title] of ['first', 'second', 'third'].entries()) {
+      await persistRelayRequest(
+        project,
+        request({
+          requestId: `00000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+          sourceKey: `source-budget-${index}`,
+          title,
+        }),
+      );
+    }
+    let elapsed = 0;
+    const attemptStartedAt: number[] = [];
+    const send = vi.fn<typeof fetch>(() => {
+      attemptStartedAt.push(elapsed);
+      elapsed += 500;
+      return Promise.reject(new Error('simulated relay blackhole'));
+    });
+
+    const outcome = await deliverRelayRequests(project, {
+      credential: 'swc_client_secret',
+      deadlineMs: 500,
+      fetch: send,
+      monotonicNow: () => elapsed,
+      now: () => 0,
+      relayUrl: 'https://relay.invalid',
+    });
+
+    expect(attemptStartedAt).toEqual([0, 500]);
+    expect(attemptStartedAt.every(startedAt => startedAt < 1000)).toBe(true);
+    expect(outcome.retryable).toBe(3);
+  });
+
+  it('bounds a multi-draft blackhole below 1.5 seconds in wall-clock time', async () => {
     const project = temporaryProject();
     for (const [index, title] of ['first', 'second', 'third'].entries()) {
       await persistRelayRequest(
@@ -2468,18 +3168,7 @@ describe('relay readiness provenance', () => {
 
   it('accepts only fresh evidence reachable from the immutable build', async () => {
     const manifest = validManifest();
-    const result = await validateRelayReadiness(manifest, {
-      buildCommit: 'b'.repeat(40),
-      isAncestor: (ancestor, descendant) =>
-        Promise.resolve(
-          (ancestor === manifest.evidenceCommit && descendant === 'b'.repeat(40)) ||
-            (manifest.prerequisites.map(item => item.mergedCommit).includes(ancestor) &&
-              descendant === manifest.evidenceCommit),
-        ),
-      now: new Date('2026-07-26T12:00:00.000Z'),
-      readArtifactAtCommit: (_commit, artifactPath) =>
-        Promise.resolve(measurementArtifact(manifest, artifactPath)),
-    });
+    const result = await validateRelayReadiness(manifest, validReadinessDependencies(manifest));
     expect(result).toEqual({ enabled: true });
   });
 
@@ -2500,22 +3189,17 @@ describe('relay readiness provenance', () => {
       sampleSize: 300,
       version: 2,
     });
-    const result = await validateRelayReadiness(manifest, {
-      buildCommit: 'b'.repeat(40),
-      isAncestor: (ancestor, descendant) =>
-        Promise.resolve(
-          (ancestor === manifest.evidenceCommit && descendant === 'b'.repeat(40)) ||
-            (manifest.prerequisites.map(item => item.mergedCommit).includes(ancestor) &&
-              descendant === manifest.evidenceCommit),
-        ),
-      now: new Date('2026-07-26T12:00:00.000Z'),
-      readArtifactAtCommit: (_commit, artifactPath) =>
-        Promise.resolve(
-          artifactPath === manifest.measurements.drainThroughput.path
-            ? { content, sha256: manifest.measurements.drainThroughput.sha256 }
-            : measurementArtifact(manifest, artifactPath),
-        ),
-    });
+    const result = await validateRelayReadiness(
+      manifest,
+      validReadinessDependencies(manifest, {
+        readArtifactAtCommit: (_commit, artifactPath) =>
+          Promise.resolve(
+            artifactPath === manifest.measurements.drainThroughput.path
+              ? { content, sha256: manifest.measurements.drainThroughput.sha256 }
+              : measurementArtifact(manifest, artifactPath),
+          ),
+      }),
+    );
 
     expect(result).toEqual({ enabled: true });
   });
@@ -2550,17 +3234,18 @@ describe('relay readiness provenance', () => {
     ];
     for (const content of invalidContents) {
       await expect(
-        validateRelayReadiness(manifest, {
-          buildCommit: 'b'.repeat(40),
-          isAncestor: () => Promise.resolve(true),
-          now: new Date('2026-07-26T12:00:00.000Z'),
-          readArtifactAtCommit: (_commit, artifactPath) =>
-            Promise.resolve(
-              artifactPath === drainArtifact.path
-                ? { content, sha256: drainArtifact.sha256 }
-                : measurementArtifact(manifest, artifactPath),
-            ),
-        }),
+        validateRelayReadiness(
+          manifest,
+          validReadinessDependencies(manifest, {
+            isAncestor: () => Promise.resolve(true),
+            readArtifactAtCommit: (_commit, artifactPath) =>
+              Promise.resolve(
+                artifactPath === drainArtifact.path
+                  ? { content, sha256: drainArtifact.sha256 }
+                  : measurementArtifact(manifest, artifactPath),
+              ),
+          }),
+        ),
       ).resolves.toEqual({ enabled: false });
     }
   });
@@ -2569,24 +3254,25 @@ describe('relay readiness provenance', () => {
     const manifest = validManifest();
     delete (manifest.measurements as unknown as Record<string, unknown>).drainThroughput;
 
-    const result = await validateRelayReadiness(manifest, {
-      buildCommit: 'b'.repeat(40),
-      isAncestor: () => Promise.resolve(true),
-      now: new Date('2026-07-26T12:00:00.000Z'),
-      readArtifactAtCommit: (_commit, artifactPath) => {
-        const artifact = Object.values(manifest.measurements).find(
-          candidate => candidate.path === artifactPath,
-        );
-        return Promise.resolve(
-          artifact === undefined
-            ? undefined
-            : {
-                content: measurementContent(manifest, artifactPath),
-                sha256: artifact.sha256,
-              },
-        );
-      },
-    });
+    const result = await validateRelayReadiness(
+      manifest,
+      validReadinessDependencies(manifest, {
+        isAncestor: () => Promise.resolve(true),
+        readArtifactAtCommit: (_commit, artifactPath) => {
+          const artifact = Object.values(manifest.measurements).find(
+            candidate => candidate.path === artifactPath,
+          );
+          return Promise.resolve(
+            artifact === undefined
+              ? undefined
+              : {
+                  content: measurementContent(manifest, artifactPath),
+                  sha256: artifact.sha256,
+                },
+          );
+        },
+      }),
+    );
 
     expect(result).toEqual({ enabled: false });
   });
@@ -2601,22 +3287,23 @@ describe('relay readiness provenance', () => {
     async (_name, key, value) => {
       const manifest = validManifest();
 
-      const result = await validateRelayReadiness(manifest, {
-        buildCommit: 'b'.repeat(40),
-        isAncestor: () => Promise.resolve(true),
-        now: new Date('2026-07-26T12:00:00.000Z'),
-        readArtifactAtCommit: (_commit, artifactPath) => {
-          const artifact = measurementArtifact(manifest, artifactPath);
-          if (artifactPath !== manifest.measurements.drainThroughput.path) {
-            return Promise.resolve(artifact);
-          }
-          const evidence = JSON.parse(artifact.content) as {
-            result: Record<string, number>;
-          };
-          evidence.result[key] = value;
-          return Promise.resolve({ content: JSON.stringify(evidence), sha256: artifact.sha256 });
-        },
-      });
+      const result = await validateRelayReadiness(
+        manifest,
+        validReadinessDependencies(manifest, {
+          isAncestor: () => Promise.resolve(true),
+          readArtifactAtCommit: (_commit, artifactPath) => {
+            const artifact = measurementArtifact(manifest, artifactPath);
+            if (artifactPath !== manifest.measurements.drainThroughput.path) {
+              return Promise.resolve(artifact);
+            }
+            const evidence = JSON.parse(artifact.content) as {
+              result: Record<string, number>;
+            };
+            evidence.result[key] = value;
+            return Promise.resolve({ content: JSON.stringify(evidence), sha256: artifact.sha256 });
+          },
+        }),
+      );
 
       expect(result).toEqual({ enabled: false });
     },
@@ -2626,73 +3313,131 @@ describe('relay readiness provenance', () => {
     const manifest = validManifest();
     manifest.measurements.spooledNeverFiled.sampleSize = 0;
 
-    const result = await validateRelayReadiness(manifest, {
-      buildCommit: 'b'.repeat(40),
-      isAncestor: () => Promise.resolve(true),
-      now: new Date('2026-07-26T12:00:00.000Z'),
-      readArtifactAtCommit: (_commit, artifactPath) =>
-        Promise.resolve({
-          content: measurementContent(manifest, artifactPath),
-          sha256: measurementArtifact(manifest, artifactPath).sha256,
+    const result = await validateRelayReadiness(
+      manifest,
+      validReadinessDependencies(manifest, {
+        isAncestor: () => Promise.resolve(true),
+        readArtifactAtCommit: (_commit, artifactPath) =>
+          Promise.resolve({
+            content: measurementContent(manifest, artifactPath),
+            sha256: measurementArtifact(manifest, artifactPath).sha256,
+          }),
+      }),
+    );
+
+    expect(result).toEqual({ enabled: false });
+  });
+
+  it.each(['sameSignatureCollisions', 'spooledNeverFiled'] as const)(
+    'fails closed when %s records any failure',
+    async metric => {
+      const manifest = validManifest();
+      const result = await validateRelayReadiness(
+        manifest,
+        validReadinessDependencies(manifest, {
+          isAncestor: () => Promise.resolve(true),
+          readArtifactAtCommit: (_commit, artifactPath) => {
+            const artifact = measurementArtifact(manifest, artifactPath);
+            if (artifactPath !== manifest.measurements[metric].path) {
+              return Promise.resolve(artifact);
+            }
+            const evidence = JSON.parse(artifact.content) as { result: { count: number } };
+            evidence.result.count = 1;
+            const content = JSON.stringify(evidence);
+            const sha256 = createHash('sha256').update(content).digest('hex');
+            manifest.measurements[metric].sha256 = sha256;
+            return Promise.resolve({ content, sha256 });
+          },
         }),
-    });
+      );
+
+      expect(result).toEqual({ enabled: false });
+    },
+  );
+
+  it('[ORR-035] fails closed when hash-attested content describes the wrong measurement', async () => {
+    const manifest = validManifest();
+
+    const result = await validateRelayReadiness(
+      manifest,
+      validReadinessDependencies(manifest, {
+        isAncestor: () => Promise.resolve(true),
+        readArtifactAtCommit: (_commit, artifactPath) => {
+          const artifact = measurementArtifact(manifest, artifactPath);
+          const evidence = JSON.parse(artifact.content) as { metric: string };
+          evidence.metric =
+            evidence.metric === 'sameSignatureCollisions'
+              ? 'spooledNeverFiled'
+              : 'sameSignatureCollisions';
+          const content = JSON.stringify(evidence);
+          const sha256 = createHash('sha256').update(content).digest('hex');
+          const measurement = Object.values(manifest.measurements).find(
+            candidate => candidate.path === artifactPath,
+          );
+          if (measurement === undefined) throw new Error('missing readiness measurement');
+          measurement.sha256 = sha256;
+          return Promise.resolve({ content, sha256 });
+        },
+      }),
+    );
 
     expect(result).toEqual({ enabled: false });
   });
 
-  it('fails closed when hash-attested content describes the wrong measurement', async () => {
-    const manifest = validManifest();
-
-    const result = await validateRelayReadiness(manifest, {
-      buildCommit: 'b'.repeat(40),
-      isAncestor: () => Promise.resolve(true),
-      now: new Date('2026-07-26T12:00:00.000Z'),
-      readArtifactAtCommit: (_commit, artifactPath) => {
-        const artifact = measurementArtifact(manifest, artifactPath);
-        const evidence = JSON.parse(artifact.content) as { metric: string };
-        evidence.metric =
-          evidence.metric === 'sameSignatureCollisions'
-            ? 'spooledNeverFiled'
-            : 'sameSignatureCollisions';
-        return Promise.resolve({ content: JSON.stringify(evidence), sha256: artifact.sha256 });
+  it.each([
+    [
+      'an extra prerequisite',
+      (manifest: RelayReadinessManifest) => {
+        manifest.prerequisites.push({ ...manifest.prerequisites[1] });
       },
-    });
+    ],
+    [
+      'a review timestamp before its evidence',
+      (manifest: RelayReadinessManifest) => {
+        manifest.reviewedAt = '2026-07-24T12:00:00.000Z';
+      },
+    ],
+  ])('fails closed for %s', async (_description, mutate) => {
+    const manifest = validManifest();
+    mutate(manifest);
 
-    expect(result).toEqual({ enabled: false });
+    await expect(
+      validateRelayReadiness(
+        manifest,
+        validReadinessDependencies(manifest, {
+          isAncestor: () => Promise.resolve(true),
+          readArtifactAtCommit: (_commit, artifactPath) =>
+            Promise.resolve(measurementArtifact(manifest, artifactPath)),
+        }),
+      ),
+    ).resolves.toEqual({ enabled: false });
   });
 
-  it('[ORR-011] uses build-embedded evidence without consulting the customer repository', async () => {
+  it('uses build-embedded evidence without consulting the customer repository', async () => {
     const manifest = validManifest();
-    const buildCommit = 'b'.repeat(40);
     const result = await validateBuildAttestedRelayReadiness(
       manifest,
-      {
-        ancestorPairs: [
-          `${manifest.evidenceCommit}:${buildCommit}`,
-          ...manifest.prerequisites.map(
-            prerequisite => `${prerequisite.mergedCommit}:${manifest.evidenceCommit}`,
-          ),
-        ],
-        artifactContents: Object.fromEntries(
-          Object.values(manifest.measurements).map(artifact => [
-            `${manifest.evidenceCommit}:${artifact.path}`,
-            measurementContent(manifest, artifact.path),
-          ]),
-        ),
-        artifactHashes: Object.fromEntries(
-          Object.values(manifest.measurements).map(artifact => [
-            `${manifest.evidenceCommit}:${artifact.path}`,
-            artifact.sha256,
-          ]),
-        ),
-        buildCommit,
-        enabled: true,
-        manifestSha256: createHash('sha256').update(JSON.stringify(manifest)).digest('hex'),
-      },
-      new Date('2026-07-26T12:00:00.000Z'),
+      buildAttestation(manifest),
+      READINESS_NOW,
     );
 
     expect(result).toEqual({ enabled: true });
+  });
+
+  it('refuses a disabled build attestation even when its evidence is populated', async () => {
+    const manifest = validManifest();
+
+    const result = await validateBuildAttestedRelayReadiness(
+      manifest,
+      buildAttestation(manifest, {
+        ancestorPairs: [],
+        artifacts: {},
+        enabled: false,
+      }),
+      READINESS_NOW,
+    );
+
+    expect(result).toEqual({ enabled: false });
   });
 
   it.each([
@@ -2740,20 +3485,21 @@ describe('relay readiness provenance', () => {
     ],
   ])('[%s] fails closed for %s evidence', async (_proofId, kind, mutate) => {
     const manifest = mutate(validManifest());
-    const result = await validateRelayReadiness(manifest, {
-      buildCommit: 'b'.repeat(40),
-      isAncestor: ancestor =>
-        Promise.resolve(
-          (kind !== 'unlanded prerequisite' || ancestor !== 'c'.repeat(40)) &&
-            (kind !== 'other build' || ancestor !== 'e'.repeat(40)),
-        ),
-      now: new Date('2026-07-26T12:00:00.000Z'),
-      readArtifactAtCommit: (_commit, artifactPath) => {
-        let sha256 = measurementArtifact(manifest, artifactPath).sha256;
-        if (kind === 'hash mismatch') sha256 = '3'.repeat(64);
-        return Promise.resolve({ content: measurementContent(manifest, artifactPath), sha256 });
-      },
-    });
+    const result = await validateRelayReadiness(
+      manifest,
+      validReadinessDependencies(manifest, {
+        isAncestor: ancestor =>
+          Promise.resolve(
+            (kind !== 'unlanded prerequisite' || ancestor !== 'c'.repeat(40)) &&
+              (kind !== 'other build' || ancestor !== 'e'.repeat(40)),
+          ),
+        readArtifactAtCommit: (_commit, artifactPath) => {
+          let sha256 = measurementArtifact(manifest, artifactPath).sha256;
+          if (kind === 'hash mismatch') sha256 = '3'.repeat(64);
+          return Promise.resolve({ content: measurementContent(manifest, artifactPath), sha256 });
+        },
+      }),
+    );
     expect(result.enabled).toBe(false);
   });
 });

@@ -19,7 +19,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "9a5d1773138bf2ea3c5c31784de81a6cba20b175f229625a257967bd0e5453d1"
+      "sha256": "1baf85b46a78f61dd56bcb188bb58cda8e66338d2a614437b838b46267b76e42"
     },
     {
       "path": "resources/guides/architecture-guide.md",
@@ -139,7 +139,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "dd1cc7ee8970520380eb1f8553d95a863f507ccfb69a737fcd5e4956947c378b"
+      "sha256": "c6d65ce60e646cbde5391a5b7c0a3364f90ab55864b5e17173be6064a43a7b90"
     },
     {
       "path": "runtime/dispatch.js",

@@ -108,7 +108,7 @@ Feature: Operate the retry-safe retro relay
       And each prerequisite merge is an ancestor of the manifest evidence commit
       And the evidence commit is an ancestor of the immutable build commit
       And both post-fix measurement artifacts are fresh and hash-valid
-      When any harness invokes the shared filing operation through the injected-ready wiring proof
+      When any harness invokes the shared filing operation with that readiness proof
       Then the exact persisted request is sent to the relay
 
     @operate-retry-safe-retro-relay.TBU1.R4 @rejection
