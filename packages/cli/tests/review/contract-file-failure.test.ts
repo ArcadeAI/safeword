@@ -1,4 +1,4 @@
-import { chmodSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -58,11 +58,11 @@ async function withUnwritableTemporaryRoot(
 
 describe('when the result contract cannot be written', () => {
   it('reports a classified review failure instead of crashing, and launches no reviewer', async () => {
-    await withUnwritableTemporaryRoot(async scratch => {
+    await withUnwritableTemporaryRoot(async (scratch, binRoot) => {
       await expect(runHeadlessReviewer('codex', packet, scratch, scratch)).rejects.toBeInstanceOf(
         ReviewRuntimeError,
       );
-      expect(readdirSync(scratch)).not.toContain('launched.log');
+      expect(existsSync(nodePath.join(binRoot, 'launched.log'))).toBe(false);
     });
   });
 
