@@ -16792,6 +16792,10 @@ function resolvedNamespaceRootLabel(ctx) {
 function resolvedIgnoreDirectories(ctx) {
   return safewordIgnoreDirectories(resolvedNamespaceDirectory(ctx));
 }
+function durableNamespaceDirectories(ctx) {
+  const custom = resolvedNamespaceDirectory(ctx);
+  return custom === undefined ? [".project", ".safeword-project"] : [".project", ".safeword-project", custom];
+}
 function dirGlobExcludeMerge(field, globForDirectory = (dir) => `${dir}/**`) {
   return {
     keys: [field],
@@ -16808,8 +16812,9 @@ function dirGlobExcludeMerge(field, globForDirectory = (dir) => `${dir}/**`) {
     },
     unmerge: (existing, ctx) => {
       const safewordGlobs = new Set(resolvedIgnoreDirectories(ctx).map((dir) => globForDirectory(dir)));
+      const durableGlobs = new Set(durableNamespaceDirectories(ctx).map((dir) => globForDirectory(dir)));
       const current = Array.isArray(existing[field]) ? existing[field] : [];
-      const cleaned = current.filter((entry) => !safewordGlobs.has(entry));
+      const cleaned = current.filter((entry) => !safewordGlobs.has(entry) || durableGlobs.has(entry));
       const rest = Object.fromEntries(Object.entries(existing).filter(([key]) => key !== field));
       return cleaned.length > 0 ? { ...rest, [field]: cleaned } : rest;
     }
@@ -17270,6 +17275,9 @@ function addScriptIfMissing(scripts, name, command) {
   if (!existing)
     scripts[name] = command;
 }
+function removeScriptIfEqual(scripts, name, safewordValue) {
+  return scripts[name] === safewordValue ? Object.fromEntries(Object.entries(scripts).filter(([key]) => key !== name)) : scripts;
+}
 function mergeLintScripts(scripts, projectType) {
   addScriptIfMissing(scripts, "lint:gherkin", GHERKIN_LINT_SCRIPT);
   if (projectType.existingLinter) {
@@ -17331,7 +17339,8 @@ var init_files5 = __esm(() => {
         "!.safeword/**",
         ...resolvedIgnoreDirectories(ctx).map((dir) => `!${dir}`)
       ]);
-      const cleanedIncludes = existingIncludes.filter((entry) => !safewordExcludes.has(entry));
+      const durableExcludes = new Set(durableNamespaceDirectories(ctx).map((dir) => `!${dir}`));
+      const cleanedIncludes = existingIncludes.filter((entry) => !safewordExcludes.has(entry) || durableExcludes.has(entry));
       const cleanedFiles = { ...files };
       if (cleanedIncludes.length > 0) {
         cleanedFiles.includes = cleanedIncludes;
@@ -17447,13 +17456,9 @@ var init_files5 = __esm(() => {
       },
       unmerge: (existing, _ctx) => {
         const result = { ...existing };
-        const scripts = { ...existing.scripts };
-        delete scripts["lint:eslint"];
-        delete scripts["lint:sh"];
-        delete scripts["format:check"];
-        delete scripts.knip;
-        delete scripts.publint;
-        delete scripts["test:bdd"];
+        let scripts = { ...existing.scripts };
+        scripts = removeScriptIfEqual(scripts, "lint", SAFEWORD_PRIMARY_LINT_SCRIPT);
+        scripts = removeScriptIfEqual(scripts, "lint:gherkin", GHERKIN_LINT_SCRIPT);
         assignOrPrune(result, "scripts", scripts);
         return result;
       }
@@ -17491,6 +17496,8 @@ var init_files5 = __esm(() => {
         return result;
       },
       unmerge: (existing, ctx) => {
+        if (ctx.projectType.existingPrettierConfig)
+          return existing;
         const result = { ...existing };
         const safewordPlugins = new Set(getPrettierPlugins(ctx.projectType));
         if (Array.isArray(result.plugins)) {
@@ -17923,9 +17930,11 @@ function managedGitattributes(ctx) {
 `);
 }
 function bddLaneFile(templatePath) {
+  const templateContent = () => readFile(nodePath28.join(getTemplatesDirectory(), templatePath));
   return {
     template: templatePath,
-    generator: (ctx) => ctx.projectType.scaffoldBddLane ? readFile(nodePath28.join(getTemplatesDirectory(), templatePath)) : undefined
+    generator: (ctx) => ctx.projectType.scaffoldBddLane ? templateContent() : undefined,
+    removeIfUnmodified: templateContent
   };
 }
 function prReviewEnabled(cwd) {
@@ -18032,9 +18041,12 @@ var init_schema = __esm(() => {
     },
     unmerge: (existing) => {
       const result = { ...existing };
-      const mcpServers = { ...existing.mcpServers };
-      delete mcpServers.context7;
-      delete mcpServers.playwright;
+      let mcpServers = { ...existing.mcpServers };
+      for (const name of ["context7", "playwright"]) {
+        if (JSON.stringify(mcpServers[name]) === JSON.stringify(MCP_SERVERS[name])) {
+          mcpServers = Object.fromEntries(Object.entries(mcpServers).filter(([key]) => key !== name));
+        }
+      }
       assignOrPrune(result, "mcpServers", mcpServers);
       return result;
     }
@@ -18161,17 +18173,17 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
       ".claude",
       ".claude/skills",
       ".claude/commands",
-      ".claude/agents"
-    ],
-    preservedDirs: [
+      ".claude/agents",
       ".safeword-project/learnings",
-      ".safeword/logs",
-      ".safeword/retro-drafts",
-      ".safeword/self-reports",
-      ".safeword/namespace-migration-conflicts-v1",
       ".safeword-project/tickets",
       ".safeword-project/tickets/completed",
       ".safeword-project/tmp"
+    ],
+    preservedDirs: [
+      ".safeword/logs",
+      ".safeword/retro-drafts",
+      ".safeword/self-reports",
+      ".safeword/namespace-migration-conflicts-v1"
     ],
     deprecatedFiles: [
       ".safeword/templates/user-stories-template.md",
@@ -18263,7 +18275,6 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
       ".claude/skills/safeword-bdd-orchestrating"
     ],
     ownedFiles: {
-      ".jscpd.json": { template: ".jscpd.json" },
       "cucumber.mjs": bddLaneFile("cucumber/cucumber.mjs"),
       ".safeword/AGENTS.md": { template: "AGENTS.md" },
       ".safeword/SAFEWORD.md": { template: "SAFEWORD.md" },
@@ -18695,6 +18706,7 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
       ".safeword/hooks/cursor/stop.ts": { template: "hooks/cursor/stop.ts" }
     },
     managedFiles: {
+      ".jscpd.json": { template: ".jscpd.json" },
       ...CODEX_RUNTIME_ASSETS,
       "features/safeword-lane.feature": bddLaneFile("cucumber/safeword-lane.feature"),
       "steps/world.ts": bddLaneFile("cucumber/world.ts"),
@@ -18819,13 +18831,19 @@ ${managedPrettierPaths(ctx).join(`
 `)}
 `,
         rerender: true,
-        marker: PRETTIER_EXCLUSIONS_HEADER
+        marker: PRETTIER_EXCLUSIONS_HEADER,
+        replacementAfterUnpatch: (ctx) => `
+# Project namespace exclusions (preserved after Safeword uninstall)
+${durableNamespaceDirectories(ctx).map((dir) => `${dir}/`).join(`
+`)}
+`
       },
       ".gitattributes": {
         operation: "append",
         content: (ctx) => `${managedGitattributes(ctx)}
 `,
         rerender: true,
+        rerenderOwnedLinePattern: /^(?:\*\*\/architecture\.generated\.md|.+\/tickets\/INDEX(?:-completed)?\.md) merge=union linguist-generated=true$/,
         marker: GITATTRIBUTES_HEADER
       }
     },
@@ -21323,11 +21341,20 @@ function matchesUnmodifiedScaffold(definition, ctx, installed) {
   const normalize = definition.normalizeForUnmodifiedComparison;
   return normalize === undefined ? installed === expected : normalize(installed) === normalize(expected);
 }
-function planConditionalManagedRemoval(managedFiles, ctx) {
+function matchesManagedScaffold(definition, ctx, installed) {
+  if (installed === undefined)
+    return false;
+  if (definition.removeIfUnmodified !== undefined) {
+    return matchesUnmodifiedScaffold(definition, ctx, installed);
+  }
+  const expected = resolveFileContent(definition, ctx);
+  return expected !== undefined && installed === expected;
+}
+function planConditionalManagedRemoval(managedFiles, ctx, includeAllUnmodified = false) {
   const actions = [];
   const removed = [];
   for (const [filePath, definition] of Object.entries(managedFiles)) {
-    if (definition.removeIfUnmodified === undefined)
+    if (!includeAllUnmodified && definition.removeIfUnmodified === undefined)
       continue;
     if (isConfigOverridden(definition, ctx.cwd))
       continue;
@@ -21335,7 +21362,7 @@ function planConditionalManagedRemoval(managedFiles, ctx) {
     if (!exists(fullPath))
       continue;
     const installed = readFileSafe(fullPath);
-    if (installed !== undefined && matchesUnmodifiedScaffold(definition, ctx, installed)) {
+    if (matchesManagedScaffold(definition, ctx, installed)) {
       actions.push({ type: "rm", path: filePath });
       removed.push(filePath);
     }
@@ -21405,7 +21432,8 @@ function getClaudeParentDirectoryForCleanup(filePath) {
 function resolveTextPatch(definition, ctx) {
   return {
     ...definition,
-    content: typeof definition.content === "function" ? definition.content(ctx) : definition.content
+    content: typeof definition.content === "function" ? definition.content(ctx) : definition.content,
+    replacementAfterUnpatch: typeof definition.replacementAfterUnpatch === "function" ? definition.replacementAfterUnpatch(ctx) : definition.replacementAfterUnpatch
   };
 }
 function withResolvedNamespaceRoot(schema, ctx) {
@@ -21422,6 +21450,7 @@ function withResolvedNamespaceRoot(schema, ctx) {
   };
   return {
     ...schema,
+    sharedDirs: schema.sharedDirs.map((path3) => translate(path3)),
     preservedDirs: schema.preservedDirs.map((path3) => translate(path3)),
     managedFiles: Object.fromEntries(Object.entries(schema.managedFiles).map(([path3, definition]) => [translate(path3), definition]).filter(([translatedPath]) => translatedPath !== ".gitignore"))
   };
@@ -21631,8 +21660,7 @@ function computeUninstallPlan(schema, ctx, full) {
   actions.push(...owned.actions);
   wouldRemove.push(...owned.removed);
   if (full) {
-    const removable = Object.entries(schema.managedFiles).filter(([, definition]) => definition.configKey === undefined).map(([filePath]) => filePath);
-    const managed = planExistingFilesRemoval(removable, ctx.cwd);
+    const managed = planConditionalManagedRemoval(schema.managedFiles, ctx, true);
     actions.push(...managed.actions);
     wouldRemove.push(...managed.removed);
   } else {
@@ -21640,7 +21668,12 @@ function computeUninstallPlan(schema, ctx, full) {
     actions.push(...conditional.actions);
     wouldRemove.push(...conditional.removed);
   }
-  const packagesToRemove = full ? computePackagesToRemove(schema, ctx.projectType, ctx.developmentDeps) : [];
+  let packagesToRemove = [];
+  if (full) {
+    packagesToRemove = computePackagesToRemove(schema, ctx.projectType, ctx.developmentDeps);
+  } else if (Object.hasOwn(ctx.developmentDeps, "safeword")) {
+    packagesToRemove = ["safeword"];
+  }
   return {
     actions,
     wouldCreate: dynamicChanges.created,
@@ -21943,6 +21976,9 @@ function rerenderBlockLines(definition) {
   return definition.content.split(`
 `).filter((line) => line !== "" && !line.includes(definition.marker));
 }
+function isOwnedRerenderLine(line, expectedLine, definition) {
+  return line === expectedLine || definition.rerenderOwnedLinePattern?.test(line) === true;
+}
 function stripRerenderBlock(content, definition) {
   const lines = content.split(`
 `);
@@ -21952,9 +21988,15 @@ function stripRerenderBlock(content, definition) {
   const blockLines = rerenderBlockLines(definition);
   let endIndex = startIndex;
   let expected = 0;
-  while (endIndex + 1 < lines.length && expected < blockLines.length && lines[endIndex + 1] === blockLines[expected]) {
+  while (endIndex + 1 < lines.length) {
+    const nextLine = lines[endIndex + 1] ?? "";
+    const expectedLine = blockLines[expected];
+    const matchesExpected = nextLine === expectedLine;
+    if (!isOwnedRerenderLine(nextLine, expectedLine, definition))
+      break;
     endIndex += 1;
-    expected += 1;
+    if (matchesExpected)
+      expected += 1;
   }
   const blockStart = startIndex > 0 && lines[startIndex - 1] === "" ? startIndex - 1 : startIndex;
   lines.splice(blockStart, endIndex - blockStart + 1);
@@ -21978,7 +22020,13 @@ function computePatchedContent(original, definition) {
   if (content.includes(definition.marker)) {
     return healAlreadyPatchedContent(content, definition);
   }
-  return definition.operation === "prepend" ? definition.content + content : content + definition.content;
+  if (definition.operation === "prepend")
+    return definition.content + content;
+  const separator = content !== "" && !content.endsWith(`
+`) && !definition.content.startsWith(`
+`) ? `
+` : "";
+  return content + separator + definition.content;
 }
 function healAlreadyPatchedContent(content, definition) {
   if (definition.rerender && !content.includes(definition.content)) {
@@ -22019,7 +22067,10 @@ function computeUnpatchedContent(content, definition) {
 `).replace(/^\n+/, "");
     unpatched = stripLeadingSafewordSeparator(unpatched);
   }
-  return unpatched;
+  return appendReplacementAfterUnpatch(content, unpatched, definition.replacementAfterUnpatch);
+}
+function appendReplacementAfterUnpatch(original, unpatched, replacement) {
+  return unpatched === original || replacement === undefined ? unpatched : unpatched + replacement;
 }
 function executeTextUnpatch(cwd, path3, definition) {
   const fullPath = nodePath39.join(cwd, path3);
@@ -37169,10 +37220,10 @@ function packageUninstallFailure(applied, packageRemoval, mode, packageFileEffec
     ]
   });
 }
-async function applyRemoval(cwd, mode, full, schema) {
+async function applyRemoval(cwd, mode, schema) {
   const applied = await applyReconciliation(cwd, mode, schema);
   const packageFilesBefore = snapshotPackageFiles(cwd);
-  const packageRemoval = full ? uninstallDependencies(cwd, applied.packagesToRemove, { report: false }) : { attempted: false, installed: false };
+  const packageRemoval = applied.packagesToRemove.length > 0 ? uninstallDependencies(cwd, applied.packagesToRemove, { report: false }) : { attempted: false, installed: false };
   const packageFileEffects = diffFileSnapshots(packageFilesBefore, snapshotPackageFiles(cwd));
   if (packageRemoval.attempted && !packageRemoval.installed) {
     return packageUninstallFailure(applied, packageRemoval, mode, packageFileEffects);
@@ -37215,32 +37266,46 @@ function partialRemovalEffects(removeError) {
 function hasPartialRemovalEffects(partial) {
   return (partial?.destructive.length ?? 0) !== 0 || (partial?.files?.length ?? 0) !== 0;
 }
+function removalNeedsOnline(options, plan) {
+  return options.offline === true && (options.full === true || plan.effects.packages.length > 0);
+}
+function projectNotConfigured(cwd) {
+  if (existsSync33(nodePath58.join(cwd, ".safeword")))
+    return;
+  return createResult({
+    state: "healthy",
+    findings: [
+      {
+        code: "PROJECT_NOT_CONFIGURED",
+        message: "Safeword is not configured; there is nothing to remove.",
+        severity: "info"
+      }
+    ],
+    data: { removed: [] }
+  });
+}
+function malformedRemovalPlan(plan) {
+  return plan !== undefined && !isPlanIdentity(plan) ? malformedPlanIdentity("remove") : undefined;
+}
 async function removeProject(cwd, options) {
-  if (options.plan !== undefined && !isPlanIdentity(options.plan)) {
-    return malformedPlanIdentity("remove");
-  }
-  if (!existsSync33(nodePath58.join(cwd, ".safeword"))) {
-    return createResult({
-      state: "healthy",
-      findings: [
-        {
-          code: "PROJECT_NOT_CONFIGURED",
-          message: "Safeword is not configured; there is nothing to remove.",
-          severity: "info"
-        }
-      ],
-      data: { removed: [] }
-    });
-  }
+  const malformed = malformedRemovalPlan(options.plan);
+  if (malformed !== undefined)
+    return malformed;
+  const notConfigured = projectNotConfigured(cwd);
+  if (notConfigured !== undefined)
+    return notConfigured;
   const mode = options.full === true ? "uninstall-full" : "uninstall";
   try {
     const { plan } = await createReconciliationPlan(cwd, mode, options.schema);
+    if (removalNeedsOnline(options, plan)) {
+      return onlineRequired("remove");
+    }
     if (options.yes !== true || options.plan === undefined) {
       return confirmationRequired(plan, options.full === true);
     }
     if (options.plan !== plan.id)
       return stalePlan(plan);
-    return await applyRemoval(cwd, mode, options.full === true, options.schema);
+    return await applyRemoval(cwd, mode, options.schema);
   } catch (removeError) {
     const partial = partialRemovalEffects(removeError);
     return createResult({
@@ -37266,6 +37331,7 @@ async function removeProject(cwd, options) {
 }
 var PACKAGE_MANAGER_FILES;
 var init_remove = __esm(() => {
+  init_online_required();
   init_plan();
   init_reconciliation();
   init_result();
@@ -39858,7 +39924,8 @@ async function planLifecycle(invocation) {
       data: { command: "plan" }
     });
   }
-  const scope = lifecycleScope(invocation.options.scope, "plan", parsed2.selection.agents);
+  const agents = operation === "uninstall" ? uninstallAgentSelection(invocation.options.agents, parsed2.selection.agents) : parsed2.selection.agents;
+  const scope = lifecycleScope(invocation.options.scope, "plan", agents);
   if (!scope.ok)
     return scope.result;
   const installOptions = {
@@ -39868,10 +39935,10 @@ async function planLifecycle(invocation) {
       migrateNamespace: invocation.options.migrateNamespace
     }
   };
-  const prepared = operation === "install" ? await prepareLifecycle(invocation.cwd, "install", parsed2.selection.agents, {
+  const prepared = operation === "install" ? await prepareLifecycle(invocation.cwd, "install", agents, {
     install: installOptions,
     scope: scope.value
-  }) : await prepareLifecycle(invocation.cwd, "uninstall", parsed2.selection.agents, {
+  }) : await prepareLifecycle(invocation.cwd, "uninstall", agents, {
     scope: scope.value
   });
   return lifecyclePlanResult(operation, prepared, installOptions);
@@ -39995,15 +40062,17 @@ async function uninstallLifecycle(invocation) {
     });
   }
   const full = invocation.options.full === true;
-  if (invocation.offline && full)
-    return onlineRequired("uninstall");
-  const scope = lifecycleScope(invocation.options.scope, "uninstall", parsed2.selection.agents);
+  const agents = uninstallAgentSelection(invocation.options.agents, parsed2.selection.agents);
+  const scope = lifecycleScope(invocation.options.scope, "uninstall", agents);
   if (!scope.ok)
     return scope.result;
-  const prepared = await prepareLifecycle(invocation.cwd, "uninstall", parsed2.selection.agents, {
+  const prepared = await prepareLifecycle(invocation.cwd, "uninstall", agents, {
     full,
     scope: scope.value
   });
+  if (invocation.offline && (full || prepared.plan.effects.packages.length > 0)) {
+    return onlineRequired("uninstall");
+  }
   const suppliedPlan = typeof invocation.options.plan === "string" ? invocation.options.plan : undefined;
   if (invocation.options.yes === true && suppliedPlan !== undefined) {
     if (suppliedPlan !== prepared.plan.id)
@@ -40011,6 +40080,9 @@ async function uninstallLifecycle(invocation) {
     return applyPreparedLifecycle(invocation.cwd, prepared);
   }
   return uninstallPreview(prepared);
+}
+function uninstallAgentSelection(requested, selected) {
+  return requested === undefined && !selected.includes("cursor") ? [...selected, "cursor"] : selected;
 }
 var LIFECYCLE_SURFACE_ORDER, EMPTY_SURFACE_EFFECTS;
 var init_commands = __esm(() => {
@@ -59819,14 +59891,12 @@ async function removeHandler(invocation) {
   if (suppliedPlan !== undefined && !isPlanIdentity(suppliedPlan)) {
     return malformedPlanIdentity("remove");
   }
-  if (invocation.offline && invocation.options.full === true) {
-    return onlineRequired("remove");
-  }
   const { removeProject: removeProject2 } = await Promise.resolve().then(() => (init_remove(), exports_remove));
   return removeProject2(invocation.cwd, {
     full: invocation.options.full === true,
     yes: invocation.options.yes === true,
-    plan: suppliedPlan
+    plan: suppliedPlan,
+    offline: invocation.offline
   });
 }
 async function uninstallHandler(invocation) {
@@ -61563,7 +61633,10 @@ var CANONICAL_COMMANDS = [
         description: "Identity of the exact plan being confirmed",
         valueKind: "plan-identity"
       },
-      { flags: "--full", description: "Also remove linting configuration and packages" }
+      {
+        flags: "--full",
+        description: "Also remove unmodified tooling configuration and supporting packages"
+      }
     ]
   }),
   command("project sync-config", "Regenerate dependency-cruiser configuration", "mutate", {
