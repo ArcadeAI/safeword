@@ -130,9 +130,9 @@ fixture scenarios do not substitute for its RED, GREEN, or REFACTOR record.
 
 ### Scenario: Missing cache-write detail is normalized without changing the tier
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: retrospective acceptance proof — native usage normalization predated this scenario
+- [x] GREEN cb1944323
+- [x] REFACTOR skip: the existing envelope validator remains the single pricing boundary
 
 ### Scenario Outline: Weak or replayed authorization cannot dispatch paid work
 
@@ -160,9 +160,9 @@ fixture scenarios do not substitute for its RED, GREEN, or REFACTOR record.
 
 ### Scenario: Automated lanes exclude live paid proof
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: retrospective acceptance proof — the repository selectors predated this scenario
+- [x] GREEN cb1944323
+- [x] REFACTOR skip: every automated entry point shares the same exact tag expression
 
 ### Scenario: Validated paid input cannot change before child execution
 

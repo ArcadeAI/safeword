@@ -188,9 +188,9 @@ the batch failed.
 
 ### Scenario: A cost stop reached mid-pair leaves no partial score input
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: retrospective acceptance proof — the spend guard and matrix completeness rejection predated this scenario
+- [x] GREEN cb1944323
+- [x] REFACTOR cb1944323
 
 ## Rule: pr-review-eval.SWM1.R3 — Scoring derives validity from admitted records
 
