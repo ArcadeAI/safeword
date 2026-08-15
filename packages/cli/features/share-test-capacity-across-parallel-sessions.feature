@@ -188,7 +188,7 @@ Feature: Let parallel sessions share test capacity safely
   Rule: share-test-capacity.TBU1.R2 — Participating package-test commands in the same worktree remain serialized across their complete build and test lifetimes
 
     Scenario: Same-worktree commands serialize their complete build and test lifetimes
-      Given two real package-test wrapper processes target the same worktree and every process event is keyed to wrapper, ticket, container and command
+      Given canonical capacity is two, two real focused package-test wrapper processes target the same worktree, and every process event is keyed to wrapper, ticket, container and command
       When a barrier holds the first repository lifetime active until the second wrapper is observed waiting on the checkout mutex
       Then the second starts no repository descendant before every first-container descendant exits and the first wrapper releases scheduler ownership followed by its exact checkout ownership, after which both unchanged downstream invocations have run exactly once, every container is proven empty, and both wrappers exit zero
 
@@ -215,7 +215,7 @@ Feature: Let parallel sessions share test capacity safely
 
     @rejection @process
     Scenario Outline: Checkout mutex crash recovery never overlaps repository code
-      Given a real public package-test wrapper dies while its checkout mutex has <owner-state> and the second wrapper uses <fixture>
+      Given canonical capacity is two, a real focused public package-test wrapper dies while its checkout mutex has <owner-state>, and the second focused wrapper uses <fixture>
       When a second real wrapper in the same worktree requests the mutex
       Then <recovery>, observable build and Vitest events never overlap, and <waiter-terminal>
       Examples:
@@ -260,9 +260,9 @@ Feature: Let parallel sessions share test capacity safely
       Then the newer wrapper starts no repository process, removes only its own waiter ticket and checkout ownership, and exits nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE and `safeword project test-capacity status`
 
     Scenario: A verified dead queue-head waiter is pruned before the next FIFO admission
-      Given the real platform identity seam proves the exact queue-head wrapper instance absent
+      Given shared capacity is one, the real platform identity seam proves dead ticket-1 absent, and live ticket-2 and ticket-3 wrappers wait in that order
       When another public wrapper evaluates the queue under the state guard
-      Then it removes only that dead waiter, admits the next live head without reordering later tickets, and that wrapper's unchanged downstream invocation and wrapper exit zero
+      Then it removes only dead ticket 1, admits ticket 2 before ticket 3, and after ticket 2 exits ticket 3 runs its unchanged downstream invocation once and exits zero
 
   @share-test-capacity.TBU1.R5
   Rule: share-test-capacity.TBU1.R5 — Capacity ownership changes atomically and abandoned ownership is recovered without PID-reuse mistakes or manual cleanup
@@ -507,7 +507,7 @@ Feature: Let parallel sessions share test capacity safely
         | journal-boundary | observed-state | journal-durability-outcome |
         | during journal temporary write | old live state, no journal, incomplete temporary bytes | temporary bytes are removed, old state remains byte-identical, and admission retries from old state |
         | after journal-file fsync but before journal rename | old live state, no journal, complete temporary journal | temporary bytes are removed, old state remains byte-identical, and admission retries from old state |
-        | after journal rename but before successful parent-directory fsync | old live state and no journal after restart | durability remains indeterminate, admission fails closed without mutation, and status gives the authenticated recovery action |
+        | after journal rename but before successful parent-directory fsync | old live state and no journal after restart | restart authenticates the old state and retries it without inferring an unobservable transition |
         | after journal rename but before successful parent-directory fsync | old live state and a complete visible journal after restart | old-side recovery re-flushes the directory, retains old state, removes journal last, and admission proceeds |
         | after successful journal parent-directory fsync but before live rename | durable journal plus old live state | old-side recovery retains old state, removes journal last, and admission proceeds |
         | after live rename but before live-state parent-directory fsync | durable journal plus old live state after restart | old-side recovery retains old state, removes journal last, and admission proceeds |
@@ -567,7 +567,7 @@ Feature: Let parallel sessions share test capacity safely
     @rejection @wiring @process
     Scenario Outline: Every capacity artifact enforces owner-only identity and links
       Given <artifact> has <unsafe-property>
-      When a real public status, set, or package-test command opens the capacity domain
+      When a real public set or package-test command opens the capacity domain
       Then it starts no repository process, changes no state, and exits SAFEWORD_TEST_CAPACITY_STATE_UNSAFE with `safeword project test-capacity status`
       Examples:
         | artifact | unsafe-property |
@@ -583,6 +583,16 @@ Feature: Let parallel sessions share test capacity safely
         | transaction journal | an unexpected hard-link count |
         | temporary state | another owner or unsafe group/world permissions |
         | temporary state | an unexpected hard-link count |
+
+    @rejection @wiring @surface.safeword-cli
+    Scenario Outline: Status reports a concrete repair for unsafe capacity artifacts
+      Given <artifact> has <unsafe-property>
+      When a real public status command opens the capacity domain
+      Then it changes no state, reports the canonical domain and state location plus <repair>, and exits nonzero with SAFEWORD_TEST_CAPACITY_STATE_UNSAFE
+      Examples:
+        | artifact | unsafe-property | repair |
+        | live state | another owner or unsafe group/world permissions | owner-only-permissions repair for the named live state followed by `safeword project test-capacity status` |
+        | transaction journal | an unexpected hard-link count | hard-link remediation for the named journal followed by `safeword project test-capacity status` |
 
   @share-test-capacity.TBU1.R6
   Rule: share-test-capacity.TBU1.R6 — One validated shared setting governs every participating new-wrapper session and can conservatively restore today's single-run behavior
