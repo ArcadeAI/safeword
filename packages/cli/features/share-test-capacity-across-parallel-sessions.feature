@@ -25,13 +25,13 @@ Feature: Let parallel sessions share test capacity safely
     Scenario: Duplicate owner releases do not change durable state
       Given an exact focused wrapper has released, the guarded durable state bytes and version are captured, and the wrapper's public cleanup callback is replayed through the injected duplicate-release seam
       When that same wrapper emits the replayed release
-      Then the durable bytes and version remain unchanged and no repository process starts
+      Then the durable bytes and version remain unchanged, no repository process or descendant starts, and the wrapper exits zero
 
     @rejection @process
     Scenario: Reservation failure starts no repository process
       Given an exact focused public wrapper reservation is durable and the interposed container-activation seam is fixed to fail before repository code can run
       When the wrapper handles the activation failure
-      Then no repository process starts and only that reservation is removed
+      Then no repository process or descendant starts, only that reservation is removed, and the wrapper exits nonzero with its predetermined container-activation status
 
     @wiring @process
     Scenario: Capacity eight admits eight focused lifetimes and gives a broad request all eight permits
@@ -62,15 +62,15 @@ Feature: Let parallel sessions share test capacity safely
 
     @rejection @process
     Scenario: Focused classification rejects a symlinked ancestor that escapes the checkout
-      Given a real checkout path crosses a symlinked directory to an external regular test file and the deterministic downstream collaborator exits zero
+      Given canonical capacity is two, a real checkout path crosses a symlinked directory to an external regular test file, and the deterministic downstream collaborator exits zero
       When the public package-test command classifies that literal argument
-      Then it treats the invocation as broad, passes the original argument unchanged downstream exactly once, never grants a focused permit, accounts for every descendant, and exits zero
+      Then it treats the invocation as broad with durable owner weight two, passes the original argument unchanged downstream exactly once, never grants a focused permit, accounts for every descendant, and exits zero
 
     @rejection @process
     Scenario Outline: Literal metacharacter and option-shaped test filenames classify broad
-      Given a contained regular file literally named <literal-token> exists inside the checkout and the deterministic downstream collaborator exits zero
+      Given canonical capacity is two, a contained regular file literally named <literal-token> exists inside the checkout, and the deterministic downstream collaborator exits zero
       When the public package-test command classifies that exact argv token
-      Then it assigns broad exclusive capacity, passes the token unchanged downstream exactly once, accounts for every descendant, and exits zero
+      Then it assigns broad exclusive capacity with durable owner weight two, passes the token unchanged downstream exactly once, accounts for every descendant, and exits zero
       Examples:
         | literal-token |
         | `alpha*.test.ts` |
@@ -79,9 +79,9 @@ Feature: Let parallel sessions share test capacity safely
 
     @rejection @process
     Scenario: Double-dash invocation classifies broad despite an existing test file
-      Given a contained regular `alpha.test.ts` file exists and the deterministic downstream collaborator exits zero
+      Given canonical capacity is two, a contained regular `alpha.test.ts` file exists, and the deterministic downstream collaborator exits zero
       When the public package-test command classifies argv `["--", "alpha.test.ts"]`
-      Then it assigns broad exclusive capacity, passes the original argv unchanged downstream exactly once, accounts for every descendant, and exits zero
+      Then it assigns broad exclusive capacity with durable owner weight two, passes the original argv unchanged downstream exactly once, accounts for every descendant, and exits zero
 
     Scenario Outline: Focused filename boundaries are exact and case-sensitive
       Given canonical capacity is two, fixtures live in per-row directories, the classifier uses the literal argument basename bytes, and <arguments> resolve to existing regular files inside the canonical checkout root with no symlinked component at or below that root and the deterministic downstream collaborator exits zero
@@ -125,19 +125,19 @@ Feature: Let parallel sessions share test capacity safely
 
     @rejection
     Scenario Outline: Non-file argument boundaries classify broad without contradictory fixtures
-      Given <arguments> have <path-state> rather than an existing contained regular file and the deterministic downstream collaborator exits 23
+      Given canonical capacity is two, <arguments> have <path-state> rather than an existing contained regular file, and the deterministic downstream collaborator exits 23
       When the public package-test command classifies the original argv token
-      Then it assigns broad exclusive capacity, passes the original token unchanged downstream exactly once, accounts for every descendant, and the wrapper exits 23
+      Then it assigns broad exclusive capacity with durable owner weight two, passes the original token unchanged downstream exactly once, accounts for every descendant, and the wrapper exits 23
       Examples:
         | arguments | path-state |
-        | an `../../alpha.test.ts` path | a lexical path that escapes the checkout |
+        | an `../../../alpha.test.ts` path | a lexical path that escapes the checkout |
         | an empty argument | no filesystem path |
 
     @rejection
     Scenario Outline: Test-shaped paths that are not regular files classify broad
-      Given <path-kind> named `alpha.test.ts` exists inside the canonical checkout root and the deterministic downstream collaborator exits 23
+      Given canonical capacity is two, <path-kind> named `alpha.test.ts` exists inside the canonical checkout root, and the deterministic downstream collaborator exits 23
       When the public package-test command classifies that literal argument
-      Then it assigns broad exclusive capacity, passes the original argument unchanged downstream exactly once, accounts for every descendant, and the wrapper exits 23
+      Then it assigns broad exclusive capacity with durable owner weight two, passes the original argument unchanged downstream exactly once, accounts for every descendant, and the wrapper exits 23
       Examples:
         | path-kind |
         | a directory |
@@ -334,15 +334,18 @@ Feature: Let parallel sessions share test capacity safely
         | an apparent same-second macOS PID reuse |
 
     @native-platform
-    Scenario Outline: Native platform identity adapters authenticate observable process identity
-      Given the required native <platform> CI job's real adapter reads <identity-source>
-      When the authenticated live process is observed
-      Then the exact process instance is authenticated without injected coverage
+    Scenario Outline: Native platform identity adapters distinguish exact and mismatched real processes
+      Given the required native <platform> CI job's real adapter reads <identity-source> for <process-state>
+      When the real adapter observes that process
+      Then <native-outcome> without injected coverage
       Examples:
-        | platform | identity-source |
-        | Linux | boot ID and proc stat start-time ticks |
-        | Windows | process creation FILETIME for the PID |
-        | macOS | LC_ALL=C process start time with conservative second-level precision |
+        | platform | identity-source | process-state | native-outcome |
+        | Linux | boot ID and proc stat start-time ticks | the exact live process instance | the exact process instance is authenticated |
+        | Linux | boot ID and proc stat start-time ticks | a distinct real live process with a different recorded creation identity | authentication is withheld, no owner is reclaimed, no repository process starts, and the caller exits nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE |
+        | Windows | process creation FILETIME for the PID | the exact live process instance | the exact process instance is authenticated |
+        | Windows | process creation FILETIME for the PID | a distinct real live process with a different recorded creation identity | authentication is withheld, no owner is reclaimed, no repository process starts, and the caller exits nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE |
+        | macOS | LC_ALL=C process start time with conservative second-level precision | the exact live process instance | the exact process instance is authenticated |
+        | macOS | LC_ALL=C process start time with conservative second-level precision | a real live process with a different recorded creation identity | authentication is withheld or conservatively treated live, no owner is reclaimed, no repository process starts, and the caller exits nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE |
 
     @rejection
     Scenario Outline: Injected identity adapter faults fail closed without contributing native evidence
@@ -487,7 +490,7 @@ Feature: Let parallel sessions share test capacity safely
         | a surviving group descendant |
         | a changed boot identity from the persisted reclaim deadline |
 
-    @native-platform @platform-posix @rejection @process
+    @platform-posix @rejection @process
     Scenario Outline: POSIX reclaim changes or ambiguous identity never release capacity
       Given the deterministic injected identity adapter's first absent observation marked an active POSIX owner reclaiming without contributing native evidence
       When the monotonic interval ends with <second-state>
@@ -637,6 +640,8 @@ Feature: Let parallel sessions share test capacity safely
         | containing directory | world-writable permissions |
         | containing directory | another owner |
         | containing directory | an unexpected hard-link count |
+        | capacity-domain ancestor directory | group-writable permissions |
+        | capacity-domain ancestor directory | world-writable permissions |
         | transition guard | another owner |
         | transition guard | group-readable permissions |
         | transition guard | group-writable permissions |
