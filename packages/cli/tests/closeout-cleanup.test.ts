@@ -1350,7 +1350,7 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     expect(cleanupPlanDigest(refreshed)).toBe(cleanupPlanDigest(plan));
   });
 
-  it('classifies repository mismatches independently from learning and recovery state', () => {
+  it('reports stale verification without retrospective advisories', () => {
     const plan = buildCleanupPlan(
       safeObservation({ verification: { ...safeObservation().verification, current: false } }),
     );

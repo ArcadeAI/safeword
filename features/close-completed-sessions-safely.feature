@@ -1,9 +1,10 @@
 # Collaborator actions and host invocation require hash-bound independent review;
 # deterministic guard, wiring, and parity behavior remains covered by Vitest.
 # Proof: packages/cli/tests/closeout-cleanup.test.ts
+@proof.vitest
 Feature: Close completed sessions safely
 
-  @proof.vitest @close-completed-sessions-safely.NTB1.R1
+  @close-completed-sessions-safely.NTB1.R1
   Rule: close-completed-sessions-safely.NTB1.R1 — Completion is reported only from independently observed delivery and cleanup state
 
     @surface.claude-code @surface.openai-codex @surface.cursor
@@ -38,7 +39,7 @@ Feature: Close completed sessions safely
       When closeout reports the result
       Then it reports verification, merge state and commit, retro, remote branch, local branch, worktree, and no unresolved items
 
-  @proof.vitest @close-completed-sessions-safely.NTB1.R2
+  @close-completed-sessions-safely.NTB1.R2
   Rule: close-completed-sessions-safely.NTB1.R2 — Retrospective capture is a mandatory prerequisite to destructive cleanup
 
     @surface.claude-code @surface.openai-codex @surface.cursor
@@ -230,7 +231,7 @@ Feature: Close completed sessions safely
         | truncated existing records        |
         | an ambiguous unclassified record  |
 
-  @proof.vitest @close-completed-sessions-safely.TBU1.R1
+  @close-completed-sessions-safely.TBU1.R1
   Rule: close-completed-sessions-safely.TBU1.R1 — Merge actions never exceed the authority explicitly granted by the user
 
     @surface.claude-code @surface.openai-codex @surface.cursor
@@ -280,7 +281,7 @@ Feature: Close completed sessions safely
       When closeout considers bypassing repository requirements
       Then it does not bypass them and asks for current explicit authority
 
-  @proof.vitest @close-completed-sessions-safely.TBU1.R2
+  @close-completed-sessions-safely.TBU1.R2
   Rule: close-completed-sessions-safely.TBU1.R2 — Cleanup targets only the confirmed merged pull request's exact topic branch and linked worktree
 
     @rejection @surface.claude-code @surface.openai-codex @surface.cursor
@@ -383,7 +384,7 @@ Feature: Close completed sessions safely
         | a fork-owned head repository         |
         | a matching non-origin remote only    |
 
-  @proof.vitest @close-completed-sessions-safely.TBU1.R3
+  @close-completed-sessions-safely.TBU1.R3
   Rule: close-completed-sessions-safely.TBU1.R3 — Protected, dirty, locked, main, or ambiguous targets are preserved and reported instead of force-removed
 
     @rejection @surface.claude-code @surface.openai-codex @surface.cursor
@@ -461,7 +462,7 @@ Feature: Close completed sessions safely
         | parent-directory traversal      |
         | a symlink-ambiguous path        |
 
-  @proof.vitest @close-completed-sessions-safely.TBU1.R4
+  @close-completed-sessions-safely.TBU1.R4
   Rule: close-completed-sessions-safely.TBU1.R4 — The same closeout contract is available through every supported local agent runtime
 
     @surface.claude-code @surface.openai-codex @surface.cursor
