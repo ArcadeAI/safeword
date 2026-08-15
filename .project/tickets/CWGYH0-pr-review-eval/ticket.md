@@ -1,25 +1,35 @@
 ---
 id: CWGYH0
 slug: pr-review-eval
-type: task
-phase: intake
+type: feature
+phase: implement
+phase_skips:
+  - intake: Existing task scope and done-when were retained when the recovery expanded this ticket into a feature.
+  - define-behavior: Dimensions, spec, feature scenarios, and the R/G/R ledger were authored before implementation but landed in the same recovery commit.
+  - scenario-gate: The shared coordinator and required degraded fallback reviewed the saved scenarios before implementation; no separate transition commit exists.
+  - plan-implementation: The implementation plan was reviewed and revised before code changes but landed in the same recovery commit.
 status: in_progress
 scope:
-  - Corpus: `ArcadeAI/monorepo` PRs that a human APPROVED and merged with ZERO inline comments (21 of 25 recent PRs qualify — the corpus is free).
-  - Metrics decoupled, no composite headline (GEPA's no-F1 lesson): actionable rate, coverage, false-certainty.
-  - The bar is RECORDED BEFORE the corpus is triaged, and triage is done by ARCADE ENGINEERS — not by the agent that built the reviewer.
-  - A certified-clean fixture proving silence, which the safeword shadow probe never tested.
+  - Freeze approximately 20–30 post-model-cutoff `diff → finding → acted on?` pairs from existing local Claude sessions and repository history, with durable provenance and no outcome leakage into the review input.
+  - Run two deliberately different, versioned PR-review prompts against the same frozen inputs and preserve every raw output.
+  - Score with asymmetric labels: acted-on or explicitly useful findings are strong positives; a clean merge is only a weak negative and can never, by itself, lower a finding's score.
+  - Compare both prompt rankings with Nate's recorded 10-PR triage and the PR 2118 exchange, reporting uncertainty and false certainty separately.
+  - Manually spot-check sampled SZZ links using already-available evidence before making a go/kill decision.
 out_of_scope:
-  - The reviewer skill — G5337S. The workflow — 36EEMY.
-  - Scoring by the authoring agent. Greptile's postmortem: an LLM's judgment of its own output was "nearly random".
+  - Tuning either prompt on the held-out corpus or revealing a log's eventual outcome to the reviewer being graded.
+  - Treating an LLM jury as the gate; it may only pre-filter evidence for deterministic or human-recorded adjudication.
+  - Mining beyond the bounded 20–30-pair falsification sample before the go/kill decision.
+  - Requesting new engineer review time or treating the shipped runner as validated by hand-run prompt evidence.
 done_when:
-  - The five judgment-bound Rules split out of the runner on 2026-07-19 — R19 (work type), R20 (test coverage), TB2.R1 (review depth), TB2.R3 (author request) — are scored eval cases here. They live verbatim in `features/autonomous-pr-review.feature` under `@eval-bound` as a holding pen; each Given describes code shape and each Then asserts the model's judgment about it, so a stubbed runner test would only assert its own fixture. Until they are scored here, nothing proves them.
-  - A bar exists in git before any verdict does.
-  - Arcade engineers have triaged the corpus, and the result is honoured — a failed bar kills or reshapes the epic rather than licensing a prompt-tuning loop until it passes.
-  - False-certainty count is reported separately and can veto a ship on its own.
+  - Frozen examples, provenance, prompt versions, raw outputs, and scoring code are reproducible from the repository.
+  - The metric has an executable guard proving a clean merge alone cannot penalize a finding.
+  - Both prompt rankings and the recorded-human ranking are reported with uncertainty and false certainty separated from useful-finding recall.
+  - SZZ links receive documented manual spot checks using existing evidence.
+  - A clear go/kill decision is recorded before any larger miner is built.
 parent: WAWQA6
+external_issue: https://github.com/ArcadeAI/safeword/issues/1910
 created: 2026-07-15T14:24:45.773Z
-last_modified: 2026-07-15T14:24:45.773Z
+last_modified: 2026-08-08T01:12:00Z
 ---
 
 # pr-review-eval
@@ -30,10 +40,16 @@ last_modified: 2026-07-15T14:24:45.773Z
 
 **The risk this ticket owns:** the safeword 10-PR triage from 2026-07-15 is STILL outstanding. If arcade engineers are too underwater to triage 20 findings, that is itself the answer to whether they would read the reviewer's output — and it is cheaper to learn here than after building.
 
-**Why:** {One sentence: why does this matter?}
-
 ## Work Log
 
+- 2026-08-11T09:29:13-05:00 Registered the original 30 primary and 10 reserve cases as development-only evidence at commit `eca10ca59`, with all 40 identities listed under `developmentCaseIds`, `role: development`, and `voidForInstrumentFailure: true`. The trusted `TheMostlyGreat` issue #1910 anchor is comment `5254523549`. A no-cost rehearsal using the hardened runner and adapter `d7baf0333` passed repository isolation for all 40 cases / 80 buggy and fixed snapshots. The confirmatory corpus guard rejected the same registration as diagnostic-only before any paid provider call.
+- 2026-08-10T17:45:00-05:00 Completed the typed-retry TDD slice. The pinned Arcade adapter now preserves machine-readable provider, network, schema, review, and unknown failure provenance with usage at remote commit `b9b8d1f26`. The harness retries only explicit 408/429/5xx and allowlisted network failures once, retains every returned attempt and its cost, never retries semantic failures, and uses the persistent pinned adapter worktree instead of `/private/tmp`. The original preregistered manifests remain byte-identical. The real no-cost preflight passed all 40 cases and 80 isolated buggy/fixed snapshots; its durable result is `scored-preflight-recovery-2026-08-10.json`.
+- 2026-08-10T00:00:00-05:00 Completed the first fail-closed TDD slice: positive reviewer completion admits explicit empty, one-finding, and multiple-finding reports; the writer quarantines invalid dispositions with recorded usage/cost; the scorer rejects unusable records. Replay classified the void corpus as exactly 122 usable and 238 invalid, matching the independent audit. Targeted tests passed 49/49 and the full repository suite passed 7,185 tests with 5 skipped after restoring frozen dependencies.
+- 2026-08-10T00:00:00-07:00 Completed implementation-plan review after route exhaustion and supplemental review. The final plan separates immutable preregistration from derived replacements, keeps existing recorded-human labels, defines a typed trial disposition, and binds spend authorization to exact code/input/run identities. Starting TDD with the hidden-failure admission boundary.
+- 2026-08-10T00:00:00-07:00 Completed the recovery scenario pass after coordinator route exhaustion and same-agent fresh-context supplemental review. Applied all applicable findings; the only rejected finding expected completed tests before the RED phase. Entered implementation planning with the positive admission predicate and real-wiring hidden-failure test as the load-bearing slice.
+- 2026-08-10T00:00:00-07:00 Defined the recovery behavior in four rules and ten scenarios: positive completion, paired retry/exclusion, fail-closed scoring, and a ten-call paid canary. Expanded the ticket to feature workflow because recovery crosses runner, artifact, scorer, and spend-gate boundaries.
+- 2026-08-10T00:00:00-07:00 Voided the 360-record scored run as an instrument failure after record-level audit: only 122 records contain a routed expert with a usable report; 238 are provider, schema, routing, socket, timeout, or wall-clock failures that the inner runner converted to empty success. Preserved the frozen scorer output and added `scored-run-validity-audit-2026-08-10.json` as the durable scientific disposition. Existing scored cases are diagnostic/exploratory only for scorer redesign; confirmatory v3 requires a fresh powered holdout.
+- 2026-08-08T01:12:00Z Resumed as GitHub issue #1910 after #1909 closed. Reconciled the issue's asymmetric-label and falsification-first contract with this existing experiment rather than creating a duplicate ticket. Inspected a real local Claude JSONL: top-level event records carry session/cwd/git metadata; assistant/user messages nest typed content blocks; tool results are user events. Next: freeze a durable 20–30-pair manifest without outcome leakage.
 - 2026-07-15T14:24:45.773Z Started: Created ticket CWGYH0
 
 ## Probe run 2026-07-15 — 10 arcade PRs, all human-APPROVED and merged with ZERO inline comments
