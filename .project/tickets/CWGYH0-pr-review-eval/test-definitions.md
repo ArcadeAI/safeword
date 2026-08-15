@@ -190,7 +190,7 @@ the batch failed.
 
 - [x] RED skip: retrospective acceptance proof — the spend guard and matrix completeness rejection predated this scenario
 - [x] GREEN cb1944323
-- [x] REFACTOR cb1944323
+- [x] REFACTOR skip: the extracted spend predicate is the smallest shared decision boundary
 
 ## Rule: pr-review-eval.SWM1.R3 — Scoring derives validity from admitted records
 
