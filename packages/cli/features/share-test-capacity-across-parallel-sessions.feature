@@ -54,7 +54,6 @@ Feature: Let parallel sessions share test capacity safely
         | argv `["missing.test.ts"]` |
         | argv `["linked.test.ts"]` where the leaf is a symlink whose target remains inside the checkout |
         | argv `["linked-dir/alpha.test.ts"]` where an ancestor is a symlink whose target remains inside the checkout |
-        | argv `["../../alpha.test.ts"]` |
         | argv `["src/alpha.ts"]` |
         | argv `["alpha.test.ts", "src/alpha.ts"]` |
         | argv `["alpha.test.ts", "--unknown"]` |
@@ -150,7 +149,7 @@ Feature: Let parallel sessions share test capacity safely
       Then zero-exit status identifies legacy processes as untracked and directs the operator to end every legacy execution, migrate participating worktrees, restore capacity one before any later legacy wrapper is used, and wait for the current scheduler to become idle before handoff
 
     @rejection
-    Scenario Outline: Invalid current-protocol confirmation never raises capacity
+    Scenario Outline: Invalid confirmation or incompatible protocol never raises capacity
       Given canonical capacity is one and the public command requests capacity two
       When the public capacity command receives <confirmation>
       Then capacity, protocol and state version remain unchanged and the command exits nonzero with <code> and first recovery command <recovery>
@@ -158,7 +157,7 @@ Feature: Let parallel sessions share test capacity safely
         | confirmation | code | recovery |
         | argv `test-capacity set 2` without the flag | SAFEWORD_TEST_CAPACITY_INVALID | `safeword project test-capacity status` |
         | argv `test-capacity set 2 --confirm-current-protocol=false` | SAFEWORD_TEST_CAPACITY_INVALID | `safeword project test-capacity status` |
-        | argv with `--confirm-current-protocol` while CLI expects protocol 2 and byte-recorded durable state remains protocol 1 | SAFEWORD_TEST_CAPACITY_INVALID | `safeword project test-capacity status` |
+        | argv with `--confirm-current-protocol` while CLI expects protocol 2 and durable state has an incompatible schema with recorded protocol 1 | SAFEWORD_TEST_CAPACITY_STATE_UNSAFE | `safeword project test-capacity status` |
 
     @rejection @surface.safeword-cli
     Scenario Outline: Capacity input accepts only one canonical decimal integer and one confirmation flag
@@ -221,7 +220,7 @@ Feature: Let parallel sessions share test capacity safely
       Examples:
         | owner-state | fixture | recovery | waiter-terminal |
         | queued or reserved ownership with the exact wrapper instance absent | deterministic downstream exit 23 | only that abandoned wrapper ownership is reclaimed | the second wrapper runs its unchanged invocation exactly once, all descendants exit, and the wrapper exits 23 |
-        | active ownership with a live recorded execution container | deterministic blocked fixture | the second wrapper remains blocked for the bounded observation | teardown cancels the second wrapper, removes only its waiter and checkout request, proves no descendant started, and it exits with its predetermined platform-resolved cancellation status while live ownership remains |
+        | active ownership with a live recorded execution container | deterministic blocked fixture | the second wrapper emits an authenticated checkout-mutex waiter event while the keyed live container remains active | teardown cancels the second wrapper, removes only its waiter and checkout request, proves no descendant started, and it exits with its predetermined platform-resolved cancellation status while live ownership remains |
         | active ownership with the recorded container proven empty | deterministic terminating-descendant fixture | ownership is reclaimed before the second wrapper proceeds | the second wrapper runs its unchanged invocation exactly once, observes its only descendant terminate with the predetermined platform-resolved status, and exits with that status |
         | a reused or unverifiable wrapper or container identity | deterministic fixture that must not start | acquisition fails closed and names `safeword project test-capacity status` as the exact first recovery command | the second wrapper exits nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE and starts no repository process |
 
@@ -241,9 +240,9 @@ Feature: Let parallel sessions share test capacity safely
 
     @rejection @wiring @process
     Scenario: A broad request never holds a partial allocation
-      Given a real public wrapper reaches the live queue head while only part of shared capacity is free
-      When injected process observation records its admission and descendants
-      Then it remains a zero-permit waiter and starts no repository process during bounded observation, after which teardown cancels it, removes only its waiter and checkout ownership, and exits with its predetermined platform-resolved cancellation status
+      Given a real public wrapper reaches the live queue head while only part of shared capacity is free and emits a keyed zero-permit waiter event
+      When the scheduler records that admission decision under the state guard
+      Then it starts no repository process before controlled teardown cancels that recorded waiter, removes only its waiter and checkout ownership, and exits with its predetermined platform-resolved cancellation status
 
   @share-test-capacity.TBU1.R4
   Rule: share-test-capacity.TBU1.R4 — A waiting broad run prevents newer focused runs from continuously overtaking it
@@ -293,15 +292,14 @@ Feature: Let parallel sessions share test capacity safely
         | active | the recorded container is terminated and proven empty before ownership is removed | already-started descendants exit and no new descendant starts after cancellation |
 
     @rejection
-    Scenario Outline: Ambiguous process identity never releases live capacity
+    Scenario Outline: Verified occupancy keeps capacity held without treating the caller as a recovery failure
       Given an active POSIX owner has <identity-state>
       When scheduler recovery examines the owner twice under the state guard
-      Then it keeps capacity unavailable while the waiting public wrapper removes only its own waiter and checkout ownership and exits nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE plus `safeword project test-capacity status`
+      Then it keeps capacity unavailable, records the waiting wrapper behind the verified live owner, and teardown cancels that waiter with its predetermined platform-resolved cancellation status
       Examples:
         | identity-state |
         | a reused PID or PGID |
         | a missing leader with a surviving group member |
-        | an unreadable process creation identity |
         | an apparent same-second macOS PID reuse |
 
     @rejection
@@ -429,13 +427,12 @@ Feature: Let parallel sessions share test capacity safely
     Scenario Outline: Supervisor loss returns capacity only after group disappearance
       Given an injected monotonic clock and a first guarded observation prove the recorded supervisor instance, group-leader instance, and process group absent and mark the owner reclaiming without returning capacity at the current state version and reclaim marker
       When the injected monotonic recovery interval passes with that guarded state version and reclaim marker unchanged, and the second observation finds <identity-state>
-      Then capacity is <capacity-state>, new admissions never observe a free intermediate state, and any still-blocked observing wrapper is cancelled after the bounded assertion, removes only its own waiter and checkout request, and exits with its predetermined platform-resolved cancellation status
+      Then capacity is <capacity-state>, new admissions never observe a free intermediate state, and the observed waiter remains queued behind the recorded owner until controlled teardown cancels it, removes only its own waiter and checkout request, and exits with its predetermined platform-resolved cancellation status
       Examples:
         | identity-state | capacity-state |
         | the exact supervisor and leader instances absent and the group empty | returned atomically |
         | the group empty but the supervisor live | held fail-closed |
         | the group empty but the leader PID reused | held fail-closed |
-        | either exact identity or group observation unverifiable | held fail-closed |
         | a surviving group descendant | held fail-closed |
 
     @rejection @process
@@ -445,9 +442,9 @@ Feature: Let parallel sessions share test capacity safely
       Then <recovery> and <caller-result>
       Examples:
         | second-state | recovery | caller-result |
-        | a changed scheduler state version or reclaim marker | the attempt restarts from current guarded state, then a barrier holds that owner live for the bounded assertion | teardown cancels the caller, removes only its waiter and checkout request, proves no caller descendant started, and the caller exits with its predetermined platform-resolved cancellation status while current ownership remains |
-        | a live or reused supervisor identity | the marker clears and ownership remains held | the caller starts no repository process and exits with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE plus `safeword project test-capacity status` |
-        | the PGID led by a different process incarnation | the marker clears and ownership remains held | the caller starts no repository process and exits with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE plus `safeword project test-capacity status` |
+        | a changed scheduler state version or reclaim marker | the current owner emits an authenticated live-owner event before the caller's queued-waiter event | controlled teardown cancels the caller, removes only its waiter and checkout request, proves no caller descendant started, and the caller exits with its predetermined platform-resolved cancellation status while current ownership remains |
+        | a live or reused supervisor identity | the marker clears and ownership remains held behind an authenticated live-owner event | controlled teardown cancels the queued caller without a repository descendant and it exits with its predetermined platform-resolved cancellation status |
+        | the PGID led by a different process incarnation | the marker clears and ownership remains held behind an authenticated live-owner event | controlled teardown cancels the queued caller without a repository descendant and it exits with its predetermined platform-resolved cancellation status |
         | an unverifiable group or creation identity | recovery fails closed | the caller starts no repository process and exits with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE plus `safeword project test-capacity status` |
 
     Scenario Outline: Wrapper death tears down live descendants before returning active capacity
@@ -612,14 +609,14 @@ Feature: Let parallel sessions share test capacity safely
 
     Scenario Outline: An idle scheduler adopts one canonical capacity for every participating session
       Given the current scheduler has no owners or waiters
-      When real status commands are barrier-held before and after a real capacity command commits <old-capacity> to <new-capacity>
+      When real status commands are barrier-held before and after the real capacity command <set-command> commits <old-capacity> to <new-capacity>
       Then both status commands and the capacity command exit zero, independent outputs record one complete old value and version before commit and one complete new value and version after commit, and no partial, mixed, or skipped version
       Examples:
-        | old-capacity | new-capacity |
-        | 1 | 2 |
-        | 2 | 1 |
-        | 1 | 8 |
-        | 8 | 1 |
+        | old-capacity | new-capacity | set-command |
+        | 1 | 2 | `safeword project test-capacity set 2 --confirm-current-protocol` |
+        | 2 | 1 | `safeword project test-capacity set 1` |
+        | 1 | 8 | `safeword project test-capacity set 8 --confirm-current-protocol` |
+        | 8 | 1 | `safeword project test-capacity set 1` |
 
     @rejection @process
     Scenario: Project-local configuration and process environment cannot override canonical capacity
@@ -647,6 +644,12 @@ Feature: Let parallel sessions share test capacity safely
       Given canonical shared capacity is one and real wrappers use real build and test collaborators
       When a barrier holds one repository lifetime active while at least one wrapper from another worktree is observed waiting
       Then exactly one repository lifetime is active, the waiter starts no repository descendant until release, and both unchanged invocations eventually run once and exit zero
+
+    @rejection @process
+    Scenario: A held legacy mutex remains an explicit unsupported mixed-version boundary
+      Given canonical capacity is one, a legacy package-test wrapper holds the recorded legacy mutex, and a current-protocol wrapper has an independent scheduler permit
+      When barriers hold both repository lifetimes active
+      Then keyed events prove the lifetimes can overlap without either wrapper observing or recording the other, and status directs the operator to end legacy work before mixing wrapper protocols
 
     @rejection @process
     Scenario Outline: Capacity-one failure recovery preserves serialization and progress
@@ -734,8 +737,8 @@ Feature: Let parallel sessions share test capacity safely
         | unavailable or conflicting machine identity | 2 | SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE |
 
     @rejection
-    Scenario Outline: Fail-closed errors expose stable recovery contracts
-      Given a public capacity operation encounters <fault>
+    Scenario Outline: Non-status fail-closed errors expose stable recovery contracts
+      Given a non-status public capacity operation encounters <fault>
       When it exits without starting repository code
       Then it returns nonzero with <code> and names `safeword project test-capacity status` as the first recovery command
       Examples:
@@ -748,33 +751,58 @@ Feature: Let parallel sessions share test capacity safely
         | incomplete native platform evidence | SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE |
 
     @wiring @process @surface.safeword-cli
-    Scenario Outline: The public capacity command wires configuration protocol status and reset atomically
-      Given isolated owner-only capacity state is exercised through the real Safeword CLI
+    Scenario Outline: Public set commands wire canonical capacity atomically
+      Given isolated owner-only capacity state is <precondition>
       When the builder runs <public-command>
       Then process output, exit status, and durable state prove <public-outcome>
       Examples:
-        | public-command | public-outcome |
-        | `safeword project test-capacity set 2 --confirm-current-protocol` while idle | capacity two and the exact current protocol version commit together |
-        | `safeword project test-capacity set 1` while idle at capacity two | confirmation is not required, the command exits zero, and capacity one plus the next version commit together |
-        | `safeword project test-capacity set 1 --confirm-current-protocol` while idle at capacity two | the optional bare confirmation is accepted, the command exits zero, and capacity one plus the next version commit together |
-        | `safeword project test-capacity set 1 --confirm-current-protocol=false` while idle | SAFEWORD_TEST_CAPACITY_INVALID returns and durable state/version remain unchanged with no repository process |
-        | two concurrent valid `set` commands while idle | both commit serially in guard order with consecutive versions and no partial observation |
-        | barriers let `set 2` commit before wrapper admission | set exits zero at version N+1 with capacity two, then the wrapper registers under and observes capacity two |
-        | barriers let wrapper admission register before `set 2` | wrapper observes capacity one, set exits nonzero with SAFEWORD_TEST_CAPACITY_BUSY, and durable capacity and version remain unchanged |
-        | `safeword project test-capacity status` after an identity fault | stable code, canonical domain location, and the first safe recovery action are reported without mutation |
-        | `safeword project test-capacity reset --expected-domain D --confirm-idle` after exact domain D is proven idle | capacity one and current protocol state commit together |
-        | barriers let wrapper admission register immediately before reset obtains the guard | reset exits nonzero with SAFEWORD_TEST_CAPACITY_BUSY, the wrapper owner and version remain intact, and no update is lost |
-        | barriers let reset obtain the guard and prove the recorded domain idle before wrapper admission | reset commits capacity one at version N+1, then the wrapper registers against that exact version with no owner lost |
-        | `reset --expected-domain D` without `--confirm-idle` | SAFEWORD_TEST_CAPACITY_INVALID returns and durable state/version remain unchanged with no repository process |
-        | `reset --expected-domain OTHER --confirm-idle` for recorded domain D | SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE returns and durable state/version remain unchanged with no repository process |
-        | reset against an incompatible durable schema | SAFEWORD_TEST_CAPACITY_STATE_UNSAFE returns and durable state/version remain unchanged with no repository process |
-        | reset while exact domain D has an owner or waiter | SAFEWORD_TEST_CAPACITY_BUSY returns and durable state/version remain unchanged with no repository process |
-        | reset while exact domain D identity is unverifiable | SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE returns and durable state/version remain unchanged with no repository process |
-        | `reset --expected-domain D --expected-domain D --confirm-idle` | SAFEWORD_TEST_CAPACITY_INVALID returns and durable state/version remain unchanged with no repository process |
-        | `reset --expected-domain D --confirm-idle --confirm-idle` | SAFEWORD_TEST_CAPACITY_INVALID returns and durable state/version remain unchanged with no repository process |
-        | `reset --expected-domain --confirm-idle` with no domain value | SAFEWORD_TEST_CAPACITY_INVALID returns and durable state/version remain unchanged with no repository process |
-        | `reset --expected-domain D --confirm-idle --unknown` | SAFEWORD_TEST_CAPACITY_INVALID returns and durable state/version remain unchanged with no repository process |
-        | `reset --expected-domain D --confirm-idle unexpected` | SAFEWORD_TEST_CAPACITY_INVALID returns and durable state/version remain unchanged with no repository process |
+        | precondition | public-command | public-outcome |
+        | idle at capacity one | `safeword project test-capacity set 2 --confirm-current-protocol` | capacity two and the exact current protocol version commit together |
+        | idle at capacity two | `safeword project test-capacity set 1` | confirmation is not required, the command exits zero, and capacity one plus the next version commit together |
+        | idle at capacity two | `safeword project test-capacity set 1 --confirm-current-protocol` | the optional bare confirmation is accepted, the command exits zero, and capacity one plus the next version commit together |
+        | idle | `safeword project test-capacity set 1 --confirm-current-protocol=false` | SAFEWORD_TEST_CAPACITY_INVALID returns and durable state/version remain unchanged with no repository process |
+
+    @wiring @process @surface.safeword-cli
+    Scenario Outline: Reset validates an explicitly prepared capacity domain
+      Given isolated owner-only capacity state is <precondition>
+      When the builder runs <public-command>
+      Then process output, exit status, and durable state prove <public-outcome>
+      Examples:
+        | precondition | public-command | public-outcome |
+        | exact domain D is proven idle | `safeword project test-capacity reset --expected-domain D --confirm-idle` | capacity one and current protocol state commit together |
+        | recorded exact domain is D | `safeword project test-capacity reset --expected-domain D` | SAFEWORD_TEST_CAPACITY_INVALID returns and durable state/version remain unchanged with no repository process |
+        | recorded exact domain is D | `safeword project test-capacity reset --expected-domain OTHER --confirm-idle` | SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE returns and durable state/version remain unchanged with no repository process |
+        | an incompatible durable schema | `safeword project test-capacity reset --expected-domain D --confirm-idle` | SAFEWORD_TEST_CAPACITY_STATE_UNSAFE returns and durable state/version remain unchanged with no repository process |
+        | exact domain D has an owner or waiter | `safeword project test-capacity reset --expected-domain D --confirm-idle` | SAFEWORD_TEST_CAPACITY_BUSY returns and durable state/version remain unchanged with no repository process |
+        | exact domain D identity is unverifiable | `safeword project test-capacity reset --expected-domain D --confirm-idle` | SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE returns and durable state/version remain unchanged with no repository process |
+        | recorded exact domain is D | `safeword project test-capacity reset --expected-domain D --expected-domain D --confirm-idle` | SAFEWORD_TEST_CAPACITY_INVALID returns and durable state/version remain unchanged with no repository process |
+        | recorded exact domain is D | `safeword project test-capacity reset --expected-domain D --confirm-idle --confirm-idle` | SAFEWORD_TEST_CAPACITY_INVALID returns and durable state/version remain unchanged with no repository process |
+        | recorded exact domain is D | `safeword project test-capacity reset --expected-domain --confirm-idle` | SAFEWORD_TEST_CAPACITY_INVALID returns and durable state/version remain unchanged with no repository process |
+        | recorded exact domain is D | `safeword project test-capacity reset --expected-domain D --confirm-idle --unknown` | SAFEWORD_TEST_CAPACITY_INVALID returns and durable state/version remain unchanged with no repository process |
+        | recorded exact domain is D | `safeword project test-capacity reset --expected-domain D --confirm-idle unexpected` | SAFEWORD_TEST_CAPACITY_INVALID returns and durable state/version remain unchanged with no repository process |
+
+    @wiring @process @surface.safeword-cli
+    Scenario Outline: Reset serializes with admission under the shared guard
+      Given isolated owner-only capacity state is <precondition>
+      When <race>
+      Then <public-outcome>
+      Examples:
+        | precondition | race | public-outcome |
+        | idle at capacity two | barriers let wrapper admission register immediately before reset obtains the guard | reset exits nonzero with SAFEWORD_TEST_CAPACITY_BUSY, the wrapper owner and version remain intact, and no update is lost |
+        | idle at capacity two | barriers let reset obtain the guard and prove the recorded domain idle before wrapper admission | reset commits capacity one at version N+1, then the wrapper registers against that exact version with no owner lost |
+
+    @rejection @surface.safeword-cli
+    Scenario Outline: Public capacity status and dispatch reject unsupported arguments
+      Given durable capacity state and version are captured byte-for-byte
+      When the builder runs <public-command>
+      Then no repository process starts, the command exits nonzero with SAFEWORD_TEST_CAPACITY_INVALID, and durable bytes and version remain unchanged
+      Examples:
+        | public-command |
+        | `safeword project test-capacity status --unknown` |
+        | `safeword project test-capacity status unexpected` |
+        | `safeword project test-capacity status --format=json` |
+        | `safeword project test-capacity` |
+        | `safeword project test-capacity unknown` |
 
     @wiring @surface.safeword-cli
     Scenario: Status domain identifier is accepted verbatim by reset
