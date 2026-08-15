@@ -913,13 +913,12 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
     );
     executable(
       cli,
-      `#!/usr/bin/env bun
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+      String.raw`#!/usr/bin/env bun
+import { appendFileSync } from 'node:fs';
 const counter = process.env.SAFEWORD_COUNTER;
 if (!counter) process.exit(2);
-const count = existsSync(counter) ? Number(readFileSync(counter, 'utf8')) : 0;
-writeFileSync(counter, String(count + 1));
 const args = process.argv.slice(2);
+appendFileSync(counter, JSON.stringify(args) + '\n');
 if (args[0] === 'project' && args[1] === 'test-plan') {
   console.log(JSON.stringify([{ cwd: process.cwd(), command: 'true', available: true }]));
 } else if (args[0] === 'retro' && args[1] === 'run') {
@@ -946,6 +945,9 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
     });
     expect(preview.status, `${preview.stderr}\n${preview.stdout}`).toBe(0);
     const digest = (JSON.parse(preview.stdout) as { digest: string }).digest;
+    const invocationSnapshot = readFileSync(counter, 'utf8');
+    expect(invocationSnapshot).toContain('["project","test-plan"');
+    expect(invocationSnapshot).toContain('["retro","run"');
 
     bindHostSession({ runtime: 'claude', fixture, environment, id, transcript });
     const replay = spawnSync('bun', [guard, '--pr', '42'], {
@@ -970,7 +972,7 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
     });
 
     expect(applied.status, `${applied.stderr}\n${applied.stdout}`).toBe(0);
-    expect(readFileSync(counter, 'utf8')).toBe('5');
+    expect(readFileSync(counter, 'utf8')).toBe(invocationSnapshot);
   }, 30_000);
 
   it.each([
