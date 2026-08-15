@@ -1,0 +1,21 @@
+{
+  "feature": "features/honor-host-toolchains.feature",
+  "scenarios": {
+    "An Ultracite Biome project uses its configured checked flow": ["packages/cli/tests/hooks/host-toolchain.test.ts", "runs Ultracite fix then check as exact argv arrays"],
+    "A direct Biome project is not rewritten by a Safeword JavaScript policy": ["packages/cli/tests/hooks/host-toolchain.test.ts", "routes a direct-Biome edit through lintFile instead of Safeword ESLint"],
+    "An Ultracite preset wins over direct-Biome detection": ["packages/cli/tests/hooks/host-toolchain.test.ts", "recognizes a commented JSONC Ultracite preset before direct Biome"],
+    "Each supported Biome configuration filename selects direct Biome": ["packages/cli/tests/hooks/host-toolchain.test.ts", "recognizes direct Biome from %s"],
+    "A dash-prefixed source filename uses exact shell-disabled direct-Biome argv": ["packages/cli/tests/hooks/host-toolchain.test.ts", "runs direct Biome as exact argv arrays in owner cwd without hostile overrides"],
+    "A dash-prefixed source filename uses exact shell-disabled Ultracite argv": ["packages/cli/tests/hooks/host-toolchain.test.ts", "runs Ultracite fix then check as exact argv arrays"],
+    "A host configuration that excludes an edited file does not trigger a competing fallback": ["packages/cli/tests/hooks/host-toolchain.test.ts", "keeps a config-excluded file with its selected Biome owner"],
+    "An existing Ultracite installation remains byte-for-byte owned by the project": ["packages/cli/tests/hooks/host-toolchain.test.ts", "uses an existing Ultracite installation without changing project-owned files"],
+    "A host check failure identifies the edited file to the agent": ["packages/cli/tests/hooks/host-toolchain.test.ts", "surfaces a failing final Biome check through lintFile"],
+    "A recognized owner without a project-local executable leaves the file untouched": ["packages/cli/tests/hooks/host-toolchain.test.ts", "warns instead of using a PATH Biome when the recognized owner lacks a local executable"],
+    "An unsupported alternative formatter retains Safeword's existing no-Prettier behavior": ["packages/cli/tests/hooks/lint-config.test.ts", "is true when a non-Prettier formatter owns the repo"],
+    "A Safeword-owned generated file is excluded from host dispatch": ["packages/cli/tests/hooks/host-toolchain.test.ts", "excludes a Safeword-owned generated JavaScript file from host dispatch"],
+    "Biome environment overrides cannot escape the selected workspace owner": ["packages/cli/tests/hooks/host-toolchain.test.ts", "runs direct Biome as exact argv arrays in owner cwd without hostile overrides"],
+    "A nested configuration inherits its root toolchain and root-hoisted executable": ["packages/cli/tests/hooks/host-toolchain.test.ts", "uses a nested Biome owner with a root-hoisted local executable"],
+    "A sibling workspace cannot become the edited file's host owner": ["packages/cli/tests/hooks/host-toolchain.test.ts", "does not select a sibling workspace Biome owner"],
+    "A canonical path outside the Safeword project cannot become a host owner": ["packages/cli/tests/hooks/host-toolchain.test.ts", "warns and skips every formatter when an edited-file symlink resolves outside the project root"]
+  }
+}
