@@ -43336,29 +43336,34 @@ function reviewerArguments(reviewer, model, schemaPath) {
     extra.push("--output-schema", schemaPath);
   if (extra.length === 0)
     return base;
-  const stdinMarker = base.lastIndexOf("-");
-  return stdinMarker === -1 ? [...base, ...extra] : [...base.slice(0, stdinMarker), ...extra, ...base.slice(stdinMarker)];
+  if (reviewer !== "codex")
+    return [...base, ...extra];
+  const stdinMarker = base.length - 1;
+  if (base[stdinMarker] !== "-")
+    throw new Error("Codex reviewer arguments lack the stdin marker");
+  return [...base.slice(0, stdinMarker), ...extra, "-"];
 }
 function reviewRunCeiling(env) {
   return env.SAFEWORD_REVIEW_WORKER === "1" ? BACKGROUND_RUN_BOUND_MS : RUN_BOUND_MS;
 }
-function runBoundMs() {
-  const configured = Number(process.env.SAFEWORD_REVIEW_RUN_BOUND_MS);
-  const ceiling = reviewRunCeiling(process.env);
+function runBoundMs(env = process.env) {
+  const configured = Number(env.SAFEWORD_REVIEW_RUN_BOUND_MS);
+  const ceiling = reviewRunCeiling(env);
   return Number.isFinite(configured) && configured > 0 ? Math.min(configured, ceiling) : ceiling;
 }
-function minimumRouteMs() {
-  return Math.min(60000, attemptDeadlineMs());
+function minimumRouteMs(env = process.env) {
+  return Math.min(60000, attemptDeadlineMs(env));
 }
 function reviewTimeoutMilliseconds(_reviewer, env = process.env) {
   const raw = env.SAFEWORD_REVIEW_TIMEOUT_MS;
   const configured = raw === undefined ? NaN : Number(raw);
   const ceiling = reviewRunCeiling(env);
   const defaultDeadline = env.SAFEWORD_REVIEW_WORKER === "1" ? BACKGROUND_ATTEMPT_DEADLINE_MS : DEFAULT_ATTEMPT_DEADLINE_MS;
-  return Number.isFinite(configured) && configured > 0 ? Math.min(configured, ceiling) : defaultDeadline;
+  const maximumAttempt = Math.max(1, ceiling - 60000);
+  return Number.isFinite(configured) && configured > 0 ? Math.min(configured, maximumAttempt) : defaultDeadline;
 }
-function attemptDeadlineMs() {
-  return reviewTimeoutMilliseconds("claude");
+function attemptDeadlineMs(env = process.env) {
+  return reviewTimeoutMilliseconds("claude", env);
 }
 function isRecord3(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -43427,7 +43432,7 @@ function reviewPrompt(reviewer, packet) {
     "Do not use tools or modify files. Return only one JSON object matching the packet result contract.",
     REVIEW_RUBRICS[packet.kind],
     `Keep schema_version and dispatch_id unchanged; set reviewer_agent to exactly "${reviewer}".`,
-    "Use verdict approve or request_changes. Include summary and findings.",
+    "Use verdict approve only when no finding has severity error; otherwise use request_changes. Include summary and findings.",
     JSON.stringify(packet)
   ].join(`
 `);
@@ -43447,7 +43452,7 @@ function outsideUntrustedRoot(root, candidate) {
 }
 function pathMetadataIsTrusted(mode, ownerUid, currentUid) {
   const ownedByCurrentUser = currentUid !== undefined && ownerUid === currentUid;
-  return (mode & 2) === 0 && ((mode & 16) === 0 || ownedByCurrentUser) && (currentUid === undefined || ownerUid === 0 || ownedByCurrentUser);
+  return (mode & 2) === 0 && (mode & 16) === 0 && (currentUid === undefined || ownerUid === 0 || ownedByCurrentUser);
 }
 function hasTrustedExecutableAncestry(candidate) {
   if (process.platform === "win32")
@@ -43673,9 +43678,10 @@ async function stopReviewerOnce(child) {
       return false;
     return procGroupHasRunningMember(pid) ?? true;
   };
-  const groupIsStopped = () => {
+  const groupIsStopped = async () => {
     if (groupIsRunning())
       return false;
+    await new Promise((resolve) => setTimeout(resolve, PROCESS_GROUP_POLL_INTERVAL_MS));
     return !groupIsRunning();
   };
   await waitForProcessGroupToStop(groupIsRunning, Date.now() + CLEANUP_BUDGET_MS);
@@ -43800,7 +43806,7 @@ async function runReviewerCandidates(attempt, candidates, deadline) {
   if (!foundCompatible) {
     if (lastProbeFailure !== undefined)
       throw lastProbeFailure;
-    throw new ReviewRuntimeError("not_installed", `No compatible ${reviewer} reviewer is installed`);
+    throw new ReviewRuntimeError("not_installed", `No trusted compatible ${reviewer} reviewer was found`);
   }
   throw lastFailure ?? new ReviewRuntimeError("process_failed", `${reviewer} review failed`);
 }
@@ -43809,7 +43815,7 @@ async function runHeadlessReviewer(reviewer, packet, cwd, untrustedRoot = proces
   const deadline = Math.min(Date.now() + attemptDeadlineMs(), runDeadline ?? Infinity);
   const candidates = executableCandidates(reviewer, untrustedRoot);
   if (candidates.length === 0) {
-    throw new ReviewRuntimeError("not_installed", `No compatible ${reviewer} reviewer is installed`);
+    throw new ReviewRuntimeError("not_installed", `No trusted compatible ${reviewer} reviewer was found`);
   }
   let contract;
   try {

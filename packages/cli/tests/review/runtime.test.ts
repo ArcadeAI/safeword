@@ -10,6 +10,7 @@ import {
   parseProcessStat,
   parseReviewerOutput,
   procGroupHasRunningMember,
+  reviewerArguments,
   reviewTimeoutMilliseconds,
   runBoundMs,
   runHeadlessReviewer,
@@ -77,7 +78,18 @@ describe('headless reviewer timeout budgets', () => {
         SAFEWORD_REVIEW_WORKER: '1',
         SAFEWORD_REVIEW_TIMEOUT_MS: '3600000',
       }),
-    ).toBe(1_800_000);
+    ).toBe(1_740_000);
+  });
+
+  it('reads every budget from an explicit environment snapshot', () => {
+    const env = {
+      SAFEWORD_REVIEW_RUN_BOUND_MS: '900000',
+      SAFEWORD_REVIEW_TIMEOUT_MS: '45000',
+      SAFEWORD_REVIEW_WORKER: '1',
+    };
+
+    expect(runBoundMs(env)).toBe(900_000);
+    expect(reviewTimeoutMilliseconds('claude', env)).toBe(45_000);
   });
 });
 
@@ -154,6 +166,27 @@ describe('headless reviewer output adapters', () => {
     expect(() => parseReviewerOutput('claude', JSON.stringify(invalidOutput))).toThrow(
       'invalid reviewer output',
     );
+  });
+});
+
+describe('reviewer arguments', () => {
+  it('places Codex model and schema flags before the trailing stdin marker', () => {
+    const args = reviewerArguments('codex', 'gpt-test', '/tmp/schema.json');
+
+    expect(args.slice(-5)).toEqual([
+      '--model',
+      'gpt-test',
+      '--output-schema',
+      '/tmp/schema.json',
+      '-',
+    ]);
+  });
+
+  it('appends Claude model flags without adding a positional marker', () => {
+    const args = reviewerArguments('claude', 'claude-test', undefined);
+
+    expect(args.slice(-2)).toEqual(['--model', 'claude-test']);
+    expect(args).not.toContain('-');
   });
 });
 

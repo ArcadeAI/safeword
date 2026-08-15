@@ -1,4 +1,4 @@
-import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterAll, describe, expect, it } from 'vitest';
@@ -105,6 +105,8 @@ describe('Codex typed-output contract', () => {
         reviewer_output: { reviewer_agent: 'codex', findings: [{ severity: 'warning' }] },
       },
     });
+    const schemaPath = readFileSync(nodePath.join(directory, 'schema-path.log'), 'utf8').trim();
+    expect(existsSync(schemaPath)).toBe(false);
   });
 
   it('delivers a contract that permits exactly what the check enforces', async () => {

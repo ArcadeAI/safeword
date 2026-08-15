@@ -1885,51 +1885,54 @@ describe('cross-agent review public-command wiring', () => {
     expect(() => readFileSync(maliciousLog, 'utf8')).toThrow();
   });
 
-  it('rejects a reviewer beneath a world-writable PATH directory', async () => {
-    const directory = createTemporaryDirectory();
-    const reviewLog = nodePath.join(directory, 'review.log');
-    const maliciousLog = nodePath.join(directory, 'malicious.log');
-    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+  it.each([0o777, 0o775])(
+    'rejects a reviewer beneath a group- or world-writable PATH directory (%s)',
+    async untrustedMode => {
+      const directory = createTemporaryDirectory();
+      const reviewLog = nodePath.join(directory, 'review.log');
+      const maliciousLog = nodePath.join(directory, 'malicious.log');
+      writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
 
-    const maliciousRoot = createTemporaryDirectory();
-    const maliciousBin = nodePath.join(maliciousRoot, 'bin');
-    mkdirSync(maliciousBin);
-    writeFileSync(
-      nodePath.join(maliciousBin, 'codex'),
-      `#!/bin/sh\nprintf 'invoked\\n' >> '${maliciousLog}'\nprintf '%s\\n' '--json --sandbox --skip-git-repo-check --ephemeral --ignore-user-config --ignore-rules --disable --config --output-schema --model'\n`,
-      { mode: 0o755 },
-    );
-    chmodSync(maliciousBin, 0o777);
-    const trustedBin = installFakeReviewer(directory, 'codex');
-    chmodSync(trustedBin, 0o775);
+      const maliciousRoot = createTemporaryDirectory();
+      const maliciousBin = nodePath.join(maliciousRoot, 'bin');
+      mkdirSync(maliciousBin);
+      writeFileSync(
+        nodePath.join(maliciousBin, 'codex'),
+        `#!/bin/sh\nprintf 'invoked\\n' >> '${maliciousLog}'\nprintf '%s\\n' '--json --sandbox --skip-git-repo-check --ephemeral --ignore-user-config --ignore-rules --disable --config --output-schema --model'\n`,
+        { mode: 0o755 },
+      );
+      chmodSync(maliciousBin, untrustedMode);
+      const trustedBin = installFakeReviewer(directory, 'codex');
+      chmodSync(trustedBin, 0o755);
 
-    const result = await runCli(
-      [
-        'review',
-        'run',
-        'quality-review',
-        'review-input.md',
-        '--json',
-        '--no-input',
-        '--cwd',
-        directory,
-      ],
-      {
-        cwd: directory,
-        env: {
-          PATH: `${maliciousBin}:${trustedBin}:/usr/bin:/bin`,
-          OPENAI_API_KEY: 'reviewer-secret',
-          SAFEWORD_AGENT_RUNTIME: 'claude',
-          SAFEWORD_REVIEW_LOG: reviewLog,
-          SAFEWORD_NO_UPDATE_CHECK: '1',
+      const result = await runCli(
+        [
+          'review',
+          'run',
+          'quality-review',
+          'review-input.md',
+          '--json',
+          '--no-input',
+          '--cwd',
+          directory,
+        ],
+        {
+          cwd: directory,
+          env: {
+            PATH: `${maliciousBin}:${trustedBin}:/usr/bin:/bin`,
+            OPENAI_API_KEY: 'reviewer-secret',
+            SAFEWORD_AGENT_RUNTIME: 'claude',
+            SAFEWORD_REVIEW_LOG: reviewLog,
+            SAFEWORD_NO_UPDATE_CHECK: '1',
+          },
         },
-      },
-    );
+      );
 
-    expect(result.exitCode, result.stdout).toBe(0);
-    expect(readFileSync(reviewLog, 'utf8')).toBe('codex\n');
-    expect(() => readFileSync(maliciousLog, 'utf8')).toThrow();
-  });
+      expect(result.exitCode, result.stdout).toBe(0);
+      expect(readFileSync(reviewLog, 'utf8')).toBe('codex\n');
+      expect(() => readFileSync(maliciousLog, 'utf8')).toThrow();
+    },
+  );
 
   it('retains the existing route without launching a reviewer after explicit opt-out', async () => {
     const directory = createTemporaryDirectory();
