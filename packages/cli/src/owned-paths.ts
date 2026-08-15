@@ -67,7 +67,12 @@ export function resolvedNamespaceDirectory(ctx: ProjectContext): string | undefi
   // Skip the repo root ('.'), the well-known roots (already in the static lists),
   // and any root resolved OUTSIDE the repo ('../…') — a traversal label would leak
   // nonsensical ignore/prefix entries that match nothing under the repo.
-  if (label === '.' || label.startsWith('..') || SAFEWORD_IGNORE_DIRS.includes(label)) {
+  if (
+    label === '.' ||
+    label === '..' ||
+    label.startsWith('../') ||
+    SAFEWORD_IGNORE_DIRS.includes(label)
+  ) {
     return undefined;
   }
   return label;
