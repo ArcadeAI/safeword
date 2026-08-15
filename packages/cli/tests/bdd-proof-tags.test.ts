@@ -244,6 +244,7 @@ describe('BDD proof provenance', () => {
   });
 
   it.each([
+    ['phase work-log stamp', '.project/tickets/E32M4P-phase-work-log-stamp/bdd-proof.json'],
     ['feature ticket readiness', '.project/tickets/9S6HFC-feature-ticket-readiness/bdd-proof.json'],
     [
       'PM-grade intake readiness',
