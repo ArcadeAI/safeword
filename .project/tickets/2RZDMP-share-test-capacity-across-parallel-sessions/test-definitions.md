@@ -213,7 +213,7 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Native platform identity adapters authenticate observable process identity
+### Scenario: Native platform identity adapters distinguish exact and mismatched real processes
 
 - [ ] RED
 - [ ] GREEN
@@ -414,12 +414,6 @@ remain in the feature file.
 - [ ] REFACTOR
 
 ### Scenario: Capacity updates and admission serialize as one guarded transition
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: A reclaiming owner blocks a capacity update
 
 - [ ] RED
 - [ ] GREEN
