@@ -1079,6 +1079,34 @@ describe("Terra canary write-side attempt lifecycle", () => {
     );
   });
 
+  test("rejects reused attempt identity before posting another start", async () => {
+    const directory = outputDirectory();
+    const upstream = fakeUpstream();
+    await initializeCanary({ binding: BINDING, outputDirectory: directory, upstream });
+    await runCanaryAttempt({
+      attemptId: "attempt-1",
+      binding: BINDING,
+      dispatch: async () => validDispatchEvidence(),
+      intentId: "intent-1",
+      outputDirectory: directory,
+      upstream,
+    });
+
+    await expect(
+      runCanaryAttempt({
+        attemptId: "attempt-2",
+        binding: BINDING,
+        dispatch: async () => {
+          throw new Error("duplicate intent must not dispatch");
+        },
+        intentId: "intent-1",
+        outputDirectory: directory,
+        upstream,
+      })
+    ).rejects.toThrow("attemptId and intentId must be new before dispatch");
+    expect(upstream.events.filter((event) => event === "upstream-start")).toHaveLength(1);
+  });
+
   test("blocks before durable start when the receipt budget cannot fund a complete attempt", async () => {
     const directory = outputDirectory();
     const upstream = fakeUpstream();

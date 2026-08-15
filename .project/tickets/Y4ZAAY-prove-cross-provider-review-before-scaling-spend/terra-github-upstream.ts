@@ -256,6 +256,9 @@ export function createGitHubCanaryUpstream(input: {
   nextReceiptId(): string;
 }): CanaryUpstream {
   const repository = input.authorization.canonicalRepository;
+  if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)) {
+    throw new Error("canonical repository identity is invalid");
+  }
   const authorizedBindingDigest = canaryBindingDigest({
     adapterCommit: input.authorization.adapterCommit,
     adapterTag: input.authorization.adapterTag,

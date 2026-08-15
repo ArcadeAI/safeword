@@ -191,8 +191,8 @@ export async function reconcilePaidChildEvidence(
   context: CanaryDispatchContext,
   childResult: PaidChildResult
 ): Promise<ReturnType<typeof parseTerraPaidChildResult>> {
-  const retained = await completeCanaryProviderJournal(context);
   await retainPaidChildDiagnostic(context, childResult);
+  const retained = await completeCanaryProviderJournal(context);
   let reported: ReturnType<typeof parseTerraPaidChildResult>;
   try {
     reported = parseTerraPaidChildResult(childResult);
@@ -584,8 +584,14 @@ export async function verifyAuthorizedPaidChildInput(input: {
   } catch {
     throw new Error("committed corpus manifest is invalid JSON");
   }
-  const manifest = manifests.find((candidate) => candidate.cases?.some((item) => item.id === caseId));
-  const corpusCase = manifest?.cases?.find((item) => item.id === caseId);
+  const matchingManifests = manifests.filter((candidate) =>
+    candidate.cases?.some((item) => item.id === caseId)
+  );
+  if (matchingManifests.length !== 1) {
+    throw new Error("paid child case must occur in exactly one frozen manifest");
+  }
+  const manifest = matchingManifests[0]!;
+  const corpusCase = manifest.cases?.find((item) => item.id === caseId);
   const variant = review?.variant;
   if (variant !== "buggy" && variant !== "fixed") {
     throw new Error("paid child review has an invalid variant");
@@ -786,6 +792,10 @@ async function runTerraPaidCanaryInternal(
         intentId: input.intentId,
         outputDirectory: input.outputDirectory,
         prepare: async (context) => {
+          await Promise.all([
+            preflightLocalPinnedCheckout(input.adapterCheckout),
+            preflightLocalPinnedCheckout(input.harnessCheckout),
+          ]);
           const preparedDigest = await verifyAuthorizedPaidChildInput({
             adapterCheckout: input.adapterCheckout,
             checkout: input.harnessCheckout,

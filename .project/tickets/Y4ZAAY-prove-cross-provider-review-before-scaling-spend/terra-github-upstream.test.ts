@@ -108,6 +108,23 @@ function receiptIds(): () => string {
 }
 
 describe("GitHub canary upstream", () => {
+  test("rejects traversal in the canonical repository before HTTP access", () => {
+    expect(() =>
+      createGitHubCanaryUpstream({
+        allowlistedMaintainers: ["TheMostlyGreat"],
+        authorization: {
+          ...authorization,
+          canonicalRepository: "ArcadeAI/../other",
+        },
+        http: async () => {
+          throw new Error("HTTP must not run");
+        },
+        issueNumber: 1910,
+        nextReceiptId: () => "receipt-1",
+      })
+    ).toThrow("canonical repository identity is invalid");
+  });
+
   test("sends authenticated GitHub API requests through one HTTP boundary", async () => {
     const requests: Array<{ input: string; init?: RequestInit }> = [];
     const fetch: typeof globalThis.fetch = Object.assign(

@@ -947,6 +947,33 @@ describe("credential-separated live launcher", () => {
     ).toEqual({ exitCode: 7, stderr: "late diagnostic" });
   });
 
+  test("retains child diagnostics even when the turn journal is incomplete", async () => {
+    const outputDirectory = await mkdtemp(join(tmpdir(), "terra-incomplete-child-"));
+    await expect(
+      reconcilePaidChildEvidence(
+        {
+          attemptId: "attempt-1",
+          intentId: "intent-1",
+          outputDirectory,
+          sequence: 1,
+        },
+        { exitCode: -1, stderr: "child timed out", stdout: "" }
+      )
+    ).rejects.toThrow("provider turn journal is incomplete");
+    expect(
+      JSON.parse(
+        await readFile(
+          join(
+            outputDirectory,
+            EVIDENCE_DIRECTORY,
+            "attempt-1.child-diagnostic.json"
+          ),
+          "utf8"
+        )
+      )
+    ).toEqual({ exitCode: -1, stderr: "child timed out" });
+  });
+
   test("returns a paid child's non-zero exit and diagnostics", async () => {
     await expect(
       spawnPaidChild({

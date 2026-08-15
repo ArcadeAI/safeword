@@ -230,7 +230,7 @@ function canonicalize(value: unknown): unknown {
   if (typeof value === "object" && value !== null) {
     return Object.fromEntries(
       Object.entries(value)
-        .sort(([left], [right]) => left.localeCompare(right))
+        .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
         .map(([key, item]) => [key, canonicalize(item)])
     );
   }
@@ -583,6 +583,14 @@ export async function completeCanaryProviderJournal(
     throw new Error("provider turn journal is incomplete");
   }
   const [intent, ...turns] = records;
+  if (
+    intent?.kind !== "attempt-intent" ||
+    intent.attemptId !== input.attemptId ||
+    intent.intentId !== input.intentId ||
+    intent.sequence !== input.sequence
+  ) {
+    throw new Error("provider turn journal has an invalid attempt intent");
+  }
   const requests = turns
     .filter((record) => record.kind === "provider-turn-intent")
     .map((record) => ({
@@ -1364,6 +1372,33 @@ async function runCanaryAttemptWhileLocked(input: {
   };
   await input.prepare?.(context);
   const digest = canaryBindingDigest(input.binding);
+  const beforeStart = await readVerifiedConsumedSnapshot({
+    binding: input.binding,
+    bindingDigest: digest,
+    errorMessage: "upstream attempt state changed before dispatch",
+    upstream: input.upstream,
+  });
+  const priorStarts = validateStartReceipts(
+    beforeStart.starts,
+    beforeStart.head,
+    beforeStart.receipt.receiptId
+  );
+  if (
+    priorStarts === null ||
+    beforeStart.head.startedAttempts !== inspected.startedAttempts ||
+    beforeStart.head.observedCostPicodollars !==
+      inspected.observedCostPicodollars.toString()
+  ) {
+    throw new Error("upstream attempt state changed before dispatch");
+  }
+  if (
+    priorStarts.some(
+      (prior) =>
+        prior.attemptId === input.attemptId || prior.intentId === input.intentId
+    )
+  ) {
+    throw new Error("attemptId and intentId must be new before dispatch");
+  }
   const start = await input.upstream.postAttemptStart({
     attemptId: input.attemptId,
     bindingDigest: digest,
