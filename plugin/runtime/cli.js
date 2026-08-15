@@ -44903,15 +44903,11 @@ function withFileLock(lock, operation) {
   try {
     return operation();
   } finally {
-    let ownedLock;
-    try {
-      ownedLock = fstatSync8(descriptor);
-    } finally {
-      closeSync10(descriptor);
-    }
+    const ownedLock = fstatSync8(descriptor);
+    closeSync10(descriptor);
     try {
       const currentLock = statSync6(lock);
-      if (ownedLock !== undefined && currentLock.dev === ownedLock.dev && currentLock.ino === ownedLock.ino)
+      if (currentLock.dev === ownedLock.dev && currentLock.ino === ownedLock.ino)
         unlinkSync3(lock);
     } catch {}
   }
