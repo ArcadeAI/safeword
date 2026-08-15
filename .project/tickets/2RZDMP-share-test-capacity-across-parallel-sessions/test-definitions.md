@@ -187,6 +187,12 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Consecutive broad requests run alone in FIFO-ticket order
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: share-test-capacity.TBU1.R5
 
 ### Scenario: Exact owner loss is recovered across every supported execution container
@@ -371,7 +377,7 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A confirmed set initializes an uninitialized domain atomically
+### Scenario: A valid set initializes an uninitialized domain atomically
 
 - [ ] RED
 - [ ] GREEN
