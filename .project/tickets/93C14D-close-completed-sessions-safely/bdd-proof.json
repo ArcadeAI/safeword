@@ -6,10 +6,15 @@
     "A fully closed delivery reports every final state": ["packages/cli/tests/closeout-skill.test.ts", "reports every durable final state and every unresolved recovery action"],
     "Retro extraction runs in the bound host runtime": ["packages/cli/tests/closeout-cleanup.test.ts", "passes the bound %s runtime to the real retro command boundary"],
     "Bound retro subprocess failures stop cleanup": ["packages/cli/tests/closeout-cleanup.test.ts", "classifies the current retro outcome ($complete, $errorText, $processStatus, $agentFilingNeeded, $pendingDrafts)"],
-    "A completed retro permits cleanup": ["packages/cli/tests/closeout-cleanup.test.ts", "%s is advisory for cleanup"],
-    "Incomplete retro blocks cleanup": ["packages/cli/tests/closeout-cleanup.test.ts", "%s blocks every deletion", "failed retro filing"],
+    "A completed retro permits cleanup": ["packages/cli/tests/closeout-cleanup.test.ts", "previews exact cleanup in worktree, remote, local order with a stable digest"],
+    "Incomplete retro is reported while repository cleanup continues": [
+      ["packages/cli/tests/closeout-cleanup.test.ts", "%s is advisory for cleanup", "missing session binding"],
+      ["packages/cli/tests/closeout-cleanup.test.ts", "%s is advisory for cleanup", "failed retro extraction"],
+      ["packages/cli/tests/closeout-cleanup.test.ts", "%s is advisory for cleanup", "failed retro filing"],
+      ["packages/cli/tests/closeout-cleanup.test.ts", "%s is advisory for cleanup", "pending drafts"]
+    ],
     "Filing completed retro drafts resumes without re-extraction": ["packages/cli/tests/closeout-cleanup.test.ts", "reuses a completed extraction after acknowledged filing drains its pending drafts"],
-    "A request to skip retro does not create a bypass": ["packages/cli/tests/closeout-skill.test.ts", "makes the exact current-session retrospective a fail-closed cleanup prerequisite"],
+    "A request to skip retro does not hide its advisory state": ["packages/cli/tests/closeout-skill.test.ts", "keeps every retrospective outcome advisory for repository cleanup"],
     "Closeout continues only the unfinished suffix": ["packages/cli/tests/integration/closeout-host-adapters.test.ts", "resumes from a surviving worktree when $state"],
     "Exact evidence is reused through preview, replay, and approved apply": ["packages/cli/tests/integration/closeout-host-adapters.test.ts", "reuses one exact-head verification and retrospective snapshot from preview through apply"],
     "Changed evidence invalidates the matching cached prerequisite": ["packages/cli/tests/integration/closeout-host-adapters.test.ts", "invalidates an earlier receipt before a later exact-head verification fails"],

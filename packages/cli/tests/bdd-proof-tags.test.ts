@@ -161,6 +161,21 @@ function expectScenarioProofs(manifest: ScenarioProofManifest): void {
   ).toEqual(scenarioNames(manifest.feature).toSorted((left, right) => left.localeCompare(right)));
 
   const registrationCounts = new Map<string, number>();
+  const proofContracts = new Map<
+    string,
+    { executableNames: string[]; parameterCases: Map<string, Set<string>> }
+  >();
+  function proofContract(proofPath: string) {
+    const cached = proofContracts.get(proofPath);
+    if (cached !== undefined) return cached;
+    const proof = readFileSync(nodePath.join(REPO_ROOT, proofPath), 'utf8');
+    const contract = {
+      executableNames: executableVitestNames(proof),
+      parameterCases: parameterizedVitestCases(proof),
+    };
+    proofContracts.set(proofPath, contract);
+    return contract;
+  }
   for (const registration of Object.values(manifest.scenarios)) {
     for (const [proofPath, testName] of registeredProofs(registration)) {
       const key = `${proofPath}\0${testName}`;
@@ -177,18 +192,17 @@ function expectScenarioProofs(manifest: ScenarioProofManifest): void {
         `${scenario} proof registrations must contain path, test name, and optional table case`,
       ).toContain(proofRegistration.length);
       const [proofPath, testName, selectedCase] = proofRegistration;
-      const proof = readFileSync(nodePath.join(REPO_ROOT, proofPath), 'utf8');
-      const executableNames = executableVitestNames(proof);
+      const { executableNames, parameterCases } = proofContract(proofPath);
       const matches = executableNames.filter(executableName => executableName === testName);
       expect(matches, `${scenario} -> ${proofPath} must uniquely declare ${testName}`).toHaveLength(
         1,
       );
-      const parameterCases = parameterizedVitestCases(proof).get(testName);
+      const selectedParameterCases = parameterCases.get(testName);
       const registrationCount = registrationCounts.get(`${proofPath}\0${testName}`) ?? 0;
-      if (parameterCases !== undefined && registrationCount > 1) {
+      if (selectedParameterCases !== undefined && registrationCount > 1) {
         expect(selectedCase, `${scenario} -> ${testName} must select one table case`).toBeDefined();
         expect(
-          parameterCases.has(selectedCase ?? ''),
+          selectedParameterCases.has(selectedCase ?? ''),
           `${scenario} -> ${testName} must select an existing table case`,
         ).toBe(true);
       }

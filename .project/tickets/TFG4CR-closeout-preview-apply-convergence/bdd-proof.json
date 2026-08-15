@@ -22,7 +22,11 @@
     "A bootstrap identity cannot cross its project ownership boundary": ["packages/cli/tests/closeout-cleanup.test.ts", "accepts a Codex transcript across linked worktrees but rejects a separate clone"],
     "Draining removes only acknowledged drafts": ["packages/cli/tests/hooks/retro-filing.test.ts", "the shipped drain helper removes only reader-visible acknowledged drafts"],
     "Authenticated fallback drains the named spool from another worktree and session": ["packages/cli/tests/integration/closeout-host-adapters.test.ts", "reports a post-preview fallback spool without blocking cleanup"],
-    "A noncanonical fallback spool is refused": ["packages/cli/tests/hooks/retro-filing.test.ts", "refuses caller-selected noncanonical paths"],
+    "A noncanonical fallback spool is refused": [
+      ["packages/cli/tests/hooks/retro-filing.test.ts", "refuses caller-selected noncanonical paths: %s", "a direct path outside a retro-drafts directory"],
+      ["packages/cli/tests/hooks/retro-filing.test.ts", "refuses caller-selected noncanonical paths: %s", "an in-root noncanonical path"],
+      ["packages/cli/tests/hooks/retro-filing.test.ts", "refuses caller-selected noncanonical paths: %s", "a non-JSONL path"]
+    ],
     "Repeated apply preserves one unacknowledged draft": ["packages/cli/tests/closeout-cleanup.test.ts", "does not treat disappearance of an unacknowledged draft as filing proof"],
     "A fallback spool with a modified sealed body is refused": ["packages/cli/tests/hooks/retro-filing.test.ts", "the shipped helper emits no filing input when a sealed body was modified"],
     "Unavailable filing preserves authenticated drafts for retry": ["packages/cli/tests/hooks/retro-filing.test.ts", "leaves an un-postable draft spooled for retry, and a later boundary still nudges for it"],

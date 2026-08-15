@@ -86,11 +86,11 @@ Feature: Close completed sessions safely
         | every finding filed        |
 
     @rejection @surface.claude-code @surface.openai-codex @surface.cursor
-    Scenario Outline: Incomplete retro blocks cleanup
+    Scenario Outline: Incomplete retro is reported while repository cleanup continues
       Given the pull request is confirmed merged
       And retro has "<state>"
       When closeout advances to cleanup
-      Then it performs no cleanup and reports "<resolution>"
+      Then it performs exact cleanup and reports "<resolution>"
 
       Examples:
         | state                         | resolution                         |
@@ -105,11 +105,11 @@ Feature: Close completed sessions safely
       When the user files every pending draft and closeout resumes
       Then it treats the retrospective as complete without re-running extraction and validates cleanup
 
-    @rejection @surface.claude-code @surface.openai-codex @surface.cursor
-    Scenario: A request to skip retro does not create a bypass
+    @surface.claude-code @surface.openai-codex @surface.cursor
+    Scenario: A request to skip retro does not hide its advisory state
       Given retro is incomplete
       When the user asks closeout to skip retro
-      Then closeout preserves the branch and worktree and reports retro as required
+      Then closeout continues exact cleanup and reports retro as incomplete
 
   @close-completed-sessions-safely.NTB1.R3
   Rule: close-completed-sessions-safely.NTB1.R3 — An interrupted closeout resumes from observed state and reports every unresolved item
