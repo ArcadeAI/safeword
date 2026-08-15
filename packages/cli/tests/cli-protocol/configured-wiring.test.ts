@@ -35,11 +35,15 @@ case "$*" in
   "issue view "*)
     exit 0
     ;;
+  "issue edit "*)
+    exit 0
+    ;;
   "repo view "*)
     printf 'private\n'
     ;;
   *)
-    exit 0
+    printf 'unexpected gh invocation: %s\n' "$*" >&2
+    exit 97
     ;;
 esac
 `,

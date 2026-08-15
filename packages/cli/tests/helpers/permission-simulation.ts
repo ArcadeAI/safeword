@@ -188,6 +188,29 @@ function blockDeclaration(call: ts.CallExpression): boolean {
   return ts.isIdentifier(expression) && ['it', 'test', 'describe'].includes(expression.text);
 }
 
+function skipsWhenRoot(sourceFile: ts.SourceFile, condition: ts.Expression | undefined): boolean {
+  if (!condition) return false;
+  let matches = false;
+  visit(condition, node => {
+    if (!ts.isBinaryExpression(node)) return;
+    if (
+      node.operatorToken.kind !== ts.SyntaxKind.EqualsEqualsEqualsToken &&
+      node.operatorToken.kind !== ts.SyntaxKind.EqualsEqualsToken
+    ) {
+      return;
+    }
+    const left = node.left.getText(sourceFile);
+    const right = node.right.getText(sourceFile);
+    if (
+      (left.includes('process.getuid') && right === '0') ||
+      (left === '0' && right.includes('process.getuid'))
+    ) {
+      matches = true;
+    }
+  });
+  return matches;
+}
+
 function expressionHasNonRootGuard(sourceFile: ts.SourceFile, expression: ts.Expression): boolean {
   let current = expression;
   while (ts.isCallExpression(current) || ts.isPropertyAccessExpression(current)) {
@@ -198,7 +221,7 @@ function expressionHasNonRootGuard(sourceFile: ts.SourceFile, expression: ts.Exp
     if (
       ts.isPropertyAccessExpression(current.expression) &&
       current.expression.name.text === 'skipIf' &&
-      (current.arguments[0]?.getText(sourceFile).includes('process.getuid') ?? false)
+      skipsWhenRoot(sourceFile, current.arguments[0])
     ) {
       return true;
     }

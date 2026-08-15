@@ -760,8 +760,9 @@ describe('retro relay configuration and execution', () => {
 
   it('keeps consecutive relay fires distinct across pending dead-letter and ack states', async () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-fires-'));
+    vi.useFakeTimers();
     let now = Date.parse('2026-07-01T00:00:00.000Z');
-    const nowSpy = vi.spyOn(Date, 'now').mockImplementation(() => now);
+    vi.setSystemTime(now);
     let finding = rawFinding({ title: 'First occurrence' });
     let accept = false;
     const transmittedRequestIds: string[] = [];
@@ -813,6 +814,7 @@ describe('retro relay configuration and execution', () => {
       expect(transmittedRequestIds).toEqual([firstRequestId]);
 
       now += 24 * 60 * 60 * 1000;
+      vi.setSystemTime(now);
       finding = rawFinding({ title: 'Second occurrence' });
       await runFire(100);
       const deadLetters = await listRelayDeadLetters(projectDirectory);
@@ -825,6 +827,7 @@ describe('retro relay configuration and execution', () => {
 
       finding = rawFinding({ title: 'First occurrence' });
       now += 61_000;
+      vi.setSystemTime(now);
       await runFire(0);
       const revisitedDeadLetters = await listRelayDeadLetters(projectDirectory);
       const stillPending = await listRelayRequests(projectDirectory);
@@ -837,6 +840,7 @@ describe('retro relay configuration and execution', () => {
       accept = true;
       finding = rawFinding({ title: 'Second occurrence' });
       now += 121_000;
+      vi.setSystemTime(now);
       await runFire(100);
       expect(await listRelayRequests(projectDirectory)).toHaveLength(0);
       expect(transmittedRequestIds.at(-1)).toBe(secondRequestId);
@@ -855,7 +859,7 @@ describe('retro relay configuration and execution', () => {
       expect(remaining[0]?.bytes.toString()).toContain('Third occurrence');
       expect(transmittedRequestIds.at(-1)).toBe(remaining[0]?.requestId);
     } finally {
-      nowSpy.mockRestore();
+      vi.useRealTimers();
       rmSync(projectDirectory, { force: true, recursive: true });
     }
   });

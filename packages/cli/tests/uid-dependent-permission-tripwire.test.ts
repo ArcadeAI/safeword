@@ -163,6 +163,11 @@ describe('permission-simulation detection', () => {
     expect(permissionSimulations(source)).toEqual(['chmodSync(…, 0o444)']);
   });
 
+  it('does not accept an inverted root guard as a waiver', () => {
+    const source = 'it.skipIf(process.getuid?.() !== 0)("root only", () => chmodSync(p, 0o444));';
+    expect(permissionSimulations(source)).toEqual(['chmodSync(…, 0o444)']);
+  });
+
   it.each([`chmodSync(p, 0o755)`, `chmodSync(p, 0o644)`, `chmodSync(p, '700')`])(
     'allows %s',
     source => {
