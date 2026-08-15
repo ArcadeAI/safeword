@@ -128,6 +128,12 @@ describe('permission-simulation detection', () => {
     expect(permissionSimulations(source)).toEqual(['chmodSync(…, 0o444)']);
   });
 
+  it('does not treat an unrelated getuid reference as a root-skip waiver', () => {
+    const source =
+      'it("unguarded", () => { expect(process.getuid?.()).toBe(501); chmodSync(p, 0o444); });';
+    expect(permissionSimulations(source)).toEqual(['chmodSync(…, 0o444)']);
+  });
+
   it.each([`chmodSync(p, 0o755)`, `chmodSync(p, 0o644)`, `chmodSync(p, '700')`])(
     'allows %s',
     source => {
@@ -142,6 +148,8 @@ describe('permission-simulation detection', () => {
   it.each([
     ['a flag between chmod and its mode', 'const command = "chmod -R a-w dir";'],
     ['a symbolic mode that assigns away write', 'const command = "chmod u=r file";'],
+    ['a four-digit numeric mode', 'const command = "chmod 4000 file";'],
+    ['a compound symbolic mode', 'const command = "chmod u=r,go= file";'],
     ['chmod invoked as a subprocess with an argv array', `execFileSync('chmod', ['000', p])`],
     ['the promise API rather than the sync one', 'await fs.promises.chmod(p, 0o000)'],
     ['a renamed import', `import { chmodSync as lockDown } from 'node:fs';\nlockDown(p, 0o000);`],
@@ -195,6 +203,7 @@ describe('permission-simulation detection', () => {
   it.each([
     ['a recursive grant', 'const command = "chmod -R u+w dir";'],
     ['a symbolic mode that keeps read and write', 'const command = "chmod u=rw file";'],
+    ['a compound symbolic mode that keeps owner access', 'const command = "chmod u=rw,go= file";'],
     ['a subprocess chmod granting access', `execFileSync('chmod', ['755', p])`],
     ['a promise-API grant', 'await fs.promises.chmod(p, 0o755)'],
   ])('allows %s', (_label, source) => {

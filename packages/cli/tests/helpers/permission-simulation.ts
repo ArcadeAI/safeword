@@ -84,17 +84,38 @@ export function chmodModeArguments(
   return chmodModeArgumentsFromFile(parse(source));
 }
 
+interface OwnerAccess {
+  read: boolean;
+  write: boolean;
+}
+
+function applySymbolicClause(access: OwnerAccess, clause: string): OwnerAccess | undefined {
+  const symbolic = /^([augo]*)([-+=])([rwxXst]*)$/u.exec(clause);
+  if (!symbolic) return undefined;
+  const [, who = '', operator, permissions = ''] = symbolic;
+  if (who !== '' && !who.includes('a') && !who.includes('u')) return access;
+  if (operator === '=') {
+    return { read: permissions.includes('r'), write: permissions.includes('w') };
+  }
+  return {
+    read: permissions.includes('r') ? operator === '+' : access.read,
+    write: permissions.includes('w') ? operator === '+' : access.write,
+  };
+}
+
 /** Whether a command-line chmod mode removes owner read or write. */
 export function shellModeRemovesAccess(mode: string): boolean {
-  const numeric = /^0?([0-7]{3})$/u.exec(mode);
+  const numeric = /^([0-7]{3,4})$/u.exec(mode);
   if (numeric?.[1] !== undefined) {
     return (Number.parseInt(numeric[1], 8) & OWNER_READ_WRITE) !== OWNER_READ_WRITE;
   }
-  const symbolic = /^[augo]*([-+=])([rwxXst]*)$/u.exec(mode);
-  const [, operator, permissions = ''] = symbolic ?? [];
-  if (operator === '-') return /[rw]/u.test(permissions);
-  if (operator === '=') return !permissions.includes('r') || !permissions.includes('w');
-  return false;
+  let access: OwnerAccess = { read: true, write: true };
+  for (const clause of mode.split(',')) {
+    const next = applySymbolicClause(access, clause);
+    if (!next) return false;
+    access = next;
+  }
+  return !access.read || !access.write;
 }
 
 function literalText(node: ts.Node | undefined): string | undefined {
@@ -159,7 +180,11 @@ function enclosingTest(sourceFile: ts.SourceFile, offset: number): ts.CallExpres
 
 function guardedAsNonRoot(sourceFile: ts.SourceFile, simulation: Simulation): boolean {
   const test = enclosingTest(sourceFile, simulation.offset);
-  return test?.getText(sourceFile).includes('process.getuid') ?? false;
+  if (!test || !ts.isCallExpression(test.expression)) return false;
+  const modifier = test.expression;
+  if (!ts.isPropertyAccessExpression(modifier.expression)) return false;
+  if (modifier.expression.name.text !== 'skipIf') return false;
+  return modifier.arguments[0]?.getText(sourceFile).includes('process.getuid') ?? false;
 }
 
 /**
