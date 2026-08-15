@@ -61,19 +61,31 @@ describe('.gitattributes merge=union for generated artifacts (GA7T6M / #566)', (
     expect(unionLines).toHaveLength(3);
   });
 
-  it('resolves the ticket-index paths against a custom paths.projectRoot', async () => {
+  it('replaces obsolete ticket-index paths when paths.projectRoot changes', async () => {
+    await reconcile(SAFEWORD_SCHEMA, 'install', createProjectContext(cwd));
+
     mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
     writeFileSync(
       nodePath.join(cwd, '.safeword', 'config.json'),
       JSON.stringify({ paths: { projectRoot: 'team-ns' } }),
     );
 
-    await reconcile(SAFEWORD_SCHEMA, 'install', createProjectContext(cwd));
+    await reconcile(SAFEWORD_SCHEMA, 'upgrade', createProjectContext(cwd));
 
     const content = gitattributes();
     expect(content).toContain('team-ns/tickets/INDEX.md merge=union linguist-generated=true');
+    expect(content).not.toContain('.project/tickets/INDEX.md merge=union linguist-generated=true');
+    expect(content).not.toContain(
+      '.project/tickets/INDEX-completed.md merge=union linguist-generated=true',
+    );
     // The architecture-doc glob is root-agnostic, so it stays the same.
     expect(content).toContain('**/architecture.generated.md merge=union linguist-generated=true');
+
+    await reconcile(SAFEWORD_SCHEMA, 'uninstall', createProjectContext(cwd));
+    const uninstalled = gitattributes();
+    expect(uninstalled).not.toContain('team-ns/tickets/INDEX.md');
+    expect(uninstalled).not.toContain('.project/tickets/INDEX.md');
+    expect(uninstalled).not.toContain(HEADER);
   });
 
   it("appends to (preserves) a consumer's existing .gitattributes", async () => {
@@ -84,6 +96,36 @@ describe('.gitattributes merge=union for generated artifacts (GA7T6M / #566)', (
     const content = gitattributes();
     expect(content).toContain('*.png binary'); // consumer's line survives
     expect(content).toContain(HEADER); // safeword block appended
+  });
+
+  it('preserves a consumer rule without a trailing newline during rerender', async () => {
+    writeFileSync(nodePath.join(cwd, '.gitattributes'), '*.png binary');
+    await reconcile(SAFEWORD_SCHEMA, 'install', createProjectContext(cwd));
+
+    mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(cwd, '.safeword', 'config.json'),
+      JSON.stringify({ paths: { projectRoot: 'team-ns' } }),
+    );
+    await reconcile(SAFEWORD_SCHEMA, 'upgrade', createProjectContext(cwd));
+
+    expect(gitattributes()).toContain('*.png binary\n');
+    expect(gitattributes()).toContain('team-ns/tickets/INDEX.md');
+  });
+
+  it('preserves a matching customer ticket-index rule after the managed block', async () => {
+    await reconcile(SAFEWORD_SCHEMA, 'install', createProjectContext(cwd));
+    const customerRule = 'docs/tickets/INDEX.md merge=union linguist-generated=true';
+    writeFileSync(nodePath.join(cwd, '.gitattributes'), `${gitattributes()}${customerRule}\n`);
+
+    mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(cwd, '.safeword', 'config.json'),
+      JSON.stringify({ paths: { projectRoot: 'team-ns' } }),
+    );
+    await reconcile(SAFEWORD_SCHEMA, 'upgrade', createProjectContext(cwd));
+
+    expect(gitattributes()).toContain(customerRule);
   });
 
   it('marks only generated artifacts — never a hand-authored doc, a broad *.md, or a lockfile', async () => {

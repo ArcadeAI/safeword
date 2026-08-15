@@ -473,7 +473,7 @@ export function getPythonTools(includeImportLinter: boolean): PythonTool[] {
 }
 
 /**
- * Safe Word's Python tooling is project configuration, not a global shell
+ * Safeword's Python tooling is project configuration, not a global shell
  * prerequisite: uv and Poetry keep project tools in managed environments. Read
  * declarations only so health checks stay filesystem-only and never invoke a
  * package manager merely to inspect readiness.

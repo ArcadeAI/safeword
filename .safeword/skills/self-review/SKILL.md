@@ -11,8 +11,8 @@ allowed-tools: '*'
 
 Review the artifact you just authored, then earn its review stamp so the next
 step is unblocked. This is **Tier 1** — a fast, built-in first pass: you review
-your own work, no sub-agent involved. Tier 2 (the fork review at each phase
-exit) is the independent check; that happens separately.
+your own work, no sub-agent involved. Tier 2 (the phase-exit review) is the
+independent check; that happens separately.
 
 **Stakes set depth.** Tier 2 may never run — review as if your stamp is the last
 word before code gets built on this spec, because often it is. Cheap floor means

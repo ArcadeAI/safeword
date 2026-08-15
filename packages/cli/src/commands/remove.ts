@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { diffFileSnapshots } from '../cli-protocol/file-effects.js';
+import { onlineRequired } from '../cli-protocol/online-required.js';
 import type { CliPlan } from '../cli-protocol/plan.js';
 import { isPlanIdentity, malformedPlanIdentity, toWirePlan } from '../cli-protocol/plan.js';
 import {
@@ -21,6 +22,7 @@ export interface RemoveOptions {
   readonly yes?: boolean;
   readonly plan?: string;
   readonly schema?: SafewordSchema;
+  readonly offline?: boolean;
 }
 
 const PACKAGE_MANAGER_FILES = [
@@ -130,14 +132,14 @@ function packageUninstallFailure(
 async function applyRemoval(
   cwd: string,
   mode: 'uninstall' | 'uninstall-full',
-  full: boolean,
   schema?: SafewordSchema,
 ): Promise<CliResult> {
   const applied = await applyReconciliation(cwd, mode, schema);
   const packageFilesBefore = snapshotPackageFiles(cwd);
-  const packageRemoval = full
-    ? uninstallDependencies(cwd, applied.packagesToRemove, { report: false })
-    : { attempted: false, installed: false };
+  const packageRemoval =
+    applied.packagesToRemove.length > 0
+      ? uninstallDependencies(cwd, applied.packagesToRemove, { report: false })
+      : { attempted: false, installed: false };
   const packageFileEffects = diffFileSnapshots(packageFilesBefore, snapshotPackageFiles(cwd));
   if (packageRemoval.attempted && !packageRemoval.installed) {
     return packageUninstallFailure(applied, packageRemoval, mode, packageFileEffects);
@@ -191,31 +193,45 @@ function hasPartialRemovalEffects(partial: ReturnType<typeof partialRemovalEffec
   return (partial?.destructive.length ?? 0) !== 0 || (partial?.files?.length ?? 0) !== 0;
 }
 
+function removalNeedsOnline(options: RemoveOptions, plan: CliPlan): boolean {
+  return options.offline === true && (options.full === true || plan.effects.packages.length > 0);
+}
+
+function projectNotConfigured(cwd: string): CliResult | undefined {
+  if (existsSync(nodePath.join(cwd, '.safeword'))) return undefined;
+  return createResult({
+    state: 'healthy',
+    findings: [
+      {
+        code: 'PROJECT_NOT_CONFIGURED',
+        message: 'Safeword is not configured; there is nothing to remove.',
+        severity: 'info',
+      },
+    ],
+    data: { removed: [] },
+  });
+}
+
+function malformedRemovalPlan(plan: string | undefined): CliResult | undefined {
+  return plan !== undefined && !isPlanIdentity(plan) ? malformedPlanIdentity('remove') : undefined;
+}
+
 export async function removeProject(cwd: string, options: RemoveOptions): Promise<CliResult> {
-  if (options.plan !== undefined && !isPlanIdentity(options.plan)) {
-    return malformedPlanIdentity('remove');
-  }
-  if (!existsSync(nodePath.join(cwd, '.safeword'))) {
-    return createResult({
-      state: 'healthy',
-      findings: [
-        {
-          code: 'PROJECT_NOT_CONFIGURED',
-          message: 'Safeword is not configured; there is nothing to remove.',
-          severity: 'info',
-        },
-      ],
-      data: { removed: [] },
-    });
-  }
+  const malformed = malformedRemovalPlan(options.plan);
+  if (malformed !== undefined) return malformed;
+  const notConfigured = projectNotConfigured(cwd);
+  if (notConfigured !== undefined) return notConfigured;
   const mode = options.full === true ? 'uninstall-full' : 'uninstall';
   try {
     const { plan } = await createReconciliationPlan(cwd, mode, options.schema);
+    if (removalNeedsOnline(options, plan)) {
+      return onlineRequired('remove');
+    }
     if (options.yes !== true || options.plan === undefined) {
       return confirmationRequired(plan, options.full === true);
     }
     if (options.plan !== plan.id) return stalePlan(plan);
-    return await applyRemoval(cwd, mode, options.full === true, options.schema);
+    return await applyRemoval(cwd, mode, options.schema);
   } catch (removeError) {
     const partial = partialRemovalEffects(removeError);
     return createResult({

@@ -53,11 +53,11 @@ export const SAFEWORD_BUILD_COMMIT =
   typeof __SAFEWORD_BUILD_COMMIT__ === 'string' ? __SAFEWORD_BUILD_COMMIT__ : 'development-source';
 
 export interface RelayBuildAttestation {
-  ancestorPairs: string[];
-  artifactContents: Record<string, string>;
-  artifactHashes: Record<string, string>;
+  ancestorPairs: { ancestor: string; descendant: string }[];
+  artifacts: Partial<Record<RelayMeasurement, { contentBase64: string; sha256: string }>>;
   buildCommit: string;
   enabled: boolean;
+  manifestBase64: string;
   manifestSha256: string;
 }
 
@@ -66,10 +66,10 @@ export const SAFEWORD_RELAY_BUILD_ATTESTATION: RelayBuildAttestation =
     ? __SAFEWORD_RELAY_BUILD_ATTESTATION__
     : {
         ancestorPairs: [],
-        artifactContents: {},
-        artifactHashes: {},
+        artifacts: {},
         buildCommit: 'development-source',
         enabled: false,
+        manifestBase64: '',
         manifestSha256: '',
       };
 
@@ -109,10 +109,10 @@ function parseObject(content: string): Record<string, unknown> | undefined {
 }
 
 function hasExactKeys(record: object, expectedKeys: readonly string[]): boolean {
+  const actualKeys = Object.keys(record);
   return (
-    Object.keys(record)
-      .toSorted((left, right) => left.localeCompare(right))
-      .join('\0') === expectedKeys.join('\0')
+    actualKeys.length === expectedKeys.length &&
+    expectedKeys.every(key => Object.hasOwn(record, key))
   );
 }
 
@@ -127,11 +127,11 @@ function hasMeasurementShape(record: Record<string, unknown>): boolean {
   ]);
 }
 
-function hasValidCountResult(result: unknown, sampleSize: number): boolean {
+function hasValidCountResult(result: unknown): boolean {
   if (typeof result !== 'object' || result === null || Array.isArray(result)) return false;
   if (!hasExactKeys(result, ['count'])) return false;
   const count = (result as { count?: unknown }).count;
-  return Number.isSafeInteger(count) && (count as number) >= 0 && (count as number) <= sampleSize;
+  return count === 0;
 }
 
 interface DrainThroughputResult {
@@ -143,22 +143,16 @@ interface DrainThroughputResult {
   relayLatencyMs: unknown;
 }
 
-function drainThroughputResult(
-  result: unknown,
-  version: unknown,
-): DrainThroughputResult | undefined {
+function drainThroughputResult(result: unknown): DrainThroughputResult | undefined {
   if (typeof result !== 'object' || result === null || Array.isArray(result)) return undefined;
-  const expected =
-    version === 2
-      ? [
-          'acceptedCount',
-          'backlogSize',
-          'durationMs',
-          'overallDeadlineMs',
-          'relayLatencyMs',
-          'requestDeadlineMs',
-        ]
-      : ['acceptedCount', 'backlogSize', 'durationMs', 'relayLatencyMs'];
+  const expected = [
+    'acceptedCount',
+    'backlogSize',
+    'durationMs',
+    'overallDeadlineMs',
+    'relayLatencyMs',
+    'requestDeadlineMs',
+  ];
   if (!hasExactKeys(result, expected)) {
     return undefined;
   }
@@ -190,25 +184,14 @@ function validRelayLatency(value: unknown): boolean {
   return typeof value === 'number' && Number.isFinite(value) && value >= MIN_RELAY_LATENCY_MS;
 }
 
-function validDrainBudget(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value) && value > 0;
-}
-
-function hasValidDrainThroughputResult(
-  result: unknown,
-  sampleSize: number,
-  version: unknown,
-): boolean {
-  const measurement = drainThroughputResult(result, version);
+function hasValidDrainThroughputResult(result: unknown, sampleSize: number): boolean {
+  const measurement = drainThroughputResult(result);
   return (
     measurement !== undefined &&
     validAcceptedCount(measurement.acceptedCount, sampleSize) &&
     validBacklogSize(measurement.backlogSize, sampleSize) &&
     validDrainDuration(measurement.durationMs) &&
     validRelayLatency(measurement.relayLatencyMs) &&
-    version === 2 &&
-    validDrainBudget(measurement.requestDeadlineMs) &&
-    validDrainBudget(measurement.overallDeadlineMs) &&
     measurement.requestDeadlineMs === DEFAULT_RELAY_REQUEST_DEADLINE_MS &&
     measurement.overallDeadlineMs === DEFAULT_RELAY_REQUEST_DEADLINE_MS + RELAY_OVERALL_HEADROOM_MS
   );
@@ -221,8 +204,8 @@ function hasValidResult(
   version: unknown,
 ): boolean {
   return metric === 'drainThroughput'
-    ? hasValidDrainThroughputResult(result, sampleSize, version)
-    : hasValidCountResult(result, sampleSize);
+    ? version === 2 && hasValidDrainThroughputResult(result, sampleSize)
+    : version === 1 && hasValidCountResult(result);
 }
 
 function validMeasurementEvidence(
@@ -265,7 +248,10 @@ export async function validateRelayReadiness(
     ) {
       return { enabled: false };
     }
-    if (!hasExactKeys(manifest.measurements, REQUIRED_MEASUREMENTS)) {
+    if (
+      !hasExactKeys(manifest.measurements, REQUIRED_MEASUREMENTS) ||
+      manifest.prerequisites.length !== 2
+    ) {
       return { enabled: false };
     }
     const expectedIssues = [1474, 1481] as const;
@@ -297,7 +283,9 @@ export async function validateRelayReadiness(
     const latestClose = Math.max(...closedDates.map(date => date?.getTime() ?? NaN));
     if (
       latestClose > dependencies.now.getTime() ||
-      reviewedAt.getTime() > dependencies.now.getTime()
+      reviewedAt.getTime() > dependencies.now.getTime() ||
+      reviewedAt.getTime() < latestClose ||
+      dependencies.now.getTime() - reviewedAt.getTime() > MAX_EVIDENCE_AGE_MS
     ) {
       return { enabled: false };
     }
@@ -311,8 +299,8 @@ export async function validateRelayReadiness(
         measuredAt === undefined ||
         measuredAt.getTime() < latestClose ||
         measuredAt.getTime() > dependencies.now.getTime() ||
-        dependencies.now.getTime() - measuredAt.getTime() > MAX_EVIDENCE_AGE_MS ||
-        dependencies.now.getTime() - reviewedAt.getTime() > MAX_EVIDENCE_AGE_MS
+        reviewedAt.getTime() < measuredAt.getTime() ||
+        dependencies.now.getTime() - measuredAt.getTime() > MAX_EVIDENCE_AGE_MS
       ) {
         return { enabled: false };
       }
@@ -333,10 +321,20 @@ export async function validateRelayReadiness(
   }
 }
 
-function manifestSha256(
+function matchesAttestedManifest(
   manifest: RelayReadinessManifest | typeof CHECKED_IN_RELAY_READINESS,
-): string {
-  return createHash('sha256').update(JSON.stringify(manifest)).digest('hex');
+  attestation: RelayBuildAttestation,
+): boolean {
+  try {
+    const bytes = Buffer.from(attestation.manifestBase64, 'base64');
+    const parsed = JSON.parse(bytes.toString('utf8')) as unknown;
+    return (
+      createHash('sha256').update(bytes).digest('hex') === attestation.manifestSha256 &&
+      JSON.stringify(parsed) === JSON.stringify(manifest)
+    );
+  } catch {
+    return false;
+  }
 }
 
 export function validateBuildAttestedRelayReadiness(
@@ -347,22 +345,29 @@ export function validateBuildAttestedRelayReadiness(
   if (
     !manifest.enabled ||
     !attestation.enabled ||
-    attestation.manifestSha256 !== manifestSha256(manifest)
+    !matchesAttestedManifest(manifest, attestation)
   ) {
     return Promise.resolve({ enabled: false });
   }
-  const ancestors = new Set(attestation.ancestorPairs);
   return validateRelayReadiness(manifest, {
     buildCommit: attestation.buildCommit,
     isAncestor: (ancestor, descendant) =>
-      Promise.resolve(ancestors.has(`${ancestor}:${descendant}`)),
+      Promise.resolve(
+        attestation.ancestorPairs.some(
+          pair => pair.ancestor === ancestor && pair.descendant === descendant,
+        ),
+      ),
     now,
     readArtifactAtCommit: (commit, path) => {
-      const key = `${commit}:${path}`;
-      const content = attestation.artifactContents[key];
-      const sha256 = attestation.artifactHashes[key];
+      const metric = REQUIRED_MEASUREMENTS.find(name => manifest.measurements[name].path === path);
+      const artifact = metric === undefined ? undefined : attestation.artifacts[metric];
+      if (commit !== manifest.evidenceCommit || artifact === undefined) {
+        return Promise.resolve(undefined);
+      }
+      const bytes = Buffer.from(artifact.contentBase64, 'base64');
+      const sha256 = createHash('sha256').update(bytes).digest('hex');
       return Promise.resolve(
-        content === undefined || sha256 === undefined ? undefined : { content, sha256 },
+        sha256 === artifact.sha256 ? { content: bytes.toString('utf8'), sha256 } : undefined,
       );
     },
   });
