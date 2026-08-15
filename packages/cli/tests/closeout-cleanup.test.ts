@@ -937,7 +937,7 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     expect(cleanupPlanDigest(later)).toBe(cleanupPlanDigest(first));
   });
 
-  it('blocks cleanup while exposing the pending filing recovery path', () => {
+  it('keeps cleanup available while exposing the pending filing recovery path', () => {
     const pendingRetro = {
       ...safeObservation().retro,
       complete: false,
@@ -957,8 +957,9 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     expect(withPath.retro).toEqual({
       spoolPath: '/repo/.safeword/retro-drafts/claude-task.jsonl',
     });
-    expect(withPath.blockers).toContain('the current session filing spool has pending drafts');
-    expect(withPath.recoveryBlockers).toEqual([
+    expect(withPath.blockers).toEqual([]);
+    expect(withPath.recoveryBlockers).toEqual([]);
+    expect(withPath.advisories).toEqual([
       'retrospective filing failed; resolve the filing failure',
       'the current session filing spool has pending drafts',
     ]);
@@ -1171,16 +1172,6 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       { verification: { ...safeObservation().verification, passed: false } },
       'local verification failed',
     ],
-    [
-      'failed retro filing',
-      { retro: { ...safeObservation().retro, complete: false, failure: 'filing' } },
-      'retrospective filing failed; resolve the filing failure',
-    ],
-    [
-      'pending drafts',
-      { retro: { ...safeObservation().retro, pendingDrafts: 2 } },
-      'the current session filing spool has pending drafts',
-    ],
   ] satisfies [string, Partial<CloseoutObservation>, string][])(
     '%s blocks every deletion',
     (_name, overrides, expectedBlocker) => {
@@ -1216,6 +1207,16 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       'failed retro extraction',
       { retro: { ...safeObservation().retro, complete: false, failure: 'extraction' } },
       'retrospective extraction failed; resolve the extraction failure',
+    ],
+    [
+      'failed retro filing',
+      { retro: { ...safeObservation().retro, complete: false, failure: 'filing' } },
+      'retrospective filing failed; resolve the filing failure',
+    ],
+    [
+      'pending drafts',
+      { retro: { ...safeObservation().retro, pendingDrafts: 2 } },
+      'the current session filing spool has pending drafts',
     ],
   ] satisfies [string, Partial<CloseoutObservation>, string][])(
     '%s is advisory for cleanup',
@@ -1835,50 +1836,28 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
         transcriptPath: transcript,
       });
 
-      const blockedApply = spawnSync('bun', [script, '--pr', '42', '--yes', '--plan', digest], {
+      const apply = spawnSync('bun', [script, '--pr', '42', '--yes', '--plan', digest], {
         cwd: topic,
         encoding: 'utf8',
         env: { ...environment, SAFEWORD_TEST_RETRO_INCOMPLETE: '1' },
       });
 
-      expect(blockedApply.status, blockedApply.stderr).toBe(2);
-      const blockedResult = JSON.parse(blockedApply.stdout) as {
+      expect(apply.status, apply.stderr).toBe(0);
+      const applyResult = JSON.parse(apply.stdout) as {
         digest: string;
-        result: { blockers: string[] };
+        plan: { advisories: string[] };
+        result: { applied: boolean };
       };
-      expect(blockedResult.digest).toBe(digest);
-      expect(blockedResult.result.blockers).toContain(
+      expect(applyResult.digest).toBe(digest);
+      expect(applyResult.result.applied).toBe(true);
+      expect(applyResult.plan.advisories).toContain(
         'retrospective filing failed; resolve the filing failure',
       );
-      expect(existsSync(topic)).toBe(true);
-      expect(readFileSync(retroLog, 'utf8').trim().split('\n')).toHaveLength(2);
-
-      writeFileSync(
-        transcript,
-        `${JSON.stringify({ type: 'custom_tool_call', name: 'apply' })}\n`,
-        { flag: 'a' },
-      );
-      rememberCloseoutBinding({
-        projectDirectory: topic,
-        runtime: 'codex',
-        id: 'codex-thread-42',
-        transcriptPath: transcript,
-      });
-      const apply = spawnSync('bun', [script, '--pr', '42', '--yes', '--plan', digest], {
-        cwd: topic,
-        encoding: 'utf8',
-        env: environment,
-      });
-
-      expect(apply.status, apply.stderr).toBe(0);
-      expect((JSON.parse(apply.stdout) as { result: { applied: boolean } }).result.applied).toBe(
-        true,
-      );
       expect(existsSync(topic)).toBe(false);
+      expect(readFileSync(retroLog, 'utf8').trim().split('\n')).toHaveLength(2);
       expect(runGit('-C', main, 'ls-remote', '--heads', `file://${bare}`, 'feature/closeout')).toBe(
         '',
       );
-      expect(readFileSync(retroLog, 'utf8').trim().split('\n')).toHaveLength(3);
     } finally {
       rmSync(sandbox, { recursive: true, force: true });
     }

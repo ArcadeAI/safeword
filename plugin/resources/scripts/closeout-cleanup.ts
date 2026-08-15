@@ -129,11 +129,6 @@ function block(plan: CleanupPlan, message: string): void {
   if (!plan.blockers.includes(message)) plan.blockers.push(message);
 }
 
-function blockRecovery(plan: CleanupPlan, message: string): void {
-  if (!plan.recoveryBlockers.includes(message)) plan.recoveryBlockers.push(message);
-  if (!plan.blockers.includes(message)) plan.blockers.push(message);
-}
-
 function advise(plan: CleanupPlan, message: string): void {
   if (!plan.advisories.includes(message)) plan.advisories.push(message);
 }
@@ -156,12 +151,12 @@ function collectPrerequisiteBlockers(
   if (observation.retro.failure === 'extraction') {
     advise(plan, 'retrospective extraction failed; resolve the extraction failure');
   } else if (observation.retro.failure === 'filing') {
-    blockRecovery(plan, 'retrospective filing failed; resolve the filing failure');
+    advise(plan, 'retrospective filing failed; resolve the filing failure');
   } else if (!observation.retro.complete) {
     advise(plan, 'the current session retrospective is incomplete');
   }
   if (observation.retro.pendingDrafts > 0)
-    blockRecovery(plan, 'the current session filing spool has pending drafts');
+    advise(plan, 'the current session filing spool has pending drafts');
   if (observation.protection === 'unknown') block(plan, 'branch protection state is unknown');
   if (observation.protection === 'protected') block(plan, 'the topic branch is protected');
   if (observation.remoteResolution === 'ambiguous') {

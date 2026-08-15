@@ -395,7 +395,7 @@ describe('closeout production host adapters (93C14D TBU1.R4)', () => {
     });
   }, 30_000);
 
-  it('blocks post-preview cleanup and carries its fallback spool across worktrees', () => {
+  it('reports a post-preview fallback spool without blocking cleanup', () => {
     const fixture = deliveryFixture();
     installBoundaryFakes(fixture);
     const sandbox = nodePath.dirname(fixture.bare);
@@ -440,8 +440,6 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
       { cwd: fixture.topic, env: environment, encoding: 'utf8' },
     );
     expect(preview.status, `${preview.stderr}\n${preview.stdout}`).toBe(0);
-    const digest = (JSON.parse(preview.stdout) as { digest: string }).digest;
-
     writeFileSync(transcript, `${JSON.stringify({ role: 'assistant', text: 'late finding' })}\n`, {
       flag: 'a',
     });
@@ -455,27 +453,20 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
       environment,
       id,
       transcript,
-      guardArguments: `--pr 42 --yes --plan ${digest}`,
+      guardArguments: '--pr 42',
     });
     const apply = spawnSync(
       'bun',
-      [
-        nodePath.join(fixture.topic, '.safeword/scripts/closeout-cleanup.ts'),
-        '--pr',
-        '42',
-        '--yes',
-        '--plan',
-        digest,
-      ],
+      [nodePath.join(fixture.topic, '.safeword/scripts/closeout-cleanup.ts'), '--pr', '42'],
       { cwd: fixture.topic, env: environment, encoding: 'utf8' },
     );
 
-    expect(apply.status, `${apply.stderr}\n${apply.stdout}`).toBe(2);
+    expect(apply.status, `${apply.stderr}\n${apply.stdout}`).toBe(0);
     expect(apply.stdout, apply.stderr).not.toBe('');
     const plan = (JSON.parse(apply.stdout) as { plan: { retro?: { spoolPath?: string } } }).plan;
     const continuation = plan.retro?.spoolPath;
     expect(continuation).toBe(realpathSync(draftSpoolPath(fixture.topic, id)));
-    if (!continuation) throw new Error('blocked closeout did not expose its filing continuation');
+    if (!continuation) throw new Error('closeout did not expose its filing continuation');
     expect(existsSync(fixture.topic)).toBe(true);
     expect(
       runOrThrow(

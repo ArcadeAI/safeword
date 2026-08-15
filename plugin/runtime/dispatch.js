@@ -1784,7 +1784,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/cleanup-zombies/SKILL.md':
         'e0af9635774767cf36eb69726e11c642ec1dad42839c11407ea8ef60f89fc289',
       '.claude/skills/closeout/SKILL.md':
-        '0205f4c23f08215a871f85c44c1ee8931a28eb2a2c36bb1877b1f318bedfc834',
+        '3eda7ae5172eb795da38c31a6e96d07a40154fd7a3ae4d9824c9c044b286f571',
       '.claude/skills/debug/SKILL.md':
         'ae56c4c9287f76a2250d13fa9908f5726ed4edbe4080ece10d1559507e242bd0',
       '.claude/skills/elicit/SKILL.md':

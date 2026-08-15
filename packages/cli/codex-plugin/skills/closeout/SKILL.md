@@ -2,7 +2,7 @@
 name: closeout
 description: Close a completed local delivery safely. Use when wrapping up a
   finished coding session by verifying it, merging only with explicit authority,
-  running the mandatory retrospective, and cleaning the exact merged branch and
+  capturing retrospective learning, and cleaning the exact merged branch and
   worktree. Do NOT use for cloud-agent tasks, unmerged work, or cleanup without
   a pull request.
 ---
@@ -62,11 +62,11 @@ unobservable results are not merge proof; report the recovery check and stop.
 
 If the command reported an error but fresh observation proves the expected head
 was merged, report that the remote merge succeeded, do not retry it, and proceed
-to the mandatory retrospective. On every invocation, re-observe durable state
+to retrospective capture. On every invocation, re-observe durable state
 and continue only the unfinished suffix. Treat an absent cleanup target as
 complete only after proving it was the exact planned target. If the pull request
-is merged, its retrospective is complete, and its exact branch and worktree are
-already absent, report that the session is already closed.
+is merged and its exact branch and worktree are already absent, report that the
+session is already closed and report the retrospective's observed state.
 
 The guard records a private, atomic verification receipt in Git's shared common
 directory after green hosted CI covers a clean exact PR head, or after every
@@ -87,7 +87,7 @@ no newest-session fallback and callers cannot nominate another receipt, session,
 transcript, or spool. Report the missing evidence without treating it as authority over
 the worktree or branches.
 
-The guard runs `safeword retro run --json` itself and accepts only a
+The guard runs `safeword retro run --json --auto-extract` itself and accepts only a
 successful result whose `data.agent_filing_needed` is `false` and whose derived
 current session has an empty filing spool. Zero substantial findings and every
 finding successfully filed are both complete outcomes.
@@ -102,13 +102,12 @@ Repository cleanup does not depend on a complete retrospective. A missing bindin
 incomplete retrospective, extraction failure, malformed output, or identity mismatch is
 advisory: report it and continue evaluating cleanup from fresh repository evidence.
 
-Filing failure or pending drafts are a recovery blocker because deleting their worktree
-could destroy learning that has already been captured but not preserved. Report the
-exact recovery action and preserve the worktree and branches until the drafts are filed
-or otherwise made durable.
+Filing failure or pending drafts are advisory for repository cleanup too. Report the
+exact recovery action and the risk that deleting the worktree could discard captured
+but unfiled learning, but do not let retrospective state authorize or block cleanup.
 
 When the authenticated preview reports pending drafts and includes
-`plan.retro.spoolPath`, invoke the `safeword:retro-filer` skill with that exact
+`plan.retro.spoolPath`, invoke the `$safeword:retro-filer` skill with that exact
 path, then rerun the preview. This is the closeout recovery continuation: the
 guard derived the path from its short-lived host-session binding, so do not
 substitute, discover, or accept a caller-provided spool path.
@@ -135,8 +134,10 @@ After the topic worktree is gone, preview requires its fresh clean-head receipt.
 It binds the resulting repository state and exact PR identity to `PLAN_DIGEST`.
 Report the complete operation list and all blockers. Do not apply a blocked plan.
 
-With the user's cleanup intent already established by invoking closeout, apply
-only the unchanged preview:
+Invocation permits preview only and grants no destructive cleanup authority.
+After reporting the exact operations and blockers, apply only when the current
+user request explicitly authorizes cleanup. Cleanup authority is consumed when
+apply is attempted, and applies only to the unchanged preview:
 
 ```sh
 bun .safeword/scripts/closeout-cleanup.ts --pr PR_NUMBER --yes --plan PLAN_DIGEST

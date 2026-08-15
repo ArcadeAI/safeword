@@ -2,7 +2,7 @@
 
 **Entry:** All scenarios marked `[x]` in test-definitions.md, implement-exit
 review/refactor is complete, and `impl-plan.md` is reconciled. Entry is
-automatic after implementation: run `/verify`, then `/audit`, without asking the
+automatic after implementation: run `/safeword:verify`, then `/audit`, without asking the
 user whether to proceed.
 
 ## Steps
