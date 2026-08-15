@@ -143,9 +143,9 @@ Feature: Let parallel sessions share test capacity safely
       Then the command exits zero, commits capacity two, and neither observes nor records the legacy wrapper as a scheduler owner
 
     Scenario: Status warns that legacy wrappers cannot share capacity
-      Given the current scheduler is idle at capacity two while a legacy package-test wrapper holds the recorded legacy mutex
+      Given the current scheduler is idle at capacity two and version N with an empty owner and waiter set, the no-legacy control status output is captured, and a legacy package-test wrapper holds the recorded legacy mutex
       When the builder runs `safeword project test-capacity status`
-      Then zero-exit status identifies legacy processes as untracked, reports the same capacity, version, owner and waiter sets as the no-legacy control, omits the legacy holder from owners and waiters, and directs the operator to end every legacy execution, migrate participating worktrees, restore capacity one before any later legacy wrapper is used, and wait for the current scheduler to become idle before handoff
+      Then zero-exit status states that legacy wrappers are untracked and cannot share capacity, reports capacity two, version N, and empty owner and waiter sets matching the captured control, omits the legacy holder, and directs the operator to end every legacy execution, migrate participating worktrees, restore capacity one before any later legacy wrapper is used, and wait for the current scheduler to become idle before handoff
 
     @rejection
     Scenario Outline: Invalid confirmation or incompatible protocol never raises capacity
@@ -190,9 +190,9 @@ Feature: Let parallel sessions share test capacity safely
       Then the second starts no repository descendant before every first-container descendant exits and the first wrapper releases scheduler ownership followed by its exact checkout ownership, after which both unchanged downstream invocations have run exactly once, every container is proven empty, and both wrappers exit zero
 
     Scenario: A checkout-mutex waiter holds no shared-capacity permit
-      Given canonical capacity is two, one same-worktree wrapper holds checkout ownership, a second same-worktree wrapper emits its checkout-mutex waiter event, and an unrelated-worktree focused wrapper requests admission
+      Given canonical capacity is two, one same-worktree wrapper holds checkout ownership and one active permit, a second same-worktree wrapper emits its checkout-mutex waiter event, and an unrelated-worktree focused wrapper requests admission
       When the scheduler records both wrappers under the state guard
-      Then the unrelated wrapper is admitted with one permit, and durable owners never include the checkout-mutex waiter before it acquires checkout ownership
+      Then the unrelated wrapper is admitted with the remaining one permit, durable owners never include the checkout-mutex waiter before it acquires checkout ownership, all three wrappers and descendants exit zero after controlled release, and every descendant is accounted for
 
     @rejection
     Scenario Outline: A terminated capacity wait does not strand the checkout mutex
@@ -629,6 +629,9 @@ Feature: Let parallel sessions share test capacity safely
         | containing directory | world-writable permissions | owner-only-directory-permissions repair for the named capacity directory followed by `safeword project test-capacity status` |
         | transition guard | an unexpected hard-link count | hard-link remediation for the named transition guard followed by `safeword project test-capacity status` |
         | temporary state | another owner or unsafe group/world permissions | owner-only-permissions repair for the named temporary state followed by `safeword project test-capacity status` |
+        | live state | corrupt bytes | replacing the named corrupt live state through the guarded repair procedure followed by `safeword project test-capacity status` |
+        | live state | unreadable bytes | repairing read access to the named live state followed by `safeword project test-capacity status` |
+        | live state | newer incompatible schema | restoring a compatible named live state through the guarded repair procedure followed by `safeword project test-capacity status` |
 
   @share-test-capacity.TBU1.R6
   Rule: share-test-capacity.TBU1.R6 — One validated shared setting governs every participating new-wrapper session and can conservatively restore today's single-run behavior
@@ -870,7 +873,7 @@ Feature: Let parallel sessions share test capacity safely
 
     @rejection @surface.safeword-cli
     Scenario Outline: Public capacity status and dispatch reject unsupported arguments
-      Given durable capacity state and version are captured byte-for-byte
+      Given an initialized idle durable capacity-one state at version N is captured byte-for-byte
       When the builder runs <public-command>
       Then no repository process starts, the command exits nonzero with SAFEWORD_TEST_CAPACITY_INVALID, and durable bytes and version remain unchanged
       Examples:
