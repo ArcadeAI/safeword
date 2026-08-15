@@ -168,6 +168,27 @@ dependencies = ["ruff>=0.8.0", "mypy", "deadcode"]
     );
   });
 
+  it('uses a nested Python manifest in a mixed-language monorepo', async () => {
+    writeTestFile(
+      projectDirectory,
+      'apps/api/pyproject.toml',
+      `[project]
+name = "api"
+version = "0.1.0"
+dependencies = ["ruff", "mypy", "deadcode"]
+`,
+    );
+
+    const result = await runCli(['doctor', '--json', '--offline'], { cwd: projectDirectory });
+    const output = JSON.parse(result.stdout) as {
+      findings: { code: string }[];
+    };
+
+    expect(output.findings).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: 'MISSING_PYTHON_TOOL' })]),
+    );
+  });
+
   it('accepts Pipenv package and dev-package declarations through doctor', async () => {
     writeTestFile(
       projectDirectory,

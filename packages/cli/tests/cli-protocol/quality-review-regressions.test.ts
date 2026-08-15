@@ -1,4 +1,4 @@
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { Command } from 'commander';
@@ -10,6 +10,16 @@ import { publicHandler } from '../../src/cli-protocol/public-handlers.js';
 import { registerPublicCommandCatalog } from '../../src/cli-protocol/register.js';
 import { createResult } from '../../src/cli-protocol/result.js';
 import { createTemporaryDirectory, runCli } from '../helpers.js';
+import { blockScan } from '../helpers/io-failure.js';
+
+function restoreOwnProperty(
+  target: object,
+  key: PropertyKey,
+  descriptor: PropertyDescriptor | undefined,
+): void {
+  if (descriptor) Object.defineProperty(target, key, descriptor);
+  else Reflect.deleteProperty(target, key);
+}
 
 describe('quality-review regressions for the public CLI boundary', () => {
   afterEach(() => {
@@ -30,7 +40,10 @@ describe('quality-review regressions for the public CLI boundary', () => {
   });
 
   it('reports a missing review publication path as invalid input', async () => {
-    const result = await runCli(['review-pr', 'publish', '--json']);
+    const directory = createTemporaryDirectory();
+    const result = await runCli(['review-pr', 'publish', '--json', '--cwd', directory], {
+      cwd: directory,
+    });
 
     expect(result.exitCode).toBe(1);
     expect(JSON.parse(result.stdout)).toMatchObject({
@@ -39,7 +52,10 @@ describe('quality-review regressions for the public CLI boundary', () => {
   });
 
   it('rejects an unsafe relay retry identity at the public boundary', async () => {
-    const result = await runCli(['retro-relay-retry', '../outside', '--json']);
+    const directory = createTemporaryDirectory();
+    const result = await runCli(['retro-relay-retry', '../outside', '--json', '--cwd', directory], {
+      cwd: directory,
+    });
 
     expect(result.exitCode).toBe(1);
     expect(JSON.parse(result.stdout)).toMatchObject({
@@ -271,7 +287,7 @@ describe('quality-review regressions for the public CLI boundary', () => {
 
   it('renders a stable JSON result when a post-parse handler throws', async () => {
     const definition = findCommandDefinition('capabilities');
-    const originalHandler = definition.handler;
+    const originalHandler = Object.getOwnPropertyDescriptor(definition, 'handler');
     Object.defineProperty(definition, 'handler', {
       configurable: true,
       value: () => Promise.reject(new Error('adapter exploded')),
@@ -293,10 +309,7 @@ describe('quality-review regressions for the public CLI boundary', () => {
       registerPublicCommandCatalog(program);
       await program.parseAsync(['node', 'safeword', 'capabilities', '--json', '--no-input']);
     } finally {
-      Object.defineProperty(definition, 'handler', {
-        configurable: true,
-        value: originalHandler,
-      });
+      restoreOwnProperty(definition, 'handler', originalHandler);
     }
 
     expect(stderr).toEqual([]);
@@ -311,7 +324,7 @@ describe('quality-review regressions for the public CLI boundary', () => {
 
   it('uses the same typed failure boundary for bare status', async () => {
     const definition = findCommandDefinition('status');
-    const originalHandler = definition.handler;
+    const originalHandler = Object.getOwnPropertyDescriptor(definition, 'handler');
     Object.defineProperty(definition, 'handler', {
       configurable: true,
       value: () => Promise.reject(new Error('status adapter exploded')),
@@ -333,10 +346,7 @@ describe('quality-review regressions for the public CLI boundary', () => {
       registerPublicCommandCatalog(program);
       await program.parseAsync(['node', 'safeword', '--json', '--no-input']);
     } finally {
-      Object.defineProperty(definition, 'handler', {
-        configurable: true,
-        value: originalHandler,
-      });
+      restoreOwnProperty(definition, 'handler', originalHandler);
     }
 
     expect(stderr).toEqual([]);
@@ -350,7 +360,7 @@ describe('quality-review regressions for the public CLI boundary', () => {
 
   it('consumes the private review progress signal before a non-review handler runs', async () => {
     const definition = findCommandDefinition('capabilities');
-    const originalHandler = definition.handler;
+    const originalHandler = Object.getOwnPropertyDescriptor(definition, 'handler');
     const originalSignal = process.env.SAFEWORD_REVIEW_PROGRESS;
     let observedSignal: string | undefined;
     Object.defineProperty(definition, 'handler', {
@@ -369,10 +379,7 @@ describe('quality-review regressions for the public CLI boundary', () => {
       registerPublicCommandCatalog(program);
       await program.parseAsync(['node', 'safeword', 'capabilities', '--json', '--no-input']);
     } finally {
-      Object.defineProperty(definition, 'handler', {
-        configurable: true,
-        value: originalHandler,
-      });
+      restoreOwnProperty(definition, 'handler', originalHandler);
       if (originalSignal === undefined) delete process.env.SAFEWORD_REVIEW_PROGRESS;
       else process.env.SAFEWORD_REVIEW_PROGRESS = originalSignal;
     }
@@ -381,7 +388,11 @@ describe('quality-review regressions for the public CLI boundary', () => {
   });
 
   it('renders Commander argument failures through the JSON protocol', async () => {
-    const result = await runCli(['capabilities', '--json', '--no-input', '--definitely-invalid']);
+    const directory = createTemporaryDirectory();
+    const result = await runCli(
+      ['capabilities', '--json', '--no-input', '--definitely-invalid', '--cwd', directory],
+      { cwd: directory },
+    );
 
     expect(result).toMatchObject({ exitCode: 1, stderr: '' });
     expect(JSON.parse(result.stdout)).toMatchObject({
@@ -396,7 +407,8 @@ describe('quality-review regressions for the public CLI boundary', () => {
     ['tracker', 'sync', '--plan', '--json', '--definitely-invalid'],
     ['tracker', 'sync', '--json', '--plan', '--definitely-invalid'],
   ])('keeps machine argument failures stable across boolean option order: %j', async (...argv) => {
-    const result = await runCli(argv);
+    const directory = createTemporaryDirectory();
+    const result = await runCli([...argv, '--cwd', directory], { cwd: directory });
 
     expect(result).toMatchObject({ exitCode: 1, stderr: '' });
     expect(JSON.parse(result.stdout)).toMatchObject({
@@ -424,7 +436,10 @@ describe('quality-review regressions for the public CLI boundary', () => {
   });
 
   it('renders a Commander argument failure once on the human path', async () => {
-    const result = await runCli(['status', '--definitely-invalid']);
+    const directory = createTemporaryDirectory();
+    const result = await runCli(['status', '--definitely-invalid', '--cwd', directory], {
+      cwd: directory,
+    });
 
     expect(result.exitCode).toBe(1);
     expect(result.stdout).toBe('');
@@ -480,35 +495,29 @@ describe('quality-review regressions for the public CLI boundary', () => {
 
   it('does not claim a mutation when removal fails during preflight', async () => {
     const directory = createTemporaryDirectory();
-    const safewordDirectory = nodePath.join(directory, '.safeword');
-    mkdirSync(safewordDirectory);
-    chmodSync(safewordDirectory, 0o000);
+    blockScan(nodePath.join(directory, '.safeword'), 'hooks');
 
-    try {
-      const result = await runCli(['remove', '--json', '--no-input', '--cwd', directory], {
-        cwd: directory,
-      });
+    const result = await runCli(['remove', '--json', '--no-input', '--cwd', directory], {
+      cwd: directory,
+    });
 
-      expect(result).toMatchObject({ exitCode: 1, stderr: '' });
-      expect(JSON.parse(result.stdout)).toMatchObject({
-        state: 'failed',
-        changed: false,
-        effects: {
-          files: [],
-          packages: [],
-          configuration: [],
-          network: [],
-          destructive: [],
-        },
-      });
-    } finally {
-      chmodSync(safewordDirectory, 0o700);
-    }
+    expect(result).toMatchObject({ exitCode: 1, stderr: '' });
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'failed',
+      changed: false,
+      effects: {
+        files: [],
+        packages: [],
+        configuration: [],
+        network: [],
+        destructive: [],
+      },
+    });
   });
 
   it('gives canonical retro leaves options parsed by the retained family alias', async () => {
     const definition = findCommandDefinition('retro run');
-    const originalHandler = definition.handler;
+    const originalHandler = Object.getOwnPropertyDescriptor(definition, 'handler');
     Object.defineProperty(definition, 'handler', {
       configurable: true,
       value: (invocation: { options: Readonly<Record<string, unknown>> }) =>
@@ -537,10 +546,7 @@ describe('quality-review regressions for the public CLI boundary', () => {
         '--no-input',
       ]);
     } finally {
-      Object.defineProperty(definition, 'handler', {
-        configurable: true,
-        value: originalHandler,
-      });
+      restoreOwnProperty(definition, 'handler', originalHandler);
     }
 
     expect(JSON.parse(stdout.join(''))).toMatchObject({

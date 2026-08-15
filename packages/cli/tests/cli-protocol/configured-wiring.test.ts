@@ -4,6 +4,7 @@ import nodePath from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { createTemporaryDirectory, runCli } from '../helpers.js';
+import { blockChildren, blockWrites } from '../helpers/io-failure.js';
 
 function installFakeGitHubCli(directory: string): { bin: string; log: string } {
   const bin = nodePath.join(directory, 'bin');
@@ -17,6 +18,9 @@ set -eu
 printf '%s\n' "$*" >> "$SAFEWORD_GH_LOG"
 case "$*" in
   "auth token")
+    if [ "$SAFEWORD_GH_TOKEN_FAIL" = "1" ]; then
+      exit 1
+    fi
     printf 'keychain-token\n'
     ;;
   "api user --jq .login")
@@ -31,11 +35,15 @@ case "$*" in
   "issue view "*)
     exit 0
     ;;
+  "issue edit "*)
+    exit 0
+    ;;
   "repo view "*)
     printf 'private\n'
     ;;
   *)
-    exit 0
+    printf 'unexpected gh invocation: %s\n' "$*" >&2
+    exit 97
     ;;
 esac
 `,
@@ -71,6 +79,7 @@ function githubEnvironment(
     GITHUB_TOKEN: `ghp_${'a'.repeat(24)}`,
     SAFEWORD_GH_LOG: fixture.log,
     SAFEWORD_GH_AUTH_FAIL: '0',
+    SAFEWORD_GH_TOKEN_FAIL: '0',
     SAFEWORD_NO_UPDATE_CHECK: '1',
   };
 }
@@ -160,7 +169,7 @@ describe('configured public-command wiring', () => {
 
   it('reports completed connect effects when tracker-map seeding fails', async () => {
     const directory = createTemporaryDirectory();
-    mkdirSync(nodePath.join(directory, '.safeword/tracker-map.json'), { recursive: true });
+    blockWrites(nodePath.join(directory, '.safeword/tracker-map.json'));
     const github = installFakeGitHubCli(directory);
 
     const result = await runCli(
@@ -370,52 +379,47 @@ describe('configured public-command wiring', () => {
   it('reports a remote issue and pending sidecar when local ticket creation fails', async () => {
     const directory = createTemporaryDirectory();
     configuredGitHubProject(directory);
-    const ticketsDirectory = nodePath.join(directory, '.project/tickets');
-    mkdirSync(ticketsDirectory, { recursive: true });
-    chmodSync(ticketsDirectory, 0o000);
+    blockChildren(nodePath.join(directory, '.project/tickets'));
     const github = installFakeGitHubCli(directory);
 
-    try {
-      const result = await runCli(
-        [
-          'ticket',
-          'new',
-          'partial-ticket',
-          '--type',
-          'task',
-          '--json',
-          '--no-input',
-          '--cwd',
-          directory,
-        ],
-        { cwd: directory, env: githubEnvironment(github) },
-      );
+    const result = await runCli(
+      [
+        'ticket',
+        'new',
+        'partial-ticket',
+        '--type',
+        'task',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      { cwd: directory, env: githubEnvironment(github) },
+    );
 
-      expect(result).toMatchObject({ exitCode: 1, stderr: '' });
-      expect(JSON.parse(result.stdout)).toMatchObject({
-        state: 'failed',
-        changed: true,
-        effects: {
-          files: [{ kind: 'create', target: '.safeword/tracker-map.json', operation: 'write' }],
-          network: [{ kind: 'issue-create', target: 'github', operation: 'write' }],
+    expect(result).toMatchObject({ exitCode: 1, stderr: '' });
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'failed',
+      changed: true,
+      effects: {
+        files: [{ kind: 'create', target: '.safeword/tracker-map.json', operation: 'write' }],
+        network: [{ kind: 'issue-create', target: 'github', operation: 'write' }],
+      },
+      recovery: [
+        {
+          command: 'safeword tracker sync',
+          requires_human: false,
         },
-        recovery: [
-          {
-            command: 'safeword tracker sync',
-            requires_human: false,
-          },
-        ],
-      });
-      expect(readFileSync(github.log, 'utf8')).toContain('issue create');
-      const sidecar = readFileSync(nodePath.join(directory, '.safeword/tracker-map.json'), 'utf8');
-      expect(JSON.parse(sidecar)).toMatchObject({
-        issues: {
-          '321': { status: 'pending', ref: { provider: 'github', id: '321' } },
-        },
-      });
-    } finally {
-      chmodSync(ticketsDirectory, 0o700);
-    }
+      ],
+    });
+    expect(readFileSync(github.log, 'utf8')).toContain('issue create');
+    expect(readFileSync(github.log, 'utf8')).toContain('partial-ticket');
+    const sidecar = readFileSync(nodePath.join(directory, '.safeword/tracker-map.json'), 'utf8');
+    expect(JSON.parse(sidecar)).toMatchObject({
+      issues: {
+        '321': { status: 'pending', ref: { provider: 'github', id: '321' } },
+      },
+    });
   });
 
   it('preserves the configured ticket invocation when offline mode refuses its network path', async () => {
@@ -501,7 +505,8 @@ describe('configured public-command wiring', () => {
           cwd: directory,
           env: {
             ...githubEnvironment(github),
-            GITHUB_TOKEN: 'not-a-real-token',
+            GITHUB_TOKEN: '',
+            SAFEWORD_GH_TOKEN_FAIL: '1',
           },
         },
       );
@@ -544,7 +549,8 @@ describe('configured public-command wiring', () => {
         cwd: directory,
         env: {
           ...githubEnvironment(github),
-          GITHUB_TOKEN: 'not-a-real-token',
+          GITHUB_TOKEN: '',
+          SAFEWORD_GH_TOKEN_FAIL: '1',
         },
       },
     );

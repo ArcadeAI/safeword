@@ -3,9 +3,10 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 
 import { parseFeatureScenarios } from '../src/utils/gherkin-feature.js';
+import { requireFullHistory } from './helpers/git-history.js';
 
 const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
 const ticketRoot = nodePath.join(
@@ -32,12 +33,8 @@ function sha256(content: string | Buffer): string {
 }
 
 /**
- * `maxBuffer` is load-bearing. A sealed input larger than the default 1 MiB
- * (plugin/runtime/cli.js is ~1.6 MB) made `git show` fail with ENOBUFS, and
- * reviewedInput's fallback then read the working tree instead. That silently
- * turned "these are the bytes the reviewer attested to" into "your working
- * tree must not change" — so regenerating a committed build artifact failed
- * this test while the seal itself was intact.
+ * `maxBuffer` is deliberately generous so an unexpectedly large reviewed
+ * source cannot turn a failed `git show` into a misleading seal error.
  */
 function git(arguments_: string[]): {
   status: number;
@@ -75,26 +72,27 @@ function sealedCommitCandidatesFrom(result: ReturnType<typeof git>): string[] {
   return result.stdout.toString('utf8').trim().split('\n').filter(Boolean);
 }
 
-function sealedCommit(manifest: Manifest): string | undefined {
+function sealedCommit(manifest: Manifest): string {
   const relativeManifest = nodePath.relative(repoRoot, manifestPath);
   const candidates = sealedCommitCandidatesFrom(
     git(['log', '--format=%H', '--', relativeManifest]),
   );
-  return candidates.find(commit =>
+  const commit = candidates.find(candidate =>
     manifest.inputs.every(input => {
-      const reviewed = git(['show', `${commit}:${input.path}`]);
+      const reviewed = git(['show', `${candidate}:${input.path}`]);
       if (reviewed.spawnFailed) {
         throw new Error(
-          `git show ${commit}:${input.path} could not run; cannot verify sealed input`,
+          `git show ${candidate}:${input.path} could not run; cannot verify sealed input`,
         );
       }
       return reviewed.status === 0 && input.sha256 === sha256(reviewed.stdout);
     }),
   );
+  if (!commit) throw new Error('no commit contains every sealed input at its reviewed digest');
+  return commit;
 }
 
-function reviewedInput(path: string, commit: string | undefined): Buffer {
-  if (!commit) return readFileSync(nodePath.join(repoRoot, path));
+function reviewedInput(path: string, commit: string): Buffer {
   const result = git(['show', `${commit}:${path}`]);
   if (result.spawnFailed) {
     // Reading the working tree here would compare the wrong bytes and report
@@ -102,7 +100,10 @@ function reviewedInput(path: string, commit: string | undefined): Buffer {
     // this test checks.
     throw new Error(`git show ${commit}:${path} could not run; cannot verify sealed input`);
   }
-  return result.status === 0 ? result.stdout : readFileSync(nodePath.join(repoRoot, path));
+  if (result.status !== 0) {
+    throw new Error(`git show ${commit}:${path} failed; cannot verify sealed input`);
+  }
+  return result.stdout;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -193,6 +194,10 @@ describe('sealed-commit resolution', () => {
 });
 
 describe('hash-bound independent closeout review (93C14D)', () => {
+  // Only this suite walks real ancestry; the sealed-commit resolution suite
+  // above drives the parser with synthetic git results and needs no history.
+  beforeAll(requireFullHistory);
+
   it('rejects multiple conflicting review result blocks', () => {
     const result = JSON.stringify({
       reviewer: { identity: 'reviewer-1', model: 'gpt-5' },
@@ -216,9 +221,7 @@ describe('hash-bound independent closeout review (93C14D)', () => {
     const manifest = JSON.parse(manifestBytes) as Manifest;
     const review = reviewJson(readFileSync(reviewPath, 'utf8'));
     const commit = sealedCommit(manifest);
-    if (commit) {
-      expect(git(['merge-base', '--is-ancestor', commit, 'HEAD']).status).toBe(0);
-    }
+    expect(git(['merge-base', '--is-ancestor', commit, 'HEAD']).status).toBe(0);
     const expectedScenarios = parseFeatureScenarios(
       reviewedInput('features/close-completed-sessions-safely.feature', commit).toString('utf8'),
     ).map((scenario, index) => ({ id: String(index + 1).padStart(2, '0'), title: scenario.title }));
@@ -248,11 +251,8 @@ describe('hash-bound independent closeout review (93C14D)', () => {
       'packages/cli/templates/hooks/lib/retro-extract.ts',
       'packages/cli/templates/scripts/closeout-cleanup.ts',
       'plugin/resources/scripts/closeout-cleanup.ts',
-      'plugin/runtime/cli.js',
       'plugin/runtime/hooks/lib/closeout-binding.ts',
       'plugin/runtime/hooks/lib/retro-extract.ts',
-      'plugin/identity.json',
-      'plugin/inventory.json',
       'packages/cli/tests/closeout-skill.test.ts',
       'packages/cli/tests/closeout-cleanup.test.ts',
       'packages/cli/tests/commands/retro.test.ts',
