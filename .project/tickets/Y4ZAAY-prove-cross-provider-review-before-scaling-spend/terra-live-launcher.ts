@@ -638,7 +638,7 @@ async function runTerraPaidCanaryInternal(
   requireAuthorizedCheckouts(input);
   await Promise.all([
     preflightPinnedCheckoutInternal(input.adapterCheckout, testRemote, false),
-    preflightPinnedCheckoutInternal(input.harnessCheckout, testRemote),
+    preflightPinnedCheckoutInternal(input.harnessCheckout, testRemote, false),
   ]);
   const registration = await verifyCommittedCorpusRegistration({
     checkout: input.harnessCheckout,
