@@ -16,8 +16,8 @@ Feature: Let parallel sessions share test capacity safely
 
     @wiring @process
     Scenario: Every focused process lifetime has one durable ownership interval
-      Given deterministic wrappers exercise admission, reservation and activation at shared capacity two
-      When the bounded run completes and teardown proves every wrapper and descendant exited
+      Given three deterministic focused wrappers exercise admission, reservation and activation at shared capacity two while a barrier holds the first two active
+      When the third wrapper requests admission and the bounded run completes with teardown proving every wrapper and descendant exited
       Then every repository-process lifetime has exactly one preceding atomic durable owner activation and one following atomic release, every owner transition has exactly one keyed wrapper, no unkeyed repository descendant exists, peak active weight is two, and every wrapper exits with its predetermined status
 
     @rejection @process
@@ -52,14 +52,11 @@ Feature: Let parallel sessions share test capacity safely
         | argv `["alpha.test.ts", "--config", "vitest.alt.ts"]` |
         | argv `["alpha.test.ts", "--coverage"]` |
         | argv `["missing.test.ts"]` |
-        | argv `["linked.test.ts"]` where the leaf is a symlink |
-        | argv `["linked-dir/alpha.test.ts"]` where an ancestor is a symlink |
+        | argv `["linked.test.ts"]` where the leaf is a symlink whose target remains inside the checkout |
+        | argv `["linked-dir/alpha.test.ts"]` where an ancestor is a symlink whose target remains inside the checkout |
         | argv `["../../alpha.test.ts"]` |
         | argv `["src/alpha.ts"]` |
         | argv `["alpha.test.ts", "src/alpha.ts"]` |
-        | argv `["alpha*.test.ts"]` as one literal token |
-        | argv `["-alpha.test.ts"]` |
-        | argv `["--", "alpha.test.ts"]` |
         | argv `["alpha.test.ts", "--unknown"]` |
         | argv `["--unknown", "alpha.test.ts"]` |
 
@@ -69,38 +66,57 @@ Feature: Let parallel sessions share test capacity safely
       When the public package-test command classifies that literal argument
       Then it treats the invocation as broad, passes the original argument unchanged downstream exactly once, never grants a focused permit, accounts for every descendant, and exits zero
 
-    Scenario Outline: Focused filename boundaries are exact and case-sensitive
-      Given <arguments> resolve to existing regular files inside the canonical checkout root with no symlinked component at or below that root and the deterministic downstream collaborator exits zero
-      When the public package-test command classifies them after checkout-relative rebasing
-      Then it assigns <classification>, passes every original argument downstream unchanged exactly once, accounts for every descendant, and the wrapper exits zero
+    @rejection @process
+    Scenario Outline: Literal metacharacter and option-shaped test filenames classify broad
+      Given a contained regular file literally named <literal-token> exists inside the checkout and the deterministic downstream collaborator exits zero
+      When the public package-test command classifies that exact argv token
+      Then it assigns broad exclusive capacity, passes the token unchanged downstream exactly once, accounts for every descendant, and exits zero
       Examples:
-        | arguments | classification |
-        | one `alpha.test.js` file | one focused permit |
-        | one `alpha.spec.js` file | one focused permit |
-        | one `alpha.test.jsx` file | one focused permit |
-        | one `alpha.spec.jsx` file | one focused permit |
-        | one `alpha.test.ts` file | one focused permit |
-        | one `alpha.spec.ts` file | one focused permit |
-        | one `alpha.test.tsx` file | one focused permit |
-        | one `alpha.spec.tsx` file | one focused permit |
-        | one `alpha.test.mjs` file | one focused permit |
-        | one `alpha.spec.mjs` file | one focused permit |
-        | one `alpha.test.mts` file | one focused permit |
-        | one `alpha.spec.mts` file | one focused permit |
-        | one `alpha.test.cjs` file | one focused permit |
-        | one `alpha.spec.cjs` file | one focused permit |
-        | one `alpha.test.cts` file | one focused permit |
-        | one `alpha.spec.cts` file | one focused permit |
-        | two valid `.test` and `.spec` files | one focused permit |
-        | one `alpha.Test.ts` file | broad exclusive capacity |
-        | one `alpha.test.TS` file | broad exclusive capacity |
-        | one `alpha.tests.ts` file | broad exclusive capacity |
-        | one `alpha.test.txt` file | broad exclusive capacity |
-        | one `alpha.spec.ts.bak` file | broad exclusive capacity |
-        | an absolute `alpha.test.ts` path canonically inside the checkout | one focused permit |
-        | an `a/../alpha.test.ts` path that normalizes inside the checkout | one focused permit |
-        | a repeated-separator path to `alpha.test.ts` | one focused permit |
-        | a `space name.test.ts` argument passed as one token | one focused permit |
+        | literal-token |
+        | `alpha*.test.ts` |
+        | `alpha[1].test.ts` |
+        | `-alpha.test.ts` |
+
+    @rejection @process
+    Scenario: Double-dash invocation classifies broad despite an existing test file
+      Given a contained regular `alpha.test.ts` file exists and the deterministic downstream collaborator exits zero
+      When the public package-test command classifies argv `["--", "alpha.test.ts"]`
+      Then it assigns broad exclusive capacity, passes the original argv unchanged downstream exactly once, accounts for every descendant, and exits zero
+
+    Scenario Outline: Focused filename boundaries are exact and case-sensitive
+      Given canonical capacity is two, fixtures live in per-row directories, the classifier uses the literal argument basename bytes, and <arguments> resolve to existing regular files inside the canonical checkout root with no symlinked component at or below that root and the deterministic downstream collaborator exits zero
+      When the public package-test command classifies them after checkout-relative rebasing
+      Then it assigns <classification> with durable owner weight <weight>, passes every original argument downstream unchanged exactly once, accounts for every descendant, and the wrapper exits zero
+      Examples:
+        | arguments | classification | weight |
+        | one `alpha.test.js` file | one focused permit | 1 |
+        | one `alpha.spec.js` file | one focused permit | 1 |
+        | one `alpha.test.jsx` file | one focused permit | 1 |
+        | one `alpha.spec.jsx` file | one focused permit | 1 |
+        | one `alpha.test.ts` file | one focused permit | 1 |
+        | one `alpha.spec.ts` file | one focused permit | 1 |
+        | one `alpha.test.tsx` file | one focused permit | 1 |
+        | one `alpha.spec.tsx` file | one focused permit | 1 |
+        | one `alpha.test.mjs` file | one focused permit | 1 |
+        | one `alpha.spec.mjs` file | one focused permit | 1 |
+        | one `alpha.test.mts` file | one focused permit | 1 |
+        | one `alpha.spec.mts` file | one focused permit | 1 |
+        | one `alpha.test.cjs` file | one focused permit | 1 |
+        | one `alpha.spec.cjs` file | one focused permit | 1 |
+        | one `alpha.test.cts` file | one focused permit | 1 |
+        | one `alpha.spec.cts` file | one focused permit | 1 |
+        | two valid `.test` and `.spec` files | one focused permit | 1 |
+        | one `alpha.Test.ts` file | broad exclusive capacity | 2 |
+        | one `alpha.test.TS` file | broad exclusive capacity | 2 |
+        | one `alpha.tests.ts` file | broad exclusive capacity | 2 |
+        | one `alpha.test.txt` file | broad exclusive capacity | 2 |
+        | one `alpha.spec.ts.bak` file | broad exclusive capacity | 2 |
+        | an absolute `alpha.test.ts` path canonically inside the checkout | one focused permit | 1 |
+        | an `a/../alpha.test.ts` path that normalizes inside the checkout | one focused permit | 1 |
+        | a repeated-separator path to `alpha.test.ts` | one focused permit | 1 |
+        | a `space name.test.ts` argument passed as one token | one focused permit | 1 |
+        | a subdirectory invocation `../other-package/alpha.test.ts` that exists only after checkout-relative rebasing | one focused permit | 1 |
+        | an absolute checkout path reached through an operating-system-managed symlinked prefix above the checkout root | one focused permit | 1 |
 
     @rejection
     Scenario Outline: Non-file argument boundaries classify broad without contradictory fixtures
@@ -111,13 +127,12 @@ Feature: Let parallel sessions share test capacity safely
         | arguments | path-state |
         | an `../../alpha.test.ts` path | a lexical path that escapes the checkout |
         | an empty argument | no filesystem path |
-        | a literal `alpha[1].test.ts` token | pattern metacharacters rather than a literal file identity |
 
     @rejection
     Scenario Outline: Test-shaped paths that are not regular files classify broad
-      Given <path-kind> named `alpha.test.ts` exists inside the canonical checkout root
+      Given <path-kind> named `alpha.test.ts` exists inside the canonical checkout root and the deterministic downstream collaborator exits 23
       When the public package-test command classifies that literal argument
-      Then it assigns broad exclusive capacity and passes the original argument unchanged downstream exactly once
+      Then it assigns broad exclusive capacity, passes the original argument unchanged downstream exactly once, accounts for every descendant, and the wrapper exits 23
       Examples:
         | path-kind |
         | a directory |
@@ -158,6 +173,8 @@ Feature: Let parallel sessions share test capacity safely
         | whitespace-padded token ` 2 ` |
         | exponent token `2e0` |
         | integer `999999999999999999999999999999999999` beyond the parser's numeric range |
+        | no positional capacity value |
+        | `--confirm-current-protocol` with no positional capacity value |
         | duplicate positional values `2 3` |
         | `2 --confirm-current-protocol --confirm-current-protocol` |
         | `2 --confirm-current-protocol --confirm-current-protocol=false` |

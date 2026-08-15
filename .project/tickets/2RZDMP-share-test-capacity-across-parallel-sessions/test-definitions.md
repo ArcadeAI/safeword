@@ -49,6 +49,18 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Literal metacharacter and option-shaped test filenames classify broad
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Double-dash invocation classifies broad despite an existing test file
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Focused filename boundaries are exact and case-sensitive
 
 - [ ] RED
