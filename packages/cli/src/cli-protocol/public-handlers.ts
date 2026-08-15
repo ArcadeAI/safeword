@@ -171,14 +171,12 @@ async function removeHandler(invocation: CommandInvocation): Promise<CliResult> 
   if (suppliedPlan !== undefined && !isPlanIdentity(suppliedPlan)) {
     return malformedPlanIdentity('remove');
   }
-  if (invocation.offline && invocation.options.full === true) {
-    return onlineRequired('remove');
-  }
   const { removeProject } = await import('../commands/remove.js');
   return removeProject(invocation.cwd, {
     full: invocation.options.full === true,
     yes: invocation.options.yes === true,
     plan: suppliedPlan,
+    offline: invocation.offline,
   });
 }
 

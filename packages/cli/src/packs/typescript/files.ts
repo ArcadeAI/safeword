@@ -11,6 +11,7 @@
 
 import {
   dirGlobExcludeMerge,
+  durableNamespaceDirectories,
   resolvedIgnoreDirectories,
   resolvedNamespaceDirectory,
 } from '../../owned-paths.js';
@@ -186,8 +187,9 @@ const BIOME_JSON_MERGE: JsonMergeDefinition = {
       '!.safeword/**',
       ...resolvedIgnoreDirectories(ctx).map(dir => `!${dir}`),
     ]);
+    const durableExcludes = new Set(durableNamespaceDirectories(ctx).map(dir => `!${dir}`));
     const cleanedIncludes = existingIncludes.filter(
-      (entry: string) => !safewordExcludes.has(entry),
+      (entry: string) => !safewordExcludes.has(entry) || durableExcludes.has(entry),
     );
 
     // Build cleaned files object
@@ -331,6 +333,16 @@ function addScriptIfMissing(scripts: Record<string, string>, name: string, comma
 
 const GHERKIN_LINT_SCRIPT = 'safeword project lint-gherkin';
 
+function removeScriptIfEqual(
+  scripts: Record<string, string>,
+  name: string,
+  safewordValue: string,
+): Record<string, string> {
+  return scripts[name] === safewordValue
+    ? Object.fromEntries(Object.entries(scripts).filter(([key]) => key !== name))
+    : scripts;
+}
+
 /**
  * Merge lint scripts based on project type.
  */
@@ -408,15 +420,13 @@ export const typescriptJsonMerges: Record<string, JsonMergeDefinition> = {
     },
     unmerge: (existing, _ctx) => {
       const result = { ...existing };
-      const scripts = { ...(existing.scripts as Record<string, string>) };
+      let scripts = { ...(existing.scripts as Record<string, string>) };
 
-      // Remove safeword-specific scripts but preserve lint/format (useful standalone)
-      delete scripts['lint:eslint']; // Biome hybrid mode
-      delete scripts['lint:sh'];
-      delete scripts['format:check'];
-      delete scripts.knip;
-      delete scripts.publint;
-      delete scripts['test:bdd'];
+      // Remove only unchanged Safeword defaults. A script edited or added by the
+      // customer after installation is not ours to delete. lint:gherkin and the
+      // primary lint wrapper must go when unchanged because both invoke Safeword.
+      scripts = removeScriptIfEqual(scripts, 'lint', SAFEWORD_PRIMARY_LINT_SCRIPT);
+      scripts = removeScriptIfEqual(scripts, 'lint:gherkin', GHERKIN_LINT_SCRIPT);
 
       assignOrPrune(result, 'scripts', scripts);
       return result;
@@ -475,6 +485,7 @@ export const typescriptJsonMerges: Record<string, JsonMergeDefinition> = {
       return result;
     },
     unmerge: (existing, ctx) => {
+      if (ctx.projectType.existingPrettierConfig) return existing;
       const result = { ...existing } as Record<string, unknown>;
       // Only remove safeword's plugins, preserve user's custom plugins
       const safewordPlugins = new Set(getPrettierPlugins(ctx.projectType));

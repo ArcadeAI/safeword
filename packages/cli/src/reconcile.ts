@@ -297,6 +297,19 @@ function matchesUnmodifiedScaffold(
     : normalize(installed) === normalize(expected);
 }
 
+function matchesManagedScaffold(
+  definition: ManagedFileDefinition,
+  ctx: ProjectContext,
+  installed: string | undefined,
+): boolean {
+  if (installed === undefined) return false;
+  if (definition.removeIfUnmodified !== undefined) {
+    return matchesUnmodifiedScaffold(definition, ctx, installed);
+  }
+  const expected = resolveFileContent(definition, ctx);
+  return expected !== undefined && installed === expected;
+}
+
 /** Plan rm actions for files that exist */
 /**
  * Conditional managed-file removal on DEFAULT reset (ticket V4MATC): entries
@@ -307,16 +320,17 @@ function matchesUnmodifiedScaffold(
 function planConditionalManagedRemoval(
   managedFiles: Record<string, ManagedFileDefinition>,
   ctx: ProjectContext,
+  includeAllUnmodified = false,
 ): { actions: Action[]; removed: string[] } {
   const actions: Action[] = [];
   const removed: string[] = [];
   for (const [filePath, definition] of Object.entries(managedFiles)) {
-    if (definition.removeIfUnmodified === undefined) continue;
+    if (!includeAllUnmodified && definition.removeIfUnmodified === undefined) continue;
     if (isConfigOverridden(definition, ctx.cwd)) continue;
     const fullPath = nodePath.join(ctx.cwd, filePath);
     if (!exists(fullPath)) continue;
     const installed = readFileSafe(fullPath);
-    if (installed !== undefined && matchesUnmodifiedScaffold(definition, ctx, installed)) {
+    if (matchesManagedScaffold(definition, ctx, installed)) {
       actions.push({ type: 'rm', path: filePath });
       removed.push(filePath);
     }
@@ -419,13 +433,20 @@ export type Action =
 
 // A TextPatchDefinition whose ctx-factory `content` has been resolved to a string
 // at plan time, so executors never see a function (#293).
-type ResolvedTextPatch = Omit<TextPatchDefinition, 'content'> & { content: string };
+type ResolvedTextPatch = Omit<TextPatchDefinition, 'content' | 'replacementAfterUnpatch'> & {
+  content: string;
+  replacementAfterUnpatch?: string;
+};
 
 function resolveTextPatch(definition: TextPatchDefinition, ctx: ProjectContext): ResolvedTextPatch {
   return {
     ...definition,
     content:
       typeof definition.content === 'function' ? definition.content(ctx) : definition.content,
+    replacementAfterUnpatch:
+      typeof definition.replacementAfterUnpatch === 'function'
+        ? definition.replacementAfterUnpatch(ctx)
+        : definition.replacementAfterUnpatch,
   };
 }
 
@@ -478,6 +499,7 @@ function withResolvedNamespaceRoot(schema: SafewordSchema, ctx: ProjectContext):
 
   return {
     ...schema,
+    sharedDirs: schema.sharedDirs.map(path => translate(path)),
     preservedDirs: schema.preservedDirs.map(path => translate(path)),
     managedFiles: Object.fromEntries(
       Object.entries(schema.managedFiles)
@@ -847,10 +869,7 @@ function computeUninstallPlan(
   //    project context after scaffolding and must survive Safeword removal,
   //    regardless of whether their configured path is default or overridden.
   if (full) {
-    const removable = Object.entries(schema.managedFiles)
-      .filter(([, definition]) => definition.configKey === undefined)
-      .map(([filePath]) => filePath);
-    const managed = planExistingFilesRemoval(removable, ctx.cwd);
+    const managed = planConditionalManagedRemoval(schema.managedFiles, ctx, true);
     actions.push(...managed.actions);
     wouldRemove.push(...managed.removed);
   } else {
@@ -861,9 +880,12 @@ function computeUninstallPlan(
   }
 
   // 7. Compute packages to remove (full only)
-  const packagesToRemove = full
-    ? computePackagesToRemove(schema, ctx.projectType, ctx.developmentDeps)
-    : [];
+  let packagesToRemove: string[] = [];
+  if (full) {
+    packagesToRemove = computePackagesToRemove(schema, ctx.projectType, ctx.developmentDeps);
+  } else if (Object.hasOwn(ctx.developmentDeps, 'safeword')) {
+    packagesToRemove = ['safeword'];
+  }
 
   return {
     actions,
@@ -1322,13 +1344,20 @@ function rerenderBlockLines(definition: ResolvedTextPatch): string[] {
     .filter(line => line !== '' && !line.includes(definition.marker));
 }
 
+function isOwnedRerenderLine(
+  line: string,
+  expectedLine: string | undefined,
+  definition: ResolvedTextPatch,
+): boolean {
+  return line === expectedLine || definition.rerenderOwnedLinePattern?.test(line) === true;
+}
+
 /**
  * Remove a re-renderable managed block so a fresh, ctx-resolved version can be
  * re-appended (#293). Consumes the `marker` header plus the contiguous run of
- * disk lines that match the fresh block's body lines *in order* — an on-disk
- * block is always a prefix of the new one (the owned-dir set only grows and its
- * order is fixed), so a customer line that breaks the sequence (even one that
- * coincidentally equals an owned dir) is never consumed.
+ * disk lines that match the fresh block's body lines *in order*. Definitions
+ * whose ctx can replace lines may also supply a narrow owned-line recognizer;
+ * either way, the first non-owned line terminates removal.
  */
 function stripRerenderBlock(content: string, definition: ResolvedTextPatch): string {
   const lines = content.split('\n');
@@ -1338,13 +1367,13 @@ function stripRerenderBlock(content: string, definition: ResolvedTextPatch): str
   const blockLines = rerenderBlockLines(definition);
   let endIndex = startIndex;
   let expected = 0;
-  while (
-    endIndex + 1 < lines.length &&
-    expected < blockLines.length &&
-    lines[endIndex + 1] === blockLines[expected]
-  ) {
+  while (endIndex + 1 < lines.length) {
+    const nextLine = lines[endIndex + 1] ?? '';
+    const expectedLine = blockLines[expected];
+    const matchesExpected = nextLine === expectedLine;
+    if (!isOwnedRerenderLine(nextLine, expectedLine, definition)) break;
     endIndex += 1;
-    expected += 1;
+    if (matchesExpected) expected += 1;
   }
 
   // Also drop a single blank separator line immediately before the header.
@@ -1379,9 +1408,10 @@ function computePatchedContent(original: string, definition: ResolvedTextPatch):
   }
 
   // Apply patch (this write also persists any supersede strip above).
-  return definition.operation === 'prepend'
-    ? definition.content + content
-    : content + definition.content;
+  if (definition.operation === 'prepend') return definition.content + content;
+  const separator =
+    content !== '' && !content.endsWith('\n') && !definition.content.startsWith('\n') ? '\n' : '';
+  return content + separator + definition.content;
 }
 
 // The marker is already present. Re-render a drifted managed block (#293), heal a
@@ -1433,7 +1463,15 @@ function computeUnpatchedContent(content: string, definition: ResolvedTextPatch)
     unpatched = stripLeadingSafewordSeparator(unpatched);
   }
 
-  return unpatched;
+  return appendReplacementAfterUnpatch(content, unpatched, definition.replacementAfterUnpatch);
+}
+
+function appendReplacementAfterUnpatch(
+  original: string,
+  unpatched: string,
+  replacement: string | undefined,
+): string {
+  return unpatched === original || replacement === undefined ? unpatched : unpatched + replacement;
 }
 
 function executeTextUnpatch(cwd: string, path: string, definition: ResolvedTextPatch): void {

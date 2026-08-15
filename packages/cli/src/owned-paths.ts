@@ -94,6 +94,14 @@ export function resolvedIgnoreDirectories(ctx: ProjectContext): readonly string[
   return safewordIgnoreDirectories(resolvedNamespaceDirectory(ctx));
 }
 
+/** Namespace directories whose authored contents survive Safeword uninstall. */
+export function durableNamespaceDirectories(ctx: ProjectContext): readonly string[] {
+  const custom = resolvedNamespaceDirectory(ctx);
+  return custom === undefined
+    ? ['.project', '.safeword-project']
+    : ['.project', '.safeword-project', custom];
+}
+
 /**
  * Build a JSON-merge that adds safeword-owned dirs to a customer formatter's
  * string-array exclude/ignore field so the tool skips them (ticket EYRK34).
@@ -125,8 +133,11 @@ export function dirGlobExcludeMerge(
       const safewordGlobs = new Set(
         resolvedIgnoreDirectories(ctx).map(dir => globForDirectory(dir)),
       );
+      const durableGlobs = new Set(
+        durableNamespaceDirectories(ctx).map(dir => globForDirectory(dir)),
+      );
       const current = Array.isArray(existing[field]) ? (existing[field] as string[]) : [];
-      const cleaned = current.filter(entry => !safewordGlobs.has(entry));
+      const cleaned = current.filter(entry => !safewordGlobs.has(entry) || durableGlobs.has(entry));
       // Drop the field without a dynamic `delete` or unused binding, re-adding it
       // only when entries remain.
       const rest = Object.fromEntries(Object.entries(existing).filter(([key]) => key !== field));

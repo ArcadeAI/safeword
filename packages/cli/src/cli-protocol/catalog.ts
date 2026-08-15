@@ -214,7 +214,10 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
           description: 'Identity of the exact plan being confirmed',
           valueKind: 'plan-identity',
         },
-        { flags: '--full', description: 'Also remove linting configuration and packages' },
+        {
+          flags: '--full',
+          description: 'Also remove unmodified tooling configuration and supporting packages',
+        },
       ],
     },
   ),

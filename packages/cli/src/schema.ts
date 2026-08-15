@@ -31,6 +31,7 @@ export type {
 import { CURSOR_COMMAND_WRAPPERS, CURSOR_RULE_WRAPPERS } from './cursor-wrappers.js';
 import {
   dirGlobExcludeMerge,
+  durableNamespaceDirectories,
   generateOwnedPathsModule,
   resolvedIgnoreDirectories,
   resolvedNamespaceDirectory,
@@ -69,12 +70,19 @@ export interface TextPatchDefinition {
   // changed after install (a husky -> lefthook migration).
   when?: (ctx: ProjectContext) => boolean;
   unpatchContent?: string[]; // Additional exact blocks to remove on uninstall/reset
+  // Replacement appended after this managed block is removed. Used when an
+  // uninstall must retain configuration for project-owned durable content.
+  replacementAfterUnpatch?: string | ((ctx: ProjectContext) => string);
   removeFileIfContentEquals?: string[]; // Delete file only when remaining content is known scaffold
   // When set (append patches only), re-render the managed block in place on
   // upgrade instead of skip-on-marker — so a ctx-dependent block (e.g. a custom
   // projectRoot added to .prettierignore) heals on existing installs. A no-op
   // when the block is already current, so unchanged installs never churn (#293).
   rerender?: boolean;
+  // Optional recognizer for every owned body line in a rerenderable block. Use
+  // this when ctx changes can replace (rather than only append) body lines, so
+  // stale variants can still be removed without consuming following user lines.
+  rerenderOwnedLinePattern?: RegExp;
 }
 
 export interface ContractDefinition {
@@ -144,17 +152,16 @@ const MCP_JSON_MERGE: JsonMergeDefinition = {
   },
   unmerge: existing => {
     const result = { ...existing };
-    const mcpServers = { ...(existing.mcpServers as Record<string, unknown>) };
+    let mcpServers = { ...(existing.mcpServers as Record<string, unknown>) };
 
-    // Blind-delete on uninstall: removing the server names safeword introduced
-    // is the predictable inverse of install and matches the package.json /
-    // .cursor/hooks.json unmerges. A value-match "delete-if-ours" was
-    // considered but rejected — it can't tell a user customization from a
-    // server installed by an older safeword version (different default value),
-    // so it would orphan stale entries. uninstall is an explicit destructive
-    // action; #255 is about upgrade not clobbering, which the merge handles.
-    delete mcpServers.context7;
-    delete mcpServers.playwright;
+    // Delete only definitions that are still byte-for-byte Safeword defaults.
+    // Add-if-missing cannot prove ownership of a key that a customer later edits,
+    // so ambiguous/customized entries must survive uninstall.
+    for (const name of ['context7', 'playwright'] as const) {
+      if (JSON.stringify(mcpServers[name]) === JSON.stringify(MCP_SERVERS[name])) {
+        mcpServers = Object.fromEntries(Object.entries(mcpServers).filter(([key]) => key !== name));
+      }
+    }
 
     assignOrPrune(result, 'mcpServers', mcpServers);
     return result;
@@ -417,15 +424,16 @@ export const BDD_LANE_SCRIPT = 'test:bdd';
  * reconcile skips the file entirely instead of scaffolding a competing lane.
  * Behaves exactly like `{ template }` when no harness is detected.
  */
-function bddLaneFile(templatePath: string): FileDefinition {
+function bddLaneFile(templatePath: string): ManagedFileDefinition {
+  const templateContent = (): string =>
+    readFile(nodePath.join(getTemplatesDirectory(), templatePath));
   return {
     // `template` declares provenance for the schema↔templates contract;
     // the generator (which takes precedence) gates on harness detection.
     template: templatePath,
     generator: (ctx: ProjectContext): string | undefined =>
-      ctx.projectType.scaffoldBddLane
-        ? readFile(nodePath.join(getTemplatesDirectory(), templatePath))
-        : undefined,
+      ctx.projectType.scaffoldBddLane ? templateContent() : undefined,
+    removeIfUnmodified: templateContent,
   };
 }
 
@@ -560,11 +568,16 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // Custom-agent homes (GH628F): users keep their own agents in this dir —
     // add-to, never own. Codex is plugin-only and receives no project scaffold.
     '.claude/agents',
+    // Project-owned namespace directories. Safeword creates these when missing,
+    // but uninstall must leave the resolved namespace byte-for-byte untouched.
+    '.safeword-project/learnings',
+    '.safeword-project/tickets',
+    '.safeword-project/tickets/completed',
+    '.safeword-project/tmp',
   ],
 
-  // Created on setup but NOT deleted on reset (preserves user data)
+  // Runtime data directories removed on reset only when empty.
   preservedDirs: [
-    '.safeword-project/learnings',
     '.safeword/logs',
     // Runtime cloud-filing spool (BNGK9W) — per-session drafts + nudge markers the
     // retro writes at runtime; user/runtime data the schema does not own.
@@ -576,9 +589,6 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // Authored collisions retained during automatic .safeword-project → .project
     // migration. Recovery copies are user data, not deployed framework assets.
     '.safeword/namespace-migration-conflicts-v1',
-    '.safeword-project/tickets',
-    '.safeword-project/tickets/completed',
-    '.safeword-project/tmp',
   ],
 
   // Files to delete on upgrade (renamed or removed in newer versions)
@@ -704,8 +714,6 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
   // Files owned by safeword (overwritten on upgrade if content changed)
   // (bddLaneFile entries: see the helper defined above the schema)
   ownedFiles: {
-    // Project root config files (for audit/quality tools)
-    '.jscpd.json': { template: '.jscpd.json' },
     // BDD acceptance lane config (ticket 102b) — safeword-owned; the lane's
     // working files (features/, steps/) are customer-owned in managedFiles.
     // Suppressed when the repo has its own cucumber harness (56JCFZ).
@@ -1194,6 +1202,10 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
 
   // Files created if missing, updated only if content matches current template
   managedFiles: {
+    // Project-root audit config is scaffolded when absent, then customer-owned.
+    // Full uninstall removes it only while it still matches Safeword's template.
+    '.jscpd.json': { template: '.jscpd.json' },
+
     // Package-owned Codex runtime adapters. Their generator intentionally
     // returns undefined: the plugin CLI executes them from the npm package,
     // never from a customer repository.
@@ -1439,6 +1451,12 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       content: ctx => `\n${PRETTIER_EXCLUSIONS_HEADER}\n${managedPrettierPaths(ctx).join('\n')}\n`,
       rerender: true,
       marker: PRETTIER_EXCLUSIONS_HEADER,
+      replacementAfterUnpatch: ctx =>
+        `\n# Project namespace exclusions (preserved after Safeword uninstall)\n${durableNamespaceDirectories(
+          ctx,
+        )
+          .map(dir => `${dir}/`)
+          .join('\n')}\n`,
     },
     '.gitattributes': {
       // ctx factory + rerender (issue #566), same shape as .prettierignore: a custom
@@ -1451,6 +1469,8 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       operation: 'append',
       content: ctx => `${managedGitattributes(ctx)}\n`,
       rerender: true,
+      rerenderOwnedLinePattern:
+        /^(?:\*\*\/architecture\.generated\.md|.+\/tickets\/INDEX(?:-completed)?\.md) merge=union linguist-generated=true$/,
       marker: GITATTRIBUTES_HEADER,
     },
   },
