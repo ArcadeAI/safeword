@@ -5,12 +5,17 @@ type ReviewVerdict = 'approve' | 'request_changes';
 
 const REVIEW_AGENTS = new Set(['claude', 'codex']);
 const REVIEW_AUTHORS = new Set(['claude', 'codex', 'cursor']);
-const REPLACED_REVIEW_FINDINGS = new Set(['REVIEW_INDEPENDENCE', 'REVIEW_INDEPENDENCE_DEGRADED']);
+const REPLACED_REVIEW_FINDINGS = new Set([
+  'REVIEW_INDEPENDENCE',
+  'REVIEW_NOT_REQUESTED',
+  'REVIEW_STALE',
+]);
 const RETRYABLE_REVIEW_FAILURES = new Set([
   'timed_out',
   'process_failed',
   'invalid_output',
-  'source_changed',
+  'REVIEWER_PROVENANCE_MISSING',
+  'REVIEWER_PROVENANCE_CONTRADICTORY',
 ]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -23,7 +28,8 @@ function reviewCoverage(data: Record<string, unknown>): ReviewCoverage {
   if (typeof author !== 'string' || !REVIEW_AUTHORS.has(author) || typeof reviewer !== 'string') {
     return 'incomplete';
   }
-  if (data.independence === 'degraded' && reviewer === author) return 'standard';
+  if (data.independence === 'degraded' && REVIEW_AGENTS.has(reviewer) && reviewer === author)
+    return 'standard';
   if (data.independence === 'cross-agent' && REVIEW_AGENTS.has(reviewer) && reviewer !== author) {
     return 'independent';
   }
@@ -35,7 +41,7 @@ function reviewVerdict(data: Record<string, unknown>): ReviewVerdict | undefined
   if (!isRecord(output)) return undefined;
   if (
     typeof output.reviewer_agent !== 'string' ||
-    !REVIEW_AUTHORS.has(output.reviewer_agent) ||
+    !REVIEW_AGENTS.has(output.reviewer_agent) ||
     output.reviewer_agent !== data.actual_reviewer
   ) {
     return undefined;
@@ -97,17 +103,30 @@ function blockedReviewCoverageLine(
   return incompleteCoverageLine(data);
 }
 
-function reviewCoverageLine(data: Record<string, unknown>, state: CliResult['state']): string {
-  const coverage = reviewCoverage(data);
-  const status = data.status;
-  const verdict = reviewVerdict(data);
+function specialReviewCoverageLine(status: unknown, state: CliResult['state']): string | undefined {
+  if (status === 'existing_route' && state === 'healthy') return 'Review not requested.';
+  if (status === 'pending' && state === 'action_required') {
+    return 'Review running in the background.';
+  }
+  if (status === 'stale' && state === 'action_required') {
+    return 'Review stale — sources changed during the check.';
+  }
+  return undefined;
+}
 
+function reviewCoverageLine(data: Record<string, unknown>, state: CliResult['state']): string {
+  const status = data.status;
+  const specialLine = specialReviewCoverageLine(status, state);
+  if (specialLine !== undefined) return specialLine;
+
+  const verdict = reviewVerdict(data);
   if (!reviewStateMatchesStatus(state, status)) return incompleteCoverageLine(data);
   if (!reviewPolicyMatchesStatus(data)) return 'Review incomplete.';
   if (!reviewVerdictMatchesStatus(status, verdict)) return incompleteCoverageLine(data);
-  if (status === 'blocked' && verdict !== undefined) {
-    return blockedReviewCoverageLine(data, coverage, verdict);
-  }
+  // Preserve an explicit narrowing guard for blockedReviewCoverageLine below.
+  if (verdict === undefined) return incompleteCoverageLine(data);
+  const coverage = reviewCoverage(data);
+  if (status === 'blocked') return blockedReviewCoverageLine(data, coverage, verdict);
   if (coverage === 'incomplete') return 'Review incomplete.';
   if (verdict === 'request_changes') return `Review changes requested — ${coverage} coverage.`;
   return `Review complete — ${coverage} coverage.`;
@@ -148,6 +167,9 @@ function suggestionForFailure(failure: unknown, label: string): string | undefin
   if (failure === 'not_installed') {
     return `To add independent coverage, install or update ${label}, then retry review.`;
   }
+  if (failure === 'untrusted_install') {
+    return `To add independent coverage, move ${label} to a trusted non-writable-by-group directory, then retry review.`;
+  }
   if (failure === 'unsupported') {
     return `To add independent coverage, update ${label}, then retry review.`;
   }
@@ -168,11 +190,12 @@ export function reviewResultLines(
   options: { verbose?: boolean },
 ): string[] | undefined {
   if (!isRecord(result.data) || result.data.command !== 'review run') return undefined;
+  if (result.state === 'failed' && result.errors.length > 0) return undefined;
   const messages = result.findings
     .filter(finding => !REPLACED_REVIEW_FINDINGS.has(finding.code))
     .map(finding => finding.message);
   messages.push(...result.errors.map(error => error.message));
-  const lines = [reviewCoverageLine(result.data, result.state), ...new Set(messages)];
+  const lines = [reviewCoverageLine(result.data, result.state), ...messages];
   if (options.verbose === true) {
     const suggestion = reviewUpgradeSuggestion(result.data, result.state);
     if (suggestion !== undefined) lines.push(suggestion);

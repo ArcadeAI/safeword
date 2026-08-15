@@ -4,6 +4,7 @@ export type ReviewKind = 'quality-review' | 'scenario-gate' | 'plan-implementati
 export type ReviewPolicy = 'prefer' | 'require' | 'off';
 export type ReviewFailure =
   | 'not_installed'
+  | 'untrusted_install'
   | 'unsupported'
   | 'probe_timed_out'
   | 'launch_failed'
@@ -12,8 +13,7 @@ export type ReviewFailure =
   | 'timed_out'
   | 'invalid_output'
   | 'REVIEWER_PROVENANCE_MISSING'
-  | 'REVIEWER_PROVENANCE_CONTRADICTORY'
-  | 'source_changed';
+  | 'REVIEWER_PROVENANCE_CONTRADICTORY';
 
 interface ReviewFinding {
   readonly severity: 'info' | 'warning' | 'error';

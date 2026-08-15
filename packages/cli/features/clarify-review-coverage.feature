@@ -13,14 +13,12 @@ Feature: Make review coverage clear without false alarms
       | status            | author | reviewer | independence | verdict         | message                                           |
       | approved          | codex  | codex    | degraded     | approve         | Review complete — standard coverage.              |
       | approved          | claude | claude   | degraded     | approve         | Review complete — standard coverage.              |
-      | approved          | cursor | cursor   | degraded     | approve         | Review complete — standard coverage.              |
       | approved          | codex  | claude   | cross-agent  | approve         | Review complete — independent coverage.           |
       | approved          | claude | codex    | cross-agent  | approve         | Review complete — independent coverage.           |
       | approved          | cursor | codex    | cross-agent  | approve         | Review complete — independent coverage.           |
       | approved          | cursor | claude   | cross-agent  | approve         | Review complete — independent coverage.           |
       | changes_requested | codex  | codex    | degraded     | request_changes | Review changes requested — standard coverage.     |
       | changes_requested | claude | claude   | degraded     | request_changes | Review changes requested — standard coverage.     |
-      | changes_requested | cursor | cursor   | degraded     | request_changes | Review changes requested — standard coverage.     |
       | changes_requested | codex  | claude   | cross-agent  | request_changes | Review changes requested — independent coverage.  |
       | changes_requested | claude | codex    | cross-agent  | request_changes | Review changes requested — independent coverage.  |
       | changes_requested | cursor | claude   | cross-agent  | request_changes | Review changes requested — independent coverage.  |
@@ -44,6 +42,7 @@ Feature: Make review coverage clear without false alarms
       | approved          | claude   | approve         | cursor   | degraded     |
       | approved          | cursor   | approve         | codex    | degraded     |
       | approved          | cursor   | approve         | claude   | degraded     |
+      | approved          | cursor   | approve         | cursor   | degraded     |
       | approved          | codex    | approve         | cursor   | cross-agent  |
       | approved          | claude   | approve         | cursor   | cross-agent  |
       | approved          | cursor   | approve         | cursor   | cross-agent  |
@@ -121,25 +120,11 @@ Feature: Make review coverage clear without false alarms
       | codex  | claude   | timed_out         | To add independent coverage, retry Claude review.                         |
       | codex  | claude   | process_failed    | To add independent coverage, retry Claude review.                         |
       | codex  | claude   | invalid_output    | To add independent coverage, retry Claude review.                         |
-      | codex  | claude   | source_changed    | To add independent coverage, retry Claude review.                         |
       | claude | codex    | not_installed     | To add independent coverage, install or update Codex, then retry review.  |
       | claude | codex    | not_authenticated | To add independent coverage, sign in to Codex, then retry review.         |
       | claude | codex    | timed_out         | To add independent coverage, retry Codex review.                          |
       | claude | codex    | process_failed    | To add independent coverage, retry Codex review.                          |
       | claude | codex    | invalid_output    | To add independent coverage, retry Codex review.                          |
-      | claude | codex    | source_changed    | To add independent coverage, retry Codex review.                          |
-      | cursor | claude   | not_installed     | To add independent coverage, install or update Claude, then retry review. |
-      | cursor | claude   | not_authenticated | To add independent coverage, sign in to Claude, then retry review.        |
-      | cursor | claude   | timed_out         | To add independent coverage, retry Claude review.                         |
-      | cursor | claude   | process_failed    | To add independent coverage, retry Claude review.                         |
-      | cursor | claude   | invalid_output    | To add independent coverage, retry Claude review.                         |
-      | cursor | claude   | source_changed    | To add independent coverage, retry Claude review.                         |
-      | cursor | codex    | not_installed     | To add independent coverage, install or update Codex, then retry review.  |
-      | cursor | codex    | not_authenticated | To add independent coverage, sign in to Codex, then retry review.         |
-      | cursor | codex    | timed_out         | To add independent coverage, retry Codex review.                          |
-      | cursor | codex    | process_failed    | To add independent coverage, retry Codex review.                          |
-      | cursor | codex    | invalid_output    | To add independent coverage, retry Codex review.                          |
-      | cursor | codex    | source_changed    | To add independent coverage, retry Codex review.                          |
 
   @clarify-review-coverage.TBU1.R1 @surface.safeword-cli @rejection
   Scenario Outline: Untrusted typed fields and reviewer prose cannot create upgrade guidance

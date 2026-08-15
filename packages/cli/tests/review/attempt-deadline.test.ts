@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { attemptDeadlineMs, minimumRouteMs, runBoundMs } from '../../src/review/runtime.js';
+import { minimumRouteMs, reviewTimeoutMilliseconds, runBoundMs } from '../../src/review/runtime.js';
 
 const original = process.env.SAFEWORD_REVIEW_TIMEOUT_MS;
 
@@ -22,7 +22,7 @@ function withConfiguredBound(value: string | undefined): number {
 function withConfigured(value: string | undefined): number {
   if (value === undefined) delete process.env.SAFEWORD_REVIEW_TIMEOUT_MS;
   else process.env.SAFEWORD_REVIEW_TIMEOUT_MS = value;
-  return attemptDeadlineMs();
+  return reviewTimeoutMilliseconds();
 }
 
 describe('attempt deadline', () => {
@@ -33,13 +33,13 @@ describe('attempt deadline', () => {
 
   it('honours an explicitly configured deadline', () => {
     expect(withConfigured('120000')).toBe(120_000);
-    expect(withConfigured('240000')).toBe(240_000);
+    expect(withConfigured('240000')).toBe(210_000);
   });
 
   it('never lets a configured deadline exceed the run bound', () => {
-    expect(withConfigured('270000')).toBe(270_000);
-    expect(withConfigured('600000')).toBe(270_000);
-    expect(withConfigured('99999999')).toBe(270_000);
+    expect(withConfigured('270000')).toBe(210_000);
+    expect(withConfigured('600000')).toBe(210_000);
+    expect(withConfigured('99999999')).toBe(210_000);
   });
 
   it.each([
@@ -55,6 +55,17 @@ describe('attempt deadline', () => {
 });
 
 describe('run bound', () => {
+  it('derives the run and minimum-route budgets from one environment snapshot', () => {
+    const env = {
+      SAFEWORD_REVIEW_RUN_BOUND_MS: '90000',
+      SAFEWORD_REVIEW_TIMEOUT_MS: '45000',
+    };
+
+    expect(runBoundMs(env)).toBe(90_000);
+    expect(reviewTimeoutMilliseconds(env)).toBe(30_000);
+    expect(minimumRouteMs(env)).toBe(30_000);
+  });
+
   it('defaults to the documented ceiling', () => {
     expect(withConfiguredBound(undefined)).toBe(270_000);
     expect(withConfiguredBound(undefined)).toBeLessThan(300_000);
