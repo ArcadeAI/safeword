@@ -67,6 +67,18 @@ The initial implementation and its five scenario proofs landed together in `77ab
 
 - [x] GREEN abba47cd6
 
+### Scenario: Collecting a malformed or unknown review is rejected
+
+- [x] GREEN 726c69173
+
+### Scenario: Status does not resolve a traversal-shaped identifier outside the review store
+
+- [x] GREEN 726c69173
+
+### Scenario: A completed record missing its integrity seal is not accepted
+
+- [x] GREEN 726c69173
+
 ## Rule: finish-deep-reviews-in-background.TBU1.R3 — A builder can stop a review that is no longer useful
 
 ### Scenario: A running review is canceled explicitly
@@ -91,19 +103,19 @@ The initial implementation and its five scenario proofs landed together in `77ab
 
 - [x] GREEN 586dab3e2
 
-### Scenario: Collecting a malformed or unknown review is rejected
-
-- [x] GREEN abba47cd6
-
 ## Rule: finish-deep-reviews-in-background.TBU1.R4 — A background review reaches a terminal result when it cannot complete
 
 ### Scenario: A detached reviewer that exits without a result fails terminally
 
 - [x] GREEN 586dab3e2
 
-### Scenario: A reviewer that exceeds its controlled absolute deadline fails terminally
+### Scenario: A wedged reviewer that never records an outcome fails terminally at its controlled absolute deadline
 
-- [x] GREEN abba47cd6
+- [x] GREEN 726c69173
+
+### Scenario: A reviewer that exits with malformed output fails terminally
+
+- [x] GREEN 726c69173
 
 ## Feature-level cross-scenario refactor
 
