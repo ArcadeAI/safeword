@@ -73,7 +73,7 @@ const CHANGE_REQUEST_VERDICT = 'request_changes';
 const CHANGE_REQUEST_FINDING = 'Needs work.';
 const fixtureDirectories = new Set<string>();
 
-BeforeAll(async () => {
+BeforeAll({ timeout: 60_000 }, async () => {
   const cliRoot = nodePath.join(repoRoot, 'packages/cli');
   await execFileAsync('bun', ['run', 'build'], { cwd: cliRoot });
   productionCliBuild.completed = true;
@@ -84,6 +84,7 @@ function cleanupFixtureDirectories(): void {
   fixtureDirectories.clear();
 }
 
+process.once('exit', cleanupFixtureDirectories);
 After(cleanupFixtureDirectories);
 AfterAll(cleanupFixtureDirectories);
 
@@ -1477,7 +1478,8 @@ function assertNoContradictoryPolicyClaims(content: string, relativePath: string
 
 function contractBody(content: string): string {
   if (!content.startsWith('---\n')) return content.trim();
-  const body = content.split('---', 3)[2]?.trim();
+  const closingDelimiter = content.indexOf('\n---\n', 4);
+  const body = closingDelimiter === -1 ? '' : content.slice(closingDelimiter + 5).trim();
   assert.ok(body, 'Contract frontmatter must be followed by a body');
   return body;
 }

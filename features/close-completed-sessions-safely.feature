@@ -458,21 +458,15 @@ Feature: Close completed sessions safely
       Examples:
         | delivery-state                  |
         | completed cleanup               |
-        | missing fresh session binding   |
+        | missing session binding         |
         | incomplete retrospective        |
         | changed branch identity         |
 
-    @rejection @surface.claude-code @surface.openai-codex @surface.cursor
-    Scenario Outline: Installed entry points fail closed without a fresh binding
-      Given a project installed for "<runtime>" has no fresh host session binding
+    @surface.claude-code @surface.openai-codex @surface.cursor
+    Scenario: Installed cleanup treats a missing fresh binding as advisory
+      Given an installed project has no fresh host session binding
       When the user invokes the installed closeout entry point
-      Then it performs no merge or cleanup and reports that a fresh binding is required
-
-      Examples:
-        | runtime       |
-        | Claude Code   |
-        | OpenAI Codex  |
-        | Cursor        |
+      Then cleanup remains available and reports that a fresh binding is advisory
 
     @surface.claude-code @surface.openai-codex @surface.cursor
     Scenario: Synchronized closeout artifacts pass host parity

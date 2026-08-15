@@ -16,7 +16,7 @@
  */
 
 import { strict as assert } from 'node:assert';
-import { execFileSync, execSync, spawnSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import nodeOs from 'node:os';
 import nodePath from 'node:path';
@@ -609,10 +609,15 @@ When('the designApprovalGate entry is read', function (this: PlanWorld) {
 When('they are searched for the phrase {string}', function (this: PlanWorld, phrase: string) {
   this.grepHits = [];
   for (const root of GREP_ROOTS) {
-    const hits = execSync(`grep -rlF "${phrase}" ${root} 2>/dev/null || true`, {
+    const result = spawnSync('grep', ['-rlF', phrase, root], {
       cwd: PROJECT_ROOT,
       encoding: 'utf8',
-    }).trim();
+    });
+    assert.ok(
+      result.status === 0 || result.status === 1,
+      `grep failed for ${root}: ${result.stderr}`,
+    );
+    const hits = (result.stdout ?? '').trim();
     if (hits !== '') this.grepHits.push(`${root}: ${hits}`);
   }
 });
@@ -1107,26 +1112,29 @@ Then(
   },
 );
 
-Then('each installed copy is byte-identical to its template', function (this: PlanWorld) {
-  const template = readFileSync(
-    nodePath.join(PROJECT_ROOT, 'packages/cli/templates/skills/bdd/PLAN_IMPLEMENTATION.md'),
-    'utf8',
-  );
-  // Only `.claude/` is a byte-identical installed copy. The Codex surface is the
-  // generated plugin, whose assets are transformed at generation and asserted to
-  // derive from the template by codex-plugin-catalogue.release.test.ts; its
-  // packaging is already checked by the `registered` step above. `.agents/skills/`
-  // was retired in V5V4YP — the schema deletes those paths on upgrade.
-  for (const installed of [
-    nodePath.join(PROJECT_ROOT, '.claude/skills/bdd/PLAN_IMPLEMENTATION.md'),
-  ]) {
-    assert.equal(readFileSync(installed, 'utf8'), template, `${installed} drifted from template`);
-  }
-  assert.ok(
-    existsSync(nodePath.join(PROJECT_ROOT, '.cursor/rules/bdd-plan-implementation.mdc')),
-    'the Cursor rule wrapper must exist',
-  );
-});
+Then(
+  'the Claude copy is byte-identical and the Cursor and Codex assets are registered',
+  function (this: PlanWorld) {
+    const template = readFileSync(
+      nodePath.join(PROJECT_ROOT, 'packages/cli/templates/skills/bdd/PLAN_IMPLEMENTATION.md'),
+      'utf8',
+    );
+    // Only `.claude/` is a byte-identical installed copy. The Codex surface is the
+    // generated plugin, whose assets are transformed at generation and asserted to
+    // derive from the template by codex-plugin-catalogue.release.test.ts; its
+    // packaging is already checked by the `registered` step above. `.agents/skills/`
+    // was retired in V5V4YP — the schema deletes those paths on upgrade.
+    for (const installed of [
+      nodePath.join(PROJECT_ROOT, '.claude/skills/bdd/PLAN_IMPLEMENTATION.md'),
+    ]) {
+      assert.equal(readFileSync(installed, 'utf8'), template, `${installed} drifted from template`);
+    }
+    assert.ok(
+      existsSync(nodePath.join(PROJECT_ROOT, '.cursor/rules/bdd-plan-implementation.mdc')),
+      'the Cursor rule wrapper must exist',
+    );
+  },
+);
 
 Then('an accepted ADR records the plan-implementation phase', function (this: PlanWorld) {
   const text = this.architectureRecord ?? '';

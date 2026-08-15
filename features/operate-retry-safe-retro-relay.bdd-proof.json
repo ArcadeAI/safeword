@@ -46,14 +46,28 @@
       "[ORR-011] uses build-embedded evidence without consulting the customer repository"
     ],
     "Stale or malformed readiness proof fails closed": [
-      "packages/cli/tests/retro/relay-delivery.test.ts",
-      "[%s] fails closed for %s evidence",
-      "[\"ORR-012\",\"stale measurement\"]"
+      [
+        "packages/cli/tests/retro/relay-delivery.test.ts",
+        "[%s] fails closed for %s evidence",
+        "[\"ORR-012\",\"stale measurement\"]"
+      ],
+      [
+        "packages/cli/tests/retro/relay-delivery.test.ts",
+        "[%s] fails closed for %s evidence",
+        "[\"ORR-012\",\"malformed artifact\"]"
+      ]
     ],
     "Closed but unlanded or wrong-repository evidence fails closed": [
-      "packages/cli/tests/retro/relay-delivery.test.ts",
-      "[%s] fails closed for %s evidence",
-      "[\"ORR-013\",\"wrong repository\"]"
+      [
+        "packages/cli/tests/retro/relay-delivery.test.ts",
+        "[%s] fails closed for %s evidence",
+        "[\"ORR-013\",\"unlanded prerequisite\"]"
+      ],
+      [
+        "packages/cli/tests/retro/relay-delivery.test.ts",
+        "[%s] fails closed for %s evidence",
+        "[\"ORR-013\",\"wrong repository\"]"
+      ]
     ],
     "Readiness for another build fails closed": [
       "packages/cli/tests/retro/relay-delivery.test.ts",
@@ -159,8 +173,14 @@
       "[ORR-034] atomically records an alert when a request becomes immediately ambiguous"
     ],
     "Empty or semantically irrelevant readiness evidence fails closed": [
-      "packages/cli/tests/retro/relay-delivery.test.ts",
-      "[ORR-035] fails closed when a hash-attested measurement has an empty sample"
+      [
+        "packages/cli/tests/retro/relay-delivery.test.ts",
+        "[ORR-035] fails closed when a hash-attested measurement has an empty sample"
+      ],
+      [
+        "packages/cli/tests/retro/relay-delivery.test.ts",
+        "[ORR-035] fails closed when hash-attested content describes the wrong measurement"
+      ]
     ],
     "One external durable outbox survives disposable harness workspaces": [
       "packages/retro-relay/tests/cli-wiring.integration.test.ts",

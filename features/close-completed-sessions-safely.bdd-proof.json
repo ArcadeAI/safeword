@@ -435,29 +435,16 @@
       [
         "packages/cli/tests/closeout-cleanup.test.ts",
         "%s is advisory for cleanup",
-        "incomplete retro"
+        "missing session binding"
       ],
       [
         "packages/cli/tests/closeout-cleanup.test.ts",
         "re-observes each remaining target and stops after a concurrent ref change"
       ]
     ],
-    "Installed entry points fail closed without a fresh binding": [
-      [
-        "packages/cli/tests/integration/closeout-host-adapters.test.ts",
-        "drives the installed %s hook through the actual guard and real Git cleanup",
-        "claude"
-      ],
-      [
-        "packages/cli/tests/integration/closeout-host-adapters.test.ts",
-        "drives the installed %s hook through the actual guard and real Git cleanup",
-        "codex"
-      ],
-      [
-        "packages/cli/tests/integration/closeout-host-adapters.test.ts",
-        "drives the installed %s hook through the actual guard and real Git cleanup",
-        "cursor"
-      ]
+    "Installed cleanup treats a missing fresh binding as advisory": [
+      "packages/cli/tests/integration/closeout-host-adapters.test.ts",
+      "completes freshly verified cleanup without a host session binding"
     ],
     "Synchronized closeout artifacts pass host parity": [
       "packages/cli/tests/closeout-skill.test.ts",

@@ -41,10 +41,6 @@ const OFFLOAD_META_PROOF_TITLES = [
   'The workflow identity-input boundary matrix is complete',
 ] as const;
 
-// A cohesive specification may cross a high-water mark when reviewers accept
-// an explicit path-and-reason exception here. The default stays fail-closed.
-const REVIEWED_COHESIVE_EXCEPTIONS: Readonly<Record<string, string>> = {};
-
 function configuredFeatureFiles(): string[] {
   return collectExecutableFeatureFiles(REPO_ROOT).map(absolutePath =>
     nodePath.relative(REPO_ROOT, absolutePath),
@@ -108,15 +104,7 @@ describe('BDD feature maintainability', () => {
 
   it('keeps feature files below reviewed monolith high-water marks', () => {
     const featureFiles = configuredFeatureFiles();
-    const configuredPaths = new Set(featureFiles);
-    const invalidExceptions = Object.entries(REVIEWED_COHESIVE_EXCEPTIONS).flatMap(
-      ([path, reason]) =>
-        configuredPaths.has(path) && reason.trim() !== '' ? [] : [{ path, reason }],
-    );
     const oversized = featureFiles.flatMap(relativePath => {
-      const reviewedReason = REVIEWED_COHESIVE_EXCEPTIONS[relativePath];
-      if (reviewedReason !== undefined && reviewedReason.trim() !== '') return [];
-
       const source = readFileSync(nodePath.join(REPO_ROOT, relativePath), 'utf8');
       const lines = source.split('\n').length - (source.endsWith('\n') ? 1 : 0);
       if (lines <= FEATURE_HIGH_WATER_LINES) return [];
@@ -125,7 +113,7 @@ describe('BDD feature maintainability', () => {
       return [{ path: relativePath, lines, rules }];
     });
 
-    expect({ invalidExceptions, oversized }).toEqual({ invalidExceptions: [], oversized: [] });
+    expect(oversized).toEqual([]);
   });
 
   it('keeps the offload-tests split structurally complete and independently named', () => {

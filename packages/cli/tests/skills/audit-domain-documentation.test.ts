@@ -1,5 +1,13 @@
 import { spawnSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -54,6 +62,10 @@ function runDomainDocumentationCheck(
         ? String.raw`if [ "$1" = "feature-directories" ]; then printf "%s\n%s\n%s\n" "$PWD/features" "$PWD/packages/cli/features" "$PWD/custom/features"; fi`
         : 'exit 1',
     );
+    const bunExecutable = spawnSync('which', ['bun'], { encoding: 'utf8' }).stdout.trim();
+    if (bunExecutable === '') throw new Error('bun is required for the audit fixture');
+    symlinkSync(bunExecutable, nodePath.join(binDirectory, 'bun'));
+    writeExecutable(binDirectory, 'bunx', 'exit 1');
     for (const [relativePath, content] of Object.entries(files)) {
       const absolutePath = nodePath.join(projectDirectory, relativePath);
       mkdirSync(nodePath.dirname(absolutePath), { recursive: true });
@@ -79,7 +91,7 @@ function runDomainDocumentationCheck(
       env: {
         ...process.env,
         CLAUDE_PROJECT_DIR: projectDirectory,
-        PATH: `${binDirectory}:${process.env.PATH ?? ''}`,
+        PATH: `${binDirectory}:/usr/bin:/bin`,
       },
       encoding: 'utf8',
     });

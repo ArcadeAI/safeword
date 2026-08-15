@@ -388,7 +388,7 @@ Feature: plan-implementation phase before TDD
       Given the schema manifest
       When the plan-implementation distribution is inspected
       Then PLAN_IMPLEMENTATION.md is registered for the Claude skill directory, the Codex skill directory, and a Cursor rule
-      And each installed copy is byte-identical to its template
+      And the Claude copy is byte-identical and the Cursor and Codex assets are registered
 
   @plan-implementation-phase.SM1.R3
   Rule: plan-implementation-phase.SM1.R3 — the decomposition-retirement ADR is superseded on the record

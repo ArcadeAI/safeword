@@ -19,6 +19,8 @@ import cliVitestConfig from '../vitest.config.js';
 // This is a static provenance gate: it proves that every scenario names a
 // normally collected executable test declaration. The normal Vitest lane is
 // still responsible for executing those tests and proving their assertions pass.
+// Environment-dependent runIf/skipIf declarations are intentionally ineligible:
+// only literal always-enabled conditions can serve as portable proof.
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '../../..');
 const configuredFeatureFiles = collectExecutableFeatureFiles(REPO_ROOT).map(absolutePath =>
   nodePath.relative(REPO_ROOT, absolutePath).split(nodePath.sep).join('/'),
