@@ -61,6 +61,12 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Test-shaped paths that are not regular files classify broad
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Mixed legacy and current wrappers are not represented as safely sharing capacity
 
 - [ ] RED
@@ -201,6 +207,12 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Native-evidence verification rejects all arguments without consuming evidence
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: POSIX capacity commands disclose detached-descendant limits
 
 - [ ] RED
@@ -294,6 +306,18 @@ remain in the feature file.
 - [ ] REFACTOR
 
 ### Scenario: An idle scheduler adopts one canonical capacity for every participating session
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Project-local configuration and process environment cannot override canonical capacity
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Distinct user or machine identities own separate capacity domains
 
 - [ ] RED
 - [ ] GREEN

@@ -93,6 +93,7 @@ Feature: Let parallel sessions share test capacity safely
         | one `alpha.spec.cts` file | one focused permit |
         | two valid `.test` and `.spec` files | one focused permit |
         | one `alpha.Test.ts` file | broad exclusive capacity |
+        | one `alpha.test.TS` file | broad exclusive capacity |
         | one `alpha.tests.ts` file | broad exclusive capacity |
         | one `alpha.test.txt` file | broad exclusive capacity |
         | one `alpha.spec.ts.bak` file | broad exclusive capacity |
@@ -100,7 +101,6 @@ Feature: Let parallel sessions share test capacity safely
         | an `a/../alpha.test.ts` path that normalizes inside the checkout | one focused permit |
         | a repeated-separator path to `alpha.test.ts` | one focused permit |
         | a `space name.test.ts` argument passed as one token | one focused permit |
-        | a shell-expanded argument whose resulting token is `alpha.test.ts` | one focused permit |
 
     @rejection
     Scenario Outline: Non-file argument boundaries classify broad without contradictory fixtures
@@ -114,8 +114,18 @@ Feature: Let parallel sessions share test capacity safely
         | a literal `alpha[1].test.ts` token | pattern metacharacters rather than a literal file identity |
 
     @rejection
+    Scenario Outline: Test-shaped paths that are not regular files classify broad
+      Given <path-kind> named `alpha.test.ts` exists inside the canonical checkout root
+      When the public package-test command classifies that literal argument
+      Then it assigns broad exclusive capacity and passes the original argument unchanged downstream exactly once
+      Examples:
+        | path-kind |
+        | a directory |
+        | a FIFO or other non-regular file |
+
+    @rejection
     Scenario: Mixed legacy and current wrappers are not represented as safely sharing capacity
-      Given a legacy package-test wrapper may still be running and durable current-protocol state is captured byte-for-byte at capacity one
+      Given a legacy package-test wrapper is running and holds the recorded legacy mutex while durable current-protocol state is captured byte-for-byte at capacity one
       When a builder attempts the public capacity command without valid current-protocol confirmation and then runs status
       Then the set command exits nonzero with SAFEWORD_TEST_CAPACITY_INVALID, durable bytes and version remain unchanged, and zero-exit status identifies that legacy processes are untracked, instructs the operator to end every legacy execution, migrate every participating worktree, restore capacity one before any later legacy wrapper is used, and wait for the current scheduler to become idle before handoff
 
@@ -144,10 +154,10 @@ Feature: Let parallel sessions share test capacity safely
         | exponent token `2e0` |
         | integer `999999999999999999999999999999999999` beyond the parser's numeric range |
         | duplicate positional values `2 3` |
-        | duplicate `--confirm-current-protocol` flags |
-        | conflicting `--confirm-current-protocol` and `--confirm-current-protocol=false` flags |
-        | valued flag `--confirm-current-protocol=true` |
-        | valued flag `--confirm-current-protocol=false` |
+        | `2 --confirm-current-protocol --confirm-current-protocol` |
+        | `2 --confirm-current-protocol --confirm-current-protocol=false` |
+        | `2 --confirm-current-protocol=true` |
+        | `2 --confirm-current-protocol=false` |
         | unknown option after confirmation `2 --confirm-current-protocol --unknown` |
         | extra unsupported option `2 --confirm-current-protocol --format=json` |
         | extra non-option token `2 unexpected` |
@@ -301,7 +311,7 @@ Feature: Let parallel sessions share test capacity safely
         | macOS | the process exits and its PID is reused within the conservative start-time interval |
         | Windows | the process handle identifies a different creation FILETIME than the pre-handle PID observation |
 
-    @rejection @process
+    @rejection @process @surface.safeword-cli
     Scenario Outline: Native platform evidence cannot be replaced by injected adapter coverage
       Given trusted current-commit native-filesystem evidence for every platform is already accepted, deterministic injected-adapter tests run every platform row on any host, and <native-job-state>
       When `safeword project test-capacity verify-native-evidence` verifies trusted CI attestations binding repository, workflow job identity, native runner OS, commit SHA and artifact digest before reading durable JSON keyed by process/container primitive IDs, observed identities and exact command exits
@@ -309,9 +319,11 @@ Feature: Let parallel sessions share test capacity safely
       Examples:
         | native-job-state | platform-gate-outcome | terminal-contract |
         | Linux, macOS and Windows native jobs all report their matching real seam | native and injected evidence are recorded separately and coverage completes | the command exits zero and emits exactly one completed evidence record for the current commit |
-        | any required native job is unavailable or skipped | the gate remains incomplete with that platform named and injected results cannot mark it passed | the command exits nonzero with SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE and emits no platform-pass or completed evidence record |
+        | the Linux native job is unavailable or skipped | the Linux gate remains incomplete with Linux named and injected results cannot mark it passed | the command exits nonzero with SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE, names `safeword project test-capacity status` first, and emits no platform-pass or completed evidence record |
+        | the macOS native job is unavailable or skipped | the macOS gate remains incomplete with macOS named and injected results cannot mark it passed | the command exits nonzero with SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE, names `safeword project test-capacity status` first, and emits no platform-pass or completed evidence record |
+        | the Windows native job is unavailable or skipped | the Windows gate remains incomplete with Windows named and injected results cannot mark it passed | the command exits nonzero with SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE, names `safeword project test-capacity status` first, and emits no platform-pass or completed evidence record |
 
-    @rejection @process
+    @rejection @process @surface.safeword-cli
     Scenario Outline: Native filesystem evidence cannot be replaced by injected filesystem seams
       Given trusted current-commit process/container evidence for every platform and filesystem evidence for every other platform are already accepted and the required native <platform> job's <native-state> for owner and permission checks, link and reparse behavior, pinned parent identity, atomic rename, file flush and directory flush
       When deterministic injected tests run and `safeword project test-capacity verify-native-evidence` verifies a trusted CI attestation binding repository, workflow job identity, native runner OS, commit SHA and artifact digest before reading the job's durable JSON keyed by primitive ID, object identity, observed syscall events and exact exit status
@@ -319,17 +331,17 @@ Feature: Let parallel sessions share test capacity safely
       Examples:
         | platform | native-state | native-gate-outcome | terminal-contract |
         | Linux | every success primitive completes and an authenticated unsupported-directory-flush fixture proves runtime fails closed | native and injected evidence are recorded separately and the Linux gate completes | the command exits zero and emits one completed current-commit record |
-        | Linux | one named primitive is skipped or unavailable | the Linux gate remains incomplete with that primitive named | the command exits nonzero with SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE and emits neither a Linux-pass nor overall completed record |
+        | Linux | one named primitive is skipped or unavailable | the Linux gate remains incomplete with that primitive named | the command exits nonzero with SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE, names `safeword project test-capacity status` first, and emits neither a Linux-pass nor overall completed record |
         | macOS | every success primitive completes and an authenticated unsupported-directory-flush fixture proves runtime fails closed | native and injected evidence are recorded separately and the macOS gate completes | the command exits zero and emits one completed current-commit record |
-        | macOS | one named primitive is skipped or unavailable | the macOS gate remains incomplete with that primitive named | the command exits nonzero with SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE and emits neither a macOS-pass nor overall completed record |
+        | macOS | one named primitive is skipped or unavailable | the macOS gate remains incomplete with that primitive named | the command exits nonzero with SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE, names `safeword project test-capacity status` first, and emits neither a macOS-pass nor overall completed record |
         | Windows | every success primitive completes and an authenticated unsupported-directory-flush fixture proves runtime fails closed | native and injected evidence are recorded separately and the Windows gate completes | the command exits zero and emits one completed current-commit record |
-        | Windows | one named primitive is skipped or unavailable | the Windows gate remains incomplete with that primitive named | the command exits nonzero with SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE and emits neither a Windows-pass nor overall completed record |
+        | Windows | one named primitive is skipped or unavailable | the Windows gate remains incomplete with that primitive named | the command exits nonzero with SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE, names `safeword project test-capacity status` first, and emits neither a Windows-pass nor overall completed record |
 
-    @rejection @process
+    @rejection @process @surface.safeword-cli
     Scenario Outline: Native evidence rejects untrusted or mismatched provenance
       Given a durable native-evidence artifact has otherwise valid schema and contents but <provenance-fault>
       When `safeword project test-capacity verify-native-evidence` verifies it for the current repository and commit
-      Then the named platform remains incomplete, the artifact is not consumed, existing evidence state remains byte-identical, no affected platform-pass or overall completion record is emitted, and the command exits nonzero with SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE naming <stable-reason>
+      Then the named platform remains incomplete, the artifact is not consumed, existing evidence state remains byte-identical, no affected platform-pass or overall completion record is emitted, and the command exits nonzero with SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE naming <stable-reason> and `safeword project test-capacity status` first
       Examples:
         | provenance-fault | stable-reason |
         | has no trusted CI attestation or a forged signature | untrusted attestation |
@@ -338,7 +350,7 @@ Feature: Let parallel sessions share test capacity safely
         | claims Linux while its attested runner OS is macOS | cross-platform mismatch |
         | has bytes whose digest differs from the attested digest | artifact digest mismatch |
 
-    @wiring @process
+    @wiring @process @surface.safeword-cli
     Scenario Outline: Repeated native-evidence verification is atomic and idempotent
       Given one trusted current-commit attestation and artifact set satisfies every native platform and primitive exactly once
       When <verification-race>
@@ -348,11 +360,11 @@ Feature: Let parallel sessions share test capacity safely
         | the verifier runs twice sequentially against the identical evidence set |
         | two verifier processes cross a barrier and contend on the evidence-state guard |
 
-    @rejection @wiring @process
+    @rejection @wiring @process @surface.safeword-cli
     Scenario Outline: Overall native evidence waits for both evidence classes on every platform
       Given trusted current-commit evidence is complete except for <missing-class>
       When `safeword project test-capacity verify-native-evidence` evaluates the complete attested set
-      Then it exits nonzero with SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE, names the missing class and platform, emits no overall completion record, and preserves every already accepted platform-class record unchanged
+      Then it exits nonzero with SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE, names `safeword project test-capacity status` first plus the missing class and platform, emits no overall completion record, and preserves every already accepted platform-class record unchanged
       Examples:
         | missing-class |
         | Linux process and container evidence |
@@ -361,6 +373,17 @@ Feature: Let parallel sessions share test capacity safely
         | macOS filesystem and durability evidence |
         | Windows process and container evidence |
         | Windows filesystem and durability evidence |
+
+    @rejection @surface.safeword-cli
+    Scenario Outline: Native-evidence verification rejects all arguments without consuming evidence
+      Given valid durable native-evidence state is captured byte-for-byte
+      When the builder runs `safeword project test-capacity verify-native-evidence` with <argument>
+      Then it exits nonzero with SAFEWORD_TEST_CAPACITY_INVALID, names `safeword project test-capacity status` first, and durable evidence state remains unchanged
+      Examples:
+        | argument |
+        | unknown option `--unknown` |
+        | extra positional `unexpected` |
+        | duplicate unknown option `--unknown --unknown` |
 
     @rejection
     Scenario: POSIX capacity commands disclose detached-descendant limits
@@ -372,7 +395,7 @@ Feature: Let parallel sessions share test capacity safely
     Scenario: Detached POSIX descendants remain an explicit unsupported fixture
       Given repository code deliberately escapes its recorded POSIX process group and the ordinary group exits
       When the scheduler admits one new repository process
-      Then keyed events show that process overlaps the escaped process only in the explicitly unsupported fixture and teardown proves both processes exit
+      Then keyed events show the newly admitted process overlaps the escaped process and teardown proves both processes exit
 
     Scenario Outline: Supervisor loss returns capacity only after group disappearance
       Given a first guarded observation proves the recorded supervisor instance, group-leader instance, and process group absent and marks the owner reclaiming without returning capacity
@@ -559,6 +582,18 @@ Feature: Let parallel sessions share test capacity safely
         | 1 | 8 |
         | 8 | 1 |
 
+    @rejection @process
+    Scenario: Project-local configuration and process environment cannot override canonical capacity
+      Given the isolated canonical domain has durable capacity one while a project-local configuration and each wrapper environment claim capacity eight
+      When two real focused wrappers in distinct worktrees request admission together
+      Then exactly one repository lifetime runs, the waiting wrapper starts only after release, and neither override changes the durable canonical capacity
+
+    @process
+    Scenario: Distinct user or machine identities own separate capacity domains
+      Given two isolated domains have different deterministic OS user or machine identities and each durable domain has capacity one
+      When one real focused wrapper in each domain is held active
+      Then both repository lifetimes overlap, and each domain records only its own owner, waiter, capacity, and state version
+
     @rejection
     Scenario Outline: Capacity updates and admission serialize as one guarded transition
       Given an idle scheduler has canonical capacity one
@@ -669,6 +704,7 @@ Feature: Let parallel sessions share test capacity safely
         | unsafe permissions, path, schema, or durability | SAFEWORD_TEST_CAPACITY_STATE_UNSAFE |
         | unverifiable process or capacity-domain identity | SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE |
         | unavailable platform containment | SAFEWORD_TEST_CAPACITY_PLATFORM_UNSUPPORTED |
+        | incomplete native platform evidence | SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE |
 
     @wiring @process @surface.safeword-cli
     Scenario Outline: The public capacity command wires configuration protocol status and reset atomically
