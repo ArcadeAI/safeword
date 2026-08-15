@@ -149,6 +149,7 @@ describe('relay maintenance interval', () => {
 
       await closeServer(started.server);
       const settled = sweeps();
+      await started.maintain();
       await vi.advanceTimersByTimeAsync(80);
       expect(sweeps()).toBe(settled);
       ProcessLock.acquire(lockPath).release();

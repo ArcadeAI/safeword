@@ -179,9 +179,10 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
     current.count += 1;
     return true;
   };
+  let released = false;
   let maintenanceRunning = false;
   const maintain = async (now = new Date()): Promise<void> => {
-    if (maintenanceRunning || input.mode === 'spike') return;
+    if (released || maintenanceRunning || input.mode === 'spike') return;
     maintenanceRunning = true;
     try {
       await service.maintain(now);
@@ -229,7 +230,6 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
    * per retry. Every failure path calls this rather than releasing the lock
    * piecemeal and hoping 'close' arrives.
    */
-  let released = false;
   const releaseResources = (): void => {
     if (released) return;
     released = true;
