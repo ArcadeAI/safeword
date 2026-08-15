@@ -1,4 +1,3 @@
-import { execFileSync } from 'node:child_process';
 import {
   existsSync,
   mkdirSync,
@@ -21,9 +20,8 @@ import {
   historicalHookEntry,
 } from '../../src/claude-plugin/historical-ownership.js';
 import { readClaudePluginMode } from '../../src/claude-plugin/migration-state.js';
-import { requireHistoricalReleaseTags } from '../helpers/git-history.js';
+import { readHistoricalTemplate, requireHistoricalReleaseTags } from '../helpers/git-history.js';
 
-const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
 const roots: string[] = [];
 const hookDigest = 'a'.repeat(64);
 const originalProjectDirectory = process.env.CLAUDE_PROJECT_DIR;
@@ -37,20 +35,7 @@ function fixture(version = '0.72.0'): { root: string; installedPath: string } {
     ];
   const installedPath = Object.keys(release.files)[0];
   if (installedPath === undefined) throw new Error(`Release ${version} has no Claude fixture.`);
-  const schema = execFileSync('git', ['show', `v${version}:packages/cli/src/schema.ts`], {
-    cwd: repoRoot,
-    encoding: 'utf8',
-  });
-  const escaped = installedPath.replaceAll(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`);
-  // eslint-disable-next-line security/detect-non-literal-regexp -- escaped fixture path is test-owned
-  const template = new RegExp(
-    String.raw`['"]${escaped}['"]\s*:\s*\{[^}]*?template:\s*['"]([^'"]+)['"]`,
-    'su',
-  ).exec(schema)?.[1];
-  const content = execFileSync('git', ['show', `v${version}:packages/cli/templates/${template}`], {
-    cwd: repoRoot,
-    encoding: 'utf8',
-  });
+  const content = readHistoricalTemplate(version, installedPath);
   const target = nodePath.join(root, installedPath);
   mkdirSync(nodePath.dirname(target), { recursive: true });
   writeFileSync(target, content);

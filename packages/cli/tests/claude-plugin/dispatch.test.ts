@@ -1,4 +1,4 @@
-import { execFileSync, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   cpSync,
@@ -23,7 +23,7 @@ import {
 } from '../../src/claude-plugin/historical-ownership.js';
 import { claudeWatchedSettingsDigest } from '../../src/claude-plugin/migration-state.js';
 import { SAFEWORD_SCHEMA } from '../../src/schema.js';
-import { requireHistoricalReleaseTags } from '../helpers/git-history.js';
+import { readHistoricalTemplate, requireHistoricalReleaseTags } from '../helpers/git-history.js';
 
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 /** Release this suite reads real bytes from; shared with the history preflight. */
@@ -53,24 +53,9 @@ function releasedAsset(projectDirectory: string): string {
 }
 
 function releasedFile(projectDirectory: string, installedPath: string): string {
-  const schema = execFileSync('git', ['show', `v${FIXTURE_VERSION}:packages/cli/src/schema.ts`], {
-    cwd: REPO_ROOT,
-    encoding: 'utf8',
-  });
-  const escaped = installedPath.replaceAll(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`);
-  // eslint-disable-next-line security/detect-non-literal-regexp -- escaped fixture path is test-owned
-  const template = new RegExp(
-    String.raw`['"]${escaped}['"]\s*:\s*\{[^}]*?template:\s*['"]([^'"]+)['"]`,
-    'su',
-  ).exec(schema)?.[1];
   const target = nodePath.join(projectDirectory, installedPath);
   mkdirSync(nodePath.dirname(target), { recursive: true });
-  writeFileSync(
-    target,
-    execFileSync('git', ['show', `v${FIXTURE_VERSION}:packages/cli/templates/${template}`], {
-      cwd: REPO_ROOT,
-    }),
-  );
+  writeFileSync(target, readHistoricalTemplate(FIXTURE_VERSION, installedPath));
   return target;
 }
 

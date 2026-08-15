@@ -45,6 +45,27 @@ function git(arguments_: readonly string[]): { ok: boolean; stdout: string } {
   return { ok: result.status === 0, stdout: (result.stdout ?? '').trim() };
 }
 
+function gitShow(ref: string): string {
+  const result = spawnSync('git', ['show', ref], { cwd: repoRoot, encoding: 'utf8' });
+  if (result.status !== 0) throw new Error(`Could not read historical fixture ${ref}.`);
+  return result.stdout;
+}
+
+/** Reads the released template bytes installed at `installedPath`. */
+export function readHistoricalTemplate(version: string, installedPath: string): string {
+  const schema = gitShow(`v${version}:packages/cli/src/schema.ts`);
+  const escaped = installedPath.replaceAll(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`);
+  // eslint-disable-next-line security/detect-non-literal-regexp -- escaped fixture path is test-owned
+  const template = new RegExp(
+    String.raw`['"]${escaped}['"]\s*:\s*\{[^}]*?template:\s*['"]([^'"]+)['"]`,
+    'su',
+  ).exec(schema)?.[1];
+  if (template === undefined) {
+    throw new Error(`Release ${version} has no schema template for ${installedPath}.`);
+  }
+  return gitShow(`v${version}:packages/cli/templates/${template}`);
+}
+
 /** Every catalogued release version, i.e. the keys that have a release tag. */
 function catalogueReleaseVersions(): string[] {
   return supportedClaudeLegacyReleases().filter(key => RELEASE_VERSION.test(key));

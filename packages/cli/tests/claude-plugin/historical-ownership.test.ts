@@ -1,6 +1,3 @@
-import { execFileSync } from 'node:child_process';
-import nodePath from 'node:path';
-
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { CLAUDE_HISTORICAL_CATALOGUE } from '../../src/claude-plugin/historical-catalogue.generated.js';
@@ -11,16 +8,7 @@ import {
   isAcceptedHistoricalHook,
   supportedClaudeLegacyReleases,
 } from '../../src/claude-plugin/historical-ownership.js';
-import { requireHistoricalReleaseTags } from '../helpers/git-history.js';
-
-const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
-
-function gitShow(tag: string, path: string): string {
-  return execFileSync('git', ['show', `${tag}:${path}`], {
-    cwd: repoRoot,
-    encoding: 'utf8',
-  });
-}
+import { readHistoricalTemplate, requireHistoricalReleaseTags } from '../helpers/git-history.js';
 
 /** Releases this suite reads real bytes from; shared with the history preflight. */
 const FIXTURE_VERSIONS = ['0.68.0', '0.69.0', '0.72.0'];
@@ -44,15 +32,7 @@ describe('Claude historical ownership catalogue', () => {
       ];
     const [installedPath, expectedDigest] = Object.entries(release.files)[0] ?? [];
     expect(installedPath).toBeDefined();
-    const schema = gitShow(`v${version}`, 'packages/cli/src/schema.ts');
-    const escaped = installedPath?.replaceAll(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`) ?? '';
-    // eslint-disable-next-line security/detect-non-literal-regexp -- escaped fixture path is test-owned
-    const template = new RegExp(
-      String.raw`['"]${escaped}['"]\s*:\s*\{[^}]*?template:\s*['"]([^'"]+)['"]`,
-      'su',
-    ).exec(schema)?.[1];
-    expect(template).toBeDefined();
-    const content = gitShow(`v${version}`, `packages/cli/templates/${template}`);
+    const content = readHistoricalTemplate(version, installedPath ?? '');
     expect(isAcceptedHistoricalFile(installedPath ?? '', content)).toBe(true);
     expect(expectedDigest).toMatch(/^[\da-f]{64}$/u);
     expect(isAcceptedHistoricalFile(installedPath ?? '', `${content}\nmodified`)).toBe(false);

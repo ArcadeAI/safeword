@@ -1,4 +1,3 @@
-import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
@@ -8,22 +7,14 @@ import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { CLAUDE_HISTORICAL_CATALOGUE } from '../../src/claude-plugin/historical-catalogue.generated.js';
 import { historicalHookEntry } from '../../src/claude-plugin/historical-ownership.js';
 import { observeClaudeLegacy } from '../../src/claude-plugin/legacy-classifier.js';
-import { requireHistoricalReleaseTags } from '../helpers/git-history.js';
+import { readHistoricalTemplate, requireHistoricalReleaseTags } from '../helpers/git-history.js';
 
-const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
 const fixtures: string[] = [];
 
 function fixture(): string {
   const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-legacy-classifier-'));
   fixtures.push(root);
   return root;
-}
-
-function gitShow(tag: string, path: string): string {
-  return execFileSync('git', ['show', `${tag}:${path}`], {
-    cwd: repoRoot,
-    encoding: 'utf8',
-  });
 }
 
 afterEach(() => {
@@ -47,16 +38,9 @@ describe('Claude legacy classifier', () => {
       ];
     const installedPath = Object.keys(release.files)[0];
     expect(installedPath).toBeDefined();
-    const schema = gitShow(`v${version}`, 'packages/cli/src/schema.ts');
-    const escaped = installedPath?.replaceAll(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`) ?? '';
-    // eslint-disable-next-line security/detect-non-literal-regexp -- escaped fixture path is test-owned
-    const template = new RegExp(
-      String.raw`['"]${escaped}['"]\s*:\s*\{[^}]*?template:\s*['"]([^'"]+)['"]`,
-      'su',
-    ).exec(schema)?.[1];
     const target = nodePath.join(root, installedPath ?? '');
     mkdirSync(nodePath.dirname(target), { recursive: true });
-    writeFileSync(target, gitShow(`v${version}`, `packages/cli/templates/${template}`));
+    writeFileSync(target, readHistoricalTemplate(version, installedPath ?? ''));
     expect(observeClaudeLegacy(root).recognizedFiles).toContain(installedPath);
 
     writeFileSync(target, 'user changed bytes\n');
