@@ -321,6 +321,12 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Status reports a concrete repair for unsafe capacity artifacts
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: share-test-capacity.TBU1.R6
 
 ### Scenario: First use creates or recovers one canonical capacity-one protocol state
