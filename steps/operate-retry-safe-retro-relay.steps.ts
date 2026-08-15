@@ -28,9 +28,11 @@ function manifestProofTarget(scenarioName: string): {
 } {
   const registration = relayProofManifest.scenarios[scenarioName];
   assert.ok(registration, `missing manifest proof for ${scenarioName}`);
-  const proof = typeof registration[0] === 'string' ? registration : registration[0];
-  assert.ok(proof, `missing manifest proof target for ${scenarioName}`);
-  const proofPath = proof[0];
+  const proofs = typeof registration[0] === 'string' ? [registration] : registration;
+  const proofPaths = new Set(proofs.map(proof => proof[0]));
+  assert.equal(proofPaths.size, 1, `${scenarioName} must keep relay replay proofs in one file`);
+  const proofPath = [...proofPaths][0];
+  assert.ok(proofPath, `missing manifest proof target for ${scenarioName}`);
   const packageDirectory = proofPath.startsWith('packages/retro-relay/')
     ? 'packages/retro-relay'
     : 'packages/cli';
@@ -139,7 +141,7 @@ const rawScenarioProofs: Record<
   },
   'Complete fresh readiness proof selects the relay path': {
     packageDirectory: 'packages/cli',
-    testFile: 'tests/commands/retro.test.ts',
+    testFile: 'tests/retro/relay-delivery.test.ts',
   },
   'Stale or malformed readiness proof fails closed': {
     expectedTests: 2,
@@ -275,10 +277,13 @@ export const scenarioProofs: Record<string, ScenarioProof> = Object.fromEntries(
   Object.entries(rawScenarioProofs).map(([scenarioName, details]) => {
     const proofId = scenarioProofIds[scenarioName];
     assert.ok(proofId, `missing stable proof ID for ${scenarioName}`);
-    return [
-      scenarioName,
-      { expectedTests: 1, ...details, ...manifestProofTarget(scenarioName), proofId },
-    ];
+    const manifestTarget = manifestProofTarget(scenarioName);
+    assert.deepEqual(
+      { packageDirectory: details.packageDirectory, testFile: details.testFile },
+      manifestTarget,
+      `${scenarioName} legacy replay target must match its feature-owned manifest`,
+    );
+    return [scenarioName, { expectedTests: 1, ...details, ...manifestTarget, proofId }];
   }),
 );
 
@@ -289,6 +294,7 @@ assert.deepEqual(
 );
 
 const proofCache = new Map<string, Promise<{ stdout: string; stderr: string; exitCode: number }>>();
+const worldsWithRelayProof = new WeakSet<object>();
 
 async function runProof(
   scenarioName: string,
@@ -348,6 +354,7 @@ Before(
   { tags: '@operate-retry-safe-retro-relay', timeout: RELAY_PROOF_TIMEOUT_MS },
   async function (this: SafewordWorld, scenario: { pickle: { name: string } }) {
     const scenarioName = scenario.pickle.name;
+    worldsWithRelayProof.add(this);
     proofCache.set(scenarioName, proofCache.get(scenarioName) ?? runProof(scenarioName));
     this.result = await proofCache.get(scenarioName)!;
   },
@@ -370,7 +377,9 @@ function expressionFor(stepText: string): RegExp {
     `^${stepText
       .split(/(<[^>]+>)/u)
       .map(part =>
-        part.startsWith('<') ? '.+' : part.replaceAll(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`),
+        part.startsWith('<')
+          ? '[^\\r\\n]+'
+          : part.replaceAll(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`),
       )
       .join('')}$`,
     'u',
@@ -386,6 +395,10 @@ for (const stepText of stepTexts) {
     continue;
   }
   defineStep(expressionFor(stepText), function (this: SafewordWorld) {
+    assert.ok(
+      worldsWithRelayProof.has(this),
+      'relay proof steps may only run after the tagged proof hook',
+    );
     assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
   });
 }

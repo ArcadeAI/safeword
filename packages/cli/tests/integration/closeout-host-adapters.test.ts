@@ -1491,7 +1491,7 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
   });
 
   it.each(['installed', 'upgraded'] as const)(
-    '$change Safeword resolves project-host entry points to the shared guard',
+    '%s Safeword resolves project-host entry points to the shared guard',
     async change => {
       const directory = createTemporaryDirectory();
       try {

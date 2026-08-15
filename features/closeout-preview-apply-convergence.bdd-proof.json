@@ -71,7 +71,7 @@
     ],
     "A bootstrap task can use the guard installed during the task": [
       "packages/cli/tests/integration/closeout-host-adapters.test.ts",
-      "$change Safeword resolves project-host entry points to the shared guard"
+      "%s Safeword resolves project-host entry points to the shared guard"
     ],
     "A bootstrap identity cannot cross its project ownership boundary": [
       "packages/cli/tests/closeout-cleanup.test.ts",

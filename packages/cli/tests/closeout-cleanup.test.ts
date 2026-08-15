@@ -2175,37 +2175,42 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     );
     rmSync(originalWorktree, { recursive: true, force: true });
 
-    expect(
-      transcriptMatchesBinding(
-        transcript,
-        { runtime: 'claude', id: 'session-42', projectRoot: root },
-        root,
-      ),
-    ).toBe(true);
-    expect(
-      transcriptMatchesBinding(
-        transcript,
-        { runtime: 'claude', id: 'other-session', projectRoot: root },
-        root,
-      ),
-    ).toBe(false);
-    expect(
-      transcriptMatchesBinding(
-        transcript,
-        { runtime: 'claude', id: 'session-42', projectRoot: root },
-        otherRoot,
-      ),
-    ).toBe(false);
+    try {
+      expect(
+        transcriptMatchesBinding(
+          transcript,
+          { runtime: 'claude', id: 'session-42', projectRoot: root },
+          root,
+        ),
+      ).toBe(true);
+      expect(
+        transcriptMatchesBinding(
+          transcript,
+          { runtime: 'claude', id: 'other-session', projectRoot: root },
+          root,
+        ),
+      ).toBe(false);
+      expect(
+        transcriptMatchesBinding(
+          transcript,
+          { runtime: 'claude', id: 'session-42', projectRoot: root },
+          otherRoot,
+        ),
+      ).toBe(false);
 
-    const spoofedText = ['session-42', root].join(' ');
-    writeFileSync(transcript, `${JSON.stringify({ type: 'message', text: spoofedText })}\n`);
-    expect(
-      transcriptMatchesBinding(
-        transcript,
-        { runtime: 'claude', id: 'session-42', projectRoot: root },
-        root,
-      ),
-    ).toBe(false);
+      const spoofedText = ['session-42', root].join(' ');
+      writeFileSync(transcript, `${JSON.stringify({ type: 'message', text: spoofedText })}\n`);
+      expect(
+        transcriptMatchesBinding(
+          transcript,
+          { runtime: 'claude', id: 'session-42', projectRoot: root },
+          root,
+        ),
+      ).toBe(false);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+      rmSync(otherRoot, { recursive: true, force: true });
+    }
   });
 
   it('accepts a Codex transcript across linked worktrees but rejects a separate clone', () => {

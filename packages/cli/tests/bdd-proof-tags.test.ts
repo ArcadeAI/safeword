@@ -16,13 +16,25 @@ import relayVitestConfig from '../../retro-relay/vitest.config.js';
 import { collectExecutableFeatureFiles } from '../src/utils/feature-source.js';
 import cliVitestConfig from '../vitest.config.js';
 
+// This is a static provenance gate: it proves that every scenario names a
+// normally collected executable test declaration. The normal Vitest lane is
+// still responsible for executing those tests and proving their assertions pass.
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '../../..');
 const configuredFeatureFiles = collectExecutableFeatureFiles(REPO_ROOT).map(absolutePath =>
   nodePath.relative(REPO_ROOT, absolutePath).split(nodePath.sep).join('/'),
 );
-const defaultExcludedPathSegments = new Set(
-  configDefaults.exclude.flatMap(pattern => /^\*\*\/([^*{}]+)\/\*\*$/u.exec(pattern)?.[1] ?? []),
-);
+function excludedPathSegments(patterns: readonly string[]): Set<string> {
+  return new Set(
+    patterns.flatMap(pattern => {
+      const segment = /^\*\*\/([^*{}]+)\/\*\*$/u.exec(pattern)?.[1];
+      if (segment !== undefined) return [segment];
+      const group = /^\*\*\/\.\{([^}]+)\}\/\*\*$/u.exec(pattern)?.[1];
+      return group?.split(',').map(value => `.${value}`) ?? [];
+    }),
+  );
+}
+
+const defaultExcludedPathSegments = excludedPathSegments(configDefaults.exclude);
 
 type ScenarioProof = [string, string, string?];
 type ScenarioProofRegistration = ScenarioProof | ScenarioProof[];
@@ -742,6 +754,9 @@ describe('BDD proof provenance', () => {
     expect(isCollectedVitestProofPath('packages/cli/src/example.slow.test.ts')).toBe(false);
     expect(isCollectedVitestProofPath('packages/cli/node_modules/example.test.ts')).toBe(false);
     expect(isCollectedVitestProofPath('packages/cli/.git/example.test.ts')).toBe(false);
+    expect(excludedPathSegments(['**/.{idea,git,cache,output,temp}/**'])).toEqual(
+      new Set(['.idea', '.git', '.cache', '.output', '.temp']),
+    );
   });
 
   it('uses the same include and exclude rules as the shipped Vitest configs', () => {

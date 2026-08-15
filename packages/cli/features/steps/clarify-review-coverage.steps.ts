@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import { promisify } from 'node:util';
 
-import { AfterAll, BeforeAll, Given, Then, When } from '@cucumber/cucumber';
+import { After, AfterAll, BeforeAll, Given, Then, When } from '@cucumber/cucumber';
 import { AstBuilder, GherkinClassicTokenMatcher, Parser } from '@cucumber/gherkin';
 import { IdGenerator } from '@cucumber/messages';
 
@@ -79,10 +79,13 @@ BeforeAll(async () => {
   productionCliBuild.completed = true;
 });
 
-AfterAll(() => {
+function cleanupFixtureDirectories(): void {
   for (const directory of fixtureDirectories) rmSync(directory, { force: true, recursive: true });
   fixtureDirectories.clear();
-});
+}
+
+After(cleanupFixtureDirectories);
+AfterAll(cleanupFixtureDirectories);
 
 function createFixtureDirectory(prefix: string): string {
   const directory = mkdtempSync(nodePath.join(tmpdir(), prefix));
@@ -91,6 +94,8 @@ function createFixtureDirectory(prefix: string): string {
 }
 
 function createTrustedFixtureDirectory(prefix: string): string {
+  // Reviewer discovery rejects executables outside the trusted project tree,
+  // so these PATH stubs must live under cwd and be removed after each scenario.
   const directory = mkdtempSync(nodePath.join(process.cwd(), `.${prefix}`));
   fixtureDirectories.add(directory);
   return directory;
