@@ -245,6 +245,10 @@ describe('BDD proof provenance', () => {
 
   it.each([
     [
+      'durable independent review',
+      '.project/tickets/7GHXA5-finish-deep-reviews-in-background/bdd-proof.json',
+    ],
+    [
       'architecture narrative',
       '.project/tickets/BY7RNR-architecture-narrative-blindspots/bdd-proof.json',
     ],
