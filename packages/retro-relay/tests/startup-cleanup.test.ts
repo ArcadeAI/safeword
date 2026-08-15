@@ -176,4 +176,22 @@ describe('relay startup failure', () => {
       store.close();
     }
   });
+
+  // The control for the case above. Reacquiring proves a release only if
+  // acquiring while held would have failed — otherwise the assertion passes
+  // whether or not anything was ever released.
+  it('refuses to acquire a lock this process already holds', () => {
+    const lockPath = path.join(scratchDirectory(), 'relay.lock');
+    const held = ProcessLock.acquire(lockPath);
+
+    try {
+      expect(() => ProcessLock.acquire(lockPath)).toThrow('already locked');
+    } finally {
+      held.release();
+    }
+
+    // And releasing makes it available again, so the failure above is the lock
+    // being held rather than the path being unusable.
+    ProcessLock.acquire(lockPath).release();
+  });
 });
