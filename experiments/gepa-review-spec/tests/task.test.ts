@@ -111,7 +111,7 @@ describe('createRunnerFromEnv — one harness, either vendor', () => {
     withEnv('ANTHROPIC_API_KEY', undefined, () => {
       withEnv('OPENAI_API_KEY', 'sk-o', () => {
         withEnv('SAFEWORD_EVAL_VENDOR', 'openai', () => {
-          expect(() => createRunnerFromEnv()).not.toThrow();
+          expect(createRunnerFromEnv()).toMatchObject({ run: expect.any(Function) });
         });
         withEnv('SAFEWORD_EVAL_VENDOR', undefined, () => {
           expect(() => createRunnerFromEnv()).toThrow(/ANTHROPIC_API_KEY/);

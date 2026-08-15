@@ -55,9 +55,15 @@ same actor-facing entry point and actor-visible result that the `When` and
   when each behaviorally distinct example traverses the claimed boundary;
   otherwise narrow the scenario or add the missing proof.
 - **Keep evidence limits explicit.** When the real boundary cannot be automated
-  reliably, use the existing `@manual` or `@live` path and perform and record
-  that check separately. A tag, skip reason, or narrower automated test does
-  not prove the broader scenario by itself.
+  reliably, use the existing `@manual` or `@live` path and record the command or
+  steps performed, observed result, and retained evidence identity in the ticket
+  work log under a concrete timestamped heading. Annotate the ledger with that
+  exact identity, for example `RED skip: manual — see work log 2026-08-14T18:30Z
+"paid route proof"`, and record GREEN only after that manual check succeeds.
+  This annotation is agent-attested evidence; the gate checks that a reason is
+  present, not that the referenced work-log entry resolves. A tag, generic skip
+  reason, or narrower automated test does not prove the broader scenario by itself;
+  fixtures and lower-level tests may de-risk it, but cannot lend it their evidence.
 
 If a scenario accidentally names incidental UI mechanics rather than product
 behavior, loop back to define-behavior and rewrite it; do not silently reinterpret
@@ -72,7 +78,7 @@ When the scenario source is a `.feature` file and the Cucumber lane exists, RED 
 - **Verify RED on the reported step status, not the exit code alone.** Safeword's scaffolded `test:bdd` runs cucumber-js _without_ `--dry-run`, so undefined/pending steps exit non-zero — a genuine RED. But `cucumber-js --dry-run` _reports_ undefined/ambiguous/pending steps while still **exiting 0**; a lane (or host profile) built on `--dry-run` will look green even when steps are missing. Never substitute a bare `--dry-run` for this RED check, and when a dry-run/check profile is the host's spec-ahead lane, confirm RED by the reported undefined/pending count it prints, not by its exit status.
 - Keep step definitions thin; call app, API, CLI, or shell helpers from steps. Do not bury business logic in Cucumber glue.
 - Use Vitest for lower-level implementation proof when it gives faster or more precise coverage, especially pure functions and module contracts.
-- A scenario is not complete until both the relevant implementation tests and `test:bdd` pass, unless the feature is explicitly tagged `@manual` or `@live` with a skip reason.
+- A scenario is not complete until both the relevant implementation tests and `test:bdd` pass. An explicitly tagged `@manual` or `@live` scenario instead requires the ticket-work-log evidence and ledger annotations described above.
 
 ### Walking Skeleton (first scenario only)
 
@@ -102,7 +108,7 @@ Then they see the dashboard
 
 **Annotation rule (enforced by hook):** every `[x]` transition must carry either a commit SHA (proving which commit did that step) or `skip: <non-empty reason>` (a deliberate, auditable omission). Bare `[x]` without an annotation is blocked at the write-time hook. Pre-existing bare `[x]` from before this rule shipped is silently allowed — the validation is forward-looking only.
 
-**Uncommittable RED states:** Prefer a real RED commit. Use this escape hatch only when a partial RED state cannot pass structural commit gates because the repo rejects incomplete code, such as:
+**Uncommittable RED states:** Prefer a real RED commit. For the uncommittable-partial-state reason below, use this escape hatch only when a partial RED state cannot pass structural commit gates because the repo rejects incomplete code. Manual/live evidence uses the separate path above. Examples of uncommittable partial states include:
 
 - a type-only scaffold that trips unused-property lint before behavior exists
 - an interface rename that cannot compile until all callers are updated

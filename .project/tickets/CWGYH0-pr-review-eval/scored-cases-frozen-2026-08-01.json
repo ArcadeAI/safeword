@@ -1,0 +1,791 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Frozen primary retrospective holdout. Never used for prompt tuning or model calls during construction.",
+  "sourceRepository": "ArcadeAI/monorepo",
+  "sourcePath": "/Users/alex/Projects/arcade-monorepo",
+  "modelCutoff": "2026-01-31T00:00:00.000Z",
+  "runnerRef": "codex/cwgyh0-dev-benchmark-adapter@8d86720c0",
+  "cases": [
+    {
+      "id": "SCORE-S01-catalog-cursor-past-last-key-restarts-pagination",
+      "reviewBaseSha": "f90028e1e86b26055217448ec1a19056aa1ddf53",
+      "baseSha": "93df43494e9c9d2774db5fb3aaa39ad173899b05",
+      "fixedSha": "90e07e8ecf8e899040c26b99c054746289b56219",
+      "causalPaths": [
+        "apps/engine/internal/api/condex_handlers.go"
+      ],
+      "failureDescription": {
+        "mechanismAliases": [
+          "leaves the pagination start at zero when no tool key follows the cursor",
+          "falls back to the first item when the cursor is beyond the final key",
+          "does not advance past the final cursor key"
+        ],
+        "consequenceAliases": [
+          "returns the first page again",
+          "cursor polling repeats from the beginning forever",
+          "pagination enters an infinite loop"
+        ]
+      },
+      "testPatchPaths": [
+        "apps/engine/internal/api/condex_cursor_regression_test.go"
+      ],
+      "testPatchSha": "aac81e4a3606200f01a8422a82456feee7c4243a",
+      "testCommand": "cd apps/engine && go test ./internal/api -run '^TestCatalogToolsCursorPastLastKeyReturnsEmptyPage$' -count=1"
+    },
+    {
+      "id": "SCORE-S15-salesforce-headerless-email-description-crashes",
+      "reviewBaseSha": "3d916fd27d20c176caa1ee47cf1055a5e582bf8c",
+      "baseSha": "2bda1c70eda38b383e0f25b23d237d88aed7b153",
+      "fixedSha": "a3cb9bd13cc5eaebfbdd7167edebfa032b451865",
+      "causalPaths": [
+        "apps/worker/toolkits/salesforce/arcade_salesforce/utils.py"
+      ],
+      "failureDescription": {
+        "mechanismAliases": [
+          "indexes the split result without checking that the header exists",
+          "assumes every Salesforce email description contains all standard headers",
+          "uses description.split on a missing header and reads element one"
+        ],
+        "consequenceAliases": [
+          "raises IndexError for a nonstandard email description",
+          "the email formatter crashes instead of returning the fields it can parse",
+          "reading a Salesforce email fails when a header is absent"
+        ]
+      },
+      "testPatchPaths": [
+        "apps/worker/toolkits/salesforce/tests/test_utils.py"
+      ],
+      "testPatchSha": "e2694f18b16c487ed81322c495c9fe9223cdee3c",
+      "testCommand": "cd apps/worker/toolkits/salesforce && uv run --extra dev pytest tests/test_utils.py -q -k 'format_email_without_standard_headers_does_not_crash'"
+    },
+    {
+      "id": "SCORE-S12-outlook-mail-search-is-not-odata-quoted",
+      "reviewBaseSha": "caa4e4789d8320708b900cec4eb5c4dbb2bb41f7",
+      "baseSha": "6c22cbb74d0d239989715666a4b742521ab013b2",
+      "fixedSha": "f289535f676e53b408cc52c5403818d106e5579f",
+      "causalPaths": [
+        "apps/worker/toolkits/microsoft_outlook_mail/arcade_microsoft_outlook_mail/_utils.py"
+      ],
+      "failureDescription": {
+        "mechanismAliases": [
+          "passes raw KQL directly as the Graph search parameter without an OData quote wrapper",
+          "sends the from property prefix unquoted",
+          "does not quote and escape the Microsoft Graph mail search value"
+        ],
+        "consequenceAliases": [
+          "Graph rejects the property-prefix colon with a syntax error",
+          "sender-filtered mailbox searches fail upstream",
+          "the mail search request returns 400 BadRequest"
+        ]
+      },
+      "testPatchPaths": [
+        "apps/worker/toolkits/microsoft_outlook_mail/tests/test_search_emails.py"
+      ],
+      "testPatchSha": "0031ef4d011da28695d7a16a3fc3e27a08808804",
+      "testCommand": "cd apps/worker/toolkits/microsoft_outlook_mail && uv run --extra dev pytest tests/test_search_emails.py -q -k 'search_parameter_is_odata_wrapped_for_graph'"
+    },
+    {
+      "id": "SCORE-S17-github-server-url-trailing-slash-breaks-api-paths",
+      "reviewBaseSha": "096ec9843691052089c96ab0203f3daff32ac9b0",
+      "baseSha": "d016b9a0ef4eff7448a4d981b562c12b685306f5",
+      "fixedSha": "627c800ff5112d56fc662f22eca67d4f5505f8c9",
+      "causalPaths": [
+        "apps/worker/toolkits/github/arcade_github/utils/github_api_client.py"
+      ],
+      "failureDescription": {
+        "mechanismAliases": [
+          "keeps the trailing slash from GITHUB_SERVER_URL before appending an endpoint path",
+          "builds the GitHub API URL with a doubled path slash",
+          "does not normalize the API base URL before concatenation"
+        ],
+        "consequenceAliases": [
+          "GitHub returns 404 for the doubled-slash repository URL",
+          "repository API requests hit a non-existent path",
+          "GitHub tools fail even though the configured server URL is valid"
+        ]
+      },
+      "testPatchPaths": [
+        "apps/worker/toolkits/github/tests/test_github_api_client.py"
+      ],
+      "testPatchSha": "590ac9248c84fa3084b123a2eca21ba816e42d7e",
+      "testCommand": "cd apps/worker/toolkits/github && uv run --extra dev pytest tests/test_github_api_client.py -q -k 'get_base_url_strips_trailing_slash'"
+    },
+    {
+      "id": "SCORE-S18-mcp-discovery-drops-direct-metadata-fallback",
+      "reviewBaseSha": "01708224a8d783db6f55a39c7ed5555259c4a3c7",
+      "baseSha": "52c0cd897857b003335093994516ef796730fef6",
+      "fixedSha": "0e76bff32b7db1bc5b2b6d1fdebb7bdcb809f1de",
+      "causalPaths": [
+        "apps/engine/internal/directors/workers/config/mcp_provider_methods.go"
+      ],
+      "failureDescription": {
+        "mechanismAliases": [
+          "removes the direct authorization-server metadata fallback",
+          "only checks WWW-Authenticate and Protected Resource Metadata before failing",
+          "stops probing the MCP server's root well-known authorization metadata endpoints"
+        ],
+        "consequenceAliases": [
+          "OAuth discovery fails for MCP servers that omit Protected Resource Metadata",
+          "Linear MCP connections fail with no authorization metadata endpoint found",
+          "an otherwise usable MCP server cannot initialize OAuth"
+        ]
+      },
+      "testPatchPaths": [
+        "apps/engine/internal/directors/workers/config/mcp_direct_probe_regression_test.go"
+      ],
+      "testPatchSha": "58d755822f7beafd21530e2f78a1c0f8c90a2848",
+      "testCommand": "cd apps/engine && go test ./internal/directors/workers/config -run '^TestFindWellKnownEndpointFallsBackToDirectAuthorizationMetadata$' -count=1"
+    },
+    {
+      "id": "SCORE-S05-portaled-prompt-control-loses-focus-to-textarea",
+      "reviewBaseSha": "3a155aadce1f81ef435c8b3a68b29254a99d7250",
+      "baseSha": "12d573633cbd22ccd3755909d6a699b109dcc38a",
+      "fixedSha": "4a4cb170d807d5521fe0552c1f25390bca85a344",
+      "causalPaths": [
+        "libs/design-system/lib/components/ui/molecules/prompt-input.tsx"
+      ],
+      "failureDescription": {
+        "mechanismAliases": [
+          "focuses the textarea for every React click that bubbles through PromptInput",
+          "does not distinguish a portaled target outside the prompt wrapper",
+          "handles a portal child's click as if the target were inside the wrapper DOM"
+        ],
+        "consequenceAliases": [
+          "a clicked portaled control immediately loses focus to the textarea",
+          "prompt menus or dialogs rendered in a portal have their focus stolen",
+          "keyboard interaction continues in the prompt instead of the clicked control"
+        ]
+      },
+      "testPatchPaths": [
+        "libs/design-system/lib/components/ui/molecules/prompt-input-portal-regression.browser.test.tsx"
+      ],
+      "testPatchSha": "378974372221eb945c31808fec6dfc31c04382d9",
+      "testCommand": "cd libs/design-system && bun run test:browser -- lib/components/ui/molecules/prompt-input-portal-regression.browser.test.tsx"
+    },
+    {
+      "id": "SCORE-S02-condex-inkeys-clause-is-emitted-in-invalid-position",
+      "reviewBaseSha": "f45e63504039aac28d4e3e6c49dc3a4ff8173d67",
+      "baseSha": "e34706efdbb3848a6a58b6c5cab552cbcbdc79d3",
+      "fixedSha": "1d696d682428309f0cae27d01bf06402ce76cedb",
+      "causalPaths": [
+        "apps/condex/internal/store/redis/batch_search.go"
+      ],
+      "failureDescription": {
+        "mechanismAliases": [
+          "inserts the INKEYS clause immediately before LIMIT instead of after the query",
+          "emits RediSearch FT.SEARCH options in an invalid order",
+          "appends INKEYS after RETURN or WITHSCORES rather than at command position three"
+        ],
+        "consequenceAliases": [
+          "RediSearch rejects the scoped search command",
+          "candidate-scoped retrieval silently drops indexed tools after pipeline command errors",
+          "INKEYS searches return no candidates"
+        ]
+      },
+      "testPatchPaths": [
+        "apps/condex/internal/store/redis/batch_search_inkeys_regression_test.go"
+      ],
+      "testPatchSha": "e4e8c904c17074817f1bd1522821995e051331c5",
+      "testCommand": "cd apps/condex && go test ./internal/store/redis -run '^TestBatchSearchPlacesINKEYSImmediatelyAfterQuery$' -count=1"
+    },
+    {
+      "id": "SCORE-api-key-display-name-is-dropped-by-cache-schema",
+      "reviewBaseSha": "f6fe38a8f5c36c92a1c8952fbeaac630dee59e96",
+      "baseSha": "62938ea42a3be38106606b6c6a58267077b13e60",
+      "fixedSha": "b9dfda5642edb2b2a1991aeb58966dc738e1af0c",
+      "causalPaths": [
+        "apps/coordinator/arcade/auth/api_key_cache.py",
+        "apps/coordinator/arcade/auth/common.py"
+      ],
+      "failureDescription": {
+        "mechanismAliases": [
+          "adds display_name to CredentialInfo without adding it to _CachedCredentialInfo",
+          "the cache's Pydantic model silently discards the new display_name field",
+          "serializes API key credentials through a schema that omits display_name"
+        ],
+        "consequenceAliases": [
+          "an API key loses its human-readable name after the first cache hit",
+          "cached authentication reports no display name for a labeled API key",
+          "audit identity falls back from the API key label after cache round-trip"
+        ]
+      },
+      "testPatchPaths": [
+        "apps/coordinator/tests/auth/test_api_key_cache_display_name_regression.py"
+      ],
+      "testPatchSha": "a9c1bd437cc31cc72149deb31b110d193cbeb849",
+      "testCommand": "cd apps/coordinator && env DB_HOST=localhost DB_PORT=5432 DB_USER=test DB_PASSWORD=test REDIS_HOST=localhost REDIS_PORT=6379 REDIS_PASSWORD='' REDIS_DATABASE=0 uv run --group dev pytest tests/auth/test_api_key_cache_display_name_regression.py -q"
+    },
+    {
+      "id": "SCORE-S21-missing-tool-search-rollout-gate-fails-open",
+      "reviewBaseSha": "29810f14306a18fb7eae41fa79f2cc342c61cec5",
+      "baseSha": "d9a82b0149ee70d84bde7ffaec2d9a7f3ee0bf83",
+      "fixedSha": "2117004dcfcf9c9e0e98cf5e80385a96ef9800c7",
+      "causalPaths": [
+        "apps/engine/internal/mcp/service.go"
+      ],
+      "failureDescription": {
+        "mechanismAliases": [
+          "treats a missing per-org tool-search rollout gate as enabled",
+          "returns true when toolSearchGate is nil",
+          "fails open when the rollout flag reader is not wired"
+        ],
+        "consequenceAliases": [
+          "tool-search discovery is enabled for every org on a misconfigured deployment",
+          "organizations outside the rollout receive discovery behavior",
+          "an absent coordinator gate silently bypasses the per-org rollout"
+        ]
+      },
+      "testPatchPaths": [
+        "apps/engine/internal/mcp/tool_search_gate_regression_test.go"
+      ],
+      "testPatchSha": "dc0743949f18374f06824f1a5e44192ea9f639b6",
+      "testCommand": "cd apps/engine && go test ./internal/mcp -run '^TestDiscoveryActiveForRequestFailsClosedWithoutToolSearchGate$' -count=1"
+    },
+    {
+      "id": "SCORE-S22-structured-tool-error-flattens-to-object-object",
+      "reviewBaseSha": "d514ef6b811e572a027d54c7c315cefff249d48c",
+      "baseSha": "be7768f690705e514f3b99ca5713e086002da69c",
+      "fixedSha": "7c579eefa77d112811ac2588e6f889e5d50c9baa",
+      "causalPaths": [
+        "apps/experience-api/src/modules/chat/engine-client.ts"
+      ],
+      "failureDescription": {
+        "mechanismAliases": [
+          "passes the Engine's structured error object directly to the Error constructor",
+          "types tool execution errors as strings even though Engine returns an object",
+          "stringifies the complete tool error object instead of extracting its message"
+        ],
+        "consequenceAliases": [
+          "the Playground reports [object Object] instead of the tool failure",
+          "the model and user lose the actionable Engine error message",
+          "tool execution failures become opaque in chat"
+        ]
+      },
+      "testPatchPaths": [
+        "apps/experience-api/src/modules/chat/engine-client-structured-error-regression.test.ts"
+      ],
+      "testPatchSha": "beb480e56812dc256ab497e474b550e76a1e302d",
+      "testCommand": "cd apps/experience-api && bun test src/modules/chat/engine-client-structured-error-regression.test.ts"
+    },
+    {
+      "id": "SCORE-S23-tool-allowlist-rejects-equivalent-name-casing",
+      "reviewBaseSha": "c1f0135544efb48107a0940fa525a156bd2a8ebb",
+      "baseSha": "d439c91c091ffd2ea19ddaf619e0d52dd0803984",
+      "fixedSha": "815d6b3a5c913d3fff1e8fee554414264eecc642",
+      "causalPaths": [
+        "apps/engine/internal/mcp/service.go"
+      ],
+      "failureDescription": {
+        "mechanismAliases": [
+          "compares gateway allow-list names with case-sensitive string equality",
+          "uses StringWithoutVersion instead of the case-normalized tool key",
+          "applies a different name identity in the allow-list gate than in tool resolution"
+        ],
+        "consequenceAliases": [
+          "an allowed tool is rejected when the client uses different letter casing",
+          "tools/call returns tool not enabled for a resolvable allow-listed tool",
+          "lowercase tool names cannot pass a mixed-case gateway allow list"
+        ]
+      },
+      "testPatchPaths": [
+        "apps/engine/internal/mcp/tool_allowlist_case_regression_test.go"
+      ],
+      "testPatchSha": "5a138160177bab0b5cfef6a2a493a6f6c42948ee",
+      "testCommand": "cd apps/engine && go test ./internal/mcp -run '^TestEnsureToolIsAllowedMatchesResolvedToolCaseInsensitively$' -count=1"
+    },
+    {
+      "id": "SCORE-S24-non-date-protocol-version-bypasses-negotiation",
+      "reviewBaseSha": "c691e4131f726da014c7ae2ab00245e2051867d6",
+      "baseSha": "8dba9ccfd7ff523bf0fbc1ba7f249b468da2faf3",
+      "fixedSha": "6ea28c385f4eb24a75f4237200ea3ba8100a52e0",
+      "causalPaths": [
+        "apps/engine/internal/mcpstateless/dispatch.go"
+      ],
+      "failureDescription": {
+        "mechanismAliases": [
+          "routes only date-shaped protocol headers to the stateless negotiator",
+          "treats an unsupported non-date version claim as legacy traffic",
+          "uses a date regex and minimum-version comparison instead of recognizing every non-empty version claim"
+        ],
+        "consequenceAliases": [
+          "a client sending lowercase draft bypasses the protocol-negotiation response",
+          "unsupported non-date versions reach the legacy handler instead of receiving negotiation evidence",
+          "the client cannot learn which protocol versions the stateless endpoint supports"
+        ]
+      },
+      "testPatchPaths": [
+        "apps/engine/internal/mcpstateless/non_date_protocol_regression_test.go"
+      ],
+      "testPatchSha": "9c497b34068cfe5979150e5eaed593fb0e106ad8",
+      "testCommand": "cd apps/engine && go test ./internal/mcpstateless -run '^TestUnsupportedNonDateProtocolRoutesToStatelessNegotiation$' -count=1"
+    },
+    {
+      "id": "SCORE-S25-audit-diff-reports-map-order-as-a-change",
+      "reviewBaseSha": "52090364a8a62d65db203043fe1e4c2e50ae08ea",
+      "baseSha": "c70fbe772bc3431ca9e8aefc261c2a6ad475dc2c",
+      "fixedSha": "f04719f8a3c5c75118f4d201098e1e32c09cf449",
+      "causalPaths": [
+        "apps/dashboard/src/app/audit-logs/components/audit-log-diff.tsx"
+      ],
+      "failureDescription": {
+        "mechanismAliases": [
+          "serializes audit snapshots with insertion-order JSON.stringify before diffing",
+          "does not canonicalize object key order recursively",
+          "treats map iteration order as part of an audit object's value"
+        ],
+        "consequenceAliases": [
+          "logically identical audit snapshots appear changed",
+          "the audit viewer shows fields removed and re-added solely because keys were reordered",
+          "operators see a false-positive audit diff"
+        ]
+      },
+      "testPatchPaths": [
+        "apps/dashboard/src/app/audit-logs/components/audit-log-diff-order-regression.test.ts"
+      ],
+      "testPatchSha": "1b28bff16572c61b71d1039f12fa7cee87229fb5",
+      "testCommand": "cd apps/dashboard && bun test src/app/audit-logs/components/audit-log-diff-order-regression.test.ts"
+    },
+    {
+      "id": "SCORE-S26-protected-resource-only-oauth-scope-is-dropped",
+      "reviewBaseSha": "457588c209671e44468d6280df8ecee7af1cedc1",
+      "baseSha": "ca393c5cb814d2487fb936b37a6c0287e2237c96",
+      "fixedSha": "6d0fca6f44c783ad08a0828741cf8d516bf2d7bb",
+      "causalPaths": [
+        "apps/engine/internal/directors/workers/config/mcp_provider_methods.go"
+      ],
+      "failureDescription": {
+        "mechanismAliases": [
+          "falls back only to configured credential scopes when the challenge has none",
+          "discovers protected-resource metadata but discards its scopes_supported field",
+          "builds the authorization URL without the resource scope advertised by RFC 9728 metadata"
+        ],
+        "consequenceAliases": [
+          "Microsoft Entra receives a scope-less authorize request",
+          "Power BI or Fabric MCP authorization fails even though the server advertised its required scope",
+          "the generated OAuth authorization URL omits the only valid resource scope"
+        ]
+      },
+      "testPatchPaths": [
+        "apps/engine/internal/directors/workers/config/mcp_prm_scope_regression_test.go"
+      ],
+      "testPatchSha": "ed3158493f3f46cced27d66285f7f56f57633e84",
+      "testCommand": "cd apps/engine && go test ./internal/directors/workers/config -run '^TestAuthorizationURLUsesScopesAdvertisedOnlyByProtectedResource$' -count=1"
+    },
+    {
+      "id": "SCORE-S28-404-back-action-flashes-away-during-navigation",
+      "reviewBaseSha": "33605ec258d71eb6c48431302d6f31c6c1ab2348",
+      "baseSha": "6186a5a1688b8ac870d2333d4e28daa4d36337dc",
+      "fixedSha": "d82debb135cf065dc685de7f65f499b6bd8aa342",
+      "causalPaths": [
+        "apps/dashboard/src/components/custom/router/not-found-route.tsx"
+      ],
+      "failureDescription": {
+        "mechanismAliases": [
+          "re-reads mutable browser history on every 404 render",
+          "does not preserve the initial canGoBack result across navigation rerenders",
+          "derives the back action directly from transient router history state"
+        ],
+        "consequenceAliases": [
+          "the Go Back action flashes away while navigation is settling",
+          "the 404 page's available actions visibly change during a rerender",
+          "users briefly lose the back-navigation button even though it was available when the page opened"
+        ]
+      },
+      "testPatchPaths": [
+        "apps/dashboard/src/components/custom/router/not-found-route-regression.test.tsx"
+      ],
+      "testPatchSha": "fef2379f029a5a9edfea559d26d1c6db4073aba0",
+      "testCommand": "cd apps/dashboard && ../../libs/design-system/node_modules/.bin/vitest --environment happy-dom --run src/components/custom/router/not-found-route-regression.test.tsx"
+    },
+    {
+      "id": "SCORE-S29-confluence-toolkit-cannot-load-on-python-310",
+      "reviewBaseSha": "712b1c5eadec21ec7243753f31fcc0f69aa6e0ab",
+      "baseSha": "3944d1c5544fcad470a1db5779a503db417a79c2",
+      "fixedSha": "0816a6b5f2cf5f794141b005e4376754fbc37e5e",
+      "causalPaths": [
+        "apps/worker/toolkits/confluence/arcade_confluence/models/tool_outputs.py"
+      ],
+      "failureDescription": {
+        "mechanismAliases": [
+          "defines Pydantic-inspected TypedDict outputs with typing.TypedDict on Python 3.10",
+          "uses the standard-library TypedDict implementation where Pydantic requires typing_extensions before Python 3.12",
+          "adds a nested TypedDict tool output that cannot be converted to a schema on a supported runtime"
+        ],
+        "consequenceAliases": [
+          "the Confluence MCP worker cannot build its tool catalog on Python 3.10",
+          "list_direct_children raises ToolDefinitionError during server startup",
+          "the toolkit fails to load on a Python version declared by the package"
+        ]
+      },
+      "testPatchPaths": [
+        "apps/worker/toolkits/confluence/tests/test_toolkit_load_regression.py"
+      ],
+      "testPatchSha": "8f40f734e407b659d4c9e40ee1d1b30bfc344be1",
+      "testCommand": "uv run --python 3.10 --project apps/worker/toolkits/confluence --extra dev pytest apps/worker/toolkits/confluence/tests/test_toolkit_load_regression.py -q"
+    },
+    {
+      "id": "SCORE-S30-toolkit-filter-leaks-arcade-builtins",
+      "reviewBaseSha": "8e6d3859bbfc087f88db670ade5244ea56a31dc2",
+      "baseSha": "073c387fd1afee2f31c21ff96aaa059be107276c",
+      "fixedSha": "d9292bb2e851217cddfd03e5b91d145a42bcf0bf",
+      "causalPaths": [
+        "apps/engine/internal/directors/director.go"
+      ],
+      "failureDescription": {
+        "mechanismAliases": [
+          "unconditionally appends every Arcade builtin after registry toolkit filtering",
+          "merges builtin tools into GetAllToolsSorted without applying the requested toolkit name",
+          "adds discovery helpers after the registry has already enforced its filter"
+        ],
+        "consequenceAliases": [
+          "a Math-only tool listing also returns Arcade.SearchTools",
+          "toolkit-filtered catalog responses contain tools outside the requested toolkit",
+          "callers cannot rely on GetAllToolsSorted's toolkit filter"
+        ]
+      },
+      "testPatchPaths": [
+        "apps/engine/internal/directors/director_test.go"
+      ],
+      "testPatchSha": "e3dd192e427aa792b89dbc228bef57ad11d362d1",
+      "testCommand": "cd apps/engine && go test ./internal/directors -run '^TestGetAllToolsSortedKeepsToolkitFilterClosed$' -count=1"
+    },
+    {
+      "id": "SCORE-S31-toolkit-query-selector-changes-every-render",
+      "reviewBaseSha": "8f40fee2a2e2143477d73f0b98c60ca41fd4efcb",
+      "baseSha": "ad52c2b0b9c0eb8fc62275a0b85b1eddf34de7ac",
+      "fixedSha": "69085dddde80f987055484c1a42ec32cf35a3152",
+      "causalPaths": [
+        "libs/ui-kit/lib/hooks/use-toolkit-collection.ts"
+      ],
+      "failureDescription": {
+        "mechanismAliases": [
+          "creates a fresh React Query select callback on every hook render",
+          "passes an unstable inline selector to useQuery",
+          "does not memoize the hidden-toolkit transformation when its input set is unchanged"
+        ],
+        "consequenceAliases": [
+          "the toolkit picker enters an infinite React rerender loop",
+          "cached toolkit data repeatedly retriggers query selection and rendering",
+          "the chat toolkit UI becomes unusable due to maximum update depth behavior"
+        ]
+      },
+      "testPatchPaths": [
+        "libs/ui-kit/lib/hooks/use-toolkit-collection-select-regression.test.tsx"
+      ],
+      "testPatchSha": "3f8d0e64938f8fe8b0c65f85e89ea049d1657092",
+      "testCommand": "cd libs/ui-kit && node_modules/.bin/vitest --project unit --run lib/hooks/use-toolkit-collection-select-regression.test.tsx"
+    },
+    {
+      "id": "SCORE-S32-engine-create-db-flag-is-not-wired-through-helm",
+      "reviewBaseSha": "1fdb4e43ca0221588c55e149fcac0715478847b6",
+      "baseSha": "258d0cd756531a094ea5a2779822baf1f9fa8af1",
+      "fixedSha": "04a4a6f9a60c48fb8c2d2d5e557a344a920f731e",
+      "causalPaths": [
+        "apps/engine/cmd/cli.go"
+      ],
+      "failureDescription": {
+        "mechanismAliases": [
+          "adds the create-db flag without wiring the existing Helm engine.database.create value into the engine command",
+          "leaves the new create-db option at its true default for Helm deployments",
+          "introduces an opt-out CLI flag that the chart never passes to either engine startup or the migration job"
+        ],
+        "consequenceAliases": [
+          "managed Postgres deployments still attempt CREATE DATABASE with a role that lacks CREATEDB",
+          "setting engine.database.create=false does not stop the deployed engine from creating the database",
+          "the engine deployment and migration job fail for databases provisioned out of band"
+        ]
+      },
+      "testPatchPaths": [
+        "deploy/charts/arcade/tests/engine_create_db_flag_regression.sh"
+      ],
+      "testPatchSha": "8959391ba6cadb9acbc9374a4b1a5db1a14aa641",
+      "testCommand": "deploy/charts/arcade/tests/engine_create_db_flag_regression.sh"
+    },
+    {
+      "id": "SCORE-S33-connect-dialog-generates-unsupported-cli-flag",
+      "reviewBaseSha": "c709a004192043947b555c152e7cfc5e9c458135",
+      "baseSha": "b3662d6ed396bfd270f8abfdd035065da60e9c5f",
+      "fixedSha": "3d3f4d9209dc15c87300bd99f810875955778ba6",
+      "causalPaths": [
+        "libs/ui-kit/lib/features/connect-to-tools-dialog/components/framework-selection-step.tsx"
+      ],
+      "failureDescription": {
+        "mechanismAliases": [
+          "generates the create-agent command with --framework even though the CLI accepts --template",
+          "uses an unsupported framework flag in the new Connect to Tools command",
+          "builds the framework-specific command with the wrong CLI option name"
+        ],
+        "consequenceAliases": [
+          "copying the LangChain, Mastra, or AI SDK command fails instead of creating the selected agent template",
+          "the onboarding dialog gives users a command that create-agent rejects",
+          "users cannot bootstrap the selected framework from the displayed command"
+        ]
+      },
+      "testPatchPaths": [
+        "libs/ui-kit/lib/features/connect-to-tools-dialog/components/framework-selection-step-regression.test.tsx"
+      ],
+      "testPatchSha": "a7ca9e93c36885a3fbc8d0f5b451c89f87537e12",
+      "testCommand": "cd libs/ui-kit && node_modules/.bin/vitest --project unit --run lib/features/connect-to-tools-dialog/components/framework-selection-step-regression.test.tsx"
+    },
+    {
+      "id": "SCORE-S34-experience-api-top-level-await-breaks-bytecode-build",
+      "reviewBaseSha": "8062ffb6e31aa4360befa6af3d0b58a01553cab9",
+      "baseSha": "04d4e4dbdd330708b735b846383d1245b0dab214",
+      "fixedSha": "b7065668ab580bddfd8f4184c7fa2aa4c14bc4de",
+      "causalPaths": [
+        "apps/experience-api/src/index.ts"
+      ],
+      "failureDescription": {
+        "mechanismAliases": [
+          "adds top-level await to an entrypoint that the Dockerfile compiles with Bun's --bytecode flag",
+          "uses await import at module scope even though the production bytecode build only accepts await inside async functions",
+          "makes the experience-api entrypoint incompatible with its existing bytecode compilation mode"
+        ],
+        "consequenceAliases": [
+          "the Experience API Docker image cannot compile",
+          "the production build fails with await can only be used inside an async function",
+          "the service cannot be shipped because its container build aborts"
+        ]
+      },
+      "testPatchPaths": [
+        "apps/experience-api/tests/compile-bytecode-regression.sh"
+      ],
+      "testPatchSha": "1363740baf50e77809a55f8daac2a338bbb02eda",
+      "testCommand": "apps/experience-api/tests/compile-bytecode-regression.sh"
+    },
+    {
+      "id": "SCORE-S35-onboarding-response-without-steps-crashes-progress-bar",
+      "reviewBaseSha": "e83bb5561b9d2c56dba5639b6306676a29cb4233",
+      "baseSha": "1d9b0d3744aeed34294d7c3ca7fd6ed0672ea437",
+      "fixedSha": "8ca554aa489906c8084962b39aacd6f2f6a2218b",
+      "causalPaths": [
+        "apps/dashboard/src/app/onboarding/components/onboarding-progress.tsx"
+      ],
+      "failureDescription": {
+        "mechanismAliases": [
+          "guards only the onboarding response object before calling findIndex and map on data.steps",
+          "assumes steps exists whenever data is truthy",
+          "dereferences an undefined steps field from a partially serialized onboarding response"
+        ],
+        "consequenceAliases": [
+          "the onboarding progress component crashes and its error boundary hides the progress bar",
+          "users lose onboarding progress when the API returns an object without steps",
+          "React reports cannot read properties of undefined reading findIndex"
+        ]
+      },
+      "testPatchPaths": [
+        "apps/dashboard/src/app/onboarding/components/onboarding-progress-regression.test.tsx"
+      ],
+      "testPatchSha": "6ec2422db21a7c42a1d7b4861b2580bbf1854dac",
+      "testCommand": "cd apps/dashboard && ../../libs/design-system/node_modules/.bin/vitest --environment happy-dom --run src/app/onboarding/components/onboarding-progress-regression.test.tsx"
+    },
+    {
+      "id": "SCORE-S36-helm-default-environment-is-invalid-for-coordinator",
+      "reviewBaseSha": "2b0a9c1c5884cb72888ea4100e3975c9ff43879c",
+      "baseSha": "31fb16f137e7e8b36508ab32d02a40b790b30c13",
+      "fixedSha": "02c4193288e40efddae8c320e984d0edfdbdaae6",
+      "causalPaths": [
+        "deploy/charts/arcade/values.yaml"
+      ],
+      "failureDescription": {
+        "mechanismAliases": [
+          "defaults the chart environment to prod even though Coordinator accepts only dev or pro",
+          "renders an ENVIRONMENT value outside the Coordinator's Literal contract",
+          "uses prod for the new chart's production environment while the service configuration names production pro"
+        ],
+        "consequenceAliases": [
+          "a default Helm install gives Coordinator an invalid environment configuration",
+          "Coordinator cannot start from the chart's rendered production default",
+          "production-only Coordinator behavior is not activated by the deployed environment value"
+        ]
+      },
+      "testPatchPaths": [
+        "deploy/charts/arcade/tests/default_environment_contract_test.py"
+      ],
+      "testPatchSha": "226d6c6d544e0f7fac96e5e7dfa2b350cd532cbe",
+      "testCommand": "python3 deploy/charts/arcade/tests/default_environment_contract_test.py"
+    },
+    {
+      "id": "SCORE-S37-coordinator-image-omits-new-local-telemetry-dependency",
+      "reviewBaseSha": "65302ac108b723e5ac2c95327bcfb7ab4538f7b7",
+      "baseSha": "cfda2597752088f44e0fbc630c2384b55ebb0552",
+      "fixedSha": "9f58e142374390b3d8fb746173af8bcd7f1abaf1",
+      "causalPaths": [
+        "apps/coordinator/pyproject.toml"
+      ],
+      "failureDescription": {
+        "mechanismAliases": [
+          "adds arcade-telemetry as a local uv path dependency without copying that path into the Coordinator Docker build",
+          "declares ../../libs/shared_python/arcade-telemetry but leaves the Dockerfile copying only libs/protos before uv sync",
+          "introduces a monorepo path dependency that is absent from the image build context at dependency-install time"
+        ],
+        "consequenceAliases": [
+          "the Coordinator Docker image fails to install dependencies",
+          "the production container build cannot resolve arcade-telemetry",
+          "Coordinator cannot be shipped because uv sync runs before the telemetry package is copied"
+        ]
+      },
+      "testPatchPaths": [
+        "apps/coordinator/tests/docker_path_dependencies_regression_test.py"
+      ],
+      "testPatchSha": "981458805e119cbee422c317127ff7fbb2fc8d6d",
+      "testCommand": "python3 apps/coordinator/tests/docker_path_dependencies_regression_test.py"
+    },
+    {
+      "id": "SCORE-S38-posthog-scheme-less-server-url-breaks-api-calls",
+      "reviewBaseSha": "f5ce551c0a58c5395949bfc89b24dc60bd9f191e",
+      "baseSha": "f6c9809b19ec0dbc7ac5a7c5991a7b7ba1c574d4",
+      "fixedSha": "6e9463dcdae2fcdc3721e4c1a239a75a9cd7b10d",
+      "causalPaths": [
+        "apps/worker/toolkits/posthog/arcade_posthog/_helpers.py"
+      ],
+      "failureDescription": {
+        "mechanismAliases": [
+          "uses POSTHOG_SERVER_URL directly without adding a URL scheme",
+          "accepts a host-only PostHog server secret and passes it unchanged to httpx",
+          "only strips trailing slashes from the configured server URL instead of normalizing it to https"
+        ],
+        "consequenceAliases": [
+          "PostHog API calls fail with an unsupported protocol for values such as us.posthog.com",
+          "the toolkit cannot authenticate when the server secret omits https://",
+          "who_am_i and authenticated PostHog tools cannot construct valid request URLs"
+        ]
+      },
+      "testPatchPaths": [
+        "apps/worker/toolkits/posthog/tests/test_server_url_regression.py"
+      ],
+      "testPatchSha": "1461f782ec437f752cc0238ba756a9de6086f277",
+      "testCommand": "uv run --project apps/worker/toolkits/posthog --extra dev pytest apps/worker/toolkits/posthog/tests/test_server_url_regression.py -q"
+    },
+    {
+      "id": "SCORE-S39-claude-code-api-key-placeholder-is-shell-redirection",
+      "reviewBaseSha": "8c3be975050024ac827ceedbffc19dd0d1563810",
+      "baseSha": "56887dee98dbab0c31cda14dbe2bf5fa6279e8eb",
+      "fixedSha": "b851ede0150f7dc8b23f1dc2ef4306793ef5289a",
+      "causalPaths": [
+        "apps/dashboard/src/app/mcp-gateways/components/connect/utils.ts"
+      ],
+      "failureDescription": {
+        "mechanismAliases": [
+          "places the angle-bracket API-key placeholder in an unquoted shell environment assignment",
+          "generates ARCADE_API_KEY=<your-api-key>, which the shell interprets as input redirection",
+          "uses a shell metacharacter-bearing placeholder before the Claude command instead of inside a quoted header"
+        ],
+        "consequenceAliases": [
+          "copying the generated Claude Code command fails before the claude executable runs",
+          "the shell reports that the your-api-key input file does not exist",
+          "users cannot install a header-authenticated MCP gateway with the displayed command"
+        ]
+      },
+      "testPatchPaths": [
+        "apps/dashboard/src/app/mcp-gateways/components/connect/claude-code-command-regression.test.ts"
+      ],
+      "testPatchSha": "9b962511956bc49f30afb983d02dbe95886a5c66",
+      "testCommand": "./libs/design-system/node_modules/.bin/vitest --run apps/dashboard/src/app/mcp-gateways/components/connect/claude-code-command-regression.test.ts"
+    },
+    {
+      "id": "SCORE-S40-gateway-tool-allow-list-breaks-update-audit-event",
+      "reviewBaseSha": "fb53c4324cc8c3070771133e3569eb7eeadd1975",
+      "baseSha": "7c14cc76c4b7732b44e09b05ed5083e960748ebd",
+      "fixedSha": "33f5f65bb4c09071f892a53b479e972e65c23759",
+      "causalPaths": [
+        "apps/engine/internal/gateway/gateway.go"
+      ],
+      "failureDescription": {
+        "mechanismAliases": [
+          "puts a []string tool allow list into a map passed to structpb.NewStruct",
+          "serializes gateway tool names with a Go slice type unsupported by protobuf Struct",
+          "returns tool_allow_list as []string instead of the []any representation required by audit-event conversion"
+        ],
+        "consequenceAliases": [
+          "adding tools to a gateway makes update audit-event construction fail",
+          "gateway updates with a non-empty allow list return proto: invalid type: []string",
+          "the audited gateway update path cannot publish changes that include tools"
+        ]
+      },
+      "testPatchPaths": [
+        "apps/engine/internal/gateway/gateway_tool_allow_list_audit_regression_test.go"
+      ],
+      "testPatchSha": "6013be6ea677f41955007ca4440d4f954800edfa",
+      "testCommand": "go test ./internal/gateway -run TestGatewayToolAllowListCanBePublishedInUpdateAuditEvent -count=1"
+    },
+    {
+      "id": "SCORE-S41-blank-optional-playground-input-is-sent-to-tool",
+      "reviewBaseSha": "856911a87e0adc8e83a41b9f5afd0df6454debe4",
+      "baseSha": "b333cd2a794d9e9d6f6bfa464f77c54ba7dfeeb8",
+      "fixedSha": "fd5f19c1b4db3cb723d5f30c6e056a06b2fb06c5",
+      "causalPaths": [
+        "apps/dashboard/src/app/playground/execute/hooks/use-arcade-client.ts"
+      ],
+      "failureDescription": {
+        "mechanismAliases": [
+          "converts every defined form value to a string, including an empty optional field",
+          "includes optional inputs whose form value is the empty string in the tool execution payload",
+          "filters only undefined values before calling the Arcade client and preserves blank strings"
+        ],
+        "consequenceAliases": [
+          "leaving an optional playground field blank sends an explicit empty value to the tool",
+          "optional tool arguments are treated as supplied instead of omitted",
+          "tools can reject or mis-handle executions when blank optional inputs reach their API"
+        ]
+      },
+      "testPatchPaths": [
+        "apps/dashboard/src/app/playground/execute/hooks/use-arcade-client-regression.test.tsx"
+      ],
+      "testPatchSha": "e6d38cadb4db52c69bbd42f2517020a08ab31c61",
+      "testCommand": "cd apps/dashboard && ../../libs/design-system/node_modules/.bin/vitest --environment happy-dom --run src/app/playground/execute/hooks/use-arcade-client-regression.test.tsx"
+    },
+    {
+      "id": "SCORE-S42-organization-switch-failure-rejects-without-feedback",
+      "reviewBaseSha": "e84c6c21c69beb4572e3f42bd9dee8359b0f2f11",
+      "baseSha": "5fa0f64c7227d1049cd5e50703abf3a1461151df",
+      "fixedSha": "b7ab9cfd79f641fa764d07761b70a4a19cd3275d",
+      "causalPaths": [
+        "apps/dashboard/src/app/organizations/components/organization-switcher.tsx"
+      ],
+      "failureDescription": {
+        "mechanismAliases": [
+          "awaits organization route resolution inside try/finally without a catch handler",
+          "closes the switcher after a rejected route-resolution promise but lets the rejection escape",
+          "does not handle errors from resolveDashboardOrgProjectRoute in the new selection callback"
+        ],
+        "consequenceAliases": [
+          "a failed organization switch produces an unhandled rejected selection with no user feedback",
+          "the organization dialog closes on a network failure without explaining why the switch failed",
+          "users cannot distinguish a failed organization switch from a completed interaction"
+        ]
+      },
+      "testPatchPaths": [
+        "apps/dashboard/src/app/organizations/components/organization-switcher-regression.test.tsx"
+      ],
+      "testPatchSha": "a30d5066494f43c3fbe945302461dd196ffe91a8",
+      "testCommand": "cd apps/dashboard && ../../libs/design-system/node_modules/.bin/vitest --environment happy-dom --run src/app/organizations/components/organization-switcher-regression.test.tsx"
+    },
+    {
+      "id": "SCORE-S43-failed-tool-attempt-counts-as-onboarding-success",
+      "reviewBaseSha": "026bb044217252e5fbcabbc699da0d11ec31e7b2",
+      "baseSha": "00242bf9e5621275db0f88112f0032fdce8d6fba",
+      "fixedSha": "8fb31f528c43d523bc57bab91b41d78cd5ff5d3d",
+      "causalPaths": [
+        "apps/engine/pkg/storage/queries/postgres/execution_summary.sql"
+      ],
+      "failureDescription": {
+        "mechanismAliases": [
+          "checks only for an immediate tool_execution row and never joins its attempt success state",
+          "marks an account as having executed a tool regardless of whether every attempt failed",
+          "computes both onboarding execution flags from execution metadata without requiring a successful attempt"
+        ],
+        "consequenceAliases": [
+          "a failed tool call is reported as a completed onboarding execution",
+          "users can advance past the first successful tool-use milestone without any successful result",
+          "a failed external API attempt incorrectly satisfies the external-execution onboarding step"
+        ]
+      },
+      "testPatchPaths": [
+        "apps/engine/pkg/storage/queries/postgres/execution_summary_regression_test.py"
+      ],
+      "testPatchSha": "d7c5f92b59a80018a9ba82792a62a8c2b92edeba",
+      "testCommand": "python3 apps/engine/pkg/storage/queries/postgres/execution_summary_regression_test.py"
+    }
+  ]
+}

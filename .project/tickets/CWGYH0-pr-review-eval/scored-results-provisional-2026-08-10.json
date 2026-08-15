@@ -1,0 +1,276 @@
+{
+  "bootstrapResamples": 1000,
+  "caseRows": [
+    {
+      "caseId": "SCORE-S33-connect-dialog-generates-unsupported-cli-flag",
+      "fullBuggyRecall": 0,
+      "fullFixedNamedHitRate": 0,
+      "narrowBuggyRecall": 0,
+      "narrowFixedNamedHitRate": 0
+    },
+    {
+      "caseId": "SCORE-S29-confluence-toolkit-cannot-load-on-python-310",
+      "fullBuggyRecall": 0,
+      "fullFixedNamedHitRate": 0,
+      "narrowBuggyRecall": 0,
+      "narrowFixedNamedHitRate": 0
+    },
+    {
+      "caseId": "SCORE-S22-structured-tool-error-flattens-to-object-object",
+      "fullBuggyRecall": 0,
+      "fullFixedNamedHitRate": 0,
+      "narrowBuggyRecall": 0,
+      "narrowFixedNamedHitRate": 0
+    },
+    {
+      "caseId": "SCORE-api-key-display-name-is-dropped-by-cache-schema",
+      "fullBuggyRecall": 0,
+      "fullFixedNamedHitRate": 0,
+      "narrowBuggyRecall": 0,
+      "narrowFixedNamedHitRate": 0
+    },
+    {
+      "caseId": "SCORE-S15-salesforce-headerless-email-description-crashes",
+      "fullBuggyRecall": 0,
+      "fullFixedNamedHitRate": 0,
+      "narrowBuggyRecall": 0,
+      "narrowFixedNamedHitRate": 0
+    },
+    {
+      "caseId": "SCORE-S38-posthog-scheme-less-server-url-breaks-api-calls",
+      "fullBuggyRecall": 0,
+      "fullFixedNamedHitRate": 0,
+      "narrowBuggyRecall": 0,
+      "narrowFixedNamedHitRate": 0
+    },
+    {
+      "caseId": "SCORE-S36-helm-default-environment-is-invalid-for-coordinator",
+      "fullBuggyRecall": 0,
+      "fullFixedNamedHitRate": 0,
+      "narrowBuggyRecall": 0,
+      "narrowFixedNamedHitRate": 0
+    },
+    {
+      "caseId": "SCORE-S24-non-date-protocol-version-bypasses-negotiation",
+      "fullBuggyRecall": 0,
+      "fullFixedNamedHitRate": 0,
+      "narrowBuggyRecall": 0,
+      "narrowFixedNamedHitRate": 0
+    },
+    {
+      "caseId": "SCORE-S43-failed-tool-attempt-counts-as-onboarding-success",
+      "fullBuggyRecall": 0,
+      "fullFixedNamedHitRate": 0,
+      "narrowBuggyRecall": 0,
+      "narrowFixedNamedHitRate": 0
+    },
+    {
+      "caseId": "SCORE-S21-missing-tool-search-rollout-gate-fails-open",
+      "fullBuggyRecall": 0,
+      "fullFixedNamedHitRate": 0,
+      "narrowBuggyRecall": 0,
+      "narrowFixedNamedHitRate": 0
+    },
+    {
+      "caseId": "SCORE-S01-catalog-cursor-past-last-key-restarts-pagination",
+      "fullBuggyRecall": 0,
+      "fullFixedNamedHitRate": 0,
+      "narrowBuggyRecall": 0,
+      "narrowFixedNamedHitRate": 0
+    },
+    {
+      "caseId": "SCORE-S42-organization-switch-failure-rejects-without-feedback",
+      "fullBuggyRecall": 0,
+      "fullFixedNamedHitRate": 0,
+      "narrowBuggyRecall": 0,
+      "narrowFixedNamedHitRate": 0
+    },
+    {
+      "caseId": "SCORE-S18-mcp-discovery-drops-direct-metadata-fallback",
+      "fullBuggyRecall": 0,
+      "fullFixedNamedHitRate": 0,
+      "narrowBuggyRecall": 0,
+      "narrowFixedNamedHitRate": 0
+    },
+    {
+      "caseId": "SCORE-S05-portaled-prompt-control-loses-focus-to-textarea",
+      "fullBuggyRecall": 0,
+      "fullFixedNamedHitRate": 0,
+      "narrowBuggyRecall": 0,
+      "narrowFixedNamedHitRate": 0
+    },
+    {
+      "caseId": "SCORE-S32-engine-create-db-flag-is-not-wired-through-helm",
+      "fullBuggyRecall": 0,
+      "fullFixedNamedHitRate": 0,
+      "narrowBuggyRecall": 0,
+      "narrowFixedNamedHitRate": 0
+    },
+    {
+      "caseId": "SCORE-S40-gateway-tool-allow-list-breaks-update-audit-event",
+      "fullBuggyRecall": 0,
+      "fullFixedNamedHitRate": 0,
+      "narrowBuggyRecall": 0,
+      "narrowFixedNamedHitRate": 0
+    },
+    {
+      "caseId": "SCORE-S35-onboarding-response-without-steps-crashes-progress-bar",
+      "fullBuggyRecall": 0,
+      "fullFixedNamedHitRate": 0,
+      "narrowBuggyRecall": 0,
+      "narrowFixedNamedHitRate": 0
+    },
+    {
+      "caseId": "SCORE-S25-audit-diff-reports-map-order-as-a-change",
+      "fullBuggyRecall": 0,
+      "fullFixedNamedHitRate": 0,
+      "narrowBuggyRecall": 0,
+      "narrowFixedNamedHitRate": 0
+    },
+    {
+      "caseId": "SCORE-S31-toolkit-query-selector-changes-every-render",
+      "fullBuggyRecall": 0,
+      "fullFixedNamedHitRate": 0,
+      "narrowBuggyRecall": 0,
+      "narrowFixedNamedHitRate": 0
+    },
+    {
+      "caseId": "SCORE-S28-404-back-action-flashes-away-during-navigation",
+      "fullBuggyRecall": 0,
+      "fullFixedNamedHitRate": 0,
+      "narrowBuggyRecall": 0,
+      "narrowFixedNamedHitRate": 0
+    },
+    {
+      "caseId": "SCORE-S12-outlook-mail-search-is-not-odata-quoted",
+      "fullBuggyRecall": 0,
+      "fullFixedNamedHitRate": 0,
+      "narrowBuggyRecall": 0,
+      "narrowFixedNamedHitRate": 0
+    },
+    {
+      "caseId": "SCORE-S26-protected-resource-only-oauth-scope-is-dropped",
+      "fullBuggyRecall": 0,
+      "fullFixedNamedHitRate": 0,
+      "narrowBuggyRecall": 0,
+      "narrowFixedNamedHitRate": 0
+    },
+    {
+      "caseId": "SCORE-S30-toolkit-filter-leaks-arcade-builtins",
+      "fullBuggyRecall": 0,
+      "fullFixedNamedHitRate": 0,
+      "narrowBuggyRecall": 0,
+      "narrowFixedNamedHitRate": 0
+    },
+    {
+      "caseId": "SCORE-S02-condex-inkeys-clause-is-emitted-in-invalid-position",
+      "fullBuggyRecall": 0,
+      "fullFixedNamedHitRate": 0,
+      "narrowBuggyRecall": 0,
+      "narrowFixedNamedHitRate": 0
+    },
+    {
+      "caseId": "SCORE-S41-blank-optional-playground-input-is-sent-to-tool",
+      "fullBuggyRecall": 0,
+      "fullFixedNamedHitRate": 0,
+      "narrowBuggyRecall": 0,
+      "narrowFixedNamedHitRate": 0
+    },
+    {
+      "caseId": "SCORE-S34-experience-api-top-level-await-breaks-bytecode-build",
+      "fullBuggyRecall": 0,
+      "fullFixedNamedHitRate": 0,
+      "narrowBuggyRecall": 0,
+      "narrowFixedNamedHitRate": 0
+    },
+    {
+      "caseId": "SCORE-S17-github-server-url-trailing-slash-breaks-api-paths",
+      "fullBuggyRecall": 0,
+      "fullFixedNamedHitRate": 0,
+      "narrowBuggyRecall": 0,
+      "narrowFixedNamedHitRate": 0
+    },
+    {
+      "caseId": "SCORE-S23-tool-allowlist-rejects-equivalent-name-casing",
+      "fullBuggyRecall": 0,
+      "fullFixedNamedHitRate": 0,
+      "narrowBuggyRecall": 0,
+      "narrowFixedNamedHitRate": 0
+    },
+    {
+      "caseId": "SCORE-S39-claude-code-api-key-placeholder-is-shell-redirection",
+      "fullBuggyRecall": 0,
+      "fullFixedNamedHitRate": 0,
+      "narrowBuggyRecall": 0,
+      "narrowFixedNamedHitRate": 0
+    },
+    {
+      "caseId": "SCORE-S37-coordinator-image-omits-new-local-telemetry-dependency",
+      "fullBuggyRecall": 0,
+      "fullFixedNamedHitRate": 0,
+      "narrowBuggyRecall": 0,
+      "narrowFixedNamedHitRate": 0
+    }
+  ],
+  "classifications": {
+    "full": {
+      "falsified": 0,
+      "proved": 0,
+      "unverifiable": 0,
+      "unverifiedPending": 64
+    },
+    "narrow": {
+      "falsified": 0,
+      "proved": 0,
+      "unverifiable": 0,
+      "unverifiedPending": 18
+    }
+  },
+  "exclusions": [],
+  "gates": {
+    "allCasesComplete": true,
+    "contaminationPreflightPassed": true,
+    "fullHasNoDirectlyFalsifiedFindings": true,
+    "fullHasNoFixedNamedHits": true,
+    "recallLower95AboveZero": false,
+    "verificationComplete": false
+  },
+  "recall": {
+    "full": 0,
+    "fullMinusNarrow": {
+      "lower95": 0,
+      "mean": 0,
+      "upper95": 0
+    },
+    "narrow": 0
+  },
+  "seed": 5453573,
+  "silence": {
+    "full": {
+      "buggy": {
+        "rate": 0.8,
+        "silent": 72,
+        "total": 90
+      },
+      "fixed": {
+        "rate": 0.7444444444444445,
+        "silent": 67,
+        "total": 90
+      }
+    },
+    "narrow": {
+      "buggy": {
+        "rate": 0.8777777777777778,
+        "silent": 79,
+        "total": 90
+      },
+      "fixed": {
+        "rate": 0.9222222222222223,
+        "silent": 83,
+        "total": 90
+      }
+    }
+  },
+  "status": "provisional-awaiting-finding-verification",
+  "trials": 3
+}
