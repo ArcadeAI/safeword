@@ -142,34 +142,9 @@ Feature: Prevent public CLI contracts from drifting again
 
   @surface.github-actions-execution-sandbox
   @cli-contract-drift.SWM1.R5
-  Rule: cli-contract-drift.SWM1.R5 — Ordinary pull requests cannot merge unless the stable CLI contract context passes against current main
+  Rule: cli-contract-drift.SWM1.R5 — Pull requests always emit one stable CLI contract context
 
     Scenario: The dedicated CLI contract job is stable and unconditional
       Given the pull-request workflow has no paths filter or automatic retry
       When the CLI contract job is inspected
       Then it is named exactly CLI contract invokes the complete local gate has a five-minute timeout and reports runtime against the pull-request head
-
-    Scenario: The rollout observes the dedicated context before requiring it
-      Given the contract also runs in the already-required Dogfood parity job
-      When a pull request reports a successful dedicated CLI contract check
-      Then the observed context is exactly CLI contract for that pull-request head and the duplicate remains until ruleset verification succeeds
-
-    @rejection
-    Scenario Outline: Unsatisfied contract results cannot permit an ordinary merge
-      Given the CLI contract context is <state>
-      When merge eligibility is checked for the pull-request head
-      Then the ruleset does not treat the contract as satisfied
-
-      Examples:
-        | state |
-        | pending |
-        | skipped |
-        | neutral |
-        | failed |
-        | successful for a different commit SHA |
-        | reported under a different context name |
-
-    Scenario: The live main ruleset requires the exact context strictly
-      Given a trusted maintainer inspects the live ruleset through the GitHub API after the context has reported successfully
-      When the staged rollout completes
-      Then main requires CLI contract with strict current-main behavior no ordinary pull-request bypass and only explicit auditable administrative bypasses

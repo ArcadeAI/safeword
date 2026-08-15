@@ -245,6 +245,10 @@ describe('BDD proof provenance', () => {
 
   it.each([
     [
+      'public CLI contract',
+      '.project/tickets/6N6M40-prevent-public-cli-contract-drift/bdd-proof.json',
+    ],
+    [
       'retry-safe retro relay',
       '.project/tickets/A9J9M8-operate-retry-safe-retro-relay/bdd-proof.json',
     ],
