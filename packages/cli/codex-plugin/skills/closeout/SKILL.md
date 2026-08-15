@@ -75,14 +75,16 @@ For 24 hours, that receipt can prove the immutable head when an interrupted
 cleanup must resume from a surviving worktree after the topic worktree is gone.
 A missing, stale, malformed, dirty-state, or wrong-head receipt blocks cleanup.
 
-## 4. Complete the current session's retrospective
+## 4. Capture retrospective learning without making it cleanup authority
 
 After merge is independently confirmed, invoke the cleanup guard in preview
 mode. Its host hook supplies a short-lived, single-consumer binding to this exact
 session (and Cursor transcript). Codex Desktop may instead supply its authenticated
 current `CODEX_THREAD_ID`, consistent with SafeWord's other Codex identity bridges.
-A missing or expired binding or identity fails closed; there is no newest-session
-fallback and callers cannot nominate another receipt, session, transcript, or spool.
+A missing or expired binding or identity is advisory for repository cleanup; there is
+no newest-session fallback and callers cannot nominate another receipt, session,
+transcript, or spool. Report the missing evidence without treating it as authority over
+the worktree or branches.
 
 The guard runs `safeword retro run --json` itself and accepts only a
 successful result whose `data.agent_filing_needed` is `false` and whose derived
@@ -95,10 +97,14 @@ validates the sealed byte prefix and runs retro only over the bounded appended
 window before advancing the receipt. A partial trailing record is neither
 sealed nor lost; mutation or truncation of the sealed prefix fails closed.
 
-Failed extraction, failed filing, pending drafts, malformed output, or an
-identity mismatch means no cleanup. Report every failure and its recovery
-action. A request to skip retro does not create a bypass: preserve the worktree
-and branches and explain that the retrospective is required before cleanup.
+Repository cleanup does not depend on a complete retrospective. A missing binding, an
+incomplete retrospective, extraction failure, malformed output, or identity mismatch is
+advisory: report it and continue evaluating cleanup from fresh repository evidence.
+
+Filing failure or pending drafts are a recovery blocker because deleting their worktree
+could destroy learning that has already been captured but not preserved. Report the
+exact recovery action and preserve the worktree and branches until the drafts are filed
+or otherwise made durable.
 
 When the authenticated preview reports pending drafts and includes
 `plan.retro.spoolPath`, invoke the `safeword:retro-filer` skill with that exact

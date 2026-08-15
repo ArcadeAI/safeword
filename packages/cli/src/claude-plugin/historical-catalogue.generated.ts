@@ -30,7 +30,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/cleanup-zombies/SKILL.md':
         'e0af9635774767cf36eb69726e11c642ec1dad42839c11407ea8ef60f89fc289',
       '.claude/skills/closeout/SKILL.md':
-        '15beb617c742d2d3f7f330f1e7ccb0545e00df1c3b6e3b0c3cedae4535651a2d',
+        '3c4e5dfd6ef75fc4b6d6753893bdc0dcf5ef69f4e051da69b2dc48183eda6ca8',
       '.claude/skills/debug/SKILL.md':
         'ae56c4c9287f76a2250d13fa9908f5726ed4edbe4080ece10d1559507e242bd0',
       '.claude/skills/elicit/SKILL.md':

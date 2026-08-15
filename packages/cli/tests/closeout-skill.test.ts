@@ -86,7 +86,7 @@ describe('closeout observed resumption (93C14D NTB1.R3)', () => {
 });
 
 describe('closeout retrospective boundary (93C14D NTB1.R2)', () => {
-  it('makes the exact current-session retrospective a fail-closed cleanup prerequisite', () => {
+  it('keeps retrospective learning advisory while protecting endangered recovery data', () => {
     const skill = canonicalSkill();
     const guard = readFileSync(
       nodePath.join(repoRoot, 'packages/cli/templates/scripts/closeout-cleanup.ts'),
@@ -99,12 +99,14 @@ describe('closeout retrospective boundary (93C14D NTB1.R2)', () => {
     expect(skill).toContain('empty filing spool');
     expect(skill).toContain('authenticated preview');
     expect(skill).toContain('invoke the `safeword:retro-filer` skill');
-    expect(skill).toMatch(/skip.*retro.*does not/i);
     expect(skill).toMatch(/missing.*expired.*binding/i);
     expect(skill).toMatch(/authenticated\s+current\s+`CODEX_THREAD_ID`/i);
     expect(skill).toMatch(/no\s+newest-session\s+fallback/i);
-    expect(skill).toMatch(/failed extraction.*failed filing.*pending drafts/is);
-    expect(skill).toMatch(/no cleanup/i);
+    expect(skill).toMatch(/missing.*binding.*advisory/is);
+    expect(skill).toMatch(/incomplete.*retrospective.*advisory/is);
+    expect(skill).toMatch(/extraction.*failure.*advisory/is);
+    expect(skill).toMatch(/filing.*failure.*pending drafts.*recovery blocker/is);
+    expect(skill).toMatch(/repository cleanup.*does not depend.*retrospective/is);
   });
 
   it('wires the authenticated preview field to the shipped Codex filer skill', () => {
