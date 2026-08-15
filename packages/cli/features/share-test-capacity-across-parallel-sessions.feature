@@ -256,20 +256,25 @@ Feature: Let parallel sessions share test capacity safely
       Then observable lifetimes for A and B overlap and exit zero, C starts only after both end and runs exclusively to zero, and D starts only after C ends and exits zero
 
     Scenario: A queued broad request is not starved by later focused arrivals
-      Given shared capacity is two, focused holders A and B are active, broad request C is the queue head, and focused requests D through Z register behind C while A and B remain active
+      Given shared capacity is two, barriers assign C then D, E, and F consecutive FIFO tickets while focused holders A and B remain active, where C is broad and D through F are focused
       When A and B exit zero
-      Then C runs its unchanged invocation once and alone before every later focused request, then D through Z run in FIFO order without overtaking C
+      Then C runs its unchanged invocation once and alone before every later focused request, then D through F admit in keyed FIFO-ticket order with permitted focused overlap
 
     @rejection @wiring @process
     Scenario: An unverifiable waiter is not skipped to admit newer work
       Given the real platform identity seam cannot verify the queue-head public wrapper
       When a newer focused request could otherwise fit
-      Then the newer wrapper starts no repository process, removes only its own waiter ticket and checkout ownership, and exits nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE and `safeword project test-capacity status`
+      Then the newer wrapper starts no repository process, removes only its own waiter ticket and checkout ownership, leaves the queue-head ticket plus durable bytes and version unchanged, and exits nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE and `safeword project test-capacity status`
 
     Scenario: A verified dead queue-head waiter is pruned before the next FIFO admission
       Given shared capacity is one, the real platform identity seam proves dead ticket-1 absent, and live ticket-2 and ticket-3 wrappers wait in that order
       When another public wrapper evaluates the queue under the state guard
-      Then it removes only dead ticket 1, admits ticket 2 before ticket 3, and after ticket 2 exits ticket 3 runs its unchanged downstream invocation once and exits zero
+      Then it removes only dead ticket 1, starts no repository descendant and exits zero, admits ticket 2 before ticket 3, and after ticket 2 exits ticket 3 runs its unchanged downstream invocation once and exits zero with every descendant accounted for
+
+    Scenario: A broad request runs exclusively on an idle domain
+      Given an idle canonical capacity-two domain and a real broad public wrapper with a deterministic zero-exit collaborator
+      When the broad wrapper reaches the queue head
+      Then it atomically owns both permits from the empty owner set, runs its unchanged invocation once and alone to exit zero, releases both permits, and every descendant is accounted for
 
   @share-test-capacity.TBU1.R5
   Rule: share-test-capacity.TBU1.R5 — Capacity ownership changes atomically and abandoned ownership is recovered without PID-reuse mistakes or manual cleanup

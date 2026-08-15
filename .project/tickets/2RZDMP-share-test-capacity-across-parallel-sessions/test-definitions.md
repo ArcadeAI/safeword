@@ -181,6 +181,12 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A broad request runs exclusively on an idle domain
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: share-test-capacity.TBU1.R5
 
 ### Scenario: Exact owner loss is recovered across every supported execution container
