@@ -191,7 +191,11 @@ export async function reconcilePaidChildEvidence(
   context: CanaryDispatchContext,
   childResult: PaidChildResult
 ): Promise<ReturnType<typeof parseTerraPaidChildResult>> {
-  await retainPaidChildDiagnostic(context, childResult);
+  try {
+    await retainPaidChildDiagnostic(context, childResult);
+  } catch {
+    // Diagnostics must never prevent authoritative spend reconciliation.
+  }
   const retained = await completeCanaryProviderJournal(context);
   let reported: ReturnType<typeof parseTerraPaidChildResult>;
   try {
@@ -260,7 +264,14 @@ async function git(directory: string, args: string[]): Promise<string> {
 }
 
 function canonicalRepositoryUrl(repository: string): string {
-  if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)) {
+  const segments = repository.split("/");
+  if (
+    segments.length !== 2 ||
+    segments.some(
+      (segment) =>
+        !/^[A-Za-z0-9_.-]+$/.test(segment) || segment === "." || segment === ".."
+    )
+  ) {
     throw new Error("canonical repository identity is invalid");
   }
   return `https://github.com/${repository}.git`;

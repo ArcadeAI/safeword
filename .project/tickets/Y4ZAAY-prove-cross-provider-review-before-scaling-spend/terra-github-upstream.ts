@@ -1,5 +1,4 @@
 import {
-  formatCanaryAuthorization,
   validateCanaryAuthorization,
   type CanaryAuthorization,
   type GitHubIssueComment,
@@ -256,7 +255,14 @@ export function createGitHubCanaryUpstream(input: {
   nextReceiptId(): string;
 }): CanaryUpstream {
   const repository = input.authorization.canonicalRepository;
-  if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)) {
+  const repositorySegments = repository.split("/");
+  if (
+    repositorySegments.length !== 2 ||
+    repositorySegments.some(
+      (segment) =>
+        !/^[A-Za-z0-9_.-]+$/.test(segment) || segment === "." || segment === ".."
+    )
+  ) {
     throw new Error("canonical repository identity is invalid");
   }
   const authorizedBindingDigest = canaryBindingDigest({

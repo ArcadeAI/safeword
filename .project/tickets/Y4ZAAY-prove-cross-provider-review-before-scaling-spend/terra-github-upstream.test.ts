@@ -114,7 +114,7 @@ describe("GitHub canary upstream", () => {
         allowlistedMaintainers: ["TheMostlyGreat"],
         authorization: {
           ...authorization,
-          canonicalRepository: "ArcadeAI/../other",
+          canonicalRepository: "../..",
         },
         http: async () => {
           throw new Error("HTTP must not run");

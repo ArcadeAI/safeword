@@ -945,6 +945,17 @@ describe("credential-separated live launcher", () => {
         )
       )
     ).toEqual({ exitCode: 7, stderr: "late diagnostic" });
+    await expect(
+      reconcilePaidChildEvidence(
+        {
+          attemptId: "attempt-1",
+          intentId: "intent-1",
+          outputDirectory,
+          sequence: 1,
+        },
+        { exitCode: 8, stderr: "new diagnostic", stdout: "partial" }
+      )
+    ).resolves.toEqual(reported);
   });
 
   test("retains child diagnostics even when the turn journal is incomplete", async () => {
