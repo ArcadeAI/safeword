@@ -371,6 +371,12 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A reclaiming owner blocks a capacity update
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Capacity one preserves the hardened machine-wide serialization baseline
 
 - [ ] RED
@@ -419,7 +425,7 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Public focused invocations reach Vitest once under one permit
+### Scenario: Public focused invocations reach Vitest once with one permit each
 
 - [ ] RED
 - [ ] GREEN
