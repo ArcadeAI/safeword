@@ -157,6 +157,12 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A queued broad request is not starved by later focused arrivals
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: An unverifiable waiter is not skipped to admit newer work
 
 - [ ] RED
@@ -249,7 +255,13 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Supervisor loss returns capacity only after group disappearance
+### Scenario: Supervisor loss returns capacity only after a second empty-group observation
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Supervisor loss holds capacity when the second observation remains unsafe
 
 - [ ] RED
 - [ ] GREEN
@@ -347,7 +359,7 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Distinct user or machine identities own separate capacity domains
+### Scenario: Distinct identity axes own separate capacity domains
 
 - [ ] RED
 - [ ] GREEN
@@ -360,6 +372,12 @@ remain in the feature file.
 - [ ] REFACTOR
 
 ### Scenario: Capacity one preserves the hardened machine-wide serialization baseline
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Status describes a healthy busy capacity domain
 
 - [ ] RED
 - [ ] GREEN

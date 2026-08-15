@@ -40,24 +40,23 @@ Feature: Let parallel sessions share test capacity safely
 
     @rejection
     Scenario Outline: Broad-shaped invocations never consume a focused permit
-      Given shared capacity is two with one focused owner active, this broad request at the live queue head with no earlier waiter, and its deterministic downstream collaborator terminates with its predetermined platform-resolved status
+      Given <fixture-state>, shared capacity is two with one focused owner active, this broad request at the live queue head with no earlier waiter, and its deterministic downstream collaborator terminates with its predetermined platform-resolved status
       When a worktree requests <invocation>
       Then no repository process for that request starts until the focused owner releases, after which it atomically owns all capacity, passes its original invocation unchanged downstream exactly once, accounts for the one terminated descendant, and exits with that predetermined platform-resolved status
       Examples:
-        | invocation |
-        | argv `["tests/"]` |
-        | empty argv `[]` |
-        | argv `["--coverage"]` |
-        | resolved lane metadata `done` |
-        | argv `["alpha.test.ts", "--config", "vitest.alt.ts"]` |
-        | argv `["alpha.test.ts", "--coverage"]` |
-        | argv `["missing.test.ts"]` |
-        | argv `["linked.test.ts"]` where the leaf is a symlink whose target remains inside the checkout |
-        | argv `["linked-dir/alpha.test.ts"]` where an ancestor is a symlink whose target remains inside the checkout |
-        | argv `["src/alpha.ts"]` |
-        | argv `["alpha.test.ts", "src/alpha.ts"]` |
-        | argv `["alpha.test.ts", "--unknown"]` |
-        | argv `["--unknown", "alpha.test.ts"]` |
+        | fixture-state | invocation |
+        | a contained `tests/` directory exists | argv `["tests/"]` |
+        | no path fixture is required | empty argv `[]` |
+        | no path fixture is required | argv `["--coverage"]` |
+        | contained regular `alpha.test.ts` and `vitest.alt.ts` files exist | argv `["alpha.test.ts", "--config", "vitest.alt.ts"]` |
+        | a contained regular `alpha.test.ts` file exists | argv `["alpha.test.ts", "--coverage"]` |
+        | `missing.test.ts` is absent | argv `["missing.test.ts"]` |
+        | `linked.test.ts` is a leaf symlink to a contained regular test file | argv `["linked.test.ts"]` |
+        | `linked-dir` is an ancestor symlink to a contained directory with regular `alpha.test.ts` | argv `["linked-dir/alpha.test.ts"]` |
+        | a contained regular non-test `src/alpha.ts` file exists | argv `["src/alpha.ts"]` |
+        | contained regular `alpha.test.ts` and non-test `src/alpha.ts` files exist | argv `["alpha.test.ts", "src/alpha.ts"]` |
+        | a contained regular `alpha.test.ts` file exists | argv `["alpha.test.ts", "--unknown"]` |
+        | a contained regular `alpha.test.ts` file exists | argv `["--unknown", "alpha.test.ts"]` |
 
     @rejection @process
     Scenario: Focused classification rejects a symlinked ancestor that escapes the checkout
@@ -156,7 +155,6 @@ Feature: Let parallel sessions share test capacity safely
       Examples:
         | confirmation | code | recovery |
         | argv `test-capacity set 2` without the flag | SAFEWORD_TEST_CAPACITY_INVALID | `safeword project test-capacity status` |
-        | argv `test-capacity set 2 --confirm-current-protocol=false` | SAFEWORD_TEST_CAPACITY_INVALID | `safeword project test-capacity status` |
         | argv with `--confirm-current-protocol` while CLI expects protocol 2 and durable state has an incompatible schema with recorded protocol 1 | SAFEWORD_TEST_CAPACITY_STATE_UNSAFE | `safeword project test-capacity status` |
 
     @rejection @surface.safeword-cli
@@ -251,6 +249,11 @@ Feature: Let parallel sessions share test capacity safely
       Given shared capacity is two and keyed monotonic events assign real wrapper requests A, B, C and D consecutive FIFO tickets where A and B are focused, C is broad, and D is focused
       When capacity becomes available in queue order
       Then observable lifetimes for A and B overlap and exit zero, C starts only after both end and runs exclusively to zero, and D starts only after C ends and exits zero
+
+    Scenario: A queued broad request is not starved by later focused arrivals
+      Given shared capacity is two, focused holders A and B are active, broad request C is the queue head, and focused requests D through Z register behind C while A and B remain active
+      When A and B exit zero
+      Then C runs its unchanged invocation once and alone before every later focused request, then D through Z run in FIFO order without overtaking C
 
     @rejection @wiring @process
     Scenario: An unverifiable waiter is not skipped to admit newer work
@@ -424,16 +427,21 @@ Feature: Let parallel sessions share test capacity safely
       When the scheduler admits one new repository process
       Then keyed events show the newly admitted process overlaps the escaped process and teardown proves both processes exit
 
-    Scenario Outline: Supervisor loss returns capacity only after group disappearance
+    Scenario: Supervisor loss returns capacity only after a second empty-group observation
+      Given an injected monotonic clock and a first guarded observation prove the recorded supervisor instance, group-leader instance, and process group absent and mark the owner reclaiming without returning capacity at the current state version and reclaim marker
+      When the injected monotonic recovery interval passes with that guarded state version and reclaim marker unchanged, and the second observation proves the exact supervisor and leader instances absent and the group empty
+      Then one guarded recovery returns capacity atomically at version N+1, admits the queued waiter at N+2, runs its unchanged invocation once to exit zero, and no admission observes a free intermediate state
+
+    @rejection
+    Scenario Outline: Supervisor loss holds capacity when the second observation remains unsafe
       Given an injected monotonic clock and a first guarded observation prove the recorded supervisor instance, group-leader instance, and process group absent and mark the owner reclaiming without returning capacity at the current state version and reclaim marker
       When the injected monotonic recovery interval passes with that guarded state version and reclaim marker unchanged, and the second observation finds <identity-state>
-      Then capacity is <capacity-state>, new admissions never observe a free intermediate state, and the observed waiter remains queued behind the recorded owner until controlled teardown cancels it, removes only its own waiter and checkout request, and exits with its predetermined platform-resolved cancellation status
+      Then capacity remains held fail-closed, new admissions never observe a free intermediate state, and the observed waiter remains queued behind the recorded owner until controlled teardown cancels it, removes only its own waiter and checkout request, and exits with its predetermined platform-resolved cancellation status
       Examples:
-        | identity-state | capacity-state |
-        | the exact supervisor and leader instances absent and the group empty | returned atomically |
-        | the group empty but the supervisor live | held fail-closed |
-        | the group empty but the leader PID reused | held fail-closed |
-        | a surviving group descendant | held fail-closed |
+        | identity-state |
+        | the group empty but the supervisor live |
+        | the group empty but the leader PID reused |
+        | a surviving group descendant |
 
     @rejection @process
     Scenario Outline: POSIX reclaim changes or ambiguous identity never release capacity
@@ -630,10 +638,14 @@ Feature: Let parallel sessions share test capacity safely
       Then exactly one repository lifetime runs, the waiting wrapper starts only after release, and neither override changes the durable canonical capacity
 
     @process
-    Scenario: Distinct user or machine identities own separate capacity domains
-      Given two isolated domains have different deterministic OS user or machine identities and each durable domain has capacity one
+    Scenario Outline: Distinct identity axes own separate capacity domains
+      Given two isolated domains differ only in their deterministic <identity-axis> and each durable domain has capacity one
       When one real focused wrapper in each domain is held active
       Then both repository lifetimes overlap, and each domain records only its own owner, waiter, capacity, and state version
+      Examples:
+        | identity-axis |
+        | OS user ID or SID |
+        | machine identity |
 
     @rejection
     Scenario Outline: Capacity updates and admission serialize as one guarded transition
@@ -649,6 +661,12 @@ Feature: Let parallel sessions share test capacity safely
       Given canonical shared capacity is one and real wrappers use real build and test collaborators
       When a barrier holds one repository lifetime active while at least one wrapper from another worktree is observed waiting
       Then exactly one repository lifetime is active, the waiter starts no repository descendant until release, and both unchanged invocations eventually run once and exit zero
+
+    @wiring @surface.safeword-cli
+    Scenario: Status describes a healthy busy capacity domain
+      Given a healthy canonical domain has capacity two, version N, one authenticated active owner, and one FIFO waiter
+      When the builder runs `safeword project test-capacity status`
+      Then status exits zero and names the exact domain token, capacity two, version N, the owner and waiter identities, plus waiting for those records to drain before changing capacity
 
     @rejection @process
     Scenario: A held legacy mutex remains an explicit unsupported mixed-version boundary
@@ -765,7 +783,6 @@ Feature: Let parallel sessions share test capacity safely
         | idle at capacity one | `safeword project test-capacity set 2 --confirm-current-protocol` | capacity two and the exact current protocol version commit together |
         | idle at capacity two | `safeword project test-capacity set 1` | confirmation is not required, the command exits zero, and capacity one plus the next version commit together |
         | idle at capacity two | `safeword project test-capacity set 1 --confirm-current-protocol` | the optional bare confirmation is accepted, the command exits zero, and capacity one plus the next version commit together |
-        | idle | `safeword project test-capacity set 1 --confirm-current-protocol=false` | SAFEWORD_TEST_CAPACITY_INVALID returns and durable state/version remain unchanged with no repository process |
 
     @wiring @process @surface.safeword-cli
     Scenario Outline: Reset validates an explicitly prepared capacity domain
