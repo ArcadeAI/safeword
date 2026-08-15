@@ -173,6 +173,14 @@ try {
 		"crash-recovery",
 		"reserve-order",
 		"reserve-exhaustion",
+		"semantic-first-no-retry",
+		"stale-lock-reclaim",
+		"lock-contention",
+		"ambiguous-lock-refusal",
+		"durable-write-recovery",
+		"incomplete-usage-accounting",
+		"unclassified-attempt-accounting",
+		"interrupted-quarantine-visibility",
 	];
 	const gateByOutput = new Map<string, {
 		anchorResponses: string;

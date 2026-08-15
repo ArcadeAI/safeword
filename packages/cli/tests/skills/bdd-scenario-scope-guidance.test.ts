@@ -32,9 +32,11 @@ const tddGuides = [
 const read = (relativePath: string): string =>
   readFileSync(nodePath.join(repoRoot, relativePath), 'utf8');
 
+const normalized = (relativePath: string): string => read(relativePath).replaceAll(/\s+/gu, ' ');
+
 describe('BDD scenario scope guidance', () => {
   it.each(scenarioGuides)('%s separates acceptance examples from contract matrices', path => {
-    const content = read(path);
+    const content = normalized(path);
 
     expect(content).toContain('Keep acceptance examples representative');
     expect(content).toContain('table-driven lower-level tests');
@@ -43,17 +45,23 @@ describe('BDD scenario scope guidance', () => {
   });
 
   it.each(reviewGuides)('%s reviews cross-Rule outcomes and incoherent outlines', path => {
-    const content = read(path);
+    const content = normalized(path);
 
-    expect(content).toContain('an outcome owned by a different Rule');
+    expect(content).toContain(
+      'An outcome owned by a different Rule is a lineage defect, not an atomicity defect',
+    );
     expect(content).toContain('rows vary one behavioral dimension');
     expect(content).toContain('table-driven lower-level tests');
   });
 
   it.each(tddGuides)('%s requires manual and live scenarios to own their evidence', path => {
-    const content = read(path);
+    const content = normalized(path);
 
-    expect(content).toContain('needs its own recorded');
-    expect(content).toMatch(/cannot\s+lend it their evidence/u);
+    expect(content).toContain(
+      'record the command or steps performed, observed result, and retained evidence identity in the ticket work log',
+    );
+    expect(content).toContain(
+      'fixtures and lower-level tests may de-risk it, but cannot lend it their evidence',
+    );
   });
 });

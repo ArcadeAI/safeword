@@ -274,4 +274,15 @@ describe("paid canary authorization", () => {
 			usableCostUsd: 0.000_6,
 		});
 	});
+
+	test.each([
+		[0.000_720_001, true],
+		[0.000_72, false],
+		[0.000_719_999, false],
+	] as const)("enforces the aggregate cost stop at %s", (stop, authorized) => {
+		const input = validInput();
+		input.costPolicy.aggregateCostStopUsd = stop;
+		rebindCostPolicy(input);
+		expect(evaluateCanaryGate(input).authorized).toBe(authorized);
+	});
 });

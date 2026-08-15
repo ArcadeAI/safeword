@@ -859,37 +859,48 @@ describe("Terra canary write-side attempt lifecycle", () => {
     const directory = outputDirectory();
     const upstream = fakeUpstream();
     await initializeCanary({ binding: BINDING, outputDirectory: directory, upstream });
-    const evidence = validDispatchEvidence();
+    const priorRecords = progressedRecords(9);
+    upstream.setReceipts(priorRecords);
+    upstream.setHead({ observedCostPicodollars: "900", startedAttempts: 9 });
+    writeProgressedRecords(directory, priorRecords);
+    const evidence = validDispatchEvidence("attempt-10", "intent-10");
     const inventory = JSON.parse(evidence.rawResponseBytes);
     inventory.requests[0].endpoint = "https://example.test/not-openai";
     evidence.rawResponseBytes = JSON.stringify(inventory);
 
     await expect(
       runCanaryAttempt({
-        attemptId: "attempt-1",
+        attemptId: "attempt-10",
         binding: BINDING,
         dispatch: async () => evidence,
-        intentId: "intent-1",
+        intentId: "intent-10",
         outputDirectory: directory,
         upstream,
       })
     ).rejects.toThrow("unauthorized provider route");
 
-    await expect(
-      inspectCanaryAccounting({ binding: BINDING, outputDirectory: directory, upstream })
-    ).resolves.toEqual({
+    const inspected = await inspectCanaryAccounting({
+      binding: BINDING,
+      outputDirectory: directory,
+      upstream,
+    });
+    expect(inspected).toEqual({
       attemptAccountingComplete: true,
       authorizationPresent: false,
       costAccountingComplete: true,
-      observedCostPicodollars: 65_500_000n,
-      startedAttempts: 1,
+      observedCostPicodollars: 65_500_900n,
+      startedAttempts: 10,
+    });
+    expect(decision({ ...inspected, authorizationPresent: true })).toEqual({
+      eligible: false,
+      reasons: ["attempt-stop"],
     });
     await expect(
       runCanaryAttempt({
-        attemptId: "attempt-2",
+        attemptId: "attempt-11",
         binding: BINDING,
-        dispatch: async () => validDispatchEvidence("attempt-2", "intent-2"),
-        intentId: "intent-2",
+        dispatch: async () => validDispatchEvidence("attempt-11", "intent-11"),
+        intentId: "intent-11",
         outputDirectory: directory,
         upstream,
       })

@@ -8,21 +8,21 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A completed reviewer finding is usable
 
-- [x] RED
-- [x] GREEN
-- [x] REFACTOR
+- [ ] RED
+- [x] GREEN 130a8ccbf
+- [x] REFACTOR skip: the positive finding shape is a direct classifier fixture
 
 ### Scenario: A completed reviewer may return multiple findings
 
-- [x] RED
-- [x] GREEN
-- [x] REFACTOR
+- [ ] RED
+- [x] GREEN 130a8ccbf
+- [x] REFACTOR skip: the same finding-shape predicate accepts any non-empty valid collection
 
 ### Scenario: A completed reviewer may explicitly find nothing
 
-- [x] RED
-- [x] GREEN
-- [x] REFACTOR
+- [ ] RED
+- [x] GREEN 130a8ccbf
+- [x] REFACTOR skip: the explicit empty collection uses the same positive classifier path
 
 ### Scenario Outline: Hidden completion failures are unusable
 
@@ -48,33 +48,39 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN 0aa2de93a
 - [x] REFACTOR skip: one route tuple binds expert, provider, and model in both model and outcome evidence
 
-### Scenario: Every emitted reviewer outcome must match the frozen route
+### Scenario Outline: Every emitted reviewer outcome must match the frozen route
 
 - [x] RED 8eb575194
 - [x] GREEN 8eb31e5ca
 - [x] REFACTOR skip: one exact route-set check rejects both missing and additional outcomes
 
-### Scenario: Scored finding views agree with the routed reviewer output
+### Scenario Outline: Scored finding views agree with the routed reviewer output
 
 - [x] RED 8eb575194
 - [x] GREEN 8eb31e5ca
 - [x] REFACTOR 47712ea29
 
+### Scenario: Matching scored finding views are admitted
+
+- [ ] RED
+- [x] GREEN 2145bb94f
+- [x] REFACTOR skip: the positive path uses the same finding-consistency predicate as the rejection path
+
 ## Rule: pr-review-eval.SWM1.R2 — Failure handling preserves paired experimental validity
 
-### Scenario: One retryable transport failure is retried once
+### Scenario Outline: One retryable transport failure is retried once
 
 - [x] RED b2670c4dc
 - [x] GREEN 1cfb1e9e3
 - [x] REFACTOR skip: the walking skeleton keeps locking, durable writes, and sealing in one cohesive ticket-local module
 
-### Scenario: A second retryable transport failure excludes the paired case
+### Scenario Outline: A second retryable transport failure excludes the paired case
 
 - [x] RED c03099d0d
 - [x] GREEN 8cb41393a
 - [x] REFACTOR skip: quarantine sealing and durable reserve allocation form one ordered crash-safety transition with no duplication worth extracting
 
-## Feature-level cross-scenario refactor
+### Feature-level cross-scenario refactor
 
 - [x] cross-scenario b56a58045
 
@@ -86,7 +92,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Paired-case quarantine is atomic
 
-- [x] RED skip: quality-review requested an explicit proof for behavior already implemented
+- [ ] RED
 - [x] GREEN c0e9f9512
 - [x] REFACTOR skip: one case-directory rename keeps every sibling on the same side of the scoring boundary
 
@@ -98,13 +104,13 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: An early failure cancels pending paired work
 
-- [x] RED skip: quality-review requested an explicit proof for behavior already implemented
+- [ ] RED
 - [x] GREEN c0e9f9512
 - [x] REFACTOR skip: the sequential work loop exits immediately after the quarantine transition
 
 ### Scenario: A retryable failure followed by a semantic failure ends the pair
 
-- [x] RED skip: quality-review requested an explicit proof for behavior already implemented
+- [ ] RED
 - [x] GREEN c0e9f9512
 - [x] REFACTOR skip: one retry loop already terminates on the second attempt's semantic disposition
 
@@ -170,7 +176,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Reserve exhaustion stops the run
 
-- [x] RED skip: quality-review requested an explicit proof for behavior already implemented
+- [ ] RED
 - [x] GREEN c0e9f9512
 - [x] REFACTOR skip: the terminal no-reserve path reuses the same durable whole-case quarantine and accounting boundary
 
@@ -194,7 +200,7 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN 251bde01d
 - [x] REFACTOR c230e01c4
 
-### Scenario: Malformed finding verification cannot change a score
+### Scenario Outline: Invalid finding verification cannot change a score
 
 - [x] RED baff4f129
 - [x] GREEN 9f8db4b55
@@ -246,13 +252,13 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A successful reviewer matrix is scored through real wiring
 
-- [x] RED skip: quality-review requested proof for behavior already implemented
+- [ ] RED
 - [x] GREEN f9c092874
 - [x] REFACTOR skip: the fixture composes production boundaries without a new abstraction
 
 ### Scenario: The live entry point is exercised without provider spend
 
-- [x] RED skip: quality-review requested process-level proof after the orchestration was already implemented
+- [ ] RED
 - [x] GREEN 0aa2de93a
 - [x] REFACTOR skip: the process fixture shares one runner invocation helper across success, resume, and exclusion
 
@@ -274,7 +280,7 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN 9f8db4b55
 - [x] REFACTOR skip: the shared commit helper preserves the record-before-state ordering without duplicating it
 
-### Scenario: Aggregate cost is an observed stop, not a prepaid ceiling
+### Scenario Outline: The aggregate cost stop is enforced at its exact boundary
 
 - [x] RED baff4f129
 - [x] GREEN 9f8db4b55

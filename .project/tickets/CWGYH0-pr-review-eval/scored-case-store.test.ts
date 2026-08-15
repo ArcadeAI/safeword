@@ -10,7 +10,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { mkdtempSync } from "node:fs";
 
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 
 import {
 	acquireRunLock,
@@ -124,6 +124,37 @@ describe("durable case lifecycle", () => {
 		writeFileSync(join(lockPath, "owner.json"), "not-json");
 
 		expect(() => acquireRunLock(outputRoot)).toThrow("already locked");
+	});
+
+	test("preserves a live lock when optional ownership metadata differs", () => {
+		const outputRoot = mkdtempSync(join(tmpdir(), "cwgyh0-case-store-"));
+		const lockPath = join(outputRoot, ".run.lock");
+		mkdirSync(lockPath);
+		writeFileSync(join(lockPath, "owner.json"), JSON.stringify({
+			pid: process.pid,
+			token: "different-owner-token",
+		}));
+
+		expect(() => acquireRunLock(outputRoot)).toThrow("already locked");
+	});
+
+	test("preserves a lock when the ownership probe is denied", () => {
+		const outputRoot = mkdtempSync(join(tmpdir(), "cwgyh0-case-store-"));
+		const lockPath = join(outputRoot, ".run.lock");
+		mkdirSync(lockPath);
+		writeFileSync(join(lockPath, "owner.json"), JSON.stringify({
+			pid: 2147483646,
+			token: "permission-ambiguous",
+		}));
+		const kill = vi.spyOn(process, "kill").mockImplementation(() => {
+			throw Object.assign(new Error("operation not permitted"), { code: "EPERM" });
+		});
+
+		try {
+			expect(() => acquireRunLock(outputRoot)).toThrow("already locked");
+		} finally {
+			kill.mockRestore();
+		}
 	});
 
 	test("reclaims a stale lock after its PID is reused", () => {

@@ -6,11 +6,13 @@ Feature: Prove cross-provider review before scaling spend
     Scenario: The development runner uses Terra for every review stage
       Given a development review that reads repository content and verifies a finding
       When the maintainer inspects its recorded provider calls
-      Then every repository-reading and finding-verification turn proves OpenAI GPT-5.6 Terra at standard service tier
+      Then at least one repository-reading turn and one finding-verification turn are retained
+      And every repository-reading and finding-verification turn proves OpenAI GPT-5.6 Terra at standard service tier
       And no turn proves another provider, model, or service tier
 
     Scenario: A complete Terra call inventory is accepted
-      Given a completed review retains one earlier durable attempt intent and a matching native response for every paid turn
+      Given a completed review retains at least one repository-reading turn and one finding-verification turn
+      And it retains one earlier durable attempt intent and a matching native response for every paid turn
       When the maintainer validates its provider-call inventory
       Then the review is accepted as route-valid
 
@@ -22,8 +24,12 @@ Feature: Prove cross-provider review before scaling spend
 
       Examples:
         | provider evidence defect |
-        | a response from another provider, model, or service tier |
-        | a missing, truncated, or duplicated response |
+        | a response from another provider |
+        | a response from another model |
+        | a response from another service tier |
+        | a missing response |
+        | a truncated response |
+        | a duplicated response |
         | a response paired with the wrong paid turn |
         | no recorded paid turns |
 
@@ -59,14 +65,14 @@ Feature: Prove cross-provider review before scaling spend
       And every retained turn has exactly one earlier matching intent and one native response
       And every matched response proves OpenAI GPT-5.6 Terra at standard service tier
 
+  @prove-cross-provider-review-before-scaling-spend.SWM1.R2
+  Rule: prove-cross-provider-review-before-scaling-spend.SWM1.R2 — Durable attempt and cost evidence bounds every new paid attempt
+
     Scenario: The paid child receives only its provider credential
       Given the parent holds separate GitHub and OpenAI credentials for an authorized live attempt
       When the parent launches the paid child
       Then the child receives the OpenAI credential
       And the child receives no GitHub credential
-
-  @prove-cross-provider-review-before-scaling-spend.SWM1.R2
-  Rule: prove-cross-provider-review-before-scaling-spend.SWM1.R2 — Durable attempt and cost evidence bounds every new paid attempt
 
     Scenario: Explicit initialization creates an empty authorized checkpoint
       Given trusted upstream registration contains an unused one-time initialization authorization
@@ -80,6 +86,14 @@ Feature: Prove cross-provider review before scaling spend
       And the requested output root is a symbolic link
       When the maintainer explicitly initializes the canary
       Then initialization is rejected before the authorization is consumed
+      And no paid request is made
+
+    @rejection
+    Scenario: Consumed initialization cannot reset durable accounting
+      Given the one-time initialization authorization is already consumed
+      And durable accounting records started attempts and observed spend
+      When the maintainer explicitly initializes the canary again
+      Then initialization is rejected and the exact accounting remains unchanged
       And no paid request is made
 
     Scenario Outline: Complete accounting enforces both paid limits after restart
@@ -105,9 +119,12 @@ Feature: Prove cross-provider review before scaling spend
 
       Examples:
         | accounting defect | reasons |
-        | missing or contradictory attempt evidence | incomplete-attempt-accounting |
-        | missing or contradictory cost evidence | incomplete-cost-accounting |
-        | missing or contradictory attempt and cost evidence | incomplete-attempt-accounting and incomplete-cost-accounting |
+        | missing attempt evidence | incomplete-attempt-accounting |
+        | contradictory attempt evidence | incomplete-attempt-accounting |
+        | missing cost evidence | incomplete-cost-accounting |
+        | contradictory cost evidence | incomplete-cost-accounting |
+        | missing attempt and cost evidence | incomplete-attempt-accounting and incomplete-cost-accounting |
+        | contradictory attempt and cost evidence | incomplete-attempt-accounting and incomplete-cost-accounting |
 
     Scenario: A multi-turn review consumes one attempt
       Given no review attempts have started
@@ -122,24 +139,37 @@ Feature: Prove cross-provider review before scaling spend
       Then exactly one ninth-attempt request is observed
       And another attempt is blocked with exactly incomplete-cost-accounting
 
-    Scenario: A completed attempt that reaches the spend limit is retained
+    Scenario Outline: A completed attempt that reaches the spend limit is retained
       Given an authorized attempt starts below the spend limit
-      And its complete sequence of paid turns reaches or crosses 15 US dollars
+      And its complete sequence of paid turns leaves observed spend at <spend>
       When the harness records the completed attempt
       Then every turn and its exact cost remain durable
       And a later attempt is blocked with exactly cost-stop
       And no paid request is made for the blocked attempt
 
-    @rejection
-    Scenario Outline: Invalid paid work is never refunded or assigned an invented price
-      Given a route-invalid paid attempt retains <usage evidence>
-      When the harness reconciles observed spend
-      Then <accounting outcome>
-
       Examples:
-        | usage evidence | accounting outcome |
-        | complete native standard-tier Terra usage | its exact cost contributes to durable observed spend once |
-        | usage outside the frozen native Terra policy | cost accounting is incomplete and another attempt is blocked |
+        | spend |
+        | exactly the authorized 15 US dollar limit |
+        | 15.000000000001 US dollars |
+
+    Scenario: Invalid paid work with complete usage is not refunded
+      Given a route-invalid paid attempt retains complete native standard-tier Terra usage
+      When the harness reconciles observed spend
+      Then its exact cost contributes to durable observed spend once
+
+    @rejection
+    Scenario: Invalid paid work with out-of-policy usage gets no invented price
+      Given a route-invalid paid attempt retains usage outside the frozen native Terra policy
+      When the harness reconciles observed spend
+      Then cost accounting is incomplete
+      And another attempt is blocked
+
+    Scenario: Route-invalid paid work still consumes an attempt
+      Given nine started attempts are durably accounted
+      And observed spend remains below the authorized 15 US dollar limit
+      When a tenth paid attempt completes with route-invalid evidence and complete native standard-tier Terra usage
+      Then the durable started-attempt count is ten
+      And a later attempt is blocked with exactly attempt-stop
 
     Scenario Outline: Frozen native usage determines the exact pricing policy
       Given a completed standard-tier Terra turn retains <input usage>
@@ -162,9 +192,30 @@ Feature: Prove cross-provider review before scaling spend
       Examples:
         | authorization defect |
         | no durable maintainer authorization |
-        | an edited, duplicated, or untrusted authorization |
-        | authorization for another repository, corpus, output, route, or limit |
-        | authorization for different code or a dirty checkout |
+        | an edited authorization |
+        | a duplicated authorization |
+        | an authorization from an untrusted source |
+        | authorization for another repository |
+        | authorization for another corpus |
+        | authorization for another output root |
+        | authorization for another route |
+        | authorization for another limit |
+        | authorization for different code |
+        | authorization for a dirty checkout |
+
+    Scenario: Matching authorization admits a no-spend dispatch preflight
+      Given a durable authorization matches the repository, corpus, output root, route, limits, and clean code pins
+      And the paid input matches its frozen case and attempt identity
+      When live dispatch is validated without loading provider credentials
+      Then dispatch is admitted up to the credential-loading boundary
+      And no paid request is made
+
+    @rejection
+    Scenario: Concurrent attempt start is atomic
+      Given durable accounting records nine of ten authorized attempts
+      When two processes contend to start the next attempt
+      Then exactly one durable tenth attempt is created
+      And the losing process makes no paid request
 
     @rejection
     Scenario: Authorized corpus cannot dispatch unrelated paid input
@@ -206,6 +257,7 @@ Feature: Prove cross-provider review before scaling spend
       Examples:
         | presentation | confirmatory action |
         | its original diagnostic identity | confirmatory estimates |
+        | its original diagnostic identity | confirmatory spend authorization |
         | a changed path, local role, or local anchor | confirmatory spend authorization |
         | a self-issued or foreign confirmatory identity | confirmatory estimates |
         | unavailable or unknown trusted registration | confirmatory spend authorization |

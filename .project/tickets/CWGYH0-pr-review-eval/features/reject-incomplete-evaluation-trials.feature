@@ -40,7 +40,8 @@ Feature: Keep failed reviews out of benchmark scores
         | a schema-invalid report              | schema-invalid            |
         | no expected reviewer route           | routing-invalid           |
         | a reviewer error outcome             | reviewer-failed           |
-        | incomplete trace or usage            | provenance-incomplete     |
+        | an incomplete trace                  | provenance-incomplete     |
+        | incomplete usage                     | provenance-incomplete     |
         | mismatched frozen provenance         | provenance-mismatch       |
         | an unrecognized completion state     | unknown-state             |
 
@@ -68,6 +69,7 @@ Feature: Keep failed reviews out of benchmark scores
         | malformed evidence                  |
         | a non-boolean named-failure          |
         | missing matching findings            |
+        | missing consolidated findings        |
         | a malformed matching finding        |
         | a malformed consolidated finding    |
 
@@ -83,35 +85,64 @@ Feature: Keep failed reviews out of benchmark scores
         | model         |
 
     @rejection
-    Scenario: Every emitted reviewer outcome must match the frozen route
-      Given one expected reviewer outcome succeeds and another emitted outcome fails or drifts
+    Scenario Outline: Every emitted reviewer outcome must match the frozen route
+      Given one expected reviewer outcome succeeds and another emitted outcome has <defect>
       When the evaluation harness classifies the trial
       Then the whole trial is rejected as routing-invalid
 
+      Examples:
+        | defect |
+        | a failure outcome |
+        | a drifted route |
+
     @rejection
-    Scenario: Scored finding views agree with the routed reviewer output
-      Given named-failure, matching-finding, consolidated-finding, and routed-outcome evidence disagree
+    Scenario Outline: Scored finding views agree with the routed reviewer output
+      Given <view> disagrees with the otherwise matching routed reviewer evidence
       When the evaluation harness classifies the trial
       Then the whole trial is rejected as schema-invalid
-      And consolidated findings must exactly equal the routed reviewer's findings
+
+      Examples:
+        | view |
+        | named-failure evidence |
+        | matching-finding evidence |
+        | consolidated-finding evidence |
+
+    Scenario: Matching scored finding views are admitted
+      Given named-failure, matching-finding, consolidated-finding, and routed-outcome evidence contain the same findings
+      When the evaluation harness classifies the trial
+      Then the trial is admitted as usable
 
   @pr-review-eval.SWM1.R2
   Rule: pr-review-eval.SWM1.R2 — Failure handling preserves paired experimental validity
 
-    Scenario: One retryable transport failure is retried once
-      Given the first provider attempt fails with a connection failure, HTTP 408, HTTP 429, or HTTP 5xx response
+    Scenario Outline: One retryable transport failure is retried once
+      Given the first provider attempt fails with <failure>
       And the second attempt completes as a usable trial
       When the evaluation harness executes the work item
       Then it records exactly two provider attempts, makes no third call, and admits the second result
 
+      Examples:
+        | failure |
+        | a connection failure |
+        | HTTP 408 |
+        | HTTP 429 |
+        | HTTP 500 |
+
     @rejection
-    Scenario: A second retryable transport failure excludes the paired case
+    Scenario Outline: A second retryable transport failure excludes the paired case
       Given another member of the paired case already completed successfully
-      And both permitted attempts for the current member fail with connection failures, HTTP 408, HTTP 429, or HTTP 5xx responses
+      And both permitted attempts for the current member fail with <failure>
       When the evaluation harness executes the work item
       Then it records exactly two provider attempts and makes no third call
       And it quarantines every record for that paired case while retaining all artifacts and attempt costs
       And it selects the next frozen reserve
+
+      Examples:
+        | failure |
+        | connection failures |
+        | HTTP 408 responses |
+        | HTTP 429 responses |
+        | HTTP 500 responses |
 
     @rejection
     Scenario Outline: A non-infrastructure failure gets no silent retry
@@ -136,6 +167,11 @@ Feature: Keep failed reviews out of benchmark scores
         | incomplete provenance           |
         | mismatched frozen provenance    |
         | an unknown completion state     |
+        | HTTP 400                        |
+        | HTTP 401                        |
+        | HTTP 403                        |
+        | HTTP 404                        |
+        | HTTP 422                        |
 
     @rejection
     Scenario: Paired-case quarantine is atomic
@@ -200,7 +236,7 @@ Feature: Keep failed reviews out of benchmark scores
         | ownership defect |
         | malformed owner metadata |
         | a reused PID with a different process-start identity |
-        | a live process with a different boot identity or ownership token |
+        | a live PID whose optional ownership metadata differs |
         | an ownership probe that fails with a permission error |
 
     Scenario: A failed durable write does not poison the next write
@@ -265,7 +301,7 @@ Feature: Keep failed reviews out of benchmark scores
       And the effective matrix replaces each quarantined primary with its deterministically allocated reserve
       And usable primaries and allocated replacements each have every required system and variant cell
       And quarantined primaries and unused reserves are outside the scoreable matrix
-      And each cell contains exactly trials 1, 2, and 3 as usable records for that case
+      And each cell contains exactly the three trial identities frozen in the run manifest as usable records for that case
       When the scorer evaluates the run
       Then the completeness gate is true
       And every estimate input is exactly one of the enumerated admitted records
@@ -286,7 +322,8 @@ Feature: Keep failed reviews out of benchmark scores
         | one frozen case missing entirely        |
         | one unexpected case                     |
         | one frozen system missing entirely      |
-        | one unexpected system or variant cell   |
+        | one unexpected system cell              |
+        | one unexpected variant cell             |
 
     @rejection
     Scenario: Validity gates change when admitted evidence changes
@@ -296,10 +333,17 @@ Feature: Keep failed reviews out of benchmark scores
       Then the first run passes completeness and the second run fails completeness
 
     @rejection
-    Scenario: Malformed finding verification cannot change a score
-      Given verification evidence is malformed, duplicated, unsupported, or names no admitted finding
+    Scenario Outline: Invalid finding verification cannot change a score
+      Given verification evidence has <defect>
       When the scorer evaluates the run
       Then scoring stops before any verification classification changes a result
+
+      Examples:
+        | defect |
+        | malformed content |
+        | a duplicated identity |
+        | an unsupported classification |
+        | no admitted finding identity |
 
     Scenario: Matching contamination evidence belongs to its frozen run
       Given contamination preflight evidence records its repository identity and unique run identity
@@ -315,6 +359,8 @@ Feature: Keep failed reviews out of benchmark scores
 
       Examples:
         | binding defect |
+        | missing preflight evidence |
+        | no preflight digest bound by run state |
         | changed preflight bytes |
         | a stale run identity |
         | a different repository identity |
@@ -330,13 +376,13 @@ Feature: Keep failed reviews out of benchmark scores
 
     Scenario: The no-cost fixture inventory is independently checkable
       Given the canonical R1 taxonomy is provider-failure, incomplete-provider-output, unexpected-finish, schema-invalid, routing-invalid, reviewer-failed, provenance-incomplete, provenance-mismatch, and unknown-state
-      And a frozen input manifest enumerates one stable fixture identity and expected rejection reason for each canonical R1 class
+      And a frozen input manifest enumerates one stable fixture identity and expected rejection reason for every R1 example row
       When the harness runs the no-cost preflight
-      Then the recorded classes exactly equal the canonical R1 taxonomy with none missing or extra
-      And each enumerated fixture has exactly one recorded outcome matching its expected rejection reason
+      Then the recorded classes cover every canonical R1 class with none missing or extra
+      And each enumerated R1 example has exactly one recorded outcome matching its expected rejection reason
 
     Scenario: Operational failure injection covers the R2 taxonomy
-      Given the canonical R2 taxonomy is retry-success, retry-exhaustion, semantic-after-retry, early-failure, atomic-quarantine, crash-recovery, reserve-order, and reserve-exhaustion
+      Given the canonical R2 taxonomy covers retry, semantic-first failure, quarantine, reserve, lock, durable-write, incomplete-cost, and interrupted-visibility behaviors
       When the no-cost operational suite completes
       Then each canonical R2 class has exactly one passing failure-injection record with a stable scenario identity
 
@@ -344,10 +390,9 @@ Feature: Keep failed reviews out of benchmark scores
       Given ten unique mechanical labels were retained in a separate immutable external anchor before any paid call
       And the labels cover both systems and both variants with at least one finding success and one genuine-empty success
       And all ten paid calls are usable with complete attempt costs and provenance
-      And every observed classification exactly matches its frozen expected label
-      When the maintainer inspects individual canary records
+      When the maintainer reclassifies each retained raw provider response
       Then each frozen label has exactly one independently recorded matching outcome
-      And every outcome is reclassified from its retained raw provider responses rather than trusted as a summary
+      And every observed classification exactly matches its frozen expected label
 
     Scenario: A hidden provider failure is rejected through real wiring
       Given a provider HTTP-200 error envelope is injected only at the network boundary
@@ -364,7 +409,8 @@ Feature: Keep failed reviews out of benchmark scores
     Scenario: The live entry point is exercised without provider spend
       Given a pinned no-cost adapter returns frozen successful and failing outputs
       When the actual live-run entry point starts and resumes a benchmark
-      Then work ordering, exclusion, durable state, cost stops, and summary generation use the production path
+      Then the retained run state records the frozen work order and exclusion
+      And the emitted summary records the durable state and cost stop
 
     Scenario: The adapter checkout is explicit and commit-pinned
       Given the adapter root and source repository are supplied at runtime
@@ -383,10 +429,17 @@ Feature: Keep failed reviews out of benchmark scores
       When the production retry and admitted-work commit boundaries process every frozen cell
       Then each record is durable before its matching run-state advancement
 
-    Scenario: Aggregate cost is an observed stop, not a prepaid ceiling
-      Given provider cost is known only after a completed attempt
-      When the runner reports its aggregate spend guard
-      Then it calls the value a cost stop and never promises a hard prepaid ceiling
+    Scenario Outline: The aggregate cost stop is enforced at its exact boundary
+      Given a completed attempt leaves aggregate cost <position> the stop
+      When the runner considers the next work item
+      Then the next provider call is <decision>
+      And the completed attempt and its full observed cost remain retained
+
+      Examples:
+        | position | decision |
+        | one price unit below | permitted |
+        | exactly at | blocked |
+        | above | blocked |
 
     Scenario: A clean canary authorizes the next checkpoint
       Given every frozen no-cost fixture outcome matches its expected rejection reason
@@ -407,9 +460,18 @@ Feature: Keep failed reviews out of benchmark scores
 
       Examples:
         | prerequisite defect |
-        | a missing, extra, or failed R1 fixture record |
-        | a missing, duplicate, or failed R2 injection record |
+        | a missing R1 fixture record |
+        | an extra R1 fixture record |
+        | a failed R1 fixture record |
+        | a missing R2 injection record |
+        | a duplicate R2 injection record |
+        | a failed R2 injection record |
         | an invalid pre-call external label anchor |
+        | fewer than ten paid-call labels |
+        | duplicate paid-call labels |
+        | labels covering only one system |
+        | labels covering only one variant |
+        | labels with no genuine-empty success |
         | incomplete paid-call provenance |
         | one unusable paid canary call |
         | a hidden-failure wiring record that produced a scoreable result |
@@ -446,7 +508,7 @@ Feature: Keep failed reviews out of benchmark scores
     Scenario: Frozen raw artifacts can be reused
       Given an independently retained immutable manifest uses SHA-256 with canonical lowercase 64-character hexadecimal digests and unique canonical artifact identities
       And frozen configuration independently pins the trusted repository identity and immutable commit hash containing the manifest digest
-      And the manifest was retained before any artifact reuse or analysis
+      And an independent external anchor proves the manifest digest was retained before any artifact reuse or analysis
       And every raw artifact still matches its recorded identity and hash
       When the evaluation harness reuses the artifacts
       Then it verifies the pinned commit object from the trusted repository without branch or tag resolution
@@ -461,6 +523,7 @@ Feature: Keep failed reviews out of benchmark scores
       Examples:
         | defect                                  |
         | a missing raw artifact                  |
+        | an empty artifact manifest              |
         | a mutated raw artifact                  |
         | an extra artifact absent from the manifest|
         | duplicate canonical artifact identities|

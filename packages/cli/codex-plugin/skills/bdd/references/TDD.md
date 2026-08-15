@@ -55,11 +55,12 @@ same actor-facing entry point and actor-visible result that the `When` and
   when each behaviorally distinct example traverses the claimed boundary;
   otherwise narrow the scenario or add the missing proof.
 - **Keep evidence limits explicit.** When the real boundary cannot be automated
-  reliably, use the existing `@manual` or `@live` path and perform and record
-  that check separately. A tag, skip reason, or narrower automated test does
-  not prove the broader scenario by itself. That scenario needs its own recorded
-  RED/GREEN evidence; fixtures and lower-level tests may de-risk it, but cannot
-  lend it their evidence.
+  reliably, use the existing `@manual` or `@live` path and record the command or
+  steps performed, observed result, and retained evidence identity in the ticket
+  work log. Annotate the ledger `RED skip: manual — see work log <entry>` and
+  record GREEN only after that manual check succeeds. A tag, generic skip reason,
+  or narrower automated test does not prove the broader scenario by itself;
+  fixtures and lower-level tests may de-risk it, but cannot lend it their evidence.
 
 If a scenario accidentally names incidental UI mechanics rather than product
 behavior, loop back to define-behavior and rewrite it; do not silently reinterpret
@@ -74,7 +75,7 @@ When the scenario source is a `.feature` file and the Cucumber lane exists, RED 
 - **Verify RED on the reported step status, not the exit code alone.** Safeword's scaffolded `test:bdd` runs cucumber-js _without_ `--dry-run`, so undefined/pending steps exit non-zero — a genuine RED. But `cucumber-js --dry-run` _reports_ undefined/ambiguous/pending steps while still **exiting 0**; a lane (or host profile) built on `--dry-run` will look green even when steps are missing. Never substitute a bare `--dry-run` for this RED check, and when a dry-run/check profile is the host's spec-ahead lane, confirm RED by the reported undefined/pending count it prints, not by its exit status.
 - Keep step definitions thin; call app, API, CLI, or shell helpers from steps. Do not bury business logic in Cucumber glue.
 - Use Vitest for lower-level implementation proof when it gives faster or more precise coverage, especially pure functions and module contracts.
-- A scenario is not complete until both the relevant implementation tests and `test:bdd` pass, unless the feature is explicitly tagged `@manual` or `@live` with a skip reason.
+- A scenario is not complete until both the relevant implementation tests and `test:bdd` pass. An explicitly tagged `@manual` or `@live` scenario instead requires the ticket-work-log evidence and ledger annotations described above.
 
 ### Walking Skeleton (first scenario only)
 

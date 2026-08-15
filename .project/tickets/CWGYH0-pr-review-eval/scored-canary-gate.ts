@@ -28,6 +28,14 @@ export const CANONICAL_OPERATIONAL_CLASSES = [
 	"crash-recovery",
 	"reserve-order",
 	"reserve-exhaustion",
+	"semantic-first-no-retry",
+	"stale-lock-reclaim",
+	"lock-contention",
+	"ambiguous-lock-refusal",
+	"durable-write-recovery",
+	"incomplete-usage-accounting",
+	"unclassified-attempt-accounting",
+	"interrupted-quarantine-visibility",
 ] as const;
 
 export const REQUIRED_AUTHORIZATION_BINDINGS = [
@@ -475,8 +483,8 @@ export function evaluateCanaryGate(input: CanaryInput): CanaryDecision {
 		),
 	);
 	if (
-		totalCostUsd > input.costPolicy.aggregateCostStopUsd ||
-		totalCostUsd > input.costPolicy.cumulativeCostTargetUsd
+		totalCostUsd >= input.costPolicy.aggregateCostStopUsd ||
+		totalCostUsd >= input.costPolicy.cumulativeCostTargetUsd
 	) {
 		reasons.push("complete attempt cost exceeds the frozen spend stop");
 	}

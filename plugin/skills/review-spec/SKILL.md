@@ -74,7 +74,9 @@ Common vacuous patterns, each with its fix (apply only when you can state the do
 | **Deterministic** | Same result on repeated runs   | Time/random/external dependency |
 | **Independent**   | No ordering dependency         | "After Scenario 2 runs..."      |
 
-**Atomic** — a single `When`→`Then` is atomic even if the `Then` asserts several properties of ONE outcome ("returns 200 with body X"). Flag non-atomic only when two genuinely independent behaviors could pass/fail separately (two `When` steps, two `Then`s asserting different system-level effects, or an outcome owned by a different Rule) — never for a merely compound `Then`.
+**Atomic** — a single `When`→`Then` is atomic even if the `Then` asserts several properties of ONE outcome ("returns 200 with body X"). Flag non-atomic only when two genuinely independent behaviors could pass/fail separately (two `When` steps or two `Then`s asserting different system-level effects) — never for a merely compound `Then`.
+
+**Rule ownership** — review a coherent outcome under the Rule whose invariant it proves. An outcome owned by a different Rule is a lineage defect, not an atomicity defect; move or split it and report that single root cause.
 
 **Observable** — an assertion on a user/caller-visible outcome ("is denied", "passes the gate", "the plan contains X") IS observable even if the mechanism is internal; flag non-observable only for internal-detail-only assertions ("the cache was populated", "the private field is set").
 

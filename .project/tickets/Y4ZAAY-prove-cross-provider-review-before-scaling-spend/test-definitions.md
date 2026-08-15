@@ -36,8 +36,8 @@ duplicated here as acceptance scenarios.
 ### Scenario Outline: Development provenance cannot be replaced
 
 - [ ] RED
-- [x] GREEN cb71377ec
-- [x] REFACTOR skip: the digest handshake is already the smallest process-boundary contract
+- [ ] GREEN
+- [ ] REFACTOR
 
 ### Scenario: One authorized live attempt proves the paid route
 
@@ -45,16 +45,16 @@ This manual, one-time operational proof must produce its own evidence. Passing
 fixture scenarios do not substitute for its RED, GREEN, or REFACTOR record.
 
 - [ ] RED
-- [x] GREEN cb71377ec
-- [x] REFACTOR skip: the pre-start existence guard is already a single focused check
+- [ ] GREEN
+- [ ] REFACTOR
+
+## Rule: prove-cross-provider-review-before-scaling-spend.SWM1.R2 — Durable attempt and cost evidence bounds every new paid attempt
 
 ### Scenario: The paid child receives only its provider credential
 
 - [x] RED skip: independent review supplied the failing composition gap before the test and fix landed together
 - [x] GREEN 24b70ee54
 - [x] REFACTOR skip: the focused implementation was already at its smallest coherent boundary
-
-## Rule: prove-cross-provider-review-before-scaling-spend.SWM1.R2 — Durable attempt and cost evidence bounds every new paid attempt
 
 ### Scenario: Explicit initialization creates an empty authorized checkpoint
 
@@ -67,6 +67,12 @@ fixture scenarios do not substitute for its RED, GREEN, or REFACTOR record.
 - [x] RED skip: independent review supplied the failing symlink counterexample before the test and fix landed together
 - [x] GREEN 24b70ee54
 - [x] REFACTOR skip: the focused implementation was already at its smallest coherent boundary
+
+### Scenario: Consumed initialization cannot reset durable accounting
+
+- [ ] RED
+- [x] GREEN 1b3bea1ea
+- [x] REFACTOR skip: initialization replay reuses the one-time upstream-consumption guard
 
 ### Scenario Outline: Complete accounting enforces both paid limits after restart
 
@@ -92,13 +98,25 @@ fixture scenarios do not substitute for its RED, GREEN, or REFACTOR record.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A completed attempt that reaches the spend limit is retained
+### Scenario Outline: A completed attempt that reaches the spend limit is retained
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario Outline: Invalid paid work is never refunded or assigned an invented price
+### Scenario: Invalid paid work with complete usage is not refunded
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Invalid paid work with out-of-policy usage gets no invented price
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Route-invalid paid work still consumes an attempt
 
 - [ ] RED
 - [ ] GREEN
@@ -115,6 +133,18 @@ fixture scenarios do not substitute for its RED, GREEN, or REFACTOR record.
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
+
+### Scenario: Matching authorization admits a no-spend dispatch preflight
+
+- [ ] RED
+- [x] GREEN 24b70ee54
+- [x] REFACTOR skip: the existing authorized composition test injects the child boundary without provider spend
+
+### Scenario: Concurrent attempt start is atomic
+
+- [ ] RED
+- [x] GREEN 1d9933fd79
+- [x] REFACTOR skip: the existing exclusive-attempt lock spans durable start through completion
 
 ### Scenario: Authorized corpus cannot dispatch unrelated paid input
 
@@ -161,9 +191,10 @@ fixture scenarios do not substitute for its RED, GREEN, or REFACTOR record.
 - Cached, uncached, cache-write, output, and reasoning-token arithmetic.
 - Every local/upstream receipt deletion, duplication, sequence, digest, and head mismatch.
 - Every authorization author, repository, corpus, output, route, code-pin, and limit mutation.
+- Provider/model/tier, response-shape, authorization, and corpus-anchor permutations represented by disjunctive acceptance rows.
 - Same-process pure-decision combinations and exhaustive simultaneous reason sets.
 - Default and continuous-integration selector exclusion of `@paid-canary` and `@manual`.
 
 ## Feature-level cross-scenario refactor
 
-- [x] cross-scenario skip: the new manifest binding and existing authorization scenarios share no further behavior-preserving simplification
+- [ ] cross-scenario refactor
