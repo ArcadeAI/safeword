@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "07b7ee510f35c4df3e4da10f0cc832e2f10a4d40b10e05b079d7636846462dec"
+      "sha256": "cf029be3321ce2bf0b5af3d4ea3b2cbc24a4c079e4e9e014d206be283560f667"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "b4ded2d26484ae92a158592da64c66bbaab15b2d90131ac78d02446d5b8ec868"
+      "sha256": "eba169d15872de1a3238ea838485410d067b8e247812f0628ce25fcf5a47571b"
     },
     {
       "path": "runtime/event-groups.json",
@@ -651,7 +651,7 @@
     },
     {
       "path": "skills/finish-review/SKILL.md",
-      "sha256": "0200264998d8003d1492a4ac24abb9a4dd98fd3b340ef621cbb0018b39e29504"
+      "sha256": "4ac4c3d6d9f077290c2d18019270625efa2406dd7860b0cea8a26e75cb003936"
     },
     {
       "path": "skills/lint/SKILL.md",
@@ -679,7 +679,7 @@
     },
     {
       "path": "skills/self-review/SKILL.md",
-      "sha256": "2fef0e1c06bcccde617a8eda15e879d5a3e4bb1517383f2052da534257efc47a"
+      "sha256": "c16967353e3836feee2cfdcafc2d1b276c346bcf7f4cc99b303f21b36e40baec"
     },
     {
       "path": "skills/spike/SKILL.md",
@@ -695,7 +695,7 @@
     },
     {
       "path": "skills/ticket-system/SKILL.md",
-      "sha256": "045bd13fb415428297f66e45a53d262afbfa329976bbad31bc64e50997fc12d0"
+      "sha256": "3bc4d8f26752ba292a38270e2a6d03e58dd87e92aaa7f00a9d71871b100dc339"
     },
     {
       "path": "skills/verify/SKILL.md",
