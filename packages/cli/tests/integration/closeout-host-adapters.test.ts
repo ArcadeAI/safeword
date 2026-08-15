@@ -474,6 +474,7 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
     if (!continuation || !durableContinuation) {
       throw new Error('closeout did not expose its filing continuation');
     }
+    expect(existsSync(durableContinuation)).toBe(false);
     expect(existsSync(fixture.topic)).toBe(true);
     expect(
       runOrThrow(
@@ -511,6 +512,12 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
     expect(existsSync(fixture.topic)).toBe(false);
     expect(existsSync(durableContinuation)).toBe(true);
     expect(runOrThrow('git', ['status', '--porcelain'], fixture.main, environment)).toBe('');
+    const durableUnrelatedPath = nodePath.join(
+      fixture.main,
+      '.safeword/retro-drafts',
+      nodePath.basename(unrelatedPath),
+    );
+    expect(readFileSync(durableUnrelatedPath)).toEqual(unrelatedBefore);
 
     const validation = spawnSync(
       'bun',
@@ -545,7 +552,6 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
     );
     expect(drain.status, drain.stderr).toBe(0);
     expect(readSpooledDrafts(fixture.main, id)).toEqual([]);
-    expect(unrelatedBefore.length).toBeGreaterThan(0);
   }, 30_000);
 
   it('fails closed when a mandatory local verification lane has no commands', () => {

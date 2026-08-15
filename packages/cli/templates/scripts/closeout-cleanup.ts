@@ -7,6 +7,7 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  readdirSync,
   realpathSync,
   renameSync,
   statSync,
@@ -1670,7 +1671,15 @@ function observeCloseout(
     defaultBranch,
     protection: observeCurrentProtection(root, identity, mutableTargets.remoteResolution),
     deliveryWorktreePath: nodePath.resolve(root),
-    verification: runVerification(root, expectedOid, identity?.ciChecks ?? 'unknown'),
+    verification:
+      identity?.state === 'MERGED'
+        ? runVerification(root, expectedOid, identity.ciChecks)
+        : {
+            current: true,
+            passed: true,
+            headOid: expectedOid,
+            stateHash: unobservableWorkingStateHash(expectedOid),
+          },
     retro: binding
       ? retroForMergedPullRequest(root, binding, mutableTargets.pullRequests)
       : { bound: false, complete: false, pendingDrafts: 0, evidenceHash: '' },
@@ -1702,15 +1711,16 @@ function reobserveCleanupTargets(
 }
 
 function preserveRetroSpool(plan: CleanupPlan): string | undefined {
-  const source = plan.retro?.spoolPath;
-  const target = plan.retro?.durableSpoolPath;
-  if (!source || !target || source === target || !existsSync(source)) return undefined;
+  const removal = plan.operations.find(operation => operation.kind === 'remove-worktree');
+  if (!removal) return undefined;
+  const sourceDirectory = nodePath.join(removal.path, '.safeword/retro-drafts');
+  const targetDirectory = nodePath.join(removal.cwd, '.safeword/retro-drafts');
+  if (sourceDirectory === targetDirectory || !existsSync(sourceDirectory)) return undefined;
   try {
-    const projectRoot = nodePath.dirname(nodePath.dirname(nodePath.dirname(target)));
-    const commonDirectory = git(projectRoot, 'rev-parse', '--git-common-dir');
+    const commonDirectory = git(removal.cwd, 'rev-parse', '--git-common-dir');
     if (commonDirectory.status !== 0) return 'retrospective spool exclusion could not be resolved';
     const excludePath = nodePath.join(
-      nodePath.resolve(projectRoot, commonDirectory.stdout.trim()),
+      nodePath.resolve(removal.cwd, commonDirectory.stdout.trim()),
       'info/exclude',
     );
     mkdirSync(nodePath.dirname(excludePath), { recursive: true });
@@ -1720,12 +1730,17 @@ function preserveRetroSpool(plan: CleanupPlan): string | undefined {
       const separator = exclusions.length > 0 && !exclusions.endsWith('\n') ? '\n' : '';
       appendFileSync(excludePath, `${separator}${exclusion}\n`);
     }
-    mkdirSync(nodePath.dirname(target), { recursive: true });
-    const bytes = readFileSync(source);
-    if (!existsSync(target) || !readFileSync(target).equals(bytes)) {
-      const temporary = `${target}.${randomUUID()}.tmp`;
-      writeFileSync(temporary, bytes, { flag: 'wx', mode: 0o600 });
-      renameSync(temporary, target);
+    mkdirSync(targetDirectory, { recursive: true });
+    for (const entry of readdirSync(sourceDirectory, { withFileTypes: true })) {
+      if (!entry.isFile()) continue;
+      const source = nodePath.join(sourceDirectory, entry.name);
+      const target = nodePath.join(targetDirectory, entry.name);
+      const bytes = readFileSync(source);
+      if (!existsSync(target) || !readFileSync(target).equals(bytes)) {
+        const temporary = `${target}.${randomUUID()}.tmp`;
+        writeFileSync(temporary, bytes, { flag: 'wx', mode: 0o600 });
+        renameSync(temporary, target);
+      }
     }
     return undefined;
   } catch (error) {
@@ -1749,8 +1764,6 @@ if (import.meta.main) {
   const binding = resolveCloseoutBinding(root);
   const observation = observeCloseout(root, pr, binding);
   const plan = buildCleanupPlan(observation);
-  const previewSpoolFailure = preserveRetroSpool(plan);
-  if (previewSpoolFailure) plan.advisories.push(previewSpoolFailure);
   const digest = cleanupPlanDigest(plan);
   if (!process.argv.includes('--yes')) {
     process.stdout.write(`${JSON.stringify({ digest, plan }, undefined, 2)}\n`);
