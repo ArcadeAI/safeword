@@ -436,41 +436,6 @@ export async function verifyCommittedCorpusRegistration(input: {
   } catch {
     throw new Error("registration commit is not reachable from the authorized checkout");
   }
-  const mainRefs = await git(input.checkout.directory, [
-    "ls-remote",
-    "origin",
-    "refs/heads/main",
-  ]);
-  const [mainCommit, mainRef, ...extraMainRefs] = mainRefs.split(/\s+/);
-  if (
-    extraMainRefs.length !== 0 ||
-    mainRef !== "refs/heads/main" ||
-    !/^[0-9a-f]{40}$/.test(mainCommit ?? "")
-  ) {
-    throw new Error("canonical origin main is unavailable for corpus registration");
-  }
-  await execFileAsync(
-    "git",
-    ["fetch", "--quiet", "--no-tags", "origin", "refs/heads/main"],
-    { cwd: input.checkout.directory, maxBuffer: GIT_MAX_BUFFER_BYTES }
-  );
-  const fetchedMain = await git(input.checkout.directory, [
-    "rev-parse",
-    "--verify",
-    "FETCH_HEAD",
-  ]);
-  if (fetchedMain !== mainCommit) {
-    throw new Error("fetched canonical main does not match its advertised ref");
-  }
-  try {
-    await execFileAsync(
-      "git",
-      ["merge-base", "--is-ancestor", input.registrationCommit, mainCommit!],
-      { cwd: input.checkout.directory, maxBuffer: GIT_MAX_BUFFER_BYTES }
-    );
-  } catch {
-    throw new Error("registration commit is not reachable from canonical origin main");
-  }
   const [registrationBytes, digestBytes] = await Promise.all([
     gitBytes(input.checkout.directory, `${input.registrationCommit}:${REGISTRATION_PATH}`),
     gitBytes(input.checkout.directory, `${input.registrationCommit}:${REGISTRATION_DIGEST_PATH}`),

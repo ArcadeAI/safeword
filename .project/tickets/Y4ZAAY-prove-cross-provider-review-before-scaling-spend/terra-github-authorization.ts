@@ -68,8 +68,9 @@ export function validateCanaryAuthorization(input: {
   expected: CanaryAuthorization;
 }): { authorization: CanaryAuthorization; commentId: number } {
   requireFixedCanaryPolicy(input.expected);
-  const candidates = input.comments.filter((comment) =>
-    comment.body.startsWith(`${AUTHORIZATION_MARKER}\n`)
+  const expectedBody = formatCanaryAuthorization(input.expected);
+  const candidates = input.comments.filter(
+    (comment) => comment.body === expectedBody
   );
   if (candidates.length !== 1) {
     throw new Error("exactly one canary authorization comment is required");
@@ -90,9 +91,6 @@ export function validateCanaryAuthorization(input: {
     comment.author_association !== "OWNER"
   ) {
     throw new Error("canary authorization author must be a member or owner");
-  }
-  if (comment.body !== formatCanaryAuthorization(input.expected)) {
-    throw new Error("canary authorization does not match the expected run");
   }
   if (!Number.isSafeInteger(comment.id) || comment.id <= 0) {
     throw new Error("canary authorization comment id must be positive");

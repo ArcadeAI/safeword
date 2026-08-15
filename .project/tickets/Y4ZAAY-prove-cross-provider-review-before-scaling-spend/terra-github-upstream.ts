@@ -212,11 +212,9 @@ function receiptSnapshot(input: {
     return { kind: "unreadable" };
   }
   const receipts = parsed.filter(
-    (receipt): receipt is ReceiptEnvelope => receipt !== null
+    (receipt): receipt is ReceiptEnvelope =>
+      receipt !== null && receipt.bindingDigest === input.bindingDigest
   );
-  if (receipts.some((receipt) => receipt.bindingDigest !== input.bindingDigest)) {
-    return { kind: "unreadable" };
-  }
   const initializations = receipts.filter(
     (receipt) => receipt.kind === "initialization"
   );

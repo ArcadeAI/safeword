@@ -108,7 +108,27 @@ describe("GitHub canary authorization", () => {
         ],
         expected: authorization,
       })
-    ).toThrow("does not match");
+    ).toThrow("exactly one");
+  });
+
+  test("selects the expected authorization while retaining an abandoned one", () => {
+    expect(
+      validateCanaryAuthorization({
+        allowlistedMaintainers: ["TheMostlyGreat"],
+        comments: [
+          comment({
+            body: formatCanaryAuthorization({
+              ...authorization,
+              authorizationId: "abandoned-authorization",
+              outputIdentity: "abandoned-output",
+            }),
+            id: 6000000000,
+          }),
+          comment(),
+        ],
+        expected: authorization,
+      })
+    ).toEqual({ authorization, commentId: 6000000001 });
   });
 
   test("rejects trailing content after an otherwise exact authorization", () => {
@@ -120,7 +140,7 @@ describe("GitHub canary authorization", () => {
         ],
         expected: authorization,
       })
-    ).toThrow("does not match");
+    ).toThrow("exactly one");
   });
 
   test("does not let the launcher redefine the fixed canary limits", () => {
