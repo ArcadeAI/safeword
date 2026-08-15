@@ -44,9 +44,15 @@ duplicated here as acceptance scenarios.
 This manual, one-time operational proof must produce its own evidence. Passing
 fixture scenarios do not substitute for its RED, GREEN, or REFACTOR record.
 
-- [x] RED live preflight: the first three isolated output identities exposed, without retry, an absent protected-main registration, missing Terra lane overrides, and unpriced native `incomplete/max_output_tokens` responses
-- [x] GREEN `terra-harness-v11` / authorization comment `5301047471`: attempt 1 durably retained both stages, Terra/default route evidence, and completion receipt `5301058101` at `1152977750000` picodollars
+- [x] RED 231003815
+- [x] GREEN f04248620
 - [x] REFACTOR skip: the live failures were closed at their existing authorization, environment, and envelope-validation boundaries; no new abstraction was needed
+
+The live RED sequence exposed, without retry, an absent protected-main
+registration, missing Terra lane overrides, and unpriced native
+`incomplete/max_output_tokens` responses. The final `terra-harness-v11` run under
+authorization `5301047471` retained both stages and completed via receipt
+`5301058101` at `1152977750000` picodollars.
 
 ## Rule: prove-cross-provider-review-before-scaling-spend.SWM1.R2 — Durable attempt and cost evidence bounds every new paid attempt
 
@@ -212,4 +218,4 @@ All acceptance scenarios now have their own GREEN evidence. The final live
 hardening stayed within existing authorization, launcher, and envelope seams;
 broader module extraction remains unrelated to this safety proof.
 
-- [x] cross-scenario: route, accounting, authorization, and diagnostic-isolation responsibilities remain separate and no duplicate behavior was added
+- [x] cross-scenario 5c86750af
