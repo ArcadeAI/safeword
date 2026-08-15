@@ -183,7 +183,7 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Ambiguous process identity never releases live capacity
+### Scenario: Verified occupancy keeps capacity held without treating the caller as a recovery failure
 
 - [ ] RED
 - [ ] GREEN

@@ -302,7 +302,7 @@ Feature: Let parallel sessions share test capacity safely
         | a missing leader with a surviving group member |
         | an apparent same-second macOS PID reuse |
 
-    @rejection
+    @native-platform @rejection
     Scenario Outline: Each platform creation-identity adapter fails closed at its real seam
       Given the required native <platform> CI job's real adapter reads <identity-source>
       When the reading is <failure>
@@ -325,7 +325,7 @@ Feature: Let parallel sessions share test capacity safely
         | macOS | LC_ALL=C process start time with conservative second-level precision | changed |
         | macOS | LC_ALL=C process start time with conservative second-level precision | indicating same-second PID reuse |
 
-    @rejection @process
+    @native-platform @rejection @process
     Scenario Outline: Process identity is one authenticated snapshot or fails closed
       Given the required native <platform> adapter is held at barriers around its multi-read identity operation
       When <torn-observation> occurs before the snapshot is authenticated
@@ -447,6 +447,7 @@ Feature: Let parallel sessions share test capacity safely
         | the PGID led by a different process incarnation | the marker clears and ownership remains held behind an authenticated live-owner event | controlled teardown cancels the queued caller without a repository descendant and it exits with its predetermined platform-resolved cancellation status |
         | an unverifiable group or creation identity | recovery fails closed | the caller starts no repository process and exits with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE plus `safeword project test-capacity status` |
 
+    @native-platform
     Scenario Outline: Wrapper death tears down live descendants before returning active capacity
       Given an active real package-test wrapper on <platform> has live contained build or Vitest descendants
       When the wrapper dies and its ownership pipe closes
@@ -590,6 +591,9 @@ Feature: Let parallel sessions share test capacity safely
         | artifact | unsafe-property | repair |
         | live state | another owner or unsafe group/world permissions | owner-only-permissions repair for the named live state followed by `safeword project test-capacity status` |
         | transaction journal | an unexpected hard-link count | hard-link remediation for the named journal followed by `safeword project test-capacity status` |
+        | containing directory | world-writable permissions | owner-only-directory-permissions repair for the named capacity directory followed by `safeword project test-capacity status` |
+        | transition guard | an unexpected hard-link count | hard-link remediation for the named transition guard followed by `safeword project test-capacity status` |
+        | temporary state | another owner or unsafe group/world permissions | owner-only-permissions repair for the named temporary state followed by `safeword project test-capacity status` |
 
   @share-test-capacity.TBU1.R6
   Rule: share-test-capacity.TBU1.R6 — One validated shared setting governs every participating new-wrapper session and can conservatively restore today's single-run behavior
@@ -605,6 +609,7 @@ Feature: Let parallel sessions share test capacity safely
         | no prior state and a first initializer terminated after its flushed temporary state but before rename | a second public wrapper starts after the terminated initializer and exact process absence are observed | the terminated wrapper exits with its predetermined platform-resolved termination status, guarded recovery removes only its authenticated temporary artifact, commits one complete version-1 capacity-one state, and the second invocation runs once to exit zero |
         | a symlinked, foreign-owned, permission-unsafe or malformed pre-existing canonical artifact | a public wrapper attempts initialization | it starts no repository process, changes no artifact, and exits nonzero with SAFEWORD_TEST_CAPACITY_STATE_UNSAFE and `safeword project test-capacity status` |
         | an idle compatible older schema and protocol | two public wrappers race the first migration | exactly one guarded migration commits current schema/protocol at version N+1 with capacity one, both wrappers observe that version, serialize and exit zero, and no partial state is visible |
+        | a compatible older schema and protocol with a recorded owner or waiter | a public wrapper attempts migration | no migration commits, bytes and version remain unchanged, no repository process starts, and the wrapper exits nonzero with SAFEWORD_TEST_CAPACITY_BUSY and `safeword project test-capacity status` |
         | no current state after the recorded legacy mutex is authenticated idle | a barrier keeps the first current wrapper's transition guard held through capacity-one initialization and registration while a capacity-two set command waits | one guarded transition commits current protocol capacity one at version 1 and registers the wrapper before releasing the set command, set exits SAFEWORD_TEST_CAPACITY_BUSY, status names the legacy-to-current boundary, and no untracked legacy idleness is inferred |
 
     Scenario Outline: An idle scheduler adopts one canonical capacity for every participating session
@@ -771,6 +776,8 @@ Feature: Let parallel sessions share test capacity safely
         | precondition | public-command | public-outcome |
         | exact domain D is proven idle | `safeword project test-capacity reset --expected-domain D --confirm-idle` | capacity one and current protocol state commit together |
         | recorded exact domain is D | `safeword project test-capacity reset --expected-domain D` | SAFEWORD_TEST_CAPACITY_INVALID returns and durable state/version remain unchanged with no repository process |
+        | recorded exact domain is D | `safeword project test-capacity reset --confirm-idle` | SAFEWORD_TEST_CAPACITY_INVALID returns and durable state/version remain unchanged with no repository process |
+        | recorded exact domain is D | `safeword project test-capacity reset` | SAFEWORD_TEST_CAPACITY_INVALID returns and durable state/version remain unchanged with no repository process |
         | recorded exact domain is D | `safeword project test-capacity reset --expected-domain OTHER --confirm-idle` | SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE returns and durable state/version remain unchanged with no repository process |
         | an incompatible durable schema | `safeword project test-capacity reset --expected-domain D --confirm-idle` | SAFEWORD_TEST_CAPACITY_STATE_UNSAFE returns and durable state/version remain unchanged with no repository process |
         | exact domain D has an owner or waiter | `safeword project test-capacity reset --expected-domain D --confirm-idle` | SAFEWORD_TEST_CAPACITY_BUSY returns and durable state/version remain unchanged with no repository process |
