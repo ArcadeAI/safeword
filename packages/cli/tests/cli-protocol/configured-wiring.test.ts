@@ -18,6 +18,9 @@ set -eu
 printf '%s\n' "$*" >> "$SAFEWORD_GH_LOG"
 case "$*" in
   "auth token")
+    if [ "$SAFEWORD_GH_TOKEN_FAIL" = "1" ]; then
+      exit 1
+    fi
     printf 'keychain-token\n'
     ;;
   "api user --jq .login")
@@ -72,6 +75,7 @@ function githubEnvironment(
     GITHUB_TOKEN: `ghp_${'a'.repeat(24)}`,
     SAFEWORD_GH_LOG: fixture.log,
     SAFEWORD_GH_AUTH_FAIL: '0',
+    SAFEWORD_GH_TOKEN_FAIL: '0',
     SAFEWORD_NO_UPDATE_CHECK: '1',
   };
 }
@@ -498,7 +502,8 @@ describe('configured public-command wiring', () => {
           cwd: directory,
           env: {
             ...githubEnvironment(github),
-            GITHUB_TOKEN: 'not-a-real-token',
+            GITHUB_TOKEN: '',
+            SAFEWORD_GH_TOKEN_FAIL: '1',
           },
         },
       );
@@ -541,7 +546,8 @@ describe('configured public-command wiring', () => {
         cwd: directory,
         env: {
           ...githubEnvironment(github),
-          GITHUB_TOKEN: 'not-a-real-token',
+          GITHUB_TOKEN: '',
+          SAFEWORD_GH_TOKEN_FAIL: '1',
         },
       },
     );
