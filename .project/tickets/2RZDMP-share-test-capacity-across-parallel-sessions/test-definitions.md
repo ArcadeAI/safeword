@@ -195,13 +195,19 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Each platform creation-identity adapter fails closed at its real seam
+### Scenario: Native platform identity adapters authenticate observable process identity
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Process identity is one authenticated snapshot or fails closed
+### Scenario: Injected identity adapter faults fail closed without contributing native evidence
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Injected torn process identity snapshots fail closed without contributing native evidence
 
 - [ ] RED
 - [ ] GREEN
@@ -256,6 +262,12 @@ remain in the feature file.
 - [ ] REFACTOR
 
 ### Scenario: Supervisor loss returns capacity only after a second empty-group observation
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A later wrapper completes recovery after the first reclaim observer dies
 
 - [ ] RED
 - [ ] GREEN
