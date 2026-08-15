@@ -25,7 +25,7 @@ Unaffected:
 
 #### pr-review-eval.SWM1.R1 — Only positively complete trials are scoreable
 
-A trial is usable only when it has a non-empty provider response, the expected terminal finish, a schema-valid report with an explicit findings collection (which may be empty), the expected reviewer route, complete trace and usage, and matching frozen provenance. Missing or unknown evidence is invalid, never presumed successful.
+A trial is usable only when it has a non-empty provider response, the expected terminal finish, a schema-valid report with an explicit findings collection (which may be empty), the expected reviewer route, complete trace and usage, and matching frozen provenance. Missing or unknown evidence is invalid, never presumed successful. The schema exposes an explicit boolean `review-valid` admission claim, an explicit boolean `named-failure` claim, and matching-finding and consolidated-finding views; every scorer-consumed view must be present, well-formed, and agree with the routed reviewer outcome.
 
 #### pr-review-eval.SWM1.R2 — Failure handling preserves paired experimental validity
 

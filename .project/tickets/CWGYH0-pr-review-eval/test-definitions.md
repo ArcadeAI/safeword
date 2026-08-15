@@ -14,19 +14,19 @@ the batch failed.
 
 ### Scenario: A completed reviewer finding is usable
 
-- [ ] RED
+- [x] RED skip: the positive admission fixture and classifier landed together; deleting the explicit finding makes the named test fail as schema-invalid
 - [x] GREEN 130a8ccbf
 - [x] REFACTOR skip: the positive finding shape is a direct classifier fixture
 
 ### Scenario: A completed reviewer may return multiple findings
 
-- [ ] RED
+- [x] RED skip: the multi-finding fixture and collection predicate landed together; collapsing the collection makes the named cardinality assertion fail
 - [x] GREEN 130a8ccbf
 - [x] REFACTOR skip: the same finding-shape predicate accepts any non-empty valid collection
 
 ### Scenario: A completed reviewer may explicitly find nothing
 
-- [ ] RED
+- [x] RED skip: the genuine-empty fixture and explicit-empty predicate landed together; omitting the findings field makes the named test fail as schema-invalid
 - [x] GREEN 130a8ccbf
 - [x] REFACTOR skip: the explicit empty collection uses the same positive classifier path
 
@@ -68,7 +68,7 @@ the batch failed.
 
 ### Scenario: Matching scored finding views are admitted
 
-- [ ] RED
+- [x] RED skip: the positive consistency fixture landed with its predicate; changing any one scored view makes the named test fail as schema-invalid
 - [x] GREEN 2145bb94f
 - [x] REFACTOR skip: the positive path uses the same finding-consistency predicate as the rejection path
 
@@ -186,6 +186,12 @@ the batch failed.
 - [x] GREEN c0e9f9512
 - [x] REFACTOR skip: the terminal no-reserve path reuses the same durable whole-case quarantine and accounting boundary
 
+### Scenario: A cost stop reached mid-pair leaves no partial score input
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: pr-review-eval.SWM1.R3 — Scoring derives validity from admitted records
 
 ### Scenario: A complete run is scoreable
@@ -258,13 +264,13 @@ the batch failed.
 
 ### Scenario: A successful reviewer matrix is scored through real wiring
 
-- [ ] RED
+- [x] RED skip: the full-matrix fixture and wiring assertion landed together; removing any frozen cell makes the scorer report matrix incompleteness
 - [x] GREEN f9c092874
 - [x] REFACTOR skip: the fixture composes production boundaries without a new abstraction
 
 ### Scenario: The live entry point is exercised without provider spend
 
-- [ ] RED
+- [x] RED skip: the process fixture and live-entry composition landed together; bypassing the entry point leaves the expected durable run-state assertion empty
 - [x] GREEN 0aa2de93a
 - [x] REFACTOR skip: the process fixture shares one runner invocation helper across success, resume, and exclusion
 

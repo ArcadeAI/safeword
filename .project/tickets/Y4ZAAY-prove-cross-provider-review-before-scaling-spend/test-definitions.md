@@ -128,6 +128,12 @@ fixture scenarios do not substitute for its RED, GREEN, or REFACTOR record.
 - [x] GREEN
 - [x] REFACTOR
 
+### Scenario: Missing cache-write detail is normalized without changing the tier
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario Outline: Weak or replayed authorization cannot dispatch paid work
 
 - [ ] RED
@@ -146,11 +152,17 @@ fixture scenarios do not substitute for its RED, GREEN, or REFACTOR record.
 - [x] GREEN 1d9933fd79
 - [x] REFACTOR skip: the existing exclusive-attempt lock spans durable start through completion
 
-### Scenario: Authorized corpus cannot dispatch unrelated paid input
+### Scenario Outline: Authorized corpus cannot dispatch unrelated paid input
 
 - [x] RED skip: quality review supplied the failing counterexample before the test and fix landed together
 - [x] GREEN 24b70ee54
 - [x] REFACTOR 2c8d717e4
+
+### Scenario: Automated lanes exclude live paid proof
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
 
 ### Scenario: Validated paid input cannot change before child execution
 
@@ -193,7 +205,6 @@ fixture scenarios do not substitute for its RED, GREEN, or REFACTOR record.
 - Every authorization author, repository, corpus, output, route, code-pin, and limit mutation.
 - Provider/model/tier, response-shape, authorization, and corpus-anchor permutations represented by disjunctive acceptance rows.
 - Same-process pure-decision combinations and exhaustive simultaneous reason sets.
-- Default and continuous-integration selector exclusion of `@paid-canary` and `@manual`.
 
 ## Feature-level cross-scenario refactor
 

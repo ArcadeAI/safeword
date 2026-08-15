@@ -9,6 +9,7 @@ Feature: Keep failed reviews out of benchmark scores
       And the report explicitly contains one finding with complete trace and usage
       When the evaluation harness classifies the trial
       Then the trial is admitted as usable
+      And exactly one provider attempt is retained
 
     Scenario: A completed reviewer may return multiple findings
       Given the raw provider response is non-empty and has the exact expected terminal finish
@@ -128,9 +129,11 @@ Feature: Keep failed reviews out of benchmark scores
         | HTTP 408 |
         | HTTP 429 |
         | HTTP 500 |
+        | HTTP 501 |
         | HTTP 502 |
         | HTTP 503 |
         | HTTP 504 |
+        | HTTP 599 |
 
     @rejection
     Scenario Outline: A second retryable transport failure excludes the paired case
@@ -147,9 +150,11 @@ Feature: Keep failed reviews out of benchmark scores
         | HTTP 408 responses |
         | HTTP 429 responses |
         | HTTP 500 responses |
+        | HTTP 501 responses |
         | HTTP 502 responses |
         | HTTP 503 responses |
         | HTTP 504 responses |
+        | HTTP 599 responses |
 
     @rejection
     Scenario Outline: A non-infrastructure failure gets no silent retry
@@ -179,6 +184,7 @@ Feature: Keep failed reviews out of benchmark scores
         | HTTP 403                        |
         | HTTP 404                        |
         | HTTP 422                        |
+        | HTTP 499                        |
 
     @rejection
     Scenario: Paired-case quarantine is atomic
@@ -310,6 +316,13 @@ Feature: Keep failed reviews out of benchmark scores
       When another case requires replacement
       Then the whole newly unusable case is durably quarantined with every attempt and cost retained
       And the run stops before further provider calls with reserve exhaustion identified
+
+    @rejection
+    Scenario: A cost stop reached mid-pair leaves no partial score input
+      Given one member of a paired case is durable and the aggregate cost stop is reached before its sibling starts
+      When the harness considers the sibling work item
+      Then no later provider call is made and the incomplete paired case remains outside the scoreable matrix
+      And scoring reports the incomplete cell instead of admitting a partial pair
 
   @pr-review-eval.SWM1.R3
   Rule: pr-review-eval.SWM1.R3 — Scoring derives validity from admitted records
@@ -566,6 +579,9 @@ Feature: Keep failed reviews out of benchmark scores
         | a digest length inconsistent with SHA-256|
         | a mutated manifest                      |
         | the manifest and local digest both replaced against the remote commit|
+        | a branch name supplied where the immutable commit hash is required |
+        | a tag name supplied where the immutable commit hash is required |
+        | the manifest commit resolved from an untrusted repository origin |
         | a manifest created after artifact reuse |
         | a manifest retained after analysis began but before artifact reuse |
         | a manifest derived from score output    |

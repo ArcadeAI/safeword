@@ -13,28 +13,29 @@ Feature: Prove cross-provider review before scaling spend
     Scenario: A complete Terra call inventory is accepted
       Given a completed review retains at least one repository-reading turn and one finding-verification turn
       And it retains one earlier durable attempt intent and a matching native response for every paid turn
+      And every response proves OpenAI GPT-5.6 Terra at standard service tier
       When the maintainer validates its provider-call inventory
       Then the review is accepted as route-valid
 
     @rejection
     Scenario Outline: Untrustworthy provider evidence is rejected
-      Given a completed review has <provider evidence defect>
+      Given an otherwise complete route-valid review has only <provider evidence defect>
       When the maintainer validates its provider-call inventory
-      Then the review is rejected as route-invalid
+      Then the review is rejected as route-invalid with exactly <route defect>
 
       Examples:
-        | provider evidence defect |
-        | a response from another provider |
-        | a response from another model |
-        | a response from another service tier |
-        | a response with Anthropic-shaped usage detail |
-        | a missing response |
-        | a truncated response |
-        | a duplicated response |
-        | a response paired with the wrong paid turn |
-        | repository-reading turns without a finding-verification turn |
-        | finding-verification turns without a repository-reading turn |
-        | no recorded paid turns |
+        | provider evidence defect | route defect |
+        | a response from another provider | provider-mismatch |
+        | a response from another model | model-mismatch |
+        | a response from another service tier | service-tier-mismatch |
+        | a response with Anthropic-shaped usage detail | non-native-usage |
+        | a missing response | missing-response |
+        | a truncated response | malformed-response |
+        | a duplicated response | duplicate-response |
+        | a response paired with the wrong paid turn | turn-mismatch |
+        | repository-reading turns without a finding-verification turn | missing-review-stage |
+        | finding-verification turns without a repository-reading turn | missing-review-stage |
+        | no recorded paid turns | missing-paid-turns |
 
     Scenario Outline: Trusted corpus provenance is copied without embellishment
       Given a completed development review is linked to trusted provenance <registered provenance>
@@ -145,7 +146,7 @@ Feature: Prove cross-provider review before scaling spend
 
     Scenario Outline: A completed attempt that reaches the spend limit is retained
       Given an authorized attempt starts below the spend limit
-      And fewer than nine attempts have previously started
+      And zero attempts have previously started
       And its complete sequence of paid turns leaves observed spend at <spend>
       When the harness records the completed attempt
       Then every turn and its exact cost remain durable
@@ -185,7 +186,11 @@ Feature: Prove cross-provider review before scaling spend
         | input usage | pricing policy |
         | 272000 total input tokens | the frozen short-context rates |
         | 272001 total input tokens | the frozen long-context rates |
-        | no cache-write detail | zero cache-write tokens at the otherwise applicable frozen rates |
+
+    Scenario: Missing cache-write detail is normalized without changing the tier
+      Given a completed standard-tier Terra turn retains no cache-write detail
+      When the harness recomputes its cost
+      Then it uses zero cache-write tokens at the otherwise applicable frozen rates
 
     @rejection
     Scenario Outline: Weak or replayed authorization cannot dispatch paid work
@@ -219,7 +224,7 @@ Feature: Prove cross-provider review before scaling spend
       Given durable accounting records nine of ten authorized attempts
       When two processes contend to start the next attempt
       Then exactly one durable tenth attempt is created
-      And the losing process makes no paid request
+      And the losing process is blocked with exactly dispatch-contention and makes no paid request
 
     @rejection
     Scenario Outline: Authorized corpus cannot dispatch unrelated paid input
@@ -234,6 +239,12 @@ Feature: Prove cross-provider review before scaling spend
         | a case that differs from its frozen manifest |
         | an immutable review identity that differs from its frozen manifest |
         | an attempt context that differs from its authorized attempt |
+
+    Scenario: Automated lanes exclude live paid proof
+      Given the default and continuous-integration test selectors
+      When the automated BDD lane enumerates runnable scenarios
+      Then no @paid-canary or @manual scenario is selected
+      And no paid request is made
 
     @rejection
     Scenario: Validated paid input cannot change before child execution
