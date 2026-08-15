@@ -73,7 +73,8 @@ directory after green hosted CI covers a clean exact PR head, or after every
 local verification lane passes on that head.
 For 24 hours, that receipt can prove the immutable head when an interrupted
 cleanup must resume from a surviving worktree after the topic worktree is gone.
-A missing, stale, malformed, dirty-state, or wrong-head receipt blocks cleanup.
+After the topic worktree is gone, a missing, stale, malformed, dirty-state, or
+wrong-head receipt blocks interrupted cleanup resumption.
 
 ## 4. Capture retrospective learning without making it cleanup authority
 

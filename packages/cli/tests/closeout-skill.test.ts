@@ -42,12 +42,14 @@ describe('closeout delivery evidence (93C14D NTB1.R1)', () => {
 
     expect(skill).toContain('current pull request head');
     expect(skill).toContain('required checks');
-    expect(skill).toMatch(/green hosted CI or local verification/);
-    expect(skill).toMatch(/When CI is absent[\s\S]*run `\/verify`/);
+    expect(skill).toContain('green hosted CI or local verification');
+    expect(paragraphContaining(skill, 'When CI is absent')).toContain('run `/verify`');
     expect(skill).toContain('review requirements');
     expect(skill).toContain('draft');
-    expect(skill).toMatch(/no merge or cleanup/i);
-    expect(skill).not.toMatch(/merge command.*proves.*merged/i);
+    expect(skill).toContain('no merge or cleanup');
+    expect(paragraphContaining(skill, 'Collect and report every blocker')).toContain(
+      "A merge command's exit status never proves that the pull request is merged.",
+    );
   });
 });
 
@@ -76,6 +78,9 @@ describe('closeout observed resumption (93C14D NTB1.R3)', () => {
     expect(skill).toContain('unknown');
     expect(skill).toContain('unfinished suffix');
     expect(skill).toContain('already closed');
+    expect(paragraphContaining(skill, 'For 24 hours')).toContain(
+      'wrong-head receipt blocks interrupted cleanup resumption',
+    );
   });
 
   it('keeps dependency audit in delivery readiness without rerunning it after merge', () => {
@@ -141,11 +146,14 @@ describe('closeout cleanup and reporting (93C14D NTB1.R1/TBU1.R2/R3)', () => {
 
     expect(skill).toContain('bun .safeword/scripts/closeout-cleanup.ts --pr PR_NUMBER');
     expect(skill).toContain('--yes --plan PLAN_DIGEST');
-    expect(skill).toMatch(/preview.*default/is);
-    expect(skill).toMatch(/worktree.*remote branch.*local branch/is);
+    expect(skill).toContain('preview is the default');
+    const cleanupOrder = paragraphContaining(skill, 'executes only this order');
+    expect(cleanupOrder).toContain(
+      'executes only this order: worktree, remote branch, local branch',
+    );
     expect(skill).toContain('--force-with-lease');
     expect(skill).toContain('git update-ref -d');
-    expect(skill).toMatch(/never.*worktree.*--force/is);
+    expect(cleanupOrder).toContain('It never passes `--force` to `git worktree remove`');
     expect(skill).not.toContain('gh pr merge --delete-branch');
   });
 
@@ -162,8 +170,10 @@ describe('closeout cleanup and reporting (93C14D NTB1.R1/TBU1.R2/R3)', () => {
     ]) {
       expect(skill).toContain(field);
     }
-    expect(skill).toMatch(/every blocker.*recovery action/is);
-    expect(skill).toMatch(/claim.*complete.*only/is);
+    expect(skill).toContain('report every blocker and its recovery action');
+    expect(skill).toContain(
+      'Claim the session complete only after fresh observation proves every state.',
+    );
   });
 });
 
@@ -172,7 +182,9 @@ describe('closeout host entry points (93C14D TBU1.R4)', () => {
     const cursor = CURSOR_COMMAND_WRAPPERS.find(wrapper => wrapper.name === 'closeout');
     expect(cursor?.skillPath).toBe('closeout/SKILL.md');
     expect(SAFEWORD_SCHEMA.ownedFiles['.claude/skills/closeout/SKILL.md']).toBeDefined();
-    expect(SAFEWORD_SCHEMA.ownedFiles['.cursor/commands/closeout.md']).toBeDefined();
+    expect(SAFEWORD_SCHEMA.ownedFiles['.cursor/commands/closeout.md']?.template).toBe(
+      'commands/closeout.md',
+    );
 
     const generatedCodex = generateCodexPluginAssets(
       nodePath.join(repoRoot, 'packages/cli/templates/skills'),
