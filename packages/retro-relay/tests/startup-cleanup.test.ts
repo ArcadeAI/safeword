@@ -16,7 +16,7 @@ import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CredentialRegistry } from '../src/auth.js';
 import { GitHubRestClient } from '../src/github.js';
@@ -26,7 +26,12 @@ import { RelayStore } from '../src/store.js';
 
 const directories: string[] = [];
 
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+});
+
 afterEach(() => {
+  vi.useRealTimers();
   const used = [...directories];
   directories.length = 0;
   for (const directory of used) rmSync(directory, { force: true, recursive: true });
@@ -81,11 +86,6 @@ function occupiedPort(): Promise<{ port: number; release: () => Promise<void> }>
   });
 }
 
-const idle = (ms: number): Promise<void> =>
-  new Promise(resolve => {
-    setTimeout(resolve, ms);
-  });
-
 describe('relay maintenance interval', () => {
   // Positive control for the counter the failure tests below read. A sweep
   // count that stops growing proves nothing unless it grows when the interval
@@ -106,9 +106,8 @@ describe('relay maintenance interval', () => {
     });
 
     try {
-      await vi.waitFor(() => {
-        expect(sweeps()).toBeGreaterThan(0);
-      }, 2000);
+      await vi.advanceTimersByTimeAsync(10);
+      expect(sweeps()).toBeGreaterThan(0);
     } finally {
       await closeServer(started.server);
       store.close();
@@ -137,7 +136,7 @@ describe('relay startup failure', () => {
 
       // Whatever ran before the rejection is fine; nothing may run after it.
       const settled = sweeps();
-      await idle(80);
+      await vi.advanceTimersByTimeAsync(80);
       expect(sweeps()).toBe(settled);
     } finally {
       await blocked.release();
