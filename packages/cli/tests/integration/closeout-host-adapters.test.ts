@@ -14,7 +14,7 @@ import {
 } from 'node:fs';
 import nodePath from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import { generateClaudePluginAssets } from '../../src/claude-plugin/catalogue.js';
 import { generateCodexPluginAssets } from '../../src/codex-plugin/catalogue.js';
@@ -26,6 +26,7 @@ import {
   spoolDrafts,
 } from '../../templates/hooks/lib/retro-draft-spool.ts';
 import {
+  assertTestCliFresh,
   createTemporaryDirectory,
   createTypeScriptPackageJson,
   initGitRepo,
@@ -39,6 +40,8 @@ import {
 import { blockChildren } from '../helpers/io-failure.js';
 
 const temporaryProjects: string[] = [];
+
+beforeAll(assertTestCliFresh);
 
 function runOrThrow(
   command: string,

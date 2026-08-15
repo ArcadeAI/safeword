@@ -68,11 +68,18 @@ function literalBindings(sourceFile: ts.SourceFile): Map<string, string> {
 
 /** The numeric value of a literal chmod mode, or undefined when it is dynamic. */
 export function literalMode(argument: string): number | undefined {
-  const octal = /^0o([0-7]{3,4})$/u.exec(argument);
-  if (octal?.[1] !== undefined) return Number.parseInt(octal[1], 8);
+  const normalized = argument.replaceAll('_', '');
+  if (
+    /^0o[0-7]+$/iu.test(normalized) ||
+    /^0b[01]+$/iu.test(normalized) ||
+    /^0x[\dA-F]+$/iu.test(normalized) ||
+    /^\d+$/u.test(normalized)
+  ) {
+    return Number(normalized);
+  }
   const quoted = /^(['"])([0-7]{1,4})\1$/u.exec(argument);
   if (quoted?.[2] !== undefined) return Number.parseInt(quoted[2], 8);
-  return argument === '0' ? 0 : undefined;
+  return undefined;
 }
 
 function chmodModeArgumentsFromFile(
@@ -129,7 +136,9 @@ export function shellModeRemovesAccess(mode: string): boolean {
   let access: OwnerAccess = { read: true, write: true };
   for (const clause of mode.split(',')) {
     const next = applySymbolicClause(access, clause);
-    if (!next) return false;
+    // Unknown literal spellings fail closed. Dynamic modes remain outside the
+    // detector's documented scope.
+    if (!next) return !/^(?:\$|`|\$\()/u.test(mode);
     access = next;
   }
   return !access.read || !access.write;

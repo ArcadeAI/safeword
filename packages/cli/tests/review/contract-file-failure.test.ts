@@ -38,7 +38,7 @@ async function withUnwritableTemporaryRoot(
     const executable = nodePath.join(bin, 'codex');
     writeFileSync(
       executable,
-      `#!/bin/sh\nif printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then printf '%s\\n' '${REVIEWER_CAPABILITIES.codex}'; exit 0; fi\nprintf 'launched\\n' >> '${nodePath.join(binRoot, 'launched.log')}'\nexit 0\n`,
+      `#!/bin/sh\nif printf '%s' "$*" | grep -q -- '--help'; then printf '%s\\n' '${REVIEWER_CAPABILITIES.codex}'; exit 0; fi\nprintf 'launched\\n' >> '${nodePath.join(binRoot, 'launched.log')}'\nexit 0\n`,
       { mode: 0o755 },
     );
     chmodSync(executable, 0o755);

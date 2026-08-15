@@ -87,6 +87,9 @@ describe('permission-simulation detection', () => {
 
   it.each([
     ['0o000', 0o000],
+    ['0o0', 0],
+    ['0b0', 0],
+    ['256', 256],
     ['0o200', 0o200],
     ['0o755', 0o755],
     ['0', 0],
@@ -100,12 +103,16 @@ describe('permission-simulation detection', () => {
     expect(literalMode('mode')).toBeUndefined();
   });
 
-  it.each([`chmodSync(p, 0)`, `chmodSync(p, '000')`, `chmodSync(p, 0o200)`])(
-    'flags %s as removing access',
-    source => {
-      expect(permissionSimulations(source)).toHaveLength(1);
-    },
-  );
+  it.each([
+    `chmodSync(p, 0)`,
+    `chmodSync(p, 0o0)`,
+    `chmodSync(p, 0b0)`,
+    `chmodSync(p, 256)`,
+    `chmodSync(p, '000')`,
+    `chmodSync(p, 0o200)`,
+  ])('flags %s as removing access', source => {
+    expect(permissionSimulations(source)).toHaveLength(1);
+  });
 
   it('waives a call a root guard already covers', () => {
     // The established form in this repo: the test refuses to run as root, so the
@@ -184,6 +191,7 @@ describe('permission-simulation detection', () => {
     ['a symbolic mode that assigns away write', 'const command = "chmod u=r file";'],
     ['a four-digit numeric mode', 'const command = "chmod 4000 file";'],
     ['a compound symbolic mode', 'const command = "chmod u=r,go= file";'],
+    ['an unknown literal shell mode', 'const command = "chmod --reference=locked file";'],
     ['chmod invoked as a subprocess with an argv array', `execFileSync('chmod', ['000', p])`],
     ['chmod invoked by absolute path', `execFileSync('/bin/chmod', ['000', p])`],
     ['the promise API rather than the sync one', 'await fs.promises.chmod(p, 0o000)'],

@@ -1,6 +1,5 @@
 import { spawnSync } from 'node:child_process';
 import {
-  existsSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -53,7 +52,7 @@ import {
 import { DIGEST_CAP, runHeadlessExtraction } from '../../templates/hooks/lib/retro-extract.js';
 import { decideRetroFilingGate } from '../../templates/hooks/lib/retro-filing-gate.js';
 import { captureRetroFilingFault, readReports } from '../../templates/hooks/lib/self-report.js';
-import { readJsonlFile } from '../helpers.js';
+import { assertTestCliFresh, readJsonlFile } from '../helpers.js';
 import { sinkWrites } from '../helpers/io-failure.js';
 import { relayReadinessArtifact, validRelayReadinessManifest } from '../helpers/relay-readiness.js';
 
@@ -67,8 +66,7 @@ vi.mock('../../src/retro/github-rest.js', () => ({
 
 function builtCliPath(): string {
   const path = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
-  if (!existsSync(path))
-    throw new Error(`Built CLI is missing at ${path}; run bun run build first.`);
+  assertTestCliFresh();
   return path;
 }
 
@@ -186,7 +184,7 @@ const dependencies = (over: Partial<Parameters<typeof runRetro>[1]> = {}) => ({
   ...over,
 });
 
-describe('retro relay configuration and execution', () => {
+describe('retro command configuration, extraction, egress, and relay execution', () => {
   it('accepts only an absolute relay outbox outside the disposable project', () => {
     const project = mkdtempSync(nodePath.join(tmpdir(), 'retro-outbox-project-'));
     const external = mkdtempSync(nodePath.join(tmpdir(), 'safeword-durable-outbox-'));
@@ -1462,7 +1460,11 @@ describe('buildAutoExtractor (SM1.AC2 — runner model: sonnet default, config-o
       }),
     );
     const modelFlag = agent === 'codex' ? '-m' : '--model';
-    return { argv: argvSeen, model: argvSeen[argvSeen.indexOf(modelFlag) + 1] };
+    const modelFlagIndex = argvSeen.indexOf(modelFlag);
+    return {
+      argv: argvSeen,
+      model: modelFlagIndex === -1 ? undefined : argvSeen[modelFlagIndex + 1],
+    };
   }
 
   it('builds the extractor with sonnet when no retro.model is configured', async () => {
@@ -1754,7 +1756,7 @@ describe('retroReconcileCommand wiring (G19QG7 SM2.R1)', () => {
   });
 });
 
-describe('retro summary drop reporting (PNZM3B SM2.R1)', () => {
+describe('retro summary reporting and process surfaces (PNZM3B SM2.R1)', () => {
   const reportOptions = (output: Parameters<typeof reportRetroCommandOutcome>[1]['output']) => ({
     extractionSucceeded: true,
     restTransportAvailable: true,

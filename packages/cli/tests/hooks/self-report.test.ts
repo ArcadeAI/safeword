@@ -337,7 +337,7 @@ describe('self-report capture (QYYC5Y)', () => {
   });
 
   describe('formatSelfReportSurfacing', () => {
-    it('returns null when there is nothing to surface', () => {
+    it('returns undefined when there is nothing to surface', () => {
       expect(formatSelfReportSurfacing([])).toBeUndefined();
     });
 

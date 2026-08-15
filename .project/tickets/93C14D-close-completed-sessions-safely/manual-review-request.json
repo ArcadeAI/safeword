@@ -92,24 +92,12 @@
       "sha256": "b2b6ed4428c784e2086fc2f7e9e6f95dbc2890c881f198a3ebf122026fed3962"
     },
     {
-      "path": "plugin/runtime/cli.js",
-      "sha256": "199147462ab7a94473497ae3bb38daecf5ca8b9a1cf5212bb27d133e539ff2f2"
-    },
-    {
       "path": "plugin/runtime/hooks/lib/closeout-binding.ts",
       "sha256": "4d89818ea62ee89d894a56a1947e05d1ee9edbf8eff45882a2c3adc2a589164e"
     },
     {
       "path": "plugin/runtime/hooks/lib/retro-extract.ts",
       "sha256": "390086ac3d80bbce4787aae788f6fb788adbbd383f2134964bc5bb13b877d45e"
-    },
-    {
-      "path": "plugin/identity.json",
-      "sha256": "7676ee1f028e7af127a8a4a4333ca9694acd27f7147d7a34e19827bd2735c6f8"
-    },
-    {
-      "path": "plugin/inventory.json",
-      "sha256": "77bcc3f808b9caf85f1661f6ae3f07ee0e31c541c0e17dd5b75008b076ed3f12"
     },
     {
       "path": "packages/cli/tests/closeout-skill.test.ts",

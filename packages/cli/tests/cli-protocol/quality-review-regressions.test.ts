@@ -495,26 +495,24 @@ describe('quality-review regressions for the public CLI boundary', () => {
 
   it('does not claim a mutation when removal fails during preflight', async () => {
     const directory = createTemporaryDirectory();
-    blockScan(nodePath.join(directory, '.safeword'));
+    blockScan(nodePath.join(directory, '.safeword'), 'hooks');
 
-    {
-      const result = await runCli(['remove', '--json', '--no-input', '--cwd', directory], {
-        cwd: directory,
-      });
+    const result = await runCli(['remove', '--json', '--no-input', '--cwd', directory], {
+      cwd: directory,
+    });
 
-      expect(result).toMatchObject({ exitCode: 1, stderr: '' });
-      expect(JSON.parse(result.stdout)).toMatchObject({
-        state: 'failed',
-        changed: false,
-        effects: {
-          files: [],
-          packages: [],
-          configuration: [],
-          network: [],
-          destructive: [],
-        },
-      });
-    }
+    expect(result).toMatchObject({ exitCode: 1, stderr: '' });
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'failed',
+      changed: false,
+      effects: {
+        files: [],
+        packages: [],
+        configuration: [],
+        network: [],
+        destructive: [],
+      },
+    });
   });
 
   it('gives canonical retro leaves options parsed by the retained family alias', async () => {

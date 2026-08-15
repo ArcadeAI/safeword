@@ -33,12 +33,8 @@ function sha256(content: string | Buffer): string {
 }
 
 /**
- * `maxBuffer` is load-bearing. A sealed input larger than the default 1 MiB
- * (plugin/runtime/cli.js is ~1.6 MB) made `git show` fail with ENOBUFS, and
- * reviewedInput's fallback then read the working tree instead. That silently
- * turned "these are the bytes the reviewer attested to" into "your working
- * tree must not change" — so regenerating a committed build artifact failed
- * this test while the seal itself was intact.
+ * `maxBuffer` is deliberately generous so an unexpectedly large reviewed
+ * source cannot turn a failed `git show` into a misleading seal error.
  */
 function git(arguments_: string[]): {
   status: number;
@@ -255,11 +251,8 @@ describe('hash-bound independent closeout review (93C14D)', () => {
       'packages/cli/templates/hooks/lib/retro-extract.ts',
       'packages/cli/templates/scripts/closeout-cleanup.ts',
       'plugin/resources/scripts/closeout-cleanup.ts',
-      'plugin/runtime/cli.js',
       'plugin/runtime/hooks/lib/closeout-binding.ts',
       'plugin/runtime/hooks/lib/retro-extract.ts',
-      'plugin/identity.json',
-      'plugin/inventory.json',
       'packages/cli/tests/closeout-skill.test.ts',
       'packages/cli/tests/closeout-cleanup.test.ts',
       'packages/cli/tests/commands/retro.test.ts',

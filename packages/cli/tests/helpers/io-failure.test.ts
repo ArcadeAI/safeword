@@ -42,6 +42,14 @@ describe('io-failure helpers', () => {
     expect(readFileSync(path, 'utf8')).toBe('');
   });
 
+  it('sinkWrites replaces a pre-existing directory', () => {
+    const path = nodePath.join(scratchRoot(), 'acks.jsonl');
+    mkdirSync(path);
+    expect(() => sinkWrites(path)).not.toThrow();
+    appendFileSync(path, 'recorded\n');
+    expect(readFileSync(path, 'utf8')).toBe('');
+  });
+
   it('blockWrites makes writing that exact path fail with EISDIR', () => {
     const path = blockWrites(nodePath.join(scratchRoot(), 'marker'));
     expect(
@@ -61,7 +69,7 @@ describe('io-failure helpers', () => {
   });
 
   it('blockScan makes following the directory fail with ELOOP', () => {
-    const directory = blockScan(nodePath.join(scratchRoot(), '.safeword'));
+    const directory = blockScan(nodePath.join(scratchRoot(), '.safeword'), 'hooks');
     // The directory itself stays listable — the code under test must get far
     // enough to enumerate it, and fail only when it walks in.
     expect(readdirSync(directory)).toContain('hooks');
@@ -90,6 +98,6 @@ describe('io-failure helpers', () => {
     mkdirSync(directory, { recursive: true });
     mkdirSync(nodePath.join(directory, 'hooks'));
 
-    expect(() => blockScan(directory)).not.toThrow();
+    expect(() => blockScan(directory, 'hooks')).not.toThrow();
   });
 });

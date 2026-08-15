@@ -382,45 +382,44 @@ describe('configured public-command wiring', () => {
     blockChildren(nodePath.join(directory, '.project/tickets'));
     const github = installFakeGitHubCli(directory);
 
-    {
-      const result = await runCli(
-        [
-          'ticket',
-          'new',
-          'partial-ticket',
-          '--type',
-          'task',
-          '--json',
-          '--no-input',
-          '--cwd',
-          directory,
-        ],
-        { cwd: directory, env: githubEnvironment(github) },
-      );
+    const result = await runCli(
+      [
+        'ticket',
+        'new',
+        'partial-ticket',
+        '--type',
+        'task',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      { cwd: directory, env: githubEnvironment(github) },
+    );
 
-      expect(result).toMatchObject({ exitCode: 1, stderr: '' });
-      expect(JSON.parse(result.stdout)).toMatchObject({
-        state: 'failed',
-        changed: true,
-        effects: {
-          files: [{ kind: 'create', target: '.safeword/tracker-map.json', operation: 'write' }],
-          network: [{ kind: 'issue-create', target: 'github', operation: 'write' }],
+    expect(result).toMatchObject({ exitCode: 1, stderr: '' });
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'failed',
+      changed: true,
+      effects: {
+        files: [{ kind: 'create', target: '.safeword/tracker-map.json', operation: 'write' }],
+        network: [{ kind: 'issue-create', target: 'github', operation: 'write' }],
+      },
+      recovery: [
+        {
+          command: 'safeword tracker sync',
+          requires_human: false,
         },
-        recovery: [
-          {
-            command: 'safeword tracker sync',
-            requires_human: false,
-          },
-        ],
-      });
-      expect(readFileSync(github.log, 'utf8')).toContain('issue create');
-      const sidecar = readFileSync(nodePath.join(directory, '.safeword/tracker-map.json'), 'utf8');
-      expect(JSON.parse(sidecar)).toMatchObject({
-        issues: {
-          '321': { status: 'pending', ref: { provider: 'github', id: '321' } },
-        },
-      });
-    }
+      ],
+    });
+    expect(readFileSync(github.log, 'utf8')).toContain('issue create');
+    expect(readFileSync(github.log, 'utf8')).toContain('partial-ticket');
+    const sidecar = readFileSync(nodePath.join(directory, '.safeword/tracker-map.json'), 'utf8');
+    expect(JSON.parse(sidecar)).toMatchObject({
+      issues: {
+        '321': { status: 'pending', ref: { provider: 'github', id: '321' } },
+      },
+    });
   });
 
   it('preserves the configured ticket invocation when offline mode refuses its network path', async () => {
