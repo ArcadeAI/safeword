@@ -16787,7 +16787,7 @@ function resolvedNamespaceDirectory(ctx) {
 }
 function resolvedNamespaceRootLabel(ctx) {
   const root = ctx.namespaceRoot ?? resolveNamespaceRoot(ctx.cwd);
-  return nodePath27.relative(ctx.cwd, root) || ".";
+  return (nodePath27.relative(ctx.cwd, root) || ".").replaceAll(nodePath27.sep, "/");
 }
 function resolvedIgnoreDirectories(ctx) {
   return safewordIgnoreDirectories(resolvedNamespaceDirectory(ctx));
@@ -17459,6 +17459,7 @@ var init_files5 = __esm(() => {
         let scripts = { ...existing.scripts };
         scripts = removeScriptIfEqual(scripts, "lint", SAFEWORD_PRIMARY_LINT_SCRIPT);
         scripts = removeScriptIfEqual(scripts, "lint:gherkin", GHERKIN_LINT_SCRIPT);
+        scripts = removeScriptIfEqual(scripts, "test:bdd", "cucumber-js");
         assignOrPrune(result, "scripts", scripts);
         return result;
       }
@@ -17954,7 +17955,7 @@ function normalizePrReviewWorkflowVersionPins(content) {
   return segments.map((segment, index) => {
     if (index === 0)
       return segment;
-    const end = segment.indexOf(" ");
+    const end = segment.search(/\s/u);
     if (end === -1)
       return segment;
     const version = segment.slice(0, end);
@@ -18821,7 +18822,9 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
 ${SAFEWORD_TRANSIENT_PATHS.join(`
 `)}
 `,
-        marker: ".safeword/state/reviews/"
+        rerender: true,
+        rerenderOwnedLinePattern: new RegExp(`^(?:${SAFEWORD_TRANSIENT_PATHS.map((path3) => path3.replaceAll(/[.*+?^${}()|[\]\\]/gu, "\\$&")).join("|")})$`, "u"),
+        marker: "# Safeword - Local cache and transient state"
       },
       ".prettierignore": {
         operation: "append",
@@ -18843,7 +18846,7 @@ ${durableNamespaceDirectories(ctx).map((dir) => `${dir}/`).join(`
         content: (ctx) => `${managedGitattributes(ctx)}
 `,
         rerender: true,
-        rerenderOwnedLinePattern: /^(?:\*\*\/architecture\.generated\.md|.+\/tickets\/INDEX(?:-completed)?\.md) merge=union linguist-generated=true$/,
+        rerenderOwnedLinePattern: /^(?:\*\*\/architecture\.generated\.md|.+\/tickets\/INDEX(?:-completed)?\.md) merge=union linguist-generated=true$/u,
         marker: GITATTRIBUTES_HEADER
       }
     },
@@ -21261,11 +21264,7 @@ function passesTextPatchContentGuard(cwd, filePath, definition) {
   return content !== undefined && definition.applyWhenContentIncludes.every((required) => content.includes(required));
 }
 function planTextUnpatches(patches, ctx) {
-  const hasLegacyPreamble = (content, definition) => {
-    const firstLine = content.split(`
-`, 1)[0] ?? "";
-    return containsTextPatchContent(content, definition) || firstLine.includes(definition.marker);
-  };
+  const hasLegacyPreamble = (content, definition) => containsTextPatchContent(content, definition);
   const actions = [];
   for (const [filePath, entry] of Object.entries(patches)) {
     if (shouldSkipForNonGit(filePath, ctx.isGitRepo))
@@ -21981,7 +21980,7 @@ function rerenderBlockLines(definition) {
 `).filter((line) => line !== "" && !line.includes(definition.marker));
 }
 function isOwnedRerenderLine(line, expectedLine, definition) {
-  return line === expectedLine || definition.rerenderOwnedLinePattern?.test(line) === true;
+  return line === expectedLine || expectedLine !== undefined && definition.rerenderOwnedLinePattern?.test(line) === true;
 }
 function stripRerenderBlock(content, definition) {
   const lines = content.split(`
@@ -21995,12 +21994,10 @@ function stripRerenderBlock(content, definition) {
   while (endIndex + 1 < lines.length) {
     const nextLine = lines[endIndex + 1] ?? "";
     const expectedLine = blockLines[expected];
-    const matchesExpected = nextLine === expectedLine;
     if (!isOwnedRerenderLine(nextLine, expectedLine, definition))
       break;
     endIndex += 1;
-    if (matchesExpected)
-      expected += 1;
+    expected += 1;
   }
   const blockStart = startIndex > 0 && lines[startIndex - 1] === "" ? startIndex - 1 : startIndex;
   lines.splice(blockStart, endIndex - blockStart + 1);
@@ -22008,6 +22005,16 @@ function stripRerenderBlock(content, definition) {
 `).replaceAll(/\n{3,}/g, `
 
 `);
+}
+function stripRerenderBlocks(content, definition) {
+  let stripped = content;
+  while (stripped.includes(definition.marker)) {
+    const next = stripRerenderBlock(stripped, definition);
+    if (next === stripped)
+      break;
+    stripped = next;
+  }
+  return stripped;
 }
 function executeTextPatch(cwd, path3, definition) {
   if (definition.rerender && definition.operation !== "append") {
@@ -22034,7 +22041,7 @@ function computePatchedContent(original, definition) {
 }
 function healAlreadyPatchedContent(content, definition) {
   if (definition.rerender && !content.includes(definition.content)) {
-    return stripRerenderBlock(content, definition) + definition.content;
+    return stripRerenderBlocks(content, definition) + definition.content;
   }
   let healed = content;
   if (healed.includes(`
@@ -22052,8 +22059,8 @@ function healAlreadyPatchedContent(content, definition) {
 }
 function computeUnpatchedContent(content, definition) {
   let unpatched = removeExactTextPatchContent(content, definition);
-  if (unpatched === content && definition.rerender) {
-    unpatched = stripRerenderBlock(content, definition);
+  if (definition.rerender && unpatched.includes(definition.marker)) {
+    unpatched = stripRerenderBlocks(unpatched, definition);
   }
   if (unpatched === content && content.startsWith(definition.marker)) {
     const separatorIndex = content.indexOf(`
@@ -60466,8 +60473,8 @@ async function reviewPrInspectHandler(invocation) {
       ],
       recovery: [
         {
-          command: "Check .safeword/config.json, the input artifact, and OPENAI_API_KEY, then retry.",
-          description: "Correct the inspection prerequisite that failed.",
+          command: `safeword review-pr inspect ${shellQuote4(inputPath)} --output ${shellQuote4(outputPath)}`,
+          description: "Check .safeword/config.json, the input artifact, and OPENAI_API_KEY, then retry.",
           requiresHuman: true
         }
       ]
@@ -61602,6 +61609,7 @@ var CANONICAL_COMMANDS = [
   }),
   command("install", "Install Safeword for this project and selected agents", "mutate", {
     networkPolicy: "declared",
+    fixture: { argv: ["install", "--offline"], environment: MACHINE_ENVIRONMENT },
     commandOptions: [
       agentSelectionOption(),
       claudeScopeOption(),
@@ -61640,6 +61648,7 @@ var CANONICAL_COMMANDS = [
   command("uninstall", "Deactivate selected Safeword project and agent state; preserve authored content; reinstall to recover", "destructive", {
     promptPolicy: "confirm",
     networkPolicy: "declared",
+    fixture: { argv: ["uninstall", "--offline"], environment: MACHINE_ENVIRONMENT },
     commandOptions: [
       agentSelectionOption(),
       claudeScopeOption(),
@@ -61710,6 +61719,7 @@ var CANONICAL_COMMANDS = [
   }),
   command("project test", "Run repository test commands", "mutate", {
     networkPolicy: "declared",
+    fixture: { argv: ["project", "test", "--offline"], environment: MACHINE_ENVIRONMENT },
     syntax: "test",
     commandOptions: [
       {
@@ -61732,6 +61742,7 @@ var CANONICAL_COMMANDS = [
   }),
   command("tracker sync", "Synchronize tickets with the configured tracker", "mutate", {
     networkPolicy: "declared",
+    fixture: { argv: ["tracker", "sync", "--offline"], environment: MACHINE_ENVIRONMENT },
     commandOptions: [
       { flags: "--reset-tracker-map", description: "Rebuild the tracker map" },
       { flags: "--plan", description: "Compute an offline tracker plan" },
@@ -61882,7 +61893,8 @@ var CANONICAL_COMMANDS = [
     }
   }),
   command("review-pr invalidate", "Remove an obsolete advisory route", "mutate", {
-    networkPolicy: "declared"
+    networkPolicy: "declared",
+    fixture: { argv: ["review-pr", "invalidate", "--offline"], environment: MACHINE_ENVIRONMENT }
   }),
   command("review-pr publish", "Publish a validated advisory result", "mutate", {
     networkPolicy: "declared",
@@ -62037,7 +62049,13 @@ var ALIASES = [
     }
   },
   alias("retro-reconcile", "retro reconcile"),
-  alias("migrate codex-plugin", "codex migrate")
+  {
+    ...alias("migrate codex-plugin", "codex migrate"),
+    fixture: {
+      argv: ["migrate", "codex-plugin", "--offline"],
+      environment: MACHINE_ENVIRONMENT
+    }
+  }
 ];
 var HIDDEN_COMMANDS = [
   hidden("boundary", {

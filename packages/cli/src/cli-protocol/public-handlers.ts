@@ -883,9 +883,9 @@ async function reviewPrInspectHandler(invocation: CommandInvocation): Promise<Cl
       ],
       recovery: [
         {
-          command:
+          command: `safeword review-pr inspect ${shellQuote(inputPath)} --output ${shellQuote(outputPath)}`,
+          description:
             'Check .safeword/config.json, the input artifact, and OPENAI_API_KEY, then retry.',
-          description: 'Correct the inspection prerequisite that failed.',
           requiresHuman: true,
         },
       ],

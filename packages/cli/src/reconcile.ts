@@ -183,10 +183,8 @@ function planTextUnpatches(
   patches: Record<string, TextPatchDefinition | TextPatchDefinition[]>,
   ctx: ProjectContext,
 ): Action[] {
-  const hasLegacyPreamble = (content: string, definition: TextPatchDefinition): boolean => {
-    const firstLine = content.split('\n', 1)[0] ?? '';
-    return containsTextPatchContent(content, definition) || firstLine.includes(definition.marker);
-  };
+  const hasLegacyPreamble = (content: string, definition: TextPatchDefinition): boolean =>
+    containsTextPatchContent(content, definition);
 
   const actions: Action[] = [];
   for (const [filePath, entry] of Object.entries(patches)) {
@@ -1370,7 +1368,10 @@ function isOwnedRerenderLine(
   expectedLine: string | undefined,
   definition: ResolvedTextPatch,
 ): boolean {
-  return line === expectedLine || definition.rerenderOwnedLinePattern?.test(line) === true;
+  return (
+    line === expectedLine ||
+    (expectedLine !== undefined && definition.rerenderOwnedLinePattern?.test(line) === true)
+  );
 }
 
 /**
@@ -1391,16 +1392,25 @@ function stripRerenderBlock(content: string, definition: ResolvedTextPatch): str
   while (endIndex + 1 < lines.length) {
     const nextLine = lines[endIndex + 1] ?? '';
     const expectedLine = blockLines[expected];
-    const matchesExpected = nextLine === expectedLine;
     if (!isOwnedRerenderLine(nextLine, expectedLine, definition)) break;
     endIndex += 1;
-    if (matchesExpected) expected += 1;
+    expected += 1;
   }
 
   // Also drop a single blank separator line immediately before the header.
   const blockStart = startIndex > 0 && lines[startIndex - 1] === '' ? startIndex - 1 : startIndex;
   lines.splice(blockStart, endIndex - blockStart + 1);
   return lines.join('\n').replaceAll(/\n{3,}/g, '\n\n');
+}
+
+function stripRerenderBlocks(content: string, definition: ResolvedTextPatch): string {
+  let stripped = content;
+  while (stripped.includes(definition.marker)) {
+    const next = stripRerenderBlock(stripped, definition);
+    if (next === stripped) break;
+    stripped = next;
+  }
+  return stripped;
 }
 
 function executeTextPatch(cwd: string, path: string, definition: ResolvedTextPatch): void {
@@ -1443,7 +1453,7 @@ function healAlreadyPatchedContent(content: string, definition: ResolvedTextPatc
   // on disk (e.g. a custom paths.projectRoot was added), replace the managed block
   // in place so existing installs heal on upgrade. A no-op when already current.
   if (definition.rerender && !content.includes(definition.content)) {
-    return stripRerenderBlock(content, definition) + definition.content;
+    return stripRerenderBlocks(content, definition) + definition.content;
   }
   // Heal the bare-`---` separator that glued to a heading (`---# CLAUDE.md`) in
   // files corrupted by past installs. Narrowly scoped: the marker proves we
@@ -1464,8 +1474,8 @@ function computeUnpatchedContent(content: string, definition: ResolvedTextPatch)
   // content (e.g. paths.projectRoot changed since install), so an exact removal
   // misses it. Fall back to the marker-anchored, sequence-bounded strip — which
   // never consumes a customer line that follows the block.
-  if (unpatched === content && definition.rerender) {
-    unpatched = stripRerenderBlock(content, definition);
+  if (definition.rerender && unpatched.includes(definition.marker)) {
+    unpatched = stripRerenderBlocks(unpatched, definition);
   }
 
   // Legacy prepend blocks may have a malformed separator (`---# Heading`) from

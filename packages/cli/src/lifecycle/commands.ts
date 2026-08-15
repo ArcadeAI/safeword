@@ -190,8 +190,8 @@ async function installAgentSurfaces(
     }
   }
   if (agents.includes('cursor')) {
-    // Cursor has no host process; its outcome is read back from the assets the
-    // project reconciliation just wrote, never mirrored from the project state.
+    // Cursor has no host process; read its health from the reconciled assets and
+    // carry the project reconciliation's change signal into the surface result.
     const observed = observeCursorProject(cwd, projectLifecycleSchema(cwd, agents));
     surfaces.push({
       name: 'cursor',

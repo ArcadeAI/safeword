@@ -204,6 +204,7 @@ describe('review-pr inspect command wiring', () => {
     const output = JSON.parse(result.stdout) as {
       errors: { code: string }[];
       ok: boolean;
+      recovery: { command: string; description: string }[];
       state: string;
     };
 
@@ -211,6 +212,12 @@ describe('review-pr inspect command wiring', () => {
     expect(output.errors).toContainEqual(
       expect.objectContaining({ code: 'PR_REVIEW_INSPECT_FAILED' }),
     );
+    expect(output.recovery).toContainEqual({
+      command: "safeword review-pr inspect 'missing.json' --output 'result.json'",
+      description:
+        'Check .safeword/config.json, the input artifact, and OPENAI_API_KEY, then retry.',
+      requires_human: true,
+    });
   });
 
   it('publishes pending without calling the provider before a required check settles', async () => {

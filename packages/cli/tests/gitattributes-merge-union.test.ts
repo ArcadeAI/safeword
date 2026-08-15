@@ -113,6 +113,21 @@ describe('.gitattributes merge=union for generated artifacts (GA7T6M / #566)', (
     expect(gitattributes()).toContain('team-ns/tickets/INDEX.md');
   });
 
+  it('preserves a matching customer ticket-index rule after the managed block', async () => {
+    await reconcile(SAFEWORD_SCHEMA, 'install', createProjectContext(cwd));
+    const customerRule = 'docs/tickets/INDEX.md merge=union linguist-generated=true';
+    writeFileSync(nodePath.join(cwd, '.gitattributes'), `${gitattributes()}${customerRule}\n`);
+
+    mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(cwd, '.safeword', 'config.json'),
+      JSON.stringify({ paths: { projectRoot: 'team-ns' } }),
+    );
+    await reconcile(SAFEWORD_SCHEMA, 'upgrade', createProjectContext(cwd));
+
+    expect(gitattributes()).toContain(customerRule);
+  });
+
   it('marks only generated artifacts — never a hand-authored doc, a broad *.md, or a lockfile', async () => {
     // The danger of merge=union is an over-broad pattern silently both-sides-merging a
     // hand-maintained file with no conflict signal. Pin that every union line targets a

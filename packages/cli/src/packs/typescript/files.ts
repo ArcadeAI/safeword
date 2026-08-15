@@ -427,6 +427,7 @@ export const typescriptJsonMerges: Record<string, JsonMergeDefinition> = {
       // primary lint wrapper must go when unchanged because both invoke Safeword.
       scripts = removeScriptIfEqual(scripts, 'lint', SAFEWORD_PRIMARY_LINT_SCRIPT);
       scripts = removeScriptIfEqual(scripts, 'lint:gherkin', GHERKIN_LINT_SCRIPT);
+      scripts = removeScriptIfEqual(scripts, 'test:bdd', 'cucumber-js');
 
       assignOrPrune(result, 'scripts', scripts);
       return result;

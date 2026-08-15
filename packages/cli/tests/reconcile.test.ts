@@ -459,6 +459,25 @@ describe('Reconcile - Reconciliation Engine', () => {
       }
     });
 
+    it('rerenders and fully removes an older managed gitignore block', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+      const gitignorePath = nodePath.join(temporaryDirectory, '.gitignore');
+      writeFileSync(
+        gitignorePath,
+        'customer-cache/\n\n# Safeword - Local cache and transient state\n.safeword/.update-cache.json\n\n# Safeword - Local cache and transient state\n.safeword/.update-cache.json\n.safeword/retro-drafts/\n',
+      );
+      createPackageJson();
+
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', createContext());
+      const upgraded = readFileSync(gitignorePath, 'utf8');
+      expect(upgraded.match(/# Safeword - Local cache and transient state/gu)).toHaveLength(1);
+      expect(upgraded).toContain('.safeword/state/reviews/');
+
+      await reconcile(SAFEWORD_SCHEMA, 'uninstall', createContext());
+      expect(readFileSync(gitignorePath, 'utf8')).toBe('customer-cache/\n');
+    });
+
     it('prettierignore excludes every safeword-owned dir on a fresh install (incl. .codex/ + wholesale .project/)', async () => {
       const { reconcile } = await import('../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
@@ -1257,6 +1276,10 @@ describe('Reconcile - Reconciliation Engine', () => {
       );
       expect(existsSync(nodePath.join(temporaryDirectory, 'steps/world.ts'))).toBe(false);
       expect(existsSync(nodePath.join(temporaryDirectory, 'steps/shared.steps.ts'))).toBe(false);
+      const packageJson = JSON.parse(
+        readFileSync(nodePath.join(temporaryDirectory, 'package.json'), 'utf8'),
+      ) as { scripts?: Record<string, string> };
+      expect(packageJson.scripts?.['test:bdd']).toBeUndefined();
     });
 
     it('preserves a customized Safeword starter BDD lane on uninstall', async () => {

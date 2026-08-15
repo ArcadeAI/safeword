@@ -87,7 +87,7 @@ export function resolvedNamespaceDirectory(ctx: ProjectContext): string | undefi
  */
 export function resolvedNamespaceRootLabel(ctx: ProjectContext): string {
   const root = ctx.namespaceRoot ?? resolveNamespaceRoot(ctx.cwd);
-  return nodePath.relative(ctx.cwd, root) || '.';
+  return (nodePath.relative(ctx.cwd, root) || '.').replaceAll(nodePath.sep, '/');
 }
 
 /**

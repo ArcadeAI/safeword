@@ -455,7 +455,7 @@ function normalizePrReviewWorkflowVersionPins(content: string): string {
   return segments
     .map((segment, index) => {
       if (index === 0) return segment;
-      const end = segment.indexOf(' ');
+      const end = segment.search(/\s/u);
       if (end === -1) return segment;
       const version = segment.slice(0, end);
       const coreIdentifiers = version.split('-', 1)[0]?.split('.') ?? [];
@@ -1421,16 +1421,17 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.gitignore': {
       operation: 'append',
       content: `\n# Safeword - Local cache and transient state\n${SAFEWORD_TRANSIENT_PATHS.join('\n')}\n`,
-      // Marker is the NEWEST line (.safeword/state/reviews/, durable review
-      // job state) so customers with any
-      // older block re-apply on upgrade and pick up the latest transient paths.
-      // This patch has no `rerender`, so moving the marker is the ONLY way an
-      // existing install ever sees a newly added path — bump it whenever
-      // SAFEWORD_TRANSIENT_PATHS grows. Hooks write state under the resolved
-      // root, so fresh installs generate these under .project/. Without them,
-      // those generated files show as untracked in `git status --porcelain` —
-      // churning the tree and blocking the auto-upgrade gate.
-      marker: '.safeword/state/reviews/',
+      // A stable header plus rerender heals the block whenever the transient
+      // path list grows and lets uninstall recognize older variants.
+      rerender: true,
+      // eslint-disable-next-line security/detect-non-literal-regexp -- derived only from the source-controlled constant above
+      rerenderOwnedLinePattern: new RegExp(
+        `^(?:${SAFEWORD_TRANSIENT_PATHS.map(path =>
+          path.replaceAll(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`),
+        ).join('|')})$`,
+        'u',
+      ),
+      marker: '# Safeword - Local cache and transient state',
     },
     // Prettier ignores: safeword owns the dot-directories in SAFEWORD_IGNORE_DIRS
     // (.safeword/, .claude/, .cursor/, .codex/, .agents/, and both namespace
@@ -1470,7 +1471,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       content: ctx => `${managedGitattributes(ctx)}\n`,
       rerender: true,
       rerenderOwnedLinePattern:
-        /^(?:\*\*\/architecture\.generated\.md|.+\/tickets\/INDEX(?:-completed)?\.md) merge=union linguist-generated=true$/,
+        /^(?:\*\*\/architecture\.generated\.md|.+\/tickets\/INDEX(?:-completed)?\.md) merge=union linguist-generated=true$/u,
       marker: GITATTRIBUTES_HEADER,
     },
   },
