@@ -180,7 +180,7 @@ const dependencies = (over: Partial<Parameters<typeof runRetro>[1]> = {}) => ({
   ...over,
 });
 
-describe('runRetro', () => {
+describe('retro relay configuration and execution', () => {
   it('accepts only an absolute relay outbox outside the disposable project', () => {
     const project = mkdtempSync(nodePath.join(tmpdir(), 'retro-outbox-project-'));
     const external = mkdtempSync(nodePath.join(tmpdir(), 'safeword-durable-outbox-'));
