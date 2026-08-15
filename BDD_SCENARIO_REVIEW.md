@@ -2,6 +2,20 @@
 
 **Status:** Structural and lineage review complete; per-scenario semantic review in progress.
 
+## Current review checkpoint — 2026-08-15
+
+`main` was re-merged at `fca5a6ab5`. Its stronger review-record integrity
+validation required the controlled-deadline fixture to sign its deliberate
+deadline edit; no product weakening was needed. This pass tightened the two
+remaining durable lifecycle observations: status remains pending before the
+absolute deadline, and a late result cannot replace a recorded timeout. It
+also made the observable-review scenarios require a real quiet-mode heartbeat,
+terminal classification, and non-empty required-review catalogues.
+
+Focused job, progress, and surface-parity tests passed after the update. The
+two independent scenario gates are running as durable jobs; their final
+verdicts remain pending and are not represented here as approval.
+
 ## Scope and method
 
 This report inventories every shipped BDD scenario in `features/` and `packages/cli/features/`. Each scenario was checked for valid Gherkin structure, exactly one `When`, at least one `Then`, and inclusion state (active, `@manual`, or `@wip`). The active Cucumber lane and parser-backed Gherkin lint were also run.
