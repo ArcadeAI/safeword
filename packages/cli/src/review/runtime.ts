@@ -902,10 +902,11 @@ async function runReviewerCandidates(
   let foundCompatible = false;
   let lastFailure: ReviewRuntimeError | undefined;
   let lastProbeFailure: ReviewRuntimeError | undefined;
-  for (const candidate of candidates) {
+  for (const [index, candidate] of candidates.entries()) {
     const remainingMs = remainingReviewTime(deadline, reviewer, lastFailure);
-    const candidateDeadline = Date.now() + remainingMs;
-    const probeBudget = Math.min(5000, remainingMs);
+    const untried = candidates.length - index;
+    const candidateDeadline = Date.now() + remainingMs / untried;
+    const probeBudget = Math.min(5000, remainingReviewTime(candidateDeadline, reviewer));
     const assessment = await supportsReviewContract(
       reviewer,
       candidate,
@@ -922,10 +923,9 @@ async function runReviewerCandidates(
     }
     foundCompatible = true;
     try {
-      // The capability probe and review share the remaining route deadline. A
-      // fast rejection leaves time for the next installation; a hanging
-      // candidate ends the route instead of shrinking every real attempt below
-      // the observed successful-review budget.
+      // The capability probe and review share one candidate deadline. A hanging
+      // candidate therefore cannot spend the time reserved for later trusted
+      // installations, while a fast rejection returns its unused share.
       return await runCandidate(
         candidate,
         attempt,

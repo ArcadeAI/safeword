@@ -43807,10 +43807,11 @@ async function runReviewerCandidates(attempt, candidates, deadline) {
   let foundCompatible = false;
   let lastFailure;
   let lastProbeFailure;
-  for (const candidate of candidates) {
+  for (const [index, candidate] of candidates.entries()) {
     const remainingMs = remainingReviewTime(deadline, reviewer, lastFailure);
-    const candidateDeadline = Date.now() + remainingMs;
-    const probeBudget = Math.min(5000, remainingMs);
+    const untried = candidates.length - index;
+    const candidateDeadline = Date.now() + remainingMs / untried;
+    const probeBudget = Math.min(5000, remainingReviewTime(candidateDeadline, reviewer));
     const assessment = await supportsReviewContract(reviewer, candidate, attempt.cwd, probeBudget, attempt.model);
     if (assessment.kind === "failed") {
       lastProbeFailure = new ReviewRuntimeError(assessment.failure, `${reviewer} capability probe failed: ${assessment.failure}`);
@@ -44221,7 +44222,7 @@ async function executePrimaryReview(input, reviewer, primaryModel, runDeadline) 
   let execution = await executeReview(reviewer, prepared, primaryModel, runDeadline);
   let model = primaryModel;
   let dispatchId = prepared.packet.dispatch_id;
-  if (primaryModel !== undefined && execution.outcome.kind === "failed" && execution.outcome.failure === "unsupported" && !execution.outcome.terminal && runDeadline > Date.now()) {
+  if (primaryModel !== undefined && execution.outcome.kind === "failed" && execution.outcome.failure === "unsupported" && !execution.outcome.terminal && canFundRoute(runDeadline)) {
     const defaultPrepared = preparePrimaryReview(input, reviewer);
     const retried = await executeReview(reviewer, defaultPrepared, undefined, runDeadline);
     execution = {
@@ -44902,11 +44903,15 @@ function withFileLock(lock, operation) {
   try {
     return operation();
   } finally {
-    const ownedLock = fstatSync8(descriptor);
-    closeSync10(descriptor);
+    let ownedLock;
+    try {
+      ownedLock = fstatSync8(descriptor);
+    } finally {
+      closeSync10(descriptor);
+    }
     try {
       const currentLock = statSync6(lock);
-      if (currentLock.dev === ownedLock.dev && currentLock.ino === ownedLock.ino)
+      if (ownedLock !== undefined && currentLock.dev === ownedLock.dev && currentLock.ino === ownedLock.ino)
         unlinkSync3(lock);
     } catch {}
   }
@@ -45366,7 +45371,7 @@ function workerDefinitelyMismatches(record2) {
   return record2.pid !== undefined && inspectReviewWorker(record2.pid, record2.id) === "mismatch";
 }
 function terminateUnactivatedWorker(record2, pid) {
-  if (record2.state !== "completed" && record2.state !== "failed")
+  if (record2.state !== "completed" && record2.state !== "failed" && inspectReviewWorker(pid, record2.id) === "match")
     terminateReviewWorker(pid);
 }
 function terminateReviewWorker(pid) {

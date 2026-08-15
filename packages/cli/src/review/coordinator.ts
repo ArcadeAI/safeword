@@ -456,7 +456,7 @@ async function executePrimaryReview(
     execution.outcome.kind === 'failed' &&
     execution.outcome.failure === 'unsupported' &&
     !execution.outcome.terminal &&
-    runDeadline > Date.now()
+    canFundRoute(runDeadline)
   ) {
     const defaultPrepared = preparePrimaryReview(input, reviewer);
     const retried = await executeReview(reviewer, defaultPrepared, undefined, runDeadline);

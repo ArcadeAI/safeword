@@ -746,7 +746,12 @@ function workerDefinitelyMismatches(record: ReviewJobRecord): boolean {
 function terminateUnactivatedWorker(record: ReviewJobRecord, pid: number): void {
   // A cancellation can win after spawn but before the worker PID is published.
   // Completed/failed records won the race legitimately and must remain untouched.
-  if (record.state !== 'completed' && record.state !== 'failed') terminateReviewWorker(pid);
+  if (
+    record.state !== 'completed' &&
+    record.state !== 'failed' &&
+    inspectReviewWorker(pid, record.id) === 'match'
+  )
+    terminateReviewWorker(pid);
 }
 
 function terminateReviewWorker(pid: number): void {

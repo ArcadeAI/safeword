@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { homedir, tmpdir } from 'node:os';
+import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -15,6 +15,10 @@ import {
   runBoundMs,
   runHeadlessReviewer,
 } from '../../src/review/runtime.js';
+import {
+  cleanupTrustedReviewerDirectories,
+  createTrustedReviewerDirectory,
+} from '../review-fixtures.js';
 
 const temporaryDirectories: string[] = [];
 
@@ -22,6 +26,7 @@ afterEach(() => {
   vi.unstubAllEnvs();
   for (const directory of temporaryDirectories) rmSync(directory, { force: true, recursive: true });
   temporaryDirectories.length = 0;
+  cleanupTrustedReviewerDirectories();
 });
 
 function temporaryDirectory(): string {
@@ -31,9 +36,7 @@ function temporaryDirectory(): string {
 }
 
 function trustedTemporaryDirectory(): string {
-  const directory = mkdtempSync(nodePath.join(homedir(), '.safeword-review-runtime-'));
-  temporaryDirectories.push(directory);
-  return directory;
+  return createTrustedReviewerDirectory('safeword-review-runtime-');
 }
 
 const output: ReviewerOutput = {
