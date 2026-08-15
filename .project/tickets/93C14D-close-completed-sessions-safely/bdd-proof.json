@@ -10,8 +10,18 @@
       ["packages/cli/tests/closeout-cleanup.test.ts", "%s blocks every deletion", "failed verification"]
     ],
     "A fully closed delivery reports every final state": ["packages/cli/tests/closeout-skill.test.ts", "reports every durable final state and every unresolved recovery action"],
-    "Retro extraction runs in the bound host runtime": ["packages/cli/tests/closeout-cleanup.test.ts", "passes the bound %s runtime to the real retro command boundary"],
-    "Bound retro subprocess failures stop cleanup": ["packages/cli/tests/closeout-cleanup.test.ts", "classifies the current retro outcome ($complete, $errorText, $processStatus, $agentFilingNeeded, $pendingDrafts)"],
+    "Retro extraction runs in the bound host runtime": [
+      ["packages/cli/tests/closeout-cleanup.test.ts", "passes the bound %s runtime to the real retro command boundary", "claude"],
+      ["packages/cli/tests/closeout-cleanup.test.ts", "passes the bound %s runtime to the real retro command boundary", "codex"],
+      ["packages/cli/tests/closeout-cleanup.test.ts", "passes the bound %s runtime to the real retro command boundary", "cursor"]
+    ],
+    "Bound retro subprocess failures stop cleanup": [
+      ["packages/cli/tests/closeout-cleanup.test.ts", "passes the bound %s runtime to the real retro command boundary", "claude"],
+      ["packages/cli/tests/closeout-cleanup.test.ts", "passes the bound %s runtime to the real retro command boundary", "codex"],
+      ["packages/cli/tests/closeout-cleanup.test.ts", "passes the bound %s runtime to the real retro command boundary", "cursor"],
+      ["packages/cli/tests/closeout-cleanup.test.ts", "classifies the current retro outcome ($complete, $errorText, $processStatus, $agentFilingNeeded, $pendingDrafts)"],
+      ["packages/cli/tests/closeout-cleanup.test.ts", "%s is advisory for cleanup", "failed retro extraction"]
+    ],
     "A completed retro permits cleanup": ["packages/cli/tests/closeout-cleanup.test.ts", "previews exact cleanup in worktree, remote, local order with a stable digest"],
     "Incomplete retro is reported while repository cleanup continues": [
       ["packages/cli/tests/closeout-cleanup.test.ts", "%s is advisory for cleanup", "missing session binding"],
@@ -21,7 +31,11 @@
     ],
     "Filing completed retro drafts resumes without re-extraction": ["packages/cli/tests/closeout-cleanup.test.ts", "reuses a completed extraction after acknowledged filing drains its pending drafts"],
     "A request to skip retro does not hide its advisory state": ["packages/cli/tests/closeout-skill.test.ts", "keeps every retrospective outcome advisory for repository cleanup"],
-    "Closeout continues only the unfinished suffix": ["packages/cli/tests/integration/closeout-host-adapters.test.ts", "resumes from a surviving worktree when $state"],
+    "Closeout continues only the unfinished suffix": [
+      ["packages/cli/tests/integration/closeout-host-adapters.test.ts", "resumes from a surviving worktree when $state", "the topic worktree is already absent"],
+      ["packages/cli/tests/integration/closeout-host-adapters.test.ts", "resumes from a surviving worktree when $state", "the worktree and remote branch are already absent"],
+      ["packages/cli/tests/integration/closeout-host-adapters.test.ts", "resumes from a surviving worktree when $state", "every exact cleanup target is already absent"]
+    ],
     "Exact evidence is reused through preview, replay, and approved apply": ["packages/cli/tests/integration/closeout-host-adapters.test.ts", "reuses one exact-head verification and retrospective snapshot from preview through apply"],
     "Changed evidence invalidates the matching cached prerequisite": ["packages/cli/tests/integration/closeout-host-adapters.test.ts", "invalidates an earlier receipt before a later exact-head verification fails"],
     "A local merge-command error after remote success is partial success": ["packages/cli/tests/closeout-skill.test.ts", "re-observes merge truth and continues only the unfinished suffix"],
@@ -29,13 +43,19 @@
     "A blocked closeout reports every simultaneous unresolved item": ["packages/cli/tests/closeout-skill.test.ts", "reports every durable final state and every unresolved recovery action"],
     "A partially closed delivery reports unresolved state across every phase": ["packages/cli/tests/closeout-skill.test.ts", "reports every durable final state and every unresolved recovery action"],
     "Re-running a completed closeout is unchanged": ["packages/cli/tests/closeout-cleanup.test.ts", "treats proven-absent exact targets as complete without broadening scope"],
-    "New dependency intelligence does not strand cleanup of an immutable merged head": ["packages/cli/tests/closeout-cleanup.test.ts", "revalidates immutable merged code without rerunning mutable dependency intelligence"],
+    "New dependency intelligence does not strand cleanup of an immutable merged head": ["packages/cli/tests/closeout-skill.test.ts", "keeps dependency audit in delivery readiness without rerunning it after merge"],
     "Append-only host progress preserves cleanup authorization": ["packages/cli/tests/closeout-cleanup.test.ts", "keeps the cleanup authorization stable when only transcript evidence advances"],
     "Appended session friction remains advisory during cleanup": ["packages/cli/tests/closeout-cleanup.test.ts", "reports transcript growth as advisory without changing cleanup authorization"],
-    "Every transcript mutation invalidates the retrospective snapshot": ["packages/cli/tests/closeout-cleanup.test.ts", "reruns extraction when the bound transcript grows"],
+    "Every transcript mutation invalidates the retrospective snapshot": [
+      ["packages/cli/tests/closeout-cleanup.test.ts", "reruns extraction after %s change the bound transcript bytes", "metadata-only appended records"],
+      ["packages/cli/tests/closeout-cleanup.test.ts", "reruns extraction after %s change the bound transcript bytes", "mixed host and user records"],
+      ["packages/cli/tests/closeout-cleanup.test.ts", "reruns extraction after %s change the bound transcript bytes", "reordered existing records"],
+      ["packages/cli/tests/closeout-cleanup.test.ts", "reruns extraction after %s change the bound transcript bytes", "truncated existing records"],
+      ["packages/cli/tests/closeout-cleanup.test.ts", "reruns extraction after %s change the bound transcript bytes", "an ambiguous unclassified record"]
+    ],
     "Explicit authority bounds the merge action": ["packages/cli/tests/closeout-skill.test.ts", "defaults to no authority and never infers or escalates administrative authority"],
-    "Merge authority cannot be replayed against changed delivery identity": ["packages/cli/tests/closeout-cleanup.test.ts", "invalidates stale digests and changed observations before mutation"],
-    "The pull request head changing after readiness blocks merge": ["packages/cli/tests/closeout-cleanup.test.ts", "stops when the pull request head repository changes during cleanup"],
+    "Merge authority cannot be replayed against changed delivery identity": ["packages/cli/tests/closeout-skill.test.ts", "defaults to no authority and never infers or escalates administrative authority"],
+    "The pull request head changing after readiness blocks merge": ["packages/cli/tests/closeout-skill.test.ts", "re-observes merge truth and continues only the unfinished suffix"],
     "Normal authority never escalates to an administrative merge": ["packages/cli/tests/closeout-skill.test.ts", "defaults to no authority and never infers or escalates administrative authority"],
     "Historical or implied admin intent is insufficient": ["packages/cli/tests/closeout-skill.test.ts", "defaults to no authority and never infers or escalates administrative authority"],
     "Missing, ambiguous, or unmerged pull request identity blocks cleanup": [
@@ -44,11 +64,11 @@
       ["packages/cli/tests/closeout-cleanup.test.ts", "%s blocks every deletion", "unmerged pull request"]
     ],
     "Exact merged identity permits ordered cleanup": ["packages/cli/tests/closeout-cleanup.test.ts", "previews exact cleanup in worktree, remote, local order with a stable digest"],
-    "Cleanup approval cannot be replayed after identity changes": ["packages/cli/tests/closeout-cleanup.test.ts", "applies only a digest-bound unchanged plan using compare-and-swap commands"],
+    "Cleanup approval cannot be replayed after identity changes": ["packages/cli/tests/closeout-cleanup.test.ts", "invalidates stale digests and changed observations before mutation"],
     "A failed cleanup operation stops its unfinished suffix": ["packages/cli/tests/closeout-cleanup.test.ts", "reports completed and remaining operations after an execution failure"],
     "A squash or rebase merge can clean an exact non-ancestor branch": ["packages/cli/tests/closeout-cleanup.test.ts", "executes the exact cleanup commands against a real linked git worktree and remote"],
     "Already absent exact targets remain complete": ["packages/cli/tests/closeout-cleanup.test.ts", "treats proven-absent exact targets as complete without broadening scope"],
-    "A merged topic branch with no linked worktree cleans only its exact branches": ["packages/cli/tests/closeout-cleanup.test.ts", "executes the exact cleanup commands against a real linked git worktree and remote"],
+    "A merged topic branch with no linked worktree cleans only its exact branches": ["packages/cli/tests/integration/closeout-host-adapters.test.ts", "resumes from a surviving worktree when $state", "the topic worktree is already absent"],
     "Changed branch identity is preserved": ["packages/cli/tests/closeout-cleanup.test.ts", "re-observes each remaining target and stops after a concurrent ref change"],
     "Remote cleanup requires exact pull request repository identity": [
       ["packages/cli/tests/closeout-cleanup.test.ts", "%s blocks every deletion", "fork or remote mismatch"],
@@ -68,7 +88,10 @@
       ["packages/cli/tests/closeout-cleanup.test.ts", "%s blocks every deletion", "default branch"],
       ["packages/cli/tests/closeout-cleanup.test.ts", "%s blocks every deletion", "protected branch"]
     ],
-    "Mutation-time branch changes are rejected by an OID lease": ["packages/cli/tests/closeout-cleanup.test.ts", "re-observes each remaining target and stops after a concurrent ref change"],
+    "Mutation-time branch changes are rejected by an OID lease": [
+      ["packages/cli/tests/closeout-cleanup.test.ts", "re-observes each remaining target and stops after a concurrent ref change"],
+      ["packages/cli/tests/closeout-cleanup.test.ts", "stops before local deletion when the local branch advances during cleanup"]
+    ],
     "Mutation-time worktree changes prevent the removal command": [
       ["packages/cli/tests/closeout-cleanup.test.ts", "refuses a %s worktree registration at the execution boundary", "locked"],
       ["packages/cli/tests/closeout-cleanup.test.ts", "refuses a %s worktree registration at the execution boundary", "prunable"],
@@ -76,16 +99,17 @@
       ["packages/cli/tests/closeout-cleanup.test.ts", "refuses a replaced or relocated worktree filesystem identity"],
       ["packages/cli/tests/closeout-cleanup.test.ts", "reports an explicit recovery failure when a quarantined worktree cannot be restored"]
     ],
-    "Untrusted target text cannot become command syntax": ["packages/cli/tests/closeout-cleanup.test.ts", "passes untrusted cleanup target text as one shell-disabled argv element"],
+    "Untrusted target text cannot become command syntax": ["packages/cli/tests/closeout-cleanup.test.ts", "passes untrusted %s text as one shell-disabled argv element"],
     "Each local host entry point drives the canonical closeout workflow": [
       ["packages/cli/tests/integration/closeout-host-adapters.test.ts", "drives the installed %s hook through the actual guard and real Git cleanup", "claude"],
       ["packages/cli/tests/integration/closeout-host-adapters.test.ts", "drives the installed %s hook through the actual guard and real Git cleanup", "codex"],
       ["packages/cli/tests/integration/closeout-host-adapters.test.ts", "drives the installed %s hook through the actual guard and real Git cleanup", "cursor"]
     ],
     "Identical closeout inputs produce equivalent host outcomes": [
-      ["packages/cli/tests/integration/closeout-host-adapters.test.ts", "drives the installed %s hook through the actual guard and real Git cleanup", "claude"],
-      ["packages/cli/tests/integration/closeout-host-adapters.test.ts", "drives the installed %s hook through the actual guard and real Git cleanup", "codex"],
-      ["packages/cli/tests/integration/closeout-host-adapters.test.ts", "drives the installed %s hook through the actual guard and real Git cleanup", "cursor"]
+      ["packages/cli/tests/closeout-skill.test.ts", "derives Claude, Cursor, and Codex entry points from production catalogues"],
+      ["packages/cli/tests/hooks/closeout-session-binding.test.ts", "rejects missing host proof, foreign profiles, and repository mismatches"],
+      ["packages/cli/tests/closeout-cleanup.test.ts", "%s is advisory for cleanup", "incomplete retro"],
+      ["packages/cli/tests/closeout-cleanup.test.ts", "re-observes each remaining target and stops after a concurrent ref change"]
     ],
     "Installed entry points fail closed without a fresh binding": ["packages/cli/tests/hooks/closeout-session-binding.test.ts", "rejects missing host proof, foreign profiles, and repository mismatches"],
     "Installed entry points propagate canonical invocation failures": ["packages/cli/tests/integration/closeout-host-adapters.test.ts", "blocks every cleanup operation when durable receipt publication fails"],

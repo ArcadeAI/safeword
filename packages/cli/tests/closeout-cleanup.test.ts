@@ -475,6 +475,57 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     }
   });
 
+  it.each([
+    [
+      'metadata-only appended records',
+      (records: string[]) => [...records, JSON.stringify({ type: 'metadata', value: 'new' })],
+    ],
+    [
+      'mixed host and user records',
+      (records: string[]) => [
+        ...records,
+        JSON.stringify({ role: 'assistant', text: 'host' }),
+        JSON.stringify({ role: 'user', text: 'user' }),
+      ],
+    ],
+    ['reordered existing records', (records: string[]) => records.toReversed()],
+    ['truncated existing records', (records: string[]) => records.slice(0, 1)],
+    [
+      'an ambiguous unclassified record',
+      (records: string[]) => [...records, JSON.stringify({ unknown: 'record' })],
+    ],
+  ] as const)('reruns extraction after %s change the bound transcript bytes', (_case, mutate) => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'closeout-retro-transcript-mutation-'));
+    const id = 'claude-transcript-mutation';
+    const transcript = nodePath.join(root, 'transcript.jsonl');
+    const records = [
+      JSON.stringify({ session_id: id, cwd: root }),
+      JSON.stringify({ role: 'user', text: 'original' }),
+    ];
+    try {
+      spawnSync('git', ['init', '--quiet', root], { encoding: 'utf8' });
+      writeFileSync(transcript, `${records.join('\n')}\n`);
+      const binding = {
+        runtime: 'claude' as const,
+        id,
+        projectRoot: root,
+        transcriptPath: transcript,
+      };
+      let runs = 0;
+      const runner = () => {
+        runs += 1;
+        return completedRetroResult();
+      };
+
+      expect(runBoundRetro(root, binding, runner).complete).toBe(true);
+      writeFileSync(transcript, `${mutate(records).join('\n')}\n`);
+      expect(runBoundRetro(root, binding, runner).complete).toBe(true);
+      expect(runs).toBe(2);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it('evaluates transcript content appended during extraction before returning complete', () => {
     const root = mkdtempSync(nodePath.join(tmpdir(), 'closeout-retro-concurrent-append-'));
     const id = 'codex-concurrent-append';
@@ -1415,6 +1466,40 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     expect(executed).toEqual(['remove-worktree']);
   });
 
+  it('stops before local deletion when the local branch advances during cleanup', () => {
+    const initial = safeObservation();
+    const afterWorktree = safeObservation({ worktrees: [worktree(0)] });
+    const afterRemote = {
+      ...afterWorktree,
+      remote: undefined,
+      remoteResolution: 'absent' as const,
+    };
+    const changedLocal = { ...afterRemote, localRefOid: 'c'.repeat(40) };
+    const observations = [
+      initial,
+      initial,
+      afterWorktree,
+      afterWorktree,
+      afterRemote,
+      changedLocal,
+    ];
+    const executed: string[] = [];
+    const plan = buildCleanupPlan(initial);
+
+    const result = applyCleanupPlan({
+      plan,
+      digest: cleanupPlanDigest(plan),
+      observe: () => observations.shift() ?? changedLocal,
+      execute: operation => {
+        executed.push(operation.kind);
+      },
+    });
+
+    expect(result.applied).toBe(false);
+    expect(result.blockers).toContain('delete-local-ref target changed during cleanup');
+    expect(executed).toEqual(['remove-worktree', 'delete-remote-ref']);
+  });
+
   it('stops before remote deletion when branch protection changes during cleanup', () => {
     const initial = safeObservation();
     const afterWorktree = safeObservation({ worktrees: [worktree(0)] });
@@ -1643,8 +1728,11 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     ).toEqual({ resolution: 'unknown' });
   });
 
-  it('passes untrusted cleanup target text as one shell-disabled argv element', () => {
-    const hostileReference = 'refs/heads/topic; touch /tmp/closeout-injection';
+  it.each([
+    ['option-like leading dash', '-topic'],
+    ['whitespace and control characters', 'refs/heads/topic with space\nnext'],
+    ['shell metacharacters', 'refs/heads/topic; touch /tmp/closeout-injection'],
+  ])('passes untrusted %s text as one shell-disabled argv element', (_case, hostileReference) => {
     const calls: { command: string; arguments_: string[]; cwd: string }[] = [];
 
     const result = executeCleanupOperation(

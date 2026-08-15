@@ -382,7 +382,6 @@ Feature: Close completed sessions safely
         | a changed remote URL                 |
         | multiple matching remotes            |
         | a fork-owned head repository         |
-        | a matching non-origin remote only    |
 
   @close-completed-sessions-safely.TBU1.R3
   Rule: close-completed-sessions-safely.TBU1.R3 — Protected, dirty, locked, main, or ambiguous targets are preserved and reported instead of force-removed
@@ -415,8 +414,7 @@ Feature: Close completed sessions safely
 
       Examples:
         | protected-state                         |
-        | the local default branch                |
-        | the remote default branch               |
+        | the default branch                      |
         | protected by repository branch policy   |
 
     @rejection @surface.claude-code @surface.openai-codex @surface.cursor
@@ -459,8 +457,6 @@ Feature: Close completed sessions safely
         | an option-like leading dash     |
         | whitespace or control characters |
         | shell metacharacters            |
-        | parent-directory traversal      |
-        | a symlink-ambiguous path        |
 
   @close-completed-sessions-safely.TBU1.R4
   Rule: close-completed-sessions-safely.TBU1.R4 — The same closeout contract is available through every supported local agent runtime

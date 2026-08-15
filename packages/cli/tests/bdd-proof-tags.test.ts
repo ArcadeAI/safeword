@@ -45,6 +45,24 @@ function readProofManifest(relativePath: string): ScenarioProofManifest {
   ) {
     throw new TypeError(`${relativePath} must declare a feature string and scenarios object`);
   }
+  for (const [scenario, registration] of Object.entries(manifest.scenarios)) {
+    const registrations =
+      Array.isArray(registration) && typeof registration[0] === 'string'
+        ? [registration]
+        : registration;
+    if (
+      !Array.isArray(registrations) ||
+      registrations.length === 0 ||
+      registrations.some(
+        proof =>
+          !Array.isArray(proof) ||
+          ![2, 3].includes(proof.length) ||
+          proof.some(value => typeof value !== 'string'),
+      )
+    ) {
+      throw new TypeError(`${relativePath}: ${scenario} has an invalid proof registration`);
+    }
+  }
   return manifest as ScenarioProofManifest;
 }
 
@@ -103,8 +121,8 @@ function executableVitestNames(source: string): string[] {
     const tokens = expressionTokens(call.expression);
     const root = tokens[0];
     if (root !== 'it' && root !== 'test') return undefined;
-    if (tokens.some(token => ['skip', 'skipIf', 'todo'].includes(token))) return undefined;
-    return tokens.length === 1 || tokens.at(-1) === 'each' ? root : undefined;
+    if (tokens.some(token => ['skip', 'skipIf', 'todo', 'only'].includes(token))) return undefined;
+    return root;
   }
 
   function visit(node: ts.Node): void {
@@ -126,9 +144,28 @@ function executableVitestNames(source: string): string[] {
   return names;
 }
 
-function parameterizedVitestCases(source: string): Map<string, Set<string>> {
+function focusedVitestDeclarations(source: string): string[] {
   const sourceFile = ts.createSourceFile('proof.test.ts', source, ts.ScriptTarget.Latest, true);
-  const casesByName = new Map<string, Set<string>>();
+  const focused: string[] = [];
+  function visit(node: ts.Node): void {
+    if (ts.isCallExpression(node)) {
+      const tokens = expressionTokens(node.expression);
+      if (
+        ['it', 'test', 'describe', 'suite'].includes(tokens[0] ?? '') &&
+        tokens.includes('only')
+      ) {
+        focused.push(tokens.join('.'));
+      }
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(sourceFile);
+  return focused;
+}
+
+function parameterizedVitestCases(source: string): Map<string, string[]> {
+  const sourceFile = ts.createSourceFile('proof.test.ts', source, ts.ScriptTarget.Latest, true);
+  const casesByName = new Map<string, string[]>();
 
   function unwrap(node: ts.Expression): ts.Expression {
     let current = node;
@@ -210,7 +247,7 @@ function parameterizedVitestCases(source: string): Map<string, Set<string>> {
     const declaration = parameterizedDeclaration(node);
     if (declaration !== undefined) {
       const cases = tableCaseValues(declaration.table, declaration.name);
-      if (cases.length > 0) casesByName.set(declaration.name, new Set(cases));
+      if (cases.length > 0) casesByName.set(declaration.name, cases);
     }
     ts.forEachChild(node, visit);
   }
@@ -226,13 +263,17 @@ function expectScenarioProofs(manifest: ScenarioProofManifest): void {
 
   const proofContracts = new Map<
     string,
-    { executableNames: string[]; parameterCases: Map<string, Set<string>> }
+    { executableNames: string[]; parameterCases: Map<string, string[]> }
   >();
   const registrationCounts = new Map<string, number>();
   function proofContract(proofPath: string) {
     const cached = proofContracts.get(proofPath);
     if (cached !== undefined) return cached;
     const proof = readFileSync(nodePath.join(REPO_ROOT, proofPath), 'utf8');
+    expect(
+      focusedVitestDeclarations(proof),
+      `${proofPath} must not focus Vitest declarations`,
+    ).toEqual([]);
     const contract = {
       executableNames: executableVitestNames(proof),
       parameterCases: parameterizedVitestCases(proof),
@@ -259,6 +300,10 @@ function expectScenarioProofs(manifest: ScenarioProofManifest): void {
         isCollectedVitestProofPath(proofPath),
         `${scenario} -> ${proofPath} must be a repo-contained collected Vitest test file`,
       ).toBe(true);
+      expect(
+        existsSync(nodePath.join(REPO_ROOT, proofPath)),
+        `${scenario} -> ${proofPath} must exist`,
+      ).toBe(true);
       const { executableNames, parameterCases } = proofContract(proofPath);
       const matches = executableNames.filter(executableName => executableName === testName);
       expect(matches, `${scenario} -> ${proofPath} must uniquely declare ${testName}`).toHaveLength(
@@ -269,9 +314,9 @@ function expectScenarioProofs(manifest: ScenarioProofManifest): void {
       if (selectedParameterCases !== undefined && registrationCount > 1) {
         expect(selectedCase, `${scenario} -> ${testName} must select one table case`).toBeDefined();
         expect(
-          selectedParameterCases.has(selectedCase ?? ''),
-          `${scenario} -> ${testName} must select an existing table case`,
-        ).toBe(true);
+          selectedParameterCases.filter(value => value === selectedCase),
+          `${scenario} -> ${testName} must select one unique table row`,
+        ).toHaveLength(1);
       }
     }
   }
@@ -350,6 +395,12 @@ describe('BDD proof provenance', () => {
       'unfinished behavior',
     );
     expect(
+      focusedVitestDeclarations("describe.only('focused', () => it('row', () => {}));"),
+    ).toEqual(['describe.only']);
+    expect(executableVitestNames("it.concurrent('parallel behavior', () => {});")).toContain(
+      'parallel behavior',
+    );
+    expect(
       executableVitestNames(
         "describe.skip('disabled suite', () => it('nested behavior', () => {}));",
       ),
@@ -372,8 +423,8 @@ describe('BDD proof provenance', () => {
       test.each([{ state: 'ready' }, { state: 'blocked' }])('object $state', () => {});
     `);
 
-    expect(cases.get('primitive %s')).toEqual(new Set(['alpha', 'beta']));
-    expect(cases.get('object $state')).toEqual(new Set(['ready', 'blocked']));
+    expect(cases.get('primitive %s')).toEqual(['alpha', 'beta']);
+    expect(cases.get('object $state')).toEqual(['ready', 'blocked']);
   });
 
   it('accepts only repository-contained tests collected by the normal Vitest projects', () => {
