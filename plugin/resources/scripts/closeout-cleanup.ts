@@ -103,11 +103,13 @@ export type CleanupOperation =
   | { kind: 'delete-local-ref'; cwd: string; ref: string; oid: string };
 
 export interface CleanupPlan {
-  version: 1;
+  version: 2;
   identity?: PullRequestIdentity;
   stateHash: string;
   retroStateHash: string;
   retro?: { spoolPath: string };
+  cleanupBlockers: string[];
+  recoveryBlockers: string[];
   blockers: string[];
   advisories: string[];
   completed: string[];
@@ -123,6 +125,12 @@ function normalizedRepository(url: string): string | undefined {
 }
 
 function block(plan: CleanupPlan, message: string): void {
+  if (!plan.cleanupBlockers.includes(message)) plan.cleanupBlockers.push(message);
+  if (!plan.blockers.includes(message)) plan.blockers.push(message);
+}
+
+function blockRecovery(plan: CleanupPlan, message: string): void {
+  if (!plan.recoveryBlockers.includes(message)) plan.recoveryBlockers.push(message);
   if (!plan.blockers.includes(message)) plan.blockers.push(message);
 }
 
@@ -130,15 +138,8 @@ function advise(plan: CleanupPlan, message: string): void {
   if (!plan.advisories.includes(message)) plan.advisories.push(message);
 }
 
-const RETROSPECTIVE_MESSAGES = new Set([
-  'retrospective extraction failed; resolve the extraction failure',
-  'retrospective filing failed; resolve the filing failure',
-  'the current session retrospective is incomplete',
-  'the current session filing spool has pending drafts',
-]);
-
 function hasCleanupAuthorizationBlocker(plan: CleanupPlan): boolean {
-  return plan.blockers.some(blocker => !RETROSPECTIVE_MESSAGES.has(blocker));
+  return plan.cleanupBlockers.length > 0;
 }
 
 function collectPrerequisiteBlockers(
@@ -155,12 +156,12 @@ function collectPrerequisiteBlockers(
   if (observation.retro.failure === 'extraction') {
     advise(plan, 'retrospective extraction failed; resolve the extraction failure');
   } else if (observation.retro.failure === 'filing') {
-    block(plan, 'retrospective filing failed; resolve the filing failure');
+    blockRecovery(plan, 'retrospective filing failed; resolve the filing failure');
   } else if (!observation.retro.complete) {
     advise(plan, 'the current session retrospective is incomplete');
   }
   if (observation.retro.pendingDrafts > 0)
-    block(plan, 'the current session filing spool has pending drafts');
+    blockRecovery(plan, 'the current session filing spool has pending drafts');
   if (observation.protection === 'unknown') block(plan, 'branch protection state is unknown');
   if (observation.protection === 'protected') block(plan, 'the topic branch is protected');
   if (observation.remoteResolution === 'ambiguous') {
@@ -281,9 +282,11 @@ function assembleOperations(
 
 export function buildCleanupPlan(observation: CloseoutObservation): CleanupPlan {
   const plan: CleanupPlan = {
-    version: 1,
+    version: 2,
     stateHash: observation.verification.stateHash,
     retroStateHash: observation.retro.evidenceHash,
+    cleanupBlockers: [],
+    recoveryBlockers: [],
     blockers: [],
     advisories: [],
     completed: [],
@@ -331,14 +334,11 @@ export function cleanupPlanDigest(plan: CleanupPlan): string {
     retroStateHash: _retroStateHash,
     retro: _retro,
     advisories: _advisories,
-    blockers,
+    recoveryBlockers: _recoveryBlockers,
+    blockers: _blockers,
     ...stableAuthorization
   } = plan;
-  const authorization = {
-    ...stableAuthorization,
-    blockers: blockers.filter(blocker => !RETROSPECTIVE_MESSAGES.has(blocker)),
-  };
-  return createHash('sha256').update(JSON.stringify(authorization)).digest('hex');
+  return createHash('sha256').update(JSON.stringify(stableAuthorization)).digest('hex');
 }
 
 export function operationCommand(operation: CleanupOperation): string[] {
