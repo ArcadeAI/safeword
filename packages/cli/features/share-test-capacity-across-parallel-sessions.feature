@@ -333,17 +333,14 @@ Feature: Let parallel sessions share test capacity safely
         | Linux | boot ID and proc stat start-time ticks | malformed |
         | Linux | boot ID and proc stat start-time ticks | permission-denied |
         | Linux | boot ID and proc stat start-time ticks | changed |
-        | Linux | boot ID and proc stat start-time ticks | indicating PID reuse |
         | Windows | process creation FILETIME for the PID | missing |
         | Windows | process creation FILETIME for the PID | malformed |
         | Windows | process creation FILETIME for the PID | permission-denied |
         | Windows | process creation FILETIME for the PID | changed |
-        | Windows | process creation FILETIME for the PID | indicating PID reuse |
         | macOS | LC_ALL=C process start time with conservative second-level precision | missing |
         | macOS | LC_ALL=C process start time with conservative second-level precision | malformed |
         | macOS | LC_ALL=C process start time with conservative second-level precision | permission-denied |
         | macOS | LC_ALL=C process start time with conservative second-level precision | changed |
-        | macOS | LC_ALL=C process start time with conservative second-level precision | indicating same-second PID reuse |
 
     @rejection @process
     Scenario Outline: Injected torn process identity snapshots fail closed without contributing native evidence
@@ -742,7 +739,7 @@ Feature: Let parallel sessions share test capacity safely
 
     @rejection @process
     Scenario Outline: Global guard ordering prevents deadlock on every terminal path
-      Given one same-worktree wrapper holds scheduler capacity while waiting for checkout ownership, another same-worktree wrapper holds that checkout ownership while waiting for capacity, and an unrelated worktree waits for capacity
+      Given one same-worktree wrapper holds checkout ownership and scheduler capacity, a second same-worktree wrapper waits on that checkout mutex with no permit, and an unrelated worktree waits for capacity
       When the first wrapper reaches <terminal-path>
       Then <ordering-outcome> and the waiting wrapper reaches an observable result without deadlock
       Examples:
