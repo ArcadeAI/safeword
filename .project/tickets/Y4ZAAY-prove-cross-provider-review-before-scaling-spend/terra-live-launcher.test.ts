@@ -26,7 +26,7 @@ import {
   terraLiveLauncherTestSupport,
   verifyAuthorizedPaidChildInput,
   verifyCommittedCorpusRegistration,
-  type PaidChildRequest,
+  type PaidChildResult,
   type PinnedCheckout,
 } from "./terra-live-launcher";
 
@@ -394,7 +394,7 @@ describe("credential-separated live launcher", () => {
     const inputPath = join(await mkdtemp(join(tmpdir(), "terra-composed-input-")), "input.json");
     await writeFile(inputPath, JSON.stringify({
       context: { attemptId: "attempt-1", intentId: "intent-1", outputDirectory, sequence: 1 },
-      expertsDirectory: join(tmpdir(), "terra-experts"),
+      expertsDirectory: join(adapter.directory, "tools/pr-review/experts"),
       policy: { maxVerifications: 2, toolCallsPerExpert: 3, wallClockMsPerExpert: 4_000 },
       review: {
         caseId: corpusCase.id,
@@ -492,7 +492,7 @@ describe("credential-separated live launcher", () => {
     const inputPath = join(await mkdtemp(join(tmpdir(), "terra-authorized-input-")), "input.json");
     await writeFile(inputPath, JSON.stringify({
       context: { attemptId: "attempt-1", intentId: "intent-1", outputDirectory, sequence: 1 },
-      expertsDirectory: join(tmpdir(), "terra-experts"),
+      expertsDirectory: join(adapter.directory, "tools/pr-review/experts"),
       policy: { maxVerifications: 2, toolCallsPerExpert: 3, wallClockMsPerExpert: 4_000 },
       review: {
         caseId: corpusCase.id,
@@ -561,7 +561,7 @@ describe("credential-separated live launcher", () => {
     const inputPath = join(await mkdtemp(join(tmpdir(), "terra-default-input-")), "input.json");
     await writeFile(inputPath, JSON.stringify({
       context: { attemptId: "attempt-1", intentId: "intent-1", outputDirectory, sequence: 1 },
-      expertsDirectory: join(tmpdir(), "terra-experts"),
+      expertsDirectory: join(adapter.directory, "tools/pr-review/experts"),
       policy: { maxVerifications: 2, toolCallsPerExpert: 3, wallClockMsPerExpert: 4_000 },
       review: {
         caseId: corpusCase.id,
@@ -604,6 +604,7 @@ describe("credential-separated live launcher", () => {
   });
 
   test("binds the paid child review to an exact frozen corpus case", async () => {
+    const adapter = await pinnedCheckout("adapter-corpus-input");
     const harness = await pinnedCheckout("harness-corpus-input");
     const corpusDirectory = join(import.meta.dirname, "../CWGYH0-pr-review-eval");
     const registration = JSON.parse(
@@ -631,7 +632,7 @@ describe("credential-separated live launcher", () => {
         outputDirectory: join(tmpdir(), "terra-output"),
         sequence: 1,
       },
-      expertsDirectory: join(tmpdir(), "terra-experts"),
+      expertsDirectory: join(adapter.directory, "tools/pr-review/experts"),
       policy: {
         maxVerifications: 2,
         toolCallsPerExpert: 3,
@@ -643,6 +644,7 @@ describe("credential-separated live launcher", () => {
     await writeFile(inputPath, JSON.stringify(request), "utf8");
 
     await expect(verifyAuthorizedPaidChildInput({
+      adapterCheckout: adapter,
       checkout: harness,
       inputPath,
       registration,
@@ -654,6 +656,7 @@ describe("credential-separated live launcher", () => {
       review: { ...review, sourceSha: "0".repeat(40) },
     }), "utf8");
     await expect(verifyAuthorizedPaidChildInput({
+      adapterCheckout: adapter,
       checkout: harness,
       inputPath,
       registration,
@@ -662,11 +665,24 @@ describe("credential-separated live launcher", () => {
 
     await writeFile(inputPath, JSON.stringify({ ...request, extra: true }), "utf8");
     await expect(verifyAuthorizedPaidChildInput({
+      adapterCheckout: adapter,
       checkout: harness,
       inputPath,
       registration,
       registrationCommit: harness.commit,
     })).rejects.toThrow("unexpected or missing fields");
+
+    await writeFile(inputPath, JSON.stringify({
+      ...request,
+      expertsDirectory: join(tmpdir(), "substituted-experts"),
+    }), "utf8");
+    await expect(verifyAuthorizedPaidChildInput({
+      adapterCheckout: adapter,
+      checkout: harness,
+      inputPath,
+      registration,
+      registrationCommit: harness.commit,
+    })).rejects.toThrow("do not come from the pinned adapter");
   });
 
   test("rejects corpus registration outside the authorized checkout history", async () => {

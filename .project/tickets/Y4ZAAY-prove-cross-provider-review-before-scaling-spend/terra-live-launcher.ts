@@ -366,6 +366,7 @@ export async function verifyCommittedCorpusRegistration(input: {
 }
 
 export async function verifyAuthorizedPaidChildInput(input: {
+  adapterCheckout: PinnedCheckout;
   checkout: PinnedCheckout;
   expectedContext?: CanaryDispatchContext;
   inputPath: string;
@@ -465,6 +466,15 @@ export async function verifyAuthorizedPaidChildInput(input: {
   ) {
     throw new Error("paid child review does not match its frozen corpus case");
   }
+  if (
+    request.expertsDirectory !==
+    join(input.adapterCheckout.directory, "tools/pr-review/experts")
+  ) {
+    throw new Error("paid child experts do not come from the pinned adapter");
+  }
+  // The pinned development-benchmark adapter resolves target.root into a fact
+  // pack and rejects unless its head/base equal review.sourceSha/reviewBaseSha
+  // before constructing either provider-backed agent.
   return createHash("sha256").update(inputBytes).digest("hex");
 }
 
@@ -586,6 +596,7 @@ async function runTerraPaidCanaryInternal(
     registrationCommit: input.registration.registrationCommit,
   });
   const inputDigest = await verifyAuthorizedPaidChildInput({
+    adapterCheckout: input.adapterCheckout,
     checkout: input.harnessCheckout,
     inputPath: input.inputPath,
     registration,
@@ -615,6 +626,7 @@ async function runTerraPaidCanaryInternal(
             preflightPinnedCheckoutInternal(input.harnessCheckout, testRemote),
           ]);
           const dispatchDigest = await verifyAuthorizedPaidChildInput({
+            adapterCheckout: input.adapterCheckout,
             checkout: input.harnessCheckout,
             expectedContext: preparedContext,
             inputPath: input.inputPath,
@@ -633,6 +645,7 @@ async function runTerraPaidCanaryInternal(
         outputDirectory: input.outputDirectory,
         prepare: async (context) => {
           const preparedDigest = await verifyAuthorizedPaidChildInput({
+            adapterCheckout: input.adapterCheckout,
             checkout: input.harnessCheckout,
             expectedContext: context,
             inputPath: input.inputPath,
