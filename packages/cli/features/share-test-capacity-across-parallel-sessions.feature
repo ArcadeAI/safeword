@@ -3,7 +3,7 @@ Feature: Let parallel sessions share test capacity safely
 
   Background:
     Given process evidence keys every started wrapper, ticket, container, command and descendant with monotonic sequence events
-    And every predetermined result, trusted attestation, independently verified identity and empty-container proof is fixed or authenticated before the action and is never derived from the outcome under assertion
+    And every predetermined result is predeclared in its fixture's per-platform signal-disposition table, and every trusted attestation, independently verified identity and empty-container proof is fixed or authenticated before the action and never derived from the outcome under assertion
     And every scenario that opens capacity state uses a test-isolated domain root with deterministic machine and user identity fixtures
 
   @share-test-capacity.TBU1.R1
@@ -145,7 +145,7 @@ Feature: Let parallel sessions share test capacity safely
     Scenario: Status warns that legacy wrappers cannot share capacity
       Given the current scheduler is idle at capacity two while a legacy package-test wrapper holds the recorded legacy mutex
       When the builder runs `safeword project test-capacity status`
-      Then zero-exit status identifies legacy processes as untracked and directs the operator to end every legacy execution, migrate participating worktrees, restore capacity one before any later legacy wrapper is used, and wait for the current scheduler to become idle before handoff
+      Then zero-exit status identifies legacy processes as untracked, reports the same capacity, version, owner and waiter sets as the no-legacy control, omits the legacy holder from owners and waiters, and directs the operator to end every legacy execution, migrate participating worktrees, restore capacity one before any later legacy wrapper is used, and wait for the current scheduler to become idle before handoff
 
     @rejection
     Scenario Outline: Invalid confirmation or incompatible protocol never raises capacity
@@ -423,9 +423,9 @@ Feature: Let parallel sessions share test capacity safely
 
     @process
     Scenario: Detached POSIX descendants remain an explicit unsupported fixture
-      Given repository code deliberately escapes its recorded POSIX process group and the ordinary group exits
+      Given repository code deliberately escapes its recorded POSIX process group, a barrier holds that escaped process active after the ordinary group exits, and teardown retains its exact external process identity
       When the scheduler admits one new repository process
-      Then keyed events show the newly admitted process overlaps the escaped process and teardown proves both processes exit
+      Then keyed events show the newly admitted process overlaps the escaped process, the barrier releases it, and external-identity teardown proves both processes exit
 
     Scenario: Supervisor loss returns capacity only after a second empty-group observation
       Given an injected monotonic clock and a first guarded observation prove the recorded supervisor instance, group-leader instance, and process group absent and mark the owner reclaiming without returning capacity at the current state version and reclaim marker
@@ -657,6 +657,12 @@ Feature: Let parallel sessions share test capacity safely
         | barriers give the capacity-2 command the guard before a concurrent capacity-3 command | capacity 2 commits at version N+1, then capacity 3 commits at N+2, and no reader observes a partial or skipped version |
         | barriers register a wrapper before a capacity-2 command can commit | capacity remains 1, the wrapper observes 1, and the set command exits SAFEWORD_TEST_CAPACITY_BUSY |
 
+    @rejection
+    Scenario: A reclaiming owner blocks a capacity update
+      Given canonical capacity is two and an owner is marked reclaiming between its first and second absence observations
+      When the builder runs `safeword project test-capacity set 1`
+      Then the command exits nonzero with SAFEWORD_TEST_CAPACITY_BUSY, names `safeword project test-capacity status` first, and durable state bytes and version remain unchanged
+
     Scenario: Capacity one preserves the hardened machine-wide serialization baseline
       Given canonical shared capacity is one and real wrappers use real build and test collaborators
       When a barrier holds one repository lifetime active while at least one wrapper from another worktree is observed waiting
@@ -721,10 +727,10 @@ Feature: Let parallel sessions share test capacity safely
       Then Safeword starts no repository process, changes no durable state, and exits nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE plus `safeword project test-capacity status` until the recorded domain is located, proven idle, and explicitly reset
 
     @wiring @process
-    Scenario: Public focused invocations reach Vitest once under one permit
-      Given a temporary worktree invokes the real public package-test command with one existing literal test file
-      When the focused wrapper is admitted
-      Then that unchanged file reaches Vitest exactly once under one permit and the wrapper exits zero
+    Scenario: Public focused invocations reach Vitest once with one permit each
+      Given canonical capacity is two and two temporary worktrees each invoke the real public package-test command with one existing literal test file
+      When both focused wrappers are admitted and barriers hold their repository lifetimes active
+      Then each unchanged file reaches Vitest exactly once under its own durable weight-one permit, both lifetimes overlap, and both wrappers exit zero
 
     Scenario: Public broad invocations reach Vitest unchanged under exclusive capacity
       Given a temporary worktree invokes the real public package-test command with a directory argument while one focused permit is active
@@ -752,6 +758,7 @@ Feature: Let parallel sessions share test capacity safely
         | capacity 1 with one or more waiters | 2 | SAFEWORD_TEST_CAPACITY_BUSY |
         | capacity 2 with one or more owners | 1 | SAFEWORD_TEST_CAPACITY_BUSY |
         | capacity 2 with one or more waiters | 1 | SAFEWORD_TEST_CAPACITY_BUSY |
+        | capacity 2 with an owner marked reclaiming between first and second absence observations | 1 | SAFEWORD_TEST_CAPACITY_BUSY |
         | idle | 0 | SAFEWORD_TEST_CAPACITY_INVALID |
         | idle | 9 | SAFEWORD_TEST_CAPACITY_INVALID |
         | idle | 1.5 | SAFEWORD_TEST_CAPACITY_INVALID |
@@ -798,6 +805,7 @@ Feature: Let parallel sessions share test capacity safely
         | recorded exact domain is D | `safeword project test-capacity reset --expected-domain OTHER --confirm-idle` | SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE returns and durable state/version remain unchanged with no repository process |
         | an incompatible durable schema | `safeword project test-capacity reset --expected-domain D --confirm-idle` | SAFEWORD_TEST_CAPACITY_STATE_UNSAFE returns and durable state/version remain unchanged with no repository process |
         | exact domain D has an owner or waiter | `safeword project test-capacity reset --expected-domain D --confirm-idle` | SAFEWORD_TEST_CAPACITY_BUSY returns and durable state/version remain unchanged with no repository process |
+        | exact domain D has an owner marked reclaiming between first and second absence observations | `safeword project test-capacity reset --expected-domain D --confirm-idle` | SAFEWORD_TEST_CAPACITY_BUSY returns and durable state/version remain unchanged with no repository process |
         | exact domain D identity is unverifiable | `safeword project test-capacity reset --expected-domain D --confirm-idle` | SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE returns and durable state/version remain unchanged with no repository process |
         | recorded exact domain is D | `safeword project test-capacity reset --expected-domain D --expected-domain D --confirm-idle` | SAFEWORD_TEST_CAPACITY_INVALID returns and durable state/version remain unchanged with no repository process |
         | recorded exact domain is D | `safeword project test-capacity reset --expected-domain D --confirm-idle --confirm-idle` | SAFEWORD_TEST_CAPACITY_INVALID returns and durable state/version remain unchanged with no repository process |
