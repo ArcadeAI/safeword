@@ -7,12 +7,13 @@ import {
   mkdirSync,
   mkdtempSync,
   readdirSync,
+  readFileSync,
   renameSync,
   rmSync,
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
@@ -25,6 +26,7 @@ import {
   codexSessionProofIsCurrent,
   currentCodexPluginIdentity,
   observeCodexHookProof,
+  observeCodexSessionProof,
   recordCodexHookProof,
   writeCodexActivationMarker,
 } from '../../src/codex-plugin/profile-proof.js';
@@ -51,6 +53,12 @@ describe('Codex profile hook proof', () => {
     return { codexHome, environment: { CODEX_HOME: codexHome } };
   }
 
+  function onlySessionProofPath(codexHome: string): string {
+    const root = nodePath.join(codexHome, 'safeword/session-proof-v1');
+    const project = nodePath.join(root, readdirSync(root)[0] ?? 'missing');
+    return nodePath.join(project, readdirSync(project)[0] ?? 'missing');
+  }
+
   afterEach(() => {
     for (const directory of directories) rmSync(directory, { recursive: true, force: true });
     directories.length = 0;
@@ -75,7 +83,7 @@ describe('Codex profile hook proof', () => {
   it.each([
     ['package version', { plugin_version: '0.0.0-stale' }, 'stale'],
     ['hook manifest digest', { manifest_sha256: '0'.repeat(64) }, 'stale'],
-    ['proof schema', { schema_version: 2 }, 'malformed'],
+    ['proof schema', { schema_version: 1 }, 'malformed'],
     ['missing fields', { recorded_at: undefined }, 'malformed'],
   ])('rejects proof with changed %s', (_case, override, expectedStatus) => {
     const { environment } = createProfileFixture();
@@ -84,9 +92,10 @@ describe('Codex profile hook proof', () => {
     writeFileSync(
       proofPath,
       JSON.stringify({
-        schema_version: 1,
+        schema_version: 2,
         event: 'session-start',
         ...currentCodexPluginIdentity(),
+        activation_id: null,
         recorded_at: '2026-07-28T00:00:00.000Z',
         ...override,
       }),
@@ -134,6 +143,26 @@ describe('Codex profile hook proof', () => {
       ).toBe('malformed');
     },
   );
+
+  it('accepts private same-user proof when POSIX permission metadata is unavailable', () => {
+    const { environment } = createProfileFixture();
+    for (const event of CODEX_PLUGIN_HOOK_EVENTS) recordCodexHookProof(event, environment);
+    chmodSync(codexProofPath(environment, 'stop'), 0o644);
+    const getuidDescriptor = Object.getOwnPropertyDescriptor(process, 'getuid');
+    Object.defineProperty(process, 'getuid', { configurable: true, value: undefined });
+    try {
+      expect(observeCodexHookProof(environment).status).toBe('current');
+    } finally {
+      if (getuidDescriptor === undefined) delete (process as { getuid?: unknown }).getuid;
+      else Object.defineProperty(process, 'getuid', getuidDescriptor);
+    }
+  });
+
+  it('treats an empty CODEX_HOME as unset instead of writing relative proof paths', () => {
+    expect(codexProofPath({ CODEX_HOME: '  ' })).toBe(
+      nodePath.join(homedir(), '.codex/safeword/hook-proof-v2/session-start.json'),
+    );
+  });
 
   it('requires current identity-bound proof from every packaged hook event', () => {
     const { environment } = createProfileFixture();
@@ -196,7 +225,31 @@ describe('Codex profile hook proof', () => {
     expect(codexSessionProofIsCurrent(otherProject, 'task-a', environment)).toBe(false);
   });
 
-  it('invalidates task proof when the profile plugin is reinstalled', () => {
+  it('treats a legacy task proof as observed history rather than current authority', () => {
+    const { codexHome, environment } = createProfileFixture();
+    const project = nodePath.join(codexHome, 'project');
+    mkdirSync(project);
+    recordCodexHookProof('session-start', environment, new Date('2026-08-02T09:00:00.000Z'), {
+      projectDirectory: project,
+      sessionId: 'legacy-task',
+    });
+    const proofRoot = nodePath.join(codexHome, 'safeword/session-proof-v1');
+    const projectProofDirectory = nodePath.join(proofRoot, readdirSync(proofRoot)[0] ?? 'missing');
+    const proofPath = nodePath.join(
+      projectProofDirectory,
+      readdirSync(projectProofDirectory)[0] ?? 'missing',
+    );
+    const currentProof = JSON.parse(readFileSync(proofPath, 'utf8')) as Record<string, unknown>;
+    const { activation_id: _activationId, ...legacyProof } = currentProof;
+    writeFileSync(proofPath, JSON.stringify({ ...legacyProof, schema_version: 1 }));
+
+    expect(observeCodexSessionProof(project, 'legacy-task', environment).status).toBe(
+      'prior-observed',
+    );
+    expect(codexSessionProofIsCurrent(project, 'legacy-task', environment)).toBe(false);
+  });
+
+  it('preserves task proof as a prior observed runtime when the profile plugin is reinstalled', () => {
     const { codexHome, environment } = createProfileFixture();
     const project = nodePath.join(codexHome, 'project');
     mkdirSync(project);
@@ -210,6 +263,37 @@ describe('Codex profile hook proof', () => {
     });
 
     expect(codexSessionProofIsCurrent(project, 'task-a', environment)).toBe(false);
+    expect(observeCodexSessionProof(project, 'task-a', environment)).toMatchObject({
+      status: 'prior-observed',
+      plugin_version: currentCodexPluginIdentity().plugin_version,
+      recorded_at: '2026-08-02T09:00:00.000Z',
+    });
+  });
+
+  it('does not trust a writable task proof as prior-runtime evidence', () => {
+    const { codexHome, environment } = createProfileFixture();
+    const project = nodePath.join(codexHome, 'project');
+    mkdirSync(project);
+    recordCodexHookProof('session-start', environment, new Date('2026-08-02T09:00:00.000Z'), {
+      projectDirectory: project,
+      sessionId: 'task-a',
+    });
+    const proofRoot = nodePath.join(codexHome, 'safeword/session-proof-v1');
+    const projectProofName = readdirSync(proofRoot)[0];
+    expect(projectProofName).toBeDefined();
+    const projectProofDirectory = nodePath.join(proofRoot, projectProofName ?? 'missing');
+    const proofName = readdirSync(projectProofDirectory)[0];
+    expect(proofName).toBeDefined();
+    const proofPath = nodePath.join(projectProofDirectory, proofName ?? 'missing');
+    chmodSync(proofPath, 0o644);
+    writeCodexActivationMarker(environment, new Date('2026-08-02T09:01:00.000Z'), {
+      activeHosts: [],
+    });
+
+    expect(observeCodexSessionProof(project, 'task-a', environment)).toMatchObject({
+      status: 'untrusted',
+      plugin_version: null,
+    });
   });
 
   it('invalidates proof that predates a new installation', () => {
@@ -248,7 +332,105 @@ describe('Codex profile hook proof', () => {
     });
 
     expect(existsSync(nodePath.join(codexHome, 'safeword/activation-pending-v2.json'))).toBe(true);
-    expect(observeCodexHookProof(environment).status).toBe('partial');
+    expect(observeCodexHookProof(environment).status).toBe('stale');
+  });
+
+  it('retains the current Codex host when process discovery returns an empty running set', () => {
+    const { codexHome, environment } = createProfileFixture();
+    writeCodexActivationMarker(environment, new Date('2026-08-02T08:52:42.000Z'), {
+      activationId: 'activation-empty-running',
+      hostObservation: { available: true, current: OLD_HOST, running: [] },
+    });
+
+    const markerPath = nodePath.join(codexHome, 'safeword/activation-pending-v2.json');
+    expect(JSON.parse(readFileSync(markerPath, 'utf8'))).toMatchObject({
+      host_observation: 'observed',
+      active_hosts: [OLD_HOST],
+    });
+
+    recordCodexHookProof('session-start', environment, new Date('2026-08-02T09:01:00.000Z'), {
+      hostObservation: { available: true, current: OLD_HOST, running: [] },
+    });
+
+    expect(existsSync(markerPath)).toBe(true);
+  });
+
+  it('treats an empty install-time host observation as unavailable', () => {
+    const { codexHome, environment } = createProfileFixture();
+    writeCodexActivationMarker(environment, new Date('2026-08-02T08:52:42.000Z'), {
+      activationId: 'activation-no-host',
+      hostObservation: { available: true, current: null, running: [] },
+    });
+
+    const markerPath = nodePath.join(codexHome, 'safeword/activation-pending-v2.json');
+    expect(JSON.parse(readFileSync(markerPath, 'utf8'))).toMatchObject({
+      host_observation: 'unavailable',
+      active_hosts: [],
+    });
+    recordCodexHookProof('session-start', environment, new Date('2026-08-02T09:01:00.000Z'), {
+      currentHost: RESTARTED_HOST,
+    });
+
+    expect(existsSync(markerPath)).toBe(true);
+    expect(existsSync(nodePath.join(codexHome, 'safeword/activation-current-v1.json'))).toBe(false);
+  });
+
+  it('bounds retained task proof history while keeping the newest task', () => {
+    const { codexHome, environment } = createProfileFixture();
+    const project = nodePath.join(codexHome, 'project');
+    const otherProject = nodePath.join(codexHome, 'other-project');
+    mkdirSync(project);
+    mkdirSync(otherProject);
+    recordCodexHookProof('session-start', environment, new Date('2026-08-02T08:59:00.000Z'), {
+      projectDirectory: otherProject,
+      sessionId: 'other-task',
+    });
+    const proofRoot = nodePath.join(codexHome, 'safeword/session-proof-v1');
+    const emptyProjectDirectory = nodePath.join(proofRoot, 'empty-project');
+    mkdirSync(emptyProjectDirectory);
+
+    for (let index = 0; index < 258; index += 1) {
+      recordCodexHookProof(
+        'session-start',
+        environment,
+        new Date(Date.UTC(2026, 7, 2, 9, 0, index)),
+        { projectDirectory: project, sessionId: `task-${index}` },
+      );
+    }
+
+    const retainedProofs = readdirSync(proofRoot, { withFileTypes: true }).flatMap(entry =>
+      readdirSync(nodePath.join(proofRoot, entry.name)),
+    );
+    expect(retainedProofs).toHaveLength(257);
+    // An empty sibling may belong to a concurrent writer. It stays until the
+    // bounded project cap can evict it without racing that write.
+    expect(existsSync(emptyProjectDirectory)).toBe(true);
+    expect(observeCodexSessionProof(project, 'task-257', environment).status).toBe('current');
+    expect(observeCodexSessionProof(otherProject, 'other-task', environment).status).toBe(
+      'current',
+    );
+  });
+
+  it('bounds retained project histories without evicting the active project', () => {
+    const { codexHome, environment } = createProfileFixture();
+    for (let index = 0; index < 66; index += 1) {
+      const project = nodePath.join(codexHome, `project-${index}`);
+      mkdirSync(project);
+      recordCodexHookProof('session-start', environment, new Date(Date.UTC(2026, 7, 2, 9, index)), {
+        projectDirectory: project,
+        sessionId: `task-${index}`,
+      });
+    }
+
+    const proofRoot = nodePath.join(codexHome, 'safeword/session-proof-v1');
+    expect(readdirSync(proofRoot)).toHaveLength(64);
+    expect(
+      observeCodexSessionProof(nodePath.join(codexHome, 'project-65'), 'task-65', environment)
+        .status,
+    ).toBe('current');
+    expect(
+      observeCodexSessionProof(nodePath.join(codexHome, 'project-0'), 'task-0', environment).status,
+    ).toBe('missing');
   });
 
   it.each([
@@ -314,7 +496,7 @@ describe('Codex profile hook proof', () => {
 
     expect(existsSync(nodePath.join(codexHome, 'safeword/activation-pending-v2.json'))).toBe(true);
     expect(observeCodexHookProof(environment)).toMatchObject({
-      status: 'partial',
+      status: 'stale',
       activation_id: 'activation-unknown-hosts',
     });
   });
@@ -336,5 +518,104 @@ describe('Codex profile hook proof', () => {
       status: 'partial',
       activation_id: 'activation-rc2',
     });
+  });
+
+  it('does not promote a pre-install task proof after a same-version restart', () => {
+    const { codexHome, environment } = createProfileFixture();
+    const project = nodePath.join(codexHome, 'project');
+    mkdirSync(project);
+    recordCodexHookProof('session-start', environment, new Date('2026-08-02T08:30:00.000Z'), {
+      projectDirectory: project,
+      sessionId: 'old-task',
+    });
+    writeCodexActivationMarker(environment, new Date('2026-08-02T08:52:42.000Z'), {
+      activationId: 'activation-same-version',
+      activeHosts: [OLD_HOST],
+    });
+    recordCodexHookProof('session-start', environment, new Date('2026-08-02T09:01:00.000Z'), {
+      currentHost: RESTARTED_HOST,
+      projectDirectory: project,
+      sessionId: 'restarted-task',
+    });
+
+    expect(observeCodexSessionProof(project, 'old-task', environment).status).toBe(
+      'prior-observed',
+    );
+    expect(observeCodexSessionProof(project, 'restarted-task', environment).status).toBe('current');
+  });
+
+  it('keeps an older plugin identity prior-observed after the marker is retired', () => {
+    const { codexHome, environment } = createProfileFixture();
+    const project = nodePath.join(codexHome, 'project');
+    mkdirSync(project);
+    recordCodexHookProof('session-start', environment, new Date('2026-08-02T08:30:00.000Z'), {
+      projectDirectory: project,
+      sessionId: 'old-task',
+    });
+    const oldProofPath = onlySessionProofPath(codexHome);
+    const oldProof = JSON.parse(readFileSync(oldProofPath, 'utf8')) as Record<string, unknown>;
+    writeFileSync(
+      oldProofPath,
+      JSON.stringify({
+        ...oldProof,
+        plugin_version: '0.77.0',
+        manifest_sha256: '0'.repeat(64),
+      }),
+    );
+    writeCodexActivationMarker(environment, new Date('2026-08-02T08:52:42.000Z'), {
+      activationId: 'activation-upgrade',
+      activeHosts: [OLD_HOST],
+    });
+    recordCodexHookProof('session-start', environment, new Date('2026-08-02T09:01:00.000Z'), {
+      currentHost: RESTARTED_HOST,
+      projectDirectory: project,
+      sessionId: 'restarted-task',
+    });
+
+    expect(existsSync(nodePath.join(codexHome, 'safeword/activation-pending-v2.json'))).toBe(false);
+    expect(observeCodexSessionProof(project, 'old-task', environment)).toMatchObject({
+      status: 'prior-observed',
+      plugin_version: '0.77.0',
+    });
+    expect(codexSessionProofIsCurrent(project, 'old-task', environment)).toBe(false);
+  });
+
+  it('never promotes task proof through a permission-widened activation receipt', () => {
+    const { codexHome, environment } = createProfileFixture();
+    const project = nodePath.join(codexHome, 'project');
+    mkdirSync(project);
+    writeCodexActivationMarker(environment, new Date('2026-08-02T08:52:42.000Z'), {
+      activationId: 'activation-untrusted-receipt',
+      activeHosts: [OLD_HOST],
+    });
+    recordCodexHookProof('session-start', environment, new Date('2026-08-02T09:01:00.000Z'), {
+      currentHost: RESTARTED_HOST,
+      projectDirectory: project,
+      sessionId: 'task-a',
+    });
+    const receiptPath = nodePath.join(codexHome, 'safeword/activation-current-v1.json');
+    chmodSync(receiptPath, 0o644);
+
+    expect(observeCodexSessionProof(project, 'task-a', environment).status).toBe('prior-observed');
+    expect(codexSessionProofIsCurrent(project, 'task-a', environment)).toBe(false);
+  });
+
+  it('distinguishes trusted proof waiting on activation from malformed proof', () => {
+    const { codexHome, environment } = createProfileFixture();
+    const project = nodePath.join(codexHome, 'project');
+    mkdirSync(project);
+    writeCodexActivationMarker(environment, new Date('2026-08-02T08:52:42.000Z'), {
+      activationId: 'activation-pending-proof',
+      activeHosts: [OLD_HOST],
+    });
+    recordCodexHookProof('session-start', environment, new Date('2026-08-02T09:01:00.000Z'), {
+      currentHost: OLD_HOST,
+      projectDirectory: project,
+      sessionId: 'task-a',
+    });
+
+    expect(observeCodexSessionProof(project, 'task-a', environment).status).toBe(
+      'activation-pending',
+    );
   });
 });

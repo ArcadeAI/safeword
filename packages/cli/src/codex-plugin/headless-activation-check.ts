@@ -451,8 +451,11 @@ export function runHeadlessCodexActivationCheck(
     startedAt,
   });
   const proof = observeCodexHookProof(environment);
-  if (proof.status !== 'current') {
-    throw new Error(`Headless Codex task left hook proof ${proof.status}.`);
+  const expectedProofStatus = options.expectedActivation === 'pending' ? 'stale' : 'current';
+  if (proof.status !== expectedProofStatus) {
+    throw new Error(
+      `Headless Codex task left hook proof ${proof.status}; expected ${expectedProofStatus}.`,
+    );
   }
   return {
     activation: options.expectedActivation,

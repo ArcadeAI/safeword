@@ -18,7 +18,6 @@ import {
   runHeadlessCodexActivationCheck,
 } from '../../src/codex-plugin/headless-activation-check.js';
 import {
-  CODEX_PLUGIN_HOOK_EVENTS,
   type CodexHostProcessIdentity,
   writeCodexActivationMarker,
 } from '../../src/codex-plugin/profile-proof.js';
@@ -158,9 +157,10 @@ describe('headless Codex activation check', () => {
       activation: 'pending',
       codexVersion: 'codex-cli 0.144.5',
       model: DEFAULT_CODEX_ACTIVATION_CHECK_MODEL,
+      proof: { status: 'stale' },
       warnings: ['fixture marketplace warning'],
     });
-    expect(result.proof.events).toEqual(CODEX_PLUGIN_HOOK_EVENTS);
+    expect(result.proof.events).toEqual([]);
     expect(readFileSync(fakeCodex.log, 'utf8')).toContain(
       `-m ${DEFAULT_CODEX_ACTIVATION_CHECK_MODEL}`,
     );

@@ -163,7 +163,20 @@ describe('migrate codex-plugin command', () => {
 
   function recordCurrentProof(fixture: ReturnType<typeof createMigrationFixture>): void {
     const environment = { CODEX_HOME: fixture.codexHome };
+    const markerPath = nodePath.join(fixture.codexHome, 'safeword/activation-pending-v2.json');
+    const activationPending = existsSync(markerPath);
+    if (activationPending) {
+      const marker = JSON.parse(readFileSync(markerPath, 'utf8')) as { activation_id: string };
+      writeCodexActivationMarker(environment, new Date(Date.now() - 1000), {
+        activationId: marker.activation_id,
+        activeHosts: [{ pid: 100, started_at: '2026-08-14T08:00:00.000Z' }],
+      });
+      recordCodexHookProof('session-start', environment, new Date(), {
+        currentHost: { pid: 200, started_at: '2026-08-14T09:00:00.000Z' },
+      });
+    }
     for (const event of CODEX_PLUGIN_HOOK_EVENTS) {
+      if (event === 'session-start' && activationPending) continue;
       recordCodexHookProof(event, environment);
     }
   }
