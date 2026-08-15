@@ -244,6 +244,7 @@ describe('BDD proof provenance', () => {
   });
 
   it.each([
+    ['bash ledger write gate', '.project/tickets/W42G34-bash-ledger-write-gate/bdd-proof.json'],
     [
       'audit domain documentation',
       '.project/tickets/N0W5KG-audit-domain-docs-freshness/bdd-proof.json',

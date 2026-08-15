@@ -1,0 +1,22 @@
+{
+  "feature": "features/bash-ledger-write-gate.feature",
+  "scenarios": {
+    "The bulk-tick sed command from the audit is denied": ["packages/cli/tests/integration/bash-ledger-write-gate.test.ts", "Scenario: the bulk-tick sed command from the audit is denied"],
+    "A read-only reference to the ledger is allowed": ["packages/cli/tests/hooks/bash-ledger-writes.test.ts", "Scenario: a read-only reference to the ledger is allowed"],
+    "A command with no ledger reference is allowed": ["packages/cli/tests/hooks/bash-ledger-writes.test.ts", "Scenario: a command with no ledger reference is allowed"],
+    "Mentioning the ledger path without a write shape is allowed": ["packages/cli/tests/hooks/bash-ledger-writes.test.ts", "Scenario: mentioning the ledger path without a write shape is allowed"],
+    "Each recognized write shape targeting the ledger is denied": ["packages/cli/tests/hooks/bash-ledger-writes.test.ts", "Scenario outline: %s targeting the ledger is denied"],
+    "A write-shaped segment inside a compound command is denied": ["packages/cli/tests/hooks/bash-ledger-writes.test.ts", "Scenario: a write-shaped segment inside a compound command is denied"],
+    "Redirecting ledger contents to another file is allowed": ["packages/cli/tests/hooks/bash-ledger-writes.test.ts", "Scenario: redirecting ledger contents to another file is allowed"],
+    "Writing a test-definitions.md outside the tickets namespace is allowed": ["packages/cli/tests/hooks/bash-ledger-writes.test.ts", "Scenario: writing a test-definitions.md outside the tickets namespace is allowed"],
+    "An obfuscated write the predicate cannot see is allowed by design": ["packages/cli/tests/hooks/bash-ledger-writes.test.ts", "Scenario: an obfuscated write the predicate cannot see is allowed by design"],
+    "An inline interpreter that names the ledger is denied even if its code only reads": ["packages/cli/tests/hooks/bash-ledger-writes.test.ts", "Scenario: an inline interpreter that names the ledger is denied even if its code only reads"],
+    "The predicate module documents what it cannot catch": ["packages/cli/tests/hooks/bash-ledger-writes.test.ts", "Scenario: the predicate module documents what it cannot catch"],
+    "The Claude gate denies a ledger write through its Bash branch": ["packages/cli/tests/integration/bash-ledger-write-gate.test.ts", "Scenario: the Claude gate denies a ledger write through its Bash branch"],
+    "The Codex adapter carries the same denial": ["packages/cli/tests/integration/bash-ledger-write-gate.test.ts", "Scenario: the Codex adapter carries the same denial"],
+    "The Codex adapter passes an allowed command through": ["packages/cli/tests/integration/bash-ledger-write-gate.test.ts", "Scenario: the Codex adapter passes an allowed command through"],
+    "Cursor's shell pre-filter consults the gate for ledger writes": ["packages/cli/tests/hooks/bash-ledger-writes.test.ts", "Scenario: Cursor's shell pre-filter consults the gate for ledger writes"],
+    "Cursor's shell pre-filter does not demand the gate for a read-only command": ["packages/cli/tests/hooks/bash-ledger-writes.test.ts", "Scenario: Cursor's shell pre-filter does not demand the gate for a read-only command"],
+    "The denial message directs to the Edit channel with the reason": ["packages/cli/tests/integration/bash-ledger-write-gate.test.ts", "Scenario: the denial message directs to the Edit channel with the reason"]
+  }
+}
