@@ -76,11 +76,18 @@ function closeServer(server: ReturnType<typeof createServer>): Promise<void> {
 }
 
 function occupiedPort(): Promise<{ port: number; release: () => Promise<void> }> {
-  return new Promise(resolve => {
+  return new Promise((resolve, reject) => {
     const blocker = createServer();
+    blocker.once('error', reject);
     blocker.listen(0, '127.0.0.1', () => {
+      blocker.off('error', reject);
       const address = blocker.address();
-      if (address === null || typeof address === 'string') throw new Error('no port');
+      if (address === null || typeof address === 'string') {
+        blocker.close(() => {
+          reject(new Error('blocker did not bind a TCP port'));
+        });
+        return;
+      }
       resolve({ port: address.port, release: () => closeServer(blocker) });
     });
   });
