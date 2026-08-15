@@ -1,4 +1,4 @@
-import { execFileSync, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import {
   cpSync,
   existsSync,
@@ -14,14 +14,18 @@ import nodePath from 'node:path';
 import process from 'node:process';
 
 import { legacyCodexEventIsViable } from '../codex-plugin/legacy-authority.js';
-import { recordCodexHookProof } from '../codex-plugin/profile-proof.js';
+import {
+  CODEX_PLUGIN_HOOK_EVENTS,
+  type CodexPluginHookEvent,
+  recordCodexHookProof,
+} from '../codex-plugin/profile-proof.js';
+import { resolveCodexProjectDirectory } from '../codex-plugin/project-directory.js';
 import { generateOwnedPathsModule } from '../owned-paths.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
 import { hasSafewordProjectMarker, resolveNamespaceRoot } from '../utils/configured-paths.js';
 
 type AdditionalContextHookEvent = 'PostToolUse' | 'SessionStart' | 'UserPromptSubmit';
-type SupportedCodexHookEvent =
-  'post-tool-use' | 'pre-tool-use' | 'session-start' | 'stop' | 'user-prompt-submit';
+type SupportedCodexHookEvent = CodexPluginHookEvent;
 
 interface CodexHookInput {
   hook_event_name?: string;
@@ -82,13 +86,7 @@ const REVIEW_STAMP_CACHE_KEY = 'review-stamp';
 const SKILL_NAME_PATTERN = /^[a-z][a-z0-9-]*$/u;
 const SHELL_SEPARATORS = ';&|';
 const SHELL_WHITESPACE = [' ', '\n', '\r', '\t', '\v', '\f'].join('');
-const SUPPORTED_CODEX_HOOK_EVENTS: ReadonlySet<string> = new Set([
-  'post-tool-use',
-  'pre-tool-use',
-  'session-start',
-  'stop',
-  'user-prompt-submit',
-]);
+const SUPPORTED_CODEX_HOOK_EVENTS: ReadonlySet<string> = new Set(CODEX_PLUGIN_HOOK_EVENTS);
 
 async function readStdin(): Promise<string> {
   stdinCache.body ??= (async () => {
@@ -104,32 +102,37 @@ const stdinCache: { body?: Promise<string> } = {};
 
 function parseCodexHookInput(raw: string): CodexHookInput | undefined {
   try {
-    return JSON.parse(raw) as CodexHookInput;
+    const value = JSON.parse(raw) as unknown;
+    if (typeof value !== 'object' || value === null) return undefined;
+    const input = value as Record<string, unknown>;
+    return {
+      hook_event_name: optionalString(input, 'hook_event_name'),
+      session_id: optionalString(input, 'session_id'),
+      tool_name: optionalString(input, 'tool_name'),
+      tool_input: normalizeToolInput(input.tool_input),
+    };
   } catch {
     return undefined;
   }
 }
 
+function optionalString(record: Record<string, unknown>, key: string): string | undefined {
+  return typeof record[key] === 'string' ? record[key] : undefined;
+}
+
+function normalizeToolInput(value: unknown): CodexHookInput['tool_input'] {
+  if (typeof value !== 'object' || value === null) return undefined;
+  const toolInput = value as Record<string, unknown>;
+  return {
+    command: optionalString(toolInput, 'command'),
+    file_path: optionalString(toolInput, 'file_path'),
+    notebook_path: optionalString(toolInput, 'notebook_path'),
+  };
+}
+
 function normalizeEvent(event: string): SupportedCodexHookEvent | undefined {
   if (SUPPORTED_CODEX_HOOK_EVENTS.has(event)) return event as SupportedCodexHookEvent;
   return undefined;
-}
-
-function resolveProjectDirectory(): string {
-  if (process.env.CLAUDE_PROJECT_DIR) return process.env.CLAUDE_PROJECT_DIR;
-
-  try {
-    const root = execFileSync('git', ['rev-parse', '--show-toplevel'], {
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-      timeout: 5000,
-    }).trim();
-    if (root.length > 0) return root;
-  } catch {
-    // Fall back to cwd when the hook runs outside git or git is unavailable.
-  }
-
-  return process.cwd();
 }
 
 function isShellWhitespace(character: string | undefined): boolean {
@@ -278,9 +281,14 @@ function missingIntakeFields(ticketContent: string): string[] {
   return REQUIRED_INTAKE_FIELDS.filter(field => !frontmatterHasField(body, field));
 }
 
-function testDefinitionsTicketFolder(targetPath: string): string | undefined {
-  const normalized = targetPath.replaceAll('\\', '/');
-  const match = /^\.project\/tickets\/([^/]+)\/test-definitions\.md$/u.exec(normalized);
+function testDefinitionsTicketFolder(
+  projectDirectory: string,
+  targetPath: string,
+): string | undefined {
+  const ticketsDirectory = nodePath.join(resolveNamespaceRoot(projectDirectory), 'tickets');
+  const absoluteTarget = nodePath.resolve(projectDirectory, targetPath);
+  const normalized = nodePath.relative(ticketsDirectory, absoluteTarget).replaceAll('\\', '/');
+  const match = /^([^/]+)\/test-definitions\.md$/u.exec(normalized);
   return match?.[1];
 }
 
@@ -519,10 +527,15 @@ function emitStopContinuation(output: StopContinuationOutput): void {
 }
 
 function maybeDenyTestDefinitionsWrite(projectDirectory: string, targetPath: string): boolean {
-  const ticketFolder = testDefinitionsTicketFolder(targetPath);
+  const ticketFolder = testDefinitionsTicketFolder(projectDirectory, targetPath);
   if (!ticketFolder) return false;
 
-  const ticketPath = nodePath.join(projectDirectory, '.project/tickets', ticketFolder, 'ticket.md');
+  const ticketPath = nodePath.join(
+    resolveNamespaceRoot(projectDirectory),
+    'tickets',
+    ticketFolder,
+    'ticket.md',
+  );
   const ticketContent = existsSync(ticketPath) ? readFileSync(ticketPath, 'utf8') : '';
   const missing = missingIntakeFields(ticketContent);
   if (missing.length === 0) return false;
@@ -563,8 +576,7 @@ function runEnrolledPreToolUse(
   }
 }
 
-async function runPreToolUse(): Promise<void> {
-  const projectDirectory = resolveProjectDirectory();
+async function runPreToolUse(projectDirectory: string): Promise<void> {
   if (!hasSafewordProjectMarker(projectDirectory)) return;
 
   // bunx uses a shared cache and can replace a package directory while another
@@ -580,9 +592,8 @@ async function runPreToolUse(): Promise<void> {
   runEnrolledPreToolUse(rawInput, projectDirectory, qualityResult);
 }
 
-async function runSessionStart(): Promise<void> {
+async function runSessionStart(projectDirectory: string): Promise<void> {
   const rawInput = await readStdin();
-  const projectDirectory = resolveProjectDirectory();
   const packagedResult = runPackagedHook('session-codex-start.ts', rawInput, projectDirectory);
   if (packagedResult.stdout.trim() !== '') {
     process.stdout.write(packagedResult.stdout);
@@ -629,9 +640,8 @@ function collectPostToolLintContexts(lintInputs: string[], projectDirectory: str
   return contexts;
 }
 
-async function runPostToolUse(): Promise<void> {
+async function runPostToolUse(projectDirectory: string): Promise<void> {
   const rawInput = await readStdin();
-  const projectDirectory = resolveProjectDirectory();
   if (!hasSafewordProjectMarker(projectDirectory)) return;
   const input = parseCodexHookInput(rawInput);
   const lintInputs = postToolLintInputs(input, rawInput, projectDirectory);
@@ -660,9 +670,8 @@ async function runPostToolUse(): Promise<void> {
   });
 }
 
-async function runUserPromptSubmit(): Promise<void> {
+async function runUserPromptSubmit(projectDirectory: string): Promise<void> {
   const rawInput = await readStdin();
-  const projectDirectory = resolveProjectDirectory();
   const contexts = [currentTimestampContext()];
   if (hasSafewordProjectMarker(projectDirectory)) {
     const retroNudge = packagedAdditionalContext(
@@ -683,9 +692,8 @@ async function runUserPromptSubmit(): Promise<void> {
   });
 }
 
-async function runStop(): Promise<void> {
+async function runStop(projectDirectory: string): Promise<void> {
   const rawInput = await readStdin();
-  const projectDirectory = resolveProjectDirectory();
   if (!hasSafewordProjectMarker(projectDirectory)) {
     emitStopNoop();
     return;
@@ -712,7 +720,7 @@ async function runStop(): Promise<void> {
   emitStopNoop();
 }
 
-const CODEX_HOOK_RUNNERS: Record<SupportedCodexHookEvent, () => Promise<void>> = {
+const CODEX_HOOK_RUNNERS: Record<SupportedCodexHookEvent, (project: string) => Promise<void>> = {
   'post-tool-use': runPostToolUse,
   'pre-tool-use': runPreToolUse,
   'session-start': runSessionStart,
@@ -729,19 +737,20 @@ export async function codexHook(
     process.stderr.write(`Safeword ignored unknown Codex hook event: ${event}\n`);
     return;
   }
+  const projectDirectory = resolveCodexProjectDirectory();
   if (options.pluginHook === true) {
     try {
       const rawInput = await readStdin();
       const input = parseCodexHookInput(rawInput);
       recordCodexHookProof(normalized, process.env, new Date(), {
-        projectDirectory: resolveProjectDirectory(),
+        projectDirectory,
         sessionId: input?.session_id,
       });
     } catch {
       // Proof is advisory state. A read-only or malformed CODEX_HOME must never
       // prevent the packaged hook itself from protecting the project.
     }
-    if (legacyCodexEventIsViable(resolveProjectDirectory(), normalized)) return;
+    if (legacyCodexEventIsViable(projectDirectory, normalized)) return;
   }
-  await CODEX_HOOK_RUNNERS[normalized]();
+  await CODEX_HOOK_RUNNERS[normalized](projectDirectory);
 }
