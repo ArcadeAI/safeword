@@ -120,6 +120,35 @@ describe('relay maintenance interval', () => {
       store.close();
     }
   });
+
+  it('releases its interval and process lock when the server closes', async () => {
+    const { store, sweeps } = countingStore();
+    const lockPath = path.join(scratchDirectory(), 'relay.lock');
+    const started = await startRelayServer({
+      credentials: new CredentialRegistry('pepper'),
+      github: offlineGitHub(),
+      host: '127.0.0.1',
+      lockPath,
+      maintenanceIntervalMs: 10,
+      payloadKey: Buffer.alloc(32, 7),
+      port: 0,
+      store,
+    });
+
+    try {
+      await vi.advanceTimersByTimeAsync(10);
+      expect(sweeps()).toBeGreaterThan(0);
+
+      await closeServer(started.server);
+      const settled = sweeps();
+      await vi.advanceTimersByTimeAsync(80);
+      expect(sweeps()).toBe(settled);
+      ProcessLock.acquire(lockPath).release();
+    } finally {
+      if (started.server.listening) await closeServer(started.server);
+      store.close();
+    }
+  });
 });
 
 describe('relay startup failure', () => {
