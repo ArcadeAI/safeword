@@ -6096,7 +6096,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/bdd/SCENARIOS.md": "c808d4c8455f8f6248f85e2d2403e881bdab83e0ac19e8c3dd9c28fb9c2ee8f4",
         ".claude/skills/bdd/SKILL.md": "df9f7927be3289f3ffb0444d49ae25fe601ce33b9661f7a809f74dff8da40ff0",
         ".claude/skills/bdd/SPLITTING.md": "e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708",
-        ".claude/skills/bdd/TDD.md": "7422daec574503e8ff9dc8382a0d6d8aa2549dfa5959c7d21b9add52a0e28fa7",
+        ".claude/skills/bdd/TDD.md": "2865c9efa57682eb211cc101f9db15f529bd605c3a2bebb57131e2a6d3aec79d",
         ".claude/skills/bdd/VERIFY.md": "85abadfe756a3f391779fe500cd5c66597a33e0cab7fcef55f6b633b30818f31",
         ".claude/skills/brainstorm/SKILL.md": "fe99638bd1621cbd5fe3780a8d39023d4b175e3be2aef2e60d0ebe7558848f2e",
         ".claude/skills/cleanup-zombies/SKILL.md": "e0af9635774767cf36eb69726e11c642ec1dad42839c11407ea8ef60f89fc289",
