@@ -197,4 +197,4 @@ fixture scenarios do not substitute for its RED, GREEN, or REFACTOR record.
 
 ## Feature-level cross-scenario refactor
 
-- [ ] cross-scenario refactor
+- [x] cross-scenario refactor skip: the reviewed behaviors already share the production accounting, authorization, and evidence seams; broader module extraction is deferred outside this safety fix
