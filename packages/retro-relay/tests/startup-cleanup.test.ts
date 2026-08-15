@@ -158,6 +158,26 @@ describe('relay maintenance interval', () => {
       store.close();
     }
   });
+
+  it('keeps a caller-owned process lock held when the server closes', async () => {
+    const store = RelayStore.open(databasePath());
+    const lockPath = path.join(scratchDirectory(), 'relay.lock');
+    const processLock = ProcessLock.acquire(lockPath);
+    const started = await startRelayServer({
+      port: 0,
+      processLock,
+      ...serverDependencies(store),
+    });
+
+    try {
+      await closeServer(started.server);
+      expect(() => ProcessLock.acquire(lockPath)).toThrow('already locked');
+    } finally {
+      processLock.release();
+      if (started.server.listening) await closeServer(started.server);
+      store.close();
+    }
+  });
 });
 
 describe('relay startup listeners', () => {
