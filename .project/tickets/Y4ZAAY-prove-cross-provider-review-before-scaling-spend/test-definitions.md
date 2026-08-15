@@ -35,9 +35,9 @@ duplicated here as acceptance scenarios.
 
 ### Scenario Outline: Development provenance cannot be replaced
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: retrospective acceptance mapping — the digest-mismatch counterexample predated this ledger row
+- [x] GREEN cf5310b54
+- [x] REFACTOR skip: provenance retention and digest validation share one manifest boundary
 
 ### Scenario: One authorized live attempt proves the paid route
 
@@ -76,51 +76,51 @@ fixture scenarios do not substitute for its RED, GREEN, or REFACTOR record.
 
 ### Scenario Outline: Complete accounting enforces both paid limits after restart
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: retrospective acceptance mapping — restart reconciliation tests predated this ledger row
+- [x] GREEN 8e43ed1c3
+- [x] REFACTOR skip: one reconciled snapshot supplies both attempt and cost decisions
 
 ### Scenario Outline: Missing or contradictory accounting fails closed
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: retrospective acceptance mapping — corruption and asymmetric-chain tests predated this ledger row
+- [x] GREEN 8e43ed1c3
+- [x] REFACTOR skip: all accounting defects converge on the same incomplete snapshot
 
 ### Scenario: A multi-turn review consumes one attempt
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: retrospective acceptance mapping — the two-stage inventory test predated this ledger row
+- [x] GREEN 3b85ed533
+- [x] REFACTOR skip: attempt identity already encloses the ordered provider-turn inventory
 
 ### Scenario: A provider failure is not retried invisibly
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: independent review supplied the hidden-retry counterexample before the regression landed
+- [x] GREEN 1d9933fd7
+- [x] REFACTOR skip: the durable intent is the single retry boundary
 
 ### Scenario Outline: A completed attempt that reaches the spend limit is retained
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: retrospective acceptance mapping — threshold-crossing retention tests predated this ledger row
+- [x] GREEN 604c68863
+- [x] REFACTOR skip: limits are evaluated only from completed retained attempts
 
 ### Scenario: Invalid paid work with complete usage is not refunded
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: independent review supplied the route-invalid refund counterexample before the regression landed
+- [x] GREEN 8ab1d0dc8
+- [x] REFACTOR skip: native usage is priced before route validity is admitted
 
 ### Scenario: Invalid paid work with out-of-policy usage gets no invented price
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: retrospective acceptance mapping — incomplete-cost tests predated this ledger row
+- [x] GREEN 604c68863
+- [x] REFACTOR skip: invalid native usage leaves the existing accounting snapshot incomplete
 
 ### Scenario: Route-invalid paid work still consumes an attempt
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: independent review supplied the route-invalid accounting counterexample before the regression landed
+- [x] GREEN 8ab1d0dc8
+- [x] REFACTOR skip: attempt retention is independent from result admission
 
 ### Scenario Outline: Frozen native usage determines the exact pricing policy
 
@@ -136,9 +136,9 @@ fixture scenarios do not substitute for its RED, GREEN, or REFACTOR record.
 
 ### Scenario Outline: Weak or replayed authorization cannot dispatch paid work
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: retrospective acceptance mapping — authorization mutation tests predated this ledger row
+- [x] GREEN 73712f5a9
+- [x] REFACTOR skip: exact authorization parsing is one fail-closed boundary
 
 ### Scenario: Matching authorization admits a no-spend dispatch preflight
 
@@ -180,21 +180,21 @@ fixture scenarios do not substitute for its RED, GREEN, or REFACTOR record.
 
 ### Scenario: A development result is durably diagnostic-only
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: retrospective acceptance mapping — diagnostic manifest tests predated this ledger row
+- [x] GREEN cf5310b54
+- [x] REFACTOR skip: the retained manifest owns both role and provenance
 
 ### Scenario Outline: Development evidence cannot authorize confirmation
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: retrospective acceptance mapping — holdout-role rejection tests predated this ledger row
+- [x] GREEN 3c60a62e1
+- [x] REFACTOR skip: the confirmatory guard rejects role, overlap, anchor, and registration defects together
 
 ### Scenario: Independently anchored confirmatory evidence remains usable
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED d6d054141
+- [x] GREEN 3c60a62e1
+- [x] REFACTOR skip: one guard admits only an independently preregistered disjoint holdout
 
 ## Lower-level contract coverage retained outside BDD
 
