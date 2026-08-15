@@ -486,7 +486,7 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
     ).toContain(fixture.oid);
 
     const lateDraft = sealedRetroDraft('retro:latecrosswork', 'Late cross-worktree fallback');
-    spoolDrafts(fixture.topic, id, [draft, lateDraft]);
+    spoolDrafts(fixture.topic, id, [lateDraft]);
     bindHostSession({
       runtime: 'claude',
       fixture,
