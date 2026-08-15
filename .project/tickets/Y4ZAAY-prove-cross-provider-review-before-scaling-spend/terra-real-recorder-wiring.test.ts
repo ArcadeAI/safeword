@@ -24,8 +24,8 @@ describe("real Terra recorder wiring", () => {
     expect(qualification).toMatchObject({
       adapterCommit: "e1d54b2d12e4a97fba84e8302de31bfe8b60ba17",
       adapterTag: "terra-adapter-v1",
-      harnessCommit: "a5b9509f4f7c11a104975d44845ada6c3ceffbe3",
-      harnessTag: "terra-harness-v7",
+      harnessCommit: "b007caf8a65713eee1ae4110a802851aaccdc15a",
+      harnessTag: "terra-harness-v8",
       result: "passed",
       verificationCommand:
         "Y4ZAAY_ADAPTER_ROOT=<pinned-adapter> bun terra-real-recorder-wiring.fixture.ts",
