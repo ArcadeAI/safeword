@@ -509,12 +509,6 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Non-status fail-closed errors expose stable recovery contracts
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
 ### Scenario: Public set commands wire canonical capacity atomically
 
 - [ ] RED

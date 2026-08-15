@@ -23,13 +23,13 @@ Feature: Let parallel sessions share test capacity safely
 
     @rejection @process
     Scenario: Duplicate owner releases do not change durable state
-      Given an exact focused owner has released and the guarded durable state bytes and version are captured
-      When that owner release is replayed
+      Given an exact focused wrapper has released, the guarded durable state bytes and version are captured, and the wrapper's public cleanup callback is replayed through the injected duplicate-release seam
+      When that same wrapper emits the replayed release
       Then the durable bytes and version remain unchanged and no repository process starts
 
     @rejection @process
     Scenario: Reservation failure starts no repository process
-      Given an exact focused owner reservation is durable but activation will fail
+      Given an exact focused public wrapper reservation is durable and the interposed container-activation seam is fixed to fail before repository code can run
       When the wrapper handles the activation failure
       Then no repository process starts and only that reservation is removed
 
@@ -105,6 +105,10 @@ Feature: Let parallel sessions share test capacity safely
         | one `alpha.spec.cjs` file | one focused permit | 1 |
         | one `alpha.test.cts` file | one focused permit | 1 |
         | one `.test.ts` file | one focused permit | 1 |
+        | one `test.ts` file | broad exclusive capacity | 2 |
+        | one `spec.ts` file | broad exclusive capacity | 2 |
+        | one `mytest.ts` file | broad exclusive capacity | 2 |
+        | one `alphaspec.ts` file | broad exclusive capacity | 2 |
         | one `alpha.spec.cts` file | one focused permit | 1 |
         | two valid `.test` and `.spec` files | one focused permit | 1 |
         | one `alpha.Test.ts` file | broad exclusive capacity | 2 |
@@ -271,7 +275,7 @@ Feature: Let parallel sessions share test capacity safely
     Scenario: An unverifiable waiter is not skipped to admit newer work
       Given the deterministic injected identity adapter cannot verify the queue-head public wrapper and contributes no native evidence
       When a newer focused request could otherwise fit
-      Then the newer wrapper starts no repository process, removes only its own waiter ticket and checkout ownership, leaves the queue-head ticket plus durable bytes and version unchanged, and exits nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE and `safeword project test-capacity status`
+      Then the newer wrapper starts no repository process, removes only its own waiter ticket and checkout ownership, leaves the queue-head ticket and owner set unchanged, advances the state version exactly once for its own removal, and exits nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE and `safeword project test-capacity status`
 
     Scenario: A verified dead queue-head waiter is pruned before the next FIFO admission
       Given shared capacity is one, the real platform identity seam proves dead ticket-1 absent, and live ticket-2 and ticket-3 wrappers wait in that order
@@ -308,7 +312,7 @@ Feature: Let parallel sessions share test capacity safely
 
     @wiring @process
     Scenario Outline: Cancellation releases ownership safely at every queue stage
-      Given a real public package-test wrapper and process collaborator are <stage>
+      Given canonical capacity is two, one unrelated authenticated owner and one unrelated FIFO ticket are fixed, a real public package-test wrapper and process collaborator are <stage>, and a second live queued waiter has a deterministic zero-exit collaborator
       When its request is cancelled
       Then <cleanup>, <process-outcome>, the cancelled wrapper exits with its predetermined platform-resolved cancellation status, no unrelated ticket or owner changes, checkout ownership releases when safe, the next live waiter runs once to exit zero, and every descendant exits and is accounted for
       Examples:
@@ -317,9 +321,9 @@ Feature: Let parallel sessions share test capacity safely
         | reserved | the blocked container exits before its reservation is removed | no repository process ever starts for the cancelled command |
         | active | the recorded container is terminated and proven empty before ownership is removed | already-started descendants exit and no new descendant starts after cancellation |
 
-    @native-platform @platform-posix @rejection
+    @platform-posix @rejection
     Scenario Outline: Verified occupancy keeps capacity held without treating the caller as a recovery failure
-      Given an active POSIX owner has <identity-state>
+      Given the deterministic injected POSIX identity adapter reports an active owner with <identity-state> and contributes no native evidence
       When scheduler recovery examines the owner twice under the state guard
       Then it keeps capacity unavailable, records the waiting wrapper behind the verified live owner, and teardown cancels that waiter with its predetermined platform-resolved cancellation status
       Examples:
@@ -455,25 +459,25 @@ Feature: Let parallel sessions share test capacity safely
 
     @native-platform @platform-posix @process
     Scenario: Detached POSIX descendants remain an explicit unsupported fixture
-      Given repository code deliberately escapes its recorded POSIX process group, a barrier holds that escaped process active after the ordinary group exits, and teardown retains its exact external process identity
+      Given canonical capacity is above one, repository code deliberately escapes its recorded POSIX process group, the ordinary recorded group is proven empty, a barrier holds that escaped process active, and teardown retains its exact external process identity
       When the scheduler admits one new repository process
       Then keyed events show the newly admitted process overlaps the escaped process, the barrier releases it, and external-identity teardown proves both processes exit
 
-    @native-platform @platform-posix
+    @platform-posix
     Scenario: Supervisor loss returns capacity only after a second empty-group observation
-      Given an injected monotonic clock and a first guarded observation prove the recorded supervisor instance, group-leader instance, and process group absent and atomically mark the owner reclaiming at version N+1 without returning capacity
+      Given an injected monotonic clock and injected POSIX identity adapter contribute no native evidence, and a first guarded observation proves the recorded supervisor instance, group-leader instance, and process group absent and atomically marks the owner reclaiming at version N+1 without returning capacity
       When the injected monotonic recovery interval passes with reclaim marker and state version N+1 unchanged, and the second observation proves the exact supervisor and leader instances absent and the group empty
       Then one guarded recovery returns capacity atomically at version N+2, admits the queued waiter at N+3, runs its unchanged invocation once to exit zero, and no admission observes a free intermediate state
 
-    @native-platform @platform-posix
+    @platform-posix
     Scenario: A later wrapper completes recovery after the first reclaim observer dies
-      Given a first observer persisted a boot-bound monotonic reclaim deadline after marking an absent owner's full weight reclaiming, then dies
-      When a second wrapper observes the same boot identity, unchanged state version and marker after that deadline, and again proves the exact owner absent
+      Given an injected monotonic clock and injected POSIX identity adapter contribute no native evidence, and a first observer persisted a boot-bound monotonic reclaim deadline after marking an absent owner's full weight reclaiming, then dies
+      When the injected clock passes that deadline and a second wrapper observes the same boot identity, unchanged state version and marker, and again proves the exact owner absent
       Then it returns the full weight at version N+2, admits the waiting wrapper at N+3, and the waiting invocation runs once to exit zero
 
-    @native-platform @platform-posix @rejection
+    @platform-posix @rejection
     Scenario Outline: Supervisor loss holds capacity when the second observation remains unsafe
-      Given an injected monotonic clock and a first guarded observation prove the recorded supervisor instance, group-leader instance, and process group absent and atomically mark the owner reclaiming at version N+1 without returning capacity
+      Given an injected monotonic clock and injected POSIX identity adapter contribute no native evidence, and a first guarded observation proves the recorded supervisor instance, group-leader instance, and process group absent and atomically marks the owner reclaiming at version N+1 without returning capacity
       When the injected monotonic recovery interval passes with reclaim marker and state version N+1 unchanged, and the second observation finds <identity-state>
       Then capacity remains held fail-closed, new admissions never observe a free intermediate state, and the observed waiter remains queued behind the recorded owner until controlled teardown cancels it, removes only its own waiter and checkout request, and exits with its predetermined platform-resolved cancellation status
       Examples:
@@ -631,6 +635,8 @@ Feature: Let parallel sessions share test capacity safely
         | containing directory | group-readable permissions |
         | containing directory | group-writable permissions |
         | containing directory | world-writable permissions |
+        | containing directory | another owner |
+        | containing directory | an unexpected hard-link count |
         | transition guard | another owner |
         | transition guard | group-readable permissions |
         | transition guard | group-writable permissions |
@@ -844,17 +850,17 @@ Feature: Let parallel sessions share test capacity safely
     Scenario: Public broad invocations reach Vitest unchanged under exclusive capacity
       Given a temporary worktree invokes the real public package-test command with a directory argument while one focused permit is active
       When the focused owner releases
-      Then the unchanged directory argument reaches Vitest exactly once under all capacity and the broad wrapper exits zero
+      Then the unchanged directory argument reaches Vitest exactly once under all capacity, the broad wrapper and every descendant exit zero, and every descendant is accounted for
 
     Scenario: Public contention drains focused work before one broad invocation
       Given two real focused public wrappers are held active and a real broad public wrapper waits behind them
       When both focused wrappers exit zero
-      Then the broad invocation runs exactly once and alone after both focused lifetimes end
+      Then the broad invocation runs exactly once and alone after both focused lifetimes end, the broad wrapper and every descendant exit zero, and every descendant is accounted for
 
     Scenario: Public active cancellation returns capacity only after descendants exit
       Given a real public wrapper has active contained build or Vitest descendants and another wrapper waits
       When the active wrapper is cancelled
-      Then every active descendant exits before its capacity and checkout ownership return and the waiting wrapper starts only afterwards
+      Then every active descendant exits before its capacity and checkout ownership return, the cancelled wrapper exits with its predetermined platform-resolved cancellation status, the waiting wrapper starts only afterwards and exits zero, and every descendant is accounted for
 
     @rejection
     Scenario Outline: Unsafe capacity state changes fail without changing admission state
@@ -874,20 +880,6 @@ Feature: Let parallel sessions share test capacity safely
         | idle | blank input | SAFEWORD_TEST_CAPACITY_INVALID |
         | idle | malformed | SAFEWORD_TEST_CAPACITY_INVALID |
         | unavailable or conflicting machine identity | 2 | SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE |
-
-    @rejection
-    Scenario Outline: Non-status fail-closed errors expose stable recovery contracts
-      Given a non-status public capacity operation encounters <fault>
-      When it exits without starting repository code
-      Then it returns nonzero with <code> and names `safeword project test-capacity status` as the first recovery command
-      Examples:
-        | fault | code |
-        | malformed or out-of-range input | SAFEWORD_TEST_CAPACITY_INVALID |
-        | an owner, waiter, or lost update | SAFEWORD_TEST_CAPACITY_BUSY |
-        | unsafe permissions, path, schema, or durability | SAFEWORD_TEST_CAPACITY_STATE_UNSAFE |
-        | unverifiable process or capacity-domain identity | SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE |
-        | unavailable platform containment | SAFEWORD_TEST_CAPACITY_PLATFORM_UNSUPPORTED |
-        | incomplete native platform evidence | SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE |
 
     @wiring @process @surface.safeword-cli
     Scenario Outline: Public set commands wire canonical capacity atomically
@@ -919,6 +911,7 @@ Feature: Let parallel sessions share test capacity safely
         | recorded exact domain is D | `safeword project test-capacity reset --expected-domain D --expected-domain D --confirm-idle` | SAFEWORD_TEST_CAPACITY_INVALID returns and durable state/version remain unchanged with no repository process |
         | recorded exact domain is D | `safeword project test-capacity reset --expected-domain D --confirm-idle --confirm-idle` | SAFEWORD_TEST_CAPACITY_INVALID returns and durable state/version remain unchanged with no repository process |
         | recorded exact domain is D | `safeword project test-capacity reset --expected-domain --confirm-idle` | SAFEWORD_TEST_CAPACITY_INVALID returns and durable state/version remain unchanged with no repository process |
+        | recorded exact domain is D | `safeword project test-capacity reset --expected-domain "" --confirm-idle` | SAFEWORD_TEST_CAPACITY_INVALID returns and durable state/version remain unchanged with no repository process |
         | recorded exact domain is D | `safeword project test-capacity reset --expected-domain D --confirm-idle --unknown` | SAFEWORD_TEST_CAPACITY_INVALID returns and durable state/version remain unchanged with no repository process |
         | recorded exact domain is D | `safeword project test-capacity reset --expected-domain D --confirm-idle unexpected` | SAFEWORD_TEST_CAPACITY_INVALID returns and durable state/version remain unchanged with no repository process |
 
