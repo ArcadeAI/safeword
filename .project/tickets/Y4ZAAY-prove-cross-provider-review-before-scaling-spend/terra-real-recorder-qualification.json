@@ -1,16 +1,16 @@
 {
   "adapterCommit": "e1d54b2d12e4a97fba84e8302de31bfe8b60ba17",
   "adapterTag": "terra-adapter-v1",
-  "harnessCommit": "3b85ed5334d163b78cc644668f016a25afb7913a",
-  "harnessTag": "terra-harness-v1",
-  "qualifiedAt": "2026-08-15T03:28:44Z",
+  "harnessCommit": "e501e2050047d329cc5d6a3c195871ad6a663c91",
+  "harnessTag": "terra-harness-v2",
+  "qualifiedAt": "2026-08-15T05:10:35Z",
   "result": "passed",
   "sha256": {
     "terra-canary-evidence.ts": "3420dcaf8f38bdc9ef7a72517b70ec5f574f3ca88304933aa5776269d24dcf3c",
     "terra-development-canary.ts": "5c4d5eeb4c46a1ddcd7d51d98a377305c9c0eaa8feab836367e8f0e97344cf42",
     "terra-github-authorization.ts": "436a47ce52e3db3cb6a220c74096b02aff6178b562a3f0f0ba5e4a75c70c5976",
     "terra-github-upstream.ts": "d80fb939c3a229bf86c1982aeb9f87c4d51a4ef0635d0259c95e359b644ac51d",
-    "terra-live-launcher.ts": "37ade615c02c4727b19f41eb1d631303ba878c280aa6be997a36d2c148b81521",
+    "terra-live-launcher.ts": "614c46bf5acce224b1b575e1cef33a6816823ca4fad8d1e15219aa2575a3c7de",
     "terra-paid-child.ts": "c0da56c14b0580da57c8026f2263cdd330626cea7f92b13d9ab3c4fa11e77b35",
     "terra-real-recorder-wiring.fixture.ts": "d6bcb25c3d674dc85568ec7086f4363bca4619d50dc09cb9f621208e030b6975"
   },
