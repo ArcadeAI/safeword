@@ -128,6 +128,49 @@ describe('permission-simulation detection', () => {
       expect(permissionSimulations(source)).toEqual([]);
     },
   );
+
+  // Review found these four ways to remove access that the first detector did
+  // not see. Every one is a form someone reaches for without trying to evade
+  // anything: a recursive chmod, a symbolic mode, chmod as a subprocess, and
+  // the promise API.
+  it.each([
+    ['a flag between chmod and its mode', 'chmod -R a-w dir'],
+    ['a symbolic mode that assigns away write', 'chmod u=r file'],
+    ['chmod invoked as a subprocess with an argv array', `execFileSync('chmod', ['000', p])`],
+    ['the promise API rather than the sync one', 'await fs.promises.chmod(p, 0o000)'],
+    ['a renamed import', `import { chmodSync as lockDown } from 'node:fs';\nlockDown(p, 0o000);`],
+  ])('flags %s', (_label, source) => {
+    expect(permissionSimulations(source)).not.toEqual([]);
+  });
+
+  // Review's second claim was that the scanner desynchronizes after `return
+  // /.../` or `=> /.../` and hides a later violation. It does mis-read both —
+  // neither `n` nor `>` opens a regex context, so the `/` reads as division and
+  // the quote inside starts a "string" that runs on. It cannot hide anything,
+  // because only comment spans are removed: every other byte is emitted
+  // verbatim, so a mis-tracked literal leaves the later call in the output.
+  // The failure direction is a false positive, never a false clean.
+  it.each([
+    ['a return statement', 'function f() { return /(["\'])/u; }\nchmodSync(p, 0o000);'],
+    ['an arrow body', 'const f = () => /(["\'])/u;\nchmodSync(p, 0o000);'],
+    [
+      'a return, with a comment after it',
+      'function f() { return /(["\'])/u; }\n// note\nchmodSync(p, 0o000);',
+    ],
+  ])('still sees a violation after a regex literal in %s', (_label, source) => {
+    expect(permissionSimulations(source)).toEqual(['chmodSync(…, 0o000)']);
+  });
+
+  // Widening the detector must not start flagging chmods that grant access —
+  // an over-eager tripwire gets waived, and then it guards nothing.
+  it.each([
+    ['a recursive grant', 'chmod -R u+w dir'],
+    ['a symbolic mode that keeps read and write', 'chmod u=rw file'],
+    ['a subprocess chmod granting access', `execFileSync('chmod', ['755', p])`],
+    ['a promise-API grant', 'await fs.promises.chmod(p, 0o755)'],
+  ])('allows %s', (_label, source) => {
+    expect(permissionSimulations(source)).toEqual([]);
+  });
 });
 
 describe('uid-dependent permission simulations', () => {
