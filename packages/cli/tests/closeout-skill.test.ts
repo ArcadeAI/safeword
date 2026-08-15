@@ -105,7 +105,6 @@ describe('closeout retrospective boundary (93C14D NTB1.R2)', () => {
   it('keeps every retrospective outcome advisory for repository cleanup', () => {
     const skill = canonicalSkill();
 
-    expect(skill).toContain('safeword retro run --json');
     expect(skill).toContain('safeword retro run --json --auto-extract');
     expect(skill).toContain('agent_filing_needed');
     expect(skill).toContain('empty filing spool');
@@ -133,9 +132,9 @@ describe('closeout retrospective boundary (93C14D NTB1.R2)', () => {
 
   it('wires the authenticated preview field to the shipped Codex filer skill', () => {
     const skill = canonicalSkill();
-    const generatedFiler = generateCodexPluginAssets(
-      nodePath.join(repoRoot, 'packages/cli/templates/skills'),
-    ).find(asset => asset.relativePath === 'skills/retro-filer/SKILL.md');
+    const generatedFiler = generateCodexPluginAssets(canonicalSkillsDirectory).find(
+      asset => asset.relativePath === 'skills/retro-filer/SKILL.md',
+    );
 
     expect(skill).toContain('plan.retro.spoolPath');
     expect(skill).toContain('`/retro-filer`');
@@ -195,9 +194,9 @@ describe('closeout host entry points (93C14D TBU1.R4)', () => {
       readFileSync(nodePath.join(repoRoot, 'packages/cli/templates/commands/closeout.md'), 'utf8'),
     ).toContain('Read and follow the instructions in .safeword/skills/closeout/SKILL.md');
 
-    const generatedCodex = generateCodexPluginAssets(
-      nodePath.join(repoRoot, 'packages/cli/templates/skills'),
-    ).find(asset => asset.relativePath === 'skills/closeout/SKILL.md');
+    const generatedCodex = generateCodexPluginAssets(canonicalSkillsDirectory).find(
+      asset => asset.relativePath === 'skills/closeout/SKILL.md',
+    );
     expect(generatedCodex?.content).toContain('name: closeout');
     expect(generatedCodex?.content).toContain('no merge or cleanup');
   });
@@ -226,7 +225,13 @@ describe('closeout host entry points (93C14D TBU1.R4)', () => {
     );
     expect(pluginSkill).toContain('run `/safeword:verify`');
     expect(pluginSkill).toContain('invoke the `/safeword:retro-filer` skill');
+  });
 
+  it('seals the Claude plugin closeout skill through inventory and identity digests', () => {
+    const pluginSkill = readFileSync(
+      nodePath.join(repoRoot, 'plugin/skills/closeout/SKILL.md'),
+      'utf8',
+    );
     const inventoryBytes = readFileSync(nodePath.join(repoRoot, 'plugin/inventory.json'));
     const inventory = JSON.parse(inventoryBytes.toString('utf8')) as {
       assets: { path: string; sha256: string }[];
@@ -295,19 +300,18 @@ describe('closeout host entry points (93C14D TBU1.R4)', () => {
 
   it('detects generated Codex closeout drift through the production catalogue', () => {
     const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-closeout-codex-parity-'));
-    const canonicalSkills = canonicalSkillsDirectory;
     const pluginDirectory = nodePath.join(fixture, 'codex-plugin');
     try {
       cpSync(nodePath.join(repoRoot, 'packages/cli/codex-plugin'), pluginDirectory, {
         recursive: true,
       });
-      assertCodexPluginCatalogue(canonicalSkills, pluginDirectory);
+      assertCodexPluginCatalogue(canonicalSkillsDirectory, pluginDirectory);
       writeFileSync(
         nodePath.join(pluginDirectory, 'skills/closeout/SKILL.md'),
         'drifted closeout contract\n',
       );
       expect(() => {
-        assertCodexPluginCatalogue(canonicalSkills, pluginDirectory);
+        assertCodexPluginCatalogue(canonicalSkillsDirectory, pluginDirectory);
       }).toThrow();
     } finally {
       rmSync(fixture, { recursive: true, force: true });
