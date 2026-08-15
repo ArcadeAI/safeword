@@ -408,6 +408,9 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
       server.once('listening', onListening);
       server.listen(input.port ?? 0, input.host ?? '127.0.0.1');
     });
+    server.on('error', error => {
+      observability.logs.push({ event: 'retro_server_error', message: error.message });
+    });
   } catch (error) {
     releaseResources();
     throw error;

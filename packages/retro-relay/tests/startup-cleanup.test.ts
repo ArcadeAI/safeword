@@ -161,7 +161,7 @@ describe('relay maintenance interval', () => {
 });
 
 describe('relay startup listeners', () => {
-  it('removes the startup error listener after listening succeeds', async () => {
+  it('replaces the startup error listener with runtime error reporting', async () => {
     const store = RelayStore.open(databasePath());
     const started = await startRelayServer({
       allowUnlockedForTests: true,
@@ -171,7 +171,12 @@ describe('relay startup listeners', () => {
     });
 
     try {
-      expect(started.server.listenerCount('error')).toBe(0);
+      expect(started.server.listenerCount('error')).toBe(1);
+      started.server.emit('error', new Error('accept failed'));
+      expect(started.observability.logs).toContainEqual({
+        event: 'retro_server_error',
+        message: 'accept failed',
+      });
     } finally {
       await closeServer(started.server);
       store.close();
