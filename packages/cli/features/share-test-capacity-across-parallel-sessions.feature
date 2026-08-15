@@ -252,7 +252,7 @@ Feature: Let parallel sessions share test capacity safely
 
     Scenario: Consecutive focused requests batch only before the first broad request
       Given shared capacity is two and keyed monotonic events assign real wrapper requests A, B, C and D consecutive FIFO tickets where A and B are focused, C is broad, and D is focused
-      When capacity becomes available in queue order
+      When a barrier holds A active until B's repository lifetime is observed started and capacity becomes available in queue order
       Then observable lifetimes for A and B overlap and exit zero, C starts only after both end and runs exclusively to zero, and D starts only after C ends and exits zero
 
     Scenario: A queued broad request is not starved by later focused arrivals
@@ -326,7 +326,7 @@ Feature: Let parallel sessions share test capacity safely
     Scenario Outline: Injected identity adapter faults fail closed without contributing native evidence
       Given the deterministic injected <platform> identity adapter reads <identity-source>
       When the reading is <failure>
-      Then the exact process instance is not reclaimed, native evidence remains unchanged, and Safeword reports platform-specific recovery guidance
+      Then no repository process starts, the exact process instance is not reclaimed, native evidence and durable owner bytes remain unchanged, and the caller exits nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE and `safeword project test-capacity status`
       Examples:
         | platform | identity-source | failure |
         | Linux | boot ID and proc stat start-time ticks | missing |
@@ -739,7 +739,7 @@ Feature: Let parallel sessions share test capacity safely
 
     @rejection @process
     Scenario Outline: Global guard ordering prevents deadlock on every terminal path
-      Given two real worktrees contend while each wrapper acquires checkout ownership before scheduler capacity
+      Given one same-worktree wrapper holds scheduler capacity while waiting for checkout ownership, another same-worktree wrapper holds that checkout ownership while waiting for capacity, and an unrelated worktree waits for capacity
       When the first wrapper reaches <terminal-path>
       Then <ordering-outcome> and the waiting wrapper reaches an observable result without deadlock
       Examples:
