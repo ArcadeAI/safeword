@@ -18,7 +18,7 @@ import {
 } from '../templates/hooks/lib/phase-provenance.js';
 import { schemaForClaudeDelivery } from './claude-plugin/delivery-schema.js';
 import { hasImportLinterScaffoldTarget } from './packs/python/files.js';
-import { getMissingPythonToolDependencies } from './packs/python/setup.js';
+import { getPythonToolDependencyGaps } from './packs/python/setup.js';
 import { getMissingPacks } from './packs/registry.js';
 import type { ProjectType } from './packs/types.js';
 import { typescriptPackages } from './packs/typescript/files.js';
@@ -696,6 +696,8 @@ export interface CheckHealthOptions {
    * Standalone `check` leaves this false so the diagnostic reports the truth.
    */
   skipPackageChecks?: boolean;
+  /** Ignore declaration gaps during a fresh setup that already emitted manual install guidance. */
+  skipPythonToolChecks?: boolean;
   /** Schema view used by the mutating command whose postcondition is being checked. */
   schema?: SafewordSchema;
 }
@@ -705,7 +707,11 @@ function findMissingPythonToolDeclarations(
   context: ReturnType<typeof createProjectContext>,
 ): string[] {
   if (!context.languages?.python) return [];
-  return getMissingPythonToolDependencies(cwd, hasImportLinterScaffoldTarget(cwd));
+  return [
+    ...new Set(
+      getPythonToolDependencyGaps(cwd, hasImportLinterScaffoldTarget).flatMap(gap => gap.tools),
+    ),
+  ];
 }
 
 export async function checkHealth(
@@ -763,7 +769,9 @@ export async function checkHealth(
 
   // Check for missing language packs (unless install was deliberately skipped)
   const missingPacks = options.skipPackageChecks ? [] : getMissingPacks(cwd);
-  const missingPythonTools = findMissingPythonToolDeclarations(cwd, ctx);
+  const missingPythonTools = options.skipPythonToolChecks
+    ? []
+    : findMissingPythonToolDeclarations(cwd, ctx);
   const coverageDiagnostics = findCoverageDiagnostics(cwd);
   const ticketIndexConflicts = inspectTicketIndexConflicts(cwd);
   issues.push(...coverageDiagnostics.issues);
