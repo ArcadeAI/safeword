@@ -11,7 +11,7 @@
 import { existsSync, readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { findTicketFolderMatches } from '../utils/ticket-folder-matches.js';
+import { findTicketFolderMatch } from '../utils/ticket-folder-matches.js';
 import type { TrackerMap } from './tracker-map.js';
 
 /**
@@ -27,12 +27,13 @@ export function normalizeTrackerKey(key: string): string {
 function resolveTicketFolder(ticketsDirectory: string, ticketId: string): string | undefined {
   let entries: string[];
   try {
-    entries = readdirSync(ticketsDirectory);
+    entries = readdirSync(ticketsDirectory, { withFileTypes: true })
+      .filter(entry => entry.isDirectory())
+      .map(entry => entry.name);
   } catch {
     return undefined;
   }
-  const matches = findTicketFolderMatches(entries, ticketId);
-  const match = matches.all[0];
+  const match = findTicketFolderMatch(entries, ticketId);
   return match === undefined ? undefined : nodePath.join(ticketsDirectory, match);
 }
 

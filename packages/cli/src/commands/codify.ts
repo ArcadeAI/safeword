@@ -20,7 +20,7 @@ import {
   type ParsedScenario,
   parseScenarios,
 } from '../utils/test-skeleton.js';
-import { findTicketFolderMatches } from '../utils/ticket-folder-matches.js';
+import { findTicketFolderMatch } from '../utils/ticket-folder-matches.js';
 
 export interface CodifyOptions {
   /** Output format: `vitest` (default) or `gherkin`. */
@@ -184,9 +184,7 @@ function resolveTicketDirectory(cwd: string, ticket: string): string | undefined
   } catch {
     return undefined;
   }
-  // Exact id wins over a `${id}-slug` prefix, independent of readdir order.
-  const matches = findTicketFolderMatches(entries, ticket);
-  const match = matches.exact[0] ?? matches.slugged[0];
+  const match = findTicketFolderMatch(entries, ticket);
   return match === undefined ? undefined : nodePath.join(ticketsRoot, match);
 }
 

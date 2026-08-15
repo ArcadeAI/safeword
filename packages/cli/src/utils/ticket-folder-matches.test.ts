@@ -1,21 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
-import { findTicketFolderMatches } from './ticket-folder-matches.js';
+import { findTicketFolderMatch } from './ticket-folder-matches.js';
 
-describe('findTicketFolderMatches', () => {
-  it('separates exact and slugged matches while preserving their input order', () => {
-    expect(findTicketFolderMatches(['ABC-second', 'ABC', 'OTHER', 'ABC-first'], 'ABC')).toEqual({
-      all: ['ABC-second', 'ABC', 'ABC-first'],
-      exact: ['ABC'],
-      slugged: ['ABC-second', 'ABC-first'],
-    });
+describe('findTicketFolderMatch', () => {
+  it('prefers an exact match over slugged candidates', () => {
+    expect(findTicketFolderMatch(['ABC-second', 'ABC', 'ABCD', 'ABC-first'], 'ABC')).toBe('ABC');
   });
 
   it('matches ticket IDs case-sensitively', () => {
-    expect(findTicketFolderMatches(['abc', 'abc-lower', 'ABC-upper'], 'ABC')).toEqual({
-      all: ['ABC-upper'],
-      exact: [],
-      slugged: ['ABC-upper'],
-    });
+    expect(findTicketFolderMatch(['abc', 'abc-lower', 'ABC-upper'], 'ABC')).toBe('ABC-upper');
+  });
+
+  it('requires a hyphen before the slug', () => {
+    expect(findTicketFolderMatch(['ABCD'], 'ABC')).toBeUndefined();
   });
 });
