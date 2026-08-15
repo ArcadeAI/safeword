@@ -111,6 +111,12 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A checkout-mutex waiter holds no shared-capacity permit
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: A terminated capacity wait does not strand the checkout mutex
 
 - [ ] RED

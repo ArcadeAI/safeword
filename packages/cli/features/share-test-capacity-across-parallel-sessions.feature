@@ -189,6 +189,11 @@ Feature: Let parallel sessions share test capacity safely
       When a barrier holds the first repository lifetime active until the second wrapper is observed waiting on the checkout mutex
       Then the second starts no repository descendant before every first-container descendant exits and the first wrapper releases scheduler ownership followed by its exact checkout ownership, after which both unchanged downstream invocations have run exactly once, every container is proven empty, and both wrappers exit zero
 
+    Scenario: A checkout-mutex waiter holds no shared-capacity permit
+      Given canonical capacity is two, one same-worktree wrapper holds checkout ownership, a second same-worktree wrapper emits its checkout-mutex waiter event, and an unrelated-worktree focused wrapper requests admission
+      When the scheduler records both wrappers under the state guard
+      Then the unrelated wrapper is admitted with one permit, and durable owners never include the checkout-mutex waiter before it acquires checkout ownership
+
     @rejection
     Scenario Outline: A terminated capacity wait does not strand the checkout mutex
       Given an exact public wrapper holds <checkout-state> and a registered waiter ticket while waiting for capacity
@@ -446,6 +451,7 @@ Feature: Let parallel sessions share test capacity safely
         | the group empty but the supervisor live |
         | the group empty but the leader PID reused |
         | a surviving group descendant |
+        | a changed boot identity from the persisted reclaim deadline |
 
     @rejection @process
     Scenario Outline: POSIX reclaim changes or ambiguous identity never release capacity
