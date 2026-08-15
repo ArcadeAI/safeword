@@ -526,6 +526,7 @@ function appendBounded(
  * turn, not background work that may overlap the next route.
  */
 const CLEANUP_BUDGET_MS = 250;
+const PROCESS_GROUP_POLL_INTERVAL_MS = 5;
 const WINDOWS_CLEANUP_BUDGET_MS = 1000;
 
 /**
@@ -664,7 +665,7 @@ async function waitForProcessGroupToStop(
   deadline: number,
 ): Promise<void> {
   while (groupIsRunning() && Date.now() < deadline) {
-    await new Promise(resolve => setTimeout(resolve, 5));
+    await new Promise(resolve => setTimeout(resolve, PROCESS_GROUP_POLL_INTERVAL_MS));
   }
 }
 
