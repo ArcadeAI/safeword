@@ -270,6 +270,23 @@ async function pinnedCheckout(
 }
 
 describe("credential-separated live launcher", () => {
+  test("synthetic launcher seams reject non-test runtimes", () => {
+    const priorNodeEnvironment = process.env.NODE_ENV;
+    process.env.NODE_ENV = "production";
+    try {
+      expect(() =>
+        terraLiveLauncherTestSupport.preflightAdapterCheckout({
+          canonicalRepository: "ArcadeAI/monorepo",
+          commit: "0".repeat(40),
+          directory: "/tmp/unused",
+          tag: "unused-v1",
+        })
+      ).toThrow("synthetic Terra launcher seams are test-only");
+    } finally {
+      process.env.NODE_ENV = priorNodeEnvironment;
+    }
+  });
+
   test("accepts an authorized adapter tag without requiring the commit on main", async () => {
     const checkout = await pinnedCheckout(
       "tag-only-adapter",
@@ -721,6 +738,18 @@ describe("credential-separated live launcher", () => {
       registrationCommit: harness.commit,
     })).rejects.toThrow("does not match its frozen corpus case");
 
+    await writeFile(inputPath, JSON.stringify({
+      ...request,
+      review: { ...review, variant: "candidate" },
+    }), "utf8");
+    await expect(verifyAuthorizedPaidChildInput({
+      adapterCheckout: adapter,
+      checkout: harness,
+      inputPath,
+      registration,
+      registrationCommit: harness.commit,
+    })).rejects.toThrow("invalid variant");
+
     await writeFile(inputPath, JSON.stringify({ ...request, extra: true }), "utf8");
     await expect(verifyAuthorizedPaidChildInput({
       adapterCheckout: adapter,
@@ -783,6 +812,9 @@ describe("credential-separated live launcher", () => {
       cwd: harness.directory,
     });
     const checkout = { ...harness, commit: stdout.trim() };
+    await execFileAsync("git", ["push", "--quiet", "origin", "HEAD:main"], {
+      cwd: harness.directory,
+    });
 
     await expect(
       verifyCommittedCorpusRegistration({
@@ -901,6 +933,18 @@ describe("credential-separated live launcher", () => {
         { exitCode: 7, stderr: "late diagnostic", stdout: "partial" }
       )
     ).resolves.toEqual(reported);
+    expect(
+      JSON.parse(
+        await readFile(
+          join(
+            outputDirectory,
+            EVIDENCE_DIRECTORY,
+            "attempt-1.child-diagnostic.json"
+          ),
+          "utf8"
+        )
+      )
+    ).toEqual({ exitCode: 7, stderr: "late diagnostic" });
   });
 
   test("returns a paid child's non-zero exit and diagnostics", async () => {
@@ -919,6 +963,18 @@ describe("credential-separated live launcher", () => {
       stderr: "failed",
       stdout: "partial",
     });
+  });
+
+  test("returns spawn-level failures so durable evidence can be reconciled", async () => {
+    const result = await spawnPaidChild({
+      args: [],
+      command: join(tmpdir(), "missing-terra-runtime"),
+      cwd: process.cwd(),
+      env: {},
+    });
+
+    expect(result.exitCode).toBe(-1);
+    expect(result.stderr).toContain("ENOENT");
   });
 
   test("the built paid-child command reaches the physical child process", async () => {
@@ -991,6 +1047,17 @@ describe("credential-separated live launcher", () => {
         stdout: "{}\nextra\n",
       })
     ).toThrow("one JSON line");
+  });
+
+  test("rejects child output with comma-combined evidence keys", () => {
+    expect(() =>
+      parseTerraPaidChildResult({
+        exitCode: 0,
+        stderr: "",
+        stdout:
+          '{"attemptCostPicodollars,nativeUsageBytes":"123","rawResponseBytes":"response"}\n',
+      })
+    ).toThrow("invalid evidence contract");
   });
 
 

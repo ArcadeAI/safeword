@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import { mkdir, open, readFile } from "node:fs/promises";
 import { isAbsolute, join } from "node:path";
 import { promisify } from "node:util";
 
@@ -8,6 +8,7 @@ import {
   type CanaryDispatchContext,
   type CanaryInitializationBinding,
   type CanaryUpstream,
+  EVIDENCE_DIRECTORY,
   completeCanaryProviderJournal,
   runCanaryAttempt,
 } from "./terra-development-canary";
@@ -19,13 +20,15 @@ import {
 
 const execFileAsync = promisify(execFile);
 const PAID_CHILD_MAX_BUFFER_BYTES = 32 * 1024 * 1024;
-const PAID_CHILD_TIMEOUT_MS = 900_000;
 const GIT_MAX_BUFFER_BYTES = 32 * 1024 * 1024;
 const PAID_POLICY = {
   maxVerifications: 25,
   toolCallsPerExpert: 40,
   wallClockMsPerExpert: 360_000,
 } as const;
+const PAID_EXPERT_COUNT = 2;
+const PAID_CHILD_TIMEOUT_MS =
+  PAID_POLICY.wallClockMsPerExpert * PAID_EXPERT_COUNT + 60_000;
 const CHILD_ENVIRONMENT_ALLOWLIST = [
   "NODE_EXTRA_CA_CERTS",
   "PATH",
@@ -119,8 +122,11 @@ export function parseTerraPaidChildResult(result: PaidChildResult): {
   }
   const output = value as Record<string, unknown>;
   if (
-    Object.keys(output).sort().join(",") !==
-      "attemptCostPicodollars,nativeUsageBytes,rawResponseBytes" ||
+    !hasExactKeys(output, [
+      "attemptCostPicodollars",
+      "nativeUsageBytes",
+      "rawResponseBytes",
+    ]) ||
     typeof output.attemptCostPicodollars !== "string" ||
     !/^(0|[1-9][0-9]*)$/.test(output.attemptCostPicodollars) ||
     typeof output.nativeUsageBytes !== "string" ||
@@ -137,11 +143,56 @@ export function parseTerraPaidChildResult(result: PaidChildResult): {
   };
 }
 
+function hasExactKeys(
+  value: Record<string, unknown>,
+  expected: readonly string[]
+): boolean {
+  const actual = Object.keys(value).sort();
+  const sortedExpected = [...expected].sort();
+  return (
+    actual.length === sortedExpected.length &&
+    actual.every((key, index) => key === sortedExpected[index])
+  );
+}
+
+async function retainPaidChildDiagnostic(
+  context: CanaryDispatchContext,
+  childResult: PaidChildResult
+): Promise<void> {
+  if (childResult.exitCode === 0 && childResult.stderr === "") return;
+  const directory = join(context.outputDirectory, EVIDENCE_DIRECTORY);
+  await mkdir(directory, { recursive: true });
+  const handle = await open(
+    join(directory, `${context.attemptId}.child-diagnostic.json`),
+    "wx",
+    0o600
+  );
+  try {
+    await handle.writeFile(
+      `${JSON.stringify({
+        exitCode: childResult.exitCode,
+        stderr: childResult.stderr,
+      })}\n`,
+      "utf8"
+    );
+    await handle.sync();
+  } finally {
+    await handle.close();
+  }
+  const directoryHandle = await open(directory, "r");
+  try {
+    await directoryHandle.sync();
+  } finally {
+    await directoryHandle.close();
+  }
+}
+
 export async function reconcilePaidChildEvidence(
   context: CanaryDispatchContext,
   childResult: PaidChildResult
 ): Promise<ReturnType<typeof parseTerraPaidChildResult>> {
   const retained = await completeCanaryProviderJournal(context);
+  await retainPaidChildDiagnostic(context, childResult);
   let reported: ReturnType<typeof parseTerraPaidChildResult>;
   try {
     reported = parseTerraPaidChildResult(childResult);
@@ -181,12 +232,14 @@ export async function spawnPaidChild(
       stderr?: unknown;
       stdout?: unknown;
     };
-    if (typeof failed.code !== "number") {
-      throw error;
-    }
     return {
-      exitCode: failed.code,
-      stderr: typeof failed.stderr === "string" ? failed.stderr : "",
+      exitCode: typeof failed.code === "number" ? failed.code : -1,
+      stderr:
+        typeof failed.stderr === "string" && failed.stderr.length > 0
+          ? failed.stderr
+          : error instanceof Error
+            ? error.message
+            : String(error),
       stdout: typeof failed.stdout === "string" ? failed.stdout : "",
     };
   }
@@ -372,6 +425,41 @@ export async function verifyCommittedCorpusRegistration(input: {
   } catch {
     throw new Error("registration commit is not reachable from the authorized checkout");
   }
+  const mainRefs = await git(input.checkout.directory, [
+    "ls-remote",
+    "origin",
+    "refs/heads/main",
+  ]);
+  const [mainCommit, mainRef, ...extraMainRefs] = mainRefs.split(/\s+/);
+  if (
+    extraMainRefs.length !== 0 ||
+    mainRef !== "refs/heads/main" ||
+    !/^[0-9a-f]{40}$/.test(mainCommit ?? "")
+  ) {
+    throw new Error("canonical origin main is unavailable for corpus registration");
+  }
+  await execFileAsync(
+    "git",
+    ["fetch", "--quiet", "--no-tags", "origin", "refs/heads/main"],
+    { cwd: input.checkout.directory, maxBuffer: GIT_MAX_BUFFER_BYTES }
+  );
+  const fetchedMain = await git(input.checkout.directory, [
+    "rev-parse",
+    "--verify",
+    "FETCH_HEAD",
+  ]);
+  if (fetchedMain !== mainCommit) {
+    throw new Error("fetched canonical main does not match its advertised ref");
+  }
+  try {
+    await execFileAsync(
+      "git",
+      ["merge-base", "--is-ancestor", input.registrationCommit, mainCommit!],
+      { cwd: input.checkout.directory, maxBuffer: GIT_MAX_BUFFER_BYTES }
+    );
+  } catch {
+    throw new Error("registration commit is not reachable from canonical origin main");
+  }
   const [registrationBytes, digestBytes] = await Promise.all([
     gitBytes(input.checkout.directory, `${input.registrationCommit}:${REGISTRATION_PATH}`),
     gitBytes(input.checkout.directory, `${input.registrationCommit}:${REGISTRATION_DIGEST_PATH}`),
@@ -433,7 +521,7 @@ export async function verifyAuthorizedPaidChildInput(input: {
     typeof value === "object" &&
     value !== null &&
     !Array.isArray(value) &&
-    Object.keys(value).sort().join(",") === [...keys].sort().join(",");
+    hasExactKeys(value as Record<string, unknown>, keys);
   if (!exactKeys(request, ["context", "expertsDirectory", "policy", "review", "target"])) {
     throw new Error("paid child input has unexpected or missing fields");
   }
@@ -499,6 +587,9 @@ export async function verifyAuthorizedPaidChildInput(input: {
   const manifest = manifests.find((candidate) => candidate.cases?.some((item) => item.id === caseId));
   const corpusCase = manifest?.cases?.find((item) => item.id === caseId);
   const variant = review?.variant;
+  if (variant !== "buggy" && variant !== "fixed") {
+    throw new Error("paid child review has an invalid variant");
+  }
   const expectedSourceSha =
     variant === "buggy" ? corpusCase?.baseSha : variant === "fixed" ? corpusCase?.fixedSha : undefined;
   if (
@@ -524,7 +615,7 @@ export async function verifyAuthorizedPaidChildInput(input: {
   return createHash("sha256").update(inputBytes).digest("hex");
 }
 
-function canonicalJson(value: unknown): string | undefined {
+function canonicalJson(value: unknown): string {
   const canonicalize = (item: unknown): unknown => {
     if (Array.isArray(item)) {
       return item.map(canonicalize);
@@ -538,7 +629,11 @@ function canonicalJson(value: unknown): string | undefined {
     }
     return item;
   };
-  return JSON.stringify(canonicalize(value));
+  const serialized = JSON.stringify(canonicalize(value));
+  if (serialized === undefined) {
+    throw new Error("value cannot be represented as canonical JSON");
+  }
+  return serialized;
 }
 
 function requireAuthorizedCheckouts(input: {
@@ -800,21 +895,28 @@ export async function runAuthorizedTerraPaidCanary(
   });
 }
 
+function requireTestRuntime(): typeof ALLOW_SYNTHETIC_TEST_REMOTE {
+  if (process.env.NODE_ENV !== "test") {
+    throw new Error("synthetic Terra launcher seams are test-only");
+  }
+  return ALLOW_SYNTHETIC_TEST_REMOTE;
+}
+
 export const terraLiveLauncherTestSupport = {
   preflightAdapterCheckout: (checkout: PinnedCheckout): Promise<void> =>
     preflightPinnedCheckoutInternal(
       checkout,
-      ALLOW_SYNTHETIC_TEST_REMOTE,
+      requireTestRuntime(),
       false
     ),
   preflightPinnedCheckout: (checkout: PinnedCheckout): Promise<void> =>
-    preflightPinnedCheckoutInternal(checkout, ALLOW_SYNTHETIC_TEST_REMOTE),
+    preflightPinnedCheckoutInternal(checkout, requireTestRuntime()),
   runAuthorizedTerraPaidCanary: (
     input: AuthorizedTerraPaidCanaryInternalInput
   ): Promise<Awaited<ReturnType<typeof runCanaryAttempt>>> =>
-    runAuthorizedTerraPaidCanaryInternal(input, ALLOW_SYNTHETIC_TEST_REMOTE),
+    runAuthorizedTerraPaidCanaryInternal(input, requireTestRuntime()),
   runTerraPaidCanary: (
     input: TerraPaidCanaryInput
   ): Promise<Awaited<ReturnType<typeof runCanaryAttempt>>> =>
-    runTerraPaidCanaryInternal(input, ALLOW_SYNTHETIC_TEST_REMOTE),
+    runTerraPaidCanaryInternal(input, requireTestRuntime()),
 };
