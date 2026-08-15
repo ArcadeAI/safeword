@@ -1,0 +1,18 @@
+{
+  "feature": "features/tracker-connect-flow.feature",
+  "scenarios": {
+    "Declining the setup offer leaves the project inert": ["packages/cli/tests/tracker-connect/offer.test.ts", "declining the offer writes no config and seeds no sidecar"],
+    "Accepting the setup offer runs the same connect flow": ["packages/cli/tests/tracker-connect/offer.test.ts", "accepting runs the connect flow: config + handoff + sidecar appear"],
+    "Connecting github writes config and prints the App/PAT handoff": ["packages/cli/tests/tracker-connect/connect.test.ts", "writes github provider + target and prints the App/PAT handoff"],
+    "Connecting linear writes config and prints the Arcade OAuth handoff": ["packages/cli/tests/tracker-connect/connect.test.ts", "writes linear provider + team and prints the Arcade handoff"],
+    "Re-connecting a different provider leaves no stale provider": ["packages/cli/tests/tracker-connect/connect.test.ts", "re-connecting a different provider leaves no stale provider"],
+    "The credential is stored in the keychain, never in config": ["packages/cli/tests/tracker-connect/connect.test.ts", "stores the token in the secret store and never writes it to config or output"],
+    "Verification passes and the connection is reported live": ["packages/cli/tests/tracker-connect/connect.test.ts", "reports the connection live when verification passes"],
+    "Verification fails and names the missing piece": ["packages/cli/tests/tracker-connect/connect.test.ts", "reports not connected and names the missing piece: %s"],
+    "A verified connect seeds an empty tracker-map sidecar": ["packages/cli/tests/tracker-connect/connect.test.ts", "seeds an empty tracker-map sidecar on a verified connect"],
+    "A failed verification does not seed the sidecar": ["packages/cli/tests/tracker-connect/connect.test.ts", "does not seed the sidecar when verification fails"],
+    "Accepting the pollution opt-ins writes both files": ["packages/cli/tests/tracker-connect/connect.test.ts", "writes both pollution opt-in files when accepted"],
+    "Declining the pollution opt-ins writes neither file": ["packages/cli/tests/tracker-connect/connect.test.ts", "writes neither pollution opt-in file when declined"],
+    "Connecting an unsupported provider performs no partial wiring": ["packages/cli/tests/tracker-connect/connect.test.ts", "rejects an unsupported provider with no config, secret, or sidecar"]
+  }
+}

@@ -244,6 +244,7 @@ describe('BDD proof provenance', () => {
   });
 
   it.each([
+    ['tracker connect', '.project/tickets/2TK5AD-tracker-connect-flow/bdd-proof.json'],
     [
       'whole-ticket quality refactor',
       '.project/tickets/W610WW-whole-ticket-quality-refactor/bdd-proof.json',
