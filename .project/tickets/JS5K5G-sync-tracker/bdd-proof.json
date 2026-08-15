@@ -1,0 +1,32 @@
+{
+  "feature": "features/sync-tracker.feature",
+  "scenarios": {
+    "provider none prints guidance and exits zero": ["packages/cli/tests/tracker-sync/orchestrator.test.ts", "is a friendly no-op when provider is none"],
+    "an unsupported tracker is treated as none": ["packages/cli/tests/tracker-sync/orchestrator.test.ts", "treats an unsupported provider as none"],
+    "provider set but no credential resolves": ["packages/cli/tests/tracker-sync/wiring.test.ts", "fails loudly when a provider is configured but no credential resolves (AC2)"],
+    "an active ticket maps to an open payload with epic and type labels": [
+      ["packages/cli/tests/tracker-sync/payload.test.ts", "maps an active ticket to an open payload"],
+      ["packages/cli/tests/tracker-sync/payload.test.ts", "includes the epic and type labels"]
+    ],
+    "a terminal ticket maps to a closed payload": ["packages/cli/tests/tracker-sync/payload.test.ts", "maps a %s ticket to a closed payload"],
+    "a ticket with no epic yields only the type label": ["packages/cli/tests/tracker-sync/payload.test.ts", "omits the epic label when the ticket has no epic"],
+    "the linear provider routes to the Linear writer": ["packages/cli/tests/tracker-sync/writers.test.ts", "routes a %s project to that writer and leaves %s untouched"],
+    "the github provider routes to the GitHub writer": ["packages/cli/tests/tracker-sync/writers.test.ts", "routes a %s project to that writer and leaves %s untouched"],
+    "a ticket absent from a present sidecar is created and recorded": ["packages/cli/tests/tracker-sync/orchestrator.test.ts", "creates an absent ticket and records its ref"],
+    "a ticket already in the sidecar is updated, not recreated": ["packages/cli/tests/tracker-sync/orchestrator.test.ts", "updates a recorded ticket without creating"],
+    "re-sync of an active ticket touches title and labels only": ["packages/cli/tests/tracker-sync/writers.test.ts", "updates title and labels but never status, assignee, or priority"],
+    "a newly-terminal ticket closes its issue": ["packages/cli/tests/tracker-sync/writers.test.ts", "closes the issue on a terminal payload without writing assignee or priority"],
+    "a ticket created with a pending ref is reconciled, not recreated": ["packages/cli/tests/tracker-sync/orchestrator.test.ts", "reconciles a pending ticket instead of creating again"],
+    "a corrupt sidecar stops the run pending an explicit reset": ["packages/cli/tests/tracker-sync/orchestrator.test.ts", "refuses on a corrupt sidecar pending an explicit reset"],
+    "a missing sidecar on a configured project stops pending an explicit reset": ["packages/cli/tests/tracker-sync/wiring.test.ts", "refuses on a missing sidecar instead of blind-recreating (AC9)"],
+    "the default body omits the spec and work log": ["packages/cli/tests/tracker-sync/payload.test.ts", "excludes the ticket body content under the minimal default"],
+    "body full to a public github repo emits an egress warning": ["packages/cli/tests/tracker-sync/orchestrator.test.ts", "warns about egress before creating when body full hits a public repo"],
+    "a token is read from the environment, never from committed config": [
+      ["packages/cli/tests/tracker-sync/secrets.test.ts", "resolves the token from the provider env var"],
+      ["packages/cli/tests/tracker-sync/secrets.test.ts", "does not accept a config object as a source (structural — config carries no token)"]
+    ],
+    "the resolved token never appears in output or logs": ["packages/cli/tests/tracker-sync/orchestrator.test.ts", "never prints the resolved token"],
+    "a CI run on an Arcade user identity is warned": ["packages/cli/tests/tracker-sync/orchestrator.test.ts", "warns about the Arcade user-identity silent-failure mode in CI"],
+    "a rate-limited write is retried with backoff and succeeds": ["packages/cli/tests/tracker-sync/orchestrator.test.ts", "retries a rate-limited create and ultimately projects the ticket"]
+  }
+}

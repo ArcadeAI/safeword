@@ -244,6 +244,11 @@ describe('BDD proof provenance', () => {
   });
 
   it.each([
+    [
+      'portable tracker transport',
+      '.project/tickets/CBTDK8-portable-tracker-transport/bdd-proof.json',
+    ],
+    ['tracker sync', '.project/tickets/JS5K5G-sync-tracker/bdd-proof.json'],
     ['ticket dependencies', '.project/tickets/MBGQ89-ticket-deps-schema/bdd-proof.json'],
     ['host toolchains', '.project/tickets/13E3EN-honor-host-toolchains/bdd-proof.json'],
     ['bash ledger write gate', '.project/tickets/W42G34-bash-ledger-write-gate/bdd-proof.json'],
