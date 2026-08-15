@@ -19,6 +19,7 @@ import {
 	parseCumulativeCostTarget,
 	shuffleFrozen,
 } from "./scored-run-policy";
+import { mayStartPaidWork } from "./scored-spend-policy";
 import {
 	acquireRunLock,
 	beginProvisionalCase,
@@ -1004,8 +1005,11 @@ if (preflightOnly) {
 		for (const [workIndex, current] of work.entries()) {
 			if (workIndex < state.nextWorkIndex) continue;
 			const callOrdinal = workIndex + 1;
-			if (state.cumulativeCostUsd >= cumulativeCostTargetUsd) break;
-			if (state.cumulativeCostUsd >= aggregateCostStopUsd) {
+			if (!mayStartPaidWork({
+				aggregateCostStopUsd,
+				cumulativeCostTargetUsd,
+				cumulativeCostUsd: state.cumulativeCostUsd,
+			})) {
 				break;
 			}
 			assertPaidAuthorization();

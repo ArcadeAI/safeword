@@ -4,6 +4,7 @@ import {
 	deriveScoreableMatrix,
 	type MatrixRecord,
 } from "./scored-matrix";
+import { mayStartPaidWork } from "./scored-spend-policy";
 
 const systems = ["full", "narrow"] as const;
 const variants = ["buggy", "fixed"] as const;
@@ -39,6 +40,22 @@ function completeInput() {
 }
 
 describe("scoreable matrix derivation", () => {
+	test("a cost stop reached mid-pair prevents the sibling call and rejects partial score input", () => {
+		const input = completeInput();
+		input.records.splice(1);
+
+		expect(
+			mayStartPaidWork({
+				aggregateCostStopUsd: 1_000,
+				cumulativeCostTargetUsd: 1_000,
+				cumulativeCostUsd: 1_000,
+			}),
+		).toBe(false);
+		expect(() => deriveScoreableMatrix(input)).toThrow(
+			"one frozen case missing entirely: RESERVE-A",
+		);
+	});
+
 	test("derives a complete effective matrix from primaries and allocated reserves", () => {
 		const result = deriveScoreableMatrix(completeInput());
 

@@ -234,12 +234,27 @@ describe("frozen Terra pricing", () => {
     }
   );
 
-  test("normalizes only absent cache-write and reasoning details to zero", () => {
-    const result = validateTerraEnvelope(rawEnvelope());
+  test("normalizes absent cache-write detail without changing the short-context tier", () => {
+    const result = validateTerraEnvelope(rawEnvelope({
+      usage: {
+        input_tokens: 272_000,
+        input_tokens_details: { cached_tokens: 100_000 },
+        output_tokens: 1,
+      },
+    }));
+    const explicitZero = validateTerraEnvelope(rawEnvelope({
+      usage: {
+        input_tokens: 272_000,
+        input_tokens_details: { cached_tokens: 100_000, cache_write_tokens: 0 },
+        output_tokens: 1,
+      },
+    }));
     expect(result.usage).toMatchObject({
       cacheWriteTokens: 0,
       reasoningTokens: 0,
     });
+    expect(result.costPicodollars).toBe(455_015_000_000n);
+    expect(result.costPicodollars).toBe(explicitZero.costPicodollars);
   });
 
   test.each([
