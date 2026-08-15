@@ -67,7 +67,13 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Mixed legacy and current wrappers are not represented as safely sharing capacity
+### Scenario: Current-protocol opt-in does not infer legacy wrapper activity
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Status warns that legacy wrappers cannot share capacity
 
 - [ ] RED
 - [ ] GREEN
@@ -402,6 +408,12 @@ remain in the feature file.
 - [ ] REFACTOR
 
 ### Scenario: The public capacity command wires configuration protocol status and reset atomically
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Status domain identifier is accepted verbatim by reset
 
 - [ ] RED
 - [ ] GREEN
