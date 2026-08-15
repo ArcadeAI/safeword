@@ -449,6 +449,12 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Death of a transition-guard holder is recovered by exact identity
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: An unavailable platform containment primitive keeps shared capacity at one
 
 - [ ] RED
