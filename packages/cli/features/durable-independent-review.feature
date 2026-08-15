@@ -69,18 +69,41 @@ Feature: Durable independent review
       When the builder deletes that reviewed source and collects the review
       Then Safeword reports the review as stale instead of passing it
 
+    @rejection
+    Scenario Outline: Collecting a malformed or unknown review is rejected
+      Given no review exists for the requested review identifier <review_id>
+      When the builder runs `safeword review status <review_id>`
+      Then Safeword reports that the review was not found instead of reporting it pending
+
+      Examples:
+        | review_id                            |
+        | not-a-uuid                           |
+        | aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa |
+
+    @rejection
+    Scenario: Status does not resolve a traversal-shaped identifier outside the review store
+      Given a collectable-looking record exists outside the review store at a traversal-shaped identifier's destination
+      When the builder runs `safeword review status ../outside-the-review-store`
+      Then Safeword reports that the review was not found instead of returning the outside record
+
+    @rejection
+    Scenario: A completed record missing its integrity seal is not accepted
+      Given a completed review record whose integrity seal was removed
+      When the builder collects that review
+      Then Safeword reports the record as invalid instead of returning a result
+
   @finish-deep-reviews-in-background.TBU1.R3 @surface.safeword-cli
   Rule: finish-deep-reviews-in-background.TBU1.R3 — A builder can stop a review that is no longer useful
 
     @rejection
     Scenario: A running review is canceled explicitly
       Given a review is still running in the background
-      When the builder cancels that review
-      Then Safeword preserves a canceled terminal result
+      When the builder runs `safeword review cancel <review id>`
+      Then the builder sees that review reported as canceled
 
     Scenario: Canceling a running review terminates its reviewer
       Given a scripted reviewer is still running for a pending review
-      When the builder cancels that review
+      When the builder runs `safeword review cancel <review id>`
       Then that reviewer process is no longer running
 
     Scenario: A late reviewer result cannot replace a canceled result
@@ -99,18 +122,6 @@ Feature: Durable independent review
       When the builder cancels that review
       Then Safeword reports that the review was not found
 
-    @rejection
-    Scenario Outline: Collecting a malformed or unknown review is rejected
-      Given no review exists for the requested review identifier <review_id>
-      When the builder checks that review's status
-      Then Safeword reports that the review was not found instead of reporting it pending
-
-      Examples:
-        | review_id                            |
-        | not-a-uuid                           |
-        | ../outside-the-review-store          |
-        | aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa |
-
   @finish-deep-reviews-in-background.TBU1.R4 @surface.safeword-cli
   Rule: finish-deep-reviews-in-background.TBU1.R4 — A background review reaches a terminal result when it cannot complete
 
@@ -121,7 +132,13 @@ Feature: Durable independent review
       Then Safeword reports a terminal worker-exited failure instead of leaving the review pending
 
     @rejection
-    Scenario: A reviewer that exceeds its controlled absolute deadline fails terminally
-      Given a scripted independent reviewer remains blocked through a controlled absolute deadline
-      When that worker records its outcome at the deadline and the builder checks the review status
+    Scenario: A wedged reviewer that never records an outcome fails terminally at its controlled absolute deadline
+      Given a scripted independent reviewer remains blocked past a controlled absolute deadline without recording an outcome
+      When the builder checks the review status after that deadline
       Then Safeword reports a terminal timed-out review result instead of leaving the review pending
+
+    @rejection
+    Scenario: A reviewer that exits with malformed output fails terminally
+      Given a pending review whose detached reviewer exits after writing malformed output
+      When the builder checks the review status
+      Then Safeword reports a terminal invalid-result failure instead of leaving the review pending

@@ -451,6 +451,42 @@ describe('durable review jobs', () => {
     expect(reviewJobStatus(cwd, id).errors[0]?.code).toBe('REVIEW_WORKER_EXITED');
   });
 
+  it.runIf(process.platform !== 'win32')(
+    'terminates a wedged worker and records timeout when status observes its deadline',
+    async () => {
+      const cwd = project();
+      vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, 'setTimeout(() => {}, 10_000);'));
+      vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '0');
+      const pending = await startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
+      const id = (pending.data as { review_id: string }).review_id;
+      const recordPath = nodePath.join(cwd, '.safeword', 'state', 'reviews', `${id}.json`);
+      const record = JSON.parse(readFileSync(recordPath, 'utf8')) as {
+        pid: number;
+        deadline_at: string;
+      };
+      record.deadline_at = new Date(0).toISOString();
+      writeFileSync(recordPath, `${JSON.stringify(record)}\n`);
+
+      const result = reviewJobStatus(cwd, id);
+
+      expect(result.errors[0]?.code).toBe('REVIEW_WORKER_TIMED_OUT');
+      await vi.waitFor(() => {
+        expect(() => process.kill(record.pid, 0)).toThrow();
+      });
+    },
+  );
+
+  it('refuses a traversal-shaped review id even when a record exists outside the review store', () => {
+    const cwd = project();
+    const escaped = nodePath.join(cwd, '.safeword', 'state', 'outside-the-review-store.json');
+    mkdirSync(nodePath.dirname(escaped), { recursive: true });
+    writeFileSync(escaped, '{"planted":"record"}\n');
+
+    expect(reviewJobStatus(cwd, '../outside-the-review-store').errors[0]?.code).toBe(
+      'REVIEW_JOB_NOT_FOUND',
+    );
+  });
+
   it('rejects a running job record without its worker pid', async () => {
     const cwd = project();
     vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, 'setTimeout(() => {}, 10_000);'));
@@ -485,7 +521,7 @@ describe('durable review jobs', () => {
     writeFileSync(nodePath.join(cwd, 'unreviewed.md'), 'unrelated change\n');
     const result = reviewJobStatus(cwd, id);
 
-    expect(result.state).toBe('healthy');
+    expect(result.state, JSON.stringify(result)).toBe('healthy');
     expect(result.findings[0]?.message).toBe('Independent review complete.');
   });
 
