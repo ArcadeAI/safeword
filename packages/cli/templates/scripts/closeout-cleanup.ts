@@ -17,7 +17,6 @@ import nodePath from 'node:path';
 import {
   type CloseoutBinding,
   readFreshCloseoutBinding,
-  recordCodexCloseoutHandoff,
   resolveExactCodexTranscript,
 } from '../hooks/lib/closeout-binding.ts';
 import { draftSpoolPath, readAcks, readSpooledDrafts } from '../hooks/lib/retro-draft-spool.ts';
@@ -100,12 +99,15 @@ export type CleanupOperation =
   | { kind: 'delete-local-ref'; cwd: string; ref: string; oid: string };
 
 export interface CleanupPlan {
-  version: 1;
+  version: 2;
   identity?: PullRequestIdentity;
   stateHash: string;
   retroStateHash: string;
   retro?: { spoolPath: string };
+  cleanupBlockers: string[];
+  recoveryBlockers: string[];
   blockers: string[];
+  advisories: string[];
   completed: string[];
   operations: CleanupOperation[];
 }
@@ -119,18 +121,21 @@ function normalizedRepository(url: string): string | undefined {
 }
 
 function block(plan: CleanupPlan, message: string): void {
+  if (!plan.cleanupBlockers.includes(message)) plan.cleanupBlockers.push(message);
   if (!plan.blockers.includes(message)) plan.blockers.push(message);
 }
 
-const RETROSPECTIVE_BLOCKERS = new Set([
-  'retrospective extraction failed; resolve the extraction failure',
-  'retrospective filing failed; resolve the filing failure',
-  'the current session retrospective is incomplete',
-  'the current session filing spool has pending drafts',
-]);
+function blockRecovery(plan: CleanupPlan, message: string): void {
+  if (!plan.recoveryBlockers.includes(message)) plan.recoveryBlockers.push(message);
+  if (!plan.blockers.includes(message)) plan.blockers.push(message);
+}
+
+function advise(plan: CleanupPlan, message: string): void {
+  if (!plan.advisories.includes(message)) plan.advisories.push(message);
+}
 
 function hasCleanupAuthorizationBlocker(plan: CleanupPlan): boolean {
-  return plan.blockers.some(blocker => !RETROSPECTIVE_BLOCKERS.has(blocker));
+  return plan.cleanupBlockers.length > 0;
 }
 
 function collectPrerequisiteBlockers(
@@ -143,16 +148,16 @@ function collectPrerequisiteBlockers(
   if (!observation.verification.current) block(plan, 'local verification is stale');
   if (!observation.verification.passed) block(plan, 'local verification failed');
   if (!observation.retro.bound)
-    block(plan, 'the current host session binding is missing or expired');
+    advise(plan, 'the current host session binding is missing or expired');
   if (observation.retro.failure === 'extraction') {
-    block(plan, 'retrospective extraction failed; resolve the extraction failure');
+    advise(plan, 'retrospective extraction failed; resolve the extraction failure');
   } else if (observation.retro.failure === 'filing') {
-    block(plan, 'retrospective filing failed; resolve the filing failure');
+    blockRecovery(plan, 'retrospective filing failed; resolve the filing failure');
   } else if (!observation.retro.complete) {
-    block(plan, 'the current session retrospective is incomplete');
+    advise(plan, 'the current session retrospective is incomplete');
   }
   if (observation.retro.pendingDrafts > 0)
-    block(plan, 'the current session filing spool has pending drafts');
+    blockRecovery(plan, 'the current session filing spool has pending drafts');
   if (observation.protection === 'unknown') block(plan, 'branch protection state is unknown');
   if (observation.protection === 'protected') block(plan, 'the topic branch is protected');
   if (observation.remoteResolution === 'ambiguous') {
@@ -273,10 +278,13 @@ function assembleOperations(
 
 export function buildCleanupPlan(observation: CloseoutObservation): CleanupPlan {
   const plan: CleanupPlan = {
-    version: 1,
+    version: 2,
     stateHash: observation.verification.stateHash,
     retroStateHash: observation.retro.evidenceHash,
+    cleanupBlockers: [],
+    recoveryBlockers: [],
     blockers: [],
+    advisories: [],
     completed: [],
     operations: [],
     ...(observation.retro.spoolPath ? { retro: { spoolPath: observation.retro.spoolPath } } : {}),
@@ -318,12 +326,15 @@ export function buildCleanupPlan(observation: CloseoutObservation): CleanupPlan 
 }
 
 export function cleanupPlanDigest(plan: CleanupPlan): string {
-  const { retroStateHash: _retroStateHash, retro: _retro, blockers, ...stableAuthorization } = plan;
-  const authorization = {
-    ...stableAuthorization,
-    blockers: blockers.filter(blocker => !RETROSPECTIVE_BLOCKERS.has(blocker)),
-  };
-  return createHash('sha256').update(JSON.stringify(authorization)).digest('hex');
+  const {
+    retroStateHash: _retroStateHash,
+    retro: _retro,
+    advisories: _advisories,
+    recoveryBlockers: _recoveryBlockers,
+    blockers: _blockers,
+    ...stableAuthorization
+  } = plan;
+  return createHash('sha256').update(JSON.stringify(stableAuthorization)).digest('hex');
 }
 
 export function operationCommand(operation: CleanupOperation): string[] {
@@ -1607,7 +1618,11 @@ export function retroForMergedPullRequest(
   return runRetro(root, binding);
 }
 
-function observeCloseout(root: string, pr: string, binding: CloseoutBinding): CloseoutObservation {
+function observeCloseout(
+  root: string,
+  pr: string,
+  binding: CloseoutBinding | undefined,
+): CloseoutObservation {
   const mutableTargets = observeMutableCleanupTargets(root, pr);
   const identity = mutableTargets.pullRequests[0];
   const expectedOid = identity?.headRefOid ?? '';
@@ -1623,7 +1638,9 @@ function observeCloseout(root: string, pr: string, binding: CloseoutBinding): Cl
     protection: observeCurrentProtection(root, identity, mutableTargets.remoteResolution),
     deliveryWorktreePath: nodePath.resolve(root),
     verification: runVerification(root, expectedOid, identity?.ciChecks ?? 'unknown'),
-    retro: retroForMergedPullRequest(root, binding, mutableTargets.pullRequests),
+    retro: binding
+      ? retroForMergedPullRequest(root, binding, mutableTargets.pullRequests)
+      : { bound: false, complete: false, pendingDrafts: 0, evidenceHash: '' },
   };
 }
 
@@ -1646,37 +1663,13 @@ function argumentValue(name: string): string | undefined {
   return index >= 0 ? process.argv[index + 1] : undefined;
 }
 
-function closeoutRecoveryCommand(pr: string): string {
-  const script = process.env.CLAUDE_PLUGIN_ROOT
-    ? `"${process.env.CLAUDE_PLUGIN_ROOT}/resources/scripts/closeout-cleanup.ts"`
-    : '.safeword/scripts/closeout-cleanup.ts';
-  return `bun ${script} --pr ${pr}`;
-}
-
 if (import.meta.main) {
   const root = resolveRepositoryRoot(process.cwd());
   const requestedPr = argumentValue('--pr');
   const pr = requestedPr && /^[1-9]\d*$/u.test(requestedPr) ? requestedPr : undefined;
   const binding = root ? resolveCloseoutBinding(root) : undefined;
-  if (!root || !pr || !binding) {
-    if (root && pr && !binding) {
-      const pullRequests = observePullRequest(root, pr);
-      const identity = pullRequests.length === 1 ? pullRequests[0] : undefined;
-      const pullRequest = Number.parseInt(pr, 10);
-      if (identity && identity.state === 'MERGED') {
-        recordCodexCloseoutHandoff({
-          projectDirectory: root,
-          repositoryUrl: `https://github.com/${identity.headOwner}/${identity.headRepository}`,
-          pullRequest,
-          headOid: identity.headRefOid,
-        });
-      }
-    }
-    const recovery =
-      root && pr && !binding ? ` Start one fresh task and run ${closeoutRecoveryCommand(pr)}.` : '';
-    console.error(
-      `closeout blocked: repository, --pr, and a fresh host session binding are required.${recovery}`,
-    );
+  if (!root || !pr) {
+    console.error('closeout blocked: repository and a positive numeric --pr are required.');
     process.exit(2);
   }
   const observation = observeCloseout(root, pr, binding);
