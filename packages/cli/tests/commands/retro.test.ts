@@ -287,6 +287,135 @@ describe('runRetro', () => {
     }
   });
 
+  it('keeps the real command on native filing when the build attestation is disabled', async () => {
+    const project = mkdtempSync(nodePath.join(tmpdir(), 'retro-disabled-attestation-project-'));
+    const outbox = mkdtempSync(nodePath.join(tmpdir(), 'retro-disabled-attestation-outbox-'));
+    const transcript = nodePath.join(project, 'transcript.jsonl');
+    writeFileSync(transcript, 'transcript content');
+    const send = vi.fn<typeof fetch>();
+    const transport = new FakeGitHub();
+    const previousExitCode = process.exitCode;
+
+    try {
+      const outcome = await executeRetroCommand(
+        { transcript },
+        {
+          environment: {
+            SAFEWORD_RETRO_RELAY_CREDENTIAL: 'swc_test',
+            SAFEWORD_RETRO_RELAY_INSTALLATION_ID: '42',
+            SAFEWORD_RETRO_RELAY_OUTBOX: outbox,
+            SAFEWORD_RETRO_RELAY_REPOSITORY: 'arcadeai/safeword',
+            SAFEWORD_RETRO_RELAY_URL: 'https://relay.invalid',
+          },
+          extract: () => Promise.resolve([rawFinding()]),
+          extractionSucceeded: () => true,
+          harness: 'codex',
+          output: { error: vi.fn(), info: vi.fn(), success: vi.fn() },
+          projectDirectory: project,
+          relay: {
+            fetch: send,
+            manifest: { enabled: false, version: 1 },
+          },
+          restTransportAvailable: true,
+          sessionId: 'session-disabled-attestation',
+          transport,
+        },
+      );
+
+      expect(outcome.ok).toBe(true);
+      expect(send).not.toHaveBeenCalled();
+      expect(transport.issues).toHaveLength(1);
+    } finally {
+      process.exitCode = previousExitCode;
+      rmSync(project, { force: true, recursive: true });
+      rmSync(outbox, { force: true, recursive: true });
+    }
+  });
+
+  it('[ORR-011] Complete fresh readiness proof selects the relay path', async () => {
+    const project = mkdtempSync(nodePath.join(tmpdir(), 'retro-ready-attestation-project-'));
+    const outbox = mkdtempSync(nodePath.join(tmpdir(), 'retro-ready-attestation-outbox-'));
+    const transcript = nodePath.join(project, 'transcript.jsonl');
+    writeFileSync(transcript, 'transcript content');
+    const manifest = validRelayReadinessManifest();
+    let sentPersistedBytes = false;
+    const send = vi.fn<typeof fetch>((_input, init) => {
+      const body = Buffer.from(init?.body as Uint8Array);
+      const submitted = JSON.parse(body.toString('utf8')) as { requestId: string };
+      const relayDirectory = nodePath.join(outbox, '.safeword', 'retro-drafts', 'relay');
+      const claim = readdirSync(relayDirectory).find(candidate =>
+        candidate.startsWith(`${submitted.requestId}.claim.`),
+      );
+      if (claim === undefined) throw new Error('missing durable relay claim');
+      const durable = JSON.parse(
+        readFileSync(nodePath.join(relayDirectory, claim), 'utf8'),
+      ) as RelayDraftRequest;
+      sentPersistedBytes =
+        JSON.stringify(submitted) ===
+        JSON.stringify({
+          body: durable.body,
+          canonicalKey: durable.canonicalKey,
+          installationId: durable.installationId,
+          labels: durable.labels,
+          legacySignature: durable.legacySignature,
+          repository: durable.repository,
+          requestId: durable.requestId,
+          retryDeadlineAt: durable.retryDeadlineAt,
+          title: durable.title,
+        });
+      return Promise.resolve(
+        Response.json({
+          receiptId: 'receipt-ready-attestation',
+          requestId: submitted.requestId,
+          state: 'filed',
+        }),
+      );
+    });
+    const transport = new FakeGitHub();
+    const previousExitCode = process.exitCode;
+
+    try {
+      const outcome = await executeRetroCommand(
+        { transcript },
+        {
+          environment: {
+            SAFEWORD_RETRO_RELAY_CREDENTIAL: 'swc_test',
+            SAFEWORD_RETRO_RELAY_INSTALLATION_ID: '42',
+            SAFEWORD_RETRO_RELAY_OUTBOX: outbox,
+            SAFEWORD_RETRO_RELAY_REPOSITORY: 'arcadeai/safeword',
+            SAFEWORD_RETRO_RELAY_URL: 'https://relay.invalid',
+          },
+          extract: () => Promise.resolve([rawFinding()]),
+          extractionSucceeded: () => true,
+          harness: 'codex',
+          output: { error: vi.fn(), info: vi.fn(), success: vi.fn() },
+          projectDirectory: project,
+          relay: {
+            buildCommit: 'b'.repeat(40),
+            fetch: send,
+            isAncestor: () => Promise.resolve(true),
+            manifest,
+            now: new Date('2026-07-26T12:00:00.000Z'),
+            readArtifactAtCommit: (_commit, artifactPath) =>
+              Promise.resolve(relayReadinessArtifact(manifest, artifactPath)),
+          },
+          restTransportAvailable: true,
+          sessionId: 'session-ready-attestation',
+          transport,
+        },
+      );
+
+      expect(outcome.ok).toBe(true);
+      expect(send).toHaveBeenCalledOnce();
+      expect(sentPersistedBytes).toBe(true);
+      expect(transport.issues).toEqual([]);
+    } finally {
+      process.exitCode = previousExitCode;
+      rmSync(project, { force: true, recursive: true });
+      rmSync(outbox, { force: true, recursive: true });
+    }
+  });
+
   it('always gives an enabled relay at least one complete request budget', async () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-budget-'));
     const send = vi.fn<typeof fetch>((_input, init) => {
@@ -463,13 +592,9 @@ describe('runRetro', () => {
     }
   });
 
-  it.each([
-    ['dead-letter', undefined],
-    ['rejected', undefined],
-    ['tombstone', undefined],
-  ] as const)(
+  it.each(['dead-letter', 'rejected', 'tombstone'] as const)(
     'fails visibly for an unresolved server-owned %s receipt without native fallback',
-    async (state, issueNumber) => {
+    async state => {
       const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-terminal-'));
       const transport = new FakeGitHub();
       const send = vi.fn<typeof fetch>((_input, init) => {
@@ -478,7 +603,6 @@ describe('runRetro', () => {
         };
         return Promise.resolve(
           Response.json({
-            ...(issueNumber !== undefined && { issueNumber }),
             receiptId: `receipt-${state}`,
             requestId: request.requestId,
             state,
