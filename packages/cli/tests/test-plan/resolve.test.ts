@@ -246,6 +246,65 @@ describe('resolveTestPlan — nested and vendored manifests', () => {
     const plan = resolveTestPlan(root, { isToolAvailable: allTools });
     expect(entryFor(plan, 'go')?.cwd).toBe(root);
   });
+
+  it('emits one verification entry for each project of the same language', () => {
+    const root = makeRepo({
+      'apps/api/pyproject.toml': '[tool.pytest.ini_options]\n',
+      'apps/worker/requirements.txt': 'pytest\n',
+      'apps/worker/tests/test_worker.py': 'def test_worker():\n    assert True\n',
+      'services/alpha/go.mod': 'module alpha\n',
+      'services/beta/go.mod': 'module beta\n',
+    });
+
+    const plan = resolveTestPlan(root, { kind: 'verify', isToolAvailable: allTools });
+
+    expect(plan.filter(item => item.language === 'python').map(item => item.cwd)).toEqual([
+      nodePath.join(root, 'apps/api'),
+      nodePath.join(root, 'apps/worker'),
+    ]);
+    expect(plan.filter(item => item.language === 'go').map(item => item.cwd)).toEqual([
+      nodePath.join(root, 'services/alpha'),
+      nodePath.join(root, 'services/beta'),
+    ]);
+  });
+
+  it('uses each JavaScript workspace package manifest and lockfile', () => {
+    const root = makeRepo({
+      'package.json': JSON.stringify({ private: true, workspaces: ['services/*'] }),
+      'services/api/package.json': JSON.stringify({ scripts: { test: 'vitest' } }),
+      'services/api/pnpm-lock.yaml': '',
+      'services/web/package.json': JSON.stringify({ scripts: { test: 'jest' } }),
+      'services/web/yarn.lock': '',
+    });
+
+    const javascript = resolveTestPlan(root, { isToolAvailable: allTools }).filter(
+      item => item.language === 'javascript',
+    );
+
+    expect(javascript.map(item => item.command)).toEqual(['pnpm run test', 'yarn run test']);
+  });
+
+  it('runs SQL verification in each detected SQL project', () => {
+    const root = makeRepo({
+      'apps/warehouse/dbt_project.yml': 'name: warehouse\n',
+      'services/reporting/sqlc.yaml': 'version: "2"\n',
+    });
+
+    const sql = resolveTestPlan(root, { kind: 'verify', isToolAvailable: allTools }).filter(
+      item => item.language === 'sql',
+    );
+
+    expect(sql).toEqual([
+      expect.objectContaining({
+        cwd: nodePath.join(root, 'apps/warehouse'),
+        command: 'sqlfluff lint .',
+      }),
+      expect.objectContaining({
+        cwd: nodePath.join(root, 'services/reporting'),
+        command: 'sqlfluff lint .',
+      }),
+    ]);
+  });
 });
 
 describe('resolveTestPlan — verify plan (kind: verify)', () => {

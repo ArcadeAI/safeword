@@ -11,7 +11,9 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   detectPythonPackageManager,
+  findPythonProjectDirectories,
   getMissingPythonToolDependencies,
+  getPythonToolDependencyGaps,
   getPythonTools,
   hasRuffDependency,
   installPythonDependencies,
@@ -198,6 +200,39 @@ dependencies = ["ruff", "mypy", "deadcode"]
 
     expect(getMissingPythonToolDependencies(context.projectDirectory, true)).toEqual([
       'import-linter',
+    ]);
+  });
+});
+
+describe('repository Python projects', () => {
+  it('checks declarations in nested projects instead of inventing a root Python project', () => {
+    writeTestFile(context.projectDirectory, 'package.json', '{"private":true}\n');
+    writeTestFile(
+      context.projectDirectory,
+      'apps/api/pyproject.toml',
+      '[project]\nname="api"\ndependencies=["ruff", "mypy", "deadcode"]\n',
+    );
+
+    expect(findPythonProjectDirectories(context.projectDirectory)).toEqual([
+      nodePath.join(context.projectDirectory, 'apps/api'),
+    ]);
+    expect(getPythonToolDependencyGaps(context.projectDirectory, () => false)).toEqual([]);
+  });
+
+  it('keeps missing declarations attached to each project and ignores vendored manifests', () => {
+    writeTestFile(
+      context.projectDirectory,
+      'apps/api/pyproject.toml',
+      '[project]\nname="api"\ndependencies=["ruff", "mypy", "deadcode"]\n',
+    );
+    writeTestFile(context.projectDirectory, 'services/worker/requirements.txt', 'ruff\n');
+    writeTestFile(context.projectDirectory, 'vendor/example/requirements.txt', 'ruff\n');
+
+    expect(getPythonToolDependencyGaps(context.projectDirectory, () => false)).toEqual([
+      {
+        directory: nodePath.join(context.projectDirectory, 'services/worker'),
+        tools: ['mypy', 'deadcode'],
+      },
     ]);
   });
 });

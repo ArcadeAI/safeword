@@ -18,7 +18,7 @@ import {
 } from '../templates/hooks/lib/phase-provenance.js';
 import { schemaForClaudeDelivery } from './claude-plugin/delivery-schema.js';
 import { hasImportLinterScaffoldTarget } from './packs/python/files.js';
-import { getMissingPythonToolDependencies } from './packs/python/setup.js';
+import { getPythonToolDependencyGaps } from './packs/python/setup.js';
 import { getMissingPacks } from './packs/registry.js';
 import type { ProjectType } from './packs/types.js';
 import { typescriptPackages } from './packs/typescript/files.js';
@@ -705,7 +705,11 @@ function findMissingPythonToolDeclarations(
   context: ReturnType<typeof createProjectContext>,
 ): string[] {
   if (!context.languages?.python) return [];
-  return getMissingPythonToolDependencies(cwd, hasImportLinterScaffoldTarget(cwd));
+  return [
+    ...new Set(
+      getPythonToolDependencyGaps(cwd, hasImportLinterScaffoldTarget).flatMap(gap => gap.tools),
+    ),
+  ];
 }
 
 export async function checkHealth(

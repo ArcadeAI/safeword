@@ -15,7 +15,7 @@ import nodePath from 'node:path';
 
 import { parse } from 'smol-toml';
 
-import { exists, readFileSafe } from '../../utils/fs.js';
+import { exists, findAllInTree, readFileSafe } from '../../utils/fs.js';
 import type { SetupResult } from '../types.js';
 
 /**
@@ -483,6 +483,45 @@ export function getMissingPythonToolDependencies(
   includeImportLinter: boolean,
 ): PythonTool[] {
   return getPythonTools(includeImportLinter).filter(tool => !hasPythonDependency(cwd, tool));
+}
+
+/**
+ * Python projects enrolled in a repository, in shallowest-first order.
+ *
+ * A repository root is not a Python project merely because one of its children
+ * is. Keep the manifest directory as the unit of policy so dependency and
+ * package-manager checks read the files that actually govern that project.
+ */
+export function findPythonProjectDirectories(cwd: string): string[] {
+  const directories = new Set([
+    ...findAllInTree(cwd, 'pyproject.toml'),
+    ...findAllInTree(cwd, 'requirements.txt'),
+    ...findAllInTree(cwd, 'Pipfile'),
+  ]);
+  return [...directories].toSorted(
+    (left, right) =>
+      relativeDepth(cwd, left) - relativeDepth(cwd, right) || left.localeCompare(right),
+  );
+}
+
+export interface PythonToolDependencyGap {
+  readonly directory: string;
+  readonly tools: PythonTool[];
+}
+
+function relativeDepth(root: string, path: string): number {
+  return nodePath.relative(root, path).split(nodePath.sep).length;
+}
+
+/** Missing declarations grouped by the Python project whose manifest owns them. */
+export function getPythonToolDependencyGaps(
+  cwd: string,
+  includeImportLinter: (directory: string) => boolean,
+): PythonToolDependencyGap[] {
+  return findPythonProjectDirectories(cwd).flatMap(directory => {
+    const tools = getMissingPythonToolDependencies(directory, includeImportLinter(directory));
+    return tools.length === 0 ? [] : [{ directory, tools }];
+  });
 }
 
 export function installPythonDependencies(cwd: string, tools: readonly PythonTool[]): boolean {

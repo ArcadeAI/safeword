@@ -52,10 +52,8 @@ import { installPack } from '../packs/install.js';
 import { hasImportLinterScaffoldTarget } from '../packs/python/files.js';
 import {
   detectPythonPackageManager,
-  getMissingPythonToolDependencies,
   getPythonInstallCommand,
-  getPythonTools,
-  hasRuffDependency,
+  getPythonToolDependencyGaps,
   installPythonDependencies,
   type PythonTool,
 } from '../packs/python/setup.js';
@@ -270,24 +268,36 @@ function plannedPackEffects(cwd: string): Effect[] {
 }
 
 function plannedPythonEffects(cwd: string): Effects {
-  if (!createProjectContext(cwd).languages?.python || hasRuffDependency(cwd)) {
+  if (!createProjectContext(cwd).languages?.python) {
     return emptyEffects();
   }
-  const packageManager = detectPythonPackageManager(cwd);
-  if (packageManager === 'pip') {
-    return emptyEffects();
-  }
-  const tools = getPythonTools(hasImportLinterScaffoldTarget(cwd));
+  const gaps = getPythonToolDependencyGaps(cwd, hasImportLinterScaffoldTarget);
   const lockfiles = {
     uv: 'uv.lock',
     poetry: 'poetry.lock',
     pipenv: 'Pipfile.lock',
   } as const;
+  const installable = gaps.flatMap(gap => {
+    const packageManager = detectPythonPackageManager(gap.directory);
+    if (packageManager === 'pip') return [];
+    const prefix = nodePath.relative(cwd, gap.directory);
+    const target = (file: string): string => (prefix === '' ? file : nodePath.join(prefix, file));
+    return [
+      {
+        tools: gap.tools,
+        files: uniqueEffects([
+          ...existingFileEffects(gap.directory, PYTHON_PACKAGE_FILES).map(effect => ({
+            ...effect,
+            target: target(effect.target),
+          })),
+          plannedFileEffect(cwd, target(lockfiles[packageManager])),
+        ]),
+      },
+    ];
+  });
+  const tools = [...new Set(installable.flatMap(item => item.tools))];
   return {
-    files: uniqueEffects([
-      ...existingFileEffects(cwd, PYTHON_PACKAGE_FILES),
-      plannedFileEffect(cwd, lockfiles[packageManager]),
-    ]),
+    files: uniqueEffects(installable.flatMap(item => item.files)),
     packages: tools.map(target => ({ kind: 'install', target })),
     configuration: [],
     network: tools.map(target => ({ kind: 'package-registry', target, operation: 'install' })),
@@ -514,12 +524,22 @@ function configurePython(
   if (!context.languages?.python) {
     return { tools: [], attempted: false, installed: false };
   }
-  const tools = getMissingPythonToolDependencies(cwd, hasImportLinterScaffoldTarget(cwd));
+  const gaps = getPythonToolDependencyGaps(cwd, hasImportLinterScaffoldTarget);
+  const tools = [...new Set(gaps.flatMap(gap => gap.tools))];
   if (tools.length === 0) return { tools, attempted: false, installed: false };
 
-  const command = getPythonInstallCommand(cwd, tools);
-  const shouldInstall =
-    !process.env.SAFEWORD_SKIP_INSTALL && detectPythonPackageManager(cwd) !== 'pip';
+  const commands = gaps.map(gap => ({
+    ...gap,
+    command: getPythonInstallCommand(gap.directory, gap.tools),
+  }));
+  const command = commands
+    .map(item => {
+      const relative = nodePath.relative(cwd, item.directory);
+      return relative === '' ? item.command : `(cd ${JSON.stringify(relative)} && ${item.command})`;
+    })
+    .join(' && ');
+  const installable = commands.filter(item => detectPythonPackageManager(item.directory) !== 'pip');
+  const shouldInstall = !process.env.SAFEWORD_SKIP_INSTALL && installable.length > 0;
   if (!shouldInstall) {
     return { tools, command, attempted: false, installed: false };
   }
@@ -527,7 +547,9 @@ function configurePython(
     tools,
     command,
     attempted: true,
-    installed: installPythonDependencies(cwd, [...tools]),
+    installed:
+      installable.length === commands.length &&
+      installable.every(item => installPythonDependencies(item.directory, item.tools)),
   };
 }
 
