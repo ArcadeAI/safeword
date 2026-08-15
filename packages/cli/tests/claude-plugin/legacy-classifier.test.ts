@@ -10,7 +10,7 @@ import { historicalHookEntry } from '../../src/claude-plugin/historical-ownershi
 import { observeClaudeLegacy } from '../../src/claude-plugin/legacy-classifier.js';
 import { requireHistoricalReleaseTags } from '../helpers/git-history.js';
 
-const repoRoot = new URL('../../../..', import.meta.url).pathname;
+const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
 const fixtures: string[] = [];
 
 function fixture(): string {

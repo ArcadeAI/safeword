@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import nodePath from 'node:path';
 
 import { beforeAll, describe, expect, it } from 'vitest';
 
@@ -12,7 +13,7 @@ import {
 } from '../../src/claude-plugin/historical-ownership.js';
 import { requireHistoricalReleaseTags } from '../helpers/git-history.js';
 
-const repoRoot = new URL('../../../..', import.meta.url).pathname;
+const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
 
 function gitShow(tag: string, path: string): string {
   return execFileSync('git', ['show', `${tag}:${path}`], {

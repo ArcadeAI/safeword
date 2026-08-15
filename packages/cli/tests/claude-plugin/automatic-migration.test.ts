@@ -23,7 +23,7 @@ import {
 import { readClaudePluginMode } from '../../src/claude-plugin/migration-state.js';
 import { requireHistoricalReleaseTags } from '../helpers/git-history.js';
 
-const repoRoot = new URL('../../../..', import.meta.url).pathname;
+const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
 const roots: string[] = [];
 const hookDigest = 'a'.repeat(64);
 const originalProjectDirectory = process.env.CLAUDE_PROJECT_DIR;
