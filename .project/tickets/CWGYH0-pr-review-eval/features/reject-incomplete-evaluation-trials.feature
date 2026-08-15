@@ -69,6 +69,7 @@ Feature: Keep failed reviews out of benchmark scores
       Examples:
         | malformed evidence                  |
         | a non-boolean named-failure          |
+        | a missing named-failure claim        |
         | missing matching findings            |
         | missing consolidated findings        |
         | a malformed matching finding        |
@@ -108,6 +109,7 @@ Feature: Keep failed reviews out of benchmark scores
         | named-failure evidence |
         | matching-finding evidence |
         | consolidated-finding evidence |
+        | review-valid evidence |
 
     Scenario: Matching scored finding views are admitted
       Given named-failure, matching-finding, consolidated-finding, and routed-outcome evidence contain the same findings
@@ -579,6 +581,9 @@ Feature: Keep failed reviews out of benchmark scores
         | a digest length inconsistent with SHA-256|
         | a mutated manifest                      |
         | the manifest and local digest both replaced against the remote commit|
+        | a missing external manifest anchor |
+        | an external anchor that omits the manifest digest |
+        | a self-retained external anchor |
         | a branch name supplied where the immutable commit hash is required |
         | a tag name supplied where the immutable commit hash is required |
         | the manifest commit resolved from an untrusted repository origin |

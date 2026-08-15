@@ -19,7 +19,7 @@ Feature: Prove cross-provider review before scaling spend
 
     @rejection
     Scenario Outline: Untrustworthy provider evidence is rejected
-      Given an otherwise complete route-valid review has only <provider evidence defect>
+      Given a review that is complete apart from <provider evidence defect>
       When the maintainer validates its provider-call inventory
       Then the review is rejected as route-invalid with exactly <route defect>
 
@@ -76,7 +76,7 @@ Feature: Prove cross-provider review before scaling spend
       Given the parent holds separate GitHub and OpenAI credentials for an authorized live attempt
       When the parent launches the paid child
       Then the child receives the OpenAI credential
-      And the child receives no GitHub credential
+      And the child receives no credential other than the OpenAI credential
       And no paid request is made
 
     Scenario: Explicit initialization creates an empty authorized checkpoint
@@ -118,6 +118,7 @@ Feature: Prove cross-provider review before scaling spend
     @rejection
     Scenario Outline: Missing or contradictory accounting fails closed
       Given a resumed canary has <accounting defect>
+      And every complete limit remains below its authorized stop
       When the harness decides whether to start another attempt
       Then the attempt is blocked with exactly <reasons>
       And no paid request is made
@@ -165,10 +166,11 @@ Feature: Prove cross-provider review before scaling spend
 
     @rejection
     Scenario: Invalid paid work with out-of-policy usage gets no invented price
-      Given a route-invalid paid attempt retains usage outside the frozen native Terra policy
+      Given zero attempts have previously started
+      And a route-invalid paid attempt retains usage outside the frozen native Terra policy
       When the harness reconciles observed spend
       Then cost accounting is incomplete
-      And another attempt is blocked
+      And another attempt is blocked with exactly incomplete-cost-accounting
 
     Scenario: Route-invalid paid work still consumes an attempt
       Given nine started attempts are durably accounted
@@ -212,6 +214,8 @@ Feature: Prove cross-provider review before scaling spend
         | authorization for another limit |
         | authorization for different code |
         | authorization for a dirty checkout |
+        | a stale authorization |
+        | an authorization whose receipt pairs are exhausted |
 
     Scenario: Matching authorization admits a no-spend dispatch preflight
       Given a durable authorization matches the repository, corpus, output root, route, limits, and clean code pins
@@ -221,9 +225,9 @@ Feature: Prove cross-provider review before scaling spend
       And no paid request is made
 
     Scenario: Concurrent attempt start is atomic
-      Given durable accounting records nine of ten authorized attempts
+      Given durable accounting records five of ten authorized attempts with spend below the authorized limit
       When two processes contend to start the next attempt
-      Then exactly one durable tenth attempt is created
+      Then exactly one durable sixth attempt is created
       And the losing process is blocked with exactly dispatch-contention and makes no paid request
 
     @rejection
@@ -244,6 +248,7 @@ Feature: Prove cross-provider review before scaling spend
       Given the default and continuous-integration test selectors
       When the automated BDD lane enumerates runnable scenarios
       Then no @paid-canary or @manual scenario is selected
+      And every scenario in this feature without those tags is selected
       And no paid request is made
 
     @rejection
