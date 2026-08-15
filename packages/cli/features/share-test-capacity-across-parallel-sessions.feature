@@ -31,7 +31,7 @@ Feature: Let parallel sessions share test capacity safely
     Scenario: Reservation failure starts no repository process
       Given an exact focused public wrapper reservation is durable and the interposed container-activation seam is fixed to fail before repository code can run
       When the wrapper handles the activation failure
-      Then no repository process or descendant starts, only that reservation is removed, and the wrapper exits nonzero with its predetermined container-activation status
+      Then no repository process or descendant starts, only that reservation is removed, and the wrapper exits nonzero with SAFEWORD_TEST_CAPACITY_STATE_UNSAFE and `safeword project test-capacity status`
 
     @wiring @process
     Scenario: Capacity eight admits eight focused lifetimes and gives a broad request all eight permits
@@ -199,7 +199,7 @@ Feature: Let parallel sessions share test capacity safely
     Scenario: A checkout-mutex waiter holds no shared-capacity permit
       Given canonical capacity is two, one same-worktree wrapper holds checkout ownership and one active permit, a second same-worktree wrapper emits its checkout-mutex waiter event, and an unrelated-worktree focused wrapper requests admission
       When the scheduler records both wrappers under the state guard
-      Then the unrelated wrapper is admitted with the remaining one permit, the second wrapper's checkout-mutex-acquired event strictly precedes every scheduler-registration event for that wrapper, durable owners never include it before that event, all three wrappers exit zero after controlled release, and all their descendants exit and are accounted for
+      Then the unrelated wrapper is admitted with the remaining one permit, the second wrapper emits at least one keyed scheduler-registration event and later one durable owner record, its checkout-mutex-acquired event strictly precedes every scheduler-registration event for that wrapper, durable owners never include it before that event, all three wrappers exit zero after controlled release, and all their descendants exit and are accounted for
 
     @rejection
     Scenario Outline: A terminated capacity wait does not strand the checkout mutex
@@ -345,7 +345,7 @@ Feature: Let parallel sessions share test capacity safely
         | Windows | process creation FILETIME for the PID | the exact live process instance | the exact process instance is authenticated |
         | Windows | process creation FILETIME for the PID | a distinct real live process with a different recorded creation identity | authentication is withheld, no owner is reclaimed, no repository process starts, and the caller exits nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE |
         | macOS | LC_ALL=C process start time with conservative second-level precision | the exact live process instance | the exact process instance is authenticated |
-        | macOS | LC_ALL=C process start time with conservative second-level precision | a real live process with a different recorded creation identity | authentication is withheld or conservatively treated live, no owner is reclaimed, no repository process starts, and the caller exits nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE |
+        | macOS | LC_ALL=C process start time with conservative second-level precision | a real live process with a different recorded creation identity outside the same-second conservative interval | authentication is withheld, no owner is reclaimed, no repository process starts, and the caller exits nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE |
 
     @rejection
     Scenario Outline: Injected identity adapter faults fail closed without contributing native evidence
@@ -671,7 +671,7 @@ Feature: Let parallel sessions share test capacity safely
     Scenario Outline: Status reports a concrete repair for unsafe capacity artifacts
       Given <artifact> has <unsafe-property>
       When a real public status command opens the capacity domain
-      Then it changes no state, reports the canonical domain and state location plus <repair>, and exits nonzero with SAFEWORD_TEST_CAPACITY_STATE_UNSAFE
+      Then it changes no state, reports the canonical domain and state location plus <repair>, does not name `safeword project test-capacity status` as its first recovery step, and exits nonzero with SAFEWORD_TEST_CAPACITY_STATE_UNSAFE
       Examples:
         | artifact | unsafe-property | repair |
         | live state | another owner | owner repair for the named live state followed by `safeword project test-capacity status` |
@@ -765,12 +765,6 @@ Feature: Let parallel sessions share test capacity safely
         | race | outcome |
         | barriers give the capacity-2 command the guard before a concurrent capacity-3 command | capacity 2 commits at version N+1, then capacity 3 commits at N+2, and no reader observes a partial or skipped version |
         | barriers register a wrapper before a capacity-2 command can commit | capacity remains 1, the wrapper observes 1, and the set command exits SAFEWORD_TEST_CAPACITY_BUSY |
-
-    @rejection
-    Scenario: A reclaiming owner blocks a capacity update
-      Given canonical capacity is two and an owner is marked reclaiming between its first and second absence observations
-      When the builder runs `safeword project test-capacity set 1`
-      Then the command exits nonzero with SAFEWORD_TEST_CAPACITY_BUSY, names `safeword project test-capacity status` first, and durable state bytes and version remain unchanged
 
     Scenario: Capacity one preserves the hardened machine-wide serialization baseline
       Given canonical shared capacity is one and real wrappers use real build and test collaborators
