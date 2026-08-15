@@ -81,6 +81,7 @@ Feature: Keep failed reviews out of benchmark scores
 
       Examples:
         | routing field |
+        | expert        |
         | provider      |
         | model         |
 
@@ -138,7 +139,7 @@ Feature: Keep failed reviews out of benchmark scores
       When the evaluation harness executes the work item
       Then it records exactly two provider attempts and makes no third call
       And it quarantines every record for that paired case while retaining all artifacts and attempt costs
-      And it selects the next frozen reserve
+      And it allocates the next frozen reserve exactly once after quarantine is durable
 
       Examples:
         | failure |
@@ -146,6 +147,9 @@ Feature: Keep failed reviews out of benchmark scores
         | HTTP 408 responses |
         | HTTP 429 responses |
         | HTTP 500 responses |
+        | HTTP 502 responses |
+        | HTTP 503 responses |
+        | HTTP 504 responses |
 
     @rejection
     Scenario Outline: A non-infrastructure failure gets no silent retry
@@ -184,12 +188,17 @@ Feature: Keep failed reviews out of benchmark scores
       Then no member of that case remains admitted and every member is retained together in quarantine
 
     @rejection
-    Scenario: A thrown semantic provider failure quarantines without retry
-      Given the provider throws a schema or content failure before returning an output
+    Scenario Outline: A thrown semantic provider failure quarantines without retry
+      Given the provider throws <semantic failure> before returning an output
       When the evaluation harness executes the work item
       Then it records one terminal invalid attempt and makes no second call
-      And it durably retains the attempt artifacts and known or incomplete cost
+      And it durably retains the attempt artifacts with incomplete cost accounting
       And it quarantines the paired case and allocates the next frozen reserve exactly once so restart cannot repeat the paid work
+
+      Examples:
+        | semantic failure |
+        | a schema failure |
+        | a content failure |
 
     @rejection
     Scenario: An early failure cancels pending paired work
@@ -266,11 +275,16 @@ Feature: Keep failed reviews out of benchmark scores
       Then the exclusion retains both attempts, its replacement, and their cost exactly once
 
     @rejection
-    Scenario: Missing usage cannot bypass quarantine or authorize more spend
-      Given a non-null invalid provider output has missing or malformed usage
+    Scenario Outline: Missing usage cannot bypass quarantine or authorize more spend
+      Given a non-null invalid provider output has <usage defect>
       When the live runner handles the failed work item
       Then it quarantines the case without throwing from cost extraction
       And it records incomplete cost accounting and makes no later provider call
+
+      Examples:
+        | usage defect |
+        | missing usage |
+        | malformed usage |
 
     @rejection
     Scenario: An unclassified thrown attempt is not assumed to be free
@@ -305,7 +319,7 @@ Feature: Keep failed reviews out of benchmark scores
       And the effective matrix replaces each quarantined primary with its deterministically allocated reserve
       And usable primaries and allocated replacements each have every required system and variant cell
       And quarantined primaries and unused reserves are outside the scoreable matrix
-      And each cell contains exactly the three trial identities frozen in the run manifest as usable records for that case
+      And each cell contains exactly the trial identities frozen in the run manifest as usable records for that case
       When the scorer evaluates the run
       Then the completeness gate is true
       And every estimate input is exactly one of the enumerated admitted records
@@ -381,14 +395,16 @@ Feature: Keep failed reviews out of benchmark scores
     Scenario: The no-cost fixture inventory is independently checkable
       Given the canonical R1 taxonomy is provider-failure, incomplete-provider-output, unexpected-finish, schema-invalid, routing-invalid, reviewer-failed, provenance-incomplete, provenance-mismatch, and unknown-state
       And a frozen input manifest enumerates one stable fixture identity and expected rejection reason for every R1 example row
+      And the manifest enumerates stable admitted-fixture identities for completed findings and explicit genuine-empty results
       When the harness runs the no-cost preflight
       Then the recorded classes cover every canonical R1 class with none missing or extra
       And each enumerated R1 example has exactly one recorded outcome matching its expected rejection reason
+      And each admitted fixture has exactly one accepted outcome matching its expected success class
 
     Scenario: Operational failure injection covers the R2 taxonomy
-      Given the canonical R2 taxonomy covers retry, semantic-first failure, quarantine, reserve, lock, durable-write, incomplete-cost, and interrupted-visibility behaviors
+      Given a frozen operational manifest enumerates every R2 scenario and example identity
       When the no-cost operational suite completes
-      Then each canonical R2 class has exactly one passing failure-injection record with a stable scenario identity
+      Then each enumerated R2 identity has exactly one passing failure-injection record with no missing or extra identity
 
     Scenario: The paid canary outcomes are independently checkable
       Given ten unique mechanical labels were retained in a separate immutable external anchor before any paid call
@@ -473,10 +489,12 @@ Feature: Keep failed reviews out of benchmark scores
         | a failed R2 injection record |
         | an invalid pre-call external label anchor |
         | fewer than ten paid-call labels |
+        | more than ten paid-call labels |
         | duplicate paid-call labels |
         | labels covering only one system |
         | labels covering only one variant |
         | labels with no genuine-empty success |
+        | labels with no finding success |
         | incomplete paid-call provenance |
         | one unusable paid canary call |
         | a hidden-failure wiring record that produced a scoreable result |
@@ -540,8 +558,10 @@ Feature: Keep failed reviews out of benchmark scores
         | artifact bytes replaced between verification and use |
         | an artifact path target replaced between verification and use |
         | an artifact directory entry substituted between verification and use |
-        | an ambiguous or changed hash algorithm |
-        | an unsupported or weak hash algorithm  |
+        | an ambiguous hash algorithm |
+        | a changed hash algorithm |
+        | an unsupported hash algorithm  |
+        | a weak hash algorithm  |
         | a malformed digest encoding            |
         | a digest length inconsistent with SHA-256|
         | a mutated manifest                      |

@@ -4,6 +4,12 @@ Feature source: `features/reject-incomplete-evaluation-trials.feature`
 
 test-definitions.md is the R/G/R ledger.
 
+Some historical RED/GREEN commits contain several scenarios because one missing
+production seam made each named assertion fail independently. The shared commit
+is evidence only where the corresponding test names and assertions are present
+in that commit; it is not treated as proof merely because another scenario in
+the batch failed.
+
 ## Rule: pr-review-eval.SWM1.R1 — Only positively complete trials are scoreable
 
 ### Scenario: A completed reviewer finding is usable
@@ -92,11 +98,11 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Paired-case quarantine is atomic
 
-- [ ] RED
+- [x] RED skip: independent review supplied the partial-admission counterexample before the atomic quarantine regression and fix landed together
 - [x] GREEN c0e9f9512
 - [x] REFACTOR skip: one case-directory rename keeps every sibling on the same side of the scoring boundary
 
-### Scenario: A thrown semantic provider failure quarantines without retry
+### Scenario Outline: A thrown semantic provider failure quarantines without retry
 
 - [x] RED f948a4a36
 - [x] GREEN 0aa2de93a
@@ -104,13 +110,13 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: An early failure cancels pending paired work
 
-- [ ] RED
+- [x] RED skip: independent review supplied the pending-sibling paid-call counterexample before the cancellation regression and fix landed together
 - [x] GREEN c0e9f9512
 - [x] REFACTOR skip: the sequential work loop exits immediately after the quarantine transition
 
 ### Scenario: A retryable failure followed by a semantic failure ends the pair
 
-- [ ] RED
+- [x] RED skip: independent review supplied the third-call counterexample before the mixed-failure regression and fix landed together
 - [x] GREEN c0e9f9512
 - [x] REFACTOR skip: one retry loop already terminates on the second attempt's semantic disposition
 
@@ -134,7 +140,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario Outline: Ambiguous lock ownership fails closed
 
-- [ ] RED
+- [x] RED skip: independent review supplied the reused-PID and permission-probe counterexamples before the fail-closed lock regressions and fix landed together
 - [x] GREEN 57d1d2349
 - [x] REFACTOR skip: the fail-closed ownership predicate remains a single lock-acquisition seam
 
@@ -156,7 +162,7 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN a90b2edd3
 - [x] REFACTOR skip: recovery exposes one typed evidence callback and keeps accounting policy in the live runner
 
-### Scenario: Missing usage cannot bypass quarantine or authorize more spend
+### Scenario Outline: Missing usage cannot bypass quarantine or authorize more spend
 
 - [x] RED ca0993b71
 - [x] GREEN 94d3cc83e
@@ -176,7 +182,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Reserve exhaustion stops the run
 
-- [ ] RED
+- [x] RED skip: independent review supplied the post-exhaustion paid-call counterexample before the terminal reserve regression and fix landed together
 - [x] GREEN c0e9f9512
 - [x] REFACTOR skip: the terminal no-reserve path reuses the same durable whole-case quarantine and accounting boundary
 

@@ -40,7 +40,7 @@ describe('BDD scenario scope guidance', () => {
 
     expect(content).toContain('Keep acceptance examples representative');
     expect(content).toContain('table-driven lower-level tests');
-    expect(content).toContain('Keep one Rule boundary');
+    expect(content).toContain('Keep one numbered Rule boundary');
     expect(content).toContain('Keep outlines coherent');
   });
 
@@ -63,5 +63,7 @@ describe('BDD scenario scope guidance', () => {
     expect(content).toContain(
       'fixtures and lower-level tests may de-risk it, but cannot lend it their evidence',
     );
+    expect(content).toContain('This annotation is agent-attested evidence');
+    expect(content).toContain('Manual/live evidence uses the separate path above');
   });
 });

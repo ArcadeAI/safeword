@@ -70,7 +70,7 @@ fixture scenarios do not substitute for its RED, GREEN, or REFACTOR record.
 
 ### Scenario: Consumed initialization cannot reset durable accounting
 
-- [ ] RED
+- [x] RED skip: independent review supplied the replay-reset counterexample before the focused regression test and fix landed together
 - [x] GREEN 1b3bea1ea
 - [x] REFACTOR skip: initialization replay reuses the one-time upstream-consumption guard
 
@@ -136,13 +136,13 @@ fixture scenarios do not substitute for its RED, GREEN, or REFACTOR record.
 
 ### Scenario: Matching authorization admits a no-spend dispatch preflight
 
-- [ ] RED
+- [x] RED skip: independent review supplied the missing positive dispatch boundary before the composition test and fix landed together
 - [x] GREEN 24b70ee54
 - [x] REFACTOR skip: the existing authorized composition test injects the child boundary without provider spend
 
 ### Scenario: Concurrent attempt start is atomic
 
-- [ ] RED
+- [x] RED skip: independent review supplied the two-process lost-update counterexample before the contention test and lock fix landed together
 - [x] GREEN 1d9933fd79
 - [x] REFACTOR skip: the existing exclusive-attempt lock spans durable start through completion
 
@@ -197,4 +197,4 @@ fixture scenarios do not substitute for its RED, GREEN, or REFACTOR record.
 
 ## Feature-level cross-scenario refactor
 
-- [x] cross-scenario skip: the reviewed behaviors already share the production accounting, authorization, and evidence seams; broader module extraction is deferred outside this safety fix
+- [ ] REFACTOR: reopen after the remaining R2 and R3 scenarios have GREEN evidence; broader module extraction stays deferred outside this safety fix

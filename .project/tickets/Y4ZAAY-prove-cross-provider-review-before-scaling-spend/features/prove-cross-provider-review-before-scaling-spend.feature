@@ -27,10 +27,13 @@ Feature: Prove cross-provider review before scaling spend
         | a response from another provider |
         | a response from another model |
         | a response from another service tier |
+        | a response with Anthropic-shaped usage detail |
         | a missing response |
         | a truncated response |
         | a duplicated response |
         | a response paired with the wrong paid turn |
+        | repository-reading turns without a finding-verification turn |
+        | finding-verification turns without a repository-reading turn |
         | no recorded paid turns |
 
     Scenario Outline: Trusted corpus provenance is copied without embellishment
@@ -73,6 +76,7 @@ Feature: Prove cross-provider review before scaling spend
       When the parent launches the paid child
       Then the child receives the OpenAI credential
       And the child receives no GitHub credential
+      And no paid request is made
 
     Scenario: Explicit initialization creates an empty authorized checkpoint
       Given trusted upstream registration contains an unused one-time initialization authorization
@@ -141,6 +145,7 @@ Feature: Prove cross-provider review before scaling spend
 
     Scenario Outline: A completed attempt that reaches the spend limit is retained
       Given an authorized attempt starts below the spend limit
+      And fewer than nine attempts have previously started
       And its complete sequence of paid turns leaves observed spend at <spend>
       When the harness records the completed attempt
       Then every turn and its exact cost remain durable
@@ -166,7 +171,7 @@ Feature: Prove cross-provider review before scaling spend
 
     Scenario: Route-invalid paid work still consumes an attempt
       Given nine started attempts are durably accounted
-      And observed spend remains below the authorized 15 US dollar limit
+      And observed spend remains below the authorized 15 US dollar limit after the tenth attempt's cost is recorded
       When a tenth paid attempt completes with route-invalid evidence and complete native standard-tier Terra usage
       Then the durable started-attempt count is ten
       And a later attempt is blocked with exactly attempt-stop
@@ -210,7 +215,6 @@ Feature: Prove cross-provider review before scaling spend
       Then dispatch is admitted up to the credential-loading boundary
       And no paid request is made
 
-    @rejection
     Scenario: Concurrent attempt start is atomic
       Given durable accounting records nine of ten authorized attempts
       When two processes contend to start the next attempt
@@ -218,12 +222,18 @@ Feature: Prove cross-provider review before scaling spend
       And the losing process makes no paid request
 
     @rejection
-    Scenario: Authorized corpus cannot dispatch unrelated paid input
+    Scenario Outline: Authorized corpus cannot dispatch unrelated paid input
       Given a durable authorization names one frozen development corpus
-      And the paid child input names a case, immutable review identity, or attempt context that differs from its frozen manifest or authorized attempt
+      And the paid child input has <identity defect>
       When live execution is requested
       Then the attempt is blocked before secrets are loaded
       And no paid request is made
+
+      Examples:
+        | identity defect |
+        | a case that differs from its frozen manifest |
+        | an immutable review identity that differs from its frozen manifest |
+        | an attempt context that differs from its authorized attempt |
 
     @rejection
     Scenario: Validated paid input cannot change before child execution
@@ -258,9 +268,13 @@ Feature: Prove cross-provider review before scaling spend
         | presentation | confirmatory action |
         | its original diagnostic identity | confirmatory estimates |
         | its original diagnostic identity | confirmatory spend authorization |
-        | a changed path, local role, or local anchor | confirmatory spend authorization |
-        | a self-issued or foreign confirmatory identity | confirmatory estimates |
-        | unavailable or unknown trusted registration | confirmatory spend authorization |
+        | a changed path | confirmatory spend authorization |
+        | a changed local role | confirmatory spend authorization |
+        | a changed local anchor | confirmatory spend authorization |
+        | a self-issued confirmatory identity | confirmatory estimates |
+        | a foreign confirmatory identity | confirmatory estimates |
+        | unavailable trusted registration | confirmatory spend authorization |
+        | unknown trusted registration | confirmatory spend authorization |
 
     Scenario: Independently anchored confirmatory evidence remains usable
       Given evidence matches an independently trusted confirmatory registration
