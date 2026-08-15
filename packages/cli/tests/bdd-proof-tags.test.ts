@@ -245,6 +245,10 @@ describe('BDD proof provenance', () => {
 
   it.each([
     [
+      'architecture narrative',
+      '.project/tickets/BY7RNR-architecture-narrative-blindspots/bdd-proof.json',
+    ],
+    [
       'closeout convergence',
       '.project/tickets/TFG4CR-closeout-preview-apply-convergence/bdd-proof.json',
     ],
