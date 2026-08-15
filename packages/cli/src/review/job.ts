@@ -28,12 +28,6 @@ import { prepareReviewPacket } from './packet.js';
 type ReviewJobState = 'launching' | 'running' | 'completed' | 'failed' | 'canceled';
 type WorkerInspection = 'match' | 'mismatch' | 'unavailable';
 
-const TERMINAL_JOB_STATES: ReadonlySet<ReviewJobState> = new Set([
-  'completed',
-  'failed',
-  'canceled',
-]);
-
 interface ReviewJobRecord {
   readonly schema_version: 1;
   readonly id: string;
@@ -115,7 +109,6 @@ function recordIntegrity(cwd: string, record: ReviewJobRecord): string {
 }
 
 function hasValidIntegrity(cwd: string, record: ReviewJobRecord): boolean {
-  if (!isTerminalJobState(record.state)) return true;
   if (record.integrity === undefined || !/^[a-f\d]{64}$/u.test(record.integrity)) return false;
   try {
     const actual = Buffer.from(record.integrity, 'hex');
@@ -126,12 +119,7 @@ function hasValidIntegrity(cwd: string, record: ReviewJobRecord): boolean {
   }
 }
 
-function isTerminalJobState(state: ReviewJobState): boolean {
-  return TERMINAL_JOB_STATES.has(state);
-}
-
 function withRecordIntegrity(cwd: string, record: ReviewJobRecord): ReviewJobRecord {
-  if (!isTerminalJobState(record.state)) return record;
   const unsigned = { ...record, integrity: undefined };
   return { ...unsigned, integrity: recordIntegrity(cwd, unsigned) };
 }
@@ -347,7 +335,7 @@ function isReviewResultData(value: unknown, state: unknown): boolean {
   if (typeof data.status !== 'string') return false;
   if (data.command === 'review status') return ['failed', 'stale'].includes(data.status);
   if (data.status !== 'approved' && data.status !== 'changes_requested')
-    return ['blocked', 'existing_route', 'failed'].includes(data.status);
+    return ['blocked', 'existing_route', 'failed', 'stale'].includes(data.status);
   return isCompletedReviewData(data, state);
 }
 
@@ -510,9 +498,20 @@ function processExists(pid: number): boolean {
   try {
     process.kill(pid, 0);
     return true;
-  } catch {
-    return false;
+  } catch (error) {
+    return error instanceof Error && 'code' in error && error.code === 'EPERM';
   }
+}
+
+function processTool(name: 'powershell.exe' | 'ps' | 'taskkill'): string {
+  const [baseName] = name.split('.', 1);
+  const testOverride = process.env[`SAFEWORD_REVIEW_${baseName?.toUpperCase()}_PATH`];
+  if (process.env.NODE_ENV === 'test' && testOverride !== undefined) return testOverride;
+  if (process.platform !== 'win32') return `/bin/${name}`;
+  const systemRoot = process.env.SystemRoot ?? String.raw`C:\Windows`;
+  return name === 'powershell.exe'
+    ? nodePath.join(systemRoot, 'System32', 'WindowsPowerShell', 'v1.0', name)
+    : nodePath.join(systemRoot, 'System32', name);
 }
 
 function configuredCourtesyWait(): number {
@@ -747,12 +746,17 @@ function workerDefinitelyMismatches(record: ReviewJobRecord): boolean {
 function terminateUnactivatedWorker(record: ReviewJobRecord, pid: number): void {
   // A cancellation can win after spawn but before the worker PID is published.
   // Completed/failed records won the race legitimately and must remain untouched.
-  if (record.state !== 'completed' && record.state !== 'failed') terminateReviewWorker(pid);
+  if (
+    record.state !== 'completed' &&
+    record.state !== 'failed' &&
+    inspectReviewWorker(pid, record.id) === 'match'
+  )
+    terminateReviewWorker(pid);
 }
 
 function terminateReviewWorker(pid: number): void {
   if (process.platform === 'win32') {
-    spawnSync('taskkill', ['/PID', String(pid), '/T', '/F'], {
+    spawnSync(processTool('taskkill'), ['/PID', String(pid), '/T', '/F'], {
       stdio: 'ignore',
       timeout: 5000,
       windowsHide: true,
@@ -850,6 +854,9 @@ function runningJob(
 
 function isActiveReviewJob(record: ReviewJobRecord): boolean {
   if (record.pid === undefined) return false;
+  // Active records are integrity-protected before reaching this point. A
+  // launching PID is the authenticated initiating process; once the worker is
+  // published, command-line inspection binds it to this exact review id.
   if (record.state === 'launching') return processExists(record.pid);
   return record.state === 'running' && inspectReviewWorker(record.pid, record.id) !== 'mismatch';
 }
@@ -940,7 +947,7 @@ function inspectReviewWorker(pid: number, id: string): WorkerInspection {
   const inspected =
     process.platform === 'win32'
       ? spawnSync(
-          'powershell.exe',
+          processTool('powershell.exe'),
           [
             '-NoProfile',
             '-NonInteractive',
@@ -949,7 +956,7 @@ function inspectReviewWorker(pid: number, id: string): WorkerInspection {
           ],
           { encoding: 'utf8', timeout: 1000, windowsHide: true },
         )
-      : spawnSync('ps', ['-ww', '-p', String(pid), '-o', 'command='], {
+      : spawnSync(processTool('ps'), ['-ww', '-p', String(pid), '-o', 'command='], {
           encoding: 'utf8',
           timeout: 1000,
         });

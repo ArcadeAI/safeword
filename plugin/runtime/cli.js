@@ -2412,7 +2412,7 @@ function reviewCoverage(data) {
   if (typeof author !== "string" || !REVIEW_AUTHORS.has(author) || typeof reviewer !== "string") {
     return "incomplete";
   }
-  if (data.independence === "degraded" && reviewer === author)
+  if (data.independence === "degraded" && REVIEW_AGENTS.has(reviewer) && reviewer === author)
     return "standard";
   if (data.independence === "cross-agent" && REVIEW_AGENTS.has(reviewer) && reviewer !== author) {
     return "independent";
@@ -2423,7 +2423,7 @@ function reviewVerdict(data) {
   const output = data.reviewer_output;
   if (!isRecord(output))
     return;
-  if (typeof output.reviewer_agent !== "string" || !REVIEW_AUTHORS.has(output.reviewer_agent) || output.reviewer_agent !== data.actual_reviewer) {
+  if (typeof output.reviewer_agent !== "string" || !REVIEW_AGENTS.has(output.reviewer_agent) || output.reviewer_agent !== data.actual_reviewer) {
     return;
   }
   return output.verdict === "approve" || output.verdict === "request_changes" ? output.verdict : undefined;
@@ -2458,9 +2458,22 @@ function blockedReviewCoverageLine(data, coverage, verdict) {
   }
   return incompleteCoverageLine(data);
 }
+function specialReviewCoverageLine(status, state) {
+  if (status === "existing_route" && state === "healthy")
+    return "Review not requested.";
+  if (status === "pending" && state === "action_required") {
+    return "Review running in the background.";
+  }
+  if (status === "stale" && state === "action_required") {
+    return "Review stale \u2014 sources changed during the check.";
+  }
+  return;
+}
 function reviewCoverageLine(data, state) {
-  const coverage = reviewCoverage(data);
   const status = data.status;
+  const specialLine = specialReviewCoverageLine(status, state);
+  if (specialLine !== undefined)
+    return specialLine;
   const verdict = reviewVerdict(data);
   if (!reviewStateMatchesStatus(state, status))
     return incompleteCoverageLine(data);
@@ -2468,9 +2481,11 @@ function reviewCoverageLine(data, state) {
     return "Review incomplete.";
   if (!reviewVerdictMatchesStatus(status, verdict))
     return incompleteCoverageLine(data);
-  if (status === "blocked" && verdict !== undefined) {
+  if (verdict === undefined)
+    return incompleteCoverageLine(data);
+  const coverage = reviewCoverage(data);
+  if (status === "blocked")
     return blockedReviewCoverageLine(data, coverage, verdict);
-  }
   if (coverage === "incomplete")
     return "Review incomplete.";
   if (verdict === "request_changes")
@@ -2496,6 +2511,9 @@ function suggestionForFailure(failure, label) {
   if (failure === "not_installed") {
     return `To add independent coverage, install or update ${label}, then retry review.`;
   }
+  if (failure === "untrusted_install") {
+    return `To add independent coverage, move ${label} to a trusted non-writable-by-group directory, then retry review.`;
+  }
   if (failure === "unsupported") {
     return `To add independent coverage, update ${label}, then retry review.`;
   }
@@ -2513,9 +2531,11 @@ function suggestionForFailure(failure, label) {
 function reviewResultLines(result, options) {
   if (!isRecord(result.data) || result.data.command !== "review run")
     return;
+  if (result.state === "failed" && result.errors.length > 0)
+    return;
   const messages = result.findings.filter((finding) => !REPLACED_REVIEW_FINDINGS.has(finding.code)).map((finding) => finding.message);
   messages.push(...result.errors.map((error2) => error2.message));
-  const lines = [reviewCoverageLine(result.data, result.state), ...new Set(messages)];
+  const lines = [reviewCoverageLine(result.data, result.state), ...messages];
   if (options.verbose === true) {
     const suggestion = reviewUpgradeSuggestion(result.data, result.state);
     if (suggestion !== undefined)
@@ -2527,12 +2547,17 @@ var REVIEW_AGENTS, REVIEW_AUTHORS, REPLACED_REVIEW_FINDINGS, RETRYABLE_REVIEW_FA
 var init_review_presentation = __esm(() => {
   REVIEW_AGENTS = new Set(["claude", "codex"]);
   REVIEW_AUTHORS = new Set(["claude", "codex", "cursor"]);
-  REPLACED_REVIEW_FINDINGS = new Set(["REVIEW_INDEPENDENCE", "REVIEW_INDEPENDENCE_DEGRADED"]);
+  REPLACED_REVIEW_FINDINGS = new Set([
+    "REVIEW_INDEPENDENCE",
+    "REVIEW_NOT_REQUESTED",
+    "REVIEW_STALE"
+  ]);
   RETRYABLE_REVIEW_FAILURES = new Set([
     "timed_out",
     "process_failed",
     "invalid_output",
-    "source_changed"
+    "REVIEWER_PROVENANCE_MISSING",
+    "REVIEWER_PROVENANCE_CONTRADICTORY"
   ]);
 });
 
@@ -6110,7 +6135,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/figure-it-out/SKILL.md": "18e2b44e9a91562079b3e1f52fcd9f952b5f57a0f0e7647b0273809848a75c0d",
         ".claude/skills/finish-review/REVIEWER.md": "0ecee21a63f91e09d3136f62cf8f7590ba9a640b85cad7b7b35c1ae334ff43c2",
         ".claude/skills/finish-review/SKILL.md": "e9ed5d198994b6cca12c62b1a4c13a1db2d82d65fc8a9173a41c5b5cf312cd52",
-        ".claude/skills/lint/SKILL.md": "208ec54032cabdcb532d1070e5ef5f1fcd6f0f0bfe8daf08e4ecf007aa285f66",
+        ".claude/skills/lint/SKILL.md": "fdde749fe9ce764f6f9325f963c092d457960494fe78dd04d65d53a50e7cfd19",
         ".claude/skills/quality-review/SKILL.md": "b940905d31cd4931665e023a65824a923a2bd5d7f590358355576cff8f3bc42a",
         ".claude/skills/refactor/SKILL.md": "a51a858fb13b50cbc86789edbde8a39e364b5cdd7d5d3b025d555d90b221760e",
         ".claude/skills/retro-filer/SKILL.md": "ea126f3805a2befefb4db2011439f075ebfd6eca31b78bd5f284ac11d667b4f0",
@@ -43732,6 +43757,8 @@ import {
   constants as constants4,
   lstatSync as lstatSync19,
   mkdtempSync as mkdtempSync6,
+  readdirSync as readdirSync31,
+  readFileSync as readFileSync51,
   realpathSync as realpathSync10,
   rmSync as rmSync12,
   writeFileSync as writeFileSync18
@@ -43747,29 +43774,32 @@ function reviewerArguments(reviewer, model, schemaPath) {
     extra.push("--output-schema", schemaPath);
   if (extra.length === 0)
     return base;
-  const stdinMarker = base.lastIndexOf("-");
-  return stdinMarker === -1 ? [...base, ...extra] : [...base.slice(0, stdinMarker), ...extra, ...base.slice(stdinMarker)];
+  if (reviewer !== "codex")
+    return [...base, ...extra];
+  const stdinMarker = base.length - 1;
+  if (base[stdinMarker] !== "-")
+    throw new Error("Codex reviewer arguments lack the stdin marker");
+  return [...base.slice(0, stdinMarker), ...extra, "-"];
 }
 function reviewRunCeiling(env) {
   return env.SAFEWORD_REVIEW_WORKER === "1" ? BACKGROUND_RUN_BOUND_MS : RUN_BOUND_MS;
 }
-function runBoundMs() {
-  const configured = Number(process.env.SAFEWORD_REVIEW_RUN_BOUND_MS);
-  const ceiling = reviewRunCeiling(process.env);
+function runBoundMs(env = process.env) {
+  const configured = Number(env.SAFEWORD_REVIEW_RUN_BOUND_MS);
+  const ceiling = reviewRunCeiling(env);
   return Number.isFinite(configured) && configured > 0 ? Math.min(configured, ceiling) : ceiling;
 }
-function minimumRouteMs() {
-  return Math.min(60000, attemptDeadlineMs());
+function minimumRouteMs(env = process.env) {
+  return Math.min(60000, reviewTimeoutMilliseconds(env));
 }
-function reviewTimeoutMilliseconds(_reviewer, env = process.env) {
+function reviewTimeoutMilliseconds(env = process.env) {
   const raw = env.SAFEWORD_REVIEW_TIMEOUT_MS;
   const configured = raw === undefined ? NaN : Number(raw);
-  const ceiling = reviewRunCeiling(env);
+  const ceiling = runBoundMs(env);
   const defaultDeadline = env.SAFEWORD_REVIEW_WORKER === "1" ? BACKGROUND_ATTEMPT_DEADLINE_MS : DEFAULT_ATTEMPT_DEADLINE_MS;
-  return Number.isFinite(configured) && configured > 0 ? Math.min(configured, ceiling) : defaultDeadline;
-}
-function attemptDeadlineMs() {
-  return reviewTimeoutMilliseconds("claude");
+  const maximumAttempt = ceiling > 60000 ? ceiling - 60000 : ceiling;
+  const requested = Number.isFinite(configured) && configured > 0 ? configured : defaultDeadline;
+  return Math.min(requested, maximumAttempt);
 }
 function isRecord3(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -43779,7 +43809,7 @@ function parseJson(value) {
 }
 function parseClaudeOutput(stdout) {
   const envelope = parseJson(stdout);
-  if (isRecord3(envelope) && "structured_output" in envelope) {
+  if (isRecord3(envelope) && isRecord3(envelope.structured_output)) {
     return envelope.structured_output;
   }
   if (isRecord3(envelope) && typeof envelope.result === "string") {
@@ -43819,7 +43849,7 @@ function hasValidReviewerOutputBody(value) {
   if (Object.keys(value).some((key) => !allowedOutputKeys.has(key)) || value.schema_version !== 1 || value.verdict !== "approve" && value.verdict !== "request_changes" || typeof value.summary !== "string" || !Array.isArray(value.findings)) {
     return false;
   }
-  const findingsAreValid = value.findings.every((finding) => isRecord3(finding) && Object.keys(finding).length === 2 && Object.hasOwn(finding, "severity") && Object.hasOwn(finding, "message") && ["info", "warning", "error"].includes(String(finding.severity)) && typeof finding.message === "string");
+  const findingsAreValid = value.findings.every((finding) => isRecord3(finding) && Object.keys(finding).length === 2 && Object.hasOwn(finding, "severity") && Object.hasOwn(finding, "message") && typeof finding.severity === "string" && ["info", "warning", "error"].includes(finding.severity) && typeof finding.message === "string");
   if (!findingsAreValid)
     return false;
   return reviewerVerdictMatchesFindings(value.verdict, value.findings);
@@ -43838,7 +43868,7 @@ function reviewPrompt(reviewer, packet) {
     "Do not use tools or modify files. Return only one JSON object matching the packet result contract.",
     REVIEW_RUBRICS[packet.kind],
     `Keep schema_version and dispatch_id unchanged; set reviewer_agent to exactly "${reviewer}".`,
-    "Use verdict approve or request_changes. Include summary and findings.",
+    "Use verdict approve only when no finding has severity error; otherwise use request_changes. Include summary and findings.",
     JSON.stringify(packet)
   ].join(`
 `);
@@ -43858,7 +43888,7 @@ function outsideUntrustedRoot(root, candidate) {
 }
 function pathMetadataIsTrusted(mode, ownerUid, currentUid) {
   const ownedByCurrentUser = currentUid !== undefined && ownerUid === currentUid;
-  return (mode & 2) === 0 && ((mode & 16) === 0 || ownedByCurrentUser) && (currentUid === undefined || ownerUid === 0 || ownedByCurrentUser);
+  return (mode & 2) === 0 && (mode & 16) === 0 && (currentUid === undefined || ownerUid === 0 || ownedByCurrentUser);
 }
 function hasTrustedExecutableAncestry(candidate) {
   if (process.platform === "win32")
@@ -43885,6 +43915,7 @@ function remainingReviewTime(deadline, reviewer, lastFailure) {
 function executableCandidates(reviewer, untrustedRoot) {
   const extensions = process.platform === "win32" ? (process.env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD").split(";").map((extension) => extension.toLowerCase()) : [""];
   const candidates = (process.env.PATH ?? "").split(nodePath82.delimiter).filter((directory) => directory !== "" && nodePath82.isAbsolute(directory)).flatMap((directory) => extensions.map((extension) => nodePath82.join(directory, `${reviewer}${extension}`)));
+  let rejectedForTrust = false;
   const canonicalCandidates = candidates.flatMap((candidate) => {
     if (inside(untrustedRoot, candidate))
       return [];
@@ -43893,14 +43924,22 @@ function executableCandidates(reviewer, untrustedRoot) {
       if (!outsideUntrustedRoot(untrustedRoot, canonical))
         return [];
       accessSync2(canonical, constants4.X_OK);
-      if (!hasTrustedExecutableAncestry(canonical))
+      if (!hasTrustedExecutableAncestry(canonical)) {
+        rejectedForTrust = true;
         return [];
+      }
       return [canonical];
     } catch {
       return [];
     }
   });
-  return [...new Set(canonicalCandidates)];
+  return { paths: [...new Set(canonicalCandidates)], rejectedForTrust };
+}
+function unavailableReviewerError(reviewer, rejectedForTrust) {
+  if (rejectedForTrust) {
+    return new ReviewRuntimeError("untrusted_install", `${reviewer} reviewer installation has an untrusted writable ancestor`);
+  }
+  return new ReviewRuntimeError("not_installed", `No compatible ${reviewer} reviewer is installed`);
 }
 async function supportsReviewContract(reviewer, executable, cwd, timeoutMs, model) {
   const child = spawn(executable, HELP_ARGUMENTS[reviewer], {
@@ -43962,7 +44001,7 @@ function appendBounded(current, currentBytes, chunk) {
   };
 }
 function classifyExit(stderr, otherwise) {
-  return /not logged in|sign in|authentication|unauthorized|login required|api key/iu.test(stderr) ? "not_authenticated" : otherwise;
+  return /not logged in|sign in|authentication|unauthorized|login required|(?:missing|invalid|provide|set|configure)[^\n]{0,40}api key/iu.test(stderr) ? "not_authenticated" : otherwise;
 }
 function stopWindowsReviewer(child, pid) {
   const childClosed = () => child.exitCode !== null && child.stdout?.closed === true && child.stderr?.closed === true;
@@ -43979,7 +44018,9 @@ function stopWindowsReviewer(child, pid) {
       child.kill("SIGKILL");
       resolve(stopped);
     };
-    const killer = spawn("taskkill", ["/PID", String(pid), "/T", "/F"], {
+    const systemRoot = process.env.SystemRoot ?? String.raw`C:\Windows`;
+    const taskkill = nodePath82.join(systemRoot, "System32", "taskkill.exe");
+    const killer = spawn(taskkill, ["/PID", String(pid), "/T", "/F"], {
       stdio: "ignore",
       windowsHide: true
     });
@@ -44014,10 +44055,49 @@ function stopReviewer(child) {
   reviewerStops.set(child, stopping);
   return stopping;
 }
-async function stopReviewerOrThrow(child, reviewer) {
+async function stopReviewerOrThrow(child, reviewer, terminal = true) {
   if (await stopReviewer(child))
     return;
-  throw new ReviewRuntimeError("process_failed", `${reviewer} reviewer processes could not be stopped`, true);
+  throw new ReviewRuntimeError("process_failed", `${reviewer} reviewer processes could not be stopped`, terminal);
+}
+function parseProcessStat(line) {
+  const commEnd = line.lastIndexOf(")");
+  if (commEnd === -1)
+    return;
+  const [state, , group] = line.slice(commEnd + 1).trim().split(/\s+/u, 3);
+  const groupId = Number(group);
+  if (state === undefined || !Number.isSafeInteger(groupId))
+    return;
+  return { state, group: groupId };
+}
+function procGroupHasRunningMember(group) {
+  if (process.platform !== "linux")
+    return;
+  let entries;
+  try {
+    entries = readdirSync31("/proc");
+  } catch {
+    return;
+  }
+  for (const entry2 of entries) {
+    if (!/^\d+$/u.test(entry2))
+      continue;
+    let line;
+    try {
+      line = readFileSync51(`/proc/${entry2}/stat`, "utf8");
+    } catch {
+      continue;
+    }
+    const parsed2 = parseProcessStat(line);
+    if (parsed2?.group === group && parsed2.state !== "Z")
+      return true;
+  }
+  return false;
+}
+async function waitForProcessGroupToStop(groupIsRunning, deadline) {
+  while (groupIsRunning() && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, PROCESS_GROUP_POLL_INTERVAL_MS));
+  }
 }
 async function stopReviewerOnce(child) {
   const pid = child.pid;
@@ -44040,18 +44120,23 @@ async function stopReviewerOnce(child) {
       return false;
     }
   };
-  const deadline = Date.now() + CLEANUP_BUDGET_MS;
-  while (groupExists() && Date.now() < deadline) {
-    await new Promise((resolve) => setTimeout(resolve, 5));
-  }
+  const groupIsRunning = () => {
+    if (!groupExists())
+      return false;
+    return procGroupHasRunningMember(pid) ?? true;
+  };
+  const groupIsStopped = async () => {
+    if (groupIsRunning())
+      return false;
+    await new Promise((resolve) => setTimeout(resolve, PROCESS_GROUP_POLL_INTERVAL_MS));
+    return !groupIsRunning();
+  };
+  await waitForProcessGroupToStop(groupIsRunning, Date.now() + CLEANUP_BUDGET_MS);
   if (groupExists()) {
     signalGroup("SIGKILL");
-    const forcedDeadline = Date.now() + CLEANUP_BUDGET_MS;
-    while (groupExists() && Date.now() < forcedDeadline) {
-      await new Promise((resolve) => setTimeout(resolve, 5));
-    }
+    await waitForProcessGroupToStop(groupIsRunning, Date.now() + CLEANUP_BUDGET_MS);
   }
-  return !groupExists();
+  return groupIsStopped();
 }
 async function runCandidate(executable, attempt, timeoutMs) {
   const { reviewer, packet, cwd, model, schemaPath } = attempt;
@@ -44066,75 +44151,78 @@ async function runCandidate(executable, attempt, timeoutMs) {
   };
   process.once("SIGTERM", terminateReviewer);
   try {
-    const output = await new Promise((resolve, reject) => {
-      let overflow = false;
-      let settled = false;
-      const settle = (finish) => {
-        if (settled)
-          return;
-        settled = true;
-        clearTimeout(timeout);
-        finish();
-      };
-      const timeout = setTimeout(() => {
-        settle(() => {
-          reject(new ReviewRuntimeError("timed_out", `${reviewer} review timed out`));
-        });
-      }, timeoutMs);
-      let stdout = "";
-      let stderr = "";
-      let stdoutBytes = 0;
-      let stderrBytes = 0;
-      child.stdout.setEncoding("utf8");
-      child.stderr.setEncoding("utf8");
-      child.stdout.on("data", (chunk) => {
-        const appended = appendBounded(stdout, stdoutBytes, chunk);
-        stdout = appended.value;
-        stdoutBytes = appended.bytes;
-        overflow ||= appended.overflow;
-        if (overflow) {
-          stopReviewer(child);
-        }
-      });
-      child.stderr.on("data", (chunk) => {
-        const appended = appendBounded(stderr, stderrBytes, chunk);
-        stderr = appended.value;
-        stderrBytes = appended.bytes;
-        overflow ||= appended.overflow;
-        if (overflow) {
-          stopReviewer(child);
-        }
-      });
-      child.stdin.on("error", () => {});
-      child.on("error", (error2) => {
-        settle(() => {
-          reject(new ReviewRuntimeError("process_failed", error2.message));
-        });
-      });
-      child.on("close", (code) => {
-        settle(() => {
+    let output;
+    try {
+      output = await new Promise((resolve, reject) => {
+        let overflow = false;
+        let settled = false;
+        const settle = (finish) => {
+          if (settled)
+            return;
+          settled = true;
+          clearTimeout(timeout);
+          finish();
+        };
+        const timeout = setTimeout(() => {
+          settle(() => {
+            reject(new ReviewRuntimeError("timed_out", `${reviewer} review timed out`));
+          });
+        }, timeoutMs);
+        let stdout = "";
+        let stderr = "";
+        let stdoutBytes = 0;
+        let stderrBytes = 0;
+        child.stdout.setEncoding("utf8");
+        child.stderr.setEncoding("utf8");
+        child.stdout.on("data", (chunk) => {
+          const appended = appendBounded(stdout, stdoutBytes, chunk);
+          stdout = appended.value;
+          stdoutBytes = appended.bytes;
+          overflow ||= appended.overflow;
           if (overflow) {
-            reject(new ReviewRuntimeError(classifyExit(stderr, "invalid_output"), `${reviewer} exceeded its output limit`));
-            return;
-          }
-          if (code !== 0) {
-            reject(new ReviewRuntimeError(classifyExit(stderr, "process_failed"), `${reviewer} review failed (${code ?? "signal"}): ${stderr.trim()}`));
-            return;
-          }
-          try {
-            resolve(parseReviewerOutput(reviewer, stdout));
-          } catch {
-            reject(new ReviewRuntimeError("invalid_output", `${reviewer} returned invalid review output`));
+            stopReviewer(child);
           }
         });
+        child.stderr.on("data", (chunk) => {
+          const appended = appendBounded(stderr, stderrBytes, chunk);
+          stderr = appended.value;
+          stderrBytes = appended.bytes;
+          overflow ||= appended.overflow;
+          if (overflow) {
+            stopReviewer(child);
+          }
+        });
+        child.stdin.on("error", () => {});
+        child.on("error", (error2) => {
+          settle(() => {
+            reject(new ReviewRuntimeError("process_failed", error2.message));
+          });
+        });
+        child.on("close", (code) => {
+          settle(() => {
+            if (overflow) {
+              reject(new ReviewRuntimeError(classifyExit(stderr, "invalid_output"), `${reviewer} exceeded its output limit`));
+              return;
+            }
+            if (code !== 0) {
+              reject(new ReviewRuntimeError(classifyExit(stderr, "process_failed"), `${reviewer} review failed (${code ?? "signal"}): ${stderr.trim()}`));
+              return;
+            }
+            try {
+              resolve(parseReviewerOutput(reviewer, stdout));
+            } catch {
+              reject(new ReviewRuntimeError("invalid_output", `${reviewer} returned invalid review output`));
+            }
+          });
+        });
+        child.stdin.end(reviewPrompt(reviewer, packet));
       });
-      child.stdin.end(reviewPrompt(reviewer, packet));
-    });
-    await stopReviewerOrThrow(child, reviewer);
+    } catch (error2) {
+      await stopReviewerOrThrow(child, reviewer);
+      throw error2;
+    }
+    await stopReviewerOrThrow(child, reviewer, false);
     return output;
-  } catch (error2) {
-    await stopReviewerOrThrow(child, reviewer);
-    throw error2;
   } finally {
     process.off("SIGTERM", terminateReviewer);
   }
@@ -44168,16 +44256,16 @@ async function runReviewerCandidates(attempt, candidates, deadline) {
   if (!foundCompatible) {
     if (lastProbeFailure !== undefined)
       throw lastProbeFailure;
-    throw new ReviewRuntimeError("not_installed", `No compatible ${reviewer} reviewer is installed`);
+    throw new ReviewRuntimeError("not_installed", `No trusted compatible ${reviewer} reviewer was found`);
   }
   throw lastFailure ?? new ReviewRuntimeError("process_failed", `${reviewer} review failed`);
 }
 async function runHeadlessReviewer(reviewer, packet, cwd, untrustedRoot = process.cwd(), options = {}) {
   const { model, runDeadline } = options;
-  const deadline = Math.min(Date.now() + attemptDeadlineMs(), runDeadline ?? Infinity);
+  const deadline = Math.min(Date.now() + reviewTimeoutMilliseconds(), runDeadline ?? Infinity);
   const candidates = executableCandidates(reviewer, untrustedRoot);
-  if (candidates.length === 0) {
-    throw new ReviewRuntimeError("not_installed", `No compatible ${reviewer} reviewer is installed`);
+  if (candidates.paths.length === 0) {
+    throw unavailableReviewerError(reviewer, candidates.rejectedForTrust);
   }
   let contract;
   try {
@@ -44186,7 +44274,7 @@ async function runHeadlessReviewer(reviewer, packet, cwd, untrustedRoot = proces
     throw new ReviewRuntimeError("process_failed", `The ${reviewer} review could not be prepared`);
   }
   try {
-    return await runReviewerCandidates({ reviewer, packet, cwd, model, schemaPath: contract?.path }, candidates, deadline);
+    return await runReviewerCandidates({ reviewer, packet, cwd, model, schemaPath: contract?.path }, candidates.paths, deadline);
   } finally {
     contract?.cleanup();
   }
@@ -44202,7 +44290,7 @@ function writeContractFile() {
     }
   };
 }
-var REVIEW_OUTPUT_SCHEMA_SHAPE, REVIEW_OUTPUT_SCHEMA, ARGUMENTS, HELP_ARGUMENTS, REQUIRED_CAPABILITIES, MAX_OUTPUT_BYTES, REVIEW_RUBRICS, ReviewRuntimeError, DEFAULT_ATTEMPT_DEADLINE_MS = 120000, RUN_BOUND_MS = 270000, BACKGROUND_RUN_BOUND_MS = 1800000, BACKGROUND_ATTEMPT_DEADLINE_MS = 600000, CLEANUP_BUDGET_MS = 250, WINDOWS_CLEANUP_BUDGET_MS = 1000, reviewerStops;
+var REVIEW_OUTPUT_SCHEMA_SHAPE, REVIEW_OUTPUT_SCHEMA, ARGUMENTS, HELP_ARGUMENTS, REQUIRED_CAPABILITIES, MAX_OUTPUT_BYTES, REVIEW_RUBRICS, ReviewRuntimeError, DEFAULT_ATTEMPT_DEADLINE_MS = 120000, RUN_BOUND_MS = 270000, BACKGROUND_RUN_BOUND_MS = 1800000, BACKGROUND_ATTEMPT_DEADLINE_MS = 600000, CLEANUP_BUDGET_MS = 250, PROCESS_GROUP_POLL_INTERVAL_MS = 50, WINDOWS_CLEANUP_BUDGET_MS = 1000, reviewerStops;
 var init_runtime = __esm(() => {
   init_environment();
   REVIEW_OUTPUT_SCHEMA_SHAPE = {
@@ -44420,6 +44508,8 @@ function nextStepFor(reviewer, failure) {
   const name = agentName(reviewer);
   if (failure === "not_installed")
     return `Install or update ${name}, then run the review again.`;
+  if (failure === "untrusted_install")
+    return `Move ${name} to a trusted non-writable-by-group directory, then run the review again.`;
   if (failure === "unsupported")
     return `Update ${name}, then run the review again.`;
   if (failure === "probe_timed_out")
@@ -44494,12 +44584,12 @@ function changedReviewResult(input) {
   if (!input.sourceChanged)
     return;
   return createResult({
-    state: "failed",
-    errors: [
+    state: "action_required",
+    findings: [
       {
-        code: "REVIEW_SOURCE_CHANGED",
+        code: "REVIEW_STALE",
         message: "A reviewed source changed during the check; no passing evidence was recorded.",
-        retryable: true
+        severity: "warning"
       }
     ],
     effects: {
@@ -44514,7 +44604,7 @@ function changedReviewResult(input) {
     ],
     data: {
       command: "review run",
-      status: "blocked",
+      status: "stale",
       author_agent: input.author,
       assigned_reviewer: input.reviewer,
       review_policy: input.policy,
@@ -44552,6 +44642,24 @@ function preparePrimaryReview(input, reviewer) {
   input.progress?.heartbeat?.(`Still waiting for a response from ${name}\u2026`);
   return prepared;
 }
+async function executePrimaryReview(input, reviewer, primaryModel, runDeadline) {
+  const prepared = preparePrimaryReview(input, reviewer);
+  let execution = await executeReview(reviewer, prepared, primaryModel, runDeadline);
+  let model = primaryModel;
+  let dispatchId = prepared.packet.dispatch_id;
+  if (primaryModel !== undefined && execution.outcome.kind === "failed" && execution.outcome.failure === "unsupported" && !execution.outcome.terminal && canFundRoute(runDeadline)) {
+    const defaultPrepared = preparePrimaryReview(input, reviewer);
+    const retried = await executeReview(reviewer, defaultPrepared, undefined, runDeadline);
+    execution = {
+      outcome: retried.outcome,
+      sourceChanged: execution.sourceChanged || retried.sourceChanged,
+      snapshotChanged: execution.snapshotChanged || retried.snapshotChanged
+    };
+    model = undefined;
+    dispatchId = defaultPrepared.packet.dispatch_id;
+  }
+  return { ...execution, model, dispatchId };
+}
 function prepareFallbackReview(input, assignedReviewer, author) {
   const fallbackName = agentName(author);
   input.progress?.start(`${agentName(assignedReviewer)} did not complete; trying a ${fallbackName} fallback\u2026`);
@@ -44565,7 +44673,7 @@ async function runDegradedFallback(input) {
   const fallback = outcome.kind === "completed" ? { kind: "completed" } : { kind: "failed", failure: outcome.failure };
   const changedResult = changedReviewResult({
     author: input.author,
-    reviewer: input.author,
+    reviewer: input.assignedReviewer,
     policy: input.policy,
     kind: input.kind,
     targets: input.targets,
@@ -44728,14 +44836,14 @@ async function runAlternateModelRoute(input) {
     snapshotChanged,
     network: [
       ...networkEffectsForFailure(input.reviewer, input.preferredFailure),
-      reviewRequest(input.reviewer)
+      ...outcome.kind === "failed" ? networkEffectsForFailure(input.reviewer, outcome.failure) : [reviewRequest(input.reviewer)]
     ]
   });
   if (changedResult !== undefined)
     return { kind: "completed", result: changedResult };
   const assessment = assessFallback(outcome, input.reviewer, prepared.packet.dispatch_id);
   if (assessment.kind === "failed") {
-    if (assessment.failure === "not_installed" || assessment.failure === "unsupported")
+    if (ALTERNATE_MODEL_SKIP_FAILURES.has(assessment.failure))
       return { kind: "skipped" };
     return { ...assessment, model };
   }
@@ -44859,9 +44967,14 @@ async function runReview(input) {
   }
   const { reviewer } = pair;
   const primaryModel = readPrimaryReviewerModel(input.cwd, reviewer);
-  const prepared = preparePrimaryReview(input, reviewer);
   const runDeadline = Date.now() + runBoundMs();
-  const { outcome, sourceChanged, snapshotChanged } = await executeReview(reviewer, prepared, primaryModel, runDeadline);
+  const {
+    outcome,
+    sourceChanged,
+    snapshotChanged,
+    model: completedModel,
+    dispatchId
+  } = await executePrimaryReview(input, reviewer, primaryModel, runDeadline);
   const changedResult = changedReviewResult({
     author: pair.author,
     reviewer,
@@ -44870,7 +44983,8 @@ async function runReview(input) {
     targets: input.targets,
     context: input.context,
     sourceChanged,
-    snapshotChanged
+    snapshotChanged,
+    network: outcome.kind === "failed" ? networkEffectsForFailure(reviewer, outcome.failure) : [reviewRequest(reviewer)]
   });
   if (changedResult !== undefined)
     return changedResult;
@@ -44880,7 +44994,7 @@ async function runReview(input) {
         ...input,
         author: pair.author,
         assignedReviewer: reviewer,
-        preferredModel: primaryModel,
+        preferredModel: completedModel,
         preferredFailure: outcome.failure,
         policy
       });
@@ -44889,28 +45003,28 @@ async function runReview(input) {
       ...input,
       author: pair.author,
       assignedReviewer: reviewer,
-      preferredModel: primaryModel,
+      preferredModel: completedModel,
       preferredFailure: outcome.failure,
       policy,
       runDeadline
     });
   }
-  const provenance = verifyProvenance(outcome.output, reviewer, prepared.packet.dispatch_id);
+  const provenance = verifyProvenance(outcome.output, reviewer, dispatchId);
   if (provenance.kind === "failed") {
     return runRemainingRoutes({
       ...input,
       author: pair.author,
       assignedReviewer: reviewer,
-      preferredModel: primaryModel,
+      preferredModel: completedModel,
       preferredFailure: provenance.code,
       policy,
       runDeadline
     });
   }
   const output = provenance.output;
-  return independentReviewResult({ author: pair.author, reviewer, output, model: primaryModel });
+  return independentReviewResult({ author: pair.author, reviewer, output, model: completedModel });
 }
-var MAX_TERMINAL_REVIEWER_TEXT_LENGTH = 2000, FAILURE_CAUSES, NON_ATTEMPT_FAILURES;
+var MAX_TERMINAL_REVIEWER_TEXT_LENGTH = 2000, FAILURE_CAUSES, NON_ATTEMPT_FAILURES, ALTERNATE_MODEL_SKIP_FAILURES;
 var init_coordinator = __esm(() => {
   init_run_identity();
   init_result();
@@ -44921,20 +45035,26 @@ var init_coordinator = __esm(() => {
     process_failed: "exited before returning a review",
     timed_out: "ran out of time",
     not_installed: "was not found on PATH",
+    untrusted_install: "was found under an untrusted writable directory",
     unsupported: "does not support the required review flags",
     probe_timed_out: "did not complete its compatibility check in time",
     launch_failed: "could not launch its compatibility check",
     not_authenticated: "is not signed in",
     invalid_output: "gave an answer that could not be accepted",
-    source_changed: "was reviewing files that changed underneath it",
     REVIEWER_PROVENANCE_MISSING: "gave an answer that did not identify it as the reviewer",
     REVIEWER_PROVENANCE_CONTRADICTORY: "gave an answer that did not identify it as the reviewer"
   };
   NON_ATTEMPT_FAILURES = new Set([
     "not_installed",
+    "untrusted_install",
     "unsupported",
     "launch_failed",
     "probe_timed_out"
+  ]);
+  ALTERNATE_MODEL_SKIP_FAILURES = new Set([
+    "not_installed",
+    "untrusted_install",
+    "unsupported"
   ]);
 });
 
@@ -45069,8 +45189,8 @@ import {
   fstatSync as fstatSync8,
   mkdirSync as mkdirSync14,
   openSync as openSync10,
-  readdirSync as readdirSync31,
-  readFileSync as readFileSync51,
+  readdirSync as readdirSync32,
+  readFileSync as readFileSync52,
   realpathSync as realpathSync11,
   renameSync as renameSync8,
   statSync as statSync6,
@@ -45096,7 +45216,7 @@ function integrityKeyPath() {
 function readOrCreateIntegrityKey() {
   const keyPath = integrityKeyPath();
   try {
-    return decodeIntegrityKey(readFileSync51(keyPath, "utf8"));
+    return decodeIntegrityKey(readFileSync52(keyPath, "utf8"));
   } catch {
     mkdirSync14(nodePath83.dirname(keyPath), { recursive: true, mode: 448 });
     const key = randomBytes(32);
@@ -45112,7 +45232,7 @@ function readOrCreateIntegrityKey() {
     } catch (error2) {
       if (!isFileExistsError(error2))
         throw error2;
-      return decodeIntegrityKey(readFileSync51(keyPath, "utf8"));
+      return decodeIntegrityKey(readFileSync52(keyPath, "utf8"));
     }
   }
 }
@@ -45130,8 +45250,6 @@ function recordIntegrity(cwd, record2) {
   return createHmac("sha256", readOrCreateIntegrityKey()).update(realpathSync11.native(cwd)).update("\x00").update(JSON.stringify(unsignedRecord(record2))).digest("hex");
 }
 function hasValidIntegrity(cwd, record2) {
-  if (!isTerminalJobState(record2.state))
-    return true;
   if (record2.integrity === undefined || !/^[a-f\d]{64}$/u.test(record2.integrity))
     return false;
   try {
@@ -45142,12 +45260,7 @@ function hasValidIntegrity(cwd, record2) {
     return false;
   }
 }
-function isTerminalJobState(state) {
-  return TERMINAL_JOB_STATES.has(state);
-}
 function withRecordIntegrity(cwd, record2) {
-  if (!isTerminalJobState(record2.state))
-    return record2;
   const unsigned = { ...record2, integrity: undefined };
   return { ...unsigned, integrity: recordIntegrity(cwd, unsigned) };
 }
@@ -45227,7 +45340,7 @@ function withFileLock(lock, operation) {
 function recoverStaleLock(lock) {
   try {
     const inspected = statSync6(lock);
-    const owner = Number(readFileSync51(lock, "utf8"));
+    const owner = Number(readFileSync52(lock, "utf8"));
     const invalidOwnerIsOld = !isProcessId(owner) && Date.now() - statSync6(lock).mtimeMs >= JOB_LOCK_WAIT_MS;
     if (isProcessId(owner) && !processExists(owner) || invalidOwnerIsOld) {
       const current = statSync6(lock);
@@ -45322,7 +45435,7 @@ function isReviewResultData(value, state) {
   if (data.command === "review status")
     return ["failed", "stale"].includes(data.status);
   if (data.status !== "approved" && data.status !== "changes_requested")
-    return ["blocked", "existing_route", "failed"].includes(data.status);
+    return ["blocked", "existing_route", "failed", "stale"].includes(data.status);
   return isCompletedReviewData(data, state);
 }
 function isCompletedReviewData(data, state) {
@@ -45337,7 +45450,7 @@ function hasReviewerIdentity(reviewer) {
   return typeof reviewer.dispatch_id === "string" && reviewer.dispatch_id.length > 0 && ["claude", "codex"].includes(String(reviewer.reviewer_agent));
 }
 function readJob(cwd, id) {
-  const parsed2 = JSON.parse(readFileSync51(jobPath(cwd, id), "utf8"));
+  const parsed2 = JSON.parse(readFileSync52(jobPath(cwd, id), "utf8"));
   if (!isReviewJobRecord(parsed2) || parsed2.id !== id || !hasValidIntegrity(cwd, parsed2))
     throw new Error("invalid review job record");
   return parsed2;
@@ -45466,9 +45579,19 @@ function processExists(pid) {
   try {
     process.kill(pid, 0);
     return true;
-  } catch {
-    return false;
+  } catch (error2) {
+    return error2 instanceof Error && "code" in error2 && error2.code === "EPERM";
   }
+}
+function processTool(name) {
+  const [baseName] = name.split(".", 1);
+  const testOverride = process.env[`SAFEWORD_REVIEW_${baseName?.toUpperCase()}_PATH`];
+  if (false)
+    ;
+  if (process.platform !== "win32")
+    return `/bin/${name}`;
+  const systemRoot = process.env.SystemRoot ?? String.raw`C:\Windows`;
+  return name === "powershell.exe" ? nodePath83.join(systemRoot, "System32", "WindowsPowerShell", "v1.0", name) : nodePath83.join(systemRoot, "System32", name);
 }
 function configuredCourtesyWait() {
   const raw = process.env.SAFEWORD_REVIEW_FOREGROUND_MS;
@@ -45669,12 +45792,12 @@ function workerDefinitelyMismatches(record2) {
   return record2.pid !== undefined && inspectReviewWorker(record2.pid, record2.id) === "mismatch";
 }
 function terminateUnactivatedWorker(record2, pid) {
-  if (record2.state !== "completed" && record2.state !== "failed")
+  if (record2.state !== "completed" && record2.state !== "failed" && inspectReviewWorker(pid, record2.id) === "match")
     terminateReviewWorker(pid);
 }
 function terminateReviewWorker(pid) {
   if (process.platform === "win32") {
-    spawnSync9("taskkill", ["/PID", String(pid), "/T", "/F"], {
+    spawnSync9(processTool("taskkill"), ["/PID", String(pid), "/T", "/F"], {
       stdio: "ignore",
       timeout: 5000,
       windowsHide: true
@@ -45719,7 +45842,7 @@ function latestJobId(cwd) {
   const directory = jobsDirectory(cwd);
   if (!existsSync42(directory))
     return;
-  return readdirSync31(directory).flatMap((name) => {
+  return readdirSync32(directory).flatMap((name) => {
     if (!/^[a-f\d-]{36}\.json$/u.test(name))
       return [];
     try {
@@ -45733,7 +45856,7 @@ function runningJob(cwd, kind, sourceFingerprint) {
   const directory = jobsDirectory(cwd);
   if (!existsSync42(directory))
     return;
-  for (const name of readdirSync31(directory)) {
+  for (const name of readdirSync32(directory)) {
     if (!/^[a-f\d-]{36}\.json$/u.test(name))
       continue;
     try {
@@ -45830,12 +45953,12 @@ function isJobId(value) {
   return /^[a-f\d-]{36}$/u.test(value);
 }
 function inspectReviewWorker(pid, id) {
-  const inspected = process.platform === "win32" ? spawnSync9("powershell.exe", [
+  const inspected = process.platform === "win32" ? spawnSync9(processTool("powershell.exe"), [
     "-NoProfile",
     "-NonInteractive",
     "-Command",
     `(Get-CimInstance Win32_Process -Filter "ProcessId = ${pid}").CommandLine`
-  ], { encoding: "utf8", timeout: 1000, windowsHide: true }) : spawnSync9("ps", ["-ww", "-p", String(pid), "-o", "command="], {
+  ], { encoding: "utf8", timeout: 1000, windowsHide: true }) : spawnSync9(processTool("ps"), ["-ww", "-p", String(pid), "-o", "command="], {
     encoding: "utf8",
     timeout: 1000
   });
@@ -45843,17 +45966,12 @@ function inspectReviewWorker(pid, id) {
     return processExists(pid) ? "unavailable" : "mismatch";
   return /\breview run\b/u.test(inspected.stdout) && inspected.stdout.includes(`--worker-job-id ${id}`) ? "match" : "mismatch";
 }
-var TERMINAL_JOB_STATES, COURTESY_WAIT_MS = 75000, POLL_INTERVAL_MS = 100, WORKER_INSPECTION_INTERVAL_MS = 1000, JOB_LOCK_WAIT_MS = 2000;
+var COURTESY_WAIT_MS = 75000, POLL_INTERVAL_MS = 100, WORKER_INSPECTION_INTERVAL_MS = 1000, JOB_LOCK_WAIT_MS = 2000;
 var init_job = __esm(() => {
   init_policy2();
   init_result();
   init_contract();
   init_packet();
-  TERMINAL_JOB_STATES = new Set([
-    "completed",
-    "failed",
-    "canceled"
-  ]);
 });
 
 // src/pr-review/providers/openai.ts
@@ -46140,7 +46258,7 @@ var exports_review_pr = {};
 __export(exports_review_pr, {
   inspectPullRequestCommand: () => inspectPullRequestCommand
 });
-import { readFileSync as readFileSync52, writeFileSync as writeFileSync20 } from "fs";
+import { readFileSync as readFileSync53, writeFileSync as writeFileSync20 } from "fs";
 import nodePath84 from "path";
 import process12 from "process";
 function isRecord5(value) {
@@ -46158,7 +46276,7 @@ function hasValidInputEnvelope(raw) {
   return raw.schemaVersion === 1 && validHead && validState && Array.isArray(raw.artifacts) && Array.isArray(raw.checks) && Array.isArray(raw.statuses) && typeof raw.markerReceiptExists === "boolean";
 }
 function parseConfig(cwd) {
-  const raw = JSON.parse(readFileSync52(nodePath84.join(cwd, ".safeword", "config.json"), "utf8"));
+  const raw = JSON.parse(readFileSync53(nodePath84.join(cwd, ".safeword", "config.json"), "utf8"));
   if (!isRecord5(raw) || !isRecord5(raw.prReview)) {
     throw new Error("review-pr: .safeword/config.json must define prReview");
   }
@@ -46169,7 +46287,7 @@ function parseConfig(cwd) {
   return config;
 }
 function parseInput(inputPath) {
-  const raw = JSON.parse(readFileSync52(inputPath, "utf8"));
+  const raw = JSON.parse(readFileSync53(inputPath, "utf8"));
   if (!isRecord5(raw) || !hasValidInputEnvelope(raw)) {
     throw new Error("review-pr: invalid inspection input");
   }
@@ -46498,7 +46616,7 @@ __export(exports_review_pr_publication, {
   invalidatePullRequestCommand: () => invalidatePullRequestCommand,
   createGitHubReviewBoundary: () => createGitHubReviewBoundary
 });
-import { readFileSync as readFileSync53 } from "fs";
+import { readFileSync as readFileSync54 } from "fs";
 import process13 from "process";
 function isRecord6(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -46587,7 +46705,7 @@ function hasConsistentRoute(receipt) {
   return receipt.route === "looks_ready" === mayLookReady;
 }
 function parseHandoffEnvelope(path4) {
-  const value = JSON.parse(readFileSync53(path4, "utf8"));
+  const value = JSON.parse(readFileSync54(path4, "utf8"));
   if (!isRecord6(value) || value.schemaVersion !== 1 || value.kind !== "noop" && value.kind !== "receipt") {
     throw new Error("review-pr: invalid advisory result artifact");
   }
@@ -46986,13 +47104,13 @@ var init_codex_bootstrap = __esm(() => {
 });
 
 // templates/hooks/lib/dogfood.ts
-import { existsSync as existsSync43, readFileSync as readFileSync54 } from "fs";
+import { existsSync as existsSync43, readFileSync as readFileSync55 } from "fs";
 import nodePath86 from "path";
 function isDogfoodRepo(projectDirectory) {
   if (existsSync43(nodePath86.join(projectDirectory, "packages", "cli", "templates")))
     return true;
   try {
-    const pkg2 = JSON.parse(readFileSync54(nodePath86.join(projectDirectory, "package.json"), "utf8"));
+    const pkg2 = JSON.parse(readFileSync55(nodePath86.join(projectDirectory, "package.json"), "utf8"));
     return pkg2.name === "safeword";
   } catch {
     return false;
@@ -47227,7 +47345,7 @@ __export(exports_retro_extract, {
   DEFAULT_CLAUDE_RETRO_MODEL: () => DEFAULT_CLAUDE_RETRO_MODEL,
   CODEX_RETRO_OUTPUT_SCHEMA: () => CODEX_RETRO_OUTPUT_SCHEMA
 });
-import { readFileSync as readFileSync55, writeFileSync as writeFileSync21 } from "fs";
+import { readFileSync as readFileSync56, writeFileSync as writeFileSync21 } from "fs";
 import nodePath89 from "path";
 function defaultRetroModel(agent) {
   if (agent === "codex")
@@ -47238,7 +47356,7 @@ function defaultRetroModel(agent) {
 }
 function resolveRetroModel(projectDirectory, agent = "claude") {
   try {
-    const raw = readFileSync55(nodePath89.join(projectDirectory, ".safeword", "config.json"), "utf8");
+    const raw = readFileSync56(nodePath89.join(projectDirectory, ".safeword", "config.json"), "utf8");
     const parsed2 = JSON.parse(raw);
     const model = parsed2.retro?.model;
     return typeof model === "string" && model.length > 0 ? model : defaultRetroModel(agent);
@@ -47401,7 +47519,7 @@ async function runCodexHeadlessExtractionChecked(transcript, dependencies) {
     const schemaPath = dependencies.schemaPath ?? nodePath89.join(dependencies.cwd, "schema.json");
     const outputPath = dependencies.outputPath ?? nodePath89.join(dependencies.cwd, "output.json");
     const writeFile2 = dependencies.writeFile ?? writeFileSync21;
-    const readFile2 = dependencies.readFile ?? ((path4) => readFileSync55(path4, "utf8"));
+    const readFile2 = dependencies.readFile ?? ((path4) => readFileSync56(path4, "utf8"));
     writeFile2(schemaPath, JSON.stringify(CODEX_RETRO_OUTPUT_SCHEMA));
     const argv = buildCodexExtractArgv({
       model: dependencies.model ?? DEFAULT_CODEX_RETRO_MODEL,
@@ -55290,11 +55408,11 @@ async function deliverRelayRequests(projectDirectory, options) {
       await rearmClaim(projectDirectory, claim, deliveryStateSnapshot);
       break;
     }
-    const attemptDeadlineMs2 = Math.min(options.deadlineMs, remainingOverallMs - RELAY_CLEANUP_RESERVE_MS);
+    const attemptDeadlineMs = Math.min(options.deadlineMs, remainingOverallMs - RELAY_CLEANUP_RESERVE_MS);
     const controller = new AbortController;
     const timer = setTimeout(() => {
       controller.abort();
-    }, attemptDeadlineMs2);
+    }, attemptDeadlineMs);
     timer.unref();
     try {
       let response;
@@ -55892,7 +56010,7 @@ import { spawnSync as spawnSync10 } from "child_process";
 import {
   mkdirSync as mkdirSync16,
   mkdtempSync as mkdtempSync7,
-  readFileSync as readFileSync56,
+  readFileSync as readFileSync57,
   realpathSync as realpathSync12,
   statSync as statSync7,
   writeFileSync as writeFileSync22
@@ -56022,7 +56140,7 @@ async function runRetro(options, dependencies) {
       errorMessage: "safeword retro requires --transcript <path>; it never guesses the session path."
     };
   }
-  const read = dependencies.readFile ?? ((path7) => readFileSync56(path7, "utf8"));
+  const read = dependencies.readFile ?? ((path7) => readFileSync57(path7, "utf8"));
   let transcript;
   try {
     transcript = read(options.transcript);
@@ -56142,7 +56260,7 @@ async function buildAutoExtractor(projectDirectory, dependencies = {}) {
         writeFile: (path7, content) => {
           writeFileSync22(path7, content);
         },
-        readFile: (path7) => readFileSync56(path7, "utf8"),
+        readFile: (path7) => readFileSync57(path7, "utf8"),
         env: headlessEnvironment(process17.env),
         cwd: workDirectory,
         model,
@@ -56395,7 +56513,7 @@ async function executeRetroWithDependencies(options, dependencies) {
     extract: dependencies.extract,
     harness: dependencies.harness,
     projectDirectory: dependencies.projectDirectory,
-    readFile: (path7) => readFileSync56(path7, "utf8"),
+    readFile: (path7) => readFileSync57(path7, "utf8"),
     ...relay !== undefined && { relay },
     resolveProvenance: dependencies.resolveProvenance,
     sessionId: dependencies.sessionId,
@@ -56613,7 +56731,7 @@ async function retroCommand(options) {
 }
 function readFindings(path7) {
   try {
-    const parsed2 = JSON.parse(readFileSync56(path7, "utf8"));
+    const parsed2 = JSON.parse(readFileSync57(path7, "utf8"));
     return Array.isArray(parsed2) ? parsed2 : [];
   } catch {
     return [];
@@ -57381,7 +57499,7 @@ import {
   existsSync as existsSync46,
   mkdirSync as mkdirSync18,
   mkdtempSync as mkdtempSync8,
-  readFileSync as readFileSync58,
+  readFileSync as readFileSync59,
   renameSync as renameSync9,
   rmSync as rmSync13,
   writeFileSync as writeFileSync23
@@ -57580,7 +57698,7 @@ function readPackagedSafewordInstructions() {
   const instructionsPath = findPackagedTemplate("SAFEWORD.md");
   if (!instructionsPath)
     return;
-  if (!readFileSync58(instructionsPath, "utf8").trim())
+  if (!readFileSync59(instructionsPath, "utf8").trim())
     return;
   return [
     "Current Safeword authority: tickets and their user stories/test definitions live under `.project/` (or the configured namespace root), and current workflow guides live under `.safeword/guides/`.",
@@ -57690,7 +57808,7 @@ function emitPackagedPreToolResult(result) {
 }
 function readProjectTextFile(projectDirectory, relativePath) {
   const filePath = nodePath94.join(projectDirectory, relativePath);
-  return existsSync46(filePath) ? readFileSync58(filePath, "utf8") : undefined;
+  return existsSync46(filePath) ? readFileSync59(filePath, "utf8") : undefined;
 }
 function emitAdditionalContext(output) {
   process21.stdout.write(`${JSON.stringify(output)}
@@ -57738,7 +57856,7 @@ function maybeDenyTestDefinitionsWrite(projectDirectory, targetPath) {
   if (!ticketFolder)
     return false;
   const ticketPath = nodePath94.join(resolveNamespaceRoot(projectDirectory), "tickets", ticketFolder, "ticket.md");
-  const ticketContent = existsSync46(ticketPath) ? readFileSync58(ticketPath, "utf8") : "";
+  const ticketContent = existsSync46(ticketPath) ? readFileSync59(ticketPath, "utf8") : "";
   const missing = missingIntakeFields(ticketContent);
   if (missing.length === 0)
     return false;
@@ -60040,7 +60158,7 @@ init_migration_error();
 init_architecture_document();
 init_agent_selection();
 init_online_required();
-import { existsSync as existsSync44, lstatSync as lstatSync20, readFileSync as readFileSync57, readlinkSync as readlinkSync4 } from "fs";
+import { existsSync as existsSync44, lstatSync as lstatSync20, readFileSync as readFileSync58, readlinkSync as readlinkSync4 } from "fs";
 import nodePath91 from "path";
 
 // src/cli-protocol/option-values.ts
@@ -61349,7 +61467,7 @@ async function codexBootstrapHandler(invocation) {
   const { bootstrapCodexPlugin: bootstrapCodexPlugin2 } = await Promise.resolve().then(() => (init_codex_bootstrap(), exports_codex_bootstrap));
   let rawInput = "";
   try {
-    rawInput = readFileSync57(0, "utf8");
+    rawInput = readFileSync58(0, "utf8");
   } catch {}
   return bootstrapCodexPlugin2(invocation.cwd, rawInput, { offline: invocation.offline });
 }
@@ -61899,7 +62017,7 @@ function snapshotKind(stats) {
 }
 function snapshotBytes(path7, stats) {
   if (stats.isFile())
-    return readFileSync57(path7).toString("base64");
+    return readFileSync58(path7).toString("base64");
   if (stats.isSymbolicLink())
     return Buffer.from(readlinkSync4(path7)).toString("base64");
   return;

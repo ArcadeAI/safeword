@@ -11,7 +11,7 @@ const SKIP_ACKNOWLEDGED = process.env.SAFEWORD_LIVE_ALLOW_SKIP === '1';
 // Derive from the runtime's own budget rather than restating it: the live route
 // must be allowed to reach its timeout and still report, so this stays one
 // minute above whatever the runtime currently allows.
-const REVIEW_TIMEOUT_MS = reviewTimeoutMilliseconds('claude', {});
+const REVIEW_TIMEOUT_MS = reviewTimeoutMilliseconds({});
 const LIVE_TEST_TIMEOUT_MS = REVIEW_TIMEOUT_MS + 60_000;
 
 describe('live smoke: opposite headless reviewer routing', () => {

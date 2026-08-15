@@ -1,4 +1,4 @@
-import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterAll, describe, expect, it } from 'vitest';
@@ -22,7 +22,7 @@ afterAll(cleanupTrustedReviewerDirectories);
  * It records the schema path it was given so the test can read back the exact
  * contract Safeword delivered.
  */
-function installSchemaAwareCodex(): string {
+function installSchemaAwareCodex(ignoreSchema = false): string {
   const bin = nodePath.join(createTrustedReviewerDirectory('safeword-codexcontract-'), 'bin');
   mkdirSync(bin, { recursive: true });
   const executable = nodePath.join(bin, 'codex');
@@ -40,6 +40,7 @@ for argument in "$@"; do
   if [ "$previous" = "--output-schema" ]; then schema="$argument"; fi
   previous="$argument"
 done
+if [ "${ignoreSchema ? '1' : '0'}" = "1" ]; then schema=''; fi
 payload=$(cat)
 dispatch_id=$(printf '%s' "$payload" | sed -n 's/.*"dispatch_id":"\([^"]*\)".*/\1/p')
 emit_event() {
@@ -105,6 +106,8 @@ describe('Codex typed-output contract', () => {
         reviewer_output: { reviewer_agent: 'codex', findings: [{ severity: 'warning' }] },
       },
     });
+    const schemaPath = readFileSync(nodePath.join(directory, 'schema-path.log'), 'utf8').trim();
+    expect(existsSync(schemaPath)).toBe(false);
   });
 
   it('delivers a contract that permits exactly what the check enforces', async () => {
@@ -148,5 +151,18 @@ describe('Codex typed-output contract', () => {
       'error',
     ]);
     expect(schema.properties.findings.items.additionalProperties).toBe(false);
+  });
+
+  it('rejects Codex natural output when the schema handoff is suppressed', async () => {
+    const directory = createTemporaryDirectory();
+    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+    const bin = installSchemaAwareCodex(true);
+
+    const result = await runReview(directory, bin);
+
+    expect(result.exitCode, result.stdout).toBe(2);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      data: { preferred_failure: 'invalid_output' },
+    });
   });
 });
