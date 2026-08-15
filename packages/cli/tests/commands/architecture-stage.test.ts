@@ -283,9 +283,7 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
 
     expect(result.exitCode).toBe(0);
     expect(stagedFiles(context.directory)).not.toContain(DOC_RELATIVE);
-    expect(execFileSync('cat', [DOC_RELATIVE], { cwd: context.directory, encoding: 'utf8' })).toBe(
-      foreign,
-    );
+    expect(readFileSync(nodePath.join(context.directory, DOC_RELATIVE), 'utf8')).toBe(foreign);
   });
 
   it.each([
@@ -339,10 +337,7 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
 
   it('does not regenerate or stage a stale doc when enforcement is opted out', async () => {
     selfHeal(context.directory);
-    const before = execFileSync('cat', [DOC_RELATIVE], {
-      cwd: context.directory,
-      encoding: 'utf8',
-    });
+    const before = readFileSync(nodePath.join(context.directory, DOC_RELATIVE), 'utf8');
     mkdirSync(nodePath.join(context.directory, 'src', 'billing'), { recursive: true });
     writeFileSync(
       nodePath.join(context.directory, 'src', 'billing', 'index.ts'),
@@ -355,9 +350,7 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
 
     expect(result.exitCode).toBe(0);
     expect(stagedFiles(context.directory)).not.toContain(DOC_RELATIVE);
-    expect(execFileSync('cat', [DOC_RELATIVE], { cwd: context.directory, encoding: 'utf8' })).toBe(
-      before,
-    );
+    expect(readFileSync(nodePath.join(context.directory, DOC_RELATIVE), 'utf8')).toBe(before);
   });
 
   it('does not require the narrative to duplicate the generated package inventory', async () => {
@@ -630,10 +623,7 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
 
     expect(result.exitCode).toBe(0);
     expect(stagedFiles(context.directory)).not.toContain(DOC_RELATIVE);
-    const generated = execFileSync('cat', [DOC_RELATIVE], {
-      cwd: context.directory,
-      encoding: 'utf8',
-    });
+    const generated = readFileSync(nodePath.join(context.directory, DOC_RELATIVE), 'utf8');
     expect(readDocumentFingerprint(generated)).toBe(stagedTreeFingerprint);
   });
 
@@ -683,15 +673,15 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
         'IMPORTANT HUMAN PROSE.',
       ),
     );
-    expect(
-      readDocumentFingerprint(execFileSync('cat', [generatedPath], { encoding: 'utf8' })),
-    ).not.toBe(stagedTreeFingerprint);
+    expect(readDocumentFingerprint(readFileSync(generatedPath, 'utf8'))).not.toBe(
+      stagedTreeFingerprint,
+    );
 
     const result = await runCli(['architecture', '--staged'], { cwd: context.directory });
 
     expect(result.exitCode).toBe(0);
     expect(stagedFiles(context.directory)).not.toContain(DOC_RELATIVE);
-    const restored = execFileSync('cat', [generatedPath], { encoding: 'utf8' });
+    const restored = readFileSync(generatedPath, 'utf8');
     expect(readDocumentFingerprint(restored)).toBe(stagedTreeFingerprint);
     expect(restored).toContain('IMPORTANT HUMAN PROSE.');
   });
