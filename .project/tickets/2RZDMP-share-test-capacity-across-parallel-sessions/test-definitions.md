@@ -91,7 +91,7 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Invalid current-protocol confirmation never raises capacity
+### Scenario: Invalid confirmation or incompatible protocol never raises capacity
 
 - [ ] RED
 - [ ] GREEN
@@ -365,6 +365,12 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A held legacy mutex remains an explicit unsupported mixed-version boundary
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Capacity-one failure recovery preserves serialization and progress
 
 - [ ] RED
@@ -425,13 +431,31 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Fail-closed errors expose stable recovery contracts
+### Scenario: Non-status fail-closed errors expose stable recovery contracts
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: The public capacity command wires configuration protocol status and reset atomically
+### Scenario: Public set commands wire canonical capacity atomically
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Reset validates an explicitly prepared capacity domain
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Reset serializes with admission under the shared guard
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Public capacity status and dispatch reject unsupported arguments
 
 - [ ] RED
 - [ ] GREEN
