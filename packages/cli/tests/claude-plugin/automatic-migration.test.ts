@@ -21,6 +21,7 @@ import {
 } from '../../src/claude-plugin/historical-ownership.js';
 import { readClaudePluginMode } from '../../src/claude-plugin/migration-state.js';
 import { readHistoricalTemplate, requireHistoricalReleaseTags } from '../helpers/git-history.js';
+import { blockWrites } from '../helpers/io-failure.js';
 
 const roots: string[] = [];
 const hookDigest = 'a'.repeat(64);
@@ -286,8 +287,9 @@ describe('automatic Claude migration', () => {
   });
 
   it('contains unexpected migration exceptions instead of throwing into the prompt', () => {
-    const missing = nodePath.join(tmpdir(), 'safeword-missing-project-for-auto-migration');
-    rmSync(missing, { recursive: true, force: true });
+    const container = mkdtempSync(nodePath.join(tmpdir(), 'safeword-missing-project-'));
+    roots.push(container);
+    const missing = nodePath.join(container, 'not-created');
     expect(() => migrate(missing)).not.toThrow();
     expect(migrate(missing)).toMatchObject({ state: 'attention' });
   });
@@ -296,9 +298,7 @@ describe('automatic Claude migration', () => {
     const { root, installedPath } = fixture();
     const target = nodePath.join(root, installedPath);
     const before = readFileSync(target);
-    mkdirSync(nodePath.join(root, '.safeword/claude-plugin/cleanup-transaction-v1.json'), {
-      recursive: true,
-    });
+    blockWrites(nodePath.join(root, '.safeword/claude-plugin/cleanup-transaction-v1.json'));
 
     const result = migrate(root);
 

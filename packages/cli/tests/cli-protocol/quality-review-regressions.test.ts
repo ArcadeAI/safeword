@@ -12,6 +12,15 @@ import { createResult } from '../../src/cli-protocol/result.js';
 import { createTemporaryDirectory, runCli } from '../helpers.js';
 import { blockScan } from '../helpers/io-failure.js';
 
+function restoreOwnProperty(
+  target: object,
+  key: PropertyKey,
+  descriptor: PropertyDescriptor | undefined,
+): void {
+  if (descriptor) Object.defineProperty(target, key, descriptor);
+  else Reflect.deleteProperty(target, key);
+}
+
 describe('quality-review regressions for the public CLI boundary', () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -300,7 +309,7 @@ describe('quality-review regressions for the public CLI boundary', () => {
       registerPublicCommandCatalog(program);
       await program.parseAsync(['node', 'safeword', 'capabilities', '--json', '--no-input']);
     } finally {
-      if (originalHandler) Object.defineProperty(definition, 'handler', originalHandler);
+      restoreOwnProperty(definition, 'handler', originalHandler);
     }
 
     expect(stderr).toEqual([]);
@@ -337,7 +346,7 @@ describe('quality-review regressions for the public CLI boundary', () => {
       registerPublicCommandCatalog(program);
       await program.parseAsync(['node', 'safeword', '--json', '--no-input']);
     } finally {
-      if (originalHandler) Object.defineProperty(definition, 'handler', originalHandler);
+      restoreOwnProperty(definition, 'handler', originalHandler);
     }
 
     expect(stderr).toEqual([]);
@@ -370,7 +379,7 @@ describe('quality-review regressions for the public CLI boundary', () => {
       registerPublicCommandCatalog(program);
       await program.parseAsync(['node', 'safeword', 'capabilities', '--json', '--no-input']);
     } finally {
-      if (originalHandler) Object.defineProperty(definition, 'handler', originalHandler);
+      restoreOwnProperty(definition, 'handler', originalHandler);
       if (originalSignal === undefined) delete process.env.SAFEWORD_REVIEW_PROGRESS;
       else process.env.SAFEWORD_REVIEW_PROGRESS = originalSignal;
     }
@@ -539,7 +548,7 @@ describe('quality-review regressions for the public CLI boundary', () => {
         '--no-input',
       ]);
     } finally {
-      if (originalHandler) Object.defineProperty(definition, 'handler', originalHandler);
+      restoreOwnProperty(definition, 'handler', originalHandler);
     }
 
     expect(JSON.parse(stdout.join(''))).toMatchObject({

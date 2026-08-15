@@ -101,6 +101,13 @@ export function requireHistoricalReleaseTags(versions: readonly string[]): void 
     );
   }
 
+  if (!git(['rev-parse', '--git-dir']).ok) {
+    throw new Error(
+      'git could not inspect this repository, so historical release fixtures cannot be confirmed. ' +
+        'Check that git is installed and this is a repository.',
+    );
+  }
+
   const missing = versions
     .map(version => `v${version}`)
     .filter(tag => !git(['cat-file', '-e', `${tag}:${FIXTURE_PROBE_PATH}`]).ok);

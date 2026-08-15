@@ -24,6 +24,7 @@ import {
 import { claudeWatchedSettingsDigest } from '../../src/claude-plugin/migration-state.js';
 import { SAFEWORD_SCHEMA } from '../../src/schema.js';
 import { readHistoricalTemplate, requireHistoricalReleaseTags } from '../helpers/git-history.js';
+import { blockChildren } from '../helpers/io-failure.js';
 
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 /** Release this suite reads real bytes from; shared with the history preflight. */
@@ -581,7 +582,7 @@ describe('Claude plugin dispatcher', () => {
     const configDirectory = temporary('safeword-plugin-proof-failure-config-');
     const target = releasedAsset(projectDirectory);
     promptSettings(projectDirectory, { source: { source: 'github', repo: 'ArcadeAI/safeword' } });
-    writeFileSync(pluginData, 'proof directory collision\n');
+    blockChildren(pluginData);
 
     const result = dispatchPrompt(projectDirectory, pluginData, configDirectory, 'proof-failure');
     expect(result.status, result.stderr).toBe(0);
@@ -681,7 +682,7 @@ describe('Claude plugin dispatcher', () => {
   it('returns one JSON response when a direct prompt hook also needs an advisory', () => {
     const projectDirectory = temporary('safeword-plugin-direct-prompt-project-');
     const pluginData = nodePath.join(temporary('safeword-plugin-direct-prompt-data-'), 'not-a-dir');
-    writeFileSync(pluginData, 'proof directory collision\n');
+    blockChildren(pluginData);
     const result = spawnSync(
       'bun',
       [

@@ -92,9 +92,12 @@ afterEach(() => {
 });
 
 describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () => {
-  it.each([['--from-index'], ['--from-index', '--stage-output']])(
-    'does not generate or stage architecture when enforcement is opted out: %s',
-    async (...flags) => {
+  it.each([
+    { name: '--from-index', flags: ['--from-index'] },
+    { name: '--from-index --stage-output', flags: ['--from-index', '--stage-output'] },
+  ])(
+    'does not generate or stage architecture when enforcement is opted out: $name',
+    async ({ flags }) => {
       writeEnforcementConfig(context.directory, false);
 
       const result = await runCli(['architecture', ...flags], { cwd: context.directory });

@@ -57,6 +57,8 @@ import { readJsonlFile } from '../helpers.js';
 import { sinkWrites } from '../helpers/io-failure.js';
 import { relayReadinessArtifact, validRelayReadinessManifest } from '../helpers/relay-readiness.js';
 
+// Unit tests here isolate command behavior from GitHub. The real REST composition
+// root is proven in cli-protocol/configured-wiring.test.ts.
 vi.mock('../../src/retro/github-rest.js', () => ({
   createRestTransport: () => {},
   createReconcileTransport: () => {},
@@ -90,12 +92,16 @@ function deadLetterRelayPath(projectDirectory: string, requestId: string): strin
   );
 }
 
-function movePersistedRequestToDeadLetter(persisted: { path: string }): {
+function movePersistedRequestToDeadLetter(
+  projectDirectory: string,
+  persisted: { path: string },
+): {
   deadLetter: string;
   originalBytes: Buffer;
 } {
-  const deadLetter = persisted.path.replace(/\.json$/u, '.dead-letter.json');
   const originalBytes = readFileSync(persisted.path);
+  const request = JSON.parse(originalBytes.toString('utf8')) as { requestId: string };
+  const deadLetter = deadLetterRelayPath(projectDirectory, request.requestId);
   writeFileSync(deadLetter, originalBytes);
   rmSync(persisted.path);
   return { deadLetter, originalBytes };
@@ -1985,7 +1991,7 @@ describe('relay dead-letter recovery command', () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-retry-'));
     const original = relayRequest('00000000-0000-4000-8000-000000001479');
     const persisted = await persistRelayRequest(projectDirectory, original);
-    movePersistedRequestToDeadLetter(persisted);
+    movePersistedRequestToDeadLetter(projectDirectory, persisted);
     const messages: string[] = [];
 
     try {
@@ -2017,7 +2023,7 @@ describe('relay dead-letter recovery command', () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-rearm-race-'));
     const original = relayRequest('00000000-0000-4000-8000-000000001490', 'source-race');
     const persisted = await persistRelayRequest(projectDirectory, original);
-    movePersistedRequestToDeadLetter(persisted);
+    movePersistedRequestToDeadLetter(projectDirectory, persisted);
     const error = vi.fn<(message: string) => void>();
 
     try {
@@ -2043,7 +2049,7 @@ describe('relay dead-letter recovery command', () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-rearm-injected-fault-'));
     const original = relayRequest('00000000-0000-4000-8000-000000001491', 'source-injected-fault');
     const persisted = await persistRelayRequest(projectDirectory, original);
-    movePersistedRequestToDeadLetter(persisted);
+    movePersistedRequestToDeadLetter(projectDirectory, persisted);
 
     try {
       await expect(
@@ -2063,7 +2069,7 @@ describe('relay dead-letter recovery command', () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-recover-'));
     const original = relayRequest('00000000-0000-4000-8000-000000001481', 'source', () => 0);
     const persisted = await persistRelayRequest(projectDirectory, original);
-    movePersistedRequestToDeadLetter(persisted);
+    movePersistedRequestToDeadLetter(projectDirectory, persisted);
     const send = vi.fn<typeof fetch>((_input, init) => {
       expect(Buffer.from(init?.body as Uint8Array).toString('utf8')).toContain(original.requestId);
       expect(init?.signal).toBeInstanceOf(AbortSignal);
@@ -2101,7 +2107,7 @@ describe('relay dead-letter recovery command', () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-unresolved-'));
     const original = relayRequest('00000000-0000-4000-8000-000000001482', 'source', () => 0);
     const persisted = await persistRelayRequest(projectDirectory, original);
-    movePersistedRequestToDeadLetter(persisted);
+    movePersistedRequestToDeadLetter(projectDirectory, persisted);
 
     const requestedUrls: string[] = [];
     const send = vi.fn<typeof fetch>((input, _init) => {
@@ -2156,7 +2162,7 @@ describe('relay dead-letter recovery command', () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-renew-'));
     const original = relayRequest('00000000-0000-4000-8000-000000001483', 'source', () => 0);
     const persisted = await persistRelayRequest(projectDirectory, original);
-    movePersistedRequestToDeadLetter(persisted);
+    movePersistedRequestToDeadLetter(projectDirectory, persisted);
     const sent: RelayDraftRequest[] = [];
     const send = vi.fn<typeof fetch>((_input, init) => {
       const request = JSON.parse(
@@ -2206,7 +2212,10 @@ describe('relay dead-letter recovery command', () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-invalid-'));
     const original = relayRequest('00000000-0000-4000-8000-000000001484', 'source', () => 0);
     const persisted = await persistRelayRequest(projectDirectory, original);
-    const { deadLetter, originalBytes } = movePersistedRequestToDeadLetter(persisted);
+    const { deadLetter, originalBytes } = movePersistedRequestToDeadLetter(
+      projectDirectory,
+      persisted,
+    );
     const send = vi.fn<typeof fetch>(() =>
       Promise.resolve(
         Response.json(
@@ -2243,7 +2252,10 @@ describe('relay dead-letter recovery command', () => {
       () => 0,
     );
     const persisted = await persistRelayRequest(projectDirectory, original);
-    const { deadLetter, originalBytes } = movePersistedRequestToDeadLetter(persisted);
+    const { deadLetter, originalBytes } = movePersistedRequestToDeadLetter(
+      projectDirectory,
+      persisted,
+    );
     let attempt = 0;
     const send = vi.fn<typeof fetch>(() => {
       attempt += 1;
@@ -2480,7 +2492,7 @@ describe('relay dead-letter recovery command', () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-ambiguous-'));
     const original = relayRequest('00000000-0000-4000-8000-000000001485', 'source', () => 0);
     const persisted = await persistRelayRequest(projectDirectory, original);
-    movePersistedRequestToDeadLetter(persisted);
+    movePersistedRequestToDeadLetter(projectDirectory, persisted);
     const requestedUrls: string[] = [];
     const send = vi.fn<typeof fetch>(input => {
       let url: string;
@@ -2618,7 +2630,7 @@ describe('relay dead-letter recovery command', () => {
     const durableOutbox = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-cli-outbox-'));
     const original = relayRequest('00000000-0000-4000-8000-000000001480');
     const persisted = await persistRelayRequest(durableOutbox, original);
-    movePersistedRequestToDeadLetter(persisted);
+    movePersistedRequestToDeadLetter(durableOutbox, persisted);
     rmSync(projectDirectory, { recursive: true, force: true });
     const commandEnvironment = {
       ...process.env,

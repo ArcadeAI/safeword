@@ -242,8 +242,10 @@ function guardedAsNonRoot(sourceFile: ts.SourceFile, simulation: Simulation): bo
 
 /**
  * Finds literal permission-removing simulations not enclosed by a root-skipped
- * test. TypeScript owns source parsing; this module only interprets chmod calls
- * and shell strings, avoiding a second, incomplete JavaScript lexer.
+ * test. Dynamic modes (computed expressions, object properties, or subprocess
+ * argv variables) are intentionally outside this tripwire's scope. TypeScript
+ * owns source parsing; this module only interprets chmod calls and shell strings,
+ * avoiding a second, incomplete JavaScript lexer.
  */
 export function permissionSimulations(source: string): string[] {
   const sourceFile = parse(source);

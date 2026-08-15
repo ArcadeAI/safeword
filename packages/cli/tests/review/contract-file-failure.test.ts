@@ -23,36 +23,35 @@ const packet: ReviewPacket = {
 async function withUnwritableTemporaryRoot(
   body: (scratch: string, binRoot: string) => Promise<void>,
 ): Promise<void> {
-  const scratch = mkdtempSync(nodePath.join(tmpdir(), 'safeword-contract-'));
-  // The executable must live OUTSIDE the untrusted root, or candidate
-  // selection discards it and the run fails as not_installed before the
-  // contract file is ever written — a vacuous pass.
-  const binRoot = createTrustedReviewerDirectory('safeword-contract-bin-');
-  const bin = nodePath.join(binRoot, 'bin');
-  mkdirSync(bin, { recursive: true });
-  const executable = nodePath.join(bin, 'codex');
-  writeFileSync(
-    executable,
-    `#!/bin/sh\nif printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then printf '%s\\n' '${REVIEWER_CAPABILITIES.codex}'; exit 0; fi\nprintf 'launched\\n' >> '${nodePath.join(binRoot, 'launched.log')}'\nexit 0\n`,
-    { mode: 0o755 },
-  );
-  chmodSync(executable, 0o755);
-
-  const readonly = blockChildren(nodePath.join(scratch, 'readonly'));
-
+  let scratch: string | undefined;
+  let binRoot: string | undefined;
   const originalTemporary = process.env.TMPDIR;
   const originalPath = process.env.PATH;
-  process.env.TMPDIR = readonly;
-  process.env.PATH = `${bin}:/usr/bin:/bin`;
   try {
+    scratch = mkdtempSync(nodePath.join(tmpdir(), 'safeword-contract-'));
+    // The executable must live OUTSIDE the untrusted root, or candidate
+    // selection discards it and the run fails as not_installed before the
+    // contract file is ever written — a vacuous pass.
+    binRoot = createTrustedReviewerDirectory('safeword-contract-bin-');
+    const bin = nodePath.join(binRoot, 'bin');
+    mkdirSync(bin, { recursive: true });
+    const executable = nodePath.join(bin, 'codex');
+    writeFileSync(
+      executable,
+      `#!/bin/sh\nif printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then printf '%s\\n' '${REVIEWER_CAPABILITIES.codex}'; exit 0; fi\nprintf 'launched\\n' >> '${nodePath.join(binRoot, 'launched.log')}'\nexit 0\n`,
+      { mode: 0o755 },
+    );
+    chmodSync(executable, 0o755);
+    process.env.TMPDIR = blockChildren(nodePath.join(scratch, 'readonly'));
+    process.env.PATH = `${bin}:/usr/bin:/bin`;
     await body(scratch, binRoot);
   } finally {
     if (originalTemporary === undefined) delete process.env.TMPDIR;
     else process.env.TMPDIR = originalTemporary;
     if (originalPath === undefined) delete process.env.PATH;
     else process.env.PATH = originalPath;
-    rmSync(scratch, { recursive: true, force: true });
-    rmSync(binRoot, { recursive: true, force: true });
+    if (scratch) rmSync(scratch, { recursive: true, force: true });
+    if (binRoot) rmSync(binRoot, { recursive: true, force: true });
   }
 }
 
@@ -78,7 +77,6 @@ describe('when the result contract cannot be written', () => {
       expect(reported?.message).toBe('The codex review could not be prepared');
       expect(reported?.failure).toBe('process_failed');
       expect(reported?.message).not.toContain(nodePath.join(scratch, 'readonly'));
-      expect(reported?.message).not.toContain('schema');
     });
   });
 });
