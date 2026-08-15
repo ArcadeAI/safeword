@@ -64,6 +64,7 @@ describe('CLI command catalog', () => {
       'uninstall',
       'project test',
       'tracker sync',
+      'codex bootstrap',
       'review-pr invalidate',
       'migrate codex-plugin',
     ]) {
