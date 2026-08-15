@@ -33,77 +33,27 @@ function configuredFeatureFiles(): string[] {
   return [...featureFilesUnder('features'), ...workspaceFeatures];
 }
 
-const VITEST_PROVEN_FEATURES = [
-  [
-    'packages/cli/features/durable-independent-review.feature',
-    'packages/cli/tests/review/job.test.ts',
-  ],
-  [
-    'features/architecture-narrative-blindspots.feature',
-    'packages/cli/tests/hooks/architecture-document-nudge.test.ts',
-  ],
-  [
-    'features/audit-domain-docs-freshness.feature',
-    'packages/cli/tests/skills/audit-domain-documentation.test.ts',
-  ],
-  [
-    'features/bash-ledger-write-gate.feature',
-    'packages/cli/tests/integration/bash-ledger-write-gate.test.ts',
-  ],
-  [
-    'features/close-completed-sessions-safely.feature',
-    'packages/cli/tests/closeout-cleanup.test.ts',
-  ],
-  [
-    'features/closeout-preview-apply-convergence.feature',
-    'packages/cli/tests/closeout-cleanup.test.ts',
-  ],
-  [
-    'features/feature-ticket-readiness.feature',
-    'packages/cli/tests/hooks/feature-ticket-readiness.test.ts',
-  ],
-  ['features/honor-host-toolchains.feature', 'packages/cli/tests/hooks/host-toolchain.test.ts'],
-  ['features/phase-work-log-stamp.feature', 'packages/cli/tests/hooks/phase-provenance.test.ts'],
-  [
-    'features/pm-grade-intake-readiness-gate.feature',
-    'packages/cli/tests/hooks/readiness-pointer.test.ts',
-  ],
-  [
-    'features/operate-retry-safe-retro-relay.feature',
-    'packages/cli/tests/retro/relay-delivery.test.ts',
-  ],
-  ['features/portable-tracker-transport.feature', 'packages/cli/tests/tracker-sync/plan.test.ts'],
-  [
-    'features/prevent-public-cli-contract-drift.feature',
-    'packages/cli/tests/cli-protocol/cli-contract.test.ts',
-  ],
-  [
-    'features/resume-closeout-after-upgrade.feature',
-    'packages/cli/tests/hooks/closeout-session-binding.test.ts',
-  ],
-  ['features/sync-tracker.feature', 'packages/cli/tests/tracker-sync/wiring.test.ts'],
-  ['features/ticket-deps-schema.feature', 'packages/cli/tests/integration/blocked-on-gate.test.ts'],
-  ['features/tracker-connect-flow.feature', 'packages/cli/tests/tracker-connect/connect.test.ts'],
-  [
-    'features/tracker-identity-and-join.feature',
-    'packages/cli/tests/tracker-sync/resolve-by-key.test.ts',
-  ],
-  [
-    'features/whole-ticket-quality-refactor.feature',
-    'packages/cli/tests/integration/whole-ticket-quality-refactor.test.ts',
-  ],
-  [
-    'packages/cli/features/reliable-observable-quality-reviews.feature',
-    'packages/cli/tests/cli-protocol/review-wiring.test.ts',
-  ],
-] as const;
-
 type ScenarioProof = [string, string];
 type ScenarioProofRegistration = ScenarioProof | ScenarioProof[];
 
 interface ScenarioProofManifest {
   feature: string;
   scenarios: Record<string, ScenarioProofRegistration>;
+}
+
+function proofManifestPaths(): string[] {
+  const ticketsRoot = nodePath.join(REPO_ROOT, '.project', 'tickets');
+  return readdirSync(ticketsRoot, { withFileTypes: true })
+    .filter(entry => entry.isDirectory())
+    .map(entry => nodePath.join('.project', 'tickets', entry.name, 'bdd-proof.json'))
+    .filter(relativePath => existsSync(nodePath.join(REPO_ROOT, relativePath)))
+    .toSorted((left, right) => left.localeCompare(right));
+}
+
+function readProofManifest(relativePath: string): ScenarioProofManifest {
+  return JSON.parse(
+    readFileSync(nodePath.join(REPO_ROOT, relativePath), 'utf8'),
+  ) as ScenarioProofManifest;
 }
 
 function registeredProofs(registration: ScenarioProofRegistration): ScenarioProof[] {
@@ -172,13 +122,12 @@ function expectScenarioProofs(manifest: ScenarioProofManifest): void {
     for (const [proofPath, testName] of proofs) {
       const proof = readFileSync(nodePath.join(REPO_ROOT, proofPath), 'utf8');
       const executableNames = executableVitestNames(proof);
-      expect(
-        executableNames.some(
-          executableName =>
-            executableName === testName || executableName.startsWith(`${testName}:`),
-        ),
-        `${scenario} -> ${proofPath} must declare ${testName}`,
-      ).toBe(true);
+      const matches = executableNames.filter(
+        executableName => executableName === testName || executableName.startsWith(`${testName}:`),
+      );
+      expect(matches, `${scenario} -> ${proofPath} must uniquely declare ${testName}`).toHaveLength(
+        1,
+      );
     }
   }
 }
@@ -203,21 +152,22 @@ describe('BDD proof provenance', () => {
       )
       .toSorted((left, right) => left.localeCompare(right));
 
-    const manifestFeatures = VITEST_PROVEN_FEATURES.map(([featurePath]) => featurePath).toSorted(
-      (left, right) => left.localeCompare(right),
-    );
+    const manifestFeatures = proofManifestPaths()
+      .map(manifestPath => readProofManifest(manifestPath).feature)
+      .toSorted((left, right) => left.localeCompare(right));
+    expect(new Set(manifestFeatures).size).toBe(manifestFeatures.length);
     expect(taggedFeatures).toEqual(manifestFeatures);
   });
 
-  it.each(VITEST_PROVEN_FEATURES)(
-    '%s names existing Vitest proof without claiming WIP',
-    (featurePath, proofPath) => {
-      const source = readFileSync(nodePath.join(REPO_ROOT, featurePath), 'utf8');
+  it.each(proofManifestPaths())(
+    '%s maps every scenario to a named executable proof',
+    manifestPath => {
+      const manifest = readProofManifest(manifestPath);
+      const source = readFileSync(nodePath.join(REPO_ROOT, manifest.feature), 'utf8');
 
       expect(source).toMatch(/@proof\.vitest/u);
       expect(source).not.toMatch(/@wip/u);
-      expect(source).toContain(proofPath);
-      expect(() => readFileSync(nodePath.join(REPO_ROOT, proofPath), 'utf8')).not.toThrow();
+      expectScenarioProofs(manifest);
     },
   );
 
@@ -241,64 +191,6 @@ describe('BDD proof provenance', () => {
     );
 
     expect(result.status, result.stderr || result.stdout).toBe(0);
-  });
-
-  it.each([
-    [
-      'public CLI contract',
-      '.project/tickets/6N6M40-prevent-public-cli-contract-drift/bdd-proof.json',
-    ],
-    [
-      'retry-safe retro relay',
-      '.project/tickets/A9J9M8-operate-retry-safe-retro-relay/bdd-proof.json',
-    ],
-    [
-      'portable tracker transport',
-      '.project/tickets/CBTDK8-portable-tracker-transport/bdd-proof.json',
-    ],
-    ['tracker sync', '.project/tickets/JS5K5G-sync-tracker/bdd-proof.json'],
-    ['ticket dependencies', '.project/tickets/MBGQ89-ticket-deps-schema/bdd-proof.json'],
-    ['host toolchains', '.project/tickets/13E3EN-honor-host-toolchains/bdd-proof.json'],
-    ['bash ledger write gate', '.project/tickets/W42G34-bash-ledger-write-gate/bdd-proof.json'],
-    [
-      'audit domain documentation',
-      '.project/tickets/N0W5KG-audit-domain-docs-freshness/bdd-proof.json',
-    ],
-    ['tracker connect', '.project/tickets/2TK5AD-tracker-connect-flow/bdd-proof.json'],
-    [
-      'whole-ticket quality refactor',
-      '.project/tickets/W610WW-whole-ticket-quality-refactor/bdd-proof.json',
-    ],
-    [
-      'tracker identity and join',
-      '.project/tickets/DGH59K-tracker-identity-and-join/bdd-proof.json',
-    ],
-    ['phase work-log stamp', '.project/tickets/E32M4P-phase-work-log-stamp/bdd-proof.json'],
-    ['feature ticket readiness', '.project/tickets/9S6HFC-feature-ticket-readiness/bdd-proof.json'],
-    [
-      'PM-grade intake readiness',
-      '.project/tickets/TPP6Y2-pm-grade-intake-readiness-gate/bdd-proof.json',
-    ],
-    [
-      'durable independent review',
-      '.project/tickets/7GHXA5-finish-deep-reviews-in-background/bdd-proof.json',
-    ],
-    [
-      'architecture narrative',
-      '.project/tickets/BY7RNR-architecture-narrative-blindspots/bdd-proof.json',
-    ],
-    [
-      'closeout convergence',
-      '.project/tickets/TFG4CR-closeout-preview-apply-convergence/bdd-proof.json',
-    ],
-    [
-      'observable review',
-      '.project/tickets/1YYG74-reliable-observable-quality-reviews/bdd-proof.json',
-    ],
-  ])('maps every %s scenario to a named executable proof', (_label, manifestRelativePath) => {
-    const manifestPath = nodePath.join(REPO_ROOT, manifestRelativePath);
-    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as ScenarioProofManifest;
-    expectScenarioProofs(manifest);
   });
 
   it('accepts executable Vitest declarations but rejects comments and skipped lookalikes', () => {
