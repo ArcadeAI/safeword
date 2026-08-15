@@ -118,6 +118,8 @@ pipe characters inside cells.
 
 #### finish-deep-reviews-in-background.TBU1.R3 — A builder can stop a review that is no longer useful
 
+#### finish-deep-reviews-in-background.TBU1.R4 — A background review reaches a terminal result when it cannot complete
+
 
 <!--
 One persona per JTBD, in the form "When I …, I want …, so I can …". If two

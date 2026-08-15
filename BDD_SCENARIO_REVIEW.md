@@ -209,8 +209,12 @@ A scenario may be marked semantically complete only when it has been checked for
   feature's unsupported Claude/Codex tags were removed rather than asserted by
   label alone. The earlier focused Vitest proof (33 tests) and Gherkin lint pass.
   A subsequent independent review `b4800890-eac8-4d7f-8575-cad75ce6797e`
-  returned changes requested; this repair addresses those findings, but a fresh
-  focused CI run and independent review are still required before approval.
+  returned changes requested. The follow-up review
+  `4aff7d44-cf3e-4c8a-905d-7d183b1e7c31` found the remaining collection-ID,
+  controlled-deadline, rule-traceability, cancellation-observability, and
+  content-fingerprint boundaries. The current repair adds those contracts and
+  a restore-identical-content regression; focused verification and another
+  independent review are required before approval.
 
 ### Semantic review in progress
 

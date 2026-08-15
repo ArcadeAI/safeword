@@ -2,8 +2,8 @@
 id: 7GHXA5
 slug: finish-deep-reviews-in-background
 type: feature
-phase: done
-status: done
+phase: verify
+status: in_progress
 phase_anchors:
   - "define-behavior: .project/tickets/7GHXA5-finish-deep-reviews-in-background/spec.md"
   - "scenario-gate: packages/cli/features/durable-independent-review.feature"
@@ -22,7 +22,7 @@ phase_skips:
 inspiration_contract: v1
 inspiration_contract_scaffold: v1
 created: 2026-08-12T16:16:43.148Z
-last_modified: 2026-08-12T16:16:43.148Z
+last_modified: 2026-08-15T04:48:05Z
 ---
 
 # Finish deep reviews without blocking developers
@@ -38,3 +38,4 @@ last_modified: 2026-08-12T16:16:43.148Z
 - 2026-08-12T21:10:00.000Z Verification audit corrected transient-state cleanup, context freshness binding, proof provenance, and foreground progress; focused regressions and parity contracts are green.
 - 2026-08-12T22:06:00.000Z Verified: final Node 22 and Node 24 CI matrices, lint, CLI contract, dogfood parity, build, typecheck, dependency audit, and diff-scoped audit are green.
 - 2026-08-15T03:54:42Z Post-delivery scenario repair: the recovered independent review returned changes requested, identifying under-specified terminal failure, binding, and cancellation boundaries. The scenario and proof repair is ready for focused CI and a new independent review; it is not yet approved.
+- 2026-08-15T04:48:05Z Reopened for verification after independent scenario review `4aff7d44-cf3e-4c8a-905d-7d183b1e7c31` requested changes. The repair adds a terminal-failure rule, explicit CLI status-handle and controlled-deadline contracts, status-ID rejection, observable cancellation, and content/deletion freshness boundaries.

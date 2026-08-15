@@ -625,6 +625,26 @@ describe('durable review jobs', () => {
     expect(result.findings[0]?.code).toBe('REVIEW_STALE');
   });
 
+  it('keeps a completed result when a reviewed source is restored to identical content', async () => {
+    const cwd = project();
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, COMPLETE_WORKER));
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '0');
+    const pending = await startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
+    const id = (pending.data as { review_id: string }).review_id;
+    const recordPath = nodePath.join(cwd, '.safeword', 'state', 'reviews', `${id}.json`);
+    await vi.waitFor(() => {
+      const record = JSON.parse(readFileSync(recordPath, 'utf8')) as { state: string };
+      expect(record.state).toBe('completed');
+    });
+    writeFileSync(nodePath.join(cwd, 'input.md'), 'changed temporarily\n');
+    writeFileSync(nodePath.join(cwd, 'input.md'), 'review me\n');
+
+    const result = reviewJobStatus(cwd, id);
+
+    expect(result.state).toBe('healthy');
+    expect(result.findings[0]?.message).toBe('Independent review complete.');
+  });
+
   it('treats a deleted reviewed source as stale and offers a fresh review', async () => {
     const cwd = project();
     vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, COMPLETE_WORKER));
