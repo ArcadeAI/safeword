@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import {
@@ -423,7 +423,7 @@ export function runHeadlessCodexActivationCheck(
     // parent Claude task's project override would bind proof to another repo.
     CLAUDE_PROJECT_DIR: undefined,
   };
-  const canonicalProject = resolveCodexProjectDirectory(options.cwd, environment);
+  const canonicalProject = realpathSync(resolveCodexProjectDirectory(options.cwd, environment));
   const codexHome = environment.CODEX_HOME;
   if (codexHome === undefined || codexHome.trim() === '') {
     throw new Error('CODEX_HOME is required for an isolated headless activation check.');
