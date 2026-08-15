@@ -2529,7 +2529,9 @@ function suggestionForFailure(failure, label) {
   return;
 }
 function reviewResultLines(result, options) {
-  if (result.state === "failed" || !isRecord(result.data) || result.data.command !== "review run")
+  if (!isRecord(result.data) || result.data.command !== "review run")
+    return;
+  if (result.state === "failed" && result.errors.length > 0)
     return;
   const messages = result.findings.filter((finding) => !REPLACED_REVIEW_FINDINGS.has(finding.code)).map((finding) => finding.message);
   messages.push(...result.errors.map((error2) => error2.message));

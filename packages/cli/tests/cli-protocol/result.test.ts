@@ -559,6 +559,15 @@ describe('CLI result protocol', () => {
     expect(renderHumanResult(result).split('\n', 1)[0]).toBe('Failed');
   });
 
+  it('presents an error-free failed review tuple as incomplete', () => {
+    const result = createResult({
+      state: 'failed',
+      data: { command: 'review run', status: 'approved' },
+    });
+
+    expect(renderHumanResult(result).split('\n', 1)[0]).toBe('Review incomplete.');
+  });
+
   it.each([
     { author: 'codex', actual: 'claude', assigned: 'claude', failure: 'not_installed' },
     { author: 'codex', actual: 'codex', assigned: 'codex', failure: 'not_installed' },

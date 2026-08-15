@@ -189,8 +189,8 @@ export function reviewResultLines(
   result: CliResult,
   options: { verbose?: boolean },
 ): string[] | undefined {
-  if (result.state === 'failed' || !isRecord(result.data) || result.data.command !== 'review run')
-    return undefined;
+  if (!isRecord(result.data) || result.data.command !== 'review run') return undefined;
+  if (result.state === 'failed' && result.errors.length > 0) return undefined;
   const messages = result.findings
     .filter(finding => !REPLACED_REVIEW_FINDINGS.has(finding.code))
     .map(finding => finding.message);
