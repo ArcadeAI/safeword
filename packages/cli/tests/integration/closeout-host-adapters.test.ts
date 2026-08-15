@@ -484,6 +484,17 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
       ),
     ).toContain(fixture.oid);
 
+    const lateDraft = sealedRetroDraft('retro:latecrosswork', 'Late cross-worktree fallback');
+    spoolDrafts(fixture.topic, id, [draft, lateDraft]);
+    bindHostSession({
+      runtime: 'claude',
+      fixture,
+      environment,
+      id,
+      transcript,
+      guardArguments: '--pr 42',
+    });
+
     const applied = spawnSync(
       'bun',
       [
@@ -499,6 +510,7 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
     expect(applied.status, `${applied.stderr}\n${applied.stdout}`).toBe(0);
     expect(existsSync(fixture.topic)).toBe(false);
     expect(existsSync(durableContinuation)).toBe(true);
+    expect(runOrThrow('git', ['status', '--porcelain'], fixture.main, environment)).toBe('');
 
     const validation = spawnSync(
       'bun',
@@ -510,9 +522,17 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
       { cwd: fixture.main, encoding: 'utf8' },
     );
     expect(validation.status, validation.stderr).toBe(0);
-    expect(JSON.parse(validation.stdout)).toEqual(draft);
+    expect(
+      validation.stdout
+        .trim()
+        .split('\n')
+        .map(line => JSON.parse(line)),
+    ).toEqual([draft, lateDraft]);
 
     expect(recordFiledAck(fixture.main, id, { signature: draft.signature, issue: 1942 })).toBe(
+      true,
+    );
+    expect(recordFiledAck(fixture.main, id, { signature: lateDraft.signature, issue: 1943 })).toBe(
       true,
     );
     const drain = spawnSync(

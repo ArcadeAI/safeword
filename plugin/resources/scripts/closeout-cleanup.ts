@@ -3,6 +3,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import {
+  appendFileSync,
   existsSync,
   mkdirSync,
   readFileSync,
@@ -1709,12 +1710,27 @@ function preserveRetroSpool(plan: CleanupPlan): string | undefined {
   const target = plan.retro?.durableSpoolPath;
   if (!source || !target || source === target || !existsSync(source)) return undefined;
   try {
+    const projectRoot = nodePath.dirname(nodePath.dirname(nodePath.dirname(target)));
+    const commonDirectory = git(projectRoot, 'rev-parse', '--git-common-dir');
+    if (commonDirectory.status !== 0) return 'retrospective spool exclusion could not be resolved';
+    const excludePath = nodePath.join(
+      nodePath.resolve(projectRoot, commonDirectory.stdout.trim()),
+      'info/exclude',
+    );
+    mkdirSync(nodePath.dirname(excludePath), { recursive: true });
+    const exclusion = '/.safeword/retro-drafts/';
+    const exclusions = existsSync(excludePath) ? readFileSync(excludePath, 'utf8') : '';
+    if (!exclusions.split('\n').includes(exclusion)) {
+      const separator = exclusions.length > 0 && !exclusions.endsWith('\n') ? '\n' : '';
+      appendFileSync(excludePath, `${separator}${exclusion}\n`);
+    }
     mkdirSync(nodePath.dirname(target), { recursive: true });
     const bytes = readFileSync(source);
-    if (existsSync(target) && !readFileSync(target).equals(bytes)) {
-      return 'durable retrospective spool already exists with different content';
+    if (!existsSync(target) || !readFileSync(target).equals(bytes)) {
+      const temporary = `${target}.${randomUUID()}.tmp`;
+      writeFileSync(temporary, bytes, { flag: 'wx', mode: 0o600 });
+      renameSync(temporary, target);
     }
-    if (!existsSync(target)) writeFileSync(target, bytes, { flag: 'wx', mode: 0o600 });
     return undefined;
   } catch (error) {
     return `retrospective spool preservation failed: ${String(error)}`;
