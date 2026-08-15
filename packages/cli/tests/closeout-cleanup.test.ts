@@ -51,10 +51,6 @@ const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
 
 function normalizedCloseoutScript(path: string): string {
   return readFileSync(path, 'utf8')
-    .replace(
-      /import \{\s*type CloseoutBinding,\s*readFreshCloseoutBinding,\s*recordCodexCloseoutHandoff,\s*resolveExactCodexTranscript,?\s*\} from '\.\.\/\.\.\/runtime\/hooks\/lib\/closeout-binding\.ts';/u,
-      "import {\n  type CloseoutBinding,\n  readFreshCloseoutBinding,\n  recordCodexCloseoutHandoff,\n  resolveExactCodexTranscript,\n} from '../hooks/lib/closeout-binding.ts';",
-    )
     .replace('../../runtime/hooks/lib/closeout-binding.ts', '../hooks/lib/closeout-binding.ts')
     .replace(
       /import \{\s*draftSpoolPath,\s*readAcks,\s*readSpooledDrafts,?\s*\} from '\.\.\/\.\.\/runtime\/hooks\/lib\/retro-draft-spool\.ts';/u,
@@ -244,6 +240,7 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
           ? nodePath.join(root, 'agent-transcripts', `${runtime}-42`, `${runtime}-42.jsonl`)
           : nodePath.join(root, 'transcript.jsonl');
       mkdirSync(nodePath.dirname(transcript), { recursive: true });
+      if (runtime === 'codex') spawnSync('git', ['init', '--quiet', root]);
       writeFileSync(
         transcript,
         `${JSON.stringify(
@@ -880,7 +877,7 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     expect(resolveHostedVerification('passed', 'passed')).toBe('passed');
     expect(resolveHostedVerification('passed', 'failed')).toBe('failed');
     expect(resolveHostedVerification('passed', 'pending')).toBe('pending');
-    expect(resolveHostedVerification('absent', 'passed')).toBe('passed');
+    expect(resolveHostedVerification('absent', 'passed')).toBe('unknown');
     expect(resolveHostedVerification('unknown', 'passed')).toBe('unknown');
   });
 
@@ -956,6 +953,7 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
 
     expect(withPath.retro).toEqual({
       spoolPath: '/repo/.safeword/retro-drafts/claude-task.jsonl',
+      durableSpoolPath: '/repo/.safeword/retro-drafts/claude-task.jsonl',
     });
     expect(withPath.blockers).toEqual([]);
     expect(withPath.recoveryBlockers).toEqual([]);
@@ -1641,6 +1639,16 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
         stderr: '',
       }),
     ).toEqual({ resolution: 'matched', oid: 'a'.repeat(40) });
+    expect(
+      resolveRemoteReference(
+        {
+          status: 0,
+          stdout: `${'b'.repeat(40)}\trefs/heads/decoy\n${'a'.repeat(40)}\trefs/heads/topic\n`,
+          stderr: '',
+        },
+        'refs/heads/topic',
+      ),
+    ).toEqual({ resolution: 'unknown' });
   });
 
   it('executes the exact cleanup commands against a real linked git worktree and remote', () => {
@@ -1820,7 +1828,7 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
         env: environment,
       });
       expect(preview.status, `${preview.stderr}\n${preview.stdout}`).toBe(0);
-      expect(existsSync(verificationLog)).toBe(false);
+      expect(existsSync(verificationLog)).toBe(true);
       const digest = (JSON.parse(preview.stdout) as { digest: string }).digest;
       writeFileSync(
         transcript,

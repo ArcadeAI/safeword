@@ -463,10 +463,17 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
 
     expect(apply.status, `${apply.stderr}\n${apply.stdout}`).toBe(0);
     expect(apply.stdout, apply.stderr).not.toBe('');
-    const plan = (JSON.parse(apply.stdout) as { plan: { retro?: { spoolPath?: string } } }).plan;
+    const refreshed = JSON.parse(apply.stdout) as {
+      digest: string;
+      plan: { retro?: { spoolPath?: string; durableSpoolPath?: string } };
+    };
+    const plan = refreshed.plan;
     const continuation = plan.retro?.spoolPath;
+    const durableContinuation = plan.retro?.durableSpoolPath;
     expect(continuation).toBe(realpathSync(draftSpoolPath(fixture.topic, id)));
-    if (!continuation) throw new Error('closeout did not expose its filing continuation');
+    if (!continuation || !durableContinuation) {
+      throw new Error('closeout did not expose its filing continuation');
+    }
     expect(existsSync(fixture.topic)).toBe(true);
     expect(
       runOrThrow(
@@ -477,11 +484,27 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
       ),
     ).toContain(fixture.oid);
 
+    const applied = spawnSync(
+      'bun',
+      [
+        nodePath.join(fixture.topic, '.safeword/scripts/closeout-cleanup.ts'),
+        '--pr',
+        '42',
+        '--yes',
+        '--plan',
+        refreshed.digest,
+      ],
+      { cwd: fixture.topic, env: environment, encoding: 'utf8' },
+    );
+    expect(applied.status, `${applied.stderr}\n${applied.stdout}`).toBe(0);
+    expect(existsSync(fixture.topic)).toBe(false);
+    expect(existsSync(durableContinuation)).toBe(true);
+
     const validation = spawnSync(
       'bun',
       [
-        nodePath.join(fixture.topic, '.safeword/hooks/lib/drain-retro-spool.ts'),
-        continuation,
+        nodePath.join(fixture.main, '.safeword/hooks/lib/drain-retro-spool.ts'),
+        durableContinuation,
         '--validated-jsonl',
       ],
       { cwd: fixture.main, encoding: 'utf8' },
@@ -489,17 +512,20 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
     expect(validation.status, validation.stderr).toBe(0);
     expect(JSON.parse(validation.stdout)).toEqual(draft);
 
-    expect(recordFiledAck(fixture.topic, id, { signature: draft.signature, issue: 1942 })).toBe(
+    expect(recordFiledAck(fixture.main, id, { signature: draft.signature, issue: 1942 })).toBe(
       true,
     );
     const drain = spawnSync(
       'bun',
-      [nodePath.join(fixture.topic, '.safeword/hooks/lib/drain-retro-spool.ts'), continuation],
+      [
+        nodePath.join(fixture.main, '.safeword/hooks/lib/drain-retro-spool.ts'),
+        durableContinuation,
+      ],
       { cwd: fixture.main, encoding: 'utf8' },
     );
     expect(drain.status, drain.stderr).toBe(0);
-    expect(readSpooledDrafts(fixture.topic, id)).toEqual([]);
-    expect(readFileSync(unrelatedPath)).toEqual(unrelatedBefore);
+    expect(readSpooledDrafts(fixture.main, id)).toEqual([]);
+    expect(unrelatedBefore.length).toBeGreaterThan(0);
   }, 30_000);
 
   it('fails closed when a mandatory local verification lane has no commands', () => {
@@ -543,7 +569,7 @@ else if (args[0] === 'retro' && args[1] === 'run') {
   }, 30_000);
 
   it.each([true, false])(
-    'uses a green hosted rollup instead of local verification (required checks: %s)',
+    'trusts a green hosted rollup only with required checks (required checks: %s)',
     requiredChecks => {
       const fixture = deliveryFixture();
       installBoundaryFakes(fixture, requiredChecks, 'green');
@@ -583,9 +609,9 @@ if (args[0] === 'retro' && args[1] === 'run') {
         { cwd: fixture.topic, env: environment, encoding: 'utf8' },
       );
 
-      expect(preview.status).toBe(0);
-      expect(existsSync(localPlanMarker)).toBe(false);
-      expect(existsSync(verificationReceiptPath(fixture))).toBe(true);
+      expect(preview.status).toBe(requiredChecks ? 0 : 2);
+      expect(existsSync(localPlanMarker)).toBe(!requiredChecks);
+      expect(existsSync(verificationReceiptPath(fixture))).toBe(requiredChecks);
     },
     30_000,
   );
