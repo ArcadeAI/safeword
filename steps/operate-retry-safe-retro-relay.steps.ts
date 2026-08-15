@@ -64,6 +64,7 @@ const rawScenarioProofs: Record<
   Omit<ScenarioProof, 'expectedTests' | 'proofId'> & { expectedTests?: number }
 > = {
   'Each harness submits the exact request persisted by another harness': {
+    expectedTests: 7,
     outlineCases: [
       'Claude Code',
       'Claude Code Cloud',

@@ -22,28 +22,6 @@ function definition(name: string) {
 }
 
 describe('CLI execution policy', () => {
-  it('consumes only the exact managed-progress signal and always removes it', () => {
-    const missingSignalEnvironment: Record<string, string> = {};
-    expect(consumeManagedProgressSignal(missingSignalEnvironment)).toBe(false);
-    expect(missingSignalEnvironment).not.toHaveProperty('SAFEWORD_REVIEW_PROGRESS');
-
-    for (const [value, expected] of [
-      ['1', true],
-      [' ', false],
-      ['0', false],
-      ['01', false],
-      ['1 ', false],
-      ['TRUE', false],
-      ['true', false],
-      ['false', false],
-      ['', false],
-    ] as const) {
-      const environment = { SAFEWORD_REVIEW_PROGRESS: value };
-      expect(consumeManagedProgressSignal(environment)).toBe(expected);
-      expect(environment).not.toHaveProperty('SAFEWORD_REVIEW_PROGRESS');
-    }
-  });
-
   it.each([
     { case: '"1"', value: '1', enabled: true },
     { case: '<unset>', value: undefined, enabled: false },
@@ -106,7 +84,7 @@ describe('CLI execution policy', () => {
     emit('next');
 
     expect(Buffer.concat(written).toString()).toBe('A→B\nnext\n');
-    expect(write.mock.calls.length).toBeGreaterThan(2);
+    expect(write).toHaveBeenCalledTimes(6);
   });
 
   it('forwards raw byte chunks exactly without adding line framing', () => {

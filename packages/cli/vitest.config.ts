@@ -1,4 +1,4 @@
-import { defineConfig, mergeConfig } from 'vitest/config';
+import { configDefaults, defineConfig, mergeConfig } from 'vitest/config';
 
 import { defaultVitestExclude, defaultVitestInclude } from '../../vitest.default-projects.js';
 import { baseConfig } from './vitest.base.ts';
@@ -15,7 +15,7 @@ export default mergeConfig(
       // filename lane. CI runs the focused non-git proof via
       // test:slow:install-proof. Run broader validation via test:smoke,
       // test:smoke:live, test:slow, or test:release as needed.
-      exclude: defaultVitestExclude('packages/cli'),
+      exclude: [...configDefaults.exclude, ...defaultVitestExclude('packages/cli')],
       coverage: {
         provider: 'v8',
         include: ['src/**/*.ts'],

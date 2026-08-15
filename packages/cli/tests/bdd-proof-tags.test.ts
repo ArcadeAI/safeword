@@ -5,6 +5,7 @@ import { AstBuilder, GherkinClassicTokenMatcher, Parser } from '@cucumber/gherki
 import { type GherkinDocument, IdGenerator } from '@cucumber/messages';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
+import { configDefaults } from 'vitest/config';
 
 import {
   DEFAULT_VITEST_PROJECTS,
@@ -36,15 +37,23 @@ function isProofRegistration(value: unknown): value is ScenarioProof {
   );
 }
 
-function hasManifestShape(value: {
-  feature?: unknown;
-  scenarios?: unknown;
-}): value is ScenarioProofManifest {
+function hasManifestShape(value: unknown): value is ScenarioProofManifest {
+  if (value === null || typeof value !== 'object') return false;
+  const candidate = value as { feature?: unknown; scenarios?: unknown };
   return (
-    typeof value.feature === 'string' &&
-    value.scenarios !== null &&
-    typeof value.scenarios === 'object'
+    typeof candidate.feature === 'string' &&
+    candidate.scenarios !== null &&
+    typeof candidate.scenarios === 'object'
   );
+}
+
+function proofRegistrations(value: unknown): ScenarioProof[] | undefined {
+  const registrations = Array.isArray(value) && typeof value[0] === 'string' ? [value] : value;
+  return Array.isArray(registrations) &&
+    registrations.length > 0 &&
+    registrations.every(isProofRegistration)
+    ? registrations
+    : undefined;
 }
 
 function proofManifestPaths(): string[] {
@@ -58,23 +67,18 @@ function proofManifestPaths(): string[] {
 }
 
 function readProofManifest(relativePath: string): ScenarioProofManifest {
-  const manifest = JSON.parse(readFileSync(nodePath.join(REPO_ROOT, relativePath), 'utf8')) as {
-    feature?: unknown;
-    scenarios?: unknown;
-  };
+  const manifest: unknown = JSON.parse(
+    readFileSync(nodePath.join(REPO_ROOT, relativePath), 'utf8'),
+  );
   if (!hasManifestShape(manifest)) {
     throw new TypeError(`${relativePath} must declare a feature string and scenarios object`);
   }
+  if (!isRepoFeaturePath(manifest.feature)) {
+    throw new TypeError(`${relativePath}: ${manifest.feature} must be a collected feature`);
+  }
   for (const [scenario, registration] of Object.entries(manifest.scenarios)) {
-    const registrations =
-      Array.isArray(registration) && typeof registration[0] === 'string'
-        ? [registration]
-        : registration;
-    if (
-      !Array.isArray(registrations) ||
-      registrations.length === 0 ||
-      registrations.some(proof => !isProofRegistration(proof))
-    ) {
+    const registrations = proofRegistrations(registration);
+    if (registrations === undefined) {
       throw new TypeError(`${relativePath}: ${scenario} has an invalid proof registration`);
     }
     const proofKeys = registrations.map(proof => JSON.stringify(proof));
@@ -88,6 +92,8 @@ function readProofManifest(relativePath: string): ScenarioProofManifest {
 function isCollectedVitestProofPath(proofPath: string): boolean {
   const normalized = nodePath.posix.normalize(proofPath);
   if (normalized !== proofPath || normalized.startsWith('../')) return false;
+  const pathSegments = new Set(proofPath.split('/'));
+  if (pathSegments.has('node_modules') || pathSegments.has('.git')) return false;
   return DEFAULT_VITEST_PROJECTS.some(project => {
     const prefix = `${project.root}/`;
     if (!proofPath.startsWith(prefix)) return false;
@@ -111,9 +117,9 @@ function isRepoFeaturePath(featurePath: string): boolean {
 }
 
 function registeredProofs(registration: ScenarioProofRegistration): ScenarioProof[] {
-  return typeof registration[0] === 'string'
-    ? [registration as ScenarioProof]
-    : (registration as ScenarioProof[]);
+  const registrations = proofRegistrations(registration);
+  if (registrations === undefined) throw new TypeError('invalid proof registration');
+  return registrations;
 }
 
 function expressionTokens(expression: ts.Expression): string[] {
@@ -190,7 +196,12 @@ function executableVitestNames(source: string): string[] {
   }
 
   function hasExecutableTestBody(call: ts.CallExpression): boolean {
-    const body = call.arguments[1];
+    const body = call.arguments
+      .slice(1)
+      .findLast(
+        (argument): argument is ts.ArrowFunction | ts.FunctionExpression =>
+          ts.isArrowFunction(argument) || ts.isFunctionExpression(argument),
+      );
     if (body === undefined || (!ts.isArrowFunction(body) && !ts.isFunctionExpression(body))) {
       return false;
     }
@@ -299,9 +310,12 @@ function parameterizedVitestCases(source: string): Map<string, ParameterizedCase
   // Manifest selectors use literal placeholder values: one value is bare and
   // multiple values are a JSON array. Positional rows follow placeholder order;
   // named rows follow the `$name` order in the Vitest title.
-  function tableCaseValues(node: ts.Expression, testName: string): string[] {
+  function tableCaseValues(
+    node: ts.Expression,
+    testName: string,
+  ): { cases: string[]; complete: boolean } {
     const table = unwrap(node);
-    if (!ts.isArrayLiteralExpression(table)) return [];
+    if (!ts.isArrayLiteralExpression(table)) return { cases: [], complete: false };
     const namedPlaceholders = testName
       .matchAll(/\$([A-Za-z_$][\w$]*)/gu)
       .map(match => match[1])
@@ -310,13 +324,15 @@ function parameterizedVitestCases(source: string): Map<string, ParameterizedCase
       .replaceAll('%%', '')
       .matchAll(/%[sdifjo#]/gu)
       .toArray().length;
-    return table.elements.flatMap(rowNode => {
+    const cases = table.elements.flatMap(rowNode => {
       const row = unwrap(rowNode);
       if (ts.isArrayLiteralExpression(row)) {
         const values = row.elements
           .slice(0, Math.max(1, positionalPlaceholderCount))
           .map(element => literalValue(element));
-        return values.includes(undefined) ? [] : [values.join(' | ')];
+        const stringValues = values.filter((value): value is string => value !== undefined);
+        if (stringValues.length !== values.length) return [];
+        return [stringValues.length === 1 ? stringValues.join('') : JSON.stringify(stringValues)];
       }
       if (ts.isObjectLiteralExpression(row) && namedPlaceholders.length > 0) {
         const values = namedPlaceholders.map(placeholder => {
@@ -336,6 +352,21 @@ function parameterizedVitestCases(source: string): Map<string, ParameterizedCase
       const primitive = literalValue(row);
       return primitive === undefined ? [] : [primitive];
     });
+    return { cases, complete: cases.length === table.elements.length };
+  }
+
+  function hasDisabledDeclaration(node: ts.Node): boolean {
+    for (let current: ts.Node | undefined = node; current !== undefined; current = current.parent) {
+      if (!ts.isCallExpression(current)) continue;
+      const tokens = expressionTokens(current.expression);
+      if (
+        ['it', 'test', 'describe', 'suite'].includes(tokens[0] ?? '') &&
+        tokens.some(token => ['skip', 'todo', 'only', 'runIf', 'skipIf'].includes(token))
+      ) {
+        return true;
+      }
+    }
+    return false;
   }
 
   function parameterizedDeclaration(
@@ -361,13 +392,19 @@ function parameterizedVitestCases(source: string): Map<string, ParameterizedCase
 
   function visit(node: ts.Node): void {
     const declaration = parameterizedDeclaration(node);
-    if (declaration !== undefined) {
-      const cases =
-        declaration.table === undefined ? [] : tableCaseValues(declaration.table, declaration.name);
-      casesByName.set(declaration.name, {
-        cases,
-        staticallyEnumerable: cases.length > 0,
-      });
+    if (declaration !== undefined && !hasDisabledDeclaration(node)) {
+      const tableCases =
+        declaration.table === undefined
+          ? { cases: [], complete: false }
+          : tableCaseValues(declaration.table, declaration.name);
+      const next = {
+        cases: tableCases.cases,
+        staticallyEnumerable: tableCases.complete && tableCases.cases.length > 0,
+      };
+      casesByName.set(
+        declaration.name,
+        casesByName.has(declaration.name) ? { cases: [], staticallyEnumerable: false } : next,
+      );
     }
     ts.forEachChild(node, visit);
   }
@@ -521,6 +558,13 @@ function featureHasTag(featurePath: string, tag: string): boolean {
 }
 
 describe('BDD proof provenance', () => {
+  it('rejects null and incomplete proof manifest shapes', () => {
+    // eslint-disable-next-line unicorn/no-null -- JSON manifests can contain null.
+    expect(hasManifestShape(null)).toBe(false);
+    expect(hasManifestShape({ feature: 'features/example.feature' })).toBe(false);
+    expect(proofRegistrations([])).toBeUndefined();
+  });
+
   it('keeps the proof manifest complete', () => {
     const taggedFeatures = configuredFeatureFiles
       .filter(featurePath => featureHasTag(featurePath, '@proof.vitest'))
@@ -600,6 +644,9 @@ describe('BDD proof provenance', () => {
     ).not.toContain('nested conditional behavior');
     expect(executableVitestNames("it('missing body');")).not.toContain('missing body');
     expect(executableVitestNames("it('empty body', () => {});")).not.toContain('empty body');
+    expect(executableVitestNames("it('options overload', { timeout: 1 }, () => true);")).toContain(
+      'options overload',
+    );
   });
 
   it('extracts exact static cases from parameterized Vitest declarations', () => {
@@ -632,6 +679,22 @@ describe('BDD proof provenance', () => {
         'tagged $value',
       ),
     ).toEqual({ cases: [], staticallyEnumerable: false });
+    expect(
+      parameterizedVitestCases("it.each(['literal', dynamic])('mixed %s', () => {});").get(
+        'mixed %s',
+      ),
+    ).toEqual({ cases: ['literal'], staticallyEnumerable: false });
+    expect(
+      parameterizedVitestCases("it.skip.each(['disabled'])('disabled %s', () => {});").get(
+        'disabled %s',
+      ),
+    ).toBeUndefined();
+    expect(
+      parameterizedVitestCases(`
+        it.each(['first'])('duplicate %s', () => {});
+        it.each(['second'])('duplicate %s', () => {});
+      `).get('duplicate %s'),
+    ).toEqual({ cases: [], staticallyEnumerable: false });
   });
 
   it('accepts only repository-contained tests collected by the normal Vitest projects', () => {
@@ -640,13 +703,21 @@ describe('BDD proof provenance', () => {
     expect(isCollectedVitestProofPath('packages/cli/tests/example.slow.test.ts')).toBe(false);
     expect(isCollectedVitestProofPath('packages/cli/tests/example.ts')).toBe(false);
     expect(isCollectedVitestProofPath('packages/cli/src/example.slow.test.ts')).toBe(false);
+    expect(isCollectedVitestProofPath('packages/cli/node_modules/example.test.ts')).toBe(false);
+    expect(isCollectedVitestProofPath('packages/cli/.git/example.test.ts')).toBe(false);
   });
 
   it('uses the same include and exclude rules as the shipped Vitest configs', () => {
     expect(cliVitestConfig.test?.include).toEqual(defaultVitestInclude('packages/cli'));
-    expect(cliVitestConfig.test?.exclude).toEqual(defaultVitestExclude('packages/cli'));
+    expect(cliVitestConfig.test?.exclude).toEqual([
+      ...configDefaults.exclude,
+      ...defaultVitestExclude('packages/cli'),
+    ]);
     expect(relayVitestConfig.test?.include).toEqual(defaultVitestInclude('packages/retro-relay'));
-    expect(relayVitestConfig.test?.exclude).toEqual(defaultVitestExclude('packages/retro-relay'));
+    expect(relayVitestConfig.test?.exclude).toEqual([
+      ...configDefaults.exclude,
+      ...defaultVitestExclude('packages/retro-relay'),
+    ]);
   });
 
   it('enumerates every workspace Vitest project in the shared collection contract', () => {

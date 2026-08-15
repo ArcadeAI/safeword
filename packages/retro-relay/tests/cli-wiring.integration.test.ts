@@ -138,7 +138,7 @@ async function installSurfaceFixtures(project: string): Promise<{
   codexSkill: string;
   cursorCommand: string;
 }> {
-  const cli = path.resolve(process.cwd(), '../cli');
+  const cli = path.resolve(import.meta.dirname, '../../cli');
   writeFileSync(path.join(project, 'package.json'), JSON.stringify({ name: 'relay-fixture' }));
   await reconcile(SAFEWORD_SCHEMA, 'install', createProjectContext(project));
 
@@ -453,7 +453,8 @@ async function runInstalledSurface(
 
 function discardProject(project: string): void {
   rmSync(project, { force: true, recursive: true });
-  directories.splice(directories.indexOf(project), 1);
+  const index = directories.indexOf(project);
+  if (index !== -1) directories.splice(index, 1);
 }
 
 function lostReceiptFetch(scenario: RelayScenario): typeof fetch {

@@ -191,6 +191,19 @@ describe('closeout cleanup and reporting (93C14D NTB1.R1/TBU1.R2/R3)', () => {
 });
 
 describe('closeout host entry points (93C14D TBU1.R4)', () => {
+  it.each(['closeout-binding.ts', 'retro-draft-spool.ts'])(
+    'keeps generated plugin runtime %s aligned with its canonical hook library',
+    filename => {
+      const generated = readFileSync(
+        nodePath.join(repoRoot, 'plugin/runtime/hooks/lib', filename),
+        'utf8',
+      );
+      expect(generated.replaceAll('\\${', '${')).toBe(
+        readFileSync(nodePath.join(repoRoot, 'packages/cli/templates/hooks/lib', filename), 'utf8'),
+      );
+    },
+  );
+
   it('derives Claude, Cursor, and Codex entry points from production catalogues', () => {
     const cursor = CURSOR_COMMAND_WRAPPERS.find(wrapper => wrapper.name === 'closeout');
     expect(cursor?.skillPath).toBe('closeout/SKILL.md');
