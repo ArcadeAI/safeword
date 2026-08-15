@@ -286,13 +286,14 @@ Feature: Let parallel sessions share test capacity safely
         | macOS | reserved before repository code can run | blocked execution-group leader and out-of-group supervisor | one guarded exact-wrapper transition |
         | macOS | active after container identity is durable | externally supervised process group | the two-observation reclaim-marker protocol |
         | Windows | reserved before repository code can run | suspended Job Object process | one guarded exact-wrapper transition |
-        | Windows | active after container identity is durable | kill-on-close Job Object | verified zero active-process count or the two-observation absent-job protocol |
+        | Windows | active after container identity is durable | kill-on-close Job Object | verified zero active-process count |
+        | Windows | active after container identity is durable | absent owner-only Job Object | the two-observation absent-job reclaim-marker protocol |
 
     @wiring @process
     Scenario Outline: Cancellation releases ownership safely at every queue stage
       Given a real public package-test wrapper and process collaborator are <stage>
       When its request is cancelled
-      Then <cleanup>, <process-outcome>, no unrelated ticket or owner changes, checkout ownership releases when safe, and the next live waiter completes
+      Then <cleanup>, <process-outcome>, no unrelated ticket or owner changes, checkout ownership releases when safe, the next live waiter runs once to exit zero, and every descendant is accounted for
       Examples:
         | stage | cleanup | process-outcome |
         | queued | only its exact waiter ticket is removed | no repository process ever starts for the cancelled command |
@@ -328,9 +329,21 @@ Feature: Let parallel sessions share test capacity safely
       Then the exact process instance is not reclaimed, native evidence remains unchanged, and Safeword reports platform-specific recovery guidance
       Examples:
         | platform | identity-source | failure |
-        | Linux | boot ID and proc stat start-time ticks | missing, malformed, permission-denied, changed, or indicating PID reuse |
-        | Windows | process creation FILETIME for the PID | missing, malformed, permission-denied, changed, or indicating PID reuse |
-        | macOS | LC_ALL=C process start time with conservative second-level precision | missing, malformed, permission-denied, changed, or indicating same-second PID reuse |
+        | Linux | boot ID and proc stat start-time ticks | missing |
+        | Linux | boot ID and proc stat start-time ticks | malformed |
+        | Linux | boot ID and proc stat start-time ticks | permission-denied |
+        | Linux | boot ID and proc stat start-time ticks | changed |
+        | Linux | boot ID and proc stat start-time ticks | indicating PID reuse |
+        | Windows | process creation FILETIME for the PID | missing |
+        | Windows | process creation FILETIME for the PID | malformed |
+        | Windows | process creation FILETIME for the PID | permission-denied |
+        | Windows | process creation FILETIME for the PID | changed |
+        | Windows | process creation FILETIME for the PID | indicating PID reuse |
+        | macOS | LC_ALL=C process start time with conservative second-level precision | missing |
+        | macOS | LC_ALL=C process start time with conservative second-level precision | malformed |
+        | macOS | LC_ALL=C process start time with conservative second-level precision | permission-denied |
+        | macOS | LC_ALL=C process start time with conservative second-level precision | changed |
+        | macOS | LC_ALL=C process start time with conservative second-level precision | indicating same-second PID reuse |
 
     @rejection @process
     Scenario Outline: Injected torn process identity snapshots fail closed without contributing native evidence
@@ -476,7 +489,7 @@ Feature: Let parallel sessions share test capacity safely
         | macOS | the recorded out-of-group supervisor and execution group |
         | Windows | the recorded kill-on-close Job Object |
 
-    @rejection @process
+    @native-platform @platform-windows @rejection @process
     Scenario Outline: Windows Job Object recovery proves emptiness through the real OS seam
       Given a wrapper dies with a recorded random owner-only Job Object and <windows-state>
       When another real wrapper attempts guarded recovery
@@ -497,11 +510,15 @@ Feature: Let parallel sessions share test capacity safely
       Then admission exits nonzero with SAFEWORD_TEST_CAPACITY_STATE_UNSAFE and `safeword project test-capacity status`, starts no repository process, and does not bypass recorded capacity
       Examples:
         | state |
-        | corrupt or unreadable |
+        | corrupt bytes |
+        | unreadable bytes |
         | a newer incompatible schema |
-        | owned by another user or group-writable |
-        | stored under a permission-unsafe guard or containing directory |
-        | reached through a symlink or substituted canonical path |
+        | owned by another user |
+        | group-writable |
+        | stored under a permission-unsafe guard |
+        | stored under a permission-unsafe containing directory |
+        | reached through a symlink |
+        | reached through a substituted canonical path |
 
     @wiring @process
     Scenario Outline: Interrupted durable-state commits expose only one complete state
