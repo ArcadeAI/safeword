@@ -70,6 +70,15 @@ writeFileSync(path + '.worker.tmp', JSON.stringify(record) + '\n', { mode: 0o600
 renameSync(path + '.worker.tmp', path);
 `;
 
+const REQUEST_CHANGES_WORKER = COMPLETE_WORKER.replace(
+  "const record = JSON.parse(readFileSync(path, 'utf8'));",
+  "await new Promise(resolve => setTimeout(resolve, 50));\nconst record = JSON.parse(readFileSync(path, 'utf8'));",
+)
+  .replace("state: 'healthy'", "state: 'action_required'")
+  .replace("status: 'approved'", "status: 'changes_requested'")
+  .replace("verdict: 'approve'", "verdict: 'request_changes'")
+  .replace('findings: []', "findings: [{ severity: 'error', message: 'Unsafe retry' }]");
+
 function project(): string {
   const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-job-test-'));
   const keyPrefix = nodePath.join(tmpdir(), 'safeword-review-key-test-');
@@ -267,6 +276,25 @@ describe('durable review jobs', () => {
     expect(result.findings[0]?.message).toBe('Independent review complete.');
   });
 
+  it('preserves a quick changes-requested reviewer result inline', async () => {
+    const cwd = project();
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, REQUEST_CHANGES_WORKER));
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '3000');
+
+    const result = await startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
+
+    expect(result).toMatchObject({
+      state: 'action_required',
+      data: {
+        status: 'changes_requested',
+        reviewer_output: {
+          verdict: 'request_changes',
+          findings: [{ message: 'Unsafe retry' }],
+        },
+      },
+    });
+  });
+
   it('returns a durable handle when the courtesy wait ends', async () => {
     const cwd = project();
     vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, 'setTimeout(() => {}, 1000);'));
@@ -284,6 +312,27 @@ describe('durable review jobs', () => {
     expect(next !== undefined && 'command' in next ? next.command : undefined).toMatch(
       /^safeword review status /u,
     );
+  });
+
+  it('preserves a detached changes-requested reviewer result after collection', async () => {
+    const cwd = project();
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, REQUEST_CHANGES_WORKER));
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '0');
+    const pending = await startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
+    const id = (pending.data as { review_id: string }).review_id;
+
+    await vi.waitFor(() => {
+      expect(reviewJobStatus(cwd, id)).toMatchObject({
+        state: 'action_required',
+        data: {
+          status: 'changes_requested',
+          reviewer_output: {
+            verdict: 'request_changes',
+            findings: [{ message: 'Unsafe retry' }],
+          },
+        },
+      });
+    });
   });
 
   it('reuses the running review for the same source', async () => {

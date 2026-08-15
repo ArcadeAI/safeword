@@ -13,8 +13,12 @@ also made the observable-review scenarios require a real quiet-mode heartbeat,
 terminal classification, and non-empty required-review catalogues.
 
 Focused job, progress, and surface-parity tests passed after the update. The
-two independent scenario gates are running as durable jobs; their final
-verdicts remain pending and are not represented here as approval.
+two independent scenario gates then requested changes. Their concrete
+non-vacuity findings are repaired in the current worktree: durable reviews now
+prove changes-requested verdict fidelity on inline and collected paths, while
+observable-review checks use positive controls for reviewer environment,
+lifecycle cancellation, and Cursor surface inspection. Re-review remains
+pending; this is not represented as approval.
 
 ## Scope and method
 

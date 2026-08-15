@@ -11,10 +11,16 @@ Feature: Durable independent review
       When the builder starts a quality review
       Then the builder receives that approved result inline
 
+    Scenario: A quick review preserves a changes-requested verdict inline
+      Given a scripted independent reviewer returns a changes-requested result with a finding before the controlled courtesy deadline
+      When the builder starts a quality review
+      Then the builder receives that changes-requested result and finding inline
+
     Scenario: A slow healthy review continues as a durable job
       Given a scripted independent reviewer remains blocked through the controlled courtesy deadline
       When the builder starts a quality review
-      Then the builder receives a pending handle with the runnable `safeword review status <review id>` command
+      Then the builder receives a pending handle at the courtesy deadline while that reviewer remains blocked
+      And the handle contains the runnable `safeword review status <review id>` command
 
     Scenario: Status remains pending before a blocked review's absolute deadline
       Given a scripted independent reviewer remains blocked before its controlled absolute deadline
@@ -22,9 +28,9 @@ Feature: Durable independent review
       Then Safeword reports the review pending with the runnable status command
 
     Scenario: A detached review can be collected after its caller exits
-      Given a pending review whose caller exited while its scripted reviewer remained blocked
+      Given a pending review whose caller exited while its scripted reviewer remains blocked before returning a changes-requested result with a finding
       When the reviewer is released and the builder checks its status
-      Then the builder receives the reviewer-produced result without a second reviewer invocation
+      Then the builder receives that changes-requested result and finding without a second reviewer invocation
 
   @finish-deep-reviews-in-background.TBU1.R2 @surface.safeword-cli
   Rule: finish-deep-reviews-in-background.TBU1.R2 — A collected result is bound to the source it reviewed
@@ -140,6 +146,7 @@ Feature: Durable independent review
       Given a scripted independent reviewer remains blocked past a controlled absolute deadline without recording an outcome
       When the builder checks the review status after that deadline
       Then Safeword reports a terminal timed-out review result instead of leaving the review pending
+      And that reviewer process is no longer running
 
     @rejection
     Scenario: A late reviewer result cannot replace a timed-out result

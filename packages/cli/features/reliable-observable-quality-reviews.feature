@@ -31,7 +31,7 @@ Feature: Keep quality reviews observable and actionable
       Then stderr identifies the assigned reviewer
 
     Scenario: Completion cancels pending lifecycle output
-      Given a managed review has pending active and heartbeat reports
+      Given a managed review has armed active and heartbeat reports that emit when it remains incomplete
       When the review completes before those reports are due
       Then no pending lifecycle report is emitted afterward
 
@@ -89,9 +89,10 @@ Feature: Keep quality reviews observable and actionable
         | succeeds once and fails on its next write | action-required | 2      |
 
     Scenario: The reviewer allowlist excludes the wrapper-only signal
-      Given a managed JSON review carries the private signal
+      Given a managed JSON review carries the private signal and an allowed `PATH` value
       When the public CLI constructs a reviewer environment
-      Then the reviewer environment does not contain the private signal
+      Then the reviewer environment preserves that `PATH` value
+      And the reviewer environment does not contain the private signal
 
   @reliable-observable-quality-reviews.SWM1.R2 @surface.safeword-cli @surface.claude-code @surface.openai-codex @proof.vitest
   Rule: reliable-observable-quality-reviews.SWM1.R2 — Required-review workflows use a compatible managed wrapper
@@ -120,4 +121,4 @@ Feature: Keep quality reviews observable and actionable
       When independent-review launch commands are inspected
       Then the inspected Claude Code and OpenAI Codex required-review catalogues are non-empty and invoke the wrapper with JSON output
       And no required workflow invokes a reviewer directly
-      And Cursor contains no independent-review launch command
+      And the inspected Cursor catalogue is non-empty and contains no independent-review launch command

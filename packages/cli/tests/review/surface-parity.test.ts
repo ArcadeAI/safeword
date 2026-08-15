@@ -362,7 +362,9 @@ exit ${status}`,
       nodePath.join(repoRoot, '.cursor/rules'),
     ];
     for (const cursorRoot of cursorRoots) {
-      for (const relativePath of filesUnder(cursorRoot)) {
+      const cursorFiles = filesUnder(cursorRoot);
+      expect(cursorFiles, cursorRoot).not.toHaveLength(0);
+      for (const relativePath of cursorFiles) {
         expect(
           readFileSync(nodePath.join(cursorRoot, relativePath), 'utf8'),
           relativePath,
