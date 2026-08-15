@@ -244,6 +244,10 @@ describe('BDD proof provenance', () => {
   });
 
   it.each([
+    [
+      'tracker identity and join',
+      '.project/tickets/DGH59K-tracker-identity-and-join/bdd-proof.json',
+    ],
     ['phase work-log stamp', '.project/tickets/E32M4P-phase-work-log-stamp/bdd-proof.json'],
     ['feature ticket readiness', '.project/tickets/9S6HFC-feature-ticket-readiness/bdd-proof.json'],
     [
