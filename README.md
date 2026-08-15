@@ -83,7 +83,10 @@ already started — and starting a new task alone isn't enough either, since the
 app itself keeps the old plugin catalogue loaded. The bootstrap therefore
 prints a loud startup warning until you restart Codex and open a new task,
 which is what actually records native proof. It never intercepts or blocks
-edits or commands. On the first ordinary upgrade of an unmodified
+edits or commands. If the already-open task previously observed an older
+Safeword runtime, bootstrap reports that narrower fact instead of calling the
+task wholly unverified; the retained history never proves the installed update
+and never authorizes cleanup. On the first ordinary upgrade of an unmodified
 legacy installation, Safeword installs the native plugin first, then backs up
 and removes the recognized legacy assets automatically. Ambiguous or edited
 legacy content is preserved and reported instead.

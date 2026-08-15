@@ -193,8 +193,9 @@ export function findFileMatchingInTree(
   cwd: string,
   predicate: (filename: string) => boolean,
   maxDepth = 10,
+  excludedDirectories: ReadonlySet<string> = new Set(),
 ): string | undefined {
-  return scanTreeForMatch(cwd, predicate, 0, maxDepth);
+  return scanTreeForMatch(cwd, predicate, 0, maxDepth, excludedDirectories);
 }
 
 function scanTreeForMatch(
@@ -202,6 +203,7 @@ function scanTreeForMatch(
   predicate: (filename: string) => boolean,
   depth: number,
   maxDepth: number,
+  excludedDirectories: ReadonlySet<string>,
 ): string | undefined {
   if (depth > maxDepth) return undefined;
 
@@ -218,13 +220,9 @@ function scanTreeForMatch(
 
   for (const entry of entries) {
     if (!isScannableSubdirectory(entry)) continue;
-
-    const result = scanTreeForMatch(
-      nodePath.join(directory, entry.name),
-      predicate,
-      depth + 1,
-      maxDepth,
-    );
+    const child = nodePath.join(directory, entry.name);
+    if (excludedDirectories.has(child)) continue;
+    const result = scanTreeForMatch(child, predicate, depth + 1, maxDepth, excludedDirectories);
     if (result !== undefined) return result;
   }
 
