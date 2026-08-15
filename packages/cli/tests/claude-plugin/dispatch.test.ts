@@ -91,6 +91,21 @@ function dispatchPrompt(
   });
 }
 
+function isolatedClaudeEnvironment(
+  projectDirectory: string,
+  pluginData: string,
+  pluginRoot = PLUGIN_ROOT,
+): NodeJS.ProcessEnv {
+  return {
+    ...process.env,
+    CLAUDE_CONFIG_DIR: temporary('safeword-plugin-empty-config-'),
+    CLAUDE_PLUGIN_DATA: pluginData,
+    CLAUDE_PLUGIN_ROOT: pluginRoot,
+    CLAUDE_PROJECT_DIR: projectDirectory,
+    HOME: temporary('safeword-plugin-empty-home-'),
+  };
+}
+
 function dispatchEvent(
   projectDirectory: string,
   pluginData: string,
@@ -111,7 +126,7 @@ function dispatchEvent(
     CLAUDE_PLUGIN_DATA: pluginData,
     CLAUDE_PLUGIN_ROOT: pluginRoot,
     CLAUDE_PROJECT_DIR: projectDirectory,
-    HOME: options.homeDirectory ?? process.env.HOME,
+    HOME: options.homeDirectory ?? temporary('safeword-plugin-empty-home-'),
   };
   if (options.omitProjectDirectory === true) delete environment.CLAUDE_PROJECT_DIR;
   if (configDirectory === undefined) delete environment.CLAUDE_CONFIG_DIR;
@@ -165,12 +180,7 @@ describe('Claude plugin dispatcher', () => {
     const projectDirectory = temporary('safeword-plugin-project-');
     const pluginData = temporary('safeword-plugin-data-');
     mkdirSync(nodePath.join(projectDirectory, '.safeword'));
-    const environment: NodeJS.ProcessEnv = {
-      ...process.env,
-      CLAUDE_PLUGIN_DATA: pluginData,
-      CLAUDE_PLUGIN_ROOT: PLUGIN_ROOT,
-      CLAUDE_PROJECT_DIR: projectDirectory,
-    };
+    const environment = isolatedClaudeEnvironment(projectDirectory, pluginData);
     delete environment.SAFEWORD_PLUGIN_CLI;
 
     const result = spawnSync(
@@ -298,12 +308,7 @@ describe('Claude plugin dispatcher', () => {
     const pluginData = temporary('safeword-plugin-empty-command-data-');
     const target = releasedAsset(projectDirectory);
     promptSettings(projectDirectory, { source: { source: 'github', repo: 'ArcadeAI/safeword' } });
-    const environment: NodeJS.ProcessEnv = {
-      ...process.env,
-      CLAUDE_PLUGIN_DATA: pluginData,
-      CLAUDE_PLUGIN_ROOT: PLUGIN_ROOT,
-      CLAUDE_PROJECT_DIR: projectDirectory,
-    };
+    const environment = isolatedClaudeEnvironment(projectDirectory, pluginData);
 
     const result = spawnSync(
       'bun',
@@ -560,12 +565,7 @@ describe('Claude plugin dispatcher', () => {
     writeFileSync(eventGroupsPath, `${JSON.stringify(eventGroups, undefined, 2)}\n`);
     refreshPluginIdentity(pluginRoot, ['runtime/event-groups.json']);
 
-    const environment: NodeJS.ProcessEnv = {
-      ...process.env,
-      CLAUDE_PLUGIN_DATA: pluginData,
-      CLAUDE_PLUGIN_ROOT: pluginRoot,
-      CLAUDE_PROJECT_DIR: projectDirectory,
-    };
+    const environment = isolatedClaudeEnvironment(projectDirectory, pluginData, pluginRoot);
     const result = spawnSync(
       'bun',
       [nodePath.join(pluginRoot, 'runtime/dispatch.js'), 'SessionStart', '--event-group'],
@@ -694,12 +694,7 @@ describe('Claude plugin dispatcher', () => {
       ],
       {
         cwd: projectDirectory,
-        env: {
-          ...process.env,
-          CLAUDE_PLUGIN_DATA: pluginData,
-          CLAUDE_PLUGIN_ROOT: PLUGIN_ROOT,
-          CLAUDE_PROJECT_DIR: projectDirectory,
-        },
+        env: isolatedClaudeEnvironment(projectDirectory, pluginData),
         encoding: 'utf8',
         input: JSON.stringify({ hook_event_name: 'UserPromptSubmit', session_id: 'direct-prompt' }),
       },
