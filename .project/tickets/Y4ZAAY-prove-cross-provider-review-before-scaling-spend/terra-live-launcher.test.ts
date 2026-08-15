@@ -688,6 +688,15 @@ describe("credential-separated live launcher", () => {
       registrationCommit: harness.commit,
     })).resolves.toMatch(/^[0-9a-f]{64}$/);
 
+    await expect(verifyAuthorizedPaidChildInput({
+      adapterCheckout: adapter,
+      checkout: harness,
+      expectedContext: { ...request.context, sequence: 2 },
+      inputPath,
+      registration,
+      registrationCommit: harness.commit,
+    })).rejects.toThrow("context does not match the authorized attempt");
+
     await writeFile(inputPath, JSON.stringify({
       ...request,
       policy: { ...request.policy, toolCallsPerExpert: 41 },
@@ -857,6 +866,10 @@ describe("credential-separated live launcher", () => {
     await mkdir(join(outputDirectory, EVIDENCE_DIRECTORY));
     const output = await retainValidChildJournal(outputDirectory);
     const reported = parseTerraPaidChildResult(output);
+    const contradicted = {
+      ...reported,
+      attemptCostPicodollars: reported.attemptCostPicodollars - 1n,
+    };
 
     await expect(
       reconcilePaidChildEvidence(
@@ -866,9 +879,28 @@ describe("credential-separated live launcher", () => {
           outputDirectory,
           sequence: 1,
         },
-        { ...reported, attemptCostPicodollars: reported.attemptCostPicodollars - 1n }
+        {
+          exitCode: 0,
+          stderr: "",
+          stdout: `${JSON.stringify({
+            ...contradicted,
+            attemptCostPicodollars: contradicted.attemptCostPicodollars.toString(),
+          })}\n`,
+        }
       )
     ).rejects.toThrow("does not match its durable turn journal");
+
+    await expect(
+      reconcilePaidChildEvidence(
+        {
+          attemptId: "attempt-1",
+          intentId: "intent-1",
+          outputDirectory,
+          sequence: 1,
+        },
+        { exitCode: 7, stderr: "late diagnostic", stdout: "partial" }
+      )
+    ).resolves.toEqual(reported);
   });
 
   test("returns a paid child's non-zero exit and diagnostics", async () => {
@@ -975,6 +1007,31 @@ describe("credential-separated live launcher", () => {
 
     await expect(preflightSyntheticPinnedCheckout(checkout)).rejects.toThrow(
       "must be annotated"
+    );
+  });
+
+  test("rejects a dirty checkout before loading credentials", async () => {
+    const checkout = await pinnedCheckout("dirty-checkout");
+    await writeFile(join(checkout.directory, "untracked.txt"), "planted\n", "utf8");
+
+    await expect(preflightSyntheticPinnedCheckout(checkout)).rejects.toThrow(
+      "authorized checkout must be clean"
+    );
+  });
+
+  test("rejects a locally recreated annotated tag object", async () => {
+    const checkout = await pinnedCheckout("recreated-tag");
+    await execFileAsync("git", ["tag", "-d", checkout.tag], {
+      cwd: checkout.directory,
+    });
+    await execFileAsync(
+      "git",
+      ["tag", "-a", checkout.tag, "-m", "different annotation"],
+      { cwd: checkout.directory }
+    );
+
+    await expect(preflightSyntheticPinnedCheckout(checkout)).rejects.toThrow(
+      "not durably reachable"
     );
   });
 

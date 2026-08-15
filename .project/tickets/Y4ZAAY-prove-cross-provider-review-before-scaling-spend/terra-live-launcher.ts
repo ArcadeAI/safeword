@@ -19,7 +19,7 @@ import {
 
 const execFileAsync = promisify(execFile);
 const PAID_CHILD_MAX_BUFFER_BYTES = 32 * 1024 * 1024;
-const PAID_CHILD_TIMEOUT_MS = 420_000;
+const PAID_CHILD_TIMEOUT_MS = 900_000;
 const GIT_MAX_BUFFER_BYTES = 32 * 1024 * 1024;
 const PAID_POLICY = {
   maxVerifications: 25,
@@ -139,9 +139,15 @@ export function parseTerraPaidChildResult(result: PaidChildResult): {
 
 export async function reconcilePaidChildEvidence(
   context: CanaryDispatchContext,
-  reported: ReturnType<typeof parseTerraPaidChildResult>
+  childResult: PaidChildResult
 ): Promise<ReturnType<typeof parseTerraPaidChildResult>> {
   const retained = await completeCanaryProviderJournal(context);
+  let reported: ReturnType<typeof parseTerraPaidChildResult>;
+  try {
+    reported = parseTerraPaidChildResult(childResult);
+  } catch {
+    return retained;
+  }
   if (
     reported.attemptCostPicodollars !== retained.attemptCostPicodollars ||
     reported.nativeUsageBytes !== retained.nativeUsageBytes ||
@@ -224,11 +230,12 @@ async function preflightPinnedCheckoutInternal(
     throw new Error("pinned tag is invalid");
   }
 
-  const [head, status, tagType, taggedCommit, originUrl, effectiveOriginUrl] =
+  const [head, status, tagType, tagObject, taggedCommit, originUrl, effectiveOriginUrl] =
     await Promise.all([
     git(checkout.directory, ["rev-parse", "--verify", "HEAD"]),
     git(checkout.directory, ["status", "--porcelain=v1", "--untracked-files=all"]),
     git(checkout.directory, ["cat-file", "-t", `refs/tags/${checkout.tag}`]),
+    git(checkout.directory, ["rev-parse", "--verify", `refs/tags/${checkout.tag}`]),
     git(checkout.directory, [
       "rev-parse",
       "--verify",
@@ -272,7 +279,7 @@ async function preflightPinnedCheckoutInternal(
   );
   if (
     refs.get(`refs/tags/${checkout.tag}^{}`) !== checkout.commit ||
-    refs.get(`refs/tags/${checkout.tag}`) === undefined
+    refs.get(`refs/tags/${checkout.tag}`) !== tagObject
   ) {
     throw new Error("pinned tag is not durably reachable from canonical origin");
   }
@@ -281,20 +288,20 @@ async function preflightPinnedCheckoutInternal(
   if (mainCommit === undefined) {
     throw new Error("canonical origin main is unavailable");
   }
+  await execFileAsync(
+    "git",
+    ["fetch", "--quiet", "--no-tags", "origin", "refs/heads/main"],
+    { cwd: checkout.directory, maxBuffer: GIT_MAX_BUFFER_BYTES }
+  );
+  const fetchedMain = await git(checkout.directory, [
+    "rev-parse",
+    "--verify",
+    "FETCH_HEAD",
+  ]);
+  if (fetchedMain !== mainCommit) {
+    throw new Error("fetched canonical main does not match its advertised ref");
+  }
   try {
-    await execFileAsync(
-      "git",
-      ["fetch", "--quiet", "--no-tags", "origin", "refs/heads/main"],
-      { cwd: checkout.directory, maxBuffer: GIT_MAX_BUFFER_BYTES }
-    );
-    const fetchedMain = await git(checkout.directory, [
-      "rev-parse",
-      "--verify",
-      "FETCH_HEAD",
-    ]);
-    if (fetchedMain !== mainCommit) {
-      throw new Error("fetched canonical main does not match its advertised ref");
-    }
     await execFileAsync(
       "git",
       ["merge-base", "--is-ancestor", checkout.commit, mainCommit],
@@ -302,6 +309,23 @@ async function preflightPinnedCheckoutInternal(
     );
   } catch {
     throw new Error("pinned commit is not reachable from canonical origin main");
+  }
+}
+
+async function preflightLocalPinnedCheckout(checkout: PinnedCheckout): Promise<void> {
+  const [head, status, tagType, taggedCommit] = await Promise.all([
+    git(checkout.directory, ["rev-parse", "--verify", "HEAD"]),
+    git(checkout.directory, ["status", "--porcelain=v1", "--untracked-files=all"]),
+    git(checkout.directory, ["cat-file", "-t", `refs/tags/${checkout.tag}`]),
+    git(checkout.directory, ["rev-parse", "--verify", `refs/tags/${checkout.tag}^{commit}`]),
+  ]);
+  if (
+    head !== checkout.commit ||
+    status !== "" ||
+    tagType !== "tag" ||
+    taggedCommit !== checkout.commit
+  ) {
+    throw new Error("local checkout changed after remote preflight");
   }
 }
 
@@ -365,6 +389,9 @@ export async function verifyCommittedCorpusRegistration(input: {
     (registration as Record<string, unknown>).role !== "development" ||
     (registration as Record<string, unknown>).voidForInstrumentFailure !== true ||
     !Array.isArray((registration as Record<string, unknown>).developmentCaseIds) ||
+    !(registration as Record<string, unknown>).developmentCaseIds.every(
+      (caseId: unknown) => typeof caseId === "string" && caseId.length > 0
+    ) ||
     typeof (registration as Record<string, unknown>).primaryManifestSha256 !== "string" ||
     typeof (registration as Record<string, unknown>).reserveManifestSha256 !== "string" ||
     digestBytes.toString("utf8").trim() !== input.corpusDigest ||
@@ -456,14 +483,19 @@ export async function verifyAuthorizedPaidChildInput(input: {
   if (typeof caseId !== "string" || !input.registration.developmentCaseIds.includes(caseId)) {
     throw new Error("paid child case is not authorized by the corpus registration");
   }
-  const manifests = [
-    JSON.parse(primaryBytes.toString("utf8")),
-    JSON.parse(reserveBytes.toString("utf8")),
-  ] as Array<{
+  let manifests: Array<{
     cases?: Array<Record<string, unknown>>;
     modelCutoff?: unknown;
     runnerRef?: unknown;
   }>;
+  try {
+    manifests = [
+      JSON.parse(primaryBytes.toString("utf8")),
+      JSON.parse(reserveBytes.toString("utf8")),
+    ];
+  } catch {
+    throw new Error("committed corpus manifest is invalid JSON");
+  }
   const manifest = manifests.find((candidate) => candidate.cases?.some((item) => item.id === caseId));
   const corpusCase = manifest?.cases?.find((item) => item.id === caseId);
   const variant = review?.variant;
@@ -500,7 +532,7 @@ function canonicalJson(value: unknown): string | undefined {
     if (typeof item === "object" && item !== null) {
       return Object.fromEntries(
         Object.entries(item)
-          .sort(([left], [right]) => left.localeCompare(right))
+          .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
           .map(([key, nested]) => [key, canonicalize(nested)])
       );
     }
@@ -639,6 +671,10 @@ async function runTerraPaidCanaryInternal(
           if (preparedContext === undefined) {
             throw new Error("paid child dispatch was not prepared");
           }
+          await Promise.all([
+            preflightLocalPinnedCheckout(input.adapterCheckout),
+            preflightLocalPinnedCheckout(input.harnessCheckout),
+          ]);
           const dispatchDigest = await verifyAuthorizedPaidChildInput({
             adapterCheckout: input.adapterCheckout,
             checkout: input.harnessCheckout,
@@ -650,10 +686,7 @@ async function runTerraPaidCanaryInternal(
           if (dispatchDigest !== inputDigest) {
             throw new Error("paid child input changed at dispatch");
           }
-          return reconcilePaidChildEvidence(
-            preparedContext,
-            parseTerraPaidChildResult(await dispatch())
-          );
+          return reconcilePaidChildEvidence(preparedContext, await dispatch());
         },
         intentId: input.intentId,
         outputDirectory: input.outputDirectory,
