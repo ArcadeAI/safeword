@@ -18823,7 +18823,7 @@ ${SAFEWORD_TRANSIENT_PATHS.join(`
 `)}
 `,
         rerender: true,
-        rerenderOwnedLinePattern: new RegExp(`^(?:${SAFEWORD_TRANSIENT_PATHS.map((path3) => path3.replaceAll(/[.*+?^${}()|[\]\\]/gu, "\\$&")).join("|")})$`, "u"),
+        rerenderOwnedLinePattern: new RegExp(`^(?:${SAFEWORD_TRANSIENT_PATHS.map((path3) => path3.replaceAll(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`)).join("|")})$`, "u"),
         marker: "# Safeword - Local cache and transient state"
       },
       ".prettierignore": {
@@ -61782,7 +61782,8 @@ var CANONICAL_COMMANDS = [
     ]
   }),
   command("codex bootstrap", "Keep the project Codex plugin available", "mutate", {
-    networkPolicy: "declared"
+    networkPolicy: "declared",
+    fixture: { argv: ["codex", "bootstrap", "--offline"], environment: MACHINE_ENVIRONMENT }
   }),
   command("codex status", "Report Codex plugin and migration state", "observe"),
   command("claude status", "Report Claude plugin and migration state", "observe"),
