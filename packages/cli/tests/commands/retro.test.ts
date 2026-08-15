@@ -752,7 +752,7 @@ describe('retro relay configuration and execution', () => {
         .map(item => JSON.parse(item.bytes.toString()).title as string)
         .toSorted((left, right) => left.localeCompare(right));
       expect(titles).toEqual(['Finding A', 'Finding B']);
-      expect(new Set(requests.map(item => item.requestId))).toHaveLength(2);
+      expect(new Set(requests.map(item => item.requestId)).size).toBe(2);
       expect(sent.map(item => item.title)).toContain('Finding B');
     } finally {
       rmSync(projectDirectory, { force: true, recursive: true });
