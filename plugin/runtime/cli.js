@@ -44843,7 +44843,7 @@ function isReviewJobRecord(value) {
 }
 function hasReviewJobIdentity(candidate) {
   const hasStrings = ["id", "source_fingerprint", "started_at", "updated_at"].every((key) => typeof candidate[key] === "string");
-  return candidate.schema_version === 1 && hasStrings && isStringArray(candidate.targets) && isOptional(candidate.context, isStringArray) && isReviewKind(candidate.kind);
+  return candidate.schema_version === 1 && hasStrings && isStringArray(candidate.targets) && isOptional(candidate.context, isStringArray) && isOptional(candidate.deadline_at, (value) => typeof value === "string" && Number.isFinite(Date.parse(value))) && isReviewKind(candidate.kind);
 }
 function hasReviewJobLifecycle(candidate) {
   if (!isJobState(candidate.state))
@@ -44975,6 +44975,8 @@ function staleResult(record2) {
   });
 }
 function currentResult(cwd, record2) {
+  if (isActiveJobPastDeadline(record2))
+    return failTimedOutJob(cwd, record2);
   if (record2.state === "launching") {
     if (record2.pid !== undefined && processExists(record2.pid))
       return pendingResult(record2);
@@ -44987,6 +44989,34 @@ function currentResult(cwd, record2) {
     return pendingResult(record2);
   }
   return terminalResult(cwd, record2);
+}
+function isActiveJobPastDeadline(record2) {
+  if (record2.state !== "launching" && record2.state !== "running")
+    return false;
+  const deadline = record2.deadline_at === undefined ? NaN : Date.parse(record2.deadline_at);
+  return Number.isFinite(deadline) && Date.now() >= deadline;
+}
+function failTimedOutJob(cwd, record2) {
+  if (record2.pid !== undefined)
+    terminateReviewWorker(record2.pid);
+  const failed = createResult({
+    state: "failed",
+    errors: [
+      {
+        code: "REVIEW_WORKER_TIMED_OUT",
+        message: "The background review worker exceeded its deadline before recording a result.",
+        retryable: true
+      }
+    ],
+    data: { command: "review status", status: "failed", review_id: record2.id }
+  });
+  const latest = updateActiveJob(cwd, record2.id, (current) => ({
+    ...current,
+    state: "failed",
+    result: failed,
+    updated_at: new Date().toISOString()
+  }));
+  return latest.state === "failed" && latest.result === failed ? failed : terminalResult(cwd, latest);
 }
 function failExitedJob(cwd, record2) {
   const failed = createResult({
@@ -45152,6 +45182,7 @@ async function startReviewJob(input) {
       source_fingerprint: sourceFingerprint,
       started_at: now,
       updated_at: now,
+      deadline_at: new Date(Date.now() + runBoundMs()).toISOString(),
       pid: process.pid
     };
     writeJob(input.cwd, record3);
@@ -45436,6 +45467,7 @@ var init_job = __esm(() => {
   init_result();
   init_contract();
   init_packet();
+  init_runtime();
   TERMINAL_JOB_STATES = new Set([
     "completed",
     "failed",
