@@ -785,7 +785,7 @@ When('the user runs uninstall without confirmation', function (this: UnifiedInst
 });
 
 Then(
-  'an exact plan covers core Claude and Codex but not Cursor',
+  'an exact plan covers project, Claude, Codex, and Cursor',
   function (this: UnifiedInstallWorld) {
     assert.equal(this.result.exitCode, 2, this.result.stderr || this.result.stdout);
     const envelope = JSON.parse(this.result.stdout) as {
@@ -794,7 +794,7 @@ Then(
     assert.match(envelope.data?.plan?.id ?? '', /^[a-f\d]{64}$/u);
     assert.deepEqual(
       envelope.data?.surfaces?.map(surface => surface.name),
-      ['project', 'claude', 'codex'],
+      ['project', 'claude', 'codex', 'cursor'],
     );
   },
 );

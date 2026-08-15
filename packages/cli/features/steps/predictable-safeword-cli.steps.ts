@@ -526,7 +526,7 @@ Given('a configured project', function (this: PredictableCliWorld) {
 
 When('the user runs {string}', function (this: PredictableCliWorld, invocation: string) {
   const argv = invocation.split(' ').slice(1);
-  runCli(this, [...argv, '--json', '--offline', '--cwd', temporaryProject(this)]);
+  runCli(this, [...argv, '--json', '--cwd', temporaryProject(this)]);
 });
 
 Then(
@@ -544,7 +544,7 @@ Then(
 
 Given('a configured project and its remove plan', function (this: PredictableCliWorld) {
   setupProject(this);
-  runCli(this, ['remove', '--json', '--no-input', '--offline', '--cwd', temporaryProject(this)]);
+  runCli(this, ['remove', '--json', '--no-input', '--cwd', temporaryProject(this)]);
   const result = wireResult(this);
   const plan = (result.data as { plan: { id: string; effects: Effects } }).plan;
   this.planId = plan.id;
@@ -560,7 +560,6 @@ When('the user explicitly confirms that plan', function (this: PredictableCliWor
     assertPresent(this.planId),
     '--json',
     '--no-input',
-    '--offline',
     '--cwd',
     temporaryProject(this),
   ]);
@@ -592,7 +591,7 @@ Given(
   'the project changed after a remove plan was previewed',
   function (this: PredictableCliWorld) {
     setupProject(this);
-    runCli(this, ['remove', '--json', '--no-input', '--offline', '--cwd', temporaryProject(this)]);
+    runCli(this, ['remove', '--json', '--no-input', '--cwd', temporaryProject(this)]);
     this.planId = (wireResult(this).data as { plan: { id: string } }).plan.id;
     writeFileSync(join(temporaryProject(this), '.safeword', 'version'), 'changed-after-plan\n');
     this.beforeTree = treeDigest(temporaryProject(this));
@@ -607,7 +606,6 @@ When('the user confirms the stale plan', function (this: PredictableCliWorld) {
     assertPresent(this.planId),
     '--json',
     '--no-input',
-    '--offline',
     '--cwd',
     temporaryProject(this),
   ]);

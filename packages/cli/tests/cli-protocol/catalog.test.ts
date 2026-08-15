@@ -58,6 +58,21 @@ describe('CLI command catalog', () => {
     }
   });
 
+  it('pins potentially mutating contract fixtures to offline execution', () => {
+    for (const name of [
+      'install',
+      'uninstall',
+      'project test',
+      'tracker sync',
+      'codex bootstrap',
+      'review-pr invalidate',
+      'migrate codex-plugin',
+    ]) {
+      const definition = commandCatalog.find(command => command.name === name);
+      expect(definition?.fixture.argv, name).toContain('--offline');
+    }
+  });
+
   it('uses unique executable leaves for canonical commands and compatibility aliases', () => {
     const names = commandCatalog.map(definition => definition.name);
     expect(new Set(names).size).toBe(names.length);
