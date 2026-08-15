@@ -16,6 +16,11 @@ Feature: Durable independent review
       When the builder starts a quality review
       Then the builder receives a pending handle with the runnable `safeword review status <review id>` command
 
+    Scenario: Status remains pending before a blocked review's absolute deadline
+      Given a scripted independent reviewer remains blocked before its controlled absolute deadline
+      When the builder runs `safeword review status <review id>`
+      Then Safeword reports the review pending with the runnable status command
+
     Scenario: A detached review can be collected after its caller exits
       Given a pending review whose caller exited while its scripted reviewer remained blocked
       When the reviewer is released and the builder checks its status
@@ -95,7 +100,6 @@ Feature: Durable independent review
   @finish-deep-reviews-in-background.TBU1.R3 @surface.safeword-cli
   Rule: finish-deep-reviews-in-background.TBU1.R3 — A builder can stop a review that is no longer useful
 
-    @rejection
     Scenario: A running review is canceled explicitly
       Given a review is still running in the background
       When the builder runs `safeword review cancel <review id>`
@@ -136,6 +140,12 @@ Feature: Durable independent review
       Given a scripted independent reviewer remains blocked past a controlled absolute deadline without recording an outcome
       When the builder checks the review status after that deadline
       Then Safeword reports a terminal timed-out review result instead of leaving the review pending
+
+    @rejection
+    Scenario: A late reviewer result cannot replace a timed-out result
+      Given a timed-out review whose former worker later tries to save an approved result
+      When the builder collects that review
+      Then Safeword reports the review as timed out instead of approved
 
     @rejection
     Scenario: A reviewer that exits with malformed output fails terminally

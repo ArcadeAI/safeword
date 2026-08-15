@@ -1,0 +1,271 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Frozen ordered reserve holdout. Never used for prompt tuning or model calls during construction.",
+  "sourceRepository": "ArcadeAI/monorepo",
+  "sourcePath": "/Users/alex/Projects/arcade-monorepo",
+  "modelCutoff": "2026-01-31T00:00:00.000Z",
+  "runnerRef": "codex/cwgyh0-dev-benchmark-adapter@8d86720c0",
+  "cases": [
+    {
+      "id": "RESERVE-R11-sharepoint-excel-session-missing-files-scope",
+      "reviewBaseSha": "788a25cbdd1f3beaf5e8a2f4f07f4857f84d853d",
+      "baseSha": "f6abe59e7097b2976f4c7ceeffe6b71b4e23b89d",
+      "fixedSha": "26650993aa5677cc7267da8fc960077885f61479",
+      "causalPaths": [
+        "apps/worker/toolkits/sharepoint/arcade_sharepoint/tools/excel.py"
+      ],
+      "failureDescription": {
+        "mechanismAliases": [
+          "opens an Excel workbook session while requesting only Sites.ReadWrite.All",
+          "omits Files.ReadWrite from create_workbook even though it calls _create_excel_session",
+          "declares SharePoint site access but not the file scope required by the Graph workbook session endpoint"
+        ],
+        "consequenceAliases": [
+          "Microsoft Graph rejects workbook session creation after the file is uploaded",
+          "create_workbook cannot return a usable Excel session with its declared OAuth grant",
+          "SharePoint workbook creation fails at the session step despite successful site authorization"
+        ]
+      },
+      "testPatchPaths": [
+        "apps/worker/toolkits/sharepoint/tests/test_excel_session_scope_regression.py"
+      ],
+      "testPatchSha": "4b098bb6864e50d78250d6990ad6a4f037bc0a99",
+      "testCommand": "python3 apps/worker/toolkits/sharepoint/tests/test_excel_session_scope_regression.py"
+    },
+    {
+      "id": "RESERVE-R02-noop-icon-generation-still-runs-formatter",
+      "reviewBaseSha": "2bae10bb908ddfda802db6b6b2502920750ed37f",
+      "baseSha": "3a146abd628dc10c317502b79f8be854e9d59419",
+      "fixedSha": "d7e1e0e82063adcaca2486c4007ad8ba57bb2805",
+      "causalPaths": [
+        "libs/design-system/package.json"
+      ],
+      "failureDescription": {
+        "mechanismAliases": [
+          "chains Ultracite after the icon generator even when it reports zero generated components",
+          "runs the formatter across the entire existing icon directory on every no-op prebuild",
+          "places formatting unconditionally in the package script instead of the generator's generated-path branch"
+        ],
+        "consequenceAliases": [
+          "a dashboard Docker build can fail in formatting even though no icon source changed",
+          "the design-system prebuild performs an unnecessary side effect on a no-op generation",
+          "building a consumer reruns formatting over all existing icons and can block the image build"
+        ]
+      },
+      "testPatchPaths": [
+        "libs/design-system/scripts/generate_icons_noop_regression_test.py"
+      ],
+      "testPatchSha": "3691c8210282e25ed9b71940d8cd565dcbb2b855",
+      "testCommand": "python3 libs/design-system/scripts/generate_icons_noop_regression_test.py"
+    },
+    {
+      "id": "RESERVE-R03-prompt-action-cancels-mobile-touch-click",
+      "reviewBaseSha": "f8088373f46ba86afc78c88b51a91926774ef94a",
+      "baseSha": "fc00835453e1fbb161c5f4513244912f637dd03a",
+      "fixedSha": "e85dedea7b48d30e5c2ba60f465ea85710173fbd",
+      "causalPaths": [
+        "libs/design-system/lib/components/ui/molecules/prompt-input.tsx"
+      ],
+      "failureDescription": {
+        "mechanismAliases": [
+          "unconditionally prevents the prompt action's mousedown default behavior",
+          "uses a mouse-specific focus-preservation handler that also cancels touch compatibility events",
+          "does not distinguish touch input before calling preventDefault on the action trigger"
+        ],
+        "consequenceAliases": [
+          "the prompt send button does not fire on mobile",
+          "touching a prompt action cancels the synthesized click needed by the control",
+          "mobile users cannot submit chat prompts with the action button"
+        ]
+      },
+      "testPatchPaths": [
+        "libs/design-system/lib/components/ui/molecules/prompt-input-touch-regression.test.tsx"
+      ],
+      "testPatchSha": "66deed5a2b44954fe0466c6ce74669185a0fe8a8",
+      "testCommand": "cd libs/design-system && node_modules/.bin/vitest --project unit --run lib/components/ui/molecules/prompt-input-touch-regression.test.tsx"
+    },
+    {
+      "id": "RESERVE-R04-register-redirect-drops-invitation-query",
+      "reviewBaseSha": "7e8b0b9733e2ad60c896d30722f6b0ff29cff92e",
+      "baseSha": "23b722448fcd803cc95c56d1d49f30fb0507fcb3",
+      "fixedSha": "31c1fe3d6f14f253dfdf63f1e40c274c0c1445ac",
+      "causalPaths": [
+        "apps/dashboard/src/routes/register.tsx"
+      ],
+      "failureDescription": {
+        "mechanismAliases": [
+          "redirects /register to the account UI without appending location.searchStr",
+          "constructs the registration redirect from only the account base URL",
+          "ignores all incoming query parameters in the new Better-Auth registration route"
+        ],
+        "consequenceAliases": [
+          "organization invitation tokens are lost during registration",
+          "an invited user reaches generic signup instead of the invitation-aware flow",
+          "query-controlled registration context disappears at the dashboard redirect"
+        ]
+      },
+      "testPatchPaths": [
+        "apps/dashboard/src/__tests__/register-redirect-regression.test.ts"
+      ],
+      "testPatchSha": "65268ab468093ece7be42680bec74990ef69d5ec",
+      "testCommand": "cd apps/dashboard && ../../libs/design-system/node_modules/.bin/vitest --run src/__tests__/register-redirect-regression.test.ts"
+    },
+    {
+      "id": "RESERVE-R05-client-disconnect-abort-is-reported-to-sentry",
+      "reviewBaseSha": "5c8a04e7607476291be1d428851b69c18bcd7d9b",
+      "baseSha": "c4a0376bbc1977d41813acdf417599db629e1756",
+      "fixedSha": "77bbbacc43536557338c72ceedda4fc151564fde",
+      "causalPaths": [
+        "apps/experience-api/src/plugins/error-reporting.ts"
+      ],
+      "failureDescription": {
+        "mechanismAliases": [
+          "captures every non-validation application error without checking for a client-aborted request",
+          "reports AbortError even when request.signal.aborted proves the requesting client disconnected",
+          "does not distinguish expected client cancellation from an unhandled server exception"
+        ],
+        "consequenceAliases": [
+          "normal browser navigation creates false Sentry errors",
+          "client disconnects pollute production error alerts",
+          "expected cancelled responses are counted as Experience API failures"
+        ]
+      },
+      "testPatchPaths": [
+        "apps/experience-api/src/plugins/error-reporting-regression.test.ts"
+      ],
+      "testPatchSha": "141430f836222138aa7b8089ca1a7d711b7e1de4",
+      "testCommand": "cd apps/experience-api && ../../libs/design-system/node_modules/.bin/vitest --run src/plugins/error-reporting-regression.test.ts"
+    },
+    {
+      "id": "RESERVE-R06-telegram-typed-output-breaks-on-python-311",
+      "reviewBaseSha": "5ea6fe055562b9974a6ec4f98f91291e107527bf",
+      "baseSha": "1a628e93292e64d9fa155dc133739ed480e389fa",
+      "fixedSha": "a77512ce1e43e59a9966768f85e35b7aa2ae091f",
+      "causalPaths": [
+        "apps/worker/toolkits/telegram/arcade_telegram/models.py"
+      ],
+      "failureDescription": {
+        "mechanismAliases": [
+          "defines Telegram output models with typing.TypedDict while supporting Python 3.10 and 3.11",
+          "uses the standard-library TypedDict variant that lacks Pydantic's required metadata before Python 3.12",
+          "omits the typing-extensions backport for typed outputs on the toolkit's supported interpreters"
+        ],
+        "consequenceAliases": [
+          "Pydantic cannot generate Telegram tool output schemas on Python 3.11",
+          "the worker fails to load or introspect Telegram typed outputs on supported Python versions",
+          "Telegram tools raise typed-dict-version before execution on Python below 3.12"
+        ]
+      },
+      "testPatchPaths": [
+        "apps/worker/toolkits/telegram/tests/test_models_python311_regression.py"
+      ],
+      "testPatchSha": "fe81d8962db936af9f4f54ef72cec4d102613f6d",
+      "testCommand": "uv run --python 3.11 --project apps/worker/toolkits/telegram --extra dev pytest apps/worker/toolkits/telegram/tests/test_models_python311_regression.py -q"
+    },
+    {
+      "id": "RESERVE-R07-attio-list-entry-fields-disappear",
+      "reviewBaseSha": "e1c6b8a43290e6feb305713ab3849591e0f40b01",
+      "baseSha": "1604c672da09b4b7cd71f5d1d66d1c5cf807935c",
+      "fixedSha": "5fdad5b887b0c3ac3220bc0d64ee1ce8d7dc5fe4",
+      "causalPaths": [
+        "apps/worker/toolkits/attio/arcade_attio/tools/lists.py"
+      ],
+      "failureDescription": {
+        "mechanismAliases": [
+          "reads record_id and values from Attio list entries instead of parent_record_id and entry_values",
+          "parses list-entry responses using the record-query field names",
+          "looks for list attributes under a response key the Attio API does not return"
+        ],
+        "consequenceAliases": [
+          "list-specific attributes silently disappear from get_list_entries output",
+          "the tool returns an empty record ID for valid Attio list entries",
+          "agents cannot see the stage or parent record attached to a list entry"
+        ]
+      },
+      "testPatchPaths": [
+        "apps/worker/toolkits/attio/tests/test_list_entry_response_shape_regression.py",
+        "apps/worker/toolkits/attio/tests/test_lists.py"
+      ],
+      "testPatchSha": "dda7c28f4c978c50545df4677d26194e504ed153",
+      "testCommand": "uv run --no-sources --project apps/worker/toolkits/attio --extra dev pytest apps/worker/toolkits/attio/tests/test_list_entry_response_shape_regression.py -q"
+    },
+    {
+      "id": "RESERVE-R08-chat-persistence-overrides-user-navigation",
+      "reviewBaseSha": "fb3e0b7188b7abfceb6827bd9706eff504a1b175",
+      "baseSha": "73273607e2711ceecb14cadb379a16a68b445a6f",
+      "fixedSha": "be5a40fc6871945c8c593443773d3fe77357692c",
+      "causalPaths": [
+        "apps/dashboard/src/app/playground/chat/chat.tsx"
+      ],
+      "failureDescription": {
+        "mechanismAliases": [
+          "always replaces browser history when asynchronous chat persistence completes",
+          "does not check whether the user left the chat route before applying the persisted chat URL",
+          "lets a delayed onChatPersisted callback overwrite newer navigation"
+        ],
+        "consequenceAliases": [
+          "a user who navigates to settings is unexpectedly dragged back into chat",
+          "late chat persistence overrides the route the user deliberately selected",
+          "background save completion hijacks browser navigation"
+        ]
+      },
+      "testPatchPaths": [
+        "apps/dashboard/src/__tests__/chat-persistence-navigation-regression.test.tsx"
+      ],
+      "testPatchSha": "5aa535cda30a2dfbc04263637618e10e226aaa4d",
+      "testCommand": "cd apps/dashboard && ../../libs/design-system/node_modules/.bin/vitest --run src/__tests__/chat-persistence-navigation-regression.test.tsx"
+    },
+    {
+      "id": "RESERVE-R12-outlook-shared-output-breaks-on-python-311",
+      "reviewBaseSha": "62c0f20b001ebfcb6c4d1aeedc6a3034785dfdf3",
+      "baseSha": "8aca376a8cc79063a678d7595e582e790285f75e",
+      "fixedSha": "ff6f859f08e7e50460a2fc38c86441755eed20bf",
+      "causalPaths": [
+        "apps/worker/toolkits/microsoft_outlook_mail/arcade_microsoft_outlook_mail/_shared_mailbox_types.py"
+      ],
+      "failureDescription": {
+        "mechanismAliases": [
+          "defines the new shared-mailbox output contracts with typing.TypedDict on Python 3.11",
+          "uses the standard-library TypedDict variant that Pydantic cannot introspect before Python 3.12",
+          "omits the typing-extensions backport for the Outlook shared-mailbox output schema"
+        ],
+        "consequenceAliases": [
+          "Pydantic cannot construct the SearchEmailsResult schema on a supported interpreter",
+          "the worker fails while loading the new Outlook shared-mailbox tool outputs on Python 3.11",
+          "Outlook shared-mailbox output registration raises typed-dict-version before execution"
+        ]
+      },
+      "testPatchPaths": [
+        "apps/worker/toolkits/microsoft_outlook_mail/tests/test_shared_output_python311_regression.py"
+      ],
+      "testPatchSha": "5bdcb842e8b7d4aff0eda0be713d9ba09ca68eba",
+      "testCommand": "uv run --python 3.11 --project apps/worker/toolkits/microsoft_outlook_mail --extra dev pytest apps/worker/toolkits/microsoft_outlook_mail/tests/test_shared_output_python311_regression.py -q"
+    },
+    {
+      "id": "RESERVE-R10-empty-account-recovery-links-to-current-page",
+      "reviewBaseSha": "ff97ddb2b084cf19a209461bfbd95501720c156b",
+      "baseSha": "6b102cbf1d5b50a653f058ceb7f310e458c9cfa7",
+      "fixedSha": "67a7584919cd11fefbdf1bdc6cea628de487d921",
+      "causalPaths": [
+        "apps/dashboard/src/lib/org-project-context/error-fallbacks.tsx"
+      ],
+      "failureDescription": {
+        "mechanismAliases": [
+          "assigns the root route as recovery for every route error, including an empty account already at root",
+          "renders Go Home actions for the no-organizations state even though the destination is the current page",
+          "does not distinguish an invalid route from the absence of any organization or project to enter"
+        ],
+        "consequenceAliases": [
+          "a user with no organizations gets recovery buttons that do nothing",
+          "the empty-account error screen offers a dead-end link back to itself",
+          "users are presented with apparent recovery actions that cannot change their state"
+        ]
+      },
+      "testPatchPaths": [
+        "apps/dashboard/src/__tests__/empty-org-recovery-regression.test.tsx"
+      ],
+      "testPatchSha": "eb6ca4f6049215e60b862fbb0d73c9d286913ab3",
+      "testCommand": "cd apps/dashboard && ../../libs/design-system/node_modules/.bin/vitest --run src/__tests__/empty-org-recovery-regression.test.tsx"
+    }
+  ]
+}

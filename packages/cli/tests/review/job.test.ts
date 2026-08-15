@@ -63,6 +63,7 @@ catch {
   try { const descriptor = openSync(keyPath, 'wx', 0o600); writeFileSync(descriptor, key.toString('hex') + '\n'); closeSync(descriptor); }
   catch { key = Buffer.from(readFileSync(keyPath, 'utf8').trim(), 'hex'); }
 }
+delete record.integrity;
 record.integrity = createHmac('sha256', key)
   .update(canonicalProject).update('\0').update(JSON.stringify(record)).digest('hex');
 writeFileSync(path + '.worker.tmp', JSON.stringify(record) + '\n', { mode: 0o600 });
@@ -322,7 +323,7 @@ describe('durable review jobs', () => {
       mkdirSync(bin);
       const ps = nodePath.join(bin, 'ps');
       writeFileSync(ps, '#!/bin/sh\nexit 1\n', { mode: 0o755 });
-      vi.stubEnv('PATH', bin);
+      vi.stubEnv('SAFEWORD_REVIEW_PS_PATH', ps);
       vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, 'setTimeout(() => {}, 10_000);'));
       vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '0');
 
@@ -357,7 +358,7 @@ describe('durable review jobs', () => {
         `#!/bin/sh\nprintf 'inspected\\n' >> ${JSON.stringify(inspectionLog)}\nexec /bin/ps "$@"\n`,
         { mode: 0o755 },
       );
-      vi.stubEnv('PATH', `${bin}:/usr/bin:/bin`);
+      vi.stubEnv('SAFEWORD_REVIEW_PS_PATH', nodePath.join(bin, 'ps'));
       vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, 'setTimeout(() => {}, 10_000);'));
       vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '450');
 
@@ -463,8 +464,10 @@ describe('durable review jobs', () => {
       const record = JSON.parse(readFileSync(recordPath, 'utf8')) as {
         pid: number;
         deadline_at: string;
+        integrity?: string;
       };
       record.deadline_at = new Date(0).toISOString();
+      record.integrity = signRecord(cwd, record);
       writeFileSync(recordPath, `${JSON.stringify(record)}\n`);
 
       const result = reviewJobStatus(cwd, id);
@@ -473,6 +476,12 @@ describe('durable review jobs', () => {
       await vi.waitFor(() => {
         expect(() => process.kill(record.pid, 0)).toThrow();
       });
+      completeReviewJob(
+        cwd,
+        id,
+        createResult({ state: 'healthy', data: { command: 'review run', status: 'approved' } }),
+      );
+      expect(reviewJobStatus(cwd, id).errors[0]?.code).toBe('REVIEW_WORKER_TIMED_OUT');
     },
   );
 
@@ -881,7 +890,7 @@ ${COMPLETE_WORKER}`,
     expect(result.errors[0]?.code).toBe('REVIEW_JOB_INVALID');
   });
 
-  it('fails a launch record whose initiating process exited before persisting a worker', () => {
+  it('rejects an unsigned launch record before trusting its initiating pid', () => {
     const cwd = project();
     const id = 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa';
     const directory = nodePath.join(cwd, '.safeword', 'state', 'reviews');
@@ -904,12 +913,7 @@ ${COMPLETE_WORKER}`,
     const result = reviewJobStatus(cwd, id);
 
     expect(result.state).toBe('failed');
-    expect(result.errors[0]?.code).toBe('REVIEW_WORKER_EXITED');
-    const stored = JSON.parse(readFileSync(nodePath.join(directory, `${id}.json`), 'utf8'));
-    expect(stored).toMatchObject({
-      id,
-      state: 'failed',
-    });
+    expect(result.errors[0]?.code).toBe('REVIEW_JOB_INVALID');
   });
 
   it('rejects a record whose embedded identity differs from its filename', () => {

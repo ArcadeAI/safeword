@@ -57,16 +57,16 @@ Feature: Keep quality reviews observable and actionable
         | "TRUE"  | disabled |
 
     Scenario Outline: Quiet mode wins over managed progress
-      Given a managed JSON review with quiet mode enabled
+      Given a managed JSON review remains active through a waiting heartbeat with quiet mode enabled
       When the reviewer returns verdict <verdict>
       Then stderr is empty
-      And stdout is one parseable schema-1 result
+      And stdout is one parseable schema-1 result classified as <classification>
       And the command exits with status <status>
 
       Examples:
-        | verdict         | status |
-        | approve         | 0      |
-        | request_changes | 2      |
+        | verdict         | classification  | status |
+        | approve         | approved        | 0      |
+        | request_changes | action-required | 2      |
 
     Scenario: Human-readable progress remains enabled without the private signal
       Given a human-readable review without quiet mode
@@ -76,16 +76,17 @@ Feature: Keep quality reviews observable and actionable
   @reliable-observable-quality-reviews.SWM1.R1 @surface.safeword-cli @proof.vitest
   Rule: reliable-observable-quality-reviews.SWM1.R1 — Progress is a best-effort Safeword-owned side channel
 
-    Scenario Outline: Progress write failures stay contained and retryable
+    Scenario Outline: Progress write failures preserve the terminal review result and remain retryable
       Given a managed progress destination that <failure>
       When lifecycle output is attempted more than once
       Then every write failure is swallowed
       And later lifecycle writes are still attempted
+      And the review result remains classified as <classification> with exit status <status>
 
       Examples:
-        | failure                                  |
-        | fails on its first write                 |
-        | succeeds once and fails on its next write |
+        | failure                                  | classification  | status |
+        | fails on its first write                 | approved        | 0      |
+        | succeeds once and fails on its next write | action-required | 2      |
 
     Scenario: The reviewer allowlist excludes the wrapper-only signal
       Given a managed JSON review carries the private signal
@@ -117,6 +118,6 @@ Feature: Keep quality reviews observable and actionable
     Scenario: Required-review surfaces cannot bypass the managed wrapper
       Given generated Claude Code, OpenAI Codex, and Cursor surfaces
       When independent-review launch commands are inspected
-      Then required Claude Code and OpenAI Codex workflows invoke the wrapper with JSON output
+      Then the inspected Claude Code and OpenAI Codex required-review catalogues are non-empty and invoke the wrapper with JSON output
       And no required workflow invokes a reviewer directly
       And Cursor contains no independent-review launch command

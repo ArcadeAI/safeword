@@ -62,6 +62,9 @@ describe('Cucumber config targeted path handling', () => {
       const configModule = await loadConfigModule(relativePath);
       expect(configModule.buildCucumberConfig([]).tags).toBe(AUTOMATED_TAGS);
     }
+
+    expect(AUTOMATED_TAGS).toContain('not @manual');
+    expect(AUTOMATED_TAGS).toContain('not @live');
   });
 
   it.each(CONFIG_SURFACES)(

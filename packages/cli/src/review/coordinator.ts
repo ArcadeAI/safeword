@@ -195,12 +195,12 @@ const FAILURE_CAUSES: Readonly<Record<string, string>> = {
   process_failed: 'exited before returning a review',
   timed_out: 'ran out of time',
   not_installed: 'was not found on PATH',
+  untrusted_install: 'was found under an untrusted writable directory',
   unsupported: 'does not support the required review flags',
   probe_timed_out: 'did not complete its compatibility check in time',
   launch_failed: 'could not launch its compatibility check',
   not_authenticated: 'is not signed in',
   invalid_output: 'gave an answer that could not be accepted',
-  source_changed: 'was reviewing files that changed underneath it',
   REVIEWER_PROVENANCE_MISSING: 'gave an answer that did not identify it as the reviewer',
   REVIEWER_PROVENANCE_CONTRADICTORY: 'gave an answer that did not identify it as the reviewer',
 };
@@ -234,6 +234,8 @@ function exhaustedExplanation(
 function nextStepFor(reviewer: ReviewAgent, failure: ReviewFailure): string {
   const name = agentName(reviewer);
   if (failure === 'not_installed') return `Install or update ${name}, then run the review again.`;
+  if (failure === 'untrusted_install')
+    return `Move ${name} to a trusted non-writable-by-group directory, then run the review again.`;
   if (failure === 'unsupported') return `Update ${name}, then run the review again.`;
   if (failure === 'probe_timed_out') return `Run ${name} --help to diagnose it, then retry review.`;
   if (failure === 'launch_failed')
@@ -335,12 +337,12 @@ function changedReviewResult(input: {
   }
   if (!input.sourceChanged) return undefined;
   return createResult({
-    state: 'failed',
-    errors: [
+    state: 'action_required',
+    findings: [
       {
-        code: 'REVIEW_SOURCE_CHANGED',
+        code: 'REVIEW_STALE',
         message: 'A reviewed source changed during the check; no passing evidence was recorded.',
-        retryable: true,
+        severity: 'warning',
       },
     ],
     effects: {
@@ -355,7 +357,7 @@ function changedReviewResult(input: {
     ],
     data: {
       command: 'review run',
-      status: 'blocked',
+      status: 'stale',
       author_agent: input.author,
       assigned_reviewer: input.reviewer,
       review_policy: input.policy,
@@ -386,9 +388,15 @@ function reviewRequest(reviewer: ReviewAgent): Effect {
 
 const NON_ATTEMPT_FAILURES: ReadonlySet<ReviewFailure> = new Set([
   'not_installed',
+  'untrusted_install',
   'unsupported',
   'launch_failed',
   'probe_timed_out',
+]);
+const ALTERNATE_MODEL_SKIP_FAILURES: ReadonlySet<ReviewFailure> = new Set([
+  'not_installed',
+  'untrusted_install',
+  'unsupported',
 ]);
 
 function networkEffectsForFailure(
@@ -426,6 +434,41 @@ function preparePrimaryReview(
   input.progress?.start(`Requesting an independent ${name} review…`);
   input.progress?.heartbeat?.(`Still waiting for a response from ${name}…`);
   return prepared;
+}
+
+async function executePrimaryReview(
+  input: ReviewRunInput,
+  reviewer: ReviewAgent,
+  primaryModel: string | undefined,
+  runDeadline: number,
+): Promise<
+  Awaited<ReturnType<typeof executeReview>> & { model: string | undefined; dispatchId: string }
+> {
+  const prepared = preparePrimaryReview(input, reviewer);
+  let execution = await executeReview(reviewer, prepared, primaryModel, runDeadline);
+  let model = primaryModel;
+  let dispatchId = prepared.packet.dispatch_id;
+  // A configured model is an optional routing preference, not a prerequisite
+  // for independent coverage. Alternate-model retries remain strict because
+  // their only purpose is selecting that specific model.
+  if (
+    primaryModel !== undefined &&
+    execution.outcome.kind === 'failed' &&
+    execution.outcome.failure === 'unsupported' &&
+    !execution.outcome.terminal &&
+    canFundRoute(runDeadline)
+  ) {
+    const defaultPrepared = preparePrimaryReview(input, reviewer);
+    const retried = await executeReview(reviewer, defaultPrepared, undefined, runDeadline);
+    execution = {
+      outcome: retried.outcome,
+      sourceChanged: execution.sourceChanged || retried.sourceChanged,
+      snapshotChanged: execution.snapshotChanged || retried.snapshotChanged,
+    };
+    model = undefined;
+    dispatchId = defaultPrepared.packet.dispatch_id;
+  }
+  return { ...execution, model, dispatchId };
 }
 
 function prepareFallbackReview(
@@ -467,7 +510,7 @@ async function runDegradedFallback(
       : ({ kind: 'failed', failure: outcome.failure } as const);
   const changedResult = changedReviewResult({
     author: input.author,
-    reviewer: input.author,
+    reviewer: input.assignedReviewer,
     policy: input.policy,
     kind: input.kind,
     targets: input.targets,
@@ -671,7 +714,9 @@ async function runAlternateModelRoute(
     snapshotChanged,
     network: [
       ...networkEffectsForFailure(input.reviewer, input.preferredFailure),
-      reviewRequest(input.reviewer),
+      ...(outcome.kind === 'failed'
+        ? networkEffectsForFailure(input.reviewer, outcome.failure)
+        : [reviewRequest(input.reviewer)]),
     ],
   });
   if (changedResult !== undefined) return { kind: 'completed', result: changedResult };
@@ -680,8 +725,7 @@ async function runAlternateModelRoute(
     // A configured model is not a usable route when no installed candidate
     // advertises model selection. Capability rejection is a skip, not a review
     // attempt or failure, so it must not displace the funded fallback route.
-    if (assessment.failure === 'not_installed' || assessment.failure === 'unsupported')
-      return { kind: 'skipped' };
+    if (ALTERNATE_MODEL_SKIP_FAILURES.has(assessment.failure)) return { kind: 'skipped' };
     return { ...assessment, model };
   }
   const output = assessment.output;
@@ -837,16 +881,16 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
   const { reviewer } = pair;
   const primaryModel = readPrimaryReviewerModel(input.cwd, reviewer);
 
-  const prepared = preparePrimaryReview(input, reviewer);
   // One bound for reviewer work across the whole run. Initial packet sealing is
   // deliberately outside it; later probes, routes, and cleanups share it.
   const runDeadline = Date.now() + runBoundMs();
-  const { outcome, sourceChanged, snapshotChanged } = await executeReview(
-    reviewer,
-    prepared,
-    primaryModel,
-    runDeadline,
-  );
+  const {
+    outcome,
+    sourceChanged,
+    snapshotChanged,
+    model: completedModel,
+    dispatchId,
+  } = await executePrimaryReview(input, reviewer, primaryModel, runDeadline);
   const changedResult = changedReviewResult({
     author: pair.author,
     reviewer,
@@ -856,6 +900,10 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
     context: input.context,
     sourceChanged,
     snapshotChanged,
+    network:
+      outcome.kind === 'failed'
+        ? networkEffectsForFailure(reviewer, outcome.failure)
+        : [reviewRequest(reviewer)],
   });
   if (changedResult !== undefined) return changedResult;
   if (outcome.kind === 'failed') {
@@ -864,7 +912,7 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
         ...input,
         author: pair.author,
         assignedReviewer: reviewer,
-        preferredModel: primaryModel,
+        preferredModel: completedModel,
         preferredFailure: outcome.failure,
         policy,
       });
@@ -876,13 +924,13 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
       ...input,
       author: pair.author,
       assignedReviewer: reviewer,
-      preferredModel: primaryModel,
+      preferredModel: completedModel,
       preferredFailure: outcome.failure,
       policy,
       runDeadline,
     });
   }
-  const provenance = verifyProvenance(outcome.output, reviewer, prepared.packet.dispatch_id);
+  const provenance = verifyProvenance(outcome.output, reviewer, dispatchId);
   if (provenance.kind === 'failed') {
     // Missing or contradictory provenance is invalid reviewer output: never
     // accept it as evidence, but give the remaining bounded routes the same
@@ -891,7 +939,7 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
       ...input,
       author: pair.author,
       assignedReviewer: reviewer,
-      preferredModel: primaryModel,
+      preferredModel: completedModel,
       preferredFailure: provenance.code,
       policy,
       runDeadline,
@@ -899,5 +947,5 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
   }
   const output = provenance.output;
 
-  return independentReviewResult({ author: pair.author, reviewer, output, model: primaryModel });
+  return independentReviewResult({ author: pair.author, reviewer, output, model: completedModel });
 }

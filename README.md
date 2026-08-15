@@ -83,7 +83,10 @@ already started — and starting a new task alone isn't enough either, since the
 app itself keeps the old plugin catalogue loaded. The bootstrap therefore
 prints a loud startup warning until you restart Codex and open a new task,
 which is what actually records native proof. It never intercepts or blocks
-edits or commands. On the first ordinary upgrade of an unmodified
+edits or commands. If the already-open task previously observed an older
+Safeword runtime, bootstrap reports that narrower fact instead of calling the
+task wholly unverified; the retained history never proves the installed update
+and never authorizes cleanup. On the first ordinary upgrade of an unmodified
 legacy installation, Safeword installs the native plugin first, then backs up
 and removes the recognized legacy assets automatically. Ambiguous or edited
 legacy content is preserved and reported instead.
@@ -356,7 +359,7 @@ available.
 - `/explain` - Plain-English version of any safeword block, verdict, or your current state
 - `/lint` - Run linters and formatters
 - `/quality-review` - Deep code review with web research
-- `/closeout` - Verify, explicitly authorized merge, mandatory retro, and preview-first exact branch/worktree cleanup
+- `/closeout` - Verify, explicitly authorized merge and cleanup, capture retro learning, and remove exact branch/worktree targets
 - `/refactor` - Systematic refactoring with small-step discipline
 - `/spike` - Resolve one build-only kill-risk with a bounded disposable experiment
 - `/testing` - Test writing guidance and best practices
@@ -371,8 +374,10 @@ use hook-captured session identity, while Codex Desktop may use its authenticate
 `CODEX_THREAD_ID` when the one-shot hook bridge is unavailable. Missing, stale,
 malformed, dirty-state, or wrong-head proof blocks the remaining branch cleanup.
 If the bound transcript grows between preview and apply, closeout refreshes the
-mandatory retrospective while preserving authorization for unchanged cleanup
-targets; newly unresolved retrospective work still blocks every mutation.
+retrospective while preserving authorization for unchanged cleanup targets.
+Every retrospective outcome is advisory for cleanup, including missing identity,
+incomplete extraction, malformed output, filing failures, and pending drafts. The
+result still reports when cleanup could discard captured but unfiled learning.
 
 **MCP Servers** (in `.mcp.json` / `.cursor/mcp.json`): Auto-configured integrations
 

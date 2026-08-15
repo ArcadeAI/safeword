@@ -19,6 +19,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   CODEX_PLUGIN_HOOK_EVENTS,
   observeCodexHookProof,
+  observeCodexSessionProof,
   writeCodexActivationMarker,
 } from '../../src/codex-plugin/profile-proof.js';
 import {
@@ -208,6 +209,50 @@ describe('packagedNamespaceRootLabel', () => {
     expect(proof.manifest_sha256).toMatch(/^[\da-f]{64}$/u);
   });
 
+  it('records task proof under the git root when the hook starts in a nested directory', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-root-'));
+    directories.push(projectDirectory);
+    expect(spawnSync('git', ['init', projectDirectory]).status).toBe(0);
+    const nested = nodePath.join(projectDirectory, 'packages', 'app');
+    mkdirSync(nested, { recursive: true });
+    const environment = { CODEX_HOME: nodePath.join(projectDirectory, 'profile') };
+
+    const result = runCodexHook(
+      nested,
+      'session-start',
+      { hook_event_name: 'SessionStart', session_id: 'task-a' },
+      environment,
+      true,
+    );
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(observeCodexSessionProof(projectDirectory, 'task-a', environment).status).toBe(
+      'current',
+    );
+  });
+
+  it('degrades a non-string session id to unbound hook proof', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-input-'));
+    directories.push(projectDirectory);
+    const codexHome = nodePath.join(projectDirectory, 'profile');
+    const environment = { CODEX_HOME: codexHome };
+
+    const result = runCodexHook(
+      projectDirectory,
+      'session-start',
+      { hook_event_name: 'SessionStart', session_id: 42 },
+      environment,
+      true,
+    );
+
+    expect(result.status, result.stderr).toBe(0);
+    const proof = JSON.parse(
+      readFileSync(nodePath.join(codexHome, 'safeword/hook-proof-v2/session-start.json'), 'utf8'),
+    ) as Record<string, unknown>;
+    expect(proof.schema_version).toBe(2);
+    expect(existsSync(nodePath.join(codexHome, 'safeword/session-proof-v1'))).toBe(false);
+  });
+
   it('does not retire a legacy restart marker from hook proof alone', () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-'));
     directories.push(projectDirectory);
@@ -300,6 +345,33 @@ describe('packagedNamespaceRootLabel', () => {
       status: 'current',
       missing_events: [],
     });
+  });
+
+  it('keeps every packaged manifest hook wired to the proof event contract', () => {
+    const manifestPath = nodePath.resolve(import.meta.dirname, '../../codex-plugin/hooks.json');
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
+      hooks: Record<string, { hooks: { command: string }[] }[]>;
+    };
+    const manifestEventNames: Record<string, string> = {
+      PostToolUse: 'post-tool-use',
+      PreToolUse: 'pre-tool-use',
+      SessionStart: 'session-start',
+      Stop: 'stop',
+      UserPromptSubmit: 'user-prompt-submit',
+    };
+
+    expect(
+      Object.values(manifestEventNames).toSorted((left, right) => left.localeCompare(right)),
+    ).toEqual([...CODEX_PLUGIN_HOOK_EVENTS].toSorted((left, right) => left.localeCompare(right)));
+    expect(
+      Object.keys(manifest.hooks).toSorted((left, right) => left.localeCompare(right)),
+    ).toEqual(Object.keys(manifestEventNames).toSorted((left, right) => left.localeCompare(right)));
+    for (const [manifestEvent, proofEvent] of Object.entries(manifestEventNames)) {
+      const commands = manifest.hooks[manifestEvent]?.flatMap(group =>
+        group.hooks.map(hook => hook.command),
+      );
+      expect(commands).toEqual([expect.stringContaining(`hook codex ${proofEvent} --plugin-hook`)]);
+    }
   });
 
   it('does not create plugin proof from legacy SessionStart', () => {
@@ -487,6 +559,38 @@ describe('packagedNamespaceRootLabel', () => {
 
     expect(result.status, result.stderr).toBe(0);
     expect(rootEntries(projectDirectory)).toEqual(before);
+  });
+
+  it.each([
+    ['an absolute default-namespace path', '.project', undefined],
+    ['an absolute custom-namespace path', 'knowledge', { paths: { projectRoot: 'knowledge' } }],
+  ])('enforces ticket intake for %s', (_case, namespaceRoot, config) => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-enrolled-'));
+    directories.push(projectDirectory);
+    markSafewordProject(projectDirectory, config);
+    const ticketDirectory = nodePath.join(projectDirectory, namespaceRoot, 'tickets/incomplete');
+    mkdirSync(ticketDirectory, { recursive: true });
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'ticket.md'),
+      '---\nid: incomplete\ntype: task\n---\n',
+    );
+
+    const result = runCodexHook(
+      projectDirectory,
+      'pre-tool-use',
+      {
+        session_id: 'intake-session',
+        tool_name: 'Write',
+        tool_input: { file_path: nodePath.join(ticketDirectory, 'test-definitions.md') },
+      },
+      {
+        CLAUDE_PROJECT_DIR: projectDirectory,
+        SAFEWORD_CODEX_DENY_MODE: 'exit-code',
+      },
+    );
+
+    expect(result.status, `${result.stderr}\n${result.stdout}`).toBe(2);
+    expect(result.stderr).toContain('scope, out_of_scope, done_when');
   });
 
   it('defers a plugin event to an exact runnable legacy handler', () => {

@@ -205,7 +205,7 @@ Each pass:
 3. **Decide.** Stop when **Critical issues = None**; remaining suggestions are
    optional. Re-review only if you changed the work-product this pass.
 
-A pass isn't done until the objective check passes — for code that's `/verify`
+A pass isn't done until the objective check passes — for code that's `/safeword:verify`
 (tests, lint, typecheck); for other work-products it's whatever measurable
 acceptance you can run. That objective signal, not the reviewer running out of
 suggestions, is the real stop condition.

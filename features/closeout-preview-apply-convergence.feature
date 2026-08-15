@@ -84,14 +84,14 @@ Feature: Closeout preview and apply convergence
       When apply reruns from the same authenticated task against unchanged targets
       Then the original cleanup authorization is applied on that retry
 
-    @rejection @surface.openai-codex @surface.closeout-cleanup-guard
-    Scenario: A new post-preview finding blocks cleanup before filing
+    @surface.openai-codex @surface.closeout-cleanup-guard
+    Scenario: A new post-preview finding is reported without blocking cleanup
       Given the merged pull request number is 2431
       And preview sealed valid retrospective evidence and approved cleanup targets
       And the bounded post-seal delta contains a new finding
       And filing occurs outside the closeout invocation
-      When apply evaluates that delta
-      Then no cleanup occurs, a sealed draft and its exact spool path are reported for supported filing, and rerunning "bun .safeword/scripts/closeout-cleanup.ts --pr 2431" after filing is reported
+      When preview evaluates that delta
+      Then cleanup remains available, and a sealed draft and its exact spool path are reported for supported filing
 
     @rejection @surface.openai-codex @surface.closeout-cleanup-guard
     Scenario Outline: Malformed sealed retrospective receipts are ignored and replaced

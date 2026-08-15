@@ -33,7 +33,7 @@ Run these commands based on project type. All detected languages run for polyglo
     bun run lint 2>&1 || true
   fi
   # Prettier - format all files
-  bun run format --if-present 2>&1 || true
+  bun run --if-present format 2>&1 || true
   # TypeScript type check (if tsconfig.json exists)
   [ -f tsconfig.json ] && bunx tsc --noEmit 2>&1 || true
 }

@@ -344,6 +344,7 @@ exit ${status}`,
     ];
 
     for (const { root, requiredReviewFiles } of generatedSurfaces) {
+      expect(requiredReviewFiles, root).not.toHaveLength(0);
       for (const relativePath of requiredReviewFiles) {
         const content = readFileSync(nodePath.join(root, relativePath), 'utf8');
         expect(content, relativePath).toContain('run-review.ts review run');

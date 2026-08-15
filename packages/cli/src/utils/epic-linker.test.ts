@@ -7,7 +7,11 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { linkChildToEpic, parseChildrenList } from './epic-linker.js';
 
 function writeEpic(cwd: string, id: string, children: string[]): void {
-  const dir = nodePath.join(cwd, '.project', 'tickets', `${id}-epic`);
+  writeEpicAt(cwd, `${id}-epic`, id, children);
+}
+
+function writeEpicAt(cwd: string, folder: string, id: string, children: string[]): void {
+  const dir = nodePath.join(cwd, '.project', 'tickets', folder);
   mkdirSync(dir, { recursive: true });
   const quoted = children.map(child => `'${child}'`).join(', ');
   const list = `[${quoted}]`;
@@ -52,6 +56,28 @@ describe('linkChildToEpic', () => {
     const result = linkChildToEpic(cwd, 'CHILD2', 'EPIC01');
     expect(result.ok).toBe(true);
     expect(readEpicChildren(cwd, 'EPIC01')).toEqual(['CHILD1', 'CHILD2']);
+  });
+
+  it('links to the exact epic folder when a slugged candidate also exists', () => {
+    writeEpic(cwd, 'EPIC01', []);
+    writeEpicAt(cwd, 'EPIC01', 'EPIC01', []);
+
+    expect(linkChildToEpic(cwd, 'CHILD1', 'EPIC01').ok).toBe(true);
+
+    const exactContent = readFileSync(
+      nodePath.join(cwd, '.project', 'tickets', 'EPIC01', 'ticket.md'),
+      'utf8',
+    );
+    expect(parseChildrenList(exactContent)).toEqual(['CHILD1']);
+    expect(readEpicChildren(cwd, 'EPIC01')).toEqual([]);
+  });
+
+  it('ignores matching files when resolving the epic folder', () => {
+    writeEpic(cwd, 'EPIC01', []);
+    writeFileSync(nodePath.join(cwd, '.project', 'tickets', 'EPIC01'), 'not a ticket folder');
+
+    expect(linkChildToEpic(cwd, 'CHILD1', 'EPIC01').ok).toBe(true);
+    expect(readEpicChildren(cwd, 'EPIC01')).toEqual(['CHILD1']);
   });
 
   // epic-child-linker.TB1.AC4.linking_twice_adds_at_most_once

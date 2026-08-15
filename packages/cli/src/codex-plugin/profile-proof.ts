@@ -6,10 +6,13 @@ import {
   constants as fsConstants,
   existsSync,
   fstatSync,
+  lstatSync,
   openSync,
+  readdirSync,
   readFileSync,
   readSync,
   realpathSync,
+  rmdirSync,
   rmSync,
   type Stats,
 } from 'node:fs';
@@ -22,7 +25,6 @@ import {
   type CodexHostProcessIdentity,
   type CodexHostProcessObservation,
   observeCodexHostProcesses,
-  observeRunningCodexHosts,
   sameCodexHost,
 } from './host-process.js';
 
@@ -31,14 +33,6 @@ export type { CodexHostProcessIdentity } from './host-process.js';
 export interface CodexPluginIdentity {
   plugin_version: string;
   manifest_sha256: string;
-}
-
-interface CodexHookProofV1 {
-  schema_version: 1;
-  event: CodexPluginHookEvent;
-  plugin_version: string;
-  manifest_sha256: string;
-  recorded_at: string;
 }
 
 export interface CodexHookProofV2 {
@@ -65,6 +59,33 @@ interface CodexSessionProofV1 extends CodexPluginIdentity {
   session_id: string;
   recorded_at: string;
 }
+
+interface CodexSessionProofV2 extends CodexPluginIdentity {
+  schema_version: 2;
+  activation_id: string | null;
+  project_directory: string;
+  session_id: string;
+  recorded_at: string;
+}
+
+type CodexSessionProof = CodexSessionProofV1 | CodexSessionProofV2;
+
+export type CodexSessionProofStatus =
+  'activation-pending' | 'current' | 'prior-observed' | 'missing' | 'untrusted';
+
+export interface CodexSessionProofObservation {
+  status: CodexSessionProofStatus;
+  plugin_version: string | null;
+  manifest_sha256: string | null;
+  recorded_at: string | null;
+}
+
+const SHA256_PATTERN = /^[a-f\d]{64}$/u;
+const NUMERIC_VERSION_PART_PATTERN = /^\d+$/u;
+const VERSION_IDENTIFIER_PATTERN = /^[\dA-Za-z-]+$/u;
+const MAX_PLUGIN_VERSION_LENGTH = 128;
+const MAX_RETAINED_SESSION_PROOFS_PER_PROJECT = 256;
+const MAX_RETAINED_SESSION_PROOF_PROJECTS = 64;
 
 interface CodexActivationMarkerV1 {
   schema_version: 1;
@@ -100,18 +121,6 @@ export const CODEX_PLUGIN_HOOK_EVENTS = [
 ] as const;
 export type CodexPluginHookEvent = (typeof CODEX_PLUGIN_HOOK_EVENTS)[number];
 
-export interface CodexExactHookAuthorization extends CodexPluginIdentity {
-  schema_version: 1;
-  kind: 'current-exact-native-hook-proof';
-  project_directory: string;
-  session_id: string;
-  activation_id: string | null;
-  events: CodexPluginHookEvent[];
-  hook_outcome: 'successful';
-  trust_basis: 'host-invoked-plugin-hook';
-  verified_at: string;
-}
-
 type CodexHookProofStatus = 'current' | 'partial' | 'missing' | 'stale' | 'malformed';
 
 export interface CodexHookProofObservation {
@@ -125,7 +134,8 @@ export interface CodexHookProofObservation {
 }
 
 function codexProfileDirectory(environment: NodeJS.ProcessEnv = process.env): string {
-  return environment.CODEX_HOME ?? nodePath.join(homedir(), '.codex');
+  const configuredHome = environment.CODEX_HOME?.trim();
+  return configuredHome || nodePath.join(homedir(), '.codex');
 }
 
 export function codexProofPath(
@@ -152,6 +162,8 @@ function codexSessionProofPath(
   sessionId: string,
   environment: NodeJS.ProcessEnv,
 ): string {
+  // The directory suffix versions the storage layout, independently from the
+  // schema_version inside each retained proof record.
   const project = canonicalProjectDirectory(projectDirectory);
   const projectDigest = createHash('sha256').update(project).digest('hex');
   const sessionDigest = createHash('sha256').update(sessionId).digest('hex');
@@ -180,7 +192,17 @@ function legacyCodexRestartMarkerPath(environment: NodeJS.ProcessEnv = process.e
 }
 
 export function codexActivationIsPending(environment: NodeJS.ProcessEnv = process.env): boolean {
-  const identity = currentCodexPluginIdentity();
+  try {
+    return activationIsPendingForIdentity(environment, currentCodexPluginIdentity());
+  } catch {
+    return true;
+  }
+}
+
+function activationIsPendingForIdentity(
+  environment: NodeJS.ProcessEnv,
+  identity: CodexPluginIdentity,
+): boolean {
   return (
     // The canonical marker is written atomically. If it exists but cannot be
     // parsed or matched, fail closed instead of accepting unbound hook proof.
@@ -189,6 +211,28 @@ export function codexActivationIsPending(environment: NodeJS.ProcessEnv = proces
       path => legacyActivationMarkerMatches(path, identity),
     )
   );
+}
+
+export type CodexActivationMarkerIssue = 'identity-mismatch' | 'malformed' | 'package-unavailable';
+
+export function codexActivationMarkerIssue(
+  environment: NodeJS.ProcessEnv = process.env,
+): CodexActivationMarkerIssue | undefined {
+  const markerPath = codexActivationMarkerPath(environment);
+  if (!existsSync(markerPath)) return undefined;
+  let identity: CodexPluginIdentity;
+  try {
+    identity = currentCodexPluginIdentity();
+  } catch {
+    return 'package-unavailable';
+  }
+  try {
+    const marker = readTrustedHookProofJson(markerPath);
+    if (!isActivationMarkerV2(marker)) return 'malformed';
+    return matchesCodexPluginIdentity(marker, identity) ? undefined : 'identity-mismatch';
+  } catch {
+    return 'malformed';
+  }
 }
 
 function packagedHookManifestPath(): string {
@@ -203,13 +247,19 @@ function packagedHookManifestPath(): string {
   return manifest;
 }
 
-export function currentCodexPluginIdentity(): CodexPluginIdentity {
-  const manifest = readFileSync(packagedHookManifestPath());
-  return {
-    plugin_version: SAFEWORD_SCHEMA.version,
-    manifest_sha256: createHash('sha256').update(manifest).digest('hex'),
+export const currentCodexPluginIdentity = (() => {
+  let cachedIdentity: CodexPluginIdentity | undefined;
+  return (): CodexPluginIdentity => {
+    cachedIdentity ??= (() => {
+      const manifest = readFileSync(packagedHookManifestPath());
+      return {
+        plugin_version: SAFEWORD_SCHEMA.version,
+        manifest_sha256: createHash('sha256').update(manifest).digest('hex'),
+      };
+    })();
+    return cachedIdentity;
   };
-}
+})();
 
 function matchesCodexPluginIdentity(
   value: { plugin_version?: unknown; manifest_sha256?: unknown },
@@ -227,11 +277,11 @@ export function writeCodexActivationMarker(
   options: {
     activationId?: string;
     activeHosts?: CodexHostProcessIdentity[] | null;
+    hostObservation?: CodexHostProcessObservation;
   } = {},
 ): CodexActivationMarkerV2 {
   const path = codexActivationMarkerPath(environment);
-  const activeHosts =
-    options.activeHosts === undefined ? observeRunningCodexHosts() : options.activeHosts;
+  const activeHosts = activeHostsForMarker(options);
   const marker: CodexActivationMarkerV2 = {
     schema_version: 2,
     ...currentCodexPluginIdentity(),
@@ -250,14 +300,33 @@ export function writeCodexActivationMarker(
     recursive: true,
     force: true,
   });
-  rmSync(nodePath.join(codexProfileDirectory(environment), 'safeword/session-proof-v1'), {
-    recursive: true,
-    force: true,
-  });
+  // Task-bound SessionStart history is intentionally retained. Exact-current
+  // checks still reject it after this marker is written, while bootstrap can
+  // distinguish a previously observed runtime from wholly unobserved
+  // protection in the already-open task.
   rmSync(codexActivationReceiptPath(environment), { force: true });
   rmSync(legacyCodexActivationMarkerPath(environment), { force: true });
   rmSync(legacyCodexRestartMarkerPath(environment), { force: true });
   return marker;
+}
+
+function activeHostsForMarker(options: {
+  activeHosts?: CodexHostProcessIdentity[] | null;
+  hostObservation?: CodexHostProcessObservation;
+}): CodexHostProcessIdentity[] | null {
+  if (options.activeHosts !== undefined) {
+    return options.activeHosts === null || options.activeHosts.length === 0
+      ? null
+      : options.activeHosts;
+  }
+  const observation = options.hostObservation ?? observeCodexHostProcesses();
+  if (!observation.available) return null;
+  const activeHosts = [...observation.running];
+  const currentHost = observation.current;
+  if (currentHost !== null && activeHosts.every(host => !sameCodexHost(host, currentHost))) {
+    activeHosts.push(currentHost);
+  }
+  return activeHosts.length === 0 ? null : activeHosts;
 }
 
 function hostObservationForOverride(
@@ -281,7 +350,9 @@ function activationReceiptForRestart(
     !hostObservation.available ||
     currentHost === null ||
     marker.host_observation !== 'observed' ||
+    marker.active_hosts.length === 0 ||
     now.getTime() < Date.parse(marker.installed_at) ||
+    marker.active_hosts.some(installedHost => sameCodexHost(installedHost, currentHost)) ||
     marker.active_hosts.some(installedHost =>
       hostObservation.running.some(runningHost => sameCodexHost(installedHost, runningHost)),
     )
@@ -331,25 +402,39 @@ export function recordCodexHookProof(
       ? undefined
       : canonicalProjectDirectory(writeOptions.projectDirectory);
   const sessionId = writeOptions.sessionId?.trim();
-  const proof: CodexHookProofV2 | CodexHookProofV3 = {
-    schema_version: projectDirectory !== undefined && sessionId ? 3 : 2,
-    event,
-    ...identity,
-    activation_id: receipt?.activation_id ?? marker?.activation_id ?? null,
-    ...(projectDirectory !== undefined &&
-      sessionId && { project_directory: projectDirectory, session_id: sessionId }),
-    recorded_at: now.toISOString(),
-  } as CodexHookProofV2 | CodexHookProofV3;
+  const activationId = activeCodexActivationId(marker, receipt);
+  const recordedAt = now.toISOString();
+  const proof: CodexHookProofV2 | CodexHookProofV3 =
+    projectDirectory !== undefined && sessionId
+      ? {
+          schema_version: 3,
+          event,
+          ...identity,
+          activation_id: activationId,
+          project_directory: projectDirectory,
+          session_id: sessionId,
+          recorded_at: recordedAt,
+        }
+      : {
+          schema_version: 2,
+          event,
+          ...identity,
+          activation_id: activationId,
+          recorded_at: recordedAt,
+        };
   writeAtomicJson(codexProofPath(environment, event), proof, writeOptions);
   if (event === 'session-start' && projectDirectory !== undefined && sessionId) {
-    const sessionProof: CodexSessionProofV1 = {
-      schema_version: 1,
+    const sessionProof: CodexSessionProofV2 = {
+      schema_version: 2,
       ...identity,
+      activation_id: activationId,
       project_directory: projectDirectory,
       session_id: sessionId,
-      recorded_at: now.toISOString(),
+      recorded_at: recordedAt,
     };
-    writeAtomicJson(codexSessionProofPath(projectDirectory, sessionId, environment), sessionProof);
+    const path = codexSessionProofPath(projectDirectory, sessionId, environment);
+    writeAtomicJson(path, sessionProof);
+    pruneCodexSessionProofs(path);
   }
   return proof;
 }
@@ -359,21 +444,230 @@ export function codexSessionProofIsCurrent(
   sessionId: string,
   environment: NodeJS.ProcessEnv = process.env,
 ): boolean {
+  return observeCodexSessionProof(projectDirectory, sessionId, environment).status === 'current';
+}
+
+function validSessionProof(
+  value: unknown,
+  canonicalProject: string,
+  sessionId: string,
+): value is CodexSessionProof {
+  if (typeof value !== 'object' || value === null) return false;
+  const proof = value as Record<string, unknown>;
+  return (
+    sessionProofBindingMatches(proof, canonicalProject, sessionId) &&
+    sessionProofIdentityIsWellFormed(proof) &&
+    sessionProofTimeIsWellFormed(proof)
+  );
+}
+
+function sessionProofBindingMatches(
+  proof: Record<string, unknown>,
+  canonicalProject: string,
+  sessionId: string,
+): boolean {
+  return (
+    (proof.schema_version === 1 || proof.schema_version === 2) &&
+    proof.project_directory === canonicalProject &&
+    proof.session_id === sessionId &&
+    (proof.schema_version === 1 ||
+      typeof proof.activation_id === 'string' ||
+      proof.activation_id === null)
+  );
+}
+
+function sessionProofIdentityIsWellFormed(proof: Record<string, unknown>): boolean {
+  return (
+    pluginVersionIsWellFormed(proof.plugin_version) &&
+    typeof proof.manifest_sha256 === 'string' &&
+    SHA256_PATTERN.test(proof.manifest_sha256)
+  );
+}
+
+function numericVersionPartIsWellFormed(part: string): boolean {
+  return (
+    part.length > 0 &&
+    NUMERIC_VERSION_PART_PATTERN.test(part) &&
+    (part === '0' || !part.startsWith('0'))
+  );
+}
+
+function versionIdentifiersAreWellFormed(value: string | undefined): boolean {
+  return (
+    value === undefined ||
+    value
+      .split('.')
+      .every(identifier =>
+        identifier.length > 0 ? VERSION_IDENTIFIER_PATTERN.test(identifier) : false,
+      )
+  );
+}
+
+function pluginVersionIsWellFormed(value: unknown): value is string {
+  if (typeof value !== 'string' || value.length > MAX_PLUGIN_VERSION_LENGTH) return false;
+  const buildSplit = value.split('+');
+  if (buildSplit.length > 2) return false;
+  const coreAndPrerelease = buildSplit[0] ?? '';
+  const prereleaseSeparator = coreAndPrerelease.indexOf('-');
+  const coreText =
+    prereleaseSeparator === -1
+      ? coreAndPrerelease
+      : coreAndPrerelease.slice(0, prereleaseSeparator);
+  const prerelease =
+    prereleaseSeparator === -1 ? undefined : coreAndPrerelease.slice(prereleaseSeparator + 1);
+  const core = coreText.split('.');
+  return (
+    core.length === 3 &&
+    core.every(part => numericVersionPartIsWellFormed(part)) &&
+    versionIdentifiersAreWellFormed(prerelease) &&
+    versionIdentifiersAreWellFormed(buildSplit[1])
+  );
+}
+
+function sessionProofTimeIsWellFormed(proof: Record<string, unknown>): boolean {
+  return typeof proof.recorded_at === 'string' && !Number.isNaN(Date.parse(proof.recorded_at));
+}
+
+function classifySessionProof(
+  proof: CodexSessionProof,
+  identity: CodexPluginIdentity,
+  marker: CodexActivationMarkerV2 | null,
+  receipt: CodexActivationReceiptV1 | null,
+  activationPending: boolean,
+): CodexSessionProofStatus {
+  if (proof.schema_version === 1) return 'prior-observed';
+  if (!matchesCodexPluginIdentity(proof, identity)) return 'prior-observed';
+  if (marker !== null && Date.parse(proof.recorded_at) < Date.parse(marker.installed_at)) {
+    return 'prior-observed';
+  }
+  if (activationPending) return 'activation-pending';
+  if (receipt === null) return proof.activation_id === null ? 'current' : 'prior-observed';
+  return proof.activation_id === receipt.activation_id &&
+    Date.parse(proof.recorded_at) >= Date.parse(receipt.activated_at)
+    ? 'current'
+    : 'prior-observed';
+}
+
+export function observeCodexSessionProof(
+  projectDirectory: string,
+  sessionId: string,
+  environment: NodeJS.ProcessEnv = process.env,
+): CodexSessionProofObservation {
   const canonicalProject = canonicalProjectDirectory(projectDirectory);
+  const path = codexSessionProofPath(canonicalProject, sessionId, environment);
+  if (!existsSync(path)) {
+    return {
+      status: 'missing',
+      plugin_version: null,
+      manifest_sha256: null,
+      recorded_at: null,
+    };
+  }
   try {
-    const value = JSON.parse(
-      readFileSync(codexSessionProofPath(canonicalProject, sessionId, environment), 'utf8'),
-    ) as Partial<CodexSessionProofV1>;
-    return (
-      value.schema_version === 1 &&
-      value.project_directory === canonicalProject &&
-      value.session_id === sessionId &&
-      typeof value.recorded_at === 'string' &&
-      !Number.isNaN(Date.parse(value.recorded_at)) &&
-      matchesCodexPluginIdentity(value, currentCodexPluginIdentity())
+    const value = readTrustedHookProofJson(path);
+    if (!validSessionProof(value, canonicalProject, sessionId)) throw new Error('Invalid proof.');
+    const identity = currentCodexPluginIdentity();
+    const marker = readActivationMarkerV2(environment, identity);
+    const receipt = readActivationReceipt(environment, identity);
+    const status = classifySessionProof(
+      value,
+      identity,
+      marker,
+      receipt,
+      activationIsPendingForIdentity(environment, identity),
     );
+    return {
+      status,
+      plugin_version: value.plugin_version,
+      manifest_sha256: value.manifest_sha256,
+      recorded_at: value.recorded_at,
+    };
   } catch {
-    return false;
+    return {
+      status: 'untrusted',
+      plugin_version: null,
+      manifest_sha256: null,
+      recorded_at: null,
+    };
+  }
+}
+
+function sessionProofProjectDirectories(root: string): {
+  modifiedAt: number;
+  path: string;
+}[] {
+  try {
+    return readdirSync(root, { withFileTypes: true })
+      .filter(entry => entry.isDirectory() && !entry.isSymbolicLink())
+      .flatMap(projectEntry => {
+        const path = nodePath.join(root, projectEntry.name);
+        try {
+          // A crash may leave only a durable-write temporary file. Such a
+          // directory is not retained proof and must not consume a project
+          // retention slot or evict a live sibling project.
+          if (sessionProofProjectFiles(path).length === 0) return [];
+          return [{ modifiedAt: lstatSync(path).mtimeMs, path }];
+        } catch {
+          // An unreadable directory is not evidence that its retained history
+          // is empty. Leave it untouched and retry on a later SessionStart.
+          return [];
+        }
+      });
+  } catch {
+    return [];
+  }
+}
+
+function sessionProofProjectFiles(projectPath: string): { modifiedAt: number; path: string }[] {
+  try {
+    return readdirSync(projectPath, { withFileTypes: true }).flatMap(entry => {
+      if (
+        !entry.isFile() ||
+        entry.isSymbolicLink() ||
+        entry.name.startsWith('.') ||
+        !entry.name.endsWith('.json')
+      )
+        return [];
+      const path = nodePath.join(projectPath, entry.name);
+      try {
+        return [{ modifiedAt: lstatSync(path).mtimeMs, path }];
+      } catch {
+        // Another task may prune the same proof between listing and metadata
+        // lookup. Keep the remaining bounded history instead of abandoning it.
+        return [];
+      }
+    });
+  } catch {
+    return [];
+  }
+}
+
+function pruneCodexSessionProofs(retainedPath: string): void {
+  const retainedProjectPath = nodePath.dirname(retainedPath);
+  const files = sessionProofProjectFiles(retainedProjectPath).toSorted((left, right) => {
+    if (left.path === retainedPath) return -1;
+    if (right.path === retainedPath) return 1;
+    return right.modifiedAt - left.modifiedAt || left.path.localeCompare(right.path);
+  });
+  for (const stale of files.slice(MAX_RETAINED_SESSION_PROOFS_PER_PROJECT)) {
+    rmSync(stale.path, { force: true });
+  }
+  const root = nodePath.dirname(retainedProjectPath);
+  const projects = sessionProofProjectDirectories(root).toSorted((left, right) => {
+    if (left.path === retainedProjectPath) return -1;
+    if (right.path === retainedProjectPath) return 1;
+    return right.modifiedAt - left.modifiedAt || left.path.localeCompare(right.path);
+  });
+  for (const stale of projects.slice(MAX_RETAINED_SESSION_PROOF_PROJECTS)) {
+    for (const proof of sessionProofProjectFiles(stale.path)) rmSync(proof.path, { force: true });
+    try {
+      // Non-recursive removal cannot erase a concurrent writer's temporary or
+      // newly published proof. A non-empty directory is retried later.
+      rmdirSync(stale.path);
+    } catch {
+      // Advisory history remains bounded per project even when a concurrent
+      // writer keeps this project directory alive.
+    }
   }
 }
 
@@ -420,6 +714,15 @@ function readActivationReceipt(
   );
 }
 
+function activeCodexActivationId(
+  marker: CodexActivationMarkerV2 | null,
+  receipt: CodexActivationReceiptV1 | null,
+): string | null {
+  // A completed restart receipt supersedes a leftover pending marker. Sharing
+  // this precedence keeps the proof writer and observer on the same identity.
+  return receipt?.activation_id ?? marker?.activation_id ?? null;
+}
+
 function readIdentityBoundJson<T extends CodexPluginIdentity>(
   path: string,
   identity: CodexPluginIdentity,
@@ -427,7 +730,7 @@ function readIdentityBoundJson<T extends CodexPluginIdentity>(
 ): T | null {
   if (!existsSync(path)) return null;
   try {
-    const value = JSON.parse(readFileSync(path, 'utf8')) as unknown;
+    const value = readTrustedHookProofJson(path);
     return validator(value) && matchesCodexPluginIdentity(value, identity) ? value : null;
   } catch {
     return null;
@@ -437,7 +740,7 @@ function readIdentityBoundJson<T extends CodexPluginIdentity>(
 function readEventProof(
   path: string,
   expectedEvent: CodexPluginHookEvent,
-): CodexHookProofV1 | CodexHookProofV2 | CodexHookProofV3 | null {
+): CodexHookProofV2 | CodexHookProofV3 | null {
   try {
     const proof = readTrustedHookProofJson(path);
     return isCodexHookProof(proof) && proof.event === expectedEvent ? proof : null;
@@ -449,12 +752,13 @@ function readEventProof(
 const MAX_CODEX_HOOK_PROOF_BYTES = 64 * 1024;
 
 function assertTrustedHookProofMetadata(metadata: Stats): void {
-  const ownerMatches = process.getuid === undefined || metadata.uid === process.getuid();
+  const posixPermissionsAreTrusted =
+    process.getuid === undefined ||
+    (metadata.uid === process.getuid() && (metadata.mode & 0o077) === 0);
   if (
     !metadata.isFile() ||
     metadata.nlink !== 1 ||
-    !ownerMatches ||
-    (metadata.mode & 0o077) !== 0 ||
+    !posixPermissionsAreTrusted ||
     metadata.size > MAX_CODEX_HOOK_PROOF_BYTES
   ) {
     throw new Error('Untrusted Codex hook proof file.');
@@ -523,18 +827,27 @@ export function observeCodexHookProof(
   if (parsed.includes(null)) return malformedObservation();
   const validProofs = parsed.filter(proof => proof !== null);
 
-  const identity = currentCodexPluginIdentity();
-  const activationId =
-    readActivationMarkerV2(environment, identity)?.activation_id ??
-    readActivationReceipt(environment, identity)?.activation_id ??
-    null;
+  let identity: CodexPluginIdentity;
+  try {
+    identity = currentCodexPluginIdentity();
+  } catch {
+    return malformedObservation();
+  }
+  const marker = readActivationMarkerV2(environment, identity);
+  const receipt = readActivationReceipt(environment, identity);
+  const activationId = activeCodexActivationId(marker, receipt);
+  if (activationIsPendingForIdentity(environment, identity)) {
+    return staleHookObservation(validProofs, activationId);
+  }
   const canonicalProject =
     binding === undefined ? undefined : canonicalProjectDirectory(binding.projectDirectory);
   const current = validProofs.filter(
     proof =>
       matchesCodexPluginIdentity(proof, identity) &&
-      (activationId === null ||
-        (proof.schema_version !== 1 && proof.activation_id === activationId)) &&
+      (activationId === null
+        ? proof.activation_id === null
+        : proof.activation_id === activationId) &&
+      (receipt === null || Date.parse(proof.recorded_at) >= Date.parse(receipt.activated_at)) &&
       (binding === undefined ||
         (proof.schema_version === 3 &&
           proof.project_directory === canonicalProject &&
@@ -543,7 +856,7 @@ export function observeCodexHookProof(
   const events = current.map(proof => proof.event);
   const missingEvents = CODEX_PLUGIN_HOOK_EVENTS.filter(event => !events.includes(event));
   const latest = current
-    .toSorted((left, right) => right.recorded_at.localeCompare(left.recorded_at))
+    .toSorted((left, right) => Date.parse(right.recorded_at) - Date.parse(left.recorded_at))
     .at(0);
   let status: CodexHookProofStatus = 'stale';
   if (current.length === CODEX_PLUGIN_HOOK_EVENTS.length) status = 'current';
@@ -559,31 +872,18 @@ export function observeCodexHookProof(
   };
 }
 
-export function observeCurrentExactCodexHookAuthorization(
-  environment: NodeJS.ProcessEnv,
-  binding: { projectDirectory: string; sessionId: string },
-  now = new Date(),
-): CodexExactHookAuthorization | undefined {
-  const observation = observeCodexHookProof(environment, binding);
-  if (
-    observation.status !== 'current' ||
-    observation.plugin_version === null ||
-    observation.manifest_sha256 === null
-  ) {
-    return undefined;
-  }
+function staleHookObservation(
+  proofs: (CodexHookProofV2 | CodexHookProofV3)[],
+  activationId: string | null,
+): CodexHookProofObservation {
   return {
-    schema_version: 1,
-    kind: 'current-exact-native-hook-proof',
-    project_directory: canonicalProjectDirectory(binding.projectDirectory),
-    session_id: binding.sessionId,
-    plugin_version: observation.plugin_version,
-    manifest_sha256: observation.manifest_sha256,
-    activation_id: observation.activation_id,
-    events: [...CODEX_PLUGIN_HOOK_EVENTS],
-    hook_outcome: 'successful',
-    trust_basis: 'host-invoked-plugin-hook',
-    verified_at: now.toISOString(),
+    status: 'stale',
+    plugin_version: proofs[0]?.plugin_version ?? null,
+    manifest_sha256: proofs[0]?.manifest_sha256 ?? null,
+    recorded_at: null,
+    activation_id: activationId,
+    events: [],
+    missing_events: CODEX_PLUGIN_HOOK_EVENTS,
   };
 }
 
@@ -606,20 +906,17 @@ function malformedObservation(): CodexHookProofObservation {
 */
 
 // eslint-disable-next-line complexity -- validates every field of two persisted proof schema versions
-function isCodexHookProof(
-  value: unknown,
-): value is CodexHookProofV1 | CodexHookProofV2 | CodexHookProofV3 {
+function isCodexHookProof(value: unknown): value is CodexHookProofV2 | CodexHookProofV3 {
   if (typeof value !== 'object' || value === null) return false;
   const proof = value as Record<string, unknown>;
   return (
-    [1, 2, 3].includes(proof.schema_version as number) &&
+    (proof.schema_version === 2 || proof.schema_version === 3) &&
     isCodexPluginHookEvent(proof.event) &&
-    typeof proof.plugin_version === 'string' &&
+    pluginVersionIsWellFormed(proof.plugin_version) &&
     typeof proof.manifest_sha256 === 'string' &&
-    /^[\da-f]{64}$/u.test(proof.manifest_sha256) &&
-    (proof.schema_version === 1 ||
-      ('activation_id' in proof &&
-        (typeof proof.activation_id === 'string' || proof.activation_id === null))) &&
+    SHA256_PATTERN.test(proof.manifest_sha256) &&
+    'activation_id' in proof &&
+    (typeof proof.activation_id === 'string' || proof.activation_id === null) &&
     (proof.schema_version !== 3 ||
       (typeof proof.project_directory === 'string' &&
         typeof proof.session_id === 'string' &&
@@ -635,15 +932,18 @@ function isActivationMarkerV2(value: unknown): value is CodexActivationMarkerV2 
   const marker = value as Partial<CodexActivationMarkerV2>;
   return (
     marker.schema_version === 2 &&
-    typeof marker.plugin_version === 'string' &&
+    pluginVersionIsWellFormed(marker.plugin_version) &&
     typeof marker.manifest_sha256 === 'string' &&
-    /^[\da-f]{64}$/u.test(marker.manifest_sha256) &&
+    SHA256_PATTERN.test(marker.manifest_sha256) &&
     typeof marker.activation_id === 'string' &&
     typeof marker.installed_at === 'string' &&
     !Number.isNaN(Date.parse(marker.installed_at)) &&
     (marker.host_observation === 'observed' || marker.host_observation === 'unavailable') &&
     Array.isArray(marker.active_hosts) &&
-    marker.active_hosts.every(isCodexHostProcessIdentity)
+    marker.active_hosts.every(isCodexHostProcessIdentity) &&
+    (marker.host_observation === 'observed'
+      ? marker.active_hosts.length > 0
+      : marker.active_hosts.length === 0)
   );
 }
 
@@ -652,9 +952,9 @@ function isActivationReceiptV1(value: unknown): value is CodexActivationReceiptV
   const receipt = value as Partial<CodexActivationReceiptV1>;
   return (
     receipt.schema_version === 1 &&
-    typeof receipt.plugin_version === 'string' &&
+    pluginVersionIsWellFormed(receipt.plugin_version) &&
     typeof receipt.manifest_sha256 === 'string' &&
-    /^[\da-f]{64}$/u.test(receipt.manifest_sha256) &&
+    SHA256_PATTERN.test(receipt.manifest_sha256) &&
     typeof receipt.activation_id === 'string' &&
     typeof receipt.activated_at === 'string' &&
     !Number.isNaN(Date.parse(receipt.activated_at)) &&

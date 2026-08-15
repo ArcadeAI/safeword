@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -39,6 +39,24 @@ describe('tracker-key → local-folder join reader (tracker-identity-and-join.SM
     expect(resolveFolderByTrackerKey(ticketsDirectory, map, 'ENG-45')).toBe(expected);
   });
 
+  it('prefers the exact ticket folder when a slugged candidate also exists', () => {
+    folder('ENG-45-login-bug');
+    const expected = folder('ENG-45');
+    const map = new TrackerMap();
+    map.record('ENG-45', { provider: 'linear', id: 'ENG-45' });
+
+    expect(resolveFolderByTrackerKey(ticketsDirectory, map, 'ENG-45')).toBe(expected);
+  });
+
+  it('ignores matching files when resolving a ticket folder', () => {
+    const expected = folder('ENG-45-login-bug');
+    writeFileSync(nodePath.join(ticketsDirectory, 'ENG-45'), 'not a ticket folder');
+    const map = new TrackerMap();
+    map.record('ENG-45', { provider: 'linear', id: 'ENG-45' });
+
+    expect(resolveFolderByTrackerKey(ticketsDirectory, map, 'ENG-45')).toBe(expected);
+  });
+
   // SM1.AC1.both_key_shapes_resolve — GitHub "#123" and Linear "ENG-45" each to their own folder
   it('resolves both GitHub and Linear key shapes to their own folders', () => {
     const gh = folder('123-gh-bug');
@@ -70,7 +88,7 @@ describe('tracker-key → local-folder join reader (tracker-identity-and-join.SM
   });
 
   // SM1.AC1.stale_map_entry_not_found — mapped but the folder no longer exists
-  it('returns null (not a dangling path) when the mapped folder is gone', () => {
+  it('returns undefined when the mapped folder is gone', () => {
     const map = new TrackerMap();
     map.record('ENG-45', { provider: 'linear', id: 'ENG-45' });
     // deliberately do NOT create the folder
