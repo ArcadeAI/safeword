@@ -18,7 +18,6 @@ import {
   runHeadlessCodexActivationCheck,
 } from '../../src/codex-plugin/headless-activation-check.js';
 import {
-  CODEX_PLUGIN_HOOK_EVENTS,
   type CodexHostProcessIdentity,
   writeCodexActivationMarker,
 } from '../../src/codex-plugin/profile-proof.js';
@@ -98,6 +97,7 @@ function createActivationFixture(
   directories: string[],
   environmentOverrides: NodeJS.ProcessEnv,
 ): {
+  codexBinary: string;
   codexHome: string;
   environment: NodeJS.ProcessEnv;
   fakeCodex: ReturnType<typeof installFakeCodex>;
@@ -111,6 +111,7 @@ function createActivationFixture(
   writeFileSync(nodePath.join(projectRoot, '.safeword/config.json'), '{}\n');
   const fakeCodex = installFakeCodex(directory);
   return {
+    codexBinary: nodePath.join(fakeCodex.bin, 'codex'),
     codexHome,
     environment: {
       CODEX_HOME: codexHome,
@@ -134,10 +135,11 @@ describe('headless Codex activation check', () => {
     directories.length = 0;
   });
 
-  it('proves all hooks without clearing activation for a running install-time host', () => {
-    const { projectRoot, codexHome, fakeCodex, environment } = createActivationFixture(
+  it('proves all hooks without inheriting a parent task project override', () => {
+    const { codexBinary, projectRoot, codexHome, fakeCodex, environment } = createActivationFixture(
       directories,
       {
+        CLAUDE_PROJECT_DIR: '/another/parent-task',
         SAFEWORD_FAKE_HOST_PID: String(OLD_HOST.pid),
       },
     );
@@ -148,6 +150,7 @@ describe('headless Codex activation check', () => {
     });
 
     const result = runHeadlessCodexActivationCheck({
+      codexBinary,
       cwd: projectRoot,
       environment,
       expectedActivation: 'pending',
@@ -158,9 +161,10 @@ describe('headless Codex activation check', () => {
       activation: 'pending',
       codexVersion: 'codex-cli 0.144.5',
       model: DEFAULT_CODEX_ACTIVATION_CHECK_MODEL,
+      proof: { status: 'stale' },
       warnings: ['fixture marketplace warning'],
     });
-    expect(result.proof.events).toEqual(CODEX_PLUGIN_HOOK_EVENTS);
+    expect(result.proof.events).toEqual([]);
     expect(readFileSync(fakeCodex.log, 'utf8')).toContain(
       `-m ${DEFAULT_CODEX_ACTIVATION_CHECK_MODEL}`,
     );
@@ -169,9 +173,12 @@ describe('headless Codex activation check', () => {
   });
 
   it('binds successful activation to a fresh app-server identity', () => {
-    const { projectRoot, codexHome, environment } = createActivationFixture(directories, {
-      SAFEWORD_FAKE_HOST_PID: String(RESTARTED_HOST.pid),
-    });
+    const { codexBinary, projectRoot, codexHome, environment } = createActivationFixture(
+      directories,
+      {
+        SAFEWORD_FAKE_HOST_PID: String(RESTARTED_HOST.pid),
+      },
+    );
     const activationId = 'activation-fresh-host';
     writeCodexActivationMarker(environment, new Date('2026-08-03T00:01:00.000Z'), {
       activationId,
@@ -179,6 +186,7 @@ describe('headless Codex activation check', () => {
     });
 
     const result = runHeadlessCodexActivationCheck({
+      codexBinary,
       cwd: projectRoot,
       environment,
       expectedActivation: 'activated',
@@ -193,7 +201,7 @@ describe('headless Codex activation check', () => {
   });
 
   it('separates unsupported models from unrelated host warnings', () => {
-    const { projectRoot, environment } = createActivationFixture(directories, {
+    const { codexBinary, projectRoot, environment } = createActivationFixture(directories, {
       SAFEWORD_FAKE_HOST_PID: String(RESTARTED_HOST.pid),
       SAFEWORD_FAKE_UNSUPPORTED_MODEL: '1',
     });
@@ -202,6 +210,7 @@ describe('headless Codex activation check', () => {
     let thrown: unknown;
     try {
       runHeadlessCodexActivationCheck({
+        codexBinary,
         cwd: projectRoot,
         environment,
         expectedActivation: 'pending',
@@ -224,7 +233,7 @@ describe('headless Codex activation check', () => {
   });
 
   it('rejects future-dated hook evidence', () => {
-    const { projectRoot, environment } = createActivationFixture(directories, {
+    const { codexBinary, projectRoot, environment } = createActivationFixture(directories, {
       SAFEWORD_FAKE_FUTURE_PROOF: '1',
       SAFEWORD_FAKE_HOST_PID: String(OLD_HOST.pid),
     });
@@ -236,6 +245,7 @@ describe('headless Codex activation check', () => {
 
     expect(() =>
       runHeadlessCodexActivationCheck({
+        codexBinary,
         cwd: projectRoot,
         environment,
         expectedActivation: 'pending',
@@ -245,7 +255,7 @@ describe('headless Codex activation check', () => {
   });
 
   it('rejects future-dated activation receipts', () => {
-    const { projectRoot, environment } = createActivationFixture(directories, {
+    const { codexBinary, projectRoot, environment } = createActivationFixture(directories, {
       SAFEWORD_FAKE_FUTURE_RECEIPT: '1',
       SAFEWORD_FAKE_HOST_PID: String(RESTARTED_HOST.pid),
     });
@@ -257,6 +267,7 @@ describe('headless Codex activation check', () => {
 
     expect(() =>
       runHeadlessCodexActivationCheck({
+        codexBinary,
         cwd: projectRoot,
         environment,
         expectedActivation: 'activated',

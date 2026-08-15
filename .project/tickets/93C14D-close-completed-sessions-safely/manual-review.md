@@ -1,7 +1,7 @@
 # Manual Review
 
 Fresh review is bound to the post-merge manifest. The author-side orchestrator
-recomputed 39/39 input hashes and 58/58 ordered scenario titles; the independent
+recomputed 36/36 input hashes and 58/58 ordered scenario titles; the independent
 reviewer read every bound input and evaluated every scenario without relying on
 the prior review verdict.
 
@@ -18,7 +18,7 @@ check and rejects any mismatch.
     "identity": "claude-headless:ec6efe37-35d9-4dcb-9774-2118ef47d1e7",
     "model": "claude-sonnet-5 (headless Claude Code 2.1.220)"
   },
-  "manifest_sha256": "e945fcb6eca6f238d154da6f96199517aa578e89b15a619ee6ef8ff533443d61",
+  "manifest_sha256": "fc3e1743b894a0647c7c78e1055e9a79cbce73b21303b9587457dae2b9a10c2f",
   "verdicts": [
     { "id": "01", "verdict": "pass" },
     { "id": "02", "verdict": "pass" },

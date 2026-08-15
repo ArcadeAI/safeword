@@ -179,9 +179,10 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
     current.count += 1;
     return true;
   };
+  let released = false;
   let maintenanceRunning = false;
   const maintain = async (now = new Date()): Promise<void> => {
-    if (maintenanceRunning || input.mode === 'spike') return;
+    if (released || maintenanceRunning || input.mode === 'spike') return;
     maintenanceRunning = true;
     try {
       await service.maintain(now);
@@ -219,10 +220,23 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
           void maintain();
         }, input.maintenanceIntervalMs ?? DEFAULT_MAINTENANCE_INTERVAL_MS);
   maintenanceTimer?.unref();
-  server.once('close', () => {
+  /**
+   * Releases everything startup acquired, once.
+   *
+   * Startup can fail after the maintenance interval exists, and a failed
+   * `listen` never emits 'close' — so leaving cleanup to the close handler
+   * alone leaves that interval sweeping the real store and GitHub client on
+   * behalf of a server the caller was told did not start, with another added
+   * per retry. Every failure path calls this rather than releasing the lock
+   * piecemeal and hoping 'close' arrives.
+   */
+  const releaseResources = (): void => {
+    if (released) return;
+    released = true;
     if (maintenanceTimer !== undefined) clearInterval(maintenanceTimer);
     if (ownsProcessLock) processLock?.release();
-  });
+  };
+  server.once('close', releaseResources);
 
   const recordReconciliationOutcome = (entry: {
     receiptId: string;
@@ -382,17 +396,29 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
 
   try {
     await new Promise<void>((resolve, reject) => {
-      server.once('error', reject);
-      server.listen(input.port ?? 0, input.host ?? '127.0.0.1', resolve);
+      const onError = (error: Error): void => {
+        server.off('listening', onListening);
+        reject(error);
+      };
+      const onListening = (): void => {
+        server.off('error', onError);
+        resolve();
+      };
+      server.once('error', onError);
+      server.once('listening', onListening);
+      server.listen(input.port ?? 0, input.host ?? '127.0.0.1');
+    });
+    server.on('error', error => {
+      observability.logs.push({ event: 'retro_server_error', message: error.message });
     });
   } catch (error) {
-    if (ownsProcessLock) processLock?.release();
+    releaseResources();
     throw error;
   }
   const address = server.address();
   if (address === null || typeof address === 'string') {
     server.close();
-    if (ownsProcessLock) processLock?.release();
+    releaseResources();
     throw new Error('relay did not bind a TCP address');
   }
   return {

@@ -163,7 +163,20 @@ describe('migrate codex-plugin command', () => {
 
   function recordCurrentProof(fixture: ReturnType<typeof createMigrationFixture>): void {
     const environment = { CODEX_HOME: fixture.codexHome };
+    const markerPath = nodePath.join(fixture.codexHome, 'safeword/activation-pending-v2.json');
+    const activationPending = existsSync(markerPath);
+    if (activationPending) {
+      const marker = JSON.parse(readFileSync(markerPath, 'utf8')) as { activation_id: string };
+      writeCodexActivationMarker(environment, new Date(Date.now() - 1000), {
+        activationId: marker.activation_id,
+        activeHosts: [{ pid: 100, started_at: '2026-08-14T08:00:00.000Z' }],
+      });
+      recordCodexHookProof('session-start', environment, new Date(), {
+        currentHost: { pid: 200, started_at: '2026-08-14T09:00:00.000Z' },
+      });
+    }
     for (const event of CODEX_PLUGIN_HOOK_EVENTS) {
+      if (event === 'session-start' && activationPending) continue;
       recordCodexHookProof(event, environment);
     }
   }
@@ -1287,8 +1300,16 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     expect(marker.manifest_sha256).toMatch(/^[\da-f]{64}$/u);
     expect(marker.activation_id).toEqual(expect.any(String));
     expect(marker.installed_at).toEqual(expect.any(String));
-    expect(marker.host_observation).toBe('observed');
+    // Developer machines may have a live app-server while CI does not. The
+    // contract is the coherent pair: observed means at least one concrete
+    // host; unavailable means no host identities were trusted.
+    expect(['observed', 'unavailable']).toContain(marker.host_observation);
     expect(marker.active_hosts).toEqual(expect.any(Array));
+    if (marker.host_observation === 'observed') {
+      expect(marker.active_hosts).not.toHaveLength(0);
+    } else {
+      expect(marker.active_hosts).toHaveLength(0);
+    }
   });
 
   it('reports a structured profile mutation when installed plugin verification mismatches', async () => {
