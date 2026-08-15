@@ -55,6 +55,24 @@ function offlineGitHub(): GitHubRestClient {
   });
 }
 
+function serverDependencies(store: RelayStore): {
+  credentials: CredentialRegistry;
+  github: GitHubRestClient;
+  host: string;
+  maintenanceIntervalMs: number;
+  payloadKey: Buffer;
+  store: RelayStore;
+} {
+  return {
+    credentials: new CredentialRegistry('pepper'),
+    github: offlineGitHub(),
+    host: '127.0.0.1',
+    maintenanceIntervalMs: 10,
+    payloadKey: Buffer.alloc(32, 7),
+    store,
+  };
+}
+
 /** A store that counts the maintenance sweeps the interval drives. */
 function countingStore(): { store: RelayStore; sweeps: () => number } {
   const store = RelayStore.open(databasePath());
@@ -103,13 +121,8 @@ describe('relay maintenance interval', () => {
     const { store, sweeps } = countingStore();
     const started = await startRelayServer({
       allowUnlockedForTests: true,
-      credentials: new CredentialRegistry('pepper'),
-      github: offlineGitHub(),
-      host: '127.0.0.1',
-      maintenanceIntervalMs: 10,
-      payloadKey: Buffer.alloc(32, 7),
       port: 0,
-      store,
+      ...serverDependencies(store),
     });
 
     try {
@@ -125,14 +138,9 @@ describe('relay maintenance interval', () => {
     const { store, sweeps } = countingStore();
     const lockPath = path.join(scratchDirectory(), 'relay.lock');
     const started = await startRelayServer({
-      credentials: new CredentialRegistry('pepper'),
-      github: offlineGitHub(),
-      host: '127.0.0.1',
       lockPath,
-      maintenanceIntervalMs: 10,
-      payloadKey: Buffer.alloc(32, 7),
       port: 0,
-      store,
+      ...serverDependencies(store),
     });
 
     try {
@@ -156,13 +164,9 @@ describe('relay startup listeners', () => {
     const store = RelayStore.open(databasePath());
     const started = await startRelayServer({
       allowUnlockedForTests: true,
-      credentials: new CredentialRegistry('pepper'),
-      github: offlineGitHub(),
-      host: '127.0.0.1',
       mode: 'spike',
-      payloadKey: Buffer.alloc(32, 7),
       port: 0,
-      store,
+      ...serverDependencies(store),
     });
 
     try {
@@ -183,13 +187,8 @@ describe('relay startup failure', () => {
       await expect(
         startRelayServer({
           allowUnlockedForTests: true,
-          credentials: new CredentialRegistry('pepper'),
-          github: offlineGitHub(),
-          host: '127.0.0.1',
-          maintenanceIntervalMs: 10,
-          payloadKey: Buffer.alloc(32, 7),
           port: blocked.port,
-          store,
+          ...serverDependencies(store),
         }),
       ).rejects.toThrow();
 
@@ -216,14 +215,9 @@ describe('relay startup failure', () => {
     try {
       await expect(
         startRelayServer({
-          credentials: new CredentialRegistry('pepper'),
-          github: offlineGitHub(),
-          host: '127.0.0.1',
           lockPath,
-          maintenanceIntervalMs: 10,
-          payloadKey: Buffer.alloc(32, 7),
           port: blocked.port,
-          store,
+          ...serverDependencies(store),
         }),
       ).rejects.toThrow();
 
@@ -244,14 +238,9 @@ describe('relay startup failure', () => {
     try {
       await expect(
         startRelayServer({
-          credentials: new CredentialRegistry('pepper'),
-          github: offlineGitHub(),
-          host: '127.0.0.1',
-          maintenanceIntervalMs: 10,
-          payloadKey: Buffer.alloc(32, 7),
           port: blocked.port,
           processLock,
-          store,
+          ...serverDependencies(store),
         }),
       ).rejects.toThrow();
 
