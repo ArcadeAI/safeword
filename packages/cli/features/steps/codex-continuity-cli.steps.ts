@@ -366,7 +366,7 @@ function writePendingMarker(
   const path =
     options.legacy === true ? legacyRestartMarkerPath(world) : activationMarkerPath(world);
   mkdirSync(nodePath.dirname(path), { recursive: true });
-  writeFileSync(path, `${JSON.stringify(pendingMarkerPayload(options))}\n`);
+  writeFileSync(path, `${JSON.stringify(pendingMarkerPayload(options))}\n`, { mode: 0o600 });
   world.pendingMarkerPath = path;
   return path;
 }
