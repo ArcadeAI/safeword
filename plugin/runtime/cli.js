@@ -43579,18 +43579,23 @@ async function stopReviewerOnce(child) {
     }
   };
   const groupIsRunning = () => procGroupHasRunningMember(pid) ?? groupExists();
+  const groupIsStopped = () => {
+    if (groupIsRunning())
+      return false;
+    return !groupIsRunning();
+  };
   const deadline = Date.now() + CLEANUP_BUDGET_MS;
   while (groupIsRunning() && Date.now() < deadline) {
     await new Promise((resolve) => setTimeout(resolve, 5));
   }
-  if (groupIsRunning()) {
+  if (groupExists()) {
     signalGroup("SIGKILL");
     const forcedDeadline = Date.now() + CLEANUP_BUDGET_MS;
     while (groupIsRunning() && Date.now() < forcedDeadline) {
       await new Promise((resolve) => setTimeout(resolve, 5));
     }
   }
-  return !groupIsRunning();
+  return groupIsStopped();
 }
 async function runCandidate(executable, attempt, timeoutMs) {
   const { reviewer, packet, cwd, model, schemaPath } = attempt;

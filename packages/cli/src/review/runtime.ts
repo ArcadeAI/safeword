@@ -687,18 +687,34 @@ async function stopReviewerOnce(child: ReturnType<typeof spawn>): Promise<boolea
    * stands, keeping the previous behaviour on platforms without it.
    */
   const groupIsRunning = (): boolean => procGroupHasRunningMember(pid) ?? groupExists();
+  /**
+   * Listing `/proc` is not atomic: a member that forks after its slot is read,
+   * or one still alive when its own entry was already inspected, is missed. So
+   * a negative is confirmed by a second scan before the group is called
+   * stopped, and one unlucky snapshot cannot report success over a live tree.
+   */
+  const groupIsStopped = (): boolean => {
+    if (groupIsRunning()) return false;
+    return !groupIsRunning();
+  };
   const deadline = Date.now() + CLEANUP_BUDGET_MS;
   while (groupIsRunning() && Date.now() < deadline) {
     await new Promise(resolve => setTimeout(resolve, 5));
   }
-  if (groupIsRunning()) {
+  // Escalate on ANY remaining member, zombie or not. SIGKILL against a
+  // zombie-only group is a no-op, while gating the kill on the scan is how a
+  // live member would survive a false negative — a reviewer that traps SIGTERM
+  // and keeps forking could force exactly that. The kill probe this replaced
+  // always escalated here, and this keeps that unchanged; only the verdict
+  // below distinguishes a zombie from a live process.
+  if (groupExists()) {
     signalGroup('SIGKILL');
     const forcedDeadline = Date.now() + CLEANUP_BUDGET_MS;
     while (groupIsRunning() && Date.now() < forcedDeadline) {
       await new Promise(resolve => setTimeout(resolve, 5));
     }
   }
-  return !groupIsRunning();
+  return groupIsStopped();
 }
 
 async function runCandidate(
