@@ -49,6 +49,7 @@ Feature: Let parallel sessions share test capacity safely
         | a contained `tests/` directory exists | argv `["tests/"]` |
         | no path fixture is required | empty argv `[]` |
         | no path fixture is required | argv `["--coverage"]` |
+        | no path fixture is required | argv `["--done"]` |
         | contained regular `alpha.test.ts` and `vitest.alt.ts` files exist | argv `["alpha.test.ts", "--config", "vitest.alt.ts"]` |
         | a contained regular `alpha.test.ts` file exists | argv `["alpha.test.ts", "--coverage"]` |
         | `missing.test.ts` is absent | argv `["missing.test.ts"]` |
@@ -103,6 +104,7 @@ Feature: Let parallel sessions share test capacity safely
         | one `alpha.test.cjs` file | one focused permit | 1 |
         | one `alpha.spec.cjs` file | one focused permit | 1 |
         | one `alpha.test.cts` file | one focused permit | 1 |
+        | one `.test.ts` file | one focused permit | 1 |
         | one `alpha.spec.cts` file | one focused permit | 1 |
         | two valid `.test` and `.spec` files | one focused permit | 1 |
         | one `alpha.Test.ts` file | broad exclusive capacity | 2 |
@@ -193,7 +195,7 @@ Feature: Let parallel sessions share test capacity safely
     Scenario: A checkout-mutex waiter holds no shared-capacity permit
       Given canonical capacity is two, one same-worktree wrapper holds checkout ownership and one active permit, a second same-worktree wrapper emits its checkout-mutex waiter event, and an unrelated-worktree focused wrapper requests admission
       When the scheduler records both wrappers under the state guard
-      Then the unrelated wrapper is admitted with the remaining one permit, durable owners never include the checkout-mutex waiter before it acquires checkout ownership, all three wrappers exit zero after controlled release, and all their descendants exit and are accounted for
+      Then the unrelated wrapper is admitted with the remaining one permit, the second wrapper's checkout-mutex-acquired event strictly precedes every scheduler-registration event for that wrapper, durable owners never include it before that event, all three wrappers exit zero after controlled release, and all their descendants exit and are accounted for
 
     @rejection
     Scenario Outline: A terminated capacity wait does not strand the checkout mutex
@@ -267,19 +269,24 @@ Feature: Let parallel sessions share test capacity safely
 
     @rejection @wiring @process
     Scenario: An unverifiable waiter is not skipped to admit newer work
-      Given the real platform identity seam cannot verify the queue-head public wrapper
+      Given the deterministic injected identity adapter cannot verify the queue-head public wrapper and contributes no native evidence
       When a newer focused request could otherwise fit
       Then the newer wrapper starts no repository process, removes only its own waiter ticket and checkout ownership, leaves the queue-head ticket plus durable bytes and version unchanged, and exits nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE and `safeword project test-capacity status`
 
     Scenario: A verified dead queue-head waiter is pruned before the next FIFO admission
       Given shared capacity is one, the real platform identity seam proves dead ticket-1 absent, and live ticket-2 and ticket-3 wrappers wait in that order
-      When another public wrapper evaluates the queue under the state guard
-      Then it removes only dead ticket 1, starts no repository descendant and exits zero, admits ticket 2 before ticket 3, and after ticket 2 exits ticket 3 runs its unchanged downstream invocation once and exits zero with every descendant accounted for
+      When the ticket-2 public package-test wrapper evaluates the queue under the state guard
+      Then it removes only dead ticket 1, runs its unchanged downstream invocation once and exits zero, admits ticket 2 before ticket 3, and after ticket 2 exits ticket 3 runs its unchanged downstream invocation once and exits zero with every descendant accounted for
 
     Scenario: A broad request runs exclusively on an idle domain
       Given an idle canonical capacity-two domain and a real broad public wrapper with a deterministic zero-exit collaborator
       When the broad wrapper reaches the queue head
       Then it atomically owns both permits from the empty owner set, runs its unchanged invocation once and alone to exit zero, releases both permits, and every descendant is accounted for
+
+    Scenario: Consecutive broad requests run alone in FIFO-ticket order
+      Given shared capacity is two and real broad public wrappers A and B hold consecutive FIFO tickets with deterministic zero-exit collaborators
+      When A reaches the queue head
+      Then A atomically owns both permits from the empty owner set and runs once alone to exit zero, B starts no repository descendant before A releases both permits, then B atomically owns both permits and runs once alone to exit zero, and every descendant is accounted for
 
   @share-test-capacity.TBU1.R5
   Rule: share-test-capacity.TBU1.R5 — Capacity ownership changes atomically and abandoned ownership is recovered without PID-reuse mistakes or manual cleanup
@@ -478,7 +485,7 @@ Feature: Let parallel sessions share test capacity safely
 
     @native-platform @platform-posix @rejection @process
     Scenario Outline: POSIX reclaim changes or ambiguous identity never release capacity
-      Given the injected real-platform process seam's first absent observation marked an active POSIX owner reclaiming
+      Given the deterministic injected identity adapter's first absent observation marked an active POSIX owner reclaiming without contributing native evidence
       When the monotonic interval ends with <second-state>
       Then <recovery> and <caller-result>
       Examples:
@@ -554,11 +561,9 @@ Feature: Let parallel sessions share test capacity safely
         | journal-boundary | observed-state | journal-durability-outcome |
         | during journal temporary write | old live state, no journal, incomplete temporary bytes | temporary bytes are removed, old state remains byte-identical, and admission retries from old state |
         | after journal-file fsync but before journal rename | old live state, no journal, complete temporary journal | temporary bytes are removed, old state remains byte-identical, and admission retries from old state |
-        | after journal rename but before successful parent-directory fsync | old live state and no journal after restart | restart authenticates the old state and retries it without inferring an unobservable transition |
-        | after journal rename but before successful parent-directory fsync | old live state and a complete visible journal after restart | old-side recovery re-flushes the directory, retains old state, removes journal last, and admission proceeds |
+        | after journal rename but before successful parent-directory fsync | old live state with either no journal or one complete visible journal after restart | no-journal recovery authenticates and retries old state; visible-journal recovery re-flushes the directory, retains old state, removes the journal last, and neither path infers an unobservable transition |
         | after successful journal parent-directory fsync but before live rename | durable journal plus old live state | old-side recovery retains old state, removes journal last, and admission proceeds |
-        | after live rename but before live-state parent-directory fsync | durable journal plus old live state after restart | old-side recovery retains old state, removes journal last, and admission proceeds |
-        | after live rename but before live-state parent-directory fsync | durable journal plus new live state after restart | new-side recovery flushes and verifies new state, removes journal last, and admission proceeds under new state |
+        | after live rename but before live-state parent-directory fsync | durable journal plus either old or new complete live state after restart | old-side recovery retains old state and new-side recovery flushes and verifies new state; either path removes the journal last and admits only after resolving one complete side |
 
     @rejection @wiring @process
     Scenario Outline: Journal recovery resolves only an authenticated complete side
@@ -681,10 +686,14 @@ Feature: Let parallel sessions share test capacity safely
       Then status exits zero, names the derived domain token as uninitialized, reports implicit capacity one, and leaves no capacity artifact
 
     @wiring @surface.safeword-cli
-    Scenario: A confirmed set initializes an uninitialized domain atomically
+    Scenario Outline: A valid set initializes an uninitialized domain atomically
       Given the derived canonical domain has no guard, state, journal, or temporary artifact
-      When the builder runs `safeword project test-capacity set 2 --confirm-current-protocol`
-      Then one owner-only current-protocol state commits at version one with capacity two and no partial artifact is visible
+      When the builder runs <set-command>
+      Then one owner-only current-protocol state commits at version one with capacity <capacity> and no partial artifact is visible
+      Examples:
+        | set-command | capacity |
+        | `safeword project test-capacity set 1` | one |
+        | `safeword project test-capacity set 2 --confirm-current-protocol` | two |
 
     @rejection @surface.safeword-cli
     Scenario: Reset refuses an uninitialized domain
@@ -786,13 +795,13 @@ Feature: Let parallel sessions share test capacity safely
     Scenario Outline: Global guard ordering prevents deadlock on every terminal path
       Given one same-worktree wrapper holds checkout ownership and scheduler capacity, a second same-worktree wrapper waits on that checkout mutex with no permit, and an unrelated worktree waits for capacity
       When the first wrapper reaches <terminal-path>
-      Then <ordering-outcome> and the waiting wrapper reaches an observable result without deadlock
+      Then <ordering-outcome> and <waiter-outcome>
       Examples:
-        | terminal-path | ordering-outcome |
-        | successful test completion | scheduler capacity releases before checkout ownership |
-        | build failure | scheduler capacity releases before checkout ownership |
-        | Vitest failure | scheduler capacity releases before checkout ownership |
-        | descendant teardown failure | both ownership layers remain fail-closed and the waiter exits with structured recovery guidance |
+        | terminal-path | ordering-outcome | waiter-outcome |
+        | successful test completion | scheduler capacity releases before checkout ownership | the unrelated capacity waiter runs its deterministic zero-exit invocation as soon as capacity releases, then the same-worktree waiter starts only after checkout ownership releases and also exits zero |
+        | build failure | scheduler capacity releases before checkout ownership | the unrelated capacity waiter runs its deterministic zero-exit invocation as soon as capacity releases, then the same-worktree waiter starts only after checkout ownership releases and also exits zero |
+        | Vitest failure | scheduler capacity releases before checkout ownership | the unrelated capacity waiter runs its deterministic zero-exit invocation as soon as capacity releases, then the same-worktree waiter starts only after checkout ownership releases and also exits zero |
+        | descendant teardown failure | both ownership layers remain fail-closed | both waiters start no repository descendant and exit nonzero with SAFEWORD_TEST_CAPACITY_STATE_UNSAFE and `safeword project test-capacity status` |
 
     @rejection @process
     Scenario Outline: Death of a transition-guard holder is recovered by exact identity
