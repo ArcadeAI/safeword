@@ -16,13 +16,9 @@ import { collectExecutableFeatureFiles } from '../src/utils/feature-source.js';
 import cliVitestConfig from '../vitest.config.js';
 
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '../../..');
-const configuredFeatureFilePaths = collectExecutableFeatureFiles(REPO_ROOT).map(absolutePath =>
+const configuredFeatureFiles = collectExecutableFeatureFiles(REPO_ROOT).map(absolutePath =>
   nodePath.relative(REPO_ROOT, absolutePath).split(nodePath.sep).join('/'),
 );
-
-function configuredFeatureFiles(): string[] {
-  return configuredFeatureFilePaths;
-}
 
 type ScenarioProof = [string, string, string?];
 type ScenarioProofRegistration = ScenarioProof | ScenarioProof[];
@@ -110,7 +106,7 @@ function isRepoFeaturePath(featurePath: string): boolean {
     normalized === featurePath &&
     !normalized.startsWith('../') &&
     normalized.endsWith('.feature') &&
-    configuredFeatureFiles().includes(normalized)
+    configuredFeatureFiles.includes(normalized)
   );
 }
 
@@ -171,14 +167,34 @@ function executableVitestNames(source: string): string[] {
   const names: string[] = [];
 
   function conditionAllows(call: ts.CallExpression, token: 'runIf' | 'skipIf'): boolean {
-    const conditional = ts.isCallExpression(call.expression) ? call.expression : undefined;
-    if (conditional === undefined || !expressionTokens(conditional.expression).includes(token)) {
+    let current: ts.Expression = call.expression;
+    while (true) {
+      if (ts.isCallExpression(current)) {
+        // eslint-disable-next-line security/detect-possible-timing-attacks -- AST modifier names are public source text, not secrets.
+        if (expressionTokens(current.expression).at(-1) === token) {
+          const condition = current.arguments[0]?.kind;
+          return (
+            condition ===
+            (token === 'runIf' ? ts.SyntaxKind.TrueKeyword : ts.SyntaxKind.FalseKeyword)
+          );
+        }
+        current = current.expression;
+        continue;
+      }
+      if (ts.isPropertyAccessExpression(current) || ts.isElementAccessExpression(current)) {
+        current = current.expression;
+        continue;
+      }
       return false;
     }
-    const condition = conditional.arguments[0]?.kind;
-    return (
-      condition === (token === 'runIf' ? ts.SyntaxKind.TrueKeyword : ts.SyntaxKind.FalseKeyword)
-    );
+  }
+
+  function hasExecutableTestBody(call: ts.CallExpression): boolean {
+    const body = call.arguments[1];
+    if (body === undefined || (!ts.isArrowFunction(body) && !ts.isFunctionExpression(body))) {
+      return false;
+    }
+    return !ts.isBlock(body.body) || body.body.statements.length > 0;
   }
 
   function hasSkippedSuiteAncestor(node: ts.Node): boolean {
@@ -211,15 +227,15 @@ function executableVitestNames(source: string): string[] {
   }
 
   function visit(node: ts.Node): void {
-    if (ts.isCallExpression(node) && node.arguments[0] !== undefined) {
-      const testName = vitestCallName(node);
-      const nameArgument = node.arguments[0];
+    if (ts.isCallExpression(node)) {
+      const testName = staticCallName(node);
       if (
-        (testName === 'it' || testName === 'test') &&
+        vitestCallName(node) !== undefined &&
         !hasSkippedSuiteAncestor(node) &&
-        (ts.isStringLiteral(nameArgument) || ts.isNoSubstitutionTemplateLiteral(nameArgument))
+        testName !== undefined &&
+        hasExecutableTestBody(node)
       ) {
-        names.push(nameArgument.text);
+        names.push(testName);
       }
     }
     ts.forEachChild(node, visit);
@@ -280,6 +296,9 @@ function parameterizedVitestCases(source: string): Map<string, ParameterizedCase
     return undefined;
   }
 
+  // Manifest selectors use literal placeholder values: one value is bare and
+  // multiple values are a JSON array. Positional rows follow placeholder order;
+  // named rows follow the `$name` order in the Vitest title.
   function tableCaseValues(node: ts.Expression, testName: string): string[] {
     const table = unwrap(node);
     if (!ts.isArrayLiteralExpression(table)) return [];
@@ -313,7 +332,7 @@ function parameterizedVitestCases(source: string): Map<string, ParameterizedCase
         });
         return values.includes(undefined)
           ? []
-          : [values.length === 1 ? String(values[0]) : JSON.stringify(values)];
+          : [values.length === 1 ? values[0] : JSON.stringify(values)];
       }
       const primitive = literalValue(row);
       return primitive === undefined ? [] : [primitive];
@@ -405,9 +424,10 @@ function expectScenarioProofs(manifest: ScenarioProofManifest): void {
     ).toBe(true);
     const { executableNames, parameterCases } = proofContract(proofPath);
     const matches = executableNames.filter(executableName => executableName === testName);
-    expect(matches, `${scenario} -> ${proofPath} must uniquely declare ${testName}`).toHaveLength(
-      1,
-    );
+    expect(
+      matches,
+      `${scenario} -> ${proofPath} must declare exactly one executable test named ${testName}; duplicate names must be made unique in the source`,
+    ).toHaveLength(1);
     const parameterized = parameterCases.get(testName);
     if (parameterized === undefined) {
       expect(
@@ -421,7 +441,6 @@ function expectScenarioProofs(manifest: ScenarioProofManifest): void {
       parameterized.staticallyEnumerable,
       `${scenario} -> ${testName} must use a statically enumerable table`,
     ).toBe(true);
-    if (selectedCase === '*') return parameterized.cases.length;
     const registrationCount = registrationCounts.get(`${proofPath}\0${testName}`) ?? 0;
     if (registrationCount === 1 && selectedCase === undefined) return parameterized.cases.length;
 
@@ -442,7 +461,7 @@ function expectScenarioProofs(manifest: ScenarioProofManifest): void {
     const exampleCount = examplesByScenario.get(scenario) ?? 0;
     expect(
       exampleCount === 0 || outlineCoverageUnits >= exampleCount,
-      `${scenario} must explicitly prove all ${exampleCount} outline examples`,
+      `${scenario} must register at least ${exampleCount} executable proof units for its ${exampleCount} outline examples`,
     ).toBe(true);
   }
 }
@@ -504,7 +523,7 @@ function featureHasTag(featurePath: string, tag: string): boolean {
 
 describe('BDD proof provenance', () => {
   it('keeps the proof manifest complete', () => {
-    const taggedFeatures = configuredFeatureFiles()
+    const taggedFeatures = configuredFeatureFiles
       .filter(featurePath => featureHasTag(featurePath, '@proof.vitest'))
       .toSorted((left, right) => left.localeCompare(right));
 
@@ -521,14 +540,21 @@ describe('BDD proof provenance', () => {
     manifestPath => {
       const manifest = readProofManifest(manifestPath);
       expect(featureHasTag(manifest.feature, '@proof.vitest')).toBe(true);
-      expect(featureHasTag(manifest.feature, '@wip')).toBe(false);
+      expect(
+        featureHasTag(manifest.feature, '@wip'),
+        `${manifest.feature} cannot combine @proof.vitest with @wip at feature, rule, or scenario scope`,
+      ).toBe(false);
       expectScenarioProofs(manifest);
     },
   );
 
   it('accepts executable Vitest declarations but rejects comments and skipped lookalikes', () => {
-    expect(executableVitestNames("it('real behavior', () => {});")).toContain('real behavior');
-    expect(executableVitestNames("it.each([1, 2])('row %s', () => {});")).toContain('row %s');
+    expect(executableVitestNames("it('real behavior', () => { verify(); });")).toContain(
+      'real behavior',
+    );
+    expect(executableVitestNames("it.each([1, 2])('row %s', () => { verify(); });")).toContain(
+      'row %s',
+    );
     expect(executableVitestNames("// it('comment only', () => {});")).not.toContain('comment only');
     expect(executableVitestNames("it.skip('disabled behavior', () => {});")).not.toContain(
       'disabled behavior',
@@ -542,19 +568,22 @@ describe('BDD proof provenance', () => {
     expect(
       focusedVitestDeclarations("describe.only('focused', () => it('row', () => {}));"),
     ).toEqual(['describe.only']);
-    expect(executableVitestNames("it.concurrent('parallel behavior', () => {});")).toContain(
-      'parallel behavior',
-    );
+    expect(
+      executableVitestNames("it.concurrent('parallel behavior', () => { verify(); });"),
+    ).toContain('parallel behavior');
     expect(focusedVitestDeclarations("it['only']('focused', () => {});")).toEqual(['it.only']);
     expect(executableVitestNames("it.runIf(false)('conditional', () => {});")).not.toContain(
       'conditional',
     );
-    expect(executableVitestNames("it.runIf(true)('running conditional', () => {});")).toContain(
-      'running conditional',
-    );
     expect(
-      executableVitestNames("it.skipIf(false)('running skip conditional', () => {});"),
+      executableVitestNames("it.runIf(true)('running conditional', () => { verify(); });"),
+    ).toContain('running conditional');
+    expect(
+      executableVitestNames("it.skipIf(false)('running skip conditional', () => { verify(); });"),
     ).toContain('running skip conditional');
+    expect(
+      executableVitestNames("it.runIf(true).each([1])('running chained %s', () => { verify(); });"),
+    ).toContain('running chained %s');
     expect(
       executableVitestNames(
         "describe.skip('disabled suite', () => it('nested behavior', () => {}));",
@@ -570,12 +599,15 @@ describe('BDD proof provenance', () => {
         "describe.skipIf(true)('disabled conditional suite', () => it('nested conditional behavior', () => {}));",
       ),
     ).not.toContain('nested conditional behavior');
+    expect(executableVitestNames("it('missing body');")).not.toContain('missing body');
+    expect(executableVitestNames("it('empty body', () => {});")).not.toContain('empty body');
   });
 
   it('extracts exact static cases from parameterized Vitest declarations', () => {
     const cases = parameterizedVitestCases(`
       it.each([['alpha', 'incidental'], ['beta', 'also incidental']])('primitive %s', () => {});
       test.each([{ state: 'ready' }, { state: 'blocked' }])('object $state', () => {});
+      test.each([{ state: 'ready', result: 'go' }])('multi $state $result', () => {});
     `);
 
     expect(cases.get('primitive %s')).toEqual({
@@ -584,6 +616,10 @@ describe('BDD proof provenance', () => {
     });
     expect(cases.get('object $state')).toEqual({
       cases: ['ready', 'blocked'],
+      staticallyEnumerable: true,
+    });
+    expect(cases.get('multi $state $result')).toEqual({
+      cases: ['["ready","go"]'],
       staticallyEnumerable: true,
     });
     expect(
@@ -611,5 +647,21 @@ describe('BDD proof provenance', () => {
     expect(cliVitestConfig.test?.include).toEqual(defaultVitestInclude('packages/cli'));
     expect(cliVitestConfig.test?.exclude).toEqual(defaultVitestExclude('packages/cli'));
     expect(relayVitestConfig.test?.include).toEqual(defaultVitestInclude('packages/retro-relay'));
+    expect(relayVitestConfig.test?.exclude).toEqual(defaultVitestExclude('packages/retro-relay'));
+  });
+
+  it('enumerates every workspace Vitest project in the shared collection contract', () => {
+    const workspaceProjects = readdirSync(nodePath.join(REPO_ROOT, 'packages'), {
+      withFileTypes: true,
+    })
+      .filter(entry => entry.isDirectory())
+      .map(entry => `packages/${entry.name}`)
+      .filter(root => existsSync(nodePath.join(REPO_ROOT, root, 'vitest.config.ts')))
+      .toSorted((left, right) => left.localeCompare(right));
+    expect(
+      DEFAULT_VITEST_PROJECTS.map(project => project.root).toSorted((left, right) =>
+        left.localeCompare(right),
+      ),
+    ).toEqual(workspaceProjects);
   });
 });

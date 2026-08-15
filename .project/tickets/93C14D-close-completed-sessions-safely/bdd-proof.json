@@ -61,7 +61,7 @@
       ["packages/cli/tests/closeout-cleanup.test.ts", "reruns extraction after %s change the bound transcript bytes", "truncated existing records"],
       ["packages/cli/tests/closeout-cleanup.test.ts", "reruns extraction after %s change the bound transcript bytes", "an ambiguous unclassified record"]
     ],
-    "Explicit authority bounds the merge action": ["packages/cli/tests/closeout-skill.test.ts", "documents the exact $authority boundary", "*"],
+    "Explicit authority bounds the merge action": ["packages/cli/tests/closeout-skill.test.ts", "documents the exact $authority boundary"],
     "The pull request head changing after readiness blocks merge": ["packages/cli/tests/closeout-skill.test.ts", "re-observes merge truth and continues only the unfinished suffix"],
     "Normal authority never escalates to an administrative merge": ["packages/cli/tests/closeout-skill.test.ts", "defaults to no authority and never infers or escalates administrative authority"],
     "Historical or implied admin intent is insufficient": ["packages/cli/tests/closeout-skill.test.ts", "defaults to no authority and never infers or escalates administrative authority"],

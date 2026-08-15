@@ -1,7 +1,7 @@
 {
   "feature": "features/operate-retry-safe-retro-relay.feature",
   "scenarios": {
-    "Each harness submits the exact request persisted by another harness": ["packages/retro-relay/tests/cli-wiring.integration.test.ts", "[ORR-001] routes the installed $harness surface through the persisted request", "*"],
+    "Each harness submits the exact request persisted by another harness": ["packages/retro-relay/tests/cli-wiring.integration.test.ts", "[ORR-001] routes the installed $harness surface through the persisted request"],
     "A retry cannot replace the persisted payload or request identity": ["packages/retro-relay/tests/relay.integration.test.ts", "[ORR-002] rejects a changed %s under the same identity"],
     "Relay unavailability preserves the draft without delaying the session": ["packages/cli/tests/retro/relay-delivery.test.ts", "[ORR-003] preserves the draft without delaying the session when the relay is unavailable"],
     "A multi-draft drain shares one aggregate latency budget": ["packages/cli/tests/retro/relay-delivery.test.ts", "bounds a multi-draft blackhole below 1.5 seconds in wall-clock time"],
