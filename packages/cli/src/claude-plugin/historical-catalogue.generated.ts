@@ -22,7 +22,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/bdd/SPLITTING.md':
         'e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708',
       '.claude/skills/bdd/TDD.md':
-        '1805f7303b97f40b4fa4acddc322686500a49415c4ad33c065120038a1d25897',
+        '892015a13b402e129e37d31be567be67159a651bac9669938ceb03a18706c8c0',
       '.claude/skills/bdd/VERIFY.md':
         '85abadfe756a3f391779fe500cd5c66597a33e0cab7fcef55f6b633b30818f31',
       '.claude/skills/brainstorm/SKILL.md':
@@ -54,7 +54,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/retro/SKILL.md':
         '166e5109193bad4c26e060f6841d71c03f9155c7e74e1853c43b99b01c25d379',
       '.claude/skills/review-spec/SKILL.md':
-        '4a27099c350d1d2caa7a0fd86ac6ca20022a22b32c1516c7222db77e7ad4dcc4',
+        '8380e7cb7dd5e527217e9b8cc22f2c957958661afbd0261e6a00172a937aa678',
       '.claude/skills/self-review/SKILL.md':
         'dcc667823790f18e1fa8cf35aaf10c40464664929c7bbb093531fd684f673e15',
       '.claude/skills/spike/SKILL.md':
