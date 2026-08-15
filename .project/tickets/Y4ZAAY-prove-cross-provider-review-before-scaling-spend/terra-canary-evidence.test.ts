@@ -100,6 +100,28 @@ function completeInventory() {
 }
 
 describe("retained Terra provider evidence", () => {
+  test("prices a native response capped by max_output_tokens", () => {
+    expect(
+      validateTerraEnvelope(
+        rawEnvelope({
+          incomplete_details: { reason: "max_output_tokens" },
+          status: "incomplete",
+        })
+      ).costPicodollars
+    ).toBe(355_000_000n);
+  });
+
+  test("rejects other incomplete response reasons", () => {
+    expect(() =>
+      validateTerraEnvelope(
+        rawEnvelope({
+          incomplete_details: { reason: "content_filter" },
+          status: "incomplete",
+        })
+      )
+    ).toThrow("completed or capped by max_output_tokens");
+  });
+
   test("accepts a complete ordered reading and verification inventory", () => {
     const validated = validateProviderInventory(completeInventory());
 

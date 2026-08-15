@@ -163,8 +163,19 @@ export function validateTerraEnvelope(rawBody: string): ValidatedTerraEnvelope {
   if (raw.service_tier !== STANDARD_TIER) {
     throw new Error(`response service tier must be ${STANDARD_TIER}`);
   }
-  if (raw.status !== "completed") {
-    throw new Error("response status must be completed");
+  if (
+    raw.status !== "completed" &&
+    !(
+      raw.status === "incomplete" &&
+      typeof raw.incomplete_details === "object" &&
+      raw.incomplete_details !== null &&
+      !Array.isArray(raw.incomplete_details) &&
+      (raw.incomplete_details as JsonObject).reason === "max_output_tokens"
+    )
+  ) {
+    throw new Error(
+      "response status must be completed or capped by max_output_tokens"
+    );
   }
   if (!Array.isArray(raw.output)) {
     throw new Error("response output must be an array");
