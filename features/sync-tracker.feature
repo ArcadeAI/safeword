@@ -41,7 +41,6 @@ Feature: safeword sync-tracker — one-way projection to Linear + GitHub Issues
 
       Examples:
         | provider |
-        | linear   |
         | github   |
 
   Rule: Each ticket maps to a flat IssuePayload

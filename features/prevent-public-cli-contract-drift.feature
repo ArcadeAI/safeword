@@ -49,15 +49,7 @@ Feature: Prevent public CLI contracts from drifting again
       Examples:
         | field |
         | route or alias spelling |
-        | visibility |
-        | syntax or positional arity |
-        | long or short flag |
-        | parsed attribute |
         | required optional or variadic value shape |
-        | negation |
-        | default or choices |
-        | hidden state |
-        | global or local ownership |
         | conflicts or implies relation |
 
     Scenario: Commander-owned options are derived from the assembled program

@@ -134,7 +134,10 @@ describe('canonical help and compatibility aliases', () => {
     expect(codex.stdout).not.toContain('--no-modify');
   });
 
-  it('rejects an excluded alias option before entering its handler', async () => {
+  it.each([
+    ['unknown local option', '--not-a-real-option'],
+    ['inherited option excluded by the alias', '--scope=user'],
+  ])('rejects an %s before entering its handler', async (_kind, option) => {
     const definition = findCommandDefinition('codex install');
     const originalHandler = definition.handler;
     let entered = false;
@@ -150,7 +153,7 @@ describe('canonical help and compatibility aliases', () => {
 
     try {
       await expect(
-        program.parseAsync(['node', 'safeword', 'codex', 'install', '--scope=user']),
+        program.parseAsync(['node', 'safeword', 'codex', 'install', option]),
       ).rejects.toMatchObject({ code: 'commander.unknownOption' });
       expect(entered).toBe(false);
     } finally {

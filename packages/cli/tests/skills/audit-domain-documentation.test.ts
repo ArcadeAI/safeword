@@ -413,27 +413,25 @@ describe('audit domain-documentation content is advisory only (R4)', () => {
   });
 });
 
-const AUDIT_SURFACES = [
-  'packages/cli/templates/skills/audit/SKILL.md',
-  '.claude/skills/audit/SKILL.md',
-];
-
 describe('audit domain-documentation skill guidance parity', () => {
-  it.each(AUDIT_SURFACES)('%s documents the domain-docs codes and advisory rule', relativePath => {
-    const content = readSurface(relativePath);
+  it.each(['packages/cli/templates/skills/audit/SKILL.md', '.claude/skills/audit/SKILL.md'])(
+    '%s documents the domain-docs codes and advisory rule',
+    relativePath => {
+      const content = readSurface(relativePath);
 
-    // The check exists and carries its sentinel + codes.
-    expect(content).toContain('domain-docs-check');
-    expect(content).toContain('Namespace Domain Docs');
-    // Codes appear in the Report Format legend, not only inline.
-    expect(content).toContain('[E008] Surface drift');
-    expect(content).toContain('[E009] Persona drift');
-    expect(content).toContain('[W008] Empty domain doc');
-    expect(content).toContain('[W009] Feature-directory resolver unavailable');
-    // R4: human-curated content is advisory-only, never an error.
-    expect(content).toContain('advisory');
-    expect(content).toMatch(/never (an? )?error/i);
-  });
+      // The check exists and carries its sentinel + codes.
+      expect(content).toContain('domain-docs-check');
+      expect(content).toContain('Namespace Domain Docs');
+      // Codes appear in the Report Format legend, not only inline.
+      expect(content).toContain('[E008] Surface drift');
+      expect(content).toContain('[E009] Persona drift');
+      expect(content).toContain('[W008] Empty domain doc');
+      expect(content).toContain('[W009] Feature-directory resolver unavailable');
+      // R4: human-curated content is advisory-only, never an error.
+      expect(content).toContain('advisory');
+      expect(content).toMatch(/never (an? )?error/i);
+    },
+  );
 
   it('does not use a positional $1 in the domain-docs block (clobbered by skill-arg substitution)', () => {
     // Skill/command injection substitutes positional $1 in the block body, so a

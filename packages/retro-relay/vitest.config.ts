@@ -1,8 +1,10 @@
 import { defineConfig } from 'vitest/config';
 
+import { defaultVitestInclude } from '../../vitest.default-projects.js';
+
 export default defineConfig({
   test: {
     environment: 'node',
-    include: ['tests/**/*.test.ts'],
+    include: defaultVitestInclude('packages/retro-relay'),
   },
 });

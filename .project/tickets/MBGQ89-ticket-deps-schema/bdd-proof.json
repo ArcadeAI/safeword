@@ -12,7 +12,7 @@
     "All-done blockers allow the advance": ["packages/cli/tests/integration/blocked-on-gate.test.ts", "allows when all blockers are done"],
     "A blocker with unreadable status fails safe and denies the advance": ["packages/cli/tests/integration/blocked-on-gate.test.ts", "fails safe (denies) when a blocker has an unreadable status"],
     "A cancelled blocker without an override denies the advance": ["packages/cli/tests/integration/blocked-on-gate.test.ts", "denies a cancelled blocker with no override"],
-    "A substantive override allows advance past a terminal-but-not-done blocker": ["packages/cli/tests/integration/blocked-on-gate.test.ts", "allows past a cancelled blocker with a substantive override"],
+    "A substantive override allows advance past a terminal-but-not-done blocker": ["packages/cli/tests/integration/blocked-on-gate.test.ts", "allows past a %s blocker with a substantive override"],
     "An override's reason is surfaced in the INDEX": ["packages/cli/tests/ticket-sync/ticket-sync.test.ts", "surfaces the override reason in the INDEX"],
     "An override with a trivial reason is rejected": ["packages/cli/tests/integration/blocked-on-gate.test.ts", "rejects a trivial override reason"],
     "A stale override is flagged once every blocker is done": ["packages/cli/tests/commands/check.test.ts", "warns that a blocked_on_override is stale once every blocker is done"],

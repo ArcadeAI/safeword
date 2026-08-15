@@ -1549,10 +1549,43 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     expect(executed).toEqual(['remove-worktree']);
   });
 
-  it('reports completed and remaining operations after an execution failure', () => {
+  it.each([
+    ['dirty', safeObservation({ worktrees: [worktree(0), { ...worktree(1), dirty: true }] })],
+    ['removed', safeObservation({ worktrees: [worktree(0)] })],
+  ] as const)('refuses a %s worktree observed immediately before removal', (_change, changed) => {
+    const initial = safeObservation();
+    const observations = [initial, changed];
+    const executed: string[] = [];
+    const result = applyCleanupPlan({
+      plan: buildCleanupPlan(initial),
+      digest: cleanupPlanDigest(buildCleanupPlan(initial)),
+      observe: () => observations.shift() ?? changed,
+      execute: operation => {
+        executed.push(operation.kind);
+      },
+    });
+
+    expect(result.blockers).toContain('remove-worktree target changed during cleanup');
+    expect(executed).toEqual([]);
+  });
+
+  it.each([
+    { target: 'worktree', failedKind: 'remove-worktree', completed: [] },
+    { target: 'remote branch', failedKind: 'delete-remote-ref', completed: ['remove-worktree'] },
+    {
+      target: 'local branch',
+      failedKind: 'delete-local-ref',
+      completed: ['remove-worktree', 'delete-remote-ref'],
+    },
+  ] as const)('$target failure reports the exact completed and unfinished suffix', testCase => {
     const initial = safeObservation();
     const afterWorktree = safeObservation({ worktrees: [worktree(0)] });
-    const observations = [initial, initial, afterWorktree];
+    const afterRemote = {
+      ...afterWorktree,
+      remote: undefined,
+      remoteResolution: 'absent' as const,
+    };
+    const observations = [initial, initial, afterWorktree, afterWorktree, afterRemote, afterRemote];
     const plan = buildCleanupPlan(initial);
 
     const result = applyCleanupPlan({
@@ -1560,15 +1593,15 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       digest: cleanupPlanDigest(plan),
       observe: () => observations.shift() ?? afterWorktree,
       execute: operation => {
-        if (operation.kind === 'delete-remote-ref') throw new Error('lease rejected');
+        if (operation.kind === testCase.failedKind) throw new Error('lease rejected');
       },
     });
 
     expect(result).toMatchObject({
       applied: false,
-      completed: ['remove-worktree'],
-      remaining: ['delete-remote-ref', 'delete-local-ref'],
-      blockers: ['delete-remote-ref failed: lease rejected'],
+      completed: testCase.completed,
+      remaining: plan.operations.slice(testCase.completed.length).map(operation => operation.kind),
+      blockers: [`${testCase.failedKind} failed: lease rejected`],
     });
   });
 

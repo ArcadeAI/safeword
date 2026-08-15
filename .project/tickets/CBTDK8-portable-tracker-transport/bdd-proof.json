@@ -14,7 +14,15 @@
     "A create result is recorded with its issue number and url": ["packages/cli/tests/tracker-sync/apply-results.test.ts", "records a create result with the bare number and url as recorded"],
     "Re-applying the same results changes nothing": ["packages/cli/tests/tracker-sync/apply-results.test.ts", "is idempotent — re-applying the same results changes nothing"],
     "An update or close result makes no identity change": ["packages/cli/tests/tracker-sync/apply-results.test.ts", "leaves an already-recorded ref unchanged for an update/close ack"],
-    "A malformed results file is rejected and the map is left intact": ["packages/cli/tests/tracker-sync/apply-results.test.ts", "validates all rows before mutating: a valid row is NOT recorded when a later row is rejected"],
+    "A malformed results file is rejected and the map is left intact": [
+      ["packages/cli/tests/tracker-sync/apply-results.test.ts", "rejects invalid JSON"],
+      ["packages/cli/tests/tracker-sync/command-plan-apply.test.ts", "rejects a missing results file without writing the sidecar"],
+      ["packages/cli/tests/tracker-sync/apply-results.test.ts", "rejects an unsupported contract version"],
+      ["packages/cli/tests/tracker-sync/apply-results.test.ts", "rejects a create result missing its number"],
+      ["packages/cli/tests/tracker-sync/apply-results.test.ts", "rejects a create result missing its url"],
+      ["packages/cli/tests/tracker-sync/apply-results.test.ts", "rejects a result whose url tail does not match its number, leaving the map untouched"],
+      ["packages/cli/tests/tracker-sync/apply-results.test.ts", "rejects a result naming a ticket absent from the corpus, leaving the map untouched"]
+    ],
     "Applying against a corrupt tracker map is refused, leaving the file intact": ["packages/cli/tests/tracker-sync/command-plan-apply.test.ts", "refuses to apply against a corrupt sidecar, leaving it untouched"],
     "A planned create round-trips through results back into the map": ["packages/cli/tests/tracker-sync/apply-results.test.ts", "a planned create, executed and applied, records the ticket in the map"],
     "--plan writes a valid SyncPlan to stdout and nothing else": ["packages/cli/tests/tracker-sync/command-plan-apply.test.ts", "--plan writes a single valid SyncPlan JSON document to stdout and nothing else"],

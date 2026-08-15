@@ -1490,67 +1490,76 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
     }
   });
 
-  it('installs the shared guard and resolves project-host entry points to it', async () => {
-    const directory = createTemporaryDirectory();
-    try {
-      createTypeScriptPackageJson(directory);
-      initGitRepo(directory);
-      await setupOrThrow(directory, ['setup', '--yes', '--agents', 'cursor'], {
-        env: INSTALL_DEPENDENCIES_ENV,
-      });
+  it.each(['installed', 'upgraded'] as const)(
+    '$change Safeword resolves project-host entry points to the shared guard',
+    async change => {
+      const directory = createTemporaryDirectory();
+      try {
+        createTypeScriptPackageJson(directory);
+        initGitRepo(directory);
+        await setupOrThrow(directory, ['setup', '--yes', '--agents', 'cursor'], {
+          env: INSTALL_DEPENDENCIES_ENV,
+        });
+        if (change === 'upgraded') {
+          await setupOrThrow(directory, ['setup', '--yes', '--agents', 'cursor'], {
+            env: INSTALL_DEPENDENCIES_ENV,
+          });
+        }
 
-      const cursorCommand = readFileSync(
-        nodePath.join(directory, '.cursor/commands/closeout.md'),
-        'utf8',
-      );
-      const cursorSharedSkill = readFileSync(
-        nodePath.join(directory, '.safeword/skills/closeout/SKILL.md'),
-        'utf8',
-      );
-      const installedGuard = nodePath.join(directory, '.safeword/scripts/closeout-cleanup.ts');
-      const codexProfile = nodePath.join(directory, 'codex-profile/plugins/cache/safeword/0.0.0');
-      const canonicalSkills = nodePath.join(repoRoot, 'packages/cli/templates/skills');
-      for (const asset of generateCodexPluginAssets(canonicalSkills)) {
-        const target = nodePath.join(codexProfile, asset.relativePath);
-        mkdirSync(nodePath.dirname(target), { recursive: true });
-        writeFileSync(target, asset.content);
+        const cursorCommand = readFileSync(
+          nodePath.join(directory, '.cursor/commands/closeout.md'),
+          'utf8',
+        );
+        const cursorSharedSkill = readFileSync(
+          nodePath.join(directory, '.safeword/skills/closeout/SKILL.md'),
+          'utf8',
+        );
+        const installedGuard = nodePath.join(directory, '.safeword/scripts/closeout-cleanup.ts');
+        const codexProfile = nodePath.join(directory, 'codex-profile/plugins/cache/safeword/0.0.0');
+        const canonicalSkills = nodePath.join(repoRoot, 'packages/cli/templates/skills');
+        for (const asset of generateCodexPluginAssets(canonicalSkills)) {
+          const target = nodePath.join(codexProfile, asset.relativePath);
+          mkdirSync(nodePath.dirname(target), { recursive: true });
+          writeFileSync(target, asset.content);
+        }
+        const codexSkill = readFileSync(
+          nodePath.join(codexProfile, 'skills/closeout/SKILL.md'),
+          'utf8',
+        );
+
+        expect(cursorCommand).toContain('.safeword/skills/closeout/SKILL.md');
+        expect(cursorSharedSkill).toContain('bun .safeword/scripts/closeout-cleanup.ts');
+        expect(codexSkill).toContain('bun .safeword/scripts/closeout-cleanup.ts');
+        expect(readFileSync(installedGuard, 'utf8')).toContain('executeCleanupOperation');
+        const nominatedCodexHome = nodePath.join(directory, 'caller-codex-home');
+        const nominatedTranscript = nodePath.join(
+          nominatedCodexHome,
+          'sessions',
+          'rollout-caller-thread.jsonl',
+        );
+        mkdirSync(nodePath.dirname(nominatedTranscript), { recursive: true });
+        writeFileSync(
+          nominatedTranscript,
+          `${JSON.stringify({ type: 'session_meta', payload: { id: 'caller-thread' } })}\n`,
+        );
+        const execution = spawnSync('bun', [installedGuard, '--pr', '42'], {
+          cwd: directory,
+          env: codexHostEnvironment({
+            ...process.env,
+            CODEX_HOME: nominatedCodexHome,
+            CODEX_THREAD_ID: 'caller-thread',
+          }),
+          encoding: 'utf8',
+        });
+        expect(execution.status).toBe(2);
+        expect(execution.stderr).not.toContain('a fresh host session binding are required');
+        expect(execution.stdout).toContain('"blockers"');
+      } finally {
+        removeTemporaryDirectory(directory);
       }
-      const codexSkill = readFileSync(
-        nodePath.join(codexProfile, 'skills/closeout/SKILL.md'),
-        'utf8',
-      );
-
-      expect(cursorCommand).toContain('.safeword/skills/closeout/SKILL.md');
-      expect(cursorSharedSkill).toContain('bun .safeword/scripts/closeout-cleanup.ts');
-      expect(codexSkill).toContain('bun .safeword/scripts/closeout-cleanup.ts');
-      expect(readFileSync(installedGuard, 'utf8')).toContain('executeCleanupOperation');
-      const nominatedCodexHome = nodePath.join(directory, 'caller-codex-home');
-      const nominatedTranscript = nodePath.join(
-        nominatedCodexHome,
-        'sessions',
-        'rollout-caller-thread.jsonl',
-      );
-      mkdirSync(nodePath.dirname(nominatedTranscript), { recursive: true });
-      writeFileSync(
-        nominatedTranscript,
-        `${JSON.stringify({ type: 'session_meta', payload: { id: 'caller-thread' } })}\n`,
-      );
-      const execution = spawnSync('bun', [installedGuard, '--pr', '42'], {
-        cwd: directory,
-        env: codexHostEnvironment({
-          ...process.env,
-          CODEX_HOME: nominatedCodexHome,
-          CODEX_THREAD_ID: 'caller-thread',
-        }),
-        encoding: 'utf8',
-      });
-      expect(execution.status).toBe(2);
-      expect(execution.stderr).not.toContain('a fresh host session binding are required');
-      expect(execution.stdout).toContain('"blockers"');
-    } finally {
-      removeTemporaryDirectory(directory);
-    }
-  }, 30_000);
+    },
+    60_000,
+  );
 
   it('binds the exact Claude session and transcript through the shipped pre-tool hook', () => {
     const directory = project();

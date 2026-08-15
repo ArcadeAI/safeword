@@ -9,6 +9,6 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["packages/*/src/**/*"],
+  "include": ["packages/*/src/**/*", "vitest.default-projects.ts"],
   "exclude": ["node_modules", "dist", "packages/website"]
 }

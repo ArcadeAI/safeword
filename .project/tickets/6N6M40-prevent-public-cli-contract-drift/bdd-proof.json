@@ -19,7 +19,7 @@
     ],
     "An intentional redundant option remains explicit compatibility": ["packages/cli/tests/cli-protocol/help-aliases.test.ts", "reports setup --yes as explicit redundant compatibility"],
     "Removing or renaming a retained alias is rejected": ["packages/cli/tests/cli-protocol/cli-contract.test.ts", "rejects a catalogued retained alias missing from the runtime tree"],
-    "Irrelevant alias options fail before handler entry": ["packages/cli/tests/cli-protocol/help-aliases.test.ts", "rejects an excluded alias option before entering its handler"],
+    "Irrelevant alias options fail before handler entry": ["packages/cli/tests/cli-protocol/help-aliases.test.ts", "rejects an %s before entering its handler"],
     "Every public command and argv rewrite has a shipped subprocess fixture": [
       ["packages/cli/tests/cli-protocol/machine-contract.test.ts", "executes every catalog fixture as deterministic JSON without prompting"],
       ["packages/cli/tests/cli-protocol/machine-contract.test.ts", "executes every argv rewrite and bare default through the built CLI"]
