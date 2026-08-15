@@ -182,7 +182,7 @@ Feature: Let parallel sessions share test capacity safely
       Then <scheduler-cleanup>, <checkout-cleanup>, no repository process starts, and the wrapper exits with <result>
       Examples:
         | checkout-state | termination | scheduler-cleanup | checkout-cleanup | result |
-        | independently authenticated checkout ownership | is cancelled while guarded state remains authenticated | only that caller's waiter ticket is removed and unrelated scheduler state is unchanged | exact checkout ownership is released | cancellation status 130 |
+        | independently authenticated checkout ownership | is cancelled while guarded state remains authenticated | only that caller's waiter ticket is removed and unrelated scheduler state is unchanged | exact checkout ownership is released | its predetermined platform-resolved cancellation status |
         | independently authenticated checkout ownership | fails because guarded capacity state becomes unsafe | unsafe scheduler and waiter bytes remain untouched for explicit recovery | exact checkout ownership is released | SAFEWORD_TEST_CAPACITY_STATE_UNSAFE and `safeword project test-capacity status` |
         | unverifiable checkout ownership | fails because guarded capacity state becomes unsafe | unsafe scheduler and waiter bytes remain untouched for explicit recovery | checkout bytes remain untouched and a second wrapper proves the mutex unavailable | SAFEWORD_TEST_CAPACITY_STATE_UNSAFE and `safeword project test-capacity status` |
 
@@ -206,7 +206,13 @@ Feature: Let parallel sessions share test capacity safely
         | queued or reserved ownership with the exact wrapper instance absent | deterministic downstream exit 23 | only that abandoned wrapper ownership is reclaimed | the second wrapper runs its unchanged invocation exactly once, all descendants exit, and the wrapper exits 23 |
         | active ownership with a live recorded execution container | deterministic blocked fixture | the second wrapper remains blocked for the bounded observation | teardown cancels the second wrapper, removes only its waiter and checkout request, proves no descendant started, and it exits with its predetermined platform-resolved cancellation status while live ownership remains |
         | active ownership with the recorded container proven empty | deterministic terminating-descendant fixture | ownership is reclaimed before the second wrapper proceeds | the second wrapper runs its unchanged invocation exactly once, observes its only descendant terminate with the predetermined platform-resolved status, and exits with that status |
-        | a reused or unverifiable wrapper or container identity | deterministic fixture that must not start | acquisition fails closed with recovery guidance | the second wrapper exits nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE and starts no repository process |
+        | a reused or unverifiable wrapper or container identity | deterministic fixture that must not start | acquisition fails closed and names `safeword project test-capacity status` as the exact first recovery command | the second wrapper exits nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE and starts no repository process |
+
+    @rejection @wiring @process
+    Scenario: A stranded unsafe checkout mutex has an explicit safe recovery path
+      Given an exact dead wrapper left an unsafe checkout-mutex record that a second wrapper cannot authenticate
+      When the builder runs `safeword project test-capacity status`
+      Then status names the checkout-mutex recovery procedure without mutating its bytes, and after the underlying artifact fault is repaired guarded recovery removes only the exact dead ownership before one waiting wrapper runs its unchanged invocation once
 
   @share-test-capacity.TBU1.R3
   Rule: share-test-capacity.TBU1.R3 — Broad verification drains focused work and runs with exclusive machine capacity without starvation
@@ -691,6 +697,8 @@ Feature: Let parallel sessions share test capacity safely
         | state | capacity | code |
         | capacity 1 with one or more owners | 2 | SAFEWORD_TEST_CAPACITY_BUSY |
         | capacity 1 with one or more waiters | 2 | SAFEWORD_TEST_CAPACITY_BUSY |
+        | capacity 2 with one or more owners | 1 | SAFEWORD_TEST_CAPACITY_BUSY |
+        | capacity 2 with one or more waiters | 1 | SAFEWORD_TEST_CAPACITY_BUSY |
         | idle | 0 | SAFEWORD_TEST_CAPACITY_INVALID |
         | idle | 9 | SAFEWORD_TEST_CAPACITY_INVALID |
         | idle | 1.5 | SAFEWORD_TEST_CAPACITY_INVALID |

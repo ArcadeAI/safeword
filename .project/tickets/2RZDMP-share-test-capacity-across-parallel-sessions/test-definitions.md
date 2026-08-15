@@ -117,6 +117,12 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A stranded unsafe checkout mutex has an explicit safe recovery path
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: share-test-capacity.TBU1.R3
 
 ### Scenario: A head broad request waits for holders to drain and then runs alone
