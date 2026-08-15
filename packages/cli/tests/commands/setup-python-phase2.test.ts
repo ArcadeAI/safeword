@@ -5,7 +5,7 @@
  * Test Definitions: .safeword/planning/test-definitions/phase2-python-tooling.md
  */
 
-import { existsSync, readFileSync } from 'node:fs';
+import { chmodSync, existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -347,8 +347,8 @@ describe('Suite 6: Auto-Install Python Tools', () => {
         timeout: TIMEOUT_SETUP,
         env: SKIP_INSTALL_ENV,
       });
-
       // Assert - should show manual install instruction
+      expect(result.exitCode, JSON.stringify(result)).toBe(0);
       expect(result.stderr).toContain('Install Python tools');
       expect(result.stderr).toContain('pip install');
     },
@@ -404,6 +404,44 @@ dev = ["ruff>=0.8.0"]
       // Ruff alone is not the full Safeword Python tool contract.
       expect(result.stderr).toContain('Install Python tools: pip install mypy deadcode');
       expect(result.stderr).not.toContain('Python tools installed');
+    },
+    TIMEOUT_SETUP,
+  );
+
+  it(
+    'Test 6.4: Installs managed projects even when a pip sibling needs manual setup',
+    async () => {
+      createPythonProjectReadyForSetup(state.projectDirectory);
+      writeTestFile(
+        state.projectDirectory,
+        'apps/worker/pyproject.toml',
+        '[project]\nname="worker"\n',
+      );
+      writeTestFile(state.projectDirectory, 'apps/worker/uv.lock', '');
+      initGitRepo(state.projectDirectory);
+      const bin = nodePath.join(state.projectDirectory, 'bin');
+      const log = nodePath.join(state.projectDirectory, 'uv.log');
+      const uv = nodePath.join(bin, 'uv');
+      writeTestFile(
+        state.projectDirectory,
+        'bin/uv',
+        '#!/bin/sh\nprintf "%s\\n" "$*" >> "$SAFEWORD_UV_LOG"\n',
+      );
+      chmodSync(uv, 0o755);
+
+      const result = await runCli(['setup'], {
+        cwd: state.projectDirectory,
+        timeout: TIMEOUT_SETUP,
+        env: {
+          PATH: `${bin}:${process.env.PATH ?? ''}`,
+          SAFEWORD_SKIP_INSTALL: '',
+          SAFEWORD_UV_LOG: log,
+        },
+      });
+
+      expect(result.exitCode).toBe(0);
+      expect(readFileSync(log, 'utf8')).toContain('add --dev');
+      expect(result.stderr).toContain('pip install');
     },
     TIMEOUT_SETUP,
   );

@@ -278,7 +278,7 @@ function plannedPythonEffects(cwd: string): Effects {
     pipenv: 'Pipfile.lock',
   } as const;
   const installable = gaps.flatMap(gap => {
-    const packageManager = detectPythonPackageManager(gap.directory);
+    const packageManager = detectPythonPackageManager(gap.directory, cwd);
     if (packageManager === 'pip') return [];
     const prefix = nodePath.relative(cwd, gap.directory);
     const target = (file: string): string => (prefix === '' ? file : nodePath.join(prefix, file));
@@ -512,6 +512,8 @@ export async function createSetupPlan(
 
 interface PythonSetupResult {
   readonly tools: readonly PythonTool[];
+  readonly attemptedTools: readonly PythonTool[];
+  readonly installedTools: readonly PythonTool[];
   readonly command?: string;
   readonly attempted: boolean;
   readonly installed: boolean;
@@ -522,15 +524,24 @@ function configurePython(
   context: ReturnType<typeof createProjectContext>,
 ): PythonSetupResult {
   if (!context.languages?.python) {
-    return { tools: [], attempted: false, installed: false };
+    return {
+      tools: [],
+      attemptedTools: [],
+      installedTools: [],
+      attempted: false,
+      installed: false,
+    };
   }
   const gaps = getPythonToolDependencyGaps(cwd, hasImportLinterScaffoldTarget);
   const tools = [...new Set(gaps.flatMap(gap => gap.tools))];
-  if (tools.length === 0) return { tools, attempted: false, installed: false };
+  if (tools.length === 0) {
+    return { tools, attemptedTools: [], installedTools: [], attempted: false, installed: false };
+  }
 
   const commands = gaps.map(gap => ({
     ...gap,
-    command: getPythonInstallCommand(gap.directory, gap.tools),
+    packageManager: detectPythonPackageManager(gap.directory, cwd),
+    command: getPythonInstallCommand(gap.directory, gap.tools, cwd),
   }));
   const command = commands
     .map(item => {
@@ -538,18 +549,31 @@ function configurePython(
       return relative === '' ? item.command : `(cd ${JSON.stringify(relative)} && ${item.command})`;
     })
     .join(' && ');
-  const installable = commands.filter(item => detectPythonPackageManager(item.directory) !== 'pip');
+  const installable = commands.filter(item => item.packageManager !== 'pip');
   const shouldInstall = !process.env.SAFEWORD_SKIP_INSTALL && installable.length > 0;
   if (!shouldInstall) {
-    return { tools, command, attempted: false, installed: false };
+    return {
+      tools,
+      attemptedTools: [],
+      installedTools: [],
+      command,
+      attempted: false,
+      installed: false,
+    };
   }
+  const results = installable.map(item => ({
+    ...item,
+    succeeded: installPythonDependencies(item.directory, item.tools, cwd),
+  }));
+  const attemptedTools = [...new Set(installable.flatMap(item => item.tools))];
+  const installedTools = [...new Set(results.flatMap(item => (item.succeeded ? item.tools : [])))];
   return {
     tools,
+    attemptedTools,
+    installedTools,
     command,
     attempted: true,
-    installed:
-      installable.length === commands.length &&
-      installable.every(item => installPythonDependencies(item.directory, item.tools)),
+    installed: installable.length === commands.length && results.every(result => result.succeeded),
   };
 }
 
@@ -1367,8 +1391,10 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
       () => adapters.configurePython(cwd, context),
     );
     if (pythonSetup.attempted) {
-      for (const target of pythonSetup.tools) {
-        if (pythonSetup.installed) completedEffects.packages.push({ kind: 'install', target });
+      for (const target of pythonSetup.attemptedTools) {
+        if (pythonSetup.installedTools.includes(target)) {
+          completedEffects.packages.push({ kind: 'install', target });
+        }
         completedEffects.network.push({
           kind: 'package-registry',
           target,
@@ -1395,6 +1421,7 @@ async function applySetup(cwd: string, input: ApplySetupInput): Promise<CliResul
     });
     const health = await checkHealth(cwd, {
       skipPackageChecks: Boolean(process.env.SAFEWORD_SKIP_INSTALL),
+      skipPythonToolChecks: !configured && pythonSetup.tools.length > 0 && !pythonSetup.installed,
       schema: setupSchema,
     });
     return verifiedSetupResult(applied, health, configured);

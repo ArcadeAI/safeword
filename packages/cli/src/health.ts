@@ -696,6 +696,8 @@ export interface CheckHealthOptions {
    * Standalone `check` leaves this false so the diagnostic reports the truth.
    */
   skipPackageChecks?: boolean;
+  /** Ignore declaration gaps during a fresh setup that already emitted manual install guidance. */
+  skipPythonToolChecks?: boolean;
   /** Schema view used by the mutating command whose postcondition is being checked. */
   schema?: SafewordSchema;
 }
@@ -767,7 +769,9 @@ export async function checkHealth(
 
   // Check for missing language packs (unless install was deliberately skipped)
   const missingPacks = options.skipPackageChecks ? [] : getMissingPacks(cwd);
-  const missingPythonTools = findMissingPythonToolDeclarations(cwd, ctx);
+  const missingPythonTools = options.skipPythonToolChecks
+    ? []
+    : findMissingPythonToolDeclarations(cwd, ctx);
   const coverageDiagnostics = findCoverageDiagnostics(cwd);
   const ticketIndexConflicts = inspectTicketIndexConflicts(cwd);
   issues.push(...coverageDiagnostics.issues);

@@ -16,6 +16,7 @@ import nodePath from 'node:path';
 import { parse } from 'smol-toml';
 
 import { exists, findAllInTree, readFileSafe } from '../../utils/fs.js';
+import { matchesWorkspacePattern } from '../../utils/workspace-pattern.js';
 import type { SetupResult } from '../types.js';
 
 /**
@@ -358,12 +359,20 @@ function containsRequirementsPythonDependency(
 function hasPythonDependency(cwd: string, dependency: PythonTool): boolean {
   const pyprojectContent = readFileSafe(nodePath.join(cwd, 'pyproject.toml'));
   const pipfileContent = readFileSafe(nodePath.join(cwd, 'Pipfile'));
+  const legacyContent = ['setup.py', 'setup.cfg']
+    .map(filename => readFileSafe(nodePath.join(cwd, filename)))
+    .filter((content): content is string => content !== undefined);
 
   return (
     (pyprojectContent !== undefined &&
       containsPyprojectPythonDependency(pyprojectContent, dependency)) ||
     (pipfileContent !== undefined && containsPipfilePythonDependency(pipfileContent, dependency)) ||
-    containsRequirementsPythonDependency(cwd, nodePath.join(cwd, 'requirements.txt'), dependency)
+    containsRequirementsPythonDependency(cwd, nodePath.join(cwd, 'requirements.txt'), dependency) ||
+    legacyContent.some(content =>
+      content
+        .split(/[\s'",[\]()]+/u)
+        .some(declaration => startsPythonDependency(declaration, dependency)),
+    )
   );
 }
 
@@ -378,31 +387,47 @@ export function hasRuffDependency(cwd: string): boolean {
 /**
  * Detect the Python package manager used by the project.
  */
-export function detectPythonPackageManager(cwd: string): PythonPackageManager {
-  // Check for uv (uv.lock or .python-version with uv markers)
-  if (exists(nodePath.join(cwd, 'uv.lock'))) {
-    return 'uv';
-  }
+export function detectPythonPackageManager(
+  cwd: string,
+  repoRoot: string = cwd,
+): PythonPackageManager {
+  const root = nodePath.resolve(repoRoot);
+  let directory = nodePath.resolve(cwd);
+  const projectDirectory = directory;
+  const relative = nodePath.relative(root, directory);
+  if (relative.startsWith(`..${nodePath.sep}`) || nodePath.isAbsolute(relative)) directory = root;
 
-  // Check for Poetry
-  if (exists(nodePath.join(cwd, 'poetry.lock'))) {
+  while (true) {
+    const manager = detectPythonPackageManagerAt(directory);
+    if (manager && directory === projectDirectory) return manager;
+    if (manager === 'uv' && pythonWorkspaceOwns(directory, projectDirectory)) return manager;
+    if (directory === root) return 'pip';
+    directory = nodePath.dirname(directory);
+  }
+}
+
+export function pythonWorkspaceOwns(repoRoot: string, projectDirectory: string): boolean {
+  const document = parseTomlTable(readFileSafe(nodePath.join(repoRoot, 'pyproject.toml')) ?? '');
+  const workspace = document && tomlTableAt(document, ['tool', 'uv', 'workspace']);
+  if (!workspace) return false;
+  const relative = nodePath.relative(repoRoot, projectDirectory);
+  const members = tomlStringArray(workspace.members);
+  const excluded = tomlStringArray(workspace.exclude);
+  return (
+    members.some(pattern => matchesWorkspacePattern(relative, pattern)) &&
+    excluded.every(pattern => !matchesWorkspacePattern(relative, pattern))
+  );
+}
+
+function detectPythonPackageManagerAt(directory: string): PythonPackageManager | undefined {
+  if (exists(nodePath.join(directory, 'uv.lock'))) return 'uv';
+  if (
+    exists(nodePath.join(directory, 'poetry.lock')) ||
+    readFileSafe(nodePath.join(directory, 'pyproject.toml'))?.includes('[tool.poetry]')
+  ) {
     return 'poetry';
   }
-
-  // Check for poetry in pyproject.toml
-  const pyprojectPath = nodePath.join(cwd, 'pyproject.toml');
-  const pyprojectContent = readFileSafe(pyprojectPath);
-  if (pyprojectContent?.includes('[tool.poetry]')) {
-    return 'poetry';
-  }
-
-  // Check for Pipenv
-  if (exists(nodePath.join(cwd, 'Pipfile'))) {
-    return 'pipenv';
-  }
-
-  // Default to pip
-  return 'pip';
+  return exists(nodePath.join(directory, 'Pipfile')) ? 'pipenv' : undefined;
 }
 
 /**
@@ -411,8 +436,12 @@ export function detectPythonPackageManager(cwd: string): PythonPackageManager {
  * @param cwd - Project root directory
  * @param tools - Tools to install (defaults to ['ruff'])
  */
-export function getPythonInstallCommand(cwd: string, tools: string[] = ['ruff']): string {
-  const pm = detectPythonPackageManager(cwd);
+export function getPythonInstallCommand(
+  cwd: string,
+  tools: string[] = ['ruff'],
+  repoRoot: string = cwd,
+): string {
+  const pm = detectPythonPackageManager(cwd, repoRoot);
   const toolList = tools.join(' ');
 
   switch (pm) {
@@ -434,8 +463,9 @@ export function getPythonInstallCommand(cwd: string, tools: string[] = ['ruff'])
 function pythonInstallInvocation(
   cwd: string,
   tools: readonly PythonTool[],
+  repoRoot: string,
 ): { command: string; arguments: string[] } {
-  switch (detectPythonPackageManager(cwd)) {
+  switch (detectPythonPackageManager(cwd, repoRoot)) {
     case 'uv': {
       return { command: 'uv', arguments: ['add', '--dev', ...tools] };
     }
@@ -497,6 +527,8 @@ export function findPythonProjectDirectories(cwd: string): string[] {
     ...findAllInTree(cwd, 'pyproject.toml'),
     ...findAllInTree(cwd, 'requirements.txt'),
     ...findAllInTree(cwd, 'Pipfile'),
+    ...findAllInTree(cwd, 'setup.py'),
+    ...findAllInTree(cwd, 'setup.cfg'),
   ]);
   return [...directories].toSorted(
     (left, right) =>
@@ -524,16 +556,20 @@ export function getPythonToolDependencyGaps(
   });
 }
 
-export function installPythonDependencies(cwd: string, tools: readonly PythonTool[]): boolean {
+export function installPythonDependencies(
+  cwd: string,
+  tools: readonly PythonTool[],
+  repoRoot: string = cwd,
+): boolean {
   if (tools.length === 0) return true;
   if (process.env.SAFEWORD_SKIP_INSTALL) return true;
 
   // pip projects need manual install due to PEP 668
-  const pm = detectPythonPackageManager(cwd);
+  const pm = detectPythonPackageManager(cwd, repoRoot);
   if (pm === 'pip') return false;
 
   try {
-    const invocation = pythonInstallInvocation(cwd, tools);
+    const invocation = pythonInstallInvocation(cwd, tools, repoRoot);
     execFileSync(invocation.command, invocation.arguments, {
       cwd,
       stdio: 'pipe',

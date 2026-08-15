@@ -235,6 +235,23 @@ describe('repository Python projects', () => {
       },
     ]);
   });
+
+  it.each(['setup.py', 'setup.cfg'])('discovers nested legacy %s projects', manifest => {
+    writeTestFile(context.projectDirectory, `services/legacy/${manifest}`, '');
+
+    expect(findPythonProjectDirectories(context.projectDirectory)).toEqual([
+      nodePath.join(context.projectDirectory, 'services/legacy'),
+    ]);
+  });
+
+  it.each([
+    ['setup.py', 'setup(name="legacy", extras_require={"dev": ["ruff", "mypy", "deadcode"]})\n'],
+    ['setup.cfg', '[options.extras_require]\ndev =\n  ruff\n  mypy\n  deadcode\n'],
+  ])('reads tool declarations from legacy %s projects', (manifest, content) => {
+    writeTestFile(context.projectDirectory, `services/legacy/${manifest}`, content);
+
+    expect(getPythonToolDependencyGaps(context.projectDirectory, () => false)).toEqual([]);
+  });
 });
 
 // =============================================================================
@@ -280,6 +297,39 @@ name = "test"
     createPythonProject(context.projectDirectory, { manager: 'pip' });
 
     expect(detectPythonPackageManager(context.projectDirectory)).toBe('pip');
+  });
+
+  it('inherits a workspace-root uv lock for a declared nested member', () => {
+    writeTestFile(
+      context.projectDirectory,
+      'pyproject.toml',
+      '[tool.uv.workspace]\nmembers=["apps/*"]\n',
+    );
+    writeTestFile(context.projectDirectory, 'uv.lock', '');
+    writeTestFile(context.projectDirectory, 'apps/api/pyproject.toml', '[project]\nname="api"\n');
+
+    expect(
+      detectPythonPackageManager(
+        nodePath.join(context.projectDirectory, 'apps/api'),
+        context.projectDirectory,
+      ),
+    ).toBe('uv');
+  });
+
+  it('does not inherit an intermediate uv lock without workspace membership', () => {
+    writeTestFile(context.projectDirectory, 'services/uv.lock', '');
+    writeTestFile(
+      context.projectDirectory,
+      'services/legacy/pyproject.toml',
+      '[project]\nname="legacy"\n',
+    );
+
+    expect(
+      detectPythonPackageManager(
+        nodePath.join(context.projectDirectory, 'services/legacy'),
+        context.projectDirectory,
+      ),
+    ).toBe('pip');
   });
 });
 
