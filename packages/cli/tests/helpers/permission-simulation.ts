@@ -98,7 +98,7 @@ export function shellModeRemovesAccess(mode: string): boolean {
 }
 
 function literalText(node: ts.Node | undefined): string | undefined {
-  if (node && ts.isStringLiteralLike(node)) return node.text;
+  if (node && (ts.isStringLiteralLike(node) || ts.isTemplateLiteralToken(node))) return node.text;
   return undefined;
 }
 

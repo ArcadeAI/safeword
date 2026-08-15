@@ -149,6 +149,11 @@ describe('permission-simulation detection', () => {
     expect(permissionSimulations(source)).not.toEqual([]);
   });
 
+  it('flags chmod in a shell template with substitutions', () => {
+    const source = 'const script = String.raw`echo ${value}; chmod 000 file`;';
+    expect(permissionSimulations(source)).toEqual(['chmod 000']);
+  });
+
   // A regex literal after `return` or `=>` used to read as division, because
   // the character before the slash is `n` or `>`. The quote inside it then
   // opened a "string" that ran to the next quote anywhere later in the file —
