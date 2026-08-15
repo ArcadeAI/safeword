@@ -245,6 +245,10 @@ describe('BDD proof provenance', () => {
 
   it.each([
     [
+      'PM-grade intake readiness',
+      '.project/tickets/TPP6Y2-pm-grade-intake-readiness-gate/bdd-proof.json',
+    ],
+    [
       'durable independent review',
       '.project/tickets/7GHXA5-finish-deep-reviews-in-background/bdd-proof.json',
     ],

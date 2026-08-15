@@ -1,0 +1,13 @@
+{
+  "feature": "features/pm-grade-intake-readiness-gate.feature",
+  "scenarios": {
+    "Pre-classify (no active ticket) surfaces the readiness pointer": ["packages/cli/tests/hooks/readiness-pointer.test.ts", "surfaces when there is no active ticket (pre-classify)"],
+    "An intake-phase ticket surfaces the readiness pointer": ["packages/cli/tests/hooks/readiness-pointer.test.ts", "surfaces during the intake phase"],
+    "An implement-phase ticket suppresses the readiness pointer": ["packages/cli/tests/hooks/readiness-pointer.test.ts", "is suppressed once a build phase is under way"],
+    "The pointer names all five dimensions": ["packages/cli/tests/hooks/readiness-pointer.test.ts", "names all five dimensions"],
+    "The pointer stays within the length cap": ["packages/cli/tests/hooks/readiness-pointer.test.ts", "stays within the length cap (no spelled-out prompts)"],
+    "The constraint dimension is scoped to what must not break": ["packages/cli/tests/hooks/readiness-pointer.test.ts", "scopes the constraint dimension to what must not break, not an NFR survey"],
+    "SAFEWORD.md states the value-of-information triage": ["packages/cli/tests/hooks/readiness-pointer.test.ts", "SAFEWORD.md states the value-of-information triage"],
+    "SAFEWORD.md defines readiness as edge-case-level questions": ["packages/cli/tests/hooks/readiness-pointer.test.ts", "SAFEWORD.md defines readiness as edge-case-level questions"]
+  }
+}
