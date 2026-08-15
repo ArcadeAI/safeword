@@ -330,9 +330,8 @@ function parameterizedVitestCases(source: string): Map<string, ParameterizedCase
             ? literalValue(property.initializer)
             : undefined;
         });
-        return values.includes(undefined)
-          ? []
-          : [values.length === 1 ? values[0] : JSON.stringify(values)];
+        if (!values.every((value): value is string => value !== undefined)) return [];
+        return [values.length === 1 ? values.join('') : JSON.stringify(values)];
       }
       const primitive = literalValue(row);
       return primitive === undefined ? [] : [primitive];
