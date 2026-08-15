@@ -101,6 +101,26 @@ function movePersistedRequestToDeadLetter(persisted: { path: string }): {
   return { deadLetter, originalBytes };
 }
 
+function relayRequest(
+  randomUUID: string,
+  sourceKey = 'source',
+  now: () => number = Date.now,
+): RelayDraftRequest {
+  return createRelayRequest(
+    {
+      body: 'body',
+      canonicalKey: 'canonical',
+      installationId: 42,
+      labels: ['retro'],
+      legacySignature: 'legacy',
+      repository: 'arcadeai/safeword',
+      sourceKey,
+      title: 'title',
+    },
+    { now, randomUUID: () => randomUUID },
+  );
+}
+
 // Compact in-memory transport — only the network boundary is faked.
 class FakeGitHub implements IssueTracker {
   private nextIssue = 1;
@@ -1960,19 +1980,7 @@ describe('retro summary drop reporting (PNZM3B SM2.R1)', () => {
 describe('relay dead-letter recovery command', () => {
   it('rearms the exact durable request identity for retry', async () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-retry-'));
-    const original = createRelayRequest(
-      {
-        body: 'body',
-        canonicalKey: 'canonical',
-        installationId: 42,
-        labels: ['retro'],
-        legacySignature: 'legacy',
-        repository: 'arcadeai/safeword',
-        sourceKey: 'source',
-        title: 'title',
-      },
-      { now: Date.now, randomUUID: () => '00000000-0000-4000-8000-000000001479' },
-    );
+    const original = relayRequest('00000000-0000-4000-8000-000000001479');
     const persisted = await persistRelayRequest(projectDirectory, original);
     movePersistedRequestToDeadLetter(persisted);
     const messages: string[] = [];
@@ -2004,19 +2012,7 @@ describe('relay dead-letter recovery command', () => {
 
   it('explains a dead-letter rearm that loses ownership before the transition', async () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-rearm-race-'));
-    const original = createRelayRequest(
-      {
-        body: 'body',
-        canonicalKey: 'canonical',
-        installationId: 42,
-        labels: ['retro'],
-        legacySignature: 'legacy',
-        repository: 'arcadeai/safeword',
-        sourceKey: 'source-race',
-        title: 'title',
-      },
-      { now: Date.now, randomUUID: () => '00000000-0000-4000-8000-000000001490' },
-    );
+    const original = relayRequest('00000000-0000-4000-8000-000000001490', 'source-race');
     const persisted = await persistRelayRequest(projectDirectory, original);
     movePersistedRequestToDeadLetter(persisted);
     const error = vi.fn<(message: string) => void>();
@@ -2042,19 +2038,7 @@ describe('relay dead-letter recovery command', () => {
   it('does not misreport a fault-injection failure as an invalid request identity', async () => {
     const error = vi.fn<(message: string) => void>();
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-rearm-injected-fault-'));
-    const original = createRelayRequest(
-      {
-        body: 'body',
-        canonicalKey: 'canonical',
-        installationId: 42,
-        labels: ['retro'],
-        legacySignature: 'legacy',
-        repository: 'arcadeai/safeword',
-        sourceKey: 'source-injected-fault',
-        title: 'title',
-      },
-      { now: Date.now, randomUUID: () => '00000000-0000-4000-8000-000000001491' },
-    );
+    const original = relayRequest('00000000-0000-4000-8000-000000001491', 'source-injected-fault');
     const persisted = await persistRelayRequest(projectDirectory, original);
     movePersistedRequestToDeadLetter(persisted);
 
@@ -2074,19 +2058,7 @@ describe('relay dead-letter recovery command', () => {
 
   it('recovers an expired dead letter by replaying exact bytes to the existing server identity', async () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-recover-'));
-    const original = createRelayRequest(
-      {
-        body: 'body',
-        canonicalKey: 'canonical',
-        installationId: 42,
-        labels: ['retro'],
-        legacySignature: 'legacy',
-        repository: 'arcadeai/safeword',
-        sourceKey: 'source',
-        title: 'title',
-      },
-      { now: () => 0, randomUUID: () => '00000000-0000-4000-8000-000000001481' },
-    );
+    const original = relayRequest('00000000-0000-4000-8000-000000001481', 'source', () => 0);
     const persisted = await persistRelayRequest(projectDirectory, original);
     movePersistedRequestToDeadLetter(persisted);
     const send = vi.fn<typeof fetch>((_input, init) => {
@@ -2124,19 +2096,7 @@ describe('relay dead-letter recovery command', () => {
 
   it('bridges an existing server dead letter to operator recovery', async () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-unresolved-'));
-    const original = createRelayRequest(
-      {
-        body: 'body',
-        canonicalKey: 'canonical',
-        installationId: 42,
-        labels: ['retro'],
-        legacySignature: 'legacy',
-        repository: 'arcadeai/safeword',
-        sourceKey: 'source',
-        title: 'title',
-      },
-      { now: () => 0, randomUUID: () => '00000000-0000-4000-8000-000000001482' },
-    );
+    const original = relayRequest('00000000-0000-4000-8000-000000001482', 'source', () => 0);
     const persisted = await persistRelayRequest(projectDirectory, original);
     movePersistedRequestToDeadLetter(persisted);
 
@@ -2191,19 +2151,7 @@ describe('relay dead-letter recovery command', () => {
 
   it('renews an expired local-only dead letter under the original request identity', async () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-renew-'));
-    const original = createRelayRequest(
-      {
-        body: 'body',
-        canonicalKey: 'canonical',
-        installationId: 42,
-        labels: ['retro'],
-        legacySignature: 'legacy',
-        repository: 'arcadeai/safeword',
-        sourceKey: 'source',
-        title: 'title',
-      },
-      { now: () => 0, randomUUID: () => '00000000-0000-4000-8000-000000001483' },
-    );
+    const original = relayRequest('00000000-0000-4000-8000-000000001483', 'source', () => 0);
     const persisted = await persistRelayRequest(projectDirectory, original);
     movePersistedRequestToDeadLetter(persisted);
     const sent: RelayDraftRequest[] = [];
@@ -2253,19 +2201,7 @@ describe('relay dead-letter recovery command', () => {
 
   it('does not rewrite an expired dead letter for an unrelated validation failure', async () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-invalid-'));
-    const original = createRelayRequest(
-      {
-        body: 'body',
-        canonicalKey: 'canonical',
-        installationId: 42,
-        labels: ['retro'],
-        legacySignature: 'legacy',
-        repository: 'arcadeai/safeword',
-        sourceKey: 'source',
-        title: 'title',
-      },
-      { now: () => 0, randomUUID: () => '00000000-0000-4000-8000-000000001484' },
-    );
+    const original = relayRequest('00000000-0000-4000-8000-000000001484', 'source', () => 0);
     const persisted = await persistRelayRequest(projectDirectory, original);
     const { deadLetter, originalBytes } = movePersistedRequestToDeadLetter(persisted);
     const send = vi.fn<typeof fetch>(() =>
@@ -2298,18 +2234,10 @@ describe('relay dead-letter recovery command', () => {
 
   it('keeps renewed bytes when a retryable 4xx does not reject the payload', async () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-renew-auth-'));
-    const original = createRelayRequest(
-      {
-        body: 'body',
-        canonicalKey: 'canonical',
-        installationId: 42,
-        labels: ['retro'],
-        legacySignature: 'legacy',
-        repository: 'arcadeai/safeword',
-        sourceKey: 'source-renew-auth',
-        title: 'title',
-      },
-      { now: () => 0, randomUUID: () => '00000000-0000-4000-8000-000000001524' },
+    const original = relayRequest(
+      '00000000-0000-4000-8000-000000001524',
+      'source-renew-auth',
+      () => 0,
     );
     const persisted = await persistRelayRequest(projectDirectory, original);
     const { deadLetter, originalBytes } = movePersistedRequestToDeadLetter(persisted);
@@ -2547,19 +2475,7 @@ describe('relay dead-letter recovery command', () => {
 
   it('bridges an ambiguous submit response to the operator recovery endpoint', async () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-ambiguous-'));
-    const original = createRelayRequest(
-      {
-        body: 'body',
-        canonicalKey: 'canonical',
-        installationId: 42,
-        labels: ['retro'],
-        legacySignature: 'legacy',
-        repository: 'arcadeai/safeword',
-        sourceKey: 'source',
-        title: 'title',
-      },
-      { now: () => 0, randomUUID: () => '00000000-0000-4000-8000-000000001485' },
-    );
+    const original = relayRequest('00000000-0000-4000-8000-000000001485', 'source', () => 0);
     const persisted = await persistRelayRequest(projectDirectory, original);
     movePersistedRequestToDeadLetter(persisted);
     const requestedUrls: string[] = [];
@@ -2697,19 +2613,7 @@ describe('relay dead-letter recovery command', () => {
   it('lists and rearms through the built Commander entry point', async () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-cli-retry-'));
     const durableOutbox = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-cli-outbox-'));
-    const original = createRelayRequest(
-      {
-        body: 'body',
-        canonicalKey: 'canonical',
-        installationId: 42,
-        labels: ['retro'],
-        legacySignature: 'legacy',
-        repository: 'arcadeai/safeword',
-        sourceKey: 'source',
-        title: 'title',
-      },
-      { now: Date.now, randomUUID: () => '00000000-0000-4000-8000-000000001480' },
-    );
+    const original = relayRequest('00000000-0000-4000-8000-000000001480');
     const persisted = await persistRelayRequest(durableOutbox, original);
     movePersistedRequestToDeadLetter(persisted);
     rmSync(projectDirectory, { recursive: true, force: true });
