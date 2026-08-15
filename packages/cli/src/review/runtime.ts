@@ -314,7 +314,11 @@ function hasValidReviewerOutputBody(value: unknown): boolean {
       Object.keys(finding).length === 2 &&
       Object.hasOwn(finding, 'severity') &&
       Object.hasOwn(finding, 'message') &&
-      ['info', 'warning', 'error'].includes(String(finding.severity)) &&
+      // Coercing here would let a severity that merely stringifies to a known
+      // one validate, and then compare unequal to 'error' in the check below —
+      // approving with an error finding, which is what that check forbids.
+      typeof finding.severity === 'string' &&
+      ['info', 'warning', 'error'].includes(finding.severity) &&
       typeof finding.message === 'string',
   );
   if (!findingsAreValid) return false;

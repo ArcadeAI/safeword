@@ -142,6 +142,14 @@ describe('headless reviewer output adapters', () => {
       'approval with an error finding',
       { ...output, findings: [{ severity: 'error', message: 'must be resolved' }] },
     ],
+    // A severity that merely stringifies to a known one used to validate, and
+    // then compared unequal to 'error' in the approve-with-errors check — so
+    // this exact shape let a reviewer approve while carrying an error finding.
+    ['non-string severity', { ...output, findings: [{ severity: ['info'], message: 'noted' }] }],
+    [
+      'approval with an error finding wrapped in an array',
+      { ...output, findings: [{ severity: ['error'], message: 'must be resolved' }] },
+    ],
   ])('rejects structurally invalid output: %s', (_label, invalidOutput) => {
     expect(() => parseReviewerOutput('claude', JSON.stringify(invalidOutput))).toThrow(
       'invalid reviewer output',

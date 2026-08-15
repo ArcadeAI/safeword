@@ -43325,7 +43325,7 @@ function hasValidReviewerOutputBody(value) {
   if (Object.keys(value).some((key) => !allowedOutputKeys.has(key)) || value.schema_version !== 1 || value.verdict !== "approve" && value.verdict !== "request_changes" || typeof value.summary !== "string" || !Array.isArray(value.findings)) {
     return false;
   }
-  const findingsAreValid = value.findings.every((finding) => isRecord3(finding) && Object.keys(finding).length === 2 && Object.hasOwn(finding, "severity") && Object.hasOwn(finding, "message") && ["info", "warning", "error"].includes(String(finding.severity)) && typeof finding.message === "string");
+  const findingsAreValid = value.findings.every((finding) => isRecord3(finding) && Object.keys(finding).length === 2 && Object.hasOwn(finding, "severity") && Object.hasOwn(finding, "message") && typeof finding.severity === "string" && ["info", "warning", "error"].includes(finding.severity) && typeof finding.message === "string");
   if (!findingsAreValid)
     return false;
   return reviewerVerdictMatchesFindings(value.verdict, value.findings);
