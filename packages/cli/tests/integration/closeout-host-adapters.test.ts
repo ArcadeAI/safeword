@@ -36,6 +36,7 @@ import {
   setupOrThrow,
   testCliPath,
 } from '../helpers.js';
+import { blockChildren } from '../helpers/io-failure.js';
 
 const temporaryProjects: string[] = [];
 
@@ -1242,7 +1243,7 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
       ].join('\n'),
     );
     const receiptDirectory = nodePath.dirname(verificationReceiptPath(fixture));
-    writeFileSync(receiptDirectory, 'not a directory\n');
+    blockChildren(receiptDirectory);
     const environment = {
       ...process.env,
       PATH: `${fixture.bin}:${process.env.PATH ?? ''}`,

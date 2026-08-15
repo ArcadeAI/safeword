@@ -4,7 +4,7 @@ import nodePath from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { createTemporaryDirectory, runCli } from '../helpers.js';
-import { blockChildren } from '../helpers/io-failure.js';
+import { blockChildren, blockWrites } from '../helpers/io-failure.js';
 
 function installFakeGitHubCli(directory: string): { bin: string; log: string } {
   const bin = nodePath.join(directory, 'bin');
@@ -165,7 +165,7 @@ describe('configured public-command wiring', () => {
 
   it('reports completed connect effects when tracker-map seeding fails', async () => {
     const directory = createTemporaryDirectory();
-    mkdirSync(nodePath.join(directory, '.safeword/tracker-map.json'), { recursive: true });
+    blockWrites(nodePath.join(directory, '.safeword/tracker-map.json'));
     const github = installFakeGitHubCli(directory);
 
     const result = await runCli(

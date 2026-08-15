@@ -17,7 +17,7 @@ import {
 } from '../../templates/hooks/lib/retro-draft-spool.js';
 import { decideRetroFilingNudge } from '../../templates/hooks/lib/retro-nudge.js';
 import { retroDraft as draft, sealedRetroDraft } from '../helpers.js';
-import { sinkWrites } from '../helpers/io-failure.js';
+import { blockWrites, sinkWrites } from '../helpers/io-failure.js';
 
 const DRAIN_RETRO_SPOOL = nodePath.resolve(
   import.meta.dirname,
@@ -134,7 +134,7 @@ describe('fileSpooledDrafts (BNGK9W — the agent filing seam: post each verbati
   it('retains a posted draft when its acknowledgement write fails', async () => {
     const posted = draft('retro:aaaaaaaaaaaa', 'Posted');
     spoolDrafts(projectDirectory, 'sess-1', [posted]);
-    mkdirSync(ackFilePath(projectDirectory, 'sess-1'));
+    blockWrites(ackFilePath(projectDirectory, 'sess-1'));
 
     const result = await fileSpooledDrafts(projectDirectory, 'sess-1', () =>
       Promise.resolve({ issue: 101 }),
