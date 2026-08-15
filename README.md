@@ -247,6 +247,8 @@ Key directories created in your project:
 | **test-definitions-feature.md** | BDD scenarios (Rule + Scenario + G/W/T + R/G/R)                           | planning-guide.md   |
 | **design-doc-template.md**      | Design doc structure (architecture, components)                           | design-doc-guide.md |
 | **architecture-template.md**    | Living architecture decision structure                                    | planning-guide.md   |
+| **adr-template.md**             | Standalone record for a structural or hard-to-reverse decision            | planning-guide.md   |
+| **impl-plan-template.md**       | Feature implementation plan, authored before TDD starts                   | planning-guide.md   |
 | **ticket-template.md**          | Context anchor for complex/multi-step work                                | SAFEWORD.md         |
 | **work-log-template.md**        | Scratch pad and working memory during execution                           | SAFEWORD.md         |
 | **tripwire-template.md**        | Upstream-workaround tripwire (header + pinned-version test)               | testing-guide.md    |
@@ -330,7 +332,7 @@ and evidence remediation. When a Codex session is bound to an in-progress
 done-phase ticket and shared evidence passes, Stop also marks that ticket done;
 it never stages, commits, or opens a PR.
 
-**Skills** (in `.claude/skills/`): On-demand workflows for planning, BDD/TDD, debugging, elicitation, architecture exploration, review, refactoring, verification, retrospectives, linting, testing, ticket management, and safe session closeout. The directory is the source of truth; generated Codex equivalents use the `safeword:<skill>` namespace. Internal `finish-review` guidance is not a user command: class-1 review workflows invoke it only after the CLI coordinator returns typed route exhaustion.
+**Skills** (in `.claude/skills/`): On-demand workflows for planning, BDD/TDD, debugging, elicitation, architecture exploration, review, refactoring, verification, retrospectives, linting, testing, ticket management, and safe session closeout. The directory is the source of truth; generated Codex equivalents use the `safeword:<skill>` namespace. Internal `finish-review` guidance is not a user command: class-1 review workflows (those requiring independent/cross-model review, as opposed to class-2's self-verifiable checks) invoke it only after the CLI coordinator returns typed route exhaustion.
 
 Review prefers every independent Claude/Codex CLI route, then same-agent
 headless review. If those routes cannot complete, a foreground agent makes one

@@ -401,7 +401,7 @@ dev = ["ruff>=0.8.0"]
         env: SKIP_INSTALL_ENV,
       });
 
-      // Ruff alone is not the full Safe Word Python tool contract.
+      // Ruff alone is not the full Safeword Python tool contract.
       expect(result.stderr).toContain('Install Python tools: pip install mypy deadcode');
       expect(result.stderr).not.toContain('Python tools installed');
     },
