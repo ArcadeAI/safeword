@@ -6,12 +6,7 @@ type ReviewVerdict = 'approve' | 'request_changes';
 const REVIEW_AGENTS = new Set(['claude', 'codex']);
 const REVIEW_AUTHORS = new Set(['claude', 'codex', 'cursor']);
 const REPLACED_REVIEW_FINDINGS = new Set(['REVIEW_INDEPENDENCE', 'REVIEW_INDEPENDENCE_DEGRADED']);
-const RETRYABLE_REVIEW_FAILURES = new Set([
-  'timed_out',
-  'process_failed',
-  'invalid_output',
-  'source_changed',
-]);
+const RETRYABLE_REVIEW_FAILURES = new Set(['timed_out', 'process_failed', 'invalid_output']);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -97,11 +92,21 @@ function blockedReviewCoverageLine(
   return incompleteCoverageLine(data);
 }
 
-function reviewCoverageLine(data: Record<string, unknown>, state: CliResult['state']): string {
-  const coverage = reviewCoverage(data);
-  const status = data.status;
-  const verdict = reviewVerdict(data);
+function specialReviewCoverageLine(status: unknown, state: CliResult['state']): string | undefined {
+  if (status === 'existing_route' && state === 'healthy') return 'Review not requested.';
+  if (status === 'stale' && state === 'action_required') {
+    return 'Review stale — sources changed during the check.';
+  }
+  return undefined;
+}
 
+function reviewCoverageLine(data: Record<string, unknown>, state: CliResult['state']): string {
+  const status = data.status;
+  const specialLine = specialReviewCoverageLine(status, state);
+  if (specialLine !== undefined) return specialLine;
+
+  const coverage = reviewCoverage(data);
+  const verdict = reviewVerdict(data);
   if (!reviewStateMatchesStatus(state, status)) return incompleteCoverageLine(data);
   if (!reviewPolicyMatchesStatus(data)) return 'Review incomplete.';
   if (!reviewVerdictMatchesStatus(status, verdict)) return incompleteCoverageLine(data);

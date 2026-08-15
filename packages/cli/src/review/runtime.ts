@@ -219,7 +219,6 @@ export function minimumRouteMs(
 }
 
 export function reviewTimeoutMilliseconds(
-  _reviewer: ReviewAgent,
   env: Readonly<Record<string, string | undefined>> = process.env,
 ): number {
   const raw = env.SAFEWORD_REVIEW_TIMEOUT_MS;
@@ -239,7 +238,7 @@ export function reviewTimeoutMilliseconds(
 export function attemptDeadlineMs(
   env: Readonly<Record<string, string | undefined>> = process.env,
 ): number {
-  return reviewTimeoutMilliseconds('claude', env);
+  return reviewTimeoutMilliseconds(env);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -552,7 +551,7 @@ function appendBounded(
  * turn, not background work that may overlap the next route.
  */
 const CLEANUP_BUDGET_MS = 250;
-const PROCESS_GROUP_POLL_INTERVAL_MS = 25;
+const PROCESS_GROUP_POLL_INTERVAL_MS = 50;
 const WINDOWS_CLEANUP_BUDGET_MS = 1000;
 
 /**

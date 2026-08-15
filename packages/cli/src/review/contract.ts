@@ -13,8 +13,7 @@ export type ReviewFailure =
   | 'timed_out'
   | 'invalid_output'
   | 'REVIEWER_PROVENANCE_MISSING'
-  | 'REVIEWER_PROVENANCE_CONTRADICTORY'
-  | 'source_changed';
+  | 'REVIEWER_PROVENANCE_CONTRADICTORY';
 
 interface ReviewFinding {
   readonly severity: 'info' | 'warning' | 'error';

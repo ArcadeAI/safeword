@@ -2455,9 +2455,20 @@ function blockedReviewCoverageLine(data, coverage, verdict) {
   }
   return incompleteCoverageLine(data);
 }
+function specialReviewCoverageLine(status, state) {
+  if (status === "existing_route" && state === "healthy")
+    return "Review not requested.";
+  if (status === "stale" && state === "action_required") {
+    return "Review stale \u2014 sources changed during the check.";
+  }
+  return;
+}
 function reviewCoverageLine(data, state) {
-  const coverage = reviewCoverage(data);
   const status = data.status;
+  const specialLine = specialReviewCoverageLine(status, state);
+  if (specialLine !== undefined)
+    return specialLine;
+  const coverage = reviewCoverage(data);
   const verdict = reviewVerdict(data);
   if (!reviewStateMatchesStatus(state, status))
     return incompleteCoverageLine(data);
@@ -2528,12 +2539,7 @@ var init_review_presentation = __esm(() => {
   REVIEW_AGENTS = new Set(["claude", "codex"]);
   REVIEW_AUTHORS = new Set(["claude", "codex", "cursor"]);
   REPLACED_REVIEW_FINDINGS = new Set(["REVIEW_INDEPENDENCE", "REVIEW_INDEPENDENCE_DEGRADED"]);
-  RETRYABLE_REVIEW_FAILURES = new Set([
-    "timed_out",
-    "process_failed",
-    "invalid_output",
-    "source_changed"
-  ]);
+  RETRYABLE_REVIEW_FAILURES = new Set(["timed_out", "process_failed", "invalid_output"]);
 });
 
 // src/cli-protocol/result.ts
@@ -43357,7 +43363,7 @@ function runBoundMs(env = process.env) {
 function minimumRouteMs(env = process.env) {
   return Math.min(60000, attemptDeadlineMs(env));
 }
-function reviewTimeoutMilliseconds(_reviewer, env = process.env) {
+function reviewTimeoutMilliseconds(env = process.env) {
   const raw = env.SAFEWORD_REVIEW_TIMEOUT_MS;
   const configured = raw === undefined ? NaN : Number(raw);
   const ceiling = runBoundMs(env);
@@ -43367,7 +43373,7 @@ function reviewTimeoutMilliseconds(_reviewer, env = process.env) {
   return Math.min(requested, maximumAttempt);
 }
 function attemptDeadlineMs(env = process.env) {
-  return reviewTimeoutMilliseconds("claude", env);
+  return reviewTimeoutMilliseconds(env);
 }
 function isRecord3(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -43852,7 +43858,7 @@ function writeContractFile() {
     }
   };
 }
-var REVIEW_OUTPUT_SCHEMA_SHAPE, REVIEW_OUTPUT_SCHEMA, ARGUMENTS, HELP_ARGUMENTS, REQUIRED_CAPABILITIES, MAX_OUTPUT_BYTES, REVIEW_RUBRICS, ReviewRuntimeError, DEFAULT_ATTEMPT_DEADLINE_MS = 120000, RUN_BOUND_MS = 270000, BACKGROUND_RUN_BOUND_MS = 1800000, BACKGROUND_ATTEMPT_DEADLINE_MS = 600000, CLEANUP_BUDGET_MS = 250, PROCESS_GROUP_POLL_INTERVAL_MS = 25, WINDOWS_CLEANUP_BUDGET_MS = 1000, reviewerStops;
+var REVIEW_OUTPUT_SCHEMA_SHAPE, REVIEW_OUTPUT_SCHEMA, ARGUMENTS, HELP_ARGUMENTS, REQUIRED_CAPABILITIES, MAX_OUTPUT_BYTES, REVIEW_RUBRICS, ReviewRuntimeError, DEFAULT_ATTEMPT_DEADLINE_MS = 120000, RUN_BOUND_MS = 270000, BACKGROUND_RUN_BOUND_MS = 1800000, BACKGROUND_ATTEMPT_DEADLINE_MS = 600000, CLEANUP_BUDGET_MS = 250, PROCESS_GROUP_POLL_INTERVAL_MS = 50, WINDOWS_CLEANUP_BUDGET_MS = 1000, reviewerStops;
 var init_runtime = __esm(() => {
   init_environment();
   REVIEW_OUTPUT_SCHEMA_SHAPE = {
@@ -44146,12 +44152,12 @@ function changedReviewResult(input) {
   if (!input.sourceChanged)
     return;
   return createResult({
-    state: "failed",
-    errors: [
+    state: "action_required",
+    findings: [
       {
-        code: "REVIEW_SOURCE_CHANGED",
+        code: "REVIEW_STALE",
         message: "A reviewed source changed during the check; no passing evidence was recorded.",
-        retryable: true
+        severity: "warning"
       }
     ],
     effects: {
@@ -44166,7 +44172,7 @@ function changedReviewResult(input) {
     ],
     data: {
       command: "review run",
-      status: "blocked",
+      status: "stale",
       author_agent: input.author,
       assigned_reviewer: input.reviewer,
       review_policy: input.policy,
@@ -44380,7 +44386,7 @@ async function runAlternateModelRoute(input) {
     snapshotChanged,
     network: [
       ...networkEffectsForFailure(input.reviewer, input.preferredFailure),
-      reviewRequest(input.reviewer)
+      ...outcome.kind === "failed" ? networkEffectsForFailure(input.reviewer, outcome.failure) : [reviewRequest(input.reviewer)]
     ]
   });
   if (changedResult !== undefined)
@@ -44522,7 +44528,8 @@ async function runReview(input) {
     targets: input.targets,
     context: input.context,
     sourceChanged,
-    snapshotChanged
+    snapshotChanged,
+    network: outcome.kind === "failed" ? networkEffectsForFailure(reviewer, outcome.failure) : [reviewRequest(reviewer)]
   });
   if (changedResult !== undefined)
     return changedResult;
@@ -44579,7 +44586,6 @@ var init_coordinator = __esm(() => {
     launch_failed: "could not launch its compatibility check",
     not_authenticated: "is not signed in",
     invalid_output: "gave an answer that could not be accepted",
-    source_changed: "was reviewing files that changed underneath it",
     REVIEWER_PROVENANCE_MISSING: "gave an answer that did not identify it as the reviewer",
     REVIEWER_PROVENANCE_CONTRADICTORY: "gave an answer that did not identify it as the reviewer"
   };
@@ -44981,7 +44987,7 @@ function isReviewResultData(value, state) {
   if (data.command === "review status")
     return ["failed", "stale"].includes(data.status);
   if (data.status !== "approved" && data.status !== "changes_requested")
-    return ["blocked", "existing_route", "failed"].includes(data.status);
+    return ["blocked", "existing_route", "failed", "stale"].includes(data.status);
   return isCompletedReviewData(data, state);
 }
 function isCompletedReviewData(data, state) {

@@ -347,7 +347,7 @@ function isReviewResultData(value: unknown, state: unknown): boolean {
   if (typeof data.status !== 'string') return false;
   if (data.command === 'review status') return ['failed', 'stale'].includes(data.status);
   if (data.status !== 'approved' && data.status !== 'changes_requested')
-    return ['blocked', 'existing_route', 'failed'].includes(data.status);
+    return ['blocked', 'existing_route', 'failed', 'stale'].includes(data.status);
   return isCompletedReviewData(data, state);
 }
 

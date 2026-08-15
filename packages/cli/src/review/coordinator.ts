@@ -201,7 +201,6 @@ const FAILURE_CAUSES: Readonly<Record<string, string>> = {
   launch_failed: 'could not launch its compatibility check',
   not_authenticated: 'is not signed in',
   invalid_output: 'gave an answer that could not be accepted',
-  source_changed: 'was reviewing files that changed underneath it',
   REVIEWER_PROVENANCE_MISSING: 'gave an answer that did not identify it as the reviewer',
   REVIEWER_PROVENANCE_CONTRADICTORY: 'gave an answer that did not identify it as the reviewer',
 };
@@ -338,12 +337,12 @@ function changedReviewResult(input: {
   }
   if (!input.sourceChanged) return undefined;
   return createResult({
-    state: 'failed',
-    errors: [
+    state: 'action_required',
+    findings: [
       {
-        code: 'REVIEW_SOURCE_CHANGED',
+        code: 'REVIEW_STALE',
         message: 'A reviewed source changed during the check; no passing evidence was recorded.',
-        retryable: true,
+        severity: 'warning',
       },
     ],
     effects: {
@@ -358,7 +357,7 @@ function changedReviewResult(input: {
     ],
     data: {
       command: 'review run',
-      status: 'blocked',
+      status: 'stale',
       author_agent: input.author,
       assigned_reviewer: input.reviewer,
       review_policy: input.policy,
@@ -680,7 +679,9 @@ async function runAlternateModelRoute(
     snapshotChanged,
     network: [
       ...networkEffectsForFailure(input.reviewer, input.preferredFailure),
-      reviewRequest(input.reviewer),
+      ...(outcome.kind === 'failed'
+        ? networkEffectsForFailure(input.reviewer, outcome.failure)
+        : [reviewRequest(input.reviewer)]),
     ],
   });
   if (changedResult !== undefined) return { kind: 'completed', result: changedResult };
@@ -864,6 +865,10 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
     context: input.context,
     sourceChanged,
     snapshotChanged,
+    network:
+      outcome.kind === 'failed'
+        ? networkEffectsForFailure(reviewer, outcome.failure)
+        : [reviewRequest(reviewer)],
   });
   if (changedResult !== undefined) return changedResult;
   if (outcome.kind === 'failed') {

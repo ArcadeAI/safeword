@@ -464,7 +464,6 @@ describe('CLI result protocol', () => {
     ['timed_out', 'To add independent coverage, retry Claude review.'],
     ['process_failed', 'To add independent coverage, retry Claude review.'],
     ['invalid_output', 'To add independent coverage, retry Claude review.'],
-    ['source_changed', 'To add independent coverage, retry Claude review.'],
   ] as const)('shows one verbose suggestion for %s', (failure, suggestion) => {
     const result = createResult({
       state: 'healthy',
@@ -483,6 +482,44 @@ describe('CLI result protocol', () => {
     expect(renderHumanResult(result)).not.toContain('To add independent coverage');
     expect(renderHumanResult(result, { verbose: true })).toContain(suggestion);
     expect(result.recovery).toEqual([]);
+  });
+
+  it('renders an explicit review opt-out as not requested', () => {
+    const result = createResult({
+      state: 'healthy',
+      data: {
+        command: 'review run',
+        status: 'existing_route',
+        author_agent: 'claude',
+        independence: 'none',
+        cross_agent_review: 'not_requested',
+      },
+    });
+
+    expect(renderHumanResult(result)).toBe('Review not requested.');
+  });
+
+  it('renders a source-changed review as stale', () => {
+    const result = createResult({
+      state: 'action_required',
+      findings: [
+        {
+          code: 'REVIEW_STALE',
+          message: 'A reviewed source changed during the check.',
+          severity: 'warning',
+        },
+      ],
+      data: {
+        command: 'review run',
+        status: 'stale',
+        author_agent: 'claude',
+        assigned_reviewer: 'codex',
+        review_policy: 'prefer',
+        independence: 'none',
+      },
+    });
+
+    expect(renderHumanResult(result)).toContain('Review stale — sources changed during the check.');
   });
 
   it.each([

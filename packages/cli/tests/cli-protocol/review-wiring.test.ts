@@ -551,7 +551,7 @@ describe('cross-agent review public-command wiring', () => {
         },
       );
 
-      expect(result.exitCode).toBe(2);
+      expect(result.exitCode, result.stdout).toBe(2);
       expect(JSON.parse(result.stdout)).toMatchObject({
         state: 'action_required',
         data: { status: 'changes_requested', independence },
@@ -817,7 +817,7 @@ describe('cross-agent review public-command wiring', () => {
         },
       );
 
-      expect(result.exitCode).toBe(2);
+      expect(result.exitCode, result.stdout).toBe(2);
       const payload = JSON.parse(result.stdout);
       expect(payload).toMatchObject({
         state: 'action_required',
