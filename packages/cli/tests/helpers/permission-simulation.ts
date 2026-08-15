@@ -294,15 +294,11 @@ export function argvChmodModes(source: string): { mode: string; offset: number }
   return modes;
 }
 
-/**
- * How far above a call a root guard may sit and still cover it. Wide enough for
- * `it.skipIf(...)` plus a title and a few setup lines, narrow enough that an
- * unrelated guard elsewhere in the file does not waive it.
- */
-const GUARD_LOOKBEHIND_LINES = 20;
-
 /** The established waiver: the test does not run as root, so nothing is faked. */
 const ROOT_GUARD = 'process.getuid';
+
+/** Start of a Vitest test declaration, including modifiers such as `it.skipIf`. */
+const TEST_DECLARATION = /\b(?:it|test)(?:\.[A-Za-z_$][\w$]*)*\s*(?=[.(])/gu;
 
 /**
  * Whether a root guard covers the call at `offset` in the RAW source.
@@ -313,8 +309,11 @@ const ROOT_GUARD = 'process.getuid';
  * line above the call.
  */
 function guardedAsNonRoot(source: string, offset: number): boolean {
-  const upto = source.slice(0, offset).split('\n');
-  return upto.slice(-GUARD_LOOKBEHIND_LINES).join('\n').includes(ROOT_GUARD);
+  const beforeCall = source.slice(0, offset);
+  const declarations = beforeCall.matchAll(TEST_DECLARATION);
+  let currentTestStart = 0;
+  for (const declaration of declarations) currentTestStart = declaration.index;
+  return beforeCall.slice(currentTestStart).includes(ROOT_GUARD);
 }
 
 /**

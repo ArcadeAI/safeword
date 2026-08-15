@@ -122,6 +122,19 @@ describe('permission-simulation detection', () => {
     expect(permissionSimulations('chmodSync(path, 0o444);')).toEqual(['chmodSync(…, 0o444)']);
   });
 
+  it('does not let a guarded test waive a neighboring unguarded test', () => {
+    const source = [
+      'it.skipIf(process.getuid?.() === 0)("guarded", () => {',
+      '  chmodSync(guardedPath, 0o444);',
+      '});',
+      'it("unguarded", () => {',
+      '  chmodSync(unguardedPath, 0o444);',
+      '});',
+    ].join('\n');
+
+    expect(permissionSimulations(source)).toEqual(['chmodSync(…, 0o444)']);
+  });
+
   it.each([`chmodSync(p, 0o755)`, `chmodSync(p, 0o644)`, `chmodSync(p, '700')`])(
     'allows %s',
     source => {
