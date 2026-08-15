@@ -123,6 +123,7 @@ function reviewCoverageLine(data: Record<string, unknown>, state: CliResult['sta
   if (!reviewStateMatchesStatus(state, status)) return incompleteCoverageLine(data);
   if (!reviewPolicyMatchesStatus(data)) return 'Review incomplete.';
   if (!reviewVerdictMatchesStatus(status, verdict)) return incompleteCoverageLine(data);
+  // Preserve an explicit narrowing guard for blockedReviewCoverageLine below.
   if (verdict === undefined) return incompleteCoverageLine(data);
   const coverage = reviewCoverage(data);
   if (status === 'blocked') return blockedReviewCoverageLine(data, coverage, verdict);

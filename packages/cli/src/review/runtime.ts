@@ -387,6 +387,8 @@ function pathMetadataIsTrusted(
 }
 
 function hasTrustedExecutableAncestry(candidate: string): boolean {
+  // Windows ACLs do not map reliably to POSIX ownership and mode checks. Keep
+  // the portable project-root exclusion, and leave ACL validation to the host.
   if (process.platform === 'win32') return true;
   const currentUid = typeof process.getuid === 'function' ? process.getuid() : undefined;
   let current = candidate;
