@@ -31,6 +31,11 @@ function canonicalSkill(): string {
   return existsSync(canonicalSkillPath) ? readFileSync(canonicalSkillPath, 'utf8') : '';
 }
 
+function paragraphContaining(content: string, marker: string): string {
+  const paragraph = content.split(/\n\s*\n/u).find(candidate => candidate.includes(marker)) ?? '';
+  return paragraph.replaceAll(/\s+/gu, ' ').trim();
+}
+
 describe('closeout delivery evidence (93C14D NTB1.R1)', () => {
   it('accepts exact-head green CI and falls back to local verification', () => {
     const skill = canonicalSkill();
@@ -102,11 +107,18 @@ describe('closeout retrospective boundary (93C14D NTB1.R2)', () => {
     expect(skill).toMatch(/missing.*expired.*binding/i);
     expect(skill).toMatch(/authenticated\s+current\s+`CODEX_THREAD_ID`/i);
     expect(skill).toMatch(/no\s+newest-session\s+fallback/i);
-    expect(skill).toMatch(/missing.*binding.*advisory/is);
-    expect(skill).toMatch(/incomplete.*retrospective.*advisory/is);
-    expect(skill).toMatch(/extraction.*failure.*advisory/is);
-    expect(skill).toMatch(/filing.*failure.*pending drafts.*recovery blocker/is);
-    expect(skill).toMatch(/repository cleanup.*does not depend.*retrospective/is);
+    const advisoryPolicy = paragraphContaining(skill, 'Repository cleanup does not depend');
+    expect(advisoryPolicy).toContain(
+      'Repository cleanup does not depend on a complete retrospective.',
+    );
+    expect(advisoryPolicy).toContain('A missing binding');
+    expect(advisoryPolicy).toContain('incomplete retrospective');
+    expect(advisoryPolicy).toContain('extraction failure');
+    expect(advisoryPolicy).toContain('identity mismatch is advisory');
+
+    const recoveryPolicy = paragraphContaining(skill, 'Filing failure or pending drafts');
+    expect(recoveryPolicy).toContain('Filing failure or pending drafts are a recovery blocker');
+    expect(recoveryPolicy).toContain('could destroy learning that has already been captured');
   });
 
   it('wires the authenticated preview field to the shipped Codex filer skill', () => {
@@ -167,6 +179,30 @@ describe('closeout host entry points (93C14D TBU1.R4)', () => {
     ).find(asset => asset.relativePath === 'skills/closeout/SKILL.md');
     expect(generatedCodex?.content).toContain('name: closeout');
     expect(generatedCodex?.content).toContain('no merge or cleanup');
+  });
+
+  it('keeps every shipped closeout surface aligned with the canonical policy', () => {
+    const canonical = canonicalSkill();
+    const shippedPaths = ['.safeword/skills/closeout/SKILL.md', '.claude/skills/closeout/SKILL.md'];
+
+    for (const shippedPath of shippedPaths) {
+      expect(SAFEWORD_SCHEMA.ownedFiles[shippedPath]?.template).toBe('skills/closeout/SKILL.md');
+      expect(readFileSync(nodePath.join(repoRoot, shippedPath), 'utf8')).toBe(canonical);
+    }
+
+    const pluginSkill = readFileSync(
+      nodePath.join(repoRoot, 'plugin/skills/closeout/SKILL.md'),
+      'utf8',
+    );
+    for (const marker of [
+      'Repository cleanup does not depend on a complete retrospective.',
+      'Filing failure or pending drafts are a recovery blocker',
+    ]) {
+      expect(pluginSkill).toContain(marker);
+    }
+    expect(pluginSkill).toContain(
+      'bun "${CLAUDE_PLUGIN_ROOT}"/resources/scripts/closeout-cleanup.ts --pr PR_NUMBER',
+    );
   });
 
   it.each([
