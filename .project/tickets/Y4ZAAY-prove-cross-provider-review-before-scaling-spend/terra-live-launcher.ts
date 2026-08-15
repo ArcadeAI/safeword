@@ -19,7 +19,13 @@ import {
 
 const execFileAsync = promisify(execFile);
 const PAID_CHILD_MAX_BUFFER_BYTES = 32 * 1024 * 1024;
+const PAID_CHILD_TIMEOUT_MS = 420_000;
 const GIT_MAX_BUFFER_BYTES = 32 * 1024 * 1024;
+const PAID_POLICY = {
+  maxVerifications: 25,
+  toolCallsPerExpert: 40,
+  wallClockMsPerExpert: 360_000,
+} as const;
 const CHILD_ENVIRONMENT_ALLOWLIST = [
   "NODE_EXTRA_CA_CERTS",
   "PATH",
@@ -159,6 +165,7 @@ export async function spawnPaidChild(
         env: request.env,
         maxBuffer: PAID_CHILD_MAX_BUFFER_BYTES,
         shell: false,
+        timeout: PAID_CHILD_TIMEOUT_MS,
       }
     );
     return { exitCode: 0, stderr, stdout };
@@ -204,7 +211,8 @@ const ALLOW_SYNTHETIC_TEST_REMOTE = Symbol("allow-synthetic-test-remote");
 
 async function preflightPinnedCheckoutInternal(
   checkout: PinnedCheckout,
-  testRemote?: typeof ALLOW_SYNTHETIC_TEST_REMOTE
+  testRemote?: typeof ALLOW_SYNTHETIC_TEST_REMOTE,
+  requireMainReachability = true
 ): Promise<void> {
   if (!isAbsolute(checkout.directory)) {
     throw new Error("checkout directory must be absolute");
@@ -268,6 +276,7 @@ async function preflightPinnedCheckoutInternal(
   ) {
     throw new Error("pinned tag is not durably reachable from canonical origin");
   }
+  if (!requireMainReachability) return;
   const mainCommit = refs.get("refs/heads/main");
   if (mainCommit === undefined) {
     throw new Error("canonical origin main is unavailable");
@@ -308,11 +317,11 @@ type CorpusRegistration = {
   reserveManifestSha256: string;
 };
 
-async function gitBytes(directory: string, objectPath: string): Promise<string> {
+async function gitBytes(directory: string, objectPath: string): Promise<Buffer> {
   try {
     const { stdout } = await execFileAsync("git", ["show", objectPath], {
       cwd: directory,
-      encoding: "utf8",
+      encoding: "buffer",
       maxBuffer: GIT_MAX_BUFFER_BYTES,
     });
     return stdout;
@@ -345,7 +354,7 @@ export async function verifyCommittedCorpusRegistration(input: {
   ]);
   let registration: unknown;
   try {
-    registration = JSON.parse(registrationBytes);
+    registration = JSON.parse(registrationBytes.toString("utf8"));
   } catch {
     throw new Error("committed corpus registration is invalid JSON");
   }
@@ -358,7 +367,7 @@ export async function verifyCommittedCorpusRegistration(input: {
     !Array.isArray((registration as Record<string, unknown>).developmentCaseIds) ||
     typeof (registration as Record<string, unknown>).primaryManifestSha256 !== "string" ||
     typeof (registration as Record<string, unknown>).reserveManifestSha256 !== "string" ||
-    digestBytes.trim() !== input.corpusDigest ||
+    digestBytes.toString("utf8").trim() !== input.corpusDigest ||
     createHash("sha256").update(registrationBytes).digest("hex") !== input.corpusDigest
   ) {
     throw new Error("committed corpus registration does not match authorization");
@@ -375,7 +384,7 @@ export async function verifyAuthorizedPaidChildInput(input: {
   registrationCommit: string;
 }): Promise<string> {
   const [inputBytes, primaryBytes, reserveBytes] = await Promise.all([
-    readFile(input.inputPath, "utf8"),
+    readFile(input.inputPath),
     gitBytes(input.checkout.directory, `${input.registrationCommit}:${PRIMARY_MANIFEST_PATH}`),
     gitBytes(input.checkout.directory, `${input.registrationCommit}:${RESERVE_MANIFEST_PATH}`),
   ]);
@@ -389,7 +398,7 @@ export async function verifyAuthorizedPaidChildInput(input: {
   }
   let request: Record<string, unknown>;
   try {
-    request = JSON.parse(inputBytes) as Record<string, unknown>;
+    request = JSON.parse(inputBytes.toString("utf8")) as Record<string, unknown>;
   } catch {
     throw new Error("paid child input is invalid JSON");
   }
@@ -411,8 +420,9 @@ export async function verifyAuthorizedPaidChildInput(input: {
     typeof context.outputDirectory !== "string" ||
     !isAbsolute(context.outputDirectory) ||
     !Number.isSafeInteger(context.sequence) ||
+    (context.sequence as number) <= 0 ||
     !exactKeys(policy, ["maxVerifications", "toolCallsPerExpert", "wallClockMsPerExpert"]) ||
-    Object.values(policy).some((value) => !Number.isSafeInteger(value) || (value as number) <= 0) ||
+    canonicalJson(policy) !== canonicalJson(PAID_POLICY) ||
     !exactKeys(target, ["baseRef", "root"]) ||
     typeof target.baseRef !== "string" ||
     target.baseRef.length === 0 ||
@@ -446,7 +456,10 @@ export async function verifyAuthorizedPaidChildInput(input: {
   if (typeof caseId !== "string" || !input.registration.developmentCaseIds.includes(caseId)) {
     throw new Error("paid child case is not authorized by the corpus registration");
   }
-  const manifests = [JSON.parse(primaryBytes), JSON.parse(reserveBytes)] as Array<{
+  const manifests = [
+    JSON.parse(primaryBytes.toString("utf8")),
+    JSON.parse(reserveBytes.toString("utf8")),
+  ] as Array<{
     cases?: Array<Record<string, unknown>>;
     modelCutoff?: unknown;
     runnerRef?: unknown;
@@ -592,7 +605,7 @@ async function runTerraPaidCanaryInternal(
 ): Promise<Awaited<ReturnType<typeof runCanaryAttempt>>> {
   requireAuthorizedCheckouts(input);
   await Promise.all([
-    preflightPinnedCheckoutInternal(input.adapterCheckout, testRemote),
+    preflightPinnedCheckoutInternal(input.adapterCheckout, testRemote, false),
     preflightPinnedCheckoutInternal(input.harnessCheckout, testRemote),
   ]);
   const registration = await verifyCommittedCorpusRegistration({
@@ -626,10 +639,6 @@ async function runTerraPaidCanaryInternal(
           if (preparedContext === undefined) {
             throw new Error("paid child dispatch was not prepared");
           }
-          await Promise.all([
-            preflightPinnedCheckoutInternal(input.adapterCheckout, testRemote),
-            preflightPinnedCheckoutInternal(input.harnessCheckout, testRemote),
-          ]);
           const dispatchDigest = await verifyAuthorizedPaidChildInput({
             adapterCheckout: input.adapterCheckout,
             checkout: input.harnessCheckout,
@@ -668,20 +677,11 @@ async function runTerraPaidCanaryInternal(
   });
 }
 
-export async function runTerraPaidCanary(
-  input: TerraPaidCanaryInput
-): Promise<Awaited<ReturnType<typeof runCanaryAttempt>>> {
-  return runTerraPaidCanaryInternal(input);
-}
-
 type AuthorizedTerraPaidCanaryInput = {
   adapterCheckout: PinnedCheckout;
   allowlistedMaintainers: readonly string[];
   attemptId: string;
   authorization: CanaryAuthorization;
-  createUpstream?: (binding: CanaryInitializationBinding, githubToken: string) => CanaryUpstream;
-  environment?: NodeJS.ProcessEnv;
-  fetch?: typeof globalThis.fetch;
   harnessCheckout: PinnedCheckout;
   inputPath: string;
   intentId: string;
@@ -689,11 +689,17 @@ type AuthorizedTerraPaidCanaryInput = {
   loadGitHubToken(): Promise<string>;
   loadOpenAIKey(): Promise<string>;
   outputDirectory: string;
+};
+
+type AuthorizedTerraPaidCanaryInternalInput = AuthorizedTerraPaidCanaryInput & {
+  createUpstream?: (binding: CanaryInitializationBinding, githubToken: string) => CanaryUpstream;
+  environment?: NodeJS.ProcessEnv;
+  fetch?: typeof globalThis.fetch;
   spawnChild?: (request: PaidChildRequest) => Promise<PaidChildResult>;
 };
 
 async function runAuthorizedTerraPaidCanaryInternal(
-  input: AuthorizedTerraPaidCanaryInput,
+  input: AuthorizedTerraPaidCanaryInternalInput,
   testRemote?: typeof ALLOW_SYNTHETIC_TEST_REMOTE
 ): Promise<Awaited<ReturnType<typeof runCanaryAttempt>>> {
   const binding: CanaryInitializationBinding = {
@@ -743,14 +749,35 @@ async function runAuthorizedTerraPaidCanaryInternal(
 export async function runAuthorizedTerraPaidCanary(
   input: AuthorizedTerraPaidCanaryInput
 ): Promise<Awaited<ReturnType<typeof runCanaryAttempt>>> {
-  return runAuthorizedTerraPaidCanaryInternal(input);
+  return runAuthorizedTerraPaidCanaryInternal({
+    adapterCheckout: input.adapterCheckout,
+    allowlistedMaintainers: input.allowlistedMaintainers,
+    attemptId: input.attemptId,
+    authorization: input.authorization,
+    environment: process.env,
+    fetch: globalThis.fetch,
+    harnessCheckout: input.harnessCheckout,
+    inputPath: input.inputPath,
+    intentId: input.intentId,
+    issueNumber: input.issueNumber,
+    loadGitHubToken: input.loadGitHubToken,
+    loadOpenAIKey: input.loadOpenAIKey,
+    outputDirectory: input.outputDirectory,
+    spawnChild: spawnPaidChild,
+  });
 }
 
 export const terraLiveLauncherTestSupport = {
+  preflightAdapterCheckout: (checkout: PinnedCheckout): Promise<void> =>
+    preflightPinnedCheckoutInternal(
+      checkout,
+      ALLOW_SYNTHETIC_TEST_REMOTE,
+      false
+    ),
   preflightPinnedCheckout: (checkout: PinnedCheckout): Promise<void> =>
     preflightPinnedCheckoutInternal(checkout, ALLOW_SYNTHETIC_TEST_REMOTE),
   runAuthorizedTerraPaidCanary: (
-    input: AuthorizedTerraPaidCanaryInput
+    input: AuthorizedTerraPaidCanaryInternalInput
   ): Promise<Awaited<ReturnType<typeof runCanaryAttempt>>> =>
     runAuthorizedTerraPaidCanaryInternal(input, ALLOW_SYNTHETIC_TEST_REMOTE),
   runTerraPaidCanary: (

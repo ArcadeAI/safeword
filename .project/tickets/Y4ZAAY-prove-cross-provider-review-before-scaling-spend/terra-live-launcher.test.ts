@@ -21,7 +21,7 @@ import {
   parseTerraPaidChildResult,
   preflightPinnedCheckout,
   reconcilePaidChildEvidence,
-  runTerraPaidCanary as runProductionTerraPaidCanary,
+  runAuthorizedTerraPaidCanary as runProductionTerraPaidCanary,
   spawnPaidChild,
   terraLiveLauncherTestSupport,
   verifyAuthorizedPaidChildInput,
@@ -31,6 +31,7 @@ import {
 } from "./terra-live-launcher";
 
 const {
+  preflightAdapterCheckout: preflightSyntheticAdapterCheckout,
   preflightPinnedCheckout: preflightSyntheticPinnedCheckout,
   runAuthorizedTerraPaidCanary,
   runTerraPaidCanary,
@@ -207,7 +208,8 @@ async function retainValidChildJournal(outputDirectory: string): Promise<PaidChi
 
 async function pinnedCheckout(
   name: string,
-  canonicalRepository = "ArcadeAI/safeword"
+  canonicalRepository = "ArcadeAI/safeword",
+  pushToMain = true
 ): Promise<PinnedCheckout> {
   const directory = await mkdtemp(join(tmpdir(), `${name}-`));
   const remote = await mkdtemp(join(tmpdir(), `${name}-remote-`));
@@ -260,13 +262,27 @@ async function pinnedCheckout(
   await execFileAsync("git", ["remote", "add", "origin", canonicalUrl], {
     cwd: directory,
   });
-  await execFileAsync("git", ["push", "--quiet", "origin", "HEAD:main", tag], {
+  const pushTargets = pushToMain ? ["HEAD:main", tag] : [tag];
+  await execFileAsync("git", ["push", "--quiet", "origin", ...pushTargets], {
     cwd: directory,
   });
   return { canonicalRepository, commit, directory, tag };
 }
 
 describe("credential-separated live launcher", () => {
+  test("accepts an authorized adapter tag without requiring the commit on main", async () => {
+    const checkout = await pinnedCheckout(
+      "tag-only-adapter",
+      "ArcadeAI/monorepo",
+      false
+    );
+
+    await expect(preflightSyntheticAdapterCheckout(checkout)).resolves.toBeUndefined();
+    await expect(preflightSyntheticPinnedCheckout(checkout)).rejects.toThrow(
+      "canonical origin main is unavailable"
+    );
+  });
+
   test("the production composition rejects a rewritten origin before loading credentials", async () => {
     const adapter = await pinnedCheckout("production-wrapper-adapter", "ArcadeAI/monorepo");
     const harness = await pinnedCheckout("production-wrapper-harness");
@@ -290,12 +306,20 @@ describe("credential-separated live launcher", () => {
     await expect(
       runProductionTerraPaidCanary({
         adapterCheckout: adapter,
+        allowlistedMaintainers: ["maintainer"],
         attemptId: "attempt-1",
-        binding,
-        createUpstream: () => memoryUpstream(),
+        authorization: {
+          ...binding,
+          authorizationId: "authorization-production-wrapper",
+          diagnosticOnly: true,
+          evidenceRole: "development",
+          registrationCommentId: 1,
+          registrationCommit: harness.commit,
+        },
         harnessCheckout: harness,
         inputPath: join(tmpdir(), "unused-production-wrapper-input.json"),
         intentId: "intent-1",
+        issueNumber: 1,
         loadGitHubToken: async () => {
           secretLoads += 1;
           return "github-secret";
@@ -305,7 +329,6 @@ describe("credential-separated live launcher", () => {
           return "openai-secret";
         },
         outputDirectory: join(tmpdir(), "unused-production-wrapper-output"),
-        registration: { corpusDigest: CORPUS_DIGEST, registrationCommit: harness.commit },
       })
     ).rejects.toThrow("origin does not match the canonical repository");
     expect(secretLoads).toBe(0);
@@ -366,7 +389,7 @@ describe("credential-separated live launcher", () => {
     expect(secretLoads).toBe(0);
   });
 
-  test("runs the authorized composition while keeping GitHub credentials out of the paid child", async () => {
+  test("runs the authorized composition without network preflight after durable start", async () => {
     const adapter = await pinnedCheckout("composed-adapter", "ArcadeAI/monorepo");
     const harness = await pinnedCheckout("composed-harness");
     const binding: CanaryInitializationBinding = {
@@ -385,7 +408,19 @@ describe("credential-separated live launcher", () => {
       ticketId: "Y4ZAAY",
     };
     const outputDirectory = join(await mkdtemp(join(tmpdir(), "terra-composed-")), "output");
-    const upstream = memoryUpstream();
+    const retainedUpstream = memoryUpstream();
+    const upstream: CanaryUpstream = {
+      ...retainedUpstream,
+      postAttemptStart: async (input) => {
+        const receipt = await retainedUpstream.postAttemptStart(input);
+        await execFileAsync(
+          "git",
+          ["config", "remote.origin.url", "https://github.com/ArcadeAI/foreign.git"],
+          { cwd: adapter.directory }
+        );
+        return receipt;
+      },
+    };
     await initializeCanary({ binding, outputDirectory, upstream });
 
     const corpusDirectory = join(import.meta.dirname, "../CWGYH0-pr-review-eval");
@@ -397,7 +432,7 @@ describe("credential-separated live launcher", () => {
     await writeFile(inputPath, JSON.stringify({
       context: { attemptId: "attempt-1", intentId: "intent-1", outputDirectory, sequence: 1 },
       expertsDirectory: join(adapter.directory, "tools/pr-review/experts"),
-      policy: { maxVerifications: 2, toolCallsPerExpert: 3, wallClockMsPerExpert: 4_000 },
+      policy: { maxVerifications: 25, toolCallsPerExpert: 40, wallClockMsPerExpert: 360_000 },
       review: {
         caseId: corpusCase.id,
         causalPaths: corpusCase.causalPaths,
@@ -495,7 +530,7 @@ describe("credential-separated live launcher", () => {
     await writeFile(inputPath, JSON.stringify({
       context: { attemptId: "attempt-1", intentId: "intent-1", outputDirectory, sequence: 1 },
       expertsDirectory: join(adapter.directory, "tools/pr-review/experts"),
-      policy: { maxVerifications: 2, toolCallsPerExpert: 3, wallClockMsPerExpert: 4_000 },
+      policy: { maxVerifications: 25, toolCallsPerExpert: 40, wallClockMsPerExpert: 360_000 },
       review: {
         caseId: corpusCase.id,
         causalPaths: corpusCase.causalPaths,
@@ -564,7 +599,7 @@ describe("credential-separated live launcher", () => {
     await writeFile(inputPath, JSON.stringify({
       context: { attemptId: "attempt-1", intentId: "intent-1", outputDirectory, sequence: 1 },
       expertsDirectory: join(adapter.directory, "tools/pr-review/experts"),
-      policy: { maxVerifications: 2, toolCallsPerExpert: 3, wallClockMsPerExpert: 4_000 },
+      policy: { maxVerifications: 25, toolCallsPerExpert: 40, wallClockMsPerExpert: 360_000 },
       review: {
         caseId: corpusCase.id,
         causalPaths: corpusCase.causalPaths,
@@ -636,9 +671,9 @@ describe("credential-separated live launcher", () => {
       },
       expertsDirectory: join(adapter.directory, "tools/pr-review/experts"),
       policy: {
-        maxVerifications: 2,
-        toolCallsPerExpert: 3,
-        wallClockMsPerExpert: 4_000,
+        maxVerifications: 25,
+        toolCallsPerExpert: 40,
+        wallClockMsPerExpert: 360_000,
       },
       review,
       target: { baseRef: "eval-base", root: join(tmpdir(), "terra-target") },
@@ -652,6 +687,18 @@ describe("credential-separated live launcher", () => {
       registration,
       registrationCommit: harness.commit,
     })).resolves.toMatch(/^[0-9a-f]{64}$/);
+
+    await writeFile(inputPath, JSON.stringify({
+      ...request,
+      policy: { ...request.policy, toolCallsPerExpert: 41 },
+    }), "utf8");
+    await expect(verifyAuthorizedPaidChildInput({
+      adapterCheckout: adapter,
+      checkout: harness,
+      inputPath,
+      registration,
+      registrationCommit: harness.commit,
+    })).rejects.toThrow("invalid execution contract");
 
     await writeFile(inputPath, JSON.stringify({
       ...request,
