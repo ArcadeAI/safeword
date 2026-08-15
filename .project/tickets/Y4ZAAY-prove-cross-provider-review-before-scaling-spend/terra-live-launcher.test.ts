@@ -205,10 +205,12 @@ async function retainValidChildJournal(outputDirectory: string): Promise<PaidChi
   return output;
 }
 
-async function pinnedCheckout(name: string): Promise<PinnedCheckout> {
+async function pinnedCheckout(
+  name: string,
+  canonicalRepository = "ArcadeAI/safeword"
+): Promise<PinnedCheckout> {
   const directory = await mkdtemp(join(tmpdir(), `${name}-`));
   const remote = await mkdtemp(join(tmpdir(), `${name}-remote-`));
-  const canonicalRepository = "ArcadeAI/safeword";
   const canonicalUrl = `https://github.com/${canonicalRepository}.git`;
   await execFileAsync("git", ["init", "--quiet", "--bare", remote]);
   await execFileAsync("git", ["init", "--quiet", directory]);
@@ -266,13 +268,13 @@ async function pinnedCheckout(name: string): Promise<PinnedCheckout> {
 
 describe("credential-separated live launcher", () => {
   test("the production composition rejects a rewritten origin before loading credentials", async () => {
-    const adapter = await pinnedCheckout("production-wrapper-adapter");
+    const adapter = await pinnedCheckout("production-wrapper-adapter", "ArcadeAI/monorepo");
     const harness = await pinnedCheckout("production-wrapper-harness");
     const binding: CanaryInitializationBinding = {
       adapterCommit: adapter.commit,
       adapterTag: adapter.tag,
       attemptLimit: 10,
-      canonicalRepository: adapter.canonicalRepository,
+      canonicalRepository: harness.canonicalRepository,
       corpusDigest: CORPUS_DIGEST,
       costLimitPicodollars: "15000000000000",
       harnessCommit: harness.commit,
@@ -317,13 +319,13 @@ describe("credential-separated live launcher", () => {
     ["canonical repository", { canonicalRepository: "ArcadeAI/other" }],
     ["corpus digest", { corpusDigest: "0".repeat(64) }],
   ])("rejects a checkout that differs from the authorized %s before loading credentials", async (_label, patch) => {
-    const adapter = await pinnedCheckout("bound-adapter");
+    const adapter = await pinnedCheckout("bound-adapter", "ArcadeAI/monorepo");
     const harness = await pinnedCheckout("bound-harness");
     const binding: CanaryInitializationBinding = {
       adapterCommit: adapter.commit,
       adapterTag: adapter.tag,
       attemptLimit: 10,
-      canonicalRepository: adapter.canonicalRepository,
+      canonicalRepository: harness.canonicalRepository,
       corpusDigest: CORPUS_DIGEST,
       costLimitPicodollars: "15000000000000",
       harnessCommit: harness.commit,
@@ -365,7 +367,7 @@ describe("credential-separated live launcher", () => {
   });
 
   test("runs the authorized composition while keeping GitHub credentials out of the paid child", async () => {
-    const adapter = await pinnedCheckout("composed-adapter");
+    const adapter = await pinnedCheckout("composed-adapter", "ArcadeAI/monorepo");
     const harness = await pinnedCheckout("composed-harness");
     const binding: CanaryInitializationBinding = {
       adapterCommit: adapter.commit,
@@ -444,7 +446,7 @@ describe("credential-separated live launcher", () => {
   });
 
   test("maps every authorization binding field at the exported entry point", async () => {
-    const adapter = await pinnedCheckout("authorized-adapter");
+    const adapter = await pinnedCheckout("authorized-adapter", "ArcadeAI/monorepo");
     const harness = await pinnedCheckout("authorized-harness");
     const authorization: CanaryAuthorization = {
       adapterCommit: adapter.commit,
@@ -529,7 +531,7 @@ describe("credential-separated live launcher", () => {
   });
 
   test("constructs the production GitHub upstream with the authorized issue and token", async () => {
-    const adapter = await pinnedCheckout("default-upstream-adapter");
+    const adapter = await pinnedCheckout("default-upstream-adapter", "ArcadeAI/monorepo");
     const harness = await pinnedCheckout("default-upstream-harness");
     const authorization: CanaryAuthorization = {
       adapterCommit: adapter.commit,
@@ -604,7 +606,7 @@ describe("credential-separated live launcher", () => {
   });
 
   test("binds the paid child review to an exact frozen corpus case", async () => {
-    const adapter = await pinnedCheckout("adapter-corpus-input");
+    const adapter = await pinnedCheckout("adapter-corpus-input", "ArcadeAI/monorepo");
     const harness = await pinnedCheckout("harness-corpus-input");
     const corpusDirectory = join(import.meta.dirname, "../CWGYH0-pr-review-eval");
     const registration = JSON.parse(

@@ -30,6 +30,7 @@ const REGISTRATION_PATH =
   ".project/tickets/CWGYH0-pr-review-eval/corpus-registration-development-2026-08-11.json";
 const REGISTRATION_DIGEST_PATH =
   ".project/tickets/CWGYH0-pr-review-eval/corpus-registration-development-2026-08-11.sha256";
+const ADAPTER_CANONICAL_REPOSITORY = "ArcadeAI/monorepo";
 const PRIMARY_MANIFEST_PATH =
   ".project/tickets/CWGYH0-pr-review-eval/scored-cases-frozen-2026-08-01.json";
 const RESERVE_MANIFEST_PATH =
@@ -503,7 +504,7 @@ function requireAuthorizedCheckouts(input: {
 }): void {
   const { adapterCheckout, binding, harnessCheckout } = input;
   if (
-    adapterCheckout.canonicalRepository !== binding.canonicalRepository ||
+    adapterCheckout.canonicalRepository !== ADAPTER_CANONICAL_REPOSITORY ||
     harnessCheckout.canonicalRepository !== binding.canonicalRepository ||
     adapterCheckout.commit !== binding.adapterCommit ||
     adapterCheckout.tag !== binding.adapterTag ||
