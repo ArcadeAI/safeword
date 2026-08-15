@@ -143,13 +143,13 @@ describe('permission-simulation detection', () => {
     expect(permissionSimulations(source)).not.toEqual([]);
   });
 
-  // Review's second claim was that the scanner desynchronizes after `return
-  // /.../` or `=> /.../` and hides a later violation. It does mis-read both —
-  // neither `n` nor `>` opens a regex context, so the `/` reads as division and
-  // the quote inside starts a "string" that runs on. It cannot hide anything,
-  // because only comment spans are removed: every other byte is emitted
-  // verbatim, so a mis-tracked literal leaves the later call in the output.
-  // The failure direction is a false positive, never a false clean.
+  // A regex literal after `return` or `=>` used to read as division, because
+  // the character before the slash is `n` or `>`. The quote inside it then
+  // opened a "string" that ran to the next quote anywhere later in the file —
+  // and if that landed before a URL, the `//` in `https://` read as a comment
+  // and took the rest of its line, call included. Two independent mistakes
+  // compounding into a false clean, which is the one direction this must not
+  // fail in.
   it.each([
     ['a return statement', 'function f() { return /(["\'])/u; }\nchmodSync(p, 0o000);'],
     ['an arrow body', 'const f = () => /(["\'])/u;\nchmodSync(p, 0o000);'],
@@ -157,8 +157,26 @@ describe('permission-simulation detection', () => {
       'a return, with a comment after it',
       'function f() { return /(["\'])/u; }\n// note\nchmodSync(p, 0o000);',
     ],
+    [
+      'an arrow body, with the call sharing a line with a URL',
+      'const f = () => /(["\'])/u;\nconst u = "https://x.com"; chmodSync(p, 0o000);',
+    ],
+    // `)` cannot join the list that `>` joined — `(a + b) / c` is division and
+    // far more common than a regex here — so this one stays mis-read. It is
+    // caught because a `//` directly after a colon is a URL scheme rather than
+    // a comment, which holds however the scan arrived there.
+    [
+      'a condition, where the slash is genuinely ambiguous',
+      'if (x) /(["\'])/u.test(s);\nconst u = "https://x.com"; chmodSync(p, 0o000);',
+    ],
   ])('still sees a violation after a regex literal in %s', (_label, source) => {
     expect(permissionSimulations(source)).toEqual(['chmodSync(…, 0o000)']);
+  });
+
+  // The mode is the second argument of every fs chmod. Reading the last one
+  // instead works until the async form puts a callback after it.
+  it('reads the mode past a trailing callback', () => {
+    expect(permissionSimulations('chmod(p, 0o000, done);')).toEqual(['chmod(…, 0o000)']);
   });
 
   // Widening the detector must not start flagging chmods that grant access —

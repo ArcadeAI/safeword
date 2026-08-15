@@ -19,9 +19,13 @@
  * and is skipped rather than guessed; a callee whose name is computed at
  * runtime is not resolvable either. Both are reachable by someone working
  * around the guard, and neither is a shape anyone writes by accident, which is
- * what this catches. The scan errs toward false positives: only comment spans
- * are removed and every other byte is passed through, so a literal this
- * mis-tracks can produce a spurious report but cannot swallow a real call.
+ * what this catches.
+ *
+ * A mis-tracked literal is not merely noisy, either. The scan removes comment
+ * spans, so mistaking code for a comment deletes a real call — the URL case in
+ * the tripwire is exactly that, reached through a regex literal the tracker had
+ * wrong. Every literal form this gets wrong is a potential false clean, so each
+ * one found gets a case rather than an argument for why it is harmless.
  */
 
 /** Owner read+write. A mode missing either bit removes access. */
@@ -37,7 +41,36 @@ export const OWNER_READ_WRITE = 0o600;
 const SHELL_CHMOD_CALL = /chmod\s+(?:-[A-Za-z-]+\s+)*(?<mode>[^\s;&|)'"]+)/gu;
 
 /** After these, a `/` opens a regex literal rather than dividing. */
-const REGEX_MAY_FOLLOW = new Set(['', '(', ',', '=', ':', '[', '!', '&', '|', '?', '{', '}', ';']);
+const REGEX_MAY_FOLLOW = new Set([
+  '',
+  '(',
+  ',',
+  '=',
+  ':',
+  '[',
+  '!',
+  '&',
+  '|',
+  '?',
+  '{',
+  '}',
+  ';',
+  '>',
+]);
+
+/**
+ * Keywords a regex literal may directly follow.
+ *
+ * `return /…/` and `=> /…/` are what the single-character check cannot see: the
+ * character before the slash is `n` or `>`, so the literal reads as division
+ * and a quote inside it opens a "string" that runs to the next quote anywhere
+ * later in the file. `>` is handled above; the rest need the word.
+ */
+const KEYWORD_BEFORE_REGEX =
+  /\b(?:return|typeof|instanceof|case|yield|await|new|delete|void|in|of|do|else)\s*$/u;
+
+/** Longest keyword above, plus room for the whitespace after it. */
+const KEYWORD_LOOKBEHIND = 16;
 
 const QUOTES = new Set(['"', "'", '`']);
 
@@ -46,6 +79,7 @@ function endOfComment(source: string, from: number): number {
   if (source[from] !== '/') return -1;
   const following = source[from + 1];
   if (following === '/') {
+    if (source[from - 1] === ':') return -1;
     const newline = source.indexOf('\n', from);
     return newline === -1 ? source.length : newline;
   }
@@ -71,6 +105,12 @@ function endOfDelimited(source: string, from: number, isRegex: boolean): number 
     if (character === closer && !inCharacterClass) break;
   }
   return index;
+}
+
+/** Whether the `/` at `index` opens a regex literal rather than dividing. */
+function opensRegexLiteral(source: string, index: number, previous: string): boolean {
+  if (REGEX_MAY_FOLLOW.has(previous)) return true;
+  return KEYWORD_BEFORE_REGEX.test(source.slice(Math.max(0, index - KEYWORD_LOOKBEHIND), index));
 }
 
 /**
@@ -105,7 +145,7 @@ export function withoutComments(source: string): string {
       continue;
     }
 
-    const isRegex = character === '/' && REGEX_MAY_FOLLOW.has(previous);
+    const isRegex = character === '/' && opensRegexLiteral(source, index, previous);
     if (QUOTES.has(character) || isRegex) {
       const literalEnd = endOfDelimited(source, index, isRegex);
       output += source.slice(index, literalEnd);
@@ -177,6 +217,9 @@ function endOfArguments(source: string, open: number): number {
  * A regex anchored on `)` right after the literal misses a call Prettier
  * wrapped with a trailing comma, and a path argument carrying its own comma —
  * `chmodSync(nodePath.join(a, b), 0o000)` — defeats a `[^,]+` path match.
+ *
+ * The mode is read by position, not as the last argument: every fs chmod takes
+ * it second, and the async form puts a callback after it.
  */
 export function chmodModeArguments(
   source: string,
@@ -190,8 +233,8 @@ export function chmodModeArguments(
     const open = (match.index ?? 0) + match[0].length;
     const close = endOfArguments(source, open);
     if (close === -1) continue;
-    const last = topLevelArguments(source.slice(open, close)).at(-1);
-    if (last !== undefined) modes.push({ mode: last, name, offset: match.index ?? 0 });
+    const mode = topLevelArguments(source.slice(open, close))[1];
+    if (mode !== undefined) modes.push({ mode, name, offset: match.index ?? 0 });
   }
   return modes;
 }
