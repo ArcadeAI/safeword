@@ -30,8 +30,16 @@ import {
   permissionSimulations,
 } from './helpers/permission-simulation.js';
 
-const PACKAGES_ROOT = nodePath.resolve(import.meta.dirname, '../..');
+const REPOSITORY_ROOT = nodePath.resolve(import.meta.dirname, '../../..');
 const SCANNED_EXTENSIONS = new Set(['.ts', '.mts', '.cts', '.tsx']);
+const EXCLUDED_DIRECTORIES = new Set([
+  '.git',
+  '.project',
+  '.safeword',
+  'dist',
+  'fixtures',
+  'node_modules',
+]);
 
 function testFiles(directory: string): string[] {
   const found: string[] = [];
@@ -39,7 +47,7 @@ function testFiles(directory: string): string[] {
   for (const entry of entries) {
     const full = nodePath.join(directory, entry.name);
     if (entry.isDirectory()) {
-      if (['dist', 'fixtures', 'node_modules'].includes(entry.name)) continue;
+      if (EXCLUDED_DIRECTORIES.has(entry.name)) continue;
       found.push(...testFiles(full));
     } else if (
       SCANNED_EXTENSIONS.has(nodePath.extname(entry.name)) &&
@@ -114,6 +122,24 @@ describe('permission-simulation detection', () => {
     expect(permissionSimulations(source)).toEqual([]);
   });
 
+  it('waives a call under a chained root guard', () => {
+    const source = [
+      'it.skipIf(process.getuid?.() === 0).each([1, 2])("guarded", () => {',
+      '  chmodSync(path, 0o444);',
+      '});',
+    ].join('\n');
+    expect(permissionSimulations(source)).toEqual([]);
+  });
+
+  it('waives a call under a root-guarded suite', () => {
+    const source = [
+      'describe.skipIf(process.getuid?.() === 0)("guarded", () => {',
+      '  it("fails", () => chmodSync(path, 0o444));',
+      '});',
+    ].join('\n');
+    expect(permissionSimulations(source)).toEqual([]);
+  });
+
   it('still flags the same call with no root guard in reach', () => {
     expect(permissionSimulations('chmodSync(path, 0o444);')).toEqual(['chmodSync(…, 0o444)']);
   });
@@ -154,8 +180,10 @@ describe('permission-simulation detection', () => {
     ['a four-digit numeric mode', 'const command = "chmod 4000 file";'],
     ['a compound symbolic mode', 'const command = "chmod u=r,go= file";'],
     ['chmod invoked as a subprocess with an argv array', `execFileSync('chmod', ['000', p])`],
+    ['chmod invoked by absolute path', `execFileSync('/bin/chmod', ['000', p])`],
     ['the promise API rather than the sync one', 'await fs.promises.chmod(p, 0o000)'],
     ['a renamed import', `import { chmodSync as lockDown } from 'node:fs';\nlockDown(p, 0o000);`],
+    ['a literal mode bound to a constant', 'const mode = 0o000; chmodSync(p, mode);'],
   ])('flags %s', (_label, source) => {
     expect(permissionSimulations(source)).not.toEqual([]);
   });
@@ -218,9 +246,9 @@ describe('uid-dependent permission simulations', () => {
   it('no test removes owner read or write to simulate an I/O failure', () => {
     const offenders: string[] = [];
 
-    for (const file of testFiles(PACKAGES_ROOT)) {
+    for (const file of testFiles(REPOSITORY_ROOT)) {
       if (file.endsWith('uid-dependent-permission-tripwire.test.ts')) continue;
-      const relative = nodePath.relative(PACKAGES_ROOT, file);
+      const relative = nodePath.relative(REPOSITORY_ROOT, file);
       const found = permissionSimulations(readFileSync(file, 'utf8'));
       for (const offender of found) offenders.push(`${relative}: ${offender}`);
     }

@@ -369,7 +369,7 @@ describe('retro relay configuration and execution', () => {
     let sentPersistedBytes = false;
     const send = vi.fn<typeof fetch>((_input, init) => {
       const body = Buffer.from(init?.body as Uint8Array);
-      const submitted = JSON.parse(body.toString('utf8')) as { requestId: string };
+      const submitted = JSON.parse(body.toString('utf8')) as RelayDraftRequest;
       const relayDirectory = nodePath.join(outbox, '.safeword', 'retro-drafts', 'relay');
       const claim = readdirSync(relayDirectory).find(candidate =>
         candidate.startsWith(`${submitted.requestId}.claim.`),
@@ -378,19 +378,18 @@ describe('retro relay configuration and execution', () => {
       const durable = JSON.parse(
         readFileSync(nodePath.join(relayDirectory, claim), 'utf8'),
       ) as RelayDraftRequest;
-      sentPersistedBytes =
-        JSON.stringify(submitted) ===
-        JSON.stringify({
-          body: durable.body,
-          canonicalKey: durable.canonicalKey,
-          installationId: durable.installationId,
-          labels: durable.labels,
-          legacySignature: durable.legacySignature,
-          repository: durable.repository,
-          requestId: durable.requestId,
-          retryDeadlineAt: durable.retryDeadlineAt,
-          title: durable.title,
-        });
+      expect(submitted).toEqual({
+        body: durable.body,
+        canonicalKey: durable.canonicalKey,
+        installationId: durable.installationId,
+        labels: durable.labels,
+        legacySignature: durable.legacySignature,
+        repository: durable.repository,
+        requestId: durable.requestId,
+        retryDeadlineAt: durable.retryDeadlineAt,
+        title: durable.title,
+      });
+      sentPersistedBytes = true;
       return Promise.resolve(
         Response.json({
           receiptId: 'receipt-ready-attestation',

@@ -53,6 +53,19 @@ function calledName(expression: ts.Expression): string | undefined {
   return undefined;
 }
 
+function literalBindings(sourceFile: ts.SourceFile): Map<string, string> {
+  const bindings = new Map<string, string>();
+  visit(sourceFile, node => {
+    if (!ts.isVariableDeclaration(node) || !ts.isIdentifier(node.name) || !node.initializer) return;
+    const declarationList = node.parent;
+    if (!ts.isVariableDeclarationList(declarationList)) return;
+    if ((declarationList.flags & ts.NodeFlags.Const) === 0) return;
+    const text = node.initializer.getText(sourceFile);
+    if (literalMode(text) !== undefined) bindings.set(node.name.text, text);
+  });
+  return bindings;
+}
+
 /** The numeric value of a literal chmod mode, or undefined when it is dynamic. */
 export function literalMode(argument: string): number | undefined {
   const octal = /^0o([0-7]{3,4})$/u.exec(argument);
@@ -66,13 +79,17 @@ function chmodModeArgumentsFromFile(
   sourceFile: ts.SourceFile,
 ): { mode: string; name: string; offset: number }[] {
   const names = importedChmodNames(sourceFile);
+  const bindings = literalBindings(sourceFile);
   const modes: { mode: string; name: string; offset: number }[] = [];
   visit(sourceFile, node => {
     if (!ts.isCallExpression(node)) return;
     const name = calledName(node.expression);
     const mode = node.arguments[1];
     if (name === undefined || !names.has(name) || mode === undefined) return;
-    modes.push({ mode: mode.getText(sourceFile), name, offset: node.getStart(sourceFile) });
+    const modeText = ts.isIdentifier(mode)
+      ? (bindings.get(mode.text) ?? mode.getText(sourceFile))
+      : mode.getText(sourceFile);
+    modes.push({ mode: modeText, name, offset: node.getStart(sourceFile) });
   });
   return modes;
 }
@@ -126,7 +143,9 @@ function literalText(node: ts.Node | undefined): string | undefined {
 function spawnedSimulations(sourceFile: ts.SourceFile): Simulation[] {
   const found: Simulation[] = [];
   visit(sourceFile, node => {
-    if (!ts.isCallExpression(node) || literalText(node.arguments[0]) !== 'chmod') return;
+    if (!ts.isCallExpression(node)) return;
+    const executable = literalText(node.arguments[0]);
+    if (executable?.split(/[\\/]/u).at(-1) !== 'chmod') return;
     const argv = node.arguments[1];
     if (!argv || !ts.isArrayLiteralExpression(argv)) return;
     const mode = argv.elements.map(literalText).find(value => value && !value.startsWith('-'));
@@ -161,30 +180,41 @@ function bindingSimulations(sourceFile: ts.SourceFile): Simulation[] {
     .map(call => ({ label: `${call.name}(…, ${call.mode})`, offset: call.offset }));
 }
 
-function testDeclaration(call: ts.CallExpression): boolean {
+function blockDeclaration(call: ts.CallExpression): boolean {
   let expression: ts.Expression = call.expression;
   while (ts.isCallExpression(expression) || ts.isPropertyAccessExpression(expression)) {
     expression = expression.expression;
   }
-  return ts.isIdentifier(expression) && (expression.text === 'it' || expression.text === 'test');
+  return ts.isIdentifier(expression) && ['it', 'test', 'describe'].includes(expression.text);
 }
 
-function enclosingTest(sourceFile: ts.SourceFile, offset: number): ts.CallExpression | undefined {
-  let enclosing: ts.CallExpression | undefined;
-  visit(sourceFile, node => {
-    if (!ts.isCallExpression(node) || !testDeclaration(node)) return;
-    if (node.getStart(sourceFile) <= offset && offset < node.getEnd()) enclosing = node;
-  });
-  return enclosing;
+function expressionHasNonRootGuard(sourceFile: ts.SourceFile, expression: ts.Expression): boolean {
+  let current = expression;
+  while (ts.isCallExpression(current) || ts.isPropertyAccessExpression(current)) {
+    if (!ts.isCallExpression(current)) {
+      current = current.expression;
+      continue;
+    }
+    if (
+      ts.isPropertyAccessExpression(current.expression) &&
+      current.expression.name.text === 'skipIf' &&
+      (current.arguments[0]?.getText(sourceFile).includes('process.getuid') ?? false)
+    ) {
+      return true;
+    }
+    current = current.expression;
+  }
+  return false;
 }
 
 function guardedAsNonRoot(sourceFile: ts.SourceFile, simulation: Simulation): boolean {
-  const test = enclosingTest(sourceFile, simulation.offset);
-  if (!test || !ts.isCallExpression(test.expression)) return false;
-  const modifier = test.expression;
-  if (!ts.isPropertyAccessExpression(modifier.expression)) return false;
-  if (modifier.expression.name.text !== 'skipIf') return false;
-  return modifier.arguments[0]?.getText(sourceFile).includes('process.getuid') ?? false;
+  let guarded = false;
+  visit(sourceFile, node => {
+    if (!ts.isCallExpression(node) || !blockDeclaration(node)) return;
+    if (node.getStart(sourceFile) > simulation.offset || simulation.offset >= node.getEnd()) return;
+    if (expressionHasNonRootGuard(sourceFile, node.expression)) guarded = true;
+  });
+  return guarded;
 }
 
 /**

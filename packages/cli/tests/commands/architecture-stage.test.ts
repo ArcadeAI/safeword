@@ -20,6 +20,7 @@ import {
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
+import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -356,7 +357,7 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
   it('does not require the narrative to duplicate the generated package inventory', async () => {
     // Decision records remain silent about packages with no architectural decision.
     // The generated root index owns package coverage, regardless of enforcement.
-    execFileSync('rm', ['-rf', 'src'], { cwd: context.directory });
+    rmSync(nodePath.join(context.directory, 'src'), { force: true, recursive: true });
     writeFileSync(
       nodePath.join(context.directory, 'package.json'),
       JSON.stringify({ name: 'root', workspaces: ['packages/*'] }),
@@ -534,6 +535,13 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
     expect(output).not.toContain('nothing was auto-staged');
     const recoveryPath = /Recovery copy: (.+?)\. Cause:/.exec(output)?.[1];
     assert.ok(recoveryPath !== undefined, 'expected the failure output to name a recovery copy');
+    const recoveryRelativeToTemporaryRoot = nodePath.relative(
+      realpathSync(tmpdir()),
+      realpathSync(recoveryPath),
+    );
+    expect(recoveryRelativeToTemporaryRoot).not.toBe('');
+    expect(recoveryRelativeToTemporaryRoot.startsWith(`..${nodePath.sep}`)).toBe(false);
+    expect(nodePath.isAbsolute(recoveryRelativeToTemporaryRoot)).toBe(false);
     try {
       const recoveryContent = readFileSync(recoveryPath, 'utf8');
       expect(recoveryContent).toContain('### drafts');
