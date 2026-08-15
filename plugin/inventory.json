@@ -19,7 +19,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "9035147df5c64c9c0de40ab559848ba28fe0e117e82e73def79328982170a0d0"
+      "sha256": "9a5d1773138bf2ea3c5c31784de81a6cba20b175f229625a257967bd0e5453d1"
     },
     {
       "path": "resources/guides/architecture-guide.md",
@@ -95,7 +95,7 @@
     },
     {
       "path": "resources/scripts/closeout-cleanup.ts",
-      "sha256": "a50f2b543b5ccf9a3a4daba42e569129bcef864329c5fb2b8f37461866ad04e8"
+      "sha256": "fb94544f14b3ca769d710efbb50f6712d4ea00274e219e72a62845955fb59435"
     },
     {
       "path": "resources/templates/adr-template.md",
@@ -143,7 +143,7 @@
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "7af37952765659564df30822ab5513bf240c39989daab3b447414afb581c4a25"
+      "sha256": "b4ded2d26484ae92a158592da64c66bbaab15b2d90131ac78d02446d5b8ec868"
     },
     {
       "path": "runtime/event-groups.json",
