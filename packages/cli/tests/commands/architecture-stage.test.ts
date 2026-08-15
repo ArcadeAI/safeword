@@ -549,7 +549,7 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
       expect(stagedDocument).toContain('### billing');
       expect(stagedDocument).not.toContain('### drafts');
     } finally {
-      rmSync(nodePath.dirname(recoveryPath), { recursive: true, force: true });
+      rmSync(recoveryPath, { force: true });
     }
   });
 
