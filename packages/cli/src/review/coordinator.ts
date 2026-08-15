@@ -510,7 +510,7 @@ async function runDegradedFallback(
       : ({ kind: 'failed', failure: outcome.failure } as const);
   const changedResult = changedReviewResult({
     author: input.author,
-    reviewer: input.author,
+    reviewer: input.assignedReviewer,
     policy: input.policy,
     kind: input.kind,
     targets: input.targets,

@@ -323,7 +323,7 @@ describe('durable review jobs', () => {
       mkdirSync(bin);
       const ps = nodePath.join(bin, 'ps');
       writeFileSync(ps, '#!/bin/sh\nexit 1\n', { mode: 0o755 });
-      vi.stubEnv('PATH', bin);
+      vi.stubEnv('SAFEWORD_REVIEW_PS_PATH', ps);
       vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, 'setTimeout(() => {}, 10_000);'));
       vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '0');
 
@@ -358,7 +358,7 @@ describe('durable review jobs', () => {
         `#!/bin/sh\nprintf 'inspected\\n' >> ${JSON.stringify(inspectionLog)}\nexec /bin/ps "$@"\n`,
         { mode: 0o755 },
       );
-      vi.stubEnv('PATH', `${bin}:/usr/bin:/bin`);
+      vi.stubEnv('SAFEWORD_REVIEW_PS_PATH', nodePath.join(bin, 'ps'));
       vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, 'setTimeout(() => {}, 10_000);'));
       vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '450');
 

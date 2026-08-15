@@ -498,9 +498,20 @@ function processExists(pid: number): boolean {
   try {
     process.kill(pid, 0);
     return true;
-  } catch {
-    return false;
+  } catch (error) {
+    return error instanceof Error && 'code' in error && error.code === 'EPERM';
   }
+}
+
+function processTool(name: 'powershell.exe' | 'ps' | 'taskkill'): string {
+  const [baseName] = name.split('.', 1);
+  const testOverride = process.env[`SAFEWORD_REVIEW_${baseName?.toUpperCase()}_PATH`];
+  if (process.env.NODE_ENV === 'test' && testOverride !== undefined) return testOverride;
+  if (process.platform !== 'win32') return `/bin/${name}`;
+  const systemRoot = process.env.SystemRoot ?? String.raw`C:\Windows`;
+  return name === 'powershell.exe'
+    ? nodePath.join(systemRoot, 'System32', 'WindowsPowerShell', 'v1.0', name)
+    : nodePath.join(systemRoot, 'System32', name);
 }
 
 function configuredCourtesyWait(): number {
@@ -740,7 +751,7 @@ function terminateUnactivatedWorker(record: ReviewJobRecord, pid: number): void 
 
 function terminateReviewWorker(pid: number): void {
   if (process.platform === 'win32') {
-    spawnSync('taskkill', ['/PID', String(pid), '/T', '/F'], {
+    spawnSync(processTool('taskkill'), ['/PID', String(pid), '/T', '/F'], {
       stdio: 'ignore',
       timeout: 5000,
       windowsHide: true,
@@ -931,7 +942,7 @@ function inspectReviewWorker(pid: number, id: string): WorkerInspection {
   const inspected =
     process.platform === 'win32'
       ? spawnSync(
-          'powershell.exe',
+          processTool('powershell.exe'),
           [
             '-NoProfile',
             '-NonInteractive',
@@ -940,7 +951,7 @@ function inspectReviewWorker(pid: number, id: string): WorkerInspection {
           ],
           { encoding: 'utf8', timeout: 1000, windowsHide: true },
         )
-      : spawnSync('ps', ['-ww', '-p', String(pid), '-o', 'command='], {
+      : spawnSync(processTool('ps'), ['-ww', '-p', String(pid), '-o', 'command='], {
           encoding: 'utf8',
           timeout: 1000,
         });

@@ -2526,7 +2526,7 @@ function reviewResultLines(result, options) {
     return;
   const messages = result.findings.filter((finding) => !REPLACED_REVIEW_FINDINGS.has(finding.code)).map((finding) => finding.message);
   messages.push(...result.errors.map((error2) => error2.message));
-  const lines = [reviewCoverageLine(result.data, result.state), ...new Set(messages)];
+  const lines = [reviewCoverageLine(result.data, result.state), ...messages];
   if (options.verbose === true) {
     const suggestion = reviewUpgradeSuggestion(result.data, result.state);
     if (suggestion !== undefined)
@@ -2538,8 +2538,14 @@ var REVIEW_AGENTS, REVIEW_AUTHORS, REPLACED_REVIEW_FINDINGS, RETRYABLE_REVIEW_FA
 var init_review_presentation = __esm(() => {
   REVIEW_AGENTS = new Set(["claude", "codex"]);
   REVIEW_AUTHORS = new Set(["claude", "codex", "cursor"]);
-  REPLACED_REVIEW_FINDINGS = new Set(["REVIEW_INDEPENDENCE", "REVIEW_INDEPENDENCE_DEGRADED"]);
-  RETRYABLE_REVIEW_FAILURES = new Set(["timed_out", "process_failed", "invalid_output"]);
+  REPLACED_REVIEW_FINDINGS = new Set(["REVIEW_INDEPENDENCE"]);
+  RETRYABLE_REVIEW_FAILURES = new Set([
+    "timed_out",
+    "process_failed",
+    "invalid_output",
+    "REVIEWER_PROVENANCE_MISSING",
+    "REVIEWER_PROVENANCE_CONTRADICTORY"
+  ]);
 });
 
 // src/cli-protocol/result.ts
@@ -44241,7 +44247,7 @@ async function runDegradedFallback(input) {
   const fallback = outcome.kind === "completed" ? { kind: "completed" } : { kind: "failed", failure: outcome.failure };
   const changedResult = changedReviewResult({
     author: input.author,
-    reviewer: input.author,
+    reviewer: input.assignedReviewer,
     policy: input.policy,
     kind: input.kind,
     targets: input.targets,
@@ -45147,9 +45153,19 @@ function processExists(pid) {
   try {
     process.kill(pid, 0);
     return true;
-  } catch {
-    return false;
+  } catch (error2) {
+    return error2 instanceof Error && "code" in error2 && error2.code === "EPERM";
   }
+}
+function processTool(name) {
+  const [baseName] = name.split(".", 1);
+  const testOverride = process.env[`SAFEWORD_REVIEW_${baseName?.toUpperCase()}_PATH`];
+  if (false)
+    ;
+  if (process.platform !== "win32")
+    return `/bin/${name}`;
+  const systemRoot = process.env.SystemRoot ?? String.raw`C:\Windows`;
+  return name === "powershell.exe" ? nodePath82.join(systemRoot, "System32", "WindowsPowerShell", "v1.0", name) : nodePath82.join(systemRoot, "System32", name);
 }
 function configuredCourtesyWait() {
   const raw = process.env.SAFEWORD_REVIEW_FOREGROUND_MS;
@@ -45355,7 +45371,7 @@ function terminateUnactivatedWorker(record2, pid) {
 }
 function terminateReviewWorker(pid) {
   if (process.platform === "win32") {
-    spawnSync9("taskkill", ["/PID", String(pid), "/T", "/F"], {
+    spawnSync9(processTool("taskkill"), ["/PID", String(pid), "/T", "/F"], {
       stdio: "ignore",
       timeout: 5000,
       windowsHide: true
@@ -45511,12 +45527,12 @@ function isJobId(value) {
   return /^[a-f\d-]{36}$/u.test(value);
 }
 function inspectReviewWorker(pid, id) {
-  const inspected = process.platform === "win32" ? spawnSync9("powershell.exe", [
+  const inspected = process.platform === "win32" ? spawnSync9(processTool("powershell.exe"), [
     "-NoProfile",
     "-NonInteractive",
     "-Command",
     `(Get-CimInstance Win32_Process -Filter "ProcessId = ${pid}").CommandLine`
-  ], { encoding: "utf8", timeout: 1000, windowsHide: true }) : spawnSync9("ps", ["-ww", "-p", String(pid), "-o", "command="], {
+  ], { encoding: "utf8", timeout: 1000, windowsHide: true }) : spawnSync9(processTool("ps"), ["-ww", "-p", String(pid), "-o", "command="], {
     encoding: "utf8",
     timeout: 1000
   });

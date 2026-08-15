@@ -5,8 +5,14 @@ type ReviewVerdict = 'approve' | 'request_changes';
 
 const REVIEW_AGENTS = new Set(['claude', 'codex']);
 const REVIEW_AUTHORS = new Set(['claude', 'codex', 'cursor']);
-const REPLACED_REVIEW_FINDINGS = new Set(['REVIEW_INDEPENDENCE', 'REVIEW_INDEPENDENCE_DEGRADED']);
-const RETRYABLE_REVIEW_FAILURES = new Set(['timed_out', 'process_failed', 'invalid_output']);
+const REPLACED_REVIEW_FINDINGS = new Set(['REVIEW_INDEPENDENCE']);
+const RETRYABLE_REVIEW_FAILURES = new Set([
+  'timed_out',
+  'process_failed',
+  'invalid_output',
+  'REVIEWER_PROVENANCE_MISSING',
+  'REVIEWER_PROVENANCE_CONTRADICTORY',
+]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -181,7 +187,7 @@ export function reviewResultLines(
     .filter(finding => !REPLACED_REVIEW_FINDINGS.has(finding.code))
     .map(finding => finding.message);
   messages.push(...result.errors.map(error => error.message));
-  const lines = [reviewCoverageLine(result.data, result.state), ...new Set(messages)];
+  const lines = [reviewCoverageLine(result.data, result.state), ...messages];
   if (options.verbose === true) {
     const suggestion = reviewUpgradeSuggestion(result.data, result.state);
     if (suggestion !== undefined) lines.push(suggestion);

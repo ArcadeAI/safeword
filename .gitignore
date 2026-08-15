@@ -49,8 +49,6 @@ dependency-graph.svg
 # Brand assets (internal)
 brand/
 
-# Safeword - Local cache and transient state
-.safeword/.update-cache.json
 .project/quality-state*.json
 .project/cursor-run-identity.json
 .project/codex-run-identity.json
@@ -59,10 +57,3 @@ brand/
 .project/re-entry.md
 .project/dependency-readiness.json
 .project/tmp/
-.safeword-project/quality-state*.json
-.safeword-project/cursor-run-identity.json
-.safeword-project/codex-run-identity.json
-.safeword-project/failure-counts.json
-.safeword-project/skill-invocations.log
-.safeword-project/re-entry.md
-.safeword-project/dependency-readiness.json

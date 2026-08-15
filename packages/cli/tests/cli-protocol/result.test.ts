@@ -359,7 +359,9 @@ describe('CLI result protocol', () => {
       });
 
       expect(renderHumanResult(result).split('\n', 1)[0]).toBe(line);
-      expect(renderHumanResult(result)).not.toContain('not independent');
+      if (independence === 'degraded') {
+        expect(renderHumanResult(result)).toContain('not independent');
+      }
       expect(result.data).toEqual(data);
     },
   );
