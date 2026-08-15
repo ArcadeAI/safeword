@@ -305,34 +305,33 @@ Feature: Let parallel sessions share test capacity safely
         | a missing leader with a surviving group member |
         | an apparent same-second macOS PID reuse |
 
-    @native-platform @rejection
-    Scenario Outline: Each platform creation-identity adapter fails closed at its real seam
+    @native-platform
+    Scenario Outline: Native platform identity adapters authenticate observable process identity
       Given the required native <platform> CI job's real adapter reads <identity-source>
+      When the authenticated live process is observed
+      Then the exact process instance is authenticated without injected coverage
+      Examples:
+        | platform | identity-source |
+        | Linux | boot ID and proc stat start-time ticks |
+        | Windows | process creation FILETIME for the PID |
+        | macOS | LC_ALL=C process start time with conservative second-level precision |
+
+    @rejection
+    Scenario Outline: Injected identity adapter faults fail closed without contributing native evidence
+      Given the deterministic injected <platform> identity adapter reads <identity-source>
       When the reading is <failure>
-      Then the exact process instance is not reclaimed and Safeword reports platform-specific recovery guidance
+      Then the exact process instance is not reclaimed, native evidence remains unchanged, and Safeword reports platform-specific recovery guidance
       Examples:
         | platform | identity-source | failure |
-        | Linux | boot ID and proc stat start-time ticks | missing |
-        | Linux | boot ID and proc stat start-time ticks | malformed |
-        | Linux | boot ID and proc stat start-time ticks | permission-denied |
-        | Linux | boot ID and proc stat start-time ticks | changed |
-        | Linux | boot ID and proc stat start-time ticks | indicating PID reuse |
-        | Windows | process creation FILETIME for the PID | missing |
-        | Windows | process creation FILETIME for the PID | malformed |
-        | Windows | process creation FILETIME for the PID | permission-denied |
-        | Windows | process creation FILETIME for the PID | changed |
-        | Windows | process creation FILETIME for the PID | indicating PID reuse |
-        | macOS | LC_ALL=C process start time with conservative second-level precision | missing |
-        | macOS | LC_ALL=C process start time with conservative second-level precision | malformed |
-        | macOS | LC_ALL=C process start time with conservative second-level precision | permission-denied |
-        | macOS | LC_ALL=C process start time with conservative second-level precision | changed |
-        | macOS | LC_ALL=C process start time with conservative second-level precision | indicating same-second PID reuse |
+        | Linux | boot ID and proc stat start-time ticks | missing, malformed, permission-denied, changed, or indicating PID reuse |
+        | Windows | process creation FILETIME for the PID | missing, malformed, permission-denied, changed, or indicating PID reuse |
+        | macOS | LC_ALL=C process start time with conservative second-level precision | missing, malformed, permission-denied, changed, or indicating same-second PID reuse |
 
-    @native-platform @rejection @process
-    Scenario Outline: Process identity is one authenticated snapshot or fails closed
-      Given the required native <platform> adapter is held at barriers around its multi-read identity operation
+    @rejection @process
+    Scenario Outline: Injected torn process identity snapshots fail closed without contributing native evidence
+      Given the deterministic injected <platform> adapter is held at barriers around its multi-read identity operation
       When <torn-observation> occurs before the snapshot is authenticated
-      Then no owner or waiter is reclaimed, no repository process starts, the caller exits nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE, and the durable owner bytes remain unchanged
+      Then no owner or waiter is reclaimed, no repository process starts, native evidence remains unchanged, the caller exits nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE, and the durable owner bytes remain unchanged
       Examples:
         | platform | torn-observation |
         | Linux | boot ID changes between the reads of boot identity and process start ticks |
@@ -431,6 +430,11 @@ Feature: Let parallel sessions share test capacity safely
       Given an injected monotonic clock and a first guarded observation prove the recorded supervisor instance, group-leader instance, and process group absent and mark the owner reclaiming without returning capacity at the current state version and reclaim marker
       When the injected monotonic recovery interval passes with that guarded state version and reclaim marker unchanged, and the second observation proves the exact supervisor and leader instances absent and the group empty
       Then one guarded recovery returns capacity atomically at version N+1, admits the queued waiter at N+2, runs its unchanged invocation once to exit zero, and no admission observes a free intermediate state
+
+    Scenario: A later wrapper completes recovery after the first reclaim observer dies
+      Given a first observer persisted a boot-bound monotonic reclaim deadline after marking an absent owner's full weight reclaiming, then dies
+      When a second wrapper observes the same boot identity, unchanged state version and marker after that deadline, and again proves the exact owner absent
+      Then it returns the full weight at version N+1, admits the waiting wrapper at N+2, and the waiting invocation runs once to exit zero
 
     @rejection
     Scenario Outline: Supervisor loss holds capacity when the second observation remains unsafe
