@@ -30,7 +30,7 @@ import {
   permissionSimulations,
 } from './helpers/permission-simulation.js';
 
-const TEST_ROOT = import.meta.dirname;
+const PACKAGES_ROOT = nodePath.resolve(import.meta.dirname, '../..');
 const SCANNED_EXTENSIONS = new Set(['.ts', '.mts', '.cts', '.tsx']);
 
 function testFiles(directory: string): string[] {
@@ -39,9 +39,12 @@ function testFiles(directory: string): string[] {
   for (const entry of entries) {
     const full = nodePath.join(directory, entry.name);
     if (entry.isDirectory()) {
-      if (entry.name === 'fixtures' || entry.name === 'node_modules') continue;
+      if (['dist', 'fixtures', 'node_modules'].includes(entry.name)) continue;
       found.push(...testFiles(full));
-    } else if (SCANNED_EXTENSIONS.has(nodePath.extname(entry.name))) {
+    } else if (
+      SCANNED_EXTENSIONS.has(nodePath.extname(entry.name)) &&
+      (full.includes(`${nodePath.sep}tests${nodePath.sep}`) || entry.name.includes('.test.'))
+    ) {
       found.push(full);
     }
   }
@@ -215,9 +218,9 @@ describe('uid-dependent permission simulations', () => {
   it('no test removes owner read or write to simulate an I/O failure', () => {
     const offenders: string[] = [];
 
-    for (const file of testFiles(TEST_ROOT)) {
+    for (const file of testFiles(PACKAGES_ROOT)) {
       if (file.endsWith('uid-dependent-permission-tripwire.test.ts')) continue;
-      const relative = nodePath.relative(TEST_ROOT, file);
+      const relative = nodePath.relative(PACKAGES_ROOT, file);
       const found = permissionSimulations(readFileSync(file, 'utf8'));
       for (const offender of found) offenders.push(`${relative}: ${offender}`);
     }
