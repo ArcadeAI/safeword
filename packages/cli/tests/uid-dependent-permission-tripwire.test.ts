@@ -28,7 +28,6 @@ import {
   chmodModeArguments,
   literalMode,
   permissionSimulations,
-  withoutComments,
 } from './helpers/permission-simulation.js';
 
 const TEST_ROOT = import.meta.dirname;
@@ -57,15 +56,9 @@ describe('permission-simulation detection', () => {
   });
 
   it.each(['a // chmodSync(p, 0o000)\nb', '/* chmodSync(p, 0o000) */ b'])(
-    'blanks comment content while keeping offsets aligned: %j',
+    'ignores calls in comments: %j',
     source => {
-      const stripped = withoutComments(source);
-      // Content gone, so a documented example cannot be read as a violation…
-      expect(stripped).not.toContain('chmodSync');
-      // …but length and newlines preserved, so a reported offset still points
-      // at the line it came from.
-      expect(stripped).toHaveLength(source.length);
-      expect(stripped.split('\n')).toHaveLength(source.split('\n').length);
+      expect(permissionSimulations(source)).toEqual([]);
     },
   );
 
@@ -147,8 +140,8 @@ describe('permission-simulation detection', () => {
   // anything: a recursive chmod, a symbolic mode, chmod as a subprocess, and
   // the promise API.
   it.each([
-    ['a flag between chmod and its mode', 'chmod -R a-w dir'],
-    ['a symbolic mode that assigns away write', 'chmod u=r file'],
+    ['a flag between chmod and its mode', 'const command = "chmod -R a-w dir";'],
+    ['a symbolic mode that assigns away write', 'const command = "chmod u=r file";'],
     ['chmod invoked as a subprocess with an argv array', `execFileSync('chmod', ['000', p])`],
     ['the promise API rather than the sync one', 'await fs.promises.chmod(p, 0o000)'],
     ['a renamed import', `import { chmodSync as lockDown } from 'node:fs';\nlockDown(p, 0o000);`],
@@ -195,8 +188,8 @@ describe('permission-simulation detection', () => {
   // Widening the detector must not start flagging chmods that grant access —
   // an over-eager tripwire gets waived, and then it guards nothing.
   it.each([
-    ['a recursive grant', 'chmod -R u+w dir'],
-    ['a symbolic mode that keeps read and write', 'chmod u=rw file'],
+    ['a recursive grant', 'const command = "chmod -R u+w dir";'],
+    ['a symbolic mode that keeps read and write', 'const command = "chmod u=rw file";'],
     ['a subprocess chmod granting access', `execFileSync('chmod', ['755', p])`],
     ['a promise-API grant', 'await fs.promises.chmod(p, 0o755)'],
   ])('allows %s', (_label, source) => {
