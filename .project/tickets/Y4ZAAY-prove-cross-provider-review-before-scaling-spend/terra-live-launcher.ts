@@ -658,6 +658,10 @@ function paidChildEnvironment(
     }
   }
   child.OPENAI_API_KEY = openAIKey;
+  child.PR_REVIEW_LANE_CORRECTNESS_MODEL = "gpt-5.6-terra";
+  child.PR_REVIEW_LANE_CORRECTNESS_PROVIDER = "openai";
+  child.PR_REVIEW_LANE_VERIFIER_MODEL = "gpt-5.6-terra";
+  child.PR_REVIEW_LANE_VERIFIER_PROVIDER = "openai";
   child.SAFEWORD_PAID_CANARY_INPUT_SHA256 = inputDigest;
   child.SAFEWORD_PAID_CANARY_RETRIES = "0";
   return child;

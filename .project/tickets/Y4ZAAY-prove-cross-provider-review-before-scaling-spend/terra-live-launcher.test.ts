@@ -489,10 +489,14 @@ describe("credential-separated live launcher", () => {
       observedCostPicodollars: 65_500_000n,
       sequence: 1,
     });
-    expect(childEnvironment).toMatchObject({
-      OPENAI_API_KEY: "openai-secret",
-      SAFEWORD_PAID_CANARY_RETRIES: "0",
-    });
+      expect(childEnvironment).toMatchObject({
+        OPENAI_API_KEY: "openai-secret",
+        PR_REVIEW_LANE_CORRECTNESS_MODEL: "gpt-5.6-terra",
+        PR_REVIEW_LANE_CORRECTNESS_PROVIDER: "openai",
+        PR_REVIEW_LANE_VERIFIER_MODEL: "gpt-5.6-terra",
+        PR_REVIEW_LANE_VERIFIER_PROVIDER: "openai",
+        SAFEWORD_PAID_CANARY_RETRIES: "0",
+      });
     expect(childEnvironment).not.toHaveProperty("GITHUB_TOKEN");
     expect(JSON.stringify(childEnvironment)).not.toContain("github-secret");
   });
