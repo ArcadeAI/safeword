@@ -339,6 +339,8 @@ export function cleanupPlanDigest(plan: CleanupPlan): string {
 export function operationCommand(operation: CleanupOperation): string[] {
   switch (operation.kind) {
     case 'remove-worktree':
+      // This describes the final Git action for previews/tests. Execution first
+      // quarantines and revalidates the worktree in removeWorktreeSafely().
       return ['git', '-C', operation.cwd, 'worktree', 'remove', operation.path];
     case 'delete-remote-ref':
       return [
@@ -1251,6 +1253,7 @@ function runVerification(
           stateHash: observedStateHash,
         };
   }
+  // A fresh verdict is trustworthy only if the stale receipt was invalidated.
   let passed = invalidateVerificationReceipt(root);
   for (const kind of POST_MERGE_VERIFICATION_KINDS) {
     const planResult = runSafeword(root, [
@@ -1666,11 +1669,11 @@ if (import.meta.main) {
   const root = resolveRepositoryRoot(process.cwd());
   const requestedPr = argumentValue('--pr');
   const pr = requestedPr && /^[1-9]\d*$/u.test(requestedPr) ? requestedPr : undefined;
-  const binding = root ? resolveCloseoutBinding(root) : undefined;
   if (!root || !pr) {
     console.error('closeout blocked: repository and a positive numeric --pr are required.');
     process.exit(2);
   }
+  const binding = resolveCloseoutBinding(root);
   const observation = observeCloseout(root, pr, binding);
   const plan = buildCleanupPlan(observation);
   const digest = cleanupPlanDigest(plan);
