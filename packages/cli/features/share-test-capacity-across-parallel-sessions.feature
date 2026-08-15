@@ -606,6 +606,24 @@ Feature: Let parallel sessions share test capacity safely
   @share-test-capacity.TBU1.R6
   Rule: share-test-capacity.TBU1.R6 — One validated shared setting governs every participating new-wrapper session and can conservatively restore today's single-run behavior
 
+    @wiring @surface.safeword-cli
+    Scenario: Status reports an uninitialized domain without creating it
+      Given the derived canonical domain has no guard, state, journal, or temporary artifact
+      When the builder runs `safeword project test-capacity status`
+      Then status exits zero, names the derived domain token as uninitialized, reports implicit capacity one, and leaves no capacity artifact
+
+    @wiring @surface.safeword-cli
+    Scenario: A confirmed set initializes an uninitialized domain atomically
+      Given the derived canonical domain has no guard, state, journal, or temporary artifact
+      When the builder runs `safeword project test-capacity set 2 --confirm-current-protocol`
+      Then one owner-only current-protocol state commits at version one with capacity two and no partial artifact is visible
+
+    @rejection @surface.safeword-cli
+    Scenario: Reset refuses an uninitialized domain
+      Given the derived canonical domain has no guard, state, journal, or temporary artifact
+      When the builder runs `safeword project test-capacity reset --expected-domain D --confirm-idle`
+      Then it starts no repository process, leaves no capacity artifact, and exits nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE and `safeword project test-capacity status`
+
     @rejection @wiring @process @surface.safeword-cli
     Scenario Outline: First use creates or recovers one canonical capacity-one protocol state
       Given the canonical capacity domain has <initial-state>

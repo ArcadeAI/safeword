@@ -341,6 +341,24 @@ remain in the feature file.
 
 ## Rule: share-test-capacity.TBU1.R6
 
+### Scenario: Status reports an uninitialized domain without creating it
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A confirmed set initializes an uninitialized domain atomically
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Reset refuses an uninitialized domain
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: First use creates or recovers one canonical capacity-one protocol state
 
 - [ ] RED
