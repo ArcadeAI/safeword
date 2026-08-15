@@ -9,9 +9,8 @@
  * Reaches the consumers (verify/audit/test-runner) via the `safeword project test-plan`
  * CLI — shipped hooks cannot import safeword code, so the CLI is the seam.
  *
- * Manifest discovery is a single tree walk (`indexFilesInTree`) shared by every
- * language resolver, so a complex/deep monorepo costs one traversal, not one per
- * probe.
+ * Each entry is rooted at the manifest that owns it, so monorepos can emit
+ * multiple same-language lanes without borrowing a sibling's config or lockfile.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -19,11 +18,16 @@ import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
-import { findFileMatchingInTree, indexFilesInTree } from '../utils/fs.js';
+import { parse } from 'smol-toml';
+
+import { pythonWorkspaceOwns } from '../packs/python/setup.js';
+import { findAllInTree, findFileMatchingInTree, indexFilesInTree } from '../utils/fs.js';
 import { detectPackageManager } from '../utils/install.js';
+import { matchesWorkspacePattern } from '../utils/workspace-pattern.js';
+import { getWorkspacePatterns, WORKSPACE_ROOTS } from '../utils/workspaces.js';
 
 export type PlanKind = 'test' | 'build' | 'verify' | 'typecheck' | 'deps' | 'bdd';
-export type Language = 'javascript' | 'python' | 'go' | 'rust';
+export type Language = 'javascript' | 'python' | 'go' | 'rust' | 'sql';
 
 export interface PlanEntry {
   language: Language;
@@ -48,6 +52,7 @@ type ToolProbe = (tool: string) => boolean;
 type ManifestIndex = ReadonlyMap<string, string>;
 
 const PYTHON_MANIFESTS = ['pyproject.toml', 'requirements.txt', 'setup.py', 'setup.cfg', 'tox.ini'];
+const SQL_PROJECT_MARKERS = ['dbt_project.yml', 'sqlc.yaml', 'sqlc.yml', 'sqlc.json', '.sqlfluff'];
 // Per-tool config-marker files — the opt-in signals that gate the python
 // `typecheck` (mypy/pyright) and `bdd` (behave) lanes. Single-sourced here so a
 // new marker lands in the detector, the cwd resolution, AND the tree index with
@@ -67,7 +72,82 @@ const TREE_MANIFESTS = new Set<string>([
   ...BEHAVE_MARKER_FILES,
   'go.mod',
   'Cargo.toml',
+  ...SQL_PROJECT_MARKERS,
 ]);
+
+/** Index only files owned by one detected project root. */
+function directManifestIndex(directory: string): ManifestIndex {
+  return new Map(
+    [...TREE_MANIFESTS]
+      .filter(name => existsSync(nodePath.join(directory, name)))
+      .map(name => [name, directory]),
+  );
+}
+
+function directoriesWithAnyManifest(root: string, manifests: readonly string[]): string[] {
+  return [...new Set(manifests.flatMap(manifest => findAllInTree(root, manifest)))].toSorted(
+    (left, right) => left.localeCompare(right),
+  );
+}
+
+function pythonProjectIndex(directory: string, root: string): ManifestIndex {
+  const index = new Map(directManifestIndex(directory));
+  if (directory === root) return index;
+  if (existsSync(nodePath.join(root, 'uv.lock')) && pythonWorkspaceOwns(root, directory)) {
+    index.set('uv.lock', root);
+  }
+  return index;
+}
+
+function cargoWorkspaceOwns(workspaceDirectory: string, candidate: string): boolean {
+  try {
+    const document = parse(
+      readFileSync(nodePath.join(workspaceDirectory, 'Cargo.toml'), 'utf8'),
+    ) as {
+      workspace?: { members?: unknown; exclude?: unknown };
+    };
+    if (!document.workspace || !Array.isArray(document.workspace.members)) return false;
+    const relative = nodePath.relative(workspaceDirectory, candidate);
+    const members = document.workspace.members.filter(
+      (member): member is string => typeof member === 'string',
+    );
+    const excluded = Array.isArray(document.workspace.exclude)
+      ? document.workspace.exclude.filter((member): member is string => typeof member === 'string')
+      : [];
+    return (
+      members.some(pattern => matchesWorkspacePattern(relative, pattern)) &&
+      excluded.every(pattern => !matchesWorkspacePattern(relative, pattern))
+    );
+  } catch {
+    return false;
+  }
+}
+
+function javascriptProjectDirectories(root: string): string[] {
+  const declaredPatterns = getWorkspacePatterns(root);
+  const patterns =
+    declaredPatterns.length > 0 ? declaredPatterns : WORKSPACE_ROOTS.map(name => `${name}/*`);
+  return findAllInTree(root, 'package.json').filter(directory => {
+    if (directory === root) return true;
+    const relative = nodePath.relative(root, directory);
+    const included = patterns.filter(pattern => !pattern.startsWith('!'));
+    const excluded = patterns
+      .filter(pattern => pattern.startsWith('!'))
+      .map(pattern => pattern.slice(1));
+    return (
+      included.some(pattern => matchesWorkspacePattern(relative, pattern)) &&
+      excluded.every(pattern => !matchesWorkspacePattern(relative, pattern))
+    );
+  });
+}
+
+function pythonProjectMarkers(kind: PlanKind): readonly string[] {
+  if (kind === 'typecheck') {
+    return [...MYPY_MARKER_FILES, ...PYRIGHT_MARKER_FILES, 'pyproject.toml', 'setup.cfg'];
+  }
+  if (kind === 'bdd') return [...BEHAVE_MARKER_FILES, 'pyproject.toml', 'setup.cfg'];
+  return PYTHON_MANIFESTS;
+}
 
 /**
  * Kinds each non-Rust resolver opts out of, so a new PlanKind fails safe (the
@@ -194,29 +274,32 @@ const JS_DIRECT_SCRIPT: Partial<Record<PlanKind, string>> = {
 };
 
 function resolveJs(
-  root: string,
+  projectDirectory: string,
   _index: ManifestIndex,
   kind: PlanKind,
   isAvailable: ToolProbe,
+  packageManagerDirectory: string = projectDirectory,
 ): PlanEntry | undefined {
   // JS is detected root-only: subdirectory package.json is too common to treat as a project root.
-  const scripts = readRootScripts(root);
+  const scripts = readRootScripts(projectDirectory);
   if (!scripts) return undefined;
-  const pm = detectPackageManager(root);
+  const pm = detectPackageManager(packageManagerDirectory);
   if (kind === 'deps') {
     const command = pm === 'yarn' ? 'yarn npm audit' : `${pm} audit`;
-    return entry('javascript', root, command, pm, isAvailable(pm));
+    return entry('javascript', projectDirectory, command, pm, isAvailable(pm));
   }
   const directScript = JS_DIRECT_SCRIPT[kind];
   if (directScript !== undefined) {
     const command = scripts[directScript];
     return command
-      ? entry('javascript', root, `${pm} run ${directScript}`, pm, isAvailable(pm))
+      ? entry('javascript', projectDirectory, `${pm} run ${directScript}`, pm, isAvailable(pm))
       : undefined;
   }
   const pickScript = kind === 'verify' ? pickVerifyScript : pickTestScript;
   const script = pickScript(scripts);
-  return script ? entry('javascript', root, `${pm} run ${script}`, pm, isAvailable(pm)) : undefined;
+  return script
+    ? entry('javascript', projectDirectory, `${pm} run ${script}`, pm, isAvailable(pm))
+    : undefined;
 }
 
 /** Returns the first script name in `priority` that exists in `scripts`, or undefined. */
@@ -348,9 +431,11 @@ function resolvePythonTest(
   index: ManifestIndex,
   cwd: string,
   isAvailable: ToolProbe,
+  nestedProjects: ReadonlySet<string>,
 ): PlanEntry | undefined {
   if (index.has('tox.ini')) return entry('python', cwd, 'tox', 'tox', isAvailable('tox'));
-  const hasPythonTests = findFileMatchingInTree(cwd, isPythonTestFile) !== undefined;
+  const hasPythonTests =
+    findFileMatchingInTree(cwd, isPythonTestFile, 10, nestedProjects) !== undefined;
   if (pytestConfigured(index) || (hasPythonTests && isAvailable('pytest'))) {
     const { command, gate } = pythonInvocation(index, isAvailable, 'pytest');
     return entry('python', cwd, command, 'pytest', isAvailable(gate));
@@ -372,6 +457,7 @@ function resolvePython(
   index: ManifestIndex,
   kind: PlanKind,
   isAvailable: ToolProbe,
+  nestedProjects: ReadonlySet<string> = new Set(),
 ): PlanEntry | undefined {
   if (PYTHON_SKIP_KINDS.has(kind)) return undefined; // build: no standard Python lane
   // typecheck/bdd detect Python via their OWN config markers (mypy/pyright/behave
@@ -419,7 +505,12 @@ function resolvePython(
     // fallback and remains visible if the scanner is unavailable.
     return entry('python', cwd, 'pip-audit', 'pip-audit', isAvailable('pip-audit'));
   }
-  return resolvePythonTest(index, firstDirectory(root, index, PYTHON_MANIFESTS), isAvailable);
+  return resolvePythonTest(
+    index,
+    firstDirectory(root, index, PYTHON_MANIFESTS),
+    isAvailable,
+    nestedProjects,
+  );
 }
 
 function resolveGo(
@@ -510,20 +601,85 @@ function resolveRust(
   return entry('rust', cwd, 'cargo test --workspace', 'cargo', isAvailable('cargo'));
 }
 
+function resolveSql(
+  root: string,
+  index: ManifestIndex,
+  kind: PlanKind,
+  isAvailable: ToolProbe,
+): PlanEntry | undefined {
+  if (SQL_PROJECT_MARKERS.every(marker => !index.has(marker))) return undefined;
+  if (kind === 'build' && index.has('dbt_project.yml')) {
+    return entry('sql', root, 'dbt build', 'dbt', isAvailable('dbt'));
+  }
+  if (kind === 'test' || kind === 'verify') {
+    return entry('sql', root, 'sqlfluff lint .', 'sqlfluff', isAvailable('sqlfluff'));
+  }
+  return undefined;
+}
+
 /**
- * Resolve the test (or build) plan for a repo: one entry per detected language.
+ * Resolve the test (or build) plan for every detected project in a repo.
  * Languages whose toolchain is missing are still listed (`available:false`).
  */
 export function resolveTestPlan(root: string, options: ResolveOptions = {}): PlanEntry[] {
   const kind = options.kind ?? 'test';
   const isAvailable = options.isToolAvailable ?? defaultIsToolAvailable;
-  const index = indexFilesInTree(root, TREE_MANIFESTS);
   const installedPacks = readInstalledPacks(root);
-  const resolvers = [resolveJs, resolvePython, resolveGo, resolveRust];
-  return resolvers
-    .map(resolve => resolve(root, index, kind, isAvailable))
-    .filter(
-      (planEntry): planEntry is PlanEntry =>
-        planEntry !== undefined && isLanguageEnabled(planEntry.language, installedPacks),
-    );
+  const globalIndex = indexFilesInTree(root, TREE_MANIFESTS);
+  const declaredJavascriptPatterns = getWorkspacePatterns(root);
+  const javascript = javascriptProjectDirectories(root).map(directory =>
+    resolveJs(
+      directory,
+      directManifestIndex(directory),
+      kind,
+      isAvailable,
+      directory !== root &&
+        declaredJavascriptPatterns.some(
+          pattern =>
+            !pattern.startsWith('!') &&
+            matchesWorkspacePattern(nodePath.relative(root, directory), pattern),
+        )
+        ? root
+        : directory,
+    ),
+  );
+  const pythonDirectories = directoriesWithAnyManifest(root, pythonProjectMarkers(kind));
+  const python = pythonDirectories.map(directory =>
+    resolvePython(
+      directory,
+      pythonProjectIndex(directory, root),
+      kind,
+      isAvailable,
+      new Set(
+        pythonDirectories.filter(candidate => {
+          const relative = nodePath.relative(directory, candidate);
+          return candidate !== directory && !relative.startsWith(`..${nodePath.sep}`);
+        }),
+      ),
+    ),
+  );
+  const go = existsSync(nodePath.join(root, 'go.work'))
+    ? [resolveGo(root, globalIndex, kind, isAvailable)]
+    : findAllInTree(root, 'go.mod').map(directory =>
+        resolveGo(directory, directManifestIndex(directory), kind, isAvailable),
+      );
+  const cargoDirectories = findAllInTree(root, 'Cargo.toml');
+  const cargoWorkspaceDirectories = cargoDirectories.filter(directory =>
+    readFileSync(nodePath.join(directory, 'Cargo.toml'), 'utf8').includes('[workspace]'),
+  );
+  const rustDirectories = cargoDirectories.filter(directory =>
+    cargoWorkspaceDirectories.every(
+      workspace => workspace === directory || !cargoWorkspaceOwns(workspace, directory),
+    ),
+  );
+  const rust = rustDirectories.map(directory =>
+    resolveRust(directory, directManifestIndex(directory), kind, isAvailable),
+  );
+  const sql = directoriesWithAnyManifest(root, SQL_PROJECT_MARKERS).map(directory =>
+    resolveSql(directory, directManifestIndex(directory), kind, isAvailable),
+  );
+  return [...javascript, ...python, ...go, ...rust, ...sql].filter(
+    (planEntry): planEntry is PlanEntry =>
+      planEntry !== undefined && isLanguageEnabled(planEntry.language, installedPacks),
+  );
 }
