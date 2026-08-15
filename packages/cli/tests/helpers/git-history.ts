@@ -23,10 +23,11 @@
  */
 
 import { spawnSync } from 'node:child_process';
+import nodePath from 'node:path';
 
 import { supportedClaudeLegacyReleases } from '../../src/claude-plugin/historical-ownership.js';
 
-const repoRoot = new URL('../../../..', import.meta.url).pathname;
+const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
 
 /** Restores both tags and the commit history the sealed-review suites walk. */
 const REMEDY = 'git fetch --unshallow --tags origin';
