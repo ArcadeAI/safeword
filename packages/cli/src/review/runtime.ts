@@ -659,6 +659,15 @@ export function procGroupHasRunningMember(group: number): boolean | undefined {
   return false;
 }
 
+async function waitForProcessGroupToStop(
+  groupIsRunning: () => boolean,
+  deadline: number,
+): Promise<void> {
+  while (groupIsRunning() && Date.now() < deadline) {
+    await new Promise(resolve => setTimeout(resolve, 5));
+  }
+}
+
 async function stopReviewerOnce(child: ReturnType<typeof spawn>): Promise<boolean> {
   const pid = child.pid;
   if (pid === undefined) return true;
@@ -714,10 +723,7 @@ async function stopReviewerOnce(child: ReturnType<typeof spawn>): Promise<boolea
     if (groupIsRunning()) return false;
     return !groupIsRunning();
   };
-  const deadline = Date.now() + CLEANUP_BUDGET_MS;
-  while (groupIsRunning() && Date.now() < deadline) {
-    await new Promise(resolve => setTimeout(resolve, 5));
-  }
+  await waitForProcessGroupToStop(groupIsRunning, Date.now() + CLEANUP_BUDGET_MS);
   // Escalate on ANY remaining member, zombie or not. SIGKILL against a
   // zombie-only group is a no-op, while gating the kill on the scan is how a
   // live member would survive a false negative — a reviewer that traps SIGTERM
@@ -726,10 +732,7 @@ async function stopReviewerOnce(child: ReturnType<typeof spawn>): Promise<boolea
   // below distinguishes a zombie from a live process.
   if (groupExists()) {
     signalGroup('SIGKILL');
-    const forcedDeadline = Date.now() + CLEANUP_BUDGET_MS;
-    while (groupIsRunning() && Date.now() < forcedDeadline) {
-      await new Promise(resolve => setTimeout(resolve, 5));
-    }
+    await waitForProcessGroupToStop(groupIsRunning, Date.now() + CLEANUP_BUDGET_MS);
   }
   return groupIsStopped();
 }
