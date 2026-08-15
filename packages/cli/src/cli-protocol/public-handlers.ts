@@ -1097,23 +1097,9 @@ function codexConfirmation(plan: CliPlan, exactConfigBlocks: readonly string[]):
   });
 }
 
-function codexFinalizationPlan(
-  cwd: string,
-  migration: typeof CodexMigration,
+function codexFinalizationPlanFromObservation(
+  observed: ReturnType<typeof CodexMigration.observeCodexFinalizationPlan>,
 ): { readonly plan: CliPlan; readonly exactConfigBlocks: readonly string[] } {
-  // Validate and snapshot repository inputs before consulting the profile. An
-  // unsafe or malformed project must fail without invoking external tooling.
-  migration.observeCodexFinalizationPlan(cwd);
-  const observation = migration.observeCodexMigrationResult(cwd);
-  if (observation.proof.status !== 'current') {
-    throw new CodexMigrationError(
-      'FINALIZATION_PROOF_REQUIRED',
-      'Finalization requires current plugin hook proof from the restarted Codex app. Review /hooks, then retry.',
-    );
-  }
-  // Profile verification is an external boundary. Re-snapshot afterward so
-  // consent can never be bound to repository state that changed during it.
-  const observed = migration.observeCodexFinalizationPlan(cwd);
   return {
     plan: createPlan({
       command: 'codex migrate --finalize',
@@ -1136,6 +1122,28 @@ function codexFinalizationPlan(
     exactConfigBlocks: observed.exactConfigBlocks,
   };
 }
+
+function codexFinalizationPlan(
+  cwd: string,
+  migration: typeof CodexMigration,
+): { readonly plan: CliPlan; readonly exactConfigBlocks: readonly string[] } {
+  // Validate and snapshot repository inputs before consulting the profile. An
+  // unsafe or malformed project must fail without invoking external tooling.
+  migration.observeCodexFinalizationPlan(cwd);
+  const observation = migration.observeCodexMigrationResult(cwd);
+  if (observation.proof.status !== 'current') {
+    throw new CodexMigrationError(
+      'FINALIZATION_PROOF_REQUIRED',
+      'Finalization requires current plugin hook proof from the restarted Codex app. Review /hooks, then retry.',
+    );
+  }
+  // Profile verification is an external boundary. Re-snapshot afterward so
+  // consent can never be bound to repository state that changed during it.
+  const observed = migration.observeCodexFinalizationPlan(cwd);
+  return codexFinalizationPlanFromObservation(observed);
+}
+
+type CodexFinalizationPlan = ReturnType<typeof codexFinalizationPlan>;
 
 async function codexRecoveryPlan(cwd: string): Promise<{
   readonly plan: CliPlan;
@@ -1237,13 +1245,17 @@ async function runCodexRecovery(
 async function runCodexFinalization(
   invocation: CommandInvocation,
   migration: typeof CodexMigration,
+  accepted: CodexFinalizationPlan,
 ): Promise<CliResult> {
-  const current = codexFinalizationPlan(invocation.cwd, migration);
-  const suppliedPlan = stringOption(invocation.options, 'plan');
-  if (suppliedPlan !== undefined && suppliedPlan !== current.plan.id) {
-    return staleCodexPlan(current.plan);
+  const current = migration.observeCodexFinalizationPlan(invocation.cwd);
+  if (current.preconditionDigest !== accepted.plan.preconditionDigest) {
+    return staleCodexPlan(codexFinalizationPlanFromObservation(current).plan);
   }
-  const paths = current.plan.effects.files.map(effect =>
+  const suppliedPlan = stringOption(invocation.options, 'plan');
+  if (suppliedPlan !== undefined && suppliedPlan !== accepted.plan.id) {
+    return staleCodexPlan(accepted.plan);
+  }
+  const paths = accepted.plan.effects.files.map(effect =>
     nodePath.join(invocation.cwd, effect.target),
   );
   const before = paths.map(path => ({ path, snapshot: observeFile(path) }));
@@ -1458,14 +1470,24 @@ function codexFailure(
 
 type CodexMutationName = 'codex install' | 'codex migrate' | 'codex recover';
 
+type CodexMutationPreflight =
+  | { readonly result: CliResult; readonly finalizationPlan?: never }
+  | { readonly result?: never; readonly finalizationPlan?: CodexFinalizationPlan };
+
 async function executeCodexMutation(
   name: CodexMutationName,
   isFinalization: boolean,
   invocation: CommandInvocation,
   migration: typeof CodexMigration,
+  finalizationPlan?: CodexFinalizationPlan,
 ): Promise<CliResult> {
   if (name === 'codex recover') return await runCodexRecovery(invocation, migration);
-  if (isFinalization) return await runCodexFinalization(invocation, migration);
+  if (isFinalization) {
+    if (finalizationPlan === undefined) {
+      throw new Error('Codex finalization requires an accepted preflight plan.');
+    }
+    return await runCodexFinalization(invocation, migration, finalizationPlan);
+  }
   return runCodexInstall(invocation, migration);
 }
 
@@ -1512,24 +1534,24 @@ function codexPluginUpdateFailure(observed: CliResult): CliResult | undefined {
 async function codexFinalizationPreflight(
   invocation: CommandInvocation,
   migration: typeof CodexMigration,
-): Promise<CliResult | undefined> {
+): Promise<CodexMutationPreflight> {
   const finalization = await import('../codex-plugin/finalization.js');
   if (finalization.codexFinalizationIsComplete(invocation.cwd)) {
-    return migration.observeCodexMigration(invocation.cwd);
+    return { result: migration.observeCodexMigration(invocation.cwd) };
   }
   const observedPlan = codexFinalizationPlan(invocation.cwd, migration);
   const observed = migration.observeCodexMigration(invocation.cwd);
   const pluginUpdateFailure = codexPluginUpdateFailure(observed);
-  if (pluginUpdateFailure !== undefined) return pluginUpdateFailure;
+  if (pluginUpdateFailure !== undefined) return { result: pluginUpdateFailure };
   const suppliedPlan = stringOption(invocation.options, 'plan');
   const deprecatedAssumeYes =
     invocation.options.removeLegacyHooks === true && invocation.options.yes === true;
   if (invocation.options.yes !== true || (suppliedPlan === undefined && !deprecatedAssumeYes)) {
-    return codexConfirmation(observedPlan.plan, observedPlan.exactConfigBlocks);
+    return { result: codexConfirmation(observedPlan.plan, observedPlan.exactConfigBlocks) };
   }
   return suppliedPlan === undefined || suppliedPlan === observedPlan.plan.id
-    ? undefined
-    : staleCodexPlan(observedPlan.plan);
+    ? { finalizationPlan: observedPlan }
+    : { result: staleCodexPlan(observedPlan.plan) };
 }
 
 async function codexRecoveryPreflight(
@@ -1550,13 +1572,16 @@ async function codexMutationPreflight(
   isFinalization: boolean,
   invocation: CommandInvocation,
   migration: typeof CodexMigration,
-): Promise<CliResult | undefined> {
+): Promise<CodexMutationPreflight> {
   if (await codexRecoveryRequired(invocation.cwd, isFinalization)) {
-    return migration.observeCodexMigration(invocation.cwd);
+    return { result: migration.observeCodexMigration(invocation.cwd) };
   }
   if (isFinalization) return codexFinalizationPreflight(invocation, migration);
-  if (name === 'codex recover') return codexRecoveryPreflight(invocation, migration);
-  return undefined;
+  if (name === 'codex recover') {
+    const result = await codexRecoveryPreflight(invocation, migration);
+    return result === undefined ? {} : { result };
+  }
+  return {};
 }
 
 async function codexMutationHandlerCore(
@@ -1572,10 +1597,16 @@ async function codexMutationHandlerCore(
   try {
     const migration = await import('../codex-plugin/operations.js');
     const preflight = await codexMutationPreflight(name, isFinalization, invocation, migration);
-    if (preflight !== undefined) return preflight;
+    if (preflight.result !== undefined) return preflight.result;
 
     invocation.progress?.start(`Running ${name}…`);
-    return await executeCodexMutation(name, isFinalization, invocation, migration);
+    return await executeCodexMutation(
+      name,
+      isFinalization,
+      invocation,
+      migration,
+      preflight.finalizationPlan,
+    );
   } catch (codexError) {
     return codexFailure(codexError, name, isFinalization);
   }

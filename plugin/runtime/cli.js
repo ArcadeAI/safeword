@@ -16780,7 +16780,7 @@ function safewordIgnoreDirectories(namespaceRootLabel) {
 }
 function resolvedNamespaceDirectory(ctx) {
   const label = resolvedNamespaceRootLabel(ctx);
-  if (label === "." || label.startsWith("..") || SAFEWORD_IGNORE_DIRS.includes(label)) {
+  if (label === "." || label === ".." || label.startsWith("../") || SAFEWORD_IGNORE_DIRS.includes(label)) {
     return;
   }
   return label;
@@ -21189,7 +21189,7 @@ var init_workspaces = __esm(() => {
 });
 
 // src/reconcile.ts
-import { lstatSync as lstatSync5, readlinkSync, unlinkSync as unlinkSync2 } from "fs";
+import { lstatSync as lstatSync5, readdirSync as readdirSync14, readlinkSync, unlinkSync as unlinkSync2 } from "fs";
 import nodePath39 from "path";
 function getConditionalPackages(conditionalPackages, projectType) {
   const packages = [];
@@ -21322,15 +21322,19 @@ function planManagedFileWrites(files, ctx) {
     return exists(nodePath39.join(c.cwd, filePath));
   });
 }
-function planExistingDirectoriesRemoval(directories, cwd) {
+function planExistingDirectoriesRemoval(directories, cwd, scheduledRemovals = new Set) {
   const actions = [];
   const removed = [];
   for (const dir of directories) {
-    if (!exists(nodePath39.join(cwd, dir))) {
+    const fullPath = nodePath39.join(cwd, dir);
+    if (!exists(fullPath))
       continue;
-    }
     actions.push({ type: "rmdir", path: dir });
-    removed.push(dir);
+    const plannedBeforeThisDirectory = new Set([...scheduledRemovals, ...removed]);
+    const entries = readdirSync14(fullPath);
+    const willBeEmpty = entries.every((entry) => plannedBeforeThisDirectory.has(nodePath39.posix.join(dir, entry)));
+    if (willBeEmpty)
+      removed.push(dir);
   }
   return { actions, removed };
 }
@@ -21608,7 +21612,7 @@ function computeUpgradePlan(schema, ctx) {
   const deprecatedFiles = planExistingFilesRemoval(schema.deprecatedFiles, ctx.cwd);
   actions.push(...deprecatedFiles.actions);
   wouldRemove.push(...deprecatedFiles.removed);
-  const deprecatedDirectories = planExistingDirectoriesRemoval(schema.deprecatedDirs, ctx.cwd);
+  const deprecatedDirectories = planExistingDirectoriesRemoval(schema.deprecatedDirs, ctx.cwd, new Set(wouldRemove));
   actions.push(...deprecatedDirectories.actions);
   wouldRemove.push(...deprecatedDirectories.removed);
   actions.push({ type: "chmod", paths: CHMOD_PATHS });
@@ -21644,7 +21648,7 @@ function computeUninstallPlan(schema, ctx, full) {
     if (parentDirectory)
       directoriesToCleanup.add(parentDirectory);
   }
-  const cleanupDirectories = planExistingDirectoriesRemoval([...directoriesToCleanup], ctx.cwd);
+  const cleanupDirectories = planExistingDirectoriesRemoval([...directoriesToCleanup], ctx.cwd, new Set(wouldRemove));
   actions.push(...cleanupDirectories.actions);
   wouldRemove.push(...cleanupDirectories.removed);
   for (const [filePath, definition] of Object.entries(schema.jsonMerges)) {
@@ -21653,10 +21657,10 @@ function computeUninstallPlan(schema, ctx, full) {
   actions.push(...planTextUnpatches(schema.textPatches, ctx), ...planTextUnpatches(schema.legacyTextPatches, ctx));
   const dynamicChanges = planDynamicFileChanges(actions, ctx);
   wouldRemove.push(...dynamicChanges.removed);
-  const preserved = planExistingDirectoriesRemoval(schema.preservedDirs.toReversed(), ctx.cwd);
+  const preserved = planExistingDirectoriesRemoval(schema.preservedDirs.toReversed(), ctx.cwd, new Set(wouldRemove));
   actions.push(...preserved.actions);
   wouldRemove.push(...preserved.removed);
-  const owned = planExistingDirectoriesRemoval(schema.ownedDirs.toReversed(), ctx.cwd);
+  const owned = planExistingDirectoriesRemoval(schema.ownedDirs.toReversed(), ctx.cwd, new Set(wouldRemove));
   actions.push(...owned.actions);
   wouldRemove.push(...owned.removed);
   if (full) {
@@ -22128,7 +22132,7 @@ var init_reconcile = __esm(() => {
 });
 
 // src/utils/architecture-records.ts
-import { readdirSync as readdirSync14, statSync as statSync2 } from "fs";
+import { readdirSync as readdirSync15, statSync as statSync2 } from "fs";
 import nodePath40 from "path";
 function listArchitectureRecords(resolvedPath) {
   let stats;
@@ -22141,7 +22145,7 @@ function listArchitectureRecords(resolvedPath) {
     return { kind: "file", records: [resolvedPath] };
   }
   if (stats?.isDirectory()) {
-    const records = readdirSync14(resolvedPath, { withFileTypes: true }).filter((entry) => entry.isFile() && entry.name.endsWith(".md") && entry.name !== "README.md").map((entry) => nodePath40.join(resolvedPath, entry.name));
+    const records = readdirSync15(resolvedPath, { withFileTypes: true }).filter((entry) => entry.isFile() && entry.name.endsWith(".md") && entry.name !== "README.md").map((entry) => nodePath40.join(resolvedPath, entry.name));
     return { kind: "directory", records };
   }
   return { kind: "absent", records: [] };
@@ -22223,7 +22227,7 @@ var init_hook_manager = __esm(() => {
 });
 
 // src/presets/typescript/detect.ts
-import { existsSync as existsSync24, readdirSync as readdirSync15, readFileSync as readFileSync23 } from "fs";
+import { existsSync as existsSync24, readdirSync as readdirSync16, readFileSync as readFileSync23 } from "fs";
 import path3 from "path";
 function getWorkspacePatterns2(cwd) {
   const pkgPath = path3.join(cwd, "package.json");
@@ -22261,7 +22265,7 @@ function scanWorkspaceDirectory(rootDirectory, pattern) {
     return {};
   const allDependencies = {};
   try {
-    const entries = readdirSync15(baseDirectory, { withFileTypes: true });
+    const entries = readdirSync16(baseDirectory, { withFileTypes: true });
     for (const entry of entries) {
       if (entry.isDirectory()) {
         Object.assign(allDependencies, readPackageDependencies(path3.join(baseDirectory, entry.name, "package.json")));
@@ -22334,7 +22338,7 @@ function hasExistingFormatter(cwd, _scripts) {
 function hasExistingPrettierConfig(cwd) {
   let entries;
   try {
-    entries = readdirSync15(cwd);
+    entries = readdirSync16(cwd);
   } catch {
     entries = [];
   }
@@ -22362,7 +22366,7 @@ function scanDirectoryForNextConfigs(rootDirectory, workspacePattern) {
     return [];
   const nextPaths = [];
   try {
-    const entries = readdirSync15(fullBaseDirectory, { withFileTypes: true });
+    const entries = readdirSync16(fullBaseDirectory, { withFileTypes: true });
     for (const entry of entries) {
       if (!entry.isDirectory())
         continue;
@@ -22482,7 +22486,7 @@ var init_cucumber_template_revisions = __esm(() => {
 });
 
 // src/utils/project-detector.ts
-import { existsSync as existsSync25, readdirSync as readdirSync16, readFileSync as readFileSync24 } from "fs";
+import { existsSync as existsSync25, readdirSync as readdirSync17, readFileSync as readFileSync24 } from "fs";
 import nodePath43 from "path";
 function detectLanguages2(cwd) {
   const hasLanguage = (key) => LANGUAGE_PACKS[key]?.detect(cwd) ?? false;
@@ -22508,7 +22512,7 @@ function hasShellScripts(cwd, maxDepth = 4) {
     if (depth > maxDepth)
       return false;
     try {
-      const entries = readdirSync16(dir, { withFileTypes: true });
+      const entries = readdirSync17(dir, { withFileTypes: true });
       for (const entry of entries) {
         if (entry.isFile() && entry.name.endsWith(".sh")) {
           return true;
@@ -22616,7 +22620,7 @@ function isJsSourceFile(name, depth) {
 function scanForJsSource(directory, depth, maxDepth) {
   let entries;
   try {
-    entries = readdirSync16(directory, { withFileTypes: true });
+    entries = readdirSync17(directory, { withFileTypes: true });
   } catch {
     return false;
   }
@@ -22658,7 +22662,7 @@ function findCucumberEvidenceInPackage(cwd, packagePath) {
 function findCucumberEvidenceUnderRoot(cwd, root) {
   let entries;
   try {
-    entries = readdirSync16(nodePath43.join(cwd, root), { withFileTypes: true });
+    entries = readdirSync17(nodePath43.join(cwd, root), { withFileTypes: true });
   } catch {
     return;
   }
@@ -22831,7 +22835,7 @@ function readFrontmatterScalar(content, field) {
 }
 
 // src/utils/feature-source.ts
-import { existsSync as existsSync26, readdirSync as readdirSync17 } from "fs";
+import { existsSync as existsSync26, readdirSync as readdirSync18 } from "fs";
 import nodePath45 from "path";
 function slugForTicket(cwd, ticketFolder) {
   const content = readFileSafe(nodePath45.join(resolveTicketsDirectory(cwd), ticketFolder, "ticket.md"));
@@ -22884,12 +22888,12 @@ function collectDefaultFeatureDirectories(cwd) {
 function collectWorkspaceFeatureDirectories(workspaceDirectory) {
   if (!existsSync26(workspaceDirectory))
     return [];
-  return readdirSync17(workspaceDirectory, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => nodePath45.join(workspaceDirectory, entry.name, "features"));
+  return readdirSync18(workspaceDirectory, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => nodePath45.join(workspaceDirectory, entry.name, "features"));
 }
 function findFeatureFiles(directory, fileName) {
   let entries;
   try {
-    entries = readdirSync17(directory, { withFileTypes: true });
+    entries = readdirSync18(directory, { withFileTypes: true });
   } catch {
     return [];
   }
@@ -22907,7 +22911,7 @@ function findFeatureFiles(directory, fileName) {
 function containsFeatureFile(directory) {
   let entries;
   try {
-    entries = readdirSync17(directory, { withFileTypes: true });
+    entries = readdirSync18(directory, { withFileTypes: true });
   } catch {
     return false;
   }
@@ -32787,7 +32791,7 @@ function buildIndexConflictListMessage(paths) {
 var SYNCTICKETS_QUIET_COMMAND = "`safeword project sync-tickets --quiet`";
 
 // src/health.ts
-import { readdirSync as readdirSync18 } from "fs";
+import { readdirSync as readdirSync19 } from "fs";
 import nodePath46 from "path";
 function findMissingFiles(cwd, actions) {
   const issues = [];
@@ -32889,7 +32893,7 @@ function findDocumentationSourceIssues(cwd) {
 }
 function listTicketIds(ticketsRoot) {
   try {
-    return readdirSync18(ticketsRoot, { withFileTypes: true }).filter((entry) => entry.isDirectory() && entry.name !== "completed").map((entry) => entry.name);
+    return readdirSync19(ticketsRoot, { withFileTypes: true }).filter((entry) => entry.isDirectory() && entry.name !== "completed").map((entry) => entry.name);
   } catch {
     return [];
   }
@@ -33347,7 +33351,7 @@ import {
   lstatSync as lstatSync6,
   mkdirSync as mkdirSync8,
   mkdtempSync as mkdtempSync2,
-  readdirSync as readdirSync19,
+  readdirSync as readdirSync20,
   readFileSync as readFileSync25,
   rmdirSync as rmdirSync3,
   rmSync as rmSync4
@@ -33736,7 +33740,7 @@ function prepareCodexFinalization(cwd, backupDirectory, mutations, beforePrepara
     return { effectiveMutations, entries, manifest };
   } finally {
     rmSync4(stagingDirectory, { recursive: true, force: true });
-    if (!backupParentExisted && pathEntryExists(backupParent) && readdirSync19(backupParent).length === 0) {
+    if (!backupParentExisted && pathEntryExists(backupParent) && readdirSync20(backupParent).length === 0) {
       rmdirSync3(backupParent);
     }
   }
@@ -36991,7 +36995,7 @@ var init_doctor = __esm(() => {
 
 // src/cli-protocol/reconciliation.ts
 import { createHash as createHash15 } from "crypto";
-import { lstatSync as lstatSync11, readdirSync as readdirSync20, readFileSync as readFileSync34, readlinkSync as readlinkSync2 } from "fs";
+import { lstatSync as lstatSync11, readdirSync as readdirSync21, readFileSync as readFileSync34, readlinkSync as readlinkSync2 } from "fs";
 import nodePath57 from "path";
 function actionTargets(action) {
   return action.type === "chmod" ? action.paths : [action.path];
@@ -37027,7 +37031,7 @@ function hashPath(hash, absolutePath, relativePath, readFile2) {
     if (stat.isSymbolicLink())
       hashField(hash, "link-target", readlinkSync2(absolutePath));
     if (stat.isDirectory()) {
-      const entries = readdirSync20(absolutePath).toSorted((left, right) => left.localeCompare(right));
+      const entries = readdirSync21(absolutePath).toSorted((left, right) => left.localeCompare(right));
       for (const name of entries) {
         hashPath(hash, nodePath57.join(absolutePath, name), nodePath57.join(relativePath, name), readFile2);
       }
@@ -37348,7 +37352,7 @@ var init_remove = __esm(() => {
 });
 
 // src/utils/boundaries.ts
-import { readdirSync as readdirSync21 } from "fs";
+import { readdirSync as readdirSync22 } from "fs";
 import nodePath59 from "path";
 function findMonorepoPackages(projectDirectory) {
   const packages = [];
@@ -37357,7 +37361,7 @@ function findMonorepoPackages(projectDirectory) {
     if (!exists(rootPath))
       continue;
     try {
-      const entries = readdirSync21(rootPath, { withFileTypes: true });
+      const entries = readdirSync22(rootPath, { withFileTypes: true });
       for (const entry of entries) {
         if (entry.isDirectory() && !entry.name.startsWith(".")) {
           packages.push(nodePath59.join(root, entry.name));
@@ -37372,7 +37376,7 @@ function hasLayerForPrefix(elements, layer, pathPrefix) {
 }
 function isGherkinDirectory(fullPath) {
   try {
-    return readdirSync21(fullPath).some((entry) => entry.endsWith(".feature"));
+    return readdirSync22(fullPath).some((entry) => entry.endsWith(".feature"));
   } catch {
     return false;
   }
@@ -37739,7 +37743,7 @@ import {
   lstatSync as lstatSync12,
   mkdirSync as mkdirSync10,
   openSync as openSync5,
-  readdirSync as readdirSync22,
+  readdirSync as readdirSync23,
   readFileSync as readFileSync37,
   readSync as readSync3,
   renameSync as renameSync5,
@@ -37752,7 +37756,7 @@ function validateNamespaceTree(root, label) {
     throw new Error(`${label} is a symlink: ${root}`);
   }
   const visit3 = (directory) => {
-    const entries = readdirSync22(directory, { withFileTypes: true });
+    const entries = readdirSync23(directory, { withFileTypes: true });
     for (const entry of entries) {
       const path4 = nodePath63.join(directory, entry.name);
       if (entry.isSymbolicLink()) {
@@ -37793,7 +37797,7 @@ function mergeLegacyDirectory(cwd, hooks) {
   if (existsSync34(recovery))
     validateNamespaceTree(recovery, "Namespace recovery directory");
   const validateMergeShape = (from, relative) => {
-    const entries = readdirSync22(from, { withFileTypes: true });
+    const entries = readdirSync23(from, { withFileTypes: true });
     for (const entry of entries) {
       const child = relative === "" ? entry.name : nodePath63.join(relative, entry.name);
       const source = nodePath63.join(from, entry.name);
@@ -37823,7 +37827,7 @@ function mergeLegacyDirectory(cwd, hooks) {
       createdDirectories.add(path4);
   };
   const visit3 = (from, relative) => {
-    const entries = readdirSync22(from, { withFileTypes: true });
+    const entries = readdirSync23(from, { withFileTypes: true });
     for (const entry of entries) {
       const child = relative === "" ? entry.name : nodePath63.join(relative, entry.name);
       const source = nodePath63.join(from, entry.name);
@@ -38084,7 +38088,7 @@ var init_safeword_version_sync = __esm(() => {
 });
 
 // src/utils/setup-workspaces.ts
-import { readdirSync as readdirSync23 } from "fs";
+import { readdirSync as readdirSync24 } from "fs";
 import nodePath65 from "path";
 function workspacePackageJsonTargets(cwd, context) {
   if (context.projectType.existingFormatter)
@@ -38097,7 +38101,7 @@ function workspacePackageJsonTargets(cwd, context) {
     if (!exists(fullPath))
       return [];
     try {
-      return readdirSync23(fullPath, { withFileTypes: true }).flatMap((entry) => entry.isDirectory() && !entry.name.startsWith(".") ? [nodePath65.join(workspaceRoot, entry.name, "package.json")] : []);
+      return readdirSync24(fullPath, { withFileTypes: true }).flatMap((entry) => entry.isDirectory() && !entry.name.startsWith(".") ? [nodePath65.join(workspaceRoot, entry.name, "package.json")] : []);
     } catch {
       return [];
     }
@@ -38122,7 +38126,7 @@ function processGlobWorkspacePattern(cwd, workspacePath) {
   if (!exists(fullPath))
     return [];
   try {
-    return readdirSync23(fullPath, { withFileTypes: true }).flatMap((entry) => {
+    return readdirSync24(fullPath, { withFileTypes: true }).flatMap((entry) => {
       if (!entry.isDirectory() || entry.name.startsWith("."))
         return [];
       const relativePackageJson = nodePath65.join(workspacePath, entry.name, "package.json");
@@ -38148,7 +38152,7 @@ var init_setup_workspaces = __esm(() => {
 });
 
 // src/utils/stale-config-scan.ts
-import { existsSync as existsSync35, readdirSync as readdirSync24, readFileSync as readFileSync38 } from "fs";
+import { existsSync as existsSync35, readdirSync as readdirSync25, readFileSync as readFileSync38 } from "fs";
 import nodePath66 from "path";
 function prettierignoreHasCustomerReference(content) {
   let isInsideManagedBlock = false;
@@ -38177,7 +38181,7 @@ function workflowConfigPaths(cwd) {
   const directory = nodePath66.join(cwd, ...WORKFLOWS_SUBPATH);
   let names;
   try {
-    names = readdirSync24(directory);
+    names = readdirSync25(directory);
   } catch {
     return [];
   }
@@ -38475,7 +38479,7 @@ import {
   fstatSync as fstatSync4,
   lstatSync as lstatSync13,
   openSync as openSync6,
-  readdirSync as readdirSync25,
+  readdirSync as readdirSync26,
   readFileSync as readFileSync41,
   readlinkSync as readlinkSync3,
   readSync as readSync4
@@ -39115,7 +39119,7 @@ function snapshotFiles(cwd, targets) {
       return;
     }
     if (stat.isDirectory()) {
-      for (const entry of readdirSync25(absolutePath))
+      for (const entry of readdirSync26(absolutePath))
         visit3(nodePath69.join(absolutePath, entry));
       return;
     }
@@ -41610,7 +41614,7 @@ __export(exports_learning_sync, {
   LEARNINGS_RELATIVE_PATH: () => LEARNINGS_RELATIVE_PATH,
   INDEX_FILENAME: () => INDEX_FILENAME2
 });
-import { existsSync as existsSync38, readdirSync as readdirSync26, readFileSync as readFileSync44, writeFileSync as writeFileSync15 } from "fs";
+import { existsSync as existsSync38, readdirSync as readdirSync27, readFileSync as readFileSync44, writeFileSync as writeFileSync15 } from "fs";
 import nodePath72 from "path";
 function parseLearning(filePath) {
   const content = readFileSync44(filePath, "utf8");
@@ -41638,7 +41642,7 @@ function readLearnings(learningsDirectory, relativeLabel = LEARNINGS_RELATIVE_PA
   }
   const entries = [];
   const skipped = [];
-  const fileNames = readdirSync26(learningsDirectory).filter((name) => name.endsWith(".md") && name !== INDEX_FILENAME2).toSorted((a, b) => a.localeCompare(b));
+  const fileNames = readdirSync27(learningsDirectory).filter((name) => name.endsWith(".md") && name !== INDEX_FILENAME2).toSorted((a, b) => a.localeCompare(b));
   for (const fileName of fileNames) {
     const filePath = nodePath72.join(learningsDirectory, fileName);
     const parsed2 = parseLearning(filePath);
@@ -41867,7 +41871,7 @@ var exports_codify = {};
 __export(exports_codify, {
   codifyResult: () => codifyResult
 });
-import { existsSync as existsSync39, readdirSync as readdirSync27, readFileSync as readFileSync45, writeFileSync as writeFileSync16 } from "fs";
+import { existsSync as existsSync39, readdirSync as readdirSync28, readFileSync as readFileSync45, writeFileSync as writeFileSync16 } from "fs";
 import nodePath73 from "path";
 function codifyResult(cwd, ticket, options) {
   try {
@@ -41980,7 +41984,7 @@ function resolveTicketDirectory(cwd, ticket) {
   const ticketsRoot = resolveTicketsDirectory(cwd);
   let entries;
   try {
-    entries = readdirSync27(ticketsRoot, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name);
+    entries = readdirSync28(ticketsRoot, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name);
   } catch {
     return;
   }
@@ -42922,7 +42926,7 @@ import {
   mkdirSync as mkdirSync13,
   mkdtempSync as mkdtempSync5,
   openSync as openSync9,
-  readdirSync as readdirSync28,
+  readdirSync as readdirSync29,
   readFileSync as readFileSync49,
   realpathSync as realpathSync9,
   rmSync as rmSync11,
@@ -42989,7 +42993,7 @@ function escapes(root, candidate) {
   return relative === ".." || relative.startsWith(`..${nodePath79.sep}`) || nodePath79.isAbsolute(relative);
 }
 function snapshotEntries(root, directory = root) {
-  return readdirSync28(directory).flatMap((name) => {
+  return readdirSync29(directory).flatMap((name) => {
     const path4 = nodePath79.join(directory, name);
     const relative = nodePath79.relative(root, path4);
     const stats = lstatSync17(path4);
@@ -44645,7 +44649,7 @@ import {
   fstatSync as fstatSync8,
   mkdirSync as mkdirSync14,
   openSync as openSync10,
-  readdirSync as readdirSync29,
+  readdirSync as readdirSync30,
   readFileSync as readFileSync51,
   realpathSync as realpathSync11,
   renameSync as renameSync8,
@@ -45295,7 +45299,7 @@ function latestJobId(cwd) {
   const directory = jobsDirectory(cwd);
   if (!existsSync42(directory))
     return;
-  return readdirSync29(directory).flatMap((name) => {
+  return readdirSync30(directory).flatMap((name) => {
     if (!/^[a-f\d-]{36}\.json$/u.test(name))
       return [];
     try {
@@ -45309,7 +45313,7 @@ function runningJob(cwd, kind, sourceFingerprint) {
   const directory = jobsDirectory(cwd);
   if (!existsSync42(directory))
     return;
-  for (const name of readdirSync29(directory)) {
+  for (const name of readdirSync30(directory)) {
     if (!/^[a-f\d-]{36}\.json$/u.test(name))
       continue;
     try {
@@ -60642,13 +60646,7 @@ function codexConfirmation(plan, exactConfigBlocks) {
     }
   });
 }
-function codexFinalizationPlan(cwd, migration) {
-  migration.observeCodexFinalizationPlan(cwd);
-  const observation = migration.observeCodexMigrationResult(cwd);
-  if (observation.proof.status !== "current") {
-    throw new CodexMigrationError("FINALIZATION_PROOF_REQUIRED", "Finalization requires current plugin hook proof from the restarted Codex app. Review /hooks, then retry.");
-  }
-  const observed = migration.observeCodexFinalizationPlan(cwd);
+function codexFinalizationPlanFromObservation(observed) {
   return {
     plan: createPlan({
       command: "codex migrate --finalize",
@@ -60670,6 +60668,15 @@ function codexFinalizationPlan(cwd, migration) {
     }),
     exactConfigBlocks: observed.exactConfigBlocks
   };
+}
+function codexFinalizationPlan(cwd, migration) {
+  migration.observeCodexFinalizationPlan(cwd);
+  const observation = migration.observeCodexMigrationResult(cwd);
+  if (observation.proof.status !== "current") {
+    throw new CodexMigrationError("FINALIZATION_PROOF_REQUIRED", "Finalization requires current plugin hook proof from the restarted Codex app. Review /hooks, then retry.");
+  }
+  const observed = migration.observeCodexFinalizationPlan(cwd);
+  return codexFinalizationPlanFromObservation(observed);
 }
 async function codexRecoveryPlan(cwd) {
   const finalization = await Promise.resolve().then(() => (init_finalization(), exports_finalization));
@@ -60753,13 +60760,16 @@ async function runCodexRecovery(invocation, migration) {
     }
   };
 }
-async function runCodexFinalization(invocation, migration) {
-  const current = codexFinalizationPlan(invocation.cwd, migration);
-  const suppliedPlan = stringOption(invocation.options, "plan");
-  if (suppliedPlan !== undefined && suppliedPlan !== current.plan.id) {
-    return staleCodexPlan(current.plan);
+async function runCodexFinalization(invocation, migration, accepted) {
+  const current = migration.observeCodexFinalizationPlan(invocation.cwd);
+  if (current.preconditionDigest !== accepted.plan.preconditionDigest) {
+    return staleCodexPlan(codexFinalizationPlanFromObservation(current).plan);
   }
-  const paths = current.plan.effects.files.map((effect) => nodePath89.join(invocation.cwd, effect.target));
+  const suppliedPlan = stringOption(invocation.options, "plan");
+  if (suppliedPlan !== undefined && suppliedPlan !== accepted.plan.id) {
+    return staleCodexPlan(accepted.plan);
+  }
+  const paths = accepted.plan.effects.files.map((effect) => nodePath89.join(invocation.cwd, effect.target));
   const before = paths.map((path7) => ({ path: path7, snapshot: observeFile(path7) }));
   let changed;
   try {
@@ -60924,11 +60934,15 @@ function codexFailure(error2, name, isFinalization, fileEffects = []) {
     ]
   });
 }
-async function executeCodexMutation(name, isFinalization, invocation, migration) {
+async function executeCodexMutation(name, isFinalization, invocation, migration, finalizationPlan) {
   if (name === "codex recover")
     return await runCodexRecovery(invocation, migration);
-  if (isFinalization)
-    return await runCodexFinalization(invocation, migration);
+  if (isFinalization) {
+    if (finalizationPlan === undefined) {
+      throw new Error("Codex finalization requires an accepted preflight plan.");
+    }
+    return await runCodexFinalization(invocation, migration, finalizationPlan);
+  }
   return runCodexInstall(invocation, migration);
 }
 async function codexRecoveryRequired(cwd, isFinalization) {
@@ -60967,19 +60981,19 @@ function codexPluginUpdateFailure(observed) {
 async function codexFinalizationPreflight(invocation, migration) {
   const finalization = await Promise.resolve().then(() => (init_finalization(), exports_finalization));
   if (finalization.codexFinalizationIsComplete(invocation.cwd)) {
-    return migration.observeCodexMigration(invocation.cwd);
+    return { result: migration.observeCodexMigration(invocation.cwd) };
   }
   const observedPlan = codexFinalizationPlan(invocation.cwd, migration);
   const observed = migration.observeCodexMigration(invocation.cwd);
   const pluginUpdateFailure = codexPluginUpdateFailure(observed);
   if (pluginUpdateFailure !== undefined)
-    return pluginUpdateFailure;
+    return { result: pluginUpdateFailure };
   const suppliedPlan = stringOption(invocation.options, "plan");
   const deprecatedAssumeYes = invocation.options.removeLegacyHooks === true && invocation.options.yes === true;
   if (invocation.options.yes !== true || suppliedPlan === undefined && !deprecatedAssumeYes) {
-    return codexConfirmation(observedPlan.plan, observedPlan.exactConfigBlocks);
+    return { result: codexConfirmation(observedPlan.plan, observedPlan.exactConfigBlocks) };
   }
-  return suppliedPlan === undefined || suppliedPlan === observedPlan.plan.id ? undefined : staleCodexPlan(observedPlan.plan);
+  return suppliedPlan === undefined || suppliedPlan === observedPlan.plan.id ? { finalizationPlan: observedPlan } : { result: staleCodexPlan(observedPlan.plan) };
 }
 async function codexRecoveryPreflight(invocation, migration) {
   const { plan, recovery } = await codexRecoveryPlan(invocation.cwd);
@@ -60993,13 +61007,15 @@ async function codexRecoveryPreflight(invocation, migration) {
 }
 async function codexMutationPreflight(name, isFinalization, invocation, migration) {
   if (await codexRecoveryRequired(invocation.cwd, isFinalization)) {
-    return migration.observeCodexMigration(invocation.cwd);
+    return { result: migration.observeCodexMigration(invocation.cwd) };
   }
   if (isFinalization)
     return codexFinalizationPreflight(invocation, migration);
-  if (name === "codex recover")
-    return codexRecoveryPreflight(invocation, migration);
-  return;
+  if (name === "codex recover") {
+    const result = await codexRecoveryPreflight(invocation, migration);
+    return result === undefined ? {} : { result };
+  }
+  return {};
 }
 async function codexMutationHandlerCore(name, invocation) {
   const suppliedPlan = stringOption(invocation.options, "plan");
@@ -61012,10 +61028,10 @@ async function codexMutationHandlerCore(name, invocation) {
   try {
     const migration = await Promise.resolve().then(() => (init_operations(), exports_operations));
     const preflight = await codexMutationPreflight(name, isFinalization, invocation, migration);
-    if (preflight !== undefined)
-      return preflight;
+    if (preflight.result !== undefined)
+      return preflight.result;
     invocation.progress?.start(`Running ${name}\u2026`);
-    return await executeCodexMutation(name, isFinalization, invocation, migration);
+    return await executeCodexMutation(name, isFinalization, invocation, migration, preflight.finalizationPlan);
   } catch (codexError) {
     return codexFailure(codexError, name, isFinalization);
   }
