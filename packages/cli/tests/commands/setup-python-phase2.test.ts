@@ -348,7 +348,7 @@ describe('Suite 6: Auto-Install Python Tools', () => {
         env: SKIP_INSTALL_ENV,
       });
       // Assert - should show manual install instruction
-      expect(result.exitCode, JSON.stringify(result)).toBe(0);
+      expect(result.exitCode).toBe(0);
       expect(result.stderr).toContain('Install Python tools');
       expect(result.stderr).toContain('pip install');
     },
