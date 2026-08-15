@@ -24,7 +24,7 @@ describe('python tool readiness', () => {
     removeTemporaryDirectory(projectDirectory);
   });
 
-  it('reports undeclared Safe Word Python tools through doctor', async () => {
+  it('reports undeclared Safeword Python tools through doctor', async () => {
     writeTestFile(
       projectDirectory,
       'pyproject.toml',
@@ -57,7 +57,7 @@ dependencies = ["ruff>=0.8.0"]
     );
   });
 
-  it('reports undeclared Safe Word Python tools through status', async () => {
+  it('reports undeclared Safeword Python tools through status', async () => {
     writeTestFile(
       projectDirectory,
       'pyproject.toml',
@@ -168,6 +168,27 @@ dependencies = ["ruff>=0.8.0", "mypy", "deadcode"]
     );
   });
 
+  it('uses a nested Python manifest in a mixed-language monorepo', async () => {
+    writeTestFile(
+      projectDirectory,
+      'apps/api/pyproject.toml',
+      `[project]
+name = "api"
+version = "0.1.0"
+dependencies = ["ruff", "mypy", "deadcode"]
+`,
+    );
+
+    const result = await runCli(['doctor', '--json', '--offline'], { cwd: projectDirectory });
+    const output = JSON.parse(result.stdout) as {
+      findings: { code: string }[];
+    };
+
+    expect(output.findings).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: 'MISSING_PYTHON_TOOL' })]),
+    );
+  });
+
   it('accepts Pipenv package and dev-package declarations through doctor', async () => {
     writeTestFile(
       projectDirectory,
@@ -245,7 +266,7 @@ dependencies = ["ruff"]
     );
   });
 
-  it('requires import-linter when Safe Word would scaffold its contract', async () => {
+  it('requires import-linter when Safeword would scaffold its contract', async () => {
     writeTestFile(
       projectDirectory,
       'pyproject.toml',

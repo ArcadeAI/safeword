@@ -1,6 +1,5 @@
 import { spawnSync } from 'node:child_process';
 import {
-  chmodSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -53,14 +52,23 @@ import {
 import { DIGEST_CAP, runHeadlessExtraction } from '../../templates/hooks/lib/retro-extract.js';
 import { decideRetroFilingGate } from '../../templates/hooks/lib/retro-filing-gate.js';
 import { captureRetroFilingFault, readReports } from '../../templates/hooks/lib/self-report.js';
-import { readJsonlFile } from '../helpers.js';
+import { assertTestCliFresh, readJsonlFile } from '../helpers.js';
+import { sinkWrites } from '../helpers/io-failure.js';
 import { relayReadinessArtifact, validRelayReadinessManifest } from '../helpers/relay-readiness.js';
 
+// Unit tests here isolate command behavior from GitHub. The real REST composition
+// root is proven in cli-protocol/configured-wiring.test.ts.
 vi.mock('../../src/retro/github-rest.js', () => ({
   createRestTransport: () => {},
   createReconcileTransport: () => {},
   resolveGitHubToken: () => {},
 }));
+
+function builtCliPath(): string {
+  const path = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
+  assertTestCliFresh();
+  return path;
+}
 
 function activeRelayPath(projectDirectory: string, requestId: string): string {
   const directory = nodePath.join(projectDirectory, '.safeword', 'retro-drafts', 'relay');
@@ -82,15 +90,39 @@ function deadLetterRelayPath(projectDirectory: string, requestId: string): strin
   );
 }
 
-function movePersistedRequestToDeadLetter(persisted: { path: string }): {
+function movePersistedRequestToDeadLetter(
+  projectDirectory: string,
+  persisted: { path: string },
+): {
   deadLetter: string;
   originalBytes: Buffer;
 } {
-  const deadLetter = persisted.path.replace(/\.json$/u, '.dead-letter.json');
   const originalBytes = readFileSync(persisted.path);
+  const request = JSON.parse(originalBytes.toString('utf8')) as { requestId: string };
+  const deadLetter = deadLetterRelayPath(projectDirectory, request.requestId);
   writeFileSync(deadLetter, originalBytes);
   rmSync(persisted.path);
   return { deadLetter, originalBytes };
+}
+
+function relayRequest(
+  randomUUID: string,
+  sourceKey = 'source',
+  now: () => number = Date.now,
+): RelayDraftRequest {
+  return createRelayRequest(
+    {
+      body: 'body',
+      canonicalKey: 'canonical',
+      installationId: 42,
+      labels: ['retro'],
+      legacySignature: 'legacy',
+      repository: 'arcadeai/safeword',
+      sourceKey,
+      title: 'title',
+    },
+    { now, randomUUID: () => randomUUID },
+  );
 }
 
 // Compact in-memory transport — only the network boundary is faked.
@@ -152,7 +184,7 @@ const dependencies = (over: Partial<Parameters<typeof runRetro>[1]> = {}) => ({
   ...over,
 });
 
-describe('runRetro', () => {
+describe('retro command configuration, extraction, egress, and relay execution', () => {
   it('accepts only an absolute relay outbox outside the disposable project', () => {
     const project = mkdtempSync(nodePath.join(tmpdir(), 'retro-outbox-project-'));
     const external = mkdtempSync(nodePath.join(tmpdir(), 'safeword-durable-outbox-'));
@@ -284,6 +316,134 @@ describe('runRetro', () => {
     } finally {
       process.exitCode = previousExitCode;
       rmSync(project, { force: true, recursive: true });
+    }
+  });
+
+  it('keeps the real command on native filing when the build attestation is disabled', async () => {
+    const project = mkdtempSync(nodePath.join(tmpdir(), 'retro-disabled-attestation-project-'));
+    const outbox = mkdtempSync(nodePath.join(tmpdir(), 'retro-disabled-attestation-outbox-'));
+    const transcript = nodePath.join(project, 'transcript.jsonl');
+    writeFileSync(transcript, 'transcript content');
+    const send = vi.fn<typeof fetch>();
+    const transport = new FakeGitHub();
+    const previousExitCode = process.exitCode;
+
+    try {
+      const outcome = await executeRetroCommand(
+        { transcript },
+        {
+          environment: {
+            SAFEWORD_RETRO_RELAY_CREDENTIAL: 'swc_test',
+            SAFEWORD_RETRO_RELAY_INSTALLATION_ID: '42',
+            SAFEWORD_RETRO_RELAY_OUTBOX: outbox,
+            SAFEWORD_RETRO_RELAY_REPOSITORY: 'arcadeai/safeword',
+            SAFEWORD_RETRO_RELAY_URL: 'https://relay.invalid',
+          },
+          extract: () => Promise.resolve([rawFinding()]),
+          extractionSucceeded: () => true,
+          harness: 'codex',
+          output: { error: vi.fn(), info: vi.fn(), success: vi.fn() },
+          projectDirectory: project,
+          relay: {
+            fetch: send,
+            manifest: { enabled: false, version: 1 },
+          },
+          restTransportAvailable: true,
+          sessionId: 'session-disabled-attestation',
+          transport,
+        },
+      );
+
+      expect(outcome.ok).toBe(true);
+      expect(send).not.toHaveBeenCalled();
+      expect(transport.issues).toHaveLength(1);
+    } finally {
+      process.exitCode = previousExitCode;
+      rmSync(project, { force: true, recursive: true });
+      rmSync(outbox, { force: true, recursive: true });
+    }
+  });
+
+  it('[ORR-011] Complete fresh readiness proof selects the relay path', async () => {
+    const project = mkdtempSync(nodePath.join(tmpdir(), 'retro-ready-attestation-project-'));
+    const outbox = mkdtempSync(nodePath.join(tmpdir(), 'retro-ready-attestation-outbox-'));
+    const transcript = nodePath.join(project, 'transcript.jsonl');
+    writeFileSync(transcript, 'transcript content');
+    const manifest = validRelayReadinessManifest();
+    let sentPersistedBytes = false;
+    const send = vi.fn<typeof fetch>((_input, init) => {
+      const body = Buffer.from(init?.body as Uint8Array);
+      const submitted = JSON.parse(body.toString('utf8')) as RelayDraftRequest;
+      const relayDirectory = nodePath.join(outbox, '.safeword', 'retro-drafts', 'relay');
+      const claim = readdirSync(relayDirectory).find(candidate =>
+        candidate.startsWith(`${submitted.requestId}.claim.`),
+      );
+      if (claim === undefined) throw new Error('missing durable relay claim');
+      const durable = JSON.parse(
+        readFileSync(nodePath.join(relayDirectory, claim), 'utf8'),
+      ) as RelayDraftRequest;
+      expect(submitted).toEqual({
+        body: durable.body,
+        canonicalKey: durable.canonicalKey,
+        installationId: durable.installationId,
+        labels: durable.labels,
+        legacySignature: durable.legacySignature,
+        repository: durable.repository,
+        requestId: durable.requestId,
+        retryDeadlineAt: durable.retryDeadlineAt,
+        title: durable.title,
+      });
+      sentPersistedBytes = true;
+      return Promise.resolve(
+        Response.json({
+          receiptId: 'receipt-ready-attestation',
+          requestId: submitted.requestId,
+          state: 'filed',
+        }),
+      );
+    });
+    const transport = new FakeGitHub();
+    const previousExitCode = process.exitCode;
+
+    try {
+      const outcome = await executeRetroCommand(
+        { transcript },
+        {
+          environment: {
+            SAFEWORD_RETRO_RELAY_CREDENTIAL: 'swc_test',
+            SAFEWORD_RETRO_RELAY_INSTALLATION_ID: '42',
+            SAFEWORD_RETRO_RELAY_OUTBOX: outbox,
+            SAFEWORD_RETRO_RELAY_REPOSITORY: 'arcadeai/safeword',
+            SAFEWORD_RETRO_RELAY_URL: 'https://relay.invalid',
+          },
+          extract: () => Promise.resolve([rawFinding()]),
+          extractionSucceeded: () => true,
+          harness: 'codex',
+          output: { error: vi.fn(), info: vi.fn(), success: vi.fn() },
+          projectDirectory: project,
+          relay: {
+            buildCommit: 'b'.repeat(40),
+            fetch: send,
+            isAncestor: () => Promise.resolve(true),
+            manifest,
+            now: new Date('2026-07-26T12:00:00.000Z'),
+            readArtifactAtCommit: (_commit, artifactPath) =>
+              Promise.resolve(relayReadinessArtifact(manifest, artifactPath)),
+          },
+          restTransportAvailable: true,
+          sessionId: 'session-ready-attestation',
+          transport,
+        },
+      );
+
+      expect(outcome.ok).toBe(true);
+      expect(send).toHaveBeenCalledOnce();
+      expect(sentPersistedBytes).toBe(true);
+      expect(transport.issues).toEqual([]);
+    } finally {
+      process.exitCode = previousExitCode;
+      rmSync(project, { force: true, recursive: true });
+      rmSync(outbox, { force: true, recursive: true });
     }
   });
 
@@ -463,13 +623,9 @@ describe('runRetro', () => {
     }
   });
 
-  it.each([
-    ['dead-letter', undefined],
-    ['rejected', undefined],
-    ['tombstone', undefined],
-  ] as const)(
+  it.each(['dead-letter', 'rejected', 'tombstone'] as const)(
     'fails visibly for an unresolved server-owned %s receipt without native fallback',
-    async (state, issueNumber) => {
+    async state => {
       const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-terminal-'));
       const transport = new FakeGitHub();
       const send = vi.fn<typeof fetch>((_input, init) => {
@@ -478,7 +634,6 @@ describe('runRetro', () => {
         };
         return Promise.resolve(
           Response.json({
-            ...(issueNumber !== undefined && { issueNumber }),
             receiptId: `receipt-${state}`,
             requestId: request.requestId,
             state,
@@ -600,7 +755,7 @@ describe('runRetro', () => {
         .map(item => JSON.parse(item.bytes.toString()).title as string)
         .toSorted((left, right) => left.localeCompare(right));
       expect(titles).toEqual(['Finding A', 'Finding B']);
-      expect(new Set(requests.map(item => item.requestId))).toHaveLength(2);
+      expect(new Set(requests.map(item => item.requestId)).size).toBe(2);
       expect(sent.map(item => item.title)).toContain('Finding B');
     } finally {
       rmSync(projectDirectory, { force: true, recursive: true });
@@ -609,8 +764,9 @@ describe('runRetro', () => {
 
   it('keeps consecutive relay fires distinct across pending dead-letter and ack states', async () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-fires-'));
+    vi.useFakeTimers();
     let now = Date.parse('2026-07-01T00:00:00.000Z');
-    const nowSpy = vi.spyOn(Date, 'now').mockImplementation(() => now);
+    vi.setSystemTime(now);
     let finding = rawFinding({ title: 'First occurrence' });
     let accept = false;
     const transmittedRequestIds: string[] = [];
@@ -662,6 +818,7 @@ describe('runRetro', () => {
       expect(transmittedRequestIds).toEqual([firstRequestId]);
 
       now += 24 * 60 * 60 * 1000;
+      vi.setSystemTime(now);
       finding = rawFinding({ title: 'Second occurrence' });
       await runFire(100);
       const deadLetters = await listRelayDeadLetters(projectDirectory);
@@ -674,6 +831,7 @@ describe('runRetro', () => {
 
       finding = rawFinding({ title: 'First occurrence' });
       now += 61_000;
+      vi.setSystemTime(now);
       await runFire(0);
       const revisitedDeadLetters = await listRelayDeadLetters(projectDirectory);
       const stillPending = await listRelayRequests(projectDirectory);
@@ -686,6 +844,7 @@ describe('runRetro', () => {
       accept = true;
       finding = rawFinding({ title: 'Second occurrence' });
       now += 121_000;
+      vi.setSystemTime(now);
       await runFire(100);
       expect(await listRelayRequests(projectDirectory)).toHaveLength(0);
       expect(transmittedRequestIds.at(-1)).toBe(secondRequestId);
@@ -704,7 +863,7 @@ describe('runRetro', () => {
       expect(remaining[0]?.bytes.toString()).toContain('Third occurrence');
       expect(transmittedRequestIds.at(-1)).toBe(remaining[0]?.requestId);
     } finally {
-      nowSpy.mockRestore();
+      vi.useRealTimers();
       rmSync(projectDirectory, { force: true, recursive: true });
     }
   });
@@ -1073,10 +1232,7 @@ describe('runRetro transport selection (BNGK9W — spool → try-REST → drain 
   });
 
   it('retains tracker-filed drafts when acknowledgement writes cannot be read back', async () => {
-    const path = ackFilePath(projectDirectory, 'sess-a');
-    mkdirSync(nodePath.dirname(path), { recursive: true });
-    writeFileSync(path, '');
-    chmodSync(path, 0o200);
+    sinkWrites(ackFilePath(projectDirectory, 'sess-a'));
 
     const transport = new FakeGitHub();
     const outcome = await runRetro(
@@ -1304,7 +1460,11 @@ describe('buildAutoExtractor (SM1.AC2 — runner model: sonnet default, config-o
       }),
     );
     const modelFlag = agent === 'codex' ? '-m' : '--model';
-    return { argv: argvSeen, model: argvSeen[argvSeen.indexOf(modelFlag) + 1] };
+    const modelFlagIndex = argvSeen.indexOf(modelFlag);
+    return {
+      argv: argvSeen,
+      model: modelFlagIndex === -1 ? undefined : argvSeen[modelFlagIndex + 1],
+    };
   }
 
   it('builds the extractor with sonnet when no retro.model is configured', async () => {
@@ -1596,7 +1756,7 @@ describe('retroReconcileCommand wiring (G19QG7 SM2.R1)', () => {
   });
 });
 
-describe('retro summary drop reporting (PNZM3B SM2.R1)', () => {
+describe('retro summary reporting and process surfaces (PNZM3B SM2.R1)', () => {
   const reportOptions = (output: Parameters<typeof reportRetroCommandOutcome>[1]['output']) => ({
     extractionSucceeded: true,
     restTransportAvailable: true,
@@ -1831,21 +1991,9 @@ describe('retro summary drop reporting (PNZM3B SM2.R1)', () => {
 describe('relay dead-letter recovery command', () => {
   it('rearms the exact durable request identity for retry', async () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-retry-'));
-    const original = createRelayRequest(
-      {
-        body: 'body',
-        canonicalKey: 'canonical',
-        installationId: 42,
-        labels: ['retro'],
-        legacySignature: 'legacy',
-        repository: 'arcadeai/safeword',
-        sourceKey: 'source',
-        title: 'title',
-      },
-      { now: Date.now, randomUUID: () => '00000000-0000-4000-8000-000000001479' },
-    );
+    const original = relayRequest('00000000-0000-4000-8000-000000001479');
     const persisted = await persistRelayRequest(projectDirectory, original);
-    movePersistedRequestToDeadLetter(persisted);
+    movePersistedRequestToDeadLetter(projectDirectory, persisted);
     const messages: string[] = [];
 
     try {
@@ -1875,21 +2023,9 @@ describe('relay dead-letter recovery command', () => {
 
   it('explains a dead-letter rearm that loses ownership before the transition', async () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-rearm-race-'));
-    const original = createRelayRequest(
-      {
-        body: 'body',
-        canonicalKey: 'canonical',
-        installationId: 42,
-        labels: ['retro'],
-        legacySignature: 'legacy',
-        repository: 'arcadeai/safeword',
-        sourceKey: 'source-race',
-        title: 'title',
-      },
-      { now: Date.now, randomUUID: () => '00000000-0000-4000-8000-000000001490' },
-    );
+    const original = relayRequest('00000000-0000-4000-8000-000000001490', 'source-race');
     const persisted = await persistRelayRequest(projectDirectory, original);
-    movePersistedRequestToDeadLetter(persisted);
+    movePersistedRequestToDeadLetter(projectDirectory, persisted);
     const error = vi.fn<(message: string) => void>();
 
     try {
@@ -1913,21 +2049,9 @@ describe('relay dead-letter recovery command', () => {
   it('does not misreport a fault-injection failure as an invalid request identity', async () => {
     const error = vi.fn<(message: string) => void>();
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-rearm-injected-fault-'));
-    const original = createRelayRequest(
-      {
-        body: 'body',
-        canonicalKey: 'canonical',
-        installationId: 42,
-        labels: ['retro'],
-        legacySignature: 'legacy',
-        repository: 'arcadeai/safeword',
-        sourceKey: 'source-injected-fault',
-        title: 'title',
-      },
-      { now: Date.now, randomUUID: () => '00000000-0000-4000-8000-000000001491' },
-    );
+    const original = relayRequest('00000000-0000-4000-8000-000000001491', 'source-injected-fault');
     const persisted = await persistRelayRequest(projectDirectory, original);
-    movePersistedRequestToDeadLetter(persisted);
+    movePersistedRequestToDeadLetter(projectDirectory, persisted);
 
     try {
       await expect(
@@ -1945,21 +2069,9 @@ describe('relay dead-letter recovery command', () => {
 
   it('recovers an expired dead letter by replaying exact bytes to the existing server identity', async () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-recover-'));
-    const original = createRelayRequest(
-      {
-        body: 'body',
-        canonicalKey: 'canonical',
-        installationId: 42,
-        labels: ['retro'],
-        legacySignature: 'legacy',
-        repository: 'arcadeai/safeword',
-        sourceKey: 'source',
-        title: 'title',
-      },
-      { now: () => 0, randomUUID: () => '00000000-0000-4000-8000-000000001481' },
-    );
+    const original = relayRequest('00000000-0000-4000-8000-000000001481', 'source', () => 0);
     const persisted = await persistRelayRequest(projectDirectory, original);
-    movePersistedRequestToDeadLetter(persisted);
+    movePersistedRequestToDeadLetter(projectDirectory, persisted);
     const send = vi.fn<typeof fetch>((_input, init) => {
       expect(Buffer.from(init?.body as Uint8Array).toString('utf8')).toContain(original.requestId);
       expect(init?.signal).toBeInstanceOf(AbortSignal);
@@ -1995,21 +2107,9 @@ describe('relay dead-letter recovery command', () => {
 
   it('bridges an existing server dead letter to operator recovery', async () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-unresolved-'));
-    const original = createRelayRequest(
-      {
-        body: 'body',
-        canonicalKey: 'canonical',
-        installationId: 42,
-        labels: ['retro'],
-        legacySignature: 'legacy',
-        repository: 'arcadeai/safeword',
-        sourceKey: 'source',
-        title: 'title',
-      },
-      { now: () => 0, randomUUID: () => '00000000-0000-4000-8000-000000001482' },
-    );
+    const original = relayRequest('00000000-0000-4000-8000-000000001482', 'source', () => 0);
     const persisted = await persistRelayRequest(projectDirectory, original);
-    movePersistedRequestToDeadLetter(persisted);
+    movePersistedRequestToDeadLetter(projectDirectory, persisted);
 
     const requestedUrls: string[] = [];
     const send = vi.fn<typeof fetch>((input, _init) => {
@@ -2062,21 +2162,9 @@ describe('relay dead-letter recovery command', () => {
 
   it('renews an expired local-only dead letter under the original request identity', async () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-renew-'));
-    const original = createRelayRequest(
-      {
-        body: 'body',
-        canonicalKey: 'canonical',
-        installationId: 42,
-        labels: ['retro'],
-        legacySignature: 'legacy',
-        repository: 'arcadeai/safeword',
-        sourceKey: 'source',
-        title: 'title',
-      },
-      { now: () => 0, randomUUID: () => '00000000-0000-4000-8000-000000001483' },
-    );
+    const original = relayRequest('00000000-0000-4000-8000-000000001483', 'source', () => 0);
     const persisted = await persistRelayRequest(projectDirectory, original);
-    movePersistedRequestToDeadLetter(persisted);
+    movePersistedRequestToDeadLetter(projectDirectory, persisted);
     const sent: RelayDraftRequest[] = [];
     const send = vi.fn<typeof fetch>((_input, init) => {
       const request = JSON.parse(
@@ -2124,21 +2212,12 @@ describe('relay dead-letter recovery command', () => {
 
   it('does not rewrite an expired dead letter for an unrelated validation failure', async () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-invalid-'));
-    const original = createRelayRequest(
-      {
-        body: 'body',
-        canonicalKey: 'canonical',
-        installationId: 42,
-        labels: ['retro'],
-        legacySignature: 'legacy',
-        repository: 'arcadeai/safeword',
-        sourceKey: 'source',
-        title: 'title',
-      },
-      { now: () => 0, randomUUID: () => '00000000-0000-4000-8000-000000001484' },
-    );
+    const original = relayRequest('00000000-0000-4000-8000-000000001484', 'source', () => 0);
     const persisted = await persistRelayRequest(projectDirectory, original);
-    const { deadLetter, originalBytes } = movePersistedRequestToDeadLetter(persisted);
+    const { deadLetter, originalBytes } = movePersistedRequestToDeadLetter(
+      projectDirectory,
+      persisted,
+    );
     const send = vi.fn<typeof fetch>(() =>
       Promise.resolve(
         Response.json(
@@ -2169,21 +2248,16 @@ describe('relay dead-letter recovery command', () => {
 
   it('keeps renewed bytes when a retryable 4xx does not reject the payload', async () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-renew-auth-'));
-    const original = createRelayRequest(
-      {
-        body: 'body',
-        canonicalKey: 'canonical',
-        installationId: 42,
-        labels: ['retro'],
-        legacySignature: 'legacy',
-        repository: 'arcadeai/safeword',
-        sourceKey: 'source-renew-auth',
-        title: 'title',
-      },
-      { now: () => 0, randomUUID: () => '00000000-0000-4000-8000-000000001524' },
+    const original = relayRequest(
+      '00000000-0000-4000-8000-000000001524',
+      'source-renew-auth',
+      () => 0,
     );
     const persisted = await persistRelayRequest(projectDirectory, original);
-    const { deadLetter, originalBytes } = movePersistedRequestToDeadLetter(persisted);
+    const { deadLetter, originalBytes } = movePersistedRequestToDeadLetter(
+      projectDirectory,
+      persisted,
+    );
     let attempt = 0;
     const send = vi.fn<typeof fetch>(() => {
       attempt += 1;
@@ -2418,21 +2492,9 @@ describe('relay dead-letter recovery command', () => {
 
   it('bridges an ambiguous submit response to the operator recovery endpoint', async () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-ambiguous-'));
-    const original = createRelayRequest(
-      {
-        body: 'body',
-        canonicalKey: 'canonical',
-        installationId: 42,
-        labels: ['retro'],
-        legacySignature: 'legacy',
-        repository: 'arcadeai/safeword',
-        sourceKey: 'source',
-        title: 'title',
-      },
-      { now: () => 0, randomUUID: () => '00000000-0000-4000-8000-000000001485' },
-    );
+    const original = relayRequest('00000000-0000-4000-8000-000000001485', 'source', () => 0);
     const persisted = await persistRelayRequest(projectDirectory, original);
-    movePersistedRequestToDeadLetter(persisted);
+    movePersistedRequestToDeadLetter(projectDirectory, persisted);
     const requestedUrls: string[] = [];
     const send = vi.fn<typeof fetch>(input => {
       let url: string;
@@ -2519,12 +2581,7 @@ describe('relay dead-letter recovery command', () => {
 
       const result = spawnSync(
         process.execPath,
-        [
-          nodePath.resolve(process.cwd(), 'dist', 'cli.js'),
-          'retro-relay-discard',
-          cliRequestId,
-          '--confirm',
-        ],
+        [builtCliPath(), 'retro-relay-discard', cliRequestId, '--confirm'],
         {
           encoding: 'utf8',
           env: {
@@ -2554,7 +2611,7 @@ describe('relay dead-letter recovery command', () => {
     const result = spawnSync(
       process.execPath,
       [
-        nodePath.resolve(process.cwd(), 'dist', 'cli.js'),
+        builtCliPath(),
         'retro-relay-discard',
         '00000000-0000-4000-8000-000000001486;echo-owned',
         '--json',
@@ -2573,21 +2630,9 @@ describe('relay dead-letter recovery command', () => {
   it('lists and rearms through the built Commander entry point', async () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-cli-retry-'));
     const durableOutbox = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-cli-outbox-'));
-    const original = createRelayRequest(
-      {
-        body: 'body',
-        canonicalKey: 'canonical',
-        installationId: 42,
-        labels: ['retro'],
-        legacySignature: 'legacy',
-        repository: 'arcadeai/safeword',
-        sourceKey: 'source',
-        title: 'title',
-      },
-      { now: Date.now, randomUUID: () => '00000000-0000-4000-8000-000000001480' },
-    );
+    const original = relayRequest('00000000-0000-4000-8000-000000001480');
     const persisted = await persistRelayRequest(durableOutbox, original);
-    movePersistedRequestToDeadLetter(persisted);
+    movePersistedRequestToDeadLetter(durableOutbox, persisted);
     rmSync(projectDirectory, { recursive: true, force: true });
     const commandEnvironment = {
       ...process.env,
@@ -2596,24 +2641,16 @@ describe('relay dead-letter recovery command', () => {
     };
 
     try {
-      const listedDeadLetter = spawnSync(
-        process.execPath,
-        [nodePath.resolve(process.cwd(), 'dist', 'cli.js'), 'retro-relay-retry'],
-        {
-          encoding: 'utf8',
-          env: commandEnvironment,
-        },
-      );
+      const listedDeadLetter = spawnSync(process.execPath, [builtCliPath(), 'retro-relay-retry'], {
+        encoding: 'utf8',
+        env: commandEnvironment,
+      });
       expect(listedDeadLetter.status, listedDeadLetter.stderr).toBe(0);
       expect(listedDeadLetter.stdout).toContain(`${original.requestId} dead-letter`);
 
       const result = spawnSync(
         process.execPath,
-        [
-          nodePath.resolve(process.cwd(), 'dist', 'cli.js'),
-          'retro-relay-retry',
-          original.requestId,
-        ],
+        [builtCliPath(), 'retro-relay-retry', original.requestId],
         {
           encoding: 'utf8',
           env: commandEnvironment,
@@ -2624,14 +2661,10 @@ describe('relay dead-letter recovery command', () => {
       expect(result.stdout).toContain(original.requestId);
       const requests = await listRelayRequests(durableOutbox);
       expect(requests[0]?.requestId).toBe(original.requestId);
-      const listedActive = spawnSync(
-        process.execPath,
-        [nodePath.resolve(process.cwd(), 'dist', 'cli.js'), 'retro-relay-retry'],
-        {
-          encoding: 'utf8',
-          env: commandEnvironment,
-        },
-      );
+      const listedActive = spawnSync(process.execPath, [builtCliPath(), 'retro-relay-retry'], {
+        encoding: 'utf8',
+        env: commandEnvironment,
+      });
       expect(listedActive.status, listedActive.stderr).toBe(0);
       expect(listedActive.stdout).toContain(`${original.requestId} active`);
     } finally {
@@ -2651,18 +2684,14 @@ describe('relay dead-letter recovery command', () => {
       );
 
       try {
-        const result = spawnSync(
-          process.execPath,
-          [nodePath.resolve(process.cwd(), 'dist', 'cli.js'), ...commandArguments],
-          {
-            encoding: 'utf8',
-            env: {
-              ...process.env,
-              CLAUDE_PROJECT_DIR: projectDirectory,
-              SAFEWORD_RETRO_RELAY_OUTBOX: 'relative/outbox',
-            },
+        const result = spawnSync(process.execPath, [builtCliPath(), ...commandArguments], {
+          encoding: 'utf8',
+          env: {
+            ...process.env,
+            CLAUDE_PROJECT_DIR: projectDirectory,
+            SAFEWORD_RETRO_RELAY_OUTBOX: 'relative/outbox',
           },
-        );
+        });
 
         expect(result.status).toBe(1);
         expect(result.stderr).toContain(

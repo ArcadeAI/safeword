@@ -7,10 +7,20 @@ import type { PayloadKeyring } from './payload.js';
 import { ProcessLock } from './process-lock.js';
 import { type RelayFaults, RelayService } from './service.js';
 import type { RelayStore } from './store.js';
-import { type FileRetroDraftRequest, isTerminalReceiptState } from './types.js';
+import {
+  type FileRetroDraftRequest,
+  isTerminalReceiptState,
+  type RelayPrincipal,
+} from './types.js';
 
 const RELAY_API_VERSION = '1';
 const RELAY_API_VERSION_HEADER = 'x-safeword-relay-api-version';
+
+const DEFAULT_MAX_BODY_BYTES = 256 * 1024;
+const DEFAULT_MAX_REQUESTS_PER_WINDOW = 60;
+const DEFAULT_RATE_WINDOW_MS = 60_000;
+const DEFAULT_MAINTENANCE_INTERVAL_MS = 60_000;
+const SOCKET_TIMEOUT_MS = 10_000;
 
 async function readJson(request: IncomingMessage, maximumBytes: number): Promise<unknown> {
   const contentLength = Number(request.headers['content-length'] ?? '0');
@@ -51,6 +61,22 @@ function decodePathSegment(value: string): string {
   } catch {
     throw new RelayError(400, 'relay receipt path is malformed');
   }
+}
+
+const RECONCILE_ROUTE = /^\/v1\/retro-filings\/([^/]+)\/reconcile$/u;
+const RECOVER_ROUTE = /^\/v1\/retro-filings\/([^/]+)\/recover$/u;
+const RECEIPT_ROUTE = /^\/v1\/retro-filings\/([^/]+)$/u;
+
+/** Returns the decoded receipt id when the request matches the route, else undefined. */
+function matchReceiptRoute(
+  requestMethod: string | undefined,
+  pathname: string,
+  expectedMethod: string,
+  pattern: RegExp,
+): string | undefined {
+  if (requestMethod !== expectedMethod) return undefined;
+  const segment = pattern.exec(pathname)?.[1];
+  return segment === undefined ? undefined : decodePathSegment(segment);
 }
 
 export interface RelayServerFaults extends RelayFaults {
@@ -137,9 +163,10 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
     faults: serviceFaults,
     ...(input.now !== undefined && { now: input.now }),
   });
-  const maxBodyBytes = input.resourceLimits?.maxBodyBytes ?? 256 * 1024;
-  const maxRequestsPerWindow = input.resourceLimits?.maxRequestsPerWindow ?? 60;
-  const rateWindowMs = input.resourceLimits?.windowMs ?? 60_000;
+  const maxBodyBytes = input.resourceLimits?.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES;
+  const maxRequestsPerWindow =
+    input.resourceLimits?.maxRequestsPerWindow ?? DEFAULT_MAX_REQUESTS_PER_WINDOW;
+  const rateWindowMs = input.resourceLimits?.windowMs ?? DEFAULT_RATE_WINDOW_MS;
   const rateWindows = new Map<string, { count: number; startedAt: number }>();
   const consumeRequestCapacity = (credentialId: string): boolean => {
     const now = (input.now?.() ?? new Date()).getTime();
@@ -152,9 +179,10 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
     current.count += 1;
     return true;
   };
+  let released = false;
   let maintenanceRunning = false;
   const maintain = async (now = new Date()): Promise<void> => {
-    if (maintenanceRunning || input.mode === 'spike') return;
+    if (released || maintenanceRunning || input.mode === 'spike') return;
     maintenanceRunning = true;
     try {
       await service.maintain(now);
@@ -183,19 +211,114 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
   const server = createServer((request, response) => {
     void handle(request, response);
   });
-  server.requestTimeout = 10_000;
-  server.headersTimeout = 10_000;
+  server.requestTimeout = SOCKET_TIMEOUT_MS;
+  server.headersTimeout = SOCKET_TIMEOUT_MS;
   const maintenanceTimer =
     input.mode === 'spike'
       ? undefined
       : setInterval(() => {
           void maintain();
-        }, input.maintenanceIntervalMs ?? 60_000);
+        }, input.maintenanceIntervalMs ?? DEFAULT_MAINTENANCE_INTERVAL_MS);
   maintenanceTimer?.unref();
-  server.once('close', () => {
+  /**
+   * Releases everything startup acquired, once.
+   *
+   * Startup can fail after the maintenance interval exists, and a failed
+   * `listen` never emits 'close' — so leaving cleanup to the close handler
+   * alone leaves that interval sweeping the real store and GitHub client on
+   * behalf of a server the caller was told did not start, with another added
+   * per retry. Every failure path calls this rather than releasing the lock
+   * piecemeal and hoping 'close' arrives.
+   */
+  const releaseResources = (): void => {
+    if (released) return;
+    released = true;
     if (maintenanceTimer !== undefined) clearInterval(maintenanceTimer);
     if (ownsProcessLock) processLock?.release();
-  });
+  };
+  server.once('close', releaseResources);
+
+  const recordReconciliationOutcome = (entry: {
+    receiptId: string;
+    subject: string;
+    disposition: string;
+    alert?: boolean;
+  }): void => {
+    observability.logs.push({
+      event: 'retro_reconciliation',
+      receiptId: entry.receiptId,
+      subject: entry.subject,
+      disposition: entry.disposition,
+      ...(entry.alert === true && { alert: true }),
+    });
+    observability.metrics.push({
+      metric: 'retro_reconciliation_outcome',
+      disposition: entry.disposition,
+    });
+  };
+
+  const respondWithReconciliation = async (
+    response: ServerResponse,
+    receiptId: string,
+    subject: string,
+    run: () => Promise<{ disposition: string; receipt: unknown }>,
+  ): Promise<void> => {
+    try {
+      const { disposition, receipt } = await run();
+      recordReconciliationOutcome({ receiptId, subject, disposition });
+      sendJson(response, 200, receipt);
+    } catch (error) {
+      const disposition =
+        error instanceof RelayError && typeof error.details?.disposition === 'string'
+          ? error.details.disposition
+          : undefined;
+      if (disposition !== undefined) {
+        recordReconciliationOutcome({ receiptId, subject, disposition, alert: true });
+      }
+      throw error;
+    }
+  };
+
+  const respondWithSubmission = async (
+    request: IncomingMessage,
+    response: ServerResponse,
+    principal: RelayPrincipal,
+  ): Promise<void> => {
+    const requestedVersion = Reflect.get(request.headers, RELAY_API_VERSION_HEADER);
+    if (requestedVersion !== undefined && requestedVersion !== RELAY_API_VERSION) {
+      throw new RelayError(400, 'unsupported relay API version', {
+        supportedVersion: RELAY_API_VERSION,
+      });
+    }
+    const receipt = await service.submit(
+      principal,
+      (await readJson(request, maxBodyBytes)) as FileRetroDraftRequest,
+    );
+    observability.logs.push({
+      event: 'retro_filing',
+      harness: principal.harness,
+      requestId: receipt.requestId,
+      state: receipt.state,
+    });
+    observability.metrics.push({
+      metric: 'retro_filing_outcome',
+      requestId: receipt.requestId,
+      state: receipt.state,
+    });
+    try {
+      afterReceiptCommit?.();
+    } catch {
+      response.destroy();
+      return;
+    }
+    const terminal = isTerminalReceiptState(receipt.state);
+    if (!terminal) response.setHeader('retry-after', '1');
+    let statusCode = 202;
+    if (receipt.state === 'filed') statusCode = 201;
+    else if (terminal) statusCode = 200;
+    response.setHeader(RELAY_API_VERSION_HEADER, RELAY_API_VERSION);
+    sendJson(response, statusCode, receipt);
+  };
 
   // eslint-disable-next-line complexity, sonarjs/cognitive-complexity -- A single composition-root router keeps the public contract visible.
   async function handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
@@ -230,121 +353,28 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
         return;
       }
       if (request.method === 'POST' && url.pathname === '/v1/retro-filings') {
-        const requestedVersion = Reflect.get(request.headers, RELAY_API_VERSION_HEADER);
-        if (requestedVersion !== undefined && requestedVersion !== RELAY_API_VERSION) {
-          throw new RelayError(400, 'unsupported relay API version', {
-            supportedVersion: RELAY_API_VERSION,
-          });
-        }
-        const receipt = await service.submit(
-          principal,
-          (await readJson(request, maxBodyBytes)) as FileRetroDraftRequest,
-        );
-        observability.logs.push({
-          event: 'retro_filing',
-          harness: principal.harness,
-          requestId: receipt.requestId,
-          state: receipt.state,
+        await respondWithSubmission(request, response, principal);
+        return;
+      }
+      const toReconcile = matchReceiptRoute(request.method, url.pathname, 'POST', RECONCILE_ROUTE);
+      if (toReconcile !== undefined) {
+        await respondWithReconciliation(response, toReconcile, principal.subject, async () => ({
+          disposition: 'adopted',
+          receipt: await service.reconcile(principal, toReconcile),
+        }));
+        return;
+      }
+      const toRecover = matchReceiptRoute(request.method, url.pathname, 'POST', RECOVER_ROUTE);
+      if (toRecover !== undefined) {
+        await respondWithReconciliation(response, toRecover, principal.subject, async () => {
+          const recovered = await service.recover(principal, toRecover);
+          return { disposition: recovered.disposition, receipt: recovered.receipt };
         });
-        observability.metrics.push({
-          metric: 'retro_filing_outcome',
-          requestId: receipt.requestId,
-          state: receipt.state,
-        });
-        try {
-          afterReceiptCommit?.();
-        } catch {
-          response.destroy();
-          return;
-        }
-        const terminal = isTerminalReceiptState(receipt.state);
-        if (!terminal) response.setHeader('retry-after', '1');
-        let statusCode = 202;
-        if (receipt.state === 'filed') statusCode = 201;
-        else if (terminal) statusCode = 200;
-        response.setHeader(RELAY_API_VERSION_HEADER, RELAY_API_VERSION);
-        sendJson(response, statusCode, receipt);
         return;
       }
-      const reconciliation = /^\/v1\/retro-filings\/([^/]+)\/reconcile$/u.exec(url.pathname);
-      if (request.method === 'POST' && reconciliation?.[1] !== undefined) {
-        const decodedReceipt = decodePathSegment(reconciliation[1]);
-        try {
-          const receipt = await service.reconcile(principal, decodedReceipt);
-          observability.logs.push({
-            event: 'retro_reconciliation',
-            receiptId: decodedReceipt,
-            subject: principal.subject,
-            disposition: 'adopted',
-          });
-          observability.metrics.push({
-            metric: 'retro_reconciliation_outcome',
-            disposition: 'adopted',
-          });
-          sendJson(response, 200, receipt);
-        } catch (error) {
-          const disposition =
-            error instanceof RelayError && typeof error.details?.disposition === 'string'
-              ? error.details.disposition
-              : undefined;
-          if (disposition !== undefined) {
-            observability.logs.push({
-              event: 'retro_reconciliation',
-              receiptId: decodedReceipt,
-              subject: principal.subject,
-              disposition,
-              alert: true,
-            });
-            observability.metrics.push({
-              metric: 'retro_reconciliation_outcome',
-              disposition,
-            });
-          }
-          throw error;
-        }
-        return;
-      }
-      const recovery = /^\/v1\/retro-filings\/([^/]+)\/recover$/u.exec(url.pathname);
-      if (request.method === 'POST' && recovery?.[1] !== undefined) {
-        const decodedReceipt = decodePathSegment(recovery[1]);
-        try {
-          const recovered = await service.recover(principal, decodedReceipt);
-          observability.logs.push({
-            event: 'retro_reconciliation',
-            receiptId: decodedReceipt,
-            subject: principal.subject,
-            disposition: recovered.disposition,
-          });
-          observability.metrics.push({
-            metric: 'retro_reconciliation_outcome',
-            disposition: recovered.disposition,
-          });
-          sendJson(response, 200, recovered.receipt);
-        } catch (error) {
-          const disposition =
-            error instanceof RelayError && typeof error.details?.disposition === 'string'
-              ? error.details.disposition
-              : undefined;
-          if (disposition !== undefined) {
-            observability.logs.push({
-              event: 'retro_reconciliation',
-              receiptId: decodedReceipt,
-              subject: principal.subject,
-              disposition,
-              alert: true,
-            });
-            observability.metrics.push({
-              metric: 'retro_reconciliation_outcome',
-              disposition,
-            });
-          }
-          throw error;
-        }
-        return;
-      }
-      const status = /^\/v1\/retro-filings\/([^/]+)$/u.exec(url.pathname);
-      if (request.method === 'GET' && status?.[1] !== undefined) {
-        const receipt = service.status(principal, decodePathSegment(status[1]));
+      const toRead = matchReceiptRoute(request.method, url.pathname, 'GET', RECEIPT_ROUTE);
+      if (toRead !== undefined) {
+        const receipt = service.status(principal, toRead);
         if (!isTerminalReceiptState(receipt.state)) {
           response.setHeader('retry-after', '1');
         }
@@ -366,17 +396,29 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
 
   try {
     await new Promise<void>((resolve, reject) => {
-      server.once('error', reject);
-      server.listen(input.port ?? 0, input.host ?? '127.0.0.1', resolve);
+      const onError = (error: Error): void => {
+        server.off('listening', onListening);
+        reject(error);
+      };
+      const onListening = (): void => {
+        server.off('error', onError);
+        resolve();
+      };
+      server.once('error', onError);
+      server.once('listening', onListening);
+      server.listen(input.port ?? 0, input.host ?? '127.0.0.1');
+    });
+    server.on('error', error => {
+      observability.logs.push({ event: 'retro_server_error', message: error.message });
     });
   } catch (error) {
-    if (ownsProcessLock) processLock?.release();
+    releaseResources();
     throw error;
   }
   const address = server.address();
   if (address === null || typeof address === 'string') {
     server.close();
-    if (ownsProcessLock) processLock?.release();
+    releaseResources();
     throw new Error('relay did not bind a TCP address');
   }
   return {

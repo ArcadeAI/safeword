@@ -16,6 +16,49 @@ import type { SafewordWorld } from './world.js';
 const execFileAsync = promisify(execFile);
 const RELAY_PROOF_TIMEOUT_MS = 180_000;
 
+const scenarioProofIds: Record<string, string> = {
+  'Each harness submits the exact request persisted by another harness': 'ORR-001',
+  'A retry cannot replace the persisted payload or request identity': 'ORR-002',
+  'Relay unavailability preserves the draft without delaying the session': 'ORR-003',
+  'A multi-draft drain shares one aggregate latency budget': 'ORR-004',
+  'An active spool claim excludes another session': 'ORR-005',
+  'An expired spool claim is rearmed without changing the request': 'ORR-006',
+  'Persisting a new request while another request drains cannot lose either draft': 'ORR-007',
+  'Durable acceptance drains the local draft': 'ORR-008',
+  'Losing the durable receipt response leaves the same draft retryable': 'ORR-009',
+  'Incomplete readiness proof preserves the existing filing path': 'ORR-010',
+  'Complete fresh readiness proof selects the relay path': 'ORR-011',
+  'Stale or malformed readiness proof fails closed': 'ORR-012',
+  'Closed but unlanded or wrong-repository evidence fails closed': 'ORR-013',
+  'Readiness for another build fails closed': 'ORR-014',
+  'Headless extraction receives no filing credential': 'ORR-015',
+  'Production startup authenticates separate harness and operator principals': 'ORR-016',
+  'Rotating one harness credential leaves the other principals active': 'ORR-017',
+  'A principal cannot cross its repository boundary': 'ORR-018',
+  'A harness principal cannot read operator operations': 'ORR-019',
+  'Each principal is denied every excluded role': 'ORR-020',
+  'Spike mode exposes health only': 'ORR-021',
+  'GitHub installation tokens remain opaque inside the relay': 'ORR-022',
+  'Production filing requests are resource bounded': 'ORR-023',
+  'Maintenance enforces each lifecycle boundary exactly once': 'ORR-024',
+  'Durable retry scheduling survives restart': 'ORR-025',
+  'No new dispatch starts at the retry deadline': 'ORR-026',
+  'A late dispatch resolves or becomes ambiguous by one CAS winner': 'ORR-027',
+  'Interrupted schema migration rolls back atomically': 'ORR-028',
+  'Unsupported schema metadata is rejected before listen': 'ORR-029',
+  'Terminal identity cannot be deleted or silently reidentified': 'ORR-030',
+  'A compacted request immediately replays its original filed result': 'ORR-031',
+  'The operator sees lifecycle counts through the real HTTP route without secret content':
+    'ORR-032',
+  'Maintenance emits a deduplicable structured alert for each newly terminal request': 'ORR-033',
+  'Immediate ambiguous outcomes are durably alertable': 'ORR-034',
+  'Empty or semantically irrelevant readiness evidence fails closed': 'ORR-035',
+  'One external durable outbox survives disposable harness workspaces': 'ORR-036',
+  'Persistence success is not reported before file and directory sync': 'ORR-037',
+  'GitHub create classification ignores undocumented response prose': 'ORR-038',
+  'The built production process files through every real collaborator': 'ORR-039',
+};
+
 const rawScenarioProofs: Record<
   string,
   Omit<ScenarioProof, 'expectedTests' | 'proofId'> & { expectedTests?: number }
@@ -71,7 +114,7 @@ const rawScenarioProofs: Record<
   },
   'Complete fresh readiness proof selects the relay path': {
     packageDirectory: 'packages/cli',
-    testFile: 'tests/retro/relay-delivery.test.ts',
+    testFile: 'tests/commands/retro.test.ts',
   },
   'Stale or malformed readiness proof fails closed': {
     expectedTests: 2,
@@ -180,6 +223,7 @@ const rawScenarioProofs: Record<
     testFile: 'tests/lifecycle.test.ts',
   },
   'Empty or semantically irrelevant readiness evidence fails closed': {
+    expectedTests: 2,
     packageDirectory: 'packages/cli',
     testFile: 'tests/retro/relay-delivery.test.ts',
   },
@@ -202,19 +246,18 @@ const rawScenarioProofs: Record<
   },
 };
 
-/**
- * The feature order owns stable proof IDs. Appending scenarios is safe; moving or
- * deleting one requires an intentional proof-ID migration in the review diff.
- */
 export const scenarioProofs: Record<string, ScenarioProof> = Object.fromEntries(
-  Object.entries(rawScenarioProofs).map(([scenarioName, details], index) => [
-    scenarioName,
-    {
-      expectedTests: 1,
-      ...details,
-      proofId: `ORR-${String(index + 1).padStart(3, '0')}`,
-    },
-  ]),
+  Object.entries(rawScenarioProofs).map(([scenarioName, details]) => {
+    const proofId = scenarioProofIds[scenarioName];
+    assert.ok(proofId, `missing stable proof ID for ${scenarioName}`);
+    return [scenarioName, { expectedTests: 1, ...details, proofId }];
+  }),
+);
+
+assert.deepEqual(
+  Object.keys(scenarioProofIds).toSorted(),
+  Object.keys(rawScenarioProofs).toSorted(),
+  'stable proof ID registry must exactly match scenario proofs',
 );
 
 const proofCache = new Map<string, Promise<{ stdout: string; stderr: string; exitCode: number }>>();
@@ -257,11 +300,16 @@ async function runProof(
       stdout: result.stdout,
     };
   } catch (error: unknown) {
-    const failure = error as { stdout?: string; stderr?: string; code?: number };
+    const failure =
+      typeof error === 'object' && error !== null
+        ? (error as Record<string, unknown>)
+        : { message: String(error) };
+    const message = typeof failure.message === 'string' ? failure.message : '';
+    const stderr = typeof failure.stderr === 'string' ? failure.stderr : '';
     return {
-      exitCode: failure.code ?? 1,
-      stderr: failure.stderr ?? '',
-      stdout: failure.stdout ?? '',
+      exitCode: typeof failure.code === 'number' ? failure.code : 1,
+      stderr: [stderr, message].filter(Boolean).join('\n'),
+      stdout: typeof failure.stdout === 'string' ? failure.stdout : '',
     };
   } finally {
     rmSync(proofTempDirectory, { force: true, recursive: true });

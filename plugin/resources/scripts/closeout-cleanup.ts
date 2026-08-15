@@ -3,9 +3,11 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import {
+  appendFileSync,
   existsSync,
   mkdirSync,
   readFileSync,
+  readdirSync,
   realpathSync,
   renameSync,
   statSync,
@@ -107,9 +109,7 @@ export interface CleanupPlan {
   identity?: PullRequestIdentity;
   stateHash: string;
   retroStateHash: string;
-  retro?: { spoolPath: string };
-  cleanupBlockers: string[];
-  recoveryBlockers: string[];
+  retro?: { spoolPath: string; durableSpoolPath?: string };
   blockers: string[];
   advisories: string[];
   completed: string[];
@@ -125,21 +125,11 @@ function normalizedRepository(url: string): string | undefined {
 }
 
 function block(plan: CleanupPlan, message: string): void {
-  if (!plan.cleanupBlockers.includes(message)) plan.cleanupBlockers.push(message);
-  if (!plan.blockers.includes(message)) plan.blockers.push(message);
-}
-
-function blockRecovery(plan: CleanupPlan, message: string): void {
-  if (!plan.recoveryBlockers.includes(message)) plan.recoveryBlockers.push(message);
   if (!plan.blockers.includes(message)) plan.blockers.push(message);
 }
 
 function advise(plan: CleanupPlan, message: string): void {
   if (!plan.advisories.includes(message)) plan.advisories.push(message);
-}
-
-function hasCleanupAuthorizationBlocker(plan: CleanupPlan): boolean {
-  return plan.cleanupBlockers.length > 0;
 }
 
 function collectPrerequisiteBlockers(
@@ -156,12 +146,12 @@ function collectPrerequisiteBlockers(
   if (observation.retro.failure === 'extraction') {
     advise(plan, 'retrospective extraction failed; resolve the extraction failure');
   } else if (observation.retro.failure === 'filing') {
-    blockRecovery(plan, 'retrospective filing failed; resolve the filing failure');
+    advise(plan, 'retrospective filing failed; resolve the filing failure');
   } else if (!observation.retro.complete) {
     advise(plan, 'the current session retrospective is incomplete');
   }
   if (observation.retro.pendingDrafts > 0)
-    blockRecovery(plan, 'the current session filing spool has pending drafts');
+    advise(plan, 'the current session filing spool has pending drafts');
   if (observation.protection === 'unknown') block(plan, 'branch protection state is unknown');
   if (observation.protection === 'protected') block(plan, 'the topic branch is protected');
   if (observation.remoteResolution === 'ambiguous') {
@@ -285,8 +275,6 @@ export function buildCleanupPlan(observation: CloseoutObservation): CleanupPlan 
     version: 2,
     stateHash: observation.verification.stateHash,
     retroStateHash: observation.retro.evidenceHash,
-    cleanupBlockers: [],
-    recoveryBlockers: [],
     blockers: [],
     advisories: [],
     completed: [],
@@ -322,8 +310,15 @@ export function buildCleanupPlan(observation: CloseoutObservation): CleanupPlan 
     observation.deliveryWorktreePath,
   );
   const survivingWorktree = defaultBranchWorktrees[0];
-  if (!hasCleanupAuthorizationBlocker(plan) && survivingWorktree) {
+  if (plan.blockers.length === 0 && survivingWorktree) {
     assembleOperations(plan, observation, pullRequest, topicWorktrees[0], survivingWorktree);
+    if (plan.retro) {
+      plan.retro.durableSpoolPath = nodePath.join(
+        survivingWorktree.path,
+        '.safeword/retro-drafts',
+        nodePath.basename(plan.retro.spoolPath),
+      );
+    }
   }
 
   return plan;
@@ -334,8 +329,6 @@ export function cleanupPlanDigest(plan: CleanupPlan): string {
     retroStateHash: _retroStateHash,
     retro: _retro,
     advisories: _advisories,
-    recoveryBlockers: _recoveryBlockers,
-    blockers: _blockers,
     ...stableAuthorization
   } = plan;
   return createHash('sha256').update(JSON.stringify(stableAuthorization)).digest('hex');
@@ -344,6 +337,8 @@ export function cleanupPlanDigest(plan: CleanupPlan): string {
 export function operationCommand(operation: CleanupOperation): string[] {
   switch (operation.kind) {
     case 'remove-worktree':
+      // This describes the final Git action for previews/tests. Execution first
+      // quarantines and revalidates the worktree in removeWorktreeSafely().
       return ['git', '-C', operation.cwd, 'worktree', 'remove', operation.path];
     case 'delete-remote-ref':
       return [
@@ -636,7 +631,16 @@ function removeWorktreeSafely(
   if (status.status !== 0 || status.stdout !== '') {
     return blockedAfterQuarantine('worktree became dirty before removal');
   }
-  return runner('git', ['-C', operation.cwd, 'worktree', 'remove', quarantinePath], operation.cwd);
+  const removed = runner(
+    'git',
+    ['-C', operation.cwd, 'worktree', 'remove', quarantinePath],
+    operation.cwd,
+  );
+  return removed.status === 0
+    ? removed
+    : blockedAfterQuarantine(
+        `quarantined worktree removal failed: ${removed.stderr.trim() || 'unknown error'}`,
+      );
 }
 
 export function executeCleanupOperation(
@@ -758,7 +762,12 @@ export function transcriptMatchesBinding(
       .split('\n')
       .filter(Boolean)
       .some(line => {
-        const record = JSON.parse(line) as TranscriptMetadata;
+        let record: TranscriptMetadata;
+        try {
+          record = JSON.parse(line) as TranscriptMetadata;
+        } catch {
+          return false;
+        }
         const codexMetadata = record.type === 'session_meta' ? record.payload : undefined;
         const sessionId =
           exactString(record.sessionId) ??
@@ -768,7 +777,11 @@ export function transcriptMatchesBinding(
         if (sessionId !== binding.id) return false;
         const recordedRoot = exactString(record.cwd) ?? exactString(codexMetadata?.cwd);
         if (binding.runtime !== 'codex' || !recordedRoot) return true;
-        return repositoryOwnership(recordedRoot) === repositoryOwnership(repositoryRoot);
+        const recordedOwnership = repositoryOwnership(recordedRoot);
+        const currentOwnership = repositoryOwnership(repositoryRoot);
+        return Boolean(
+          recordedOwnership && currentOwnership && recordedOwnership === currentOwnership,
+        );
       });
   } catch {
     return false;
@@ -922,6 +935,8 @@ interface TestPlanEntry {
 }
 
 interface VerificationReceipt {
+  // This is a performance cache for an already-observed clean HEAD, not an integrity boundary.
+  // Cleanup safety still comes from the plan digest and fresh target re-observation before mutation.
   version: 1;
   headOid: string;
   stateHash: string;
@@ -998,6 +1013,8 @@ function hasMeaningfulTranscriptGrowth(
 ): boolean {
   const current = transcriptSnapshot(path);
   if (current.byteLength <= snapshot.byteLength) return false;
+  // Claude and Cursor transcript records are not Codex lifecycle envelopes;
+  // conservatively re-extract any growth on those host-native formats.
   if (runtime !== 'codex') return true;
   const appended = current.content.subarray(snapshot.byteLength).toString('utf8');
   return appended
@@ -1256,6 +1273,7 @@ function runVerification(
           stateHash: observedStateHash,
         };
   }
+  // A fresh verdict is trustworthy only if the stale receipt was invalidated.
   let passed = invalidateVerificationReceipt(root);
   for (const kind of POST_MERGE_VERIFICATION_KINDS) {
     const planResult = runSafeword(root, [
@@ -1400,8 +1418,7 @@ export function resolveHostedVerification(
 ): PullRequestIdentity['ciChecks'] {
   if (required === 'failed' || rollup === 'failed') return 'failed';
   if (required === 'pending' || rollup === 'pending') return 'pending';
-  const requiredChecksSatisfied = required === 'passed' || required === 'absent';
-  return requiredChecksSatisfied && rollup === 'passed' ? 'passed' : 'unknown';
+  return required === 'passed' && rollup === 'passed' ? 'passed' : 'unknown';
 }
 
 export function pullRequestIdentity(
@@ -1481,7 +1498,7 @@ function observeRemote(
     match.name,
     `refs/heads/${identity.headRefName}`,
   );
-  const resolved = resolveRemoteRef(remoteRef);
+  const resolved = resolveRemoteRef(remoteRef, `refs/heads/${identity.headRefName}`);
   return resolved.resolution === 'matched'
     ? { remote: { ...match, oid: resolved.oid }, remoteResolution: 'matched' }
     : { remoteResolution: resolved.resolution };
@@ -1489,10 +1506,18 @@ function observeRemote(
 
 export function resolveRemoteRef(
   result: ProcessResult,
+  expectedRef?: string,
 ): { resolution: 'matched'; oid: string } | { resolution: 'absent' | 'unknown' } {
   if (result.status !== 0) return { resolution: 'unknown' };
-  const oid = result.stdout.trim().split(/\s+/u)[0];
-  return oid ? { resolution: 'matched', oid } : { resolution: 'absent' };
+  const lines = result.stdout.trim().split('\n').filter(Boolean);
+  if (lines.length === 0) return { resolution: 'absent' };
+  const fields = lines[0]?.trim().split(/\s+/u) ?? [];
+  if (lines.length !== 1 || fields.length !== 2) return { resolution: 'unknown' };
+  const [oid, ref] = fields;
+  if (!oid || !ref || (expectedRef !== undefined && ref !== expectedRef)) {
+    return { resolution: 'unknown' };
+  }
+  return { resolution: 'matched', oid };
 }
 
 function parseWorktreePorcelain(output: string): WorktreeIdentity[] {
@@ -1641,7 +1666,15 @@ function observeCloseout(
     defaultBranch,
     protection: observeCurrentProtection(root, identity, mutableTargets.remoteResolution),
     deliveryWorktreePath: nodePath.resolve(root),
-    verification: runVerification(root, expectedOid, identity?.ciChecks ?? 'unknown'),
+    verification:
+      identity?.state === 'MERGED'
+        ? runVerification(root, expectedOid, identity.ciChecks)
+        : {
+            current: true,
+            passed: true,
+            headOid: expectedOid,
+            stateHash: unobservableWorkingStateHash(expectedOid),
+          },
     retro: binding
       ? retroForMergedPullRequest(root, binding, mutableTargets.pullRequests)
       : { bound: false, complete: false, pendingDrafts: 0, evidenceHash: '' },
@@ -1652,14 +1685,62 @@ function reobserveCleanupTargets(
   root: string,
   pr: string,
   baseline: CloseoutObservation,
+  observeWorkingState = false,
 ): CloseoutObservation {
   const mutableTargets = observeMutableCleanupTargets(root, pr);
   const identity = mutableTargets.pullRequests[0];
+  const observedHead = observeWorkingState ? git(root, 'rev-parse', 'HEAD').stdout.trim() : '';
+  const stateHash = observeWorkingState ? workingStateHash(root, observedHead) : '';
   return {
     ...baseline,
     ...mutableTargets,
     protection: observeCurrentProtection(root, identity, mutableTargets.remoteResolution),
+    verification:
+      observeWorkingState && observedHead === baseline.verification.headOid
+        ? {
+            ...baseline.verification,
+            stateHash: stateHash || unobservableWorkingStateHash(observedHead),
+          }
+        : baseline.verification,
   };
+}
+
+function preserveRetroSpool(plan: CleanupPlan): string | undefined {
+  const removal = plan.operations.find(operation => operation.kind === 'remove-worktree');
+  if (!removal) return undefined;
+  const sourceDirectory = nodePath.join(removal.path, '.safeword/retro-drafts');
+  const targetDirectory = nodePath.join(removal.cwd, '.safeword/retro-drafts');
+  if (sourceDirectory === targetDirectory || !existsSync(sourceDirectory)) return undefined;
+  try {
+    const commonDirectory = git(removal.cwd, 'rev-parse', '--git-common-dir');
+    if (commonDirectory.status !== 0) return 'retrospective spool exclusion could not be resolved';
+    const excludePath = nodePath.join(
+      nodePath.resolve(removal.cwd, commonDirectory.stdout.trim()),
+      'info/exclude',
+    );
+    mkdirSync(nodePath.dirname(excludePath), { recursive: true });
+    const exclusion = '/.safeword/retro-drafts/';
+    const exclusions = existsSync(excludePath) ? readFileSync(excludePath, 'utf8') : '';
+    if (!exclusions.split('\n').includes(exclusion)) {
+      const separator = exclusions.length > 0 && !exclusions.endsWith('\n') ? '\n' : '';
+      appendFileSync(excludePath, `${separator}${exclusion}\n`);
+    }
+    mkdirSync(targetDirectory, { recursive: true });
+    for (const entry of readdirSync(sourceDirectory, { withFileTypes: true })) {
+      if (!entry.isFile()) continue;
+      const source = nodePath.join(sourceDirectory, entry.name);
+      const target = nodePath.join(targetDirectory, entry.name);
+      const bytes = readFileSync(source);
+      if (!existsSync(target) || !readFileSync(target).equals(bytes)) {
+        const temporary = `${target}.${randomUUID()}.tmp`;
+        writeFileSync(temporary, bytes, { flag: 'wx', mode: 0o600 });
+        renameSync(temporary, target);
+      }
+    }
+    return undefined;
+  } catch (error) {
+    return `retrospective spool preservation failed: ${String(error)}`;
+  }
 }
 
 function argumentValue(name: string): string | undefined {
@@ -1671,11 +1752,11 @@ if (import.meta.main) {
   const root = resolveRepositoryRoot(process.cwd());
   const requestedPr = argumentValue('--pr');
   const pr = requestedPr && /^[1-9]\d*$/u.test(requestedPr) ? requestedPr : undefined;
-  const binding = root ? resolveCloseoutBinding(root) : undefined;
   if (!root || !pr) {
     console.error('closeout blocked: repository and a positive numeric --pr are required.');
     process.exit(2);
   }
+  const binding = resolveCloseoutBinding(root);
   const observation = observeCloseout(root, pr, binding);
   const plan = buildCleanupPlan(observation);
   const digest = cleanupPlanDigest(plan);
@@ -1688,11 +1769,26 @@ if (import.meta.main) {
     process.exit(2);
   }
   const survivingRoot = plan.operations[0]?.cwd ?? root;
+  const spoolFailure = preserveRetroSpool(plan);
+  if (spoolFailure) {
+    console.error(`closeout blocked: ${spoolFailure}`);
+    process.exit(2);
+  }
   process.chdir(survivingRoot);
+  let firstObservation = true;
   const result = applyCleanupPlan({
     plan,
     digest,
-    observe: () => reobserveCleanupTargets(survivingRoot, pr, observation),
+    observe: () => {
+      const current = reobserveCleanupTargets(
+        firstObservation ? root : survivingRoot,
+        pr,
+        observation,
+        firstObservation,
+      );
+      firstObservation = false;
+      return current;
+    },
     execute: operation => {
       const execution = executeCleanupOperation(operation);
       if (execution.status !== 0) throw new Error(execution.stderr || 'cleanup command failed');

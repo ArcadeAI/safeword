@@ -167,7 +167,7 @@ The jobs above say what a persona can _do_. The rave moment says what would make
 
 Aim for **awe** ("whoa, it just did that"), not mild satisfaction — low-arousal "fine" doesn't get shared. Write it to `spec.md`'s `## Rave Moment` (e.g., oauth-flow: _"I expected a coordinated flag-day; the old key just kept working while I rolled the fleet"_). If nothing clears the expectation bar, write `skip: table-stakes` — "no rave here" is an honest, common answer, not a gap to fill. Manufacturing one to fill the field is the failure mode; the beaten-expectation requirement is the guard.
 
-`/verify`'s experience lens walks this moment as the persona later and asks whether it landed.
+`/safeword:verify`'s experience lens walks this moment as the persona later and asks whether it landed.
 
 ## Understanding (Propose-and-Converge)
 

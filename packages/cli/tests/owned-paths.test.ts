@@ -208,6 +208,7 @@ describe('namespace-root awareness (issue #273)', () => {
     expect(resolvedNamespaceDirectory(ctxWith('/repo', '/repo/config/team-ns'))).toBe(
       'config/team-ns',
     );
+    expect(resolvedNamespaceDirectory(ctxWith('/repo', '/repo/..project'))).toBe('..project');
   });
 
   it('resolvedNamespaceDirectory returns undefined for repo-root and the well-known roots', () => {

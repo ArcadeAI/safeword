@@ -156,6 +156,41 @@ describe('resolveTestPlan — the command reflects the detected runner', () => {
     expect(entryFor(plan, 'python')?.command).toBe('uv run pytest');
   });
 
+  it('uses a workspace-root uv lock for nested Python projects', () => {
+    const root = makeRepo({
+      'pyproject.toml': '[tool.uv.workspace]\nmembers=["apps/*"]\n',
+      'uv.lock': '',
+      'apps/api/pyproject.toml': '[tool.pytest.ini_options]\n',
+    });
+    const python = resolveTestPlan(root, { isToolAvailable: onlyTools('uv') }).filter(
+      item => item.language === 'python',
+    );
+
+    expect(python).toEqual([
+      expect.objectContaining({ cwd: nodePath.join(root, 'apps/api'), command: 'uv run pytest' }),
+    ]);
+  });
+
+  it('does not lend a uv workspace lock or nested tests to unrelated Python projects', () => {
+    const root = makeRepo({
+      'pyproject.toml': '[tool.uv.workspace]\nmembers=["apps/*"]\n',
+      'uv.lock': '',
+      'apps/api/pyproject.toml': '[project]\nname="api"\n',
+      'apps/api/tests/test_api.py': 'def test_api(): pass\n',
+      'services/legacy/pyproject.toml': '[project]\nname="legacy"\n',
+      'services/legacy/tests/test_legacy.py': 'def test_legacy(): pass\n',
+    });
+
+    expect(
+      resolveTestPlan(root, { isToolAvailable: allTools })
+        .filter(item => item.language === 'python')
+        .map(item => [nodePath.relative(root, item.cwd), item.command]),
+    ).toEqual([
+      ['apps/api', 'uv run pytest'],
+      ['services/legacy', 'pytest'],
+    ]);
+  });
+
   it('rust uses nextest when it is installed', () => {
     const root = makeRepo({ 'Cargo.toml': '[package]\nname="x"\n' });
     const plan = resolveTestPlan(root, { isToolAvailable: onlyTools('cargo', 'cargo-nextest') });
@@ -245,6 +280,133 @@ describe('resolveTestPlan — nested and vendored manifests', () => {
     const root = makeRepo({ 'go.mod': 'module x\n' });
     const plan = resolveTestPlan(root, { isToolAvailable: allTools });
     expect(entryFor(plan, 'go')?.cwd).toBe(root);
+  });
+
+  it('emits one verification entry for each project of the same language', () => {
+    const root = makeRepo({
+      'apps/api/pyproject.toml': '[tool.pytest.ini_options]\n',
+      'apps/worker/requirements.txt': 'pytest\n',
+      'apps/worker/tests/test_worker.py': 'def test_worker():\n    assert True\n',
+      'services/alpha/go.mod': 'module alpha\n',
+      'services/beta/go.mod': 'module beta\n',
+    });
+
+    const plan = resolveTestPlan(root, { kind: 'verify', isToolAvailable: allTools });
+
+    expect(plan.filter(item => item.language === 'python').map(item => item.cwd)).toEqual([
+      nodePath.join(root, 'apps/api'),
+      nodePath.join(root, 'apps/worker'),
+    ]);
+    expect(plan.filter(item => item.language === 'go').map(item => item.cwd)).toEqual([
+      nodePath.join(root, 'services/alpha'),
+      nodePath.join(root, 'services/beta'),
+    ]);
+  });
+
+  it('uses each standalone JavaScript project manifest and lockfile', () => {
+    const root = makeRepo({
+      'apps/api/package.json': JSON.stringify({ scripts: { test: 'vitest' } }),
+      'apps/api/pnpm-lock.yaml': '',
+      'packages/web/package.json': JSON.stringify({ scripts: { test: 'jest' } }),
+      'packages/web/yarn.lock': '',
+    });
+
+    const javascript = resolveTestPlan(root, { isToolAvailable: allTools }).filter(
+      item => item.language === 'javascript',
+    );
+
+    expect(javascript.map(item => item.command)).toEqual(['pnpm run test', 'yarn run test']);
+  });
+
+  it('does not verify excluded JavaScript workspace members', () => {
+    const root = makeRepo({
+      'package.json': JSON.stringify({
+        private: true,
+        workspaces: ['services/*', '!services/example'],
+      }),
+      'pnpm-lock.yaml': '',
+      'services/api/package.json': JSON.stringify({ scripts: { test: 'vitest' } }),
+      'services/example/package.json': JSON.stringify({ scripts: { test: 'broken' } }),
+    });
+
+    expect(
+      resolveTestPlan(root, { isToolAvailable: allTools })
+        .filter(item => item.language === 'javascript')
+        .map(item => item.cwd),
+    ).toEqual([nodePath.join(root, 'services/api')]);
+  });
+
+  it('discovers JavaScript members declared with nested workspace globs', () => {
+    const root = makeRepo({
+      'package.json': JSON.stringify({ private: true, workspaces: ['packages/*/*'] }),
+      'yarn.lock': '',
+      'packages/web/client/package.json': JSON.stringify({ scripts: { test: 'jest' } }),
+    });
+
+    expect(
+      resolveTestPlan(root, { isToolAvailable: allTools }).find(
+        item => item.language === 'javascript',
+      ),
+    ).toEqual(
+      expect.objectContaining({
+        cwd: nodePath.join(root, 'packages/web/client'),
+        command: 'yarn run test',
+      }),
+    );
+  });
+
+  it.each([
+    ['pnpm-lock.yaml', 'pnpm'],
+    ['package-lock.json', 'npm'],
+    ['yarn.lock', 'yarn'],
+  ] as const)('uses workspace-root %s for JavaScript members', (lockfile, manager) => {
+    const root = makeRepo({
+      'package.json': JSON.stringify({ private: true, workspaces: ['services/*'] }),
+      [lockfile]: '',
+      'services/api/package.json': JSON.stringify({ scripts: { test: 'vitest' } }),
+    });
+
+    expect(
+      resolveTestPlan(root, { isToolAvailable: allTools }).find(
+        item => item.language === 'javascript',
+      )?.command,
+    ).toBe(`${manager} run test`);
+  });
+
+  it('runs SQL verification in each detected SQL project', () => {
+    const root = makeRepo({
+      'apps/warehouse/dbt_project.yml': 'name: warehouse\n',
+      'services/reporting/sqlc.yaml': 'version: "2"\n',
+    });
+
+    const sql = resolveTestPlan(root, { kind: 'verify', isToolAvailable: allTools }).filter(
+      item => item.language === 'sql',
+    );
+
+    expect(sql).toEqual([
+      expect.objectContaining({
+        cwd: nodePath.join(root, 'apps/warehouse'),
+        command: 'sqlfluff lint .',
+      }),
+      expect.objectContaining({
+        cwd: nodePath.join(root, 'services/reporting'),
+        command: 'sqlfluff lint .',
+      }),
+    ]);
+  });
+
+  it('runs a nested Rust workspace once from its owning root', () => {
+    const root = makeRepo({
+      'sub/Cargo.toml': '[workspace]\nmembers=["crates/*"]\n',
+      'sub/crates/api/Cargo.toml': '[package]\nname="api"\nversion="0.1.0"\n',
+      'sub/crates/core/Cargo.toml': '[package]\nname="core"\nversion="0.1.0"\n',
+    });
+
+    expect(
+      resolveTestPlan(root, { isToolAvailable: onlyTools('cargo') })
+        .filter(item => item.language === 'rust')
+        .map(item => item.cwd),
+    ).toEqual([nodePath.join(root, 'sub')]);
   });
 });
 

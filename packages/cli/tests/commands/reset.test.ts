@@ -198,10 +198,11 @@ describe('Test Suite 11: Reset', () => {
       expect(fileExists(temporaryDirectory, 'eslint.config.mjs')).toBe(true);
       expect(fileExists(temporaryDirectory, '.prettierrc')).toBe(true);
 
-      // Scripts preserved
+      // Standalone customer/tooling scripts survive, while Safeword-dependent
+      // entry points are removed with the CLI they invoke.
       const pkgAfter = JSON.parse(readTestFile(temporaryDirectory, 'package.json'));
-      expect(pkgAfter.scripts?.lint).toBe(pkgBefore.scripts?.lint);
-      expect(pkgAfter.scripts?.['lint:gherkin']).toBe(pkgBefore.scripts?.['lint:gherkin']);
+      expect(pkgAfter.scripts?.lint).toBeUndefined();
+      expect(pkgAfter.scripts?.['lint:gherkin']).toBeUndefined();
       expect(pkgAfter.scripts?.format).toBe(pkgBefore.scripts?.format);
     });
   });
@@ -289,8 +290,8 @@ describe('Test Suite 11: Reset', () => {
       // Overwrite with only safeword servers
       const mcpConfig = {
         mcpServers: {
-          context7: { command: 'bunx', args: ['@context7/mcp'] },
-          playwright: { command: 'bunx', args: ['@playwright/mcp'] },
+          context7: { url: 'https://mcp.context7.com/mcp' },
+          playwright: { command: 'bunx', args: ['@playwright/mcp@latest'] },
         },
       };
       writeTestFile(temporaryDirectory, '.mcp.json', JSON.stringify(mcpConfig, undefined, 2));

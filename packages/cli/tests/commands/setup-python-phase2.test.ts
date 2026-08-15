@@ -5,7 +5,7 @@
  * Test Definitions: .safeword/planning/test-definitions/phase2-python-tooling.md
  */
 
-import { existsSync, readFileSync } from 'node:fs';
+import { chmodSync, existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -347,10 +347,11 @@ describe('Suite 6: Auto-Install Python Tools', () => {
         timeout: TIMEOUT_SETUP,
         env: SKIP_INSTALL_ENV,
       });
-
       // Assert - should show manual install instruction
-      expect(result.stderr).toContain('Install Python tools');
-      expect(result.stderr).toContain('pip install');
+      expect(result.exitCode).toBe(2);
+      expect(result.stdout).toContain('Install Python tools');
+      expect(result.stdout).toContain('pip install');
+      expect(result.stdout).toContain('Configuration is healthy');
     },
     TIMEOUT_SETUP,
   );
@@ -370,8 +371,8 @@ describe('Suite 6: Auto-Install Python Tools', () => {
       });
 
       // Explicit no-install mode reports the exact recovery command without network access.
-      expect(result.stderr).toContain('Install Python tools: uv add --dev');
-      expect(result.stderr).not.toContain('Python tools installed');
+      expect(result.stdout).toContain('Install Python tools: uv add --dev');
+      expect(result.stdout).not.toContain('Python tools installed');
     },
     TIMEOUT_SETUP,
   );
@@ -401,9 +402,48 @@ dev = ["ruff>=0.8.0"]
         env: SKIP_INSTALL_ENV,
       });
 
-      // Ruff alone is not the full Safe Word Python tool contract.
-      expect(result.stderr).toContain('Install Python tools: pip install mypy deadcode');
-      expect(result.stderr).not.toContain('Python tools installed');
+      // Ruff alone is not the full Safeword Python tool contract.
+      expect(result.stdout).toContain('Install Python tools: pip install mypy deadcode');
+      expect(result.stdout).not.toContain('Python tools installed');
+    },
+    TIMEOUT_SETUP,
+  );
+
+  it(
+    'Test 6.4: Installs managed projects even when a pip sibling needs manual setup',
+    async () => {
+      createPythonProjectReadyForSetup(state.projectDirectory);
+      writeTestFile(
+        state.projectDirectory,
+        'apps/worker/pyproject.toml',
+        '[project]\nname="worker"\n',
+      );
+      writeTestFile(state.projectDirectory, 'apps/worker/uv.lock', '');
+      initGitRepo(state.projectDirectory);
+      const bin = nodePath.join(state.projectDirectory, 'bin');
+      const log = nodePath.join(state.projectDirectory, 'uv.log');
+      const uv = nodePath.join(bin, 'uv');
+      writeTestFile(
+        state.projectDirectory,
+        'bin/uv',
+        '#!/bin/sh\nprintf "%s\\n" "$*" >> "$SAFEWORD_UV_LOG"\n',
+      );
+      chmodSync(uv, 0o755);
+
+      const result = await runCli(['setup'], {
+        cwd: state.projectDirectory,
+        timeout: TIMEOUT_SETUP,
+        env: {
+          PATH: `${bin}:${process.env.PATH ?? ''}`,
+          SAFEWORD_SKIP_INSTALL: '',
+          SAFEWORD_UV_LOG: log,
+        },
+      });
+
+      expect(result.exitCode).toBe(2);
+      expect(readFileSync(log, 'utf8')).toContain('add --dev');
+      expect(result.stdout).toContain('pip install');
+      expect(result.stdout).toContain('Configuration is healthy');
     },
     TIMEOUT_SETUP,
   );
@@ -438,7 +478,7 @@ python = "^3.12"
 
       // Assert - Poetry project detected, shows poetry command in fallback
       // (install fails without poetry.lock, so fallback shown)
-      expect(result.stderr).toMatch(/poetry add/);
+      expect(result.stdout).toMatch(/poetry add/);
     },
     TIMEOUT_SETUP,
   );
@@ -459,7 +499,7 @@ python = "^3.12"
       });
 
       // Assert - Pipenv project detected
-      expect(result.stderr).toMatch(/pipenv install/);
+      expect(result.stdout).toMatch(/pipenv install/);
     },
     TIMEOUT_SETUP,
   );

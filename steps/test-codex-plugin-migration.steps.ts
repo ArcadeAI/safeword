@@ -19,6 +19,7 @@ import { After, Given, Then, When } from '@cucumber/cucumber';
 import {
   CODEX_PLUGIN_HOOK_EVENTS,
   recordCodexHookProof,
+  writeCodexActivationMarker,
 } from '../packages/cli/src/codex-plugin/profile-proof.js';
 import { installFakeCodexRuntime } from '../packages/cli/tests/helpers/fake-codex-runtime.js';
 
@@ -1685,7 +1686,17 @@ When(
       [SAFEWORD_CLI_PATH, 'upgrade', '--agents=codex'],
       { cwd: repoRoot, env: environment, timeout: 120_000 },
     );
+    const markerPath = nodePath.join(runtime.codexHome, 'safeword/activation-pending-v2.json');
+    const marker = JSON.parse(readFileSync(markerPath, 'utf8')) as { activation_id: string };
+    writeCodexActivationMarker(environment, new Date(Date.now() - 1000), {
+      activationId: marker.activation_id,
+      activeHosts: [{ pid: 100, started_at: '2026-08-14T08:00:00.000Z' }],
+    });
+    recordCodexHookProof('session-start', environment, new Date(), {
+      currentHost: { pid: 200, started_at: '2026-08-14T09:00:00.000Z' },
+    });
     for (const event of CODEX_PLUGIN_HOOK_EVENTS) {
+      if (event === 'session-start') continue;
       recordCodexHookProof(event, environment);
     }
     const preview = runCommand(

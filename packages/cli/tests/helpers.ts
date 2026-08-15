@@ -401,6 +401,20 @@ function warnIfDistributionStale(): void {
   }
 }
 
+/** Fails direct built-CLI tests when the bundle is missing or older than source. */
+export function assertTestCliFresh(): void {
+  let distributionMtime: number;
+  try {
+    distributionMtime = statSync(testCliPath).mtimeMs;
+  } catch {
+    throw new Error('dist/cli.js is missing; run `bun run --cwd packages/cli build` first');
+  }
+  const newestSource = newestSourceMtime(SOURCE_DIRECTORY);
+  if (newestSource !== undefined && newestSource > distributionMtime) {
+    throw new Error('dist/cli.js is stale; run `bun run --cwd packages/cli build` first');
+  }
+}
+
 function projectFixtureArguments(args: string[]): string[] {
   // Most suites use setup/upgrade only to prepare project files. Keep those fixtures
   // independent of installed hosts; unified-install scenarios invoke the CLI directly.

@@ -20,6 +20,7 @@ import {
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
+import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -40,6 +41,7 @@ import {
   removeTemporaryDirectory,
   runCli,
 } from '../helpers.js';
+import { blockWrites } from '../helpers/io-failure.js';
 
 const context: { directory: string } = { directory: '' };
 
@@ -90,9 +92,12 @@ afterEach(() => {
 });
 
 describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () => {
-  it.each([['--from-index'], ['--from-index', '--stage-output']])(
-    'does not generate or stage architecture when enforcement is opted out: %s',
-    async (...flags) => {
+  it.each([
+    { name: '--from-index', flags: ['--from-index'] },
+    { name: '--from-index --stage-output', flags: ['--from-index', '--stage-output'] },
+  ])(
+    'does not generate or stage architecture when enforcement is opted out: $name',
+    async ({ flags }) => {
       writeEnforcementConfig(context.directory, false);
 
       const result = await runCli(['architecture', ...flags], { cwd: context.directory });
@@ -282,9 +287,7 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
 
     expect(result.exitCode).toBe(0);
     expect(stagedFiles(context.directory)).not.toContain(DOC_RELATIVE);
-    expect(execFileSync('cat', [DOC_RELATIVE], { cwd: context.directory, encoding: 'utf8' })).toBe(
-      foreign,
-    );
+    expect(readFileSync(nodePath.join(context.directory, DOC_RELATIVE), 'utf8')).toBe(foreign);
   });
 
   it.each([
@@ -338,10 +341,7 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
 
   it('does not regenerate or stage a stale doc when enforcement is opted out', async () => {
     selfHeal(context.directory);
-    const before = execFileSync('cat', [DOC_RELATIVE], {
-      cwd: context.directory,
-      encoding: 'utf8',
-    });
+    const before = readFileSync(nodePath.join(context.directory, DOC_RELATIVE), 'utf8');
     mkdirSync(nodePath.join(context.directory, 'src', 'billing'), { recursive: true });
     writeFileSync(
       nodePath.join(context.directory, 'src', 'billing', 'index.ts'),
@@ -354,15 +354,13 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
 
     expect(result.exitCode).toBe(0);
     expect(stagedFiles(context.directory)).not.toContain(DOC_RELATIVE);
-    expect(execFileSync('cat', [DOC_RELATIVE], { cwd: context.directory, encoding: 'utf8' })).toBe(
-      before,
-    );
+    expect(readFileSync(nodePath.join(context.directory, DOC_RELATIVE), 'utf8')).toBe(before);
   });
 
   it('does not require the narrative to duplicate the generated package inventory', async () => {
     // Decision records remain silent about packages with no architectural decision.
     // The generated root index owns package coverage, regardless of enforcement.
-    execFileSync('rm', ['-rf', 'src'], { cwd: context.directory });
+    rmSync(nodePath.join(context.directory, 'src'), { force: true, recursive: true });
     writeFileSync(
       nodePath.join(context.directory, 'package.json'),
       JSON.stringify({ name: 'root', workspaces: ['packages/*'] }),
@@ -511,10 +509,14 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
     );
     git(context.directory, 'add', '--', 'src/billing/index.ts');
 
+    // The clean filter runs mid-`git add`, after git has read the content off
+    // stdin, and swaps the document for a directory — so the later worktree
+    // restore fails with EISDIR. `chmod a-w` cannot express this for uid 0,
+    // because root bypasses the write bit and the restore would succeed.
     const filterPath = nodePath.join(context.directory, '.git', 'lock-architecture-filter.sh');
     writeFileSync(
       filterPath,
-      '#!/bin/sh\nchmod a-w "$SAFEWORD_TEST_ARCHITECTURE_DIRECTORY"\ncat\n',
+      '#!/bin/sh\nrm -rf "$SAFEWORD_TEST_ARCHITECTURE_DOCUMENT"\nmkdir "$SAFEWORD_TEST_ARCHITECTURE_DOCUMENT"\ncat\n',
     );
     chmodSync(filterPath, 0o755);
     git(context.directory, 'config', 'filter.architecture-lock.clean', filterPath);
@@ -524,23 +526,25 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
     );
     git(context.directory, 'add', '--', '.gitattributes');
 
-    let result;
-    try {
-      result = await runCli(['architecture', '--stage'], {
-        cwd: context.directory,
-        env: {
-          SAFEWORD_TEST_ARCHITECTURE_DIRECTORY: nodePath.dirname(documentPath),
-        },
-      });
-    } finally {
-      chmodSync(nodePath.dirname(documentPath), 0o755);
-    }
+    const result = await runCli(['architecture', '--stage'], {
+      cwd: context.directory,
+      env: {
+        SAFEWORD_TEST_ARCHITECTURE_DOCUMENT: documentPath,
+      },
+    });
     const output = `${result.stdout}\n${result.stderr}`;
     expect(result.exitCode).toBe(0);
     expect(output).toContain('was staged but unstaged worktree edits could not be restored');
     expect(output).not.toContain('nothing was auto-staged');
     const recoveryPath = /Recovery copy: (.+?)\. Cause:/.exec(output)?.[1];
     assert.ok(recoveryPath !== undefined, 'expected the failure output to name a recovery copy');
+    const recoveryRelativeToTemporaryRoot = nodePath.relative(
+      realpathSync(tmpdir()),
+      realpathSync(recoveryPath),
+    );
+    expect(recoveryRelativeToTemporaryRoot).not.toBe('');
+    expect(recoveryRelativeToTemporaryRoot.startsWith(`..${nodePath.sep}`)).toBe(false);
+    expect(nodePath.isAbsolute(recoveryRelativeToTemporaryRoot)).toBe(false);
     try {
       const recoveryContent = readFileSync(recoveryPath, 'utf8');
       expect(recoveryContent).toContain('### drafts');
@@ -549,7 +553,7 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
       expect(stagedDocument).toContain('### billing');
       expect(stagedDocument).not.toContain('### drafts');
     } finally {
-      rmSync(nodePath.dirname(recoveryPath), { recursive: true, force: true });
+      rmSync(recoveryPath, { force: true });
     }
   });
 
@@ -630,10 +634,7 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
 
     expect(result.exitCode).toBe(0);
     expect(stagedFiles(context.directory)).not.toContain(DOC_RELATIVE);
-    const generated = execFileSync('cat', [DOC_RELATIVE], {
-      cwd: context.directory,
-      encoding: 'utf8',
-    });
+    const generated = readFileSync(nodePath.join(context.directory, DOC_RELATIVE), 'utf8');
     expect(readDocumentFingerprint(generated)).toBe(stagedTreeFingerprint);
   });
 
@@ -683,15 +684,15 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
         'IMPORTANT HUMAN PROSE.',
       ),
     );
-    expect(
-      readDocumentFingerprint(execFileSync('cat', [generatedPath], { encoding: 'utf8' })),
-    ).not.toBe(stagedTreeFingerprint);
+    expect(readDocumentFingerprint(readFileSync(generatedPath, 'utf8'))).not.toBe(
+      stagedTreeFingerprint,
+    );
 
     const result = await runCli(['architecture', '--staged'], { cwd: context.directory });
 
     expect(result.exitCode).toBe(0);
     expect(stagedFiles(context.directory)).not.toContain(DOC_RELATIVE);
-    const restored = execFileSync('cat', [generatedPath], { encoding: 'utf8' });
+    const restored = readFileSync(generatedPath, 'utf8');
     expect(readDocumentFingerprint(restored)).toBe(stagedTreeFingerprint);
     expect(restored).toContain('IMPORTANT HUMAN PROSE.');
   });
@@ -1072,18 +1073,15 @@ describe('architecture --stage — commit-time auto-fix (FPV0E4 Slice 2)', () =>
       'packages/c/src/index.ts',
     );
 
-    chmodSync(packageB, 0o555);
-    try {
-      const result = await runCli(['architecture', '--stage'], { cwd: context.directory });
+    blockWrites(nodePath.join(packageB, 'architecture.generated.md'));
 
-      expect(result.exitCode).toBe(0);
-      expect(`${result.stdout}\n${result.stderr}`).toContain('nothing was auto-staged');
-      expect(readFileSync(rootDocument, 'utf8')).toBe(rootWithSentinel);
-      expect(stagedFiles(context.directory)).not.toContain(DOC_RELATIVE);
-      expect(stagedFiles(context.directory)).not.toContain('packages/b/architecture.generated.md');
-    } finally {
-      chmodSync(packageB, 0o755);
-    }
+    const result = await runCli(['architecture', '--stage'], { cwd: context.directory });
+
+    expect(result.exitCode).toBe(0);
+    expect(`${result.stdout}\n${result.stderr}`).toContain('nothing was auto-staged');
+    expect(readFileSync(rootDocument, 'utf8')).toBe(rootWithSentinel);
+    expect(stagedFiles(context.directory)).not.toContain(DOC_RELATIVE);
+    expect(stagedFiles(context.directory)).not.toContain('packages/b/architecture.generated.md');
   });
 
   it.each([

@@ -19,7 +19,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "9a5d1773138bf2ea3c5c31784de81a6cba20b175f229625a257967bd0e5453d1"
+      "sha256": "1baf85b46a78f61dd56bcb188bb58cda8e66338d2a614437b838b46267b76e42"
     },
     {
       "path": "resources/guides/architecture-guide.md",
@@ -95,7 +95,7 @@
     },
     {
       "path": "resources/scripts/closeout-cleanup.ts",
-      "sha256": "fb94544f14b3ca769d710efbb50f6712d4ea00274e219e72a62845955fb59435"
+      "sha256": "89ccef8d76154aaaa22ec4cc4c5b78f8015ef70e3baeaae6ef2497cfabbeb995"
     },
     {
       "path": "resources/templates/adr-template.md",
@@ -139,11 +139,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "046dde0d7b96d8b8c748f6e4ab3784a199b6e55068d48dc3de2f73c773bf7e9e"
+      "sha256": "3b94425f06f6bb7ff67811d8c45bc315babe05cac353cdfc9afdbbb452996d9b"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "b4ded2d26484ae92a158592da64c66bbaab15b2d90131ac78d02446d5b8ec868"
+      "sha256": "603cd7b51bdb52688423e49cabbb1a3fc8b82256c380689d35af490a1f72b8f4"
     },
     {
       "path": "runtime/event-groups.json",
@@ -587,7 +587,7 @@
     },
     {
       "path": "skills/bdd/DISCOVERY.md",
-      "sha256": "015d83dc2b6e19108ceddd749b5948a6f958f639353a52e128dddad5beeabc08"
+      "sha256": "075a0a69f002361948e9840ab0428fe5a2422e31aeb3fe816e1b45b9f4e6b32a"
     },
     {
       "path": "skills/bdd/DONE.md",
@@ -599,7 +599,7 @@
     },
     {
       "path": "skills/bdd/SCENARIOS.md",
-      "sha256": "a2cf8937e4c555c6e42f3f33a45cd5355dc61337a75ea220561bc0b6d9be3ad8"
+      "sha256": "c808d4c8455f8f6248f85e2d2403e881bdab83e0ac19e8c3dd9c28fb9c2ee8f4"
     },
     {
       "path": "skills/bdd/SKILL.md",
@@ -611,11 +611,11 @@
     },
     {
       "path": "skills/bdd/TDD.md",
-      "sha256": "79ad55ecb3c26533db3c73a20563df27c8645b4372ca820ea4c4b6b96dac36e5"
+      "sha256": "fa098eaca7820104e0614f4e9a7120270c92853a43cd8b584798b76cc65cd6e0"
     },
     {
       "path": "skills/bdd/VERIFY.md",
-      "sha256": "85abadfe756a3f391779fe500cd5c66597a33e0cab7fcef55f6b633b30818f31"
+      "sha256": "48743e3f2895dc642884c3f963ffcd26ac0087f630e46bb423ed1c699f0ce4b1"
     },
     {
       "path": "skills/brainstorm/SKILL.md",
@@ -627,7 +627,7 @@
     },
     {
       "path": "skills/closeout/SKILL.md",
-      "sha256": "32c4ddc3d7679e22f43fe2e93370e431514c5eb3423684ed150e015d1866a017"
+      "sha256": "a6011c14158325205c1d520879690f585c41ae13fe4dd7a961f50f985a0c1f4d"
     },
     {
       "path": "skills/debug/SKILL.md",
@@ -651,7 +651,7 @@
     },
     {
       "path": "skills/finish-review/SKILL.md",
-      "sha256": "0200264998d8003d1492a4ac24abb9a4dd98fd3b340ef621cbb0018b39e29504"
+      "sha256": "4ac4c3d6d9f077290c2d18019270625efa2406dd7860b0cea8a26e75cb003936"
     },
     {
       "path": "skills/lint/SKILL.md",
@@ -659,7 +659,7 @@
     },
     {
       "path": "skills/quality-review/SKILL.md",
-      "sha256": "0c26e4d4e4cdca4c2eea5d1e07a0177db17754f89173c1cc03698add78181c12"
+      "sha256": "244fee019f778dc69dc0f9778071f7a017490116bd9202cb6bc08a39f7ca5c1c"
     },
     {
       "path": "skills/refactor/SKILL.md",
@@ -675,11 +675,11 @@
     },
     {
       "path": "skills/review-spec/SKILL.md",
-      "sha256": "16c32661ea40605bdb16dc6a5bedbdbce69b955fa0eabbb0dd1090a694ef16b6"
+      "sha256": "09ddb1c9fca5f2d04a8ef2d6d79310d0ca9ee6ec68b14f9fef9c9d8b7384ed10"
     },
     {
       "path": "skills/self-review/SKILL.md",
-      "sha256": "2fef0e1c06bcccde617a8eda15e879d5a3e4bb1517383f2052da534257efc47a"
+      "sha256": "c16967353e3836feee2cfdcafc2d1b276c346bcf7f4cc99b303f21b36e40baec"
     },
     {
       "path": "skills/spike/SKILL.md",
@@ -695,11 +695,11 @@
     },
     {
       "path": "skills/ticket-system/SKILL.md",
-      "sha256": "045bd13fb415428297f66e45a53d262afbfa329976bbad31bc64e50997fc12d0"
+      "sha256": "3bc4d8f26752ba292a38270e2a6d03e58dd87e92aaa7f00a9d71871b100dc339"
     },
     {
       "path": "skills/verify/SKILL.md",
-      "sha256": "441d6bb08a5fe90e79c35679f06720b382492306f8c000ba458a2fe0ea04ecf6"
+      "sha256": "14224aae4ee5c62a5e5e1af85415c2accaf2c3ee79227691312b9bf93d896a0b"
     }
   ]
 }

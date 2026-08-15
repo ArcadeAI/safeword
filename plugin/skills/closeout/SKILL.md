@@ -2,10 +2,10 @@
 name: closeout
 description: Close a completed local delivery safely. Use when wrapping up a
   finished coding session by verifying it, merging only with explicit authority,
-  running the mandatory retrospective, and cleaning the exact merged branch and
+  capturing retrospective learning, and cleaning the exact merged branch and
   worktree. Do NOT use for cloud-agent tasks, unmerged work, or cleanup without a
   pull request.
-allowed-tools: '*'
+allowed-tools: Bash, Read, Glob, Grep
 ---
 
 # Closeout
@@ -18,7 +18,7 @@ workflow into “merge succeeded, so we are done.”
 Observe the pull request directly with structured `gh pr view --json` output.
 A non-empty hosted check rollup whose checks are all terminal and green is
 authoritative exact-head verification. When CI is absent, incomplete, failing,
-or unobservable, run `/verify` for the current pull request head instead. Require
+or unobservable, run `/safeword:verify` for the current pull request head instead. Require
 all of these before any merge:
 
 - green hosted CI or local verification covers the current pull request head;
@@ -63,29 +63,32 @@ unobservable results are not merge proof; report the recovery check and stop.
 
 If the command reported an error but fresh observation proves the expected head
 was merged, report that the remote merge succeeded, do not retry it, and proceed
-to the mandatory retrospective. On every invocation, re-observe durable state
+to retrospective capture. On every invocation, re-observe durable state
 and continue only the unfinished suffix. Treat an absent cleanup target as
 complete only after proving it was the exact planned target. If the pull request
-is merged, its retrospective is complete, and its exact branch and worktree are
-already absent, report that the session is already closed.
+is merged and its exact branch and worktree are already absent, report that the
+session is already closed and report the retrospective's observed state.
 
 The guard records a private, atomic verification receipt in Git's shared common
 directory after green hosted CI covers a clean exact PR head, or after every
 local verification lane passes on that head.
 For 24 hours, that receipt can prove the immutable head when an interrupted
 cleanup must resume from a surviving worktree after the topic worktree is gone.
-A missing, stale, malformed, dirty-state, or wrong-head receipt blocks cleanup.
+After the topic worktree is gone, a missing, stale, malformed, dirty-state, or
+wrong-head receipt blocks interrupted cleanup resumption.
 
-## 4. Complete the current session's retrospective
+## 4. Capture retrospective learning without making it cleanup authority
 
 After merge is independently confirmed, invoke the cleanup guard in preview
 mode. Its host hook supplies a short-lived, single-consumer binding to this exact
 session (and Cursor transcript). Codex Desktop may instead supply its authenticated
 current `CODEX_THREAD_ID`, consistent with SafeWord's other Codex identity bridges.
-A missing or expired binding or identity fails closed; there is no newest-session
-fallback and callers cannot nominate another receipt, session, transcript, or spool.
+A missing or expired binding or identity is advisory for repository cleanup; there is
+no newest-session fallback and callers cannot nominate another receipt, session,
+transcript, or spool. Report the missing evidence without treating it as authority over
+the worktree or branches.
 
-The guard runs `safeword retro run --json` itself and accepts only a
+The guard runs `safeword retro run --json --auto-extract` itself and accepts only a
 successful result whose `data.agent_filing_needed` is `false` and whose derived
 current session has an empty filing spool. Zero substantial findings and every
 finding successfully filed are both complete outcomes.
@@ -96,13 +99,16 @@ validates the sealed byte prefix and runs retro only over the bounded appended
 window before advancing the receipt. A partial trailing record is neither
 sealed nor lost; mutation or truncation of the sealed prefix fails closed.
 
-Failed extraction, failed filing, pending drafts, malformed output, or an
-identity mismatch means no cleanup. Report every failure and its recovery
-action. A request to skip retro does not create a bypass: preserve the worktree
-and branches and explain that the retrospective is required before cleanup.
+Repository cleanup does not depend on a complete retrospective. A missing binding, an
+incomplete retrospective, extraction failure, malformed output, or identity mismatch is
+advisory: report it and continue evaluating cleanup from fresh repository evidence.
+
+Filing failure or pending drafts are advisory for repository cleanup too. Report the
+exact recovery action and the risk that deleting the worktree could discard captured
+but unfiled learning, but do not let retrospective state authorize or block cleanup.
 
 When the authenticated preview reports pending drafts and includes
-`plan.retro.spoolPath`, invoke the `safeword:retro-filer` skill with that exact
+`plan.retro.spoolPath`, invoke the `/safeword:retro-filer` skill with that exact
 path, then rerun the preview. This is the closeout recovery continuation: the
 guard derived the path from its short-lived host-session binding, so do not
 substitute, discover, or accept a caller-provided spool path.
@@ -129,8 +135,10 @@ After the topic worktree is gone, preview requires its fresh clean-head receipt.
 It binds the resulting repository state and exact PR identity to `PLAN_DIGEST`.
 Report the complete operation list and all blockers. Do not apply a blocked plan.
 
-With the user's cleanup intent already established by invoking closeout, apply
-only the unchanged preview:
+Invocation permits preview only and grants no destructive cleanup authority.
+After reporting the exact operations and blockers, apply only when the current
+user request explicitly authorizes cleanup. Cleanup authority is consumed when
+apply is attempted, and applies only to the unchanged preview:
 
 ```sh
 bun "${CLAUDE_PLUGIN_ROOT}"/resources/scripts/closeout-cleanup.ts --pr PR_NUMBER --yes --plan PLAN_DIGEST
