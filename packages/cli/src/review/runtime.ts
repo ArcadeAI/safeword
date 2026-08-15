@@ -627,7 +627,13 @@ export function parseProcessStat(line: string): { state: string; group: number }
  * Whether any process in `group` can still run, per `/proc`. Undefined when
  * `/proc` cannot be read, so the caller keeps its own answer.
  */
-function procGroupHasRunningMember(group: number): boolean | undefined {
+export function procGroupHasRunningMember(group: number): boolean | undefined {
+  // The stat layout parsed here is Linux's. Other systems mount a /proc that is
+  // readable but shaped differently — Solaris and some BSDs among them — where
+  // every entry would fail to parse, the scan would report no live members, and
+  // cleanup would call a running group stopped. Reading it anywhere else is a
+  // silent false negative, so only Linux answers and everyone else falls back.
+  if (process.platform !== 'linux') return undefined;
   let entries: string[];
   try {
     entries = readdirSync('/proc');
@@ -686,7 +692,14 @@ async function stopReviewerOnce(child: ReturnType<typeof spawn>): Promise<boolea
    * `/proc` distinguishes the two. Where it is unavailable the kill probe
    * stands, keeping the previous behaviour on platforms without it.
    */
-  const groupIsRunning = (): boolean => procGroupHasRunningMember(pid) ?? groupExists();
+  const groupIsRunning = (): boolean => {
+    // The kill probe is one syscall and the scan walks every process, so ask
+    // the cheap question first. It is also decisive on its own when the answer
+    // is no: an empty group holds nothing, zombie or otherwise. That keeps the
+    // common case — a reviewer that exits promptly — from scanning /proc at all.
+    if (!groupExists()) return false;
+    return procGroupHasRunningMember(pid) ?? true;
+  };
   /**
    * Listing `/proc` is not atomic: a member that forks after its slot is read,
    * or one still alive when its own entry was already inspected, is missed. So

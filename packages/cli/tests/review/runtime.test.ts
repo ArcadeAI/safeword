@@ -1,3 +1,4 @@
+import { spawn } from 'node:child_process';
 import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
@@ -8,6 +9,7 @@ import type { ReviewerOutput } from '../../src/review/contract.js';
 import {
   parseProcessStat,
   parseReviewerOutput,
+  procGroupHasRunningMember,
   reviewTimeoutMilliseconds,
   runBoundMs,
   runHeadlessReviewer,
@@ -168,6 +170,44 @@ describe('reviewer process-group liveness', () => {
 
   it.each(['', 'no parens here', '42 (sleep)'])('rejects an unparseable line: %s', line => {
     expect(parseProcessStat(line)).toBeUndefined();
+  });
+
+  // The parser cases above are pure. These drive the helper the cleanup path
+  // actually calls, against a real process group, so the motivating behaviour
+  // is shown at the boundary rather than inferred from a stat line.
+  it.skipIf(process.platform !== 'linux')('sees a live process group as running', async () => {
+    const child = spawn('/bin/sleep', ['30'], { detached: true, stdio: 'ignore' });
+    try {
+      const group = child.pid;
+      expect(group).toBeDefined();
+      if (group === undefined) return;
+      expect(procGroupHasRunningMember(group)).toBe(true);
+    } finally {
+      if (child.pid !== undefined) process.kill(-child.pid, 'SIGKILL');
+      await new Promise(resolve => child.once('exit', resolve));
+    }
+  });
+
+  it.skipIf(process.platform !== 'linux')(
+    'sees a group whose members are gone as not running',
+    async () => {
+      const child = spawn('/bin/true', [], { detached: true, stdio: 'ignore' });
+      const group = child.pid;
+      expect(group).toBeDefined();
+      if (group === undefined) return;
+      // Wait for Node to reap it, so the group holds nothing at all.
+      await new Promise(resolve => child.once('exit', resolve));
+      expect(procGroupHasRunningMember(group)).toBe(false);
+    },
+  );
+
+  // The stat layout parsed here is Linux's; a readable but differently shaped
+  // /proc elsewhere would parse as "no live members" and call a running group
+  // stopped. Undefined is what makes the caller fall back to the kill probe.
+  // Only assertable off Linux — on Linux the guard is covered by the two cases
+  // above returning a definite answer at all.
+  it.skipIf(process.platform === 'linux')('declines to answer off Linux', () => {
+    expect(procGroupHasRunningMember(process.pid)).toBeUndefined();
   });
 });
 

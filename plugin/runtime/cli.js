@@ -43536,6 +43536,8 @@ function parseProcessStat(line) {
   return { state, group: groupId };
 }
 function procGroupHasRunningMember(group) {
+  if (process.platform !== "linux")
+    return;
   let entries;
   try {
     entries = readdirSync29("/proc");
@@ -43578,7 +43580,11 @@ async function stopReviewerOnce(child) {
       return false;
     }
   };
-  const groupIsRunning = () => procGroupHasRunningMember(pid) ?? groupExists();
+  const groupIsRunning = () => {
+    if (!groupExists())
+      return false;
+    return procGroupHasRunningMember(pid) ?? true;
+  };
   const groupIsStopped = () => {
     if (groupIsRunning())
       return false;
