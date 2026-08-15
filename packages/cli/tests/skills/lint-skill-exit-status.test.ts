@@ -18,6 +18,7 @@ const REPOSITORY_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 const LINT_SURFACES = [
   'packages/cli/templates/skills/lint/SKILL.md',
   'packages/cli/templates/commands/lint.md',
+  '.safeword/skills/lint/SKILL.md',
   '.claude/skills/lint/SKILL.md',
   '.cursor/commands/lint.md',
   'packages/cli/codex-plugin/skills/lint/SKILL.md',
@@ -36,12 +37,33 @@ function writeExecutable(directory: string, name: string, body: string): void {
   chmodSync(executablePath, 0o755);
 }
 
+function readCommandLog(logPath: string): string[] {
+  return existsSync(logPath)
+    ? readFileSync(logPath, 'utf8').trim().split('\n').filter(Boolean)
+    : [];
+}
+
+function installFakeLintTools(
+  binDirectory: string,
+  bunCommandsPath: string,
+  goCommandsPath: string,
+): void {
+  writeExecutable(binDirectory, 'bun', String.raw`printf '%s\n' "$*" >> "${bunCommandsPath}"`);
+  writeExecutable(binDirectory, 'bunx', 'exit 0');
+  writeExecutable(
+    binDirectory,
+    'golangci-lint',
+    String.raw`printf '%s\n' "$*" >> "${goCommandsPath}"`,
+  );
+}
+
 function runLintInstructions(
   relativePath: string,
   options: { hasGoManifest?: boolean } = {},
-): { status: number | null; goCommands: string[] } {
+): { status: number | null; bunCommands: string[]; goCommands: string[] } {
   const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-lint-skill-'));
   const binDirectory = nodePath.join(projectDirectory, 'fake-bin');
+  const bunCommandsPath = nodePath.join(projectDirectory, 'bun-commands.log');
   const goCommandsPath = nodePath.join(projectDirectory, 'go-commands.log');
 
   try {
@@ -50,13 +72,7 @@ function runLintInstructions(
     if (options.hasGoManifest)
       writeFileSync(nodePath.join(projectDirectory, 'go.mod'), 'module example\n');
 
-    writeExecutable(binDirectory, 'bun', 'exit 0');
-    writeExecutable(binDirectory, 'bunx', 'exit 0');
-    writeExecutable(
-      binDirectory,
-      'golangci-lint',
-      String.raw`printf '%s\n' "$*" >> "${goCommandsPath}"`,
-    );
+    installFakeLintTools(binDirectory, bunCommandsPath, goCommandsPath);
 
     const result = spawnSync('bash', ['-c', extractLintBlock(relativePath)], {
       cwd: projectDirectory,
@@ -66,20 +82,20 @@ function runLintInstructions(
 
     return {
       status: result.status,
-      goCommands: existsSync(goCommandsPath)
-        ? readFileSync(goCommandsPath, 'utf8').trim().split('\n').filter(Boolean)
-        : [],
+      bunCommands: readCommandLog(bunCommandsPath),
+      goCommands: readCommandLog(goCommandsPath),
     };
   } finally {
     rmSync(projectDirectory, { recursive: true, force: true });
   }
 }
 
-describe('lint instructions exit status (#1701)', () => {
+describe('lint instruction command behavior (#1701, #2060)', () => {
   it.each(LINT_SURFACES)('%s succeeds for a JavaScript-only project', relativePath => {
     const result = runLintInstructions(relativePath);
 
     expect(result.status).toBe(0);
+    expect(result.bunCommands).toContain('run --if-present format');
     expect(result.goCommands).toEqual([]);
   });
 

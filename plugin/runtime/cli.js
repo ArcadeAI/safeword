@@ -6133,7 +6133,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/figure-it-out/SKILL.md": "18e2b44e9a91562079b3e1f52fcd9f952b5f57a0f0e7647b0273809848a75c0d",
         ".claude/skills/finish-review/REVIEWER.md": "0ecee21a63f91e09d3136f62cf8f7590ba9a640b85cad7b7b35c1ae334ff43c2",
         ".claude/skills/finish-review/SKILL.md": "e9ed5d198994b6cca12c62b1a4c13a1db2d82d65fc8a9173a41c5b5cf312cd52",
-        ".claude/skills/lint/SKILL.md": "208ec54032cabdcb532d1070e5ef5f1fcd6f0f0bfe8daf08e4ecf007aa285f66",
+        ".claude/skills/lint/SKILL.md": "fdde749fe9ce764f6f9325f963c092d457960494fe78dd04d65d53a50e7cfd19",
         ".claude/skills/quality-review/SKILL.md": "b940905d31cd4931665e023a65824a923a2bd5d7f590358355576cff8f3bc42a",
         ".claude/skills/refactor/SKILL.md": "a51a858fb13b50cbc86789edbde8a39e364b5cdd7d5d3b025d555d90b221760e",
         ".claude/skills/retro-filer/SKILL.md": "ea126f3805a2befefb4db2011439f075ebfd6eca31b78bd5f284ac11d667b4f0",
