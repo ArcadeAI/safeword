@@ -6132,7 +6132,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/pre-tool-config-guard.ts": "6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084",
         ".safeword/hooks/pre-tool-dependency-readiness.ts": "d23343dc3185916140a4b25572f3bb413aece93311f5084444c0debe188f85b8",
         ".safeword/hooks/pre-tool-git-bare-fix.sh": "0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414",
-        ".safeword/hooks/pre-tool-quality.ts": "333f73426106e09d3ce2ec0b2b1681cfb6923a33e5ee0acc1265134eb2fd39b7",
+        ".safeword/hooks/pre-tool-quality.ts": "b97d1639e4598197baa11c71d640f0cbff79f5bf72b38736ad1f4484bb06e1cf",
         ".safeword/hooks/pre-tool-stale-main.ts": "cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e",
         ".safeword/hooks/prompt-questions.ts": "57182cccb8550bb2b585c27672bc9bfef56f4688d0afc1afc18bf52661b7c2a6",
         ".safeword/hooks/prompt-retro-nudge.ts": "78353d6f47adb0ed9969e83b40429d5792a98789dff67ec0bc4d5a024b1da457",
@@ -6143,7 +6143,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/session-bun-check.sh": "7365954b09c157e45e213981ebd0b609b97b81fb3e6b6b73571e23e459ef09ef",
         ".safeword/hooks/session-cleanup-quality.ts": "b43a169e86d240ecc12ece40d5375a84c59db6dc9708c91849a55038144736a2",
         ".safeword/hooks/session-compact-context.ts": "4810e508b3ef79e162c6e74e169e24f8eb7ae7980549ba3f53e640424ae10773",
-        ".safeword/hooks/session-dependency-readiness.ts": "28c0268265f0dcbce04844faac5cbc9f9903ac4f8fa893a470ca6b102498613f",
+        ".safeword/hooks/session-dependency-readiness.ts": "295d14c5a3d8112b01259cf89ce718144a568e62e0baf5aaa19eca3fcfdc50ff",
         ".safeword/hooks/session-lint-check.ts": "54bfe1e63777fbed4f3a002a76cd627410ccc627832d1a1d2ef41bed1ea80cc2",
         ".safeword/hooks/session-reply-format.ts": "41f7578e93188d5efacdd9ecbf29f72753a6fe98bca71fe321c61f547aeb8532",
         ".safeword/hooks/session-safeword-context.ts": "56c7a97a760c978e747010192855709baad66adda31e04f6c35d9279b87b19a5",
@@ -18405,6 +18405,9 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
       },
       ".safeword/hooks/session-dependency-readiness.ts": {
         template: "hooks/session-dependency-readiness.ts"
+      },
+      ".safeword/hooks/dependency-bootstrap.ts": {
+        template: "hooks/dependency-bootstrap.ts"
       },
       ".safeword/hooks/session-version.ts": {
         template: "hooks/session-version.ts"
@@ -35930,7 +35933,7 @@ function withoutManagedBlock(content) {
   const begin = content.indexOf(BEGIN_MARKER);
   const end = content.indexOf(END_MARKER);
   if (begin === -1 && end === -1) {
-    if (content.includes(BOOTSTRAP_COMMAND)) {
+    if (content.includes(BOOTSTRAP_COMMAND) || content.includes("dependency-bootstrap.ts")) {
       throw new Error("Codex configuration contains an unrecognized Safeword bootstrap command; no changes were made.");
     }
     return content;
@@ -35942,7 +35945,9 @@ function withoutManagedBlock(content) {
   if (content.includes(END_MARKER, afterEnd)) {
     throw new Error("Codex configuration contains duplicate Safeword bootstrap markers; no changes were made.");
   }
-  return `${content.slice(0, begin)}${content.slice(afterEnd)}`.replaceAll(/\n{3,}/gu, `
+  const before = content.slice(0, begin).trimEnd();
+  const after = content.slice(afterEnd).trimStart();
+  return [before, after].filter((section) => section !== "").join(`
 
 `);
 }
@@ -35988,7 +35993,7 @@ function installCodexProjectBootstrap(cwd) {
   });
   return true;
 }
-var BEGIN_MARKER = "# --- safeword codex bootstrap: begin ---", END_MARKER = "# --- safeword codex bootstrap: end ---", BOOTSTRAP_COMMAND = "bunx --bun safeword@latest codex bootstrap", BOOTSTRAP_BLOCK;
+var BEGIN_MARKER = "# --- safeword codex bootstrap: begin ---", END_MARKER = "# --- safeword codex bootstrap: end ---", BOOTSTRAP_COMMAND = "bunx --bun safeword@latest codex bootstrap", DEPENDENCY_BOOTSTRAP_COMMAND = 'SAFEWORD_PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)" && { [ ! -f "$SAFEWORD_PROJECT_ROOT/.safeword/hooks/dependency-bootstrap.ts" ] || bun "$SAFEWORD_PROJECT_ROOT/.safeword/hooks/dependency-bootstrap.ts" "$SAFEWORD_PROJECT_ROOT"; }', BOOTSTRAP_BLOCK;
 var init_project_bootstrap = __esm(() => {
   init_dist();
   init_durable_write();
@@ -36003,6 +36008,15 @@ type = "command"
 command = "${BOOTSTRAP_COMMAND}"
 timeout = 120
 statusMessage = "Checking Safeword for this project"
+
+[[hooks.SessionStart]]
+matcher = ""
+
+[[hooks.SessionStart.hooks]]
+type = "command"
+command = '${DEPENDENCY_BOOTSTRAP_COMMAND}'
+timeout = 120
+statusMessage = "Preparing safeword dependencies"
 ${END_MARKER}
 `;
 });
@@ -43102,8 +43116,14 @@ var init_policy = __esm(() => {
 // src/review/environment.ts
 function filteredEnvironment(reviewer, source = process.env, platform = process.platform) {
   const normalize = (name) => platform === "win32" ? name.toUpperCase() : name;
-  const allowed = new Set([...PROCESS_VARIABLES, ...reviewer === undefined ? [] : VENDOR_VARIABLES[reviewer]].map((name) => normalize(name)));
-  return Object.fromEntries(Object.entries(source).filter(([name]) => allowed.has(normalize(name)) || normalize(name).startsWith("SAFEWORD_REVIEW_")));
+  const allowed = new Set([
+    ...PROCESS_VARIABLES,
+    ...REVIEWER_CONTROL_VARIABLES,
+    ...(source.NODE_ENV ?? "development") === "test" ? REVIEWER_FIXTURE_VARIABLES : [],
+    ...reviewer === undefined ? [] : VENDOR_VARIABLES[reviewer]
+  ].map((name) => normalize(name)));
+  const managedProgressSignal = normalize("SAFEWORD_REVIEW_PROGRESS");
+  return Object.fromEntries(Object.entries(source).filter(([name]) => normalize(name) !== managedProgressSignal && allowed.has(normalize(name))));
 }
 function reviewerEnvironment(reviewer, source = process.env, platform = process.platform) {
   return filteredEnvironment(reviewer, source, platform);
@@ -43111,7 +43131,7 @@ function reviewerEnvironment(reviewer, source = process.env, platform = process.
 function reviewerProbeEnvironment(source = process.env, platform = process.platform) {
   return filteredEnvironment(undefined, source, platform);
 }
-var VENDOR_VARIABLES, PROCESS_VARIABLES;
+var VENDOR_VARIABLES, PROCESS_VARIABLES, REVIEWER_CONTROL_VARIABLES, REVIEWER_FIXTURE_VARIABLES;
 var init_environment = __esm(() => {
   VENDOR_VARIABLES = {
     claude: [
@@ -43129,7 +43149,7 @@ var init_environment = __esm(() => {
       "CODEX_THREAD_ID"
     ]
   };
-  PROCESS_VARIABLES = new Set([
+  PROCESS_VARIABLES = [
     "ALL_PROXY",
     "APPDATA",
     "HOME",
@@ -43160,7 +43180,53 @@ var init_environment = __esm(() => {
     "http_proxy",
     "https_proxy",
     "no_proxy"
-  ]);
+  ];
+  REVIEWER_CONTROL_VARIABLES = [
+    "SAFEWORD_REVIEW_RUN_BOUND_MS",
+    "SAFEWORD_REVIEW_TIMEOUT_MS"
+  ];
+  REVIEWER_FIXTURE_VARIABLES = [
+    "SAFEWORD_REVIEW_ACCEPTED_MODEL",
+    "SAFEWORD_REVIEW_BDD_EXPECTED_MODEL",
+    "SAFEWORD_REVIEW_CANDIDATE_LOG",
+    "SAFEWORD_REVIEW_CHILD_PID",
+    "SAFEWORD_REVIEW_COVERAGE_FAIL",
+    "SAFEWORD_REVIEW_COVERAGE_FAIL_CLAUDE",
+    "SAFEWORD_REVIEW_COVERAGE_FAIL_CODEX",
+    "SAFEWORD_REVIEW_COVERAGE_FINDING",
+    "SAFEWORD_REVIEW_COVERAGE_VERDICT",
+    "SAFEWORD_REVIEW_DESCENDANT_PID_FILE",
+    "SAFEWORD_REVIEW_ENV_LOG",
+    "SAFEWORD_REVIEW_FAKE_DELAY_AGENT",
+    "SAFEWORD_REVIEW_FAKE_FAILURE",
+    "SAFEWORD_REVIEW_FAKE_FAILURE_AGENT",
+    "SAFEWORD_REVIEW_FAKE_FAILURE_CLAUDE",
+    "SAFEWORD_REVIEW_FAKE_FAILURE_CODEX",
+    "SAFEWORD_REVIEW_FAKE_FAIL_PATH_CONTAINS",
+    "SAFEWORD_REVIEW_FAKE_FINDING",
+    "SAFEWORD_REVIEW_FAKE_HELP_FAILURE",
+    "SAFEWORD_REVIEW_FAKE_IDENTITY",
+    "SAFEWORD_REVIEW_FAKE_MODEL_CAPABILITY",
+    "SAFEWORD_REVIEW_FAKE_MUTATE",
+    "SAFEWORD_REVIEW_FAKE_MUTATE_AGENT",
+    "SAFEWORD_REVIEW_FAKE_SOURCE_MUTATE_TARGET",
+    "SAFEWORD_REVIEW_FAKE_SUMMARY",
+    "SAFEWORD_REVIEW_FAKE_VERDICT",
+    "SAFEWORD_REVIEW_HELP_MUTATE",
+    "SAFEWORD_REVIEW_LAUNCH_LOG",
+    "SAFEWORD_REVIEW_LOG",
+    "SAFEWORD_REVIEW_MODEL_LOG",
+    "SAFEWORD_REVIEW_MODEL_PROMPT_LOG",
+    "SAFEWORD_REVIEW_PROBE_ENV_LOG",
+    "SAFEWORD_REVIEW_PROMPT_LOG",
+    "SAFEWORD_REVIEW_REJECTED_MODEL_BEHAVIOUR",
+    "SAFEWORD_REVIEW_ROUTE_LOG",
+    "SAFEWORD_REVIEW_SCHEMA_COPY",
+    "SAFEWORD_REVIEW_SCHEMA_PATH_LOG",
+    "SAFEWORD_REVIEW_STUBBORN_PID",
+    "SAFEWORD_REVIEW_SWAP_ALIAS",
+    "SAFEWORD_REVIEW_SWAP_TARGET"
+  ];
 });
 
 // src/review/runtime.ts
@@ -43773,7 +43839,10 @@ function independentReviewResult(input) {
       ...reviewerFeedback(input.output)
     ],
     effects: {
-      network: independentNetworkEffects(input.reviewer, input.preferredFailure !== undefined)
+      network: [
+        ...networkEffectsForFailure(input.reviewer, input.preferredFailure),
+        reviewRequest(input.reviewer)
+      ]
     },
     data: {
       command: "review run",
@@ -43793,15 +43862,22 @@ function reviewerFeedback(output) {
   return [
     {
       code: "REVIEWER_SUMMARY",
-      message: output.summary,
+      message: terminalSafeReviewerText(output.summary),
       severity: "info"
     },
     ...output.findings.map((finding) => ({
       code: "REVIEWER_FINDING",
-      message: finding.message,
+      message: terminalSafeReviewerText(finding.message),
       severity: finding.severity
     }))
   ];
+}
+function terminalSafeReviewerText(value) {
+  const sanitized = value.replaceAll(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/gu, " ");
+  const characters = sanitized.match(/[\s\S]/gu) ?? [];
+  if (characters.length <= MAX_TERMINAL_REVIEWER_TEXT_LENGTH)
+    return sanitized;
+  return `${characters.slice(0, MAX_TERMINAL_REVIEWER_TEXT_LENGTH - 1).join("")}\u2026`;
 }
 async function executeReview(reviewer, prepared, model, runDeadline) {
   let outcome;
@@ -43960,18 +44036,21 @@ function routeFailureData(input) {
     }
   };
 }
-function degradedNetworkEffects(assignedReviewer, author, alternateAttempted) {
-  const preferred = { kind: "review", target: assignedReviewer, operation: "request" };
-  const fallback = { kind: "review", target: author, operation: "request" };
-  return alternateAttempted ? [preferred, preferred, fallback] : [preferred, fallback];
+function reviewRequest(reviewer) {
+  return { kind: "review", target: reviewer, operation: "request" };
 }
-function independentNetworkEffects(reviewer, retried) {
-  const request = { kind: "review", target: reviewer, operation: "request" };
-  return retried ? [request, request] : [request];
+function networkEffectsForFailure(reviewer, failure) {
+  return failure === undefined || NON_ATTEMPT_FAILURES.has(failure) ? [] : [reviewRequest(reviewer)];
+}
+function degradedNetworkEffects(input) {
+  return [
+    ...networkEffectsForFailure(input.assignedReviewer, input.preferredFailure),
+    ...networkEffectsForFailure(input.assignedReviewer, input.alternateFailure),
+    ...input.fallback.kind === "completed" ? [reviewRequest(input.author)] : networkEffectsForFailure(input.author, input.fallback.failure)
+  ];
 }
 function preparePrimaryReview(input, reviewer) {
   const name = agentName(reviewer);
-  input.progress?.start(`Preparing the review packet for ${name}\u2026`);
   const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets, input.context);
   input.progress?.start(`Requesting an independent ${name} review\u2026`);
   input.progress?.heartbeat?.(`Still waiting for a response from ${name}\u2026`);
@@ -43987,6 +44066,7 @@ function prepareFallbackReview(input, assignedReviewer, author) {
 async function runDegradedFallback(input) {
   const prepared = prepareFallbackReview(input, input.assignedReviewer, input.author);
   const { outcome, sourceChanged, snapshotChanged } = await executeReview(input.author, prepared, undefined, input.runDeadline);
+  const fallback = outcome.kind === "completed" ? { kind: "completed" } : { kind: "failed", failure: outcome.failure };
   const changedResult = changedReviewResult({
     author: input.author,
     reviewer: input.author,
@@ -43996,7 +44076,13 @@ async function runDegradedFallback(input) {
     context: input.context,
     sourceChanged,
     snapshotChanged,
-    network: degradedNetworkEffects(input.assignedReviewer, input.author, input.alternateFailure !== undefined)
+    network: degradedNetworkEffects({
+      assignedReviewer: input.assignedReviewer,
+      author: input.author,
+      preferredFailure: input.preferredFailure,
+      alternateFailure: input.alternateFailure,
+      fallback
+    })
   });
   if (changedResult !== undefined)
     return changedResult;
@@ -44028,7 +44114,13 @@ async function runDegradedFallback(input) {
         }
       ],
       effects: {
-        network: degradedNetworkEffects(input.assignedReviewer, input.author, input.alternateFailure !== undefined)
+        network: degradedNetworkEffects({
+          assignedReviewer: input.assignedReviewer,
+          author: input.author,
+          preferredFailure: input.preferredFailure,
+          alternateFailure: input.alternateFailure,
+          fallback: { kind: "failed", failure: assessment.failure }
+        })
       },
       recovery: [
         {
@@ -44062,7 +44154,13 @@ async function runDegradedFallback(input) {
         ...reviewerFeedback(completedOutput)
       ],
       effects: {
-        network: degradedNetworkEffects(input.assignedReviewer, input.author, input.alternateFailure !== undefined)
+        network: degradedNetworkEffects({
+          assignedReviewer: input.assignedReviewer,
+          author: input.author,
+          preferredFailure: input.preferredFailure,
+          alternateFailure: input.alternateFailure,
+          fallback: { kind: "completed" }
+        })
       },
       recovery: [
         {
@@ -44095,7 +44193,13 @@ async function runDegradedFallback(input) {
       ...reviewerFeedback(completedOutput)
     ],
     effects: {
-      network: degradedNetworkEffects(input.assignedReviewer, input.author, input.alternateFailure !== undefined)
+      network: degradedNetworkEffects({
+        assignedReviewer: input.assignedReviewer,
+        author: input.author,
+        preferredFailure: input.preferredFailure,
+        alternateFailure: input.alternateFailure,
+        fallback: { kind: "completed" }
+      })
     },
     data: {
       command: "review run",
@@ -44126,7 +44230,10 @@ async function runAlternateModelRoute(input) {
     context: input.context,
     sourceChanged,
     snapshotChanged,
-    network: independentNetworkEffects(input.reviewer, true)
+    network: [
+      ...networkEffectsForFailure(input.reviewer, input.preferredFailure),
+      reviewRequest(input.reviewer)
+    ]
   });
   if (changedResult !== undefined)
     return { kind: "completed", result: changedResult };
@@ -44199,7 +44306,10 @@ function exhaustedRunResult(input) {
       }
     ],
     effects: {
-      network: independentNetworkEffects(input.assignedReviewer, input.alternateFailure !== undefined)
+      network: [
+        ...networkEffectsForFailure(input.assignedReviewer, input.preferredFailure),
+        ...networkEffectsForFailure(input.assignedReviewer, input.alternateFailure)
+      ]
     },
     recovery: [
       {
@@ -44304,7 +44414,7 @@ async function runReview(input) {
   const output = provenance.output;
   return independentReviewResult({ author: pair.author, reviewer, output, model: primaryModel });
 }
-var FAILURE_CAUSES;
+var MAX_TERMINAL_REVIEWER_TEXT_LENGTH = 2000, FAILURE_CAUSES, NON_ATTEMPT_FAILURES;
 var init_coordinator = __esm(() => {
   init_run_identity();
   init_result();
@@ -44312,6 +44422,7 @@ var init_coordinator = __esm(() => {
   init_policy();
   init_runtime();
   FAILURE_CAUSES = {
+    process_failed: "exited before returning a review",
     timed_out: "ran out of time",
     not_installed: "was not found on PATH",
     unsupported: "does not support the required review flags",
@@ -44323,6 +44434,125 @@ var init_coordinator = __esm(() => {
     REVIEWER_PROVENANCE_MISSING: "gave an answer that did not identify it as the reviewer",
     REVIEWER_PROVENANCE_CONTRADICTORY: "gave an answer that did not identify it as the reviewer"
   };
+  NON_ATTEMPT_FAILURES = new Set([
+    "not_installed",
+    "unsupported",
+    "launch_failed",
+    "probe_timed_out"
+  ]);
+});
+
+// src/cli-protocol/policy.ts
+function firstNonEmptyEffect(effects) {
+  return Object.keys(effects).find((effectClass) => effects[effectClass].length > 0);
+}
+function assertNetworkPolicy(definition, result, offline) {
+  if (offline && result.effects.network.length > 0) {
+    throw new Error(`Command ${definition.name} reported network effects while running offline`);
+  }
+  if (definition.networkPolicy === "never" && result.effects.network.length > 0) {
+    throw new Error(`Command ${definition.name} reported undeclared network effects`);
+  }
+}
+function assertEffectPolicy(definition, result, options) {
+  assertNetworkPolicy(definition, result, options.offline);
+  if (definition.effectClass === "observe" || definition.effectClass === "plan") {
+    const effectClass = firstNonEmptyEffect(result.effects);
+    if (effectClass !== undefined) {
+      throw new Error(`The ${definition.effectClass} command ${definition.name} reported ${EFFECT_NOUNS[effectClass]} effects`);
+    }
+  }
+  if (definition.effectClass === "hook" && (result.effects.packages.length > 0 || result.effects.network.length > 0 || result.effects.destructive.length > 0)) {
+    throw new Error(`Hook command ${definition.name} reported forbidden lifecycle effects`);
+  }
+}
+function consumeManagedProgressSignal(environment) {
+  const enabled = environment[MANAGED_PROGRESS_SIGNAL] === "1";
+  Reflect.deleteProperty(environment, MANAGED_PROGRESS_SIGNAL);
+  return enabled;
+}
+function shouldReportProgress(options) {
+  return !options.quiet && (!options.json || options.managedReview);
+}
+function createBestEffortByteSink(write) {
+  return (buffer) => {
+    let offset = 0;
+    try {
+      while (offset < buffer.length) {
+        const written = write(buffer, offset, buffer.length - offset);
+        if (!Number.isSafeInteger(written) || written <= 0 || written > buffer.length - offset) {
+          return;
+        }
+        offset += written;
+      }
+    } catch {}
+  };
+}
+function createBestEffortProgressSink(write) {
+  const writeBytes = createBestEffortByteSink(write);
+  return (message) => {
+    writeBytes(Buffer.from(`${message}
+`));
+  };
+}
+function createManagedReviewProgress(progress) {
+  return { ...progress, managed: true };
+}
+function resolveHeartbeatIntervalMs(environment = process.env) {
+  if (environment.NODE_ENV !== "test")
+    return PROGRESS_HEARTBEAT_INTERVAL_MS;
+  const override = Number(environment.SAFEWORD_PROGRESS_HEARTBEAT_MS);
+  if (!Number.isSafeInteger(override) || override < 1 || override > PROGRESS_HEARTBEAT_INTERVAL_MS) {
+    return PROGRESS_HEARTBEAT_INTERVAL_MS;
+  }
+  return override;
+}
+function createProgressReporter(adapters) {
+  let announcementHandle;
+  let heartbeatHandle;
+  const heartbeatIntervalMs = resolveHeartbeatIntervalMs();
+  function scheduleHeartbeat(message) {
+    heartbeatHandle = adapters.schedule(() => {
+      adapters.emit(message);
+      scheduleHeartbeat(message);
+    }, heartbeatIntervalMs);
+  }
+  return {
+    start(message) {
+      if (announcementHandle !== undefined)
+        adapters.cancel(announcementHandle);
+      if (heartbeatHandle !== undefined)
+        adapters.cancel(heartbeatHandle);
+      heartbeatHandle = undefined;
+      announcementHandle = adapters.schedule(() => {
+        adapters.emit(message);
+        announcementHandle = undefined;
+      }, PROGRESS_ANNOUNCE_DELAY_MS);
+    },
+    heartbeat(message) {
+      if (heartbeatHandle !== undefined)
+        adapters.cancel(heartbeatHandle);
+      scheduleHeartbeat(message);
+    },
+    stop() {
+      if (announcementHandle !== undefined)
+        adapters.cancel(announcementHandle);
+      if (heartbeatHandle !== undefined)
+        adapters.cancel(heartbeatHandle);
+      announcementHandle = undefined;
+      heartbeatHandle = undefined;
+    }
+  };
+}
+var EFFECT_NOUNS, MANAGED_PROGRESS_SIGNAL = "SAFEWORD_REVIEW_PROGRESS", PROGRESS_ANNOUNCE_DELAY_MS = 100, PROGRESS_HEARTBEAT_INTERVAL_MS = 30000;
+var init_policy2 = __esm(() => {
+  EFFECT_NOUNS = {
+    files: "file",
+    packages: "package",
+    configuration: "configuration",
+    network: "network",
+    destructive: "destructive"
+  };
 });
 
 // src/review/job.ts
@@ -44331,23 +44561,28 @@ __export(exports_job, {
   startReviewJob: () => startReviewJob,
   reviewJobWorkerInput: () => reviewJobWorkerInput,
   reviewJobStatus: () => reviewJobStatus,
+  relayManagedWorkerStderr: () => relayManagedWorkerStderr,
   completeReviewJob: () => completeReviewJob,
   cancelReviewJob: () => cancelReviewJob
 });
 import { spawn as spawn2, spawnSync as spawnSync9 } from "child_process";
-import { createHash as createHash21, randomUUID as randomUUID8 } from "crypto";
+import { createHash as createHash21, createHmac, randomBytes, randomUUID as randomUUID8, timingSafeEqual } from "crypto";
 import {
   closeSync as closeSync10,
   existsSync as existsSync42,
+  fstatSync as fstatSync8,
   mkdirSync as mkdirSync14,
   openSync as openSync10,
   readdirSync as readdirSync29,
   readFileSync as readFileSync51,
+  realpathSync as realpathSync11,
   renameSync as renameSync8,
   statSync as statSync6,
   unlinkSync as unlinkSync3,
-  writeFileSync as writeFileSync19
+  writeFileSync as writeFileSync19,
+  writeSync as writeSync2
 } from "fs";
+import { homedir as homedir6 } from "os";
 import nodePath82 from "path";
 function jobsDirectory(cwd) {
   return nodePath82.join(cwd, ".safeword", "state", "reviews");
@@ -44356,6 +44591,69 @@ function jobPath(cwd, id) {
   if (!isJobId(id))
     throw new Error("invalid review job id");
   return nodePath82.join(jobsDirectory(cwd), `${id}.json`);
+}
+function integrityKeyPath() {
+  const testRoot = process.env.SAFEWORD_REVIEW_KEY_ROOT;
+  const stateRoot = process.env.XDG_STATE_HOME ?? nodePath82.join(homedir6(), ".local", "state");
+  return nodePath82.join(stateRoot, "safeword", "review-integrity.key");
+}
+function readOrCreateIntegrityKey() {
+  const keyPath = integrityKeyPath();
+  try {
+    return decodeIntegrityKey(readFileSync51(keyPath, "utf8"));
+  } catch {
+    mkdirSync14(nodePath82.dirname(keyPath), { recursive: true, mode: 448 });
+    const key = randomBytes(32);
+    try {
+      const descriptor = openSync10(keyPath, "wx", 384);
+      try {
+        writeFileSync19(descriptor, `${key.toString("hex")}
+`);
+      } finally {
+        closeSync10(descriptor);
+      }
+      return key;
+    } catch (error2) {
+      if (!isFileExistsError(error2))
+        throw error2;
+      return decodeIntegrityKey(readFileSync51(keyPath, "utf8"));
+    }
+  }
+}
+function decodeIntegrityKey(value) {
+  const encoded = value.trim();
+  if (!/^[a-f\d]{64}$/u.test(encoded))
+    throw new Error("invalid review integrity key");
+  return Buffer.from(encoded, "hex");
+}
+function unsignedRecord(record2) {
+  const { integrity: _integrity, ...unsigned } = record2;
+  return unsigned;
+}
+function recordIntegrity(cwd, record2) {
+  return createHmac("sha256", readOrCreateIntegrityKey()).update(realpathSync11.native(cwd)).update("\x00").update(JSON.stringify(unsignedRecord(record2))).digest("hex");
+}
+function hasValidIntegrity(cwd, record2) {
+  if (!isTerminalJobState(record2.state))
+    return true;
+  if (record2.integrity === undefined || !/^[a-f\d]{64}$/u.test(record2.integrity))
+    return false;
+  try {
+    const actual = Buffer.from(record2.integrity, "hex");
+    const expected = Buffer.from(recordIntegrity(cwd, record2), "hex");
+    return timingSafeEqual(actual, expected);
+  } catch {
+    return false;
+  }
+}
+function isTerminalJobState(state) {
+  return TERMINAL_JOB_STATES.has(state);
+}
+function withRecordIntegrity(cwd, record2) {
+  if (!isTerminalJobState(record2.state))
+    return record2;
+  const unsigned = { ...record2, integrity: undefined };
+  return { ...unsigned, integrity: recordIntegrity(cwd, unsigned) };
 }
 function fingerprint(cwd, kind, targets, context = []) {
   const prepared = prepareReviewPacket(cwd, kind, targets, context);
@@ -44380,15 +44678,17 @@ function fingerprint(cwd, kind, targets, context = []) {
   }
 }
 function writeJob(cwd, record2) {
-  if (!isReviewJobRecord(record2))
+  const secured = withRecordIntegrity(cwd, record2);
+  if (!isReviewJobRecord(secured))
     throw new Error("invalid review job record");
   const directory = jobsDirectory(cwd);
   mkdirSync14(directory, { recursive: true, mode: 448 });
-  const destination = jobPath(cwd, record2.id);
+  const destination = jobPath(cwd, secured.id);
   const temporary = `${destination}.${process.pid}.tmp`;
-  writeFileSync19(temporary, `${JSON.stringify(record2)}
+  writeFileSync19(temporary, `${JSON.stringify(secured)}
 `, { mode: 384 });
   renameSync8(temporary, destination);
+  return secured;
 }
 function withJobLock(cwd, id, operation) {
   return withFileLock(`${jobPath(cwd, id)}.lock`, operation);
@@ -44419,9 +44719,12 @@ function withFileLock(lock, operation) {
   try {
     return operation();
   } finally {
+    const ownedLock = fstatSync8(descriptor);
     closeSync10(descriptor);
     try {
-      unlinkSync3(lock);
+      const currentLock = statSync6(lock);
+      if (currentLock.dev === ownedLock.dev && currentLock.ino === ownedLock.ino)
+        unlinkSync3(lock);
     } catch {}
   }
 }
@@ -44446,8 +44749,7 @@ function updateActiveJob(cwd, id, update) {
     if (latest.state !== "launching" && latest.state !== "running")
       return latest;
     const next = update(latest);
-    writeJob(cwd, next);
-    return next;
+    return writeJob(cwd, next);
   });
 }
 function isReviewJobRecord(value) {
@@ -44461,23 +44763,26 @@ function hasReviewJobIdentity(candidate) {
   return candidate.schema_version === 1 && hasStrings && isStringArray(candidate.targets) && isOptional(candidate.context, isStringArray) && isReviewKind(candidate.kind);
 }
 function hasReviewJobLifecycle(candidate) {
-  const hasPid = isOptional(candidate.pid, isProcessId);
-  const hasResult = isOptional(candidate.result, isCliResult);
-  if (!hasPid || !hasResult || !isJobState(candidate.state))
+  if (!isJobState(candidate.state))
     return false;
   switch (candidate.state) {
     case "launching":
     case "running": {
       return isProcessId(candidate.pid) && candidate.result === undefined;
     }
-    case "completed":
+    case "completed": {
+      return isCoherentTerminalResult(candidate, false);
+    }
     case "failed": {
-      return isCliResult(candidate.result);
+      return isCoherentTerminalResult(candidate, true);
     }
     case "canceled": {
       return candidate.result === undefined;
     }
   }
+}
+function isCoherentTerminalResult(candidate, failed) {
+  return isCliResult(candidate.result) && candidate.result.state === "failed" === failed && typeof candidate.integrity === "string";
 }
 function isOptional(value, predicate) {
   return value === undefined || predicate(value);
@@ -44537,7 +44842,7 @@ function hasReviewerIdentity(reviewer) {
 }
 function readJob(cwd, id) {
   const parsed2 = JSON.parse(readFileSync51(jobPath(cwd, id), "utf8"));
-  if (!isReviewJobRecord(parsed2) || parsed2.id !== id)
+  if (!isReviewJobRecord(parsed2) || parsed2.id !== id || !hasValidIntegrity(cwd, parsed2))
     throw new Error("invalid review job record");
   return parsed2;
 }
@@ -44593,7 +44898,7 @@ function currentResult(cwd, record2) {
     return failExitedJob(cwd, record2);
   }
   if (record2.state === "running") {
-    if (record2.pid !== undefined && !isReviewWorker(record2.pid, record2.id)) {
+    if (workerDefinitelyMismatches(record2)) {
       return failExitedJob(cwd, record2);
     }
     return pendingResult(record2);
@@ -44621,6 +44926,8 @@ function failExitedJob(cwd, record2) {
   return latest.state === "failed" && latest.result === failed ? failed : terminalResult(cwd, latest);
 }
 function terminalResult(cwd, record2) {
+  if (!hasValidIntegrity(cwd, record2))
+    return invalidJobResult(record2.id);
   if (record2.state === "canceled") {
     return createResult({
       state: "action_required",
@@ -44644,6 +44951,19 @@ function terminalResult(cwd, record2) {
       { code: "REVIEW_JOB_INVALID", message: "The review job has no result.", retryable: true }
     ],
     data: { command: "review status", status: "failed", review_id: record2.id }
+  });
+}
+function invalidJobResult(id) {
+  return createResult({
+    state: "failed",
+    errors: [
+      {
+        code: "REVIEW_JOB_INVALID",
+        message: "The review job could not be verified as Safeword-produced.",
+        retryable: true
+      }
+    ],
+    data: { command: "review status", status: "failed", review_id: id }
   });
 }
 function processExists(pid) {
@@ -44674,6 +44994,62 @@ function cliEntrypoint() {
     return developmentBuild;
   throw new Error("Safeword CLI entrypoint is unavailable");
 }
+function launchReviewWorker(input) {
+  return spawn2(process.execPath, [
+    input.entrypoint,
+    "review",
+    "run",
+    input.kind,
+    ...input.managedProgress ? ["--json"] : [],
+    "--worker-job-id",
+    input.id,
+    ...input.context.flatMap((target) => ["--context", target]),
+    "--",
+    ...input.targets
+  ], {
+    cwd: input.cwd,
+    env: {
+      ...process.env,
+      SAFEWORD_REVIEW_JOB_ID: input.id,
+      SAFEWORD_REVIEW_WORKER: "1",
+      ...input.managedProgress && { SAFEWORD_REVIEW_PROGRESS: "1" }
+    },
+    detached: true,
+    stdio: input.managedProgress ? ["ignore", "ignore", "pipe"] : "ignore"
+  });
+}
+function closeNoManagedProgress() {
+  return;
+}
+function containManagedRelayError() {}
+function relayManagedWorkerStderr(child, enabled) {
+  const stderr = child.stderr;
+  if (!enabled || stderr === null)
+    return closeNoManagedProgress;
+  const writeBytes = createBestEffortByteSink((buffer, offset, length) => writeSync2(2, buffer, offset, length));
+  const forward = (chunk) => {
+    writeBytes(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+  };
+  stderr.on("data", forward);
+  stderr.on("error", containManagedRelayError);
+  return () => {
+    stderr.off("data", forward);
+    stderr.once("close", () => stderr.off("error", containManagedRelayError));
+    stderr.destroy();
+  };
+}
+function workerLaunchSettled(child) {
+  return new Promise((resolve) => {
+    child.once("spawn", resolve);
+    child.once("error", resolve);
+  });
+}
+function announceBackgroundProgress(progress, managedProgress) {
+  if (managedProgress)
+    return;
+  progress?.start("Running the independent review in the background\u2026");
+  progress?.heartbeat?.("Still waiting for the independent review\u2026");
+}
 async function startReviewJob(input) {
   const context = input.context ?? [];
   const sourceFingerprint = fingerprint(input.cwd, input.kind, input.targets, context);
@@ -44703,22 +45079,18 @@ async function startReviewJob(input) {
   const record2 = reserved.record;
   const id = record2.id;
   const entrypoint = cliEntrypoint();
-  const child = spawn2(process.execPath, [
-    entrypoint,
-    "review",
-    "run",
-    input.kind,
-    "--worker-job-id",
-    id,
-    ...context.flatMap((target) => ["--context", target]),
-    "--",
-    ...input.targets
-  ], {
+  const managedProgress = input.progress?.managed === true;
+  const child = launchReviewWorker({
+    context,
     cwd: input.cwd,
-    env: { ...process.env, SAFEWORD_REVIEW_JOB_ID: id, SAFEWORD_REVIEW_WORKER: "1" },
-    detached: true,
-    stdio: "ignore"
+    entrypoint,
+    id,
+    kind: input.kind,
+    managedProgress,
+    targets: input.targets
   });
+  const closeManagedProgress = relayManagedWorkerStderr(child, managedProgress);
+  const launchSettled = workerLaunchSettled(child);
   child.once("error", (error2) => {
     const failed = createResult({
       state: "failed",
@@ -44741,49 +45113,68 @@ async function startReviewJob(input) {
     } catch {}
   });
   child.unref();
-  if (child.pid === undefined) {
-    const failed = createResult({
-      state: "failed",
-      errors: [
-        {
-          code: "REVIEW_WORKER_START_FAILED",
-          message: "The background review worker could not be started.",
-          retryable: true
-        }
-      ],
-      data: { command: "review run", status: "failed", review_id: id }
-    });
-    writeJob(input.cwd, {
-      ...record2,
-      state: "failed",
-      result: failed,
+  try {
+    if (child.pid === undefined) {
+      const failed = createResult({
+        state: "failed",
+        errors: [
+          {
+            code: "REVIEW_WORKER_START_FAILED",
+            message: "The background review worker could not be started.",
+            retryable: true
+          }
+        ],
+        data: { command: "review run", status: "failed", review_id: id }
+      });
+      writeJob(input.cwd, {
+        ...record2,
+        state: "failed",
+        result: failed,
+        updated_at: new Date().toISOString()
+      });
+      return failed;
+    }
+    updateActiveJob(input.cwd, id, (current) => ({
+      ...current,
+      state: "running",
+      pid: child.pid,
       updated_at: new Date().toISOString()
-    });
-    return failed;
+    }));
+    await launchSettled;
+    const observed = readJob(input.cwd, id);
+    if (!isActivatedChild(observed, child.pid)) {
+      terminateUnactivatedWorker(observed, child.pid);
+      return currentResult(input.cwd, observed);
+    }
+    announceBackgroundProgress(input.progress, managedProgress);
+    const deadline = Date.now() + configuredCourtesyWait();
+    let nextInspectionAt = 0;
+    while (Date.now() < deadline) {
+      const latest = readJob(input.cwd, id);
+      if (latest.state !== "running")
+        return currentResult(input.cwd, latest);
+      const now = Date.now();
+      if (now >= nextInspectionAt) {
+        if (workerDefinitelyMismatches(latest))
+          return failExitedJob(input.cwd, latest);
+        nextInspectionAt = now + WORKER_INSPECTION_INTERVAL_MS;
+      }
+      await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+    }
+    return currentResult(input.cwd, readJob(input.cwd, id));
+  } finally {
+    closeManagedProgress();
   }
-  const activated = updateActiveJob(input.cwd, id, (spawned) => ({
-    ...spawned,
-    state: "running",
-    pid: child.pid,
-    updated_at: new Date().toISOString()
-  }));
-  if (!isActivatedChild(activated, child.pid)) {
-    terminateReviewWorker(child.pid);
-    return currentResult(input.cwd, activated);
-  }
-  input.progress?.start("Running the independent review in the background\u2026");
-  input.progress?.heartbeat?.("Still waiting for the independent review\u2026");
-  const deadline = Date.now() + configuredCourtesyWait();
-  while (Date.now() < deadline) {
-    const latest = readJob(input.cwd, id);
-    if (latest.state !== "running")
-      return currentResult(input.cwd, latest);
-    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
-  }
-  return currentResult(input.cwd, readJob(input.cwd, id));
 }
 function isActivatedChild(record2, pid) {
   return record2.state === "running" && record2.pid === pid;
+}
+function workerDefinitelyMismatches(record2) {
+  return record2.pid !== undefined && inspectReviewWorker(record2.pid, record2.id) === "mismatch";
+}
+function terminateUnactivatedWorker(record2, pid) {
+  if (record2.state !== "completed" && record2.state !== "failed")
+    terminateReviewWorker(pid);
 }
 function terminateReviewWorker(pid) {
   if (process.platform === "win32") {
@@ -44799,12 +45190,18 @@ function terminateReviewWorker(pid) {
   } catch {}
 }
 function completeReviewJob(cwd, id, result) {
-  updateActiveJob(cwd, id, (record2) => ({
-    ...record2,
-    state: result.state === "failed" ? "failed" : "completed",
-    result,
-    updated_at: new Date().toISOString()
-  }));
+  withJobLock(cwd, id, () => {
+    const record2 = readJob(cwd, id);
+    if (record2.state !== "launching" && record2.state !== "running")
+      return;
+    const completed = {
+      ...record2,
+      state: result.state === "failed" ? "failed" : "completed",
+      result,
+      updated_at: new Date().toISOString()
+    };
+    writeJob(cwd, completed);
+  });
 }
 function reviewJobWorkerInput(cwd, id) {
   const record2 = withJobLock(cwd, id, () => {
@@ -44857,7 +45254,7 @@ function isActiveReviewJob(record2) {
     return false;
   if (record2.state === "launching")
     return processExists(record2.pid);
-  return record2.state === "running" && isReviewWorker(record2.pid, record2.id);
+  return record2.state === "running" && inspectReviewWorker(record2.pid, record2.id) !== "mismatch";
 }
 function reviewJobStatus(cwd, requestedId) {
   let id;
@@ -44918,7 +45315,7 @@ function cancelReviewJob(cwd, requestedId) {
       const record2 = readJob(cwd, id);
       if (record2.state !== "launching" && record2.state !== "running")
         return record2;
-      if (record2.state === "running" && record2.pid !== undefined && isReviewWorker(record2.pid, record2.id)) {
+      if (record2.state === "running" && record2.pid !== undefined && inspectReviewWorker(record2.pid, record2.id) === "match") {
         terminateReviewWorker(record2.pid);
       }
       const next = {
@@ -44926,8 +45323,7 @@ function cancelReviewJob(cwd, requestedId) {
         state: "canceled",
         updated_at: new Date().toISOString()
       };
-      writeJob(cwd, next);
-      return next;
+      return writeJob(cwd, next);
     });
     return currentResult(cwd, canceled);
   } catch {
@@ -44937,23 +45333,31 @@ function cancelReviewJob(cwd, requestedId) {
 function isJobId(value) {
   return /^[a-f\d-]{36}$/u.test(value);
 }
-function isReviewWorker(pid, id) {
+function inspectReviewWorker(pid, id) {
   const inspected = process.platform === "win32" ? spawnSync9("powershell.exe", [
     "-NoProfile",
     "-NonInteractive",
     "-Command",
     `(Get-CimInstance Win32_Process -Filter "ProcessId = ${pid}").CommandLine`
-  ], { encoding: "utf8", timeout: 1000, windowsHide: true }) : spawnSync9("ps", ["-p", String(pid), "-o", "command="], {
+  ], { encoding: "utf8", timeout: 1000, windowsHide: true }) : spawnSync9("ps", ["-ww", "-p", String(pid), "-o", "command="], {
     encoding: "utf8",
     timeout: 1000
   });
-  return inspected.status === 0 && /\breview run\b/u.test(inspected.stdout) && inspected.stdout.includes(`--worker-job-id ${id}`);
+  if (inspected.status !== 0)
+    return processExists(pid) ? "unavailable" : "mismatch";
+  return /\breview run\b/u.test(inspected.stdout) && inspected.stdout.includes(`--worker-job-id ${id}`) ? "match" : "mismatch";
 }
-var COURTESY_WAIT_MS = 75000, POLL_INTERVAL_MS = 100, JOB_LOCK_WAIT_MS = 2000;
+var TERMINAL_JOB_STATES, COURTESY_WAIT_MS = 75000, POLL_INTERVAL_MS = 100, WORKER_INSPECTION_INTERVAL_MS = 1000, JOB_LOCK_WAIT_MS = 2000;
 var init_job = __esm(() => {
+  init_policy2();
   init_result();
   init_contract();
   init_packet();
+  TERMINAL_JOB_STATES = new Set([
+    "completed",
+    "failed",
+    "canceled"
+  ]);
 });
 
 // src/pr-review/providers/openai.ts
@@ -54740,7 +55144,7 @@ import {
   mkdirSync as mkdirSync16,
   mkdtempSync as mkdtempSync7,
   readFileSync as readFileSync56,
-  realpathSync as realpathSync11,
+  realpathSync as realpathSync12,
   statSync as statSync7,
   writeFileSync as writeFileSync22
 } from "fs";
@@ -55084,10 +55488,10 @@ function unavailableTransport() {
 }
 function physicalProjectPath(projectDirectory) {
   try {
-    return realpathSync11(projectDirectory);
+    return realpathSync12(projectDirectory);
   } catch {
     try {
-      return nodePath88.join(realpathSync11(nodePath88.dirname(projectDirectory)), nodePath88.basename(projectDirectory));
+      return nodePath88.join(realpathSync12(nodePath88.dirname(projectDirectory)), nodePath88.basename(projectDirectory));
     } catch {
       return;
     }
@@ -55095,7 +55499,7 @@ function physicalProjectPath(projectDirectory) {
 }
 function physicalOutboxPath(outboxDirectory) {
   try {
-    const physicalOutbox = realpathSync11(outboxDirectory);
+    const physicalOutbox = realpathSync12(outboxDirectory);
     return statSync7(physicalOutbox).isDirectory() ? physicalOutbox : undefined;
   } catch {
     return;
@@ -61555,76 +61959,7 @@ function createCapabilitiesResult() {
 // src/cli-protocol/execute.ts
 import nodePath90 from "path";
 import process18 from "process";
-
-// src/cli-protocol/policy.ts
-function firstNonEmptyEffect(effects) {
-  return Object.keys(effects).find((effectClass) => effects[effectClass].length > 0);
-}
-function assertNetworkPolicy(definition, result, offline) {
-  if (offline && result.effects.network.length > 0) {
-    throw new Error(`Command ${definition.name} reported network effects while running offline`);
-  }
-  if (definition.networkPolicy === "never" && result.effects.network.length > 0) {
-    throw new Error(`Command ${definition.name} reported undeclared network effects`);
-  }
-}
-function assertEffectPolicy(definition, result, options) {
-  assertNetworkPolicy(definition, result, options.offline);
-  if (definition.effectClass === "observe" || definition.effectClass === "plan") {
-    const effectClass = firstNonEmptyEffect(result.effects);
-    if (effectClass !== undefined) {
-      throw new Error(`The ${definition.effectClass} command ${definition.name} reported ${effectClass.slice(0, -1)} effects`);
-    }
-  }
-  if (definition.effectClass === "hook" && (result.effects.packages.length > 0 || result.effects.network.length > 0 || result.effects.destructive.length > 0)) {
-    throw new Error(`Hook command ${definition.name} reported forbidden lifecycle effects`);
-  }
-}
-var PROGRESS_ANNOUNCE_DELAY_MS = 100;
-var PROGRESS_HEARTBEAT_INTERVAL_MS = 30000;
-function resolveHeartbeatIntervalMs(environment = process.env) {
-  const override = Number(environment.SAFEWORD_PROGRESS_HEARTBEAT_MS);
-  if (!Number.isSafeInteger(override) || override < 1 || override > PROGRESS_HEARTBEAT_INTERVAL_MS) {
-    return PROGRESS_HEARTBEAT_INTERVAL_MS;
-  }
-  return override;
-}
-function createProgressReporter(adapters) {
-  let announcementHandle;
-  let heartbeatHandle;
-  const heartbeatIntervalMs = resolveHeartbeatIntervalMs();
-  function scheduleHeartbeat(message) {
-    heartbeatHandle = adapters.schedule(() => {
-      adapters.emit(message);
-      scheduleHeartbeat(message);
-    }, heartbeatIntervalMs);
-  }
-  return {
-    start(message) {
-      if (announcementHandle !== undefined)
-        adapters.cancel(announcementHandle);
-      announcementHandle = adapters.schedule(() => {
-        adapters.emit(message);
-        announcementHandle = undefined;
-      }, PROGRESS_ANNOUNCE_DELAY_MS);
-    },
-    heartbeat(message) {
-      if (heartbeatHandle !== undefined)
-        adapters.cancel(heartbeatHandle);
-      scheduleHeartbeat(message);
-    },
-    stop() {
-      if (announcementHandle !== undefined)
-        adapters.cancel(announcementHandle);
-      if (heartbeatHandle !== undefined)
-        adapters.cancel(heartbeatHandle);
-      announcementHandle = undefined;
-      heartbeatHandle = undefined;
-    }
-  };
-}
-
-// src/cli-protocol/execute.ts
+init_policy2();
 init_result();
 var GLOBAL_OPTION_KEYS = new Set(["json", "noInput", "cwd", "quiet", "offline", "verbose"]);
 var GLOBAL_OPTION_DEFINITIONS = [
@@ -61707,8 +62042,10 @@ function machineOutputRequested(arguments_) {
 }
 
 // src/cli-protocol/register.ts
+import { writeSync as writeSync3 } from "fs";
 import process19 from "process";
 init_plan();
+init_policy2();
 init_result();
 function familyNames() {
   const families = new Set;
@@ -61823,17 +62160,24 @@ function withCompatibilityDeprecation(result, definition, commandOptions = {}, i
   }
   return withDeprecation(result, alias2.name, alias2.compatibility.replacement ?? alias2.aliasFor, alias2.compatibility, commandOptions);
 }
-async function executeDefinition(command2, definition, invocation = {}) {
-  const globalOptions = readGlobalOptions(command2);
-  const commandOptions = readCommandOptions(command2);
-  const progress = globalOptions.json || globalOptions.quiet ? undefined : createProgressReporter({
+function commandProgress(definition, options) {
+  const managedProgressRequested = consumeManagedProgressSignal(process19.env);
+  const managedReview = managedProgressRequested && definition.name === "review run";
+  if (!shouldReportProgress({ ...options, managedReview }))
+    return;
+  const progress = createProgressReporter({
     schedule: (callback, delay) => setTimeout(callback, delay),
     cancel: (handle) => {
       clearTimeout(handle);
     },
-    emit: (message) => process19.stderr.write(`${message}
-`)
+    emit: createBestEffortProgressSink((buffer, offset, length) => writeSync3(2, buffer, offset, length))
   });
+  return managedReview && options.json ? createManagedReviewProgress(progress) : progress;
+}
+async function executeDefinition(command2, definition, invocation = {}) {
+  const globalOptions = readGlobalOptions(command2);
+  const commandOptions = readCommandOptions(command2);
+  const progress = commandProgress(definition, globalOptions);
   let result;
   try {
     try {

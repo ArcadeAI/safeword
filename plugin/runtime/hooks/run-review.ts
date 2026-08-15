@@ -9,6 +9,62 @@ type Candidate = readonly [command: string, prefix: readonly string[]];
 const SEMVER =
   /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-(?:(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/u;
 const DEFAULT_PROBE_TIMEOUT_MS = 10_000;
+const MANAGED_PROGRESS_SIGNAL = 'SAFEWORD_REVIEW_PROGRESS';
+export const VALUELESS_GLOBAL_OPTIONS = new Set([
+  '--json',
+  '--no-input',
+  '--quiet',
+  '--offline',
+  '-v',
+  '--verbose',
+]);
+export const VALUED_GLOBAL_OPTIONS = new Set(['--cwd']);
+
+function isAttachedValuedGlobalOption(argument: string): boolean {
+  return [...VALUED_GLOBAL_OPTIONS].some(option =>
+    option.startsWith('--')
+      ? argument.startsWith(`${option}=`)
+      : argument !== option && argument.startsWith(option),
+  );
+}
+
+function hasJsonOption(arguments_: readonly string[]): boolean {
+  for (let index = 0; index < arguments_.length; index += 1) {
+    const argument = arguments_[index];
+    if (argument !== undefined && VALUED_GLOBAL_OPTIONS.has(argument)) {
+      index += 1;
+      continue;
+    }
+    if (argument === '--json') return true;
+  }
+  return false;
+}
+
+function isManagedJsonReview(arguments_: readonly string[]): boolean {
+  const optionBoundary = arguments_.indexOf('--');
+  const commandArguments = optionBoundary === -1 ? arguments_ : arguments_.slice(0, optionBoundary);
+  let routeIndex = 0;
+  while (routeIndex < commandArguments.length) {
+    const argument = commandArguments[routeIndex];
+    if (argument !== undefined && VALUED_GLOBAL_OPTIONS.has(argument)) {
+      routeIndex += 2;
+      continue;
+    }
+    if (
+      (argument !== undefined && isAttachedValuedGlobalOption(argument)) ||
+      (argument && VALUELESS_GLOBAL_OPTIONS.has(argument))
+    ) {
+      routeIndex += 1;
+      continue;
+    }
+    break;
+  }
+  return (
+    commandArguments[routeIndex] === 'review' &&
+    commandArguments[routeIndex + 1] === 'run' &&
+    hasJsonOption(commandArguments)
+  );
+}
 
 function probeTimeout(environment: NodeJS.ProcessEnv): number {
   const configured = Number(environment.SAFEWORD_REVIEW_CLI_PROBE_TIMEOUT_MS);
@@ -17,8 +73,28 @@ function probeTimeout(environment: NodeJS.ProcessEnv): number {
     : DEFAULT_PROBE_TIMEOUT_MS;
 }
 
-function supportsReview([command, prefix]: Candidate, timeout: number): boolean {
-  const result = spawnSync(command, [...prefix, 'review', 'run', '--help'], {
+export function reviewChildEnvironment(
+  environment: NodeJS.ProcessEnv,
+  arguments_: readonly string[],
+): NodeJS.ProcessEnv {
+  const childEnvironment = { ...environment };
+  for (const name of Object.keys(childEnvironment)) {
+    if (name.toUpperCase() === MANAGED_PROGRESS_SIGNAL) delete childEnvironment[name];
+  }
+  if (isManagedJsonReview(arguments_)) {
+    childEnvironment[MANAGED_PROGRESS_SIGNAL] = '1';
+  }
+  return childEnvironment;
+}
+
+function supportsReview(
+  [command, prefix]: Candidate,
+  timeout: number,
+  environment: NodeJS.ProcessEnv,
+): boolean {
+  const arguments_ = ['review', 'run', '--help'];
+  const result = spawnSync(command, [...prefix, ...arguments_], {
+    env: reviewChildEnvironment(environment, arguments_),
     stdio: 'ignore',
     timeout,
   });
@@ -39,8 +115,16 @@ export function reviewCandidates(
   const localCli = nodePath.join(projectDirectory, 'node_modules', '.bin', 'safeword');
   if (existsSync(localCli)) candidates.push([localCli, []]);
 
+  const sourcePackage = nodePath.join(projectDirectory, 'packages', 'cli', 'package.json');
   const sourceCli = nodePath.join(projectDirectory, 'packages', 'cli', 'src', 'cli.ts');
-  if (existsSync(sourceCli)) candidates.push(['bun', [sourceCli]]);
+  if (existsSync(sourceCli) && existsSync(sourcePackage)) {
+    try {
+      const manifest = JSON.parse(readFileSync(sourcePackage, 'utf8')) as { name?: unknown };
+      if (manifest.name === 'safeword') candidates.push(['bun', [sourceCli]]);
+    } catch {
+      // A malformed lookalike checkout is not a trusted Safeword source route.
+    }
+  }
 
   const versionPath = nodePath.join(projectDirectory, '.safeword', 'version');
   if (existsSync(versionPath)) {
@@ -52,12 +136,17 @@ export function reviewCandidates(
 
 export function runReview(arguments_: string[]): never {
   const timeout = probeTimeout(process.env);
-  const candidate = reviewCandidates().find(candidate_ => supportsReview(candidate_, timeout));
+  const candidate = reviewCandidates().find(candidate_ =>
+    supportsReview(candidate_, timeout, process.env),
+  );
   if (!candidate) {
     console.error('No review-capable Safeword CLI found.');
     process.exit(1);
   }
-  const result = spawnSync(candidate[0], [...candidate[1], ...arguments_], { stdio: 'inherit' });
+  const result = spawnSync(candidate[0], [...candidate[1], ...arguments_], {
+    env: reviewChildEnvironment(process.env, arguments_),
+    stdio: 'inherit',
+  });
   process.exit(result.status ?? 1);
 }
 

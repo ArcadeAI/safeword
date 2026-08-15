@@ -206,13 +206,14 @@ Feature: Close completed sessions safely
       When closeout refreshes the retrospective and applies the preview
       Then cleanup completes with the previewed exact targets
 
-    @rejection @surface.claude-code @surface.openai-codex @surface.cursor
-    Scenario: Appended session friction refreshes retro before cleanup
+    @surface.claude-code @surface.openai-codex @surface.cursor
+    Scenario: Appended session friction remains advisory during cleanup
       Given an authorized cleanup preview with a completed retrospective
       And the bound transcript grows append-only before apply
       And the mandatory refreshed retrospective reports unresolved work
       When closeout refreshes the retrospective and applies the preview
-      Then cleanup is blocked without mutating any target
+      Then cleanup completes with the previewed exact targets
+      And the incomplete retrospective is reported as an advisory
 
     @proof.vitest @rejection @surface.claude-code @surface.openai-codex @surface.cursor
     Scenario Outline: Every transcript mutation invalidates the retrospective snapshot

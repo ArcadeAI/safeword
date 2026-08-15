@@ -185,6 +185,7 @@ describe('headless reviewer process lifecycle', () => {
   it.skipIf(process.platform === 'win32')(
     'kills reviewer descendants after a timeout',
     async () => {
+      vi.stubEnv('NODE_ENV', 'test');
       const bin = trustedTemporaryDirectory();
       const project = temporaryDirectory();
       const untrustedRoot = temporaryDirectory();

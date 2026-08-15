@@ -17,6 +17,7 @@ import { createTrustedReviewerDirectory, REVIEWER_CAPABILITIES } from '../review
  * and it is the class a reader is most likely to act on by retrying.
  */
 const directories: string[] = [];
+type ReviewerFailure = 'hang' | 'process' | 'unauthenticated';
 
 afterEach(() => {
   for (const directory of directories) rmSync(directory, { recursive: true, force: true });
@@ -31,16 +32,27 @@ function scratch(trusted = false): string {
   return directory;
 }
 
+function reviewerBody(failure: ReviewerFailure): string {
+  switch (failure) {
+    case 'hang': {
+      return 'exec /bin/sleep 3600';
+    }
+    case 'unauthenticated': {
+      return String.raw`printf 'not logged in\n' >&2
+exit 1`;
+    }
+    case 'process': {
+      return 'exit 3';
+    }
+  }
+}
+
 /** Installs a reviewer that fails a given way, plus an author runtime that answers. */
-function installReviewers(host: string, assignedFails: 'hang' | 'unauthenticated'): string {
+function installReviewers(host: string, assignedFails: ReviewerFailure): string {
   const bin = nodePath.join(host, 'bin');
   mkdirSync(bin, { recursive: true });
 
-  const codexBody =
-    assignedFails === 'hang'
-      ? 'exec /bin/sleep 3600'
-      : String.raw`printf 'not logged in\n' >&2
-exit 1`;
+  const codexBody = reviewerBody(assignedFails);
   writeFileSync(
     nodePath.join(bin, 'codex'),
     String.raw`#!/bin/sh
@@ -67,7 +79,7 @@ printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"claude","verdic
   return bin;
 }
 
-async function degradedMessage(assignedFails: 'hang' | 'unauthenticated'): Promise<string> {
+async function degradedMessage(assignedFails: ReviewerFailure): Promise<string> {
   const directory = scratch();
   writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
   const bin = installReviewers(scratch(true), assignedFails);
@@ -116,6 +128,13 @@ describe('a degraded review explains why it fell back', () => {
     const message = await degradedMessage('unauthenticated');
 
     expect(message).toMatch(/not signed in/iu);
+    expect(message).toMatch(/not independent/iu);
+  }, 30_000);
+
+  it('explains when a reviewer process exits without a review', async () => {
+    const message = await degradedMessage('process');
+
+    expect(message).toMatch(/exited before returning a review/iu);
     expect(message).toMatch(/not independent/iu);
   }, 30_000);
 });

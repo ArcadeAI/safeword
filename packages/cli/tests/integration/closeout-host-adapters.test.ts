@@ -310,6 +310,47 @@ function closeoutCommand(directory: string): string {
 }
 
 describe('closeout production host adapters (93C14D TBU1.R4)', () => {
+  it('completes freshly verified cleanup without a host session binding', () => {
+    const fixture = deliveryFixture();
+    installBoundaryFakes(fixture);
+    const codexHome = nodePath.join(nodePath.dirname(fixture.bare), 'codex-home');
+    const environment = {
+      ...process.env,
+      PATH: `${fixture.bin}:${process.env.PATH ?? ''}`,
+      GIT_SSH_COMMAND: nodePath.join(fixture.bin, 'ssh'),
+      SAFEWORD_TEST_BARE: fixture.bare,
+      SAFEWORD_CLI: boundarySafewordCli(fixture),
+      CODEX_HOME: codexHome,
+      CODEX_THREAD_ID: '',
+      CLAUDE_PROJECT_DIR: fixture.topic,
+    };
+    const guard = nodePath.join(fixture.topic, '.safeword/scripts/closeout-cleanup.ts');
+    const preview = spawnSync('bun', [guard, '--pr', '42'], {
+      cwd: fixture.topic,
+      env: environment,
+      encoding: 'utf8',
+    });
+    expect(preview.status, `${preview.stderr}\n${preview.stdout}`).toBe(0);
+    const previewResult = JSON.parse(preview.stdout) as {
+      digest: string;
+      plan: { blockers: string[]; advisories: string[] };
+    };
+    expect(previewResult.plan.blockers).toEqual([]);
+    expect(previewResult.plan.advisories).toContain(
+      'the current host session binding is missing or expired',
+    );
+    const handoffDirectory = nodePath.join(codexHome, 'safeword', 'closeout-handoff-v1');
+    expect(existsSync(handoffDirectory)).toBe(false);
+
+    const apply = spawnSync('bun', [guard, '--pr', '42', '--yes', '--plan', previewResult.digest], {
+      cwd: fixture.topic,
+      env: environment,
+      encoding: 'utf8',
+    });
+    expect(apply.status, `${apply.stderr}\n${apply.stdout}`).toBe(0);
+    expect(existsSync(fixture.topic)).toBe(false);
+  });
+
   it('binds the authenticated Codex Desktop task across linked worktrees without a hook bridge', () => {
     const fixture = deliveryFixture();
     installBoundaryFakes(fixture);
@@ -511,7 +552,7 @@ else if (args[0] === 'retro' && args[1] === 'run') {
   }, 30_000);
 
   it.each([true, false])(
-    'requires local verification despite a green rollup (required checks: %s)',
+    'uses a green hosted rollup instead of local verification (required checks: %s)',
     requiredChecks => {
       const fixture = deliveryFixture();
       installBoundaryFakes(fixture, requiredChecks, 'green');
@@ -551,9 +592,9 @@ if (args[0] === 'retro' && args[1] === 'run') {
         { cwd: fixture.topic, env: environment, encoding: 'utf8' },
       );
 
-      expect(preview.status).toBe(2);
-      expect(existsSync(localPlanMarker)).toBe(true);
-      expect(existsSync(verificationReceiptPath(fixture))).toBe(false);
+      expect(preview.status).toBe(0);
+      expect(existsSync(localPlanMarker)).toBe(false);
+      expect(existsSync(verificationReceiptPath(fixture))).toBe(true);
     },
     30_000,
   );
@@ -817,13 +858,15 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
       { cwd: fixture.topic, env: environment, encoding: 'utf8' },
     );
 
-    expect(preview.status).toBe(2);
-    expect(preview.stderr).toContain('a fresh host session binding are required');
-    expect(preview.stderr).toContain(
-      'Start one fresh task and run bun .safeword/scripts/closeout-cleanup.ts --pr 42',
-    );
-    expect(preview.stdout).toBe('');
-    expect(existsSync(verificationReceiptPath(fixture))).toBe(false);
+    expect(preview.status, `${preview.stderr}\n${preview.stdout}`).toBe(0);
+    const plan = (
+      JSON.parse(preview.stdout) as {
+        plan: { blockers: string[]; advisories: string[] };
+      }
+    ).plan;
+    expect(plan.blockers).toEqual([]);
+    expect(plan.advisories).toContain('the current host session binding is missing or expired');
+    expect(existsSync(verificationReceiptPath(fixture))).toBe(true);
     expect(existsSync(fixture.topic)).toBe(true);
   }, 30_000);
 
