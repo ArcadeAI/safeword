@@ -183,6 +183,34 @@ describe('relay startup failure', () => {
     }
   });
 
+  it('keeps a caller-owned process lock held when the port is taken', async () => {
+    const blocked = await occupiedPort();
+    const store = RelayStore.open(databasePath());
+    const lockPath = path.join(scratchDirectory(), 'relay.lock');
+    const processLock = ProcessLock.acquire(lockPath);
+
+    try {
+      await expect(
+        startRelayServer({
+          credentials: new CredentialRegistry('pepper'),
+          github: offlineGitHub(),
+          host: '127.0.0.1',
+          maintenanceIntervalMs: 10,
+          payloadKey: Buffer.alloc(32, 7),
+          port: blocked.port,
+          processLock,
+          store,
+        }),
+      ).rejects.toThrow();
+
+      expect(() => ProcessLock.acquire(lockPath)).toThrow('already locked');
+    } finally {
+      processLock.release();
+      await blocked.release();
+      store.close();
+    }
+  });
+
   // The control for the case above. Reacquiring proves a release only if
   // acquiring while held would have failed — otherwise the assertion passes
   // whether or not anything was ever released.
