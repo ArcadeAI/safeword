@@ -164,7 +164,7 @@ case "$1 $2" in
   "pr checks") printf '%s\n' '${requiredChecksJson}' ;;
   "repo view") printf '%s\n' '{"defaultBranchRef":{"name":"main"}}' ;;
   "auth token") printf '%s\n' 'test-token' ;;
-  api*) printf '%s\n' '{"protected":false}' ;;
+  "api repos/acme/widget/branches/feature%2Fcloseout") printf '%s\n' '{"protected":false}' ;;
   *) exit 1 ;;
 esac
 `,
@@ -1401,6 +1401,9 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
       version: '0.0.0',
     });
     const byPath = new Map(assets.map(asset => [asset.relativePath, asset.content]));
+    expect(byPath.get('resources/scripts/closeout-cleanup.ts')).toBe(
+      readFileSync(nodePath.join(repoRoot, 'plugin/resources/scripts/closeout-cleanup.ts'), 'utf8'),
+    );
 
     expect(byPath.get('skills/closeout/SKILL.md')).toContain(
       '"${CLAUDE_PLUGIN_ROOT}"/resources/scripts/closeout-cleanup.ts',

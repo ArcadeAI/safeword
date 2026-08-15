@@ -956,12 +956,10 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       durableSpoolPath: '/repo/.safeword/retro-drafts/claude-task.jsonl',
     });
     expect(withPath.blockers).toEqual([]);
-    expect(withPath.recoveryBlockers).toEqual([]);
     expect(withPath.advisories).toEqual([
       'retrospective filing failed; resolve the filing failure',
       'the current session filing spool has pending drafts',
     ]);
-    expect(withPath.cleanupBlockers).toEqual([]);
     expect(withPath.operations).toEqual(completed.operations);
     expect(cleanupPlanDigest(withPath)).toBe(cleanupPlanDigest(completed));
   });
@@ -1222,8 +1220,6 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       const plan = buildCleanupPlan(safeObservation(overrides));
 
       expect(plan.blockers).toEqual([]);
-      expect(plan.cleanupBlockers).toEqual([]);
-      expect(plan.recoveryBlockers).toEqual([]);
       expect(plan.advisories).toContain(expectedAdvisory);
       expect(plan.operations).toHaveLength(3);
     },
@@ -1350,8 +1346,6 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     );
 
     expect(refreshed.blockers).toEqual([]);
-    expect(refreshed.cleanupBlockers).toEqual([]);
-    expect(refreshed.recoveryBlockers).toEqual([]);
     expect(refreshed.advisories).toContain('the current session retrospective is incomplete');
     expect(cleanupPlanDigest(refreshed)).toBe(cleanupPlanDigest(plan));
   });
@@ -1361,8 +1355,6 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       safeObservation({ verification: { ...safeObservation().verification, current: false } }),
     );
 
-    expect(plan.cleanupBlockers).toEqual(['local verification is stale']);
-    expect(plan.recoveryBlockers).toEqual([]);
     expect(plan.advisories).toEqual([]);
     expect(plan.blockers).toEqual(['local verification is stale']);
   });

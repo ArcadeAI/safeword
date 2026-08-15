@@ -110,8 +110,6 @@ export interface CleanupPlan {
   stateHash: string;
   retroStateHash: string;
   retro?: { spoolPath: string; durableSpoolPath?: string };
-  cleanupBlockers: string[];
-  recoveryBlockers: string[];
   blockers: string[];
   advisories: string[];
   completed: string[];
@@ -127,16 +125,11 @@ function normalizedRepository(url: string): string | undefined {
 }
 
 function block(plan: CleanupPlan, message: string): void {
-  if (!plan.cleanupBlockers.includes(message)) plan.cleanupBlockers.push(message);
   if (!plan.blockers.includes(message)) plan.blockers.push(message);
 }
 
 function advise(plan: CleanupPlan, message: string): void {
   if (!plan.advisories.includes(message)) plan.advisories.push(message);
-}
-
-function hasCleanupAuthorizationBlocker(plan: CleanupPlan): boolean {
-  return plan.cleanupBlockers.length > 0;
 }
 
 function collectPrerequisiteBlockers(
@@ -282,8 +275,6 @@ export function buildCleanupPlan(observation: CloseoutObservation): CleanupPlan 
     version: 2,
     stateHash: observation.verification.stateHash,
     retroStateHash: observation.retro.evidenceHash,
-    cleanupBlockers: [],
-    recoveryBlockers: [],
     blockers: [],
     advisories: [],
     completed: [],
@@ -319,7 +310,7 @@ export function buildCleanupPlan(observation: CloseoutObservation): CleanupPlan 
     observation.deliveryWorktreePath,
   );
   const survivingWorktree = defaultBranchWorktrees[0];
-  if (!hasCleanupAuthorizationBlocker(plan) && survivingWorktree) {
+  if (plan.blockers.length === 0 && survivingWorktree) {
     assembleOperations(plan, observation, pullRequest, topicWorktrees[0], survivingWorktree);
     if (plan.retro) {
       plan.retro.durableSpoolPath = nodePath.join(
@@ -338,8 +329,6 @@ export function cleanupPlanDigest(plan: CleanupPlan): string {
     retroStateHash: _retroStateHash,
     retro: _retro,
     advisories: _advisories,
-    recoveryBlockers: _recoveryBlockers,
-    blockers: _blockers,
     ...stableAuthorization
   } = plan;
   return createHash('sha256').update(JSON.stringify(stableAuthorization)).digest('hex');
@@ -946,6 +935,8 @@ interface TestPlanEntry {
 }
 
 interface VerificationReceipt {
+  // This is a performance cache for an already-observed clean HEAD, not an integrity boundary.
+  // Cleanup safety still comes from the plan digest and fresh target re-observation before mutation.
   version: 1;
   headOid: string;
   stateHash: string;
