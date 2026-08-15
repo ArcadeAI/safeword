@@ -33,23 +33,19 @@ The initial implementation and its five scenario proofs landed together in `77ab
 - [x] GREEN 77abbe01d
 - [x] REFACTOR skip: no scenario-local structural cleanup emerged after GREEN
 
-### Scenario: A detached reviewer that exits without a result fails terminally
-
-- [x] GREEN `packages/cli/tests/review/job.test.ts` — worker-exit regression
-
-### Scenario: A reviewer that exceeds its absolute deadline fails terminally
-
-- [x] GREEN `packages/cli/tests/review/runtime.test.ts` and `packages/cli/tests/cli-protocol/review-wiring.test.ts` — bounded timeout and typed terminal-result regressions
-
 ## Rule: finish-deep-reviews-in-background.TBU1.R2 — A collected result is bound to the source it reviewed
 
 ### Scenario: An unchanged reviewed source keeps its completed result
 
-- [x] GREEN `packages/cli/tests/review/job.test.ts` — collect completed result regression
+- [x] GREEN 586dab3e2
 
 ### Scenario: An unrelated source change does not stale a completed review
 
-- [x] GREEN `packages/cli/tests/review/job.test.ts` — unrelated-source regression
+- [x] GREEN 586dab3e2
+
+### Scenario: Restoring a reviewed source's identical content keeps its completed result
+
+- [x] GREEN abba47cd6
 
 ### Scenario: Source changes make a completed review stale
 
@@ -57,15 +53,19 @@ The initial implementation and its five scenario proofs landed together in `77ab
 
 ### Scenario: A tampered completed review result is not accepted
 
-- [x] GREEN `packages/cli/tests/review/job.test.ts` — verdict-forgery regression
+- [x] GREEN 586dab3e2
 
 ### Scenario: A tampered completed review binding is not accepted
 
-- [x] GREEN `packages/cli/tests/review/job.test.ts` — source-binding-forgery regression
+- [x] GREEN 586dab3e2
 
 ### Scenario: A changed bound context makes a completed review stale
 
-- [x] GREEN `packages/cli/tests/review/job.test.ts` — context-only staleness regression
+- [x] GREEN 586dab3e2
+
+### Scenario: Deleting a reviewed source makes a completed review stale
+
+- [x] GREEN abba47cd6
 
 ## Rule: finish-deep-reviews-in-background.TBU1.R3 — A builder can stop a review that is no longer useful
 
@@ -75,17 +75,35 @@ The initial implementation and its five scenario proofs landed together in `77ab
 - [x] GREEN 77abbe01d
 - [x] REFACTOR skip: no scenario-local structural cleanup emerged after GREEN
 
+### Scenario: Canceling a running review terminates its reviewer
+
+- [x] GREEN 586dab3e2
+
 ### Scenario: A late reviewer result cannot replace a canceled result
 
-- [x] GREEN `packages/cli/tests/review/job.test.ts` — terminal-cancellation regression
+- [x] GREEN 586dab3e2
 
 ### Scenario: Canceling a completed review preserves its completed result
 
-- [x] GREEN `packages/cli/tests/review/job.test.ts` — completed-cancel regression (focused CI verification queued)
+- [x] GREEN 586dab3e2
 
 ### Scenario: Canceling an unknown review is rejected
 
-- [x] GREEN `packages/cli/tests/review/job.test.ts` — unknown-ID regression
+- [x] GREEN 586dab3e2
+
+### Scenario: Collecting a malformed or unknown review is rejected
+
+- [x] GREEN abba47cd6
+
+## Rule: finish-deep-reviews-in-background.TBU1.R4 — A background review reaches a terminal result when it cannot complete
+
+### Scenario: A detached reviewer that exits without a result fails terminally
+
+- [x] GREEN 586dab3e2
+
+### Scenario: A reviewer that exceeds its controlled absolute deadline fails terminally
+
+- [x] GREEN abba47cd6
 
 ## Feature-level cross-scenario refactor
 
