@@ -157,15 +157,17 @@ observes hosted checks and reviews, and merges only when the current request
 explicitly grants normal or administrative merge authority. Invoking the skill
 by itself grants no merge authority.
 
-After GitHub confirms the exact PR head is merged, closeout runs the current
-session's retrospective. Cleanup cannot skip retro or borrow another session's
-receipt. The cleanup guard previews a digest-bound plan before applying it and
+After GitHub confirms the exact PR head is merged, closeout attempts the current
+session's retrospective without borrowing another session's receipt. Missing
+identity, incomplete extraction, malformed retro output, filing failures, and
+pending drafts are all advisory for cleanup. The result still reports when
+cleanup could discard captured but unfiled learning. The
+cleanup guard previews a digest-bound plan before applying it and
 removes only the exact linked worktree, remote branch, and local branch—in that
 order. Dirty, locked, protected, changed, default, main, ambiguous, or otherwise
 unverifiable targets are preserved and reported with recovery actions.
-Transcript growth between preview and apply refreshes the mandatory
-retrospective without invalidating authorization for unchanged cleanup targets.
-If that refresh finds unresolved work, cleanup remains blocked before mutation.
+Transcript growth between preview and apply refreshes retrospective capture
+without invalidating authorization for unchanged cleanup targets.
 
 The dependency audit is a delivery-readiness gate and must pass before merge.
 After merge, closeout rechecks the immutable head's verification, build,
@@ -175,7 +177,8 @@ that could make an already-merged head impossible to clean up later.
 Claude Code and Cursor bind closeout to the session captured by their hooks.
 Codex uses the same hook binding when available; in Codex Desktop it can use the
 authenticated `CODEX_THREAD_ID` supplied by the host when the one-shot hook
-bridge is unavailable. Missing or expired identity still fails closed.
+bridge is unavailable. Missing or expired identity is reported as advisory for
+cleanup and never permits borrowing a different session.
 
 If cleanup is interrupted after removing the topic worktree, the guard can
 resume from a surviving worktree using a private verification receipt in Git's

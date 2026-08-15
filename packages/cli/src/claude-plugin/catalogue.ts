@@ -94,10 +94,13 @@ function adaptWorkflowReference(content: string): string {
  * inline skill commands to use that host contract directly.
  */
 function adaptClaudeSkill(content: string): string {
-  const adapted = adaptWorkflowReference(content).replaceAll(
-    '!`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && ',
-    '!`',
-  );
+  const adapted = adaptWorkflowReference(content)
+    .replaceAll('`/verify`', '`/safeword:verify`')
+    .replaceAll('`/retro-filer`', '`/safeword:retro-filer`')
+    .replaceAll(
+      '!`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && ',
+      '!`',
+    );
   return stripTrailingWhitespace(
     adapted.replaceAll(
       /^!`([^`\n]*)`$/gmu,

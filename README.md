@@ -359,7 +359,7 @@ available.
 - `/explain` - Plain-English version of any safeword block, verdict, or your current state
 - `/lint` - Run linters and formatters
 - `/quality-review` - Deep code review with web research
-- `/closeout` - Verify, explicitly authorized merge, mandatory retro, and preview-first exact branch/worktree cleanup
+- `/closeout` - Verify, explicitly authorized merge and cleanup, capture retro learning, and remove exact branch/worktree targets
 - `/refactor` - Systematic refactoring with small-step discipline
 - `/spike` - Resolve one build-only kill-risk with a bounded disposable experiment
 - `/testing` - Test writing guidance and best practices
@@ -374,8 +374,10 @@ use hook-captured session identity, while Codex Desktop may use its authenticate
 `CODEX_THREAD_ID` when the one-shot hook bridge is unavailable. Missing, stale,
 malformed, dirty-state, or wrong-head proof blocks the remaining branch cleanup.
 If the bound transcript grows between preview and apply, closeout refreshes the
-mandatory retrospective while preserving authorization for unchanged cleanup
-targets; newly unresolved retrospective work still blocks every mutation.
+retrospective while preserving authorization for unchanged cleanup targets.
+Every retrospective outcome is advisory for cleanup, including missing identity,
+incomplete extraction, malformed output, filing failures, and pending drafts. The
+result still reports when cleanup could discard captured but unfiled learning.
 
 **MCP Servers** (in `.mcp.json` / `.cursor/mcp.json`): Auto-configured integrations
 
