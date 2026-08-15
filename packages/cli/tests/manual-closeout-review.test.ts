@@ -76,26 +76,27 @@ function sealedCommitCandidatesFrom(result: ReturnType<typeof git>): string[] {
   return result.stdout.toString('utf8').trim().split('\n').filter(Boolean);
 }
 
-function sealedCommit(manifest: Manifest): string | undefined {
+function sealedCommit(manifest: Manifest): string {
   const relativeManifest = nodePath.relative(repoRoot, manifestPath);
   const candidates = sealedCommitCandidatesFrom(
     git(['log', '--format=%H', '--', relativeManifest]),
   );
-  return candidates.find(commit =>
+  const commit = candidates.find(candidate =>
     manifest.inputs.every(input => {
-      const reviewed = git(['show', `${commit}:${input.path}`]);
+      const reviewed = git(['show', `${candidate}:${input.path}`]);
       if (reviewed.spawnFailed) {
         throw new Error(
-          `git show ${commit}:${input.path} could not run; cannot verify sealed input`,
+          `git show ${candidate}:${input.path} could not run; cannot verify sealed input`,
         );
       }
       return reviewed.status === 0 && input.sha256 === sha256(reviewed.stdout);
     }),
   );
+  if (!commit) throw new Error('no commit contains every sealed input at its reviewed digest');
+  return commit;
 }
 
-function reviewedInput(path: string, commit: string | undefined): Buffer {
-  if (!commit) return readFileSync(nodePath.join(repoRoot, path));
+function reviewedInput(path: string, commit: string): Buffer {
   const result = git(['show', `${commit}:${path}`]);
   if (result.spawnFailed) {
     // Reading the working tree here would compare the wrong bytes and report
@@ -103,7 +104,10 @@ function reviewedInput(path: string, commit: string | undefined): Buffer {
     // this test checks.
     throw new Error(`git show ${commit}:${path} could not run; cannot verify sealed input`);
   }
-  return result.status === 0 ? result.stdout : readFileSync(nodePath.join(repoRoot, path));
+  if (result.status !== 0) {
+    throw new Error(`git show ${commit}:${path} failed; cannot verify sealed input`);
+  }
+  return result.stdout;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -221,9 +225,7 @@ describe('hash-bound independent closeout review (93C14D)', () => {
     const manifest = JSON.parse(manifestBytes) as Manifest;
     const review = reviewJson(readFileSync(reviewPath, 'utf8'));
     const commit = sealedCommit(manifest);
-    if (commit) {
-      expect(git(['merge-base', '--is-ancestor', commit, 'HEAD']).status).toBe(0);
-    }
+    expect(git(['merge-base', '--is-ancestor', commit, 'HEAD']).status).toBe(0);
     const expectedScenarios = parseFeatureScenarios(
       reviewedInput('features/close-completed-sessions-safely.feature', commit).toString('utf8'),
     ).map((scenario, index) => ({ id: String(index + 1).padStart(2, '0'), title: scenario.title }));
