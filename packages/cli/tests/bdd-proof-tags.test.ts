@@ -245,6 +245,10 @@ describe('BDD proof provenance', () => {
 
   it.each([
     [
+      'retry-safe retro relay',
+      '.project/tickets/A9J9M8-operate-retry-safe-retro-relay/bdd-proof.json',
+    ],
+    [
       'portable tracker transport',
       '.project/tickets/CBTDK8-portable-tracker-transport/bdd-proof.json',
     ],
