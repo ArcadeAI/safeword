@@ -1,0 +1,25 @@
+{
+  "feature": "packages/cli/features/durable-independent-review.feature",
+  "scenarios": {
+    "A quick review returns its verdict inline": [
+      "packages/cli/tests/review/job.test.ts",
+      "returns a quick completed review inline"
+    ],
+    "A slow healthy review continues as a durable job": [
+      "packages/cli/tests/review/job.test.ts",
+      "returns a durable handle when the courtesy wait ends"
+    ],
+    "A detached review can be collected after its caller exits": [
+      "packages/cli/tests/review/job.test.ts",
+      "collects a detached review after the initiating CLI process exits"
+    ],
+    "Source changes make a completed review stale": [
+      "packages/cli/tests/review/job.test.ts",
+      "refuses a completed result after its reviewed source changes"
+    ],
+    "A running review is canceled explicitly": [
+      "packages/cli/tests/review/job.test.ts",
+      "cancels a running review without deleting its record"
+    ]
+  }
+}

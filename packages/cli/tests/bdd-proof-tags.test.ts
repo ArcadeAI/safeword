@@ -20,6 +20,9 @@ const REPO_ROOT = nodePath.resolve(import.meta.dirname, '../../..');
 const configuredFeatureFiles = collectExecutableFeatureFiles(REPO_ROOT).map(absolutePath =>
   nodePath.relative(REPO_ROOT, absolutePath).split(nodePath.sep).join('/'),
 );
+const defaultExcludedPathSegments = new Set(
+  configDefaults.exclude.flatMap(pattern => /^\*\*\/([^*{}]+)\/\*\*$/u.exec(pattern)?.[1] ?? []),
+);
 
 type ScenarioProof = [string, string, string?];
 type ScenarioProofRegistration = ScenarioProof | ScenarioProof[];
@@ -57,11 +60,8 @@ function proofRegistrations(value: unknown): ScenarioProof[] | undefined {
 }
 
 function proofManifestPaths(): string[] {
-  const ticketsRoot = nodePath.join(REPO_ROOT, '.project', 'tickets');
-  if (!existsSync(ticketsRoot)) return [];
-  return readdirSync(ticketsRoot, { withFileTypes: true })
-    .filter(entry => entry.isDirectory())
-    .map(entry => nodePath.join('.project', 'tickets', entry.name, 'bdd-proof.json'))
+  return configuredFeatureFiles
+    .map(featurePath => featurePath.replace(/\.feature$/u, '.bdd-proof.json'))
     .filter(relativePath => existsSync(nodePath.join(REPO_ROOT, relativePath)))
     .toSorted((left, right) => left.localeCompare(right));
 }
@@ -93,7 +93,7 @@ function isCollectedVitestProofPath(proofPath: string): boolean {
   const normalized = nodePath.posix.normalize(proofPath);
   if (normalized !== proofPath || normalized.startsWith('../')) return false;
   const pathSegments = new Set(proofPath.split('/'));
-  if (pathSegments.has('node_modules') || pathSegments.has('.git')) return false;
+  if ([...defaultExcludedPathSegments].some(segment => pathSegments.has(segment))) return false;
   return DEFAULT_VITEST_PROJECTS.some(project => {
     const prefix = `${project.root}/`;
     if (!proofPath.startsWith(prefix)) return false;
@@ -168,32 +168,31 @@ function isParameterizedTestTokens(tokens: string[]): boolean {
   return ['it', 'test'].includes(tokens[0] ?? '') && ['each', 'for'].includes(tokens.at(-1) ?? '');
 }
 
+function conditionAllows(call: ts.CallExpression, token: 'runIf' | 'skipIf'): boolean {
+  let current: ts.Expression = call.expression;
+  while (true) {
+    if (ts.isCallExpression(current)) {
+      // eslint-disable-next-line security/detect-possible-timing-attacks -- AST modifier names are public source text, not secrets.
+      if (expressionTokens(current.expression).at(-1) === token) {
+        const condition = current.arguments[0]?.kind;
+        return (
+          condition === (token === 'runIf' ? ts.SyntaxKind.TrueKeyword : ts.SyntaxKind.FalseKeyword)
+        );
+      }
+      current = current.expression;
+      continue;
+    }
+    if (ts.isPropertyAccessExpression(current) || ts.isElementAccessExpression(current)) {
+      current = current.expression;
+      continue;
+    }
+    return false;
+  }
+}
+
 function executableVitestNames(source: string): string[] {
   const sourceFile = ts.createSourceFile('proof.test.ts', source, ts.ScriptTarget.Latest, true);
   const names: string[] = [];
-
-  function conditionAllows(call: ts.CallExpression, token: 'runIf' | 'skipIf'): boolean {
-    let current: ts.Expression = call.expression;
-    while (true) {
-      if (ts.isCallExpression(current)) {
-        // eslint-disable-next-line security/detect-possible-timing-attacks -- AST modifier names are public source text, not secrets.
-        if (expressionTokens(current.expression).at(-1) === token) {
-          const condition = current.arguments[0]?.kind;
-          return (
-            condition ===
-            (token === 'runIf' ? ts.SyntaxKind.TrueKeyword : ts.SyntaxKind.FalseKeyword)
-          );
-        }
-        current = current.expression;
-        continue;
-      }
-      if (ts.isPropertyAccessExpression(current) || ts.isElementAccessExpression(current)) {
-        current = current.expression;
-        continue;
-      }
-      return false;
-    }
-  }
 
   function hasExecutableTestBody(call: ts.CallExpression): boolean {
     const body = call.arguments
@@ -293,6 +292,7 @@ function parameterizedVitestCases(source: string): Map<string, ParameterizedCase
     return current;
   }
 
+  // eslint-disable-next-line complexity -- every branch is one supported TypeScript literal form.
   function literalValue(node: ts.Expression): string | undefined {
     const value = unwrap(node);
     if (
@@ -304,6 +304,15 @@ function parameterizedVitestCases(source: string): Map<string, ParameterizedCase
     }
     if (value.kind === ts.SyntaxKind.TrueKeyword) return 'true';
     if (value.kind === ts.SyntaxKind.FalseKeyword) return 'false';
+    if (value.kind === ts.SyntaxKind.NullKeyword) return 'null';
+    if (ts.isIdentifier(value) && value.text === 'undefined') return 'undefined';
+    if (
+      ts.isPrefixUnaryExpression(value) &&
+      value.operator === ts.SyntaxKind.MinusToken &&
+      ts.isNumericLiteral(value.operand)
+    ) {
+      return `-${value.operand.text}`;
+    }
     return undefined;
   }
 
@@ -322,7 +331,7 @@ function parameterizedVitestCases(source: string): Map<string, ParameterizedCase
       .toArray();
     const positionalPlaceholderCount = testName
       .replaceAll('%%', '')
-      .matchAll(/%[sdifjo#]/gu)
+      .matchAll(/%[sdifjop#$]/gu)
       .toArray().length;
     const cases = table.elements.flatMap(rowNode => {
       const row = unwrap(rowNode);
@@ -359,9 +368,13 @@ function parameterizedVitestCases(source: string): Map<string, ParameterizedCase
     for (let current: ts.Node | undefined = node; current !== undefined; current = current.parent) {
       if (!ts.isCallExpression(current)) continue;
       const tokens = expressionTokens(current.expression);
+      const declaration = ['it', 'test', 'describe', 'suite'].includes(tokens[0] ?? '');
+      const conditionDisables =
+        (tokens.includes('runIf') && !conditionAllows(current, 'runIf')) ||
+        (tokens.includes('skipIf') && !conditionAllows(current, 'skipIf'));
       if (
-        ['it', 'test', 'describe', 'suite'].includes(tokens[0] ?? '') &&
-        tokens.some(token => ['skip', 'todo', 'only', 'runIf', 'skipIf'].includes(token))
+        declaration &&
+        (tokens.some(token => ['skip', 'todo', 'only'].includes(token)) || conditionDisables)
       ) {
         return true;
       }
@@ -426,7 +439,6 @@ function expectScenarioProofs(manifest: ScenarioProofManifest): void {
     string,
     { executableNames: string[]; parameterCases: Map<string, ParameterizedCases> }
   >();
-  const registrationCounts = new Map<string, number>();
   function proofContract(proofPath: string) {
     const cached = proofContracts.get(proofPath);
     if (cached !== undefined) return cached;
@@ -441,12 +453,6 @@ function expectScenarioProofs(manifest: ScenarioProofManifest): void {
     };
     proofContracts.set(proofPath, contract);
     return contract;
-  }
-  for (const registration of Object.values(manifest.scenarios)) {
-    for (const [proofPath, testName] of registeredProofs(registration)) {
-      const key = `${proofPath}\0${testName}`;
-      registrationCounts.set(key, (registrationCounts.get(key) ?? 0) + 1);
-    }
   }
   function proofCoverageUnits(scenario: string, proofRegistration: ScenarioProof): number {
     const [proofPath, testName, selectedCase] = proofRegistration;
@@ -477,8 +483,7 @@ function expectScenarioProofs(manifest: ScenarioProofManifest): void {
       parameterized.staticallyEnumerable,
       `${scenario} -> ${testName} must use a statically enumerable table`,
     ).toBe(true);
-    const registrationCount = registrationCounts.get(`${proofPath}\0${testName}`) ?? 0;
-    if (registrationCount === 1 && selectedCase === undefined) return parameterized.cases.length;
+    if (selectedCase === undefined) return parameterized.cases.length;
 
     expect(selectedCase, `${scenario} -> ${testName} must select one table case`).toBeDefined();
     expect(
@@ -546,15 +551,30 @@ function scenarioExampleCounts(featurePath: string): Map<string, number> {
 function featureHasTag(featurePath: string, tag: string): boolean {
   const feature = parseFeature(featurePath).feature;
   if (feature === undefined) return false;
-  const tags = [
-    ...feature.tags,
-    ...feature.children.flatMap(child => [
-      ...(child.scenario?.tags ?? []),
-      ...(child.rule?.tags ?? []),
-      ...(child.rule?.children.flatMap(ruleChild => ruleChild.scenario?.tags ?? []) ?? []),
-    ]),
-  ];
-  return tags.some(candidate => candidate.name === tag);
+  return feature.tags.some(candidate => candidate.name === tag);
+}
+
+function nestedFeatureTags(featurePath: string, tag: string): string[] {
+  const feature = parseFeature(featurePath).feature;
+  if (feature === undefined) return [];
+  return feature.children.flatMap(child => {
+    const scenario = child.scenario;
+    const rule = child.rule;
+    return [
+      ...(scenario?.tags.some(candidate => candidate.name === tag) === true ? [scenario.name] : []),
+      ...(rule?.tags.some(candidate => candidate.name === tag) === true ? [rule.name] : []),
+      ...(rule?.children.flatMap(ruleChild => {
+        const ruleScenario = ruleChild.scenario;
+        return ruleScenario?.tags.some(candidate => candidate.name === tag) === true
+          ? [ruleScenario.name]
+          : [];
+      }) ?? []),
+    ];
+  });
+}
+
+function featureOrNestedHasTag(featurePath: string, tag: string): boolean {
+  return featureHasTag(featurePath, tag) || nestedFeatureTags(featurePath, tag).length > 0;
 }
 
 describe('BDD proof provenance', () => {
@@ -566,6 +586,13 @@ describe('BDD proof provenance', () => {
   });
 
   it('keeps the proof manifest complete', () => {
+    const nestedProofTags = configuredFeatureFiles.flatMap(featurePath =>
+      nestedFeatureTags(featurePath, '@proof.vitest').map(name => ({ featurePath, name })),
+    );
+    expect(
+      nestedProofTags,
+      '@proof.vitest is a feature-level lane; scenario and Rule tags are ambiguous',
+    ).toEqual([]);
     const taggedFeatures = configuredFeatureFiles
       .filter(featurePath => featureHasTag(featurePath, '@proof.vitest'))
       .toSorted((left, right) => left.localeCompare(right));
@@ -584,7 +611,7 @@ describe('BDD proof provenance', () => {
       const manifest = readProofManifest(manifestPath);
       expect(featureHasTag(manifest.feature, '@proof.vitest')).toBe(true);
       expect(
-        featureHasTag(manifest.feature, '@wip'),
+        featureOrNestedHasTag(manifest.feature, '@wip'),
         `${manifest.feature} cannot combine @proof.vitest with @wip at feature, rule, or scenario scope`,
       ).toBe(false);
       expectScenarioProofs(manifest);
@@ -654,6 +681,8 @@ describe('BDD proof provenance', () => {
       it.each([['alpha', 'incidental'], ['beta', 'also incidental']])('primitive %s', () => {});
       test.each([{ state: 'ready' }, { state: 'blocked' }])('object $state', () => {});
       test.each([{ state: 'ready', result: 'go' }])('multi $state $result', () => {});
+      it.each([[-1, null, undefined]])('extended %p %$ %s', () => {});
+      it.runIf(true).each(['enabled'])('conditional %s', () => {});
     `);
 
     expect(cases.get('primitive %s')).toEqual({
@@ -666,6 +695,14 @@ describe('BDD proof provenance', () => {
     });
     expect(cases.get('multi $state $result')).toEqual({
       cases: ['["ready","go"]'],
+      staticallyEnumerable: true,
+    });
+    expect(cases.get('extended %p %$ %s')).toEqual({
+      cases: ['["-1","null","undefined"]'],
+      staticallyEnumerable: true,
+    });
+    expect(cases.get('conditional %s')).toEqual({
+      cases: ['enabled'],
       staticallyEnumerable: true,
     });
     expect(

@@ -15,6 +15,30 @@ import type { SafewordWorld } from './world.js';
 
 const execFileAsync = promisify(execFile);
 const RELAY_PROOF_TIMEOUT_MS = 180_000;
+const relayProofManifest = JSON.parse(
+  readFileSync(
+    new URL('../features/operate-retry-safe-retro-relay.bdd-proof.json', import.meta.url),
+    'utf8',
+  ),
+) as { scenarios: Record<string, [string, string, string?] | [string, string, string?][]> };
+
+function manifestProofTarget(scenarioName: string): {
+  packageDirectory: string;
+  testFile: string;
+} {
+  const registration = relayProofManifest.scenarios[scenarioName];
+  assert.ok(registration, `missing manifest proof for ${scenarioName}`);
+  const proof = typeof registration[0] === 'string' ? registration : registration[0];
+  assert.ok(proof, `missing manifest proof target for ${scenarioName}`);
+  const proofPath = proof[0];
+  const packageDirectory = proofPath.startsWith('packages/retro-relay/')
+    ? 'packages/retro-relay'
+    : 'packages/cli';
+  return {
+    packageDirectory,
+    testFile: nodePath.posix.relative(packageDirectory, proofPath),
+  };
+}
 
 const scenarioProofIds: Record<string, string> = {
   'Each harness submits the exact request persisted by another harness': 'ORR-001',
@@ -251,7 +275,10 @@ export const scenarioProofs: Record<string, ScenarioProof> = Object.fromEntries(
   Object.entries(rawScenarioProofs).map(([scenarioName, details]) => {
     const proofId = scenarioProofIds[scenarioName];
     assert.ok(proofId, `missing stable proof ID for ${scenarioName}`);
-    return [scenarioName, { expectedTests: 1, ...details, proofId }];
+    return [
+      scenarioName,
+      { expectedTests: 1, ...details, ...manifestProofTarget(scenarioName), proofId },
+    ];
   }),
 );
 

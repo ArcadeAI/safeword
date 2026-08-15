@@ -3413,7 +3413,7 @@ describe('relay readiness provenance', () => {
     ).resolves.toEqual({ enabled: false });
   });
 
-  it('uses build-embedded evidence without consulting the customer repository', async () => {
+  it('[ORR-011] uses build-embedded evidence without consulting the customer repository', async () => {
     const manifest = validManifest();
     const result = await validateBuildAttestedRelayReadiness(
       manifest,

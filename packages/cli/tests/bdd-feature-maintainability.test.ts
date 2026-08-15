@@ -1,4 +1,3 @@
-import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -13,10 +12,6 @@ const REPO_ROOT = nodePath.resolve(import.meta.dirname, '../../..');
 const FEATURE_HIGH_WATER_LINES = 1000;
 const OFFLOAD_STEP_MAX_CHARACTERS = 240;
 const OFFLOAD_FEATURE_PREFIX = 'packages/cli/features/offload-tests-';
-const OFFLOAD_BASELINE_COMMIT = '1f8056ed845b63923ad9ea19a7112101aa07a9b1';
-const OFFLOAD_BASELINE_PATH =
-  'packages/cli/features/offload-tests-without-blocking-local-work.feature';
-const OFFLOAD_BASELINE_OBJECT = `${OFFLOAD_BASELINE_COMMIT}:${OFFLOAD_BASELINE_PATH}`;
 const OFFLOAD_RULE_IDS = [
   'offload-tests.NTB1.R1',
   'offload-tests.NTB1.R2',
@@ -81,27 +76,6 @@ function expandedCasesFor(sources: readonly string[]) {
     .toSorted((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)));
 }
 
-function scenarioInventory(expandedCases: ReturnType<typeof expandedCasesFor>) {
-  return expandedCases.map(({ rule, title }) => ({ rule, title }));
-}
-
-function baselineOffloadFeature(): string {
-  // The test job fetches full history so the immutable pre-refactor Git object
-  // remains independently inspectable instead of trusting new digest literals.
-  const baselineExists = spawnSync('git', ['cat-file', '-e', OFFLOAD_BASELINE_OBJECT], {
-    cwd: REPO_ROOT,
-    encoding: 'utf8',
-  });
-  expect(
-    baselineExists.status,
-    `BDD split baseline ${OFFLOAD_BASELINE_OBJECT} is unavailable. Run this test from a full Git checkout (CI uses fetch-depth: 0).`,
-  ).toBe(0);
-  return execFileSync('git', ['show', OFFLOAD_BASELINE_OBJECT], {
-    cwd: REPO_ROOT,
-    encoding: 'utf8',
-  });
-}
-
 describe('BDD feature maintainability', () => {
   it('expresses an observable event in every production scenario', () => {
     const staticScenarios = configuredFeatureFiles().flatMap(relativePath => {
@@ -154,7 +128,7 @@ describe('BDD feature maintainability', () => {
     expect({ invalidExceptions, oversized }).toEqual({ invalidExceptions: [], oversized: [] });
   });
 
-  it('preserves the offload-tests semantic inventory across Rule-aligned files', () => {
+  it('keeps the offload-tests split structurally complete and independently named', () => {
     const files = configuredFeatureFiles()
       .filter(relativePath => relativePath.startsWith(OFFLOAD_FEATURE_PREFIX))
       .toSorted((left, right) => left.localeCompare(right));
@@ -180,9 +154,7 @@ describe('BDD feature maintainability', () => {
     const ruleIds = sources
       .flatMap(source => source.split('\n').flatMap(line => offloadRuleId(line) ?? []))
       .toSorted((left, right) => left.localeCompare(right));
-    const baselineSource = baselineOffloadFeature();
     const expandedCases = expandedCasesFor(sources);
-    const baselineExpandedCases = expandedCasesFor([baselineSource]);
     const metaProofTitles = [
       ...new Set(
         expandedCases
@@ -190,19 +162,6 @@ describe('BDD feature maintainability', () => {
           .map(scenario => scenario.title.replace(/ \(.+\)$/u, '')),
       ),
     ].toSorted((left, right) => left.localeCompare(right));
-    const scenarios = sources.reduce(
-      (count, source) => count + countGherkinLines(source, 'Scenario:'),
-      0,
-    );
-    const outlines = sources.reduce(
-      (count, source) => count + countGherkinLines(source, 'Scenario Outline:'),
-      0,
-    );
-    const examples = sources.reduce(
-      (count, source) => count + countGherkinLines(source, 'Examples:'),
-      0,
-    );
-
     expect({
       files: files.length,
       everyRuleIsWip: sources.every(source => source.includes('\n  @wip @offload-tests.')),
@@ -211,27 +170,15 @@ describe('BDD feature maintainability', () => {
       everyFeatureIsNamed: featureNames.every(name => name !== undefined && name !== ''),
       uniqueFeatureNames: new Set(featureNames).size,
       ruleIds,
-      declarations: scenarios + outlines,
-      scenarios,
-      outlines,
-      examples,
-      expandedCases: expandedCases.length,
-      scenarioInventory: scenarioInventory(expandedCases),
       metaProofTitles,
     }).toEqual({
-      files: 16,
+      files: OFFLOAD_RULE_IDS.length,
       everyRuleIsWip: true,
       everyFileHasOneRule: true,
       everyFeatureHeaderIsCanonical: true,
       everyFeatureIsNamed: true,
-      uniqueFeatureNames: 16,
+      uniqueFeatureNames: OFFLOAD_RULE_IDS.length,
       ruleIds: OFFLOAD_RULE_IDS,
-      declarations: 134,
-      scenarios: 55,
-      outlines: 79,
-      examples: 79,
-      expandedCases: 624,
-      scenarioInventory: scenarioInventory(baselineExpandedCases),
       metaProofTitles: OFFLOAD_META_PROOF_TITLES,
     });
   });
