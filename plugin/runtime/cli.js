@@ -2493,6 +2493,9 @@ function suggestionForFailure(failure, label) {
   if (failure === "not_installed") {
     return `To add independent coverage, install or update ${label}, then retry review.`;
   }
+  if (failure === "untrusted_install") {
+    return `To add independent coverage, move ${label} to a trusted non-writable-by-group directory, then retry review.`;
+  }
   if (failure === "unsupported") {
     return `To add independent coverage, update ${label}, then retry review.`;
   }
@@ -43357,10 +43360,11 @@ function minimumRouteMs(env = process.env) {
 function reviewTimeoutMilliseconds(_reviewer, env = process.env) {
   const raw = env.SAFEWORD_REVIEW_TIMEOUT_MS;
   const configured = raw === undefined ? NaN : Number(raw);
-  const ceiling = reviewRunCeiling(env);
+  const ceiling = runBoundMs(env);
   const defaultDeadline = env.SAFEWORD_REVIEW_WORKER === "1" ? BACKGROUND_ATTEMPT_DEADLINE_MS : DEFAULT_ATTEMPT_DEADLINE_MS;
-  const maximumAttempt = Math.max(1, ceiling - 60000);
-  return Number.isFinite(configured) && configured > 0 ? Math.min(configured, maximumAttempt) : defaultDeadline;
+  const maximumAttempt = ceiling > 60000 ? ceiling - 60000 : ceiling;
+  const requested = Number.isFinite(configured) && configured > 0 ? configured : defaultDeadline;
+  return Math.min(requested, maximumAttempt);
 }
 function attemptDeadlineMs(env = process.env) {
   return reviewTimeoutMilliseconds("claude", env);
@@ -43373,7 +43377,7 @@ function parseJson(value) {
 }
 function parseClaudeOutput(stdout) {
   const envelope = parseJson(stdout);
-  if (isRecord3(envelope) && "structured_output" in envelope) {
+  if (isRecord3(envelope) && isRecord3(envelope.structured_output)) {
     return envelope.structured_output;
   }
   if (isRecord3(envelope) && typeof envelope.result === "string") {
@@ -43479,6 +43483,7 @@ function remainingReviewTime(deadline, reviewer, lastFailure) {
 function executableCandidates(reviewer, untrustedRoot) {
   const extensions = process.platform === "win32" ? (process.env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD").split(";").map((extension) => extension.toLowerCase()) : [""];
   const candidates = (process.env.PATH ?? "").split(nodePath81.delimiter).filter((directory) => directory !== "" && nodePath81.isAbsolute(directory)).flatMap((directory) => extensions.map((extension) => nodePath81.join(directory, `${reviewer}${extension}`)));
+  let rejectedForTrust = false;
   const canonicalCandidates = candidates.flatMap((candidate) => {
     if (inside(untrustedRoot, candidate))
       return [];
@@ -43487,14 +43492,22 @@ function executableCandidates(reviewer, untrustedRoot) {
       if (!outsideUntrustedRoot(untrustedRoot, canonical))
         return [];
       accessSync2(canonical, constants4.X_OK);
-      if (!hasTrustedExecutableAncestry(canonical))
+      if (!hasTrustedExecutableAncestry(canonical)) {
+        rejectedForTrust = true;
         return [];
+      }
       return [canonical];
     } catch {
       return [];
     }
   });
-  return [...new Set(canonicalCandidates)];
+  return { paths: [...new Set(canonicalCandidates)], rejectedForTrust };
+}
+function unavailableReviewerError(reviewer, rejectedForTrust) {
+  if (rejectedForTrust) {
+    return new ReviewRuntimeError("untrusted_install", `${reviewer} reviewer installation has an untrusted writable ancestor`);
+  }
+  return new ReviewRuntimeError("not_installed", `No compatible ${reviewer} reviewer is installed`);
 }
 async function supportsReviewContract(reviewer, executable, cwd, timeoutMs, model) {
   const child = spawn(executable, HELP_ARGUMENTS[reviewer], {
@@ -43782,10 +43795,9 @@ async function runReviewerCandidates(attempt, candidates, deadline) {
   let foundCompatible = false;
   let lastFailure;
   let lastProbeFailure;
-  for (const [index, candidate] of candidates.entries()) {
+  for (const candidate of candidates) {
     const remainingMs = remainingReviewTime(deadline, reviewer, lastFailure);
-    const untried = candidates.length - index;
-    const candidateDeadline = Date.now() + remainingMs / untried;
+    const candidateDeadline = Date.now() + remainingMs;
     const probeBudget = Math.min(5000, remainingReviewTime(candidateDeadline, reviewer));
     const assessment = await supportsReviewContract(reviewer, candidate, attempt.cwd, probeBudget, attempt.model);
     if (assessment.kind === "failed") {
@@ -43814,8 +43826,8 @@ async function runHeadlessReviewer(reviewer, packet, cwd, untrustedRoot = proces
   const { model, runDeadline } = options;
   const deadline = Math.min(Date.now() + attemptDeadlineMs(), runDeadline ?? Infinity);
   const candidates = executableCandidates(reviewer, untrustedRoot);
-  if (candidates.length === 0) {
-    throw new ReviewRuntimeError("not_installed", `No trusted compatible ${reviewer} reviewer was found`);
+  if (candidates.paths.length === 0) {
+    throw unavailableReviewerError(reviewer, candidates.rejectedForTrust);
   }
   let contract;
   try {
@@ -43824,7 +43836,7 @@ async function runHeadlessReviewer(reviewer, packet, cwd, untrustedRoot = proces
     throw new ReviewRuntimeError("process_failed", `The ${reviewer} review could not be prepared`);
   }
   try {
-    return await runReviewerCandidates({ reviewer, packet, cwd, model, schemaPath: contract?.path }, candidates, deadline);
+    return await runReviewerCandidates({ reviewer, packet, cwd, model, schemaPath: contract?.path }, candidates.paths, deadline);
   } finally {
     contract?.cleanup();
   }
@@ -43840,7 +43852,7 @@ function writeContractFile() {
     }
   };
 }
-var REVIEW_OUTPUT_SCHEMA_SHAPE, REVIEW_OUTPUT_SCHEMA, ARGUMENTS, HELP_ARGUMENTS, REQUIRED_CAPABILITIES, MAX_OUTPUT_BYTES, REVIEW_RUBRICS, ReviewRuntimeError, DEFAULT_ATTEMPT_DEADLINE_MS = 120000, RUN_BOUND_MS = 270000, BACKGROUND_RUN_BOUND_MS = 1800000, BACKGROUND_ATTEMPT_DEADLINE_MS = 600000, CLEANUP_BUDGET_MS = 250, PROCESS_GROUP_POLL_INTERVAL_MS = 5, WINDOWS_CLEANUP_BUDGET_MS = 1000, reviewerStops;
+var REVIEW_OUTPUT_SCHEMA_SHAPE, REVIEW_OUTPUT_SCHEMA, ARGUMENTS, HELP_ARGUMENTS, REQUIRED_CAPABILITIES, MAX_OUTPUT_BYTES, REVIEW_RUBRICS, ReviewRuntimeError, DEFAULT_ATTEMPT_DEADLINE_MS = 120000, RUN_BOUND_MS = 270000, BACKGROUND_RUN_BOUND_MS = 1800000, BACKGROUND_ATTEMPT_DEADLINE_MS = 600000, CLEANUP_BUDGET_MS = 250, PROCESS_GROUP_POLL_INTERVAL_MS = 25, WINDOWS_CLEANUP_BUDGET_MS = 1000, reviewerStops;
 var init_runtime = __esm(() => {
   init_environment();
   REVIEW_OUTPUT_SCHEMA_SHAPE = {
@@ -44058,6 +44070,8 @@ function nextStepFor(reviewer, failure) {
   const name = agentName(reviewer);
   if (failure === "not_installed")
     return `Install or update ${name}, then run the review again.`;
+  if (failure === "untrusted_install")
+    return `Move ${name} to a trusted non-writable-by-group directory, then run the review again.`;
   if (failure === "unsupported")
     return `Update ${name}, then run the review again.`;
   if (failure === "probe_timed_out")
@@ -44373,7 +44387,7 @@ async function runAlternateModelRoute(input) {
     return { kind: "completed", result: changedResult };
   const assessment = assessFallback(outcome, input.reviewer, prepared.packet.dispatch_id);
   if (assessment.kind === "failed") {
-    if (assessment.failure === "not_installed" || assessment.failure === "unsupported")
+    if (ALTERNATE_MODEL_SKIP_FAILURES.has(assessment.failure))
       return { kind: "skipped" };
     return { ...assessment, model };
   }
@@ -44548,7 +44562,7 @@ async function runReview(input) {
   const output = provenance.output;
   return independentReviewResult({ author: pair.author, reviewer, output, model: primaryModel });
 }
-var MAX_TERMINAL_REVIEWER_TEXT_LENGTH = 2000, FAILURE_CAUSES, NON_ATTEMPT_FAILURES;
+var MAX_TERMINAL_REVIEWER_TEXT_LENGTH = 2000, FAILURE_CAUSES, NON_ATTEMPT_FAILURES, ALTERNATE_MODEL_SKIP_FAILURES;
 var init_coordinator = __esm(() => {
   init_run_identity();
   init_result();
@@ -44559,6 +44573,7 @@ var init_coordinator = __esm(() => {
     process_failed: "exited before returning a review",
     timed_out: "ran out of time",
     not_installed: "was not found on PATH",
+    untrusted_install: "was found under an untrusted writable directory",
     unsupported: "does not support the required review flags",
     probe_timed_out: "did not complete its compatibility check in time",
     launch_failed: "could not launch its compatibility check",
@@ -44570,9 +44585,15 @@ var init_coordinator = __esm(() => {
   };
   NON_ATTEMPT_FAILURES = new Set([
     "not_installed",
+    "untrusted_install",
     "unsupported",
     "launch_failed",
     "probe_timed_out"
+  ]);
+  ALTERNATE_MODEL_SKIP_FAILURES = new Set([
+    "not_installed",
+    "untrusted_install",
+    "unsupported"
   ]);
 });
 

@@ -112,6 +112,12 @@ describe('headless reviewer output adapters', () => {
     expect(parseReviewerOutput('claude', envelope)).toEqual(output);
   });
 
+  it('falls back to Claude result JSON when structured output is unusable', () => {
+    const envelope = JSON.stringify({ structured_output: 0, result: JSON.stringify(output) });
+
+    expect(parseReviewerOutput('claude', envelope)).toEqual(output);
+  });
+
   it('extracts the last agent message from Codex JSONL events', () => {
     const codexOutput = { ...output, reviewer_agent: 'codex' as const };
     const stdout = [
@@ -139,7 +145,7 @@ describe('headless reviewer output adapters', () => {
     expect(parseReviewerOutput('claude', JSON.stringify(output))).toEqual(output);
   });
 
-  it.each([
+  it.skipIf(process.platform === 'win32').each([
     ['wrong schema version', { ...output, schema_version: 2 }],
     ['unknown verdict', { ...output, verdict: 'looks-good' }],
     ['missing summary', { ...output, summary: undefined }],
@@ -334,6 +340,33 @@ printf '%s' '${JSON.stringify({ structured_output: output })}'
       ),
     ).rejects.toMatchObject({ failure });
   });
+
+  it.skipIf(process.platform === 'win32')(
+    'classifies a present reviewer under a group-writable directory as untrusted',
+    async () => {
+      const bin = trustedTemporaryDirectory();
+      const project = temporaryDirectory();
+      const untrustedRoot = temporaryDirectory();
+      const executable = nodePath.join(bin, 'claude');
+      writeFileSync(executable, '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+      chmodSync(bin, 0o775);
+      vi.stubEnv('PATH', bin);
+
+      await expect(
+        runHeadlessReviewer(
+          'claude',
+          {
+            schema_version: 1,
+            dispatch_id: 'untrusted-install',
+            kind: 'quality-review',
+            logical_files: [],
+          },
+          project,
+          untrustedRoot,
+        ),
+      ).rejects.toMatchObject({ failure: 'untrusted_install' });
+    },
+  );
 
   it.skipIf(process.platform === 'win32')(
     'kills reviewer descendants after a timeout',

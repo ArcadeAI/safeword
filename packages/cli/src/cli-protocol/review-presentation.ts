@@ -148,6 +148,9 @@ function suggestionForFailure(failure: unknown, label: string): string | undefin
   if (failure === 'not_installed') {
     return `To add independent coverage, install or update ${label}, then retry review.`;
   }
+  if (failure === 'untrusted_install') {
+    return `To add independent coverage, move ${label} to a trusted non-writable-by-group directory, then retry review.`;
+  }
   if (failure === 'unsupported') {
     return `To add independent coverage, update ${label}, then retry review.`;
   }

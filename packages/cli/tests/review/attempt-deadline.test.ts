@@ -62,7 +62,8 @@ describe('run bound', () => {
     };
 
     expect(runBoundMs(env)).toBe(90_000);
-    expect(minimumRouteMs(env)).toBe(45_000);
+    expect(attemptDeadlineMs(env)).toBe(30_000);
+    expect(minimumRouteMs(env)).toBe(30_000);
   });
 
   it('defaults to the documented ceiling', () => {

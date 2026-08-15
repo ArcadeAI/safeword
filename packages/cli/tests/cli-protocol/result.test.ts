@@ -456,6 +456,10 @@ describe('CLI result protocol', () => {
 
   it.each([
     ['not_installed', 'To add independent coverage, install or update Claude, then retry review.'],
+    [
+      'untrusted_install',
+      'To add independent coverage, move Claude to a trusted non-writable-by-group directory, then retry review.',
+    ],
     ['not_authenticated', 'To add independent coverage, sign in to Claude, then retry review.'],
     ['timed_out', 'To add independent coverage, retry Claude review.'],
     ['process_failed', 'To add independent coverage, retry Claude review.'],

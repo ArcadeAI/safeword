@@ -195,6 +195,7 @@ const FAILURE_CAUSES: Readonly<Record<string, string>> = {
   process_failed: 'exited before returning a review',
   timed_out: 'ran out of time',
   not_installed: 'was not found on PATH',
+  untrusted_install: 'was found under an untrusted writable directory',
   unsupported: 'does not support the required review flags',
   probe_timed_out: 'did not complete its compatibility check in time',
   launch_failed: 'could not launch its compatibility check',
@@ -234,6 +235,8 @@ function exhaustedExplanation(
 function nextStepFor(reviewer: ReviewAgent, failure: ReviewFailure): string {
   const name = agentName(reviewer);
   if (failure === 'not_installed') return `Install or update ${name}, then run the review again.`;
+  if (failure === 'untrusted_install')
+    return `Move ${name} to a trusted non-writable-by-group directory, then run the review again.`;
   if (failure === 'unsupported') return `Update ${name}, then run the review again.`;
   if (failure === 'probe_timed_out') return `Run ${name} --help to diagnose it, then retry review.`;
   if (failure === 'launch_failed')
@@ -386,9 +389,15 @@ function reviewRequest(reviewer: ReviewAgent): Effect {
 
 const NON_ATTEMPT_FAILURES: ReadonlySet<ReviewFailure> = new Set([
   'not_installed',
+  'untrusted_install',
   'unsupported',
   'launch_failed',
   'probe_timed_out',
+]);
+const ALTERNATE_MODEL_SKIP_FAILURES: ReadonlySet<ReviewFailure> = new Set([
+  'not_installed',
+  'untrusted_install',
+  'unsupported',
 ]);
 
 function networkEffectsForFailure(
@@ -680,8 +689,7 @@ async function runAlternateModelRoute(
     // A configured model is not a usable route when no installed candidate
     // advertises model selection. Capability rejection is a skip, not a review
     // attempt or failure, so it must not displace the funded fallback route.
-    if (assessment.failure === 'not_installed' || assessment.failure === 'unsupported')
-      return { kind: 'skipped' };
+    if (ALTERNATE_MODEL_SKIP_FAILURES.has(assessment.failure)) return { kind: 'skipped' };
     return { ...assessment, model };
   }
   const output = assessment.output;

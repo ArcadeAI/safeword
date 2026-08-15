@@ -4,6 +4,7 @@ export type ReviewKind = 'quality-review' | 'scenario-gate' | 'plan-implementati
 export type ReviewPolicy = 'prefer' | 'require' | 'off';
 export type ReviewFailure =
   | 'not_installed'
+  | 'untrusted_install'
   | 'unsupported'
   | 'probe_timed_out'
   | 'launch_failed'

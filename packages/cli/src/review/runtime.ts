@@ -226,15 +226,14 @@ export function reviewTimeoutMilliseconds(
   // `Number('')` and `Number('  ')` are 0, and `Number('90s')` is NaN — both
   // fall through to the default rather than silently shortening a review.
   const configured = raw === undefined ? NaN : Number(raw);
-  const ceiling = reviewRunCeiling(env);
+  const ceiling = runBoundMs(env);
   const defaultDeadline =
     env.SAFEWORD_REVIEW_WORKER === '1'
       ? BACKGROUND_ATTEMPT_DEADLINE_MS
       : DEFAULT_ATTEMPT_DEADLINE_MS;
-  const maximumAttempt = Math.max(1, ceiling - 60_000);
-  return Number.isFinite(configured) && configured > 0
-    ? Math.min(configured, maximumAttempt)
-    : defaultDeadline;
+  const maximumAttempt = ceiling > 60_000 ? ceiling - 60_000 : ceiling;
+  const requested = Number.isFinite(configured) && configured > 0 ? configured : defaultDeadline;
+  return Math.min(requested, maximumAttempt);
 }
 
 export function attemptDeadlineMs(
@@ -253,7 +252,7 @@ function parseJson(value: string): unknown {
 
 function parseClaudeOutput(stdout: string): unknown {
   const envelope = parseJson(stdout);
-  if (isRecord(envelope) && 'structured_output' in envelope) {
+  if (isRecord(envelope) && isRecord(envelope.structured_output)) {
     return envelope.structured_output;
   }
   if (isRecord(envelope) && typeof envelope.result === 'string') {
@@ -413,7 +412,10 @@ function remainingReviewTime(
   return remainingMs;
 }
 
-function executableCandidates(reviewer: ReviewAgent, untrustedRoot: string): string[] {
+function executableCandidates(
+  reviewer: ReviewAgent,
+  untrustedRoot: string,
+): { readonly paths: string[]; readonly rejectedForTrust: boolean } {
   const extensions =
     process.platform === 'win32'
       ? (process.env.PATHEXT ?? '.COM;.EXE;.BAT;.CMD')
@@ -426,6 +428,7 @@ function executableCandidates(reviewer: ReviewAgent, untrustedRoot: string): str
     .flatMap(directory =>
       extensions.map(extension => nodePath.join(directory, `${reviewer}${extension}`)),
     );
+  let rejectedForTrust = false;
   const canonicalCandidates = candidates.flatMap(candidate => {
     // A project-owned pathname remains untrusted even when it currently points
     // outside the project: the project can replace that symlink after checking.
@@ -434,7 +437,10 @@ function executableCandidates(reviewer: ReviewAgent, untrustedRoot: string): str
       const canonical = realpathSync(candidate);
       if (!outsideUntrustedRoot(untrustedRoot, canonical)) return [];
       accessSync(canonical, constants.X_OK);
-      if (!hasTrustedExecutableAncestry(canonical)) return [];
+      if (!hasTrustedExecutableAncestry(canonical)) {
+        rejectedForTrust = true;
+        return [];
+      }
       return [canonical];
     } catch {
       return [];
@@ -442,7 +448,20 @@ function executableCandidates(reviewer: ReviewAgent, untrustedRoot: string): str
   });
   // Spawn the retained canonical path, not the PATH spelling that was checked.
   // This closes the project-controlled parent/file symlink swap window.
-  return [...new Set(canonicalCandidates)];
+  return { paths: [...new Set(canonicalCandidates)], rejectedForTrust };
+}
+
+function unavailableReviewerError(
+  reviewer: ReviewAgent,
+  rejectedForTrust: boolean,
+): ReviewRuntimeError {
+  if (rejectedForTrust) {
+    return new ReviewRuntimeError(
+      'untrusted_install',
+      `${reviewer} reviewer installation has an untrusted writable ancestor`,
+    );
+  }
+  return new ReviewRuntimeError('not_installed', `No compatible ${reviewer} reviewer is installed`);
 }
 
 type CapabilityAssessment =
@@ -533,7 +552,7 @@ function appendBounded(
  * turn, not background work that may overlap the next route.
  */
 const CLEANUP_BUDGET_MS = 250;
-const PROCESS_GROUP_POLL_INTERVAL_MS = 5;
+const PROCESS_GROUP_POLL_INTERVAL_MS = 25;
 const WINDOWS_CLEANUP_BUDGET_MS = 1000;
 
 /**
@@ -852,8 +871,8 @@ async function runCandidate(
       });
       child.stdin.end(reviewPrompt(reviewer, packet));
     });
-    // A validated verdict remains usable even if a descendant is slow to die:
-    // executeReview's source/snapshot checks still reject any late mutation.
+    // An uncleanable descendant invalidates an otherwise valid verdict: no
+    // reviewer process may overlap integrity checks or a later route.
     await stopReviewerOrThrow(child, reviewer);
     return output;
   } catch (error) {
@@ -875,10 +894,9 @@ async function runReviewerCandidates(
   let foundCompatible = false;
   let lastFailure: ReviewRuntimeError | undefined;
   let lastProbeFailure: ReviewRuntimeError | undefined;
-  for (const [index, candidate] of candidates.entries()) {
+  for (const candidate of candidates) {
     const remainingMs = remainingReviewTime(deadline, reviewer, lastFailure);
-    const untried = candidates.length - index;
-    const candidateDeadline = Date.now() + remainingMs / untried;
+    const candidateDeadline = Date.now() + remainingMs;
     const probeBudget = Math.min(5000, remainingReviewTime(candidateDeadline, reviewer));
     const assessment = await supportsReviewContract(
       reviewer,
@@ -896,9 +914,10 @@ async function runReviewerCandidates(
     }
     foundCompatible = true;
     try {
-      // The capability probe and review share one candidate deadline. A hanging
-      // probe therefore cannot spend the time reserved for later candidates,
-      // while a fast rejection returns its unused share to the route.
+      // The capability probe and review share the remaining route deadline. A
+      // fast rejection leaves time for the next installation; a hanging
+      // candidate ends the route instead of shrinking every real attempt below
+      // the observed successful-review budget.
       return await runCandidate(
         candidate,
         attempt,
@@ -931,11 +950,8 @@ export async function runHeadlessReviewer(
   // A route never outlives the run: whichever bound arrives first wins.
   const deadline = Math.min(Date.now() + attemptDeadlineMs(), runDeadline ?? Infinity);
   const candidates = executableCandidates(reviewer, untrustedRoot);
-  if (candidates.length === 0) {
-    throw new ReviewRuntimeError(
-      'not_installed',
-      `No trusted compatible ${reviewer} reviewer was found`,
-    );
+  if (candidates.paths.length === 0) {
+    throw unavailableReviewerError(reviewer, candidates.rejectedForTrust);
   }
   // The contract file belongs to the dispatch, not to an attempt: several
   // candidates and routes read it, so attempt cleanup must never remove it.
@@ -951,7 +967,7 @@ export async function runHeadlessReviewer(
   try {
     return await runReviewerCandidates(
       { reviewer, packet, cwd, model, schemaPath: contract?.path },
-      candidates,
+      candidates.paths,
       deadline,
     );
   } finally {
