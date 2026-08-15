@@ -1672,6 +1672,36 @@ describe('Reconcile - Reconciliation Engine', () => {
       });
     });
 
+    it('does not predict removal of a directory that will remain non-empty', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+      const schema = {
+        ...SAFEWORD_SCHEMA,
+        ownedDirs: ['managed-dir'],
+        sharedDirs: [],
+        preservedDirs: [],
+        ownedFiles: {},
+        managedFiles: {},
+        jsonMerges: {},
+        textPatches: {},
+        legacyTextPatches: {},
+      };
+      mkdirSync(nodePath.join(temporaryDirectory, 'managed-dir'), { recursive: true });
+      writeFileSync(nodePath.join(temporaryDirectory, 'managed-dir', 'customer.txt'), 'keep');
+      createPackageJson();
+      const ctx = createContext();
+
+      const predicted = await reconcile(schema, 'uninstall', ctx, { dryRun: true });
+      const observed = await reconcile(schema, 'uninstall', ctx);
+
+      expect(predicted.actions).toContainEqual({ type: 'rmdir', path: 'managed-dir' });
+      expect(predicted.removed).not.toContain('managed-dir');
+      expect(observed.removed).not.toContain('managed-dir');
+      expect(
+        readFileSync(nodePath.join(temporaryDirectory, 'managed-dir', 'customer.txt'), 'utf8'),
+      ).toBe('keep');
+    });
+
     it('keeps install predictions equal when a legacy unpatch removes its target', async () => {
       const { reconcile } = await import('../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');

@@ -5,7 +5,7 @@
  * This is the single source of truth for all file/dir/config operations.
  */
 
-import { lstatSync, readlinkSync, unlinkSync } from 'node:fs';
+import { lstatSync, readdirSync, readlinkSync, unlinkSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import type {
@@ -270,16 +270,21 @@ function planManagedFileWrites(
 function planExistingDirectoriesRemoval(
   directories: string[],
   cwd: string,
+  scheduledRemovals: ReadonlySet<string> = new Set(),
 ): { actions: Action[]; removed: string[] } {
   const actions: Action[] = [];
   const removed: string[] = [];
   for (const dir of directories) {
-    if (!exists(nodePath.join(cwd, dir))) {
-      continue;
-    }
+    const fullPath = nodePath.join(cwd, dir);
+    if (!exists(fullPath)) continue;
 
     actions.push({ type: 'rmdir', path: dir });
-    removed.push(dir);
+    const plannedBeforeThisDirectory = new Set([...scheduledRemovals, ...removed]);
+    const entries = readdirSync(fullPath);
+    const willBeEmpty = entries.every(entry =>
+      plannedBeforeThisDirectory.has(nodePath.posix.join(dir, entry)),
+    );
+    if (willBeEmpty) removed.push(dir);
   }
   return { actions, removed };
 }
@@ -767,7 +772,11 @@ function computeUpgradePlan(schema: SafewordSchema, ctx: ProjectContext): Reconc
   wouldRemove.push(...deprecatedFiles.removed);
 
   // 4b. Remove deprecated directories (no longer managed by safeword)
-  const deprecatedDirectories = planExistingDirectoriesRemoval(schema.deprecatedDirs, ctx.cwd);
+  const deprecatedDirectories = planExistingDirectoriesRemoval(
+    schema.deprecatedDirs,
+    ctx.cwd,
+    new Set(wouldRemove),
+  );
   actions.push(...deprecatedDirectories.actions);
   wouldRemove.push(...deprecatedDirectories.removed);
 
@@ -837,7 +846,11 @@ function computeUninstallPlan(
     const parentDirectory = getClaudeParentDirectoryForCleanup(filePath);
     if (parentDirectory) directoriesToCleanup.add(parentDirectory);
   }
-  const cleanupDirectories = planExistingDirectoriesRemoval([...directoriesToCleanup], ctx.cwd);
+  const cleanupDirectories = planExistingDirectoriesRemoval(
+    [...directoriesToCleanup],
+    ctx.cwd,
+    new Set(wouldRemove),
+  );
   actions.push(...cleanupDirectories.actions);
   wouldRemove.push(...cleanupDirectories.removed);
 
@@ -855,12 +868,20 @@ function computeUninstallPlan(
   wouldRemove.push(...dynamicChanges.removed);
 
   // 4. Remove preserved directories first (reverse order, only if empty)
-  const preserved = planExistingDirectoriesRemoval(schema.preservedDirs.toReversed(), ctx.cwd);
+  const preserved = planExistingDirectoriesRemoval(
+    schema.preservedDirs.toReversed(),
+    ctx.cwd,
+    new Set(wouldRemove),
+  );
   actions.push(...preserved.actions);
   wouldRemove.push(...preserved.removed);
 
   // 5. Remove owned directories (reverse order ensures children before parents)
-  const owned = planExistingDirectoriesRemoval(schema.ownedDirs.toReversed(), ctx.cwd);
+  const owned = planExistingDirectoriesRemoval(
+    schema.ownedDirs.toReversed(),
+    ctx.cwd,
+    new Set(wouldRemove),
+  );
   actions.push(...owned.actions);
   wouldRemove.push(...owned.removed);
 
