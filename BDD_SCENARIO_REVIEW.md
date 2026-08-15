@@ -40,17 +40,32 @@ were added or materially changed after their prior ledger entry. Their prior
 counts and statuses are historical only: this 227-scenario queue must receive a
 fresh semantic pass before it inherits any completion claim.
 
-| Changed or new feature source                                  | Scenarios | Delivery state          | Semantic status                                               |
-| -------------------------------------------------------------- | --------: | ----------------------- | ------------------------------------------------------------- |
-| `features/automatic-claude-migration.feature`                  |        30 | Active                  | Pending refreshed review                                      |
-| `features/close-completed-sessions-safely.feature`             |        48 | Active                  | Pending refreshed review                                      |
-| `features/generate-compliant-replies-without-rewrites.feature` |        22 | Active; 3 `@manual`     | Pending refreshed review                                      |
-| `features/native-claude-plugin.feature`                        |        46 | Active; 6 `@wip`        | Pending refreshed review                                      |
-| `features/safeword-md-via-hooks.feature`                       |         6 | Active                  | Pending refreshed review                                      |
-| `features/test-codex-plugin-migration.feature`                 |        24 | Active                  | Pending refreshed review                                      |
-| `packages/cli/features/codex-plugin-hook-parity.feature`       |        17 | Active; 1 `@manual`     | Pending refreshed review                                      |
-| `packages/cli/features/durable-independent-review.feature`     |         5 | Active; `@proof.vitest` | Direct semantic review complete; independent evidence pending |
-| `packages/cli/features/predictable-safeword-cli.feature`       |        29 | Active                  | Pending refreshed review                                      |
+| Changed or new feature source                                  | Scenarios | Delivery state          | Semantic status                               |
+| -------------------------------------------------------------- | --------: | ----------------------- | --------------------------------------------- |
+| `features/automatic-claude-migration.feature`                  |        30 | Active                  | Pending refreshed review                      |
+| `features/close-completed-sessions-safely.feature`             |        48 | Active                  | Pending refreshed review                      |
+| `features/generate-compliant-replies-without-rewrites.feature` |        22 | Active; 3 `@manual`     | Pending refreshed review                      |
+| `features/native-claude-plugin.feature`                        |        46 | Active; 6 `@wip`        | Pending refreshed review                      |
+| `features/safeword-md-via-hooks.feature`                       |         6 | Active                  | Pending refreshed review                      |
+| `features/test-codex-plugin-migration.feature`                 |        24 | Active                  | Pending refreshed review                      |
+| `packages/cli/features/codex-plugin-hook-parity.feature`       |        17 | Active; 1 `@manual`     | Pending refreshed review                      |
+| `packages/cli/features/durable-independent-review.feature`     |         5 | Active; `@proof.vitest` | Independent review returned changes requested |
+| `packages/cli/features/predictable-safeword-cli.feature`       |        29 | Active                  | Pending refreshed review                      |
+
+### Upstream sync impact — 2026-08-14 (Safeword 0.78.1)
+
+The merged 0.78.1 corpus contains 111 tracked feature sources. Five sources
+were added or materially changed since the prior ledger snapshot; their 171
+scenarios are in the refreshed review queue. This overlaps the 0.77 queue where
+an existing source changed again.
+
+| Changed or new feature source                                       | Scenarios | Delivery state          | Semantic status          |
+| ------------------------------------------------------------------- | --------: | ----------------------- | ------------------------ |
+| `features/automatic-claude-migration.feature`                       |        31 | Active                  | Pending refreshed review |
+| `features/close-completed-sessions-safely.feature`                  |        48 | Active                  | Pending refreshed review |
+| `features/closeout-preview-apply-convergence.feature`               |        27 | Active; `@proof.vitest` | Pending refreshed review |
+| `features/resume-closeout-after-upgrade.feature`                    |        54 | Active; `@proof.vitest` | Pending review           |
+| `packages/cli/features/reliable-observable-quality-reviews.feature` |        11 | Active; `@proof.vitest` | Pending review           |
 
 ## Evidence
 
@@ -179,17 +194,17 @@ A scenario may be marked semantically complete only when it has been checked for
 - `predictable-safeword-cli`: all fourteen numbered Rule blocks now carry their matching rule-lineage tags, so every contained scenario and outline row has exactly one criterion reference. The agent-facing machine-contract scenario also carries the missing Claude Code and Cursor surface coverage tags.
 - `reliable-reviews-for-real-packets.TBU1.R2`: the configured-deadline scenario had previously only asserted that a review timed out, which a default-only implementation could also satisfy. The merged upstream proof now measures the configured deadline's distinct timeout window, so an ignored configuration fails the scenario.
 
-- `durable-independent-review`: direct review of all five new scenarios found no
-  scenario-gate defect. Its Vitest proof exercises the actual detached CLI
-  worker, completion after the initiating process exits, stale source and
-  context rejection, and cancellation's terminal precedence. The Rule-level
-  failure rows make a dead worker and malformed persisted job observable rather
-  than allowing a silent pending state. Independent-review evidence remains
-  pending and is not implied by this direct pass.
+- `durable-independent-review`: the recovered independent Claude review returned
+  `changes_requested`, so the prior direct-pass conclusion is superseded. It
+  found that a failed background reviewer can remain pending, cancellation does
+  not yet prove worker termination or late-result precedence, and the claimed
+  Claude/Codex surface wiring is not made observable. It also identified missing
+  positive/out-of-scope source-binding cases, cancellation boundaries, timing
+  boundaries, durable-store integrity coverage, and handle usability proof.
 
 ### Semantic review in progress
 
-The first review packet covers `reliable-reviews-for-real-packets` (32 scenarios), `share-test-capacity-across-parallel-sessions` (56 scenarios), and the current sixteen-feature offload packet (136 scenarios): 224 scenarios total. The prescribed independent coordinator route for `reliable-reviews-for-real-packets` could not be captured as a typed result or persisted receipt in this session, so it is not review evidence. Direct review identified a vacuous deadline scenario; the merged upstream proof addresses it. The packet remains in progress until an auditable independent result is captured.
+The first review packet covers `reliable-reviews-for-real-packets` (32 scenarios), `share-test-capacity-across-parallel-sessions` (56 scenarios), and the current sixteen-feature offload packet (136 scenarios): 224 scenarios total. Direct review identified a vacuous deadline scenario; the merged upstream proof addresses it. The durable-review coordinator result was later recovered from its persisted job record and contains unresolved changes-requested findings, so that source returns to the active fix-and-rereview queue.
 
 Direct review of the two newly active sources found no additional scenario-gate defect. All 26 closeout scenarios have a named Vitest proof in `TFG4CR`'s proof map; their rejection rows cover mutable transcript boundaries, authenticated identity, spool integrity, filing availability, and cleanup drift. The two GitHub-live-smoke scenarios are explicit `@wip` behavior with an executable command-level proof surface, so they are not counted as completed Cucumber coverage.
 
