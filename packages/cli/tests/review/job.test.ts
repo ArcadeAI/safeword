@@ -468,7 +468,7 @@ describe('durable review jobs', () => {
     expect(result.errors[0]?.code).toBe('REVIEW_JOB_INVALID');
   });
 
-  it('collects a completed result without rerunning the reviewer', async () => {
+  it('collects a completed result after an unrelated source changes without rerunning', async () => {
     const cwd = project();
     vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, COMPLETE_WORKER));
     vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '0');
@@ -482,6 +482,7 @@ describe('durable review jobs', () => {
     await vi.waitFor(() => {
       expect(reviewJobStatus(cwd, id).findings[0]?.code).not.toBe('REVIEW_PENDING');
     });
+    writeFileSync(nodePath.join(cwd, 'unreviewed.md'), 'unrelated change\n');
     const result = reviewJobStatus(cwd, id);
 
     expect(result.state).toBe('healthy');
@@ -711,6 +712,43 @@ ${COMPLETE_WORKER}`,
     );
     expect(reviewJobStatus(cwd, id).findings[0]?.code).toBe('REVIEW_CANCELED');
   });
+
+  it('preserves a completed result when cancellation is requested afterward', async () => {
+    const cwd = project();
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, COMPLETE_WORKER));
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '0');
+    const pending = await startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
+    const id = (pending.data as { review_id: string }).review_id;
+    await vi.waitFor(() => {
+      expect(reviewJobStatus(cwd, id).state).toBe('healthy');
+    });
+
+    const canceled = cancelReviewJob(cwd, id);
+
+    expect(canceled.state).toBe('healthy');
+    expect(canceled.findings[0]?.message).toBe('Independent review complete.');
+    expect(reviewJobStatus(cwd, id).state).toBe('healthy');
+  });
+
+  it.runIf(process.platform !== 'win32')(
+    'stops the running reviewer when an active review is canceled',
+    async () => {
+      const cwd = project();
+      vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, 'setTimeout(() => {}, 10_000);'));
+      vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '0');
+      const pending = await startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
+      const id = (pending.data as { review_id: string }).review_id;
+      const recordPath = nodePath.join(cwd, '.safeword', 'state', 'reviews', `${id}.json`);
+      const record = JSON.parse(readFileSync(recordPath, 'utf8')) as { pid: number };
+
+      const result = cancelReviewJob(cwd, id);
+
+      expect(result.findings[0]?.code).toBe('REVIEW_CANCELED');
+      await vi.waitFor(() => {
+        expect(() => process.kill(record.pid, 0)).toThrow();
+      });
+    },
+  );
 
   it('rejects a tampered canceled record before using its payload', async () => {
     const cwd = project();

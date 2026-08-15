@@ -202,6 +202,16 @@ A scenario may be marked semantically complete only when it has been checked for
   positive/out-of-scope source-binding cases, cancellation boundaries, timing
   boundaries, durable-store integrity coverage, and handle usability proof.
 
+  The scenario repair now makes the terminal worker-exit failure, usable pending
+  handle, one-invocation collection, unchanged and unrelated-source binding,
+  stale reviewed-source rejection, signed-record rejection, cancellation
+  termination, late-result precedence, and unknown-ID rejection explicit. The
+  feature's unsupported Claude/Codex tags were removed rather than asserted by
+  label alone. The earlier focused Vitest proof (33 tests) and Gherkin lint pass.
+  A subsequent independent review `b4800890-eac8-4d7f-8575-cad75ce6797e`
+  returned changes requested; this repair addresses those findings, but a fresh
+  focused CI run and independent review are still required before approval.
+
 ### Semantic review in progress
 
 The first review packet covers `reliable-reviews-for-real-packets` (32 scenarios), `share-test-capacity-across-parallel-sessions` (56 scenarios), and the current sixteen-feature offload packet (136 scenarios): 224 scenarios total. Direct review identified a vacuous deadline scenario; the merged upstream proof addresses it. The durable-review coordinator result was later recovered from its persisted job record and contains unresolved changes-requested findings, so that source returns to the active fix-and-rereview queue.

@@ -37,3 +37,4 @@ last_modified: 2026-08-12T16:16:43.148Z
 - 2026-08-12T16:20:00.000Z Resumed at implementation from the accepted durable-review proposal; recording executable lifecycle scenarios before code.
 - 2026-08-12T21:10:00.000Z Verification audit corrected transient-state cleanup, context freshness binding, proof provenance, and foreground progress; focused regressions and parity contracts are green.
 - 2026-08-12T22:06:00.000Z Verified: final Node 22 and Node 24 CI matrices, lint, CLI contract, dogfood parity, build, typecheck, dependency audit, and diff-scoped audit are green.
+- 2026-08-15T03:54:42Z Post-delivery scenario repair: the recovered independent review returned changes requested, identifying under-specified terminal failure, binding, and cancellation boundaries. The scenario and proof repair is ready for focused CI and a new independent review; it is not yet approved.
