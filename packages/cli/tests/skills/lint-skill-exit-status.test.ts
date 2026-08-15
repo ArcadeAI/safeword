@@ -37,6 +37,12 @@ function writeExecutable(directory: string, name: string, body: string): void {
   chmodSync(executablePath, 0o755);
 }
 
+function readCommandLog(logPath: string): string[] {
+  return existsSync(logPath)
+    ? readFileSync(logPath, 'utf8').trim().split('\n').filter(Boolean)
+    : [];
+}
+
 function runLintInstructions(
   relativePath: string,
   options: { hasGoManifest?: boolean } = {},
@@ -68,12 +74,8 @@ function runLintInstructions(
 
     return {
       status: result.status,
-      bunCommands: existsSync(bunCommandsPath)
-        ? readFileSync(bunCommandsPath, 'utf8').trim().split('\n').filter(Boolean)
-        : [],
-      goCommands: existsSync(goCommandsPath)
-        ? readFileSync(goCommandsPath, 'utf8').trim().split('\n').filter(Boolean)
-        : [],
+      bunCommands: readCommandLog(bunCommandsPath),
+      goCommands: readCommandLog(goCommandsPath),
     };
   } finally {
     rmSync(projectDirectory, { recursive: true, force: true });
