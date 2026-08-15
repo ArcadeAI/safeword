@@ -41,6 +41,12 @@ function fixture(): { cwd: string; environment: NodeJS.ProcessEnv } {
   return { cwd, environment: { CODEX_HOME: nodePath.join(directory, 'profile') } };
 }
 
+function onlySessionProofPath(environment: NodeJS.ProcessEnv): string {
+  const proofRoot = nodePath.join(environment.CODEX_HOME ?? '', 'safeword/session-proof-v1');
+  const projectDirectory = nodePath.join(proofRoot, readdirSync(proofRoot)[0] ?? 'missing');
+  return nodePath.join(projectDirectory, readdirSync(projectDirectory)[0] ?? 'missing');
+}
+
 function observation(enabled: boolean, version: string | null = null) {
   return {
     plugin: { installed: enabled, enabled, version, observation: 'observed' },
@@ -253,6 +259,16 @@ describe('Codex project bootstrap', () => {
       projectDirectory: cwd,
       sessionId: 'task-a',
     });
+    const proofPath = onlySessionProofPath(environment);
+    const proof = JSON.parse(readFileSync(proofPath, 'utf8')) as Record<string, unknown>;
+    writeFileSync(
+      proofPath,
+      JSON.stringify({
+        ...proof,
+        plugin_version: '0.77.0',
+        manifest_sha256: '0'.repeat(64),
+      }),
+    );
     writeCodexActivationMarker(environment, new Date('2026-08-14T12:01:00.000Z'), {
       activeHosts: [],
     });
@@ -271,7 +287,7 @@ describe('Codex project bootstrap', () => {
     expect(context(result)).not.toContain('SAFEWORD PROTECTION IS UNVERIFIED IN THIS TASK');
     expect(context(result)).not.toContain('SAFEWORD IS NOT ACTIVE IN THIS TASK');
     expect(data(result)).toMatchObject({
-      observed_plugin_version: SAFEWORD_SCHEMA.version,
+      observed_plugin_version: '0.77.0',
       protection_verification: 'older-observed',
       reason: 'restart-required',
     });

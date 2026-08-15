@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import {
@@ -10,6 +10,7 @@ import {
   currentCodexPluginIdentity,
   observeCodexHookProof,
 } from './profile-proof.js';
+import { resolveCodexProjectDirectory } from './project-directory.js';
 
 export const DEFAULT_CODEX_ACTIVATION_CHECK_MODEL = 'gpt-5.6-terra';
 
@@ -34,7 +35,7 @@ export interface HeadlessCodexActivationCheckOptions {
   environment?: NodeJS.ProcessEnv;
   expectedActivation: ExpectedActivation;
   expectedActivationId: string;
-  codexBinary?: string;
+  codexBinary: string;
   model?: string;
   timeoutMilliseconds?: number;
 }
@@ -366,17 +367,16 @@ function assertHookProof(
 }
 
 function assertHookProofs(input: {
+  canonicalProject: string;
   codexHome: string;
   expectedActivationId: string;
   finishedAt: Date;
-  projectDirectory: string;
   startedAt: Date;
 }): void {
   const identity = currentCodexPluginIdentity();
-  const canonicalProject = realpathSync(input.projectDirectory);
   for (const event of CODEX_PLUGIN_HOOK_EVENTS) {
     const path = nodePath.join(input.codexHome, 'safeword/hook-proof-v2', `${event}.json`);
-    assertHookProof(path, event, { ...input, canonicalProject, identity });
+    assertHookProof(path, event, { ...input, identity });
   }
 }
 
@@ -414,9 +414,16 @@ function assertActivationState(input: {
 export function runHeadlessCodexActivationCheck(
   options: HeadlessCodexActivationCheckOptions,
 ): HeadlessCodexActivationCheckResult {
-  const codexBinary = options.codexBinary ?? 'codex';
+  const codexBinary = options.codexBinary;
   const model = options.model ?? DEFAULT_CODEX_ACTIVATION_CHECK_MODEL;
-  const environment = { ...process.env, ...options.environment };
+  const environment: NodeJS.ProcessEnv = {
+    ...process.env,
+    ...options.environment,
+    // The isolated smoke task must derive its own project root. Inheriting a
+    // parent Claude task's project override would bind proof to another repo.
+    CLAUDE_PROJECT_DIR: undefined,
+  };
+  const canonicalProject = resolveCodexProjectDirectory(options.cwd, environment);
   const codexHome = environment.CODEX_HOME;
   if (codexHome === undefined || codexHome.trim() === '') {
     throw new Error('CODEX_HOME is required for an isolated headless activation check.');
@@ -437,10 +444,10 @@ export function runHeadlessCodexActivationCheck(
     warnings,
   });
   assertHookProofs({
+    canonicalProject,
     codexHome,
     expectedActivationId: options.expectedActivationId,
     finishedAt,
-    projectDirectory: options.cwd,
     startedAt,
   });
   const activatedHost = assertActivationState({

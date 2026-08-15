@@ -1300,8 +1300,10 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     expect(marker.manifest_sha256).toMatch(/^[\da-f]{64}$/u);
     expect(marker.activation_id).toEqual(expect.any(String));
     expect(marker.installed_at).toEqual(expect.any(String));
-    expect(marker.host_observation).toBe('observed');
-    expect(marker.active_hosts).toEqual(expect.any(Array));
+    // CI invokes migration without a live Codex app-server. Empty process
+    // discovery is unavailable evidence, never proof that no old host exists.
+    expect(marker.host_observation).toBe('unavailable');
+    expect(marker.active_hosts).toEqual([]);
   });
 
   it('reports a structured profile mutation when installed plugin verification mismatches', async () => {

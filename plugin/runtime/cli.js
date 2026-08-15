@@ -35933,6 +35933,8 @@ function sessionProofProjectDirectories(root) {
     return readdirSync21(root, { withFileTypes: true }).filter((entry) => entry.isDirectory() && !entry.isSymbolicLink()).flatMap((projectEntry) => {
       const path4 = nodePath54.join(root, projectEntry.name);
       try {
+        if (sessionProofProjectFiles(path4).length === 0)
+          return [];
         return [{ modifiedAt: lstatSync10(path4).mtimeMs, path: path4 }];
       } catch {
         return [];
@@ -36100,7 +36102,7 @@ function observeCodexHookProof(environment = process.env, binding) {
     return staleHookObservation(validProofs, activationId);
   }
   const canonicalProject = binding === undefined ? undefined : canonicalProjectDirectory(binding.projectDirectory);
-  const current = validProofs.filter((proof) => matchesCodexPluginIdentity(proof, identity) && (activationId === null ? proof.activation_id === null : proof.activation_id === activationId) && (binding === undefined || proof.schema_version === 3 && proof.project_directory === canonicalProject && proof.session_id === binding.sessionId));
+  const current = validProofs.filter((proof) => matchesCodexPluginIdentity(proof, identity) && (activationId === null ? proof.activation_id === null : proof.activation_id === activationId) && (receipt === null || Date.parse(proof.recorded_at) >= Date.parse(receipt.activated_at)) && (binding === undefined || proof.schema_version === 3 && proof.project_directory === canonicalProject && proof.session_id === binding.sessionId));
   const events = current.map((proof) => proof.event);
   const missingEvents = CODEX_PLUGIN_HOOK_EVENTS.filter((event) => !events.includes(event));
   const latest = current.toSorted((left, right) => Date.parse(right.recorded_at) - Date.parse(left.recorded_at)).at(0);

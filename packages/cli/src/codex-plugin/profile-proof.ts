@@ -602,6 +602,10 @@ function sessionProofProjectDirectories(root: string): {
       .flatMap(projectEntry => {
         const path = nodePath.join(root, projectEntry.name);
         try {
+          // A crash may leave only a durable-write temporary file. Such a
+          // directory is not retained proof and must not consume a project
+          // retention slot or evict a live sibling project.
+          if (sessionProofProjectFiles(path).length === 0) return [];
           return [{ modifiedAt: lstatSync(path).mtimeMs, path }];
         } catch {
           // An unreadable directory is not evidence that its retained history
@@ -843,6 +847,7 @@ export function observeCodexHookProof(
       (activationId === null
         ? proof.activation_id === null
         : proof.activation_id === activationId) &&
+      (receipt === null || Date.parse(proof.recorded_at) >= Date.parse(receipt.activated_at)) &&
       (binding === undefined ||
         (proof.schema_version === 3 &&
           proof.project_directory === canonicalProject &&

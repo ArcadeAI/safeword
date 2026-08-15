@@ -520,6 +520,59 @@ describe('Codex profile hook proof', () => {
     });
   });
 
+  it('does not assemble current cleanup proof from pre-restart hook executions', () => {
+    const { codexHome, environment } = createProfileFixture();
+    writeCodexActivationMarker(environment, new Date('2026-08-02T08:52:42.000Z'), {
+      activationId: 'activation-aggregate-restart',
+      activeHosts: [OLD_HOST],
+    });
+    for (const [index, event] of CODEX_PLUGIN_HOOK_EVENTS.entries()) {
+      recordCodexHookProof(event, environment, new Date(`2026-08-02T08:${55 + index}:00.000Z`), {
+        currentHost: OLD_HOST,
+      });
+    }
+
+    recordCodexHookProof('session-start', environment, new Date('2026-08-02T09:01:00.000Z'), {
+      currentHost: RESTARTED_HOST,
+    });
+
+    expect(existsSync(nodePath.join(codexHome, 'safeword/activation-current-v1.json'))).toBe(true);
+    expect(observeCodexHookProof(environment)).toMatchObject({
+      status: 'partial',
+      events: ['session-start'],
+      missing_events: ['pre-tool-use', 'post-tool-use', 'user-prompt-submit', 'stop'],
+    });
+  });
+
+  it('does not promote activation-pending task proof after the restart receipt', () => {
+    const { codexHome, environment } = createProfileFixture();
+    const project = nodePath.join(codexHome, 'project');
+    mkdirSync(project);
+    writeCodexActivationMarker(environment, new Date('2026-08-02T08:52:42.000Z'), {
+      activationId: 'activation-pending-task',
+      activeHosts: [OLD_HOST],
+    });
+    recordCodexHookProof('session-start', environment, new Date('2026-08-02T08:55:00.000Z'), {
+      currentHost: OLD_HOST,
+      projectDirectory: project,
+      sessionId: 'pending-task',
+    });
+    expect(observeCodexSessionProof(project, 'pending-task', environment).status).toBe(
+      'activation-pending',
+    );
+
+    recordCodexHookProof('session-start', environment, new Date('2026-08-02T09:01:00.000Z'), {
+      currentHost: RESTARTED_HOST,
+      projectDirectory: project,
+      sessionId: 'restarted-task',
+    });
+
+    expect(observeCodexSessionProof(project, 'pending-task', environment).status).toBe(
+      'prior-observed',
+    );
+    expect(observeCodexSessionProof(project, 'restarted-task', environment).status).toBe('current');
+  });
+
   it('does not promote a pre-install task proof after a same-version restart', () => {
     const { codexHome, environment } = createProfileFixture();
     const project = nodePath.join(codexHome, 'project');
