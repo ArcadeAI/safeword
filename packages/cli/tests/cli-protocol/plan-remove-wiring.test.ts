@@ -4,7 +4,7 @@ import nodePath from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { SAFEWORD_SCHEMA } from '../../src/schema.js';
-import { createTemporaryDirectory, runCli } from '../helpers.js';
+import { createTemporaryDirectory, runCli, runCliWithLiteralArguments } from '../helpers.js';
 import { installFakeCodexRuntime } from '../helpers/fake-codex-runtime.js';
 
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
@@ -295,6 +295,22 @@ describe('plan and remove wiring', () => {
 
       expect(envelope.next_actions[0]?.command).toContain(expected);
     }
+  });
+
+  it('includes the Cursor project surface in default uninstall plans', async () => {
+    const directory = createTemporaryDirectory();
+    configureMinimalProject(directory);
+    const bin = createMissingClaudeHost(directory);
+
+    const preview = await runCliWithLiteralArguments(
+      ['plan', 'uninstall', '--json', '--no-input', '--cwd', directory],
+      { cwd: directory, env: { PATH: `${bin}:${process.env.PATH ?? ''}` } },
+    );
+    const envelope = JSON.parse(preview.stdout) as {
+      next_actions: { command: string }[];
+    };
+
+    expect(envelope.next_actions[0]?.command).toContain('--agents=claude,codex,cursor');
   });
 
   it('binds install plans to the requested Claude scope and its observed state', async () => {
@@ -665,6 +681,44 @@ describe('plan and remove wiring', () => {
     });
   });
 
+  it('removes the Safeword dependency during default uninstall', async () => {
+    const directory = createTemporaryDirectory();
+    configureMinimalProject(directory);
+    writeFileSync(
+      nodePath.join(directory, 'package.json'),
+      JSON.stringify({ name: 'fixture', devDependencies: { safeword: '0.69.0' } }),
+    );
+    const bin = nodePath.join(directory, 'bin');
+    mkdirSync(bin);
+    const npm = nodePath.join(bin, 'npm');
+    writeFileSync(npm, '#!/bin/sh\nexit 0\n');
+    chmodSync(npm, 0o755);
+    const environment = { PATH: `${bin}:${process.env.PATH ?? ''}` };
+
+    const preview = await runCli(
+      ['uninstall', '--agents=none', '--json', '--no-input', '--cwd', directory],
+      { cwd: directory, env: environment },
+    );
+    const envelope = JSON.parse(preview.stdout) as {
+      next_actions: { command: string }[];
+      data: { plan: { effects: { packages: { target: string }[] } } };
+    };
+    expect(envelope.data.plan.effects.packages).toContainEqual(
+      expect.objectContaining({ target: 'safeword' }),
+    );
+
+    const advertised = envelope.next_actions[0]?.command;
+    const applied = await runCli(
+      [...(advertised?.split(' ').slice(1) ?? []), '--json', '--no-input', '--cwd', directory],
+      { cwd: directory, env: environment },
+    );
+
+    expect(applied.exitCode).toBe(0);
+    expect(JSON.parse(applied.stdout)).toMatchObject({
+      effects: { packages: expect.arrayContaining([{ kind: 'remove', target: 'safeword' }]) },
+    });
+  });
+
   it('refuses canonical full uninstall offline before mutation', async () => {
     const directory = createTemporaryDirectory();
     configureMinimalProject(directory);
@@ -682,6 +736,29 @@ describe('plan and remove wiring', () => {
         '--cwd',
         directory,
       ],
+      { cwd: directory },
+    );
+
+    expect(result.exitCode).toBe(2);
+    expect(readFileSync(versionPath, 'utf8')).toBe(before);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'action_required',
+      effects: { files: [], packages: [], network: [], destructive: [] },
+    });
+  });
+
+  it('refuses default uninstall with package effects while offline', async () => {
+    const directory = createTemporaryDirectory();
+    configureMinimalProject(directory);
+    writeFileSync(
+      nodePath.join(directory, 'package.json'),
+      JSON.stringify({ name: 'fixture', devDependencies: { safeword: '0.69.0' } }),
+    );
+    const versionPath = nodePath.join(directory, '.safeword/version');
+    const before = readFileSync(versionPath, 'utf8');
+
+    const result = await runCli(
+      ['uninstall', '--agents=none', '--offline', '--json', '--no-input', '--cwd', directory],
       { cwd: directory },
     );
 

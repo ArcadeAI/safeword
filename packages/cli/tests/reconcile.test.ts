@@ -159,7 +159,8 @@ describe('Reconcile - Reconciliation Engine', () => {
       await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
 
       for (const dir of SAFEWORD_SCHEMA.sharedDirs) {
-        expect(existsSync(nodePath.join(temporaryDirectory, dir))).toBe(true);
+        const resolvedDirectory = dir.replace(/^\.safeword-project(?=\/|$)/, '.project');
+        expect(existsSync(nodePath.join(temporaryDirectory, resolvedDirectory))).toBe(true);
       }
     });
 
@@ -283,6 +284,24 @@ describe('Reconcile - Reconciliation Engine', () => {
       expect(resolved).toEqual({ printWidth: 120 });
     });
 
+    it('leaves customer-owned Prettier plugins unchanged on uninstall', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      const prettierPath = nodePath.join(temporaryDirectory, '.prettierrc');
+      const customerConfig = '{\n  "plugins": ["prettier-plugin-tailwindcss"]\n}\n';
+      writeFileSync(prettierPath, customerConfig);
+
+      await reconcile(
+        SAFEWORD_SCHEMA,
+        'uninstall',
+        createContext({ projectType: { existingPrettierConfig: true, tailwind: true } }),
+      );
+
+      expect(readFileSync(prettierPath, 'utf8')).toBe(customerConfig);
+    });
+
     it('excludes every safeword-owned dir from an existing biome.json (not just .safeword)', async () => {
       const { reconcile } = await import('../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
@@ -386,7 +405,7 @@ describe('Reconcile - Reconciliation Engine', () => {
       expect(knip.ignore).toContain('.project/**'); // well-known roots preserved
     });
 
-    it('removes a custom paths.projectRoot from dprint.json on uninstall (#273 symmetry)', async () => {
+    it('retains durable namespace excludes in dprint.json on uninstall', async () => {
       const { reconcile } = await import('../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
       // Use the real context builder: it resolves namespaceRoot up front (the CLI
@@ -409,8 +428,10 @@ describe('Reconcile - Reconciliation Engine', () => {
       expect(excludesAfter()).toContain('team-ns/**'); // added on install
 
       await reconcile(SAFEWORD_SCHEMA, 'uninstall', createProjectContext(temporaryDirectory));
-      // unmerge removes exactly what merge added — including the custom root.
-      expect(excludesAfter()).not.toContain('team-ns/**');
+      // The namespace survives uninstall, so its formatter exclusion must too.
+      expect(excludesAfter()).toContain('team-ns/**');
+      expect(excludesAfter()).toContain('.project/**');
+      expect(excludesAfter()).toContain('.safeword-project/**');
       expect(excludesAfter()).not.toContain('.safeword/**');
       expect(excludesAfter()).toContain('node_modules'); // user entry preserved
     });
@@ -436,6 +457,25 @@ describe('Reconcile - Reconciliation Engine', () => {
       for (const dir of schemaDotDirectories) {
         expect(SAFEWORD_IGNORE_DIRS).toContain(dir);
       }
+    });
+
+    it('rerenders and fully removes an older managed gitignore block', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+      const gitignorePath = nodePath.join(temporaryDirectory, '.gitignore');
+      writeFileSync(
+        gitignorePath,
+        'customer-cache/\n\n# Safeword - Local cache and transient state\n.safeword/.update-cache.json\n\n# Safeword - Local cache and transient state\n.safeword/.update-cache.json\n.safeword/retro-drafts/\n',
+      );
+      createPackageJson();
+
+      await reconcile(SAFEWORD_SCHEMA, 'upgrade', createContext());
+      const upgraded = readFileSync(gitignorePath, 'utf8');
+      expect(upgraded.match(/# Safeword - Local cache and transient state/gu)).toHaveLength(1);
+      expect(upgraded).toContain('.safeword/state/reviews/');
+
+      await reconcile(SAFEWORD_SCHEMA, 'uninstall', createContext());
+      expect(readFileSync(gitignorePath, 'utf8')).toBe('customer-cache/\n');
     });
 
     it('prettierignore excludes every safeword-owned dir on a fresh install (incl. .codex/ + wholesale .project/)', async () => {
@@ -586,7 +626,7 @@ describe('Reconcile - Reconciliation Engine', () => {
       expect(content.split('.claude/').length - 1).toBe(2);
     });
 
-    it('prettierignore block is removed on uninstall, customer content preserved (#293)', async () => {
+    it('replaces the prettier block with durable namespace exclusions on uninstall', async () => {
       const { reconcile } = await import('../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
       const { createProjectContext } = await import('../src/utils/context.js');
@@ -600,7 +640,10 @@ describe('Reconcile - Reconciliation Engine', () => {
 
       const content = readFileSync(nodePath.join(temporaryDirectory, '.prettierignore'), 'utf8');
       expect(content).not.toContain(PRETTIER_HEADER); // managed block gone
-      expect(content).not.toContain('team-ns/');
+      expect(content).toContain('team-ns/');
+      expect(content).toContain('.project/');
+      expect(content).toContain('.safeword-project/');
+      expect(content).not.toContain('.safeword/');
       expect(content).toContain('dist/'); // customer content preserved
     });
 
@@ -684,7 +727,7 @@ describe('Reconcile - Reconciliation Engine', () => {
       expect(existsSync(nodePath.join(temporaryDirectory, '.markdownlint-cli2.jsonc'))).toBe(false);
     });
 
-    it('removes safeword ignore globs from .markdownlint-cli2.jsonc on uninstall, preserving customer entries', async () => {
+    it('retains namespace globs in markdownlint config on uninstall', async () => {
       const { reconcile } = await import('../src/reconcile.js');
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
 
@@ -700,7 +743,7 @@ describe('Reconcile - Reconciliation Engine', () => {
       const cli2 = JSON.parse(
         readFileSync(nodePath.join(temporaryDirectory, '.markdownlint-cli2.jsonc'), 'utf8'),
       ) as { ignores: string[] };
-      expect(cli2.ignores).toEqual(['dist/**']); // safeword globs gone, customer entry kept
+      expect(cli2.ignores).toEqual(['dist/**', '**/.project/**', '**/.safeword-project/**']);
     });
 
     it('warns (instead of silently skipping) when a jsonMerge target exists but does not parse', async () => {
@@ -1179,18 +1222,93 @@ describe('Reconcile - Reconciliation Engine', () => {
         readFileSync(nodePath.join(temporaryDirectory, 'package.json'), 'utf8'),
       );
 
-      // Safeword-specific scripts removed (but lint/format preserved)
+      // Standalone tooling scripts remain customer-owned.
       expect(pkg.scripts['lint:md']).toBeUndefined();
-      expect(pkg.scripts['format:check']).toBeUndefined();
-      expect(pkg.scripts.knip).toBeUndefined();
+      expect(pkg.scripts['format:check']).toBe('prettier --check .');
+      expect(pkg.scripts.knip).toBe('knip');
 
-      // lint/format preserved (useful standalone)
-      expect(pkg.scripts.lint).toBe('eslint . && bun run lint:gherkin');
-      expect(pkg.scripts['lint:gherkin']).toBe(GHERKIN_LINT_SCRIPT);
+      // Safeword-dependent lint entrypoints removed; standalone format preserved.
+      expect(pkg.scripts.lint).toBeUndefined();
+      expect(pkg.scripts['lint:gherkin']).toBeUndefined();
       expect(pkg.scripts.format).toBe('prettier --write .');
 
       // Original scripts preserved
       expect(pkg.scripts.test).toBe('vitest');
+    });
+
+    it('preserves scripts changed after Safeword installation', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      const ctx = createContext();
+      await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
+
+      const packagePath = nodePath.join(temporaryDirectory, 'package.json');
+      const pkg = JSON.parse(readFileSync(packagePath, 'utf8')) as {
+        scripts: Record<string, string>;
+      };
+      pkg.scripts.knip = 'knip --production';
+      pkg.scripts['test:bdd'] = 'cucumber-js tests/behaviors';
+      writeFileSync(packagePath, `${JSON.stringify(pkg, undefined, 2)}\n`);
+
+      await reconcile(SAFEWORD_SCHEMA, 'uninstall', ctx);
+
+      const uninstalled = JSON.parse(readFileSync(packagePath, 'utf8')) as {
+        scripts: Record<string, string>;
+      };
+      expect(uninstalled.scripts.knip).toBe('knip --production');
+      expect(uninstalled.scripts['test:bdd']).toBe('cucumber-js tests/behaviors');
+      expect(uninstalled.scripts['lint:gherkin']).toBeUndefined();
+    });
+
+    it('removes an unmodified Safeword starter BDD lane on uninstall', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      const ctx = createContext();
+      await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
+      await reconcile(SAFEWORD_SCHEMA, 'uninstall', ctx);
+
+      expect(existsSync(nodePath.join(temporaryDirectory, 'features/safeword-lane.feature'))).toBe(
+        false,
+      );
+      expect(existsSync(nodePath.join(temporaryDirectory, 'steps/world.ts'))).toBe(false);
+      expect(existsSync(nodePath.join(temporaryDirectory, 'steps/shared.steps.ts'))).toBe(false);
+      const packageJson = JSON.parse(
+        readFileSync(nodePath.join(temporaryDirectory, 'package.json'), 'utf8'),
+      ) as { scripts?: Record<string, string> };
+      expect(packageJson.scripts?.['test:bdd']).toBeUndefined();
+    });
+
+    it('preserves a customized Safeword starter BDD lane on uninstall', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      const ctx = createContext();
+      await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
+      const featurePath = nodePath.join(temporaryDirectory, 'features/safeword-lane.feature');
+      writeFileSync(featurePath, 'Feature: Customer-authored behavior\n');
+
+      await reconcile(SAFEWORD_SCHEMA, 'uninstall', ctx);
+
+      expect(readFileSync(featurePath, 'utf8')).toBe('Feature: Customer-authored behavior\n');
+    });
+
+    it('plans removal of the Safeword package during default uninstall', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson({ devDependencies: { safeword: '0.78.0', eslint: '^10.0.0' } });
+      const ctx = createContext({
+        developmentDeps: { safeword: '0.78.0', eslint: '^10.0.0' },
+      });
+
+      const result = await reconcile(SAFEWORD_SCHEMA, 'uninstall', ctx, { dryRun: true });
+
+      expect(result.packagesToRemove).toEqual(['safeword']);
     });
 
     it('should remove legacy text patches', async () => {
@@ -1293,6 +1411,22 @@ describe('Reconcile - Reconciliation Engine', () => {
       // .prettierrc is removed if it matches our template (no customizations)
       // Note: jsonMerge unmerge cleans up plugins for files that DON'T match template
       expect(existsSync(nodePath.join(temporaryDirectory, '.prettierrc'))).toBe(false);
+    });
+
+    it('preserves managed tooling files customized after installation', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      const ctx = createContext();
+      await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
+
+      const jscpdPath = nodePath.join(temporaryDirectory, '.jscpd.json');
+      writeFileSync(jscpdPath, '{"threshold": 3, "reporters": ["json"]}\n');
+
+      await reconcile(SAFEWORD_SCHEMA, 'uninstall-full', ctx);
+
+      expect(readFileSync(jscpdPath, 'utf8')).toBe('{"threshold": 3, "reporters": ["json"]}\n');
     });
 
     it('should compute packages to remove', async () => {
@@ -1441,6 +1575,36 @@ describe('Reconcile - Reconciliation Engine', () => {
       // Idempotent: byte-identical, no key reordering churn.
       expect(readFileSync(mcpPath, 'utf8')).toBe(onDisk);
     });
+
+    it('preserves MCP servers customized after installation on uninstall', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+
+      createPackageJson();
+      const ctx = createContext();
+      await reconcile(SAFEWORD_SCHEMA, 'install', ctx);
+
+      const mcpPath = nodePath.join(temporaryDirectory, '.mcp.json');
+      const installed = JSON.parse(readFileSync(mcpPath, 'utf8')) as {
+        mcpServers: Record<string, unknown>;
+      };
+      installed.mcpServers.context7 = {
+        url: 'https://mcp.context7.com/mcp',
+        headers: { Authorization: 'Bearer user-token' },
+      };
+      writeFileSync(mcpPath, `${JSON.stringify(installed, undefined, 2)}\n`);
+
+      await reconcile(SAFEWORD_SCHEMA, 'uninstall', ctx);
+
+      const uninstalled = JSON.parse(readFileSync(mcpPath, 'utf8')) as {
+        mcpServers: Record<string, unknown>;
+      };
+      expect(uninstalled.mcpServers.context7).toEqual({
+        url: 'https://mcp.context7.com/mcp',
+        headers: { Authorization: 'Bearer user-token' },
+      });
+      expect(uninstalled.mcpServers.playwright).toBeUndefined();
+    });
   });
 
   describe('reconcile() - dryRun option', () => {
@@ -1529,6 +1693,36 @@ describe('Reconcile - Reconciliation Engine', () => {
         updated: observed.updated.toSorted((left, right) => left.localeCompare(right)),
         removed: observed.removed.toSorted((left, right) => left.localeCompare(right)),
       });
+    });
+
+    it('does not predict removal of a directory that will remain non-empty', async () => {
+      const { reconcile } = await import('../src/reconcile.js');
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+      const schema = {
+        ...SAFEWORD_SCHEMA,
+        ownedDirs: ['managed-dir'],
+        sharedDirs: [],
+        preservedDirs: [],
+        ownedFiles: {},
+        managedFiles: {},
+        jsonMerges: {},
+        textPatches: {},
+        legacyTextPatches: {},
+      };
+      mkdirSync(nodePath.join(temporaryDirectory, 'managed-dir'), { recursive: true });
+      writeFileSync(nodePath.join(temporaryDirectory, 'managed-dir', 'customer.txt'), 'keep');
+      createPackageJson();
+      const ctx = createContext();
+
+      const predicted = await reconcile(schema, 'uninstall', ctx, { dryRun: true });
+      const observed = await reconcile(schema, 'uninstall', ctx);
+
+      expect(predicted.actions).toContainEqual({ type: 'rmdir', path: 'managed-dir' });
+      expect(predicted.removed).not.toContain('managed-dir');
+      expect(observed.removed).not.toContain('managed-dir');
+      expect(
+        readFileSync(nodePath.join(temporaryDirectory, 'managed-dir', 'customer.txt'), 'utf8'),
+      ).toBe('keep');
     });
 
     it('keeps install predictions equal when a legacy unpatch removes its target', async () => {

@@ -174,16 +174,20 @@ describe('Schema - Single Source of Truth', () => {
       expect(SAFEWORD_SCHEMA.sharedDirs).toContain('.claude/skills');
       expect(SAFEWORD_SCHEMA.sharedDirs).toContain('.claude/commands');
     });
+
+    it('should preserve project-owned namespace directories on uninstall', async () => {
+      const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
+      expect(SAFEWORD_SCHEMA.sharedDirs).toContain('.safeword-project/learnings');
+      expect(SAFEWORD_SCHEMA.sharedDirs).toContain('.safeword-project/tickets');
+      expect(SAFEWORD_SCHEMA.sharedDirs).toContain('.safeword-project/tickets/completed');
+      expect(SAFEWORD_SCHEMA.sharedDirs).toContain('.safeword-project/tmp');
+    });
   });
 
   describe('preservedDirs', () => {
     it('should preserve user content directories', async () => {
       const { SAFEWORD_SCHEMA } = await import('../src/schema.js');
-      expect(SAFEWORD_SCHEMA.preservedDirs).toContain('.safeword-project/learnings');
       expect(SAFEWORD_SCHEMA.preservedDirs).toContain('.safeword/logs');
-      expect(SAFEWORD_SCHEMA.preservedDirs).toContain('.safeword-project/tickets');
-      expect(SAFEWORD_SCHEMA.preservedDirs).toContain('.safeword-project/tickets/completed');
-      expect(SAFEWORD_SCHEMA.preservedDirs).toContain('.safeword-project/tmp');
     });
 
     it('should NOT include old .safeword/tickets paths', async () => {

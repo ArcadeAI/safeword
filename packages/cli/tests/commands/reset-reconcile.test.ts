@@ -222,7 +222,7 @@ describe('Reset Command - Reconcile Integration', () => {
       ).toBe(true);
     });
 
-    it('should unmerge MCP servers', async () => {
+    it('should preserve MCP definitions that are not exact Safeword defaults', async () => {
       const { reconcile, SAFEWORD_SCHEMA, createProjectContext } =
         await getReconcileTestUtilities(temporaryDirectory);
 
@@ -234,8 +234,8 @@ describe('Reset Command - Reconcile Integration', () => {
       // .mcp.json should exist with custom server
       expect(existsSync(nodePath.join(temporaryDirectory, '.mcp.json'))).toBe(true);
       const mcp = JSON.parse(readFileSync(nodePath.join(temporaryDirectory, '.mcp.json'), 'utf8'));
-      expect(mcp.mcpServers?.context7).toBeUndefined();
-      expect(mcp.mcpServers?.playwright).toBeUndefined();
+      expect(mcp.mcpServers?.context7).toEqual({ command: 'bunx' });
+      expect(mcp.mcpServers?.playwright).toEqual({ command: 'bunx' });
       expect(mcp.mcpServers?.custom).toBeDefined();
     });
 
@@ -255,7 +255,7 @@ describe('Reset Command - Reconcile Integration', () => {
   });
 
   describe('reconcile mode=uninstall-full', () => {
-    it('should also remove managed files', async () => {
+    it('should preserve managed files that do not match Safeword scaffolds', async () => {
       const { reconcile, SAFEWORD_SCHEMA, createProjectContext } =
         await getReconcileTestUtilities(temporaryDirectory);
 
@@ -264,10 +264,8 @@ describe('Reset Command - Reconcile Integration', () => {
       const ctx = createProjectContext(temporaryDirectory);
       await reconcile(SAFEWORD_SCHEMA, 'uninstall-full', ctx);
 
-      // Managed files should be removed (if they match template)
-      expect(existsSync(nodePath.join(temporaryDirectory, 'eslint.config.mjs'))).toBe(false);
-      // .prettierrc is removed if it matches our template (no customizations)
-      expect(existsSync(nodePath.join(temporaryDirectory, '.prettierrc'))).toBe(false);
+      expect(existsSync(nodePath.join(temporaryDirectory, 'eslint.config.mjs'))).toBe(true);
+      expect(existsSync(nodePath.join(temporaryDirectory, '.prettierrc'))).toBe(true);
     });
 
     it('should compute packages to remove', async () => {

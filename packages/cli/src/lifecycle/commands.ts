@@ -190,8 +190,8 @@ async function installAgentSurfaces(
     }
   }
   if (agents.includes('cursor')) {
-    // Cursor has no host process; its outcome is read back from the assets the
-    // project reconciliation just wrote, never mirrored from the project state.
+    // Cursor has no host process; read its health from the reconciled assets and
+    // carry the project reconciliation's change signal into the surface result.
     const observed = observeCursorProject(cwd, projectLifecycleSchema(cwd, agents));
     surfaces.push({
       name: 'cursor',
@@ -554,7 +554,11 @@ export async function planLifecycle(invocation: CommandInvocation): Promise<CliR
       data: { command: 'plan' },
     });
   }
-  const scope = lifecycleScope(invocation.options.scope, 'plan', parsed.selection.agents);
+  const agents =
+    operation === 'uninstall'
+      ? uninstallAgentSelection(invocation.options.agents, parsed.selection.agents)
+      : parsed.selection.agents;
+  const scope = lifecycleScope(invocation.options.scope, 'plan', agents);
   if (!scope.ok) return scope.result;
   const installOptions: SetupPlanOptions = {
     noModify: invocation.options.modify === false,
@@ -565,11 +569,11 @@ export async function planLifecycle(invocation: CommandInvocation): Promise<CliR
   };
   const prepared =
     operation === 'install'
-      ? await prepareLifecycle(invocation.cwd, 'install', parsed.selection.agents, {
+      ? await prepareLifecycle(invocation.cwd, 'install', agents, {
           install: installOptions,
           scope: scope.value,
         })
-      : await prepareLifecycle(invocation.cwd, 'uninstall', parsed.selection.agents, {
+      : await prepareLifecycle(invocation.cwd, 'uninstall', agents, {
           scope: scope.value,
         });
   return lifecyclePlanResult(operation, prepared, installOptions);
@@ -709,13 +713,16 @@ export async function uninstallLifecycle(invocation: CommandInvocation): Promise
     });
   }
   const full = invocation.options.full === true;
-  if (invocation.offline && full) return onlineRequired('uninstall');
-  const scope = lifecycleScope(invocation.options.scope, 'uninstall', parsed.selection.agents);
+  const agents = uninstallAgentSelection(invocation.options.agents, parsed.selection.agents);
+  const scope = lifecycleScope(invocation.options.scope, 'uninstall', agents);
   if (!scope.ok) return scope.result;
-  const prepared = await prepareLifecycle(invocation.cwd, 'uninstall', parsed.selection.agents, {
+  const prepared = await prepareLifecycle(invocation.cwd, 'uninstall', agents, {
     full,
     scope: scope.value,
   });
+  if (invocation.offline && (full || prepared.plan.effects.packages.length > 0)) {
+    return onlineRequired('uninstall');
+  }
   const suppliedPlan =
     typeof invocation.options.plan === 'string' ? invocation.options.plan : undefined;
   if (invocation.options.yes === true && suppliedPlan !== undefined) {
@@ -723,4 +730,15 @@ export async function uninstallLifecycle(invocation: CommandInvocation): Promise
     return applyPreparedLifecycle(invocation.cwd, prepared);
   }
   return uninstallPreview(prepared);
+}
+function uninstallAgentSelection(
+  requested: unknown,
+  selected: readonly AgentIntegration[],
+): readonly AgentIntegration[] {
+  // Cursor has project artifacts but no profile plugin, so it is not part of
+  // the install default. A repository-wide uninstall must nevertheless sweep
+  // that surface unless the user explicitly narrows --agents.
+  return requested === undefined && !selected.includes('cursor')
+    ? [...selected, 'cursor']
+    : selected;
 }

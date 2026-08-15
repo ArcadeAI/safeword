@@ -184,10 +184,10 @@ Feature: One coherent Safeword command model
   @unified-first-time-install.TBU2.R3
   Rule: unified-first-time-install.TBU2.R3 — Uninstallation reverses only recognized Safeword-owned state after exact-plan confirmation
 
-    Scenario: Unqualified uninstall previews core Claude and Codex removal
+    Scenario: Unqualified uninstall previews every supported surface
       Given a default unified installation
       When the user runs uninstall without confirmation
-      Then an exact plan covers core Claude and Codex but not Cursor
+      Then an exact plan covers project, Claude, Codex, and Cursor
       And no state is changed
 
     Scenario: Confirmed uninstall preserves custom and third-party content
