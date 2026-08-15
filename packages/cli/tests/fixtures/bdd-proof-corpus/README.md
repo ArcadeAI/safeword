@@ -1,6 +1,6 @@
 # BDD proof regression corpus
 
-This versioned corpus is the shared oracle for Safe Word's BDD review, advisory
+This versioned corpus is the shared oracle for Safeword's BDD review, advisory
 detection, evaluation, and falsification work. Each case contains the same two
 inputs a reviewer sees:
 

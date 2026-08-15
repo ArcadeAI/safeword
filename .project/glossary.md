@@ -14,6 +14,7 @@ and could mean two things. One-spec-only vocabulary stays in that ticket.
 **Definition:** A checkpoint that blocks workflow progress until its condition is met. Safeword has several, each with a distinct trigger:
 
 - **phase gate** — can't create `test-definitions.md` without `scope`/`out_of_scope`/`done_when`; can't start TDD without `test-definitions.md`
+- **plan gate** — a new-flow feature can't enter `implement` without a valid `impl-plan.md` (authored during the plan-implementation phase, status `planned`), and can't reach `verify`/`done` until the plan is reconciled to `implemented`
 - **phase-provenance gate** — a feature ticket must be born at `phase: intake` and advance one canonical step at a time; skipping a phase requires a per-phase `phase_skips` justification in frontmatter
 - **LOC gate** — commit roughly every 400 lines of project code
 - **done gate** — can't close a ticket without `verify.md`
