@@ -197,4 +197,7 @@ fixture scenarios do not substitute for its RED, GREEN, or REFACTOR record.
 
 ## Feature-level cross-scenario refactor
 
-- [ ] REFACTOR: reopen after the remaining R2 and R3 scenarios have GREEN evidence; broader module extraction stays deferred outside this safety fix
+Revisit after the remaining R2 and R3 scenarios have GREEN evidence. Broader
+module extraction stays deferred outside this safety fix.
+
+- [ ] cross-scenario
