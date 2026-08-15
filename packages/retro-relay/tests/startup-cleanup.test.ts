@@ -151,6 +151,29 @@ describe('relay maintenance interval', () => {
   });
 });
 
+describe('relay startup listeners', () => {
+  it('removes the startup error listener after listening succeeds', async () => {
+    const store = RelayStore.open(databasePath());
+    const started = await startRelayServer({
+      allowUnlockedForTests: true,
+      credentials: new CredentialRegistry('pepper'),
+      github: offlineGitHub(),
+      host: '127.0.0.1',
+      mode: 'spike',
+      payloadKey: Buffer.alloc(32, 7),
+      port: 0,
+      store,
+    });
+
+    try {
+      expect(started.server.listenerCount('error')).toBe(0);
+    } finally {
+      await closeServer(started.server);
+      store.close();
+    }
+  });
+});
+
 describe('relay startup failure', () => {
   it('leaves no maintenance interval running when the port is taken', async () => {
     const blocked = await occupiedPort();
