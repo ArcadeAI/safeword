@@ -1,4 +1,3 @@
-import { execFileSync } from 'node:child_process';
 import {
   existsSync,
   mkdirSync,
@@ -12,7 +11,7 @@ import {
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import { migrateClaudeLegacyAutomatically } from '../../src/claude-plugin/cleanup.js';
 import { CLAUDE_HISTORICAL_CATALOGUE } from '../../src/claude-plugin/historical-catalogue.generated.js';
@@ -21,8 +20,9 @@ import {
   historicalHookEntry,
 } from '../../src/claude-plugin/historical-ownership.js';
 import { readClaudePluginMode } from '../../src/claude-plugin/migration-state.js';
+import { readHistoricalTemplate, requireHistoricalReleaseTags } from '../helpers/git-history.js';
+import { blockWrites } from '../helpers/io-failure.js';
 
-const repoRoot = new URL('../../../..', import.meta.url).pathname;
 const roots: string[] = [];
 const hookDigest = 'a'.repeat(64);
 const originalProjectDirectory = process.env.CLAUDE_PROJECT_DIR;
@@ -36,20 +36,7 @@ function fixture(version = '0.72.0'): { root: string; installedPath: string } {
     ];
   const installedPath = Object.keys(release.files)[0];
   if (installedPath === undefined) throw new Error(`Release ${version} has no Claude fixture.`);
-  const schema = execFileSync('git', ['show', `v${version}:packages/cli/src/schema.ts`], {
-    cwd: repoRoot,
-    encoding: 'utf8',
-  });
-  const escaped = installedPath.replaceAll(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`);
-  // eslint-disable-next-line security/detect-non-literal-regexp -- escaped fixture path is test-owned
-  const template = new RegExp(
-    String.raw`['"]${escaped}['"]\s*:\s*\{[^}]*?template:\s*['"]([^'"]+)['"]`,
-    'su',
-  ).exec(schema)?.[1];
-  const content = execFileSync('git', ['show', `v${version}:packages/cli/templates/${template}`], {
-    cwd: repoRoot,
-    encoding: 'utf8',
-  });
+  const content = readHistoricalTemplate(version, installedPath);
   const target = nodePath.join(root, installedPath);
   mkdirSync(nodePath.dirname(target), { recursive: true });
   writeFileSync(target, content);
@@ -74,8 +61,15 @@ afterEach(() => {
   roots.length = 0;
 });
 
+/** Releases this suite reads real bytes from; shared with the history preflight. */
+const FIXTURE_VERSIONS = ['0.68.0', '0.69.0', '0.72.0'];
+
 describe('automatic Claude migration', () => {
-  it.each(['0.68.0', '0.69.0', '0.72.0'])(
+  beforeAll(() => {
+    requireHistoricalReleaseTags(FIXTURE_VERSIONS);
+  });
+
+  it.each(FIXTURE_VERSIONS)(
     'contracts exact %s released bytes and writes clean plugin mode silently',
     version => {
       const { root, installedPath } = fixture(version);
@@ -293,8 +287,9 @@ describe('automatic Claude migration', () => {
   });
 
   it('contains unexpected migration exceptions instead of throwing into the prompt', () => {
-    const missing = nodePath.join(tmpdir(), 'safeword-missing-project-for-auto-migration');
-    rmSync(missing, { recursive: true, force: true });
+    const container = mkdtempSync(nodePath.join(tmpdir(), 'safeword-missing-project-'));
+    roots.push(container);
+    const missing = nodePath.join(container, 'not-created');
     expect(() => migrate(missing)).not.toThrow();
     expect(migrate(missing)).toMatchObject({ state: 'attention' });
   });
@@ -303,9 +298,7 @@ describe('automatic Claude migration', () => {
     const { root, installedPath } = fixture();
     const target = nodePath.join(root, installedPath);
     const before = readFileSync(target);
-    mkdirSync(nodePath.join(root, '.safeword/claude-plugin/cleanup-transaction-v1.json'), {
-      recursive: true,
-    });
+    blockWrites(nodePath.join(root, '.safeword/claude-plugin/cleanup-transaction-v1.json'));
 
     const result = migrate(root);
 

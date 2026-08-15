@@ -1,4 +1,4 @@
-import { execFileSync, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   cpSync,
@@ -14,7 +14,7 @@ import {
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import { CLAUDE_HISTORICAL_CATALOGUE } from '../../src/claude-plugin/historical-catalogue.generated.js';
 import {
@@ -23,8 +23,13 @@ import {
 } from '../../src/claude-plugin/historical-ownership.js';
 import { claudeWatchedSettingsDigest } from '../../src/claude-plugin/migration-state.js';
 import { SAFEWORD_SCHEMA } from '../../src/schema.js';
+import { readHistoricalTemplate, requireHistoricalReleaseTags } from '../helpers/git-history.js';
+import { blockChildren } from '../helpers/io-failure.js';
 
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
+/** Release this suite reads real bytes from; shared with the history preflight. */
+const FIXTURE_VERSION = '0.72.0';
+const FIXTURE_VERSIONS = [FIXTURE_VERSION];
 const PLUGIN_ROOT = nodePath.join(REPO_ROOT, 'plugin');
 const roots: string[] = [];
 
@@ -40,37 +45,24 @@ function temporary(prefix: string): string {
 }
 
 function releasedAsset(projectDirectory: string): string {
-  const release = CLAUDE_HISTORICAL_CATALOGUE.releases['0.72.0'];
+  const release = CLAUDE_HISTORICAL_CATALOGUE.releases[FIXTURE_VERSION];
   const installedPath = Object.keys(release.files)[0];
-  if (installedPath === undefined) throw new Error('Release 0.72.0 has no Claude fixture.');
+  if (installedPath === undefined) {
+    throw new Error(`Release ${FIXTURE_VERSION} has no Claude fixture.`);
+  }
   return releasedFile(projectDirectory, installedPath);
 }
 
 function releasedFile(projectDirectory: string, installedPath: string): string {
-  const schema = execFileSync('git', ['show', 'v0.72.0:packages/cli/src/schema.ts'], {
-    cwd: REPO_ROOT,
-    encoding: 'utf8',
-  });
-  const escaped = installedPath.replaceAll(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`);
-  // eslint-disable-next-line security/detect-non-literal-regexp -- escaped fixture path is test-owned
-  const template = new RegExp(
-    String.raw`['"]${escaped}['"]\s*:\s*\{[^}]*?template:\s*['"]([^'"]+)['"]`,
-    'su',
-  ).exec(schema)?.[1];
   const target = nodePath.join(projectDirectory, installedPath);
   mkdirSync(nodePath.dirname(target), { recursive: true });
-  writeFileSync(
-    target,
-    execFileSync('git', ['show', `v0.72.0:packages/cli/templates/${template}`], {
-      cwd: REPO_ROOT,
-    }),
-  );
+  writeFileSync(target, readHistoricalTemplate(FIXTURE_VERSION, installedPath));
   return target;
 }
 
 function promptSettings(projectDirectory: string, marketplace: unknown): void {
   const fingerprint =
-    CLAUDE_HISTORICAL_CATALOGUE.releases['0.72.0'].hooks.UserPromptSubmit?.[0] ?? '';
+    CLAUDE_HISTORICAL_CATALOGUE.releases[FIXTURE_VERSION].hooks.UserPromptSubmit?.[0] ?? '';
   const hook = historicalHookEntry(fingerprint);
   const command = /\.safeword\/hooks\/[\w./-]+/u.exec(JSON.stringify(hook))?.[0];
   if (command === undefined) throw new Error('Historical prompt hook has no project hook path.');
@@ -100,6 +92,21 @@ function dispatchPrompt(
   });
 }
 
+function isolatedClaudeEnvironment(
+  projectDirectory: string,
+  pluginData: string,
+  pluginRoot = PLUGIN_ROOT,
+): NodeJS.ProcessEnv {
+  return {
+    ...process.env,
+    CLAUDE_CONFIG_DIR: temporary('safeword-plugin-empty-config-'),
+    CLAUDE_PLUGIN_DATA: pluginData,
+    CLAUDE_PLUGIN_ROOT: pluginRoot,
+    CLAUDE_PROJECT_DIR: projectDirectory,
+    HOME: temporary('safeword-plugin-empty-home-'),
+  };
+}
+
 function dispatchEvent(
   projectDirectory: string,
   pluginData: string,
@@ -120,7 +127,7 @@ function dispatchEvent(
     CLAUDE_PLUGIN_DATA: pluginData,
     CLAUDE_PLUGIN_ROOT: pluginRoot,
     CLAUDE_PROJECT_DIR: projectDirectory,
-    HOME: options.homeDirectory ?? process.env.HOME,
+    HOME: options.homeDirectory ?? temporary('safeword-plugin-empty-home-'),
   };
   if (options.omitProjectDirectory === true) delete environment.CLAUDE_PROJECT_DIR;
   if (configDirectory === undefined) delete environment.CLAUDE_CONFIG_DIR;
@@ -166,16 +173,15 @@ function refreshPluginIdentity(pluginRoot: string, changedAssets: readonly strin
 }
 
 describe('Claude plugin dispatcher', () => {
+  beforeAll(() => {
+    requireHistoricalReleaseTags(FIXTURE_VERSIONS);
+  });
+
   it('passes the bundled CLI path to aggregate child hooks', () => {
     const projectDirectory = temporary('safeword-plugin-project-');
     const pluginData = temporary('safeword-plugin-data-');
     mkdirSync(nodePath.join(projectDirectory, '.safeword'));
-    const environment: NodeJS.ProcessEnv = {
-      ...process.env,
-      CLAUDE_PLUGIN_DATA: pluginData,
-      CLAUDE_PLUGIN_ROOT: PLUGIN_ROOT,
-      CLAUDE_PROJECT_DIR: projectDirectory,
-    };
+    const environment = isolatedClaudeEnvironment(projectDirectory, pluginData);
     delete environment.SAFEWORD_PLUGIN_CLI;
 
     const result = spawnSync(
@@ -303,12 +309,7 @@ describe('Claude plugin dispatcher', () => {
     const pluginData = temporary('safeword-plugin-empty-command-data-');
     const target = releasedAsset(projectDirectory);
     promptSettings(projectDirectory, { source: { source: 'github', repo: 'ArcadeAI/safeword' } });
-    const environment: NodeJS.ProcessEnv = {
-      ...process.env,
-      CLAUDE_PLUGIN_DATA: pluginData,
-      CLAUDE_PLUGIN_ROOT: PLUGIN_ROOT,
-      CLAUDE_PROJECT_DIR: projectDirectory,
-    };
+    const environment = isolatedClaudeEnvironment(projectDirectory, pluginData);
 
     const result = spawnSync(
       'bun',
@@ -565,12 +566,7 @@ describe('Claude plugin dispatcher', () => {
     writeFileSync(eventGroupsPath, `${JSON.stringify(eventGroups, undefined, 2)}\n`);
     refreshPluginIdentity(pluginRoot, ['runtime/event-groups.json']);
 
-    const environment: NodeJS.ProcessEnv = {
-      ...process.env,
-      CLAUDE_PLUGIN_DATA: pluginData,
-      CLAUDE_PLUGIN_ROOT: pluginRoot,
-      CLAUDE_PROJECT_DIR: projectDirectory,
-    };
+    const environment = isolatedClaudeEnvironment(projectDirectory, pluginData, pluginRoot);
     const result = spawnSync(
       'bun',
       [nodePath.join(pluginRoot, 'runtime/dispatch.js'), 'SessionStart', '--event-group'],
@@ -586,7 +582,7 @@ describe('Claude plugin dispatcher', () => {
     const configDirectory = temporary('safeword-plugin-proof-failure-config-');
     const target = releasedAsset(projectDirectory);
     promptSettings(projectDirectory, { source: { source: 'github', repo: 'ArcadeAI/safeword' } });
-    writeFileSync(pluginData, 'proof directory collision\n');
+    blockChildren(pluginData);
 
     const result = dispatchPrompt(projectDirectory, pluginData, configDirectory, 'proof-failure');
     expect(result.status, result.stderr).toBe(0);
@@ -686,7 +682,7 @@ describe('Claude plugin dispatcher', () => {
   it('returns one JSON response when a direct prompt hook also needs an advisory', () => {
     const projectDirectory = temporary('safeword-plugin-direct-prompt-project-');
     const pluginData = nodePath.join(temporary('safeword-plugin-direct-prompt-data-'), 'not-a-dir');
-    writeFileSync(pluginData, 'proof directory collision\n');
+    blockChildren(pluginData);
     const result = spawnSync(
       'bun',
       [
@@ -699,12 +695,7 @@ describe('Claude plugin dispatcher', () => {
       ],
       {
         cwd: projectDirectory,
-        env: {
-          ...process.env,
-          CLAUDE_PLUGIN_DATA: pluginData,
-          CLAUDE_PLUGIN_ROOT: PLUGIN_ROOT,
-          CLAUDE_PROJECT_DIR: projectDirectory,
-        },
+        env: isolatedClaudeEnvironment(projectDirectory, pluginData),
         encoding: 'utf8',
         input: JSON.stringify({ hook_event_name: 'UserPromptSubmit', session_id: 'direct-prompt' }),
       },

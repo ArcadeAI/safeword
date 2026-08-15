@@ -1,13 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import {
-  chmodSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  symlinkSync,
-  writeFileSync,
-} from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -25,6 +17,7 @@ import {
 } from '../../templates/hooks/lib/retro-draft-spool.js';
 import { decideRetroFilingNudge } from '../../templates/hooks/lib/retro-nudge.js';
 import { retroDraft as draft, sealedRetroDraft } from '../helpers.js';
+import { blockWrites, sinkWrites } from '../helpers/io-failure.js';
 
 const DRAIN_RETRO_SPOOL = nodePath.resolve(
   import.meta.dirname,
@@ -141,7 +134,7 @@ describe('fileSpooledDrafts (BNGK9W — the agent filing seam: post each verbati
   it('retains a posted draft when its acknowledgement write fails', async () => {
     const posted = draft('retro:aaaaaaaaaaaa', 'Posted');
     spoolDrafts(projectDirectory, 'sess-1', [posted]);
-    mkdirSync(ackFilePath(projectDirectory, 'sess-1'));
+    blockWrites(ackFilePath(projectDirectory, 'sess-1'));
 
     const result = await fileSpooledDrafts(projectDirectory, 'sess-1', () =>
       Promise.resolve({ issue: 101 }),
@@ -154,9 +147,7 @@ describe('fileSpooledDrafts (BNGK9W — the agent filing seam: post each verbati
   it('retains a posted draft when its acknowledgement cannot be read back', async () => {
     const posted = draft('retro:aaaaaaaaaaaa', 'Posted');
     spoolDrafts(projectDirectory, 'sess-1', [posted]);
-    const path = ackFilePath(projectDirectory, 'sess-1');
-    writeFileSync(path, '');
-    chmodSync(path, 0o200);
+    sinkWrites(ackFilePath(projectDirectory, 'sess-1'));
 
     const result = await fileSpooledDrafts(projectDirectory, 'sess-1', () =>
       Promise.resolve({ issue: 101 }),
