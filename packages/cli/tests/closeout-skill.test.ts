@@ -65,6 +65,14 @@ describe('closeout merge authority (93C14D TBU1.R1)', () => {
       normalizedParagraphContaining(skill, 'Invocation alone grants no merge authority'),
     ).toContain('historical, implied, or previously consumed authority is not available');
   });
+
+  it.each([
+    { authority: 'no merge authority', contract: 'Invocation alone grants no merge authority' },
+    { authority: 'normal merge authority', contract: 'normal merge' },
+    { authority: 'administrative merge authority', contract: 'administrative merge' },
+  ])('documents the exact $authority boundary', ({ contract }) => {
+    expect(canonicalSkill()).toContain(contract);
+  });
 });
 
 describe('closeout observed resumption (93C14D NTB1.R3)', () => {

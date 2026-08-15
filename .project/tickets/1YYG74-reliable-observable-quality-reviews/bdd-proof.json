@@ -7,7 +7,7 @@
     ],
     "Active route progress identifies the assigned reviewer": ["packages/cli/tests/cli-protocol/review-wiring.test.ts", "keeps managed machine output typed while identifying the active reviewer"],
     "Completion cancels pending lifecycle output": ["packages/cli/tests/cli-protocol/policy.test.ts", "cancels a pending announcement as well as the heartbeat when the command ends"],
-    "Only the exact private signal enables JSON progress": ["packages/cli/tests/cli-protocol/policy.test.ts", "consumes only the exact managed-progress signal and always removes it", "*"],
+    "Only the exact private signal enables JSON progress": ["packages/cli/tests/cli-protocol/policy.test.ts", "consumes the exact private signal case $case", "*"],
     "Quiet mode wins over managed progress": ["packages/cli/tests/cli-protocol/review-wiring.test.ts", "lets quiet mode suppress managed progress for %s without suppressing the JSON result"],
     "Human-readable progress remains enabled without the private signal": ["packages/cli/tests/cli-protocol/policy.test.ts", "reports JSON progress only for an opted-in managed review and never in quiet mode"],
     "Progress write failures stay contained and retryable": [

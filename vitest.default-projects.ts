@@ -26,5 +26,7 @@ export function defaultVitestInclude(projectRoot: string): string[] {
 export function defaultVitestExclude(projectRoot: string): string[] {
   const project = DEFAULT_VITEST_PROJECTS.find(candidate => candidate.root === projectRoot);
   if (project === undefined) throw new TypeError(`Unknown default Vitest project: ${projectRoot}`);
-  return project.excludedSuffixes.map(suffix => `tests/**/*.${suffix}.test.ts`);
+  return project.sourceDirectories.flatMap(directory =>
+    project.excludedSuffixes.map(suffix => `${directory}/**/*.${suffix}.test.ts`),
+  );
 }

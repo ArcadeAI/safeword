@@ -772,6 +772,51 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     }
   });
 
+  it.each([
+    { invalidEvidence: 'a missing filing verdict', patch: { agentFilingNeeded: undefined } },
+    { invalidEvidence: 'a non-boolean filing verdict', patch: { agentFilingNeeded: 'false' } },
+    { invalidEvidence: 'a negative pending-draft count', patch: { pendingDrafts: -1 } },
+    { invalidEvidence: 'a fractional sealed byte length', patch: { snapshotByteLength: 0.5 } },
+  ])('replaces malformed retro receipt evidence: $invalidEvidence', ({ patch }) => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'closeout-retro-invalid-example-'));
+    const id = 'claude-invalid-retro-example';
+    const transcript = nodePath.join(root, 'transcript.jsonl');
+    try {
+      spawnSync('git', ['init', '--quiet', root], { encoding: 'utf8' });
+      writeFileSync(transcript, `${JSON.stringify({ session_id: id, cwd: root })}\n`);
+      const binding = {
+        runtime: 'claude' as const,
+        id,
+        projectRoot: root,
+        transcriptPath: transcript,
+      };
+      let runs = 0;
+      const runner = () => {
+        runs += 1;
+        return completedRetroResult();
+      };
+      expect(runBoundRetro(root, binding, runner).complete).toBe(true);
+      const receiptPath = nodePath.join(root, '.git', 'safeword', 'closeout-retro.json');
+      const valid = JSON.parse(readFileSync(receiptPath, 'utf8')) as Record<string, unknown>;
+      const { snapshotByteLength, ...receiptPatch } = patch;
+      const receipt = {
+        ...valid,
+        ...receiptPatch,
+        ...(snapshotByteLength !== undefined && {
+          snapshot: {
+            ...(valid.snapshot as Record<string, unknown>),
+            byteLength: snapshotByteLength,
+          },
+        }),
+      };
+      writeFileSync(receiptPath, `${JSON.stringify(receipt)}\n`);
+      expect(runBoundRetro(root, binding, runner).complete).toBe(true);
+      expect(runs).toBe(2);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it('does not represent a failed git status as a clean state hash', () => {
     expect(workingStateHash('/definitely/not/a/repository', 'a'.repeat(40))).toBeUndefined();
   });

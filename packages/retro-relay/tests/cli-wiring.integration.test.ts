@@ -481,6 +481,38 @@ const acceptedRelayOutcome = {
 };
 
 describe('real shared CLI to relay wiring', () => {
+  it.each([
+    { harness: 'Claude Code' },
+    { harness: 'Claude Code Cloud' },
+    { harness: 'OpenAI Codex' },
+    { harness: 'OpenAI Codex Cloud' },
+    { harness: 'Cursor' },
+    { harness: 'Cursor Cloud Agents' },
+  ])(
+    '[ORR-001] routes the installed $harness surface through the persisted request',
+    async ({ harness }) => {
+      const surface = installedSurfaces.find(candidate => candidate.harness === harness);
+      expect(surface).toBeDefined();
+      if (surface === undefined) throw new Error(`Missing installed surface: ${harness}`);
+      const scenario = await createRelayScenario();
+      try {
+        const { outcome, project } = await runInstalledSurface(
+          scenario,
+          surface,
+          scenario.secureRelayFetch,
+        );
+        expect(outcome.relay).toEqual(acceptedRelayOutcome);
+        expect(scenario.relay.observability.logs.map(log => log.requestId)).toContain(
+          '00000000-0000-4000-8000-000000001479',
+        );
+        discardProject(project);
+      } finally {
+        scenario.store.close();
+      }
+    },
+    30_000,
+  );
+
   it('[ORR-001] routes all six installed surfaces through one persisted request and collaborator chain', async () => {
     let deliveryNow = Date.now();
     vi.spyOn(Date, 'now').mockImplementation(() => deliveryNow);

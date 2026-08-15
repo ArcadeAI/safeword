@@ -44,6 +44,23 @@ describe('CLI execution policy', () => {
     }
   });
 
+  it.each([
+    { case: '"1"', value: '1', enabled: true },
+    { case: '<unset>', value: undefined, enabled: false },
+    { case: '""', value: '', enabled: false },
+    { case: '" "', value: ' ', enabled: false },
+    { case: '"0"', value: '0', enabled: false },
+    { case: '"01"', value: '01', enabled: false },
+    { case: '"1 "', value: '1 ', enabled: false },
+    { case: '"true"', value: 'true', enabled: false },
+    { case: '"TRUE"', value: 'TRUE', enabled: false },
+  ])('consumes the exact private signal case $case', ({ value, enabled }) => {
+    const environment: Record<string, string> = {};
+    if (value !== undefined) environment.SAFEWORD_REVIEW_PROGRESS = value;
+    expect(consumeManagedProgressSignal(environment)).toBe(enabled);
+    expect(environment).not.toHaveProperty('SAFEWORD_REVIEW_PROGRESS');
+  });
+
   it('reports JSON progress only for an opted-in managed review and never in quiet mode', () => {
     expect(shouldReportProgress({ json: true, managedReview: true, quiet: false })).toBe(true);
     expect(shouldReportProgress({ json: true, managedReview: false, quiet: false })).toBe(false);

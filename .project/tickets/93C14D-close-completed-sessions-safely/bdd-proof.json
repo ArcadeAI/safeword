@@ -61,7 +61,7 @@
       ["packages/cli/tests/closeout-cleanup.test.ts", "reruns extraction after %s change the bound transcript bytes", "truncated existing records"],
       ["packages/cli/tests/closeout-cleanup.test.ts", "reruns extraction after %s change the bound transcript bytes", "an ambiguous unclassified record"]
     ],
-    "Explicit authority bounds the merge action": ["packages/cli/tests/closeout-skill.test.ts", "defaults to no authority and never infers or escalates administrative authority", "*"],
+    "Explicit authority bounds the merge action": ["packages/cli/tests/closeout-skill.test.ts", "documents the exact $authority boundary", "*"],
     "The pull request head changing after readiness blocks merge": ["packages/cli/tests/closeout-skill.test.ts", "re-observes merge truth and continues only the unfinished suffix"],
     "Normal authority never escalates to an administrative merge": ["packages/cli/tests/closeout-skill.test.ts", "defaults to no authority and never infers or escalates administrative authority"],
     "Historical or implied admin intent is insufficient": ["packages/cli/tests/closeout-skill.test.ts", "defaults to no authority and never infers or escalates administrative authority"],
@@ -129,7 +129,11 @@
       ["packages/cli/tests/closeout-cleanup.test.ts", "%s is advisory for cleanup", "incomplete retro"],
       ["packages/cli/tests/closeout-cleanup.test.ts", "re-observes each remaining target and stops after a concurrent ref change"]
     ],
-    "Installed entry points fail closed without a fresh binding": ["packages/cli/tests/hooks/closeout-session-binding.test.ts", "rejects missing host proof, foreign profiles, and repository mismatches", "*"],
+    "Installed entry points fail closed without a fresh binding": [
+      ["packages/cli/tests/integration/closeout-host-adapters.test.ts", "drives the installed %s hook through the actual guard and real Git cleanup", "claude"],
+      ["packages/cli/tests/integration/closeout-host-adapters.test.ts", "drives the installed %s hook through the actual guard and real Git cleanup", "codex"],
+      ["packages/cli/tests/integration/closeout-host-adapters.test.ts", "drives the installed %s hook through the actual guard and real Git cleanup", "cursor"]
+    ],
     "Synchronized closeout artifacts pass host parity": ["packages/cli/tests/closeout-skill.test.ts", "derives Claude, Cursor, and Codex entry points from production catalogues"],
     "Codex Desktop binds closeout from its authenticated thread environment": ["packages/cli/tests/integration/closeout-host-adapters.test.ts", "binds the authenticated Codex Desktop task across linked worktrees without a hook bridge"],
     "Closeout drift fails parity at the changed surface": [

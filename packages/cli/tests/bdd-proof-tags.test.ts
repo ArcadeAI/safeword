@@ -6,14 +6,22 @@ import { type GherkinDocument, IdGenerator } from '@cucumber/messages';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
-import { DEFAULT_VITEST_PROJECTS } from '../../../vitest.default-projects.js';
+import {
+  DEFAULT_VITEST_PROJECTS,
+  defaultVitestExclude,
+  defaultVitestInclude,
+} from '../../../vitest.default-projects.js';
+import relayVitestConfig from '../../retro-relay/vitest.config.js';
 import { collectExecutableFeatureFiles } from '../src/utils/feature-source.js';
+import cliVitestConfig from '../vitest.config.js';
 
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '../../..');
+const configuredFeatureFilePaths = collectExecutableFeatureFiles(REPO_ROOT).map(absolutePath =>
+  nodePath.relative(REPO_ROOT, absolutePath).split(nodePath.sep).join('/'),
+);
+
 function configuredFeatureFiles(): string[] {
-  return collectExecutableFeatureFiles(REPO_ROOT).map(absolutePath =>
-    nodePath.relative(REPO_ROOT, absolutePath).split(nodePath.sep).join('/'),
-  );
+  return configuredFeatureFilePaths;
 }
 
 type ScenarioProof = [string, string, string?];
@@ -22,6 +30,25 @@ type ScenarioProofRegistration = ScenarioProof | ScenarioProof[];
 interface ScenarioProofManifest {
   feature: string;
   scenarios: Record<string, ScenarioProofRegistration>;
+}
+
+function isProofRegistration(value: unknown): value is ScenarioProof {
+  return (
+    Array.isArray(value) &&
+    [2, 3].includes(value.length) &&
+    value.every(entry => typeof entry === 'string')
+  );
+}
+
+function hasManifestShape(value: {
+  feature?: unknown;
+  scenarios?: unknown;
+}): value is ScenarioProofManifest {
+  return (
+    typeof value.feature === 'string' &&
+    value.scenarios !== null &&
+    typeof value.scenarios === 'object'
+  );
 }
 
 function proofManifestPaths(): string[] {
@@ -39,11 +66,7 @@ function readProofManifest(relativePath: string): ScenarioProofManifest {
     feature?: unknown;
     scenarios?: unknown;
   };
-  if (
-    typeof manifest.feature !== 'string' ||
-    manifest.scenarios === null ||
-    typeof manifest.scenarios !== 'object'
-  ) {
+  if (!hasManifestShape(manifest)) {
     throw new TypeError(`${relativePath} must declare a feature string and scenarios object`);
   }
   for (const [scenario, registration] of Object.entries(manifest.scenarios)) {
@@ -54,17 +77,16 @@ function readProofManifest(relativePath: string): ScenarioProofManifest {
     if (
       !Array.isArray(registrations) ||
       registrations.length === 0 ||
-      registrations.some(
-        proof =>
-          !Array.isArray(proof) ||
-          ![2, 3].includes(proof.length) ||
-          proof.some(value => typeof value !== 'string'),
-      )
+      registrations.some(proof => !isProofRegistration(proof))
     ) {
       throw new TypeError(`${relativePath}: ${scenario} has an invalid proof registration`);
     }
+    const proofKeys = registrations.map(proof => JSON.stringify(proof));
+    if (new Set(proofKeys).size !== proofKeys.length) {
+      throw new TypeError(`${relativePath}: ${scenario} repeats a proof registration`);
+    }
   }
-  return manifest as ScenarioProofManifest;
+  return manifest;
 }
 
 function isCollectedVitestProofPath(proofPath: string): boolean {
@@ -124,20 +146,52 @@ function expressionTokens(expression: ts.Expression): string[] {
       current = current.expression;
       continue;
     }
+    if (ts.isTaggedTemplateExpression(current)) {
+      current = current.tag;
+      continue;
+    }
     return tokens;
   }
+}
+
+function staticCallName(node: ts.CallExpression): string | undefined {
+  const nameArgument = node.arguments[0];
+  return nameArgument !== undefined &&
+    (ts.isStringLiteral(nameArgument) || ts.isNoSubstitutionTemplateLiteral(nameArgument))
+    ? nameArgument.text
+    : undefined;
+}
+
+function isParameterizedTestTokens(tokens: string[]): boolean {
+  return ['it', 'test'].includes(tokens[0] ?? '') && ['each', 'for'].includes(tokens.at(-1) ?? '');
 }
 
 function executableVitestNames(source: string): string[] {
   const sourceFile = ts.createSourceFile('proof.test.ts', source, ts.ScriptTarget.Latest, true);
   const names: string[] = [];
 
+  function conditionAllows(call: ts.CallExpression, token: 'runIf' | 'skipIf'): boolean {
+    const conditional = ts.isCallExpression(call.expression) ? call.expression : undefined;
+    if (conditional === undefined || !expressionTokens(conditional.expression).includes(token)) {
+      return false;
+    }
+    const condition = conditional.arguments[0]?.kind;
+    return (
+      condition === (token === 'runIf' ? ts.SyntaxKind.TrueKeyword : ts.SyntaxKind.FalseKeyword)
+    );
+  }
+
   function hasSkippedSuiteAncestor(node: ts.Node): boolean {
     for (let ancestor = node.parent; ancestor !== undefined; ancestor = ancestor.parent) {
       if (!ts.isCallExpression(ancestor)) continue;
       const tokens = expressionTokens(ancestor.expression);
       const isSuite = ['describe', 'suite'].includes(tokens[0] ?? '');
-      if (isSuite && tokens.some(token => ['skip', 'skipIf', 'runIf', 'todo'].includes(token))) {
+      if (
+        isSuite &&
+        (tokens.some(token => ['skip', 'todo'].includes(token)) ||
+          (tokens.includes('runIf') && !conditionAllows(ancestor, 'runIf')) ||
+          (tokens.includes('skipIf') && !conditionAllows(ancestor, 'skipIf')))
+      ) {
         return true;
       }
     }
@@ -148,9 +202,11 @@ function executableVitestNames(source: string): string[] {
     const tokens = expressionTokens(call.expression);
     const root = tokens[0];
     if (root !== 'it' && root !== 'test') return undefined;
-    if (tokens.some(token => ['skip', 'skipIf', 'runIf', 'todo', 'only'].includes(token))) {
+    if (tokens.some(token => ['skip', 'todo', 'only'].includes(token))) {
       return undefined;
     }
+    if (tokens.includes('runIf') && !conditionAllows(call, 'runIf')) return undefined;
+    if (tokens.includes('skipIf') && !conditionAllows(call, 'skipIf')) return undefined;
     return root;
   }
 
@@ -231,7 +287,10 @@ function parameterizedVitestCases(source: string): Map<string, ParameterizedCase
       .matchAll(/\$([A-Za-z_$][\w$]*)/gu)
       .map(match => match[1])
       .toArray();
-    const positionalPlaceholderCount = testName.matchAll(/%[sdifjo]/gu).toArray().length;
+    const positionalPlaceholderCount = testName
+      .replaceAll('%%', '')
+      .matchAll(/%[sdifjo#]/gu)
+      .toArray().length;
     return table.elements.flatMap(rowNode => {
       const row = unwrap(rowNode);
       if (ts.isArrayLiteralExpression(row)) {
@@ -256,35 +315,37 @@ function parameterizedVitestCases(source: string): Map<string, ParameterizedCase
           ? []
           : [values.length === 1 ? String(values[0]) : JSON.stringify(values)];
       }
-      return [literalValue(row)].filter(Boolean);
-    }) as string[];
+      const primitive = literalValue(row);
+      return primitive === undefined ? [] : [primitive];
+    });
   }
 
   function parameterizedDeclaration(
     node: ts.Node,
-  ): { name: string; table: ts.Expression } | undefined {
-    if (!ts.isCallExpression(node) || !ts.isCallExpression(node.expression)) return undefined;
-    const nameArgument = node.arguments[0];
-    if (
-      nameArgument === undefined ||
-      (!ts.isStringLiteral(nameArgument) && !ts.isNoSubstitutionTemplateLiteral(nameArgument))
-    ) {
-      return undefined;
+  ): { name: string; table?: ts.Expression } | undefined {
+    if (!ts.isCallExpression(node)) return undefined;
+    const staticName = staticCallName(node);
+    if (staticName === undefined) return undefined;
+    if (ts.isCallExpression(node.expression)) {
+      const tableCall = node.expression;
+      const tokens = expressionTokens(tableCall.expression);
+      const table = tableCall.arguments[0];
+      return isParameterizedTestTokens(tokens) ? { name: staticName, table } : undefined;
     }
-    const eachCall = node.expression;
-    const tokens = expressionTokens(eachCall.expression);
-    const table = eachCall.arguments[0];
-    return (tokens[0] === 'it' || tokens[0] === 'test') &&
-      tokens.at(-1) === 'each' &&
-      table !== undefined
-      ? { name: nameArgument.text, table }
-      : undefined;
+    if (ts.isTaggedTemplateExpression(node.expression)) {
+      const tokens = expressionTokens(node.expression.tag);
+      return isParameterizedTestTokens(tokens) && tokens.at(-1) === 'each'
+        ? { name: staticName }
+        : undefined;
+    }
+    return undefined;
   }
 
   function visit(node: ts.Node): void {
     const declaration = parameterizedDeclaration(node);
     if (declaration !== undefined) {
-      const cases = tableCaseValues(declaration.table, declaration.name);
+      const cases =
+        declaration.table === undefined ? [] : tableCaseValues(declaration.table, declaration.name);
       casesByName.set(declaration.name, {
         cases,
         staticallyEnumerable: cases.length > 0,
@@ -348,12 +409,19 @@ function expectScenarioProofs(manifest: ScenarioProofManifest): void {
       1,
     );
     const parameterized = parameterCases.get(testName);
-    if (parameterized === undefined) return selectedCase === '*' ? Infinity : 1;
+    if (parameterized === undefined) {
+      expect(
+        selectedCase,
+        `${scenario} -> ${testName} selects a case but is not a recognized static table`,
+      ).toBeUndefined();
+      return 1;
+    }
 
     expect(
       parameterized.staticallyEnumerable,
       `${scenario} -> ${testName} must use a statically enumerable table`,
     ).toBe(true);
+    if (selectedCase === '*') return parameterized.cases.length;
     const registrationCount = registrationCounts.get(`${proofPath}\0${testName}`) ?? 0;
     if (registrationCount === 1 && selectedCase === undefined) return parameterized.cases.length;
 
@@ -409,6 +477,9 @@ function scenarioExampleCounts(featurePath: string): Map<string, number> {
       : [child.scenario],
   );
   for (const scenario of scenarios) {
+    if (counts.has(scenario.name)) {
+      throw new TypeError(`${featurePath} repeats scenario name: ${scenario.name}`);
+    }
     counts.set(
       scenario.name,
       scenario.examples.reduce((total, examples) => total + examples.tableBody.length, 0),
@@ -478,6 +549,12 @@ describe('BDD proof provenance', () => {
     expect(executableVitestNames("it.runIf(false)('conditional', () => {});")).not.toContain(
       'conditional',
     );
+    expect(executableVitestNames("it.runIf(true)('running conditional', () => {});")).toContain(
+      'running conditional',
+    );
+    expect(
+      executableVitestNames("it.skipIf(false)('running skip conditional', () => {});"),
+    ).toContain('running skip conditional');
     expect(
       executableVitestNames(
         "describe.skip('disabled suite', () => it('nested behavior', () => {}));",
@@ -512,6 +589,14 @@ describe('BDD proof provenance', () => {
     expect(
       parameterizedVitestCases("it.each(TABLE)('dynamic %s', () => {});").get('dynamic %s'),
     ).toEqual({ cases: [], staticallyEnumerable: false });
+    expect(
+      parameterizedVitestCases("it.for(['alpha'])('for %s', () => {});").get('for %s'),
+    ).toEqual({ cases: ['alpha'], staticallyEnumerable: true });
+    expect(
+      parameterizedVitestCases("it.each`value\nalpha`('tagged $value', () => {});").get(
+        'tagged $value',
+      ),
+    ).toEqual({ cases: [], staticallyEnumerable: false });
   });
 
   it('accepts only repository-contained tests collected by the normal Vitest projects', () => {
@@ -519,5 +604,12 @@ describe('BDD proof provenance', () => {
     expect(isCollectedVitestProofPath('../outside.test.ts')).toBe(false);
     expect(isCollectedVitestProofPath('packages/cli/tests/example.slow.test.ts')).toBe(false);
     expect(isCollectedVitestProofPath('packages/cli/tests/example.ts')).toBe(false);
+    expect(isCollectedVitestProofPath('packages/cli/src/example.slow.test.ts')).toBe(false);
+  });
+
+  it('uses the same include and exclude rules as the shipped Vitest configs', () => {
+    expect(cliVitestConfig.test?.include).toEqual(defaultVitestInclude('packages/cli'));
+    expect(cliVitestConfig.test?.exclude).toEqual(defaultVitestExclude('packages/cli'));
+    expect(relayVitestConfig.test?.include).toEqual(defaultVitestInclude('packages/retro-relay'));
   });
 });
