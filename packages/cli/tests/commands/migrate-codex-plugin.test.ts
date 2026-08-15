@@ -376,7 +376,7 @@ describe('migrate codex-plugin command', () => {
     expect(calls).not.toContain('plugin add safeword@safeword --json');
   });
 
-  it('refuses cleanup when config changes during final plugin verification', async () => {
+  it('refuses cleanup when config changes during finalization preflight', async () => {
     const fixture = createMigrationFixture(LEGACY_HOOK_CONFIG);
     const { configPath } = fixture;
 
@@ -389,9 +389,7 @@ describe('migrate codex-plugin command', () => {
     });
 
     expect(result.exitCode).not.toBe(0);
-    expect(`${result.stdout}\n${result.stderr}`).toContain(
-      'Codex configuration changed during plugin verification',
-    );
+    expect(`${result.stdout}\n${result.stderr}`).toContain('finalization plan changed');
     expect(readFileSync(configPath, 'utf8')).toContain('# concurrent config update');
     expect(existsSync(`${configPath}.safeword.bak`)).toBe(false);
   });

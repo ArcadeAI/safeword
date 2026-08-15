@@ -67,7 +67,12 @@ export function resolvedNamespaceDirectory(ctx: ProjectContext): string | undefi
   // Skip the repo root ('.'), the well-known roots (already in the static lists),
   // and any root resolved OUTSIDE the repo ('../…') — a traversal label would leak
   // nonsensical ignore/prefix entries that match nothing under the repo.
-  if (label === '.' || label.startsWith('..') || SAFEWORD_IGNORE_DIRS.includes(label)) {
+  if (
+    label === '.' ||
+    label === '..' ||
+    label.startsWith('../') ||
+    SAFEWORD_IGNORE_DIRS.includes(label)
+  ) {
     return undefined;
   }
   return label;
@@ -82,7 +87,7 @@ export function resolvedNamespaceDirectory(ctx: ProjectContext): string | undefi
  */
 export function resolvedNamespaceRootLabel(ctx: ProjectContext): string {
   const root = ctx.namespaceRoot ?? resolveNamespaceRoot(ctx.cwd);
-  return nodePath.relative(ctx.cwd, root) || '.';
+  return (nodePath.relative(ctx.cwd, root) || '.').replaceAll(nodePath.sep, '/');
 }
 
 /**
@@ -92,6 +97,14 @@ export function resolvedNamespaceRootLabel(ctx: ProjectContext): string {
  */
 export function resolvedIgnoreDirectories(ctx: ProjectContext): readonly string[] {
   return safewordIgnoreDirectories(resolvedNamespaceDirectory(ctx));
+}
+
+/** Namespace directories whose authored contents survive Safeword uninstall. */
+export function durableNamespaceDirectories(ctx: ProjectContext): readonly string[] {
+  const custom = resolvedNamespaceDirectory(ctx);
+  return custom === undefined
+    ? ['.project', '.safeword-project']
+    : ['.project', '.safeword-project', custom];
 }
 
 /**
@@ -125,8 +138,11 @@ export function dirGlobExcludeMerge(
       const safewordGlobs = new Set(
         resolvedIgnoreDirectories(ctx).map(dir => globForDirectory(dir)),
       );
+      const durableGlobs = new Set(
+        durableNamespaceDirectories(ctx).map(dir => globForDirectory(dir)),
+      );
       const current = Array.isArray(existing[field]) ? (existing[field] as string[]) : [];
-      const cleaned = current.filter(entry => !safewordGlobs.has(entry));
+      const cleaned = current.filter(entry => !safewordGlobs.has(entry) || durableGlobs.has(entry));
       // Drop the field without a dynamic `delete` or unused binding, re-adding it
       // only when entries remain.
       const rest = Object.fromEntries(Object.entries(existing).filter(([key]) => key !== field));
