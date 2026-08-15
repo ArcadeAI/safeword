@@ -436,6 +436,41 @@ function preparePrimaryReview(
   return prepared;
 }
 
+async function executePrimaryReview(
+  input: ReviewRunInput,
+  reviewer: ReviewAgent,
+  primaryModel: string | undefined,
+  runDeadline: number,
+): Promise<
+  Awaited<ReturnType<typeof executeReview>> & { model: string | undefined; dispatchId: string }
+> {
+  const prepared = preparePrimaryReview(input, reviewer);
+  let execution = await executeReview(reviewer, prepared, primaryModel, runDeadline);
+  let model = primaryModel;
+  let dispatchId = prepared.packet.dispatch_id;
+  // A configured model is an optional routing preference, not a prerequisite
+  // for independent coverage. Alternate-model retries remain strict because
+  // their only purpose is selecting that specific model.
+  if (
+    primaryModel !== undefined &&
+    execution.outcome.kind === 'failed' &&
+    execution.outcome.failure === 'unsupported' &&
+    !execution.outcome.terminal &&
+    runDeadline > Date.now()
+  ) {
+    const defaultPrepared = preparePrimaryReview(input, reviewer);
+    const retried = await executeReview(reviewer, defaultPrepared, undefined, runDeadline);
+    execution = {
+      outcome: retried.outcome,
+      sourceChanged: execution.sourceChanged || retried.sourceChanged,
+      snapshotChanged: execution.snapshotChanged || retried.snapshotChanged,
+    };
+    model = undefined;
+    dispatchId = defaultPrepared.packet.dispatch_id;
+  }
+  return { ...execution, model, dispatchId };
+}
+
 function prepareFallbackReview(
   input: ReviewRunInput,
   assignedReviewer: ReviewAgent,
@@ -846,16 +881,16 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
   const { reviewer } = pair;
   const primaryModel = readPrimaryReviewerModel(input.cwd, reviewer);
 
-  const prepared = preparePrimaryReview(input, reviewer);
   // One bound for reviewer work across the whole run. Initial packet sealing is
   // deliberately outside it; later probes, routes, and cleanups share it.
   const runDeadline = Date.now() + runBoundMs();
-  const { outcome, sourceChanged, snapshotChanged } = await executeReview(
-    reviewer,
-    prepared,
-    primaryModel,
-    runDeadline,
-  );
+  const {
+    outcome,
+    sourceChanged,
+    snapshotChanged,
+    model: completedModel,
+    dispatchId,
+  } = await executePrimaryReview(input, reviewer, primaryModel, runDeadline);
   const changedResult = changedReviewResult({
     author: pair.author,
     reviewer,
@@ -877,7 +912,7 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
         ...input,
         author: pair.author,
         assignedReviewer: reviewer,
-        preferredModel: primaryModel,
+        preferredModel: completedModel,
         preferredFailure: outcome.failure,
         policy,
       });
@@ -889,13 +924,13 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
       ...input,
       author: pair.author,
       assignedReviewer: reviewer,
-      preferredModel: primaryModel,
+      preferredModel: completedModel,
       preferredFailure: outcome.failure,
       policy,
       runDeadline,
     });
   }
-  const provenance = verifyProvenance(outcome.output, reviewer, prepared.packet.dispatch_id);
+  const provenance = verifyProvenance(outcome.output, reviewer, dispatchId);
   if (provenance.kind === 'failed') {
     // Missing or contradictory provenance is invalid reviewer output: never
     // accept it as evidence, but give the remaining bounded routes the same
@@ -904,7 +939,7 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
       ...input,
       author: pair.author,
       assignedReviewer: reviewer,
-      preferredModel: primaryModel,
+      preferredModel: completedModel,
       preferredFailure: provenance.code,
       policy,
       runDeadline,
@@ -912,5 +947,5 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
   }
   const output = provenance.output;
 
-  return independentReviewResult({ author: pair.author, reviewer, output, model: primaryModel });
+  return independentReviewResult({ author: pair.author, reviewer, output, model: completedModel });
 }

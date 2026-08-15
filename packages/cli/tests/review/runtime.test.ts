@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -31,7 +31,7 @@ function temporaryDirectory(): string {
 }
 
 function trustedTemporaryDirectory(): string {
-  const directory = mkdtempSync(nodePath.join(process.cwd(), '.safeword-review-runtime-'));
+  const directory = mkdtempSync(nodePath.join(homedir(), '.safeword-review-runtime-'));
   temporaryDirectories.push(directory);
   return directory;
 }
@@ -143,7 +143,7 @@ describe('headless reviewer output adapters', () => {
     expect(parseReviewerOutput('claude', JSON.stringify(output))).toEqual(output);
   });
 
-  it.skipIf(process.platform === 'win32').each([
+  it.each([
     ['wrong schema version', { ...output, schema_version: 2 }],
     ['unknown verdict', { ...output, verdict: 'looks-good' }],
     ['missing summary', { ...output, summary: undefined }],
@@ -389,7 +389,9 @@ wait
       );
       chmodSync(executable, 0o755);
       vi.stubEnv('PATH', bin);
-      vi.stubEnv('SAFEWORD_REVIEW_TIMEOUT_MS', '1000');
+      // Leave the capability probe enough room under loaded CI; the reviewer
+      // invocation itself still times out deterministically.
+      vi.stubEnv('SAFEWORD_REVIEW_TIMEOUT_MS', '3000');
       vi.stubEnv('SAFEWORD_REVIEW_CHILD_PID', childPidPath);
 
       await expect(

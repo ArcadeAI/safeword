@@ -63,6 +63,7 @@ catch {
   try { const descriptor = openSync(keyPath, 'wx', 0o600); writeFileSync(descriptor, key.toString('hex') + '\n'); closeSync(descriptor); }
   catch { key = Buffer.from(readFileSync(keyPath, 'utf8').trim(), 'hex'); }
 }
+delete record.integrity;
 record.integrity = createHmac('sha256', key)
   .update(canonicalProject).update('\0').update(JSON.stringify(record)).digest('hex');
 writeFileSync(path + '.worker.tmp', JSON.stringify(record) + '\n', { mode: 0o600 });
@@ -787,7 +788,7 @@ ${COMPLETE_WORKER}`,
     expect(result.errors[0]?.code).toBe('REVIEW_JOB_INVALID');
   });
 
-  it('fails a launch record whose initiating process exited before persisting a worker', () => {
+  it('rejects an unsigned launch record before trusting its initiating pid', () => {
     const cwd = project();
     const id = 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa';
     const directory = nodePath.join(cwd, '.safeword', 'state', 'reviews');
@@ -810,12 +811,7 @@ ${COMPLETE_WORKER}`,
     const result = reviewJobStatus(cwd, id);
 
     expect(result.state).toBe('failed');
-    expect(result.errors[0]?.code).toBe('REVIEW_WORKER_EXITED');
-    const stored = JSON.parse(readFileSync(nodePath.join(directory, `${id}.json`), 'utf8'));
-    expect(stored).toMatchObject({
-      id,
-      state: 'failed',
-    });
+    expect(result.errors[0]?.code).toBe('REVIEW_JOB_INVALID');
   });
 
   it('rejects a record whose embedded identity differs from its filename', () => {

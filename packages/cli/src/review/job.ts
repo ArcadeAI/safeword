@@ -28,12 +28,6 @@ import { prepareReviewPacket } from './packet.js';
 type ReviewJobState = 'launching' | 'running' | 'completed' | 'failed' | 'canceled';
 type WorkerInspection = 'match' | 'mismatch' | 'unavailable';
 
-const TERMINAL_JOB_STATES: ReadonlySet<ReviewJobState> = new Set([
-  'completed',
-  'failed',
-  'canceled',
-]);
-
 interface ReviewJobRecord {
   readonly schema_version: 1;
   readonly id: string;
@@ -115,7 +109,6 @@ function recordIntegrity(cwd: string, record: ReviewJobRecord): string {
 }
 
 function hasValidIntegrity(cwd: string, record: ReviewJobRecord): boolean {
-  if (!isTerminalJobState(record.state)) return true;
   if (record.integrity === undefined || !/^[a-f\d]{64}$/u.test(record.integrity)) return false;
   try {
     const actual = Buffer.from(record.integrity, 'hex');
@@ -126,12 +119,7 @@ function hasValidIntegrity(cwd: string, record: ReviewJobRecord): boolean {
   }
 }
 
-function isTerminalJobState(state: ReviewJobState): boolean {
-  return TERMINAL_JOB_STATES.has(state);
-}
-
 function withRecordIntegrity(cwd: string, record: ReviewJobRecord): ReviewJobRecord {
-  if (!isTerminalJobState(record.state)) return record;
   const unsigned = { ...record, integrity: undefined };
   return { ...unsigned, integrity: recordIntegrity(cwd, unsigned) };
 }
@@ -850,6 +838,9 @@ function runningJob(
 
 function isActiveReviewJob(record: ReviewJobRecord): boolean {
   if (record.pid === undefined) return false;
+  // Active records are integrity-protected before reaching this point. A
+  // launching PID is the authenticated initiating process; once the worker is
+  // published, command-line inspection binds it to this exact review id.
   if (record.state === 'launching') return processExists(record.pid);
   return record.state === 'running' && inspectReviewWorker(record.pid, record.id) !== 'mismatch';
 }

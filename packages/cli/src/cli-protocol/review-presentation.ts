@@ -18,7 +18,8 @@ function reviewCoverage(data: Record<string, unknown>): ReviewCoverage {
   if (typeof author !== 'string' || !REVIEW_AUTHORS.has(author) || typeof reviewer !== 'string') {
     return 'incomplete';
   }
-  if (data.independence === 'degraded' && reviewer === author) return 'standard';
+  if (data.independence === 'degraded' && REVIEW_AGENTS.has(reviewer) && reviewer === author)
+    return 'standard';
   if (data.independence === 'cross-agent' && REVIEW_AGENTS.has(reviewer) && reviewer !== author) {
     return 'independent';
   }
@@ -30,7 +31,7 @@ function reviewVerdict(data: Record<string, unknown>): ReviewVerdict | undefined
   if (!isRecord(output)) return undefined;
   if (
     typeof output.reviewer_agent !== 'string' ||
-    !REVIEW_AUTHORS.has(output.reviewer_agent) ||
+    !REVIEW_AGENTS.has(output.reviewer_agent) ||
     output.reviewer_agent !== data.actual_reviewer
   ) {
     return undefined;

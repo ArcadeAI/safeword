@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { attemptDeadlineMs, minimumRouteMs, runBoundMs } from '../../src/review/runtime.js';
+import { minimumRouteMs, reviewTimeoutMilliseconds, runBoundMs } from '../../src/review/runtime.js';
 
 const original = process.env.SAFEWORD_REVIEW_TIMEOUT_MS;
 
@@ -22,7 +22,7 @@ function withConfiguredBound(value: string | undefined): number {
 function withConfigured(value: string | undefined): number {
   if (value === undefined) delete process.env.SAFEWORD_REVIEW_TIMEOUT_MS;
   else process.env.SAFEWORD_REVIEW_TIMEOUT_MS = value;
-  return attemptDeadlineMs();
+  return reviewTimeoutMilliseconds();
 }
 
 describe('attempt deadline', () => {
@@ -62,7 +62,7 @@ describe('run bound', () => {
     };
 
     expect(runBoundMs(env)).toBe(90_000);
-    expect(attemptDeadlineMs(env)).toBe(30_000);
+    expect(reviewTimeoutMilliseconds(env)).toBe(30_000);
     expect(minimumRouteMs(env)).toBe(30_000);
   });
 

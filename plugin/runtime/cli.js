@@ -2409,7 +2409,7 @@ function reviewCoverage(data) {
   if (typeof author !== "string" || !REVIEW_AUTHORS.has(author) || typeof reviewer !== "string") {
     return "incomplete";
   }
-  if (data.independence === "degraded" && reviewer === author)
+  if (data.independence === "degraded" && REVIEW_AGENTS.has(reviewer) && reviewer === author)
     return "standard";
   if (data.independence === "cross-agent" && REVIEW_AGENTS.has(reviewer) && reviewer !== author) {
     return "independent";
@@ -2420,7 +2420,7 @@ function reviewVerdict(data) {
   const output = data.reviewer_output;
   if (!isRecord(output))
     return;
-  if (typeof output.reviewer_agent !== "string" || !REVIEW_AUTHORS.has(output.reviewer_agent) || output.reviewer_agent !== data.actual_reviewer) {
+  if (typeof output.reviewer_agent !== "string" || !REVIEW_AGENTS.has(output.reviewer_agent) || output.reviewer_agent !== data.actual_reviewer) {
     return;
   }
   return output.verdict === "approve" || output.verdict === "request_changes" ? output.verdict : undefined;
@@ -43361,7 +43361,7 @@ function runBoundMs(env = process.env) {
   return Number.isFinite(configured) && configured > 0 ? Math.min(configured, ceiling) : ceiling;
 }
 function minimumRouteMs(env = process.env) {
-  return Math.min(60000, attemptDeadlineMs(env));
+  return Math.min(60000, reviewTimeoutMilliseconds(env));
 }
 function reviewTimeoutMilliseconds(env = process.env) {
   const raw = env.SAFEWORD_REVIEW_TIMEOUT_MS;
@@ -43371,9 +43371,6 @@ function reviewTimeoutMilliseconds(env = process.env) {
   const maximumAttempt = ceiling > 60000 ? ceiling - 60000 : ceiling;
   const requested = Number.isFinite(configured) && configured > 0 ? configured : defaultDeadline;
   return Math.min(requested, maximumAttempt);
-}
-function attemptDeadlineMs(env = process.env) {
-  return reviewTimeoutMilliseconds(env);
 }
 function isRecord3(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -43575,7 +43572,7 @@ function appendBounded(current, currentBytes, chunk) {
   };
 }
 function classifyExit(stderr, otherwise) {
-  return /not logged in|sign in|authentication|unauthorized|login required|api key/iu.test(stderr) ? "not_authenticated" : otherwise;
+  return /not logged in|sign in|authentication|unauthorized|login required|(?:missing|invalid|provide|set|configure)[^\n]{0,40}api key/iu.test(stderr) ? "not_authenticated" : otherwise;
 }
 function stopWindowsReviewer(child, pid) {
   const childClosed = () => child.exitCode !== null && child.stdout?.closed === true && child.stderr?.closed === true;
@@ -43627,10 +43624,10 @@ function stopReviewer(child) {
   reviewerStops.set(child, stopping);
   return stopping;
 }
-async function stopReviewerOrThrow(child, reviewer) {
+async function stopReviewerOrThrow(child, reviewer, terminal = true) {
   if (await stopReviewer(child))
     return;
-  throw new ReviewRuntimeError("process_failed", `${reviewer} reviewer processes could not be stopped`, true);
+  throw new ReviewRuntimeError("process_failed", `${reviewer} reviewer processes could not be stopped`, terminal);
 }
 function parseProcessStat(line) {
   const commEnd = line.lastIndexOf(")");
@@ -43723,75 +43720,78 @@ async function runCandidate(executable, attempt, timeoutMs) {
   };
   process.once("SIGTERM", terminateReviewer);
   try {
-    const output = await new Promise((resolve, reject) => {
-      let overflow = false;
-      let settled = false;
-      const settle = (finish) => {
-        if (settled)
-          return;
-        settled = true;
-        clearTimeout(timeout);
-        finish();
-      };
-      const timeout = setTimeout(() => {
-        settle(() => {
-          reject(new ReviewRuntimeError("timed_out", `${reviewer} review timed out`));
-        });
-      }, timeoutMs);
-      let stdout = "";
-      let stderr = "";
-      let stdoutBytes = 0;
-      let stderrBytes = 0;
-      child.stdout.setEncoding("utf8");
-      child.stderr.setEncoding("utf8");
-      child.stdout.on("data", (chunk) => {
-        const appended = appendBounded(stdout, stdoutBytes, chunk);
-        stdout = appended.value;
-        stdoutBytes = appended.bytes;
-        overflow ||= appended.overflow;
-        if (overflow) {
-          stopReviewer(child);
-        }
-      });
-      child.stderr.on("data", (chunk) => {
-        const appended = appendBounded(stderr, stderrBytes, chunk);
-        stderr = appended.value;
-        stderrBytes = appended.bytes;
-        overflow ||= appended.overflow;
-        if (overflow) {
-          stopReviewer(child);
-        }
-      });
-      child.stdin.on("error", () => {});
-      child.on("error", (error2) => {
-        settle(() => {
-          reject(new ReviewRuntimeError("process_failed", error2.message));
-        });
-      });
-      child.on("close", (code) => {
-        settle(() => {
+    let output;
+    try {
+      output = await new Promise((resolve, reject) => {
+        let overflow = false;
+        let settled = false;
+        const settle = (finish) => {
+          if (settled)
+            return;
+          settled = true;
+          clearTimeout(timeout);
+          finish();
+        };
+        const timeout = setTimeout(() => {
+          settle(() => {
+            reject(new ReviewRuntimeError("timed_out", `${reviewer} review timed out`));
+          });
+        }, timeoutMs);
+        let stdout = "";
+        let stderr = "";
+        let stdoutBytes = 0;
+        let stderrBytes = 0;
+        child.stdout.setEncoding("utf8");
+        child.stderr.setEncoding("utf8");
+        child.stdout.on("data", (chunk) => {
+          const appended = appendBounded(stdout, stdoutBytes, chunk);
+          stdout = appended.value;
+          stdoutBytes = appended.bytes;
+          overflow ||= appended.overflow;
           if (overflow) {
-            reject(new ReviewRuntimeError(classifyExit(stderr, "invalid_output"), `${reviewer} exceeded its output limit`));
-            return;
-          }
-          if (code !== 0) {
-            reject(new ReviewRuntimeError(classifyExit(stderr, "process_failed"), `${reviewer} review failed (${code ?? "signal"}): ${stderr.trim()}`));
-            return;
-          }
-          try {
-            resolve(parseReviewerOutput(reviewer, stdout));
-          } catch {
-            reject(new ReviewRuntimeError("invalid_output", `${reviewer} returned invalid review output`));
+            stopReviewer(child);
           }
         });
+        child.stderr.on("data", (chunk) => {
+          const appended = appendBounded(stderr, stderrBytes, chunk);
+          stderr = appended.value;
+          stderrBytes = appended.bytes;
+          overflow ||= appended.overflow;
+          if (overflow) {
+            stopReviewer(child);
+          }
+        });
+        child.stdin.on("error", () => {});
+        child.on("error", (error2) => {
+          settle(() => {
+            reject(new ReviewRuntimeError("process_failed", error2.message));
+          });
+        });
+        child.on("close", (code) => {
+          settle(() => {
+            if (overflow) {
+              reject(new ReviewRuntimeError(classifyExit(stderr, "invalid_output"), `${reviewer} exceeded its output limit`));
+              return;
+            }
+            if (code !== 0) {
+              reject(new ReviewRuntimeError(classifyExit(stderr, "process_failed"), `${reviewer} review failed (${code ?? "signal"}): ${stderr.trim()}`));
+              return;
+            }
+            try {
+              resolve(parseReviewerOutput(reviewer, stdout));
+            } catch {
+              reject(new ReviewRuntimeError("invalid_output", `${reviewer} returned invalid review output`));
+            }
+          });
+        });
+        child.stdin.end(reviewPrompt(reviewer, packet));
       });
-      child.stdin.end(reviewPrompt(reviewer, packet));
-    });
-    await stopReviewerOrThrow(child, reviewer);
+    } catch (error2) {
+      await stopReviewerOrThrow(child, reviewer);
+      throw error2;
+    }
+    await stopReviewerOrThrow(child, reviewer, false);
     return output;
-  } catch (error2) {
-    await stopReviewerOrThrow(child, reviewer);
-    throw error2;
   } finally {
     process.off("SIGTERM", terminateReviewer);
   }
@@ -43804,7 +43804,7 @@ async function runReviewerCandidates(attempt, candidates, deadline) {
   for (const candidate of candidates) {
     const remainingMs = remainingReviewTime(deadline, reviewer, lastFailure);
     const candidateDeadline = Date.now() + remainingMs;
-    const probeBudget = Math.min(5000, remainingReviewTime(candidateDeadline, reviewer));
+    const probeBudget = Math.min(5000, remainingMs);
     const assessment = await supportsReviewContract(reviewer, candidate, attempt.cwd, probeBudget, attempt.model);
     if (assessment.kind === "failed") {
       lastProbeFailure = new ReviewRuntimeError(assessment.failure, `${reviewer} capability probe failed: ${assessment.failure}`);
@@ -43830,7 +43830,7 @@ async function runReviewerCandidates(attempt, candidates, deadline) {
 }
 async function runHeadlessReviewer(reviewer, packet, cwd, untrustedRoot = process.cwd(), options = {}) {
   const { model, runDeadline } = options;
-  const deadline = Math.min(Date.now() + attemptDeadlineMs(), runDeadline ?? Infinity);
+  const deadline = Math.min(Date.now() + reviewTimeoutMilliseconds(), runDeadline ?? Infinity);
   const candidates = executableCandidates(reviewer, untrustedRoot);
   if (candidates.paths.length === 0) {
     throw unavailableReviewerError(reviewer, candidates.rejectedForTrust);
@@ -44210,6 +44210,24 @@ function preparePrimaryReview(input, reviewer) {
   input.progress?.heartbeat?.(`Still waiting for a response from ${name}\u2026`);
   return prepared;
 }
+async function executePrimaryReview(input, reviewer, primaryModel, runDeadline) {
+  const prepared = preparePrimaryReview(input, reviewer);
+  let execution = await executeReview(reviewer, prepared, primaryModel, runDeadline);
+  let model = primaryModel;
+  let dispatchId = prepared.packet.dispatch_id;
+  if (primaryModel !== undefined && execution.outcome.kind === "failed" && execution.outcome.failure === "unsupported" && !execution.outcome.terminal && runDeadline > Date.now()) {
+    const defaultPrepared = preparePrimaryReview(input, reviewer);
+    const retried = await executeReview(reviewer, defaultPrepared, undefined, runDeadline);
+    execution = {
+      outcome: retried.outcome,
+      sourceChanged: execution.sourceChanged || retried.sourceChanged,
+      snapshotChanged: execution.snapshotChanged || retried.snapshotChanged
+    };
+    model = undefined;
+    dispatchId = defaultPrepared.packet.dispatch_id;
+  }
+  return { ...execution, model, dispatchId };
+}
 function prepareFallbackReview(input, assignedReviewer, author) {
   const fallbackName = agentName(author);
   input.progress?.start(`${agentName(assignedReviewer)} did not complete; trying a ${fallbackName} fallback\u2026`);
@@ -44517,9 +44535,14 @@ async function runReview(input) {
   }
   const { reviewer } = pair;
   const primaryModel = readPrimaryReviewerModel(input.cwd, reviewer);
-  const prepared = preparePrimaryReview(input, reviewer);
   const runDeadline = Date.now() + runBoundMs();
-  const { outcome, sourceChanged, snapshotChanged } = await executeReview(reviewer, prepared, primaryModel, runDeadline);
+  const {
+    outcome,
+    sourceChanged,
+    snapshotChanged,
+    model: completedModel,
+    dispatchId
+  } = await executePrimaryReview(input, reviewer, primaryModel, runDeadline);
   const changedResult = changedReviewResult({
     author: pair.author,
     reviewer,
@@ -44539,7 +44562,7 @@ async function runReview(input) {
         ...input,
         author: pair.author,
         assignedReviewer: reviewer,
-        preferredModel: primaryModel,
+        preferredModel: completedModel,
         preferredFailure: outcome.failure,
         policy
       });
@@ -44548,26 +44571,26 @@ async function runReview(input) {
       ...input,
       author: pair.author,
       assignedReviewer: reviewer,
-      preferredModel: primaryModel,
+      preferredModel: completedModel,
       preferredFailure: outcome.failure,
       policy,
       runDeadline
     });
   }
-  const provenance = verifyProvenance(outcome.output, reviewer, prepared.packet.dispatch_id);
+  const provenance = verifyProvenance(outcome.output, reviewer, dispatchId);
   if (provenance.kind === "failed") {
     return runRemainingRoutes({
       ...input,
       author: pair.author,
       assignedReviewer: reviewer,
-      preferredModel: primaryModel,
+      preferredModel: completedModel,
       preferredFailure: provenance.code,
       policy,
       runDeadline
     });
   }
   const output = provenance.output;
-  return independentReviewResult({ author: pair.author, reviewer, output, model: primaryModel });
+  return independentReviewResult({ author: pair.author, reviewer, output, model: completedModel });
 }
 var MAX_TERMINAL_REVIEWER_TEXT_LENGTH = 2000, FAILURE_CAUSES, NON_ATTEMPT_FAILURES, ALTERNATE_MODEL_SKIP_FAILURES;
 var init_coordinator = __esm(() => {
@@ -44795,8 +44818,6 @@ function recordIntegrity(cwd, record2) {
   return createHmac("sha256", readOrCreateIntegrityKey()).update(realpathSync11.native(cwd)).update("\x00").update(JSON.stringify(unsignedRecord(record2))).digest("hex");
 }
 function hasValidIntegrity(cwd, record2) {
-  if (!isTerminalJobState(record2.state))
-    return true;
   if (record2.integrity === undefined || !/^[a-f\d]{64}$/u.test(record2.integrity))
     return false;
   try {
@@ -44807,12 +44828,7 @@ function hasValidIntegrity(cwd, record2) {
     return false;
   }
 }
-function isTerminalJobState(state) {
-  return TERMINAL_JOB_STATES.has(state);
-}
 function withRecordIntegrity(cwd, record2) {
-  if (!isTerminalJobState(record2.state))
-    return record2;
   const unsigned = { ...record2, integrity: undefined };
   return { ...unsigned, integrity: recordIntegrity(cwd, unsigned) };
 }
@@ -45508,17 +45524,12 @@ function inspectReviewWorker(pid, id) {
     return processExists(pid) ? "unavailable" : "mismatch";
   return /\breview run\b/u.test(inspected.stdout) && inspected.stdout.includes(`--worker-job-id ${id}`) ? "match" : "mismatch";
 }
-var TERMINAL_JOB_STATES, COURTESY_WAIT_MS = 75000, POLL_INTERVAL_MS = 100, WORKER_INSPECTION_INTERVAL_MS = 1000, JOB_LOCK_WAIT_MS = 2000;
+var COURTESY_WAIT_MS = 75000, POLL_INTERVAL_MS = 100, WORKER_INSPECTION_INTERVAL_MS = 1000, JOB_LOCK_WAIT_MS = 2000;
 var init_job = __esm(() => {
   init_policy2();
   init_result();
   init_contract();
   init_packet();
-  TERMINAL_JOB_STATES = new Set([
-    "completed",
-    "failed",
-    "canceled"
-  ]);
 });
 
 // src/pr-review/providers/openai.ts
@@ -54898,11 +54909,11 @@ async function deliverRelayRequests(projectDirectory, options) {
       await rearmClaim(projectDirectory, claim, deliveryStateSnapshot);
       break;
     }
-    const attemptDeadlineMs2 = Math.min(options.deadlineMs, remainingOverallMs - RELAY_CLEANUP_RESERVE_MS);
+    const attemptDeadlineMs = Math.min(options.deadlineMs, remainingOverallMs - RELAY_CLEANUP_RESERVE_MS);
     const controller = new AbortController;
     const timer = setTimeout(() => {
       controller.abort();
-    }, attemptDeadlineMs2);
+    }, attemptDeadlineMs);
     timer.unref();
     try {
       let response;

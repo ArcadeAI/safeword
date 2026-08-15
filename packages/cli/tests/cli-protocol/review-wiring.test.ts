@@ -1304,6 +1304,52 @@ describe('cross-agent review public-command wiring', () => {
     expect(readFileSync(log, 'utf8')).toBe('codex\nclaude\n');
   });
 
+  it('retries a configured primary route on the reviewer default model when model selection is unavailable', async () => {
+    const directory = createTemporaryDirectory();
+    const log = nodePath.join(directory, 'review.log');
+    const modelPromptLog = nodePath.join(directory, 'model-prompt.log');
+    mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(directory, '.safeword', 'config.json'),
+      JSON.stringify({ crossAgentReviewPrimaryModel: { codex: 'vendor-model-1' } }),
+    );
+    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+    const bin = installFakeReviewer(directory, 'codex');
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'review-input.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_REVIEW_FAKE_MODEL_CAPABILITY: 'missing',
+          SAFEWORD_REVIEW_LOG: log,
+          SAFEWORD_REVIEW_MODEL_PROMPT_LOG: modelPromptLog,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode, result.stdout).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'healthy',
+      data: { status: 'approved', actual_reviewer: 'codex', independence: 'cross-agent' },
+    });
+    expect(JSON.parse(result.stdout).data).not.toHaveProperty('reviewer_model');
+    expect(readFileSync(log, 'utf8')).toBe('codex\n');
+    expect(existsSync(modelPromptLog)).toBe(false);
+  });
+
   it.each([
     { author: 'claude', reviewerName: 'Codex' },
     { author: 'codex', reviewerName: 'Claude' },

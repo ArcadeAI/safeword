@@ -123,6 +123,12 @@ const HELP_ARGUMENTS: Readonly<Record<ReviewAgent, readonly string[]>> = {
   codex: ['exec', '--help'],
 };
 
+/**
+ * Host-CLI coupling deliberately checked before dispatch. These flags are
+ * exercised end-to-end by tests/smoke/review.live.test.ts against installed
+ * Claude and Codex CLIs when SAFEWORD_RUN_CROSS_AGENT_LIVE=1; unit fakes cover
+ * deterministic failure modes, but are not the provenance for this list.
+ */
 const REQUIRED_CAPABILITIES: Readonly<Record<ReviewAgent, readonly string[]>> = {
   claude: [
     '--output-format',
@@ -215,7 +221,7 @@ export function runBoundMs(
 export function minimumRouteMs(
   env: Readonly<Record<string, string | undefined>> = process.env,
 ): number {
-  return Math.min(60_000, attemptDeadlineMs(env));
+  return Math.min(60_000, reviewTimeoutMilliseconds(env));
 }
 
 export function reviewTimeoutMilliseconds(
@@ -233,12 +239,6 @@ export function reviewTimeoutMilliseconds(
   const maximumAttempt = ceiling > 60_000 ? ceiling - 60_000 : ceiling;
   const requested = Number.isFinite(configured) && configured > 0 ? configured : defaultDeadline;
   return Math.min(requested, maximumAttempt);
-}
-
-export function attemptDeadlineMs(
-  env: Readonly<Record<string, string | undefined>> = process.env,
-): number {
-  return reviewTimeoutMilliseconds(env);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -559,7 +559,9 @@ const WINDOWS_CLEANUP_BUDGET_MS = 1000;
  * the caller's classification.
  */
 function classifyExit(stderr: string, otherwise: ReviewFailure): ReviewFailure {
-  return /not logged in|sign in|authentication|unauthorized|login required|api key/iu.test(stderr)
+  return /not logged in|sign in|authentication|unauthorized|login required|(?:missing|invalid|provide|set|configure)[^\n]{0,40}api key/iu.test(
+    stderr,
+  )
     ? 'not_authenticated'
     : otherwise;
 }
@@ -624,12 +626,13 @@ function stopReviewer(child: ReturnType<typeof spawn>): Promise<boolean> {
 async function stopReviewerOrThrow(
   child: ReturnType<typeof spawn>,
   reviewer: ReviewAgent,
+  terminal = true,
 ): Promise<void> {
   if (await stopReviewer(child)) return;
   throw new ReviewRuntimeError(
     'process_failed',
     `${reviewer} reviewer processes could not be stopped`,
-    true,
+    terminal,
   );
 }
 
@@ -655,7 +658,10 @@ export function parseProcessStat(line: string): { state: string; group: number }
 
 /**
  * Whether any process in `group` can still run, per `/proc`. Undefined when
- * `/proc` cannot be read, so the caller keeps its own answer.
+ * `/proc` cannot be read, so the caller keeps its conservative answer. That
+ * means non-Linux systems cannot distinguish a zombie-only group and retain
+ * the historical cleanup-failure result until a portable process-state API is
+ * available.
  */
 export function procGroupHasRunningMember(group: number): boolean | undefined {
   // The stat layout parsed here is Linux's. Other systems mount a /proc that is
@@ -786,99 +792,102 @@ async function runCandidate(
   };
   process.once('SIGTERM', terminateReviewer);
   try {
-    const output = await new Promise<UnverifiedReviewerOutput>((resolve, reject) => {
-      let overflow = false;
-      // One outcome per attempt, settled once. A late answer arriving after a
-      // deadline never changes a verdict that is already decided.
-      let settled = false;
-      const settle = (finish: () => void): void => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timeout);
-        finish();
-      };
-      const timeout = setTimeout(() => {
-        settle(() => {
-          reject(new ReviewRuntimeError('timed_out', `${reviewer} review timed out`));
-        });
-      }, timeoutMs);
-      let stdout = '';
-      let stderr = '';
-      let stdoutBytes = 0;
-      let stderrBytes = 0;
-      child.stdout.setEncoding('utf8');
-      child.stderr.setEncoding('utf8');
-      child.stdout.on('data', (chunk: string) => {
-        const appended = appendBounded(stdout, stdoutBytes, chunk);
-        stdout = appended.value;
-        stdoutBytes = appended.bytes;
-        overflow ||= appended.overflow;
-        if (overflow) {
-          void stopReviewer(child);
-        }
-      });
-      child.stderr.on('data', (chunk: string) => {
-        const appended = appendBounded(stderr, stderrBytes, chunk);
-        stderr = appended.value;
-        stderrBytes = appended.bytes;
-        overflow ||= appended.overflow;
-        if (overflow) {
-          void stopReviewer(child);
-        }
-      });
-      // Exit status and stderr own failure classification. EPIPE here commonly
-      // means the reviewer exited early before consuming a large packet.
-      child.stdin.on('error', () => {
-        // The close handler classifies the reviewer exit.
-      });
-      child.on('error', error => {
-        settle(() => {
-          reject(new ReviewRuntimeError('process_failed', error.message));
-        });
-      });
-      child.on('close', code => {
-        settle(() => {
+    let output: UnverifiedReviewerOutput;
+    try {
+      output = await new Promise<UnverifiedReviewerOutput>((resolve, reject) => {
+        let overflow = false;
+        // One outcome per attempt, settled once. A late answer arriving after a
+        // deadline never changes a verdict that is already decided.
+        let settled = false;
+        const settle = (finish: () => void): void => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeout);
+          finish();
+        };
+        const timeout = setTimeout(() => {
+          settle(() => {
+            reject(new ReviewRuntimeError('timed_out', `${reviewer} review timed out`));
+          });
+        }, timeoutMs);
+        let stdout = '';
+        let stderr = '';
+        let stdoutBytes = 0;
+        let stderrBytes = 0;
+        child.stdout.setEncoding('utf8');
+        child.stderr.setEncoding('utf8');
+        child.stdout.on('data', (chunk: string) => {
+          const appended = appendBounded(stdout, stdoutBytes, chunk);
+          stdout = appended.value;
+          stdoutBytes = appended.bytes;
+          overflow ||= appended.overflow;
           if (overflow) {
-            reject(
-              new ReviewRuntimeError(
-                classifyExit(stderr, 'invalid_output'),
-                `${reviewer} exceeded its output limit`,
-              ),
-            );
-            return;
-          }
-          if (code !== 0) {
-            reject(
-              new ReviewRuntimeError(
-                classifyExit(stderr, 'process_failed'),
-                `${reviewer} review failed (${code ?? 'signal'}): ${stderr.trim()}`,
-              ),
-            );
-            return;
-          }
-          try {
-            resolve(parseReviewerOutput(reviewer, stdout));
-          } catch {
-            reject(
-              new ReviewRuntimeError(
-                'invalid_output',
-                `${reviewer} returned invalid review output`,
-              ),
-            );
+            void stopReviewer(child);
           }
         });
+        child.stderr.on('data', (chunk: string) => {
+          const appended = appendBounded(stderr, stderrBytes, chunk);
+          stderr = appended.value;
+          stderrBytes = appended.bytes;
+          overflow ||= appended.overflow;
+          if (overflow) {
+            void stopReviewer(child);
+          }
+        });
+        // Exit status and stderr own failure classification. EPIPE here commonly
+        // means the reviewer exited early before consuming a large packet.
+        child.stdin.on('error', () => {
+          // The close handler classifies the reviewer exit.
+        });
+        child.on('error', error => {
+          settle(() => {
+            reject(new ReviewRuntimeError('process_failed', error.message));
+          });
+        });
+        child.on('close', code => {
+          settle(() => {
+            if (overflow) {
+              reject(
+                new ReviewRuntimeError(
+                  classifyExit(stderr, 'invalid_output'),
+                  `${reviewer} exceeded its output limit`,
+                ),
+              );
+              return;
+            }
+            if (code !== 0) {
+              reject(
+                new ReviewRuntimeError(
+                  classifyExit(stderr, 'process_failed'),
+                  `${reviewer} review failed (${code ?? 'signal'}): ${stderr.trim()}`,
+                ),
+              );
+              return;
+            }
+            try {
+              resolve(parseReviewerOutput(reviewer, stdout));
+            } catch {
+              reject(
+                new ReviewRuntimeError(
+                  'invalid_output',
+                  `${reviewer} returned invalid review output`,
+                ),
+              );
+            }
+          });
+        });
+        child.stdin.end(reviewPrompt(reviewer, packet));
       });
-      child.stdin.end(reviewPrompt(reviewer, packet));
-    });
-    // An uncleanable descendant invalidates an otherwise valid verdict: no
-    // reviewer process may overlap integrity checks or a later route.
-    await stopReviewerOrThrow(child, reviewer);
+    } catch (error) {
+      // Do not let a timed-out or failed reviewer overlap integrity checks,
+      // packet cleanup, or a later candidate.
+      await stopReviewerOrThrow(child, reviewer);
+      throw error;
+    }
+    // Preserve the review, but surface failed cleanup as a retryable candidate
+    // failure so another installation or route can still provide coverage.
+    await stopReviewerOrThrow(child, reviewer, false);
     return output;
-  } catch (error) {
-    // Do not let a timed-out reviewer or its descendants overlap integrity
-    // checks, packet cleanup, or a later candidate.
-    await stopReviewerOrThrow(child, reviewer);
-    throw error;
   } finally {
     process.off('SIGTERM', terminateReviewer);
   }
@@ -896,7 +905,7 @@ async function runReviewerCandidates(
   for (const candidate of candidates) {
     const remainingMs = remainingReviewTime(deadline, reviewer, lastFailure);
     const candidateDeadline = Date.now() + remainingMs;
-    const probeBudget = Math.min(5000, remainingReviewTime(candidateDeadline, reviewer));
+    const probeBudget = Math.min(5000, remainingMs);
     const assessment = await supportsReviewContract(
       reviewer,
       candidate,
@@ -947,7 +956,7 @@ export async function runHeadlessReviewer(
 ): Promise<UnverifiedReviewerOutput> {
   const { model, runDeadline } = options;
   // A route never outlives the run: whichever bound arrives first wins.
-  const deadline = Math.min(Date.now() + attemptDeadlineMs(), runDeadline ?? Infinity);
+  const deadline = Math.min(Date.now() + reviewTimeoutMilliseconds(), runDeadline ?? Infinity);
   const candidates = executableCandidates(reviewer, untrustedRoot);
   if (candidates.paths.length === 0) {
     throw unavailableReviewerError(reviewer, candidates.rejectedForTrust);
