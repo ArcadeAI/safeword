@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -61,6 +62,13 @@ vi.mock('../../src/retro/github-rest.js', () => ({
   createReconcileTransport: () => {},
   resolveGitHubToken: () => {},
 }));
+
+function builtCliPath(): string {
+  const path = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
+  if (!existsSync(path))
+    throw new Error(`Built CLI is missing at ${path}; run bun run build first.`);
+  return path;
+}
 
 function activeRelayPath(projectDirectory: string, requestId: string): string {
   const directory = nodePath.join(projectDirectory, '.safeword', 'retro-drafts', 'relay');
@@ -2640,12 +2648,7 @@ describe('relay dead-letter recovery command', () => {
 
       const result = spawnSync(
         process.execPath,
-        [
-          nodePath.resolve(process.cwd(), 'dist', 'cli.js'),
-          'retro-relay-discard',
-          cliRequestId,
-          '--confirm',
-        ],
+        [builtCliPath(), 'retro-relay-discard', cliRequestId, '--confirm'],
         {
           encoding: 'utf8',
           env: {
@@ -2675,7 +2678,7 @@ describe('relay dead-letter recovery command', () => {
     const result = spawnSync(
       process.execPath,
       [
-        nodePath.resolve(process.cwd(), 'dist', 'cli.js'),
+        builtCliPath(),
         'retro-relay-discard',
         '00000000-0000-4000-8000-000000001486;echo-owned',
         '--json',
@@ -2717,24 +2720,16 @@ describe('relay dead-letter recovery command', () => {
     };
 
     try {
-      const listedDeadLetter = spawnSync(
-        process.execPath,
-        [nodePath.resolve(process.cwd(), 'dist', 'cli.js'), 'retro-relay-retry'],
-        {
-          encoding: 'utf8',
-          env: commandEnvironment,
-        },
-      );
+      const listedDeadLetter = spawnSync(process.execPath, [builtCliPath(), 'retro-relay-retry'], {
+        encoding: 'utf8',
+        env: commandEnvironment,
+      });
       expect(listedDeadLetter.status, listedDeadLetter.stderr).toBe(0);
       expect(listedDeadLetter.stdout).toContain(`${original.requestId} dead-letter`);
 
       const result = spawnSync(
         process.execPath,
-        [
-          nodePath.resolve(process.cwd(), 'dist', 'cli.js'),
-          'retro-relay-retry',
-          original.requestId,
-        ],
+        [builtCliPath(), 'retro-relay-retry', original.requestId],
         {
           encoding: 'utf8',
           env: commandEnvironment,
@@ -2745,14 +2740,10 @@ describe('relay dead-letter recovery command', () => {
       expect(result.stdout).toContain(original.requestId);
       const requests = await listRelayRequests(durableOutbox);
       expect(requests[0]?.requestId).toBe(original.requestId);
-      const listedActive = spawnSync(
-        process.execPath,
-        [nodePath.resolve(process.cwd(), 'dist', 'cli.js'), 'retro-relay-retry'],
-        {
-          encoding: 'utf8',
-          env: commandEnvironment,
-        },
-      );
+      const listedActive = spawnSync(process.execPath, [builtCliPath(), 'retro-relay-retry'], {
+        encoding: 'utf8',
+        env: commandEnvironment,
+      });
       expect(listedActive.status, listedActive.stderr).toBe(0);
       expect(listedActive.stdout).toContain(`${original.requestId} active`);
     } finally {
@@ -2772,18 +2763,14 @@ describe('relay dead-letter recovery command', () => {
       );
 
       try {
-        const result = spawnSync(
-          process.execPath,
-          [nodePath.resolve(process.cwd(), 'dist', 'cli.js'), ...commandArguments],
-          {
-            encoding: 'utf8',
-            env: {
-              ...process.env,
-              CLAUDE_PROJECT_DIR: projectDirectory,
-              SAFEWORD_RETRO_RELAY_OUTBOX: 'relative/outbox',
-            },
+        const result = spawnSync(process.execPath, [builtCliPath(), ...commandArguments], {
+          encoding: 'utf8',
+          env: {
+            ...process.env,
+            CLAUDE_PROJECT_DIR: projectDirectory,
+            SAFEWORD_RETRO_RELAY_OUTBOX: 'relative/outbox',
           },
-        );
+        });
 
         expect(result.status).toBe(1);
         expect(result.stderr).toContain(
