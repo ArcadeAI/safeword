@@ -331,12 +331,25 @@ describe('reconcile scaffolds at the resolved namespace root (N9S5XG)', () => {
     const ticketDirectory = nodePath.join(cwd, '.project', 'tickets', 'ABC123-keep-me');
     mkdirSync(ticketDirectory, { recursive: true });
     writeFileSync(nodePath.join(ticketDirectory, 'ticket.md'), '---\nid: ABC123\n---\n');
+    const namespaceBefore = listTree(nodePath.join(cwd, '.project'));
 
     await reconcile(SAFEWORD_SCHEMA, 'uninstall', createProjectContext(cwd));
 
-    expect(existsSync(nodePath.join(cwd, '.project', 'tmp'))).toBe(false);
+    expect(listTree(nodePath.join(cwd, '.project'))).toEqual(namespaceBefore);
     expect(existsSync(nodePath.join(ticketDirectory, 'ticket.md'))).toBe(true);
     expect(existsSync(nodePath.join(cwd, '.safeword'))).toBe(false);
+  });
+
+  it('uninstall plan does not report any resolved namespace removal', async () => {
+    await runInstall();
+
+    const result = await reconcile(SAFEWORD_SCHEMA, 'uninstall', createProjectContext(cwd), {
+      dryRun: true,
+    });
+
+    expect(
+      result.removed.filter(path => path === '.project' || path.startsWith('.project/')),
+    ).toEqual([]);
   });
 
   it('TB1.AC4.repo_root_configured_namespace_lands_at_cwd', async () => {

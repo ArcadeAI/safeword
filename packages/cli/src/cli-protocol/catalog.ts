@@ -163,6 +163,7 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   }),
   command('install', 'Install Safeword for this project and selected agents', 'mutate', {
     networkPolicy: 'declared',
+    fixture: { argv: ['install', '--offline'], environment: MACHINE_ENVIRONMENT },
     commandOptions: [
       agentSelectionOption(),
       claudeScopeOption(),
@@ -205,6 +206,7 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     {
       promptPolicy: 'confirm',
       networkPolicy: 'declared',
+      fixture: { argv: ['uninstall', '--offline'], environment: MACHINE_ENVIRONMENT },
       commandOptions: [
         agentSelectionOption(),
         claudeScopeOption(),
@@ -214,7 +216,10 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
           description: 'Identity of the exact plan being confirmed',
           valueKind: 'plan-identity',
         },
-        { flags: '--full', description: 'Also remove linting configuration and packages' },
+        {
+          flags: '--full',
+          description: 'Also remove unmodified tooling configuration and supporting packages',
+        },
       ],
     },
   ),
@@ -273,6 +278,7 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   }),
   command('project test', 'Run repository test commands', 'mutate', {
     networkPolicy: 'declared',
+    fixture: { argv: ['project', 'test', '--offline'], environment: MACHINE_ENVIRONMENT },
     syntax: 'test',
     commandOptions: [
       {
@@ -300,6 +306,7 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   }),
   command('tracker sync', 'Synchronize tickets with the configured tracker', 'mutate', {
     networkPolicy: 'declared',
+    fixture: { argv: ['tracker', 'sync', '--offline'], environment: MACHINE_ENVIRONMENT },
     commandOptions: [
       { flags: '--reset-tracker-map', description: 'Rebuild the tracker map' },
       { flags: '--plan', description: 'Compute an offline tracker plan' },
@@ -345,6 +352,7 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   ),
   command('codex bootstrap', 'Keep the project Codex plugin available', 'mutate', {
     networkPolicy: 'declared',
+    fixture: { argv: ['codex', 'bootstrap', '--offline'], environment: MACHINE_ENVIRONMENT },
   }),
   command('codex status', 'Report Codex plugin and migration state', 'observe'),
   command('claude status', 'Report Claude plugin and migration state', 'observe'),
@@ -480,6 +488,7 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   ),
   command('review-pr invalidate', 'Remove an obsolete advisory route', 'mutate', {
     networkPolicy: 'declared',
+    fixture: { argv: ['review-pr', 'invalidate', '--offline'], environment: MACHINE_ENVIRONMENT },
   }),
   command('review-pr publish', 'Publish a validated advisory result', 'mutate', {
     networkPolicy: 'declared',
@@ -649,7 +658,13 @@ const ALIASES: readonly CommandDefinition[] = [
     },
   },
   alias('retro-reconcile', 'retro reconcile'),
-  alias('migrate codex-plugin', 'codex migrate'),
+  {
+    ...alias('migrate codex-plugin', 'codex migrate'),
+    fixture: {
+      argv: ['migrate', 'codex-plugin', '--offline'],
+      environment: MACHINE_ENVIRONMENT,
+    },
+  },
 ];
 
 const HIDDEN_COMMANDS: readonly CommandDefinition[] = [

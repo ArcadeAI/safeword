@@ -95,6 +95,14 @@ function writePrReviewConfig(projectDirectory: string, enabled: unknown): void {
 }
 
 describe('advisory PR review workflow contract', () => {
+  it('normalizes a pinned Safeword version at the end of a workflow line', () => {
+    const definition = SAFEWORD_SCHEMA.managedFiles[installedWorkflowPaths[0]];
+    const normalize = definition?.normalizeForUnmodifiedComparison;
+    expect(normalize?.('run: npx --yes safeword@0.77.0\nnext: step\n')).toBe(
+      'run: npx --yes safeword@__SAFEWORD_VERSION__\nnext: step\n',
+    );
+  });
+
   it('ships a router, fork-safe publisher, and reusable worker with one per-PR boundary', () => {
     expect(existsSync(routerPath), 'missing PR review router template').toBe(true);
     expect(existsSync(publisherPath), 'missing trusted PR review publisher template').toBe(true);
