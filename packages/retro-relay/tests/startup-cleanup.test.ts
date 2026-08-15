@@ -185,6 +185,28 @@ describe('relay startup listeners', () => {
 });
 
 describe('relay startup failure', () => {
+  it('releases its process lock when recovery fails before server setup', async () => {
+    const store = RelayStore.open(databasePath());
+    const lockPath = path.join(scratchDirectory(), 'relay.lock');
+    store.recoverInFlight = () => {
+      throw new Error('recovery failed');
+    };
+
+    try {
+      await expect(
+        startRelayServer({
+          lockPath,
+          port: 0,
+          ...serverDependencies(store),
+        }),
+      ).rejects.toThrow('recovery failed');
+
+      ProcessLock.acquire(lockPath).release();
+    } finally {
+      store.close();
+    }
+  });
+
   it('leaves no maintenance interval running when the port is taken', async () => {
     const blocked = await occupiedPort();
     const { store, sweeps } = countingStore();
