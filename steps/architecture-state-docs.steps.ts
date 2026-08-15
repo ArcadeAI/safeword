@@ -240,6 +240,10 @@ Given('a project with the installed architecture guide', function (this: Archite
   assert.ok(architectureGuide(this).length > 0);
 });
 
+When('the ownership guidance is inspected', function (this: ArchitectureWorld) {
+  assert.ok(architectureGuide(this).length > 0);
+});
+
 Then(
   'the guide identifies the root index as fully machine-owned',
   function (this: ArchitectureWorld) {

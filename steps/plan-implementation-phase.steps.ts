@@ -486,6 +486,19 @@ Given('the project architecture record', function (this: PlanWorld) {
 // Whens — gate, hook, and CLI invocations
 // ---------------------------------------------------------------------------
 
+When('the phase order is inspected', function (this: PlanWorld) {
+  assert.ok(this.phaseList.length > 0);
+});
+
+When('the plan-implementation distribution is inspected', function (this: PlanWorld) {
+  assert.ok(this.schemaSource.length > 0);
+  assert.ok(this.cursorWrapperSource.length > 0);
+});
+
+When('accepted architecture decisions are inspected', function (this: PlanWorld) {
+  assert.ok(this.architectureRecord.length > 0);
+});
+
 When(
   'the agent sets the ticket phase to {word}',
   SUBPROCESS,

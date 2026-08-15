@@ -1642,6 +1642,28 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     ).toEqual({ resolution: 'matched', oid: 'a'.repeat(40) });
   });
 
+  it('passes untrusted cleanup target text as one shell-disabled argv element', () => {
+    const hostileReference = 'refs/heads/topic; touch /tmp/closeout-injection';
+    const calls: { command: string; arguments_: string[]; cwd: string }[] = [];
+
+    const result = executeCleanupOperation(
+      { kind: 'delete-local-ref', cwd: '/repo', ref: hostileReference, oid: 'a'.repeat(40) },
+      (command, arguments_, cwd) => {
+        calls.push({ command, arguments_, cwd });
+        return { status: 0, stdout: '', stderr: '' };
+      },
+    );
+
+    expect(result.status).toBe(0);
+    expect(calls).toEqual([
+      {
+        command: 'git',
+        arguments_: ['-C', '/repo', 'update-ref', '-d', hostileReference, 'a'.repeat(40)],
+        cwd: '/repo',
+      },
+    ]);
+  });
+
   it('executes the exact cleanup commands against a real linked git worktree and remote', () => {
     const sandbox = mkdtempSync(nodePath.join(tmpdir(), 'safeword-closeout-git-'));
     const main = nodePath.join(sandbox, 'main');

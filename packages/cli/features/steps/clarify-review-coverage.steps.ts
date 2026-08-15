@@ -1526,6 +1526,14 @@ Given(
   },
 );
 
+When('their host-fallback wording is inspected', function (this: ReviewWorld) {
+  assert.ok(this.distributedContract);
+});
+
+When('their machine-coverage claims are inspected', function (this: ReviewWorld) {
+  assert.ok(this.distributedContract);
+});
+
 Then(
   'effective instructions for every surface contain {string}',
   function (this: ReviewWorld, expected: string) {

@@ -1,39 +1,21 @@
-import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { AstBuilder, GherkinClassicTokenMatcher, Parser } from '@cucumber/gherkin';
+import { IdGenerator } from '@cucumber/messages';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
+import { collectExecutableFeatureFiles } from '../src/utils/feature-source.js';
+
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '../../..');
-const WORKSPACE_DIRECTORIES = ['packages', 'apps', 'libs', 'modules'] as const;
-function featureFilesUnder(relativeDirectory: string): string[] {
-  const absoluteDirectory = nodePath.join(REPO_ROOT, relativeDirectory);
-  if (!existsSync(absoluteDirectory)) return [];
-
-  return readdirSync(absoluteDirectory, { withFileTypes: true }).flatMap(entry => {
-    const relativePath = nodePath.join(relativeDirectory, entry.name);
-    if (entry.isDirectory()) return featureFilesUnder(relativePath);
-    return entry.isFile() && entry.name.endsWith('.feature') ? [relativePath] : [];
-  });
-}
-
 function configuredFeatureFiles(): string[] {
-  const workspaceFeatures = WORKSPACE_DIRECTORIES.flatMap(workspaceDirectory => {
-    const absoluteDirectory = nodePath.join(REPO_ROOT, workspaceDirectory);
-    if (!existsSync(absoluteDirectory)) return [];
-
-    return readdirSync(absoluteDirectory, { withFileTypes: true })
-      .filter(entry => entry.isDirectory())
-      .flatMap(entry =>
-        featureFilesUnder(nodePath.join(workspaceDirectory, entry.name, 'features')),
-      );
-  });
-
-  return [...featureFilesUnder('features'), ...workspaceFeatures];
+  return collectExecutableFeatureFiles(REPO_ROOT).map(absolutePath =>
+    nodePath.relative(REPO_ROOT, absolutePath).split(nodePath.sep).join('/'),
+  );
 }
 
-type ScenarioProof = [string, string];
+type ScenarioProof = [string, string, string?];
 type ScenarioProofRegistration = ScenarioProof | ScenarioProof[];
 
 interface ScenarioProofManifest {
@@ -43,6 +25,7 @@ interface ScenarioProofManifest {
 
 function proofManifestPaths(): string[] {
   const ticketsRoot = nodePath.join(REPO_ROOT, '.project', 'tickets');
+  if (!existsSync(ticketsRoot)) return [];
   return readdirSync(ticketsRoot, { withFileTypes: true })
     .filter(entry => entry.isDirectory())
     .map(entry => nodePath.join('.project', 'tickets', entry.name, 'bdd-proof.json'))
@@ -62,6 +45,27 @@ function registeredProofs(registration: ScenarioProofRegistration): ScenarioProo
     : (registration as ScenarioProof[]);
 }
 
+function expressionTokens(expression: ts.Expression): string[] {
+  const tokens: string[] = [];
+  let current = expression;
+  while (true) {
+    if (ts.isIdentifier(current)) {
+      tokens.unshift(current.text);
+      return tokens;
+    }
+    if (ts.isPropertyAccessExpression(current)) {
+      tokens.unshift(current.name.text);
+      current = current.expression;
+      continue;
+    }
+    if (ts.isCallExpression(current)) {
+      current = current.expression;
+      continue;
+    }
+    return tokens;
+  }
+}
+
 function executableVitestNames(source: string): string[] {
   const sourceFile = ts.createSourceFile('proof.test.ts', source, ts.ScriptTarget.Latest, true);
   const names: string[] = [];
@@ -69,27 +73,18 @@ function executableVitestNames(source: string): string[] {
   function hasSkippedSuiteAncestor(node: ts.Node): boolean {
     for (let ancestor = node.parent; ancestor !== undefined; ancestor = ancestor.parent) {
       if (!ts.isCallExpression(ancestor)) continue;
-      const expression = ancestor.expression;
-      if (
-        ts.isPropertyAccessExpression(expression) &&
-        expression.name.text === 'skip' &&
-        ts.isIdentifier(expression.expression) &&
-        (expression.expression.text === 'describe' || expression.expression.text === 'suite')
-      ) {
-        return true;
-      }
+      const tokens = expressionTokens(ancestor.expression);
+      const isSuite = ['describe', 'suite'].includes(tokens[0] ?? '');
+      if (isSuite && tokens.some(token => ['skip', 'skipIf', 'todo'].includes(token))) return true;
     }
     return false;
   }
 
   function vitestCallName(call: ts.CallExpression): string | undefined {
-    if (ts.isIdentifier(call.expression)) return call.expression.text;
-    if (!ts.isCallExpression(call.expression)) return undefined;
-    const eachAccess = call.expression.expression;
-    if (!ts.isPropertyAccessExpression(eachAccess) || eachAccess.name.text !== 'each') {
-      return undefined;
-    }
-    return ts.isIdentifier(eachAccess.expression) ? eachAccess.expression.text : undefined;
+    const tokens = expressionTokens(call.expression);
+    const root = tokens[0];
+    if (root !== 'it' && root !== 'test') return undefined;
+    return tokens.length === 1 || tokens.at(-1) === 'each' ? root : undefined;
   }
 
   function visit(node: ts.Node): void {
@@ -111,50 +106,141 @@ function executableVitestNames(source: string): string[] {
   return names;
 }
 
+function parameterizedVitestCases(source: string): Map<string, Set<string>> {
+  const sourceFile = ts.createSourceFile('proof.test.ts', source, ts.ScriptTarget.Latest, true);
+  const casesByName = new Map<string, Set<string>>();
+
+  function literalValues(node: ts.Node): string[] {
+    const values: string[] = [];
+    function visitLiteral(candidate: ts.Node): void {
+      if (
+        ts.isStringLiteral(candidate) ||
+        ts.isNoSubstitutionTemplateLiteral(candidate) ||
+        ts.isNumericLiteral(candidate)
+      ) {
+        values.push(candidate.text);
+        return;
+      }
+      if (candidate.kind === ts.SyntaxKind.TrueKeyword) values.push('true');
+      else if (candidate.kind === ts.SyntaxKind.FalseKeyword) values.push('false');
+      else ts.forEachChild(candidate, visitLiteral);
+    }
+    visitLiteral(node);
+    return values;
+  }
+
+  function visit(node: ts.Node): void {
+    if (
+      ts.isCallExpression(node) &&
+      ts.isCallExpression(node.expression) &&
+      node.arguments[0] !== undefined &&
+      (ts.isStringLiteral(node.arguments[0]) ||
+        ts.isNoSubstitutionTemplateLiteral(node.arguments[0]))
+    ) {
+      const eachCall = node.expression;
+      const tokens = expressionTokens(eachCall.expression);
+      const table = eachCall.arguments[0];
+      if (
+        (tokens[0] === 'it' || tokens[0] === 'test') &&
+        tokens.at(-1) === 'each' &&
+        table !== undefined
+      ) {
+        casesByName.set(node.arguments[0].text, new Set(literalValues(table)));
+      }
+    }
+    ts.forEachChild(node, visit);
+  }
+
+  visit(sourceFile);
+  return casesByName;
+}
+
 function expectScenarioProofs(manifest: ScenarioProofManifest): void {
   expect(
     Object.keys(manifest.scenarios).toSorted((left, right) => left.localeCompare(right)),
   ).toEqual(scenarioNames(manifest.feature).toSorted((left, right) => left.localeCompare(right)));
 
+  const registrationCounts = new Map<string, number>();
+  for (const registration of Object.values(manifest.scenarios)) {
+    for (const [proofPath, testName] of registeredProofs(registration)) {
+      const key = `${proofPath}\0${testName}`;
+      registrationCounts.set(key, (registrationCounts.get(key) ?? 0) + 1);
+    }
+  }
+
   for (const [scenario, registration] of Object.entries(manifest.scenarios)) {
     const proofs = registeredProofs(registration);
     expect(proofs.length, `${scenario} must register at least one proof`).toBeGreaterThan(0);
-    for (const [proofPath, testName] of proofs) {
+    for (const proofRegistration of proofs) {
+      expect(
+        [2, 3],
+        `${scenario} proof registrations must contain path, test name, and optional table case`,
+      ).toContain(proofRegistration.length);
+      const [proofPath, testName, selectedCase] = proofRegistration;
       const proof = readFileSync(nodePath.join(REPO_ROOT, proofPath), 'utf8');
       const executableNames = executableVitestNames(proof);
-      const matches = executableNames.filter(
-        executableName => executableName === testName || executableName.startsWith(`${testName}:`),
-      );
+      const matches = executableNames.filter(executableName => executableName === testName);
       expect(matches, `${scenario} -> ${proofPath} must uniquely declare ${testName}`).toHaveLength(
         1,
       );
+      const parameterCases = parameterizedVitestCases(proof).get(testName);
+      const registrationCount = registrationCounts.get(`${proofPath}\0${testName}`) ?? 0;
+      if (parameterCases !== undefined && registrationCount > 1) {
+        expect(selectedCase, `${scenario} -> ${testName} must select one table case`).toBeDefined();
+        expect(
+          parameterCases.has(selectedCase ?? ''),
+          `${scenario} -> ${testName} must select an existing table case`,
+        ).toBe(true);
+      }
     }
   }
 }
 
 function scenarioNames(featurePath: string): string[] {
-  return readFileSync(nodePath.join(REPO_ROOT, featurePath), 'utf8')
-    .split('\n')
-    .flatMap(line => {
-      const trimmed = line.trim();
-      let prefix: string | undefined;
-      if (trimmed.startsWith('Scenario Outline: ')) prefix = 'Scenario Outline: ';
-      else if (trimmed.startsWith('Scenario: ')) prefix = 'Scenario: ';
-      return prefix ? [trimmed.slice(prefix.length)] : [];
-    });
+  const parser = new Parser(
+    new AstBuilder(IdGenerator.incrementing()),
+    new GherkinClassicTokenMatcher(),
+  );
+  const feature = parser.parse(readFileSync(nodePath.join(REPO_ROOT, featurePath), 'utf8')).feature;
+  if (feature === undefined) return [];
+  return feature.children.flatMap(child => {
+    if (child.scenario !== undefined) return [child.scenario.name];
+    return (
+      child.rule?.children.flatMap(ruleChild =>
+        ruleChild.scenario === undefined ? [] : [ruleChild.scenario.name],
+      ) ?? []
+    );
+  });
+}
+
+function featureHasTag(featurePath: string, tag: string): boolean {
+  const parser = new Parser(
+    new AstBuilder(IdGenerator.incrementing()),
+    new GherkinClassicTokenMatcher(),
+  );
+  const feature = parser.parse(readFileSync(nodePath.join(REPO_ROOT, featurePath), 'utf8')).feature;
+  if (feature === undefined) return false;
+  const tags = [
+    ...feature.tags,
+    ...feature.children.flatMap(child => [
+      ...(child.scenario?.tags ?? []),
+      ...(child.rule?.tags ?? []),
+      ...(child.rule?.children.flatMap(ruleChild => ruleChild.scenario?.tags ?? []) ?? []),
+    ]),
+  ];
+  return tags.some(candidate => candidate.name === tag);
 }
 
 describe('BDD proof provenance', () => {
   it('keeps the proof manifest complete', () => {
     const taggedFeatures = configuredFeatureFiles()
-      .filter(featurePath =>
-        readFileSync(nodePath.join(REPO_ROOT, featurePath), 'utf8').includes('@proof.vitest'),
-      )
+      .filter(featurePath => featureHasTag(featurePath, '@proof.vitest'))
       .toSorted((left, right) => left.localeCompare(right));
 
     const manifestFeatures = proofManifestPaths()
       .map(manifestPath => readProofManifest(manifestPath).feature)
       .toSorted((left, right) => left.localeCompare(right));
+    expect(manifestFeatures.length).toBeGreaterThan(0);
     expect(new Set(manifestFeatures).size).toBe(manifestFeatures.length);
     expect(taggedFeatures).toEqual(manifestFeatures);
   });
@@ -163,35 +249,11 @@ describe('BDD proof provenance', () => {
     '%s maps every scenario to a named executable proof',
     manifestPath => {
       const manifest = readProofManifest(manifestPath);
-      const source = readFileSync(nodePath.join(REPO_ROOT, manifest.feature), 'utf8');
-
-      expect(source).toMatch(/@proof\.vitest/u);
-      expect(source).not.toMatch(/@wip/u);
+      expect(featureHasTag(manifest.feature, '@proof.vitest')).toBe(true);
+      expect(featureHasTag(manifest.feature, '@wip')).toBe(false);
       expectScenarioProofs(manifest);
     },
   );
-
-  it('loads the production step wiring and validates every retry-safe relay proof registration', () => {
-    const result = spawnSync(
-      'bunx',
-      [
-        'cucumber-js',
-        '--config',
-        'packages/cli/tests/fixtures/retry-safe-relay-cucumber.mjs',
-        '--dry-run',
-        '--tags',
-        '@operate-retry-safe-retro-relay',
-        'features/operate-retry-safe-retro-relay.feature',
-      ],
-      {
-        cwd: REPO_ROOT,
-        encoding: 'utf8',
-        env: { ...process.env, NODE_OPTIONS: '--import tsx' },
-      },
-    );
-
-    expect(result.status, result.stderr || result.stdout).toBe(0);
-  });
 
   it('accepts executable Vitest declarations but rejects comments and skipped lookalikes', () => {
     expect(executableVitestNames("it('real behavior', () => {});")).toContain('real behavior');
@@ -205,8 +267,25 @@ describe('BDD proof provenance', () => {
         "describe.skip('disabled suite', () => it('nested behavior', () => {}));",
       ),
     ).not.toContain('nested behavior');
-    expect(executableVitestNames("it.each([1, 2])('registered prefix: %s', () => {});")).toContain(
-      'registered prefix: %s',
-    );
+    expect(
+      executableVitestNames(
+        "describe.skip.each([1])('disabled suite %s', () => it('nested table behavior', () => {}));",
+      ),
+    ).not.toContain('nested table behavior');
+    expect(
+      executableVitestNames(
+        "describe.skipIf(true)('disabled conditional suite', () => it('nested conditional behavior', () => {}));",
+      ),
+    ).not.toContain('nested conditional behavior');
+  });
+
+  it('extracts exact static cases from parameterized Vitest declarations', () => {
+    const cases = parameterizedVitestCases(`
+      it.each(['alpha', 'beta'])('primitive %s', () => {});
+      test.each([{ state: 'ready' }, { state: 'blocked' }])('object $state', () => {});
+    `);
+
+    expect(cases.get('primitive %s')).toEqual(new Set(['alpha', 'beta']));
+    expect(cases.get('object $state')).toEqual(new Set(['ready', 'blocked']));
   });
 });

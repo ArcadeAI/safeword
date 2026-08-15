@@ -11,7 +11,7 @@
     "Quiet mode wins over managed progress": ["packages/cli/tests/cli-protocol/review-wiring.test.ts", "lets quiet mode suppress managed progress for %s without suppressing the JSON result"],
     "Human-readable progress remains enabled without the private signal": ["packages/cli/tests/cli-protocol/policy.test.ts", "reports JSON progress only for an opted-in managed review and never in quiet mode"],
     "Progress write failures stay contained and retryable": [
-      ["packages/cli/tests/cli-protocol/policy.test.ts", "keeps descriptor write failures best-effort and retries later writes"]
+      ["packages/cli/tests/cli-protocol/policy.test.ts", "keeps descriptor write failures best-effort and retries later writes: $error at write $failureIndex"]
     ],
     "The reviewer allowlist excludes the wrapper-only signal": ["packages/cli/tests/review/environment.test.ts", "excludes the wrapper-only managed-progress signal from the reviewer allowlist"],
     "The wrapper scopes progress to its JSON review child": [
