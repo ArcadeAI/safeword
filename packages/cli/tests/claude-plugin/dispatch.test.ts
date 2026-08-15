@@ -26,6 +26,9 @@ import { SAFEWORD_SCHEMA } from '../../src/schema.js';
 import { requireHistoricalReleaseTags } from '../helpers/git-history.js';
 
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
+/** Release this suite reads real bytes from; shared with the history preflight. */
+const FIXTURE_VERSION = '0.72.0';
+const FIXTURE_VERSIONS = [FIXTURE_VERSION];
 const PLUGIN_ROOT = nodePath.join(REPO_ROOT, 'plugin');
 const roots: string[] = [];
 
@@ -41,14 +44,16 @@ function temporary(prefix: string): string {
 }
 
 function releasedAsset(projectDirectory: string): string {
-  const release = CLAUDE_HISTORICAL_CATALOGUE.releases['0.72.0'];
+  const release = CLAUDE_HISTORICAL_CATALOGUE.releases[FIXTURE_VERSION];
   const installedPath = Object.keys(release.files)[0];
-  if (installedPath === undefined) throw new Error('Release 0.72.0 has no Claude fixture.');
+  if (installedPath === undefined) {
+    throw new Error(`Release ${FIXTURE_VERSION} has no Claude fixture.`);
+  }
   return releasedFile(projectDirectory, installedPath);
 }
 
 function releasedFile(projectDirectory: string, installedPath: string): string {
-  const schema = execFileSync('git', ['show', 'v0.72.0:packages/cli/src/schema.ts'], {
+  const schema = execFileSync('git', ['show', `v${FIXTURE_VERSION}:packages/cli/src/schema.ts`], {
     cwd: REPO_ROOT,
     encoding: 'utf8',
   });
@@ -62,7 +67,7 @@ function releasedFile(projectDirectory: string, installedPath: string): string {
   mkdirSync(nodePath.dirname(target), { recursive: true });
   writeFileSync(
     target,
-    execFileSync('git', ['show', `v0.72.0:packages/cli/templates/${template}`], {
+    execFileSync('git', ['show', `v${FIXTURE_VERSION}:packages/cli/templates/${template}`], {
       cwd: REPO_ROOT,
     }),
   );
@@ -71,7 +76,7 @@ function releasedFile(projectDirectory: string, installedPath: string): string {
 
 function promptSettings(projectDirectory: string, marketplace: unknown): void {
   const fingerprint =
-    CLAUDE_HISTORICAL_CATALOGUE.releases['0.72.0'].hooks.UserPromptSubmit?.[0] ?? '';
+    CLAUDE_HISTORICAL_CATALOGUE.releases[FIXTURE_VERSION].hooks.UserPromptSubmit?.[0] ?? '';
   const hook = historicalHookEntry(fingerprint);
   const command = /\.safeword\/hooks\/[\w./-]+/u.exec(JSON.stringify(hook))?.[0];
   if (command === undefined) throw new Error('Historical prompt hook has no project hook path.');
@@ -165,9 +170,6 @@ function refreshPluginIdentity(pluginRoot: string, changedAssets: readonly strin
     .digest('hex');
   writeFileSync(identityPath, `${JSON.stringify(identity, undefined, 2)}\n`);
 }
-
-/** Releases this suite reads real bytes from; shared with the history preflight. */
-const FIXTURE_VERSIONS = ['0.72.0'];
 
 describe('Claude plugin dispatcher', () => {
   beforeAll(() => {
