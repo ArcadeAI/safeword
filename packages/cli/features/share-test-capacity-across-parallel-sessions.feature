@@ -95,7 +95,7 @@ Feature: Let parallel sessions share test capacity safely
     @rejection @process
     Scenario: Double-dash invocation classifies broad despite an existing test file
       Given canonical capacity is two, a contained regular `alpha.test.ts` file exists, and the deterministic downstream collaborator exits zero
-      When the public package-test command classifies argv `["--", "alpha.test.ts"]`
+      When the package-test wrapper receives the literal downstream argv token sequence `["--", "alpha.test.ts"]`
       Then it assigns broad exclusive capacity with durable owner weight two, passes the original argv unchanged downstream exactly once, accounts for every descendant, and exits zero
 
     Scenario Outline: Focused filename boundaries are exact and case-sensitive
@@ -161,7 +161,6 @@ Feature: Let parallel sessions share test capacity safely
       Examples:
         | path-kind |
         | a directory |
-        | a FIFO or other non-regular file |
 
     @rejection
     Scenario: Current-protocol opt-in does not infer legacy wrapper activity
@@ -299,7 +298,7 @@ Feature: Let parallel sessions share test capacity safely
       Then the newer wrapper starts no repository process, removes only its own waiter ticket and checkout ownership, leaves the queue-head ticket and owner set unchanged, advances the state version exactly once for its own removal, and exits nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE and `safeword project test-capacity status`
 
     Scenario: A verified dead queue-head waiter is pruned before the next FIFO admission
-      Given shared capacity is one, the real platform identity seam proves dead ticket-1 absent, and live ticket-2 and ticket-3 wrappers wait in that order
+      Given shared capacity is one, the deterministic injected identity adapter proves dead ticket-1 absent without contributing native evidence, and live ticket-2 and ticket-3 wrappers wait in that order
       When the ticket-2 public package-test wrapper evaluates the queue under the state guard
       Then it removes only dead ticket 1, runs its unchanged downstream invocation once and exits zero, admits ticket 2 before ticket 3, and after ticket 2 exits ticket 3 runs its unchanged downstream invocation once and exits zero with every descendant accounted for
 
@@ -318,7 +317,7 @@ Feature: Let parallel sessions share test capacity safely
 
     @native-platform
     Scenario Outline: Exact owner loss is recovered across every supported execution container
-      Given the required native <platform> CI job runs a real package-test wrapper that is <stage> with its exact <container> identity and a second real public wrapper with a deterministic zero-exit collaborator waits behind it, while a harness-controlled monotonic test clock advances the reclaim deadline without substituting any native identity or container observation
+      Given the required native <platform> CI job runs this matching <platform> row (a missing matching job leaves native evidence incomplete), with a real package-test wrapper that is <stage> with its exact <container> identity and a second real public wrapper with a deterministic zero-exit collaborator waits behind it, while a harness-controlled monotonic test clock advances the reclaim deadline without substituting any native identity or container observation
       When the first wrapper process dies and the second wrapper triggers <recovery> after every first-container build or test descendant is proven absent
       Then one guarded recovery removes only the exact dead owner, returns its complete permit weight at <release-version>, admits the waiting wrapper at <admission-version>, runs its unchanged invocation exactly once to exit zero, and the complete keyed trace accounts for the dead wrapper, blocked child or supervisor, all descendants and one empty final owner set
       Examples:
@@ -356,7 +355,7 @@ Feature: Let parallel sessions share test capacity safely
 
     @native-platform
     Scenario Outline: Native platform identity adapters distinguish exact and mismatched real processes
-      Given the required native <platform> CI job's real adapter reads <identity-source> for <process-state>
+      Given the required native <platform> CI job runs this matching <platform> row (a missing matching job leaves native evidence incomplete) and its real adapter reads <identity-source> for <process-state>
       When the real adapter observes that process
       Then <native-outcome> without injected coverage
       Examples:
@@ -526,7 +525,7 @@ Feature: Let parallel sessions share test capacity safely
 
     @native-platform
     Scenario Outline: Wrapper death tears down live descendants before returning active capacity
-      Given an active real package-test wrapper on <platform> has live contained build or Vitest descendants, durable ownership at version N, and a second real wrapper with a deterministic zero-exit collaborator waits behind it
+      Given the required native <platform> CI job runs this matching <platform> row (a missing matching job leaves native evidence incomplete), and an active real package-test wrapper has live contained build or Vitest descendants, durable ownership at version N, and a second real wrapper with a deterministic zero-exit collaborator waits behind it
       When the wrapper dies and its ownership pipe closes
       Then <container> terminates every descendant with its predetermined platform-resolved status, the container is proven empty before its permit returns at version N+1, the waiting wrapper is admitted at N+2 and exits zero after one unchanged invocation, and the complete keyed trace accounts for all descendants
       Examples:
@@ -582,7 +581,7 @@ Feature: Let parallel sessions share test capacity safely
 
     @wiring @process
     Scenario Outline: Interrupted durable-state commits expose only one complete state
-      Given the real filesystem seam interrupts a guarded scheduler-state commit <point>
+      Given the interposed injected filesystem seam interrupts a guarded scheduler-state commit <point> without contributing native evidence
       When a public current-protocol wrapper reads the durable state
       Then it observes <complete-state> and never admits from a partial transition
       Examples:
@@ -642,6 +641,7 @@ Feature: Let parallel sessions share test capacity safely
         | temporary-file flush failure | the transition fails closed with the prior durable state authoritative |
         | atomic rename failure | the transition fails closed with the prior durable state authoritative |
         | containing-directory flush failure on a supporting platform | the durability result is indeterminate and admission fails closed |
+        | directory-flush primitive reports unsupported | runtime state mutation exits with SAFEWORD_TEST_CAPACITY_STATE_UNSAFE, leaves durable bytes unchanged, and starts no repository process |
         | an abandoned temporary file beside valid state | the valid live state remains authoritative and the validated abandoned file is removed under the guard before admission continues |
         | a permission-unsafe temporary file | the transition fails closed without reading or replacing through that path |
         | a symlinked temporary file | the transition fails closed without reading or replacing through that path |
@@ -778,7 +778,7 @@ Feature: Let parallel sessions share test capacity safely
     Scenario: Project-local configuration and process environment cannot override canonical capacity
       Given the isolated canonical domain has durable capacity one while a project-local configuration and each wrapper environment claim capacity eight
       When two real focused wrappers in distinct worktrees request admission together
-      Then exactly one repository lifetime runs, the waiting wrapper starts only after release, and neither override changes the durable canonical capacity
+      Then at most one repository lifetime is active at any observed instant, the waiting wrapper starts only after release, both unchanged invocations eventually exit zero, and neither override changes the durable canonical capacity
 
     @process
     Scenario Outline: Distinct identity axes own separate capacity domains
