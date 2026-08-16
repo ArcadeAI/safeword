@@ -7,10 +7,12 @@ Feature: Let parallel sessions share test capacity safely
     And the public package-test wrapper is `bun run test` from `packages/cli`, forwarding its original Vitest argv unchanged
   @share-test-capacity.TBU1.R1
   Rule: share-test-capacity.TBU1.R1 — Separate worktrees using the current scheduler protocol may overlap focused file checks only within their shared bounded capacity
+    @process
     Scenario: Focused checks in separate worktrees fill but never exceed shared capacity
       Given three real current-protocol wrappers in three distinct worktrees hold independent checkout mutexes and share capacity two
       When barriers hold the first two collaborators active before the third requests admission
       Then monotonic ready/release events show the first two repository-process lifetimes overlap, no more than two overlap, and after barriers release all three unchanged downstream invocations run exactly once and exit zero with the third starting only after a permit releases
+    @process
     Scenario: Separate repositories on one machine and user share canonical capacity
       Given two real focused public wrappers use different repository checkouts under the same deterministic machine and OS-user identity with canonical capacity one
       When a barrier holds the first repository lifetime active while the second requests admission
@@ -32,17 +34,17 @@ Feature: Let parallel sessions share test capacity safely
       Then B's owner record, permit weight, and active lifetime remain unchanged, B exits zero after controlled release, and no repository lifetime overlaps B beyond canonical capacity
     @rejection @process
     Scenario Outline: Reservation failure starts no repository process
-      Given canonical capacity is one, an exact focused public wrapper reservation is durable, a second focused public wrapper in that domain with a deterministic zero-exit collaborator is ready, and <fault>
+      Given canonical capacity is one, an exact focused public wrapper reservation is durable, and <fault>
       When the wrapper handles the activation failure
       Then no repository process or descendant starts, <reservation-outcome>, <checkout-outcome>, and the wrapper exits with <terminal-contract>
       Examples:
         | fault | reservation-outcome | checkout-outcome | terminal-contract |
         | the guarded active-owner record cannot be durably updated before repository code can run and checkout ownership is verified | the reservation bytes remain untouched for authenticated recovery | exact checkout ownership is released | nonzero with SAFEWORD_TEST_CAPACITY_STATE_UNSAFE and `safeword project test-capacity status` |
-        | the guarded active-owner record cannot be durably updated before repository code can run and checkout ownership is unverifiable | the reservation bytes remain untouched for authenticated recovery | checkout bytes remain untouched and a second wrapper proves the mutex unavailable | nonzero with SAFEWORD_TEST_CAPACITY_STATE_UNSAFE and `safeword project test-capacity status` |
+        | the guarded active-owner record cannot be durably updated before repository code can run and checkout ownership is unverifiable | the reservation bytes remain untouched for authenticated recovery | checkout bytes remain untouched and a second same-domain wrapper proves the mutex unavailable | nonzero with SAFEWORD_TEST_CAPACITY_STATE_UNSAFE and `safeword project test-capacity status` |
         | execution-container creation fails before repository code runs but guarded cleanup commits | only that reservation is removed | exact checkout ownership is released before a second wrapper runs its unchanged invocation once to exit zero | its predetermined platform-resolved activation-failure status |
     @rejection @wiring @process
     Scenario: A stranded reservation has an explicit safe recovery path
-      Given a repaired durable-state fault left the exact failed wrapper's reserved owner bytes and checkout mutex intact, that wrapper is proven absent, and no repository process ever started for it
+      Given a repaired durable-state fault left the exact failed wrapper's reserved owner bytes and checkout mutex intact, that wrapper is proven absent, no repository process ever started for it, and a second public wrapper targets the same worktree
       When a second public wrapper performs guarded recovery
       Then recovery removes only the exact dead reservation and its checkout mutex, starts no repository process before that recovery, and the second wrapper runs its unchanged invocation once to exit zero
     @wiring @process
@@ -133,11 +135,15 @@ Feature: Let parallel sessions share test capacity safely
       Given a verified current-commit attestation from the required native macOS CI job covers a canonical checkout root reached through its operating-system-managed `/var` to `/private/var` prefix, containing regular `alpha.test.ts` at canonical capacity two
       When the public package-test command classifies literal `alpha.test.ts`
       Then it assigns one focused permit with durable owner weight one, passes the argument unchanged downstream once, and exits zero with every descendant accounted for
-    @native-platform @platform-windows
-    Scenario: Case-insensitive resolution does not change focused classification
-      Given a verified current-commit attestation from the required native Windows CI job covers a case-insensitive checkout containing regular `alpha.Test.ts` at canonical capacity two
-      When the public package-test command classifies literal `alpha.test.ts`
-      Then it assigns one focused permit from the literal argument basename, passes the argument unchanged downstream once, and exits zero with every descendant accounted for
+    @native-platform @platform-windows @process
+    Scenario Outline: Case-insensitive resolution does not change focused classification
+      Given a verified current-commit attestation from the required native Windows CI job covers a case-insensitive checkout containing regular <on-disk-name> at canonical capacity two
+      When the public package-test command classifies literal <literal>
+      Then it <classification>, passes the argument unchanged downstream once, and exits zero with every descendant accounted for
+      Examples:
+        | on-disk-name | literal | classification |
+        | `alpha.Test.ts` | `alpha.test.ts` | assigns one focused permit from the literal argument basename |
+        | `alpha.test.ts` | `alpha.Test.ts` | assigns broad exclusive capacity from the literal argument basename |
     @rejection
     Scenario Outline: Non-file argument boundaries classify broad without contradictory fixtures
       Given canonical capacity is two, <arguments> have <path-state> rather than an existing contained regular file, and the deterministic downstream collaborator exits 23
@@ -197,10 +203,12 @@ Feature: Let parallel sessions share test capacity safely
         | extra non-option token `2 unexpected` |
   @share-test-capacity.TBU1.R2
   Rule: share-test-capacity.TBU1.R2 — Participating package-test commands in the same worktree remain serialized across their complete build and test lifetimes
+    @process
     Scenario: Same-worktree commands serialize their complete build and test lifetimes
       Given canonical capacity is two, two real focused package-test wrapper processes target the same worktree, and every process event is keyed to wrapper, ticket, container and command
       When a barrier holds the first repository lifetime active until the second wrapper is observed waiting on the checkout mutex
       Then the second starts no repository descendant before every first-container descendant exits and the first wrapper releases scheduler ownership followed by its exact checkout ownership, after which both unchanged downstream invocations have run exactly once, every container is proven empty, and both wrappers exit zero
+    @process
     Scenario: A checkout-mutex waiter holds no shared-capacity permit
       Given canonical capacity is two, one same-worktree wrapper holds checkout ownership and one active permit, a second same-worktree wrapper emits its checkout-mutex waiter event, and an unrelated-worktree focused wrapper requests admission
       When the scheduler records the unrelated wrapper under the state guard
@@ -254,11 +262,12 @@ Feature: Let parallel sessions share test capacity safely
         | descendant teardown failure | its predetermined teardown-failure status | scheduler capacity and checkout ownership remain held fail-closed | both waiters remain queued with no repository descendant until controlled teardown cancels each exact request; status names termination of the recorded container, and guarded recovery admits a later wrapper only after exact emptiness is proven |
     @rejection @wiring @process
     Scenario: A stranded unsafe checkout mutex has an explicit safe recovery path
-      Given an exact dead wrapper left an unsafe checkout-mutex record that a second wrapper cannot authenticate
+      Given an exact dead wrapper left an unsafe checkout-mutex record that a second wrapper in the same worktree cannot authenticate
       When the builder runs `safeword project test-capacity status`
       Then status names the checkout-mutex recovery procedure without mutating its bytes, and after the underlying artifact fault is repaired guarded recovery removes only the exact dead ownership before one waiting wrapper runs its unchanged invocation once
   @share-test-capacity.TBU1.R3
   Rule: share-test-capacity.TBU1.R3 — Broad verification drains focused work and runs with exclusive machine capacity without starvation
+    @process
     Scenario: A head broad request waits for holders to drain and then runs alone
       Given canonical capacity is eight, keyed process events show eight focused owners active, and another real wrapper has a broad request at the queue head
       When the focused owners finish
@@ -267,13 +276,15 @@ Feature: Let parallel sessions share test capacity safely
     Scenario: A broad request never holds a partial allocation
       Given canonical capacity is two, a real public broad wrapper reaches the live queue head while one focused permit is active
       When the scheduler records that admission decision under the state guard
-      Then one committed version records that broad wrapper as a zero-permit waiter, no transition records it as an owner before teardown, it starts no repository process before controlled teardown cancels it, removes only its waiter and checkout ownership, and exits with its predetermined platform-resolved cancellation status
+      Then one committed transition naming that broad wrapper records it as a zero-permit waiter, no transition naming it records it as an owner before teardown, it starts no repository process before controlled teardown cancels it, removes only its waiter and checkout ownership, and exits with its predetermined platform-resolved cancellation status
   @share-test-capacity.TBU1.R4
   Rule: share-test-capacity.TBU1.R4 — A waiting broad run prevents newer focused runs from continuously overtaking it
+    @process
     Scenario: Consecutive focused requests batch only before the first broad request
       Given shared capacity is two and keyed monotonic events assign real wrapper requests A, B, C and D consecutive FIFO tickets where A and B are focused, C is broad, and D is focused
       When a barrier holds A active until B's repository lifetime is observed started and capacity becomes available in queue order
       Then observable lifetimes for A and B overlap and exit zero, C starts only after both end and runs exclusively to zero, and D starts only after C ends and exits zero
+    @process
     Scenario: A queued broad request is not starved by later focused arrivals
       Given shared capacity is two, barriers assign C then D, E, and F consecutive FIFO tickets while focused holders A and B remain active, where C is broad and D through F are focused
       When A and B exit zero
@@ -283,22 +294,23 @@ Feature: Let parallel sessions share test capacity safely
       Given the deterministic injected identity adapter cannot verify the queue-head public wrapper and contributes no native evidence
       When a newer focused request could otherwise fit
       Then the newer wrapper starts no repository process, removes only its own waiter ticket and checkout ownership, leaves the queue-head ticket and owner set unchanged, advances the state version exactly once for its own removal, and exits nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE and `safeword project test-capacity status`
+    @process
     Scenario: A verified dead queue-head waiter is pruned before the next FIFO admission
       Given shared capacity is one, the deterministic injected identity adapter proves dead ticket-1 absent without contributing native evidence, and live ticket-2 and ticket-3 wrappers wait in that order
       When the ticket-2 public package-test wrapper evaluates the queue under the state guard
       Then the guarded transition removes only dead ticket 1, records ticket-2 admission strictly before every ticket-3 admission event, ticket 2 runs its unchanged downstream invocation once and exits zero, and ticket 3 then runs its unchanged downstream invocation once and exits zero with every descendant accounted for
+    @process
     Scenario: A broad request runs exclusively on an idle domain
       Given an idle canonical capacity-two domain and a real broad public wrapper with a deterministic zero-exit collaborator
       When the broad wrapper reaches the queue head
       Then one committed transition changes its durable owner weight directly from zero to both permits with no intermediate weight, runs its unchanged invocation once and alone to exit zero, releases both permits, and accounts for every descendant
+    @process
     Scenario: Consecutive broad requests run alone in FIFO-ticket order
       Given shared capacity is two and real broad public wrappers A and B hold consecutive FIFO tickets with deterministic zero-exit collaborators
       When A reaches the queue head
       Then A atomically owns both permits from the empty owner set and runs once alone to exit zero, B starts no repository descendant before A releases both permits, then B atomically owns both permits and runs once alone to exit zero, and every descendant is accounted for
-
   @share-test-capacity.TBU1.R5
   Rule: share-test-capacity.TBU1.R5 — Capacity ownership changes atomically and abandoned ownership is recovered without PID-reuse mistakes or manual cleanup
-
     @native-platform
     Scenario Outline: Exact owner loss is recovered across every supported execution container
       Given a verified current-commit attestation from the required native <platform> CI job covers this matching <platform> row, a real package-test wrapper is <stage> with its exact <container> identity at version N after a second real public wrapper has registered its wait, and the waiting wrapper has a deterministic zero-exit collaborator, while a harness-controlled monotonic test clock advances the reclaim deadline without substituting any native identity or container observation
@@ -313,7 +325,6 @@ Feature: Let parallel sessions share test capacity safely
         | Windows | reserved before repository code can run | suspended Job Object process | one guarded exact-wrapper transition | N+1 | N+2 |
         | Windows | active after container identity is durable | kill-on-close Job Object | verified zero active-process count | N+1 | N+2 |
         | Windows | active after container identity is durable | absent owner-only Job Object | the two-observation absent-job reclaim-marker protocol, which first marks reclaiming at N+1 | N+2 | N+3 |
-
     @wiring @process
     Scenario Outline: Cancellation releases ownership safely at every queue stage
       Given canonical capacity is one, <queue-state>, a real public package-test wrapper and process collaborator are <stage>, and a second live waiter immediately follows the cancelled wrapper ahead of one unrelated FIFO ticket
@@ -324,9 +335,8 @@ Feature: Let parallel sessions share test capacity safely
         | queued | an unrelated authenticated owner holds the only permit behind a barrier that releases only after the cancelled head ticket is removed | only its exact waiter ticket is removed | no repository process ever starts for the cancelled command |
         | reserved | the cancelled wrapper holds the only reservation | the blocked container exits before its reservation is removed | no repository process ever starts for the cancelled command |
         | active | the cancelled wrapper holds the only active permit | the recorded container is terminated and proven empty before ownership is removed | already-started descendants exit and no new descendant starts after cancellation |
-
     @platform-posix @rejection
-    Scenario Outline: Verified occupancy keeps capacity held without treating the caller as a recovery failure
+    Scenario Outline: Reused identity keeps capacity conservatively occupied
       Given the deterministic injected POSIX identity adapter reports an active owner with <identity-state> and contributes no native evidence
       When scheduler recovery examines the owner twice under the state guard
       Then it keeps capacity unavailable, clears any reclaim marker, and records the waiting wrapper behind conservative occupancy without reclaiming or failing admission, while status reports the conflicting identity nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE; teardown then cancels that waiter with its predetermined platform-resolved cancellation status
@@ -334,9 +344,7 @@ Feature: Let parallel sessions share test capacity safely
         | identity-state |
         | a reused supervisor PID |
         | a reused execution-group leader PID |
-        | a missing leader with a surviving group member |
         | an apparent same-second macOS PID reuse |
-
     @native-platform
     Scenario Outline: Native platform identity sources distinguish exact and mismatched real identities
       Given a verified current-commit attestation from the required native <platform> CI job covers this matching <platform> row and its real adapter reads <identity-source> for <identity-state>
@@ -356,7 +364,6 @@ Feature: Let parallel sessions share test capacity safely
         | Windows | MachineGuid | a real machine identity differing from the recorded domain identity | authentication is withheld, no repository process starts, and the caller exits nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE |
         | macOS | IOPlatformUUID | the exact current machine identity | the capacity-domain identity is authenticated |
         | macOS | IOPlatformUUID | a real machine identity differing from the recorded domain identity | authentication is withheld, no repository process starts, and the caller exits nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE |
-
     @rejection
     Scenario Outline: Injected identity adapter faults fail closed without contributing native evidence
       Given canonical capacity is one, a durable active owner has an exact process instance, a real caller with a deterministic zero-exit collaborator waits behind it, and the deterministic injected <platform> identity adapter reads <identity-source>
@@ -376,7 +383,6 @@ Feature: Let parallel sessions share test capacity safely
         | macOS | LC_ALL=C process start time with conservative second-level precision | malformed |
         | macOS | LC_ALL=C process start time with conservative second-level precision | permission-denied |
         | macOS | LC_ALL=C process start time with conservative second-level precision | changed |
-
     @rejection @process
     Scenario Outline: Injected torn process identity snapshots fail closed without contributing native evidence
       Given the deterministic injected <platform> adapter is held at barriers around its multi-read identity operation
@@ -388,7 +394,6 @@ Feature: Let parallel sessions share test capacity safely
         | Linux | the process exits and its PID is reused between two process-stat reads |
         | macOS | the process exits and its PID is reused within the conservative start-time interval |
         | Windows | the process handle identifies a different creation FILETIME than the pre-handle PID observation |
-
     @rejection @process @surface.safeword-cli
     Scenario Outline: Native process and capacity-domain identity evidence cannot be replaced by injected adapters
       Given trusted current-commit native-filesystem evidence for every platform and every process/container or capacity-domain-identity class not under this <evidence-class> row is already accepted, deterministic injected-adapter tests run every platform row on any host, and <native-job-state>
@@ -403,7 +408,6 @@ Feature: Let parallel sessions share test capacity safely
         | Linux capacity-domain identity | the Linux native job is unavailable or skipped | the Linux capacity-domain-identity gate remains incomplete and injected results cannot mark it passed | the command exits nonzero with SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE, names `safeword project test-capacity status` first, and emits no platform-pass or completed evidence record |
         | macOS capacity-domain identity | the macOS native job is unavailable or skipped | the macOS capacity-domain-identity gate remains incomplete and injected results cannot mark it passed | the command exits nonzero with SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE, names `safeword project test-capacity status` first, and emits no platform-pass or completed evidence record |
         | Windows capacity-domain identity | the Windows native job is unavailable or skipped | the Windows capacity-domain-identity gate remains incomplete and injected results cannot mark it passed | the command exits nonzero with SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE, names `safeword project test-capacity status` first, and emits no platform-pass or completed evidence record |
-
     @rejection @process @surface.safeword-cli
     Scenario Outline: Native filesystem evidence cannot be replaced by injected filesystem seams
       Given trusted current-commit process/container and capacity-domain-identity evidence for every platform and filesystem evidence for every other platform are already accepted and the required native <platform> job's <native-state> for owner and permission checks, link and reparse behavior, pinned parent identity, atomic rename, file flush and directory flush
@@ -417,7 +421,6 @@ Feature: Let parallel sessions share test capacity safely
         | macOS | one named primitive is skipped or unavailable | the macOS gate remains incomplete with that primitive named | the command exits nonzero with SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE, names `safeword project test-capacity status` first, and emits neither a macOS-pass nor overall completed record |
         | Windows | every success primitive completes and an authenticated unsupported-directory-flush fixture proves runtime fails closed | native and injected evidence are recorded separately and the Windows gate completes | the command exits zero and emits one completed current-commit record |
         | Windows | one named primitive is skipped or unavailable | the Windows gate remains incomplete with that primitive named | the command exits nonzero with SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE, names `safeword project test-capacity status` first, and emits neither a Windows-pass nor overall completed record |
-
     @rejection @process @surface.safeword-cli
     Scenario Outline: Native evidence rejects untrusted provenance and unsafe storage
       Given a durable native-evidence artifact has otherwise valid schema and contents but <artifact-fault>, and existing evidence state is captured byte-for-byte
@@ -434,17 +437,15 @@ Feature: Let parallel sessions share test capacity safely
         | is reached through a symlinked evidence-state directory | unsafe evidence storage | SAFEWORD_TEST_CAPACITY_STATE_UNSAFE |
         | has a foreign owner or group-writable evidence-state directory | unsafe evidence storage | SAFEWORD_TEST_CAPACITY_STATE_UNSAFE |
         | has an unexpected hard link or changed file identity in evidence state or its guard | unsafe evidence storage | SAFEWORD_TEST_CAPACITY_STATE_UNSAFE |
-
     @wiring @process @surface.safeword-cli
     Scenario Outline: Repeated native-evidence verification is atomic and idempotent
       Given one trusted current-commit attestation and artifact set satisfies every native platform and primitive exactly once
       When <verification-race>
-      Then both commands exit zero with the same accepted digests, durable evidence state contains exactly one platform-pass per platform and one overall completion record for the commit, no artifact is partially consumed, and the state version advances only for the single deduplicated commit
+      Then both commands exit zero with the same accepted digests, durable evidence state contains exactly one pass record for each platform-class pair and one overall completion record for the commit, no artifact is partially consumed, and the state version advances only for the single deduplicated commit
       Examples:
         | verification-race |
         | the verifier runs twice sequentially against the identical evidence set |
         | two verifier processes cross a barrier and contend on the evidence-state guard |
-
     @rejection @wiring @process @surface.safeword-cli
     Scenario Outline: Overall native evidence waits for all three evidence classes on every platform
       Given trusted current-commit evidence is complete except for <missing-class>
@@ -461,7 +462,6 @@ Feature: Let parallel sessions share test capacity safely
         | Linux capacity-domain identity evidence |
         | macOS capacity-domain identity evidence |
         | Windows capacity-domain identity evidence |
-
     @rejection @surface.safeword-cli
     Scenario Outline: Native-evidence verification rejects all arguments without consuming evidence
       Given <evidence-state> durable native-evidence state is captured byte-for-byte
@@ -473,25 +473,21 @@ Feature: Let parallel sessions share test capacity safely
         | valid | extra positional `unexpected` |
         | valid | duplicate unknown option `--unknown --unknown` |
         | incomplete current-commit | unknown option `--unknown` |
-
     @native-platform @platform-posix @process
     Scenario: Detached POSIX descendants remain an explicitly disclosed limitation
       Given a verified current-commit attestation from the required native POSIX CI job covers canonical capacity above one, repository code deliberately escapes its recorded POSIX process group, the ordinary recorded group is proven empty, a barrier holds that escaped process active, and teardown retains its exact external process identity
       When the scheduler admits one new repository process and the barrier releases the escaped process
       Then status contains the exact disclosure `deliberately detached descendants are not contained`, keyed events prove the recorded group empty while the retained escaped process overlaps the newly admitted repository process, and external-identity teardown proves both processes exit
-
     @platform-posix
     Scenario: Supervisor loss returns capacity only after a second empty-group observation
       Given an injected monotonic clock and injected POSIX identity adapter contribute no native evidence, a queued waiter registered before baseline version N, and a first guarded observation proves the recorded supervisor instance, group-leader instance, and process group absent and atomically marks the owner reclaiming at version N+1 without returning capacity
       When the injected monotonic recovery interval passes with reclaim marker and state version N+1 unchanged, and the second observation proves the exact supervisor and leader instances absent and the group empty
       Then one guarded recovery returns capacity atomically at version N+2, admits the queued waiter at N+3, runs its unchanged invocation once to exit zero, and no admission observes a free intermediate state
-
     @platform-posix
     Scenario: A later wrapper completes recovery after the first reclaim observer dies
       Given an injected monotonic clock and injected POSIX identity adapter contribute no native evidence, a waiting wrapper registered before baseline version N, and a first observer persisted a boot-bound monotonic reclaim deadline after marking an absent owner's full weight reclaiming at version N+1, then dies
       When the injected clock passes that deadline and a second wrapper observes the same boot identity, unchanged state version and marker, and again proves the exact owner absent
       Then it returns the full weight at version N+2, admits the waiting wrapper at N+3, and the waiting invocation runs once to exit zero
-
     @platform-posix @rejection
     Scenario Outline: Supervisor loss holds capacity when the second observation remains unsafe
       Given an injected monotonic clock and injected POSIX identity adapter contribute no native evidence, and a first guarded observation proves the recorded supervisor instance, group-leader instance, and process group absent and atomically marks the owner reclaiming at version N+1 without returning capacity
@@ -503,7 +499,6 @@ Feature: Let parallel sessions share test capacity safely
         | the group empty but the leader PID reused |
         | a surviving group descendant |
         | a changed boot identity from the persisted reclaim deadline |
-
     @platform-posix @rejection @process
     Scenario Outline: POSIX reclaim changes or ambiguous identity never release capacity
       Given a harness-controlled monotonic clock and deterministic injected identity adapter's first absent observation marked an active POSIX owner reclaiming without contributing native evidence
@@ -516,6 +511,7 @@ Feature: Let parallel sessions share test capacity safely
         | a reused supervisor identity | the marker clears and ownership remains held behind an authenticated live-owner event | controlled teardown cancels the queued caller without a repository descendant and it exits with its predetermined platform-resolved cancellation status |
         | the PGID led by a different process incarnation | the marker clears and ownership remains held behind an authenticated live-owner event | controlled teardown cancels the queued caller without a repository descendant and it exits with its predetermined platform-resolved cancellation status |
         | an unverifiable group or creation identity | recovery fails closed | the caller starts no repository process and exits with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE plus `safeword project test-capacity status` |
+        | a missing execution-group leader with a surviving member | recovery fails closed | the caller starts no repository process and exits with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE plus `safeword project test-capacity status` |
 
     @native-platform
     Scenario Outline: Wrapper death tears down live descendants before returning active capacity
@@ -538,6 +534,7 @@ Feature: Let parallel sessions share test capacity safely
         | reused and conservatively occupied |
         | unverifiable |
 
+    @process
     Scenario: Recovery returns the weight once exact owner absence is proven
       Given canonical capacity is one, a previous status call reported a conflicting owner identity, the conflicting process has exited, and a later guarded observation proves the recorded exact owner absent
       When the queued wrapper retries admission
@@ -841,6 +838,7 @@ Feature: Let parallel sessions share test capacity safely
         | barriers give `safeword project test-capacity set 2 --confirm-current-protocol` the guard before concurrent `safeword project test-capacity set 3 --confirm-current-protocol` | capacity 2 commits at version N+1, then capacity 3 commits at N+2, both set commands exit zero, and no reader observes a partial or skipped version |
         | barriers register a wrapper before `safeword project test-capacity set 2 --confirm-current-protocol` can commit | capacity remains 1, the wrapper observes 1 and exits zero, and the set command exits SAFEWORD_TEST_CAPACITY_BUSY |
 
+    @process
     Scenario: Capacity one preserves the hardened machine-wide serialization baseline
       Given canonical shared capacity is one and real wrappers use real build and test collaborators
       When a barrier holds one repository lifetime active while at least one wrapper from another worktree is observed waiting
@@ -922,6 +920,8 @@ Feature: Let parallel sessions share test capacity safely
         | a capacity-one domain has an owner whose identity is unverifiable | `safeword project test-capacity set 2 --confirm-current-protocol` | SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE |
         | the capacity-domain artifact is group-writable while the containment primitive is unavailable | `safeword project test-capacity set 2 --confirm-current-protocol` | SAFEWORD_TEST_CAPACITY_STATE_UNSAFE |
         | current-commit native evidence is incomplete while capacity-domain identity is unreadable | `safeword project test-capacity verify-native-evidence` | SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE |
+        | the native-evidence state directory is symlinked while current-commit evidence is incomplete | `safeword project test-capacity verify-native-evidence` | SAFEWORD_TEST_CAPACITY_STATE_UNSAFE |
+        | capacity-domain identity is unreadable while the containment primitive is unavailable | `safeword project test-capacity set 2 --confirm-current-protocol` | SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE |
 
     @wiring @process @surface.safeword-cli
     Scenario Outline: Public set commands wire canonical capacity atomically
