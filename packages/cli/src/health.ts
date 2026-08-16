@@ -9,6 +9,7 @@
  * issues.
  */
 
+import { execFileSync } from 'node:child_process';
 import { readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -36,7 +37,9 @@ import {
 } from './utils/configured-paths.js';
 import { createProjectContext } from './utils/context.js';
 import {
+  collectExecutableFeatureFiles,
   createPhaseAnchorEnvironment,
+  featureSourceFileName,
   findFeatureSourcePath,
   hasDefaultExecutableFeatureFiles,
 } from './utils/feature-source.js';
@@ -327,14 +330,14 @@ function archAlignmentHasContent(implPlanContent: string): boolean {
 
 /**
  * Surface scenario-lineage coverage gaps as non-blocking advisories (ticket
- * XT1FFM). Scoped to `status: in_progress` tickets that carry a spec.md —
- * which excludes done predecessors whose pre-scheme scenarios are the
+ * XT1FFM). In a Git worktree, scoped to the current diff's in-progress tickets
+ * and feature sources; projects without Git retain the original whole-project
+ * view. This excludes done predecessors whose pre-scheme scenarios are the
  * out-of-scope migration case (epic DZ2NM5/D5), and keeps the report focused
- * on the work the developer is actually building. Each in-progress ticket's
- * feature source or legacy (spec.md, test-definitions.md) pair is cross-referenced
- * into uncovered ACs, stale AC refs, and orphan scenarios. Coverage gaps stay
- * zero-exit advisories; invalid Gherkin is a health issue because the source
- * cannot be read.
+ * on the work the developer is actually building. Each selected ticket's feature
+ * source or legacy (spec.md, test-definitions.md) pair is cross-referenced into
+ * uncovered ACs, stale AC refs, and orphan scenarios. Coverage gaps stay zero-exit
+ * advisories; invalid Gherkin is a health issue because the source cannot be read.
  */
 interface CoverageDiagnostics {
   issues: string[];
@@ -345,13 +348,160 @@ function emptyCoverageDiagnostics(): CoverageDiagnostics {
   return { issues: [], advisories: [] };
 }
 
+const CURRENT_WORK_BASE_REFS = [
+  'refs/remotes/origin/HEAD',
+  'refs/remotes/origin/main',
+  'refs/remotes/origin/master',
+  'refs/heads/main',
+  'refs/heads/master',
+] as const;
+
+/** Read Git output without letting optional advisory scope affect health. */
+function readGit(cwd: string, args: readonly string[]): string | undefined {
+  try {
+    return execFileSync('git', args, {
+      cwd,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+  } catch {
+    return undefined;
+  }
+}
+
+function addNulSeparatedPaths(target: Set<string>, output: string): void {
+  for (const path of output.split('\0')) {
+    if (path !== '') target.add(path);
+  }
+}
+
+function currentWorkPathsWithHead(cwd: string): string[] | undefined {
+  const baseReference = CURRENT_WORK_BASE_REFS.find(
+    candidate => readGit(cwd, ['rev-parse', '--verify', '--quiet', candidate]) !== undefined,
+  );
+  if (baseReference === undefined) return [];
+  const mergeBase = readGit(cwd, ['merge-base', 'HEAD', baseReference])?.trim();
+  if (mergeBase === undefined || mergeBase === '') return [];
+  const committed = readGit(cwd, [
+    'diff',
+    '--relative',
+    '--name-only',
+    '-z',
+    `${mergeBase}...HEAD`,
+  ]);
+  const working = readGit(cwd, ['diff', '--relative', '--name-only', '-z', 'HEAD']);
+  if (committed === undefined || working === undefined) return undefined;
+
+  const paths = new Set<string>();
+  addNulSeparatedPaths(paths, committed);
+  addNulSeparatedPaths(paths, working);
+  return [...paths];
+}
+
+function currentWorkPathsWithoutHead(cwd: string): string[] | undefined {
+  const staged = readGit(cwd, ['diff', '--cached', '--name-only', '-z']);
+  if (staged === undefined) return undefined;
+  const paths = new Set<string>();
+  addNulSeparatedPaths(paths, staged);
+  return [...paths];
+}
+
+/**
+ * Current branch + worktree paths, or undefined outside Git. Projects without
+ * Git have no diff scope, so they retain the existing whole-project diagnostic.
+ * Within Git, an unavailable base produces an empty scope: BDD diagnostics are
+ * advisory and must not turn status/install into a repository-health gate.
+ */
+function currentWorkPaths(cwd: string): string[] | undefined {
+  if (readGit(cwd, ['rev-parse', '--is-inside-work-tree'])?.trim() !== 'true') return undefined;
+
+  const hasHead = readGit(cwd, ['rev-parse', '--verify', '--quiet', 'HEAD^{commit}']);
+  const changedPaths =
+    hasHead === undefined ? currentWorkPathsWithoutHead(cwd) : currentWorkPathsWithHead(cwd);
+  if (changedPaths === undefined) return [];
+
+  const untracked = readGit(cwd, ['ls-files', '--others', '--exclude-standard', '-z']);
+  if (untracked === undefined) return [];
+  const paths = new Set(changedPaths);
+  addNulSeparatedPaths(paths, untracked);
+  return [...paths];
+}
+
+function ticketIdsFromChangedPaths(paths: readonly string[], ticketPrefix: string): Set<string> {
+  const ticketIds = new Set<string>();
+  for (const path of paths) {
+    if (!path.startsWith(ticketPrefix)) continue;
+    const [ticketId] = path.slice(ticketPrefix.length).split('/', 1);
+    if (ticketId !== undefined && ticketId !== '') ticketIds.add(ticketId);
+  }
+  return ticketIds;
+}
+
+interface ChangedFeatureSources {
+  paths: ReadonlySet<string>;
+  fileNames: ReadonlySet<string>;
+}
+
+function addTicketsForChangedFeatureSources(
+  cwd: string,
+  ticketsRoot: string,
+  featureFiles: readonly string[],
+  changedFeatures: ChangedFeatureSources,
+  ticketIds: Set<string>,
+): void {
+  for (const ticketId of listTicketIds(ticketsRoot)) {
+    const featurePath = findFeatureSourcePath(cwd, ticketId, featureFiles);
+    if (
+      (featurePath !== undefined && changedFeatures.paths.has(featurePath)) ||
+      (featurePath === undefined &&
+        changedFeatures.fileNames.has(featureSourceFileName(cwd, ticketId)))
+    ) {
+      ticketIds.add(ticketId);
+    }
+  }
+}
+
+/** The tickets whose metadata or executable feature source enters current work. */
+function currentWorkCoverageTicketIds(
+  cwd: string,
+  ticketsRoot: string,
+  featureFiles: readonly string[],
+): string[] {
+  const paths = currentWorkPaths(cwd);
+  if (paths === undefined) return listTicketIds(ticketsRoot);
+  if (paths.length === 0) return [];
+
+  const ticketsRelative = toRepoRelativePath(cwd, ticketsRoot).split(nodePath.sep).join('/');
+  if (ticketsRelative === '..' || ticketsRelative.startsWith('../')) return [];
+  const ticketPrefix = `${ticketsRelative}/`;
+  const changedFeatures: ChangedFeatureSources = {
+    paths: new Set(
+      paths.filter(path => path.endsWith('.feature')).map(path => nodePath.resolve(cwd, path)),
+    ),
+    fileNames: new Set(
+      paths.filter(path => path.endsWith('.feature')).map(path => nodePath.basename(path)),
+    ),
+  };
+  const ticketIds = ticketIdsFromChangedPaths(paths, ticketPrefix);
+  if (changedFeatures.paths.size === 0) return [...ticketIds];
+
+  addTicketsForChangedFeatureSources(cwd, ticketsRoot, featureFiles, changedFeatures, ticketIds);
+  return [...ticketIds];
+}
+
 function findCoverageDiagnostics(cwd: string): CoverageDiagnostics {
   const ticketsRoot = resolveTicketsDirectory(cwd);
   const all = emptyCoverageDiagnostics();
   const configuredFeatures = readConfiguredPath(cwd, 'features');
   const anchorEnvironment = createPhaseAnchorEnvironment(cwd, configuredFeatures);
-  for (const ticketId of listTicketIds(ticketsRoot)) {
-    const ticketDiagnostics = coverageDiagnosticsForTicket(cwd, ticketsRoot, ticketId);
+  const featureFiles = collectExecutableFeatureFiles(cwd);
+  for (const ticketId of currentWorkCoverageTicketIds(cwd, ticketsRoot, featureFiles)) {
+    const ticketDiagnostics = coverageDiagnosticsForTicket(
+      cwd,
+      ticketsRoot,
+      ticketId,
+      featureFiles,
+    );
     all.issues.push(...ticketDiagnostics.issues);
     all.advisories.push(...ticketDiagnostics.advisories);
     const anchorAdvisory = phaseAnchorAdvisoryForTicket(
@@ -398,6 +548,7 @@ function coverageDiagnosticsForTicket(
   cwd: string,
   ticketsRoot: string,
   ticketId: string,
+  featureFiles: readonly string[],
 ): CoverageDiagnostics {
   const ticketDirectory = nodePath.join(ticketsRoot, ticketId);
   const ticketContent = readFileSafe(nodePath.join(ticketDirectory, 'ticket.md'));
@@ -407,7 +558,7 @@ function coverageDiagnosticsForTicket(
   const specContent = readFileSafe(nodePath.join(ticketDirectory, 'spec.md'));
   if (specContent === undefined) return emptyCoverageDiagnostics();
 
-  const featureSource = readFeatureSource(cwd, ticketId);
+  const featureSource = readFeatureSource(cwd, ticketId, featureFiles);
   try {
     const report =
       featureSource === undefined
@@ -488,8 +639,12 @@ interface FeatureSource {
   content: string;
 }
 
-function readFeatureSource(cwd: string, ticketFolder: string): FeatureSource | undefined {
-  const featurePath = findFeatureSourcePath(cwd, ticketFolder);
+function readFeatureSource(
+  cwd: string,
+  ticketFolder: string,
+  featureFiles: readonly string[],
+): FeatureSource | undefined {
+  const featurePath = findFeatureSourcePath(cwd, ticketFolder, featureFiles);
   const content = featurePath === undefined ? undefined : readFileSafe(featurePath);
   return featurePath === undefined || content === undefined
     ? undefined

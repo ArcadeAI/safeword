@@ -4,6 +4,7 @@
  * Tests for `safeword check` command.
  */
 
+import { execFileSync } from 'node:child_process';
 import { mkdirSync, rmSync, unlinkSync } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -1154,6 +1155,115 @@ describe('Test Suite 8: Health Check', () => {
 
       expect(result.exitCode).toBe(0);
       expect(`${result.stdout}\n${result.stderr}`).not.toMatch(/COV002/);
+    });
+  });
+
+  describe('Diff-scoped BDD diagnostics', () => {
+    const SPEC_ONE_AC = [
+      '# Spec',
+      '',
+      '## Jobs To Be Done',
+      '',
+      '### demo.TB1 — Trace',
+      '',
+      '**Persona:** TB',
+      '',
+      '#### demo.TB1.AC1 — capability one',
+      '',
+    ].join('\n');
+
+    function git(...args: string[]): void {
+      execFileSync('git', args, { cwd: temporaryDirectory, stdio: 'pipe' });
+    }
+
+    function writeFeatureTicket(folder: string, feature: string): void {
+      writeTestFile(
+        temporaryDirectory,
+        `.project/tickets/${folder}/ticket.md`,
+        [
+          '---',
+          `id: ${folder.split('-', 1)[0]}`,
+          'type: feature',
+          'phase: implement',
+          'status: in_progress',
+          '---',
+          '',
+        ].join('\n'),
+      );
+      writeTestFile(temporaryDirectory, `.project/tickets/${folder}/spec.md`, SPEC_ONE_AC);
+      writeTestFile(
+        temporaryDirectory,
+        `features/${feature}.feature`,
+        [
+          'Feature: Demo',
+          '',
+          '  Scenario: missing lineage',
+          '    Given a',
+          '    When b',
+          '    Then c',
+          '',
+        ].join('\n'),
+      );
+    }
+
+    async function setUpCurrentWork(): Promise<void> {
+      await createConfiguredProject(temporaryDirectory);
+      writeFeatureTicket('BACKGROUND1-background', 'background');
+      writeFeatureTicket('FOCUS1-focused', 'focused');
+      git('init', '--initial-branch=main');
+      git('config', 'user.email', 'health@example.test');
+      git('config', 'user.name', 'Health Test');
+      git('add', '.');
+      git('commit', '-m', 'baseline');
+      git('checkout', '-b', 'health-scope');
+    }
+
+    it('ignores unrelated in-progress lineage and anchor drift for a comment-only diff', async () => {
+      await setUpCurrentWork();
+
+      writeTestFile(temporaryDirectory, 'README.md', '# Comment-only change\n');
+
+      const unrelated = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(unrelated.exitCode).toBe(0);
+      expect(`${unrelated.stdout}\n${unrelated.stderr}`).not.toMatch(/BACKGROUND1|FOCUS1/);
+    });
+
+    it('reports only the ticket that owns a changed feature source', async () => {
+      await setUpCurrentWork();
+
+      writeTestFile(
+        temporaryDirectory,
+        'features/focused.feature',
+        [
+          'Feature: Demo',
+          '',
+          '  Scenario: still missing lineage',
+          '    Given a',
+          '    When b',
+          '    Then c',
+          '',
+        ].join('\n'),
+      );
+
+      const focused = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+      const combined = `${focused.stdout}\n${focused.stderr}`;
+
+      expect(focused.exitCode).toBe(2);
+      expect(combined).toMatch(/FOCUS1/);
+      expect(combined).not.toMatch(/BACKGROUND1/);
+    });
+
+    it('keeps a ticket in scope when the current diff deletes its feature source', async () => {
+      await setUpCurrentWork();
+      unlinkSync(nodePath.join(temporaryDirectory, 'features', 'focused.feature'));
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+      const combined = `${result.stdout}\n${result.stderr}`;
+
+      expect(result.exitCode).toBe(0);
+      expect(combined).toMatch(/FOCUS1/);
+      expect(combined).not.toMatch(/BACKGROUND1/);
     });
   });
 
