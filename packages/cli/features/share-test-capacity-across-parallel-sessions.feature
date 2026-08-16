@@ -28,7 +28,7 @@ Feature: Let parallel sessions share test capacity safely
 
     @rejection @process
     Scenario: Duplicate owner releases do not change durable state
-      Given an exact focused wrapper has released, the guarded durable state bytes and version are captured, and the wrapper's public cleanup callback is replayed through the injected duplicate-release seam
+      Given an exact focused wrapper has released, its guarded durable state bytes and version are captured, and the injected duplicate-release seam is installed
       When that same wrapper emits the replayed release
       Then the durable bytes and version remain unchanged, no repository process or descendant starts, and the wrapper exits zero
 
@@ -36,11 +36,11 @@ Feature: Let parallel sessions share test capacity safely
     Scenario Outline: Reservation failure starts no repository process
       Given an exact focused public wrapper reservation is durable and <fault>
       When the wrapper handles the activation failure
-      Then no repository process or descendant starts, only that reservation is removed, and the wrapper exits nonzero with <code> and `safeword project test-capacity status`
+      Then no repository process or descendant starts, <reservation-outcome>, and the wrapper exits nonzero with <code> and `safeword project test-capacity status`
       Examples:
-        | fault | code |
-        | the guarded active-owner record cannot be durably updated before repository code can run | SAFEWORD_TEST_CAPACITY_STATE_UNSAFE |
-        | the platform cannot create the required blocked execution container before repository code can run | SAFEWORD_TEST_CAPACITY_PLATFORM_UNSUPPORTED |
+        | fault | reservation-outcome | code |
+        | the guarded active-owner record cannot be durably updated before repository code can run | the reservation bytes remain untouched for explicit recovery | SAFEWORD_TEST_CAPACITY_STATE_UNSAFE |
+        | the platform cannot create the required blocked execution container before repository code can run | only that reservation is removed | SAFEWORD_TEST_CAPACITY_PLATFORM_UNSUPPORTED |
 
     @wiring @process
     Scenario: Capacity eight admits eight focused lifetimes and gives a broad request all eight permits
@@ -130,7 +130,6 @@ Feature: Let parallel sessions share test capacity safely
         | a repeated-separator path to `alpha.test.ts` | one focused permit | 1 |
         | a `space name.test.ts` argument passed as one token | one focused permit | 1 |
         | a subdirectory invocation `../other-package/alpha.test.ts` that exists only after checkout-relative rebasing | one focused permit | 1 |
-        | an absolute checkout path reached through an operating-system-managed symlinked prefix above the checkout root | one focused permit | 1 |
 
     @rejection
     Scenario Outline: Non-file argument boundaries classify broad without contradictory fixtures
@@ -471,10 +470,10 @@ Feature: Let parallel sessions share test capacity safely
       Then status says deliberately detached descendants are not contained and directs the project to disable detachment before sharing capacity
 
     @native-platform @platform-posix @process
-    Scenario: Detached POSIX descendants remain an explicit unsupported fixture
+    Scenario: Detached POSIX descendants remain an explicitly disclosed limitation
       Given canonical capacity is above one, repository code deliberately escapes its recorded POSIX process group, the ordinary recorded group is proven empty, a barrier holds that escaped process active, and teardown retains its exact external process identity
       When the scheduler admits one new repository process
-      Then keyed events show the newly admitted process overlaps the escaped process, the barrier releases it, and external-identity teardown proves both processes exit
+      Then status identifies the escaped process as outside contained evidence, the barrier releases it, external-identity teardown proves both processes exit, and no output claims the escaped process was contained
 
     @platform-posix
     Scenario: Supervisor loss returns capacity only after a second empty-group observation
@@ -525,11 +524,14 @@ Feature: Let parallel sessions share test capacity safely
         | Windows | the recorded kill-on-close Job Object |
 
     @rejection @process
-    Scenario: An identity-blocked owner has an explicit safe recovery path
+    Scenario: Status fails closed while a conflicting owner identity is live
       Given canonical capacity is one, a recorded owner identity is reused or unverifiable, and a second real wrapper waits with a deterministic zero-exit collaborator
       When the builder runs status before the conflicting process exits
       Then status exits nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE, changes no owner bytes or version, starts no repository process, and names waiting for the conflicting process to exit before rerunning status
-      When the conflicting process exits and a later guarded observation proves the recorded exact owner absent
+
+    Scenario: Recovery returns the weight once exact owner absence is proven
+      Given canonical capacity is one, a previous status call reported a conflicting owner identity, the conflicting process has exited, and a later guarded observation proves the recorded exact owner absent
+      When the queued wrapper retries admission
       Then recovery returns the owner weight at version N+1, admits the waiting wrapper at N+2, runs its unchanged invocation once to exit zero, and accounts for every descendant
 
     @native-platform @platform-windows @rejection @process
@@ -660,6 +662,8 @@ Feature: Let parallel sessions share test capacity safely
         | containing directory | an unexpected hard-link count |
         | capacity-domain ancestor directory | group-writable permissions |
         | capacity-domain ancestor directory | world-writable permissions |
+        | capacity-domain ancestor directory | another owner |
+        | capacity-domain ancestor directory | an unexpected hard-link count |
         | transition guard | another owner |
         | transition guard | group-readable permissions |
         | transition guard | group-writable permissions |

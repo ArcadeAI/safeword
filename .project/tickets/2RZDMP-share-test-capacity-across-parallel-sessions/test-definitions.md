@@ -279,7 +279,7 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Detached POSIX descendants remain an explicit unsupported fixture
+### Scenario: Detached POSIX descendants remain an explicitly disclosed limitation
 
 - [ ] RED
 - [ ] GREEN
@@ -315,7 +315,13 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: An identity-blocked owner has an explicit safe recovery path
+### Scenario: Status fails closed while a conflicting owner identity is live
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Recovery returns the weight once exact owner absence is proven
 
 - [ ] RED
 - [ ] GREEN
