@@ -2036,6 +2036,9 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       const environment = {
         ...process.env,
         CODEX_THREAD_ID: 'codex-thread-42',
+        GIT_CONFIG_GLOBAL: '/dev/null',
+        GIT_CONFIG_SYSTEM: '/dev/null',
+        HOME: sandbox,
         PATH: `${bin}:${process.env.PATH ?? ''}`,
         SAFEWORD_CLI: fakeSafeword,
         GIT_SSH_COMMAND: ssh,

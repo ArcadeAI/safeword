@@ -6,10 +6,8 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
-  readdirSync,
   readFileSync,
   rmSync,
-  statSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -83,20 +81,6 @@ const CHANGE_REQUEST_FINDING = 'Needs work.';
 const fixtureDirectories = new Set<string>();
 const trustedFixtureRoot = repoRoot;
 const ownedFixtureMarker = '.safeword-test-fixture';
-const staleFixtureAgeMs = 60 * 60 * 1000;
-
-for (const entry of readdirSync(trustedFixtureRoot)) {
-  if (!entry.startsWith('.safeword-coverage-bin-')) continue;
-  const fixturePath = nodePath.join(trustedFixtureRoot, entry);
-  const markerPath = nodePath.join(fixturePath, ownedFixtureMarker);
-  try {
-    if (Date.now() - statSync(markerPath).mtimeMs > staleFixtureAgeMs) {
-      rmSync(fixturePath, { force: true, recursive: true });
-    }
-  } catch {
-    // Another worker may have removed the marked fixture after directory enumeration.
-  }
-}
 
 function cleanupFixtureDirectories(): void {
   for (const directory of fixtureDirectories) rmSync(directory, { force: true, recursive: true });
@@ -831,10 +815,12 @@ async function runFixtureCli(
         cwd: fixture.directory,
         env: {
           ...sanitizedFixtureEnvironment(),
+          HOME: fixture.directory,
           NODE_ENV: 'test',
           PATH: `${fixture.bin}:/usr/bin:/bin`,
           SAFEWORD_AGENT_RUNTIME: 'codex',
           SAFEWORD_NO_UPDATE_CHECK: '1',
+          XDG_CONFIG_HOME: nodePath.join(fixture.directory, '.config'),
           ...environment,
         },
       },
