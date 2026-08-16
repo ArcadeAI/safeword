@@ -315,6 +315,12 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: An identity-blocked owner has an explicit safe recovery path
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Windows Job Object recovery proves emptiness through the real OS seam
 
 - [ ] RED
