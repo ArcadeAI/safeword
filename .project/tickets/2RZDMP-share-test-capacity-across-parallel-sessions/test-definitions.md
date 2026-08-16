@@ -243,7 +243,7 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Verified occupancy keeps capacity held without treating the caller as a recovery failure
+### Scenario: Reused identity keeps capacity conservatively occupied
 
 - [ ] RED
 - [ ] GREEN
