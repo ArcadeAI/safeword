@@ -36,7 +36,7 @@
         "failed verification"
       ]
     ],
-    "A fully closed delivery reports every final state": [
+    "Closeout guidance documents every final state": [
       "packages/cli/tests/closeout-skill.test.ts",
       "reports every durable final state and every unresolved recovery action"
     ],
@@ -97,7 +97,7 @@
       [
         "packages/cli/tests/closeout-cleanup.test.ts",
         "%s is advisory for cleanup",
-        "missing session binding"
+        "incomplete retro"
       ],
       [
         "packages/cli/tests/closeout-cleanup.test.ts",
@@ -171,11 +171,11 @@
       "packages/cli/tests/closeout-cleanup.test.ts",
       "does not run retrospective work before the exact pull request is confirmed merged"
     ],
-    "A blocked closeout reports every simultaneous unresolved item": [
+    "Closeout guidance documents every simultaneous unresolved item": [
       "packages/cli/tests/closeout-skill.test.ts",
       "reports every durable final state and every unresolved recovery action"
     ],
-    "A partially closed delivery reports unresolved state across every phase": [
+    "Closeout guidance documents unresolved state across every phase": [
       "packages/cli/tests/closeout-skill.test.ts",
       "reports every durable final state and every unresolved recovery action"
     ],
@@ -442,7 +442,7 @@
       [
         "packages/cli/tests/closeout-cleanup.test.ts",
         "%s is advisory for cleanup",
-        "missing session binding"
+        "incomplete retro"
       ],
       [
         "packages/cli/tests/closeout-cleanup.test.ts",

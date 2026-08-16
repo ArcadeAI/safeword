@@ -1,9 +1,8 @@
 # BDD source for GH644A (#658 — filer ack + bare-drain tripwire). Proven by the
 # vitest suite (unit + hook wiring; fs and the filing post seam are the only
 # mocked boundaries) — hook-internal state transitions the cucumber black-box
-# lane can't drive. `@manual` excludes it from the acceptance lane while keeping
-# it readable by codify / review-spec / safeword check.
-@filer-ack-tripwire @manual
+# lane can't drive. The adjacent proof manifest binds each scenario to that lane.
+@filer-ack-tripwire @proof.vitest
 Feature: Filer ack + bare-drain tripwire — a drained spool no longer self-certifies
 
   GH628F's stop gate treats a drained spool as proof of filing, and #644 G7

@@ -30,7 +30,7 @@ Feature: Close completed sessions safely
         | a failing required hosted check  | fix the hosted check failure             |
 
     @surface.claude-code @surface.openai-codex @surface.cursor
-    Scenario: A fully closed delivery reports every final state
+    Scenario: Closeout guidance documents every final state
       Given verification is current, the pull request is merged, retro is complete, and cleanup is complete
       When closeout reports the result
       Then it reports verification, merge state and commit, retro, remote branch, local branch, worktree, and no unresolved items
@@ -163,13 +163,13 @@ Feature: Close completed sessions safely
       Then it repeats no destructive action and reports the unknown state with a recovery check
 
     @rejection @surface.claude-code @surface.openai-codex @surface.cursor
-    Scenario: A blocked closeout reports every simultaneous unresolved item
+    Scenario: Closeout guidance documents every simultaneous unresolved item
       Given local verification is stale, a required hosted check is pending, and the exact linked worktree is dirty
       When closeout reports the blocked result
       Then it performs no merge or cleanup and names all three unresolved items with their recovery actions
 
     @rejection @surface.claude-code @surface.openai-codex @surface.cursor
-    Scenario: A partially closed delivery reports unresolved state across every phase
+    Scenario: Closeout guidance documents unresolved state across every phase
       Given merge confirmation is unknown, retro extraction failed, remote cleanup failed, and local branch identity changed
       When closeout reports the blocked result
       Then it performs no further mutation and reports all four unresolved items with resumable recovery actions

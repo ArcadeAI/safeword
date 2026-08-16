@@ -1,0 +1,70 @@
+{
+  "feature": "packages/cli/features/filer-ack-tripwire.feature",
+  "scenarios": {
+    "A dispatched signature vanishing without an ack captures one RetroBareDrain signal": [
+      "packages/cli/tests/hooks/retro-filing-gate.test.ts",
+      "captures exactly one RetroBareDrain for a dispatched signature gone without an ack"
+    ],
+    "A tripped batch does not trip again": [
+      "packages/cli/tests/hooks/retro-filing-gate.test.ts",
+      "does not trip the same batch twice"
+    ],
+    "A new dispatched batch re-arms the tripwire after an earlier trip": [
+      "packages/cli/tests/hooks/retro-filing-gate.test.ts",
+      "re-arms for a new dispatched batch after an earlier trip"
+    ],
+    "Removals covered by shape-valid ack lines trip nothing": [
+      "packages/cli/tests/hooks/retro-filing-gate.test.ts",
+      "stays silent when every removed signature is shape-validly acked"
+    ],
+    "Torn ack lines are skipped; the partially acked batch still trips once": [
+      "packages/cli/tests/hooks/retro-filing-gate.test.ts",
+      "skips torn ack lines and still trips once for the unacked removal"
+    ],
+    "Dispatched signatures still sitting in the spool trip nothing": [
+      "packages/cli/tests/hooks/retro-filing-gate.test.ts",
+      "stays silent while every dispatched signature still sits in the spool"
+    ],
+    "Degraded marker or ack state disarms the tripwire without changing gate behavior": [
+      [
+        "packages/cli/tests/hooks/retro-filing-gate.test.ts",
+        "fails open after a drain with a %s",
+        "pre-upgrade marker without snapshot"
+      ],
+      [
+        "packages/cli/tests/hooks/retro-filing-gate.test.ts",
+        "fails open after a drain with a %s",
+        "missing marker"
+      ],
+      [
+        "packages/cli/tests/hooks/retro-filing-gate.test.ts",
+        "fails open after a drain with a %s",
+        "corrupt marker"
+      ],
+      [
+        "packages/cli/tests/hooks/retro-filing-gate.test.ts",
+        "stays silent while every dispatched signature still sits in the spool"
+      ]
+    ],
+    "Capture-off suppresses the tripwire; file-off alone does not": [
+      "packages/cli/tests/hooks/retro-filing-gate.test.ts",
+      "capture gates the tripwire; file gates only the dispatch"
+    ],
+    "The filing seam records each ack after its post and before any drain": [
+      "packages/cli/tests/hooks/retro-filing.test.ts",
+      "records each ack after its post and before any drain (observed mid-run)"
+    ],
+    "Shipped prompts and the guide carry the ack procedure and drain prohibition": [
+      "packages/cli/tests/hooks/retro-filer-agent-defs.test.ts",
+      "the markdown filer definition instructs ack-after-post-before-drain"
+    ],
+    "A tripped evaluation emits nothing and decides exactly as an ack-clean one": [
+      "packages/cli/tests/integration/stop-retro-filing.test.ts",
+      "captures an allowlist-shaped RetroBareDrain and leaves the retro spool untouched"
+    ],
+    "The captured signal is allowlist-shaped and the retro spool is untouched": [
+      "packages/cli/tests/integration/stop-retro-filing.test.ts",
+      "captures an allowlist-shaped RetroBareDrain and leaves the retro spool untouched"
+    ]
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "feature": "packages/cli/features/retro-auto-trigger.feature",
+  "scenarios": {
+    "The substance decision flips at the threshold (inclusive)": [
+      [
+        "packages/cli/tests/hooks/retro-trigger.test.ts",
+        "judges a transcript below the threshold not substantial"
+      ],
+      [
+        "packages/cli/tests/hooks/retro-trigger.test.ts",
+        "judges a transcript exactly at the threshold substantial (inclusive)"
+      ],
+      [
+        "packages/cli/tests/hooks/retro-trigger.test.ts",
+        "judges a transcript above the threshold substantial"
+      ]
+    ],
+    "A substantial session surfaces one nudge carrying the path and guide": [
+      "packages/cli/tests/hooks/retro-trigger.test.ts",
+      "SM1.AC1: a substantial unnudged session returns a nudge with path + guide and sets the sentinel"
+    ],
+    "A session the gate judges trivial surfaces no nudge": [
+      "packages/cli/tests/hooks/retro-trigger.test.ts",
+      "SM1.AC2: a trivial session returns nothing and leaves the sentinel unset"
+    ],
+    "A second Stop for the same session stays silent because the sentinel is set": [
+      "packages/cli/tests/hooks/retro-trigger.test.ts",
+      "SM1.AC3: a second call for an already-nudged session returns nothing"
+    ],
+    "A different session id still nudges (the sentinel is keyed by session id)": [
+      "packages/cli/tests/hooks/retro-trigger.test.ts",
+      "SM1.AC3: a different session id still nudges (sentinel is per-session)"
+    ],
+    "The session id resolves by precedence (input > cloud > local)": [
+      [
+        "packages/cli/tests/hooks/retro-trigger.test.ts",
+        "prefers the hook input session_id when all three are present"
+      ],
+      [
+        "packages/cli/tests/hooks/retro-trigger.test.ts",
+        "falls back to the cloud session id when the input omits it"
+      ],
+      [
+        "packages/cli/tests/hooks/retro-trigger.test.ts",
+        "falls back to the local session id when input and cloud are absent"
+      ]
+    ],
+    "The hook reads the supplied transcript path and never guesses one": [
+      "packages/cli/tests/hooks/retro-trigger.test.ts",
+      "contains the supplied transcript path and points at the retro guide"
+    ],
+    "The surfaced nudge contains no imperative command to the agent": [
+      "packages/cli/tests/hooks/retro-trigger.test.ts",
+      "contains no imperative command to the agent (fact-phrased, like self-report)"
+    ],
+    "A malformed or unreadable Claude Stop input fails open": [
+      [
+        "packages/cli/tests/integration/stop-retro.test.ts",
+        "fails open on malformed stdin (no output, exit 0)"
+      ],
+      [
+        "packages/cli/tests/hooks/retro-trigger.test.ts",
+        "TB1.AC2: missing transcript_path → no nudge, sentinel unset"
+      ],
+      [
+        "packages/cli/tests/hooks/retro-trigger.test.ts",
+        "TB1.AC2: an unreadable transcript → no nudge, sentinel unset (fail open)"
+      ]
+    ]
+  }
+}

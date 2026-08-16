@@ -1,0 +1,53 @@
+{
+  "feature": "packages/cli/features/invisible-retro-claude.feature",
+  "scenarios": {
+    "invisible-retro-claude.TB1.AC1.stop_hook_emits_no_conversation_context": [
+      "packages/cli/tests/integration/stop-retro.test.ts",
+      "TB1.AC1: a substantial session runs but emits NO conversation context"
+    ],
+    "invisible-retro-claude.TB1.AC1.fail_open_stays_silent_when_extraction_errors": [
+      "packages/cli/tests/hooks/retro-extract.test.ts",
+      "invisible-retro-claude.TB1.AC1.fail_open_stays_silent_when_extraction_errors"
+    ],
+    "invisible-retro-claude.TB1.AC2.extraction_runs_as_an_out_of_band_subprocess": [
+      "packages/cli/tests/hooks/retro-extract.test.ts",
+      "invisible-retro-claude.TB1.AC2.extraction_runs_as_an_out_of_band_subprocess"
+    ],
+    "invisible-retro-claude.TB2.AC1.headless_argv_omits_bare_flag": [
+      "packages/cli/tests/hooks/retro-extract.test.ts",
+      "invisible-retro-claude.TB2.AC1.headless_argv_omits_bare_flag"
+    ],
+    "invisible-retro-claude.TB2.AC2.extraction_runs_synchronously": [
+      "packages/cli/tests/hooks/retro-extract.test.ts",
+      "invisible-retro-claude.TB2.AC2.extraction_runs_synchronously"
+    ],
+    "invisible-retro-claude.TB2.AC3.large_transcript_is_digested_before_extraction": [
+      "packages/cli/tests/hooks/retro-extract.test.ts",
+      "invisible-retro-claude.TB2.AC3.large_transcript_is_digested_before_extraction"
+    ],
+    "invisible-retro-claude.NTB1.AC1.auto_extracted_findings_pass_the_egress_guard": [
+      "packages/cli/tests/commands/retro.test.ts",
+      "invisible-retro-claude.NTB1.AC1.auto_extracted_findings_pass_the_egress_guard"
+    ],
+    "invisible-retro-claude.NTB1.AC2.hook_early_returns_under_retro_child_sentinel": [
+      "packages/cli/tests/hooks/retro-extract.test.ts",
+      "invisible-retro-claude.NTB1.AC2.hook_early_returns_under_retro_child_sentinel"
+    ],
+    "invisible-retro-claude.SM1.AC1.filing_succeeds_without_a_github_token": [
+      "packages/cli/tests/commands/retro.test.ts",
+      "retroCommand still spools sanitized drafts when no GitHub transport is available"
+    ],
+    "invisible-retro-claude.SM1.AC1.token_present_uses_the_rest_transport": [
+      "packages/cli/tests/commands/retro.test.ts",
+      "a valid token files all drafts and drains the spool — no agent filing needed"
+    ],
+    "invisible-retro-claude.SM1.AC2.extraction_fires_once_when_sentinel_unset": [
+      "packages/cli/tests/integration/stop-retro.test.ts",
+      "TB1.AC1: a substantial session runs but emits NO conversation context"
+    ],
+    "invisible-retro-claude.SM1.AC2.extraction_fires_at_most_once_per_session": [
+      "packages/cli/tests/integration/stop-retro.test.ts",
+      "TB1.AC2: holds on the second Stop when the transcript has not grown (delta re-arm)"
+    ]
+  }
+}

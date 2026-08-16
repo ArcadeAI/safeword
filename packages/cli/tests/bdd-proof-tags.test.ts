@@ -21,6 +21,8 @@ import cliVitestConfig from '../vitest.config.js';
 // still responsible for executing those tests and proving their assertions pass.
 // Environment-dependent runIf/skipIf declarations are intentionally ineligible:
 // only literal always-enabled conditions can serve as portable proof.
+// Scenario-outline registrations must cover at least the number of Examples rows;
+// the manifest remains responsible for keeping those registrations in row order.
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '../../..');
 const configuredFeatureFiles = collectExecutableFeatureFiles(REPO_ROOT).map(absolutePath =>
   nodePath.relative(REPO_ROOT, absolutePath).split(nodePath.sep).join('/'),
@@ -32,7 +34,9 @@ function excludedPathSegments(patterns: readonly string[]): Set<string> {
       if (segment !== undefined) return [segment];
       const group = /^\*\*\/\.\{([^}]+)\}\/\*\*$/u.exec(pattern)?.[1];
       if (group !== undefined) return group.split(',').map(value => `.${value}`);
-      throw new TypeError(`Unsupported Vitest exclusion pattern: ${pattern}`);
+      throw new TypeError(
+        `Vitest configDefaults.exclude contains an unsupported pattern after a dependency change: ${pattern}`,
+      );
     }),
   );
 }
@@ -78,6 +82,16 @@ function proofManifestPaths(): string[] {
   return configuredFeatureFiles
     .map(featurePath => featurePath.replace(/\.feature$/u, '.bdd-proof.json'))
     .filter(relativePath => existsSync(nodePath.join(REPO_ROOT, relativePath)))
+    .toSorted((left, right) => left.localeCompare(right));
+}
+
+function onDiskProofManifestPaths(): string[] {
+  return ['features', 'packages/cli/features']
+    .flatMap(directory =>
+      readdirSync(nodePath.join(REPO_ROOT, directory))
+        .filter(entry => entry.endsWith('.bdd-proof.json'))
+        .map(entry => `${directory}/${entry}`),
+    )
     .toSorted((left, right) => left.localeCompare(right));
 }
 
@@ -216,9 +230,7 @@ function executableVitestNames(source: string): string[] {
         (argument): argument is ts.ArrowFunction | ts.FunctionExpression =>
           ts.isArrowFunction(argument) || ts.isFunctionExpression(argument),
       );
-    if (body === undefined || (!ts.isArrowFunction(body) && !ts.isFunctionExpression(body))) {
-      return false;
-    }
+    if (body === undefined) return false;
     return !ts.isBlock(body.body) || body.body.statements.length > 0;
   }
 
@@ -333,7 +345,8 @@ function parameterizedVitestCases(source: string): Map<string, ParameterizedCase
 
   // Manifest selectors use literal placeholder values: one value is bare and
   // multiple values are a JSON array. Positional rows follow placeholder order;
-  // named rows follow the `$name` order in the Vitest title.
+  // named rows follow the `$name` order in the Vitest title. A positional table
+  // with no placeholder intentionally uses its first column as the case key.
   function tableCaseValues(
     node: ts.Expression,
     testName: string,
@@ -618,9 +631,14 @@ describe('BDD proof provenance', () => {
     expect(manifestFeatures.length).toBeGreaterThan(0);
     expect(new Set(manifestFeatures).size).toBe(manifestFeatures.length);
     expect(taggedFeatures).toEqual(manifestFeatures);
+    expect(onDiskProofManifestPaths()).toEqual(proofManifestPaths());
   });
 
   it('keeps shared proof fan-in within the reviewed baseline', () => {
+    // Baseline measured after migrating the four legacy @manual Vitest-backed
+    // features: 39 reused tuples and a maximum fan-in of four. These are
+    // ratchets—lower them as proofs become scenario-specific; do not raise them
+    // to accommodate new sharing.
     let sharedProofs = 0;
     let maximumFanIn = 0;
     for (const manifestPath of proofManifestPaths()) {
@@ -637,7 +655,7 @@ describe('BDD proof provenance', () => {
       }
     }
 
-    expect(sharedProofs).toBeLessThanOrEqual(35);
+    expect(sharedProofs).toBeLessThanOrEqual(39);
     expect(maximumFanIn).toBeLessThanOrEqual(4);
   });
 

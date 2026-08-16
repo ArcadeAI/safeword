@@ -9,6 +9,7 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -80,6 +81,8 @@ const fixtureControlVariables = new Set([
 const CHANGE_REQUEST_VERDICT = 'request_changes';
 const CHANGE_REQUEST_FINDING = 'Needs work.';
 const fixtureDirectories = new Set<string>();
+const trustedFixtureRoot = repoRoot;
+const staleFixtureAgeMs = 60 * 60 * 1000;
 
 function cleanupFixtureDirectories(): void {
   for (const directory of fixtureDirectories) rmSync(directory, { force: true, recursive: true });
@@ -92,9 +95,11 @@ AfterAll(cleanupFixtureDirectories);
 
 // A killed prior run may not execute Cucumber cleanup. Remove only our
 // narrowly prefixed, repository-local executable fixtures before scenarios load.
-for (const entry of readdirSync(repoRoot)) {
-  if (entry.startsWith('.safeword-coverage-bin-')) {
-    rmSync(nodePath.join(repoRoot, entry), { force: true, recursive: true });
+for (const entry of readdirSync(trustedFixtureRoot)) {
+  if (!entry.startsWith('.safeword-coverage-bin-')) continue;
+  const fixturePath = nodePath.join(trustedFixtureRoot, entry);
+  if (Date.now() - statSync(fixturePath).mtimeMs > staleFixtureAgeMs) {
+    rmSync(fixturePath, { force: true, recursive: true });
   }
 }
 
@@ -107,7 +112,7 @@ function createFixtureDirectory(prefix: string): string {
 function createTrustedFixtureDirectory(prefix: string): string {
   // Reviewer discovery rejects executables outside the trusted project tree,
   // so these PATH stubs must live under cwd and be removed after each scenario.
-  const directory = mkdtempSync(nodePath.join(process.cwd(), `.${prefix}`));
+  const directory = mkdtempSync(nodePath.join(trustedFixtureRoot, `.${prefix}`));
   fixtureDirectories.add(directory);
   return directory;
 }

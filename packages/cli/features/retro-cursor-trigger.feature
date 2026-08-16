@@ -1,11 +1,11 @@
-@retro-cursor-trigger @manual
+@retro-cursor-trigger @proof.vitest
 Feature: retro auto-trigger — Cursor
 
   A retro path in cursor/stop.ts fires the retro pipeline once per substantial
   Cursor session via a followup_message, counting tool_use from the hook-provided
   transcript_path (Claude-shaped). Reuses the shared core; coexists with the
-  existing quality-review followup. Tagged @manual — proven by vitest, excluded
-  from the cucumber lane (no step defs).
+  existing quality-review followup. The adjacent proof manifest binds these
+  scenarios to the Vitest unit and integration lanes.
 
   Rule: Reuses the Claude-shaped tool-use counter on the Cursor transcript (SM1.AC1)
 

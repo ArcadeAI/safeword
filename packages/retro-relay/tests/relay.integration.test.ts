@@ -1514,7 +1514,7 @@ describe('retry-safe retro relay', () => {
   it.each([
     '[ORR-019] denies harness principals access to operator lifecycle operations',
     '[ORR-032] exposes payload-free lifecycle operations to the operator through the real HTTP route',
-  ])('%s', async () => {
+  ])('operator boundary: %s', async () => {
     const setup = await fixture();
     await createHarnessAdapters(setup.relay.url, setup.credentials).claude.file(draft());
 

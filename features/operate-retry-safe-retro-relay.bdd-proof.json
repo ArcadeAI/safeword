@@ -92,7 +92,7 @@
     ],
     "A harness principal cannot read operator operations": [
       "packages/retro-relay/tests/relay.integration.test.ts",
-      "%s",
+      "operator boundary: %s",
       "[ORR-019] denies harness principals access to operator lifecycle operations"
     ],
     "Each principal is denied every excluded role": [
@@ -161,7 +161,7 @@
     ],
     "The operator sees lifecycle counts through the real HTTP route without secret content": [
       "packages/retro-relay/tests/relay.integration.test.ts",
-      "%s",
+      "operator boundary: %s",
       "[ORR-032] exposes payload-free lifecycle operations to the operator through the real HTTP route"
     ],
     "Maintenance emits a deduplicable structured alert for each newly terminal request": [
