@@ -1,7 +1,7 @@
 # Behavior source for BY7RNR (GitHub #848). Its executable backing is Vitest
 # hook coverage in packages/cli/tests/hooks/architecture-document-nudge.test.ts
-# and architecture-document-nudge-parity.test.ts — git-backed tests over the standalone hook
-# helper plus a differential parity test against the CLI resolver — and cucumber
+# and prose coverage in packages/cli/tests/templates/architecture-narrative-prose.test.ts;
+# these exercise the standalone hook helper and shipped guidance, while cucumber
 # steps would duplicate that harness without adding confidence.
 @architecture-narrative-blindspots @proof.vitest
 Feature: Architecture narrative reconciliation reaches configured narratives

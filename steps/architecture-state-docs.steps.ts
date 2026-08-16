@@ -159,7 +159,7 @@ Then('the doc lists exactly auth and billing, with no others', function (this: A
   const content = readDocument(this);
   assert.match(content, /### auth/);
   assert.match(content, /### billing/);
-  assert.equal(/^### /gm.exec(content) ? content.match(/^### /gm)?.length : 0, 2);
+  assert.equal((content.match(/^### /gmu) ?? []).length, 2);
 });
 
 Then(

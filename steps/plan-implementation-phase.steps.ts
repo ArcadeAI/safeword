@@ -102,7 +102,11 @@ interface PlanWorld extends SafewordWorld {
 // Fixtures
 // ---------------------------------------------------------------------------
 
-/** A shape-valid impl-plan (mirrors plan-transition-gate.test.ts VALID_PLAN). */
+/**
+ * A shape-valid impl-plan (mirrors plan-transition-gate.test.ts VALID_PLAN).
+ * The authored heading remains "Arch alignment"; the workflow calls the broader
+ * design concern "Design alignment" when it describes the five required sections.
+ */
 const VALID_PLAN = [
   '# Impl Plan: gate the implement entry',
   '',

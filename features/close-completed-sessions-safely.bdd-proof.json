@@ -2,8 +2,15 @@
   "feature": "features/close-completed-sessions-safely.feature",
   "scenarios": {
     "Current delivery evidence makes an authorized merge eligible": [
-      "packages/cli/tests/integration/closeout-host-adapters.test.ts",
-      "completes freshly verified cleanup without a host session binding"
+      [
+        "packages/cli/tests/closeout-skill.test.ts",
+        "documents the exact $authority boundary",
+        "normal merge authority"
+      ],
+      [
+        "packages/cli/tests/closeout-skill.test.ts",
+        "re-observes merge truth and continues only the unfinished suffix"
+      ]
     ],
     "Incomplete delivery evidence blocks merge and cleanup": [
       [

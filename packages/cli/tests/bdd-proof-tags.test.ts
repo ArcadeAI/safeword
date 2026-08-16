@@ -31,7 +31,8 @@ function excludedPathSegments(patterns: readonly string[]): Set<string> {
       const segment = /^\*\*\/([^*{}]+)\/\*\*$/u.exec(pattern)?.[1];
       if (segment !== undefined) return [segment];
       const group = /^\*\*\/\.\{([^}]+)\}\/\*\*$/u.exec(pattern)?.[1];
-      return group?.split(',').map(value => `.${value}`) ?? [];
+      if (group !== undefined) return group.split(',').map(value => `.${value}`);
+      throw new TypeError(`Unsupported Vitest exclusion pattern: ${pattern}`);
     }),
   );
 }
@@ -617,6 +618,27 @@ describe('BDD proof provenance', () => {
     expect(manifestFeatures.length).toBeGreaterThan(0);
     expect(new Set(manifestFeatures).size).toBe(manifestFeatures.length);
     expect(taggedFeatures).toEqual(manifestFeatures);
+  });
+
+  it('keeps shared proof fan-in within the reviewed baseline', () => {
+    let sharedProofs = 0;
+    let maximumFanIn = 0;
+    for (const manifestPath of proofManifestPaths()) {
+      const registrations = new Map<string, number>();
+      for (const registration of Object.values(readProofManifest(manifestPath).scenarios)) {
+        for (const proof of registeredProofs(registration)) {
+          const key = JSON.stringify(proof);
+          registrations.set(key, (registrations.get(key) ?? 0) + 1);
+        }
+      }
+      for (const fanIn of registrations.values()) {
+        if (fanIn > 1) sharedProofs += 1;
+        maximumFanIn = Math.max(maximumFanIn, fanIn);
+      }
+    }
+
+    expect(sharedProofs).toBeLessThanOrEqual(35);
+    expect(maximumFanIn).toBeLessThanOrEqual(4);
   });
 
   it.each(proofManifestPaths())(

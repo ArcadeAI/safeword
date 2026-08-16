@@ -18,21 +18,12 @@
       "creates no folder when the tracker mint fails"
     ],
     "A rejected credential fails loudly and leaves no orphan": [
-      [
-        "packages/cli/tests/commands/create-ticket-routed.test.ts",
-        "surfaces a tracker create failure and leaves no orphan"
-      ],
-      ["packages/cli/tests/tracker-sync/orchestrator.test.ts", "never prints the resolved token"]
+      "packages/cli/tests/commands/create-ticket-routed.test.ts",
+      "surfaces a tracker create failure and leaves no orphan"
     ],
     "A missing credential fails loudly, never silently": [
-      [
-        "packages/cli/tests/tracker-sync/wiring.test.ts",
-        "fails loudly when a provider is configured but no credential resolves (AC2)"
-      ],
-      [
-        "packages/cli/tests/tracker-sync/secrets.test.ts",
-        "does not accept a config object as a source (structural — config carries no token)"
-      ]
+      "packages/cli/tests/tracker-sync/wiring.test.ts",
+      "fails loudly when a provider is configured but no credential resolves (AC2)"
     ],
     "A successful issue-first create records its ref for later sync": [
       [

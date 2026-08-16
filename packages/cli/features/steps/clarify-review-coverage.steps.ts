@@ -1,12 +1,21 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import { promisify } from 'node:util';
 
-import { After, AfterAll, BeforeAll, Given, Then, When } from '@cucumber/cucumber';
+import { After, AfterAll, Given, Then, When } from '@cucumber/cucumber';
 import { AstBuilder, GherkinClassicTokenMatcher, Parser } from '@cucumber/gherkin';
 import { IdGenerator } from '@cucumber/messages';
 
@@ -58,7 +67,6 @@ interface ReviewWorld {
 
 const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
 const execFileAsync = promisify(execFile);
-const productionCliBuild = { completed: false };
 const fixtureControlVariables = new Set([
   'SAFEWORD_REVIEW_PROGRESS',
   'SAFEWORD_REVIEW_COVERAGE_FAIL',
@@ -73,12 +81,6 @@ const CHANGE_REQUEST_VERDICT = 'request_changes';
 const CHANGE_REQUEST_FINDING = 'Needs work.';
 const fixtureDirectories = new Set<string>();
 
-BeforeAll({ timeout: 60_000 }, async () => {
-  const cliRoot = nodePath.join(repoRoot, 'packages/cli');
-  await execFileAsync('bun', ['run', 'build'], { cwd: cliRoot });
-  productionCliBuild.completed = true;
-});
-
 function cleanupFixtureDirectories(): void {
   for (const directory of fixtureDirectories) rmSync(directory, { force: true, recursive: true });
   fixtureDirectories.clear();
@@ -87,6 +89,14 @@ function cleanupFixtureDirectories(): void {
 process.once('exit', cleanupFixtureDirectories);
 After(cleanupFixtureDirectories);
 AfterAll(cleanupFixtureDirectories);
+
+// A killed prior run may not execute Cucumber cleanup. Remove only our
+// narrowly prefixed, repository-local executable fixtures before scenarios load.
+for (const entry of readdirSync(repoRoot)) {
+  if (entry.startsWith('.safeword-coverage-bin-')) {
+    rmSync(nodePath.join(repoRoot, entry), { force: true, recursive: true });
+  }
+}
 
 function createFixtureDirectory(prefix: string): string {
   const directory = mkdtempSync(nodePath.join(tmpdir(), prefix));
@@ -843,7 +853,7 @@ async function runFixtureCli(
 }
 
 function markCliFixtureReady(this: ReviewWorld): void {
-  assert.equal(productionCliBuild.completed, true);
+  assert.equal(existsSync(nodePath.join(repoRoot, 'packages/cli/dist/cli.js')), true);
   this.cliFixtureReady = true;
 }
 
@@ -1464,7 +1474,7 @@ function mandatoryPolicyBlock(name: keyof typeof distributedContracts): string {
 }
 
 const contradictoryPolicyClaims = [
-  /(?:required independent coverage|independence requirement|assurance requirement).{1,24}(?:met|satisfied|fulfilled)/iu,
+  /(?:required independent coverage|independence requirement|assurance requirement).{1,24}(?:met|(?<!un)satisfied|fulfilled)/iu,
   /\breview (?:succeeded|passed)\b/iu,
   /\b(?:invent|replace|rewrite|synthesize) (?:the )?(?:coordinator's )?recovery command\b/iu,
   /\b(?:record|emit|claim) (?:machine )?provenance\b/iu,

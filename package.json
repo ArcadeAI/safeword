@@ -8,7 +8,7 @@
   ],
   "scripts": {
     "test": "bun run --cwd packages/retro-relay test && bun run --cwd packages/cli test",
-    "test:all": "bun run test && bun run test:bdd",
+    "test:all": "bun run test && bun run test:bdd:acceptance",
     "test:done": "bun run --cwd packages/cli test:done",
     "test:smoke:fast": "bun run --cwd packages/cli test:smoke:fast",
     "test:smoke": "bun run --cwd packages/cli test:smoke",
@@ -31,7 +31,8 @@
     "deps:graph": "depcruise packages/*/src --config .dependency-cruiser.cjs --output-type dot | dot -T svg > dependency-graph.svg",
     "deps:validate": "depcruise packages/*/src --config .dependency-cruiser.cjs --output-type err",
     "check:cli-contract": "bun run --cwd packages/cli check:cli-contract",
-    "test:bdd": "bun run --cwd packages/retro-relay build && NODE_OPTIONS='--import tsx' cucumber-js --tags 'not @wip and not @proof.vitest and not @manual and not @live' && bun run test:bdd:proof",
+    "test:bdd": "bun run test:bdd:acceptance && bun run test:bdd:proof",
+    "test:bdd:acceptance": "bun run --cwd packages/cli build && bun run --cwd packages/retro-relay build && NODE_OPTIONS='--import tsx' cucumber-js --tags 'not @wip and not @proof.vitest and not @manual and not @live'",
     "test:bdd:proof": "bun run --cwd packages/cli test tests/bdd-proof-tags.test.ts",
     "test:bdd:live": "NODE_OPTIONS='--import tsx' cucumber-js --profile live"
   },
