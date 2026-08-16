@@ -243,7 +243,7 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Native platform identity adapters distinguish exact and mismatched real processes
+### Scenario: Native platform identity sources distinguish exact and mismatched real identities
 
 - [ ] RED
 - [ ] GREEN
@@ -285,7 +285,7 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Overall native evidence waits for both evidence classes on every platform
+### Scenario: Overall native evidence waits for all three evidence classes on every platform
 
 - [ ] RED
 - [ ] GREEN
@@ -462,6 +462,12 @@ remain in the feature file.
 - [ ] REFACTOR
 
 ### Scenario: Status describes a healthy busy capacity domain
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Status reports native evidence readiness
 
 - [ ] RED
 - [ ] GREEN
