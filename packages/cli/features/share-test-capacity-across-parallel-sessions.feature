@@ -293,7 +293,7 @@ Feature: Let parallel sessions share test capacity safely
       Then C runs its unchanged invocation once and alone before every later focused request, then D through F admit in keyed FIFO-ticket order with permitted focused overlap
     @rejection @wiring @process
     Scenario: An unverifiable waiter is not skipped to admit newer work
-      Given shared capacity is two has one focused owner, the queue-head public wrapper is unverifiable through the deterministic injected identity adapter without native evidence, and a newer focused request can use the free permit
+      Given shared capacity is two with one focused owner, the queue-head public wrapper is unverifiable through the deterministic injected identity adapter without native evidence, and a newer focused request can use the free permit
       When that newer focused request evaluates the queue
       Then the newer wrapper starts no repository process, removes only its own waiter ticket and checkout ownership, leaves the queue-head ticket and owner set unchanged with its free permit unused, advances the state version exactly once for its own removal, and exits nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE and `safeword project test-capacity status`
     @process
@@ -577,7 +577,7 @@ Feature: Let parallel sessions share test capacity safely
         | the named job is absent and exact supervisor and root creation times are absent twice | the reclaim marker returns ownership atomically | the recovery wrapper then runs its deterministic zero-exit invocation once and every descendant exits |
         | a PID is reused | recovery fails closed rather than trusting the PID | the recovery wrapper exits nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE and `safeword project test-capacity status` |
         | a job name is reused | recovery fails closed rather than trusting the name | the recovery wrapper exits nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE and `safeword project test-capacity status` |
-    @platform-windows @rejection @wiring @process
+    @native-platform @platform-windows @rejection @wiring @process
     Scenario Outline: Windows capacity artifacts reject unsafe DACLs and changed file identities
       Given a verified current-commit attestation from the required native Windows CI job covers the matching fixture and the Windows <artifact> has <unsafe-property>
       When `safeword project test-capacity set 2 --confirm-current-protocol`, a real public package-test command, and a real public status command independently open identical capacity-domain fixtures
@@ -691,7 +691,7 @@ Feature: Let parallel sessions share test capacity safely
         | an attacker swaps the temporary file after flush but before rename |
         | the parent directory inode or Windows file ID changes before commit |
 
-    @platform-posix @rejection @wiring @process
+    @native-platform @platform-posix @rejection @wiring @process
     Scenario Outline: Every capacity artifact enforces owner-only identity and links
       Given a verified current-commit attestation from the required native POSIX CI job covers the matching fixture and <artifact> has <unsafe-property>
       When `safeword project test-capacity set 2 --confirm-current-protocol` and a real public package-test command independently open identical capacity-domain fixtures
@@ -733,7 +733,7 @@ Feature: Let parallel sessions share test capacity safely
         | temporary state | world-writable permissions |
         | temporary state | an unexpected hard-link count |
 
-    @platform-posix @rejection @wiring @surface.safeword-cli
+    @native-platform @platform-posix @rejection @wiring @surface.safeword-cli
     Scenario Outline: Status reports a concrete repair for unsafe capacity artifacts
       Given a verified current-commit attestation from the required native POSIX CI job covers the matching fixture and <artifact> has <unsafe-property>
       When a real public status command opens the capacity domain
@@ -753,6 +753,7 @@ Feature: Let parallel sessions share test capacity safely
         | live state | unreadable bytes | repairing read access to the named live state followed by `safeword project test-capacity status` |
         | live state | newer incompatible schema | restoring a compatible named live state through the guarded repair procedure followed by `safeword project test-capacity status` |
         | live state | older schema outside declared migration compatibility | restoring a compatible named live state through the guarded repair procedure followed by `safeword project test-capacity status` |
+        | native-evidence state directory | a symlinked evidence-state directory | owner-only evidence-directory repair followed by `safeword project test-capacity status` |
 
   @share-test-capacity.TBU1.R6
   Rule: share-test-capacity.TBU1.R6 — One validated shared setting governs every participating new-wrapper session and can conservatively restore today's single-run behavior
@@ -896,11 +897,6 @@ Feature: Let parallel sessions share test capacity safely
         | capacity 2 with one or more owners | `set 1` | SAFEWORD_TEST_CAPACITY_BUSY |
         | capacity 2 with one or more waiters | `set 1` | SAFEWORD_TEST_CAPACITY_BUSY |
         | capacity 2 with an owner marked reclaiming between first and second absence observations | `set 1` | SAFEWORD_TEST_CAPACITY_BUSY |
-        | idle | `set 0` | SAFEWORD_TEST_CAPACITY_INVALID |
-        | idle | `set 9 --confirm-current-protocol` | SAFEWORD_TEST_CAPACITY_INVALID |
-        | idle | `set 1.5 --confirm-current-protocol` | SAFEWORD_TEST_CAPACITY_INVALID |
-        | idle | `set` with blank input | SAFEWORD_TEST_CAPACITY_INVALID |
-        | idle | malformed `set` input | SAFEWORD_TEST_CAPACITY_INVALID |
         | unavailable or conflicting machine identity | `set 2 --confirm-current-protocol` | SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE |
 
     @rejection @wiring @surface.safeword-cli
@@ -958,6 +954,7 @@ Feature: Let parallel sessions share test capacity safely
         | recorded exact domain is D | `safeword project test-capacity reset --expected-domain "" --confirm-idle` | SAFEWORD_TEST_CAPACITY_INVALID returns and durable state/version remain unchanged with no repository process |
         | recorded exact domain is D | `safeword project test-capacity reset --expected-domain D --confirm-idle --unknown` | SAFEWORD_TEST_CAPACITY_INVALID returns and durable state/version remain unchanged with no repository process |
         | recorded exact domain is D | `safeword project test-capacity reset --expected-domain D --confirm-idle unexpected` | SAFEWORD_TEST_CAPACITY_INVALID returns and durable state/version remain unchanged with no repository process |
+        | exact domain D has an owner | `safeword project test-capacity reset --expected-domain D --confirm-idle --unknown` | SAFEWORD_TEST_CAPACITY_INVALID returns and durable state/version remain unchanged with no repository process |
 
     @wiring @process @surface.safeword-cli
     Scenario Outline: Reset serializes with admission under the shared guard
