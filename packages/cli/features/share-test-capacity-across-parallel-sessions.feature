@@ -137,16 +137,14 @@ Feature: Let parallel sessions share test capacity safely
 
     @native-platform @platform-macos
     Scenario: An OS-managed prefix above the checkout root does not make a focused file broad
-      Given a macOS canonical checkout root is reached through its operating-system-managed `/var` to `/private/var` prefix, contains regular `alpha.test.ts`, and canonical capacity is two
+      Given a verified current-commit attestation from the required native macOS CI job covers a canonical checkout root reached through its operating-system-managed `/var` to `/private/var` prefix, containing regular `alpha.test.ts` at canonical capacity two
       When the public package-test command classifies literal `alpha.test.ts`
       Then it assigns one focused permit with durable owner weight one, passes the argument unchanged downstream once, and exits zero with every descendant accounted for
-
     @native-platform @platform-windows
     Scenario: Case-insensitive resolution does not change focused classification
       Given a verified current-commit attestation from the required native Windows CI job covers a case-insensitive checkout containing regular `alpha.Test.ts` at canonical capacity two
       When the public package-test command classifies literal `alpha.test.ts`
       Then it assigns one focused permit from the literal argument basename, passes the argument unchanged downstream once, and exits zero with every descendant accounted for
-
     @rejection
     Scenario Outline: Non-file argument boundaries classify broad without contradictory fixtures
       Given canonical capacity is two, <arguments> have <path-state> rather than an existing contained regular file, and the deterministic downstream collaborator exits 23
@@ -196,6 +194,8 @@ Feature: Let parallel sessions share test capacity safely
         | leading-zero value `02` |
         | whitespace-padded token ` 2 ` |
         | exponent token `2e0` |
+        | non-ASCII full-width digit `２` |
+        | explicit empty token `""` |
         | integer `999999999999999999999999999999999999` beyond the parser's numeric range |
         | no positional capacity value |
         | `--confirm-current-protocol` with no positional capacity value |
@@ -307,7 +307,7 @@ Feature: Let parallel sessions share test capacity safely
     Scenario: A broad request runs exclusively on an idle domain
       Given an idle canonical capacity-two domain and a real broad public wrapper with a deterministic zero-exit collaborator
       When the broad wrapper reaches the queue head
-      Then it atomically owns both permits from the empty owner set, runs its unchanged invocation once and alone to exit zero, releases both permits, and every descendant is accounted for
+      Then one committed transition changes its durable owner weight directly from zero to both permits with no intermediate weight, runs its unchanged invocation once and alone to exit zero, releases both permits, and accounts for every descendant
 
     Scenario: Consecutive broad requests run alone in FIFO-ticket order
       Given shared capacity is two and real broad public wrappers A and B hold consecutive FIFO tickets with deterministic zero-exit collaborators
@@ -479,7 +479,7 @@ Feature: Let parallel sessions share test capacity safely
 
     @native-platform @platform-posix @process
     Scenario: Detached POSIX descendants remain an explicitly disclosed limitation
-      Given canonical capacity is above one, repository code deliberately escapes its recorded POSIX process group, the ordinary recorded group is proven empty, a barrier holds that escaped process active, and teardown retains its exact external process identity
+      Given a verified current-commit attestation from the required native POSIX CI job covers canonical capacity above one, repository code deliberately escapes its recorded POSIX process group, the ordinary recorded group is proven empty, a barrier holds that escaped process active, and teardown retains its exact external process identity
       When the scheduler admits one new repository process
       Then status contains the exact disclosure `deliberately detached descendants are not contained`, the barrier releases it, and external-identity teardown proves both processes exit
 
@@ -544,7 +544,7 @@ Feature: Let parallel sessions share test capacity safely
 
     @native-platform @platform-windows @rejection @process
     Scenario Outline: Windows Job Object recovery proves emptiness through the real OS seam
-      Given a wrapper dies with a recorded random owner-only Job Object and <windows-state>
+      Given a verified current-commit attestation from the required native Windows CI job covers a wrapper that dies with a recorded random owner-only Job Object and <windows-state>
       When another real wrapper attempts guarded recovery
       Then <windows-outcome> before any new build or Vitest process starts, and <terminal-contract>
       Examples:
@@ -596,9 +596,9 @@ Feature: Let parallel sessions share test capacity safely
         | journal-boundary | observed-state | journal-durability-outcome |
         | during journal temporary write | old live state, no journal, incomplete temporary bytes | temporary bytes are removed, old state remains byte-identical, and admission retries from old state |
         | after journal-file fsync but before journal rename | old live state, no journal, complete temporary journal | temporary bytes are removed, old state remains byte-identical, and admission retries from old state |
-        | after journal rename but before successful parent-directory fsync | old live state with either no journal or one complete visible journal after restart | no-journal recovery authenticates and retries old state; visible-journal recovery re-flushes the directory, retains old state, removes the journal last, and neither path infers an unobservable transition |
+        | after journal rename but before successful parent-directory fsync | old live state plus one complete visible journal after restart | recovery re-flushes the directory, retains old state, removes the journal last, and does not infer an unobservable transition |
         | after successful journal parent-directory fsync but before live rename | durable journal plus old live state | old-side recovery retains old state, removes journal last, and admission proceeds |
-        | after live rename but before live-state parent-directory fsync | durable journal plus either old or new complete live state after restart | old-side recovery retains old state and new-side recovery flushes and verifies new state; either path removes the journal last and admits only after resolving one complete side |
+        | after live rename but before live-state parent-directory fsync | durable journal plus new complete live state after restart | new-side recovery flushes and verifies new state, removes the journal last, and admits only after resolving that complete side |
 
     @rejection @wiring @process
     Scenario Outline: Journal recovery resolves only an authenticated complete side
@@ -990,11 +990,11 @@ Feature: Let parallel sessions share test capacity safely
 
     @native-platform @platform-posix @wiring @process @surface.safeword-cli
     Scenario Outline: POSIX public commands disclose the deliberate-detachment limitation honestly
-      Given an idle current-protocol scheduler on POSIX starts at capacity one
+      Given a verified current-commit attestation from the required native POSIX CI job covers an idle current-protocol scheduler at capacity <starting-capacity>
       When the builder runs <public-command>
       Then <disclosure-contract>
       Examples:
-        | public-command | disclosure-contract |
-        | `safeword project test-capacity set 2 --confirm-current-protocol` | before the zero exit and capacity-two commit, confirmation output states that deliberately detached descendants are not contained, directs the project to disable detachment, and says capacity one is only an additional participating-wrapper safeguard rather than containment |
-        | `safeword project test-capacity status` while capacity is two | the zero-exit output repeats that detached descendants are not contained, directs the project to disable detachment, and states the overlap guarantee applies only to participating wrappers |
-        | `safeword project test-capacity status` while capacity is one | the zero-exit output states deliberate escape remains unsupported, directs the project to disable detachment before sharing capacity, and states capacity one adds no containment |
+        | starting-capacity | public-command | disclosure-contract |
+        | one | `safeword project test-capacity set 2 --confirm-current-protocol` | before the zero exit and capacity-two commit, confirmation output states that deliberately detached descendants are not contained, directs the project to disable detachment, and says capacity one is only an additional participating-wrapper safeguard rather than containment |
+        | two | `safeword project test-capacity status` | the zero-exit output repeats that detached descendants are not contained, directs the project to disable detachment, and states the overlap guarantee applies only to participating wrappers |
+        | one | `safeword project test-capacity status` | the zero-exit output states deliberate escape remains unsupported, directs the project to disable detachment before sharing capacity, and states capacity one adds no containment |
