@@ -41,7 +41,6 @@ Feature: Let parallel sessions share test capacity safely
       Examples:
         | fault | reservation-outcome | checkout-outcome | code |
         | the guarded active-owner record cannot be durably updated before repository code can run and checkout ownership is unverifiable | the reservation bytes remain untouched for explicit recovery | checkout bytes remain untouched and a second wrapper proves the mutex unavailable | SAFEWORD_TEST_CAPACITY_STATE_UNSAFE |
-        | a one-shot injected container-creation fault affects only the exact first wrapper before repository code can run | only that reservation is removed | exact checkout ownership is released before a second wrapper runs once to exit zero | SAFEWORD_TEST_CAPACITY_PLATFORM_UNSUPPORTED |
     @rejection @wiring @process
     Scenario: A stranded reservation has an explicit safe recovery path
       Given a repaired durable-state fault left the exact failed wrapper's reserved owner bytes and checkout mutex intact, that wrapper is proven absent, and no repository process ever started for it
@@ -399,7 +398,7 @@ Feature: Let parallel sessions share test capacity safely
 
     @rejection @process @surface.safeword-cli
     Scenario Outline: Native platform evidence cannot be replaced by injected adapter coverage
-      Given trusted current-commit native-filesystem evidence for every platform is already accepted, deterministic injected-adapter tests run every platform row on any host, and <native-job-state>
+      Given trusted current-commit native-filesystem and capacity-domain-identity evidence for every platform is already accepted, deterministic injected-adapter tests run every platform row on any host, and <native-job-state>
       When `safeword project test-capacity verify-native-evidence` verifies trusted CI attestations binding repository, workflow job identity, native runner OS, commit SHA and artifact digest before reading durable JSON keyed by process/container primitive IDs, observed identities and exact command exits
       Then <platform-gate-outcome>, output names every accepted attestation and artifact digest or missing platform, and <terminal-contract>
       Examples:
@@ -411,7 +410,7 @@ Feature: Let parallel sessions share test capacity safely
 
     @rejection @process @surface.safeword-cli
     Scenario Outline: Native filesystem evidence cannot be replaced by injected filesystem seams
-      Given trusted current-commit process/container evidence for every platform and filesystem evidence for every other platform are already accepted and the required native <platform> job's <native-state> for owner and permission checks, link and reparse behavior, pinned parent identity, atomic rename, file flush and directory flush
+      Given trusted current-commit process/container and capacity-domain-identity evidence for every platform and filesystem evidence for every other platform are already accepted and the required native <platform> job's <native-state> for owner and permission checks, link and reparse behavior, pinned parent identity, atomic rename, file flush and directory flush
       When deterministic injected tests run and `safeword project test-capacity verify-native-evidence` verifies a trusted CI attestation binding repository, workflow job identity, native runner OS, commit SHA and artifact digest before reading the job's durable JSON keyed by primitive ID, object identity, observed syscall events and exact exit status
       Then <native-gate-outcome>, the command output names the accepted attestation, artifact digest and platform, and <terminal-contract>
       Examples:
@@ -584,14 +583,14 @@ Feature: Let parallel sessions share test capacity safely
     @platform-windows @rejection @wiring @process
     Scenario Outline: Windows capacity artifacts reject unsafe DACLs and changed file identities
       Given the Windows <artifact> has <unsafe-property>
-      When `safeword project test-capacity set 2 --confirm-current-protocol` and a real public package-test command independently open identical capacity-domain fixtures
-      Then neither command starts a repository process or changes state, and each exits SAFEWORD_TEST_CAPACITY_STATE_UNSAFE with `safeword project test-capacity status`
+      When `safeword project test-capacity set 2 --confirm-current-protocol`, a real public package-test command, and a real public status command independently open identical capacity-domain fixtures
+      Then neither mutable command starts a repository process or changes state, each exits SAFEWORD_TEST_CAPACITY_STATE_UNSAFE with `safeword project test-capacity status`, and status is read-only, reports the canonical domain and state location plus <repair>, and exits nonzero with SAFEWORD_TEST_CAPACITY_STATE_UNSAFE without naming itself as its first recovery step
       Examples:
-        | artifact | unsafe-property |
-        | containing directory | a DACL permitting an untrusted principal |
-        | transition guard | a DACL permitting an untrusted principal |
-        | live state | a DACL permitting an untrusted principal |
-        | transaction journal | a changed Windows file ID |
+        | artifact | unsafe-property | repair |
+        | live state | a DACL permitting an untrusted principal | owner-only-DACL repair |
+        | containing directory | a DACL permitting an untrusted principal | owner-only-DACL repair |
+        | transition guard | a DACL permitting an untrusted principal | owner-only-DACL repair |
+        | transaction journal | a changed Windows file ID | file-identity remediation |
 
     @rejection
     Scenario Outline: Invalid scheduler state never authorizes new repository code
@@ -604,6 +603,10 @@ Feature: Let parallel sessions share test capacity safely
         | unreadable bytes |
         | a newer incompatible schema |
         | an older schema outside declared migration compatibility |
+        | capacity zero in otherwise current-schema state |
+        | capacity nine in otherwise current-schema state |
+        | a negative capacity in otherwise current-schema state |
+        | a fractional capacity in otherwise current-schema state |
         | owned by another user |
         | group-writable |
         | stored under a permission-unsafe guard |

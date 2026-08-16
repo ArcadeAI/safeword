@@ -171,6 +171,12 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Global guard ordering prevents deadlock on every terminal path
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: share-test-capacity.TBU1.R3
 
 ### Scenario: A head broad request waits for holders to drain and then runs alone
@@ -351,6 +357,24 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Capacity-one failure recovery preserves serialization and progress
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Death of a transition-guard holder is recovered by exact identity
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Windows capacity artifacts reject unsafe DACLs and changed file identities
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Invalid scheduler state never authorizes new repository code
 
 - [ ] RED
@@ -479,24 +503,6 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Capacity-one failure recovery preserves serialization and progress
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Global guard ordering prevents deadlock on every terminal path
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Death of a transition-guard holder is recovered by exact identity
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
 ### Scenario: An unavailable platform containment primitive keeps shared capacity at one
 
 - [ ] RED
@@ -510,30 +516,6 @@ remain in the feature file.
 - [ ] REFACTOR
 
 ### Scenario: Capacity-domain identity loss cannot silently switch admission guards
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Public focused invocations reach Vitest once with one permit each
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Public broad invocations reach Vitest unchanged under exclusive capacity
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Public contention drains focused work before one broad invocation
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Public active cancellation returns capacity only after descendants exit
 
 - [ ] RED
 - [ ] GREEN
