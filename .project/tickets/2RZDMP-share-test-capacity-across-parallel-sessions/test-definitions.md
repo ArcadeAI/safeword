@@ -533,6 +533,12 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Public error precedence is deterministic for combined faults
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Public set commands wire canonical capacity atomically
 
 - [ ] RED
