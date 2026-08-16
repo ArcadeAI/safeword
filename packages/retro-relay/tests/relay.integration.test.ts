@@ -1679,7 +1679,7 @@ describe('retry-safe retro relay', () => {
 
   it('fails reconciliation closed when the overall raw REST page budget is exhausted', async () => {
     const github = await startGitHubFixture({
-      rawBodies: Array.from({ length: 100 }, (_, index) => `issue ${index}`),
+      rawBodies: Array.from({ length: 101 }, (_, index) => `issue ${index}`),
     });
     const client = new GitHubRestClient({
       baseUrl: github.baseUrl,

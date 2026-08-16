@@ -75,11 +75,23 @@ describe('closeout merge authority (93C14D TBU1.R1)', () => {
   });
 
   it.each([
-    { authority: 'no merge authority', contract: 'Invocation alone grants no merge authority' },
-    { authority: 'normal merge authority', contract: 'normal merge' },
-    { authority: 'administrative merge authority', contract: 'administrative merge' },
-  ])('documents the exact $authority boundary', ({ contract }) => {
-    expect(canonicalSkill()).toContain(contract);
+    {
+      authority: 'no merge authority',
+      marker: '**No authority:**',
+      contract: 'stop before merging',
+    },
+    {
+      authority: 'normal merge authority',
+      marker: '**Normal merge:**',
+      contract: 'policy-compliant `gh pr merge`. Never escalate',
+    },
+    {
+      authority: 'administrative merge authority',
+      marker: '**Administrative merge:**',
+      contract: 'explicit current request to perform an administrative merge',
+    },
+  ])('documents the exact $authority boundary', ({ marker, contract }) => {
+    expect(normalizedParagraphContaining(canonicalSkill(), marker)).toContain(contract);
   });
 });
 

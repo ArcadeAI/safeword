@@ -1484,7 +1484,7 @@ function mandatoryPolicyBlock(name: keyof typeof distributedContracts): string {
 }
 
 const contradictoryPolicyClaims = [
-  /(?:required independent coverage|independence requirement|assurance requirement).{1,24}(?:met|(?<!un)satisfied|fulfilled)/iu,
+  /(?:required independent coverage|independence requirement|assurance requirement).{1,24}(?:\bmet\b|(?<!un)satisfied|fulfilled)/iu,
   /\breview (?:succeeded|passed)\b/iu,
   /\b(?:invent|replace|rewrite|synthesize) (?:the )?(?:coordinator's )?recovery command\b/iu,
   /\b(?:record|emit|claim) (?:machine )?provenance\b/iu,

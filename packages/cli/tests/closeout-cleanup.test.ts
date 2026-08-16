@@ -1321,20 +1321,7 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
   ] satisfies [string, Partial<CloseoutObservation>, string][])(
     '%s blocks every deletion',
     (_name, overrides, expectedBlocker) => {
-      const observation = safeObservation(overrides);
-      const plan = buildCleanupPlan(observation);
-      let executions = 0;
-      expect(plan.blockers).toContain(expectedBlocker);
-      const result = applyCleanupPlan({
-        plan,
-        digest: cleanupPlanDigest(plan),
-        observe: () => observation,
-        execute: () => {
-          executions += 1;
-        },
-      });
-      expect(result.applied).toBe(false);
-      expect(executions).toBe(0);
+      expectEveryDeletionBlocked(overrides, expectedBlocker);
     },
   );
 
