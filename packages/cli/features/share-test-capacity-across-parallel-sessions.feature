@@ -15,6 +15,11 @@ Feature: Let parallel sessions share test capacity safely
       When barriers hold the first two collaborators active before the third requests admission
       Then monotonic ready/release events show the first two repository-process lifetimes overlap, no more than two overlap, and after barriers release all three unchanged downstream invocations run exactly once and exit zero with the third starting only after a permit releases
 
+    Scenario: Separate repositories on one machine and user share canonical capacity
+      Given two real focused public wrappers use different repository checkouts under the same deterministic machine and OS-user identity with canonical capacity one
+      When a barrier holds the first repository lifetime active while the second requests admission
+      Then the second starts no repository descendant until the first releases, both unchanged invocations run once and exit zero, and both observe the same canonical domain and capacity
+
     @wiring @process
     Scenario: Every focused process lifetime has one durable ownership interval
       Given three deterministic focused wrappers exercise admission, reservation and activation at shared capacity two while a barrier holds the first two active
@@ -28,10 +33,14 @@ Feature: Let parallel sessions share test capacity safely
       Then the durable bytes and version remain unchanged, no repository process or descendant starts, and the wrapper exits zero
 
     @rejection @process
-    Scenario: Reservation failure starts no repository process
-      Given an exact focused public wrapper reservation is durable and the interposed container-activation seam is fixed to fail before repository code can run
+    Scenario Outline: Reservation failure starts no repository process
+      Given an exact focused public wrapper reservation is durable and <fault>
       When the wrapper handles the activation failure
-      Then no repository process or descendant starts, only that reservation is removed, and the wrapper exits nonzero with SAFEWORD_TEST_CAPACITY_STATE_UNSAFE and `safeword project test-capacity status`
+      Then no repository process or descendant starts, only that reservation is removed, and the wrapper exits nonzero with <code> and `safeword project test-capacity status`
+      Examples:
+        | fault | code |
+        | the guarded active-owner record cannot be durably updated before repository code can run | SAFEWORD_TEST_CAPACITY_STATE_UNSAFE |
+        | the platform cannot create the required blocked execution container before repository code can run | SAFEWORD_TEST_CAPACITY_PLATFORM_UNSUPPORTED |
 
     @wiring @process
     Scenario: Capacity eight admits eight focused lifetimes and gives a broad request all eight permits
@@ -237,6 +246,7 @@ Feature: Let parallel sessions share test capacity safely
         | an unverifiable wrapper identity | deterministic fixture that must not start | acquisition fails closed and names `safeword project test-capacity status` as the exact first recovery command | the second wrapper exits nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE and starts no repository process |
         | a reused container identity | deterministic fixture that must not start | acquisition fails closed and names `safeword project test-capacity status` as the exact first recovery command | the second wrapper exits nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE and starts no repository process |
         | an unverifiable container identity | deterministic fixture that must not start | acquisition fails closed and names `safeword project test-capacity status` as the exact first recovery command | the second wrapper exits nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE and starts no repository process |
+        | active ownership with a missing container identity | deterministic fixture that must not start | acquisition fails closed and names `safeword project test-capacity status` as the exact first recovery command | the second wrapper exits nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE and starts no repository process |
 
     @rejection @wiring @process
     Scenario: A stranded unsafe checkout mutex has an explicit safe recovery path
@@ -297,7 +307,7 @@ Feature: Let parallel sessions share test capacity safely
 
     @native-platform
     Scenario Outline: Exact owner loss is recovered across every supported execution container
-      Given the required native <platform> CI job runs a real package-test wrapper that is <stage> with its exact <container> identity and a second real public wrapper with a deterministic zero-exit collaborator waits behind it
+      Given the required native <platform> CI job runs a real package-test wrapper that is <stage> with its exact <container> identity and a second real public wrapper with a deterministic zero-exit collaborator waits behind it, while a harness-controlled monotonic test clock advances the reclaim deadline without substituting any native identity or container observation
       When the first wrapper process dies and the second wrapper triggers <recovery> after every first-container build or test descendant is proven absent
       Then one guarded recovery removes only the exact dead owner, returns its complete permit weight at <release-version>, admits the waiting wrapper at <admission-version>, runs its unchanged invocation exactly once to exit zero, and the complete keyed trace accounts for the dead wrapper, blocked child or supervisor, all descendants and one empty final owner set
       Examples:

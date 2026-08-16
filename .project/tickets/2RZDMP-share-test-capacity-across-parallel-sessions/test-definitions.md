@@ -13,6 +13,12 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Separate repositories on one machine and user share canonical capacity
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Every focused process lifetime has one durable ownership interval
 
 - [ ] RED
