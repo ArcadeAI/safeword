@@ -356,12 +356,13 @@ const CURRENT_WORK_BASE_REFS = [
   'refs/heads/master',
 ] as const;
 
-/** Read Git output without letting optional advisory scope affect health. */
+/** Read Git output without letting a failed scope probe crash health. */
 function readGit(cwd: string, args: readonly string[]): string | undefined {
   try {
     return execFileSync('git', args, {
       cwd,
       encoding: 'utf8',
+      maxBuffer: 10 * 1024 * 1024,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
   } catch {
@@ -379,9 +380,9 @@ function currentWorkPathsWithHead(cwd: string): string[] | undefined {
   const baseReference = CURRENT_WORK_BASE_REFS.find(
     candidate => readGit(cwd, ['rev-parse', '--verify', '--quiet', candidate]) !== undefined,
   );
-  if (baseReference === undefined) return [];
+  if (baseReference === undefined) return undefined;
   const mergeBase = readGit(cwd, ['merge-base', 'HEAD', baseReference])?.trim();
-  if (mergeBase === undefined || mergeBase === '') return [];
+  if (mergeBase === undefined || mergeBase === '') return undefined;
   const committed = readGit(cwd, [
     'diff',
     '--relative',
@@ -407,10 +408,9 @@ function currentWorkPathsWithoutHead(cwd: string): string[] | undefined {
 }
 
 /**
- * Current branch + worktree paths, or undefined outside Git. Projects without
- * Git have no diff scope, so they retain the existing whole-project diagnostic.
- * Within Git, an unavailable base produces an empty scope: BDD diagnostics are
- * advisory and must not turn status/install into a repository-health gate.
+ * Current branch + worktree paths, or undefined when no trustworthy scope can
+ * be derived. An unavailable Git base retains the whole-project diagnostic so
+ * exit-code-affecting Gherkin validation is never silently skipped.
  */
 function currentWorkPaths(cwd: string): string[] | undefined {
   if (readGit(cwd, ['rev-parse', '--is-inside-work-tree'])?.trim() !== 'true') return undefined;
@@ -418,10 +418,10 @@ function currentWorkPaths(cwd: string): string[] | undefined {
   const hasHead = readGit(cwd, ['rev-parse', '--verify', '--quiet', 'HEAD^{commit}']);
   const changedPaths =
     hasHead === undefined ? currentWorkPathsWithoutHead(cwd) : currentWorkPathsWithHead(cwd);
-  if (changedPaths === undefined) return [];
+  if (changedPaths === undefined) return undefined;
 
   const untracked = readGit(cwd, ['ls-files', '--others', '--exclude-standard', '-z']);
-  if (untracked === undefined) return [];
+  if (untracked === undefined) return undefined;
   const paths = new Set(changedPaths);
   addNulSeparatedPaths(paths, untracked);
   return [...paths];

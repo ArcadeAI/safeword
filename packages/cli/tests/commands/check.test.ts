@@ -1173,7 +1173,14 @@ describe('Test Suite 8: Health Check', () => {
     ].join('\n');
 
     function git(...args: string[]): void {
-      execFileSync('git', args, { cwd: temporaryDirectory, stdio: 'pipe' });
+      execFileSync(
+        'git',
+        ['-c', 'commit.gpgsign=false', '-c', 'core.excludesFile=/dev/null', ...args],
+        {
+          cwd: temporaryDirectory,
+          stdio: 'pipe',
+        },
+      );
     }
 
     function writeFeatureTicket(folder: string, feature: string): void {
@@ -1206,11 +1213,11 @@ describe('Test Suite 8: Health Check', () => {
       );
     }
 
-    async function setUpCurrentWork(): Promise<void> {
+    async function setUpCurrentWork(initialBranch = 'main'): Promise<void> {
       await createConfiguredProject(temporaryDirectory);
       writeFeatureTicket('BACKGROUND1-background', 'background');
       writeFeatureTicket('FOCUS1-focused', 'focused');
-      git('init', '--initial-branch=main');
+      git('init', `--initial-branch=${initialBranch}`);
       git('config', 'user.email', 'health@example.test');
       git('config', 'user.name', 'Health Test');
       git('add', '.');
@@ -1264,6 +1271,15 @@ describe('Test Suite 8: Health Check', () => {
       expect(result.exitCode).toBe(0);
       expect(combined).toMatch(/FOCUS1/);
       expect(combined).not.toMatch(/BACKGROUND1/);
+    });
+
+    it('retains validation when a Git repository has no known base branch', async () => {
+      await setUpCurrentWork('develop');
+
+      const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(2);
+      expect(`${result.stdout}\n${result.stderr}`).toMatch(/FOCUS1/);
     });
   });
 
