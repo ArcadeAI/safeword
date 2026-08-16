@@ -78,7 +78,6 @@ Feature: Let parallel sessions share test capacity safely
       Given canonical capacity is two, a real checkout path crosses a symlinked directory to an external regular test file, and the deterministic downstream collaborator exits zero
       When the public package-test command classifies that literal argument
       Then it treats the invocation as broad with durable owner weight two, passes the original argument unchanged downstream exactly once, never grants a focused permit, accounts for every descendant, and exits zero
-
     @rejection @process
     Scenario Outline: Literal metacharacter and option-shaped test filenames classify broad
       Given canonical capacity is two, a contained regular file literally named <literal-token> exists inside the checkout, and the deterministic downstream collaborator exits zero
@@ -89,7 +88,6 @@ Feature: Let parallel sessions share test capacity safely
         | `alpha*.test.ts` |
         | `alpha[1].test.ts` |
         | `-alpha.test.ts` |
-
     @rejection @process
     Scenario: Double-dash invocation classifies broad despite an existing test file
       Given canonical capacity is two, a contained regular `alpha.test.ts` file exists, and the deterministic downstream collaborator exits zero
@@ -220,7 +218,7 @@ Feature: Let parallel sessions share test capacity safely
       Given canonical capacity is two, one same-worktree wrapper holds checkout ownership and one active permit, a second same-worktree wrapper emits its checkout-mutex waiter event, and an unrelated-worktree focused wrapper requests admission
       When the scheduler records the unrelated wrapper under the state guard
       Then the unrelated wrapper is admitted with the remaining one permit, the checkout-mutex waiter has no scheduler-registration event or durable owner record until after its checkout-mutex-acquired event, and durable owners exclude that waiter until then
-      And after controlled release both wrappers exit zero and every descendant is accounted for
+      And after controlled release the checkout holder, checkout-mutex waiter, and unrelated wrapper each exit zero and every descendant is accounted for
 
     @rejection
     Scenario Outline: A terminated capacity wait does not strand the checkout mutex
@@ -270,9 +268,9 @@ Feature: Let parallel sessions share test capacity safely
   Rule: share-test-capacity.TBU1.R3 — Broad verification drains focused work and runs with exclusive machine capacity without starvation
 
     Scenario: A head broad request waits for holders to drain and then runs alone
-      Given canonical capacity is two, keyed process events show two focused owners active, and another real wrapper has a broad request at the queue head
+      Given canonical capacity is eight, keyed process events show eight focused owners active, and another real wrapper has a broad request at the queue head
       When the focused owners finish
-      Then after the focused owners exit zero, its unchanged downstream invocation runs exactly once and exits zero while atomically owning all capacity with no overlapping repository process
+      Then after the focused owners exit zero, one durable transition gives it weight eight from an empty owner set, its unchanged downstream invocation runs exactly once and exits zero, and no repository process overlaps it
 
     @rejection @wiring @process
     Scenario: A broad request never holds a partial allocation
@@ -429,7 +427,7 @@ Feature: Let parallel sessions share test capacity safely
 
     @rejection @process @surface.safeword-cli
     Scenario Outline: Native evidence rejects untrusted or mismatched provenance
-      Given a durable native-evidence artifact has otherwise valid schema and contents but <provenance-fault>
+      Given a durable native-evidence artifact has otherwise valid schema and contents but <provenance-fault>, and existing evidence state is captured byte-for-byte
       When `safeword project test-capacity verify-native-evidence` verifies it for the current repository and commit
       Then the named platform remains incomplete, the artifact is not consumed, existing evidence state remains byte-identical, no affected platform-pass or overall completion record is emitted, and the command exits nonzero with SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE naming <stable-reason> and `safeword project test-capacity status` first
       Examples:
@@ -480,8 +478,8 @@ Feature: Let parallel sessions share test capacity safely
     @native-platform @platform-posix @process
     Scenario: Detached POSIX descendants remain an explicitly disclosed limitation
       Given a verified current-commit attestation from the required native POSIX CI job covers canonical capacity above one, repository code deliberately escapes its recorded POSIX process group, the ordinary recorded group is proven empty, a barrier holds that escaped process active, and teardown retains its exact external process identity
-      When the scheduler admits one new repository process
-      Then status contains the exact disclosure `deliberately detached descendants are not contained`, the barrier releases it, and external-identity teardown proves both processes exit
+      When the scheduler admits one new repository process and the barrier releases the escaped process
+      Then status contains the exact disclosure `deliberately detached descendants are not contained`, and external-identity teardown proves both processes exit
 
     @platform-posix
     Scenario: Supervisor loss returns capacity only after a second empty-group observation
@@ -569,6 +567,7 @@ Feature: Let parallel sessions share test capacity safely
         | corrupt bytes |
         | unreadable bytes |
         | a newer incompatible schema |
+        | an older schema outside declared migration compatibility |
         | owned by another user |
         | group-writable |
         | stored under a permission-unsafe guard |
@@ -717,6 +716,7 @@ Feature: Let parallel sessions share test capacity safely
         | live state | corrupt bytes | replacing the named corrupt live state through the guarded repair procedure followed by `safeword project test-capacity status` |
         | live state | unreadable bytes | repairing read access to the named live state followed by `safeword project test-capacity status` |
         | live state | newer incompatible schema | restoring a compatible named live state through the guarded repair procedure followed by `safeword project test-capacity status` |
+        | live state | older schema outside declared migration compatibility | restoring a compatible named live state through the guarded repair procedure followed by `safeword project test-capacity status` |
 
   @share-test-capacity.TBU1.R6
   Rule: share-test-capacity.TBU1.R6 — One validated shared setting governs every participating new-wrapper session and can conservatively restore today's single-run behavior
@@ -758,7 +758,7 @@ Feature: Let parallel sessions share test capacity safely
         | a malformed pre-existing canonical artifact | a public wrapper attempts initialization | it starts no repository process, changes no artifact, and exits nonzero with SAFEWORD_TEST_CAPACITY_STATE_UNSAFE and `safeword project test-capacity status` |
         | an idle compatible older schema and protocol | two public wrappers race the first migration | exactly one guarded migration commits current schema/protocol at version N+1 with capacity one, both wrappers observe that version, serialize and exit zero, and no partial state is visible |
         | a compatible older schema and protocol with a recorded owner or waiter | a public wrapper attempts migration | no migration commits, bytes and version remain unchanged, no repository process starts, and the wrapper exits nonzero with SAFEWORD_TEST_CAPACITY_BUSY and `safeword project test-capacity status` |
-        | no current state after the recorded legacy mutex is authenticated idle | a barrier keeps the first current wrapper's transition guard held through capacity-one initialization and registration while a capacity-two set command waits | one guarded transition commits current protocol capacity one at version 1 and registers the wrapper before releasing the set command, set exits SAFEWORD_TEST_CAPACITY_BUSY, status names the legacy-to-current boundary, and no untracked legacy idleness is inferred |
+        | no current state after the recorded legacy mutex is authenticated idle | a barrier keeps the first current wrapper's transition guard held through capacity-one initialization and registration while `safeword project test-capacity set 2 --confirm-current-protocol` waits | one guarded transition commits current protocol capacity one at version 1 and registers the wrapper before releasing the set command, set exits SAFEWORD_TEST_CAPACITY_BUSY, status names the legacy-to-current boundary, and no untracked legacy idleness is inferred |
 
     Scenario Outline: An idle scheduler adopts one canonical capacity for every participating session
       Given the current scheduler has no owners or waiters
@@ -794,8 +794,8 @@ Feature: Let parallel sessions share test capacity safely
       Then <outcome> and every wrapper observes the one committed capacity
       Examples:
         | race | outcome |
-        | barriers give the capacity-2 command the guard before a concurrent capacity-3 command | capacity 2 commits at version N+1, then capacity 3 commits at N+2, both set commands exit zero, and no reader observes a partial or skipped version |
-        | barriers register a wrapper before a capacity-2 command can commit | capacity remains 1, the wrapper observes 1 and exits zero, and the set command exits SAFEWORD_TEST_CAPACITY_BUSY |
+        | barriers give `safeword project test-capacity set 2 --confirm-current-protocol` the guard before concurrent `safeword project test-capacity set 3 --confirm-current-protocol` | capacity 2 commits at version N+1, then capacity 3 commits at N+2, both set commands exit zero, and no reader observes a partial or skipped version |
+        | barriers register a wrapper before `safeword project test-capacity set 2 --confirm-current-protocol` can commit | capacity remains 1, the wrapper observes 1 and exits zero, and the set command exits SAFEWORD_TEST_CAPACITY_BUSY |
 
     Scenario: Capacity one preserves the hardened machine-wide serialization baseline
       Given canonical shared capacity is one and real wrappers use real build and test collaborators
@@ -829,7 +829,7 @@ Feature: Let parallel sessions share test capacity safely
 
     @rejection @process
     Scenario Outline: Global guard ordering prevents deadlock on every terminal path
-      Given one same-worktree wrapper holds checkout ownership and scheduler capacity, a second same-worktree wrapper waits on that checkout mutex with no permit, and an unrelated worktree waits for capacity
+      Given canonical capacity is one, one focused same-worktree wrapper holds checkout ownership and the only scheduler permit, a second same-worktree wrapper waits on that checkout mutex with no permit, and an unrelated worktree waits for capacity
       When the first wrapper reaches <terminal-path>
       Then <ordering-outcome> and <waiter-outcome>
       Examples:
@@ -852,7 +852,7 @@ Feature: Let parallel sessions share test capacity safely
     @rejection
     Scenario: An unavailable platform containment primitive keeps shared capacity at one
       Given the operating system cannot prove its required process-group or Job Object contract
-      When the builder requests shared capacity above one
+      When the builder runs `safeword project test-capacity set 2 --confirm-current-protocol`
       Then Safeword starts no repository process, changes no durable state, retains capacity one, and exits nonzero with SAFEWORD_TEST_CAPACITY_PLATFORM_UNSUPPORTED plus `safeword project test-capacity status`
 
     @rejection @wiring @process
