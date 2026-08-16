@@ -8,17 +8,17 @@ Feature: Durable independent review
 
     Scenario: A quick review returns its verdict inline
       Given a scripted independent reviewer returns an approved result before the controlled courtesy deadline
-      When the builder starts a quality review
+      When the builder runs `safeword review run quality-review`
       Then the builder receives that approved result inline
 
     Scenario: A quick review preserves a changes-requested verdict inline
       Given a scripted independent reviewer returns a changes-requested result with a finding before the controlled courtesy deadline
-      When the builder starts a quality review
+      When the builder runs `safeword review run quality-review`
       Then the builder receives that changes-requested result and finding inline
 
     Scenario: A slow healthy review continues as a durable job
       Given a scripted independent reviewer remains blocked through the controlled courtesy deadline
-      When the builder starts a quality review
+      When the builder runs `safeword review run quality-review`
       Then the builder receives a pending handle at the courtesy deadline while that reviewer remains blocked
       And the handle contains the runnable `safeword review status <review id>` command
 
@@ -131,6 +131,18 @@ Feature: Durable independent review
       Given no review exists for a requested review identifier
       When the builder cancels that review
       Then Safeword reports that the review was not found
+
+    @rejection
+    Scenario: Cancel does not resolve a traversal-shaped identifier outside the review store
+      Given a running-looking record exists outside the review store at a traversal-shaped identifier's destination
+      When the builder runs `safeword review cancel ../outside-the-review-store`
+      Then Safeword reports that the review was not found without changing the outside record
+
+    @rejection
+    Scenario: Cancel rejects a tampered running record before terminating its reviewer
+      Given a running review record whose integrity seal was modified
+      When the builder runs `safeword review cancel <review id>`
+      Then Safeword reports the record as invalid and that reviewer remains running
 
   @finish-deep-reviews-in-background.TBU1.R4 @surface.safeword-cli
   Rule: finish-deep-reviews-in-background.TBU1.R4 — A background review reaches a terminal result when it cannot complete

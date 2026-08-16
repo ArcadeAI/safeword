@@ -545,6 +545,18 @@ describe('durable review jobs', () => {
     );
   });
 
+  it('does not let cancellation resolve a traversal-shaped review id outside the review store', () => {
+    const cwd = project();
+    const escaped = nodePath.join(cwd, '.safeword', 'state', 'outside-the-review-store.json');
+    mkdirSync(nodePath.dirname(escaped), { recursive: true });
+    writeFileSync(escaped, '{"planted":"record"}\n');
+
+    expect(cancelReviewJob(cwd, '../outside-the-review-store').errors[0]?.code).toBe(
+      'REVIEW_JOB_NOT_FOUND',
+    );
+    expect(readFileSync(escaped, 'utf8')).toBe('{"planted":"record"}\n');
+  });
+
   it('rejects a running job record without its worker pid', async () => {
     const cwd = project();
     vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, 'setTimeout(() => {}, 10_000);'));
@@ -881,6 +893,28 @@ ${COMPLETE_WORKER}`,
     expect(result.state).toBe('failed');
     expect(result.errors[0]?.code).toBe('REVIEW_JOB_INVALID');
   });
+
+  it.runIf(process.platform !== 'win32')(
+    'rejects a tampered running record before cancellation terminates its reviewer',
+    async () => {
+      const cwd = project();
+      vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, 'setTimeout(() => {}, 10_000);'));
+      vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '0');
+      const pending = await startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
+      const id = (pending.data as { review_id: string }).review_id;
+      const recordPath = nodePath.join(cwd, '.safeword', 'state', 'reviews', `${id}.json`);
+      const record = JSON.parse(readFileSync(recordPath, 'utf8')) as {
+        pid: number;
+        targets: string[];
+      };
+      record.targets = ['attacker-controlled.md'];
+      writeFileSync(recordPath, `${JSON.stringify(record)}\n`);
+
+      expect(cancelReviewJob(cwd, id).errors[0]?.code).toBe('REVIEW_JOB_INVALID');
+      expect(() => process.kill(record.pid, 0)).not.toThrow();
+      process.kill(record.pid, 'SIGKILL');
+    },
+  );
 
   it.runIf(process.platform !== 'win32')(
     'does not leak a child when cancellation wins during launch',
