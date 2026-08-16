@@ -185,6 +185,12 @@ describe('findFileMatchingInTree', () => {
 // =============================================================================
 
 describe('detectLanguages with subdirectories', () => {
+  it.each(['Pipfile', 'setup.py', 'setup.cfg'])('detects Python projects with %s', manifest => {
+    writeTestFile(shared.projectDirectory, manifest, '');
+
+    expect(detectLanguages(shared.projectDirectory).python).toBe(true);
+  });
+
   it('detects Python in subdirectory', () => {
     writeTestFile(shared.projectDirectory, 'dbt/pyproject.toml', '[project]\nname = "test"\n');
     const languages = detectLanguages(shared.projectDirectory);

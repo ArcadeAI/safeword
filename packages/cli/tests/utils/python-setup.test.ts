@@ -4,7 +4,7 @@
  * Tests for package manager detection and dependency installation logic.
  */
 
-import { symlinkSync } from 'node:fs';
+import { chmodSync, existsSync, symlinkSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -22,7 +22,6 @@ import {
   createPythonProject,
   createTemporaryDirectory,
   isPoetryInstalled,
-  isUvInstalled,
   readTestFile,
   removeTemporaryDirectory,
   writeTestFile,
@@ -431,21 +430,40 @@ describe('installPythonDependencies', () => {
     expect(installPythonDependencies(context.projectDirectory, ['ruff'])).toBe(false);
   });
 
-  // Conditional tests - only run if package manager is available
-  const IS_UV_AVAILABLE = isUvInstalled();
   const IS_POETRY_AVAILABLE = isPoetryInstalled();
 
-  it.skipIf(!IS_UV_AVAILABLE)('installs tools with uv', () => {
+  it('invokes uv in the project directory without using the network', () => {
     createPythonProject(context.projectDirectory, { manager: 'uv' });
+    const bin = nodePath.join(context.projectDirectory, 'bin');
+    const log = nodePath.join(context.projectDirectory, 'uv.log');
+    const originalPath = process.env.PATH;
+    const originalSkipInstall = process.env.SAFEWORD_SKIP_INSTALL;
+    const originalLog = process.env.SAFEWORD_UV_LOG;
 
-    // This actually runs uv add --dev ruff
-    const isResult = installPythonDependencies(context.projectDirectory, ['ruff']);
+    writeTestFile(
+      context.projectDirectory,
+      'bin/uv',
+      '#!/bin/sh\nprintf "%s|%s\\n" "$PWD" "$*" >> "$SAFEWORD_UV_LOG"\n',
+    );
+    chmodSync(nodePath.join(bin, 'uv'), 0o755);
+    process.env.PATH = `${bin}:${originalPath ?? ''}`;
+    process.env.SAFEWORD_UV_LOG = log;
+    delete process.env.SAFEWORD_SKIP_INSTALL;
 
-    expect(isResult).toBe(true);
-
-    // Verify ruff is now in pyproject.toml
-    const pyproject = readTestFile(context.projectDirectory, 'pyproject.toml');
-    expect(pyproject).toContain('ruff');
+    try {
+      expect(installPythonDependencies(context.projectDirectory, ['ruff'])).toBe(true);
+      expect(existsSync(log)).toBe(true);
+      expect(readTestFile(context.projectDirectory, 'uv.log')).toContain(
+        `${context.projectDirectory}|add --dev ruff`,
+      );
+    } finally {
+      if (originalPath === undefined) delete process.env.PATH;
+      else process.env.PATH = originalPath;
+      if (originalSkipInstall === undefined) delete process.env.SAFEWORD_SKIP_INSTALL;
+      else process.env.SAFEWORD_SKIP_INSTALL = originalSkipInstall;
+      if (originalLog === undefined) delete process.env.SAFEWORD_UV_LOG;
+      else process.env.SAFEWORD_UV_LOG = originalLog;
+    }
   });
 
   // Poetry test disabled: poetry add is too slow/unreliable for CI

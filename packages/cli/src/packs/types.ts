@@ -16,7 +16,7 @@
  */
 export interface Languages {
   javascript: boolean; // package.json exists
-  python: boolean; // pyproject.toml OR requirements.txt exists
+  python: boolean; // a supported Python manifest exists
   golang: boolean; // go.mod exists
   rust: boolean; // Cargo.toml exists
   sql: boolean; // dbt_project.yml (or other SQL tool markers) exists

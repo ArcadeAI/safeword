@@ -20894,7 +20894,7 @@ var init_python = __esm(() => {
     name: "Python",
     extensions: [".py", ".pyi"],
     detect(cwd) {
-      return existsInTree(cwd, "pyproject.toml") || existsInTree(cwd, "requirements.txt");
+      return existsInTree(cwd, "pyproject.toml") || existsInTree(cwd, "requirements.txt") || existsInTree(cwd, "Pipfile") || existsInTree(cwd, "setup.py") || existsInTree(cwd, "setup.cfg");
     },
     setup(_cwd, _ctx) {
       return setupPythonTooling();

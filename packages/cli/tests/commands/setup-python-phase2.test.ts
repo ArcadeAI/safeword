@@ -15,7 +15,6 @@ import {
   createSafewordBasePackageJson,
   createTemporaryDirectory,
   initGitRepo,
-  isUvInstalled,
   readTestFile,
   removeTemporaryDirectory,
   runCli,
@@ -181,6 +180,7 @@ describe('Suite 2: Architecture Validation', () => {
       // Act
       await runCli(['setup'], {
         cwd: state.projectDirectory,
+        env: SKIP_INSTALL_ENV,
         timeout: TIMEOUT_SETUP,
       });
 
@@ -331,8 +331,6 @@ strict = true
 // Test Suite 6: Auto-Install Python Tools
 // =============================================================================
 
-const IS_UV_AVAILABLE = isUvInstalled();
-
 describe('Suite 6: Auto-Install Python Tools', () => {
   it(
     'Test 6.1: Shows install message for pip projects (no auto-install)',
@@ -356,10 +354,9 @@ describe('Suite 6: Auto-Install Python Tools', () => {
     TIMEOUT_SETUP,
   );
 
-  it.skipIf(!IS_UV_AVAILABLE)(
-    'Test 6.2: Auto-installs tools for uv projects',
+  it(
+    'Test 6.2: Shows the uv recovery command when installation is skipped',
     async () => {
-      // Arrange - uv project with uv.lock
       createPythonProjectReadyForSetup(state.projectDirectory, { manager: 'uv' });
       initGitRepo(state.projectDirectory);
 
@@ -370,7 +367,6 @@ describe('Suite 6: Auto-Install Python Tools', () => {
         env: SKIP_INSTALL_ENV,
       });
 
-      // Explicit no-install mode reports the exact recovery command without network access.
       expect(result.stdout).toContain('Install Python tools: uv add --dev');
       expect(result.stdout).not.toContain('Python tools installed');
     },
@@ -426,7 +422,7 @@ dev = ["ruff>=0.8.0"]
       writeTestFile(
         state.projectDirectory,
         'bin/uv',
-        '#!/bin/sh\nprintf "%s\\n" "$*" >> "$SAFEWORD_UV_LOG"\n',
+        '#!/bin/sh\nprintf "%s|%s\\n" "$PWD" "$*" >> "$SAFEWORD_UV_LOG"\n',
       );
       chmodSync(uv, 0o755);
 
@@ -441,7 +437,10 @@ dev = ["ruff>=0.8.0"]
       });
 
       expect(result.exitCode).toBe(2);
-      expect(readFileSync(log, 'utf8')).toContain('add --dev');
+      expect(existsSync(log)).toBe(true);
+      expect(readFileSync(log, 'utf8')).toContain(
+        `${nodePath.join(state.projectDirectory, 'apps/worker')}|add --dev ruff mypy deadcode`,
+      );
       expect(result.stdout).toContain('pip install');
       expect(result.stdout).toContain('Configuration is healthy');
     },
@@ -449,24 +448,9 @@ dev = ["ruff>=0.8.0"]
   );
 
   it(
-    'Test 6.4: Shows poetry install command for poetry projects',
+    'Test 6.5: Shows poetry install command for poetry projects',
     async () => {
-      // Arrange - poetry project with invalid config (python key not allowed)
-      // This makes poetry fail immediately with "Additional properties are not allowed"
-      writeTestFile(
-        state.projectDirectory,
-        'pyproject.toml',
-        `[project]
-name = "test"
-version = "0.1.0"
-
-[tool.poetry]
-name = "test"
-python = "^3.12"
-`,
-      );
-      // Note: Invalid poetry config ensures immediate failure (no network calls)
-      createSafewordBasePackageJson(state.projectDirectory);
+      createPythonProjectReadyForSetup(state.projectDirectory, { manager: 'poetry' });
       initGitRepo(state.projectDirectory);
 
       // Act
@@ -476,19 +460,15 @@ python = "^3.12"
         env: SKIP_INSTALL_ENV,
       });
 
-      // Assert - Poetry project detected, shows poetry command in fallback
-      // (install fails without poetry.lock, so fallback shown)
       expect(result.stdout).toMatch(/poetry add/);
     },
     TIMEOUT_SETUP,
   );
 
   it(
-    'Test 6.5: Shows pipenv install command for pipenv projects',
+    'Test 6.6: Shows pipenv install command for pipenv projects',
     async () => {
-      // Arrange - pipenv project
       createPythonProjectReadyForSetup(state.projectDirectory, { manager: 'pipenv' });
-      writeTestFile(state.projectDirectory, 'Pipfile', '[invalid\n');
       initGitRepo(state.projectDirectory);
 
       // Act
