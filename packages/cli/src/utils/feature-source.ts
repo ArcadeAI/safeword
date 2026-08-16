@@ -32,7 +32,7 @@ export function featureSourceFileName(cwd: string, ticketFolder: string): string
 export function findFeatureSourcePath(
   cwd: string,
   ticketFolder: string,
-  featureFiles = collectExecutableFeatureFiles(cwd),
+  featureFiles: readonly string[] = collectExecutableFeatureFiles(cwd),
 ): string | undefined {
   const fileName = featureSourceFileName(cwd, ticketFolder);
   return featureFiles.find(path => nodePath.basename(path) === fileName);
