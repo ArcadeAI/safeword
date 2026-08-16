@@ -1217,7 +1217,7 @@ describe('Test Suite 8: Health Check', () => {
       await createConfiguredProject(temporaryDirectory);
       writeFeatureTicket('BACKGROUND1-background', 'background');
       writeFeatureTicket('FOCUS1-focused', 'focused');
-      git('init', `--initial-branch=${initialBranch}`);
+      git('branch', '-M', initialBranch);
       git('config', 'user.email', 'health@example.test');
       git('config', 'user.name', 'Health Test');
       git('add', '.');
