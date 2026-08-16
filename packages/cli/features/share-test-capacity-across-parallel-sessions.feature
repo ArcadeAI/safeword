@@ -32,6 +32,7 @@ Feature: Let parallel sessions share test capacity safely
       When that same wrapper emits the replayed release
       Then the durable bytes and version remain unchanged, no repository process or descendant starts, and the wrapper exits zero
 
+    @rejection @process
     Scenario: A stale release cannot remove a subsequent owner's permit
       Given focused wrapper A released its exact permit, focused wrapper B then acquired that permit with a durable weight-one owner record and an active repository lifetime, and A's duplicate-release seam is installed
       When A emits its stale replayed release
@@ -41,11 +42,11 @@ Feature: Let parallel sessions share test capacity safely
     Scenario Outline: Reservation failure starts no repository process
       Given an exact focused public wrapper reservation is durable and <fault>
       When the wrapper handles the activation failure
-      Then no repository process or descendant starts, <reservation-outcome>, and the wrapper exits nonzero with <code> and `safeword project test-capacity status`
+      Then no repository process or descendant starts, <reservation-outcome>, <checkout-outcome>, and the wrapper exits nonzero with <code> and `safeword project test-capacity status`
       Examples:
-        | fault | reservation-outcome | code |
-        | the guarded active-owner record cannot be durably updated before repository code can run | the reservation bytes remain untouched for explicit recovery | SAFEWORD_TEST_CAPACITY_STATE_UNSAFE |
-        | the platform cannot create the required blocked execution container before repository code can run | only that reservation is removed | SAFEWORD_TEST_CAPACITY_PLATFORM_UNSUPPORTED |
+        | fault | reservation-outcome | checkout-outcome | code |
+        | the guarded active-owner record cannot be durably updated before repository code can run | the reservation bytes remain untouched for explicit recovery | checkout bytes remain untouched and a second wrapper proves the mutex unavailable | SAFEWORD_TEST_CAPACITY_STATE_UNSAFE |
+        | the platform cannot create the required blocked execution container before repository code can run | only that reservation is removed | exact checkout ownership is released before a second wrapper runs once to exit zero | SAFEWORD_TEST_CAPACITY_PLATFORM_UNSUPPORTED |
 
     @wiring @process
     Scenario: Capacity eight admits eight focused lifetimes and gives a broad request all eight permits
@@ -484,7 +485,7 @@ Feature: Let parallel sessions share test capacity safely
     Scenario: Detached POSIX descendants remain an explicitly disclosed limitation
       Given canonical capacity is above one, repository code deliberately escapes its recorded POSIX process group, the ordinary recorded group is proven empty, a barrier holds that escaped process active, and teardown retains its exact external process identity
       When the scheduler admits one new repository process
-      Then status identifies the escaped process as outside contained evidence, the barrier releases it, external-identity teardown proves both processes exit, and no output claims the escaped process was contained
+      Then status names the generic detached-descendant limitation, the barrier releases it, external-identity teardown proves both processes exit, and no output claims the escaped process was contained
 
     @platform-posix
     Scenario: Supervisor loss returns capacity only after a second empty-group observation
@@ -913,6 +914,18 @@ Feature: Let parallel sessions share test capacity safely
         | idle | malformed `set` input | SAFEWORD_TEST_CAPACITY_INVALID |
         | unavailable or conflicting machine identity | `set 2 --confirm-current-protocol` | SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE |
 
+    @rejection @wiring @surface.safeword-cli
+    Scenario Outline: Public error precedence is deterministic for combined faults
+      Given <combined-faults>
+      When the builder runs <command>
+      Then it starts no repository process, leaves durable bytes and version unchanged, exits nonzero with <code>, and names `safeword project test-capacity status` first
+      Examples:
+        | combined-faults | command | code |
+        | a capacity-one domain has an owner | `safeword project test-capacity set 02` | SAFEWORD_TEST_CAPACITY_INVALID |
+        | the capacity-domain artifact is group-writable | `safeword project test-capacity set 02` | SAFEWORD_TEST_CAPACITY_INVALID |
+        | the capacity-domain artifact is group-writable and its recorded identity is unverifiable | `safeword project test-capacity set 2 --confirm-current-protocol` | SAFEWORD_TEST_CAPACITY_STATE_UNSAFE |
+        | a capacity-one domain has an owner whose identity is unverifiable | `safeword project test-capacity set 2 --confirm-current-protocol` | SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE |
+
     @wiring @process @surface.safeword-cli
     Scenario Outline: Public set commands wire canonical capacity atomically
       Given isolated owner-only capacity state is <precondition>
@@ -942,6 +955,8 @@ Feature: Let parallel sessions share test capacity safely
         | exact domain D identity is unverifiable | `safeword project test-capacity reset --expected-domain D --confirm-idle` | SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE returns and durable state/version remain unchanged with no repository process |
         | recorded exact domain is D | `safeword project test-capacity reset --expected-domain D --expected-domain D --confirm-idle` | SAFEWORD_TEST_CAPACITY_INVALID returns and durable state/version remain unchanged with no repository process |
         | recorded exact domain is D | `safeword project test-capacity reset --expected-domain D --confirm-idle --confirm-idle` | SAFEWORD_TEST_CAPACITY_INVALID returns and durable state/version remain unchanged with no repository process |
+        | recorded exact domain is D | `safeword project test-capacity reset --expected-domain D --confirm-idle=true` | SAFEWORD_TEST_CAPACITY_INVALID returns and durable state/version remain unchanged with no repository process |
+        | recorded exact domain is D | `safeword project test-capacity reset --expected-domain D --confirm-idle=false` | SAFEWORD_TEST_CAPACITY_INVALID returns and durable state/version remain unchanged with no repository process |
         | recorded exact domain is D | `safeword project test-capacity reset --expected-domain --confirm-idle` | SAFEWORD_TEST_CAPACITY_INVALID returns and durable state/version remain unchanged with no repository process |
         | recorded exact domain is D | `safeword project test-capacity reset --expected-domain "" --confirm-idle` | SAFEWORD_TEST_CAPACITY_INVALID returns and durable state/version remain unchanged with no repository process |
         | recorded exact domain is D | `safeword project test-capacity reset --expected-domain D --confirm-idle --unknown` | SAFEWORD_TEST_CAPACITY_INVALID returns and durable state/version remain unchanged with no repository process |
