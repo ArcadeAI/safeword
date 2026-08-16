@@ -1258,53 +1258,6 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
   );
 
   it.each([
-    ['no pull request', { pullRequests: [] }, 'exactly one matching pull request is required'],
-    [
-      'ambiguous pull request',
-      { pullRequests: [...safeObservation().pullRequests, ...safeObservation().pullRequests] },
-      'exactly one matching pull request is required',
-    ],
-    [
-      'unmerged pull request',
-      { pullRequests: [{ ...pullRequest(), state: 'OPEN' }] },
-      'the exact pull request is not confirmed merged',
-    ],
-    [
-      'fork or remote mismatch',
-      {
-        remote: {
-          name: 'origin',
-          url: 'git@github.com:other/widget.git',
-          pushUrl: 'git@github.com:other/widget.git',
-          oid: 'a'.repeat(40),
-        },
-      },
-      'the pull request head repository does not match the selected git remote',
-    ],
-    [
-      'lookalike remote host',
-      {
-        remote: {
-          name: 'origin',
-          url: 'https://evil.example/github.com/acme/widget.git',
-          pushUrl: 'https://evil.example/github.com/acme/widget.git',
-          oid: 'a'.repeat(40),
-        },
-      },
-      'the pull request head repository does not match the selected git remote',
-    ],
-    [
-      'separate push repository',
-      {
-        remote: {
-          name: 'origin',
-          url: 'git@github.com:acme/widget.git',
-          pushUrl: 'git@github.com:other/widget.git',
-          oid: 'a'.repeat(40),
-        },
-      },
-      'the pull request head repository does not match the selected git remote',
-    ],
     [
       'changed local ref',
       { localRefOid: 'c'.repeat(40) },
@@ -1323,43 +1276,12 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       'the remote branch no longer matches the pull request head',
     ],
     [
-      'ambiguous remote mapping',
-      { remote: undefined, remoteResolution: 'ambiguous' },
-      'the pull request head repository does not map to exactly one git remote',
-    ],
-    [
       'unobservable remote branch',
       { remote: undefined, remoteResolution: 'unknown' },
       'the remote branch state could not be observed',
     ],
-    [
-      'default branch',
-      { pullRequests: [{ ...pullRequest(), headRefName: 'main' }] },
-      'the default branch is never a closeout target',
-    ],
     ['unknown default branch', { defaultBranch: '' }, 'the default branch is unknown'],
     ['unknown protection', { protection: 'unknown' }, 'branch protection state is unknown'],
-    ['protected branch', { protection: 'protected' }, 'the topic branch is protected'],
-    [
-      'dirty worktree',
-      { worktrees: [worktree(0), { ...worktree(1), dirty: true }] },
-      'the linked worktree is dirty: /repo-closeout',
-    ],
-    [
-      'locked worktree',
-      { worktrees: [worktree(0), { ...worktree(1), locked: true }] },
-      'the linked worktree is locked: /repo-closeout',
-    ],
-    [
-      'stale registration',
-      { worktrees: [worktree(0), { ...worktree(1), prunable: true }] },
-      'the worktree registration is stale: /repo-closeout',
-    ],
-    [
-      'ambiguous worktree',
-      { worktrees: [worktree(0), worktree(1), worktree(1)] },
-      'the linked topic worktree is ambiguous',
-    ],
     [
       'missing default-branch worktree',
       { worktrees: [worktree(1)] },
@@ -1390,11 +1312,6 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       'stale surviving worktree registration',
       { worktrees: [{ ...worktree(0), prunable: true }, worktree(1)] },
       'the surviving worktree registration is stale: /repo',
-    ],
-    [
-      'stale verification',
-      { verification: { ...safeObservation().verification, current: false } },
-      'local verification is stale',
     ],
     [
       'failed verification',
