@@ -4,7 +4,7 @@ Feature: Let parallel sessions share test capacity safely
   Background:
     Given process evidence keys every started wrapper, ticket, container, command and descendant with monotonic sequence events
     And every predetermined result is predeclared in its fixture's per-platform signal-disposition table, and every trusted attestation, independently verified identity and empty-container proof is fixed or authenticated before the action and never derived from the outcome under assertion
-    And every scenario that opens capacity state uses a test-isolated domain root with deterministic machine and user identity fixtures
+    And every non-native-platform scenario that opens capacity state uses a test-isolated domain root with deterministic machine and user identity fixtures
     And the public package-test wrapper is `bun run test` from `packages/cli`, forwarding its original Vitest argv unchanged
 
   @share-test-capacity.TBU1.R1
@@ -41,7 +41,7 @@ Feature: Let parallel sessions share test capacity safely
       Examples:
         | fault | reservation-outcome | checkout-outcome | code |
         | the guarded active-owner record cannot be durably updated before repository code can run and checkout ownership is unverifiable | the reservation bytes remain untouched for explicit recovery | checkout bytes remain untouched and a second wrapper proves the mutex unavailable | SAFEWORD_TEST_CAPACITY_STATE_UNSAFE |
-        | the platform cannot create the required blocked execution container before repository code can run | only that reservation is removed | exact checkout ownership is released before a second wrapper runs once to exit zero | SAFEWORD_TEST_CAPACITY_PLATFORM_UNSUPPORTED |
+        | a one-shot injected container-creation fault affects only the exact first wrapper before repository code can run | only that reservation is removed | exact checkout ownership is released before a second wrapper runs once to exit zero | SAFEWORD_TEST_CAPACITY_PLATFORM_UNSUPPORTED |
     @rejection @wiring @process
     Scenario: A stranded reservation has an explicit safe recovery path
       Given a repaired durable-state fault left the exact failed wrapper's reserved owner bytes and checkout mutex intact, that wrapper is proven absent, and no repository process ever started for it
