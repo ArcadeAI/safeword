@@ -1,7 +1,13 @@
 import { readFile } from 'node:fs/promises';
 import nodePath from 'node:path';
 
-export type MonitorSourceKey = 'claude-code' | 'codex-cli' | 'codex-project-plugins' | 'cursor';
+export type MonitorSourceKey =
+  | 'claude-code'
+  | 'codex-cli'
+  | 'codex-project-plugins'
+  | 'codex-plugin-hook-reload'
+  | 'codex-removed-plugin-hooks'
+  | 'cursor';
 
 export interface MonitorSource {
   key: MonitorSourceKey;
@@ -14,6 +20,10 @@ export interface MonitorSource {
   headline?: string;
   /** Triage checklist for the filed issue. Defaults to the changelog checklist. */
   checklist?: readonly string[];
+  /** Labels applied to the Safeword issue created from this source. */
+  labels?: readonly string[];
+  /** A change is a release-safety event: the scheduled monitor must fail after filing triage. */
+  failOnChange?: boolean;
 }
 
 export interface SourceChangeInput {
@@ -31,6 +41,7 @@ export interface SourceChange {
 
 export interface IssuePayload {
   body: string;
+  labels?: readonly string[];
   title: string;
 }
 
@@ -113,6 +124,47 @@ const MONITOR_SOURCES: readonly MonitorSource[] = [
       '- [ ] Reassess the `hasSafewordProjectMarker` guards, the packaged hook copies, and the ARCHITECTURE.md ADR "Explicit Project Enrollment for Profile-Scoped Codex Hooks".',
       '- [ ] If it shipped and the workaround is gone: delete `packages/cli/tests/codex-project-scope-tripwire.test.ts` and this monitor source.',
       '- [ ] If it did not ship: advance the snapshot and leave both tripwires in place.',
+    ],
+  },
+  // Safeword's current protection guidance tells users to restart Codex after a
+  // plugin update. These issue-state snapshots make a resolution impossible to
+  // miss, without making ordinary CI depend on GitHub's availability.
+  {
+    key: 'codex-plugin-hook-reload',
+    label: 'Codex: Hot-reload hook configuration during a live session (openai/codex#17636)',
+    platformEpic: 'QM5G9M',
+    snapshotPath: `${SNAPSHOT_DIRECTORY}/codex-plugin-hook-reload.txt`,
+    url: 'https://api.github.com/repos/openai/codex/issues/17636',
+    normalize: normalizeIssueState,
+    labels: ['impact:high'],
+    failOnChange: true,
+    headline:
+      'Safeword relies on a full Codex restart before trusting a newly installed plugin update. **openai/codex#17636** (hot-reload hook configuration) changed state.',
+    checklist: [
+      '- [ ] Read the resolution and the released Codex behavior; a closed issue alone does not prove Desktop reloads hooks in the active task.',
+      '- [ ] Reproduce installing or changing a Safeword hook in an existing Codex task, then confirm the later lifecycle event uses the new hook without a restart.',
+      '- [ ] If confirmed, reassess the “SAFEWORD PROTECTION IS UNVERIFIED” restart guidance and any restart-dependent Safeword documentation or guards.',
+      '- [ ] If not confirmed, record why the issue closure does not remove the restart requirement, advance the snapshot, and keep this tripwire.',
+      '- [ ] If the workaround is removable, delete this source, its snapshot, and the matching wiring tests in the same reviewed change.',
+    ],
+  },
+  {
+    key: 'codex-removed-plugin-hooks',
+    label: 'Codex: Removed plugin Stop hook persists until full app restart (openai/codex#38339)',
+    platformEpic: 'QM5G9M',
+    snapshotPath: `${SNAPSHOT_DIRECTORY}/codex-removed-plugin-hooks.txt`,
+    url: 'https://api.github.com/repos/openai/codex/issues/38339',
+    normalize: normalizeIssueState,
+    labels: ['impact:high'],
+    failOnChange: true,
+    headline:
+      'Safeword must not leave users with stale hooks after its plugin is removed or updated. **openai/codex#38339** (removed plugin Stop hook persists until restart) changed state.',
+    checklist: [
+      '- [ ] Read the resolution and verify that disabling or removing Safeword does not leave its old lifecycle hooks active in the current Codex process.',
+      '- [ ] Test the failure path: remove a plugin hook while a task remains open and confirm a later response neither invokes nor repeats an error for the removed hook.',
+      '- [ ] Reassess Safeword’s restart guidance alongside #17636; hot reload is not complete if stale hooks can remain active after removal.',
+      '- [ ] If the behavior is still restart-sensitive, document the evidence, advance the snapshot, and keep this tripwire.',
+      '- [ ] If the workaround is removable, delete this source, its snapshot, and the matching wiring tests in the same reviewed change.',
     ],
   },
   {
@@ -236,6 +288,7 @@ export function buildIssuePayload(change: Omit<SourceChange, 'changed'>): IssueP
   const diff = createBoundedDiff(change.previous, change.current);
   return {
     title: `[upstream-changelog] ${change.source.label} changed`,
+    ...(change.source.labels && { labels: change.source.labels }),
     body: [
       change.source.headline ?? `Upstream changelog changed for **${change.source.label}**.`,
       '',
@@ -280,7 +333,7 @@ export async function reportSourceChange(
 async function checkSource(
   source: MonitorSource,
   dependencies: MonitorDependencies,
-): Promise<ReportResult | undefined> {
+): Promise<(ReportResult & { immediateTriage: boolean }) | undefined> {
   const raw = await dependencies.fetchText(source.url);
   const liveContent = source.normalize(raw);
   const snapshotPath = nodePath.join(dependencies.rootDirectory, source.snapshotPath);
@@ -289,7 +342,7 @@ async function checkSource(
 
   if (!change.changed) return undefined;
 
-  return await reportSourceChange(
+  const report = await reportSourceChange(
     dependencies.issueClient,
     buildIssuePayload({
       current: change.current,
@@ -297,11 +350,14 @@ async function checkSource(
       source,
     }),
   );
+  return { ...report, immediateTriage: source.failOnChange === true };
 }
 
 export interface MonitorRunResult {
   reported: number;
   failed: number;
+  /** Changed sources that require the scheduled monitor to fail after filing triage. */
+  immediateTriage: number;
 }
 
 export async function runUpstreamMonitor(
@@ -310,6 +366,7 @@ export async function runUpstreamMonitor(
   const sources = dependencies.sources ?? MONITOR_SOURCES;
   let reported = 0;
   let failed = 0;
+  let immediateTriage = 0;
 
   for (const source of sources) {
     // Each source is an independent watch, so one must not be able to cancel
@@ -326,6 +383,7 @@ export async function runUpstreamMonitor(
       }
 
       reported += 1;
+      if (result.immediateTriage) immediateTriage += 1;
       dependencies.log?.(`${source.key}: ${result.action} issue #${result.issueNumber}`);
     } catch (error) {
       // Distinct from "no change" on purpose: an unchecked source is missing
@@ -338,7 +396,7 @@ export async function runUpstreamMonitor(
     }
   }
 
-  return { reported, failed };
+  return { reported, failed, immediateTriage };
 }
 
 export function createGitHubIssueClient(options: {

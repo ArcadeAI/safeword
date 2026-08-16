@@ -34,7 +34,7 @@ const log = (message: string): void => {
   console.log(message);
 };
 
-const { reported, failed } = await runUpstreamMonitor({
+const { reported, failed, immediateTriage } = await runUpstreamMonitor({
   fetchText: url => fetchText(url, token),
   issueClient: createGitHubIssueClient({ fetch, owner, repo, token, log }),
   log,
@@ -42,12 +42,21 @@ const { reported, failed } = await runUpstreamMonitor({
   rootDirectory: process.cwd(),
 });
 
-console.log(`upstream changelog monitor complete; reported=${reported} failed=${failed}`);
+console.log(
+  `upstream changelog monitor complete; reported=${reported} failed=${failed} immediateTriage=${immediateTriage}`,
+);
 
 // A source that could not be checked is missing evidence, not a pass. Exit
 // non-zero so a broken watch surfaces as a red scheduled run rather than a
 // line in a log nobody reads — the same reason the tripwires exist at all.
-if (failed > 0) {
-  console.error(`${failed} upstream source(s) could not be checked; see the log above.`);
+if (failed > 0 || immediateTriage > 0) {
+  if (failed > 0) {
+    console.error(`${failed} upstream source(s) could not be checked; see the log above.`);
+  }
+  if (immediateTriage > 0) {
+    console.error(
+      `${immediateTriage} upstream issue tripwire(s) changed state; read the filed Safeword triage issue before advancing its snapshot.`,
+    );
+  }
   process.exit(1);
 }

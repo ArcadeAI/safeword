@@ -98,4 +98,30 @@ describe('GitHub issue client', () => {
     // timeout, turning one bad request into a whole missed run.
     expect(calls[0]?.init?.signal).toBeInstanceOf(AbortSignal);
   });
+
+  it('persists an impact label when creating or updating an urgent issue', async () => {
+    const calls: RecordedCall[] = [];
+    const fetchStub = ((url: string, init?: RequestInit) => {
+      calls.push({ url, init });
+      return Promise.resolve(jsonResponse({ number: 9 }));
+    }) as unknown as typeof fetch;
+    const client = createGitHubIssueClient({
+      fetch: fetchStub,
+      owner: 'ArcadeAI',
+      repo: 'safeword',
+      token: 't',
+    });
+    const payload = { title: TITLE, body: 'context', labels: ['impact:high'] };
+
+    await client.createIssue(payload);
+    await client.updateIssue(9, payload);
+
+    expect(calls.map(call => call.init?.method)).toEqual(['POST', 'PATCH']);
+    const labels = calls.map(call => {
+      const body = call.init?.body;
+      if (typeof body !== 'string') throw new TypeError('expected a JSON string request body');
+      return (JSON.parse(body) as { labels?: string[] }).labels;
+    });
+    expect(labels).toEqual([['impact:high'], ['impact:high']]);
+  });
 });
