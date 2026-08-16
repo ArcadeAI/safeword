@@ -22963,9 +22963,12 @@ function slugForTicket(cwd, ticketFolder) {
   const dashIndex = ticketFolder.indexOf("-");
   return dashIndex === -1 ? ticketFolder : ticketFolder.slice(dashIndex + 1);
 }
-function findFeatureSourcePath(cwd, ticketFolder) {
-  const fileName = `${slugForTicket(cwd, ticketFolder)}.feature`;
-  return collectExecutableFeatureFiles(cwd, fileName)[0];
+function featureSourceFileName(cwd, ticketFolder) {
+  return `${slugForTicket(cwd, ticketFolder)}.feature`;
+}
+function findFeatureSourcePath(cwd, ticketFolder, featureFiles = collectExecutableFeatureFiles(cwd)) {
+  const fileName = featureSourceFileName(cwd, ticketFolder);
+  return featureFiles.find((path4) => nodePath46.basename(path4) === fileName);
 }
 function createPhaseAnchorEnvironment(cwd, configuredFeatures) {
   const featureRoots = ["features"];
@@ -32909,6 +32912,7 @@ function buildIndexConflictListMessage(paths) {
 var SYNCTICKETS_QUIET_COMMAND = "`safeword project sync-tickets --quiet`";
 
 // src/health.ts
+import { execFileSync as execFileSync7 } from "child_process";
 import { readdirSync as readdirSync19 } from "fs";
 import nodePath47 from "path";
 function findMissingFiles(cwd, actions) {
@@ -33066,13 +33070,115 @@ function archAlignmentHasContent(implPlanContent) {
 function emptyCoverageDiagnostics() {
   return { issues: [], advisories: [] };
 }
+function readGit(cwd, args) {
+  try {
+    return execFileSync7("git", args, {
+      cwd,
+      encoding: "utf8",
+      maxBuffer: 10 * 1024 * 1024,
+      stdio: ["ignore", "pipe", "pipe"]
+    });
+  } catch {
+    return;
+  }
+}
+function addNulSeparatedPaths(target, output) {
+  for (const path4 of output.split("\x00")) {
+    if (path4 !== "")
+      target.add(path4);
+  }
+}
+function currentWorkPathsWithHead(cwd) {
+  const baseReference = CURRENT_WORK_BASE_REFS.find((candidate) => readGit(cwd, ["rev-parse", "--verify", "--quiet", candidate]) !== undefined);
+  if (baseReference === undefined)
+    return;
+  const mergeBase = readGit(cwd, ["merge-base", "HEAD", baseReference])?.trim();
+  if (mergeBase === undefined || mergeBase === "")
+    return;
+  const committed = readGit(cwd, [
+    "diff",
+    "--relative",
+    "--name-only",
+    "-z",
+    `${mergeBase}...HEAD`
+  ]);
+  const working = readGit(cwd, ["diff", "--relative", "--name-only", "-z", "HEAD"]);
+  if (committed === undefined || working === undefined)
+    return;
+  const paths = new Set;
+  addNulSeparatedPaths(paths, committed);
+  addNulSeparatedPaths(paths, working);
+  return [...paths];
+}
+function currentWorkPathsWithoutHead(cwd) {
+  const staged = readGit(cwd, ["diff", "--cached", "--name-only", "-z"]);
+  if (staged === undefined)
+    return;
+  const paths = new Set;
+  addNulSeparatedPaths(paths, staged);
+  return [...paths];
+}
+function currentWorkPaths(cwd) {
+  if (readGit(cwd, ["rev-parse", "--is-inside-work-tree"])?.trim() !== "true")
+    return;
+  const hasHead = readGit(cwd, ["rev-parse", "--verify", "--quiet", "HEAD^{commit}"]);
+  const changedPaths = hasHead === undefined ? currentWorkPathsWithoutHead(cwd) : currentWorkPathsWithHead(cwd);
+  if (changedPaths === undefined)
+    return;
+  const untracked = readGit(cwd, ["ls-files", "--others", "--exclude-standard", "-z"]);
+  if (untracked === undefined)
+    return;
+  const paths = new Set(changedPaths);
+  addNulSeparatedPaths(paths, untracked);
+  return [...paths];
+}
+function ticketIdsFromChangedPaths(paths, ticketPrefix) {
+  const ticketIds = new Set;
+  for (const path4 of paths) {
+    if (!path4.startsWith(ticketPrefix))
+      continue;
+    const [ticketId] = path4.slice(ticketPrefix.length).split("/", 1);
+    if (ticketId !== undefined && ticketId !== "")
+      ticketIds.add(ticketId);
+  }
+  return ticketIds;
+}
+function addTicketsForChangedFeatureSources(cwd, ticketsRoot, featureFiles, changedFeatures, ticketIds) {
+  for (const ticketId of listTicketIds(ticketsRoot)) {
+    const featurePath = findFeatureSourcePath(cwd, ticketId, featureFiles);
+    if (featurePath !== undefined && changedFeatures.paths.has(featurePath) || featurePath === undefined && changedFeatures.fileNames.has(featureSourceFileName(cwd, ticketId))) {
+      ticketIds.add(ticketId);
+    }
+  }
+}
+function currentWorkCoverageTicketIds(cwd, ticketsRoot, featureFiles) {
+  const paths = currentWorkPaths(cwd);
+  if (paths === undefined)
+    return listTicketIds(ticketsRoot);
+  if (paths.length === 0)
+    return [];
+  const ticketsRelative = toRepoRelativePath(cwd, ticketsRoot).split(nodePath47.sep).join("/");
+  if (ticketsRelative === ".." || ticketsRelative.startsWith("../"))
+    return [];
+  const ticketPrefix = `${ticketsRelative}/`;
+  const changedFeatures = {
+    paths: new Set(paths.filter((path4) => path4.endsWith(".feature")).map((path4) => nodePath47.resolve(cwd, path4))),
+    fileNames: new Set(paths.filter((path4) => path4.endsWith(".feature")).map((path4) => nodePath47.basename(path4)))
+  };
+  const ticketIds = ticketIdsFromChangedPaths(paths, ticketPrefix);
+  if (changedFeatures.paths.size === 0)
+    return [...ticketIds];
+  addTicketsForChangedFeatureSources(cwd, ticketsRoot, featureFiles, changedFeatures, ticketIds);
+  return [...ticketIds];
+}
 function findCoverageDiagnostics(cwd) {
   const ticketsRoot = resolveTicketsDirectory(cwd);
   const all = emptyCoverageDiagnostics();
   const configuredFeatures = readConfiguredPath(cwd, "features");
   const anchorEnvironment = createPhaseAnchorEnvironment(cwd, configuredFeatures);
-  for (const ticketId of listTicketIds(ticketsRoot)) {
-    const ticketDiagnostics = coverageDiagnosticsForTicket(cwd, ticketsRoot, ticketId);
+  const featureFiles = collectExecutableFeatureFiles(cwd);
+  for (const ticketId of currentWorkCoverageTicketIds(cwd, ticketsRoot, featureFiles)) {
+    const ticketDiagnostics = coverageDiagnosticsForTicket(cwd, ticketsRoot, ticketId, featureFiles);
     all.issues.push(...ticketDiagnostics.issues);
     all.advisories.push(...ticketDiagnostics.advisories);
     const anchorAdvisory = phaseAnchorAdvisoryForTicket(cwd, ticketsRoot, ticketId, anchorEnvironment);
@@ -33093,7 +33199,7 @@ function phaseAnchorAdvisoryForTicket(cwd, ticketsRoot, ticketId, anchorEnvironm
     return;
   return `${formatCoverageTicketLabel(ticketId, content)}: ${verdict.reason} The anchor is the exited phase's artifact \u2014 boundary checks verify it against the tree.`;
 }
-function coverageDiagnosticsForTicket(cwd, ticketsRoot, ticketId) {
+function coverageDiagnosticsForTicket(cwd, ticketsRoot, ticketId, featureFiles) {
   const ticketDirectory = nodePath47.join(ticketsRoot, ticketId);
   const ticketContent = readFileSafe(nodePath47.join(ticketDirectory, "ticket.md"));
   if (ticketContent === undefined || !isInProgress(ticketContent))
@@ -33101,7 +33207,7 @@ function coverageDiagnosticsForTicket(cwd, ticketsRoot, ticketId) {
   const specContent = readFileSafe(nodePath47.join(ticketDirectory, "spec.md"));
   if (specContent === undefined)
     return emptyCoverageDiagnostics();
-  const featureSource = readFeatureSource(cwd, ticketId);
+  const featureSource = readFeatureSource(cwd, ticketId, featureFiles);
   try {
     const report = featureSource === undefined ? buildCoverageReport(specContent, readFileSafe(nodePath47.join(ticketDirectory, "test-definitions.md"))) : buildCoverageReportFromFeature(specContent, featureSource.content);
     const surfaceReport = featureSource === undefined ? undefined : buildSurfaceCoverageReportFromFeature(specContent, featureSource.content);
@@ -33139,8 +33245,8 @@ function formatFeatureLineageIssues(cwd, ticketId, featureSource, ticketContent)
   const relativePath = nodePath47.relative(cwd, featureSource.path);
   return findFeatureLineageIssues(featureSource.content).map((issue2) => `${label}: ${relativePath}: ${issue2}`);
 }
-function readFeatureSource(cwd, ticketFolder) {
-  const featurePath = findFeatureSourcePath(cwd, ticketFolder);
+function readFeatureSource(cwd, ticketFolder, featureFiles) {
+  const featurePath = findFeatureSourcePath(cwd, ticketFolder, featureFiles);
   const content = featurePath === undefined ? undefined : readFileSafe(featurePath);
   return featurePath === undefined || content === undefined ? undefined : { path: featurePath, content };
 }
@@ -33296,7 +33402,7 @@ async function checkHealth(cwd, options = {}) {
     missingPythonTools
   };
 }
-var PATH_ONLY_KNOWLEDGE_KEYS, CONFIGURED_KNOWLEDGE_KEYS;
+var PATH_ONLY_KNOWLEDGE_KEYS, CONFIGURED_KNOWLEDGE_KEYS, CURRENT_WORK_BASE_REFS;
 var init_health = __esm(() => {
   init_phase_provenance();
   init_delivery_schema();
@@ -33325,6 +33431,13 @@ var init_health = __esm(() => {
     "principles",
     "surfaces",
     "glossary"
+  ];
+  CURRENT_WORK_BASE_REFS = [
+    "refs/remotes/origin/HEAD",
+    "refs/remotes/origin/main",
+    "refs/remotes/origin/master",
+    "refs/heads/main",
+    "refs/heads/master"
   ];
 });
 
@@ -41409,7 +41522,7 @@ __export(exports_architecture, {
   architectureStage: () => architectureStage,
   architecture: () => architecture
 });
-import { execFileSync as execFileSync7 } from "child_process";
+import { execFileSync as execFileSync8 } from "child_process";
 import {
   copyFileSync as copyFileSync2,
   lstatSync as lstatSync16,
@@ -41624,7 +41737,7 @@ function withGitIndexSnapshot(cwd, gitContext, useSnapshot) {
   const sourceIndexEnvironment = sourceIndexFile === undefined ? undefined : { ...process10.env, GIT_INDEX_FILE: sourceIndexFile };
   try {
     assertNoGitlinks(gitContext, sourceIndexEnvironment);
-    execFileSync7("git", [
+    execFileSync8("git", [
       "checkout-index",
       "--all",
       "--force",
@@ -41644,7 +41757,7 @@ function withGitIndexSnapshot(cwd, gitContext, useSnapshot) {
 }
 function assertNoGitlinks(gitContext, sourceIndexEnvironment) {
   const pathArguments = gitContext.projectRelativeDirectory === "" ? [] : [gitContext.projectRelativeDirectory];
-  const entries = execFileSync7("git", ["ls-files", "--stage", "-z", "--full-name", "--", ...pathArguments], {
+  const entries = execFileSync8("git", ["ls-files", "--stage", "-z", "--full-name", "--", ...pathArguments], {
     cwd: gitContext.rootDirectory,
     encoding: "utf8",
     ...sourceIndexEnvironment && { env: sourceIndexEnvironment },
@@ -41658,7 +41771,7 @@ function assertNoGitlinks(gitContext, sourceIndexEnvironment) {
 function resolveGitContext(cwd) {
   let rootDirectory;
   try {
-    rootDirectory = execFileSync7("git", ["rev-parse", "--show-toplevel"], {
+    rootDirectory = execFileSync8("git", ["rev-parse", "--show-toplevel"], {
       cwd,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"]
@@ -41895,7 +42008,7 @@ function readDivergentWorktreeContent(cwd, destination) {
   let indexContent;
   try {
     const projectRelativePath = relativePath.replaceAll("\\", "/");
-    indexContent = execFileSync7("git", ["show", `:./${projectRelativePath}`], {
+    indexContent = execFileSync8("git", ["show", `:./${projectRelativePath}`], {
       cwd,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"]
@@ -41906,7 +42019,7 @@ function readDivergentWorktreeContent(cwd, destination) {
 function stageDocument(cwd, result) {
   try {
     const relativePath = nodePath72.relative(cwd, result.path);
-    execFileSync7("git", ["add", "--", relativePath], { cwd, stdio: "ignore" });
+    execFileSync8("git", ["add", "--", relativePath], { cwd, stdio: "ignore" });
     return;
   } catch (error_) {
     return errorMessage2(error_);
@@ -41920,7 +42033,7 @@ function isPotentialArchitectureInput(path4) {
 }
 function nulSeparatedGitPaths(cwd, args) {
   try {
-    return execFileSync7("git", args, {
+    return execFileSync8("git", args, {
       cwd,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"]
@@ -46937,14 +47050,14 @@ var init_review_pr_publication = __esm(() => {
 });
 
 // src/codex-plugin/project-directory.ts
-import { execFileSync as execFileSync8 } from "child_process";
+import { execFileSync as execFileSync9 } from "child_process";
 import nodePath85 from "path";
 function resolveCodexProjectDirectory(cwd = process.cwd(), environment = process.env) {
   const configuredProject = environment.CLAUDE_PROJECT_DIR?.trim();
   if (configuredProject)
     return nodePath85.resolve(configuredProject);
   try {
-    const root = execFileSync8("git", ["-C", cwd, "rev-parse", "--show-toplevel"], {
+    const root = execFileSync9("git", ["-C", cwd, "rev-parse", "--show-toplevel"], {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
       timeout: 5000
@@ -56850,9 +56963,9 @@ var init_retro = __esm(() => {
 });
 
 // templates/hooks/lib/ledger-git.ts
-import { execFileSync as execFileSync9 } from "child_process";
+import { execFileSync as execFileSync10 } from "child_process";
 function git(cwd, args, input) {
-  return execFileSync9("git", args, {
+  return execFileSync10("git", args, {
     cwd,
     input,
     encoding: "utf8",
@@ -56868,7 +56981,7 @@ function resolveCommitSha(cwd, sha) {
 }
 function isAncestorOfHead(cwd, sha) {
   try {
-    execFileSync9("git", ["merge-base", "--is-ancestor", sha, "HEAD"], {
+    execFileSync10("git", ["merge-base", "--is-ancestor", sha, "HEAD"], {
       cwd,
       stdio: "pipe"
     });
@@ -57342,13 +57455,13 @@ var exports_boundary = {};
 __export(exports_boundary, {
   boundary: () => boundary
 });
-import { execFileSync as execFileSync10 } from "child_process";
+import { execFileSync as execFileSync11 } from "child_process";
 import { appendFileSync as appendFileSync3, existsSync as existsSync45, mkdirSync as mkdirSync17 } from "fs";
 import nodePath93 from "path";
 import process20 from "process";
 function tryGit(cwd, args) {
   try {
-    return execFileSync10("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+    return execFileSync11("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
   } catch {
     return;
   }
