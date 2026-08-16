@@ -101,17 +101,16 @@ describe('offload feature split contract', () => {
 
     expect({
       files: files.length,
-      featureNames,
       canonicalHeaders,
       ruleIds,
       metaProofTitles,
     }).toEqual({
       files: RULE_IDS.length,
-      featureNames: expect.arrayContaining(RULE_IDS.map(() => expect.any(String))),
       canonicalHeaders: true,
       ruleIds: RULE_IDS,
       metaProofTitles: META_PROOF_TITLES,
     });
+    expect(featureNames.every(name => typeof name === 'string' && name.length > 0)).toBe(true);
     expect(new Set(featureNames).size).toBe(RULE_IDS.length);
     expect(sources.every(source => (source.match(/^ {2}Rule:/gmu) ?? []).length === 1)).toBe(true);
   });

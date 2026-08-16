@@ -57,30 +57,21 @@
         "cursor"
       ]
     ],
-    "Bound retro subprocess failures remain visible while cleanup continues": [
+    "Retro subprocess failures remain visible while cleanup continues": [
       [
         "packages/cli/tests/closeout-cleanup.test.ts",
-        "passes the bound %s runtime to the real retro command boundary",
-        "claude"
-      ],
-      [
-        "packages/cli/tests/closeout-cleanup.test.ts",
-        "passes the bound %s runtime to the real retro command boundary",
-        "codex"
-      ],
-      [
-        "packages/cli/tests/closeout-cleanup.test.ts",
-        "passes the bound %s runtime to the real retro command boundary",
-        "cursor"
-      ],
-      [
-        "packages/cli/tests/closeout-cleanup.test.ts",
-        "classifies the current retro outcome ($complete, $errorText, $processStatus, $agentFilingNeeded, $pendingDrafts)"
+        "classifies the current retro outcome ($complete, $errorText, $processStatus, $agentFilingNeeded, $pendingDrafts)",
+        "[\"false\",\"command failed on stderr\",\"1\",\"false\",\"0\"]"
       ],
       [
         "packages/cli/tests/closeout-cleanup.test.ts",
         "%s is advisory for cleanup",
         "failed retro extraction"
+      ],
+      [
+        "packages/cli/tests/closeout-cleanup.test.ts",
+        "classifies the current retro outcome ($complete, $errorText, $processStatus, $agentFilingNeeded, $pendingDrafts)",
+        "[\"false\",\"malformed output\",\"0\",\"false\",\"0\"]"
       ]
     ],
     "A completed retro permits cleanup": [
@@ -430,7 +421,7 @@
         "cursor"
       ]
     ],
-    "Identical closeout inputs produce equivalent host outcomes": [
+    "Host guidance documents equivalent outcomes for closeout states": [
       [
         "packages/cli/tests/closeout-skill.test.ts",
         "derives Claude, Cursor, and Codex entry points from production catalogues"

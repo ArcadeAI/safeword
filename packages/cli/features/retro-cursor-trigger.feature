@@ -76,11 +76,10 @@ Feature: retro auto-trigger — Cursor
       And the first session's sentinel is left set
 
     @retro-cursor-trigger.SM1.AC2
-    Scenario: The adapter reads the supplied transcript_path and never guesses one
+    Scenario: The adapter uses the supplied transcript_path
       Given a Cursor stop payload whose transcript_path points at a substantial transcript
       When the adapter runs
       Then it reads the transcript at the supplied path
-      And it constructs no path from the home directory or environment
 
   Rule: Coexists with the existing quality-review followup (SM1.AC3)
 

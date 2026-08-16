@@ -3,7 +3,7 @@
   "scenarios": {
     "invisible-retro-claude.TB1.AC1.stop_hook_emits_no_conversation_context": [
       "packages/cli/tests/integration/stop-retro.test.ts",
-      "TB1.AC1: a substantial session runs but emits NO conversation context"
+      "TB1.AC1: a substantial unset session fires once but emits NO conversation context"
     ],
     "invisible-retro-claude.TB1.AC1.fail_open_stays_silent_when_extraction_errors": [
       "packages/cli/tests/hooks/retro-extract.test.ts",
@@ -43,7 +43,7 @@
     ],
     "invisible-retro-claude.SM1.AC2.extraction_fires_once_when_sentinel_unset": [
       "packages/cli/tests/integration/stop-retro.test.ts",
-      "TB1.AC1: a substantial session runs but emits NO conversation context"
+      "TB1.AC1: a substantial unset session fires once but emits NO conversation context"
     ],
     "invisible-retro-claude.SM1.AC2.extraction_fires_at_most_once_per_session": [
       "packages/cli/tests/integration/stop-retro.test.ts",

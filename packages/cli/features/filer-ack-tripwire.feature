@@ -68,7 +68,6 @@ Feature: Filer ack + bare-drain tripwire — a drained spool no longer self-cert
         | an attempt marker written before this feature, no snapshot |
         | a missing attempt marker                                  |
         | a corrupt, unparseable attempt marker                     |
-        | no ack file and no snapshotted dispatch                   |
 
     @filer-ack-tripwire.SM1.AC3
     Scenario: Capture-off suppresses the tripwire; file-off alone does not

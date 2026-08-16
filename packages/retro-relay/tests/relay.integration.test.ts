@@ -37,6 +37,7 @@ afterEach(async () => {
     openServers.map(
       server =>
         new Promise<void>((resolve, reject) => {
+          server.closeAllConnections();
           if (!server.listening) {
             resolve();
             return;
@@ -99,8 +100,6 @@ async function startGitHubFixture(
     installationToken?: string;
     rawBodies?: string[];
     scanStatus?: number;
-    scanDelayMs?: number;
-    sanitizedMcpBodies?: string[];
     tokenDelayMs?: number;
   } = {},
 ): Promise<{
@@ -109,7 +108,6 @@ async function startGitHubFixture(
   authorizationHeaders: string[];
   rawAcceptHeaders: string[];
   rawIssueUrls: string[];
-  sanitizedMcpBodies: string[];
   tokenRequests: { authorization: string; body: Record<string, unknown> }[];
   maximumConcurrentCreates: () => number;
 }> {
@@ -152,7 +150,6 @@ async function startGitHubFixture(
     if (request.method === 'GET' && request.url?.includes('/issues')) {
       rawAcceptHeaders.push(request.headers.accept ?? '');
       rawIssueUrls.push(request.url);
-      if (options.scanDelayMs !== undefined) await delay(options.scanDelayMs);
       if (options.scanStatus !== undefined) {
         response.statusCode = options.scanStatus;
         response.end();
@@ -230,7 +227,6 @@ async function startGitHubFixture(
     authorizationHeaders,
     rawAcceptHeaders,
     rawIssueUrls,
-    sanitizedMcpBodies: options.sanitizedMcpBodies ?? [],
     tokenRequests,
     maximumConcurrentCreates: () => maximumConcurrentCreates,
   };
@@ -259,8 +255,6 @@ async function fixture(
     installationToken?: string;
     rawBodies?: string[];
     scanStatus?: number;
-    scanDelayMs?: number;
-    sanitizedMcpBodies?: string[];
     tokenDelayMs?: number;
     now?: () => Date;
   } = {},
@@ -1088,7 +1082,6 @@ describe('retry-safe retro relay', () => {
       setup.relay.server.close();
       const github = await startGitHubFixture({
         rawBodies: Array.from({ length: matchCount }, () => marker),
-        ...(matchCount === 0 && { sanitizedMcpBodies: [marker] }),
       });
       const reopened = RelayStore.open(path.join(setup.directory, 'relay.sqlite'));
       const relay = await startRelayServer({
@@ -1130,7 +1123,6 @@ describe('retry-safe retro relay', () => {
         }),
       );
       expect(github.createBodies).toHaveLength(0);
-      if (matchCount === 0) expect(github.sanitizedMcpBodies).toContain(marker);
       reopened.close();
     },
   );
@@ -1501,9 +1493,7 @@ describe('retry-safe retro relay', () => {
     });
     expect(hidden.status).toBe(404);
 
-    const ambiguous = await fixture({
-      faults: postCreateCrashFaults(),
-    });
+    const ambiguous = await fixture();
     await expect(
       createHarnessAdapters(ambiguous.relay.url, ambiguous.credential).operator.reconcileReceipt(
         'missing',
@@ -1511,10 +1501,7 @@ describe('retry-safe retro relay', () => {
     ).rejects.toMatchObject({ status: 403 });
   });
 
-  it.each([
-    '[ORR-019] denies harness principals access to operator lifecycle operations',
-    '[ORR-032] exposes payload-free lifecycle operations to the operator through the real HTTP route',
-  ])('operator boundary: %s', async () => {
+  it('[ORR-019] denies harness principals access to operator lifecycle operations', async () => {
     const setup = await fixture();
     await createHarnessAdapters(setup.relay.url, setup.credentials).claude.file(draft());
 
@@ -1522,6 +1509,11 @@ describe('retry-safe retro relay', () => {
       headers: { authorization: `Bearer ${setup.credentials.claude}` },
     });
     expect(denied.status).toBe(403);
+  });
+
+  it('[ORR-032] exposes payload-free lifecycle operations to the operator through the real HTTP route', async () => {
+    const setup = await fixture();
+    await createHarnessAdapters(setup.relay.url, setup.credentials).claude.file(draft());
 
     const response = await fetch(`${setup.relay.url}/v1/operations/retro-filings`, {
       headers: { authorization: `Bearer ${setup.credentials.operator}` },

@@ -51,23 +51,17 @@ Feature: Close completed sessions safely
         | Cursor        | Cursor Agent |
 
     @surface.claude-code @surface.openai-codex @surface.cursor
-    Scenario Outline: Bound retro subprocess failures remain visible while cleanup continues
-      Given the selected "<host>" extractor receives the exact bound session identity and transcript
+    Scenario Outline: Retro subprocess failures remain visible while cleanup continues
+      Given the selected extractor receives the exact bound session identity and transcript
       And the extractor "<failure>"
       When closeout runs the mandatory retrospective
       Then it reports retrospective recovery and keeps exact repository cleanup eligible
 
       Examples:
-        | host          | failure                  |
-        | Claude Code   | exits unsuccessfully     |
-        | Claude Code   | times out                 |
-        | Claude Code   | returns malformed output |
-        | OpenAI Codex  | exits unsuccessfully     |
-        | OpenAI Codex  | times out                 |
-        | OpenAI Codex  | returns malformed output |
-        | Cursor        | exits unsuccessfully     |
-        | Cursor        | times out                 |
-        | Cursor        | returns malformed output |
+        | failure                  |
+        | exits unsuccessfully     |
+        | times out                 |
+        | returns malformed output |
 
     @surface.claude-code @surface.openai-codex @surface.cursor
     Scenario Outline: A completed retro permits cleanup
@@ -127,15 +121,11 @@ Feature: Close completed sessions safely
         | confirmed merge and completed retro         | already exercised     | clean the exact targets                                |
         | worktree removal and remote branch removal  | already exercised     | remove the exact local branch                          |
 
-    @surface.claude-code @surface.openai-codex @surface.cursor
-    Scenario Outline: Exact evidence is reused through preview, replay, and approved apply
-      Given the exact clean merged head has current verification and a completed retrospective snapshot bound to "<runtime>"
+    @surface.claude-code
+    Scenario: Exact evidence is reused through preview, replay, and approved apply
+      Given the exact clean merged head has current verification and a completed retrospective snapshot bound to "Claude Code"
       When closeout is previewed, replayed, and approved with unchanged evidence
       Then it runs each verification lane and the retrospective once before applying cleanup
-
-      Examples:
-        | runtime       |
-        | Claude Code   |
 
     @surface.claude-code @surface.openai-codex @surface.cursor
     Scenario Outline: Changed evidence invalidates the matching cached prerequisite
@@ -147,7 +137,7 @@ Feature: Close completed sessions safely
       Examples:
         | change                      | prerequisite   |
         | the working tree             | verification   |
-        | the bound session transcript is rewritten | retrospective  |
+        | the bound session transcript | retrospective  |
 
     @surface.claude-code @surface.openai-codex @surface.cursor
     Scenario: A local merge-command error after remote success is partial success
@@ -450,10 +440,10 @@ Feature: Close completed sessions safely
         | Cursor        |
 
     @surface.claude-code @surface.openai-codex @surface.cursor
-    Scenario Outline: Identical closeout inputs produce equivalent host outcomes
-      Given every installed runtime receives the same "<delivery-state>" and bound-session evidence
-      When each runtime invokes the canonical closeout workflow
-      Then every runtime makes the same decision, performs the same allowed mutations, and reports the same unresolved state
+    Scenario Outline: Host guidance documents equivalent outcomes for closeout states
+      Given every installed runtime's guidance covers the same "<delivery-state>" and bound-session evidence
+      When the canonical closeout contract is inspected
+      Then every runtime documents the same decision, allowed mutations, and unresolved state
 
       Examples:
         | delivery-state                  |

@@ -147,6 +147,21 @@ describe('cursor/stop.ts retro path (KHYXY4)', () => {
     expect(hasNudged(id)).toBe(false);
   });
 
+  it('fires retro on the later non-review stop after yielding to quality review', () => {
+    writeConfig(dir, { surface: true });
+    const transcript = writeTranscript(dir, 'big.jsonl', 8);
+    const id = freshConversation('coexist-later');
+    writeFileSync(markerPathFor(id), '1');
+
+    const reviewStop = runHook(dir, basePayload(id, transcript));
+    expect(JSON.parse(reviewStop.stdout).followup_message).toBe(QUALITY_REVIEW_MESSAGE);
+    rmSync(markerPathFor(id), { force: true });
+    const later = JSON.parse(runHook(dir, basePayload(id, transcript)).stdout);
+
+    expect(later.followup_message).toContain('guide');
+    expect(hasNudged(id)).toBe(true);
+  });
+
   it('emits no retro followup on a non-completed status', () => {
     writeConfig(dir, { surface: true });
     const transcript = writeTranscript(dir, 'big.jsonl', 8);

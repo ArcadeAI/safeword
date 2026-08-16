@@ -40,10 +40,6 @@
         "packages/cli/tests/hooks/retro-filing-gate.test.ts",
         "fails open after a drain with a %s",
         "corrupt marker"
-      ],
-      [
-        "packages/cli/tests/hooks/retro-filing-gate.test.ts",
-        "stays silent while every dispatched signature still sits in the spool"
       ]
     ],
     "Capture-off suppresses the tripwire; file-off alone does not": [

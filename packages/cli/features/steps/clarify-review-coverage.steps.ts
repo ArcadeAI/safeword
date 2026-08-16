@@ -6,10 +6,8 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
-  readdirSync,
   readFileSync,
   rmSync,
-  statSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -82,7 +80,6 @@ const CHANGE_REQUEST_VERDICT = 'request_changes';
 const CHANGE_REQUEST_FINDING = 'Needs work.';
 const fixtureDirectories = new Set<string>();
 const trustedFixtureRoot = repoRoot;
-const staleFixtureAgeMs = 60 * 60 * 1000;
 
 function cleanupFixtureDirectories(): void {
   for (const directory of fixtureDirectories) rmSync(directory, { force: true, recursive: true });
@@ -92,16 +89,6 @@ function cleanupFixtureDirectories(): void {
 process.once('exit', cleanupFixtureDirectories);
 After(cleanupFixtureDirectories);
 AfterAll(cleanupFixtureDirectories);
-
-// A killed prior run may not execute Cucumber cleanup. Remove only our
-// narrowly prefixed, repository-local executable fixtures before scenarios load.
-for (const entry of readdirSync(trustedFixtureRoot)) {
-  if (!entry.startsWith('.safeword-coverage-bin-')) continue;
-  const fixturePath = nodePath.join(trustedFixtureRoot, entry);
-  if (Date.now() - statSync(fixturePath).mtimeMs > staleFixtureAgeMs) {
-    rmSync(fixturePath, { force: true, recursive: true });
-  }
-}
 
 function createFixtureDirectory(prefix: string): string {
   const directory = mkdtempSync(nodePath.join(tmpdir(), prefix));
@@ -773,7 +760,7 @@ if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then
 fi
 ${reviewerInvocationValidation('codex')}
 payload=$(cat)
-dispatch_id=$(printf '%s' "$payload" | sed -n 's/.*"dispatch_id":"\([^"]*\)".*/\1/p')
+dispatch_id=$(printf '%s' "$payload" | /usr/bin/grep -o '"dispatch_id":"[^"]*"' | /usr/bin/head -n 1 | /usr/bin/cut -d '"' -f 4)
 printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"codex","verdict":"approve","summary":"reviewed","findings":[]}\n' "$dispatch_id"
 `,
     { mode: 0o755 },
@@ -796,9 +783,9 @@ if [ "$#" -gt 0 ] && [ "$1" = "--version" ]; then printf '${agent} 1.0.0\n'; exi
 if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then printf '%s\n' '${capabilities}'; exit 0; fi
 ${reviewerInvocationValidation(agent)}
 failure=$(printenv SAFEWORD_REVIEW_COVERAGE_FAIL_${agent.toUpperCase()} || printenv SAFEWORD_REVIEW_COVERAGE_FAIL || true)
-if [ "$failure" = "1" ]; then printf 'review failed\n' >&2; exit 7; fi
 payload=$(cat)
-dispatch_id=$(printf '%s' "$payload" | sed -n 's/.*"dispatch_id":"\([^"]*\)".*/\1/p')
+if [ "$failure" = "1" ]; then printf 'review failed\n' >&2; exit 7; fi
+dispatch_id=$(printf '%s' "$payload" | /usr/bin/grep -o '"dispatch_id":"[^"]*"' | /usr/bin/head -n 1 | /usr/bin/cut -d '"' -f 4)
 verdict=$(printenv SAFEWORD_REVIEW_COVERAGE_VERDICT || true)
 if [ -z "$verdict" ]; then verdict=approve; fi
 finding=$(printenv SAFEWORD_REVIEW_COVERAGE_FINDING || true)
