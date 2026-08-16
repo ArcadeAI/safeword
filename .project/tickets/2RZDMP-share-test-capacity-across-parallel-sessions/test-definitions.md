@@ -267,7 +267,7 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Native platform evidence cannot be replaced by injected adapter coverage
+### Scenario: Native process and capacity-domain identity evidence cannot be replaced by injected adapters
 
 - [ ] RED
 - [ ] GREEN
@@ -387,7 +387,7 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A journal is durably published before any live-state replacement
+### Scenario: A journal is ordered before any live-state replacement during a process crash
 
 - [ ] RED
 - [ ] GREEN
