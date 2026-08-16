@@ -37,10 +37,12 @@ Feature: Let parallel sessions share test capacity safely
     Scenario Outline: Reservation failure starts no repository process
       Given an exact focused public wrapper reservation is durable and <fault>
       When the wrapper handles the activation failure
-      Then no repository process or descendant starts, <reservation-outcome>, <checkout-outcome>, and the wrapper exits nonzero with <code> and `safeword project test-capacity status`
+      Then no repository process or descendant starts, <reservation-outcome>, <checkout-outcome>, and the wrapper exits with <terminal-contract>
       Examples:
-        | fault | reservation-outcome | checkout-outcome | code |
-        | the guarded active-owner record cannot be durably updated before repository code can run and checkout ownership is unverifiable | the reservation bytes remain untouched for explicit recovery | checkout bytes remain untouched and a second wrapper proves the mutex unavailable | SAFEWORD_TEST_CAPACITY_STATE_UNSAFE |
+        | fault | reservation-outcome | checkout-outcome | terminal-contract |
+        | the guarded active-owner record cannot be durably updated before repository code can run and checkout ownership is verified | the reservation bytes remain untouched for authenticated recovery | exact checkout ownership is released | nonzero with SAFEWORD_TEST_CAPACITY_STATE_UNSAFE and `safeword project test-capacity status` |
+        | the guarded active-owner record cannot be durably updated before repository code can run and checkout ownership is unverifiable | the reservation bytes remain untouched for authenticated recovery | checkout bytes remain untouched and a second wrapper proves the mutex unavailable | nonzero with SAFEWORD_TEST_CAPACITY_STATE_UNSAFE and `safeword project test-capacity status` |
+        | execution-container creation fails before repository code runs but guarded cleanup commits | only that reservation is removed | exact checkout ownership is released before a second wrapper runs its unchanged invocation once to exit zero | its predetermined platform-resolved activation-failure status |
     @rejection @wiring @process
     Scenario: A stranded reservation has an explicit safe recovery path
       Given a repaired durable-state fault left the exact failed wrapper's reserved owner bytes and checkout mutex intact, that wrapper is proven absent, and no repository process ever started for it
@@ -270,7 +272,7 @@ Feature: Let parallel sessions share test capacity safely
     Scenario: A broad request never holds a partial allocation
       Given canonical capacity is two, a real public broad wrapper reaches the live queue head while one focused permit is active
       When the scheduler records that admission decision under the state guard
-      Then no committed state version recorded under the transition guard contains an owner keyed to that broad wrapper with weight less than two, its durable waiter carries zero permits throughout, it starts no repository process before controlled teardown cancels it, removes only its waiter and checkout ownership, and exits with its predetermined platform-resolved cancellation status
+      Then one committed version records that broad wrapper as a zero-permit waiter, no transition records it as an owner before teardown, it starts no repository process before controlled teardown cancels it, removes only its waiter and checkout ownership, and exits with its predetermined platform-resolved cancellation status
   @share-test-capacity.TBU1.R4
   Rule: share-test-capacity.TBU1.R4 — A waiting broad run prevents newer focused runs from continuously overtaking it
 
@@ -397,16 +399,19 @@ Feature: Let parallel sessions share test capacity safely
         | Windows | the process handle identifies a different creation FILETIME than the pre-handle PID observation |
 
     @rejection @process @surface.safeword-cli
-    Scenario Outline: Native platform evidence cannot be replaced by injected adapter coverage
-      Given trusted current-commit native-filesystem and capacity-domain-identity evidence for every platform is already accepted, deterministic injected-adapter tests run every platform row on any host, and <native-job-state>
+    Scenario Outline: Native process and capacity-domain identity evidence cannot be replaced by injected adapters
+      Given trusted current-commit native-filesystem evidence for every platform and every process/container or capacity-domain-identity class not under this <evidence-class> row is already accepted, deterministic injected-adapter tests run every platform row on any host, and <native-job-state>
       When `safeword project test-capacity verify-native-evidence` verifies trusted CI attestations binding repository, workflow job identity, native runner OS, commit SHA and artifact digest before reading durable JSON keyed by process/container primitive IDs, observed identities and exact command exits
       Then <platform-gate-outcome>, output names every accepted attestation and artifact digest or missing platform, and <terminal-contract>
       Examples:
-        | native-job-state | platform-gate-outcome | terminal-contract |
-        | Linux, macOS and Windows native jobs all report their matching real seam | native and injected evidence are recorded separately and coverage completes | the command exits zero and emits exactly one completed evidence record for the current commit |
-        | the Linux native job is unavailable or skipped | the Linux gate remains incomplete with Linux named and injected results cannot mark it passed | the command exits nonzero with SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE, names `safeword project test-capacity status` first, and emits no platform-pass or completed evidence record |
-        | the macOS native job is unavailable or skipped | the macOS gate remains incomplete with macOS named and injected results cannot mark it passed | the command exits nonzero with SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE, names `safeword project test-capacity status` first, and emits no platform-pass or completed evidence record |
-        | the Windows native job is unavailable or skipped | the Windows gate remains incomplete with Windows named and injected results cannot mark it passed | the command exits nonzero with SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE, names `safeword project test-capacity status` first, and emits no platform-pass or completed evidence record |
+        | evidence-class | native-job-state | platform-gate-outcome | terminal-contract |
+        | process/container and capacity-domain identity | Linux, macOS and Windows native jobs all report their matching real seams | native and injected evidence are recorded separately and coverage completes | the command exits zero and emits exactly one completed evidence record for the current commit |
+        | Linux process/container | the Linux native job is unavailable or skipped | the Linux process/container gate remains incomplete and injected results cannot mark it passed | the command exits nonzero with SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE, names `safeword project test-capacity status` first, and emits no platform-pass or completed evidence record |
+        | macOS process/container | the macOS native job is unavailable or skipped | the macOS process/container gate remains incomplete and injected results cannot mark it passed | the command exits nonzero with SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE, names `safeword project test-capacity status` first, and emits no platform-pass or completed evidence record |
+        | Windows process/container | the Windows native job is unavailable or skipped | the Windows process/container gate remains incomplete and injected results cannot mark it passed | the command exits nonzero with SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE, names `safeword project test-capacity status` first, and emits no platform-pass or completed evidence record |
+        | Linux capacity-domain identity | the Linux native job is unavailable or skipped | the Linux capacity-domain-identity gate remains incomplete and injected results cannot mark it passed | the command exits nonzero with SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE, names `safeword project test-capacity status` first, and emits no platform-pass or completed evidence record |
+        | macOS capacity-domain identity | the macOS native job is unavailable or skipped | the macOS capacity-domain-identity gate remains incomplete and injected results cannot mark it passed | the command exits nonzero with SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE, names `safeword project test-capacity status` first, and emits no platform-pass or completed evidence record |
+        | Windows capacity-domain identity | the Windows native job is unavailable or skipped | the Windows capacity-domain-identity gate remains incomplete and injected results cannot mark it passed | the command exits nonzero with SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE, names `safeword project test-capacity status` first, and emits no platform-pass or completed evidence record |
 
     @rejection @process @surface.safeword-cli
     Scenario Outline: Native filesystem evidence cannot be replaced by injected filesystem seams
@@ -555,13 +560,15 @@ Feature: Let parallel sessions share test capacity safely
 
     @rejection @process
     Scenario Outline: Death of a transition-guard holder is recovered by exact identity
-      Given an authenticated <guard> holder dies while holding its guard before any uncommitted scheduler mutation becomes visible
+      Given an authenticated <guard> holder is <holder-state> while holding its guard before any uncommitted scheduler mutation becomes visible
       When a subsequent real public <command> requests that guard
-      Then it obtains the guard only after exact holder absence is authenticated rather than after elapsed age, <terminal-contract>, and no unrelated owner, waiter, or checkout record changes
+      Then <guard-outcome>, <terminal-contract>, and no unrelated owner, waiter, or checkout record changes
       Examples:
-        | guard | command | terminal-contract |
-        | scheduler transition guard | status command | status exits zero without starting a repository process |
-        | checkout-mutex transition guard | package-test wrapper | the wrapper runs its deterministic zero-exit invocation once and every descendant exits and is accounted for |
+        | guard | holder-state | command | guard-outcome | terminal-contract |
+        | scheduler transition guard | dead | status command | it obtains the guard only after exact holder absence is authenticated | status exits zero without starting a repository process |
+        | checkout-mutex transition guard | dead | package-test wrapper | it obtains the guard only after exact holder absence is authenticated | the wrapper runs its deterministic zero-exit invocation once and every descendant exits and is accounted for |
+        | scheduler transition guard | live beyond the deterministic reclaim interval | status command | it does not obtain the guard merely because elapsed time passes | controlled teardown cancels status without starting a repository process and with its predetermined platform-resolved cancellation status |
+        | checkout-mutex transition guard | live beyond the deterministic reclaim interval | package-test wrapper | it does not obtain the guard merely because elapsed time passes | controlled teardown cancels the wrapper without starting a repository descendant and with its predetermined platform-resolved cancellation status |
 
     @native-platform @platform-windows @rejection @process
     Scenario Outline: Windows Job Object recovery proves emptiness through the real OS seam
@@ -582,7 +589,7 @@ Feature: Let parallel sessions share test capacity safely
 
     @platform-windows @rejection @wiring @process
     Scenario Outline: Windows capacity artifacts reject unsafe DACLs and changed file identities
-      Given the Windows <artifact> has <unsafe-property>
+      Given a verified current-commit attestation from the required native Windows CI job covers the matching fixture and the Windows <artifact> has <unsafe-property>
       When `safeword project test-capacity set 2 --confirm-current-protocol`, a real public package-test command, and a real public status command independently open identical capacity-domain fixtures
       Then neither mutable command starts a repository process or changes state, each exits SAFEWORD_TEST_CAPACITY_STATE_UNSAFE with `safeword project test-capacity status`, and status is read-only, reports the canonical domain and state location plus <repair>, and exits nonzero with SAFEWORD_TEST_CAPACITY_STATE_UNSAFE without naming itself as its first recovery step
       Examples:
@@ -626,12 +633,12 @@ Feature: Let parallel sessions share test capacity safely
         | after rename but before successful directory flush | journaled indeterminate state that admits nothing until guarded recovery re-flushes and resolves one complete side |
 
     @rejection @wiring @process
-    Scenario Outline: A journal is durably published before any live-state replacement
+    Scenario Outline: A journal is ordered before any live-state replacement during a process crash
       Given a subprocess performs a guarded transition through an interposed real-filesystem barrier that emits only after the named underlying write, rename or flush syscall returns with its recorded result at <journal-boundary>, and is killed only while that exact syscall boundary remains held
       When restart observes <observed-state> before admission
-      Then <journal-durability-outcome>
+      Then <journal-crash-outcome>; this process-crash test does not claim post-power-loss persistence
       Examples:
-        | journal-boundary | observed-state | journal-durability-outcome |
+        | journal-boundary | observed-state | journal-crash-outcome |
         | during journal temporary write | old live state, no journal, incomplete temporary bytes | temporary bytes are removed, old state remains byte-identical, and admission retries from old state |
         | after journal-file fsync but before journal rename | old live state, no journal, complete temporary journal | temporary bytes are removed, old state remains byte-identical, and admission retries from old state |
         | after journal rename but before successful parent-directory fsync | old live state plus one complete visible journal after restart | recovery re-flushes the directory, retains old state, removes the journal last, and does not infer an unobservable transition |
@@ -675,7 +682,7 @@ Feature: Let parallel sessions share test capacity safely
         | persistence-state | outcome |
         | temporary-file flush failure | the transition fails closed with the prior durable state authoritative |
         | atomic rename failure | the transition fails closed with the prior durable state authoritative |
-        | containing-directory flush failure on a supporting platform | the durability result is indeterminate and admission fails closed |
+        | containing-directory flush failure on a supporting platform | the process-crash durability result remains unresolved and admission fails closed |
         | directory-flush primitive reports unsupported | runtime state mutation exits with SAFEWORD_TEST_CAPACITY_STATE_UNSAFE, leaves durable bytes unchanged, and starts no repository process |
         | an abandoned temporary file beside valid state | the valid live state remains authoritative and the validated abandoned file is removed under the guard before admission continues |
         | a permission-unsafe temporary file | the transition fails closed without reading or replacing through that path |
@@ -696,7 +703,7 @@ Feature: Let parallel sessions share test capacity safely
 
     @platform-posix @rejection @wiring @process
     Scenario Outline: Every capacity artifact enforces owner-only identity and links
-      Given <artifact> has <unsafe-property>
+      Given a verified current-commit attestation from the required native POSIX CI job covers the matching fixture and <artifact> has <unsafe-property>
       When `safeword project test-capacity set 2 --confirm-current-protocol` and a real public package-test command independently open identical capacity-domain fixtures
       Then neither command starts a repository process or changes state, and each exits SAFEWORD_TEST_CAPACITY_STATE_UNSAFE with `safeword project test-capacity status`
       Examples:
@@ -738,7 +745,7 @@ Feature: Let parallel sessions share test capacity safely
 
     @platform-posix @rejection @wiring @surface.safeword-cli
     Scenario Outline: Status reports a concrete repair for unsafe capacity artifacts
-      Given <artifact> has <unsafe-property>
+      Given a verified current-commit attestation from the required native POSIX CI job covers the matching fixture and <artifact> has <unsafe-property>
       When a real public status command opens the capacity domain
       Then it changes no state, reports the canonical domain and state location plus <repair>, does not name `safeword project test-capacity status` as its first recovery step, and exits nonzero with SAFEWORD_TEST_CAPACITY_STATE_UNSAFE
       Examples:
