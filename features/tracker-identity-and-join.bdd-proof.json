@@ -49,7 +49,7 @@
     ],
     "A map entry pointing at a missing folder reports not found, not a dangling path": [
       "packages/cli/tests/tracker-sync/resolve-by-key.test.ts",
-      "returns null (not a dangling path) when the mapped folder is gone"
+      "returns undefined when the mapped folder is gone"
     ]
   }
 }
