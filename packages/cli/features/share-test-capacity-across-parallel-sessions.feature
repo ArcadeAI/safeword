@@ -40,20 +40,18 @@ Feature: Let parallel sessions share test capacity safely
       Then no repository process or descendant starts, <reservation-outcome>, <checkout-outcome>, and the wrapper exits nonzero with <code> and `safeword project test-capacity status`
       Examples:
         | fault | reservation-outcome | checkout-outcome | code |
-        | the guarded active-owner record cannot be durably updated before repository code can run | the reservation bytes remain untouched for explicit recovery | checkout bytes remain untouched and a second wrapper proves the mutex unavailable | SAFEWORD_TEST_CAPACITY_STATE_UNSAFE |
+        | the guarded active-owner record cannot be durably updated before repository code can run and checkout ownership is unverifiable | the reservation bytes remain untouched for explicit recovery | checkout bytes remain untouched and a second wrapper proves the mutex unavailable | SAFEWORD_TEST_CAPACITY_STATE_UNSAFE |
         | the platform cannot create the required blocked execution container before repository code can run | only that reservation is removed | exact checkout ownership is released before a second wrapper runs once to exit zero | SAFEWORD_TEST_CAPACITY_PLATFORM_UNSUPPORTED |
     @rejection @wiring @process
     Scenario: A stranded reservation has an explicit safe recovery path
       Given a repaired durable-state fault left the exact failed wrapper's reserved owner bytes and checkout mutex intact, that wrapper is proven absent, and no repository process ever started for it
       When a second public wrapper performs guarded recovery
       Then recovery removes only the exact dead reservation and its checkout mutex, starts no repository process before that recovery, and the second wrapper runs its unchanged invocation once to exit zero
-
     @wiring @process
-    Scenario: Capacity eight admits eight focused lifetimes and gives a broad request all eight permits
-      Given ten distinct real wrappers in ten distinct worktrees register FIFO tickets for nine focused requests followed by one broad request and share canonical capacity eight
-      When barriers hold the first eight focused repository lifetimes active before focused wrapper nine and broad wrapper ten queue
-      Then exactly eight focused lifetimes overlap, wrapper nine starts only after one releases, and after all nine focused requests exit zero wrapper ten atomically owns all eight permits, runs once and alone, and exits zero
-
+    Scenario: Capacity eight admits eight focused lifetimes
+      Given nine distinct real focused wrappers in nine distinct worktrees register consecutive FIFO tickets and share canonical capacity eight
+      When barriers hold the first eight repository lifetimes active before focused wrapper nine queues
+      Then exactly eight focused lifetimes overlap and wrapper nine starts only after one permit releases, after which all nine unchanged invocations exit zero
     @rejection
     Scenario Outline: Broad-shaped invocations never consume a focused permit
       Given <fixture-state>, shared capacity is two with one focused owner active, this broad request at the live queue head with no earlier waiter, and its deterministic downstream collaborator terminates with its predetermined platform-resolved status
@@ -222,6 +220,7 @@ Feature: Let parallel sessions share test capacity safely
       Given canonical capacity is two, one same-worktree wrapper holds checkout ownership and one active permit, a second same-worktree wrapper emits its checkout-mutex waiter event, and an unrelated-worktree focused wrapper requests admission
       When the scheduler records the unrelated wrapper under the state guard
       Then the unrelated wrapper is admitted with the remaining one permit, the checkout-mutex waiter has no scheduler-registration event or durable owner record until after its checkout-mutex-acquired event, and durable owners exclude that waiter until then
+      And after controlled release both wrappers exit zero and every descendant is accounted for
 
     @rejection
     Scenario Outline: A terminated capacity wait does not strand the checkout mutex
@@ -271,7 +270,7 @@ Feature: Let parallel sessions share test capacity safely
   Rule: share-test-capacity.TBU1.R3 — Broad verification drains focused work and runs with exclusive machine capacity without starvation
 
     Scenario: A head broad request waits for holders to drain and then runs alone
-      Given keyed process events show focused owners active and another real wrapper has a broad request at the queue head
+      Given canonical capacity is two, keyed process events show two focused owners active, and another real wrapper has a broad request at the queue head
       When the focused owners finish
       Then after the focused owners exit zero, its unchanged downstream invocation runs exactly once and exits zero while atomically owning all capacity with no overlapping repository process
 
@@ -279,7 +278,7 @@ Feature: Let parallel sessions share test capacity safely
     Scenario: A broad request never holds a partial allocation
       Given canonical capacity is two, a real public broad wrapper reaches the live queue head while one focused permit is active
       When the scheduler records that admission decision under the state guard
-      Then at no observed state version does the durable owner set contain a record keyed to that broad wrapper with weight less than two, its durable waiter carries zero permits throughout, it starts no repository process before controlled teardown cancels it, removes only its waiter and checkout ownership, and exits with its predetermined platform-resolved cancellation status
+      Then no committed state version recorded under the transition guard contains an owner keyed to that broad wrapper with weight less than two, its durable waiter carries zero permits throughout, it starts no repository process before controlled teardown cancels it, removes only its waiter and checkout ownership, and exits with its predetermined platform-resolved cancellation status
 
   @share-test-capacity.TBU1.R4
   Rule: share-test-capacity.TBU1.R4 — A waiting broad run prevents newer focused runs from continuously overtaking it
@@ -303,7 +302,7 @@ Feature: Let parallel sessions share test capacity safely
     Scenario: A verified dead queue-head waiter is pruned before the next FIFO admission
       Given shared capacity is one, the deterministic injected identity adapter proves dead ticket-1 absent without contributing native evidence, and live ticket-2 and ticket-3 wrappers wait in that order
       When the ticket-2 public package-test wrapper evaluates the queue under the state guard
-      Then it removes only dead ticket 1, runs its unchanged downstream invocation once and exits zero, admits ticket 2 before ticket 3, and after ticket 2 exits ticket 3 runs its unchanged downstream invocation once and exits zero with every descendant accounted for
+      Then the guarded transition removes only dead ticket 1, records ticket-2 admission strictly before every ticket-3 admission event, ticket 2 runs its unchanged downstream invocation once and exits zero, and ticket 3 then runs its unchanged downstream invocation once and exits zero with every descendant accounted for
 
     Scenario: A broad request runs exclusively on an idle domain
       Given an idle canonical capacity-two domain and a real broad public wrapper with a deterministic zero-exit collaborator
@@ -335,14 +334,14 @@ Feature: Let parallel sessions share test capacity safely
 
     @wiring @process
     Scenario Outline: Cancellation releases ownership safely at every queue stage
-      Given canonical capacity is two, one unrelated authenticated owner and one unrelated FIFO ticket are fixed, a real public package-test wrapper and process collaborator are <stage>, and a second live queued waiter has a deterministic zero-exit collaborator
+      Given canonical capacity is one, <queue-state>, a real public package-test wrapper and process collaborator are <stage>, and a second live waiter immediately follows the cancelled wrapper ahead of one unrelated FIFO ticket
       When its request is cancelled
-      Then <cleanup>, <process-outcome>, the cancelled wrapper exits with its predetermined platform-resolved cancellation status, no unrelated ticket or owner changes, checkout ownership releases when safe, the next live waiter runs once to exit zero, and every descendant exits and is accounted for
+      Then <cleanup>, <process-outcome>, the cancelled wrapper exits with its predetermined platform-resolved cancellation status, no unrelated ticket changes, checkout ownership releases when safe, the next live waiter runs once to exit zero, and every descendant exits and is accounted for
       Examples:
-        | stage | cleanup | process-outcome |
-        | queued | only its exact waiter ticket is removed | no repository process ever starts for the cancelled command |
-        | reserved | the blocked container exits before its reservation is removed | no repository process ever starts for the cancelled command |
-        | active | the recorded container is terminated and proven empty before ownership is removed | already-started descendants exit and no new descendant starts after cancellation |
+        | stage | queue-state | cleanup | process-outcome |
+        | queued | an unrelated authenticated owner holds the only permit behind a barrier that releases only after the cancelled head ticket is removed | only its exact waiter ticket is removed | no repository process ever starts for the cancelled command |
+        | reserved | the cancelled wrapper holds the only reservation | the blocked container exits before its reservation is removed | no repository process ever starts for the cancelled command |
+        | active | the cancelled wrapper holds the only active permit | the recorded container is terminated and proven empty before ownership is removed | already-started descendants exit and no new descendant starts after cancellation |
 
     @platform-posix @rejection
     Scenario Outline: Verified occupancy keeps capacity held without treating the caller as a recovery failure
@@ -468,14 +467,15 @@ Feature: Let parallel sessions share test capacity safely
 
     @rejection @surface.safeword-cli
     Scenario Outline: Native-evidence verification rejects all arguments without consuming evidence
-      Given valid durable native-evidence state is captured byte-for-byte
+      Given <evidence-state> durable native-evidence state is captured byte-for-byte
       When the builder runs `safeword project test-capacity verify-native-evidence` with <argument>
       Then it exits nonzero with SAFEWORD_TEST_CAPACITY_INVALID, names `safeword project test-capacity status` first, and durable evidence state remains unchanged
       Examples:
-        | argument |
-        | unknown option `--unknown` |
-        | extra positional `unexpected` |
-        | duplicate unknown option `--unknown --unknown` |
+        | evidence-state | argument |
+        | valid | unknown option `--unknown` |
+        | valid | extra positional `unexpected` |
+        | valid | duplicate unknown option `--unknown --unknown` |
+        | incomplete current-commit | unknown option `--unknown` |
 
     @native-platform @platform-posix @process
     Scenario: Detached POSIX descendants remain an explicitly disclosed limitation
@@ -659,8 +659,8 @@ Feature: Let parallel sessions share test capacity safely
     @rejection @wiring @process
     Scenario Outline: Every capacity artifact enforces owner-only identity and links
       Given <artifact> has <unsafe-property>
-      When a real public set or package-test command opens the capacity domain
-      Then it starts no repository process, changes no state, and exits SAFEWORD_TEST_CAPACITY_STATE_UNSAFE with `safeword project test-capacity status`
+      When paired real public set and package-test commands independently open identical capacity-domain fixtures
+      Then neither command starts a repository process or changes state, and each exits SAFEWORD_TEST_CAPACITY_STATE_UNSAFE with `safeword project test-capacity status`
       Examples:
         | artifact | unsafe-property |
         | containing directory | world-readable permissions |
@@ -731,7 +731,7 @@ Feature: Let parallel sessions share test capacity safely
     Scenario Outline: A valid set initializes an uninitialized domain atomically
       Given the derived canonical domain has no guard, state, journal, or temporary artifact
       When the builder runs <set-command>
-      Then one owner-only current-protocol state commits at version one with capacity <capacity> and no partial artifact is visible
+      Then the command exits zero, creates one owner-only transition guard and current-protocol state at version one with capacity <capacity>, and leaves no partial artifact visible
       Examples:
         | set-command | capacity |
         | `safeword project test-capacity set 1` | one |
@@ -794,8 +794,8 @@ Feature: Let parallel sessions share test capacity safely
       Then <outcome> and every wrapper observes the one committed capacity
       Examples:
         | race | outcome |
-        | barriers give the capacity-2 command the guard before a concurrent capacity-3 command | capacity 2 commits at version N+1, then capacity 3 commits at N+2, and no reader observes a partial or skipped version |
-        | barriers register a wrapper before a capacity-2 command can commit | capacity remains 1, the wrapper observes 1, and the set command exits SAFEWORD_TEST_CAPACITY_BUSY |
+        | barriers give the capacity-2 command the guard before a concurrent capacity-3 command | capacity 2 commits at version N+1, then capacity 3 commits at N+2, both set commands exit zero, and no reader observes a partial or skipped version |
+        | barriers register a wrapper before a capacity-2 command can commit | capacity remains 1, the wrapper observes 1 and exits zero, and the set command exits SAFEWORD_TEST_CAPACITY_BUSY |
 
     Scenario: Capacity one preserves the hardened machine-wide serialization baseline
       Given canonical shared capacity is one and real wrappers use real build and test collaborators
@@ -812,7 +812,7 @@ Feature: Let parallel sessions share test capacity safely
     Scenario: A held legacy mutex remains an explicit unsupported mixed-version boundary
       Given canonical capacity is one, a legacy package-test wrapper holds the recorded legacy mutex, and a current-protocol wrapper has an independent scheduler permit
       When barriers hold both repository lifetimes active
-      Then keyed events prove the lifetimes can overlap without either wrapper observing or recording the other, and status directs the operator to end legacy work before mixing wrapper protocols
+      Then keyed events prove the lifetimes do overlap without either wrapper observing or recording the other, and status directs the operator to end legacy work before mixing wrapper protocols
 
     @rejection @process
     Scenario Outline: Capacity-one failure recovery preserves serialization and progress
@@ -938,7 +938,7 @@ Feature: Let parallel sessions share test capacity safely
     Scenario Outline: Reset validates an explicitly prepared capacity domain
       Given isolated owner-only capacity state is <precondition>
       When the builder runs <public-command>
-      Then process output, exit status, and durable state prove <public-outcome>
+      Then process output, exit status, and durable state prove <public-outcome>, and every nonzero result names `safeword project test-capacity status` as its first recovery command
       Examples:
         | precondition | public-command | public-outcome |
         | exact domain D is proven idle | `safeword project test-capacity reset --expected-domain D --confirm-idle` | capacity one and current protocol state commit together |
@@ -973,7 +973,7 @@ Feature: Let parallel sessions share test capacity safely
     Scenario Outline: Public capacity status and dispatch reject unsupported arguments
       Given an initialized idle durable capacity-one state at version N is captured byte-for-byte
       When the builder runs <public-command>
-      Then no repository process starts, the command exits nonzero with SAFEWORD_TEST_CAPACITY_INVALID, and durable bytes and version remain unchanged
+      Then no repository process starts, the command exits nonzero with SAFEWORD_TEST_CAPACITY_INVALID and first recovery command `safeword project test-capacity status`, and durable bytes and version remain unchanged
       Examples:
         | public-command |
         | `safeword project test-capacity status --unknown` |

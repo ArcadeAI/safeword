@@ -49,7 +49,7 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Capacity eight admits eight focused lifetimes and gives a broad request all eight permits
+### Scenario: Capacity eight admits eight focused lifetimes
 
 - [ ] RED
 - [ ] GREEN
