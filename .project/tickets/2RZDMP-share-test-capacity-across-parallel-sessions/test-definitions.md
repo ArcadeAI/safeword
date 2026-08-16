@@ -279,7 +279,7 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Native evidence rejects untrusted or mismatched provenance
+### Scenario: Native evidence rejects untrusted provenance and unsafe storage
 
 - [ ] RED
 - [ ] GREEN
