@@ -31,6 +31,12 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A stale release cannot remove a subsequent owner's permit
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Reservation failure starts no repository process
 
 - [ ] RED
@@ -68,6 +74,12 @@ remain in the feature file.
 - [ ] REFACTOR
 
 ### Scenario: Focused filename boundaries are exact and case-sensitive
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: An OS-managed prefix above the checkout root does not make a focused file broad
 
 - [ ] RED
 - [ ] GREEN
