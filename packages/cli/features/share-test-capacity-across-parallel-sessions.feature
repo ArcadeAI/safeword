@@ -264,9 +264,9 @@ Feature: Let parallel sessions share test capacity safely
 
     @rejection @wiring @process
     Scenario: A broad request never holds a partial allocation
-      Given a real public wrapper reaches the live queue head while only part of shared capacity is free and emits a keyed zero-permit waiter event
+      Given canonical capacity is two, a real public broad wrapper reaches the live queue head while one focused permit is active
       When the scheduler records that admission decision under the state guard
-      Then it starts no repository process before controlled teardown cancels that recorded waiter, removes only its waiter and checkout ownership, and exits with its predetermined platform-resolved cancellation status
+      Then at no observed state version does the durable owner set contain a record keyed to that broad wrapper with weight less than two, its durable waiter carries zero permits throughout, it starts no repository process before controlled teardown cancels it, removes only its waiter and checkout ownership, and exits with its predetermined platform-resolved cancellation status
 
   @share-test-capacity.TBU1.R4
   Rule: share-test-capacity.TBU1.R4 — A waiting broad run prevents newer focused runs from continuously overtaking it
@@ -515,14 +515,22 @@ Feature: Let parallel sessions share test capacity safely
 
     @native-platform
     Scenario Outline: Wrapper death tears down live descendants before returning active capacity
-      Given an active real package-test wrapper on <platform> has live contained build or Vitest descendants
+      Given an active real package-test wrapper on <platform> has live contained build or Vitest descendants, durable ownership at version N, and a second real wrapper with a deterministic zero-exit collaborator waits behind it
       When the wrapper dies and its ownership pipe closes
-      Then <container> terminates the descendants and the permit remains held until the container is proven empty
+      Then <container> terminates every descendant with its predetermined platform-resolved status, the container is proven empty before its permit returns at version N+1, the waiting wrapper is admitted at N+2 and exits zero after one unchanged invocation, and the complete keyed trace accounts for all descendants
       Examples:
         | platform | container |
         | Linux | the recorded out-of-group supervisor and execution group |
         | macOS | the recorded out-of-group supervisor and execution group |
         | Windows | the recorded kill-on-close Job Object |
+
+    @rejection @process
+    Scenario: An identity-blocked owner has an explicit safe recovery path
+      Given canonical capacity is one, a recorded owner identity is reused or unverifiable, and a second real wrapper waits with a deterministic zero-exit collaborator
+      When the builder runs status before the conflicting process exits
+      Then status exits nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE, changes no owner bytes or version, starts no repository process, and names waiting for the conflicting process to exit before rerunning status
+      When the conflicting process exits and a later guarded observation proves the recorded exact owner absent
+      Then recovery returns the owner weight at version N+1, admits the waiting wrapper at N+2, runs its unchanged invocation once to exit zero, and accounts for every descendant
 
     @native-platform @platform-windows @rejection @process
     Scenario Outline: Windows Job Object recovery proves emptiness through the real OS seam
