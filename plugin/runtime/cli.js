@@ -4657,6 +4657,21 @@ var init_ticket_writer = __esm(() => {
   WINDOWS_RESERVED_DEVICE_WITH_EXTENSION = /^(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])\./i;
 });
 
+// src/utils/ticket-folder-matches.ts
+function findTicketFolderMatch(names, ticketId) {
+  let sluggedMatch;
+  const slugPrefix = `${ticketId}-`;
+  for (const name of names) {
+    if (name === ticketId) {
+      return name;
+    }
+    if (sluggedMatch === undefined && name.startsWith(slugPrefix)) {
+      sluggedMatch = name;
+    }
+  }
+  return sluggedMatch;
+}
+
 // src/tracker-sync/resolve-by-key.ts
 function normalizeTrackerKey(key) {
   return key.startsWith("#") ? key.slice(1) : key;
@@ -4864,12 +4879,9 @@ function resolveTicketFolderById(cwd, id) {
   const ticketsDirectory = resolveTicketsDirectory(cwd);
   if (!existsSync12(ticketsDirectory))
     return;
-  for (const entry of readdirSync7(ticketsDirectory)) {
-    if (entry === id || entry.startsWith(`${id}-`)) {
-      return nodePath19.join(ticketsDirectory, entry);
-    }
-  }
-  return;
+  const names = readdirSync7(ticketsDirectory, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name);
+  const match = findTicketFolderMatch(names, id);
+  return match === undefined ? undefined : nodePath19.join(ticketsDirectory, match);
 }
 function isEpicTicket(content) {
   return /^type:\s*epic\s*$/m.test(content);
@@ -42356,7 +42368,7 @@ function resolveTicketDirectory(cwd, ticket) {
   } catch {
     return;
   }
-  const match = entries.find((name) => name === ticket) ?? entries.find((name) => name.startsWith(`${ticket}-`));
+  const match = findTicketFolderMatch(entries, ticket);
   return match === undefined ? undefined : nodePath74.join(ticketsRoot, match);
 }
 function fail2(message) {

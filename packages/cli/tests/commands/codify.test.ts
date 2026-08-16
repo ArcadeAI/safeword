@@ -150,6 +150,24 @@ describe('safeword codify', () => {
   );
 
   it(
+    'uses the exact ticket folder when a slugged candidate also exists',
+    async () => {
+      scaffoldTicket(temporaryDirectory, TWO_SCENARIOS);
+      writeTestFile(
+        temporaryDirectory,
+        `.safeword-project/tickets/${TICKET_ID}-other/test-definitions.md`,
+        '# Test Definitions\n\nNo scenarios here.\n',
+      );
+
+      const result = await runCli(['codify', TICKET_ID], { cwd: temporaryDirectory });
+
+      expect(result.exitCode).toBe(0);
+      expect(countTests(result.stdout)).toBe(2);
+    },
+    TIMEOUT_QUICK,
+  );
+
+  it(
     'codify.TB1.AC3.out_writes_the_file',
     async () => {
       scaffoldTicket(temporaryDirectory, TWO_SCENARIOS);
