@@ -1217,11 +1217,11 @@ describe('Test Suite 8: Health Check', () => {
       await createConfiguredProject(temporaryDirectory);
       writeFeatureTicket('BACKGROUND1-background', 'background');
       writeFeatureTicket('FOCUS1-focused', 'focused');
-      git('branch', '-M', initialBranch);
       git('config', 'user.email', 'health@example.test');
       git('config', 'user.name', 'Health Test');
       git('add', '.');
       git('commit', '-m', 'baseline');
+      git('branch', '-M', initialBranch);
       git('checkout', '-b', 'health-scope');
     }
 
@@ -1274,7 +1274,8 @@ describe('Test Suite 8: Health Check', () => {
     });
 
     it('retains validation when a Git repository has no known base branch', async () => {
-      await setUpCurrentWork('develop');
+      // This deliberately non-conventional name must remain absent from the base-ref list.
+      await setUpCurrentWork('zz-no-base');
 
       const result = await runCli(['check', '--offline'], { cwd: temporaryDirectory });
 
