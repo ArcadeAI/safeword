@@ -41,7 +41,7 @@ Feature: Let parallel sessions share test capacity safely
       Examples:
         | fault | reservation-outcome | checkout-outcome | code |
         | the guarded active-owner record cannot be durably updated before repository code can run and checkout ownership is unverifiable | the reservation bytes remain untouched for explicit recovery | checkout bytes remain untouched and a second wrapper proves the mutex unavailable | SAFEWORD_TEST_CAPACITY_STATE_UNSAFE |
-        | a one-shot injected container-creation fault affects only the exact first wrapper before repository code can run | only that reservation is removed | exact checkout ownership is released before a second wrapper runs once to exit zero | SAFEWORD_TEST_CAPACITY_PLATFORM_UNSUPPORTED |
+        | a one-shot injected container-creation fault affects only the exact first wrapper before repository code can run | only that reservation is removed | exact checkout ownership is released before a second wrapper runs once to exit zero | SAFEWORD_TEST_CAPACITY_STATE_UNSAFE |
     @rejection @wiring @process
     Scenario: A stranded reservation has an explicit safe recovery path
       Given a repaired durable-state fault left the exact failed wrapper's reserved owner bytes and checkout mutex intact, that wrapper is proven absent, and no repository process ever started for it
@@ -54,8 +54,8 @@ Feature: Let parallel sessions share test capacity safely
       Then exactly eight focused lifetimes overlap and wrapper nine starts only after one permit releases, after which all nine unchanged invocations exit zero
     @rejection
     Scenario Outline: Broad-shaped invocations never consume a focused permit
-      Given <fixture-state>, shared capacity is two with one focused owner active, this broad request at the live queue head with no earlier waiter, and its deterministic downstream collaborator terminates with its predetermined platform-resolved status
-      When a worktree requests <invocation>
+      Given <fixture-state>, shared capacity is two with one focused owner held active behind a barrier, this broad request at the live queue head with no earlier waiter, and its deterministic downstream collaborator terminates with its predetermined platform-resolved status
+      When a worktree requests <invocation> and the barrier releases the focused owner
       Then no repository process for that request starts until the focused owner releases, after which it atomically owns all capacity, passes its original invocation unchanged downstream exactly once, accounts for the one terminated descendant, and exits with that predetermined platform-resolved status
       Examples:
         | fixture-state | invocation |
@@ -537,8 +537,8 @@ Feature: Let parallel sessions share test capacity safely
       Then <windows-outcome> before any new build or Vitest process starts, and <terminal-contract>
       Examples:
         | windows-state | windows-outcome | terminal-contract |
-        | the out-of-job supervisor can reopen a job with live members | it explicitly terminates the job and waits for active-process count zero | the recovery wrapper then runs its deterministic zero-exit invocation once and every descendant exits |
-        | an unexpected external handle survives | explicit job termination still empties the job before the controlling handle closes | the recovery wrapper then runs its deterministic zero-exit invocation once and every descendant exits |
+        | the out-of-job supervisor can reopen a job with live members | the recorded supervisor explicitly terminates the job and proves active-process count zero | only then the recovery wrapper runs its deterministic zero-exit invocation once and every descendant exits |
+        | an unexpected external handle survives | the recorded supervisor's explicit termination still proves the job empty before its controlling handle closes | only then the recovery wrapper runs its deterministic zero-exit invocation once and every descendant exits |
         | the job name exists with unexpected ACL | recovery fails closed | the recovery wrapper exits nonzero with SAFEWORD_TEST_CAPACITY_STATE_UNSAFE and `safeword project test-capacity status` |
         | the job name has an unexpected identity | recovery fails closed | the recovery wrapper exits nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE and `safeword project test-capacity status` |
         | reopening is access-denied | recovery fails closed | the recovery wrapper exits nonzero with SAFEWORD_TEST_CAPACITY_STATE_UNSAFE and `safeword project test-capacity status` |
@@ -648,7 +648,7 @@ Feature: Let parallel sessions share test capacity safely
     @rejection @wiring @process
     Scenario Outline: Every capacity artifact enforces owner-only identity and links
       Given <artifact> has <unsafe-property>
-      When paired real public set and package-test commands independently open identical capacity-domain fixtures
+      When `safeword project test-capacity set 2 --confirm-current-protocol` and a real public package-test command independently open identical capacity-domain fixtures
       Then neither command starts a repository process or changes state, and each exits SAFEWORD_TEST_CAPACITY_STATE_UNSAFE with `safeword project test-capacity status`
       Examples:
         | artifact | unsafe-property |
