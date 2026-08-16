@@ -32,6 +32,11 @@ Feature: Let parallel sessions share test capacity safely
       When that same wrapper emits the replayed release
       Then the durable bytes and version remain unchanged, no repository process or descendant starts, and the wrapper exits zero
 
+    Scenario: A stale release cannot remove a subsequent owner's permit
+      Given focused wrapper A released its exact permit, focused wrapper B then acquired that permit with a durable weight-one owner record and an active repository lifetime, and A's duplicate-release seam is installed
+      When A emits its stale replayed release
+      Then B's owner record, permit weight, and active lifetime remain unchanged, B exits zero after controlled release, and no repository lifetime overlaps B beyond canonical capacity
+
     @rejection @process
     Scenario Outline: Reservation failure starts no repository process
       Given an exact focused public wrapper reservation is durable and <fault>
@@ -130,6 +135,12 @@ Feature: Let parallel sessions share test capacity safely
         | a repeated-separator path to `alpha.test.ts` | one focused permit | 1 |
         | a `space name.test.ts` argument passed as one token | one focused permit | 1 |
         | a subdirectory invocation `../other-package/alpha.test.ts` that exists only after checkout-relative rebasing | one focused permit | 1 |
+
+    @native-platform @platform-macos
+    Scenario: An OS-managed prefix above the checkout root does not make a focused file broad
+      Given a macOS canonical checkout root is reached through its operating-system-managed `/var` to `/private/var` prefix, contains regular `alpha.test.ts`, and canonical capacity is two
+      When the public package-test command classifies literal `alpha.test.ts`
+      Then it assigns one focused permit with durable owner weight one, passes the argument unchanged downstream once, and exits zero with every descendant accounted for
 
     @rejection
     Scenario Outline: Non-file argument boundaries classify broad without contradictory fixtures
@@ -886,21 +897,21 @@ Feature: Let parallel sessions share test capacity safely
     @rejection
     Scenario Outline: Unsafe capacity state changes fail without changing admission state
       Given the scheduler has <state>
-      When the builder requests <capacity>
+      When the builder runs <command>
       Then the request starts no repository process, exits nonzero with <code>, names `safeword project test-capacity status` as its exact first recovery command, and durable state bytes and version remain unchanged
       Examples:
-        | state | capacity | code |
-        | capacity 1 with one or more owners | 2 | SAFEWORD_TEST_CAPACITY_BUSY |
-        | capacity 1 with one or more waiters | 2 | SAFEWORD_TEST_CAPACITY_BUSY |
-        | capacity 2 with one or more owners | 1 | SAFEWORD_TEST_CAPACITY_BUSY |
-        | capacity 2 with one or more waiters | 1 | SAFEWORD_TEST_CAPACITY_BUSY |
-        | capacity 2 with an owner marked reclaiming between first and second absence observations | 1 | SAFEWORD_TEST_CAPACITY_BUSY |
-        | idle | 0 | SAFEWORD_TEST_CAPACITY_INVALID |
-        | idle | 9 | SAFEWORD_TEST_CAPACITY_INVALID |
-        | idle | 1.5 | SAFEWORD_TEST_CAPACITY_INVALID |
-        | idle | blank input | SAFEWORD_TEST_CAPACITY_INVALID |
-        | idle | malformed | SAFEWORD_TEST_CAPACITY_INVALID |
-        | unavailable or conflicting machine identity | 2 | SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE |
+        | state | command | code |
+        | capacity 1 with one or more owners | `set 2 --confirm-current-protocol` | SAFEWORD_TEST_CAPACITY_BUSY |
+        | capacity 1 with one or more waiters | `set 2 --confirm-current-protocol` | SAFEWORD_TEST_CAPACITY_BUSY |
+        | capacity 2 with one or more owners | `set 1` | SAFEWORD_TEST_CAPACITY_BUSY |
+        | capacity 2 with one or more waiters | `set 1` | SAFEWORD_TEST_CAPACITY_BUSY |
+        | capacity 2 with an owner marked reclaiming between first and second absence observations | `set 1` | SAFEWORD_TEST_CAPACITY_BUSY |
+        | idle | `set 0` | SAFEWORD_TEST_CAPACITY_INVALID |
+        | idle | `set 9 --confirm-current-protocol` | SAFEWORD_TEST_CAPACITY_INVALID |
+        | idle | `set 1.5 --confirm-current-protocol` | SAFEWORD_TEST_CAPACITY_INVALID |
+        | idle | `set` with blank input | SAFEWORD_TEST_CAPACITY_INVALID |
+        | idle | malformed `set` input | SAFEWORD_TEST_CAPACITY_INVALID |
+        | unavailable or conflicting machine identity | `set 2 --confirm-current-protocol` | SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE |
 
     @wiring @process @surface.safeword-cli
     Scenario Outline: Public set commands wire canonical capacity atomically
