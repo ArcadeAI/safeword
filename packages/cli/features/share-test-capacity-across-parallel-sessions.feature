@@ -32,7 +32,7 @@ Feature: Let parallel sessions share test capacity safely
       Then B's owner record, permit weight, and active lifetime remain unchanged, B exits zero after controlled release, and no repository lifetime overlaps B beyond canonical capacity
     @rejection @process
     Scenario Outline: Reservation failure starts no repository process
-      Given an exact focused public wrapper reservation is durable and <fault>
+      Given canonical capacity is one, an exact focused public wrapper reservation is durable, a second focused public wrapper in that domain with a deterministic zero-exit collaborator is ready, and <fault>
       When the wrapper handles the activation failure
       Then no repository process or descendant starts, <reservation-outcome>, <checkout-outcome>, and the wrapper exits with <terminal-contract>
       Examples:
@@ -208,7 +208,7 @@ Feature: Let parallel sessions share test capacity safely
       And after controlled release the checkout holder, checkout-mutex waiter, and unrelated wrapper each exit zero and every descendant is accounted for
     @rejection
     Scenario Outline: A terminated capacity wait does not strand the checkout mutex
-      Given an exact public wrapper holds <checkout-state> and a registered waiter ticket while waiting for capacity
+      Given canonical capacity is one, an authenticated unrelated owner holds its only permit, an exact public wrapper holds <checkout-state> and a registered waiter ticket while waiting, and a second focused wrapper in that domain with a deterministic zero-exit collaborator is ready
       When the wait <termination>
       Then <scheduler-cleanup>, <checkout-cleanup>, no repository process starts, and the wrapper exits with <result>
       Examples:
@@ -245,13 +245,13 @@ Feature: Let parallel sessions share test capacity safely
     Scenario Outline: Global guard ordering prevents deadlock on every terminal path
       Given canonical capacity is one, one focused same-worktree wrapper holds checkout ownership and the only scheduler permit, a second same-worktree wrapper waits on that checkout mutex with no permit, and an unrelated worktree waits for capacity
       When the first wrapper reaches <terminal-path>
-      Then <ordering-outcome> and <waiter-outcome>
+      Then the first wrapper exits with <first-terminal>, <ordering-outcome>, and <waiter-outcome>
       Examples:
-        | terminal-path | ordering-outcome | waiter-outcome |
-        | successful test completion | scheduler capacity releases before checkout ownership | the unrelated capacity waiter runs its deterministic zero-exit invocation as soon as capacity releases, then the same-worktree waiter starts only after checkout ownership releases and also exits zero |
-        | build failure | scheduler capacity releases before checkout ownership | the unrelated capacity waiter runs its deterministic zero-exit invocation as soon as capacity releases, then the same-worktree waiter starts only after checkout ownership releases and also exits zero |
-        | Vitest failure | scheduler capacity releases before checkout ownership | the unrelated capacity waiter runs its deterministic zero-exit invocation as soon as capacity releases, then the same-worktree waiter starts only after checkout ownership releases and also exits zero |
-        | descendant teardown failure | scheduler capacity and checkout ownership remain held fail-closed | both waiters remain queued with no repository descendant until controlled teardown cancels each exact request; status names termination of the recorded container, and guarded recovery admits a later wrapper only after exact emptiness is proven |
+        | terminal-path | first-terminal | ordering-outcome | waiter-outcome |
+        | successful test completion | zero | scheduler capacity releases before checkout ownership | the unrelated capacity waiter runs its deterministic zero-exit invocation as soon as capacity releases, then the same-worktree waiter starts only after checkout ownership releases and also exits zero |
+        | build failure | its predetermined build-failure status | scheduler capacity releases before checkout ownership | the unrelated capacity waiter runs its deterministic zero-exit invocation as soon as capacity releases, then the same-worktree waiter starts only after checkout ownership releases and also exits zero |
+        | Vitest failure | its predetermined Vitest-failure status | scheduler capacity releases before checkout ownership | the unrelated capacity waiter runs its deterministic zero-exit invocation as soon as capacity releases, then the same-worktree waiter starts only after checkout ownership releases and also exits zero |
+        | descendant teardown failure | its predetermined teardown-failure status | scheduler capacity and checkout ownership remain held fail-closed | both waiters remain queued with no repository descendant until controlled teardown cancels each exact request; status names termination of the recorded container, and guarded recovery admits a later wrapper only after exact emptiness is proven |
     @rejection @wiring @process
     Scenario: A stranded unsafe checkout mutex has an explicit safe recovery path
       Given an exact dead wrapper left an unsafe checkout-mutex record that a second wrapper cannot authenticate
@@ -287,12 +287,10 @@ Feature: Let parallel sessions share test capacity safely
       Given shared capacity is one, the deterministic injected identity adapter proves dead ticket-1 absent without contributing native evidence, and live ticket-2 and ticket-3 wrappers wait in that order
       When the ticket-2 public package-test wrapper evaluates the queue under the state guard
       Then the guarded transition removes only dead ticket 1, records ticket-2 admission strictly before every ticket-3 admission event, ticket 2 runs its unchanged downstream invocation once and exits zero, and ticket 3 then runs its unchanged downstream invocation once and exits zero with every descendant accounted for
-
     Scenario: A broad request runs exclusively on an idle domain
       Given an idle canonical capacity-two domain and a real broad public wrapper with a deterministic zero-exit collaborator
       When the broad wrapper reaches the queue head
       Then one committed transition changes its durable owner weight directly from zero to both permits with no intermediate weight, runs its unchanged invocation once and alone to exit zero, releases both permits, and accounts for every descendant
-
     Scenario: Consecutive broad requests run alone in FIFO-ticket order
       Given shared capacity is two and real broad public wrappers A and B hold consecutive FIFO tickets with deterministic zero-exit collaborators
       When A reaches the queue head
@@ -361,7 +359,7 @@ Feature: Let parallel sessions share test capacity safely
 
     @rejection
     Scenario Outline: Injected identity adapter faults fail closed without contributing native evidence
-      Given the deterministic injected <platform> identity adapter reads <identity-source>
+      Given canonical capacity is one, a durable active owner has an exact process instance, a real caller with a deterministic zero-exit collaborator waits behind it, and the deterministic injected <platform> identity adapter reads <identity-source>
       When the reading is <failure>
       Then no repository process starts, the exact process instance is not reclaimed, native evidence and durable owner bytes remain unchanged, and the caller exits nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE and `safeword project test-capacity status`
       Examples:
@@ -480,7 +478,7 @@ Feature: Let parallel sessions share test capacity safely
     Scenario: Detached POSIX descendants remain an explicitly disclosed limitation
       Given a verified current-commit attestation from the required native POSIX CI job covers canonical capacity above one, repository code deliberately escapes its recorded POSIX process group, the ordinary recorded group is proven empty, a barrier holds that escaped process active, and teardown retains its exact external process identity
       When the scheduler admits one new repository process and the barrier releases the escaped process
-      Then status contains the exact disclosure `deliberately detached descendants are not contained`, and external-identity teardown proves both processes exit
+      Then status contains the exact disclosure `deliberately detached descendants are not contained`, keyed events prove the recorded group empty while the retained escaped process overlaps the newly admitted repository process, and external-identity teardown proves both processes exit
 
     @platform-posix
     Scenario: Supervisor loss returns capacity only after a second empty-group observation
@@ -508,7 +506,7 @@ Feature: Let parallel sessions share test capacity safely
 
     @platform-posix @rejection @process
     Scenario Outline: POSIX reclaim changes or ambiguous identity never release capacity
-      Given the deterministic injected identity adapter's first absent observation marked an active POSIX owner reclaiming without contributing native evidence
+      Given a harness-controlled monotonic clock and deterministic injected identity adapter's first absent observation marked an active POSIX owner reclaiming without contributing native evidence
       When the monotonic interval ends with <second-state>
       Then <recovery> and <caller-result>
       Examples:
@@ -572,7 +570,7 @@ Feature: Let parallel sessions share test capacity safely
 
     @native-platform @platform-windows @rejection @process
     Scenario Outline: Windows Job Object recovery proves emptiness through the real OS seam
-      Given a verified current-commit attestation from the required native Windows CI job covers a wrapper that dies with a recorded random owner-only Job Object and <windows-state>
+      Given a verified current-commit attestation from the required native Windows CI job covers a wrapper that dies with a recorded random owner-only Job Object and <windows-state>, while a harness-controlled monotonic clock advances any reclaim deadline without substituting native identity or container observations
       When another real wrapper attempts guarded recovery
       Then <windows-outcome> before any new build or Vitest process starts, and <terminal-contract>
       Examples:
@@ -922,6 +920,8 @@ Feature: Let parallel sessions share test capacity safely
         | the capacity-domain artifact is group-writable | `safeword project test-capacity set 02` | SAFEWORD_TEST_CAPACITY_INVALID |
         | the capacity-domain artifact is group-writable and its recorded identity is unverifiable | `safeword project test-capacity set 2 --confirm-current-protocol` | SAFEWORD_TEST_CAPACITY_STATE_UNSAFE |
         | a capacity-one domain has an owner whose identity is unverifiable | `safeword project test-capacity set 2 --confirm-current-protocol` | SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE |
+        | the capacity-domain artifact is group-writable while the containment primitive is unavailable | `safeword project test-capacity set 2 --confirm-current-protocol` | SAFEWORD_TEST_CAPACITY_STATE_UNSAFE |
+        | current-commit native evidence is incomplete while capacity-domain identity is unreadable | `safeword project test-capacity verify-native-evidence` | SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE |
 
     @wiring @process @surface.safeword-cli
     Scenario Outline: Public set commands wire canonical capacity atomically
