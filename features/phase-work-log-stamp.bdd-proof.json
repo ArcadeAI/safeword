@@ -1,0 +1,45 @@
+{
+  "feature": "features/phase-work-log-stamp.feature",
+  "scenarios": {
+    "An Edit that advances the phase appends one stamped line": [
+      "packages/cli/tests/integration/work-log-stamp.test.ts",
+      "Scenario: an Edit that advances the phase appends one stamped line"
+    ],
+    "A MultiEdit carrying a phase change among other edits appends one stamped line": [
+      "packages/cli/tests/hooks/work-log-stamp.test.ts",
+      "Scenario: a MultiEdit carrying a phase change among other edits detects it"
+    ],
+    "A backward phase move is stamped like any transition": [
+      "packages/cli/tests/hooks/work-log-stamp.test.ts",
+      "Scenario: a backward move is a transition like any other"
+    ],
+    "Everything but the appended line is byte-identical": [
+      "packages/cli/tests/hooks/work-log-stamp.test.ts",
+      "Scenario: everything but the appended line is byte-identical"
+    ],
+    "A ticket without a Work Log section gains one before the entry": [
+      "packages/cli/tests/hooks/work-log-stamp.test.ts",
+      "Scenario: a ticket without a Work Log section gains one before the entry"
+    ],
+    "A ticket.md edit that does not touch phase adds no stamp": [
+      "packages/cli/tests/hooks/work-log-stamp.test.ts",
+      "Scenario: an edit that never touches phase"
+    ],
+    "Re-declaring the same phase adds no stamp": [
+      "packages/cli/tests/hooks/work-log-stamp.test.ts",
+      "Scenario: re-declaring the same phase"
+    ],
+    "Files that are not a tickets-namespace ticket.md are never stamped": [
+      "packages/cli/tests/integration/work-log-stamp.test.ts",
+      "Scenario: files outside the tickets namespace are never stamped"
+    ],
+    "A full-file Write rewrite is a documented no-op": [
+      "packages/cli/tests/hooks/work-log-stamp.test.ts",
+      "Scenario: a full-file Write payload is the documented no-op"
+    ],
+    "The bdd phase files carry no fabricated-timestamp transition template": [
+      "packages/cli/tests/hooks/work-log-stamp.test.ts",
+      "Scenario: %s carries no {timestamp} transition template"
+    ]
+  }
+}

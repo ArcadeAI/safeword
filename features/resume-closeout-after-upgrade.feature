@@ -1,11 +1,7 @@
-# Behavior source for 07VEZF. Executable proof lives in
-# packages/cli/tests/hooks/closeout-session-binding.test.ts and
-# packages/cli/tests/commands/codex-hook.test.ts. Those suites exercise the
-# profile handoff store and shipped SessionStart hook at their real boundaries.
-#
-# Reproducing the same filesystem, profile, and hook fixtures as Cucumber steps
-# would duplicate the integration harness without adding confidence.
-@proof.vitest @surface.openai-codex @surface.closeout-cleanup-guard
+# Behavior source for in-progress ticket 07VEZF. The existing closeout binding
+# tests cover only part of this contract; keep the feature out of executable
+# lanes until every scenario has named proof.
+@wip @surface.openai-codex @surface.closeout-cleanup-guard
 Feature: Resume interrupted closeout after a Codex upgrade
 
   @resume-closeout-after-upgrade.NTB1.R1

@@ -258,6 +258,7 @@ Feature: Make review coverage clear without false alarms
   @clarify-review-coverage.SWM1.R1 @contract.host
   Scenario Outline: Host fallback wording stays supplemental and policy-safe
     Given the distributed <contract> review contract surfaces
+    When their host-fallback wording is inspected
     Then effective instructions for every surface contain "<required_text>"
     And every surface preserves its policy boundary clauses
 
@@ -271,6 +272,7 @@ Feature: Make review coverage clear without false alarms
   @clarify-review-coverage.SWM1.R1 @contract.host @rejection
   Scenario: Supplemental host fallback cannot claim completed machine coverage
     Given the distributed finish-review review contract surfaces
+    When their machine-coverage claims are inspected
     Then no surface claims completed coverage outside its mandatory denial clauses
 
   @clarify-review-coverage.SWM1.R1 @contract.host

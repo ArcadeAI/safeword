@@ -55,12 +55,25 @@ function markerPathFor(conversationId: string): string {
 }
 
 function runHook(directory: string, input: unknown) {
-  return spawnSync('bun', [HOOK], {
+  const environment = Object.fromEntries(
+    Object.entries(process.env).filter(
+      ([name]) => !name.startsWith('SAFEWORD_') && name !== 'CLAUDE_PROJECT_DIR',
+    ),
+  );
+  const result = spawnSync('bun', [HOOK], {
     input: typeof input === 'string' ? input : JSON.stringify(input),
     cwd: directory,
+    env: {
+      ...environment,
+      CLAUDE_PROJECT_DIR: directory,
+      SAFEWORD_RETRO_EXTRACT_CMD: 'true',
+    },
     encoding: 'utf8',
     timeout: TIMEOUT_QUICK,
   });
+  expect(result.error).toBeUndefined();
+  expect(result.status, result.stderr || 'cursor stop hook exited unsuccessfully').toBe(0);
+  return result;
 }
 
 describe('cursor/stop.ts retro path (KHYXY4)', () => {
@@ -145,6 +158,21 @@ describe('cursor/stop.ts retro path (KHYXY4)', () => {
     // Retro never ran on the quality-review stop → its sentinel is untouched, so it
     // can still fire on a later no-edit stop.
     expect(hasNudged(id)).toBe(false);
+  });
+
+  it('fires retro on the later non-review stop after yielding to quality review', () => {
+    writeConfig(dir, { surface: true });
+    const transcript = writeTranscript(dir, 'big.jsonl', 8);
+    const id = freshConversation('coexist-later');
+    writeFileSync(markerPathFor(id), '1');
+
+    const reviewStop = runHook(dir, basePayload(id, transcript));
+    expect(JSON.parse(reviewStop.stdout).followup_message).toBe(QUALITY_REVIEW_MESSAGE);
+    rmSync(markerPathFor(id), { force: true });
+    const later = JSON.parse(runHook(dir, basePayload(id, transcript)).stdout);
+
+    expect(later.followup_message).toContain('guide');
+    expect(hasNudged(id)).toBe(true);
   });
 
   it('emits no retro followup on a non-completed status', () => {

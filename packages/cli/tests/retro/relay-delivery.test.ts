@@ -12,7 +12,6 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { readFile } from 'node:fs/promises';
-import type { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -50,20 +49,10 @@ import {
 } from '../helpers/relay-readiness.js';
 
 const directories: string[] = [];
-const servers: ReturnType<typeof createServer>[] = [];
 const READINESS_BUILD_COMMIT = 'b'.repeat(40);
 const READINESS_NOW = new Date('2026-07-26T12:00:00.000Z');
 
-afterEach(async () => {
-  const openServers = [...servers];
-  servers.length = 0;
-  for (const server of openServers) {
-    await new Promise<void>(resolve =>
-      server.close(() => {
-        resolve();
-      }),
-    );
-  }
+afterEach(() => {
   const usedDirectories = [...directories];
   directories.length = 0;
   for (const directory of usedDirectories) {
@@ -3413,7 +3402,7 @@ describe('relay readiness provenance', () => {
     ).resolves.toEqual({ enabled: false });
   });
 
-  it('uses build-embedded evidence without consulting the customer repository', async () => {
+  it('[ORR-011] uses build-embedded evidence without consulting the customer repository', async () => {
     const manifest = validManifest();
     const result = await validateBuildAttestedRelayReadiness(
       manifest,

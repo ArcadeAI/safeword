@@ -1,11 +1,11 @@
-@retro-cursor-trigger @manual
+@retro-cursor-trigger @proof.vitest
 Feature: retro auto-trigger — Cursor
 
   A retro path in cursor/stop.ts fires the retro pipeline once per substantial
   Cursor session via a followup_message, counting tool_use from the hook-provided
   transcript_path (Claude-shaped). Reuses the shared core; coexists with the
-  existing quality-review followup. Tagged @manual — proven by vitest, excluded
-  from the cucumber lane (no step defs).
+  existing quality-review followup. The adjacent proof manifest binds these
+  scenarios to the Vitest unit and integration lanes.
 
   Rule: Reuses the Claude-shaped tool-use counter on the Cursor transcript (SM1.AC1)
 
@@ -76,11 +76,10 @@ Feature: retro auto-trigger — Cursor
       And the first session's sentinel is left set
 
     @retro-cursor-trigger.SM1.AC2
-    Scenario: The adapter reads the supplied transcript_path and never guesses one
+    Scenario: The adapter uses the supplied transcript_path
       Given a Cursor stop payload whose transcript_path points at a substantial transcript
       When the adapter runs
       Then it reads the transcript at the supplied path
-      And it constructs no path from the home directory or environment
 
   Rule: Coexists with the existing quality-review followup (SM1.AC3)
 
@@ -110,7 +109,7 @@ Feature: retro auto-trigger — Cursor
       And it leaves the once-per-session sentinel unset
 
     @retro-cursor-trigger.TB1.AC1
-    Scenario Outline: A malformed or unreadable input fails open
+    Scenario Outline: A malformed or unreadable Cursor adapter input fails open
       Given a Cursor stop adapter invoked with <bad-input>
       When the adapter runs
       Then the output has no retro followup

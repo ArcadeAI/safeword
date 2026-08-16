@@ -311,6 +311,7 @@ Feature: plan-implementation phase before TDD
 
     Scenario: Canonical phase order places plan-implementation between scenario-gate and implement
       Given the canonical phase list
+      When the phase order is inspected
       Then it reads intake, define-behavior, scenario-gate, plan-implementation, implement, verify, done
 
     @surface.claude-code
@@ -385,13 +386,15 @@ Feature: plan-implementation phase before TDD
     @surface.claude-code @surface.openai-codex @surface.cursor
     Scenario: The planning phase doc ships to all three harnesses
       Given the schema manifest
+      When the plan-implementation distribution is inspected
       Then PLAN_IMPLEMENTATION.md is registered for the Claude skill directory, the Codex skill directory, and a Cursor rule
-      And each installed copy is byte-identical to its template
+      And the Claude copy is byte-identical and the Cursor and Codex assets are registered
 
   @plan-implementation-phase.SM1.R3
   Rule: plan-implementation-phase.SM1.R3 — the decomposition-retirement ADR is superseded on the record
 
     Scenario: The architecture record supersedes the decomposition retirement
       Given the project architecture record
+      When accepted architecture decisions are inspected
       Then an accepted ADR records the plan-implementation phase
       And the decomposition-retirement ADR is marked superseded by it

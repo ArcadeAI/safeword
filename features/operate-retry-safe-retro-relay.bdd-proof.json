@@ -1,0 +1,206 @@
+{
+  "feature": "features/operate-retry-safe-retro-relay.feature",
+  "scenarios": {
+    "Each harness submits the exact request persisted by another harness": [
+      "packages/retro-relay/tests/cli-wiring.integration.test.ts",
+      "[ORR-001] routes the installed $harness surface through the persisted request"
+    ],
+    "A retry cannot replace the persisted payload or request identity": [
+      "packages/retro-relay/tests/relay.integration.test.ts",
+      "[ORR-002] rejects a changed %s under the same identity"
+    ],
+    "Relay unavailability preserves the draft without delaying the session": [
+      "packages/cli/tests/retro/relay-delivery.test.ts",
+      "[ORR-003] preserves the draft without delaying the session when the relay is unavailable"
+    ],
+    "A multi-draft drain shares one aggregate latency budget": [
+      "packages/cli/tests/retro/relay-delivery.test.ts",
+      "bounds a multi-draft blackhole below 1.5 seconds in wall-clock time"
+    ],
+    "An active spool claim excludes another session": [
+      "packages/cli/tests/retro/relay-delivery.test.ts",
+      "[ORR-005] An active spool claim excludes another session"
+    ],
+    "An expired spool claim is rearmed without changing the request": [
+      "packages/cli/tests/retro/relay-delivery.test.ts",
+      "[ORR-006] An expired spool claim is rearmed without changing the request"
+    ],
+    "Persisting a new request while another request drains cannot lose either draft": [
+      "packages/cli/tests/retro/relay-delivery.test.ts",
+      "[ORR-007] cannot lose a concurrent request while another request is acknowledged"
+    ],
+    "Durable acceptance drains the local draft": [
+      "packages/cli/tests/retro/relay-delivery.test.ts",
+      "[ORR-008] uses ack as the authoritative commit and recovers crash-before-cleanup"
+    ],
+    "Losing the durable receipt response leaves the same draft retryable": [
+      "packages/retro-relay/tests/cli-wiring.integration.test.ts",
+      "[ORR-009] keeps the same persisted draft retryable after a durable receipt response is lost"
+    ],
+    "Incomplete readiness proof preserves the existing filing path": [
+      "packages/retro-relay/tests/cli-wiring.integration.test.ts",
+      "[ORR-010] keeps the real CLI composition on native filing with the checked-in disabled manifest"
+    ],
+    "Complete fresh readiness proof selects the relay path": [
+      "packages/cli/tests/retro/relay-delivery.test.ts",
+      "[ORR-011] uses build-embedded evidence without consulting the customer repository"
+    ],
+    "Stale or malformed readiness proof fails closed": [
+      [
+        "packages/cli/tests/retro/relay-delivery.test.ts",
+        "[%s] fails closed for %s evidence",
+        "[\"ORR-012\",\"stale measurement\"]"
+      ],
+      [
+        "packages/cli/tests/retro/relay-delivery.test.ts",
+        "[%s] fails closed for %s evidence",
+        "[\"ORR-012\",\"malformed artifact\"]"
+      ]
+    ],
+    "Closed but unlanded or wrong-repository evidence fails closed": [
+      [
+        "packages/cli/tests/retro/relay-delivery.test.ts",
+        "[%s] fails closed for %s evidence",
+        "[\"ORR-013\",\"unlanded prerequisite\"]"
+      ],
+      [
+        "packages/cli/tests/retro/relay-delivery.test.ts",
+        "[%s] fails closed for %s evidence",
+        "[\"ORR-013\",\"wrong repository\"]"
+      ]
+    ],
+    "Readiness for another build fails closed": [
+      "packages/cli/tests/retro/relay-delivery.test.ts",
+      "[%s] fails closed for %s evidence",
+      "[\"ORR-014\",\"other build\"]"
+    ],
+    "Headless extraction receives no filing credential": [
+      "packages/cli/tests/retro/relay-delivery.test.ts",
+      "[ORR-015] constructs a minimal child environment without filing credentials"
+    ],
+    "Production startup authenticates separate harness and operator principals": [
+      "packages/retro-relay/tests/runtime.test.ts",
+      "[ORR-016] loads independently rotatable production principals with the exact role matrix"
+    ],
+    "Rotating one harness credential leaves the other principals active": [
+      "packages/retro-relay/tests/runtime.test.ts",
+      "[ORR-017] rotates one harness credential without invalidating the other principals"
+    ],
+    "A principal cannot cross its repository boundary": [
+      "packages/retro-relay/tests/relay.integration.test.ts",
+      "[ORR-018] authorizes the exact repository and rejects invalid credentials before GitHub"
+    ],
+    "A harness principal cannot read operator operations": [
+      "packages/retro-relay/tests/relay.integration.test.ts",
+      "[ORR-019] denies harness principals access to operator lifecycle operations"
+    ],
+    "Each principal is denied every excluded role": [
+      "packages/retro-relay/tests/runtime.test.ts",
+      "[ORR-020] denies operator filing and harness reconciliation before GitHub access"
+    ],
+    "Spike mode exposes health only": [
+      "packages/retro-relay/tests/runtime.test.ts",
+      "[ORR-021] exposes health only in spike mode before auth storage or GitHub collaborators"
+    ],
+    "GitHub installation tokens remain opaque inside the relay": [
+      "packages/retro-relay/tests/relay.integration.test.ts",
+      "[ORR-022] treats installation token format %s as opaque"
+    ],
+    "Production filing requests are resource bounded": [
+      "packages/retro-relay/tests/relay.integration.test.ts",
+      "[ORR-023] bounds request size fields timeouts and per-principal filing rate"
+    ],
+    "Maintenance enforces each lifecycle boundary exactly once": [
+      [
+        "packages/retro-relay/tests/lifecycle.test.ts",
+        "[ORR-024] [ORR-026] prevents a new dispatch at 24 hours and dead-letters exactly once"
+      ],
+      [
+        "packages/retro-relay/tests/lifecycle.test.ts",
+        "[ORR-024] [ORR-027] allows exactly one filed or ambiguous winner at the 25-hour CAS boundary"
+      ],
+      [
+        "packages/retro-relay/tests/lifecycle.test.ts",
+        "[ORR-024] compacts payload access at 30 days while retaining non-reusable identity"
+      ]
+    ],
+    "Durable retry scheduling survives restart": [
+      "packages/retro-relay/tests/lifecycle.test.ts",
+      "[ORR-025] persists due scheduling and exponential backoff across restart"
+    ],
+    "No new dispatch starts at the retry deadline": [
+      "packages/retro-relay/tests/lifecycle.test.ts",
+      "[ORR-024] [ORR-026] prevents a new dispatch at 24 hours and dead-letters exactly once"
+    ],
+    "A late dispatch resolves or becomes ambiguous by one CAS winner": [
+      "packages/retro-relay/tests/lifecycle.test.ts",
+      "[ORR-024] [ORR-027] allows exactly one filed or ambiguous winner at the 25-hour CAS boundary"
+    ],
+    "Interrupted schema migration rolls back atomically": [
+      "packages/retro-relay/tests/lifecycle.test.ts",
+      "[ORR-028] rolls back every migration mutation when an injected step fails"
+    ],
+    "Unsupported schema metadata is rejected before listen": [
+      "packages/retro-relay/tests/lifecycle.test.ts",
+      "[ORR-029] rejects %s schema metadata before use"
+    ],
+    "Terminal identity cannot be deleted or silently reidentified": [
+      [
+        "packages/retro-relay/tests/relay.integration.test.ts",
+        "[ORR-030] [ORR-031] immediately returns the original filed result after 30-day payload compaction"
+      ],
+      [
+        "packages/retro-relay/tests/relay.integration.test.ts",
+        "[ORR-030] does not start a dispatch when token acquisition crosses the 24-hour deadline"
+      ]
+    ],
+    "A compacted request immediately replays its original filed result": [
+      "packages/retro-relay/tests/relay.integration.test.ts",
+      "[ORR-030] [ORR-031] immediately returns the original filed result after 30-day payload compaction"
+    ],
+    "The operator sees lifecycle counts through the real HTTP route without secret content": [
+      "packages/retro-relay/tests/relay.integration.test.ts",
+      "[ORR-032] exposes payload-free lifecycle operations to the operator through the real HTTP route"
+    ],
+    "Maintenance emits a deduplicable structured alert for each newly terminal request": [
+      "packages/retro-relay/tests/lifecycle.test.ts",
+      "[ORR-033] reports lifecycle counts and stable deduplicable alert event IDs"
+    ],
+    "Immediate ambiguous outcomes are durably alertable": [
+      "packages/retro-relay/tests/lifecycle.test.ts",
+      "[ORR-034] atomically records an alert when a request becomes immediately ambiguous"
+    ],
+    "Empty or semantically irrelevant readiness evidence fails closed": [
+      [
+        "packages/cli/tests/retro/relay-delivery.test.ts",
+        "[ORR-035] fails closed when a hash-attested measurement has an empty sample"
+      ],
+      [
+        "packages/cli/tests/retro/relay-delivery.test.ts",
+        "[ORR-035] fails closed when hash-attested content describes the wrong measurement"
+      ]
+    ],
+    "One external durable outbox survives disposable harness workspaces": [
+      "packages/retro-relay/tests/cli-wiring.integration.test.ts",
+      "[ORR-036] keeps one external durable outbox across disposable harness workspaces"
+    ],
+    "Persistence success is not reported before file and directory sync": [
+      [
+        "packages/cli/tests/retro/relay-delivery.test.ts",
+        "[ORR-037] does not report persistence success when file synchronization fails"
+      ],
+      [
+        "packages/cli/tests/retro/relay-delivery.test.ts",
+        "[ORR-037] does not report persistence success when directory synchronization fails"
+      ]
+    ],
+    "GitHub create classification ignores undocumented response prose": [
+      "packages/retro-relay/tests/relay.integration.test.ts",
+      "[ORR-038] classifies documented create failures independently of response prose"
+    ],
+    "The built production process files through every real collaborator": [
+      "packages/retro-relay/tests/runtime-qualification.test.ts",
+      "[ORR-039] runs the built production process through SQLite, HTTP auth, and GitHub"
+    ]
+  }
+}

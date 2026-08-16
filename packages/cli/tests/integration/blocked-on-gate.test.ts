@@ -171,17 +171,20 @@ describe('MBGQ89 blocked_on phase gate (wired, always-on)', () => {
     expectHookDeny(advance('define-behavior', 'blocked_on: [BLK1]'), 'BLOCKED on BLK1');
   });
 
-  it('allows past a cancelled blocker with a substantive override', () => {
-    seedSubject('intake', 'blocked_on: [BLK1]');
-    writeBlocker('BLK1', 'cancelled');
-    expectHookAllow(
-      advance(
-        'define-behavior',
-        'blocked_on: [BLK1]',
-        'blocked_on_override: BLK1 cancelled; subject still needs the schema, doing it inline',
-      ),
-    );
-  });
+  it.each(['cancelled', 'superseded', 'wontfix'] as const)(
+    'allows past a %s blocker with a substantive override',
+    status => {
+      seedSubject('intake', 'blocked_on: [BLK1]');
+      writeBlocker('BLK1', status);
+      expectHookAllow(
+        advance(
+          'define-behavior',
+          'blocked_on: [BLK1]',
+          `blocked_on_override: BLK1 ${status}; subject still needs the schema, doing it inline`,
+        ),
+      );
+    },
+  );
 
   it('rejects a trivial override reason', () => {
     seedSubject('intake', 'blocked_on: [BLK1]');

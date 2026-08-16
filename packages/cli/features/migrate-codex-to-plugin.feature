@@ -27,7 +27,7 @@ Feature: Move Codex users to the Safeword plugin
       And the builder is told to review the Safeword hooks in Codex before cleanup
 
     @rejection
-    Scenario: Failed plugin installation retains legacy hooks
+    Scenario: Codex migration failure retains legacy hooks
       Given a Safeword project has legacy Codex hooks
       And the Safeword Codex plugin cannot be installed
       When the builder migrates Codex to the plugin

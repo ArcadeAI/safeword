@@ -128,15 +128,18 @@ describe('sync-tracker command wiring (real syncTrackerCommand)', () => {
 
   it('fails loudly when a provider is configured but no credential resolves (AC2)', async () => {
     seedProject('github');
-    const previous = process.env.GITHUB_TOKEN;
+    const previousGithubToken = process.env.GITHUB_TOKEN;
+    const previousGhToken = process.env.GH_TOKEN;
     const previousPath = process.env.PATH;
     delete process.env.GITHUB_TOKEN;
+    delete process.env.GH_TOKEN;
     process.env.PATH = nodePath.join(cwd, 'no-executables');
     try {
       await syncTrackerCommand();
     } finally {
       process.env.PATH = previousPath;
-      if (previous !== undefined) process.env.GITHUB_TOKEN = previous;
+      if (previousGithubToken !== undefined) process.env.GITHUB_TOKEN = previousGithubToken;
+      if (previousGhToken !== undefined) process.env.GH_TOKEN = previousGhToken;
     }
     expect(`${logs.join('\n')}${errs.join('\n')}`).toMatch(/credential/i);
     expect(process.exitCode).not.toBe(0);

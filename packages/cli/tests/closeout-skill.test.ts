@@ -36,6 +36,14 @@ function normalizedParagraphContaining(content: string, marker: string): string 
 }
 
 describe('closeout delivery evidence (93C14D NTB1.R1)', () => {
+  it('requires current delivery evidence before an authorized normal merge', () => {
+    const skill = canonicalSkill();
+    expect(skill).toContain('current pull request head');
+    expect(skill).toContain('required checks');
+    expect(skill).toContain('normal merge');
+    expect(skill).toContain('no merge or cleanup');
+  });
+
   it('accepts exact-head green CI and falls back to local verification', () => {
     const skill = canonicalSkill();
 
@@ -65,9 +73,45 @@ describe('closeout merge authority (93C14D TBU1.R1)', () => {
       normalizedParagraphContaining(skill, 'Invocation alone grants no merge authority'),
     ).toContain('historical, implied, or previously consumed authority is not available');
   });
+
+  it.each([
+    {
+      authority: 'no merge authority',
+      marker: '**No authority:**',
+      contract: 'stop before merging',
+    },
+    {
+      authority: 'normal merge authority',
+      marker: '**Normal merge:**',
+      contract: 'policy-compliant `gh pr merge`. Never escalate',
+    },
+    {
+      authority: 'administrative merge authority',
+      marker: '**Administrative merge:**',
+      contract: 'explicit current request to perform an administrative merge',
+    },
+  ])('documents the exact $authority boundary', ({ marker, contract }) => {
+    expect(normalizedParagraphContaining(canonicalSkill(), marker)).toContain(contract);
+  });
 });
 
 describe('closeout observed resumption (93C14D NTB1.R3)', () => {
+  it('re-observes the exact pull request after a local merge-command error', () => {
+    const skill = canonicalSkill();
+    expect(normalizedParagraphContaining(skill, 'After every merge command')).toContain(
+      'success or error',
+    );
+    expect(normalizedParagraphContaining(skill, 'If the command reported an error')).toContain(
+      'remote merge succeeded',
+    );
+  });
+
+  it('requires the reviewed head before attempting a merge', () => {
+    const skill = canonicalSkill();
+    expect(skill).toContain('current pull request head');
+    expect(skill).toContain('ambiguous evidence means **no merge or cleanup**');
+  });
+
   it('re-observes merge truth and continues only the unfinished suffix', () => {
     const skill = canonicalSkill();
 
@@ -183,6 +227,19 @@ describe('closeout cleanup and reporting (93C14D NTB1.R1/TBU1.R2/R3)', () => {
 });
 
 describe('closeout host entry points (93C14D TBU1.R4)', () => {
+  it.each(['closeout-binding.ts', 'retro-draft-spool.ts'])(
+    'keeps generated plugin runtime %s aligned with its canonical hook library',
+    filename => {
+      const generated = readFileSync(
+        nodePath.join(repoRoot, 'plugin/runtime/hooks/lib', filename),
+        'utf8',
+      );
+      expect(generated.replaceAll('\\${', '${')).toBe(
+        readFileSync(nodePath.join(repoRoot, 'packages/cli/templates/hooks/lib', filename), 'utf8'),
+      );
+    },
+  );
+
   it('derives Claude, Cursor, and Codex entry points from production catalogues', () => {
     const cursor = CURSOR_COMMAND_WRAPPERS.find(wrapper => wrapper.name === 'closeout');
     expect(cursor?.skillPath).toBe('closeout/SKILL.md');
