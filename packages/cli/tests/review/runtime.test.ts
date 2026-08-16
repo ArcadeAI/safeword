@@ -195,6 +195,33 @@ describe('reviewer arguments', () => {
     expect(args.slice(-2)).toEqual(['--model', 'claude-test']);
     expect(args).not.toContain('-');
   });
+
+  it('appends an explicitly configured Claude effort level', () => {
+    const args = reviewerArguments('claude', 'sonnet', undefined, {
+      SAFEWORD_REVIEW_EFFORT_CLAUDE: 'low',
+    });
+
+    expect(args.slice(-4)).toEqual(['--model', 'sonnet', '--effort', 'low']);
+  });
+
+  it.each(['', 'auto', '--help', 'LOW', ' low '])(
+    'ignores an invalid Claude effort level: %s',
+    effort => {
+      const args = reviewerArguments('claude', undefined, undefined, {
+        SAFEWORD_REVIEW_EFFORT_CLAUDE: effort,
+      });
+
+      expect(args).not.toContain('--effort');
+    },
+  );
+
+  it('never passes Claude effort configuration to Codex', () => {
+    const args = reviewerArguments('codex', undefined, '/tmp/schema.json', {
+      SAFEWORD_REVIEW_EFFORT_CLAUDE: 'low',
+    });
+
+    expect(args).not.toContain('--effort');
+  });
 });
 
 describe('reviewer process-group liveness', () => {

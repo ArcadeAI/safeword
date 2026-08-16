@@ -54,6 +54,12 @@ const REVIEW_OUTPUT_SCHEMA_SHAPE = {
 } as const;
 
 const REVIEW_OUTPUT_SCHEMA = JSON.stringify(REVIEW_OUTPUT_SCHEMA_SHAPE);
+const CLAUDE_EFFORT_LEVELS = new Set(['low', 'medium', 'high', 'xhigh', 'max']);
+
+function configuredClaudeEffort(environment: NodeJS.ProcessEnv): string | undefined {
+  const effort = environment.SAFEWORD_REVIEW_EFFORT_CLAUDE;
+  return effort !== undefined && CLAUDE_EFFORT_LEVELS.has(effort) ? effort : undefined;
+}
 
 const ARGUMENTS: Readonly<Record<ReviewAgent, readonly string[]>> = {
   claude: [
@@ -96,10 +102,15 @@ export function reviewerArguments(
   reviewer: ReviewAgent,
   model: string | undefined,
   schemaPath: string | undefined,
+  environment: NodeJS.ProcessEnv = process.env,
 ): string[] {
   const base = [...ARGUMENTS[reviewer]];
   const extra: string[] = [];
   if (model !== undefined) extra.push('--model', model);
+  if (reviewer === 'claude') {
+    const effort = configuredClaudeEffort(environment);
+    if (effort !== undefined) extra.push('--effort', effort);
+  }
   if (reviewer === 'codex' && schemaPath !== undefined) extra.push('--output-schema', schemaPath);
   if (extra.length === 0) return base;
   if (reviewer !== 'codex') return [...base, ...extra];
