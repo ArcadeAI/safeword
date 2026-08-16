@@ -2,20 +2,12 @@
   "feature": "features/close-completed-sessions-safely.feature",
   "scenarios": {
     "Current delivery evidence makes an authorized merge eligible": [
-      [
-        "packages/cli/tests/closeout-skill.test.ts",
-        "documents the exact $authority boundary",
-        "normal merge authority"
-      ],
-      [
-        "packages/cli/tests/closeout-skill.test.ts",
-        "re-observes merge truth and continues only the unfinished suffix"
-      ]
+      "packages/cli/tests/closeout-skill.test.ts",
+      "requires current delivery evidence before an authorized normal merge"
     ],
     "Incomplete delivery evidence blocks cleanup": [
       "packages/cli/tests/closeout-cleanup.test.ts",
-      "%s blocks every deletion",
-      "stale verification"
+      "stale verification evidence blocks every deletion"
     ],
     "Closeout guidance documents every final state": [
       "packages/cli/tests/closeout-skill.test.ts",
@@ -39,21 +31,9 @@
       ]
     ],
     "Retro subprocess failures remain visible while cleanup continues": [
-      [
-        "packages/cli/tests/closeout-cleanup.test.ts",
-        "classifies the current retro outcome ($complete, $errorText, $processStatus, $agentFilingNeeded, $pendingDrafts)",
-        "[\"false\",\"command failed on stderr\",\"1\",\"false\",\"0\"]"
-      ],
-      [
-        "packages/cli/tests/closeout-cleanup.test.ts",
-        "%s is advisory for cleanup",
-        "failed retro extraction"
-      ],
-      [
-        "packages/cli/tests/closeout-cleanup.test.ts",
-        "classifies the current retro outcome ($complete, $errorText, $processStatus, $agentFilingNeeded, $pendingDrafts)",
-        "[\"false\",\"malformed output\",\"0\",\"false\",\"0\"]"
-      ]
+      "packages/cli/tests/closeout-cleanup.test.ts",
+      "%s is advisory for cleanup",
+      "failed retro extraction"
     ],
     "A completed retro permits cleanup": [
       [
@@ -116,7 +96,7 @@
     ],
     "A local merge-command error after remote success is partial success": [
       "packages/cli/tests/closeout-skill.test.ts",
-      "re-observes merge truth and continues only the unfinished suffix"
+      "re-observes the exact pull request after a local merge-command error"
     ],
     "An unconfirmed merge result stops safely": [
       "packages/cli/tests/closeout-cleanup.test.ts",
@@ -179,7 +159,7 @@
     ],
     "The pull request head changing after readiness blocks merge": [
       "packages/cli/tests/closeout-skill.test.ts",
-      "re-observes merge truth and continues only the unfinished suffix"
+      "requires the reviewed head before attempting a merge"
     ],
     "Normal authority never escalates to an administrative merge": [
       "packages/cli/tests/closeout-skill.test.ts",
@@ -192,17 +172,17 @@
     "Missing, ambiguous, or unmerged pull request identity blocks cleanup": [
       [
         "packages/cli/tests/closeout-cleanup.test.ts",
-        "%s blocks every deletion",
+        "%s blocks deletion when pull request identity is unsafe",
         "no pull request"
       ],
       [
         "packages/cli/tests/closeout-cleanup.test.ts",
-        "%s blocks every deletion",
+        "%s blocks deletion when pull request identity is unsafe",
         "ambiguous pull request"
       ],
       [
         "packages/cli/tests/closeout-cleanup.test.ts",
-        "%s blocks every deletion",
+        "%s blocks deletion when pull request identity is unsafe",
         "unmerged pull request"
       ]
     ],
@@ -262,22 +242,22 @@
     "Remote cleanup requires exact pull request repository identity": [
       [
         "packages/cli/tests/closeout-cleanup.test.ts",
-        "%s blocks every deletion",
+        "%s blocks deletion when remote identity is unsafe",
         "fork or remote mismatch"
       ],
       [
         "packages/cli/tests/closeout-cleanup.test.ts",
-        "%s blocks every deletion",
+        "%s blocks deletion when remote identity is unsafe",
         "lookalike remote host"
       ],
       [
         "packages/cli/tests/closeout-cleanup.test.ts",
-        "%s blocks every deletion",
+        "%s blocks deletion when remote identity is unsafe",
         "separate push repository"
       ],
       [
         "packages/cli/tests/closeout-cleanup.test.ts",
-        "%s blocks every deletion",
+        "%s blocks deletion when remote identity is unsafe",
         "ambiguous remote mapping"
       ]
     ],
@@ -286,20 +266,24 @@
         "packages/cli/tests/closeout-cleanup.test.ts",
         "never removes the primary worktree even when another worktree holds the default branch"
       ],
-      ["packages/cli/tests/closeout-cleanup.test.ts", "%s blocks every deletion", "dirty worktree"],
       [
         "packages/cli/tests/closeout-cleanup.test.ts",
-        "%s blocks every deletion",
+        "%s blocks deletion when worktree identity is unsafe",
+        "dirty worktree"
+      ],
+      [
+        "packages/cli/tests/closeout-cleanup.test.ts",
+        "%s blocks deletion when worktree identity is unsafe",
         "locked worktree"
       ],
       [
         "packages/cli/tests/closeout-cleanup.test.ts",
-        "%s blocks every deletion",
+        "%s blocks deletion when worktree identity is unsafe",
         "ambiguous worktree"
       ],
       [
         "packages/cli/tests/closeout-cleanup.test.ts",
-        "%s blocks every deletion",
+        "%s blocks deletion when worktree identity is unsafe",
         "stale registration"
       ]
     ],
@@ -308,10 +292,14 @@
       "preserves a topic branch used by a different worktree"
     ],
     "Protected and default branches are never cleanup targets": [
-      ["packages/cli/tests/closeout-cleanup.test.ts", "%s blocks every deletion", "default branch"],
       [
         "packages/cli/tests/closeout-cleanup.test.ts",
-        "%s blocks every deletion",
+        "%s blocks deletion when the branch is protected from cleanup",
+        "default branch"
+      ],
+      [
+        "packages/cli/tests/closeout-cleanup.test.ts",
+        "%s blocks deletion when the branch is protected from cleanup",
         "protected branch"
       ]
     ],

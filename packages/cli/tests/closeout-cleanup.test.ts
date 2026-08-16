@@ -1120,6 +1120,143 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     expect(plan.operations).toEqual([]);
   });
 
+  function expectEveryDeletionBlocked(
+    overrides: Partial<CloseoutObservation>,
+    expectedBlocker: string,
+  ): void {
+    const observation = safeObservation(overrides);
+    const plan = buildCleanupPlan(observation);
+    let executions = 0;
+    expect(plan.blockers).toContain(expectedBlocker);
+    const result = applyCleanupPlan({
+      plan,
+      digest: cleanupPlanDigest(plan),
+      observe: () => observation,
+      execute: () => {
+        executions += 1;
+      },
+    });
+    expect(result.applied).toBe(false);
+    expect(executions).toBe(0);
+  }
+
+  it('stale verification evidence blocks every deletion', () => {
+    expectEveryDeletionBlocked(
+      { verification: { ...safeObservation().verification, current: false } },
+      'local verification is stale',
+    );
+  });
+
+  it.each([
+    ['no pull request', { pullRequests: [] }, 'exactly one matching pull request is required'],
+    [
+      'ambiguous pull request',
+      { pullRequests: [...safeObservation().pullRequests, ...safeObservation().pullRequests] },
+      'exactly one matching pull request is required',
+    ],
+    [
+      'unmerged pull request',
+      { pullRequests: [{ ...pullRequest(), state: 'OPEN' }] },
+      'the exact pull request is not confirmed merged',
+    ],
+  ] satisfies [string, Partial<CloseoutObservation>, string][])(
+    '%s blocks deletion when pull request identity is unsafe',
+    (_name, overrides, expectedBlocker) => {
+      expectEveryDeletionBlocked(overrides, expectedBlocker);
+    },
+  );
+
+  it.each([
+    [
+      'fork or remote mismatch',
+      {
+        remote: {
+          name: 'origin',
+          url: 'git@github.com:other/widget.git',
+          pushUrl: 'git@github.com:other/widget.git',
+          oid: 'a'.repeat(40),
+        },
+      },
+      'the pull request head repository does not match the selected git remote',
+    ],
+    [
+      'lookalike remote host',
+      {
+        remote: {
+          name: 'origin',
+          url: 'https://evil.example/github.com/acme/widget.git',
+          pushUrl: 'https://evil.example/github.com/acme/widget.git',
+          oid: 'a'.repeat(40),
+        },
+      },
+      'the pull request head repository does not match the selected git remote',
+    ],
+    [
+      'separate push repository',
+      {
+        remote: {
+          name: 'origin',
+          url: 'git@github.com:acme/widget.git',
+          pushUrl: 'git@github.com:other/widget.git',
+          oid: 'a'.repeat(40),
+        },
+      },
+      'the pull request head repository does not match the selected git remote',
+    ],
+    [
+      'ambiguous remote mapping',
+      { remote: undefined, remoteResolution: 'ambiguous' },
+      'the pull request head repository does not map to exactly one git remote',
+    ],
+  ] satisfies [string, Partial<CloseoutObservation>, string][])(
+    '%s blocks deletion when remote identity is unsafe',
+    (_name, overrides, expectedBlocker) => {
+      expectEveryDeletionBlocked(overrides, expectedBlocker);
+    },
+  );
+
+  it.each([
+    [
+      'dirty worktree',
+      { worktrees: [worktree(0), { ...worktree(1), dirty: true }] },
+      'the linked worktree is dirty: /repo-closeout',
+    ],
+    [
+      'locked worktree',
+      { worktrees: [worktree(0), { ...worktree(1), locked: true }] },
+      'the linked worktree is locked: /repo-closeout',
+    ],
+    [
+      'ambiguous worktree',
+      { worktrees: [worktree(0), worktree(1), worktree(1)] },
+      'the linked topic worktree is ambiguous',
+    ],
+    [
+      'stale registration',
+      { worktrees: [worktree(0), { ...worktree(1), prunable: true }] },
+      'the worktree registration is stale: /repo-closeout',
+    ],
+  ] satisfies [string, Partial<CloseoutObservation>, string][])(
+    '%s blocks deletion when worktree identity is unsafe',
+    (_name, overrides, expectedBlocker) => {
+      expectEveryDeletionBlocked(overrides, expectedBlocker);
+    },
+  );
+
+  it.each([
+    [
+      'default branch',
+      { pullRequests: [{ ...pullRequest(), headRefName: 'main' }] },
+      'the default branch is never a closeout target',
+    ],
+    ['protected branch', { protection: 'protected' }, 'the topic branch is protected'],
+  ] satisfies [string, Partial<CloseoutObservation>, string][])(
+    '%s blocks deletion when the branch is protected from cleanup',
+    (_name, overrides, expectedBlocker) => {
+      expectEveryDeletionBlocked(overrides, expectedBlocker);
+    },
+  );
+
   it.each([
     ['no pull request', { pullRequests: [] }, 'exactly one matching pull request is required'],
     [

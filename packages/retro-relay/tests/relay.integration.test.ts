@@ -1,5 +1,5 @@
-import { createHash, generateKeyPairSync } from 'node:crypto';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { createHash, generateKeyPairSync, verify } from 'node:crypto';
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -19,9 +19,12 @@ import {
 } from '../src/index.js';
 import { createHarnessAdapters } from './support/harness-client.js';
 
-const { privateKey: githubAppPrivateKey } = generateKeyPairSync('rsa', {
-  modulusLength: 2048,
-});
+const { privateKey: githubAppPrivateKey, publicKey: githubAppPublicKey } = generateKeyPairSync(
+  'rsa',
+  {
+    modulusLength: 2048,
+  },
+);
 const githubAppPrivateKeyPem = githubAppPrivateKey.export({
   format: 'pem',
   type: 'pkcs8',
@@ -30,6 +33,34 @@ const githubAppPrivateKeyPem = githubAppPrivateKey.export({
 const directories: string[] = [];
 const servers: Server[] = [];
 const stores: RelayStore[] = [];
+
+function databaseFiles(directory: string): Buffer[] {
+  return readdirSync(directory)
+    .filter(name => name === 'relay.sqlite' || name.startsWith('relay.sqlite-'))
+    .map(name => readFileSync(path.join(directory, name)));
+}
+
+function expectValidGitHubAppJwt(authorization: string | undefined): void {
+  expect(authorization).toMatch(/^Bearer [\w-]+\.[\w-]+\.[\w-]+$/u);
+  const token = authorization?.slice('Bearer '.length) ?? '';
+  const [encodedHeader = '', encodedPayload = '', encodedSignature = ''] = token.split('.', 3);
+  const payload = JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf8')) as {
+    exp: number;
+    iat: number;
+    iss: string;
+  };
+  expect(payload.iss).toBe('1234');
+  expect(payload.exp - payload.iat).toBeGreaterThan(0);
+  expect(payload.exp - payload.iat).toBeLessThanOrEqual(10 * 60);
+  expect(
+    verify(
+      'RSA-SHA256',
+      Buffer.from(`${encodedHeader}.${encodedPayload}`),
+      githubAppPublicKey,
+      Buffer.from(encodedSignature, 'base64url'),
+    ),
+  ).toBe(true);
+}
 
 afterEach(async () => {
   const openServers = [...servers];
@@ -554,9 +585,10 @@ describe('retry-safe retro relay', () => {
   });
 
   it('[ORR-023] bounds request size fields timeouts and per-principal filing rate', async () => {
-    const setup = await fixture();
-    expect(setup.relay.server.requestTimeout).toBeLessThanOrEqual(10_000);
-    expect(setup.relay.server.headersTimeout).toBeLessThanOrEqual(15_000);
+    const fixedNow = new Date('2026-07-27T00:00:00.000Z');
+    const setup = await fixture({ now: () => fixedNow });
+    expect(setup.relay.server.requestTimeout).toBe(10_000);
+    expect(setup.relay.server.headersTimeout).toBe(10_000);
 
     const oversizedBody = 'x'.repeat(300_000);
     const oversized = await fetch(`${setup.relay.url}/v1/retro-filings`, {
@@ -868,7 +900,8 @@ describe('retry-safe retro relay', () => {
   });
 
   it('rate-limits operator reconciliation independently of filing credentials', async () => {
-    const setup = await fixture();
+    const fixedNow = new Date('2026-07-27T00:00:00.000Z');
+    const setup = await fixture({ now: () => fixedNow });
     const statuses: number[] = [];
     for (let index = 0; index < 61; index += 1) {
       const response = await fetch(`${setup.relay.url}/v1/retro-filings/missing/reconcile`, {
@@ -1528,7 +1561,8 @@ describe('retry-safe retro relay', () => {
   });
 
   it('[ORR-032] exposes payload-free lifecycle operations to the operator through the real HTTP route', async () => {
-    const setup = await fixture();
+    const fixedNow = new Date('2026-07-27T00:00:00.000Z');
+    const setup = await fixture({ now: () => fixedNow });
     await createHarnessAdapters(setup.relay.url, setup.credentials).claude.file(draft());
 
     const response = await fetch(`${setup.relay.url}/v1/operations/retro-filings`, {
@@ -1563,7 +1597,7 @@ describe('retry-safe retro relay', () => {
 
     expect(setup.authorizationHeaders).toEqual(['Bearer ghs_installation_secret']);
     expect(setup.tokenRequests).toHaveLength(1);
-    expect(setup.tokenRequests[0]?.authorization).toMatch(/^Bearer [\w-]+\.[\w-]+\.[\w-]+$/u);
+    expectValidGitHubAppJwt(setup.tokenRequests[0]?.authorization);
     expect(setup.tokenRequests[0]?.body).toEqual({
       repositories: ['safeword'],
       permissions: { issues: 'write' },
@@ -1574,10 +1608,12 @@ describe('retry-safe retro relay', () => {
     expect(observable).not.toContain(setup.credential);
     expect(observable).not.toContain('ghs_installation_secret');
 
-    const databaseText = readFileSync(path.join(setup.directory, 'relay.sqlite')).toString('utf8');
-    expect(databaseText).not.toContain(setup.credential);
-    expect(databaseText).not.toContain('ghs_installation_secret');
-    expect(databaseText).not.toContain(draft().body);
+    for (const databaseFile of databaseFiles(setup.directory)) {
+      const databaseText = databaseFile.toString('utf8');
+      expect(databaseText).not.toContain(setup.credential);
+      expect(databaseText).not.toContain('ghs_installation_secret');
+      expect(databaseText).not.toContain(draft().body);
+    }
   });
 
   it.each(['ghs_classic_opaque', 'ghs_stateless.header.payload'])(

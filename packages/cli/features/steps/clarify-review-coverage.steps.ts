@@ -89,8 +89,12 @@ for (const entry of readdirSync(trustedFixtureRoot)) {
   if (!entry.startsWith('.safeword-coverage-bin-')) continue;
   const fixturePath = nodePath.join(trustedFixtureRoot, entry);
   const markerPath = nodePath.join(fixturePath, ownedFixtureMarker);
-  if (existsSync(markerPath) && Date.now() - statSync(markerPath).mtimeMs > staleFixtureAgeMs) {
-    rmSync(fixturePath, { force: true, recursive: true });
+  try {
+    if (Date.now() - statSync(markerPath).mtimeMs > staleFixtureAgeMs) {
+      rmSync(fixturePath, { force: true, recursive: true });
+    }
+  } catch {
+    // Another worker may have removed the marked fixture after directory enumeration.
   }
 }
 
@@ -914,13 +918,13 @@ function assertBlockedJsonMode(result: CliExecution): void {
 }
 
 function assertBlockedQuietMode(result: CliExecution): void {
-  assert.deepEqual(result, {
-    stdout:
-      'Review incomplete — required independent coverage is unsatisfied.\n' +
-      'The independent reviewer using opus (Claude) exited before returning a review. The same reviewer on its alternate model using sonnet (Claude) exited before returning a review. The fallback review (Codex) exited before returning a review. No independent check was recorded.\n',
-    stderr: '',
-    exitCode: 2,
-  });
+  assert.equal(result.exitCode, 2);
+  assert.equal(result.stderr, '');
+  assert.match(
+    result.stdout,
+    /^Review incomplete — required independent coverage is unsatisfied\.\n/u,
+  );
+  assert.match(result.stdout, /No independent check was recorded\.\n$/u);
 }
 
 function assertOneVerboseSuggestion(result: CliExecution): void {

@@ -122,8 +122,30 @@ function readProofManifest(relativePath: string): ScenarioProofManifest {
     if (new Set(proofKeys).size !== proofKeys.length) {
       throw new TypeError(`${relativePath}: ${scenario} repeats a proof registration`);
     }
+    rejectMixedWholeTableAndSelectedCases(relativePath, scenario, registrations);
   }
   return manifest;
+}
+
+function rejectMixedWholeTableAndSelectedCases(
+  relativePath: string,
+  scenario: string,
+  registrations: ScenarioProof[],
+): void {
+  const selectionsByTest = new Map<string, Set<string | undefined>>();
+  for (const [proofPath, testName, selectedCase] of registrations) {
+    const key = `${proofPath}\0${testName}`;
+    const selections = selectionsByTest.get(key) ?? new Set<string | undefined>();
+    selections.add(selectedCase);
+    selectionsByTest.set(key, selections);
+  }
+  for (const [test, selections] of selectionsByTest) {
+    if (selections.has(undefined) && selections.size > 1) {
+      throw new TypeError(
+        `${relativePath}: ${scenario} mixes a whole-table proof with selected cases for ${test}`,
+      );
+    }
+  }
 }
 
 function isCollectedVitestProofPath(proofPath: string): boolean {
@@ -796,6 +818,15 @@ describe('BDD proof provenance', () => {
         it.each(['second'])('duplicate %s', () => {});
       `).get('duplicate %s'),
     ).toEqual({ cases: [], staticallyEnumerable: false });
+  });
+
+  it('rejects mixing whole-table and selected-case proof registrations', () => {
+    expect(() => {
+      rejectMixedWholeTableAndSelectedCases('feature.bdd-proof.json', 'scenario', [
+        ['packages/cli/tests/example.test.ts', 'rows %s'],
+        ['packages/cli/tests/example.test.ts', 'rows %s', 'first'],
+      ]);
+    }).toThrow(/mixes a whole-table proof with selected cases/u);
   });
 
   it('accepts only repository-contained tests collected by the normal Vitest projects', () => {

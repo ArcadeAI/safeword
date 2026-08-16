@@ -60,7 +60,7 @@ function runHook(directory: string, input: unknown) {
       ([name]) => !name.startsWith('SAFEWORD_') && name !== 'CLAUDE_PROJECT_DIR',
     ),
   );
-  return spawnSync('bun', [HOOK], {
+  const result = spawnSync('bun', [HOOK], {
     input: typeof input === 'string' ? input : JSON.stringify(input),
     cwd: directory,
     env: {
@@ -71,6 +71,9 @@ function runHook(directory: string, input: unknown) {
     encoding: 'utf8',
     timeout: TIMEOUT_QUICK,
   });
+  expect(result.error).toBeUndefined();
+  expect(result.status, result.stderr || 'cursor stop hook exited unsuccessfully').toBe(0);
+  return result;
 }
 
 describe('cursor/stop.ts retro path (KHYXY4)', () => {

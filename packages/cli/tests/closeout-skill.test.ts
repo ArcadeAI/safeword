@@ -36,6 +36,14 @@ function normalizedParagraphContaining(content: string, marker: string): string 
 }
 
 describe('closeout delivery evidence (93C14D NTB1.R1)', () => {
+  it('requires current delivery evidence before an authorized normal merge', () => {
+    const skill = canonicalSkill();
+    expect(skill).toContain('current pull request head');
+    expect(skill).toContain('required checks');
+    expect(skill).toContain('normal merge');
+    expect(skill).toContain('no merge or cleanup');
+  });
+
   it('accepts exact-head green CI and falls back to local verification', () => {
     const skill = canonicalSkill();
 
@@ -76,6 +84,22 @@ describe('closeout merge authority (93C14D TBU1.R1)', () => {
 });
 
 describe('closeout observed resumption (93C14D NTB1.R3)', () => {
+  it('re-observes the exact pull request after a local merge-command error', () => {
+    const skill = canonicalSkill();
+    expect(normalizedParagraphContaining(skill, 'After every merge command')).toContain(
+      'success or error',
+    );
+    expect(normalizedParagraphContaining(skill, 'If the command reported an error')).toContain(
+      'remote merge succeeded',
+    );
+  });
+
+  it('requires the reviewed head before attempting a merge', () => {
+    const skill = canonicalSkill();
+    expect(skill).toContain('current pull request head');
+    expect(skill).toContain('ambiguous evidence means **no merge or cleanup**');
+  });
+
   it('re-observes merge truth and continues only the unfinished suffix', () => {
     const skill = canonicalSkill();
 

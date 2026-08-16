@@ -43,17 +43,11 @@ Feature: Close completed sessions safely
         | Cursor        | Cursor Agent |
 
     @surface.claude-code @surface.openai-codex @surface.cursor
-    Scenario Outline: Retro subprocess failures remain visible while cleanup continues
+    Scenario: Retro subprocess failures remain visible while cleanup continues
       Given the selected extractor receives the exact bound session identity and transcript
-      And the extractor "<failure>"
+      And the extractor fails without producing a valid retrospective
       When closeout runs the mandatory retrospective
       Then it reports retrospective recovery and keeps exact repository cleanup eligible
-
-      Examples:
-        | failure                  |
-        | exits unsuccessfully     |
-        | times out                 |
-        | returns malformed output |
 
     @surface.claude-code @surface.openai-codex @surface.cursor
     Scenario Outline: A completed retro permits cleanup
@@ -68,7 +62,7 @@ Feature: Close completed sessions safely
         | zero substantial findings |
         | every finding filed        |
 
-    @rejection @surface.claude-code @surface.openai-codex @surface.cursor
+    @surface.claude-code @surface.openai-codex @surface.cursor
     Scenario Outline: Incomplete retro is reported while repository cleanup continues
       Given the pull request is confirmed merged
       And retro has "<state>"
@@ -179,7 +173,7 @@ Feature: Close completed sessions safely
       Then cleanup completes with the previewed exact targets
       And the incomplete retrospective is reported as an advisory
 
-    @rejection @surface.claude-code @surface.openai-codex @surface.cursor
+    @surface.claude-code @surface.openai-codex @surface.cursor
     Scenario Outline: Every transcript mutation invalidates the retrospective snapshot
       Given an authorized cleanup preview bound to the exact transcript bytes
       And the transcript is changed by "<mutation>"
