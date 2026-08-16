@@ -55,9 +55,19 @@ function markerPathFor(conversationId: string): string {
 }
 
 function runHook(directory: string, input: unknown) {
+  const environment = Object.fromEntries(
+    Object.entries(process.env).filter(
+      ([name]) => !name.startsWith('SAFEWORD_') && name !== 'CLAUDE_PROJECT_DIR',
+    ),
+  );
   return spawnSync('bun', [HOOK], {
     input: typeof input === 'string' ? input : JSON.stringify(input),
     cwd: directory,
+    env: {
+      ...environment,
+      CLAUDE_PROJECT_DIR: directory,
+      SAFEWORD_RETRO_EXTRACT_CMD: 'true',
+    },
     encoding: 'utf8',
     timeout: TIMEOUT_QUICK,
   });

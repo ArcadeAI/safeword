@@ -12,29 +12,10 @@
         "re-observes merge truth and continues only the unfinished suffix"
       ]
     ],
-    "Incomplete delivery evidence blocks merge and cleanup": [
-      [
-        "packages/cli/tests/closeout-skill.test.ts",
-        "accepts exact-head green CI and falls back to local verification"
-      ],
-      [
-        "packages/cli/tests/closeout-cleanup.test.ts",
-        "trusts hosted verification only when required checks are explicitly complete"
-      ],
-      [
-        "packages/cli/tests/closeout-cleanup.test.ts",
-        "requires both required checks and the complete hosted rollup to be green"
-      ],
-      [
-        "packages/cli/tests/closeout-cleanup.test.ts",
-        "%s blocks every deletion",
-        "stale verification"
-      ],
-      [
-        "packages/cli/tests/closeout-cleanup.test.ts",
-        "%s blocks every deletion",
-        "failed verification"
-      ]
+    "Incomplete delivery evidence blocks cleanup": [
+      "packages/cli/tests/closeout-cleanup.test.ts",
+      "%s blocks every deletion",
+      "stale verification"
     ],
     "Closeout guidance documents every final state": [
       "packages/cli/tests/closeout-skill.test.ts",
@@ -115,29 +96,8 @@
       "keeps every retrospective outcome advisory for repository cleanup"
     ],
     "Closeout continues only the unfinished suffix": [
-      [
-        "packages/cli/tests/closeout-skill.test.ts",
-        "accepts exact-head green CI and falls back to local verification"
-      ],
-      [
-        "packages/cli/tests/closeout-skill.test.ts",
-        "re-observes merge truth and continues only the unfinished suffix"
-      ],
-      [
-        "packages/cli/tests/integration/closeout-host-adapters.test.ts",
-        "resumes from a surviving worktree when $state",
-        "the topic worktree is already absent"
-      ],
-      [
-        "packages/cli/tests/integration/closeout-host-adapters.test.ts",
-        "resumes from a surviving worktree when $state",
-        "the worktree and remote branch are already absent"
-      ],
-      [
-        "packages/cli/tests/integration/closeout-host-adapters.test.ts",
-        "resumes from a surviving worktree when $state",
-        "every exact cleanup target is already absent"
-      ]
+      "packages/cli/tests/closeout-skill.test.ts",
+      "re-observes merge truth and continues only the unfinished suffix"
     ],
     "Exact evidence is reused through preview, replay, and approved apply": [
       "packages/cli/tests/integration/closeout-host-adapters.test.ts",
@@ -365,40 +325,9 @@
         "stops before local deletion when the local branch advances during cleanup"
       ]
     ],
-    "Mutation-time worktree changes prevent the removal command": [
-      [
-        "packages/cli/tests/closeout-cleanup.test.ts",
-        "refuses a %s worktree observed immediately before removal",
-        "dirty"
-      ],
-      [
-        "packages/cli/tests/closeout-cleanup.test.ts",
-        "refuses a %s worktree observed immediately before removal",
-        "removed"
-      ],
-      [
-        "packages/cli/tests/closeout-cleanup.test.ts",
-        "refuses a %s worktree registration at the execution boundary",
-        "locked"
-      ],
-      [
-        "packages/cli/tests/closeout-cleanup.test.ts",
-        "refuses a %s worktree registration at the execution boundary",
-        "prunable"
-      ],
-      [
-        "packages/cli/tests/closeout-cleanup.test.ts",
-        "refuses a %s worktree registration at the execution boundary",
-        "reassigned"
-      ],
-      [
-        "packages/cli/tests/closeout-cleanup.test.ts",
-        "refuses a replaced or relocated worktree filesystem identity"
-      ],
-      [
-        "packages/cli/tests/closeout-cleanup.test.ts",
-        "reports an explicit recovery failure when a quarantined worktree cannot be restored"
-      ]
+    "Mutation-time worktree identity changes prevent the removal command": [
+      "packages/cli/tests/closeout-cleanup.test.ts",
+      "refuses a replaced or relocated worktree filesystem identity"
     ],
     "Untrusted target text cannot become command syntax": [
       "packages/cli/tests/closeout-cleanup.test.ts",

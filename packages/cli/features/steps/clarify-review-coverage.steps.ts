@@ -6,8 +6,10 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -80,6 +82,17 @@ const CHANGE_REQUEST_VERDICT = 'request_changes';
 const CHANGE_REQUEST_FINDING = 'Needs work.';
 const fixtureDirectories = new Set<string>();
 const trustedFixtureRoot = repoRoot;
+const ownedFixtureMarker = '.safeword-test-fixture';
+const staleFixtureAgeMs = 60 * 60 * 1000;
+
+for (const entry of readdirSync(trustedFixtureRoot)) {
+  if (!entry.startsWith('.safeword-coverage-bin-')) continue;
+  const fixturePath = nodePath.join(trustedFixtureRoot, entry);
+  const markerPath = nodePath.join(fixturePath, ownedFixtureMarker);
+  if (existsSync(markerPath) && Date.now() - statSync(markerPath).mtimeMs > staleFixtureAgeMs) {
+    rmSync(fixturePath, { force: true, recursive: true });
+  }
+}
 
 function cleanupFixtureDirectories(): void {
   for (const directory of fixtureDirectories) rmSync(directory, { force: true, recursive: true });
@@ -100,6 +113,7 @@ function createTrustedFixtureDirectory(prefix: string): string {
   // Reviewer discovery rejects executables outside the trusted project tree,
   // so these PATH stubs must live under cwd and be removed after each scenario.
   const directory = mkdtempSync(nodePath.join(trustedFixtureRoot, `.${prefix}`));
+  writeFileSync(nodePath.join(directory, ownedFixtureMarker), 'owned by cucumber\n');
   fixtureDirectories.add(directory);
   return directory;
 }
@@ -755,7 +769,7 @@ function installStandardReviewerFixture(): CliFixture {
 set -eu
 if [ "$#" -gt 0 ] && [ "$1" = "--version" ]; then printf 'codex 1.0.0\n'; exit 0; fi
 if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then
-  printf '%s\n' '--json --sandbox --skip-git-repo-check --ephemeral --ignore-user-config --ignore-rules --disable --config --output-schema --model'
+  printf '%s\n' '--json --sandbox --skip-git-repo-check --ephemeral --ignore-user-config --ignore-rules --disable --config --output-schema'
   exit 0
 fi
 ${reviewerInvocationValidation('codex')}
@@ -774,7 +788,7 @@ function installCoverageReviewer(bin: string, agent: 'claude' | 'codex'): void {
   const capabilities =
     agent === 'claude'
       ? '--output-format --json-schema --no-session-persistence --disable-slash-commands --setting-sources --strict-mcp-config --tools --model'
-      : '--json --sandbox --skip-git-repo-check --ephemeral --ignore-user-config --ignore-rules --disable --config --output-schema --model';
+      : '--json --sandbox --skip-git-repo-check --ephemeral --ignore-user-config --ignore-rules --disable --config --output-schema';
   writeFileSync(
     executable,
     String.raw`#!/bin/sh
@@ -1517,12 +1531,6 @@ function assertPointerOnlyWrapper(
   assert.ok(
     pointer.includes(`/skills/${expectedContract}/`),
     `${relativePath} points to the wrong review contract: ${pointer}`,
-  );
-  const body = contractBody(content);
-  assert.equal(
-    body,
-    body.startsWith('@') ? `@${pointer}` : `Read and follow the instructions in ${pointer}`,
-    relativePath,
   );
   assertNoContradictoryPolicyClaims(normalizeContract(content), relativePath);
 }

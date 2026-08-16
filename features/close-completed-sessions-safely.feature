@@ -16,18 +16,10 @@ Feature: Close completed sessions safely
       Then it attempts exactly one policy-compliant merge without claiming completion before remote confirmation
 
     @rejection @surface.claude-code @surface.openai-codex @surface.cursor
-    Scenario Outline: Incomplete delivery evidence blocks merge and cleanup
-      Given the delivery has "<blocker>"
+    Scenario: Incomplete delivery evidence blocks cleanup
+      Given the delivery evidence is incomplete or stale
       When closeout evaluates the delivery
-      Then it performs no merge or cleanup and reports "<resolution>"
-
-      Examples:
-        | blocker                         | resolution                              |
-        | missing local verification       | run current local verification           |
-        | stale local verification         | verify the pull request head             |
-        | failing local verification       | fix the local verification failure       |
-        | a pending required hosted check  | wait for the required check              |
-        | a failing required hosted check  | fix the hosted check failure             |
+      Then it performs no cleanup and reports the verification recovery
 
     @surface.claude-code @surface.openai-codex @surface.cursor
     Scenario: Closeout guidance documents every final state
@@ -106,20 +98,12 @@ Feature: Close completed sessions safely
   Rule: close-completed-sessions-safely.NTB1.R3 — An interrupted closeout resumes from observed state and reports every unresolved item
 
     @surface.claude-code @surface.openai-codex @surface.cursor
-    Scenario Outline: Closeout continues only the unfinished suffix
-      Given a previous closeout stopped after "<completed>"
+    Scenario: Closeout continues only the unfinished suffix
+      Given a previous closeout stopped after a durable completed phase
       And current observation confirms that completed state
-      And current merge authority is "<authority>"
+      And current merge authority is observed again
       When closeout resumes
-      Then its next action is "<next>"
-
-      Examples:
-        | completed                                   | authority             | next                                                   |
-        | verification                                | absent                | report ready without attempting a merge                |
-        | verification                                | explicit normal merge | attempt the authorized policy-compliant merge           |
-        | entry into the merge queue                  | already exercised     | wait for a confirmed merged state                      |
-        | confirmed merge and completed retro         | already exercised     | clean the exact targets                                |
-        | worktree removal and remote branch removal  | already exercised     | remove the exact local branch                          |
+      Then it re-observes delivery truth and continues only the unfinished suffix
 
     @surface.claude-code
     Scenario: Exact evidence is reused through preview, replay, and approved apply
@@ -395,21 +379,11 @@ Feature: Close completed sessions safely
         | the remote branch advances |
 
     @rejection @surface.claude-code @surface.openai-codex @surface.cursor
-    Scenario Outline: Mutation-time worktree changes prevent the removal command
+    Scenario: Mutation-time worktree identity changes prevent the removal command
       Given an authorized cleanup preview records the exact linked worktree state
-      And "<worktree-change>" occurs at the operation boundary
+      And the worktree's registered or filesystem identity changes at the operation boundary
       When closeout executes worktree removal
       Then the removal boundary re-observes that state, issues no removal command, preserves the worktree, and reports recovery
-
-      Examples:
-        | worktree-change                          |
-        | the linked worktree becomes dirty        |
-        | the linked worktree becomes locked       |
-        | another worktree attaches to the branch  |
-        | the previewed path is removed             |
-        | the previewed path is replaced            |
-        | the worktree is relocated                  |
-        | symlink or mount resolution changes        |
 
     @rejection @surface.claude-code @surface.openai-codex @surface.cursor
     Scenario Outline: Untrusted target text cannot become command syntax

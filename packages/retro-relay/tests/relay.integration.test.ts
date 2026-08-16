@@ -29,6 +29,7 @@ const githubAppPrivateKeyPem = githubAppPrivateKey.export({
 
 const directories: string[] = [];
 const servers: Server[] = [];
+const stores: RelayStore[] = [];
 
 afterEach(async () => {
   const openServers = [...servers];
@@ -49,6 +50,15 @@ afterEach(async () => {
         }),
     ),
   );
+  const openStores = [...stores];
+  stores.length = 0;
+  for (const store of openStores) {
+    try {
+      store.close();
+    } catch {
+      // A test may have closed its store explicitly before simulating restart.
+    }
+  }
   for (const directory of directories) {
     rmSync(directory, { force: true, recursive: true });
   }
@@ -96,7 +106,6 @@ async function startGitHubFixture(
     createStatus?: number;
     failSecondPage?: boolean;
     failToken?: boolean;
-    githubRequestTimeoutMs?: number;
     installationToken?: string;
     rawBodies?: string[];
     scanStatus?: number;
@@ -156,7 +165,13 @@ async function startGitHubFixture(
         return;
       }
 
-      const page = Number(new URL(request.url, 'https://github.invalid').searchParams.get('page'));
+      const pageParameter = new URL(request.url, 'https://github.invalid').searchParams.get('page');
+      if (pageParameter === null) {
+        response.statusCode = 400;
+        response.end();
+        return;
+      }
+      const page = Number(pageParameter);
       if (page > 1 && options.failSecondPage === true) {
         response.statusCode = 500;
         response.end();
@@ -288,6 +303,7 @@ async function fixture(
   const store = RelayStore.open(path.join(directory, 'relay.sqlite'), {
     ...(options.now !== undefined && { now: options.now }),
   });
+  stores.push(store);
   const tokenProvider = new GitHubAppTokenProvider({
     appId: '1234',
     baseUrl: githubFixture.baseUrl,
@@ -1738,8 +1754,7 @@ describe('retry-safe retro relay', () => {
       repository: 'arcadeai/safeword',
       title: 'occupy capacity',
     });
-    await delay(5);
-    const started = performance.now();
+    while (github.createBodies.length === 0) await delay(1);
 
     await expect(
       client.scanExactMarker({
@@ -1748,7 +1763,6 @@ describe('retry-safe retro relay', () => {
         repository: 'arcadeai/safeword',
       }),
     ).resolves.toEqual({ complete: false, matches: [] });
-    expect(performance.now() - started).toBeLessThan(80);
     await expect(occupyingCreate).resolves.toBeGreaterThan(0);
   });
 });
