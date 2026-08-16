@@ -41,7 +41,7 @@ Feature: Let parallel sessions share test capacity safely
         | fault | reservation-outcome | checkout-outcome | terminal-contract |
         | the guarded active-owner record cannot be durably updated before repository code can run and checkout ownership is verified | the reservation bytes remain untouched for authenticated recovery | exact checkout ownership is released | nonzero with SAFEWORD_TEST_CAPACITY_STATE_UNSAFE and `safeword project test-capacity status` |
         | the guarded active-owner record cannot be durably updated before repository code can run and checkout ownership is unverifiable | the reservation bytes remain untouched for authenticated recovery | checkout bytes remain untouched and a second same-domain wrapper proves the mutex unavailable | nonzero with SAFEWORD_TEST_CAPACITY_STATE_UNSAFE and `safeword project test-capacity status` |
-        | execution-container creation fails before repository code runs but guarded cleanup commits | only that reservation is removed | exact checkout ownership is released before a second wrapper runs its unchanged invocation once to exit zero | nonzero with SAFEWORD_TEST_CAPACITY_STATE_UNSAFE and `safeword project test-capacity status` |
+        | the required execution-container primitive is unavailable before repository code runs but guarded cleanup commits | only that reservation is removed | exact checkout ownership is released before a second wrapper runs its unchanged invocation once to exit zero | nonzero with SAFEWORD_TEST_CAPACITY_PLATFORM_UNSUPPORTED and `safeword project test-capacity status` |
     @rejection @wiring @process
     Scenario: A stranded reservation has an explicit safe recovery path
       Given a repaired durable-state fault left the exact failed wrapper's reserved owner bytes and checkout mutex intact, that wrapper is proven absent, no repository process ever started for it, and a second public wrapper targets the same worktree
@@ -94,9 +94,9 @@ Feature: Let parallel sessions share test capacity safely
       Then it assigns broad exclusive capacity with durable owner weight two, passes the original argv unchanged downstream exactly once, accounts for every descendant, and exits zero
     @rejection @process
     Scenario Outline: Focused filename boundaries are exact and case-sensitive
-      Given canonical capacity is two, fixtures live in per-row directories, the classifier uses the literal argument basename bytes, and <arguments> resolve to existing regular files inside the canonical checkout root with no symlinked component at or below that root and the deterministic downstream collaborator exits zero
+      Given canonical capacity is two, fixtures live in per-row directories, and <arguments> resolve to existing regular files inside the canonical checkout root with no symlinked component at or below that root and the deterministic downstream collaborator exits zero
       When the public package-test command classifies them after checkout-relative rebasing
-      Then it assigns <classification> with durable owner weight <weight>, passes every original argument downstream unchanged exactly once, accounts for every descendant, and the wrapper exits zero
+      Then it assigns <classification> from each literal argument basename with durable owner weight <weight>, passes every original argument downstream unchanged exactly once, accounts for every descendant, and the wrapper exits zero
       Examples:
         | arguments | classification | weight |
         | one `alpha.test.js` file | one focused permit | 1 |
@@ -246,9 +246,9 @@ Feature: Let parallel sessions share test capacity safely
         | reserved ownership with the exact wrapper instance absent | deterministic downstream exit 23 | only that abandoned wrapper ownership is reclaimed | the second wrapper runs its unchanged invocation exactly once, all descendants exit, and the wrapper exits 23 |
         | active ownership with a live recorded execution container | deterministic blocked fixture | the second wrapper emits an authenticated checkout-mutex waiter event while the keyed live container remains active | teardown cancels the second wrapper, removes only its waiter and checkout request, proves no descendant started, and it exits with its predetermined platform-resolved cancellation status while live ownership remains |
         | active ownership with the recorded container proven empty | deterministic terminating-descendant fixture | ownership is reclaimed before the second wrapper proceeds | the second wrapper runs its unchanged invocation exactly once, observes its only descendant terminate with the predetermined platform-resolved status, and exits with that status |
-        | a reused wrapper identity | deterministic fixture that must not start | acquisition fails closed and names `safeword project test-capacity status` as the exact first recovery command | the second wrapper exits nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE and starts no repository process |
+        | a reused wrapper identity | deterministic fixture that must not start | acquisition retains the mutex as occupied without reclaiming it | controlled teardown cancels the second wrapper without a repository process and with its predetermined platform-resolved cancellation status |
         | an unverifiable wrapper identity | deterministic fixture that must not start | acquisition fails closed and names `safeword project test-capacity status` as the exact first recovery command | the second wrapper exits nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE and starts no repository process |
-        | a reused container identity | deterministic fixture that must not start | acquisition fails closed and names `safeword project test-capacity status` as the exact first recovery command | the second wrapper exits nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE and starts no repository process |
+        | a reused container identity | deterministic fixture that must not start | acquisition retains the mutex as occupied without reclaiming it | controlled teardown cancels the second wrapper without a repository process and with its predetermined platform-resolved cancellation status |
         | an unverifiable container identity | deterministic fixture that must not start | acquisition fails closed and names `safeword project test-capacity status` as the exact first recovery command | the second wrapper exits nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE and starts no repository process |
         | active ownership with a missing container identity | deterministic fixture that must not start | acquisition fails closed and names `safeword project test-capacity status` as the exact first recovery command | the second wrapper exits nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE and starts no repository process |
     @rejection @process
@@ -293,9 +293,9 @@ Feature: Let parallel sessions share test capacity safely
       Then C runs its unchanged invocation once and alone before every later focused request, then D through F admit in keyed FIFO-ticket order with permitted focused overlap
     @rejection @wiring @process
     Scenario: An unverifiable waiter is not skipped to admit newer work
-      Given the deterministic injected identity adapter cannot verify the queue-head public wrapper and contributes no native evidence
-      When a newer focused request could otherwise fit
-      Then the newer wrapper starts no repository process, removes only its own waiter ticket and checkout ownership, leaves the queue-head ticket and owner set unchanged, advances the state version exactly once for its own removal, and exits nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE and `safeword project test-capacity status`
+      Given shared capacity is two has one focused owner, the queue-head public wrapper is unverifiable through the deterministic injected identity adapter without native evidence, and a newer focused request can use the free permit
+      When that newer focused request evaluates the queue
+      Then the newer wrapper starts no repository process, removes only its own waiter ticket and checkout ownership, leaves the queue-head ticket and owner set unchanged with its free permit unused, advances the state version exactly once for its own removal, and exits nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE and `safeword project test-capacity status`
     @process
     Scenario: A verified dead queue-head waiter is pruned before the next FIFO admission
       Given shared capacity is one, the deterministic injected identity adapter proves dead ticket-1 absent without contributing native evidence, and live ticket-2 and ticket-3 wrappers wait in that order
@@ -624,7 +624,6 @@ Feature: Let parallel sessions share test capacity safely
         | before atomic rename | the prior complete state |
         | after atomic rename and successful parent-directory flush | the new complete state |
         | after rename but before successful directory flush | journaled indeterminate state that admits nothing until guarded recovery re-flushes and resolves one complete side |
-
     @rejection @wiring @process
     Scenario Outline: A journal is ordered before any live-state replacement during a process crash
       Given a subprocess performs a guarded transition through an interposed real-filesystem barrier that emits only after the named underlying write, rename or flush syscall returns with its recorded result at <journal-boundary>, and is killed only while that exact syscall boundary remains held
@@ -637,7 +636,6 @@ Feature: Let parallel sessions share test capacity safely
         | after journal rename but before successful parent-directory fsync | old live state plus one complete visible journal after restart | recovery re-flushes the directory, retains old state, removes the journal last, and does not infer an unobservable transition |
         | after successful journal parent-directory fsync but before live rename | durable journal plus old live state | old-side recovery retains old state, removes journal last, and admission proceeds |
         | after live rename but before live-state parent-directory fsync | durable journal plus new complete live state after restart | new-side recovery flushes and verifies new state, removes the journal last, and admits only after resolving that complete side |
-
     @rejection @wiring @process
     Scenario Outline: Journal recovery resolves only an authenticated complete side
       Given restart finds <journal-state>
@@ -653,7 +651,6 @@ Feature: Let parallel sessions share test capacity safely
         | journal write failure before live replacement | the prior durable state remains authoritative and admission exits fail-closed |
         | journal flush failure before live replacement | the prior durable state remains authoritative and admission exits fail-closed |
         | journal removal failure after successful recovery | admission remains fail-closed until the journal can be revalidated and removed |
-
     @rejection @wiring @process
     Scenario Outline: Every journal and rollback flush failure remains fail closed
       Given the interposed real-filesystem barrier returns <flush-failure> for a guarded transition or recovery
@@ -922,6 +919,9 @@ Feature: Let parallel sessions share test capacity safely
         | the native-evidence state directory is symlinked while current-commit evidence is incomplete | `safeword project test-capacity verify-native-evidence` | SAFEWORD_TEST_CAPACITY_STATE_UNSAFE |
         | capacity-domain identity is unreadable while the containment primitive is unavailable | `safeword project test-capacity set 2 --confirm-current-protocol` | SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE |
         | a capacity-one domain has an owner while the containment primitive is unavailable | `safeword project test-capacity set 2 --confirm-current-protocol` | SAFEWORD_TEST_CAPACITY_PLATFORM_UNSUPPORTED |
+        | the capacity-domain artifact is group-writable while a capacity-one domain has an owner | `safeword project test-capacity set 2 --confirm-current-protocol` | SAFEWORD_TEST_CAPACITY_STATE_UNSAFE |
+        | current-commit native evidence is incomplete while the containment primitive is unavailable | `safeword project test-capacity verify-native-evidence` | SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE |
+        | current-commit native evidence is incomplete while a capacity-one domain has an owner | `safeword project test-capacity verify-native-evidence` | SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE |
 
     @wiring @process @surface.safeword-cli
     Scenario Outline: Public set commands wire canonical capacity atomically
