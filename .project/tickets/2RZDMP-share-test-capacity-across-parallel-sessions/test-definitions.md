@@ -43,6 +43,12 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: A stranded reservation has an explicit safe recovery path
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Capacity eight admits eight focused lifetimes and gives a broad request all eight permits
 
 - [ ] RED
@@ -85,13 +91,19 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Case-insensitive resolution does not change focused classification
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Non-file argument boundaries classify broad without contradictory fixtures
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Test-shaped paths that are not regular files classify broad
+### Scenario: A test-shaped directory classifies broad
 
 - [ ] RED
 - [ ] GREEN
@@ -103,7 +115,7 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Status warns that legacy wrappers cannot share capacity
+### Scenario: Status states the untracked legacy-wrapper boundary without inferring a holder
 
 - [ ] RED
 - [ ] GREEN
@@ -280,12 +292,6 @@ remain in the feature file.
 - [ ] REFACTOR
 
 ### Scenario: Native-evidence verification rejects all arguments without consuming evidence
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: POSIX capacity commands disclose detached-descendant limits
 
 - [ ] RED
 - [ ] GREEN
