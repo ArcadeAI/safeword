@@ -17,9 +17,9 @@ import { createHash } from 'node:crypto';
 
 import { SETTINGS_HOOKS } from '../templates/config.js';
 
-export const PROJECT_HOOK_ROOT = '"$CLAUDE_PROJECT_DIR"/.safeword/hooks';
-export const PLUGIN_HOOK_ROOT = '"${CLAUDE_PLUGIN_ROOT}"/runtime/hooks';
-export const PLUGIN_DISPATCH = 'bun "${CLAUDE_PLUGIN_ROOT}"/runtime/dispatch.js';
+const PROJECT_HOOK_ROOT = '"$CLAUDE_PROJECT_DIR"/.safeword/hooks';
+const PLUGIN_HOOK_ROOT = '"${CLAUDE_PLUGIN_ROOT}"/runtime/hooks';
+const PLUGIN_DISPATCH = 'bun "${CLAUDE_PLUGIN_ROOT}"/runtime/dispatch.js';
 
 export function adaptHookValue(value: unknown): unknown {
   if (typeof value === 'string') {
@@ -76,7 +76,7 @@ function pluginHookEntries(
   return wrapHookCommands(entries, event);
 }
 
-export function pluginHooks(): Record<string, unknown> {
+function pluginHooks(): Record<string, unknown> {
   const adapted = adaptHookValue(SETTINGS_HOOKS) as Record<string, unknown>;
   const withSetup = {
     ...adapted,

@@ -234,28 +234,6 @@ export function writeClaudePluginMode(cwd: string, marker: ClaudePluginModeV2): 
   });
 }
 
-export function readClaudeMigrationAttention(cwd: string): ClaudeMigrationAttentionV1 | undefined {
-  const path = nodePath.join(cwd, CLAUDE_MIGRATION_SCHEMA.paths.attention);
-  if (!existsSync(path)) return undefined;
-  try {
-    const value = JSON.parse(readFileSync(path, 'utf8')) as Partial<ClaudeMigrationAttentionV1>;
-    if (
-      value.schema_version !== 1 ||
-      !validDigest(value.state_digest) ||
-      typeof value.plugin_version !== 'string' ||
-      !validDigest(value.catalogue_sha256) ||
-      !validDigest(value.watched_settings_sha256) ||
-      typeof value.classification !== 'string' ||
-      typeof value.advisory !== 'string'
-    ) {
-      return undefined;
-    }
-    return value as ClaudeMigrationAttentionV1;
-  } catch {
-    return undefined;
-  }
-}
-
 export function writeClaudeMigrationAttention(
   cwd: string,
   attention: ClaudeMigrationAttentionV1,

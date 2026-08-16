@@ -32980,6 +32980,11 @@ function findCucumberHarnessAdvisories(cwd, { existingCucumberHarness, scaffoldB
   if (existingCucumberHarness === undefined)
     return [];
   if (scaffoldBddLane) {
+    if (isWorkspaceCucumberHarness(existingCucumberHarness)) {
+      return [
+        `A workspace Cucumber harness (${existingCucumberHarness}) is preserved alongside Safeword's root starter lane. This is informational: Safeword does not remove or modify project test infrastructure. The starter lane reads the default workspace features directories; set paths.features / paths.steps only when this harness uses nonstandard locations.`
+      ];
+    }
     return [buildLeftoverLaneAdvisory(cwd, existingCucumberHarness)];
   }
   if (readConfiguredPath(cwd, "features") !== undefined || hasDefaultExecutableFeatureFiles(cwd)) {
@@ -32988,6 +32993,9 @@ function findCucumberHarnessAdvisories(cwd, { existingCucumberHarness, scaffoldB
   return [
     `Detected a cucumber harness (${existingCucumberHarness}) but paths.features is not set in .safeword/config.json \u2014 project codify, project lint-gherkin, and doctor cannot see your suite. Add e.g. "paths": { "features": "tests/behaviors", "steps": "tests/steps" } (paths.steps only matters when the scaffolded runner reads relocated TypeScript steps).`
   ];
+}
+function isWorkspaceCucumberHarness(evidence) {
+  return WORKSPACE_ROOTS.some((root) => evidence.startsWith(`${root}/`));
 }
 function buildLeftoverLaneAdvisory(cwd, evidence) {
   const leftovers = BDD_LANE_FILE_PATHS.filter((filePath) => exists(nodePath47.join(cwd, filePath)));
@@ -33309,6 +33317,7 @@ var init_health = __esm(() => {
   init_personas();
   init_repo_path();
   init_scenario_coverage();
+  init_workspace_roots();
   init_version();
   PATH_ONLY_KNOWLEDGE_KEYS = ["principles", "surfaces"];
   CONFIGURED_KNOWLEDGE_KEYS = [
