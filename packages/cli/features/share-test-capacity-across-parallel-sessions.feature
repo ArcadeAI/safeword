@@ -228,6 +228,7 @@ Feature: Let parallel sessions share test capacity safely
         | focused | focused |
         | focused | broad |
         | broad | broad |
+        | broad | focused |
     @process
     Scenario: A checkout-mutex waiter holds no shared-capacity permit
       Given canonical capacity is two, one same-worktree wrapper holds checkout ownership and one active permit, a second same-worktree wrapper emits its checkout-mutex waiter event, and an unrelated-worktree focused wrapper requests admission
@@ -608,6 +609,7 @@ Feature: Let parallel sessions share test capacity safely
         | live state | a DACL permitting an untrusted principal | owner-only-DACL repair |
         | containing directory | a DACL permitting an untrusted principal | owner-only-DACL repair |
         | transition guard | a DACL permitting an untrusted principal | owner-only-DACL repair |
+        | checkout mutex and containing directory | a DACL permitting an untrusted principal | owner-only-DACL repair |
         | transaction journal | a changed Windows file ID | file-identity remediation |
         | temporary state | a DACL permitting an untrusted principal | owner-only-DACL repair |
         | capacity-domain ancestor directory | a DACL permitting an untrusted principal | owner-only-DACL repair |
@@ -750,6 +752,8 @@ Feature: Let parallel sessions share test capacity safely
         | temporary state | world-readable permissions |
         | temporary state | world-writable permissions |
         | temporary state | an unexpected hard-link count |
+        | checkout mutex | group-writable permissions |
+        | checkout mutex | an unexpected hard-link count |
     @native-platform @platform-posix @rejection @wiring @surface.safeword-cli
     Scenario Outline: Status reports a concrete repair for unsafe capacity artifacts
       Given a verified current-commit attestation from the required native POSIX CI job covers the matching fixture and <artifact> has <unsafe-property>
@@ -771,7 +775,6 @@ Feature: Let parallel sessions share test capacity safely
         | live state | newer incompatible schema | restoring a compatible named live state through the guarded repair procedure followed by `safeword project test-capacity status` |
         | live state | older schema outside declared migration compatibility | restoring a compatible named live state through the guarded repair procedure followed by `safeword project test-capacity status` |
         | native-evidence state directory | a symlinked evidence-state directory | owner-only evidence-directory repair followed by `safeword project test-capacity status` |
-
   @share-test-capacity.TBU1.R6
   Rule: share-test-capacity.TBU1.R6 — One validated shared setting governs every participating new-wrapper session and can conservatively restore today's single-run behavior
     @wiring @surface.safeword-cli
@@ -958,7 +961,6 @@ Feature: Let parallel sessions share test capacity safely
         | recorded exact domain is D | `safeword project test-capacity reset --expected-domain D --confirm-idle --unknown` | SAFEWORD_TEST_CAPACITY_INVALID returns and durable state/version remain unchanged with no repository process |
         | recorded exact domain is D | `safeword project test-capacity reset --expected-domain D --confirm-idle unexpected` | SAFEWORD_TEST_CAPACITY_INVALID returns and durable state/version remain unchanged with no repository process |
         | exact domain D has an owner | `safeword project test-capacity reset --expected-domain D --confirm-idle --unknown` | SAFEWORD_TEST_CAPACITY_INVALID returns and durable state/version remain unchanged with no repository process |
-
     @wiring @process @surface.safeword-cli
     Scenario Outline: Reset serializes with admission under the shared guard
       Given isolated owner-only capacity state is <precondition> at version N
@@ -968,7 +970,6 @@ Feature: Let parallel sessions share test capacity safely
         | precondition | race | public-outcome |
         | idle at capacity two | barriers let wrapper admission register immediately before reset obtains the guard | reset exits nonzero with SAFEWORD_TEST_CAPACITY_BUSY, the wrapper owner and version remain intact, and no update is lost |
         | idle at capacity two | barriers let reset obtain the guard and prove the recorded domain idle before wrapper admission | reset commits capacity one at version N+1, then the wrapper registers against that exact version with no owner lost |
-
     @rejection @surface.safeword-cli
     Scenario Outline: Public capacity status and dispatch reject unsupported arguments
       Given an initialized idle durable capacity-one state at version N is captured byte-for-byte
@@ -981,7 +982,6 @@ Feature: Let parallel sessions share test capacity safely
         | `safeword project test-capacity status --format=json` |
         | `safeword project test-capacity` |
         | `safeword project test-capacity unknown` |
-
     @wiring @surface.safeword-cli
     Scenario: Status domain identifier is accepted verbatim by reset
       Given a real status command has emitted exact domain token D for an isolated idle domain at capacity two
