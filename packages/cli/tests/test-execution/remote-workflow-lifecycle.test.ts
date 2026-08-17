@@ -128,6 +128,31 @@ describe('remote workflow lifecycle', () => {
     expect(readFileSync(workflowPath(root), 'utf8')).toBe(bundled);
   });
 
+  it('preserves the primary conflict when its private cleanup also fails', () => {
+    const root = fixture();
+    const customer = 'name: concurrent customer\n';
+    const cleanupError = Object.assign(new Error('cleanup denied'), { code: 'EACCES' });
+
+    expect(
+      setupRemoteWorkflow(root, bundled, 'local', {
+        publication: {
+          beforeLink: () => {
+            writeFileSync(workflowPath(root), customer, { flag: 'wx' });
+          },
+          cleanup: () => {
+            throw cleanupError;
+          },
+        },
+      }),
+    ).toMatchObject({
+      ok: false,
+      state: 'customer_owned',
+      code: 'REMOTE_WORKFLOW_CONFLICT',
+      warningCode: 'REMOTE_WORKFLOW_RESIDUE',
+    });
+    expect(readFileSync(workflowPath(root), 'utf8')).toBe(customer);
+  });
+
   it('does not unlink customer bytes that replace the workflow before the final check', () => {
     const root = fixture();
     const customer = 'name: late customer\n';
