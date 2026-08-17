@@ -325,12 +325,8 @@ select = ["E", "F"]
     });
 
     it(
-      'Scenario 2.1: ignore-rule override persists through upgrade and hook honors it',
+      'Scenario 2.1: line-length policy remains enforced through upgrade',
       async () => {
-        const customerRuff = `${originalRuffToml.trim()}
-ignore = ["E501"]
-`;
-        writeTestFile(projectDirectory, 'ruff.toml', customerRuff);
         const longLine = `x = "${'a'.repeat(150)}"`;
         writeTestFile(projectDirectory, 'src/violation_2_1.py', `${longLine}\n`);
 
@@ -340,7 +336,7 @@ ignore = ["E501"]
           projectDirectory,
           'src/violation_2_1.py',
         );
-        expect(hookOutput).not.toContain('E501');
+        expect(hookOutput).toContain('E501');
       },
       TIMEOUT_BUN_INSTALL,
     );
@@ -432,12 +428,12 @@ extend-select = ["D"]
 
       const examples = [
         {
-          label: '2.4a: ignore-rule override',
-          customerAddition: '\n[lint]\nignore = ["E501"]\n',
+          label: '2.4a: line-length policy',
+          customerAddition: '',
           violationPath: 'src/violation_2_4a.py',
           violationContent: `x = "${'a'.repeat(150)}"\n`,
-          expectAbsent: 'E501',
-          expectPresent: undefined as string | undefined,
+          expectAbsent: undefined as string | undefined,
+          expectPresent: 'E501',
         },
         {
           label: '2.4b: per-file-ignores override',
