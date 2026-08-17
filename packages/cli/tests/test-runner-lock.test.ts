@@ -14,6 +14,7 @@ import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { defaultMaximumLockWaitMilliseconds } from '../scripts/lib/test-lock-config.mjs';
 import {
   environmentPathKey,
   resolveTestRunnerInvocation,
@@ -128,6 +129,12 @@ async function copyRunnerToCheckout(temporaryDirectory: string, name: string) {
   writeFileSync(
     nodePath.join(checkoutCliRoot, 'package.json'),
     `${JSON.stringify({ files: ['dist'] })}\n`,
+  );
+  const copiedConfigDirectory = nodePath.join(scriptDirectory, 'lib');
+  await mkdir(copiedConfigDirectory, { recursive: true });
+  copyFileSync(
+    nodePath.join(cliRoot, 'scripts', 'lib', 'test-lock-config.mjs'),
+    nodePath.join(copiedConfigDirectory, 'test-lock-config.mjs'),
   );
   return copiedRunnerPath;
 }
@@ -594,6 +601,10 @@ describe('package test runner lock (379)', () => {
       expect(result.stderr).toContain('Package snapshot entry contains a symbolic link: publish');
     },
   );
+
+  it('limits the default wait so locked focused verification stays actionable', () => {
+    expect(defaultMaximumLockWaitMilliseconds).toBe(60_000);
+  });
 
   it('serializes build and vitest for concurrent focused test commands', async () => {
     const temporaryDirectory = makeTemporaryDirectory();
@@ -1318,11 +1329,15 @@ describe('package test runner lock (379)', () => {
     }
   });
 
-  it('fails without starting a test after the configured wait cap', async () => {
+  it('names the active owner and recovery when the wait cap expires', async () => {
     const temporaryDirectory = makeTemporaryDirectory();
     const { binaryDirectory, logPath } = await createFakeTestBinaries(temporaryDirectory);
     const lockDirectory = nodePath.join(temporaryDirectory, 'lock');
-    await seedOwnerFile(lockDirectory, { createdAt: new Date().toISOString(), pid: process.pid });
+    await seedOwnerFile(lockDirectory, {
+      checkoutRoot: '/worktrees/full-suite',
+      createdAt: new Date().toISOString(),
+      pid: process.pid,
+    });
 
     const result = await runNodeScript(runnerPath, ['tests/wait-cap.test.ts'], {
       ...process.env,
@@ -1332,7 +1347,10 @@ describe('package test runner lock (379)', () => {
     });
 
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain('after waiting 0ms; no test was started.');
+    expect(result.stderr).toContain('Could not acquire safeword package test lock');
+    expect(result.stderr).toContain(
+      `The active owner is PID ${process.pid} in /worktrees/full-suite.`,
+    );
     expect(existsSync(logPath)).toBe(false);
   });
 });
