@@ -1,8 +1,14 @@
-import { lstatSync, mkdirSync, unlinkSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import type { ExecutionMode } from './mode.js';
-import { type PublicationHooks, publishExclusiveFile } from './remote-workflow-fs.js';
+import {
+  type ExclusivePublicationResult,
+  filesystemErrorCode,
+  isStablePathError,
+  nodeRemoteWorkflowFs,
+  publishExclusiveFile,
+  type RemoteWorkflowFs,
+} from './remote-workflow-fs.js';
 import {
   classifyRemoteWorkflow,
   REMOTE_WORKFLOW_PATH,
@@ -27,20 +33,8 @@ export interface RemoteWorkflowLifecycleResult {
   readonly residuePath?: string;
 }
 
-export interface RemoteWorkflowLifecycleHooks {
-  readonly publication?: PublicationHooks;
-  readonly beforeDisableRecheck?: () => void;
-  readonly unlink?: (path: string) => void;
-}
-
 // eslint-disable-next-line unicorn/no-null -- Public lifecycle data uses null for no action.
 const NO_ACTION = null;
-
-function errorCode(error: unknown): string {
-  return error instanceof Error && 'code' in error && typeof error.code === 'string'
-    ? error.code
-    : 'UNKNOWN';
-}
 
 function retryFailure(): RemoteWorkflowLifecycleResult {
   return {
@@ -54,9 +48,10 @@ function retryFailure(): RemoteWorkflowLifecycleResult {
 
 function classifiedResult(
   observation: Exclude<RemoteWorkflowObservation, { state: 'failed' }>,
-  options: { readonly forDisable?: boolean; readonly effectiveMode?: ExecutionMode } = {},
+  command: 'setup' | 'disable',
+  effectiveMode?: ExecutionMode,
 ): RemoteWorkflowLifecycleResult {
-  const customerAbsent = options.forDisable === true && observation.state === 'customer_owned';
+  const customerAbsent = command === 'disable' && observation.state === 'customer_owned';
   const desired =
     observation.state === 'current' || observation.state === 'not_installed' || customerAbsent;
   return {
@@ -66,17 +61,47 @@ function classifiedResult(
     affectedPath: desired ? NO_ACTION : observation.affectedPath,
     nextAction: desired ? NO_ACTION : observation.nextAction,
     ...(!desired && { code: 'REMOTE_WORKFLOW_CONFLICT', retryable: false }),
-    ...(options.effectiveMode !== undefined && { effectiveMode: options.effectiveMode }),
+    ...(desired && effectiveMode !== undefined && { effectiveMode }),
   };
 }
 
-function ensureWorkflowParents(root: string): RemoteWorkflowLifecycleResult | undefined {
+function unsafeParent(component: string): RemoteWorkflowLifecycleResult {
+  return {
+    ok: false,
+    changed: false,
+    state: 'unsafe_path',
+    affectedPath: component,
+    nextAction: 'repair_path_and_repeat',
+    code: 'REMOTE_WORKFLOW_CONFLICT',
+    retryable: false,
+  };
+}
+
+function inspectCreatedParent(
+  path: string,
+  component: string,
+  filesystem: RemoteWorkflowFs,
+): RemoteWorkflowLifecycleResult | undefined {
+  try {
+    const metadata = filesystem.lstat(path);
+    if (metadata === undefined) return retryFailure();
+    return metadata.isDirectory() ? undefined : unsafeParent(component);
+  } catch (error) {
+    return isStablePathError(filesystemErrorCode(error)) ? unsafeParent(component) : retryFailure();
+  }
+}
+
+function ensureWorkflowParents(
+  root: string,
+  filesystem: RemoteWorkflowFs,
+): RemoteWorkflowLifecycleResult | undefined {
   for (const component of ['.github', '.github/workflows']) {
     const path = nodePath.join(root, component);
     try {
-      mkdirSync(path);
+      filesystem.mkdir(path);
     } catch (error) {
-      if (errorCode(error) !== 'EEXIST') {
+      const code = filesystemErrorCode(error);
+      if (code !== 'EEXIST') {
         return {
           ok: false,
           changed: false,
@@ -84,33 +109,20 @@ function ensureWorkflowParents(root: string): RemoteWorkflowLifecycleResult | un
           code: 'REMOTE_WORKFLOW_PUBLICATION_FAILED',
           retryable: false,
           operation: 'mkdir',
+          filesystemCode: code,
           path: component,
         };
       }
     }
 
-    try {
-      const metadata = lstatSync(path);
-      if (!metadata.isDirectory() || metadata.isSymbolicLink()) {
-        return {
-          ok: false,
-          changed: false,
-          state: 'unsafe_path',
-          affectedPath: component,
-          nextAction: 'repair_path_and_repeat',
-          code: 'REMOTE_WORKFLOW_CONFLICT',
-          retryable: false,
-        };
-      }
-    } catch {
-      return retryFailure();
-    }
+    const inspectionFailure = inspectCreatedParent(path, component, filesystem);
+    if (inspectionFailure !== undefined) return inspectionFailure;
   }
   return undefined;
 }
 
 function publicationFailure(
-  operation: string,
+  operation: Extract<ExclusivePublicationResult, { published: false }>['operation'],
   code: string,
   path: string,
 ): RemoteWorkflowLifecycleResult {
@@ -143,27 +155,27 @@ function completeSetupPublication(
   root: string,
   bundled: string,
   effectiveMode: ExecutionMode,
-  hooks: RemoteWorkflowLifecycleHooks,
+  filesystem: RemoteWorkflowFs,
 ): RemoteWorkflowLifecycleResult {
   const publication = publishExclusiveFile(
     nodePath.join(root, REMOTE_WORKFLOW_PATH),
     bundled,
-    hooks.publication,
+    filesystem,
   );
   if (!publication.published) {
     if (publication.operation === 'create' && publication.code === 'EEXIST') {
       return retryFailure();
     }
     if (publication.operation === 'link' && publication.code === 'EEXIST') {
-      const reclassified = classifyRemoteWorkflow(root, bundled);
+      const reclassified = classifyRemoteWorkflow(root, bundled, filesystem);
       const result =
         reclassified.state === 'failed' || reclassified.state === 'not_installed'
           ? retryFailure()
-          : classifiedResult(reclassified, { effectiveMode });
+          : classifiedResult(reclassified, 'setup', effectiveMode);
       return withPublicationResidue(result, publication);
     }
     return withPublicationResidue(
-      publicationFailure(publication.operation, publication.code, publication.privatePath),
+      publicationFailure(publication.operation, publication.code, REMOTE_WORKFLOW_PATH),
       publication,
     );
   }
@@ -185,15 +197,15 @@ export function setupRemoteWorkflow(
   root: string,
   bundled: string,
   effectiveMode: ExecutionMode,
-  hooks: RemoteWorkflowLifecycleHooks = {},
+  filesystem: RemoteWorkflowFs = nodeRemoteWorkflowFs,
 ): RemoteWorkflowLifecycleResult {
-  const initial = classifyRemoteWorkflow(root, bundled);
+  const initial = classifyRemoteWorkflow(root, bundled, filesystem);
   if (initial.state === 'failed') return retryFailure();
-  if (initial.state !== 'not_installed') return classifiedResult(initial, { effectiveMode });
+  if (initial.state !== 'not_installed') return classifiedResult(initial, 'setup', effectiveMode);
 
-  const parentFailure = ensureWorkflowParents(root);
+  const parentFailure = ensureWorkflowParents(root, filesystem);
   if (parentFailure !== undefined) return parentFailure;
-  return completeSetupPublication(root, bundled, effectiveMode, hooks);
+  return completeSetupPublication(root, bundled, effectiveMode, filesystem);
 }
 
 function disabledResult(changed: boolean): RemoteWorkflowLifecycleResult {
@@ -209,24 +221,24 @@ function disabledResult(changed: boolean): RemoteWorkflowLifecycleResult {
 export function disableRemoteWorkflow(
   root: string,
   bundled: string,
-  hooks: RemoteWorkflowLifecycleHooks = {},
+  filesystem: RemoteWorkflowFs = nodeRemoteWorkflowFs,
 ): RemoteWorkflowLifecycleResult {
-  const initial = classifyRemoteWorkflow(root, bundled);
+  const initial = classifyRemoteWorkflow(root, bundled, filesystem);
   if (initial.state === 'failed') return retryFailure();
-  if (initial.state !== 'current') return classifiedResult(initial, { forDisable: true });
+  if (initial.state !== 'current') return classifiedResult(initial, 'disable');
 
-  hooks.beforeDisableRecheck?.();
-  const finalObservation = classifyRemoteWorkflow(root, bundled);
+  const finalObservation = classifyRemoteWorkflow(root, bundled, filesystem);
   if (finalObservation.state === 'failed') return retryFailure();
   if (finalObservation.state !== 'current') {
-    return classifiedResult(finalObservation, { forDisable: true });
+    return classifiedResult(finalObservation, 'disable');
   }
 
   try {
-    (hooks.unlink ?? unlinkSync)(nodePath.join(root, REMOTE_WORKFLOW_PATH));
+    filesystem.unlink(nodePath.join(root, REMOTE_WORKFLOW_PATH));
     return disabledResult(true);
   } catch (error) {
-    if (errorCode(error) === 'ENOENT') return disabledResult(false);
+    const code = filesystemErrorCode(error);
+    if (code === 'ENOENT') return disabledResult(false);
     return {
       ok: false,
       changed: false,
@@ -236,7 +248,7 @@ export function disableRemoteWorkflow(
       code: 'REMOTE_WORKFLOW_REMOVAL_FAILED',
       retryable: false,
       operation: 'unlink',
-      filesystemCode: errorCode(error),
+      filesystemCode: code,
       path: REMOTE_WORKFLOW_PATH,
     };
   }

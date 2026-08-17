@@ -1,10 +1,59 @@
 import { randomUUID } from 'node:crypto';
-import { closeSync, fsyncSync, linkSync, openSync, unlinkSync, writeSync } from 'node:fs';
+import {
+  closeSync,
+  constants,
+  fstatSync,
+  fsyncSync,
+  linkSync,
+  lstatSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  type Stats,
+  unlinkSync,
+  writeSync,
+} from 'node:fs';
 import nodePath from 'node:path';
 
-export interface PublicationHooks {
-  readonly beforeLink?: () => void;
-  readonly cleanup?: (privatePath: string) => void;
+export interface RemoteWorkflowFs {
+  readonly privatePath: (directory: string) => string;
+  readonly lstat: (path: string) => Stats | undefined;
+  readonly mkdir: (path: string) => void;
+  readonly openRead: (path: string) => number;
+  readonly openPrivate: (path: string) => number;
+  readonly fstat: (descriptor: number) => Stats;
+  readonly read: (descriptor: number) => string;
+  readonly write: (descriptor: number, bytes: Uint8Array, offset: number) => number;
+  readonly sync: (descriptor: number) => void;
+  readonly close: (descriptor: number) => void;
+  readonly link: (privatePath: string, destination: string) => void;
+  readonly unlink: (path: string) => void;
+}
+
+export const nodeRemoteWorkflowFs: RemoteWorkflowFs = {
+  privatePath: directory => nodePath.join(directory, `.safeword-${randomUUID()}`),
+  lstat: path => lstatSync(path, { throwIfNoEntry: false }),
+  mkdir: mkdirSync,
+  openRead: path =>
+    openSync(path, constants.O_RDONLY | constants.O_NONBLOCK | (constants.O_NOFOLLOW ?? 0)),
+  openPrivate: path => openSync(path, 'wx', 0o644),
+  fstat: fstatSync,
+  read: descriptor => readFileSync(descriptor, 'utf8'),
+  write: (descriptor, bytes, offset) => writeSync(descriptor, bytes, offset),
+  sync: fsyncSync,
+  close: closeSync,
+  link: linkSync,
+  unlink: unlinkSync,
+};
+
+export function filesystemErrorCode(error: unknown): string {
+  return error instanceof Error && 'code' in error && typeof error.code === 'string'
+    ? error.code
+    : 'UNKNOWN';
+}
+
+export function isStablePathError(code: string): boolean {
+  return ['EACCES', 'ELOOP', 'ENAMETOOLONG', 'ENOTDIR'].includes(code);
 }
 
 export type ExclusivePublicationResult =
@@ -16,87 +65,133 @@ export type ExclusivePublicationResult =
   | {
       readonly published: false;
       readonly privatePath: string;
-      readonly operation: 'create' | 'write' | 'sync' | 'link';
+      readonly operation: 'create' | 'write' | 'sync' | 'close' | 'link';
       readonly code: string;
       readonly cleanupCode?: string;
     };
 
-function errorCode(error: unknown): string {
-  return error instanceof Error && 'code' in error && typeof error.code === 'string'
-    ? error.code
-    : 'UNKNOWN';
-}
+type Preparation =
+  | { readonly ready: true; readonly descriptor: number }
+  | {
+      readonly ready: false;
+      readonly operation: 'create';
+      readonly code: string;
+    }
+  | {
+      readonly ready: false;
+      readonly descriptor: number;
+      readonly operation: 'write' | 'sync';
+      readonly code: string;
+    };
 
-function writeAll(descriptor: number, content: string): string | undefined {
+function preparePrivateFile(
+  privatePath: string,
+  content: string,
+  filesystem: RemoteWorkflowFs,
+): Preparation {
+  let descriptor: number;
+  try {
+    descriptor = filesystem.openPrivate(privatePath);
+  } catch (error) {
+    return { ready: false, operation: 'create', code: filesystemErrorCode(error) };
+  }
+
   const bytes = Buffer.from(content);
   let offset = 0;
   try {
     while (offset < bytes.length) {
-      const written = writeSync(descriptor, bytes, offset);
-      if (written === 0) return 'EIO';
+      const written = filesystem.write(descriptor, bytes, offset);
+      if (written === 0) {
+        return { ready: false, descriptor, operation: 'write', code: 'ESHORTWRITE' };
+      }
       offset += written;
     }
-    return undefined;
   } catch (error) {
-    return errorCode(error);
+    return {
+      ready: false,
+      descriptor,
+      operation: 'write',
+      code: filesystemErrorCode(error),
+    };
+  }
+
+  try {
+    filesystem.sync(descriptor);
+    return { ready: true, descriptor };
+  } catch (error) {
+    return {
+      ready: false,
+      descriptor,
+      operation: 'sync',
+      code: filesystemErrorCode(error),
+    };
   }
 }
 
-type Preparation = {
-  readonly descriptor?: number;
-  readonly operation?: 'create' | 'write' | 'sync';
-  readonly code?: string;
-};
-
-function preparePrivateFile(privatePath: string, content: string): Preparation {
-  let descriptor: number;
+function cleanupPrivateFile(privatePath: string, filesystem: RemoteWorkflowFs): string | undefined {
   try {
-    descriptor = openSync(privatePath, 'wx', 0o600);
-  } catch (error) {
-    return { operation: 'create', code: errorCode(error) };
-  }
-  const writeCode = writeAll(descriptor, content);
-  if (writeCode !== undefined) return { descriptor, operation: 'write', code: writeCode };
-  try {
-    fsyncSync(descriptor);
-    return { descriptor };
-  } catch (error) {
-    return { descriptor, operation: 'sync', code: errorCode(error) };
-  }
-}
-
-function cleanupPrivateFile(
-  privatePath: string,
-  cleanup: (path: string) => void = unlinkSync,
-): string | undefined {
-  try {
-    cleanup(privatePath);
+    filesystem.unlink(privatePath);
     return undefined;
   } catch (error) {
-    return errorCode(error);
+    return filesystemErrorCode(error);
   }
 }
 
 type PublicationFailure = {
-  readonly operation: 'create' | 'write' | 'sync' | 'link';
+  readonly operation: 'create' | 'write' | 'sync' | 'close' | 'link';
   readonly code: string;
 };
 
-function linkPrivateFile(privatePath: string, destination: string): PublicationFailure | undefined {
+function closePrivateFile(
+  descriptor: number,
+  filesystem: RemoteWorkflowFs,
+): PublicationFailure | undefined {
   try {
-    linkSync(privatePath, destination);
+    filesystem.close(descriptor);
     return undefined;
   } catch (error) {
-    return { operation: 'link', code: errorCode(error) };
+    return { operation: 'close', code: filesystemErrorCode(error) };
   }
 }
 
-function finishPublication(
+function linkPrivateFile(
   privatePath: string,
-  failure: PublicationFailure | undefined,
-  cleanup?: PublicationHooks['cleanup'],
+  destination: string,
+  filesystem: RemoteWorkflowFs,
+): PublicationFailure | undefined {
+  try {
+    filesystem.link(privatePath, destination);
+    return undefined;
+  } catch (error) {
+    return { operation: 'link', code: filesystemErrorCode(error) };
+  }
+}
+
+export function publishExclusiveFile(
+  destination: string,
+  content: string,
+  filesystem: RemoteWorkflowFs = nodeRemoteWorkflowFs,
 ): ExclusivePublicationResult {
-  const cleanupCode = cleanupPrivateFile(privatePath, cleanup);
+  const privatePath = filesystem.privatePath(nodePath.dirname(destination));
+  const preparation = preparePrivateFile(privatePath, content, filesystem);
+  if (!('descriptor' in preparation)) {
+    return {
+      published: false,
+      privatePath,
+      operation: preparation.operation,
+      code: preparation.code,
+    };
+  }
+  const descriptor = preparation.descriptor;
+
+  const preparationFailure: PublicationFailure | undefined = preparation.ready
+    ? undefined
+    : { operation: preparation.operation, code: preparation.code };
+  const closeFailure = closePrivateFile(descriptor, filesystem);
+  const failure =
+    preparationFailure ?? closeFailure ?? linkPrivateFile(privatePath, destination, filesystem);
+
+  const cleanupCode = cleanupPrivateFile(privatePath, filesystem);
   return failure === undefined
     ? { published: true, privatePath, ...(cleanupCode !== undefined && { cleanupCode }) }
     : {
@@ -105,34 +200,4 @@ function finishPublication(
         ...failure,
         ...(cleanupCode !== undefined && { cleanupCode }),
       };
-}
-
-export function publishExclusiveFile(
-  destination: string,
-  content: string,
-  hooks: PublicationHooks = {},
-): ExclusivePublicationResult {
-  const directory = nodePath.dirname(destination);
-  const privatePath = nodePath.join(directory, `.safeword-${randomUUID()}`);
-  const preparation = preparePrivateFile(privatePath, content);
-  if (preparation.descriptor === undefined) {
-    return {
-      published: false,
-      privatePath,
-      operation: preparation.operation ?? 'create',
-      code: preparation.code ?? 'UNKNOWN',
-    };
-  }
-  closeSync(preparation.descriptor);
-
-  let failure: PublicationFailure | undefined =
-    preparation.operation === undefined || preparation.code === undefined
-      ? undefined
-      : { operation: preparation.operation, code: preparation.code };
-
-  if (failure === undefined) {
-    hooks.beforeLink?.();
-    failure = linkPrivateFile(privatePath, destination);
-  }
-  return finishPublication(privatePath, failure, hooks.cleanup);
 }
