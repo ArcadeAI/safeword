@@ -54,6 +54,7 @@ describe('boundary engine — reader/resolver failure degrades to indeterminate'
     );
 
     const anchor = reconciliation?.checks.find(c => c.check === 'phase-anchor');
+    expect(reconciliation?.verdict).toBe('indeterminate');
     expect(anchor?.verdict).toBe('indeterminate');
     expect(anchor?.detail).toMatch(/could not be determined/i);
   });
@@ -83,7 +84,26 @@ describe('boundary engine — reader/resolver failure degrades to indeterminate'
     const [reconciliation] = reconcileChange([change], throwingResolver);
 
     const format = reconciliation?.checks.find(c => c.check === 'ledger-format');
+    expect(reconciliation?.verdict).toBe('indeterminate');
     expect(format?.verdict).toBe('indeterminate');
+  });
+});
+
+describe('boundary engine — durable reconciliation outcome', () => {
+  it('records a passing verdict when no individual checks apply', () => {
+    const [reconciliation] = reconcileChange([
+      {
+        anchorScope: {
+          ticketPath: '.project/tickets/ENG000-fixture',
+          featureRoots: FEATURE_ROOTS,
+          workspaceRoots: WORKSPACE_ROOTS,
+        },
+        artifacts: [],
+        hasLedger: false,
+      },
+    ]);
+
+    expect(reconciliation).toMatchObject({ verdict: 'pass', checks: [] });
   });
 });
 
@@ -110,6 +130,7 @@ describe('boundary engine — anchor verification is tree-only', () => {
     const [reconciliation] = reconcileChange([advanceChange(['implement: deadbee'])]);
 
     const anchor = reconciliation?.checks.find(c => c.check === 'phase-anchor');
+    expect(reconciliation?.verdict).toBe('warn');
     expect(anchor?.verdict).toBe('warn');
     expect(anchor?.detail).toMatch(/artifact path/i);
   });
