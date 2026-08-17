@@ -153,7 +153,8 @@ Feature: Let parallel sessions share test capacity safely
       Then it assigns broad exclusive capacity with durable owner weight two, passes the original token unchanged downstream exactly once, accounts for every descendant, and the wrapper exits 23
       Examples:
         | arguments | path-state |
-        | an `../../../alpha.test.ts` path | a lexical path that escapes the checkout |
+        | an `../../../alpha.test.ts` path | a lexical path to an existing external regular `alpha.test.ts` file that escapes the checkout |
+        | an absolute `/external/alpha.test.ts` path | a canonical path to an existing external regular `alpha.test.ts` file |
         | an empty argument | no filesystem path |
     @rejection
     Scenario: A test-shaped directory classifies broad
@@ -680,7 +681,6 @@ Feature: Let parallel sessions share test capacity safely
         | an abandoned temporary file beside valid state | the valid live state remains authoritative and the validated abandoned file is removed under the guard before admission continues |
         | a permission-unsafe temporary file | the transition fails closed without reading or replacing through that path |
         | a symlinked temporary file | the transition fails closed without reading or replacing through that path |
-
     @rejection @process
     Scenario Outline: State identity swaps cannot redirect a guarded commit
       Given the owner-only state directory is pinned under the guard
@@ -693,7 +693,6 @@ Feature: Let parallel sessions share test capacity safely
         | an attacker swaps a directory entry after validation but before open |
         | an attacker swaps the temporary file after flush but before rename |
         | the parent directory inode or Windows file ID changes before commit |
-
     @native-platform @platform-posix @rejection @wiring @process
     Scenario Outline: Every capacity artifact enforces owner-only identity and links
       Given a verified current-commit attestation from the required native POSIX CI job covers the matching fixture and <artifact> has <unsafe-property>
@@ -735,7 +734,6 @@ Feature: Let parallel sessions share test capacity safely
         | temporary state | world-readable permissions |
         | temporary state | world-writable permissions |
         | temporary state | an unexpected hard-link count |
-
     @native-platform @platform-posix @rejection @wiring @surface.safeword-cli
     Scenario Outline: Status reports a concrete repair for unsafe capacity artifacts
       Given a verified current-commit attestation from the required native POSIX CI job covers the matching fixture and <artifact> has <unsafe-property>
@@ -932,6 +930,7 @@ Feature: Let parallel sessions share test capacity safely
         | idle at capacity one | `safeword project test-capacity set 2 --confirm-current-protocol` | capacity two and the exact current protocol version commit together |
         | idle at capacity two | `safeword project test-capacity set 1` | confirmation is not required, the command exits zero, and capacity one plus the next version commit together |
         | idle at capacity two | `safeword project test-capacity set 1 --confirm-current-protocol` | the optional bare confirmation is accepted, the command exits zero, and capacity one plus the next version commit together |
+        | idle at capacity two while the containment primitive is unavailable | `safeword project test-capacity set 1` | capacity one plus the next version commit together without requiring containment proof |
 
     @wiring @process @surface.safeword-cli
     Scenario Outline: Reset validates an explicitly prepared capacity domain
@@ -949,6 +948,7 @@ Feature: Let parallel sessions share test capacity safely
         | exact domain D has an owner or waiter | `safeword project test-capacity reset --expected-domain D --confirm-idle` | SAFEWORD_TEST_CAPACITY_BUSY returns and durable state/version remain unchanged with no repository process |
         | exact domain D has an owner marked reclaiming between first and second absence observations | `safeword project test-capacity reset --expected-domain D --confirm-idle` | SAFEWORD_TEST_CAPACITY_BUSY returns and durable state/version remain unchanged with no repository process |
         | exact domain D identity is unverifiable | `safeword project test-capacity reset --expected-domain D --confirm-idle` | SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE returns and durable state/version remain unchanged with no repository process |
+        | exact domain D is proven idle at capacity two while the containment primitive is unavailable | `safeword project test-capacity reset --expected-domain D --confirm-idle` | capacity one and current protocol state commit together without requiring containment proof |
         | recorded exact domain is D | `safeword project test-capacity reset --expected-domain D --expected-domain D --confirm-idle` | SAFEWORD_TEST_CAPACITY_INVALID returns and durable state/version remain unchanged with no repository process |
         | recorded exact domain is D | `safeword project test-capacity reset --expected-domain D --confirm-idle --confirm-idle` | SAFEWORD_TEST_CAPACITY_INVALID returns and durable state/version remain unchanged with no repository process |
         | recorded exact domain is D | `safeword project test-capacity reset --expected-domain D --confirm-idle=true` | SAFEWORD_TEST_CAPACITY_INVALID returns and durable state/version remain unchanged with no repository process |
