@@ -56697,11 +56697,22 @@ function reconcileTicket(change, resolveSha, readArtifact) {
     ...artifactShapeChecks(change)
   ];
 }
+function reconciliationVerdict(checks) {
+  if (checks.some((check) => check.verdict === "indeterminate"))
+    return "indeterminate";
+  if (checks.some((check) => check.verdict === "warn"))
+    return "warn";
+  return "pass";
+}
 function reconcileChange(changes, resolveSha, readArtifact) {
-  return changes.map((change) => ({
-    ticket: change.anchorScope.ticketPath.split("/").at(-1) ?? change.anchorScope.ticketPath,
-    checks: reconcileTicket(change, resolveSha, readArtifact)
-  }));
+  return changes.map((change) => {
+    const checks = reconcileTicket(change, resolveSha, readArtifact);
+    return {
+      ticket: change.anchorScope.ticketPath.split("/").at(-1) ?? change.anchorScope.ticketPath,
+      verdict: reconciliationVerdict(checks),
+      checks
+    };
+  });
 }
 function findings(reconciliations) {
   return reconciliations.flatMap(({ ticket, checks }) => checks.filter((c) => c.verdict !== "pass").map((check) => ({ ticket, check })));
