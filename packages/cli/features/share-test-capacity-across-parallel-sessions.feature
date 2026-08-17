@@ -220,15 +220,15 @@ Feature: Let parallel sessions share test capacity safely
   Rule: share-test-capacity.TBU1.R2 — Participating package-test commands in the same worktree remain serialized across their complete build and test lifetimes
     @process
     Scenario Outline: Same-worktree commands serialize their complete build and test lifetimes
-      Given canonical capacity is one, real <first-kind> then <second-kind> package-test wrapper processes target the same worktree, and every process event is keyed to wrapper, ticket, container and command
-      When a barrier holds the first repository lifetime active until the second wrapper is observed waiting on the checkout mutex
-      Then the second starts no repository descendant before every first-container descendant exits and the first wrapper releases scheduler ownership followed by its exact checkout ownership, after which both unchanged downstream invocations have run exactly once, every container is proven empty, and both wrappers exit zero
+      Given canonical capacity is <capacity>, real <first-kind> then <second-kind> package-test wrapper processes use <checkout-routes>, and every process event is keyed to wrapper, ticket, container and command
+      When a barrier holds the first repository lifetime active until <mutex-observation>
+      Then <lifetime-outcome>, after which both unchanged downstream invocations have run exactly once, every container is proven empty, and both wrappers exit zero
       Examples:
-        | first-kind | second-kind |
-        | focused | focused |
-        | focused | broad |
-        | broad | broad |
-        | broad | focused |
+        | capacity | first-kind | second-kind | checkout-routes | mutex-observation | lifetime-outcome |
+        | one | focused | focused | the same canonical checkout path | the second wrapper is observed waiting on the checkout mutex | the second starts no repository descendant before every first-container descendant exits and the first wrapper releases scheduler ownership followed by its exact checkout ownership |
+        | one | focused | broad | a symlink alias and the canonical checkout root for one worktree | the second wrapper is observed waiting on the one checkout mutex | the second starts no repository descendant before every first-container descendant exits and the first wrapper releases scheduler ownership followed by its exact checkout ownership |
+        | one | broad | broad | case-insensitive Windows spelling or an OS-managed macOS-prefix alias for one checkout | the second wrapper is observed waiting on the one checkout mutex | the second starts no repository descendant before every first-container descendant exits and the first wrapper releases scheduler ownership followed by its exact checkout ownership |
+        | two | focused | focused | two distinct git worktrees of the same repository | each wrapper acquires its own checkout mutex | the independently keyed lifetimes overlap only within shared capacity |
     @process
     Scenario: A checkout-mutex waiter holds no shared-capacity permit
       Given canonical capacity is two, one same-worktree wrapper holds checkout ownership and one active permit, a second same-worktree wrapper emits its checkout-mutex waiter event, and an unrelated-worktree focused wrapper requests admission
