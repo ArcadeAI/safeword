@@ -76,6 +76,8 @@ export interface CheckVerdict {
 
 export interface TicketReconciliation {
   ticket: string;
+  /** Summary outcome, present even when no individual checks apply. */
+  verdict: Verdict;
   checks: CheckVerdict[];
 }
 
@@ -317,6 +319,13 @@ function reconcileTicket(
   ];
 }
 
+/** Collapse detailed checks into the durable record's ticket-level outcome. */
+function reconciliationVerdict(checks: CheckVerdict[]): Verdict {
+  if (checks.some(check => check.verdict === 'indeterminate')) return 'indeterminate';
+  if (checks.some(check => check.verdict === 'warn')) return 'warn';
+  return 'pass';
+}
+
 /**
  * Reconcile every ticket touched by a change. Returns one entry per ticket,
  * each carrying its per-check verdicts — pass entries included, so a clean
@@ -331,10 +340,14 @@ export function reconcileChange(
   resolveSha?: ShaResolver,
   readArtifact?: ArtifactReader,
 ): TicketReconciliation[] {
-  return changes.map(change => ({
-    ticket: change.anchorScope.ticketPath.split('/').at(-1) ?? change.anchorScope.ticketPath,
-    checks: reconcileTicket(change, resolveSha, readArtifact),
-  }));
+  return changes.map(change => {
+    const checks = reconcileTicket(change, resolveSha, readArtifact);
+    return {
+      ticket: change.anchorScope.ticketPath.split('/').at(-1) ?? change.anchorScope.ticketPath,
+      verdict: reconciliationVerdict(checks),
+      checks,
+    };
+  });
 }
 
 /** All findings (non-pass verdicts) across a reconciliation, for warning output. */
