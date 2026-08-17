@@ -130,9 +130,13 @@ function completeSetupPublication(
   root: string,
   bundled: string,
   effectiveMode: ExecutionMode,
-  _hooks: RemoteWorkflowLifecycleHooks,
+  hooks: RemoteWorkflowLifecycleHooks,
 ): RemoteWorkflowLifecycleResult {
-  const publication = publishExclusiveFile(nodePath.join(root, REMOTE_WORKFLOW_PATH), bundled);
+  const publication = publishExclusiveFile(
+    nodePath.join(root, REMOTE_WORKFLOW_PATH),
+    bundled,
+    hooks.publication,
+  );
   if (!publication.published) {
     if (publication.operation === 'create' && publication.code === 'EEXIST') return retryFailure();
     if (publication.operation === 'link' && publication.code === 'EEXIST') {
@@ -186,12 +190,13 @@ function disabledResult(changed: boolean): RemoteWorkflowLifecycleResult {
 export function disableRemoteWorkflow(
   root: string,
   bundled: string,
-  _hooks: RemoteWorkflowLifecycleHooks = {},
+  hooks: RemoteWorkflowLifecycleHooks = {},
 ): RemoteWorkflowLifecycleResult {
   const initial = classifyRemoteWorkflow(root, bundled);
   if (initial.state === 'failed') return retryFailure();
   if (initial.state !== 'current') return classifiedResult(initial, { forDisable: true });
 
+  hooks.beforeDisableRecheck?.();
   const finalObservation = classifyRemoteWorkflow(root, bundled);
   if (finalObservation.state === 'failed') return retryFailure();
   if (finalObservation.state !== 'current') {
@@ -199,7 +204,7 @@ export function disableRemoteWorkflow(
   }
 
   try {
-    unlinkSync(nodePath.join(root, REMOTE_WORKFLOW_PATH));
+    (hooks.unlink ?? unlinkSync)(nodePath.join(root, REMOTE_WORKFLOW_PATH));
     return disabledResult(true);
   } catch (error) {
     if (errorCode(error) === 'ENOENT') return disabledResult(false);
