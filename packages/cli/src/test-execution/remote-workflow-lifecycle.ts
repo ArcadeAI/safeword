@@ -126,6 +126,19 @@ function publicationFailure(
   };
 }
 
+function withPublicationResidue(
+  result: RemoteWorkflowLifecycleResult,
+  publication: { readonly cleanupCode?: string; readonly privatePath: string },
+): RemoteWorkflowLifecycleResult {
+  return publication.cleanupCode === undefined
+    ? result
+    : {
+        ...result,
+        warningCode: 'REMOTE_WORKFLOW_RESIDUE',
+        residuePath: publication.privatePath,
+      };
+}
+
 function completeSetupPublication(
   root: string,
   bundled: string,
@@ -138,28 +151,34 @@ function completeSetupPublication(
     hooks.publication,
   );
   if (!publication.published) {
-    if (publication.operation === 'create' && publication.code === 'EEXIST') return retryFailure();
+    if (publication.operation === 'create' && publication.code === 'EEXIST') {
+      return retryFailure();
+    }
     if (publication.operation === 'link' && publication.code === 'EEXIST') {
       const reclassified = classifyRemoteWorkflow(root, bundled);
-      return reclassified.state === 'failed' || reclassified.state === 'not_installed'
-        ? retryFailure()
-        : classifiedResult(reclassified, { effectiveMode });
+      const result =
+        reclassified.state === 'failed' || reclassified.state === 'not_installed'
+          ? retryFailure()
+          : classifiedResult(reclassified, { effectiveMode });
+      return withPublicationResidue(result, publication);
     }
-    return publicationFailure(publication.operation, publication.code, publication.privatePath);
+    return withPublicationResidue(
+      publicationFailure(publication.operation, publication.code, publication.privatePath),
+      publication,
+    );
   }
 
-  return {
-    ok: true,
-    changed: true,
-    state: 'current',
-    affectedPath: NO_ACTION,
-    nextAction: NO_ACTION,
-    effectiveMode,
-    ...(publication.cleanupCode !== undefined && {
-      warningCode: 'REMOTE_WORKFLOW_RESIDUE' as const,
-      residuePath: publication.privatePath,
-    }),
-  };
+  return withPublicationResidue(
+    {
+      ok: true,
+      changed: true,
+      state: 'current',
+      affectedPath: NO_ACTION,
+      nextAction: NO_ACTION,
+      effectiveMode,
+    },
+    publication,
+  );
 }
 
 export function setupRemoteWorkflow(
