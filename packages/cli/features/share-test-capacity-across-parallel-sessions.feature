@@ -26,7 +26,7 @@ Feature: Let parallel sessions share test capacity safely
     Scenario: Duplicate owner releases do not change durable state
       Given an exact focused wrapper has released, its guarded durable state bytes and version are captured, and the injected duplicate-release seam is installed
       When that same wrapper emits the replayed release
-      Then the durable bytes and version remain unchanged, no repository process or descendant starts, and the wrapper exits zero
+      Then a keyed replay event proves the release was evaluated under the state guard, the durable bytes and version remain unchanged, no repository process or descendant starts, and the wrapper exits zero
     @rejection @process
     Scenario: A stale release cannot remove a subsequent owner's permit
       Given focused wrapper A released its exact permit, focused wrapper B then acquired that permit with a durable weight-one owner record and an active repository lifetime, and A's duplicate-release seam is installed
@@ -439,6 +439,7 @@ Feature: Let parallel sessions share test capacity safely
         | claims Linux while its attested runner OS is macOS | cross-platform mismatch | SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE |
         | has bytes whose digest differs from the attested digest | artifact digest mismatch | SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE |
         | has a matching trusted attestation and digest but malformed, truncated, or newer-incompatible durable evidence JSON | incompatible evidence schema | SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE |
+        | claims a platform-class pass while keyed native results record a failed primitive, a contradictory command exit, or an accepted mismatch identity | contradictory native result | SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE |
         | is reached through a symlinked evidence-state directory | unsafe evidence storage | SAFEWORD_TEST_CAPACITY_STATE_UNSAFE |
         | has a foreign owner or group-writable evidence-state directory | unsafe evidence storage | SAFEWORD_TEST_CAPACITY_STATE_UNSAFE |
         | has an unexpected hard link or changed file identity in evidence state or its guard | unsafe evidence storage | SAFEWORD_TEST_CAPACITY_STATE_UNSAFE |
@@ -665,7 +666,6 @@ Feature: Let parallel sessions share test capacity safely
         | live-state parent-directory flush failure | the journal is retained and neither side authorizes admission until recovery resolves it |
         | rollback live-state parent-directory flush failure | the journal and current complete live side are retained without authorizing admission |
         | journal-removal parent-directory flush failure | the recovered live side and journal are retained and revalidated on the next attempt |
-
     @rejection @wiring @process
     Scenario Outline: Persistence failures and abandoned temporary state fail safely
       Given the injected real-filesystem seam makes a guarded state commit encounter <persistence-state>
