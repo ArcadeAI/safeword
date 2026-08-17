@@ -2,7 +2,7 @@ import { lstatSync, mkdirSync, unlinkSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import type { ExecutionMode } from './mode.js';
-import { publishExclusiveFile } from './remote-workflow-fs.js';
+import { type PublicationHooks, publishExclusiveFile } from './remote-workflow-fs.js';
 import {
   classifyRemoteWorkflow,
   REMOTE_WORKFLOW_PATH,
@@ -25,6 +25,12 @@ export interface RemoteWorkflowLifecycleResult {
   readonly path?: string;
   readonly warningCode?: 'REMOTE_WORKFLOW_RESIDUE';
   readonly residuePath?: string;
+}
+
+export interface RemoteWorkflowLifecycleHooks {
+  readonly publication?: PublicationHooks;
+  readonly beforeDisableRecheck?: () => void;
+  readonly unlink?: (path: string) => void;
 }
 
 // eslint-disable-next-line unicorn/no-null -- Public lifecycle data uses null for no action.
@@ -124,6 +130,7 @@ function completeSetupPublication(
   root: string,
   bundled: string,
   effectiveMode: ExecutionMode,
+  _hooks: RemoteWorkflowLifecycleHooks,
 ): RemoteWorkflowLifecycleResult {
   const publication = publishExclusiveFile(nodePath.join(root, REMOTE_WORKFLOW_PATH), bundled);
   if (!publication.published) {
@@ -155,6 +162,7 @@ export function setupRemoteWorkflow(
   root: string,
   bundled: string,
   effectiveMode: ExecutionMode,
+  hooks: RemoteWorkflowLifecycleHooks = {},
 ): RemoteWorkflowLifecycleResult {
   const initial = classifyRemoteWorkflow(root, bundled);
   if (initial.state === 'failed') return retryFailure();
@@ -162,7 +170,7 @@ export function setupRemoteWorkflow(
 
   const parentFailure = ensureWorkflowParents(root);
   if (parentFailure !== undefined) return parentFailure;
-  return completeSetupPublication(root, bundled, effectiveMode);
+  return completeSetupPublication(root, bundled, effectiveMode, hooks);
 }
 
 function disabledResult(changed: boolean): RemoteWorkflowLifecycleResult {
@@ -178,6 +186,7 @@ function disabledResult(changed: boolean): RemoteWorkflowLifecycleResult {
 export function disableRemoteWorkflow(
   root: string,
   bundled: string,
+  _hooks: RemoteWorkflowLifecycleHooks = {},
 ): RemoteWorkflowLifecycleResult {
   const initial = classifyRemoteWorkflow(root, bundled);
   if (initial.state === 'failed') return retryFailure();

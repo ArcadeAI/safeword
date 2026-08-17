@@ -86,4 +86,66 @@ describe('remote workflow lifecycle', () => {
       state: 'not_installed',
     });
   });
+
+  it('preserves customer bytes that appear at exclusive publication', () => {
+    const root = fixture();
+    const customer = 'name: concurrent customer\n';
+
+    expect(
+      setupRemoteWorkflow(root, bundled, 'local', {
+        publication: {
+          beforeLink: () => {
+            writeFileSync(workflowPath(root), customer, { flag: 'wx' });
+          },
+        },
+      }),
+    ).toMatchObject({
+      ok: false,
+      state: 'customer_owned',
+      code: 'REMOTE_WORKFLOW_CONFLICT',
+    });
+    expect(readFileSync(workflowPath(root), 'utf8')).toBe(customer);
+  });
+
+  it('reports inert private residue without misreporting the installed workflow', () => {
+    const root = fixture();
+    const cleanupError = Object.assign(new Error('cleanup denied'), { code: 'EACCES' });
+
+    expect(
+      setupRemoteWorkflow(root, bundled, 'local', {
+        publication: {
+          cleanup: () => {
+            throw cleanupError;
+          },
+        },
+      }),
+    ).toMatchObject({
+      ok: true,
+      changed: true,
+      state: 'current',
+      warningCode: 'REMOTE_WORKFLOW_RESIDUE',
+    });
+    expect(readFileSync(workflowPath(root), 'utf8')).toBe(bundled);
+  });
+
+  it('does not unlink customer bytes that replace the workflow before the final check', () => {
+    const root = fixture();
+    const customer = 'name: late customer\n';
+    writeWorkflow(root, bundled);
+
+    expect(
+      disableRemoteWorkflow(root, bundled, {
+        beforeDisableRecheck: () => {
+          writeFileSync(workflowPath(root), customer);
+        },
+      }),
+    ).toEqual({
+      ok: true,
+      changed: false,
+      state: 'customer_owned',
+      affectedPath: NONE,
+      nextAction: NONE,
+    });
+    expect(readFileSync(workflowPath(root), 'utf8')).toBe(customer);
+  });
 });

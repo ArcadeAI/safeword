@@ -2,8 +2,9 @@ import { randomUUID } from 'node:crypto';
 import { closeSync, fsyncSync, linkSync, openSync, unlinkSync, writeSync } from 'node:fs';
 import nodePath from 'node:path';
 
-interface PublicationHooks {
+export interface PublicationHooks {
   readonly beforeLink?: () => void;
+  readonly cleanup?: (privatePath: string) => void;
 }
 
 export type ExclusivePublicationResult =
@@ -64,9 +65,12 @@ function preparePrivateFile(privatePath: string, content: string): Preparation {
   }
 }
 
-function cleanupPrivateFile(privatePath: string): string | undefined {
+function cleanupPrivateFile(
+  privatePath: string,
+  cleanup: (path: string) => void = unlinkSync,
+): string | undefined {
   try {
-    unlinkSync(privatePath);
+    cleanup(privatePath);
     return undefined;
   } catch (error) {
     return errorCode(error);
@@ -90,8 +94,9 @@ function linkPrivateFile(privatePath: string, destination: string): PublicationF
 function finishPublication(
   privatePath: string,
   failure: PublicationFailure | undefined,
+  cleanup?: PublicationHooks['cleanup'],
 ): ExclusivePublicationResult {
-  const cleanupCode = cleanupPrivateFile(privatePath);
+  const cleanupCode = cleanupPrivateFile(privatePath, cleanup);
   return failure === undefined
     ? { published: true, privatePath, ...(cleanupCode !== undefined && { cleanupCode }) }
     : {
@@ -129,5 +134,5 @@ export function publishExclusiveFile(
     hooks.beforeLink?.();
     failure = linkPrivateFile(privatePath, destination);
   }
-  return finishPublication(privatePath, failure);
+  return finishPublication(privatePath, failure, hooks.cleanup);
 }
