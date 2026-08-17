@@ -31,6 +31,14 @@ vi.mock('../../src/codex-plugin/operations.js', async () => {
 });
 
 describe('lifecycle profile observation', () => {
+  it('installs the shared proof-identity bridge for a Codex-only project', () => {
+    const schema = projectLifecycleSchema(createTemporaryDirectory(), ['codex']);
+
+    expect(schema.ownedFiles['.safeword/hooks/lib/cursor-run-identity.ts']).toEqual({
+      template: 'hooks/lib/cursor-run-identity.ts',
+    });
+  });
+
   it('observes selected independent profiles when project configuration is absent', async () => {
     const surfaces = await observeLifecycleSurfaces(createTemporaryDirectory(), [
       'claude',
