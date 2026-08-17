@@ -73,6 +73,11 @@ describe('E2E: Go Golden Path', () => {
     expect(config).toContain('gosec'); // Safeword's curated linters present
     expect(config).toContain('formatters:');
     expect(config).toContain('gofumpt');
+    expect(config).toContain('lll');
+    expect(config).toContain('line-length: 100');
+    expect(config).toContain('godoclint');
+    expect(config).toContain('default: none');
+    expect(config).toContain('max-len');
   });
 
   it.skipIf(!IS_GOLANGCI_LINT_AVAILABLE)('golangci-lint runs on valid code', () => {
@@ -109,6 +114,25 @@ func bad() {
     expect(result.status).not.toBe(0);
     expect(result.stdout + result.stderr).toMatch(/unused|import/i);
   });
+
+  it.skipIf(!IS_GOLANGCI_LINT_AVAILABLE)(
+    'Scenario: a Go doc comment beyond 100 columns is rejected',
+    () => {
+      writeTestFile(
+        projectDirectory,
+        'long_doc.go',
+        `package main\n\n// ${'x'.repeat(101)}\nfunc Documented() {}\n`,
+      );
+
+      const result = spawnSync('golangci-lint', ['run', 'long_doc.go'], {
+        cwd: projectDirectory,
+        encoding: 'utf8',
+      });
+
+      expect(result.status).not.toBe(0);
+      expect(`${result.stdout}${result.stderr}`).toContain('godoclint');
+    },
+  );
 
   it.skipIf(!IS_GOLANGCI_LINT_AVAILABLE)('golangci-lint fmt formats files', () => {
     // Create a badly formatted Go file

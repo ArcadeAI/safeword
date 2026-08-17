@@ -54,6 +54,8 @@ const SAFEWORD_ENABLE = [
   'misspell', // spelling in comments/strings
   'errorlint', // error wrapping conventions
   'gocritic', // opinionated but high-signal
+  'lll', // keep code and comments readable at the shared 100-column limit
+  'godoclint', // enforce readable Go documentation without requiring docs everywhere
   'revive', // flexible metalinter
   'perfsprint', // faster string formatting
   'copyloopvar', // loop variable capture
@@ -79,6 +81,13 @@ const SAFEWORD_EXCLUSION_PRESETS = ['std-error-handling', 'common-false-positive
 /** Safeword linter settings (only fills gaps — customer settings win) */
 const SAFEWORD_SETTINGS: Record<string, Record<string, unknown>> = {
   nestif: { 'min-complexity': 4 },
+  lll: { 'line-length': 100 },
+  gocritic: { commentedOutCode: { minLength: 50 } },
+  godoclint: {
+    default: 'none',
+    enable: ['max-len'],
+    options: { 'max-len': { length: 100 } },
+  },
 };
 
 // ============================================================================

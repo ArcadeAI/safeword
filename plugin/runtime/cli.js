@@ -14860,6 +14860,8 @@ var init_files = __esm(() => {
     "misspell",
     "errorlint",
     "gocritic",
+    "lll",
+    "godoclint",
     "revive",
     "perfsprint",
     "copyloopvar",
@@ -14870,7 +14872,14 @@ var init_files = __esm(() => {
   ];
   SAFEWORD_EXCLUSION_PRESETS = ["std-error-handling", "common-false-positives"];
   SAFEWORD_SETTINGS = {
-    nestif: { "min-complexity": 4 }
+    nestif: { "min-complexity": 4 },
+    lll: { "line-length": 100 },
+    gocritic: { commentedOutCode: { minLength: 50 } },
+    godoclint: {
+      default: "none",
+      enable: ["max-len"],
+      options: { "max-len": { length: 100 } }
+    }
   };
   golangOwnedFiles = {
     ".safeword/.golangci.yml": {
@@ -16344,7 +16353,6 @@ function importLinterScaffoldContent(cwd) {
 var SAFEWORD_RULES, RUFF_SHARED_SETTINGS = `ignore = [
     "COM812", # missing trailing comma - conflicts with formatter
     "ISC001", # single-line-implicit-string-concatenation - conflicts with formatter
-    "E501",   # line too long - formatter handles this
 ]
 
 [lint.per-file-ignores]
