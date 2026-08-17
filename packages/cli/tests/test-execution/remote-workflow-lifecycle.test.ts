@@ -173,4 +173,31 @@ describe('remote workflow lifecycle', () => {
     });
     expect(readFileSync(workflowPath(root), 'utf8')).toBe(customer);
   });
+
+  it.each([
+    ['ENOENT', true, true, 'not_installed'],
+    ['EACCES', false, false, 'current'],
+  ] as const)('reports unlink %s honestly', (code, shouldRemoveFirst, ok, state) => {
+    const root = fixture();
+    writeWorkflow(root, bundled);
+
+    const result = disableRemoteWorkflow(root, bundled, {
+      unlink: path => {
+        if (shouldRemoveFirst) rmSync(path);
+        throw Object.assign(new Error(`unlink ${code}`), { code });
+      },
+    });
+
+    expect(result).toMatchObject({ ok, changed: false, state });
+    if (code === 'EACCES') {
+      expect(result).toMatchObject({
+        code: 'REMOTE_WORKFLOW_REMOVAL_FAILED',
+        operation: 'unlink',
+        filesystemCode: 'EACCES',
+      });
+      expect(readFileSync(workflowPath(root), 'utf8')).toBe(bundled);
+    } else {
+      expect(existsSync(workflowPath(root))).toBe(false);
+    }
+  });
 });
