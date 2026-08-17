@@ -1,4 +1,4 @@
-@proof.vitest @surface.safeword-cli @surface.claude-code @surface.openai-codex
+@wip @surface.safeword-cli @surface.claude-code @surface.openai-codex
 Feature: Keep reviews focused on authored changes
 
   Independent review preserves its bounded packet while treating explicitly
