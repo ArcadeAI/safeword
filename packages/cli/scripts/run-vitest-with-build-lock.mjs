@@ -20,6 +20,10 @@ import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import process from 'node:process';
 
+import {
+  defaultMaximumLockWaitMilliseconds,
+  resolveSafeIntegerEnvironmentVariable,
+} from './lib/test-lock-config.mjs';
 import { environmentPathKey, resolveTestRunnerInvocation } from './test-runner-executable.mjs';
 
 const scriptDirectory = import.meta.dirname;
@@ -64,7 +68,6 @@ const childEnvironment = {
 };
 const lockParent = nodePath.join(tmpdir(), 'safeword-test-locks');
 const lockName = 'safeword-package-test';
-const defaultMaximumLockWaitMilliseconds = 20 * 60 * 1000;
 const defaultLockStatusIntervalMilliseconds = 30_000;
 const initialLockStatusDelayMilliseconds = 1000;
 const usesCustomLockDirectory = Boolean(process.env.SAFEWORD_TEST_LOCK_DIR);
@@ -82,17 +85,6 @@ const maximumTransitionWaitMilliseconds = 30_000;
 const lockOwnerKind = 'safeword-package-test-lock';
 const transitionOwnerKind = 'safeword-package-test-transition';
 const transitionRecoveryOwnerKind = 'safeword-package-test-transition-recovery';
-
-function resolveSafeIntegerEnvironmentVariable(name, fallback, minimum, allowZero = true) {
-  const raw = process.env[name];
-  if (raw === undefined || raw.trim() === '') {
-    return fallback;
-  }
-
-  const parsed = Number(raw);
-  const isValid = Number.isSafeInteger(parsed) && (allowZero ? parsed >= 0 : parsed > 0);
-  return isValid ? Math.max(parsed, minimum) : fallback;
-}
 
 const maximumLockWaitMilliseconds = resolveSafeIntegerEnvironmentVariable(
   'SAFEWORD_TEST_LOCK_MAX_WAIT_MS',
@@ -235,16 +227,24 @@ function formatElapsedWait(milliseconds) {
   return minutes === 0 ? `${seconds}s` : `${minutes}m ${seconds}s`;
 }
 
-function reportLockWait(waitedMilliseconds) {
+function currentLockOwnerDetails() {
   // The owner may release or replace the lock between our EEXIST check and
-  // this diagnostic read. Waiting remains correct even without metadata.
+  // this diagnostic read. Diagnostics remain useful even without metadata.
   const { owner } = readOwner();
+  return {
+    checkoutRoot:
+      typeof owner.checkoutRoot === 'string' && owner.checkoutRoot !== ''
+        ? owner.checkoutRoot
+        : undefined,
+    pid: isUsableOwnerPid(owner.pid) ? owner.pid : undefined,
+  };
+}
 
-  const ownerPid = isUsableOwnerPid(owner.pid) ? `owner PID ${owner.pid}` : 'owner PID unavailable';
+function reportLockWait(waitedMilliseconds) {
+  const { checkoutRoot, pid } = currentLockOwnerDetails();
+  const ownerPid = pid === undefined ? 'owner PID unavailable' : `owner PID ${pid}`;
   const ownerCheckout =
-    typeof owner.checkoutRoot === 'string' && owner.checkoutRoot !== ''
-      ? `checkout ${owner.checkoutRoot}`
-      : 'checkout unavailable';
+    checkoutRoot === undefined ? 'checkout unavailable' : `checkout ${checkoutRoot}`;
   console.error(
     `Waiting for safeword package test lock (${formatElapsedWait(waitedMilliseconds)} elapsed; ${ownerPid}; ${ownerCheckout}).`,
   );
@@ -495,8 +495,11 @@ function acquireLock() {
     }
 
     if (waitedMilliseconds >= maximumLockWaitMilliseconds) {
+      const { checkoutRoot, pid } = currentLockOwnerDetails();
+      const ownerPid = pid === undefined ? 'unavailable' : `PID ${pid}`;
+      const ownerCheckout = checkoutRoot ?? 'an unavailable checkout';
       console.error(
-        `Could not acquire safeword package test lock at ${lockDirectory} after waiting ${formatElapsedWait(maximumLockWaitMilliseconds)}; no test was started. A transition may be blocked at ${transitionDirectory}. Remove either directory only if you are sure no package test is running.`,
+        `Could not acquire safeword package test lock at ${lockDirectory} after waiting ${formatElapsedWait(maximumLockWaitMilliseconds)}; no test was started. The active owner is ${ownerPid} in ${ownerCheckout}. A transition may be blocked at ${transitionDirectory}. Re-run after it finishes, set SAFEWORD_TEST_LOCK_MAX_WAIT_MS to a larger positive millisecond value, or remove either directory only if you are sure no package test is running.`,
       );
       return false;
     }
