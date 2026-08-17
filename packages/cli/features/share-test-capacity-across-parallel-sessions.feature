@@ -146,6 +146,15 @@ Feature: Let parallel sessions share test capacity safely
         | on-disk-name | literal | classification |
         | `alpha.Test.ts` | `alpha.test.ts` | assigns one focused permit from the literal argument basename |
         | `alpha.test.ts` | `alpha.Test.ts` | assigns broad exclusive capacity from the literal argument basename |
+    @native-platform @platform-macos @process
+    Scenario Outline: Case-insensitive macOS resolution does not change focused classification
+      Given a verified current-commit attestation from the required native macOS CI job covers a case-insensitive checkout containing regular <on-disk-name> at canonical capacity two
+      When the public package-test command classifies literal <literal>
+      Then it <classification>, passes the argument unchanged downstream once, and exits zero with every descendant accounted for
+      Examples:
+        | on-disk-name | literal | classification |
+        | `alpha.Test.ts` | `alpha.test.ts` | assigns one focused permit from the literal argument basename |
+        | `alpha.test.ts` | `alpha.Test.ts` | assigns broad exclusive capacity from the literal argument basename |
     @rejection
     Scenario Outline: Non-file argument boundaries classify broad without contradictory fixtures
       Given canonical capacity is two, <arguments> have <path-state> rather than an existing contained regular file, and the deterministic downstream collaborator exits 23
@@ -169,7 +178,7 @@ Feature: Let parallel sessions share test capacity safely
     Scenario: Status states the untracked legacy-wrapper boundary without inferring a holder
       Given the current scheduler is idle at capacity two and version N with an empty owner and waiter set, the no-legacy control status output is captured, and a legacy package-test wrapper holds the recorded legacy mutex
       When the builder runs `safeword project test-capacity status`
-      Then zero-exit status states that legacy wrappers are untracked and cannot share capacity, reports capacity two, version N, and empty owner and waiter sets matching the captured control, omits the legacy holder, and directs the operator to end every legacy execution, migrate participating worktrees, restore capacity one before any later legacy wrapper is used, and wait for the current scheduler to become idle before handoff
+      Then zero-exit status includes exact substrings `legacy wrappers are untracked`, `cannot share capacity`, and `end every legacy execution`, reports capacity two, version N, and empty owner and waiter sets matching the captured control, omits the legacy holder, and directs migration, capacity-one restoration, and an idle scheduler before handoff
     @rejection
     Scenario Outline: Invalid confirmation or incompatible protocol never raises capacity
       Given canonical capacity is one and the public command requests capacity two
@@ -210,10 +219,15 @@ Feature: Let parallel sessions share test capacity safely
   @share-test-capacity.TBU1.R2
   Rule: share-test-capacity.TBU1.R2 — Participating package-test commands in the same worktree remain serialized across their complete build and test lifetimes
     @process
-    Scenario: Same-worktree commands serialize their complete build and test lifetimes
-      Given canonical capacity is two, two real focused package-test wrapper processes target the same worktree, and every process event is keyed to wrapper, ticket, container and command
+    Scenario Outline: Same-worktree commands serialize their complete build and test lifetimes
+      Given canonical capacity is one, real <first-kind> then <second-kind> package-test wrapper processes target the same worktree, and every process event is keyed to wrapper, ticket, container and command
       When a barrier holds the first repository lifetime active until the second wrapper is observed waiting on the checkout mutex
       Then the second starts no repository descendant before every first-container descendant exits and the first wrapper releases scheduler ownership followed by its exact checkout ownership, after which both unchanged downstream invocations have run exactly once, every container is proven empty, and both wrappers exit zero
+      Examples:
+        | first-kind | second-kind |
+        | focused | focused |
+        | focused | broad |
+        | broad | broad |
     @process
     Scenario: A checkout-mutex waiter holds no shared-capacity permit
       Given canonical capacity is two, one same-worktree wrapper holds checkout ownership and one active permit, a second same-worktree wrapper emits its checkout-mutex waiter event, and an unrelated-worktree focused wrapper requests admission
@@ -294,7 +308,7 @@ Feature: Let parallel sessions share test capacity safely
     Scenario: A queued broad request is not starved by later focused arrivals
       Given shared capacity is two, barriers assign C then D, E, and F consecutive FIFO tickets while focused holders A and B remain active, where C is broad and D through F are focused
       When A and B exit zero
-      Then C runs its unchanged invocation once and alone before every later focused request, then D through F admit in keyed FIFO-ticket order with permitted focused overlap
+      Then C runs its unchanged invocation once and alone before every later focused request, then D through F admit in keyed FIFO-ticket order with at most two focused lifetimes active at any instant and each later start only after a permit releases
     @rejection @wiring @process
     Scenario: An unverifiable waiter is not skipped to admit newer work
       Given shared capacity is two with one focused owner, the queue-head public wrapper is unverifiable through the deterministic injected identity adapter without native evidence, and a newer focused request can use the free permit
@@ -429,7 +443,7 @@ Feature: Let parallel sessions share test capacity safely
         | Windows | one named primitive is skipped or unavailable | the Windows gate remains incomplete with that primitive named | the command exits nonzero with SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE, names `safeword project test-capacity status` first, and emits neither a Windows-pass nor overall completed record |
     @rejection @process @surface.safeword-cli
     Scenario Outline: Native evidence rejects untrusted provenance and unsafe storage
-      Given a durable native-evidence artifact has otherwise valid schema and contents but <artifact-fault>, and existing evidence state is captured byte-for-byte
+      Given a captured native-evidence artifact or its state storage has <artifact-fault>, and existing evidence state is captured byte-for-byte
       When `safeword project test-capacity verify-native-evidence` verifies it for the current repository and commit
       Then no unsafe artifact is consumed, existing evidence state remains byte-identical, no affected platform-pass or overall completion record is emitted, and the command exits nonzero with <code> naming <stable-reason> and `safeword project test-capacity status` first
       Examples:
@@ -439,7 +453,9 @@ Feature: Let parallel sessions share test capacity safely
         | was produced by a different repository or workflow job | wrong producer identity | SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE |
         | claims Linux while its attested runner OS is macOS | cross-platform mismatch | SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE |
         | has bytes whose digest differs from the attested digest | artifact digest mismatch | SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE |
-        | has a matching trusted attestation and digest but malformed, truncated, or newer-incompatible durable evidence JSON | incompatible evidence schema | SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE |
+        | has a matching trusted attestation and digest but malformed durable evidence JSON | incompatible evidence schema | SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE |
+        | has a matching trusted attestation and digest but truncated durable evidence JSON | incompatible evidence schema | SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE |
+        | has a matching trusted attestation and digest but newer-incompatible durable evidence JSON | incompatible evidence schema | SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE |
         | claims a platform-class pass while keyed native results record a failed primitive, a contradictory command exit, or an accepted mismatch identity | contradictory native result | SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE |
         | is reached through a symlinked evidence-state directory | unsafe evidence storage | SAFEWORD_TEST_CAPACITY_STATE_UNSAFE |
         | has a foreign owner or group-writable evidence-state directory | unsafe evidence storage | SAFEWORD_TEST_CAPACITY_STATE_UNSAFE |
@@ -758,13 +774,11 @@ Feature: Let parallel sessions share test capacity safely
 
   @share-test-capacity.TBU1.R6
   Rule: share-test-capacity.TBU1.R6 — One validated shared setting governs every participating new-wrapper session and can conservatively restore today's single-run behavior
-
     @wiring @surface.safeword-cli
     Scenario: Status reports an uninitialized domain without creating it
       Given the derived canonical domain has no guard, state, journal, or temporary artifact
       When the builder runs `safeword project test-capacity status`
       Then status exits zero, names the derived domain token as uninitialized, reports implicit capacity one, and leaves no capacity artifact
-
     @wiring @surface.safeword-cli
     Scenario Outline: A valid set initializes an uninitialized domain atomically
       Given the derived canonical domain has no guard, state, journal, or temporary artifact
@@ -774,13 +788,11 @@ Feature: Let parallel sessions share test capacity safely
         | set-command | capacity |
         | `safeword project test-capacity set 1` | one |
         | `safeword project test-capacity set 2 --confirm-current-protocol` | two |
-
     @rejection @surface.safeword-cli
     Scenario: Reset refuses an uninitialized domain
       Given the derived canonical domain has no guard, state, journal, or temporary artifact
       When the builder runs `safeword project test-capacity reset --expected-domain D --confirm-idle`
       Then it starts no repository process, leaves no capacity artifact, and exits nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE and `safeword project test-capacity status`
-
     @rejection @wiring @process @surface.safeword-cli
     Scenario Outline: First use creates or recovers one canonical capacity-one protocol state
       Given the canonical capacity domain has <initial-state>
@@ -797,7 +809,6 @@ Feature: Let parallel sessions share test capacity safely
         | an idle compatible older schema and protocol | two public wrappers race the first migration | exactly one guarded migration commits current schema/protocol at version N+1 with capacity one, both wrappers observe that version, serialize and exit zero, and no partial state is visible |
         | a compatible older schema and protocol with a recorded owner or waiter | a public wrapper attempts migration | no migration commits, bytes and version remain unchanged, no repository process starts, and the wrapper exits nonzero with SAFEWORD_TEST_CAPACITY_BUSY and `safeword project test-capacity status` |
         | no current state after the recorded legacy mutex is authenticated idle | a barrier keeps the first current wrapper's transition guard held through capacity-one initialization and registration while `safeword project test-capacity set 2 --confirm-current-protocol` waits | one guarded transition commits current protocol capacity one at version 1 and registers the wrapper before releasing the set command, set exits SAFEWORD_TEST_CAPACITY_BUSY, status names the legacy-to-current boundary, and no untracked legacy idleness is inferred |
-
     @wiring @process @surface.safeword-cli
     Scenario Outline: An idle scheduler adopts one canonical capacity for every participating session
       Given the current scheduler has no owners or waiters
@@ -809,13 +820,11 @@ Feature: Let parallel sessions share test capacity safely
         | 2 | 1 | `safeword project test-capacity set 1` |
         | 1 | 8 | `safeword project test-capacity set 8 --confirm-current-protocol` |
         | 8 | 1 | `safeword project test-capacity set 1` |
-
     @rejection @process
     Scenario: Project-local configuration and process environment cannot override canonical capacity
       Given the isolated canonical domain has durable capacity one while a project-local configuration and each wrapper environment claim capacity eight
       When two real focused wrappers in distinct worktrees request admission together
       Then at most one repository lifetime is active at any observed instant, the waiting wrapper starts only after release, both unchanged invocations eventually exit zero, and neither override changes the durable canonical capacity
-
     @process
     Scenario Outline: Distinct identity axes own separate capacity domains
       Given two isolated domains differ only in their deterministic <identity-axis> and each durable domain has capacity one
@@ -825,7 +834,6 @@ Feature: Let parallel sessions share test capacity safely
         | identity-axis |
         | OS user ID or SID |
         | machine identity |
-
     @rejection
     Scenario Outline: Capacity updates and admission serialize as one guarded transition
       Given an idle scheduler has canonical capacity one at version N
@@ -835,19 +843,16 @@ Feature: Let parallel sessions share test capacity safely
         | race | outcome |
         | barriers give `safeword project test-capacity set 2 --confirm-current-protocol` the guard before concurrent `safeword project test-capacity set 3 --confirm-current-protocol` | capacity 2 commits at version N+1, then capacity 3 commits at N+2, both set commands exit zero, and no reader observes a partial or skipped version |
         | barriers register a wrapper before `safeword project test-capacity set 2 --confirm-current-protocol` can commit | capacity remains 1, the wrapper observes 1 and exits zero, and the set command exits SAFEWORD_TEST_CAPACITY_BUSY |
-
     @process
     Scenario: Capacity one preserves the hardened machine-wide serialization baseline
       Given canonical shared capacity is one and real wrappers use real build and test collaborators
       When a barrier holds one repository lifetime active while at least one wrapper from another worktree is observed waiting
       Then exactly one repository lifetime is active, the waiter starts no repository descendant until release, and both unchanged invocations eventually run once and exit zero
-
     @wiring @surface.safeword-cli
     Scenario: Status describes a healthy busy capacity domain
       Given a healthy canonical domain has capacity two, version N, one authenticated active owner, and one FIFO waiter
       When the builder runs `safeword project test-capacity status`
       Then status exits zero and names the exact domain token, capacity two, version N, the owner and waiter identities, plus waiting for those records to drain before changing capacity
-
     @wiring @surface.safeword-cli
     Scenario Outline: Status reports native evidence readiness
       Given current-commit native evidence is <evidence-state>
@@ -857,19 +862,16 @@ Feature: Let parallel sessions share test capacity safely
         | evidence-state | evidence-report |
         | complete for every platform and all three classes | reports native evidence complete for Linux, macOS, and Windows |
         | missing Linux capacity-domain identity, untrusted macOS filesystem/durability, and missing Windows process/container evidence | names each platform, class, and its missing or untrusted reason |
-
     @rejection @process
     Scenario: A held legacy mutex remains an explicit unsupported mixed-version boundary
       Given canonical capacity is one, a legacy package-test wrapper holds the recorded legacy mutex, and a current-protocol wrapper has an independent scheduler permit
       When barriers hold both repository lifetimes active
-      Then keyed events prove the lifetimes overlap while no owner or waiter record and no keyed event names the legacy mutex holder, and status directs the operator to end legacy work before mixing wrapper protocols
-
+      Then keyed events prove the lifetimes overlap while no owner or waiter record and no keyed event names the legacy mutex holder, and status includes exact substring `end legacy work before mixing wrapper protocols`
     @rejection
     Scenario: An unavailable platform containment primitive keeps shared capacity at one
       Given the operating system cannot prove its required process-group or Job Object contract
       When the builder runs `safeword project test-capacity set 2 --confirm-current-protocol`
       Then Safeword starts no repository process, changes no durable state, retains capacity one, and exits nonzero with SAFEWORD_TEST_CAPACITY_PLATFORM_UNSUPPORTED plus `safeword project test-capacity status`
-
     @rejection @wiring @process
     Scenario Outline: An enabled scheduler fails closed if its platform proof disappears
       Given canonical capacity is two and <lost-proof>
@@ -879,13 +881,11 @@ Feature: Let parallel sessions share test capacity safely
         | lost-proof | code |
         | the containment primitive becomes unavailable | SAFEWORD_TEST_CAPACITY_PLATFORM_UNSUPPORTED |
         | machine or process creation identity becomes unverifiable | SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE |
-
     @rejection
     Scenario: Capacity-domain identity loss cannot silently switch admission guards
       Given an initialized scheduler can no longer verify its recorded machine or user identity
       When a participating wrapper requests admission
       Then Safeword starts no repository process, changes no durable state, and exits nonzero with SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE plus `safeword project test-capacity status` until the recorded domain is located, proven idle, and explicitly reset
-
     @rejection
     Scenario Outline: Unsafe capacity state changes fail without changing admission state
       Given the scheduler has <state>
@@ -899,7 +899,6 @@ Feature: Let parallel sessions share test capacity safely
         | capacity 2 with one or more waiters | `set 1` | SAFEWORD_TEST_CAPACITY_BUSY |
         | capacity 2 with an owner marked reclaiming between first and second absence observations | `set 1` | SAFEWORD_TEST_CAPACITY_BUSY |
         | unavailable or conflicting machine identity | `set 2 --confirm-current-protocol` | SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE |
-
     @rejection @wiring @surface.safeword-cli
     Scenario Outline: Public error precedence is deterministic for combined faults
       Given <combined-faults>
@@ -919,7 +918,6 @@ Feature: Let parallel sessions share test capacity safely
         | the capacity-domain artifact is group-writable while a capacity-one domain has an owner | `safeword project test-capacity set 2 --confirm-current-protocol` | SAFEWORD_TEST_CAPACITY_STATE_UNSAFE |
         | current-commit native evidence is incomplete while the containment primitive is unavailable | `safeword project test-capacity verify-native-evidence` | SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE |
         | current-commit native evidence is incomplete while a capacity-one domain has an owner | `safeword project test-capacity verify-native-evidence` | SAFEWORD_TEST_CAPACITY_NATIVE_EVIDENCE_INCOMPLETE |
-
     @wiring @process @surface.safeword-cli
     Scenario Outline: Public set commands wire canonical capacity atomically
       Given isolated owner-only capacity state is <precondition> at version N
@@ -931,7 +929,6 @@ Feature: Let parallel sessions share test capacity safely
         | idle at capacity two | `safeword project test-capacity set 1` | confirmation is not required, the command exits zero, and capacity one plus the next version commit together |
         | idle at capacity two | `safeword project test-capacity set 1 --confirm-current-protocol` | the optional bare confirmation is accepted, the command exits zero, and capacity one plus the next version commit together |
         | idle at capacity two while the containment primitive is unavailable | `safeword project test-capacity set 1` | capacity one plus the next version commit together without requiring containment proof |
-
     @wiring @process @surface.safeword-cli
     Scenario Outline: Reset validates an explicitly prepared capacity domain
       Given isolated owner-only capacity state is <precondition>
@@ -948,6 +945,9 @@ Feature: Let parallel sessions share test capacity safely
         | exact domain D has an owner or waiter | `safeword project test-capacity reset --expected-domain D --confirm-idle` | SAFEWORD_TEST_CAPACITY_BUSY returns and durable state/version remain unchanged with no repository process |
         | exact domain D has an owner marked reclaiming between first and second absence observations | `safeword project test-capacity reset --expected-domain D --confirm-idle` | SAFEWORD_TEST_CAPACITY_BUSY returns and durable state/version remain unchanged with no repository process |
         | exact domain D identity is unverifiable | `safeword project test-capacity reset --expected-domain D --confirm-idle` | SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE returns and durable state/version remain unchanged with no repository process |
+        | an incompatible durable schema records domain OTHER | `safeword project test-capacity reset --expected-domain D --confirm-idle` | SAFEWORD_TEST_CAPACITY_STATE_UNSAFE returns and durable state/version remain unchanged with no repository process |
+        | exact domain D has an owner | `safeword project test-capacity reset --expected-domain OTHER --confirm-idle` | SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE returns and durable state/version remain unchanged with no repository process |
+        | exact domain D identity is unverifiable and has an owner | `safeword project test-capacity reset --expected-domain D --confirm-idle` | SAFEWORD_TEST_CAPACITY_IDENTITY_UNVERIFIABLE returns and durable state/version remain unchanged with no repository process |
         | exact domain D is proven idle at capacity two while the containment primitive is unavailable | `safeword project test-capacity reset --expected-domain D --confirm-idle` | capacity one and current protocol state commit together without requiring containment proof |
         | recorded exact domain is D | `safeword project test-capacity reset --expected-domain D --expected-domain D --confirm-idle` | SAFEWORD_TEST_CAPACITY_INVALID returns and durable state/version remain unchanged with no repository process |
         | recorded exact domain is D | `safeword project test-capacity reset --expected-domain D --confirm-idle --confirm-idle` | SAFEWORD_TEST_CAPACITY_INVALID returns and durable state/version remain unchanged with no repository process |
@@ -995,6 +995,6 @@ Feature: Let parallel sessions share test capacity safely
       Then <disclosure-contract>
       Examples:
         | starting-capacity | public-command | disclosure-contract |
-        | one | `safeword project test-capacity set 2 --confirm-current-protocol` | before the zero exit and capacity-two commit, confirmation output states that deliberately detached descendants are not contained, directs the project to disable detachment, and says capacity one is only an additional participating-wrapper safeguard rather than containment |
-        | two | `safeword project test-capacity status` | the zero-exit output repeats that detached descendants are not contained, directs the project to disable detachment, and states the overlap guarantee applies only to participating wrappers |
-        | one | `safeword project test-capacity status` | the zero-exit output states deliberate escape remains unsupported, directs the project to disable detachment before sharing capacity, and states capacity one adds no containment |
+        | one | `safeword project test-capacity set 2 --confirm-current-protocol` | before the zero exit and capacity-two commit, output includes exact substrings `deliberately detached descendants are not contained`, `disable detachment`, and `additional participating-wrapper safeguard` |
+        | two | `safeword project test-capacity status` | the zero-exit output includes exact substrings `detached descendants are not contained`, `disable detachment`, and `only to participating wrappers` |
+        | one | `safeword project test-capacity status` | the zero-exit output includes exact substrings `deliberate escape remains unsupported`, `disable detachment before sharing capacity`, and `capacity one adds no containment` |

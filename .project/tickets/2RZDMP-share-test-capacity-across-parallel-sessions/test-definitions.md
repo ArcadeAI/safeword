@@ -97,6 +97,12 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Case-insensitive macOS resolution does not change focused classification
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Non-file argument boundaries classify broad without contradictory fixtures
 
 - [ ] RED
