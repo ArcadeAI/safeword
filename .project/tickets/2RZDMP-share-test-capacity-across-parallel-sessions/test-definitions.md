@@ -345,7 +345,7 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Recovery returns the weight once exact owner absence is proven
+### Scenario: Recovery returns a reserved owner weight once exact absence is proven
 
 - [ ] RED
 - [ ] GREEN

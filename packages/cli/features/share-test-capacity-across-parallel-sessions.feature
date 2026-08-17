@@ -187,9 +187,12 @@ Feature: Let parallel sessions share test capacity safely
         | input |
         | signed value `+2` |
         | signed value `-1` |
+        | just-below-range value `0` |
+        | just-above-range value `9` |
         | leading-zero value `02` |
         | whitespace-padded token ` 2 ` |
         | exponent token `2e0` |
+        | decimal-point token `1.0` |
         | non-ASCII full-width digit `２` |
         | explicit empty token `""` |
         | integer `999999999999999999999999999999999999` beyond the parser's numeric range |
@@ -534,8 +537,8 @@ Feature: Let parallel sessions share test capacity safely
         | reused and conservatively occupied |
         | unverifiable |
     @process
-    Scenario: Recovery returns the weight once exact owner absence is proven
-      Given canonical capacity is one at version N, a previous status call reported a conflicting owner identity, the conflicting process has exited, and a later guarded observation proves the recorded exact owner absent
+    Scenario: Recovery returns a reserved owner weight once exact absence is proven
+      Given canonical capacity is one at version N, an exact reserved owner whose blocked container never released repository code is absent, and a queued wrapper waits
       When the queued wrapper retries admission
       Then recovery returns the owner weight at version N+1, admits the waiting wrapper at N+2, runs its unchanged invocation once to exit zero, and accounts for every descendant
     @rejection @process
