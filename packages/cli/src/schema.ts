@@ -1577,7 +1577,6 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
 export type ProjectSurface = 'core' | 'cursor';
 
 const CURSOR_PROJECT_PATHS = new Set([
-  '.safeword/hooks/lib/cursor-run-identity.ts',
   '.safeword/hooks/lib/cursor-state.ts',
   '.safeword/hooks/session-cursor-auto-upgrade.ts',
 ]);

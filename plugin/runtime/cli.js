@@ -19030,7 +19030,6 @@ ${durableNamespaceDirectories(ctx).map((dir) => `${dir}/`).join(`
     packages: typescriptPackages
   };
   CURSOR_PROJECT_PATHS = new Set([
-    ".safeword/hooks/lib/cursor-run-identity.ts",
     ".safeword/hooks/lib/cursor-state.ts",
     ".safeword/hooks/session-cursor-auto-upgrade.ts"
   ]);
