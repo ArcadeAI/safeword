@@ -96,6 +96,22 @@ describe('E2E: Python Golden Path', () => {
     expect(result.stdout).toContain('F401'); // unused import
   });
 
+  it.skipIf(!IS_RUFF_AVAILABLE)('Scenario: a Python comment beyond 100 columns is rejected', () => {
+    writeTestFile(projectDirectory, 'src/long_comment.py', `# ${'x'.repeat(101)}\n`);
+
+    const result = spawnSync(
+      'ruff',
+      ['check', '--config', '.safeword/ruff.toml', 'src/long_comment.py'],
+      {
+        cwd: projectDirectory,
+        encoding: 'utf8',
+      },
+    );
+
+    expect(result.status).not.toBe(0);
+    expect(result.stdout).toContain('E501');
+  });
+
   it.skipIf(!IS_RUFF_AVAILABLE)('ruff formats files', () => {
     // Badly formatted Python - extra spaces, missing newline
     writeTestFile(projectDirectory, 'src/ugly.py', 'x=1;y=2');

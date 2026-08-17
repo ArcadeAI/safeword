@@ -133,7 +133,7 @@ Optimize for **Clarity → Simplicity → Correctness**, in that order. When in 
 - **Elegant code:** readable at a glance; clear naming; minimal cognitive load.
 - **No bloat:** delete unused code; no premature abstractions; no "just in case"; reuse existing patterns/tools before adding new ones.
 - **Explicit errors:** every catch re-throws with context, or logs with details.
-- **Self-documenting:** comment only the non-obvious "why" — business rules, workarounds.
+- **Self-documenting:** comment only the non-obvious "why" — business rules, workarounds. Wrap comments and docstrings at 100 columns.
 
 ---
 
