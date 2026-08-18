@@ -2,8 +2,8 @@
 id: 4S2S8V
 slug: codex-plugin-next-task-upgrades
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 phase_anchors:
   - 'define-behavior: .project/tickets/4S2S8V-codex-plugin-next-task-upgrades/spec.md'
   - 'scenario-gate: packages/cli/features/codex-plugin-next-task-upgrades.feature'
@@ -72,3 +72,4 @@ last_modified: 2026-08-18T00:35:30.000Z
 - 2026-08-18T03:38:00.000Z UX correction GREEN: changed-hook review now precedes the one required Desktop restart and names both supported trust surfaces. The focused acceptance scenario passed 17/17 steps, focused migration/bootstrap tests passed 133/133, and the broader Cucumber regression run passed 559/559 scenarios and 9,871/9,871 steps.
 - 2026-08-18T03:39:00.000Z Phase: implement → verify. The final live gate is checked, the one-restart guidance defect is corrected without changing proof semantics, and the implementation plan remains reconciled as implemented.
 - 2026-08-18T04:10:00.000Z Verification complete: relay tests passed 185/185 runnable, CLI tests passed 8,174/8,174 runnable, the acceptance lane passed 1,455/1,455 runnable scenarios and 65,406/65,406 runnable steps, proof tags passed 32/32, the additional configured lane passed 559/559 scenarios, and builds, lint, formatting, TypeScript, Astro, dependency-cruiser, and dependency audits passed. Diff-scoped audit found no in-scope errors or warnings. The aggregate repository type plan remains red only for the pre-existing duplicate Python experiment module names.
+- 2026-08-18T04:12:00.000Z Phase: verify → done. All 26 scenario rows are complete, `verify.md` records passing PR scope and both affected surfaces, and required verify/audit invocation proof exists for this resumed task.
