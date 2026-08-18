@@ -34,7 +34,13 @@ outline is their one real-collaborator wiring proof, not a second grammar.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Focused classification rejects a symlinked ancestor that escapes the checkout
+### Scenario: Focused classification rejects an aliasing ancestor that escapes the checkout
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A macOS prefix above the checkout does not defeat focused classification
 
 - [ ] RED
 - [ ] GREEN
@@ -58,18 +64,6 @@ outline is their one real-collaborator wiring proof, not a second grammar.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Invalid current-protocol confirmation never raises capacity
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Capacity input accepts only one canonical decimal integer and one confirmation flag
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
 ## Rule: share-test-capacity.TBU1.R2
 
 ### Scenario: Same-worktree commands serialize their complete build and test lifetimes
@@ -78,7 +72,7 @@ outline is their one real-collaborator wiring proof, not a second grammar.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A POSIX symlink alias shares its checkout mutex with the canonical path
+### Scenario: POSIX filesystem aliases share one checkout mutex identity
 
 - [ ] RED
 - [ ] GREEN
@@ -90,19 +84,37 @@ outline is their one real-collaborator wiring proof, not a second grammar.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Windows case aliases share one checkout mutex
+### Scenario: Windows filesystem aliases share one checkout mutex identity
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A terminated capacity wait does not strand the checkout mutex
+### Scenario: A Windows UNC checkout without stable local identity fails closed
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Stranded unsafe waiter bytes have an explicit safe recovery path
+### Scenario: A checkout identity change cannot create a second mutex
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: An idle checkout can adopt a legitimate new filesystem identity
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A terminated capacity wait releases only verifiable checkout ownership
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Stranded unverifiable ownership has an explicit safe recovery path
 
 - [ ] RED
 - [ ] GREEN
@@ -168,7 +180,13 @@ outline is their one real-collaborator wiring proof, not a second grammar.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Each platform creation-identity adapter fails closed at its real seam
+### Scenario: Unreadable creation-identity evidence fails closed
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Conclusive creation-identity mismatch proves the recorded process absent
 
 - [ ] RED
 - [ ] GREEN
@@ -180,31 +198,13 @@ outline is their one real-collaborator wiring proof, not a second grammar.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Native platform evidence cannot be replaced by injected adapter coverage
+### Scenario: Native macOS process identity binds kernel creation time
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Native filesystem evidence cannot be replaced by injected filesystem seams
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Native evidence rejects untrusted or mismatched provenance
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Repeated native-evidence verification is atomic and idempotent
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Overall native evidence waits for both evidence classes on every platform
+### Scenario: Native Linux process identity binds boot and process creation
 
 - [ ] RED
 - [ ] GREEN
@@ -216,7 +216,19 @@ outline is their one real-collaborator wiring proof, not a second grammar.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Supervisor loss returns capacity only after group disappearance
+### Scenario: Linux supervisor loss returns capacity only after group disappearance
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: macOS supervisor loss with live group members requires explicit recovery
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: POSIX process-group reuse never conflates old and new containers
 
 - [ ] RED
 - [ ] GREEN
@@ -229,6 +241,12 @@ outline is their one real-collaborator wiring proof, not a second grammar.
 - [ ] REFACTOR
 
 ### Scenario: Wrapper death tears down live descendants before returning active capacity
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Native POSIX supervisor tears down its real execution group
 
 - [ ] RED
 - [ ] GREEN
@@ -252,24 +270,6 @@ outline is their one real-collaborator wiring proof, not a second grammar.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A journal is durably published before any live-state replacement
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Journal recovery resolves only an authenticated complete side
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Every journal and rollback flush failure remains fail closed
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
 ### Scenario: Persistence failures and abandoned temporary state fail safely
 
 - [ ] RED
@@ -283,6 +283,12 @@ outline is their one real-collaborator wiring proof, not a second grammar.
 - [ ] REFACTOR
 
 ### Scenario: Every capacity artifact enforces owner-only identity and links
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Native Windows capacity artifacts reject unsafe identity
 
 - [ ] RED
 - [ ] GREEN
@@ -326,7 +332,13 @@ outline is their one real-collaborator wiring proof, not a second grammar.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: An unavailable platform containment primitive keeps shared capacity at one
+### Scenario: An unavailable required platform primitive keeps shared capacity at one
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: A missing native helper never bypasses its protocol boundary
 
 - [ ] RED
 - [ ] GREEN
@@ -350,6 +362,12 @@ outline is their one real-collaborator wiring proof, not a second grammar.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: Capacity input accepts only one canonical decimal integer and one confirmation flag
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Unsafe capacity state changes fail without changing admission state
 
 - [ ] RED
@@ -357,6 +375,12 @@ outline is their one real-collaborator wiring proof, not a second grammar.
 - [ ] REFACTOR
 
 ### Scenario: Fail-closed errors follow stable precedence and recovery contracts
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Reset input accepts exactly one domain and one idle confirmation
 
 - [ ] RED
 - [ ] GREEN
