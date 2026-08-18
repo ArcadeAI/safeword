@@ -9,6 +9,7 @@ phase_anchors:
   - 'scenario-gate: packages/cli/features/codex-plugin-next-task-upgrades.feature'
   - 'plan-implementation: .project/tickets/4S2S8V-codex-plugin-next-task-upgrades/impl-plan.md'
   - 'verify: .project/tickets/4S2S8V-codex-plugin-next-task-upgrades/test-definitions.md'
+  - 'done: .project/tickets/4S2S8V-codex-plugin-next-task-upgrades/verify.md'
 scope:
   - refresh an existing Git-backed Safeword Codex marketplace before reinstalling the released plugin
   - represent post-install activation as pending until a different Codex app-server loads the plugin
