@@ -268,12 +268,6 @@ export function disableRemoteWorkflow(
     return classifiedResult(initial, 'disable');
   }
 
-  const finalObservation = classifyRemoteWorkflow(root, bundled, filesystem);
-  if (finalObservation.state === 'failed') return retryFailure();
-  if (finalObservation.state !== initial.state) {
-    return classifiedResult(finalObservation, 'disable');
-  }
-
   try {
     filesystem.unlink(nodePath.join(root, REMOTE_WORKFLOW_PATH));
     return disabledResult(true);

@@ -12,12 +12,16 @@ import {
   type ResolvedExecutionMode,
   resolveExecutionMode,
 } from '../test-execution/mode.js';
+import { evaluateRemoteTestWorkflow } from '../test-execution/remote-workflow-contract.js';
 import {
   disableRemoteWorkflow,
   type RemoteWorkflowLifecycleResult,
   setupRemoteWorkflow,
 } from '../test-execution/remote-workflow-lifecycle.js';
-import { classifyRemoteWorkflow } from '../test-execution/remote-workflow-state.js';
+import {
+  classifyRemoteWorkflow,
+  REMOTE_WORKFLOW_PATH,
+} from '../test-execution/remote-workflow-state.js';
 import { type PlanEntry, type PlanKind, resolveTestPlan } from '../test-plan/resolve.js';
 import { getTemplatesDirectory } from '../utils/fs.js';
 
@@ -369,15 +373,57 @@ export function observeTestExecutionStatus(cwd: string): CliResult {
   });
 }
 
-function bundledRemoteWorkflow(): string {
-  return readFileSync(
-    nodePath.join(getTemplatesDirectory(), 'workflows', 'remote-tests.yml'),
-    'utf8',
-  );
+function bundledRemoteWorkflow(): { readonly content?: string; readonly error?: CliResult } {
+  try {
+    return {
+      content: readFileSync(
+        nodePath.join(getTemplatesDirectory(), 'workflows', 'remote-tests.yml'),
+        'utf8',
+      ),
+    };
+  } catch {
+    return {
+      error: createResult({
+        state: 'failed',
+        errors: [
+          {
+            code: 'REMOTE_WORKFLOW_BUNDLE_UNAVAILABLE',
+            message: 'Safeword could not read its bundled remote-test workflow.',
+            retryable: false,
+          },
+        ],
+      }),
+    };
+  }
+}
+
+function validatedBundledRemoteWorkflow(): CliResult | { readonly content: string } {
+  const bundled = bundledRemoteWorkflow();
+  if (bundled.error !== undefined || bundled.content === undefined) {
+    return bundled.error ?? invalidExecutionRequest('Bundled remote workflow is unavailable.');
+  }
+  const contract = evaluateRemoteTestWorkflow(bundled.content);
+  return contract.accepted
+    ? { content: bundled.content }
+    : createResult({
+        state: 'failed',
+        errors: [
+          {
+            code: 'REMOTE_WORKFLOW_CONTRACT_INVALID',
+            message: 'Safeword refused to publish a bundled workflow that failed its contract.',
+            retryable: false,
+            detail: contract.violations.join(', '),
+          },
+        ],
+      });
 }
 
 export function observeRemoteWorkflowStatus(cwd: string): CliResult {
-  const workflow = classifyRemoteWorkflow(cwd, bundledRemoteWorkflow());
+  const bundled = bundledRemoteWorkflow();
+  if (bundled.error !== undefined || bundled.content === undefined) {
+    return bundled.error ?? invalidExecutionRequest('Bundled remote workflow is unavailable.');
+  }
+  const workflow = classifyRemoteWorkflow(cwd, bundled.content);
   if (workflow.state === 'failed') {
     return createResult({
       state: 'failed',
@@ -396,6 +442,18 @@ export function observeRemoteWorkflowStatus(cwd: string): CliResult {
     state: 'healthy',
     data: { command: 'project test-execution remote status', workflow },
   });
+}
+
+function residueFindings(workflow: RemoteWorkflowLifecycleResult) {
+  return workflow.warningCode === 'REMOTE_WORKFLOW_RESIDUE'
+    ? [
+        {
+          code: workflow.warningCode,
+          message: `Safeword left inert temporary workflow residue at ${workflow.residuePath ?? 'an unknown path'}; remove it when convenient.`,
+          severity: 'warning' as const,
+        },
+      ]
+    : [];
 }
 
 function lifecycleFailure(command: string, workflow: RemoteWorkflowLifecycleResult): CliResult {
@@ -417,6 +475,7 @@ function lifecycleFailure(command: string, workflow: RemoteWorkflowLifecycleResu
           .join(' '),
       },
     ],
+    findings: residueFindings(workflow),
     data: { command, workflow },
   });
 }
@@ -428,11 +487,19 @@ export function setupManagedRemoteWorkflow(cwd: string): CliResult {
       `Personal test-execution configuration at ${personal.path} ${personal.error}.`,
     );
   }
+  const project = readProjectTestConfig(cwd);
+  if (project.error !== undefined) {
+    return invalidExecutionRequest(
+      `Project test configuration at ${project.path} ${project.error}.`,
+    );
+  }
   const effective = resolveExecutionMode({
     personal: personal.mode,
-    project: readProjectTestConfig(cwd).mode,
+    project: project.mode,
   });
-  const workflow = setupRemoteWorkflow(cwd, bundledRemoteWorkflow(), effective.mode);
+  const bundled = validatedBundledRemoteWorkflow();
+  if ('state' in bundled) return bundled;
+  const workflow = setupRemoteWorkflow(cwd, bundled.content, effective.mode);
   if (!workflow.ok) return lifecycleFailure('project test-execution remote setup', workflow);
   return createResult({
     state: workflow.changed ? 'changed' : 'healthy',
@@ -441,13 +508,14 @@ export function setupManagedRemoteWorkflow(cwd: string): CliResult {
           files: [
             {
               kind: 'create',
-              target: '.github/workflows/safeword-tests.yml',
+              target: REMOTE_WORKFLOW_PATH,
               operation: 'write',
             },
           ],
         }
       : undefined,
     findings: [
+      ...residueFindings(workflow),
       {
         code: 'REMOTE_WORKFLOW_READY',
         message:
@@ -462,7 +530,11 @@ export function setupManagedRemoteWorkflow(cwd: string): CliResult {
 }
 
 export function disableManagedRemoteWorkflow(cwd: string): CliResult {
-  const workflow = disableRemoteWorkflow(cwd, bundledRemoteWorkflow());
+  const bundled = bundledRemoteWorkflow();
+  if (bundled.error !== undefined || bundled.content === undefined) {
+    return bundled.error ?? invalidExecutionRequest('Bundled remote workflow is unavailable.');
+  }
+  const workflow = disableRemoteWorkflow(cwd, bundled.content);
   if (!workflow.ok) return lifecycleFailure('project test-execution remote disable', workflow);
   return createResult({
     state: workflow.changed ? 'changed' : 'healthy',
@@ -471,7 +543,7 @@ export function disableManagedRemoteWorkflow(cwd: string): CliResult {
           destructive: [
             {
               kind: 'delete',
-              target: '.github/workflows/safeword-tests.yml',
+              target: REMOTE_WORKFLOW_PATH,
               operation: 'remove managed workflow',
             },
           ],
@@ -487,7 +559,7 @@ export function disableManagedRemoteWorkflow(cwd: string): CliResult {
               severity: 'info',
             },
           ]
-        : [],
+        : residueFindings(workflow),
     data: { command: 'project test-execution remote disable', workflow },
   });
 }

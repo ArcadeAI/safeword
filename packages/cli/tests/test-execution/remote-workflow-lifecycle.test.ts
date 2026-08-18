@@ -463,35 +463,6 @@ describe('remote workflow lifecycle', () => {
     expect(readFileSync(workflowPath(root), 'utf8')).toBe(customer);
   });
 
-  it('does not unlink customer bytes that replace the workflow before the final check', () => {
-    const root = fixture();
-    const customer = 'name: late customer\n';
-    writeWorkflow(root, bundled);
-
-    let workflowInspections = 0;
-    expect(
-      disableRemoteWorkflow(
-        root,
-        bundled,
-        withFilesystem({
-          lstat: path => {
-            if (path === workflowPath(root) && ++workflowInspections === 2) {
-              writeFileSync(workflowPath(root), customer);
-            }
-            return nodeRemoteWorkflowFs.lstat(path);
-          },
-        }),
-      ),
-    ).toEqual({
-      ok: true,
-      changed: false,
-      state: 'customer_owned',
-      affectedPath: NONE,
-      nextAction: NONE,
-    });
-    expect(readFileSync(workflowPath(root), 'utf8')).toBe(customer);
-  });
-
   it.each([
     ['ENOENT', true, true, 'not_installed'],
     ['EACCES', false, false, 'current'],

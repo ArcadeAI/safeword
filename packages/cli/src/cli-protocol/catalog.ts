@@ -320,7 +320,7 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   command(
     'project test-execution remote disable',
     'Remove the managed remote-test workflow',
-    'destructive',
+    'mutate',
     { syntax: 'disable' },
   ),
   command('project lint-gherkin', 'Validate executable feature files', 'observe', {
@@ -730,6 +730,11 @@ export const commandFamilies = [
   {
     route: 'project test-execution',
     description: 'Manage test execution preferences',
+    visibility: 'public',
+  },
+  {
+    route: 'project test-execution remote',
+    description: 'Manage remote test execution',
     visibility: 'public',
   },
   {
