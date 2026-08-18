@@ -2,7 +2,9 @@
 id: FFXB81
 slug: upgrade-remote-test-workflows-safely
 type: feature
-phase: intake
+phase: scenario-gate
+phase_anchors:
+  - define-behavior: 5cf7a45b7
 status: in_progress
 scope:
   - Recognize every previously released remote-test workflow identity
@@ -36,3 +38,5 @@ last_modified: 2026-08-17T02:59:47.682Z
 - 2026-08-16 Deferred deliberately: no released predecessor exists. Activate before proposing the second workflow version; HWZZJ8's v1 fixture and release-contract test are the tripwire.
 - 2026-08-18 Activated: the stack-neutral workflow revision is v2. The released v1 bytes are frozen in `tests/fixtures/remote-workflow-v1.yml` and admitted by normalized SHA-256 only.
 - 2026-08-18 Implemented: setup atomically replaces only an exact admitted predecessor; current and customer-owned bytes retain their existing behavior. Focused config, CLI, contract, state, filesystem, lifecycle, and catalogue verification passed (6 files, 115 tests).
+- 2026-08-18 Intake confirmed: exact released identities are the ownership boundary; customer edits remain customer-owned; migration and retry are the only added behaviors.
+- 2026-08-18 Defined five scenarios across exact ownership, setup/disable, interruption, and retry; two interruption scenarios remain for outside-in TDD.

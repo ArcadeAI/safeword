@@ -1,5 +1,13 @@
 # Spec: Upgrade remote-test workflows safely
 
+## Intake Brief
+
+- **Requested by:** Safeword customers opting into remote test execution.
+- **Cost of inaction:** An older Safeword-managed workflow is misreported as
+  customer-owned, so setup refuses to upgrade it and disable cannot remove it.
+- **Reversibility:** Cross-release migration behavior is a one-way public
+  compatibility commitment; each released identity must remain recognizable.
+
 ## Intent
 
 When Safeword first changes its shipped remote-test workflow, upgrade every
@@ -29,7 +37,7 @@ release-contract test names FFXB81 when current bytes drift.
 
 ## Jobs To Be Done
 
-### Technical Builder — Upgrade without surrendering CI ownership
+### upgrade-remote-test-workflows-safely.TBU1 — Upgrade without surrendering CI ownership
 
 **Persona:** Technical Builder (TBU)
 
@@ -37,9 +45,34 @@ release-contract test names FFXB81 when current bytes drift.
 > workflow upgraded automatically while my own changes remain untouched, so I
 > can adopt the release without re-auditing lost CI work.
 
-#### Rule TBU1.R1 — Only an exact previously released Safeword workflow can authorize replacement
+#### upgrade-remote-test-workflows-safely.TBU1.R1 — Only an exact previously released Safeword workflow can authorize replacement
 
-#### Rule TBU1.R2 — Upgrade interruption exposes a complete predecessor or successor and retry remains safe
+#### upgrade-remote-test-workflows-safely.TBU1.R2 — Upgrade interruption exposes a complete predecessor or successor and retry remains safe
+
+## Product Inspiration
+
+### Flyway versioned migration validation
+
+- **Checked:** 2026-08-18
+- **Reference:** https://documentation.red-gate.com/flyway/reference/commands/validate
+- **Observed value:** Flyway records an applied migration checksum and refuses
+  to silently adopt changed bytes.
+- **Principle borrowed:** Durable exact identities distinguish known history
+  from user-modified content.
+- **Boundary not copied:** Safeword needs no database history table; its small,
+  append-only released-workflow digest set is sufficient.
+- **Decision informed:** Admit only immutable released byte identities; never
+  infer ownership from a marker or runtime configuration.
+
+## Surfaces
+
+- Affected: Safeword CLI
+- Affected: GitHub Actions Execution Sandbox
+
+## Rave Moment
+
+skip: Internal child migration beneath the remote-testing epic; the parent owns
+the persona-facing moment.
 
 ## Outcomes
 
@@ -51,4 +84,5 @@ release-contract test names FFXB81 when current bytes drift.
 
 ## Open Questions
 
-defer: Exact v2 bytes and whether v1 needs any semantic migration are unknowable until the first superseding workflow is proposed.
+None. V2 delegates dependency preparation to project configuration; v1 needs
+only an exact-byte identity migration.
