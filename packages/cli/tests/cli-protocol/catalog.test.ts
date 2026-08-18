@@ -97,6 +97,7 @@ describe('CLI command catalog', () => {
       'project test',
       'project test-execution status',
       'project test-execution remote status',
+      'project test-execution remote setup',
       'project lint-gherkin',
       'tracker sync',
       'tracker connect',

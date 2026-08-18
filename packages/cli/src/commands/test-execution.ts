@@ -12,6 +12,10 @@ import {
   type ResolvedExecutionMode,
   resolveExecutionMode,
 } from '../test-execution/mode.js';
+import {
+  type RemoteWorkflowLifecycleResult,
+  setupRemoteWorkflow,
+} from '../test-execution/remote-workflow-lifecycle.js';
 import { classifyRemoteWorkflow } from '../test-execution/remote-workflow-state.js';
 import { type PlanEntry, type PlanKind, resolveTestPlan } from '../test-plan/resolve.js';
 import { getTemplatesDirectory } from '../utils/fs.js';
@@ -289,5 +293,68 @@ export function observeRemoteWorkflowStatus(cwd: string): CliResult {
   return createResult({
     state: 'healthy',
     data: { command: 'project test-execution remote status', workflow },
+  });
+}
+
+function lifecycleFailure(command: string, workflow: RemoteWorkflowLifecycleResult): CliResult {
+  const code = workflow.code ?? 'REMOTE_WORKFLOW_RETRY';
+  const retryable = workflow.retryable ?? false;
+  return createResult({
+    state: workflow.state === 'failed' ? 'failed' : 'action_required',
+    exitCode: 2,
+    errors: [
+      {
+        code,
+        message:
+          code === 'REMOTE_WORKFLOW_CONFLICT'
+            ? 'Safeword will not overwrite this workflow path. Follow the reported action, then run the command again.'
+            : 'Safeword could not complete remote workflow setup safely.',
+        retryable,
+        detail: [workflow.operation, workflow.filesystemCode, workflow.path]
+          .filter(Boolean)
+          .join(' '),
+      },
+    ],
+    data: { command, workflow },
+  });
+}
+
+export function setupManagedRemoteWorkflow(cwd: string): CliResult {
+  const personal = readPersonalExecutionPreference(cwd);
+  if (personal.error !== undefined) {
+    return invalidExecutionRequest(
+      `Personal test-execution configuration at ${personal.path} ${personal.error}.`,
+    );
+  }
+  const effective = resolveExecutionMode({
+    personal: personal.mode,
+    project: readProjectExecutionPreference(cwd),
+  });
+  const workflow = setupRemoteWorkflow(cwd, bundledRemoteWorkflow(), effective.mode);
+  if (!workflow.ok) return lifecycleFailure('project test-execution remote setup', workflow);
+  return createResult({
+    state: workflow.changed ? 'changed' : 'healthy',
+    effects: workflow.changed
+      ? {
+          files: [
+            {
+              kind: 'create',
+              target: '.github/workflows/safeword-tests.yml',
+              operation: 'write',
+            },
+          ],
+        }
+      : undefined,
+    findings: [
+      {
+        code: 'REMOTE_WORKFLOW_READY',
+        message:
+          effective.mode === 'remote-preferred'
+            ? 'Remote-preferred execution is already selected.'
+            : 'Run `safeword project test --execution remote-preferred` to prefer remote execution.',
+        severity: 'info',
+      },
+    ],
+    data: { command: 'project test-execution remote setup', workflow },
   });
 }
