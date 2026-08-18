@@ -2,7 +2,7 @@
 id: 4S2S8V
 slug: codex-plugin-next-task-upgrades
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 phase_anchors:
   - 'define-behavior: .project/tickets/4S2S8V-codex-plugin-next-task-upgrades/spec.md'
@@ -68,3 +68,6 @@ last_modified: 2026-08-18T00:35:30.000Z
 - 2026-08-18T00:35:30.000Z Phase: implement → verify. Resumed-task proof now accepts the native `source: resume` identity only when the installed version, hook manifest, activation, profile, task, and canonical worktree all match. Bootstrap rechecks concurrent proof for at most 500 ms and remains unverified after the bound. User guidance now says to fully restart Codex and resume the existing task.
 - 2026-08-18T00:35:30.000Z Verification: independent quality review found no blocking correctness defect; focused proof tests passed 204 tests, the full CLI suite passed 8,174 tests (7 skipped), full Cucumber passed 1,455 scenarios (3 skipped) and 65,406 steps (4 skipped), proof-tag tests passed 32 tests, and builds, changed TypeScript, Astro diagnostics, formatting, Gherkin lint, dependency audits, and the diff-scoped architecture audit passed. The aggregate repository checker remains red only for pre-existing duplicate Python experiment module names; published-candidate desktop lifecycle evidence remains the release gate.
 - 2026-08-18T03:22:45.000Z Live UX correction: Codex Desktop 26.817.1524 treated `/hooks` as chat text; current upstream behavior exposes hook trust through Desktop Settings → Hooks or `/hooks` in the terminal TUI. Because an untrusted SessionStart is not replayed, the released restart-first instruction can require an avoidable second restart. Reopened implementation to put exact hook review before the one required Desktop restart.
+- 2026-08-18T03:31:13.000Z Live verification: public `0.78.4` resumed the authentic existing task after a full Desktop restart and wrote exact task/profile/version/manifest/activation/worktree proof; all five lifecycle events became current and the install marker retired. A later profile installation created a new activation ID, and status rejected the older task proof as stale and returned to unprotected. The transcript is retained in `manual-evidence.md`.
+- 2026-08-18T03:38:00.000Z UX correction GREEN: changed-hook review now precedes the one required Desktop restart and names both supported trust surfaces. The focused acceptance scenario passed 17/17 steps, focused migration/bootstrap tests passed 133/133, and the broader Cucumber regression run passed 559/559 scenarios and 9,871/9,871 steps.
+- 2026-08-18T03:39:00.000Z Phase: implement → verify. The final live gate is checked, the one-restart guidance defect is corrected without changing proof semantics, and the implementation plan remains reconciled as implemented.
