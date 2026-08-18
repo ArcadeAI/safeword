@@ -12,6 +12,21 @@ function initializePrivateConfigRepo(directory: string): void {
 }
 
 describe('test execution CLI wiring', () => {
+  it('requires action when no runnable test plan exists', async () => {
+    const directory = createTemporaryDirectory();
+
+    const result = await runCli(['project', 'test', '--json', '--no-input', '--cwd', directory], {
+      cwd: directory,
+    });
+
+    expect(result).toMatchObject({ exitCode: 2, stderr: '' });
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'action_required',
+      findings: [expect.objectContaining({ code: 'SAFEWORD_TEST_PLAN_EMPTY' })],
+      data: { command: 'project test', executed: 0 },
+    });
+  });
+
   it('runs the resolved done plan once when a command selects local execution', async () => {
     const directory = createTemporaryDirectory();
     writeFileSync(
