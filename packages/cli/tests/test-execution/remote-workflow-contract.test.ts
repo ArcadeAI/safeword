@@ -138,6 +138,12 @@ describe('remote workflow contract', () => {
       'fixed_test_command',
     ],
     [
+      'changes the dependency install command',
+      'bun install --frozen-lockfile',
+      'bun install',
+      'fixed_dependency_install',
+    ],
+    [
       'fabricates the verified revision',
       'observed_sha="$(git rev-parse HEAD)"',
       'observed_sha="$TARGET_SHA"',

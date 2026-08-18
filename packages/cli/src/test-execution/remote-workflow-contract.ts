@@ -145,6 +145,7 @@ const STEP_SHAPES: StepShape[] = [
     keys: ['name', 'uses', 'with'],
     with: { 'bun-version-file': 'package.json' },
   },
+  { keys: ['name', 'run'] },
   { id: 'tests', keys: ['name', 'id', 'env', 'run'] },
   { id: 'report', keys: ['name', 'id', 'if', 'env', 'run'] },
   { uses: UPLOAD_ACTION, keys: ['name', 'if', 'uses', 'with'] },
@@ -199,10 +200,12 @@ function hasUnsafeShell(steps: Mapping[]): boolean {
 }
 
 function commandViolations(steps: Mapping[]): string[] {
+  const installRun = steps.find(step => step.name === 'Install project dependencies')?.run;
   const testRun = stepById(steps, 'tests')?.run;
   const violations = [
     ...(stepById(steps, 'validate')?.run === VALIDATE_COMMAND ? [] : ['fixed_validation']),
     ...(stepById(steps, 'verify')?.run === VERIFY_COMMAND ? [] : ['fixed_revision_verification']),
+    ...(installRun === 'bun install --frozen-lockfile' ? [] : ['fixed_dependency_install']),
   ];
   return testRun === 'bunx safeword@0.78.3 project test --lane "$LANE" --execution local'
     ? violations
