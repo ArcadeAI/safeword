@@ -14003,11 +14003,11 @@ function codexMigrationExitCode(result) {
     return 1;
   return result.ok ? 0 : 2;
 }
-var CODEX_RESTART_ACTION = "Fully restart Codex, then resume this task", CODEX_RESTART_INSTRUCTION, CODEX_RESTART_CONTEXT = "This Codex app may keep its loaded Safeword catalogue.", MIGRATION_STATE_RULES, NEXT_COMMANDS;
+var CODEX_RESTART_ACTION = "Fully restart Codex, then resume this task", CODEX_REVIEW_THEN_RESTART_ACTION = "Review the installed hooks in Codex Desktop under Settings > Hooks (or with /hooks in the terminal TUI). Fully restart Codex, then resume this task", CODEX_RESTART_INSTRUCTION, CODEX_RESTART_CONTEXT = "This Codex app may keep its loaded Safeword catalogue.", MIGRATION_STATE_RULES, NEXT_COMMANDS;
 var init_migration = __esm(() => {
   init_schema();
   init_inventory();
-  CODEX_RESTART_INSTRUCTION = `${CODEX_RESTART_ACTION} and review the installed hooks with /hooks.`;
+  CODEX_RESTART_INSTRUCTION = `${CODEX_REVIEW_THEN_RESTART_ACTION}.`;
   MIGRATION_STATE_RULES = [
     { state: "recovery_required", matches: (facts) => facts.recoveryRequired },
     {
@@ -36892,7 +36892,7 @@ function installCodexPlugin(options = {}) {
   }
   if (options.json !== true) {
     success("Safeword Codex plugin is enabled for this profile.");
-    info(`This Codex app may keep its loaded Safeword catalogue. ${CODEX_RESTART_ACTION} and review the installed skills and hooks with /hooks. If this project uses Safeword legacy hooks, run \`safeword codex migrate --remove-legacy-hooks\` to remove only those hooks.`);
+    info(`This Codex app may keep its loaded Safeword catalogue. ${CODEX_REVIEW_THEN_RESTART_ACTION}. If this project uses Safeword legacy hooks, run \`safeword codex migrate --remove-legacy-hooks\` to remove only those hooks.`);
   }
   if (options.reportMigrationState === true) {
     reportCodexMigration(cwd, {
@@ -36939,7 +36939,7 @@ name: safeword-plugin-setup
 description: Restore the Safeword Codex profile plugin for this project.
 ---
 
-Run \`safeword codex migrate\` to install or re-enable the profile plugin. ${CODEX_RESTART_ACTION} and review its hooks with \`/hooks\`. Run \`safeword codex status\` to verify this project is protected.
+Run \`safeword codex migrate\` to install or re-enable the profile plugin. ${CODEX_REVIEW_THEN_RESTART_ACTION}. Run \`safeword codex status\` to verify this project is protected.
 `
   });
   return mutations;
@@ -47274,11 +47274,11 @@ var init_codex_bootstrap = __esm(() => {
   init_project_directory();
   SESSION_START_SOURCES = new Set(["startup", "resume", "clear", "compact"]);
   SLEEP_BUFFER = new Int32Array(new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT));
-  PROFILE_RESTART_REQUIRED = `Safeword is installed for your Codex profile, but this task has not verified the installed update. An older Safeword runtime may still be loaded. ${CODEX_RESTART_ACTION} before relying on the installed update.`;
-  OBSERVED_PROFILE_RESTART_REQUIRED = `Safeword is installed for your Codex profile, but this task has not verified the installed update. ${CODEX_RESTART_ACTION} before relying on the installed update.`;
+  PROFILE_RESTART_REQUIRED = `Safeword is installed for your Codex profile, but this task has not verified the installed update. An older Safeword runtime may still be loaded. ${CODEX_REVIEW_THEN_RESTART_ACTION} before relying on the installed update.`;
+  OBSERVED_PROFILE_RESTART_REQUIRED = `Safeword is installed for your Codex profile, but this task has not verified the installed update. ${CODEX_REVIEW_THEN_RESTART_ACTION} before relying on the installed update.`;
   PROFILE_MARKER_REPAIR_REQUIRED = `Safeword is installed for your Codex profile, but its activation marker could not be verified. Repair the profile once with: ${RETRY_COMMAND}`;
   PROFILE_MARKER_VERSION_REPAIR_REQUIRED = `Safeword is installed for your Codex profile, but its activation marker belongs to a different Safeword version. Repair the profile once with: ${RETRY_COMMAND}`;
-  INSTALL_COMPLETED_RESTART_REQUIRED = `Safeword was installed for your Codex profile, but the newly installed runtime is not active in this already-open task. ${CODEX_RESTART_ACTION} before relying on the installed version.`;
+  INSTALL_COMPLETED_RESTART_REQUIRED = `Safeword was installed for your Codex profile, but the newly installed runtime is not active in this already-open task. ${CODEX_REVIEW_THEN_RESTART_ACTION} before relying on the installed version.`;
 });
 
 // templates/hooks/lib/dogfood.ts
@@ -61779,7 +61779,7 @@ function codexPluginUpdateFailure(observed) {
       ...observed.errors,
       {
         code: "PLUGIN_UPDATE_REQUIRED",
-        message: `Finalization requires the packaged Safeword plugin version. Run safeword install --agents=codex. ${CODEX_RESTART_ACTION} and review /hooks.`,
+        message: `Finalization requires the packaged Safeword plugin version. Run safeword install --agents=codex. ${CODEX_REVIEW_THEN_RESTART_ACTION}.`,
         retryable: true
       }
     ],
