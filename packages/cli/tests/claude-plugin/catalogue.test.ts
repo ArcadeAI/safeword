@@ -1,9 +1,14 @@
+import nodePath from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import {
   assertClaudePluginAssetReferences,
+  generateClaudePluginAssets,
   normalizeClaudePluginCliBundle,
 } from '../../src/claude-plugin/catalogue.js';
+
+const packageRoot = nodePath.resolve(import.meta.dirname, '../..');
 
 describe('Claude plugin catalogue generation', () => {
   it('normalizes machine-specific Bun install instance paths', () => {
@@ -33,5 +38,20 @@ describe('Claude plugin catalogue generation', () => {
         },
       ]);
     }).toThrow('depends on project framework path .safeword/skills/finish-review/REVIEWER.md');
+  });
+
+  it('packages the handbook so SessionStart never needs project-local .safeword/SAFEWORD.md', () => {
+    const assets = generateClaudePluginAssets({
+      cliBundle: 'console.log("stub cli bundle");',
+      sourceRoot: nodePath.join(packageRoot, 'src'),
+      templatesRoot: nodePath.join(packageRoot, 'templates'),
+      version: '0.0.0-test',
+    });
+
+    const packagedHandbook = assets.find(asset => asset.relativePath === 'resources/SAFEWORD.md');
+
+    expect(packagedHandbook).toBeDefined();
+    expect(packagedHandbook?.content.length).toBeGreaterThan(0);
+    expect(packagedHandbook?.content).not.toMatch(/\.safeword\/(?:guides|scripts)\//u);
   });
 });

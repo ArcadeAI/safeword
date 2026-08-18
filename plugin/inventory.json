@@ -82,6 +82,10 @@
       "sha256": "289edc9540b5ee9d8234a7f239594842f79b584c48a827a095aa78138d54c725"
     },
     {
+      "path": "resources/SAFEWORD.md",
+      "sha256": "6d9d80a428b5d868b590b51b63566a4189b9501c2a5a66800ae123f581ed8a69"
+    },
+    {
       "path": "resources/scripts/bisect-test-pollution.sh",
       "sha256": "6193af0aa49db73692680a9f471c829d803d714be21e86bbbe83f6fa7264ceec"
     },
@@ -143,7 +147,7 @@
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "9538359bfae1979fb8cb9181186ff8804bb5f70e8d9bf0c277c2eb99198e5dff"
+      "sha256": "7fc0d20b2e2f1548141699d11425d0d6b5d201be1203fc9dffe388536253341a"
     },
     {
       "path": "runtime/event-groups.json",
@@ -375,7 +379,7 @@
     },
     {
       "path": "runtime/hooks/lib/safeword-context.ts",
-      "sha256": "49a39a1b38af9d1025704ef1bbe0e95f4970d784f212a222863454add2b3af7f"
+      "sha256": "ed4f812e77e08061b716efaa3505e4a89cf48e4a2660b31d3e9c9166e28337fd"
     },
     {
       "path": "runtime/hooks/lib/scenario-format.ts",

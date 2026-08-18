@@ -442,6 +442,12 @@ export function generateClaudePluginAssets(
       relativePath: nodePath.join('runtime', 'hooks', 'lib', 'owned-paths.ts'),
       content: generateOwnedPathsModule(SAFEWORD_SCHEMA),
     },
+    {
+      relativePath: nodePath.join('resources', 'SAFEWORD.md'),
+      content: adaptWorkflowReference(
+        readFileSync(nodePath.join(templatesRoot, 'SAFEWORD.md'), 'utf8'),
+      ),
+    },
     ...directoryAssets(
       nodePath.join(templatesRoot, 'guides'),
       'resources/guides',
