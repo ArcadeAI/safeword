@@ -31,6 +31,15 @@ describe('remote workflow contract', () => {
     expect(evaluateRemoteTestWorkflow(dogfoodWorkflow)).toEqual({ accepted: true, violations: [] });
   });
 
+  it('installs the checked-out project dependencies before running tests', () => {
+    expect(workflow).toContain(
+      '      - name: Install project dependencies\n        run: bun install --frozen-lockfile',
+    );
+    expect(workflow.indexOf('Install project dependencies')).toBeLessThan(
+      workflow.indexOf('Run requested test lane'),
+    );
+  });
+
   it.each([
     [
       'adds a trigger',
