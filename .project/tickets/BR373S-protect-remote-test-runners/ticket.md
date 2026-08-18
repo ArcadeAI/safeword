@@ -3,7 +3,7 @@ id: BR373S
 slug: protect-remote-test-runners
 type: feature
 phase: verify
-status: in_progress
+status: done
 phase_anchors:
   - define-behavior: .project/tickets/BR373S-protect-remote-test-runners/spec.md
   - scenario-gate: packages/cli/features/run-requested-revision-remotely.feature
@@ -24,7 +24,7 @@ done_when:
   - Workflow permissions are exactly contents read, actions are pinned, checkout credentials are not persisted, and Safeword supplies no secret
 parent: BBNZ68
 created: 2026-08-09T21:20:39.486Z
-last_modified: 2026-08-18T07:17:53-07:00
+last_modified: 2026-08-18T08:22:00-07:00
 ---
 
 # Run the requested revision remotely with least privilege
@@ -53,3 +53,4 @@ last_modified: 2026-08-18T07:17:53-07:00
 - 2026-08-17T22:33:00-07:00 Reconciled implementation with the approved plan after independent quality review. The workflow and evaluator match the three Rules; release admission remains with GRDXXA, and adversarial customer-code isolation remains explicitly out of scope. Advanced to verification.
 - 2026-08-17T23:01:40-07:00 Verification recorded: focused BR373S tests, acceptance scenarios, actionlint, build, lint, and ticket-scoped audit checks pass. Completion remains blocked by the umbrella branch's broader PR scope, 10 repository-wide Vitest failures, unfinished repository-wide BDD features, and 11 principle-trace errors in sibling active tickets.
 - 2026-08-18T07:17:53-07:00 Isolated BR373S onto current main in its own branch/worktree. Fixed the acceptance harness to resolve the workflow template from its module rather than the caller's working directory. Focused tests, full tests, full acceptance, builds, lint, typecheck, actionlint, audit, and PR scope are green.
+- 2026-08-18T08:22:00-07:00 Done: verification evidence is complete and the isolated PR is ready for its merge gate.
