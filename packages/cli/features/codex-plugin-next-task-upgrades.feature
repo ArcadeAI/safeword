@@ -56,7 +56,7 @@ Feature: Activate Safeword upgrades coherently in Codex
     Scenario: Pending activation status never claims the running app reloaded
       Given the released Safeword plugin is installed but Codex has not restarted
       When the builder checks the Codex plugin activation status
-      Then status reports plugin_installed_app_restart_required and directs the builder to restart before reviewing hooks
+      Then status reports plugin_installed_app_restart_required and directs the builder to review hooks before restarting
 
   @codex-plugin-next-task-upgrades.TBU1.R3
   Rule: codex-plugin-next-task-upgrades.TBU1.R3 — Activation proof belongs to the exact installed release, resumed task, profile, canonical worktree, and restarted Codex app
