@@ -9,6 +9,7 @@
     "surface": true,
     "file": true
   },
+  "testExecution": "remote-preferred",
   "paths": {
     "architecture": "ARCHITECTURE.md",
     "principles": "PRINCIPLES.md"

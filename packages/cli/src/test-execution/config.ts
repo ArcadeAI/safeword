@@ -11,7 +11,6 @@ import {
 } from 'node:fs';
 import nodePath from 'node:path';
 
-import { resolveNamespaceRoot } from '../utils/configured-paths.js';
 import type { ExecutionMode } from './mode.js';
 
 export interface PersonalExecutionPreference {
@@ -38,9 +37,8 @@ function hasDuplicateJsonKeys(content: string): boolean {
   return false;
 }
 
-function personalPath(cwd: string): { namespaceRoot: string; path: string } {
-  const namespaceRoot = resolveNamespaceRoot(cwd);
-  return { namespaceRoot, path: nodePath.join(namespaceRoot, 'personal', 'config.json') };
+function personalPath(cwd: string): string {
+  return nodePath.join(cwd, '.safeword', 'config.local.json');
 }
 
 function validatePersonalFile(
@@ -54,13 +52,12 @@ function validatePersonalFile(
 }
 
 function validatePersonalDirectory(
-  namespaceRoot: string,
+  cwd: string,
   path: string,
 ): PersonalExecutionPreference | undefined {
-  const rootRealPath = realpathSync(namespaceRoot);
-  const personalDirectoryRealPath = realpathSync(nodePath.dirname(path));
-  if (personalDirectoryRealPath !== nodePath.join(rootRealPath, 'personal')) {
-    return { path, error: 'must remain inside the resolved namespace root' };
+  const expectedDirectory = nodePath.join(realpathSync(cwd), '.safeword');
+  if (realpathSync(nodePath.dirname(path)) !== expectedDirectory) {
+    return { path, error: 'must remain inside the project Safeword directory' };
   }
   return undefined;
 }
@@ -103,14 +100,9 @@ function parsePersonalPreference(content: string, path: string): PersonalExecuti
     return { path, error: 'must be a JSON object' };
   }
   const record = parsed as Record<string, unknown>;
-  if (
-    Object.keys(record).length !== 2 ||
-    !Object.hasOwn(record, 'schemaVersion') ||
-    !Object.hasOwn(record, 'testExecution')
-  ) {
-    return { path, error: 'must contain only schemaVersion and testExecution' };
+  if (Object.keys(record).length !== 1 || !Object.hasOwn(record, 'testExecution')) {
+    return { path, error: 'must contain only testExecution' };
   }
-  if (record.schemaVersion !== 1) return { path, error: 'uses an unsupported schema version' };
   if (!isExecutionMode(record.testExecution))
     return { path, error: 'uses an unsupported execution mode' };
   return { path, mode: record.testExecution };
@@ -118,14 +110,14 @@ function parsePersonalPreference(content: string, path: string): PersonalExecuti
 
 /** Read a private worktree preference without following links or accepting shared files. */
 export function readPersonalExecutionPreference(cwd: string): PersonalExecutionPreference {
-  const { namespaceRoot, path } = personalPath(cwd);
+  const path = personalPath(cwd);
 
   try {
     const metadata = lstatSync(path, { throwIfNoEntry: false });
     if (metadata === undefined) return { path };
     const fileError = validatePersonalFile(metadata, path);
     if (fileError !== undefined) return fileError;
-    const directoryError = validatePersonalDirectory(namespaceRoot, path);
+    const directoryError = validatePersonalDirectory(cwd, path);
     if (directoryError !== undefined) return directoryError;
     const privacyError = validateGitPrivacy(cwd, path);
     if (privacyError !== undefined) return privacyError;

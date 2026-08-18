@@ -21,7 +21,7 @@ Feature: Choose local or remote test execution per contributor
   Rule: choose-local-or-remote-test-execution.TBU1.R2 — A valid personal preference wins over project default only in its current worktree
 
     Scenario Outline: A personal preference chooses the current worktree default
-      Given the project default is remote-preferred, this worktree's `personal/config.json` contains the exact minimal schema selecting <personal-mode>, remote availability is <remote-availability>, and the real test plan exits <plan-exit>
+      Given the project default is remote-preferred, this worktree's `.safeword/config.local.json` contains the exact minimal config selecting <personal-mode>, remote availability is <remote-availability>, and the real test plan exits <plan-exit>
       When the contributor runs `safeword project test --lane done` without an override
       Then Safeword reports personal as the winning source, <selection-outcome>, runs the real test plan once, returns its exact <plan-exit> exit, and leaves project and personal configuration unchanged
       Examples:
@@ -30,9 +30,9 @@ Feature: Choose local or remote test execution per contributor
         | remote-preferred | not installed | 31 | reports remote unavailability before dispatch and falls back locally |
 
     Scenario: A personal preference is not shared with another worktree
-      Given worktree A has `<namespace-root>/personal/config.json` selecting local and worktree B has its own path selecting remote-preferred
+      Given worktree A has `.safeword/config.local.json` selecting local and worktree B has its own path selecting remote-preferred
       When each contributor asks for test-execution status
-      Then each worktree reports its own canonical namespace-root personal path and effective mode, neither process reads the other path, and both status requests leave both worktrees unchanged
+      Then each worktree reports its own canonical local-config path and effective mode, neither process reads the other path, and both status requests leave both worktrees unchanged
 
   @choose-local-or-remote-test-execution.TBU1.R3 @rejection @public-cli @surface.safeword-cli
   Rule: choose-local-or-remote-test-execution.TBU1.R3 — Invalid or unsafe personal configuration never executes tests or changes project state
@@ -46,7 +46,6 @@ Feature: Choose local or remote test execution per contributor
         | malformed JSON |
         | duplicate object key |
         | unknown object key |
-        | unsupported schema version |
         | unsupported execution mode |
         | a missing required schema field |
         | a schema field with the wrong JSON value type |
@@ -54,7 +53,7 @@ Feature: Choose local or remote test execution per contributor
         | a symlink |
         | a hard link |
         | a directory |
-        | a file outside the resolved namespace root |
+        | a file outside the project Safeword directory |
         | a file Git does not classify as ignored and untracked |
 
     @rejection

@@ -36,7 +36,7 @@ interface TestExecutionWorld extends SafewordWorld {
 
 function snapshotConfig(root: string): string {
   return JSON.stringify(
-    ['.safeword/config.json', '.project/personal/config.json'].map(relative => {
+    ['.safeword/config.json', '.safeword/config.local.json'].map(relative => {
       const path = join(root, relative);
       try {
         return [relative, readFileSync(path).toString('base64')];
@@ -97,17 +97,14 @@ function writeProjectPreference(directory: string, mode: 'local' | 'remote-prefe
 
 function initializePrivateConfig(directory: string): string {
   spawnSync('git', ['init', '--quiet'], { cwd: directory });
-  writeFileSync(join(directory, '.gitignore'), '.project/personal/\n');
-  const personalDirectory = join(directory, '.project', 'personal');
+  writeFileSync(join(directory, '.gitignore'), '.safeword/config.local.json\n');
+  const personalDirectory = join(directory, '.safeword');
   mkdirSync(personalDirectory, { recursive: true });
-  return join(personalDirectory, 'config.json');
+  return join(personalDirectory, 'config.local.json');
 }
 
 function writePersonalPreference(directory: string, mode: 'local' | 'remote-preferred'): void {
-  writeFileSync(
-    initializePrivateConfig(directory),
-    JSON.stringify({ schemaVersion: 1, testExecution: mode }),
-  );
+  writeFileSync(initializePrivateConfig(directory), JSON.stringify({ testExecution: mode }));
 }
 
 function writeRunnableProject(directory: string, exitCode = 0): void {
@@ -202,7 +199,7 @@ Given(
 );
 
 Given(
-  /^worktree A has `<namespace-root>\/personal\/config\.json` selecting local and worktree B has its own path selecting remote-preferred$/u,
+  /^worktree A has `\.safeword\/config\.local\.json` selecting local and worktree B has its own path selecting remote-preferred$/u,
   function (this: TestExecutionWorld) {
     writePersonalPreference(project(this), 'local');
     this.secondDirectory = mkdtempSync(join(tmpdir(), 'safeword-test-execution-bdd-b-'));
@@ -220,35 +217,34 @@ Given(
     writeRunnableProject(directory);
     if (defect === 'malformed JSON') writeFileSync(path, '{ bad json');
     else if (defect === 'duplicate object key')
-      writeFileSync(path, '{"schemaVersion":1,"testExecution":"local","testExecution":"local"}');
+      writeFileSync(path, '{"testExecution":"local","testExecution":"local"}');
     else if (defect === 'unknown object key')
-      writeFileSync(path, '{"schemaVersion":1,"testExecution":"local","extra":true}');
+      writeFileSync(path, '{"testExecution":"local","extra":true}');
     else if (defect === 'unsupported schema version')
       writeFileSync(path, '{"schemaVersion":2,"testExecution":"local"}');
     else if (defect === 'unsupported execution mode')
-      writeFileSync(path, '{"schemaVersion":1,"testExecution":"remote"}');
-    else if (defect === 'a missing required schema field')
-      writeFileSync(path, '{"schemaVersion":1}');
+      writeFileSync(path, '{"testExecution":"remote"}');
+    else if (defect === 'a missing required schema field') writeFileSync(path, '{}');
     else if (defect === 'a schema field with the wrong JSON value type')
-      writeFileSync(path, '{"schemaVersion":"1","testExecution":true}');
+      writeFileSync(path, '{"testExecution":true}');
     else if (defect === 'extra nested structure')
-      writeFileSync(path, '{"schemaVersion":1,"testExecution":{"mode":"local"}}');
+      writeFileSync(path, '{"testExecution":{"mode":"local"}}');
     else if (defect === 'a directory') mkdirSync(path);
     else if (defect === 'a symlink') {
       const target = join(directory, 'outside.json');
-      writeFileSync(target, '{"schemaVersion":1,"testExecution":"local"}');
+      writeFileSync(target, '{"testExecution":"local"}');
       symlinkSync(target, path);
     } else if (defect === 'a hard link') {
       const target = join(directory, 'outside.json');
-      writeFileSync(target, '{"schemaVersion":1,"testExecution":"local"}');
+      writeFileSync(target, '{"testExecution":"local"}');
       linkSync(target, path);
-    } else if (defect === 'a file outside the resolved namespace root') {
-      rmSync(join(directory, '.project', 'personal'), { recursive: true });
+    } else if (defect === 'a file outside the project Safeword directory') {
+      rmSync(join(directory, '.safeword'), { recursive: true });
       const outside = mkdtempSync(join(tmpdir(), 'safeword-personal-outside-'));
-      writeFileSync(join(outside, 'config.json'), '{"schemaVersion":1,"testExecution":"local"}');
-      symlinkSync(outside, join(directory, '.project', 'personal'));
+      writeFileSync(join(outside, 'config.local.json'), '{"testExecution":"local"}');
+      symlinkSync(outside, join(directory, '.safeword'));
     } else {
-      writeFileSync(path, '{"schemaVersion":1,"testExecution":"local"}');
+      writeFileSync(path, '{"testExecution":"local"}');
       writeFileSync(join(directory, '.gitignore'), '');
     }
     this.filesystemSnapshot = snapshotFilesystem(directory);
@@ -359,7 +355,7 @@ Then(
 );
 
 Then(
-  'each worktree reports its own canonical namespace-root personal path and effective mode, neither process reads the other path, and both status requests leave both worktrees unchanged',
+  'each worktree reports its own canonical local-config path and effective mode, neither process reads the other path, and both status requests leave both worktrees unchanged',
   function (this: TestExecutionWorld) {
     assert.ok(this.secondResult);
     assert.ok(this.secondDirectory);

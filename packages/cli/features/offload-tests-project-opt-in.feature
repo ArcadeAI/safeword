@@ -19,33 +19,33 @@ Feature: Configure remote verification for a project
 
     @public-cli @surface.safeword-cli
     Scenario Outline: An optional personal config chooses the contributor default without owning project installation
-      Given the project has <project-state> and the resolved namespace root's `personal/config.json` is <personal-state>
+      Given the project has <project-state> and the project's `.safeword/config.local.json` is <personal-state>
       When the builder runs `safeword project test --lane <lane>` without an execution override and then runs `safeword project test-execution status`
       Then <personal-outcome>, the test command reports command scope `absent` and its winning source, and project configuration and managed workflow bytes remain unchanged
       And status exits zero and reports scopes in exact highest-first order as command `not applicable`, personal, project, and built-in `local`, with each exact origin, value, and winning source
       Examples:
         | project-state | personal-state | lane | personal-outcome |
         | effective remote-preferred with exact GitHub installation | absent | full | project mode wins, one remote dispatch is accepted, and no local plan starts |
-        | effective remote-preferred with exact GitHub installation | exact schema version 1 with `testExecution` set to `local` | done | personal mode wins, no dispatch is attempted, and the local test plan runs once |
-        | effective remote-preferred with exact GitHub installation | exact schema version 1 with `testExecution` set to `remote-preferred` | full | personal mode wins, one remote dispatch is accepted, and no local plan starts |
-        | project local with no managed GitHub installation | exact schema version 1 with `testExecution` set to `remote-preferred` | done | personal preference is reported but cannot install or activate GitHub, proven-no-dispatch fallback runs the local test plan once, and status names provider `not installed` |
+        | effective remote-preferred with exact GitHub installation | exact local config with `testExecution` set to `local` | done | personal mode wins, no dispatch is attempted, and the local test plan runs once |
+        | effective remote-preferred with exact GitHub installation | exact local config with `testExecution` set to `remote-preferred` | full | personal mode wins, one remote dispatch is accepted, and no local plan starts |
+        | project local with no managed GitHub installation | exact local config with `testExecution` set to `remote-preferred` | done | personal preference is reported but cannot install or activate GitHub, proven-no-dispatch fallback runs the local test plan once, and status names provider `not installed` |
         | project local with no managed GitHub installation | absent | full | project local mode wins, no dispatch is attempted, and the local verify plan runs once |
 
     @rejection @public-cli @surface.safeword-cli
     Scenario Outline: Personal execution config is optional strict contained and local to the worktree
-      Given project remote-preferred mode is installed and the resolved namespace-root personal path has <personal-boundary>
+      Given project remote-preferred mode is installed and the project local config path has <personal-boundary>
       When the builder runs `safeword project test-execution status` and then `safeword project test --lane done`
       Then <personal-contract>
       Examples:
         | personal-boundary | personal-contract |
         | no file | status exits zero with personal source `absent`, the project mode remains effective, and the test request follows it |
-        | exact regular JSON file `{"schemaVersion":1,"testExecution":"local"}` below the resolved namespace root | status exits zero naming that exact origin and local wins without changing project bytes |
+        | exact regular JSON file `{"testExecution":"local"}` in the project Safeword directory | status exits zero naming that exact origin and local wins without changing project bytes |
         | malformed JSON | both commands exit nonzero with SAFEWORD_TEST_EXECUTION_INVALID, name the exact personal origin, send no dispatch, run no local plan and mutate nothing |
         | duplicate raw keys | both commands exit nonzero with SAFEWORD_TEST_EXECUTION_INVALID, name the exact personal origin, send no dispatch, run no local plan and mutate nothing |
         | an unknown key | both commands exit nonzero with SAFEWORD_TEST_EXECUTION_INVALID, name the exact personal origin, send no dispatch, run no local plan and mutate nothing |
         | a missing required key | both commands exit nonzero with SAFEWORD_TEST_EXECUTION_INVALID, name the exact personal origin, send no dispatch, run no local plan and mutate nothing |
-        | a wrong JSON type for `schemaVersion` or `testExecution` | both commands exit nonzero with SAFEWORD_TEST_EXECUTION_INVALID, name the exact personal origin, send no dispatch, run no local plan and mutate nothing |
-        | wrong schema version | both commands exit nonzero with SAFEWORD_TEST_EXECUTION_INVALID, name the exact personal origin, send no dispatch, run no local plan and mutate nothing |
+        | a wrong JSON type for `testExecution` | both commands exit nonzero with SAFEWORD_TEST_EXECUTION_INVALID, name the exact personal origin, send no dispatch, run no local plan and mutate nothing |
+        | an obsolete schema-version key | both commands exit nonzero with SAFEWORD_TEST_EXECUTION_INVALID, name the exact personal origin, send no dispatch, run no local plan and mutate nothing |
         | mode outside `local\|remote-preferred` | both commands exit nonzero with SAFEWORD_TEST_EXECUTION_INVALID, name the exact personal origin, send no dispatch, run no local plan and mutate nothing |
         | a file of exactly 65537 bytes | both commands fail closed with SAFEWORD_TEST_EXECUTION_INVALID before execution or mutation |
         | an unreadable regular file | both commands fail closed with SAFEWORD_TEST_EXECUTION_INVALID before execution or mutation |
@@ -53,7 +53,7 @@ Feature: Configure remote verification for a project
         | a special file | both commands fail closed with SAFEWORD_TEST_EXECUTION_INVALID before execution or mutation |
         | a symlink | both commands fail closed with SAFEWORD_TEST_EXECUTION_INVALID without following the unsafe object, execution or mutation |
         | a hard link with link count above one | both commands fail closed with SAFEWORD_TEST_EXECUTION_INVALID without overwriting the alias, execution or mutation |
-        | a path escaping the resolved namespace root | both commands fail closed with SAFEWORD_TEST_EXECUTION_INVALID without reading outside the namespace root, execution or mutation |
+        | a path escaping the project Safeword directory | both commands fail closed with SAFEWORD_TEST_EXECUTION_INVALID without reading outside the project Safeword directory, execution or mutation |
         | the leaf is replaced between classification and open | the pinned-object identity check fails both commands closed with SAFEWORD_TEST_EXECUTION_INVALID, zero execution and zero mutation |
         | the leaf identity changes between open, read and final verification | the pinned-object identity check fails both commands closed with SAFEWORD_TEST_EXECUTION_INVALID, zero execution and zero mutation |
         | a parent directory is replaced between resolution, child open and final verification | the pinned-parent identity check fails both commands closed with SAFEWORD_TEST_EXECUTION_INVALID, zero execution and zero mutation |
@@ -110,9 +110,9 @@ Feature: Configure remote verification for a project
 
     @public-cli @surface.safeword-cli
     Scenario: Setup gitignores personal configuration without overwriting authored ignore rules
-      Given the resolved namespace root has byte-recorded authored ignore rules and may use the default, legacy or custom configured path
+      Given the project root has byte-recorded authored ignore rules
       When `safeword setup` runs twice
-      Then the first run adds one anchored `/personal/` ignore entry without changing authored lines
+      Then the first run adds one `.safeword/config.local.json` ignore entry without changing authored lines
       And the second run is byte-idempotent and creates no personal directory or config file
       And an already tracked personal file is preserved while status warns that it is not private
 

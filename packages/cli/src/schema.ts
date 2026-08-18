@@ -322,6 +322,7 @@ const NAMESPACE_TRANSIENT_BASENAMES: readonly string[] = [
  */
 export const SAFEWORD_TRANSIENT_PATHS: readonly string[] = [
   '.safeword/.update-cache.json',
+  '.safeword/config.local.json',
   '.safeword/retro-drafts/',
   '.safeword/self-reports/',
   '.safeword/boundary-audit.jsonl',
