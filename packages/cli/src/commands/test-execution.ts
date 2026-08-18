@@ -137,6 +137,67 @@ interface ExecutionRequest {
   readonly commandMode?: ExecutionMode;
 }
 
+function emptyPlanResult(
+  lane: ExecutionRequest['lane'],
+  effective: ResolvedExecutionMode,
+  planKind: PlanKind,
+  decision: ReturnType<typeof executionDecision>,
+  execution: PlanExecution,
+): CliResult {
+  return createResult({
+    state: 'action_required',
+    exitCode: 2,
+    findings: [
+      {
+        code: 'SAFEWORD_TEST_PLAN_EMPTY',
+        message: 'No runnable test plan was found; configure a supported project test command.',
+        severity: 'warning',
+      },
+    ],
+    data: {
+      command: 'project test',
+      lane,
+      effective,
+      ...decision.data,
+      planKind,
+      ...execution,
+    },
+  });
+}
+
+function successfulExecutionResult(
+  lane: ExecutionRequest['lane'],
+  effective: ResolvedExecutionMode,
+  planKind: PlanKind,
+  decision: ReturnType<typeof executionDecision>,
+  execution: PlanExecution,
+): CliResult {
+  if (execution.executed === 0) {
+    return emptyPlanResult(lane, effective, planKind, decision, execution);
+  }
+  return createResult({
+    state: 'healthy',
+    effects: TEST_COMMAND_EFFECTS,
+    findings: [
+      {
+        code: 'SAFEWORD_TEST_EXECUTION_SELECTED',
+        message: decision.fallbackUsed
+          ? `Remote execution from ${effective.source} is unavailable; used the local plan before dispatch.`
+          : `Test execution used ${effective.mode} mode from ${effective.source}.`,
+        severity: 'info',
+      },
+    ],
+    data: {
+      command: 'project test',
+      lane,
+      effective,
+      ...decision.data,
+      planKind,
+      ...execution,
+    },
+  });
+}
+
 function executionModeValues(value: unknown): unknown[] {
   if (value === undefined) return [];
   return Array.isArray(value) ? value : [value];
@@ -212,27 +273,7 @@ export function runProjectTests(
     });
   }
 
-  return createResult({
-    state: 'healthy',
-    effects: TEST_COMMAND_EFFECTS,
-    findings: [
-      {
-        code: 'SAFEWORD_TEST_EXECUTION_SELECTED',
-        message: decision.fallbackUsed
-          ? `Remote execution from ${effective.source} is unavailable; used the local plan before dispatch.`
-          : `Test execution used ${effective.mode} mode from ${effective.source}.`,
-        severity: 'info',
-      },
-    ],
-    data: {
-      command: 'project test',
-      lane,
-      effective,
-      ...decision.data,
-      planKind,
-      ...execution,
-    },
-  });
+  return successfulExecutionResult(lane, effective, planKind, decision, execution);
 }
 
 export function observeTestExecutionStatus(cwd: string): CliResult {
