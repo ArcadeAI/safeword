@@ -13720,6 +13720,13 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
     },
     managedFiles: {
       ".jscpd.json": { template: ".jscpd.json" },
+      ".github/workflows/safeword-remote-tests.yml": {
+        template: "workflows/remote-tests.yml",
+        generator: () => {
+          return;
+        },
+        dogfoodParity: true
+      },
       ...CODEX_RUNTIME_ASSETS,
       "features/safeword-lane.feature": bddLaneFile("cucumber/safeword-lane.feature"),
       "steps/world.ts": bddLaneFile("cucumber/world.ts"),
