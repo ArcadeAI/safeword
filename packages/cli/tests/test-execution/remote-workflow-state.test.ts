@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -12,6 +12,14 @@ import { classifyRemoteWorkflow } from '../../src/test-execution/remote-workflow
 
 const WORKFLOW_PATH = '.github/workflows/safeword-tests.yml';
 const bundled = 'name: Safeword tests\n';
+const releasedV1 = readFileSync(
+  nodePath.join(process.cwd(), 'tests', 'fixtures', 'remote-workflow-v1.yml'),
+  'utf8',
+);
+const currentWorkflow = readFileSync(
+  nodePath.join(process.cwd(), 'templates', 'workflows', 'remote-tests.yml'),
+  'utf8',
+);
 const roots: string[] = [];
 // eslint-disable-next-line unicorn/no-null -- JSON output deliberately represents no action with null.
 const NONE = null;
@@ -58,6 +66,17 @@ describe('remote workflow ownership classification', () => {
     if (content !== undefined) writeWorkflow(root, content);
 
     expect(classifyRemoteWorkflow(root, bundled)).toEqual({ state, affectedPath, nextAction });
+  });
+
+  it('recognizes the exact released predecessor as managed and outdated', () => {
+    const root = fixture();
+    writeWorkflow(root, releasedV1);
+
+    expect(classifyRemoteWorkflow(root, currentWorkflow)).toEqual({
+      state: 'managed_outdated',
+      affectedPath: WORKFLOW_PATH,
+      nextAction: 'upgrade_remote_tests',
+    });
   });
 
   it('reports the first unsafe path component without following it', () => {
@@ -159,16 +178,11 @@ describe('remote workflow ownership classification', () => {
     },
   );
 
-  it('classifies an implausible byte length without reading the file', () => {
+  it('classifies different-length customer bytes', () => {
     const root = fixture();
     writeWorkflow(root, 'x');
-    const filesystem = withFilesystem({
-      read: () => {
-        throw failure('read should not run');
-      },
-    });
 
-    expect(classifyRemoteWorkflow(root, bundled, filesystem)).toEqual({
+    expect(classifyRemoteWorkflow(root, bundled)).toEqual({
       state: 'customer_owned',
       affectedPath: WORKFLOW_PATH,
       nextAction: 'move_aside_and_repeat',

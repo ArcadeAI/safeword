@@ -23,6 +23,14 @@ import {
 import { REMOTE_WORKFLOW_PATH } from '../../src/test-execution/remote-workflow-state';
 
 const bundled = 'name: Safeword tests\n';
+const releasedV1 = readFileSync(
+  nodePath.join(process.cwd(), 'tests', 'fixtures', 'remote-workflow-v1.yml'),
+  'utf8',
+);
+const currentWorkflow = readFileSync(
+  nodePath.join(process.cwd(), 'templates', 'workflows', 'remote-tests.yml'),
+  'utf8',
+);
 const roots: string[] = [];
 // eslint-disable-next-line unicorn/no-null -- Public lifecycle data represents no action with null.
 const NONE = null;
@@ -83,6 +91,19 @@ describe('remote workflow lifecycle', () => {
       nextAction: NONE,
       effectiveMode: 'remote-preferred',
     });
+  });
+
+  it('atomically upgrades the exact released predecessor', () => {
+    const root = fixture();
+    writeWorkflow(root, releasedV1);
+
+    expect(setupRemoteWorkflow(root, currentWorkflow, 'remote-preferred')).toMatchObject({
+      ok: true,
+      changed: true,
+      state: 'current',
+      effectiveMode: 'remote-preferred',
+    });
+    expect(readFileSync(workflowPath(root), 'utf8')).toBe(currentWorkflow);
   });
 
   it('preserves a customer workflow during setup and disable', () => {

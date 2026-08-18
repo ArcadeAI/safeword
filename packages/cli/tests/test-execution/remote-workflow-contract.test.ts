@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -12,6 +13,10 @@ const dogfoodWorkflow = readFileSync(
   nodePath.join(process.cwd(), '..', '..', '.github', 'workflows', 'safeword-remote-tests.yml'),
   'utf8',
 );
+const releasedV1 = readFileSync(
+  nodePath.join(process.cwd(), 'tests', 'fixtures', 'remote-workflow-v1.yml'),
+  'utf8',
+);
 
 function replace(from: string | RegExp, to: string): string {
   const candidate = workflow.replace(from, () => to);
@@ -20,6 +25,12 @@ function replace(from: string | RegExp, to: string): string {
 }
 
 describe('remote workflow contract', () => {
+  it('preserves the released v1 workflow identity', () => {
+    expect(createHash('sha256').update(releasedV1).digest('hex')).toBe(
+      'ee9b263ac749f74cfa4423f4a8930f03a357e2d823c4ac271517e81c98fecd27',
+    );
+  });
+
   it('accepts the schema-catalogued bundled workflow', () => {
     const definition = SAFEWORD_SCHEMA.managedFiles['.github/workflows/safeword-remote-tests.yml'];
 
@@ -31,13 +42,9 @@ describe('remote workflow contract', () => {
     expect(evaluateRemoteTestWorkflow(dogfoodWorkflow)).toEqual({ accepted: true, violations: [] });
   });
 
-  it('installs the checked-out project dependencies before running tests', () => {
-    expect(workflow).toContain(
-      '      - name: Install project dependencies\n        run: bun install --frozen-lockfile',
-    );
-    expect(workflow.indexOf('Install project dependencies')).toBeLessThan(
-      workflow.indexOf('Run requested test lane'),
-    );
+  it('delegates project preparation to Safeword configuration', () => {
+    expect(workflow).toContain('project test --lane "$LANE" --execution local --prepare-remote');
+    expect(workflow).not.toContain('bun install --frozen-lockfile');
   });
 
   it.each([
@@ -103,8 +110,8 @@ describe('remote workflow contract', () => {
     ],
     [
       'uses a local action',
-      'oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6',
-      './setup-bun',
+      'actions/setup-node@820762786026740c76f36085b0efc47a31fe5020',
+      './setup-node',
       'remote_actions_only',
     ],
     [
@@ -127,8 +134,8 @@ describe('remote workflow contract', () => {
     ],
     [
       'injects an expression into shell',
-      'run: bunx safeword@0.78.3',
-      'run: echo "${{ inputs.lane }}" && bunx safeword@0.78.3',
+      'run: npx --yes safeword@0.78.6',
+      'run: echo "${{ inputs.lane }}" && npx --yes safeword@0.78.6',
       'shell_env_only',
     ],
     [
@@ -136,12 +143,6 @@ describe('remote workflow contract', () => {
       'project test --lane "$LANE" --execution local',
       'project test --lane full --execution local',
       'fixed_test_command',
-    ],
-    [
-      'changes the dependency install command',
-      'bun install --frozen-lockfile',
-      'bun install',
-      'fixed_dependency_install',
     ],
     [
       'fabricates the verified revision',
@@ -212,7 +213,7 @@ describe('remote workflow contract', () => {
 
   it('rejects a candidate that runs tests before revision verification', () => {
     const candidate = workflow.replace(
-      /( {6}- name: Verify checked-out revision[\s\S]*?)( {6}- name: Set up Bun[\s\S]*?)(?= {6}- name: Write remote test result)/u,
+      /( {6}- name: Verify checked-out revision[\s\S]*?)( {6}- name: Set up Safeword runtime[\s\S]*?)(?= {6}- name: Write remote test result)/u,
       (_match, verify: string, tests: string) => `${tests}${verify}`,
     );
 
