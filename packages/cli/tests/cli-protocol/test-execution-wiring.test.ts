@@ -329,8 +329,11 @@ describe('test execution CLI wiring', () => {
       changed: false,
       data: {
         command: 'project test-execution remote status',
-        // eslint-disable-next-line unicorn/no-null -- JSON lifecycle protocol uses null for no path/action.
-        workflow: { state: 'not_installed', affectedPath: null, nextAction: null },
+        workflow: {
+          state: 'not_installed',
+          affectedPath: '.github/workflows/safeword-tests.yml',
+          nextAction: 'install_remote_tests',
+        },
       },
     });
   });

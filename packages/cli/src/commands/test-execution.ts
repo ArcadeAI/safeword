@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { type CliResult, createResult } from '../cli-protocol/result.js';
@@ -11,7 +12,9 @@ import {
   type ResolvedExecutionMode,
   resolveExecutionMode,
 } from '../test-execution/mode.js';
+import { classifyRemoteWorkflow } from '../test-execution/remote-workflow-state.js';
 import { type PlanEntry, type PlanKind, resolveTestPlan } from '../test-plan/resolve.js';
+import { getTemplatesDirectory } from '../utils/fs.js';
 
 const REMOTE_EXECUTION_AVAILABLE = false;
 const JSON_RUNNER_OUTPUT_LIMIT_BYTES = 16 * 1024 * 1024;
@@ -257,5 +260,34 @@ export function observeTestExecutionStatus(cwd: string): CliResult {
         { source: 'built-in', mode: 'local' },
       ],
     },
+  });
+}
+
+function bundledRemoteWorkflow(): string {
+  return readFileSync(
+    nodePath.join(getTemplatesDirectory(), 'workflows', 'remote-tests.yml'),
+    'utf8',
+  );
+}
+
+export function observeRemoteWorkflowStatus(cwd: string): CliResult {
+  const workflow = classifyRemoteWorkflow(cwd, bundledRemoteWorkflow());
+  if (workflow.state === 'failed') {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'REMOTE_WORKFLOW_RETRY',
+          message: `Safeword could not confirm the workflow path state at ${workflow.path}; run the command again.`,
+          retryable: true,
+          detail: workflow.code,
+        },
+      ],
+      data: { command: 'project test-execution remote status' },
+    });
+  }
+  return createResult({
+    state: 'healthy',
+    data: { command: 'project test-execution remote status', workflow },
   });
 }

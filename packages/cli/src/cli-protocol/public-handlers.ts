@@ -633,6 +633,11 @@ async function testExecutionStatusHandler(invocation: CommandInvocation): Promis
   return observeTestExecutionStatus(invocation.cwd);
 }
 
+async function remoteWorkflowStatusHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const { observeRemoteWorkflowStatus } = await import('../commands/test-execution.js');
+  return observeRemoteWorkflowStatus(invocation.cwd);
+}
+
 async function projectTestHandler(invocation: CommandInvocation): Promise<CliResult> {
   if (invocation.offline) return onlineRequired('project test');
   const { runProjectTests } = await import('../commands/test-execution.js');
@@ -2119,6 +2124,7 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'project test-plan': testPlanHandler,
   'project test': projectTestHandler,
   'project test-execution status': testExecutionStatusHandler,
+  'project test-execution remote status': remoteWorkflowStatusHandler,
   'project lint-gherkin': lintGherkinHandler,
   'tracker sync': invocation => trackerHandler('tracker sync', invocation),
   'tracker connect': invocation => trackerHandler('tracker connect', invocation),

@@ -301,6 +301,12 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       syntax: 'status',
     },
   ),
+  command(
+    'project test-execution remote status',
+    'Show managed remote-test workflow status',
+    'observe',
+    { syntax: 'status' },
+  ),
   command('project lint-gherkin', 'Validate executable feature files', 'observe', {
     syntax: 'lint-gherkin [files...]',
   }),
