@@ -2,7 +2,7 @@
 id: HWZZJ8
 slug: manage-remote-test-workflows-without-overwriting-customers
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 scope:
   - Ownership classification, status, explicit first-time setup, and disable for one managed workflow
@@ -44,4 +44,5 @@ last_modified: 2026-08-12T03:13:59.777Z
 - 2026-08-16T00:00:00-07:00 Simplified after independent review: installation now manages one workflow and never changes execution preference, removing the need for an installed-state sidecar, Git lock, journal, receipt, or custom transaction protocol.
 - 2026-08-16T20:50:00-07:00 Plan review defined permanent publication failures, the shared filesystem seam, parent/residue preservation, and the uninstall notice; GRDXXA admission remains the release dependency for provisional workflow bytes.
 - 2026-08-16T21:52:00-07:00 Implementation started with retained proofs: `2a1d50257` verifies exclusive same-directory publication preserves a concurrently appearing customer workflow; `fc8cdf160` → `bfc3bb958` records RED/GREEN ownership classification for missing, current LF/CRLF, customer-owned, and symlinked paths. Typecheck, targeted tests, lint, and diff checks pass. Final bundled bytes remain gated on BR373S's trusted pre-check runner and GRDXXA admission; lifecycle work can continue against injected candidate bytes without public wiring.
-- 2026-08-16T22:31:00-07:00 Completed the internal lifecycle slice through retained RED/GREEN commits `2e0057dab` → `26b40a457`, `b91ef8561` → `87e725b54`, and `510dea808` → `659dd8ef4`. Setup/disable now preserve customer bytes across publication and final-unlink races, report inert private residue without masking the primary result, and distinguish ENOENT convergence from permanent removal failure (`49cb4c1f1`). All 15 focused workflow tests, package typecheck, targeted lint, and diff checks pass. Public schema/template registration and CLI wiring remain intentionally blocked until BR373S supplies the trusted pre-check runner and GRDXXA admits those exact bytes.
+- 2026-08-16T22:31:00-07:00 Completed the internal lifecycle slice through retained RED/GREEN commits `2e0057dab` → `26b40a457`, `b91ef8561` → `87e725b54`, and `510dea808` → `659dd8ef4`. Setup preserves customer bytes at exclusive publication, lifecycle results report inert private residue without masking the primary result, and disable distinguishes ENOENT convergence from permanent removal failure (`49cb4c1f1`). All 15 focused workflow tests, package typecheck, targeted lint, and diff checks pass. Public schema/template registration and CLI wiring remain intentionally blocked until BR373S supplies the trusted pre-check runner and GRDXXA admits those exact bytes.
+- 2026-08-18 Public lifecycle wiring completed for status, setup, and disable. Project configuration now owns an optional stack-neutral remote setup command; personal configuration can override only local versus remote preference. Released-v1 migration is implemented under FFXB81. Focused verification passed (6 files, 115 tests); independent quality re-review is in progress.

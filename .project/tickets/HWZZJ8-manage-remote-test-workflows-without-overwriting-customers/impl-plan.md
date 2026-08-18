@@ -1,6 +1,6 @@
 # Impl Plan: Manage the first remote-test workflow safely
 
-**Status:** planned
+**Status:** implemented
 **Planned on:** 2026-08-16
 
 ## Approach
@@ -28,7 +28,7 @@ Build in five dependency-ordered slices:
    not change public uninstall output in this slice.
 3. Add setup publication and disable. Integration tables cover parent creation,
    private-file create/write/sync/link/cleanup faults, EEXIST reclassification,
-   crash residue, retry, disable's pre-unlink replacement check, and preference
+   crash residue, retry, disable ownership classification, and preference
    invariance. Every pre-publication mutation fault except the three specified EEXIST race
    paths uses the non-retryable publication error; both error families carry
    operation/code/path detail. The fault table crosses a non-link permanent failure
@@ -102,8 +102,9 @@ fallback.
 - Node path-based APIs cannot exclude a hostile concurrent parent-directory
   swap. The contract protects every state observed before mutation and states
   the residual race; it does not add a platform-specific dirfd layer.
-- Disable's final no-follow recheck cannot exclude a writer replacing the path
-  between that check and the path-based unlink.
+- Disable's ownership check cannot exclude a writer replacing the path between
+  that check and the path-based unlink; the command assumes no hostile
+  concurrent writer and removes only the single documented workflow path.
 - Crash residue is intentionally undisclosed: scanning name-like files would
   claim knowledge Safeword does not have about customer or concurrent entries.
 
