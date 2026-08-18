@@ -338,6 +338,48 @@ describe('test execution CLI wiring', () => {
     });
   });
 
+  it('installs the managed remote workflow without changing execution preference', async () => {
+    const directory = createTemporaryDirectory();
+    const safewordDirectory = nodePath.join(directory, '.safeword');
+    const bundledWorkflow = readFileSync(
+      nodePath.join(process.cwd(), 'templates/workflows/remote-tests.yml'),
+      'utf8',
+    );
+    mkdirSync(safewordDirectory, { recursive: true });
+    const projectConfig = JSON.stringify({ testExecution: 'remote-preferred' });
+    writeFileSync(nodePath.join(safewordDirectory, 'config.json'), projectConfig);
+
+    const result = await runCli(
+      [
+        'project',
+        'test-execution',
+        'remote',
+        'setup',
+        '--json',
+        '--no-input',
+        '--offline',
+        '--cwd',
+        directory,
+      ],
+      { cwd: directory },
+    );
+
+    expect(result).toMatchObject({ exitCode: 0, stderr: '' });
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'changed',
+      data: {
+        command: 'project test-execution remote setup',
+        workflow: { state: 'current', changed: true, effectiveMode: 'remote-preferred' },
+      },
+    });
+    expect(
+      readFileSync(nodePath.join(directory, '.github', 'workflows', 'safeword-tests.yml'), 'utf8'),
+    ).toBe(bundledWorkflow);
+    expect(readFileSync(nodePath.join(safewordDirectory, 'config.json'), 'utf8')).toBe(
+      projectConfig,
+    );
+  });
+
   it('uses a valid private preference without changing the shared project config', async () => {
     const directory = createTemporaryDirectory();
     initializePrivateConfigRepo(directory);
