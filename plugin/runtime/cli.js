@@ -13962,7 +13962,8 @@ ${durableNamespaceDirectories(ctx).map((dir) => `${dir}/`).join(`
     ".safeword/skills",
     ".safeword/scripts",
     ".safeword/guides",
-    ".safeword/templates"
+    ".safeword/templates",
+    ".safeword/statusline"
   ];
 });
 
@@ -34231,13 +34232,16 @@ var init_delivery_schema2 = __esm(() => {
 });
 
 // src/lifecycle/schema.ts
+function isLegacyClaudePath(path4) {
+  return path4.startsWith(".claude/");
+}
 function projectLifecycleSchema(cwd, agents) {
   const deliverySchema = schemaForCodexDelivery(cwd, schemaForClaudeDelivery(cwd));
   const surfaceSchema = schemaForProjectSurfaces(deliverySchema, [
     "core",
     ...agents.includes("cursor") ? ["cursor"] : []
   ]);
-  const legacyClaudeActive = Object.keys(deliverySchema.ownedFiles).some((path4) => path4.startsWith(".claude/"));
+  const legacyClaudeActive = Object.keys(deliverySchema.ownedFiles).some((path4) => isLegacyClaudePath(path4)) || Object.keys(deliverySchema.jsonMerges).some((path4) => isLegacyClaudePath(path4));
   return schemaForSharedAgentRuntime(surfaceSchema, agents.length === 0 || agents.includes("codex") || agents.includes("cursor") || legacyClaudeActive);
 }
 var init_schema2 = __esm(() => {

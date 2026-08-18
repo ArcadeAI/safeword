@@ -1631,9 +1631,12 @@ const SHARED_AGENT_RUNTIME_ROOTS = [
   '.safeword/scripts',
   '.safeword/guides',
   '.safeword/templates',
+  // Imports from .safeword/hooks/lib/* (namespace-root, re-entry) — dead
+  // without the hooks tree it depends on, so it belongs in the same bucket.
+  '.safeword/statusline',
 ];
 
-/** `.safeword/{hooks,skills,scripts,guides,templates}` (any depth). */
+/** `.safeword/{hooks,skills,scripts,guides,templates,statusline}` (any depth). */
 export function isSharedAgentRuntimePath(path: string): boolean {
   return SHARED_AGENT_RUNTIME_ROOTS.some(root => path === root || path.startsWith(`${root}/`));
 }
