@@ -313,6 +313,12 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     'mutate',
     { syntax: 'setup' },
   ),
+  command(
+    'project test-execution remote disable',
+    'Remove the managed remote-test workflow',
+    'destructive',
+    { syntax: 'disable' },
+  ),
   command('project lint-gherkin', 'Validate executable feature files', 'observe', {
     syntax: 'lint-gherkin [files...]',
   }),

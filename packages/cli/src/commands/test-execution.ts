@@ -13,6 +13,7 @@ import {
   resolveExecutionMode,
 } from '../test-execution/mode.js';
 import {
+  disableRemoteWorkflow,
   type RemoteWorkflowLifecycleResult,
   setupRemoteWorkflow,
 } from '../test-execution/remote-workflow-lifecycle.js';
@@ -356,5 +357,36 @@ export function setupManagedRemoteWorkflow(cwd: string): CliResult {
       },
     ],
     data: { command: 'project test-execution remote setup', workflow },
+  });
+}
+
+export function disableManagedRemoteWorkflow(cwd: string): CliResult {
+  const workflow = disableRemoteWorkflow(cwd, bundledRemoteWorkflow());
+  if (!workflow.ok) return lifecycleFailure('project test-execution remote disable', workflow);
+  return createResult({
+    state: workflow.changed ? 'changed' : 'healthy',
+    effects: workflow.changed
+      ? {
+          destructive: [
+            {
+              kind: 'delete',
+              target: '.github/workflows/safeword-tests.yml',
+              operation: 'remove managed workflow',
+            },
+          ],
+        }
+      : undefined,
+    findings:
+      workflow.state === 'customer_owned'
+        ? [
+            {
+              code: 'REMOTE_WORKFLOW_CUSTOMER_OWNED',
+              message:
+                'No Safeword workflow is installed at this path; the existing workflow is yours and was left unchanged.',
+              severity: 'info',
+            },
+          ]
+        : [],
+    data: { command: 'project test-execution remote disable', workflow },
   });
 }
