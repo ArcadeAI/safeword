@@ -1,6 +1,7 @@
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import {
   CODEX_RESTART_ACTION,
+  CODEX_REVIEW_THEN_RESTART_ACTION,
   codexPluginVersionMatchesPackage,
 } from '../codex-plugin/migration.js';
 import { installCodexPlugin, observeCodexMigrationResult } from '../codex-plugin/operations.js';
@@ -31,8 +32,8 @@ const SLEEP_BUFFER = new Int32Array(new SharedArrayBuffer(Int32Array.BYTES_PER_E
 const RETRY_COMMAND = 'bunx --bun safeword@latest codex install';
 const UNVERIFIED_PROTECTION =
   'SAFEWORD PROTECTION IS UNVERIFIED IN THIS TASK. You can continue working, but current protection is unknown.';
-const PROFILE_RESTART_REQUIRED = `Safeword is installed for your Codex profile, but this task has not verified the installed update. An older Safeword runtime may still be loaded. ${CODEX_RESTART_ACTION} before relying on the installed update.`;
-const OBSERVED_PROFILE_RESTART_REQUIRED = `Safeword is installed for your Codex profile, but this task has not verified the installed update. ${CODEX_RESTART_ACTION} before relying on the installed update.`;
+const PROFILE_RESTART_REQUIRED = `Safeword is installed for your Codex profile, but this task has not verified the installed update. An older Safeword runtime may still be loaded. ${CODEX_REVIEW_THEN_RESTART_ACTION} before relying on the installed update.`;
+const OBSERVED_PROFILE_RESTART_REQUIRED = `Safeword is installed for your Codex profile, but this task has not verified the installed update. ${CODEX_REVIEW_THEN_RESTART_ACTION} before relying on the installed update.`;
 const PROFILE_MARKER_REPAIR_REQUIRED = `Safeword is installed for your Codex profile, but its activation marker could not be verified. Repair the profile once with: ${RETRY_COMMAND}`;
 const PROFILE_MARKER_VERSION_REPAIR_REQUIRED = `Safeword is installed for your Codex profile, but its activation marker belongs to a different Safeword version. Repair the profile once with: ${RETRY_COMMAND}`;
 const PROFILE_IDENTITY_UNAVAILABLE =
@@ -41,7 +42,7 @@ const OBSERVED_RUNTIME =
   "Safeword protection from this task's previously loaded runtime was observed.";
 const PROFILE_PROOF_UNVERIFIED =
   'Safeword is installed for your Codex profile, but exact SessionStart proof for this task is not yet available. This evidence alone does not establish that a restart is required.';
-const INSTALL_COMPLETED_RESTART_REQUIRED = `Safeword was installed for your Codex profile, but the newly installed runtime is not active in this already-open task. ${CODEX_RESTART_ACTION} before relying on the installed version.`;
+const INSTALL_COMPLETED_RESTART_REQUIRED = `Safeword was installed for your Codex profile, but the newly installed runtime is not active in this already-open task. ${CODEX_REVIEW_THEN_RESTART_ACTION} before relying on the installed version.`;
 
 type ProfileCurrency = 'current' | 'needs-install' | 'unverified';
 

@@ -342,7 +342,7 @@ Then(
     assert.deepEqual(status.next_actions[0], {
       kind: 'human',
       instruction:
-        'Fully restart Codex, then resume this task and review the installed hooks with /hooks.',
+        'Review the installed hooks in Codex Desktop under Settings > Hooks (or with /hooks in the terminal TUI). Fully restart Codex, then resume this task.',
       mutates: false,
       requires_human: true,
     });
@@ -405,7 +405,7 @@ Then(
 Then(
   'the output recommends restarting Codex and reviewing hooks',
   function (this: ContinuityStatusWorld) {
-    assert.match(this.codexStatusOutput ?? '', /Fully restart Codex.+resume.+review.+\/hooks/isu);
+    assert.match(this.codexStatusOutput ?? '', /review.+\/hooks.+Fully restart Codex.+resume/isu);
   },
 );
 
