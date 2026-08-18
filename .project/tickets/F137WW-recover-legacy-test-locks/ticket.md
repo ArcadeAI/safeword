@@ -3,10 +3,10 @@ id: F137WW
 slug: recover-legacy-test-locks
 type: patch
 subtype: bug-investigated
-phase: verify
-status: in_progress
+phase: done
+status: done
 created: 2026-08-13T06:22:02.946Z
-last_modified: 2026-08-13T10:03:30.000Z
+last_modified: 2026-08-13T14:01:18.000Z
 ---
 
 # Let test queues recover locks created by older runners
@@ -53,3 +53,4 @@ must retain that behavior and must not treat foreign `kind` values as legacy.
 - 2026-08-13T09:55:30.000Z Quality review: Transition recovery markers now carry their own PID/token identity, never expire while that PID is alive, and are renamed only by their owner before deletion. Added a live-but-aged marker regression. Snapshot cleanup now tolerates concurrently disappearing entries and only reaps snapshots older than six hours, preventing runs with divergent custom lock paths from deleting each other's fresh snapshots. Final lock suite passes 48/48; TypeScript, ESLint, Prettier, whitespace, and dependency audit are clean.
 - 2026-08-13T09:57:30.000Z Quality review: Moved the Windows runner rewrite behind a pure platform-injectable collaborator and directly proved Path-key selection, the literal Vitest command guard, Node executable selection, and module-before-test argument ordering on POSIX CI. Final lock suite remains 48/48; TypeScript, ESLint, Prettier, and whitespace checks are clean.
 - 2026-08-13T10:03:30.000Z Quality review: Default-namespace residue recognition now admits only Safeword's `owner.json` and `recovery` entries, allowing the owned recovery-marker logic to unwind a crash between marker creation and transition-owner publication. Added the exact truncated-owner plus abandoned-marker subprocess regression. Final lock suite passes 49/49; TypeScript, ESLint, Prettier, whitespace, and dependency audit are clean.
+- 2026-08-13T14:01:18.000Z Complete: GitHub issue #2674 closed through merged PR #2761 at head `34bb17102be599f92b6b0dc891d8324d30619994`; merge commit `4fb3c49aeace043fb7847175538ea969220eed7d` is on `main`.
