@@ -13744,6 +13744,13 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
     },
     managedFiles: {
       ".jscpd.json": { template: ".jscpd.json" },
+      ".github/workflows/safeword-remote-tests.yml": {
+        template: "workflows/remote-tests.yml",
+        generator: () => {
+          return;
+        },
+        dogfoodParity: true
+      },
       ...CODEX_RUNTIME_ASSETS,
       "features/safeword-lane.feature": bddLaneFile("cucumber/safeword-lane.feature"),
       "steps/world.ts": bddLaneFile("cucumber/world.ts"),
@@ -34231,7 +34238,7 @@ function projectLifecycleSchema(cwd, agents) {
     ...agents.includes("cursor") ? ["cursor"] : []
   ]);
   const legacyClaudeActive = Object.keys(deliverySchema.ownedFiles).some((path4) => path4.startsWith(".claude/"));
-  return schemaForSharedAgentRuntime(surfaceSchema, agents.includes("codex") || agents.includes("cursor") || legacyClaudeActive);
+  return schemaForSharedAgentRuntime(surfaceSchema, agents.length === 0 || agents.includes("codex") || agents.includes("cursor") || legacyClaudeActive);
 }
 var init_schema2 = __esm(() => {
   init_delivery_schema();
