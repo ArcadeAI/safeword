@@ -4,6 +4,12 @@ slug: protect-remote-test-runners
 type: feature
 phase: verify
 status: in_progress
+phase_anchors:
+  - define-behavior: .project/tickets/BR373S-protect-remote-test-runners/spec.md
+  - scenario-gate: packages/cli/features/run-requested-revision-remotely.feature
+  - plan-implementation: .project/tickets/BR373S-protect-remote-test-runners/impl-plan.md
+  - implement: packages/cli/src/test-execution/remote-workflow-contract.ts
+  - verify: .project/tickets/BR373S-protect-remote-test-runners/verify.md
 scope:
   - Exact requested-commit checkout and reporting
   - Validation of the requested done or full test lane
