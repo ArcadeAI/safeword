@@ -12,7 +12,7 @@ Feature: Manage remote-test workflows without overwriting customers
       Examples:
         | fixture | state | path | action |
         | the exact bundled workflow with CRLF line endings | `current` | `null` | `null` |
-        | the bundled workflow with one customer edit | `customer_owned` | `.github/workflows/safeword-tests.yml` | `move_aside_and_repeat` |
+        | the bundled workflow with one customer edit | `customer_owned` | `.github/workflows/safeword-remote-tests.yml` | `move_aside_and_repeat` |
         | installed under a symlinked `.github` whose target contains the exact bundled workflow | `unsafe_path` | `.github` | `repair_path_and_repeat` |
 
     @rejection
@@ -25,8 +25,8 @@ Feature: Manage remote-test workflows without overwriting customers
       And the snapshot, Safeword state, and execution preference remain identical
       Examples:
         | fixture | preference | state | path | action | sentence |
-        | customer-created bytes | `local` | `customer_owned` | `.github/workflows/safeword-tests.yml` | `move_aside_and_repeat` | “Safeword won't overwrite the differing workflow. Compare or move it aside, then run the command again.” |
-        | a destination symlink targeting an in-repository directory | `remote-preferred` | `unsafe_path` | `.github/workflows/safeword-tests.yml` | `repair_path_and_repeat` | “Repair the workflow path, then run the command again.” |
+        | customer-created bytes | `local` | `customer_owned` | `.github/workflows/safeword-remote-tests.yml` | `move_aside_and_repeat` | “Safeword won't overwrite the differing workflow. Compare or move it aside, then run the command again.” |
+        | a destination symlink targeting an in-repository directory | `remote-preferred` | `unsafe_path` | `.github/workflows/safeword-remote-tests.yml` | `repair_path_and_repeat` | “Repair the workflow path, then run the command again.” |
 
     Scenario Outline: Setup publishes a complete workflow without selecting remote execution
       Given the workflow and both managed parent directories are absent with preference <preference>
@@ -55,7 +55,7 @@ Feature: Manage remote-test workflows without overwriting customers
       And customer bytes appear at the destination before publication
       And the injected filesystem records publication attempts
       When setup attempts exclusive publication
-      Then it exits 2 with `customer_owned`, affected path `.github/workflows/safeword-tests.yml`, `move_aside_and_repeat`, and `REMOTE_WORKFLOW_CONFLICT`
+      Then it exits 2 with `customer_owned`, affected path `.github/workflows/safeword-remote-tests.yml`, `move_aside_and_repeat`, and `REMOTE_WORKFLOW_CONFLICT`
       And the customer bytes remain identical and no second publication is attempted
       And setup removes only the private entry created by this invocation
 
@@ -69,7 +69,7 @@ Feature: Manage remote-test workflows without overwriting customers
       Examples:
         | state | outcome |
         | `current` | exit 0 with `current`, unchanged destination bytes, and no private residue |
-        | `unsafe_path` | exit 2 with `unsafe_path`, affected path `.github/workflows/safeword-tests.yml`, `REMOTE_WORKFLOW_CONFLICT`, unchanged destination entry, and no private residue |
+        | `unsafe_path` | exit 2 with `unsafe_path`, affected path `.github/workflows/safeword-remote-tests.yml`, `REMOTE_WORKFLOW_CONFLICT`, unchanged destination entry, and no private residue |
         | `not_installed` | exit 2 with result-envelope state `failed`, retryable `REMOTE_WORKFLOW_RETRY`, no lifecycle data, and no private residue |
         | an indeterminate observation | exit 2 with result-envelope state `failed`, retryable `REMOTE_WORKFLOW_RETRY`, no lifecycle data, and no private residue |
 
@@ -166,7 +166,7 @@ Feature: Manage remote-test workflows without overwriting customers
       Examples:
         | observation | outcome | entry_result |
         | customer bytes | exit 0 with `customer_owned`, affected path `null`, and next action `null` | leaves the customer bytes identical |
-        | a destination symlink | exit 2 with `unsafe_path`, affected path `.github/workflows/safeword-tests.yml`, `repair_path_and_repeat`, and `REMOTE_WORKFLOW_CONFLICT` | leaves the symlink identical |
+        | a destination symlink | exit 2 with `unsafe_path`, affected path `.github/workflows/safeword-remote-tests.yml`, `repair_path_and_repeat`, and `REMOTE_WORKFLOW_CONFLICT` | leaves the symlink identical |
         | an indeterminate error | exit 2 with result-envelope state `failed`, retryable `REMOTE_WORKFLOW_RETRY`, and no lifecycle data | leaves the destination unchanged |
         | absence | exit 0 with `not_installed`, affected path `null`, and next action `null` | leaves the destination absent |
 
@@ -267,9 +267,9 @@ Feature: Manage remote-test workflows without overwriting customers
       And neither request changes repository, Safeword state, or execution preference
       Examples:
         | fixture | state | path | action |
-        | absent | `not_installed` | `.github/workflows/safeword-tests.yml` | `install_remote_tests` |
+        | absent | `not_installed` | `.github/workflows/safeword-remote-tests.yml` | `install_remote_tests` |
         | current | `current` | `null` | `null` |
-        | customer-owned | `customer_owned` | `.github/workflows/safeword-tests.yml` | `move_aside_and_repeat` |
+        | customer-owned | `customer_owned` | `.github/workflows/safeword-remote-tests.yml` | `move_aside_and_repeat` |
         | blocked because `.github/workflows` is a regular file | `unsafe_path` | `.github/workflows` | `repair_path_and_repeat` |
 
     Scenario Outline: Human status renders the corrective action plainly

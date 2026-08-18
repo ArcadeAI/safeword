@@ -31,6 +31,13 @@ describe('remote workflow contract', () => {
     );
   });
 
+  it('accepts ordinary CRLF checkout conversion', () => {
+    expect(evaluateRemoteTestWorkflow(workflow.replaceAll('\n', '\r\n'))).toEqual({
+      accepted: true,
+      violations: [],
+    });
+  });
+
   it('accepts the schema-catalogued bundled workflow', () => {
     const definition = SAFEWORD_SCHEMA.managedFiles['.github/workflows/safeword-remote-tests.yml'];
 
@@ -202,6 +209,12 @@ describe('remote workflow contract', () => {
       'references a secret after a literal brace',
       '    runs-on: ubuntu-latest',
       "    env:\n      TOKEN: ${{ format('{0}', secrets.TOKEN) }}\n    runs-on: ubuntu-latest",
+      'secret_free',
+    ],
+    [
+      'references the bare secrets context',
+      '    runs-on: ubuntu-latest',
+      '    env:\n      TOKEN: ${{ secrets }}\n    runs-on: ubuntu-latest',
       'secret_free',
     ],
   ])('rejects a candidate that %s', (_label, from, to, violation) => {

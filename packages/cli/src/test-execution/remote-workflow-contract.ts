@@ -246,7 +246,9 @@ function hasSecretsKey(value: unknown): boolean {
 }
 
 function hasSecretExpression(value: unknown): boolean {
-  if (typeof value === 'string') return /\$\{\{[\s\S]*\bsecrets\s*[.()[\]]/iu.test(value);
+  if (typeof value === 'string') {
+    return /\$\{\{[\s\S]*\bsecrets(?:\s*[.()[\]]|\s*\}\})/iu.test(value);
+  }
   if (Array.isArray(value)) return value.some(item => hasSecretExpression(item));
   const object = mapping(value);
   return object ? Object.values(object).some(child => hasSecretExpression(child)) : false;

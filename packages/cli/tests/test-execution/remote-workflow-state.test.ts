@@ -10,7 +10,7 @@ import {
 } from '../../src/test-execution/remote-workflow-fs';
 import { classifyRemoteWorkflow } from '../../src/test-execution/remote-workflow-state';
 
-const WORKFLOW_PATH = '.github/workflows/safeword-tests.yml';
+const WORKFLOW_PATH = '.github/workflows/safeword-remote-tests.yml';
 const bundled = 'name: Safeword tests\n';
 const releasedV1 = readFileSync(
   nodePath.join(process.cwd(), 'tests', 'fixtures', 'remote-workflow-v1.yml'),

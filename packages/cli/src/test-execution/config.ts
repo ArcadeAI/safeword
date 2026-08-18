@@ -107,6 +107,14 @@ function validateGitPrivacy(cwd: string, path: string): PersonalExecutionPrefere
   const tracked = spawnSync('git', ['-C', cwd, 'ls-files', '--error-unmatch', '--', relativePath], {
     stdio: 'ignore',
   });
+  if (
+    ignored.error !== undefined ||
+    tracked.error !== undefined ||
+    ignored.status === null ||
+    tracked.status === null
+  ) {
+    return { path, error: 'Git state could not be determined' };
+  }
   if (ignored.status !== 0 || tracked.status === 0) {
     return { path, error: 'must be Git-ignored and untracked' };
   }

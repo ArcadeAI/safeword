@@ -8,7 +8,7 @@ import {
   type RemoteWorkflowFs,
 } from './remote-workflow-fs.js';
 
-export const REMOTE_WORKFLOW_PATH = '.github/workflows/safeword-tests.yml';
+export const REMOTE_WORKFLOW_PATH = '.github/workflows/safeword-remote-tests.yml';
 
 export type RemoteWorkflowState =
   'not_installed' | 'current' | 'managed_outdated' | 'customer_owned' | 'unsafe_path';

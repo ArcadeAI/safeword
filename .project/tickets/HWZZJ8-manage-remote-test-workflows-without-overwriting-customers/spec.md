@@ -7,7 +7,7 @@ workflow without adopting or overwriting customer-owned CI.
 
 ## Boundary
 
-This feature manages one file: `.github/workflows/safeword-tests.yml`.
+This feature manages one file: `.github/workflows/safeword-remote-tests.yml`.
 Test-execution preference remains the separate S7TZF9 setting (`local` or
 `remote-preferred`); workflow setup and disable never change it. Existing test
 execution continues to fall back locally when remote execution is unavailable.
@@ -157,7 +157,7 @@ bytes it observes; it does not claim coordination with an arbitrary writer that
 changes a path between the final check and a path-based filesystem operation.
 Unlink ENOENT converges successfully to `not_installed`. Every other unlink
 failure exits 2 with state `current`, affected path
-`.github/workflows/safeword-tests.yml`, next action `repair_path_and_repeat`,
+`.github/workflows/safeword-remote-tests.yml`, next action `repair_path_and_repeat`,
 non-retryable `REMOTE_WORKFLOW_REMOVAL_FAILED`, operation/code/path detail, and
 “Safeword could not remove the workflow. Fix the reported filesystem problem,
 then run remote disable again.”

@@ -82,7 +82,7 @@ function executePlanEntry(
     return {
       ...execution,
       failedRunner: entry.runner,
-      childExit: result.status,
+      childExit: result.status === 0 ? 1 : result.status,
       childError: { code: spawnErrorCode(result.error), message: result.error.message },
     };
   }
@@ -234,7 +234,7 @@ function remotePreparationFailure(result: ReturnType<typeof spawnSync>): CliResu
       : `Remote test setup could not complete (${spawnErrorCode(error)}): ${error.message}`;
   return createResult({
     state: 'failed',
-    exitCode: result.status ?? 1,
+    exitCode: result.status === 0 ? 1 : (result.status ?? 1),
     effects: TEST_COMMAND_EFFECTS,
     errors: [{ code: 'SAFEWORD_REMOTE_SETUP_FAILED', message, retryable: false }],
     data: { command: 'project test', remotePreparation: { executed: true } },
@@ -461,7 +461,7 @@ function lifecycleFailure(command: string, workflow: RemoteWorkflowLifecycleResu
   const retryable = workflow.retryable ?? false;
   return createResult({
     state: workflow.state === 'failed' ? 'failed' : 'action_required',
-    exitCode: 2,
+    exitCode: workflow.state === 'failed' ? 1 : 2,
     errors: [
       {
         code,
@@ -540,7 +540,7 @@ export function disableManagedRemoteWorkflow(cwd: string): CliResult {
     state: workflow.changed ? 'changed' : 'healthy',
     effects: workflow.changed
       ? {
-          destructive: [
+          files: [
             {
               kind: 'delete',
               target: REMOTE_WORKFLOW_PATH,

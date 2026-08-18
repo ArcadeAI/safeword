@@ -379,7 +379,7 @@ describe('test execution CLI wiring', () => {
         command: 'project test-execution remote status',
         workflow: {
           state: 'not_installed',
-          affectedPath: '.github/workflows/safeword-tests.yml',
+          affectedPath: '.github/workflows/safeword-remote-tests.yml',
           nextAction: 'install_remote_tests',
         },
       },
@@ -421,7 +421,10 @@ describe('test execution CLI wiring', () => {
       },
     });
     expect(
-      readFileSync(nodePath.join(directory, '.github', 'workflows', 'safeword-tests.yml'), 'utf8'),
+      readFileSync(
+        nodePath.join(directory, '.github', 'workflows', 'safeword-remote-tests.yml'),
+        'utf8',
+      ),
     ).toBe(bundledWorkflow);
     expect(readFileSync(nodePath.join(safewordDirectory, 'config.json'), 'utf8')).toBe(
       projectConfig,
@@ -432,7 +435,7 @@ describe('test execution CLI wiring', () => {
     const directory = createTemporaryDirectory();
     const safewordDirectory = nodePath.join(directory, '.safeword');
     const workflowDirectory = nodePath.join(directory, '.github', 'workflows');
-    const workflowPath = nodePath.join(workflowDirectory, 'safeword-tests.yml');
+    const workflowPath = nodePath.join(workflowDirectory, 'safeword-remote-tests.yml');
     const bundledWorkflow = readFileSync(
       nodePath.join(process.cwd(), 'templates/workflows/remote-tests.yml'),
       'utf8',
