@@ -9,6 +9,7 @@ import {
   mkdirSync,
   openSync,
   readFileSync,
+  renameSync,
   type Stats,
   unlinkSync,
   writeSync,
@@ -27,6 +28,7 @@ export interface RemoteWorkflowFs {
   readonly sync: (descriptor: number) => void;
   readonly close: (descriptor: number) => void;
   readonly link: (privatePath: string, destination: string) => void;
+  readonly rename: (privatePath: string, destination: string) => void;
   readonly unlink: (path: string) => void;
 }
 
@@ -43,6 +45,7 @@ export const nodeRemoteWorkflowFs: RemoteWorkflowFs = {
   sync: fsyncSync,
   close: closeSync,
   link: linkSync,
+  rename: renameSync,
   unlink: unlinkSync,
 };
 
@@ -66,6 +69,16 @@ export type ExclusivePublicationResult =
       readonly published: false;
       readonly privatePath: string;
       readonly operation: 'create' | 'write' | 'sync' | 'close' | 'link';
+      readonly code: string;
+      readonly cleanupCode?: string;
+    };
+
+export type ReplacementPublicationResult =
+  | { readonly replaced: true; readonly privatePath: string }
+  | {
+      readonly replaced: false;
+      readonly privatePath: string;
+      readonly operation: 'create' | 'write' | 'sync' | 'close' | 'check' | 'rename';
       readonly code: string;
       readonly cleanupCode?: string;
     };
@@ -200,4 +213,62 @@ export function publishExclusiveFile(
         ...failure,
         ...(cleanupCode !== undefined && { cleanupCode }),
       };
+}
+
+function replacePreparedFile(
+  privatePath: string,
+  destination: string,
+  canReplace: () => boolean,
+  filesystem: RemoteWorkflowFs,
+): ReplacementPublicationResult {
+  if (!canReplace()) {
+    return { replaced: false, privatePath, operation: 'check', code: 'ECHANGED' };
+  }
+  try {
+    filesystem.rename(privatePath, destination);
+    return { replaced: true, privatePath };
+  } catch (error) {
+    return {
+      replaced: false,
+      privatePath,
+      operation: 'rename',
+      code: filesystemErrorCode(error),
+    };
+  }
+}
+
+export function publishReplacementFile(
+  destination: string,
+  content: string,
+  canReplace: () => boolean,
+  filesystem: RemoteWorkflowFs = nodeRemoteWorkflowFs,
+): ReplacementPublicationResult {
+  const privatePath = filesystem.privatePath(nodePath.dirname(destination));
+  const preparation = preparePrivateFile(privatePath, content, filesystem);
+  if (!('descriptor' in preparation)) {
+    return {
+      replaced: false,
+      privatePath,
+      operation: preparation.operation,
+      code: preparation.code,
+    };
+  }
+  const preparationFailure: PublicationFailure | undefined = preparation.ready
+    ? undefined
+    : { operation: preparation.operation, code: preparation.code };
+  const closeFailure = closePrivateFile(preparation.descriptor, filesystem);
+  let failure: ReplacementPublicationResult | undefined;
+  if (preparationFailure !== undefined || closeFailure !== undefined) {
+    failure = {
+      replaced: false,
+      privatePath,
+      ...(preparationFailure ?? closeFailure ?? { operation: 'close', code: 'UNKNOWN' }),
+    };
+  } else {
+    const replacement = replacePreparedFile(privatePath, destination, canReplace, filesystem);
+    if (replacement.replaced) return replacement;
+    failure = replacement;
+  }
+  const cleanupCode = cleanupPrivateFile(privatePath, filesystem);
+  return cleanupCode === undefined ? failure : { ...failure, cleanupCode };
 }

@@ -12,7 +12,7 @@ type Mapping = Record<string, unknown>;
 const FULL_SHA = /^[0-9a-f]{40}$/u;
 const CHECKOUT = 'actions/checkout';
 const CHECKOUT_ACTION = 'actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0';
-const SETUP_BUN_ACTION = 'oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6';
+const SETUP_NODE_ACTION = 'actions/setup-node@820762786026740c76f36085b0efc47a31fe5020';
 const INPUT_SHA = '${{ inputs.target_sha }}';
 const INPUT_LANE = '${{ inputs.lane }}';
 const RESULT_FILE = 'safeword-remote-test-result.json';
@@ -141,11 +141,10 @@ const STEP_SHAPES: StepShape[] = [
   { id: 'checkout', uses: CHECKOUT_ACTION, keys: ['name', 'id', 'uses', 'with'] },
   { id: 'verify', keys: ['name', 'id', 'env', 'run'] },
   {
-    uses: SETUP_BUN_ACTION,
+    uses: SETUP_NODE_ACTION,
     keys: ['name', 'uses', 'with'],
-    with: { 'bun-version-file': 'package.json' },
+    with: { 'node-version': 24 },
   },
-  { keys: ['name', 'run'] },
   { id: 'tests', keys: ['name', 'id', 'env', 'run'] },
   { id: 'report', keys: ['name', 'id', 'if', 'env', 'run'] },
   { uses: UPLOAD_ACTION, keys: ['name', 'if', 'uses', 'with'] },
@@ -200,14 +199,13 @@ function hasUnsafeShell(steps: Mapping[]): boolean {
 }
 
 function commandViolations(steps: Mapping[]): string[] {
-  const installRun = steps.find(step => step.name === 'Install project dependencies')?.run;
   const testRun = stepById(steps, 'tests')?.run;
   const violations = [
     ...(stepById(steps, 'validate')?.run === VALIDATE_COMMAND ? [] : ['fixed_validation']),
     ...(stepById(steps, 'verify')?.run === VERIFY_COMMAND ? [] : ['fixed_revision_verification']),
-    ...(installRun === 'bun install --frozen-lockfile' ? [] : ['fixed_dependency_install']),
   ];
-  return testRun === 'bunx safeword@0.78.3 project test --lane "$LANE" --execution local'
+  return testRun ===
+    'npx --yes safeword@0.78.6 project test --lane "$LANE" --execution local --prepare-remote'
     ? violations
     : [...violations, 'fixed_test_command'];
 }

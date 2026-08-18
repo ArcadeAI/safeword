@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import nodePath from 'node:path';
 
 import {
@@ -9,9 +10,19 @@ import {
 
 export const REMOTE_WORKFLOW_PATH = '.github/workflows/safeword-tests.yml';
 
-export type RemoteWorkflowState = 'not_installed' | 'current' | 'customer_owned' | 'unsafe_path';
+export type RemoteWorkflowState =
+  'not_installed' | 'current' | 'managed_outdated' | 'customer_owned' | 'unsafe_path';
 export type RemoteWorkflowAction =
-  'install_remote_tests' | 'move_aside_and_repeat' | 'repair_path_and_repeat';
+  | 'install_remote_tests'
+  | 'upgrade_remote_tests'
+  | 'move_aside_and_repeat'
+  | 'repair_path_and_repeat';
+
+// Append the normalized digest of every released predecessor before changing
+// the bundled workflow. Never infer ownership from markers or runtime config.
+const HISTORICAL_MANAGED_DIGESTS = new Set([
+  'ee9b263ac749f74cfa4423f4a8930f03a357e2d823c4ac271517e81c98fecd27',
+]);
 
 export interface RemoteWorkflowClassification {
   readonly state: RemoteWorkflowState;
@@ -46,26 +57,13 @@ function normalizeLineEndings(content: string): string {
   return content.replaceAll('\r\n', '\n');
 }
 
-type WorkflowRead =
-  | { readonly content: string }
-  | { readonly mismatch: true }
-  | { readonly failure: RemoteWorkflowObservation };
+type WorkflowRead = { readonly content: string } | { readonly failure: RemoteWorkflowObservation };
 
-function plausibleByteRange(content: string): {
-  readonly minimum: number;
-  readonly maximum: number;
-} {
-  const normalized = normalizeLineEndings(content);
-  const minimum = Buffer.byteLength(normalized);
-  const maximum = minimum + (normalized.match(/\n/g)?.length ?? 0);
-  return { minimum, maximum };
+function workflowDigest(content: string): string {
+  return createHash('sha256').update(normalizeLineEndings(content)).digest('hex');
 }
 
-function readOpenedWorkflow(
-  descriptor: number,
-  bundled: string,
-  filesystem: RemoteWorkflowFs,
-): WorkflowRead {
+function readOpenedWorkflow(descriptor: number, filesystem: RemoteWorkflowFs): WorkflowRead {
   const metadata = filesystem.fstat(descriptor);
   if (!metadata.isFile()) {
     return {
@@ -76,17 +74,10 @@ function readOpenedWorkflow(
       },
     };
   }
-  const { minimum, maximum } = plausibleByteRange(bundled);
-  return metadata.size < minimum || metadata.size > maximum
-    ? { mismatch: true }
-    : { content: filesystem.read(descriptor) };
+  return { content: filesystem.read(descriptor) };
 }
 
-function readRegularFile(
-  path: string,
-  bundled: string,
-  filesystem: RemoteWorkflowFs,
-): WorkflowRead {
+function readRegularFile(path: string, filesystem: RemoteWorkflowFs): WorkflowRead {
   let descriptor: number | undefined;
   let result: WorkflowRead;
   try {
@@ -95,7 +86,7 @@ function readRegularFile(
     return { failure: observationError(error, REMOTE_WORKFLOW_PATH) };
   }
   try {
-    result = readOpenedWorkflow(descriptor, bundled, filesystem);
+    result = readOpenedWorkflow(descriptor, filesystem);
   } catch (error) {
     result = { failure: indeterminateError(error, REMOTE_WORKFLOW_PATH) };
   }
@@ -186,20 +177,21 @@ export function classifyRemoteWorkflow(
   if (entryObservation.kind === 'observation') return entryObservation.value;
 
   const destination = nodePath.join(root, REMOTE_WORKFLOW_PATH);
-  const observed = readRegularFile(destination, bundled, filesystem);
+  const observed = readRegularFile(destination, filesystem);
   if ('failure' in observed) return observed.failure;
-  if ('mismatch' in observed) {
+  if (workflowDigest(observed.content) === workflowDigest(bundled)) {
+    return { state: 'current', affectedPath: NO_ACTION, nextAction: NO_ACTION };
+  }
+  if (HISTORICAL_MANAGED_DIGESTS.has(workflowDigest(observed.content))) {
     return {
-      state: 'customer_owned',
+      state: 'managed_outdated',
       affectedPath: REMOTE_WORKFLOW_PATH,
-      nextAction: 'move_aside_and_repeat',
+      nextAction: 'upgrade_remote_tests',
     };
   }
-  return normalizeLineEndings(observed.content) === normalizeLineEndings(bundled)
-    ? { state: 'current', affectedPath: NO_ACTION, nextAction: NO_ACTION }
-    : {
-        state: 'customer_owned',
-        affectedPath: REMOTE_WORKFLOW_PATH,
-        nextAction: 'move_aside_and_repeat',
-      };
+  return {
+    state: 'customer_owned',
+    affectedPath: REMOTE_WORKFLOW_PATH,
+    nextAction: 'move_aside_and_repeat',
+  };
 }
