@@ -10,6 +10,7 @@ import nodePath from 'node:path';
 
 import { existsInTree } from '../../utils/fs.js';
 import type { LanguagePack, SetupContext, SetupResult } from '../types.js';
+import { setupSqlTooling } from './setup.js';
 
 // Tier 1: Config file markers that unambiguously indicate SQL work
 const TIER1_MARKERS = [
@@ -71,6 +72,6 @@ export const sqlPack: LanguagePack = {
 
   setup(_cwd: string, _ctx: SetupContext): SetupResult {
     // Config files created by schema.ts (ownedFiles/managedFiles)
-    return { files: [] };
+    return setupSqlTooling();
   },
 };

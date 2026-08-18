@@ -102,12 +102,56 @@ export interface SetupResult {
   files: string[];
 }
 
+/**
+ * How a pack tells the harness which skills to pull.
+ *
+ * - `'all'` → `--skill '*'`: every skill the source publishes. Right for a
+ *   single-language, single-purpose source (e.g. leonardomso's Rust pack) where
+ *   everything is on-topic — and drift-free, no name list to maintain.
+ * - a name list → `--skill <name...>`: a curated subset, for a multi-domain
+ *   source (e.g. jeffallan's ~66-skill grab-bag, where Go/Python/TS each take one
+ *   language-tier skill) where `'*'` would drag in dozens of unrelated skills. The
+ *   names ARE a drift surface, justified only because the source forces it; keep
+ *   the list minimal (usually one language-tier skill).
+ *
+ * Lives here, not in `skills/install.ts`, because packs must be able to type
+ * their own manifests without importing the harness (dependency is harness →
+ * pack, pull-only). `skills/install.ts` re-exports it for its own consumers.
+ */
+export type SkillSelection = 'all' | readonly string[];
+
+/**
+ * A pack's coding-skill declaration: pure data, no I/O and no knowledge of how
+ * skills get installed. The harness (`skills/languages.ts`) reads it off the
+ * pack and performs delivery — packs never import the harness.
+ *
+ * A pack omits `skills` entirely when it ships no coding skills (e.g. SQL).
+ */
+export interface PackSkillManifest {
+  /** Skill source repo, e.g. `github.com/jeffallan/claude-skills`. */
+  source: string;
+  /** Selection policy: `'all'`, or the named subset to pull. */
+  selection: SkillSelection;
+  /**
+   * On-disk directory-name shape the installed skills follow (e.g. `/^golang-pro$/`).
+   * The harness uses it to detect an existing install (presence-gated upgrades).
+   */
+  dirPattern: RegExp;
+}
+
 export interface LanguagePack {
   id: string;
   name: string;
   extensions: string[];
   detect: (cwd: string) => boolean;
   setup: (cwd: string, ctx: SetupContext) => SetupResult;
+  /**
+   * Coding skills this pack ships, or undefined when it ships none. Declaring it
+   * here makes a pack self-describing: the harness registry is DERIVED from the
+   * pack registry, so adding a language is one registry row, not a row plus a
+   * hand-written manifest that re-states the pack's own id and name.
+   */
+  skills?: PackSkillManifest;
 }
 
 // ============================================================================

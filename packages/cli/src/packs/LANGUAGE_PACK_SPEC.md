@@ -13,8 +13,14 @@ interface LanguagePack {
   extensions: string[]; // e.g., ['.py', '.pyi'] or ['.go']
   detect(cwd: string): boolean;
   setup(cwd: string, ctx: SetupContext): SetupResult;
+  skills?: PackSkillManifest; // coding skills to pull; omit if the pack ships none
 }
 ```
+
+**A pack is self-describing.** Everything the rest of the CLI needs about a
+language lives on this object — including its coding-skill manifest. Downstream
+registries are DERIVED from `LANGUAGE_PACKS`, never hand-maintained alongside it,
+so a pack's `id` and `name` are stated exactly once.
 
 ## Linter Philosophy
 
@@ -81,14 +87,23 @@ This separation means **hook enforcement is independent of project-wide config**
 
 ## Pack File Structure
 
-Every language pack has three files in `src/packs/{lang}/`:
+Every language pack has the same files in `src/packs/{lang}/`:
 
 ```
 src/packs/{lang}/
 ├── index.ts   # LanguagePack interface implementation
 ├── files.ts   # File definitions (ownedFiles, managedFiles, jsonMerges)
-└── setup.ts   # Setup utilities (detection, installation helpers)
+├── setup.ts   # Setup utilities (detection, installation helpers)
+└── skills.ts  # Coding-skill manifest (omit only if the pack ships no skills)
 ```
+
+Keep `setup.ts` even when it has nothing to do yet — a `setup{Lang}Tooling()` that
+returns `{ files: [] }` keeps every pack the same shape, so the next reader knows
+where language-specific setup will go. `skills.ts` is the one optional file: SQL
+has no coding-skill source, so it has no `skills.ts` and no `skills` field.
+
+A pack may add language-specific modules beyond these (e.g. SQL's `dialect.ts` for
+dialect auto-detection). Add to the shape; don't reshuffle it.
 
 ### files.ts Exports
 
@@ -133,11 +148,13 @@ Files are managed through reconciliation (not direct writes):
 
 ```typescript
 import { setup{Lang}Tooling } from './setup.js';
+import { {lang}SkillManifest } from './skills.js';
 
 export const {lang}Pack: LanguagePack = {
   id: '{lang}',
   name: '{Lang}',
   extensions: ['.ext'],
+  skills: {lang}SkillManifest, // omit if the pack ships no coding skills
   detect(cwd) { /* return true if lang manifest exists */ },
   setup(_cwd, _ctx) {
     // Config files created by reconciliation (ownedFiles/managedFiles)
@@ -193,6 +210,11 @@ export const LANGUAGE_PACKS: Record<string, LanguagePack> = {
   {lang}: {lang}Pack,
 };
 ```
+
+This row is the ONLY place a language is registered. `src/skills/languages.ts`
+derives `LANGUAGE_SKILL_MANIFESTS` from these packs, so a pack that declares
+`skills` is wired for delivery with no second edit — and no chance of the two
+registries disagreeing about a language's id or label.
 
 ### 4. Lint Hook (`templates/hooks/lib/lint.ts`)
 
@@ -614,6 +636,49 @@ export function setup{Lang}Tooling(): SetupResult {
 **Note:** Config generators (`generate{Tool}Config()`) should be in `files.ts`, not `setup.ts`.
 The setup function should NOT write files directly—reconciliation handles that.
 
+## Skill Manifest Pattern (`src/packs/{lang}/skills.ts`)
+
+A pack DECLARES where its coding skills come from; the harness
+(`src/skills/languages.ts`) CONSUMES that declaration and performs the install.
+The dependency runs one way — harness → pack. A pack must never import from
+`src/skills/`.
+
+```typescript
+import type { PackSkillManifest } from '../types.js';
+
+export const {lang}SkillManifest: PackSkillManifest = {
+  source: 'github.com/{owner}/{repo}',
+  selection: ['{lang}-pro'], // or 'all'
+  dirPattern: /^{lang}-pro$/,
+};
+```
+
+| Field        | Purpose                                                                    |
+| ------------ | -------------------------------------------------------------------------- |
+| `source`     | Skill source repo passed to the upstream `skills` CLI                      |
+| `selection`  | `'all'` (`--skill '*'`) or a named subset (`--skill <name>` per name)      |
+| `dirPattern` | On-disk dir-name shape, so upgrades can detect an existing install offline |
+
+**Choosing `selection`:** use `'all'` only for a single-language, single-purpose
+source where everything published is on-topic — it is drift-free, with no name
+list to maintain. For a multi-domain source, name the subset explicitly; `'*'`
+there would drag in dozens of unrelated skills, and every installed skill's
+description is always-on context competing for the agent's budget. Names are a
+drift surface, so keep the list minimal — usually one language-tier skill.
+
+**One manifest object, not loose constants.** The whole manifest is a single
+exported object so it can be attached to the pack and carried through verbatim.
+Exporting `{LANG}_SKILL_SOURCE` / `_SELECTION` / `_DIR_PATTERN` separately forces
+every consumer to re-assemble them by hand, which is exactly the drift this shape
+removes.
+
+**Document the sourcing decision in the module doc.** Which source was picked,
+what was rejected and why, and whether efficacy has actually been probed. That
+rationale is the expensive part; the three fields are not.
+
+**Packs with no skills** omit the file and the `skills` field entirely. The
+derived registry skips them — no empty row, no placeholder manifest.
+
 ## Workspace/Monorepo Handling (When Applicable)
 
 Languages with native workspace support require special handling:
@@ -855,6 +920,9 @@ Before shipping a new language pack, verify:
 
 - [ ] `detect()` returns true for lang-only projects
 - [ ] `setup()` creates valid tool config
+- [ ] Pack registered in `LANGUAGE_PACKS` (the only registration point)
+- [ ] `skills.ts` exports one `{lang}SkillManifest` and `index.ts` attaches it — or the pack deliberately ships no skills
+- [ ] Skill-nudge row added to `templates/hooks/lib/skill-nudge.ts` (if the pack ships skills)
 - [ ] Hook lints files with correct extension
 - [ ] Hook skips gracefully if tools not installed
 - [ ] Hook handles edge cases without crashing (syntax errors, missing files)

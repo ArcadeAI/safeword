@@ -7,11 +7,13 @@
 import { existsInTree } from '../../utils/fs.js';
 import type { LanguagePack, SetupContext, SetupResult } from '../types.js';
 import { setupGoTooling } from './setup.js';
+import { golangSkillManifest } from './skills.js';
 
 export const golangPack: LanguagePack = {
   id: 'golang',
   name: 'Go',
   extensions: ['.go'],
+  skills: golangSkillManifest,
 
   detect(cwd: string): boolean {
     return existsInTree(cwd, 'go.mod');

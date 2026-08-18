@@ -7,11 +7,13 @@
 import { existsInTree } from '../../utils/fs.js';
 import type { LanguagePack, SetupContext, SetupResult } from '../types.js';
 import { setupRustTooling } from './setup.js';
+import { rustSkillManifest } from './skills.js';
 
 export const rustPack: LanguagePack = {
   id: 'rust',
   name: 'Rust',
   extensions: ['.rs'],
+  skills: rustSkillManifest,
 
   detect(cwd: string): boolean {
     return existsInTree(cwd, 'Cargo.toml');

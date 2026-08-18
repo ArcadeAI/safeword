@@ -10,11 +10,13 @@ import nodePath from 'node:path';
 import { exists } from '../../utils/fs.js';
 import type { LanguagePack, SetupContext, SetupResult } from '../types.js';
 import { setupTypescriptTooling } from './setup.js';
+import { typescriptSkillManifest } from './skills.js';
 
 export const typescriptPack: LanguagePack = {
   id: 'typescript',
   name: 'TypeScript',
   extensions: ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs'],
+  skills: typescriptSkillManifest,
 
   detect(cwd: string): boolean {
     return exists(nodePath.join(cwd, 'package.json'));

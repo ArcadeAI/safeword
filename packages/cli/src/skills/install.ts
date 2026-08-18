@@ -16,6 +16,8 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import type { SkillSelection } from '../packs/types.js';
+
 /**
  * Agent skill directories the installer writes into (project-level). Used to
  * detect an existing install by reading reality off disk — the same
@@ -45,18 +47,11 @@ export function skillsInstalled(cwd: string, dirPattern: RegExp): boolean {
 }
 
 /**
- * How a pack tells the harness which skills to pull. Mirrors the pack manifest.
- *
- * - `'all'` → `--skill '*'`: every skill the source publishes. Right for a
- *   single-language, single-purpose source (e.g. leonardomso's Rust pack) where
- *   everything is on-topic — and drift-free, no name list to maintain.
- * - a name list → `--skill <name...>`: a curated subset, for a multi-domain
- *   source (e.g. jeffallan's ~66-skill grab-bag, where Go/Python/TS each take one
- *   language-tier skill) where `'*'` would drag in dozens of unrelated skills. The
- *   names ARE a drift surface, justified only because the source forces it; keep
- *   the list minimal (usually one language-tier skill).
+ * Re-exported from the pack types, which own it: a pack must be able to type its
+ * own manifest without importing this harness module. See `packs/types.ts` for
+ * when to use `'all'` versus a name list.
  */
-export type SkillSelection = 'all' | readonly string[];
+export type { SkillSelection } from '../packs/types.js';
 
 /**
  * Agent platforms safeword installs skills for, by the upstream installer's IDs.

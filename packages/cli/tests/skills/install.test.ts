@@ -4,11 +4,7 @@ import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import {
-  GOLANG_SKILL_DIR_PATTERN,
-  GOLANG_SKILL_SELECTION,
-  GOLANG_SKILL_SOURCE,
-} from '../../src/packs/golang/skills.js';
+import { golangSkillManifest } from '../../src/packs/golang/skills.js';
 import {
   buildSkillsArgv,
   installSkills,
@@ -19,13 +15,13 @@ import {
 
 describe('buildSkillsArgv', () => {
   it('selects all skills via --skill * and targets only safeword agents (never --all)', () => {
-    const argv = buildSkillsArgv(GOLANG_SKILL_SOURCE, 'all');
+    const argv = buildSkillsArgv(golangSkillManifest.source, 'all');
     expect(argv).toEqual([
       'npx',
       '-y',
       'skills@latest',
       'add',
-      GOLANG_SKILL_SOURCE,
+      golangSkillManifest.source,
       '--skill',
       '*',
       '-a',
@@ -42,7 +38,7 @@ describe('buildSkillsArgv', () => {
   });
 
   it('repeats -a per agent (the installer does not split a comma/space list)', () => {
-    const argv = buildSkillsArgv(GOLANG_SKILL_SOURCE, 'all');
+    const argv = buildSkillsArgv(golangSkillManifest.source, 'all');
     const agentFlags = argv.filter(token => token === '-a');
     expect(agentFlags).toHaveLength(SAFEWORD_SKILL_AGENTS.length);
     for (const agent of SAFEWORD_SKILL_AGENTS) {
@@ -51,8 +47,8 @@ describe('buildSkillsArgv', () => {
   });
 
   it('consumes the golang manifest verbatim (no hardcoded source/selection)', () => {
-    const argv = buildSkillsArgv(GOLANG_SKILL_SOURCE, GOLANG_SKILL_SELECTION);
-    expect(argv).toContain(GOLANG_SKILL_SOURCE);
+    const argv = buildSkillsArgv(golangSkillManifest.source, golangSkillManifest.selection);
+    expect(argv).toContain(golangSkillManifest.source);
     expect(argv).toContain('--skill');
   });
 
@@ -74,8 +70,8 @@ describe('buildSkillsArgv', () => {
   });
 
   it('skillInstallCommand renders the full npx command for the failure hint', () => {
-    const command = skillInstallCommand(GOLANG_SKILL_SOURCE, 'all');
-    expect(command).toBe(buildSkillsArgv(GOLANG_SKILL_SOURCE, 'all').join(' '));
+    const command = skillInstallCommand(golangSkillManifest.source, 'all');
+    expect(command).toBe(buildSkillsArgv(golangSkillManifest.source, 'all').join(' '));
     expect(command.startsWith('npx -y skills@latest add ')).toBe(true);
   });
 });
@@ -92,8 +88,8 @@ describe('installSkills degrade-not-fail', () => {
 
   function runSkip(): ReturnType<typeof installSkills> {
     return installSkills({
-      source: GOLANG_SKILL_SOURCE,
-      selection: GOLANG_SKILL_SELECTION,
+      source: golangSkillManifest.source,
+      selection: golangSkillManifest.selection,
       cwd: process.cwd(),
     });
   }
@@ -119,13 +115,13 @@ describe('skillsInstalled (derive presence from disk)', () => {
 
   it('is false when no agent skill dir exists', () => {
     dir = mkdtempSync(nodePath.join(tmpdir(), 'sw-skills-'));
-    expect(skillsInstalled(dir, GOLANG_SKILL_DIR_PATTERN)).toBe(false);
+    expect(skillsInstalled(dir, golangSkillManifest.dirPattern)).toBe(false);
   });
 
   it('is true when the golang-pro skill dir is present under .claude/skills', () => {
     dir = mkdtempSync(nodePath.join(tmpdir(), 'sw-skills-'));
     mkdirSync(nodePath.join(dir, '.claude', 'skills', 'golang-pro'), { recursive: true });
-    expect(skillsInstalled(dir, GOLANG_SKILL_DIR_PATTERN)).toBe(true);
+    expect(skillsInstalled(dir, golangSkillManifest.dirPattern)).toBe(true);
   });
 
   it('is true when present under .agents/skills (codex/cursor target)', () => {
@@ -133,13 +129,13 @@ describe('skillsInstalled (derive presence from disk)', () => {
     mkdirSync(nodePath.join(dir, '.agents', 'skills', 'golang-pro'), {
       recursive: true,
     });
-    expect(skillsInstalled(dir, GOLANG_SKILL_DIR_PATTERN)).toBe(true);
+    expect(skillsInstalled(dir, golangSkillManifest.dirPattern)).toBe(true);
   });
 
   it('ignores non-matching dirs (e.g. the old samber atomic skills, unrelated skills)', () => {
     dir = mkdtempSync(nodePath.join(tmpdir(), 'sw-skills-'));
     mkdirSync(nodePath.join(dir, '.claude', 'skills', 'golang-context'), { recursive: true });
     mkdirSync(nodePath.join(dir, '.claude', 'skills', 'python-typing'), { recursive: true });
-    expect(skillsInstalled(dir, GOLANG_SKILL_DIR_PATTERN)).toBe(false);
+    expect(skillsInstalled(dir, golangSkillManifest.dirPattern)).toBe(false);
   });
 });

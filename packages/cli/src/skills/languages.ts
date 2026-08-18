@@ -4,90 +4,53 @@
  * The language-general successor to the Go-only `golang.ts`. Holds ONE registry
  * mapping a language id to its skill manifest (source + selection + on-disk
  * presence pattern), plus generic install/ensure entry points that `setup` and
- * `upgrade` call. Adding a language is a registry row, not a new module.
+ * `upgrade` call.
+ *
+ * The registry is DERIVED from the pack registry, not hand-written: a pack that
+ * declares `skills` is wired automatically, and its id/label come from the pack's
+ * own `id`/`name` rather than being re-stated here. Adding a language is one
+ * `LANGUAGE_PACKS` row plus that pack's `skills.ts` — nothing to edit in this file.
  *
  * Dependency is harness → pack (pull): this reads each pack's pure skill manifest;
  * the packs know nothing of it.
  */
 
-import {
-  GOLANG_SKILL_DIR_PATTERN,
-  GOLANG_SKILL_SELECTION,
-  GOLANG_SKILL_SOURCE,
-} from '../packs/golang/skills.js';
-import {
-  PYTHON_SKILL_DIR_PATTERN,
-  PYTHON_SKILL_SELECTION,
-  PYTHON_SKILL_SOURCE,
-} from '../packs/python/skills.js';
-import { detectLanguages } from '../packs/registry.js';
-import {
-  RUST_SKILL_DIR_PATTERN,
-  RUST_SKILL_SELECTION,
-  RUST_SKILL_SOURCE,
-} from '../packs/rust/skills.js';
-import {
-  TYPESCRIPT_SKILL_DIR_PATTERN,
-  TYPESCRIPT_SKILL_SELECTION,
-  TYPESCRIPT_SKILL_SOURCE,
-} from '../packs/typescript/skills.js';
+import { detectLanguages, LANGUAGE_PACKS } from '../packs/registry.js';
+import type { PackSkillManifest } from '../packs/types.js';
 import { info, success, warn } from '../utils/output.js';
 import {
   installSkills,
   skillInstallCommand,
   type SkillInstallResult,
-  type SkillSelection,
   skillsInstalled,
 } from './install.js';
 
-/** A language's skill-delivery declaration, assembled from its pack manifest. */
-export interface LanguageSkillManifest {
+/**
+ * A language's skill-delivery declaration: the pack's own manifest plus the
+ * identity the harness needs for messaging. Assembled by `buildManifests`.
+ */
+export interface LanguageSkillManifest extends PackSkillManifest {
   /** Pack id, matches the registry key and `detectLanguages` output (e.g. `golang`). */
   langId: string;
-  /** Human label for user-facing messaging (e.g. `Go`). */
+  /** Human label for user-facing messaging (e.g. `Go`), taken from the pack's `name`. */
   label: string;
-  /** Skill source repo. */
-  source: string;
-  /** Selection policy ('all' or a named subset). */
-  selection: SkillSelection;
-  /** On-disk dir-name pattern, for presence-gated upgrades. */
-  dirPattern: RegExp;
+}
+
+function buildManifests(): Readonly<Record<string, LanguageSkillManifest>> {
+  const manifests: Record<string, LanguageSkillManifest> = {};
+  for (const pack of Object.values(LANGUAGE_PACKS)) {
+    if (!pack.skills) continue;
+    manifests[pack.id] = { ...pack.skills, langId: pack.id, label: pack.name };
+  }
+  return manifests;
 }
 
 /**
- * Every language that ships coding skills, keyed by pack id. The ONLY place a new
- * language's skill source is wired — `setup`/`upgrade` iterate this generically.
+ * Every language that ships coding skills, keyed by pack id — derived from the
+ * packs that declare a `skills` manifest. `setup`/`upgrade` iterate it generically.
  */
-export const LANGUAGE_SKILL_MANIFESTS: Readonly<Record<string, LanguageSkillManifest>> = {
-  golang: {
-    langId: 'golang',
-    label: 'Go',
-    source: GOLANG_SKILL_SOURCE,
-    selection: GOLANG_SKILL_SELECTION,
-    dirPattern: GOLANG_SKILL_DIR_PATTERN,
-  },
-  python: {
-    langId: 'python',
-    label: 'Python',
-    source: PYTHON_SKILL_SOURCE,
-    selection: PYTHON_SKILL_SELECTION,
-    dirPattern: PYTHON_SKILL_DIR_PATTERN,
-  },
-  typescript: {
-    langId: 'typescript',
-    label: 'TypeScript',
-    source: TYPESCRIPT_SKILL_SOURCE,
-    selection: TYPESCRIPT_SKILL_SELECTION,
-    dirPattern: TYPESCRIPT_SKILL_DIR_PATTERN,
-  },
-  rust: {
-    langId: 'rust',
-    label: 'Rust',
-    source: RUST_SKILL_SOURCE,
-    selection: RUST_SKILL_SELECTION,
-    dirPattern: RUST_SKILL_DIR_PATTERN,
-  },
-};
+export const LANGUAGE_SKILL_MANIFESTS: Readonly<Record<string, LanguageSkillManifest>> =
+  buildManifests();
 
 /**
  * Pull one language's coding skills and report the outcome. Best-effort: a

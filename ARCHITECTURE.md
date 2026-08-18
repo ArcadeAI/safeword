@@ -219,6 +219,7 @@ interface LanguagePack {
   extensions: string[]; // e.g., ['.py', '.pyi']
   detect: (cwd: string) => boolean; // Is this language present?
   setup: (cwd: string, ctx: SetupContext) => SetupResult;
+  skills?: PackSkillManifest; // Coding skills to pull; omitted if the pack ships none
 }
 
 // Registry
@@ -235,23 +236,29 @@ const LANGUAGE_PACKS: Record<string, LanguagePack> = {
 
 **Root files** (shared infrastructure):
 
-| File          | Purpose                                              |
-| ------------- | ---------------------------------------------------- |
-| `registry.ts` | Central registry, `detectLanguages()`, pack lookup   |
-| `config.ts`   | Read/write `.safeword/config.json` (installed packs) |
-| `install.ts`  | Pack installation orchestration                      |
-| `types.ts`    | Shared types (`LanguagePack`, `ProjectContext`)      |
+| File          | Purpose                                                              |
+| ------------- | -------------------------------------------------------------------- |
+| `registry.ts` | Central registry, `detectLanguages()`, pack lookup                   |
+| `config.ts`   | Read/write `.safeword/config.json` (installed packs)                 |
+| `install.ts`  | Pack installation orchestration                                      |
+| `types.ts`    | Shared types (`LanguagePack`, `PackSkillManifest`, `ProjectContext`) |
 
-**Per-language packs** (standard pattern: `index.ts`, `files.ts`, `setup.ts`):
+**Per-language packs** (standard pattern: `index.ts`, `files.ts`, `setup.ts`, `skills.ts`):
 
 ```text
 packs/{lang}/
 ├── index.ts   # LanguagePack interface implementation
 ├── files.ts   # ownedFiles, managedFiles, jsonMerges exports
-└── setup.ts   # Setup utilities (language-specific tooling)
+├── setup.ts   # Setup utilities (language-specific tooling)
+└── skills.ts  # Coding-skill manifest (source, selection, dirPattern)
 ```
 
-Note: SQL pack uses `dialect.ts` (dialect auto-detection) instead of `setup.ts`.
+Every pack has the same shape; `setup.ts` stays even when it only returns
+`{ files: [] }`, so there is one obvious home for language-specific setup.
+
+Note: `skills.ts` is the one optional file — SQL has no coding-skill source, so it
+omits both the file and the pack's `skills` field. Packs may add language-specific
+modules on top (SQL also has `dialect.ts` for dialect auto-detection).
 
 **Exports from files.ts:**
 
@@ -261,6 +268,17 @@ Note: SQL pack uses `dialect.ts` (dialect auto-detection) instead of `setup.ts`.
 - `{lang}Packages` - NPM packages to install (TypeScript only)
 
 These exports are spread into `schema.ts` for the reconciliation engine.
+
+**Skill delivery (derived, not duplicated):** a pack that ships coding skills
+attaches a `PackSkillManifest` to its `skills` field. `src/skills/languages.ts`
+builds `LANGUAGE_SKILL_MANIFESTS` by iterating `LANGUAGE_PACKS` and keeping the
+packs that declare one, taking each language's id and label from the pack's own
+`id`/`name`. Adding a language is therefore a single `LANGUAGE_PACKS` row — there
+is no second registry to keep in sync, and no way for the two to disagree.
+
+The dependency runs one way: harness → pack (pull). Packs are pure declarations
+and never import `src/skills/`; `SkillSelection` lives in `packs/types.ts` so a
+pack can type its manifest without reaching into the harness.
 
 **Implementation:** `packages/cli/src/packs/`
 

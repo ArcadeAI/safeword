@@ -1,8 +1,8 @@
 /**
  * Rust Language Pack — Skill Manifest (pure declaration)
  *
- * DECLARES the Rust skill source + selection; the harness CONSUMES it
- * (harness → pack pull).
+ * DECLARES the Rust skill source + selection; the harness CONSUMES it off the
+ * pack (harness → pack pull).
  *
  * Source: leonardomso/rust-skills (MIT) — a Rust-DEDICATED, single-skill repo
  * (one SKILL.md of ~265 rules across ownership/borrowing, `Result`/`?`, traits,
@@ -16,14 +16,15 @@
  * our own — is the answer.
  */
 
-/** Where the skills come from. The harness owns the install command + ref policy. */
-export const RUST_SKILL_SOURCE = 'github.com/leonardomso/rust-skills';
+import type { PackSkillManifest } from '../types.js';
 
-/**
- * Selection: `'all'`. The source is a single-skill, Rust-dedicated repo, so `'*'`
- * is both drift-free and exactly the one skill we want — no name list to carry.
- */
-export const RUST_SKILL_SELECTION = 'all' as const;
-
-/** Directory-name shape the installed skill follows (`rust-skills`). */
-export const RUST_SKILL_DIR_PATTERN = /^rust-skills$/;
+export const rustSkillManifest: PackSkillManifest = {
+  source: 'github.com/leonardomso/rust-skills',
+  /**
+   * Selection: `'all'`. The source is a single-skill, Rust-dedicated repo, so `'*'`
+   * is both drift-free and exactly the one skill we want — no name list to carry.
+   */
+  selection: 'all',
+  /** Directory-name shape the installed skill follows (`rust-skills`). */
+  dirPattern: /^rust-skills$/,
+};

@@ -7,11 +7,13 @@
 import { existsInTree } from '../../utils/fs.js';
 import type { LanguagePack, SetupContext, SetupResult } from '../types.js';
 import { setupPythonTooling } from './setup.js';
+import { pythonSkillManifest } from './skills.js';
 
 export const pythonPack: LanguagePack = {
   id: 'python',
   name: 'Python',
   extensions: ['.py', '.pyi'],
+  skills: pythonSkillManifest,
 
   detect(cwd: string): boolean {
     return (

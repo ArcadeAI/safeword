@@ -1,8 +1,8 @@
 /**
  * TypeScript Language Pack — Skill Manifest (pure declaration)
  *
- * DECLARES the TypeScript skill source + selection; the harness CONSUMES it
- * (harness → pack pull).
+ * DECLARES the TypeScript skill source + selection; the harness CONSUMES it off
+ * the pack (harness → pack pull).
  *
  * Source: jeffallan/claude-skills (MIT) — the same multi-language author as the
  * Python pack, so Python and TS share one source/structure. Selection is the
@@ -18,11 +18,12 @@
  * the trigger) to confirm fires cleanly on plain `.ts`/`.tsx` at probe time.
  */
 
-/** Where the skills come from. The harness owns the install command + ref policy. */
-export const TYPESCRIPT_SKILL_SOURCE = 'github.com/jeffallan/claude-skills';
+import type { PackSkillManifest } from '../types.js';
 
-/** Named selection: the single language-tier skill (see module doc for why named). */
-export const TYPESCRIPT_SKILL_SELECTION: readonly string[] = ['typescript-pro'];
-
-/** Directory-name shape the installed skill follows (`typescript-pro`). */
-export const TYPESCRIPT_SKILL_DIR_PATTERN = /^typescript-pro$/;
+export const typescriptSkillManifest: PackSkillManifest = {
+  source: 'github.com/jeffallan/claude-skills',
+  /** Named selection: the single language-tier skill (see module doc for why named). */
+  selection: ['typescript-pro'],
+  /** Directory-name shape the installed skill follows (`typescript-pro`). */
+  dirPattern: /^typescript-pro$/,
+};
