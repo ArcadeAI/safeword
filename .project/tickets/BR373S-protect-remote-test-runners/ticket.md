@@ -9,7 +9,7 @@ phase_anchors:
   - scenario-gate: packages/cli/features/run-requested-revision-remotely.feature
   - plan-implementation: .project/tickets/BR373S-protect-remote-test-runners/impl-plan.md
   - implement: packages/cli/src/test-execution/remote-workflow-contract.ts
-  - verify: .project/tickets/BR373S-protect-remote-test-runners/verify.md
+  - verify: .project/tickets/BR373S-protect-remote-test-runners/test-definitions.md
 scope:
   - Exact requested-commit checkout and reporting
   - Validation of the requested done or full test lane

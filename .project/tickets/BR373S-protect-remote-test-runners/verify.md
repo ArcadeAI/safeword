@@ -30,3 +30,4 @@ Audit passed — BR373S's diff-scoped architecture, config, learning, test-quali
 - Full tests: retro-relay 185 passed / 1 skipped; CLI 8,204 passed / 7 skipped.
 - Full acceptance: 1,484 passed / 3 skipped; 68,189 steps passed / 4 skipped.
 - `actionlint`, ESLint, Gherkin lint, TypeScript typecheck, and both package builds pass.
+- Historical RED/GREEN/REFACTOR hashes in the ledger remain on the original umbrella branch; importing that ancestry would reintroduce 67 unrelated commits, so this isolated branch relies on the fully green executable evidence above.
