@@ -12,6 +12,39 @@ function initializePrivateConfigRepo(directory: string): void {
 }
 
 describe('test execution CLI wiring', () => {
+  it('runs the project-owned remote setup command before the test plan', async () => {
+    const directory = createTemporaryDirectory();
+    mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(directory, '.safeword', 'config.json'),
+      JSON.stringify({
+        remoteTest: {
+          setupCommand: "node -e \"require('node:fs').writeFileSync('prepared','yes')\"",
+        },
+      }),
+    );
+    writeFileSync(
+      nodePath.join(directory, 'package.json'),
+      JSON.stringify({
+        name: 'prepared-test-project',
+        private: true,
+        packageManager: 'npm@11.0.0',
+        scripts: {
+          'test:done':
+            "node -e \"process.exit(require('node:fs').readFileSync('prepared','utf8')==='yes'?0:1)\"",
+        },
+      }),
+    );
+
+    const result = await runCli(
+      ['project', 'test', '--prepare-remote', '--no-input', '--cwd', directory],
+      { cwd: directory },
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(readFileSync(nodePath.join(directory, 'prepared'), 'utf8')).toBe('yes');
+  });
+
   it('requires action when no runnable test plan exists', async () => {
     const directory = createTemporaryDirectory();
 
