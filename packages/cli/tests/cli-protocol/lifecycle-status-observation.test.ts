@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { projectLifecycleSchema } from '../../src/lifecycle/schema.js';
 import { observeLifecycleSurfaces } from '../../src/lifecycle/status.js';
-import { isCursorProjectPath } from '../../src/schema.js';
+import { isCursorProjectPath, isSharedAgentRuntimePath } from '../../src/schema.js';
 import { createTemporaryDirectory } from '../helpers.js';
 
 vi.mock('../../src/claude-plugin/status.js', async () => {
@@ -33,6 +33,29 @@ vi.mock('../../src/codex-plugin/operations.js', async () => {
 describe('lifecycle profile observation', () => {
   it('installs the shared proof-identity bridge for a Codex-only project', () => {
     const schema = projectLifecycleSchema(createTemporaryDirectory(), ['codex']);
+
+    expect(schema.ownedFiles['.safeword/hooks/lib/cursor-run-identity.ts']).toEqual({
+      template: 'hooks/lib/cursor-run-identity.ts',
+    });
+  });
+
+  it('drops the shared .safeword hooks|skills|scripts|guides|templates runtime for a Claude-only project', () => {
+    const schema = projectLifecycleSchema(createTemporaryDirectory(), ['claude']);
+
+    const sharedRuntimePaths = [
+      ...Object.keys(schema.ownedFiles),
+      ...Object.keys(schema.managedFiles),
+      ...schema.ownedDirs,
+    ].filter(path => isSharedAgentRuntimePath(path));
+
+    expect(sharedRuntimePaths).toEqual([]);
+    // Non-runtime .safeword content Claude still reads stays installed.
+    expect(schema.ownedFiles['.safeword/config.json']).toBeDefined();
+    expect(schema.ownedFiles['.safeword/SAFEWORD.md']).toBeDefined();
+  });
+
+  it('keeps the shared runtime for a Cursor-only project', () => {
+    const schema = projectLifecycleSchema(createTemporaryDirectory(), ['cursor']);
 
     expect(schema.ownedFiles['.safeword/hooks/lib/cursor-run-identity.ts']).toEqual({
       template: 'hooks/lib/cursor-run-identity.ts',
