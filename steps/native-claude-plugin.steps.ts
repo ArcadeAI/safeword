@@ -1272,7 +1272,10 @@ Then('project-owned Safeword state is created', function (this: NativeClaudePlug
   assert.equal(this.lifecycle?.result?.status, 2, this.lifecycle?.result?.output);
   assert.ok(this.lifecycle);
   assert.ok(existsSync(nodePath.join(this.lifecycle.project, '.safeword/version')));
-  assert.ok(existsSync(nodePath.join(this.lifecycle.project, '.safeword/skills/debug/SKILL.md')));
+  assert.ok(existsSync(nodePath.join(this.lifecycle.project, '.safeword/SAFEWORD.md')));
+  // A Claude-only project never reads .safeword/hooks|skills|scripts — native
+  // Claude uses its own packaged copies instead (ticket 0VG5AC).
+  assert.equal(existsSync(nodePath.join(this.lifecycle.project, '.safeword/skills')), false);
 });
 
 Then('no Cursor configuration is materialized', function (this: NativeClaudePluginWorld) {
@@ -1884,7 +1887,10 @@ Then(
   'project-owned assets remain reconciled while Cursor stays unselected',
   function (this: NativeClaudePluginWorld) {
     assert.ok(this.lifecycle);
-    assert.ok(existsSync(nodePath.join(this.lifecycle.project, '.safeword/skills/debug/SKILL.md')));
+    assert.ok(existsSync(nodePath.join(this.lifecycle.project, '.safeword/SAFEWORD.md')));
+    // A Claude-only project never reads .safeword/hooks|skills|scripts — native
+    // Claude uses its own packaged copies instead (ticket 0VG5AC).
+    assert.equal(existsSync(nodePath.join(this.lifecycle.project, '.safeword/skills')), false);
     assert.equal(existsSync(nodePath.join(this.lifecycle.project, '.cursor')), false);
   },
 );
