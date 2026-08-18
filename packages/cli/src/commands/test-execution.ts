@@ -5,7 +5,7 @@ import nodePath from 'node:path';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import {
   readPersonalExecutionPreference,
-  readProjectExecutionPreference,
+  readProjectTestConfig,
 } from '../test-execution/config.js';
 import {
   type ExecutionMode,
@@ -135,6 +135,7 @@ function invalidExecutionRequest(message: string): CliResult {
 interface ExecutionRequest {
   readonly lane: 'done' | 'full';
   readonly commandMode?: ExecutionMode;
+  readonly prepareRemote: boolean;
 }
 
 function emptyPlanResult(
@@ -218,7 +219,71 @@ function parseExecutionRequest(
   if (commandMode !== undefined && commandMode !== 'local' && commandMode !== 'remote-preferred') {
     return invalidExecutionRequest('Execution mode must be local or remote-preferred.');
   }
-  return { lane, commandMode };
+  return { lane, commandMode, prepareRemote: options.prepareRemote === true };
+}
+
+function remotePreparationFailure(result: ReturnType<typeof spawnSync>): CliResult {
+  const error = result.error;
+  const message =
+    error === undefined
+      ? `Remote test setup exited with status ${String(result.status ?? 'unknown')}.`
+      : `Remote test setup could not complete (${spawnErrorCode(error)}): ${error.message}`;
+  return createResult({
+    state: 'failed',
+    exitCode: result.status ?? 1,
+    effects: TEST_COMMAND_EFFECTS,
+    errors: [{ code: 'SAFEWORD_REMOTE_SETUP_FAILED', message, retryable: false }],
+    data: { command: 'project test', remotePreparation: { executed: true } },
+  });
+}
+
+function prepareRemoteProject(
+  cwd: string,
+  command: string | undefined,
+  delivery: { readonly json?: boolean },
+): CliResult | undefined {
+  if (command === undefined) return undefined;
+  const [executable, arguments_] = shellInvocation(command);
+  const result = spawnSync(executable, arguments_, {
+    cwd,
+    env: process.env,
+    encoding: 'utf8',
+    stdio: delivery.json === true ? ['inherit', 'pipe', 'pipe'] : 'inherit',
+    ...(delivery.json === true && { maxBuffer: JSON_RUNNER_OUTPUT_LIMIT_BYTES }),
+  });
+  return result.error === undefined && result.status === 0
+    ? undefined
+    : remotePreparationFailure(result);
+}
+
+function resolveExecutionContext(
+  cwd: string,
+  request: ExecutionRequest,
+  delivery: { readonly json?: boolean },
+): CliResult | { readonly effective: ResolvedExecutionMode } {
+  const personal = readPersonalExecutionPreference(cwd);
+  if (personal.error !== undefined) {
+    return invalidExecutionRequest(
+      `Personal test-execution configuration at ${personal.path} ${personal.error}.`,
+    );
+  }
+  const project = readProjectTestConfig(cwd);
+  if (project.error !== undefined) {
+    return invalidExecutionRequest(
+      `Project test configuration at ${project.path} ${project.error}.`,
+    );
+  }
+  const preparationFailure = request.prepareRemote
+    ? prepareRemoteProject(cwd, project.setupCommand, delivery)
+    : undefined;
+  if (preparationFailure !== undefined) return preparationFailure;
+  return {
+    effective: resolveExecutionMode({
+      command: request.commandMode,
+      personal: personal.mode,
+      project: project.mode,
+    }),
+  };
 }
 
 export function runProjectTests(
@@ -228,20 +293,10 @@ export function runProjectTests(
 ): CliResult {
   const request = parseExecutionRequest(options);
   if ('state' in request) return request;
-  const { lane, commandMode } = request;
-
-  const personal = readPersonalExecutionPreference(cwd);
-  if (personal.error !== undefined) {
-    return invalidExecutionRequest(
-      `Personal test-execution configuration at ${personal.path} ${personal.error}.`,
-    );
-  }
-  const project = readProjectExecutionPreference(cwd);
-  const effective = resolveExecutionMode({
-    command: commandMode,
-    personal: personal.mode,
-    project,
-  });
+  const { lane } = request;
+  const context = resolveExecutionContext(cwd, request, delivery);
+  if ('state' in context) return context;
+  const { effective } = context;
   const planKind: PlanKind = lane === 'full' ? 'verify' : 'test';
   const plan = resolveTestPlan(cwd, { kind: planKind });
   const decision = executionDecision(effective);
@@ -290,9 +345,14 @@ export function observeTestExecutionStatus(cwd: string): CliResult {
       ],
     });
   }
-  const project = readProjectExecutionPreference(cwd);
-  const effective = resolveExecutionMode({ personal: personal.mode, project });
-  const personalOrigin = nodePath.relative(cwd, personal.path);
+  const project = readProjectTestConfig(cwd);
+  if (project.error !== undefined) {
+    return invalidExecutionRequest(
+      `Project test configuration at ${project.path} ${project.error}.`,
+    );
+  }
+  const effective = resolveExecutionMode({ personal: personal.mode, project: project.mode });
+  const personalOrigin = nodePath.relative(cwd, personal.path).split(nodePath.sep).join('/');
   return createResult({
     state: 'healthy',
     data: {
@@ -302,7 +362,7 @@ export function observeTestExecutionStatus(cwd: string): CliResult {
       scopes: [
         { source: 'command', mode: 'not applicable' },
         { source: 'personal', mode: personal.mode, path: personalOrigin },
-        { source: 'project', mode: project, path: '.safeword/config.json' },
+        { source: 'project', mode: project.mode, path: '.safeword/config.json' },
         { source: 'built-in', mode: 'local' },
       ],
     },
@@ -370,7 +430,7 @@ export function setupManagedRemoteWorkflow(cwd: string): CliResult {
   }
   const effective = resolveExecutionMode({
     personal: personal.mode,
-    project: readProjectExecutionPreference(cwd),
+    project: readProjectTestConfig(cwd).mode,
   });
   const workflow = setupRemoteWorkflow(cwd, bundledRemoteWorkflow(), effective.mode);
   if (!workflow.ok) return lifecycleFailure('project test-execution remote setup', workflow);

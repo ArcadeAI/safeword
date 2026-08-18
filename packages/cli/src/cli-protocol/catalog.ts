@@ -291,6 +291,10 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
         description: 'local or remote-preferred',
         valueKind: 'execution-mode-list',
       },
+      {
+        flags: '--prepare-remote',
+        description: 'Run the project remote-test setup command before tests',
+      },
     ],
   }),
   command(

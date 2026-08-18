@@ -19,6 +19,43 @@ export interface PersonalExecutionPreference {
   readonly error?: string;
 }
 
+export interface ProjectTestConfig {
+  readonly path: string;
+  readonly mode?: ExecutionMode;
+  readonly setupCommand?: string;
+  readonly error?: string;
+}
+
+function parseRemoteSetup(value: unknown): Pick<ProjectTestConfig, 'setupCommand' | 'error'> {
+  if (value === undefined) return {};
+  if (value === null || Array.isArray(value) || typeof value !== 'object') {
+    return { error: 'remoteTest must be a JSON object' };
+  }
+  const setupCommand = (value as Record<string, unknown>).setupCommand;
+  if (setupCommand === undefined) return {};
+  if (typeof setupCommand !== 'string' || setupCommand.trim() === '') {
+    return { error: 'remoteTest.setupCommand must be a non-empty string' };
+  }
+  return { setupCommand };
+}
+
+function parseProjectConfig(parsed: unknown, path: string): ProjectTestConfig {
+  if (parsed === null || Array.isArray(parsed) || typeof parsed !== 'object') {
+    return { path, error: 'must be a JSON object' };
+  }
+  const config = parsed as Record<string, unknown>;
+  if (config.testExecution !== undefined && !isExecutionMode(config.testExecution)) {
+    return { path, error: 'uses an unsupported testExecution mode' };
+  }
+  const remote = parseRemoteSetup(config.remoteTest);
+  if (remote.error !== undefined) return { path, error: remote.error };
+  return {
+    path,
+    ...(isExecutionMode(config.testExecution) && { mode: config.testExecution }),
+    ...remote,
+  };
+}
+
 function isExecutionMode(value: unknown): value is ExecutionMode {
   return value === 'local' || value === 'remote-preferred';
 }
@@ -130,14 +167,18 @@ export function readPersonalExecutionPreference(cwd: string): PersonalExecutionP
   }
 }
 
-/** Read the optional shared default without allowing it to affect private-config safety. */
-export function readProjectExecutionPreference(cwd: string): ExecutionMode | undefined {
+/** Read shared test defaults and the optional CI-safe remote preparation command. */
+export function readProjectTestConfig(cwd: string): ProjectTestConfig {
+  const path = nodePath.join(cwd, '.safeword', 'config.json');
   try {
-    const config = JSON.parse(
-      readFileSync(nodePath.join(cwd, '.safeword', 'config.json'), 'utf8'),
-    ) as { testExecution?: unknown };
-    return isExecutionMode(config.testExecution) ? config.testExecution : undefined;
-  } catch {
-    return undefined;
+    return parseProjectConfig(JSON.parse(readFileSync(path, 'utf8')) as unknown, path);
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return { path };
+    return { path, error: 'cannot be read as project test configuration' };
   }
+}
+
+/** Compatibility accessor for callers that only need the shared execution preference. */
+export function readProjectExecutionPreference(cwd: string): ExecutionMode | undefined {
+  return readProjectTestConfig(cwd).mode;
 }

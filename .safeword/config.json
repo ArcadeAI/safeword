@@ -10,6 +10,9 @@
     "file": true
   },
   "testExecution": "remote-preferred",
+  "remoteTest": {
+    "setupCommand": "bun install --frozen-lockfile"
+  },
   "paths": {
     "architecture": "ARCHITECTURE.md",
     "principles": "PRINCIPLES.md"
