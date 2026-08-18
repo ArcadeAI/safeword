@@ -380,6 +380,50 @@ describe('test execution CLI wiring', () => {
     );
   });
 
+  it('removes only the managed remote workflow without changing execution preference', async () => {
+    const directory = createTemporaryDirectory();
+    const safewordDirectory = nodePath.join(directory, '.safeword');
+    const workflowDirectory = nodePath.join(directory, '.github', 'workflows');
+    const workflowPath = nodePath.join(workflowDirectory, 'safeword-tests.yml');
+    const bundledWorkflow = readFileSync(
+      nodePath.join(process.cwd(), 'templates/workflows/remote-tests.yml'),
+      'utf8',
+    );
+    mkdirSync(safewordDirectory, { recursive: true });
+    mkdirSync(workflowDirectory, { recursive: true });
+    const projectConfig = JSON.stringify({ testExecution: 'remote-preferred' });
+    writeFileSync(nodePath.join(safewordDirectory, 'config.json'), projectConfig);
+    writeFileSync(workflowPath, bundledWorkflow);
+
+    const result = await runCli(
+      [
+        'project',
+        'test-execution',
+        'remote',
+        'disable',
+        '--json',
+        '--no-input',
+        '--offline',
+        '--cwd',
+        directory,
+      ],
+      { cwd: directory },
+    );
+
+    expect(result).toMatchObject({ exitCode: 0, stderr: '' });
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'changed',
+      data: {
+        command: 'project test-execution remote disable',
+        workflow: { state: 'not_installed', changed: true },
+      },
+    });
+    expect(() => readFileSync(workflowPath, 'utf8')).toThrow();
+    expect(readFileSync(nodePath.join(safewordDirectory, 'config.json'), 'utf8')).toBe(
+      projectConfig,
+    );
+  });
+
   it('uses a valid private preference without changing the shared project config', async () => {
     const directory = createTemporaryDirectory();
     initializePrivateConfigRepo(directory);
