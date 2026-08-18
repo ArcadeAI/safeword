@@ -1206,6 +1206,14 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // Full uninstall removes it only while it still matches Safeword's template.
     '.jscpd.json': { template: '.jscpd.json' },
 
+    // Explicit remote-test setup owns publication; ordinary reconciliation
+    // catalogues these bytes without installing them.
+    '.github/workflows/safeword-remote-tests.yml': {
+      template: 'workflows/remote-tests.yml',
+      generator: (): undefined => undefined,
+      dogfoodParity: true,
+    },
+
     // Package-owned Codex runtime adapters. Their generator intentionally
     // returns undefined: the plugin CLI executes them from the npm package,
     // never from a customer repository.
