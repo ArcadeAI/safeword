@@ -6,6 +6,7 @@ import type {
   LegacyGlobalGuidanceDiagnostic,
   LegacyGlobalGuidanceObservation,
 } from '../codex-plugin/legacy-global-guidance.js';
+import { CODEX_RESTART_ACTION } from '../codex-plugin/migration.js';
 import { CodexMigrationError } from '../codex-plugin/migration-error.js';
 import type * as CodexMigration from '../codex-plugin/operations.js';
 import type { RetroCliOptions, RetroCommandExecution } from '../commands/retro.js';
@@ -1516,8 +1517,7 @@ function codexPluginUpdateFailure(observed: CliResult): CliResult | undefined {
       ...observed.errors,
       {
         code: 'PLUGIN_UPDATE_REQUIRED',
-        message:
-          'Finalization requires the packaged Safeword plugin version. Run safeword install --agents=codex, restart Codex, start a new task, and review /hooks.',
+        message: `Finalization requires the packaged Safeword plugin version. Run safeword install --agents=codex. ${CODEX_RESTART_ACTION} and review /hooks.`,
         retryable: true,
       },
     ],

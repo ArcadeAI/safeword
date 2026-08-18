@@ -639,7 +639,7 @@ Then(
     assert.equal(existsSync(activationMarkerPath(this)), true);
     assert.equal(observeMigrationState(this), 'plugin_installed_app_restart_required');
     const status = run(this, ['codex', 'status']);
-    assert.match(status.stdout, /Restart Codex/u);
+    assert.match(status.stdout, /Fully restart Codex.+resume this task/isu);
   },
 );
 
@@ -1405,8 +1405,8 @@ Then(
   function (this: ContinuityCliWorld) {
     const content = this.bootstrapContent ?? '';
     assert.match(content, /codex migrate/u);
-    assert.match(content, /Restart Codex/iu);
-    assert.match(content, /new Codex task/iu);
+    assert.match(content, /Fully restart Codex/iu);
+    assert.match(content, /resume this task/iu);
     assert.match(content, /\/hooks/u);
     assert.match(content, /codex status/u);
     assert.doesNotMatch(content, /BDD|TDD|quality review/u);
@@ -1510,12 +1510,12 @@ Then(
 );
 
 Then(
-  'the result says the Codex app may keep its loaded catalogue and must restart before a new task verifies the installed version',
+  'the result says the Codex app may keep its loaded catalogue and must fully restart before this task verifies the installed version',
   function (this: ContinuityCliWorld) {
     const output = `${this.result.stdout}\n${this.result.stderr}`;
     assert.match(output, /Codex app may keep its loaded Safeword catalogue/u);
-    assert.match(output, /Restart Codex/u);
-    assert.match(output, /start a new task/u);
+    assert.match(output, /Fully restart Codex/u);
+    assert.match(output, /resume this task/u);
   },
 );
 
@@ -1534,7 +1534,7 @@ Then(
       state: 'plugin_installed_app_restart_required',
     });
     const human = run(this, ['codex', 'status']);
-    assert.match(human.stdout, /Restart Codex.+new task.+review.+hooks/isu);
+    assert.match(human.stdout, /Fully restart Codex.+resume this task.+review.+hooks/isu);
   },
 );
 
@@ -1578,7 +1578,7 @@ Given(
 );
 
 When(
-  'a new task in the same Codex app invokes the installed profile-plugin SessionStart dispatcher',
+  'the resumed task in the same Codex app invokes the installed profile-plugin SessionStart dispatcher',
   function (this: ContinuityCliWorld) {
     recordEventProofForHost(this, 'session-start', INSTALLING_HOST);
   },
@@ -1590,6 +1590,13 @@ Then(
     assert.equal(existsSync(activationMarkerPath(this)), true);
     assert.equal(existsSync(proofPath(this)), true);
     assert.equal(observeMigrationState(this), 'plugin_installed_app_restart_required');
+  },
+);
+
+When(
+  'a restarted Codex app resumes the task through the installed profile-plugin SessionStart dispatcher',
+  function (this: ContinuityCliWorld) {
+    recordEventProofForHost(this, 'session-start', RESTARTED_HOST);
   },
 );
 

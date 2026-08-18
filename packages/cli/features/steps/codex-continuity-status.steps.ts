@@ -341,7 +341,8 @@ Then(
     assert.equal(status.state, 'plugin_enabled_hook_unproven');
     assert.deepEqual(status.next_actions[0], {
       kind: 'human',
-      instruction: 'Restart Codex, start a new task, then review the installed hooks with /hooks.',
+      instruction:
+        'Fully restart Codex, then resume this task and review the installed hooks with /hooks.',
       mutates: false,
       requires_human: true,
     });
@@ -404,7 +405,7 @@ Then(
 Then(
   'the output recommends restarting Codex and reviewing hooks',
   function (this: ContinuityStatusWorld) {
-    assert.match(this.codexStatusOutput ?? '', /Restart Codex.+review.+\/hooks/isu);
+    assert.match(this.codexStatusOutput ?? '', /Fully restart Codex.+resume.+review.+\/hooks/isu);
   },
 );
 
