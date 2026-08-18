@@ -16,9 +16,9 @@ original next-task-only rows after the rc.1 live gate disproved that contract.
 
 - [x] Successful installation requires a full app restart and same-task resume
 - [x] Running task keeps its loaded bundle — RED / GREEN / REFACTOR
-- [ ] Resumed task in the same app remains pending
-- [ ] Restarted app loads the exact released skills and hooks in the resumed task
-- [x] Pending status never claims the running app reloaded — RED / GREEN / REFACTOR
+- [x] Resumed task in the same app remains pending — live evidence in `manual-evidence.md`
+- [x] Restarted app loads the exact released skills and hooks in the resumed task — live evidence in `manual-evidence.md`
+- [x] Pending status reviews changed hooks before one restart — RED `67c44001c` / GREEN `ed1a8cbe9` / REFACTOR skip: one shared instruction is already minimal
 - [x] Bootstrap-first and profile-hook-first ordering converge through one bounded recheck
 - [x] Missing proof after the bounded recheck remains unverified
 
@@ -44,4 +44,4 @@ original next-task-only rows after the rc.1 live gate disproved that contract.
 
 - [x] Shared host identity and activation-marker logic
 - [x] Full automated suite verification
-- [ ] Published-candidate live verification
+- [x] Published-candidate live verification — public `0.78.4`, see `manual-evidence.md`

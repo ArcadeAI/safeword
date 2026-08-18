@@ -328,7 +328,7 @@ Safeword manages two types of files:
 
 ### safeword install --agents=codex
 
-Install the Safeword plugin into the active Codex profile and verify Codex reports it enabled from the verified `stable` channel. This explicit command is useful for immediate enrollment; ordinary install also commits a project SessionStart bootstrap that performs the same profile-only enrollment for each collaborator. Fully restart Codex after installation, then resume this task to load one coherent skills-and-hooks catalogue.
+Install the Safeword plugin into the active Codex profile and verify Codex reports it enabled from the verified `stable` channel. This explicit command is useful for immediate enrollment; ordinary install also commits a project SessionStart bootstrap that performs the same profile-only enrollment for each collaborator. Review changed hooks in Desktop Settings > Hooks (or `/hooks` in the terminal TUI), fully restart Codex, then resume this task to load one coherent skills-and-hooks catalogue.
 
 ```bash
 bunx safeword@latest install --agents=codex

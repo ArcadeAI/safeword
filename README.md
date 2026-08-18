@@ -32,7 +32,7 @@ bunx safeword@latest install --agents=claude,codex,cursor
 
 ```bash
 # In Claude Code, run: /reload-plugins
-# Fully restart Codex, then resume this task and review: /hooks
+# Review hooks in Desktop Settings > Hooks (or /hooks in the TUI), then fully restart Codex and resume this task
 ```
 
 **3. Verify installation:**
@@ -313,7 +313,9 @@ advisory, while repository-owned composed commands require readiness. The plugin
 implicitly enroll repositories: until `safeword install` creates
 `.safeword/SAFEWORD.md`, project gates fail open and hooks do not create
 `.project/` or other project state. Codex visibly skips
-unreviewed or changed plugin hooks and directs the builder to `/hooks`. Use
+unreviewed or changed plugin hooks and directs the builder to Desktop
+Settings > Hooks or `/hooks` in the terminal TUI. Review changed hooks before
+restarting so the resumed task's SessionStart can run the first time. Use
 `safeword codex status` to see which implementation currently protects the
 repository and one safe next action. It also reports active profile-level
 `AGENTS.md` guidance that matches or resembles retired Safeword instructions.

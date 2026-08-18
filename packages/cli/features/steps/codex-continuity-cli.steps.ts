@@ -1524,7 +1524,7 @@ When('the builder checks the Codex plugin activation status', function (this: Co
 });
 
 Then(
-  'status reports plugin_installed_app_restart_required and directs the builder to restart before reviewing hooks',
+  'status reports plugin_installed_app_restart_required and directs the builder to review hooks before restarting',
   function (this: ContinuityCliWorld) {
     const status = JSON.parse(this.result.stdout) as {
       data?: { migration?: { schema_version?: string; state?: string } };
@@ -1534,7 +1534,7 @@ Then(
       state: 'plugin_installed_app_restart_required',
     });
     const human = run(this, ['codex', 'status']);
-    assert.match(human.stdout, /Fully restart Codex.+resume this task.+review.+hooks/isu);
+    assert.match(human.stdout, /review.+hooks.+Fully restart Codex.+resume this task/isu);
   },
 );
 

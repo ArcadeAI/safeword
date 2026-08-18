@@ -63,8 +63,10 @@ architecture decision.
 2. Safeword refreshes the existing Git marketplace or adds it for a fresh profile.
 3. Codex installs and enables the exact released plugin cache copy.
 4. Safeword explains that the running app may retain a stale catalogue.
-5. The builder fully restarts Codex, resumes the existing task, and reviews `/hooks`.
-6. SessionStart under the new app-server identity clears pending activation.
+5. The builder reviews the changed hooks in Desktop Settings > Hooks or `/hooks`
+   in the terminal TUI.
+6. The builder fully restarts Codex and resumes the existing task.
+7. SessionStart under the new app-server identity clears pending activation.
 
 ## Key decisions
 

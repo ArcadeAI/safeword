@@ -35,8 +35,8 @@ import {
   observeLegacyGlobalGuidance,
 } from './legacy-global-guidance.js';
 import {
-  CODEX_RESTART_ACTION,
   CODEX_RESTART_CONTEXT,
+  CODEX_REVIEW_THEN_RESTART_ACTION,
   codexMigrationExitCode,
   type CodexMigrationResultV2,
   type CodexPluginObservation,
@@ -591,7 +591,7 @@ export function installCodexPlugin(
   if (options.json !== true) {
     success('Safeword Codex plugin is enabled for this profile.');
     info(
-      `This Codex app may keep its loaded Safeword catalogue. ${CODEX_RESTART_ACTION} and review the installed skills and hooks with /hooks. If this project uses Safeword legacy hooks, run \`safeword codex migrate --remove-legacy-hooks\` to remove only those hooks.`,
+      `This Codex app may keep its loaded Safeword catalogue. ${CODEX_REVIEW_THEN_RESTART_ACTION}. If this project uses Safeword legacy hooks, run \`safeword codex migrate --remove-legacy-hooks\` to remove only those hooks.`,
     );
   }
   if (options.reportMigrationState === true) {
@@ -649,7 +649,7 @@ function buildCodexFinalizationMutations(
     },
     {
       path: CODEX_MIGRATION_SCHEMA.paths.bootstrapSkill,
-      content: `---\nname: safeword-plugin-setup\ndescription: Restore the Safeword Codex profile plugin for this project.\n---\n\nRun \`safeword codex migrate\` to install or re-enable the profile plugin. ${CODEX_RESTART_ACTION} and review its hooks with \`/hooks\`. Run \`safeword codex status\` to verify this project is protected.\n`,
+      content: `---\nname: safeword-plugin-setup\ndescription: Restore the Safeword Codex profile plugin for this project.\n---\n\nRun \`safeword codex migrate\` to install or re-enable the profile plugin. ${CODEX_REVIEW_THEN_RESTART_ACTION}. Run \`safeword codex status\` to verify this project is protected.\n`,
     },
   );
   return mutations;

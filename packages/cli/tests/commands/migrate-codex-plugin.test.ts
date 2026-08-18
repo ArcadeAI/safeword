@@ -1089,7 +1089,7 @@ command = 'echo "keep this user hook"'
         {
           kind: 'human',
           instruction:
-            'Fully restart Codex, then resume this task and review the installed hooks with /hooks.',
+            'Review the installed hooks in Codex Desktop under Settings > Hooks (or with /hooks in the terminal TUI). Fully restart Codex, then resume this task.',
           mutates: false,
           requires_human: true,
         },

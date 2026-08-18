@@ -60,7 +60,9 @@ export function codexInstallRequiresMutation(observation: CodexMigrationResultV2
 }
 
 export const CODEX_RESTART_ACTION = 'Fully restart Codex, then resume this task';
-const CODEX_RESTART_INSTRUCTION = `${CODEX_RESTART_ACTION} and review the installed hooks with /hooks.`;
+export const CODEX_REVIEW_THEN_RESTART_ACTION =
+  'Review the installed hooks in Codex Desktop under Settings > Hooks (or with /hooks in the terminal TUI). Fully restart Codex, then resume this task';
+const CODEX_RESTART_INSTRUCTION = `${CODEX_REVIEW_THEN_RESTART_ACTION}.`;
 
 /**
  * Why the app may still be stale. The instruction that resolves it travels as a

@@ -44,15 +44,16 @@ Run the two `@live @manual` scenarios before release and record the transcript i
 3. In a terminal, run the published candidate's exact install command (`bunx
    --bun safeword@<candidate-prerelease-version> codex install`). Record marketplace refresh,
    installed version, and the canonical pending marker identity.
-4. Return to the same task, reopen `/hooks`, and invoke one reviewed Safeword
-   hook. Record that its command/manifest remains the old exact version. This is
-   the GREEN evidence for “Installing an upgrade does not change the running
-   task.”
+4. Return to the same task and record that its loaded skills remain the old
+   exact version. Review the candidate's exact changed hooks in Desktop Settings
+   > Hooks or `/hooks` in the terminal TUI before restarting. This is the GREEN
+   evidence for “Installing an upgrade does not change the running task” and
+   ensures the resumed task's SessionStart is not skipped as untrusted.
 5. Resume the task without fully restarting the app and confirm activation remains pending.
    Open `/hooks`, invoke SessionStart, and record the observed skill catalogue,
    hook manifest, activation-bound proof, and retained activation marker. This is the
    rejection evidence for “A same-app resume does not prove activation.”
-6. Fully restart Codex, resume the same task, and capture the exact task ID,
+6. With the changed hooks already trusted, fully restart Codex, resume the same task, and capture the exact task ID,
    skill catalogue, and hook manifest as GREEN evidence for coherent activation.
 7. The evidence file must contain timestamp, old and candidate versions, Codex
    version, exact commands, running/same-app-resume/restarted-app-resume observations, marker/proof
