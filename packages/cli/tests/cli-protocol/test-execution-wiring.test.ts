@@ -305,6 +305,36 @@ describe('test execution CLI wiring', () => {
     });
   });
 
+  it('reports an absent managed remote workflow without mutation', async () => {
+    const directory = createTemporaryDirectory();
+
+    const result = await runCli(
+      [
+        'project',
+        'test-execution',
+        'remote',
+        'status',
+        '--json',
+        '--no-input',
+        '--offline',
+        '--cwd',
+        directory,
+      ],
+      { cwd: directory },
+    );
+
+    expect(result).toMatchObject({ exitCode: 0, stderr: '' });
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'healthy',
+      changed: false,
+      data: {
+        command: 'project test-execution remote status',
+        // eslint-disable-next-line unicorn/no-null -- JSON lifecycle protocol uses null for no path/action.
+        workflow: { state: 'not_installed', affectedPath: null, nextAction: null },
+      },
+    });
+  });
+
   it('uses a valid private preference without changing the shared project config', async () => {
     const directory = createTemporaryDirectory();
     initializePrivateConfigRepo(directory);
