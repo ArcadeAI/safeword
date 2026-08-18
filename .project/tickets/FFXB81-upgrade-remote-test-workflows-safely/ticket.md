@@ -2,7 +2,7 @@
 id: FFXB81
 slug: upgrade-remote-test-workflows-safely
 type: feature
-phase: verify
+phase: intake
 status: in_progress
 scope:
   - Recognize every previously released remote-test workflow identity

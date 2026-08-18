@@ -4,6 +4,8 @@ slug: manage-remote-test-workflows-without-overwriting-customers
 type: feature
 phase: verify
 status: in_progress
+phase_anchors:
+  - verify: 454fe0e99
 scope:
   - Ownership classification, status, explicit first-time setup, and disable for one managed workflow
   - Exact current workflow identity across ordinary checkout line-ending conversion
