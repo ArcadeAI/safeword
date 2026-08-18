@@ -4,8 +4,8 @@
 | --- | --- | --- |
 | Marketplace state | absent; configured Git source; configured non-Git source | R1 |
 | Marketplace refresh result | success; command failure before plugin installation | R1 |
-| Host lifecycle | installing app-server; new task under same host; restarted app-server; later tasks after proof | R2, R3 |
-| Activation evidence | no marker; installation-bound marker; same-host proof; restarted-host proof; stale or mismatched proof | R3 |
+| Host lifecycle | installing app-server; resumed task under same host; resumed task under a restarted app-server; later tasks after proof | R2, R3 |
+| Activation evidence | no marker; installation-bound marker; same-host proof; restarted-host proof; stale, cross-task, cross-profile, cross-worktree, or mismatched proof | R3 |
 | Marker generation | canonical v2 marker; valid v0.70 restart marker; malformed or stale legacy marker | R4 |
 | User guidance surface | install prose; status prose; migration bootstrap text; JSON migration state | R2, R4 |
 | Trust boundary | exact package version and manifest digest match; activation ID; app-server PID and start time | R3 |

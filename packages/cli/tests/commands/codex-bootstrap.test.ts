@@ -57,6 +57,19 @@ function currentObservation() {
   return observation(true, SAFEWORD_SCHEMA.version);
 }
 
+function resumeBootstrap(
+  cwd: string,
+  environment: NodeJS.ProcessEnv,
+  options: Parameters<typeof bootstrapCodexPlugin>[2] = {},
+) {
+  return bootstrapCodexPlugin(cwd, JSON.stringify({ session_id: 'task-a', source: 'resume' }), {
+    environment,
+    observe: () => currentObservation(),
+    sleep: vi.fn(),
+    ...options,
+  });
+}
+
 function context(result: ReturnType<typeof bootstrapCodexPlugin>): string {
   const body = result.presentation?.body ?? '';
   if (body === '') return '';
@@ -85,7 +98,7 @@ function data(result: ReturnType<typeof bootstrapCodexPlugin>): {
 }
 
 describe('Codex project bootstrap', () => {
-  it('is silent only when this exact project and task have native SessionStart proof', () => {
+  it('is silent when this exact resumed project and task have native SessionStart proof', () => {
     const { cwd, environment } = fixture();
     recordCodexHookProof('session-start', environment, new Date(), {
       projectDirectory: cwd,
@@ -94,11 +107,15 @@ describe('Codex project bootstrap', () => {
     const observe = vi.fn(() => currentObservation());
     const install = vi.fn();
 
-    const current = bootstrapCodexPlugin(cwd, JSON.stringify({ session_id: 'task-a' }), {
-      environment,
-      observe,
-      install,
-    });
+    const current = bootstrapCodexPlugin(
+      cwd,
+      JSON.stringify({ session_id: 'task-a', source: 'resume' }),
+      {
+        environment,
+        observe,
+        install,
+      },
+    );
     const otherTask = bootstrapCodexPlugin(cwd, JSON.stringify({ session_id: 'task-b' }), {
       environment,
       observe,
@@ -128,6 +145,154 @@ describe('Codex project bootstrap', () => {
       reason: 'proof-unverified',
     });
     expect(data(otherTask).protected_in_current_task).toBeUndefined();
+  });
+
+  it('briefly rechecks a resumed task when its concurrent profile hook writes proof second', () => {
+    const { cwd, environment } = fixture();
+    const observeSessionProof = vi
+      .fn()
+      .mockReturnValueOnce({
+        manifest_sha256: null,
+        plugin_version: null,
+        recorded_at: null,
+        status: 'missing',
+      })
+      .mockReturnValueOnce({
+        manifest_sha256: 'a'.repeat(64),
+        plugin_version: SAFEWORD_SCHEMA.version,
+        recorded_at: '2026-08-17T00:00:00.000Z',
+        status: 'current',
+      });
+    const sleep = vi.fn();
+
+    const result = resumeBootstrap(cwd, environment, { observeSessionProof, sleep });
+
+    expect(result.presentation?.body).toBe('');
+    expect(data(result)).toMatchObject({
+      protected_in_current_task: true,
+      protection_verification: 'current',
+      reason: 'current',
+    });
+    expect(observeSessionProof).toHaveBeenCalledTimes(2);
+    expect(sleep).toHaveBeenCalledOnce();
+  });
+
+  it('remains unverified when resumed-task proof is still missing after the bounded recheck', () => {
+    const { cwd, environment } = fixture();
+    const observeSessionProof = vi.fn(() => ({
+      manifest_sha256: null,
+      plugin_version: null,
+      recorded_at: null,
+      status: 'missing' as const,
+    }));
+    const sleep = vi.fn();
+
+    const result = resumeBootstrap(cwd, environment, { observeSessionProof, sleep });
+
+    expect(context(result)).toContain('SAFEWORD PROTECTION IS UNVERIFIED IN THIS TASK');
+    expect(data(result)).toMatchObject({
+      protection_verification: 'unverified',
+      reason: 'proof-unverified',
+    });
+    expect(data(result).protected_in_current_task).toBeUndefined();
+    expect(observeSessionProof).toHaveBeenCalledTimes(6);
+    expect(sleep).toHaveBeenCalledTimes(5);
+  });
+
+  it('does not accept stale pre-upgrade proof for a resumed task', () => {
+    const { cwd, environment } = fixture();
+    recordCodexHookProof('session-start', environment, new Date(), {
+      projectDirectory: cwd,
+      sessionId: 'task-a',
+    });
+    const proofPath = onlySessionProofPath(environment);
+    const proof = JSON.parse(readFileSync(proofPath, 'utf8')) as Record<string, unknown>;
+    writeFileSync(
+      proofPath,
+      JSON.stringify({
+        ...proof,
+        plugin_version: '0.77.0',
+        manifest_sha256: '0'.repeat(64),
+      }),
+    );
+
+    const result = resumeBootstrap(cwd, environment);
+
+    expect(data(result)).toMatchObject({
+      observed_plugin_version: '0.77.0',
+      protection_verification: 'older-observed',
+    });
+    expect(data(result).protected_in_current_task).toBeUndefined();
+  });
+
+  it('does not accept proof from another task', () => {
+    const { cwd, environment } = fixture();
+    recordCodexHookProof('session-start', environment, new Date(), {
+      projectDirectory: cwd,
+      sessionId: 'task-b',
+    });
+
+    const result = resumeBootstrap(cwd, environment);
+
+    expect(data(result)).toMatchObject({
+      protection_verification: 'unverified',
+      reason: 'proof-unverified',
+    });
+    expect(data(result).protected_in_current_task).toBeUndefined();
+  });
+
+  it('does not accept proof from another Codex profile', () => {
+    const { cwd, environment } = fixture();
+    const otherProfile = {
+      CODEX_HOME: nodePath.join(nodePath.dirname(environment.CODEX_HOME ?? ''), 'other-profile'),
+    };
+    recordCodexHookProof('session-start', otherProfile, new Date(), {
+      projectDirectory: cwd,
+      sessionId: 'task-a',
+    });
+
+    const result = resumeBootstrap(cwd, environment);
+
+    expect(data(result)).toMatchObject({
+      protection_verification: 'unverified',
+      reason: 'proof-unverified',
+    });
+    expect(data(result).protected_in_current_task).toBeUndefined();
+  });
+
+  it('does not accept proof from another linked worktree', () => {
+    const { cwd, environment } = fixture();
+    execFileSync('git', ['init', cwd], { stdio: 'ignore' });
+    execFileSync(
+      'git',
+      [
+        '-C',
+        cwd,
+        '-c',
+        'user.name=Safeword Test',
+        '-c',
+        'user.email=safeword@example.com',
+        'commit',
+        '--allow-empty',
+        '-m',
+        'fixture',
+      ],
+      { stdio: 'ignore' },
+    );
+    const linked = nodePath.join(nodePath.dirname(cwd), 'linked-worktree');
+    execFileSync('git', ['-C', cwd, 'worktree', 'add', '--detach', linked], { stdio: 'ignore' });
+    recordCodexHookProof('session-start', environment, new Date(), {
+      projectDirectory: cwd,
+      sessionId: 'task-a',
+    });
+
+    const result = resumeBootstrap(linked, environment);
+
+    expect(data(result)).toMatchObject({
+      protection_verification: 'unverified',
+      reason: 'proof-unverified',
+    });
+    expect(data(result).protected_in_current_task).toBeUndefined();
   });
 
   it('uses the same git-root proof key when bootstrap starts in a nested directory', () => {
@@ -283,7 +448,7 @@ describe('Codex project bootstrap', () => {
     expect(context(result)).toContain(
       "Safeword protection from this task's previously loaded runtime was observed",
     );
-    expect(context(result)).toContain('Restart Codex and start a new task');
+    expect(context(result)).toContain('Fully restart Codex, then resume this task');
     expect(context(result)).not.toContain('SAFEWORD PROTECTION IS UNVERIFIED IN THIS TASK');
     expect(context(result)).not.toContain('SAFEWORD IS NOT ACTIVE IN THIS TASK');
     expect(data(result)).toMatchObject({

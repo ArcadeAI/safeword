@@ -400,7 +400,7 @@ Feature: One coherent Safeword command model
     Scenario: Install completion reports exact activation actions for both profile plugins
       Given Claude and Codex profile installation succeeds
       When the unified result is rendered
-      Then Claude reload and Codex restart plus new-task actions are shown separately
+      Then Claude reload and Codex restart plus task-resume actions are shown separately
 
     @rejection @surface.claude-code @surface.openai-codex
     Scenario: Installed plugins are not reported active before host proof

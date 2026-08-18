@@ -32,7 +32,7 @@ bunx safeword@latest install --agents=claude,codex,cursor
 
 ```bash
 # In Claude Code, run: /reload-plugins
-# Restart Codex and start a new task, then review: /hooks
+# Fully restart Codex, then resume this task and review: /hooks
 ```
 
 **3. Verify installation:**
@@ -81,8 +81,8 @@ repository's checks are available before work begins.
 The running Codex app cannot load a newly installed plugin into a task that has
 already started — and starting a new task alone isn't enough either, since the
 app itself keeps the old plugin catalogue loaded. The bootstrap therefore
-prints a loud startup warning until you restart Codex and open a new task,
-which is what actually records native proof. It never intercepts or blocks
+prints a loud startup warning until you fully restart Codex and resume the
+task, which records native proof for that same task. It never intercepts or blocks
 edits or commands. If the already-open task previously observed an older
 Safeword runtime, bootstrap reports that narrower fact instead of calling the
 task wholly unverified; the retained history never proves the installed update

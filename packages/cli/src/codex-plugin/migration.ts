@@ -59,8 +59,8 @@ export function codexInstallRequiresMutation(observation: CodexMigrationResultV2
   return observation.plugin.enabled !== true || observation.state === 'plugin_update_required';
 }
 
-const CODEX_RESTART_INSTRUCTION =
-  'Restart Codex, start a new task, then review the installed hooks with /hooks.';
+export const CODEX_RESTART_ACTION = 'Fully restart Codex, then resume this task';
+const CODEX_RESTART_INSTRUCTION = `${CODEX_RESTART_ACTION} and review the installed hooks with /hooks.`;
 
 /**
  * Why the app may still be stale. The instruction that resolves it travels as a

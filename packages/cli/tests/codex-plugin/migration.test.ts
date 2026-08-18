@@ -171,7 +171,7 @@ describe('Codex migration result', () => {
       state: 'plugin_installed_app_restart_required',
       protection: 'protected',
       output:
-        'Codex migration: plugin_installed_app_restart_required\nProtection: protected\nThis Codex app may keep its loaded Safeword catalogue.\nNext: Restart Codex, start a new task, then review the installed hooks with /hooks.\n',
+        'Codex migration: plugin_installed_app_restart_required\nProtection: protected\nThis Codex app may keep its loaded Safeword catalogue.\nNext: Fully restart Codex, then resume this task and review the installed hooks with /hooks.\n',
     },
     {
       name: 'enabled plugin without hook proof',
@@ -179,7 +179,7 @@ describe('Codex migration result', () => {
       state: 'plugin_enabled_hook_unproven',
       protection: 'unprotected',
       output:
-        'Codex migration: plugin_enabled_hook_unproven\nProtection: unprotected\nThis Codex app may keep its loaded Safeword catalogue.\nNext: Restart Codex, start a new task, then review the installed hooks with /hooks.\n',
+        'Codex migration: plugin_enabled_hook_unproven\nProtection: unprotected\nThis Codex app may keep its loaded Safeword catalogue.\nNext: Fully restart Codex, then resume this task and review the installed hooks with /hooks.\n',
     },
     {
       name: 'compatibility',
@@ -338,7 +338,7 @@ describe('Codex migration result', () => {
         {
           kind: 'human',
           instruction:
-            'Restart Codex, start a new task, then review the installed hooks with /hooks.',
+            'Fully restart Codex, then resume this task and review the installed hooks with /hooks.',
           mutates: false,
           requires_human: true,
         },
