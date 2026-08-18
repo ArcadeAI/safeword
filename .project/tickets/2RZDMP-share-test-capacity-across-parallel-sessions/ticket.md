@@ -11,8 +11,17 @@ phase_anchors:
   - define-behavior: .project/tickets/2RZDMP-share-test-capacity-across-parallel-sessions/spec.md
   - scenario-gate: packages/cli/features/share-test-capacity-across-parallel-sessions.feature
 scope:
+  - Let participating package-test wrappers in separate worktrees share an operator-chosen capacity for focused runs while broad runs remain exclusive.
+  - Keep participating wrappers in the same worktree and OS-user capacity domain serialized across their complete build and test lifetimes.
+  - Persist one guarded capacity, FIFO queue, ownership, crash recovery, and conservative capacity-one fallback with native Linux, macOS, and Windows evidence.
 out_of_scope:
+  - Remote or GitHub-hosted test execution, which belongs to BBNZ68.
+  - Arbitrary commands that bypass the package-test wrapper, deliberately detached POSIX descendants, and cross-user serialization of one shared checkout.
+  - Automatic CPU, memory, or Vitest-worker sizing; the operator chooses capacity for the unchanged downstream command.
 done_when:
+  - Focused participating wrappers overlap only within canonical capacity, broad wrappers run exclusively without starvation, and same-domain same-worktree wrappers never overlap.
+  - Durable admission, cancellation, release, and crash recovery fail closed without reclaiming a live or unverifiable process identity.
+  - Capacity configuration and reset expose stable public contracts, capacity one restores serialized behavior, and required native evidence covers every supported platform boundary.
 created: 2026-08-07T17:31:35.044Z
 last_modified: 2026-08-10T19:50:00Z
 ---

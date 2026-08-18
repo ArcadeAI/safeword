@@ -5,6 +5,9 @@ Feature source: `packages/cli/features/share-test-capacity-across-parallel-sessi
 test-definitions.md is the R/G/R ledger. Executable Given/When/Then scenarios
 remain in the feature file.
 
+Classification scenarios define behavior partitions; the public-entrypoint
+outline is their one real-collaborator wiring proof, not a second grammar.
+
 ## Rule: share-test-capacity.TBU1.R1
 
 ### Scenario: Focused checks in separate worktrees fill but never exceed shared capacity
@@ -13,43 +16,13 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Separate repositories on one machine and user share canonical capacity
+### Scenario: Every focused permit reconciles with durable ownership and the complete process trace
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Every focused process lifetime has one durable ownership interval
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Duplicate owner releases do not change durable state
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: A stale release cannot remove a subsequent owner's permit
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Reservation failure starts no repository process
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: A stranded reservation has an explicit safe recovery path
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Capacity eight admits eight focused lifetimes
+### Scenario: Capacity eight admits eight focused lifetimes and gives a broad request all eight permits
 
 - [ ] RED
 - [ ] GREEN
@@ -67,37 +40,7 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Literal metacharacter and option-shaped test filenames classify broad
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Double-dash invocation classifies broad despite an existing test file
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
 ### Scenario: Focused filename boundaries are exact and case-sensitive
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: An OS-managed prefix above the checkout root does not make a focused file broad
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Case-insensitive resolution does not change focused classification
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Case-insensitive macOS resolution does not change focused classification
 
 - [ ] RED
 - [ ] GREEN
@@ -109,25 +52,13 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A test-shaped directory classifies broad
+### Scenario: Mixed legacy and current wrappers are not represented as safely sharing capacity
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Current-protocol opt-in does not infer legacy wrapper activity
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Status states the untracked legacy-wrapper boundary without inferring a holder
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Invalid confirmation or incompatible protocol never raises capacity
+### Scenario: Invalid current-protocol confirmation never raises capacity
 
 - [ ] RED
 - [ ] GREEN
@@ -147,7 +78,19 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A checkout-mutex waiter holds no shared-capacity permit
+### Scenario: A POSIX symlink alias shares its checkout mutex with the canonical path
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: An OS-managed macOS prefix alias shares its checkout mutex with the canonical path
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Windows case aliases share one checkout mutex
 
 - [ ] RED
 - [ ] GREEN
@@ -166,18 +109,6 @@ remain in the feature file.
 - [ ] REFACTOR
 
 ### Scenario: Checkout mutex crash recovery never overlaps repository code
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: A stranded unsafe checkout mutex has an explicit safe recovery path
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Global guard ordering prevents deadlock on every terminal path
 
 - [ ] RED
 - [ ] GREEN
@@ -205,12 +136,6 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A queued broad request is not starved by later focused arrivals
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
 ### Scenario: An unverifiable waiter is not skipped to admit newer work
 
 - [ ] RED
@@ -218,18 +143,6 @@ remain in the feature file.
 - [ ] REFACTOR
 
 ### Scenario: A verified dead queue-head waiter is pruned before the next FIFO admission
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: A broad request runs exclusively on an idle domain
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Consecutive broad requests run alone in FIFO-ticket order
 
 - [ ] RED
 - [ ] GREEN
@@ -249,31 +162,25 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Reused identity keeps capacity conservatively occupied
+### Scenario: Ambiguous process identity never releases live capacity
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Native platform identity sources distinguish exact and mismatched real identities
+### Scenario: Each platform creation-identity adapter fails closed at its real seam
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Injected identity adapter faults fail closed without contributing native evidence
+### Scenario: Process identity is one authenticated snapshot or fails closed
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Injected torn process identity snapshots fail closed without contributing native evidence
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Native process and capacity-domain identity evidence cannot be replaced by injected adapters
+### Scenario: Native platform evidence cannot be replaced by injected adapter coverage
 
 - [ ] RED
 - [ ] GREEN
@@ -285,7 +192,7 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Native evidence rejects untrusted provenance and unsafe storage
+### Scenario: Native evidence rejects untrusted or mismatched provenance
 
 - [ ] RED
 - [ ] GREEN
@@ -297,37 +204,19 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Overall native evidence waits for all three evidence classes on every platform
+### Scenario: Overall native evidence waits for both evidence classes on every platform
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Native-evidence verification rejects all arguments without consuming evidence
+### Scenario: Deliberately detached POSIX descendants remain an explicit evidence limitation
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Detached POSIX descendants remain an explicitly disclosed limitation
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Supervisor loss returns capacity only after a second empty-group observation
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: A later wrapper completes recovery after the first reclaim observer dies
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Supervisor loss holds capacity when the second observation remains unsafe
+### Scenario: Supervisor loss returns capacity only after group disappearance
 
 - [ ] RED
 - [ ] GREEN
@@ -345,37 +234,7 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Status fails closed while a conflicting owner identity is live
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Recovery returns a reserved owner weight once exact absence is proven
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
 ### Scenario: Windows Job Object recovery proves emptiness through the real OS seam
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Capacity-one failure recovery preserves serialization and progress
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Death of a transition-guard holder is recovered by exact identity
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Windows capacity artifacts reject unsafe DACLs and changed file identities
 
 - [ ] RED
 - [ ] GREEN
@@ -393,7 +252,7 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: A journal is ordered before any live-state replacement during a process crash
+### Scenario: A journal is durably published before any live-state replacement
 
 - [ ] RED
 - [ ] GREEN
@@ -429,31 +288,7 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Status reports a concrete repair for unsafe capacity artifacts
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
 ## Rule: share-test-capacity.TBU1.R6
-
-### Scenario: Status reports an uninitialized domain without creating it
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: A valid set initializes an uninitialized domain atomically
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Reset refuses an uninitialized domain
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
 
 ### Scenario: First use creates or recovers one canonical capacity-one protocol state
 
@@ -462,18 +297,6 @@ remain in the feature file.
 - [ ] REFACTOR
 
 ### Scenario: An idle scheduler adopts one canonical capacity for every participating session
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Project-local configuration and process environment cannot override canonical capacity
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Distinct identity axes own separate capacity domains
 
 - [ ] RED
 - [ ] GREEN
@@ -491,19 +314,13 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Status describes a healthy busy capacity domain
+### Scenario: Capacity-one failure recovery preserves serialization and progress
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Status reports native evidence readiness
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: A held legacy mutex remains an explicit unsupported mixed-version boundary
+### Scenario: Global guard ordering prevents deadlock on every terminal path
 
 - [ ] RED
 - [ ] GREEN
@@ -527,43 +344,25 @@ remain in the feature file.
 - [ ] GREEN
 - [ ] REFACTOR
 
+### Scenario: The public package-test entrypoint exercises every lifecycle through real collaborators
+
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
 ### Scenario: Unsafe capacity state changes fail without changing admission state
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Public error precedence is deterministic for combined faults
+### Scenario: Fail-closed errors follow stable precedence and recovery contracts
 
 - [ ] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
-### Scenario: Public set commands wire canonical capacity atomically
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Reset validates an explicitly prepared capacity domain
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Reset serializes with admission under the shared guard
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Public capacity status and dispatch reject unsupported arguments
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Status domain identifier is accepted verbatim by reset
+### Scenario: The public capacity command wires configuration protocol status and reset atomically
 
 - [ ] RED
 - [ ] GREEN
