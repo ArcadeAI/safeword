@@ -8,7 +8,7 @@ import { createTemporaryDirectory, runCli } from '../helpers.js';
 
 function initializePrivateConfigRepo(directory: string): void {
   execFileSync('git', ['init', '--quiet'], { cwd: directory });
-  writeFileSync(nodePath.join(directory, '.gitignore'), '.project/personal/\n');
+  writeFileSync(nodePath.join(directory, '.gitignore'), '.safeword/config.local.json\n');
 }
 
 describe('test execution CLI wiring', () => {
@@ -231,11 +231,11 @@ describe('test execution CLI wiring', () => {
     );
     if (input.source === 'personal') {
       initializePrivateConfigRepo(directory);
-      const personalDirectory = nodePath.join(directory, '.project', 'personal');
+      const personalDirectory = nodePath.join(directory, '.safeword');
       mkdirSync(personalDirectory, { recursive: true });
       writeFileSync(
-        nodePath.join(personalDirectory, 'config.json'),
-        JSON.stringify({ schemaVersion: 1, testExecution: 'remote-preferred' }),
+        nodePath.join(personalDirectory, 'config.local.json'),
+        JSON.stringify({ testExecution: 'remote-preferred' }),
       );
     }
     writeFileSync(
@@ -308,11 +308,11 @@ describe('test execution CLI wiring', () => {
   it('uses a valid private preference without changing the shared project config', async () => {
     const directory = createTemporaryDirectory();
     initializePrivateConfigRepo(directory);
-    const personalDirectory = nodePath.join(directory, '.project', 'personal');
+    const personalDirectory = nodePath.join(directory, '.safeword');
     mkdirSync(personalDirectory, { recursive: true });
     writeFileSync(
-      nodePath.join(personalDirectory, 'config.json'),
-      JSON.stringify({ schemaVersion: 1, testExecution: 'remote-preferred' }),
+      nodePath.join(personalDirectory, 'config.local.json'),
+      JSON.stringify({ testExecution: 'remote-preferred' }),
     );
 
     const result = await runCli(
@@ -346,13 +346,13 @@ describe('test execution CLI wiring', () => {
   ] as const)('uses a $mode personal preference for a test request', async input => {
     const directory = createTemporaryDirectory();
     initializePrivateConfigRepo(directory);
-    const personalDirectory = nodePath.join(directory, '.project', 'personal');
+    const personalDirectory = nodePath.join(directory, '.safeword');
     const projectDirectory = nodePath.join(directory, '.safeword');
     mkdirSync(personalDirectory, { recursive: true });
     mkdirSync(projectDirectory, { recursive: true });
-    const personalConfig = JSON.stringify({ schemaVersion: 1, testExecution: input.mode });
+    const personalConfig = JSON.stringify({ testExecution: input.mode });
     const projectConfig = JSON.stringify({ testExecution: 'remote-preferred' });
-    writeFileSync(nodePath.join(personalDirectory, 'config.json'), personalConfig);
+    writeFileSync(nodePath.join(personalDirectory, 'config.local.json'), personalConfig);
     writeFileSync(nodePath.join(projectDirectory, 'config.json'), projectConfig);
     writeFileSync(
       nodePath.join(directory, 'package.json'),
@@ -381,7 +381,7 @@ describe('test execution CLI wiring', () => {
       },
     });
     expect(readFileSync(nodePath.join(directory, 'runs.log'), 'utf8')).toBe('run\n');
-    expect(readFileSync(nodePath.join(personalDirectory, 'config.json'), 'utf8')).toBe(
+    expect(readFileSync(nodePath.join(personalDirectory, 'config.local.json'), 'utf8')).toBe(
       personalConfig,
     );
     expect(readFileSync(nodePath.join(projectDirectory, 'config.json'), 'utf8')).toBe(
@@ -397,11 +397,11 @@ describe('test execution CLI wiring', () => {
       [worktreeB, 'remote-preferred'],
     ] as const) {
       initializePrivateConfigRepo(directory);
-      const personalDirectory = nodePath.join(directory, '.project', 'personal');
+      const personalDirectory = nodePath.join(directory, '.safeword');
       mkdirSync(personalDirectory, { recursive: true });
       writeFileSync(
-        nodePath.join(personalDirectory, 'config.json'),
-        JSON.stringify({ schemaVersion: 1, testExecution: mode }),
+        nodePath.join(personalDirectory, 'config.local.json'),
+        JSON.stringify({ testExecution: mode }),
       );
     }
 
@@ -432,7 +432,7 @@ describe('test execution CLI wiring', () => {
           expect.objectContaining({
             source: 'personal',
             mode: 'local',
-            path: '.project/personal/config.json',
+            path: '.safeword/config.local.json',
           }),
         ]),
       },
@@ -444,7 +444,7 @@ describe('test execution CLI wiring', () => {
           expect.objectContaining({
             source: 'personal',
             mode: 'remote-preferred',
-            path: '.project/personal/config.json',
+            path: '.safeword/config.local.json',
           }),
         ]),
       },
@@ -454,9 +454,9 @@ describe('test execution CLI wiring', () => {
   it('fails closed for malformed personal configuration without changing files', async () => {
     const directory = createTemporaryDirectory();
     initializePrivateConfigRepo(directory);
-    const personalDirectory = nodePath.join(directory, '.project', 'personal');
+    const personalDirectory = nodePath.join(directory, '.safeword');
     mkdirSync(personalDirectory, { recursive: true });
-    writeFileSync(nodePath.join(personalDirectory, 'config.json'), '{ bad json');
+    writeFileSync(nodePath.join(personalDirectory, 'config.local.json'), '{ bad json');
 
     const result = await runCli(
       [
@@ -484,11 +484,11 @@ describe('test execution CLI wiring', () => {
   it('blocks an unignored personal configuration before executing a test plan', async () => {
     const directory = createTemporaryDirectory();
     execFileSync('git', ['init', '--quiet'], { cwd: directory });
-    const personalDirectory = nodePath.join(directory, '.project', 'personal');
+    const personalDirectory = nodePath.join(directory, '.safeword');
     mkdirSync(personalDirectory, { recursive: true });
     writeFileSync(
-      nodePath.join(personalDirectory, 'config.json'),
-      JSON.stringify({ schemaVersion: 1, testExecution: 'local' }),
+      nodePath.join(personalDirectory, 'config.local.json'),
+      JSON.stringify({ testExecution: 'local' }),
     );
     writeFileSync(
       nodePath.join(directory, 'package.json'),
