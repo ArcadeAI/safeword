@@ -42995,6 +42995,50 @@ var init_test_plan = __esm(() => {
   init_resolve();
 });
 
+// src/commands/namespace-root.ts
+var exports_namespace_root = {};
+__export(exports_namespace_root, {
+  observeNamespaceRoot: () => observeNamespaceRoot
+});
+import nodePath77 from "path";
+function observeNamespaceRoot(cwd, options) {
+  const keyValue = typeof options.key === "string" ? options.key : undefined;
+  if (keyValue !== undefined && !CONFIGURED_PATH_KEYS.has(keyValue)) {
+    return Promise.resolve(createResult({
+      state: "failed",
+      errors: [
+        {
+          code: "NAMESPACE_ROOT_KEY_INVALID",
+          message: `Unknown namespace-root key "${keyValue}".`,
+          retryable: false
+        }
+      ]
+    }));
+  }
+  const body = keyValue === undefined ? resolveNamespaceRoot(cwd) : resolveConfiguredPath(cwd, keyValue);
+  return Promise.resolve(createResult({
+    state: "healthy",
+    presentation: { kind: "raw", body },
+    data: {
+      command: "project namespace-root",
+      key: keyValue,
+      path: nodePath77.relative(cwd, body)
+    }
+  }));
+}
+var CONFIGURED_PATH_KEYS;
+var init_namespace_root = __esm(() => {
+  init_result();
+  init_configured_paths();
+  CONFIGURED_PATH_KEYS = new Set([
+    "principles",
+    "personas",
+    "glossary",
+    "surfaces",
+    "architecture"
+  ]);
+});
+
 // src/test-execution/config.ts
 import { spawnSync as spawnSync7 } from "child_process";
 import {
@@ -43006,7 +43050,7 @@ import {
   readFileSync as readFileSync47,
   realpathSync as realpathSync8
 } from "fs";
-import nodePath77 from "path";
+import nodePath78 from "path";
 function isExecutionMode(value) {
   return value === "local" || value === "remote-preferred";
 }
@@ -43026,7 +43070,7 @@ function hasDuplicateJsonKeys(content) {
 }
 function personalPath(cwd) {
   const namespaceRoot = resolveNamespaceRoot(cwd);
-  return { namespaceRoot, path: nodePath77.join(namespaceRoot, "personal", "config.json") };
+  return { namespaceRoot, path: nodePath78.join(namespaceRoot, "personal", "config.json") };
 }
 function validatePersonalFile(metadata, path4) {
   if (!metadata.isFile() || metadata.isSymbolicLink() || metadata.nlink !== 1) {
@@ -43036,14 +43080,14 @@ function validatePersonalFile(metadata, path4) {
 }
 function validatePersonalDirectory(namespaceRoot, path4) {
   const rootRealPath = realpathSync8(namespaceRoot);
-  const personalDirectoryRealPath = realpathSync8(nodePath77.dirname(path4));
-  if (personalDirectoryRealPath !== nodePath77.join(rootRealPath, "personal")) {
+  const personalDirectoryRealPath = realpathSync8(nodePath78.dirname(path4));
+  if (personalDirectoryRealPath !== nodePath78.join(rootRealPath, "personal")) {
     return { path: path4, error: "must remain inside the resolved namespace root" };
   }
   return;
 }
 function validateGitPrivacy(cwd, path4) {
-  const relativePath = nodePath77.relative(cwd, path4);
+  const relativePath = nodePath78.relative(cwd, path4);
   const ignored = spawnSync7("git", ["-C", cwd, "check-ignore", "--quiet", "--", relativePath], {
     stdio: "ignore"
   });
@@ -43111,7 +43155,7 @@ function readPersonalExecutionPreference(cwd) {
 }
 function readProjectExecutionPreference(cwd) {
   try {
-    const config = JSON.parse(readFileSync47(nodePath77.join(cwd, ".safeword", "config.json"), "utf8"));
+    const config = JSON.parse(readFileSync47(nodePath78.join(cwd, ".safeword", "config.json"), "utf8"));
     return isExecutionMode(config.testExecution) ? config.testExecution : undefined;
   } catch {
     return;
@@ -43139,7 +43183,7 @@ __export(exports_test_execution, {
   observeTestExecutionStatus: () => observeTestExecutionStatus
 });
 import { spawnSync as spawnSync8 } from "child_process";
-import nodePath78 from "path";
+import nodePath79 from "path";
 function shellInvocation(command) {
   if (process.platform === "win32") {
     return [process.env.ComSpec ?? "cmd.exe", ["/d", "/s", "/c", command]];
@@ -43310,7 +43354,7 @@ function observeTestExecutionStatus(cwd) {
   }
   const project = readProjectExecutionPreference(cwd);
   const effective = resolveExecutionMode({ personal: personal.mode, project });
-  const personalOrigin = nodePath78.relative(cwd, personal.path);
+  const personalOrigin = nodePath79.relative(cwd, personal.path);
   return createResult({
     state: "healthy",
     data: {
@@ -43349,7 +43393,7 @@ __export(exports_lint_gherkin, {
   observeGherkinLint: () => observeGherkinLint
 });
 import { existsSync as existsSync41, readFileSync as readFileSync48, statSync as statSync5 } from "fs";
-import nodePath79 from "path";
+import nodePath80 from "path";
 function observeGherkinLint(cwd, files) {
   const featureFiles = files.length === 0 ? discoverFeatureFiles(cwd) : resolveInputFiles(cwd, files);
   const issues = featureFiles.flatMap((file) => lintFile(cwd, file));
@@ -43370,7 +43414,7 @@ function observeGherkinLint(cwd, files) {
   });
 }
 function resolveInputFiles(cwd, files) {
-  return files.map((file) => nodePath79.resolve(cwd, file));
+  return files.map((file) => nodePath80.resolve(cwd, file));
 }
 function discoverFeatureFiles(cwd) {
   return collectExecutableFeatureFiles(cwd);
@@ -43410,7 +43454,7 @@ function formatIssue(cwd, filePath, issue2) {
   return `${location}: ${issue2.message} [${issue2.rule}]`;
 }
 function formatPath(cwd, filePath) {
-  return nodePath79.relative(cwd, filePath) || nodePath79.basename(filePath);
+  return nodePath80.relative(cwd, filePath) || nodePath80.basename(filePath);
 }
 var OFFLOAD_RULE_PROOF_POLICY;
 var init_lint_gherkin = __esm(() => {
@@ -43570,7 +43614,7 @@ import {
   writeFileSync as writeFileSync17
 } from "fs";
 import { tmpdir as tmpdir3 } from "os";
-import nodePath80 from "path";
+import nodePath81 from "path";
 function digest2(content) {
   return createHash20("sha256").update(content).digest("hex");
 }
@@ -43626,13 +43670,13 @@ function readContainedText(root, source, target, packetBytesRemaining) {
   }
 }
 function escapes(root, candidate) {
-  const relative = nodePath80.relative(root, candidate);
-  return relative === ".." || relative.startsWith(`..${nodePath80.sep}`) || nodePath80.isAbsolute(relative);
+  const relative = nodePath81.relative(root, candidate);
+  return relative === ".." || relative.startsWith(`..${nodePath81.sep}`) || nodePath81.isAbsolute(relative);
 }
 function snapshotEntries(root, directory = root) {
   return readdirSync30(directory).flatMap((name) => {
-    const path4 = nodePath80.join(directory, name);
-    const relative = nodePath80.relative(root, path4);
+    const path4 = nodePath81.join(directory, name);
+    const relative = nodePath81.relative(root, path4);
     const stats = lstatSync18(path4);
     if (stats.isDirectory())
       return [`directory:${relative}`, ...snapshotEntries(root, path4)];
@@ -43646,7 +43690,7 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = []) {
     throw new Error(`Review packet exceeds the ${MAX_FILE_COUNT}-file limit`);
   }
   const canonicalRoot = realpathSync9(cwd);
-  const workspace = mkdtempSync5(nodePath80.join(tmpdir3(), "safeword-review-"));
+  const workspace = mkdtempSync5(nodePath81.join(tmpdir3(), "safeword-review-"));
   const tracked = [];
   const expectedSnapshotEntries = new Set;
   let logicalFiles;
@@ -43654,8 +43698,8 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = []) {
   try {
     let packetBytes = 0;
     const captureFiles = (files) => files.map((target) => {
-      const source = nodePath80.resolve(canonicalRoot, target);
-      const relative = nodePath80.relative(canonicalRoot, source);
+      const source = nodePath81.resolve(canonicalRoot, target);
+      const relative = nodePath81.relative(canonicalRoot, source);
       if (escapes(canonicalRoot, source)) {
         throw new Error(`Review target escapes the project: ${target}`);
       }
@@ -43672,13 +43716,13 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = []) {
       if (packetBytes > MAX_PACKET_BYTES) {
         throw new Error(`Review packet exceeds the ${MAX_PACKET_BYTES}-byte limit`);
       }
-      const snapshot = nodePath80.join(workspace, relative);
-      mkdirSync13(nodePath80.dirname(snapshot), { recursive: true });
+      const snapshot = nodePath81.join(workspace, relative);
+      mkdirSync13(nodePath81.dirname(snapshot), { recursive: true });
       writeFileSync17(snapshot, bytes, { mode: 384 });
-      let parent = nodePath80.dirname(relative);
+      let parent = nodePath81.dirname(relative);
       while (parent !== ".") {
         expectedSnapshotEntries.add(`directory:${parent}`);
-        parent = nodePath80.dirname(parent);
+        parent = nodePath81.dirname(parent);
       }
       expectedSnapshotEntries.add(`file:${relative}`);
       tracked.push({ source, snapshot, sha256: digest2(bytes), device, inode });
@@ -43686,7 +43730,7 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = []) {
     });
     const seen = new Set;
     const rejectDuplicate = (target) => {
-      const relative = nodePath80.relative(canonicalRoot, nodePath80.resolve(canonicalRoot, target));
+      const relative = nodePath81.relative(canonicalRoot, nodePath81.resolve(canonicalRoot, target));
       if (seen.has(relative)) {
         throw new Error(`Review packet contains a duplicate file: ${target}`);
       }
@@ -43772,7 +43816,7 @@ var init_review_ledger = __esm(() => {
 
 // src/review/policy.ts
 import { readFileSync as readFileSync50 } from "fs";
-import nodePath81 from "path";
+import nodePath82 from "path";
 function oppositeReviewPair(author) {
   if (author === "claude")
     return { author, reviewer: "codex" };
@@ -43795,7 +43839,7 @@ function readReviewerModel(cwd, reviewer, route, configKey) {
 }
 function readConfiguredModel(cwd, reviewer, configKey) {
   try {
-    const raw = JSON.parse(readFileSync50(nodePath81.join(cwd, ".safeword", "config.json"), "utf8"));
+    const raw = JSON.parse(readFileSync50(nodePath82.join(cwd, ".safeword", "config.json"), "utf8"));
     if (typeof raw !== "object" || raw === null)
       return;
     const models = raw[configKey];
@@ -43809,7 +43853,7 @@ function readConfiguredModel(cwd, reviewer, configKey) {
 }
 function readReviewPolicy(cwd) {
   try {
-    const raw = readFileSync50(nodePath81.join(cwd, ".safeword", "config.json"), "utf8");
+    const raw = readFileSync50(nodePath82.join(cwd, ".safeword", "config.json"), "utf8");
     const config = JSON.parse(raw);
     if (typeof config !== "object" || config === null || Array.isArray(config))
       return "require";
@@ -43963,26 +44007,12 @@ import {
   writeFileSync as writeFileSync18
 } from "fs";
 import { homedir as homedir6, tmpdir as tmpdir4 } from "os";
-import nodePath82 from "path";
-function configuredClaudeEffort(environment) {
-  const effort = environment.SAFEWORD_REVIEW_EFFORT_CLAUDE;
-  if (effort === undefined || effort.trim() === "")
-    return;
-  if (CLAUDE_EFFORT_LEVELS.has(effort))
-    return effort;
-  warn(`Ignoring SAFEWORD_REVIEW_EFFORT_CLAUDE='${effort}' - expected low, medium, high, xhigh, or max.`);
-  return;
-}
-function reviewerArguments(reviewer, model, schemaPath, environment = process.env) {
+import nodePath83 from "path";
+function reviewerArguments(reviewer, model, schemaPath) {
   const base = [...ARGUMENTS[reviewer]];
   const extra = [];
   if (model !== undefined)
     extra.push("--model", model);
-  if (reviewer === "claude") {
-    const effort = configuredClaudeEffort(environment);
-    if (effort !== undefined)
-      extra.push("--effort", effort);
-  }
   if (reviewer === "codex" && schemaPath !== undefined)
     extra.push("--output-schema", schemaPath);
   if (extra.length === 0)
@@ -44087,8 +44117,8 @@ function reviewPrompt(reviewer, packet) {
 `);
 }
 function inside(root, candidate) {
-  const relative = nodePath82.relative(root, candidate);
-  return relative === "" || !nodePath82.isAbsolute(relative) && !relative.startsWith(`..${nodePath82.sep}`) && relative !== "..";
+  const relative = nodePath83.relative(root, candidate);
+  return relative === "" || !nodePath83.isAbsolute(relative) && !relative.startsWith(`..${nodePath83.sep}`) && relative !== "..";
 }
 function outsideUntrustedRoot(root, candidate) {
   if (inside(root, candidate))
@@ -44115,7 +44145,7 @@ function hasTrustedExecutableAncestry(candidate) {
     const metadata = lstatSync19(current);
     if (!pathMetadataIsTrusted(metadata.mode, metadata.uid, currentUid))
       return false;
-    const parent = nodePath82.dirname(current);
+    const parent = nodePath83.dirname(current);
     if (parent === current)
       return true;
     current = parent;
@@ -44140,7 +44170,7 @@ function cachedCopyMatchesDigest(copyPath, expectedDigest) {
   }
 }
 function preparedTrustedCacheDirectory(untrustedRoot) {
-  const cacheDirectory = process.env.SAFEWORD_REVIEWER_CACHE_DIR ?? nodePath82.join(homedir6(), ".cache", "safeword-reviewers");
+  const cacheDirectory = process.env.SAFEWORD_REVIEWER_CACHE_DIR ?? nodePath83.join(homedir6(), ".cache", "safeword-reviewers");
   if (inside(untrustedRoot, cacheDirectory))
     return;
   try {
@@ -44171,7 +44201,7 @@ function stagedTrustedReviewerCopy(reviewer, canonical, untrustedRoot) {
     const cacheDirectory = preparedTrustedCacheDirectory(untrustedRoot);
     if (cacheDirectory === undefined)
       return;
-    const copyPath = nodePath82.join(cacheDirectory, `${reviewer}.${source.digest}`);
+    const copyPath = nodePath83.join(cacheDirectory, `${reviewer}.${source.digest}`);
     if (cachedCopyMatchesDigest(copyPath, source.digest))
       return copyPath;
     const temporaryPath = `${copyPath}.${process.pid.toString(36)}.${Date.now().toString(36)}.tmp`;
@@ -44194,7 +44224,7 @@ function remainingReviewTime(deadline, reviewer, lastFailure) {
 }
 function executableCandidates(reviewer, untrustedRoot) {
   const extensions = process.platform === "win32" ? (process.env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD").split(";").map((extension) => extension.toLowerCase()) : [""];
-  const candidates = (process.env.PATH ?? "").split(nodePath82.delimiter).filter((directory) => directory !== "" && nodePath82.isAbsolute(directory)).flatMap((directory) => extensions.map((extension) => nodePath82.join(directory, `${reviewer}${extension}`)));
+  const candidates = (process.env.PATH ?? "").split(nodePath83.delimiter).filter((directory) => directory !== "" && nodePath83.isAbsolute(directory)).flatMap((directory) => extensions.map((extension) => nodePath83.join(directory, `${reviewer}${extension}`)));
   let rejectedForTrust = false;
   const stageable = [];
   const canonicalCandidates = candidates.flatMap((candidate) => {
@@ -44308,7 +44338,7 @@ function stopWindowsReviewer(child, pid) {
       resolve(stopped);
     };
     const systemRoot = process.env.SystemRoot ?? String.raw`C:\Windows`;
-    const taskkill = nodePath82.join(systemRoot, "System32", "taskkill.exe");
+    const taskkill = nodePath83.join(systemRoot, "System32", "taskkill.exe");
     const killer = spawn(taskkill, ["/PID", String(pid), "/T", "/F"], {
       stdio: "ignore",
       windowsHide: true
@@ -44569,8 +44599,8 @@ async function runHeadlessReviewer(reviewer, packet, cwd, untrustedRoot = proces
   }
 }
 function writeContractFile() {
-  const directory = mkdtempSync6(nodePath82.join(tmpdir4(), "safeword-review-contract-"));
-  const path4 = nodePath82.join(directory, "review-result.schema.json");
+  const directory = mkdtempSync6(nodePath83.join(tmpdir4(), "safeword-review-contract-"));
+  const path4 = nodePath83.join(directory, "review-result.schema.json");
   writeFileSync18(path4, REVIEW_OUTPUT_SCHEMA, { mode: 384 });
   return {
     path: path4,
@@ -44579,7 +44609,7 @@ function writeContractFile() {
     }
   };
 }
-var REVIEW_OUTPUT_SCHEMA_SHAPE, REVIEW_OUTPUT_SCHEMA, CLAUDE_EFFORT_LEVELS, ARGUMENTS, HELP_ARGUMENTS, REQUIRED_CAPABILITIES, MAX_OUTPUT_BYTES, REVIEW_RUBRICS, ReviewRuntimeError, DEFAULT_ATTEMPT_DEADLINE_MS = 120000, RUN_BOUND_MS = 270000, BACKGROUND_RUN_BOUND_MS = 1800000, BACKGROUND_ATTEMPT_DEADLINE_MS = 600000, CLEANUP_BUDGET_MS = 250, PROCESS_GROUP_POLL_INTERVAL_MS = 50, WINDOWS_CLEANUP_BUDGET_MS = 1000, reviewerStops;
+var REVIEW_OUTPUT_SCHEMA_SHAPE, REVIEW_OUTPUT_SCHEMA, ARGUMENTS, HELP_ARGUMENTS, REQUIRED_CAPABILITIES, MAX_OUTPUT_BYTES, REVIEW_RUBRICS, ReviewRuntimeError, DEFAULT_ATTEMPT_DEADLINE_MS = 120000, RUN_BOUND_MS = 270000, BACKGROUND_RUN_BOUND_MS = 1800000, BACKGROUND_ATTEMPT_DEADLINE_MS = 600000, CLEANUP_BUDGET_MS = 250, PROCESS_GROUP_POLL_INTERVAL_MS = 50, WINDOWS_CLEANUP_BUDGET_MS = 1000, reviewerStops;
 var init_runtime = __esm(() => {
   init_environment();
   REVIEW_OUTPUT_SCHEMA_SHAPE = {
@@ -44607,7 +44637,6 @@ var init_runtime = __esm(() => {
     additionalProperties: false
   };
   REVIEW_OUTPUT_SCHEMA = JSON.stringify(REVIEW_OUTPUT_SCHEMA_SHAPE);
-  CLAUDE_EFFORT_LEVELS = new Set(["low", "medium", "high", "xhigh", "max"]);
   ARGUMENTS = {
     claude: [
       "-p",
@@ -45489,26 +45518,26 @@ import {
   writeSync as writeSync2
 } from "fs";
 import { homedir as homedir7 } from "os";
-import nodePath83 from "path";
+import nodePath84 from "path";
 function jobsDirectory(cwd) {
-  return nodePath83.join(cwd, ".safeword", "state", "reviews");
+  return nodePath84.join(cwd, ".safeword", "state", "reviews");
 }
 function jobPath(cwd, id) {
   if (!isJobId(id))
     throw new Error("invalid review job id");
-  return nodePath83.join(jobsDirectory(cwd), `${id}.json`);
+  return nodePath84.join(jobsDirectory(cwd), `${id}.json`);
 }
 function integrityKeyPath() {
   const testRoot = process.env.SAFEWORD_REVIEW_KEY_ROOT;
-  const stateRoot = process.env.XDG_STATE_HOME ?? nodePath83.join(homedir7(), ".local", "state");
-  return nodePath83.join(stateRoot, "safeword", "review-integrity.key");
+  const stateRoot = process.env.XDG_STATE_HOME ?? nodePath84.join(homedir7(), ".local", "state");
+  return nodePath84.join(stateRoot, "safeword", "review-integrity.key");
 }
 function readOrCreateIntegrityKey() {
   const keyPath = integrityKeyPath();
   try {
     return decodeIntegrityKey(readFileSync52(keyPath, "utf8"));
   } catch {
-    mkdirSync15(nodePath83.dirname(keyPath), { recursive: true, mode: 448 });
+    mkdirSync15(nodePath84.dirname(keyPath), { recursive: true, mode: 448 });
     const key = randomBytes(32);
     try {
       const descriptor = openSync11(keyPath, "wx", 384);
@@ -45881,7 +45910,7 @@ function processTool(name) {
   if (process.platform !== "win32")
     return `/bin/${name}`;
   const systemRoot = process.env.SystemRoot ?? String.raw`C:\Windows`;
-  return name === "powershell.exe" ? nodePath83.join(systemRoot, "System32", "WindowsPowerShell", "v1.0", name) : nodePath83.join(systemRoot, "System32", name);
+  return name === "powershell.exe" ? nodePath84.join(systemRoot, "System32", "WindowsPowerShell", "v1.0", name) : nodePath84.join(systemRoot, "System32", name);
 }
 function configuredCourtesyWait() {
   const raw = process.env.SAFEWORD_REVIEW_FOREGROUND_MS;
@@ -45893,12 +45922,12 @@ function cliEntrypoint() {
   if (configured !== undefined && false)
     ;
   const invoked = process.argv[1];
-  if (invoked !== undefined && /^cli\.(?:js|ts)$/u.test(nodePath83.basename(invoked)))
+  if (invoked !== undefined && /^cli\.(?:js|ts)$/u.test(nodePath84.basename(invoked)))
     return invoked;
-  const bundled = nodePath83.join(import.meta.dirname, "cli.js");
+  const bundled = nodePath84.join(import.meta.dirname, "cli.js");
   if (existsSync42(bundled))
     return bundled;
-  const developmentBuild = nodePath83.resolve(import.meta.dirname, "../../dist/cli.js");
+  const developmentBuild = nodePath84.resolve(import.meta.dirname, "../../dist/cli.js");
   if (existsSync42(developmentBuild))
     return developmentBuild;
   throw new Error("Safeword CLI entrypoint is unavailable");
@@ -45963,7 +45992,7 @@ async function startReviewJob(input) {
   const context = input.context ?? [];
   const sourceFingerprint = fingerprint(input.cwd, input.kind, input.targets, context);
   mkdirSync15(jobsDirectory(input.cwd), { recursive: true, mode: 448 });
-  const reserved = withFileLock(nodePath83.join(jobsDirectory(input.cwd), "start.lock"), () => {
+  const reserved = withFileLock(nodePath84.join(jobsDirectory(input.cwd), "start.lock"), () => {
     const existing = runningJob(input.cwd, input.kind, sourceFingerprint);
     if (existing !== undefined)
       return { existing: true, record: existing };
@@ -46549,7 +46578,7 @@ __export(exports_review_pr, {
   inspectPullRequestCommand: () => inspectPullRequestCommand
 });
 import { readFileSync as readFileSync53, writeFileSync as writeFileSync20 } from "fs";
-import nodePath84 from "path";
+import nodePath85 from "path";
 import process12 from "process";
 function isRecord5(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -46566,7 +46595,7 @@ function hasValidInputEnvelope(raw) {
   return raw.schemaVersion === 1 && validHead && validState && Array.isArray(raw.artifacts) && Array.isArray(raw.checks) && Array.isArray(raw.statuses) && typeof raw.markerReceiptExists === "boolean";
 }
 function parseConfig(cwd) {
-  const raw = JSON.parse(readFileSync53(nodePath84.join(cwd, ".safeword", "config.json"), "utf8"));
+  const raw = JSON.parse(readFileSync53(nodePath85.join(cwd, ".safeword", "config.json"), "utf8"));
   if (!isRecord5(raw) || !isRecord5(raw.prReview)) {
     throw new Error("review-pr: .safeword/config.json must define prReview");
   }
@@ -47207,11 +47236,11 @@ var init_review_pr_publication = __esm(() => {
 
 // src/codex-plugin/project-directory.ts
 import { execFileSync as execFileSync9 } from "child_process";
-import nodePath85 from "path";
+import nodePath86 from "path";
 function resolveCodexProjectDirectory(cwd = process.cwd(), environment = process.env) {
   const configuredProject = environment.CLAUDE_PROJECT_DIR?.trim();
   if (configuredProject)
-    return nodePath85.resolve(configuredProject);
+    return nodePath86.resolve(configuredProject);
   try {
     const root = execFileSync9("git", ["-C", cwd, "rev-parse", "--show-toplevel"], {
       encoding: "utf8",
@@ -47221,7 +47250,7 @@ function resolveCodexProjectDirectory(cwd = process.cwd(), environment = process
     if (root.length > 0)
       return root;
   } catch {}
-  return nodePath85.resolve(cwd);
+  return nodePath86.resolve(cwd);
 }
 var init_project_directory = () => {};
 
@@ -47425,12 +47454,12 @@ var init_codex_bootstrap = __esm(() => {
 
 // templates/hooks/lib/dogfood.ts
 import { existsSync as existsSync43, readFileSync as readFileSync55 } from "fs";
-import nodePath86 from "path";
+import nodePath87 from "path";
 function isDogfoodRepo(projectDirectory) {
-  if (existsSync43(nodePath86.join(projectDirectory, "packages", "cli", "templates")))
+  if (existsSync43(nodePath87.join(projectDirectory, "packages", "cli", "templates")))
     return true;
   try {
-    const pkg2 = JSON.parse(readFileSync55(nodePath86.join(projectDirectory, "package.json"), "utf8"));
+    const pkg2 = JSON.parse(readFileSync55(nodePath87.join(projectDirectory, "package.json"), "utf8"));
     return pkg2.name === "safeword";
   } catch {
     return false;
@@ -47440,7 +47469,7 @@ var init_dogfood = () => {};
 
 // templates/hooks/lib/retro-debug.ts
 import { appendFileSync as appendFileSync2, mkdirSync as mkdirSync16 } from "fs";
-import nodePath87 from "path";
+import nodePath88 from "path";
 import process14 from "process";
 function sanitizeDebugValue(key, value) {
   if (value === undefined)
@@ -47475,7 +47504,7 @@ function recordRetroDebugEvent(event, env = process14.env) {
   if (!logPath)
     return;
   try {
-    mkdirSync16(nodePath87.dirname(logPath), { recursive: true });
+    mkdirSync16(nodePath88.dirname(logPath), { recursive: true });
     appendFileSync2(logPath, `${JSON.stringify({ timestamp: new Date().toISOString(), ...sanitizedEvent(event) })}
 `);
   } catch {}
@@ -47502,12 +47531,12 @@ __export(exports_retro_draft_spool, {
   ackFilePath: () => ackFilePath
 });
 import { createHash as createHash23 } from "crypto";
-import nodePath88 from "path";
+import nodePath89 from "path";
 function spoolName(sessionId) {
   return `${sessionId.replaceAll(/[^\w.-]/g, "_").slice(0, 80) || "unknown"}${SPOOL_EXTENSION}`;
 }
 function draftSpoolPath(projectDirectory, sessionId) {
-  return nodePath88.join(projectDirectory, SPOOL_DIR, spoolName(sessionId));
+  return nodePath89.join(projectDirectory, SPOOL_DIR, spoolName(sessionId));
 }
 function spoolSiblingPath(projectDirectory, sessionId, suffix) {
   const spool = draftSpoolPath(projectDirectory, sessionId);
@@ -47635,7 +47664,7 @@ function spoolDrafts(projectDirectory, sessionId, drafts) {
 var MAX_DRAFTS_PER_SESSION = 20, SPOOL_DIR, SPOOL_EXTENSION = ".jsonl";
 var init_retro_draft_spool = __esm(() => {
   init_jsonl_spool();
-  SPOOL_DIR = nodePath88.join(".safeword", "retro-drafts");
+  SPOOL_DIR = nodePath89.join(".safeword", "retro-drafts");
 });
 
 // templates/hooks/lib/retro-extract.ts
@@ -47666,7 +47695,7 @@ __export(exports_retro_extract, {
   CODEX_RETRO_OUTPUT_SCHEMA: () => CODEX_RETRO_OUTPUT_SCHEMA
 });
 import { readFileSync as readFileSync56, writeFileSync as writeFileSync21 } from "fs";
-import nodePath89 from "path";
+import nodePath90 from "path";
 function defaultRetroModel(agent) {
   if (agent === "codex")
     return DEFAULT_CODEX_RETRO_MODEL;
@@ -47676,7 +47705,7 @@ function defaultRetroModel(agent) {
 }
 function resolveRetroModel(projectDirectory, agent = "claude") {
   try {
-    const raw = readFileSync56(nodePath89.join(projectDirectory, ".safeword", "config.json"), "utf8");
+    const raw = readFileSync56(nodePath90.join(projectDirectory, ".safeword", "config.json"), "utf8");
     const parsed2 = JSON.parse(raw);
     const model = parsed2.retro?.model;
     return typeof model === "string" && model.length > 0 ? model : defaultRetroModel(agent);
@@ -47836,8 +47865,8 @@ async function runCodexHeadlessExtractionChecked(transcript, dependencies) {
     const digest3 = buildDigest(transcript);
     if (digest3.trim() === "")
       return { ok: false, failureReason: "empty_digest", findings: [] };
-    const schemaPath = dependencies.schemaPath ?? nodePath89.join(dependencies.cwd, "schema.json");
-    const outputPath = dependencies.outputPath ?? nodePath89.join(dependencies.cwd, "output.json");
+    const schemaPath = dependencies.schemaPath ?? nodePath90.join(dependencies.cwd, "schema.json");
+    const outputPath = dependencies.outputPath ?? nodePath90.join(dependencies.cwd, "output.json");
     const writeFile2 = dependencies.writeFile ?? writeFileSync21;
     const readFile2 = dependencies.readFile ?? ((path4) => readFileSync56(path4, "utf8"));
     writeFile2(schemaPath, JSON.stringify(CODEX_RETRO_OUTPUT_SCHEMA));
@@ -56336,7 +56365,7 @@ import {
   writeFileSync as writeFileSync22
 } from "fs";
 import { tmpdir as tmpdir5 } from "os";
-import nodePath90 from "path";
+import nodePath91 from "path";
 import process17 from "process";
 function buildProvenanceResolver(options) {
   return () => {
@@ -56483,7 +56512,7 @@ async function runRetro(options, dependencies) {
       sessionId,
       draftsPassed: drafts.length,
       skippedAppend: drafts.length === 0,
-      spoolFile: nodePath90.relative(projectDirectory, draftSpoolPath(projectDirectory, sessionId))
+      spoolFile: nodePath91.relative(projectDirectory, draftSpoolPath(projectDirectory, sessionId))
     });
     spoolDrafts(projectDirectory, sessionId, drafts);
   }
@@ -56548,13 +56577,13 @@ function prepareCursorExtractionDirectory(directory) {
   const gitInit = spawnSync10("git", ["init", "--quiet"], { cwd: directory, encoding: "utf8" });
   if (gitInit.status !== 0)
     throw new Error(gitInit.stderr || "could not initialize Cursor sandbox");
-  const cursorDirectory = nodePath90.join(directory, ".cursor");
+  const cursorDirectory = nodePath91.join(directory, ".cursor");
   mkdirSync17(cursorDirectory, { recursive: true });
-  writeFileSync22(nodePath90.join(cursorDirectory, "cli.json"), JSON.stringify({
+  writeFileSync22(nodePath91.join(cursorDirectory, "cli.json"), JSON.stringify({
     permissions: { allow: [], deny: CURSOR_RETRO_DENY_RULES },
     approvalMode: "allowlist"
   }));
-  writeFileSync22(nodePath90.join(cursorDirectory, "sandbox.json"), JSON.stringify({
+  writeFileSync22(nodePath91.join(cursorDirectory, "sandbox.json"), JSON.stringify({
     type: "workspace_readwrite",
     disableTmpWrite: true,
     networkPolicy: { default: "deny", allow: [] }
@@ -56572,7 +56601,7 @@ async function buildAutoExtractor(projectDirectory, dependencies = {}) {
   const spawnClaude = dependencies.spawn ?? spawnClaudeExtractor;
   const spawnCodex = dependencies.spawn ?? spawnCodexExtractor;
   const spawnCursor = dependencies.spawn ?? spawnCursorExtractor;
-  const workDirectory = mkdtempSync7(nodePath90.join(tmpdir5(), "safeword-retro-"));
+  const workDirectory = mkdtempSync7(nodePath91.join(tmpdir5(), "safeword-retro-"));
   if (agent === "codex") {
     return async (transcript) => {
       const result = await runCodexHeadlessExtractionChecked2(transcript, {
@@ -56584,8 +56613,8 @@ async function buildAutoExtractor(projectDirectory, dependencies = {}) {
         env: headlessEnvironment(process17.env),
         cwd: workDirectory,
         model,
-        schemaPath: nodePath90.join(workDirectory, "schema.json"),
-        outputPath: nodePath90.join(workDirectory, "output.json")
+        schemaPath: nodePath91.join(workDirectory, "schema.json"),
+        outputPath: nodePath91.join(workDirectory, "output.json")
       });
       recordRetroDebugEvent({
         event: "retro_cli_extraction",
@@ -56624,7 +56653,7 @@ async function buildAutoExtractor(projectDirectory, dependencies = {}) {
     const result = await runHeadlessExtractionChecked2(transcript, {
       spawn: spawnClaude,
       writeDigest: (digest4) => {
-        const path7 = nodePath90.join(workDirectory, "digest.txt");
+        const path7 = nodePath91.join(workDirectory, "digest.txt");
         writeFileSync22(path7, digest4);
         return path7;
       },
@@ -56678,7 +56707,7 @@ function physicalProjectPath(projectDirectory) {
     return realpathSync12(projectDirectory);
   } catch {
     try {
-      return nodePath90.join(realpathSync12(nodePath90.dirname(projectDirectory)), nodePath90.basename(projectDirectory));
+      return nodePath91.join(realpathSync12(nodePath91.dirname(projectDirectory)), nodePath91.basename(projectDirectory));
     } catch {
       return;
     }
@@ -56693,16 +56722,16 @@ function physicalOutboxPath(outboxDirectory) {
   }
 }
 function isOutsideProject(projectDirectory, outboxDirectory) {
-  const relative = nodePath90.relative(projectDirectory, outboxDirectory);
-  return relative === ".." || relative.startsWith(`..${nodePath90.sep}`);
+  const relative = nodePath91.relative(projectDirectory, outboxDirectory);
+  return relative === ".." || relative.startsWith(`..${nodePath91.sep}`);
 }
 function resolveRelayOutboxDirectory(projectDirectory, configuredDirectory) {
   const configured = configuredDirectory?.trim();
-  if (configured === undefined || configured.length === 0 || !nodePath90.isAbsolute(configured)) {
+  if (configured === undefined || configured.length === 0 || !nodePath91.isAbsolute(configured)) {
     return;
   }
-  const resolved = nodePath90.resolve(configured);
-  if (resolved === nodePath90.parse(resolved).root)
+  const resolved = nodePath91.resolve(configured);
+  if (resolved === nodePath91.parse(resolved).root)
     return;
   const physicalProject = physicalProjectPath(projectDirectory);
   if (physicalProject === undefined)
@@ -57229,7 +57258,7 @@ function createLedgerShaResolver(cwd) {
 var init_ledger_git = () => {};
 
 // templates/hooks/lib/namespace-root.ts
-var init_namespace_root = () => {};
+var init_namespace_root2 = () => {};
 
 // templates/hooks/lib/shell-segments.ts
 var ENV_OPTIONS_WITH_VALUES;
@@ -57240,7 +57269,7 @@ var init_shell_segments = __esm(() => {
 // templates/hooks/lib/dependency-readiness.ts
 var WORKSPACE_SCAN_EXCLUDED_DIRECTORIES, BUN_OPTIONS_WITH_VALUES, PACKAGE_MANAGER_OPTIONS_WITH_VALUES, PACKAGE_SCRIPT_COMMANDS, BUNX_BOOLEAN_OPTIONS, SAFEWORD_GLOBAL_BOOLEAN_OPTIONS, SAFEWORD_GLOBAL_OPTIONS_WITH_VALUES, SAFEWORD_RECOVERY_COMMANDS, DEPENDENCY_BINARIES, INSTALL_MANAGERS, INSTALL_SUBCOMMANDS, NON_RECONCILING_INSTALL_FLAGS, NON_RECONCILING_INSTALL_OPTIONS, REPORT_ONLY_INSTALL_FLAGS;
 var init_dependency_readiness = __esm(() => {
-  init_namespace_root();
+  init_namespace_root2();
   init_shell_segments();
   WORKSPACE_SCAN_EXCLUDED_DIRECTORIES = new Set([
     ".git",
@@ -57643,7 +57672,7 @@ __export(exports_boundary, {
 });
 import { execFileSync as execFileSync11 } from "child_process";
 import { appendFileSync as appendFileSync3, existsSync as existsSync45, mkdirSync as mkdirSync18 } from "fs";
-import nodePath93 from "path";
+import nodePath94 from "path";
 import process20 from "process";
 function tryGit(cwd, args) {
   try {
@@ -57722,10 +57751,10 @@ function collectChanges(cwd, range, at, ticketsDirectories, configuredFeatures) 
     byTicket.set(ticketPath, change);
   }
   for (const change of byTicket.values()) {
-    const folder = nodePath93.join(cwd, change.anchorScope.ticketPath);
+    const folder = nodePath94.join(cwd, change.anchorScope.ticketPath);
     const staged = change.artifacts.find((a) => a.artifact === "ticket.md")?.proposed;
-    change.ticketCurrent = staged ?? readFileSafe(nodePath93.join(folder, "ticket.md"));
-    change.hasLedger = change.artifacts.some((a) => a.artifact === "test-definitions.md" && a.proposed !== undefined) || existsSync45(nodePath93.join(folder, "test-definitions.md"));
+    change.ticketCurrent = staged ?? readFileSafe(nodePath94.join(folder, "ticket.md"));
+    change.hasLedger = change.artifacts.some((a) => a.artifact === "test-definitions.md" && a.proposed !== undefined) || existsSync45(nodePath94.join(folder, "test-definitions.md"));
     if (at === "push" && change.artifacts.some((a) => a.artifact === "ticket.md")) {
       const path7 = `${change.anchorScope.ticketPath}/ticket.md`;
       change.legalitySteps = legalityStepsFor(cwd, path7, range.priorRef);
@@ -57743,8 +57772,8 @@ function legalityStepsFor(cwd, path7, priorReference) {
   }));
 }
 function appendAudit(cwd, entry2) {
-  const auditPath = nodePath93.join(cwd, AUDIT_RELATIVE_PATH);
-  mkdirSync18(nodePath93.dirname(auditPath), { recursive: true });
+  const auditPath = nodePath94.join(cwd, AUDIT_RELATIVE_PATH);
+  mkdirSync18(nodePath94.dirname(auditPath), { recursive: true });
   appendFileSync3(auditPath, `${JSON.stringify(entry2)}
 `);
 }
@@ -57788,7 +57817,7 @@ function boundary(options) {
   try {
     const at = options.at === "push" ? "push" : "commit";
     const cwd = process20.cwd();
-    if (existsSync45(nodePath93.join(cwd, ".safeword"))) {
+    if (existsSync45(nodePath94.join(cwd, ".safeword"))) {
       reconcileBoundary(cwd, at);
     }
   } catch (error2) {
@@ -57803,7 +57832,7 @@ var init_boundary = __esm(() => {
   init_configured_paths();
   init_feature_source();
   init_fs();
-  AUDIT_RELATIVE_PATH = nodePath93.join(".safeword", "boundary-audit.jsonl");
+  AUDIT_RELATIVE_PATH = nodePath94.join(".safeword", "boundary-audit.jsonl");
 });
 
 // src/commands/codex-hook.ts
@@ -57825,7 +57854,7 @@ import {
   writeFileSync as writeFileSync23
 } from "fs";
 import { tmpdir as tmpdir6 } from "os";
-import nodePath94 from "path";
+import nodePath95 from "path";
 import process21 from "process";
 async function readStdin() {
   stdinCache.body ??= (async () => {
@@ -57922,8 +57951,8 @@ function writeCodexIdentityCache(input) {
   if (!sessionId || !skillName)
     return;
   try {
-    const cachePath = nodePath94.join(resolveNamespaceRoot(input.projectDirectory), input.cacheFile);
-    mkdirSync19(nodePath94.dirname(cachePath), { recursive: true });
+    const cachePath = nodePath95.join(resolveNamespaceRoot(input.projectDirectory), input.cacheFile);
+    mkdirSync19(nodePath95.dirname(cachePath), { recursive: true });
     writeFileSync23(cachePath, JSON.stringify({ id: sessionId, skillName, recordedAt: new Date().toISOString() }), "utf8");
   } catch {}
 }
@@ -57986,9 +58015,9 @@ function missingIntakeFields(ticketContent) {
   return REQUIRED_INTAKE_FIELDS.filter((field) => !frontmatterHasField(body, field));
 }
 function testDefinitionsTicketFolder(projectDirectory, targetPath) {
-  const ticketsDirectory = nodePath94.join(resolveNamespaceRoot(projectDirectory), "tickets");
-  const absoluteTarget = nodePath94.resolve(projectDirectory, targetPath);
-  const normalized = nodePath94.relative(ticketsDirectory, absoluteTarget).replaceAll("\\", "/");
+  const ticketsDirectory = nodePath95.join(resolveNamespaceRoot(projectDirectory), "tickets");
+  const absoluteTarget = nodePath95.resolve(projectDirectory, targetPath);
+  const normalized = nodePath95.relative(ticketsDirectory, absoluteTarget).replaceAll("\\", "/");
   const match = /^([^/]+)\/test-definitions\.md$/u.exec(normalized);
   return match?.[1];
 }
@@ -58032,10 +58061,10 @@ function readPackagedSafewordInstructions() {
 `);
 }
 function findPackagedTemplate(relativePath) {
-  return TEMPLATE_DIRECTORIES.map((directory) => nodePath94.join(directory, relativePath)).find((candidate) => existsSync46(candidate));
+  return TEMPLATE_DIRECTORIES.map((directory) => nodePath95.join(directory, relativePath)).find((candidate) => existsSync46(candidate));
 }
 function resolvePackagedHook(relativePath) {
-  return findPackagedTemplate(nodePath94.join("hooks", relativePath));
+  return findPackagedTemplate(nodePath95.join("hooks", relativePath));
 }
 function runHookFile(hookPath, rawInput, projectDirectory, packagedContextPath = "") {
   const result = spawnSync11("bun", [hookPath], {
@@ -58062,7 +58091,7 @@ function normalizeNamespaceRootLabel(label) {
   return normalizedLabel === "." || normalizedLabel.startsWith("..") || [".project", ".safeword-project"].includes(normalizedLabel) ? undefined : normalizedLabel;
 }
 function packagedNamespaceRootLabel(projectDirectory) {
-  return normalizeNamespaceRootLabel(nodePath94.relative(projectDirectory, resolveNamespaceRoot(projectDirectory)) || ".");
+  return normalizeNamespaceRootLabel(nodePath95.relative(projectDirectory, resolveNamespaceRoot(projectDirectory)) || ".");
 }
 function runPackagedHook(relativePath, rawInput, projectDirectory) {
   const hookPath = resolvePackagedHook(relativePath);
@@ -58077,10 +58106,10 @@ function runPackagedHook(relativePath, rawInput, projectDirectory) {
   let temporaryHookDirectory;
   try {
     if (relativePath === "session-codex-start.ts") {
-      temporaryHookDirectory = mkdtempSync8(nodePath94.join(tmpdir6(), "safeword-codex-hook-"));
-      cpSync2(nodePath94.dirname(hookPath), temporaryHookDirectory, { recursive: true });
-      writeFileSync23(nodePath94.join(temporaryHookDirectory, "lib", "owned-paths.ts"), generateOwnedPathsModule(SAFEWORD_SCHEMA, packagedNamespaceRootLabel(projectDirectory)), "utf8");
-      executableHookPath = nodePath94.join(temporaryHookDirectory, nodePath94.basename(hookPath));
+      temporaryHookDirectory = mkdtempSync8(nodePath95.join(tmpdir6(), "safeword-codex-hook-"));
+      cpSync2(nodePath95.dirname(hookPath), temporaryHookDirectory, { recursive: true });
+      writeFileSync23(nodePath95.join(temporaryHookDirectory, "lib", "owned-paths.ts"), generateOwnedPathsModule(SAFEWORD_SCHEMA, packagedNamespaceRootLabel(projectDirectory)), "utf8");
+      executableHookPath = nodePath95.join(temporaryHookDirectory, nodePath95.basename(hookPath));
     }
     const packagedContextPath = relativePath === "session-codex-start.ts" ? findPackagedTemplate("SAFEWORD.md") ?? "" : "";
     return runHookFile(executableHookPath, rawInput, projectDirectory, packagedContextPath);
@@ -58094,13 +58123,13 @@ function snapshotPackagedHook(relativePath) {
   if (!packagedHooksDirectory) {
     return { error: new Error(`Safeword packaged hook is missing: ${relativePath}`) };
   }
-  const directory = mkdtempSync8(nodePath94.join(tmpdir6(), `safeword-codex-hook-snapshot-${process21.pid}-`));
-  const stagingHooksDirectory = nodePath94.join(directory, "hooks-copying");
-  const snapshotHooksDirectory = nodePath94.join(directory, "hooks");
+  const directory = mkdtempSync8(nodePath95.join(tmpdir6(), `safeword-codex-hook-snapshot-${process21.pid}-`));
+  const stagingHooksDirectory = nodePath95.join(directory, "hooks-copying");
+  const snapshotHooksDirectory = nodePath95.join(directory, "hooks");
   try {
     cpSync2(packagedHooksDirectory, stagingHooksDirectory, { recursive: true });
     renameSync10(stagingHooksDirectory, snapshotHooksDirectory);
-    const hookPath = nodePath94.join(snapshotHooksDirectory, relativePath);
+    const hookPath = nodePath95.join(snapshotHooksDirectory, relativePath);
     return existsSync46(hookPath) ? { directory, hookPath } : { directory, error: new Error(`Safeword packaged hook is missing: ${relativePath}`) };
   } catch (error2) {
     return {
@@ -58127,7 +58156,7 @@ function emitPackagedPreToolResult(result) {
   return true;
 }
 function readProjectTextFile(projectDirectory, relativePath) {
-  const filePath = nodePath94.join(projectDirectory, relativePath);
+  const filePath = nodePath95.join(projectDirectory, relativePath);
   return existsSync46(filePath) ? readFileSync59(filePath, "utf8") : undefined;
 }
 function emitAdditionalContext(output) {
@@ -58175,7 +58204,7 @@ function maybeDenyTestDefinitionsWrite(projectDirectory, targetPath) {
   const ticketFolder = testDefinitionsTicketFolder(projectDirectory, targetPath);
   if (!ticketFolder)
     return false;
-  const ticketPath = nodePath94.join(resolveNamespaceRoot(projectDirectory), "tickets", ticketFolder, "ticket.md");
+  const ticketPath = nodePath95.join(resolveNamespaceRoot(projectDirectory), "tickets", ticketFolder, "ticket.md");
   const ticketContent = existsSync46(ticketPath) ? readFileSync59(ticketPath, "utf8") : "";
   const missing = missingIntakeFields(ticketContent);
   if (missing.length === 0)
@@ -58239,7 +58268,7 @@ function postToolLintInputs(input, rawInput, projectDirectory) {
   if (input?.tool_name !== "apply_patch")
     return [rawInput];
   return extractTargetPaths(input).map((filePath) => JSON.stringify({
-    tool_input: { file_path: nodePath94.resolve(projectDirectory, filePath) }
+    tool_input: { file_path: nodePath95.resolve(projectDirectory, filePath) }
   }));
 }
 function collectPostToolLintContexts(lintInputs, projectDirectory) {
@@ -58360,8 +58389,8 @@ var init_codex_hook = __esm(() => {
   REQUIRED_INTAKE_FIELDS = ["scope", "out_of_scope", "done_when"];
   MODULE_DIRECTORY = import.meta.dirname;
   TEMPLATE_DIRECTORIES = [
-    nodePath94.resolve(MODULE_DIRECTORY, "../templates"),
-    nodePath94.resolve(MODULE_DIRECTORY, "../../templates")
+    nodePath95.resolve(MODULE_DIRECTORY, "../templates"),
+    nodePath95.resolve(MODULE_DIRECTORY, "../../templates")
   ];
   SKILL_NAME_PATTERN = /^[a-z][a-z0-9-]*$/u;
   SHELL_WHITESPACE = [" ", `
@@ -60480,7 +60509,7 @@ init_architecture_document();
 init_agent_selection();
 init_online_required();
 import { existsSync as existsSync44, lstatSync as lstatSync20, readFileSync as readFileSync58, readlinkSync as readlinkSync4 } from "fs";
-import nodePath91 from "path";
+import nodePath92 from "path";
 
 // src/cli-protocol/option-values.ts
 function stringOption(options, name) {
@@ -60864,14 +60893,14 @@ async function uninstallHandler(invocation) {
   return uninstallLifecycle2(invocation);
 }
 async function syncConfigHandler(invocation) {
-  const safewordDirectory = nodePath91.join(invocation.cwd, ".safeword");
+  const safewordDirectory = nodePath92.join(invocation.cwd, ".safeword");
   if (!existsSync44(safewordDirectory))
     return notConfigured("project sync-config");
   const { buildArchitecture: buildArchitecture2, inspectConfig: inspectConfig2, syncConfigCore: syncConfigCore2 } = await Promise.resolve().then(() => (init_sync_config(), exports_sync_config));
   const architecture2 = buildArchitecture2(invocation.cwd);
   const before = inspectConfig2(invocation.cwd, architecture2);
-  const mainConfigExists = existsSync44(nodePath91.join(invocation.cwd, ".dependency-cruiser.cjs"));
-  const generatedConfigExists = existsSync44(nodePath91.join(invocation.cwd, ".safeword/depcruise-config.cjs"));
+  const mainConfigExists = existsSync44(nodePath92.join(invocation.cwd, ".dependency-cruiser.cjs"));
+  const generatedConfigExists = existsSync44(nodePath92.join(invocation.cwd, ".safeword/depcruise-config.cjs"));
   if (invocation.options.check === true) {
     return configCheckResult(completeConfigInspection(before, mainConfigExists));
   }
@@ -60951,7 +60980,7 @@ function architectureModeResult(input) {
       files: [
         ...changed.map((result) => ({
           kind: result.action === "created" ? "create" : "update",
-          target: nodePath91.relative(input.cwd, result.path)
+          target: nodePath92.relative(input.cwd, result.path)
         })),
         ...input.stagedPaths.map((target) => ({ kind: "stage", target, operation: "stage" }))
       ]
@@ -61093,7 +61122,7 @@ function healedDocumentFindings(cwd, changed) {
       }
     ];
   }
-  const healed = changed.map((result) => nodePath91.relative(cwd, result.path)).join(", ");
+  const healed = changed.map((result) => nodePath92.relative(cwd, result.path)).join(", ");
   return [
     {
       code: "ARCHITECTURE_REFRESHED",
@@ -61110,7 +61139,7 @@ function architectureHealResult(input) {
     effects: {
       files: input.changed.map((result) => ({
         kind: result.action === "created" ? "create" : "update",
-        target: nodePath91.relative(input.cwd, result.path)
+        target: nodePath92.relative(input.cwd, result.path)
       }))
     },
     findings: [...healedDocumentFindings(input.cwd, input.changed), ...input.advisories],
@@ -61129,7 +61158,7 @@ async function syncLearningsHandler(invocation) {
       files: result.wrote ? [
         {
           kind: "write",
-          target: nodePath91.relative(invocation.cwd, result.indexPath)
+          target: nodePath92.relative(invocation.cwd, result.indexPath)
         }
       ] : []
     },
@@ -61149,7 +61178,7 @@ async function syncTicketsHandler(invocation) {
     effects: {
       files: result.wrote ? [result.indexPath, result.completedIndexPath].map((target) => ({
         kind: "write",
-        target: nodePath91.relative(invocation.cwd, target)
+        target: nodePath92.relative(invocation.cwd, target)
       })) : []
     },
     findings: result.skipped.map((skip) => ({
@@ -61177,6 +61206,10 @@ async function testPlanHandler(invocation) {
   }
   const result = await observeTestPlan2(invocation.cwd, rawKind, invocation.options);
   return withLegacyRawJsonGuidance(result, invocation.options, "project test-plan");
+}
+async function namespaceRootHandler(invocation) {
+  const { observeNamespaceRoot: observeNamespaceRoot2 } = await Promise.resolve().then(() => (init_namespace_root(), exports_namespace_root));
+  return observeNamespaceRoot2(invocation.cwd, invocation.options);
 }
 function withLegacyRawJsonGuidance(result, options, command) {
   if (options.format !== "json")
@@ -61690,8 +61723,8 @@ async function runCodexRecovery(invocation, migration) {
   if (suppliedPlan !== undefined && suppliedPlan !== plan.id)
     return staleCodexPlan(plan);
   const before = recovery.effects.map((effect) => ({
-    path: nodePath91.join(invocation.cwd, effect.path),
-    content: observeFile(nodePath91.join(invocation.cwd, effect.path))
+    path: nodePath92.join(invocation.cwd, effect.path),
+    content: observeFile(nodePath92.join(invocation.cwd, effect.path))
   }));
   let changed;
   try {
@@ -61725,7 +61758,7 @@ async function runCodexFinalization(invocation, migration, accepted) {
   if (suppliedPlan !== undefined && suppliedPlan !== accepted.plan.id) {
     return staleCodexPlan(accepted.plan);
   }
-  const paths = accepted.plan.effects.files.map((effect) => nodePath91.join(invocation.cwd, effect.target));
+  const paths = accepted.plan.effects.files.map((effect) => nodePath92.join(invocation.cwd, effect.target));
   const before = paths.map((path7) => ({ path: path7, snapshot: observeFile(path7) }));
   let changed;
   try {
@@ -62265,8 +62298,8 @@ function isRelayRequestId(value) {
 function retroOptions(invocation, transcript) {
   const findings = stringOption(invocation.options, "findings");
   return {
-    transcript: nodePath91.resolve(invocation.cwd, transcript),
-    findings: findings === undefined ? undefined : nodePath91.resolve(invocation.cwd, findings),
+    transcript: nodePath92.resolve(invocation.cwd, transcript),
+    findings: findings === undefined ? undefined : nodePath92.resolve(invocation.cwd, findings),
     autoExtract: invocation.options.autoExtract === true,
     windowStart: numericOption(invocation.options, "windowStart"),
     sessionId: stringOption(invocation.options, "sessionId")
@@ -62357,7 +62390,7 @@ function observedFileEffect(cwd, path7, before) {
   const after = observeFile(path7);
   if (JSON.stringify(before) === JSON.stringify(after))
     return [];
-  const target = nodePath91.relative(cwd, path7).split(nodePath91.sep).join("/");
+  const target = nodePath92.relative(cwd, path7).split(nodePath92.sep).join("/");
   if (before === undefined)
     return [{ kind: "create", target }];
   if (after === undefined)
@@ -62426,6 +62459,7 @@ var HANDLERS = {
   "project sync-tickets": syncTicketsHandler,
   "project codify": codifyHandler,
   "project test-plan": testPlanHandler,
+  "project namespace-root": namespaceRootHandler,
   "project test": projectTestHandler,
   "project test-execution status": testExecutionStatusHandler,
   "project lint-gherkin": lintGherkinHandler,
@@ -62688,6 +62722,15 @@ var CANONICAL_COMMANDS = [
   }),
   command("project lint-gherkin", "Validate executable feature files", "observe", {
     syntax: "lint-gherkin [files...]"
+  }),
+  command("project namespace-root", "Print the resolved project-knowledge namespace root", "observe", {
+    syntax: "namespace-root",
+    commandOptions: [
+      {
+        flags: "--key <key>",
+        description: "A configured project-knowledge path: principles, personas, glossary, surfaces, or architecture"
+      }
+    ]
   }),
   command("tracker sync", "Synchronize tickets with the configured tracker", "mutate", {
     networkPolicy: "declared",
@@ -63171,7 +63214,7 @@ function createCapabilitiesResult() {
 }
 
 // src/cli-protocol/execute.ts
-import nodePath92 from "path";
+import nodePath93 from "path";
 import process18 from "process";
 init_policy2();
 init_result();
@@ -63194,7 +63237,7 @@ function readGlobalOptions(command2) {
   return {
     json: options.json === true,
     noInput: options.noInput === true,
-    cwd: nodePath92.resolve(process18.cwd(), options.cwd ?? "."),
+    cwd: nodePath93.resolve(process18.cwd(), options.cwd ?? "."),
     quiet: options.quiet === true,
     offline: options.offline === true,
     verbose: options.verbose === true

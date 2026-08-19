@@ -608,6 +608,11 @@ async function testPlanHandler(invocation: CommandInvocation): Promise<CliResult
   return withLegacyRawJsonGuidance(result, invocation.options, 'project test-plan');
 }
 
+async function namespaceRootHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const { observeNamespaceRoot } = await import('../commands/namespace-root.js');
+  return observeNamespaceRoot(invocation.cwd, invocation.options);
+}
+
 function withLegacyRawJsonGuidance(
   result: CliResult,
   options: Readonly<Record<string, unknown>>,
@@ -2117,6 +2122,7 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'project sync-tickets': syncTicketsHandler,
   'project codify': codifyHandler,
   'project test-plan': testPlanHandler,
+  'project namespace-root': namespaceRootHandler,
   'project test': projectTestHandler,
   'project test-execution status': testExecutionStatusHandler,
   'project lint-gherkin': lintGherkinHandler,

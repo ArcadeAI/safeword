@@ -191,6 +191,47 @@ describe('generated Codex plugin catalogue', () => {
     }
   });
 
+  it('rewrites resolve-namespace-root.ts invocations to the pinned namespace-root subcommand', () => {
+    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-plugin-ns-root-'));
+    const canonicalSkillsDirectory = nodePath.join(fixture, 'skills');
+    try {
+      mkdirSync(nodePath.join(canonicalSkillsDirectory, 'explain'), { recursive: true });
+      writeFileSync(
+        nodePath.join(canonicalSkillsDirectory, 'explain/SKILL.md'),
+        [
+          '---',
+          'name: explain',
+          'description: Explain state',
+          '---',
+          '',
+          '```bash',
+          'NS_ROOT="$(bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR")"',
+          'PERSONAS="$(bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR" personas personas.md 2> /dev/null)"',
+          'CUSTOM="$(bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR" personas other.md)"',
+          '```',
+          '',
+        ].join('\n'),
+      );
+
+      const content =
+        generateCodexPluginAssets(canonicalSkillsDirectory, '1.2.3')[0]?.content ?? '';
+
+      expect(content).toContain(
+        'NS_ROOT="$(bunx --bun safeword@1.2.3 project namespace-root --cwd "$PROJECT_DIR")"',
+      );
+      expect(content).toContain(
+        'PERSONAS="$(bunx --bun safeword@1.2.3 project namespace-root --cwd "$PROJECT_DIR" --key personas 2> /dev/null)"',
+      );
+      // A non-default basename has no flag to carry it, so it stays untouched
+      // rather than silently resolving a different file.
+      expect(content).toContain(
+        'CUSTOM="$(bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR" personas other.md)"',
+      );
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
   it('enforces Codex metadata discovery budget from generated skill frontmatter', () => {
     const assets = generateCodexPluginAssets(CANONICAL_SKILLS);
     expect(() => {

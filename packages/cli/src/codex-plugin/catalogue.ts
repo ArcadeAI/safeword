@@ -182,13 +182,46 @@ function adaptRunReviewInvocations(markdown: string, version: string | undefined
   return markdown.split(RUN_REVIEW_INVOCATION_PREFIX).join(`bunx --bun safeword@${version} `);
 }
 
+// Same substitution for resolve-namespace-root.ts, whose two positional modes
+// map onto `project namespace-root`'s flags. Every call site passes a default
+// basename of `<key>.md`, which is already the subcommand's own default, so
+// only the key survives the rewrite.
+const NAMESPACE_ROOT_INVOCATION_PREFIX =
+  'bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR"';
+const NAMESPACE_ROOT_ARGUMENTS = /^ (?<key>[a-z]{1,32}) (?<basename>[\w.-]{1,64})/u;
+
+function adaptNamespaceRootInvocations(markdown: string, version: string | undefined): string {
+  if (version === undefined) return markdown;
+
+  const replacement = `bunx --bun safeword@${version} project namespace-root --cwd "$PROJECT_DIR"`;
+  const [head, ...rest] = markdown.split(NAMESPACE_ROOT_INVOCATION_PREFIX);
+  let adapted = head ?? '';
+
+  for (const tail of rest) {
+    const { key, basename } = NAMESPACE_ROOT_ARGUMENTS.exec(tail)?.groups ?? {};
+    if (key === undefined) {
+      adapted += replacement + tail;
+      // Only a default `<key>.md` basename survives the rewrite: the subcommand
+      // has no flag to carry any other one, so rewriting it would silently
+      // resolve a different file.
+    } else if (basename === `${key}.md`) {
+      const remainder = tail.slice(key.length + basename.length + 2);
+      adapted += `${replacement} --key ${key}${remainder}`;
+    } else {
+      adapted += NAMESPACE_ROOT_INVOCATION_PREFIX + tail;
+    }
+  }
+
+  return adapted;
+}
+
 function adaptWorkflowMarkdown(
   markdown: string,
   knownSkillNames: ReadonlySet<string>,
   version: string | undefined,
 ): string {
-  const adapted = adaptRunReviewInvocations(
-    adaptWorkflowInvocations(markdown, knownSkillNames),
+  const adapted = adaptNamespaceRootInvocations(
+    adaptRunReviewInvocations(adaptWorkflowInvocations(markdown, knownSkillNames), version),
     version,
   );
 
