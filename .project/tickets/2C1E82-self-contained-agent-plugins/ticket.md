@@ -4,7 +4,7 @@ slug: self-contained-agent-plugins
 type: epic
 phase: intake
 status: in_progress
-children: ['V2AH4B']
+children: ['V2AH4B', 'KDED4X', 'SF0RS0', 'GJB22B', 'JNZ2H5', '1DZ9W8']
 created: 2026-08-18T16:58:37.428Z
 last_modified: 2026-08-18T16:58:37.428Z
 ---
