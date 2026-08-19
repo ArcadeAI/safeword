@@ -66,6 +66,18 @@ describe('project retro-drain', () => {
     expect(result.errors[0]?.code).toBe('RETRO_DRAIN_REFUSED');
   });
 
+  it('does not claim a file effect when the drain removed nothing', async () => {
+    const spool = spoolPathIn(temporaryDirectory);
+    writeFileSync(spool, '');
+
+    const result = await runRetroDrain(spool, {});
+
+    // The drain reports no mutation of its own, so an unchanged spool must not
+    // be reported as a filesystem change.
+    expect(result.changed).toBe(false);
+    expect(result.effects.files).toEqual([]);
+  });
+
   it('emits one JSON object per line for a canonical spool', async () => {
     const spool = spoolPathIn(temporaryDirectory);
     writeFileSync(spool, '');

@@ -9,7 +9,21 @@
  * two callers.
  */
 
+import { statSync } from 'node:fs';
+
 import { type CliResult, createResult } from '../cli-protocol/result.js';
+
+/**
+ * The drain reports no mutation of its own, so the spool is observed either
+ * side of it: a drain that removed nothing must not claim a file effect.
+ */
+function spoolSize(path: string): number | undefined {
+  try {
+    return statSync(path).size;
+  } catch {
+    return undefined;
+  }
+}
 
 export async function runRetroDrain(
   spoolPath: string | undefined,
@@ -29,6 +43,7 @@ export async function runRetroDrain(
   }
 
   const { drainRetroSpool } = await import('../../templates/hooks/lib/drain-retro-spool.js');
+  const before = spoolSize(spoolPath);
   const result = drainRetroSpool(
     spoolPath,
     options.validatedJsonl === true ? 'validated-jsonl' : 'drain',
@@ -59,10 +74,12 @@ export async function runRetroDrain(
     });
   }
 
+  const drained = spoolSize(spoolPath) !== before;
+
   return createResult({
-    state: 'changed',
-    changed: true,
-    effects: { files: [{ kind: 'update', target: spoolPath }] },
-    data: { command: 'project retro-drain' },
+    state: drained ? 'changed' : 'healthy',
+    changed: drained,
+    ...(drained && { effects: { files: [{ kind: 'update', target: spoolPath }] } }),
+    data: { command: 'project retro-drain', drained },
   });
 }

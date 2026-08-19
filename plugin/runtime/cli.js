@@ -43286,6 +43286,14 @@ var exports_retro_drain = {};
 __export(exports_retro_drain, {
   runRetroDrain: () => runRetroDrain
 });
+import { statSync as statSync6 } from "fs";
+function spoolSize(path4) {
+  try {
+    return statSync6(path4).size;
+  } catch {
+    return;
+  }
+}
 async function runRetroDrain(spoolPath2, options) {
   if (spoolPath2 === undefined || spoolPath2.length === 0) {
     return createResult({
@@ -43300,6 +43308,7 @@ async function runRetroDrain(spoolPath2, options) {
     });
   }
   const { drainRetroSpool: drainRetroSpool2 } = await Promise.resolve().then(() => (init_drain_retro_spool(), exports_drain_retro_spool));
+  const before = spoolSize(spoolPath2);
   const result = drainRetroSpool2(spoolPath2, options.validatedJsonl === true ? "validated-jsonl" : "drain");
   if (result.state === "refused" || result.state === "egress_refused") {
     return createResult({
@@ -43324,11 +43333,12 @@ async function runRetroDrain(spoolPath2, options) {
       data: { command: "project retro-drain", drafts: result.drafts }
     });
   }
+  const drained = spoolSize(spoolPath2) !== before;
   return createResult({
-    state: "changed",
-    changed: true,
-    effects: { files: [{ kind: "update", target: spoolPath2 }] },
-    data: { command: "project retro-drain" }
+    state: drained ? "changed" : "healthy",
+    changed: drained,
+    ...drained && { effects: { files: [{ kind: "update", target: spoolPath2 }] } },
+    data: { command: "project retro-drain", drained }
   });
 }
 var init_retro_drain = __esm(() => {
@@ -43688,7 +43698,7 @@ var exports_lint_gherkin = {};
 __export(exports_lint_gherkin, {
   observeGherkinLint: () => observeGherkinLint
 });
-import { existsSync as existsSync42, readFileSync as readFileSync49, statSync as statSync6 } from "fs";
+import { existsSync as existsSync42, readFileSync as readFileSync49, statSync as statSync7 } from "fs";
 import nodePath83 from "path";
 function observeGherkinLint(cwd, files) {
   const featureFiles = files.length === 0 ? discoverFeatureFiles(cwd) : resolveInputFiles(cwd, files);
@@ -43726,7 +43736,7 @@ function lintFile(cwd, filePath) {
   }
   let content;
   try {
-    if (!statSync6(filePath).isFile())
+    if (!statSync7(filePath).isFile())
       throw new Error("not a regular file");
     content = readFileSync49(filePath, "utf8");
   } catch {
@@ -45823,7 +45833,7 @@ import {
   readFileSync as readFileSync53,
   realpathSync as realpathSync12,
   renameSync as renameSync9,
-  statSync as statSync7,
+  statSync as statSync8,
   unlinkSync as unlinkSync3,
   writeFileSync as writeFileSync19,
   writeSync as writeSync2
@@ -45961,7 +45971,7 @@ function withFileLock(lock, operation) {
     const ownedLock = fstatSync9(descriptor);
     closeSync11(descriptor);
     try {
-      const currentLock = statSync7(lock);
+      const currentLock = statSync8(lock);
       if (currentLock.dev === ownedLock.dev && currentLock.ino === ownedLock.ino)
         unlinkSync3(lock);
     } catch {}
@@ -45969,11 +45979,11 @@ function withFileLock(lock, operation) {
 }
 function recoverStaleLock(lock) {
   try {
-    const inspected = statSync7(lock);
+    const inspected = statSync8(lock);
     const owner = Number(readFileSync53(lock, "utf8"));
-    const invalidOwnerIsOld = !isProcessId(owner) && Date.now() - statSync7(lock).mtimeMs >= JOB_LOCK_WAIT_MS;
+    const invalidOwnerIsOld = !isProcessId(owner) && Date.now() - statSync8(lock).mtimeMs >= JOB_LOCK_WAIT_MS;
     if (isProcessId(owner) && !processExists(owner) || invalidOwnerIsOld) {
-      const current = statSync7(lock);
+      const current = statSync8(lock);
       if (current.dev === inspected.dev && current.ino === inspected.ino)
         unlinkSync3(lock);
     }
@@ -56519,7 +56529,7 @@ import {
   mkdtempSync as mkdtempSync7,
   readFileSync as readFileSync58,
   realpathSync as realpathSync13,
-  statSync as statSync8,
+  statSync as statSync9,
   writeFileSync as writeFileSync22
 } from "fs";
 import { tmpdir as tmpdir5 } from "os";
@@ -56874,7 +56884,7 @@ function physicalProjectPath(projectDirectory) {
 function physicalOutboxPath(outboxDirectory) {
   try {
     const physicalOutbox = realpathSync13(outboxDirectory);
-    return statSync8(physicalOutbox).isDirectory() ? physicalOutbox : undefined;
+    return statSync9(physicalOutbox).isDirectory() ? physicalOutbox : undefined;
   } catch {
     return;
   }
