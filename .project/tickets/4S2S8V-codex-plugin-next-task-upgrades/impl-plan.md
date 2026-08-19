@@ -11,9 +11,15 @@ Every automated scenario follows one RED → GREEN loop: register its Cucumber
 step wiring and focused Vitest proof first, run both to observe the intended
 failure, implement the smallest production change, then rerun both. The two
 host-lifecycle scenarios are `@live @manual`: Safeword cannot inspect an already
-loaded task or create a new Codex task. Their automated supporting proof is
+loaded task or perform the desktop app lifecycle. Their automated supporting proof is
 limited to Safeword-owned facts—exact immutable bundle commands, installed
 version/digest, pending marker, and SessionStart proof.
+
+The resume correction keeps that proof model unchanged. Native `SessionStart`
+proof for `source: resume` is accepted only when its existing version, manifest,
+activation, profile, task, and canonical-worktree bindings all match. The project
+bootstrap polls that proof for at most 500 ms to absorb concurrent hook ordering;
+no matching proof after the bound remains honestly unverified.
 
 The machine contract becomes `CodexMigrationResultV2` with `schema_version: 2`.
 This avoids changing the meaning of a schema-1 enum in place. Public CLI docs,
@@ -38,18 +44,19 @@ Run the two `@live @manual` scenarios before release and record the transcript i
 3. In a terminal, run the published candidate's exact install command (`bunx
    --bun safeword@<candidate-prerelease-version> codex install`). Record marketplace refresh,
    installed version, and the canonical pending marker identity.
-4. Return to the same task, reopen `/hooks`, and invoke one reviewed Safeword
-   hook. Record that its command/manifest remains the old exact version. This is
-   the GREEN evidence for “Installing an upgrade does not change the running
-   task.”
-5. Create a new task in the same app and confirm activation remains pending.
+4. Return to the same task and record that its loaded skills remain the old
+   exact version. Review the candidate's exact changed hooks in Desktop Settings
+   > Hooks or `/hooks` in the terminal TUI before restarting. This is the GREEN
+   evidence for “Installing an upgrade does not change the running task” and
+   ensures the resumed task's SessionStart is not skipped as untrusted.
+5. Resume the task without fully restarting the app and confirm activation remains pending.
    Open `/hooks`, invoke SessionStart, and record the observed skill catalogue,
    hook manifest, activation-bound proof, and retained activation marker. This is the
-   rejection evidence for “A same-app new task does not prove activation.”
-6. Restart Codex, create a new task, and capture the exact skill catalogue and
-   hook manifest as GREEN evidence for coherent activation.
+   rejection evidence for “A same-app resume does not prove activation.”
+6. With the changed hooks already trusted, fully restart Codex, resume the same task, and capture the exact task ID,
+   skill catalogue, and hook manifest as GREEN evidence for coherent activation.
 7. The evidence file must contain timestamp, old and candidate versions, Codex
-   version, exact commands, before/same-task/new-task observations, marker/proof
+   version, exact commands, running/same-app-resume/restarted-app-resume observations, marker/proof
    identities, and pass/fail for all three lifecycle checks. Do not mark a live check GREEN in
    `test-definitions.md` until that evidence exists.
 
@@ -68,6 +75,8 @@ Run the two `@live @manual` scenarios before release and record the transcript i
 | R3 matching proof | feature + filesystem/compiled-hook integration | pure status transition table | Proves durable proof precedes exact marker retirement. |
 | R3 mismatch outline | feature + profile-proof integration for both rows | identity matcher unit assertions | Version and digest gates fail independently. |
 | R3 later task | feature + repeated hook integration | status idempotence assertion | Proves proof remains current without recreating activation state. |
+| R3 resumed-task isolation | bootstrap integration plus profile-proof filesystem tests | linked-worktree fixture and separate profile roots | Proves stale, cross-task, cross-profile, and cross-worktree proof remain non-current. |
+| R3 concurrent proof | bootstrap integration with injected proof observations | fixed 500 ms attempt bound | Proves both hook orderings converge without turning absence into success. |
 | R4 canonical upgrade | command + filesystem/compiled-hook integration | exact identity assertion | Proves a canonical v2 install safely supersedes v0.70 marker state. |
 | R4 invalid legacy input | command + status integration for malformed/stale inputs | profile-proof unit assertions | Proves invalid legacy input is never promoted to current proof. |
 
@@ -102,7 +111,8 @@ focused Vitest file. Commands per loop are `bun run test:bdd -- --tags
 
 | Decision | Choice | Alternatives considered | Rejected because |
 | --- | --- | --- | --- |
-| Running-app behavior | Immutable exact-version bundle; activate after app restart | `safeword@latest` dispatcher; hot-rewrite cached manifest; same-app task proof | Dynamic behavior bypasses renewed hook review; same-app task activation was disproved live. |
+| Running-app behavior | Immutable exact-version bundle; activate when the same task resumes after a full app restart | `safeword@latest` dispatcher; hot-rewrite cached manifest; same-app task proof; requiring a new task | Dynamic behavior bypasses renewed hook review; same-app task activation was disproved live; resume already preserves the authentic task identity. |
+| Concurrent proof observation | Recheck exact resumed-task proof for at most 500 ms | Treat the first miss as final; authorize from a profile-wide restart flag; add a challenge protocol | A bounded recheck absorbs host hook ordering without weakening proof; broader flags and caller-readable challenges do not prove the exact task and worktree. |
 | Lifecycle proof | Two explicit `@live @manual` checks plus automated Safeword-owned supporting proof | Claim the fake Codex process proves task loading | A subprocess fixture cannot inspect host task state. |
 | Marketplace refresh | List, upgrade known Git source, then add plugin | Always add; manually rewrite cache | Always-add obscures refresh semantics; cache mutation bypasses supported CLI operations. |
 | Marker migration | New canonical marker plus legacy exact-identity reader | Rename without compatibility; keep misleading name forever | Hard rename strands v0.70 profiles; old terminology falsely implies reboot. |

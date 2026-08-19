@@ -70,7 +70,6 @@ const SAFEWORD_RULES = [
 const RUFF_SHARED_SETTINGS = `ignore = [
     "COM812", # missing trailing comma - conflicts with formatter
     "ISC001", # single-line-implicit-string-concatenation - conflicts with formatter
-    "E501",   # line too long - formatter handles this
 ]
 
 [lint.per-file-ignores]

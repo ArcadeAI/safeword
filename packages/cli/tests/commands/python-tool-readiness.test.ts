@@ -180,12 +180,40 @@ dependencies = ["ruff", "mypy", "deadcode"]
     );
 
     const result = await runCli(['doctor', '--json', '--offline'], { cwd: projectDirectory });
-    const output = JSON.parse(result.stdout) as {
-      findings: { code: string }[];
-    };
-
+    const output = JSON.parse(result.stdout) as { findings: { code: string }[] };
     expect(output.findings).not.toEqual(
       expect.arrayContaining([expect.objectContaining({ code: 'MISSING_PYTHON_TOOL' })]),
+    );
+  });
+
+  it('reports missing tools from a nested Python manifest', async () => {
+    writeTestFile(
+      projectDirectory,
+      'apps/api/pyproject.toml',
+      `[project]
+name = "api"
+version = "0.1.0"
+dependencies = ["ruff"]
+`,
+    );
+
+    const result = await runCli(['doctor', '--json', '--offline'], { cwd: projectDirectory });
+    const output = JSON.parse(result.stdout) as {
+      findings: { code: string; message: string }[];
+    };
+
+    expect(result.exitCode).toBe(2);
+    expect(output.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: 'MISSING_PYTHON_TOOL',
+          message: 'mypy is not declared for this Python project.',
+        }),
+        expect.objectContaining({
+          code: 'MISSING_PYTHON_TOOL',
+          message: 'deadcode is not declared for this Python project.',
+        }),
+      ]),
     );
   });
 
@@ -203,12 +231,38 @@ deadcode = "*"
     );
 
     const result = await runCli(['doctor', '--json', '--offline'], { cwd: projectDirectory });
-    const output = JSON.parse(result.stdout) as {
-      findings: { code: string }[];
-    };
-
+    const output = JSON.parse(result.stdout) as { findings: { code: string }[] };
     expect(output.findings).not.toEqual(
       expect.arrayContaining([expect.objectContaining({ code: 'MISSING_PYTHON_TOOL' })]),
+    );
+  });
+
+  it('reports missing tools from a Pipenv project', async () => {
+    writeTestFile(
+      projectDirectory,
+      'Pipfile',
+      `[packages]
+ruff = "*"
+`,
+    );
+
+    const result = await runCli(['doctor', '--json', '--offline'], { cwd: projectDirectory });
+    const output = JSON.parse(result.stdout) as {
+      findings: { code: string; message: string }[];
+    };
+
+    expect(result.exitCode).toBe(2);
+    expect(output.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: 'MISSING_PYTHON_TOOL',
+          message: 'mypy is not declared for this Python project.',
+        }),
+        expect.objectContaining({
+          code: 'MISSING_PYTHON_TOOL',
+          message: 'deadcode is not declared for this Python project.',
+        }),
+      ]),
     );
   });
 

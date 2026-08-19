@@ -1142,7 +1142,7 @@ function setupResult(input: SetupResultInput): CliResult {
   ];
   // A failed automatic Codex handoff is intentionally advisory: the legacy
   // project integration remains active and the SessionStart bootstrap retries
-  // enrollment for the next task/developer. Keep the warning loud without
+  // enrollment for the next SessionStart/developer. Keep the warning loud without
   // turning an otherwise successful setup into a blocking exit status.
   const actionRequired = findings.some(
     finding => finding.severity !== 'info' && finding.code !== 'CODEX_PLUGIN_HANDOFF_DEFERRED',

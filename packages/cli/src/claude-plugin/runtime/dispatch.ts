@@ -809,6 +809,16 @@ function executeConfiguredHooks(input: {
   }
 }
 
+// Points the SessionStart context hook at the packaged handbook (mirrors the
+// same env var Codex's runtime already sets) so it never falls back to
+// reading the project's .safeword/SAFEWORD.md.
+function exposePackagedSafewordContext(pluginRoot: string): void {
+  const packagedSafewordPath = nodePath.join(pluginRoot, 'resources', 'SAFEWORD.md');
+  if (existsSync(packagedSafewordPath)) {
+    process.env.SAFEWORD_PACKAGED_CONTEXT_PATH = packagedSafewordPath;
+  }
+}
+
 function mainUnsafe(event: string, mode: string | undefined, command: string[]): number {
   if (mode !== undefined && mode !== '--' && mode !== '--event-group') {
     throw new Error('Expected -- or --event-group after the hook event.');
@@ -818,6 +828,7 @@ function mainUnsafe(event: string, mode: string | undefined, command: string[]):
   }
   const pluginRoot = realpathSync(requiredEnvironment('CLAUDE_PLUGIN_ROOT'));
   process.env.SAFEWORD_PLUGIN_CLI = nodePath.join(pluginRoot, 'runtime', 'cli.js');
+  exposePackagedSafewordContext(pluginRoot);
   const standardInput = readFileSync(0);
   const hookInput = parseHookInput(standardInput);
   const projectRoot = canonicalClaudeProjectRoot(hookInput.cwd ?? process.cwd());

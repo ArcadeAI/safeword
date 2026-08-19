@@ -506,5558 +506,6 @@ var init_agent_selection = __esm(() => {
   AGENT_SELECTION_DESCRIPTION = `${SUPPORTED_AGENT_INTEGRATIONS.join(", ")}, or none`;
 });
 
-// src/codex-plugin/migration-error.ts
-var CodexMigrationError;
-var init_migration_error = __esm(() => {
-  CodexMigrationError = class CodexMigrationError extends Error {
-    code;
-    profileChanged;
-    recoveryCommand;
-    constructor(code, message, options) {
-      super(message, options);
-      this.name = "CodexMigrationError";
-      this.code = code;
-      this.profileChanged = options?.profileChanged === true;
-      this.recoveryCommand = options?.recoveryCommand;
-    }
-  };
-});
-
-// src/utils/fs.ts
-import {
-  chmodSync,
-  existsSync as existsSync3,
-  mkdirSync as mkdirSync2,
-  readdirSync as readdirSync2,
-  readFileSync as readFileSync3,
-  realpathSync,
-  rmdirSync,
-  rmSync,
-  statSync,
-  writeFileSync as writeFileSync2
-} from "fs";
-import nodePath4 from "path";
-function getTemplatesDirectory() {
-  const knownTemplateFile = "SAFEWORD.md";
-  const candidates = [
-    nodePath4.join(__dirname2, "..", "templates"),
-    nodePath4.join(__dirname2, "..", "..", "templates"),
-    nodePath4.join(__dirname2, "templates")
-  ];
-  for (const candidate of candidates) {
-    if (existsSync3(nodePath4.join(candidate, knownTemplateFile))) {
-      return candidate;
-    }
-  }
-  throw new Error("Templates directory not found");
-}
-function isDirectory(path2) {
-  try {
-    return statSync(path2).isDirectory();
-  } catch {
-    return false;
-  }
-}
-function canonicalDirectory(path2) {
-  if (typeof path2 !== "string" || path2.trim() === "")
-    return;
-  try {
-    if (!statSync(path2).isDirectory())
-      return;
-    return nodePath4.normalize(realpathSync(path2));
-  } catch {
-    return;
-  }
-}
-function exists(path2) {
-  return existsSync3(path2);
-}
-function existsInTree(cwd, filename) {
-  return findInTree(cwd, filename) !== undefined;
-}
-function findInTree(cwd, filename, maxDepth = 10) {
-  if (existsSync3(nodePath4.join(cwd, filename))) {
-    return cwd;
-  }
-  return scanTreeForFile(cwd, filename, 1, maxDepth);
-}
-function isScannableSubdirectory(entry) {
-  return entry.isDirectory() && !entry.name.startsWith(".") && !SUBDIRECTORY_EXCLUDE.has(entry.name);
-}
-function getScannableSubdirectories(directory) {
-  try {
-    return readdirSync2(directory, { withFileTypes: true }).filter((entry) => isScannableSubdirectory(entry)).map((entry) => nodePath4.join(directory, entry.name));
-  } catch {
-    return [];
-  }
-}
-function scanTreeForFile(directory, filename, depth, maxDepth) {
-  if (depth > maxDepth)
-    return;
-  const subdirectories = getScannableSubdirectories(directory);
-  for (const subdirectory of subdirectories) {
-    if (existsSync3(nodePath4.join(subdirectory, filename))) {
-      return subdirectory;
-    }
-  }
-  for (const subdirectory of subdirectories) {
-    const result = scanTreeForFile(subdirectory, filename, depth + 1, maxDepth);
-    if (result !== undefined)
-      return result;
-  }
-  return;
-}
-function findFileMatchingInTree(cwd, predicate, maxDepth = 10, excludedDirectories = new Set) {
-  return scanTreeForMatch(cwd, predicate, 0, maxDepth, excludedDirectories);
-}
-function scanTreeForMatch(directory, predicate, depth, maxDepth, excludedDirectories) {
-  if (depth > maxDepth)
-    return;
-  let entries;
-  try {
-    entries = readdirSync2(directory, { withFileTypes: true });
-  } catch {
-    return;
-  }
-  if (entries.some((entry) => entry.isFile() && predicate(entry.name))) {
-    return directory;
-  }
-  for (const entry of entries) {
-    if (!isScannableSubdirectory(entry))
-      continue;
-    const child = nodePath4.join(directory, entry.name);
-    if (excludedDirectories.has(child))
-      continue;
-    const result = scanTreeForMatch(child, predicate, depth + 1, maxDepth, excludedDirectories);
-    if (result !== undefined)
-      return result;
-  }
-  return;
-}
-function indexFilesInTree(cwd, filenames, maxDepth = 10) {
-  const wanted = [...filenames];
-  const found = new Map;
-  const queue = [{ directory: cwd, depth: 0 }];
-  let head = 0;
-  while (head < queue.length) {
-    const item = queue[head];
-    head += 1;
-    if (item === undefined)
-      break;
-    for (const name of wanted) {
-      if (!found.has(name) && existsSync3(nodePath4.join(item.directory, name))) {
-        found.set(name, item.directory);
-      }
-    }
-    if (found.size === wanted.length)
-      break;
-    if (item.depth >= maxDepth)
-      continue;
-    for (const subdirectory of getScannableSubdirectories(item.directory)) {
-      queue.push({ directory: subdirectory, depth: item.depth + 1 });
-    }
-  }
-  return found;
-}
-function findAllInTree(cwd, filename, maxDepth = 10) {
-  const found = [];
-  const queue = [{ directory: cwd, depth: 0 }];
-  let head = 0;
-  while (head < queue.length) {
-    const item = queue[head];
-    head += 1;
-    if (item === undefined)
-      break;
-    if (existsSync3(nodePath4.join(item.directory, filename)))
-      found.push(item.directory);
-    if (item.depth >= maxDepth)
-      continue;
-    for (const subdirectory of getScannableSubdirectories(item.directory)) {
-      queue.push({ directory: subdirectory, depth: item.depth + 1 });
-    }
-  }
-  return found;
-}
-function ensureDirectory(path2) {
-  if (!existsSync3(path2)) {
-    mkdirSync2(path2, { recursive: true });
-  }
-}
-function readFile(path2) {
-  return readFileSync3(path2, "utf8");
-}
-function readFileSafe(path2) {
-  if (!existsSync3(path2))
-    return;
-  return readFileSync3(path2, "utf8");
-}
-function writeFile(path2, content) {
-  ensureDirectory(nodePath4.dirname(path2));
-  writeFileSync2(path2, content);
-}
-function remove(path2) {
-  if (existsSync3(path2)) {
-    rmSync(path2, { recursive: true, force: true });
-  }
-}
-function removeIfEmpty(path2) {
-  if (!existsSync3(path2))
-    return false;
-  try {
-    rmdirSync(path2);
-    return true;
-  } catch {
-    return false;
-  }
-}
-function makeScriptsExecutable(dirPath) {
-  if (!existsSync3(dirPath))
-    return;
-  for (const file of readdirSync2(dirPath)) {
-    if (file.endsWith(".sh")) {
-      chmodSync(nodePath4.join(dirPath, file), 493);
-    }
-  }
-}
-function readJson(path2) {
-  try {
-    const content = readFileSafe(path2);
-    if (!content)
-      return;
-    return JSON.parse(content);
-  } catch {
-    return;
-  }
-}
-function writeJson(path2, data) {
-  writeFile(path2, `${JSON.stringify(data, undefined, 2)}
-`);
-}
-var __dirname2, SUBDIRECTORY_EXCLUDE;
-var init_fs = __esm(() => {
-  __dirname2 = import.meta.dirname;
-  SUBDIRECTORY_EXCLUDE = new Set([
-    "node_modules",
-    ".git",
-    ".safeword",
-    "vendor",
-    "testdata",
-    "dist",
-    "build",
-    "target",
-    "coverage",
-    "dbt_packages",
-    "out",
-    ".next",
-    ".nuxt",
-    ".output",
-    "__pycache__",
-    ".venv",
-    "venv"
-  ]);
-});
-
-// src/utils/toml.ts
-function readTomlTableArray(content, table, key) {
-  const found = tableArrayBody(content.split(/\r?\n/), table, key);
-  if (found === undefined)
-    return;
-  const values = found.body.matchAll(/"([^"]*)"|'([^']*)'/g).map((match) => match[1] ?? match[2] ?? "").filter((value) => value.length > 0).toArray();
-  return values.length > 0 ? values : undefined;
-}
-function isTomlTableEmptyArray(content, table, key) {
-  const found = tableArrayBody(content.split(/\r?\n/), table, key);
-  return found !== undefined && found.closed && found.body.replaceAll(/[\s,]/g, "") === "";
-}
-function hasTomlTable(content, table) {
-  return content.split(/\r?\n/).some((line) => tableHeader(stripTomlComment(line).trim()) === table);
-}
-function* linesInTable(content, table) {
-  let inTable = false;
-  for (const rawLine of content.split(/\r?\n/)) {
-    const line = stripTomlComment(rawLine).trim();
-    if (line === "")
-      continue;
-    const header2 = tableHeader(line);
-    if (header2 !== undefined) {
-      inTable = header2 === table;
-      continue;
-    }
-    if (inTable)
-      yield line;
-  }
-}
-function hasTomlTableKey(content, table, key) {
-  for (const line of linesInTable(content, table)) {
-    if (tableValue(line, key) !== undefined)
-      return true;
-  }
-  return false;
-}
-function readTomlTableString(content, table, key) {
-  for (const line of linesInTable(content, table)) {
-    const value = tableValue(line, key);
-    if (value?.startsWith('"')) {
-      const end = value.indexOf('"', 1);
-      if (end !== -1)
-        return value.slice(1, end);
-    }
-  }
-  return;
-}
-function tableArrayBody(lines, table, key) {
-  const opened = findTableArrayOpen(lines, table, key);
-  if (opened === undefined)
-    return;
-  let body = opened.initial;
-  for (let index = opened.line;index < lines.length; index += 1) {
-    if (index > opened.line)
-      body += `
-${stripTomlComment(lines[index] ?? "")}`;
-    const close = indexOfOutsideQuotes(body, "]");
-    if (close !== -1)
-      return { body: body.slice(0, close), closed: true };
-  }
-  return { body, closed: false };
-}
-function findTableArrayOpen(lines, table, key) {
-  let inTable = false;
-  for (const [index, rawLine] of lines.entries()) {
-    const trimmed = stripTomlComment(rawLine).trim();
-    const header2 = tableHeader(trimmed);
-    if (header2 !== undefined) {
-      inTable = header2 === table;
-      continue;
-    }
-    if (!inTable)
-      continue;
-    const value = tableValue(trimmed, key);
-    if (value?.startsWith("[") === true)
-      return { line: index, initial: value.slice(1) };
-  }
-  return;
-}
-function indexOfOutsideQuotes(text, target) {
-  let quote = "";
-  let index = 0;
-  while (index < text.length) {
-    const character = text[index];
-    if (quote === "") {
-      if (character === '"' || character === "'")
-        quote = character;
-      else if (character === target)
-        return index;
-    } else if (character === quote) {
-      quote = "";
-    }
-    index += 1;
-  }
-  return -1;
-}
-function tableValue(line, key) {
-  const equals = line.indexOf("=");
-  if (equals === -1 || line.slice(0, equals).trim() !== key)
-    return;
-  return line.slice(equals + 1).trim();
-}
-function tableHeader(line) {
-  const match = /^\[\[?([^[\]]+)\]\]?\s*$/.exec(line);
-  return match?.[1] === undefined ? undefined : match[1].trim();
-}
-function stripTomlComment(line) {
-  const hash = indexOfOutsideQuotes(line, "#");
-  return hash === -1 ? line : line.slice(0, hash);
-}
-
-// src/utils/architecture-skeleton.ts
-import { readdirSync as readdirSync3 } from "fs";
-import nodePath5 from "path";
-function extractSkeleton(projectDirectory, options = {}) {
-  if (exists(nodePath5.join(projectDirectory, "pyproject.toml"))) {
-    const pythonNodes = pythonModuleNodes(projectDirectory);
-    if (pythonNodes.length > 0)
-      return { nodes: pythonNodes };
-  }
-  if (exists(nodePath5.join(projectDirectory, "Cargo.toml"))) {
-    return { nodes: rustModuleNodes(projectDirectory) };
-  }
-  const sourceRoot = enumerateJsSourceRoot(nodePath5.join(projectDirectory, "src"), (name) => `src/${name}`);
-  if (sourceRoot.observed)
-    return { nodes: sourceRoot.nodes };
-  if (exists(nodePath5.join(projectDirectory, "go.mod"))) {
-    return { nodes: goLayoutNodes(projectDirectory) };
-  }
-  const libraryRoot = enumerateJsSourceRoot(nodePath5.join(projectDirectory, "lib"), (name) => `lib/${name}`);
-  if (libraryRoot.observed)
-    return { nodes: libraryRoot.nodes };
-  if (options.workspaceRoot === true || declaresWorkspaces(projectDirectory))
-    return { nodes: [] };
-  return { nodes: topLevelJsModuleNodes(projectDirectory) };
-}
-function declaresWorkspaces(projectDirectory) {
-  if (exists(nodePath5.join(projectDirectory, "pnpm-workspace.yaml")))
-    return true;
-  if (exists(nodePath5.join(projectDirectory, "go.work")))
-    return true;
-  const manifest = readJson(nodePath5.join(projectDirectory, "package.json"));
-  if (manifest !== null && typeof manifest === "object" && manifest.workspaces !== undefined) {
-    return true;
-  }
-  const pyproject = readFileSafe(nodePath5.join(projectDirectory, "pyproject.toml"));
-  return pyproject !== undefined && hasTomlTable(pyproject, "tool.uv.workspace");
-}
-function enumerateJsSourceRoot(directory, pathFor) {
-  let entries;
-  try {
-    entries = readdirSync3(directory, { withFileTypes: true });
-  } catch {
-    return { nodes: [], observed: false };
-  }
-  const observed = entries.some((entry) => entry.isDirectory() || entry.isFile() && isJsSourceModuleFile(entry.name));
-  const byName = new Map(entries.filter((entry) => entry.isDirectory()).map((entry) => [
-    entry.name,
-    directoryNode(entry.name, pathFor(entry.name), JS_SOURCE_EXTENSIONS.map((extension) => nodePath5.join(directory, entry.name, `index${extension}`)))
-  ]));
-  const excludeColocatedTests = true;
-  for (const node of jsFileNodes(entries, pathFor, excludeColocatedTests, directory)) {
-    if (!byName.has(node.name))
-      byName.set(node.name, node);
-  }
-  return { nodes: byName.values().toArray().toSorted(byNodeName), observed };
-}
-function topLevelJsModuleNodes(projectDirectory) {
-  let entries;
-  try {
-    entries = readdirSync3(projectDirectory, { withFileTypes: true });
-  } catch {
-    return [];
-  }
-  return jsFileNodes(entries, (name) => name, false, projectDirectory);
-}
-function jsFileNodes(entries, pathFor, excludeTests, sourceDirectory) {
-  const files = entries.filter((entry) => entry.isFile() && isJsSourceModuleFile(entry.name) && (!excludeTests || !isJsTestFile(entry.name))).toSorted((a, b) => extensionPriority(a.name) - extensionPriority(b.name) || a.name.localeCompare(b.name));
-  const byName = new Map;
-  for (const entry of files) {
-    const name = jsModuleName(entry.name);
-    if (!byName.has(name)) {
-      byName.set(name, sourceFileNode(name, pathFor(entry.name), nodePath5.join(sourceDirectory, entry.name)));
-    }
-  }
-  return byName.values().toArray().toSorted(byNodeName);
-}
-function isJsTestFile(name) {
-  return /\.(?:test|spec)\.[mc]?[jt]sx?$/.test(name);
-}
-function extensionPriority(filename) {
-  return JS_SOURCE_EXTENSIONS.findIndex((extension) => filename.endsWith(extension));
-}
-function isJsSourceModuleFile(name) {
-  if (name.startsWith("."))
-    return false;
-  if (/\.d\.[mc]?ts$/.test(name))
-    return false;
-  if (/\.config\.[mc]?[jt]sx?$/.test(name))
-    return false;
-  return JS_SOURCE_EXTENSIONS.some((extension) => name.endsWith(extension));
-}
-function jsModuleName(filename) {
-  return filename.slice(0, filename.lastIndexOf("."));
-}
-function sourceFileNode(name, path2, absolutePath) {
-  return nodeFromPurpose(name, path2, purposeFromLeadingDocumentation(absolutePath));
-}
-function directoryNode(name, path2, entryPoints) {
-  for (const entryPoint of entryPoints) {
-    const purpose = purposeFromLeadingDocumentation(entryPoint);
-    if (purpose !== undefined)
-      return nodeFromPurpose(name, path2, purpose);
-  }
-  return nodeFromPurpose(name, path2, undefined);
-}
-function nodeFromPurpose(name, path2, purpose) {
-  return purpose === undefined ? { name, path: path2, purpose: PURPOSE_PLACEHOLDER } : { name, path: path2, purpose, seededPurpose: true };
-}
-function purposeFromLeadingDocumentation(path2) {
-  const content = readFileSafe(path2);
-  if (content === undefined)
-    return;
-  const extension = nodePath5.extname(path2);
-  let body;
-  if (extension === ".rs") {
-    body = rustModuleDocumentation(content);
-  } else if (extension === ".py") {
-    body = pythonModuleDocumentation(content);
-  } else {
-    body = jsModuleDocumentation(content);
-  }
-  if (body === undefined)
-    return;
-  return documentationSummary(body);
-}
-function jsModuleDocumentation(content) {
-  return /^\/\*\*([\s\S]*?)\*\//.exec(afterLeadingJsTrivia(withoutByteOrderMark(content)))?.[1];
-}
-function rustModuleDocumentation(content) {
-  const start = withoutByteOrderMark(content).trimStart();
-  if (start.startsWith("/*!")) {
-    const end = start.indexOf("*/", 3);
-    return end === -1 ? undefined : start.slice(3, end);
-  }
-  if (!start.startsWith("//!"))
-    return;
-  const documentationLines = [];
-  for (const line of start.split(/\r?\n/)) {
-    const trimmed = line.trimStart();
-    if (!trimmed.startsWith("//!"))
-      break;
-    documentationLines.push(trimmed.slice(3).trimStart());
-  }
-  return documentationLines.join(`
-`);
-}
-function pythonModuleDocumentation(content) {
-  const start = afterLeadingPythonTrivia(withoutByteOrderMark(content));
-  const opening = /^[ru]{0,2}("""|''')/i.exec(start);
-  const delimiter = opening?.[1];
-  if (opening === null || delimiter === undefined)
-    return;
-  const bodyStart = opening[0].length;
-  const bodyEnd = start.indexOf(delimiter, bodyStart);
-  return bodyEnd === -1 ? undefined : start.slice(bodyStart, bodyEnd);
-}
-function withoutByteOrderMark(content) {
-  return content.startsWith("\uFEFF") ? content.slice(1) : content;
-}
-function afterLeadingPythonTrivia(content) {
-  let remaining = content;
-  while (remaining.length > 0) {
-    const lineEnd = remaining.indexOf(`
-`);
-    const line = lineEnd === -1 ? remaining : remaining.slice(0, lineEnd);
-    const trimmed = line.trim();
-    if (trimmed.length > 0 && !trimmed.startsWith("#"))
-      break;
-    remaining = lineEnd === -1 ? "" : remaining.slice(lineEnd + 1);
-  }
-  return remaining.trimStart();
-}
-function afterLeadingJsTrivia(content) {
-  let remaining = afterLeadingShebang(content);
-  while (true) {
-    const trimmed = remaining.trimStart();
-    const afterPreamble = afterKnownJsPreamble(trimmed);
-    if (afterPreamble === undefined)
-      return trimmed;
-    remaining = afterPreamble;
-  }
-}
-function afterLeadingShebang(content) {
-  if (!content.startsWith("#!"))
-    return content;
-  const lineEnd = content.indexOf(`
-`);
-  return lineEnd === -1 ? "" : content.slice(lineEnd + 1);
-}
-function afterKnownJsPreamble(content) {
-  return afterEslintLineDirective(content) ?? afterEslintBlockDirective(content) ?? afterJsUseDirective(content);
-}
-function afterEslintLineDirective(content) {
-  if (!content.startsWith("//") || !isEslintDirective(content.slice(2).trimStart())) {
-    return;
-  }
-  const lineEnd = content.indexOf(`
-`);
-  return lineEnd === -1 ? "" : content.slice(lineEnd + 1);
-}
-function afterEslintBlockDirective(content) {
-  if (!content.startsWith("/*") || !isEslintDirective(content.slice(2).trimStart())) {
-    return;
-  }
-  const blockEnd = content.indexOf("*/");
-  return blockEnd === -1 ? undefined : content.slice(blockEnd + 2);
-}
-function isEslintDirective(content) {
-  return content.startsWith("eslint-") || content.startsWith("eslint ");
-}
-function afterJsUseDirective(content) {
-  const quote = content[0];
-  if (quote !== "'" && quote !== '"')
-    return;
-  const quoteEnd = content.indexOf(quote, 1);
-  if (quoteEnd === -1 || !isJsUseDirective(content.slice(1, quoteEnd)))
-    return;
-  const afterQuote = content.slice(quoteEnd + 1);
-  return afterQuote.startsWith(";") ? afterQuote.slice(1) : afterQuote;
-}
-function isJsUseDirective(content) {
-  return content.startsWith("use ") && content.slice("use ".length).split(" ").every((word) => isLowercaseAsciiWord(word));
-}
-function isLowercaseAsciiWord(word) {
-  if (word.length === 0)
-    return false;
-  for (const character of word) {
-    if (character < "a" || character > "z")
-      return false;
-  }
-  return true;
-}
-function documentationSummary(body) {
-  const text = documentationParagraphs(body).find((paragraph) => isPurposeParagraph(paragraph));
-  if (text === undefined)
-    return;
-  return truncatePurpose(firstDocumentationSentence(text));
-}
-function documentationParagraphs(body) {
-  const paragraphs = [];
-  let lines = [];
-  const flush = () => {
-    const paragraph = lines.join(" ").trim();
-    if (paragraph.length > 0)
-      paragraphs.push(paragraph);
-    lines = [];
-  };
-  for (const rawLine of body.split(/\r?\n/)) {
-    const line = rawLine.replace(/^\s*\*\s?/, "").trim();
-    if (line.length === 0)
-      flush();
-    else
-      lines.push(line);
-  }
-  flush();
-  return paragraphs;
-}
-function isPurposeParagraph(paragraph) {
-  return !isDocumentationBanner(paragraph) && !/^(?:#{1,6}\s|>\s|[-*+]\s)/.test(paragraph);
-}
-function isDocumentationBanner(paragraph) {
-  return /^(?:copyright\b|spdx-|@license\b|licensed under\b)/i.test(paragraph);
-}
-function firstDocumentationSentence(text) {
-  if (typeof Intl.Segmenter === "function") {
-    return [...new Intl.Segmenter("en", { granularity: "sentence" }).segment(text)][0]?.segment.trim() ?? text;
-  }
-  return /^.*?[.!?](?:\s|$)/.exec(text)?.[0].trim() ?? text;
-}
-function truncatePurpose(purpose) {
-  if (purpose.length <= MAXIMUM_SEEDED_PURPOSE_LENGTH)
-    return purpose;
-  const clipped = purpose.slice(0, MAXIMUM_SEEDED_PURPOSE_LENGTH - 1);
-  const lastSpace = clipped.lastIndexOf(" ");
-  const boundary = lastSpace > MAXIMUM_SEEDED_PURPOSE_LENGTH / 2 ? clipped.slice(0, lastSpace) : clipped;
-  return `${boundary.trimEnd()}\u2026`;
-}
-function goLayoutNodes(projectDirectory) {
-  return GO_LAYOUT_DIRECTORIES.filter((name) => isDirectory(nodePath5.join(projectDirectory, name))).map((name) => ({ name, path: name, purpose: PURPOSE_PLACEHOLDER })).toSorted(byNodeName);
-}
-function rustModuleNodes(projectDirectory) {
-  let entries;
-  try {
-    entries = readdirSync3(nodePath5.join(projectDirectory, "src"), { withFileTypes: true });
-  } catch {
-    return [];
-  }
-  const byName = new Map;
-  for (const entry of entries) {
-    if (entry.isDirectory()) {
-      byName.set(entry.name, directoryNode(entry.name, `src/${entry.name}`, [
-        nodePath5.join(projectDirectory, "src", entry.name, "mod.rs")
-      ]));
-    }
-  }
-  for (const entry of entries) {
-    if (entry.isDirectory() || !entry.name.endsWith(".rs") || RUST_ROOT_FILES.has(entry.name)) {
-      continue;
-    }
-    const name = entry.name.slice(0, -".rs".length);
-    if (!byName.has(name)) {
-      byName.set(name, sourceFileNode(name, `src/${entry.name}`, nodePath5.join(projectDirectory, "src", entry.name)));
-    }
-  }
-  return byName.values().toArray().toSorted(byNodeName);
-}
-function pythonModuleNodes(projectDirectory) {
-  const sourceDirectory = nodePath5.join(projectDirectory, "src");
-  if (isDirectory(sourceDirectory)) {
-    return pythonModulesFrom(sourceDirectory, (name) => `src/${name}`, () => true);
-  }
-  return pythonModulesFrom(projectDirectory, (name) => name, (directory) => exists(nodePath5.join(directory, "__init__.py")));
-}
-function pythonModulesFrom(directory, pathFor, keepPackageDirectory) {
-  let entries;
-  try {
-    entries = readdirSync3(directory, { withFileTypes: true });
-  } catch {
-    return [];
-  }
-  const byName = new Map;
-  for (const entry of entries) {
-    if (entry.isDirectory() && keepPackageDirectory(nodePath5.join(directory, entry.name))) {
-      byName.set(entry.name, directoryNode(entry.name, pathFor(entry.name), [
-        nodePath5.join(directory, entry.name, "__init__.py")
-      ]));
-    }
-  }
-  for (const entry of entries) {
-    if (entry.isDirectory() || !entry.name.endsWith(".py") || PYTHON_EXCLUDED_FILES.has(entry.name)) {
-      continue;
-    }
-    const name = entry.name.slice(0, -".py".length);
-    if (!byName.has(name)) {
-      byName.set(name, sourceFileNode(name, pathFor(entry.name), nodePath5.join(directory, entry.name)));
-    }
-  }
-  return byName.values().toArray().toSorted(byNodeName);
-}
-var PURPOSE_PLACEHOLDER = "No description yet \u2014 awaiting prose.", GO_LAYOUT_DIRECTORIES, RUST_ROOT_FILES, PYTHON_EXCLUDED_FILES, JS_SOURCE_EXTENSIONS, MAXIMUM_SEEDED_PURPOSE_LENGTH = 200, byNodeName = (a, b) => a.name.localeCompare(b.name);
-var init_architecture_skeleton = __esm(() => {
-  init_fs();
-  GO_LAYOUT_DIRECTORIES = ["cmd", "internal", "pkg"];
-  RUST_ROOT_FILES = new Set(["lib.rs", "main.rs"]);
-  PYTHON_EXCLUDED_FILES = new Set([
-    "setup.py",
-    "conftest.py",
-    "noxfile.py",
-    "__init__.py",
-    "__main__.py"
-  ]);
-  JS_SOURCE_EXTENSIONS = [".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"];
-});
-
-// src/utils/boundary-config.ts
-import nodePath6 from "path";
-function readBoundaryConfig(projectDirectory) {
-  for (const name of DEPENDENCY_CRUISER_CONFIG_NAMES) {
-    const content = readFileSafe(nodePath6.join(projectDirectory, name));
-    if (content !== undefined)
-      return content;
-  }
-  return "";
-}
-var DEPENDENCY_CRUISER_CONFIG_NAMES;
-var init_boundary_config = __esm(() => {
-  init_fs();
-  DEPENDENCY_CRUISER_CONFIG_NAMES = [
-    ".dependency-cruiser.cjs",
-    ".dependency-cruiser.js",
-    ".dependency-cruiser.mjs",
-    ".dependency-cruiser.json"
-  ];
-});
-
-// src/utils/cargo-manifest.ts
-function readCargoWorkspaceMembers(content) {
-  return readTomlTableArray(content, "workspace", "members");
-}
-function readCargoPackageName(content) {
-  return readTomlTableString(content, "package", "name");
-}
-function readCargoDependencyNames(content) {
-  const names = new Set;
-  let currentTable = "";
-  for (const rawLine of content.split(/\r?\n/)) {
-    const line = stripTomlComment(rawLine).trim();
-    if (line === "")
-      continue;
-    const header2 = /^\[\[?([^\]]+)\]\]?$/.exec(line);
-    if (header2?.[1] !== undefined) {
-      currentTable = header2[1].trim();
-      const subTableDependency = dependencySubTableName(currentTable);
-      if (subTableDependency !== undefined)
-        names.add(subTableDependency);
-      continue;
-    }
-    if (DEPENDENCY_TABLES.includes(currentTable)) {
-      const key = leadingKey(line);
-      if (key !== undefined)
-        names.add(key);
-    }
-  }
-  return [...names];
-}
-function dependencySubTableName(table) {
-  for (const dependencyTable of DEPENDENCY_TABLES) {
-    if (!table.startsWith(`${dependencyTable}.`))
-      continue;
-    const name = unquote(table.slice(dependencyTable.length + 1).trim());
-    return name.length > 0 ? name : undefined;
-  }
-  return;
-}
-function leadingKey(line) {
-  const match = /^("[^"]+"|'[^']+'|[\w-]+)\s*=/.exec(line);
-  return match?.[1] === undefined ? undefined : unquote(match[1]);
-}
-function unquote(value) {
-  return value.replaceAll(/^["']|["']$/g, "");
-}
-var DEPENDENCY_TABLES;
-var init_cargo_manifest = __esm(() => {
-  DEPENDENCY_TABLES = ["dependencies", "dev-dependencies", "build-dependencies"];
-});
-
-// src/utils/manifest-block.ts
-function readDelimitedBlock(lines, opener) {
-  const entries = [];
-  let inBlock = false;
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!inBlock) {
-      if (opener.test(trimmed))
-        inBlock = true;
-      continue;
-    }
-    if (trimmed.startsWith(")"))
-      inBlock = false;
-    else if (trimmed !== "" && !trimmed.startsWith("//"))
-      entries.push(trimmed);
-  }
-  return entries;
-}
-
-// src/utils/manifest-dependencies.ts
-function dependencySectionNames(manifest) {
-  const names = new Set;
-  for (const section of DEPENDENCY_SECTIONS) {
-    const entry = manifest[section];
-    if (entry !== null && typeof entry === "object") {
-      for (const name of Object.keys(entry))
-        names.add(name);
-    }
-  }
-  return [...names];
-}
-var DEPENDENCY_SECTIONS;
-var init_manifest_dependencies = __esm(() => {
-  DEPENDENCY_SECTIONS = [
-    "dependencies",
-    "devDependencies",
-    "peerDependencies",
-    "optionalDependencies"
-  ];
-});
-
-// src/utils/pyproject-manifest.ts
-function readPyprojectName(content) {
-  return readTomlTableString(content, "project", "name");
-}
-function readUvWorkspaceMembers(content) {
-  return readTomlTableArray(content, "tool.uv.workspace", "members");
-}
-function readPyprojectDependencies(content) {
-  const specifiers = readTomlTableArray(content, "project", "dependencies") ?? [];
-  return specifiers.map((specifier) => distributionName(specifier)).filter((name) => name.length > 0);
-}
-function distributionName(specifier) {
-  return /^[\w.-]+/.exec(specifier.trim())?.[0] ?? "";
-}
-var init_pyproject_manifest = () => {};
-
-// src/utils/architecture-fingerprint.ts
-import { createHash } from "crypto";
-import { readdirSync as readdirSync4, readFileSync as readFileSync4 } from "fs";
-import nodePath7 from "path";
-function collectShapeInputs(projectDirectory, skeleton) {
-  return {
-    moduleNames: skeleton.nodes.map((node) => node.name).toSorted(byString),
-    dependencyNames: readDependencyNames(projectDirectory),
-    boundaryConfig: readBoundaryConfig(projectDirectory),
-    schemaFiles: collectSchemaFiles(projectDirectory)
-  };
-}
-function shapeFingerprintOf(projectDirectory, skeleton) {
-  const inputs = collectShapeInputs(projectDirectory, skeleton);
-  return createHash("sha256").update(JSON.stringify(inputs)).digest("hex");
-}
-function readDependencyNames(projectDirectory) {
-  const names = new Set(readPackageJsonDependencyNames(projectDirectory));
-  for (const goModule of readGoModuleRequires(projectDirectory))
-    names.add(goModule);
-  for (const crate of readCargoDependencies(projectDirectory))
-    names.add(crate);
-  for (const distribution of readPyprojectDependencyNames(projectDirectory))
-    names.add(distribution);
-  return [...names].toSorted(byString);
-}
-function readPackageJsonDependencyNames(projectDirectory) {
-  const manifest = readJson(nodePath7.join(projectDirectory, "package.json"));
-  return manifest === undefined ? [] : dependencySectionNames(manifest);
-}
-function readCargoDependencies(projectDirectory) {
-  try {
-    return readCargoDependencyNames(readFileSync4(nodePath7.join(projectDirectory, "Cargo.toml"), "utf8"));
-  } catch {
-    return [];
-  }
-}
-function readPyprojectDependencyNames(projectDirectory) {
-  try {
-    return readPyprojectDependencies(readFileSync4(nodePath7.join(projectDirectory, "pyproject.toml"), "utf8"));
-  } catch {
-    return [];
-  }
-}
-function readGoModuleRequires(projectDirectory) {
-  let content;
-  try {
-    content = readFileSync4(nodePath7.join(projectDirectory, "go.mod"), "utf8");
-  } catch {
-    return [];
-  }
-  const lines = content.split(/\r?\n/);
-  const modules = new Set;
-  collectGoRequireBlock(lines, modules);
-  collectGoRequireLines(lines, modules);
-  return [...modules].toSorted(byString);
-}
-function collectGoRequireBlock(lines, modules) {
-  for (const entry of readDelimitedBlock(lines, /^require\s*\(\s*$/)) {
-    const [modulePath] = entry.split(/\s+/, 1);
-    if (modulePath !== undefined && modulePath.length > 0)
-      modules.add(modulePath);
-  }
-}
-function collectGoRequireLines(lines, modules) {
-  for (const line of lines) {
-    const match = /^require\s+(\S+)\s+\S/.exec(line.trim());
-    if (match?.[1] !== undefined)
-      modules.add(match[1]);
-  }
-}
-function collectSchemaFiles(projectDirectory) {
-  const schemaFiles = [];
-  const pending = [projectDirectory];
-  while (pending.length > 0) {
-    const directory = pending.pop();
-    if (directory !== undefined) {
-      scanDirectoryForSchema(projectDirectory, directory, schemaFiles, pending);
-    }
-  }
-  return schemaFiles.toSorted(byString);
-}
-function scanDirectoryForSchema(projectDirectory, directory, schemaFiles, pending) {
-  let entries;
-  try {
-    entries = readdirSync4(directory, { withFileTypes: true });
-  } catch {
-    return;
-  }
-  for (const entry of entries) {
-    if (entry.isDirectory()) {
-      if (!SHAPE_SCAN_EXCLUDED_DIRECTORIES.has(entry.name)) {
-        pending.push(nodePath7.join(directory, entry.name));
-      }
-    } else if (SCHEMA_EXTENSIONS.has(nodePath7.extname(entry.name))) {
-      const absolutePath = nodePath7.join(directory, entry.name);
-      schemaFiles.push(nodePath7.relative(projectDirectory, absolutePath).replaceAll("\\", "/"));
-    }
-  }
-}
-var SCHEMA_EXTENSIONS, SHAPE_SCAN_EXCLUDED_DIRECTORIES, byString = (a, b) => a.localeCompare(b);
-var init_architecture_fingerprint = __esm(() => {
-  init_architecture_skeleton();
-  init_boundary_config();
-  init_cargo_manifest();
-  init_fs();
-  init_manifest_dependencies();
-  init_pyproject_manifest();
-  SCHEMA_EXTENSIONS = new Set([".sql", ".prisma"]);
-  SHAPE_SCAN_EXCLUDED_DIRECTORIES = new Set([
-    ".git",
-    ".project",
-    ".safeword",
-    "dist",
-    "node_modules"
-  ]);
-});
-
-// src/utils/architecture-monorepo.ts
-var exports_architecture_monorepo = {};
-__export(exports_architecture_monorepo, {
-  monorepoFingerprintOf: () => monorepoFingerprintOf,
-  extractMonorepoArchitectureSnapshot: () => extractMonorepoArchitectureSnapshot,
-  discoverWorkspaces: () => discoverWorkspaces,
-  discoverUnreadableWorkspaces: () => discoverUnreadableWorkspaces
-});
-import { createHash as createHash2 } from "crypto";
-import { globSync } from "fs";
-import nodePath8 from "path";
-function discoverWorkspaces(projectDirectory) {
-  const detections = [
-    detectJsWorkspaces(projectDirectory),
-    detectGoWork(projectDirectory),
-    detectCargoWorkspace(projectDirectory),
-    detectUvWorkspace(projectDirectory)
-  ];
-  return {
-    patterns: detections.flatMap((detection) => detection.status === "parsed" ? detection.patterns : []),
-    unreadable: detections.filter((detection) => detection.status === "unreadable").map((detection) => ({ manager: detection.manager, config: detection.config }))
-  };
-}
-function leafDirectoriesFrom(projectDirectory, patterns) {
-  const workspaceLeaves = resolveLeafDirectories(projectDirectory, patterns);
-  const orphanLeaves = discoverOrphanManifestDirectories(projectDirectory);
-  return [...new Set([...workspaceLeaves, ...orphanLeaves])].toSorted(byString2);
-}
-function discoverOrphanManifestDirectories(projectDirectory) {
-  const installed = installedPacks(projectDirectory);
-  const directories = new Set;
-  for (const manifest of ORPHAN_MANIFESTS) {
-    if (manifest.packs.every((pack) => !installed.has(pack)))
-      continue;
-    for (const dir of orphanDirectoriesFor(projectDirectory, manifest))
-      directories.add(dir);
-  }
-  return [...directories];
-}
-function orphanDirectoriesFor(projectDirectory, manifest) {
-  return findAllInTree(projectDirectory, manifest.filename).filter((dir) => {
-    if (dir === projectDirectory)
-      return false;
-    const content = readFileSafe(nodePath8.join(dir, manifest.filename));
-    return content !== undefined && manifest.declaresPackage(content);
-  });
-}
-function hasGoModule(content) {
-  return /^module\s+\S+/m.test(content);
-}
-function installedPacks(projectDirectory) {
-  const config = readJson(nodePath8.join(projectDirectory, ".safeword", "config.json"));
-  if (config === null || typeof config !== "object")
-    return new Set;
-  const packs = config.installedPacks;
-  if (!Array.isArray(packs))
-    return new Set;
-  return new Set(packs.filter((pack) => typeof pack === "string"));
-}
-function discoverUnreadableWorkspaces(projectDirectory) {
-  return discoverWorkspaces(projectDirectory).unreadable;
-}
-function resolveLeafDirectories(projectDirectory, patterns) {
-  if (patterns.length === 0)
-    return [];
-  const matches = new Set;
-  for (const pattern of patterns) {
-    const globMatches = globSync(pattern, { cwd: projectDirectory });
-    for (const match of globMatches) {
-      const absolute = nodePath8.join(projectDirectory, match);
-      if (isDirectory(absolute) && hasRecognizedManifest(absolute)) {
-        matches.add(absolute);
-      }
-    }
-  }
-  return [...matches].toSorted(byString2);
-}
-function detectJsWorkspaces(projectDirectory) {
-  const packageJson = detectPackageJsonWorkspaces(projectDirectory);
-  return packageJson.status === "absent" ? detectPnpmWorkspaces(projectDirectory) : packageJson;
-}
-function detectPackageJsonWorkspaces(projectDirectory) {
-  const workspaces = readManifest(projectDirectory)?.workspaces;
-  if (workspaces === undefined)
-    return ABSENT;
-  const list = workspaceList(workspaces);
-  if (list === undefined)
-    return unreadable("package.json workspaces", "package.json");
-  const patterns = list.filter((entry) => typeof entry === "string");
-  return patterns.length > 0 ? parsed(patterns) : ABSENT;
-}
-function workspaceList(workspaces) {
-  if (Array.isArray(workspaces))
-    return workspaces;
-  if (isObjectRecord(workspaces) && Array.isArray(workspaces.packages))
-    return workspaces.packages;
-  return;
-}
-function isObjectRecord(value) {
-  return typeof value === "object" && value !== null;
-}
-function hasRecognizedManifest(directory) {
-  return readJson(nodePath8.join(directory, "package.json")) !== undefined || readFileSafe(nodePath8.join(directory, "go.mod")) !== undefined || readFileSafe(nodePath8.join(directory, "Cargo.toml")) !== undefined || readFileSafe(nodePath8.join(directory, "pyproject.toml")) !== undefined;
-}
-function extractMonorepoArchitectureSnapshot(projectDirectory) {
-  const { patterns, unreadable: unreadableWorkspaces } = discoverWorkspaces(projectDirectory);
-  const leaves = leafDirectoriesFrom(projectDirectory, patterns).map((dir) => ({
-    dir,
-    skeleton: extractSkeleton(dir)
-  }));
-  const packages = leaves.map(({ dir, skeleton }) => {
-    const description = packageJsonDescription(dir);
-    return {
-      name: packageName(dir),
-      dir,
-      purpose: description ?? PURPOSE_PLACEHOLDER,
-      ...description !== undefined && { seededPurpose: true },
-      introspected: skeleton.nodes.length > 0
-    };
-  }).toSorted((a, b) => byString2(a.name, b.name));
-  const names = new Set(packages.map((node) => node.name));
-  const edges = [];
-  for (const node of packages) {
-    for (const dependencyName of manifestDependencyNames(node.dir)) {
-      if (names.has(dependencyName) && dependencyName !== node.name) {
-        edges.push({ from: node.name, to: dependencyName });
-      }
-    }
-  }
-  edges.sort((a, b) => byString2(a.from, b.from) || byString2(a.to, b.to));
-  return {
-    model: { packages, edges, unreadableWorkspaces },
-    leaves,
-    workspaceRoot: patterns.length > 0 || unreadableWorkspaces.length > 0
-  };
-}
-function monorepoFingerprintOf(projectDirectory, model) {
-  const inputs = {
-    packages: model.packages.map((node) => `${node.name}:${node.introspected}`),
-    edges: model.edges.map((edge) => `${edge.from}->${edge.to}`),
-    boundaryConfig: readBoundaryConfig(projectDirectory),
-    ...model.unreadableWorkspaces.length > 0 && {
-      unreadable: model.unreadableWorkspaces.map((entry) => `${entry.manager}:${entry.config}`)
-    }
-  };
-  return createHash2("sha256").update(JSON.stringify(inputs)).digest("hex");
-}
-function readManifest(packageDirectory) {
-  const manifest = readJson(nodePath8.join(packageDirectory, "package.json"));
-  return manifest !== null && typeof manifest === "object" ? manifest : undefined;
-}
-function packageName(packageDirectory) {
-  const name = readManifest(packageDirectory)?.name;
-  if (typeof name === "string" && name.length > 0)
-    return name;
-  return readGoModuleName(packageDirectory) ?? readCargoCrateName(packageDirectory) ?? readPyprojectCrateName(packageDirectory) ?? nodePath8.basename(packageDirectory);
-}
-function packageJsonDescription(packageDirectory) {
-  const description = readManifest(packageDirectory)?.description;
-  return typeof description === "string" && description.trim().length > 0 ? description.replaceAll(/\s+/g, " ").trim() : undefined;
-}
-function readGoModuleName(packageDirectory) {
-  const content = readFileSafe(nodePath8.join(packageDirectory, "go.mod"));
-  if (content === undefined)
-    return;
-  return /^module\s+(\S+)/m.exec(content)?.[1];
-}
-function readCargoCrateName(packageDirectory) {
-  const content = readFileSafe(nodePath8.join(packageDirectory, "Cargo.toml"));
-  return content === undefined ? undefined : readCargoPackageName(content);
-}
-function readPyprojectCrateName(packageDirectory) {
-  const content = readFileSafe(nodePath8.join(packageDirectory, "pyproject.toml"));
-  return content === undefined ? undefined : readPyprojectName(content);
-}
-function resolveTomlWorkspaceMembers(content, readMembers, table, label, configFile) {
-  const members = readMembers(content);
-  if (members !== undefined)
-    return parsed(members);
-  if (isTomlTableEmptyArray(content, table, "members"))
-    return ABSENT;
-  return unreadable(label, configFile);
-}
-function detectUvWorkspace(projectDirectory) {
-  const content = readFileSafe(nodePath8.join(projectDirectory, "pyproject.toml"));
-  if (content === undefined)
-    return ABSENT;
-  if (!hasTomlTable(content, "tool.uv.workspace"))
-    return ABSENT;
-  return resolveTomlWorkspaceMembers(content, readUvWorkspaceMembers, "tool.uv.workspace", "uv workspace", "pyproject.toml");
-}
-function manifestDependencyNames(packageDirectory) {
-  const manifest = readManifest(packageDirectory);
-  return manifest === undefined ? [] : dependencySectionNames(manifest);
-}
-function detectPnpmWorkspaces(projectDirectory) {
-  const content = readFileSafe(nodePath8.join(projectDirectory, "pnpm-workspace.yaml"));
-  if (content === undefined)
-    return ABSENT;
-  const lines = content.split(/\r?\n/);
-  if (lines.every((line) => !line.startsWith("packages:")))
-    return ABSENT;
-  const start = lines.findIndex((line) => /^packages:\s*$/.test(line));
-  const globs = start === -1 ? [] : collectPnpmGlobs(lines.slice(start + 1));
-  return globs.length > 0 ? parsed(globs) : unreadable("pnpm workspaces", "pnpm-workspace.yaml");
-}
-function collectPnpmGlobs(blockLines) {
-  const globs = [];
-  for (const line of blockLines) {
-    const trimmed = line.trim();
-    if (trimmed === "" || trimmed.startsWith("#"))
-      continue;
-    const item = /^\s+-\s+(\S.*)$/.exec(line);
-    if (item?.[1] === undefined)
-      break;
-    const glob = item[1].trim().replaceAll(/^["']|["']$/g, "");
-    if (glob.length > 0 && !glob.startsWith("!"))
-      globs.push(glob);
-  }
-  return globs;
-}
-function detectGoWork(projectDirectory) {
-  const content = readFileSafe(nodePath8.join(projectDirectory, "go.work"));
-  if (content === undefined)
-    return ABSENT;
-  const lines = content.split(/\r?\n/);
-  const directories = [];
-  collectGoWorkBlock(lines, directories);
-  collectGoWorkSingleLines(lines, directories);
-  if (directories.length > 0)
-    return parsed(directories);
-  return lines.some((line) => /^\s*use\b/.test(line)) ? unreadable("go.work", "go.work") : ABSENT;
-}
-function collectGoWorkBlock(lines, directories) {
-  for (const entry of readDelimitedBlock(lines, /^use\s*\(\s*$/)) {
-    const target = normalizeUseTarget(entry);
-    if (target !== undefined)
-      directories.push(target);
-  }
-}
-function collectGoWorkSingleLines(lines, directories) {
-  for (const line of lines) {
-    const match = /^use\s+(\S.*)$/.exec(line.trim());
-    if (match?.[1] === undefined || match[1].startsWith("("))
-      continue;
-    const target = normalizeUseTarget(match[1]);
-    if (target !== undefined)
-      directories.push(target);
-  }
-}
-function normalizeUseTarget(raw) {
-  const commentAt = raw.indexOf("//");
-  const noComment = (commentAt === -1 ? raw : raw.slice(0, commentAt)).trim();
-  const unquoted = noComment.replaceAll(/^["']|["']$/g, "");
-  if (unquoted === "" || /\s/.test(unquoted))
-    return;
-  return unquoted.replace(/^\.\//, "");
-}
-function detectCargoWorkspace(projectDirectory) {
-  const content = readFileSafe(nodePath8.join(projectDirectory, "Cargo.toml"));
-  if (content === undefined)
-    return ABSENT;
-  if (!hasTomlTable(content, "workspace"))
-    return ABSENT;
-  if (!hasTomlTableKey(content, "workspace", "members"))
-    return ABSENT;
-  return resolveTomlWorkspaceMembers(content, readCargoWorkspaceMembers, "workspace", "Cargo [workspace]", "Cargo.toml");
-}
-var byString2 = (a, b) => a.localeCompare(b), ABSENT, parsed = (patterns) => ({ status: "parsed", patterns }), unreadable = (manager, config) => ({
-  status: "unreadable",
-  manager,
-  config
-}), ORPHAN_MANIFESTS;
-var init_architecture_monorepo = __esm(() => {
-  init_architecture_skeleton();
-  init_boundary_config();
-  init_cargo_manifest();
-  init_fs();
-  init_manifest_dependencies();
-  init_pyproject_manifest();
-  ABSENT = { status: "absent" };
-  ORPHAN_MANIFESTS = [
-    { packs: ["golang", "go"], filename: "go.mod", declaresPackage: (content) => hasGoModule(content) },
-    {
-      packs: ["python"],
-      filename: "pyproject.toml",
-      declaresPackage: (content) => hasTomlTable(content, "project") || hasTomlTable(content, "tool.poetry")
-    },
-    {
-      packs: ["rust"],
-      filename: "Cargo.toml",
-      declaresPackage: (content) => hasTomlTable(content, "package")
-    }
-  ];
-});
-
-// src/utils/architecture-reconcile.ts
-function reconcileSections(input) {
-  const verdicts = input.nodeNames.map((node) => ({
-    node,
-    status: liveNodeStatus(input.priorStamps[node], input.fingerprint)
-  }));
-  const present = new Set(input.nodeNames);
-  for (const node of Object.keys(input.priorStamps)) {
-    if (!present.has(node))
-      verdicts.push({ node, status: "orphaned" });
-  }
-  return verdicts;
-}
-function liveNodeStatus(stamp, fingerprint) {
-  if (stamp === undefined)
-    return "placeholder";
-  if (stamp !== fingerprint)
-    return "stale";
-  return "current";
-}
-
-// src/utils/repo-path.ts
-import nodePath9 from "path";
-function toRepoPath(value) {
-  return value.split(nodePath9.win32.sep).join(nodePath9.posix.sep);
-}
-function toRepoRelativePath(cwd, absolutePath) {
-  return toRepoPath(nodePath9.relative(cwd, absolutePath));
-}
-function toRepoDirectory(cwd, configuredPath) {
-  if (configuredPath === "")
-    return;
-  const repoPath = nodePath9.isAbsolute(configuredPath) ? toRepoRelativePath(cwd, configuredPath) : toRepoPath(configuredPath);
-  const canonical = nodePath9.posix.normalize(repoPath);
-  const normalized = canonical.endsWith("/") ? canonical.slice(0, -1) : canonical;
-  if (normalized === "" || normalized === ".")
-    return "";
-  return normalized !== ".." && !normalized.startsWith("../") ? normalized : undefined;
-}
-var init_repo_path = () => {};
-
-// src/utils/configured-paths.ts
-var exports_configured_paths = {};
-__export(exports_configured_paths, {
-  ticketDirectoriesForConfiguredRoot: () => ticketDirectoriesForConfiguredRoot,
-  resolveTicketsDirectory: () => resolveTicketsDirectory,
-  resolveNamespaceRoot: () => resolveNamespaceRoot,
-  resolveLearningsDirectory: () => resolveLearningsDirectory,
-  resolveGeneratedArchitecturePath: () => resolveGeneratedArchitecturePath,
-  resolveConfiguredPath: () => resolveConfiguredPath,
-  resolveConfiguredLaneDirectory: () => resolveConfiguredLaneDirectory,
-  resolveArchitectureNarrative: () => resolveArchitectureNarrative,
-  readConfiguredPathFromContent: () => readConfiguredPathFromContent,
-  readConfiguredPath: () => readConfiguredPath,
-  readConfiguredDocumentationSources: () => readConfiguredDocumentationSources,
-  readConfiguredDocumentationSourceDecision: () => readConfiguredDocumentationSourceDecision,
-  readBddConventionsPath: () => readBddConventionsPath,
-  isArchitectureDocumentEnforcementEnabled: () => isArchitectureDocumentEnforcementEnabled,
-  hasSafewordProjectMarker: () => hasSafewordProjectMarker,
-  defaultConfiguredPath: () => defaultConfiguredPath,
-  NAMESPACE_ROOT_LEGACY: () => NAMESPACE_ROOT_LEGACY,
-  GENERATED_ARCHITECTURE_FILENAME: () => GENERATED_ARCHITECTURE_FILENAME
-});
-import nodePath10 from "path";
-function hasSafewordProjectMarker(cwd) {
-  return exists(nodePath10.join(cwd, ...SAFEWORD_PROJECT_MARKER_SUBPATH));
-}
-function readSafewordConfig(cwd) {
-  const configPath = nodePath10.join(cwd, ...CONFIG_SUBPATH);
-  const content = readFileSafe(configPath);
-  return content === undefined ? undefined : parseSafewordConfig(content);
-}
-function parseSafewordConfig(content) {
-  try {
-    return JSON.parse(content);
-  } catch {
-    return;
-  }
-}
-function nonEmptyString(value) {
-  return typeof value === "string" && value.length > 0;
-}
-function parseLocalDocumentationSource(cwd, entry) {
-  if (!nonEmptyString(entry.path))
-    return;
-  const rawPath = entry.path;
-  return {
-    type: "local",
-    path: rawPath,
-    resolvedPath: nodePath10.isAbsolute(rawPath) ? rawPath : nodePath10.join(cwd, rawPath)
-  };
-}
-function parseUrlDocumentationSource(entry) {
-  return nonEmptyString(entry.url) ? { type: "url", url: entry.url } : undefined;
-}
-function parseGitDocumentationSource(entry) {
-  if (!nonEmptyString(entry.repo))
-    return;
-  return nonEmptyString(entry.path) ? { type: "git", repo: entry.repo, path: entry.path } : { type: "git", repo: entry.repo };
-}
-function readConfiguredPath(cwd, key) {
-  const parsed2 = readSafewordConfig(cwd);
-  const raw = parsed2?.paths?.[key];
-  if (!nonEmptyString(raw))
-    return;
-  return raw;
-}
-function readConfiguredPathFromContent(content, key) {
-  if (content === undefined)
-    return;
-  const raw = parseSafewordConfig(content)?.paths?.[key];
-  return nonEmptyString(raw) ? raw : undefined;
-}
-function resolveConfiguredLaneDirectory(cwd, key) {
-  const configured = readConfiguredPath(cwd, key);
-  if (configured === undefined)
-    return;
-  return nodePath10.isAbsolute(configured) ? configured : nodePath10.join(cwd, configured);
-}
-function readBddConventionsPath(cwd) {
-  const raw = readSafewordConfig(cwd)?.bdd?.conventions;
-  return nonEmptyString(raw) ? raw : undefined;
-}
-function isArchitectureDocumentEnforcementEnabled(cwd) {
-  const parsed2 = readSafewordConfig(cwd);
-  return parsed2?.architectureDocEnforcement !== false;
-}
-function parseConfiguredDocumentationSource(cwd, source) {
-  if (source === null || typeof source !== "object")
-    return;
-  const entry = source;
-  switch (entry.type) {
-    case "local": {
-      return parseLocalDocumentationSource(cwd, entry);
-    }
-    case "url": {
-      return parseUrlDocumentationSource(entry);
-    }
-    case "git": {
-      return parseGitDocumentationSource(entry);
-    }
-    default: {
-      return;
-    }
-  }
-}
-function readConfiguredDocumentationSources(cwd) {
-  const decision = readConfiguredDocumentationSourceDecision(cwd);
-  return decision.kind === "configured" ? decision.sources : [];
-}
-function readConfiguredDocumentationSourceDecision(cwd) {
-  const parsed2 = readSafewordConfig(cwd);
-  const sources = parsed2?.docs?.sources;
-  if (!Array.isArray(sources))
-    return { kind: "unset" };
-  if (sources.length === 0)
-    return { kind: "explicit-none" };
-  const configuredSources = sources.flatMap((source) => {
-    const parsedSource = parseConfiguredDocumentationSource(cwd, source);
-    return parsedSource === undefined ? [] : [parsedSource];
-  });
-  return { kind: "configured", sources: configuredSources };
-}
-function resolveNamespaceRoot(cwd) {
-  const configured = readConfiguredPath(cwd, "projectRoot");
-  if (configured !== undefined) {
-    return nodePath10.isAbsolute(configured) ? configured : nodePath10.join(cwd, configured);
-  }
-  const defaultRoot = nodePath10.join(cwd, NAMESPACE_ROOT_DEFAULT);
-  if (isDirectory(defaultRoot))
-    return defaultRoot;
-  const legacyRoot = nodePath10.join(cwd, NAMESPACE_ROOT_LEGACY);
-  if (isDirectory(legacyRoot))
-    return legacyRoot;
-  return defaultRoot;
-}
-function resolveTicketsDirectory(cwd) {
-  return nodePath10.join(resolveNamespaceRoot(cwd), "tickets");
-}
-function ticketDirectoriesForConfiguredRoot(cwd, configuredProjectRoot, rootExists) {
-  if (configuredProjectRoot === undefined) {
-    let projectRoot2 = NAMESPACE_ROOT_DEFAULT;
-    if (!rootExists(projectRoot2) && rootExists(NAMESPACE_ROOT_LEGACY)) {
-      projectRoot2 = NAMESPACE_ROOT_LEGACY;
-    }
-    return [nodePath10.posix.join(projectRoot2, "tickets")];
-  }
-  const projectRoot = toRepoDirectory(cwd, configuredProjectRoot);
-  if (projectRoot === undefined)
-    return [];
-  return [nodePath10.posix.join(projectRoot, "tickets")];
-}
-function resolveLearningsDirectory(cwd) {
-  return nodePath10.join(resolveNamespaceRoot(cwd), "learnings");
-}
-function resolveGeneratedArchitecturePath(cwd) {
-  return nodePath10.join(resolveNamespaceRoot(cwd), GENERATED_ARCHITECTURE_FILENAME);
-}
-function resolveArchitectureNarrative(cwd) {
-  const configured = readConfiguredPath(cwd, "architecture");
-  if (configured !== undefined) {
-    return {
-      absolutePath: nodePath10.isAbsolute(configured) ? configured : nodePath10.join(cwd, configured),
-      displayPath: configured
-    };
-  }
-  return {
-    absolutePath: nodePath10.join(cwd, "ARCHITECTURE.md"),
-    displayPath: "ARCHITECTURE.md"
-  };
-}
-function defaultConfiguredPath(cwd, key) {
-  return nodePath10.join(resolveNamespaceRoot(cwd), `${key}.md`);
-}
-function resolveConfiguredPath(cwd, key) {
-  const override = readConfiguredPath(cwd, key);
-  if (override === undefined) {
-    return defaultConfiguredPath(cwd, key);
-  }
-  if (nodePath10.isAbsolute(override)) {
-    return override;
-  }
-  return nodePath10.join(cwd, override);
-}
-var CONFIG_SUBPATH, SAFEWORD_PROJECT_MARKER_SUBPATH, NAMESPACE_ROOT_DEFAULT = ".project", NAMESPACE_ROOT_LEGACY = ".safeword-project", GENERATED_ARCHITECTURE_FILENAME = "architecture.generated.md";
-var init_configured_paths = __esm(() => {
-  init_fs();
-  init_repo_path();
-  CONFIG_SUBPATH = [".safeword", "config.json"];
-  SAFEWORD_PROJECT_MARKER_SUBPATH = [".safeword", "SAFEWORD.md"];
-});
-
-// src/utils/architecture-document.ts
-var exports_architecture_document = {};
-__export(exports_architecture_document, {
-  selfHealProjectPreservingProse: () => selfHealProjectPreservingProse,
-  selfHealProject: () => selfHealProject,
-  selfHeal: () => selfHeal,
-  readDocumentFingerprint: () => readDocumentFingerprint,
-  planSelfHealProject: () => planSelfHealProject,
-  planSelfHeal: () => planSelfHeal,
-  isWouldChangeAction: () => isWouldChangeAction,
-  isSafewordOwned: () => isSafewordOwned
-});
-import { createHash as createHash3 } from "crypto";
-import { mkdirSync as mkdirSync3, readFileSync as readFileSync5, writeFileSync as writeFileSync3 } from "fs";
-import nodePath11 from "path";
-function isWouldChangeAction(action) {
-  return WOULD_CHANGE_ACTIONS.has(action);
-}
-function frontmatterBody(content) {
-  return /^---\r?\n([\s\S]*?)\r?\n---/.exec(content)?.[1];
-}
-function isSafewordOwned(content) {
-  return frontmatterBody(content)?.split(/\r?\n/).includes(`${GENERATOR_KEY}: ${GENERATOR_VALUE}`) ?? false;
-}
-function readDocumentFingerprint(content) {
-  const line = frontmatterBody(content)?.split(/\r?\n/).find((candidate) => candidate.startsWith(`${FINGERPRINT_KEY}:`));
-  if (line === undefined)
-    return;
-  const value = line.slice(FINGERPRINT_KEY.length + 1).trim();
-  return value.length > 0 ? value : undefined;
-}
-function healTarget(target, options = {}) {
-  const existing = readExisting(target.path);
-  const action = decideAction(existing, target.fingerprint, target.hasContent, target.matchesExisting);
-  if (isWouldChangeAction(action) || options.renderUnchanged === true && action === "unchanged") {
-    mkdirSync3(nodePath11.dirname(target.path), { recursive: true });
-    const { priorStamps, priorProse } = priorSectionHistory(existing, options.priorProseContent, options.preservePriorStructure ?? false, target.parseProse ?? parseSectionProse);
-    writeFileSync3(target.path, target.render(priorStamps, priorProse));
-  }
-  return { action, path: target.path };
-}
-function priorSectionHistory(existing, priorContent, preservePriorStructure, parseProse) {
-  const ownedPrior = priorContent !== undefined && isSafewordOwned(priorContent) ? priorContent : undefined;
-  const stampSource = preservePriorStructure ? ownedPrior ?? existing : existing;
-  const proseSource = ownedPrior ?? existing;
-  return {
-    priorStamps: stampSource === undefined ? new Map : parseSectionStamps(stampSource),
-    priorProse: proseSource === undefined ? new Map : parseProse(proseSource)
-  };
-}
-function planTarget(target) {
-  return decideAction(readExisting(target.path), target.fingerprint, target.hasContent, target.matchesExisting);
-}
-function skeletonTarget(directory, path2, skeleton) {
-  const fingerprint = shapeFingerprintOf(directory, skeleton);
-  const nodes = skeleton.nodes;
-  return {
-    path: path2,
-    fingerprint,
-    hasContent: nodes.length > 0,
-    matchesExisting: (existing) => hasMatchingNodePaths(existing, nodes),
-    render: (priorStamps, priorProse) => renderDocument(nodes, fingerprint, priorStamps, priorProse)
-  };
-}
-function singleRepoTarget(projectDirectory, workspaceRoot = false) {
-  return skeletonTarget(projectDirectory, resolveGeneratedArchitecturePath(projectDirectory), extractSkeleton(projectDirectory, { workspaceRoot }));
-}
-function leafTarget(packageDirectory, skeleton) {
-  return skeletonTarget(packageDirectory, nodePath11.join(packageDirectory, GENERATED_ARCHITECTURE_FILENAME), skeleton);
-}
-function rootIndexTarget(projectDirectory, model) {
-  const fingerprint = monorepoFingerprintOf(projectDirectory, model);
-  return {
-    path: resolveGeneratedArchitecturePath(projectDirectory),
-    fingerprint,
-    hasContent: model.packages.length > 0 || model.unreadableWorkspaces.length > 0,
-    matchesExisting: (existing) => hasMatchingRootPackagePurposes(existing, model.packages),
-    parseProse: parseRootPackageProse,
-    render: (_priorStamps, priorProse) => renderRootIndex(model, fingerprint, priorProse)
-  };
-}
-function projectTargets(projectDirectory, snapshot = extractMonorepoArchitectureSnapshot(projectDirectory)) {
-  const { model, leaves, workspaceRoot } = snapshot;
-  if (model.packages.length === 0 && model.unreadableWorkspaces.length === 0) {
-    return [singleRepoTarget(projectDirectory, workspaceRoot)];
-  }
-  return [
-    rootIndexTarget(projectDirectory, model),
-    ...leaves.map((leaf) => leafTarget(leaf.dir, leaf.skeleton))
-  ];
-}
-function selfHeal(projectDirectory) {
-  return healTarget(singleRepoTarget(projectDirectory));
-}
-function planSelfHeal(projectDirectory) {
-  return planTarget(singleRepoTarget(projectDirectory));
-}
-function selfHealProject(projectDirectory, snapshot) {
-  return projectTargets(projectDirectory, snapshot).map((target) => healTarget(target));
-}
-function selfHealProjectPreservingProse(projectDirectory, proseProjectDirectory, options = {}, snapshot) {
-  return projectTargets(projectDirectory, snapshot).map((target) => {
-    const relativePath = nodePath11.relative(projectDirectory, target.path);
-    const priorProseContent = readExisting(nodePath11.join(proseProjectDirectory, relativePath));
-    return healTarget(target, {
-      priorProseContent,
-      renderUnchanged: options.renderUnchanged,
-      preservePriorStructure: options.preservePriorStructure
-    });
-  });
-}
-function planSelfHealProject(projectDirectory, snapshot) {
-  return projectTargets(projectDirectory, snapshot).map((target) => planTarget(target));
-}
-function readExisting(path2) {
-  try {
-    return readFileSync5(path2, "utf8");
-  } catch {
-    return;
-  }
-}
-function decideAction(existing, fingerprint, hasContent, matchesExisting) {
-  if (existing === undefined)
-    return hasContent ? "created" : "noop";
-  if (!isSafewordOwned(existing))
-    return "skipped";
-  const recorded = readDocumentFingerprint(existing);
-  if (recorded === undefined)
-    return "regenerated";
-  if (recorded !== fingerprint)
-    return "healed";
-  if (matchesExisting !== undefined && !matchesExisting(existing))
-    return "healed";
-  return "unchanged";
-}
-function hasMatchingNodePaths(content, nodes) {
-  const paths = new Map;
-  const pattern = /^### (.+)\n+<!-- reconciled: \S+ -->\n+`([^`]*)`\s*$/gm;
-  for (const match of normalizeLineEndings(content).matchAll(pattern)) {
-    const name = match[1];
-    const path2 = match[2];
-    if (name !== undefined && path2 !== undefined)
-      paths.set(name.trim(), path2);
-  }
-  return paths.size === nodes.length && nodes.every((node) => paths.get(node.name) === node.path) && hasMatchingGeneratedPurposes(nodes, parseSectionProse(content));
-}
-function hasMatchingGeneratedPurposes(nodes, priorProse) {
-  return nodes.every((node) => {
-    const prior = priorProse.get(node.name);
-    return prior?.generated !== true || prior.text === node.purpose;
-  });
-}
-function hasMatchingRootPackagePurposes(content, packages) {
-  return hasMatchingGeneratedPurposes(packages, parseRootPackageProse(content));
-}
-function parseSectionStamps(content) {
-  const stamps = new Map;
-  const pattern = /^### (.+)\n+<!-- reconciled: (\S+) -->/gm;
-  for (const match of normalizeLineEndings(content).matchAll(pattern)) {
-    const name = match[1];
-    const stamp = match[2];
-    if (name !== undefined && stamp !== undefined)
-      stamps.set(name.trim(), stamp);
-  }
-  return stamps;
-}
-function normalizeLineEndings(content) {
-  return content.replaceAll(`\r
-`, `
-`);
-}
-function seededPurposeMarker(purpose) {
-  return `${SEEDED_PURPOSE_PREFIX}${purposeDigest(purpose)} -->`;
-}
-function purposeDigest(purpose) {
-  return createHash3("sha256").update(purpose).digest("hex");
-}
-function parseSeededPurposeDigest(line) {
-  if (!line.startsWith(SEEDED_PURPOSE_PREFIX) || !line.endsWith(" -->"))
-    return;
-  const digest = line.slice(SEEDED_PURPOSE_PREFIX.length, -" -->".length);
-  return /^[a-f0-9]{64}$/.test(digest) ? digest : undefined;
-}
-function recordPriorPurpose(purposes, name, lines, seededDigest) {
-  if (name === undefined)
-    return;
-  const text = lines.join(`
-`).trim();
-  if (text.length === 0)
-    return;
-  purposes.set(name, {
-    text,
-    generated: text === PURPOSE_PLACEHOLDER || seededDigest === purposeDigest(text)
-  });
-}
-function parseSectionProse(content) {
-  const prose = new Map;
-  let name;
-  let inProse = false;
-  let buffer = [];
-  let seededDigest;
-  const flush = (next) => {
-    recordPriorPurpose(prose, name, buffer, seededDigest);
-    name = next;
-    buffer = [];
-    inProse = false;
-    seededDigest = undefined;
-  };
-  for (const line of content.split(/\r?\n/)) {
-    const heading = /^### (.+)$/.exec(line)?.[1];
-    if (heading !== undefined) {
-      flush(heading.trim());
-    } else if (line.startsWith("## ")) {
-      flush(undefined);
-    } else if (name !== undefined) {
-      seededDigest = parseSeededPurposeDigest(line) ?? seededDigest;
-      inProse = accumulateProseLine(line, inProse, buffer);
-    }
-  }
-  flush(undefined);
-  return prose;
-}
-function accumulateProseLine(line, inProse, buffer) {
-  if (line.startsWith(RECONCILED_PREFIX))
-    return inProse;
-  if (line.startsWith(SEEDED_PURPOSE_PREFIX))
-    return inProse;
-  if (line.startsWith("> \u26A0 orphaned:"))
-    return true;
-  if (line.startsWith("> \u26A0 stale:"))
-    return inProse;
-  if (!inProse)
-    return /^`[^`]*`\s*$/.test(line);
-  buffer.push(line);
-  return true;
-}
-function isPurposeMetadataLine(line) {
-  return line.startsWith(RECONCILED_PREFIX) || line.startsWith(SEEDED_PURPOSE_PREFIX) || line.startsWith("> \u26A0");
-}
-function parseRootPackageProse(content) {
-  const prose = new Map;
-  let isInPackages = false;
-  let name;
-  let buffer = [];
-  let seededDigest;
-  const flush = () => {
-    recordPriorPurpose(prose, name, buffer, seededDigest);
-    name = undefined;
-    buffer = [];
-    seededDigest = undefined;
-  };
-  for (const line of content.split(/\r?\n/)) {
-    if (line.startsWith("## ")) {
-      flush();
-      isInPackages = line.slice(3).trim() === "Packages";
-    } else if (isInPackages && line.startsWith("### ")) {
-      flush();
-      name = line.slice(4).trim();
-    } else if (name !== undefined) {
-      seededDigest = parseSeededPurposeDigest(line) ?? seededDigest;
-      if (!isPurposeMetadataLine(line))
-        buffer.push(line);
-    }
-  }
-  flush();
-  return prose;
-}
-function architectureFrontmatter(fingerprint) {
-  return `---
-${GENERATOR_KEY}: ${GENERATOR_VALUE}
-${FINGERPRINT_KEY}: ${fingerprint}
----
-
-# Architecture
-
-`;
-}
-function renderDocument(nodes, fingerprint, priorStamps, priorProse) {
-  const verdicts = reconcileSections({
-    priorStamps: Object.fromEntries(priorStamps),
-    nodeNames: nodes.map((node) => node.name),
-    fingerprint
-  });
-  const nodeByName = new Map(nodes.map((node) => [node.name, node]));
-  const sections = verdicts.map((verdict) => {
-    const node = nodeByName.get(verdict.node);
-    const stamp = priorStamps.get(verdict.node) ?? fingerprint;
-    const prior = priorProse.get(verdict.node);
-    if (node === undefined)
-      return renderOrphanSection(verdict.node, stamp, prior?.text ?? "");
-    const { purpose, seeded } = resolveModulePurpose(node, prior);
-    return renderSection(node, stamp, verdict.status, purpose, seeded);
-  }).join(`
-`);
-  return `${architectureFrontmatter(fingerprint)}## Modules
-
-${sections}`;
-}
-function resolveModulePurpose(node, prior) {
-  const { seeded, useGeneratedPurpose } = generatedPurposeChoice(node.seededPurpose, prior);
-  return {
-    purpose: useGeneratedPurpose ? node.purpose : prior?.text ?? node.purpose,
-    seeded
-  };
-}
-function renderSection(node, stamp, status, prose, seededPurpose) {
-  const marker = status === "stale" ? `
-> \u26A0 stale: structure changed since this section was reconciled.
-` : "";
-  const seed = seededPurpose ? `
-${seededPurposeMarker(prose)}
-` : "";
-  return `### ${node.name}
-
-${RECONCILED_PREFIX} ${stamp} -->
-
-\`${node.path}\`
-${seed}
-${prose}
-${marker}`;
-}
-function renderOrphanSection(name, stamp, prose) {
-  const preservedProse = prose.length > 0 ? `
-${prose}
-` : "";
-  return `### ${name}
-
-${RECONCILED_PREFIX} ${stamp} -->
-
-> \u26A0 orphaned: this section describes a module that no longer exists.
-${preservedProse}`;
-}
-function renderRootIndex(model, fingerprint, priorProse) {
-  const sections = model.packages.map((node) => renderPackageSection(node, fingerprint, priorProse.get(node.name))).join(`
-`);
-  const edgeLines = model.edges.map((edge) => `- \`${edge.from}\` \u2192 \`${edge.to}\``).join(`
-`);
-  const dependencies = model.edges.length === 0 ? `_No inter-package dependencies._
-` : `${edgeLines}
-`;
-  return `${architectureFrontmatter(fingerprint)}## Packages
-
-${sections}
-## Dependencies
-
-${dependencies}${renderCoverageGaps(model.unreadableWorkspaces)}`;
-}
-function renderCoverageGaps(unreadable2) {
-  if (unreadable2.length === 0)
-    return "";
-  const items = unreadable2.map((entry) => `> - \`${entry.config}\` (${entry.manager})`).join(`
-`);
-  return `## Coverage gaps
-
-> \u26A0 not introspected \u2014 workspace config unreadable. A present workspace manager's member list could not be parsed, so its packages may be missing above. Fix the config and re-run \`safeword project architecture\`:
-${items}
-`;
-}
-function renderPackageSection(node, stamp, prior) {
-  const { purpose, seeded } = resolvePackagePurpose(node, prior);
-  const body = renderPackagePurposeBody(node, purpose);
-  const seed = seeded ? `
-${seededPurposeMarker(node.purpose)}
-` : "";
-  return `### ${node.name}
-
-${RECONCILED_PREFIX} ${stamp} -->
-${seed}
-${body}
-`;
-}
-function resolvePackagePurpose(node, prior) {
-  const { seeded, useGeneratedPurpose } = generatedPurposeChoice(node.seededPurpose, prior);
-  return {
-    purpose: useGeneratedPurpose ? node.purpose : prior?.text,
-    seeded
-  };
-}
-function generatedPurposeChoice(hasSeededPurpose, prior) {
-  const generatedPrior = prior?.generated === true;
-  const seeded = hasSeededPurpose === true && (prior === undefined || generatedPrior);
-  return {
-    seeded,
-    useGeneratedPurpose: seeded || generatedPrior
-  };
-}
-function renderPackagePurposeBody(node, purpose) {
-  if (node.introspected)
-    return purpose ?? node.purpose;
-  if (purpose !== undefined)
-    return `${purpose}
-
-> \u26A0 not introspected \u2014 no source modules to map`;
-  return "> \u26A0 not introspected \u2014 no source modules to map";
-}
-var WOULD_CHANGE_ACTIONS, FINGERPRINT_KEY = "fingerprint", GENERATOR_KEY = "generator", GENERATOR_VALUE = "safeword-architecture", RECONCILED_PREFIX = "<!-- reconciled:", SEEDED_PURPOSE_PREFIX = "<!-- seeded-purpose: ";
-var init_architecture_document = __esm(() => {
-  init_architecture_fingerprint();
-  init_architecture_monorepo();
-  init_architecture_skeleton();
-  init_configured_paths();
-  WOULD_CHANGE_ACTIONS = new Set(["created", "healed", "regenerated"]);
-});
-
-// src/cli-protocol/review-presentation.ts
-function isRecord(value) {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-function reviewCoverage(data) {
-  const author = data.author_agent;
-  const reviewer = data.actual_reviewer;
-  if (typeof author !== "string" || !REVIEW_AUTHORS.has(author) || typeof reviewer !== "string") {
-    return "incomplete";
-  }
-  if (data.independence === "degraded" && REVIEW_AGENTS.has(reviewer) && reviewer === author)
-    return "standard";
-  if (data.independence === "cross-agent" && REVIEW_AGENTS.has(reviewer) && reviewer !== author) {
-    return "independent";
-  }
-  return "incomplete";
-}
-function reviewVerdict(data) {
-  const output = data.reviewer_output;
-  if (!isRecord(output))
-    return;
-  if (typeof output.reviewer_agent !== "string" || !REVIEW_AGENTS.has(output.reviewer_agent) || output.reviewer_agent !== data.actual_reviewer) {
-    return;
-  }
-  return output.verdict === "approve" || output.verdict === "request_changes" ? output.verdict : undefined;
-}
-function reviewVerdictMatchesStatus(status, verdict) {
-  if (status === "approved")
-    return verdict === "approve";
-  if (status === "changes_requested")
-    return verdict === "request_changes";
-  return status === "blocked" && verdict !== undefined;
-}
-function reviewPolicyMatchesStatus(data) {
-  if (data.status === "blocked") {
-    return data.review_policy === "prefer" || data.review_policy === "require";
-  }
-  return (data.status === "approved" || data.status === "changes_requested") && data.review_policy === undefined;
-}
-function reviewStateMatchesStatus(state, status) {
-  if (status === "approved")
-    return state === "healthy";
-  return (status === "changes_requested" || status === "blocked") && state === "action_required";
-}
-function isConsistentReviewResult(data, state, verdict) {
-  return reviewStateMatchesStatus(state, data.status) && reviewPolicyMatchesStatus(data) && reviewVerdictMatchesStatus(data.status, verdict);
-}
-function incompleteCoverageLine(data) {
-  return data.status === "blocked" && data.review_policy === "require" ? "Review incomplete \u2014 required independent coverage is unsatisfied." : "Review incomplete.";
-}
-function blockedReviewCoverageLine(data, coverage, verdict) {
-  if (coverage === "standard" && data.review_policy === "require") {
-    return verdict === "request_changes" ? "Review blocked \u2014 changes requested with standard coverage; required independent coverage is unsatisfied." : "Review blocked \u2014 standard coverage achieved; required independent coverage is unsatisfied.";
-  }
-  return incompleteCoverageLine(data);
-}
-function specialReviewCoverageLine(status, state) {
-  if (status === "existing_route" && state === "healthy")
-    return "Review not requested.";
-  if (status === "pending" && state === "action_required") {
-    return "Review running in the background.";
-  }
-  if (status === "stale" && state === "action_required") {
-    return "Review stale \u2014 sources changed during the check.";
-  }
-  return;
-}
-function reviewCoverageLine(data, state) {
-  const status = data.status;
-  const specialLine = specialReviewCoverageLine(status, state);
-  if (specialLine !== undefined)
-    return specialLine;
-  const verdict = reviewVerdict(data);
-  if (!reviewStateMatchesStatus(state, status))
-    return incompleteCoverageLine(data);
-  if (!reviewPolicyMatchesStatus(data))
-    return "Review incomplete.";
-  if (!reviewVerdictMatchesStatus(status, verdict))
-    return incompleteCoverageLine(data);
-  if (verdict === undefined)
-    return incompleteCoverageLine(data);
-  const coverage = reviewCoverage(data);
-  if (status === "blocked")
-    return blockedReviewCoverageLine(data, coverage, verdict);
-  if (coverage === "incomplete")
-    return "Review incomplete.";
-  if (verdict === "request_changes")
-    return `Review changes requested \u2014 ${coverage} coverage.`;
-  return `Review complete \u2014 ${coverage} coverage.`;
-}
-function isCompletedStandardReview(data, state) {
-  const verdict = reviewVerdict(data);
-  return data.status === "approved" && isConsistentReviewResult(data, state, verdict) && reviewCoverage(data) === "standard";
-}
-function reviewUpgradeSuggestion(data, state) {
-  if (!isCompletedStandardReview(data, state))
-    return;
-  const author = data.author_agent;
-  const reviewer = data.assigned_reviewer;
-  if (typeof author !== "string" || typeof reviewer !== "string" || !REVIEW_AGENTS.has(reviewer) || reviewer === author) {
-    return;
-  }
-  const label = `${reviewer.charAt(0).toUpperCase()}${reviewer.slice(1)}`;
-  return suggestionForFailure(data.preferred_failure, label);
-}
-function suggestionForFailure(failure, label) {
-  if (failure === "not_installed") {
-    return `To add independent coverage, install or update ${label}, then retry review.`;
-  }
-  if (failure === "untrusted_install") {
-    return `To add independent coverage, move ${label} to a trusted non-writable-by-group directory, then retry review.`;
-  }
-  if (failure === "unsupported") {
-    return `To add independent coverage, update ${label}, then retry review.`;
-  }
-  if (failure === "probe_timed_out" || failure === "launch_failed") {
-    return `To add independent coverage, run ${label} --help to diagnose it, then retry review.`;
-  }
-  if (failure === "not_authenticated") {
-    return `To add independent coverage, sign in to ${label}, then retry review.`;
-  }
-  if (RETRYABLE_REVIEW_FAILURES.has(String(failure))) {
-    return `To add independent coverage, retry ${label} review.`;
-  }
-  return;
-}
-function reviewResultLines(result, options) {
-  if (!isRecord(result.data) || result.data.command !== "review run")
-    return;
-  if (result.state === "failed" && result.errors.length > 0)
-    return;
-  const messages = result.findings.filter((finding) => !REPLACED_REVIEW_FINDINGS.has(finding.code)).map((finding) => finding.message);
-  messages.push(...result.errors.map((error2) => error2.message));
-  const lines = [reviewCoverageLine(result.data, result.state), ...messages];
-  if (options.verbose === true) {
-    const suggestion = reviewUpgradeSuggestion(result.data, result.state);
-    if (suggestion !== undefined)
-      lines.push(suggestion);
-  }
-  return lines;
-}
-var REVIEW_AGENTS, REVIEW_AUTHORS, REPLACED_REVIEW_FINDINGS, RETRYABLE_REVIEW_FAILURES;
-var init_review_presentation = __esm(() => {
-  REVIEW_AGENTS = new Set(["claude", "codex"]);
-  REVIEW_AUTHORS = new Set(["claude", "codex", "cursor"]);
-  REPLACED_REVIEW_FINDINGS = new Set([
-    "REVIEW_INDEPENDENCE",
-    "REVIEW_NOT_REQUESTED",
-    "REVIEW_STALE"
-  ]);
-  RETRYABLE_REVIEW_FAILURES = new Set([
-    "timed_out",
-    "process_failed",
-    "invalid_output",
-    "REVIEWER_PROVENANCE_MISSING",
-    "REVIEWER_PROVENANCE_CONTRADICTORY"
-  ]);
-});
-
-// src/cli-protocol/result.ts
-function combineEffects(groups) {
-  return {
-    files: groups.flatMap((effects) => effects.files ?? []),
-    packages: groups.flatMap((effects) => effects.packages ?? []),
-    configuration: groups.flatMap((effects) => effects.configuration ?? []),
-    network: groups.flatMap((effects) => effects.network ?? []),
-    destructive: groups.flatMap((effects) => effects.destructive ?? [])
-  };
-}
-function combinedResultState(results) {
-  if (results.some((result) => result.state === "failed"))
-    return "failed";
-  if (results.some((result) => result.state === "action_required"))
-    return "action_required";
-  if (results.some((result) => result.state === "changed"))
-    return "changed";
-  return "healthy";
-}
-function createResult(input) {
-  return {
-    schemaVersion: 1,
-    ok: input.state !== "failed",
-    state: input.state,
-    changed: input.changed ?? input.state === "changed",
-    findings: input.findings ?? [],
-    effects: { ...EMPTY_EFFECTS, ...input.effects },
-    errors: input.errors ?? [],
-    recovery: input.recovery ?? [],
-    nextActions: input.nextActions ?? [],
-    ...input.exitCode !== undefined && { exitCode: input.exitCode },
-    ...input.presentation !== undefined && { presentation: input.presentation },
-    ...input.data !== undefined && { data: input.data }
-  };
-}
-function withDeprecation(result, legacy, replacement, compatibility, options = {}) {
-  const redundantOptionFindings = (compatibility.redundantOptions ?? []).filter((option) => options[option.key] === true).map((option) => ({
-    code: "CLI_OPTION_REDUNDANT",
-    message: `\`${option.flag}\` is accepted for compatibility but has no effect; use \`${option.replacement}\`.`,
-    severity: "warning",
-    metadata: {
-      option: option.flag,
-      replacement: option.replacement,
-      retention: compatibility.retention
-    }
-  }));
-  return {
-    ...result,
-    findings: [
-      ...result.findings,
-      {
-        code: "CLI_ALIAS_DEPRECATED",
-        message: `\`${legacy}\` is deprecated; use \`${replacement}\`.`,
-        severity: "warning",
-        metadata: {
-          replacement,
-          introduced_in: compatibility.introducedIn,
-          retention: compatibility.retention
-        }
-      },
-      ...redundantOptionFindings
-    ]
-  };
-}
-function exitStatusFor(result) {
-  if (result.exitCode !== undefined)
-    return result.exitCode;
-  if (result.state === "failed")
-    return 1;
-  if (result.state === "action_required")
-    return 2;
-  return 0;
-}
-function toWireResult(result) {
-  return {
-    schema_version: result.schemaVersion,
-    ok: result.ok,
-    state: result.state,
-    changed: result.changed,
-    findings: result.findings.map(({ code, message, severity, detail, metadata }) => ({
-      code,
-      message,
-      severity,
-      ...detail !== undefined && { detail },
-      ...metadata !== undefined && { metadata }
-    })),
-    effects: result.effects,
-    errors: result.errors.map(({ code, message, retryable, detail }) => ({
-      code,
-      message,
-      retryable,
-      ...detail !== undefined && { detail }
-    })),
-    recovery: result.recovery.map(({ command, description, requiresHuman }) => ({
-      command,
-      description,
-      requires_human: requiresHuman
-    })),
-    next_actions: result.nextActions.map((action) => ("command" in action) ? {
-      command: action.command,
-      mutates: action.mutates,
-      requires_human: action.requiresHuman
-    } : {
-      kind: action.kind,
-      instruction: action.instruction,
-      mutates: action.mutates,
-      requires_human: action.requiresHuman
-    }),
-    ...result.data !== undefined && { data: result.data }
-  };
-}
-function renderJsonResult(result) {
-  return JSON.stringify(toWireResult(result));
-}
-function uniqueMessages(result) {
-  const messages = result.findings.map((finding) => finding.message);
-  messages.push(...result.errors.map((error2) => error2.message));
-  return [...new Set(messages)];
-}
-function suppressHumanOutput(result, options) {
-  return options.quiet === true && result.state === "healthy";
-}
-function isRecord2(value) {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-function effectLines(category, effects) {
-  if (!Array.isArray(effects))
-    return [];
-  return effects.flatMap((effect) => isRecord2(effect) && typeof effect.kind === "string" && typeof effect.target === "string" ? [`${category}: ${effect.kind} ${effect.target}`] : []);
-}
-function nextActionLabel(action) {
-  return "command" in action ? action.command : action.instruction;
-}
-function plannedEffectLines(data) {
-  if (!isRecord2(data))
-    return [];
-  const plan = data.plan;
-  if (!isRecord2(plan))
-    return [];
-  const effects = plan.effects;
-  if (!isRecord2(effects))
-    return [];
-  const categories = ["files", "packages", "configuration", "network", "destructive"];
-  const lines = categories.flatMap((category) => effectLines(category, effects[category]));
-  return lines.length === 0 ? [] : ["Planned effects:", ...lines];
-}
-function labelledSurfaces(data, command) {
-  if (!isRecord2(data) || data.command !== command || !Array.isArray(data.surfaces))
-    return [];
-  return data.surfaces.flatMap((surface) => {
-    if (!isRecord2(surface) || typeof surface.name !== "string")
-      return [];
-    const label = SURFACE_LABELS[surface.name];
-    return label === undefined ? [] : [{ label, surface }];
-  });
-}
-function installSurfaceLines(data) {
-  return labelledSurfaces(data, "install").flatMap(({ label, surface }) => {
-    if (surface.selected === false)
-      return [`${label}: not selected`];
-    const outcome = typeof surface.state === "string" ? SURFACE_OUTCOMES[surface.state] : undefined;
-    return outcome === undefined ? [] : [`${label}: ${outcome}`];
-  });
-}
-function installActivationLines(data) {
-  return labelledSurfaces(data, "install").flatMap(({ label, surface }) => {
-    if (!Array.isArray(surface.activation_actions))
-      return [];
-    return surface.activation_actions.flatMap((action) => typeof action === "string" ? [`${label} activation: ${action}`] : []);
-  });
-}
-function doctorDiagnosticCauses(data) {
-  if (!isRecord2(data) || data.command !== "doctor" || !Array.isArray(data.diagnostics)) {
-    return new Set;
-  }
-  return new Set(data.diagnostics.flatMap((diagnostic) => isRecord2(diagnostic) && typeof diagnostic.cause === "string" ? [diagnostic.cause] : []));
-}
-function doctorDiagnosticLines(data) {
-  if (!isRecord2(data) || data.command !== "doctor" || !Array.isArray(data.coverage))
-    return [];
-  const coverage = data.coverage.flatMap((item) => {
-    if (!isRecord2(item) || typeof item.surface !== "string")
-      return [];
-    const label = SURFACE_LABELS[item.surface] ?? item.surface;
-    const outcome = typeof item.state === "string" ? SURFACE_OUTCOMES[item.state] : undefined;
-    const evidence = isRecord2(item.evidence) ? Object.entries(item.evidence).filter((entry) => ["string", "number", "boolean"].includes(typeof entry[1])).map(([key, value]) => `${key.replaceAll("_", " ")}=${String(value)}`) : [];
-    const evidenceSuffix = evidence.length === 0 ? "" : ` (${evidence.join(", ")})`;
-    return [`- ${label}: ${outcome ?? "unknown"}${evidenceSuffix}`];
-  });
-  const diagnostics = Array.isArray(data.diagnostics) ? data.diagnostics.flatMap((item) => {
-    if (!isRecord2(item) || typeof item.surface !== "string" || typeof item.code !== "string" || typeof item.cause !== "string") {
-      return [];
-    }
-    const label = SURFACE_LABELS[item.surface] ?? item.surface;
-    return [`- ${label} [${item.code}]: ${item.cause}`];
-  }) : [];
-  return [
-    ...coverage.length === 0 ? [] : ["Diagnostic coverage:", ...coverage],
-    ...diagnostics.length === 0 ? [] : ["Causes:", ...diagnostics]
-  ];
-}
-function completedEffectLines(result) {
-  const visibleCategories = [
-    result.effects.files,
-    result.effects.packages,
-    result.effects.configuration,
-    result.effects.destructive
-  ];
-  const lines = visibleCategories.flatMap((effects) => effects.map((effect) => `${EFFECT_LABELS[effect.kind] ?? "Changed"}: ${effect.target}`));
-  lines.push(...result.effects.network.map((effect) => `Network: ${effect.operation ?? effect.kind} ${effect.target}`));
-  return lines;
-}
-function resultBodyLines(result, options) {
-  const reviewLines = reviewResultLines(result, options);
-  if (reviewLines !== undefined)
-    return reviewLines;
-  const diagnosticCauses = doctorDiagnosticCauses(result.data);
-  const messages = uniqueMessages(result).filter((message) => !diagnosticCauses.has(message));
-  const lines = [
-    VERDICTS[result.state],
-    `Changed: ${result.changed ? "yes" : "no"}`,
-    ...installSurfaceLines(result.data),
-    ...installActivationLines(result.data),
-    ...doctorDiagnosticLines(result.data),
-    ...messages,
-    ...plannedEffectLines(result.data)
-  ];
-  if (options.verbose === true) {
-    const details = [
-      ...result.findings.map((finding) => finding.detail),
-      ...result.errors.map((error2) => error2.detail)
-    ].filter((detail) => detail !== undefined);
-    lines.push(...completedEffectLines(result), ...details);
-  }
-  return lines;
-}
-function renderHumanStreams(result, options = {}) {
-  if (result.presentation?.kind === "raw") {
-    return {
-      stdout: result.presentation.body.replace(/\n$/, ""),
-      stderr: options.quiet === true ? "" : uniqueMessages(result).join(`
-`)
-    };
-  }
-  if (suppressHumanOutput(result, options))
-    return { stdout: "", stderr: "" };
-  const lines = resultBodyLines(result, options);
-  const primaryAction = result.nextActions[0];
-  if (primaryAction !== undefined)
-    lines.push(`Next: ${nextActionLabel(primaryAction)}`);
-  const body = lines.join(`
-`);
-  return result.state === "failed" ? { stdout: "", stderr: body } : { stdout: body, stderr: "" };
-}
-var EMPTY_EFFECTS, VERDICTS, SURFACE_LABELS, SURFACE_OUTCOMES, EFFECT_LABELS;
-var init_result = __esm(() => {
-  init_review_presentation();
-  EMPTY_EFFECTS = {
-    files: [],
-    packages: [],
-    configuration: [],
-    network: [],
-    destructive: []
-  };
-  VERDICTS = {
-    healthy: "Healthy",
-    changed: "Complete",
-    action_required: "Needs attention",
-    failed: "Failed"
-  };
-  SURFACE_LABELS = {
-    project: "Project",
-    claude: "Claude",
-    codex: "Codex",
-    cursor: "Cursor"
-  };
-  SURFACE_OUTCOMES = {
-    healthy: "ready",
-    changed: "updated",
-    action_required: "needs attention",
-    failed: "failed"
-  };
-  EFFECT_LABELS = {
-    create: "Created",
-    update: "Updated",
-    delete: "Deleted",
-    install: "Installed",
-    uninstall: "Uninstalled",
-    remove: "Removed",
-    write: "Written"
-  };
-});
-
-// src/cli-protocol/online-required.ts
-function onlineRequired(name, nextCommand = name) {
-  return createResult({
-    state: "action_required",
-    findings: [
-      {
-        code: "CLI_ONLINE_REQUIRED",
-        message: `\`${name}\` requires declared network access for this operation.`,
-        severity: "warning"
-      }
-    ],
-    nextActions: [
-      {
-        command: `safeword ${nextCommand}`,
-        mutates: true,
-        requiresHuman: false
-      }
-    ],
-    data: { command: name, offline: true }
-  });
-}
-var init_online_required = __esm(() => {
-  init_result();
-});
-
-// src/cli-protocol/plan.ts
-import { createHash as createHash4 } from "crypto";
-function isPlanIdentity(value) {
-  return PLAN_IDENTITY_PATTERN.test(value);
-}
-function malformedPlanIdentity(command) {
-  return createResult({
-    state: "failed",
-    errors: [
-      {
-        code: "PLAN_MALFORMED",
-        message: `The ${command} plan identity must be the 64-character hexadecimal id returned by its latest preview.`,
-        retryable: false
-      }
-    ]
-  });
-}
-function planIdentity(input) {
-  return createHash4("sha256").update(JSON.stringify([input.command, input.preconditionDigest, input.effects])).digest("hex");
-}
-function createPlan(input) {
-  const planWithoutIdentity = {
-    schemaVersion: 1,
-    command: input.command,
-    preconditionDigest: input.preconditionDigest,
-    effects: { ...EMPTY_EFFECTS2, ...input.effects },
-    findings: input.findings ?? [],
-    requiresConfirmation: input.requiresConfirmation ?? false,
-    verification: input.verification ?? []
-  };
-  return { ...planWithoutIdentity, id: planIdentity(planWithoutIdentity) };
-}
-function toWirePlan(plan) {
-  return {
-    schema_version: plan.schemaVersion,
-    id: plan.id,
-    command: plan.command,
-    precondition_digest: plan.preconditionDigest,
-    effects: plan.effects,
-    findings: plan.findings,
-    requires_confirmation: plan.requiresConfirmation,
-    verification: plan.verification
-  };
-}
-var EMPTY_EFFECTS2, PLAN_IDENTITY_PATTERN;
-var init_plan = __esm(() => {
-  init_result();
-  EMPTY_EFFECTS2 = {
-    files: [],
-    packages: [],
-    configuration: [],
-    network: [],
-    destructive: []
-  };
-  PLAN_IDENTITY_PATTERN = /^[a-f\d]{64}$/u;
-});
-
-// src/cli-protocol/mutation-effects.ts
-function effectsFromMutationJournal(mutations) {
-  const toEffect = ({ kind, target, operation }) => ({
-    kind,
-    target,
-    operation
-  });
-  return {
-    files: mutations.filter((mutation) => mutation.surface === "file").map((mutation) => toEffect(mutation)),
-    configuration: mutations.filter((mutation) => mutation.surface === "configuration").map((mutation) => toEffect(mutation)),
-    network: mutations.filter((mutation) => mutation.surface === "network").map((mutation) => toEffect(mutation))
-  };
-}
-
-// src/cli-protocol/replay-command.ts
-function shellArgument(value) {
-  const escapedSingleQuote = `'"'"'`;
-  return `'${value.split("'").join(escapedSingleQuote)}'`;
-}
-function buildReplayCommand(input) {
-  return [
-    input.command,
-    ...(input.operands ?? []).map((operand) => shellArgument(operand)),
-    ...(input.options ?? []).flatMap(([flag, value]) => value === undefined ? [] : [flag, shellArgument(value)]),
-    "--cwd",
-    shellArgument(input.cwd)
-  ].join(" ");
-}
-
-// src/tracker-sync/secrets.ts
-function resolveCredential(provider, dependencies) {
-  const fromKeychain = dependencies.keychain?.(provider);
-  if (fromKeychain !== undefined && fromKeychain.length > 0) {
-    return { ok: true, token: fromKeychain };
-  }
-  const fromEnvironment = dependencies.env[CREDENTIAL_ENV_VAR[provider]];
-  if (fromEnvironment !== undefined && fromEnvironment.length > 0) {
-    return { ok: true, token: fromEnvironment };
-  }
-  return { ok: false };
-}
-var CREDENTIAL_ENV_VAR;
-var init_secrets = __esm(() => {
-  CREDENTIAL_ENV_VAR = {
-    linear: "LINEAR_API_KEY",
-    github: "GITHUB_TOKEN"
-  };
-});
-
-// src/tracker-sync/tracker-map.ts
-var exports_tracker_map = {};
-__export(exports_tracker_map, {
-  trackerMapPath: () => trackerMapPath,
-  planTicketSync: () => planTicketSync,
-  loadTrackerMapOrEmpty: () => loadTrackerMapOrEmpty,
-  loadTrackerMap: () => loadTrackerMap,
-  TrackerMap: () => TrackerMap
-});
-import { existsSync as existsSync4, readFileSync as readFileSync6, writeFileSync as writeFileSync4 } from "fs";
-import nodePath12 from "path";
-function trackerMapPath(cwd) {
-  return nodePath12.join(cwd, ".safeword", "tracker-map.json");
-}
-
-class TrackerMap {
-  issues;
-  constructor(issues) {
-    this.issues = issues ?? new Map;
-  }
-  lookup(ticketId) {
-    return this.issues.get(ticketId);
-  }
-  findTicketIdByRefId(trackerId) {
-    for (const [ticketId, entry] of this.issues) {
-      if (entry.ref.id === trackerId)
-        return ticketId;
-    }
-    return;
-  }
-  markPending(ticketId, ref) {
-    this.issues.set(ticketId, { ref, status: "pending" });
-  }
-  record(ticketId, ref) {
-    this.issues.set(ticketId, { ref, status: "recorded" });
-  }
-  serialize() {
-    return { version: SIDECAR_VERSION, issues: Object.fromEntries(this.issues) };
-  }
-  save(filePath) {
-    writeFileSync4(filePath, `${JSON.stringify(this.serialize(), undefined, 2)}
-`);
-  }
-}
-function loadTrackerMap(filePath) {
-  if (!existsSync4(filePath))
-    return { ok: false, reason: "missing" };
-  let parsed2;
-  try {
-    parsed2 = JSON.parse(readFileSync6(filePath, "utf8"));
-  } catch {
-    return { ok: false, reason: "corrupt" };
-  }
-  if (typeof parsed2 !== "object" || parsed2 === null || !("issues" in parsed2)) {
-    return { ok: false, reason: "corrupt" };
-  }
-  const issues = parsed2.issues;
-  if (typeof issues !== "object" || issues === null)
-    return { ok: false, reason: "corrupt" };
-  return { ok: true, map: new TrackerMap(new Map(Object.entries(issues))) };
-}
-function loadTrackerMapOrEmpty(filePath) {
-  const loaded = loadTrackerMap(filePath);
-  if (loaded.ok)
-    return loaded;
-  return loaded.reason === "missing" ? { ok: true, map: new TrackerMap } : { ok: false, reason: "corrupt" };
-}
-function planTicketSync(map, ticketId) {
-  const entry = map.lookup(ticketId);
-  if (entry === undefined)
-    return { kind: "create" };
-  if (entry.status === "pending")
-    return { kind: "reconcile", ref: entry.ref };
-  return { kind: "update", ref: entry.ref };
-}
-var SIDECAR_VERSION = 1;
-var init_tracker_map = () => {};
-
-// src/tracker-connect/handoff.ts
-function handoffSteps(provider, target) {
-  if (provider === "github") {
-    const repo = target.repo ?? "<owner/repo>";
-    return [
-      `Install the safeword[bot] GitHub App for ${repo}:`,
-      "  https://github.com/apps/safeword/installations/new",
-      "Or, if you can\u2019t install the App, export a Personal Access Token (PAT)",
-      "with repo scope as GITHUB_TOKEN before connecting."
-    ];
-  }
-  return [
-    "Authorize safeword in Arcade (OAuth) and approve in your browser:",
-    "  https://api.arcade.dev/oauth/authorize",
-    "Arcade holds the Linear token; safeword stores only the Arcade key."
-  ];
-}
-
-// src/tracker-connect/types.ts
-var ConnectExecutionError;
-var init_types = __esm(() => {
-  ConnectExecutionError = class ConnectExecutionError extends Error {
-    mutations;
-    constructor(cause, mutations) {
-      super(cause instanceof Error ? cause.message : String(cause), { cause });
-      this.name = "ConnectExecutionError";
-      this.mutations = mutations;
-    }
-  };
-});
-
-// src/tracker-connect/index.ts
-import { existsSync as existsSync5, readFileSync as readFileSync7, writeFileSync as writeFileSync5 } from "fs";
-import nodePath13 from "path";
-function configPath(cwd) {
-  return nodePath13.join(cwd, ".safeword", "config.json");
-}
-function writeProviderConfig(cwd, provider, target) {
-  const path2 = configPath(cwd);
-  const before = existsSync5(path2) ? readFileSync7(path2, "utf8") : undefined;
-  const existing = before === undefined ? {} : JSON.parse(before);
-  const priorBridge = existing.ticketBridge ?? {};
-  existing.ticketBridge = { ...priorBridge, provider, body: priorBridge.body ?? "minimal", target };
-  const after = `${JSON.stringify(existing, undefined, 2)}
-`;
-  writeFileSync5(path2, after);
-  return before === after ? undefined : {
-    surface: "file",
-    kind: before === undefined ? "create" : "update",
-    target: ".safeword/config.json",
-    operation: "write"
-  };
-}
-function appendMarker(path2, target, marker, mutations) {
-  const existed = existsSync5(path2);
-  const before = existed ? readFileSync7(path2, "utf8") : "";
-  if (before.split(/\r?\n/u).includes(marker))
-    return;
-  const prefix = before === "" || before.endsWith(`
-`) ? "" : `
-`;
-  writeFileSync5(path2, `${prefix}${marker}
-`, { flag: "a" });
-  mutations.push({
-    surface: "file",
-    kind: existed ? "update" : "create",
-    target,
-    operation: "merge"
-  });
-}
-async function offerPollutionOptIns(dependencies, mutations) {
-  const accepted = await dependencies.prompt.confirm("Add ignore/markers so coding agents don\u2019t index the generated ticket files?", false);
-  if (!accepted)
-    return;
-  const namespaceRoot = resolveNamespaceRoot(dependencies.cwd);
-  const namespacePattern = `${nodePath13.relative(dependencies.cwd, namespaceRoot).replaceAll("\\", "/")}/`;
-  appendMarker(nodePath13.join(dependencies.cwd, ".cursorindexingignore"), ".cursorindexingignore", namespacePattern, mutations);
-  appendMarker(nodePath13.join(dependencies.cwd, ".gitattributes"), ".gitattributes", `${namespacePattern}**/INDEX*.md linguist-generated=true`, mutations);
-}
-async function connectSupportedTracker(dependencies, provider, mutations) {
-  const { cwd, log } = dependencies;
-  const configMutation = writeProviderConfig(cwd, provider, dependencies.target);
-  if (configMutation !== undefined)
-    mutations.push(configMutation);
-  for (const line of handoffSteps(provider, dependencies.target))
-    log(line);
-  if (dependencies.token !== undefined) {
-    const where = await dependencies.secretStore.store(provider, dependencies.token);
-    mutations.push({
-      surface: "configuration",
-      kind: "credential-store",
-      target: provider,
-      operation: where
-    });
-    log(`Credential stored in the ${where}.`);
-  }
-  mutations.push({
-    surface: "network",
-    kind: "verify-auth",
-    target: provider,
-    operation: "read"
-  });
-  const verdict = await dependencies.verify.whoami(provider);
-  if (!verdict.ok) {
-    log(`Not connected \u2014 ${verdict.missing}.`);
-    return { exitCode: 1, connected: false, mutations };
-  }
-  const sidecarPath = nodePath13.join(cwd, ".safeword", "tracker-map.json");
-  const sidecar = loadTrackerMap(sidecarPath);
-  if (!sidecar.ok && sidecar.reason === "corrupt") {
-    throw new Error(`${sidecarPath} is not a valid tracker map; preserve or repair it before reconnecting.`);
-  }
-  if (!sidecar.ok) {
-    new TrackerMap().save(sidecarPath);
-    mutations.push({
-      surface: "file",
-      kind: "create",
-      target: ".safeword/tracker-map.json",
-      operation: "write"
-    });
-  }
-  log(`Connected to ${provider} \u2014 verified and ready to sync.`);
-  await offerPollutionOptIns(dependencies, mutations);
-  return { exitCode: 0, connected: true, mutations };
-}
-async function connectTracker(dependencies) {
-  const mutations = [];
-  if (!SUPPORTED.has(dependencies.provider)) {
-    dependencies.log(`Provider "${dependencies.provider}" is not supported (use linear or github).`);
-    return { exitCode: 1, connected: false, mutations };
-  }
-  try {
-    return await connectSupportedTracker(dependencies, dependencies.provider, mutations);
-  } catch (connectError) {
-    throw new ConnectExecutionError(connectError, mutations);
-  }
-}
-var SUPPORTED;
-var init_tracker_connect = __esm(() => {
-  init_tracker_map();
-  init_configured_paths();
-  init_types();
-  SUPPORTED = new Set(["linear", "github"]);
-});
-
-// src/tracker-connect/prompt.ts
-var exports_prompt = {};
-__export(exports_prompt, {
-  createPrompt: () => createPrompt
-});
-import process4 from "process";
-import { createInterface } from "readline/promises";
-function createPrompt() {
-  return {
-    async confirm(question, defaultValue) {
-      const rl = createInterface({ input: process4.stdin, output: process4.stdout });
-      try {
-        const raw = await rl.question(`${question} ${defaultValue ? "[Y/n]" : "[y/N]"} `);
-        const answer = raw.trim().toLowerCase();
-        if (answer === "")
-          return defaultValue;
-        return answer === "y" || answer === "yes";
-      } finally {
-        rl.close();
-      }
-    }
-  };
-}
-var init_prompt = () => {};
-
-// src/tracker-connect/secret-store.ts
-function createSecretStore() {
-  return {
-    store(_provider) {
-      return Promise.resolve("env");
-    }
-  };
-}
-
-// src/tracker-connect/verify.ts
-import { execFileSync } from "child_process";
-function classifyGithubFailure(message) {
-  if (/command not found|ENOENT|Executable not found/i.test(message)) {
-    return "the gh CLI is not installed";
-  }
-  if (/not.*authenticat|gh auth login|HTTP 401|Bad credentials/i.test(message)) {
-    return "no GitHub credential resolved (run `gh auth login` or set GITHUB_TOKEN)";
-  }
-  if (/HTTP 403|scope|insufficient/i.test(message))
-    return "the token is missing required scope";
-  return `GitHub auth check failed: ${message.trim().split(`
-`, 1)[0] ?? "unknown error"}`;
-}
-function createVerifyClient() {
-  return {
-    whoami(provider) {
-      if (provider === "linear") {
-        return Promise.resolve({
-          ok: false,
-          missing: "Linear verification needs the Arcade integration \u2014 not wired yet"
-        });
-      }
-      try {
-        execFileSync("gh", ["api", "user", "--jq", ".login"], { encoding: "utf8", stdio: "pipe" });
-        return Promise.resolve({ ok: true });
-      } catch (error2) {
-        const stderr = error2.stderr?.toString() ?? "";
-        return Promise.resolve({
-          ok: false,
-          missing: classifyGithubFailure(`${stderr}${error2.message ?? ""}`)
-        });
-      }
-    }
-  };
-}
-var init_verify = () => {};
-
-// src/tracker-connect/run.ts
-var exports_run = {};
-__export(exports_run, {
-  runConnect: () => runConnect
-});
-import process5 from "process";
-async function runConnect(provider, target, log, options = {}) {
-  const envVariable = CREDENTIAL_ENV_VAR[provider];
-  const token = envVariable ? process5.env[envVariable] : undefined;
-  try {
-    return await connectTracker({
-      cwd: options.cwd ?? process5.cwd(),
-      provider,
-      target,
-      token,
-      prompt: options.prompt ?? createPrompt(),
-      secretStore: createSecretStore(),
-      verify: createVerifyClient(),
-      log
-    });
-  } catch (connectError) {
-    if (!(connectError instanceof ConnectExecutionError))
-      throw connectError;
-    log(`Not connected \u2014 ${connectError.message}.`);
-    return {
-      exitCode: 1,
-      connected: false,
-      mutations: connectError.mutations
-    };
-  }
-}
-var init_run = __esm(() => {
-  init_secrets();
-  init_tracker_connect();
-  init_prompt();
-  init_types();
-  init_verify();
-});
-
-// src/tracker-sync/apply-results.ts
-function urlTail(url) {
-  const [path2 = url] = url.split(/[?#]/, 1);
-  const segments = path2.split("/").filter((segment) => segment.length > 0);
-  return segments.at(-1) ?? "";
-}
-function rejectReason(result, input) {
-  if (!input.ticketIds.has(result.ticketId)) {
-    return `result names ticket "${result.ticketId}", which is not in the corpus`;
-  }
-  if (result.number.trim().length === 0) {
-    return `result "${result.ticketId}": issue number is blank`;
-  }
-  if (!isHttpUrl(result.url)) {
-    return `result "${result.ticketId}": "${result.url}" is not an http(s) issue url`;
-  }
-  if (input.provider === "github") {
-    if (!/^\d+$/.test(result.number)) {
-      return `result "${result.ticketId}": "${result.number}" is not a numeric GitHub issue number`;
-    }
-    if (urlTail(result.url) !== result.number) {
-      return `result "${result.ticketId}": url does not end in issue number ${result.number} (${result.url})`;
-    }
-  }
-  return;
-}
-function isHttpUrl(value) {
-  if (!URL.canParse(value))
-    return false;
-  const { protocol } = new URL(value);
-  return protocol === "http:" || protocol === "https:";
-}
-function applyResults(map, results, input) {
-  for (const result of results.results) {
-    const reason = rejectReason(result, input);
-    if (reason !== undefined)
-      return { ok: false, reason };
-  }
-  for (const result of results.results) {
-    map.record(result.ticketId, {
-      provider: input.provider,
-      id: result.number,
-      url: result.url
-    });
-  }
-  return { ok: true };
-}
-
-// src/tracker-sync/backoff.ts
-function isRateLimit(message) {
-  return /rate limit|\b429\b|\bAPI rate limit exceeded\b|secondary rate/i.test(message);
-}
-async function withBackoff(operation, options) {
-  for (let attempt = 0;; attempt += 1) {
-    try {
-      return await operation();
-    } catch (error2) {
-      if (!(error2 instanceof RateLimitError) || attempt >= options.maxRetries)
-        throw error2;
-      await options.sleep(options.baseMs * 2 ** attempt);
-    }
-  }
-}
-var RateLimitError;
-var init_backoff = __esm(() => {
-  RateLimitError = class RateLimitError extends Error {
-    constructor(message = "rate limited") {
-      super(message);
-      this.name = "RateLimitError";
-    }
-  };
-});
-
-// src/tracker-sync/labels.ts
-function isOwned(label) {
-  return OWNED_LABEL_PREFIXES.some((prefix) => label.startsWith(prefix));
-}
-function reconcileOwnedLabels(current, desired) {
-  const desiredSet = new Set(desired);
-  const currentSet = new Set(current);
-  return {
-    add: desired.filter((label) => !currentSet.has(label)),
-    remove: current.filter((label) => isOwned(label) && !desiredSet.has(label))
-  };
-}
-var OWNED_LABEL_PREFIXES;
-var init_labels = __esm(() => {
-  OWNED_LABEL_PREFIXES = ["epic:", "type:"];
-});
-
-// src/tracker-sync/writers.ts
-function createWriter(provider, client) {
-  return {
-    provider,
-    async create(payload) {
-      const created = await client.createIssue({
-        title: payload.title,
-        body: payload.body,
-        labels: payload.labels
-      });
-      return { provider, id: created.id, url: created.url };
-    },
-    async update(ref, payload) {
-      const request = { id: ref.id, title: payload.title, labels: payload.labels };
-      if (payload.state === "closed")
-        request.state = "closed";
-      await client.updateIssue(request);
-    },
-    async projectGraph(ref, payload, graph) {
-      await client.projectGraph({
-        id: ref.id,
-        issueType: payload.issueType,
-        parentId: graph.parent?.id,
-        blockedByIds: graph.blockedBy.map((blocker) => blocker.id)
-      });
-    }
-  };
-}
-function dispatchCreate(registry, provider, payload) {
-  return registry[provider].create(payload);
-}
-
-// src/tracker-sync/clients.ts
-var exports_clients = {};
-__export(exports_clients, {
-  resolveRepoVisibility: () => resolveRepoVisibility,
-  buildWriterRegistry: () => buildWriterRegistry,
-  LINEAR_LIVE_PROJECTION_GUIDANCE: () => LINEAR_LIVE_PROJECTION_GUIDANCE
-});
-import { execFileSync as execFileSync2 } from "child_process";
-function runGh(arguments_) {
-  try {
-    return execFileSync2("gh", arguments_, { encoding: "utf8" });
-  } catch (error2) {
-    const stderr = error2.stderr?.toString() ?? "";
-    const message = `${stderr}${error2.message ?? ""}`;
-    if (isRateLimit(message))
-      throw new RateLimitError(message);
-    throw error2;
-  }
-}
-function commandErrorMessage(error2) {
-  const stderr = error2.stderr?.toString() ?? "";
-  return `${stderr}${error2.message ?? ""}`;
-}
-function isUnsupportedIssueTypeError(error2) {
-  const message = commandErrorMessage(error2);
-  return /type/i.test(message) && /not found|does not exist|invalid|unsupported/i.test(message);
-}
-function githubClient(repo) {
-  const repoArguments = repo === undefined ? [] : ["--repo", repo];
-  const graphEditArguments = (request, options) => [
-    "issue",
-    "edit",
-    request.id,
-    ...options.includeType ? ["--type", request.issueType] : [],
-    ...request.parentId === undefined ? [] : ["--parent", request.parentId],
-    ...request.blockedByIds.flatMap((id) => ["--add-blocked-by", id]),
-    ...repoArguments
-  ];
-  return {
-    createIssue(request) {
-      const labels = request.labels.flatMap((label) => ["--label", label]);
-      const url = runGh([
-        "issue",
-        "create",
-        "--title",
-        request.title,
-        "--body",
-        request.body,
-        ...labels,
-        ...repoArguments
-      ]).trim();
-      const id = url.split("/").pop()?.trim() ?? "";
-      if (!/^\d+$/.test(id)) {
-        throw new Error(`Could not parse a GitHub issue number from gh output: "${url}"`);
-      }
-      return Promise.resolve({ id, url });
-    },
-    updateIssue(request) {
-      const current = runGh([
-        "issue",
-        "view",
-        request.id,
-        "--json",
-        "labels",
-        "--jq",
-        ".labels[].name",
-        ...repoArguments
-      ]).split(`
-`).map((name) => name.trim()).filter(Boolean);
-      const { add, remove: remove2 } = reconcileOwnedLabels(current, request.labels);
-      const labelArguments = [
-        ...add.flatMap((label) => ["--add-label", label]),
-        ...remove2.flatMap((label) => ["--remove-label", label])
-      ];
-      runGh([
-        "issue",
-        "edit",
-        request.id,
-        "--title",
-        request.title,
-        ...labelArguments,
-        ...repoArguments
-      ]);
-      if (request.state === "closed") {
-        runGh(["issue", "close", request.id, ...repoArguments]);
-      }
-      return Promise.resolve();
-    },
-    projectGraph(request) {
-      try {
-        runGh(graphEditArguments(request, { includeType: true }));
-      } catch (error2) {
-        if (!isUnsupportedIssueTypeError(error2))
-          throw error2;
-        runGh(graphEditArguments(request, { includeType: false }));
-      }
-      return Promise.resolve();
-    }
-  };
-}
-function resolveRepoVisibility(repo) {
-  if (repo === undefined)
-    return;
-  try {
-    const visibility = execFileSync2("gh", ["repo", "view", repo, "--json", "visibility", "--jq", ".visibility"], { encoding: "utf8" }).trim().toLowerCase();
-    return visibility === "public" ? "public" : "private";
-  } catch {
-    return;
-  }
-}
-function throwingClient(message) {
-  const fail = () => {
-    throw new Error(message);
-  };
-  return { createIssue: fail, updateIssue: fail, projectGraph: fail };
-}
-function linearNotWired() {
-  return throwingClient(LINEAR_LIVE_PROJECTION_GUIDANCE);
-}
-function unconfigured(provider) {
-  return throwingClient(`${provider} is not the configured provider`);
-}
-function buildWriterRegistry(provider, target) {
-  const liveClient = provider === "github" ? githubClient(target?.repo) : linearNotWired();
-  const other = provider === "github" ? "linear" : "github";
-  return {
-    [provider]: createWriter(provider, liveClient),
-    [other]: createWriter(other, unconfigured(other))
-  };
-}
-var LINEAR_LIVE_PROJECTION_GUIDANCE = "Linear live projection is not wired. Adopt an existing Linear issue with `safeword ticket new <slug> --issue <key>`, or sync existing local tickets through `safeword tracker sync --plan` and `--apply-results`.";
-var init_clients = __esm(() => {
-  init_backoff();
-  init_labels();
-});
-
-// src/tracker-sync/config.ts
-var exports_config = {};
-__export(exports_config, {
-  readTicketBridgeConfig: () => readTicketBridgeConfig
-});
-import { existsSync as existsSync6, readFileSync as readFileSync8 } from "fs";
-import nodePath14 from "path";
-function readTicketBridgeConfig(cwd) {
-  const configPath2 = nodePath14.join(cwd, ".safeword", "config.json");
-  if (!existsSync6(configPath2))
-    return { ...DEFAULT_CONFIG };
-  let parsed2;
-  try {
-    parsed2 = JSON.parse(readFileSync8(configPath2, "utf8"));
-  } catch {
-    return { ...DEFAULT_CONFIG };
-  }
-  if (typeof parsed2 !== "object" || parsed2 === null || !("ticketBridge" in parsed2)) {
-    return { ...DEFAULT_CONFIG };
-  }
-  const bridge = parsed2.ticketBridge;
-  if (typeof bridge !== "object" || bridge === null)
-    return { ...DEFAULT_CONFIG };
-  const block = bridge;
-  return {
-    provider: typeof block.provider === "string" ? block.provider : "none",
-    body: block.body === "full" ? "full" : "minimal",
-    target: block.target,
-    defaultAssignee: block.defaultAssignee
-  };
-}
-var DEFAULT_CONFIG;
-var init_config = __esm(() => {
-  DEFAULT_CONFIG = { provider: "none", body: "minimal" };
-});
-
-// src/tracker-sync/contract.ts
-function emptyPlan() {
-  return { version: PLAN_CONTRACT_VERSION, intents: [] };
-}
-function parseResultRow(raw, index) {
-  if (typeof raw !== "object" || raw === null) {
-    return { ok: false, reason: `result ${index} is not an object` };
-  }
-  const row = raw;
-  if (typeof row.ticketId !== "string" || row.ticketId.length === 0) {
-    return { ok: false, reason: `result ${index} is missing a ticketId` };
-  }
-  if (typeof row.number !== "string" || row.number.length === 0) {
-    return { ok: false, reason: `result "${row.ticketId}" is missing an issue number` };
-  }
-  if (typeof row.url !== "string" || row.url.length === 0) {
-    return { ok: false, reason: `result "${row.ticketId}" is missing an issue url` };
-  }
-  return {
-    ok: true,
-    value: {
-      ticketId: row.ticketId,
-      number: row.number,
-      url: row.url,
-      ...typeof row.status === "string" && { status: row.status }
-    }
-  };
-}
-function parseResults(jsonText) {
-  let parsed2;
-  try {
-    parsed2 = JSON.parse(jsonText);
-  } catch {
-    return { ok: false, reason: "results file is not valid JSON" };
-  }
-  if (typeof parsed2 !== "object" || parsed2 === null) {
-    return { ok: false, reason: "results must be a JSON object" };
-  }
-  const document_ = parsed2;
-  if (document_.version !== PLAN_CONTRACT_VERSION) {
-    return {
-      ok: false,
-      reason: `unsupported results version ${String(document_.version)} (expected ${PLAN_CONTRACT_VERSION})`
-    };
-  }
-  if (!Array.isArray(document_.results)) {
-    return { ok: false, reason: "results must be an array" };
-  }
-  const rows = [];
-  for (const [index, raw] of document_.results.entries()) {
-    const row = parseResultRow(raw, index);
-    if (!row.ok)
-      return row;
-    rows.push(row.value);
-  }
-  return { ok: true, value: { version: PLAN_CONTRACT_VERSION, results: rows } };
-}
-var PLAN_CONTRACT_VERSION = 1;
-
-// src/utils/ticket-reference.ts
-function formatTicketReference(id, label) {
-  return label ? `${label} (${id})` : id;
-}
-
-// src/utils/ticket-relations.ts
-function parseTicketIdList(raw) {
-  if (raw === undefined)
-    return [];
-  const inner = raw.trim().replace(/^\[/, "").replace(/\]$/, "");
-  return inner.split(",").map((id) => id.trim()).filter((id) => id.length > 0);
-}
-function deriveBlocks(nodes) {
-  const blocks = new Map;
-  for (const node of nodes) {
-    for (const target of node.dependsOn) {
-      const blockers = blocks.get(target) ?? [];
-      blockers.push(node.id);
-      blocks.set(target, blockers);
-    }
-  }
-  return blocks;
-}
-function findDanglingDependencies(nodes) {
-  const known = new Set(nodes.map((node) => node.id));
-  const dangling = [];
-  for (const node of nodes) {
-    for (const target of node.dependsOn) {
-      if (!known.has(target))
-        dangling.push({ from: node.id, missing: target });
-    }
-  }
-  return dangling.toSorted((a, b) => a.from.localeCompare(b.from) || a.missing.localeCompare(b.missing));
-}
-function findTicketsInCycles(nodes) {
-  const edges = new Map(nodes.map((node) => [node.id, node.dependsOn]));
-  const inCycle = new Set;
-  for (const start of edges.keys()) {
-    if (reachesSelf(start, edges))
-      inCycle.add(start);
-  }
-  return [...inCycle].toSorted((a, b) => a.localeCompare(b));
-}
-function reachesSelf(start, edges) {
-  const stack = [...edges.get(start) ?? []];
-  const seen = new Set;
-  while (stack.length > 0) {
-    const next = stack.pop();
-    if (next === undefined)
-      continue;
-    if (next === start) {
-      return true;
-    }
-    if (seen.has(next))
-      continue;
-    seen.add(next);
-    stack.push(...edges.get(next) ?? []);
-  }
-  return false;
-}
-
-// src/ticket-sync/index.ts
-var exports_ticket_sync = {};
-__export(exports_ticket_sync, {
-  syncTickets: () => syncTickets,
-  readTickets: () => readTickets,
-  inspectTicketIndexConflicts: () => inspectTicketIndexConflicts,
-  buildIndexContent: () => buildIndexContent,
-  TICKETS_RELATIVE_PATH: () => TICKETS_RELATIVE_PATH,
-  INDEX_FILENAME: () => INDEX_FILENAME,
-  COMPLETED_INDEX_FILENAME: () => COMPLETED_INDEX_FILENAME,
-  COMPLETED_DIRNAME: () => COMPLETED_DIRNAME
-});
-import { existsSync as existsSync7, readdirSync as readdirSync5, readFileSync as readFileSync9, writeFileSync as writeFileSync6 } from "fs";
-import nodePath15 from "path";
-function hasMergeConflictMarkers(content) {
-  return MERGE_CONFLICT_MARKER_PATTERN.test(content);
-}
-function detectConflictedIndex(indexPath) {
-  if (!existsSync7(indexPath))
-    return;
-  const content = readFileSync9(indexPath, "utf8");
-  return hasMergeConflictMarkers(content) ? indexPath : undefined;
-}
-function inspectTicketIndexConflicts(cwd) {
-  const ticketsDirectory = resolveTicketsDirectory(cwd);
-  return [
-    detectConflictedIndex(nodePath15.join(ticketsDirectory, INDEX_FILENAME)),
-    detectConflictedIndex(nodePath15.join(ticketsDirectory, COMPLETED_INDEX_FILENAME))
-  ].filter((path2) => path2 !== undefined);
-}
-function stripQuotes(value) {
-  if (value.length >= 2 && (value.startsWith("'") && value.endsWith("'") || value.startsWith('"') && value.endsWith('"'))) {
-    return value.slice(1, -1);
-  }
-  return value;
-}
-function parseFrontmatter(content) {
-  const lines = content.split(`
-`);
-  const fields = new Map;
-  if (lines[0]?.trim() !== "---")
-    return { fields, bodyStart: 0 };
-  for (let index = 1;index < lines.length; index += 1) {
-    const line = lines[index] ?? "";
-    if (line.trim() === "---")
-      return { fields, bodyStart: index + 1 };
-    const match = /^([a-z_][\w-]*):(.*)$/i.exec(line);
-    if (match?.[1] !== undefined)
-      fields.set(match[1], stripQuotes((match[2] ?? "").trim()));
-  }
-  return { fields, bodyStart: 0 };
-}
-function firstHeading(bodyLines) {
-  for (const line of bodyLines) {
-    if (line.startsWith("# "))
-      return line.slice(2).trim();
-  }
-  return;
-}
-function goalLine(bodyLines) {
-  for (const line of bodyLines) {
-    const match = /^\*\*Goal:\*\*(.*)$/.exec(line.trim());
-    if (match?.[1] !== undefined) {
-      const goal = match[1].trim();
-      if (goal.length > 0)
-        return goal;
-    }
-  }
-  return;
-}
-function parseStringList(raw) {
-  if (raw === undefined)
-    return [];
-  const normalized = raw.trim();
-  if (normalized === "")
-    return [];
-  const listBody = normalized.startsWith("[") && normalized.endsWith("]") ? normalized.slice(1, -1) : normalized;
-  return listBody.split(",").map((item) => stripQuotes(item.trim())).map((item) => item.trim()).filter(Boolean);
-}
-function parseTicket(filePath, folder) {
-  const content = readFileSync9(filePath, "utf8");
-  const { fields, bodyStart } = parseFrontmatter(content);
-  const id = fields.get("id");
-  if (id === undefined || id.length === 0) {
-    return { ok: false, reason: "missing id: in frontmatter" };
-  }
-  const bodyLines = content.split(`
-`).slice(bodyStart);
-  const title = fields.get("title") ?? firstHeading(bodyLines) ?? fields.get("slug") ?? folder;
-  const status = fields.get("status") ?? "\u2014";
-  const epic = fields.get("epic");
-  const parent = fields.get("parent");
-  return {
-    ok: true,
-    entry: {
-      id,
-      folder,
-      title,
-      status,
-      epic,
-      parent,
-      externalIssue: fields.get("external_issue") ?? fields.get("external"),
-      externalPullRequests: parseStringList(fields.get("external_prs")),
-      goal: goalLine(bodyLines),
-      dependsOn: parseTicketIdList(fields.get("depends_on")),
-      blockedOn: parseTicketIdList(fields.get("blocked_on")),
-      blockedOnOverride: fields.get("blocked_on_override")
-    }
-  };
-}
-function readTicketFolders(directory, pathPrefix) {
-  if (!existsSync7(directory))
-    return { entries: [], skipped: [] };
-  const entries = [];
-  const skipped = [];
-  const folders = readdirSync5(directory, { withFileTypes: true }).filter((dirent) => dirent.isDirectory() && !SKIP_DIRECTORIES.has(dirent.name)).map((dirent) => dirent.name).toSorted((a, b) => a.localeCompare(b));
-  for (const folder of folders) {
-    const ticketPath = nodePath15.join(directory, folder, "ticket.md");
-    if (!existsSync7(ticketPath))
-      continue;
-    const parsed2 = parseTicket(ticketPath, folder);
-    if (parsed2.ok) {
-      entries.push({ ...parsed2.entry, relativePath: `${pathPrefix}/${folder}` });
-    } else {
-      skipped.push({ folder, reason: parsed2.reason });
-    }
-  }
-  return { entries, skipped };
-}
-function readTickets(ticketsDirectory, relativeLabel = TICKETS_RELATIVE_PATH) {
-  const active = readTicketFolders(ticketsDirectory, relativeLabel);
-  const completed = readTicketFolders(nodePath15.join(ticketsDirectory, COMPLETED_DIRNAME), `${relativeLabel}/${COMPLETED_DIRNAME}`);
-  const byId = (a, b) => a.id.localeCompare(b.id);
-  return {
-    active: active.entries.toSorted(byId),
-    completed: completed.entries.toSorted(byId),
-    skipped: [...active.skipped, ...completed.skipped]
-  };
-}
-function renderRelation(ids, labelById) {
-  return ids.map((id) => {
-    const title = labelById.get(id);
-    return title === undefined ? id : formatTicketReference(id, title);
-  }).join(", ");
-}
-function renderEntry(entry, blocks, labelById) {
-  const epic = entry.epic ?? "\u2014";
-  const lines = [
-    `- **${formatTicketReference(entry.id, entry.title)}** (${entry.status}, epic: ${epic})`
-  ];
-  if (entry.goal !== undefined)
-    lines.push(`  ${entry.goal}`);
-  if (entry.dependsOn.length > 0) {
-    lines.push(`  blocked by: ${renderRelation(entry.dependsOn, labelById)}`);
-  }
-  const blocking = blocks.get(entry.id) ?? [];
-  if (blocking.length > 0)
-    lines.push(`  blocks: ${renderRelation(blocking, labelById)}`);
-  if (entry.blockedOnOverride !== undefined)
-    lines.push(`  override: ${entry.blockedOnOverride}`);
-  if (entry.externalIssue !== undefined && entry.externalIssue.length > 0) {
-    lines.push(`  external issue: ${entry.externalIssue}`);
-  }
-  if (entry.externalPullRequests.length > 0) {
-    lines.push(`  external PRs: ${entry.externalPullRequests.join(", ")}`);
-  }
-  lines.push(`  \u2192 \`${entry.relativePath}\``);
-  return lines;
-}
-function groupByEpic(entries) {
-  const groups = new Map;
-  for (const entry of entries) {
-    const key = entry.parent ?? entry.epic ?? NO_EPIC_GROUP;
-    const bucket = groups.get(key);
-    if (bucket)
-      bucket.push(entry);
-    else
-      groups.set(key, [entry]);
-  }
-  return [...groups].toSorted(([a], [b]) => {
-    if (a === NO_EPIC_GROUP)
-      return 1;
-    if (b === NO_EPIC_GROUP)
-      return -1;
-    return a.localeCompare(b);
-  });
-}
-function buildIndexContent(entries, options) {
-  const isActive = options.variant === "active";
-  const headerLines = [
-    isActive ? "# Project Tickets \u2014 Index" : "# Project Tickets \u2014 Completed Archive",
-    "",
-    "<!-- Auto-generated by `safeword project sync-tickets`. Do not edit by hand. -->",
-    isActive ? "<!-- Active tickets, grouped by epic. Completed tickets live in INDEX-completed.md. -->" : "<!-- Completed tickets (the completed/ archive), grouped by epic. -->",
-    "",
-    "<!-- prettier-ignore-start -->",
-    ""
-  ];
-  const footerLines = ["<!-- prettier-ignore-end -->", ""];
-  if (entries.length === 0) {
-    return [
-      ...headerLines,
-      isActive ? "No active tickets." : "No completed tickets.",
-      "",
-      ...footerLines
-    ].join(`
-`);
-  }
-  const blocks = deriveBlocks(entries);
-  const labelById = new Map(entries.map((entry) => [entry.id, entry.title]));
-  const lines = [...headerLines, `## Tickets (${entries.length})`, ""];
-  for (const [epic, group] of groupByEpic(entries)) {
-    lines.push(`### ${epic}`, "");
-    for (const entry of group)
-      lines.push(...renderEntry(entry, blocks, labelById));
-    lines.push("");
-  }
-  lines.push(...footerLines);
-  return lines.join(`
-`);
-}
-function writeIfChanged(path2, content) {
-  const previous = existsSync7(path2) ? readFileSync9(path2, "utf8") : undefined;
-  if (previous === content)
-    return false;
-  writeFileSync6(path2, content);
-  return true;
-}
-function syncTickets(cwd) {
-  const ticketsDirectory = resolveTicketsDirectory(cwd);
-  const relativeLabel = nodePath15.relative(cwd, ticketsDirectory) || TICKETS_RELATIVE_PATH;
-  const indexPath = nodePath15.join(ticketsDirectory, INDEX_FILENAME);
-  const completedIndexPath = nodePath15.join(ticketsDirectory, COMPLETED_INDEX_FILENAME);
-  if (!existsSync7(ticketsDirectory)) {
-    return {
-      wrote: false,
-      active: [],
-      completed: [],
-      skipped: [],
-      indexPath,
-      completedIndexPath,
-      indexConflicts: []
-    };
-  }
-  const indexConflicts = inspectTicketIndexConflicts(cwd);
-  const { active, completed, skipped } = readTickets(ticketsDirectory, relativeLabel);
-  const isWroteActive = writeIfChanged(indexPath, buildIndexContent(active, { variant: "active" }));
-  const completedDirectory = nodePath15.join(ticketsDirectory, COMPLETED_DIRNAME);
-  const isWroteCompleted = completed.length > 0 || existsSync7(completedDirectory) ? writeIfChanged(completedIndexPath, buildIndexContent(completed, { variant: "completed" })) : false;
-  return {
-    wrote: isWroteActive || isWroteCompleted,
-    active,
-    completed,
-    skipped,
-    indexPath,
-    completedIndexPath,
-    indexConflicts
-  };
-}
-var TICKETS_RELATIVE_PATH = "<namespace-root>/tickets", INDEX_FILENAME = "INDEX.md", COMPLETED_INDEX_FILENAME = "INDEX-completed.md", COMPLETED_DIRNAME = "completed", NO_EPIC_GROUP = "(no epic)", SKIP_DIRECTORIES, MERGE_CONFLICT_MARKER_PATTERN;
-var init_ticket_sync = __esm(() => {
-  init_configured_paths();
-  SKIP_DIRECTORIES = new Set([COMPLETED_DIRNAME, "tmp"]);
-  MERGE_CONFLICT_MARKER_PATTERN = /^(?:<{7}|={7}|>{7})(?:\s|$)/m;
-});
-
-// src/tracker-sync/corpus.ts
-var exports_corpus = {};
-__export(exports_corpus, {
-  toTicketInput: () => toTicketInput,
-  readCorpus: () => readCorpus,
-  backLinkUrl: () => backLinkUrl
-});
-import { existsSync as existsSync8, readFileSync as readFileSync10 } from "fs";
-import nodePath16 from "path";
-function parseType(content) {
-  return /^type:\s*(\S+)/m.exec(content)?.[1] ?? "task";
-}
-function parseScalar(content, field) {
-  const prefix = `${field}:`;
-  const line = content.split(`
-`).find((candidate) => candidate.startsWith(prefix));
-  const value = line?.slice(prefix.length).trim();
-  if (value === undefined || value.length === 0)
-    return;
-  if (value.length >= 2 && (value.startsWith("'") && value.endsWith("'") || value.startsWith('"') && value.endsWith('"'))) {
-    return value.slice(1, -1);
-  }
-  return value;
-}
-function backLinkUrl(relativePath, repo) {
-  return repo === undefined ? relativePath : `https://github.com/${repo}/tree/HEAD/${relativePath}`;
-}
-function toTicketInput(entry, type, repo, bodyMarkdown, graph = {}) {
-  return {
-    id: entry.id,
-    slug: graph.slug,
-    folder: nodePath16.basename(entry.relativePath),
-    title: entry.title,
-    status: entry.status,
-    type,
-    epic: entry.epic,
-    parent: graph.parent,
-    dependsOn: entry.dependsOn ?? [],
-    blockedOn: entry.blockedOn ?? [],
-    ticketUrl: backLinkUrl(entry.relativePath, repo),
-    bodyMarkdown
-  };
-}
-function readCorpus(cwd, repo) {
-  const ticketsDirectory = resolveTicketsDirectory(cwd);
-  const relativeLabel = nodePath16.relative(cwd, ticketsDirectory) || TICKETS_RELATIVE_PATH;
-  return readTickets(ticketsDirectory, relativeLabel).active.map((entry) => {
-    const ticketPath = nodePath16.join(cwd, entry.relativePath, "ticket.md");
-    const content = existsSync8(ticketPath) ? readFileSync10(ticketPath, "utf8") : undefined;
-    return toTicketInput(entry, parseType(content ?? ""), repo, content, {
-      parent: parseScalar(content ?? "", "parent"),
-      slug: parseScalar(content ?? "", "slug")
-    });
-  });
-}
-var init_corpus = __esm(() => {
-  init_ticket_sync();
-  init_configured_paths();
-});
-
-// src/tracker-sync/payload.ts
-function banner(ticket) {
-  return `\uD83D\uDD01 Mirror of safeword ticket ${ticket.id}. Source of truth is the repo. ` + `Status & assignee are yours to set here; title & labels sync from the repo and overwrite edits.`;
-}
-function buildBody(ticket, bodyMode) {
-  const head = `${banner(ticket)}
-
-safeword ticket ${ticket.id} \u2192 ${ticket.ticketUrl}`;
-  if (bodyMode === "full" && ticket.bodyMarkdown !== undefined) {
-    return `${head}
-
----
-
-${ticket.bodyMarkdown}`;
-  }
-  return head;
-}
-function buildPayload(ticket, options) {
-  const labels = [`type:${ticket.type}`];
-  if (ticket.epic !== undefined && ticket.epic.length > 0) {
-    labels.unshift(`epic:${ticket.epic}`);
-  }
-  return {
-    title: ticket.title,
-    body: buildBody(ticket, options.bodyMode),
-    issueType: ticket.type,
-    labels,
-    state: TERMINAL_STATUSES.has(ticket.status) ? "closed" : "open"
-  };
-}
-var TERMINAL_STATUSES;
-var init_payload = __esm(() => {
-  TERMINAL_STATUSES = new Set(["done", "cancelled", "superseded", "wontfix"]);
-});
-
-// src/tracker-sync/ticket-references.ts
-function ticketAliases(ticket) {
-  return [ticket.id, ticket.slug, ticket.folder].filter(isString);
-}
-function aliasMap(tickets) {
-  const aliases = new Map;
-  for (const ticket of tickets) {
-    for (const alias of ticketAliases(ticket))
-      aliases.set(alias, ticket.id);
-  }
-  return aliases;
-}
-function resolveTicketReference(raw, aliases) {
-  if (raw === undefined || raw.length === 0)
-    return;
-  return aliases.get(raw);
-}
-function resolveGraphTicketIds(ticket, aliases) {
-  const isExternalEdge = (id) => id !== undefined && id !== ticket.id;
-  const parentCandidate = resolveTicketReference(ticket.parent, aliases) ?? resolveTicketReference(ticket.epic, aliases);
-  const parentTicketId = isExternalEdge(parentCandidate) ? parentCandidate : undefined;
-  const blockedByTicketIds = [
-    ...new Set([...ticket.dependsOn ?? [], ...ticket.blockedOn ?? []].map((reference) => resolveTicketReference(reference, aliases)).filter((id) => isExternalEdge(id)))
-  ];
-  return {
-    ...parentTicketId !== undefined && { parentTicketId },
-    blockedByTicketIds
-  };
-}
-function isString(value) {
-  return value !== undefined;
-}
-function prerequisiteIds(ticket, aliases) {
-  const prerequisites = [
-    resolveTicketReference(ticket.parent, aliases),
-    resolveTicketReference(ticket.epic, aliases),
-    ...(ticket.dependsOn ?? []).map((id) => resolveTicketReference(id, aliases)),
-    ...(ticket.blockedOn ?? []).map((id) => resolveTicketReference(id, aliases))
-  ];
-  return [...new Set(prerequisites.filter(isString).filter((id) => id !== ticket.id))];
-}
-function orderTicketsForProjection(tickets) {
-  const aliases = aliasMap(tickets);
-  const byId = new Map(tickets.map((ticket) => [ticket.id, ticket]));
-  const ordered = [];
-  const visiting = new Set;
-  const visited = new Set;
-  function visit(ticket) {
-    if (visited.has(ticket.id))
-      return;
-    if (visiting.has(ticket.id))
-      return;
-    visiting.add(ticket.id);
-    for (const prerequisite of prerequisiteIds(ticket, aliases)) {
-      const target = byId.get(prerequisite);
-      if (target !== undefined)
-        visit(target);
-    }
-    visiting.delete(ticket.id);
-    visited.add(ticket.id);
-    ordered.push(ticket);
-  }
-  for (const ticket of tickets)
-    visit(ticket);
-  return ordered;
-}
-
-// src/tracker-sync/index.ts
-var exports_tracker_sync = {};
-__export(exports_tracker_sync, {
-  syncTracker: () => syncTracker,
-  supportedProvider: () => supportedProvider
-});
-function supportedProvider(provider) {
-  return SUPPORTED_PROVIDERS.has(provider) ? provider : undefined;
-}
-function sameProviderReference(map, ticketId, provider) {
-  if (ticketId === undefined)
-    return;
-  const ref = map.lookup(ticketId)?.ref;
-  return ref?.provider === provider ? ref : undefined;
-}
-function buildGraphProjection(args) {
-  const { parentTicketId, blockedByTicketIds } = resolveGraphTicketIds(args.ticket, args.aliases);
-  return {
-    parent: sameProviderReference(args.map, parentTicketId, args.provider),
-    blockedBy: new Map(blockedByTicketIds.map((id) => sameProviderReference(args.map, id, args.provider)).filter((ref) => ref !== undefined).map((ref) => [ref.id, ref])).values().toArray()
-  };
-}
-function emitAdvisories(dependencies, provider, bodyMode) {
-  if (dependencies.nonInteractive === true && dependencies.arcadeUserId !== undefined) {
-    dependencies.log("Warning: Arcade-User-ID is a user identity, not a service account \u2014 sync can fail " + "silently if its OAuth grant lapses. Use a dedicated service identity for CI.");
-  }
-  if (bodyMode === "full" && provider === "github" && dependencies.repoVisibility !== "private") {
-    dependencies.log("\u26A0\uFE0F  Egress warning: projecting full ticket bodies to a GitHub repo not confirmed private.");
-  }
-}
-function loadSidecarOrRefuse(dependencies) {
-  if (dependencies.resetTrackerMap === true)
-    return { ok: true, map: new TrackerMap };
-  const loaded = loadTrackerMap(dependencies.sidecarPath);
-  if (loaded.ok)
-    return { ok: true, map: loaded.map };
-  dependencies.log(`Tracker-map sidecar is ${loaded.reason}. Refusing to recreate issues blindly \u2014 ` + "pass --reset-tracker-map to rebuild it.");
-  return { ok: false, exitCode: 1 };
-}
-async function projectOne(args) {
-  const payload = buildPayload(args.ticket, { bodyMode: args.bodyMode });
-  const action = planTicketSync(args.map, args.ticket.id);
-  const backoff = { sleep: args.sleep, ...BACKOFF };
-  let currentReference;
-  if (action.kind === "create") {
-    const ref = await withBackoff(() => dispatchCreate(args.writers, args.provider, payload), backoff);
-    args.map.markPending(args.ticket.id, ref);
-    args.map.save(args.sidecarPath);
-    args.map.record(args.ticket.id, ref);
-    args.map.save(args.sidecarPath);
-    currentReference = ref;
-  } else {
-    if (action.kind === "reconcile")
-      args.map.record(args.ticket.id, action.ref);
-    await withBackoff(() => args.writers[args.provider].update(action.ref, payload), backoff);
-    args.map.save(args.sidecarPath);
-    currentReference = action.ref;
-  }
-  const graph = buildGraphProjection({
-    ticket: args.ticket,
-    map: args.map,
-    provider: args.provider,
-    aliases: args.aliases
-  });
-  await withBackoff(() => args.writers[args.provider].projectGraph(currentReference, payload, graph), backoff);
-}
-async function syncTracker(dependencies) {
-  const { config, log } = dependencies;
-  const provider = supportedProvider(config.provider);
-  if (provider === undefined) {
-    log("No tracker configured; run `safeword install` to add one.");
-    return { exitCode: 0 };
-  }
-  if (!resolveCredential(provider, { env: dependencies.env, keychain: dependencies.keychain }).ok) {
-    log(`No ${provider} credential resolved \u2014 set the token in your keychain or env. Aborting.`);
-    return { exitCode: 1 };
-  }
-  const bodyMode = config.body ?? "minimal";
-  emitAdvisories(dependencies, provider, bodyMode);
-  const sidecar = loadSidecarOrRefuse(dependencies);
-  if (!sidecar.ok)
-    return { exitCode: sidecar.exitCode };
-  const sleep = dependencies.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
-  const tickets = orderTicketsForProjection(dependencies.tickets);
-  const aliases = aliasMap(tickets);
-  for (const ticket of tickets) {
-    await projectOne({
-      ticket,
-      map: sidecar.map,
-      provider,
-      writers: dependencies.writers,
-      bodyMode,
-      sleep,
-      sidecarPath: dependencies.sidecarPath,
-      aliases
-    });
-  }
-  return { exitCode: 0 };
-}
-var SUPPORTED_PROVIDERS, BACKOFF;
-var init_tracker_sync = __esm(() => {
-  init_backoff();
-  init_payload();
-  init_secrets();
-  init_tracker_map();
-  SUPPORTED_PROVIDERS = new Set(["linear", "github"]);
-  BACKOFF = { maxRetries: 3, baseMs: 50 };
-});
-
-// src/tracker-sync/plan.ts
-function buildGraphEdges(ticket, aliases) {
-  const { parentTicketId, blockedByTicketIds } = resolveGraphTicketIds(ticket, aliases);
-  const graph = {};
-  if (parentTicketId !== undefined)
-    graph.parentTicketId = parentTicketId;
-  if (blockedByTicketIds.length > 0)
-    graph.blockedByTicketIds = blockedByTicketIds;
-  return Object.keys(graph).length > 0 ? graph : undefined;
-}
-function computePlan(input) {
-  const aliases = aliasMap(input.tickets);
-  const intents = [];
-  for (const ticket of orderTicketsForProjection(input.tickets)) {
-    const payload = buildPayload(ticket, { bodyMode: input.bodyMode });
-    const action = planTicketSync(input.map, ticket.id);
-    let intent;
-    if (action.kind === "create") {
-      intent = { kind: "create", ticketId: ticket.id, payload };
-    } else if (payload.state === "closed") {
-      intent = { kind: "close", ticketId: ticket.id, ref: action.ref, payload };
-    } else {
-      intent = { kind: "update", ticketId: ticket.id, ref: action.ref, payload };
-    }
-    const graph = buildGraphEdges(ticket, aliases);
-    if (graph !== undefined)
-      intent.graph = graph;
-    intents.push(intent);
-  }
-  return { version: PLAN_CONTRACT_VERSION, intents };
-}
-var init_plan2 = __esm(() => {
-  init_payload();
-  init_tracker_map();
-});
-
-// src/utils/gh-cli.ts
-var exports_gh_cli = {};
-__export(exports_gh_cli, {
-  resolveGhCliToken: () => resolveGhCliToken,
-  isBearerCredentialSyntax: () => isBearerCredentialSyntax
-});
-import { spawnSync } from "child_process";
-function isBearerCredentialSyntax(value) {
-  return /^[\w.~+/-]+=*$/.test(value);
-}
-function resolveGhCliToken(env) {
-  try {
-    const childEnvironment = Object.fromEntries(Object.entries(env).filter(([key]) => key.toUpperCase() !== GITHUB_TOKEN_ENV_KEY.toUpperCase()));
-    const result = spawnSync("gh", ["auth", "token"], {
-      encoding: "utf8",
-      timeout: 1e4,
-      env: childEnvironment
-    });
-    const token = (result.stdout ?? "").replace(/\r?\n$/, "");
-    return result.status === 0 && isBearerCredentialSyntax(token) ? token : undefined;
-  } catch {
-    return;
-  }
-}
-var GITHUB_TOKEN_ENV_KEY = "GITHUB_TOKEN";
-var init_gh_cli = () => {};
-
-// src/commands/sync-tracker.ts
-var exports_sync_tracker = {};
-__export(exports_sync_tracker, {
-  syncTrackerCommand: () => syncTrackerCommand,
-  planTrackerSync: () => planTrackerSync,
-  applyTrackerSyncResults: () => applyTrackerSyncResults
-});
-import { existsSync as existsSync9, readFileSync as readFileSync11 } from "fs";
-import process6 from "process";
-function planTrackerSync(cwd, config) {
-  const provider = supportedProvider(config.provider);
-  if (provider === undefined) {
-    return {
-      ok: true,
-      mode: "plan",
-      provider,
-      plan: emptyPlan(),
-      messages: [
-        "no tracker configured; planning nothing (run `safeword tracker connect` to add one)"
-      ]
-    };
-  }
-  const messages = [];
-  const bodyMode = config.body ?? "minimal";
-  if (bodyMode === "full" && provider === "github") {
-    messages.push("Egress warning: this plan carries full ticket bodies for a GitHub repo whose visibility was not confirmed");
-  }
-  const sidecarPath = trackerMapPath(cwd);
-  const loaded = loadTrackerMapOrEmpty(sidecarPath);
-  if (!loaded.ok) {
-    return {
-      ok: false,
-      mode: "plan",
-      reason: `${sidecarPath} is corrupt; refusing to plan against it`,
-      messages
-    };
-  }
-  return {
-    ok: true,
-    mode: "plan",
-    provider,
-    plan: computePlan({
-      tickets: readCorpus(cwd, config.target?.repo),
-      map: loaded.map,
-      bodyMode
-    }),
-    messages
-  };
-}
-function applyTrackerSyncResults(cwd, config, filePath) {
-  const provider = supportedProvider(config.provider);
-  if (provider === undefined) {
-    return { ok: false, mode: "apply", reason: "no tracker provider is configured", messages: [] };
-  }
-  let raw;
-  try {
-    raw = readFileSync11(filePath, "utf8");
-  } catch {
-    return {
-      ok: false,
-      mode: "apply",
-      reason: `cannot read results file ${filePath}`,
-      messages: []
-    };
-  }
-  const parsed2 = parseResults(raw);
-  if (!parsed2.ok)
-    return { ok: false, mode: "apply", reason: parsed2.reason, messages: [] };
-  const sidecarPath = trackerMapPath(cwd);
-  const loaded = loadTrackerMapOrEmpty(sidecarPath);
-  if (!loaded.ok) {
-    return { ok: false, mode: "apply", reason: `${sidecarPath} is corrupt`, messages: [] };
-  }
-  const before = existsSync9(sidecarPath) ? readFileSync11(sidecarPath, "utf8") : undefined;
-  const ticketIds = new Set(readCorpus(cwd, config.target?.repo).map((ticket) => ticket.id));
-  const outcome = applyResults(loaded.map, parsed2.value, { provider, ticketIds });
-  if (!outcome.ok)
-    return { ok: false, mode: "apply", reason: outcome.reason, messages: [] };
-  loaded.map.save(sidecarPath);
-  const after = readFileSync11(sidecarPath, "utf8");
-  return { ok: true, mode: "apply", provider, changed: before !== after, messages: [] };
-}
-function runPlan(cwd, config) {
-  const result = planTrackerSync(cwd, config);
-  for (const message of result.messages)
-    note(message);
-  if (!result.ok) {
-    fail(result.reason);
-    return;
-  }
-  if (result.mode !== "plan") {
-    fail("internal tracker planning mode mismatch");
-    return;
-  }
-  process6.stdout.write(`${JSON.stringify(result.plan, undefined, 2)}
-`);
-}
-function runApply(cwd, config, filePath) {
-  const result = applyTrackerSyncResults(cwd, config, filePath);
-  if (!result.ok)
-    fail(result.reason);
-}
-function note(message) {
-  const suffix = /[.!?]$/.test(message) ? "" : ".";
-  process6.stderr.write(`sync-tracker: ${message}${suffix}
-`);
-}
-function fail(reason) {
-  note(reason);
-  process6.exitCode = 1;
-}
-function egressVisibility(provider, body, repo) {
-  return provider === "github" && body === "full" ? resolveRepoVisibility(repo) : undefined;
-}
-function ghCliCredential(provider) {
-  if (provider !== "github")
-    return;
-  return resolveGhCliToken(process6.env);
-}
-async function syncTrackerCommand(options = {}) {
-  if (options.plan === true && options.applyResults !== undefined) {
-    fail("--plan and --apply-results are mutually exclusive");
-    return;
-  }
-  const cwd = process6.cwd();
-  const config = readTicketBridgeConfig(cwd);
-  if (options.plan === true) {
-    runPlan(cwd, config);
-    return;
-  }
-  if (options.applyResults !== undefined) {
-    runApply(cwd, config, options.applyResults);
-    return;
-  }
-  await runLiveSync(cwd, config, options);
-}
-async function runLiveSync(cwd, config, options) {
-  const provider = supportedProvider(config.provider);
-  if (provider === "linear") {
-    note(LINEAR_LIVE_PROJECTION_GUIDANCE);
-    process6.exitCode = 1;
-    return;
-  }
-  const dependencies = {
-    config,
-    tickets: provider === undefined ? [] : readCorpus(cwd, config.target?.repo),
-    sidecarPath: trackerMapPath(cwd),
-    writers: provider === undefined ? {} : buildWriterRegistry(provider, config.target),
-    env: process6.env,
-    keychain: ghCliCredential,
-    resetTrackerMap: options.resetTrackerMap,
-    nonInteractive: process6.env.CI !== undefined,
-    arcadeUserId: process6.env.ARCADE_USER_ID,
-    repoVisibility: egressVisibility(provider, config.body, config.target?.repo),
-    log: (message) => {
-      console.log(message);
-    }
-  };
-  try {
-    const result = await syncTracker(dependencies);
-    if (result.exitCode !== 0)
-      process6.exitCode = result.exitCode;
-  } catch (error2) {
-    process6.stderr.write(`sync-tracker failed: ${error2.message}
-`);
-    process6.exitCode = 1;
-  }
-}
-var init_sync_tracker = __esm(() => {
-  init_clients();
-  init_config();
-  init_corpus();
-  init_tracker_sync();
-  init_plan2();
-  init_tracker_map();
-  init_gh_cli();
-});
-
-// src/utils/ticket-writer.ts
-import { existsSync as existsSync10, mkdirSync as mkdirSync4, readdirSync as readdirSync6, readFileSync as readFileSync12, writeFileSync as writeFileSync7 } from "fs";
-import nodePath17 from "path";
-function assertSafeTrackerIdentity(id) {
-  if (!SAFE_TRACKER_IDENTITY.test(id) || WINDOWS_RESERVED_DEVICE_WITH_EXTENSION.test(id)) {
-    throw new Error(`Tracker returned "${JSON.stringify(id)}", which is not a safe ticket identity.`);
-  }
-}
-function createTicket(cwd, minter, options) {
-  const ticketsDirectory = ensureTicketsDirectory(cwd);
-  const { id, folderPath } = mintAndClaim(ticketsDirectory, minter, options.slug);
-  const { ticketPath } = writeTicketContents(folderPath, id, options);
-  return { id, folderPath, ticketPath };
-}
-async function createIssueFirstTicket(cwd, options, identity, onMinted) {
-  const minted = await identity();
-  assertSafeTrackerIdentity(minted.id);
-  onMinted?.(minted);
-  const ticketsDirectory = ensureTicketsDirectory(cwd);
-  const folderPath = nodePath17.join(ticketsDirectory, `${minted.id}-${options.slug}`);
-  try {
-    mkdirSync4(folderPath);
-  } catch (error2) {
-    if (error2.code === "EEXIST") {
-      throw new Error(`A ticket folder already exists for ${minted.id} (${folderPath}).`, {
-        cause: error2
-      });
-    }
-    throw error2;
-  }
-  const { ticketPath } = writeTicketContents(folderPath, minted.id, options);
-  return { id: minted.id, folderPath, ticketPath, ref: minted.ref };
-}
-function ensureTicketsDirectory(cwd) {
-  const ticketsDirectory = resolveTicketsDirectory(cwd);
-  if (!existsSync10(ticketsDirectory)) {
-    mkdirSync4(ticketsDirectory, { recursive: true });
-  }
-  return ticketsDirectory;
-}
-function writeTicketContents(folderPath, id, options) {
-  const ticketPath = nodePath17.join(folderPath, "ticket.md");
-  writeFileSync7(ticketPath, renderTicketMarkdown(id, options));
-  if ((options.type ?? "task") === "feature") {
-    const title = options.title ?? options.slug;
-    writeFileSync7(nodePath17.join(folderPath, "spec.md"), renderSpecMarkdown(title));
-  }
-  return { ticketPath };
-}
-function renderSpecMarkdown(title) {
-  const template = readFileSync12(nodePath17.join(getTemplatesDirectory(), "spec-template.md"), "utf8");
-  return template.replace("{title}", () => title);
-}
-function mintAndClaim(ticketsDirectory, minter, slug) {
-  const takenIds = idsAlreadyTaken(ticketsDirectory);
-  const attempted = [];
-  for (let attempt = 0;attempt < RETRY_BUDGET; attempt++) {
-    const id = minter.mint();
-    if (takenIds.has(id)) {
-      attempted.push(id);
-      continue;
-    }
-    const folderPath = nodePath17.join(ticketsDirectory, `${id}-${slug}`);
-    try {
-      mkdirSync4(folderPath);
-      return { id, folderPath };
-    } catch (error2) {
-      const code = error2.code;
-      if (code !== "EEXIST")
-        throw error2;
-      attempted.push(id);
-    }
-  }
-  throw new TicketIdCollisionError(attempted, RETRY_BUDGET);
-}
-function idsAlreadyTaken(ticketsDirectory) {
-  const ids = new Set;
-  try {
-    for (const entry of readdirSync6(ticketsDirectory)) {
-      if (NON_TICKET_ENTRIES.has(entry))
-        continue;
-      const dashIndex = entry.indexOf("-");
-      ids.add(dashIndex === -1 ? entry : entry.slice(0, dashIndex));
-    }
-  } catch {}
-  return ids;
-}
-function filledOr(value, placeholder) {
-  return value !== undefined && value.trim() !== "" ? value : placeholder;
-}
-function renderTicketMarkdown(id, options) {
-  const type = options.type ?? "task";
-  const now = (options.now ?? (() => new Date))().toISOString();
-  const title = options.title ?? options.slug;
-  const featureReadinessFrontmatter = type === "feature" ? `scope:
-out_of_scope:
-done_when:
-inspiration_contract: v1
-inspiration_contract_scaffold: v1
-` : "";
-  const childrenFrontmatter = type === "epic" ? `children: []
-` : "";
-  const parentFrontmatter = options.parent !== undefined && options.parent !== "" ? `parent: ${options.parent}
-` : "";
-  const goal = filledOr(options.goal, "{One sentence: what are we trying to achieve?}");
-  const motivation = type === "feature" ? "**See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes." : `**Why:** ${filledOr(options.why, "{One sentence: why does this matter?}")}`;
-  return `---
-id: ${id}
-slug: ${options.slug}
-type: ${type}
-phase: intake
-status: in_progress
-${featureReadinessFrontmatter}${childrenFrontmatter}${parentFrontmatter}created: ${now}
-last_modified: ${now}
----
-
-# ${title}
-
-**Goal:** ${goal}
-
-${motivation}
-
-## Work Log
-
-- ${now} Started: Created ticket ${id}
-`;
-}
-var RETRY_BUDGET = 5, NON_TICKET_ENTRIES, TicketIdCollisionError, SAFE_TRACKER_IDENTITY, WINDOWS_RESERVED_DEVICE_WITH_EXTENSION;
-var init_ticket_writer = __esm(() => {
-  init_configured_paths();
-  init_fs();
-  NON_TICKET_ENTRIES = new Set(["completed", "tmp"]);
-  TicketIdCollisionError = class TicketIdCollisionError extends Error {
-    attemptedIds;
-    retryBudget;
-    constructor(attemptedIds, retryBudget) {
-      super(`Failed to mint a unique ticket ID after ${retryBudget} attempts. Tried: ${attemptedIds.join(", ")}.`);
-      this.attemptedIds = attemptedIds;
-      this.retryBudget = retryBudget;
-      this.name = "TicketIdCollisionError";
-    }
-  };
-  SAFE_TRACKER_IDENTITY = /^[A-Z0-9][\w.-]*$/i;
-  WINDOWS_RESERVED_DEVICE_WITH_EXTENSION = /^(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])\./i;
-});
-
-// src/utils/ticket-folder-matches.ts
-function findTicketFolderMatch(names, ticketId) {
-  let sluggedMatch;
-  const slugPrefix = `${ticketId}-`;
-  for (const name of names) {
-    if (name === ticketId) {
-      return name;
-    }
-    if (sluggedMatch === undefined && name.startsWith(slugPrefix)) {
-      sluggedMatch = name;
-    }
-  }
-  return sluggedMatch;
-}
-
-// src/tracker-sync/resolve-by-key.ts
-function normalizeTrackerKey(key) {
-  return key.startsWith("#") ? key.slice(1) : key;
-}
-var init_resolve_by_key = () => {};
-
-// src/ticket-create/creation-mode.ts
-function resolveCreationMode(config, options) {
-  if (!ISSUE_FIRST_PROVIDERS.has(config.provider))
-    return { mode: "local" };
-  if (options.type === "epic")
-    return { mode: "local" };
-  if (options.issue !== undefined) {
-    const key = normalizeTrackerKey(options.issue);
-    if (key !== "")
-      return { mode: "adopt", key };
-  }
-  return { mode: "create" };
-}
-var ISSUE_FIRST_PROVIDERS;
-var init_creation_mode = __esm(() => {
-  init_resolve_by_key();
-  ISSUE_FIRST_PROVIDERS = new Set(["github", "linear"]);
-});
-
-// src/ticket-create/identity.ts
-function buildIdentitySource(mode, writer, payload) {
-  if (mode.mode === "adopt") {
-    const key = mode.key;
-    return () => Promise.resolve({ id: key, ref: { provider: writer.provider, id: key } });
-  }
-  return async () => {
-    const ref = await writer.create(payload);
-    return { id: ref.id, ref };
-  };
-}
-
-// src/ticket-create/index.ts
-import { existsSync as existsSync11, mkdirSync as mkdirSync5 } from "fs";
-import nodePath18 from "path";
-async function createTicketRouted(cwd, options, dependencies) {
-  const mode = resolveCreationMode(dependencies.config, {
-    issue: options.issue,
-    type: options.type
-  });
-  const ticketOptions = {
-    slug: options.slug,
-    type: options.type,
-    title: options.title,
-    goal: options.goal,
-    why: options.why,
-    parent: options.parent
-  };
-  if (mode.mode === "local") {
-    return { ...createTicket(cwd, dependencies.minter, ticketOptions), mutations: [] };
-  }
-  assertSidecarUsable(cwd);
-  const provider = dependencies.config.provider;
-  const writer = dependencies.buildWriter(provider, dependencies.config.target);
-  const mutations = [];
-  const identitySource = buildIdentitySource(mode, writer, buildMinimalPayload(options));
-  const identity = async () => {
-    const minted = await identitySource();
-    if (mode.mode === "create") {
-      mutations.push({
-        surface: "network",
-        kind: "issue-create",
-        target: provider,
-        operation: "write"
-      });
-    }
-    return minted;
-  };
-  try {
-    const result = await createIssueFirstTicket(cwd, ticketOptions, identity, (minted) => {
-      if (mode.mode !== "create" || minted.ref === undefined)
-        return;
-      const sidecarExisted = existsSync11(trackerMapPath(cwd));
-      writeReference(cwd, minted.id, minted.ref, "pending");
-      mutations.push({
-        surface: "file",
-        kind: sidecarExisted ? "update" : "create",
-        target: ".safeword/tracker-map.json",
-        operation: "write"
-      });
-    });
-    mutations.push({
-      surface: "file",
-      kind: "create",
-      target: nodePath18.relative(cwd, result.folderPath),
-      operation: "mkdir"
-    }, {
-      surface: "file",
-      kind: "create",
-      target: nodePath18.relative(cwd, result.ticketPath),
-      operation: "write"
-    });
-    if (result.ref !== undefined) {
-      writeReference(cwd, result.id, result.ref, "recorded");
-      mutations.push({
-        surface: "file",
-        kind: "update",
-        target: ".safeword/tracker-map.json",
-        operation: "write"
-      });
-    }
-    return { ...result, mutations };
-  } catch (creationError) {
-    if (mutations.length === 0)
-      throw creationError;
-    throw new RoutedTicketCreationError(creationError, mutations);
-  }
-}
-function assertSidecarUsable(cwd) {
-  const sidecarPath = trackerMapPath(cwd);
-  const loaded = loadTrackerMapOrEmpty(sidecarPath);
-  if (!loaded.ok) {
-    throw new Error(`${sidecarPath} is corrupt; refusing to overwrite it. Resolve or remove it before creating a tracker-backed ticket.`);
-  }
-}
-function buildMinimalPayload(options) {
-  const type = options.type ?? "task";
-  return {
-    title: options.title ?? options.slug,
-    body: `safeword ticket: ${options.slug}`,
-    issueType: type,
-    labels: [`type:${type}`],
-    state: "open"
-  };
-}
-function writeReference(cwd, id, ref, status) {
-  const safewordDirectory = nodePath18.join(cwd, ".safeword");
-  if (!existsSync11(safewordDirectory))
-    mkdirSync5(safewordDirectory, { recursive: true });
-  const sidecarPath = trackerMapPath(cwd);
-  const loaded = loadTrackerMapOrEmpty(sidecarPath);
-  if (!loaded.ok) {
-    throw new Error(`${sidecarPath} became corrupt while creating ticket ${id}.`);
-  }
-  if (status === "pending")
-    loaded.map.markPending(id, ref);
-  else
-    loaded.map.record(id, ref);
-  loaded.map.save(sidecarPath);
-}
-var RoutedTicketCreationError;
-var init_ticket_create = __esm(() => {
-  init_tracker_map();
-  init_ticket_writer();
-  init_creation_mode();
-  RoutedTicketCreationError = class RoutedTicketCreationError extends Error {
-    mutations;
-    constructor(cause, mutations) {
-      super(cause instanceof Error ? cause.message : String(cause), { cause });
-      this.name = "RoutedTicketCreationError";
-      this.mutations = mutations;
-    }
-  };
-});
-
-// src/utils/epic-linker.ts
-import { existsSync as existsSync12, readdirSync as readdirSync7, readFileSync as readFileSync13, renameSync as renameSync2, writeFileSync as writeFileSync8 } from "fs";
-import nodePath19 from "path";
-function linkChildToEpic(cwd, childId, epicId) {
-  const epicFolder = resolveTicketFolderById(cwd, epicId);
-  if (epicFolder === undefined) {
-    return { ok: false, reason: `--parent epic "${epicId}" not found` };
-  }
-  const epicPath = nodePath19.join(epicFolder, "ticket.md");
-  const content = readTicketFileOrUndefined(epicPath);
-  if (content === undefined) {
-    return { ok: false, reason: `--parent "${epicId}" has no readable ticket.md` };
-  }
-  if (!isEpicTicket(content)) {
-    return { ok: false, reason: `--parent "${epicId}" is not an epic` };
-  }
-  const children = parseChildrenList(content);
-  if (children.includes(childId))
-    return { ok: true };
-  atomicWrite(epicPath, replaceChildrenList(content, [...children, childId]));
-  return { ok: true };
-}
-function validateEpicParent(cwd, epicId) {
-  const epicFolder = resolveTicketFolderById(cwd, epicId);
-  if (epicFolder === undefined) {
-    return { ok: false, reason: `--parent epic "${epicId}" not found` };
-  }
-  const content = readTicketFileOrUndefined(nodePath19.join(epicFolder, "ticket.md"));
-  if (content === undefined) {
-    return { ok: false, reason: `--parent "${epicId}" has no readable ticket.md` };
-  }
-  if (!isEpicTicket(content)) {
-    return { ok: false, reason: `--parent "${epicId}" is not an epic` };
-  }
-  return { ok: true };
-}
-function readTicketFileOrUndefined(ticketPath) {
-  try {
-    return readFileSync13(ticketPath, "utf8");
-  } catch {
-    return;
-  }
-}
-function resolveTicketFolderById(cwd, id) {
-  const ticketsDirectory = resolveTicketsDirectory(cwd);
-  if (!existsSync12(ticketsDirectory))
-    return;
-  const names = readdirSync7(ticketsDirectory, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name);
-  const match = findTicketFolderMatch(names, id);
-  return match === undefined ? undefined : nodePath19.join(ticketsDirectory, match);
-}
-function isEpicTicket(content) {
-  return /^type:\s*epic\s*$/m.test(content);
-}
-function unquote2(value) {
-  const trimmed = value.trim();
-  const first = trimmed.at(0);
-  if (trimmed.length >= 2 && (first === "'" || first === '"') && trimmed.at(-1) === first) {
-    return trimmed.slice(1, -1);
-  }
-  return trimmed;
-}
-function childrenLineIndex(lines) {
-  return lines.findIndex((line) => line.startsWith("children:"));
-}
-function blockItemsAfter(lines, start) {
-  const items = [];
-  for (let index = start;index < lines.length; index += 1) {
-    const match = /^[ \t]+-[ \t](.*)$/.exec(lines[index] ?? "");
-    if (match?.[1] === undefined)
-      break;
-    const value = unquote2(match[1]);
-    if (value)
-      items.push(value);
-  }
-  return items;
-}
-function parseChildrenList(content) {
-  const lines = content.split(`
-`);
-  const index = childrenLineIndex(lines);
-  if (index === -1)
-    return [];
-  const raw = (lines[index] ?? "").slice("children:".length).trim();
-  if (raw === "")
-    return blockItemsAfter(lines, index + 1);
-  if (raw.startsWith("[") && raw.endsWith("]")) {
-    const inner = raw.slice(1, -1).trim();
-    return inner === "" ? [] : inner.split(",").map((entry) => unquote2(entry)).filter(Boolean);
-  }
-  return unquote2(raw).split(",").map((entry) => entry.trim()).filter(Boolean);
-}
-function replaceChildrenList(content, ids) {
-  const quoted = ids.map((id) => `'${id}'`).join(", ");
-  const rendered = `children: [${quoted}]`;
-  const lines = content.split(`
-`);
-  const index = childrenLineIndex(lines);
-  if (index === -1) {
-    return content.replace(`
----
-`, () => `
-${rendered}
----
-`);
-  }
-  let end = index + 1;
-  while (end < lines.length && /^[ \t]+-[ \t]/.test(lines[end] ?? ""))
-    end += 1;
-  lines.splice(index, end - index, rendered);
-  return lines.join(`
-`);
-}
-function atomicWrite(filePath, content) {
-  const temporaryPath = `${filePath}.tmp`;
-  writeFileSync8(temporaryPath, content);
-  renameSync2(temporaryPath, filePath);
-}
-var init_epic_linker = __esm(() => {
-  init_configured_paths();
-});
-
-// src/utils/id-minter.ts
-import { randomInt } from "crypto";
-function buildId(nextIndex) {
-  const chars = [];
-  for (let index = 0;index < ID_LENGTH; index++) {
-    chars.push(CROCKFORD_ALPHABET.charAt(nextIndex()));
-  }
-  return chars.join("");
-}
-function cryptoIdMinter() {
-  return { mint: () => buildId(() => randomInt(CROCKFORD_ALPHABET.length)) };
-}
-var CROCKFORD_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ", ID_LENGTH = 6;
-var init_id_minter = () => {};
-
-// src/utils/slug.ts
-function normalizeSlug(input) {
-  const folded = input.normalize("NFKD").replaceAll(COMBINING_MARKS, "");
-  const collapsed = stripDashEdges(folded.toLowerCase().replaceAll(NON_ALNUM, "-"));
-  if (collapsed === "")
-    throw new SlugError(input);
-  return collapsed;
-}
-function stripDashEdges(value) {
-  let start = 0;
-  let end = value.length;
-  while (start < end && value.charAt(start) === "-")
-    start++;
-  while (end > start && value.charAt(end - 1) === "-")
-    end--;
-  return value.slice(start, end);
-}
-var SlugError, COMBINING_MARKS, NON_ALNUM;
-var init_slug = __esm(() => {
-  SlugError = class SlugError extends Error {
-    input;
-    constructor(input) {
-      super(input === "" ? "Slug cannot be empty." : `Slug "${input}" normalizes to empty (no alphanumeric content).`);
-      this.input = input;
-      this.name = "SlugError";
-    }
-  };
-  COMBINING_MARKS = /\p{Mn}/gu;
-  NON_ALNUM = /[^a-z\d]+/g;
-});
-
-// src/commands/ticket-new.ts
-var exports_ticket_new = {};
-__export(exports_ticket_new, {
-  createTicketResult: () => createTicketResult
-});
-import nodePath20 from "path";
-import process7 from "process";
-async function createTicketResult(slug, options, cwd) {
-  let type;
-  let normalizedSlug;
-  try {
-    type = validateOptions(options, resolveType(options.type), cwd);
-    normalizedSlug = normalizeSlug(slug);
-  } catch (validationError) {
-    return createResult({
-      state: "failed",
-      errors: [
-        {
-          code: "TICKET_INPUT_INVALID",
-          message: validationError instanceof Error ? validationError.message : String(validationError),
-          retryable: false
-        }
-      ]
-    });
-  }
-  try {
-    const result = await createTicketRouted(cwd, {
-      slug: normalizedSlug,
-      type,
-      title: options.title,
-      goal: options.goal,
-      why: options.why,
-      parent: options.parent,
-      issue: options.issue
-    }, {
-      config: readTicketBridgeConfig(cwd),
-      buildWriter: (provider, target) => buildWriterRegistry(provider, target)[provider],
-      minter: resolveMinter()
-    });
-    const findings = [];
-    if (options.parent !== undefined) {
-      const linked = linkChildToEpic(cwd, result.id, options.parent);
-      if (!linked.ok) {
-        findings.push({
-          code: "EPIC_REVERSE_LINK_FAILED",
-          message: linked.reason,
-          severity: "warning"
-        });
-      }
-    }
-    const effects = result.mutations.length === 0 ? {
-      files: [
-        {
-          kind: "create",
-          target: nodePath20.relative(cwd, result.ticketPath),
-          operation: "write"
-        },
-        {
-          kind: "create",
-          target: nodePath20.relative(cwd, result.folderPath),
-          operation: "mkdir"
-        }
-      ]
-    } : effectsFromMutationJournal(result.mutations);
-    return createResult({
-      state: "changed",
-      effects,
-      findings,
-      data: {
-        command: "ticket new",
-        ticket_id: result.id,
-        folder: nodePath20.relative(cwd, result.folderPath),
-        file: nodePath20.relative(cwd, result.ticketPath)
-      }
-    });
-  } catch (creationError) {
-    const partialMutations = creationError instanceof RoutedTicketCreationError ? creationError.mutations : [];
-    const changed = partialMutations.length > 0;
-    return createResult({
-      state: "failed",
-      changed,
-      effects: effectsFromMutationJournal(partialMutations),
-      errors: [
-        {
-          code: creationError instanceof TicketIdCollisionError ? "TICKET_ID_COLLISION" : "TICKET_CREATE_FAILED",
-          message: errorMessage(creationError),
-          retryable: !(creationError instanceof TicketIdCollisionError)
-        }
-      ],
-      recovery: changed ? [
-        {
-          command: "safeword tracker sync",
-          description: "Reconcile the pending tracker reference before retrying ticket creation.",
-          requiresHuman: false
-        }
-      ] : []
-    });
-  }
-}
-function validateOptions(options, type, cwd) {
-  if (type === "invalid") {
-    throw new Error(`Invalid --type=${String(options.type)}. Must be one of: patch, task, feature, epic.`);
-  }
-  if (options.why !== undefined && type === "feature") {
-    throw new Error("--why does not apply to features \u2014 their motivation lives in spec.md. Use --goal, or edit spec.md.");
-  }
-  if (options.parent !== undefined) {
-    const check = validateEpicParent(cwd, options.parent);
-    if (!check.ok)
-      throw new Error(check.reason);
-  }
-  return type;
-}
-function errorMessage(error2) {
-  return error2 instanceof Error ? error2.message : String(error2);
-}
-function resolveType(value) {
-  if (value === undefined)
-    return;
-  return VALID_TYPES.has(value) ? value : "invalid";
-}
-function resolveMinter() {
-  const override = process7.env.SAFEWORD_TICKET_ID_OVERRIDE;
-  if (override !== undefined && override !== "") {
-    return { mint: () => override };
-  }
-  return cryptoIdMinter();
-}
-var VALID_TYPES;
-var init_ticket_new = __esm(() => {
-  init_result();
-  init_ticket_create();
-  init_clients();
-  init_config();
-  init_epic_linker();
-  init_id_minter();
-  init_slug();
-  init_ticket_writer();
-  VALID_TYPES = new Set(["patch", "task", "feature", "epic"]);
-});
-
-// src/codex-plugin/legacy-global-guidance.ts
-var exports_legacy_global_guidance = {};
-__export(exports_legacy_global_guidance, {
-  planLegacyGlobalGuidanceCleanup: () => planLegacyGlobalGuidanceCleanup,
-  observeLegacyGlobalGuidance: () => observeLegacyGlobalGuidance,
-  legacyGlobalGuidanceDiagnostic: () => legacyGlobalGuidanceDiagnostic,
-  applyLegacyGlobalGuidanceCleanup: () => applyLegacyGlobalGuidanceCleanup
-});
-import { createHash as createHash5 } from "crypto";
-import {
-  existsSync as existsSync14,
-  linkSync,
-  mkdtempSync,
-  readFileSync as readFileSync15,
-  renameSync as renameSync3,
-  rmdirSync as rmdirSync2,
-  unlinkSync
-} from "fs";
-import { homedir } from "os";
-import nodePath21 from "path";
-function sha256(content) {
-  return createHash5("sha256").update(content).digest("hex");
-}
-function readNonEmpty(path2) {
-  if (!existsSync14(path2))
-    return;
-  const content = readFileSync15(path2, "utf8");
-  return content.trim() === "" ? undefined : content;
-}
-function activeGlobalGuidance(environment) {
-  const codexHome = environment.CODEX_HOME || nodePath21.join(homedir(), ".codex");
-  const overridePath = nodePath21.join(codexHome, "AGENTS.override.md");
-  const overrideContent = readNonEmpty(overridePath);
-  if (overrideContent !== undefined)
-    return { content: overrideContent, path: overridePath };
-  const agentsPath = nodePath21.join(codexHome, "AGENTS.md");
-  const agentsContent = readNonEmpty(agentsPath);
-  return agentsContent === undefined ? undefined : { content: agentsContent, path: agentsPath };
-}
-function resemblesLegacySafewordGuidance(content) {
-  const signatureMatches = LEGACY_SIGNATURES.filter((signature) => content.includes(signature)).length;
-  return signatureMatches >= 2 && content.includes("Feature Development Workflow");
-}
-function observeLegacyGlobalGuidance(environment = process.env, options = {}) {
-  const active = activeGlobalGuidance(environment);
-  if (active === undefined)
-    return { state: "absent" };
-  const digest = sha256(active.content);
-  const registeredDigests = options.registeredDigests ?? HISTORICAL_SAFEWORD_GLOBAL_GUIDANCE_DIGESTS;
-  let state = "unrelated";
-  if (registeredDigests.has(digest))
-    state = "exact_legacy";
-  else if (resemblesLegacySafewordGuidance(active.content))
-    state = "suspected_legacy";
-  return {
-    state,
-    path: active.path,
-    digest,
-    backupPath: `${active.path}.safeword-legacy.bak`
-  };
-}
-function legacyGlobalGuidanceDiagnostic(observation) {
-  if (observation.state === "exact_legacy") {
-    return {
-      observation,
-      finding: {
-        code: "CODEX_LEGACY_GLOBAL_GUIDANCE_EXACT",
-        message: `The active Codex profile guidance at ${observation.path} is an exact historical Safeword revision that references retired workflow paths.`,
-        severity: "warning",
-        metadata: { classification: "exact_legacy", disposition: "recoverable_cleanup" }
-      },
-      nextAction: {
-        command: "safeword codex clean-guidance",
-        mutates: false,
-        requiresHuman: true
-      }
-    };
-  }
-  if (observation.state === "suspected_legacy") {
-    return {
-      observation,
-      finding: {
-        code: "CODEX_LEGACY_GLOBAL_GUIDANCE_SUSPECTED",
-        message: `The active Codex profile guidance at ${observation.path} resembles edited legacy Safeword instructions. Review it manually; Safeword will not modify it.`,
-        severity: "warning",
-        metadata: { classification: "suspected_legacy", disposition: "manual_review" }
-      }
-    };
-  }
-  return { observation };
-}
-function preconditionDigest(observation) {
-  return sha256(`${observation.path ?? ""}\x00${observation.digest ?? ""}`);
-}
-function isExactLegacyObservation(observation) {
-  return observation.state === "exact_legacy" && observation.path !== undefined && observation.digest !== undefined && observation.backupPath !== undefined;
-}
-function planLegacyGlobalGuidanceCleanup(observation) {
-  if (!isExactLegacyObservation(observation)) {
-    return { ok: false, code: "UNSAFE_GUIDANCE" };
-  }
-  return {
-    ok: true,
-    plan: createPlan({
-      command: "codex clean-guidance",
-      preconditionDigest: preconditionDigest(observation),
-      effects: {
-        files: [
-          { kind: "file", target: observation.path, operation: "move" },
-          { kind: "file", target: observation.backupPath, operation: "create" }
-        ],
-        destructive: [
-          { kind: "profile-guidance", target: observation.path, operation: "deactivate" }
-        ]
-      },
-      requiresConfirmation: true,
-      verification: [
-        { description: "The backup digest matches the registered historical revision." }
-      ]
-    })
-  };
-}
-function preserveMovedArtifact(backupPath, sourcePath) {
-  try {
-    linkSync(backupPath, sourcePath);
-    unlinkSync(backupPath);
-    return;
-  } catch (error2) {
-    if (error2.code !== "EEXIST")
-      throw error2;
-  }
-  for (let index = 0;; index += 1) {
-    const suffix = index === 0 ? "" : `-${index}`;
-    const recoveryPath = `${sourcePath}.safeword-recovery${suffix}`;
-    try {
-      linkSync(backupPath, recoveryPath);
-      unlinkSync(backupPath);
-      return recoveryPath;
-    } catch (error2) {
-      if (error2.code !== "EEXIST")
-        throw error2;
-    }
-  }
-}
-function validatedCleanup(environment, options) {
-  const observation = observeLegacyGlobalGuidance(environment, options);
-  if (!isExactLegacyObservation(observation)) {
-    return {
-      ok: false,
-      result: {
-        ok: false,
-        changed: false,
-        code: "PLAN_STALE",
-        sourcePath: observation.path
-      }
-    };
-  }
-  const preview = planLegacyGlobalGuidanceCleanup(observation);
-  if (!preview.ok || preview.plan === undefined) {
-    return {
-      ok: false,
-      result: {
-        ok: false,
-        changed: false,
-        code: "UNSAFE_GUIDANCE",
-        sourcePath: observation.path
-      }
-    };
-  }
-  if (preview.plan.id !== options.planId) {
-    return {
-      ok: false,
-      result: { ok: false, changed: false, code: "PLAN_STALE", sourcePath: observation.path }
-    };
-  }
-  return { ok: true, observation };
-}
-function refusedAfterMove(stagedPath, stagingDirectory, sourcePath, backupPath, code) {
-  const recoveryPath = preserveMovedArtifact(stagedPath, sourcePath);
-  rmdirSync2(stagingDirectory);
-  return {
-    ok: false,
-    changed: false,
-    code,
-    sourcePath,
-    backupPath,
-    ...recoveryPath !== undefined && { recoveryPath }
-  };
-}
-function applyLegacyGlobalGuidanceCleanup(options) {
-  const environment = options.environment ?? process.env;
-  const validation = validatedCleanup(environment, options);
-  if (!validation.ok)
-    return validation.result;
-  const { observation } = validation;
-  const sourcePath = observation.path;
-  const backupPath = observation.backupPath;
-  const stagingDirectory = mkdtempSync(nodePath21.join(nodePath21.dirname(sourcePath), ".safeword-guidance-"));
-  const stagedPath = nodePath21.join(stagingDirectory, nodePath21.basename(sourcePath));
-  options.beforeMove?.(sourcePath);
-  try {
-    renameSync3(sourcePath, stagedPath);
-  } catch (error2) {
-    rmdirSync2(stagingDirectory);
-    if (error2.code === "ENOENT") {
-      return { ok: false, changed: false, code: "PLAN_STALE", sourcePath, backupPath };
-    }
-    throw error2;
-  }
-  options.afterMove?.(sourcePath);
-  const movedDigest = sha256(readFileSync15(stagedPath, "utf8"));
-  if (movedDigest !== observation.digest) {
-    return refusedAfterMove(stagedPath, stagingDirectory, sourcePath, backupPath, "SOURCE_CHANGED_DURING_MOVE");
-  }
-  try {
-    linkSync(stagedPath, backupPath);
-  } catch (error2) {
-    if (error2.code === "EEXIST") {
-      return refusedAfterMove(stagedPath, stagingDirectory, sourcePath, backupPath, "BACKUP_OCCUPIED");
-    }
-    preserveMovedArtifact(stagedPath, sourcePath);
-    rmdirSync2(stagingDirectory);
-    throw error2;
-  }
-  unlinkSync(stagedPath);
-  rmdirSync2(stagingDirectory);
-  return { ok: true, changed: true, sourcePath, backupPath };
-}
-var HISTORICAL_SAFEWORD_GLOBAL_GUIDANCE_DIGESTS, LEGACY_SIGNATURES;
-var init_legacy_global_guidance = __esm(() => {
-  init_plan();
-  HISTORICAL_SAFEWORD_GLOBAL_GUIDANCE_DIGESTS = new Set([
-    "f699dc50ce031ac3cbfe924fd00cff3c533c60e59e9de27429d7e585efd8c5d1"
-  ]);
-  LEGACY_SIGNATURES = [
-    "Feature Development Workflow (CRITICAL - Always Follow)",
-    "planning/user-stories/",
-    "docs/user-stories/",
-    "~/.agents/coding/guides/"
-  ];
-});
-
-// templates/hooks/lib/hierarchy.ts
-function parseFrontmatter2(yaml) {
-  const result = {};
-  const lines = yaml.split(/\r?\n/);
-  let currentKey = null;
-  let currentList = null;
-  for (const line of lines) {
-    const listMatch = line.match(/^[ \t]+-[ \t]+(.*)$/);
-    if (listMatch) {
-      currentList?.push(stripQuotes2((listMatch[1] ?? "").trim()));
-      continue;
-    }
-    if (currentList !== null && currentKey !== null) {
-      result[currentKey] = currentList;
-      currentList = null;
-      currentKey = null;
-    }
-    const pairMatch = line.match(/^(\w+):\s*(.*)$/);
-    if (pairMatch) {
-      const key = pairMatch[1] ?? "";
-      const raw = (pairMatch[2] ?? "").trim();
-      if (!key)
-        continue;
-      if (raw === "") {
-        currentKey = key;
-        currentList = [];
-      } else if (raw.startsWith("[") && raw.endsWith("]")) {
-        const inner = raw.slice(1, -1).trim();
-        result[key] = inner === "" ? [] : inner.split(",").map((s) => stripQuotes2(s.trim()));
-      } else {
-        result[key] = stripQuotes2(raw);
-      }
-    }
-  }
-  if (currentList !== null && currentKey !== null) {
-    result[currentKey] = currentList;
-  }
-  return result;
-}
-function stripQuotes2(value) {
-  return value.replace(/^(['"])(.*)\1$/, "$2");
-}
-var init_hierarchy = () => {};
-
-// templates/hooks/lib/markdown-structure.ts
-function stripHtmlComments(content) {
-  return content.replaceAll(/<!--[\s\S]*?-->/g, (comment) => comment.replaceAll(/[^\r\n]/g, ""));
-}
-function withoutFencedCode(content, preserveHtmlComments = false) {
-  const lines = content.split(/\r?\n/);
-  let fence;
-  let htmlComment = false;
-  const projected = lines.map((line) => {
-    if (fence !== undefined) {
-      const closing = new RegExp(`^\\s{0,3}${fence.kind}{${fence.length},}\\s*$`);
-      if (closing.test(line))
-        fence = undefined;
-      return "";
-    }
-    if (htmlComment) {
-      if (line.includes("-->"))
-        htmlComment = false;
-      return preserveHtmlComments ? line : "";
-    }
-    const opening = /^\s{0,3}(`{3,}|~{3,})(.*)$/.exec(line);
-    if (!opening) {
-      const commentStart = line.indexOf("<!--");
-      if (commentStart !== -1 && line.indexOf("-->", commentStart + 4) === -1) {
-        htmlComment = true;
-        return preserveHtmlComments ? line : line.slice(0, commentStart);
-      }
-      return line;
-    }
-    const run = opening[1];
-    const kind = run[0];
-    const info2 = opening[2] ?? "";
-    if (kind === "`" && info2.includes("`"))
-      return line;
-    fence = { kind, length: run.length };
-    return "";
-  }).join(`
-`);
-  return preserveHtmlComments ? projected : stripHtmlComments(projected);
-}
-
-// templates/hooks/lib/inspiration.ts
-var IMPLEMENTATION_INSPIRATION_GRAMMAR;
-var init_inspiration = __esm(() => {
-  IMPLEMENTATION_INSPIRATION_GRAMMAR = {
-    referenceHeading: "### Implementation Inspiration",
-    referenceHeader: "| Reference | Checked on | Source version | Target version | Evidence of fit | Principle to borrow | Mismatch / license / security boundary |",
-    referenceDelimiter: "| --- | --- | --- | --- | --- | --- | --- |",
-    decisionImpact: "**Decision impact:** <changed: or retained: plus a non-empty rationale>",
-    decisionInformed: "**Decision informed:** <exact Decision cell from Recorded Decisions>",
-    searchHeading: "#### Implementation Unsuccessful Search",
-    searchHeader: "| Technical question | Decision informed | Constraints | Dependency versions | Source categories | Repositories | Queries attempted | Search date | Sources inspected | Why none transfers | Decision retained |",
-    searchDelimiter: "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
-    recordedDecisionsHeading: "### Recorded Decisions"
-  };
-});
-
-// templates/hooks/lib/impl-plan.ts
-function activeLines(content) {
-  return withoutFencedCode(content).split(`
-`).filter((line) => !/^(?: {4}|\t)/u.test(line));
-}
-function parseStatus(lines, errors) {
-  const candidates = lines.map((line) => line.trim()).filter((line) => line.startsWith(STATUS_PREFIX));
-  if (candidates.length === 0) {
-    errors.push(`Missing \`${STATUS_PREFIX}\` line \u2014 add \`${STATUS_PREFIX} planned\` near the top.`);
-    return null;
-  }
-  if (candidates.length !== 1) {
-    errors.push(`Expected exactly one \`${STATUS_PREFIX}\` line; found ${candidates.length}.`);
-    return null;
-  }
-  const value = candidates[0].slice(STATUS_PREFIX.length).trim();
-  if (value === "planned" || value === "implemented")
-    return value;
-  errors.push(`Unknown status "${value}" \u2014 allowed values: planned, implemented.`);
-  return null;
-}
-function collectSectionBodies(lines) {
-  const bodies = new Map;
-  let current = null;
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (trimmed.startsWith("## ")) {
-      current = SECTION_NAMES.get(trimmed.slice(3).trim().toLowerCase()) ?? null;
-      if (current && !bodies.has(current))
-        bodies.set(current, []);
-      continue;
-    }
-    if (trimmed.startsWith("# ")) {
-      current = null;
-      continue;
-    }
-    if (current && trimmed !== "")
-      bodies.get(current)?.push(trimmed);
-  }
-  return bodies;
-}
-function validateAlignmentHeading(lines, errors) {
-  const headings = new Set(lines.map((line) => line.trim()).filter((line) => line.startsWith("## ")).map((line) => line.slice(3).trim().toLowerCase()));
-  if (headings.has(DESIGN_ALIGNMENT_HEADING) && headings.has(LEGACY_ARCH_ALIGNMENT_HEADING)) {
-    errors.push("Both `## Design alignment` and legacy `## Arch alignment` are present \u2014 keep exactly one.");
-  }
-}
-function validateUniqueSectionHeadings(lines, errors) {
-  const counts = new Map;
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed.startsWith("## "))
-      continue;
-    const name = SECTION_NAMES.get(trimmed.slice(3).trim().toLowerCase());
-    if (name !== undefined)
-      counts.set(name, (counts.get(name) ?? 0) + 1);
-  }
-  for (const [name, count] of counts) {
-    if (count > 1)
-      errors.push(`Section "${name}" appears ${count} times \u2014 keep exactly one heading.`);
-  }
-}
-function parseImplPlan(content) {
-  const errors = [];
-  const lines = activeLines(content);
-  const status = parseStatus(lines, errors);
-  validateAlignmentHeading(lines, errors);
-  validateUniqueSectionHeadings(lines, errors);
-  const bodies = collectSectionBodies(lines);
-  const sections = {};
-  const validatePresentSection = (name, body) => {
-    const meaningfulBody = body.filter((line) => !/^#{3,6}(?:\s|$)/u.test(line) && (name !== "Decisions" || !DECISIONS_SCAFFOLD_LINES.has(line)));
-    const skipLine = meaningfulBody.length === 1 && meaningfulBody[0]?.toLowerCase().startsWith(SKIP_PREFIX) ? meaningfulBody[0] : null;
-    if (skipLine !== null) {
-      const reason = skipLine.slice(SKIP_PREFIX.length).trim();
-      if (reason === "") {
-        errors.push(`Section "${name}": skip requires a non-empty reason (\`skip: <why>\`).`);
-      }
-      sections[name] = { satisfied: reason !== "", skip: reason };
-      return;
-    }
-    if (meaningfulBody.length === 0) {
-      errors.push(`Section "${name}" is empty \u2014 add content or \`skip: <why>\`.`);
-    }
-    sections[name] = { satisfied: meaningfulBody.length > 0, skip: null };
-  };
-  for (const name of IMPL_PLAN_SECTIONS) {
-    const body = bodies.get(name);
-    if (body === undefined) {
-      errors.push(`Missing section heading \`## ${name}\` \u2014 all five required sections must be present.`);
-      continue;
-    }
-    validatePresentSection(name, body);
-  }
-  for (const name of IMPL_PLAN_OPTIONAL_SECTIONS) {
-    const body = bodies.get(name);
-    if (body !== undefined)
-      validatePresentSection(name, body);
-  }
-  return { status, sections, errors };
-}
-var IMPL_PLAN_SECTIONS, IMPL_PLAN_OPTIONAL_SECTIONS, STATUS_PREFIX = "**Status:**", SKIP_PREFIX = "skip:", DECISIONS_SCAFFOLD_LINES, SECTION_NAMES, DESIGN_ALIGNMENT_HEADING = "design alignment", LEGACY_ARCH_ALIGNMENT_HEADING = "arch alignment";
-var init_impl_plan = __esm(() => {
-  init_inspiration();
-  IMPL_PLAN_SECTIONS = [
-    "Approach",
-    "Decisions",
-    "Design alignment",
-    "Known deviations",
-    "Assessment triggers"
-  ];
-  IMPL_PLAN_OPTIONAL_SECTIONS = ["Doc impact"];
-  DECISIONS_SCAFFOLD_LINES = new Set(Object.values(IMPLEMENTATION_INSPIRATION_GRAMMAR));
-  SECTION_NAMES = new Map([
-    ...IMPL_PLAN_SECTIONS.map((name) => [name.toLowerCase(), name]),
-    ["arch alignment", "Design alignment"],
-    ...IMPL_PLAN_OPTIONAL_SECTIONS.map((name) => [
-      name.toLowerCase(),
-      name
-    ])
-  ]);
-});
-
-// templates/hooks/lib/jtbd.ts
-function parseJtbdSection(specContent) {
-  const entries = [];
-  let skip = null;
-  let seenJtbd = false;
-  let inSection = false;
-  for (const { index, text: trimmed } of activeLines2(specContent)) {
-    const heading = parseSectionHeading(trimmed);
-    if (heading !== null) {
-      inSection = heading.toLowerCase() === JTBD_HEADING;
-      continue;
-    }
-    if (!inSection)
-      continue;
-    const sub = parseAnyHeading(trimmed);
-    if (sub !== null && sub.level >= 3) {
-      if (sub.level === 3)
-        seenJtbd = true;
-      continue;
-    }
-    if (skip === null && !seenJtbd && trimmed.toLowerCase().startsWith(SKIP_PREFIX2)) {
-      skip = trimmed.slice(SKIP_PREFIX2.length).trim();
-      continue;
-    }
-    if (trimmed.startsWith(PERSONA_PREFIX)) {
-      entries.push({
-        persona: trimmed.slice(PERSONA_PREFIX.length).trim(),
-        lineNumber: index + 1
-      });
-    }
-  }
-  return { entries, skip };
-}
-function computeSkipMask(lines) {
-  const skip = [];
-  let insideCodeFence = false;
-  let insideComment = false;
-  for (const line of lines) {
-    if (line.trimStart().startsWith("```")) {
-      skip.push(true);
-      insideCodeFence = !insideCodeFence;
-      continue;
-    }
-    if (insideCodeFence) {
-      skip.push(true);
-      continue;
-    }
-    if (!insideComment && line.trimStart().startsWith("<!--"))
-      insideComment = true;
-    if (insideComment) {
-      skip.push(true);
-      if (line.includes("-->"))
-        insideComment = false;
-      continue;
-    }
-    skip.push(false);
-  }
-  return skip;
-}
-function stripInlineComments(text) {
-  let result = "";
-  let pos = 0;
-  while (pos < text.length) {
-    const open = text.indexOf("<!--", pos);
-    if (open === -1) {
-      result += text.slice(pos);
-      break;
-    }
-    result += text.slice(pos, open);
-    const close = text.indexOf("-->", open + 4);
-    if (close === -1) {
-      result += text.slice(open);
-      break;
-    }
-    pos = close + 3;
-  }
-  return result;
-}
-function activeLines2(content) {
-  const lines = content.split(`
-`);
-  const skip = computeSkipMask(lines);
-  const out = [];
-  for (const [index, line] of lines.entries()) {
-    if (skip[index])
-      continue;
-    const text = stripInlineComments(line).trim();
-    if (text !== "")
-      out.push({ index, text });
-  }
-  return out;
-}
-function parseAnyHeading(trimmed) {
-  const match = /^(#{1,6})\s+(.+)$/.exec(trimmed);
-  if (match === null)
-    return null;
-  return { level: (match[1] ?? "").length, text: (match[2] ?? "").trim() };
-}
-function parseSectionHeading(trimmed) {
-  if (!trimmed.startsWith("## "))
-    return null;
-  const rest = trimmed.slice(3).trim();
-  if (rest.startsWith("#"))
-    return null;
-  return rest;
-}
-var JTBD_HEADING = "jobs to be done", PERSONA_PREFIX = "**Persona:**", SKIP_PREFIX2 = "skip:";
-var init_jtbd = () => {};
-
-// templates/hooks/lib/parse-annotation.ts
-function parseCheckboxAnnotation(line) {
-  const match = CHECKBOX_LINE.exec(line);
-  if (!match)
-    return null;
-  const [, mark = "", step = "", rest = ""] = match;
-  return {
-    step,
-    checked: mark.toLowerCase() === "x",
-    annotation: rest.trim()
-  };
-}
-function classifyAnnotation(annotation) {
-  if (annotation === "")
-    return { kind: "none" };
-  const skipMatch = SKIP_PREFIX3.exec(annotation);
-  if (skipMatch) {
-    return { kind: "skip", reason: (skipMatch[1] ?? "").trim() };
-  }
-  return { kind: "sha", value: annotation };
-}
-function isValidSkipReason(reason) {
-  return reason.trim().length > 0;
-}
-function isValidSha(value) {
-  return SHA_PATTERN.test(value);
-}
-var CHECKBOX_LINE, SKIP_PREFIX3, SHA_PATTERN;
-var init_parse_annotation = __esm(() => {
-  CHECKBOX_LINE = /^\s*- \[([ xX])\] (RED|GREEN|REFACTOR|cross-scenario)\b\s*(.*)$/;
-  SKIP_PREFIX3 = /^skip:(.*)$/i;
-  SHA_PATTERN = /^[0-9a-f]{7,40}$/i;
-});
-
-// templates/hooks/lib/phase-provenance.ts
-function canonicalIndex(phase) {
-  return CANONICAL_PHASES.indexOf(phase);
-}
-function frontmatterOf(content) {
-  const match = content.match(/^---\n([\s\S]*?)\n---/);
-  if (!match)
-    return;
-  const parsed2 = parseFrontmatter2(match[1] ?? "");
-  return Object.keys(parsed2).length > 0 ? parsed2 : undefined;
-}
-function scalar(meta, key) {
-  const value = meta?.[key];
-  return typeof value === "string" && value.trim() !== "" ? value : undefined;
-}
-function parsePhaseKeyedEntries(meta, key) {
-  const raw = meta?.[key];
-  const rawEntries = Array.isArray(raw) ? raw : typeof raw === "string" && raw !== "" ? [raw] : [];
-  const entries = [];
-  const malformed = [];
-  for (const rawEntry of rawEntries) {
-    const match = /^([^:]+):(.*)$/.exec(rawEntry);
-    const phase = match?.[1]?.trim();
-    if (match === null || phase === undefined || phase === "") {
-      malformed.push(rawEntry);
-      continue;
-    }
-    entries.push({ phase, value: (match[2] ?? "").trim(), raw: rawEntry });
-  }
-  return { entries, malformed };
-}
-function parseSkips(meta) {
-  const { entries, malformed } = parsePhaseKeyedEntries(meta, "phase_skips");
-  const justified = new Map;
-  const invalid = [...malformed];
-  for (const { phase, value, raw } of entries) {
-    if (!isValidSkipReason(value)) {
-      invalid.push(raw);
-      continue;
-    }
-    justified.set(phase, value);
-  }
-  return { justified, invalid };
-}
-function evaluateTicketWrite(priorContent, proposedContent) {
-  const proposed = normalizeNewlines(proposedContent);
-  if (priorContent === undefined) {
-    return evaluateCreation(proposed);
-  }
-  return evaluateEdit(normalizeNewlines(priorContent), proposed);
-}
-function normalizeNewlines(content) {
-  return content.replace(/\r\n/g, `
-`);
-}
-function evaluateCreation(proposedContent) {
-  if (!/^---\n[\s\S]*?\n---/.test(proposedContent)) {
-    return {
-      ok: false,
-      reason: "ticket.md requires YAML frontmatter \u2014 without it no gate can classify the ticket, which is the silent-bypass failure #119 shipped.",
-      remediation: "Start the file with a frontmatter block (---) carrying at least id, type, phase, and status."
-    };
-  }
-  const meta = frontmatterOf(proposedContent);
-  if (meta === undefined) {
-    return {
-      ok: false,
-      reason: "ticket.md requires parseable YAML frontmatter \u2014 the block between --- markers parses to no fields, so no gate can classify the ticket.",
-      remediation: 'Fix the frontmatter to simple "key: value" lines carrying at least id, type, phase, and status.'
-    };
-  }
-  if (scalar(meta, "type") !== "feature")
-    return OK;
-  return evaluateBirth(meta, "creation");
-}
-function evaluateEdit(priorContent, proposedContent) {
-  const prior = frontmatterOf(priorContent);
-  const proposed = frontmatterOf(proposedContent);
-  if (proposed === undefined)
-    return OK;
-  const priorType = scalar(prior, "type");
-  const proposedType = scalar(proposed, "type");
-  if (proposedType === "feature" && priorType !== "feature") {
-    return evaluateBirth(proposed, "flip");
-  }
-  if (proposedType === "feature") {
-    const priorPhase = scalar(prior, "phase");
-    const proposedPhase = scalar(proposed, "phase");
-    if (proposedPhase !== undefined && proposedPhase !== priorPhase) {
-      return evaluateAdvance(priorPhase, proposedPhase, proposed);
-    }
-  }
-  return OK;
-}
-function evaluateAdvance(priorPhase, proposedPhase, proposed) {
-  if (!CANONICAL_SET.has(proposedPhase)) {
-    return {
-      ok: false,
-      reason: `"${proposedPhase}" is not a canonical ticket phase, so no gate keyed to phases would ever fire on this ticket again. Canonical phases: ${CANONICAL_SEQUENCE}.`,
-      remediation: "Advance to the next canonical phase instead."
-    };
-  }
-  const effectivePrior = priorPhase !== undefined && CANONICAL_SET.has(priorPhase) ? priorPhase : "intake";
-  const fromIndex = canonicalIndex(effectivePrior);
-  const toIndex = canonicalIndex(proposedPhase);
-  if (toIndex <= fromIndex + 1)
-    return OK;
-  return requireJustifiedSkips(proposed, CANONICAL_PHASES.slice(fromIndex + 1, toIndex), (missing) => ({
-    ok: false,
-    reason: `Phases advance one canonical step at a time \u2014 ${effectivePrior} \u2192 ${proposedPhase} skips work the workflow depends on. Phases still needing justification: ${missing.join(", ")}.`,
-    remediation: `Advance one phase at a time (${CANONICAL_SEQUENCE}), or ${SKIPS_SYNTAX}.`
-  }));
-}
-function requireJustifiedSkips(meta, bypassed, denialFor) {
-  const skips = parseSkips(meta);
-  if (skips.invalid.length > 0) {
-    return {
-      ok: false,
-      reason: `phase_skips entry ${skips.invalid.map((entry) => `"${entry}"`).join(", ")} is not a valid skip \u2014 every entry needs the "<phase>: <reason>" shape with a non-empty reason.`,
-      remediation: `A skip is an auditable act: ${SKIPS_SYNTAX}.`
-    };
-  }
-  const missing = bypassed.filter((phase) => !skips.justified.has(phase));
-  return missing.length > 0 ? denialFor(missing) : OK;
-}
-function evaluateBirth(meta, context) {
-  const phase = scalar(meta, "phase");
-  if (phase === undefined || phase === "intake")
-    return OK;
-  if (!CANONICAL_SET.has(phase)) {
-    if (context === "flip")
-      return OK;
-    return {
-      ok: false,
-      reason: `"${phase}" is not a canonical ticket phase, so no gate keyed to phases would ever fire on this ticket. Canonical phases: ${CANONICAL_SEQUENCE}.`,
-      remediation: "Create the ticket at phase: intake (or another canonical phase justified via phase_skips) and work forward."
-    };
-  }
-  return requireJustifiedSkips(meta, CANONICAL_PHASES.slice(0, canonicalIndex(phase)), (missing) => {
-    const act = context === "creation" ? "begin life" : "become a feature";
-    return {
-      ok: false,
-      reason: `Feature tickets are born at phase: intake \u2014 this write would ${act} at "${phase}" without provenance, silently bypassing every gate keyed to the skipped phases. Phases still needing justification: ${missing.join(", ")}.`,
-      remediation: `Start at phase: intake and work forward, or ${SKIPS_SYNTAX}.`
-    };
-  });
-}
-function parseAnchors(meta) {
-  const byPhase = new Map;
-  for (const { phase, value } of parsePhaseKeyedEntries(meta, "phase_anchors").entries) {
-    byPhase.set(phase, value);
-  }
-  return byPhase;
-}
-function hasSubstance(content) {
-  return content.trim() !== "";
-}
-function isPlausibleRepoPath(value) {
-  if (value === "" || value.includes("\\"))
-    return false;
-  if (value.startsWith("/") || /^[a-zA-Z]:/.test(value))
-    return false;
-  if (/^[0-3]:/.test(value))
-    return false;
-  if (/^[(:!^]/.test(value) || /[*?[\]]/.test(value))
-    return false;
-  return !value.split("/").some((segment) => segment === "" || segment === "." || segment === "..");
-}
-function detectUnanchoredPhaseTransition(priorContent, proposedContent, scope, readArtifact) {
-  if (priorContent === undefined)
-    return NOT_APPLICABLE;
-  const proposed = frontmatterOf(normalizeNewlines(proposedContent));
-  const prior = frontmatterOf(normalizeNewlines(priorContent));
-  if (proposed === undefined)
-    return NOT_APPLICABLE;
-  if (scalar(proposed, "type") !== "feature" || scalar(prior, "type") !== "feature") {
-    return NOT_APPLICABLE;
-  }
-  const priorPhase = scalar(prior, "phase");
-  const proposedPhase = scalar(proposed, "phase");
-  if (proposedPhase === undefined || proposedPhase === priorPhase)
-    return NOT_APPLICABLE;
-  const toIndex = canonicalIndex(proposedPhase);
-  if (toIndex === -1)
-    return NOT_APPLICABLE;
-  const effectivePrior = priorPhase !== undefined && CANONICAL_SET.has(priorPhase) ? priorPhase : "intake";
-  if (toIndex <= canonicalIndex(effectivePrior))
-    return NOT_APPLICABLE;
-  return validateAnchor(proposed, proposedPhase, scope, readArtifact);
-}
-function validateAnchor(meta, phase, scope, readArtifact) {
-  const kind = ANCHOR_KINDS[phase];
-  if (kind === undefined)
-    return NOT_APPLICABLE;
-  const unanchored = (reason) => ({
-    kind: "unanchored",
-    phase,
-    reason
-  });
-  const expectedLine = `\`- ${phase}: ${kind.example}\``;
-  const anchor = parseAnchors(meta).get(phase);
-  if (anchor === undefined) {
-    return unanchored(`no phase_anchors entry for "${phase}" \u2014 record the exited phase's artifact, e.g. ${expectedLine}.`);
-  }
-  if (isValidSha(anchor)) {
-    return unanchored(`phase_anchors entry for "${phase}" is "${anchor}", a legacy commit-SHA anchor \u2014 record the artifact path instead, e.g. ${expectedLine}.`);
-  }
-  if (!isPlausibleRepoPath(anchor)) {
-    return unanchored(`phase_anchors entry for "${phase}" is "${anchor}", not a repo-relative artifact path \u2014 record ${expectedLine}.`);
-  }
-  if (!kind.matches(anchor)) {
-    return unanchored(`phase_anchors entry for "${phase}" is "${anchor}", not the expected artifact kind \u2014 "${phase}" expects ${kind.label}, e.g. ${expectedLine}.`);
-  }
-  const ticketFolder = basenameOf(scope.ticketPath);
-  const slugSeparator = ticketFolder.indexOf("-");
-  const ticketSlug = scalar(meta, "slug") ?? (slugSeparator === -1 ? ticketFolder : ticketFolder.slice(slugSeparator + 1));
-  const anchorSegments = anchor.split("/");
-  const isConfiguredOrDefaultFeature = scope.featureRoots.some((root) => root === "" || anchor.startsWith(`${root}/`));
-  const isWorkspaceFeature = anchorSegments.length >= 4 && scope.workspaceRoots.includes(anchorSegments[0] ?? "") && anchorSegments[1] !== "" && anchorSegments[2] === "features";
-  const isOwnedArtifact = isFeatureSource(anchor) ? basenameOf(anchor) === `${ticketSlug}.feature` && (isConfiguredOrDefaultFeature || isWorkspaceFeature) : dirnameOf(anchor) === scope.ticketPath;
-  if (!isOwnedArtifact) {
-    return unanchored(`phase_anchors entry for "${phase}" is "${anchor}", an artifact outside this ticket \u2014 record this ticket's own artifact, e.g. ${expectedLine}.`);
-  }
-  if (readArtifact === undefined)
-    return { kind: "anchored" };
-  const content = readArtifact(anchor);
-  if (content === undefined) {
-    return unanchored(`anchored artifact "${anchor}" for "${phase}" is missing from the tree.`);
-  }
-  if (!kind.shapeOk(anchor, content)) {
-    return unanchored(`anchored artifact "${anchor}" for "${phase}" fails its shape check \u2014 it does not look like ${kind.label}.`);
-  }
-  return { kind: "anchored" };
-}
-function detectUnanchoredPhaseState(content, scope, readArtifact) {
-  const meta = frontmatterOf(normalizeNewlines(content));
-  if (meta === undefined)
-    return NOT_APPLICABLE;
-  if (scalar(meta, "type") !== "feature")
-    return NOT_APPLICABLE;
-  const phase = scalar(meta, "phase");
-  if (phase === undefined || phase === "intake" || !CANONICAL_SET.has(phase)) {
-    return NOT_APPLICABLE;
-  }
-  const anchor = parseAnchors(meta).get(phase);
-  if (anchor !== undefined && isValidSha(anchor))
-    return NOT_APPLICABLE;
-  return validateAnchor(meta, phase, scope, readArtifact);
-}
-var CANONICAL_PHASES, CANONICAL_SET, CANONICAL_SEQUENCE, OK, SKIPS_SYNTAX = "record a deliberate skip for each bypassed phase as an indented phase_skips block sequence \u2014 e.g. `phase_skips:` on its own line, then `  - intake: <reason>` (two-space indent) for each skipped phase, each with a non-empty reason", basenameOf = (relpath) => relpath.split("/").at(-1) ?? "", dirnameOf = (relpath) => relpath.split("/").slice(0, -1).join("/"), isFeatureSource = (relpath) => relpath.endsWith(".feature"), featureShapeOk = (content) => /^\s*Scenario(?: Outline)?:/m.test(content), VERIFY_SCOPE_LINE, FEATURE_SOURCE_ANCHOR, ANCHOR_KINDS, NOT_APPLICABLE;
-var init_phase_provenance = __esm(() => {
-  init_hierarchy();
-  init_impl_plan();
-  init_jtbd();
-  init_parse_annotation();
-  CANONICAL_PHASES = [
-    "intake",
-    "define-behavior",
-    "scenario-gate",
-    "plan-implementation",
-    "implement",
-    "verify",
-    "done"
-  ];
-  CANONICAL_SET = new Set(CANONICAL_PHASES);
-  CANONICAL_SEQUENCE = CANONICAL_PHASES.join(" \u2192 ");
-  OK = { ok: true };
-  VERIFY_SCOPE_LINE = /^\*\*PR Scope:\*\*\s*\S/im;
-  FEATURE_SOURCE_ANCHOR = {
-    label: "the feature source (.feature, or test-definitions.md on the legacy path)",
-    example: "features/<slug>.feature",
-    matches: (relpath) => isFeatureSource(relpath) || basenameOf(relpath) === "test-definitions.md",
-    shapeOk: (relpath, content) => isFeatureSource(relpath) ? featureShapeOk(content) : hasSubstance(content)
-  };
-  ANCHOR_KINDS = {
-    "define-behavior": {
-      label: "spec.md",
-      example: "<ticket-folder>/spec.md",
-      matches: (relpath) => basenameOf(relpath) === "spec.md",
-      shapeOk: (_relpath, content) => {
-        const jtbd = parseJtbdSection(content);
-        return jtbd.entries.length > 0 || jtbd.skip !== null;
-      }
-    },
-    "scenario-gate": FEATURE_SOURCE_ANCHOR,
-    "plan-implementation": FEATURE_SOURCE_ANCHOR,
-    implement: {
-      label: "impl-plan.md",
-      example: "<ticket-folder>/impl-plan.md",
-      matches: (relpath) => basenameOf(relpath) === "impl-plan.md",
-      shapeOk: (_relpath, content) => parseImplPlan(content).errors.length === 0
-    },
-    verify: {
-      label: "test-definitions.md (the R/G/R ledger)",
-      example: "<ticket-folder>/test-definitions.md",
-      matches: (relpath) => basenameOf(relpath) === "test-definitions.md",
-      shapeOk: (_relpath, content) => hasSubstance(content)
-    },
-    done: {
-      label: "verify.md",
-      example: "<ticket-folder>/verify.md",
-      matches: (relpath) => basenameOf(relpath) === "verify.md",
-      shapeOk: (_relpath, content) => VERIFY_SCOPE_LINE.test(content)
-    }
-  };
-  NOT_APPLICABLE = { kind: "not-applicable" };
-});
-
 // src/utils/hooks.ts
 function stable(value) {
   if (Array.isArray(value))
@@ -7572,9 +2020,9 @@ var init_historical_catalogue_generated = __esm(() => {
 });
 
 // src/claude-plugin/historical-ownership.ts
-import { createHash as createHash6 } from "crypto";
-function sha2562(content) {
-  return createHash6("sha256").update(content).digest("hex");
+import { createHash } from "crypto";
+function sha256(content) {
+  return createHash("sha256").update(content).digest("hex");
 }
 function compareKeys(left, right) {
   if (left === right)
@@ -7589,7 +2037,7 @@ function stable2(value) {
   return Object.fromEntries(Object.entries(value).toSorted(([left], [right]) => compareKeys(left, right)).map(([key, child]) => [key, stable2(child)]));
 }
 function historicalCatalogueDigest() {
-  return sha2562(JSON.stringify(CLAUDE_HISTORICAL_CATALOGUE));
+  return sha256(JSON.stringify(CLAUDE_HISTORICAL_CATALOGUE));
 }
 function acceptedReleases() {
   return [
@@ -7601,12 +2049,12 @@ function acceptedHookFingerprints(event) {
   return acceptedReleases().flatMap((release) => release.hooks[event] ?? []);
 }
 function isAcceptedHistoricalFile(relativePath, content) {
-  const digest = sha2562(content);
+  const digest = sha256(content);
   return acceptedReleases().some((release) => release.files[relativePath] === digest);
 }
 function isAcceptedHistoricalHook(event, entry) {
   const canonical = JSON.stringify(stable2(normalizeSafewordHookCommands(entry)));
-  const fingerprint = sha2562(canonical);
+  const fingerprint = sha256(canonical);
   return acceptedHookFingerprints(event).includes(fingerprint);
 }
 function acceptedHistoricalHookEntries(event) {
@@ -11825,13 +6273,13 @@ var require_compose_collection = __commonJS((exports) => {
 // ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-block-scalar.js
 var require_resolve_block_scalar = __commonJS((exports) => {
   var Scalar = require_Scalar();
-  function resolveBlockScalar(ctx, scalar2, onError) {
-    const start = scalar2.offset;
-    const header2 = parseBlockScalarHeader(scalar2, ctx.options.strict, onError);
+  function resolveBlockScalar(ctx, scalar, onError) {
+    const start = scalar.offset;
+    const header2 = parseBlockScalarHeader(scalar, ctx.options.strict, onError);
     if (!header2)
       return { value: "", type: null, comment: "", range: [start, start, start] };
     const type = header2.mode === ">" ? Scalar.Scalar.BLOCK_FOLDED : Scalar.Scalar.BLOCK_LITERAL;
-    const lines = scalar2.source ? splitLines(scalar2.source) : [];
+    const lines = scalar.source ? splitLines(scalar.source) : [];
     let chompStart = lines.length;
     for (let i = lines.length - 1;i >= 0; --i) {
       const content = lines[i][1];
@@ -11844,12 +6292,12 @@ var require_resolve_block_scalar = __commonJS((exports) => {
       const value2 = header2.chomp === "+" && lines.length > 0 ? `
 `.repeat(Math.max(1, lines.length - 1)) : "";
       let end2 = start + header2.length;
-      if (scalar2.source)
-        end2 += scalar2.source.length;
+      if (scalar.source)
+        end2 += scalar.source.length;
       return { value: value2, type, comment: header2.comment, range: [start, end2, end2] };
     }
-    let trimIndent = scalar2.indent + header2.indent;
-    let offset = scalar2.offset + header2.length;
+    let trimIndent = scalar.indent + header2.indent;
+    let offset = scalar.offset + header2.length;
     let contentStart = 0;
     for (let i = 0;i < chompStart; ++i) {
       const [indent, content] = lines[i];
@@ -11941,7 +6389,7 @@ var require_resolve_block_scalar = __commonJS((exports) => {
         value += `
 `;
     }
-    const end = start + header2.length + scalar2.source.length;
+    const end = start + header2.length + scalar.source.length;
     return { value, type, comment: header2.comment, range: [start, end, end] };
   }
   function parseBlockScalarHeader({ offset, props }, strict, onError) {
@@ -12019,8 +6467,8 @@ var require_resolve_block_scalar = __commonJS((exports) => {
 var require_resolve_flow_scalar = __commonJS((exports) => {
   var Scalar = require_Scalar();
   var resolveEnd = require_resolve_end();
-  function resolveFlowScalar(scalar2, strict, onError) {
-    const { offset, type, source, end } = scalar2;
+  function resolveFlowScalar(scalar, strict, onError) {
+    const { offset, type, source, end } = scalar;
     let _type;
     let value;
     const _onError = (rel, code, msg) => onError(offset + rel, code, msg);
@@ -12038,7 +6486,7 @@ var require_resolve_flow_scalar = __commonJS((exports) => {
         value = doubleQuotedValue(source, _onError);
         break;
       default:
-        onError(scalar2, "UNEXPECTED_TOKEN", `Expected a flow scalar value, but found: ${type}`);
+        onError(scalar, "UNEXPECTED_TOKEN", `Expected a flow scalar value, but found: ${type}`);
         return {
           value: "",
           type: null,
@@ -12250,26 +6698,26 @@ var require_compose_scalar = __commonJS((exports) => {
       tag = findScalarTagByTest(ctx, value, token, onError);
     else
       tag = ctx.schema[identity.SCALAR];
-    let scalar2;
+    let scalar;
     try {
       const res = tag.resolve(value, (msg) => onError(tagToken ?? token, "TAG_RESOLVE_FAILED", msg), ctx.options);
-      scalar2 = identity.isScalar(res) ? res : new Scalar.Scalar(res);
+      scalar = identity.isScalar(res) ? res : new Scalar.Scalar(res);
     } catch (error2) {
       const msg = error2 instanceof Error ? error2.message : String(error2);
       onError(tagToken ?? token, "TAG_RESOLVE_FAILED", msg);
-      scalar2 = new Scalar.Scalar(value);
+      scalar = new Scalar.Scalar(value);
     }
-    scalar2.range = range;
-    scalar2.source = value;
+    scalar.range = range;
+    scalar.source = value;
     if (type)
-      scalar2.type = type;
+      scalar.type = type;
     if (tagName)
-      scalar2.tag = tagName;
+      scalar.tag = tagName;
     if (tag.format)
-      scalar2.format = tag.format;
+      scalar.format = tag.format;
     if (comment)
-      scalar2.comment = comment;
-    return scalar2;
+      scalar.comment = comment;
+    return scalar;
   }
   function findScalarTagByName(schema, value, tagName, tagToken, onError) {
     if (tagName === "!")
@@ -14054,37 +8502,37 @@ var require_parser = __commonJS((exports) => {
         };
       }
     }
-    *scalar(scalar2) {
+    *scalar(scalar) {
       if (this.type === "map-value-ind") {
         const prev = getPrevProps(this.peek(2));
         const start = getFirstKeyStartProps(prev);
         let sep;
-        if (scalar2.end) {
-          sep = scalar2.end;
+        if (scalar.end) {
+          sep = scalar.end;
           sep.push(this.sourceToken);
-          delete scalar2.end;
+          delete scalar.end;
         } else
           sep = [this.sourceToken];
         const map = {
           type: "block-map",
-          offset: scalar2.offset,
-          indent: scalar2.indent,
-          items: [{ start, key: scalar2, sep }]
+          offset: scalar.offset,
+          indent: scalar.indent,
+          items: [{ start, key: scalar, sep }]
         };
         this.onKeyLine = true;
         this.stack[this.stack.length - 1] = map;
       } else
-        yield* this.lineEnd(scalar2);
+        yield* this.lineEnd(scalar);
     }
-    *blockScalar(scalar2) {
+    *blockScalar(scalar) {
       switch (this.type) {
         case "space":
         case "comment":
         case "newline":
-          scalar2.props.push(this.sourceToken);
+          scalar.props.push(this.sourceToken);
           return;
         case "scalar":
-          scalar2.source = this.source;
+          scalar.source = this.source;
           this.atNewLine = true;
           this.indent = 0;
           if (this.onNewLine) {
@@ -14703,9 +9151,243 @@ var require_dist = __commonJS((exports) => {
   exports.visitAsync = visit.visitAsync;
 });
 
+// src/utils/fs.ts
+import {
+  chmodSync,
+  existsSync as existsSync3,
+  mkdirSync as mkdirSync2,
+  readdirSync as readdirSync2,
+  readFileSync as readFileSync3,
+  realpathSync,
+  rmdirSync,
+  rmSync,
+  statSync,
+  writeFileSync as writeFileSync2
+} from "fs";
+import nodePath4 from "path";
+function getTemplatesDirectory() {
+  const knownTemplateFile = "SAFEWORD.md";
+  const candidates = [
+    nodePath4.join(__dirname2, "..", "templates"),
+    nodePath4.join(__dirname2, "..", "..", "templates"),
+    nodePath4.join(__dirname2, "templates")
+  ];
+  for (const candidate of candidates) {
+    if (existsSync3(nodePath4.join(candidate, knownTemplateFile))) {
+      return candidate;
+    }
+  }
+  throw new Error("Templates directory not found");
+}
+function isDirectory(path2) {
+  try {
+    return statSync(path2).isDirectory();
+  } catch {
+    return false;
+  }
+}
+function canonicalDirectory(path2) {
+  if (typeof path2 !== "string" || path2.trim() === "")
+    return;
+  try {
+    if (!statSync(path2).isDirectory())
+      return;
+    return nodePath4.normalize(realpathSync(path2));
+  } catch {
+    return;
+  }
+}
+function exists(path2) {
+  return existsSync3(path2);
+}
+function existsInTree(cwd, filename) {
+  return findInTree(cwd, filename) !== undefined;
+}
+function findInTree(cwd, filename, maxDepth = 10) {
+  if (existsSync3(nodePath4.join(cwd, filename))) {
+    return cwd;
+  }
+  return scanTreeForFile(cwd, filename, 1, maxDepth);
+}
+function isScannableSubdirectory(entry) {
+  return entry.isDirectory() && !entry.name.startsWith(".") && !SUBDIRECTORY_EXCLUDE.has(entry.name);
+}
+function getScannableSubdirectories(directory) {
+  try {
+    return readdirSync2(directory, { withFileTypes: true }).filter((entry) => isScannableSubdirectory(entry)).map((entry) => nodePath4.join(directory, entry.name));
+  } catch {
+    return [];
+  }
+}
+function scanTreeForFile(directory, filename, depth, maxDepth) {
+  if (depth > maxDepth)
+    return;
+  const subdirectories = getScannableSubdirectories(directory);
+  for (const subdirectory of subdirectories) {
+    if (existsSync3(nodePath4.join(subdirectory, filename))) {
+      return subdirectory;
+    }
+  }
+  for (const subdirectory of subdirectories) {
+    const result = scanTreeForFile(subdirectory, filename, depth + 1, maxDepth);
+    if (result !== undefined)
+      return result;
+  }
+  return;
+}
+function findFileMatchingInTree(cwd, predicate, maxDepth = 10, excludedDirectories = new Set) {
+  return scanTreeForMatch(cwd, predicate, 0, maxDepth, excludedDirectories);
+}
+function scanTreeForMatch(directory, predicate, depth, maxDepth, excludedDirectories) {
+  if (depth > maxDepth)
+    return;
+  let entries;
+  try {
+    entries = readdirSync2(directory, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  if (entries.some((entry) => entry.isFile() && predicate(entry.name))) {
+    return directory;
+  }
+  for (const entry of entries) {
+    if (!isScannableSubdirectory(entry))
+      continue;
+    const child = nodePath4.join(directory, entry.name);
+    if (excludedDirectories.has(child))
+      continue;
+    const result = scanTreeForMatch(child, predicate, depth + 1, maxDepth, excludedDirectories);
+    if (result !== undefined)
+      return result;
+  }
+  return;
+}
+function indexFilesInTree(cwd, filenames, maxDepth = 10) {
+  const wanted = [...filenames];
+  const found = new Map;
+  const queue = [{ directory: cwd, depth: 0 }];
+  let head = 0;
+  while (head < queue.length) {
+    const item = queue[head];
+    head += 1;
+    if (item === undefined)
+      break;
+    for (const name of wanted) {
+      if (!found.has(name) && existsSync3(nodePath4.join(item.directory, name))) {
+        found.set(name, item.directory);
+      }
+    }
+    if (found.size === wanted.length)
+      break;
+    if (item.depth >= maxDepth)
+      continue;
+    for (const subdirectory of getScannableSubdirectories(item.directory)) {
+      queue.push({ directory: subdirectory, depth: item.depth + 1 });
+    }
+  }
+  return found;
+}
+function findAllInTree(cwd, filename, maxDepth = 10) {
+  const found = [];
+  const queue = [{ directory: cwd, depth: 0 }];
+  let head = 0;
+  while (head < queue.length) {
+    const item = queue[head];
+    head += 1;
+    if (item === undefined)
+      break;
+    if (existsSync3(nodePath4.join(item.directory, filename)))
+      found.push(item.directory);
+    if (item.depth >= maxDepth)
+      continue;
+    for (const subdirectory of getScannableSubdirectories(item.directory)) {
+      queue.push({ directory: subdirectory, depth: item.depth + 1 });
+    }
+  }
+  return found;
+}
+function ensureDirectory(path2) {
+  if (!existsSync3(path2)) {
+    mkdirSync2(path2, { recursive: true });
+  }
+}
+function readFile(path2) {
+  return readFileSync3(path2, "utf8");
+}
+function readFileSafe(path2) {
+  if (!existsSync3(path2))
+    return;
+  return readFileSync3(path2, "utf8");
+}
+function writeFile(path2, content) {
+  ensureDirectory(nodePath4.dirname(path2));
+  writeFileSync2(path2, content);
+}
+function remove(path2) {
+  if (existsSync3(path2)) {
+    rmSync(path2, { recursive: true, force: true });
+  }
+}
+function removeIfEmpty(path2) {
+  if (!existsSync3(path2))
+    return false;
+  try {
+    rmdirSync(path2);
+    return true;
+  } catch {
+    return false;
+  }
+}
+function makeScriptsExecutable(dirPath) {
+  if (!existsSync3(dirPath))
+    return;
+  for (const file of readdirSync2(dirPath)) {
+    if (file.endsWith(".sh")) {
+      chmodSync(nodePath4.join(dirPath, file), 493);
+    }
+  }
+}
+function readJson(path2) {
+  try {
+    const content = readFileSafe(path2);
+    if (!content)
+      return;
+    return JSON.parse(content);
+  } catch {
+    return;
+  }
+}
+function writeJson(path2, data) {
+  writeFile(path2, `${JSON.stringify(data, undefined, 2)}
+`);
+}
+var __dirname2, SUBDIRECTORY_EXCLUDE;
+var init_fs = __esm(() => {
+  __dirname2 = import.meta.dirname;
+  SUBDIRECTORY_EXCLUDE = new Set([
+    "node_modules",
+    ".git",
+    ".safeword",
+    "vendor",
+    "testdata",
+    "dist",
+    "build",
+    "target",
+    "coverage",
+    "dbt_packages",
+    "out",
+    ".next",
+    ".nuxt",
+    ".output",
+    "__pycache__",
+    ".venv",
+    "venv"
+  ]);
+});
+
 // src/packs/golang/files.ts
-import { readFileSync as readFileSync16 } from "fs";
-import nodePath22 from "path";
+import { readFileSync as readFileSync4 } from "fs";
+import nodePath5 from "path";
 function buildStandaloneConfig() {
   return {
     version: "2",
@@ -14730,12 +9412,12 @@ function generateSafewordGolangciConfig(existingConfig, cwd) {
   if (!existingConfig) {
     return getSafewordGolangciStandalone();
   }
-  const configPath2 = nodePath22.join(cwd, existingConfig);
-  if (!exists(configPath2)) {
+  const configPath = nodePath5.join(cwd, existingConfig);
+  if (!exists(configPath)) {
     return getSafewordGolangciStandalone();
   }
   try {
-    const projectContent = readFileSync16(configPath2, "utf8");
+    const projectContent = readFileSync4(configPath, "utf8");
     const projectConfig = import_yaml.default.parse(projectContent);
     if (!projectConfig) {
       return getSafewordGolangciStandalone();
@@ -14860,6 +9542,8 @@ var init_files = __esm(() => {
     "misspell",
     "errorlint",
     "gocritic",
+    "lll",
+    "godoclint",
     "revive",
     "perfsprint",
     "copyloopvar",
@@ -14870,7 +9554,14 @@ var init_files = __esm(() => {
   ];
   SAFEWORD_EXCLUSION_PRESETS = ["std-error-handling", "common-false-positives"];
   SAFEWORD_SETTINGS = {
-    nestif: { "min-complexity": 4 }
+    nestif: { "min-complexity": 4 },
+    lll: { "line-length": 100 },
+    gocritic: { commentedOutCode: { minLength: 50 } },
+    godoclint: {
+      default: "none",
+      enable: ["max-len"],
+      options: { "max-len": { length: 100 } }
+    }
   };
   golangOwnedFiles = {
     ".safeword/.golangci.yml": {
@@ -15092,7 +9783,7 @@ function parseString(str, ptr) {
 `)
       ptr += 2;
   }
-  let parsed2 = "";
+  let parsed = "";
   let sliceStart = ptr;
   let state = 0;
   for (let i = ptr;i < str.length; i++) {
@@ -15114,12 +9805,12 @@ function parseString(str, ptr) {
           i++;
       }
       return [
-        state ? parsed2 : parsed2 + str.slice(sliceStart, i),
+        state ? parsed : parsed + str.slice(sliceStart, i),
         i + (isMultiline ? 3 : 1)
       ];
     } else if (!state) {
       if (!isLiteral && c === "\\") {
-        parsed2 += str.slice(sliceStart, sliceStart = i);
+        parsed += str.slice(sliceStart, sliceStart = i);
         state = 1;
       }
     } else if (state === 1) {
@@ -15136,29 +9827,29 @@ function parseString(str, ptr) {
         if (value < 0 || value > 1114111 || value >= 55296 && value <= 57343) {
           throw new TomlError("invalid unicode escape", { toml: str, ptr: i });
         }
-        parsed2 += String.fromCodePoint(value);
+        parsed += String.fromCodePoint(value);
         sliceStart = i + 1;
         state = 0;
       } else if (c === " " || c === "\t") {
         state = 2;
       } else {
         if (c === "b")
-          parsed2 += "\b";
+          parsed += "\b";
         else if (c === "t")
-          parsed2 += "\t";
+          parsed += "\t";
         else if (c === "n")
-          parsed2 += `
+          parsed += `
 `;
         else if (c === "f")
-          parsed2 += "\f";
+          parsed += "\f";
         else if (c === "r")
-          parsed2 += "\r";
+          parsed += "\r";
         else if (c === "e")
-          parsed2 += "\x1B";
+          parsed += "\x1B";
         else if (c === '"')
-          parsed2 += '"';
+          parsed += '"';
         else if (c === "\\")
-          parsed2 += "\\";
+          parsed += "\\";
         else
           throw new TomlError("unrecognized escape sequence", { toml: str, ptr: i });
         sliceStart = i + 1;
@@ -15391,7 +10082,7 @@ function extractValue(str, ptr, end, depth, integersAsBigInt) {
     return [value, endPtr2];
   }
   if (c === '"' || c === "'") {
-    let [parsed2, endPtr2] = parseString(str, ptr);
+    let [parsed, endPtr2] = parseString(str, ptr);
     if (end) {
       endPtr2 = skipVoid(str, endPtr2);
       if (str[endPtr2] && str[endPtr2] !== "," && str[endPtr2] !== end && str[endPtr2] !== `
@@ -15404,7 +10095,7 @@ function extractValue(str, ptr, end, depth, integersAsBigInt) {
       if (str[endPtr2] === ",")
         endPtr2++;
     }
-    return [parsed2, endPtr2];
+    return [parsed, endPtr2];
   }
   let endPtr = skipUntil(str, ptr, ",", end);
   let slice = sliceAndTrimEndOf(str, ptr, endPtr - (str[endPtr - 1] === "," ? 1 : 0));
@@ -15461,7 +10152,7 @@ var init_extract = __esm(() => {
 // ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/struct.js
 function parseKey(str, ptr, end = "=") {
   let dot = ptr - 1;
-  let parsed2 = [];
+  let parsed = [];
   let endPtr = str.indexOf(end, ptr);
   if (endPtr < 0) {
     throw new TomlError("incomplete key-value: cannot find end of key", {
@@ -15504,7 +10195,7 @@ function parseKey(str, ptr, end = "=") {
             });
           }
         }
-        parsed2.push(part);
+        parsed.push(part);
       } else {
         dot = str.indexOf(".", ptr);
         let part = str.slice(ptr, dot < 0 || dot > endPtr ? endPtr : dot);
@@ -15514,11 +10205,11 @@ function parseKey(str, ptr, end = "=") {
             ptr
           });
         }
-        parsed2.push(part.trimEnd());
+        parsed.push(part.trimEnd());
       }
     }
   } while (dot + 1 && dot < endPtr);
-  return [parsed2, skipVoid(str, endPtr + 1, true, true)];
+  return [parsed, skipVoid(str, endPtr + 1, true, true)];
 }
 function parseInlineTable(str, ptr, depth, integersAsBigInt) {
   let res = {};
@@ -15850,7 +10541,7 @@ var init_dist = __esm(() => {
 });
 
 // src/utils/workspace-pattern.ts
-import nodePath23 from "path";
+import nodePath6 from "path";
 function matchesSegment(value, pattern) {
   let positions = new Set([0]);
   for (const token of pattern) {
@@ -15868,7 +10559,7 @@ function matchesSegment(value, pattern) {
   return positions.has(value.length);
 }
 function matchesWorkspacePattern(relative, pattern) {
-  const values = relative.split(nodePath23.sep).filter(Boolean);
+  const values = relative.split(nodePath6.sep).filter(Boolean);
   const patterns = pattern.replaceAll("\\", "/").split("/").filter(Boolean);
   const visit = (valueIndex, patternIndex) => {
     const part = patterns[patternIndex];
@@ -15884,13 +10575,13 @@ function matchesWorkspacePattern(relative, pattern) {
 var init_workspace_pattern = () => {};
 
 // src/packs/python/setup.ts
-import { execFileSync as execFileSync3 } from "child_process";
-import { readdirSync as readdirSync9, realpathSync as realpathSync2 } from "fs";
-import nodePath24 from "path";
+import { execFileSync } from "child_process";
+import { readdirSync as readdirSync3, realpathSync as realpathSync2 } from "fs";
+import nodePath7 from "path";
 function hasAnyLayerPattern(cwd, patterns) {
   for (const pattern of patterns) {
-    const srcPath = nodePath24.join(cwd, "src", pattern);
-    const rootPath = nodePath24.join(cwd, pattern);
+    const srcPath = nodePath7.join(cwd, "src", pattern);
+    const rootPath = nodePath7.join(cwd, pattern);
     if (exists(srcPath) || exists(rootPath)) {
       return true;
     }
@@ -15908,7 +10599,7 @@ function detectPythonLayers(cwd) {
   return layerOrder.filter((layer) => detected.includes(layer));
 }
 function detectRootPackage(cwd) {
-  const pyprojectPath = nodePath24.join(cwd, "pyproject.toml");
+  const pyprojectPath = nodePath7.join(cwd, "pyproject.toml");
   const content = readFileSafe(pyprojectPath);
   if (content) {
     const nameMatch = /^name\s*=\s*"([^"]+)"/m.exec(content);
@@ -15916,16 +10607,16 @@ function detectRootPackage(cwd) {
       return nameMatch[1].replaceAll("-", "_");
     }
   }
-  if (exists(nodePath24.join(cwd, "src"))) {
+  if (exists(nodePath7.join(cwd, "src"))) {
     return "src";
   }
-  return nodePath24.basename(cwd).replaceAll("-", "_");
+  return nodePath7.basename(cwd).replaceAll("-", "_");
 }
 function importablePackagesIn(dir) {
   if (!exists(dir))
     return [];
   try {
-    return readdirSync9(dir, { withFileTypes: true }).filter((entry) => entry.isDirectory() && !entry.name.startsWith(".") && !NON_PACKAGE_DIRS.has(entry.name) && exists(nodePath24.join(dir, entry.name, "__init__.py"))).map((entry) => entry.name);
+    return readdirSync3(dir, { withFileTypes: true }).filter((entry) => entry.isDirectory() && !entry.name.startsWith(".") && !NON_PACKAGE_DIRS.has(entry.name) && exists(nodePath7.join(dir, entry.name, "__init__.py"))).map((entry) => entry.name);
   } catch {
     return [];
   }
@@ -15933,7 +10624,7 @@ function importablePackagesIn(dir) {
 function detectSolePackage(cwd) {
   const candidates = [
     ...importablePackagesIn(cwd),
-    ...importablePackagesIn(nodePath24.join(cwd, "src"))
+    ...importablePackagesIn(nodePath7.join(cwd, "src"))
   ];
   return candidates.length === 1 ? candidates[0] : undefined;
 }
@@ -16048,8 +10739,8 @@ function requirementsIncludePath(line) {
   return include === undefined ? undefined : unquoteRequirementsInclude(include);
 }
 function isPathWithinDirectory(candidate, directory) {
-  const relative = nodePath24.relative(directory, candidate);
-  return relative === "" || relative !== ".." && !relative.startsWith(`..${nodePath24.sep}`);
+  const relative = nodePath7.relative(directory, candidate);
+  return relative === "" || relative !== ".." && !relative.startsWith(`..${nodePath7.sep}`);
 }
 function isRealPathWithinDirectory(candidate, directory) {
   try {
@@ -16059,7 +10750,7 @@ function isRealPathWithinDirectory(candidate, directory) {
   }
 }
 function containsRequirementsPythonDependency(projectDirectory, requirementsPath, dependency, visited = new Set) {
-  const resolvedRequirementsPath = nodePath24.resolve(requirementsPath);
+  const resolvedRequirementsPath = nodePath7.resolve(requirementsPath);
   if (!isRealPathWithinDirectory(resolvedRequirementsPath, projectDirectory) || visited.has(resolvedRequirementsPath)) {
     return false;
   }
@@ -16075,24 +10766,24 @@ function containsRequirementsPythonDependency(projectDirectory, requirementsPath
     if (startsPythonDependency(declaration, dependency))
       return true;
     const include = requirementsIncludePath(line);
-    if (include === undefined || nodePath24.isAbsolute(include))
+    if (include === undefined || nodePath7.isAbsolute(include))
       return false;
-    const includePath = nodePath24.resolve(nodePath24.dirname(resolvedRequirementsPath), include);
+    const includePath = nodePath7.resolve(nodePath7.dirname(resolvedRequirementsPath), include);
     return containsRequirementsPythonDependency(projectDirectory, includePath, dependency, visited);
   });
 }
 function hasPythonDependency(cwd, dependency) {
-  const pyprojectContent = readFileSafe(nodePath24.join(cwd, "pyproject.toml"));
-  const pipfileContent = readFileSafe(nodePath24.join(cwd, "Pipfile"));
-  const legacyContent = ["setup.py", "setup.cfg"].map((filename) => readFileSafe(nodePath24.join(cwd, filename))).filter((content) => content !== undefined);
-  return pyprojectContent !== undefined && containsPyprojectPythonDependency(pyprojectContent, dependency) || pipfileContent !== undefined && containsPipfilePythonDependency(pipfileContent, dependency) || containsRequirementsPythonDependency(cwd, nodePath24.join(cwd, "requirements.txt"), dependency) || legacyContent.some((content) => content.split(/[\s'",[\]()]+/u).some((declaration) => startsPythonDependency(declaration, dependency)));
+  const pyprojectContent = readFileSafe(nodePath7.join(cwd, "pyproject.toml"));
+  const pipfileContent = readFileSafe(nodePath7.join(cwd, "Pipfile"));
+  const legacyContent = ["setup.py", "setup.cfg"].map((filename) => readFileSafe(nodePath7.join(cwd, filename))).filter((content) => content !== undefined);
+  return pyprojectContent !== undefined && containsPyprojectPythonDependency(pyprojectContent, dependency) || pipfileContent !== undefined && containsPipfilePythonDependency(pipfileContent, dependency) || containsRequirementsPythonDependency(cwd, nodePath7.join(cwd, "requirements.txt"), dependency) || legacyContent.some((content) => content.split(/[\s'",[\]()]+/u).some((declaration) => startsPythonDependency(declaration, dependency)));
 }
 function detectPythonPackageManager(cwd, repoRoot = cwd) {
-  const root = nodePath24.resolve(repoRoot);
-  let directory = nodePath24.resolve(cwd);
+  const root = nodePath7.resolve(repoRoot);
+  let directory = nodePath7.resolve(cwd);
   const projectDirectory = directory;
-  const relative = nodePath24.relative(root, directory);
-  if (relative.startsWith(`..${nodePath24.sep}`) || nodePath24.isAbsolute(relative))
+  const relative = nodePath7.relative(root, directory);
+  if (relative.startsWith(`..${nodePath7.sep}`) || nodePath7.isAbsolute(relative))
     directory = root;
   while (true) {
     const manager = detectPythonPackageManagerAt(directory);
@@ -16102,26 +10793,26 @@ function detectPythonPackageManager(cwd, repoRoot = cwd) {
       return manager;
     if (directory === root)
       return "pip";
-    directory = nodePath24.dirname(directory);
+    directory = nodePath7.dirname(directory);
   }
 }
 function pythonWorkspaceOwns(repoRoot, projectDirectory) {
-  const document2 = parseTomlTable(readFileSafe(nodePath24.join(repoRoot, "pyproject.toml")) ?? "");
+  const document2 = parseTomlTable(readFileSafe(nodePath7.join(repoRoot, "pyproject.toml")) ?? "");
   const workspace = document2 && tomlTableAt(document2, ["tool", "uv", "workspace"]);
   if (!workspace)
     return false;
-  const relative = nodePath24.relative(repoRoot, projectDirectory);
+  const relative = nodePath7.relative(repoRoot, projectDirectory);
   const members = tomlStringArray(workspace.members);
   const excluded = tomlStringArray(workspace.exclude);
   return members.some((pattern) => matchesWorkspacePattern(relative, pattern)) && excluded.every((pattern) => !matchesWorkspacePattern(relative, pattern));
 }
 function detectPythonPackageManagerAt(directory) {
-  if (exists(nodePath24.join(directory, "uv.lock")))
+  if (exists(nodePath7.join(directory, "uv.lock")))
     return "uv";
-  if (exists(nodePath24.join(directory, "poetry.lock")) || readFileSafe(nodePath24.join(directory, "pyproject.toml"))?.includes("[tool.poetry]")) {
+  if (exists(nodePath7.join(directory, "poetry.lock")) || readFileSafe(nodePath7.join(directory, "pyproject.toml"))?.includes("[tool.poetry]")) {
     return "poetry";
   }
-  return exists(nodePath24.join(directory, "Pipfile")) ? "pipenv" : undefined;
+  return exists(nodePath7.join(directory, "Pipfile")) ? "pipenv" : undefined;
 }
 function getPythonInstallCommand(cwd, tools = ["ruff"], repoRoot = cwd) {
   const pm = detectPythonPackageManager(cwd, repoRoot);
@@ -16177,7 +10868,7 @@ function findPythonProjectDirectories(cwd) {
   return [...directories].toSorted((left, right) => relativeDepth(cwd, left) - relativeDepth(cwd, right) || left.localeCompare(right));
 }
 function relativeDepth(root, path2) {
-  return nodePath24.relative(root, path2).split(nodePath24.sep).length;
+  return nodePath7.relative(root, path2).split(nodePath7.sep).length;
 }
 function getPythonToolDependencyGaps(cwd, includeImportLinter) {
   return findPythonProjectDirectories(cwd).flatMap((directory) => {
@@ -16195,7 +10886,7 @@ function installPythonDependencies(cwd, tools, repoRoot = cwd) {
     return false;
   try {
     const invocation = pythonInstallInvocation(cwd, tools, repoRoot);
-    execFileSync3(invocation.command, invocation.arguments, {
+    execFileSync(invocation.command, invocation.arguments, {
       cwd,
       stdio: "pipe",
       timeout: 60000
@@ -16232,14 +10923,14 @@ var init_setup = __esm(() => {
 });
 
 // src/packs/python/files.ts
-import { existsSync as existsSync15, readFileSync as readFileSync17 } from "fs";
-import nodePath25 from "path";
+import { existsSync as existsSync4, readFileSync as readFileSync5 } from "fs";
+import nodePath8 from "path";
 function hasLegacyCustomerRuffExtend(cwd) {
-  const ruffPath = nodePath25.join(cwd, "ruff.toml");
-  if (!existsSync15(ruffPath))
+  const ruffPath = nodePath8.join(cwd, "ruff.toml");
+  if (!existsSync4(ruffPath))
     return false;
   try {
-    const content = readFileSync17(ruffPath, "utf8");
+    const content = readFileSync5(ruffPath, "utf8");
     return content.includes('extend = ".safeword/ruff.toml"');
   } catch {
     return false;
@@ -16315,17 +11006,17 @@ layers =
 ${layerList}
 `;
 }
-function generateAcyclicImportLinterConfig(packageName2) {
+function generateAcyclicImportLinterConfig(packageName) {
   return `# Generated by safeword
 # Circular-import guard - forbids dependency cycles between sibling modules
 
 [importlinter]
-root_package = ${packageName2}
+root_package = ${packageName}
 
 [importlinter:contract:safeword-acyclic]
 name = No circular imports between sibling modules (safeword)
 type = acyclic_siblings
-ancestors = ${packageName2}
+ancestors = ${packageName}
 `;
 }
 function hasImportLinterScaffoldTarget(cwd) {
@@ -16344,7 +11035,6 @@ function importLinterScaffoldContent(cwd) {
 var SAFEWORD_RULES, RUFF_SHARED_SETTINGS = `ignore = [
     "COM812", # missing trailing comma - conflicts with formatter
     "ISC001", # single-line-implicit-string-concatenation - conflicts with formatter
-    "E501",   # line too long - formatter handles this
 ]
 
 [lint.per-file-ignores]
@@ -16406,8 +11096,8 @@ ${RUFF_SHARED_SETTINGS}`;
 });
 
 // src/packs/rust/files.ts
-import { existsSync as existsSync16, readFileSync as readFileSync18 } from "fs";
-import nodePath26 from "path";
+import { existsSync as existsSync5, readFileSync as readFileSync6 } from "fs";
+import nodePath9 from "path";
 function generateClippyConfig() {
   const thresholds = Object.entries(SAFEWORD_CLIPPY_THRESHOLDS).map(([key, value]) => `${key} = ${String(value)}`).join(`
 `);
@@ -16425,8 +11115,8 @@ function generateSafewordClippyConfig(existingConfig, cwd) {
 ${generateClippyThresholds()}
 `;
   }
-  const configPath2 = nodePath26.join(cwd, existingConfig);
-  if (!existsSync16(configPath2)) {
+  const configPath = nodePath9.join(cwd, existingConfig);
+  if (!existsSync5(configPath)) {
     return `# Safeword clippy config - standalone (no project config to merge)
 # Used by hooks for LLM enforcement.
 
@@ -16434,7 +11124,7 @@ ${generateClippyThresholds()}
 `;
   }
   try {
-    const content = readFileSync18(configPath2, "utf8");
+    const content = readFileSync6(configPath, "utf8");
     const customerKeys = parseClippyKeys(content);
     const gapEntries = Object.entries(SAFEWORD_CLIPPY_THRESHOLDS).filter(([key]) => !customerKeys.has(key)).map(([key, value]) => `${key} = ${String(value)}`);
     const safewordSection = gapEntries.length > 0 ? `
@@ -16494,7 +11184,7 @@ function editionInSection(content, header2) {
 function resolveRustEdition(cwd) {
   let content;
   try {
-    content = readFileSync18(nodePath26.join(cwd, "Cargo.toml"), "utf8");
+    content = readFileSync6(nodePath9.join(cwd, "Cargo.toml"), "utf8");
   } catch {
     return FALLBACK_RUST_EDITION;
   }
@@ -16605,16 +11295,16 @@ var init_files3 = __esm(() => {
 });
 
 // src/packs/sql/dialect.ts
-import { existsSync as existsSync17, readFileSync as readFileSync19 } from "fs";
-import nodePath27 from "path";
-import process9 from "process";
+import { existsSync as existsSync6, readFileSync as readFileSync7 } from "fs";
+import nodePath10 from "path";
+import process4 from "process";
 function detectSqlDialect(cwd) {
   return detectFromProfiles(cwd) ?? detectFromPythonDependencies(cwd) ?? detectFromSqlcConfig(cwd) ?? detectFromPrismaSchema(cwd) ?? detectFromDrizzleConfig(cwd) ?? detectFromDatabaseUrl(cwd);
 }
 function resolveProfileType(profilesPath, profileName) {
-  if (!existsSync17(profilesPath))
+  if (!existsSync6(profilesPath))
     return;
-  const content = readFileSync19(profilesPath, "utf8");
+  const content = readFileSync7(profilesPath, "utf8");
   const profiles = import_yaml2.default.parse(content, { schema: "failsafe" });
   const profile = profiles[profileName];
   if (!profile?.outputs)
@@ -16631,15 +11321,15 @@ function detectFromProfiles(cwd) {
   if (!dbtProjectDirectory)
     return;
   try {
-    const projectContent = readFileSync19(nodePath27.join(dbtProjectDirectory, "dbt_project.yml"), "utf8");
+    const projectContent = readFileSync7(nodePath10.join(dbtProjectDirectory, "dbt_project.yml"), "utf8");
     const project = import_yaml2.default.parse(projectContent, { schema: "failsafe" });
     const profileName = project.profile;
     if (typeof profileName !== "string")
       return;
     const candidates = [
-      nodePath27.join(dbtProjectDirectory, "profiles.yml"),
-      nodePath27.join(dbtProjectDirectory, "dbt", "profiles.yml"),
-      nodePath27.join(process9.env.HOME ?? "", ".dbt", "profiles.yml")
+      nodePath10.join(dbtProjectDirectory, "profiles.yml"),
+      nodePath10.join(dbtProjectDirectory, "dbt", "profiles.yml"),
+      nodePath10.join(process4.env.HOME ?? "", ".dbt", "profiles.yml")
     ];
     for (const profilesPath of candidates) {
       const adapterType = resolveProfileType(profilesPath, profileName);
@@ -16655,14 +11345,14 @@ function detectFromPythonDependencies(cwd) {
   const directory = findInTree(cwd, "requirements.txt") ?? findInTree(cwd, "pyproject.toml");
   if (!directory)
     return;
-  const requirementsPath = nodePath27.join(directory, "requirements.txt");
-  const pyprojectPath = nodePath27.join(directory, "pyproject.toml");
+  const requirementsPath = nodePath10.join(directory, "requirements.txt");
+  const pyprojectPath = nodePath10.join(directory, "pyproject.toml");
   try {
     let content;
-    if (existsSync17(requirementsPath)) {
-      content = readFileSync19(requirementsPath, "utf8");
-    } else if (existsSync17(pyprojectPath)) {
-      content = readFileSync19(pyprojectPath, "utf8");
+    if (existsSync6(requirementsPath)) {
+      content = readFileSync7(requirementsPath, "utf8");
+    } else if (existsSync6(pyprojectPath)) {
+      content = readFileSync7(pyprojectPath, "utf8");
     }
     if (!content)
       return;
@@ -16683,7 +11373,7 @@ function detectFromSqlcConfig(cwd) {
     if (!directory)
       continue;
     try {
-      const content = readFileSync19(nodePath27.join(directory, filename), "utf8");
+      const content = readFileSync7(nodePath10.join(directory, filename), "utf8");
       const match = /engine['":\s]+(\w+)/.exec(content);
       if (match?.[1])
         return ADAPTER_TO_DIALECT[match[1]] ?? match[1];
@@ -16694,11 +11384,11 @@ function detectFromSqlcConfig(cwd) {
   return;
 }
 function detectFromPrismaSchema(cwd) {
-  const schemaPath = nodePath27.join(cwd, "prisma", "schema.prisma");
-  if (!existsSync17(schemaPath))
+  const schemaPath = nodePath10.join(cwd, "prisma", "schema.prisma");
+  if (!existsSync6(schemaPath))
     return;
   try {
-    const content = readFileSync19(schemaPath, "utf8");
+    const content = readFileSync7(schemaPath, "utf8");
     const match = /provider\s*=\s*"(\w+)"/.exec(content);
     if (!match?.[1])
       return;
@@ -16709,11 +11399,11 @@ function detectFromPrismaSchema(cwd) {
 }
 function detectFromDrizzleConfig(cwd) {
   for (const filename of ["drizzle.config.ts", "drizzle.config.js", "drizzle.config.mjs"]) {
-    const filePath = nodePath27.join(cwd, filename);
-    if (!existsSync17(filePath))
+    const filePath = nodePath10.join(cwd, filename);
+    if (!existsSync6(filePath))
       continue;
     try {
-      const content = readFileSync19(filePath, "utf8");
+      const content = readFileSync7(filePath, "utf8");
       const match = /dialect\s*:\s*["'](\w+)["']/.exec(content);
       if (match?.[1])
         return DRIZZLE_TO_DIALECT[match[1]];
@@ -16724,11 +11414,11 @@ function detectFromDrizzleConfig(cwd) {
   return;
 }
 function detectFromDatabaseUrl(cwd) {
-  const envPath = nodePath27.join(cwd, ".env");
-  if (!existsSync17(envPath))
+  const envPath = nodePath10.join(cwd, ".env");
+  if (!existsSync6(envPath))
     return;
   try {
-    const content = readFileSync19(envPath, "utf8");
+    const content = readFileSync7(envPath, "utf8");
     const match = /DATABASE_URL\s*=\s*["']?(\w+):/.exec(content);
     if (!match?.[1])
       return;
@@ -16884,8 +11574,219 @@ var init_files4 = __esm(() => {
   };
 });
 
+// src/utils/repo-path.ts
+import nodePath11 from "path";
+function toRepoPath(value) {
+  return value.split(nodePath11.win32.sep).join(nodePath11.posix.sep);
+}
+function toRepoRelativePath(cwd, absolutePath) {
+  return toRepoPath(nodePath11.relative(cwd, absolutePath));
+}
+function toRepoDirectory(cwd, configuredPath) {
+  if (configuredPath === "")
+    return;
+  const repoPath = nodePath11.isAbsolute(configuredPath) ? toRepoRelativePath(cwd, configuredPath) : toRepoPath(configuredPath);
+  const canonical = nodePath11.posix.normalize(repoPath);
+  const normalized = canonical.endsWith("/") ? canonical.slice(0, -1) : canonical;
+  if (normalized === "" || normalized === ".")
+    return "";
+  return normalized !== ".." && !normalized.startsWith("../") ? normalized : undefined;
+}
+var init_repo_path = () => {};
+
+// src/utils/configured-paths.ts
+var exports_configured_paths = {};
+__export(exports_configured_paths, {
+  ticketDirectoriesForConfiguredRoot: () => ticketDirectoriesForConfiguredRoot,
+  resolveTicketsDirectory: () => resolveTicketsDirectory,
+  resolveNamespaceRoot: () => resolveNamespaceRoot,
+  resolveLearningsDirectory: () => resolveLearningsDirectory,
+  resolveGeneratedArchitecturePath: () => resolveGeneratedArchitecturePath,
+  resolveConfiguredPath: () => resolveConfiguredPath,
+  resolveConfiguredLaneDirectory: () => resolveConfiguredLaneDirectory,
+  resolveArchitectureNarrative: () => resolveArchitectureNarrative,
+  readConfiguredPathFromContent: () => readConfiguredPathFromContent,
+  readConfiguredPath: () => readConfiguredPath,
+  readConfiguredDocumentationSources: () => readConfiguredDocumentationSources,
+  readConfiguredDocumentationSourceDecision: () => readConfiguredDocumentationSourceDecision,
+  readBddConventionsPath: () => readBddConventionsPath,
+  isArchitectureDocumentEnforcementEnabled: () => isArchitectureDocumentEnforcementEnabled,
+  hasSafewordProjectMarker: () => hasSafewordProjectMarker,
+  defaultConfiguredPath: () => defaultConfiguredPath,
+  NAMESPACE_ROOT_LEGACY: () => NAMESPACE_ROOT_LEGACY,
+  GENERATED_ARCHITECTURE_FILENAME: () => GENERATED_ARCHITECTURE_FILENAME
+});
+import nodePath12 from "path";
+function hasSafewordProjectMarker(cwd) {
+  return exists(nodePath12.join(cwd, ...SAFEWORD_PROJECT_MARKER_SUBPATH));
+}
+function readSafewordConfig(cwd) {
+  const configPath = nodePath12.join(cwd, ...CONFIG_SUBPATH);
+  const content = readFileSafe(configPath);
+  return content === undefined ? undefined : parseSafewordConfig(content);
+}
+function parseSafewordConfig(content) {
+  try {
+    return JSON.parse(content);
+  } catch {
+    return;
+  }
+}
+function nonEmptyString(value) {
+  return typeof value === "string" && value.length > 0;
+}
+function parseLocalDocumentationSource(cwd, entry) {
+  if (!nonEmptyString(entry.path))
+    return;
+  const rawPath = entry.path;
+  return {
+    type: "local",
+    path: rawPath,
+    resolvedPath: nodePath12.isAbsolute(rawPath) ? rawPath : nodePath12.join(cwd, rawPath)
+  };
+}
+function parseUrlDocumentationSource(entry) {
+  return nonEmptyString(entry.url) ? { type: "url", url: entry.url } : undefined;
+}
+function parseGitDocumentationSource(entry) {
+  if (!nonEmptyString(entry.repo))
+    return;
+  return nonEmptyString(entry.path) ? { type: "git", repo: entry.repo, path: entry.path } : { type: "git", repo: entry.repo };
+}
+function readConfiguredPath(cwd, key) {
+  const parsed = readSafewordConfig(cwd);
+  const raw = parsed?.paths?.[key];
+  if (!nonEmptyString(raw))
+    return;
+  return raw;
+}
+function readConfiguredPathFromContent(content, key) {
+  if (content === undefined)
+    return;
+  const raw = parseSafewordConfig(content)?.paths?.[key];
+  return nonEmptyString(raw) ? raw : undefined;
+}
+function resolveConfiguredLaneDirectory(cwd, key) {
+  const configured = readConfiguredPath(cwd, key);
+  if (configured === undefined)
+    return;
+  return nodePath12.isAbsolute(configured) ? configured : nodePath12.join(cwd, configured);
+}
+function readBddConventionsPath(cwd) {
+  const raw = readSafewordConfig(cwd)?.bdd?.conventions;
+  return nonEmptyString(raw) ? raw : undefined;
+}
+function isArchitectureDocumentEnforcementEnabled(cwd) {
+  const parsed = readSafewordConfig(cwd);
+  return parsed?.architectureDocEnforcement !== false;
+}
+function parseConfiguredDocumentationSource(cwd, source) {
+  if (source === null || typeof source !== "object")
+    return;
+  const entry = source;
+  switch (entry.type) {
+    case "local": {
+      return parseLocalDocumentationSource(cwd, entry);
+    }
+    case "url": {
+      return parseUrlDocumentationSource(entry);
+    }
+    case "git": {
+      return parseGitDocumentationSource(entry);
+    }
+    default: {
+      return;
+    }
+  }
+}
+function readConfiguredDocumentationSources(cwd) {
+  const decision = readConfiguredDocumentationSourceDecision(cwd);
+  return decision.kind === "configured" ? decision.sources : [];
+}
+function readConfiguredDocumentationSourceDecision(cwd) {
+  const parsed = readSafewordConfig(cwd);
+  const sources = parsed?.docs?.sources;
+  if (!Array.isArray(sources))
+    return { kind: "unset" };
+  if (sources.length === 0)
+    return { kind: "explicit-none" };
+  const configuredSources = sources.flatMap((source) => {
+    const parsedSource = parseConfiguredDocumentationSource(cwd, source);
+    return parsedSource === undefined ? [] : [parsedSource];
+  });
+  return { kind: "configured", sources: configuredSources };
+}
+function resolveNamespaceRoot(cwd) {
+  const configured = readConfiguredPath(cwd, "projectRoot");
+  if (configured !== undefined) {
+    return nodePath12.isAbsolute(configured) ? configured : nodePath12.join(cwd, configured);
+  }
+  const defaultRoot = nodePath12.join(cwd, NAMESPACE_ROOT_DEFAULT);
+  if (isDirectory(defaultRoot))
+    return defaultRoot;
+  const legacyRoot = nodePath12.join(cwd, NAMESPACE_ROOT_LEGACY);
+  if (isDirectory(legacyRoot))
+    return legacyRoot;
+  return defaultRoot;
+}
+function resolveTicketsDirectory(cwd) {
+  return nodePath12.join(resolveNamespaceRoot(cwd), "tickets");
+}
+function ticketDirectoriesForConfiguredRoot(cwd, configuredProjectRoot, rootExists) {
+  if (configuredProjectRoot === undefined) {
+    let projectRoot2 = NAMESPACE_ROOT_DEFAULT;
+    if (!rootExists(projectRoot2) && rootExists(NAMESPACE_ROOT_LEGACY)) {
+      projectRoot2 = NAMESPACE_ROOT_LEGACY;
+    }
+    return [nodePath12.posix.join(projectRoot2, "tickets")];
+  }
+  const projectRoot = toRepoDirectory(cwd, configuredProjectRoot);
+  if (projectRoot === undefined)
+    return [];
+  return [nodePath12.posix.join(projectRoot, "tickets")];
+}
+function resolveLearningsDirectory(cwd) {
+  return nodePath12.join(resolveNamespaceRoot(cwd), "learnings");
+}
+function resolveGeneratedArchitecturePath(cwd) {
+  return nodePath12.join(resolveNamespaceRoot(cwd), GENERATED_ARCHITECTURE_FILENAME);
+}
+function resolveArchitectureNarrative(cwd) {
+  const configured = readConfiguredPath(cwd, "architecture");
+  if (configured !== undefined) {
+    return {
+      absolutePath: nodePath12.isAbsolute(configured) ? configured : nodePath12.join(cwd, configured),
+      displayPath: configured
+    };
+  }
+  return {
+    absolutePath: nodePath12.join(cwd, "ARCHITECTURE.md"),
+    displayPath: "ARCHITECTURE.md"
+  };
+}
+function defaultConfiguredPath(cwd, key) {
+  return nodePath12.join(resolveNamespaceRoot(cwd), `${key}.md`);
+}
+function resolveConfiguredPath(cwd, key) {
+  const override = readConfiguredPath(cwd, key);
+  if (override === undefined) {
+    return defaultConfiguredPath(cwd, key);
+  }
+  if (nodePath12.isAbsolute(override)) {
+    return override;
+  }
+  return nodePath12.join(cwd, override);
+}
+var CONFIG_SUBPATH, SAFEWORD_PROJECT_MARKER_SUBPATH, NAMESPACE_ROOT_DEFAULT = ".project", NAMESPACE_ROOT_LEGACY = ".safeword-project", GENERATED_ARCHITECTURE_FILENAME = "architecture.generated.md";
+var init_configured_paths = __esm(() => {
+  init_fs();
+  init_repo_path();
+  CONFIG_SUBPATH = [".safeword", "config.json"];
+  SAFEWORD_PROJECT_MARKER_SUBPATH = [".safeword", "SAFEWORD.md"];
+});
+
 // src/owned-paths.ts
-import nodePath28 from "path";
+import nodePath13 from "path";
 function safewordIgnoreDirectories(namespaceRootLabel) {
   return namespaceRootLabel !== undefined && !SAFEWORD_IGNORE_DIRS.includes(namespaceRootLabel) ? [...SAFEWORD_IGNORE_DIRS, namespaceRootLabel] : SAFEWORD_IGNORE_DIRS;
 }
@@ -16898,7 +11799,7 @@ function resolvedNamespaceDirectory(ctx) {
 }
 function resolvedNamespaceRootLabel(ctx) {
   const root = ctx.namespaceRoot ?? resolveNamespaceRoot(ctx.cwd);
-  return (nodePath28.relative(ctx.cwd, root) || ".").replaceAll(nodePath28.sep, "/");
+  return (nodePath13.relative(ctx.cwd, root) || ".").replaceAll(nodePath13.sep, "/");
 }
 function resolvedIgnoreDirectories(ctx) {
   return safewordIgnoreDirectories(resolvedNamespaceDirectory(ctx));
@@ -17238,7 +12139,7 @@ const safewordStrictRules = {
     "prefer-const": "error",
   },
 };`, CURSOR_HOOKS, HOOKS_DIR = '"$CLAUDE_PROJECT_DIR"/.safeword/hooks', EDIT_TOOLS = "Edit|Write|MultiEdit|NotebookEdit", SETTINGS_HOOKS;
-var init_config2 = __esm(() => {
+var init_config = __esm(() => {
   CURSOR_HOOKS = {
     sessionStart: [
       { command: "bun ./.safeword/hooks/session-safeword-context.ts --agent=cursor" },
@@ -17406,7 +12307,7 @@ function mergeFormatScripts(scripts, projectType) {
 var SAFEWORD_PRIMARY_LINT_SCRIPT = "eslint . && bun run lint:gherkin", PRETTIER_DEFAULTS, BIOME_JSON_MERGE, DPRINT_JSON_MERGE, OXFMT_JSON_MERGE, typescriptOwnedFiles, typescriptManagedFiles, GHERKIN_LINT_SCRIPT = "safeword project lint-gherkin", typescriptJsonMerges, ESLINT_PACKAGE = "eslint@^10.0.0", JITI_PACKAGE = "jiti@^2.2.0", typescriptPackages;
 var init_files5 = __esm(() => {
   init_owned_paths();
-  init_config2();
+  init_config();
   PRETTIER_DEFAULTS = {
     semi: true,
     singleQuote: true,
@@ -17902,11 +12803,11 @@ Read it BEFORE working on any task in this project.
 `;
 
 // src/utils/install.ts
-import { execFileSync as execFileSync4 } from "child_process";
-import { existsSync as existsSync18 } from "fs";
+import { execFileSync as execFileSync2 } from "child_process";
+import { existsSync as existsSync7 } from "fs";
 import path2 from "path";
 function isPnpmWorkspace(cwd) {
-  return existsSync18(path2.join(cwd, "pnpm-workspace.yaml"));
+  return existsSync7(path2.join(cwd, "pnpm-workspace.yaml"));
 }
 function pnpmWorkspaceFlags(pm, cwd) {
   return pm === "pnpm" && isPnpmWorkspace(cwd) ? ["-w"] : [];
@@ -17914,13 +12815,13 @@ function pnpmWorkspaceFlags(pm, cwd) {
 function detectPackageManager(cwd) {
   if (isPnpmWorkspace(cwd))
     return "pnpm";
-  if (existsSync18(path2.join(cwd, "bun.lockb")) || existsSync18(path2.join(cwd, "bun.lock")))
+  if (existsSync7(path2.join(cwd, "bun.lockb")) || existsSync7(path2.join(cwd, "bun.lock")))
     return "bun";
-  if (existsSync18(path2.join(cwd, "pnpm-lock.yaml")))
+  if (existsSync7(path2.join(cwd, "pnpm-lock.yaml")))
     return "pnpm";
-  if (existsSync18(path2.join(cwd, "yarn.lock")))
+  if (existsSync7(path2.join(cwd, "yarn.lock")))
     return "yarn";
-  if (existsSync18(path2.join(cwd, "package-lock.json")))
+  if (existsSync7(path2.join(cwd, "package-lock.json")))
     return "npm";
   if (process.versions.bun)
     return "bun";
@@ -17952,7 +12853,7 @@ function installDependencies(cwd, packages, label = "packages", options = {}) {
     reportInstallStart(label, displayCommand);
   });
   try {
-    execFileSync4(pm, [install, DEV_FLAG, ...extraFlags, ...packages], {
+    execFileSync2(pm, [install, DEV_FLAG, ...extraFlags, ...packages], {
       cwd,
       stdio: "pipe",
       timeout: 120000
@@ -17982,7 +12883,7 @@ function uninstallDependencies(cwd, packages, options = {}) {
   const extraFlags = pnpmWorkspaceFlags(pm, cwd);
   const displayCommand = `${pm} ${uninstall} ${extraFlags.join(" ")} ${packages.join(" ")}`.replaceAll(/\s+/g, " ");
   try {
-    execFileSync4(pm, [uninstall, ...extraFlags, ...packages], {
+    execFileSync2(pm, [uninstall, ...extraFlags, ...packages], {
       cwd,
       stdio: "pipe",
       timeout: 120000
@@ -18024,7 +12925,7 @@ var init_install = __esm(() => {
 });
 
 // src/schema.ts
-import nodePath29 from "path";
+import nodePath14 from "path";
 function skipCodexRuntimeAssetInstall() {
   return;
 }
@@ -18042,7 +12943,7 @@ function managedGitattributes(ctx) {
 `);
 }
 function bddLaneFile(templatePath) {
-  const templateContent = () => readFile(nodePath29.join(getTemplatesDirectory(), templatePath));
+  const templateContent = () => readFile(nodePath14.join(getTemplatesDirectory(), templatePath));
   return {
     template: templatePath,
     generator: (ctx) => ctx.projectType.scaffoldBddLane ? templateContent() : undefined,
@@ -18050,7 +12951,7 @@ function bddLaneFile(templatePath) {
   };
 }
 function prReviewEnabled(cwd) {
-  const content = readFileSafe(nodePath29.join(cwd, ".safeword", "config.json"));
+  const content = readFileSafe(nodePath14.join(cwd, ".safeword", "config.json"));
   if (content === undefined)
     return false;
   try {
@@ -18079,7 +12980,7 @@ function normalizePrReviewWorkflowVersionPins(content) {
   }).join(commandPrefix);
 }
 function prReviewWorkflowFile(templatePath) {
-  const workflowContent = () => readFile(nodePath29.join(getTemplatesDirectory(), templatePath)).split("__SAFEWORD_VERSION__").join(VERSION);
+  const workflowContent = () => readFile(nodePath14.join(getTemplatesDirectory(), templatePath)).split("__SAFEWORD_VERSION__").join(VERSION);
   return {
     template: templatePath,
     generator: (ctx) => prReviewEnabled(ctx.cwd) ? workflowContent() : undefined,
@@ -18127,7 +13028,31 @@ function schemaForProjectSurfaces(schema, surfaces) {
     contracts: withoutCursorEntries(schema.contracts)
   };
 }
-var MCP_JSON_MERGE, MARKDOWNLINT_CLI2_IGNORES_MERGE, CURSOR_RULE_WRAPPER_OWNED_FILES, CURSOR_COMMAND_WRAPPER_OWNED_FILES, CURSOR_SHARED_SKILL_FILES, CURSOR_SHARED_SKILL_OWNED_FILES, CURSOR_SHARED_SKILL_DIRS, CODEX_RUNTIME_ASSET_FILENAMES, CODEX_RUNTIME_ASSETS, NAMESPACE_TRANSIENT_BASENAMES, SAFEWORD_TRANSIENT_PATHS, NAMESPACE_GITIGNORE_PATTERNS, NAMESPACE_GITIGNORE_CONTENT, PRETTIER_EXCLUSIONS_HEADER = "# Safeword - managed prettier exclusions (owned dirs)", GITATTRIBUTES_HEADER = "# Safeword - managed merge strategy for generated artifacts", BDD_LANE_FILE_PATHS, BDD_LANE_SCRIPT = "test:bdd", SHARED_FILING_INVARIANTS, SESSION_TOKEN_RULE, BOUNDARY_SHIM_MARKER = "# Safeword boundary gate", SAFEWORD_SCHEMA, CURSOR_PROJECT_PATHS;
+function isSharedAgentRuntimePath(path3) {
+  return SHARED_AGENT_RUNTIME_ROOTS.some((root) => path3 === root || path3.startsWith(`${root}/`));
+}
+function withoutSharedAgentRuntimeEntries(values) {
+  return Object.fromEntries(Object.entries(values).filter(([path3]) => !isSharedAgentRuntimePath(path3)));
+}
+function schemaForSharedAgentRuntime(schema, needed) {
+  if (needed)
+    return schema;
+  return {
+    ...schema,
+    ownedDirs: schema.ownedDirs.filter((path3) => !isSharedAgentRuntimePath(path3)),
+    sharedDirs: schema.sharedDirs.filter((path3) => !isSharedAgentRuntimePath(path3)),
+    preservedDirs: schema.preservedDirs.filter((path3) => !isSharedAgentRuntimePath(path3)),
+    deprecatedFiles: schema.deprecatedFiles.filter((path3) => !isSharedAgentRuntimePath(path3)),
+    deprecatedDirs: schema.deprecatedDirs.filter((path3) => !isSharedAgentRuntimePath(path3)),
+    ownedFiles: withoutSharedAgentRuntimeEntries(schema.ownedFiles),
+    managedFiles: withoutSharedAgentRuntimeEntries(schema.managedFiles),
+    jsonMerges: withoutSharedAgentRuntimeEntries(schema.jsonMerges),
+    textPatches: withoutSharedAgentRuntimeEntries(schema.textPatches),
+    legacyTextPatches: withoutSharedAgentRuntimeEntries(schema.legacyTextPatches),
+    contracts: withoutSharedAgentRuntimeEntries(schema.contracts)
+  };
+}
+var MCP_JSON_MERGE, MARKDOWNLINT_CLI2_IGNORES_MERGE, CURSOR_RULE_WRAPPER_OWNED_FILES, CURSOR_COMMAND_WRAPPER_OWNED_FILES, CURSOR_SHARED_SKILL_FILES, CURSOR_SHARED_SKILL_OWNED_FILES, CURSOR_SHARED_SKILL_DIRS, CODEX_RUNTIME_ASSET_FILENAMES, CODEX_RUNTIME_ASSETS, NAMESPACE_TRANSIENT_BASENAMES, SAFEWORD_TRANSIENT_PATHS, NAMESPACE_GITIGNORE_PATTERNS, NAMESPACE_GITIGNORE_CONTENT, PRETTIER_EXCLUSIONS_HEADER = "# Safeword - managed prettier exclusions (owned dirs)", GITATTRIBUTES_HEADER = "# Safeword - managed merge strategy for generated artifacts", BDD_LANE_FILE_PATHS, BDD_LANE_SCRIPT = "test:bdd", SHARED_FILING_INVARIANTS, SESSION_TOKEN_RULE, BOUNDARY_SHIM_MARKER = "# Safeword boundary gate", SAFEWORD_SCHEMA, CURSOR_PROJECT_PATHS, SHARED_AGENT_RUNTIME_ROOTS;
 var init_schema = __esm(() => {
   init_historical_ownership();
   init_inventory();
@@ -18138,7 +13063,7 @@ var init_schema = __esm(() => {
   init_files5();
   init_cursor_wrappers();
   init_owned_paths();
-  init_config2();
+  init_config();
   init_fs();
   init_install();
   init_version();
@@ -18819,6 +13744,13 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
     },
     managedFiles: {
       ".jscpd.json": { template: ".jscpd.json" },
+      ".github/workflows/safeword-remote-tests.yml": {
+        template: "workflows/remote-tests.yml",
+        generator: () => {
+          return;
+        },
+        dogfoodParity: true
+      },
       ...CODEX_RUNTIME_ASSETS,
       "features/safeword-lane.feature": bddLaneFile("cucumber/safeword-lane.feature"),
       "steps/world.ts": bddLaneFile("cucumber/world.ts"),
@@ -19022,10 +13954,5250 @@ ${durableNamespaceDirectories(ctx).map((dir) => `${dir}/`).join(`
     packages: typescriptPackages
   };
   CURSOR_PROJECT_PATHS = new Set([
-    ".safeword/hooks/lib/cursor-run-identity.ts",
     ".safeword/hooks/lib/cursor-state.ts",
     ".safeword/hooks/session-cursor-auto-upgrade.ts"
   ]);
+  SHARED_AGENT_RUNTIME_ROOTS = [
+    ".safeword/hooks",
+    ".safeword/skills",
+    ".safeword/scripts",
+    ".safeword/guides",
+    ".safeword/templates",
+    ".safeword/statusline"
+  ];
+});
+
+// src/codex-plugin/migration.ts
+function codexInstallRequiresMutation(observation) {
+  return observation.plugin.enabled !== true || observation.state === "plugin_update_required";
+}
+function codexPluginVersionMatchesPackage(plugin) {
+  return plugin.version === null || plugin.version === SAFEWORD_SCHEMA.version;
+}
+function pluginProtectionIsCurrent(facts) {
+  return !facts.activationPending && facts.plugin.enabled === true && codexPluginVersionMatchesPackage(facts.plugin) && facts.proof.status === "current" && (facts.plugin.version === null || facts.proof.plugin_version === facts.plugin.version);
+}
+function deriveCodexMigrationResult(facts) {
+  const hasLegacy = facts.legacyAssets.length > 0 || facts.legacyEvents.length > 0;
+  const protectedStatus = legacyProtection(facts, hasLegacy);
+  const state = migrationState(facts, hasLegacy);
+  const next = nextAction(state);
+  return {
+    schema_version: "2",
+    ok: state === "plugin",
+    state,
+    protected: facts.recoveryRequired ? "uncertain" : protectedStatus,
+    changed: false,
+    plugin: facts.plugin,
+    proof: facts.proof,
+    legacy: {
+      events: facts.legacyEvents,
+      viable_events: facts.viableLegacyEvents,
+      assets: facts.legacyAssets
+    },
+    effects: { files: [] },
+    errors: [],
+    next_actions: next === undefined ? [] : [next]
+  };
+}
+function migrationState(facts, hasLegacy) {
+  return MIGRATION_STATE_RULES.find((rule) => rule.matches(facts, hasLegacy))?.state ?? "not_configured";
+}
+function legacyProtection(facts, hasLegacy) {
+  if (pluginProtectionIsCurrent(facts))
+    return "protected";
+  if (!hasLegacy || facts.viableLegacyEvents.length === 0)
+    return "unprotected";
+  return facts.viableLegacyEvents.length === facts.legacyEvents.length ? "protected" : "partial";
+}
+function nextAction(state) {
+  if (state === "plugin_installed_app_restart_required" || state === "plugin_enabled_hook_unproven") {
+    return {
+      kind: "human",
+      instruction: CODEX_RESTART_INSTRUCTION,
+      mutates: false,
+      requires_human: true
+    };
+  }
+  const command = NEXT_COMMANDS[state];
+  return command === undefined ? undefined : { command, mutates: true, requires_human: true };
+}
+function renderCodexMigrationHuman(result) {
+  const lines = [`Codex migration: ${result.state}`, `Protection: ${result.protected}`];
+  if (result.state === "plugin_setup_required") {
+    lines.push(`Setup: ${CODEX_MIGRATION_SCHEMA.paths.bootstrapSkill}`);
+  } else if (result.state === "plugin_installed_app_restart_required" || result.state === "plugin_enabled_hook_unproven") {
+    lines.push(CODEX_RESTART_CONTEXT);
+  }
+  const next = result.next_actions[0];
+  if (next !== undefined) {
+    lines.push(`Next: ${"command" in next ? next.command : next.instruction}`);
+  }
+  return `${lines.join(`
+`)}
+`;
+}
+function codexMigrationExitCode(result) {
+  if (result.errors.length > 0)
+    return 1;
+  return result.ok ? 0 : 2;
+}
+var CODEX_RESTART_ACTION = "Fully restart Codex, then resume this task", CODEX_REVIEW_THEN_RESTART_ACTION = "Review the installed hooks in Codex Desktop under Settings > Hooks (or with /hooks in the terminal TUI). Fully restart Codex, then resume this task", CODEX_RESTART_INSTRUCTION, CODEX_RESTART_CONTEXT = "This Codex app may keep its loaded Safeword catalogue.", MIGRATION_STATE_RULES, NEXT_COMMANDS;
+var init_migration = __esm(() => {
+  init_schema();
+  init_inventory();
+  CODEX_RESTART_INSTRUCTION = `${CODEX_REVIEW_THEN_RESTART_ACTION}.`;
+  MIGRATION_STATE_RULES = [
+    { state: "recovery_required", matches: (facts) => facts.recoveryRequired },
+    {
+      state: "plugin_setup_required",
+      matches: (facts) => facts.finalized && facts.plugin.enabled !== true
+    },
+    {
+      state: "plugin_disabled",
+      matches: (facts) => facts.plugin.installed && facts.plugin.enabled === false
+    },
+    {
+      state: "plugin_update_required",
+      matches: (facts) => facts.plugin.enabled === true && !codexPluginVersionMatchesPackage(facts.plugin)
+    },
+    {
+      state: "plugin_installed_app_restart_required",
+      matches: (facts) => facts.activationPending && facts.plugin.enabled === true
+    },
+    {
+      state: "plugin_enabled_hook_unproven",
+      matches: (facts) => facts.plugin.enabled === true && !pluginProtectionIsCurrent(facts)
+    },
+    {
+      state: "compatibility",
+      matches: (facts, hasLegacy) => pluginProtectionIsCurrent(facts) && hasLegacy
+    },
+    {
+      state: "plugin",
+      matches: (facts) => pluginProtectionIsCurrent(facts)
+    },
+    { state: "legacy", matches: (_facts, hasLegacy) => hasLegacy }
+  ];
+  NEXT_COMMANDS = {
+    recovery_required: "safeword codex recover",
+    compatibility: "safeword codex migrate --finalize",
+    plugin: undefined,
+    plugin_installed_app_restart_required: undefined,
+    plugin_enabled_hook_unproven: undefined,
+    plugin_setup_required: "safeword codex migrate",
+    plugin_disabled: "safeword codex migrate",
+    plugin_update_required: "safeword codex migrate",
+    legacy: "safeword codex migrate",
+    not_configured: "safeword codex migrate"
+  };
+});
+
+// src/codex-plugin/migration-error.ts
+var CodexMigrationError;
+var init_migration_error = __esm(() => {
+  CodexMigrationError = class CodexMigrationError extends Error {
+    code;
+    profileChanged;
+    recoveryCommand;
+    constructor(code, message, options) {
+      super(message, options);
+      this.name = "CodexMigrationError";
+      this.code = code;
+      this.profileChanged = options?.profileChanged === true;
+      this.recoveryCommand = options?.recoveryCommand;
+    }
+  };
+});
+
+// src/utils/toml.ts
+function readTomlTableArray(content, table, key) {
+  const found = tableArrayBody(content.split(/\r?\n/), table, key);
+  if (found === undefined)
+    return;
+  const values = found.body.matchAll(/"([^"]*)"|'([^']*)'/g).map((match) => match[1] ?? match[2] ?? "").filter((value) => value.length > 0).toArray();
+  return values.length > 0 ? values : undefined;
+}
+function isTomlTableEmptyArray(content, table, key) {
+  const found = tableArrayBody(content.split(/\r?\n/), table, key);
+  return found !== undefined && found.closed && found.body.replaceAll(/[\s,]/g, "") === "";
+}
+function hasTomlTable(content, table) {
+  return content.split(/\r?\n/).some((line) => tableHeader(stripTomlComment(line).trim()) === table);
+}
+function* linesInTable(content, table) {
+  let inTable = false;
+  for (const rawLine of content.split(/\r?\n/)) {
+    const line = stripTomlComment(rawLine).trim();
+    if (line === "")
+      continue;
+    const header2 = tableHeader(line);
+    if (header2 !== undefined) {
+      inTable = header2 === table;
+      continue;
+    }
+    if (inTable)
+      yield line;
+  }
+}
+function hasTomlTableKey(content, table, key) {
+  for (const line of linesInTable(content, table)) {
+    if (tableValue(line, key) !== undefined)
+      return true;
+  }
+  return false;
+}
+function readTomlTableString(content, table, key) {
+  for (const line of linesInTable(content, table)) {
+    const value = tableValue(line, key);
+    if (value?.startsWith('"')) {
+      const end = value.indexOf('"', 1);
+      if (end !== -1)
+        return value.slice(1, end);
+    }
+  }
+  return;
+}
+function tableArrayBody(lines, table, key) {
+  const opened = findTableArrayOpen(lines, table, key);
+  if (opened === undefined)
+    return;
+  let body = opened.initial;
+  for (let index = opened.line;index < lines.length; index += 1) {
+    if (index > opened.line)
+      body += `
+${stripTomlComment(lines[index] ?? "")}`;
+    const close = indexOfOutsideQuotes(body, "]");
+    if (close !== -1)
+      return { body: body.slice(0, close), closed: true };
+  }
+  return { body, closed: false };
+}
+function findTableArrayOpen(lines, table, key) {
+  let inTable = false;
+  for (const [index, rawLine] of lines.entries()) {
+    const trimmed = stripTomlComment(rawLine).trim();
+    const header2 = tableHeader(trimmed);
+    if (header2 !== undefined) {
+      inTable = header2 === table;
+      continue;
+    }
+    if (!inTable)
+      continue;
+    const value = tableValue(trimmed, key);
+    if (value?.startsWith("[") === true)
+      return { line: index, initial: value.slice(1) };
+  }
+  return;
+}
+function indexOfOutsideQuotes(text, target) {
+  let quote = "";
+  let index = 0;
+  while (index < text.length) {
+    const character = text[index];
+    if (quote === "") {
+      if (character === '"' || character === "'")
+        quote = character;
+      else if (character === target)
+        return index;
+    } else if (character === quote) {
+      quote = "";
+    }
+    index += 1;
+  }
+  return -1;
+}
+function tableValue(line, key) {
+  const equals = line.indexOf("=");
+  if (equals === -1 || line.slice(0, equals).trim() !== key)
+    return;
+  return line.slice(equals + 1).trim();
+}
+function tableHeader(line) {
+  const match = /^\[\[?([^[\]]+)\]\]?\s*$/.exec(line);
+  return match?.[1] === undefined ? undefined : match[1].trim();
+}
+function stripTomlComment(line) {
+  const hash = indexOfOutsideQuotes(line, "#");
+  return hash === -1 ? line : line.slice(0, hash);
+}
+
+// src/utils/architecture-skeleton.ts
+import { readdirSync as readdirSync4 } from "fs";
+import nodePath15 from "path";
+function extractSkeleton(projectDirectory, options = {}) {
+  if (exists(nodePath15.join(projectDirectory, "pyproject.toml"))) {
+    const pythonNodes = pythonModuleNodes(projectDirectory);
+    if (pythonNodes.length > 0)
+      return { nodes: pythonNodes };
+  }
+  if (exists(nodePath15.join(projectDirectory, "Cargo.toml"))) {
+    return { nodes: rustModuleNodes(projectDirectory) };
+  }
+  const sourceRoot = enumerateJsSourceRoot(nodePath15.join(projectDirectory, "src"), (name) => `src/${name}`);
+  if (sourceRoot.observed)
+    return { nodes: sourceRoot.nodes };
+  if (exists(nodePath15.join(projectDirectory, "go.mod"))) {
+    return { nodes: goLayoutNodes(projectDirectory) };
+  }
+  const libraryRoot = enumerateJsSourceRoot(nodePath15.join(projectDirectory, "lib"), (name) => `lib/${name}`);
+  if (libraryRoot.observed)
+    return { nodes: libraryRoot.nodes };
+  if (options.workspaceRoot === true || declaresWorkspaces(projectDirectory))
+    return { nodes: [] };
+  return { nodes: topLevelJsModuleNodes(projectDirectory) };
+}
+function declaresWorkspaces(projectDirectory) {
+  if (exists(nodePath15.join(projectDirectory, "pnpm-workspace.yaml")))
+    return true;
+  if (exists(nodePath15.join(projectDirectory, "go.work")))
+    return true;
+  const manifest = readJson(nodePath15.join(projectDirectory, "package.json"));
+  if (manifest !== null && typeof manifest === "object" && manifest.workspaces !== undefined) {
+    return true;
+  }
+  const pyproject = readFileSafe(nodePath15.join(projectDirectory, "pyproject.toml"));
+  return pyproject !== undefined && hasTomlTable(pyproject, "tool.uv.workspace");
+}
+function enumerateJsSourceRoot(directory, pathFor) {
+  let entries;
+  try {
+    entries = readdirSync4(directory, { withFileTypes: true });
+  } catch {
+    return { nodes: [], observed: false };
+  }
+  const observed = entries.some((entry) => entry.isDirectory() || entry.isFile() && isJsSourceModuleFile(entry.name));
+  const byName = new Map(entries.filter((entry) => entry.isDirectory()).map((entry) => [
+    entry.name,
+    directoryNode(entry.name, pathFor(entry.name), JS_SOURCE_EXTENSIONS.map((extension) => nodePath15.join(directory, entry.name, `index${extension}`)))
+  ]));
+  const excludeColocatedTests = true;
+  for (const node of jsFileNodes(entries, pathFor, excludeColocatedTests, directory)) {
+    if (!byName.has(node.name))
+      byName.set(node.name, node);
+  }
+  return { nodes: byName.values().toArray().toSorted(byNodeName), observed };
+}
+function topLevelJsModuleNodes(projectDirectory) {
+  let entries;
+  try {
+    entries = readdirSync4(projectDirectory, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  return jsFileNodes(entries, (name) => name, false, projectDirectory);
+}
+function jsFileNodes(entries, pathFor, excludeTests, sourceDirectory) {
+  const files = entries.filter((entry) => entry.isFile() && isJsSourceModuleFile(entry.name) && (!excludeTests || !isJsTestFile(entry.name))).toSorted((a, b) => extensionPriority(a.name) - extensionPriority(b.name) || a.name.localeCompare(b.name));
+  const byName = new Map;
+  for (const entry of files) {
+    const name = jsModuleName(entry.name);
+    if (!byName.has(name)) {
+      byName.set(name, sourceFileNode(name, pathFor(entry.name), nodePath15.join(sourceDirectory, entry.name)));
+    }
+  }
+  return byName.values().toArray().toSorted(byNodeName);
+}
+function isJsTestFile(name) {
+  return /\.(?:test|spec)\.[mc]?[jt]sx?$/.test(name);
+}
+function extensionPriority(filename) {
+  return JS_SOURCE_EXTENSIONS.findIndex((extension) => filename.endsWith(extension));
+}
+function isJsSourceModuleFile(name) {
+  if (name.startsWith("."))
+    return false;
+  if (/\.d\.[mc]?ts$/.test(name))
+    return false;
+  if (/\.config\.[mc]?[jt]sx?$/.test(name))
+    return false;
+  return JS_SOURCE_EXTENSIONS.some((extension) => name.endsWith(extension));
+}
+function jsModuleName(filename) {
+  return filename.slice(0, filename.lastIndexOf("."));
+}
+function sourceFileNode(name, path3, absolutePath) {
+  return nodeFromPurpose(name, path3, purposeFromLeadingDocumentation(absolutePath));
+}
+function directoryNode(name, path3, entryPoints) {
+  for (const entryPoint of entryPoints) {
+    const purpose = purposeFromLeadingDocumentation(entryPoint);
+    if (purpose !== undefined)
+      return nodeFromPurpose(name, path3, purpose);
+  }
+  return nodeFromPurpose(name, path3, undefined);
+}
+function nodeFromPurpose(name, path3, purpose) {
+  return purpose === undefined ? { name, path: path3, purpose: PURPOSE_PLACEHOLDER } : { name, path: path3, purpose, seededPurpose: true };
+}
+function purposeFromLeadingDocumentation(path3) {
+  const content = readFileSafe(path3);
+  if (content === undefined)
+    return;
+  const extension = nodePath15.extname(path3);
+  let body;
+  if (extension === ".rs") {
+    body = rustModuleDocumentation(content);
+  } else if (extension === ".py") {
+    body = pythonModuleDocumentation(content);
+  } else {
+    body = jsModuleDocumentation(content);
+  }
+  if (body === undefined)
+    return;
+  return documentationSummary(body);
+}
+function jsModuleDocumentation(content) {
+  return /^\/\*\*([\s\S]*?)\*\//.exec(afterLeadingJsTrivia(withoutByteOrderMark(content)))?.[1];
+}
+function rustModuleDocumentation(content) {
+  const start = withoutByteOrderMark(content).trimStart();
+  if (start.startsWith("/*!")) {
+    const end = start.indexOf("*/", 3);
+    return end === -1 ? undefined : start.slice(3, end);
+  }
+  if (!start.startsWith("//!"))
+    return;
+  const documentationLines = [];
+  for (const line of start.split(/\r?\n/)) {
+    const trimmed = line.trimStart();
+    if (!trimmed.startsWith("//!"))
+      break;
+    documentationLines.push(trimmed.slice(3).trimStart());
+  }
+  return documentationLines.join(`
+`);
+}
+function pythonModuleDocumentation(content) {
+  const start = afterLeadingPythonTrivia(withoutByteOrderMark(content));
+  const opening = /^[ru]{0,2}("""|''')/i.exec(start);
+  const delimiter = opening?.[1];
+  if (opening === null || delimiter === undefined)
+    return;
+  const bodyStart = opening[0].length;
+  const bodyEnd = start.indexOf(delimiter, bodyStart);
+  return bodyEnd === -1 ? undefined : start.slice(bodyStart, bodyEnd);
+}
+function withoutByteOrderMark(content) {
+  return content.startsWith("\uFEFF") ? content.slice(1) : content;
+}
+function afterLeadingPythonTrivia(content) {
+  let remaining = content;
+  while (remaining.length > 0) {
+    const lineEnd = remaining.indexOf(`
+`);
+    const line = lineEnd === -1 ? remaining : remaining.slice(0, lineEnd);
+    const trimmed = line.trim();
+    if (trimmed.length > 0 && !trimmed.startsWith("#"))
+      break;
+    remaining = lineEnd === -1 ? "" : remaining.slice(lineEnd + 1);
+  }
+  return remaining.trimStart();
+}
+function afterLeadingJsTrivia(content) {
+  let remaining = afterLeadingShebang(content);
+  while (true) {
+    const trimmed = remaining.trimStart();
+    const afterPreamble = afterKnownJsPreamble(trimmed);
+    if (afterPreamble === undefined)
+      return trimmed;
+    remaining = afterPreamble;
+  }
+}
+function afterLeadingShebang(content) {
+  if (!content.startsWith("#!"))
+    return content;
+  const lineEnd = content.indexOf(`
+`);
+  return lineEnd === -1 ? "" : content.slice(lineEnd + 1);
+}
+function afterKnownJsPreamble(content) {
+  return afterEslintLineDirective(content) ?? afterEslintBlockDirective(content) ?? afterJsUseDirective(content);
+}
+function afterEslintLineDirective(content) {
+  if (!content.startsWith("//") || !isEslintDirective(content.slice(2).trimStart())) {
+    return;
+  }
+  const lineEnd = content.indexOf(`
+`);
+  return lineEnd === -1 ? "" : content.slice(lineEnd + 1);
+}
+function afterEslintBlockDirective(content) {
+  if (!content.startsWith("/*") || !isEslintDirective(content.slice(2).trimStart())) {
+    return;
+  }
+  const blockEnd = content.indexOf("*/");
+  return blockEnd === -1 ? undefined : content.slice(blockEnd + 2);
+}
+function isEslintDirective(content) {
+  return content.startsWith("eslint-") || content.startsWith("eslint ");
+}
+function afterJsUseDirective(content) {
+  const quote = content[0];
+  if (quote !== "'" && quote !== '"')
+    return;
+  const quoteEnd = content.indexOf(quote, 1);
+  if (quoteEnd === -1 || !isJsUseDirective(content.slice(1, quoteEnd)))
+    return;
+  const afterQuote = content.slice(quoteEnd + 1);
+  return afterQuote.startsWith(";") ? afterQuote.slice(1) : afterQuote;
+}
+function isJsUseDirective(content) {
+  return content.startsWith("use ") && content.slice("use ".length).split(" ").every((word) => isLowercaseAsciiWord(word));
+}
+function isLowercaseAsciiWord(word) {
+  if (word.length === 0)
+    return false;
+  for (const character of word) {
+    if (character < "a" || character > "z")
+      return false;
+  }
+  return true;
+}
+function documentationSummary(body) {
+  const text = documentationParagraphs(body).find((paragraph) => isPurposeParagraph(paragraph));
+  if (text === undefined)
+    return;
+  return truncatePurpose(firstDocumentationSentence(text));
+}
+function documentationParagraphs(body) {
+  const paragraphs = [];
+  let lines = [];
+  const flush = () => {
+    const paragraph = lines.join(" ").trim();
+    if (paragraph.length > 0)
+      paragraphs.push(paragraph);
+    lines = [];
+  };
+  for (const rawLine of body.split(/\r?\n/)) {
+    const line = rawLine.replace(/^\s*\*\s?/, "").trim();
+    if (line.length === 0)
+      flush();
+    else
+      lines.push(line);
+  }
+  flush();
+  return paragraphs;
+}
+function isPurposeParagraph(paragraph) {
+  return !isDocumentationBanner(paragraph) && !/^(?:#{1,6}\s|>\s|[-*+]\s)/.test(paragraph);
+}
+function isDocumentationBanner(paragraph) {
+  return /^(?:copyright\b|spdx-|@license\b|licensed under\b)/i.test(paragraph);
+}
+function firstDocumentationSentence(text) {
+  if (typeof Intl.Segmenter === "function") {
+    return [...new Intl.Segmenter("en", { granularity: "sentence" }).segment(text)][0]?.segment.trim() ?? text;
+  }
+  return /^.*?[.!?](?:\s|$)/.exec(text)?.[0].trim() ?? text;
+}
+function truncatePurpose(purpose) {
+  if (purpose.length <= MAXIMUM_SEEDED_PURPOSE_LENGTH)
+    return purpose;
+  const clipped = purpose.slice(0, MAXIMUM_SEEDED_PURPOSE_LENGTH - 1);
+  const lastSpace = clipped.lastIndexOf(" ");
+  const boundary = lastSpace > MAXIMUM_SEEDED_PURPOSE_LENGTH / 2 ? clipped.slice(0, lastSpace) : clipped;
+  return `${boundary.trimEnd()}\u2026`;
+}
+function goLayoutNodes(projectDirectory) {
+  return GO_LAYOUT_DIRECTORIES.filter((name) => isDirectory(nodePath15.join(projectDirectory, name))).map((name) => ({ name, path: name, purpose: PURPOSE_PLACEHOLDER })).toSorted(byNodeName);
+}
+function rustModuleNodes(projectDirectory) {
+  let entries;
+  try {
+    entries = readdirSync4(nodePath15.join(projectDirectory, "src"), { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  const byName = new Map;
+  for (const entry of entries) {
+    if (entry.isDirectory()) {
+      byName.set(entry.name, directoryNode(entry.name, `src/${entry.name}`, [
+        nodePath15.join(projectDirectory, "src", entry.name, "mod.rs")
+      ]));
+    }
+  }
+  for (const entry of entries) {
+    if (entry.isDirectory() || !entry.name.endsWith(".rs") || RUST_ROOT_FILES.has(entry.name)) {
+      continue;
+    }
+    const name = entry.name.slice(0, -".rs".length);
+    if (!byName.has(name)) {
+      byName.set(name, sourceFileNode(name, `src/${entry.name}`, nodePath15.join(projectDirectory, "src", entry.name)));
+    }
+  }
+  return byName.values().toArray().toSorted(byNodeName);
+}
+function pythonModuleNodes(projectDirectory) {
+  const sourceDirectory = nodePath15.join(projectDirectory, "src");
+  if (isDirectory(sourceDirectory)) {
+    return pythonModulesFrom(sourceDirectory, (name) => `src/${name}`, () => true);
+  }
+  return pythonModulesFrom(projectDirectory, (name) => name, (directory) => exists(nodePath15.join(directory, "__init__.py")));
+}
+function pythonModulesFrom(directory, pathFor, keepPackageDirectory) {
+  let entries;
+  try {
+    entries = readdirSync4(directory, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  const byName = new Map;
+  for (const entry of entries) {
+    if (entry.isDirectory() && keepPackageDirectory(nodePath15.join(directory, entry.name))) {
+      byName.set(entry.name, directoryNode(entry.name, pathFor(entry.name), [
+        nodePath15.join(directory, entry.name, "__init__.py")
+      ]));
+    }
+  }
+  for (const entry of entries) {
+    if (entry.isDirectory() || !entry.name.endsWith(".py") || PYTHON_EXCLUDED_FILES.has(entry.name)) {
+      continue;
+    }
+    const name = entry.name.slice(0, -".py".length);
+    if (!byName.has(name)) {
+      byName.set(name, sourceFileNode(name, pathFor(entry.name), nodePath15.join(directory, entry.name)));
+    }
+  }
+  return byName.values().toArray().toSorted(byNodeName);
+}
+var PURPOSE_PLACEHOLDER = "No description yet \u2014 awaiting prose.", GO_LAYOUT_DIRECTORIES, RUST_ROOT_FILES, PYTHON_EXCLUDED_FILES, JS_SOURCE_EXTENSIONS, MAXIMUM_SEEDED_PURPOSE_LENGTH = 200, byNodeName = (a, b) => a.name.localeCompare(b.name);
+var init_architecture_skeleton = __esm(() => {
+  init_fs();
+  GO_LAYOUT_DIRECTORIES = ["cmd", "internal", "pkg"];
+  RUST_ROOT_FILES = new Set(["lib.rs", "main.rs"]);
+  PYTHON_EXCLUDED_FILES = new Set([
+    "setup.py",
+    "conftest.py",
+    "noxfile.py",
+    "__init__.py",
+    "__main__.py"
+  ]);
+  JS_SOURCE_EXTENSIONS = [".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"];
+});
+
+// src/utils/boundary-config.ts
+import nodePath16 from "path";
+function readBoundaryConfig(projectDirectory) {
+  for (const name of DEPENDENCY_CRUISER_CONFIG_NAMES) {
+    const content = readFileSafe(nodePath16.join(projectDirectory, name));
+    if (content !== undefined)
+      return content;
+  }
+  return "";
+}
+var DEPENDENCY_CRUISER_CONFIG_NAMES;
+var init_boundary_config = __esm(() => {
+  init_fs();
+  DEPENDENCY_CRUISER_CONFIG_NAMES = [
+    ".dependency-cruiser.cjs",
+    ".dependency-cruiser.js",
+    ".dependency-cruiser.mjs",
+    ".dependency-cruiser.json"
+  ];
+});
+
+// src/utils/cargo-manifest.ts
+function readCargoWorkspaceMembers(content) {
+  return readTomlTableArray(content, "workspace", "members");
+}
+function readCargoPackageName(content) {
+  return readTomlTableString(content, "package", "name");
+}
+function readCargoDependencyNames(content) {
+  const names = new Set;
+  let currentTable = "";
+  for (const rawLine of content.split(/\r?\n/)) {
+    const line = stripTomlComment(rawLine).trim();
+    if (line === "")
+      continue;
+    const header2 = /^\[\[?([^\]]+)\]\]?$/.exec(line);
+    if (header2?.[1] !== undefined) {
+      currentTable = header2[1].trim();
+      const subTableDependency = dependencySubTableName(currentTable);
+      if (subTableDependency !== undefined)
+        names.add(subTableDependency);
+      continue;
+    }
+    if (DEPENDENCY_TABLES.includes(currentTable)) {
+      const key = leadingKey(line);
+      if (key !== undefined)
+        names.add(key);
+    }
+  }
+  return [...names];
+}
+function dependencySubTableName(table) {
+  for (const dependencyTable of DEPENDENCY_TABLES) {
+    if (!table.startsWith(`${dependencyTable}.`))
+      continue;
+    const name = unquote(table.slice(dependencyTable.length + 1).trim());
+    return name.length > 0 ? name : undefined;
+  }
+  return;
+}
+function leadingKey(line) {
+  const match = /^("[^"]+"|'[^']+'|[\w-]+)\s*=/.exec(line);
+  return match?.[1] === undefined ? undefined : unquote(match[1]);
+}
+function unquote(value) {
+  return value.replaceAll(/^["']|["']$/g, "");
+}
+var DEPENDENCY_TABLES;
+var init_cargo_manifest = __esm(() => {
+  DEPENDENCY_TABLES = ["dependencies", "dev-dependencies", "build-dependencies"];
+});
+
+// src/utils/manifest-block.ts
+function readDelimitedBlock(lines, opener) {
+  const entries = [];
+  let inBlock = false;
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!inBlock) {
+      if (opener.test(trimmed))
+        inBlock = true;
+      continue;
+    }
+    if (trimmed.startsWith(")"))
+      inBlock = false;
+    else if (trimmed !== "" && !trimmed.startsWith("//"))
+      entries.push(trimmed);
+  }
+  return entries;
+}
+
+// src/utils/manifest-dependencies.ts
+function dependencySectionNames(manifest) {
+  const names = new Set;
+  for (const section of DEPENDENCY_SECTIONS) {
+    const entry = manifest[section];
+    if (entry !== null && typeof entry === "object") {
+      for (const name of Object.keys(entry))
+        names.add(name);
+    }
+  }
+  return [...names];
+}
+var DEPENDENCY_SECTIONS;
+var init_manifest_dependencies = __esm(() => {
+  DEPENDENCY_SECTIONS = [
+    "dependencies",
+    "devDependencies",
+    "peerDependencies",
+    "optionalDependencies"
+  ];
+});
+
+// src/utils/pyproject-manifest.ts
+function readPyprojectName(content) {
+  return readTomlTableString(content, "project", "name");
+}
+function readUvWorkspaceMembers(content) {
+  return readTomlTableArray(content, "tool.uv.workspace", "members");
+}
+function readPyprojectDependencies(content) {
+  const specifiers = readTomlTableArray(content, "project", "dependencies") ?? [];
+  return specifiers.map((specifier) => distributionName(specifier)).filter((name) => name.length > 0);
+}
+function distributionName(specifier) {
+  return /^[\w.-]+/.exec(specifier.trim())?.[0] ?? "";
+}
+var init_pyproject_manifest = () => {};
+
+// src/utils/architecture-fingerprint.ts
+import { createHash as createHash2 } from "crypto";
+import { readdirSync as readdirSync5, readFileSync as readFileSync8 } from "fs";
+import nodePath17 from "path";
+function collectShapeInputs(projectDirectory, skeleton) {
+  return {
+    moduleNames: skeleton.nodes.map((node) => node.name).toSorted(byString),
+    dependencyNames: readDependencyNames(projectDirectory),
+    boundaryConfig: readBoundaryConfig(projectDirectory),
+    schemaFiles: collectSchemaFiles(projectDirectory)
+  };
+}
+function shapeFingerprintOf(projectDirectory, skeleton) {
+  const inputs = collectShapeInputs(projectDirectory, skeleton);
+  return createHash2("sha256").update(JSON.stringify(inputs)).digest("hex");
+}
+function readDependencyNames(projectDirectory) {
+  const names = new Set(readPackageJsonDependencyNames(projectDirectory));
+  for (const goModule of readGoModuleRequires(projectDirectory))
+    names.add(goModule);
+  for (const crate of readCargoDependencies(projectDirectory))
+    names.add(crate);
+  for (const distribution of readPyprojectDependencyNames(projectDirectory))
+    names.add(distribution);
+  return [...names].toSorted(byString);
+}
+function readPackageJsonDependencyNames(projectDirectory) {
+  const manifest = readJson(nodePath17.join(projectDirectory, "package.json"));
+  return manifest === undefined ? [] : dependencySectionNames(manifest);
+}
+function readCargoDependencies(projectDirectory) {
+  try {
+    return readCargoDependencyNames(readFileSync8(nodePath17.join(projectDirectory, "Cargo.toml"), "utf8"));
+  } catch {
+    return [];
+  }
+}
+function readPyprojectDependencyNames(projectDirectory) {
+  try {
+    return readPyprojectDependencies(readFileSync8(nodePath17.join(projectDirectory, "pyproject.toml"), "utf8"));
+  } catch {
+    return [];
+  }
+}
+function readGoModuleRequires(projectDirectory) {
+  let content;
+  try {
+    content = readFileSync8(nodePath17.join(projectDirectory, "go.mod"), "utf8");
+  } catch {
+    return [];
+  }
+  const lines = content.split(/\r?\n/);
+  const modules = new Set;
+  collectGoRequireBlock(lines, modules);
+  collectGoRequireLines(lines, modules);
+  return [...modules].toSorted(byString);
+}
+function collectGoRequireBlock(lines, modules) {
+  for (const entry of readDelimitedBlock(lines, /^require\s*\(\s*$/)) {
+    const [modulePath] = entry.split(/\s+/, 1);
+    if (modulePath !== undefined && modulePath.length > 0)
+      modules.add(modulePath);
+  }
+}
+function collectGoRequireLines(lines, modules) {
+  for (const line of lines) {
+    const match = /^require\s+(\S+)\s+\S/.exec(line.trim());
+    if (match?.[1] !== undefined)
+      modules.add(match[1]);
+  }
+}
+function collectSchemaFiles(projectDirectory) {
+  const schemaFiles = [];
+  const pending = [projectDirectory];
+  while (pending.length > 0) {
+    const directory = pending.pop();
+    if (directory !== undefined) {
+      scanDirectoryForSchema(projectDirectory, directory, schemaFiles, pending);
+    }
+  }
+  return schemaFiles.toSorted(byString);
+}
+function scanDirectoryForSchema(projectDirectory, directory, schemaFiles, pending) {
+  let entries;
+  try {
+    entries = readdirSync5(directory, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  for (const entry of entries) {
+    if (entry.isDirectory()) {
+      if (!SHAPE_SCAN_EXCLUDED_DIRECTORIES.has(entry.name)) {
+        pending.push(nodePath17.join(directory, entry.name));
+      }
+    } else if (SCHEMA_EXTENSIONS.has(nodePath17.extname(entry.name))) {
+      const absolutePath = nodePath17.join(directory, entry.name);
+      schemaFiles.push(nodePath17.relative(projectDirectory, absolutePath).replaceAll("\\", "/"));
+    }
+  }
+}
+var SCHEMA_EXTENSIONS, SHAPE_SCAN_EXCLUDED_DIRECTORIES, byString = (a, b) => a.localeCompare(b);
+var init_architecture_fingerprint = __esm(() => {
+  init_architecture_skeleton();
+  init_boundary_config();
+  init_cargo_manifest();
+  init_fs();
+  init_manifest_dependencies();
+  init_pyproject_manifest();
+  SCHEMA_EXTENSIONS = new Set([".sql", ".prisma"]);
+  SHAPE_SCAN_EXCLUDED_DIRECTORIES = new Set([
+    ".git",
+    ".project",
+    ".safeword",
+    "dist",
+    "node_modules"
+  ]);
+});
+
+// src/utils/architecture-monorepo.ts
+var exports_architecture_monorepo = {};
+__export(exports_architecture_monorepo, {
+  monorepoFingerprintOf: () => monorepoFingerprintOf,
+  extractMonorepoArchitectureSnapshot: () => extractMonorepoArchitectureSnapshot,
+  discoverWorkspaces: () => discoverWorkspaces,
+  discoverUnreadableWorkspaces: () => discoverUnreadableWorkspaces
+});
+import { createHash as createHash3 } from "crypto";
+import { globSync } from "fs";
+import nodePath18 from "path";
+function discoverWorkspaces(projectDirectory) {
+  const detections = [
+    detectJsWorkspaces(projectDirectory),
+    detectGoWork(projectDirectory),
+    detectCargoWorkspace(projectDirectory),
+    detectUvWorkspace(projectDirectory)
+  ];
+  return {
+    patterns: detections.flatMap((detection) => detection.status === "parsed" ? detection.patterns : []),
+    unreadable: detections.filter((detection) => detection.status === "unreadable").map((detection) => ({ manager: detection.manager, config: detection.config }))
+  };
+}
+function leafDirectoriesFrom(projectDirectory, patterns) {
+  const workspaceLeaves = resolveLeafDirectories(projectDirectory, patterns);
+  const orphanLeaves = discoverOrphanManifestDirectories(projectDirectory);
+  return [...new Set([...workspaceLeaves, ...orphanLeaves])].toSorted(byString2);
+}
+function discoverOrphanManifestDirectories(projectDirectory) {
+  const installed = installedPacks(projectDirectory);
+  const directories = new Set;
+  for (const manifest of ORPHAN_MANIFESTS) {
+    if (manifest.packs.every((pack) => !installed.has(pack)))
+      continue;
+    for (const dir of orphanDirectoriesFor(projectDirectory, manifest))
+      directories.add(dir);
+  }
+  return [...directories];
+}
+function orphanDirectoriesFor(projectDirectory, manifest) {
+  return findAllInTree(projectDirectory, manifest.filename).filter((dir) => {
+    if (dir === projectDirectory)
+      return false;
+    const content = readFileSafe(nodePath18.join(dir, manifest.filename));
+    return content !== undefined && manifest.declaresPackage(content);
+  });
+}
+function hasGoModule(content) {
+  return /^module\s+\S+/m.test(content);
+}
+function installedPacks(projectDirectory) {
+  const config = readJson(nodePath18.join(projectDirectory, ".safeword", "config.json"));
+  if (config === null || typeof config !== "object")
+    return new Set;
+  const packs = config.installedPacks;
+  if (!Array.isArray(packs))
+    return new Set;
+  return new Set(packs.filter((pack) => typeof pack === "string"));
+}
+function discoverUnreadableWorkspaces(projectDirectory) {
+  return discoverWorkspaces(projectDirectory).unreadable;
+}
+function resolveLeafDirectories(projectDirectory, patterns) {
+  if (patterns.length === 0)
+    return [];
+  const matches = new Set;
+  for (const pattern of patterns) {
+    const globMatches = globSync(pattern, { cwd: projectDirectory });
+    for (const match of globMatches) {
+      const absolute = nodePath18.join(projectDirectory, match);
+      if (isDirectory(absolute) && hasRecognizedManifest(absolute)) {
+        matches.add(absolute);
+      }
+    }
+  }
+  return [...matches].toSorted(byString2);
+}
+function detectJsWorkspaces(projectDirectory) {
+  const packageJson = detectPackageJsonWorkspaces(projectDirectory);
+  return packageJson.status === "absent" ? detectPnpmWorkspaces(projectDirectory) : packageJson;
+}
+function detectPackageJsonWorkspaces(projectDirectory) {
+  const workspaces = readManifest(projectDirectory)?.workspaces;
+  if (workspaces === undefined)
+    return ABSENT;
+  const list = workspaceList(workspaces);
+  if (list === undefined)
+    return unreadable("package.json workspaces", "package.json");
+  const patterns = list.filter((entry) => typeof entry === "string");
+  return patterns.length > 0 ? parsed(patterns) : ABSENT;
+}
+function workspaceList(workspaces) {
+  if (Array.isArray(workspaces))
+    return workspaces;
+  if (isObjectRecord(workspaces) && Array.isArray(workspaces.packages))
+    return workspaces.packages;
+  return;
+}
+function isObjectRecord(value) {
+  return typeof value === "object" && value !== null;
+}
+function hasRecognizedManifest(directory) {
+  return readJson(nodePath18.join(directory, "package.json")) !== undefined || readFileSafe(nodePath18.join(directory, "go.mod")) !== undefined || readFileSafe(nodePath18.join(directory, "Cargo.toml")) !== undefined || readFileSafe(nodePath18.join(directory, "pyproject.toml")) !== undefined;
+}
+function extractMonorepoArchitectureSnapshot(projectDirectory) {
+  const { patterns, unreadable: unreadableWorkspaces } = discoverWorkspaces(projectDirectory);
+  const leaves = leafDirectoriesFrom(projectDirectory, patterns).map((dir) => ({
+    dir,
+    skeleton: extractSkeleton(dir)
+  }));
+  const packages = leaves.map(({ dir, skeleton }) => {
+    const description = packageJsonDescription(dir);
+    return {
+      name: packageName(dir),
+      dir,
+      purpose: description ?? PURPOSE_PLACEHOLDER,
+      ...description !== undefined && { seededPurpose: true },
+      introspected: skeleton.nodes.length > 0
+    };
+  }).toSorted((a, b) => byString2(a.name, b.name));
+  const names = new Set(packages.map((node) => node.name));
+  const edges = [];
+  for (const node of packages) {
+    for (const dependencyName of manifestDependencyNames(node.dir)) {
+      if (names.has(dependencyName) && dependencyName !== node.name) {
+        edges.push({ from: node.name, to: dependencyName });
+      }
+    }
+  }
+  edges.sort((a, b) => byString2(a.from, b.from) || byString2(a.to, b.to));
+  return {
+    model: { packages, edges, unreadableWorkspaces },
+    leaves,
+    workspaceRoot: patterns.length > 0 || unreadableWorkspaces.length > 0
+  };
+}
+function monorepoFingerprintOf(projectDirectory, model) {
+  const inputs = {
+    packages: model.packages.map((node) => `${node.name}:${node.introspected}`),
+    edges: model.edges.map((edge) => `${edge.from}->${edge.to}`),
+    boundaryConfig: readBoundaryConfig(projectDirectory),
+    ...model.unreadableWorkspaces.length > 0 && {
+      unreadable: model.unreadableWorkspaces.map((entry) => `${entry.manager}:${entry.config}`)
+    }
+  };
+  return createHash3("sha256").update(JSON.stringify(inputs)).digest("hex");
+}
+function readManifest(packageDirectory) {
+  const manifest = readJson(nodePath18.join(packageDirectory, "package.json"));
+  return manifest !== null && typeof manifest === "object" ? manifest : undefined;
+}
+function packageName(packageDirectory) {
+  const name = readManifest(packageDirectory)?.name;
+  if (typeof name === "string" && name.length > 0)
+    return name;
+  return readGoModuleName(packageDirectory) ?? readCargoCrateName(packageDirectory) ?? readPyprojectCrateName(packageDirectory) ?? nodePath18.basename(packageDirectory);
+}
+function packageJsonDescription(packageDirectory) {
+  const description = readManifest(packageDirectory)?.description;
+  return typeof description === "string" && description.trim().length > 0 ? description.replaceAll(/\s+/g, " ").trim() : undefined;
+}
+function readGoModuleName(packageDirectory) {
+  const content = readFileSafe(nodePath18.join(packageDirectory, "go.mod"));
+  if (content === undefined)
+    return;
+  return /^module\s+(\S+)/m.exec(content)?.[1];
+}
+function readCargoCrateName(packageDirectory) {
+  const content = readFileSafe(nodePath18.join(packageDirectory, "Cargo.toml"));
+  return content === undefined ? undefined : readCargoPackageName(content);
+}
+function readPyprojectCrateName(packageDirectory) {
+  const content = readFileSafe(nodePath18.join(packageDirectory, "pyproject.toml"));
+  return content === undefined ? undefined : readPyprojectName(content);
+}
+function resolveTomlWorkspaceMembers(content, readMembers, table, label, configFile) {
+  const members = readMembers(content);
+  if (members !== undefined)
+    return parsed(members);
+  if (isTomlTableEmptyArray(content, table, "members"))
+    return ABSENT;
+  return unreadable(label, configFile);
+}
+function detectUvWorkspace(projectDirectory) {
+  const content = readFileSafe(nodePath18.join(projectDirectory, "pyproject.toml"));
+  if (content === undefined)
+    return ABSENT;
+  if (!hasTomlTable(content, "tool.uv.workspace"))
+    return ABSENT;
+  return resolveTomlWorkspaceMembers(content, readUvWorkspaceMembers, "tool.uv.workspace", "uv workspace", "pyproject.toml");
+}
+function manifestDependencyNames(packageDirectory) {
+  const manifest = readManifest(packageDirectory);
+  return manifest === undefined ? [] : dependencySectionNames(manifest);
+}
+function detectPnpmWorkspaces(projectDirectory) {
+  const content = readFileSafe(nodePath18.join(projectDirectory, "pnpm-workspace.yaml"));
+  if (content === undefined)
+    return ABSENT;
+  const lines = content.split(/\r?\n/);
+  if (lines.every((line) => !line.startsWith("packages:")))
+    return ABSENT;
+  const start = lines.findIndex((line) => /^packages:\s*$/.test(line));
+  const globs = start === -1 ? [] : collectPnpmGlobs(lines.slice(start + 1));
+  return globs.length > 0 ? parsed(globs) : unreadable("pnpm workspaces", "pnpm-workspace.yaml");
+}
+function collectPnpmGlobs(blockLines) {
+  const globs = [];
+  for (const line of blockLines) {
+    const trimmed = line.trim();
+    if (trimmed === "" || trimmed.startsWith("#"))
+      continue;
+    const item = /^\s+-\s+(\S.*)$/.exec(line);
+    if (item?.[1] === undefined)
+      break;
+    const glob = item[1].trim().replaceAll(/^["']|["']$/g, "");
+    if (glob.length > 0 && !glob.startsWith("!"))
+      globs.push(glob);
+  }
+  return globs;
+}
+function detectGoWork(projectDirectory) {
+  const content = readFileSafe(nodePath18.join(projectDirectory, "go.work"));
+  if (content === undefined)
+    return ABSENT;
+  const lines = content.split(/\r?\n/);
+  const directories = [];
+  collectGoWorkBlock(lines, directories);
+  collectGoWorkSingleLines(lines, directories);
+  if (directories.length > 0)
+    return parsed(directories);
+  return lines.some((line) => /^\s*use\b/.test(line)) ? unreadable("go.work", "go.work") : ABSENT;
+}
+function collectGoWorkBlock(lines, directories) {
+  for (const entry of readDelimitedBlock(lines, /^use\s*\(\s*$/)) {
+    const target = normalizeUseTarget(entry);
+    if (target !== undefined)
+      directories.push(target);
+  }
+}
+function collectGoWorkSingleLines(lines, directories) {
+  for (const line of lines) {
+    const match = /^use\s+(\S.*)$/.exec(line.trim());
+    if (match?.[1] === undefined || match[1].startsWith("("))
+      continue;
+    const target = normalizeUseTarget(match[1]);
+    if (target !== undefined)
+      directories.push(target);
+  }
+}
+function normalizeUseTarget(raw) {
+  const commentAt = raw.indexOf("//");
+  const noComment = (commentAt === -1 ? raw : raw.slice(0, commentAt)).trim();
+  const unquoted = noComment.replaceAll(/^["']|["']$/g, "");
+  if (unquoted === "" || /\s/.test(unquoted))
+    return;
+  return unquoted.replace(/^\.\//, "");
+}
+function detectCargoWorkspace(projectDirectory) {
+  const content = readFileSafe(nodePath18.join(projectDirectory, "Cargo.toml"));
+  if (content === undefined)
+    return ABSENT;
+  if (!hasTomlTable(content, "workspace"))
+    return ABSENT;
+  if (!hasTomlTableKey(content, "workspace", "members"))
+    return ABSENT;
+  return resolveTomlWorkspaceMembers(content, readCargoWorkspaceMembers, "workspace", "Cargo [workspace]", "Cargo.toml");
+}
+var byString2 = (a, b) => a.localeCompare(b), ABSENT, parsed = (patterns) => ({ status: "parsed", patterns }), unreadable = (manager, config) => ({
+  status: "unreadable",
+  manager,
+  config
+}), ORPHAN_MANIFESTS;
+var init_architecture_monorepo = __esm(() => {
+  init_architecture_skeleton();
+  init_boundary_config();
+  init_cargo_manifest();
+  init_fs();
+  init_manifest_dependencies();
+  init_pyproject_manifest();
+  ABSENT = { status: "absent" };
+  ORPHAN_MANIFESTS = [
+    { packs: ["golang", "go"], filename: "go.mod", declaresPackage: (content) => hasGoModule(content) },
+    {
+      packs: ["python"],
+      filename: "pyproject.toml",
+      declaresPackage: (content) => hasTomlTable(content, "project") || hasTomlTable(content, "tool.poetry")
+    },
+    {
+      packs: ["rust"],
+      filename: "Cargo.toml",
+      declaresPackage: (content) => hasTomlTable(content, "package")
+    }
+  ];
+});
+
+// src/utils/architecture-reconcile.ts
+function reconcileSections(input) {
+  const verdicts = input.nodeNames.map((node) => ({
+    node,
+    status: liveNodeStatus(input.priorStamps[node], input.fingerprint)
+  }));
+  const present = new Set(input.nodeNames);
+  for (const node of Object.keys(input.priorStamps)) {
+    if (!present.has(node))
+      verdicts.push({ node, status: "orphaned" });
+  }
+  return verdicts;
+}
+function liveNodeStatus(stamp, fingerprint) {
+  if (stamp === undefined)
+    return "placeholder";
+  if (stamp !== fingerprint)
+    return "stale";
+  return "current";
+}
+
+// src/utils/architecture-document.ts
+var exports_architecture_document = {};
+__export(exports_architecture_document, {
+  selfHealProjectPreservingProse: () => selfHealProjectPreservingProse,
+  selfHealProject: () => selfHealProject,
+  selfHeal: () => selfHeal,
+  readDocumentFingerprint: () => readDocumentFingerprint,
+  planSelfHealProject: () => planSelfHealProject,
+  planSelfHeal: () => planSelfHeal,
+  isWouldChangeAction: () => isWouldChangeAction,
+  isSafewordOwned: () => isSafewordOwned
+});
+import { createHash as createHash4 } from "crypto";
+import { mkdirSync as mkdirSync3, readFileSync as readFileSync9, writeFileSync as writeFileSync3 } from "fs";
+import nodePath19 from "path";
+function isWouldChangeAction(action) {
+  return WOULD_CHANGE_ACTIONS.has(action);
+}
+function frontmatterBody(content) {
+  return /^---\r?\n([\s\S]*?)\r?\n---/.exec(content)?.[1];
+}
+function isSafewordOwned(content) {
+  return frontmatterBody(content)?.split(/\r?\n/).includes(`${GENERATOR_KEY}: ${GENERATOR_VALUE}`) ?? false;
+}
+function readDocumentFingerprint(content) {
+  const line = frontmatterBody(content)?.split(/\r?\n/).find((candidate) => candidate.startsWith(`${FINGERPRINT_KEY}:`));
+  if (line === undefined)
+    return;
+  const value = line.slice(FINGERPRINT_KEY.length + 1).trim();
+  return value.length > 0 ? value : undefined;
+}
+function healTarget(target, options = {}) {
+  const existing = readExisting(target.path);
+  const action = decideAction(existing, target.fingerprint, target.hasContent, target.matchesExisting);
+  if (isWouldChangeAction(action) || options.renderUnchanged === true && action === "unchanged") {
+    mkdirSync3(nodePath19.dirname(target.path), { recursive: true });
+    const { priorStamps, priorProse } = priorSectionHistory(existing, options.priorProseContent, options.preservePriorStructure ?? false, target.parseProse ?? parseSectionProse);
+    writeFileSync3(target.path, target.render(priorStamps, priorProse));
+  }
+  return { action, path: target.path };
+}
+function priorSectionHistory(existing, priorContent, preservePriorStructure, parseProse) {
+  const ownedPrior = priorContent !== undefined && isSafewordOwned(priorContent) ? priorContent : undefined;
+  const stampSource = preservePriorStructure ? ownedPrior ?? existing : existing;
+  const proseSource = ownedPrior ?? existing;
+  return {
+    priorStamps: stampSource === undefined ? new Map : parseSectionStamps(stampSource),
+    priorProse: proseSource === undefined ? new Map : parseProse(proseSource)
+  };
+}
+function planTarget(target) {
+  return decideAction(readExisting(target.path), target.fingerprint, target.hasContent, target.matchesExisting);
+}
+function skeletonTarget(directory, path3, skeleton) {
+  const fingerprint = shapeFingerprintOf(directory, skeleton);
+  const nodes = skeleton.nodes;
+  return {
+    path: path3,
+    fingerprint,
+    hasContent: nodes.length > 0,
+    matchesExisting: (existing) => hasMatchingNodePaths(existing, nodes),
+    render: (priorStamps, priorProse) => renderDocument(nodes, fingerprint, priorStamps, priorProse)
+  };
+}
+function singleRepoTarget(projectDirectory, workspaceRoot = false) {
+  return skeletonTarget(projectDirectory, resolveGeneratedArchitecturePath(projectDirectory), extractSkeleton(projectDirectory, { workspaceRoot }));
+}
+function leafTarget(packageDirectory, skeleton) {
+  return skeletonTarget(packageDirectory, nodePath19.join(packageDirectory, GENERATED_ARCHITECTURE_FILENAME), skeleton);
+}
+function rootIndexTarget(projectDirectory, model) {
+  const fingerprint = monorepoFingerprintOf(projectDirectory, model);
+  return {
+    path: resolveGeneratedArchitecturePath(projectDirectory),
+    fingerprint,
+    hasContent: model.packages.length > 0 || model.unreadableWorkspaces.length > 0,
+    matchesExisting: (existing) => hasMatchingRootPackagePurposes(existing, model.packages),
+    parseProse: parseRootPackageProse,
+    render: (_priorStamps, priorProse) => renderRootIndex(model, fingerprint, priorProse)
+  };
+}
+function projectTargets(projectDirectory, snapshot = extractMonorepoArchitectureSnapshot(projectDirectory)) {
+  const { model, leaves, workspaceRoot } = snapshot;
+  if (model.packages.length === 0 && model.unreadableWorkspaces.length === 0) {
+    return [singleRepoTarget(projectDirectory, workspaceRoot)];
+  }
+  return [
+    rootIndexTarget(projectDirectory, model),
+    ...leaves.map((leaf) => leafTarget(leaf.dir, leaf.skeleton))
+  ];
+}
+function selfHeal(projectDirectory) {
+  return healTarget(singleRepoTarget(projectDirectory));
+}
+function planSelfHeal(projectDirectory) {
+  return planTarget(singleRepoTarget(projectDirectory));
+}
+function selfHealProject(projectDirectory, snapshot) {
+  return projectTargets(projectDirectory, snapshot).map((target) => healTarget(target));
+}
+function selfHealProjectPreservingProse(projectDirectory, proseProjectDirectory, options = {}, snapshot) {
+  return projectTargets(projectDirectory, snapshot).map((target) => {
+    const relativePath = nodePath19.relative(projectDirectory, target.path);
+    const priorProseContent = readExisting(nodePath19.join(proseProjectDirectory, relativePath));
+    return healTarget(target, {
+      priorProseContent,
+      renderUnchanged: options.renderUnchanged,
+      preservePriorStructure: options.preservePriorStructure
+    });
+  });
+}
+function planSelfHealProject(projectDirectory, snapshot) {
+  return projectTargets(projectDirectory, snapshot).map((target) => planTarget(target));
+}
+function readExisting(path3) {
+  try {
+    return readFileSync9(path3, "utf8");
+  } catch {
+    return;
+  }
+}
+function decideAction(existing, fingerprint, hasContent, matchesExisting) {
+  if (existing === undefined)
+    return hasContent ? "created" : "noop";
+  if (!isSafewordOwned(existing))
+    return "skipped";
+  const recorded = readDocumentFingerprint(existing);
+  if (recorded === undefined)
+    return "regenerated";
+  if (recorded !== fingerprint)
+    return "healed";
+  if (matchesExisting !== undefined && !matchesExisting(existing))
+    return "healed";
+  return "unchanged";
+}
+function hasMatchingNodePaths(content, nodes) {
+  const paths = new Map;
+  const pattern = /^### (.+)\n+<!-- reconciled: \S+ -->\n+`([^`]*)`\s*$/gm;
+  for (const match of normalizeLineEndings(content).matchAll(pattern)) {
+    const name = match[1];
+    const path3 = match[2];
+    if (name !== undefined && path3 !== undefined)
+      paths.set(name.trim(), path3);
+  }
+  return paths.size === nodes.length && nodes.every((node) => paths.get(node.name) === node.path) && hasMatchingGeneratedPurposes(nodes, parseSectionProse(content));
+}
+function hasMatchingGeneratedPurposes(nodes, priorProse) {
+  return nodes.every((node) => {
+    const prior = priorProse.get(node.name);
+    return prior?.generated !== true || prior.text === node.purpose;
+  });
+}
+function hasMatchingRootPackagePurposes(content, packages) {
+  return hasMatchingGeneratedPurposes(packages, parseRootPackageProse(content));
+}
+function parseSectionStamps(content) {
+  const stamps = new Map;
+  const pattern = /^### (.+)\n+<!-- reconciled: (\S+) -->/gm;
+  for (const match of normalizeLineEndings(content).matchAll(pattern)) {
+    const name = match[1];
+    const stamp = match[2];
+    if (name !== undefined && stamp !== undefined)
+      stamps.set(name.trim(), stamp);
+  }
+  return stamps;
+}
+function normalizeLineEndings(content) {
+  return content.replaceAll(`\r
+`, `
+`);
+}
+function seededPurposeMarker(purpose) {
+  return `${SEEDED_PURPOSE_PREFIX}${purposeDigest(purpose)} -->`;
+}
+function purposeDigest(purpose) {
+  return createHash4("sha256").update(purpose).digest("hex");
+}
+function parseSeededPurposeDigest(line) {
+  if (!line.startsWith(SEEDED_PURPOSE_PREFIX) || !line.endsWith(" -->"))
+    return;
+  const digest = line.slice(SEEDED_PURPOSE_PREFIX.length, -" -->".length);
+  return /^[a-f0-9]{64}$/.test(digest) ? digest : undefined;
+}
+function recordPriorPurpose(purposes, name, lines, seededDigest) {
+  if (name === undefined)
+    return;
+  const text = lines.join(`
+`).trim();
+  if (text.length === 0)
+    return;
+  purposes.set(name, {
+    text,
+    generated: text === PURPOSE_PLACEHOLDER || seededDigest === purposeDigest(text)
+  });
+}
+function parseSectionProse(content) {
+  const prose = new Map;
+  let name;
+  let inProse = false;
+  let buffer = [];
+  let seededDigest;
+  const flush = (next) => {
+    recordPriorPurpose(prose, name, buffer, seededDigest);
+    name = next;
+    buffer = [];
+    inProse = false;
+    seededDigest = undefined;
+  };
+  for (const line of content.split(/\r?\n/)) {
+    const heading = /^### (.+)$/.exec(line)?.[1];
+    if (heading !== undefined) {
+      flush(heading.trim());
+    } else if (line.startsWith("## ")) {
+      flush(undefined);
+    } else if (name !== undefined) {
+      seededDigest = parseSeededPurposeDigest(line) ?? seededDigest;
+      inProse = accumulateProseLine(line, inProse, buffer);
+    }
+  }
+  flush(undefined);
+  return prose;
+}
+function accumulateProseLine(line, inProse, buffer) {
+  if (line.startsWith(RECONCILED_PREFIX))
+    return inProse;
+  if (line.startsWith(SEEDED_PURPOSE_PREFIX))
+    return inProse;
+  if (line.startsWith("> \u26A0 orphaned:"))
+    return true;
+  if (line.startsWith("> \u26A0 stale:"))
+    return inProse;
+  if (!inProse)
+    return /^`[^`]*`\s*$/.test(line);
+  buffer.push(line);
+  return true;
+}
+function isPurposeMetadataLine(line) {
+  return line.startsWith(RECONCILED_PREFIX) || line.startsWith(SEEDED_PURPOSE_PREFIX) || line.startsWith("> \u26A0");
+}
+function parseRootPackageProse(content) {
+  const prose = new Map;
+  let isInPackages = false;
+  let name;
+  let buffer = [];
+  let seededDigest;
+  const flush = () => {
+    recordPriorPurpose(prose, name, buffer, seededDigest);
+    name = undefined;
+    buffer = [];
+    seededDigest = undefined;
+  };
+  for (const line of content.split(/\r?\n/)) {
+    if (line.startsWith("## ")) {
+      flush();
+      isInPackages = line.slice(3).trim() === "Packages";
+    } else if (isInPackages && line.startsWith("### ")) {
+      flush();
+      name = line.slice(4).trim();
+    } else if (name !== undefined) {
+      seededDigest = parseSeededPurposeDigest(line) ?? seededDigest;
+      if (!isPurposeMetadataLine(line))
+        buffer.push(line);
+    }
+  }
+  flush();
+  return prose;
+}
+function architectureFrontmatter(fingerprint) {
+  return `---
+${GENERATOR_KEY}: ${GENERATOR_VALUE}
+${FINGERPRINT_KEY}: ${fingerprint}
+---
+
+# Architecture
+
+`;
+}
+function renderDocument(nodes, fingerprint, priorStamps, priorProse) {
+  const verdicts = reconcileSections({
+    priorStamps: Object.fromEntries(priorStamps),
+    nodeNames: nodes.map((node) => node.name),
+    fingerprint
+  });
+  const nodeByName = new Map(nodes.map((node) => [node.name, node]));
+  const sections = verdicts.map((verdict) => {
+    const node = nodeByName.get(verdict.node);
+    const stamp = priorStamps.get(verdict.node) ?? fingerprint;
+    const prior = priorProse.get(verdict.node);
+    if (node === undefined)
+      return renderOrphanSection(verdict.node, stamp, prior?.text ?? "");
+    const { purpose, seeded } = resolveModulePurpose(node, prior);
+    return renderSection(node, stamp, verdict.status, purpose, seeded);
+  }).join(`
+`);
+  return `${architectureFrontmatter(fingerprint)}## Modules
+
+${sections}`;
+}
+function resolveModulePurpose(node, prior) {
+  const { seeded, useGeneratedPurpose } = generatedPurposeChoice(node.seededPurpose, prior);
+  return {
+    purpose: useGeneratedPurpose ? node.purpose : prior?.text ?? node.purpose,
+    seeded
+  };
+}
+function renderSection(node, stamp, status, prose, seededPurpose) {
+  const marker = status === "stale" ? `
+> \u26A0 stale: structure changed since this section was reconciled.
+` : "";
+  const seed = seededPurpose ? `
+${seededPurposeMarker(prose)}
+` : "";
+  return `### ${node.name}
+
+${RECONCILED_PREFIX} ${stamp} -->
+
+\`${node.path}\`
+${seed}
+${prose}
+${marker}`;
+}
+function renderOrphanSection(name, stamp, prose) {
+  const preservedProse = prose.length > 0 ? `
+${prose}
+` : "";
+  return `### ${name}
+
+${RECONCILED_PREFIX} ${stamp} -->
+
+> \u26A0 orphaned: this section describes a module that no longer exists.
+${preservedProse}`;
+}
+function renderRootIndex(model, fingerprint, priorProse) {
+  const sections = model.packages.map((node) => renderPackageSection(node, fingerprint, priorProse.get(node.name))).join(`
+`);
+  const edgeLines = model.edges.map((edge) => `- \`${edge.from}\` \u2192 \`${edge.to}\``).join(`
+`);
+  const dependencies = model.edges.length === 0 ? `_No inter-package dependencies._
+` : `${edgeLines}
+`;
+  return `${architectureFrontmatter(fingerprint)}## Packages
+
+${sections}
+## Dependencies
+
+${dependencies}${renderCoverageGaps(model.unreadableWorkspaces)}`;
+}
+function renderCoverageGaps(unreadable2) {
+  if (unreadable2.length === 0)
+    return "";
+  const items = unreadable2.map((entry) => `> - \`${entry.config}\` (${entry.manager})`).join(`
+`);
+  return `## Coverage gaps
+
+> \u26A0 not introspected \u2014 workspace config unreadable. A present workspace manager's member list could not be parsed, so its packages may be missing above. Fix the config and re-run \`safeword project architecture\`:
+${items}
+`;
+}
+function renderPackageSection(node, stamp, prior) {
+  const { purpose, seeded } = resolvePackagePurpose(node, prior);
+  const body = renderPackagePurposeBody(node, purpose);
+  const seed = seeded ? `
+${seededPurposeMarker(node.purpose)}
+` : "";
+  return `### ${node.name}
+
+${RECONCILED_PREFIX} ${stamp} -->
+${seed}
+${body}
+`;
+}
+function resolvePackagePurpose(node, prior) {
+  const { seeded, useGeneratedPurpose } = generatedPurposeChoice(node.seededPurpose, prior);
+  return {
+    purpose: useGeneratedPurpose ? node.purpose : prior?.text,
+    seeded
+  };
+}
+function generatedPurposeChoice(hasSeededPurpose, prior) {
+  const generatedPrior = prior?.generated === true;
+  const seeded = hasSeededPurpose === true && (prior === undefined || generatedPrior);
+  return {
+    seeded,
+    useGeneratedPurpose: seeded || generatedPrior
+  };
+}
+function renderPackagePurposeBody(node, purpose) {
+  if (node.introspected)
+    return purpose ?? node.purpose;
+  if (purpose !== undefined)
+    return `${purpose}
+
+> \u26A0 not introspected \u2014 no source modules to map`;
+  return "> \u26A0 not introspected \u2014 no source modules to map";
+}
+var WOULD_CHANGE_ACTIONS, FINGERPRINT_KEY = "fingerprint", GENERATOR_KEY = "generator", GENERATOR_VALUE = "safeword-architecture", RECONCILED_PREFIX = "<!-- reconciled:", SEEDED_PURPOSE_PREFIX = "<!-- seeded-purpose: ";
+var init_architecture_document = __esm(() => {
+  init_architecture_fingerprint();
+  init_architecture_monorepo();
+  init_architecture_skeleton();
+  init_configured_paths();
+  WOULD_CHANGE_ACTIONS = new Set(["created", "healed", "regenerated"]);
+});
+
+// src/cli-protocol/review-presentation.ts
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function reviewCoverage(data) {
+  const author = data.author_agent;
+  const reviewer = data.actual_reviewer;
+  if (typeof author !== "string" || !REVIEW_AUTHORS.has(author) || typeof reviewer !== "string") {
+    return "incomplete";
+  }
+  if (data.independence === "degraded" && REVIEW_AGENTS.has(reviewer) && reviewer === author)
+    return "standard";
+  if (data.independence === "cross-agent" && REVIEW_AGENTS.has(reviewer) && reviewer !== author) {
+    return "independent";
+  }
+  return "incomplete";
+}
+function reviewVerdict(data) {
+  const output = data.reviewer_output;
+  if (!isRecord(output))
+    return;
+  if (typeof output.reviewer_agent !== "string" || !REVIEW_AGENTS.has(output.reviewer_agent) || output.reviewer_agent !== data.actual_reviewer) {
+    return;
+  }
+  return output.verdict === "approve" || output.verdict === "request_changes" ? output.verdict : undefined;
+}
+function reviewVerdictMatchesStatus(status, verdict) {
+  if (status === "approved")
+    return verdict === "approve";
+  if (status === "changes_requested")
+    return verdict === "request_changes";
+  return status === "blocked" && verdict !== undefined;
+}
+function reviewPolicyMatchesStatus(data) {
+  if (data.status === "blocked") {
+    return data.review_policy === "prefer" || data.review_policy === "require";
+  }
+  return (data.status === "approved" || data.status === "changes_requested") && data.review_policy === undefined;
+}
+function reviewStateMatchesStatus(state, status) {
+  if (status === "approved")
+    return state === "healthy";
+  return (status === "changes_requested" || status === "blocked") && state === "action_required";
+}
+function isConsistentReviewResult(data, state, verdict) {
+  return reviewStateMatchesStatus(state, data.status) && reviewPolicyMatchesStatus(data) && reviewVerdictMatchesStatus(data.status, verdict);
+}
+function incompleteCoverageLine(data) {
+  return data.status === "blocked" && data.review_policy === "require" ? "Review incomplete \u2014 required independent coverage is unsatisfied." : "Review incomplete.";
+}
+function blockedReviewCoverageLine(data, coverage, verdict) {
+  if (coverage === "standard" && data.review_policy === "require") {
+    return verdict === "request_changes" ? "Review blocked \u2014 changes requested with standard coverage; required independent coverage is unsatisfied." : "Review blocked \u2014 standard coverage achieved; required independent coverage is unsatisfied.";
+  }
+  return incompleteCoverageLine(data);
+}
+function specialReviewCoverageLine(status, state) {
+  if (status === "existing_route" && state === "healthy")
+    return "Review not requested.";
+  if (status === "pending" && state === "action_required") {
+    return "Review running in the background.";
+  }
+  if (status === "stale" && state === "action_required") {
+    return "Review stale \u2014 sources changed during the check.";
+  }
+  return;
+}
+function reviewCoverageLine(data, state) {
+  const status = data.status;
+  const specialLine = specialReviewCoverageLine(status, state);
+  if (specialLine !== undefined)
+    return specialLine;
+  const verdict = reviewVerdict(data);
+  if (!reviewStateMatchesStatus(state, status))
+    return incompleteCoverageLine(data);
+  if (!reviewPolicyMatchesStatus(data))
+    return "Review incomplete.";
+  if (!reviewVerdictMatchesStatus(status, verdict))
+    return incompleteCoverageLine(data);
+  if (verdict === undefined)
+    return incompleteCoverageLine(data);
+  const coverage = reviewCoverage(data);
+  if (status === "blocked")
+    return blockedReviewCoverageLine(data, coverage, verdict);
+  if (coverage === "incomplete")
+    return "Review incomplete.";
+  if (verdict === "request_changes")
+    return `Review changes requested \u2014 ${coverage} coverage.`;
+  return `Review complete \u2014 ${coverage} coverage.`;
+}
+function isCompletedStandardReview(data, state) {
+  const verdict = reviewVerdict(data);
+  return data.status === "approved" && isConsistentReviewResult(data, state, verdict) && reviewCoverage(data) === "standard";
+}
+function reviewUpgradeSuggestion(data, state) {
+  if (!isCompletedStandardReview(data, state))
+    return;
+  const author = data.author_agent;
+  const reviewer = data.assigned_reviewer;
+  if (typeof author !== "string" || typeof reviewer !== "string" || !REVIEW_AGENTS.has(reviewer) || reviewer === author) {
+    return;
+  }
+  const label = `${reviewer.charAt(0).toUpperCase()}${reviewer.slice(1)}`;
+  return suggestionForFailure(data.preferred_failure, label);
+}
+function suggestionForFailure(failure, label) {
+  if (failure === "not_installed") {
+    return `To add independent coverage, install or update ${label}, then retry review.`;
+  }
+  if (failure === "untrusted_install") {
+    return `To add independent coverage, move ${label} to a trusted non-writable-by-group directory, then retry review.`;
+  }
+  if (failure === "unsupported") {
+    return `To add independent coverage, update ${label}, then retry review.`;
+  }
+  if (failure === "probe_timed_out" || failure === "launch_failed") {
+    return `To add independent coverage, run ${label} --help to diagnose it, then retry review.`;
+  }
+  if (failure === "not_authenticated") {
+    return `To add independent coverage, sign in to ${label}, then retry review.`;
+  }
+  if (RETRYABLE_REVIEW_FAILURES.has(String(failure))) {
+    return `To add independent coverage, retry ${label} review.`;
+  }
+  return;
+}
+function reviewResultLines(result, options) {
+  if (!isRecord(result.data) || result.data.command !== "review run")
+    return;
+  if (result.state === "failed" && result.errors.length > 0)
+    return;
+  const messages = result.findings.filter((finding) => !REPLACED_REVIEW_FINDINGS.has(finding.code)).map((finding) => finding.message);
+  messages.push(...result.errors.map((error2) => error2.message));
+  const lines = [reviewCoverageLine(result.data, result.state), ...messages];
+  if (options.verbose === true) {
+    const suggestion = reviewUpgradeSuggestion(result.data, result.state);
+    if (suggestion !== undefined)
+      lines.push(suggestion);
+  }
+  return lines;
+}
+var REVIEW_AGENTS, REVIEW_AUTHORS, REPLACED_REVIEW_FINDINGS, RETRYABLE_REVIEW_FAILURES;
+var init_review_presentation = __esm(() => {
+  REVIEW_AGENTS = new Set(["claude", "codex"]);
+  REVIEW_AUTHORS = new Set(["claude", "codex", "cursor"]);
+  REPLACED_REVIEW_FINDINGS = new Set([
+    "REVIEW_INDEPENDENCE",
+    "REVIEW_NOT_REQUESTED",
+    "REVIEW_STALE"
+  ]);
+  RETRYABLE_REVIEW_FAILURES = new Set([
+    "timed_out",
+    "process_failed",
+    "invalid_output",
+    "REVIEWER_PROVENANCE_MISSING",
+    "REVIEWER_PROVENANCE_CONTRADICTORY"
+  ]);
+});
+
+// src/cli-protocol/result.ts
+function combineEffects(groups) {
+  return {
+    files: groups.flatMap((effects) => effects.files ?? []),
+    packages: groups.flatMap((effects) => effects.packages ?? []),
+    configuration: groups.flatMap((effects) => effects.configuration ?? []),
+    network: groups.flatMap((effects) => effects.network ?? []),
+    destructive: groups.flatMap((effects) => effects.destructive ?? [])
+  };
+}
+function combinedResultState(results) {
+  if (results.some((result) => result.state === "failed"))
+    return "failed";
+  if (results.some((result) => result.state === "action_required"))
+    return "action_required";
+  if (results.some((result) => result.state === "changed"))
+    return "changed";
+  return "healthy";
+}
+function createResult(input) {
+  return {
+    schemaVersion: 1,
+    ok: input.state !== "failed",
+    state: input.state,
+    changed: input.changed ?? input.state === "changed",
+    findings: input.findings ?? [],
+    effects: { ...EMPTY_EFFECTS, ...input.effects },
+    errors: input.errors ?? [],
+    recovery: input.recovery ?? [],
+    nextActions: input.nextActions ?? [],
+    ...input.exitCode !== undefined && { exitCode: input.exitCode },
+    ...input.presentation !== undefined && { presentation: input.presentation },
+    ...input.data !== undefined && { data: input.data }
+  };
+}
+function withDeprecation(result, legacy, replacement, compatibility, options = {}) {
+  const redundantOptionFindings = (compatibility.redundantOptions ?? []).filter((option) => options[option.key] === true).map((option) => ({
+    code: "CLI_OPTION_REDUNDANT",
+    message: `\`${option.flag}\` is accepted for compatibility but has no effect; use \`${option.replacement}\`.`,
+    severity: "warning",
+    metadata: {
+      option: option.flag,
+      replacement: option.replacement,
+      retention: compatibility.retention
+    }
+  }));
+  return {
+    ...result,
+    findings: [
+      ...result.findings,
+      {
+        code: "CLI_ALIAS_DEPRECATED",
+        message: `\`${legacy}\` is deprecated; use \`${replacement}\`.`,
+        severity: "warning",
+        metadata: {
+          replacement,
+          introduced_in: compatibility.introducedIn,
+          retention: compatibility.retention
+        }
+      },
+      ...redundantOptionFindings
+    ]
+  };
+}
+function exitStatusFor(result) {
+  if (result.exitCode !== undefined)
+    return result.exitCode;
+  if (result.state === "failed")
+    return 1;
+  if (result.state === "action_required")
+    return 2;
+  return 0;
+}
+function toWireResult(result) {
+  return {
+    schema_version: result.schemaVersion,
+    ok: result.ok,
+    state: result.state,
+    changed: result.changed,
+    findings: result.findings.map(({ code, message, severity, detail, metadata }) => ({
+      code,
+      message,
+      severity,
+      ...detail !== undefined && { detail },
+      ...metadata !== undefined && { metadata }
+    })),
+    effects: result.effects,
+    errors: result.errors.map(({ code, message, retryable, detail }) => ({
+      code,
+      message,
+      retryable,
+      ...detail !== undefined && { detail }
+    })),
+    recovery: result.recovery.map(({ command, description, requiresHuman }) => ({
+      command,
+      description,
+      requires_human: requiresHuman
+    })),
+    next_actions: result.nextActions.map((action) => ("command" in action) ? {
+      command: action.command,
+      mutates: action.mutates,
+      requires_human: action.requiresHuman
+    } : {
+      kind: action.kind,
+      instruction: action.instruction,
+      mutates: action.mutates,
+      requires_human: action.requiresHuman
+    }),
+    ...result.data !== undefined && { data: result.data }
+  };
+}
+function renderJsonResult(result) {
+  return JSON.stringify(toWireResult(result));
+}
+function uniqueMessages(result) {
+  const messages = result.findings.map((finding) => finding.message);
+  messages.push(...result.errors.map((error2) => error2.message));
+  return [...new Set(messages)];
+}
+function suppressHumanOutput(result, options) {
+  return options.quiet === true && result.state === "healthy";
+}
+function isRecord2(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function effectLines(category, effects) {
+  if (!Array.isArray(effects))
+    return [];
+  return effects.flatMap((effect) => isRecord2(effect) && typeof effect.kind === "string" && typeof effect.target === "string" ? [`${category}: ${effect.kind} ${effect.target}`] : []);
+}
+function nextActionLabel(action) {
+  return "command" in action ? action.command : action.instruction;
+}
+function plannedEffectLines(data) {
+  if (!isRecord2(data))
+    return [];
+  const plan = data.plan;
+  if (!isRecord2(plan))
+    return [];
+  const effects = plan.effects;
+  if (!isRecord2(effects))
+    return [];
+  const categories = ["files", "packages", "configuration", "network", "destructive"];
+  const lines = categories.flatMap((category) => effectLines(category, effects[category]));
+  return lines.length === 0 ? [] : ["Planned effects:", ...lines];
+}
+function labelledSurfaces(data, command) {
+  if (!isRecord2(data) || data.command !== command || !Array.isArray(data.surfaces))
+    return [];
+  return data.surfaces.flatMap((surface) => {
+    if (!isRecord2(surface) || typeof surface.name !== "string")
+      return [];
+    const label = SURFACE_LABELS[surface.name];
+    return label === undefined ? [] : [{ label, surface }];
+  });
+}
+function installSurfaceLines(data) {
+  return labelledSurfaces(data, "install").flatMap(({ label, surface }) => {
+    if (surface.selected === false)
+      return [`${label}: not selected`];
+    const outcome = typeof surface.state === "string" ? SURFACE_OUTCOMES[surface.state] : undefined;
+    return outcome === undefined ? [] : [`${label}: ${outcome}`];
+  });
+}
+function installActivationLines(data) {
+  return labelledSurfaces(data, "install").flatMap(({ label, surface }) => {
+    if (!Array.isArray(surface.activation_actions))
+      return [];
+    return surface.activation_actions.flatMap((action) => typeof action === "string" ? [`${label} activation: ${action}`] : []);
+  });
+}
+function doctorDiagnosticCauses(data) {
+  if (!isRecord2(data) || data.command !== "doctor" || !Array.isArray(data.diagnostics)) {
+    return new Set;
+  }
+  return new Set(data.diagnostics.flatMap((diagnostic) => isRecord2(diagnostic) && typeof diagnostic.cause === "string" ? [diagnostic.cause] : []));
+}
+function doctorDiagnosticLines(data) {
+  if (!isRecord2(data) || data.command !== "doctor" || !Array.isArray(data.coverage))
+    return [];
+  const coverage = data.coverage.flatMap((item) => {
+    if (!isRecord2(item) || typeof item.surface !== "string")
+      return [];
+    const label = SURFACE_LABELS[item.surface] ?? item.surface;
+    const outcome = typeof item.state === "string" ? SURFACE_OUTCOMES[item.state] : undefined;
+    const evidence = isRecord2(item.evidence) ? Object.entries(item.evidence).filter((entry) => ["string", "number", "boolean"].includes(typeof entry[1])).map(([key, value]) => `${key.replaceAll("_", " ")}=${String(value)}`) : [];
+    const evidenceSuffix = evidence.length === 0 ? "" : ` (${evidence.join(", ")})`;
+    return [`- ${label}: ${outcome ?? "unknown"}${evidenceSuffix}`];
+  });
+  const diagnostics = Array.isArray(data.diagnostics) ? data.diagnostics.flatMap((item) => {
+    if (!isRecord2(item) || typeof item.surface !== "string" || typeof item.code !== "string" || typeof item.cause !== "string") {
+      return [];
+    }
+    const label = SURFACE_LABELS[item.surface] ?? item.surface;
+    return [`- ${label} [${item.code}]: ${item.cause}`];
+  }) : [];
+  return [
+    ...coverage.length === 0 ? [] : ["Diagnostic coverage:", ...coverage],
+    ...diagnostics.length === 0 ? [] : ["Causes:", ...diagnostics]
+  ];
+}
+function completedEffectLines(result) {
+  const visibleCategories = [
+    result.effects.files,
+    result.effects.packages,
+    result.effects.configuration,
+    result.effects.destructive
+  ];
+  const lines = visibleCategories.flatMap((effects) => effects.map((effect) => `${EFFECT_LABELS[effect.kind] ?? "Changed"}: ${effect.target}`));
+  lines.push(...result.effects.network.map((effect) => `Network: ${effect.operation ?? effect.kind} ${effect.target}`));
+  return lines;
+}
+function resultBodyLines(result, options) {
+  const reviewLines = reviewResultLines(result, options);
+  if (reviewLines !== undefined)
+    return reviewLines;
+  const diagnosticCauses = doctorDiagnosticCauses(result.data);
+  const messages = uniqueMessages(result).filter((message) => !diagnosticCauses.has(message));
+  const lines = [
+    VERDICTS[result.state],
+    `Changed: ${result.changed ? "yes" : "no"}`,
+    ...installSurfaceLines(result.data),
+    ...installActivationLines(result.data),
+    ...doctorDiagnosticLines(result.data),
+    ...messages,
+    ...plannedEffectLines(result.data)
+  ];
+  if (options.verbose === true) {
+    const details = [
+      ...result.findings.map((finding) => finding.detail),
+      ...result.errors.map((error2) => error2.detail)
+    ].filter((detail) => detail !== undefined);
+    lines.push(...completedEffectLines(result), ...details);
+  }
+  return lines;
+}
+function renderHumanStreams(result, options = {}) {
+  if (result.presentation?.kind === "raw") {
+    return {
+      stdout: result.presentation.body.replace(/\n$/, ""),
+      stderr: options.quiet === true ? "" : uniqueMessages(result).join(`
+`)
+    };
+  }
+  if (suppressHumanOutput(result, options))
+    return { stdout: "", stderr: "" };
+  const lines = resultBodyLines(result, options);
+  const primaryAction = result.nextActions[0];
+  if (primaryAction !== undefined)
+    lines.push(`Next: ${nextActionLabel(primaryAction)}`);
+  const body = lines.join(`
+`);
+  return result.state === "failed" ? { stdout: "", stderr: body } : { stdout: body, stderr: "" };
+}
+var EMPTY_EFFECTS, VERDICTS, SURFACE_LABELS, SURFACE_OUTCOMES, EFFECT_LABELS;
+var init_result = __esm(() => {
+  init_review_presentation();
+  EMPTY_EFFECTS = {
+    files: [],
+    packages: [],
+    configuration: [],
+    network: [],
+    destructive: []
+  };
+  VERDICTS = {
+    healthy: "Healthy",
+    changed: "Complete",
+    action_required: "Needs attention",
+    failed: "Failed"
+  };
+  SURFACE_LABELS = {
+    project: "Project",
+    claude: "Claude",
+    codex: "Codex",
+    cursor: "Cursor"
+  };
+  SURFACE_OUTCOMES = {
+    healthy: "ready",
+    changed: "updated",
+    action_required: "needs attention",
+    failed: "failed"
+  };
+  EFFECT_LABELS = {
+    create: "Created",
+    update: "Updated",
+    delete: "Deleted",
+    install: "Installed",
+    uninstall: "Uninstalled",
+    remove: "Removed",
+    write: "Written"
+  };
+});
+
+// src/cli-protocol/online-required.ts
+function onlineRequired(name, nextCommand = name) {
+  return createResult({
+    state: "action_required",
+    findings: [
+      {
+        code: "CLI_ONLINE_REQUIRED",
+        message: `\`${name}\` requires declared network access for this operation.`,
+        severity: "warning"
+      }
+    ],
+    nextActions: [
+      {
+        command: `safeword ${nextCommand}`,
+        mutates: true,
+        requiresHuman: false
+      }
+    ],
+    data: { command: name, offline: true }
+  });
+}
+var init_online_required = __esm(() => {
+  init_result();
+});
+
+// src/cli-protocol/plan.ts
+import { createHash as createHash5 } from "crypto";
+function isPlanIdentity(value) {
+  return PLAN_IDENTITY_PATTERN.test(value);
+}
+function malformedPlanIdentity(command) {
+  return createResult({
+    state: "failed",
+    errors: [
+      {
+        code: "PLAN_MALFORMED",
+        message: `The ${command} plan identity must be the 64-character hexadecimal id returned by its latest preview.`,
+        retryable: false
+      }
+    ]
+  });
+}
+function planIdentity(input) {
+  return createHash5("sha256").update(JSON.stringify([input.command, input.preconditionDigest, input.effects])).digest("hex");
+}
+function createPlan(input) {
+  const planWithoutIdentity = {
+    schemaVersion: 1,
+    command: input.command,
+    preconditionDigest: input.preconditionDigest,
+    effects: { ...EMPTY_EFFECTS2, ...input.effects },
+    findings: input.findings ?? [],
+    requiresConfirmation: input.requiresConfirmation ?? false,
+    verification: input.verification ?? []
+  };
+  return { ...planWithoutIdentity, id: planIdentity(planWithoutIdentity) };
+}
+function toWirePlan(plan) {
+  return {
+    schema_version: plan.schemaVersion,
+    id: plan.id,
+    command: plan.command,
+    precondition_digest: plan.preconditionDigest,
+    effects: plan.effects,
+    findings: plan.findings,
+    requires_confirmation: plan.requiresConfirmation,
+    verification: plan.verification
+  };
+}
+var EMPTY_EFFECTS2, PLAN_IDENTITY_PATTERN;
+var init_plan = __esm(() => {
+  init_result();
+  EMPTY_EFFECTS2 = {
+    files: [],
+    packages: [],
+    configuration: [],
+    network: [],
+    destructive: []
+  };
+  PLAN_IDENTITY_PATTERN = /^[a-f\d]{64}$/u;
+});
+
+// src/cli-protocol/mutation-effects.ts
+function effectsFromMutationJournal(mutations) {
+  const toEffect = ({ kind, target, operation }) => ({
+    kind,
+    target,
+    operation
+  });
+  return {
+    files: mutations.filter((mutation) => mutation.surface === "file").map((mutation) => toEffect(mutation)),
+    configuration: mutations.filter((mutation) => mutation.surface === "configuration").map((mutation) => toEffect(mutation)),
+    network: mutations.filter((mutation) => mutation.surface === "network").map((mutation) => toEffect(mutation))
+  };
+}
+
+// src/cli-protocol/replay-command.ts
+function shellArgument(value) {
+  const escapedSingleQuote = `'"'"'`;
+  return `'${value.split("'").join(escapedSingleQuote)}'`;
+}
+function buildReplayCommand(input) {
+  return [
+    input.command,
+    ...(input.operands ?? []).map((operand) => shellArgument(operand)),
+    ...(input.options ?? []).flatMap(([flag, value]) => value === undefined ? [] : [flag, shellArgument(value)]),
+    "--cwd",
+    shellArgument(input.cwd)
+  ].join(" ");
+}
+
+// src/tracker-sync/secrets.ts
+function resolveCredential(provider, dependencies) {
+  const fromKeychain = dependencies.keychain?.(provider);
+  if (fromKeychain !== undefined && fromKeychain.length > 0) {
+    return { ok: true, token: fromKeychain };
+  }
+  const fromEnvironment = dependencies.env[CREDENTIAL_ENV_VAR[provider]];
+  if (fromEnvironment !== undefined && fromEnvironment.length > 0) {
+    return { ok: true, token: fromEnvironment };
+  }
+  return { ok: false };
+}
+var CREDENTIAL_ENV_VAR;
+var init_secrets = __esm(() => {
+  CREDENTIAL_ENV_VAR = {
+    linear: "LINEAR_API_KEY",
+    github: "GITHUB_TOKEN"
+  };
+});
+
+// src/tracker-sync/tracker-map.ts
+var exports_tracker_map = {};
+__export(exports_tracker_map, {
+  trackerMapPath: () => trackerMapPath,
+  planTicketSync: () => planTicketSync,
+  loadTrackerMapOrEmpty: () => loadTrackerMapOrEmpty,
+  loadTrackerMap: () => loadTrackerMap,
+  TrackerMap: () => TrackerMap
+});
+import { existsSync as existsSync8, readFileSync as readFileSync10, writeFileSync as writeFileSync4 } from "fs";
+import nodePath20 from "path";
+function trackerMapPath(cwd) {
+  return nodePath20.join(cwd, ".safeword", "tracker-map.json");
+}
+
+class TrackerMap {
+  issues;
+  constructor(issues) {
+    this.issues = issues ?? new Map;
+  }
+  lookup(ticketId) {
+    return this.issues.get(ticketId);
+  }
+  findTicketIdByRefId(trackerId) {
+    for (const [ticketId, entry] of this.issues) {
+      if (entry.ref.id === trackerId)
+        return ticketId;
+    }
+    return;
+  }
+  markPending(ticketId, ref) {
+    this.issues.set(ticketId, { ref, status: "pending" });
+  }
+  record(ticketId, ref) {
+    this.issues.set(ticketId, { ref, status: "recorded" });
+  }
+  serialize() {
+    return { version: SIDECAR_VERSION, issues: Object.fromEntries(this.issues) };
+  }
+  save(filePath) {
+    writeFileSync4(filePath, `${JSON.stringify(this.serialize(), undefined, 2)}
+`);
+  }
+}
+function loadTrackerMap(filePath) {
+  if (!existsSync8(filePath))
+    return { ok: false, reason: "missing" };
+  let parsed2;
+  try {
+    parsed2 = JSON.parse(readFileSync10(filePath, "utf8"));
+  } catch {
+    return { ok: false, reason: "corrupt" };
+  }
+  if (typeof parsed2 !== "object" || parsed2 === null || !("issues" in parsed2)) {
+    return { ok: false, reason: "corrupt" };
+  }
+  const issues = parsed2.issues;
+  if (typeof issues !== "object" || issues === null)
+    return { ok: false, reason: "corrupt" };
+  return { ok: true, map: new TrackerMap(new Map(Object.entries(issues))) };
+}
+function loadTrackerMapOrEmpty(filePath) {
+  const loaded = loadTrackerMap(filePath);
+  if (loaded.ok)
+    return loaded;
+  return loaded.reason === "missing" ? { ok: true, map: new TrackerMap } : { ok: false, reason: "corrupt" };
+}
+function planTicketSync(map, ticketId) {
+  const entry = map.lookup(ticketId);
+  if (entry === undefined)
+    return { kind: "create" };
+  if (entry.status === "pending")
+    return { kind: "reconcile", ref: entry.ref };
+  return { kind: "update", ref: entry.ref };
+}
+var SIDECAR_VERSION = 1;
+var init_tracker_map = () => {};
+
+// src/tracker-connect/handoff.ts
+function handoffSteps(provider, target) {
+  if (provider === "github") {
+    const repo = target.repo ?? "<owner/repo>";
+    return [
+      `Install the safeword[bot] GitHub App for ${repo}:`,
+      "  https://github.com/apps/safeword/installations/new",
+      "Or, if you can\u2019t install the App, export a Personal Access Token (PAT)",
+      "with repo scope as GITHUB_TOKEN before connecting."
+    ];
+  }
+  return [
+    "Authorize safeword in Arcade (OAuth) and approve in your browser:",
+    "  https://api.arcade.dev/oauth/authorize",
+    "Arcade holds the Linear token; safeword stores only the Arcade key."
+  ];
+}
+
+// src/tracker-connect/types.ts
+var ConnectExecutionError;
+var init_types = __esm(() => {
+  ConnectExecutionError = class ConnectExecutionError extends Error {
+    mutations;
+    constructor(cause, mutations) {
+      super(cause instanceof Error ? cause.message : String(cause), { cause });
+      this.name = "ConnectExecutionError";
+      this.mutations = mutations;
+    }
+  };
+});
+
+// src/tracker-connect/index.ts
+import { existsSync as existsSync9, readFileSync as readFileSync11, writeFileSync as writeFileSync5 } from "fs";
+import nodePath21 from "path";
+function configPath(cwd) {
+  return nodePath21.join(cwd, ".safeword", "config.json");
+}
+function writeProviderConfig(cwd, provider, target) {
+  const path3 = configPath(cwd);
+  const before = existsSync9(path3) ? readFileSync11(path3, "utf8") : undefined;
+  const existing = before === undefined ? {} : JSON.parse(before);
+  const priorBridge = existing.ticketBridge ?? {};
+  existing.ticketBridge = { ...priorBridge, provider, body: priorBridge.body ?? "minimal", target };
+  const after = `${JSON.stringify(existing, undefined, 2)}
+`;
+  writeFileSync5(path3, after);
+  return before === after ? undefined : {
+    surface: "file",
+    kind: before === undefined ? "create" : "update",
+    target: ".safeword/config.json",
+    operation: "write"
+  };
+}
+function appendMarker(path3, target, marker, mutations) {
+  const existed = existsSync9(path3);
+  const before = existed ? readFileSync11(path3, "utf8") : "";
+  if (before.split(/\r?\n/u).includes(marker))
+    return;
+  const prefix = before === "" || before.endsWith(`
+`) ? "" : `
+`;
+  writeFileSync5(path3, `${prefix}${marker}
+`, { flag: "a" });
+  mutations.push({
+    surface: "file",
+    kind: existed ? "update" : "create",
+    target,
+    operation: "merge"
+  });
+}
+async function offerPollutionOptIns(dependencies, mutations) {
+  const accepted = await dependencies.prompt.confirm("Add ignore/markers so coding agents don\u2019t index the generated ticket files?", false);
+  if (!accepted)
+    return;
+  const namespaceRoot = resolveNamespaceRoot(dependencies.cwd);
+  const namespacePattern = `${nodePath21.relative(dependencies.cwd, namespaceRoot).replaceAll("\\", "/")}/`;
+  appendMarker(nodePath21.join(dependencies.cwd, ".cursorindexingignore"), ".cursorindexingignore", namespacePattern, mutations);
+  appendMarker(nodePath21.join(dependencies.cwd, ".gitattributes"), ".gitattributes", `${namespacePattern}**/INDEX*.md linguist-generated=true`, mutations);
+}
+async function connectSupportedTracker(dependencies, provider, mutations) {
+  const { cwd, log } = dependencies;
+  const configMutation = writeProviderConfig(cwd, provider, dependencies.target);
+  if (configMutation !== undefined)
+    mutations.push(configMutation);
+  for (const line of handoffSteps(provider, dependencies.target))
+    log(line);
+  if (dependencies.token !== undefined) {
+    const where = await dependencies.secretStore.store(provider, dependencies.token);
+    mutations.push({
+      surface: "configuration",
+      kind: "credential-store",
+      target: provider,
+      operation: where
+    });
+    log(`Credential stored in the ${where}.`);
+  }
+  mutations.push({
+    surface: "network",
+    kind: "verify-auth",
+    target: provider,
+    operation: "read"
+  });
+  const verdict = await dependencies.verify.whoami(provider);
+  if (!verdict.ok) {
+    log(`Not connected \u2014 ${verdict.missing}.`);
+    return { exitCode: 1, connected: false, mutations };
+  }
+  const sidecarPath = nodePath21.join(cwd, ".safeword", "tracker-map.json");
+  const sidecar = loadTrackerMap(sidecarPath);
+  if (!sidecar.ok && sidecar.reason === "corrupt") {
+    throw new Error(`${sidecarPath} is not a valid tracker map; preserve or repair it before reconnecting.`);
+  }
+  if (!sidecar.ok) {
+    new TrackerMap().save(sidecarPath);
+    mutations.push({
+      surface: "file",
+      kind: "create",
+      target: ".safeword/tracker-map.json",
+      operation: "write"
+    });
+  }
+  log(`Connected to ${provider} \u2014 verified and ready to sync.`);
+  await offerPollutionOptIns(dependencies, mutations);
+  return { exitCode: 0, connected: true, mutations };
+}
+async function connectTracker(dependencies) {
+  const mutations = [];
+  if (!SUPPORTED.has(dependencies.provider)) {
+    dependencies.log(`Provider "${dependencies.provider}" is not supported (use linear or github).`);
+    return { exitCode: 1, connected: false, mutations };
+  }
+  try {
+    return await connectSupportedTracker(dependencies, dependencies.provider, mutations);
+  } catch (connectError) {
+    throw new ConnectExecutionError(connectError, mutations);
+  }
+}
+var SUPPORTED;
+var init_tracker_connect = __esm(() => {
+  init_tracker_map();
+  init_configured_paths();
+  init_types();
+  SUPPORTED = new Set(["linear", "github"]);
+});
+
+// src/tracker-connect/prompt.ts
+var exports_prompt = {};
+__export(exports_prompt, {
+  createPrompt: () => createPrompt
+});
+import process5 from "process";
+import { createInterface } from "readline/promises";
+function createPrompt() {
+  return {
+    async confirm(question, defaultValue) {
+      const rl = createInterface({ input: process5.stdin, output: process5.stdout });
+      try {
+        const raw = await rl.question(`${question} ${defaultValue ? "[Y/n]" : "[y/N]"} `);
+        const answer = raw.trim().toLowerCase();
+        if (answer === "")
+          return defaultValue;
+        return answer === "y" || answer === "yes";
+      } finally {
+        rl.close();
+      }
+    }
+  };
+}
+var init_prompt = () => {};
+
+// src/tracker-connect/secret-store.ts
+function createSecretStore() {
+  return {
+    store(_provider) {
+      return Promise.resolve("env");
+    }
+  };
+}
+
+// src/tracker-connect/verify.ts
+import { execFileSync as execFileSync3 } from "child_process";
+function classifyGithubFailure(message) {
+  if (/command not found|ENOENT|Executable not found/i.test(message)) {
+    return "the gh CLI is not installed";
+  }
+  if (/not.*authenticat|gh auth login|HTTP 401|Bad credentials/i.test(message)) {
+    return "no GitHub credential resolved (run `gh auth login` or set GITHUB_TOKEN)";
+  }
+  if (/HTTP 403|scope|insufficient/i.test(message))
+    return "the token is missing required scope";
+  return `GitHub auth check failed: ${message.trim().split(`
+`, 1)[0] ?? "unknown error"}`;
+}
+function createVerifyClient() {
+  return {
+    whoami(provider) {
+      if (provider === "linear") {
+        return Promise.resolve({
+          ok: false,
+          missing: "Linear verification needs the Arcade integration \u2014 not wired yet"
+        });
+      }
+      try {
+        execFileSync3("gh", ["api", "user", "--jq", ".login"], { encoding: "utf8", stdio: "pipe" });
+        return Promise.resolve({ ok: true });
+      } catch (error2) {
+        const stderr = error2.stderr?.toString() ?? "";
+        return Promise.resolve({
+          ok: false,
+          missing: classifyGithubFailure(`${stderr}${error2.message ?? ""}`)
+        });
+      }
+    }
+  };
+}
+var init_verify = () => {};
+
+// src/tracker-connect/run.ts
+var exports_run = {};
+__export(exports_run, {
+  runConnect: () => runConnect
+});
+import process6 from "process";
+async function runConnect(provider, target, log, options = {}) {
+  const envVariable = CREDENTIAL_ENV_VAR[provider];
+  const token = envVariable ? process6.env[envVariable] : undefined;
+  try {
+    return await connectTracker({
+      cwd: options.cwd ?? process6.cwd(),
+      provider,
+      target,
+      token,
+      prompt: options.prompt ?? createPrompt(),
+      secretStore: createSecretStore(),
+      verify: createVerifyClient(),
+      log
+    });
+  } catch (connectError) {
+    if (!(connectError instanceof ConnectExecutionError))
+      throw connectError;
+    log(`Not connected \u2014 ${connectError.message}.`);
+    return {
+      exitCode: 1,
+      connected: false,
+      mutations: connectError.mutations
+    };
+  }
+}
+var init_run = __esm(() => {
+  init_secrets();
+  init_tracker_connect();
+  init_prompt();
+  init_types();
+  init_verify();
+});
+
+// src/tracker-sync/apply-results.ts
+function urlTail(url) {
+  const [path3 = url] = url.split(/[?#]/, 1);
+  const segments = path3.split("/").filter((segment) => segment.length > 0);
+  return segments.at(-1) ?? "";
+}
+function rejectReason(result, input) {
+  if (!input.ticketIds.has(result.ticketId)) {
+    return `result names ticket "${result.ticketId}", which is not in the corpus`;
+  }
+  if (result.number.trim().length === 0) {
+    return `result "${result.ticketId}": issue number is blank`;
+  }
+  if (!isHttpUrl(result.url)) {
+    return `result "${result.ticketId}": "${result.url}" is not an http(s) issue url`;
+  }
+  if (input.provider === "github") {
+    if (!/^\d+$/.test(result.number)) {
+      return `result "${result.ticketId}": "${result.number}" is not a numeric GitHub issue number`;
+    }
+    if (urlTail(result.url) !== result.number) {
+      return `result "${result.ticketId}": url does not end in issue number ${result.number} (${result.url})`;
+    }
+  }
+  return;
+}
+function isHttpUrl(value) {
+  if (!URL.canParse(value))
+    return false;
+  const { protocol } = new URL(value);
+  return protocol === "http:" || protocol === "https:";
+}
+function applyResults(map, results, input) {
+  for (const result of results.results) {
+    const reason = rejectReason(result, input);
+    if (reason !== undefined)
+      return { ok: false, reason };
+  }
+  for (const result of results.results) {
+    map.record(result.ticketId, {
+      provider: input.provider,
+      id: result.number,
+      url: result.url
+    });
+  }
+  return { ok: true };
+}
+
+// src/tracker-sync/backoff.ts
+function isRateLimit(message) {
+  return /rate limit|\b429\b|\bAPI rate limit exceeded\b|secondary rate/i.test(message);
+}
+async function withBackoff(operation, options) {
+  for (let attempt = 0;; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error2) {
+      if (!(error2 instanceof RateLimitError) || attempt >= options.maxRetries)
+        throw error2;
+      await options.sleep(options.baseMs * 2 ** attempt);
+    }
+  }
+}
+var RateLimitError;
+var init_backoff = __esm(() => {
+  RateLimitError = class RateLimitError extends Error {
+    constructor(message = "rate limited") {
+      super(message);
+      this.name = "RateLimitError";
+    }
+  };
+});
+
+// src/tracker-sync/labels.ts
+function isOwned(label) {
+  return OWNED_LABEL_PREFIXES.some((prefix) => label.startsWith(prefix));
+}
+function reconcileOwnedLabels(current, desired) {
+  const desiredSet = new Set(desired);
+  const currentSet = new Set(current);
+  return {
+    add: desired.filter((label) => !currentSet.has(label)),
+    remove: current.filter((label) => isOwned(label) && !desiredSet.has(label))
+  };
+}
+var OWNED_LABEL_PREFIXES;
+var init_labels = __esm(() => {
+  OWNED_LABEL_PREFIXES = ["epic:", "type:"];
+});
+
+// src/tracker-sync/writers.ts
+function createWriter(provider, client) {
+  return {
+    provider,
+    async create(payload) {
+      const created = await client.createIssue({
+        title: payload.title,
+        body: payload.body,
+        labels: payload.labels
+      });
+      return { provider, id: created.id, url: created.url };
+    },
+    async update(ref, payload) {
+      const request = { id: ref.id, title: payload.title, labels: payload.labels };
+      if (payload.state === "closed")
+        request.state = "closed";
+      await client.updateIssue(request);
+    },
+    async projectGraph(ref, payload, graph) {
+      await client.projectGraph({
+        id: ref.id,
+        issueType: payload.issueType,
+        parentId: graph.parent?.id,
+        blockedByIds: graph.blockedBy.map((blocker) => blocker.id)
+      });
+    }
+  };
+}
+function dispatchCreate(registry, provider, payload) {
+  return registry[provider].create(payload);
+}
+
+// src/tracker-sync/clients.ts
+var exports_clients = {};
+__export(exports_clients, {
+  resolveRepoVisibility: () => resolveRepoVisibility,
+  buildWriterRegistry: () => buildWriterRegistry,
+  LINEAR_LIVE_PROJECTION_GUIDANCE: () => LINEAR_LIVE_PROJECTION_GUIDANCE
+});
+import { execFileSync as execFileSync4 } from "child_process";
+function runGh(arguments_) {
+  try {
+    return execFileSync4("gh", arguments_, { encoding: "utf8" });
+  } catch (error2) {
+    const stderr = error2.stderr?.toString() ?? "";
+    const message = `${stderr}${error2.message ?? ""}`;
+    if (isRateLimit(message))
+      throw new RateLimitError(message);
+    throw error2;
+  }
+}
+function commandErrorMessage(error2) {
+  const stderr = error2.stderr?.toString() ?? "";
+  return `${stderr}${error2.message ?? ""}`;
+}
+function isUnsupportedIssueTypeError(error2) {
+  const message = commandErrorMessage(error2);
+  return /type/i.test(message) && /not found|does not exist|invalid|unsupported/i.test(message);
+}
+function githubClient(repo) {
+  const repoArguments = repo === undefined ? [] : ["--repo", repo];
+  const graphEditArguments = (request, options) => [
+    "issue",
+    "edit",
+    request.id,
+    ...options.includeType ? ["--type", request.issueType] : [],
+    ...request.parentId === undefined ? [] : ["--parent", request.parentId],
+    ...request.blockedByIds.flatMap((id) => ["--add-blocked-by", id]),
+    ...repoArguments
+  ];
+  return {
+    createIssue(request) {
+      const labels = request.labels.flatMap((label) => ["--label", label]);
+      const url = runGh([
+        "issue",
+        "create",
+        "--title",
+        request.title,
+        "--body",
+        request.body,
+        ...labels,
+        ...repoArguments
+      ]).trim();
+      const id = url.split("/").pop()?.trim() ?? "";
+      if (!/^\d+$/.test(id)) {
+        throw new Error(`Could not parse a GitHub issue number from gh output: "${url}"`);
+      }
+      return Promise.resolve({ id, url });
+    },
+    updateIssue(request) {
+      const current = runGh([
+        "issue",
+        "view",
+        request.id,
+        "--json",
+        "labels",
+        "--jq",
+        ".labels[].name",
+        ...repoArguments
+      ]).split(`
+`).map((name) => name.trim()).filter(Boolean);
+      const { add, remove: remove2 } = reconcileOwnedLabels(current, request.labels);
+      const labelArguments = [
+        ...add.flatMap((label) => ["--add-label", label]),
+        ...remove2.flatMap((label) => ["--remove-label", label])
+      ];
+      runGh([
+        "issue",
+        "edit",
+        request.id,
+        "--title",
+        request.title,
+        ...labelArguments,
+        ...repoArguments
+      ]);
+      if (request.state === "closed") {
+        runGh(["issue", "close", request.id, ...repoArguments]);
+      }
+      return Promise.resolve();
+    },
+    projectGraph(request) {
+      try {
+        runGh(graphEditArguments(request, { includeType: true }));
+      } catch (error2) {
+        if (!isUnsupportedIssueTypeError(error2))
+          throw error2;
+        runGh(graphEditArguments(request, { includeType: false }));
+      }
+      return Promise.resolve();
+    }
+  };
+}
+function resolveRepoVisibility(repo) {
+  if (repo === undefined)
+    return;
+  try {
+    const visibility = execFileSync4("gh", ["repo", "view", repo, "--json", "visibility", "--jq", ".visibility"], { encoding: "utf8" }).trim().toLowerCase();
+    return visibility === "public" ? "public" : "private";
+  } catch {
+    return;
+  }
+}
+function throwingClient(message) {
+  const fail = () => {
+    throw new Error(message);
+  };
+  return { createIssue: fail, updateIssue: fail, projectGraph: fail };
+}
+function linearNotWired() {
+  return throwingClient(LINEAR_LIVE_PROJECTION_GUIDANCE);
+}
+function unconfigured(provider) {
+  return throwingClient(`${provider} is not the configured provider`);
+}
+function buildWriterRegistry(provider, target) {
+  const liveClient = provider === "github" ? githubClient(target?.repo) : linearNotWired();
+  const other = provider === "github" ? "linear" : "github";
+  return {
+    [provider]: createWriter(provider, liveClient),
+    [other]: createWriter(other, unconfigured(other))
+  };
+}
+var LINEAR_LIVE_PROJECTION_GUIDANCE = "Linear live projection is not wired. Adopt an existing Linear issue with `safeword ticket new <slug> --issue <key>`, or sync existing local tickets through `safeword tracker sync --plan` and `--apply-results`.";
+var init_clients = __esm(() => {
+  init_backoff();
+  init_labels();
+});
+
+// src/tracker-sync/config.ts
+var exports_config = {};
+__export(exports_config, {
+  readTicketBridgeConfig: () => readTicketBridgeConfig
+});
+import { existsSync as existsSync10, readFileSync as readFileSync12 } from "fs";
+import nodePath22 from "path";
+function readTicketBridgeConfig(cwd) {
+  const configPath2 = nodePath22.join(cwd, ".safeword", "config.json");
+  if (!existsSync10(configPath2))
+    return { ...DEFAULT_CONFIG };
+  let parsed2;
+  try {
+    parsed2 = JSON.parse(readFileSync12(configPath2, "utf8"));
+  } catch {
+    return { ...DEFAULT_CONFIG };
+  }
+  if (typeof parsed2 !== "object" || parsed2 === null || !("ticketBridge" in parsed2)) {
+    return { ...DEFAULT_CONFIG };
+  }
+  const bridge = parsed2.ticketBridge;
+  if (typeof bridge !== "object" || bridge === null)
+    return { ...DEFAULT_CONFIG };
+  const block = bridge;
+  return {
+    provider: typeof block.provider === "string" ? block.provider : "none",
+    body: block.body === "full" ? "full" : "minimal",
+    target: block.target,
+    defaultAssignee: block.defaultAssignee
+  };
+}
+var DEFAULT_CONFIG;
+var init_config2 = __esm(() => {
+  DEFAULT_CONFIG = { provider: "none", body: "minimal" };
+});
+
+// src/tracker-sync/contract.ts
+function emptyPlan() {
+  return { version: PLAN_CONTRACT_VERSION, intents: [] };
+}
+function parseResultRow(raw, index) {
+  if (typeof raw !== "object" || raw === null) {
+    return { ok: false, reason: `result ${index} is not an object` };
+  }
+  const row = raw;
+  if (typeof row.ticketId !== "string" || row.ticketId.length === 0) {
+    return { ok: false, reason: `result ${index} is missing a ticketId` };
+  }
+  if (typeof row.number !== "string" || row.number.length === 0) {
+    return { ok: false, reason: `result "${row.ticketId}" is missing an issue number` };
+  }
+  if (typeof row.url !== "string" || row.url.length === 0) {
+    return { ok: false, reason: `result "${row.ticketId}" is missing an issue url` };
+  }
+  return {
+    ok: true,
+    value: {
+      ticketId: row.ticketId,
+      number: row.number,
+      url: row.url,
+      ...typeof row.status === "string" && { status: row.status }
+    }
+  };
+}
+function parseResults(jsonText) {
+  let parsed2;
+  try {
+    parsed2 = JSON.parse(jsonText);
+  } catch {
+    return { ok: false, reason: "results file is not valid JSON" };
+  }
+  if (typeof parsed2 !== "object" || parsed2 === null) {
+    return { ok: false, reason: "results must be a JSON object" };
+  }
+  const document_ = parsed2;
+  if (document_.version !== PLAN_CONTRACT_VERSION) {
+    return {
+      ok: false,
+      reason: `unsupported results version ${String(document_.version)} (expected ${PLAN_CONTRACT_VERSION})`
+    };
+  }
+  if (!Array.isArray(document_.results)) {
+    return { ok: false, reason: "results must be an array" };
+  }
+  const rows = [];
+  for (const [index, raw] of document_.results.entries()) {
+    const row = parseResultRow(raw, index);
+    if (!row.ok)
+      return row;
+    rows.push(row.value);
+  }
+  return { ok: true, value: { version: PLAN_CONTRACT_VERSION, results: rows } };
+}
+var PLAN_CONTRACT_VERSION = 1;
+
+// src/utils/ticket-reference.ts
+function formatTicketReference(id, label) {
+  return label ? `${label} (${id})` : id;
+}
+
+// src/utils/ticket-relations.ts
+function parseTicketIdList(raw) {
+  if (raw === undefined)
+    return [];
+  const inner = raw.trim().replace(/^\[/, "").replace(/\]$/, "");
+  return inner.split(",").map((id) => id.trim()).filter((id) => id.length > 0);
+}
+function deriveBlocks(nodes) {
+  const blocks = new Map;
+  for (const node of nodes) {
+    for (const target of node.dependsOn) {
+      const blockers = blocks.get(target) ?? [];
+      blockers.push(node.id);
+      blocks.set(target, blockers);
+    }
+  }
+  return blocks;
+}
+function findDanglingDependencies(nodes) {
+  const known = new Set(nodes.map((node) => node.id));
+  const dangling = [];
+  for (const node of nodes) {
+    for (const target of node.dependsOn) {
+      if (!known.has(target))
+        dangling.push({ from: node.id, missing: target });
+    }
+  }
+  return dangling.toSorted((a, b) => a.from.localeCompare(b.from) || a.missing.localeCompare(b.missing));
+}
+function findTicketsInCycles(nodes) {
+  const edges = new Map(nodes.map((node) => [node.id, node.dependsOn]));
+  const inCycle = new Set;
+  for (const start of edges.keys()) {
+    if (reachesSelf(start, edges))
+      inCycle.add(start);
+  }
+  return [...inCycle].toSorted((a, b) => a.localeCompare(b));
+}
+function reachesSelf(start, edges) {
+  const stack = [...edges.get(start) ?? []];
+  const seen = new Set;
+  while (stack.length > 0) {
+    const next = stack.pop();
+    if (next === undefined)
+      continue;
+    if (next === start) {
+      return true;
+    }
+    if (seen.has(next))
+      continue;
+    seen.add(next);
+    stack.push(...edges.get(next) ?? []);
+  }
+  return false;
+}
+
+// src/ticket-sync/index.ts
+var exports_ticket_sync = {};
+__export(exports_ticket_sync, {
+  syncTickets: () => syncTickets,
+  readTickets: () => readTickets,
+  inspectTicketIndexConflicts: () => inspectTicketIndexConflicts,
+  buildIndexContent: () => buildIndexContent,
+  TICKETS_RELATIVE_PATH: () => TICKETS_RELATIVE_PATH,
+  INDEX_FILENAME: () => INDEX_FILENAME,
+  COMPLETED_INDEX_FILENAME: () => COMPLETED_INDEX_FILENAME,
+  COMPLETED_DIRNAME: () => COMPLETED_DIRNAME
+});
+import { existsSync as existsSync11, readdirSync as readdirSync6, readFileSync as readFileSync13, writeFileSync as writeFileSync6 } from "fs";
+import nodePath23 from "path";
+function hasMergeConflictMarkers(content) {
+  return MERGE_CONFLICT_MARKER_PATTERN.test(content);
+}
+function detectConflictedIndex(indexPath) {
+  if (!existsSync11(indexPath))
+    return;
+  const content = readFileSync13(indexPath, "utf8");
+  return hasMergeConflictMarkers(content) ? indexPath : undefined;
+}
+function inspectTicketIndexConflicts(cwd) {
+  const ticketsDirectory = resolveTicketsDirectory(cwd);
+  return [
+    detectConflictedIndex(nodePath23.join(ticketsDirectory, INDEX_FILENAME)),
+    detectConflictedIndex(nodePath23.join(ticketsDirectory, COMPLETED_INDEX_FILENAME))
+  ].filter((path3) => path3 !== undefined);
+}
+function stripQuotes(value) {
+  if (value.length >= 2 && (value.startsWith("'") && value.endsWith("'") || value.startsWith('"') && value.endsWith('"'))) {
+    return value.slice(1, -1);
+  }
+  return value;
+}
+function parseFrontmatter(content) {
+  const lines = content.split(`
+`);
+  const fields = new Map;
+  if (lines[0]?.trim() !== "---")
+    return { fields, bodyStart: 0 };
+  for (let index = 1;index < lines.length; index += 1) {
+    const line = lines[index] ?? "";
+    if (line.trim() === "---")
+      return { fields, bodyStart: index + 1 };
+    const match = /^([a-z_][\w-]*):(.*)$/i.exec(line);
+    if (match?.[1] !== undefined)
+      fields.set(match[1], stripQuotes((match[2] ?? "").trim()));
+  }
+  return { fields, bodyStart: 0 };
+}
+function firstHeading(bodyLines) {
+  for (const line of bodyLines) {
+    if (line.startsWith("# "))
+      return line.slice(2).trim();
+  }
+  return;
+}
+function goalLine(bodyLines) {
+  for (const line of bodyLines) {
+    const match = /^\*\*Goal:\*\*(.*)$/.exec(line.trim());
+    if (match?.[1] !== undefined) {
+      const goal = match[1].trim();
+      if (goal.length > 0)
+        return goal;
+    }
+  }
+  return;
+}
+function parseStringList(raw) {
+  if (raw === undefined)
+    return [];
+  const normalized = raw.trim();
+  if (normalized === "")
+    return [];
+  const listBody = normalized.startsWith("[") && normalized.endsWith("]") ? normalized.slice(1, -1) : normalized;
+  return listBody.split(",").map((item) => stripQuotes(item.trim())).map((item) => item.trim()).filter(Boolean);
+}
+function parseTicket(filePath, folder) {
+  const content = readFileSync13(filePath, "utf8");
+  const { fields, bodyStart } = parseFrontmatter(content);
+  const id = fields.get("id");
+  if (id === undefined || id.length === 0) {
+    return { ok: false, reason: "missing id: in frontmatter" };
+  }
+  const bodyLines = content.split(`
+`).slice(bodyStart);
+  const title = fields.get("title") ?? firstHeading(bodyLines) ?? fields.get("slug") ?? folder;
+  const status = fields.get("status") ?? "\u2014";
+  const epic = fields.get("epic");
+  const parent = fields.get("parent");
+  return {
+    ok: true,
+    entry: {
+      id,
+      folder,
+      title,
+      status,
+      epic,
+      parent,
+      externalIssue: fields.get("external_issue") ?? fields.get("external"),
+      externalPullRequests: parseStringList(fields.get("external_prs")),
+      goal: goalLine(bodyLines),
+      dependsOn: parseTicketIdList(fields.get("depends_on")),
+      blockedOn: parseTicketIdList(fields.get("blocked_on")),
+      blockedOnOverride: fields.get("blocked_on_override")
+    }
+  };
+}
+function readTicketFolders(directory, pathPrefix) {
+  if (!existsSync11(directory))
+    return { entries: [], skipped: [] };
+  const entries = [];
+  const skipped = [];
+  const folders = readdirSync6(directory, { withFileTypes: true }).filter((dirent) => dirent.isDirectory() && !SKIP_DIRECTORIES.has(dirent.name)).map((dirent) => dirent.name).toSorted((a, b) => a.localeCompare(b));
+  for (const folder of folders) {
+    const ticketPath = nodePath23.join(directory, folder, "ticket.md");
+    if (!existsSync11(ticketPath))
+      continue;
+    const parsed2 = parseTicket(ticketPath, folder);
+    if (parsed2.ok) {
+      entries.push({ ...parsed2.entry, relativePath: `${pathPrefix}/${folder}` });
+    } else {
+      skipped.push({ folder, reason: parsed2.reason });
+    }
+  }
+  return { entries, skipped };
+}
+function readTickets(ticketsDirectory, relativeLabel = TICKETS_RELATIVE_PATH) {
+  const active = readTicketFolders(ticketsDirectory, relativeLabel);
+  const completed = readTicketFolders(nodePath23.join(ticketsDirectory, COMPLETED_DIRNAME), `${relativeLabel}/${COMPLETED_DIRNAME}`);
+  const byId = (a, b) => a.id.localeCompare(b.id);
+  return {
+    active: active.entries.toSorted(byId),
+    completed: completed.entries.toSorted(byId),
+    skipped: [...active.skipped, ...completed.skipped]
+  };
+}
+function renderRelation(ids, labelById) {
+  return ids.map((id) => {
+    const title = labelById.get(id);
+    return title === undefined ? id : formatTicketReference(id, title);
+  }).join(", ");
+}
+function renderEntry(entry, blocks, labelById) {
+  const epic = entry.epic ?? "\u2014";
+  const lines = [
+    `- **${formatTicketReference(entry.id, entry.title)}** (${entry.status}, epic: ${epic})`
+  ];
+  if (entry.goal !== undefined)
+    lines.push(`  ${entry.goal}`);
+  if (entry.dependsOn.length > 0) {
+    lines.push(`  blocked by: ${renderRelation(entry.dependsOn, labelById)}`);
+  }
+  const blocking = blocks.get(entry.id) ?? [];
+  if (blocking.length > 0)
+    lines.push(`  blocks: ${renderRelation(blocking, labelById)}`);
+  if (entry.blockedOnOverride !== undefined)
+    lines.push(`  override: ${entry.blockedOnOverride}`);
+  if (entry.externalIssue !== undefined && entry.externalIssue.length > 0) {
+    lines.push(`  external issue: ${entry.externalIssue}`);
+  }
+  if (entry.externalPullRequests.length > 0) {
+    lines.push(`  external PRs: ${entry.externalPullRequests.join(", ")}`);
+  }
+  lines.push(`  \u2192 \`${entry.relativePath}\``);
+  return lines;
+}
+function groupByEpic(entries) {
+  const groups = new Map;
+  for (const entry of entries) {
+    const key = entry.parent ?? entry.epic ?? NO_EPIC_GROUP;
+    const bucket = groups.get(key);
+    if (bucket)
+      bucket.push(entry);
+    else
+      groups.set(key, [entry]);
+  }
+  return [...groups].toSorted(([a], [b]) => {
+    if (a === NO_EPIC_GROUP)
+      return 1;
+    if (b === NO_EPIC_GROUP)
+      return -1;
+    return a.localeCompare(b);
+  });
+}
+function buildIndexContent(entries, options) {
+  const isActive = options.variant === "active";
+  const headerLines = [
+    isActive ? "# Project Tickets \u2014 Index" : "# Project Tickets \u2014 Completed Archive",
+    "",
+    "<!-- Auto-generated by `safeword project sync-tickets`. Do not edit by hand. -->",
+    isActive ? "<!-- Active tickets, grouped by epic. Completed tickets live in INDEX-completed.md. -->" : "<!-- Completed tickets (the completed/ archive), grouped by epic. -->",
+    "",
+    "<!-- prettier-ignore-start -->",
+    ""
+  ];
+  const footerLines = ["<!-- prettier-ignore-end -->", ""];
+  if (entries.length === 0) {
+    return [
+      ...headerLines,
+      isActive ? "No active tickets." : "No completed tickets.",
+      "",
+      ...footerLines
+    ].join(`
+`);
+  }
+  const blocks = deriveBlocks(entries);
+  const labelById = new Map(entries.map((entry) => [entry.id, entry.title]));
+  const lines = [...headerLines, `## Tickets (${entries.length})`, ""];
+  for (const [epic, group] of groupByEpic(entries)) {
+    lines.push(`### ${epic}`, "");
+    for (const entry of group)
+      lines.push(...renderEntry(entry, blocks, labelById));
+    lines.push("");
+  }
+  lines.push(...footerLines);
+  return lines.join(`
+`);
+}
+function writeIfChanged(path3, content) {
+  const previous = existsSync11(path3) ? readFileSync13(path3, "utf8") : undefined;
+  if (previous === content)
+    return false;
+  writeFileSync6(path3, content);
+  return true;
+}
+function syncTickets(cwd) {
+  const ticketsDirectory = resolveTicketsDirectory(cwd);
+  const relativeLabel = nodePath23.relative(cwd, ticketsDirectory) || TICKETS_RELATIVE_PATH;
+  const indexPath = nodePath23.join(ticketsDirectory, INDEX_FILENAME);
+  const completedIndexPath = nodePath23.join(ticketsDirectory, COMPLETED_INDEX_FILENAME);
+  if (!existsSync11(ticketsDirectory)) {
+    return {
+      wrote: false,
+      active: [],
+      completed: [],
+      skipped: [],
+      indexPath,
+      completedIndexPath,
+      indexConflicts: []
+    };
+  }
+  const indexConflicts = inspectTicketIndexConflicts(cwd);
+  const { active, completed, skipped } = readTickets(ticketsDirectory, relativeLabel);
+  const isWroteActive = writeIfChanged(indexPath, buildIndexContent(active, { variant: "active" }));
+  const completedDirectory = nodePath23.join(ticketsDirectory, COMPLETED_DIRNAME);
+  const isWroteCompleted = completed.length > 0 || existsSync11(completedDirectory) ? writeIfChanged(completedIndexPath, buildIndexContent(completed, { variant: "completed" })) : false;
+  return {
+    wrote: isWroteActive || isWroteCompleted,
+    active,
+    completed,
+    skipped,
+    indexPath,
+    completedIndexPath,
+    indexConflicts
+  };
+}
+var TICKETS_RELATIVE_PATH = "<namespace-root>/tickets", INDEX_FILENAME = "INDEX.md", COMPLETED_INDEX_FILENAME = "INDEX-completed.md", COMPLETED_DIRNAME = "completed", NO_EPIC_GROUP = "(no epic)", SKIP_DIRECTORIES, MERGE_CONFLICT_MARKER_PATTERN;
+var init_ticket_sync = __esm(() => {
+  init_configured_paths();
+  SKIP_DIRECTORIES = new Set([COMPLETED_DIRNAME, "tmp"]);
+  MERGE_CONFLICT_MARKER_PATTERN = /^(?:<{7}|={7}|>{7})(?:\s|$)/m;
+});
+
+// src/tracker-sync/corpus.ts
+var exports_corpus = {};
+__export(exports_corpus, {
+  toTicketInput: () => toTicketInput,
+  readCorpus: () => readCorpus,
+  backLinkUrl: () => backLinkUrl
+});
+import { existsSync as existsSync12, readFileSync as readFileSync14 } from "fs";
+import nodePath24 from "path";
+function parseType(content) {
+  return /^type:\s*(\S+)/m.exec(content)?.[1] ?? "task";
+}
+function parseScalar(content, field) {
+  const prefix = `${field}:`;
+  const line = content.split(`
+`).find((candidate) => candidate.startsWith(prefix));
+  const value = line?.slice(prefix.length).trim();
+  if (value === undefined || value.length === 0)
+    return;
+  if (value.length >= 2 && (value.startsWith("'") && value.endsWith("'") || value.startsWith('"') && value.endsWith('"'))) {
+    return value.slice(1, -1);
+  }
+  return value;
+}
+function backLinkUrl(relativePath, repo) {
+  return repo === undefined ? relativePath : `https://github.com/${repo}/tree/HEAD/${relativePath}`;
+}
+function toTicketInput(entry, type, repo, bodyMarkdown, graph = {}) {
+  return {
+    id: entry.id,
+    slug: graph.slug,
+    folder: nodePath24.basename(entry.relativePath),
+    title: entry.title,
+    status: entry.status,
+    type,
+    epic: entry.epic,
+    parent: graph.parent,
+    dependsOn: entry.dependsOn ?? [],
+    blockedOn: entry.blockedOn ?? [],
+    ticketUrl: backLinkUrl(entry.relativePath, repo),
+    bodyMarkdown
+  };
+}
+function readCorpus(cwd, repo) {
+  const ticketsDirectory = resolveTicketsDirectory(cwd);
+  const relativeLabel = nodePath24.relative(cwd, ticketsDirectory) || TICKETS_RELATIVE_PATH;
+  return readTickets(ticketsDirectory, relativeLabel).active.map((entry) => {
+    const ticketPath = nodePath24.join(cwd, entry.relativePath, "ticket.md");
+    const content = existsSync12(ticketPath) ? readFileSync14(ticketPath, "utf8") : undefined;
+    return toTicketInput(entry, parseType(content ?? ""), repo, content, {
+      parent: parseScalar(content ?? "", "parent"),
+      slug: parseScalar(content ?? "", "slug")
+    });
+  });
+}
+var init_corpus = __esm(() => {
+  init_ticket_sync();
+  init_configured_paths();
+});
+
+// src/tracker-sync/payload.ts
+function banner(ticket) {
+  return `\uD83D\uDD01 Mirror of safeword ticket ${ticket.id}. Source of truth is the repo. ` + `Status & assignee are yours to set here; title & labels sync from the repo and overwrite edits.`;
+}
+function buildBody(ticket, bodyMode) {
+  const head = `${banner(ticket)}
+
+safeword ticket ${ticket.id} \u2192 ${ticket.ticketUrl}`;
+  if (bodyMode === "full" && ticket.bodyMarkdown !== undefined) {
+    return `${head}
+
+---
+
+${ticket.bodyMarkdown}`;
+  }
+  return head;
+}
+function buildPayload(ticket, options) {
+  const labels = [`type:${ticket.type}`];
+  if (ticket.epic !== undefined && ticket.epic.length > 0) {
+    labels.unshift(`epic:${ticket.epic}`);
+  }
+  return {
+    title: ticket.title,
+    body: buildBody(ticket, options.bodyMode),
+    issueType: ticket.type,
+    labels,
+    state: TERMINAL_STATUSES.has(ticket.status) ? "closed" : "open"
+  };
+}
+var TERMINAL_STATUSES;
+var init_payload = __esm(() => {
+  TERMINAL_STATUSES = new Set(["done", "cancelled", "superseded", "wontfix"]);
+});
+
+// src/tracker-sync/ticket-references.ts
+function ticketAliases(ticket) {
+  return [ticket.id, ticket.slug, ticket.folder].filter(isString);
+}
+function aliasMap(tickets) {
+  const aliases = new Map;
+  for (const ticket of tickets) {
+    for (const alias of ticketAliases(ticket))
+      aliases.set(alias, ticket.id);
+  }
+  return aliases;
+}
+function resolveTicketReference(raw, aliases) {
+  if (raw === undefined || raw.length === 0)
+    return;
+  return aliases.get(raw);
+}
+function resolveGraphTicketIds(ticket, aliases) {
+  const isExternalEdge = (id) => id !== undefined && id !== ticket.id;
+  const parentCandidate = resolveTicketReference(ticket.parent, aliases) ?? resolveTicketReference(ticket.epic, aliases);
+  const parentTicketId = isExternalEdge(parentCandidate) ? parentCandidate : undefined;
+  const blockedByTicketIds = [
+    ...new Set([...ticket.dependsOn ?? [], ...ticket.blockedOn ?? []].map((reference) => resolveTicketReference(reference, aliases)).filter((id) => isExternalEdge(id)))
+  ];
+  return {
+    ...parentTicketId !== undefined && { parentTicketId },
+    blockedByTicketIds
+  };
+}
+function isString(value) {
+  return value !== undefined;
+}
+function prerequisiteIds(ticket, aliases) {
+  const prerequisites = [
+    resolveTicketReference(ticket.parent, aliases),
+    resolveTicketReference(ticket.epic, aliases),
+    ...(ticket.dependsOn ?? []).map((id) => resolveTicketReference(id, aliases)),
+    ...(ticket.blockedOn ?? []).map((id) => resolveTicketReference(id, aliases))
+  ];
+  return [...new Set(prerequisites.filter(isString).filter((id) => id !== ticket.id))];
+}
+function orderTicketsForProjection(tickets) {
+  const aliases = aliasMap(tickets);
+  const byId = new Map(tickets.map((ticket) => [ticket.id, ticket]));
+  const ordered = [];
+  const visiting = new Set;
+  const visited = new Set;
+  function visit(ticket) {
+    if (visited.has(ticket.id))
+      return;
+    if (visiting.has(ticket.id))
+      return;
+    visiting.add(ticket.id);
+    for (const prerequisite of prerequisiteIds(ticket, aliases)) {
+      const target = byId.get(prerequisite);
+      if (target !== undefined)
+        visit(target);
+    }
+    visiting.delete(ticket.id);
+    visited.add(ticket.id);
+    ordered.push(ticket);
+  }
+  for (const ticket of tickets)
+    visit(ticket);
+  return ordered;
+}
+
+// src/tracker-sync/index.ts
+var exports_tracker_sync = {};
+__export(exports_tracker_sync, {
+  syncTracker: () => syncTracker,
+  supportedProvider: () => supportedProvider
+});
+function supportedProvider(provider) {
+  return SUPPORTED_PROVIDERS.has(provider) ? provider : undefined;
+}
+function sameProviderReference(map, ticketId, provider) {
+  if (ticketId === undefined)
+    return;
+  const ref = map.lookup(ticketId)?.ref;
+  return ref?.provider === provider ? ref : undefined;
+}
+function buildGraphProjection(args) {
+  const { parentTicketId, blockedByTicketIds } = resolveGraphTicketIds(args.ticket, args.aliases);
+  return {
+    parent: sameProviderReference(args.map, parentTicketId, args.provider),
+    blockedBy: new Map(blockedByTicketIds.map((id) => sameProviderReference(args.map, id, args.provider)).filter((ref) => ref !== undefined).map((ref) => [ref.id, ref])).values().toArray()
+  };
+}
+function emitAdvisories(dependencies, provider, bodyMode) {
+  if (dependencies.nonInteractive === true && dependencies.arcadeUserId !== undefined) {
+    dependencies.log("Warning: Arcade-User-ID is a user identity, not a service account \u2014 sync can fail " + "silently if its OAuth grant lapses. Use a dedicated service identity for CI.");
+  }
+  if (bodyMode === "full" && provider === "github" && dependencies.repoVisibility !== "private") {
+    dependencies.log("\u26A0\uFE0F  Egress warning: projecting full ticket bodies to a GitHub repo not confirmed private.");
+  }
+}
+function loadSidecarOrRefuse(dependencies) {
+  if (dependencies.resetTrackerMap === true)
+    return { ok: true, map: new TrackerMap };
+  const loaded = loadTrackerMap(dependencies.sidecarPath);
+  if (loaded.ok)
+    return { ok: true, map: loaded.map };
+  dependencies.log(`Tracker-map sidecar is ${loaded.reason}. Refusing to recreate issues blindly \u2014 ` + "pass --reset-tracker-map to rebuild it.");
+  return { ok: false, exitCode: 1 };
+}
+async function projectOne(args) {
+  const payload = buildPayload(args.ticket, { bodyMode: args.bodyMode });
+  const action = planTicketSync(args.map, args.ticket.id);
+  const backoff = { sleep: args.sleep, ...BACKOFF };
+  let currentReference;
+  if (action.kind === "create") {
+    const ref = await withBackoff(() => dispatchCreate(args.writers, args.provider, payload), backoff);
+    args.map.markPending(args.ticket.id, ref);
+    args.map.save(args.sidecarPath);
+    args.map.record(args.ticket.id, ref);
+    args.map.save(args.sidecarPath);
+    currentReference = ref;
+  } else {
+    if (action.kind === "reconcile")
+      args.map.record(args.ticket.id, action.ref);
+    await withBackoff(() => args.writers[args.provider].update(action.ref, payload), backoff);
+    args.map.save(args.sidecarPath);
+    currentReference = action.ref;
+  }
+  const graph = buildGraphProjection({
+    ticket: args.ticket,
+    map: args.map,
+    provider: args.provider,
+    aliases: args.aliases
+  });
+  await withBackoff(() => args.writers[args.provider].projectGraph(currentReference, payload, graph), backoff);
+}
+async function syncTracker(dependencies) {
+  const { config, log } = dependencies;
+  const provider = supportedProvider(config.provider);
+  if (provider === undefined) {
+    log("No tracker configured; run `safeword install` to add one.");
+    return { exitCode: 0 };
+  }
+  if (!resolveCredential(provider, { env: dependencies.env, keychain: dependencies.keychain }).ok) {
+    log(`No ${provider} credential resolved \u2014 set the token in your keychain or env. Aborting.`);
+    return { exitCode: 1 };
+  }
+  const bodyMode = config.body ?? "minimal";
+  emitAdvisories(dependencies, provider, bodyMode);
+  const sidecar = loadSidecarOrRefuse(dependencies);
+  if (!sidecar.ok)
+    return { exitCode: sidecar.exitCode };
+  const sleep = dependencies.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
+  const tickets = orderTicketsForProjection(dependencies.tickets);
+  const aliases = aliasMap(tickets);
+  for (const ticket of tickets) {
+    await projectOne({
+      ticket,
+      map: sidecar.map,
+      provider,
+      writers: dependencies.writers,
+      bodyMode,
+      sleep,
+      sidecarPath: dependencies.sidecarPath,
+      aliases
+    });
+  }
+  return { exitCode: 0 };
+}
+var SUPPORTED_PROVIDERS, BACKOFF;
+var init_tracker_sync = __esm(() => {
+  init_backoff();
+  init_payload();
+  init_secrets();
+  init_tracker_map();
+  SUPPORTED_PROVIDERS = new Set(["linear", "github"]);
+  BACKOFF = { maxRetries: 3, baseMs: 50 };
+});
+
+// src/tracker-sync/plan.ts
+function buildGraphEdges(ticket, aliases) {
+  const { parentTicketId, blockedByTicketIds } = resolveGraphTicketIds(ticket, aliases);
+  const graph = {};
+  if (parentTicketId !== undefined)
+    graph.parentTicketId = parentTicketId;
+  if (blockedByTicketIds.length > 0)
+    graph.blockedByTicketIds = blockedByTicketIds;
+  return Object.keys(graph).length > 0 ? graph : undefined;
+}
+function computePlan(input) {
+  const aliases = aliasMap(input.tickets);
+  const intents = [];
+  for (const ticket of orderTicketsForProjection(input.tickets)) {
+    const payload = buildPayload(ticket, { bodyMode: input.bodyMode });
+    const action = planTicketSync(input.map, ticket.id);
+    let intent;
+    if (action.kind === "create") {
+      intent = { kind: "create", ticketId: ticket.id, payload };
+    } else if (payload.state === "closed") {
+      intent = { kind: "close", ticketId: ticket.id, ref: action.ref, payload };
+    } else {
+      intent = { kind: "update", ticketId: ticket.id, ref: action.ref, payload };
+    }
+    const graph = buildGraphEdges(ticket, aliases);
+    if (graph !== undefined)
+      intent.graph = graph;
+    intents.push(intent);
+  }
+  return { version: PLAN_CONTRACT_VERSION, intents };
+}
+var init_plan2 = __esm(() => {
+  init_payload();
+  init_tracker_map();
+});
+
+// src/utils/gh-cli.ts
+var exports_gh_cli = {};
+__export(exports_gh_cli, {
+  resolveGhCliToken: () => resolveGhCliToken,
+  isBearerCredentialSyntax: () => isBearerCredentialSyntax
+});
+import { spawnSync } from "child_process";
+function isBearerCredentialSyntax(value) {
+  return /^[\w.~+/-]+=*$/.test(value);
+}
+function resolveGhCliToken(env) {
+  try {
+    const childEnvironment = Object.fromEntries(Object.entries(env).filter(([key]) => key.toUpperCase() !== GITHUB_TOKEN_ENV_KEY.toUpperCase()));
+    const result = spawnSync("gh", ["auth", "token"], {
+      encoding: "utf8",
+      timeout: 1e4,
+      env: childEnvironment
+    });
+    const token = (result.stdout ?? "").replace(/\r?\n$/, "");
+    return result.status === 0 && isBearerCredentialSyntax(token) ? token : undefined;
+  } catch {
+    return;
+  }
+}
+var GITHUB_TOKEN_ENV_KEY = "GITHUB_TOKEN";
+var init_gh_cli = () => {};
+
+// src/commands/sync-tracker.ts
+var exports_sync_tracker = {};
+__export(exports_sync_tracker, {
+  syncTrackerCommand: () => syncTrackerCommand,
+  planTrackerSync: () => planTrackerSync,
+  applyTrackerSyncResults: () => applyTrackerSyncResults
+});
+import { existsSync as existsSync13, readFileSync as readFileSync15 } from "fs";
+import process7 from "process";
+function planTrackerSync(cwd, config) {
+  const provider = supportedProvider(config.provider);
+  if (provider === undefined) {
+    return {
+      ok: true,
+      mode: "plan",
+      provider,
+      plan: emptyPlan(),
+      messages: [
+        "no tracker configured; planning nothing (run `safeword tracker connect` to add one)"
+      ]
+    };
+  }
+  const messages = [];
+  const bodyMode = config.body ?? "minimal";
+  if (bodyMode === "full" && provider === "github") {
+    messages.push("Egress warning: this plan carries full ticket bodies for a GitHub repo whose visibility was not confirmed");
+  }
+  const sidecarPath = trackerMapPath(cwd);
+  const loaded = loadTrackerMapOrEmpty(sidecarPath);
+  if (!loaded.ok) {
+    return {
+      ok: false,
+      mode: "plan",
+      reason: `${sidecarPath} is corrupt; refusing to plan against it`,
+      messages
+    };
+  }
+  return {
+    ok: true,
+    mode: "plan",
+    provider,
+    plan: computePlan({
+      tickets: readCorpus(cwd, config.target?.repo),
+      map: loaded.map,
+      bodyMode
+    }),
+    messages
+  };
+}
+function applyTrackerSyncResults(cwd, config, filePath) {
+  const provider = supportedProvider(config.provider);
+  if (provider === undefined) {
+    return { ok: false, mode: "apply", reason: "no tracker provider is configured", messages: [] };
+  }
+  let raw;
+  try {
+    raw = readFileSync15(filePath, "utf8");
+  } catch {
+    return {
+      ok: false,
+      mode: "apply",
+      reason: `cannot read results file ${filePath}`,
+      messages: []
+    };
+  }
+  const parsed2 = parseResults(raw);
+  if (!parsed2.ok)
+    return { ok: false, mode: "apply", reason: parsed2.reason, messages: [] };
+  const sidecarPath = trackerMapPath(cwd);
+  const loaded = loadTrackerMapOrEmpty(sidecarPath);
+  if (!loaded.ok) {
+    return { ok: false, mode: "apply", reason: `${sidecarPath} is corrupt`, messages: [] };
+  }
+  const before = existsSync13(sidecarPath) ? readFileSync15(sidecarPath, "utf8") : undefined;
+  const ticketIds = new Set(readCorpus(cwd, config.target?.repo).map((ticket) => ticket.id));
+  const outcome = applyResults(loaded.map, parsed2.value, { provider, ticketIds });
+  if (!outcome.ok)
+    return { ok: false, mode: "apply", reason: outcome.reason, messages: [] };
+  loaded.map.save(sidecarPath);
+  const after = readFileSync15(sidecarPath, "utf8");
+  return { ok: true, mode: "apply", provider, changed: before !== after, messages: [] };
+}
+function runPlan(cwd, config) {
+  const result = planTrackerSync(cwd, config);
+  for (const message of result.messages)
+    note(message);
+  if (!result.ok) {
+    fail(result.reason);
+    return;
+  }
+  if (result.mode !== "plan") {
+    fail("internal tracker planning mode mismatch");
+    return;
+  }
+  process7.stdout.write(`${JSON.stringify(result.plan, undefined, 2)}
+`);
+}
+function runApply(cwd, config, filePath) {
+  const result = applyTrackerSyncResults(cwd, config, filePath);
+  if (!result.ok)
+    fail(result.reason);
+}
+function note(message) {
+  const suffix = /[.!?]$/.test(message) ? "" : ".";
+  process7.stderr.write(`sync-tracker: ${message}${suffix}
+`);
+}
+function fail(reason) {
+  note(reason);
+  process7.exitCode = 1;
+}
+function egressVisibility(provider, body, repo) {
+  return provider === "github" && body === "full" ? resolveRepoVisibility(repo) : undefined;
+}
+function ghCliCredential(provider) {
+  if (provider !== "github")
+    return;
+  return resolveGhCliToken(process7.env);
+}
+async function syncTrackerCommand(options = {}) {
+  if (options.plan === true && options.applyResults !== undefined) {
+    fail("--plan and --apply-results are mutually exclusive");
+    return;
+  }
+  const cwd = process7.cwd();
+  const config = readTicketBridgeConfig(cwd);
+  if (options.plan === true) {
+    runPlan(cwd, config);
+    return;
+  }
+  if (options.applyResults !== undefined) {
+    runApply(cwd, config, options.applyResults);
+    return;
+  }
+  await runLiveSync(cwd, config, options);
+}
+async function runLiveSync(cwd, config, options) {
+  const provider = supportedProvider(config.provider);
+  if (provider === "linear") {
+    note(LINEAR_LIVE_PROJECTION_GUIDANCE);
+    process7.exitCode = 1;
+    return;
+  }
+  const dependencies = {
+    config,
+    tickets: provider === undefined ? [] : readCorpus(cwd, config.target?.repo),
+    sidecarPath: trackerMapPath(cwd),
+    writers: provider === undefined ? {} : buildWriterRegistry(provider, config.target),
+    env: process7.env,
+    keychain: ghCliCredential,
+    resetTrackerMap: options.resetTrackerMap,
+    nonInteractive: process7.env.CI !== undefined,
+    arcadeUserId: process7.env.ARCADE_USER_ID,
+    repoVisibility: egressVisibility(provider, config.body, config.target?.repo),
+    log: (message) => {
+      console.log(message);
+    }
+  };
+  try {
+    const result = await syncTracker(dependencies);
+    if (result.exitCode !== 0)
+      process7.exitCode = result.exitCode;
+  } catch (error2) {
+    process7.stderr.write(`sync-tracker failed: ${error2.message}
+`);
+    process7.exitCode = 1;
+  }
+}
+var init_sync_tracker = __esm(() => {
+  init_clients();
+  init_config2();
+  init_corpus();
+  init_tracker_sync();
+  init_plan2();
+  init_tracker_map();
+  init_gh_cli();
+});
+
+// src/utils/ticket-writer.ts
+import { existsSync as existsSync14, mkdirSync as mkdirSync4, readdirSync as readdirSync7, readFileSync as readFileSync16, writeFileSync as writeFileSync7 } from "fs";
+import nodePath25 from "path";
+function assertSafeTrackerIdentity(id) {
+  if (!SAFE_TRACKER_IDENTITY.test(id) || WINDOWS_RESERVED_DEVICE_WITH_EXTENSION.test(id)) {
+    throw new Error(`Tracker returned "${JSON.stringify(id)}", which is not a safe ticket identity.`);
+  }
+}
+function createTicket(cwd, minter, options) {
+  const ticketsDirectory = ensureTicketsDirectory(cwd);
+  const { id, folderPath } = mintAndClaim(ticketsDirectory, minter, options.slug);
+  const { ticketPath } = writeTicketContents(folderPath, id, options);
+  return { id, folderPath, ticketPath };
+}
+async function createIssueFirstTicket(cwd, options, identity, onMinted) {
+  const minted = await identity();
+  assertSafeTrackerIdentity(minted.id);
+  onMinted?.(minted);
+  const ticketsDirectory = ensureTicketsDirectory(cwd);
+  const folderPath = nodePath25.join(ticketsDirectory, `${minted.id}-${options.slug}`);
+  try {
+    mkdirSync4(folderPath);
+  } catch (error2) {
+    if (error2.code === "EEXIST") {
+      throw new Error(`A ticket folder already exists for ${minted.id} (${folderPath}).`, {
+        cause: error2
+      });
+    }
+    throw error2;
+  }
+  const { ticketPath } = writeTicketContents(folderPath, minted.id, options);
+  return { id: minted.id, folderPath, ticketPath, ref: minted.ref };
+}
+function ensureTicketsDirectory(cwd) {
+  const ticketsDirectory = resolveTicketsDirectory(cwd);
+  if (!existsSync14(ticketsDirectory)) {
+    mkdirSync4(ticketsDirectory, { recursive: true });
+  }
+  return ticketsDirectory;
+}
+function writeTicketContents(folderPath, id, options) {
+  const ticketPath = nodePath25.join(folderPath, "ticket.md");
+  writeFileSync7(ticketPath, renderTicketMarkdown(id, options));
+  if ((options.type ?? "task") === "feature") {
+    const title = options.title ?? options.slug;
+    writeFileSync7(nodePath25.join(folderPath, "spec.md"), renderSpecMarkdown(title));
+  }
+  return { ticketPath };
+}
+function renderSpecMarkdown(title) {
+  const template = readFileSync16(nodePath25.join(getTemplatesDirectory(), "spec-template.md"), "utf8");
+  return template.replace("{title}", () => title);
+}
+function mintAndClaim(ticketsDirectory, minter, slug) {
+  const takenIds = idsAlreadyTaken(ticketsDirectory);
+  const attempted = [];
+  for (let attempt = 0;attempt < RETRY_BUDGET; attempt++) {
+    const id = minter.mint();
+    if (takenIds.has(id)) {
+      attempted.push(id);
+      continue;
+    }
+    const folderPath = nodePath25.join(ticketsDirectory, `${id}-${slug}`);
+    try {
+      mkdirSync4(folderPath);
+      return { id, folderPath };
+    } catch (error2) {
+      const code = error2.code;
+      if (code !== "EEXIST")
+        throw error2;
+      attempted.push(id);
+    }
+  }
+  throw new TicketIdCollisionError(attempted, RETRY_BUDGET);
+}
+function idsAlreadyTaken(ticketsDirectory) {
+  const ids = new Set;
+  try {
+    for (const entry of readdirSync7(ticketsDirectory)) {
+      if (NON_TICKET_ENTRIES.has(entry))
+        continue;
+      const dashIndex = entry.indexOf("-");
+      ids.add(dashIndex === -1 ? entry : entry.slice(0, dashIndex));
+    }
+  } catch {}
+  return ids;
+}
+function filledOr(value, placeholder) {
+  return value !== undefined && value.trim() !== "" ? value : placeholder;
+}
+function renderTicketMarkdown(id, options) {
+  const type = options.type ?? "task";
+  const now = (options.now ?? (() => new Date))().toISOString();
+  const title = options.title ?? options.slug;
+  const featureReadinessFrontmatter = type === "feature" ? `scope:
+out_of_scope:
+done_when:
+inspiration_contract: v1
+inspiration_contract_scaffold: v1
+` : "";
+  const childrenFrontmatter = type === "epic" ? `children: []
+` : "";
+  const parentFrontmatter = options.parent !== undefined && options.parent !== "" ? `parent: ${options.parent}
+` : "";
+  const goal = filledOr(options.goal, "{One sentence: what are we trying to achieve?}");
+  const motivation = type === "feature" ? "**See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes." : `**Why:** ${filledOr(options.why, "{One sentence: why does this matter?}")}`;
+  return `---
+id: ${id}
+slug: ${options.slug}
+type: ${type}
+phase: intake
+status: in_progress
+${featureReadinessFrontmatter}${childrenFrontmatter}${parentFrontmatter}created: ${now}
+last_modified: ${now}
+---
+
+# ${title}
+
+**Goal:** ${goal}
+
+${motivation}
+
+## Work Log
+
+- ${now} Started: Created ticket ${id}
+`;
+}
+var RETRY_BUDGET = 5, NON_TICKET_ENTRIES, TicketIdCollisionError, SAFE_TRACKER_IDENTITY, WINDOWS_RESERVED_DEVICE_WITH_EXTENSION;
+var init_ticket_writer = __esm(() => {
+  init_configured_paths();
+  init_fs();
+  NON_TICKET_ENTRIES = new Set(["completed", "tmp"]);
+  TicketIdCollisionError = class TicketIdCollisionError extends Error {
+    attemptedIds;
+    retryBudget;
+    constructor(attemptedIds, retryBudget) {
+      super(`Failed to mint a unique ticket ID after ${retryBudget} attempts. Tried: ${attemptedIds.join(", ")}.`);
+      this.attemptedIds = attemptedIds;
+      this.retryBudget = retryBudget;
+      this.name = "TicketIdCollisionError";
+    }
+  };
+  SAFE_TRACKER_IDENTITY = /^[A-Z0-9][\w.-]*$/i;
+  WINDOWS_RESERVED_DEVICE_WITH_EXTENSION = /^(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])\./i;
+});
+
+// src/utils/ticket-folder-matches.ts
+function findTicketFolderMatch(names, ticketId) {
+  let sluggedMatch;
+  const slugPrefix = `${ticketId}-`;
+  for (const name of names) {
+    if (name === ticketId) {
+      return name;
+    }
+    if (sluggedMatch === undefined && name.startsWith(slugPrefix)) {
+      sluggedMatch = name;
+    }
+  }
+  return sluggedMatch;
+}
+
+// src/tracker-sync/resolve-by-key.ts
+function normalizeTrackerKey(key) {
+  return key.startsWith("#") ? key.slice(1) : key;
+}
+var init_resolve_by_key = () => {};
+
+// src/ticket-create/creation-mode.ts
+function resolveCreationMode(config, options) {
+  if (!ISSUE_FIRST_PROVIDERS.has(config.provider))
+    return { mode: "local" };
+  if (options.type === "epic")
+    return { mode: "local" };
+  if (options.issue !== undefined) {
+    const key = normalizeTrackerKey(options.issue);
+    if (key !== "")
+      return { mode: "adopt", key };
+  }
+  return { mode: "create" };
+}
+var ISSUE_FIRST_PROVIDERS;
+var init_creation_mode = __esm(() => {
+  init_resolve_by_key();
+  ISSUE_FIRST_PROVIDERS = new Set(["github", "linear"]);
+});
+
+// src/ticket-create/identity.ts
+function buildIdentitySource(mode, writer, payload) {
+  if (mode.mode === "adopt") {
+    const key = mode.key;
+    return () => Promise.resolve({ id: key, ref: { provider: writer.provider, id: key } });
+  }
+  return async () => {
+    const ref = await writer.create(payload);
+    return { id: ref.id, ref };
+  };
+}
+
+// src/ticket-create/index.ts
+import { existsSync as existsSync15, mkdirSync as mkdirSync5 } from "fs";
+import nodePath26 from "path";
+async function createTicketRouted(cwd, options, dependencies) {
+  const mode = resolveCreationMode(dependencies.config, {
+    issue: options.issue,
+    type: options.type
+  });
+  const ticketOptions = {
+    slug: options.slug,
+    type: options.type,
+    title: options.title,
+    goal: options.goal,
+    why: options.why,
+    parent: options.parent
+  };
+  if (mode.mode === "local") {
+    return { ...createTicket(cwd, dependencies.minter, ticketOptions), mutations: [] };
+  }
+  assertSidecarUsable(cwd);
+  const provider = dependencies.config.provider;
+  const writer = dependencies.buildWriter(provider, dependencies.config.target);
+  const mutations = [];
+  const identitySource = buildIdentitySource(mode, writer, buildMinimalPayload(options));
+  const identity = async () => {
+    const minted = await identitySource();
+    if (mode.mode === "create") {
+      mutations.push({
+        surface: "network",
+        kind: "issue-create",
+        target: provider,
+        operation: "write"
+      });
+    }
+    return minted;
+  };
+  try {
+    const result = await createIssueFirstTicket(cwd, ticketOptions, identity, (minted) => {
+      if (mode.mode !== "create" || minted.ref === undefined)
+        return;
+      const sidecarExisted = existsSync15(trackerMapPath(cwd));
+      writeReference(cwd, minted.id, minted.ref, "pending");
+      mutations.push({
+        surface: "file",
+        kind: sidecarExisted ? "update" : "create",
+        target: ".safeword/tracker-map.json",
+        operation: "write"
+      });
+    });
+    mutations.push({
+      surface: "file",
+      kind: "create",
+      target: nodePath26.relative(cwd, result.folderPath),
+      operation: "mkdir"
+    }, {
+      surface: "file",
+      kind: "create",
+      target: nodePath26.relative(cwd, result.ticketPath),
+      operation: "write"
+    });
+    if (result.ref !== undefined) {
+      writeReference(cwd, result.id, result.ref, "recorded");
+      mutations.push({
+        surface: "file",
+        kind: "update",
+        target: ".safeword/tracker-map.json",
+        operation: "write"
+      });
+    }
+    return { ...result, mutations };
+  } catch (creationError) {
+    if (mutations.length === 0)
+      throw creationError;
+    throw new RoutedTicketCreationError(creationError, mutations);
+  }
+}
+function assertSidecarUsable(cwd) {
+  const sidecarPath = trackerMapPath(cwd);
+  const loaded = loadTrackerMapOrEmpty(sidecarPath);
+  if (!loaded.ok) {
+    throw new Error(`${sidecarPath} is corrupt; refusing to overwrite it. Resolve or remove it before creating a tracker-backed ticket.`);
+  }
+}
+function buildMinimalPayload(options) {
+  const type = options.type ?? "task";
+  return {
+    title: options.title ?? options.slug,
+    body: `safeword ticket: ${options.slug}`,
+    issueType: type,
+    labels: [`type:${type}`],
+    state: "open"
+  };
+}
+function writeReference(cwd, id, ref, status) {
+  const safewordDirectory = nodePath26.join(cwd, ".safeword");
+  if (!existsSync15(safewordDirectory))
+    mkdirSync5(safewordDirectory, { recursive: true });
+  const sidecarPath = trackerMapPath(cwd);
+  const loaded = loadTrackerMapOrEmpty(sidecarPath);
+  if (!loaded.ok) {
+    throw new Error(`${sidecarPath} became corrupt while creating ticket ${id}.`);
+  }
+  if (status === "pending")
+    loaded.map.markPending(id, ref);
+  else
+    loaded.map.record(id, ref);
+  loaded.map.save(sidecarPath);
+}
+var RoutedTicketCreationError;
+var init_ticket_create = __esm(() => {
+  init_tracker_map();
+  init_ticket_writer();
+  init_creation_mode();
+  RoutedTicketCreationError = class RoutedTicketCreationError extends Error {
+    mutations;
+    constructor(cause, mutations) {
+      super(cause instanceof Error ? cause.message : String(cause), { cause });
+      this.name = "RoutedTicketCreationError";
+      this.mutations = mutations;
+    }
+  };
+});
+
+// src/utils/epic-linker.ts
+import { existsSync as existsSync16, readdirSync as readdirSync8, readFileSync as readFileSync17, renameSync as renameSync2, writeFileSync as writeFileSync8 } from "fs";
+import nodePath27 from "path";
+function linkChildToEpic(cwd, childId, epicId) {
+  const epicFolder = resolveTicketFolderById(cwd, epicId);
+  if (epicFolder === undefined) {
+    return { ok: false, reason: `--parent epic "${epicId}" not found` };
+  }
+  const epicPath = nodePath27.join(epicFolder, "ticket.md");
+  const content = readTicketFileOrUndefined(epicPath);
+  if (content === undefined) {
+    return { ok: false, reason: `--parent "${epicId}" has no readable ticket.md` };
+  }
+  if (!isEpicTicket(content)) {
+    return { ok: false, reason: `--parent "${epicId}" is not an epic` };
+  }
+  const children = parseChildrenList(content);
+  if (children.includes(childId))
+    return { ok: true };
+  atomicWrite(epicPath, replaceChildrenList(content, [...children, childId]));
+  return { ok: true };
+}
+function validateEpicParent(cwd, epicId) {
+  const epicFolder = resolveTicketFolderById(cwd, epicId);
+  if (epicFolder === undefined) {
+    return { ok: false, reason: `--parent epic "${epicId}" not found` };
+  }
+  const content = readTicketFileOrUndefined(nodePath27.join(epicFolder, "ticket.md"));
+  if (content === undefined) {
+    return { ok: false, reason: `--parent "${epicId}" has no readable ticket.md` };
+  }
+  if (!isEpicTicket(content)) {
+    return { ok: false, reason: `--parent "${epicId}" is not an epic` };
+  }
+  return { ok: true };
+}
+function readTicketFileOrUndefined(ticketPath) {
+  try {
+    return readFileSync17(ticketPath, "utf8");
+  } catch {
+    return;
+  }
+}
+function resolveTicketFolderById(cwd, id) {
+  const ticketsDirectory = resolveTicketsDirectory(cwd);
+  if (!existsSync16(ticketsDirectory))
+    return;
+  const names = readdirSync8(ticketsDirectory, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name);
+  const match = findTicketFolderMatch(names, id);
+  return match === undefined ? undefined : nodePath27.join(ticketsDirectory, match);
+}
+function isEpicTicket(content) {
+  return /^type:\s*epic\s*$/m.test(content);
+}
+function unquote2(value) {
+  const trimmed = value.trim();
+  const first = trimmed.at(0);
+  if (trimmed.length >= 2 && (first === "'" || first === '"') && trimmed.at(-1) === first) {
+    return trimmed.slice(1, -1);
+  }
+  return trimmed;
+}
+function childrenLineIndex(lines) {
+  return lines.findIndex((line) => line.startsWith("children:"));
+}
+function blockItemsAfter(lines, start) {
+  const items = [];
+  for (let index = start;index < lines.length; index += 1) {
+    const match = /^[ \t]+-[ \t](.*)$/.exec(lines[index] ?? "");
+    if (match?.[1] === undefined)
+      break;
+    const value = unquote2(match[1]);
+    if (value)
+      items.push(value);
+  }
+  return items;
+}
+function parseChildrenList(content) {
+  const lines = content.split(`
+`);
+  const index = childrenLineIndex(lines);
+  if (index === -1)
+    return [];
+  const raw = (lines[index] ?? "").slice("children:".length).trim();
+  if (raw === "")
+    return blockItemsAfter(lines, index + 1);
+  if (raw.startsWith("[") && raw.endsWith("]")) {
+    const inner = raw.slice(1, -1).trim();
+    return inner === "" ? [] : inner.split(",").map((entry) => unquote2(entry)).filter(Boolean);
+  }
+  return unquote2(raw).split(",").map((entry) => entry.trim()).filter(Boolean);
+}
+function replaceChildrenList(content, ids) {
+  const quoted = ids.map((id) => `'${id}'`).join(", ");
+  const rendered = `children: [${quoted}]`;
+  const lines = content.split(`
+`);
+  const index = childrenLineIndex(lines);
+  if (index === -1) {
+    return content.replace(`
+---
+`, () => `
+${rendered}
+---
+`);
+  }
+  let end = index + 1;
+  while (end < lines.length && /^[ \t]+-[ \t]/.test(lines[end] ?? ""))
+    end += 1;
+  lines.splice(index, end - index, rendered);
+  return lines.join(`
+`);
+}
+function atomicWrite(filePath, content) {
+  const temporaryPath = `${filePath}.tmp`;
+  writeFileSync8(temporaryPath, content);
+  renameSync2(temporaryPath, filePath);
+}
+var init_epic_linker = __esm(() => {
+  init_configured_paths();
+});
+
+// src/utils/id-minter.ts
+import { randomInt } from "crypto";
+function buildId(nextIndex) {
+  const chars = [];
+  for (let index = 0;index < ID_LENGTH; index++) {
+    chars.push(CROCKFORD_ALPHABET.charAt(nextIndex()));
+  }
+  return chars.join("");
+}
+function cryptoIdMinter() {
+  return { mint: () => buildId(() => randomInt(CROCKFORD_ALPHABET.length)) };
+}
+var CROCKFORD_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ", ID_LENGTH = 6;
+var init_id_minter = () => {};
+
+// src/utils/slug.ts
+function normalizeSlug(input) {
+  const folded = input.normalize("NFKD").replaceAll(COMBINING_MARKS, "");
+  const collapsed = stripDashEdges(folded.toLowerCase().replaceAll(NON_ALNUM, "-"));
+  if (collapsed === "")
+    throw new SlugError(input);
+  return collapsed;
+}
+function stripDashEdges(value) {
+  let start = 0;
+  let end = value.length;
+  while (start < end && value.charAt(start) === "-")
+    start++;
+  while (end > start && value.charAt(end - 1) === "-")
+    end--;
+  return value.slice(start, end);
+}
+var SlugError, COMBINING_MARKS, NON_ALNUM;
+var init_slug = __esm(() => {
+  SlugError = class SlugError extends Error {
+    input;
+    constructor(input) {
+      super(input === "" ? "Slug cannot be empty." : `Slug "${input}" normalizes to empty (no alphanumeric content).`);
+      this.input = input;
+      this.name = "SlugError";
+    }
+  };
+  COMBINING_MARKS = /\p{Mn}/gu;
+  NON_ALNUM = /[^a-z\d]+/g;
+});
+
+// src/commands/ticket-new.ts
+var exports_ticket_new = {};
+__export(exports_ticket_new, {
+  createTicketResult: () => createTicketResult
+});
+import nodePath28 from "path";
+import process8 from "process";
+async function createTicketResult(slug, options, cwd) {
+  let type;
+  let normalizedSlug;
+  try {
+    type = validateOptions(options, resolveType(options.type), cwd);
+    normalizedSlug = normalizeSlug(slug);
+  } catch (validationError) {
+    return createResult({
+      state: "failed",
+      errors: [
+        {
+          code: "TICKET_INPUT_INVALID",
+          message: validationError instanceof Error ? validationError.message : String(validationError),
+          retryable: false
+        }
+      ]
+    });
+  }
+  try {
+    const result = await createTicketRouted(cwd, {
+      slug: normalizedSlug,
+      type,
+      title: options.title,
+      goal: options.goal,
+      why: options.why,
+      parent: options.parent,
+      issue: options.issue
+    }, {
+      config: readTicketBridgeConfig(cwd),
+      buildWriter: (provider, target) => buildWriterRegistry(provider, target)[provider],
+      minter: resolveMinter()
+    });
+    const findings = [];
+    if (options.parent !== undefined) {
+      const linked = linkChildToEpic(cwd, result.id, options.parent);
+      if (!linked.ok) {
+        findings.push({
+          code: "EPIC_REVERSE_LINK_FAILED",
+          message: linked.reason,
+          severity: "warning"
+        });
+      }
+    }
+    const effects = result.mutations.length === 0 ? {
+      files: [
+        {
+          kind: "create",
+          target: nodePath28.relative(cwd, result.ticketPath),
+          operation: "write"
+        },
+        {
+          kind: "create",
+          target: nodePath28.relative(cwd, result.folderPath),
+          operation: "mkdir"
+        }
+      ]
+    } : effectsFromMutationJournal(result.mutations);
+    return createResult({
+      state: "changed",
+      effects,
+      findings,
+      data: {
+        command: "ticket new",
+        ticket_id: result.id,
+        folder: nodePath28.relative(cwd, result.folderPath),
+        file: nodePath28.relative(cwd, result.ticketPath)
+      }
+    });
+  } catch (creationError) {
+    const partialMutations = creationError instanceof RoutedTicketCreationError ? creationError.mutations : [];
+    const changed = partialMutations.length > 0;
+    return createResult({
+      state: "failed",
+      changed,
+      effects: effectsFromMutationJournal(partialMutations),
+      errors: [
+        {
+          code: creationError instanceof TicketIdCollisionError ? "TICKET_ID_COLLISION" : "TICKET_CREATE_FAILED",
+          message: errorMessage(creationError),
+          retryable: !(creationError instanceof TicketIdCollisionError)
+        }
+      ],
+      recovery: changed ? [
+        {
+          command: "safeword tracker sync",
+          description: "Reconcile the pending tracker reference before retrying ticket creation.",
+          requiresHuman: false
+        }
+      ] : []
+    });
+  }
+}
+function validateOptions(options, type, cwd) {
+  if (type === "invalid") {
+    throw new Error(`Invalid --type=${String(options.type)}. Must be one of: patch, task, feature, epic.`);
+  }
+  if (options.why !== undefined && type === "feature") {
+    throw new Error("--why does not apply to features \u2014 their motivation lives in spec.md. Use --goal, or edit spec.md.");
+  }
+  if (options.parent !== undefined) {
+    const check = validateEpicParent(cwd, options.parent);
+    if (!check.ok)
+      throw new Error(check.reason);
+  }
+  return type;
+}
+function errorMessage(error2) {
+  return error2 instanceof Error ? error2.message : String(error2);
+}
+function resolveType(value) {
+  if (value === undefined)
+    return;
+  return VALID_TYPES.has(value) ? value : "invalid";
+}
+function resolveMinter() {
+  const override = process8.env.SAFEWORD_TICKET_ID_OVERRIDE;
+  if (override !== undefined && override !== "") {
+    return { mint: () => override };
+  }
+  return cryptoIdMinter();
+}
+var VALID_TYPES;
+var init_ticket_new = __esm(() => {
+  init_result();
+  init_ticket_create();
+  init_clients();
+  init_config2();
+  init_epic_linker();
+  init_id_minter();
+  init_slug();
+  init_ticket_writer();
+  VALID_TYPES = new Set(["patch", "task", "feature", "epic"]);
+});
+
+// src/codex-plugin/legacy-global-guidance.ts
+var exports_legacy_global_guidance = {};
+__export(exports_legacy_global_guidance, {
+  planLegacyGlobalGuidanceCleanup: () => planLegacyGlobalGuidanceCleanup,
+  observeLegacyGlobalGuidance: () => observeLegacyGlobalGuidance,
+  legacyGlobalGuidanceDiagnostic: () => legacyGlobalGuidanceDiagnostic,
+  applyLegacyGlobalGuidanceCleanup: () => applyLegacyGlobalGuidanceCleanup
+});
+import { createHash as createHash6 } from "crypto";
+import {
+  existsSync as existsSync18,
+  linkSync,
+  mkdtempSync,
+  readFileSync as readFileSync19,
+  renameSync as renameSync3,
+  rmdirSync as rmdirSync2,
+  unlinkSync
+} from "fs";
+import { homedir } from "os";
+import nodePath29 from "path";
+function sha2562(content) {
+  return createHash6("sha256").update(content).digest("hex");
+}
+function readNonEmpty(path3) {
+  if (!existsSync18(path3))
+    return;
+  const content = readFileSync19(path3, "utf8");
+  return content.trim() === "" ? undefined : content;
+}
+function activeGlobalGuidance(environment) {
+  const codexHome = environment.CODEX_HOME || nodePath29.join(homedir(), ".codex");
+  const overridePath = nodePath29.join(codexHome, "AGENTS.override.md");
+  const overrideContent = readNonEmpty(overridePath);
+  if (overrideContent !== undefined)
+    return { content: overrideContent, path: overridePath };
+  const agentsPath = nodePath29.join(codexHome, "AGENTS.md");
+  const agentsContent = readNonEmpty(agentsPath);
+  return agentsContent === undefined ? undefined : { content: agentsContent, path: agentsPath };
+}
+function resemblesLegacySafewordGuidance(content) {
+  const signatureMatches = LEGACY_SIGNATURES.filter((signature) => content.includes(signature)).length;
+  return signatureMatches >= 2 && content.includes("Feature Development Workflow");
+}
+function observeLegacyGlobalGuidance(environment = process.env, options = {}) {
+  const active = activeGlobalGuidance(environment);
+  if (active === undefined)
+    return { state: "absent" };
+  const digest = sha2562(active.content);
+  const registeredDigests = options.registeredDigests ?? HISTORICAL_SAFEWORD_GLOBAL_GUIDANCE_DIGESTS;
+  let state = "unrelated";
+  if (registeredDigests.has(digest))
+    state = "exact_legacy";
+  else if (resemblesLegacySafewordGuidance(active.content))
+    state = "suspected_legacy";
+  return {
+    state,
+    path: active.path,
+    digest,
+    backupPath: `${active.path}.safeword-legacy.bak`
+  };
+}
+function legacyGlobalGuidanceDiagnostic(observation) {
+  if (observation.state === "exact_legacy") {
+    return {
+      observation,
+      finding: {
+        code: "CODEX_LEGACY_GLOBAL_GUIDANCE_EXACT",
+        message: `The active Codex profile guidance at ${observation.path} is an exact historical Safeword revision that references retired workflow paths.`,
+        severity: "warning",
+        metadata: { classification: "exact_legacy", disposition: "recoverable_cleanup" }
+      },
+      nextAction: {
+        command: "safeword codex clean-guidance",
+        mutates: false,
+        requiresHuman: true
+      }
+    };
+  }
+  if (observation.state === "suspected_legacy") {
+    return {
+      observation,
+      finding: {
+        code: "CODEX_LEGACY_GLOBAL_GUIDANCE_SUSPECTED",
+        message: `The active Codex profile guidance at ${observation.path} resembles edited legacy Safeword instructions. Review it manually; Safeword will not modify it.`,
+        severity: "warning",
+        metadata: { classification: "suspected_legacy", disposition: "manual_review" }
+      }
+    };
+  }
+  return { observation };
+}
+function preconditionDigest(observation) {
+  return sha2562(`${observation.path ?? ""}\x00${observation.digest ?? ""}`);
+}
+function isExactLegacyObservation(observation) {
+  return observation.state === "exact_legacy" && observation.path !== undefined && observation.digest !== undefined && observation.backupPath !== undefined;
+}
+function planLegacyGlobalGuidanceCleanup(observation) {
+  if (!isExactLegacyObservation(observation)) {
+    return { ok: false, code: "UNSAFE_GUIDANCE" };
+  }
+  return {
+    ok: true,
+    plan: createPlan({
+      command: "codex clean-guidance",
+      preconditionDigest: preconditionDigest(observation),
+      effects: {
+        files: [
+          { kind: "file", target: observation.path, operation: "move" },
+          { kind: "file", target: observation.backupPath, operation: "create" }
+        ],
+        destructive: [
+          { kind: "profile-guidance", target: observation.path, operation: "deactivate" }
+        ]
+      },
+      requiresConfirmation: true,
+      verification: [
+        { description: "The backup digest matches the registered historical revision." }
+      ]
+    })
+  };
+}
+function preserveMovedArtifact(backupPath, sourcePath) {
+  try {
+    linkSync(backupPath, sourcePath);
+    unlinkSync(backupPath);
+    return;
+  } catch (error2) {
+    if (error2.code !== "EEXIST")
+      throw error2;
+  }
+  for (let index = 0;; index += 1) {
+    const suffix = index === 0 ? "" : `-${index}`;
+    const recoveryPath = `${sourcePath}.safeword-recovery${suffix}`;
+    try {
+      linkSync(backupPath, recoveryPath);
+      unlinkSync(backupPath);
+      return recoveryPath;
+    } catch (error2) {
+      if (error2.code !== "EEXIST")
+        throw error2;
+    }
+  }
+}
+function validatedCleanup(environment, options) {
+  const observation = observeLegacyGlobalGuidance(environment, options);
+  if (!isExactLegacyObservation(observation)) {
+    return {
+      ok: false,
+      result: {
+        ok: false,
+        changed: false,
+        code: "PLAN_STALE",
+        sourcePath: observation.path
+      }
+    };
+  }
+  const preview = planLegacyGlobalGuidanceCleanup(observation);
+  if (!preview.ok || preview.plan === undefined) {
+    return {
+      ok: false,
+      result: {
+        ok: false,
+        changed: false,
+        code: "UNSAFE_GUIDANCE",
+        sourcePath: observation.path
+      }
+    };
+  }
+  if (preview.plan.id !== options.planId) {
+    return {
+      ok: false,
+      result: { ok: false, changed: false, code: "PLAN_STALE", sourcePath: observation.path }
+    };
+  }
+  return { ok: true, observation };
+}
+function refusedAfterMove(stagedPath, stagingDirectory, sourcePath, backupPath, code) {
+  const recoveryPath = preserveMovedArtifact(stagedPath, sourcePath);
+  rmdirSync2(stagingDirectory);
+  return {
+    ok: false,
+    changed: false,
+    code,
+    sourcePath,
+    backupPath,
+    ...recoveryPath !== undefined && { recoveryPath }
+  };
+}
+function applyLegacyGlobalGuidanceCleanup(options) {
+  const environment = options.environment ?? process.env;
+  const validation = validatedCleanup(environment, options);
+  if (!validation.ok)
+    return validation.result;
+  const { observation } = validation;
+  const sourcePath = observation.path;
+  const backupPath = observation.backupPath;
+  const stagingDirectory = mkdtempSync(nodePath29.join(nodePath29.dirname(sourcePath), ".safeword-guidance-"));
+  const stagedPath = nodePath29.join(stagingDirectory, nodePath29.basename(sourcePath));
+  options.beforeMove?.(sourcePath);
+  try {
+    renameSync3(sourcePath, stagedPath);
+  } catch (error2) {
+    rmdirSync2(stagingDirectory);
+    if (error2.code === "ENOENT") {
+      return { ok: false, changed: false, code: "PLAN_STALE", sourcePath, backupPath };
+    }
+    throw error2;
+  }
+  options.afterMove?.(sourcePath);
+  const movedDigest = sha2562(readFileSync19(stagedPath, "utf8"));
+  if (movedDigest !== observation.digest) {
+    return refusedAfterMove(stagedPath, stagingDirectory, sourcePath, backupPath, "SOURCE_CHANGED_DURING_MOVE");
+  }
+  try {
+    linkSync(stagedPath, backupPath);
+  } catch (error2) {
+    if (error2.code === "EEXIST") {
+      return refusedAfterMove(stagedPath, stagingDirectory, sourcePath, backupPath, "BACKUP_OCCUPIED");
+    }
+    preserveMovedArtifact(stagedPath, sourcePath);
+    rmdirSync2(stagingDirectory);
+    throw error2;
+  }
+  unlinkSync(stagedPath);
+  rmdirSync2(stagingDirectory);
+  return { ok: true, changed: true, sourcePath, backupPath };
+}
+var HISTORICAL_SAFEWORD_GLOBAL_GUIDANCE_DIGESTS, LEGACY_SIGNATURES;
+var init_legacy_global_guidance = __esm(() => {
+  init_plan();
+  HISTORICAL_SAFEWORD_GLOBAL_GUIDANCE_DIGESTS = new Set([
+    "f699dc50ce031ac3cbfe924fd00cff3c533c60e59e9de27429d7e585efd8c5d1"
+  ]);
+  LEGACY_SIGNATURES = [
+    "Feature Development Workflow (CRITICAL - Always Follow)",
+    "planning/user-stories/",
+    "docs/user-stories/",
+    "~/.agents/coding/guides/"
+  ];
+});
+
+// templates/hooks/lib/hierarchy.ts
+function parseFrontmatter2(yaml) {
+  const result = {};
+  const lines = yaml.split(/\r?\n/);
+  let currentKey = null;
+  let currentList = null;
+  for (const line of lines) {
+    const listMatch = line.match(/^[ \t]+-[ \t]+(.*)$/);
+    if (listMatch) {
+      currentList?.push(stripQuotes2((listMatch[1] ?? "").trim()));
+      continue;
+    }
+    if (currentList !== null && currentKey !== null) {
+      result[currentKey] = currentList;
+      currentList = null;
+      currentKey = null;
+    }
+    const pairMatch = line.match(/^(\w+):\s*(.*)$/);
+    if (pairMatch) {
+      const key = pairMatch[1] ?? "";
+      const raw = (pairMatch[2] ?? "").trim();
+      if (!key)
+        continue;
+      if (raw === "") {
+        currentKey = key;
+        currentList = [];
+      } else if (raw.startsWith("[") && raw.endsWith("]")) {
+        const inner = raw.slice(1, -1).trim();
+        result[key] = inner === "" ? [] : inner.split(",").map((s) => stripQuotes2(s.trim()));
+      } else {
+        result[key] = stripQuotes2(raw);
+      }
+    }
+  }
+  if (currentList !== null && currentKey !== null) {
+    result[currentKey] = currentList;
+  }
+  return result;
+}
+function stripQuotes2(value) {
+  return value.replace(/^(['"])(.*)\1$/, "$2");
+}
+var init_hierarchy = () => {};
+
+// templates/hooks/lib/markdown-structure.ts
+function stripHtmlComments(content) {
+  return content.replaceAll(/<!--[\s\S]*?-->/g, (comment) => comment.replaceAll(/[^\r\n]/g, ""));
+}
+function withoutFencedCode(content, preserveHtmlComments = false) {
+  const lines = content.split(/\r?\n/);
+  let fence;
+  let htmlComment = false;
+  const projected = lines.map((line) => {
+    if (fence !== undefined) {
+      const closing = new RegExp(`^\\s{0,3}${fence.kind}{${fence.length},}\\s*$`);
+      if (closing.test(line))
+        fence = undefined;
+      return "";
+    }
+    if (htmlComment) {
+      if (line.includes("-->"))
+        htmlComment = false;
+      return preserveHtmlComments ? line : "";
+    }
+    const opening = /^\s{0,3}(`{3,}|~{3,})(.*)$/.exec(line);
+    if (!opening) {
+      const commentStart = line.indexOf("<!--");
+      if (commentStart !== -1 && line.indexOf("-->", commentStart + 4) === -1) {
+        htmlComment = true;
+        return preserveHtmlComments ? line : line.slice(0, commentStart);
+      }
+      return line;
+    }
+    const run = opening[1];
+    const kind = run[0];
+    const info2 = opening[2] ?? "";
+    if (kind === "`" && info2.includes("`"))
+      return line;
+    fence = { kind, length: run.length };
+    return "";
+  }).join(`
+`);
+  return preserveHtmlComments ? projected : stripHtmlComments(projected);
+}
+
+// templates/hooks/lib/inspiration.ts
+var IMPLEMENTATION_INSPIRATION_GRAMMAR;
+var init_inspiration = __esm(() => {
+  IMPLEMENTATION_INSPIRATION_GRAMMAR = {
+    referenceHeading: "### Implementation Inspiration",
+    referenceHeader: "| Reference | Checked on | Source version | Target version | Evidence of fit | Principle to borrow | Mismatch / license / security boundary |",
+    referenceDelimiter: "| --- | --- | --- | --- | --- | --- | --- |",
+    decisionImpact: "**Decision impact:** <changed: or retained: plus a non-empty rationale>",
+    decisionInformed: "**Decision informed:** <exact Decision cell from Recorded Decisions>",
+    searchHeading: "#### Implementation Unsuccessful Search",
+    searchHeader: "| Technical question | Decision informed | Constraints | Dependency versions | Source categories | Repositories | Queries attempted | Search date | Sources inspected | Why none transfers | Decision retained |",
+    searchDelimiter: "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+    recordedDecisionsHeading: "### Recorded Decisions"
+  };
+});
+
+// templates/hooks/lib/impl-plan.ts
+function activeLines(content) {
+  return withoutFencedCode(content).split(`
+`).filter((line) => !/^(?: {4}|\t)/u.test(line));
+}
+function parseStatus(lines, errors) {
+  const candidates = lines.map((line) => line.trim()).filter((line) => line.startsWith(STATUS_PREFIX));
+  if (candidates.length === 0) {
+    errors.push(`Missing \`${STATUS_PREFIX}\` line \u2014 add \`${STATUS_PREFIX} planned\` near the top.`);
+    return null;
+  }
+  if (candidates.length !== 1) {
+    errors.push(`Expected exactly one \`${STATUS_PREFIX}\` line; found ${candidates.length}.`);
+    return null;
+  }
+  const value = candidates[0].slice(STATUS_PREFIX.length).trim();
+  if (value === "planned" || value === "implemented")
+    return value;
+  errors.push(`Unknown status "${value}" \u2014 allowed values: planned, implemented.`);
+  return null;
+}
+function collectSectionBodies(lines) {
+  const bodies = new Map;
+  let current = null;
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith("## ")) {
+      current = SECTION_NAMES.get(trimmed.slice(3).trim().toLowerCase()) ?? null;
+      if (current && !bodies.has(current))
+        bodies.set(current, []);
+      continue;
+    }
+    if (trimmed.startsWith("# ")) {
+      current = null;
+      continue;
+    }
+    if (current && trimmed !== "")
+      bodies.get(current)?.push(trimmed);
+  }
+  return bodies;
+}
+function validateAlignmentHeading(lines, errors) {
+  const headings = new Set(lines.map((line) => line.trim()).filter((line) => line.startsWith("## ")).map((line) => line.slice(3).trim().toLowerCase()));
+  if (headings.has(DESIGN_ALIGNMENT_HEADING) && headings.has(LEGACY_ARCH_ALIGNMENT_HEADING)) {
+    errors.push("Both `## Design alignment` and legacy `## Arch alignment` are present \u2014 keep exactly one.");
+  }
+}
+function validateUniqueSectionHeadings(lines, errors) {
+  const counts = new Map;
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith("## "))
+      continue;
+    const name = SECTION_NAMES.get(trimmed.slice(3).trim().toLowerCase());
+    if (name !== undefined)
+      counts.set(name, (counts.get(name) ?? 0) + 1);
+  }
+  for (const [name, count] of counts) {
+    if (count > 1)
+      errors.push(`Section "${name}" appears ${count} times \u2014 keep exactly one heading.`);
+  }
+}
+function parseImplPlan(content) {
+  const errors = [];
+  const lines = activeLines(content);
+  const status = parseStatus(lines, errors);
+  validateAlignmentHeading(lines, errors);
+  validateUniqueSectionHeadings(lines, errors);
+  const bodies = collectSectionBodies(lines);
+  const sections = {};
+  const validatePresentSection = (name, body) => {
+    const meaningfulBody = body.filter((line) => !/^#{3,6}(?:\s|$)/u.test(line) && (name !== "Decisions" || !DECISIONS_SCAFFOLD_LINES.has(line)));
+    const skipLine = meaningfulBody.length === 1 && meaningfulBody[0]?.toLowerCase().startsWith(SKIP_PREFIX) ? meaningfulBody[0] : null;
+    if (skipLine !== null) {
+      const reason = skipLine.slice(SKIP_PREFIX.length).trim();
+      if (reason === "") {
+        errors.push(`Section "${name}": skip requires a non-empty reason (\`skip: <why>\`).`);
+      }
+      sections[name] = { satisfied: reason !== "", skip: reason };
+      return;
+    }
+    if (meaningfulBody.length === 0) {
+      errors.push(`Section "${name}" is empty \u2014 add content or \`skip: <why>\`.`);
+    }
+    sections[name] = { satisfied: meaningfulBody.length > 0, skip: null };
+  };
+  for (const name of IMPL_PLAN_SECTIONS) {
+    const body = bodies.get(name);
+    if (body === undefined) {
+      errors.push(`Missing section heading \`## ${name}\` \u2014 all five required sections must be present.`);
+      continue;
+    }
+    validatePresentSection(name, body);
+  }
+  for (const name of IMPL_PLAN_OPTIONAL_SECTIONS) {
+    const body = bodies.get(name);
+    if (body !== undefined)
+      validatePresentSection(name, body);
+  }
+  return { status, sections, errors };
+}
+var IMPL_PLAN_SECTIONS, IMPL_PLAN_OPTIONAL_SECTIONS, STATUS_PREFIX = "**Status:**", SKIP_PREFIX = "skip:", DECISIONS_SCAFFOLD_LINES, SECTION_NAMES, DESIGN_ALIGNMENT_HEADING = "design alignment", LEGACY_ARCH_ALIGNMENT_HEADING = "arch alignment";
+var init_impl_plan = __esm(() => {
+  init_inspiration();
+  IMPL_PLAN_SECTIONS = [
+    "Approach",
+    "Decisions",
+    "Design alignment",
+    "Known deviations",
+    "Assessment triggers"
+  ];
+  IMPL_PLAN_OPTIONAL_SECTIONS = ["Doc impact"];
+  DECISIONS_SCAFFOLD_LINES = new Set(Object.values(IMPLEMENTATION_INSPIRATION_GRAMMAR));
+  SECTION_NAMES = new Map([
+    ...IMPL_PLAN_SECTIONS.map((name) => [name.toLowerCase(), name]),
+    ["arch alignment", "Design alignment"],
+    ...IMPL_PLAN_OPTIONAL_SECTIONS.map((name) => [
+      name.toLowerCase(),
+      name
+    ])
+  ]);
+});
+
+// templates/hooks/lib/jtbd.ts
+function parseJtbdSection(specContent) {
+  const entries = [];
+  let skip = null;
+  let seenJtbd = false;
+  let inSection = false;
+  for (const { index, text: trimmed } of activeLines2(specContent)) {
+    const heading = parseSectionHeading(trimmed);
+    if (heading !== null) {
+      inSection = heading.toLowerCase() === JTBD_HEADING;
+      continue;
+    }
+    if (!inSection)
+      continue;
+    const sub = parseAnyHeading(trimmed);
+    if (sub !== null && sub.level >= 3) {
+      if (sub.level === 3)
+        seenJtbd = true;
+      continue;
+    }
+    if (skip === null && !seenJtbd && trimmed.toLowerCase().startsWith(SKIP_PREFIX2)) {
+      skip = trimmed.slice(SKIP_PREFIX2.length).trim();
+      continue;
+    }
+    if (trimmed.startsWith(PERSONA_PREFIX)) {
+      entries.push({
+        persona: trimmed.slice(PERSONA_PREFIX.length).trim(),
+        lineNumber: index + 1
+      });
+    }
+  }
+  return { entries, skip };
+}
+function computeSkipMask(lines) {
+  const skip = [];
+  let insideCodeFence = false;
+  let insideComment = false;
+  for (const line of lines) {
+    if (line.trimStart().startsWith("```")) {
+      skip.push(true);
+      insideCodeFence = !insideCodeFence;
+      continue;
+    }
+    if (insideCodeFence) {
+      skip.push(true);
+      continue;
+    }
+    if (!insideComment && line.trimStart().startsWith("<!--"))
+      insideComment = true;
+    if (insideComment) {
+      skip.push(true);
+      if (line.includes("-->"))
+        insideComment = false;
+      continue;
+    }
+    skip.push(false);
+  }
+  return skip;
+}
+function stripInlineComments(text) {
+  let result = "";
+  let pos = 0;
+  while (pos < text.length) {
+    const open = text.indexOf("<!--", pos);
+    if (open === -1) {
+      result += text.slice(pos);
+      break;
+    }
+    result += text.slice(pos, open);
+    const close = text.indexOf("-->", open + 4);
+    if (close === -1) {
+      result += text.slice(open);
+      break;
+    }
+    pos = close + 3;
+  }
+  return result;
+}
+function activeLines2(content) {
+  const lines = content.split(`
+`);
+  const skip = computeSkipMask(lines);
+  const out = [];
+  for (const [index, line] of lines.entries()) {
+    if (skip[index])
+      continue;
+    const text = stripInlineComments(line).trim();
+    if (text !== "")
+      out.push({ index, text });
+  }
+  return out;
+}
+function parseAnyHeading(trimmed) {
+  const match = /^(#{1,6})\s+(.+)$/.exec(trimmed);
+  if (match === null)
+    return null;
+  return { level: (match[1] ?? "").length, text: (match[2] ?? "").trim() };
+}
+function parseSectionHeading(trimmed) {
+  if (!trimmed.startsWith("## "))
+    return null;
+  const rest = trimmed.slice(3).trim();
+  if (rest.startsWith("#"))
+    return null;
+  return rest;
+}
+var JTBD_HEADING = "jobs to be done", PERSONA_PREFIX = "**Persona:**", SKIP_PREFIX2 = "skip:";
+var init_jtbd = () => {};
+
+// templates/hooks/lib/parse-annotation.ts
+function parseCheckboxAnnotation(line) {
+  const match = CHECKBOX_LINE.exec(line);
+  if (!match)
+    return null;
+  const [, mark = "", step = "", rest = ""] = match;
+  return {
+    step,
+    checked: mark.toLowerCase() === "x",
+    annotation: rest.trim()
+  };
+}
+function classifyAnnotation(annotation) {
+  if (annotation === "")
+    return { kind: "none" };
+  const skipMatch = SKIP_PREFIX3.exec(annotation);
+  if (skipMatch) {
+    return { kind: "skip", reason: (skipMatch[1] ?? "").trim() };
+  }
+  return { kind: "sha", value: annotation };
+}
+function isValidSkipReason(reason) {
+  return reason.trim().length > 0;
+}
+function isValidSha(value) {
+  return SHA_PATTERN.test(value);
+}
+var CHECKBOX_LINE, SKIP_PREFIX3, SHA_PATTERN;
+var init_parse_annotation = __esm(() => {
+  CHECKBOX_LINE = /^\s*- \[([ xX])\] (RED|GREEN|REFACTOR|cross-scenario)\b\s*(.*)$/;
+  SKIP_PREFIX3 = /^skip:(.*)$/i;
+  SHA_PATTERN = /^[0-9a-f]{7,40}$/i;
+});
+
+// templates/hooks/lib/phase-provenance.ts
+function canonicalIndex(phase) {
+  return CANONICAL_PHASES.indexOf(phase);
+}
+function frontmatterOf(content) {
+  const match = content.match(/^---\n([\s\S]*?)\n---/);
+  if (!match)
+    return;
+  const parsed2 = parseFrontmatter2(match[1] ?? "");
+  return Object.keys(parsed2).length > 0 ? parsed2 : undefined;
+}
+function scalar(meta, key) {
+  const value = meta?.[key];
+  return typeof value === "string" && value.trim() !== "" ? value : undefined;
+}
+function parsePhaseKeyedEntries(meta, key) {
+  const raw = meta?.[key];
+  const rawEntries = Array.isArray(raw) ? raw : typeof raw === "string" && raw !== "" ? [raw] : [];
+  const entries = [];
+  const malformed = [];
+  for (const rawEntry of rawEntries) {
+    const match = /^([^:]+):(.*)$/.exec(rawEntry);
+    const phase = match?.[1]?.trim();
+    if (match === null || phase === undefined || phase === "") {
+      malformed.push(rawEntry);
+      continue;
+    }
+    entries.push({ phase, value: (match[2] ?? "").trim(), raw: rawEntry });
+  }
+  return { entries, malformed };
+}
+function parseSkips(meta) {
+  const { entries, malformed } = parsePhaseKeyedEntries(meta, "phase_skips");
+  const justified = new Map;
+  const invalid = [...malformed];
+  for (const { phase, value, raw } of entries) {
+    if (!isValidSkipReason(value)) {
+      invalid.push(raw);
+      continue;
+    }
+    justified.set(phase, value);
+  }
+  return { justified, invalid };
+}
+function evaluateTicketWrite(priorContent, proposedContent) {
+  const proposed = normalizeNewlines(proposedContent);
+  if (priorContent === undefined) {
+    return evaluateCreation(proposed);
+  }
+  return evaluateEdit(normalizeNewlines(priorContent), proposed);
+}
+function normalizeNewlines(content) {
+  return content.replace(/\r\n/g, `
+`);
+}
+function evaluateCreation(proposedContent) {
+  if (!/^---\n[\s\S]*?\n---/.test(proposedContent)) {
+    return {
+      ok: false,
+      reason: "ticket.md requires YAML frontmatter \u2014 without it no gate can classify the ticket, which is the silent-bypass failure #119 shipped.",
+      remediation: "Start the file with a frontmatter block (---) carrying at least id, type, phase, and status."
+    };
+  }
+  const meta = frontmatterOf(proposedContent);
+  if (meta === undefined) {
+    return {
+      ok: false,
+      reason: "ticket.md requires parseable YAML frontmatter \u2014 the block between --- markers parses to no fields, so no gate can classify the ticket.",
+      remediation: 'Fix the frontmatter to simple "key: value" lines carrying at least id, type, phase, and status.'
+    };
+  }
+  if (scalar(meta, "type") !== "feature")
+    return OK;
+  return evaluateBirth(meta, "creation");
+}
+function evaluateEdit(priorContent, proposedContent) {
+  const prior = frontmatterOf(priorContent);
+  const proposed = frontmatterOf(proposedContent);
+  if (proposed === undefined)
+    return OK;
+  const priorType = scalar(prior, "type");
+  const proposedType = scalar(proposed, "type");
+  if (proposedType === "feature" && priorType !== "feature") {
+    return evaluateBirth(proposed, "flip");
+  }
+  if (proposedType === "feature") {
+    const priorPhase = scalar(prior, "phase");
+    const proposedPhase = scalar(proposed, "phase");
+    if (proposedPhase !== undefined && proposedPhase !== priorPhase) {
+      return evaluateAdvance(priorPhase, proposedPhase, proposed);
+    }
+  }
+  return OK;
+}
+function evaluateAdvance(priorPhase, proposedPhase, proposed) {
+  if (!CANONICAL_SET.has(proposedPhase)) {
+    return {
+      ok: false,
+      reason: `"${proposedPhase}" is not a canonical ticket phase, so no gate keyed to phases would ever fire on this ticket again. Canonical phases: ${CANONICAL_SEQUENCE}.`,
+      remediation: "Advance to the next canonical phase instead."
+    };
+  }
+  const effectivePrior = priorPhase !== undefined && CANONICAL_SET.has(priorPhase) ? priorPhase : "intake";
+  const fromIndex = canonicalIndex(effectivePrior);
+  const toIndex = canonicalIndex(proposedPhase);
+  if (toIndex <= fromIndex + 1)
+    return OK;
+  return requireJustifiedSkips(proposed, CANONICAL_PHASES.slice(fromIndex + 1, toIndex), (missing) => ({
+    ok: false,
+    reason: `Phases advance one canonical step at a time \u2014 ${effectivePrior} \u2192 ${proposedPhase} skips work the workflow depends on. Phases still needing justification: ${missing.join(", ")}.`,
+    remediation: `Advance one phase at a time (${CANONICAL_SEQUENCE}), or ${SKIPS_SYNTAX}.`
+  }));
+}
+function requireJustifiedSkips(meta, bypassed, denialFor) {
+  const skips = parseSkips(meta);
+  if (skips.invalid.length > 0) {
+    return {
+      ok: false,
+      reason: `phase_skips entry ${skips.invalid.map((entry) => `"${entry}"`).join(", ")} is not a valid skip \u2014 every entry needs the "<phase>: <reason>" shape with a non-empty reason.`,
+      remediation: `A skip is an auditable act: ${SKIPS_SYNTAX}.`
+    };
+  }
+  const missing = bypassed.filter((phase) => !skips.justified.has(phase));
+  return missing.length > 0 ? denialFor(missing) : OK;
+}
+function evaluateBirth(meta, context) {
+  const phase = scalar(meta, "phase");
+  if (phase === undefined || phase === "intake")
+    return OK;
+  if (!CANONICAL_SET.has(phase)) {
+    if (context === "flip")
+      return OK;
+    return {
+      ok: false,
+      reason: `"${phase}" is not a canonical ticket phase, so no gate keyed to phases would ever fire on this ticket. Canonical phases: ${CANONICAL_SEQUENCE}.`,
+      remediation: "Create the ticket at phase: intake (or another canonical phase justified via phase_skips) and work forward."
+    };
+  }
+  return requireJustifiedSkips(meta, CANONICAL_PHASES.slice(0, canonicalIndex(phase)), (missing) => {
+    const act = context === "creation" ? "begin life" : "become a feature";
+    return {
+      ok: false,
+      reason: `Feature tickets are born at phase: intake \u2014 this write would ${act} at "${phase}" without provenance, silently bypassing every gate keyed to the skipped phases. Phases still needing justification: ${missing.join(", ")}.`,
+      remediation: `Start at phase: intake and work forward, or ${SKIPS_SYNTAX}.`
+    };
+  });
+}
+function parseAnchors(meta) {
+  const byPhase = new Map;
+  for (const { phase, value } of parsePhaseKeyedEntries(meta, "phase_anchors").entries) {
+    byPhase.set(phase, value);
+  }
+  return byPhase;
+}
+function hasSubstance(content) {
+  return content.trim() !== "";
+}
+function isPlausibleRepoPath(value) {
+  if (value === "" || value.includes("\\"))
+    return false;
+  if (value.startsWith("/") || /^[a-zA-Z]:/.test(value))
+    return false;
+  if (/^[0-3]:/.test(value))
+    return false;
+  if (/^[(:!^]/.test(value) || /[*?[\]]/.test(value))
+    return false;
+  return !value.split("/").some((segment) => segment === "" || segment === "." || segment === "..");
+}
+function detectUnanchoredPhaseTransition(priorContent, proposedContent, scope, readArtifact) {
+  if (priorContent === undefined)
+    return NOT_APPLICABLE;
+  const proposed = frontmatterOf(normalizeNewlines(proposedContent));
+  const prior = frontmatterOf(normalizeNewlines(priorContent));
+  if (proposed === undefined)
+    return NOT_APPLICABLE;
+  if (scalar(proposed, "type") !== "feature" || scalar(prior, "type") !== "feature") {
+    return NOT_APPLICABLE;
+  }
+  const priorPhase = scalar(prior, "phase");
+  const proposedPhase = scalar(proposed, "phase");
+  if (proposedPhase === undefined || proposedPhase === priorPhase)
+    return NOT_APPLICABLE;
+  const toIndex = canonicalIndex(proposedPhase);
+  if (toIndex === -1)
+    return NOT_APPLICABLE;
+  const effectivePrior = priorPhase !== undefined && CANONICAL_SET.has(priorPhase) ? priorPhase : "intake";
+  if (toIndex <= canonicalIndex(effectivePrior))
+    return NOT_APPLICABLE;
+  return validateAnchor(proposed, proposedPhase, scope, readArtifact);
+}
+function validateAnchor(meta, phase, scope, readArtifact) {
+  const kind = ANCHOR_KINDS[phase];
+  if (kind === undefined)
+    return NOT_APPLICABLE;
+  const unanchored = (reason) => ({
+    kind: "unanchored",
+    phase,
+    reason
+  });
+  const expectedLine = `\`- ${phase}: ${kind.example}\``;
+  const anchor = parseAnchors(meta).get(phase);
+  if (anchor === undefined) {
+    return unanchored(`no phase_anchors entry for "${phase}" \u2014 record the exited phase's artifact, e.g. ${expectedLine}.`);
+  }
+  if (isValidSha(anchor)) {
+    return unanchored(`phase_anchors entry for "${phase}" is "${anchor}", a legacy commit-SHA anchor \u2014 record the artifact path instead, e.g. ${expectedLine}.`);
+  }
+  if (!isPlausibleRepoPath(anchor)) {
+    return unanchored(`phase_anchors entry for "${phase}" is "${anchor}", not a repo-relative artifact path \u2014 record ${expectedLine}.`);
+  }
+  if (!kind.matches(anchor)) {
+    return unanchored(`phase_anchors entry for "${phase}" is "${anchor}", not the expected artifact kind \u2014 "${phase}" expects ${kind.label}, e.g. ${expectedLine}.`);
+  }
+  const ticketFolder = basenameOf(scope.ticketPath);
+  const slugSeparator = ticketFolder.indexOf("-");
+  const ticketSlug = scalar(meta, "slug") ?? (slugSeparator === -1 ? ticketFolder : ticketFolder.slice(slugSeparator + 1));
+  const anchorSegments = anchor.split("/");
+  const isConfiguredOrDefaultFeature = scope.featureRoots.some((root) => root === "" || anchor.startsWith(`${root}/`));
+  const isWorkspaceFeature = anchorSegments.length >= 4 && scope.workspaceRoots.includes(anchorSegments[0] ?? "") && anchorSegments[1] !== "" && anchorSegments[2] === "features";
+  const isOwnedArtifact = isFeatureSource(anchor) ? basenameOf(anchor) === `${ticketSlug}.feature` && (isConfiguredOrDefaultFeature || isWorkspaceFeature) : dirnameOf(anchor) === scope.ticketPath;
+  if (!isOwnedArtifact) {
+    return unanchored(`phase_anchors entry for "${phase}" is "${anchor}", an artifact outside this ticket \u2014 record this ticket's own artifact, e.g. ${expectedLine}.`);
+  }
+  if (readArtifact === undefined)
+    return { kind: "anchored" };
+  const content = readArtifact(anchor);
+  if (content === undefined) {
+    return unanchored(`anchored artifact "${anchor}" for "${phase}" is missing from the tree.`);
+  }
+  if (!kind.shapeOk(anchor, content)) {
+    return unanchored(`anchored artifact "${anchor}" for "${phase}" fails its shape check \u2014 it does not look like ${kind.label}.`);
+  }
+  return { kind: "anchored" };
+}
+function detectUnanchoredPhaseState(content, scope, readArtifact) {
+  const meta = frontmatterOf(normalizeNewlines(content));
+  if (meta === undefined)
+    return NOT_APPLICABLE;
+  if (scalar(meta, "type") !== "feature")
+    return NOT_APPLICABLE;
+  const phase = scalar(meta, "phase");
+  if (phase === undefined || phase === "intake" || !CANONICAL_SET.has(phase)) {
+    return NOT_APPLICABLE;
+  }
+  const anchor = parseAnchors(meta).get(phase);
+  if (anchor !== undefined && isValidSha(anchor))
+    return NOT_APPLICABLE;
+  return validateAnchor(meta, phase, scope, readArtifact);
+}
+var CANONICAL_PHASES, CANONICAL_SET, CANONICAL_SEQUENCE, OK, SKIPS_SYNTAX = "record a deliberate skip for each bypassed phase as an indented phase_skips block sequence \u2014 e.g. `phase_skips:` on its own line, then `  - intake: <reason>` (two-space indent) for each skipped phase, each with a non-empty reason", basenameOf = (relpath) => relpath.split("/").at(-1) ?? "", dirnameOf = (relpath) => relpath.split("/").slice(0, -1).join("/"), isFeatureSource = (relpath) => relpath.endsWith(".feature"), featureShapeOk = (content) => /^\s*Scenario(?: Outline)?:/m.test(content), VERIFY_SCOPE_LINE, FEATURE_SOURCE_ANCHOR, ANCHOR_KINDS, NOT_APPLICABLE;
+var init_phase_provenance = __esm(() => {
+  init_hierarchy();
+  init_impl_plan();
+  init_jtbd();
+  init_parse_annotation();
+  CANONICAL_PHASES = [
+    "intake",
+    "define-behavior",
+    "scenario-gate",
+    "plan-implementation",
+    "implement",
+    "verify",
+    "done"
+  ];
+  CANONICAL_SET = new Set(CANONICAL_PHASES);
+  CANONICAL_SEQUENCE = CANONICAL_PHASES.join(" \u2192 ");
+  OK = { ok: true };
+  VERIFY_SCOPE_LINE = /^\*\*PR Scope:\*\*\s*\S/im;
+  FEATURE_SOURCE_ANCHOR = {
+    label: "the feature source (.feature, or test-definitions.md on the legacy path)",
+    example: "features/<slug>.feature",
+    matches: (relpath) => isFeatureSource(relpath) || basenameOf(relpath) === "test-definitions.md",
+    shapeOk: (relpath, content) => isFeatureSource(relpath) ? featureShapeOk(content) : hasSubstance(content)
+  };
+  ANCHOR_KINDS = {
+    "define-behavior": {
+      label: "spec.md",
+      example: "<ticket-folder>/spec.md",
+      matches: (relpath) => basenameOf(relpath) === "spec.md",
+      shapeOk: (_relpath, content) => {
+        const jtbd = parseJtbdSection(content);
+        return jtbd.entries.length > 0 || jtbd.skip !== null;
+      }
+    },
+    "scenario-gate": FEATURE_SOURCE_ANCHOR,
+    "plan-implementation": FEATURE_SOURCE_ANCHOR,
+    implement: {
+      label: "impl-plan.md",
+      example: "<ticket-folder>/impl-plan.md",
+      matches: (relpath) => basenameOf(relpath) === "impl-plan.md",
+      shapeOk: (_relpath, content) => parseImplPlan(content).errors.length === 0
+    },
+    verify: {
+      label: "test-definitions.md (the R/G/R ledger)",
+      example: "<ticket-folder>/test-definitions.md",
+      matches: (relpath) => basenameOf(relpath) === "test-definitions.md",
+      shapeOk: (_relpath, content) => hasSubstance(content)
+    },
+    done: {
+      label: "verify.md",
+      example: "<ticket-folder>/verify.md",
+      matches: (relpath) => basenameOf(relpath) === "verify.md",
+      shapeOk: (_relpath, content) => VERIFY_SCOPE_LINE.test(content)
+    }
+  };
+  NOT_APPLICABLE = { kind: "not-applicable" };
 });
 
 // ../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/scanner.js
@@ -20894,7 +21066,7 @@ var init_python = __esm(() => {
     name: "Python",
     extensions: [".py", ".pyi"],
     detect(cwd) {
-      return existsInTree(cwd, "pyproject.toml") || existsInTree(cwd, "requirements.txt");
+      return existsInTree(cwd, "pyproject.toml") || existsInTree(cwd, "requirements.txt") || existsInTree(cwd, "Pipfile") || existsInTree(cwd, "setup.py") || existsInTree(cwd, "setup.cfg");
     },
     setup(_cwd, _ctx) {
       return setupPythonTooling();
@@ -22963,9 +23135,12 @@ function slugForTicket(cwd, ticketFolder) {
   const dashIndex = ticketFolder.indexOf("-");
   return dashIndex === -1 ? ticketFolder : ticketFolder.slice(dashIndex + 1);
 }
-function findFeatureSourcePath(cwd, ticketFolder) {
-  const fileName = `${slugForTicket(cwd, ticketFolder)}.feature`;
-  return collectExecutableFeatureFiles(cwd, fileName)[0];
+function featureSourceFileName(cwd, ticketFolder) {
+  return `${slugForTicket(cwd, ticketFolder)}.feature`;
+}
+function findFeatureSourcePath(cwd, ticketFolder, featureFiles = collectExecutableFeatureFiles(cwd)) {
+  const fileName = featureSourceFileName(cwd, ticketFolder);
+  return featureFiles.find((path4) => nodePath46.basename(path4) === fileName);
 }
 function createPhaseAnchorEnvironment(cwd, configuredFeatures) {
   const featureRoots = ["features"];
@@ -32909,6 +33084,7 @@ function buildIndexConflictListMessage(paths) {
 var SYNCTICKETS_QUIET_COMMAND = "`safeword project sync-tickets --quiet`";
 
 // src/health.ts
+import { execFileSync as execFileSync7 } from "child_process";
 import { readdirSync as readdirSync19 } from "fs";
 import nodePath47 from "path";
 function findMissingFiles(cwd, actions) {
@@ -32980,6 +33156,11 @@ function findCucumberHarnessAdvisories(cwd, { existingCucumberHarness, scaffoldB
   if (existingCucumberHarness === undefined)
     return [];
   if (scaffoldBddLane) {
+    if (isWorkspaceCucumberHarness(existingCucumberHarness)) {
+      return [
+        `A workspace Cucumber harness (${existingCucumberHarness}) is preserved alongside Safeword's root starter lane. This is informational: Safeword does not remove or modify project test infrastructure. The starter lane reads the default workspace features directories; set paths.features / paths.steps only when this harness uses nonstandard locations.`
+      ];
+    }
     return [buildLeftoverLaneAdvisory(cwd, existingCucumberHarness)];
   }
   if (readConfiguredPath(cwd, "features") !== undefined || hasDefaultExecutableFeatureFiles(cwd)) {
@@ -32988,6 +33169,9 @@ function findCucumberHarnessAdvisories(cwd, { existingCucumberHarness, scaffoldB
   return [
     `Detected a cucumber harness (${existingCucumberHarness}) but paths.features is not set in .safeword/config.json \u2014 project codify, project lint-gherkin, and doctor cannot see your suite. Add e.g. "paths": { "features": "tests/behaviors", "steps": "tests/steps" } (paths.steps only matters when the scaffolded runner reads relocated TypeScript steps).`
   ];
+}
+function isWorkspaceCucumberHarness(evidence) {
+  return WORKSPACE_ROOTS.some((root) => evidence.startsWith(`${root}/`));
 }
 function buildLeftoverLaneAdvisory(cwd, evidence) {
   const leftovers = BDD_LANE_FILE_PATHS.filter((filePath) => exists(nodePath47.join(cwd, filePath)));
@@ -33058,13 +33242,115 @@ function archAlignmentHasContent(implPlanContent) {
 function emptyCoverageDiagnostics() {
   return { issues: [], advisories: [] };
 }
+function readGit(cwd, args) {
+  try {
+    return execFileSync7("git", args, {
+      cwd,
+      encoding: "utf8",
+      maxBuffer: 10 * 1024 * 1024,
+      stdio: ["ignore", "pipe", "pipe"]
+    });
+  } catch {
+    return;
+  }
+}
+function addNulSeparatedPaths(target, output) {
+  for (const path4 of output.split("\x00")) {
+    if (path4 !== "")
+      target.add(path4);
+  }
+}
+function currentWorkPathsWithHead(cwd) {
+  const baseReference = CURRENT_WORK_BASE_REFS.find((candidate) => readGit(cwd, ["rev-parse", "--verify", "--quiet", candidate]) !== undefined);
+  if (baseReference === undefined)
+    return;
+  const mergeBase = readGit(cwd, ["merge-base", "HEAD", baseReference])?.trim();
+  if (mergeBase === undefined || mergeBase === "")
+    return;
+  const committed = readGit(cwd, [
+    "diff",
+    "--relative",
+    "--name-only",
+    "-z",
+    `${mergeBase}...HEAD`
+  ]);
+  const working = readGit(cwd, ["diff", "--relative", "--name-only", "-z", "HEAD"]);
+  if (committed === undefined || working === undefined)
+    return;
+  const paths = new Set;
+  addNulSeparatedPaths(paths, committed);
+  addNulSeparatedPaths(paths, working);
+  return [...paths];
+}
+function currentWorkPathsWithoutHead(cwd) {
+  const staged = readGit(cwd, ["diff", "--cached", "--name-only", "-z"]);
+  if (staged === undefined)
+    return;
+  const paths = new Set;
+  addNulSeparatedPaths(paths, staged);
+  return [...paths];
+}
+function currentWorkPaths(cwd) {
+  if (readGit(cwd, ["rev-parse", "--is-inside-work-tree"])?.trim() !== "true")
+    return;
+  const hasHead = readGit(cwd, ["rev-parse", "--verify", "--quiet", "HEAD^{commit}"]);
+  const changedPaths = hasHead === undefined ? currentWorkPathsWithoutHead(cwd) : currentWorkPathsWithHead(cwd);
+  if (changedPaths === undefined)
+    return;
+  const untracked = readGit(cwd, ["ls-files", "--others", "--exclude-standard", "-z"]);
+  if (untracked === undefined)
+    return;
+  const paths = new Set(changedPaths);
+  addNulSeparatedPaths(paths, untracked);
+  return [...paths];
+}
+function ticketIdsFromChangedPaths(paths, ticketPrefix) {
+  const ticketIds = new Set;
+  for (const path4 of paths) {
+    if (!path4.startsWith(ticketPrefix))
+      continue;
+    const [ticketId] = path4.slice(ticketPrefix.length).split("/", 1);
+    if (ticketId !== undefined && ticketId !== "")
+      ticketIds.add(ticketId);
+  }
+  return ticketIds;
+}
+function addTicketsForChangedFeatureSources(cwd, ticketsRoot, featureFiles, changedFeatures, ticketIds) {
+  for (const ticketId of listTicketIds(ticketsRoot)) {
+    const featurePath = findFeatureSourcePath(cwd, ticketId, featureFiles);
+    if (featurePath !== undefined && changedFeatures.paths.has(featurePath) || featurePath === undefined && changedFeatures.fileNames.has(featureSourceFileName(cwd, ticketId))) {
+      ticketIds.add(ticketId);
+    }
+  }
+}
+function currentWorkCoverageTicketIds(cwd, ticketsRoot, featureFiles) {
+  const paths = currentWorkPaths(cwd);
+  if (paths === undefined)
+    return listTicketIds(ticketsRoot);
+  if (paths.length === 0)
+    return [];
+  const ticketsRelative = toRepoRelativePath(cwd, ticketsRoot).split(nodePath47.sep).join("/");
+  if (ticketsRelative === ".." || ticketsRelative.startsWith("../"))
+    return [];
+  const ticketPrefix = `${ticketsRelative}/`;
+  const changedFeatures = {
+    paths: new Set(paths.filter((path4) => path4.endsWith(".feature")).map((path4) => nodePath47.resolve(cwd, path4))),
+    fileNames: new Set(paths.filter((path4) => path4.endsWith(".feature")).map((path4) => nodePath47.basename(path4)))
+  };
+  const ticketIds = ticketIdsFromChangedPaths(paths, ticketPrefix);
+  if (changedFeatures.paths.size === 0)
+    return [...ticketIds];
+  addTicketsForChangedFeatureSources(cwd, ticketsRoot, featureFiles, changedFeatures, ticketIds);
+  return [...ticketIds];
+}
 function findCoverageDiagnostics(cwd) {
   const ticketsRoot = resolveTicketsDirectory(cwd);
   const all = emptyCoverageDiagnostics();
   const configuredFeatures = readConfiguredPath(cwd, "features");
   const anchorEnvironment = createPhaseAnchorEnvironment(cwd, configuredFeatures);
-  for (const ticketId of listTicketIds(ticketsRoot)) {
-    const ticketDiagnostics = coverageDiagnosticsForTicket(cwd, ticketsRoot, ticketId);
+  const featureFiles = collectExecutableFeatureFiles(cwd);
+  for (const ticketId of currentWorkCoverageTicketIds(cwd, ticketsRoot, featureFiles)) {
+    const ticketDiagnostics = coverageDiagnosticsForTicket(cwd, ticketsRoot, ticketId, featureFiles);
     all.issues.push(...ticketDiagnostics.issues);
     all.advisories.push(...ticketDiagnostics.advisories);
     const anchorAdvisory = phaseAnchorAdvisoryForTicket(cwd, ticketsRoot, ticketId, anchorEnvironment);
@@ -33085,7 +33371,7 @@ function phaseAnchorAdvisoryForTicket(cwd, ticketsRoot, ticketId, anchorEnvironm
     return;
   return `${formatCoverageTicketLabel(ticketId, content)}: ${verdict.reason} The anchor is the exited phase's artifact \u2014 boundary checks verify it against the tree.`;
 }
-function coverageDiagnosticsForTicket(cwd, ticketsRoot, ticketId) {
+function coverageDiagnosticsForTicket(cwd, ticketsRoot, ticketId, featureFiles) {
   const ticketDirectory = nodePath47.join(ticketsRoot, ticketId);
   const ticketContent = readFileSafe(nodePath47.join(ticketDirectory, "ticket.md"));
   if (ticketContent === undefined || !isInProgress(ticketContent))
@@ -33093,7 +33379,7 @@ function coverageDiagnosticsForTicket(cwd, ticketsRoot, ticketId) {
   const specContent = readFileSafe(nodePath47.join(ticketDirectory, "spec.md"));
   if (specContent === undefined)
     return emptyCoverageDiagnostics();
-  const featureSource = readFeatureSource(cwd, ticketId);
+  const featureSource = readFeatureSource(cwd, ticketId, featureFiles);
   try {
     const report = featureSource === undefined ? buildCoverageReport(specContent, readFileSafe(nodePath47.join(ticketDirectory, "test-definitions.md"))) : buildCoverageReportFromFeature(specContent, featureSource.content);
     const surfaceReport = featureSource === undefined ? undefined : buildSurfaceCoverageReportFromFeature(specContent, featureSource.content);
@@ -33131,8 +33417,8 @@ function formatFeatureLineageIssues(cwd, ticketId, featureSource, ticketContent)
   const relativePath = nodePath47.relative(cwd, featureSource.path);
   return findFeatureLineageIssues(featureSource.content).map((issue2) => `${label}: ${relativePath}: ${issue2}`);
 }
-function readFeatureSource(cwd, ticketFolder) {
-  const featurePath = findFeatureSourcePath(cwd, ticketFolder);
+function readFeatureSource(cwd, ticketFolder, featureFiles) {
+  const featurePath = findFeatureSourcePath(cwd, ticketFolder, featureFiles);
   const content = featurePath === undefined ? undefined : readFileSafe(featurePath);
   return featurePath === undefined || content === undefined ? undefined : { path: featurePath, content };
 }
@@ -33288,7 +33574,7 @@ async function checkHealth(cwd, options = {}) {
     missingPythonTools
   };
 }
-var PATH_ONLY_KNOWLEDGE_KEYS, CONFIGURED_KNOWLEDGE_KEYS;
+var PATH_ONLY_KNOWLEDGE_KEYS, CONFIGURED_KNOWLEDGE_KEYS, CURRENT_WORK_BASE_REFS;
 var init_health = __esm(() => {
   init_phase_provenance();
   init_delivery_schema();
@@ -33309,6 +33595,7 @@ var init_health = __esm(() => {
   init_personas();
   init_repo_path();
   init_scenario_coverage();
+  init_workspace_roots();
   init_version();
   PATH_ONLY_KNOWLEDGE_KEYS = ["principles", "surfaces"];
   CONFIGURED_KNOWLEDGE_KEYS = [
@@ -33316,6 +33603,13 @@ var init_health = __esm(() => {
     "principles",
     "surfaces",
     "glossary"
+  ];
+  CURRENT_WORK_BASE_REFS = [
+    "refs/remotes/origin/HEAD",
+    "refs/remotes/origin/main",
+    "refs/remotes/origin/master",
+    "refs/heads/main",
+    "refs/heads/master"
   ];
 });
 
@@ -33938,12 +34232,17 @@ var init_delivery_schema2 = __esm(() => {
 });
 
 // src/lifecycle/schema.ts
+function isLegacyClaudePath(path4) {
+  return path4.startsWith(".claude/");
+}
 function projectLifecycleSchema(cwd, agents) {
   const deliverySchema = schemaForCodexDelivery(cwd, schemaForClaudeDelivery(cwd));
-  return schemaForProjectSurfaces(deliverySchema, [
+  const surfaceSchema = schemaForProjectSurfaces(deliverySchema, [
     "core",
     ...agents.includes("cursor") ? ["cursor"] : []
   ]);
+  const legacyClaudeActive = Object.keys(deliverySchema.ownedFiles).some((path4) => isLegacyClaudePath(path4)) || Object.keys(deliverySchema.jsonMerges).some((path4) => isLegacyClaudePath(path4));
+  return schemaForSharedAgentRuntime(surfaceSchema, agents.length === 0 || agents.includes("codex") || agents.includes("cursor") || legacyClaudeActive);
 }
 var init_schema2 = __esm(() => {
   init_delivery_schema();
@@ -34076,7 +34375,7 @@ function currentClaudePluginHookManifestSha256() {
 }
 var PROJECT_HOOK_ROOT = '"$CLAUDE_PROJECT_DIR"/.safeword/hooks', PLUGIN_HOOK_ROOT = '"${CLAUDE_PLUGIN_ROOT}"/runtime/hooks', PLUGIN_DISPATCH = 'bun "${CLAUDE_PLUGIN_ROOT}"/runtime/dispatch.js';
 var init_hook_manifest = __esm(() => {
-  init_config2();
+  init_config();
 });
 
 // src/claude-plugin/project-root.ts
@@ -34387,34 +34686,34 @@ function failedResult(error2, scope) {
     failure = new ClaudeProfileError("CLAUDE_PLUGIN_INSTALL_FAILED", message);
   }
   let classification = "errored";
-  let nextAction = "safeword install --agents=claude";
+  let nextAction2 = "safeword install --agents=claude";
   let nextActionMutates = true;
   const diagnostic = DIAGNOSTIC_FAILURES[failure.code];
   if (diagnostic !== undefined) {
     classification = diagnostic.classification;
-    nextAction = diagnostic.nextAction;
+    nextAction2 = diagnostic.nextAction;
     nextActionMutates = false;
   }
   switch (failure.code) {
     case "CLAUDE_VERSION_UNSUPPORTED": {
       classification = "unsupported-host";
-      nextAction = "claude update";
+      nextAction2 = "claude update";
       break;
     }
     case "CLAUDE_HOST_UNAVAILABLE": {
       classification = "host-unavailable";
-      nextAction = "claude --version";
+      nextAction2 = "claude --version";
       nextActionMutates = false;
       break;
     }
     case "CLAUDE_MARKETPLACE_CONFLICT": {
       classification = "marketplace-conflict";
-      nextAction = `claude plugin marketplace add ${officialMarketplaceSource()} --scope ${scope}`;
+      nextAction2 = `claude plugin marketplace add ${officialMarketplaceSource()} --scope ${scope}`;
       break;
     }
     case "CLAUDE_AUTO_UPDATE_DISABLED": {
       classification = "auto-update-disabled";
-      nextAction = `claude plugin marketplace add ${officialMarketplaceSource()} --scope ${scope}`;
+      nextAction2 = `claude plugin marketplace add ${officialMarketplaceSource()} --scope ${scope}`;
       break;
     }
   }
@@ -34425,7 +34724,7 @@ function failedResult(error2, scope) {
     errors: [{ code: failure.code, message: failure.message, retryable: true }],
     nextActions: [
       {
-        command: nextAction,
+        command: nextAction2,
         mutates: nextActionMutates,
         requiresHuman: true
       }
@@ -34913,8 +35212,8 @@ function statusFindings(classification, options, failed) {
   ];
 }
 function statusResult(classification, options = {}) {
-  const nextAction = options.nextAction ?? ACTIONS[classification];
-  const nextActions = options.nextActions ?? (nextAction === undefined ? [] : [nextAction]);
+  const nextAction2 = options.nextAction ?? ACTIONS[classification];
+  const nextActions = options.nextActions ?? (nextAction2 === undefined ? [] : [nextAction2]);
   const failed = classification === "errored";
   let state = "action_required";
   if (classification === "plugin-mode")
@@ -35467,131 +35766,6 @@ var init_legacy_config = __esm(() => {
       super(message, options);
       this.name = "CodexConfigObservationError";
     }
-  };
-});
-
-// src/codex-plugin/migration.ts
-function codexInstallRequiresMutation(observation) {
-  return observation.plugin.enabled !== true || observation.state === "plugin_update_required";
-}
-function codexPluginVersionMatchesPackage(plugin) {
-  return plugin.version === null || plugin.version === SAFEWORD_SCHEMA.version;
-}
-function pluginProtectionIsCurrent(facts) {
-  return !facts.activationPending && facts.plugin.enabled === true && codexPluginVersionMatchesPackage(facts.plugin) && facts.proof.status === "current" && (facts.plugin.version === null || facts.proof.plugin_version === facts.plugin.version);
-}
-function deriveCodexMigrationResult(facts) {
-  const hasLegacy = facts.legacyAssets.length > 0 || facts.legacyEvents.length > 0;
-  const protectedStatus = legacyProtection(facts, hasLegacy);
-  const state = migrationState(facts, hasLegacy);
-  const next = nextAction(state);
-  return {
-    schema_version: "2",
-    ok: state === "plugin",
-    state,
-    protected: facts.recoveryRequired ? "uncertain" : protectedStatus,
-    changed: false,
-    plugin: facts.plugin,
-    proof: facts.proof,
-    legacy: {
-      events: facts.legacyEvents,
-      viable_events: facts.viableLegacyEvents,
-      assets: facts.legacyAssets
-    },
-    effects: { files: [] },
-    errors: [],
-    next_actions: next === undefined ? [] : [next]
-  };
-}
-function migrationState(facts, hasLegacy) {
-  return MIGRATION_STATE_RULES.find((rule) => rule.matches(facts, hasLegacy))?.state ?? "not_configured";
-}
-function legacyProtection(facts, hasLegacy) {
-  if (pluginProtectionIsCurrent(facts))
-    return "protected";
-  if (!hasLegacy || facts.viableLegacyEvents.length === 0)
-    return "unprotected";
-  return facts.viableLegacyEvents.length === facts.legacyEvents.length ? "protected" : "partial";
-}
-function nextAction(state) {
-  if (state === "plugin_installed_app_restart_required" || state === "plugin_enabled_hook_unproven") {
-    return {
-      kind: "human",
-      instruction: CODEX_RESTART_INSTRUCTION,
-      mutates: false,
-      requires_human: true
-    };
-  }
-  const command = NEXT_COMMANDS[state];
-  return command === undefined ? undefined : { command, mutates: true, requires_human: true };
-}
-function renderCodexMigrationHuman(result) {
-  const lines = [`Codex migration: ${result.state}`, `Protection: ${result.protected}`];
-  if (result.state === "plugin_setup_required") {
-    lines.push(`Setup: ${CODEX_MIGRATION_SCHEMA.paths.bootstrapSkill}`);
-  } else if (result.state === "plugin_installed_app_restart_required" || result.state === "plugin_enabled_hook_unproven") {
-    lines.push(CODEX_RESTART_CONTEXT);
-  }
-  const next = result.next_actions[0];
-  if (next !== undefined) {
-    lines.push(`Next: ${"command" in next ? next.command : next.instruction}`);
-  }
-  return `${lines.join(`
-`)}
-`;
-}
-function codexMigrationExitCode(result) {
-  if (result.errors.length > 0)
-    return 1;
-  return result.ok ? 0 : 2;
-}
-var CODEX_RESTART_INSTRUCTION = "Restart Codex, start a new task, then review the installed hooks with /hooks.", CODEX_RESTART_CONTEXT = "This Codex app may keep its loaded Safeword catalogue.", MIGRATION_STATE_RULES, NEXT_COMMANDS;
-var init_migration = __esm(() => {
-  init_schema();
-  init_inventory();
-  MIGRATION_STATE_RULES = [
-    { state: "recovery_required", matches: (facts) => facts.recoveryRequired },
-    {
-      state: "plugin_setup_required",
-      matches: (facts) => facts.finalized && facts.plugin.enabled !== true
-    },
-    {
-      state: "plugin_disabled",
-      matches: (facts) => facts.plugin.installed && facts.plugin.enabled === false
-    },
-    {
-      state: "plugin_update_required",
-      matches: (facts) => facts.plugin.enabled === true && !codexPluginVersionMatchesPackage(facts.plugin)
-    },
-    {
-      state: "plugin_installed_app_restart_required",
-      matches: (facts) => facts.activationPending && facts.plugin.enabled === true
-    },
-    {
-      state: "plugin_enabled_hook_unproven",
-      matches: (facts) => facts.plugin.enabled === true && !pluginProtectionIsCurrent(facts)
-    },
-    {
-      state: "compatibility",
-      matches: (facts, hasLegacy) => pluginProtectionIsCurrent(facts) && hasLegacy
-    },
-    {
-      state: "plugin",
-      matches: (facts) => pluginProtectionIsCurrent(facts)
-    },
-    { state: "legacy", matches: (_facts, hasLegacy) => hasLegacy }
-  ];
-  NEXT_COMMANDS = {
-    recovery_required: "safeword codex recover",
-    compatibility: "safeword codex migrate --finalize",
-    plugin: undefined,
-    plugin_installed_app_restart_required: undefined,
-    plugin_enabled_hook_unproven: undefined,
-    plugin_setup_required: "safeword codex migrate",
-    plugin_disabled: "safeword codex migrate",
-    plugin_update_required: "safeword codex migrate",
-    legacy: "safeword codex migrate",
-    not_configured: "safeword codex migrate"
   };
 });
 
@@ -36762,7 +36936,7 @@ function installCodexPlugin(options = {}) {
   }
   if (options.json !== true) {
     success("Safeword Codex plugin is enabled for this profile.");
-    info("This Codex app may keep its loaded Safeword catalogue. Restart Codex, start a new task, then review the installed skills and hooks with /hooks. If this project uses Safeword legacy hooks, run `safeword codex migrate --remove-legacy-hooks` to remove only those hooks.");
+    info(`This Codex app may keep its loaded Safeword catalogue. ${CODEX_REVIEW_THEN_RESTART_ACTION}. If this project uses Safeword legacy hooks, run \`safeword codex migrate --remove-legacy-hooks\` to remove only those hooks.`);
   }
   if (options.reportMigrationState === true) {
     reportCodexMigration(cwd, {
@@ -36804,7 +36978,13 @@ function buildCodexFinalizationMutations(cwd, preparedLegacyHookRemoval) {
 `
   }, {
     path: CODEX_MIGRATION_SCHEMA.paths.bootstrapSkill,
-    content: "---\nname: safeword-plugin-setup\ndescription: Restore the Safeword Codex profile plugin for this project.\n---\n\nRun `safeword codex migrate` to install or re-enable the profile plugin. Restart Codex after installation, start a new Codex task, then review its hooks with `/hooks`. Run `safeword codex status` to verify this project is protected.\n"
+    content: `---
+name: safeword-plugin-setup
+description: Restore the Safeword Codex profile plugin for this project.
+---
+
+Run \`safeword codex migrate\` to install or re-enable the profile plugin. ${CODEX_REVIEW_THEN_RESTART_ACTION}. Run \`safeword codex status\` to verify this project is protected.
+`
   });
   return mutations;
 }
@@ -39962,7 +40142,7 @@ function activationActionsFor(surface) {
   if (surface.name === "claude" && surface.result.changed)
     return ["run /reload-plugins"];
   if (surface.name === "codex" && surface.result.state === "action_required") {
-    return ["restart Codex", "start a new Codex task"];
+    return ["fully restart Codex", "resume this Codex task"];
   }
   return [];
 }
@@ -41400,7 +41580,7 @@ __export(exports_architecture, {
   architectureStage: () => architectureStage,
   architecture: () => architecture
 });
-import { execFileSync as execFileSync7 } from "child_process";
+import { execFileSync as execFileSync8 } from "child_process";
 import {
   copyFileSync as copyFileSync2,
   lstatSync as lstatSync16,
@@ -41615,7 +41795,7 @@ function withGitIndexSnapshot(cwd, gitContext, useSnapshot) {
   const sourceIndexEnvironment = sourceIndexFile === undefined ? undefined : { ...process10.env, GIT_INDEX_FILE: sourceIndexFile };
   try {
     assertNoGitlinks(gitContext, sourceIndexEnvironment);
-    execFileSync7("git", [
+    execFileSync8("git", [
       "checkout-index",
       "--all",
       "--force",
@@ -41635,7 +41815,7 @@ function withGitIndexSnapshot(cwd, gitContext, useSnapshot) {
 }
 function assertNoGitlinks(gitContext, sourceIndexEnvironment) {
   const pathArguments = gitContext.projectRelativeDirectory === "" ? [] : [gitContext.projectRelativeDirectory];
-  const entries = execFileSync7("git", ["ls-files", "--stage", "-z", "--full-name", "--", ...pathArguments], {
+  const entries = execFileSync8("git", ["ls-files", "--stage", "-z", "--full-name", "--", ...pathArguments], {
     cwd: gitContext.rootDirectory,
     encoding: "utf8",
     ...sourceIndexEnvironment && { env: sourceIndexEnvironment },
@@ -41649,7 +41829,7 @@ function assertNoGitlinks(gitContext, sourceIndexEnvironment) {
 function resolveGitContext(cwd) {
   let rootDirectory;
   try {
-    rootDirectory = execFileSync7("git", ["rev-parse", "--show-toplevel"], {
+    rootDirectory = execFileSync8("git", ["rev-parse", "--show-toplevel"], {
       cwd,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"]
@@ -41886,7 +42066,7 @@ function readDivergentWorktreeContent(cwd, destination) {
   let indexContent;
   try {
     const projectRelativePath = relativePath.replaceAll("\\", "/");
-    indexContent = execFileSync7("git", ["show", `:./${projectRelativePath}`], {
+    indexContent = execFileSync8("git", ["show", `:./${projectRelativePath}`], {
       cwd,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"]
@@ -41897,7 +42077,7 @@ function readDivergentWorktreeContent(cwd, destination) {
 function stageDocument(cwd, result) {
   try {
     const relativePath = nodePath72.relative(cwd, result.path);
-    execFileSync7("git", ["add", "--", relativePath], { cwd, stdio: "ignore" });
+    execFileSync8("git", ["add", "--", relativePath], { cwd, stdio: "ignore" });
     return;
   } catch (error_) {
     return errorMessage2(error_);
@@ -41911,7 +42091,7 @@ function isPotentialArchitectureInput(path4) {
 }
 function nulSeparatedGitPaths(cwd, args) {
   try {
-    return execFileSync7("git", args, {
+    return execFileSync8("git", args, {
       cwd,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"]
@@ -43764,22 +43944,34 @@ var init_environment = __esm(() => {
 
 // src/review/runtime.ts
 import { spawn } from "child_process";
+import { createHash as createHash21 } from "crypto";
 import {
   accessSync as accessSync2,
+  chmodSync as chmodSync3,
+  closeSync as closeSync10,
   constants as constants4,
+  fstatSync as fstatSync8,
   lstatSync as lstatSync19,
+  mkdirSync as mkdirSync14,
   mkdtempSync as mkdtempSync6,
+  openSync as openSync10,
   readdirSync as readdirSync31,
   readFileSync as readFileSync51,
   realpathSync as realpathSync10,
+  renameSync as renameSync8,
   rmSync as rmSync12,
   writeFileSync as writeFileSync18
 } from "fs";
-import { tmpdir as tmpdir4 } from "os";
+import { homedir as homedir6, tmpdir as tmpdir4 } from "os";
 import nodePath82 from "path";
 function configuredClaudeEffort(environment) {
   const effort = environment.SAFEWORD_REVIEW_EFFORT_CLAUDE;
-  return effort !== undefined && CLAUDE_EFFORT_LEVELS.has(effort) ? effort : undefined;
+  if (effort === undefined || effort.trim() === "")
+    return;
+  if (CLAUDE_EFFORT_LEVELS.has(effort))
+    return effort;
+  warn(`Ignoring SAFEWORD_REVIEW_EFFORT_CLAUDE='${effort}' - expected low, medium, high, xhigh, or max.`);
+  return;
 }
 function reviewerArguments(reviewer, model, schemaPath, environment = process.env) {
   const base = [...ARGUMENTS[reviewer]];
@@ -43911,10 +44103,13 @@ function pathMetadataIsTrusted(mode, ownerUid, currentUid) {
   const ownedByCurrentUser = currentUid !== undefined && ownerUid === currentUid;
   return (mode & 2) === 0 && (mode & 16) === 0 && (currentUid === undefined || ownerUid === 0 || ownedByCurrentUser);
 }
+function currentUserId() {
+  return typeof process.getuid === "function" ? process.getuid() : undefined;
+}
 function hasTrustedExecutableAncestry(candidate) {
   if (process.platform === "win32")
     return true;
-  const currentUid = typeof process.getuid === "function" ? process.getuid() : undefined;
+  const currentUid = currentUserId();
   let current = candidate;
   while (true) {
     const metadata = lstatSync19(current);
@@ -43924,6 +44119,70 @@ function hasTrustedExecutableAncestry(candidate) {
     if (parent === current)
       return true;
     current = parent;
+  }
+}
+function digestOpenFile(fd) {
+  if (!fstatSync8(fd).isFile())
+    return;
+  const bytes = readFileSync51(fd);
+  return { bytes, digest: createHash21("sha256").update(bytes).digest("hex") };
+}
+function cachedCopyMatchesDigest(copyPath, expectedDigest) {
+  let cachedFd;
+  try {
+    cachedFd = openSync10(copyPath, constants4.O_RDONLY);
+    return digestOpenFile(cachedFd)?.digest === expectedDigest;
+  } catch {
+    return false;
+  } finally {
+    if (cachedFd !== undefined)
+      closeSync10(cachedFd);
+  }
+}
+function preparedTrustedCacheDirectory(untrustedRoot) {
+  const cacheDirectory = process.env.SAFEWORD_REVIEWER_CACHE_DIR ?? nodePath82.join(homedir6(), ".cache", "safeword-reviewers");
+  if (inside(untrustedRoot, cacheDirectory))
+    return;
+  try {
+    if (lstatSync19(cacheDirectory).isSymbolicLink())
+      return;
+  } catch {}
+  mkdirSync14(cacheDirectory, { recursive: true, mode: 448 });
+  if (lstatSync19(cacheDirectory).isSymbolicLink())
+    return;
+  const resolved = realpathSync10(cacheDirectory);
+  if (!outsideUntrustedRoot(untrustedRoot, resolved))
+    return;
+  chmodSync3(resolved, 448);
+  return resolved;
+}
+function stagedTrustedReviewerCopy(reviewer, canonical, untrustedRoot) {
+  let sourceFd;
+  try {
+    sourceFd = openSync10(canonical, constants4.O_RDONLY);
+    const sourceMetadata = fstatSync8(sourceFd);
+    const currentUid = currentUserId();
+    if (!pathMetadataIsTrusted(sourceMetadata.mode, sourceMetadata.uid, currentUid)) {
+      return;
+    }
+    const source = digestOpenFile(sourceFd);
+    if (source === undefined)
+      return;
+    const cacheDirectory = preparedTrustedCacheDirectory(untrustedRoot);
+    if (cacheDirectory === undefined)
+      return;
+    const copyPath = nodePath82.join(cacheDirectory, `${reviewer}.${source.digest}`);
+    if (cachedCopyMatchesDigest(copyPath, source.digest))
+      return copyPath;
+    const temporaryPath = `${copyPath}.${process.pid.toString(36)}.${Date.now().toString(36)}.tmp`;
+    writeFileSync18(temporaryPath, source.bytes, { mode: 448, flag: "wx" });
+    renameSync8(temporaryPath, copyPath);
+    return copyPath;
+  } catch {
+    return;
+  } finally {
+    if (sourceFd !== undefined)
+      closeSync10(sourceFd);
   }
 }
 function remainingReviewTime(deadline, reviewer, lastFailure) {
@@ -43937,6 +44196,7 @@ function executableCandidates(reviewer, untrustedRoot) {
   const extensions = process.platform === "win32" ? (process.env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD").split(";").map((extension) => extension.toLowerCase()) : [""];
   const candidates = (process.env.PATH ?? "").split(nodePath82.delimiter).filter((directory) => directory !== "" && nodePath82.isAbsolute(directory)).flatMap((directory) => extensions.map((extension) => nodePath82.join(directory, `${reviewer}${extension}`)));
   let rejectedForTrust = false;
+  const stageable = [];
   const canonicalCandidates = candidates.flatMap((candidate) => {
     if (inside(untrustedRoot, candidate))
       return [];
@@ -43947,6 +44207,7 @@ function executableCandidates(reviewer, untrustedRoot) {
       accessSync2(canonical, constants4.X_OK);
       if (!hasTrustedExecutableAncestry(canonical)) {
         rejectedForTrust = true;
+        stageable.push(canonical);
         return [];
       }
       return [canonical];
@@ -43954,7 +44215,14 @@ function executableCandidates(reviewer, untrustedRoot) {
       return [];
     }
   });
-  return { paths: [...new Set(canonicalCandidates)], rejectedForTrust };
+  const trusted = [...new Set(canonicalCandidates)];
+  if (trusted.length > 0)
+    return { paths: trusted, rejectedForTrust };
+  const staged = stageable.flatMap((canonical) => {
+    const copy = stagedTrustedReviewerCopy(reviewer, canonical, untrustedRoot);
+    return copy !== undefined && hasTrustedExecutableAncestry(copy) ? [copy] : [];
+  });
+  return { paths: [...new Set(staged)], rejectedForTrust };
 }
 function unavailableReviewerError(reviewer, rejectedForTrust) {
   if (rejectedForTrust) {
@@ -45204,23 +45472,23 @@ __export(exports_job, {
   cancelReviewJob: () => cancelReviewJob
 });
 import { spawn as spawn2, spawnSync as spawnSync9 } from "child_process";
-import { createHash as createHash21, createHmac, randomBytes, randomUUID as randomUUID8, timingSafeEqual } from "crypto";
+import { createHash as createHash22, createHmac, randomBytes, randomUUID as randomUUID8, timingSafeEqual } from "crypto";
 import {
-  closeSync as closeSync10,
+  closeSync as closeSync11,
   existsSync as existsSync42,
-  fstatSync as fstatSync8,
-  mkdirSync as mkdirSync14,
-  openSync as openSync10,
+  fstatSync as fstatSync9,
+  mkdirSync as mkdirSync15,
+  openSync as openSync11,
   readdirSync as readdirSync32,
   readFileSync as readFileSync52,
   realpathSync as realpathSync11,
-  renameSync as renameSync8,
+  renameSync as renameSync9,
   statSync as statSync6,
   unlinkSync as unlinkSync3,
   writeFileSync as writeFileSync19,
   writeSync as writeSync2
 } from "fs";
-import { homedir as homedir6 } from "os";
+import { homedir as homedir7 } from "os";
 import nodePath83 from "path";
 function jobsDirectory(cwd) {
   return nodePath83.join(cwd, ".safeword", "state", "reviews");
@@ -45232,7 +45500,7 @@ function jobPath(cwd, id) {
 }
 function integrityKeyPath() {
   const testRoot = process.env.SAFEWORD_REVIEW_KEY_ROOT;
-  const stateRoot = process.env.XDG_STATE_HOME ?? nodePath83.join(homedir6(), ".local", "state");
+  const stateRoot = process.env.XDG_STATE_HOME ?? nodePath83.join(homedir7(), ".local", "state");
   return nodePath83.join(stateRoot, "safeword", "review-integrity.key");
 }
 function readOrCreateIntegrityKey() {
@@ -45240,15 +45508,15 @@ function readOrCreateIntegrityKey() {
   try {
     return decodeIntegrityKey(readFileSync52(keyPath, "utf8"));
   } catch {
-    mkdirSync14(nodePath83.dirname(keyPath), { recursive: true, mode: 448 });
+    mkdirSync15(nodePath83.dirname(keyPath), { recursive: true, mode: 448 });
     const key = randomBytes(32);
     try {
-      const descriptor = openSync10(keyPath, "wx", 384);
+      const descriptor = openSync11(keyPath, "wx", 384);
       try {
         writeFileSync19(descriptor, `${key.toString("hex")}
 `);
       } finally {
-        closeSync10(descriptor);
+        closeSync11(descriptor);
       }
       return key;
     } catch (error2) {
@@ -45289,7 +45557,7 @@ function withRecordIntegrity(cwd, record2) {
 function fingerprint(cwd, kind, targets, context = []) {
   const prepared = prepareReviewPacket(cwd, kind, targets, context);
   try {
-    const hash = createHash21("sha256");
+    const hash = createHash22("sha256");
     hash.update(`kind\x00${kind}\x00`);
     for (const [section, files] of [
       ["targets", prepared.packet.logical_files],
@@ -45313,12 +45581,12 @@ function writeJob(cwd, record2) {
   if (!isReviewJobRecord(secured))
     throw new Error("invalid review job record");
   const directory = jobsDirectory(cwd);
-  mkdirSync14(directory, { recursive: true, mode: 448 });
+  mkdirSync15(directory, { recursive: true, mode: 448 });
   const destination = jobPath(cwd, secured.id);
   const temporary = `${destination}.${process.pid}.tmp`;
   writeFileSync19(temporary, `${JSON.stringify(secured)}
 `, { mode: 384 });
-  renameSync8(temporary, destination);
+  renameSync9(temporary, destination);
   return secured;
 }
 function withJobLock(cwd, id, operation) {
@@ -45329,11 +45597,11 @@ function withFileLock(lock, operation) {
   let descriptor;
   while (descriptor === undefined) {
     try {
-      descriptor = openSync10(lock, "wx", 384);
+      descriptor = openSync11(lock, "wx", 384);
       try {
         writeFileSync19(descriptor, String(process.pid));
       } catch (error2) {
-        closeSync10(descriptor);
+        closeSync11(descriptor);
         descriptor = undefined;
         try {
           unlinkSync3(lock);
@@ -45350,8 +45618,8 @@ function withFileLock(lock, operation) {
   try {
     return operation();
   } finally {
-    const ownedLock = fstatSync8(descriptor);
-    closeSync10(descriptor);
+    const ownedLock = fstatSync9(descriptor);
+    closeSync11(descriptor);
     try {
       const currentLock = statSync6(lock);
       if (currentLock.dev === ownedLock.dev && currentLock.ino === ownedLock.ino)
@@ -45694,7 +45962,7 @@ function announceBackgroundProgress(progress, managedProgress) {
 async function startReviewJob(input) {
   const context = input.context ?? [];
   const sourceFingerprint = fingerprint(input.cwd, input.kind, input.targets, context);
-  mkdirSync14(jobsDirectory(input.cwd), { recursive: true, mode: 448 });
+  mkdirSync15(jobsDirectory(input.cwd), { recursive: true, mode: 448 });
   const reserved = withFileLock(nodePath83.join(jobsDirectory(input.cwd), "start.lock"), () => {
     const existing = runningJob(input.cwd, input.kind, sourceFingerprint);
     if (existing !== undefined)
@@ -46938,14 +47206,14 @@ var init_review_pr_publication = __esm(() => {
 });
 
 // src/codex-plugin/project-directory.ts
-import { execFileSync as execFileSync8 } from "child_process";
+import { execFileSync as execFileSync9 } from "child_process";
 import nodePath85 from "path";
 function resolveCodexProjectDirectory(cwd = process.cwd(), environment = process.env) {
   const configuredProject = environment.CLAUDE_PROJECT_DIR?.trim();
   if (configuredProject)
     return nodePath85.resolve(configuredProject);
   try {
-    const root = execFileSync8("git", ["-C", cwd, "rev-parse", "--show-toplevel"], {
+    const root = execFileSync9("git", ["-C", cwd, "rev-parse", "--show-toplevel"], {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
       timeout: 5000
@@ -46962,13 +47230,33 @@ var exports_codex_bootstrap = {};
 __export(exports_codex_bootstrap, {
   bootstrapCodexPlugin: () => bootstrapCodexPlugin
 });
-function sessionIdFromInput(rawInput) {
+function sessionStartFromInput(rawInput) {
   try {
-    const sessionId = JSON.parse(rawInput).session_id?.trim();
-    return sessionId === "" ? undefined : sessionId;
+    const input = JSON.parse(rawInput);
+    const sessionId = input.session_id?.trim();
+    return {
+      sessionId: sessionId === "" ? undefined : sessionId,
+      shouldRecheckProof: typeof input.source === "string" && SESSION_START_SOURCES.has(input.source)
+    };
   } catch {
-    return;
+    return { sessionId: undefined, shouldRecheckProof: false };
   }
+}
+function sleep(durationMs) {
+  Atomics.wait(SLEEP_BUFFER, 0, 0, durationMs);
+}
+function observeSessionProofWithRecheck(projectDirectory, sessionId, options) {
+  let proof = options.observe(projectDirectory, sessionId, options.environment);
+  if (!options.shouldRecheck || proof.status === "current" || proof.status === "untrusted") {
+    return proof;
+  }
+  for (let attempt = 0;attempt < PROOF_RECHECK_ATTEMPTS; attempt += 1) {
+    options.wait(PROOF_RECHECK_INTERVAL_MS);
+    proof = options.observe(projectDirectory, sessionId, options.environment);
+    if (proof.status === "current" || proof.status === "untrusted")
+      return proof;
+  }
+  return proof;
 }
 function additionalContext(message) {
   return `${JSON.stringify({
@@ -47060,8 +47348,13 @@ function profileVerificationReason(markerIssue, restartRequired, proof) {
 function bootstrapCodexPlugin(cwd, rawInput, options = {}) {
   const environment = options.environment ?? process.env;
   const projectDirectory = resolveCodexProjectDirectory(cwd, environment);
-  const sessionId = sessionIdFromInput(rawInput);
-  const sessionProof = sessionId === undefined ? undefined : observeCodexSessionProof(projectDirectory, sessionId, environment);
+  const { sessionId, shouldRecheckProof } = sessionStartFromInput(rawInput);
+  const sessionProof = sessionId === undefined ? undefined : observeSessionProofWithRecheck(projectDirectory, sessionId, {
+    environment,
+    observe: options.observeSessionProof ?? observeCodexSessionProof,
+    shouldRecheck: shouldRecheckProof,
+    wait: options.sleep ?? sleep
+  });
   if (sessionProof?.status === "current") {
     return hookResult("", { reason: "current", verification: "current" });
   }
@@ -47084,7 +47377,7 @@ function bootstrapCodexPlugin(cwd, rawInput, options = {}) {
     });
   }
   if (options.offline === true) {
-    return hookResult(protectionContext("Automatic profile installation was skipped because Codex is offline. Start a new online Codex task in this repository to install and activate the current Safeword version.", sessionProof), { installed: before.installed, reason: "offline", ...taskVerification });
+    return hookResult(protectionContext(`Automatic profile installation was skipped because Codex is offline. Reconnect. ${CODEX_RESTART_ACTION} in this repository to install and activate the current Safeword version.`, sessionProof), { installed: before.installed, reason: "offline", ...taskVerification });
   }
   const installation = installProfilePlugin(projectDirectory, environment, install);
   if (!installation) {
@@ -47114,15 +47407,20 @@ function bootstrapCodexPlugin(cwd, rawInput, options = {}) {
     ...taskVerification
   });
 }
-var RETRY_COMMAND = "bunx --bun safeword@latest codex install", UNVERIFIED_PROTECTION = "SAFEWORD PROTECTION IS UNVERIFIED IN THIS TASK. You can continue working, but current protection is unknown.", PROFILE_RESTART_REQUIRED = "Safeword is installed for your Codex profile, but this task has not verified the installed update. An older Safeword runtime may still be loaded. Restart Codex and start a new task before relying on the installed update.", OBSERVED_PROFILE_RESTART_REQUIRED = "Safeword is installed for your Codex profile, but this task has not verified the installed update. Restart Codex and start a new task before relying on the installed update.", PROFILE_MARKER_REPAIR_REQUIRED, PROFILE_MARKER_VERSION_REPAIR_REQUIRED, PROFILE_IDENTITY_UNAVAILABLE = "Safeword is installed for your Codex profile, but this packaged runtime's identity could not be verified. Reinstall Safeword before relying on this task's protection.", OBSERVED_RUNTIME = "Safeword protection from this task's previously loaded runtime was observed.", PROFILE_PROOF_UNVERIFIED = "Safeword is installed for your Codex profile, but exact SessionStart proof for this task is not yet available. This evidence alone does not establish that a restart is required.", INSTALL_COMPLETED_RESTART_REQUIRED = "Safeword was installed for your Codex profile, but the newly installed runtime is not active in this already-open task. Restart Codex and start a new task before relying on the installed version.";
+var SESSION_START_SOURCES, PROOF_RECHECK_ATTEMPTS = 5, PROOF_RECHECK_INTERVAL_MS = 100, SLEEP_BUFFER, RETRY_COMMAND = "bunx --bun safeword@latest codex install", UNVERIFIED_PROTECTION = "SAFEWORD PROTECTION IS UNVERIFIED IN THIS TASK. You can continue working, but current protection is unknown.", PROFILE_RESTART_REQUIRED, OBSERVED_PROFILE_RESTART_REQUIRED, PROFILE_MARKER_REPAIR_REQUIRED, PROFILE_MARKER_VERSION_REPAIR_REQUIRED, PROFILE_IDENTITY_UNAVAILABLE = "Safeword is installed for your Codex profile, but this packaged runtime's identity could not be verified. Reinstall Safeword before relying on this task's protection.", OBSERVED_RUNTIME = "Safeword protection from this task's previously loaded runtime was observed.", PROFILE_PROOF_UNVERIFIED = "Safeword is installed for your Codex profile, but exact SessionStart proof for this task is not yet available. This evidence alone does not establish that a restart is required.", INSTALL_COMPLETED_RESTART_REQUIRED;
 var init_codex_bootstrap = __esm(() => {
   init_result();
   init_migration();
   init_operations();
   init_profile_proof();
   init_project_directory();
+  SESSION_START_SOURCES = new Set(["startup", "resume", "clear", "compact"]);
+  SLEEP_BUFFER = new Int32Array(new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT));
+  PROFILE_RESTART_REQUIRED = `Safeword is installed for your Codex profile, but this task has not verified the installed update. An older Safeword runtime may still be loaded. ${CODEX_REVIEW_THEN_RESTART_ACTION} before relying on the installed update.`;
+  OBSERVED_PROFILE_RESTART_REQUIRED = `Safeword is installed for your Codex profile, but this task has not verified the installed update. ${CODEX_REVIEW_THEN_RESTART_ACTION} before relying on the installed update.`;
   PROFILE_MARKER_REPAIR_REQUIRED = `Safeword is installed for your Codex profile, but its activation marker could not be verified. Repair the profile once with: ${RETRY_COMMAND}`;
   PROFILE_MARKER_VERSION_REPAIR_REQUIRED = `Safeword is installed for your Codex profile, but its activation marker belongs to a different Safeword version. Repair the profile once with: ${RETRY_COMMAND}`;
+  INSTALL_COMPLETED_RESTART_REQUIRED = `Safeword was installed for your Codex profile, but the newly installed runtime is not active in this already-open task. ${CODEX_REVIEW_THEN_RESTART_ACTION} before relying on the installed version.`;
 });
 
 // templates/hooks/lib/dogfood.ts
@@ -47141,7 +47439,7 @@ function isDogfoodRepo(projectDirectory) {
 var init_dogfood = () => {};
 
 // templates/hooks/lib/retro-debug.ts
-import { appendFileSync as appendFileSync2, mkdirSync as mkdirSync15 } from "fs";
+import { appendFileSync as appendFileSync2, mkdirSync as mkdirSync16 } from "fs";
 import nodePath87 from "path";
 import process14 from "process";
 function sanitizeDebugValue(key, value) {
@@ -47177,7 +47475,7 @@ function recordRetroDebugEvent(event, env = process14.env) {
   if (!logPath)
     return;
   try {
-    mkdirSync15(nodePath87.dirname(logPath), { recursive: true });
+    mkdirSync16(nodePath87.dirname(logPath), { recursive: true });
     appendFileSync2(logPath, `${JSON.stringify({ timestamp: new Date().toISOString(), ...sanitizedEvent(event) })}
 `);
   } catch {}
@@ -47203,7 +47501,7 @@ __export(exports_retro_draft_spool, {
   canonicalSignatureForDraft: () => canonicalSignatureForDraft,
   ackFilePath: () => ackFilePath
 });
-import { createHash as createHash22 } from "crypto";
+import { createHash as createHash23 } from "crypto";
 import nodePath88 from "path";
 function spoolName(sessionId) {
   return `${sessionId.replaceAll(/[^\w.-]/g, "_").slice(0, 80) || "unknown"}${SPOOL_EXTENSION}`;
@@ -47266,7 +47564,7 @@ function draftForPosting(draft) {
 function verifyDraftBody(draft) {
   if (draft.bodyDigest === undefined)
     return true;
-  return createHash22("sha256").update(draft.body).digest("hex").slice(0, 12) === draft.bodyDigest;
+  return createHash23("sha256").update(draft.body).digest("hex").slice(0, 12) === draft.bodyDigest;
 }
 function markDraftsFiled(projectDirectory, sessionId, filedSignatures) {
   try {
@@ -53511,9 +53809,9 @@ var init_finding = __esm(() => {
 });
 
 // src/retro/hash.ts
-import { createHash as createHash23 } from "crypto";
+import { createHash as createHash24 } from "crypto";
 function shortHash(material) {
-  return createHash23("sha256").update(material).digest("hex").slice(0, 12);
+  return createHash24("sha256").update(material).digest("hex").slice(0, 12);
 }
 var init_hash = () => {};
 
@@ -53780,7 +54078,7 @@ var init_durable_fs = __esm(() => {
 });
 
 // src/retro/relay-delivery.ts
-import { createHash as createHash24, randomUUID as randomUUID9 } from "crypto";
+import { createHash as createHash25, randomUUID as randomUUID9 } from "crypto";
 import { access, readdir, readFile as readFile2, stat as stat2, unlink as unlink2 } from "fs/promises";
 import path6 from "path";
 function normalizeRelayOrigin(value) {
@@ -53817,10 +54115,10 @@ function relaySourcePayloadDigest(request) {
     repository: request.repository,
     title: request.title
   };
-  return createHash24("sha256").update(JSON.stringify(payload)).digest("hex");
+  return createHash25("sha256").update(JSON.stringify(payload)).digest("hex");
 }
 function relayRequestDigest(request) {
-  return createHash24("sha256").update(JSON.stringify(request)).digest("hex");
+  return createHash25("sha256").update(JSON.stringify(request)).digest("hex");
 }
 function createRelayRequest(input, dependencies) {
   const createdAt = (dependencies?.now ?? Date.now)();
@@ -53832,7 +54130,7 @@ function createRelayRequest(input, dependencies) {
   };
 }
 function relaySourceKey(sessionIdentity, windowStart, payload) {
-  return createHash24("sha256").update(`relay-source-v3\x00${sessionIdentity}\x00${windowStart}\x00${relaySourcePayloadDigest(payload)}`).digest("hex");
+  return createHash25("sha256").update(`relay-source-v3\x00${sessionIdentity}\x00${windowStart}\x00${relaySourcePayloadDigest(payload)}`).digest("hex");
 }
 function relayDirectory(projectDirectory) {
   return path6.join(projectDirectory, ".safeword", "retro-drafts", "relay");
@@ -53872,7 +54170,7 @@ function discardIntentTokenPath(projectDirectory, requestId, token) {
   return path6.join(relayDirectory(projectDirectory), `${requestId}.discarding.${token}.json`);
 }
 function sourcePath(projectDirectory, sourceKey, suffix) {
-  const key = createHash24("sha256").update(sourceKey).digest("hex");
+  const key = createHash25("sha256").update(sourceKey).digest("hex");
   return path6.join(relayDirectory(projectDirectory), `source-${key}${suffix}.json`);
 }
 function sourceReservationPath(projectDirectory, sourceKey) {
@@ -55547,7 +55845,7 @@ var init_relay_readiness_manifest = __esm(() => {
 });
 
 // src/retro/relay-readiness.ts
-import { createHash as createHash25 } from "crypto";
+import { createHash as createHash26 } from "crypto";
 function validDate(value) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) || date.toISOString() !== value ? undefined : date;
@@ -55679,7 +55977,7 @@ function matchesAttestedManifest(manifest, attestation) {
   try {
     const bytes = Buffer.from(attestation.manifestBase64, "base64");
     const parsed2 = JSON.parse(bytes.toString("utf8"));
-    return createHash25("sha256").update(bytes).digest("hex") === attestation.manifestSha256 && JSON.stringify(parsed2) === JSON.stringify(manifest);
+    return createHash26("sha256").update(bytes).digest("hex") === attestation.manifestSha256 && JSON.stringify(parsed2) === JSON.stringify(manifest);
   } catch {
     return false;
   }
@@ -55699,7 +55997,7 @@ function validateBuildAttestedRelayReadiness(manifest, attestation, now) {
         return Promise.resolve(undefined);
       }
       const bytes = Buffer.from(artifact.contentBase64, "base64");
-      const sha2565 = createHash25("sha256").update(bytes).digest("hex");
+      const sha2565 = createHash26("sha256").update(bytes).digest("hex");
       return Promise.resolve(sha2565 === artifact.sha256 ? { content: bytes.toString("utf8"), sha256: sha2565 } : undefined);
     }
   });
@@ -56030,7 +56328,7 @@ __export(exports_retro, {
 });
 import { spawnSync as spawnSync10 } from "child_process";
 import {
-  mkdirSync as mkdirSync16,
+  mkdirSync as mkdirSync17,
   mkdtempSync as mkdtempSync7,
   readFileSync as readFileSync57,
   realpathSync as realpathSync12,
@@ -56251,7 +56549,7 @@ function prepareCursorExtractionDirectory(directory) {
   if (gitInit.status !== 0)
     throw new Error(gitInit.stderr || "could not initialize Cursor sandbox");
   const cursorDirectory = nodePath90.join(directory, ".cursor");
-  mkdirSync16(cursorDirectory, { recursive: true });
+  mkdirSync17(cursorDirectory, { recursive: true });
   writeFileSync22(nodePath90.join(cursorDirectory, "cli.json"), JSON.stringify({
     permissions: { allow: [], deny: CURSOR_RETRO_DENY_RULES },
     approvalMode: "allowlist"
@@ -56851,9 +57149,9 @@ var init_retro = __esm(() => {
 });
 
 // templates/hooks/lib/ledger-git.ts
-import { execFileSync as execFileSync9 } from "child_process";
+import { execFileSync as execFileSync10 } from "child_process";
 function git(cwd, args, input) {
-  return execFileSync9("git", args, {
+  return execFileSync10("git", args, {
     cwd,
     input,
     encoding: "utf8",
@@ -56869,7 +57167,7 @@ function resolveCommitSha(cwd, sha) {
 }
 function isAncestorOfHead(cwd, sha) {
   try {
-    execFileSync9("git", ["merge-base", "--is-ancestor", sha, "HEAD"], {
+    execFileSync10("git", ["merge-base", "--is-ancestor", sha, "HEAD"], {
       cwd,
       stdio: "pipe"
     });
@@ -57343,13 +57641,13 @@ var exports_boundary = {};
 __export(exports_boundary, {
   boundary: () => boundary
 });
-import { execFileSync as execFileSync10 } from "child_process";
-import { appendFileSync as appendFileSync3, existsSync as existsSync45, mkdirSync as mkdirSync17 } from "fs";
+import { execFileSync as execFileSync11 } from "child_process";
+import { appendFileSync as appendFileSync3, existsSync as existsSync45, mkdirSync as mkdirSync18 } from "fs";
 import nodePath93 from "path";
 import process20 from "process";
 function tryGit(cwd, args) {
   try {
-    return execFileSync10("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+    return execFileSync11("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
   } catch {
     return;
   }
@@ -57446,7 +57744,7 @@ function legalityStepsFor(cwd, path7, priorReference) {
 }
 function appendAudit(cwd, entry2) {
   const auditPath = nodePath93.join(cwd, AUDIT_RELATIVE_PATH);
-  mkdirSync17(nodePath93.dirname(auditPath), { recursive: true });
+  mkdirSync18(nodePath93.dirname(auditPath), { recursive: true });
   appendFileSync3(auditPath, `${JSON.stringify(entry2)}
 `);
 }
@@ -57519,10 +57817,10 @@ import { spawnSync as spawnSync11 } from "child_process";
 import {
   cpSync as cpSync2,
   existsSync as existsSync46,
-  mkdirSync as mkdirSync18,
+  mkdirSync as mkdirSync19,
   mkdtempSync as mkdtempSync8,
   readFileSync as readFileSync59,
-  renameSync as renameSync9,
+  renameSync as renameSync10,
   rmSync as rmSync13,
   writeFileSync as writeFileSync23
 } from "fs";
@@ -57625,7 +57923,7 @@ function writeCodexIdentityCache(input) {
     return;
   try {
     const cachePath = nodePath94.join(resolveNamespaceRoot(input.projectDirectory), input.cacheFile);
-    mkdirSync18(nodePath94.dirname(cachePath), { recursive: true });
+    mkdirSync19(nodePath94.dirname(cachePath), { recursive: true });
     writeFileSync23(cachePath, JSON.stringify({ id: sessionId, skillName, recordedAt: new Date().toISOString() }), "utf8");
   } catch {}
 }
@@ -57801,7 +58099,7 @@ function snapshotPackagedHook(relativePath) {
   const snapshotHooksDirectory = nodePath94.join(directory, "hooks");
   try {
     cpSync2(packagedHooksDirectory, stagingHooksDirectory, { recursive: true });
-    renameSync9(stagingHooksDirectory, snapshotHooksDirectory);
+    renameSync10(stagingHooksDirectory, snapshotHooksDirectory);
     const hookPath = nodePath94.join(snapshotHooksDirectory, relativePath);
     return existsSync46(hookPath) ? { directory, hookPath } : { directory, error: new Error(`Safeword packaged hook is missing: ${relativePath}`) };
   } catch (error2) {
@@ -60176,6 +60474,7 @@ init_version();
 init_agent_selection();
 
 // src/cli-protocol/public-handlers.ts
+init_migration();
 init_migration_error();
 init_architecture_document();
 init_agent_selection();
@@ -60205,8 +60504,8 @@ init_result();
 // src/cli-protocol/tracker-ticket-handlers.ts
 init_configured_paths();
 init_online_required();
-import { existsSync as existsSync13, readdirSync as readdirSync8, readFileSync as readFileSync14 } from "fs";
-import process8 from "process";
+import { existsSync as existsSync17, readdirSync as readdirSync9, readFileSync as readFileSync18 } from "fs";
+import process9 from "process";
 init_result();
 function trackerConnectReplayCommand(provider, invocation) {
   return buildReplayCommand({
@@ -60272,7 +60571,7 @@ async function runTrackerConnect(invocation) {
     messages.push(message);
   }, {
     cwd: invocation.cwd,
-    prompt: !invocation.noInput && process8.stdin.isTTY ? createPrompt2() : { confirm: () => Promise.resolve(false) }
+    prompt: !invocation.noInput && process9.stdin.isTTY ? createPrompt2() : { confirm: () => Promise.resolve(false) }
   });
   return trackerConnectResult(provider, result, messages, invocation);
 }
@@ -60310,7 +60609,7 @@ function trackerSyncResult(input) {
 }
 async function runOfflineTrackerSync(invocation) {
   const { applyTrackerSyncResults: applyTrackerSyncResults2, planTrackerSync: planTrackerSync2 } = await Promise.resolve().then(() => (init_sync_tracker(), exports_sync_tracker));
-  const { readTicketBridgeConfig: readTicketBridgeConfig2 } = await Promise.resolve().then(() => (init_config(), exports_config));
+  const { readTicketBridgeConfig: readTicketBridgeConfig2 } = await Promise.resolve().then(() => (init_config2(), exports_config));
   const config = readTicketBridgeConfig2(invocation.cwd);
   const applyResultsFile = stringOption(invocation.options, "applyResults");
   const result = applyResultsFile === undefined ? planTrackerSync2(invocation.cwd, config) : applyTrackerSyncResults2(invocation.cwd, config, applyResultsFile);
@@ -60348,7 +60647,7 @@ async function runOfflineTrackerSync(invocation) {
 }
 async function runTrackerSync(invocation) {
   const { buildWriterRegistry: buildWriterRegistry2, resolveRepoVisibility: resolveRepoVisibility2 } = await Promise.resolve().then(() => (init_clients(), exports_clients));
-  const { readTicketBridgeConfig: readTicketBridgeConfig2 } = await Promise.resolve().then(() => (init_config(), exports_config));
+  const { readTicketBridgeConfig: readTicketBridgeConfig2 } = await Promise.resolve().then(() => (init_config2(), exports_config));
   const { readCorpus: readCorpus2 } = await Promise.resolve().then(() => (init_corpus(), exports_corpus));
   const { supportedProvider: supportedProvider2, syncTracker: syncTracker2 } = await Promise.resolve().then(() => (init_tracker_sync(), exports_tracker_sync));
   const { trackerMapPath: trackerMapPath2 } = await Promise.resolve().then(() => (init_tracker_map(), exports_tracker_map));
@@ -60356,7 +60655,7 @@ async function runTrackerSync(invocation) {
   const config = readTicketBridgeConfig2(invocation.cwd);
   const provider = supportedProvider2(config.provider);
   const sidecarPath = trackerMapPath2(invocation.cwd);
-  const before = existsSync13(sidecarPath) ? readFileSync14(sidecarPath, "utf8") : undefined;
+  const before = existsSync17(sidecarPath) ? readFileSync18(sidecarPath, "utf8") : undefined;
   const messages = [];
   const writers = provider === undefined ? {} : buildWriterRegistry2(provider, config.target);
   const repoVisibility = provider === "github" && config.body === "full" ? resolveRepoVisibility2(config.target?.repo) : undefined;
@@ -60365,8 +60664,8 @@ async function runTrackerSync(invocation) {
     tickets: provider === undefined ? [] : readCorpus2(invocation.cwd, config.target?.repo),
     sidecarPath,
     writers,
-    env: process8.env,
-    keychain: (candidate) => candidate === "github" ? resolveGhCliToken2(process8.env) : undefined,
+    env: process9.env,
+    keychain: (candidate) => candidate === "github" ? resolveGhCliToken2(process9.env) : undefined,
     resetTrackerMap: invocation.options.resetTrackerMap === true,
     nonInteractive: invocation.noInput,
     repoVisibility,
@@ -60374,7 +60673,7 @@ async function runTrackerSync(invocation) {
       messages.push(message);
     }
   });
-  const after = existsSync13(sidecarPath) ? readFileSync14(sidecarPath, "utf8") : undefined;
+  const after = existsSync17(sidecarPath) ? readFileSync18(sidecarPath, "utf8") : undefined;
   return trackerSyncResult({ provider, exitCode: result.exitCode, before, after, messages });
 }
 function trackerHandler(name, invocation) {
@@ -60388,7 +60687,7 @@ function trackerHandler(name, invocation) {
 }
 function ticketListHandler(invocation) {
   const ticketsRoot = resolveTicketsDirectory(invocation.cwd);
-  const tickets = existsSync13(ticketsRoot) ? readdirSync8(ticketsRoot, { withFileTypes: true }).filter((entry) => entry.isDirectory() && entry.name !== "completed").map((entry) => entry.name).toSorted((left, right) => left.localeCompare(right)) : [];
+  const tickets = existsSync17(ticketsRoot) ? readdirSync9(ticketsRoot, { withFileTypes: true }).filter((entry) => entry.isDirectory() && entry.name !== "completed").map((entry) => entry.name).toSorted((left, right) => left.localeCompare(right)) : [];
   return Promise.resolve(createResult({
     state: "healthy",
     data: { command: "ticket list", tickets }
@@ -60413,7 +60712,7 @@ function ticketNewReplayCommand(invocation) {
 }
 async function ticketNewHandler(invocation) {
   if (invocation.offline) {
-    const { readTicketBridgeConfig: readTicketBridgeConfig2 } = await Promise.resolve().then(() => (init_config(), exports_config));
+    const { readTicketBridgeConfig: readTicketBridgeConfig2 } = await Promise.resolve().then(() => (init_config2(), exports_config));
     const config = readTicketBridgeConfig2(invocation.cwd);
     if (config.provider === "github" || config.provider === "linear") {
       return onlineRequired("ticket new", ticketNewReplayCommand(invocation));
@@ -61622,7 +61921,7 @@ function codexPluginUpdateFailure(observed) {
       ...observed.errors,
       {
         code: "PLUGIN_UPDATE_REQUIRED",
-        message: "Finalization requires the packaged Safeword plugin version. Run safeword install --agents=codex, restart Codex, start a new task, and review /hooks.",
+        message: `Finalization requires the packaged Safeword plugin version. Run safeword install --agents=codex. ${CODEX_REVIEW_THEN_RESTART_ACTION}.`,
         retryable: true
       }
     ],

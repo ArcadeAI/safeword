@@ -14,11 +14,13 @@ original next-task-only rows after the rc.1 live gate disproved that contract.
 
 ## Rule R2 — Installation status requires a Codex restart
 
-- [x] Successful installation requires app restart — RED / GREEN / REFACTOR
+- [x] Successful installation requires a full app restart and same-task resume
 - [x] Running task keeps its loaded bundle — RED / GREEN / REFACTOR
-- [x] New task in the same app remains pending — RED / GREEN / REFACTOR
-- [ ] Restarted app loads the exact released skills and hooks — RED / GREEN pending rc.2 live gate
-- [x] Pending status never claims the running app reloaded — RED / GREEN / REFACTOR
+- [x] Resumed task in the same app remains pending — live evidence in `manual-evidence.md`
+- [x] Restarted app loads the exact released skills and hooks in the resumed task — live evidence in `manual-evidence.md`
+- [x] Pending status reviews changed hooks before one restart — RED `67c44001c` / GREEN `ed1a8cbe9` / REFACTOR skip: one shared instruction is already minimal
+- [x] Bootstrap-first and profile-hook-first ordering converge through one bounded recheck
+- [x] Missing proof after the bounded recheck remains unverified
 
 ## Rule R3 — Activation proof belongs to the installation and restarted app
 
@@ -28,6 +30,10 @@ original next-task-only rows after the rc.1 live gate disproved that contract.
 - [x] Version or manifest mismatch prevents completion — RED / GREEN / REFACTOR
 - [x] Later tasks preserve completed activation — RED / GREEN / REFACTOR
 - [x] POSIX and Windows process identity parsing — RED / GREEN / REFACTOR
+- [x] Pre-upgrade proof cannot authorize the installed release
+- [x] Another task cannot reuse the resumed task's proof
+- [x] Another Codex profile cannot reuse the resumed task's proof
+- [x] Another linked worktree cannot reuse the resumed task's proof
 
 ## Rule R4 — Legacy markers cannot manufacture proof
 
@@ -37,4 +43,5 @@ original next-task-only rows after the rc.1 live gate disproved that contract.
 ## Feature-level cross-scenario refactor
 
 - [x] Shared host identity and activation-marker logic
-- [ ] Full-suite and rc.2 live verification
+- [x] Full automated suite verification
+- [x] Published-candidate live verification — public `0.78.4`, see `manual-evidence.md`

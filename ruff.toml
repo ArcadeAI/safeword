@@ -1,0 +1,7 @@
+# Your project's Ruff config — customer-owned, safe to edit.
+# Your rules take precedence in the LLM hook (via .safeword/ruff.toml's extend).
+#
+# Add your rules below, e.g.:
+# [lint]
+# select = ["E", "F"]
+# ignore = ["E501"]

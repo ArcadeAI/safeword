@@ -25,9 +25,17 @@ function slugForTicket(cwd: string, ticketFolder: string): string {
  * the Cucumber lane: all feature files under root `features/`, then under each
  * direct workspace package's `features/` directory in stable order.
  */
-export function findFeatureSourcePath(cwd: string, ticketFolder: string): string | undefined {
-  const fileName = `${slugForTicket(cwd, ticketFolder)}.feature`;
-  return collectExecutableFeatureFiles(cwd, fileName)[0];
+export function featureSourceFileName(cwd: string, ticketFolder: string): string {
+  return `${slugForTicket(cwd, ticketFolder)}.feature`;
+}
+
+export function findFeatureSourcePath(
+  cwd: string,
+  ticketFolder: string,
+  featureFiles: readonly string[] = collectExecutableFeatureFiles(cwd),
+): string | undefined {
+  const fileName = featureSourceFileName(cwd, ticketFolder);
+  return featureFiles.find(path => nodePath.basename(path) === fileName);
 }
 
 /** Build the ticket-invariant feature ownership policy once per tree/config. */

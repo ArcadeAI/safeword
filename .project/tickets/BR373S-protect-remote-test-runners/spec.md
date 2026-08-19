@@ -1,125 +1,93 @@
-# Spec: Protect remote test runners before repository code runs
-
-<!--
-Product-framing spec for a feature ticket. The engineering contract
-(scope / out_of_scope / done_when) lives in ticket.md frontmatter; this
-file holds the *why and who*. The bdd intake flow authors it before
-engineering scope. Fill each section, then delete the
-guidance comments.
--->
+# Spec: Run the requested revision remotely with least privilege
 
 ## Intent
 
-<!-- One or two sentences: what this feature is for and why it matters.
-This is the single source of truth for motivation — ticket.md drops its
-**Why:** line and points here. -->
+Make remote results trustworthy enough for ordinary customer-owned CI: run the
+requested immutable revision with read-only repository access and report which
+revision actually ran.
+
+This feature assumes the customer's repository code and GitHub environment are
+not malicious. It prevents accidental privilege and revision mistakes; it does
+not defend a customer from their own code, maintainers, workflows, or secrets.
 
 ## Intake Brief
 
-<!-- The decide-to-build framing for substantial features (advisory — write
-`skip: <reason>` on any line that doesn't apply). Intent above is the positive
-"why"; this is who asked, the cost of NOT doing it, and how reversible it is.
-If cost-of-inaction is low and reversibility is high, ask whether this is a
-feature at all, or a leaner task. -->
-
-- **Requested by:** <who asked for this — distinct from the persona it serves>
-- **Cost of inaction:** <what changes, breaks, or is lost if we don't build it>
-- **Reversibility:** <how hard to undo once shipped — one-way or two-way door; cross-cutting changes (data model, public API, migration) count as one-way>
+- **Requested by:** Alex, while simplifying optional remote testing for Safeword customers.
+- **Cost of inaction:** Safeword could report a result for a different revision than the one requested, or install a workflow with broader repository authority than its test job needs.
+- **Reversibility:** Customers can disable or remove the optional workflow. A shipped workflow's pinned Safeword command is a compatibility commitment and changes only through the managed workflow-upgrade path.
 
 ## References
 
-<!-- Related tickets, prior art, designs, external docs. Optional. -->
+- [Parent remote-testing contract](../BBNZ68-offload-tests-without-blocking-local-work/spec.md)
+- [GitHub manual workflow dispatch](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow)
+- [GitHub Actions settings](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository)
+
+## Product Inspiration
+
+### GitHub Actions — make the ordinary secure path sufficient
+
+- **Checked:** 2026-08-17.
+- **Customer-value evidence:** GitHub natively supports manually dispatched workflows, explicit token permissions, immutable commit-SHA action references, and checkout without persisted credentials.
+- **Principle borrowed:** Prefer the platform's small, legible safety controls over a custom trust subsystem.
+- **Boundary not copied:** Organization-wide policy enforcement and hostile-code threat modeling solve a broader problem than this customer-owned, non-malicious CI lane.
+- **Decision:** Keep exact target checkout, `contents: read`, immutable action pins, and `persist-credentials: false`; omit custom pre-check, cryptography, branch-race, and adversarial-code machinery.
 
 ## Personas
 
-<!-- The personas this feature serves, referenced by name or code from
-the configured personas file (e.g., Platform Operator (PLO)). Add new
-personas to that file — don't invent them here. -->
+- Technical Builder (TBU)
 
 ## Surfaces
 
-<!-- Optional: supported product, agent, runtime, protocol, client, or
-deployment contexts this feature affects. Prefer names from the configured
-surfaces file. Use spec-local names only for one-off contexts.
-
 Affected:
-- <surface name>
+
+- GitHub Actions Execution Sandbox
 
 Unaffected:
-- <surface name> — <reason>
 
-Each affected surface should be covered by at least one saved scenario tagged
-`@surface.<slug>` (OpenAI Codex -> `@surface.openai-codex`) or carry
-`skip: <reason>` on the Affected line. -->
+- Agent runtimes — they consume the same Safeword result and add no runner authority.
 
 ## Vocabulary
 
-<!-- Domain terms specific to this feature, consistent with
-the configured glossary file. Optional. -->
+- **Requested revision:** The 40-character lowercase hexadecimal commit SHA selected and recorded by Safeword before dispatch.
+- **Additional remote action:** Any remote `uses:` action other than checkout. None is required by policy, but each one present must use an immutable commit SHA.
+- **Safeword-provided secret:** Any `secrets:` declaration or mapping, or any
+  `secrets.*` expression—including `secrets.GITHUB_TOKEN`—introduced by the
+  bundled workflow. GitHub's automatic token supplied through `contents: read`
+  permissions is platform-provided and needs no secret expression.
 
 ## Jobs To Be Done
 
-<!--
-One persona per JTBD, in the form "When I …, I want …, so I can …". If two
-personas share a motivation, write two JTBDs. The heading id is
-<slug>.<persona-code><n> (e.g., oauth-flow.PLO1). Add as many as the
-feature needs. If there is genuinely no persona-facing job (internal
-plumbing), write `skip: <reason>` here instead.
+### remote-runner.TBU1 — Trust which revision passed remotely
 
-Uncomment and customize:
+**Persona:** Technical Builder (TBU)
 
-### oauth-flow.PLO1 — Rotate credentials without a flag day
+> When I offload tests to my repository's GitHub Actions runner, I want the job
+> to test the exact revision Safeword requested with only read access, so I can
+> use the result without wondering whether CI tested different code or received
+> unnecessary authority.
 
-**Persona:** Platform Operator (PLO)
+#### remote-runner.TBU1.R1 — The remote job tests and reports the exact requested commit
 
-> When I rotate a server's API key, I want the previous key to keep working
-> for a short grace period, so I can roll the change across my fleet without
-> coordinated downtime.
+#### remote-runner.TBU1.R2 — The remote job runs only the requested supported test lane
 
-Numbered Rules — one testable business invariant per Rule, id <jtbd-id>.R<n>,
-stated generally in product language (the invariant a persona relies on), NOT
-implementation ("returns 204" belongs in a scenario's Then). Each define-behavior
-scenario nests under the Rule it proves. Numbered Rules need a `.feature`
-scenario source; the legacy test-definitions.md path stays Acceptance-Criteria-
-only. If a JTBD has no user-observable behavior to enumerate, write
-`skip: <reason>` under it instead.
-
-Legacy alternative (soft-deprecated): a JTBD may instead declare Acceptance
-Criteria — one observable capability per `#### <jtbd-id>.AC<n>`. Still accepted;
-one criteria kind per JTBD, never both.
-
-#### oauth-flow.PLO1.R1 — A rotated key's predecessor keeps authenticating for a bounded grace window
-
-#### oauth-flow.PLO1.R2 — Every currently-issued key is visible to the operator as live, grace, or expired
--->
+#### remote-runner.TBU1.R3 — Repository code receives only the admitted read-only authority and immutable workflow dependencies
 
 ## Rave Moment
 
-<!-- Optional, and only for the highest persona-facing surface in the tree (the
-epic if there is one, else this feature). Child features under an epic that
-already named one inherit it — skip here; internal/plumbing work skips entirely.
-Advisory; never blocks intake exit. The one moment a persona would tell a peer
-about: name the moment, the expectation it beats, and the one sentence they'd
-repeat. Aim for awe, not "fine." If nothing clears the expectation bar, write
-`skip: table-stakes`.
-
-### <slug> — <the moment in a few words>
-
-- **Moment:** <the specific beat they'd screenshot or recount>
-- **Beats:** <the dread / status-quo pain / competitor clunk it's measured against>
-- **They'd say:** "<the one repeatable, status-conferring sentence>"
--->
+skip: inherited from the parent epic.
 
 ## Outcomes
 
-<!-- Observable results that tell us the JTBDs are satisfied — the product
-counterpart to ticket.md's done_when. -->
+- A passing or failing remote result identifies the exact full commit SHA that was checked out.
+- The job runs the requested `done` or `full` Safeword test lane and rejects any other lane before checkout.
+- The workflow grants only `contents: read`, does not persist checkout credentials, and receives no Safeword-provided secret.
 
 ## Open Questions
 
-<!-- Unresolved questions surfaced during intake — the spec's running list of
-what we don't know yet (the equivalent of Example Mapping's red "question"
-cards). Add one per line as they come up; before advancing to define-behavior,
-resolve each (answer it, then delete the line) or record `defer: <reason>` for
-a deliberate punt. A long unresolved list means intake isn't done — keep
-converging. Delete this comment when you add real questions. -->
+None.
+
+## Boundary
+
+GRDXXA proves the released workflow is the admitted artifact. HWZZJ8 proves that
+same artifact is installed without replacing customer-owned bytes. This ticket
+proves only the admitted workflow's revision, lane, and job-authority behavior.

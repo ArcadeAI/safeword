@@ -1,0 +1,8 @@
+---
+source: https://api.github.com/repos/openai/codex/issues/17636
+source_key: codex-plugin-hook-reload
+reviewed_at: 2026-08-16T19:18:20.000Z
+---
+
+state: open
+state_reason: none

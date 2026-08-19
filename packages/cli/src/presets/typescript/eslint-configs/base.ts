@@ -98,6 +98,20 @@ const basePluginsUnscoped: any[] = [
       'max-params': ['error', 5], // Forces object params or decomposition
       complexity: ['error', 10], // Cyclomatic complexity - LLMs write dense, complex code
       'max-nested-callbacks': ['error', 3], // Prevents callback hell in async code
+      // Keep implementation comments and JSDoc readable alongside code. ESLint
+      // core retains this rule for now; migrate to @stylistic/max-len before v11.
+      'max-len': [
+        'error',
+        {
+          code: 100,
+          comments: 100,
+          ignoreComments: false,
+          ignoreUrls: true,
+          ignoreStrings: true,
+          ignoreTemplateLiterals: true,
+          ignoreRegExpLiterals: true,
+        },
+      ],
       eqeqeq: ['error', 'always', { null: 'ignore' }], // === required, except x == null
       'preserve-caught-error': 'error', // Re-throw with { cause: error } to preserve stack
     },

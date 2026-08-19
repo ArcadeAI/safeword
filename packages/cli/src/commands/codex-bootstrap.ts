@@ -1,5 +1,9 @@
 import { type CliResult, createResult } from '../cli-protocol/result.js';
-import { codexPluginVersionMatchesPackage } from '../codex-plugin/migration.js';
+import {
+  CODEX_RESTART_ACTION,
+  CODEX_REVIEW_THEN_RESTART_ACTION,
+  codexPluginVersionMatchesPackage,
+} from '../codex-plugin/migration.js';
 import { installCodexPlugin, observeCodexMigrationResult } from '../codex-plugin/operations.js';
 import {
   codexActivationIsPending,
@@ -12,15 +16,24 @@ import { resolveCodexProjectDirectory } from '../codex-plugin/project-directory.
 
 interface SessionStartInput {
   session_id?: string;
+  source?: string;
 }
+
+interface ParsedSessionStartInput {
+  sessionId: string | undefined;
+  shouldRecheckProof: boolean;
+}
+
+const SESSION_START_SOURCES = new Set(['startup', 'resume', 'clear', 'compact']);
+const PROOF_RECHECK_ATTEMPTS = 5;
+const PROOF_RECHECK_INTERVAL_MS = 100;
+const SLEEP_BUFFER = new Int32Array(new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT));
 
 const RETRY_COMMAND = 'bunx --bun safeword@latest codex install';
 const UNVERIFIED_PROTECTION =
   'SAFEWORD PROTECTION IS UNVERIFIED IN THIS TASK. You can continue working, but current protection is unknown.';
-const PROFILE_RESTART_REQUIRED =
-  'Safeword is installed for your Codex profile, but this task has not verified the installed update. An older Safeword runtime may still be loaded. Restart Codex and start a new task before relying on the installed update.';
-const OBSERVED_PROFILE_RESTART_REQUIRED =
-  'Safeword is installed for your Codex profile, but this task has not verified the installed update. Restart Codex and start a new task before relying on the installed update.';
+const PROFILE_RESTART_REQUIRED = `Safeword is installed for your Codex profile, but this task has not verified the installed update. An older Safeword runtime may still be loaded. ${CODEX_REVIEW_THEN_RESTART_ACTION} before relying on the installed update.`;
+const OBSERVED_PROFILE_RESTART_REQUIRED = `Safeword is installed for your Codex profile, but this task has not verified the installed update. ${CODEX_REVIEW_THEN_RESTART_ACTION} before relying on the installed update.`;
 const PROFILE_MARKER_REPAIR_REQUIRED = `Safeword is installed for your Codex profile, but its activation marker could not be verified. Repair the profile once with: ${RETRY_COMMAND}`;
 const PROFILE_MARKER_VERSION_REPAIR_REQUIRED = `Safeword is installed for your Codex profile, but its activation marker belongs to a different Safeword version. Repair the profile once with: ${RETRY_COMMAND}`;
 const PROFILE_IDENTITY_UNAVAILABLE =
@@ -29,8 +42,7 @@ const OBSERVED_RUNTIME =
   "Safeword protection from this task's previously loaded runtime was observed.";
 const PROFILE_PROOF_UNVERIFIED =
   'Safeword is installed for your Codex profile, but exact SessionStart proof for this task is not yet available. This evidence alone does not establish that a restart is required.';
-const INSTALL_COMPLETED_RESTART_REQUIRED =
-  'Safeword was installed for your Codex profile, but the newly installed runtime is not active in this already-open task. Restart Codex and start a new task before relying on the installed version.';
+const INSTALL_COMPLETED_RESTART_REQUIRED = `Safeword was installed for your Codex profile, but the newly installed runtime is not active in this already-open task. ${CODEX_REVIEW_THEN_RESTART_ACTION} before relying on the installed version.`;
 
 type ProfileCurrency = 'current' | 'needs-install' | 'unverified';
 
@@ -67,13 +79,45 @@ type NonCurrentVerification =
   | { observedPluginVersion: string | undefined; verification: 'older-observed' }
   | { observedPluginVersion?: never; verification: 'unverified' };
 
-function sessionIdFromInput(rawInput: string): string | undefined {
+function sessionStartFromInput(rawInput: string): ParsedSessionStartInput {
   try {
-    const sessionId = (JSON.parse(rawInput) as SessionStartInput).session_id?.trim();
-    return sessionId === '' ? undefined : sessionId;
+    const input = JSON.parse(rawInput) as SessionStartInput;
+    const sessionId = input.session_id?.trim();
+    return {
+      sessionId: sessionId === '' ? undefined : sessionId,
+      shouldRecheckProof:
+        typeof input.source === 'string' && SESSION_START_SOURCES.has(input.source),
+    };
   } catch {
-    return undefined;
+    return { sessionId: undefined, shouldRecheckProof: false };
   }
+}
+
+function sleep(durationMs: number): void {
+  Atomics.wait(SLEEP_BUFFER, 0, 0, durationMs);
+}
+
+function observeSessionProofWithRecheck(
+  projectDirectory: string,
+  sessionId: string,
+  options: {
+    environment: NodeJS.ProcessEnv;
+    observe: typeof observeCodexSessionProof;
+    shouldRecheck: boolean;
+    wait: (durationMs: number) => void;
+  },
+): CodexSessionProofObservation {
+  let proof = options.observe(projectDirectory, sessionId, options.environment);
+  if (!options.shouldRecheck || proof.status === 'current' || proof.status === 'untrusted') {
+    return proof;
+  }
+
+  for (let attempt = 0; attempt < PROOF_RECHECK_ATTEMPTS; attempt += 1) {
+    options.wait(PROOF_RECHECK_INTERVAL_MS);
+    proof = options.observe(projectDirectory, sessionId, options.environment);
+    if (proof.status === 'current' || proof.status === 'untrusted') return proof;
+  }
+  return proof;
 }
 
 function additionalContext(message: string): string {
@@ -210,15 +254,22 @@ export function bootstrapCodexPlugin(
     offline?: boolean;
     observe?: typeof observeCodexMigrationResult;
     install?: typeof installCodexPlugin;
+    observeSessionProof?: typeof observeCodexSessionProof;
+    sleep?: (durationMs: number) => void;
   } = {},
 ): CliResult {
   const environment = options.environment ?? process.env;
   const projectDirectory = resolveCodexProjectDirectory(cwd, environment);
-  const sessionId = sessionIdFromInput(rawInput);
+  const { sessionId, shouldRecheckProof } = sessionStartFromInput(rawInput);
   const sessionProof =
     sessionId === undefined
       ? undefined
-      : observeCodexSessionProof(projectDirectory, sessionId, environment);
+      : observeSessionProofWithRecheck(projectDirectory, sessionId, {
+          environment,
+          observe: options.observeSessionProof ?? observeCodexSessionProof,
+          shouldRecheck: shouldRecheckProof,
+          wait: options.sleep ?? sleep,
+        });
   if (sessionProof?.status === 'current') {
     return hookResult('', { reason: 'current', verification: 'current' });
   }
@@ -256,7 +307,7 @@ export function bootstrapCodexPlugin(
   if (options.offline === true) {
     return hookResult(
       protectionContext(
-        'Automatic profile installation was skipped because Codex is offline. Start a new online Codex task in this repository to install and activate the current Safeword version.',
+        `Automatic profile installation was skipped because Codex is offline. Reconnect. ${CODEX_RESTART_ACTION} in this repository to install and activate the current Safeword version.`,
         sessionProof,
       ),
       { installed: before.installed, reason: 'offline', ...taskVerification },

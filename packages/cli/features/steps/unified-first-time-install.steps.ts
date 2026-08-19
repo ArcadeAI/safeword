@@ -2367,12 +2367,12 @@ Then(
 );
 
 Then(
-  'Claude reload and Codex restart plus new-task actions are shown separately',
+  'Claude reload and Codex restart plus task-resume actions are shown separately',
   function (this: UnifiedInstallWorld) {
     const rendered = `${this.result.stdout}\n${this.result.stderr}`;
     assert.match(rendered, /Claude activation: run \/reload-plugins/u);
-    assert.match(rendered, /Codex activation: restart Codex/u);
-    assert.match(rendered, /Codex activation: start a new Codex task/u);
+    assert.match(rendered, /Codex activation: fully restart Codex/u);
+    assert.match(rendered, /Codex activation: resume this Codex task/u);
   },
 );
 

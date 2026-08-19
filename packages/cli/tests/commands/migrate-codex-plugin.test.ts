@@ -983,8 +983,8 @@ command = 'echo "keep this user hook"'
     expect(`${result.stdout}\n${result.stderr}`).toContain(
       'This Codex app may keep its loaded Safeword catalogue',
     );
-    expect(`${result.stdout}\n${result.stderr}`).toContain('Restart Codex');
-    expect(`${result.stdout}\n${result.stderr}`).toContain('start a new task');
+    expect(`${result.stdout}\n${result.stderr}`).toContain('Fully restart Codex');
+    expect(`${result.stdout}\n${result.stderr}`).toContain('resume this task');
     expect(existsSync(nodePath.join(directory, '.codex'))).toBe(false);
     const calls = readFileSync(logPath, 'utf8');
     expect(calls).toContain(
@@ -1003,7 +1003,8 @@ command = 'echo "keep this user hook"'
     const result = await runCodexCommand(fixture, ['codex', 'migrate']);
 
     expect(result.exitCode, result.stderr).toBe(2);
-    expect(`${result.stdout}\n${result.stderr}`).toContain('Restart Codex');
+    expect(`${result.stdout}\n${result.stderr}`).toContain('Fully restart Codex');
+    expect(`${result.stdout}\n${result.stderr}`).toContain('resume this task');
     expect(readFileSync(configPath, 'utf8')).toBe(LEGACY_HOOK_CONFIG);
     expect(readFileSync(fixture.logPath, 'utf8')).toContain('plugin marketplace add');
   });
@@ -1088,7 +1089,7 @@ command = 'echo "keep this user hook"'
         {
           kind: 'human',
           instruction:
-            'Restart Codex, start a new task, then review the installed hooks with /hooks.',
+            'Review the installed hooks in Codex Desktop under Settings > Hooks (or with /hooks in the terminal TUI). Fully restart Codex, then resume this task.',
           mutates: false,
           requires_human: true,
         },
@@ -1280,7 +1281,8 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     });
 
     expect(result.exitCode).toBe(2);
-    expect(result.stdout).toContain('Restart Codex');
+    expect(result.stdout).toContain('Fully restart Codex');
+    expect(result.stdout).toContain('resume this task');
     const status = await runCodexCommand(fixture, ['codex', 'status', '--json']);
     expect(JSON.parse(status.stdout)).toMatchObject({
       data: {
@@ -1537,8 +1539,8 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
       'utf8',
     );
     expect(bootstrap).toContain('safeword codex migrate');
-    expect(bootstrap).toContain('Restart Codex');
-    expect(bootstrap).toContain('start a new Codex task');
+    expect(bootstrap).toContain('Fully restart Codex');
+    expect(bootstrap).toContain('resume this task');
     expect(bootstrap).toContain('/hooks');
     expect(bootstrap).toContain('safeword codex status');
     expect(bootstrap).not.toMatch(/\b(?:BDD|TDD|quality review|ticket workflow)\b/u);

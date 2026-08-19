@@ -1,5 +1,5 @@
 export type ExecutionMode = 'local' | 'remote-preferred';
-export type ExecutionModeSource = 'command' | 'personal' | 'project' | 'built-in';
+type ExecutionModeSource = 'command' | 'personal' | 'project' | 'built-in';
 
 export interface ExecutionModeInput {
   readonly command?: ExecutionMode;

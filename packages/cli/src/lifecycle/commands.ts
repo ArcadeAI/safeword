@@ -44,7 +44,7 @@ function codexLegacyHandoffDeferred(result: CliResult): boolean {
 function activationActionsFor(surface: SurfaceResult): string[] {
   if (surface.name === 'claude' && surface.result.changed) return ['run /reload-plugins'];
   if (surface.name === 'codex' && surface.result.state === 'action_required') {
-    return ['restart Codex', 'start a new Codex task'];
+    return ['fully restart Codex', 'resume this Codex task'];
   }
   return [];
 }
@@ -181,7 +181,7 @@ async function installAgentSurfaces(
   if (agents.includes('codex')) {
     // Project convergence already attempted the legacy handoff. Its failure is
     // deliberately advisory: legacy hooks remain active and the project
-    // bootstrap retries for the next task/developer. Retrying the same profile
+    // bootstrap retries for the next SessionStart/developer. Retrying the same profile
     // mutation here only changes that safe, loud outcome into a fatal install.
     if (codexLegacyHandoffDeferred(projectResult)) {
       surfaces.push({ name: 'codex', result: createResult({ state: 'healthy' }) });

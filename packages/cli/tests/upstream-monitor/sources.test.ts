@@ -151,6 +151,31 @@ describe('upstream monitor source adapters', () => {
     expect(buildIssuePayload(change).body).toContain('openai/codex#18115');
   });
 
+  it.each([
+    ['codex-plugin-hook-reload', 17_636],
+    ['codex-removed-plugin-hooks', 38_339],
+  ] as const)('treats %s closing as an immediate-triage condition', (key, issueNumber) => {
+    const source = getMonitorSource(key);
+    const snapshot = createSnapshotText(
+      source,
+      normalizeIssueState(`{"number":${issueNumber},"state":"open","state_reason":null}`),
+      '2026-08-16T00:00:00.000Z',
+    );
+
+    const change = detectSourceChange({
+      source,
+      liveContent: normalizeIssueState(
+        `{"number":${issueNumber},"state":"closed","state_reason":"completed"}`,
+      ),
+      snapshotContent: snapshot,
+    });
+
+    expect(change.changed).toBe(true);
+    expect(source.failOnChange).toBe(true);
+    expect(source.labels).toEqual(['impact:high']);
+    expect(buildIssuePayload(change).body).toContain('Safeword');
+  });
+
   it('compares live content against the snapshot body, not metadata headers', () => {
     const source = getMonitorSource('codex-cli');
     const snapshot = createSnapshotText(source, 'same body', '2026-06-25T00:00:00.000Z');

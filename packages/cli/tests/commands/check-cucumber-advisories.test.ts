@@ -11,6 +11,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   createTemporaryDirectory,
   createTypeScriptPackageJson,
+  CUSTOMER_CUCUMBER_MJS,
   HOST_CUCUMBER_YAML,
   readTestFile,
   removeTemporaryDirectory,
@@ -174,6 +175,35 @@ describe('check enumerates a leftover duplicate scaffold without touching it (TB
     () => {
       expect(readTestFile(directory, 'cucumber.mjs')).toBe(cucumberMjsBefore);
       expect(readTestFile(directory, 'features/safeword-lane.feature')).toBe(starterFeatureBefore);
+    },
+    TIMEOUT_QUICK,
+  );
+});
+
+describe('check distinguishes a workspace Cucumber harness from a leftover root lane', () => {
+  let directory: string;
+  let output: string;
+
+  beforeAll(async () => {
+    directory = createTemporaryDirectory();
+    createTypeScriptPackageJson(directory);
+    await setupOrThrow(directory);
+    writeTestFile(directory, 'packages/cli/cucumber.mjs', CUSTOMER_CUCUMBER_MJS);
+
+    output = await runCheck(directory);
+  }, TIMEOUT_BUN_INSTALL);
+
+  afterAll(() => {
+    removeTemporaryDirectory(directory);
+  });
+
+  it(
+    'reports a workspace harness as preserved infrastructure rather than a duplicate root lane',
+    () => {
+      expect(output).toContain('packages/cli/cucumber.mjs');
+      expect(output).toContain('workspace Cucumber harness');
+      expect(output).not.toContain('Duplicate BDD lane');
+      expect(output).not.toContain('delete the leftovers');
     },
     TIMEOUT_QUICK,
   );
