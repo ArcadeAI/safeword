@@ -496,7 +496,7 @@ cat "$(dirname "$0")/capabilities.txt" || exit 3
           project,
           untrustedRoot,
         ),
-      ).rejects.toBeInstanceOf(Error);
+      ).rejects.toMatchObject({ failure: 'launch_failed' });
     },
   );
 
