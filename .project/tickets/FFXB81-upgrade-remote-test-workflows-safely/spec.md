@@ -14,12 +14,11 @@ When Safeword first changes its shipped remote-test workflow, upgrade every
 previously released Safeword-owned version without adopting customer changes or
 exposing partial workflow bytes.
 
-## Activation condition
+## Activation
 
-This feature remains blocked while only workflow v1 exists. It must move through
-normal BDD intake before any pull request changes the released v1 workflow
-bytes. HWZZJ8 preserves those exact bytes as an immutable fixture, and its
-release-contract test names FFXB81 when current bytes drift.
+The stack-neutral workflow revision created v2 and activated this ticket before
+release. HWZZJ8 preserves the distinct released v1 bytes as an immutable fixture,
+and its release-contract test names FFXB81 whenever current bytes drift again.
 
 ## Preserved design evidence
 
@@ -27,13 +26,18 @@ release-contract test names FFXB81 when current bytes drift.
   single CRLF-to-LF comparison normalization.
 - Runtime configuration and filesystem discovery cannot add ownership history.
 - Historical replacement writes and syncs a fresh private file, revalidates
-  ownership, and atomically renames only over an admitted predecessor.
-- Customer-owned, unsafe, absent, or indeterminate revalidation results never
-  authorize replacement.
+  ownership, and atomically renames only over an admitted predecessor. Rename is
+  the commit point: failure before it preserves the predecessor; success exposes
+  the complete successor.
+- Deterministic test adapters may pause after preparation, after classification,
+  or at publication; these are explicit proof seams, not runtime controls.
+- Customer-owned or indeterminate historical revalidation results never
+  authorize replacement or removal. Current Safeword bytes and absence converge
+  as setup success; both remain successful terminal states for disable.
 - Unknown crash residue is ignored; ordinary cleanup removes only the current
   invocation's private entry.
-- H136BP's recovery feature is supporting input to this ticket and should be
-  reconciled against the actual v1→v2 packaged migration before implementation.
+- H136BP's recovery design was reconciled against the actual v1→v2 packaged
+  migration.
 
 ## Jobs To Be Done
 
@@ -45,9 +49,9 @@ release-contract test names FFXB81 when current bytes drift.
 > workflow upgraded automatically while my own changes remain untouched, so I
 > can adopt the release without re-auditing lost CI work.
 
-#### upgrade-remote-test-workflows-safely.TBU1.R1 — Only an exact previously released Safeword workflow can authorize replacement
+#### upgrade-remote-test-workflows-safely.TBU1.R1 — Only exact released Safeword workflows authorize managed lifecycle changes
 
-#### upgrade-remote-test-workflows-safely.TBU1.R2 — Upgrade interruption exposes a complete predecessor or successor and retry remains safe
+#### upgrade-remote-test-workflows-safely.TBU1.R2 — Interrupted upgrades expose complete predecessor or successor bytes and retry safely
 
 ## Product Inspiration
 
@@ -67,7 +71,6 @@ release-contract test names FFXB81 when current bytes drift.
 ## Surfaces
 
 - Affected: Safeword CLI
-- Affected: GitHub Actions Execution Sandbox
 
 ## Rave Moment
 
@@ -78,9 +81,18 @@ the persona-facing moment.
 
 - Every released predecessor remains recognizable.
 - Edited or unknown bytes remain customer-owned.
-- The packaged CLI proves the real predecessor-to-successor migration.
+- The packaged CLI proves the real predecessor-to-successor migration through
+  HWZZJ8's release-contract wiring test.
 - A failed or interrupted upgrade never exposes partial workflow bytes.
-- History retirement requires an explicit migration decision.
+- History retirement requires an explicit migration decision, enforced by
+  HWZZJ8's release-contract test rather than an acceptance scenario here.
+
+## Delegated lifecycle boundaries
+
+HWZZJ8 owns first-time setup, already-current setup, absent disable, and unsafe
+path handling for both setup and disable. FFXB81 covers only behavior introduced
+by a distinct historical predecessor: identity admission, revalidation,
+atomic replacement, and retry.
 
 ## Open Questions
 
