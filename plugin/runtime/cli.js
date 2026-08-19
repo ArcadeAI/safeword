@@ -44046,11 +44046,25 @@ import {
 } from "fs";
 import { homedir as homedir6, tmpdir as tmpdir4 } from "os";
 import nodePath84 from "path";
-function reviewerArguments(reviewer, model, schemaPath) {
+function configuredClaudeEffort(environment) {
+  const effort = environment.SAFEWORD_REVIEW_EFFORT_CLAUDE;
+  if (effort === undefined || effort.trim() === "")
+    return;
+  if (CLAUDE_EFFORT_LEVELS.has(effort))
+    return effort;
+  warn(`Ignoring SAFEWORD_REVIEW_EFFORT_CLAUDE='${effort}' - expected low, medium, high, xhigh, or max.`);
+  return;
+}
+function reviewerArguments(reviewer, model, schemaPath, environment = process.env) {
   const base = [...ARGUMENTS[reviewer]];
   const extra = [];
   if (model !== undefined)
     extra.push("--model", model);
+  if (reviewer === "claude") {
+    const effort = configuredClaudeEffort(environment);
+    if (effort !== undefined)
+      extra.push("--effort", effort);
+  }
   if (reviewer === "codex" && schemaPath !== undefined)
     extra.push("--output-schema", schemaPath);
   if (extra.length === 0)
@@ -44647,7 +44661,7 @@ function writeContractFile() {
     }
   };
 }
-var REVIEW_OUTPUT_SCHEMA_SHAPE, REVIEW_OUTPUT_SCHEMA, ARGUMENTS, HELP_ARGUMENTS, REQUIRED_CAPABILITIES, MAX_OUTPUT_BYTES, REVIEW_RUBRICS, ReviewRuntimeError, DEFAULT_ATTEMPT_DEADLINE_MS = 120000, RUN_BOUND_MS = 270000, BACKGROUND_RUN_BOUND_MS = 1800000, BACKGROUND_ATTEMPT_DEADLINE_MS = 600000, CLEANUP_BUDGET_MS = 250, PROCESS_GROUP_POLL_INTERVAL_MS = 50, WINDOWS_CLEANUP_BUDGET_MS = 1000, reviewerStops;
+var REVIEW_OUTPUT_SCHEMA_SHAPE, REVIEW_OUTPUT_SCHEMA, CLAUDE_EFFORT_LEVELS, ARGUMENTS, HELP_ARGUMENTS, REQUIRED_CAPABILITIES, MAX_OUTPUT_BYTES, REVIEW_RUBRICS, ReviewRuntimeError, DEFAULT_ATTEMPT_DEADLINE_MS = 120000, RUN_BOUND_MS = 270000, BACKGROUND_RUN_BOUND_MS = 1800000, BACKGROUND_ATTEMPT_DEADLINE_MS = 600000, CLEANUP_BUDGET_MS = 250, PROCESS_GROUP_POLL_INTERVAL_MS = 50, WINDOWS_CLEANUP_BUDGET_MS = 1000, reviewerStops;
 var init_runtime = __esm(() => {
   init_environment();
   REVIEW_OUTPUT_SCHEMA_SHAPE = {
@@ -44675,6 +44689,7 @@ var init_runtime = __esm(() => {
     additionalProperties: false
   };
   REVIEW_OUTPUT_SCHEMA = JSON.stringify(REVIEW_OUTPUT_SCHEMA_SHAPE);
+  CLAUDE_EFFORT_LEVELS = new Set(["low", "medium", "high", "xhigh", "max"]);
   ARGUMENTS = {
     claude: [
       "-p",
