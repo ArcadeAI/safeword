@@ -1,5 +1,13 @@
 import { spawn } from 'node:child_process';
-import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -18,6 +26,7 @@ import {
 import {
   cleanupTrustedReviewerDirectories,
   createTrustedReviewerDirectory,
+  REVIEWER_CAPABILITIES,
 } from '../review-fixtures.js';
 
 const temporaryDirectories: string[] = [];
@@ -343,7 +352,52 @@ printf '%s' '${JSON.stringify({ structured_output: output })}'
   });
 
   it.skipIf(process.platform === 'win32')(
-    'classifies a present reviewer under a group-writable directory as untrusted',
+    'stages a trusted copy of a reviewer found under a group-writable directory (e.g. Homebrew) instead of rejecting it',
+    async () => {
+      const bin = trustedTemporaryDirectory();
+      // The staged copy must itself pass the ancestry check, so the cache needs
+      // a private root — CI's shared /tmp is world-writable.
+      const cacheDirectory = trustedTemporaryDirectory();
+      const project = temporaryDirectory();
+      const untrustedRoot = temporaryDirectory();
+      const executable = nodePath.join(bin, 'claude');
+      writeFileSync(
+        executable,
+        `#!/bin/sh
+if [ "\${1:-}" = "--help" ]; then
+  echo '--output-format --json-schema --no-session-persistence --disable-slash-commands --setting-sources --strict-mcp-config --tools'
+  exit 0
+fi
+cat > /dev/null
+printf '%s' '${JSON.stringify({ structured_output: output })}'
+`,
+        { mode: 0o755 },
+      );
+      chmodSync(bin, 0o775);
+      vi.stubEnv('PATH', bin);
+      vi.stubEnv('SAFEWORD_REVIEWER_CACHE_DIR', cacheDirectory);
+
+      await expect(
+        runHeadlessReviewer(
+          'claude',
+          {
+            schema_version: 1,
+            dispatch_id: 'dispatch-1',
+            kind: 'quality-review',
+            logical_files: [],
+          },
+          project,
+          untrustedRoot,
+        ),
+      ).resolves.toMatchObject({ dispatch_id: 'dispatch-1', verdict: 'approve' });
+
+      const stagedEntries = readdirSync(cacheDirectory);
+      expect(stagedEntries.some(entry => entry.startsWith('claude.'))).toBe(true);
+    },
+  );
+
+  it.skipIf(process.platform === 'win32')(
+    'still rejects a reviewer whose ancestry is untrusted for a reason staging cannot fix',
     async () => {
       const bin = trustedTemporaryDirectory();
       const project = temporaryDirectory();
@@ -351,7 +405,10 @@ printf '%s' '${JSON.stringify({ structured_output: output })}'
       const executable = nodePath.join(bin, 'claude');
       writeFileSync(executable, '#!/bin/sh\nexit 0\n', { mode: 0o755 });
       chmodSync(bin, 0o775);
+      // A cache directory the reviewed project controls is refused outright, so
+      // staging cannot rescue this candidate and the trust rejection stands.
       vi.stubEnv('PATH', bin);
+      vi.stubEnv('SAFEWORD_REVIEWER_CACHE_DIR', nodePath.join(untrustedRoot, 'cache'));
 
       await expect(
         runHeadlessReviewer(
@@ -366,6 +423,81 @@ printf '%s' '${JSON.stringify({ structured_output: output })}'
           untrustedRoot,
         ),
       ).rejects.toMatchObject({ failure: 'untrusted_install' });
+    },
+  );
+
+  it.skipIf(process.platform === 'win32')(
+    'never stages a copy of a reviewer executable that is itself group-writable',
+    async () => {
+      const bin = trustedTemporaryDirectory();
+      const cacheDirectory = temporaryDirectory();
+      const project = temporaryDirectory();
+      const untrustedRoot = temporaryDirectory();
+      const executable = nodePath.join(bin, 'claude');
+      writeFileSync(executable, '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+      chmodSync(executable, 0o775);
+      vi.stubEnv('PATH', bin);
+      vi.stubEnv('SAFEWORD_REVIEWER_CACHE_DIR', cacheDirectory);
+
+      await expect(
+        runHeadlessReviewer(
+          'claude',
+          {
+            schema_version: 1,
+            dispatch_id: 'writable-executable',
+            kind: 'quality-review',
+            logical_files: [],
+          },
+          project,
+          untrustedRoot,
+        ),
+      ).rejects.toMatchObject({ failure: 'untrusted_install' });
+
+      expect(existsSync(cacheDirectory) ? readdirSync(cacheDirectory) : []).toEqual([]);
+    },
+  );
+
+  // Staging moves the executable, so a shim that resolves siblings relative to
+  // its own location stops working once copied. That is not silently accepted:
+  // the capability probe rejects the staged copy like any other incompatible
+  // candidate, so the run fails closed rather than reviewing with a broken
+  // reviewer.
+  it.skipIf(process.platform === 'win32')(
+    'fails closed when a relocated location-dependent reviewer can no longer run',
+    async () => {
+      const bin = trustedTemporaryDirectory();
+      // Staging must succeed here so the capability probe is what rejects it.
+      const cacheDirectory = trustedTemporaryDirectory();
+      const project = temporaryDirectory();
+      const untrustedRoot = temporaryDirectory();
+      const executable = nodePath.join(bin, 'claude');
+      // Only advertises its capabilities when its install-dir sibling is present.
+      writeFileSync(nodePath.join(bin, 'capabilities.txt'), REVIEWER_CAPABILITIES.claude);
+      writeFileSync(
+        executable,
+        `#!/bin/sh
+cat "$(dirname "$0")/capabilities.txt" || exit 3
+`,
+        { mode: 0o755 },
+      );
+      chmodSync(executable, 0o755);
+      chmodSync(bin, 0o775);
+      vi.stubEnv('PATH', bin);
+      vi.stubEnv('SAFEWORD_REVIEWER_CACHE_DIR', cacheDirectory);
+
+      await expect(
+        runHeadlessReviewer(
+          'claude',
+          {
+            schema_version: 1,
+            dispatch_id: 'relocated-shim',
+            kind: 'quality-review',
+            logical_files: [],
+          },
+          project,
+          untrustedRoot,
+        ),
+      ).rejects.toMatchObject({ failure: 'launch_failed' });
     },
   );
 
