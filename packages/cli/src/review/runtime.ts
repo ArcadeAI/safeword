@@ -1,16 +1,23 @@
 import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
   accessSync,
+  chmodSync,
+  closeSync,
   constants,
+  fstatSync,
   lstatSync,
+  mkdirSync,
   mkdtempSync,
+  openSync,
   readdirSync,
   readFileSync,
   realpathSync,
+  renameSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import type {
@@ -401,6 +408,108 @@ function hasTrustedExecutableAncestry(candidate: string): boolean {
   }
 }
 
+/** Reads and hashes a file from an already-open descriptor. `undefined` if it isn't a regular file. */
+function digestOpenFile(
+  fd: number,
+): { readonly bytes: Buffer; readonly digest: string } | undefined {
+  if (!fstatSync(fd).isFile()) return undefined;
+  const bytes = readFileSync(fd);
+  return { bytes, digest: createHash('sha256').update(bytes).digest('hex') };
+}
+
+/**
+ * A binary found via PATH can fail `hasTrustedExecutableAncestry` purely
+ * because a package manager's own directory (e.g. Homebrew's /opt/homebrew/bin)
+ * is group-writable by convention, not because anything is actually wrong.
+ * Stage a private copy under a directory Safeword owns exclusively so review
+ * can proceed without asking the customer to change how they installed their
+ * reviewer — but only when the executable file itself is trusted on its own;
+ * a writable file could have been tampered with directly and must never be
+ * laundered into trust by copying it.
+ *
+ * Opens the source exactly once and checks/reads/copies from that single
+ * descriptor throughout, rather than re-resolving `canonical` by pathname at
+ * each step — a writer on the untrusted ancestor could otherwise swap the
+ * file between the trust check and the copy. The destination filename is
+ * content-addressed by the source's SHA-256 (`<reviewer>.<digest>`), so two
+ * different installations on PATH never collide on one mutable path, and a
+ * cache "hit" re-opens the cached file, hashes ITS bytes, and only trusts it
+ * if they still match the name it is stored under — a corrupted or
+ * in-place-tampered cache entry is never spawned on the strength of its
+ * filename alone. Published via a uniquely-named temp file plus atomic
+ * rename, never by writing through the destination pathname directly —
+ * writing straight into a fixed path follows a pre-planted destination
+ * symlink and would overwrite whatever it points at.
+ */
+function cachedCopyMatchesDigest(copyPath: string, expectedDigest: string): boolean {
+  let cachedFd: number | undefined;
+  try {
+    cachedFd = openSync(copyPath, constants.O_RDONLY);
+    return digestOpenFile(cachedFd)?.digest === expectedDigest;
+  } catch {
+    return false;
+  } finally {
+    if (cachedFd !== undefined) closeSync(cachedFd);
+  }
+}
+
+/**
+ * Creates (if needed) and locks down the private cache directory, refusing a
+ * pre-existing symlink there — chmod/mkdir would otherwise follow it and
+ * mutate whatever it points at instead of Safeword's own directory. Also
+ * refuses a directory the reviewed project controls: `SAFEWORD_REVIEWER_CACHE_DIR`
+ * is an override (tests use it for isolation) and must not let the project
+ * redirect the trusted cache onto a pathname it controls, the same exclusion
+ * PATH candidates already get.
+ */
+function preparedTrustedCacheDirectory(untrustedRoot: string): string | undefined {
+  const cacheDirectory =
+    process.env.SAFEWORD_REVIEWER_CACHE_DIR ??
+    nodePath.join(homedir(), '.cache', 'safeword-reviewers');
+  if (inside(untrustedRoot, cacheDirectory)) return undefined;
+  try {
+    if (lstatSync(cacheDirectory).isSymbolicLink()) return undefined;
+  } catch {
+    // Does not exist yet — mkdirSync below creates it fresh.
+  }
+  mkdirSync(cacheDirectory, { recursive: true, mode: 0o700 });
+  if (lstatSync(cacheDirectory).isSymbolicLink()) return undefined;
+  chmodSync(cacheDirectory, 0o700);
+  return cacheDirectory;
+}
+
+function stagedTrustedReviewerCopy(
+  reviewer: ReviewAgent,
+  canonical: string,
+  untrustedRoot: string,
+): string | undefined {
+  let sourceFd: number | undefined;
+  try {
+    sourceFd = openSync(canonical, constants.O_RDONLY);
+    const sourceMetadata = fstatSync(sourceFd);
+    const currentUid = typeof process.getuid === 'function' ? process.getuid() : undefined;
+    if (!pathMetadataIsTrusted(sourceMetadata.mode, sourceMetadata.uid, currentUid)) {
+      return undefined;
+    }
+    const source = digestOpenFile(sourceFd);
+    if (source === undefined) return undefined;
+
+    const cacheDirectory = preparedTrustedCacheDirectory(untrustedRoot);
+    if (cacheDirectory === undefined) return undefined;
+    const copyPath = nodePath.join(cacheDirectory, `${reviewer}.${source.digest}`);
+    if (cachedCopyMatchesDigest(copyPath, source.digest)) return copyPath;
+
+    const temporaryPath = `${copyPath}.${process.pid.toString(36)}.${Date.now().toString(36)}.tmp`;
+    writeFileSync(temporaryPath, source.bytes, { mode: 0o700, flag: 'wx' });
+    renameSync(temporaryPath, copyPath);
+    return copyPath;
+  } catch {
+    return undefined;
+  } finally {
+    if (sourceFd !== undefined) closeSync(sourceFd);
+  }
+}
+
 function remainingReviewTime(
   deadline: number,
   reviewer: ReviewAgent,
@@ -439,6 +548,12 @@ function executableCandidates(
       if (!outsideUntrustedRoot(untrustedRoot, canonical)) return [];
       accessSync(canonical, constants.X_OK);
       if (!hasTrustedExecutableAncestry(canonical)) {
+        // Only recoverable when the ancestor directory is the sole problem —
+        // stagedTrustedReviewerCopy re-checks the file itself from an open
+        // descriptor and refuses to stage a writable (potentially tampered)
+        // executable.
+        const staged = stagedTrustedReviewerCopy(reviewer, canonical, untrustedRoot);
+        if (staged !== undefined && hasTrustedExecutableAncestry(staged)) return [staged];
         rejectedForTrust = true;
         return [];
       }
