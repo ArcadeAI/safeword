@@ -557,6 +557,11 @@ function executableCandidates(
       extensions.map(extension => nodePath.join(directory, `${reviewer}${extension}`)),
     );
   let rejectedForTrust = false;
+  // Candidates whose ancestry is untrusted, kept aside for the staging fallback
+  // below. Staging is a LAST RESORT: a directly-trusted installation anywhere on
+  // PATH always wins, so a binary planted in a writable PATH directory is never
+  // copied-then-run while a legitimate reviewer exists.
+  const stageable: string[] = [];
   const canonicalCandidates = candidates.flatMap(candidate => {
     // A project-owned pathname remains untrusted even when it currently points
     // outside the project: the project can replace that symlink after checking.
@@ -566,13 +571,8 @@ function executableCandidates(
       if (!outsideUntrustedRoot(untrustedRoot, canonical)) return [];
       accessSync(canonical, constants.X_OK);
       if (!hasTrustedExecutableAncestry(canonical)) {
-        // Only recoverable when the ancestor directory is the sole problem —
-        // stagedTrustedReviewerCopy re-checks the file itself from an open
-        // descriptor and refuses to stage a writable (potentially tampered)
-        // executable.
-        const staged = stagedTrustedReviewerCopy(reviewer, canonical, untrustedRoot);
-        if (staged !== undefined && hasTrustedExecutableAncestry(staged)) return [staged];
         rejectedForTrust = true;
+        stageable.push(canonical);
         return [];
       }
       return [canonical];
@@ -582,7 +582,17 @@ function executableCandidates(
   });
   // Spawn the retained canonical path, not the PATH spelling that was checked.
   // This closes the project-controlled parent/file symlink swap window.
-  return { paths: [...new Set(canonicalCandidates)], rejectedForTrust };
+  const trusted = [...new Set(canonicalCandidates)];
+  if (trusted.length > 0) return { paths: trusted, rejectedForTrust };
+  // Nothing directly trusted: rescue an installation whose only problem is a
+  // package manager's group-writable directory (Homebrew's default). Each
+  // stagedTrustedReviewerCopy re-checks the file itself from an open descriptor
+  // and refuses to stage a writable — potentially tampered — executable.
+  const staged = stageable.flatMap(canonical => {
+    const copy = stagedTrustedReviewerCopy(reviewer, canonical, untrustedRoot);
+    return copy !== undefined && hasTrustedExecutableAncestry(copy) ? [copy] : [];
+  });
+  return { paths: [...new Set(staged)], rejectedForTrust };
 }
 
 function unavailableReviewerError(

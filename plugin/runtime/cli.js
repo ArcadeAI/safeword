@@ -44145,6 +44145,7 @@ function executableCandidates(reviewer, untrustedRoot) {
   const extensions = process.platform === "win32" ? (process.env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD").split(";").map((extension) => extension.toLowerCase()) : [""];
   const candidates = (process.env.PATH ?? "").split(nodePath82.delimiter).filter((directory) => directory !== "" && nodePath82.isAbsolute(directory)).flatMap((directory) => extensions.map((extension) => nodePath82.join(directory, `${reviewer}${extension}`)));
   let rejectedForTrust = false;
+  const stageable = [];
   const canonicalCandidates = candidates.flatMap((candidate) => {
     if (inside(untrustedRoot, candidate))
       return [];
@@ -44154,10 +44155,8 @@ function executableCandidates(reviewer, untrustedRoot) {
         return [];
       accessSync2(canonical, constants4.X_OK);
       if (!hasTrustedExecutableAncestry(canonical)) {
-        const staged = stagedTrustedReviewerCopy(reviewer, canonical, untrustedRoot);
-        if (staged !== undefined && hasTrustedExecutableAncestry(staged))
-          return [staged];
         rejectedForTrust = true;
+        stageable.push(canonical);
         return [];
       }
       return [canonical];
@@ -44165,7 +44164,14 @@ function executableCandidates(reviewer, untrustedRoot) {
       return [];
     }
   });
-  return { paths: [...new Set(canonicalCandidates)], rejectedForTrust };
+  const trusted = [...new Set(canonicalCandidates)];
+  if (trusted.length > 0)
+    return { paths: trusted, rejectedForTrust };
+  const staged = stageable.flatMap((canonical) => {
+    const copy = stagedTrustedReviewerCopy(reviewer, canonical, untrustedRoot);
+    return copy !== undefined && hasTrustedExecutableAncestry(copy) ? [copy] : [];
+  });
+  return { paths: [...new Set(staged)], rejectedForTrust };
 }
 function unavailableReviewerError(reviewer, rejectedForTrust) {
   if (rejectedForTrust) {

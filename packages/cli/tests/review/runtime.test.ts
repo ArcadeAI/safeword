@@ -355,7 +355,9 @@ printf '%s' '${JSON.stringify({ structured_output: output })}'
     'stages a trusted copy of a reviewer found under a group-writable directory (e.g. Homebrew) instead of rejecting it',
     async () => {
       const bin = trustedTemporaryDirectory();
-      const cacheDirectory = temporaryDirectory();
+      // The staged copy must itself pass the ancestry check, so the cache needs
+      // a private root — CI's shared /tmp is world-writable.
+      const cacheDirectory = trustedTemporaryDirectory();
       const project = temporaryDirectory();
       const untrustedRoot = temporaryDirectory();
       const executable = nodePath.join(bin, 'claude');
@@ -403,12 +405,10 @@ printf '%s' '${JSON.stringify({ structured_output: output })}'
       const executable = nodePath.join(bin, 'claude');
       writeFileSync(executable, '#!/bin/sh\nexit 0\n', { mode: 0o755 });
       chmodSync(bin, 0o775);
-      // A cache directory the process cannot write into (0o500, no write bit)
-      // makes staging fail closed rather than silently granting trust.
-      const unwritableCache = temporaryDirectory();
-      chmodSync(unwritableCache, 0o500);
+      // A cache directory the reviewed project controls is refused outright, so
+      // staging cannot rescue this candidate and the trust rejection stands.
       vi.stubEnv('PATH', bin);
-      vi.stubEnv('SAFEWORD_REVIEWER_CACHE_DIR', nodePath.join(unwritableCache, 'nested'));
+      vi.stubEnv('SAFEWORD_REVIEWER_CACHE_DIR', nodePath.join(untrustedRoot, 'cache'));
 
       await expect(
         runHeadlessReviewer(
@@ -466,7 +466,8 @@ printf '%s' '${JSON.stringify({ structured_output: output })}'
     'fails closed when a relocated location-dependent reviewer can no longer run',
     async () => {
       const bin = trustedTemporaryDirectory();
-      const cacheDirectory = temporaryDirectory();
+      // Staging must succeed here so the capability probe is what rejects it.
+      const cacheDirectory = trustedTemporaryDirectory();
       const project = temporaryDirectory();
       const untrustedRoot = temporaryDirectory();
       const executable = nodePath.join(bin, 'claude');
