@@ -618,6 +618,15 @@ async function reviewKnowledgeHandler(invocation: CommandInvocation): Promise<Cl
   return observeReviewKnowledge(invocation.cwd);
 }
 
+async function retroDrainHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const { runRetroDrain } = await import('../commands/retro-drain.js');
+  const spool = invocation.operands[0];
+  if (spool !== undefined && typeof spool !== 'string') {
+    return invalidOperand('project retro-drain', 'retro-drain spool must be text.');
+  }
+  return runRetroDrain(spool, invocation.options);
+}
+
 function withLegacyRawJsonGuidance(
   result: CliResult,
   options: Readonly<Record<string, unknown>>,
@@ -2129,6 +2138,7 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'project test-plan': testPlanHandler,
   'project namespace-root': namespaceRootHandler,
   'project review-knowledge': reviewKnowledgeHandler,
+  'project retro-drain': retroDrainHandler,
   'project test': projectTestHandler,
   'project test-execution status': testExecutionStatusHandler,
   'project lint-gherkin': lintGherkinHandler,

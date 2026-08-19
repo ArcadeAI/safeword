@@ -214,6 +214,24 @@ function adaptWholeScriptInvocations(markdown: string, version: string | undefin
   return adapted;
 }
 
+// Prefix swaps: the script's own arguments follow the invocation unchanged, so
+// only the leading `bun <path>` becomes the subcommand. No `--json` here — the
+// caller consumes the subcommand's raw stdout (the retro filer streams the
+// validated JSONL onward), and `--json` would replace it with the envelope.
+const SCRIPT_PREFIX_INVOCATIONS: readonly (readonly [string, string])[] = [
+  ['bun .safeword/hooks/lib/drain-retro-spool.ts ', 'project retro-drain '],
+];
+
+function adaptScriptPrefixInvocations(markdown: string, version: string | undefined): string {
+  if (version === undefined) return markdown;
+
+  let adapted = markdown;
+  for (const [invocation, subcommand] of SCRIPT_PREFIX_INVOCATIONS) {
+    adapted = adapted.split(invocation).join(`bunx --bun safeword@${version} ${subcommand}`);
+  }
+  return adapted;
+}
+
 // Same substitution for resolve-namespace-root.ts, whose two positional modes
 // map onto `project namespace-root`'s flags. Every call site passes a default
 // basename of `<key>.md`, which is already the subcommand's own default, so
@@ -256,6 +274,7 @@ function adaptWorkflowMarkdown(
   adapted = adaptRunReviewInvocations(adapted, version);
   adapted = adaptNamespaceRootInvocations(adapted, version);
   adapted = adaptWholeScriptInvocations(adapted, version);
+  adapted = adaptScriptPrefixInvocations(adapted, version);
 
   return formatMarkdownTables(adapted);
 }

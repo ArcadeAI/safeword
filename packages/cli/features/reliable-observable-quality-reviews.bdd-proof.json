@@ -59,11 +59,11 @@
       "packages/cli/tests/review/surface-parity.test.ts",
       "preserves an older CLI %s result and status without adding an argument"
     ],
-    "Required-review surfaces cannot bypass the managed wrapper": [
+    "Required-review surfaces cannot bypass the review coordinator": [
       ["packages/cli/tests/review/surface-parity.test.ts", "%s enters the shared %s coordinator"],
       [
         "packages/cli/tests/review/surface-parity.test.ts",
-        "keeps generated required-review surfaces on the managed wrapper and Cursor unwired"
+        "keeps generated required-review surfaces on one review entrypoint and Cursor unwired"
       ]
     ]
   }
