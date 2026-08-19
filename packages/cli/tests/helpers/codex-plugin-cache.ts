@@ -1,4 +1,4 @@
-import { existsSync, lstatSync, realpathSync, statSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { assertCodexPluginCatalogue } from '../../src/codex-plugin/catalogue.ts';
@@ -63,6 +63,13 @@ export function assertCachedCodexPlugin(
     'Cached plugin manifest',
   );
   requireFile(nodePath.join(resolvedInstalledPath, 'hooks.json'), 'Cached plugin hooks');
-  assertCodexPluginCatalogue(nodePath.join(cliRoot, 'templates/skills'), resolvedInstalledPath);
+  const version = (
+    JSON.parse(readFileSync(nodePath.join(cliRoot, 'package.json'), 'utf8')) as { version: string }
+  ).version;
+  assertCodexPluginCatalogue(
+    nodePath.join(cliRoot, 'templates/skills'),
+    resolvedInstalledPath,
+    version,
+  );
   return resolvedInstalledPath;
 }

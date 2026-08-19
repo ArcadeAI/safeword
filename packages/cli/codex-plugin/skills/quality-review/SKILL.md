@@ -175,7 +175,7 @@ Each pass:
    CLI first; source checkouts do not guarantee a bare `safeword` on `PATH`:
 
    ```bash
-   bun .safeword/hooks/run-review.ts review run quality-review changed-file [more-changed-files...] --agent-handoff --json
+   bunx --bun safeword@0.78.6 review run quality-review changed-file [more-changed-files...] --agent-handoff --json
    ```
 
    A healthy deep review may return `REVIEW_PENDING` after its foreground

@@ -53,7 +53,7 @@ and ticket scope; its typed verdict decides. Resolve a review-capable Safeword
 CLI first; source checkouts do not guarantee a bare `safeword` on `PATH`:
 
 ```bash
-bun .safeword/hooks/run-review.ts review run scenario-gate feature-file ticket-spec [legacy-test-definitions] --agent-handoff --json
+bunx --bun safeword@0.78.6 review run scenario-gate feature-file ticket-spec [legacy-test-definitions] --agent-handoff --json
 ```
 
 The coordinator prefers the opposite headless agent and labels a permitted

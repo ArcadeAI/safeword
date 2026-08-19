@@ -23,6 +23,11 @@ import { SAFEWORD_SCHEMA } from '../src/schema.js';
 
 const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
 const canonicalSkillsDirectory = nodePath.join(repoRoot, 'packages/cli/templates/skills');
+const cliVersion = (
+  JSON.parse(readFileSync(nodePath.join(repoRoot, 'packages/cli/package.json'), 'utf8')) as {
+    version: string;
+  }
+).version;
 const canonicalSkillPath = nodePath.join(canonicalSkillsDirectory, 'closeout/SKILL.md');
 
 function canonicalSkill(): string {
@@ -362,13 +367,13 @@ describe('closeout host entry points (93C14D TBU1.R4)', () => {
       cpSync(nodePath.join(repoRoot, 'packages/cli/codex-plugin'), pluginDirectory, {
         recursive: true,
       });
-      assertCodexPluginCatalogue(canonicalSkillsDirectory, pluginDirectory);
+      assertCodexPluginCatalogue(canonicalSkillsDirectory, pluginDirectory, cliVersion);
       writeFileSync(
         nodePath.join(pluginDirectory, 'skills/closeout/SKILL.md'),
         'drifted closeout contract\n',
       );
       expect(() => {
-        assertCodexPluginCatalogue(canonicalSkillsDirectory, pluginDirectory);
+        assertCodexPluginCatalogue(canonicalSkillsDirectory, pluginDirectory, cliVersion);
       }).toThrow();
     } finally {
       rmSync(fixture, { recursive: true, force: true });

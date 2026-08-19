@@ -24,6 +24,9 @@ import {
 const CLI_ROOT = nodePath.resolve(import.meta.dirname, '..');
 const CANONICAL_SKILLS = nodePath.join(CLI_ROOT, 'templates/skills');
 const PLUGIN_SKILLS = nodePath.join(CLI_ROOT, 'codex-plugin/skills');
+const CLI_VERSION = (
+  JSON.parse(readFileSync(nodePath.join(CLI_ROOT, 'package.json'), 'utf8')) as { version: string }
+).version;
 
 function markdownFiles(directory: string, prefix = ''): string[] {
   return readdirSync(directory, { withFileTypes: true })
@@ -66,11 +69,11 @@ describe('generated Codex plugin catalogue', () => {
     const pluginDirectory = nodePath.join(fixture, 'codex-plugin');
     try {
       cpSync(nodePath.dirname(PLUGIN_SKILLS), pluginDirectory, { recursive: true });
-      assertCodexPluginCatalogue(CANONICAL_SKILLS, pluginDirectory);
+      assertCodexPluginCatalogue(CANONICAL_SKILLS, pluginDirectory, CLI_VERSION);
 
       rmSync(nodePath.join(pluginDirectory, 'skills/bdd/references/DISCOVERY.md'));
       expect(() => {
-        assertCodexPluginCatalogue(CANONICAL_SKILLS, pluginDirectory);
+        assertCodexPluginCatalogue(CANONICAL_SKILLS, pluginDirectory, CLI_VERSION);
       }).toThrow('missing expected asset');
 
       writeFileSync(
@@ -80,7 +83,7 @@ describe('generated Codex plugin catalogue', () => {
       mkdirSync(nodePath.join(pluginDirectory, 'skills/unexpected'), { recursive: true });
       writeFileSync(nodePath.join(pluginDirectory, 'skills/unexpected/SKILL.md'), '# unexpected\n');
       expect(() => {
-        assertCodexPluginCatalogue(CANONICAL_SKILLS, pluginDirectory);
+        assertCodexPluginCatalogue(CANONICAL_SKILLS, pluginDirectory, CLI_VERSION);
       }).toThrow('unexpected asset');
     } finally {
       rmSync(fixture, { recursive: true, force: true });
@@ -148,6 +151,41 @@ describe('generated Codex plugin catalogue', () => {
       expect(() => generateCodexPluginAssets(canonicalSkillsDirectory)).toThrow(
         'unsupported metadata',
       );
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
+  it('rewrites run-review.ts invocations to a pinned, self-contained Bunx call', () => {
+    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-plugin-run-review-'));
+    const canonicalSkillsDirectory = nodePath.join(fixture, 'skills');
+    try {
+      mkdirSync(nodePath.join(canonicalSkillsDirectory, 'quality-review'), { recursive: true });
+      writeFileSync(
+        nodePath.join(canonicalSkillsDirectory, 'quality-review/SKILL.md'),
+        [
+          '---',
+          'name: quality-review',
+          'description: Review changes',
+          '---',
+          '',
+          'Run:',
+          '',
+          '```bash',
+          'bun .safeword/hooks/run-review.ts review run quality-review changed-file [more-changed-files...] --agent-handoff --json',
+          '```',
+          '',
+        ].join('\n'),
+      );
+
+      const withoutVersion = generateCodexPluginAssets(canonicalSkillsDirectory);
+      expect(withoutVersion[0]?.content).toContain('bun .safeword/hooks/run-review.ts review run');
+
+      const withVersion = generateCodexPluginAssets(canonicalSkillsDirectory, '1.2.3');
+      expect(withVersion[0]?.content).toContain(
+        'bunx --bun safeword@1.2.3 review run quality-review changed-file [more-changed-files...] --agent-handoff --json',
+      );
+      expect(withVersion[0]?.content).not.toContain('.safeword/hooks/run-review.ts');
     } finally {
       rmSync(fixture, { recursive: true, force: true });
     }

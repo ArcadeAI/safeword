@@ -169,8 +169,28 @@ function adaptWorkflowInvocations(markdown: string, knownSkillNames: ReadonlySet
   return `${adapted}${markdown.slice(copiedThrough)}`;
 }
 
-function adaptWorkflowMarkdown(markdown: string, knownSkillNames: ReadonlySet<string>): string {
-  const adapted = adaptWorkflowInvocations(markdown, knownSkillNames);
+// Codex skills invoke run-review.ts as a project-local script
+// (`.safeword/hooks/run-review.ts`), which does not exist in Codex's
+// self-contained plugin. Rewrite it to the equivalent pinned, public
+// `review run` subcommand, mirroring how Codex's lifecycle hooks already
+// invoke safeword via `bunx --bun safeword@<version>`.
+const RUN_REVIEW_INVOCATION_PREFIX = 'bun .safeword/hooks/run-review.ts ';
+
+function adaptRunReviewInvocations(markdown: string, version: string | undefined): string {
+  if (version === undefined) return markdown;
+
+  return markdown.split(RUN_REVIEW_INVOCATION_PREFIX).join(`bunx --bun safeword@${version} `);
+}
+
+function adaptWorkflowMarkdown(
+  markdown: string,
+  knownSkillNames: ReadonlySet<string>,
+  version: string | undefined,
+): string {
+  const adapted = adaptRunReviewInvocations(
+    adaptWorkflowInvocations(markdown, knownSkillNames),
+    version,
+  );
 
   return formatMarkdownTables(adapted);
 }
@@ -179,6 +199,7 @@ function adaptSkillBody(
   body: string,
   knownSkillNames: ReadonlySet<string>,
   referenceNames: string[],
+  version: string | undefined,
 ): string {
   // Canonical skills have one blank line after frontmatter. The generated
   // frontmatter supplies that separator, so avoid duplicating it here.
@@ -187,7 +208,7 @@ function adaptSkillBody(
     adapted = adapted.split(referenceName).join(`references/${referenceName}`);
   }
 
-  return adaptWorkflowMarkdown(adapted, knownSkillNames);
+  return adaptWorkflowMarkdown(adapted, knownSkillNames, version);
 }
 
 function tableCells(line: string): string[] {
@@ -248,6 +269,7 @@ function formatMarkdownTables(markdown: string): string {
  */
 export function generateCodexPluginAssets(
   canonicalSkillsDirectory: string,
+  version?: string,
 ): GeneratedPluginAsset[] {
   const canonicalAssets: CanonicalSkillAsset[] = markdownFiles(canonicalSkillsDirectory).map(
     relativePath => ({ relativePath, ...canonicalSkillPath(relativePath) }),
@@ -267,7 +289,7 @@ export function generateCodexPluginAssets(
     if (filename !== 'SKILL.md') {
       return {
         relativePath: nodePath.join('skills', skill, 'references', filename),
-        content: adaptWorkflowMarkdown(content, knownSkillNames),
+        content: adaptWorkflowMarkdown(content, knownSkillNames, version),
       };
     }
 
@@ -279,7 +301,7 @@ export function generateCodexPluginAssets(
       content: `---\n${stringify({
         name: skill,
         description: adaptWorkflowInvocations(description, knownSkillNames),
-      }).trimEnd()}\n---\n\n${adaptSkillBody(body, knownSkillNames, referenceNames)}`,
+      }).trimEnd()}\n---\n\n${adaptSkillBody(body, knownSkillNames, referenceNames, version)}`,
     };
   });
 }
@@ -343,8 +365,9 @@ const REGENERATE_REMEDY =
 export function assertCodexPluginCatalogue(
   canonicalSkillsDirectory: string,
   pluginDirectory: string,
+  version?: string,
 ): void {
-  const expectedAssets = generateCodexPluginAssets(canonicalSkillsDirectory);
+  const expectedAssets = generateCodexPluginAssets(canonicalSkillsDirectory, version);
   assertCodexSkillMetadataBudget(expectedAssets);
 
   const expectedPaths = expectedAssetPaths(expectedAssets);
@@ -373,8 +396,9 @@ export function assertCodexPluginCatalogue(
 export function writeCodexPluginCatalogue(
   canonicalSkillsDirectory: string,
   pluginDirectory: string,
+  version?: string,
 ): GeneratedPluginAsset[] {
-  const assets = generateCodexPluginAssets(canonicalSkillsDirectory);
+  const assets = generateCodexPluginAssets(canonicalSkillsDirectory, version);
   const skillsDirectory = nodePath.join(pluginDirectory, 'skills');
   rmSync(skillsDirectory, { recursive: true, force: true });
 
