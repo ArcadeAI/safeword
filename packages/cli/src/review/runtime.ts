@@ -1,16 +1,23 @@
 import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
   accessSync,
+  chmodSync,
+  closeSync,
   constants,
+  fstatSync,
   lstatSync,
+  mkdirSync,
   mkdtempSync,
+  openSync,
   readdirSync,
   readFileSync,
   realpathSync,
+  renameSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import type {
@@ -386,11 +393,16 @@ function pathMetadataIsTrusted(
   );
 }
 
+/** The current user id, or `undefined` where the platform does not report one. */
+function currentUserId(): number | undefined {
+  return typeof process.getuid === 'function' ? process.getuid() : undefined;
+}
+
 function hasTrustedExecutableAncestry(candidate: string): boolean {
   // Windows ACLs do not map reliably to POSIX ownership and mode checks. Keep
   // the portable project-root exclusion, and leave ACL validation to the host.
   if (process.platform === 'win32') return true;
-  const currentUid = typeof process.getuid === 'function' ? process.getuid() : undefined;
+  const currentUid = currentUserId();
   let current = candidate;
   while (true) {
     const metadata = lstatSync(current);
@@ -398,6 +410,121 @@ function hasTrustedExecutableAncestry(candidate: string): boolean {
     const parent = nodePath.dirname(current);
     if (parent === current) return true;
     current = parent;
+  }
+}
+
+/** Reads and hashes a file from an already-open descriptor. `undefined` if it isn't a regular file. */
+function digestOpenFile(
+  fd: number,
+): { readonly bytes: Buffer; readonly digest: string } | undefined {
+  if (!fstatSync(fd).isFile()) return undefined;
+  const bytes = readFileSync(fd);
+  return { bytes, digest: createHash('sha256').update(bytes).digest('hex') };
+}
+
+/**
+ * Whether an existing cache entry's own bytes still hash to the digest its
+ * filename claims — a corrupted or in-place-tampered entry must never be
+ * spawned on the strength of its name alone.
+ */
+function cachedCopyMatchesDigest(copyPath: string, expectedDigest: string): boolean {
+  let cachedFd: number | undefined;
+  try {
+    cachedFd = openSync(copyPath, constants.O_RDONLY);
+    return digestOpenFile(cachedFd)?.digest === expectedDigest;
+  } catch {
+    return false;
+  } finally {
+    if (cachedFd !== undefined) closeSync(cachedFd);
+  }
+}
+
+/**
+ * Creates (if needed) and locks down the private cache directory, refusing a
+ * pre-existing symlink there — chmod/mkdir would otherwise follow it and
+ * mutate whatever it points at instead of Safeword's own directory. Also
+ * refuses a directory the reviewed project controls: `SAFEWORD_REVIEWER_CACHE_DIR`
+ * is an override (tests use it for isolation) and must not let the project
+ * redirect the trusted cache onto a pathname it controls, the same exclusion
+ * PATH candidates already get.
+ */
+function preparedTrustedCacheDirectory(untrustedRoot: string): string | undefined {
+  const cacheDirectory =
+    process.env.SAFEWORD_REVIEWER_CACHE_DIR ??
+    nodePath.join(homedir(), '.cache', 'safeword-reviewers');
+  // Lexical check first, before creating anything at an attacker-named path.
+  if (inside(untrustedRoot, cacheDirectory)) return undefined;
+  try {
+    if (lstatSync(cacheDirectory).isSymbolicLink()) return undefined;
+  } catch {
+    // Does not exist yet — mkdirSync below creates it fresh.
+  }
+  mkdirSync(cacheDirectory, { recursive: true, mode: 0o700 });
+  if (lstatSync(cacheDirectory).isSymbolicLink()) return undefined;
+  // Re-check against the *resolved* path: the lexical test above cannot see a
+  // symlinked ancestor pointing back into the project, and every later step
+  // (and the caller's ancestry walk) must operate on the canonical location.
+  const resolved = realpathSync(cacheDirectory);
+  if (!outsideUntrustedRoot(untrustedRoot, resolved)) return undefined;
+  chmodSync(resolved, 0o700);
+  return resolved;
+}
+
+/**
+ * A binary found via PATH can fail `hasTrustedExecutableAncestry` purely
+ * because a package manager's own directory (e.g. Homebrew's /opt/homebrew/bin)
+ * is group-writable by convention, not because anything is actually wrong.
+ * Stage a private copy under a directory Safeword owns exclusively so review
+ * can proceed without asking the customer to change how they installed their
+ * reviewer — but only when the executable file itself is trusted on its own;
+ * a writable file could have been tampered with directly and must never be
+ * laundered into trust by copying it.
+ *
+ * Opens the source exactly once and checks/reads/copies from that single
+ * descriptor throughout, rather than re-resolving `canonical` by pathname at
+ * each step — a writer on the untrusted ancestor could otherwise swap the
+ * file between the trust check and the copy. The destination filename is
+ * content-addressed by the source's SHA-256 (`<reviewer>.<digest>`), so two
+ * different installations on PATH never collide on one mutable path.
+ * Published via a uniquely-named temp file plus atomic rename, never by
+ * writing through the destination pathname directly — writing straight into a
+ * fixed path follows a pre-planted destination symlink and would overwrite
+ * whatever it points at.
+ *
+ * Staging relocates the executable, so a shim resolving siblings relative to
+ * its own install directory stops working once copied; the caller's capability
+ * probe rejects such a copy like any other incompatible candidate, so that
+ * case fails closed rather than reviewing with a broken reviewer.
+ */
+function stagedTrustedReviewerCopy(
+  reviewer: ReviewAgent,
+  canonical: string,
+  untrustedRoot: string,
+): string | undefined {
+  let sourceFd: number | undefined;
+  try {
+    sourceFd = openSync(canonical, constants.O_RDONLY);
+    const sourceMetadata = fstatSync(sourceFd);
+    const currentUid = currentUserId();
+    if (!pathMetadataIsTrusted(sourceMetadata.mode, sourceMetadata.uid, currentUid)) {
+      return undefined;
+    }
+    const source = digestOpenFile(sourceFd);
+    if (source === undefined) return undefined;
+
+    const cacheDirectory = preparedTrustedCacheDirectory(untrustedRoot);
+    if (cacheDirectory === undefined) return undefined;
+    const copyPath = nodePath.join(cacheDirectory, `${reviewer}.${source.digest}`);
+    if (cachedCopyMatchesDigest(copyPath, source.digest)) return copyPath;
+
+    const temporaryPath = `${copyPath}.${process.pid.toString(36)}.${Date.now().toString(36)}.tmp`;
+    writeFileSync(temporaryPath, source.bytes, { mode: 0o700, flag: 'wx' });
+    renameSync(temporaryPath, copyPath);
+    return copyPath;
+  } catch {
+    return undefined;
+  } finally {
+    if (sourceFd !== undefined) closeSync(sourceFd);
   }
 }
 
@@ -430,6 +557,11 @@ function executableCandidates(
       extensions.map(extension => nodePath.join(directory, `${reviewer}${extension}`)),
     );
   let rejectedForTrust = false;
+  // Candidates whose ancestry is untrusted, kept aside for the staging fallback
+  // below. Staging is a LAST RESORT: a directly-trusted installation anywhere on
+  // PATH always wins, so a binary planted in a writable PATH directory is never
+  // copied-then-run while a legitimate reviewer exists.
+  const stageable: string[] = [];
   const canonicalCandidates = candidates.flatMap(candidate => {
     // A project-owned pathname remains untrusted even when it currently points
     // outside the project: the project can replace that symlink after checking.
@@ -440,6 +572,7 @@ function executableCandidates(
       accessSync(canonical, constants.X_OK);
       if (!hasTrustedExecutableAncestry(canonical)) {
         rejectedForTrust = true;
+        stageable.push(canonical);
         return [];
       }
       return [canonical];
@@ -449,7 +582,17 @@ function executableCandidates(
   });
   // Spawn the retained canonical path, not the PATH spelling that was checked.
   // This closes the project-controlled parent/file symlink swap window.
-  return { paths: [...new Set(canonicalCandidates)], rejectedForTrust };
+  const trusted = [...new Set(canonicalCandidates)];
+  if (trusted.length > 0) return { paths: trusted, rejectedForTrust };
+  // Nothing directly trusted: rescue an installation whose only problem is a
+  // package manager's group-writable directory (Homebrew's default). Each
+  // stagedTrustedReviewerCopy re-checks the file itself from an open descriptor
+  // and refuses to stage a writable — potentially tampered — executable.
+  const staged = stageable.flatMap(canonical => {
+    const copy = stagedTrustedReviewerCopy(reviewer, canonical, untrustedRoot);
+    return copy !== undefined && hasTrustedExecutableAncestry(copy) ? [copy] : [];
+  });
+  return { paths: [...new Set(staged)], rejectedForTrust };
 }
 
 function unavailableReviewerError(

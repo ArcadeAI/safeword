@@ -43944,18 +43944,25 @@ var init_environment = __esm(() => {
 
 // src/review/runtime.ts
 import { spawn } from "child_process";
+import { createHash as createHash21 } from "crypto";
 import {
   accessSync as accessSync2,
+  chmodSync as chmodSync3,
+  closeSync as closeSync10,
   constants as constants4,
+  fstatSync as fstatSync8,
   lstatSync as lstatSync19,
+  mkdirSync as mkdirSync14,
   mkdtempSync as mkdtempSync6,
+  openSync as openSync10,
   readdirSync as readdirSync31,
   readFileSync as readFileSync51,
   realpathSync as realpathSync10,
+  renameSync as renameSync8,
   rmSync as rmSync12,
   writeFileSync as writeFileSync18
 } from "fs";
-import { tmpdir as tmpdir4 } from "os";
+import { homedir as homedir6, tmpdir as tmpdir4 } from "os";
 import nodePath82 from "path";
 function reviewerArguments(reviewer, model, schemaPath) {
   const base = [...ARGUMENTS[reviewer]];
@@ -44082,10 +44089,13 @@ function pathMetadataIsTrusted(mode, ownerUid, currentUid) {
   const ownedByCurrentUser = currentUid !== undefined && ownerUid === currentUid;
   return (mode & 2) === 0 && (mode & 16) === 0 && (currentUid === undefined || ownerUid === 0 || ownedByCurrentUser);
 }
+function currentUserId() {
+  return typeof process.getuid === "function" ? process.getuid() : undefined;
+}
 function hasTrustedExecutableAncestry(candidate) {
   if (process.platform === "win32")
     return true;
-  const currentUid = typeof process.getuid === "function" ? process.getuid() : undefined;
+  const currentUid = currentUserId();
   let current = candidate;
   while (true) {
     const metadata = lstatSync19(current);
@@ -44095,6 +44105,70 @@ function hasTrustedExecutableAncestry(candidate) {
     if (parent === current)
       return true;
     current = parent;
+  }
+}
+function digestOpenFile(fd) {
+  if (!fstatSync8(fd).isFile())
+    return;
+  const bytes = readFileSync51(fd);
+  return { bytes, digest: createHash21("sha256").update(bytes).digest("hex") };
+}
+function cachedCopyMatchesDigest(copyPath, expectedDigest) {
+  let cachedFd;
+  try {
+    cachedFd = openSync10(copyPath, constants4.O_RDONLY);
+    return digestOpenFile(cachedFd)?.digest === expectedDigest;
+  } catch {
+    return false;
+  } finally {
+    if (cachedFd !== undefined)
+      closeSync10(cachedFd);
+  }
+}
+function preparedTrustedCacheDirectory(untrustedRoot) {
+  const cacheDirectory = process.env.SAFEWORD_REVIEWER_CACHE_DIR ?? nodePath82.join(homedir6(), ".cache", "safeword-reviewers");
+  if (inside(untrustedRoot, cacheDirectory))
+    return;
+  try {
+    if (lstatSync19(cacheDirectory).isSymbolicLink())
+      return;
+  } catch {}
+  mkdirSync14(cacheDirectory, { recursive: true, mode: 448 });
+  if (lstatSync19(cacheDirectory).isSymbolicLink())
+    return;
+  const resolved = realpathSync10(cacheDirectory);
+  if (!outsideUntrustedRoot(untrustedRoot, resolved))
+    return;
+  chmodSync3(resolved, 448);
+  return resolved;
+}
+function stagedTrustedReviewerCopy(reviewer, canonical, untrustedRoot) {
+  let sourceFd;
+  try {
+    sourceFd = openSync10(canonical, constants4.O_RDONLY);
+    const sourceMetadata = fstatSync8(sourceFd);
+    const currentUid = currentUserId();
+    if (!pathMetadataIsTrusted(sourceMetadata.mode, sourceMetadata.uid, currentUid)) {
+      return;
+    }
+    const source = digestOpenFile(sourceFd);
+    if (source === undefined)
+      return;
+    const cacheDirectory = preparedTrustedCacheDirectory(untrustedRoot);
+    if (cacheDirectory === undefined)
+      return;
+    const copyPath = nodePath82.join(cacheDirectory, `${reviewer}.${source.digest}`);
+    if (cachedCopyMatchesDigest(copyPath, source.digest))
+      return copyPath;
+    const temporaryPath = `${copyPath}.${process.pid.toString(36)}.${Date.now().toString(36)}.tmp`;
+    writeFileSync18(temporaryPath, source.bytes, { mode: 448, flag: "wx" });
+    renameSync8(temporaryPath, copyPath);
+    return copyPath;
+  } catch {
+    return;
+  } finally {
+    if (sourceFd !== undefined)
+      closeSync10(sourceFd);
   }
 }
 function remainingReviewTime(deadline, reviewer, lastFailure) {
@@ -44108,6 +44182,7 @@ function executableCandidates(reviewer, untrustedRoot) {
   const extensions = process.platform === "win32" ? (process.env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD").split(";").map((extension) => extension.toLowerCase()) : [""];
   const candidates = (process.env.PATH ?? "").split(nodePath82.delimiter).filter((directory) => directory !== "" && nodePath82.isAbsolute(directory)).flatMap((directory) => extensions.map((extension) => nodePath82.join(directory, `${reviewer}${extension}`)));
   let rejectedForTrust = false;
+  const stageable = [];
   const canonicalCandidates = candidates.flatMap((candidate) => {
     if (inside(untrustedRoot, candidate))
       return [];
@@ -44118,6 +44193,7 @@ function executableCandidates(reviewer, untrustedRoot) {
       accessSync2(canonical, constants4.X_OK);
       if (!hasTrustedExecutableAncestry(canonical)) {
         rejectedForTrust = true;
+        stageable.push(canonical);
         return [];
       }
       return [canonical];
@@ -44125,7 +44201,14 @@ function executableCandidates(reviewer, untrustedRoot) {
       return [];
     }
   });
-  return { paths: [...new Set(canonicalCandidates)], rejectedForTrust };
+  const trusted = [...new Set(canonicalCandidates)];
+  if (trusted.length > 0)
+    return { paths: trusted, rejectedForTrust };
+  const staged = stageable.flatMap((canonical) => {
+    const copy = stagedTrustedReviewerCopy(reviewer, canonical, untrustedRoot);
+    return copy !== undefined && hasTrustedExecutableAncestry(copy) ? [copy] : [];
+  });
+  return { paths: [...new Set(staged)], rejectedForTrust };
 }
 function unavailableReviewerError(reviewer, rejectedForTrust) {
   if (rejectedForTrust) {
@@ -45374,23 +45457,23 @@ __export(exports_job, {
   cancelReviewJob: () => cancelReviewJob
 });
 import { spawn as spawn2, spawnSync as spawnSync9 } from "child_process";
-import { createHash as createHash21, createHmac, randomBytes, randomUUID as randomUUID8, timingSafeEqual } from "crypto";
+import { createHash as createHash22, createHmac, randomBytes, randomUUID as randomUUID8, timingSafeEqual } from "crypto";
 import {
-  closeSync as closeSync10,
+  closeSync as closeSync11,
   existsSync as existsSync42,
-  fstatSync as fstatSync8,
-  mkdirSync as mkdirSync14,
-  openSync as openSync10,
+  fstatSync as fstatSync9,
+  mkdirSync as mkdirSync15,
+  openSync as openSync11,
   readdirSync as readdirSync32,
   readFileSync as readFileSync52,
   realpathSync as realpathSync11,
-  renameSync as renameSync8,
+  renameSync as renameSync9,
   statSync as statSync6,
   unlinkSync as unlinkSync3,
   writeFileSync as writeFileSync19,
   writeSync as writeSync2
 } from "fs";
-import { homedir as homedir6 } from "os";
+import { homedir as homedir7 } from "os";
 import nodePath83 from "path";
 function jobsDirectory(cwd) {
   return nodePath83.join(cwd, ".safeword", "state", "reviews");
@@ -45402,7 +45485,7 @@ function jobPath(cwd, id) {
 }
 function integrityKeyPath() {
   const testRoot = process.env.SAFEWORD_REVIEW_KEY_ROOT;
-  const stateRoot = process.env.XDG_STATE_HOME ?? nodePath83.join(homedir6(), ".local", "state");
+  const stateRoot = process.env.XDG_STATE_HOME ?? nodePath83.join(homedir7(), ".local", "state");
   return nodePath83.join(stateRoot, "safeword", "review-integrity.key");
 }
 function readOrCreateIntegrityKey() {
@@ -45410,15 +45493,15 @@ function readOrCreateIntegrityKey() {
   try {
     return decodeIntegrityKey(readFileSync52(keyPath, "utf8"));
   } catch {
-    mkdirSync14(nodePath83.dirname(keyPath), { recursive: true, mode: 448 });
+    mkdirSync15(nodePath83.dirname(keyPath), { recursive: true, mode: 448 });
     const key = randomBytes(32);
     try {
-      const descriptor = openSync10(keyPath, "wx", 384);
+      const descriptor = openSync11(keyPath, "wx", 384);
       try {
         writeFileSync19(descriptor, `${key.toString("hex")}
 `);
       } finally {
-        closeSync10(descriptor);
+        closeSync11(descriptor);
       }
       return key;
     } catch (error2) {
@@ -45459,7 +45542,7 @@ function withRecordIntegrity(cwd, record2) {
 function fingerprint(cwd, kind, targets, context = []) {
   const prepared = prepareReviewPacket(cwd, kind, targets, context);
   try {
-    const hash = createHash21("sha256");
+    const hash = createHash22("sha256");
     hash.update(`kind\x00${kind}\x00`);
     for (const [section, files] of [
       ["targets", prepared.packet.logical_files],
@@ -45483,12 +45566,12 @@ function writeJob(cwd, record2) {
   if (!isReviewJobRecord(secured))
     throw new Error("invalid review job record");
   const directory = jobsDirectory(cwd);
-  mkdirSync14(directory, { recursive: true, mode: 448 });
+  mkdirSync15(directory, { recursive: true, mode: 448 });
   const destination = jobPath(cwd, secured.id);
   const temporary = `${destination}.${process.pid}.tmp`;
   writeFileSync19(temporary, `${JSON.stringify(secured)}
 `, { mode: 384 });
-  renameSync8(temporary, destination);
+  renameSync9(temporary, destination);
   return secured;
 }
 function withJobLock(cwd, id, operation) {
@@ -45499,11 +45582,11 @@ function withFileLock(lock, operation) {
   let descriptor;
   while (descriptor === undefined) {
     try {
-      descriptor = openSync10(lock, "wx", 384);
+      descriptor = openSync11(lock, "wx", 384);
       try {
         writeFileSync19(descriptor, String(process.pid));
       } catch (error2) {
-        closeSync10(descriptor);
+        closeSync11(descriptor);
         descriptor = undefined;
         try {
           unlinkSync3(lock);
@@ -45520,8 +45603,8 @@ function withFileLock(lock, operation) {
   try {
     return operation();
   } finally {
-    const ownedLock = fstatSync8(descriptor);
-    closeSync10(descriptor);
+    const ownedLock = fstatSync9(descriptor);
+    closeSync11(descriptor);
     try {
       const currentLock = statSync6(lock);
       if (currentLock.dev === ownedLock.dev && currentLock.ino === ownedLock.ino)
@@ -45864,7 +45947,7 @@ function announceBackgroundProgress(progress, managedProgress) {
 async function startReviewJob(input) {
   const context = input.context ?? [];
   const sourceFingerprint = fingerprint(input.cwd, input.kind, input.targets, context);
-  mkdirSync14(jobsDirectory(input.cwd), { recursive: true, mode: 448 });
+  mkdirSync15(jobsDirectory(input.cwd), { recursive: true, mode: 448 });
   const reserved = withFileLock(nodePath83.join(jobsDirectory(input.cwd), "start.lock"), () => {
     const existing = runningJob(input.cwd, input.kind, sourceFingerprint);
     if (existing !== undefined)
@@ -47341,7 +47424,7 @@ function isDogfoodRepo(projectDirectory) {
 var init_dogfood = () => {};
 
 // templates/hooks/lib/retro-debug.ts
-import { appendFileSync as appendFileSync2, mkdirSync as mkdirSync15 } from "fs";
+import { appendFileSync as appendFileSync2, mkdirSync as mkdirSync16 } from "fs";
 import nodePath87 from "path";
 import process14 from "process";
 function sanitizeDebugValue(key, value) {
@@ -47377,7 +47460,7 @@ function recordRetroDebugEvent(event, env = process14.env) {
   if (!logPath)
     return;
   try {
-    mkdirSync15(nodePath87.dirname(logPath), { recursive: true });
+    mkdirSync16(nodePath87.dirname(logPath), { recursive: true });
     appendFileSync2(logPath, `${JSON.stringify({ timestamp: new Date().toISOString(), ...sanitizedEvent(event) })}
 `);
   } catch {}
@@ -47403,7 +47486,7 @@ __export(exports_retro_draft_spool, {
   canonicalSignatureForDraft: () => canonicalSignatureForDraft,
   ackFilePath: () => ackFilePath
 });
-import { createHash as createHash22 } from "crypto";
+import { createHash as createHash23 } from "crypto";
 import nodePath88 from "path";
 function spoolName(sessionId) {
   return `${sessionId.replaceAll(/[^\w.-]/g, "_").slice(0, 80) || "unknown"}${SPOOL_EXTENSION}`;
@@ -47466,7 +47549,7 @@ function draftForPosting(draft) {
 function verifyDraftBody(draft) {
   if (draft.bodyDigest === undefined)
     return true;
-  return createHash22("sha256").update(draft.body).digest("hex").slice(0, 12) === draft.bodyDigest;
+  return createHash23("sha256").update(draft.body).digest("hex").slice(0, 12) === draft.bodyDigest;
 }
 function markDraftsFiled(projectDirectory, sessionId, filedSignatures) {
   try {
@@ -53711,9 +53794,9 @@ var init_finding = __esm(() => {
 });
 
 // src/retro/hash.ts
-import { createHash as createHash23 } from "crypto";
+import { createHash as createHash24 } from "crypto";
 function shortHash(material) {
-  return createHash23("sha256").update(material).digest("hex").slice(0, 12);
+  return createHash24("sha256").update(material).digest("hex").slice(0, 12);
 }
 var init_hash = () => {};
 
@@ -53980,7 +54063,7 @@ var init_durable_fs = __esm(() => {
 });
 
 // src/retro/relay-delivery.ts
-import { createHash as createHash24, randomUUID as randomUUID9 } from "crypto";
+import { createHash as createHash25, randomUUID as randomUUID9 } from "crypto";
 import { access, readdir, readFile as readFile2, stat as stat2, unlink as unlink2 } from "fs/promises";
 import path6 from "path";
 function normalizeRelayOrigin(value) {
@@ -54017,10 +54100,10 @@ function relaySourcePayloadDigest(request) {
     repository: request.repository,
     title: request.title
   };
-  return createHash24("sha256").update(JSON.stringify(payload)).digest("hex");
+  return createHash25("sha256").update(JSON.stringify(payload)).digest("hex");
 }
 function relayRequestDigest(request) {
-  return createHash24("sha256").update(JSON.stringify(request)).digest("hex");
+  return createHash25("sha256").update(JSON.stringify(request)).digest("hex");
 }
 function createRelayRequest(input, dependencies) {
   const createdAt = (dependencies?.now ?? Date.now)();
@@ -54032,7 +54115,7 @@ function createRelayRequest(input, dependencies) {
   };
 }
 function relaySourceKey(sessionIdentity, windowStart, payload) {
-  return createHash24("sha256").update(`relay-source-v3\x00${sessionIdentity}\x00${windowStart}\x00${relaySourcePayloadDigest(payload)}`).digest("hex");
+  return createHash25("sha256").update(`relay-source-v3\x00${sessionIdentity}\x00${windowStart}\x00${relaySourcePayloadDigest(payload)}`).digest("hex");
 }
 function relayDirectory(projectDirectory) {
   return path6.join(projectDirectory, ".safeword", "retro-drafts", "relay");
@@ -54072,7 +54155,7 @@ function discardIntentTokenPath(projectDirectory, requestId, token) {
   return path6.join(relayDirectory(projectDirectory), `${requestId}.discarding.${token}.json`);
 }
 function sourcePath(projectDirectory, sourceKey, suffix) {
-  const key = createHash24("sha256").update(sourceKey).digest("hex");
+  const key = createHash25("sha256").update(sourceKey).digest("hex");
   return path6.join(relayDirectory(projectDirectory), `source-${key}${suffix}.json`);
 }
 function sourceReservationPath(projectDirectory, sourceKey) {
@@ -55747,7 +55830,7 @@ var init_relay_readiness_manifest = __esm(() => {
 });
 
 // src/retro/relay-readiness.ts
-import { createHash as createHash25 } from "crypto";
+import { createHash as createHash26 } from "crypto";
 function validDate(value) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) || date.toISOString() !== value ? undefined : date;
@@ -55879,7 +55962,7 @@ function matchesAttestedManifest(manifest, attestation) {
   try {
     const bytes = Buffer.from(attestation.manifestBase64, "base64");
     const parsed2 = JSON.parse(bytes.toString("utf8"));
-    return createHash25("sha256").update(bytes).digest("hex") === attestation.manifestSha256 && JSON.stringify(parsed2) === JSON.stringify(manifest);
+    return createHash26("sha256").update(bytes).digest("hex") === attestation.manifestSha256 && JSON.stringify(parsed2) === JSON.stringify(manifest);
   } catch {
     return false;
   }
@@ -55899,7 +55982,7 @@ function validateBuildAttestedRelayReadiness(manifest, attestation, now) {
         return Promise.resolve(undefined);
       }
       const bytes = Buffer.from(artifact.contentBase64, "base64");
-      const sha2565 = createHash25("sha256").update(bytes).digest("hex");
+      const sha2565 = createHash26("sha256").update(bytes).digest("hex");
       return Promise.resolve(sha2565 === artifact.sha256 ? { content: bytes.toString("utf8"), sha256: sha2565 } : undefined);
     }
   });
@@ -56230,7 +56313,7 @@ __export(exports_retro, {
 });
 import { spawnSync as spawnSync10 } from "child_process";
 import {
-  mkdirSync as mkdirSync16,
+  mkdirSync as mkdirSync17,
   mkdtempSync as mkdtempSync7,
   readFileSync as readFileSync57,
   realpathSync as realpathSync12,
@@ -56451,7 +56534,7 @@ function prepareCursorExtractionDirectory(directory) {
   if (gitInit.status !== 0)
     throw new Error(gitInit.stderr || "could not initialize Cursor sandbox");
   const cursorDirectory = nodePath90.join(directory, ".cursor");
-  mkdirSync16(cursorDirectory, { recursive: true });
+  mkdirSync17(cursorDirectory, { recursive: true });
   writeFileSync22(nodePath90.join(cursorDirectory, "cli.json"), JSON.stringify({
     permissions: { allow: [], deny: CURSOR_RETRO_DENY_RULES },
     approvalMode: "allowlist"
@@ -57544,7 +57627,7 @@ __export(exports_boundary, {
   boundary: () => boundary
 });
 import { execFileSync as execFileSync11 } from "child_process";
-import { appendFileSync as appendFileSync3, existsSync as existsSync45, mkdirSync as mkdirSync17 } from "fs";
+import { appendFileSync as appendFileSync3, existsSync as existsSync45, mkdirSync as mkdirSync18 } from "fs";
 import nodePath93 from "path";
 import process20 from "process";
 function tryGit(cwd, args) {
@@ -57646,7 +57729,7 @@ function legalityStepsFor(cwd, path7, priorReference) {
 }
 function appendAudit(cwd, entry2) {
   const auditPath = nodePath93.join(cwd, AUDIT_RELATIVE_PATH);
-  mkdirSync17(nodePath93.dirname(auditPath), { recursive: true });
+  mkdirSync18(nodePath93.dirname(auditPath), { recursive: true });
   appendFileSync3(auditPath, `${JSON.stringify(entry2)}
 `);
 }
@@ -57719,10 +57802,10 @@ import { spawnSync as spawnSync11 } from "child_process";
 import {
   cpSync as cpSync2,
   existsSync as existsSync46,
-  mkdirSync as mkdirSync18,
+  mkdirSync as mkdirSync19,
   mkdtempSync as mkdtempSync8,
   readFileSync as readFileSync59,
-  renameSync as renameSync9,
+  renameSync as renameSync10,
   rmSync as rmSync13,
   writeFileSync as writeFileSync23
 } from "fs";
@@ -57825,7 +57908,7 @@ function writeCodexIdentityCache(input) {
     return;
   try {
     const cachePath = nodePath94.join(resolveNamespaceRoot(input.projectDirectory), input.cacheFile);
-    mkdirSync18(nodePath94.dirname(cachePath), { recursive: true });
+    mkdirSync19(nodePath94.dirname(cachePath), { recursive: true });
     writeFileSync23(cachePath, JSON.stringify({ id: sessionId, skillName, recordedAt: new Date().toISOString() }), "utf8");
   } catch {}
 }
@@ -58001,7 +58084,7 @@ function snapshotPackagedHook(relativePath) {
   const snapshotHooksDirectory = nodePath94.join(directory, "hooks");
   try {
     cpSync2(packagedHooksDirectory, stagingHooksDirectory, { recursive: true });
-    renameSync9(stagingHooksDirectory, snapshotHooksDirectory);
+    renameSync10(stagingHooksDirectory, snapshotHooksDirectory);
     const hookPath = nodePath94.join(snapshotHooksDirectory, relativePath);
     return existsSync46(hookPath) ? { directory, hookPath } : { directory, error: new Error(`Safeword packaged hook is missing: ${relativePath}`) };
   } catch (error2) {
