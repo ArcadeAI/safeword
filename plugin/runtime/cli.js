@@ -13028,7 +13028,31 @@ function schemaForProjectSurfaces(schema, surfaces) {
     contracts: withoutCursorEntries(schema.contracts)
   };
 }
-var MCP_JSON_MERGE, MARKDOWNLINT_CLI2_IGNORES_MERGE, CURSOR_RULE_WRAPPER_OWNED_FILES, CURSOR_COMMAND_WRAPPER_OWNED_FILES, CURSOR_SHARED_SKILL_FILES, CURSOR_SHARED_SKILL_OWNED_FILES, CURSOR_SHARED_SKILL_DIRS, CODEX_RUNTIME_ASSET_FILENAMES, CODEX_RUNTIME_ASSETS, NAMESPACE_TRANSIENT_BASENAMES, SAFEWORD_TRANSIENT_PATHS, NAMESPACE_GITIGNORE_PATTERNS, NAMESPACE_GITIGNORE_CONTENT, PRETTIER_EXCLUSIONS_HEADER = "# Safeword - managed prettier exclusions (owned dirs)", GITATTRIBUTES_HEADER = "# Safeword - managed merge strategy for generated artifacts", BDD_LANE_FILE_PATHS, BDD_LANE_SCRIPT = "test:bdd", SHARED_FILING_INVARIANTS, SESSION_TOKEN_RULE, BOUNDARY_SHIM_MARKER = "# Safeword boundary gate", SAFEWORD_SCHEMA, CURSOR_PROJECT_PATHS;
+function isSharedAgentRuntimePath(path3) {
+  return SHARED_AGENT_RUNTIME_ROOTS.some((root) => path3 === root || path3.startsWith(`${root}/`));
+}
+function withoutSharedAgentRuntimeEntries(values) {
+  return Object.fromEntries(Object.entries(values).filter(([path3]) => !isSharedAgentRuntimePath(path3)));
+}
+function schemaForSharedAgentRuntime(schema, needed) {
+  if (needed)
+    return schema;
+  return {
+    ...schema,
+    ownedDirs: schema.ownedDirs.filter((path3) => !isSharedAgentRuntimePath(path3)),
+    sharedDirs: schema.sharedDirs.filter((path3) => !isSharedAgentRuntimePath(path3)),
+    preservedDirs: schema.preservedDirs.filter((path3) => !isSharedAgentRuntimePath(path3)),
+    deprecatedFiles: schema.deprecatedFiles.filter((path3) => !isSharedAgentRuntimePath(path3)),
+    deprecatedDirs: schema.deprecatedDirs.filter((path3) => !isSharedAgentRuntimePath(path3)),
+    ownedFiles: withoutSharedAgentRuntimeEntries(schema.ownedFiles),
+    managedFiles: withoutSharedAgentRuntimeEntries(schema.managedFiles),
+    jsonMerges: withoutSharedAgentRuntimeEntries(schema.jsonMerges),
+    textPatches: withoutSharedAgentRuntimeEntries(schema.textPatches),
+    legacyTextPatches: withoutSharedAgentRuntimeEntries(schema.legacyTextPatches),
+    contracts: withoutSharedAgentRuntimeEntries(schema.contracts)
+  };
+}
+var MCP_JSON_MERGE, MARKDOWNLINT_CLI2_IGNORES_MERGE, CURSOR_RULE_WRAPPER_OWNED_FILES, CURSOR_COMMAND_WRAPPER_OWNED_FILES, CURSOR_SHARED_SKILL_FILES, CURSOR_SHARED_SKILL_OWNED_FILES, CURSOR_SHARED_SKILL_DIRS, CODEX_RUNTIME_ASSET_FILENAMES, CODEX_RUNTIME_ASSETS, NAMESPACE_TRANSIENT_BASENAMES, SAFEWORD_TRANSIENT_PATHS, NAMESPACE_GITIGNORE_PATTERNS, NAMESPACE_GITIGNORE_CONTENT, PRETTIER_EXCLUSIONS_HEADER = "# Safeword - managed prettier exclusions (owned dirs)", GITATTRIBUTES_HEADER = "# Safeword - managed merge strategy for generated artifacts", BDD_LANE_FILE_PATHS, BDD_LANE_SCRIPT = "test:bdd", SHARED_FILING_INVARIANTS, SESSION_TOKEN_RULE, BOUNDARY_SHIM_MARKER = "# Safeword boundary gate", SAFEWORD_SCHEMA, CURSOR_PROJECT_PATHS, SHARED_AGENT_RUNTIME_ROOTS;
 var init_schema = __esm(() => {
   init_historical_ownership();
   init_inventory();
@@ -13933,6 +13957,14 @@ ${durableNamespaceDirectories(ctx).map((dir) => `${dir}/`).join(`
     ".safeword/hooks/lib/cursor-state.ts",
     ".safeword/hooks/session-cursor-auto-upgrade.ts"
   ]);
+  SHARED_AGENT_RUNTIME_ROOTS = [
+    ".safeword/hooks",
+    ".safeword/skills",
+    ".safeword/scripts",
+    ".safeword/guides",
+    ".safeword/templates",
+    ".safeword/statusline"
+  ];
 });
 
 // src/codex-plugin/migration.ts
@@ -34200,12 +34232,17 @@ var init_delivery_schema2 = __esm(() => {
 });
 
 // src/lifecycle/schema.ts
+function isLegacyClaudePath(path4) {
+  return path4.startsWith(".claude/");
+}
 function projectLifecycleSchema(cwd, agents) {
   const deliverySchema = schemaForCodexDelivery(cwd, schemaForClaudeDelivery(cwd));
-  return schemaForProjectSurfaces(deliverySchema, [
+  const surfaceSchema = schemaForProjectSurfaces(deliverySchema, [
     "core",
     ...agents.includes("cursor") ? ["cursor"] : []
   ]);
+  const legacyClaudeActive = Object.keys(deliverySchema.ownedFiles).some((path4) => isLegacyClaudePath(path4)) || Object.keys(deliverySchema.jsonMerges).some((path4) => isLegacyClaudePath(path4));
+  return schemaForSharedAgentRuntime(surfaceSchema, agents.length === 0 || agents.includes("codex") || agents.includes("cursor") || legacyClaudeActive);
 }
 var init_schema2 = __esm(() => {
   init_delivery_schema();
