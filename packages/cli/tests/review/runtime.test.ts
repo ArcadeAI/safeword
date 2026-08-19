@@ -32,6 +32,7 @@ import {
 const temporaryDirectories: string[] = [];
 
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.unstubAllEnvs();
   for (const directory of temporaryDirectories) rmSync(directory, { force: true, recursive: true });
   temporaryDirectories.length = 0;
@@ -203,6 +204,72 @@ describe('reviewer arguments', () => {
 
     expect(args.slice(-2)).toEqual(['--model', 'claude-test']);
     expect(args).not.toContain('-');
+  });
+
+  it('appends an explicitly configured Claude effort level', () => {
+    const args = reviewerArguments('claude', 'sonnet', undefined, {
+      SAFEWORD_REVIEW_EFFORT_CLAUDE: 'low',
+    });
+
+    expect(args.slice(-4)).toEqual(['--model', 'sonnet', '--effort', 'low']);
+  });
+
+  it.each(['', 'auto', '--help', 'LOW', ' low '])(
+    'ignores an invalid Claude effort level: %s',
+    effort => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const args = reviewerArguments('claude', undefined, undefined, {
+        SAFEWORD_REVIEW_EFFORT_CLAUDE: effort,
+      });
+
+      expect(args).not.toContain('--effort');
+    },
+  );
+
+  it.each(['auto', '--help', 'LOW', ' low '])(
+    'warns that a misconfigured Claude effort level was ignored: %s',
+    effort => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      reviewerArguments('claude', undefined, undefined, {
+        SAFEWORD_REVIEW_EFFORT_CLAUDE: effort,
+      });
+
+      expect(warnSpy).toHaveBeenCalledOnce();
+      expect(warnSpy.mock.calls[0]?.[0]).toContain(effort);
+    },
+  );
+
+  it.each([undefined, '', ' '.repeat(3)])(
+    'stays quiet when Claude effort is unset rather than mistyped: %s',
+    effort => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      reviewerArguments('claude', undefined, undefined, {
+        SAFEWORD_REVIEW_EFFORT_CLAUDE: effort,
+      });
+
+      expect(warnSpy).not.toHaveBeenCalled();
+    },
+  );
+
+  it('does not warn about Claude effort configuration when reviewing with Codex', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    reviewerArguments('codex', undefined, '/tmp/schema.json', {
+      SAFEWORD_REVIEW_EFFORT_CLAUDE: 'nonsense',
+    });
+
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
+
+  it('never passes Claude effort configuration to Codex', () => {
+    const args = reviewerArguments('codex', undefined, '/tmp/schema.json', {
+      SAFEWORD_REVIEW_EFFORT_CLAUDE: 'low',
+    });
+
+    expect(args).not.toContain('--effort');
   });
 });
 

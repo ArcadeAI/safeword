@@ -20,6 +20,7 @@ import {
 import { homedir, tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
+import { warn } from '../utils/output.js';
 import type {
   ReviewAgent,
   ReviewFailure,
@@ -61,6 +62,25 @@ const REVIEW_OUTPUT_SCHEMA_SHAPE = {
 } as const;
 
 const REVIEW_OUTPUT_SCHEMA = JSON.stringify(REVIEW_OUTPUT_SCHEMA_SHAPE);
+const CLAUDE_EFFORT_LEVELS = new Set(['low', 'medium', 'high', 'xhigh', 'max']);
+
+/**
+ * An empty value means "unset", so it falls through quietly. A non-empty value
+ * off the list is a typo worth reporting: stripping it here also strips the
+ * warning Claude itself would print, leaving the user no signal from either
+ * layer that their configured effort never applied.
+ */
+function configuredClaudeEffort(
+  environment: Readonly<Record<string, string | undefined>>,
+): string | undefined {
+  const effort = environment.SAFEWORD_REVIEW_EFFORT_CLAUDE;
+  if (effort === undefined || effort.trim() === '') return undefined;
+  if (CLAUDE_EFFORT_LEVELS.has(effort)) return effort;
+  warn(
+    `Ignoring SAFEWORD_REVIEW_EFFORT_CLAUDE='${effort}' - expected low, medium, high, xhigh, or max.`,
+  );
+  return undefined;
+}
 
 const ARGUMENTS: Readonly<Record<ReviewAgent, readonly string[]>> = {
   claude: [
@@ -103,10 +123,15 @@ export function reviewerArguments(
   reviewer: ReviewAgent,
   model: string | undefined,
   schemaPath: string | undefined,
+  environment: Readonly<Record<string, string | undefined>> = process.env,
 ): string[] {
   const base = [...ARGUMENTS[reviewer]];
   const extra: string[] = [];
   if (model !== undefined) extra.push('--model', model);
+  if (reviewer === 'claude') {
+    const effort = configuredClaudeEffort(environment);
+    if (effort !== undefined) extra.push('--effort', effort);
+  }
   if (reviewer === 'codex' && schemaPath !== undefined) extra.push('--output-schema', schemaPath);
   if (extra.length === 0) return base;
   if (reviewer !== 'codex') return [...base, ...extra];
