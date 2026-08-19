@@ -44099,8 +44099,11 @@ function preparedTrustedCacheDirectory(untrustedRoot) {
   mkdirSync14(cacheDirectory, { recursive: true, mode: 448 });
   if (lstatSync19(cacheDirectory).isSymbolicLink())
     return;
-  chmodSync3(cacheDirectory, 448);
-  return cacheDirectory;
+  const resolved = realpathSync10(cacheDirectory);
+  if (!outsideUntrustedRoot(untrustedRoot, resolved))
+    return;
+  chmodSync3(resolved, 448);
+  return resolved;
 }
 function stagedTrustedReviewerCopy(reviewer, canonical, untrustedRoot) {
   let sourceFd;

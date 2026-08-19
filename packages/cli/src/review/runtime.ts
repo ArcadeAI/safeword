@@ -452,6 +452,7 @@ function preparedTrustedCacheDirectory(untrustedRoot: string): string | undefine
   const cacheDirectory =
     process.env.SAFEWORD_REVIEWER_CACHE_DIR ??
     nodePath.join(homedir(), '.cache', 'safeword-reviewers');
+  // Lexical check first, before creating anything at an attacker-named path.
   if (inside(untrustedRoot, cacheDirectory)) return undefined;
   try {
     if (lstatSync(cacheDirectory).isSymbolicLink()) return undefined;
@@ -460,8 +461,13 @@ function preparedTrustedCacheDirectory(untrustedRoot: string): string | undefine
   }
   mkdirSync(cacheDirectory, { recursive: true, mode: 0o700 });
   if (lstatSync(cacheDirectory).isSymbolicLink()) return undefined;
-  chmodSync(cacheDirectory, 0o700);
-  return cacheDirectory;
+  // Re-check against the *resolved* path: the lexical test above cannot see a
+  // symlinked ancestor pointing back into the project, and every later step
+  // (and the caller's ancestry walk) must operate on the canonical location.
+  const resolved = realpathSync(cacheDirectory);
+  if (!outsideUntrustedRoot(untrustedRoot, resolved)) return undefined;
+  chmodSync(resolved, 0o700);
+  return resolved;
 }
 
 /**
