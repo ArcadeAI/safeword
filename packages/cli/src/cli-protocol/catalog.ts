@@ -305,6 +305,12 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     syntax: 'lint-gherkin [files...]',
   }),
   command(
+    'project review-knowledge',
+    'Resolve the principles, personas, and surfaces sources for a review',
+    'observe',
+    { syntax: 'review-knowledge' },
+  ),
+  command(
     'project namespace-root',
     'Print the resolved project-knowledge namespace root',
     'observe',

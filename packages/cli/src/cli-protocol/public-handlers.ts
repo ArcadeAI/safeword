@@ -613,6 +613,11 @@ async function namespaceRootHandler(invocation: CommandInvocation): Promise<CliR
   return observeNamespaceRoot(invocation.cwd, invocation.options);
 }
 
+async function reviewKnowledgeHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const { observeReviewKnowledge } = await import('../commands/review-knowledge.js');
+  return observeReviewKnowledge(invocation.cwd);
+}
+
 function withLegacyRawJsonGuidance(
   result: CliResult,
   options: Readonly<Record<string, unknown>>,
@@ -2123,6 +2128,7 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'project codify': codifyHandler,
   'project test-plan': testPlanHandler,
   'project namespace-root': namespaceRootHandler,
+  'project review-knowledge': reviewKnowledgeHandler,
   'project test': projectTestHandler,
   'project test-execution status': testExecutionStatusHandler,
   'project lint-gherkin': lintGherkinHandler,

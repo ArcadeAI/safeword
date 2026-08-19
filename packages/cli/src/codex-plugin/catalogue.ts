@@ -174,12 +174,44 @@ function adaptWorkflowInvocations(markdown: string, knownSkillNames: ReadonlySet
 // self-contained plugin. Rewrite it to the equivalent pinned, public
 // `review run` subcommand, mirroring how Codex's lifecycle hooks already
 // invoke safeword via `bunx --bun safeword@<version>`.
+//
+// Codex cannot instead ship and call the wrapper: its plugin-root anchor
+// (`PLUGIN_ROOT`) is injected only into hook-command shells, never into the
+// shell a skill's bash block runs in, so a vendored path would rest on the
+// model resolving a relative path — too soft for a gate.
+//
+// The rewrite therefore carries the one thing the wrapper did that the bare
+// subcommand does not: `SAFEWORD_REVIEW_PROGRESS`. The wrapper set it in the
+// child environment for exactly this shape of call (`review run … --json`),
+// and it is what promotes a `--json` review from silent to heartbeating.
+// Reviews run for minutes; the heartbeat is the only proof the coordinator is
+// still alive. It is read and deleted before any reviewer subprocess spawns,
+// so it cannot leak onward, and progress is written to stderr — never stdout,
+// which stays clean for the caller parsing the JSON envelope.
 const RUN_REVIEW_INVOCATION_PREFIX = 'bun .safeword/hooks/run-review.ts ';
 
 function adaptRunReviewInvocations(markdown: string, version: string | undefined): string {
   if (version === undefined) return markdown;
 
-  return markdown.split(RUN_REVIEW_INVOCATION_PREFIX).join(`bunx --bun safeword@${version} `);
+  return markdown
+    .split(RUN_REVIEW_INVOCATION_PREFIX)
+    .join(`SAFEWORD_REVIEW_PROGRESS=1 bunx --bun safeword@${version} `);
+}
+
+// Whole-invocation swaps: the script takes no arguments at its call sites, so
+// the replacement is a plain substitution rather than an argument remap.
+const WHOLE_SCRIPT_INVOCATIONS: readonly (readonly [string, string])[] = [
+  ['bun .safeword/hooks/resolve-project-knowledge.ts', 'project review-knowledge'],
+];
+
+function adaptWholeScriptInvocations(markdown: string, version: string | undefined): string {
+  if (version === undefined) return markdown;
+
+  let adapted = markdown;
+  for (const [invocation, subcommand] of WHOLE_SCRIPT_INVOCATIONS) {
+    adapted = adapted.split(invocation).join(`bunx --bun safeword@${version} ${subcommand} --json`);
+  }
+  return adapted;
 }
 
 // Same substitution for resolve-namespace-root.ts, whose two positional modes
@@ -220,10 +252,10 @@ function adaptWorkflowMarkdown(
   knownSkillNames: ReadonlySet<string>,
   version: string | undefined,
 ): string {
-  const adapted = adaptNamespaceRootInvocations(
-    adaptRunReviewInvocations(adaptWorkflowInvocations(markdown, knownSkillNames), version),
-    version,
-  );
+  let adapted = adaptWorkflowInvocations(markdown, knownSkillNames);
+  adapted = adaptRunReviewInvocations(adapted, version);
+  adapted = adaptNamespaceRootInvocations(adapted, version);
+  adapted = adaptWholeScriptInvocations(adapted, version);
 
   return formatMarkdownTables(adapted);
 }

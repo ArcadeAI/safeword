@@ -144,7 +144,10 @@ async function installSurfaceFixtures(project: string): Promise<{
 
   const canonicalSkills = path.join(cli, 'templates', 'skills');
   const packagedPlugin = path.join(cli, 'codex-plugin');
-  assertCodexPluginCatalogue(canonicalSkills, packagedPlugin);
+  const cliVersion = (
+    JSON.parse(readFileSync(path.join(cli, 'package.json'), 'utf8')) as { version: string }
+  ).version;
+  assertCodexPluginCatalogue(canonicalSkills, packagedPlugin, cliVersion);
   const installedPlugin = path.join(project, '.codex', 'plugins', 'safeword');
   cpSync(packagedPlugin, installedPlugin, { recursive: true });
 

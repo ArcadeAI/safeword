@@ -336,7 +336,7 @@ Given(
       '# Drift outside the allowed adaptation\n',
     );
     this.sourceContract = () => {
-      assertCodexPluginCatalogue(CANONICAL_SKILLS, pluginDirectory);
+      assertCodexPluginCatalogue(CANONICAL_SKILLS, pluginDirectory, packageVersion());
     };
   },
 );
