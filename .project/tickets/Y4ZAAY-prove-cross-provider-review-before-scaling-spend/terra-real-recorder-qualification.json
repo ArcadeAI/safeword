@@ -1,13 +1,13 @@
 {
   "adapterCommit": "e1d54b2d12e4a97fba84e8302de31bfe8b60ba17",
   "adapterTag": "terra-adapter-v1",
-  "harnessCommit": "f43a5c9d37cf736fa8e4776940c1c08bec072ba5",
-  "harnessTag": "terra-harness-v11",
-  "qualifiedAt": "2026-08-15T06:57:02Z",
+  "harnessCommit": "634770cd82b5bab4cd7e9351708170135550866e",
+  "harnessTag": "terra-harness-v12",
+  "qualifiedAt": "2026-08-19T14:34:11Z",
   "result": "passed",
   "sha256": {
     "terra-canary-evidence.ts": "5204848ba339d6859399ab42cf258b3897dda3d85df7d0db7d57367f2b70615d",
-    "terra-development-canary.ts": "49b3dfd0574ac4abdd51b40f7dd112ab170afa7a31a18bfa2ae92d93b5706dd1",
+    "terra-development-canary.ts": "e4e397081312bf70ab3ae23b335d7aea36a15d84e4fd800aa3c455877779ce4f",
     "terra-github-authorization.ts": "f166a0f9b765a977a6f58c919d0aa04c3e00a0a69679a73659a6888d54364fc5",
     "terra-github-upstream.ts": "a04b0366536fa5af605b6b3f67033815b67b6d2422ca83d720645db50274e09c",
     "terra-live-launcher.ts": "3229eb33bc37796f2ad5d15f7667e8e159de8d6df7cdfd77da60c55099e25113",
