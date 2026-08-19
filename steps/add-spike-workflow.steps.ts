@@ -7,6 +7,7 @@ import nodePath from 'node:path';
 import { After, Given, Then, When } from '@cucumber/cucumber';
 
 import { writeCodexPluginCatalogue } from '../packages/cli/src/codex-plugin/catalogue.ts';
+import { VERSION } from '../packages/cli/src/version.ts';
 
 interface SpikeWorkflowWorld {
   projectDirectory?: string;
@@ -489,6 +490,7 @@ When('the maintainer runs the real Codex catalogue generator', function (this: S
   writeCodexPluginCatalogue(
     nodePath.join(REPO_ROOT, 'packages/cli/templates/skills'),
     this.codexPluginDirectory,
+    VERSION,
   );
 });
 

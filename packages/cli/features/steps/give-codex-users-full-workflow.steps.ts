@@ -28,6 +28,7 @@ import {
   codexPluginHookCommands,
   type CodexPluginHookEntry,
 } from '../../src/codex-plugin/hooks.ts';
+import { VERSION } from '../../src/version.ts';
 import { assertCachedCodexPlugin } from '../../tests/helpers/codex-plugin-cache.ts';
 import {
   assertPackedCodexPlugin,
@@ -95,11 +96,6 @@ function copyPluginFixture(world: WorkflowWorld): string {
   return pluginDirectory;
 }
 
-function packageVersion(): string {
-  return JSON.parse(readFileSync(nodePath.join(CLI_ROOT, 'package.json'), 'utf8'))
-    .version as string;
-}
-
 function readPluginHooks(): Record<string, CodexPluginHookEntry[]> {
   return (
     JSON.parse(readFileSync(nodePath.join(PLUGIN_ROOT, 'hooks.json'), 'utf8')) as {
@@ -161,7 +157,7 @@ Given('the generated plugin omits that material', function (this: WorkflowWorld)
   assert.ok(pluginDirectory !== undefined, 'plugin fixture was not initialized');
   rmSync(nodePath.join(pluginDirectory, 'skills/bdd/references/DISCOVERY.md'));
   this.releaseContract = () => {
-    assertCodexPluginCatalogue(CANONICAL_SKILLS, pluginDirectory);
+    assertCodexPluginCatalogue(CANONICAL_SKILLS, pluginDirectory, VERSION);
   };
 });
 
@@ -269,7 +265,7 @@ Given('a canonical Safeword workflow', function (this: WorkflowWorld) {
 
 When('Safeword generates its Codex plugin skill', function (this: WorkflowWorld) {
   assert.ok(this.pluginDirectory !== undefined, 'canonical workflow fixture was not initialized');
-  this.generatedAssets = generateCodexPluginAssets(this.pluginDirectory);
+  this.generatedAssets = generateCodexPluginAssets(this.pluginDirectory, VERSION);
 });
 
 Then(
@@ -294,7 +290,7 @@ Then(
 );
 
 Given('the generated Safeword plugin catalogue', function (this: WorkflowWorld) {
-  this.generatedAssets = generateCodexPluginAssets(CANONICAL_SKILLS);
+  this.generatedAssets = generateCodexPluginAssets(CANONICAL_SKILLS, VERSION);
 });
 
 When('the release contract measures its skill metadata inventory', function (this: WorkflowWorld) {
@@ -314,7 +310,7 @@ Then(
 Given(
   'a generated Safeword plugin catalogue has metadata inventory over 8000 characters',
   function (this: WorkflowWorld) {
-    const assets = generateCodexPluginAssets(CANONICAL_SKILLS);
+    const assets = generateCodexPluginAssets(CANONICAL_SKILLS, VERSION);
     this.releaseContract = () => {
       assertCodexSkillMetadataBudget([
         ...assets,
@@ -336,7 +332,7 @@ Given(
       '# Drift outside the allowed adaptation\n',
     );
     this.sourceContract = () => {
-      assertCodexPluginCatalogue(CANONICAL_SKILLS, pluginDirectory, packageVersion());
+      assertCodexPluginCatalogue(CANONICAL_SKILLS, pluginDirectory, VERSION);
     };
   },
 );
@@ -430,7 +426,7 @@ Then('the installation is rejected', function (this: WorkflowWorld) {
 });
 
 Given('the generated Safeword plugin hooks', function (this: WorkflowWorld) {
-  const version = packageVersion();
+  const version = VERSION;
   const hooks = readPluginHooks();
   this.hookContract = () => {
     for (const command of codexPluginHookCommands(hooks)) {
@@ -453,7 +449,7 @@ Given(
   function (this: WorkflowWorld, policy: string) {
     const hooks = readPluginHooks();
     const command = commandSlot(hooks);
-    const version = packageVersion();
+    const version = VERSION;
     switch (policy) {
       case 'npx execution': {
         command.command = `npx safeword@${version} hook codex session-start`;
@@ -486,7 +482,7 @@ Then('the release is rejected for {string}', function (this: WorkflowWorld, poli
   assert.ok(this.hookContractError !== undefined, 'expected hook contract to reject the fixture');
   const expectedMessage = {
     'npx execution': 'Bunx',
-    'unpinned CLI version': `safeword@${packageVersion()}`,
+    'unpinned CLI version': `safeword@${VERSION}`,
     'hook-trust bypass flag': 'must not bypass',
   }[policy];
   assert.ok(expectedMessage !== undefined, `unknown hook policy: ${policy}`);

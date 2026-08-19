@@ -624,7 +624,7 @@ async function retroDrainHandler(invocation: CommandInvocation): Promise<CliResu
   if (spool !== undefined && typeof spool !== 'string') {
     return invalidOperand('project retro-drain', 'retro-drain spool must be text.');
   }
-  return runRetroDrain(spool, invocation.options);
+  return runRetroDrain(invocation.cwd, spool, invocation.options);
 }
 
 function withLegacyRawJsonGuidance(

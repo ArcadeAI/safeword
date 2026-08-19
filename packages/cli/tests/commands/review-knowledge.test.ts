@@ -19,7 +19,7 @@ interface KnowledgeSource {
   readonly configured: boolean;
   readonly path: string;
   readonly exists: boolean;
-  readonly content: string | undefined;
+  readonly content: string | null;
 }
 
 function sourcesOf(data: unknown): KnowledgeSource[] {
@@ -46,7 +46,7 @@ describe('project review-knowledge', () => {
       'surfaces',
     ]);
     expect(sourcesOf(result.data).every(source => !source.exists)).toBe(true);
-    expect(sourcesOf(result.data).every(source => source.content === undefined)).toBe(true);
+    expect(sourcesOf(result.data).every(source => source.content === null)).toBe(true);
   });
 
   it('reads current content from the default namespace location', async () => {

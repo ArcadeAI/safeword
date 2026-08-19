@@ -20,13 +20,11 @@ import {
   codexSkillMetadataCharacters,
   generateCodexPluginAssets,
 } from '../src/codex-plugin/catalogue.js';
+import { VERSION as CLI_VERSION } from '../src/version.js';
 
 const CLI_ROOT = nodePath.resolve(import.meta.dirname, '..');
 const CANONICAL_SKILLS = nodePath.join(CLI_ROOT, 'templates/skills');
 const PLUGIN_SKILLS = nodePath.join(CLI_ROOT, 'codex-plugin/skills');
-const CLI_VERSION = (
-  JSON.parse(readFileSync(nodePath.join(CLI_ROOT, 'package.json'), 'utf8')) as { version: string }
-).version;
 
 function markdownFiles(directory: string, prefix = ''): string[] {
   return readdirSync(directory, { withFileTypes: true })
@@ -118,7 +116,7 @@ describe('generated Codex plugin catalogue', () => {
         ['---', 'name: beta', 'description: Referenced skill', '---', '', '# Beta', ''].join('\n'),
       );
 
-      expect(generateCodexPluginAssets(canonicalSkillsDirectory)).toEqual([
+      expect(generateCodexPluginAssets(canonicalSkillsDirectory, CLI_VERSION)).toEqual([
         {
           relativePath: nodePath.join('skills', 'alpha', 'SKILL.md'),
           content:
@@ -148,7 +146,7 @@ describe('generated Codex plugin catalogue', () => {
           '',
         ].join('\n'),
       );
-      expect(() => generateCodexPluginAssets(canonicalSkillsDirectory)).toThrow(
+      expect(() => generateCodexPluginAssets(canonicalSkillsDirectory, CLI_VERSION)).toThrow(
         'unsupported metadata',
       );
     } finally {
@@ -178,16 +176,13 @@ describe('generated Codex plugin catalogue', () => {
         ].join('\n'),
       );
 
-      const withoutVersion = generateCodexPluginAssets(canonicalSkillsDirectory);
-      expect(withoutVersion[0]?.content).toContain('bun .safeword/hooks/run-review.ts review run');
-
       // The managed-progress prefix carries what the run-review.ts wrapper set
       // in the child environment: without it a multi-minute review runs silent.
-      const withVersion = generateCodexPluginAssets(canonicalSkillsDirectory, '1.2.3');
-      expect(withVersion[0]?.content).toContain(
+      const generated = generateCodexPluginAssets(canonicalSkillsDirectory, '1.2.3');
+      expect(generated[0]?.content).toContain(
         'SAFEWORD_REVIEW_PROGRESS=1 bunx --bun safeword@1.2.3 review run quality-review changed-file [more-changed-files...] --agent-handoff --json',
       );
-      expect(withVersion[0]?.content).not.toContain('.safeword/hooks/run-review.ts');
+      expect(generated[0]?.content).not.toContain('.safeword/hooks/run-review.ts');
     } finally {
       rmSync(fixture, { recursive: true, force: true });
     }
@@ -265,7 +260,7 @@ describe('generated Codex plugin catalogue', () => {
   });
 
   it('enforces Codex metadata discovery budget from generated skill frontmatter', () => {
-    const assets = generateCodexPluginAssets(CANONICAL_SKILLS);
+    const assets = generateCodexPluginAssets(CANONICAL_SKILLS, CLI_VERSION);
     expect(() => {
       assertCodexSkillMetadataBudget(assets);
     }).not.toThrow();

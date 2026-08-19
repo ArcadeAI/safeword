@@ -10,25 +10,17 @@ import nodePath from 'node:path';
 
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import {
-  type ConfiguredPathKey,
+  isConfiguredPathKey,
   resolveConfiguredPath,
   resolveNamespaceRoot,
 } from '../utils/configured-paths.js';
-
-const CONFIGURED_PATH_KEYS: ReadonlySet<string> = new Set([
-  'principles',
-  'personas',
-  'glossary',
-  'surfaces',
-  'architecture',
-]);
 
 export function observeNamespaceRoot(
   cwd: string,
   options: Readonly<Record<string, unknown>>,
 ): Promise<CliResult> {
   const keyValue = typeof options.key === 'string' ? options.key : undefined;
-  if (keyValue !== undefined && !CONFIGURED_PATH_KEYS.has(keyValue)) {
+  if (keyValue !== undefined && !isConfiguredPathKey(keyValue)) {
     return Promise.resolve(
       createResult({
         state: 'failed',
@@ -44,9 +36,7 @@ export function observeNamespaceRoot(
   }
 
   const body =
-    keyValue === undefined
-      ? resolveNamespaceRoot(cwd)
-      : resolveConfiguredPath(cwd, keyValue as ConfiguredPathKey);
+    keyValue === undefined ? resolveNamespaceRoot(cwd) : resolveConfiguredPath(cwd, keyValue);
 
   return Promise.resolve(
     createResult({

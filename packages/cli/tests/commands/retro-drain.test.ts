@@ -35,7 +35,7 @@ describe('project retro-drain', () => {
   });
 
   it('requires a spool path rather than defaulting to one', async () => {
-    const result = await runRetroDrain(undefined, {});
+    const result = await runRetroDrain(temporaryDirectory, undefined, {});
 
     expect(result.ok).toBe(false);
     expect(result.errors[0]?.code).toBe('RETRO_DRAIN_SPOOL_REQUIRED');
@@ -45,7 +45,7 @@ describe('project retro-drain', () => {
     const outside = nodePath.join(temporaryDirectory, 'drafts.jsonl');
     writeFileSync(outside, '{"id":"1"}\n');
 
-    const result = await runRetroDrain(outside, { validatedJsonl: true });
+    const result = await runRetroDrain(temporaryDirectory, outside, { validatedJsonl: true });
 
     expect(result.ok).toBe(false);
     expect(result.errors[0]?.code).toBe('RETRO_DRAIN_REFUSED');
@@ -60,7 +60,7 @@ describe('project retro-drain', () => {
     writeFileSync(target, '{"id":"1"}\n');
     symlinkSync(target, spool);
 
-    const result = await runRetroDrain(spool, { validatedJsonl: true });
+    const result = await runRetroDrain(temporaryDirectory, spool, { validatedJsonl: true });
 
     expect(result.ok).toBe(false);
     expect(result.errors[0]?.code).toBe('RETRO_DRAIN_REFUSED');
@@ -70,7 +70,7 @@ describe('project retro-drain', () => {
     const spool = spoolPathIn(temporaryDirectory);
     writeFileSync(spool, '');
 
-    const result = await runRetroDrain(spool, {});
+    const result = await runRetroDrain(temporaryDirectory, spool, {});
 
     // The drain reports no mutation of its own, so an unchanged spool must not
     // be reported as a filesystem change.
@@ -78,11 +78,27 @@ describe('project retro-drain', () => {
     expect(result.effects.files).toEqual([]);
   });
 
+  it('resolves a relative spool against the invoked project, not the process cwd', async () => {
+    const spool = spoolPathIn(temporaryDirectory);
+    writeFileSync(spool, '{"signature":"s","title":"T","body":"B","labels":["retro"]}\n');
+    const relativeSpool = nodePath.relative(temporaryDirectory, spool);
+
+    const result = await runRetroDrain(temporaryDirectory, relativeSpool, {
+      validatedJsonl: true,
+    });
+
+    // Resolved against process.cwd() this passes the basename guards against
+    // the wrong tree and reports empty success — the filer would then file
+    // nothing and call it done.
+    expect(result.ok).toBe(true);
+    expect(result.presentation?.body).toContain('"signature":"s"');
+  });
+
   it('emits one JSON object per line for a canonical spool', async () => {
     const spool = spoolPathIn(temporaryDirectory);
     writeFileSync(spool, '');
 
-    const result = await runRetroDrain(spool, { validatedJsonl: true });
+    const result = await runRetroDrain(temporaryDirectory, spool, { validatedJsonl: true });
 
     expect(result.ok).toBe(true);
     expect(result.presentation?.kind).toBe('raw');

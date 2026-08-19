@@ -148,12 +148,8 @@ describe('canonical spool dedupe contract (#1031)', () => {
     const { generateCodexPluginAssets } = await import('../../src/codex-plugin/catalogue.js');
     // The shipped catalogue is generated with the CLI version pinned, so the
     // comparison has to use the same transformation the generator ran.
-    const cliVersion = (
-      JSON.parse(
-        readFileSync(nodePath.resolve(import.meta.dirname, '../../package.json'), 'utf8'),
-      ) as { version: string }
-    ).version;
-    const generatedSkill = generateCodexPluginAssets(SKILLS_DIR, cliVersion).find(
+    const { VERSION } = await import('../../src/version.js');
+    const generatedSkill = generateCodexPluginAssets(SKILLS_DIR, VERSION).find(
       asset => asset.relativePath === 'skills/retro-filer/SKILL.md',
     );
     expect(source).toContain('name: retro-filer');

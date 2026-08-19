@@ -4,37 +4,23 @@
  * content. Replaces the project-local `.safeword/hooks/resolve-project-knowledge.ts`
  * script for hosts with no installed hooks directory (Codex's self-contained
  * plugin).
+ *
+ * The resolution itself is not restated here: this delegates to the same
+ * exported function the hook entrypoint uses, so the two callers cannot report
+ * different sources for the same project. Only the path is re-expressed —
+ * project-relative, so machine output is identical across checkouts.
  */
 
-import { readFileSync, statSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { resolveReviewKnowledgeSources } from '../../templates/hooks/lib/project-knowledge.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
-import { readConfiguredPath, resolveConfiguredPath } from '../utils/configured-paths.js';
-
-const REVIEW_KNOWLEDGE_KEYS = ['principles', 'personas', 'surfaces'] as const;
-
-function isRegularFile(path: string): boolean {
-  try {
-    return statSync(path).isFile();
-  } catch {
-    return false;
-  }
-}
 
 export function observeReviewKnowledge(cwd: string): Promise<CliResult> {
-  const sources = REVIEW_KNOWLEDGE_KEYS.map(key => {
-    const path = resolveConfiguredPath(cwd, key);
-    const exists = isRegularFile(path);
-    return {
-      key,
-      configured: readConfiguredPath(cwd, key) !== undefined,
-      // Project-relative so machine output is identical across checkouts.
-      path: nodePath.relative(cwd, path),
-      exists,
-      content: exists ? readFileSync(path, 'utf8') : undefined,
-    };
-  });
+  const sources = resolveReviewKnowledgeSources(cwd).map(source => ({
+    ...source,
+    path: nodePath.relative(cwd, source.path),
+  }));
 
   return Promise.resolve(
     createResult({

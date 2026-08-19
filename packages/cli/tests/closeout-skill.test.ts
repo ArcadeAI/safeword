@@ -20,14 +20,10 @@ import {
 import { CURSOR_COMMAND_WRAPPERS } from '../src/cursor-wrappers.js';
 import { runParity } from '../src/parity.js';
 import { SAFEWORD_SCHEMA } from '../src/schema.js';
+import { VERSION as cliVersion } from '../src/version.js';
 
 const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
 const canonicalSkillsDirectory = nodePath.join(repoRoot, 'packages/cli/templates/skills');
-const cliVersion = (
-  JSON.parse(readFileSync(nodePath.join(repoRoot, 'packages/cli/package.json'), 'utf8')) as {
-    version: string;
-  }
-).version;
 const canonicalSkillPath = nodePath.join(canonicalSkillsDirectory, 'closeout/SKILL.md');
 
 function canonicalSkill(): string {
@@ -181,7 +177,7 @@ describe('closeout retrospective boundary (93C14D NTB1.R2)', () => {
 
   it('wires the authenticated preview field to the shipped Codex filer skill', () => {
     const skill = canonicalSkill();
-    const generatedFiler = generateCodexPluginAssets(canonicalSkillsDirectory).find(
+    const generatedFiler = generateCodexPluginAssets(canonicalSkillsDirectory, cliVersion).find(
       asset => asset.relativePath === 'skills/retro-filer/SKILL.md',
     );
 
@@ -256,7 +252,7 @@ describe('closeout host entry points (93C14D TBU1.R4)', () => {
       readFileSync(nodePath.join(repoRoot, 'packages/cli/templates/commands/closeout.md'), 'utf8'),
     ).toContain('Read and follow the instructions in .safeword/skills/closeout/SKILL.md');
 
-    const generatedCodex = generateCodexPluginAssets(canonicalSkillsDirectory).find(
+    const generatedCodex = generateCodexPluginAssets(canonicalSkillsDirectory, cliVersion).find(
       asset => asset.relativePath === 'skills/closeout/SKILL.md',
     );
     expect(generatedCodex?.content).toContain('name: closeout');

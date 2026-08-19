@@ -15,6 +15,7 @@ import { Option } from 'commander';
 import { describe, expect, it } from 'vitest';
 
 import { GLOBAL_OPTION_DEFINITIONS } from '../../src/cli-protocol/execute.js';
+import { VERSION } from '../../src/version.js';
 import {
   reviewCandidates,
   reviewChildEnvironment,
@@ -320,11 +321,6 @@ exit ${status}`,
 
   it('keeps generated required-review surfaces on one review entrypoint and Cursor unwired', () => {
     const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
-    const cliVersion = (
-      JSON.parse(readFileSync(nodePath.join(repoRoot, 'packages/cli/package.json'), 'utf8')) as {
-        version: string;
-      }
-    ).version;
     const generatedSurfaces = [
       {
         // Claude reaches the managed wrapper: its plugin ships run-review.ts
@@ -346,7 +342,7 @@ exit ${status}`,
         // the managed-progress signal the wrapper would otherwise have set —
         // without it a multi-minute review runs silent.
         root: nodePath.join(repoRoot, 'packages/cli/codex-plugin/skills'),
-        reviewEntrypoint: `SAFEWORD_REVIEW_PROGRESS=1 bunx --bun safeword@${cliVersion} `,
+        reviewEntrypoint: `SAFEWORD_REVIEW_PROGRESS=1 bunx --bun safeword@${VERSION} `,
         requiredReviewFiles: [
           'quality-review/SKILL.md',
           'review-spec/SKILL.md',

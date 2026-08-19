@@ -20,6 +20,7 @@ import type { RelayReadinessManifest } from '../../cli/src/retro/relay-readiness
 import type { IssueTracker } from '../../cli/src/retro/triage.js';
 import { SAFEWORD_SCHEMA } from '../../cli/src/schema.js';
 import { createProjectContext } from '../../cli/src/utils/context.js';
+import { VERSION } from '../../cli/src/version.js';
 import { offsetStatePath } from '../../cli/templates/hooks/lib/retro-trigger.js';
 import {
   CredentialRegistry,
@@ -144,10 +145,7 @@ async function installSurfaceFixtures(project: string): Promise<{
 
   const canonicalSkills = path.join(cli, 'templates', 'skills');
   const packagedPlugin = path.join(cli, 'codex-plugin');
-  const cliVersion = (
-    JSON.parse(readFileSync(path.join(cli, 'package.json'), 'utf8')) as { version: string }
-  ).version;
-  assertCodexPluginCatalogue(canonicalSkills, packagedPlugin, cliVersion);
+  assertCodexPluginCatalogue(canonicalSkills, packagedPlugin, VERSION);
   const installedPlugin = path.join(project, '.codex', 'plugins', 'safeword');
   cpSync(packagedPlugin, installedPlugin, { recursive: true });
 

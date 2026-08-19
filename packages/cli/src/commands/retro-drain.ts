@@ -10,6 +10,7 @@
  */
 
 import { statSync } from 'node:fs';
+import nodePath from 'node:path';
 
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 
@@ -26,6 +27,7 @@ function spoolSize(path: string): number | undefined {
 }
 
 export async function runRetroDrain(
+  cwd: string,
   spoolPath: string | undefined,
   options: Readonly<Record<string, unknown>>,
 ): Promise<CliResult> {
@@ -42,10 +44,14 @@ export async function runRetroDrain(
     });
   }
 
+  // Resolve against the invocation's project directory, not `process.cwd()`:
+  // a relative spool with `--cwd` elsewhere would otherwise pass the basename
+  // guards against the wrong tree and drain nothing while reporting success.
+  const resolvedSpoolPath = nodePath.resolve(cwd, spoolPath);
   const { drainRetroSpool } = await import('../../templates/hooks/lib/drain-retro-spool.js');
-  const before = spoolSize(spoolPath);
+  const before = spoolSize(resolvedSpoolPath);
   const result = drainRetroSpool(
-    spoolPath,
+    resolvedSpoolPath,
     options.validatedJsonl === true ? 'validated-jsonl' : 'drain',
   );
 
@@ -74,12 +80,17 @@ export async function runRetroDrain(
     });
   }
 
-  const drained = spoolSize(spoolPath) !== before;
+  const drained = spoolSize(resolvedSpoolPath) !== before;
 
   return createResult({
     state: drained ? 'changed' : 'healthy',
     changed: drained,
-    ...(drained && { effects: { files: [{ kind: 'update', target: spoolPath }] } }),
+    // Project-relative so machine output is identical across checkouts.
+    ...(drained && {
+      effects: {
+        files: [{ kind: 'update', target: nodePath.relative(cwd, resolvedSpoolPath) }],
+      },
+    }),
     data: { command: 'project retro-drain', drained },
   });
 }
