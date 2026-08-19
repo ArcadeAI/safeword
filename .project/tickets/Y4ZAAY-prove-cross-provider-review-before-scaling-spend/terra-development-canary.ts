@@ -587,7 +587,7 @@ export async function completeCanaryProviderJournal(
     intent?.kind !== "attempt-intent" ||
     intent.attemptId !== input.attemptId ||
     intent.intentId !== input.intentId ||
-    intent.sequence !== input.sequence
+    intent.sequence !== 1
   ) {
     throw new Error("provider turn journal has an invalid attempt intent");
   }
