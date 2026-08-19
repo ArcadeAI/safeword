@@ -43252,7 +43252,10 @@ function drainRetroSpool(inputPath, mode = "drain") {
   const ackPath = ackFilePath(projectDirectory, sessionId);
   const protectedPaths = [safewordDirectory, draftsDirectory, spoolPath2, ackPath];
   if (protectedPaths.some((path4) => existsSync41(path4) && lstatSync17(path4).isSymbolicLink())) {
-    return { state: "refused", message: "Refusing a symlinked retro spool or acknowledgement path" };
+    return {
+      state: "refused",
+      message: "Refusing a symlinked retro spool or acknowledgement path"
+    };
   }
   if (existsSync41(spoolPath2) && (!existsSync41(draftsDirectory) || nodePath80.dirname(realpathSync8(spoolPath2)) !== realpathSync8(draftsDirectory))) {
     return {
