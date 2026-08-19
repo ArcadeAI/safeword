@@ -393,11 +393,16 @@ function pathMetadataIsTrusted(
   );
 }
 
+/** The current user id, or `undefined` where the platform does not report one. */
+function currentUserId(): number | undefined {
+  return typeof process.getuid === 'function' ? process.getuid() : undefined;
+}
+
 function hasTrustedExecutableAncestry(candidate: string): boolean {
   // Windows ACLs do not map reliably to POSIX ownership and mode checks. Keep
   // the portable project-root exclusion, and leave ACL validation to the host.
   if (process.platform === 'win32') return true;
-  const currentUid = typeof process.getuid === 'function' ? process.getuid() : undefined;
+  const currentUid = currentUserId();
   let current = candidate;
   while (true) {
     const metadata = lstatSync(current);
@@ -418,28 +423,9 @@ function digestOpenFile(
 }
 
 /**
- * A binary found via PATH can fail `hasTrustedExecutableAncestry` purely
- * because a package manager's own directory (e.g. Homebrew's /opt/homebrew/bin)
- * is group-writable by convention, not because anything is actually wrong.
- * Stage a private copy under a directory Safeword owns exclusively so review
- * can proceed without asking the customer to change how they installed their
- * reviewer — but only when the executable file itself is trusted on its own;
- * a writable file could have been tampered with directly and must never be
- * laundered into trust by copying it.
- *
- * Opens the source exactly once and checks/reads/copies from that single
- * descriptor throughout, rather than re-resolving `canonical` by pathname at
- * each step — a writer on the untrusted ancestor could otherwise swap the
- * file between the trust check and the copy. The destination filename is
- * content-addressed by the source's SHA-256 (`<reviewer>.<digest>`), so two
- * different installations on PATH never collide on one mutable path, and a
- * cache "hit" re-opens the cached file, hashes ITS bytes, and only trusts it
- * if they still match the name it is stored under — a corrupted or
- * in-place-tampered cache entry is never spawned on the strength of its
- * filename alone. Published via a uniquely-named temp file plus atomic
- * rename, never by writing through the destination pathname directly —
- * writing straight into a fixed path follows a pre-planted destination
- * symlink and would overwrite whatever it points at.
+ * Whether an existing cache entry's own bytes still hash to the digest its
+ * filename claims — a corrupted or in-place-tampered entry must never be
+ * spawned on the strength of its name alone.
  */
 function cachedCopyMatchesDigest(copyPath: string, expectedDigest: string): boolean {
   let cachedFd: number | undefined;
@@ -478,6 +464,32 @@ function preparedTrustedCacheDirectory(untrustedRoot: string): string | undefine
   return cacheDirectory;
 }
 
+/**
+ * A binary found via PATH can fail `hasTrustedExecutableAncestry` purely
+ * because a package manager's own directory (e.g. Homebrew's /opt/homebrew/bin)
+ * is group-writable by convention, not because anything is actually wrong.
+ * Stage a private copy under a directory Safeword owns exclusively so review
+ * can proceed without asking the customer to change how they installed their
+ * reviewer — but only when the executable file itself is trusted on its own;
+ * a writable file could have been tampered with directly and must never be
+ * laundered into trust by copying it.
+ *
+ * Opens the source exactly once and checks/reads/copies from that single
+ * descriptor throughout, rather than re-resolving `canonical` by pathname at
+ * each step — a writer on the untrusted ancestor could otherwise swap the
+ * file between the trust check and the copy. The destination filename is
+ * content-addressed by the source's SHA-256 (`<reviewer>.<digest>`), so two
+ * different installations on PATH never collide on one mutable path.
+ * Published via a uniquely-named temp file plus atomic rename, never by
+ * writing through the destination pathname directly — writing straight into a
+ * fixed path follows a pre-planted destination symlink and would overwrite
+ * whatever it points at.
+ *
+ * Staging relocates the executable, so a shim resolving siblings relative to
+ * its own install directory stops working once copied; the caller's capability
+ * probe rejects such a copy like any other incompatible candidate, so that
+ * case fails closed rather than reviewing with a broken reviewer.
+ */
 function stagedTrustedReviewerCopy(
   reviewer: ReviewAgent,
   canonical: string,
@@ -487,7 +499,7 @@ function stagedTrustedReviewerCopy(
   try {
     sourceFd = openSync(canonical, constants.O_RDONLY);
     const sourceMetadata = fstatSync(sourceFd);
-    const currentUid = typeof process.getuid === 'function' ? process.getuid() : undefined;
+    const currentUid = currentUserId();
     if (!pathMetadataIsTrusted(sourceMetadata.mode, sourceMetadata.uid, currentUid)) {
       return undefined;
     }

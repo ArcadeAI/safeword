@@ -44052,10 +44052,13 @@ function pathMetadataIsTrusted(mode, ownerUid, currentUid) {
   const ownedByCurrentUser = currentUid !== undefined && ownerUid === currentUid;
   return (mode & 2) === 0 && (mode & 16) === 0 && (currentUid === undefined || ownerUid === 0 || ownedByCurrentUser);
 }
+function currentUserId() {
+  return typeof process.getuid === "function" ? process.getuid() : undefined;
+}
 function hasTrustedExecutableAncestry(candidate) {
   if (process.platform === "win32")
     return true;
-  const currentUid = typeof process.getuid === "function" ? process.getuid() : undefined;
+  const currentUid = currentUserId();
   let current = candidate;
   while (true) {
     const metadata = lstatSync19(current);
@@ -44104,7 +44107,7 @@ function stagedTrustedReviewerCopy(reviewer, canonical, untrustedRoot) {
   try {
     sourceFd = openSync10(canonical, constants4.O_RDONLY);
     const sourceMetadata = fstatSync8(sourceFd);
-    const currentUid = typeof process.getuid === "function" ? process.getuid() : undefined;
+    const currentUid = currentUserId();
     if (!pathMetadataIsTrusted(sourceMetadata.mode, sourceMetadata.uid, currentUid)) {
       return;
     }

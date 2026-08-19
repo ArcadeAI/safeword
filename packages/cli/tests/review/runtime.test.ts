@@ -26,6 +26,7 @@ import {
 import {
   cleanupTrustedReviewerDirectories,
   createTrustedReviewerDirectory,
+  REVIEWER_CAPABILITIES,
 } from '../review-fixtures.js';
 
 const temporaryDirectories: string[] = [];
@@ -453,6 +454,49 @@ printf '%s' '${JSON.stringify({ structured_output: output })}'
       ).rejects.toMatchObject({ failure: 'untrusted_install' });
 
       expect(existsSync(cacheDirectory) ? readdirSync(cacheDirectory) : []).toEqual([]);
+    },
+  );
+
+  // Staging moves the executable, so a shim that resolves siblings relative to
+  // its own location stops working once copied. That is not silently accepted:
+  // the capability probe rejects the staged copy like any other incompatible
+  // candidate, so the run fails closed rather than reviewing with a broken
+  // reviewer.
+  it.skipIf(process.platform === 'win32')(
+    'fails closed when a relocated location-dependent reviewer can no longer run',
+    async () => {
+      const bin = trustedTemporaryDirectory();
+      const cacheDirectory = temporaryDirectory();
+      const project = temporaryDirectory();
+      const untrustedRoot = temporaryDirectory();
+      const executable = nodePath.join(bin, 'claude');
+      // Only advertises its capabilities when its install-dir sibling is present.
+      writeFileSync(nodePath.join(bin, 'capabilities.txt'), REVIEWER_CAPABILITIES.claude);
+      writeFileSync(
+        executable,
+        `#!/bin/sh
+cat "$(dirname "$0")/capabilities.txt" || exit 3
+`,
+        { mode: 0o755 },
+      );
+      chmodSync(executable, 0o755);
+      chmodSync(bin, 0o775);
+      vi.stubEnv('PATH', bin);
+      vi.stubEnv('SAFEWORD_REVIEWER_CACHE_DIR', cacheDirectory);
+
+      await expect(
+        runHeadlessReviewer(
+          'claude',
+          {
+            schema_version: 1,
+            dispatch_id: 'relocated-shim',
+            kind: 'quality-review',
+            logical_files: [],
+          },
+          project,
+          untrustedRoot,
+        ),
+      ).rejects.toBeInstanceOf(Error);
     },
   );
 
