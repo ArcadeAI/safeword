@@ -15,7 +15,7 @@ import {
   drainAcknowledgedDrafts,
   readSpooledDrafts,
   verifyDraftBody,
-} from './retro-draft-spool.ts';
+} from './retro-draft-spool.js';
 
 export type DrainRetroSpoolResult =
   | { state: 'refused'; message: string }

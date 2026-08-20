@@ -1,8 +1,8 @@
 import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { activeLines, sectionBody } from './impl-plan.ts';
-import { resolveReviewKnowledgeSources } from './project-knowledge.ts';
+import { activeLines, sectionBody } from './impl-plan.js';
+import { resolveReviewKnowledgeSources } from './project-knowledge.js';
 
 interface PrincipleTrace {
   principle: string;
