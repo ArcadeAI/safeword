@@ -22,7 +22,7 @@ without pretending the ledger drove those commits.
 
 ### Scenario: Disable removes an unchanged released workflow
 
-- [ ] RED
+- [x] RED skip: historical disable support predates this activated ticket
 - [ ] GREEN
 - [ ] REFACTOR
 
