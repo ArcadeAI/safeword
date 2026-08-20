@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (564)
+## Tickets (567)
 
 ### 001
 
@@ -1352,6 +1352,9 @@
 - **Re-sync safeword's own depcruise-config.cjs (AK8REW)** (done, epic: —)
   Make `safeword sync-config --check` on this repo exit 0. The committed file was historically prettier-reformatted (long comment string wrapped to two lines); the generator emits it single-line. With v0.37.0's `/audit` change, every audit run on this repo emits W007 until the committed file is re-synced.
   → `.project/tickets/AK8REW`
+- **Document the Codex catalogue regeneration step for releases (AMK8BC)** (in_progress, epic: —)
+  Add 'bun run generate:codex-plugin' to the release-tracked artifact list in AGENTS.md and the versioning skill
+  → `.project/tickets/AMK8BC-codex-plugin-regen-release-step`
 - **Done-gate must fire on no-edit stops (AP3FGJ)** (done, epic: —)
   Make the `currentPhase === 'done'` branch of `stop-quality.ts` run on every stop at `phase: done`, not only when the last 5 assistant messages contain an edit-tool use.
   → `.project/tickets/AP3FGJ-donegate-fires-without-edits`
@@ -1765,6 +1768,9 @@
 - **Retro accepts process-level friction surfaces and reports egress drops (PNZM3B)** (done, epic: —)
   Let retro file process-level friction under a leak-proof `process/<slug>` surface and report every egress drop, so silence means clean instead of secretly lossy.
   → `.project/tickets/PNZM3B-retro-process-surface`
+- **Stop the retro relay wiring test failing under CI load (PTJQ6X)** (in_progress, epic: —)
+  Inject a fixed clock into createRelayScenario so [ORR-001] no longer depends on wall-clock timing
+  → `.project/tickets/PTJQ6X-relay-scenario-fixed-clock`
 - **Centralize and harden the test/build resolver (polyglot, nested, multi-runner) (Q4FX8Y)** (done, epic: —)
   One resolver decides what test/build commands to run for a repo — correct across polyglot monorepos (run **every** detected suite, not first-match), nested/sub-package manifests, and languages with multiple runners — consumed identically by `/verify`, `/audit`, and the stop-hook `test-runner.ts` without drift.
   → `.project/tickets/Q4FX8Y-extract-shared-test-runner`
@@ -1843,6 +1849,9 @@
 - **Merge engine: warn when a JSON-merge target exists but won't parse (TIA4M8)** (done, epic: —)
   When `safeword setup`/`upgrade` reconciles a `jsonMerge` target that
   → `.project/tickets/TIA4M8-merge-warn-unparseable`
+- **Clear the root typecheck error on the retro drain hook lib (TJ2ZAK)** (in_progress, epic: —)
+  Resolve TS5097 reported by root tsc for templates/hooks/lib/drain-retro-spool.ts
+  → `.project/tickets/TJ2ZAK-root-tsconfig-ts5097`
 - **Run acceptance coverage locally for contributors (TQQGZS)** (done, epic: —)
   Give contributors one local command that runs both the unit and acceptance suites.
   external issue: https://github.com/ArcadeAI/safeword/issues/1455
