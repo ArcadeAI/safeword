@@ -1,3 +1,11 @@
+---
+id: R7K2QP
+slug: protect-review-fallback-boundaries
+type: task
+created: 2026-08-09T08:39:54.000Z
+last_modified: 2026-08-20T14:31:00.000Z
+---
+
 # Protect review fallback boundaries for builders
 
 ## Goal

@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (567)
+## Tickets (568)
 
 ### 001
 
@@ -1769,7 +1769,7 @@
   Let retro file process-level friction under a leak-proof `process/<slug>` surface and report every egress drop, so silence means clean instead of secretly lossy.
   → `.project/tickets/PNZM3B-retro-process-surface`
 - **Stop the retro relay wiring test failing under CI load (PTJQ6X)** (in_progress, epic: —)
-  Give the `[ORR-001]` relay wiring scenario a delivery budget wide enough that it tests delivery semantics rather than machine speed, by setting `deadlineMs` on its relay config instead of inheriting production's 500ms default
+  Make `[ORR-001]` in `packages/retro-relay/tests/cli-wiring.integration.test.ts` survive a single transient first-attempt delivery failure, so it stops reddening CI on commits that cannot have caused it
   → `.project/tickets/PTJQ6X-relay-scenario-fixed-clock`
 - **Centralize and harden the test/build resolver (polyglot, nested, multi-runner) (Q4FX8Y)** (done, epic: —)
   One resolver decides what test/build commands to run for a repo — correct across polyglot monorepos (run **every** detected suite, not first-match), nested/sub-package manifests, and languages with multiple runners — consumed identically by `/verify`, `/audit`, and the stop-hook `test-runner.ts` without drift.
@@ -1808,6 +1808,8 @@
 - **Rename DEV persona code to TB across the corpus (R4S85Y)** (done, epic: —)
   Eliminate the redundant DEV persona code by renaming DEV<n> -> TB<n> (828 occ) and Agent-Driven Developer (DEV) -> Technical Builder (TB) (2 occ) across 103 files, clearing the E009 drift by elimination and making a personas.md DEV entry unnecessary
   → `.project/tickets/R4S85Y-rename-dev-persona-to-tb`
+- **Protect review fallback boundaries for builders (R7K2QP)** (—, epic: —)
+  → `.project/tickets/R7K2QP-protect-review-fallback-boundaries`
 - **Stop-hook escalation path may be dead (0/10 BLOCKED) — revalidate post-F14BG2, recalibrate if needed (RAS9N8)** (pending, epic: —)
   Determine whether the Stop-hook escalation path (`BLOCKED`) is actually reachable in practice, and if it isn't, recalibrate within the existing binary-verdict architecture so genuine blockers surface instead of everything defaulting to `CONFIDENT`.
   → `.project/tickets/RAS9N8-stop-hook-escalation-calibration`

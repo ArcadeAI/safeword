@@ -78,11 +78,22 @@ The publish path is CI-driven via OIDC trusted publishing. Tag push → GitHub A
 
 1. **Decide the bump** using rules above. Patch / Minor / Major.
 
-2. **Bump version in all four release-tracked artifacts** (pre-commit and release-contract tests enforce the Codex match):
+2. **Bump version in all five release-tracked artifacts** (pre-commit and release-contract tests enforce the Codex match):
    - `packages/cli/package.json` → `version`
    - `.claude-plugin/marketplace.json` → `plugins[0].version`
    - `packages/cli/codex-plugin/.codex-plugin/plugin.json` → `version`
    - `packages/cli/codex-plugin/hooks.json` → all five `bunx` commands pin `safeword@<version>`
+   - `packages/cli/codex-plugin/skills/**` → **generated**, never hand-edited:
+
+     ```bash
+     bun run --cwd packages/cli generate:codex-plugin
+     ```
+
+     Codex's skills embed `bunx --bun safeword@<version>` because that plugin has
+     no project-local `.safeword/hooks` to call (V2AH4B). Skip the regeneration
+     and the release ships skills pinned to the previous version. Verify with
+     `grep -r "safeword@<previous-version>" packages/cli/codex-plugin` — it must
+     return nothing.
 
    Then **regenerate the lockfile** so `bun.lock`'s `packages/cli` workspace
    version tracks `package.json` — otherwise it drifts and CI's lockfile-drift
