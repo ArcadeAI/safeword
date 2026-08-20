@@ -168,13 +168,14 @@ Each pass:
    current-source evidence needed by §1–3, keep each work-product under review
    as a target. If the target alone cannot validate a finding, add only the
    minimum directly relevant supporting evidence: a source, test, contract, or
-   plan. Pass each evidence file with `--context`; context is not additional
-   work under review. Do not dump the repository or add merely related files.
+   plan. Prefer stable evidence that will not change while the reviewer works.
+   Pass each evidence file with `--context`; context is not additional work
+   under review. Do not dump the repository or add merely related files.
    Resolve a review-capable Safeword CLI first; source checkouts do not
    guarantee a bare `safeword` on `PATH`:
 
    ```bash
-   bun .safeword/hooks/run-review.ts review run quality-review --context path/to/evidence --agent-handoff --json -- changed-file [more-changed-files...]
+   bun .safeword/hooks/run-review.ts review run quality-review [--context path/to/evidence] --agent-handoff --json -- changed-file [more-changed-files...]
    ```
 
    A healthy deep review may return `REVIEW_PENDING` after its foreground

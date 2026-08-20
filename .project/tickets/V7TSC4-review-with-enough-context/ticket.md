@@ -2,7 +2,7 @@
 id: V7TSC4
 slug: review-with-enough-context
 type: task
-phase: implement
+phase: verify
 status: in_progress
 scope:
   - guide quality-review to keep authored work as the review target while passing only directly relevant source, tests, contracts, or plans as supporting context
@@ -54,3 +54,13 @@ repository dump.
   four assertions RED, then added one bounded-context paragraph and command
   example to the canonical skill and regenerated installed copies. Focused
   review guidance, freshness, and coordinator parity suites pass 41/41.
+- 2026-08-20T06:04:00Z Verification repair: Full Vitest passed twice (502
+  files, 8230 tests, 7 skips each). The Gherkin lane exposed the required
+  Claude historical-catalogue fingerprint; regenerated and sealed the plugin,
+  then the two failed scenarios passed 2/2 (90 steps). Website build and Astro
+  typecheck also pass after supplying its existing worktree dependency.
+- 2026-08-20T06:16:00Z Independent review: Claude approved the target/context
+  boundary and suggested making context visibly optional, preferring stable
+  evidence, removing mirror-assertion duplication, and proving repeated CLI
+  flags. Applied those material changes; 95 focused tests and the Claude plugin
+  release contract pass. Refactor review found no worthwhile structural change.
