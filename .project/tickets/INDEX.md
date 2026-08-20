@@ -1769,7 +1769,7 @@
   Let retro file process-level friction under a leak-proof `process/<slug>` surface and report every egress drop, so silence means clean instead of secretly lossy.
   → `.project/tickets/PNZM3B-retro-process-surface`
 - **Stop the retro relay wiring test failing under CI load (PTJQ6X)** (in_progress, epic: —)
-  Inject a fixed clock into createRelayScenario so [ORR-001] no longer depends on wall-clock timing
+  Give the `[ORR-001]` relay wiring scenario a delivery budget wide enough that it tests delivery semantics rather than machine speed, by setting `deadlineMs` on its relay config instead of inheriting production's 500ms default
   → `.project/tickets/PTJQ6X-relay-scenario-fixed-clock`
 - **Centralize and harden the test/build resolver (polyglot, nested, multi-runner) (Q4FX8Y)** (done, epic: —)
   One resolver decides what test/build commands to run for a repo — correct across polyglot monorepos (run **every** detected suite, not first-match), nested/sub-package manifests, and languages with multiple runners — consumed identically by `/verify`, `/audit`, and the stop-hook `test-runner.ts` without drift.
