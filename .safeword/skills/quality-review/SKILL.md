@@ -165,12 +165,16 @@ Run the review in passes until **Critical issues** come back None. A couple of p
 Each pass:
 
 1. **Run the shared independent-review coordinator.** After gathering any
-   current-source evidence needed by §1–3, pass only the bounded work-product
-   and scope to the host-owned coordinator. Resolve a review-capable Safeword
-   CLI first; source checkouts do not guarantee a bare `safeword` on `PATH`:
+   current-source evidence needed by §1–3, keep each work-product under review
+   as a target. If the target alone cannot validate a finding, add only the
+   minimum directly relevant supporting evidence: a source, test, contract, or
+   plan. Pass each evidence file with `--context`; context is not additional
+   work under review. Do not dump the repository or add merely related files.
+   Resolve a review-capable Safeword CLI first; source checkouts do not
+   guarantee a bare `safeword` on `PATH`:
 
    ```bash
-   bun .safeword/hooks/run-review.ts review run quality-review changed-file [more-changed-files...] --agent-handoff --json
+   bun .safeword/hooks/run-review.ts review run quality-review --context path/to/evidence --agent-handoff --json -- changed-file [more-changed-files...]
    ```
 
    A healthy deep review may return `REVIEW_PENDING` after its foreground
