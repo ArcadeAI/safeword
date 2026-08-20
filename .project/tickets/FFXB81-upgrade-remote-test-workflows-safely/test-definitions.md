@@ -23,7 +23,7 @@ without pretending the ledger drove those commits.
 ### Scenario: Disable removes an unchanged released workflow
 
 - [x] RED skip: historical disable support predates this activated ticket
-- [ ] GREEN
+- [x] GREEN 7b7a782af
 - [ ] REFACTOR
 
 ### Scenario Outline: Disable preserves a customer-edited workflow across checkout line endings
