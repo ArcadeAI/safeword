@@ -50,14 +50,21 @@ describe('filer ack procedure in shipped prompts (GH644A)', () => {
     expect(mdText.toLowerCase()).toContain('never rewrite or');
   });
 
+  // Every surface must reach the code-owned drain rather than hand-rolling
+  // removal; the entrypoint differs because Codex's plugin has no project-local
+  // .safeword/hooks to invoke, so it calls the subcommand that delegates to the
+  // same exported guard.
+  const CODE_OWNED_DRAIN = 'drain-retro-spool.ts';
+  const CODEX_CODE_OWNED_DRAIN = 'project retro-drain';
+
   it.each([
-    ['Claude fallback skill', claudeSkillText],
-    ['Codex plugin skill', codexSkillText],
-  ])('%s requires write-confirmed acknowledgement before removal', (_label, text) => {
+    ['Claude fallback skill', claudeSkillText, CODE_OWNED_DRAIN],
+    ['Codex plugin skill', codexSkillText, CODEX_CODE_OWNED_DRAIN],
+  ])('%s requires write-confirmed acknowledgement before removal', (_label, text, drain) => {
     expect(text.toLowerCase()).toContain('re-read it and exact-match');
     expect(text.toLowerCase()).toContain('only when the append succeeded');
     expect(text.toLowerCase()).toContain('append or verification fails, leave the draft in place');
-    expect(text).toContain('drain-retro-spool.ts');
+    expect(text).toContain(drain);
   });
 
   it.each([
@@ -71,12 +78,12 @@ describe('filer ack procedure in shipped prompts (GH644A)', () => {
   });
 
   it.each([
-    ['Claude agent', mdText],
-    ['Claude fallback skill', claudeSkillText],
-    ['Codex plugin skill', codexSkillText],
-    ['filing guide', guideText],
-  ])('%s requires code-owned validation before tracker egress', (_label, text) => {
-    expect(text).toContain('drain-retro-spool.ts');
+    ['Claude agent', mdText, CODE_OWNED_DRAIN],
+    ['Claude fallback skill', claudeSkillText, CODE_OWNED_DRAIN],
+    ['Codex plugin skill', codexSkillText, CODEX_CODE_OWNED_DRAIN],
+    ['filing guide', guideText, CODE_OWNED_DRAIN],
+  ])('%s requires code-owned validation before tracker egress', (_label, text, drain) => {
+    expect(text).toContain(drain);
     expect(text).toContain('--validated-jsonl');
     expect(text.toLowerCase()).toMatch(
       /nonzero[\s\S]*no\s+(search, comment, or create|tracker call)/,
@@ -139,7 +146,10 @@ describe('canonical spool dedupe contract (#1031)', () => {
   it('ships the Codex filer skill from the canonical template through the schema', async () => {
     const source = readFileSync(nodePath.join(SKILLS_DIR, 'retro-filer/SKILL.md'), 'utf8');
     const { generateCodexPluginAssets } = await import('../../src/codex-plugin/catalogue.js');
-    const generatedSkill = generateCodexPluginAssets(SKILLS_DIR).find(
+    // The shipped catalogue is generated with the CLI version pinned, so the
+    // comparison has to use the same transformation the generator ran.
+    const { VERSION } = await import('../../src/version.js');
+    const generatedSkill = generateCodexPluginAssets(SKILLS_DIR, VERSION).find(
       asset => asset.relativePath === 'skills/retro-filer/SKILL.md',
     );
     expect(source).toContain('name: retro-filer');

@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (558)
+## Tickets (564)
 
 ### 001
 
@@ -69,6 +69,21 @@
 - **Stop native Claude plugin from depending on project-local .safeword content (0VG5AC)** (in_progress, epic: —)
   Wire SAFEWORD_PACKAGED_CONTEXT_PATH into Claude's dispatch.js (pointing at the plugin's own resources/, mirroring how Codex's runtime already sets it) so SessionStart points at the packaged handbook/guides instead of .safeword/SAFEWORD.md and .safeword/guides/; also stop installing .safeword/hooks/*, .safeword/skills/*, and .safeword/scripts/* when neither Codex nor Cursor is selected, since native Claude never reads them
   → `.project/tickets/0VG5AC-claude-plugin-drop-safeword-dependency`
+- **Decide whether cleanup-zombies belongs in Codex's self-contained skill set (1DZ9W8)** (in_progress, epic: —)
+  Resolve whether templates/skills/cleanup-zombies/SKILL.md's direct ./.safeword/scripts/cleanup-zombies.sh invocations should get a bunx equivalent, get dropped from the Codex delivery, or stay project-local by design
+  → `.project/tickets/1DZ9W8-codex-cleanup-zombies-scope`
+- **Add public CLI subcommands for Codex's remaining resolver and audit-trace scripts (GJB22B)** (in_progress, epic: —)
+  Build public subcommands for resolve-project-knowledge.ts, resolve-namespace-root.ts, resolve-verify-ticket.ts, audit-principle-trace.ts, and drain-retro-spool.ts, then rewrite their invocations in explain/verify/audit/retro-filer skills to a pinned bunx call, following the run-review.ts precedent in catalogue.ts
+  → `.project/tickets/GJB22B-codex-helper-subcommands`
+- **Find a self-contained equivalent for Codex's sourced audit-scope helper (JNZ2H5)** (in_progress, epic: —)
+  Decide and implement how templates/skills/audit/SKILL.md's three 'source $PROJECT_DIR/.safeword/hooks/lib/audit-scope.sh' calls can work without a project-local file, since sourcing shares shell state (functions/variables) in a way a bunx subcommand invocation cannot replicate
+  → `.project/tickets/JNZ2H5-codex-audit-scope-self-contained`
+- **Let Codex's review-stamp and skill-invocation recording work without project files (KDED4X)** (in_progress, epic: —)
+  Rewrite write-review-stamp.ts and record-skill-invocation.ts invocations in Codex skills to a pinned bunx call, updating codex-hook.ts's literal session-identity-bridge matcher in lockstep
+  → `.project/tickets/KDED4X-codex-review-stamp-self-contained`
+- **Make Codex's closeout skill work without project-local scripts (SF0RS0)** (in_progress, epic: —)
+  Give closeout-cleanup.ts (1795 lines, invoked directly by templates/skills/closeout/SKILL.md) an equivalent self-contained bunx path for Codex, or a documented reason it can't have one
+  → `.project/tickets/SF0RS0-codex-closeout-self-contained`
 - **Let Codex skills run without project-local .safeword scripts (V2AH4B)** (in_progress, epic: —)
   Rewrite Codex's skill-invoked scripts (run-review.ts, resolve-project-knowledge.ts, closeout-cleanup.ts, drain-retro-spool.ts, cleanup-zombies.sh, record-skill-invocation.ts, etc.) to shell out via bunx --bun safeword@<version> <subcommand>, the same self-contained pattern Codex's lifecycle hooks (hooks.json) already use, instead of bun .safeword/hooks/<script>.ts / .safeword/scripts/<script>
   → `.project/tickets/V2AH4B-codex-self-contained-scripts`
@@ -213,9 +228,8 @@
 
 ### BBNZ68
 
-- **Protect remote test runners before repository code runs (BR373S)** (in_progress, epic: —)
-  Ensure the managed GitHub Actions runner validates trusted inputs, uses least privilege, and reports authoritative remote results.
-  blocked by: Install remote test workflows without overwriting customer changes (X2Z8MN)
+- **Run the requested revision remotely with least privilege (BR373S)** (done, epic: —)
+  Run the requested immutable revision in the customer's GitHub Actions environment with only the authority ordinary tests need.
   → `.project/tickets/BR373S-protect-remote-test-runners`
 - **Run tests remotely with safe recovery (S2TF4J)** (in_progress, epic: —)
   Dispatch an eligible test run to GitHub Actions, preserve durable recovery evidence, and use local fallback only when no remote run was created.
@@ -227,7 +241,7 @@
   → `.project/tickets/S7TZF9-choose-local-or-remote-test-execution`
 - **Install remote test workflows without overwriting customer changes (X2Z8MN)** (in_progress, epic: —)
   Let projects opt in to the managed GitHub Actions workflow through safe setup, upgrade, disable, and conflict recovery.
-  blocks: Protect remote test runners before repository code runs (BR373S), Run tests remotely with safe recovery (S2TF4J)
+  blocks: Run tests remotely with safe recovery (S2TF4J)
   → `.project/tickets/X2Z8MN-install-remote-test-workflows-safely`
 
 ### bdd-chain-hardening
@@ -1589,6 +1603,9 @@
   Let implementation run without chat-facing review checkpoints while keeping the actual TDD review, refactor, quality-review, and hard-gate work intact.
   external issue: https://github.com/ArcadeAI/safeword/issues/464
   → `.project/tickets/JENFZX-quiet-implement-review-surface`
+- **Let independent review trust Homebrew-installed reviewer binaries (JHYJ11)** (in_progress, epic: —)
+  When the resolved reviewer binary (e.g. codex) sits in a group-writable directory (the Homebrew cask default), make a private safeword-owned copy in a non-group-writable directory and review from that instead of falling back to a degraded same-agent review
+  → `.project/tickets/JHYJ11-trusted-reviewer-binary-copy`
 - **Nudge architecture drift in Cursor and Codex Stop hooks (JN403D)** (done, epic: —)
   Make the existing `ARCHITECTURE.md` drift advisory reach Cursor and Codex Stop hooks with the same non-blocking nudge semantics as Claude.
   external issue: https://github.com/ArcadeAI/safeword/issues/598

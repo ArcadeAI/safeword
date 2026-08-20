@@ -169,8 +169,93 @@ function adaptWorkflowInvocations(markdown: string, knownSkillNames: ReadonlySet
   return `${adapted}${markdown.slice(copiedThrough)}`;
 }
 
-function adaptWorkflowMarkdown(markdown: string, knownSkillNames: ReadonlySet<string>): string {
-  const adapted = adaptWorkflowInvocations(markdown, knownSkillNames);
+// Codex skills invoke project-local `.safeword/hooks` scripts, none of which
+// exist in Codex's self-contained plugin. Each is rewritten to the equivalent
+// pinned, public subcommand, mirroring how Codex's lifecycle hooks already
+// invoke safeword via `bunx --bun safeword@<version>`.
+//
+// Codex cannot instead ship and call those scripts: its plugin-root anchor
+// (`PLUGIN_ROOT`) is injected only into hook-command shells, never into the
+// shell a skill's bash block runs in, so a vendored path would rest on the
+// model resolving a relative path — too soft for a gate.
+//
+// `{version}` in a replacement is filled with the pinned CLI version.
+const SCRIPT_REWRITES: readonly { readonly invocation: string; readonly replacement: string }[] = [
+  // Prefix swap: `review run …` and its own arguments follow unchanged.
+  //
+  // The rewrite carries the one thing the wrapper did that the bare subcommand
+  // does not: `SAFEWORD_REVIEW_PROGRESS`. The wrapper set it in the child
+  // environment for exactly this shape of call (`review run … --json`), and it
+  // is what promotes a `--json` review from silent to heartbeating. Reviews run
+  // for minutes; the heartbeat is the only proof the coordinator is still
+  // alive. It is read and deleted before any reviewer subprocess spawns, so it
+  // cannot leak onward, and progress is written to stderr — never stdout, which
+  // stays clean for the caller parsing the JSON envelope.
+  {
+    invocation: 'bun .safeword/hooks/run-review.ts ',
+    replacement: 'SAFEWORD_REVIEW_PROGRESS=1 bunx --bun safeword@{version} ',
+  },
+  // Whole-invocation swap: the script takes no arguments at its call sites, and
+  // the caller reads the JSON envelope.
+  {
+    invocation: 'bun .safeword/hooks/resolve-project-knowledge.ts',
+    replacement: 'bunx --bun safeword@{version} project review-knowledge --json',
+  },
+  // Prefix swap with no `--json`: the caller consumes raw stdout (the retro
+  // filer streams the validated JSONL onward), which the envelope would replace.
+  {
+    invocation: 'bun .safeword/hooks/lib/drain-retro-spool.ts ',
+    replacement: 'bunx --bun safeword@{version} project retro-drain ',
+  },
+];
+
+function adaptScriptInvocations(markdown: string, version: string): string {
+  let adapted = markdown;
+  for (const { invocation, replacement } of SCRIPT_REWRITES) {
+    adapted = adapted.split(invocation).join(replacement.split('{version}').join(version));
+  }
+  return adapted;
+}
+
+// resolve-namespace-root.ts needs its own pass: its two positional modes
+// map onto `project namespace-root`'s flags. Every call site passes a default
+// basename of `<key>.md`, which is already the subcommand's own default, so
+// only the key survives the rewrite.
+const NAMESPACE_ROOT_INVOCATION_PREFIX =
+  'bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR"';
+const NAMESPACE_ROOT_ARGUMENTS = /^ (?<key>[a-z]{1,32}) (?<basename>[\w.-]{1,64})/u;
+
+function adaptNamespaceRootInvocations(markdown: string, version: string): string {
+  const replacement = `bunx --bun safeword@${version} project namespace-root --cwd "$PROJECT_DIR"`;
+  const [head, ...rest] = markdown.split(NAMESPACE_ROOT_INVOCATION_PREFIX);
+  let adapted = head ?? '';
+
+  for (const tail of rest) {
+    const { key, basename } = NAMESPACE_ROOT_ARGUMENTS.exec(tail)?.groups ?? {};
+    if (key === undefined) {
+      adapted += replacement + tail;
+      // Only a default `<key>.md` basename survives the rewrite: the subcommand
+      // has no flag to carry any other one, so rewriting it would silently
+      // resolve a different file.
+    } else if (basename === `${key}.md`) {
+      const remainder = tail.slice(key.length + basename.length + 2);
+      adapted += `${replacement} --key ${key}${remainder}`;
+    } else {
+      adapted += NAMESPACE_ROOT_INVOCATION_PREFIX + tail;
+    }
+  }
+
+  return adapted;
+}
+
+function adaptWorkflowMarkdown(
+  markdown: string,
+  knownSkillNames: ReadonlySet<string>,
+  version: string,
+): string {
+  let adapted = adaptWorkflowInvocations(markdown, knownSkillNames);
+  adapted = adaptScriptInvocations(adapted, version);
+  adapted = adaptNamespaceRootInvocations(adapted, version);
 
   return formatMarkdownTables(adapted);
 }
@@ -179,6 +264,7 @@ function adaptSkillBody(
   body: string,
   knownSkillNames: ReadonlySet<string>,
   referenceNames: string[],
+  version: string,
 ): string {
   // Canonical skills have one blank line after frontmatter. The generated
   // frontmatter supplies that separator, so avoid duplicating it here.
@@ -187,7 +273,7 @@ function adaptSkillBody(
     adapted = adapted.split(referenceName).join(`references/${referenceName}`);
   }
 
-  return adaptWorkflowMarkdown(adapted, knownSkillNames);
+  return adaptWorkflowMarkdown(adapted, knownSkillNames, version);
 }
 
 function tableCells(line: string): string[] {
@@ -245,9 +331,16 @@ function formatMarkdownTables(markdown: string): string {
 /**
  * Adapt the canonical skill corpus into Codex's plugin layout. Only the source
  * metadata, explicit workflow invocations, and sibling reference paths change.
+ *
+ * `version` is REQUIRED, not defaulted: it is what the generated skills pin
+ * their `bunx --bun safeword@<version>` calls to, so a caller that omitted it
+ * would silently produce a catalogue that compares unequal to what ships —
+ * the failure mode this signature exists to make a compile error. Production
+ * callers pass {@link VERSION}; tests pin a literal.
  */
 export function generateCodexPluginAssets(
   canonicalSkillsDirectory: string,
+  version: string,
 ): GeneratedPluginAsset[] {
   const canonicalAssets: CanonicalSkillAsset[] = markdownFiles(canonicalSkillsDirectory).map(
     relativePath => ({ relativePath, ...canonicalSkillPath(relativePath) }),
@@ -267,7 +360,7 @@ export function generateCodexPluginAssets(
     if (filename !== 'SKILL.md') {
       return {
         relativePath: nodePath.join('skills', skill, 'references', filename),
-        content: adaptWorkflowMarkdown(content, knownSkillNames),
+        content: adaptWorkflowMarkdown(content, knownSkillNames, version),
       };
     }
 
@@ -279,7 +372,7 @@ export function generateCodexPluginAssets(
       content: `---\n${stringify({
         name: skill,
         description: adaptWorkflowInvocations(description, knownSkillNames),
-      }).trimEnd()}\n---\n\n${adaptSkillBody(body, knownSkillNames, referenceNames)}`,
+      }).trimEnd()}\n---\n\n${adaptSkillBody(body, knownSkillNames, referenceNames, version)}`,
     };
   });
 }
@@ -343,8 +436,9 @@ const REGENERATE_REMEDY =
 export function assertCodexPluginCatalogue(
   canonicalSkillsDirectory: string,
   pluginDirectory: string,
+  version: string,
 ): void {
-  const expectedAssets = generateCodexPluginAssets(canonicalSkillsDirectory);
+  const expectedAssets = generateCodexPluginAssets(canonicalSkillsDirectory, version);
   assertCodexSkillMetadataBudget(expectedAssets);
 
   const expectedPaths = expectedAssetPaths(expectedAssets);
@@ -373,8 +467,9 @@ export function assertCodexPluginCatalogue(
 export function writeCodexPluginCatalogue(
   canonicalSkillsDirectory: string,
   pluginDirectory: string,
+  version: string,
 ): GeneratedPluginAsset[] {
-  const assets = generateCodexPluginAssets(canonicalSkillsDirectory);
+  const assets = generateCodexPluginAssets(canonicalSkillsDirectory, version);
   const skillsDirectory = nodePath.join(pluginDirectory, 'skills');
   rmSync(skillsDirectory, { recursive: true, force: true });
 

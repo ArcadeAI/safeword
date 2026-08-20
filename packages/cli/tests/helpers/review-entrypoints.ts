@@ -3,11 +3,19 @@ import nodePath from 'node:path';
 
 import { generateCodexPluginAssets } from '../../src/codex-plugin/catalogue.js';
 import { SAFEWORD_SCHEMA } from '../../src/schema.js';
+import { VERSION } from '../../src/version.js';
 
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 const TEMPLATES = nodePath.join(REPO_ROOT, 'packages/cli/templates');
 
+/**
+ * How each host is told to resolve current project knowledge. Claude and Cursor
+ * shell out to the installed project-local script; Codex's plugin ships no
+ * `.safeword/hooks/`, so its generated skills call the public subcommand that
+ * resolves the same sources. Different entrypoint, same asserted property.
+ */
 export const REVIEW_KNOWLEDGE_RESOLVER = '.safeword/hooks/resolve-project-knowledge.ts';
+export const CODEX_REVIEW_KNOWLEDGE_RESOLVER = 'project review-knowledge';
 
 const REVIEW_STAGE_TEMPLATES = {
   spec: 'skills/self-review/SKILL.md',
@@ -82,12 +90,14 @@ const CURSOR_REVIEW_ENTRYPOINTS: ReviewEntrypoint[] = CLAUDE_REVIEW_ENTRYPOINTS.
   return { ...claude, host: 'cursor', path: required(matches[0], 'missing Cursor row')[0] };
 });
 
+// Generated with the shipped pin, so these assets are the ones Codex users get.
 export const GENERATED_CODEX_PLUGIN_ASSETS = generateCodexPluginAssets(
   nodePath.join(TEMPLATES, 'skills'),
+  VERSION,
 );
 
 const CODEX_REVIEW_ENTRYPOINTS: ReviewEntrypoint[] = GENERATED_CODEX_PLUGIN_ASSETS.filter(asset =>
-  asset.content.includes(REVIEW_KNOWLEDGE_RESOLVER),
+  asset.content.includes(CODEX_REVIEW_KNOWLEDGE_RESOLVER),
 ).map(asset => {
   const canonicalSuffix = asset.relativePath.replace('/references/', '/');
   const canonical = required(
