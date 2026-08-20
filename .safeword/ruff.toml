@@ -17,7 +17,6 @@ extend-select = ["E", "F", "W", "I", "UP", "B", "SIM", "C4", "RUF", "PTH", "RET"
 ignore = [
     "COM812", # missing trailing comma - conflicts with formatter
     "ISC001", # single-line-implicit-string-concatenation - conflicts with formatter
-    "E501",   # line too long - formatter handles this
 ]
 
 [lint.per-file-ignores]

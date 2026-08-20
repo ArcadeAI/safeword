@@ -5,6 +5,35 @@ import { describe, expect, it } from 'vitest';
 import { invocationCatalog, publicCommands } from '../../src/cli-protocol/catalog.js';
 import { createTemporaryDirectory, runCliWithLiteralArguments } from '../helpers.js';
 
+interface FixtureExecution {
+  readonly route: string;
+  readonly result: {
+    readonly exitCode: number;
+    readonly stderr: string;
+    readonly stdout: string;
+    readonly timedOut: boolean;
+  };
+}
+
+function fixtureFailures(executions: readonly FixtureExecution[]): string[] {
+  return executions
+    .toSorted((left, right) => left.route.localeCompare(right.route))
+    .flatMap(({ route, result }) => {
+      const failures: string[] = [];
+      if (result.timedOut) failures.push(`${route}: timed out`);
+      if (result.stderr !== '') failures.push(`${route}: unexpected stderr: ${result.stderr}`);
+      if (![0, 1, 2].includes(result.exitCode)) {
+        failures.push(`${route}: unexpected exit ${String(result.exitCode)}`);
+      }
+      try {
+        JSON.parse(result.stdout);
+      } catch {
+        failures.push(`${route}: malformed machine output`);
+      }
+      return failures;
+    });
+}
+
 async function mapWithConcurrency<Input, Output>(
   inputs: readonly Input[],
   concurrency: number,
@@ -43,10 +72,13 @@ describe('public command machine contract', () => {
       return { definition, first, second };
     });
 
+    expect(
+      fixtureFailures(
+        executions.map(({ definition, first }) => ({ route: definition.name, result: first })),
+      ),
+    ).toEqual([]);
+
     for (const { definition, first, second } of executions) {
-      expect(first.stderr, definition.name).toBe('');
-      expect([0, 1, 2], definition.name).toContain(first.exitCode);
-      expect(() => JSON.parse(first.stdout), definition.name).not.toThrow();
       expect(first.stdout, definition.name).toBe(second.stdout);
       const envelope = JSON.parse(first.stdout) as {
         findings: { code: string }[];
@@ -57,6 +89,26 @@ describe('public command machine contract', () => {
       ).toBe(false);
     }
   }, 180_000);
+
+  it('aggregates timeout, malformed output, and contract failures once in stable route order', () => {
+    expect(
+      fixtureFailures([
+        {
+          route: 'zeta',
+          result: { exitCode: 0, stderr: '', stdout: 'not json', timedOut: true },
+        },
+        {
+          route: 'alpha',
+          result: { exitCode: 9, stderr: 'bad', stdout: '{}', timedOut: false },
+        },
+      ]),
+    ).toEqual([
+      'alpha: unexpected stderr: bad',
+      'alpha: unexpected exit 9',
+      'zeta: timed out',
+      'zeta: malformed machine output',
+    ]);
+  });
 
   it('executes every argv rewrite and bare default through the built CLI', async () => {
     const compatibilityInvocations = invocationCatalog.filter(

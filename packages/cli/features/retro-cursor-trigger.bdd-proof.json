@@ -1,0 +1,77 @@
+{
+  "feature": "packages/cli/features/retro-cursor-trigger.feature",
+  "scenarios": {
+    "The Claude-shaped counter counts tool_use blocks in a Cursor transcript": [
+      "packages/cli/tests/hooks/retro-trigger-cursor.test.ts",
+      "counts tool_use content blocks in a Cursor transcript"
+    ],
+    "A Cursor transcript is substantial at or above the threshold (inclusive)": [
+      [
+        "packages/cli/tests/hooks/retro-trigger.test.ts",
+        "judges a transcript below the threshold not substantial"
+      ],
+      [
+        "packages/cli/tests/hooks/retro-trigger.test.ts",
+        "judges a transcript exactly at the threshold substantial (inclusive)"
+      ],
+      [
+        "packages/cli/tests/hooks/retro-trigger.test.ts",
+        "judges a transcript above the threshold substantial"
+      ]
+    ],
+    "A substantial completed Cursor session emits a retro followup with path and guide": [
+      "packages/cli/tests/integration/cursor-stop-retro.test.ts",
+      "fires a retro followup with the transcript path and guide on a substantial no-edit stop"
+    ],
+    "A trivial completed Cursor session emits no retro followup": [
+      "packages/cli/tests/integration/cursor-stop-retro.test.ts",
+      "stays silent on a trivial session"
+    ],
+    "The Cursor session id resolves from conversation_id": [
+      "packages/cli/tests/hooks/retro-trigger-cursor.test.ts",
+      "resolves the session id from conversation_id"
+    ],
+    "An absent conversation id does not fire": [
+      "packages/cli/tests/hooks/retro-trigger-cursor.test.ts",
+      "returns undefined when conversation_id is absent"
+    ],
+    "A second stop for the same Cursor session does not fire retro again": [
+      "packages/cli/tests/integration/cursor-stop-retro.test.ts",
+      "does not fire retro again on the second stop for the same session"
+    ],
+    "A different conversation id still fires (sentinel keyed by session id)": [
+      "packages/cli/tests/hooks/retro-trigger.test.ts",
+      "SM1.AC3: a different session id still nudges (sentinel is per-session)"
+    ],
+    "The adapter uses the supplied transcript_path": [
+      "packages/cli/tests/integration/cursor-stop-retro.test.ts",
+      "fires a retro followup with the transcript path and guide on a substantial no-edit stop"
+    ],
+    "When the quality-review followup fires, retro yields without consuming its sentinel": [
+      "packages/cli/tests/integration/cursor-stop-retro.test.ts",
+      "yields to the quality-review followup on an edit stop, leaving the retro sentinel unset"
+    ],
+    "Retro fires on a later non-review stop after quality-review took an earlier one": [
+      "packages/cli/tests/integration/cursor-stop-retro.test.ts",
+      "fires retro on the later non-review stop after yielding to quality review"
+    ],
+    "A non-completed status emits no retro followup and leaves the sentinel unset": [
+      "packages/cli/tests/integration/cursor-stop-retro.test.ts",
+      "emits no retro followup on a non-completed status"
+    ],
+    "A malformed or unreadable Cursor adapter input fails open": [
+      [
+        "packages/cli/tests/integration/cursor-stop-retro.test.ts",
+        "fails open with valid JSON on malformed stdin"
+      ],
+      [
+        "packages/cli/tests/hooks/retro-trigger.test.ts",
+        "TB1.AC2: missing transcript_path → no nudge, sentinel unset"
+      ],
+      [
+        "packages/cli/tests/hooks/retro-trigger.test.ts",
+        "TB1.AC2: an unreadable transcript → no nudge, sentinel unset (fail open)"
+      ]
+    ]
+  }
+}

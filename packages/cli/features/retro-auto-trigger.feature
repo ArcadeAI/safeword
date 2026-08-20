@@ -1,10 +1,9 @@
-@retro-auto-trigger @manual
+@retro-auto-trigger @proof.vitest
 Feature: retro auto-trigger (Claude-first)
 
   A stop-retro.ts Claude Code Stop hook fires the retro pipeline at most once per
   substantial session, while the session is alive, via a fact-phrased nudge.
-  Tagged @manual: proven by vitest unit tests, excluded from the cucumber lane
-  (no step definitions), matching the sibling retro-transcript-mining feature.
+  The adjacent proof manifest binds these scenarios to the Vitest unit lane.
 
   Rule: The substance gate discriminates real work from trivial sessions (SM1.AC1, SM1.AC2)
 
@@ -89,7 +88,7 @@ Feature: retro auto-trigger (Claude-first)
   Rule: The hook never breaks the turn (TB1.AC2)
 
     @retro-auto-trigger.TB1.AC2
-    Scenario Outline: A malformed or unreadable input fails open
+    Scenario Outline: A malformed or unreadable Claude Stop input fails open
       Given a Stop hook is invoked with <bad-input>
       When the hook runs
       Then it exits zero

@@ -92,7 +92,7 @@ describe('stop-retro hook — invisible out-of-band run (7D8PJP)', () => {
     sessionIds.length = 0;
   });
 
-  it('TB1.AC1: a substantial session runs but emits NO conversation context', () => {
+  it('TB1.AC1: a substantial unset session fires once but emits NO conversation context', () => {
     writeConfig(dir, { surface: true });
     const transcript = writeTranscript(dir, 'big.jsonl', 8);
     const id = freshSession('big');

@@ -11,7 +11,7 @@ guidance comments.
 ## Intent
 
 Install the new Safeword release immediately, but report activation only after
-Codex restarts and loads one coherent skills-and-hooks catalogue.
+Codex fully restarts and an existing task resumes with one coherent skills-and-hooks catalogue.
 
 ## Intake Brief
 
@@ -65,6 +65,7 @@ Unaffected:
 ## Vocabulary
 
 - **Current task:** The already-running Codex task whose plugin inventory and hooks were loaded when the task began.
+- **Resumed task:** The same Codex task identity reopened after a full app restart.
 - **Restart-bound activation:** The installed plugin is active only after a restarted Codex app loads it.
 
 ## Jobs To Be Done
@@ -103,19 +104,19 @@ one criteria kind per JTBD, never both.
 #### oauth-flow.PLO1.R2 — Every currently-issued key is visible to the operator as live, grace, or expired
 -->
 
-### codex-plugin-next-task-upgrades.TBU1 — Upgrade without mixing plugin snapshots
+### codex-plugin-next-task-upgrades.TBU1 — Upgrade without abandoning existing tasks
 
 **Persona:** Technical Builder (TBU)
 
 > When a new Safeword plugin version is released while Codex is running, I want
-> to install it immediately and know exactly when it takes effect, so I can keep
-> working without mixing stale skills and current hooks.
+> to install it immediately, fully restart Codex, and resume the same task with
+> verified protection, so I can keep working without mixing snapshots or recreating tasks.
 
 #### codex-plugin-next-task-upgrades.TBU1.R1 — Installation refreshes an existing Git marketplace before selecting the released plugin
 
-#### codex-plugin-next-task-upgrades.TBU1.R2 — Installation status requires a Codex restart and never treats a same-app task as activated
+#### codex-plugin-next-task-upgrades.TBU1.R2 — Installation status requires a full Codex restart and lets the builder resume the same task
 
-#### codex-plugin-next-task-upgrades.TBU1.R3 — Activation proof belongs to the exact installed release and a restarted Codex app
+#### codex-plugin-next-task-upgrades.TBU1.R3 — Activation proof belongs to the exact installed release, resumed task, profile, canonical worktree, and restarted Codex app
 
 #### codex-plugin-next-task-upgrades.TBU1.R4 — Invalid legacy markers never manufacture activation proof
 
@@ -146,7 +147,8 @@ repeat. Aim for awe, not "fine." If nothing clears the expectation bar, write
 
 - Fresh installations and upgrades both converge through documented Codex CLI operations.
 - Upgrade output distinguishes installation from activation and requires a Codex restart.
-- Same-app tasks remain pending; tasks after restart load the newly installed, trusted bundle.
+- Same-app resumes remain pending; the same task resumed after restart loads the newly installed, trusted bundle.
+- Stale or cross-task, cross-profile, and cross-worktree proof never authorizes current protection.
 - Profiles with v0.70-era restart markers transition without manual cleanup.
 
 ## Open Questions

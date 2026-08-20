@@ -209,7 +209,7 @@ describe('packagedNamespaceRootLabel', () => {
     expect(proof.manifest_sha256).toMatch(/^[\da-f]{64}$/u);
   });
 
-  it('records task proof under the git root when the hook starts in a nested directory', () => {
+  it('records resumed-task proof under the git root when the hook starts nested', () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-root-'));
     directories.push(projectDirectory);
     expect(spawnSync('git', ['init', projectDirectory]).status).toBe(0);
@@ -220,7 +220,7 @@ describe('packagedNamespaceRootLabel', () => {
     const result = runCodexHook(
       nested,
       'session-start',
-      { hook_event_name: 'SessionStart', session_id: 'task-a' },
+      { hook_event_name: 'SessionStart', session_id: 'task-a', source: 'resume' },
       environment,
       true,
     );

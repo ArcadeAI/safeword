@@ -27,12 +27,12 @@ Feature: Activate Safeword upgrades coherently in Codex
       Then installation fails before the plugin install command runs
 
   @codex-plugin-next-task-upgrades.TBU1.R2
-  Rule: codex-plugin-next-task-upgrades.TBU1.R2 — Installation status requires a Codex restart and never treats a same-app task as activated
+  Rule: codex-plugin-next-task-upgrades.TBU1.R2 — Installation status requires a full Codex restart and lets the builder resume the same task
 
     Scenario: Successful installation explains the required app restart
       Given a Codex task is running with an older Safeword plugin
       When the builder installs the released Safeword Codex plugin
-      Then the result says the Codex app may keep its loaded catalogue and must restart before a new task verifies the installed version
+      Then the result says the Codex app may keep its loaded catalogue and must fully restart before this task verifies the installed version
 
     @live @manual
     Scenario: Installing an upgrade does not change the running task
@@ -41,35 +41,35 @@ Feature: Activate Safeword upgrades coherently in Codex
       Then the running task keeps the older version-pinned hook manifest
 
     @live @manual
-    Scenario: A new task in the same app does not prove coherent activation
+    Scenario: Resuming a task in the same app does not prove coherent activation
       Given the released Safeword Codex plugin is installed while another task keeps its loaded version
-      When the builder starts a new Codex task
-      Then the new task may still expose an older skill catalogue and activation remains pending
+      When the builder resumes the task without fully restarting Codex
+      Then the resumed task may still expose an older skill catalogue and activation remains pending
 
     @live @manual
-    Scenario: A restarted app activates the installed release coherently
+    Scenario: A restarted app activates the installed release in a resumed task
       Given the released Safeword Codex plugin is installed while another task keeps its loaded version
-      When the builder restarts Codex and starts a new task
-      Then the new task loads the exact released skill catalogue and hook manifest
+      When the builder fully restarts Codex and resumes the existing task
+      Then the resumed task loads the exact released skill catalogue and hook manifest
 
     @rejection
     Scenario: Pending activation status never claims the running app reloaded
       Given the released Safeword plugin is installed but Codex has not restarted
       When the builder checks the Codex plugin activation status
-      Then status reports plugin_installed_app_restart_required and directs the builder to restart before reviewing hooks
+      Then status reports plugin_installed_app_restart_required and directs the builder to review hooks before restarting
 
   @codex-plugin-next-task-upgrades.TBU1.R3
-  Rule: codex-plugin-next-task-upgrades.TBU1.R3 — Activation proof belongs to the exact installed release and a restarted Codex app
+  Rule: codex-plugin-next-task-upgrades.TBU1.R3 — Activation proof belongs to the exact installed release, resumed task, profile, canonical worktree, and restarted Codex app
 
     @rejection
     Scenario: Matching SessionStart from the installing app does not complete activation
       Given a profile with app-restart activation pending for the installed plugin identity
-      When a new task in the same Codex app invokes the installed profile-plugin SessionStart dispatcher
+      When the resumed task in the same Codex app invokes the installed profile-plugin SessionStart dispatcher
       Then same-host proof does not replace the pending marker or satisfy the restart requirement
 
     Scenario: Matching SessionStart from a restarted app completes activation
       Given a profile with app-restart activation pending for the installed plugin identity
-      When a restarted Codex app invokes the installed profile-plugin SessionStart dispatcher
+      When a restarted Codex app resumes the task through the installed profile-plugin SessionStart dispatcher
       Then restart-bound proof replaces the pending marker and status no longer requires an app restart
 
     @rejection

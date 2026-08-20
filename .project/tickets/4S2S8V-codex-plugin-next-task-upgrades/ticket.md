@@ -2,17 +2,20 @@
 id: 4S2S8V
 slug: codex-plugin-next-task-upgrades
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 phase_anchors:
   - 'define-behavior: .project/tickets/4S2S8V-codex-plugin-next-task-upgrades/spec.md'
   - 'scenario-gate: packages/cli/features/codex-plugin-next-task-upgrades.feature'
   - 'plan-implementation: .project/tickets/4S2S8V-codex-plugin-next-task-upgrades/impl-plan.md'
   - 'verify: .project/tickets/4S2S8V-codex-plugin-next-task-upgrades/test-definitions.md'
+  - 'done: .project/tickets/4S2S8V-codex-plugin-next-task-upgrades/verify.md'
 scope:
   - refresh an existing Git-backed Safeword Codex marketplace before reinstalling the released plugin
   - represent post-install activation as pending until a different Codex app-server loads the plugin
+  - let existing tasks activate the installed plugin when resumed after that full app restart
   - preserve exact-version hook pinning, hook review, and installation-bound activation proof
+  - keep proof exact to the resumed task, Codex profile, canonical project worktree, and installed release
   - recognize and retire the legacy restart-pending marker during upgrades
   - document the restart-bound upgrade workflow in customer and architecture documentation
 out_of_scope:
@@ -23,11 +26,13 @@ out_of_scope:
 done_when:
   - an existing Git-backed Safeword marketplace is refreshed before the plugin is reinstalled
   - a fresh profile still adds and installs the marketplace successfully
-  - successful output requires a Codex restart before a new task verifies the installed version
+  - successful output requires a full Codex restart before the same resumed task verifies the installed version
   - status and proof reject same-app SessionStart as coherent activation
+  - bootstrap briefly rechecks concurrent SessionStart proof, then remains unverified if it never appears
+  - stale, cross-task, cross-profile, and cross-worktree proof never authorizes current protection
   - focused tests, the full suite, lint, typecheck, and documentation checks pass
 created: 2026-08-02T04:08:45.228Z
-last_modified: 2026-08-02T17:55:00.000Z
+last_modified: 2026-08-18T00:35:30.000Z
 ---
 
 # Activate Safeword upgrades coherently in Codex
@@ -60,3 +65,12 @@ last_modified: 2026-08-02T17:55:00.000Z
 - 2026-08-02T16:40:00.000Z RED/GREEN correction: activation marker v2 now binds the installation to active Codex app-server PID/start identities, invalidates older proof, and clears only after SessionStart runs under a different host instance. Canonical status requires an app restart; POSIX and Windows process-table parsers fail closed. Removed retired dogfood project hooks while preserving MCP configuration. Focused proof/migration tests and revised acceptance scenarios pass.
 - 2026-08-02T17:35:00.000Z Phase: implement → verify. Full Vitest passed 407 files / 6,119 tests (5 skipped); full Cucumber passed 684 runnable scenarios / 22,400 steps (3 scenarios and 4 steps skipped); ESLint, Gherkin lint, formatting, and typecheck passed. Quality review tightened malformed-marker fail-closed behavior, replaced the process parser's backtracking-prone regex, narrowed the external-host refresh claim against current Codex app-server documentation, and corrected the restart-bound live runbook. Published rc.2 host evidence remains the final release gate.
 - 2026-08-02T17:55:00.000Z Final quality loop: independent review found and resolved an install-time process-observation false-green path, added an explicit observed/unavailable marker discriminator, covered quoted Windows executable paths, and reconciled design/runbook wording. Re-review returned APPROVE with no critical issues. Post-fix full Vitest passed 407 files / 6,121 tests (5 skipped); full Cucumber passed 684 runnable scenarios / 22,400 steps (3 scenarios and 4 steps skipped); ESLint, Gherkin lint, typecheck, formatting, Markdown lint, and Astro diagnostics passed. Published rc.2 same-app/restarted-app evidence remains the only release blocker.
+- 2026-08-17T23:30:00.000Z Verification correction: current Codex resume events preserve the authentic task ID, so the restart boundary does not require abandoning existing tasks. Reopened implementation to replace new-task guidance, prove exact resumed-task isolation, and converge the concurrent SessionStart proof race with one bounded recheck.
+- 2026-08-18T00:35:30.000Z Phase: implement → verify. Resumed-task proof now accepts the native `source: resume` identity only when the installed version, hook manifest, activation, profile, task, and canonical worktree all match. Bootstrap rechecks concurrent proof for at most 500 ms and remains unverified after the bound. User guidance now says to fully restart Codex and resume the existing task.
+- 2026-08-18T00:35:30.000Z Verification: independent quality review found no blocking correctness defect; focused proof tests passed 204 tests, the full CLI suite passed 8,174 tests (7 skipped), full Cucumber passed 1,455 scenarios (3 skipped) and 65,406 steps (4 skipped), proof-tag tests passed 32 tests, and builds, changed TypeScript, Astro diagnostics, formatting, Gherkin lint, dependency audits, and the diff-scoped architecture audit passed. The aggregate repository checker remains red only for pre-existing duplicate Python experiment module names; published-candidate desktop lifecycle evidence remains the release gate.
+- 2026-08-18T03:22:45.000Z Live UX correction: Codex Desktop 26.817.1524 treated `/hooks` as chat text; current upstream behavior exposes hook trust through Desktop Settings → Hooks or `/hooks` in the terminal TUI. Because an untrusted SessionStart is not replayed, the released restart-first instruction can require an avoidable second restart. Reopened implementation to put exact hook review before the one required Desktop restart.
+- 2026-08-18T03:31:13.000Z Live verification: public `0.78.4` resumed the authentic existing task after a full Desktop restart and wrote exact task/profile/version/manifest/activation/worktree proof; all five lifecycle events became current and the install marker retired. A later profile installation created a new activation ID, and status rejected the older task proof as stale and returned to unprotected. The transcript is retained in `manual-evidence.md`.
+- 2026-08-18T03:38:00.000Z UX correction GREEN: changed-hook review now precedes the one required Desktop restart and names both supported trust surfaces. The focused acceptance scenario passed 17/17 steps, focused migration/bootstrap tests passed 133/133, and the broader Cucumber regression run passed 559/559 scenarios and 9,871/9,871 steps.
+- 2026-08-18T03:39:00.000Z Phase: implement → verify. The final live gate is checked, the one-restart guidance defect is corrected without changing proof semantics, and the implementation plan remains reconciled as implemented.
+- 2026-08-18T04:10:00.000Z Verification complete: relay tests passed 185/185 runnable, CLI tests passed 8,174/8,174 runnable, the acceptance lane passed 1,455/1,455 runnable scenarios and 65,406/65,406 runnable steps, proof tags passed 32/32, the additional configured lane passed 559/559 scenarios, and builds, lint, formatting, TypeScript, Astro, dependency-cruiser, and dependency audits passed. Diff-scoped audit found no in-scope errors or warnings. The aggregate repository type plan remains red only for the pre-existing duplicate Python experiment module names.
+- 2026-08-18T04:12:00.000Z Phase: verify → done. All 26 scenario rows are complete, `verify.md` records passing PR scope and both affected surfaces, and required verify/audit invocation proof exists for this resumed task.

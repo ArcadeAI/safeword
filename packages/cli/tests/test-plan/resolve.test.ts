@@ -87,6 +87,7 @@ describe('resolveTestPlan — every detected language appears (no first-match)',
       '.safeword/config.json': JSON.stringify({ installedPacks: ['typescript'] }),
       'package.json': JSON.stringify({ scripts: { test: 'vitest' } }),
       'experiments/gepa/requirements.txt': 'gepa==0.1.1\n',
+      'experiments/gepa/tests/test_gepa.py': 'def test_gepa(): pass\n',
     });
 
     const plan = resolveTestPlan(root, { kind: 'verify', isToolAvailable: allTools });

@@ -454,7 +454,7 @@ Then(
   'the builder is told to restart Codex before reviewing the installed plugin',
   function (this: MigrationWorld) {
     const output = migrationOutput(this);
-    assert.match(output, /(Restart Codex|restarted Codex app).+review.+\/hooks/isu);
+    assert.match(output, /review.+\/hooks.+(restart Codex|restarted Codex app)/isu);
   },
 );
 

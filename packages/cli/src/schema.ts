@@ -1206,6 +1206,14 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // Full uninstall removes it only while it still matches Safeword's template.
     '.jscpd.json': { template: '.jscpd.json' },
 
+    // Explicit remote-test setup owns publication; ordinary reconciliation
+    // catalogues these bytes without installing them.
+    '.github/workflows/safeword-remote-tests.yml': {
+      template: 'workflows/remote-tests.yml',
+      generator: (): undefined => undefined,
+      dogfoodParity: true,
+    },
+
     // Package-owned Codex runtime adapters. Their generator intentionally
     // returns undefined: the plugin CLI executes them from the npm package,
     // never from a customer repository.
@@ -1577,7 +1585,6 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
 export type ProjectSurface = 'core' | 'cursor';
 
 const CURSOR_PROJECT_PATHS = new Set([
-  '.safeword/hooks/lib/cursor-run-identity.ts',
   '.safeword/hooks/lib/cursor-state.ts',
   '.safeword/hooks/session-cursor-auto-upgrade.ts',
 ]);
@@ -1615,5 +1622,59 @@ export function schemaForProjectSurfaces(
     textPatches: withoutCursorEntries(schema.textPatches),
     legacyTextPatches: withoutCursorEntries(schema.legacyTextPatches),
     contracts: withoutCursorEntries(schema.contracts),
+  };
+}
+
+const SHARED_AGENT_RUNTIME_ROOTS = [
+  '.safeword/hooks',
+  '.safeword/skills',
+  '.safeword/scripts',
+  '.safeword/guides',
+  '.safeword/templates',
+  // Imports from .safeword/hooks/lib/* (namespace-root, re-entry) — dead
+  // without the hooks tree it depends on, so it belongs in the same bucket.
+  '.safeword/statusline',
+];
+
+/** `.safeword/{hooks,skills,scripts,guides,templates,statusline}` (any depth). */
+export function isSharedAgentRuntimePath(path: string): boolean {
+  return SHARED_AGENT_RUNTIME_ROOTS.some(root => path === root || path.startsWith(`${root}/`));
+}
+
+function withoutSharedAgentRuntimeEntries<T>(values: Record<string, T>): Record<string, T> {
+  return Object.fromEntries(
+    Object.entries(values).filter(([path]) => !isSharedAgentRuntimePath(path)),
+  );
+}
+
+/**
+ * Codex shells out to `.safeword/hooks/*` and `.safeword/scripts/*` directly
+ * and still reads `.safeword/guides/*` and `.safeword/templates/*` from its
+ * skill playbooks; legacy (pre-native-plugin) Claude delivery references all
+ * five roots from its `.claude/commands|agents|skills` templates. Native
+ * Claude reads its own packaged copies of every one of them instead (ticket
+ * 0VG5AC), and Cursor's own subset is already carved out by
+ * `schemaForProjectSurfaces`. Once none of those three still need it, this
+ * whole tree is dead weight nobody upgrades — drop it rather than install
+ * files nothing reads.
+ */
+export function schemaForSharedAgentRuntime(
+  schema: SafewordSchema,
+  needed: boolean,
+): SafewordSchema {
+  if (needed) return schema;
+  return {
+    ...schema,
+    ownedDirs: schema.ownedDirs.filter(path => !isSharedAgentRuntimePath(path)),
+    sharedDirs: schema.sharedDirs.filter(path => !isSharedAgentRuntimePath(path)),
+    preservedDirs: schema.preservedDirs.filter(path => !isSharedAgentRuntimePath(path)),
+    deprecatedFiles: schema.deprecatedFiles.filter(path => !isSharedAgentRuntimePath(path)),
+    deprecatedDirs: schema.deprecatedDirs.filter(path => !isSharedAgentRuntimePath(path)),
+    ownedFiles: withoutSharedAgentRuntimeEntries(schema.ownedFiles),
+    managedFiles: withoutSharedAgentRuntimeEntries(schema.managedFiles),
+    jsonMerges: withoutSharedAgentRuntimeEntries(schema.jsonMerges),
+    textPatches: withoutSharedAgentRuntimeEntries(schema.textPatches),
+    legacyTextPatches: withoutSharedAgentRuntimeEntries(schema.legacyTextPatches),
+    contracts: withoutSharedAgentRuntimeEntries(schema.contracts),
   };
 }

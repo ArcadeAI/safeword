@@ -209,6 +209,45 @@ describe('Claude plugin dispatcher', () => {
     });
   });
 
+  it('points the SessionStart context hook at the packaged handbook instead of project-local .safeword', () => {
+    const projectDirectory = temporary('safeword-plugin-packaged-context-project-');
+    const pluginData = temporary('safeword-plugin-packaged-context-data-');
+    mkdirSync(nodePath.join(projectDirectory, '.safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(projectDirectory, '.safeword', 'SAFEWORD.md'),
+      'PROJECT-LOCAL INSTRUCTIONS MUST NOT APPEAR',
+    );
+
+    const result = spawnSync(
+      'bun',
+      [
+        nodePath.join(PLUGIN_ROOT, 'runtime/dispatch.js'),
+        'SessionStart',
+        '--',
+        'bun',
+        nodePath.join(PLUGIN_ROOT, 'runtime/hooks/session-safeword-context.ts'),
+        '--agent=claude',
+      ],
+      {
+        cwd: projectDirectory,
+        env: isolatedClaudeEnvironment(projectDirectory, pluginData),
+        encoding: 'utf8',
+        input: JSON.stringify({
+          hook_event_name: 'SessionStart',
+          session_id: 'packaged-context-test',
+          cwd: projectDirectory,
+        }),
+      },
+    );
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain('the packaged Safeword handbook');
+    expect(result.stdout).toContain('the packaged Safeword guides');
+    expect(result.stdout).not.toContain('.safeword/SAFEWORD.md');
+    expect(result.stdout).not.toContain('.safeword/guides/');
+    expect(result.stdout).not.toContain('PROJECT-LOCAL INSTRUCTIONS MUST NOT APPEAR');
+  });
+
   it('does not let stale Setup metadata suppress SessionStart proof', () => {
     const projectDirectory = temporary('safeword-plugin-stale-smoke-project-');
     const pluginData = temporary('safeword-plugin-stale-smoke-data-');

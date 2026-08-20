@@ -14,7 +14,13 @@ export const pythonPack: LanguagePack = {
   extensions: ['.py', '.pyi'],
 
   detect(cwd: string): boolean {
-    return existsInTree(cwd, 'pyproject.toml') || existsInTree(cwd, 'requirements.txt');
+    return (
+      existsInTree(cwd, 'pyproject.toml') ||
+      existsInTree(cwd, 'requirements.txt') ||
+      existsInTree(cwd, 'Pipfile') ||
+      existsInTree(cwd, 'setup.py') ||
+      existsInTree(cwd, 'setup.cfg')
+    );
   },
 
   setup(_cwd: string, _ctx: SetupContext): SetupResult {

@@ -138,7 +138,7 @@ async function installSurfaceFixtures(project: string): Promise<{
   codexSkill: string;
   cursorCommand: string;
 }> {
-  const cli = path.resolve(process.cwd(), '../cli');
+  const cli = path.resolve(import.meta.dirname, '../../cli');
   writeFileSync(path.join(project, 'package.json'), JSON.stringify({ name: 'relay-fixture' }));
   await reconcile(SAFEWORD_SCHEMA, 'install', createProjectContext(project));
 
@@ -453,7 +453,8 @@ async function runInstalledSurface(
 
 function discardProject(project: string): void {
   rmSync(project, { force: true, recursive: true });
-  directories.splice(directories.indexOf(project), 1);
+  const index = directories.indexOf(project);
+  if (index !== -1) directories.splice(index, 1);
 }
 
 function lostReceiptFetch(scenario: RelayScenario): typeof fetch {
@@ -481,6 +482,38 @@ const acceptedRelayOutcome = {
 };
 
 describe('real shared CLI to relay wiring', () => {
+  it.each([
+    { harness: 'Claude Code' },
+    { harness: 'Claude Code Cloud' },
+    { harness: 'OpenAI Codex' },
+    { harness: 'OpenAI Codex Cloud' },
+    { harness: 'Cursor' },
+    { harness: 'Cursor Cloud Agents' },
+  ])(
+    '[ORR-001] routes the installed $harness surface through the persisted request',
+    async ({ harness }) => {
+      const surface = installedSurfaces.find(candidate => candidate.harness === harness);
+      expect(surface).toBeDefined();
+      if (surface === undefined) throw new Error(`Missing installed surface: ${harness}`);
+      const scenario = await createRelayScenario();
+      try {
+        const { outcome, project } = await runInstalledSurface(
+          scenario,
+          surface,
+          scenario.secureRelayFetch,
+        );
+        expect(outcome.relay).toEqual(acceptedRelayOutcome);
+        expect(scenario.relay.observability.logs.map(log => log.requestId)).toContain(
+          '00000000-0000-4000-8000-000000001479',
+        );
+        discardProject(project);
+      } finally {
+        scenario.store.close();
+      }
+    },
+    30_000,
+  );
+
   it('[ORR-001] routes all six installed surfaces through one persisted request and collaborator chain', async () => {
     let deliveryNow = Date.now();
     vi.spyOn(Date, 'now').mockImplementation(() => deliveryNow);

@@ -5754,6 +5754,12 @@ function executeConfiguredHooks(input) {
     return functionalExecutionFailure(input.event, error);
   }
 }
+function exposePackagedSafewordContext(pluginRoot) {
+  const packagedSafewordPath = nodePath9.join(pluginRoot, 'resources', 'SAFEWORD.md');
+  if (existsSync7(packagedSafewordPath)) {
+    process.env.SAFEWORD_PACKAGED_CONTEXT_PATH = packagedSafewordPath;
+  }
+}
 function mainUnsafe(event, mode, command) {
   if (mode !== void 0 && mode !== '--' && mode !== '--event-group') {
     throw new Error('Expected -- or --event-group after the hook event.');
@@ -5763,6 +5769,7 @@ function mainUnsafe(event, mode, command) {
   }
   const pluginRoot = realpathSync3(requiredEnvironment('CLAUDE_PLUGIN_ROOT'));
   process.env.SAFEWORD_PLUGIN_CLI = nodePath9.join(pluginRoot, 'runtime', 'cli.js');
+  exposePackagedSafewordContext(pluginRoot);
   const standardInput = readFileSync6(0);
   const hookInput = parseHookInput(standardInput);
   const projectRoot = canonicalClaudeProjectRoot(hookInput.cwd ?? process.cwd());

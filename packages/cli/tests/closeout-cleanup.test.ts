@@ -475,6 +475,57 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     }
   });
 
+  it.each([
+    [
+      'metadata-only appended records',
+      (records: string[]) => [...records, JSON.stringify({ type: 'metadata', value: 'new' })],
+    ],
+    [
+      'mixed host and user records',
+      (records: string[]) => [
+        ...records,
+        JSON.stringify({ role: 'assistant', text: 'host' }),
+        JSON.stringify({ role: 'user', text: 'user' }),
+      ],
+    ],
+    ['reordered existing records', (records: string[]) => records.toReversed()],
+    ['truncated existing records', (records: string[]) => records.slice(0, 1)],
+    [
+      'an ambiguous unclassified record',
+      (records: string[]) => [...records, JSON.stringify({ unknown: 'record' })],
+    ],
+  ] as const)('reruns extraction after %s change the bound transcript bytes', (_case, mutate) => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'closeout-retro-transcript-mutation-'));
+    const id = 'claude-transcript-mutation';
+    const transcript = nodePath.join(root, 'transcript.jsonl');
+    const records = [
+      JSON.stringify({ session_id: id, cwd: root }),
+      JSON.stringify({ role: 'user', text: 'original' }),
+    ];
+    try {
+      spawnSync('git', ['init', '--quiet', root], { encoding: 'utf8' });
+      writeFileSync(transcript, `${records.join('\n')}\n`);
+      const binding = {
+        runtime: 'claude' as const,
+        id,
+        projectRoot: root,
+        transcriptPath: transcript,
+      };
+      let runs = 0;
+      const runner = () => {
+        runs += 1;
+        return completedRetroResult();
+      };
+
+      expect(runBoundRetro(root, binding, runner).complete).toBe(true);
+      writeFileSync(transcript, `${mutate(records).join('\n')}\n`);
+      expect(runBoundRetro(root, binding, runner).complete).toBe(true);
+      expect(runs).toBe(2);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it('evaluates transcript content appended during extraction before returning complete', () => {
     const root = mkdtempSync(nodePath.join(tmpdir(), 'closeout-retro-concurrent-append-'));
     const id = 'codex-concurrent-append';
@@ -716,6 +767,51 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
         expect(runBoundRetro(root, binding, runner).complete).toBe(true);
       }
       expect(runs).toBe(1 + invalidReceipts.length);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it.each([
+    { invalidEvidence: 'a missing filing verdict', patch: { agentFilingNeeded: undefined } },
+    { invalidEvidence: 'a non-boolean filing verdict', patch: { agentFilingNeeded: 'false' } },
+    { invalidEvidence: 'a negative pending-draft count', patch: { pendingDrafts: -1 } },
+    { invalidEvidence: 'a fractional sealed byte length', patch: { snapshotByteLength: 0.5 } },
+  ])('replaces malformed retro receipt evidence: $invalidEvidence', ({ patch }) => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'closeout-retro-invalid-example-'));
+    const id = 'claude-invalid-retro-example';
+    const transcript = nodePath.join(root, 'transcript.jsonl');
+    try {
+      spawnSync('git', ['init', '--quiet', root], { encoding: 'utf8' });
+      writeFileSync(transcript, `${JSON.stringify({ session_id: id, cwd: root })}\n`);
+      const binding = {
+        runtime: 'claude' as const,
+        id,
+        projectRoot: root,
+        transcriptPath: transcript,
+      };
+      let runs = 0;
+      const runner = () => {
+        runs += 1;
+        return completedRetroResult();
+      };
+      expect(runBoundRetro(root, binding, runner).complete).toBe(true);
+      const receiptPath = nodePath.join(root, '.git', 'safeword', 'closeout-retro.json');
+      const valid = JSON.parse(readFileSync(receiptPath, 'utf8')) as Record<string, unknown>;
+      const { snapshotByteLength, ...receiptPatch } = patch;
+      const receipt = {
+        ...valid,
+        ...receiptPatch,
+        ...(snapshotByteLength !== undefined && {
+          snapshot: {
+            ...(valid.snapshot as Record<string, unknown>),
+            byteLength: snapshotByteLength,
+          },
+        }),
+      };
+      writeFileSync(receiptPath, `${JSON.stringify(receipt)}\n`);
+      expect(runBoundRetro(root, binding, runner).complete).toBe(true);
+      expect(runs).toBe(2);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -1024,6 +1120,33 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     expect(plan.operations).toEqual([]);
   });
 
+  function expectEveryDeletionBlocked(
+    overrides: Partial<CloseoutObservation>,
+    expectedBlocker: string,
+  ): void {
+    const observation = safeObservation(overrides);
+    const plan = buildCleanupPlan(observation);
+    let executions = 0;
+    expect(plan.blockers).toContain(expectedBlocker);
+    const result = applyCleanupPlan({
+      plan,
+      digest: cleanupPlanDigest(plan),
+      observe: () => observation,
+      execute: () => {
+        executions += 1;
+      },
+    });
+    expect(result.applied).toBe(false);
+    expect(executions).toBe(0);
+  }
+
+  it('stale verification evidence blocks every deletion', () => {
+    expectEveryDeletionBlocked(
+      { verification: { ...safeObservation().verification, current: false } },
+      'local verification is stale',
+    );
+  });
+
   it.each([
     ['no pull request', { pullRequests: [] }, 'exactly one matching pull request is required'],
     [
@@ -1036,6 +1159,14 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       { pullRequests: [{ ...pullRequest(), state: 'OPEN' }] },
       'the exact pull request is not confirmed merged',
     ],
+  ] satisfies [string, Partial<CloseoutObservation>, string][])(
+    '%s blocks deletion when pull request identity is unsafe',
+    (_name, overrides, expectedBlocker) => {
+      expectEveryDeletionBlocked(overrides, expectedBlocker);
+    },
+  );
+
+  it.each([
     [
       'fork or remote mismatch',
       {
@@ -1073,6 +1204,61 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       'the pull request head repository does not match the selected git remote',
     ],
     [
+      'ambiguous remote mapping',
+      { remote: undefined, remoteResolution: 'ambiguous' },
+      'the pull request head repository does not map to exactly one git remote',
+    ],
+  ] satisfies [string, Partial<CloseoutObservation>, string][])(
+    '%s blocks deletion when remote identity is unsafe',
+    (_name, overrides, expectedBlocker) => {
+      expectEveryDeletionBlocked(overrides, expectedBlocker);
+    },
+  );
+
+  it.each([
+    [
+      'dirty worktree',
+      { worktrees: [worktree(0), { ...worktree(1), dirty: true }] },
+      'the linked worktree is dirty: /repo-closeout',
+    ],
+    [
+      'locked worktree',
+      { worktrees: [worktree(0), { ...worktree(1), locked: true }] },
+      'the linked worktree is locked: /repo-closeout',
+    ],
+    [
+      'ambiguous worktree',
+      { worktrees: [worktree(0), worktree(1), worktree(1)] },
+      'the linked topic worktree is ambiguous',
+    ],
+    [
+      'stale registration',
+      { worktrees: [worktree(0), { ...worktree(1), prunable: true }] },
+      'the worktree registration is stale: /repo-closeout',
+    ],
+  ] satisfies [string, Partial<CloseoutObservation>, string][])(
+    '%s blocks deletion when worktree identity is unsafe',
+    (_name, overrides, expectedBlocker) => {
+      expectEveryDeletionBlocked(overrides, expectedBlocker);
+    },
+  );
+
+  it.each([
+    [
+      'default branch',
+      { pullRequests: [{ ...pullRequest(), headRefName: 'main' }] },
+      'the default branch is never a closeout target',
+    ],
+    ['protected branch', { protection: 'protected' }, 'the topic branch is protected'],
+  ] satisfies [string, Partial<CloseoutObservation>, string][])(
+    '%s blocks deletion when the branch is protected from cleanup',
+    (_name, overrides, expectedBlocker) => {
+      expectEveryDeletionBlocked(overrides, expectedBlocker);
+    },
+  );
+
+  it.each([
+    [
       'changed local ref',
       { localRefOid: 'c'.repeat(40) },
       'the local branch no longer matches the pull request head',
@@ -1090,43 +1276,12 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       'the remote branch no longer matches the pull request head',
     ],
     [
-      'ambiguous remote mapping',
-      { remote: undefined, remoteResolution: 'ambiguous' },
-      'the pull request head repository does not map to exactly one git remote',
-    ],
-    [
       'unobservable remote branch',
       { remote: undefined, remoteResolution: 'unknown' },
       'the remote branch state could not be observed',
     ],
-    [
-      'default branch',
-      { pullRequests: [{ ...pullRequest(), headRefName: 'main' }] },
-      'the default branch is never a closeout target',
-    ],
     ['unknown default branch', { defaultBranch: '' }, 'the default branch is unknown'],
     ['unknown protection', { protection: 'unknown' }, 'branch protection state is unknown'],
-    ['protected branch', { protection: 'protected' }, 'the topic branch is protected'],
-    [
-      'dirty worktree',
-      { worktrees: [worktree(0), { ...worktree(1), dirty: true }] },
-      'the linked worktree is dirty: /repo-closeout',
-    ],
-    [
-      'locked worktree',
-      { worktrees: [worktree(0), { ...worktree(1), locked: true }] },
-      'the linked worktree is locked: /repo-closeout',
-    ],
-    [
-      'stale registration',
-      { worktrees: [worktree(0), { ...worktree(1), prunable: true }] },
-      'the worktree registration is stale: /repo-closeout',
-    ],
-    [
-      'ambiguous worktree',
-      { worktrees: [worktree(0), worktree(1), worktree(1)] },
-      'the linked topic worktree is ambiguous',
-    ],
     [
       'missing default-branch worktree',
       { worktrees: [worktree(1)] },
@@ -1159,11 +1314,6 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       'the surviving worktree registration is stale: /repo',
     ],
     [
-      'stale verification',
-      { verification: { ...safeObservation().verification, current: false } },
-      'local verification is stale',
-    ],
-    [
       'failed verification',
       { verification: { ...safeObservation().verification, passed: false } },
       'local verification failed',
@@ -1171,20 +1321,7 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
   ] satisfies [string, Partial<CloseoutObservation>, string][])(
     '%s blocks every deletion',
     (_name, overrides, expectedBlocker) => {
-      const observation = safeObservation(overrides);
-      const plan = buildCleanupPlan(observation);
-      let executions = 0;
-      expect(plan.blockers).toContain(expectedBlocker);
-      const result = applyCleanupPlan({
-        plan,
-        digest: cleanupPlanDigest(plan),
-        observe: () => observation,
-        execute: () => {
-          executions += 1;
-        },
-      });
-      expect(result.applied).toBe(false);
-      expect(executions).toBe(0);
+      expectEveryDeletionBlocked(overrides, expectedBlocker);
     },
   );
 
@@ -1350,7 +1487,7 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     expect(cleanupPlanDigest(refreshed)).toBe(cleanupPlanDigest(plan));
   });
 
-  it('classifies repository mismatches independently from learning and recovery state', () => {
+  it('reports stale verification without retrospective advisories', () => {
     const plan = buildCleanupPlan(
       safeObservation({ verification: { ...safeObservation().verification, current: false } }),
     );
@@ -1415,6 +1552,40 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     expect(executed).toEqual(['remove-worktree']);
   });
 
+  it('stops before local deletion when the local branch advances during cleanup', () => {
+    const initial = safeObservation();
+    const afterWorktree = safeObservation({ worktrees: [worktree(0)] });
+    const afterRemote = {
+      ...afterWorktree,
+      remote: undefined,
+      remoteResolution: 'absent' as const,
+    };
+    const changedLocal = { ...afterRemote, localRefOid: 'c'.repeat(40) };
+    const observations = [
+      initial,
+      initial,
+      afterWorktree,
+      afterWorktree,
+      afterRemote,
+      changedLocal,
+    ];
+    const executed: string[] = [];
+    const plan = buildCleanupPlan(initial);
+
+    const result = applyCleanupPlan({
+      plan,
+      digest: cleanupPlanDigest(plan),
+      observe: () => observations.shift() ?? changedLocal,
+      execute: operation => {
+        executed.push(operation.kind);
+      },
+    });
+
+    expect(result.applied).toBe(false);
+    expect(result.blockers).toContain('delete-local-ref target changed during cleanup');
+    expect(executed).toEqual(['remove-worktree', 'delete-remote-ref']);
+  });
+
   it('stops before remote deletion when branch protection changes during cleanup', () => {
     const initial = safeObservation();
     const afterWorktree = safeObservation({ worktrees: [worktree(0)] });
@@ -1464,10 +1635,43 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     expect(executed).toEqual(['remove-worktree']);
   });
 
-  it('reports completed and remaining operations after an execution failure', () => {
+  it.each([
+    ['dirty', safeObservation({ worktrees: [worktree(0), { ...worktree(1), dirty: true }] })],
+    ['removed', safeObservation({ worktrees: [worktree(0)] })],
+  ] as const)('refuses a %s worktree observed immediately before removal', (_change, changed) => {
+    const initial = safeObservation();
+    const observations = [initial, changed];
+    const executed: string[] = [];
+    const result = applyCleanupPlan({
+      plan: buildCleanupPlan(initial),
+      digest: cleanupPlanDigest(buildCleanupPlan(initial)),
+      observe: () => observations.shift() ?? changed,
+      execute: operation => {
+        executed.push(operation.kind);
+      },
+    });
+
+    expect(result.blockers).toContain('remove-worktree target changed during cleanup');
+    expect(executed).toEqual([]);
+  });
+
+  it.each([
+    { target: 'worktree', failedKind: 'remove-worktree', completed: [] },
+    { target: 'remote branch', failedKind: 'delete-remote-ref', completed: ['remove-worktree'] },
+    {
+      target: 'local branch',
+      failedKind: 'delete-local-ref',
+      completed: ['remove-worktree', 'delete-remote-ref'],
+    },
+  ] as const)('$target failure reports the exact completed and unfinished suffix', testCase => {
     const initial = safeObservation();
     const afterWorktree = safeObservation({ worktrees: [worktree(0)] });
-    const observations = [initial, initial, afterWorktree];
+    const afterRemote = {
+      ...afterWorktree,
+      remote: undefined,
+      remoteResolution: 'absent' as const,
+    };
+    const observations = [initial, initial, afterWorktree, afterWorktree, afterRemote, afterRemote];
     const plan = buildCleanupPlan(initial);
 
     const result = applyCleanupPlan({
@@ -1475,15 +1679,15 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       digest: cleanupPlanDigest(plan),
       observe: () => observations.shift() ?? afterWorktree,
       execute: operation => {
-        if (operation.kind === 'delete-remote-ref') throw new Error('lease rejected');
+        if (operation.kind === testCase.failedKind) throw new Error('lease rejected');
       },
     });
 
     expect(result).toMatchObject({
       applied: false,
-      completed: ['remove-worktree'],
-      remaining: ['delete-remote-ref', 'delete-local-ref'],
-      blockers: ['delete-remote-ref failed: lease rejected'],
+      completed: testCase.completed,
+      remaining: plan.operations.slice(testCase.completed.length).map(operation => operation.kind),
+      blockers: [`${testCase.failedKind} failed: lease rejected`],
     });
   });
 
@@ -1641,6 +1845,31 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
         'refs/heads/topic',
       ),
     ).toEqual({ resolution: 'unknown' });
+  });
+
+  it.each([
+    ['option-like leading dash', '-topic'],
+    ['whitespace and control characters', 'refs/heads/topic with space\nnext'],
+    ['shell metacharacters', 'refs/heads/topic; touch /tmp/closeout-injection'],
+  ])('passes untrusted %s text as one shell-disabled argv element', (_case, hostileReference) => {
+    const calls: { command: string; arguments_: string[]; cwd: string }[] = [];
+
+    const result = executeCleanupOperation(
+      { kind: 'delete-local-ref', cwd: '/repo', ref: hostileReference, oid: 'a'.repeat(40) },
+      (command, arguments_, cwd) => {
+        calls.push({ command, arguments_, cwd });
+        return { status: 0, stdout: '', stderr: '' };
+      },
+    );
+
+    expect(result.status).toBe(0);
+    expect(calls).toEqual([
+      {
+        command: 'git',
+        arguments_: ['-C', '/repo', 'update-ref', '-d', hostileReference, 'a'.repeat(40)],
+        cwd: '/repo',
+      },
+    ]);
   });
 
   it('executes the exact cleanup commands against a real linked git worktree and remote', () => {
@@ -1807,6 +2036,9 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
       const environment = {
         ...process.env,
         CODEX_THREAD_ID: 'codex-thread-42',
+        GIT_CONFIG_GLOBAL: '/dev/null',
+        GIT_CONFIG_SYSTEM: '/dev/null',
+        HOME: sandbox,
         PATH: `${bin}:${process.env.PATH ?? ''}`,
         SAFEWORD_CLI: fakeSafeword,
         GIT_SSH_COMMAND: ssh,
@@ -1987,37 +2219,42 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     );
     rmSync(originalWorktree, { recursive: true, force: true });
 
-    expect(
-      transcriptMatchesBinding(
-        transcript,
-        { runtime: 'claude', id: 'session-42', projectRoot: root },
-        root,
-      ),
-    ).toBe(true);
-    expect(
-      transcriptMatchesBinding(
-        transcript,
-        { runtime: 'claude', id: 'other-session', projectRoot: root },
-        root,
-      ),
-    ).toBe(false);
-    expect(
-      transcriptMatchesBinding(
-        transcript,
-        { runtime: 'claude', id: 'session-42', projectRoot: root },
-        otherRoot,
-      ),
-    ).toBe(false);
+    try {
+      expect(
+        transcriptMatchesBinding(
+          transcript,
+          { runtime: 'claude', id: 'session-42', projectRoot: root },
+          root,
+        ),
+      ).toBe(true);
+      expect(
+        transcriptMatchesBinding(
+          transcript,
+          { runtime: 'claude', id: 'other-session', projectRoot: root },
+          root,
+        ),
+      ).toBe(false);
+      expect(
+        transcriptMatchesBinding(
+          transcript,
+          { runtime: 'claude', id: 'session-42', projectRoot: root },
+          otherRoot,
+        ),
+      ).toBe(false);
 
-    const spoofedText = ['session-42', root].join(' ');
-    writeFileSync(transcript, `${JSON.stringify({ type: 'message', text: spoofedText })}\n`);
-    expect(
-      transcriptMatchesBinding(
-        transcript,
-        { runtime: 'claude', id: 'session-42', projectRoot: root },
-        root,
-      ),
-    ).toBe(false);
+      const spoofedText = ['session-42', root].join(' ');
+      writeFileSync(transcript, `${JSON.stringify({ type: 'message', text: spoofedText })}\n`);
+      expect(
+        transcriptMatchesBinding(
+          transcript,
+          { runtime: 'claude', id: 'session-42', projectRoot: root },
+          root,
+        ),
+      ).toBe(false);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+      rmSync(otherRoot, { recursive: true, force: true });
+    }
   });
 
   it('accepts a Codex transcript across linked worktrees but rejects a separate clone', () => {

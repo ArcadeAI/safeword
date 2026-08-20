@@ -252,9 +252,9 @@ Feature: Keep Codex protection continuous during profile-plugin migration
         | disabled plugin with complete legacy | plugin_disabled | protected | safeword codex migrate         |
         | disabled plugin with partial legacy | plugin_disabled | partial | safeword codex migrate             |
         | outdated plugin without legacy | plugin_update_required | unprotected | safeword codex migrate          |
-        | restart pending without legacy | plugin_installed_app_restart_required | unprotected | Restart Codex, start a new task, then review the installed hooks with /hooks. |
-        | restart pending with complete legacy | plugin_installed_app_restart_required | protected | Restart Codex, start a new task, then review the installed hooks with /hooks. |
-        | restart pending with partial legacy | plugin_installed_app_restart_required | partial | Restart Codex, start a new task, then review the installed hooks with /hooks. |
+        | restart pending without legacy | plugin_installed_app_restart_required | unprotected | Review the installed hooks in Codex Desktop under Settings > Hooks (or with /hooks in the terminal TUI). Fully restart Codex, then resume this task. |
+        | restart pending with complete legacy | plugin_installed_app_restart_required | protected | Review the installed hooks in Codex Desktop under Settings > Hooks (or with /hooks in the terminal TUI). Fully restart Codex, then resume this task. |
+        | restart pending with partial legacy | plugin_installed_app_restart_required | partial | Review the installed hooks in Codex Desktop under Settings > Hooks (or with /hooks in the terminal TUI). Fully restart Codex, then resume this task. |
         | current proof and legacy  | compatibility     | protected  | safeword codex migrate --finalize |
         | no configuration          | not_configured    | unprotected | safeword codex migrate           |
         | finalized without plugin  | plugin_setup_required | unprotected | safeword codex migrate        |
@@ -311,13 +311,13 @@ Feature: Keep Codex protection continuous during profile-plugin migration
         | disabled with complete legacy  | plugin_disabled                    | protected   | 1            | safeword codex migrate             | 2         |
         | disabled with partial legacy   | plugin_disabled                    | partial     | 1            | safeword codex migrate             | 2         |
         | outdated plugin without legacy | plugin_update_required             | unprotected | 1            | safeword codex migrate             | 2         |
-        | restart pending without legacy | plugin_installed_app_restart_required  | unprotected | 1            | Restart Codex, start a new task, then review the installed hooks with /hooks. | 2         |
-        | restart pending with complete legacy | plugin_installed_app_restart_required | protected | 1            | Restart Codex, start a new task, then review the installed hooks with /hooks. | 2         |
-        | restart pending with partial legacy | plugin_installed_app_restart_required | partial | 1            | Restart Codex, start a new task, then review the installed hooks with /hooks. | 2         |
+        | restart pending without legacy | plugin_installed_app_restart_required  | unprotected | 1            | Review the installed hooks in Codex Desktop under Settings > Hooks (or with /hooks in the terminal TUI). Fully restart Codex, then resume this task. | 2         |
+        | restart pending with complete legacy | plugin_installed_app_restart_required | protected | 1            | Review the installed hooks in Codex Desktop under Settings > Hooks (or with /hooks in the terminal TUI). Fully restart Codex, then resume this task. | 2         |
+        | restart pending with partial legacy | plugin_installed_app_restart_required | partial | 1            | Review the installed hooks in Codex Desktop under Settings > Hooks (or with /hooks in the terminal TUI). Fully restart Codex, then resume this task. | 2         |
         | complete legacy                | legacy                             | protected   | 1            | safeword codex migrate             | 2         |
         | partial legacy                 | legacy                             | partial     | 1            | safeword codex migrate             | 2         |
-        | unproven without legacy        | plugin_enabled_hook_unproven       | unprotected | 1            | Restart Codex, start a new task, then review the installed hooks with /hooks. | 2         |
-        | unproven with legacy           | plugin_enabled_hook_unproven       | protected   | 1            | Restart Codex, start a new task, then review the installed hooks with /hooks. | 2         |
+        | unproven without legacy        | plugin_enabled_hook_unproven       | unprotected | 1            | Review the installed hooks in Codex Desktop under Settings > Hooks (or with /hooks in the terminal TUI). Fully restart Codex, then resume this task. | 2         |
+        | unproven with legacy           | plugin_enabled_hook_unproven       | protected   | 1            | Review the installed hooks in Codex Desktop under Settings > Hooks (or with /hooks in the terminal TUI). Fully restart Codex, then resume this task. | 2         |
         | current proof with legacy      | compatibility                      | protected   | 1            | safeword codex migrate --finalize  | 2         |
         | current proof without legacy   | plugin                             | protected   | 0            | none                               | 0         |
         | no configuration               | not_configured                     | unprotected | 1            | safeword codex migrate             | 2         |

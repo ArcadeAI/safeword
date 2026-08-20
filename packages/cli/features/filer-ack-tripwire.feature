@@ -1,9 +1,8 @@
 # BDD source for GH644A (#658 — filer ack + bare-drain tripwire). Proven by the
 # vitest suite (unit + hook wiring; fs and the filing post seam are the only
 # mocked boundaries) — hook-internal state transitions the cucumber black-box
-# lane can't drive. `@manual` excludes it from the acceptance lane while keeping
-# it readable by codify / review-spec / safeword check.
-@filer-ack-tripwire @manual
+# lane can't drive. The adjacent proof manifest binds each scenario to that lane.
+@filer-ack-tripwire @proof.vitest
 Feature: Filer ack + bare-drain tripwire — a drained spool no longer self-certifies
 
   GH628F's stop gate treats a drained spool as proof of filing, and #644 G7
@@ -69,11 +68,11 @@ Feature: Filer ack + bare-drain tripwire — a drained spool no longer self-cert
         | an attempt marker written before this feature, no snapshot |
         | a missing attempt marker                                  |
         | a corrupt, unparseable attempt marker                     |
-        | no ack file and no snapshotted dispatch                   |
 
     @filer-ack-tripwire.SM1.AC3
     Scenario: Capture-off suppresses the tripwire; file-off alone does not
-      When the tripwire evaluates an unacked removal with capture configuration
+      Given an unacked removal is present at evaluation time
+      When the tripwire evaluates each self-report configuration
       Then no signal is captured when selfReport.capture is false
       And a signal is still captured when capture is true and selfReport.file is false
 
@@ -88,7 +87,8 @@ Feature: Filer ack + bare-drain tripwire — a drained spool no longer self-cert
 
     @filer-ack-tripwire.SM2.AC1
     Scenario: Shipped prompts and the guide carry the ack procedure and drain prohibition
-      When Safeword validates the installed filer prompts and filing guide
+      Given the installed filer agent definitions, the dispatch text, and the filing guide
+      When their acknowledgement guidance is inspected
       Then both agent definitions instruct ack-after-post-before-drain
       And the dispatch text states that only the filer drains the spool
       And the guide's inline-fallback section documents appending the signature-and-issue ack record
@@ -104,6 +104,7 @@ Feature: Filer ack + bare-drain tripwire — a drained spool no longer self-cert
 
     @filer-ack-tripwire.TB1.AC1
     Scenario: The captured signal is allowlist-shaped and the retro spool is untouched
-      When the tripwire records a tripped bare drain
+      Given a tripped bare drain
+      When the captured signal and spool are inspected
       Then the captured record carries errorClass RetroBareDrain with allowlist-only fields deduping to one signature group
       And the retro draft spool contents are byte-identical before and after the trip

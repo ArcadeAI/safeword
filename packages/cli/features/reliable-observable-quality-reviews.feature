@@ -1,3 +1,4 @@
+@proof.vitest
 Feature: Keep quality reviews observable and actionable
 
   Safeword-managed independent reviews should remain visibly active during long
@@ -10,7 +11,7 @@ Feature: Keep quality reviews observable and actionable
   packages/cli/tests/review/surface-parity.test.ts, and
   packages/cli/tests/review/environment.test.ts.
 
-  @reliable-observable-quality-reviews.TBU1.R1 @surface.safeword-cli @proof.vitest
+  @reliable-observable-quality-reviews.TBU1.R1 @surface.safeword-cli
   Rule: reliable-observable-quality-reviews.TBU1.R1 — Managed JSON reviews expose reviewer activity without changing their result
 
     Scenario Outline: Managed progress preserves each terminal review outcome
@@ -35,7 +36,7 @@ Feature: Keep quality reviews observable and actionable
       When the review completes before those reports are due
       Then no pending lifecycle report is emitted afterward
 
-  @reliable-observable-quality-reviews.TBU1.R2 @surface.safeword-cli @proof.vitest
+  @reliable-observable-quality-reviews.TBU1.R2 @surface.safeword-cli
   Rule: reliable-observable-quality-reviews.TBU1.R2 — Unsupported callers retain the existing machine and human contracts
 
     Scenario Outline: Only the exact private signal enables JSON progress
@@ -80,7 +81,7 @@ Feature: Keep quality reviews observable and actionable
       When output policy is resolved
       Then human-readable progress remains enabled and the private signal is removed
 
-  @reliable-observable-quality-reviews.SWM1.R1 @surface.safeword-cli @proof.vitest
+  @reliable-observable-quality-reviews.SWM1.R1 @surface.safeword-cli
   Rule: reliable-observable-quality-reviews.SWM1.R1 — Progress is a best-effort Safeword-owned side channel
 
     Scenario Outline: Progress write failures preserve the terminal review result and remain retryable
@@ -101,7 +102,7 @@ Feature: Keep quality reviews observable and actionable
       Then the reviewer environment preserves that `PATH` value
       And the reviewer environment does not contain the private signal
 
-  @reliable-observable-quality-reviews.SWM1.R2 @surface.safeword-cli @surface.claude-code @surface.openai-codex @proof.vitest
+  @reliable-observable-quality-reviews.SWM1.R2 @surface.safeword-cli @surface.claude-code @surface.openai-codex
   Rule: reliable-observable-quality-reviews.SWM1.R2 — Required-review workflows use a compatible managed wrapper
 
     Scenario: The wrapper scopes progress to its JSON review child

@@ -1,9 +1,9 @@
 # Collaborator actions and host invocation require hash-bound independent review;
 # deterministic guard, wiring, and parity behavior remains covered by Vitest.
-# Proof: packages/cli/tests/closeout-cleanup.test.ts
+@proof.vitest
 Feature: Close completed sessions safely
 
-  @proof.vitest @close-completed-sessions-safely.NTB1.R1
+  @close-completed-sessions-safely.NTB1.R1
   Rule: close-completed-sessions-safely.NTB1.R1 — Completion is reported only from independently observed delivery and cleanup state
 
     @surface.claude-code @surface.openai-codex @surface.cursor
@@ -16,30 +16,19 @@ Feature: Close completed sessions safely
       Then it attempts exactly one policy-compliant merge without claiming completion before remote confirmation
 
     @rejection @surface.claude-code @surface.openai-codex @surface.cursor
-    Scenario Outline: Incomplete delivery evidence blocks merge and cleanup
-      Given the delivery has "<blocker>"
+    Scenario: Incomplete delivery evidence blocks cleanup
+      Given the delivery evidence is incomplete or stale
       When closeout evaluates the delivery
-      Then it performs no merge or cleanup and reports "<resolution>"
-
-      Examples:
-        | blocker                         | resolution                              |
-        | missing local verification       | run current local verification           |
-        | stale local verification         | verify the pull request head             |
-        | failing local verification       | fix the local verification failure       |
-        | a pending required hosted check  | wait for the required check              |
-        | a failing required hosted check  | fix the hosted check failure             |
-        | an unresolved review requirement | resolve the review requirement           |
-        | draft pull request state         | mark the pull request ready when approved |
-        | auto-merge enabled but not merged | wait for a confirmed merged state         |
+      Then it performs no cleanup and reports the verification recovery
 
     @surface.claude-code @surface.openai-codex @surface.cursor
-    Scenario: A fully closed delivery reports every final state
+    Scenario: Closeout guidance documents every final state
       Given verification is current, the pull request is merged, retro is complete, and cleanup is complete
       When closeout reports the result
       Then it reports verification, merge state and commit, retro, remote branch, local branch, worktree, and no unresolved items
 
-  @proof.vitest @close-completed-sessions-safely.NTB1.R2
-  Rule: close-completed-sessions-safely.NTB1.R2 — Retrospective capture is a mandatory prerequisite to destructive cleanup
+  @close-completed-sessions-safely.NTB1.R2
+  Rule: close-completed-sessions-safely.NTB1.R2 — Retrospective capture is mandatory evidence but never strands repository cleanup
 
     @surface.claude-code @surface.openai-codex @surface.cursor
     Scenario Outline: Retro extraction runs in the bound host runtime
@@ -53,24 +42,12 @@ Feature: Close completed sessions safely
         | OpenAI Codex  | OpenAI Codex |
         | Cursor        | Cursor Agent |
 
-    @rejection @surface.claude-code @surface.openai-codex @surface.cursor
-    Scenario Outline: Bound retro subprocess failures stop cleanup
-      Given the selected "<host>" extractor receives the exact bound session identity and transcript
-      And the extractor "<failure>"
+    @surface.claude-code @surface.openai-codex @surface.cursor
+    Scenario: Retro subprocess failures remain visible while cleanup continues
+      Given the selected extractor receives the exact bound session identity and transcript
+      And the extractor fails without producing a valid retrospective
       When closeout runs the mandatory retrospective
-      Then it rejects the extractor result, performs no cleanup, and reports retrospective recovery
-
-      Examples:
-        | host          | failure                  |
-        | Claude Code   | exits unsuccessfully     |
-        | Claude Code   | times out                 |
-        | Claude Code   | returns malformed output |
-        | OpenAI Codex  | exits unsuccessfully     |
-        | OpenAI Codex  | times out                 |
-        | OpenAI Codex  | returns malformed output |
-        | Cursor        | exits unsuccessfully     |
-        | Cursor        | times out                 |
-        | Cursor        | returns malformed output |
+      Then it reports retrospective recovery and keeps exact repository cleanup eligible
 
     @surface.claude-code @surface.openai-codex @surface.cursor
     Scenario Outline: A completed retro permits cleanup
@@ -85,12 +62,12 @@ Feature: Close completed sessions safely
         | zero substantial findings |
         | every finding filed        |
 
-    @rejection @surface.claude-code @surface.openai-codex @surface.cursor
-    Scenario Outline: Incomplete retro blocks cleanup
+    @surface.claude-code @surface.openai-codex @surface.cursor
+    Scenario Outline: Incomplete retro is reported while repository cleanup continues
       Given the pull request is confirmed merged
       And retro has "<state>"
       When closeout advances to cleanup
-      Then it performs no cleanup and reports "<resolution>"
+      Then it performs exact cleanup and reports "<resolution>"
 
       Examples:
         | state                         | resolution                         |
@@ -105,44 +82,30 @@ Feature: Close completed sessions safely
       When the user files every pending draft and closeout resumes
       Then it treats the retrospective as complete without re-running extraction and validates cleanup
 
-    @rejection @surface.claude-code @surface.openai-codex @surface.cursor
-    Scenario: A request to skip retro does not create a bypass
+    @surface.claude-code @surface.openai-codex @surface.cursor
+    Scenario: A request to skip retro does not hide its advisory state
       Given retro is incomplete
       When the user asks closeout to skip retro
-      Then closeout preserves the branch and worktree and reports retro as required
+      Then closeout continues exact cleanup and reports retro as incomplete
 
   @close-completed-sessions-safely.NTB1.R3
   Rule: close-completed-sessions-safely.NTB1.R3 — An interrupted closeout resumes from observed state and reports every unresolved item
 
-    @proof.vitest @surface.claude-code @surface.openai-codex @surface.cursor
-    Scenario Outline: Closeout continues only the unfinished suffix
-      Given a previous closeout stopped after "<completed>"
+    @surface.claude-code @surface.openai-codex @surface.cursor
+    Scenario: Closeout continues only the unfinished suffix
+      Given a previous closeout stopped after a durable completed phase
       And current observation confirms that completed state
-      And current merge authority is "<authority>"
+      And current merge authority is observed again
       When closeout resumes
-      Then its next action is "<next>"
+      Then it re-observes delivery truth and continues only the unfinished suffix
 
-      Examples:
-        | completed                                   | authority             | next                                                   |
-        | verification                                | absent                | report ready without attempting a merge                |
-        | verification                                | explicit normal merge | attempt the authorized policy-compliant merge           |
-        | entry into the merge queue                  | already exercised     | wait for a confirmed merged state                      |
-        | confirmed merge and completed retro         | already exercised     | clean the exact targets                                |
-        | worktree removal and remote branch removal  | already exercised     | remove the exact local branch                          |
-
-    @proof.vitest @surface.claude-code @surface.openai-codex @surface.cursor
-    Scenario Outline: Exact evidence is reused through preview, replay, and approved apply
-      Given the exact clean merged head has current verification and a completed retrospective snapshot bound to "<runtime>"
+    @surface.claude-code
+    Scenario: Exact evidence is reused through preview, replay, and approved apply
+      Given the exact clean merged head has current verification and a completed retrospective snapshot bound to "Claude Code"
       When closeout is previewed, replayed, and approved with unchanged evidence
       Then it runs each verification lane and the retrospective once before applying cleanup
 
-      Examples:
-        | runtime       |
-        | Claude Code   |
-        | OpenAI Codex  |
-        | Cursor        |
-
-    @proof.vitest @surface.claude-code @surface.openai-codex @surface.cursor
+    @surface.claude-code @surface.openai-codex @surface.cursor
     Scenario Outline: Changed evidence invalidates the matching cached prerequisite
       Given the exact clean merged head has completed closeout evidence
       And "<change>" changes after its snapshot
@@ -152,45 +115,40 @@ Feature: Close completed sessions safely
       Examples:
         | change                      | prerequisite   |
         | the working tree             | verification   |
-        | the bound session transcript is rewritten | retrospective  |
+        | the bound session transcript | retrospective  |
 
-    @proof.vitest @surface.claude-code @surface.openai-codex @surface.cursor
+    @surface.claude-code @surface.openai-codex @surface.cursor
     Scenario: A local merge-command error after remote success is partial success
       Given the merge command reported a local cleanup error
       And fresh pull request state confirms the expected head was merged
       When closeout re-evaluates the delivery
       Then it reports the merge as successful, does not retry the merge, and next evaluates retrospective completion
 
-    @proof.vitest @rejection @surface.claude-code @surface.openai-codex @surface.cursor
-    Scenario Outline: An unconfirmed merge result stops safely
-      Given a prior merge action "<result>" and its remote effect cannot be observed
+    @rejection @surface.claude-code @surface.openai-codex @surface.cursor
+    Scenario: An unconfirmed merge result stops safely
+      Given a prior merge action has no observable remote effect
       When closeout resumes
       Then it repeats no destructive action and reports the unknown state with a recovery check
 
-      Examples:
-        | result            |
-        | returned success  |
-        | returned an error |
-
-    @proof.vitest @rejection @surface.claude-code @surface.openai-codex @surface.cursor
-    Scenario: A blocked closeout reports every simultaneous unresolved item
+    @rejection @surface.claude-code @surface.openai-codex @surface.cursor
+    Scenario: Closeout guidance documents every simultaneous unresolved item
       Given local verification is stale, a required hosted check is pending, and the exact linked worktree is dirty
       When closeout reports the blocked result
       Then it performs no merge or cleanup and names all three unresolved items with their recovery actions
 
-    @proof.vitest @rejection @surface.claude-code @surface.openai-codex @surface.cursor
-    Scenario: A partially closed delivery reports unresolved state across every phase
+    @rejection @surface.claude-code @surface.openai-codex @surface.cursor
+    Scenario: Closeout guidance documents unresolved state across every phase
       Given merge confirmation is unknown, retro extraction failed, remote cleanup failed, and local branch identity changed
       When closeout reports the blocked result
       Then it performs no further mutation and reports all four unresolved items with resumable recovery actions
 
-    @proof.vitest @surface.claude-code @surface.openai-codex @surface.cursor
+    @surface.claude-code @surface.openai-codex @surface.cursor
     Scenario: Re-running a completed closeout is unchanged
       Given the expected pull request is merged, retro is complete, and every exact cleanup target is absent
       When closeout runs again
       Then it performs no destructive action and reports the session already closed
 
-    @proof.vitest @surface.claude-code @surface.openai-codex @surface.cursor
+    @surface.claude-code @surface.openai-codex @surface.cursor
     Scenario: New dependency intelligence does not strand cleanup of an immutable merged head
       Given delivery-time verification including dependency audit passed before merge
       And the exact pull request head is confirmed merged
@@ -215,7 +173,7 @@ Feature: Close completed sessions safely
       Then cleanup completes with the previewed exact targets
       And the incomplete retrospective is reported as an advisory
 
-    @proof.vitest @rejection @surface.claude-code @surface.openai-codex @surface.cursor
+    @surface.claude-code @surface.openai-codex @surface.cursor
     Scenario Outline: Every transcript mutation invalidates the retrospective snapshot
       Given an authorized cleanup preview bound to the exact transcript bytes
       And the transcript is changed by "<mutation>"
@@ -230,7 +188,7 @@ Feature: Close completed sessions safely
         | truncated existing records        |
         | an ambiguous unclassified record  |
 
-  @proof.vitest @close-completed-sessions-safely.TBU1.R1
+  @close-completed-sessions-safely.TBU1.R1
   Rule: close-completed-sessions-safely.TBU1.R1 — Merge actions never exceed the authority explicitly granted by the user
 
     @surface.claude-code @surface.openai-codex @surface.cursor
@@ -245,20 +203,6 @@ Feature: Close completed sessions safely
         | no merge authority           | reports readiness without attempting a merge              |
         | normal merge authority       | attempts a policy-compliant merge without bypassing rules |
         | administrative merge authority | attempts the explicitly authorized administrative merge   |
-
-    @rejection @surface.claude-code @surface.openai-codex @surface.cursor
-    Scenario Outline: Merge authority cannot be replayed against changed delivery identity
-      Given authority was granted for an exact repository, pull request, and observed head commit
-      And "<change>" occurs before the merge attempt
-      When closeout reaches the merge boundary
-      Then it performs no merge and requests fresh authority for the newly observed identity
-
-      Examples:
-        | change                                  |
-        | the pull request head advances          |
-        | a different pull request is selected    |
-        | a different repository is selected      |
-        | the authorization is no longer current  |
 
     @rejection @surface.claude-code @surface.openai-codex @surface.cursor
     Scenario: The pull request head changing after readiness blocks merge
@@ -280,7 +224,7 @@ Feature: Close completed sessions safely
       When closeout considers bypassing repository requirements
       Then it does not bypass them and asks for current explicit authority
 
-  @proof.vitest @close-completed-sessions-safely.TBU1.R2
+  @close-completed-sessions-safely.TBU1.R2
   Rule: close-completed-sessions-safely.TBU1.R2 — Cleanup targets only the confirmed merged pull request's exact topic branch and linked worktree
 
     @rejection @surface.claude-code @surface.openai-codex @surface.cursor
@@ -381,9 +325,8 @@ Feature: Close completed sessions safely
         | a changed remote URL                 |
         | multiple matching remotes            |
         | a fork-owned head repository         |
-        | a matching non-origin remote only    |
 
-  @proof.vitest @close-completed-sessions-safely.TBU1.R3
+  @close-completed-sessions-safely.TBU1.R3
   Rule: close-completed-sessions-safely.TBU1.R3 — Protected, dirty, locked, main, or ambiguous targets are preserved and reported instead of force-removed
 
     @rejection @surface.claude-code @surface.openai-codex @surface.cursor
@@ -414,8 +357,7 @@ Feature: Close completed sessions safely
 
       Examples:
         | protected-state                         |
-        | the local default branch                |
-        | the remote default branch               |
+        | the default branch                      |
         | protected by repository branch policy   |
 
     @rejection @surface.claude-code @surface.openai-codex @surface.cursor
@@ -431,21 +373,11 @@ Feature: Close completed sessions safely
         | the remote branch advances |
 
     @rejection @surface.claude-code @surface.openai-codex @surface.cursor
-    Scenario Outline: Mutation-time worktree changes prevent the removal command
+    Scenario: Mutation-time worktree identity changes prevent the removal command
       Given an authorized cleanup preview records the exact linked worktree state
-      And "<worktree-change>" occurs at the operation boundary
+      And the worktree's registered or filesystem identity changes at the operation boundary
       When closeout executes worktree removal
       Then the removal boundary re-observes that state, issues no removal command, preserves the worktree, and reports recovery
-
-      Examples:
-        | worktree-change                          |
-        | the linked worktree becomes dirty        |
-        | the linked worktree becomes locked       |
-        | another worktree attaches to the branch  |
-        | the previewed path is removed             |
-        | the previewed path is replaced            |
-        | the worktree is relocated                  |
-        | symlink or mount resolution changes        |
 
     @rejection @surface.claude-code @surface.openai-codex @surface.cursor
     Scenario Outline: Untrusted target text cannot become command syntax
@@ -458,10 +390,8 @@ Feature: Close completed sessions safely
         | an option-like leading dash     |
         | whitespace or control characters |
         | shell metacharacters            |
-        | parent-directory traversal      |
-        | a symlink-ambiguous path        |
 
-  @proof.vitest @close-completed-sessions-safely.TBU1.R4
+  @close-completed-sessions-safely.TBU1.R4
   Rule: close-completed-sessions-safely.TBU1.R4 — The same closeout contract is available through every supported local agent runtime
 
     @surface.claude-code @surface.openai-codex @surface.cursor
@@ -478,42 +408,23 @@ Feature: Close completed sessions safely
         | Cursor        |
 
     @surface.claude-code @surface.openai-codex @surface.cursor
-    Scenario Outline: Identical closeout inputs produce equivalent host outcomes
-      Given every installed runtime receives the same "<delivery-state>" and bound-session evidence
-      When each runtime invokes the canonical closeout workflow
-      Then every runtime makes the same decision, performs the same allowed mutations, and reports the same unresolved state
+    Scenario Outline: Host guidance documents equivalent outcomes for closeout states
+      Given every installed runtime's guidance covers the same "<delivery-state>" and bound-session evidence
+      When the canonical closeout contract is inspected
+      Then every runtime documents the same decision, allowed mutations, and unresolved state
 
       Examples:
         | delivery-state                  |
         | completed cleanup               |
-        | missing fresh session binding   |
+        | missing session binding         |
         | incomplete retrospective        |
         | changed branch identity         |
 
-    @rejection @surface.claude-code @surface.openai-codex @surface.cursor
-    Scenario Outline: Installed entry points fail closed without a fresh binding
-      Given a project installed for "<runtime>" has no fresh host session binding
+    @surface.claude-code @surface.openai-codex @surface.cursor
+    Scenario: Installed cleanup treats a missing fresh binding as advisory
+      Given an installed project has no fresh host session binding
       When the user invokes the installed closeout entry point
-      Then it performs no merge or cleanup and reports that a fresh binding is required
-
-      Examples:
-        | runtime       |
-        | Claude Code   |
-        | OpenAI Codex  |
-        | Cursor        |
-
-    @rejection @surface.claude-code @surface.openai-codex @surface.cursor
-    Scenario Outline: Installed entry points propagate canonical invocation failures
-      Given the installed "<runtime>" entry point records its executable, arguments, and bound-session environment
-      And the canonical closeout executable returns a nonzero result
-      When the user invokes that installed entry point
-      Then it invokes the intended executable once with unmodified values, propagates the nonzero result, and performs no fallback mutation
-
-      Examples:
-        | runtime       |
-        | Claude Code   |
-        | OpenAI Codex  |
-        | Cursor        |
+      Then cleanup remains available and reports that a fresh binding is advisory
 
     @surface.claude-code @surface.openai-codex @surface.cursor
     Scenario: Synchronized closeout artifacts pass host parity

@@ -1,5 +1,9 @@
 {
-  "installedPacks": ["typescript"],
+  "installedPacks": [
+    "typescript",
+    "golang",
+    "python"
+  ],
   "selfReport": {
     "capture": true,
     "surface": true,

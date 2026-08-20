@@ -40,7 +40,7 @@ describe('Cucumber config targeted path handling', () => {
       readFileSync(nodePath.join(REPO_ROOT, 'package.json'), 'utf8'),
     ) as { scripts?: Record<string, string> };
 
-    expect(packageJson.scripts?.['test:bdd']).toContain("NODE_OPTIONS='--import tsx'");
+    expect(packageJson.scripts?.['test:bdd:acceptance']).toContain("NODE_OPTIONS='--import tsx'");
     expect(packageJson.scripts?.['test:bdd:live']).toContain("NODE_OPTIONS='--import tsx'");
   });
 
@@ -55,7 +55,7 @@ describe('Cucumber config targeted path handling', () => {
       pathToFileURL(nodePath.join(REPO_ROOT, 'packages/cli/cucumber.mjs')).href
     )) as { default: { tags: string } };
 
-    expect(packageJson.scripts?.['test:bdd']).toContain(AUTOMATED_TAGS);
+    expect(packageJson.scripts?.['test:bdd:acceptance']).toContain(AUTOMATED_TAGS);
     expect(cliPackageJson.scripts?.['test:bdd']).toContain(AUTOMATED_TAGS);
     expect(cliConfig.default.tags).toBe(AUTOMATED_TAGS);
     for (const [, relativePath] of CONFIG_SURFACES) {

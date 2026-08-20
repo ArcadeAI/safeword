@@ -57,3 +57,4 @@ brand/
 .project/re-entry.md
 .project/dependency-readiness.json
 .project/tmp/
+.safeword-coverage-bin-*/

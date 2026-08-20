@@ -685,9 +685,9 @@ export const commandCatalog: readonly CommandDefinition[] = [
   ...HIDDEN_COMMANDS,
 ];
 
-export type InvocationClassification = 'public' | 'retained-alias' | 'internal';
-export type InvocationVisibility = 'public' | 'hidden';
-export type InvocationKind = 'command' | 'family' | 'default' | 'argv-rewrite';
+type InvocationClassification = 'public' | 'retained-alias' | 'internal';
+type InvocationVisibility = 'public' | 'hidden';
+type InvocationKind = 'command' | 'family' | 'default' | 'argv-rewrite';
 
 export interface InvocationContract {
   readonly route: string;

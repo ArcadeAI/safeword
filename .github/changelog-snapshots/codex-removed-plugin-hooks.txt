@@ -1,0 +1,8 @@
+---
+source: https://api.github.com/repos/openai/codex/issues/38339
+source_key: codex-removed-plugin-hooks
+reviewed_at: 2026-08-16T19:18:20.000Z
+---
+
+state: open
+state_reason: none

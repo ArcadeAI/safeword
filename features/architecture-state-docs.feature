@@ -82,7 +82,8 @@ Feature: Always-fresh point-in-time architecture doc (Slice 1, single-repo)
 
     @architecture-state-docs.NTB1.AC1
     Scenario: The guide distinguishes machine-owned structure from preserved module prose
-      When Safeword installs the architecture guide into a project
+      Given a project with the installed architecture guide
+      When the ownership guidance is inspected
       Then the guide identifies the root index as fully machine-owned
       And the guide identifies module purpose prose as human-owned and preserved
 

@@ -60,7 +60,7 @@ Feature: Give Codex users the full Safeword workflow
       And the legacy Safeword hooks remain unchanged
 
     @rejection
-    Scenario: Failed plugin installation retains legacy hooks
+    Scenario: Full-workflow installation failure retains legacy Codex hooks
       Given a project has Safeword legacy hooks
       And the Safeword plugin cannot be installed
       When the builder migrates Codex to the plugin

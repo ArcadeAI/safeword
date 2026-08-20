@@ -22,26 +22,21 @@ function definition(name: string) {
 }
 
 describe('CLI execution policy', () => {
-  it('consumes only the exact managed-progress signal and always removes it', () => {
-    const missingSignalEnvironment: Record<string, string> = {};
-    expect(consumeManagedProgressSignal(missingSignalEnvironment)).toBe(false);
-    expect(missingSignalEnvironment).not.toHaveProperty('SAFEWORD_REVIEW_PROGRESS');
-
-    for (const [value, expected] of [
-      ['1', true],
-      [' ', false],
-      ['0', false],
-      ['01', false],
-      ['1 ', false],
-      ['TRUE', false],
-      ['true', false],
-      ['false', false],
-      ['', false],
-    ] as const) {
-      const environment = { SAFEWORD_REVIEW_PROGRESS: value };
-      expect(consumeManagedProgressSignal(environment)).toBe(expected);
-      expect(environment).not.toHaveProperty('SAFEWORD_REVIEW_PROGRESS');
-    }
+  it.each([
+    { case: '"1"', value: '1', enabled: true },
+    { case: '<unset>', value: undefined, enabled: false },
+    { case: '""', value: '', enabled: false },
+    { case: '" "', value: ' ', enabled: false },
+    { case: '"0"', value: '0', enabled: false },
+    { case: '"01"', value: '01', enabled: false },
+    { case: '"1 "', value: '1 ', enabled: false },
+    { case: '"true"', value: 'true', enabled: false },
+    { case: '"TRUE"', value: 'TRUE', enabled: false },
+  ])('consumes the exact private signal case $case', ({ value, enabled }) => {
+    const environment: Record<string, string> = {};
+    if (value !== undefined) environment.SAFEWORD_REVIEW_PROGRESS = value;
+    expect(consumeManagedProgressSignal(environment)).toBe(enabled);
+    expect(environment).not.toHaveProperty('SAFEWORD_REVIEW_PROGRESS');
   });
 
   it('reports JSON progress only for an opted-in managed review and never in quiet mode', () => {
@@ -97,7 +92,7 @@ describe('CLI execution policy', () => {
     emit('next');
 
     expect(Buffer.concat(written).toString()).toBe('A→B\nnext\n');
-    expect(write.mock.calls.length).toBeGreaterThan(2);
+    expect(write).toHaveBeenCalledTimes(6);
   });
 
   it('forwards raw byte chunks exactly without adding line framing', () => {

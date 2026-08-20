@@ -2,9 +2,8 @@
 # vitest suite (tests named `invisible-retro-claude.*` under src/retro and
 # tests/hooks), whose command/hook-level scenarios mock the `claude -p` subprocess
 # and the GitHub transport boundaries — a shape the cucumber black-box lane can't
-# drive. `@manual` excludes it from the cucumber acceptance lane while keeping it
-# readable by codify / review-spec / safeword check.
-@invisible-retro-claude @manual
+# drive. The adjacent proof manifest binds each scenario to that lane.
+@invisible-retro-claude @proof.vitest
 Feature: Invisible retro — synchronous headless claude -p extraction
 
   Runs the retro session-retrospective out-of-band, in a separate isolated
@@ -42,7 +41,8 @@ Feature: Invisible retro — synchronous headless claude -p extraction
 
     @invisible-retro-claude.TB2.AC1
     Scenario: invisible-retro-claude.TB2.AC1.headless_argv_omits_bare_flag
-      When Safeword constructs the Claude headless extractor argv
+      Given the Claude headless extractor argv is constructed
+      When the headless invocation is inspected
       Then it contains `-p` and `--output-format json`
       And it does not contain `--bare`
       And `--allowed-tools` permits `Read` and excludes write and Bash tools

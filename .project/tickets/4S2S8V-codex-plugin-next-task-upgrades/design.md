@@ -13,7 +13,7 @@ SessionStart clears the marker only under a different app-server instance.
 
 The v0.70 restart marker remains a read-only compatibility input. The new
 release writes only `activation-pending-v2.json`; pre-install proof is removed.
-Status requires an app restart and never treats a same-app new task as reload
+Status requires an app restart and never treats a same-app task resume as reload
 evidence.
 
 ## Components
@@ -36,7 +36,9 @@ markers while accepting the former restart marker as compatibility input.
 
 **Where:** `packages/cli/src/codex-plugin/profile-proof.ts`
 
-**Identity:** `{ plugin_version, manifest_sha256, activation_id, installed_at, active_hosts }`.
+**Identity:** `{ plugin_version, manifest_sha256, activation_id, installed_at, active_hosts }`,
+plus the native task ID, Codex profile, and canonical project worktree carried by
+the SessionStart proof.
 
 ### Migration status
 
@@ -61,8 +63,10 @@ architecture decision.
 2. Safeword refreshes the existing Git marketplace or adds it for a fresh profile.
 3. Codex installs and enables the exact released plugin cache copy.
 4. Safeword explains that the running app may retain a stale catalogue.
-5. The builder restarts Codex, starts a new task, and reviews `/hooks`.
-6. SessionStart under the new app-server identity clears pending activation.
+5. The builder reviews the changed hooks in Desktop Settings > Hooks or `/hooks`
+   in the terminal TUI.
+6. The builder fully restarts Codex and resumes the existing task.
+7. SessionStart under the new app-server identity clears pending activation.
 
 ## Key decisions
 

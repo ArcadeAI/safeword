@@ -165,30 +165,40 @@ describe('host JavaScript toolchain resolution', () => {
     expect(ownedPaths.map(ownedPath => readFileSync(ownedPath, 'utf8'))).toEqual(before);
   });
 
-  it('recognizes a commented JSONC Ultracite preset before direct Biome', async () => {
-    const projectRoot = mkdtempSync(path.join(tmpdir(), 'host-toolchain-jsonc-'));
-    directories.push(projectRoot);
-    const workspace = path.join(projectRoot, 'apps', 'web');
-    const file = path.join(workspace, 'source.ts');
-    const executable = path.join(workspace, 'node_modules', '.bin', 'ultracite');
-    mkdirSync(path.dirname(executable), { recursive: true });
-    writeFileSync(
-      path.join(workspace, '.biome.jsonc'),
-      '{\n  // host preset\n  "extends": ["ultracite/biome/core",],\n}\n',
-    );
-    writeFileSync(file, 'export const source = 1;\n');
-    writeFileSync(executable, '#!/bin/sh\nexit 0\n');
-    chmodSync(executable, 0o755);
-    const script = `
+  it.each([
+    { configurationFile: 'biome.json', preset: 'ultracite/core', commented: false },
+    { configurationFile: '.biome.json', preset: 'ultracite/core', commented: false },
+    { configurationFile: 'biome.jsonc', preset: 'ultracite/biome/core', commented: true },
+    { configurationFile: '.biome.jsonc', preset: 'ultracite/biome/core', commented: true },
+  ])(
+    'recognizes $configurationFile with $preset before direct Biome',
+    async ({ configurationFile, preset, commented }) => {
+      const projectRoot = mkdtempSync(path.join(tmpdir(), 'host-toolchain-jsonc-'));
+      directories.push(projectRoot);
+      const workspace = path.join(projectRoot, 'apps', 'web');
+      const file = path.join(workspace, 'source.ts');
+      const executable = path.join(workspace, 'node_modules', '.bin', 'ultracite');
+      mkdirSync(path.dirname(executable), { recursive: true });
+      writeFileSync(
+        path.join(workspace, configurationFile),
+        commented
+          ? `{\n  // host preset\n  "extends": ["${preset}",],\n}\n`
+          : `${JSON.stringify({ extends: [preset] })}\n`,
+      );
+      writeFileSync(file, 'export const source = 1;\n');
+      writeFileSync(executable, '#!/bin/sh\nexit 0\n');
+      chmodSync(executable, 0o755);
+      const script = `
       const { resolveHostToolchain } = await import(${JSON.stringify(HOST_TOOLCHAIN_MODULE)});
       console.log(JSON.stringify(resolveHostToolchain(${JSON.stringify(file)}, ${JSON.stringify(projectRoot)})));
     `;
 
-    const { stdout } = await execFileAsync('bun', ['-e', script]);
-    const result = JSON.parse(stdout) as { kind: string; relativeFile: string };
+      const { stdout } = await execFileAsync('bun', ['-e', script]);
+      const result = JSON.parse(stdout) as { kind: string; relativeFile: string };
 
-    expect(result).toMatchObject({ kind: 'ultracite', relativeFile: 'source.ts' });
-  });
+      expect(result).toMatchObject({ kind: 'ultracite', relativeFile: 'source.ts' });
+    },
+  );
 
   it('rejects a Biome configuration symlink that resolves outside the project root', () => {
     const projectRoot = mkdtempSync(path.join(tmpdir(), 'host-toolchain-contained-'));
@@ -383,34 +393,48 @@ describe('host JavaScript toolchain resolution', () => {
     expect(() => readFileSync(log, 'utf8')).toThrow();
   });
 
-  it('runs Ultracite fix then check as exact argv arrays', async () => {
-    const projectRoot = mkdtempSync(path.join(tmpdir(), 'host-toolchain-ultracite-'));
-    directories.push(projectRoot);
-    const workspace = path.join(projectRoot, 'apps', 'web');
-    const executable = path.join(workspace, 'node_modules', '.bin', 'ultracite');
-    const log = path.join(projectRoot, 'invocations.log');
-    mkdirSync(path.dirname(executable), { recursive: true });
-    writeFileSync(
-      executable,
-      `#!/bin/sh\nprintf '%s|%s|%s|%s\\n' "$PWD" "$*" "\${BIOME_CONFIG_PATH-unset}" "\${BIOME_BINARY-unset}" >> ${JSON.stringify(log)}\n`,
-    );
-    chmodSync(executable, 0o755);
-    const script = `
-      const { runHostToolchain } = await import(${JSON.stringify(HOST_TOOLCHAIN_MODULE)});
-      await runHostToolchain({
-        kind: 'ultracite', cwd: ${JSON.stringify(workspace)}, executable: ${JSON.stringify(executable)}, relativeFile: '-generated.ts',
-      });
+  it.each([
+    { preset: 'legacy v6', configuration: 'ultracite/core' },
+    { preset: 'current', configuration: 'ultracite/biome/core' },
+  ])(
+    'runs the $preset Ultracite preset through exact fix and check argv arrays',
+    async testCase => {
+      const projectRoot = mkdtempSync(path.join(tmpdir(), 'host-toolchain-ultracite-'));
+      directories.push(projectRoot);
+      const workspace = path.join(projectRoot, 'apps', 'web');
+      const file = path.join(workspace, '-generated.ts');
+      const executable = path.join(workspace, 'node_modules', '.bin', 'ultracite');
+      const log = path.join(projectRoot, 'invocations.log');
+      mkdirSync(path.dirname(executable), { recursive: true });
+      writeFileSync(
+        path.join(workspace, 'biome.json'),
+        JSON.stringify({ extends: [testCase.configuration] }),
+      );
+      writeFileSync(file, 'export const generated = 1;\n');
+      writeFileSync(
+        executable,
+        `#!/bin/sh\nprintf '%s|%s|%s|%s\\n' "$PWD" "$*" "\${BIOME_CONFIG_PATH-unset}" "\${BIOME_BINARY-unset}" >> ${JSON.stringify(log)}\n`,
+      );
+      chmodSync(executable, 0o755);
+      const script = `
+      const { resolveHostToolchain, runHostToolchain } = await import(${JSON.stringify(HOST_TOOLCHAIN_MODULE)});
+      await runHostToolchain(resolveHostToolchain(${JSON.stringify(file)}, ${JSON.stringify(projectRoot)}));
     `;
 
-    await execFileAsync('bun', ['-e', script], {
-      env: { ...process.env, BIOME_CONFIG_PATH: '/outside/config', BIOME_BINARY: '/outside/biome' },
-    });
+      await execFileAsync('bun', ['-e', script], {
+        env: {
+          ...process.env,
+          BIOME_CONFIG_PATH: '/outside/config',
+          BIOME_BINARY: '/outside/biome',
+        },
+      });
 
-    expect(readFileSync(log, 'utf8').trim().split('\n')).toEqual([
-      `${realpathSync(workspace)}|fix -- -generated.ts|unset|unset`,
-      `${realpathSync(workspace)}|check -- -generated.ts|unset|unset`,
-    ]);
-  });
+      expect(readFileSync(log, 'utf8').trim().split('\n')).toEqual([
+        `${realpathSync(workspace)}|fix -- -generated.ts|unset|unset`,
+        `${realpathSync(workspace)}|check -- -generated.ts|unset|unset`,
+      ]);
+    },
+  );
 
   it('surfaces a failed host fix without running the later check', async () => {
     const projectRoot = mkdtempSync(path.join(tmpdir(), 'host-toolchain-failure-'));

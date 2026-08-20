@@ -159,7 +159,7 @@ Then('the doc lists exactly auth and billing, with no others', function (this: A
   const content = readDocument(this);
   assert.match(content, /### auth/);
   assert.match(content, /### billing/);
-  assert.equal(/^### /gm.exec(content) ? content.match(/^### /gm)?.length : 0, 2);
+  assert.equal((content.match(/^### /gmu) ?? []).length, 2);
 });
 
 Then(
@@ -237,6 +237,10 @@ When('Safeword installs the architecture guide into a project', function (this: 
     0,
     `safeword setup exited ${result.status}: ${result.stdout ?? ''}${result.stderr ?? ''}`,
   );
+  assert.ok(architectureGuide(this).length > 0);
+});
+
+When('the ownership guidance is inspected', function (this: ArchitectureWorld) {
   assert.ok(architectureGuide(this).length > 0);
 });
 

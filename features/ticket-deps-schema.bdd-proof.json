@@ -1,0 +1,77 @@
+{
+  "feature": "features/ticket-deps-schema.feature",
+  "scenarios": {
+    "A ticket carrying neither field validates cleanly": [
+      "packages/cli/tests/commands/check.test.ts",
+      "treats a ticket with neither epic nor blocked_on as clean (fields optional)"
+    ],
+    "An unresolvable blocked_on id is warned, not errored": [
+      "packages/cli/tests/commands/check.test.ts",
+      "warns on a dangling blocked_on, a cycle, and a self-cycle, zero-exit"
+    ],
+    "A blocked_on cycle is warned, not errored": [
+      "packages/cli/tests/commands/check.test.ts",
+      "warns on a dangling blocked_on, a cycle, and a self-cycle, zero-exit"
+    ],
+    "A self-referential blocked_on is warned": [
+      "packages/cli/tests/commands/check.test.ts",
+      "warns on a dangling blocked_on, a cycle, and a self-cycle, zero-exit"
+    ],
+    "A clean corpus produces no relation advisories": [
+      "packages/cli/tests/commands/check.test.ts",
+      "stays silent for valid blocked_on relations"
+    ],
+    "Advancing out of intake is denied while a blocker is in progress": [
+      "packages/cli/tests/integration/blocked-on-gate.test.ts",
+      "denies advancing out of intake while a blocker is in_progress"
+    ],
+    "Advancing out of intake is allowed once the blocker is done": [
+      "packages/cli/tests/integration/blocked-on-gate.test.ts",
+      "allows the advance once the blocker is done"
+    ],
+    "Any non-done blocker among several denies the advance": [
+      "packages/cli/tests/integration/blocked-on-gate.test.ts",
+      "denies when any of several blockers is not done"
+    ],
+    "All-done blockers allow the advance": [
+      "packages/cli/tests/integration/blocked-on-gate.test.ts",
+      "allows when all blockers are done"
+    ],
+    "A blocker with unreadable status fails safe and denies the advance": [
+      "packages/cli/tests/integration/blocked-on-gate.test.ts",
+      "fails safe (denies) when a blocker has an unreadable status"
+    ],
+    "A cancelled blocker without an override denies the advance": [
+      "packages/cli/tests/integration/blocked-on-gate.test.ts",
+      "denies a cancelled blocker with no override"
+    ],
+    "A substantive override allows advance past a terminal-but-not-done blocker": [
+      "packages/cli/tests/integration/blocked-on-gate.test.ts",
+      "allows past a %s blocker with a substantive override"
+    ],
+    "An override's reason is surfaced in the INDEX": [
+      "packages/cli/tests/ticket-sync/ticket-sync.test.ts",
+      "surfaces the override reason in the INDEX"
+    ],
+    "An override with a trivial reason is rejected": [
+      "packages/cli/tests/integration/blocked-on-gate.test.ts",
+      "rejects a trivial override reason"
+    ],
+    "A stale override is flagged once every blocker is done": [
+      "packages/cli/tests/commands/check.test.ts",
+      "warns that a blocked_on_override is stale once every blocker is done"
+    ],
+    "A blocker added after intake does not retroactively block": [
+      "packages/cli/tests/integration/blocked-on-gate.test.ts",
+      "does not block a phase advance that is not leaving intake (grandfather)"
+    ],
+    "A non-phase edit is never blocked": [
+      "packages/cli/tests/integration/blocked-on-gate.test.ts",
+      "allows a non-phase edit even while a blocker is unmet"
+    ],
+    "The gate short-circuits on a cycle instead of looping": [
+      "packages/cli/tests/integration/blocked-on-gate.test.ts",
+      "denies (does not loop) when blocked_on forms a cycle"
+    ]
+  }
+}

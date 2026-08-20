@@ -31,6 +31,18 @@ const source = getMonitorSource('codex-project-plugins');
 
 const UPSTREAM_OPEN = '{"number":18115,"state":"open","state_reason":null}';
 const UPSTREAM_CLOSED = '{"number":18115,"state":"closed","state_reason":"completed"}';
+const PLUGIN_RELOAD_TRIPWIRES = [
+  {
+    key: 'codex-plugin-hook-reload' as const,
+    issueNumber: 17_636,
+    titleFragment: 'Hot-reload hook configuration',
+  },
+  {
+    key: 'codex-removed-plugin-hooks' as const,
+    issueNumber: 38_339,
+    titleFragment: 'Removed plugin Stop hook',
+  },
+];
 
 function recordingClient(filed: IssuePayload[]): GitHubIssueClient {
   return {
@@ -68,6 +80,8 @@ const SOURCE_KEYS: readonly MonitorSourceKey[] = [
   'claude-code',
   'codex-cli',
   'codex-project-plugins',
+  'codex-plugin-hook-reload',
+  'codex-removed-plugin-hooks',
   'cursor',
 ];
 
@@ -114,7 +128,7 @@ describe('source isolation', () => {
       sources: [broken, source],
     });
 
-    expect(result).toEqual({ reported: 1, failed: 1 });
+    expect(result).toEqual({ reported: 1, failed: 1, immediateTriage: 0 });
     expect(filed).toHaveLength(1);
     expect(filed[0]?.title).toContain('openai/codex#18115');
     // A failed source must not read as "no change" — an unchecked source is
@@ -122,6 +136,41 @@ describe('source isolation', () => {
     expect(log).toContain('claude-code: check FAILED — upstream unreachable');
     expect(log.join('\n')).not.toContain('claude-code: no change');
   });
+});
+
+describe('Codex plugin-reload issue tripwires', () => {
+  it.each(PLUGIN_RELOAD_TRIPWIRES)(
+    '$key stays quiet while open and makes a closure immediately visible',
+    async ({ key, issueNumber, titleFragment }) => {
+      const watched = getMonitorSource(key);
+      const open = `{"number":${issueNumber},"state":"open","state_reason":null}`;
+      const closed = `{"number":${issueNumber},"state":"closed","state_reason":"completed"}`;
+      const filed: IssuePayload[] = [];
+
+      const stillOpen = await runUpstreamMonitor({
+        fetchText: () => Promise.resolve(open),
+        issueClient: recordingClient(filed),
+        readText,
+        rootDirectory: repoRoot,
+        sources: [watched],
+      });
+      expect(stillOpen).toEqual({ reported: 0, failed: 0, immediateTriage: 0 });
+      expect(filed).toEqual([]);
+
+      const changed = await runUpstreamMonitor({
+        fetchText: () => Promise.resolve(closed),
+        issueClient: recordingClient(filed),
+        readText,
+        rootDirectory: repoRoot,
+        sources: [watched],
+      });
+      expect(changed).toEqual({ reported: 1, failed: 0, immediateTriage: 1 });
+      expect(filed).toHaveLength(1);
+      expect(filed[0]?.title).toContain(titleFragment);
+      expect(filed[0]?.labels).toEqual(['impact:high']);
+      expect(filed[0]?.body).toContain('restart');
+    },
+  );
 });
 
 describe('watched-issue tripwire wiring (openai/codex#18115)', () => {
