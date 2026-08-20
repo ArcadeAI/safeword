@@ -11,7 +11,7 @@ without pretending the ledger drove those commits.
 ### Scenario Outline: Setup upgrades an unchanged released predecessor across checkout line endings
 
 - [x] RED skip: historical implementation predates this activated migration ticket
-- [ ] GREEN
+- [x] GREEN e25d84b3a
 - [ ] REFACTOR
 
 ### Scenario Outline: Setup preserves a customer-edited predecessor across checkout line endings
