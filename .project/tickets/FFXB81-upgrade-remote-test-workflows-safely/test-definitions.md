@@ -12,7 +12,7 @@ without pretending the ledger drove those commits.
 
 - [x] RED skip: historical implementation predates this activated migration ticket
 - [x] GREEN e25d84b3a
-- [ ] REFACTOR
+- [x] REFACTOR skip: focused test is already direct and duplication-free
 
 ### Scenario Outline: Setup preserves a customer-edited predecessor across checkout line endings
 
