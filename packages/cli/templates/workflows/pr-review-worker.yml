@@ -56,26 +56,81 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           SAFEWORD_PR_NUMBER: ${{ inputs.pull_number }}
         run: |
+          set -euo pipefail
           mkdir -p .safeword
           gh api "repos/$GITHUB_REPOSITORY/contents/.safeword/config.json" --jq .content | base64 --decode > .safeword/config.json
-          gh api "repos/$GITHUB_REPOSITORY/pulls/$SAFEWORD_PR_NUMBER/files" --paginate > pull-files.json
           gh api "repos/$GITHUB_REPOSITORY/pulls/$SAFEWORD_PR_NUMBER" > pull.json
           head_sha="$(jq -r .head.sha pull.json)"
-          gh api "repos/$GITHUB_REPOSITORY/commits/$head_sha/check-runs" --jq .check_runs > check-runs.json
-          gh api "repos/$GITHUB_REPOSITORY/commits/$head_sha/status" --jq .statuses > statuses.json
-          gh api "repos/$GITHUB_REPOSITORY/issues/$SAFEWORD_PR_NUMBER/comments?per_page=100" --paginate > comments.json
-          jq -n --slurpfile files pull-files.json --slurpfile pull pull.json --slurpfile checks check-runs.json --slurpfile statuses statuses.json --slurpfile comments comments.json '
+          gh api "repos/$GITHUB_REPOSITORY/issues/$SAFEWORD_PR_NUMBER/comments?per_page=100" --paginate --jq '.[]' | jq -s . > comments.json
+          reviewed_receipt_sha="$(jq -r '
+            [ .[] |
+              select(.user.login == "github-actions[bot]" and (.body | startswith("<!-- safeword:pr-review-receipt:v1 -->"))) |
+              .body |
+              select(contains("\nRoute:")) |
+              capture("Reviewed revision: (?<sha>[0-9a-f]{40,64})").sha
+            ] | last // empty
+          ' comments.json)"
+          if [ "$reviewed_receipt_sha" = "$head_sha" ]; then
+            jq -n --slurpfile pull pull.json --arg reviewedReceiptSha "$reviewed_receipt_sha" '
+              ($pull[0]) as $pr |
+              {
+                schemaVersion: 1,
+                headSha: $pr.head.sha,
+                pullState: (if $pr.merged then "merged" elif $pr.state == "closed" then "closed" elif $pr.draft then "draft" else "ready" end),
+                markerReceiptExists: true,
+                reviewedReceiptSha: $reviewedReceiptSha,
+                artifacts: [],
+                checks: [],
+                statuses: []
+              }
+            ' > inspection-input.json
+            exit 0
+          fi
+          gh api "repos/$GITHUB_REPOSITORY/pulls/$SAFEWORD_PR_NUMBER/files?per_page=100" --paginate --jq '.[]' | jq -s . > pull-files.json
+          jq -c '.[]' pull-files.json | while IFS= read -r file; do
+            if jq -e '.patch != null and .status != "removed"' > /dev/null <<< "$file"; then
+              blob_sha="$(jq -r .sha <<< "$file")"
+              if blob_json="$(gh api "repos/$GITHUB_REPOSITORY/git/blobs/$blob_sha")" &&
+                full_content="$(jq -er '
+                  if .encoding == "base64" and (.content | type) == "string" then
+                    .content | gsub("\\n"; "")
+                  elif .size == 0 then
+                    ""
+                  else
+                    error("blob content is not available as base64")
+                  end
+                ' <<< "$blob_json")"; then
+                jq --arg fullContentBase64 "$full_content" '. + {$fullContentBase64}' <<< "$file"
+              else
+                jq '. + {contextUnavailable: true}' <<< "$file"
+              fi
+            else
+              printf '%s\n' "$file"
+            fi
+          done | jq -s . > pull-files-with-context.json
+          latest_head_sha="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$SAFEWORD_PR_NUMBER" --jq .head.sha)"
+          if [ "$latest_head_sha" != "$head_sha" ]; then
+            echo "Pull request head changed while evidence was assembled." >&2
+            exit 1
+          fi
+          gh api "repos/$GITHUB_REPOSITORY/commits/$head_sha/check-runs?per_page=100" --paginate --jq '.check_runs[]' | jq -s . > check-runs.json
+          gh api "repos/$GITHUB_REPOSITORY/commits/$head_sha/status?per_page=100" --paginate --jq '.statuses[]' | jq -s . > statuses.json
+          jq -n --slurpfile files pull-files-with-context.json --slurpfile pull pull.json --slurpfile checks check-runs.json --slurpfile statuses statuses.json --slurpfile comments comments.json '
             ($pull[0]) as $pr |
-            ([ $comments[0][] | select(.user.type == "Bot" and (.body | startswith("<!-- safeword:pr-review-receipt:v1 -->"))) ]) as $owned |
+            ([ $comments[0][] | select(.user.login == "github-actions[bot]" and (.body | startswith("<!-- safeword:pr-review-receipt:v1 -->"))) ]) as $owned |
             {
               schemaVersion: 1,
               headSha: $pr.head.sha,
               pullState: (if $pr.merged then "merged" elif $pr.state == "closed" then "closed" elif $pr.draft then "draft" else "ready" end),
               markerReceiptExists: ($owned | length > 0),
-              reviewedReceiptSha: ([$owned[].body | select(contains("\nRoute:")) | capture("Reviewed revision: (?<sha>[0-9a-f]{40,64})").sha] | first // null),
+              reviewedReceiptSha: ([$owned[].body | select(contains("\nRoute:")) | capture("Reviewed revision: (?<sha>[0-9a-f]{40,64})").sha] | last // null),
               artifacts: [$files[0][] |
                 if .patch != null then
-                  {kind: "text", path: .filename, content: .patch}
+                  ({kind: "text", path: .filename, content: .patch}
+                    + if .fullContentBase64 then {fullContentBase64}
+                      elif .status == "removed" then {contextNotApplicable: true}
+                      else {contextUnavailable: true}
+                      end)
                 elif (.filename | test("\\.(png|jpe?g|gif|webp|ico|pdf|zip|gz|tgz|bz2|xz|7z|woff2?|ttf|otf|mp3|mp4|mov|avi|webm|wav|ogg|wasm|class|jar|exe|dll|so|dylib|bin)$"; "i")) then
                   {kind: "non_text", path: .filename}
                 else
