@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (570)
+## Tickets (572)
 
 ### 001
 
@@ -620,6 +620,9 @@
 - **Keep advisory reviews current without repeated noise (Z7M7Y3)** (in_progress, epic: trustworthy-advisory-pr-review)
   Preserve trustworthy freshness while reducing repeated review work and finding noise across revisions.
   → `.project/tickets/Z7M7Y3-keep-advisory-reviews-current-without-repeated-noise`
+- **Give automatic PR reviews enough context (ZA6DGD)** (in_progress, epic: —)
+  Reduce patch-only false findings by reviewing each changed patch with bounded full-file context from the exact PR head
+  → `.project/tickets/ZA6DGD-give-automatic-pr-reviews-enough-context`
 
 ### phase-step-enforcement
 
@@ -1666,6 +1669,9 @@
 - **Make project knowledge shape and challenge feature delivery (KD4C2A)** (done, epic: —)
   Ship a proportional project-knowledge thread from feature discovery through independent review, verification, and objective audit.
   → `.project/tickets/KD4C2A-principles-flow-spike`
+- **Bound the Codex reference-path rewrite to real Markdown links (KEQQGN)** (in_progress, epic: —)
+  Make adaptSkillBody rewrite only genuine relative reference links, leaving already-prefixed paths, URLs, and prose mentions alone
+  → `.project/tickets/KEQQGN-reference-rewrite-boundaries`
 - **Keep every public CLI command consistent for users and agents (KJKGDM)** (in_progress, epic: —)
   Make every public command discoverable, machine-safe, option-accurate, and canonically documented without deleting retained aliases.
   external issue: https://github.com/ArcadeAI/safeword/issues/2251
