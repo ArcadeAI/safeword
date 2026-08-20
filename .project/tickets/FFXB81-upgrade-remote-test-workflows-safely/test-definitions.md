@@ -18,7 +18,7 @@ without pretending the ledger drove those commits.
 
 - [x] RED skip: exact-digest rejection predates this strengthened scenario
 - [x] GREEN abd3b15a9
-- [ ] REFACTOR
+- [x] REFACTOR skip: explicit byte matrix is the simplest stable proof
 
 ### Scenario: Disable removes an unchanged released workflow
 
