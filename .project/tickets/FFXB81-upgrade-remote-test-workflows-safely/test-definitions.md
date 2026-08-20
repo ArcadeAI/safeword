@@ -16,7 +16,7 @@ without pretending the ledger drove those commits.
 
 ### Scenario Outline: Setup preserves a customer-edited predecessor across checkout line endings
 
-- [ ] RED
+- [x] RED skip: exact-digest rejection predates this strengthened scenario
 - [ ] GREEN
 - [ ] REFACTOR
 
