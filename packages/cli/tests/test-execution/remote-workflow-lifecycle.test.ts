@@ -2,6 +2,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   symlinkSync,
@@ -104,6 +105,24 @@ describe('remote workflow lifecycle', () => {
       effectiveMode: 'remote-preferred',
     });
     expect(readFileSync(workflowPath(root), 'utf8')).toBe(currentWorkflow);
+  });
+
+  it.each([
+    ['LF', releasedV1],
+    ['CRLF', releasedV1.replaceAll('\n', '\r\n')],
+  ])('upgrades exact released bytes from a %s checkout', (_lineEndings, predecessor) => {
+    const root = fixture();
+    const directory = nodePath.dirname(workflowPath(root));
+    writeWorkflow(root, predecessor);
+    expect(readFileSync(workflowPath(root))).toEqual(Buffer.from(predecessor));
+
+    expect(setupRemoteWorkflow(root, currentWorkflow, 'remote-preferred')).toMatchObject({
+      ok: true,
+      changed: true,
+      state: 'current',
+    });
+    expect(readFileSync(workflowPath(root))).toEqual(Buffer.from(currentWorkflow));
+    expect(readdirSync(directory)).toEqual([nodePath.basename(REMOTE_WORKFLOW_PATH)]);
   });
 
   it('preserves a customer workflow during setup and disable', () => {
