@@ -62,3 +62,7 @@ last_modified: 2026-08-20T16:09:57.369Z
   of changed-file and blob collection so unchanged scheduled reviews stay
   cheap. Distinguished a valid empty exact-head file from malformed context so
   truncating a file to empty remains reviewable. Focused coverage passes 26/26.
+- 2026-08-20T17:47:00Z Review: Required GitHub blob evidence to declare base64
+  encoding, accepting an empty payload only for a reported zero-byte blob.
+  Oversized or otherwise unavailable blobs now fail closed. Independent Claude
+  review approved the final accepted targets with no errors.
