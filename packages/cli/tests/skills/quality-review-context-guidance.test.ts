@@ -15,12 +15,13 @@ const QUALITY_REVIEW_SKILLS = [
 describe('quality-review supporting context guidance', () => {
   it.each(QUALITY_REVIEW_SKILLS)('%s keeps review targets distinct from minimum context', path => {
     const content = readFileSync(nodePath.join(repoRoot, path), 'utf8');
+    const normalized = content.replaceAll(/\s+/gu, ' ');
 
-    expect(content).toContain('Keep each work-product under review as a target');
-    expect(content).toContain('minimum directly relevant supporting evidence');
+    expect(normalized).toContain('keep each work-product under review as a target');
+    expect(normalized).toContain('minimum directly relevant supporting evidence');
     expect(content).toContain('--context path/to/evidence');
-    expect(content).toMatch(/source, test, contract, or plan/u);
-    expect(content).toContain('Do not dump the repository');
-    expect(content).toContain('context is not additional work under review');
+    expect(normalized).toMatch(/source, test, contract, or plan/u);
+    expect(normalized).toContain('Do not dump the repository');
+    expect(normalized).toContain('context is not additional work under review');
   });
 });

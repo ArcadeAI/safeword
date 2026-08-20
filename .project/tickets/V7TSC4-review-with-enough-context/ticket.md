@@ -35,13 +35,13 @@ repository dump.
 
 ## Tests
 
-- [ ] The shipped quality-review contract requires minimum relevant context when
+- [x] The shipped quality-review contract requires minimum relevant context when
       the target alone cannot validate a finding.
-- [ ] The contract keeps targets distinct from supporting context and shows the
+- [x] The contract keeps targets distinct from supporting context and shows the
       existing `--context` command shape.
-- [ ] The contract rejects broad context dumping and names the narrow evidence
+- [x] The contract rejects broad context dumping and names the narrow evidence
       classes that are appropriate.
-- [ ] Generated and dogfood skill copies stay byte-identical to the template.
+- [x] Generated and dogfood skill copies stay byte-identical to the template.
 
 ## Work Log
 
@@ -50,3 +50,7 @@ repository dump.
   implementation-and-test context found the historical production-wiring gap
   that both patch-only review and the outer Terra wrapper missed. Selected a
   guidance-only change over new coordinator architecture.
+- 2026-08-20T05:02:00Z TDD: Added a four-surface contract test, confirmed all
+  four assertions RED, then added one bounded-context paragraph and command
+  example to the canonical skill and regenerated installed copies. Focused
+  review guidance, freshness, and coordinator parity suites pass 41/41.
