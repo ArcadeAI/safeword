@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (568)
+## Tickets (569)
 
 ### 001
 
@@ -1160,6 +1160,9 @@
 - **Test Codex plugin migration (4DK9H4)** (done, epic: —)
   Prove Safe Word works in Codex through a plugin and package-runner CLI entrypoints without installing bulky repo-local assets.
   → `.project/tickets/4DK9H4-test-codex-plugin-migration`
+- **Make parity-check account for generated mirrors (4F9S56)** (in_progress, epic: —)
+  Have parity-check either cover generated mirrors (plugin/runtime, codex-plugin/skills) or state plainly that its all-in-sync result excludes them
+  → `.project/tickets/4F9S56-parity-check-generated-mirrors`
 - **dependency-readiness false-positive stale after rebase (mtime vs content) (4JMBXT)** (in_progress, epic: —)
   Make the dependency-readiness stale decision content-based (fingerprint marker) so rebase/checkout/clone no longer falsely block dependency-backed commands.
   → `.project/tickets/4JMBXT-dep-readiness-mtime-stale`
