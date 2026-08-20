@@ -125,6 +125,25 @@ describe('remote workflow lifecycle', () => {
     expect(readdirSync(directory)).toEqual([nodePath.basename(REMOTE_WORKFLOW_PATH)]);
   });
 
+  it.each([
+    ['LF', `${releasedV1}\r`],
+    ['CRLF', `${releasedV1.replaceAll('\n', '\r\n')}\r`],
+  ])('preserves a lone-CR customer edit from a %s checkout', (_lineEndings, customerBytes) => {
+    const root = fixture();
+    const directory = nodePath.dirname(workflowPath(root));
+    writeWorkflow(root, customerBytes);
+    expect(readFileSync(workflowPath(root))).toEqual(Buffer.from(customerBytes));
+
+    expect(setupRemoteWorkflow(root, currentWorkflow, 'remote-preferred')).toMatchObject({
+      ok: false,
+      changed: false,
+      state: 'customer_owned',
+      code: 'REMOTE_WORKFLOW_CONFLICT',
+    });
+    expect(readFileSync(workflowPath(root))).toEqual(Buffer.from(customerBytes));
+    expect(readdirSync(directory)).toEqual([nodePath.basename(REMOTE_WORKFLOW_PATH)]);
+  });
+
   it('preserves a customer workflow during setup and disable', () => {
     const root = fixture();
     writeWorkflow(root, 'name: customer\n');
