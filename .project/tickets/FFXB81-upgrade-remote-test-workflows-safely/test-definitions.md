@@ -24,7 +24,7 @@ without pretending the ledger drove those commits.
 
 - [x] RED skip: historical disable support predates this activated ticket
 - [x] GREEN 7b7a782af
-- [ ] REFACTOR
+- [x] REFACTOR skip: direct lifecycle assertion needs no structural cleanup
 
 ### Scenario Outline: Disable preserves a customer-edited workflow across checkout line endings
 
