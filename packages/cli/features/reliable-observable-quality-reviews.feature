@@ -68,10 +68,17 @@ Feature: Keep quality reviews observable and actionable
         | approve         | approved        | 0      |
         | request_changes | action-required | 2      |
 
-    Scenario: Human-readable progress remains enabled without the private signal
-      Given a human-readable review without quiet mode
+    Scenario: A direct JSON review remains silent without the private signal
+      Given a direct JSON review remains active through a waiting heartbeat without the private signal
+      When the reviewer returns an approved result
+      Then stderr is empty
+      And stdout is one parseable schema-1 result classified as approved
+      And the command exits with status 0
+
+    Scenario: Human-readable progress remains enabled with the private signal
+      Given a human-readable review without quiet mode carries the private signal
       When output policy is resolved
-      Then human-readable progress remains enabled
+      Then human-readable progress remains enabled and the private signal is removed
 
   @reliable-observable-quality-reviews.SWM1.R1 @surface.safeword-cli @proof.vitest
   Rule: reliable-observable-quality-reviews.SWM1.R1 — Progress is a best-effort Safeword-owned side channel

@@ -141,7 +141,11 @@ function installIncompatibleReviewer(directory: string, agent: ReviewAgent, log:
 
 async function runManagedJsonReview(
   directory: string,
-  options: { readonly quiet?: boolean; readonly verdict?: 'approve' | 'request_changes' } = {},
+  options: {
+    readonly managed?: boolean;
+    readonly quiet?: boolean;
+    readonly verdict?: 'approve' | 'request_changes';
+  } = {},
 ) {
   writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
   const log = nodePath.join(directory, 'review.log');
@@ -174,7 +178,7 @@ async function runManagedJsonReview(
         SAFEWORD_PROGRESS_HEARTBEAT_MS: '150',
         SAFEWORD_REVIEW_FAKE_DELAY_AGENT: 'codex',
         SAFEWORD_REVIEW_LOG: log,
-        SAFEWORD_REVIEW_PROGRESS: '1',
+        ...(options.managed !== false && { SAFEWORD_REVIEW_PROGRESS: '1' }),
         SAFEWORD_NO_UPDATE_CHECK: '1',
         ...verdictEnvironment,
       },
@@ -1743,6 +1747,15 @@ describe('cross-agent review public-command wiring', () => {
     expect(output.findings).toContainEqual(expect.objectContaining({ message: 'Unsafe retry' }));
     expect(result.stderr).toContain('Requesting an independent Codex review…');
     expect(result.stderr).toContain('Still waiting for a response from Codex…');
+  });
+
+  it('keeps a direct JSON review silent while its reviewer remains active', async () => {
+    const directory = createTemporaryDirectory();
+    const result = await runManagedJsonReview(directory, { managed: false });
+
+    expect(result.exitCode, result.stdout).toBe(0);
+    expect(result.stderr).toBe('');
+    expect(JSON.parse(result.stdout)).toMatchObject({ schema_version: 1, state: 'healthy' });
   });
 
   it.each([
