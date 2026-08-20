@@ -232,6 +232,18 @@ describe('remote workflow lifecycle', () => {
     });
   });
 
+  it('disables the exact released predecessor', () => {
+    const root = fixture();
+    writeWorkflow(root, releasedV1);
+
+    expect(disableRemoteWorkflow(root, currentWorkflow)).toMatchObject({
+      ok: true,
+      changed: true,
+      state: 'not_installed',
+    });
+    expect(existsSync(workflowPath(root))).toBe(false);
+  });
+
   it('preserves customer bytes that appear at exclusive publication', () => {
     const root = fixture();
     const customer = 'name: concurrent customer\n';
