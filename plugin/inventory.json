@@ -143,11 +143,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "7350bbc5f0a2b282489bca55fedfbb6f6ffbd52bf1bce06899e8897c6b6ebdda"
+      "sha256": "84487060a573c2e1875b3d8252c2e94cb23b1b1ed9c791fc375a39759596541d"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "7fc0d20b2e2f1548141699d11425d0d6b5d201be1203fc9dffe388536253341a"
+      "sha256": "4c5d30d27c28f71a4958be14b92f27b92e3fc4fd6b0b19fee757190d56643277"
     },
     {
       "path": "runtime/event-groups.json",
@@ -663,7 +663,7 @@
     },
     {
       "path": "skills/quality-review/SKILL.md",
-      "sha256": "244fee019f778dc69dc0f9778071f7a017490116bd9202cb6bc08a39f7ca5c1c"
+      "sha256": "81cace0d003c14e1edd167522100b44feb0b88126a25d29a1db4a3ff02b52ea5"
     },
     {
       "path": "skills/refactor/SKILL.md",

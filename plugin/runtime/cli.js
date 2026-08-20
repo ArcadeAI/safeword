@@ -596,7 +596,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/finish-review/REVIEWER.md": "0ecee21a63f91e09d3136f62cf8f7590ba9a640b85cad7b7b35c1ae334ff43c2",
         ".claude/skills/finish-review/SKILL.md": "e9ed5d198994b6cca12c62b1a4c13a1db2d82d65fc8a9173a41c5b5cf312cd52",
         ".claude/skills/lint/SKILL.md": "fdde749fe9ce764f6f9325f963c092d457960494fe78dd04d65d53a50e7cfd19",
-        ".claude/skills/quality-review/SKILL.md": "b940905d31cd4931665e023a65824a923a2bd5d7f590358355576cff8f3bc42a",
+        ".claude/skills/quality-review/SKILL.md": "d19120f79c688c9c933e9d3216a2ac8a0c18a73c52fe865a2d4f4d98f86fc274",
         ".claude/skills/refactor/SKILL.md": "a51a858fb13b50cbc86789edbde8a39e364b5cdd7d5d3b025d555d90b221760e",
         ".claude/skills/retro-filer/SKILL.md": "ea126f3805a2befefb4db2011439f075ebfd6eca31b78bd5f284ac11d667b4f0",
         ".claude/skills/retro/SKILL.md": "166e5109193bad4c26e060f6841d71c03f9155c7e74e1853c43b99b01c25d379",
