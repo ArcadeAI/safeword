@@ -6,6 +6,7 @@
 <!-- prettier-ignore-start -->
 
 ## Tickets (581)
+## Tickets (572)
 
 ### 001
 
@@ -1696,6 +1697,9 @@
 - **Make project knowledge shape and challenge feature delivery (KD4C2A)** (done, epic: —)
   Ship a proportional project-knowledge thread from feature discovery through independent review, verification, and objective audit.
   → `.project/tickets/KD4C2A-principles-flow-spike`
+- **Bound the Codex reference-path rewrite to real Markdown links (KEQQGN)** (in_progress, epic: —)
+  Make adaptSkillBody rewrite only genuine relative reference links, leaving already-prefixed paths, URLs, and prose mentions alone
+  → `.project/tickets/KEQQGN-reference-rewrite-boundaries`
 - **Keep every public CLI command consistent for users and agents (KJKGDM)** (in_progress, epic: —)
   Make every public command discoverable, machine-safe, option-accurate, and canonically documented without deleting retained aliases.
   external issue: https://github.com/ArcadeAI/safeword/issues/2251
