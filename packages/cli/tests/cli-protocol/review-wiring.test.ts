@@ -324,6 +324,7 @@ describe('cross-agent review public-command wiring', () => {
     const promptLog = nodePath.join(directory, 'prompt.log');
     writeFileSync(nodePath.join(directory, 'target.md'), 'review this\n');
     writeFileSync(nodePath.join(directory, 'context.md'), 'supporting evidence\n');
+    writeFileSync(nodePath.join(directory, 'other-context.md'), 'contract evidence\n');
     const bin = installFakeReviewer(directory, 'claude');
 
     const result = await runCli(
@@ -334,6 +335,8 @@ describe('cross-agent review public-command wiring', () => {
         'target.md',
         '--context',
         'context.md',
+        '--context',
+        'other-context.md',
         '--json',
         '--no-input',
         '--cwd',
@@ -355,6 +358,7 @@ describe('cross-agent review public-command wiring', () => {
     const prompt = readFileSync(promptLog, 'utf8');
     expect(prompt).toContain('"logical_files":[{"path":"target.md"');
     expect(prompt).toContain('"context_files":[{"path":"context.md"');
+    expect(prompt).toContain('{"path":"other-context.md"');
     expect(prompt).toContain('supporting context, not work under review');
   });
 
