@@ -266,6 +266,34 @@ describe('remote workflow lifecycle', () => {
     expect(existsSync(workflowPath(root))).toBe(false);
   });
 
+  it.each([
+    ['customer bytes', 'REMOTE_WORKFLOW_CONFLICT', 'name: concurrent customer\n'],
+    ['read failure', 'REMOTE_WORKFLOW_RETRY', releasedV1],
+  ])('does not disable released v1 after commit-time %s', (change, expectedCode, expectedBytes) => {
+    const root = fixture();
+    const path = workflowPath(root);
+    let reads = 0;
+    writeWorkflow(root, releasedV1);
+
+    const filesystem = withFilesystem({
+      openRead: candidate => {
+        reads += 1;
+        if (reads === 2) {
+          if (change === 'read failure') throw failure('EIO');
+          writeFileSync(candidate, expectedBytes);
+        }
+        return nodeRemoteWorkflowFs.openRead(candidate);
+      },
+    });
+
+    expect(disableRemoteWorkflow(root, currentWorkflow, filesystem)).toMatchObject({
+      ok: false,
+      changed: false,
+      code: expectedCode,
+    });
+    expect(readFileSync(path, 'utf8')).toBe(expectedBytes);
+  });
+
   it('preserves customer bytes that appear at exclusive publication', () => {
     const root = fixture();
     const customer = 'name: concurrent customer\n';
