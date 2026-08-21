@@ -265,6 +265,12 @@ export function disableRemoteWorkflow(
     return classifiedResult(initial);
   }
 
+  const revalidated = classifyRemoteWorkflow(root, bundled, filesystem);
+  if (revalidated.state === 'failed') return retryFailure();
+  if (revalidated.state !== 'current' && revalidated.state !== 'managed_outdated') {
+    return classifiedResult(revalidated);
+  }
+
   try {
     filesystem.unlink(nodePath.join(root, REMOTE_WORKFLOW_PATH));
     return disabledResult(true);
