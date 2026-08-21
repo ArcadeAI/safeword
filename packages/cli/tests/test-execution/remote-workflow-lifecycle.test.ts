@@ -144,6 +144,26 @@ describe('remote workflow lifecycle', () => {
     expect(readdirSync(directory)).toEqual([nodePath.basename(REMOTE_WORKFLOW_PATH)]);
   });
 
+  it.each([
+    ['LF', `${releasedV1}\r`],
+    ['CRLF', `${releasedV1.replaceAll('\n', '\r\n')}\r`],
+  ])(
+    'does not disable a lone-CR customer edit from a %s checkout',
+    (_lineEndings, customerBytes) => {
+      const root = fixture();
+      writeWorkflow(root, customerBytes);
+      expect(readFileSync(workflowPath(root))).toEqual(Buffer.from(customerBytes));
+
+      expect(disableRemoteWorkflow(root, currentWorkflow)).toMatchObject({
+        ok: false,
+        changed: false,
+        state: 'customer_owned',
+        code: 'REMOTE_WORKFLOW_CONFLICT',
+      });
+      expect(readFileSync(workflowPath(root))).toEqual(Buffer.from(customerBytes));
+    },
+  );
+
   it('preserves a customer workflow during setup and disable', () => {
     const root = fixture();
     writeWorkflow(root, 'name: customer\n');
