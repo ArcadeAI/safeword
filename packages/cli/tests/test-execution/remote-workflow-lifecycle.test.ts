@@ -174,11 +174,13 @@ describe('remote workflow lifecycle', () => {
       code: 'REMOTE_WORKFLOW_CONFLICT',
     });
     expect(disableRemoteWorkflow(root, bundled)).toEqual({
-      ok: true,
+      ok: false,
       changed: false,
       state: 'customer_owned',
-      affectedPath: NONE,
-      nextAction: NONE,
+      affectedPath: REMOTE_WORKFLOW_PATH,
+      nextAction: 'move_aside_and_repeat',
+      code: 'REMOTE_WORKFLOW_CONFLICT',
+      retryable: false,
     });
     expect(readFileSync(workflowPath(root), 'utf8')).toBe('name: customer\n');
   });

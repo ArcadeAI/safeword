@@ -49,12 +49,9 @@ function retryFailure(): RemoteWorkflowLifecycleResult {
 
 function classifiedResult(
   observation: Exclude<RemoteWorkflowObservation, { state: 'failed' }>,
-  command: 'setup' | 'disable',
   effectiveMode?: ExecutionMode,
 ): RemoteWorkflowLifecycleResult {
-  const customerAbsent = command === 'disable' && observation.state === 'customer_owned';
-  const desired =
-    observation.state === 'current' || observation.state === 'not_installed' || customerAbsent;
+  const desired = observation.state === 'current' || observation.state === 'not_installed';
   return {
     ok: desired,
     changed: false,
@@ -166,7 +163,7 @@ function completeSetupUpgrade(
     const observation = classifyRemoteWorkflow(root, bundled, filesystem);
     return observation.state === 'failed'
       ? retryFailure()
-      : classifiedResult(observation, 'setup', effectiveMode);
+      : classifiedResult(observation, effectiveMode);
   }
   return withPublicationResidue(
     publicationFailure(publication.operation, publication.code, REMOTE_WORKFLOW_PATH),
@@ -207,7 +204,7 @@ function completeSetupPublication(
       const result =
         reclassified.state === 'failed' || reclassified.state === 'not_installed'
           ? retryFailure()
-          : classifiedResult(reclassified, 'setup', effectiveMode);
+          : classifiedResult(reclassified, effectiveMode);
       return withPublicationResidue(result, publication);
     }
     return withPublicationResidue(
@@ -240,7 +237,7 @@ export function setupRemoteWorkflow(
   if (initial.state === 'managed_outdated') {
     return completeSetupUpgrade(root, bundled, effectiveMode, filesystem);
   }
-  if (initial.state !== 'not_installed') return classifiedResult(initial, 'setup', effectiveMode);
+  if (initial.state !== 'not_installed') return classifiedResult(initial, effectiveMode);
 
   const parentFailure = ensureWorkflowParents(root, filesystem);
   if (parentFailure !== undefined) return parentFailure;
@@ -265,7 +262,7 @@ export function disableRemoteWorkflow(
   const initial = classifyRemoteWorkflow(root, bundled, filesystem);
   if (initial.state === 'failed') return retryFailure();
   if (initial.state !== 'current' && initial.state !== 'managed_outdated') {
-    return classifiedResult(initial, 'disable');
+    return classifiedResult(initial);
   }
 
   try {
