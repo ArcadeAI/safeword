@@ -30,7 +30,7 @@ without pretending the ledger drove those commits.
 
 - [x] RED 215cd0677
 - [x] GREEN 21ca9b193
-- [ ] REFACTOR
+- [x] REFACTOR skip: removing the obsolete special case is already minimal
 
 ### Scenario Outline: Disable never removes a workflow that no longer revalidates as released v1
 
