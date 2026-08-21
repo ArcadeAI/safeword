@@ -28,7 +28,7 @@ without pretending the ledger drove those commits.
 
 ### Scenario Outline: Disable preserves a customer-edited workflow across checkout line endings
 
-- [x] RED skip: exact-digest rejection predates this strengthened scenario
+- [x] RED 215cd0677
 - [ ] GREEN
 - [ ] REFACTOR
 
