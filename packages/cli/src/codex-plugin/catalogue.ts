@@ -217,13 +217,47 @@ function adaptScriptInvocations(markdown: string, version: string): string {
   return adapted;
 }
 
-// resolve-namespace-root.ts needs its own pass: its two positional modes
-// map onto `project namespace-root`'s flags. Every call site passes a default
-// basename of `<key>.md`, which is already the subcommand's own default, so
-// only the key survives the rewrite.
+// resolve-namespace-root.ts needs its own pass: its positional modes map onto
+// `project namespace-root`'s flags. The script's third argument defaults to
+// `<key>.md` (see resolveConfiguredPath), which is also the subcommand's own
+// default, so `<key>` and `<key> <key>.md` both reduce to `--key <key>`.
+//
+// PRESERVE ON ANYTHING UNRECOGNISED. The subcommand takes no operands, so
+// emitting the new command in front of an argument form we did not map
+// produces a command that exits 1 — and these invocations are captured as
+// `NS_ROOT="$(… 2> /dev/null)"`, which turns that failure into a silent empty
+// path. Leaving the original text alone instead fails loudly at generation
+// review rather than quietly at runtime.
 const NAMESPACE_ROOT_INVOCATION_PREFIX =
   'bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR"';
-const NAMESPACE_ROOT_ARGUMENTS = /^ (?<key>[a-z]{1,32}) (?<basename>[\w.-]{1,64})/u;
+// Matched in two steps rather than one optional group, which keeps each
+// pattern trivially linear.
+const NAMESPACE_ROOT_KEY = /^ (?<key>[a-z]{1,32})(?=[ )"]|$)/u;
+const NAMESPACE_ROOT_BASENAME = /^ (?<basename>[\w.-]{1,64})/u;
+/** A tail that continues with a positional operand rather than closing the call. */
+const TRAILING_OPERAND = /^ (?!\d?[<>]|[|&#])\S/u;
+
+/** Rewrite one invocation's trailing text, or return it unchanged to preserve. */
+function rewriteNamespaceRootTail(tail: string, replacement: string): string {
+  const key = NAMESPACE_ROOT_KEY.exec(tail)?.groups?.key;
+
+  if (key === undefined) {
+    // No key: safe only when nothing positional follows (`)"`, ` 2> /dev/null)"`).
+    if (TRAILING_OPERAND.test(tail)) return NAMESPACE_ROOT_INVOCATION_PREFIX + tail;
+    return replacement + tail;
+  }
+
+  const basename = NAMESPACE_ROOT_BASENAME.exec(tail.slice(key.length + 1))?.groups?.basename;
+
+  // A non-default basename has no flag to carry it, so rewriting would
+  // silently resolve a different file.
+  if (basename !== undefined && basename !== `${key}.md`) {
+    return NAMESPACE_ROOT_INVOCATION_PREFIX + tail;
+  }
+
+  const consumed = basename === undefined ? key.length + 1 : key.length + basename.length + 2;
+  return `${replacement} --key ${key}${tail.slice(consumed)}`;
+}
 
 function adaptNamespaceRootInvocations(markdown: string, version: string): string {
   const replacement = `bunx --bun safeword@${version} project namespace-root --cwd "$PROJECT_DIR"`;
@@ -231,18 +265,7 @@ function adaptNamespaceRootInvocations(markdown: string, version: string): strin
   let adapted = head ?? '';
 
   for (const tail of rest) {
-    const { key, basename } = NAMESPACE_ROOT_ARGUMENTS.exec(tail)?.groups ?? {};
-    if (key === undefined) {
-      adapted += replacement + tail;
-      // Only a default `<key>.md` basename survives the rewrite: the subcommand
-      // has no flag to carry any other one, so rewriting it would silently
-      // resolve a different file.
-    } else if (basename === `${key}.md`) {
-      const remainder = tail.slice(key.length + basename.length + 2);
-      adapted += `${replacement} --key ${key}${remainder}`;
-    } else {
-      adapted += NAMESPACE_ROOT_INVOCATION_PREFIX + tail;
-    }
+    adapted += rewriteNamespaceRootTail(tail, replacement);
   }
 
   return adapted;

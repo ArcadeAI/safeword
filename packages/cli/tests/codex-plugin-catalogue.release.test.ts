@@ -205,6 +205,8 @@ describe('generated Codex plugin catalogue', () => {
           'NS_ROOT="$(bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR")"',
           'PERSONAS="$(bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR" personas personas.md 2> /dev/null)"',
           'CUSTOM="$(bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR" personas other.md)"',
+          'KEYONLY="$(bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR" personas)"',
+          'OPAQUE="$(bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR" "$KEY")"',
           '```',
           '',
         ].join('\n'),
@@ -223,6 +225,18 @@ describe('generated Codex plugin catalogue', () => {
       // rather than silently resolving a different file.
       expect(content).toContain(
         'CUSTOM="$(bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR" personas other.md)"',
+      );
+      // The script defaults its third argument to `<key>.md`, which is also the
+      // subcommand's default, so a key-only call maps cleanly onto --key.
+      expect(content).toContain(
+        'KEYONLY="$(bunx --bun safeword@1.2.3 project namespace-root --cwd "$PROJECT_DIR" --key personas)"',
+      );
+      // An operand the rewrite cannot map is preserved rather than emitted after
+      // the new command: `namespace-root` takes no operands, so rewriting would
+      // ship a command that exits 1 — and under `2> /dev/null` that failure
+      // reads as an empty path instead of an error.
+      expect(content).toContain(
+        'OPAQUE="$(bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR" "$KEY")"',
       );
     } finally {
       rmSync(fixture, { recursive: true, force: true });
