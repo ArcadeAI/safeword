@@ -34,7 +34,7 @@ without pretending the ledger drove those commits.
 
 ### Scenario Outline: Disable never removes a workflow that no longer revalidates as released v1
 
-- [ ] RED
+- [x] RED 52707bfe9
 - [ ] GREEN
 - [ ] REFACTOR
 
