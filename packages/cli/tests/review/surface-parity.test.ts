@@ -15,6 +15,7 @@ import { Option } from 'commander';
 import { describe, expect, it } from 'vitest';
 
 import { GLOBAL_OPTION_DEFINITIONS } from '../../src/cli-protocol/execute.js';
+import { VERSION } from '../../src/version.js';
 import {
   reviewCandidates,
   reviewChildEnvironment,
@@ -318,11 +319,14 @@ exit ${status}`,
     expect(content, relativePath).toContain('bun .safeword/hooks/run-review.ts');
   });
 
-  it('keeps generated required-review surfaces on the managed wrapper and Cursor unwired', () => {
+  it('keeps generated required-review surfaces on one review entrypoint and Cursor unwired', () => {
     const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
     const generatedSurfaces = [
       {
+        // Claude reaches the managed wrapper: its plugin ships run-review.ts
+        // and `${CLAUDE_PLUGIN_ROOT}` resolves in a skill's own bash block.
         root: nodePath.join(repoRoot, 'plugin/skills'),
+        reviewEntrypoint: 'run-review.ts ',
         requiredReviewFiles: [
           'quality-review/SKILL.md',
           'review-spec/SKILL.md',
@@ -332,7 +336,13 @@ exit ${status}`,
         ],
       },
       {
+        // Codex cannot: `PLUGIN_ROOT` is injected only into hook-command
+        // shells, so a vendored wrapper path would rest on the model resolving
+        // a relative path. It calls the pinned CLI directly instead, carrying
+        // the managed-progress signal the wrapper would otherwise have set —
+        // without it a multi-minute review runs silent.
         root: nodePath.join(repoRoot, 'packages/cli/codex-plugin/skills'),
+        reviewEntrypoint: `SAFEWORD_REVIEW_PROGRESS=1 bunx --bun safeword@${VERSION} `,
         requiredReviewFiles: [
           'quality-review/SKILL.md',
           'review-spec/SKILL.md',
@@ -343,15 +353,15 @@ exit ${status}`,
       },
     ];
 
-    for (const { root, requiredReviewFiles } of generatedSurfaces) {
+    for (const { root, reviewEntrypoint, requiredReviewFiles } of generatedSurfaces) {
       expect(requiredReviewFiles, root).not.toHaveLength(0);
       for (const relativePath of requiredReviewFiles) {
         const content = readFileSync(nodePath.join(root, relativePath), 'utf8');
-        expect(content, relativePath).toContain('run-review.ts review run');
+        expect(content, relativePath).toContain(`${reviewEntrypoint}review run`);
         expect(content, relativePath).toContain('--agent-handoff --json');
         for (const line of content.split('\n')) {
           if (line.includes('review run')) {
-            expect(line, `${relativePath}: ${line}`).toContain('run-review.ts');
+            expect(line, `${relativePath}: ${line}`).toContain(reviewEntrypoint);
           }
         }
       }

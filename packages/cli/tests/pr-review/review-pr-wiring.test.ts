@@ -14,6 +14,15 @@ function receiptOf(handoff: InspectionHandoff): PublishedReceipt {
   return handoff.receipt;
 }
 
+function textArtifact(context: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    content: 'allow *',
+    ...context,
+    kind: 'text',
+    path: 'policies/access.flux',
+  };
+}
+
 describe('review-pr inspect command wiring', () => {
   const directories: string[] = [];
 
@@ -42,7 +51,20 @@ describe('review-pr inspect command wiring', () => {
     writeFileSync(
       inputPath,
       JSON.stringify({
-        artifacts: [{ content: 'allow *', kind: 'text', path: 'policies/access.flux' }],
+        artifacts: [
+          {
+            content: 'allow *',
+            fullContentBase64: Buffer.from('policy {\n  allow *\n}\n').toString('base64'),
+            kind: 'text',
+            path: 'policies/access.flux',
+          },
+          {
+            content: '- deprecated = true',
+            contextNotApplicable: true,
+            kind: 'text',
+            path: 'policies/deprecated.flux',
+          },
+        ],
         checks: [{ conclusion: 'success', name: 'build', status: 'completed' }],
         headSha: 'a'.repeat(40),
         markerReceiptExists: false,
@@ -65,11 +87,16 @@ describe('review-pr inspect command wiring', () => {
 
     const result = await inspectPullRequestCommand({ cwd, inputPath, outputPath, provider });
 
-    expect(provider).toHaveBeenCalledWith({
-      apiKey: undefined,
-      evidence: [{ content: 'allow *', path: 'policies/access.flux' }],
-      model: 'gpt-test',
-    });
+    expect(provider).toHaveBeenCalledWith(
+      expect.objectContaining({
+        context: [{ content: 'policy {\n  allow *\n}\n', path: 'policies/access.flux' }],
+        evidence: [
+          { content: 'allow *', path: 'policies/access.flux' },
+          { content: '- deprecated = true', path: 'policies/deprecated.flux' },
+        ],
+        model: 'gpt-test',
+      }),
+    );
     expect(receiptOf(result)).toMatchObject({
       checks: [{ name: 'build', status: 'success' }],
       reviewedSha: 'a'.repeat(40),
@@ -77,6 +104,159 @@ describe('review-pr inspect command wiring', () => {
       tokenUsage: { input: 123, output: 45 },
     });
     expect(JSON.parse(readFileSync(outputPath, 'utf8'))).toEqual(result);
+  });
+
+  it.each([
+    ['missing context', [textArtifact()], ['policies/access.flux']],
+    [
+      'explicitly unavailable context',
+      [textArtifact({ contextUnavailable: true })],
+      ['policies/access.flux'],
+    ],
+    [
+      'malformed context',
+      [textArtifact({ fullContentBase64: 'not-base64' })],
+      ['policies/access.flux'],
+    ],
+    ['an empty artifact set', [], []],
+    ['only non-text artifacts', [{ kind: 'non_text', path: 'logo.png' }], []],
+  ] as const)(
+    'routes %s to a human without treating the review as complete',
+    async (_case, artifacts, missingEvidence) => {
+      const cwd = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-pr-context-missing-'));
+      directories.push(cwd);
+      mkdirSync(nodePath.join(cwd, '.safeword'));
+      writeFileSync(
+        nodePath.join(cwd, '.safeword', 'config.json'),
+        JSON.stringify({
+          prReview: {
+            enabled: true,
+            maxTotalBytes: 1024,
+            model: 'gpt-test',
+            provider: 'openai',
+            requiredChecks: [],
+          },
+        }),
+      );
+      const inputPath = nodePath.join(cwd, 'inspection-input.json');
+      const outputPath = nodePath.join(cwd, 'inspection-result.json');
+      writeFileSync(
+        inputPath,
+        JSON.stringify({
+          artifacts,
+          checks: [],
+          headSha: 'e'.repeat(40),
+          markerReceiptExists: false,
+          pullState: 'ready',
+          schemaVersion: 1,
+          statuses: [],
+        }),
+      );
+      const provider = vi.fn();
+
+      const result = await inspectPullRequestCommand({ cwd, inputPath, outputPath, provider });
+
+      expect(provider).not.toHaveBeenCalled();
+      expect(receiptOf(result)).toMatchObject({
+        missingEvidence,
+        route: 'needs_human',
+        runState: 'incomplete',
+        unknowns: ['no reviewable evidence'],
+      });
+    },
+  );
+
+  it('reviews a patch whose exact-head file content is empty', async () => {
+    const cwd = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-pr-empty-context-'));
+    directories.push(cwd);
+    mkdirSync(nodePath.join(cwd, '.safeword'));
+    writeFileSync(
+      nodePath.join(cwd, '.safeword', 'config.json'),
+      JSON.stringify({
+        prReview: {
+          enabled: true,
+          maxTotalBytes: 1024,
+          model: 'gpt-test',
+          provider: 'openai',
+          requiredChecks: [],
+        },
+      }),
+    );
+    const inputPath = nodePath.join(cwd, 'inspection-input.json');
+    const outputPath = nodePath.join(cwd, 'inspection-result.json');
+    writeFileSync(
+      inputPath,
+      JSON.stringify({
+        artifacts: [textArtifact({ fullContentBase64: '' })],
+        checks: [],
+        headSha: '0'.repeat(40),
+        markerReceiptExists: false,
+        pullState: 'ready',
+        schemaVersion: 1,
+        statuses: [],
+      }),
+    );
+    const provider = vi.fn().mockResolvedValue({ findings: [], tokenUsage: {} });
+
+    const result = await inspectPullRequestCommand({ cwd, inputPath, outputPath, provider });
+
+    expect(provider).toHaveBeenCalledWith(
+      expect.objectContaining({
+        context: [{ content: '', path: 'policies/access.flux' }],
+        evidence: [{ content: 'allow *', path: 'policies/access.flux' }],
+      }),
+    );
+    expect(receiptOf(result)).toMatchObject({ route: 'looks_ready', runState: 'complete' });
+  });
+
+  it('counts full-file context against the existing evidence budget', async () => {
+    const cwd = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-pr-context-budget-'));
+    directories.push(cwd);
+    mkdirSync(nodePath.join(cwd, '.safeword'));
+    writeFileSync(
+      nodePath.join(cwd, '.safeword', 'config.json'),
+      JSON.stringify({
+        prReview: {
+          enabled: true,
+          maxTotalBytes: 100,
+          model: 'gpt-test',
+          provider: 'openai',
+          requiredChecks: [],
+        },
+      }),
+    );
+    const inputPath = nodePath.join(cwd, 'inspection-input.json');
+    const outputPath = nodePath.join(cwd, 'inspection-result.json');
+    const fullContentBase64 = Buffer.from('c'.repeat(90)).toString('base64');
+    writeFileSync(
+      inputPath,
+      JSON.stringify({
+        artifacts: [
+          {
+            content: 'p'.repeat(20),
+            fullContentBase64,
+            kind: 'text',
+            path: 'src/large.ts',
+          },
+        ],
+        checks: [],
+        headSha: '9'.repeat(40),
+        markerReceiptExists: false,
+        pullState: 'ready',
+        schemaVersion: 1,
+        statuses: [],
+      }),
+    );
+    const provider = vi.fn();
+
+    const result = await inspectPullRequestCommand({ cwd, inputPath, outputPath, provider });
+
+    expect(provider).not.toHaveBeenCalled();
+    expect(receiptOf(result)).toMatchObject({
+      missingEvidence: ['src/large.ts'],
+      route: 'needs_human',
+      runState: 'incomplete',
+    });
   });
 
   it('uses the same cumulative byte budget for provider evidence and receipt coverage', async () => {
@@ -97,12 +277,24 @@ describe('review-pr inspect command wiring', () => {
     );
     const inputPath = nodePath.join(cwd, 'inspection-input.json');
     const outputPath = nodePath.join(cwd, 'inspection-result.json');
+    const firstContent = 'a'.repeat(30);
+    const overBudgetContent = 'b'.repeat(30);
     writeFileSync(
       inputPath,
       JSON.stringify({
         artifacts: [
-          { content: 'a'.repeat(60), kind: 'text', path: 'src/first.ts' },
-          { content: 'b'.repeat(50), kind: 'text', path: 'src/over-budget.ts' },
+          {
+            content: firstContent,
+            fullContentBase64: Buffer.from(firstContent).toString('base64'),
+            kind: 'text',
+            path: 'src/first.ts',
+          },
+          {
+            content: overBudgetContent,
+            fullContentBase64: Buffer.from(overBudgetContent).toString('base64'),
+            kind: 'text',
+            path: 'src/over-budget.ts',
+          },
         ],
         checks: [],
         headSha: 'f'.repeat(40),
@@ -116,11 +308,13 @@ describe('review-pr inspect command wiring', () => {
 
     const result = await inspectPullRequestCommand({ cwd, inputPath, outputPath, provider });
 
-    expect(provider).toHaveBeenCalledWith({
-      apiKey: undefined,
-      evidence: [{ content: 'a'.repeat(60), path: 'src/first.ts' }],
-      model: 'gpt-test',
-    });
+    expect(provider).toHaveBeenCalledWith(
+      expect.objectContaining({
+        context: [{ content: firstContent, path: 'src/first.ts' }],
+        evidence: [{ content: firstContent, path: 'src/first.ts' }],
+        model: 'gpt-test',
+      }),
+    );
     expect(receiptOf(result)).toMatchObject({
       coverage: [{ path: 'src/first.ts', status: 'integrity_reviewed' }],
       missingEvidence: ['src/over-budget.ts'],
@@ -150,7 +344,14 @@ describe('review-pr inspect command wiring', () => {
     writeFileSync(
       inputPath,
       JSON.stringify({
-        artifacts: [{ content: 'changed', kind: 'text', path: 'src/change.ts' }],
+        artifacts: [
+          {
+            content: 'changed',
+            fullContentBase64: Buffer.from('changed').toString('base64'),
+            kind: 'text',
+            path: 'src/change.ts',
+          },
+        ],
         checks: [],
         headSha: 'b'.repeat(40),
         markerReceiptExists: false,
@@ -240,7 +441,14 @@ describe('review-pr inspect command wiring', () => {
     writeFileSync(
       inputPath,
       JSON.stringify({
-        artifacts: [{ content: 'changed', kind: 'text', path: 'src/change.ts' }],
+        artifacts: [
+          {
+            content: 'changed',
+            fullContentBase64: Buffer.from('changed').toString('base64'),
+            kind: 'text',
+            path: 'src/change.ts',
+          },
+        ],
         // eslint-disable-next-line unicorn/no-null -- GitHub uses JSON null until completion.
         checks: [{ conclusion: null, name: 'build', status: 'in_progress' }],
         headSha: 'c'.repeat(40),
@@ -284,7 +492,14 @@ describe('review-pr inspect command wiring', () => {
     writeFileSync(
       inputPath,
       JSON.stringify({
-        artifacts: [{ content: 'changed', kind: 'text', path: 'src/change.ts' }],
+        artifacts: [
+          {
+            content: 'changed',
+            fullContentBase64: Buffer.from('changed').toString('base64'),
+            kind: 'text',
+            path: 'src/change.ts',
+          },
+        ],
         checks: [],
         headSha: 'd'.repeat(40),
         markerReceiptExists: false,

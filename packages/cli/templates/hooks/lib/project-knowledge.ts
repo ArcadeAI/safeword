@@ -1,6 +1,6 @@
 import { readFileSync, statSync } from 'node:fs';
 
-import { readConfiguredPathValue, resolveConfiguredPath } from './namespace-root.ts';
+import { readConfiguredPathValue, resolveConfiguredPath } from './namespace-root.js';
 
 export type ReviewKnowledgeKey = 'principles' | 'personas' | 'surfaces';
 

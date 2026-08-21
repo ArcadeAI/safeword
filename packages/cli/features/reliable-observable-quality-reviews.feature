@@ -124,9 +124,10 @@ Feature: Keep quality reviews observable and actionable
         | approved        | 0      |
         | action-required | 2      |
 
-    Scenario: Required-review surfaces cannot bypass the managed wrapper
+    Scenario: Required-review surfaces cannot bypass the review coordinator
       Given generated Claude Code, OpenAI Codex, and Cursor surfaces
       When independent-review launch commands are inspected
-      Then the inspected Claude Code and OpenAI Codex required-review catalogues are non-empty and invoke the wrapper with JSON output
+      Then required Claude Code workflows invoke the wrapper with JSON output
+      And required OpenAI Codex workflows invoke the pinned CLI with JSON output and managed progress
       And no required workflow invokes a reviewer directly
       And the inspected Cursor catalogue is non-empty and contains no independent-review launch command

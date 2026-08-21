@@ -29,6 +29,20 @@ function namedStep(workflow: Workflow, job: string, name: string): Step {
 }
 
 describe('disposable advisory PR review fixture', () => {
+  it('emits a complete runnable review configuration', () => {
+    const fixture = createPrReviewSmokeFixture('0.0.0-smoke');
+
+    expect(JSON.parse(fixture.config)).toEqual({
+      prReview: {
+        enabled: true,
+        provider: 'openai',
+        model: 'gpt-5.2',
+        maxTotalBytes: 100_000,
+        requiredChecks: [],
+      },
+    });
+  });
+
   it('derives from canonical workflows and limits drift to bounded command probes', () => {
     const templatesDirectory = getTemplatesDirectory();
     const publisherSource = readFile(
@@ -46,6 +60,19 @@ describe('disposable advisory PR review fixture', () => {
       workerSource.replaceAll('__SAFEWORD_VERSION__', '0.0.0-smoke'),
     ) as Workflow;
     const fixtureWorker = YAML.parse(fixture.worker) as Workflow;
+    const fixtureInspect = namedStep(
+      fixtureWorker,
+      'inspect',
+      'Inspect bounded evidence without GitHub write authority',
+    );
+    expect(fixtureInspect.env).toMatchObject({
+      GH_TOKEN: '${{ github.token }}',
+      GITHUB_TOKEN: '${{ github.token }}',
+      SAFEWORD_PR_NUMBER: '${{ inputs.pull_number }}',
+    });
+    expect(fixtureInspect.run).toContain('inspection-input.json');
+    expect(fixtureInspect.run).toContain('full-file context did not match the exact fork blob');
+    expect(fixtureInspect.run).toContain("grep -q 'HTTP 403'");
     for (const [job, name] of [
       ['invalidate', 'Invalidate any obsolete advisory route'],
       ['inspect', 'Inspect bounded evidence without GitHub write authority'],

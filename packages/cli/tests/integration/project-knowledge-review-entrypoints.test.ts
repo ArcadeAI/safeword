@@ -8,12 +8,19 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { reconcile } from '../../src/reconcile.js';
 import { SAFEWORD_SCHEMA } from '../../src/schema.js';
 import {
+  CODEX_REVIEW_KNOWLEDGE_RESOLVER,
   GENERATED_CODEX_PLUGIN_ASSETS,
   REVIEW_ENTRYPOINTS,
   REVIEW_KNOWLEDGE_RESOLVER,
 } from '../helpers/review-entrypoints.js';
 
 const RESOLVER_COMMAND = REVIEW_KNOWLEDGE_RESOLVER;
+const CLI_ENTRY = nodePath.resolve(import.meta.dirname, '../../src/cli.ts');
+
+/** The resolver each host's shipped procedure is expected to name. */
+function resolverFor(host: string): string {
+  return host === 'codex' ? CODEX_REVIEW_KNOWLEDGE_RESOLVER : RESOLVER_COMMAND;
+}
 
 const PROJECT_TYPE = {
   typescript: false,
@@ -43,14 +50,32 @@ const PROJECT_TYPE = {
   scaffoldBddLane: true,
 };
 
-function readEntrypoint(root: string, path: string): string {
+function readEntrypoint(root: string, path: string, resolver: string): string {
   const absolutePath = nodePath.join(root, path);
   const entrypoint = readFileSync(absolutePath, 'utf8');
-  if (entrypoint.includes(RESOLVER_COMMAND)) return entrypoint;
+  if (entrypoint.includes(resolver)) return entrypoint;
 
   const reference = /@?((?:\.claude|\.safeword)\/skills\/[\w./-]+)/u.exec(entrypoint)?.[1];
   expect(reference, `entry point ${path} must reference its installed procedure`).toBeDefined();
   return readFileSync(nodePath.join(root, reference ?? ''), 'utf8');
+}
+
+/**
+ * Run what the host is actually told to run. Codex's generated procedure names
+ * the published `bunx --bun safeword@<version> project review-knowledge`; this
+ * exercises the same subcommand through the local source entry point, so the
+ * check stays behavioural without reaching the registry for an unpublished pin.
+ */
+function followCodexResolverInstruction(projectDirectory: string, instructions: string) {
+  const command = /safeword@[\w.-]+\s+(project review-knowledge)\s+--json/u.exec(instructions)?.[1];
+  expect(command, 'Codex procedure must name the pinned review-knowledge subcommand').toBe(
+    CODEX_REVIEW_KNOWLEDGE_RESOLVER,
+  );
+  return spawnSync(
+    'bun',
+    [CLI_ENTRY, 'project', 'review-knowledge', '--cwd', projectDirectory, '--json'],
+    { encoding: 'utf8' },
+  );
 }
 
 function followResolverInstruction(projectDirectory: string, instructions: string) {
@@ -122,8 +147,9 @@ describe('installed review entry points resolve current project knowledge', () =
     '$host $stage procedure resolves configured sources when its instruction is followed',
     ({ host, stage, path }) => {
       const artifactRoot = host === 'codex' ? codexDistribution : projectDirectory;
-      const instructions = readEntrypoint(artifactRoot, path);
-      expect(instructions).toContain(RESOLVER_COMMAND);
+      const resolver = resolverFor(host);
+      const instructions = readEntrypoint(artifactRoot, path, resolver);
+      expect(instructions).toContain(resolver);
 
       for (const key of ['principles', 'personas', 'surfaces'] as const) {
         writeFileSync(
@@ -132,9 +158,19 @@ describe('installed review entry points resolve current project knowledge', () =
         );
       }
 
-      const result = followResolverInstruction(projectDirectory, instructions);
+      const result =
+        host === 'codex'
+          ? followCodexResolverInstruction(projectDirectory, instructions)
+          : followResolverInstruction(projectDirectory, instructions);
       expect(result.status, result.stderr).toBe(0);
-      expect(JSON.parse(result.stdout)).toEqual(
+
+      // The hook script prints the sources array; the subcommand wraps the same
+      // sources in the machine envelope. Both must report current content.
+      const parsed: unknown = JSON.parse(result.stdout);
+      const sources = Array.isArray(parsed)
+        ? parsed
+        : (parsed as { data: { sources: unknown[] } }).data.sources;
+      expect(sources).toEqual(
         ['principles', 'personas', 'surfaces'].map(key =>
           expect.objectContaining({
             key,

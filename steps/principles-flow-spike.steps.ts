@@ -24,6 +24,13 @@ import type { SafewordWorld } from './world.ts';
 const ROOT = nodePath.resolve(import.meta.dirname, '..');
 const TEMPLATES = nodePath.join(ROOT, 'packages/cli/templates');
 const RESOLVER = '.safeword/hooks/resolve-project-knowledge.ts';
+// Codex's plugin ships no project-local hooks for a skill to invoke, so its
+// entry points resolve the same knowledge through the pinned public
+// subcommand. The behaviour under test is unchanged — each host still reads
+// current configured content at review time — so each host is exercised
+// through its own resolver rather than assuming one shared script path.
+const CODEX_RESOLVER = 'project review-knowledge';
+const CODEX_CLI = nodePath.join(ROOT, 'packages/cli/dist/cli.js');
 const KNOWLEDGE_KEYS = ['principles', 'personas', 'surfaces'] as const;
 type KnowledgeKey = (typeof KNOWLEDGE_KEYS)[number];
 
@@ -138,10 +145,10 @@ function entrypointPath(host: string, review: string): string {
     : entrypoint.path;
 }
 
-function instructionsFor(directory: string, path: string): string {
+function instructionsFor(directory: string, path: string, resolver: string): string {
   const absolute = nodePath.isAbsolute(path) ? path : nodePath.join(directory, path);
   const content = readFileSync(absolute, 'utf8');
-  if (content.includes(RESOLVER)) return content;
+  if (content.includes(resolver)) return content;
   const reference = content.match(/@?((?:\.claude|\.safeword)\/skills\/[\w./-]+)/u)?.[1];
   assert.ok(reference, `${path} does not reference a review procedure`);
   return readFileSync(nodePath.join(directory, reference), 'utf8');
@@ -173,14 +180,19 @@ When(
   function (this: KnowledgeWorld, host: string, review: string) {
     const directory = project(this);
     const entrypoint = entrypointPath(host, review);
-    assert.ok(instructionsFor(directory, entrypoint).includes(RESOLVER));
-    const result = spawnSync('bun', [nodePath.join(directory, RESOLVER), directory], {
-      encoding: 'utf8',
-    });
+    const viaCodexPlugin = host === 'OpenAI Codex';
+    const resolver = viaCodexPlugin ? CODEX_RESOLVER : RESOLVER;
+    assert.ok(instructionsFor(directory, entrypoint, resolver).includes(resolver));
+    const result = viaCodexPlugin
+      ? spawnSync('bun', [CODEX_CLI, 'project', 'review-knowledge', '--cwd', directory, '--json'], {
+          encoding: 'utf8',
+        })
+      : spawnSync('bun', [nodePath.join(directory, RESOLVER), directory], { encoding: 'utf8' });
     assert.equal(result.status, 0, result.stderr);
-    this.reviewInput = JSON.parse(result.stdout) as ReturnType<
-      typeof resolveReviewKnowledgeSources
-    >;
+    const parsed = JSON.parse(result.stdout) as unknown;
+    this.reviewInput = (
+      viaCodexPlugin ? (parsed as { data: { sources: unknown } }).data.sources : parsed
+    ) as ReturnType<typeof resolveReviewKnowledgeSources>;
   },
 );
 

@@ -194,6 +194,28 @@ describe('advisory PR review workflow contract', () => {
     expect(workerSource).toContain('{kind: "non_text", path: .filename}');
     expect(workerSource).toContain('{kind: "unreadable_text", path: .filename}');
     expect(workerSource).toContain('png|jpe?g|gif|webp');
+    expect(workerSource).toContain('git/blobs/$blob_sha');
+    expect(workerSource).toContain('.encoding == "base64"');
+    expect(workerSource).toContain('.size == 0');
+    expect(workerSource).toContain('set -euo pipefail');
+    expect(workerSource).toContain('.user.login == "github-actions[bot]"');
+    expect(workerSource).toContain(
+      'repos/$GITHUB_REPOSITORY/contents/.safeword/config.json" --jq .content',
+    );
+    expect(workerSource).not.toContain('contents/.safeword/config.json?ref=');
+    expect(workerSource).toContain('.status != "removed"');
+    expect(workerSource).toContain("--paginate --jq '.check_runs[]' | jq -s .");
+    expect(workerSource).toContain("--paginate --jq '.statuses[]' | jq -s .");
+    expect(workerSource).toContain("--paginate --jq '.[]' | jq -s . > comments.json");
+    expect(workerSource.indexOf('> comments.json')).toBeLessThan(
+      workerSource.indexOf('> pull-files.json'),
+    );
+    expect(workerSource.indexOf('if [ "$reviewed_receipt_sha" = "$head_sha" ]')).toBeLessThan(
+      workerSource.indexOf('> pull-files.json'),
+    );
+    expect(workerSource).toContain('fullContentBase64');
+    expect(workerSource).toContain('contextNotApplicable: true');
+    expect(workerSource).toContain('contextUnavailable: true');
 
     const workerJobs = worker.jobs as Record<string, Record<string, unknown>>;
     for (const jobName of ['invalidate', 'publish']) {

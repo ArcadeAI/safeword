@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { assertCodexPluginCatalogue } from '../../src/codex-plugin/catalogue.ts';
@@ -64,5 +64,8 @@ export function assertPackedCodexPlugin(cliRoot: string, packageDirectory: strin
     }
   }
 
-  assertCodexPluginCatalogue(nodePath.join(cliRoot, 'templates/skills'), pluginDirectory);
+  const version = (
+    JSON.parse(readFileSync(nodePath.join(cliRoot, 'package.json'), 'utf8')) as { version: string }
+  ).version;
+  assertCodexPluginCatalogue(nodePath.join(cliRoot, 'templates/skills'), pluginDirectory, version);
 }

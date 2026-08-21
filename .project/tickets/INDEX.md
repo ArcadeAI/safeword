@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (558)
+## Tickets (570)
 
 ### 001
 
@@ -69,6 +69,21 @@
 - **Stop native Claude plugin from depending on project-local .safeword content (0VG5AC)** (in_progress, epic: —)
   Wire SAFEWORD_PACKAGED_CONTEXT_PATH into Claude's dispatch.js (pointing at the plugin's own resources/, mirroring how Codex's runtime already sets it) so SessionStart points at the packaged handbook/guides instead of .safeword/SAFEWORD.md and .safeword/guides/; also stop installing .safeword/hooks/*, .safeword/skills/*, and .safeword/scripts/* when neither Codex nor Cursor is selected, since native Claude never reads them
   → `.project/tickets/0VG5AC-claude-plugin-drop-safeword-dependency`
+- **Decide whether cleanup-zombies belongs in Codex's self-contained skill set (1DZ9W8)** (in_progress, epic: —)
+  Resolve whether templates/skills/cleanup-zombies/SKILL.md's direct ./.safeword/scripts/cleanup-zombies.sh invocations should get a bunx equivalent, get dropped from the Codex delivery, or stay project-local by design
+  → `.project/tickets/1DZ9W8-codex-cleanup-zombies-scope`
+- **Add public CLI subcommands for Codex's remaining resolver and audit-trace scripts (GJB22B)** (in_progress, epic: —)
+  Build public subcommands for resolve-project-knowledge.ts, resolve-namespace-root.ts, resolve-verify-ticket.ts, audit-principle-trace.ts, and drain-retro-spool.ts, then rewrite their invocations in explain/verify/audit/retro-filer skills to a pinned bunx call, following the run-review.ts precedent in catalogue.ts
+  → `.project/tickets/GJB22B-codex-helper-subcommands`
+- **Find a self-contained equivalent for Codex's sourced audit-scope helper (JNZ2H5)** (in_progress, epic: —)
+  Decide and implement how templates/skills/audit/SKILL.md's three 'source $PROJECT_DIR/.safeword/hooks/lib/audit-scope.sh' calls can work without a project-local file, since sourcing shares shell state (functions/variables) in a way a bunx subcommand invocation cannot replicate
+  → `.project/tickets/JNZ2H5-codex-audit-scope-self-contained`
+- **Let Codex's review-stamp and skill-invocation recording work without project files (KDED4X)** (in_progress, epic: —)
+  Rewrite write-review-stamp.ts and record-skill-invocation.ts invocations in Codex skills to a pinned bunx call, updating codex-hook.ts's literal session-identity-bridge matcher in lockstep
+  → `.project/tickets/KDED4X-codex-review-stamp-self-contained`
+- **Make Codex's closeout skill work without project-local scripts (SF0RS0)** (in_progress, epic: —)
+  Give closeout-cleanup.ts (1795 lines, invoked directly by templates/skills/closeout/SKILL.md) an equivalent self-contained bunx path for Codex, or a documented reason it can't have one
+  → `.project/tickets/SF0RS0-codex-closeout-self-contained`
 - **Let Codex skills run without project-local .safeword scripts (V2AH4B)** (in_progress, epic: —)
   Rewrite Codex's skill-invoked scripts (run-review.ts, resolve-project-knowledge.ts, closeout-cleanup.ts, drain-retro-spool.ts, cleanup-zombies.sh, record-skill-invocation.ts, etc.) to shell out via bunx --bun safeword@<version> <subcommand>, the same self-contained pattern Codex's lifecycle hooks (hooks.json) already use, instead of bun .safeword/hooks/<script>.ts / .safeword/scripts/<script>
   → `.project/tickets/V2AH4B-codex-self-contained-scripts`
@@ -213,9 +228,8 @@
 
 ### BBNZ68
 
-- **Protect remote test runners before repository code runs (BR373S)** (in_progress, epic: —)
-  Ensure the managed GitHub Actions runner validates trusted inputs, uses least privilege, and reports authoritative remote results.
-  blocked by: Install remote test workflows without overwriting customer changes (X2Z8MN)
+- **Run the requested revision remotely with least privilege (BR373S)** (done, epic: —)
+  Run the requested immutable revision in the customer's GitHub Actions environment with only the authority ordinary tests need.
   → `.project/tickets/BR373S-protect-remote-test-runners`
 - **Run tests remotely with safe recovery (S2TF4J)** (in_progress, epic: —)
   Dispatch an eligible test run to GitHub Actions, preserve durable recovery evidence, and use local fallback only when no remote run was created.
@@ -227,7 +241,7 @@
   → `.project/tickets/S7TZF9-choose-local-or-remote-test-execution`
 - **Install remote test workflows without overwriting customer changes (X2Z8MN)** (in_progress, epic: —)
   Let projects opt in to the managed GitHub Actions workflow through safe setup, upgrade, disable, and conflict recovery.
-  blocks: Protect remote test runners before repository code runs (BR373S), Run tests remotely with safe recovery (S2TF4J)
+  blocks: Run tests remotely with safe recovery (S2TF4J)
   → `.project/tickets/X2Z8MN-install-remote-test-workflows-safely`
 
 ### bdd-chain-hardening
@@ -1146,6 +1160,9 @@
 - **Test Codex plugin migration (4DK9H4)** (done, epic: —)
   Prove Safe Word works in Codex through a plugin and package-runner CLI entrypoints without installing bulky repo-local assets.
   → `.project/tickets/4DK9H4-test-codex-plugin-migration`
+- **Make parity-check account for generated mirrors (4F9S56)** (in_progress, epic: —)
+  Have parity-check either cover generated mirrors (plugin/runtime, codex-plugin/skills) or state plainly that its all-in-sync result excludes them
+  → `.project/tickets/4F9S56-parity-check-generated-mirrors`
 - **dependency-readiness false-positive stale after rebase (mtime vs content) (4JMBXT)** (in_progress, epic: —)
   Make the dependency-readiness stale decision content-based (fingerprint marker) so rebase/checkout/clone no longer falsely block dependency-backed commands.
   → `.project/tickets/4JMBXT-dep-readiness-mtime-stale`
@@ -1338,6 +1355,9 @@
 - **Re-sync safeword's own depcruise-config.cjs (AK8REW)** (done, epic: —)
   Make `safeword sync-config --check` on this repo exit 0. The committed file was historically prettier-reformatted (long comment string wrapped to two lines); the generator emits it single-line. With v0.37.0's `/audit` change, every audit run on this repo emits W007 until the committed file is re-synced.
   → `.project/tickets/AK8REW`
+- **Document the Codex catalogue regeneration step for releases (AMK8BC)** (in_progress, epic: —)
+  Add 'bun run generate:codex-plugin' to the release-tracked artifact list in AGENTS.md and the versioning skill
+  → `.project/tickets/AMK8BC-codex-plugin-regen-release-step`
 - **Done-gate must fire on no-edit stops (AP3FGJ)** (done, epic: —)
   Make the `currentPhase === 'done'` branch of `stop-quality.ts` run on every stop at `phase: done`, not only when the last 5 assistant messages contain an edit-tool use.
   → `.project/tickets/AP3FGJ-donegate-fires-without-edits`
@@ -1589,6 +1609,9 @@
   Let implementation run without chat-facing review checkpoints while keeping the actual TDD review, refactor, quality-review, and hard-gate work intact.
   external issue: https://github.com/ArcadeAI/safeword/issues/464
   → `.project/tickets/JENFZX-quiet-implement-review-surface`
+- **Let independent review trust Homebrew-installed reviewer binaries (JHYJ11)** (in_progress, epic: —)
+  When the resolved reviewer binary (e.g. codex) sits in a group-writable directory (the Homebrew cask default), make a private safeword-owned copy in a non-group-writable directory and review from that instead of falling back to a degraded same-agent review
+  → `.project/tickets/JHYJ11-trusted-reviewer-binary-copy`
 - **Nudge architecture drift in Cursor and Codex Stop hooks (JN403D)** (done, epic: —)
   Make the existing `ARCHITECTURE.md` drift advisory reach Cursor and Codex Stop hooks with the same non-blocking nudge semantics as Claude.
   external issue: https://github.com/ArcadeAI/safeword/issues/598
@@ -1736,6 +1759,9 @@
 - **Ship a clean release for safeword users (P2JDY5)** (done, epic: —)
   Audit and reconcile every change merged since v0.69.0, apply justified behavior-preserving refactors, verify release readiness, and close completed tracking items.
   → `.project/tickets/P2JDY5-release-readiness-v0-70`
+- **Lint files changed by shell commands, not just file-tool edits (P6PN58)** (in_progress, epic: —)
+  Give auto-lint a path-discovery fallback so a file edited through a shell command gets linted on all three hosts, matching the coverage quality hooks already have
+  → `.project/tickets/P6PN58-lint-skips-shell-edits`
 - **Reconcile arcade `.project/` and architecture-tracking conventions with safeword (P8RJ4M)** (done, epic: —)
   Decide how safeword behaves for customers who also run arcade — specifically how shared inputs (personas, glossary) and architecture-tracking patterns reconcile when both tools want to author or read the same project knowledge.
   → `.project/tickets/P8RJ4M`
@@ -1748,6 +1774,9 @@
 - **Retro accepts process-level friction surfaces and reports egress drops (PNZM3B)** (done, epic: —)
   Let retro file process-level friction under a leak-proof `process/<slug>` surface and report every egress drop, so silence means clean instead of secretly lossy.
   → `.project/tickets/PNZM3B-retro-process-surface`
+- **Stop the retro relay wiring test failing under CI load (PTJQ6X)** (in_progress, epic: —)
+  Make `[ORR-001]` in `packages/retro-relay/tests/cli-wiring.integration.test.ts` survive a single transient first-attempt delivery failure, so it stops reddening CI on commits that cannot have caused it
+  → `.project/tickets/PTJQ6X-relay-scenario-fixed-clock`
 - **Centralize and harden the test/build resolver (polyglot, nested, multi-runner) (Q4FX8Y)** (done, epic: —)
   One resolver decides what test/build commands to run for a repo — correct across polyglot monorepos (run **every** detected suite, not first-match), nested/sub-package manifests, and languages with multiple runners — consumed identically by `/verify`, `/audit`, and the stop-hook `test-runner.ts` without drift.
   → `.project/tickets/Q4FX8Y-extract-shared-test-runner`
@@ -1785,6 +1814,8 @@
 - **Rename DEV persona code to TB across the corpus (R4S85Y)** (done, epic: —)
   Eliminate the redundant DEV persona code by renaming DEV<n> -> TB<n> (828 occ) and Agent-Driven Developer (DEV) -> Technical Builder (TB) (2 occ) across 103 files, clearing the E009 drift by elimination and making a personas.md DEV entry unnecessary
   → `.project/tickets/R4S85Y-rename-dev-persona-to-tb`
+- **Protect review fallback boundaries for builders (R7K2QP)** (—, epic: —)
+  → `.project/tickets/R7K2QP-protect-review-fallback-boundaries`
 - **Stop-hook escalation path may be dead (0/10 BLOCKED) — revalidate post-F14BG2, recalibrate if needed (RAS9N8)** (pending, epic: —)
   Determine whether the Stop-hook escalation path (`BLOCKED`) is actually reachable in practice, and if it isn't, recalibrate within the existing binary-verdict architecture so genuine blockers surface instead of everything defaulting to `CONFIDENT`.
   → `.project/tickets/RAS9N8-stop-hook-escalation-calibration`
@@ -1826,6 +1857,9 @@
 - **Merge engine: warn when a JSON-merge target exists but won't parse (TIA4M8)** (done, epic: —)
   When `safeword setup`/`upgrade` reconciles a `jsonMerge` target that
   → `.project/tickets/TIA4M8-merge-warn-unparseable`
+- **Clear the root typecheck error on the retro drain hook lib (TJ2ZAK)** (in_progress, epic: —)
+  Resolve TS5097 reported by root tsc for templates/hooks/lib/drain-retro-spool.ts
+  → `.project/tickets/TJ2ZAK-root-tsconfig-ts5097`
 - **Run acceptance coverage locally for contributors (TQQGZS)** (done, epic: —)
   Give contributors one local command that runs both the unit and acceptance suites.
   external issue: https://github.com/ArcadeAI/safeword/issues/1455

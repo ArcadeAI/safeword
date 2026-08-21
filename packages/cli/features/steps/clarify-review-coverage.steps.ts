@@ -1654,7 +1654,12 @@ function generatedReviewAssets(): {
   codexAssets: ReturnType<typeof generateCodexPluginAssets>;
 } {
   const templatesRoot = nodePath.join(repoRoot, 'packages/cli/templates');
-  const codexAssets = generateCodexPluginAssets(nodePath.join(templatesRoot, 'skills'));
+  // Pinned like the Claude generator below: the shipped Codex catalogue is
+  // built with the CLI version, so comparing against it needs the same input.
+  const codexAssets = generateCodexPluginAssets(
+    nodePath.join(templatesRoot, 'skills'),
+    packageVersion(),
+  );
   const claudeAssets = generateClaudePluginAssets({
     cliBundle: readFileSync(nodePath.join(repoRoot, 'plugin/runtime/cli.js'), 'utf8'),
     sourceRoot: nodePath.join(repoRoot, 'packages/cli/src'),

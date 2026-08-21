@@ -5,10 +5,12 @@ import YAML from 'yaml';
 import { getTemplatesDirectory, readFile } from '../utils/fs.js';
 
 interface Step extends Record<string, unknown> {
-  env: Record<string, string>;
+  env?: Record<string, string>;
   name?: string;
   run?: string;
 }
+
+type StepWithEnvironment = Step & { env: Record<string, string> };
 
 interface Job extends Record<string, unknown> {
   steps?: Step[];
@@ -27,10 +29,11 @@ export interface PrReviewSmokeFixture {
   worker: string;
 }
 
-function namedStep(workflow: Workflow, job: string, name: string): Step {
+function namedStep(workflow: Workflow, job: string, name: string): StepWithEnvironment {
   const step = workflow.jobs[job]?.steps?.find(candidate => candidate.name === name);
   if (step === undefined) throw new Error(`canonical workflow is missing ${job}/${name}`);
-  return step;
+  step.env ??= {};
+  return step as StepWithEnvironment;
 }
 
 export function createPrReviewSmokeFixture(version: string): PrReviewSmokeFixture {
@@ -58,7 +61,15 @@ fi
     'inspect',
     'Inspect bounded evidence without GitHub write authority',
   );
+  inspect.env.GH_TOKEN = '${{ github.token }}';
+  inspect.env.GITHUB_TOKEN = '${{ github.token }}';
+  inspect.env.SAFEWORD_PR_NUMBER = '${{ inputs.pull_number }}';
   inspect.run = `
+full_content="$(jq -r '.artifacts[] | select(.kind == "text" and .path == ".flux") | .fullContentBase64 // empty' inspection-input.json | base64 --decode)"
+if [ "$full_content" != 'require_human_review = true' ]; then
+  echo '::error::full-file context did not match the exact fork blob'
+  exit 1
+fi
 if [ -z "$OPENAI_API_KEY" ]; then
   echo '::error::inspection job did not receive its environment-scoped secret'
   exit 1
@@ -66,6 +77,11 @@ fi
 if gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$SAFEWORD_PR_NUMBER/comments" \
   -f body='write authority escaped into inspection' >/tmp/write-response 2>/tmp/write-error; then
   echo '::error::read-only inspection token unexpectedly wrote an issue comment'
+  exit 1
+fi
+if ! grep -q 'HTTP 403' /tmp/write-error; then
+  echo '::error::inspection write probe did not reach GitHub with read-only authority'
+  cat /tmp/write-error >&2
   exit 1
 fi
 jq -n '{secretScopedToInspection: true, inspectionWriteDenied: true}' > advisory-result.json
@@ -81,7 +97,7 @@ fi
 head_sha="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$SAFEWORD_PR_NUMBER" --jq .head.sha)"
 body="$(printf '<!-- safeword:pr-review-receipt:v1 -->\n## Safeword advisory PR review smoke\n\nReviewed revision: %s\nRoute: needs_human\n' "$head_sha")"
 comment_id="$(gh api "repos/$GITHUB_REPOSITORY/issues/$SAFEWORD_PR_NUMBER/comments?per_page=100" \
-  --paginate --jq '.[] | select(.user.type == "Bot" and (.body | startswith("<!-- safeword:pr-review-receipt:v1 -->"))) | .id' | head -1)"
+  --paginate --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("<!-- safeword:pr-review-receipt:v1 -->"))) | .id' | head -1)"
 if [ -z "$comment_id" ]; then
   gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$SAFEWORD_PR_NUMBER/comments" -f body="$body" >/dev/null
 else
@@ -136,7 +152,19 @@ fi
   };
 
   return {
-    config: `${JSON.stringify({ prReview: { enabled: true } }, undefined, 2)}\n`,
+    config: `${JSON.stringify(
+      {
+        prReview: {
+          enabled: true,
+          provider: 'openai',
+          model: 'gpt-5.2',
+          maxTotalBytes: 100_000,
+          requiredChecks: [],
+        },
+      },
+      undefined,
+      2,
+    )}\n`,
     publisher: YAML.stringify(publisher, { lineWidth: 0 }),
     router: routerSource.split('__SAFEWORD_VERSION__').join(version),
     sweep: YAML.stringify(sweep, { lineWidth: 0 }),

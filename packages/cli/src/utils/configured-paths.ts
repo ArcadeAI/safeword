@@ -22,8 +22,20 @@ import { exists, isDirectory, readFileSafe } from './fs.js';
 import { toRepoDirectory } from './repo-path.js';
 
 /** Logical project-knowledge keys safeword knows how to override via `paths.*`. */
-export type ConfiguredPathKey =
-  'principles' | 'personas' | 'glossary' | 'surfaces' | 'architecture';
+export const CONFIGURED_PATH_KEYS = [
+  'principles',
+  'personas',
+  'glossary',
+  'surfaces',
+  'architecture',
+] as const;
+
+export type ConfiguredPathKey = (typeof CONFIGURED_PATH_KEYS)[number];
+
+/** Narrow arbitrary text to a key `resolveConfiguredPath` accepts. */
+export function isConfiguredPathKey(value: string): value is ConfiguredPathKey {
+  return (CONFIGURED_PATH_KEYS as readonly string[]).includes(value);
+}
 
 /**
  * Directory keys under `paths.*` (unlike ConfiguredPathKey, these point at

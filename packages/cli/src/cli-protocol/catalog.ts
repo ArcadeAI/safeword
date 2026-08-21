@@ -304,6 +304,40 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   command('project lint-gherkin', 'Validate executable feature files', 'observe', {
     syntax: 'lint-gherkin [files...]',
   }),
+  command('project retro-drain', 'Drain acknowledged retro drafts from a spool', 'mutate', {
+    syntax: 'retro-drain <spool>',
+    commandOptions: [
+      {
+        flags: '--validated-jsonl',
+        description: 'Emit the spool as validated JSONL instead of draining it',
+      },
+    ],
+    fixture: {
+      argv: ['project', 'retro-drain', '.safeword/retro-drafts/fixture.jsonl'],
+      environment: MACHINE_ENVIRONMENT,
+    },
+  }),
+  command(
+    'project review-knowledge',
+    'Resolve the principles, personas, and surfaces sources for a review',
+    'observe',
+    { syntax: 'review-knowledge' },
+  ),
+  command(
+    'project namespace-root',
+    'Print the resolved project-knowledge namespace root',
+    'observe',
+    {
+      syntax: 'namespace-root',
+      commandOptions: [
+        {
+          flags: '--key <key>',
+          description:
+            'A configured project-knowledge path: principles, personas, glossary, surfaces, or architecture',
+        },
+      ],
+    },
+  ),
   command('tracker sync', 'Synchronize tickets with the configured tracker', 'mutate', {
     networkPolicy: 'declared',
     fixture: { argv: ['tracker', 'sync', '--offline'], environment: MACHINE_ENVIRONMENT },

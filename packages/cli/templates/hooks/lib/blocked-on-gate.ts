@@ -14,8 +14,8 @@
  * so it is unit-testable without disk.
  */
 
-import { parseFrontmatter } from './hierarchy.ts';
-import { detectPhaseAdvance } from './review-ledger.ts';
+import { parseFrontmatter } from './hierarchy.js';
+import { detectPhaseAdvance } from './review-ledger.js';
 
 /** A blocker's resolution: whether it exists in the corpus, and its status. */
 export interface BlockerStatus {

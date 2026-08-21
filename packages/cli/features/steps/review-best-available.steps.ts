@@ -6,6 +6,7 @@ import { Given, Then, When } from '@cucumber/cucumber';
 
 import { generateCodexPluginAssets } from '../../src/codex-plugin/catalogue.js';
 import { SAFEWORD_SCHEMA } from '../../src/schema.js';
+import { VERSION } from '../../src/version.js';
 import type { SafewordWorld } from './world.js';
 
 type ReviewSurface =
@@ -128,7 +129,10 @@ Then(
     const wiring = reviewWiring(this);
     const contractArtifact = artifactsBySurface[wiring.surface].contract;
     if (wiring.surface.startsWith('OpenAI Codex')) {
-      const generated = generateCodexPluginAssets(nodePath.join(packageRoot, 'templates/skills'));
+      const generated = generateCodexPluginAssets(
+        nodePath.join(packageRoot, 'templates/skills'),
+        VERSION,
+      );
       const generatedPaths = new Set(
         generated.map(asset => `packages/cli/codex-plugin/${asset.relativePath}`),
       );
