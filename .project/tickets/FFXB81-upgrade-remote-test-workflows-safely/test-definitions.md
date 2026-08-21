@@ -29,7 +29,7 @@ without pretending the ledger drove those commits.
 ### Scenario Outline: Disable preserves a customer-edited workflow across checkout line endings
 
 - [x] RED 215cd0677
-- [ ] GREEN
+- [x] GREEN 21ca9b193
 - [ ] REFACTOR
 
 ### Scenario Outline: Disable never removes a workflow that no longer revalidates as released v1
