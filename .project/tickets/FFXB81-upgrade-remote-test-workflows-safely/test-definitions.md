@@ -36,7 +36,7 @@ without pretending the ledger drove those commits.
 
 - [x] RED 52707bfe9
 - [x] GREEN 511c0b4a5
-- [ ] REFACTOR
+- [x] REFACTOR skip: one adjacent reclassification is the minimal safe structure
 
 ### Scenario Outline: Disable completes when the commit-time state already needs no file
 
