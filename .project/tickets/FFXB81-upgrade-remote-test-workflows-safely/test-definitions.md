@@ -40,7 +40,7 @@ without pretending the ledger drove those commits.
 
 ### Scenario Outline: Disable completes when the commit-time state already needs no file
 
-- [ ] RED
+- [x] RED skip: prior revalidation GREEN supplies the shared commit-time branch
 - [ ] GREEN
 - [ ] REFACTOR
 
