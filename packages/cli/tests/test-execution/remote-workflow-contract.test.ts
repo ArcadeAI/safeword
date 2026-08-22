@@ -1,10 +1,12 @@
-import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { readdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
 import { SAFEWORD_SCHEMA } from '../../src/schema';
 import { evaluateRemoteTestWorkflow } from '../../src/test-execution/remote-workflow-contract';
+import { REMOTE_WORKFLOW_RELEASE_MANIFEST } from '../../src/test-execution/remote-workflow-state';
 
 const workflowPath = nodePath.join(process.cwd(), 'templates', 'workflows', 'remote-tests.yml');
 const workflow = readFileSync(workflowPath, 'utf8');
@@ -12,6 +14,15 @@ const dogfoodWorkflow = readFileSync(
   nodePath.join(process.cwd(), '..', '..', '.github', 'workflows', 'safeword-remote-tests.yml'),
   'utf8',
 );
+const releasedV1 = readFileSync(
+  nodePath.join(process.cwd(), 'tests', 'fixtures', 'remote-workflow-v1.yml'),
+  'utf8',
+);
+const historicalFixtureDirectory = nodePath.join(process.cwd(), 'tests', 'fixtures');
+
+function normalizedSha256(content: string): string {
+  return createHash('sha256').update(content.replaceAll('\r\n', '\n')).digest('hex');
+}
 
 function replace(from: string | RegExp, to: string): string {
   const candidate = workflow.replace(from, () => to);
@@ -20,6 +31,55 @@ function replace(from: string | RegExp, to: string): string {
 }
 
 describe('remote workflow contract', () => {
+  it('preserves the released v1 workflow identity', () => {
+    expect(createHash('sha256').update(releasedV1).digest('hex')).toBe(
+      'ee9b263ac749f74cfa4423f4a8930f03a357e2d823c4ac271517e81c98fecd27',
+    );
+  });
+
+  it('keeps an ordered identity for every released workflow fixture', () => {
+    const fixtureNames = readdirSync(historicalFixtureDirectory)
+      .filter(name => /^remote-workflow-v\d+\.yml$/.test(name))
+      .toSorted((left, right) => left.localeCompare(right, 'en', { numeric: true }));
+    const fixtureHistory = fixtureNames.map(name => ({
+      version: Number(/v(\d+)\.yml$/.exec(name)?.[1]),
+      normalizedSha256: normalizedSha256(
+        readFileSync(nodePath.join(historicalFixtureDirectory, name), 'utf8'),
+      ),
+    }));
+
+    expect(REMOTE_WORKFLOW_RELEASE_MANIFEST).toEqual([
+      {
+        version: 1,
+        normalizedSha256: 'ee9b263ac749f74cfa4423f4a8930f03a357e2d823c4ac271517e81c98fecd27',
+      },
+      {
+        version: 2,
+        normalizedSha256: 'f5898559f4d57c39a7887e7061d50ebaa2cbaf86159d7c93555a6c32c6d909d9',
+      },
+    ]);
+    expect(fixtureHistory).toEqual(REMOTE_WORKFLOW_RELEASE_MANIFEST.slice(0, -1));
+    expect(normalizedSha256(workflow)).toBe(
+      REMOTE_WORKFLOW_RELEASE_MANIFEST.at(-1)?.normalizedSha256,
+    );
+  });
+
+  it('accepts ordinary CRLF checkout conversion', () => {
+    expect(evaluateRemoteTestWorkflow(workflow.replaceAll('\n', '\r\n'))).toEqual({
+      accepted: true,
+      violations: [],
+    });
+  });
+
+  it('returns invalid YAML when materialization rejects excessive aliases', () => {
+    const aliases = Array.from({ length: 101 }, () => '*value').join(', ');
+
+    expect(evaluateRemoteTestWorkflow(`value: &value [safe]\naliases: [${aliases}]\n`)).toEqual({
+      accepted: false,
+      violations: ['invalid_yaml'],
+    });
+  });
+
   it('accepts the schema-catalogued bundled workflow', () => {
     const definition = SAFEWORD_SCHEMA.managedFiles['.github/workflows/safeword-remote-tests.yml'];
 
@@ -29,6 +89,21 @@ describe('remote workflow contract', () => {
     expect(evaluateRemoteTestWorkflow(workflow)).toEqual({ accepted: true, violations: [] });
     expect(dogfoodWorkflow).toBe(workflow);
     expect(evaluateRemoteTestWorkflow(dogfoodWorkflow)).toEqual({ accepted: true, violations: [] });
+  });
+
+  it.each(['install', 'upgrade', 'uninstall', 'status', 'doctor', 'reconcile'])(
+    '%s leaves the optional workflow outside ordinary reconciliation',
+    () => {
+      const definition =
+        SAFEWORD_SCHEMA.managedFiles['.github/workflows/safeword-remote-tests.yml'];
+
+      expect(definition?.generator?.({} as never)).toBeUndefined();
+    },
+  );
+
+  it('delegates project preparation to Safeword configuration', () => {
+    expect(workflow).toContain('project test --lane "$LANE" --execution local --prepare-remote');
+    expect(workflow).not.toContain('bun install --frozen-lockfile');
   });
 
   it.each([
@@ -94,8 +169,8 @@ describe('remote workflow contract', () => {
     ],
     [
       'uses a local action',
-      'oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6',
-      './setup-bun',
+      'actions/setup-node@820762786026740c76f36085b0efc47a31fe5020',
+      './setup-node',
       'remote_actions_only',
     ],
     [
@@ -118,8 +193,8 @@ describe('remote workflow contract', () => {
     ],
     [
       'injects an expression into shell',
-      'run: bunx safeword@0.78.3',
-      'run: echo "${{ inputs.lane }}" && bunx safeword@0.78.3',
+      'run: npx --yes safeword@0.78.6',
+      'run: echo "${{ inputs.lane }}" && npx --yes safeword@0.78.6',
       'shell_env_only',
     ],
     [
@@ -188,6 +263,12 @@ describe('remote workflow contract', () => {
       "    env:\n      TOKEN: ${{ format('{0}', secrets.TOKEN) }}\n    runs-on: ubuntu-latest",
       'secret_free',
     ],
+    [
+      'references the bare secrets context',
+      '    runs-on: ubuntu-latest',
+      '    env:\n      TOKEN: ${{ secrets }}\n    runs-on: ubuntu-latest',
+      'secret_free',
+    ],
   ])('rejects a candidate that %s', (_label, from, to, violation) => {
     const result = evaluateRemoteTestWorkflow(replace(from, to));
 
@@ -197,7 +278,7 @@ describe('remote workflow contract', () => {
 
   it('rejects a candidate that runs tests before revision verification', () => {
     const candidate = workflow.replace(
-      /( {6}- name: Verify checked-out revision[\s\S]*?)( {6}- name: Set up Bun[\s\S]*?)(?= {6}- name: Write remote test result)/u,
+      /( {6}- name: Verify checked-out revision[\s\S]*?)( {6}- name: Set up Safeword runtime[\s\S]*?)(?= {6}- name: Write remote test result)/u,
       (_match, verify: string, tests: string) => `${tests}${verify}`,
     );
 

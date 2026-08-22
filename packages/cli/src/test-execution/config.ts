@@ -11,13 +11,49 @@ import {
 } from 'node:fs';
 import nodePath from 'node:path';
 
-import { resolveNamespaceRoot } from '../utils/configured-paths.js';
 import type { ExecutionMode } from './mode.js';
 
 export interface PersonalExecutionPreference {
   readonly path: string;
   readonly mode?: ExecutionMode;
   readonly error?: string;
+}
+
+export interface ProjectTestConfig {
+  readonly path: string;
+  readonly mode?: ExecutionMode;
+  readonly setupCommand?: string;
+  readonly error?: string;
+}
+
+function parseRemoteSetup(value: unknown): Pick<ProjectTestConfig, 'setupCommand' | 'error'> {
+  if (value === undefined) return {};
+  if (value === null || Array.isArray(value) || typeof value !== 'object') {
+    return { error: 'remoteTest must be a JSON object' };
+  }
+  const setupCommand = (value as Record<string, unknown>).setupCommand;
+  if (setupCommand === undefined) return {};
+  if (typeof setupCommand !== 'string' || setupCommand.trim() === '') {
+    return { error: 'remoteTest.setupCommand must be a non-empty string' };
+  }
+  return { setupCommand };
+}
+
+function parseProjectConfig(parsed: unknown, path: string): ProjectTestConfig {
+  if (parsed === null || Array.isArray(parsed) || typeof parsed !== 'object') {
+    return { path, error: 'must be a JSON object' };
+  }
+  const config = parsed as Record<string, unknown>;
+  if (config.testExecution !== undefined && !isExecutionMode(config.testExecution)) {
+    return { path, error: 'uses an unsupported testExecution mode' };
+  }
+  const remote = parseRemoteSetup(config.remoteTest);
+  if (remote.error !== undefined) return { path, error: remote.error };
+  return {
+    path,
+    ...(isExecutionMode(config.testExecution) && { mode: config.testExecution }),
+    ...remote,
+  };
 }
 
 function isExecutionMode(value: unknown): value is ExecutionMode {
@@ -38,9 +74,8 @@ function hasDuplicateJsonKeys(content: string): boolean {
   return false;
 }
 
-function personalPath(cwd: string): { namespaceRoot: string; path: string } {
-  const namespaceRoot = resolveNamespaceRoot(cwd);
-  return { namespaceRoot, path: nodePath.join(namespaceRoot, 'personal', 'config.json') };
+function personalPath(cwd: string): string {
+  return nodePath.join(cwd, '.safeword', 'config.local.json');
 }
 
 function validatePersonalFile(
@@ -54,13 +89,12 @@ function validatePersonalFile(
 }
 
 function validatePersonalDirectory(
-  namespaceRoot: string,
+  cwd: string,
   path: string,
 ): PersonalExecutionPreference | undefined {
-  const rootRealPath = realpathSync(namespaceRoot);
-  const personalDirectoryRealPath = realpathSync(nodePath.dirname(path));
-  if (personalDirectoryRealPath !== nodePath.join(rootRealPath, 'personal')) {
-    return { path, error: 'must remain inside the resolved namespace root' };
+  const expectedDirectory = nodePath.join(realpathSync(cwd), '.safeword');
+  if (realpathSync(nodePath.dirname(path)) !== expectedDirectory) {
+    return { path, error: 'must remain inside the project Safeword directory' };
   }
   return undefined;
 }
@@ -73,6 +107,14 @@ function validateGitPrivacy(cwd: string, path: string): PersonalExecutionPrefere
   const tracked = spawnSync('git', ['-C', cwd, 'ls-files', '--error-unmatch', '--', relativePath], {
     stdio: 'ignore',
   });
+  if (
+    ignored.error !== undefined ||
+    tracked.error !== undefined ||
+    ignored.status === null ||
+    tracked.status === null
+  ) {
+    return { path, error: 'Git state could not be determined' };
+  }
   if (ignored.status !== 0 || tracked.status === 0) {
     return { path, error: 'must be Git-ignored and untracked' };
   }
@@ -103,14 +145,9 @@ function parsePersonalPreference(content: string, path: string): PersonalExecuti
     return { path, error: 'must be a JSON object' };
   }
   const record = parsed as Record<string, unknown>;
-  if (
-    Object.keys(record).length !== 2 ||
-    !Object.hasOwn(record, 'schemaVersion') ||
-    !Object.hasOwn(record, 'testExecution')
-  ) {
-    return { path, error: 'must contain only schemaVersion and testExecution' };
+  if (Object.keys(record).length !== 1 || !Object.hasOwn(record, 'testExecution')) {
+    return { path, error: 'must contain only testExecution' };
   }
-  if (record.schemaVersion !== 1) return { path, error: 'uses an unsupported schema version' };
   if (!isExecutionMode(record.testExecution))
     return { path, error: 'uses an unsupported execution mode' };
   return { path, mode: record.testExecution };
@@ -118,14 +155,14 @@ function parsePersonalPreference(content: string, path: string): PersonalExecuti
 
 /** Read a private worktree preference without following links or accepting shared files. */
 export function readPersonalExecutionPreference(cwd: string): PersonalExecutionPreference {
-  const { namespaceRoot, path } = personalPath(cwd);
+  const path = personalPath(cwd);
 
   try {
     const metadata = lstatSync(path, { throwIfNoEntry: false });
     if (metadata === undefined) return { path };
     const fileError = validatePersonalFile(metadata, path);
     if (fileError !== undefined) return fileError;
-    const directoryError = validatePersonalDirectory(namespaceRoot, path);
+    const directoryError = validatePersonalDirectory(cwd, path);
     if (directoryError !== undefined) return directoryError;
     const privacyError = validateGitPrivacy(cwd, path);
     if (privacyError !== undefined) return privacyError;
@@ -138,14 +175,18 @@ export function readPersonalExecutionPreference(cwd: string): PersonalExecutionP
   }
 }
 
-/** Read the optional shared default without allowing it to affect private-config safety. */
-export function readProjectExecutionPreference(cwd: string): ExecutionMode | undefined {
+/** Read shared test defaults and the optional CI-safe remote preparation command. */
+export function readProjectTestConfig(cwd: string): ProjectTestConfig {
+  const path = nodePath.join(cwd, '.safeword', 'config.json');
   try {
-    const config = JSON.parse(
-      readFileSync(nodePath.join(cwd, '.safeword', 'config.json'), 'utf8'),
-    ) as { testExecution?: unknown };
-    return isExecutionMode(config.testExecution) ? config.testExecution : undefined;
-  } catch {
-    return undefined;
+    return parseProjectConfig(JSON.parse(readFileSync(path, 'utf8')) as unknown, path);
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return { path };
+    return { path, error: 'cannot be read as project test configuration' };
   }
+}
+
+/** Compatibility accessor for callers that only need the shared execution preference. */
+export function readProjectExecutionPreference(cwd: string): ExecutionMode | undefined {
+  return readProjectTestConfig(cwd).mode;
 }
