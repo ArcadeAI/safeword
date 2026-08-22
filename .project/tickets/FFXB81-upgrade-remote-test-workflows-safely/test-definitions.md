@@ -62,7 +62,7 @@ without pretending the ledger drove those commits.
 
 - [x] RED skip: private preparation failure handling predates this scenario
 - [x] GREEN 54af1c955
-- [ ] REFACTOR
+- [x] REFACTOR skip: existing private-file helper already centralizes cleanup
 
 ### Scenario: Failed publication preserves the released predecessor
 
