@@ -50,7 +50,7 @@ without pretending the ledger drove those commits.
 
 - [x] RED skip: replacement publication already revalidates before rename
 - [x] GREEN 95182c568
-- [ ] REFACTOR
+- [x] REFACTOR skip: existing replacement helper already owns preparation and cleanup
 
 ### Scenario Outline: Setup converges when the commit-time state needs no preservation
 
