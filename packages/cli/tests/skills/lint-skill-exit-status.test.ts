@@ -38,20 +38,32 @@ function writeExecutable(directory: string, name: string, body: string): void {
 
 function runLintInstructions(
   relativePath: string,
-  options: { hasGoManifest?: boolean } = {},
-): { status: number | null; goCommands: string[] } {
+  options: { hasGoManifest?: boolean; hasTypeScript?: boolean; lintStatus?: number } = {},
+): { status: number | null; bunCommands: string[]; goCommands: string[] } {
   const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-lint-skill-'));
   const binDirectory = nodePath.join(projectDirectory, 'fake-bin');
+  const bunCommandsPath = nodePath.join(projectDirectory, 'bun-commands.log');
   const goCommandsPath = nodePath.join(projectDirectory, 'go-commands.log');
 
   try {
     mkdirSync(binDirectory);
     writeFileSync(nodePath.join(projectDirectory, 'package.json'), '{"scripts":{}}\n');
+    if (options.hasTypeScript)
+      writeFileSync(nodePath.join(projectDirectory, 'tsconfig.json'), '{}\n');
     if (options.hasGoManifest)
       writeFileSync(nodePath.join(projectDirectory, 'go.mod'), 'module example\n');
 
-    writeExecutable(binDirectory, 'bun', 'exit 0');
-    writeExecutable(binDirectory, 'bunx', 'exit 0');
+    writeExecutable(
+      binDirectory,
+      'bun',
+      String.raw`printf '%s\n' "$*" >> "${bunCommandsPath}"
+if [ "$*" = "run lint" ]; then exit ${options.lintStatus ?? 0}; fi`,
+    );
+    writeExecutable(
+      binDirectory,
+      'bunx',
+      String.raw`printf 'bunx %s\n' "$*" >> "${bunCommandsPath}"`,
+    );
     writeExecutable(
       binDirectory,
       'golangci-lint',
@@ -66,6 +78,9 @@ function runLintInstructions(
 
     return {
       status: result.status,
+      bunCommands: existsSync(bunCommandsPath)
+        ? readFileSync(bunCommandsPath, 'utf8').trim().split('\n').filter(Boolean)
+        : [],
       goCommands: existsSync(goCommandsPath)
         ? readFileSync(goCommandsPath, 'utf8').trim().split('\n').filter(Boolean)
         : [],
@@ -80,7 +95,28 @@ describe('lint instructions exit status (#1701)', () => {
     const result = runLintInstructions(relativePath);
 
     expect(result.status).toBe(0);
+    expect(result.bunCommands).toEqual(['run lint', 'run format --if-present']);
     expect(result.goCommands).toEqual([]);
+  });
+
+  it.each(LINT_SURFACES)('%s preserves a lint failure after running later checks', relativePath => {
+    const result = runLintInstructions(relativePath, {
+      hasTypeScript: true,
+      lintStatus: 1,
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.bunCommands).toEqual([
+      'run lint',
+      'run format --if-present',
+      'bunx tsc --noEmit',
+    ]);
+  });
+
+  it.each(LINT_SURFACES)('%s preserves an interrupted lint status', relativePath => {
+    const result = runLintInstructions(relativePath, { lintStatus: 130 });
+
+    expect(result.status).toBe(130);
   });
 
   it.each(LINT_SURFACES)(
