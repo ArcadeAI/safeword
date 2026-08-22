@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -429,6 +429,54 @@ describe('test execution CLI wiring', () => {
     expect(readFileSync(nodePath.join(safewordDirectory, 'config.json'), 'utf8')).toBe(
       projectConfig,
     );
+  });
+
+  it('upgrades every released workflow through the packaged setup command', async () => {
+    const fixtureDirectory = nodePath.join(process.cwd(), 'tests', 'fixtures');
+    const bundledWorkflow = readFileSync(
+      nodePath.join(process.cwd(), 'templates/workflows/remote-tests.yml'),
+      'utf8',
+    );
+    const releasedFixtures = readdirSync(fixtureDirectory).filter(name =>
+      /^remote-workflow-v\d+\.yml$/.test(name),
+    );
+
+    for (const fixtureName of releasedFixtures) {
+      const directory = createTemporaryDirectory();
+      const workflowPath = nodePath.join(
+        directory,
+        '.github',
+        'workflows',
+        'safeword-remote-tests.yml',
+      );
+      mkdirSync(nodePath.dirname(workflowPath), { recursive: true });
+      writeFileSync(workflowPath, readFileSync(nodePath.join(fixtureDirectory, fixtureName)));
+
+      const result = await runCli(
+        [
+          'project',
+          'test-execution',
+          'remote',
+          'setup',
+          '--json',
+          '--no-input',
+          '--offline',
+          '--cwd',
+          directory,
+        ],
+        { cwd: directory },
+      );
+
+      expect(result).toMatchObject({ exitCode: 0, stderr: '' });
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        state: 'changed',
+        data: {
+          command: 'project test-execution remote setup',
+          workflow: { state: 'current', changed: true },
+        },
+      });
+      expect(readFileSync(workflowPath, 'utf8')).toBe(bundledWorkflow);
+    }
   });
 
   it('removes only the managed remote workflow without changing execution preference', async () => {
