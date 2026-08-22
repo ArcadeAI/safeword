@@ -42,7 +42,7 @@ without pretending the ledger drove those commits.
 
 - [x] RED skip: prior revalidation GREEN supplies the shared commit-time branch
 - [x] GREEN b97b36d86
-- [ ] REFACTOR
+- [x] REFACTOR skip: both outcomes use the same public revalidation path
 
 ## Rule: upgrade-remote-test-workflows-safely.TBU1.R2 — Interrupted upgrades expose complete predecessor or successor bytes and retry safely
 
