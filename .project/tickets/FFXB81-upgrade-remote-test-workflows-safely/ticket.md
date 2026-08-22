@@ -2,7 +2,7 @@
 id: FFXB81
 slug: upgrade-remote-test-workflows-safely
 type: feature
-phase: implement
+phase: verify
 phase_skips:
   - define-behavior: Intake confirmation and the behavior artifacts were captured atomically while activating this previously deferred compatibility ticket.
 phase_anchors:
@@ -10,6 +10,7 @@ phase_anchors:
   - scenario-gate: packages/cli/features/upgrade-remote-test-workflows-safely.feature
   - plan-implementation: .project/tickets/FFXB81-upgrade-remote-test-workflows-safely/impl-plan.md
   - implement: .project/tickets/FFXB81-upgrade-remote-test-workflows-safely/test-definitions.md
+  - verify: .project/tickets/FFXB81-upgrade-remote-test-workflows-safely/verify.md
 status: in_progress
 scope:
   - Recognize every previously released remote-test workflow identity
@@ -43,6 +44,7 @@ last_modified: 2026-08-17T02:59:47.682Z
 - 2026-08-16 Deferred deliberately: no released predecessor exists. Activate before proposing the second workflow version; HWZZJ8's v1 fixture and release-contract test are the tripwire.
 - 2026-08-18 Activated: the stack-neutral workflow revision is v2. The released v1 bytes are frozen in `tests/fixtures/remote-workflow-v1.yml` and admitted by normalized SHA-256 only.
 - 2026-08-18 Implemented: setup atomically replaces only an exact admitted predecessor; current and customer-owned bytes retain their existing behavior. Focused config, CLI, contract, state, filesystem, lifecycle, and catalogue verification passed (6 files, 115 tests).
+- 2026-08-21T22:35:00-07:00 Verification refreshed after the former branch-wide blocker was resolved: 8,323 CLI tests, 1,483 runnable BDD scenarios, and 34 BDD proof checks pass; admitted historical upgrades remain customer-preserving and atomic.
 - 2026-08-18 Intake confirmed: exact released identities are the ownership boundary; customer edits remain customer-owned; migration and retry are the only added behaviors.
 - 2026-08-18 Defined five scenarios across exact ownership, setup/disable, interruption, and retry; two interruption scenarios remain for outside-in TDD.
 - 2026-08-18 Scenario review requested changes: made v1→v2 identity explicit, added customer-owned disable coverage, and bound interruption/retry to revalidation, private preparation, and foreign-residue outcomes.
