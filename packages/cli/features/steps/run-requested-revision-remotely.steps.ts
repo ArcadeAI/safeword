@@ -60,7 +60,7 @@ function mutateWorkflow(source: string, violation: string): string {
       return source.replace(/actions\/checkout@[0-9a-f]{40}/u, 'actions/checkout@v7');
     }
     case 'references an additional remote action by a mutable version': {
-      return source.replace(/oven-sh\/setup-bun@[0-9a-f]{40}/u, 'oven-sh/setup-bun@v2');
+      return source.replace(/actions\/setup-node@[0-9a-f]{40}/u, 'actions/setup-node@v7');
     }
     case 'passes a Safeword-provided secret to the job': {
       return source.replace(

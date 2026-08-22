@@ -37,7 +37,7 @@ Unaffected:
 ## Vocabulary
 
 - **Execution preference:** The requested `local` or `remote-preferred` mode before availability is evaluated.
-- **Personal config:** Optional current-worktree file at `<namespace-root>/personal/config.json`; never created automatically and accepted only when Git proves it ignored and untracked.
+- **Personal config:** Optional current-worktree file at `.safeword/config.local.json`; never created automatically and accepted only when Git proves it ignored and untracked.
 - **Project preference:** Optional top-level `testExecution` value in `.safeword/config.json`; it records intent but does not install or prove a remote provider.
 - **Remote availability:** A typed pre-dispatch observation. This child can report only `not-installed`; later provider work owns positive availability.
 - **Effective mode:** The mode selected by precedence after command, personal, project and built-in scopes are evaluated.
@@ -74,7 +74,7 @@ skip: child feature under BBNZ68; the epic owns the customer-facing remote-testi
 
 - `safeword project test --lane done|full [--execution local|remote-preferred]` resolves one mode and runs the real local plan when remote execution is not installed.
 - `safeword project test-execution status` shows command, personal, project and built-in scopes in precedence order, with origins and the winning mode.
-- An optional `.project/personal/config.json` accepts only schema version 1 and `local` or `remote-preferred`; contributors author it explicitly, and Safeword refuses to use it unless Git proves it ignored and untracked.
+- An optional `.safeword/config.local.json` accepts only `testExecution` set to `local` or `remote-preferred`; contributors author it explicitly, and Safeword refuses to use it unless Git proves it ignored and untracked.
 - A malformed, unsafe, or escaping personal config fails closed before either plan execution or project mutation, even when a one-run command override would otherwise win precedence.
 - Static unsafe paths are in scope. A concurrent same-user filesystem race is not a portable security boundary for this CLI and is not claimed.
 

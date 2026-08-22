@@ -73,7 +73,7 @@ the sole affected surface; all agent runtimes invoke it unchanged.
 
 | Decision | Choice | Alternatives considered | Rejected because |
 | --- | --- | --- |
-| Personal storage | `<namespace-root>/personal/config.json`, optional, contributor-authored, and accepted only when Git proves it ignored and untracked | home-directory global config; automatically created personal config; documentation-only privacy | It is inspectable and worktree-local, while read-only commands enforce that it cannot be accidentally shared. |
+| Personal storage | `.safeword/config.local.json`, optional, contributor-authored, and accepted only when Git proves it ignored and untracked | home-directory global config; automatically created personal config; documentation-only privacy | It uses the shared Safeword config vocabulary, remains inspectable and worktree-local, and cannot be accidentally shared. |
 | Precedence | command → personal → project → built-in local | personal before command; implicit remote default | One-run intent must win, and safe local remains the absence default. |
 | Local execution | Reuse `resolveTestPlan` output | parallel runner-selection table | Two resolver contracts would drift and could run different commands. |
 | Project preference | Optional top-level `.safeword/config.json#testExecution` intent only | provider installation as the preference; a second config file | It reuses the existing project config without claiming that a provider exists. |
