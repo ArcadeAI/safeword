@@ -73,7 +73,7 @@ without pretending the ledger drove those commits.
 ### Scenario: Publication never writes through the visible workflow path
 
 - [x] RED skip: private-file rename publication predates this scenario
-- [ ] GREEN
+- [x] GREEN 688c1af66
 - [ ] REFACTOR
 
 ### Scenario: Retry ignores foreign crash residue and installs the current workflow
