@@ -146,7 +146,10 @@ function completeSetupUpgrade(
   const publication = publishReplacementFile(
     nodePath.join(root, REMOTE_WORKFLOW_PATH),
     bundled,
-    () => classifyRemoteWorkflow(root, bundled, filesystem).state === 'managed_outdated',
+    () => {
+      const state = classifyRemoteWorkflow(root, bundled, filesystem).state;
+      return state === 'managed_outdated' || state === 'not_installed';
+    },
     filesystem,
   );
   if (publication.replaced) {
