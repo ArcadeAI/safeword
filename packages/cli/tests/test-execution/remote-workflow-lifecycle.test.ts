@@ -542,6 +542,38 @@ describe('remote workflow lifecycle', () => {
     },
   );
 
+  it('retries when a rejected upgrade target disappears before its final classification', () => {
+    const root = fixture();
+    const path = workflowPath(root);
+    let reads = 0;
+    writeWorkflow(root, releasedV1);
+
+    const result = setupRemoteWorkflow(
+      root,
+      currentWorkflow,
+      'remote-preferred',
+      withFilesystem({
+        lstat: candidate => {
+          if (candidate === path && reads >= 2 && existsSync(candidate)) rmSync(candidate);
+          return nodeRemoteWorkflowFs.lstat(candidate);
+        },
+        openRead: candidate => {
+          reads += 1;
+          if (reads === 2) writeFileSync(candidate, 'name: concurrent customer\n');
+          return nodeRemoteWorkflowFs.openRead(candidate);
+        },
+      }),
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      state: 'failed',
+      code: 'REMOTE_WORKFLOW_RETRY',
+      retryable: true,
+    });
+    expect(existsSync(path)).toBe(false);
+  });
+
   it.each([
     ['customer bytes', 'name: concurrent customer\n'],
     ['read failure', releasedV1],

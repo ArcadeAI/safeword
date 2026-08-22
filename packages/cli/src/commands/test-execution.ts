@@ -459,6 +459,9 @@ function residueFindings(workflow: RemoteWorkflowLifecycleResult) {
 function lifecycleFailure(command: string, workflow: RemoteWorkflowLifecycleResult): CliResult {
   const code = workflow.code ?? 'REMOTE_WORKFLOW_RETRY';
   const retryable = workflow.retryable ?? false;
+  const conflictMessage = command.endsWith(' disable')
+    ? 'Safeword left the customer-owned workflow unchanged. Move it aside, then run the command again.'
+    : 'Safeword will not overwrite this workflow path. Follow the reported action, then run the command again.';
   return createResult({
     state: workflow.state === 'failed' ? 'failed' : 'action_required',
     exitCode: workflow.state === 'failed' ? 1 : 2,
@@ -467,7 +470,7 @@ function lifecycleFailure(command: string, workflow: RemoteWorkflowLifecycleResu
         code,
         message:
           code === 'REMOTE_WORKFLOW_CONFLICT'
-            ? 'Safeword will not overwrite this workflow path. Follow the reported action, then run the command again.'
+            ? conflictMessage
             : 'Safeword could not complete remote workflow setup safely.',
         retryable,
         detail: [workflow.operation, workflow.filesystemCode, workflow.path]
@@ -549,17 +552,7 @@ export function disableManagedRemoteWorkflow(cwd: string): CliResult {
           ],
         }
       : undefined,
-    findings:
-      workflow.state === 'customer_owned'
-        ? [
-            {
-              code: 'REMOTE_WORKFLOW_CUSTOMER_OWNED',
-              message:
-                'No Safeword workflow is installed at this path; the existing workflow is yours and was left unchanged.',
-              severity: 'info',
-            },
-          ]
-        : residueFindings(workflow),
+    findings: residueFindings(workflow),
     data: { command: 'project test-execution remote disable', workflow },
   });
 }

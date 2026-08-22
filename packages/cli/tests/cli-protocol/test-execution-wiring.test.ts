@@ -523,6 +523,47 @@ describe('test execution CLI wiring', () => {
     );
   });
 
+  it('explains that disable leaves a customer-owned workflow unchanged', async () => {
+    const directory = createTemporaryDirectory();
+    const workflowPath = nodePath.join(
+      directory,
+      '.github',
+      'workflows',
+      'safeword-remote-tests.yml',
+    );
+    mkdirSync(nodePath.dirname(workflowPath), { recursive: true });
+    writeFileSync(workflowPath, 'name: customer workflow\n');
+
+    const result = await runCli(
+      [
+        'project',
+        'test-execution',
+        'remote',
+        'disable',
+        '--json',
+        '--no-input',
+        '--offline',
+        '--cwd',
+        directory,
+      ],
+      { cwd: directory },
+    );
+    const output = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(2);
+    expect(output).toMatchObject({
+      state: 'action_required',
+      errors: [
+        {
+          code: 'REMOTE_WORKFLOW_CONFLICT',
+          message:
+            'Safeword left the customer-owned workflow unchanged. Move it aside, then run the command again.',
+        },
+      ],
+    });
+    expect(readFileSync(workflowPath, 'utf8')).toBe('name: customer workflow\n');
+  });
+
   it('uses a valid private preference without changing the shared project config', async () => {
     const directory = createTemporaryDirectory();
     initializePrivateConfigRepo(directory);

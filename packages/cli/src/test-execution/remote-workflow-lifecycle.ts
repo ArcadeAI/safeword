@@ -165,7 +165,7 @@ function completeSetupUpgrade(
   if (publication.operation === 'check') {
     const observation = classifyRemoteWorkflow(root, bundled, filesystem);
     const result =
-      observation.state === 'failed'
+      observation.state === 'failed' || observation.state === 'not_installed'
         ? retryFailure()
         : classifiedResult(observation, effectiveMode);
     return withPublicationResidue(result, publication);
