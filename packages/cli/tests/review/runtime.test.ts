@@ -1,5 +1,5 @@
 import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -26,7 +26,7 @@ function temporaryDirectory(): string {
 }
 
 function trustedTemporaryDirectory(): string {
-  const directory = mkdtempSync(nodePath.join(process.cwd(), '.safeword-review-runtime-'));
+  const directory = mkdtempSync(nodePath.join(homedir(), '.safeword-review-runtime-'));
   temporaryDirectories.push(directory);
   return directory;
 }
