@@ -68,7 +68,7 @@ without pretending the ledger drove those commits.
 
 - [x] RED skip: replacement rename failure handling predates this scenario
 - [x] GREEN 1a75db228
-- [ ] REFACTOR
+- [x] REFACTOR skip: existing replacement helper already centralizes cleanup
 
 ### Scenario: Publication never writes through the visible workflow path
 
