@@ -72,7 +72,7 @@ without pretending the ledger drove those commits.
 
 ### Scenario: Publication never writes through the visible workflow path
 
-- [ ] RED
+- [x] RED skip: private-file rename publication predates this scenario
 - [ ] GREEN
 - [ ] REFACTOR
 
