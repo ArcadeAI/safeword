@@ -669,6 +669,29 @@ describe('remote workflow lifecycle', () => {
     expect(readFileSync(path, 'utf8')).toBe(currentWorkflow);
   });
 
+  it('ignores foreign replacement residue when retrying released v1', () => {
+    const root = fixture();
+    const path = workflowPath(root);
+    const directory = nodePath.dirname(path);
+    const privatePath = nodePath.join(directory, '.safeword-attempt');
+    const foreignResidue = nodePath.join(directory, '.safeword-foreign');
+    writeWorkflow(root, releasedV1);
+    writeFileSync(foreignResidue, 'foreign residue');
+
+    expect(
+      setupRemoteWorkflow(
+        root,
+        currentWorkflow,
+        'remote-preferred',
+        withFilesystem({ privatePath: () => privatePath }),
+      ),
+    ).toMatchObject({ ok: true, changed: true, state: 'current' });
+
+    expect(readFileSync(path, 'utf8')).toBe(currentWorkflow);
+    expect(readFileSync(foreignResidue, 'utf8')).toBe('foreign residue');
+    expect(existsSync(privatePath)).toBe(false);
+  });
+
   it('rejects an unsafe parent that appears during EEXIST recovery', () => {
     const root = fixture();
     const github = nodePath.join(root, '.github');
