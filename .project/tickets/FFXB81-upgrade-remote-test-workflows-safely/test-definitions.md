@@ -48,7 +48,7 @@ without pretending the ledger drove those commits.
 
 ### Scenario Outline: A changed or unreadable workflow prevents historical publication
 
-- [ ] RED
+- [x] RED skip: replacement publication already revalidates before rename
 - [ ] GREEN
 - [ ] REFACTOR
 
