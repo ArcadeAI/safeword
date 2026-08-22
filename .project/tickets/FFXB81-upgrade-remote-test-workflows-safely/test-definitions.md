@@ -41,7 +41,7 @@ without pretending the ledger drove those commits.
 ### Scenario Outline: Disable completes when the commit-time state already needs no file
 
 - [x] RED skip: prior revalidation GREEN supplies the shared commit-time branch
-- [ ] GREEN
+- [x] GREEN b97b36d86
 - [ ] REFACTOR
 
 ## Rule: upgrade-remote-test-workflows-safely.TBU1.R2 — Interrupted upgrades expose complete predecessor or successor bytes and retry safely
