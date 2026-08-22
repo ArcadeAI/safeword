@@ -1,10 +1,13 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
 import { createTemporaryDirectory, runCli } from '../helpers.js';
+
+// eslint-disable-next-line unicorn/no-null -- JSON output deliberately represents no action with null.
+const NONE = null;
 
 function initializePrivateConfigRepo(directory: string): void {
   execFileSync('git', ['init', '--quiet'], { cwd: directory });
@@ -386,6 +389,66 @@ describe('test execution CLI wiring', () => {
     });
   });
 
+  it.each([
+    [
+      'absent',
+      undefined,
+      "Run `bunx safeword project test-execution remote setup` to install Safeword's test workflow.",
+    ],
+    [
+      'customer-owned',
+      'customer',
+      "Safeword won't overwrite the differing workflow. Compare or move it aside, then run the command again.",
+    ],
+    ['unsafe', 'symlink', 'Repair the workflow path, then run the command again.'],
+  ] as const)('renders the %s status action plainly', async (_fixture, setup, sentence) => {
+    const directory = createTemporaryDirectory();
+    if (setup === 'customer') {
+      const path = nodePath.join(directory, '.github', 'workflows', 'safeword-remote-tests.yml');
+      mkdirSync(nodePath.dirname(path), { recursive: true });
+      writeFileSync(path, 'name: customer\n');
+    } else if (setup === 'symlink') {
+      symlinkSync(directory, nodePath.join(directory, '.github'));
+    }
+
+    const result = await runCli(
+      [
+        'project',
+        'test-execution',
+        'remote',
+        'status',
+        '--no-input',
+        '--offline',
+        '--cwd',
+        directory,
+      ],
+      { cwd: directory },
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain(sentence);
+  });
+
+  it('returns stable status output when the project does not change', async () => {
+    const directory = createTemporaryDirectory();
+    const args = [
+      'project',
+      'test-execution',
+      'remote',
+      'status',
+      '--json',
+      '--no-input',
+      '--offline',
+      '--cwd',
+      directory,
+    ];
+
+    const first = await runCli(args, { cwd: directory });
+    const second = await runCli(args, { cwd: directory });
+
+    expect(second).toEqual(first);
+  });
+
   it('installs the managed remote workflow without changing execution preference', async () => {
     const directory = createTemporaryDirectory();
     const safewordDirectory = nodePath.join(directory, '.safeword');
@@ -524,7 +587,44 @@ describe('test execution CLI wiring', () => {
     );
   });
 
-  it('explains that disable leaves a customer-owned workflow unchanged', async () => {
+  it('disables the packaged workflow after project configuration is absent', async () => {
+    const directory = createTemporaryDirectory();
+    const workflowPath = nodePath.join(
+      directory,
+      '.github',
+      'workflows',
+      'safeword-remote-tests.yml',
+    );
+    mkdirSync(nodePath.dirname(workflowPath), { recursive: true });
+    const bundledWorkflow = readFileSync(
+      nodePath.join(process.cwd(), 'templates', 'workflows', 'remote-tests.yml'),
+    );
+    writeFileSync(workflowPath, bundledWorkflow);
+
+    const result = await runCli(
+      [
+        'project',
+        'test-execution',
+        'remote',
+        'disable',
+        '--json',
+        '--no-input',
+        '--offline',
+        '--cwd',
+        directory,
+      ],
+      { cwd: directory },
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'changed',
+      data: { workflow: { state: 'not_installed', changed: true } },
+    });
+    expect(() => readFileSync(workflowPath, 'utf8')).toThrow();
+  });
+
+  it('treats a customer-owned workflow as a successful disable no-op', async () => {
     const directory = createTemporaryDirectory();
     const workflowPath = nodePath.join(
       directory,
@@ -551,19 +651,61 @@ describe('test execution CLI wiring', () => {
     );
     const output = JSON.parse(result.stdout);
 
-    expect(result.exitCode).toBe(2);
+    expect(result.exitCode).toBe(0);
     expect(output).toMatchObject({
-      state: 'action_required',
-      errors: [
-        {
-          code: 'REMOTE_WORKFLOW_CONFLICT',
-          message:
-            'Safeword left the customer-owned workflow unchanged. Move it aside, then run the command again.',
+      state: 'healthy',
+      data: {
+        command: 'project test-execution remote disable',
+        workflow: {
+          state: 'customer_owned',
+          changed: false,
+          affectedPath: NONE,
+          nextAction: NONE,
         },
-      ],
+      },
     });
     expect(readFileSync(workflowPath, 'utf8')).toBe('name: customer workflow\n');
   });
+
+  it.each([
+    ['setup', 2, 'action_required'],
+    ['disable', 0, 'healthy'],
+  ] as const)(
+    'reports customer-owned %s consistently in JSON',
+    async (command, exitCode, state) => {
+      const directory = createTemporaryDirectory();
+      const workflowPath = nodePath.join(
+        directory,
+        '.github',
+        'workflows',
+        'safeword-remote-tests.yml',
+      );
+      mkdirSync(nodePath.dirname(workflowPath), { recursive: true });
+      writeFileSync(workflowPath, 'name: customer\n');
+
+      const result = await runCli(
+        [
+          'project',
+          'test-execution',
+          'remote',
+          command,
+          '--json',
+          '--no-input',
+          '--offline',
+          '--cwd',
+          directory,
+        ],
+        { cwd: directory },
+      );
+
+      expect(result.exitCode).toBe(exitCode);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        state,
+        data: { workflow: { state: 'customer_owned', changed: false } },
+      });
+      expect(readFileSync(workflowPath, 'utf8')).toBe('name: customer\n');
+    },
+  );
 
   it('uses a valid private preference without changing the shared project config', async () => {
     const directory = createTemporaryDirectory();

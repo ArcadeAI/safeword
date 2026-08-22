@@ -119,12 +119,12 @@ function runTestLane(
   const binaryDirectory = nodePath.join(root, 'bin');
   const testArguments = nodePath.join(root, 'test-arguments');
   mkdirSync(binaryDirectory);
-  const bunx = nodePath.join(binaryDirectory, 'bunx');
+  const npx = nodePath.join(binaryDirectory, 'npx');
   writeFileSync(
-    bunx,
+    npx,
     `#!/bin/sh\nprintf '%s\\n' --safeword-invocation-- "$@" >> "$SAFEWORD_TEST_ARGUMENTS"\nexit ${behavior === 'passes' ? '0' : '1'}\n`,
   );
-  chmodSync(bunx, 0o755);
+  chmodSync(npx, 0o755);
   const status = runShell(script, workspace, {
     LANE: lane,
     PATH: `${binaryDirectory}:${process.env.PATH ?? ''}`,

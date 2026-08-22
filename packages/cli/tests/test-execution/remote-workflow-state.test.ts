@@ -188,4 +188,15 @@ describe('remote workflow ownership classification', () => {
       nextAction: 'move_aside_and_repeat',
     });
   });
+
+  it('classifies current bytes with no corrective action', () => {
+    const root = fixture();
+    writeWorkflow(root, bundled);
+
+    expect(classifyRemoteWorkflow(root, bundled)).toEqual({
+      state: 'current',
+      affectedPath: NONE,
+      nextAction: NONE,
+    });
+  });
 });

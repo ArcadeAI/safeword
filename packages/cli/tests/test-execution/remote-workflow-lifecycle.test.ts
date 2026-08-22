@@ -195,10 +195,9 @@ describe('remote workflow lifecycle', () => {
       expect(readFileSync(workflowPath(root))).toEqual(Buffer.from(customerBytes));
 
       expect(disableRemoteWorkflow(root, currentWorkflow)).toMatchObject({
-        ok: false,
+        ok: true,
         changed: false,
         state: 'customer_owned',
-        code: 'REMOTE_WORKFLOW_CONFLICT',
       });
       expect(readFileSync(workflowPath(root))).toEqual(Buffer.from(customerBytes));
     },
@@ -214,13 +213,11 @@ describe('remote workflow lifecycle', () => {
       code: 'REMOTE_WORKFLOW_CONFLICT',
     });
     expect(disableRemoteWorkflow(root, bundled)).toEqual({
-      ok: false,
+      ok: true,
       changed: false,
       state: 'customer_owned',
-      affectedPath: REMOTE_WORKFLOW_PATH,
-      nextAction: 'move_aside_and_repeat',
-      code: 'REMOTE_WORKFLOW_CONFLICT',
-      retryable: false,
+      affectedPath: NONE,
+      nextAction: NONE,
     });
     expect(readFileSync(workflowPath(root), 'utf8')).toBe('name: customer\n');
   });
@@ -294,6 +291,63 @@ describe('remote workflow lifecycle', () => {
     });
   });
 
+  it('reports an absent workflow as a successful disable no-op', () => {
+    const root = fixture();
+
+    expect(disableRemoteWorkflow(root, bundled)).toEqual({
+      ok: true,
+      changed: false,
+      state: 'not_installed',
+      affectedPath: NONE,
+      nextAction: NONE,
+    });
+  });
+
+  it.each([
+    ['customer bytes', { ok: true, state: 'customer_owned' }],
+    ['unsafe path', { ok: false, state: 'unsafe_path', code: 'REMOTE_WORKFLOW_CONFLICT' }],
+    ['indeterminate error', { ok: false, state: 'failed', code: 'REMOTE_WORKFLOW_RETRY' }],
+    ['absence', { ok: true, state: 'not_installed' }],
+  ] as const)('preserves %s observed by the final disable check', (observation, expected) => {
+    const root = fixture();
+    const path = workflowPath(root);
+    let destinationInspections = 0;
+    writeWorkflow(root, bundled);
+    const filesystem = withFilesystem({
+      lstat: candidate => {
+        if (candidate === path) {
+          destinationInspections += 1;
+          if (destinationInspections === 2) {
+            switch (observation) {
+              case 'absence': {
+                rmSync(candidate);
+                break;
+              }
+              case 'unsafe path': {
+                rmSync(candidate);
+                symlinkSync(root, candidate);
+                break;
+              }
+              case 'indeterminate error': {
+                throw failure('EIO');
+              }
+              case 'customer bytes': {
+                writeFileSync(candidate, 'name: customer\n');
+                break;
+              }
+            }
+          }
+        }
+        return nodeRemoteWorkflowFs.lstat(candidate);
+      },
+    });
+
+    expect(disableRemoteWorkflow(root, bundled, filesystem)).toMatchObject({
+      ...expected,
+      changed: false,
+    });
+  });
+
   it('disables the exact released predecessor', () => {
     const root = fixture();
     writeWorkflow(root, releasedV1);
@@ -307,32 +361,34 @@ describe('remote workflow lifecycle', () => {
   });
 
   it.each([
-    ['customer bytes', 'REMOTE_WORKFLOW_CONFLICT', 'name: concurrent customer\n'],
-    ['read failure', 'REMOTE_WORKFLOW_RETRY', releasedV1],
-  ])('does not disable released v1 after commit-time %s', (change, expectedCode, expectedBytes) => {
-    const root = fixture();
-    const path = workflowPath(root);
-    let reads = 0;
-    writeWorkflow(root, releasedV1);
+    ['customer bytes', { ok: true, state: 'customer_owned' }, 'name: concurrent customer\n'],
+    ['read failure', { ok: false, code: 'REMOTE_WORKFLOW_RETRY' }, releasedV1],
+  ] as const)(
+    'does not disable released v1 after commit-time %s',
+    (change, expected, expectedBytes) => {
+      const root = fixture();
+      const path = workflowPath(root);
+      let reads = 0;
+      writeWorkflow(root, releasedV1);
 
-    const filesystem = withFilesystem({
-      openRead: candidate => {
-        reads += 1;
-        if (reads === 2) {
-          if (change === 'read failure') throw failure('EIO');
-          writeFileSync(candidate, expectedBytes);
-        }
-        return nodeRemoteWorkflowFs.openRead(candidate);
-      },
-    });
+      const filesystem = withFilesystem({
+        openRead: candidate => {
+          reads += 1;
+          if (reads === 2) {
+            if (change === 'read failure') throw failure('EIO');
+            writeFileSync(candidate, expectedBytes);
+          }
+          return nodeRemoteWorkflowFs.openRead(candidate);
+        },
+      });
 
-    expect(disableRemoteWorkflow(root, currentWorkflow, filesystem)).toMatchObject({
-      ok: false,
-      changed: false,
-      code: expectedCode,
-    });
-    expect(readFileSync(path, 'utf8')).toBe(expectedBytes);
-  });
+      expect(disableRemoteWorkflow(root, currentWorkflow, filesystem)).toMatchObject({
+        ...expected,
+        changed: false,
+      });
+      expect(readFileSync(path, 'utf8')).toBe(expectedBytes);
+    },
+  );
 
   it('preserves customer bytes that appear at exclusive publication', () => {
     const root = fixture();

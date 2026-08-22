@@ -88,9 +88,9 @@ non-faulting path through both adapters.
 
 | Principle | Consequence | Proof |
 | --- | --- | --- |
-| Add, never replace | Customer bytes and concurrent destination creation are preserved | Classifier table plus EEXIST integration test |
-| Correct and safe; then clear; then simple | One ownership table and one exclusive publication strategy | Fault/retry integration table and deletion-focused review |
-| Optimize for NTB without constraining TBU | Human output gives one plain action while JSON keeps the closed result | Human/JSON contract and wiring tests |
+| 3. Add, never replace | Customer bytes and concurrent destination creation are preserved | [Classifier and EEXIST integration cases](packages/cli/tests/test-execution/remote-workflow-lifecycle.test.ts) |
+| 5. Correct and safe; then clear; then simple | One ownership table and one exclusive publication strategy | [Fault and retry table](packages/cli/tests/test-execution/remote-workflow-lifecycle.test.ts) |
+| Optimize for the NTB without constraining the TBU | Human output gives one plain action while JSON keeps the closed result | [Human and JSON contract cases](packages/cli/tests/test-execution/remote-workflow-advisory.test.ts) |
 
 Architecture alignment: schema remains the source of truth for the path and
 template; the always-omitted generator makes explicit lifecycle commands the

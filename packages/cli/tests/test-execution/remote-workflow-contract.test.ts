@@ -91,6 +91,16 @@ describe('remote workflow contract', () => {
     expect(evaluateRemoteTestWorkflow(dogfoodWorkflow)).toEqual({ accepted: true, violations: [] });
   });
 
+  it.each(['install', 'upgrade', 'uninstall', 'status', 'doctor', 'reconcile'])(
+    '%s leaves the optional workflow outside ordinary reconciliation',
+    () => {
+      const definition =
+        SAFEWORD_SCHEMA.managedFiles['.github/workflows/safeword-remote-tests.yml'];
+
+      expect(definition?.generator?.({} as never)).toBeUndefined();
+    },
+  );
+
   it('delegates project preparation to Safeword configuration', () => {
     expect(workflow).toContain('project test --lane "$LANE" --execution local --prepare-remote');
     expect(workflow).not.toContain('bun install --frozen-lockfile');

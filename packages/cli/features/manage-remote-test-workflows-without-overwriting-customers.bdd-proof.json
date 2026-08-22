@@ -1,0 +1,171 @@
+{
+  "feature": "packages/cli/features/manage-remote-test-workflows-without-overwriting-customers.feature",
+  "scenarios": {
+    "Status classifies representative ownership states": [
+      "packages/cli/tests/test-execution/remote-workflow-state.test.ts",
+      "classifies %s"
+    ],
+    "Setup preserves every path it cannot prove safe to own": [
+      [
+        "packages/cli/tests/test-execution/remote-workflow-lifecycle.test.ts",
+        "preserves a customer workflow during setup and disable"
+      ],
+      [
+        "packages/cli/tests/test-execution/remote-workflow-lifecycle.test.ts",
+        "rejects an initially unsafe workflow destination during setup"
+      ]
+    ],
+    "Setup publishes a complete workflow without selecting remote execution": [
+      [
+        "packages/cli/tests/test-execution/remote-workflow-lifecycle.test.ts",
+        "sets up the complete workflow without changing execution preference"
+      ],
+      [
+        "packages/cli/tests/cli-protocol/test-execution-wiring.test.ts",
+        "installs the managed remote workflow without changing execution preference"
+      ]
+    ],
+    "Invalid execution configuration prevents setup before mutation": [
+      "packages/cli/tests/cli-protocol/test-execution-wiring.test.ts",
+      "fails closed for malformed personal configuration without changing files"
+    ],
+    "A concurrently appearing customer workflow is never replaced": [
+      "packages/cli/tests/test-execution/remote-workflow-fs.test.ts",
+      "publishes complete bytes without replacing a concurrently appearing destination"
+    ],
+    "Exclusive publication reclassification is bounded": [
+      [
+        "packages/cli/tests/test-execution/remote-workflow-lifecycle.test.ts",
+        "accepts current bytes that appear at exclusive publication"
+      ],
+      [
+        "packages/cli/tests/test-execution/remote-workflow-lifecycle.test.ts",
+        "reports unsafe when an EEXIST publication race becomes a symlink"
+      ],
+      [
+        "packages/cli/tests/test-execution/remote-workflow-lifecycle.test.ts",
+        "retries when an EEXIST publication race becomes %s"
+      ]
+    ],
+    "Interrupted publication never exposes a partial workflow": [
+      [
+        "packages/cli/tests/test-execution/remote-workflow-fs.test.ts",
+        "types a failed %s operation"
+      ],
+      [
+        "packages/cli/tests/test-execution/remote-workflow-fs.test.ts",
+        "types close failure honestly and cleans up"
+      ]
+    ],
+    "Setup reports unsupported exclusive publication plainly": [
+      "packages/cli/tests/test-execution/remote-workflow-lifecycle.test.ts",
+      "reports failed publication operation %s"
+    ],
+    "Setup reports an unwritable safe workflow directory plainly": [
+      "packages/cli/tests/test-execution/remote-workflow-fs.test.ts",
+      "reports a zero-progress write without inventing an OS error"
+    ],
+    "Cleanup failure does not misreport a published workflow as failed": [
+      "packages/cli/tests/test-execution/remote-workflow-lifecycle.test.ts",
+      "reports inert private residue without misreporting the installed workflow"
+    ],
+    "Retry after interruption ignores unknown private residue": [
+      "packages/cli/tests/test-execution/remote-workflow-lifecycle.test.ts",
+      "ignores prior inert residue when a later setup succeeds"
+    ],
+    "Setup rejects an unsafe parent that wins a creation race": [
+      "packages/cli/tests/test-execution/remote-workflow-lifecycle.test.ts",
+      "rejects an unsafe parent that appears during EEXIST recovery"
+    ],
+    "Disable removes only a workflow Safeword currently owns": [
+      [
+        "packages/cli/tests/test-execution/remote-workflow-lifecycle.test.ts",
+        "disables only the current workflow and converges when repeated"
+      ],
+      [
+        "packages/cli/tests/cli-protocol/test-execution-wiring.test.ts",
+        "removes only the managed remote workflow without changing execution preference"
+      ]
+    ],
+    "Disable handles unlink races and failures honestly": [
+      "packages/cli/tests/test-execution/remote-workflow-lifecycle.test.ts",
+      "reports unlink %s honestly"
+    ],
+    "Disable preserves uncertainty at its final recheck": [
+      "packages/cli/tests/test-execution/remote-workflow-lifecycle.test.ts",
+      "preserves %s observed by the final disable check"
+    ],
+    "Initial uncertainty prevents mutation": [
+      "packages/cli/tests/test-execution/remote-workflow-lifecycle.test.ts",
+      "retries when %s cannot classify the initial path"
+    ],
+    "Disable leaves a customer-owned workflow alone": [
+      "packages/cli/tests/cli-protocol/test-execution-wiring.test.ts",
+      "treats a customer-owned workflow as a successful disable no-op"
+    ],
+    "Disable refuses an unsafe workflow path": [
+      "packages/cli/tests/test-execution/remote-workflow-lifecycle.test.ts",
+      "reports an unsafe path during disable without changing it"
+    ],
+    "Repeating a lifecycle command is a successful no-op": [
+      [
+        "packages/cli/tests/test-execution/remote-workflow-lifecycle.test.ts",
+        "reports an already-current workflow as a successful setup no-op"
+      ],
+      [
+        "packages/cli/tests/test-execution/remote-workflow-lifecycle.test.ts",
+        "reports an absent workflow as a successful disable no-op"
+      ]
+    ],
+    "Human and JSON mutation results agree": [
+      "packages/cli/tests/cli-protocol/test-execution-wiring.test.ts",
+      "reports customer-owned %s consistently in JSON"
+    ],
+    "Ordinary Safeword lifecycle commands remain observational": [
+      "packages/cli/tests/test-execution/remote-workflow-contract.test.ts",
+      "%s leaves the optional workflow outside ordinary reconciliation"
+    ],
+    "Uninstall explains how to remove a surviving optional workflow": [
+      "packages/cli/tests/cli-protocol/plan-remove-wiring.test.ts",
+      "removes the Safeword dependency during default uninstall"
+    ],
+    "Packaged disable remains usable after project uninstall": [
+      "packages/cli/tests/cli-protocol/test-execution-wiring.test.ts",
+      "disables the packaged workflow after project configuration is absent"
+    ],
+    "Remote-workflow advice never disrupts ordinary uninstall": [
+      "packages/cli/tests/test-execution/remote-workflow-advisory.test.ts",
+      "stays silent for %s observation"
+    ],
+    "Human and JSON status agree": [
+      [
+        "packages/cli/tests/cli-protocol/test-execution-wiring.test.ts",
+        "reports an absent managed remote workflow without mutation"
+      ],
+      [
+        "packages/cli/tests/test-execution/remote-workflow-state.test.ts",
+        "reports unsafe when the %s"
+      ],
+      [
+        "packages/cli/tests/test-execution/remote-workflow-state.test.ts",
+        "classifies different-length customer bytes"
+      ]
+    ],
+    "Human status renders the corrective action plainly": [
+      "packages/cli/tests/cli-protocol/test-execution-wiring.test.ts",
+      "renders the %s status action plainly"
+    ],
+    "Human status renders current nulls explicitly": [
+      "packages/cli/tests/test-execution/remote-workflow-state.test.ts",
+      "classifies current bytes with no corrective action"
+    ],
+    "Repeated status is stable": [
+      "packages/cli/tests/cli-protocol/test-execution-wiring.test.ts",
+      "returns stable status output when the project does not change"
+    ],
+    "Indeterminate observation is read-only and plainly retryable": [
+      "packages/cli/tests/test-execution/remote-workflow-state.test.ts",
+      "returns a failed observation for an indeterminate path error"
+    ]
+  }
+}

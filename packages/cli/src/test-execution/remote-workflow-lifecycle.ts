@@ -262,6 +262,24 @@ function disabledResult(changed: boolean): RemoteWorkflowLifecycleResult {
   };
 }
 
+function customerOwnedDisabledResult(): RemoteWorkflowLifecycleResult {
+  return {
+    ok: true,
+    changed: false,
+    state: 'customer_owned',
+    affectedPath: NO_ACTION,
+    nextAction: NO_ACTION,
+  };
+}
+
+function classifiedDisableResult(
+  observation: Exclude<RemoteWorkflowObservation, { state: 'failed' }>,
+): RemoteWorkflowLifecycleResult {
+  return observation.state === 'customer_owned'
+    ? customerOwnedDisabledResult()
+    : classifiedResult(observation);
+}
+
 export function disableRemoteWorkflow(
   root: string,
   bundled: string,
@@ -270,13 +288,13 @@ export function disableRemoteWorkflow(
   const initial = classifyRemoteWorkflow(root, bundled, filesystem);
   if (initial.state === 'failed') return retryFailure();
   if (initial.state !== 'current' && initial.state !== 'managed_outdated') {
-    return classifiedResult(initial);
+    return classifiedDisableResult(initial);
   }
 
   const revalidated = classifyRemoteWorkflow(root, bundled, filesystem);
   if (revalidated.state === 'failed') return retryFailure();
   if (revalidated.state !== 'current' && revalidated.state !== 'managed_outdated') {
-    return classifiedResult(revalidated);
+    return classifiedDisableResult(revalidated);
   }
 
   try {

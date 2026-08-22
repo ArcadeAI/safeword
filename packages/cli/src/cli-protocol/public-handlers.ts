@@ -183,7 +183,11 @@ async function removeHandler(invocation: CommandInvocation): Promise<CliResult> 
 
 async function uninstallHandler(invocation: CommandInvocation): Promise<CliResult> {
   const { uninstallLifecycle } = await import('../lifecycle/commands.js');
-  return uninstallLifecycle(invocation);
+  const result = await uninstallLifecycle(invocation);
+  if (result.state !== 'healthy' && result.state !== 'changed') return result;
+  const { remoteWorkflowUninstallFinding } = await import('../commands/test-execution.js');
+  const finding = remoteWorkflowUninstallFinding(invocation.cwd);
+  return finding === undefined ? result : { ...result, findings: [...result.findings, finding] };
 }
 
 async function syncConfigHandler(invocation: CommandInvocation): Promise<CliResult> {

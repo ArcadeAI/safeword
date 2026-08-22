@@ -2,10 +2,11 @@
 id: HWZZJ8
 slug: manage-remote-test-workflows-without-overwriting-customers
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 phase_anchors:
   - verify: 454fe0e99
+  - done: .project/tickets/HWZZJ8-manage-remote-test-workflows-without-overwriting-customers/verify.md
 scope:
   - Ownership classification, status, explicit first-time setup, and disable for one managed workflow
   - Exact current workflow identity across ordinary checkout line-ending conversion
@@ -48,3 +49,4 @@ last_modified: 2026-08-12T03:13:59.777Z
 - 2026-08-16T21:52:00-07:00 Implementation started with retained proofs: `2a1d50257` verifies exclusive same-directory publication preserves a concurrently appearing customer workflow; `fc8cdf160` → `bfc3bb958` records RED/GREEN ownership classification for missing, current LF/CRLF, customer-owned, and symlinked paths. Typecheck, targeted tests, lint, and diff checks pass. Final bundled bytes remain gated on BR373S's trusted pre-check runner and GRDXXA admission; lifecycle work can continue against injected candidate bytes without public wiring.
 - 2026-08-16T22:31:00-07:00 Completed the internal lifecycle slice through retained RED/GREEN commits `2e0057dab` → `26b40a457`, `b91ef8561` → `87e725b54`, and `510dea808` → `659dd8ef4`. Setup preserves customer bytes at exclusive publication, lifecycle results report inert private residue without masking the primary result, and disable distinguishes ENOENT convergence from permanent removal failure (`49cb4c1f1`). All 15 focused workflow tests, package typecheck, targeted lint, and diff checks pass. Public schema/template registration and CLI wiring remain intentionally blocked until BR373S supplies the trusted pre-check runner and GRDXXA admits those exact bytes.
 - 2026-08-18 Public lifecycle wiring completed for status, setup, and disable. Project configuration now owns an optional stack-neutral remote setup command; personal configuration can override only local versus remote preference. Released-v1 migration is implemented under FFXB81. Focused verification passed (6 files, 115 tests); independent quality re-review is in progress.
+- 2026-08-21T22:28:37-07:00 Verified and closed: 8,323 CLI tests passed (7 skipped), all 1,483 runnable BDD scenarios passed (3 tagged scenarios skipped), and all 34 BDD proof checks passed. Audit found no ticket-local defect; corrected the implementation plan's canonical principle links and recorded unrelated CKWE2D trace drift separately.

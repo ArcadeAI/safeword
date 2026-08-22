@@ -1,3 +1,4 @@
+@proof.vitest
 Feature: Manage remote-test workflows without overwriting customers
 
   @manage-remote-test-workflows-without-overwriting-customers.TBU1.R1 @surface.safeword-cli

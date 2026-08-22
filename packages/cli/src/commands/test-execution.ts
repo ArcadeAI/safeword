@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { type CliResult, createResult } from '../cli-protocol/result.js';
+import { type CliResult, createResult, type Finding } from '../cli-protocol/result.js';
 import {
   readPersonalExecutionPreference,
   readProjectTestConfig,
@@ -13,6 +13,10 @@ import {
   resolveExecutionMode,
 } from '../test-execution/mode.js';
 import { evaluateRemoteTestWorkflow } from '../test-execution/remote-workflow-contract.js';
+import {
+  nodeRemoteWorkflowFs,
+  type RemoteWorkflowFs,
+} from '../test-execution/remote-workflow-fs.js';
 import {
   disableRemoteWorkflow,
   type RemoteWorkflowLifecycleResult,
@@ -418,6 +422,62 @@ function validatedBundledRemoteWorkflow(): CliResult | { readonly content: strin
       });
 }
 
+export function remoteWorkflowUninstallFinding(
+  cwd: string,
+  filesystem: RemoteWorkflowFs = nodeRemoteWorkflowFs,
+): Finding | undefined {
+  const bundled = bundledRemoteWorkflow();
+  if (bundled.content === undefined) return undefined;
+  const workflow = classifyRemoteWorkflow(cwd, bundled.content, filesystem);
+  if (workflow.state !== 'current' && workflow.state !== 'managed_outdated') return undefined;
+  return {
+    code: 'REMOTE_WORKFLOW_REMAINS',
+    message:
+      'The optional remote-test workflow remains installed. Run `bunx safeword project test-execution remote disable` to remove it.',
+    severity: 'info',
+  };
+}
+
+function remoteWorkflowStatusPresentation(
+  workflow: Exclude<ReturnType<typeof classifyRemoteWorkflow>, { state: 'failed' }>,
+): CliResult['presentation'] {
+  let guidance: string | undefined;
+  switch (workflow.nextAction) {
+    case 'install_remote_tests': {
+      guidance =
+        "Run `bunx safeword project test-execution remote setup` to install Safeword's test workflow.";
+      break;
+    }
+    case 'move_aside_and_repeat': {
+      guidance =
+        "Safeword won't overwrite the differing workflow. Compare or move it aside, then run the command again.";
+      break;
+    }
+    case 'repair_path_and_repeat': {
+      guidance = 'Repair the workflow path, then run the command again.';
+      break;
+    }
+    case 'upgrade_remote_tests': {
+      break;
+    }
+    // eslint-disable-next-line unicorn/no-null -- Public lifecycle data uses null for no action.
+    case null: {
+      break;
+    }
+  }
+  return {
+    kind: 'raw',
+    body: [
+      `State: ${workflow.state}`,
+      `Affected path: ${workflow.affectedPath ?? 'none'}`,
+      `Next action: ${workflow.nextAction ?? 'none'}`,
+      guidance,
+    ]
+      .filter((line): line is string => line !== undefined)
+      .join('\n'),
+  };
+}
+
 export function observeRemoteWorkflowStatus(cwd: string): CliResult {
   const bundled = bundledRemoteWorkflow();
   if (bundled.error !== undefined || bundled.content === undefined) {
@@ -440,6 +500,7 @@ export function observeRemoteWorkflowStatus(cwd: string): CliResult {
   }
   return createResult({
     state: 'healthy',
+    presentation: remoteWorkflowStatusPresentation(workflow),
     data: { command: 'project test-execution remote status', workflow },
   });
 }
