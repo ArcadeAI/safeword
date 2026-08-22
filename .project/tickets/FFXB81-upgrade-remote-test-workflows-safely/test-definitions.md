@@ -55,7 +55,7 @@ without pretending the ledger drove those commits.
 ### Scenario Outline: Setup converges when the commit-time state needs no preservation
 
 - [x] RED 75a1a349b
-- [ ] GREEN
+- [x] GREEN 85be61eac
 - [ ] REFACTOR
 
 ### Scenario: Failed private-file preparation preserves the released predecessor
