@@ -66,7 +66,7 @@ without pretending the ledger drove those commits.
 
 ### Scenario: Failed publication preserves the released predecessor
 
-- [ ] RED
+- [x] RED skip: replacement rename failure handling predates this scenario
 - [ ] GREEN
 - [ ] REFACTOR
 
