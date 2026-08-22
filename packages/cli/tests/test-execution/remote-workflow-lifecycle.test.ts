@@ -576,6 +576,35 @@ describe('remote workflow lifecycle', () => {
     },
   );
 
+  it('preserves released v1 when replacement preparation cannot sync', () => {
+    const root = fixture();
+    const path = workflowPath(root);
+    const privatePath = nodePath.join(nodePath.dirname(path), '.safeword-attempt');
+    writeWorkflow(root, releasedV1);
+
+    const result = setupRemoteWorkflow(
+      root,
+      currentWorkflow,
+      'remote-preferred',
+      withFilesystem({
+        privatePath: () => privatePath,
+        sync: () => {
+          throw failure('EIO');
+        },
+      }),
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      changed: false,
+      code: 'REMOTE_WORKFLOW_PUBLICATION_FAILED',
+      operation: 'sync',
+      filesystemCode: 'EIO',
+    });
+    expect(readFileSync(path, 'utf8')).toBe(releasedV1);
+    expect(existsSync(privatePath)).toBe(false);
+  });
+
   it('rejects an unsafe parent that appears during EEXIST recovery', () => {
     const root = fixture();
     const github = nodePath.join(root, '.github');
