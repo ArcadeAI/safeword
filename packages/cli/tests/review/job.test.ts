@@ -314,6 +314,21 @@ describe('durable review jobs', () => {
     );
   });
 
+  it('reports a blocked review pending before its absolute deadline', async () => {
+    const cwd = project();
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, 'setTimeout(() => {}, 10_000);'));
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '0');
+    const pending = await startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
+    const id = (pending.data as { review_id: string }).review_id;
+
+    expect(reviewJobStatus(cwd, id)).toMatchObject({
+      state: 'action_required',
+      findings: [{ code: 'REVIEW_PENDING' }],
+      nextActions: [{ command: `safeword review status ${id}` }],
+    });
+    cancelReviewJob(cwd, id);
+  });
+
   it('preserves a detached changes-requested reviewer result after collection', async () => {
     const cwd = project();
     vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, REQUEST_CHANGES_WORKER));
@@ -501,38 +516,55 @@ describe('durable review jobs', () => {
     expect(reviewJobStatus(cwd, id).errors[0]?.code).toBe('REVIEW_WORKER_EXITED');
   });
 
-  it.runIf(process.platform !== 'win32')(
-    'terminates a wedged worker and records timeout when status observes its deadline',
-    async () => {
-      const cwd = project();
-      vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, 'setTimeout(() => {}, 10_000);'));
-      vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '0');
-      const pending = await startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
-      const id = (pending.data as { review_id: string }).review_id;
-      const recordPath = nodePath.join(cwd, '.safeword', 'state', 'reviews', `${id}.json`);
-      const record = JSON.parse(readFileSync(recordPath, 'utf8')) as {
-        pid: number;
-        deadline_at: string;
-        integrity?: string;
-      };
-      record.deadline_at = new Date(0).toISOString();
-      record.integrity = signRecord(cwd, record);
-      writeFileSync(recordPath, `${JSON.stringify(record)}\n`);
+  it('terminates a wedged worker and records timeout when status observes its deadline', async () => {
+    const cwd = project();
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, 'setTimeout(() => {}, 10_000);'));
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '0');
+    const pending = await startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
+    const id = (pending.data as { review_id: string }).review_id;
+    const recordPath = nodePath.join(cwd, '.safeword', 'state', 'reviews', `${id}.json`);
+    const record = JSON.parse(readFileSync(recordPath, 'utf8')) as {
+      pid: number;
+      deadline_at: string;
+      integrity?: string;
+    };
+    record.deadline_at = new Date(0).toISOString();
+    record.integrity = signRecord(cwd, record);
+    writeFileSync(recordPath, `${JSON.stringify(record)}\n`);
 
-      const result = reviewJobStatus(cwd, id);
+    const result = reviewJobStatus(cwd, id);
 
-      expect(result.errors[0]?.code).toBe('REVIEW_WORKER_TIMED_OUT');
-      await vi.waitFor(() => {
-        expect(() => process.kill(record.pid, 0)).toThrow();
-      });
-      completeReviewJob(
-        cwd,
-        id,
-        createResult({ state: 'healthy', data: { command: 'review run', status: 'approved' } }),
-      );
-      expect(reviewJobStatus(cwd, id).errors[0]?.code).toBe('REVIEW_WORKER_TIMED_OUT');
-    },
-  );
+    expect(result.errors[0]?.code).toBe('REVIEW_WORKER_TIMED_OUT');
+    await vi.waitFor(() => {
+      expect(() => process.kill(record.pid, 0)).toThrow();
+    });
+  });
+
+  it('preserves a timed-out result when its former worker completes late', async () => {
+    const cwd = project();
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, 'setTimeout(() => {}, 1_000);'));
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '0');
+    const pending = await startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
+    const id = (pending.data as { review_id: string }).review_id;
+    const recordPath = nodePath.join(cwd, '.safeword', 'state', 'reviews', `${id}.json`);
+    const record = JSON.parse(readFileSync(recordPath, 'utf8')) as Record<string, unknown>;
+    record.state = 'failed';
+    record.result = createResult({
+      state: 'failed',
+      errors: [{ code: 'REVIEW_WORKER_TIMED_OUT', message: 'timed out', retryable: true }],
+      data: { command: 'review status', status: 'failed', review_id: id },
+    });
+    record.integrity = signRecord(cwd, record);
+    writeFileSync(recordPath, `${JSON.stringify(record)}\n`);
+
+    expect(reviewJobStatus(cwd, id).errors[0]?.code).toBe('REVIEW_WORKER_TIMED_OUT');
+    completeReviewJob(
+      cwd,
+      id,
+      createResult({ state: 'healthy', data: { command: 'review run', status: 'approved' } }),
+    );
+    expect(reviewJobStatus(cwd, id).errors[0]?.code).toBe('REVIEW_WORKER_TIMED_OUT');
+  });
 
   it('refuses a traversal-shaped review id even when a record exists outside the review store', () => {
     const cwd = project();
@@ -593,6 +625,23 @@ describe('durable review jobs', () => {
 
     expect(result.state, JSON.stringify(result)).toBe('healthy');
     expect(result.findings[0]?.message).toBe('Independent review complete.');
+  });
+
+  it('collects a completed result while its reviewed source is unchanged', async () => {
+    const cwd = project();
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, COMPLETE_WORKER));
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '3000');
+    const completed = await startReviewJob({
+      cwd,
+      kind: 'quality-review',
+      targets: ['input.md'],
+    });
+    const id = (completed.data as { review_id: string }).review_id;
+
+    expect(reviewJobStatus(cwd, id)).toMatchObject({
+      state: 'healthy',
+      data: { status: 'approved' },
+    });
   });
 
   it('rejects a repo-local edit to a worker-produced completed result', async () => {
@@ -831,6 +880,16 @@ ${COMPLETE_WORKER}`,
     expect(result.state).toBe('action_required');
     expect(result.findings[0]?.code).toBe('REVIEW_CANCELED');
     expect(reviewJobStatus(cwd, id).findings[0]?.code).toBe('REVIEW_CANCELED');
+  });
+
+  it('preserves a canceled result when its former worker completes late', async () => {
+    const cwd = project();
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, 'setTimeout(() => {}, 10_000);'));
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '0');
+    const pending = await startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
+    const id = (pending.data as { review_id: string }).review_id;
+    cancelReviewJob(cwd, id);
+
     completeReviewJob(
       cwd,
       id,
@@ -856,25 +915,22 @@ ${COMPLETE_WORKER}`,
     expect(reviewJobStatus(cwd, id).state).toBe('healthy');
   });
 
-  it.runIf(process.platform !== 'win32')(
-    'stops the running reviewer when an active review is canceled',
-    async () => {
-      const cwd = project();
-      vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, 'setTimeout(() => {}, 10_000);'));
-      vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '0');
-      const pending = await startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
-      const id = (pending.data as { review_id: string }).review_id;
-      const recordPath = nodePath.join(cwd, '.safeword', 'state', 'reviews', `${id}.json`);
-      const record = JSON.parse(readFileSync(recordPath, 'utf8')) as { pid: number };
+  it('stops the running reviewer when an active review is canceled', async () => {
+    const cwd = project();
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, 'setTimeout(() => {}, 10_000);'));
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '0');
+    const pending = await startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
+    const id = (pending.data as { review_id: string }).review_id;
+    const recordPath = nodePath.join(cwd, '.safeword', 'state', 'reviews', `${id}.json`);
+    const record = JSON.parse(readFileSync(recordPath, 'utf8')) as { pid: number };
 
-      const result = cancelReviewJob(cwd, id);
+    const result = cancelReviewJob(cwd, id);
 
-      expect(result.findings[0]?.code).toBe('REVIEW_CANCELED');
-      await vi.waitFor(() => {
-        expect(() => process.kill(record.pid, 0)).toThrow();
-      });
-    },
-  );
+    expect(result.findings[0]?.code).toBe('REVIEW_CANCELED');
+    await vi.waitFor(() => {
+      expect(() => process.kill(record.pid, 0)).toThrow();
+    });
+  });
 
   it('rejects a tampered canceled record before using its payload', async () => {
     const cwd = project();
@@ -894,27 +950,24 @@ ${COMPLETE_WORKER}`,
     expect(result.errors[0]?.code).toBe('REVIEW_JOB_INVALID');
   });
 
-  it.runIf(process.platform !== 'win32')(
-    'rejects a tampered running record before cancellation terminates its reviewer',
-    async () => {
-      const cwd = project();
-      vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, 'setTimeout(() => {}, 10_000);'));
-      vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '0');
-      const pending = await startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
-      const id = (pending.data as { review_id: string }).review_id;
-      const recordPath = nodePath.join(cwd, '.safeword', 'state', 'reviews', `${id}.json`);
-      const record = JSON.parse(readFileSync(recordPath, 'utf8')) as {
-        pid: number;
-        targets: string[];
-      };
-      record.targets = ['attacker-controlled.md'];
-      writeFileSync(recordPath, `${JSON.stringify(record)}\n`);
+  it('rejects a tampered running record before cancellation terminates its reviewer', async () => {
+    const cwd = project();
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, 'setTimeout(() => {}, 10_000);'));
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '0');
+    const pending = await startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
+    const id = (pending.data as { review_id: string }).review_id;
+    const recordPath = nodePath.join(cwd, '.safeword', 'state', 'reviews', `${id}.json`);
+    const record = JSON.parse(readFileSync(recordPath, 'utf8')) as {
+      pid: number;
+      targets: string[];
+    };
+    record.targets = ['attacker-controlled.md'];
+    writeFileSync(recordPath, `${JSON.stringify(record)}\n`);
 
-      expect(cancelReviewJob(cwd, id).errors[0]?.code).toBe('REVIEW_JOB_INVALID');
-      expect(() => process.kill(record.pid, 0)).not.toThrow();
-      process.kill(record.pid, 'SIGKILL');
-    },
-  );
+    expect(cancelReviewJob(cwd, id).errors[0]?.code).toBe('REVIEW_JOB_INVALID');
+    expect(() => process.kill(record.pid, 0)).not.toThrow();
+    process.kill(record.pid, 'SIGKILL');
+  });
 
   it.runIf(process.platform !== 'win32')(
     'does not leak a child when cancellation wins during launch',
@@ -1025,11 +1078,15 @@ ${COMPLETE_WORKER}`,
     expect(existsSync(nodePath.join(directory, `${embeddedId}.json`))).toBe(false);
   });
 
-  it('returns typed failures for malformed and unknown review ids', () => {
+  it('rejects a malformed review id', () => {
     const cwd = project();
 
     expect(reviewJobStatus(cwd, 'not-a-uuid').errors[0]?.code).toBe('REVIEW_JOB_NOT_FOUND');
-    expect(cancelReviewJob(cwd, 'not-a-uuid').errors[0]?.code).toBe('REVIEW_JOB_NOT_FOUND');
+  });
+
+  it('rejects an unknown well-formed review id', () => {
+    const cwd = project();
+
     expect(reviewJobStatus(cwd, 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa').errors[0]?.code).toBe(
       'REVIEW_JOB_NOT_FOUND',
     );

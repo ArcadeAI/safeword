@@ -10,7 +10,7 @@ import {
 } from 'node:fs';
 import nodePath from 'node:path';
 
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 
 import { createTemporaryDirectory, runCli } from '../helpers.js';
 import { createTrustedReviewerDirectory } from '../review-fixtures.js';
@@ -229,6 +229,61 @@ describe('cross-agent review public-command wiring', () => {
     expect(JSON.parse(result.stdout)).toMatchObject({
       errors: [{ code: 'REVIEW_JOB_NOT_FOUND' }],
     });
+  });
+
+  it('persists malformed detached reviewer output as a terminal blocked result', async () => {
+    const directory = createTemporaryDirectory();
+    const log = nodePath.join(directory, 'review.log');
+    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+    const bin = installFakeReviewer(directory, 'codex');
+    const started = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'review-input.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_REVIEW_FAKE_FAILURE: 'invalid',
+          SAFEWORD_REVIEW_FOREGROUND_MS: '0',
+          SAFEWORD_REVIEW_LOG: log,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+    const pending = JSON.parse(started.stdout) as { data: { review_id: string } };
+
+    await vi.waitFor(
+      async () => {
+        const collected = await runCli([
+          'review',
+          'status',
+          pending.data.review_id,
+          '--json',
+          '--no-input',
+          '--cwd',
+          directory,
+        ]);
+        expect(collected.exitCode, collected.stdout).toBe(2);
+        expect(JSON.parse(collected.stdout)).toMatchObject({
+          state: 'action_required',
+          findings: [{ code: 'REVIEW_ROUTES_EXHAUSTED' }],
+          data: {
+            status: 'blocked',
+            preferred_failure: 'invalid_output',
+          },
+        });
+      },
+      { timeout: 10_000 },
+    );
   });
 
   it.each(['status', 'cancel'] as const)(

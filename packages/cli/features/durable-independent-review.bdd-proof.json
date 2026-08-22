@@ -5,6 +5,10 @@
       "packages/cli/tests/review/job.test.ts",
       "returns a quick completed review inline"
     ],
+    "A quick review preserves a changes-requested verdict inline": [
+      "packages/cli/tests/review/job.test.ts",
+      "preserves a quick changes-requested reviewer result inline"
+    ],
     "A slow healthy review continues as a durable job": [
       "packages/cli/tests/review/job.test.ts",
       "returns a durable handle when the courtesy wait ends"
@@ -13,13 +17,98 @@
       "packages/cli/tests/review/job.test.ts",
       "collects a detached review after the initiating CLI process exits"
     ],
+    "Status remains pending before a blocked review's absolute deadline": [
+      "packages/cli/tests/review/job.test.ts",
+      "reports a blocked review pending before its absolute deadline"
+    ],
+    "An unchanged reviewed source keeps its completed result": [
+      "packages/cli/tests/review/job.test.ts",
+      "collects a completed result while its reviewed source is unchanged"
+    ],
+    "An unrelated source change does not stale a completed review": [
+      "packages/cli/tests/review/job.test.ts",
+      "collects a completed result after an unrelated source changes without rerunning"
+    ],
+    "Restoring a reviewed source's identical content keeps its completed result": [
+      "packages/cli/tests/review/job.test.ts",
+      "keeps a completed result when a reviewed source is restored to identical content"
+    ],
     "Source changes make a completed review stale": [
       "packages/cli/tests/review/job.test.ts",
       "refuses a completed result after its reviewed source changes"
     ],
+    "A tampered completed review result is not accepted": [
+      "packages/cli/tests/review/job.test.ts",
+      "rejects a repo-local edit to a worker-produced completed result"
+    ],
+    "A tampered completed review binding is not accepted": [
+      "packages/cli/tests/review/job.test.ts",
+      "rejects tampered review inputs before computing staleness or retry guidance"
+    ],
+    "A changed bound context makes a completed review stale": [
+      "packages/cli/tests/review/job.test.ts",
+      "binds detached reviews to their bounded context files"
+    ],
+    "Deleting a reviewed source makes a completed review stale": [
+      "packages/cli/tests/review/job.test.ts",
+      "treats a deleted reviewed source as stale and offers a fresh review"
+    ],
+    "Collecting a malformed or unknown review is rejected": [
+      ["packages/cli/tests/review/job.test.ts", "rejects a malformed review id"],
+      ["packages/cli/tests/review/job.test.ts", "rejects an unknown well-formed review id"]
+    ],
+    "Status does not resolve a traversal-shaped identifier outside the review store": [
+      "packages/cli/tests/review/job.test.ts",
+      "refuses a traversal-shaped review id even when a record exists outside the review store"
+    ],
+    "A completed record missing its integrity seal is not accepted": [
+      "packages/cli/tests/review/job.test.ts",
+      "refuses a planted record with an arbitrary pid and result"
+    ],
     "A running review is canceled explicitly": [
       "packages/cli/tests/review/job.test.ts",
       "cancels a running review without deleting its record"
+    ],
+    "Canceling a running review terminates its reviewer": [
+      "packages/cli/tests/review/job.test.ts",
+      "stops the running reviewer when an active review is canceled"
+    ],
+    "A late reviewer result cannot replace a canceled result": [
+      "packages/cli/tests/review/job.test.ts",
+      "preserves a canceled result when its former worker completes late"
+    ],
+    "Canceling a completed review preserves its completed result": [
+      "packages/cli/tests/review/job.test.ts",
+      "preserves a completed result when cancellation is requested afterward"
+    ],
+    "Canceling an unknown review is rejected": [
+      "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+      "returns a typed JSON failure for review %s through the public CLI",
+      "cancel"
+    ],
+    "Cancel does not resolve a traversal-shaped identifier outside the review store": [
+      "packages/cli/tests/review/job.test.ts",
+      "does not let cancellation resolve a traversal-shaped review id outside the review store"
+    ],
+    "Cancel rejects a tampered running record before terminating its reviewer": [
+      "packages/cli/tests/review/job.test.ts",
+      "rejects a tampered running record before cancellation terminates its reviewer"
+    ],
+    "A detached reviewer that exits without a result fails terminally": [
+      "packages/cli/tests/review/job.test.ts",
+      "persists a typed failure when a worker exits without a result"
+    ],
+    "A wedged reviewer that never records an outcome fails terminally at its controlled absolute deadline": [
+      "packages/cli/tests/review/job.test.ts",
+      "terminates a wedged worker and records timeout when status observes its deadline"
+    ],
+    "A late reviewer result cannot replace a timed-out result": [
+      "packages/cli/tests/review/job.test.ts",
+      "preserves a timed-out result when its former worker completes late"
+    ],
+    "Malformed reviewer output reaches a terminal blocked result": [
+      "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+      "persists malformed detached reviewer output as a terminal blocked result"
     ]
   }
 }

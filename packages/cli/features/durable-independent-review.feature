@@ -167,7 +167,7 @@ Feature: Durable independent review
       Then Safeword reports the review as timed out instead of approved
 
     @rejection
-    Scenario: A reviewer that exits with malformed output fails terminally
+    Scenario: Malformed reviewer output reaches a terminal blocked result
       Given a pending review whose detached reviewer exits after writing malformed output
       When the builder checks the review status
-      Then Safeword reports a terminal invalid-result failure instead of leaving the review pending
+      Then Safeword reports a terminal blocked result naming invalid preferred output instead of leaving the review pending
