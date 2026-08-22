@@ -1,11 +1,12 @@
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
 import { SAFEWORD_SCHEMA } from '../../src/schema';
 import { evaluateRemoteTestWorkflow } from '../../src/test-execution/remote-workflow-contract';
+import { REMOTE_WORKFLOW_RELEASE_HISTORY } from '../../src/test-execution/remote-workflow-state';
 
 const workflowPath = nodePath.join(process.cwd(), 'templates', 'workflows', 'remote-tests.yml');
 const workflow = readFileSync(workflowPath, 'utf8');
@@ -17,6 +18,11 @@ const releasedV1 = readFileSync(
   nodePath.join(process.cwd(), 'tests', 'fixtures', 'remote-workflow-v1.yml'),
   'utf8',
 );
+const historicalFixtureDirectory = nodePath.join(process.cwd(), 'tests', 'fixtures');
+
+function normalizedSha256(content: string): string {
+  return createHash('sha256').update(content.replaceAll('\r\n', '\n')).digest('hex');
+}
 
 function replace(from: string | RegExp, to: string): string {
   const candidate = workflow.replace(from, () => to);
@@ -29,6 +35,26 @@ describe('remote workflow contract', () => {
     expect(createHash('sha256').update(releasedV1).digest('hex')).toBe(
       'ee9b263ac749f74cfa4423f4a8930f03a357e2d823c4ac271517e81c98fecd27',
     );
+  });
+
+  it('keeps an ordered identity for every released workflow fixture', () => {
+    const fixtureNames = readdirSync(historicalFixtureDirectory)
+      .filter(name => /^remote-workflow-v\d+\.yml$/.test(name))
+      .toSorted((left, right) => left.localeCompare(right, 'en', { numeric: true }));
+    const fixtureHistory = fixtureNames.map(name => ({
+      version: Number(/v(\d+)\.yml$/.exec(name)?.[1]),
+      normalizedSha256: normalizedSha256(
+        readFileSync(nodePath.join(historicalFixtureDirectory, name), 'utf8'),
+      ),
+    }));
+
+    expect(REMOTE_WORKFLOW_RELEASE_HISTORY).toEqual([
+      {
+        version: 1,
+        normalizedSha256: 'ee9b263ac749f74cfa4423f4a8930f03a357e2d823c4ac271517e81c98fecd27',
+      },
+    ]);
+    expect(fixtureHistory).toEqual(REMOTE_WORKFLOW_RELEASE_HISTORY);
   });
 
   it('accepts ordinary CRLF checkout conversion', () => {

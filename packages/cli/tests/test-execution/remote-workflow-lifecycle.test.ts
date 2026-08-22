@@ -32,6 +32,16 @@ const currentWorkflow = readFileSync(
   nodePath.join(process.cwd(), 'templates', 'workflows', 'remote-tests.yml'),
   'utf8',
 );
+const releasedWorkflows = readdirSync(nodePath.join(process.cwd(), 'tests', 'fixtures'))
+  .filter(name => /^remote-workflow-v\d+\.yml$/.test(name))
+  .toSorted((left, right) => left.localeCompare(right, 'en', { numeric: true }))
+  .map(
+    name =>
+      [
+        name,
+        readFileSync(nodePath.join(process.cwd(), 'tests', 'fixtures', name), 'utf8'),
+      ] as const,
+  );
 const roots: string[] = [];
 // eslint-disable-next-line unicorn/no-null -- Public lifecycle data represents no action with null.
 const NONE = null;
@@ -106,6 +116,32 @@ describe('remote workflow lifecycle', () => {
     });
     expect(readFileSync(workflowPath(root), 'utf8')).toBe(currentWorkflow);
   });
+
+  it.each(releasedWorkflows)(
+    'upgrades and disables released predecessor %s',
+    (_name, predecessor) => {
+      const setupRoot = fixture();
+      const setupDirectory = nodePath.dirname(workflowPath(setupRoot));
+      writeWorkflow(setupRoot, predecessor);
+
+      expect(setupRemoteWorkflow(setupRoot, currentWorkflow, 'remote-preferred')).toMatchObject({
+        ok: true,
+        changed: true,
+        state: 'current',
+      });
+      expect(readFileSync(workflowPath(setupRoot), 'utf8')).toBe(currentWorkflow);
+      expect(readdirSync(setupDirectory)).toEqual([nodePath.basename(REMOTE_WORKFLOW_PATH)]);
+
+      const disableRoot = fixture();
+      writeWorkflow(disableRoot, predecessor);
+      expect(disableRemoteWorkflow(disableRoot, currentWorkflow)).toMatchObject({
+        ok: true,
+        changed: true,
+        state: 'not_installed',
+      });
+      expect(existsSync(workflowPath(disableRoot))).toBe(false);
+    },
+  );
 
   it.each([
     ['LF', releasedV1],
