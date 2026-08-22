@@ -1,3 +1,4 @@
+@wip
 Feature: Recover remote-test setup after interruption
 
   @recover-remote-test-setup-after-interruption.H136BP.R1 @surface.safeword-cli
