@@ -46,6 +46,14 @@ describe('CLI execution policy', () => {
     expect(shouldReportProgress({ json: true, managedReview: true, quiet: true })).toBe(false);
   });
 
+  it('keeps human progress unchanged while consuming the private signal', () => {
+    const environment = { SAFEWORD_REVIEW_PROGRESS: '1' };
+
+    expect(consumeManagedProgressSignal(environment)).toBe(true);
+    expect(environment).not.toHaveProperty('SAFEWORD_REVIEW_PROGRESS');
+    expect(shouldReportProgress({ json: false, managedReview: false, quiet: false })).toBe(true);
+  });
+
   it.each([
     { failureIndex: 0, error: 'EBADF' },
     { failureIndex: 1, error: 'EPIPE' },

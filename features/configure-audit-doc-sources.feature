@@ -43,4 +43,4 @@ Feature: Configure documentation sources for audit
     Scenario: Explicit empty documentation sources use fallback discovery
       Given a project explicitly configures no documentation sources
       When audit reads the documentation source decision
-      And audit should use fallback documentation discovery
+      Then audit should use fallback documentation discovery

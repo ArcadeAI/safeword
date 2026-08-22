@@ -1525,8 +1525,8 @@ function assertPointerOnlyWrapper(
   assertNoContradictoryPolicyClaims(normalizeContract(content), relativePath);
 }
 
-Given(
-  'the distributed {word} review contract surfaces',
+When(
+  'Safeword validates the distributed {word} review contract surfaces',
   function (this: ReviewWorld, name: string) {
     assert.ok(name === 'finish-review' || name === 'quality-review');
     this.distributedContract = name;

@@ -32,7 +32,7 @@ Feature: Keep quality reviews observable and actionable
       Then stderr identifies the assigned reviewer
 
     Scenario: Completion cancels pending lifecycle output
-      Given a managed review has pending active and heartbeat reports
+      Given a managed review has armed active and heartbeat reports that emit when it remains incomplete
       When the review completes before those reports are due
       Then no pending lifecycle report is emitted afterward
 
@@ -58,40 +58,49 @@ Feature: Keep quality reviews observable and actionable
         | "TRUE"  | disabled |
 
     Scenario Outline: Quiet mode wins over managed progress
-      Given a managed JSON review with quiet mode enabled
+      Given a managed JSON review remains active through a waiting heartbeat with quiet mode enabled
       When the reviewer returns verdict <verdict>
       Then stderr is empty
-      And stdout is one parseable schema-1 result
+      And stdout is one parseable schema-1 result classified as <classification>
       And the command exits with status <status>
 
       Examples:
-        | verdict         | status |
-        | approve         | 0      |
-        | request_changes | 2      |
+        | verdict         | classification  | status |
+        | approve         | approved        | 0      |
+        | request_changes | action-required | 2      |
 
-    Scenario: Human-readable progress remains enabled without the private signal
-      Given a human-readable review without quiet mode
+    Scenario: A direct JSON review remains silent without the private signal
+      Given a direct JSON review remains active through a waiting heartbeat without the private signal
+      When the reviewer returns an approved result
+      Then stderr is empty
+      And stdout is one parseable schema-1 result classified as approved
+      And the command exits with status 0
+
+    Scenario: Human-readable progress remains enabled with the private signal
+      Given a human-readable review without quiet mode carries the private signal
       When output policy is resolved
-      Then human-readable progress remains enabled
+      Then human-readable progress remains enabled and the private signal is removed
 
   @reliable-observable-quality-reviews.SWM1.R1 @surface.safeword-cli
   Rule: reliable-observable-quality-reviews.SWM1.R1 — Progress is a best-effort Safeword-owned side channel
 
-    Scenario Outline: Progress write failures stay contained and retryable
+    Scenario Outline: Progress write failures preserve the terminal review result and remain retryable
       Given a managed progress destination that <failure>
       When lifecycle output is attempted more than once
       Then every write failure is swallowed
       And later lifecycle writes are still attempted
+      And the review result remains classified as <classification> with exit status <status>
 
       Examples:
-        | failure                                  |
-        | fails on its first write                 |
-        | succeeds once and fails on its next write |
+        | failure                                  | classification  | status |
+        | fails on its first write                 | approved        | 0      |
+        | succeeds once and fails on its next write | action-required | 2      |
 
     Scenario: The reviewer allowlist excludes the wrapper-only signal
-      Given a managed JSON review carries the private signal
+      Given a managed JSON review carries the private signal and an allowed `PATH` value
       When the public CLI constructs a reviewer environment
-      Then the reviewer environment does not contain the private signal
+      Then the reviewer environment preserves that `PATH` value
+      And the reviewer environment does not contain the private signal
 
   @reliable-observable-quality-reviews.SWM1.R2 @surface.safeword-cli @surface.claude-code @surface.openai-codex
   Rule: reliable-observable-quality-reviews.SWM1.R2 — Required-review workflows use a compatible managed wrapper
@@ -121,4 +130,4 @@ Feature: Keep quality reviews observable and actionable
       Then required Claude Code workflows invoke the wrapper with JSON output
       And required OpenAI Codex workflows invoke the pinned CLI with JSON output and managed progress
       And no required workflow invokes a reviewer directly
-      And Cursor contains no independent-review launch command
+      And the inspected Cursor catalogue is non-empty and contains no independent-review launch command
