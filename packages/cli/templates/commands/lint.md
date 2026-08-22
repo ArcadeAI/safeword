@@ -11,37 +11,50 @@ Run the full linting and formatting suite for the detected project type(s).
 Run these commands based on project type. All detected languages run for polyglot projects.
 
 ```bash
+lint_status=0
+run_lint_step() {
+  "$@" 2>&1
+  step_status=$?
+  if [ "$step_status" -ne 0 ] && [ "$lint_status" -eq 0 ]; then
+    lint_status="$step_status"
+  fi
+}
+
 # Python linting (if pyproject.toml or requirements.txt exists)
 ([ -f pyproject.toml ] || [ -f requirements.txt ]) && {
   # Ruff - fix code quality issues
-  ruff check --fix . 2>&1 || true
+  run_lint_step ruff check --fix .
   # Ruff - format all files
-  ruff format . 2>&1 || true
+  run_lint_step ruff format .
   # mypy - type check
-  mypy . 2>&1 || true
+  run_lint_step mypy .
 }
 
 # JS/TS linting (if package.json exists)
 [ -f package.json ] && {
   # ESLint - use lint:eslint if exists (projects with existing linter), else lint
   if grep -q '"lint:eslint"' package.json 2> /dev/null; then
-    bun run lint:eslint 2>&1 || true
+    run_lint_step bun run lint:eslint
   else
-    bun run lint 2>&1 || true
+    run_lint_step bun run lint
   fi
   # Prettier - format all files
-  bun run format --if-present 2>&1 || true
+  run_lint_step bun run format --if-present
   # TypeScript type check (if tsconfig.json exists)
-  [ -f tsconfig.json ] && bunx tsc --noEmit 2>&1 || true
+  if [ -f tsconfig.json ]; then
+    run_lint_step bunx tsc --noEmit
+  fi
 }
 
 # Go linting (if go.mod exists)
 if [ -f go.mod ]; then
   # golangci-lint - fix and report issues
-  golangci-lint run --fix ./... 2>&1 || true
+  run_lint_step golangci-lint run --fix ./...
   # golangci-lint - format
-  golangci-lint fmt ./... 2>&1 || true
+  run_lint_step golangci-lint fmt ./...
 fi
+
+exit "$lint_status"
 ```
 
 ## Summary
@@ -51,3 +64,4 @@ After running, report:
 1. Any linting errors that couldn't be auto-fixed (Ruff, ESLint, or golangci-lint)
 2. Any formatting issues
 3. Type errors (mypy or TypeScript)
+4. Interrupted checks as unverified, never clean
