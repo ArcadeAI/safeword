@@ -842,6 +842,73 @@ describe("Terra canary write-side attempt lifecycle", () => {
     });
   });
 
+  test("completes a recorded provider journal on the second attempt", async () => {
+    const directory = outputDirectory();
+    const upstream = fakeUpstream();
+    await initializeCanary({ binding: BINDING, outputDirectory: directory, upstream });
+    await runCanaryAttempt({
+      attemptId: "attempt-1",
+      binding: BINDING,
+      dispatch: async () => validDispatchEvidence(),
+      intentId: "intent-1",
+      outputDirectory: directory,
+      upstream,
+    });
+
+    const result = await runCanaryAttempt({
+      attemptId: "attempt-2",
+      binding: BINDING,
+      dispatch: async (context) => {
+        const recorder = await createCanaryProviderRecorder(context);
+        const rawUsage = {
+          input_tokens: 10,
+          input_tokens_details: { cached_tokens: 2 },
+          output_tokens: 3,
+        };
+        const rawBody = JSON.stringify({
+          id: "resp-terra-attempt-2",
+          model: "gpt-5.6-terra",
+          output: [],
+          service_tier: "default",
+          status: "completed",
+          usage: rawUsage,
+        });
+        await recorder.recordIntent({
+          endpoint: "https://api.openai.com/v1/responses",
+          intentId: "turn-intent-attempt-2",
+          requestBody: { model: "gpt-5.6-terra" },
+          requestedModel: "gpt-5.6-terra",
+          requestedServiceTier: "default",
+          stage: "repository-reading",
+        });
+        await recorder.recordResponse({
+          errorMessage: null,
+          errorName: null,
+          httpStatus: 200,
+          intentId: "turn-intent-attempt-2",
+          nativeUsage: rawUsage,
+          outcome: "response",
+          rawBody,
+          requestId: "req-terra-attempt-2",
+          responseId: "resp-terra-attempt-2",
+          returnedModel: "gpt-5.6-terra",
+          returnedServiceTier: "default",
+          stage: "repository-reading",
+        });
+        return recorder.complete();
+      },
+      intentId: "intent-2",
+      outputDirectory: directory,
+      upstream,
+    });
+
+    expect(result).toMatchObject({
+      attemptId: "attempt-2",
+      sequence: 2,
+      startedAttempts: 2,
+    });
+  });
+
   test("serializes overlapping provider journal appends without losing records", async () => {
     const directory = outputDirectory();
     mkdirSync(directory, { recursive: true });

@@ -4,6 +4,9 @@ import nodePath from 'node:path';
 declare const Bun: { stdin: { json(): Promise<unknown> } };
 
 // Packaged dependency closure: "\${CLAUDE_PLUGIN_ROOT}"/resources/guides/
+// Packaged dependency closure (already in packaged form; SAFEWORD.md is a
+// single file, not a directory, so it skips the generic rewrite above):
+// "\${CLAUDE_PLUGIN_ROOT}"/resources/SAFEWORD.md
 
 export type Agent = 'claude' | 'codex' | 'cursor';
 export type HookInput = {

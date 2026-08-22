@@ -18,6 +18,7 @@ import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import { generateClaudePluginAssets } from '../../src/claude-plugin/catalogue.js';
 import { generateCodexPluginAssets } from '../../src/codex-plugin/catalogue.js';
+import { VERSION } from '../../src/version.js';
 import { readFreshCloseoutBinding } from '../../templates/hooks/lib/closeout-binding.ts';
 import {
   draftSpoolPath,
@@ -1517,7 +1518,7 @@ if (args[0] === 'project' && args[1] === 'test-plan') {
         const installedGuard = nodePath.join(directory, '.safeword/scripts/closeout-cleanup.ts');
         const codexProfile = nodePath.join(directory, 'codex-profile/plugins/cache/safeword/0.0.0');
         const canonicalSkills = nodePath.join(repoRoot, 'packages/cli/templates/skills');
-        for (const asset of generateCodexPluginAssets(canonicalSkills)) {
+        for (const asset of generateCodexPluginAssets(canonicalSkills, VERSION)) {
           const target = nodePath.join(codexProfile, asset.relativePath);
           mkdirSync(nodePath.dirname(target), { recursive: true });
           writeFileSync(target, asset.content);

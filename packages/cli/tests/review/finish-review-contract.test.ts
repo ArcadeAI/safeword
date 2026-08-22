@@ -11,6 +11,7 @@ import {
   renderCursorRuleWrapper,
 } from '../../src/cursor-wrappers.js';
 import { SAFEWORD_SCHEMA } from '../../src/schema.js';
+import { VERSION } from '../../src/version.js';
 
 const templates = nodePath.resolve(import.meta.dirname, '../../templates');
 const skillPath = nodePath.join(templates, 'skills/finish-review/SKILL.md');
@@ -111,7 +112,10 @@ describe('best-available host review contract', () => {
       'agents/safeword-reviewer.md',
     );
 
-    const generatedCodexAssets = generateCodexPluginAssets(nodePath.join(templates, 'skills'));
+    const generatedCodexAssets = generateCodexPluginAssets(
+      nodePath.join(templates, 'skills'),
+      VERSION,
+    );
     const codex = generatedCodexAssets.find(
       asset => asset.relativePath === 'skills/finish-review/SKILL.md',
     );

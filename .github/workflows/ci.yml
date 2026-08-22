@@ -62,6 +62,25 @@ jobs:
       - name: Check public CLI contract
         run: bun run check:cli-contract
 
+  dependency-audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - name: Block high and critical advisories
+        # Lower-severity advisories stay visible to local and repository audits
+        # without letting an unpatchable development-only advisory halt delivery.
+        run: bun audit --audit-level high
+
   test:
     name: test (node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
@@ -319,7 +338,10 @@ jobs:
 
   deploy-retro-relay:
     name: Deploy Retro Relay
-    needs: [dogfood-parity, test, lint, relay-inputs]
+    # High and critical advisories block automatic production delivery. The
+    # environment-protected deploy-retro-relay workflow stays the manual
+    # break-glass path for an urgent relay security fix.
+    needs: [dogfood-parity, dependency-audit, test, lint, relay-inputs]
     if: github.ref == 'refs/heads/main' && needs.relay-inputs.outputs.deploy == 'true'
     runs-on: ubuntu-latest
     environment: retro-relay-production

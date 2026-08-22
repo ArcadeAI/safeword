@@ -5,9 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (521)
-
-## Tickets (511)
+## Tickets (570)
 
 ### 001
 
@@ -65,6 +63,30 @@
 - **Sufficiency self-test as soft readiness gate at Clarify→Build (TPP6Y2)** (done, epic: pm-grade-intake)
   Make the agent run an explicit "do I know enough to run?" check at the Clarify→Build boundary, so it never starts irreversible work half-blind — without re-interrogating clear requests.
   → `.project/tickets/TPP6Y2-pm-grade-intake-readiness-gate`
+
+### 2C1E82
+
+- **Stop native Claude plugin from depending on project-local .safeword content (0VG5AC)** (in_progress, epic: —)
+  Wire SAFEWORD_PACKAGED_CONTEXT_PATH into Claude's dispatch.js (pointing at the plugin's own resources/, mirroring how Codex's runtime already sets it) so SessionStart points at the packaged handbook/guides instead of .safeword/SAFEWORD.md and .safeword/guides/; also stop installing .safeword/hooks/*, .safeword/skills/*, and .safeword/scripts/* when neither Codex nor Cursor is selected, since native Claude never reads them
+  → `.project/tickets/0VG5AC-claude-plugin-drop-safeword-dependency`
+- **Decide whether cleanup-zombies belongs in Codex's self-contained skill set (1DZ9W8)** (in_progress, epic: —)
+  Resolve whether templates/skills/cleanup-zombies/SKILL.md's direct ./.safeword/scripts/cleanup-zombies.sh invocations should get a bunx equivalent, get dropped from the Codex delivery, or stay project-local by design
+  → `.project/tickets/1DZ9W8-codex-cleanup-zombies-scope`
+- **Add public CLI subcommands for Codex's remaining resolver and audit-trace scripts (GJB22B)** (in_progress, epic: —)
+  Build public subcommands for resolve-project-knowledge.ts, resolve-namespace-root.ts, resolve-verify-ticket.ts, audit-principle-trace.ts, and drain-retro-spool.ts, then rewrite their invocations in explain/verify/audit/retro-filer skills to a pinned bunx call, following the run-review.ts precedent in catalogue.ts
+  → `.project/tickets/GJB22B-codex-helper-subcommands`
+- **Find a self-contained equivalent for Codex's sourced audit-scope helper (JNZ2H5)** (in_progress, epic: —)
+  Decide and implement how templates/skills/audit/SKILL.md's three 'source $PROJECT_DIR/.safeword/hooks/lib/audit-scope.sh' calls can work without a project-local file, since sourcing shares shell state (functions/variables) in a way a bunx subcommand invocation cannot replicate
+  → `.project/tickets/JNZ2H5-codex-audit-scope-self-contained`
+- **Let Codex's review-stamp and skill-invocation recording work without project files (KDED4X)** (in_progress, epic: —)
+  Rewrite write-review-stamp.ts and record-skill-invocation.ts invocations in Codex skills to a pinned bunx call, updating codex-hook.ts's literal session-identity-bridge matcher in lockstep
+  → `.project/tickets/KDED4X-codex-review-stamp-self-contained`
+- **Make Codex's closeout skill work without project-local scripts (SF0RS0)** (in_progress, epic: —)
+  Give closeout-cleanup.ts (1795 lines, invoked directly by templates/skills/closeout/SKILL.md) an equivalent self-contained bunx path for Codex, or a documented reason it can't have one
+  → `.project/tickets/SF0RS0-codex-closeout-self-contained`
+- **Let Codex skills run without project-local .safeword scripts (V2AH4B)** (in_progress, epic: —)
+  Rewrite Codex's skill-invoked scripts (run-review.ts, resolve-project-knowledge.ts, closeout-cleanup.ts, drain-retro-spool.ts, cleanup-zombies.sh, record-skill-invocation.ts, etc.) to shell out via bunx --bun safeword@<version> <subcommand>, the same self-contained pattern Codex's lifecycle hooks (hooks.json) already use, instead of bun .safeword/hooks/<script>.ts / .safeword/scripts/<script>
+  → `.project/tickets/V2AH4B-codex-self-contained-scripts`
 
 ### 2H2XKH
 
@@ -206,21 +228,20 @@
 
 ### BBNZ68
 
-- **Protect remote test runners before repository code runs (BR373S)** (in_progress, epic: —)
-  Ensure the managed GitHub Actions runner validates trusted inputs, uses least privilege, and reports authoritative remote results.
-  blocked by: Install remote test workflows without overwriting customer changes (X2Z8MN)
+- **Run the requested revision remotely with least privilege (BR373S)** (done, epic: —)
+  Run the requested immutable revision in the customer's GitHub Actions environment with only the authority ordinary tests need.
   → `.project/tickets/BR373S-protect-remote-test-runners`
 - **Run tests remotely with safe recovery (S2TF4J)** (in_progress, epic: —)
   Dispatch an eligible test run to GitHub Actions, preserve durable recovery evidence, and use local fallback only when no remote run was created.
   blocked by: Choose local or remote test execution per contributor (S7TZF9), Install remote test workflows without overwriting customer changes (X2Z8MN)
   → `.project/tickets/S2TF4J-run-tests-remotely-with-safe-recovery`
-- **Choose local or remote test execution per contributor (S7TZF9)** (in_progress, epic: —)
+- **Choose local or remote test execution per contributor (S7TZF9)** (done, epic: —)
   Let contributors choose a safe local or remote-preferred test default, including an optional private worktree config and graceful local fallback.
   blocks: Run tests remotely with safe recovery (S2TF4J)
   → `.project/tickets/S7TZF9-choose-local-or-remote-test-execution`
 - **Install remote test workflows without overwriting customer changes (X2Z8MN)** (in_progress, epic: —)
   Let projects opt in to the managed GitHub Actions workflow through safe setup, upgrade, disable, and conflict recovery.
-  blocks: Protect remote test runners before repository code runs (BR373S), Run tests remotely with safe recovery (S2TF4J)
+  blocks: Run tests remotely with safe recovery (S2TF4J)
   → `.project/tickets/X2Z8MN-install-remote-test-workflows-safely`
 
 ### bdd-chain-hardening
@@ -562,6 +583,18 @@
   blocks: Surface orphaned tracker issues (created issue, no local ticket) (01EAKC)
   → `.project/tickets/DGH59K-tracker-identity-and-join`
 
+### KMB053
+
+- **Resume interrupted closeout after a Codex upgrade (07VEZF)** (in_progress, epic: —)
+  Carry exact pending closeout targets safely into the next protected Codex task.
+  → `.project/tickets/07VEZF-resume-closeout-after-upgrade`
+- **Use complete hosted CI evidence during closeout (0RDXVD)** (in_progress, epic: —)
+  Skip redundant local verification only when exact hosted evidence covers the clean delivery head.
+  → `.project/tickets/0RDXVD-trust-green-hosted-ci`
+- **Keep closeout retrospective bounded to meaningful session work (CFK8P4)** (in_progress, epic: —)
+  Let Codex closeout ignore only its positively attributed bookkeeping while preserving fail-closed review of genuine additions.
+  → `.project/tickets/CFK8P4-bound-closeout-retro`
+
 ### null
 
 - **Skill Testing Infrastructure (011)** (cancelled, epic: —)
@@ -859,6 +892,7 @@
 
 - **pr-review-eval (CWGYH0)** (in_progress, epic: —)
   Measure the reviewer on arcade PRs humans approved with zero inline comments, against a bar recorded before triage. Serves SM1 — gates the other two from firing on customers.
+  external issue: https://github.com/ArcadeAI/safeword/issues/1910
   → `.project/tickets/CWGYH0-pr-review-eval`
 
 ### workflow-gate-hygiene
@@ -892,6 +926,10 @@
 - **Modernize Claude Code integration for latest platform features (031)** (backlog, epic: —)
   Align Safeword's hook/skill/command system with the latest Claude Code documentation and platform capabilities.
   → `.project/tickets/031-modernize-claude-code-integration`
+- **Report uncertain Codex protection honestly (03Q0GR)** (done, epic: —)
+  Prevent Codex upgrades from falsely telling customers that Safeword is wholly inactive.
+  external issue: https://github.com/ArcadeAI/safeword/issues/2806
+  → `.project/tickets/03Q0GR-truthful-codex-status`
 - **Add .prettierignore text-patch to schema (03ZX7V)** (done, epic: —)
   Stop `prettier --write .` from reformatting safeword-owned files in `.safeword/` and `.cursor/` by appending a marker-gated block to the customer's `.prettierignore`.
   → `.project/tickets/03ZX7V`
@@ -903,6 +941,11 @@
 - **Declarative rule engine for enforcement policies (054)** (cancelled, epic: —)
   Replace the ad-hoc TypeScript hook enforcement with a declarative rule engine where every policy is defined in a single format, evaluated by a single engine, and verifiable for consistency.
   → `.project/tickets/054-declarative-rule-engine`
+- **Make large behavior specifications navigable for maintainers (05Z2TJ)** (done, epic: —)
+  Split the offload-tests specification into cohesive Rule-aligned files without changing its behavior contract
+  external issue: https://github.com/ArcadeAI/safeword/issues/2583
+  external PRs: https://github.com/ArcadeAI/safeword/pull/2596
+  → `.project/tickets/05Z2TJ-make-large-behavior-specifications-navigable`
 - **Task: Migrate eslint-plugin-security 4.0 and eslint-plugin-sonarjs 4.0 (065)** (done, epic: —)
   → `.project/tickets/065-eslint-plugin-migrations`
 - **Task: Measure and optimize hook feedback latency (067)** (backlog, epic: —)
@@ -938,6 +981,9 @@
 - **Smoke test for safeword — fast/e2e/live tiers + drift guard (0WQA9V)** (done, epic: —)
   An on-demand smoke test that proves safeword's core works — including a live tier that runs **real Claude Code** and confirms a real agent actually gets steered (blocked) by a guardrail.
   → `.project/tickets/0WQA9V-smoke-test`
+- **Bring proven product patterns into every feature (0XZAYA)** (in_progress, epic: —)
+  Make every feature capture product and implementation exemplars before committing to behavioral and technical decisions.
+  → `.project/tickets/0XZAYA-learn-from-exceptional-products`
 - **Done-gate refuses if commits land after last /verify or /audit (0ZKYJD)** (in_progress, epic: —)
   Close the staleness gap surfaced in the J7VBGJ session — /verify and /audit evidence becomes stale silently if the agent commits more code afterward. The done-gate currently checks "was the skill invoked this session?" not "was it invoked since the last code change?"
   → `.project/tickets/0ZKYJD-donegate-skill-log-freshness`
@@ -1044,6 +1090,9 @@
 - **Custom paths.projectRoot: wire formatter ignores + auto-upgrade staging (1QNPCF)** (done, epic: —)
   Make the namespace-root contribution to formatter ignore-lists and the auto-upgrade owned-paths prefixes follow the _resolved_ `paths.projectRoot`, not just the static `.project/`/`.safeword-project/`.
   → `.project/tickets/1QNPCF-custom-projectroot-wiring`
+- **Keep quality reviews observable and actionable (1YYG74)** (done, epic: —)
+  Let Safeword complete long independent reviews with visible bounded progress and precise recovery without corrupting machine output.
+  → `.project/tickets/1YYG74-reliable-observable-quality-reviews`
 - **Debug Codex retro runtime completion (24WR26)** (done, epic: —)
   Identify the failing Codex retro runtime boundary and add focused smoke evidence for child launch and offset writes.
   external issue: https://github.com/ArcadeAI/safeword/issues/960
@@ -1051,6 +1100,13 @@
 - **Reconcile ARCHITECTURE.md narrative with the generated module map (25TJAR)** (in_progress, epic: —)
   ARCHITECTURE.md documents all 13 real CLI modules, the test-plan module location, the plugin/ packaging note, and the cucumber runtime deps
   → `.project/tickets/25TJAR-architecture-narrative-reconcile`
+- **Make each agent's plugin fully self-contained (2C1E82)** (in_progress, epic: —)
+  Neither Claude nor Codex should depend on project-local .safeword/hooks, .safeword/skills, or .safeword/scripts once selected without the other — each plugin package ships and runs its own copies
+  → `.project/tickets/2C1E82-self-contained-agent-plugins`
+- **Keep agent-created pull requests in draft until approved (2CQCAK)** (done, epic: —)
+  Make every agent-created pull request start as a draft unless the user explicitly asks for a ready pull request.
+  external PRs: https://github.com/ArcadeAI/safeword/pull/2117
+  → `.project/tickets/2CQCAK-keep-agent-created-prs-draft`
 - **Make verify and audit work for Python, Go, and Rust projects (2FVZ26)** (in_progress, epic: —)
   `/verify` and `/audit` should run the right test/build/dead-code/drift checks for the project's actual language(s), not just JS.
   → `.project/tickets/2FVZ26-language-aware-verify-audit`
@@ -1059,10 +1115,17 @@
   → `.project/tickets/2GPM47`
 - **Formatter coexistence: inert install, zero formatter collisions, self-contained ignores (2H2XKH)** (done, epic: —)
   → `.project/tickets/2H2XKH-formatter-coexistence`
+- **Track Codex plugin reload fixes for Safeword users (2HXHSV)** (in_progress, epic: —)
+  Alert maintainers when the upstream Codex plugin-reload issues close so Safeword can reassess its restart guidance.
+  external issue: https://github.com/openai/codex/issues/17636
+  → `.project/tickets/2HXHSV-codex-plugin-reload-watch`
 - **cleanup-zombies.sh kills only with an explicit confirm flag (2KG1JW)** (done, epic: —)
   Bare invocation previews (deny-by-default); killing requires --yes — graduating the skill's "run --dry-run first, then re-run" prose ritual into the script itself
   external issue: https://github.com/ArcadeAI/safeword/issues/773
   → `.project/tickets/2KG1JW-cleanup-zombies-confirm`
+- **Let teams relocate the BDD lane without a stray default folder (2N1MQF)** (in_progress, epic: —)
+  When paths.features/paths.steps are configured, stop scaffolding and scanning the unused default features/ and steps/ directories
+  → `.project/tickets/2N1MQF-relocate-bdd-lane-cleanly`
 - **Let parallel sessions share test capacity safely (2RZDMP)** (in_progress, epic: —)
   Let Safeword sessions in separate worktrees overlap focused tests within a safe machine limit while broad verification remains exclusive and same-worktree builds stay serialized.
   → `.project/tickets/2RZDMP-share-test-capacity-across-parallel-sessions`
@@ -1085,6 +1148,10 @@
 - **add --kind verify to test-plan for complete done-gate coverage (3EZDMM)** (done, epic: —)
   Add `--kind verify` to `safeword test-plan` so the `/verify` skill runs the full authoritative test suite instead of the fast `test:done` subset.
   → `.project/tickets/3EZDMM-verify-kind`
+- **Make independent review failures actionable (3FK4DC)** (done, epic: —)
+  Make installed-reviewer discovery, failure diagnosis, and evidence packet roles reliable in Codex-hosted reviews.
+  external issue: https://github.com/ArcadeAI/safeword/issues/2386
+  → `.project/tickets/3FK4DC-reliable-independent-review`
 - **Update PRINCIPLES.md — extend existing 5 by at most 1-2 net-new principles meeting research/measurement bar (3N3Q7B)** (in_progress, epic: —)
   Update safeword's existing [PRINCIPLES.md](/Users/alex/Projects/safeword/PRINCIPLES.md) (5 principles, research-backed, capped explicitly at "few — 5, not 15" per principle 5) by adding AT MOST 1-2 net-new principles that meet the same bar (Anthropic citation, dogfooding measurement, or equivalent primary evidence). Move all the inferred "principles" from earlier work (originally up to 22 candidates from engineering + product + product-systems clusters) that don't meet the bar into the patterns catalog (62PDX1).
   → `.project/tickets/3N3Q7B`
@@ -1093,6 +1160,9 @@
 - **Test Codex plugin migration (4DK9H4)** (done, epic: —)
   Prove Safe Word works in Codex through a plugin and package-runner CLI entrypoints without installing bulky repo-local assets.
   → `.project/tickets/4DK9H4-test-codex-plugin-migration`
+- **Make parity-check account for generated mirrors (4F9S56)** (in_progress, epic: —)
+  Have parity-check either cover generated mirrors (plugin/runtime, codex-plugin/skills) or state plainly that its all-in-sync result excludes them
+  → `.project/tickets/4F9S56-parity-check-generated-mirrors`
 - **dependency-readiness false-positive stale after rebase (mtime vs content) (4JMBXT)** (in_progress, epic: —)
   Make the dependency-readiness stale decision content-based (fingerprint marker) so rebase/checkout/clone no longer falsely block dependency-backed commands.
   → `.project/tickets/4JMBXT-dep-readiness-mtime-stale`
@@ -1103,7 +1173,7 @@
   Make `plan-gh-parity.test.ts`'s ordering test actually compare plan order against live order — today it computes `liveOrder` and then discards the order in a `Set` comparison, so it reads as coverage it doesn't provide (#1463).
   external issue: https://github.com/ArcadeAI/safeword/issues/1463
   → `.project/tickets/4PCMAE-parity-order-assertion`
-- **Activate Safeword upgrades coherently in Codex (4S2S8V)** (in_progress, epic: —)
+- **Activate Safeword upgrades coherently in Codex (4S2S8V)** (done, epic: —)
   Let Codex users install a Safeword plugin upgrade and know when one coherent skills-and-hooks catalogue has actually loaded.
   → `.project/tickets/4S2S8V-codex-plugin-next-task-upgrades`
 - **Use generic file paths in shipped guidance examples (4YJV1N)** (in_progress, epic: —)
@@ -1127,6 +1197,10 @@
 - **Make lint hook behavior easier to change safely (5EX2NF)** (in_progress, epic: —)
   Split lint-file orchestration into focused helpers without changing hook behavior
   → `.project/tickets/5EX2NF-simplify-lint-hook-orchestration`
+- **Preview every install change before mutation (5JKNQG)** (done, epic: —)
+  Make install planning enumerate the complete project effect set before apply.
+  external issue: https://github.com/ArcadeAI/safeword/issues/2479
+  → `.project/tickets/5JKNQG-preview-every-install-change`
 - **Re-validate a ticket's premise when it's picked up (5JN5E4)** (superseded, epic: —)
   When a ticket is picked up or resumed, re-validate its premise before doing the work — confirm the problem still reproduces, the scope is still current, dependencies still hold, and it hasn't been fixed or obsoleted by intervening changes (e.g. a merge) — and surface any drift to the user before proceeding.
   → `.project/tickets/5JN5E4-revalidate-ticket-on-pickup`
@@ -1199,6 +1273,9 @@
 - **Deepen scenario-gate adversarial review (port review-spec depth) (7GER0P)** (superseded, epic: —)
   Enrich safeword's scenario-gate (SCENARIOS.md) with the adversarial-review depth from arcade's `/review-spec`, so weak scenarios are caught before they become flaky tests or false-green passes.
   → `.project/tickets/7GER0P-scenario-gate-adversarial-depth`
+- **Finish deep reviews without blocking developers (7GHXA5)** (done, epic: —)
+  Let independent reviews continue durably after the foreground caller stops waiting and make their final result safely collectable.
+  → `.project/tickets/7GHXA5-finish-deep-reviews-in-background`
 - **Move stack-specific ESLint plugins to optional peer-deps (antfu pattern) (7JDZFF)** (in_progress, epic: —)
   Customers install only the ESLint plugins their stack actually uses. Backend-only Node services stop carrying `eslint-plugin-storybook`, `eslint-plugin-turbo`, `eslint-plugin-astro`, etc. as transitive deps. Matches the modern modular flat-ESLint-config convention (antfu/eslint-config, eslint-config-canonical).
   → `.project/tickets/7JDZFF`
@@ -1230,6 +1307,10 @@
 - **Audit checks docs drift against the plan's Doc impact baseline (91YDB6)** (in_progress, epic: —)
   Teach /audit's docs-drift check to read the active/closed ticket's impl-plan Doc impact section (TXRHMD decision 22) as its expectation baseline: enumerated docs.sources surfaces must have been updated, skips must carry reasons. Builds on 3BTGMW's docs.sources config and lands after TXRHMD ships the section.
   → `.project/tickets/91YDB6-audit-doc-impact-baseline`
+- **Correct repeated Stop feedback without losing reply compliance (92NVVY)** (done, epic: —)
+  Replace repeated full Claude Stop contracts with exact grammar-derived corrections while preserving first-rewrite compliance.
+  external issue: https://github.com/ArcadeAI/safeword/issues/1758
+  → `.project/tickets/92NVVY-correct-repeated-stop-feedback`
 - **Close completed sessions safely (93C14D)** (done, epic: —)
   Turn a green delivery into a confirmed merge and a verified clean session with retro and branch/worktree cleanup.
   → `.project/tickets/93C14D-close-completed-sessions-safely`
@@ -1274,6 +1355,9 @@
 - **Re-sync safeword's own depcruise-config.cjs (AK8REW)** (done, epic: —)
   Make `safeword sync-config --check` on this repo exit 0. The committed file was historically prettier-reformatted (long comment string wrapped to two lines); the generator emits it single-line. With v0.37.0's `/audit` change, every audit run on this repo emits W007 until the committed file is re-synced.
   → `.project/tickets/AK8REW`
+- **Document the Codex catalogue regeneration step for releases (AMK8BC)** (in_progress, epic: —)
+  Add 'bun run generate:codex-plugin' to the release-tracked artifact list in AGENTS.md and the versioning skill
+  → `.project/tickets/AMK8BC-codex-plugin-regen-release-step`
 - **Done-gate must fire on no-edit stops (AP3FGJ)** (done, epic: —)
   Make the `currentPhase === 'done'` branch of `stop-quality.ts` run on every stop at `phase: done`, not only when the last 5 assistant messages contain an edit-tool use.
   → `.project/tickets/AP3FGJ-donegate-fires-without-edits`
@@ -1342,6 +1426,10 @@
 - **Let authenticated closeout finish after merge (CJXX50)** (done, epic: —)
   Let Codex Desktop authenticate closeout and keep mutable dependency policy from stranding cleanup of immutable merged heads.
   → `.project/tickets/CJXX50-closeout-can-finish-after-merge`
+- **Keep reviews focused on authored changes (CKWE2D)** (in_progress, epic: —)
+  Let independent reviews automatically exclude explicitly generated oversized artifacts while reporting the reduced scope.
+  external issue: https://github.com/ArcadeAI/safeword/issues/2121
+  → `.project/tickets/CKWE2D-keep-reviews-focused-on-authored-inputs`
 - **Let maintainers commit dogfood hook changes without package-link setup (CQ4CD3)** (done, epic: —)
   Make the normal protected commit path work in Safeword source worktrees when staged files trigger `.safeword` ESLint.
   external issue: https://github.com/ArcadeAI/safeword/issues/470
@@ -1390,6 +1478,10 @@
   Keep `/refactor` from creating mixed commits when the worktree already contains unrelated feature work or is detached.
   external issue: https://github.com/ArcadeAI/safeword/issues/407
   → `.project/tickets/E5VDEF-refactor-commit-mixed-worktrees`
+- **Keep behavior tests reliable for contributors (ECGEP9)** (in_progress, epic: —)
+  Make the executable BDD lane finish reliably and prove every no-mutation claim it advertises.
+  external issue: https://github.com/ArcadeAI/safeword/issues/2582
+  → `.project/tickets/ECGEP9-reliable-bdd-gates`
 - **Consolidate divergent shell tokenizers across safeword's security gates (EDDABK)** (done, epic: —)
   Decide and unify how safeword's Bash-command gates tokenize commands, so the kill-guard, ledger-write, and dependency-readiness gates segment identically instead of via two divergent implementations.
   → `.project/tickets/EDDABK-shell-tokenizer-consolidation`
@@ -1402,6 +1494,13 @@
 - **ctx-aware + re-rendered .prettierignore for a custom projectRoot (#293) (EXP1PE)** (done, epic: —)
   Make `.prettierignore` exclude a custom `paths.projectRoot` (the last formatter #273 left uncovered).
   → `.project/tickets/EXP1PE-prettierignore-ctx-rerender`
+- **Turn offload specifications into trustworthy executable coverage (F12DMP)** (done, epic: —)
+  Make offload BDD coverage honest, readable, and incrementally executable.
+  external issue: https://github.com/ArcadeAI/safeword/issues/2624
+  → `.project/tickets/F12DMP-executable-focused-offload-bdd`
+- **Let test queues recover locks created by older runners (F137WW)** (done, epic: —)
+  Safely recover abandoned package-test locks written by the immediately preceding runner format.
+  → `.project/tickets/F137WW-recover-legacy-test-locks`
 - **Prevent ticket index emphasis corruption (F20E26)** (done, epic: —)
   Prevent generated ticket indexes from being markdown-emphasis-corrupted during dogfood sessions.
   external issue: https://github.com/ArcadeAI/safeword/issues/397
@@ -1510,6 +1609,9 @@
   Let implementation run without chat-facing review checkpoints while keeping the actual TDD review, refactor, quality-review, and hard-gate work intact.
   external issue: https://github.com/ArcadeAI/safeword/issues/464
   → `.project/tickets/JENFZX-quiet-implement-review-surface`
+- **Let independent review trust Homebrew-installed reviewer binaries (JHYJ11)** (in_progress, epic: —)
+  When the resolved reviewer binary (e.g. codex) sits in a group-writable directory (the Homebrew cask default), make a private safeword-owned copy in a non-group-writable directory and review from that instead of falling back to a degraded same-agent review
+  → `.project/tickets/JHYJ11-trusted-reviewer-binary-copy`
 - **Nudge architecture drift in Cursor and Codex Stop hooks (JN403D)** (done, epic: —)
   Make the existing `ARCHITECTURE.md` drift advisory reach Cursor and Codex Stop hooks with the same non-blocking nudge semantics as Claude.
   external issue: https://github.com/ArcadeAI/safeword/issues/598
@@ -1524,6 +1626,10 @@
 - **`/architecture` prose persistence (JT852Q, scoped) — LLM resync skill deferred (JT852Q)** (done, epic: —)
   Make per-section prose in the generated architecture docs **survive
   → `.project/tickets/JT852Q-architecture-resync-skill`
+- **Keep package tests from deleting the CLI they exercise (JZ6PNV)** (done, epic: —)
+  Keep the built CLI and preset artifacts stable for the full lifetime of every package test run.
+  external issue: https://github.com/ArcadeAI/safeword/issues/1823
+  → `.project/tickets/JZ6PNV-keep-built-cli-stable-during-tests`
 - **Extract shared findDuplicates/groupByLine validator helpers (JZXVKN)** (done, epic: —)
   Collapse the duplicated `findDuplicates` (identical) and `groupByLine` (identical bar a type bound) helpers in personas.ts + glossary.ts into one `src/utils/validation.ts`.
   → `.project/tickets/JZXVKN-extract-validation-helpers`
@@ -1567,6 +1673,9 @@
 - **Off-board local ticketing: tracker canonical for identity + status mirror; status/phase stay tracked (KKNFZA)** (superseded, epic: —)
   Make the tracker canonical for ticket identity and a one-way status mirror, kill the real
   → `.project/tickets/KKNFZA-offboard-local-ticketing`
+- **Finish closeout reliably across verification and restarts (KMB053)** (in_progress, epic: —)
+  Let closeout finish safely using exact evidence across CI, live transcripts, and required Codex restarts.
+  → `.project/tickets/KMB053-resilient-closeout`
 - **Absorb the two remaining private shell tokenizers into shell-segments (KQ3MRV)** (done, epic: —)
   Migrate `cursor-run-identity.ts` and `branch-staleness.ts` — the two private shell tokenizers the EDDABK code review found outside the four Bash security gates — onto the shared `shell-segments.ts` tokenizer, so the "one tokenizer, one test surface" property holds repo-wide.
   → `.project/tickets/KQ3MRV-tokenizer-absorption`
@@ -1578,6 +1687,10 @@
   blocked by: safeword sync-tracker — one-way projection to Linear + GitHub Issues (JS5K5G)
   external issue: https://github.com/ArcadeAI/safeword/issues/347
   → `.project/tickets/M1FGRJ-tracker-relations-projection`
+- **Keep observed Codex protection visible across upgrades (M35AP7)** (in_progress, epic: —)
+  Preserve trustworthy task-bound proof of an older loaded Safeword runtime across profile upgrades while keeping current-version activation exact and fail-open.
+  external issue: https://github.com/ArcadeAI/safeword/issues/2806
+  → `.project/tickets/M35AP7-codex-upgrade-protection`
 - **Document uncommittable RED evidence path (M8NNX0)** (done, epic: —)
   Make the TDD instructions explicitly handle RED states that cannot be committed because structural quality gates reject partial code.
   external issue: https://github.com/ArcadeAI/safeword/issues/586
@@ -1646,6 +1759,9 @@
 - **Ship a clean release for safeword users (P2JDY5)** (done, epic: —)
   Audit and reconcile every change merged since v0.69.0, apply justified behavior-preserving refactors, verify release readiness, and close completed tracking items.
   → `.project/tickets/P2JDY5-release-readiness-v0-70`
+- **Lint files changed by shell commands, not just file-tool edits (P6PN58)** (in_progress, epic: —)
+  Give auto-lint a path-discovery fallback so a file edited through a shell command gets linted on all three hosts, matching the coverage quality hooks already have
+  → `.project/tickets/P6PN58-lint-skips-shell-edits`
 - **Reconcile arcade `.project/` and architecture-tracking conventions with safeword (P8RJ4M)** (done, epic: —)
   Decide how safeword behaves for customers who also run arcade — specifically how shared inputs (personas, glossary) and architecture-tracking patterns reconcile when both tools want to author or read the same project knowledge.
   → `.project/tickets/P8RJ4M`
@@ -1658,6 +1774,9 @@
 - **Retro accepts process-level friction surfaces and reports egress drops (PNZM3B)** (done, epic: —)
   Let retro file process-level friction under a leak-proof `process/<slug>` surface and report every egress drop, so silence means clean instead of secretly lossy.
   → `.project/tickets/PNZM3B-retro-process-surface`
+- **Stop the retro relay wiring test failing under CI load (PTJQ6X)** (in_progress, epic: —)
+  Make `[ORR-001]` in `packages/retro-relay/tests/cli-wiring.integration.test.ts` survive a single transient first-attempt delivery failure, so it stops reddening CI on commits that cannot have caused it
+  → `.project/tickets/PTJQ6X-relay-scenario-fixed-clock`
 - **Centralize and harden the test/build resolver (polyglot, nested, multi-runner) (Q4FX8Y)** (done, epic: —)
   One resolver decides what test/build commands to run for a repo — correct across polyglot monorepos (run **every** detected suite, not first-match), nested/sub-package manifests, and languages with multiple runners — consumed identically by `/verify`, `/audit`, and the stop-hook `test-runner.ts` without drift.
   → `.project/tickets/Q4FX8Y-extract-shared-test-runner`
@@ -1695,6 +1814,8 @@
 - **Rename DEV persona code to TB across the corpus (R4S85Y)** (done, epic: —)
   Eliminate the redundant DEV persona code by renaming DEV<n> -> TB<n> (828 occ) and Agent-Driven Developer (DEV) -> Technical Builder (TB) (2 occ) across 103 files, clearing the E009 drift by elimination and making a personas.md DEV entry unnecessary
   → `.project/tickets/R4S85Y-rename-dev-persona-to-tb`
+- **Protect review fallback boundaries for builders (R7K2QP)** (—, epic: —)
+  → `.project/tickets/R7K2QP-protect-review-fallback-boundaries`
 - **Stop-hook escalation path may be dead (0/10 BLOCKED) — revalidate post-F14BG2, recalibrate if needed (RAS9N8)** (pending, epic: —)
   Determine whether the Stop-hook escalation path (`BLOCKED`) is actually reachable in practice, and if it isn't, recalibrate within the existing binary-verdict architecture so genuine blockers surface instead of everything defaulting to `CONFIDENT`.
   → `.project/tickets/RAS9N8-stop-hook-escalation-calibration`
@@ -1704,6 +1825,9 @@
 - **`/architecture` LLM-prose resync skill (deferred from JT852Q) (RYKVR5)** (backlog, epic: —)
   An on-demand `/architecture` skill that writes the slow-moving
   → `.project/tickets/RYKVR5-architecture-llm-prose-resync`
+- **Review the turns that edited files, even when tool output carries a trailing note (S0RYNS)** (in_progress, epic: —)
+  Stop treating a tool-result message as the start of a human turn, so the quality review still fires on turns that changed files.
+  → `.project/tickets/S0RYNS-review-turns-that-edited-files`
 - **Keep Codex Desktop proof session-bound (S2CWBE)** (done, epic: —)
   Let Codex Desktop record quality proof when its PreToolUse cache bridge is unavailable.
   → `.project/tickets/S2CWBE-codex-desktop-session-proof-fallback`
@@ -1724,12 +1848,18 @@
 - **Per-step / per-phase quality reviews (retire the LOC review throttle) (SXSCJQ)** (done, epic: —)
   Make the quality review fire at every TDD-step boundary (RED/GREEN/REFACTOR) and every BDD-phase boundary, driven by PostToolUse edit-detection (autonomous-safe) with the Stop hook as a deduped backstop — and retire the implement-phase LOC throttle that currently suppresses the review under 50 LOC.
   → `.project/tickets/SXSCJQ-remove-loc-review-throttle`
+- **Make closeout preview and apply converge for merge sessions (TFG4CR)** (done, epic: —)
+  Allow the current merged session to preview and apply closeout safely even when transcript progress changes or binding support was installed during the session.
+  → `.project/tickets/TFG4CR-closeout-preview-apply-convergence`
 - **Optional one-way coordination mirror to Linear/GitHub/Jira (consumes the ticket bridge) (THSPA5)** (superseded, epic: —)
   An optional, per-project, **one-way** mirror of safeword's coordination layer (epics, ticket status, what's-next) to an external tracker — Linear, GitHub Issues, or Jira — built **on top of the [ticket bridge](../JS5K5G-ticket-bridge/ticket.md) (JS5K5G)**, so teams get a board/roadmap/notifications while the local files stay source of truth. This ticket is now the _coordination consumer_; the provider adapter and auth live in JS5K5G, not here.
   → `.project/tickets/THSPA5-external-tracker-mirror`
 - **Merge engine: warn when a JSON-merge target exists but won't parse (TIA4M8)** (done, epic: —)
   When `safeword setup`/`upgrade` reconciles a `jsonMerge` target that
   → `.project/tickets/TIA4M8-merge-warn-unparseable`
+- **Clear the root typecheck error on the retro drain hook lib (TJ2ZAK)** (in_progress, epic: —)
+  Resolve TS5097 reported by root tsc for templates/hooks/lib/drain-retro-spool.ts
+  → `.project/tickets/TJ2ZAK-root-tsconfig-ts5097`
 - **Run acceptance coverage locally for contributors (TQQGZS)** (done, epic: —)
   Give contributors one local command that runs both the unit and acceptance suites.
   external issue: https://github.com/ArcadeAI/safeword/issues/1455
@@ -1802,6 +1932,10 @@
   Skip decision-brief prompts for conversational follow-up turns while retaining the edited-work quality review.
   external issue: https://github.com/ArcadeAI/safeword/issues/1096
   → `.project/tickets/WSFBVS-scoped-stop-quality-review`
+- **Keep focused verification responsive for developers (WZF6JF)** (in_progress, epic: —)
+  Give a developer a prompt, actionable outcome when a focused Vitest run is blocked by another worktree, without ever running a second Vitest process.
+  external issue: https://github.com/ArcadeAI/safeword/issues/1484
+  → `.project/tickets/WZF6JF-keep-focused-verification-responsive`
 - **Keep Knip config warnings actionable (X6EFPN)** (in_progress, epic: —)
   Remove stale root Knip configuration so future audit runs do not train maintainers to ignore configuration hints.
   → `.project/tickets/X6EFPN-keep-knip-config-warnings-actionable`
@@ -1818,6 +1952,16 @@
   Extend the repo-level extension contract (70G298) with a third precedence layer — personal extensions that an individual contributor can layer on top of both safeword core AND repo-level extensions. Personal extensions live in a gitignored location by default so personal customizations don't leak into the team's repo.
   blocked by: Make safeword extensible at the repo/organization level — customer-specific rules, hooks, skills, conventions (70G298)
   → `.project/tickets/XSDQZ0`
+- **Keep review workflows runnable without a global Safeword binary (XTY8FE)** (done, epic: —)
+  Make every Safeword review workflow resolve a compatible CLI in installed projects and source worktrees.
+  external issue: https://github.com/ArcadeAI/safeword/issues/2185
+  → `.project/tickets/XTY8FE-resilient-review-cli-resolution`
+- **Run GitHub live smokes without waiting for builds (Y1484A)** (done, epic: —)
+  Let maintainers run the two proven source-only GitHub smokes while an unrelated package test owns the normal build-and-Vitest lock.
+  → `.project/tickets/Y1484A-run-github-live-smokes-without-waiting-for-builds`
+- **Prove cross-provider review before scaling spend (Y4ZAAY)** (in_progress, epic: —)
+  Run a bounded development-only canary over the legacy-provenance corpus using only OpenAI GPT-5.6 Terra for review, with durable attempt and cost stops.
+  → `.project/tickets/Y4ZAAY-prove-cross-provider-review-before-scaling-spend`
 - **Document Codex parity for developers (Y5GS4X)** (done, epic: —)
   Make safeword's public developer docs reflect Codex as a first-class installed surface alongside Claude Code and Cursor.
   → `.project/tickets/Y5GS4X-document-codex-parity-for-developers`
@@ -1834,6 +1978,10 @@
 - **Rust language pack — Cargo workspace discovery, src extraction, Cargo.toml fingerprint (YKFA5X)** (done, epic: —)
   Teach the generated architecture doc to introspect **Rust** projects —
   → `.project/tickets/YKFA5X-architecture-rust-language-pack`
+- **Keep verification bound to the current work (Z24K1J)** (in_progress, epic: —)
+  Ensure verify resolves only the ticket relevant to the current PR or worktree context.
+  external issue: https://github.com/ArcadeAI/safeword/issues/2083
+  → `.project/tickets/Z24K1J-keep-verification-bound-to-current-work`
 - **Make review coverage clear without false alarms (Z45MTC)** (done, epic: —)
   Let builders trust standard review coverage while presenting independent review as a quiet, actionable upgrade.
   → `.project/tickets/Z45MTC-clarify-review-coverage`

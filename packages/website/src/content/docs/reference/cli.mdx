@@ -33,6 +33,9 @@ canonical commands below.
 | `project test-execution remote setup`   | mutate      | Install the managed remote-test workflow                                                                    |
 | `project test-execution remote disable` | mutate      | Remove the managed remote-test workflow                                                                     |
 | `project lint-gherkin`                  | observe     | Validate executable feature files                                                                           |
+| `project retro-drain`                   | mutate      | Drain acknowledged retro drafts from a spool                                                                |
+| `project review-knowledge`              | observe     | Resolve the principles, personas, and surfaces sources for a review                                         |
+| `project namespace-root`                | observe     | Print the resolved project-knowledge namespace root                                                         |
 | `tracker sync`                          | mutate      | Synchronize tickets with the configured tracker                                                             |
 | `tracker connect`                       | mutate      | Connect a project to a tracker                                                                              |
 | `codex migrate`                         | destructive | Deactivate proven legacy Codex hooks after creating a recovery backup                                       |

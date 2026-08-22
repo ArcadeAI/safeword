@@ -19,7 +19,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "18ff46dd3f7acfb9d5d0868cb35c9c5f4532c361d9eac5ec5413c7f511e6def4"
+      "sha256": "607f2a74b7657dcad12cb203b304aeaef2dc352001c8f935567b9b02d91daeb8"
     },
     {
       "path": "resources/guides/architecture-guide.md",
@@ -82,6 +82,10 @@
       "sha256": "289edc9540b5ee9d8234a7f239594842f79b584c48a827a095aa78138d54c725"
     },
     {
+      "path": "resources/SAFEWORD.md",
+      "sha256": "6d9d80a428b5d868b590b51b63566a4189b9501c2a5a66800ae123f581ed8a69"
+    },
+    {
       "path": "resources/scripts/bisect-test-pollution.sh",
       "sha256": "6193af0aa49db73692680a9f471c829d803d714be21e86bbbe83f6fa7264ceec"
     },
@@ -139,11 +143,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "387a918e8a6a613109f1e35e9b0e15d937d5f21664d8ff7688d0c2ee4684337e"
+      "sha256": "1c25b159296daaab06fac4b49373e9f59fc502e1ce0cb50c729711640d181cfb"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "9538359bfae1979fb8cb9181186ff8804bb5f70e8d9bf0c277c2eb99198e5dff"
+      "sha256": "7fc0d20b2e2f1548141699d11425d0d6b5d201be1203fc9dffe388536253341a"
     },
     {
       "path": "runtime/event-groups.json",
@@ -187,7 +191,7 @@
     },
     {
       "path": "runtime/hooks/lib/blocked-on-gate.ts",
-      "sha256": "c091b4e7232104eafac0aad9de3f5b96d0534284e3c1e2d87b4707a7c5e84554"
+      "sha256": "5d7a7d08f6b4fdb4af7c645796222b01dc13c10635a116ab6fc53f672a433c1a"
     },
     {
       "path": "runtime/hooks/lib/branch-staleness.ts",
@@ -223,7 +227,7 @@
     },
     {
       "path": "runtime/hooks/lib/drain-retro-spool.ts",
-      "sha256": "2817e85ecbc68cc53c55a253a9bbd25e06ac2d1a270d77c6ae8fb7a8f667afda"
+      "sha256": "7c1b5a9946f4e358c9a81864358c97de46759def648fc0a70de2a15f6029839b"
     },
     {
       "path": "runtime/hooks/lib/feature-provenance.ts",
@@ -303,7 +307,7 @@
     },
     {
       "path": "runtime/hooks/lib/principle-trace.ts",
-      "sha256": "c9deeeb36c2a3259dbf0f53596861be841af3950868ddf8b612cb315e56088e2"
+      "sha256": "08244a3285824e3acbc9f538ea6b2d8cabd806f853b0fc30606f0a5abbda512f"
     },
     {
       "path": "runtime/hooks/lib/process-kill-guard.ts",
@@ -311,7 +315,7 @@
     },
     {
       "path": "runtime/hooks/lib/project-knowledge.ts",
-      "sha256": "3f4f5bb1afedf68ee4250f9fee0d4d090385246affa4be0ba1cb1f31ad877d66"
+      "sha256": "57c008564fe56d0540c01d78e65b65b9ac1a2ce8635359714d136de4af3c7f72"
     },
     {
       "path": "runtime/hooks/lib/quality-state.ts",
@@ -375,7 +379,7 @@
     },
     {
       "path": "runtime/hooks/lib/safeword-context.ts",
-      "sha256": "49a39a1b38af9d1025704ef1bbe0e95f4970d784f212a222863454add2b3af7f"
+      "sha256": "ed4f812e77e08061b716efaa3505e4a89cf48e4a2660b31d3e9c9166e28337fd"
     },
     {
       "path": "runtime/hooks/lib/scenario-format.ts",

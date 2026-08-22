@@ -612,6 +612,25 @@ async function testPlanHandler(invocation: CommandInvocation): Promise<CliResult
   return withLegacyRawJsonGuidance(result, invocation.options, 'project test-plan');
 }
 
+async function namespaceRootHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const { observeNamespaceRoot } = await import('../commands/namespace-root.js');
+  return observeNamespaceRoot(invocation.cwd, invocation.options);
+}
+
+async function reviewKnowledgeHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const { observeReviewKnowledge } = await import('../commands/review-knowledge.js');
+  return observeReviewKnowledge(invocation.cwd);
+}
+
+async function retroDrainHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const { runRetroDrain } = await import('../commands/retro-drain.js');
+  const spool = invocation.operands[0];
+  if (spool !== undefined && typeof spool !== 'string') {
+    return invalidOperand('project retro-drain', 'retro-drain spool must be text.');
+  }
+  return runRetroDrain(invocation.cwd, spool, invocation.options);
+}
+
 function withLegacyRawJsonGuidance(
   result: CliResult,
   options: Readonly<Record<string, unknown>>,
@@ -2136,6 +2155,9 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'project sync-tickets': syncTicketsHandler,
   'project codify': codifyHandler,
   'project test-plan': testPlanHandler,
+  'project namespace-root': namespaceRootHandler,
+  'project review-knowledge': reviewKnowledgeHandler,
+  'project retro-drain': retroDrainHandler,
   'project test': projectTestHandler,
   'project test-execution status': testExecutionStatusHandler,
   'project test-execution remote status': remoteWorkflowStatusHandler,
