@@ -78,7 +78,7 @@ without pretending the ledger drove those commits.
 
 ### Scenario: Retry ignores foreign crash residue and installs the current workflow
 
-- [ ] RED
+- [x] RED skip: unique private paths already isolate foreign residue
 - [ ] GREEN
 - [ ] REFACTOR
 
