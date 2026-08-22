@@ -80,7 +80,7 @@ without pretending the ledger drove those commits.
 
 - [x] RED skip: unique private paths already isolate foreign residue
 - [x] GREEN 02b84387b
-- [ ] REFACTOR
+- [x] REFACTOR skip: one fixed foreign path proves isolation without new helpers
 
 ## Feature-level cross-scenario refactor
 
