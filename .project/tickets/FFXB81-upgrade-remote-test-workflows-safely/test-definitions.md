@@ -49,7 +49,7 @@ without pretending the ledger drove those commits.
 ### Scenario Outline: A changed or unreadable workflow prevents historical publication
 
 - [x] RED skip: replacement publication already revalidates before rename
-- [ ] GREEN
+- [x] GREEN 95182c568
 - [ ] REFACTOR
 
 ### Scenario Outline: Setup converges when the commit-time state needs no preservation
