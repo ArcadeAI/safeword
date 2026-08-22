@@ -474,6 +474,38 @@ describe('remote workflow lifecycle', () => {
     },
   );
 
+  it.each(['current', 'absent'] as const)(
+    'converges when disable revalidates the commit-time state as %s',
+    commitState => {
+      const root = fixture();
+      const path = workflowPath(root);
+      let workflowInspections = 0;
+      let reads = 0;
+      writeWorkflow(root, releasedV1);
+
+      const filesystem = withFilesystem({
+        lstat: candidate => {
+          if (candidate === path) {
+            workflowInspections += 1;
+            if (workflowInspections === 2 && commitState === 'absent') rmSync(candidate);
+          }
+          return nodeRemoteWorkflowFs.lstat(candidate);
+        },
+        openRead: candidate => {
+          reads += 1;
+          if (reads === 2 && commitState === 'current') writeFileSync(candidate, currentWorkflow);
+          return nodeRemoteWorkflowFs.openRead(candidate);
+        },
+      });
+
+      expect(disableRemoteWorkflow(root, currentWorkflow, filesystem)).toMatchObject({
+        ok: true,
+        state: 'not_installed',
+      });
+      expect(existsSync(path)).toBe(false);
+    },
+  );
+
   it('rejects an unsafe parent that appears during EEXIST recovery', () => {
     const root = fixture();
     const github = nodePath.join(root, '.github');
