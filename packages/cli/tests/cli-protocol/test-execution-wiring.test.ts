@@ -440,6 +440,7 @@ describe('test execution CLI wiring', () => {
     const releasedFixtures = readdirSync(fixtureDirectory).filter(name =>
       /^remote-workflow-v\d+\.yml$/.test(name),
     );
+    expect(releasedFixtures.length).toBeGreaterThan(0);
 
     for (const fixtureName of releasedFixtures) {
       const directory = createTemporaryDirectory();

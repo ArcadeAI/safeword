@@ -76,6 +76,10 @@ afterEach(() => {
 });
 
 describe('remote workflow lifecycle', () => {
+  it('has at least one released predecessor fixture', () => {
+    expect(releasedWorkflows.length).toBeGreaterThan(0);
+  });
+
   it('sets up the complete workflow without changing execution preference', () => {
     const root = fixture();
 
@@ -416,6 +420,30 @@ describe('remote workflow lifecycle', () => {
       affectedPath: REMOTE_WORKFLOW_PATH,
       code: 'REMOTE_WORKFLOW_CONFLICT',
     });
+  });
+
+  it('retries when an EEXIST publication race reveals a released predecessor', () => {
+    const root = fixture();
+
+    expect(
+      setupRemoteWorkflow(
+        root,
+        currentWorkflow,
+        'remote-preferred',
+        withFilesystem({
+          link: (_privatePath, destination) => {
+            writeFileSync(destination, releasedV1, { flag: 'wx' });
+            throw failure('EEXIST');
+          },
+        }),
+      ),
+    ).toMatchObject({
+      ok: false,
+      state: 'failed',
+      code: 'REMOTE_WORKFLOW_RETRY',
+      retryable: true,
+    });
+    expect(readFileSync(workflowPath(root), 'utf8')).toBe(releasedV1);
   });
 
   it('retries a private-create EEXIST race without removing the existing entry', () => {

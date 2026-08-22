@@ -206,10 +206,13 @@ function completeSetupPublication(
     }
     if (publication.operation === 'link' && publication.code === 'EEXIST') {
       const reclassified = classifyRemoteWorkflow(root, bundled, filesystem);
-      const result =
-        reclassified.state === 'failed' || reclassified.state === 'not_installed'
-          ? retryFailure()
-          : classifiedResult(reclassified, effectiveMode);
+      if (reclassified.state === 'failed') {
+        return withPublicationResidue(retryFailure(), publication);
+      }
+      const retryableStates: RemoteWorkflowState[] = ['not_installed', 'managed_outdated'];
+      const result = retryableStates.includes(reclassified.state)
+        ? retryFailure()
+        : classifiedResult(reclassified, effectiveMode);
       return withPublicationResidue(result, publication);
     }
     return withPublicationResidue(

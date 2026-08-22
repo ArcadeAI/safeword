@@ -59,3 +59,4 @@ last_modified: 2026-08-17T02:59:47.682Z
 - 2026-08-19 Plan review assigned the line-ending fixture guard to the load-bearing integration step: tests seed explicit runtime bytes and fail before execution if CRLF was normalized away.
 - 2026-08-19 Implementation plan passed independent cross-agent review; advanced to TDD with the commit-time revalidation proof first.
 - 2026-08-21 Implementation reconciled: commit-time setup/disable revalidation, atomic publication evidence, failure/retry coverage, and the append-only release-history migration matrix are complete; focused lifecycle and contract verification passes 85 tests.
+- 2026-08-21 Quality review disposition: fixed migration-specific type, cleanup, YAML, state, final-classification, customer-message, EEXIST, and fixture-coverage findings. The pre-existing `--prepare-remote` execution-audit protocol is outside FFXB81 (remote dispatch/result handling) and was not piggybacked.
