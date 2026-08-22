@@ -1,4 +1,4 @@
-@surface.safeword-cli
+@surface.safeword-cli @proof.vitest
 Feature: Upgrade remote-test workflows safely
 
   Background:

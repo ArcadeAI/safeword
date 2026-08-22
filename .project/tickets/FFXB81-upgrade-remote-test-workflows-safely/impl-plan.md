@@ -103,10 +103,10 @@ durable ownership record and matches the proven migration model.
 
 | Principle | Consequence | Proof | Conflict |
 | --- | --- | --- | --- |
-| Optimize for the NTB without constraining the TBU | Every refusal names the affected path, what Safeword preserved, and the concrete retry or cleanup action. | packages/cli/tests/test-execution/test-execution-command.test.ts | none |
-| 1. Structure enforces; instructions suggest | Exact digest admission, append-only fixture enumeration, and commit-time revalidation make accidental ownership adoption fail closed. | packages/cli/tests/test-execution/remote-workflow-contract.test.ts | none |
-| 3. Add, never replace | Unknown or edited workflow bytes remain customer-owned under setup and disable. | packages/cli/tests/test-execution/remote-workflow-lifecycle.test.ts | none |
-| 5. Correct and safe; then clear; then simple | One classifier and one filesystem publication path serve setup, upgrade, and disable without a second migration engine. | packages/cli/tests/test-execution/remote-workflow-lifecycle.test.ts | none |
+| Optimize for the NTB without constraining the TBU | Every refusal names the affected path, what Safeword preserved, and the concrete retry or cleanup action. | packages/cli/tests/cli-protocol/test-execution-wiring.test.ts | |
+| 1. Structure enforces; instructions suggest | Exact digest admission, append-only fixture enumeration, and commit-time revalidation make accidental ownership adoption fail closed. | packages/cli/tests/test-execution/remote-workflow-contract.test.ts | |
+| 3. Add, never replace | Unknown or edited workflow bytes remain customer-owned under setup and disable. | packages/cli/tests/test-execution/remote-workflow-lifecycle.test.ts | |
+| 5. Correct and safe; then clear; then simple | One classifier and one filesystem publication path serve setup, upgrade, and disable without a second migration engine. | packages/cli/tests/test-execution/remote-workflow-lifecycle.test.ts | |
 
 Architecture decisions honored: reconciliation preserves customer-owned files;
 typed CLI commands report explicit effects. No new ADR is warranted because the
