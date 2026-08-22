@@ -182,7 +182,7 @@ Given(
 );
 
 Given(
-  /^the project default is remote-preferred, this worktree's `personal\/config\.json` contains the exact minimal schema selecting (local|remote-preferred), remote availability is (not installed), and the real test plan exits (\d+)$/u,
+  /^the project default is remote-preferred, this worktree's `\.safeword\/config\.local\.json` contains the exact minimal config selecting (local|remote-preferred), remote availability is (not installed), and the real test plan exits (\d+)$/u,
   function (
     this: TestExecutionWorld,
     mode: 'local' | 'remote-preferred',
@@ -365,8 +365,8 @@ Then(
     };
     assert.equal(first.data.effective.mode, 'local');
     assert.equal(second.data.effective.mode, 'remote-preferred');
-    assert.match(this.result.stdout, /\.project\/personal\/config\.json/u);
-    assert.match(this.secondResult.stdout, /\.project\/personal\/config\.json/u);
+    assert.match(this.result.stdout, /\.safeword\/config\.local\.json/u);
+    assert.match(this.secondResult.stdout, /\.safeword\/config\.local\.json/u);
     assert.equal(snapshotFilesystem(project(this)), this.filesystemSnapshot);
     assert.equal(snapshotFilesystem(this.secondDirectory), this.secondFilesystemSnapshot);
   },
@@ -377,7 +377,7 @@ Then(
   function (this: TestExecutionWorld) {
     assert.equal(this.result.exitCode, 1);
     assert.match(this.result.stdout, /SAFEWORD_TEST_EXECUTION_INVALID/u);
-    assert.match(this.result.stdout, /personal.*config\.json/u);
+    assert.match(this.result.stdout, /personal.*config\.local\.json/iu);
     assert.doesNotMatch(this.result.stdout, /"executed":1/u);
     assert.equal(snapshotFilesystem(project(this)), this.filesystemSnapshot);
   },
@@ -399,7 +399,7 @@ Then(
       ['command', 'personal', 'project', 'built-in'],
     );
     assert.match(this.result.stdout, /not applicable/u);
-    assert.match(this.result.stdout, /\.project\/personal\/config\.json/u);
+    assert.match(this.result.stdout, /\.safeword\/config\.local\.json/u);
     assert.match(this.result.stdout, /\.safeword\/config\.json/u);
   },
 );
