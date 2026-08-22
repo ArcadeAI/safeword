@@ -506,6 +506,39 @@ describe('remote workflow lifecycle', () => {
     },
   );
 
+  it.each([
+    ['customer bytes', 'name: concurrent customer\n'],
+    ['read failure', releasedV1],
+  ])('does not publish over commit-time %s', (change, expectedBytes) => {
+    const root = fixture();
+    const path = workflowPath(root);
+    const privatePath = nodePath.join(nodePath.dirname(path), '.safeword-attempt');
+    let reads = 0;
+    writeWorkflow(root, releasedV1);
+
+    const filesystem = withFilesystem({
+      privatePath: () => privatePath,
+      openRead: candidate => {
+        reads += 1;
+        if (reads === 2) {
+          if (change === 'read failure') throw failure('EIO');
+          writeFileSync(candidate, expectedBytes);
+        }
+        return nodeRemoteWorkflowFs.openRead(candidate);
+      },
+    });
+
+    expect(
+      setupRemoteWorkflow(root, currentWorkflow, 'remote-preferred', filesystem),
+    ).toMatchObject({
+      ok: false,
+      changed: false,
+      code: 'REMOTE_WORKFLOW_CONFLICT',
+    });
+    expect(readFileSync(path, 'utf8')).toBe(expectedBytes);
+    expect(existsSync(privatePath)).toBe(false);
+  });
+
   it('rejects an unsafe parent that appears during EEXIST recovery', () => {
     const root = fixture();
     const github = nodePath.join(root, '.github');
