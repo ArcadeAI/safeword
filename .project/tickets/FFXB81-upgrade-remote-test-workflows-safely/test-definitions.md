@@ -54,7 +54,7 @@ without pretending the ledger drove those commits.
 
 ### Scenario Outline: Setup converges when the commit-time state needs no preservation
 
-- [ ] RED
+- [x] RED 75a1a349b
 - [ ] GREEN
 - [ ] REFACTOR
 
