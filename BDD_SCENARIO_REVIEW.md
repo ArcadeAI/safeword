@@ -2,7 +2,7 @@
 
 **Status:** Structural and lineage review complete; per-scenario semantic review in progress.
 
-## Current review checkpoint — 2026-08-15
+## Current review checkpoint — 2026-08-22
 
 `main` was re-merged at `fca5a6ab5`. Its stronger review-record integrity
 validation required the controlled-deadline fixture to sign its deliberate
@@ -19,6 +19,50 @@ prove changes-requested verdict fidelity on inline and collected paths, while
 observable-review checks use positive controls for reviewer environment,
 lifecycle cancellation, and Cursor surface inspection. Re-review remains
 pending; this is not represented as approval.
+
+The 11-scenario `reliable-observable-quality-reviews` packet has now received
+its direct scenario-by-scenario pass. Its independent gate found one must-fix
+vacuity: the Claude and Codex workflow catalogues could have been empty while
+the scenario passed. It also exposed a proof mismatch where the progress-sink
+scenario claimed terminal-result preservation without exercising a terminal
+result. The repaired contract requires non-empty catalogues, limits the sink
+scenario to its actual best-effort/retry behavior, names the assigned reviewer
+and negative partition, makes wrapper synchronization and compatibility
+observable, and advances the cancellation scheduler after completion. Gherkin
+lint and all 130 mapped tests pass. Independent re-review
+`a8216225-cf79-466b-b112-dbc966dfb34b` then found one remaining vacuity: the
+scenario did not say the controlled scheduler advances past the canceled due
+points. That trigger is now explicit. The progress-write outline also fixes
+the attempt count and outcomes, and its Rule is narrowed to the writer-level
+guarantee actually proved. A final independent re-review is still required, so
+the packet is not yet approved.
+
+A subsequent gate, `3f76c32d-fb80-4bd8-8f70-372c11fd9c25`, found two more
+must-fix semantic defects: the allowlist scenario was governed by an unrelated
+write-only Rule, and a constant `Codex` progress label could satisfy the sole
+identity case. SWM1.R1 now states the shared isolation guarantee for
+Safeword-owned progress failures and signals. The real managed-review proof now
+runs both Codex and Claude assignments and rejects the opposite identity. All
+131 mapped tests pass; approval still awaits a clean independent re-review.
+
+The next attempt degraded to Codex self-review after both Claude routes failed,
+so it is not approval evidence. Its finding was nevertheless sound: “each
+terminal outcome” exceeded the two supported verdict partitions actually under
+test. The Rule and outline now say “reviewer verdict outcome,” keeping failure,
+timeout, and malformed-output behavior in their owning contracts rather than
+expanding this packet.
+
+A second degraded attempt identified residual ambiguity in “required-workflow
+catalogue”: it could be read as non-empty but unrelated to independent review.
+The precondition now requires non-empty catalogues specifically of workflows
+required to launch independent reviews, matching the explicitly non-empty
+`requiredReviewFiles` sets in executable proof.
+
+The final gate attempt found no remaining must-fix defect and returned approved,
+but both Claude models exited and the coordinator fell back to Codex. Because
+that is a self-review, its independence is degraded and it is not recorded as
+cross-agent approval. The packet is locally complete and verified; independent
+reviewer availability is the remaining blocker.
 
 ## Scope and method
 
@@ -77,13 +121,13 @@ were added or materially changed since the prior ledger snapshot; their 171
 scenarios are in the refreshed review queue. This overlaps the 0.77 queue where
 an existing source changed again.
 
-| Changed or new feature source                                       | Scenarios | Delivery state          | Semantic status          |
-| ------------------------------------------------------------------- | --------: | ----------------------- | ------------------------ |
-| `features/automatic-claude-migration.feature`                       |        31 | Active                  | Pending refreshed review |
-| `features/close-completed-sessions-safely.feature`                  |        48 | Active                  | Pending refreshed review |
-| `features/closeout-preview-apply-convergence.feature`               |        27 | Active; `@proof.vitest` | Pending refreshed review |
-| `features/resume-closeout-after-upgrade.feature`                    |        54 | Active; `@proof.vitest` | Pending review           |
-| `packages/cli/features/reliable-observable-quality-reviews.feature` |        11 | Active; `@proof.vitest` | Pending review           |
+| Changed or new feature source                                       | Scenarios | Delivery state          | Semantic status                                       |
+| ------------------------------------------------------------------- | --------: | ----------------------- | ----------------------------------------------------- |
+| `features/automatic-claude-migration.feature`                       |        31 | Active                  | Pending refreshed review                              |
+| `features/close-completed-sessions-safely.feature`                  |        48 | Active                  | Pending refreshed review                              |
+| `features/closeout-preview-apply-convergence.feature`               |        27 | Active; `@proof.vitest` | Pending refreshed review                              |
+| `features/resume-closeout-after-upgrade.feature`                    |        54 | Active; `@proof.vitest` | Pending review                                        |
+| `packages/cli/features/reliable-observable-quality-reviews.feature` |        11 | Active; `@proof.vitest` | Direct review repaired; independent re-review pending |
 
 ## Evidence
 
@@ -245,6 +289,18 @@ The offload refresh has completed its structural pass: each of the sixteen files
 Direct semantic review of `offload-tests-workflow-security` found no scenario-gate defect. Its 23 scenarios cover redirect handling, durable pending publication and retry, token entropy, hostile filesystem objects, least-privilege workflow identity, credential-channel exclusion, and immutable workflow dependencies. The two `@proof.pending-vitest` rows correctly identify harness-completeness proofs that must exist before delivery rather than claiming current executable coverage.
 
 Direct semantic review of `offload-tests-trusted-workflow-evidence` found no scenario-gate defect. Its nine scenarios distinguish preflight fallback from post-acceptance integrity failure, reject byte normalizations and configuration redefinition, preserve frozen authority across mutable default-branch metadata, and prove that neither direct authorization nor a substituted workflow exposes Safeword credentials.
+
+Direct semantic review of `reliable-observable-quality-reviews` found and
+repaired a vacuous required-surface inventory and a scenario-to-proof mismatch
+in progress-write failure handling. The remaining scenarios were checked
+against their named proof: terminal outcomes cover both approval and requested
+changes; quiet and direct JSON paths prove silence through a real heartbeat;
+the private signal has exact-value rejection partitions; reviewer environment
+and wrapper scoping have positive and negative observations; older-CLI
+compatibility covers both terminal statuses; and lifecycle cancellation now
+advances the controlled scheduler past both canceled due points. The mapped
+proof now passes 131 tests across four files, including both assigned-reviewer
+routes. Independent re-review remains pending.
 
 ### Looks good
 

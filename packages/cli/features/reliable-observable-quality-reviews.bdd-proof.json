@@ -1,10 +1,10 @@
 {
   "feature": "packages/cli/features/reliable-observable-quality-reviews.feature",
   "scenarios": {
-    "Managed progress preserves each terminal review outcome": [
+    "Managed progress preserves each reviewer verdict outcome": [
       [
         "packages/cli/tests/cli-protocol/review-wiring.test.ts",
-        "keeps managed machine output typed while identifying the active reviewer"
+        "keeps managed machine output typed while identifying the active $reviewer reviewer"
       ],
       [
         "packages/cli/tests/cli-protocol/review-wiring.test.ts",
@@ -13,7 +13,7 @@
     ],
     "Active route progress identifies the assigned reviewer": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
-      "keeps managed machine output typed while identifying the active reviewer"
+      "keeps managed machine output typed while identifying the active $reviewer reviewer"
     ],
     "Completion cancels pending lifecycle output": [
       "packages/cli/tests/cli-protocol/policy.test.ts",
@@ -35,7 +35,7 @@
       "packages/cli/tests/cli-protocol/policy.test.ts",
       "keeps human progress unchanged while consuming the private signal"
     ],
-    "Progress write failures preserve the terminal review result and remain retryable": [
+    "Progress write failures remain best-effort and retryable": [
       [
         "packages/cli/tests/cli-protocol/policy.test.ts",
         "keeps descriptor write failures best-effort and retries later writes: $error at write $failureIndex"

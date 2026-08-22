@@ -144,12 +144,15 @@ async function runManagedJsonReview(
   options: {
     readonly managed?: boolean;
     readonly quiet?: boolean;
+    readonly reviewer?: ReviewAgent;
     readonly verdict?: 'approve' | 'request_changes';
   } = {},
 ) {
   writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
   const log = nodePath.join(directory, 'review.log');
-  const bin = installFakeReviewer(directory, 'codex');
+  const reviewer = options.reviewer ?? 'codex';
+  const author = reviewer === 'codex' ? 'claude' : 'codex';
+  const bin = installFakeReviewer(directory, reviewer);
   const verdictEnvironment: Record<string, string> =
     options.verdict === 'request_changes'
       ? {
@@ -174,9 +177,9 @@ async function runManagedJsonReview(
       cwd: directory,
       env: {
         PATH: `${bin}:/usr/bin:/bin`,
-        SAFEWORD_AGENT_RUNTIME: 'claude',
+        SAFEWORD_AGENT_RUNTIME: author,
         SAFEWORD_PROGRESS_HEARTBEAT_MS: '150',
-        SAFEWORD_REVIEW_FAKE_DELAY_AGENT: 'codex',
+        SAFEWORD_REVIEW_FAKE_DELAY_AGENT: reviewer,
         SAFEWORD_REVIEW_LOG: log,
         ...(options.managed !== false && { SAFEWORD_REVIEW_PROGRESS: '1' }),
         SAFEWORD_NO_UPDATE_CHECK: '1',
@@ -1726,19 +1729,28 @@ describe('cross-agent review public-command wiring', () => {
     expect(result.stderr).not.toContain('Still waiting for the independent review…');
   });
 
-  it('keeps managed machine output typed while identifying the active reviewer', async () => {
-    const directory = createTemporaryDirectory();
-    const result = await runManagedJsonReview(directory);
+  it.each([
+    { reviewer: 'codex' as const, other: 'Claude' },
+    { reviewer: 'claude' as const, other: 'Codex' },
+  ])(
+    'keeps managed machine output typed while identifying the active $reviewer reviewer',
+    async ({ reviewer, other }) => {
+      const directory = createTemporaryDirectory();
+      const result = await runManagedJsonReview(directory, { reviewer });
+      const label = reviewer === 'codex' ? 'Codex' : 'Claude';
 
-    expect(result.exitCode, result.stdout).toBe(0);
-    expect(JSON.parse(result.stdout)).toMatchObject({
-      schema_version: 1,
-      state: 'healthy',
-      data: { actual_reviewer: 'codex', reviewer_output: { verdict: 'approve' } },
-    });
-    expect(result.stderr).toContain('Requesting an independent Codex review…');
-    expect(result.stderr).toContain('Still waiting for a response from Codex…');
-  });
+      expect(result.exitCode, result.stdout).toBe(0);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        schema_version: 1,
+        state: 'healthy',
+        data: { actual_reviewer: reviewer, reviewer_output: { verdict: 'approve' } },
+      });
+      expect(result.stderr).toContain(`Requesting an independent ${label} review…`);
+      expect(result.stderr).toContain(`Still waiting for a response from ${label}…`);
+      expect(result.stderr).not.toContain(`independent ${other} review`);
+      expect(result.stderr).not.toContain(`response from ${other}`);
+    },
+  );
 
   it('carries managed progress through the wrapper, real CLI, and real coordinator', () => {
     const directory = createTemporaryDirectory();
