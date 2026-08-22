@@ -8,6 +8,8 @@ phase_skips:
 phase_anchors:
   - define-behavior: .project/tickets/FFXB81-upgrade-remote-test-workflows-safely/spec.md
   - scenario-gate: packages/cli/features/upgrade-remote-test-workflows-safely.feature
+  - plan-implementation: .project/tickets/FFXB81-upgrade-remote-test-workflows-safely/impl-plan.md
+  - implement: .project/tickets/FFXB81-upgrade-remote-test-workflows-safely/test-definitions.md
 status: in_progress
 scope:
   - Recognize every previously released remote-test workflow identity
@@ -56,3 +58,4 @@ last_modified: 2026-08-17T02:59:47.682Z
 - 2026-08-19 Scenario gate passed independently with 12 scenario titles and 19 example instances; no blocking findings remain.
 - 2026-08-19 Plan review assigned the line-ending fixture guard to the load-bearing integration step: tests seed explicit runtime bytes and fail before execution if CRLF was normalized away.
 - 2026-08-19 Implementation plan passed independent cross-agent review; advanced to TDD with the commit-time revalidation proof first.
+- 2026-08-21 Implementation reconciled: commit-time setup/disable revalidation, atomic publication evidence, failure/retry coverage, and the append-only release-history migration matrix are complete; focused lifecycle and contract verification passes 85 tests.

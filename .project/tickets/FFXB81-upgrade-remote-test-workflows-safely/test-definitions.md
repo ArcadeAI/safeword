@@ -84,7 +84,7 @@ without pretending the ledger drove those commits.
 
 ## Feature-level cross-scenario refactor
 
-- [ ] cross-scenario
+- [x] cross-scenario 0bc38d5e4
 
 Historical implementation commits a74ac28fd, 648544cd3, 697106b27, 62082bf1f,
 67eb3ff8f, and 1bd51c9c6 remain useful provenance, but the current scenarios are

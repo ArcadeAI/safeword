@@ -1,6 +1,6 @@
 # Impl Plan: Upgrade remote-test workflows safely
 
-**Status:** planned
+**Status:** implemented
 **Planned on:** 2026-08-18
 
 ## Approach
