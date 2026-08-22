@@ -634,6 +634,41 @@ describe('remote workflow lifecycle', () => {
     expect(existsSync(privatePath)).toBe(false);
   });
 
+  it('publishes a complete private replacement only through rename', () => {
+    const root = fixture();
+    const path = workflowPath(root);
+    const privatePath = nodePath.join(nodePath.dirname(path), '.safeword-attempt');
+    const privateOpens: string[] = [];
+    const renames: [string, string][] = [];
+    writeWorkflow(root, releasedV1);
+
+    expect(
+      setupRemoteWorkflow(
+        root,
+        currentWorkflow,
+        'remote-preferred',
+        withFilesystem({
+          privatePath: () => privatePath,
+          openPrivate: candidate => {
+            privateOpens.push(candidate);
+            return nodeRemoteWorkflowFs.openPrivate(candidate);
+          },
+          rename: (source, destination) => {
+            expect(readFileSync(path, 'utf8')).toBe(releasedV1);
+            expect(readFileSync(source, 'utf8')).toBe(currentWorkflow);
+            renames.push([source, destination]);
+            nodeRemoteWorkflowFs.rename(source, destination);
+          },
+        }),
+      ),
+    ).toMatchObject({ ok: true, changed: true, state: 'current' });
+
+    expect(privateOpens).toEqual([privatePath]);
+    expect(privateOpens).not.toContain(path);
+    expect(renames).toEqual([[privatePath, path]]);
+    expect(readFileSync(path, 'utf8')).toBe(currentWorkflow);
+  });
+
   it('rejects an unsafe parent that appears during EEXIST recovery', () => {
     const root = fixture();
     const github = nodePath.join(root, '.github');
