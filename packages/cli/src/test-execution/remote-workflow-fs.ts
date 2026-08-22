@@ -150,15 +150,18 @@ function cleanupPrivateFile(privatePath: string, filesystem: RemoteWorkflowFs): 
   }
 }
 
-type PublicationFailure = {
-  readonly operation: 'create' | 'write' | 'sync' | 'close' | 'link';
+type PrivateFileFailure = {
+  readonly operation: 'create' | 'write' | 'sync' | 'close';
   readonly code: string;
 };
+
+type PublicationFailure =
+  PrivateFileFailure | { readonly operation: 'link'; readonly code: string };
 
 function closePrivateFile(
   descriptor: number,
   filesystem: RemoteWorkflowFs,
-): PublicationFailure | undefined {
+): PrivateFileFailure | undefined {
   try {
     filesystem.close(descriptor);
     return undefined;
@@ -197,7 +200,7 @@ export function publishExclusiveFile(
   }
   const descriptor = preparation.descriptor;
 
-  const preparationFailure: PublicationFailure | undefined = preparation.ready
+  const preparationFailure: PrivateFileFailure | undefined = preparation.ready
     ? undefined
     : { operation: preparation.operation, code: preparation.code };
   const closeFailure = closePrivateFile(descriptor, filesystem);
@@ -253,21 +256,22 @@ export function publishReplacementFile(
       code: preparation.code,
     };
   }
-  const preparationFailure: PublicationFailure | undefined = preparation.ready
+  const preparationFailure: PrivateFileFailure | undefined = preparation.ready
     ? undefined
     : { operation: preparation.operation, code: preparation.code };
   const closeFailure = closePrivateFile(preparation.descriptor, filesystem);
   let failure: ReplacementPublicationResult | undefined;
-  if (preparationFailure !== undefined || closeFailure !== undefined) {
-    failure = {
-      replaced: false,
-      privatePath,
-      ...(preparationFailure ?? closeFailure ?? { operation: 'close', code: 'UNKNOWN' }),
-    };
-  } else {
+  const privateFileFailure = preparationFailure ?? closeFailure;
+  if (privateFileFailure === undefined) {
     const replacement = replacePreparedFile(privatePath, destination, canReplace, filesystem);
     if (replacement.replaced) return replacement;
     failure = replacement;
+  } else {
+    failure = {
+      replaced: false,
+      privatePath,
+      ...privateFileFailure,
+    };
   }
   const cleanupCode = cleanupPrivateFile(privatePath, filesystem);
   return cleanupCode === undefined ? failure : { ...failure, cleanupCode };

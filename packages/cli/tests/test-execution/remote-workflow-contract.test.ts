@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 import { SAFEWORD_SCHEMA } from '../../src/schema';
 import { evaluateRemoteTestWorkflow } from '../../src/test-execution/remote-workflow-contract';
-import { REMOTE_WORKFLOW_RELEASE_HISTORY } from '../../src/test-execution/remote-workflow-state';
+import { REMOTE_WORKFLOW_RELEASE_MANIFEST } from '../../src/test-execution/remote-workflow-state';
 
 const workflowPath = nodePath.join(process.cwd(), 'templates', 'workflows', 'remote-tests.yml');
 const workflow = readFileSync(workflowPath, 'utf8');
@@ -48,19 +48,35 @@ describe('remote workflow contract', () => {
       ),
     }));
 
-    expect(REMOTE_WORKFLOW_RELEASE_HISTORY).toEqual([
+    expect(REMOTE_WORKFLOW_RELEASE_MANIFEST).toEqual([
       {
         version: 1,
         normalizedSha256: 'ee9b263ac749f74cfa4423f4a8930f03a357e2d823c4ac271517e81c98fecd27',
       },
+      {
+        version: 2,
+        normalizedSha256: 'f5898559f4d57c39a7887e7061d50ebaa2cbaf86159d7c93555a6c32c6d909d9',
+      },
     ]);
-    expect(fixtureHistory).toEqual(REMOTE_WORKFLOW_RELEASE_HISTORY);
+    expect(fixtureHistory).toEqual(REMOTE_WORKFLOW_RELEASE_MANIFEST.slice(0, -1));
+    expect(normalizedSha256(workflow)).toBe(
+      REMOTE_WORKFLOW_RELEASE_MANIFEST.at(-1)?.normalizedSha256,
+    );
   });
 
   it('accepts ordinary CRLF checkout conversion', () => {
     expect(evaluateRemoteTestWorkflow(workflow.replaceAll('\n', '\r\n'))).toEqual({
       accepted: true,
       violations: [],
+    });
+  });
+
+  it('returns invalid YAML when materialization rejects excessive aliases', () => {
+    const aliases = Array.from({ length: 101 }, () => '*value').join(', ');
+
+    expect(evaluateRemoteTestWorkflow(`value: &value [safe]\naliases: [${aliases}]\n`)).toEqual({
+      accepted: false,
+      violations: ['invalid_yaml'],
     });
   });
 

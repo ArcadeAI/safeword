@@ -164,9 +164,11 @@ function completeSetupUpgrade(
   }
   if (publication.operation === 'check') {
     const observation = classifyRemoteWorkflow(root, bundled, filesystem);
-    return observation.state === 'failed'
-      ? retryFailure()
-      : classifiedResult(observation, effectiveMode);
+    const result =
+      observation.state === 'failed'
+        ? retryFailure()
+        : classifiedResult(observation, effectiveMode);
+    return withPublicationResidue(result, publication);
   }
   return withPublicationResidue(
     publicationFailure(publication.operation, publication.code, REMOTE_WORKFLOW_PATH),
@@ -283,7 +285,7 @@ export function disableRemoteWorkflow(
     return {
       ok: false,
       changed: false,
-      state: 'current',
+      state: revalidated.state,
       affectedPath: REMOTE_WORKFLOW_PATH,
       nextAction: 'repair_path_and_repeat',
       code: 'REMOTE_WORKFLOW_REMOVAL_FAILED',

@@ -18,17 +18,22 @@ export type RemoteWorkflowAction =
   | 'move_aside_and_repeat'
   | 'repair_path_and_repeat';
 
-// Append the next released predecessor before changing the bundled workflow.
-// Never infer ownership from markers or runtime config.
-export const REMOTE_WORKFLOW_RELEASE_HISTORY = [
+// Before changing the bundled workflow, freeze the former current bytes as the
+// next numbered fixture and append the successor here. Never infer ownership
+// from markers or runtime config.
+export const REMOTE_WORKFLOW_RELEASE_MANIFEST = [
   {
     version: 1,
     normalizedSha256: 'ee9b263ac749f74cfa4423f4a8930f03a357e2d823c4ac271517e81c98fecd27',
   },
+  {
+    version: 2,
+    normalizedSha256: 'f5898559f4d57c39a7887e7061d50ebaa2cbaf86159d7c93555a6c32c6d909d9',
+  },
 ] as const;
 
-const HISTORICAL_MANAGED_DIGESTS = new Set(
-  REMOTE_WORKFLOW_RELEASE_HISTORY.map(release => release.normalizedSha256),
+const HISTORICAL_MANAGED_DIGESTS = new Set<string>(
+  REMOTE_WORKFLOW_RELEASE_MANIFEST.slice(0, -1).map(release => release.normalizedSha256),
 );
 
 export interface RemoteWorkflowClassification {

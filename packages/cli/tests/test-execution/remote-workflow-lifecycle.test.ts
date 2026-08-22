@@ -575,6 +575,42 @@ describe('remote workflow lifecycle', () => {
     expect(existsSync(privatePath)).toBe(false);
   });
 
+  it('reports residue when commit-time rejection cannot remove its private file', () => {
+    const root = fixture();
+    const path = workflowPath(root);
+    const privatePath = nodePath.join(nodePath.dirname(path), '.safeword-attempt');
+    const customer = 'name: concurrent customer\n';
+    let reads = 0;
+    writeWorkflow(root, releasedV1);
+
+    const result = setupRemoteWorkflow(
+      root,
+      currentWorkflow,
+      'remote-preferred',
+      withFilesystem({
+        privatePath: () => privatePath,
+        openRead: candidate => {
+          reads += 1;
+          if (reads === 2) writeFileSync(candidate, customer);
+          return nodeRemoteWorkflowFs.openRead(candidate);
+        },
+        unlink: candidate => {
+          if (candidate === privatePath) throw failure('EACCES');
+          nodeRemoteWorkflowFs.unlink(candidate);
+        },
+      }),
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      state: 'customer_owned',
+      warningCode: 'REMOTE_WORKFLOW_RESIDUE',
+      residuePath: privatePath,
+    });
+    expect(readFileSync(path, 'utf8')).toBe(customer);
+    expect(existsSync(privatePath)).toBe(true);
+  });
+
   it.each(['current', 'absent'] as const)(
     'converges when setup revalidates the commit-time state as %s',
     commitState => {
@@ -846,5 +882,27 @@ describe('remote workflow lifecycle', () => {
     } else {
       expect(existsSync(workflowPath(root))).toBe(false);
     }
+  });
+
+  it('retains the historical state when removing a predecessor fails', () => {
+    const root = fixture();
+    writeWorkflow(root, releasedV1);
+
+    expect(
+      disableRemoteWorkflow(
+        root,
+        currentWorkflow,
+        withFilesystem({
+          unlink: () => {
+            throw failure('EACCES');
+          },
+        }),
+      ),
+    ).toMatchObject({
+      ok: false,
+      state: 'managed_outdated',
+      code: 'REMOTE_WORKFLOW_REMOVAL_FAILED',
+    });
+    expect(readFileSync(workflowPath(root), 'utf8')).toBe(releasedV1);
   });
 });

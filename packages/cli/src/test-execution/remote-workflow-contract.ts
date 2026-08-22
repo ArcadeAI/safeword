@@ -24,6 +24,7 @@ const VERIFY_COMMAND =
   'observed_sha="$(git rev-parse HEAD)"\n' +
   'echo "observed_sha=$observed_sha" >> "$GITHUB_OUTPUT"\n' +
   '[[ "$observed_sha" == "$TARGET_SHA" ]]\n';
+// Recompute with SHA-256 over the exact report step `run` string in remote-tests.yml.
 const REPORT_COMMAND_SHA256 = 'b1cba179d7c3921553cb748e1c1759e2711f7aeef977317ec71515c6bd3608c9';
 
 function mapping(value: unknown): Mapping | undefined {
@@ -259,8 +260,13 @@ function secretViolations(workflow: Mapping): string[] {
 }
 
 export function evaluateRemoteTestWorkflow(source: string): RemoteWorkflowContractResult {
-  const document = parseDocument(source, { uniqueKeys: true });
-  const workflow = document.errors.length === 0 ? mapping(document.toJS()) : undefined;
+  let workflow: Mapping | undefined;
+  try {
+    const document = parseDocument(source, { uniqueKeys: true });
+    workflow = document.errors.length === 0 ? mapping(document.toJS()) : undefined;
+  } catch {
+    workflow = undefined;
+  }
   if (!workflow) return { accepted: false, violations: ['invalid_yaml'] };
 
   const job = jobViolations(workflow);
