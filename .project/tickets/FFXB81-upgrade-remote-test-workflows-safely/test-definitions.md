@@ -56,7 +56,7 @@ without pretending the ledger drove those commits.
 
 - [x] RED 75a1a349b
 - [x] GREEN 85be61eac
-- [ ] REFACTOR
+- [x] REFACTOR skip: one broadened commit predicate expresses the required convergence
 
 ### Scenario: Failed private-file preparation preserves the released predecessor
 
