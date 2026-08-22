@@ -60,7 +60,7 @@ without pretending the ledger drove those commits.
 
 ### Scenario: Failed private-file preparation preserves the released predecessor
 
-- [ ] RED
+- [x] RED skip: private preparation failure handling predates this scenario
 - [ ] GREEN
 - [ ] REFACTOR
 
