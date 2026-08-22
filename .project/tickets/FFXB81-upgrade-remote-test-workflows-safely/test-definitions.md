@@ -74,7 +74,7 @@ without pretending the ledger drove those commits.
 
 - [x] RED skip: private-file rename publication predates this scenario
 - [x] GREEN 688c1af66
-- [ ] REFACTOR
+- [x] REFACTOR skip: adapter observation is direct and adds no production seam
 
 ### Scenario: Retry ignores foreign crash residue and installs the current workflow
 
