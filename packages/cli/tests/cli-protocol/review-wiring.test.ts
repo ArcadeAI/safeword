@@ -109,6 +109,7 @@ env_log=$(printenv SAFEWORD_REVIEW_ENV_LOG || true)
 if [ -n "$env_log" ]; then
   if printenv ANTHROPIC_API_KEY >/dev/null 2>&1; then printf 'anthropic=present\n' >> "$env_log"; else printf 'anthropic=absent\n' >> "$env_log"; fi
   if printenv OPENAI_API_KEY >/dev/null 2>&1; then printf 'openai=present\n' >> "$env_log"; else printf 'openai=absent\n' >> "$env_log"; fi
+  if printenv SAFEWORD_REVIEW_PROGRESS >/dev/null 2>&1; then printf 'progress=present\n' >> "$env_log"; else printf 'progress=absent\n' >> "$env_log"; fi
 fi
 if [ "$identity" = "missing" ]; then
   printf '{"schema_version":1,"dispatch_id":"%s","verdict":"%s","summary":"%s","findings":[]}\n' "$dispatch_id" "$verdict" "$summary"
@@ -142,6 +143,7 @@ function installIncompatibleReviewer(directory: string, agent: ReviewAgent, log:
 async function runManagedJsonReview(
   directory: string,
   options: {
+    readonly environmentLog?: string;
     readonly managed?: boolean;
     readonly quiet?: boolean;
     readonly reviewer?: ReviewAgent;
@@ -180,6 +182,9 @@ async function runManagedJsonReview(
         SAFEWORD_AGENT_RUNTIME: author,
         SAFEWORD_PROGRESS_HEARTBEAT_MS: '150',
         SAFEWORD_REVIEW_FAKE_DELAY_AGENT: reviewer,
+        ...(options.environmentLog !== undefined && {
+          SAFEWORD_REVIEW_ENV_LOG: options.environmentLog,
+        }),
         SAFEWORD_REVIEW_LOG: log,
         ...(options.managed !== false && { SAFEWORD_REVIEW_PROGRESS: '1' }),
         SAFEWORD_NO_UPDATE_CHECK: '1',
@@ -379,7 +384,7 @@ describe('cross-agent review public-command wiring', () => {
         {
           cwd: directory,
           env: {
-            PATH: `${bin}:${process.env.PATH ?? ''}`,
+            PATH: `${bin}:/usr/bin:/bin`,
             SAFEWORD_AGENT_RUNTIME: author,
             SAFEWORD_REVIEW_LOG: log,
             SAFEWORD_NO_UPDATE_CHECK: '1',
@@ -561,7 +566,7 @@ describe('cross-agent review public-command wiring', () => {
       {
         cwd: directory,
         env: {
-          PATH: `${bin}:${process.env.PATH ?? ''}`,
+          PATH: `${bin}:/usr/bin:/bin`,
           SAFEWORD_AGENT_RUNTIME: 'codex',
           SAFEWORD_REVIEW_LOG: log,
           SAFEWORD_NO_UPDATE_CHECK: '1',
@@ -823,7 +828,7 @@ describe('cross-agent review public-command wiring', () => {
         {
           cwd: directory,
           env: {
-            PATH: `${bin}:${process.env.PATH ?? ''}`,
+            PATH: `${bin}:/usr/bin:/bin`,
             SAFEWORD_AGENT_RUNTIME: 'claude',
             SAFEWORD_REVIEW_FAKE_MUTATE: '1',
             SAFEWORD_REVIEW_LOG: log,
@@ -870,7 +875,7 @@ describe('cross-agent review public-command wiring', () => {
         {
           cwd: directory,
           env: {
-            PATH: `${bin}:${process.env.PATH ?? ''}`,
+            PATH: `${bin}:/usr/bin:/bin`,
             SAFEWORD_AGENT_RUNTIME: 'claude',
             SAFEWORD_REVIEW_FAKE_SOURCE_MUTATE_TARGET: target,
             SAFEWORD_REVIEW_LOG: log,
@@ -994,7 +999,7 @@ describe('cross-agent review public-command wiring', () => {
       {
         cwd: directory,
         env: {
-          PATH: `${bin}:${process.env.PATH ?? ''}`,
+          PATH: `${bin}:/usr/bin:/bin`,
           ANTHROPIC_API_KEY: authorSecret,
           OPENAI_API_KEY: reviewerSecret,
           SAFEWORD_AGENT_RUNTIME: 'claude',
@@ -1008,7 +1013,9 @@ describe('cross-agent review public-command wiring', () => {
 
     expect(result.exitCode, result.stdout).toBe(0);
     expect(readFileSync(probeEnvironmentLog, 'utf8')).toBe('anthropic=absent\nopenai=absent\n');
-    expect(readFileSync(environmentLog, 'utf8')).toBe('anthropic=absent\nopenai=present\n');
+    expect(readFileSync(environmentLog, 'utf8')).toBe(
+      'anthropic=absent\nopenai=present\nprogress=absent\n',
+    );
     expect(result.stdout).not.toContain(authorSecret);
     expect(result.stdout).not.toContain(reviewerSecret);
   });
@@ -1048,7 +1055,9 @@ describe('cross-agent review public-command wiring', () => {
     );
 
     expect(result.exitCode, result.stdout).toBe(0);
-    expect(readFileSync(environmentLog, 'utf8')).toBe('anthropic=present\nopenai=absent\n');
+    expect(readFileSync(environmentLog, 'utf8')).toBe(
+      'anthropic=present\nopenai=absent\nprogress=absent\n',
+    );
     expect(result.stdout).not.toContain(authorSecret);
     expect(result.stdout).not.toContain(reviewerSecret);
   });
@@ -1752,10 +1761,21 @@ describe('cross-agent review public-command wiring', () => {
     },
   );
 
+  it('keeps the managed-progress signal out of the spawned reviewer environment', async () => {
+    const directory = createTemporaryDirectory();
+    const environmentLog = nodePath.join(directory, 'environment.log');
+    const result = await runManagedJsonReview(directory, { environmentLog });
+
+    expect(result.exitCode, result.stdout).toBe(0);
+    expect(result.stderr).toContain('Requesting an independent Codex review…');
+    expect(readFileSync(environmentLog, 'utf8')).toContain('progress=absent\n');
+  });
+
   it('carries managed progress through the wrapper, real CLI, and real coordinator', () => {
     const directory = createTemporaryDirectory();
     writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
     const log = nodePath.join(directory, 'review.log');
+    const environmentLog = nodePath.join(directory, 'environment.log');
     const bin = installFakeReviewer(directory, 'codex');
     const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
     const result = spawnSync(
@@ -1781,6 +1801,7 @@ describe('cross-agent review public-command wiring', () => {
           SAFEWORD_AGENT_RUNTIME: 'claude',
           SAFEWORD_PROGRESS_HEARTBEAT_MS: '150',
           SAFEWORD_REVIEW_FAKE_DELAY_AGENT: 'codex',
+          SAFEWORD_REVIEW_ENV_LOG: environmentLog,
           SAFEWORD_REVIEW_LOG: log,
           SAFEWORD_NO_UPDATE_CHECK: '1',
         },
@@ -1796,6 +1817,7 @@ describe('cross-agent review public-command wiring', () => {
     });
     expect(result.stderr).toContain('Requesting an independent Codex review…');
     expect(readFileSync(log, 'utf8')).toBe('codex\n');
+    expect(readFileSync(environmentLog, 'utf8')).toContain('progress=absent\n');
   });
 
   it('preserves an action-required result after managed progress', async () => {

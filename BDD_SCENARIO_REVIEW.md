@@ -1,8 +1,8 @@
 # BDD Scenario Review
 
-**Status:** Structural and lineage review complete; per-scenario semantic review in progress.
+**Status:** Historical structural and lineage snapshot complete; refreshed corpus inventory and per-scenario semantic review in progress.
 
-## Current review checkpoint — 2026-08-22
+## Current review checkpoint — 2026-08-23
 
 `main` was re-merged at `fca5a6ab5`. Its stronger review-record integrity
 validation required the controlled-deadline fixture to sign its deliberate
@@ -20,7 +20,7 @@ observable-review checks use positive controls for reviewer environment,
 lifecycle cancellation, and Cursor surface inspection. Re-review remains
 pending; this is not represented as approval.
 
-The 11-scenario `reliable-observable-quality-reviews` packet has now received
+The 13-scenario `reliable-observable-quality-reviews` packet has now received
 its direct scenario-by-scenario pass. Its independent gate found one must-fix
 vacuity: the Claude and Codex workflow catalogues could have been empty while
 the scenario passed. It also exposed a proof mismatch where the progress-sink
@@ -63,6 +63,23 @@ but both Claude models exited and the coordinator fell back to Codex. Because
 that is a self-review, its independence is degraded and it is not recorded as
 cross-agent approval. The packet is locally complete and verified; independent
 reviewer availability is the remaining blocker.
+
+After merge, cross-agent review `cb6544c6-888b-4c77-97f0-0d676d4b5d21`
+recovered and found one remaining counter-implementation: the scenarios allowed
+an immediate, one-shot heartbeat even though the feature claims long reviews
+remain visibly active. The product already delays and rearms heartbeats, and an
+integration test already observes repetition; the missing piece was the
+behavioral contract and proof mapping. The packet now includes a deterministic
+controlled-scheduler scenario that proves silence before the first due point,
+emission at 30 and 60 seconds, and rearming for 90 seconds. The first repair
+used a relative “interval” and cross-agent review
+`ddaf6b43-167f-4073-b121-ac62271294bf` correctly rejected it because a 1 ms or
+24-hour cadence could still pass. The absolute boundaries close that gap.
+Cross-agent re-review `4377cecc-8015-4020-b4b4-7cf59ed02550` approved the
+repair with no must-fix findings. The initial 95-test run covered the changed
+policy and real CLI wiring files; after the ledger and proof-map corrections,
+the complete four-file mapped suite passes all 132 tests and Gherkin lint is
+healthy.
 
 ## Scope and method
 
@@ -121,13 +138,13 @@ were added or materially changed since the prior ledger snapshot; their 171
 scenarios are in the refreshed review queue. This overlaps the 0.77 queue where
 an existing source changed again.
 
-| Changed or new feature source                                       | Scenarios | Delivery state          | Semantic status                                       |
-| ------------------------------------------------------------------- | --------: | ----------------------- | ----------------------------------------------------- |
-| `features/automatic-claude-migration.feature`                       |        31 | Active                  | Pending refreshed review                              |
-| `features/close-completed-sessions-safely.feature`                  |        48 | Active                  | Pending refreshed review                              |
-| `features/closeout-preview-apply-convergence.feature`               |        27 | Active; `@proof.vitest` | Pending refreshed review                              |
-| `features/resume-closeout-after-upgrade.feature`                    |        54 | Active; `@proof.vitest` | Pending review                                        |
-| `packages/cli/features/reliable-observable-quality-reviews.feature` |        11 | Active; `@proof.vitest` | Direct review repaired; independent re-review pending |
+| Changed or new feature source                                       | Scenarios | Delivery state          | Semantic status                                |
+| ------------------------------------------------------------------- | --------: | ----------------------- | ---------------------------------------------- |
+| `features/automatic-claude-migration.feature`                       |        31 | Active                  | Pending refreshed review                       |
+| `features/close-completed-sessions-safely.feature`                  |        48 | Active                  | Pending refreshed review                       |
+| `features/closeout-preview-apply-convergence.feature`               |        27 | Active; `@proof.vitest` | Pending refreshed review                       |
+| `features/resume-closeout-after-upgrade.feature`                    |        54 | Active; `@proof.vitest` | Pending review                                 |
+| `packages/cli/features/reliable-observable-quality-reviews.feature` |        13 | Active; `@proof.vitest` | Semantic review complete; cross-agent approved |
 
 ## Evidence
 
@@ -141,7 +158,11 @@ an existing source changed again.
 - `configure-audit-doc-sources.MA2.AC3`: changed the outcome from an `And` attached to `When` to an explicit `Then`.
 - Twelve static contract scenarios: introduced explicit validation actions and updated active step bindings where present.
 
-## Review ledger
+## Historical structural review ledger
+
+This table records the original pre-0.76 structural inventory. It is retained
+as historical evidence and is superseded by the dated sync-impact tables above;
+rows and counts here must not be read as the current corpus inventory.
 
 | Feature file                                                                 | Scenarios | Manual tags | WIP tags | Review status               |
 | ---------------------------------------------------------------------------- | --------: | ----------: | -------: | --------------------------- |
@@ -299,8 +320,10 @@ the private signal has exact-value rejection partitions; reviewer environment
 and wrapper scoping have positive and negative observations; older-CLI
 compatibility covers both terminal statuses; and lifecycle cancellation now
 advances the controlled scheduler past both canceled due points. The mapped
-proof now passes 131 tests across four files, including both assigned-reviewer
-routes. Independent re-review remains pending.
+proof now passes 132 tests across four files, including both assigned-reviewer
+routes. Cross-agent review `4377cecc-8015-4020-b4b4-7cf59ed02550` approved the
+13-scenario contract, including the absolute heartbeat boundaries, with no
+must-fix findings.
 
 ### Looks good
 
@@ -310,4 +333,7 @@ routes. Independent re-review remains pending.
 
 ## Current conclusion
 
-The structural and lineage checks are complete and the resolved items above are verified. No claim is made yet about semantic completeness for the whole corpus; that conclusion depends on the in-progress packeted review and evidence recorded for each feature.
+The historical structural and lineage snapshot is complete, and the resolved
+items above are verified. The refreshed corpus inventory and semantic review
+remain in progress; their conclusions depend on the packeted review and
+evidence recorded for each feature.

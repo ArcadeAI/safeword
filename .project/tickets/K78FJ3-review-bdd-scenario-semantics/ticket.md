@@ -2,6 +2,7 @@
 id: K78FJ3
 slug: review-bdd-scenario-semantics
 type: task
+subtype: bug-investigated
 phase: intake
 status: in_progress
 created: 2026-08-11T15:57:40.154Z
@@ -13,6 +14,24 @@ last_modified: 2026-08-11T15:57:40.154Z
 **Goal:** Review every shipped BDD scenario against the scenario-gate rubric and record actionable findings.
 
 **Why:** The existing suite passes structurally, but every scenario needs an adversarial semantic review for vacuity, observability, determinism, and wiring.
+
+## Root Cause
+
+The observable-review feature claimed that long reviews remain visibly active,
+but no scenario pinned heartbeat emission to its interval or required a second
+heartbeat while work remained incomplete. The implementation already schedules
+each heartbeat after 30 seconds and rearms it, but the scheduler unit test only
+executed the first callback and the repeating integration test was absent from
+the feature's proof map. That proof-wiring omission allowed an immediate,
+one-shot heartbeat counter-implementation to satisfy the written scenarios.
+
+Confirmed by tracing `createProgressReporter` through its injected scheduler and
+comparing the feature proof map with the existing repeating-heartbeat integration
+test. Ruled out: an immediate product emission, because the scheduler records a
+30-second delay before the first callback; a non-repeating implementation,
+because the callback schedules the next interval and the integration test sees
+multiple heartbeats; and a cancellation defect, because completion removes both
+pending handles before the controlled scheduler is flushed.
 
 ## Work Log
 
@@ -33,3 +52,10 @@ last_modified: 2026-08-11T15:57:40.154Z
 - 2026-08-22T22:52:00Z The next review degraded after both Claude routes failed and Codex reviewed its own work, so it is not approval evidence. Its substantive finding was accepted: TBU1.R1 said “each terminal outcome” while proving only the supported approve/request-changes verdict outcomes. Narrowed the Rule and scenario wording to reviewer verdict results instead of bloating this feature with unrelated transport/schema failures. A cross-agent review is still required.
 - 2026-08-22T22:53:00Z A second degraded self-review found the required-workflow precondition still linguistically allowed non-review workflows. Tightened it to non-empty catalogues specifically of workflows required to launch independent reviews, matching the explicit non-empty `requiredReviewFiles` proof. Both Claude routes failed before this fallback, so a cross-agent approval remains unavailable.
 - 2026-08-22T22:54:00Z Final review attempt found no must-fix semantic defect and returned approved, but independence was degraded because both Claude models exited and Codex performed the fallback self-review. The packet is locally repaired and verified (Gherkin healthy; 131 mapped tests pass), but is recorded as awaiting cross-agent approval rather than independently approved.
+- 2026-08-23T10:35:00Z Cross-agent review `cb6544c6-888b-4c77-97f0-0d676d4b5d21` found the central long-running heartbeat claim unpinned to time. Root cause is a specification/proof-map omission, not product scheduling: existing code delays and rearms heartbeats, but the feature did not require those boundaries. Added a deterministic interval-and-repeat scenario, extended the injected-scheduler proof through two due points, and mapped the existing repeated-heartbeat integration proof. Focused verification passed 95 tests. Independent re-review `ddaf6b43-167f-4073-b121-ac62271294bf` then found the scenario still expressed cadence relative to the implementation's own interval. Pinned silence and emissions to 30-, 60-, and 90-second controlled-scheduler boundaries and narrowed adjacent Rule wording to the guarantees actually proved; another cross-agent review is required.
+- 2026-08-23T10:46:00Z Cross-agent re-review `4377cecc-8015-4020-b4b4-7cf59ed02550` approved the absolute heartbeat-boundary repair with no must-fix findings. The suggested all-writes-fail matrix is outside this focused timing defect and is deferred to avoid overhardening. Gherkin lint is healthy and the 95 focused policy/wiring tests pass.
+- 2026-08-23T14:00:00Z Diff audit found no branch-scoped architecture, documentation, domain-reference, or test-quality error; its `CKWE2D` principle-trace findings are unrelated project drift outside the five-file scope. Refactor review normalized the proof manifest to one list-of-pairs shape and passed all 34 proof-tag tests. Final quality review `1bd66f76-9af3-420f-ac8d-130ee204844c` confirmed the heartbeat repair itself is sound but caught stale 12-of-13 ledger accounting. Corrected the live count to 13, labeled the old corpus ledger historical, named the absolute cadence in the scenario title, and made exact-signal consumption resolve the JSON policy directly.
+- 2026-08-23T14:39:00Z Cross-agent quality review `8cb9f20a-5595-4c4e-96b9-c8ecab52f78a` found a bypass-shaped hole in the Cursor negative check. Generalized the guard across wrapper and direct CLI invocation forms, made reviewer discovery fixtures hermetic, moved the streaming-order assertion out of its event callback, and aligned the feature language with both managed host routes. Added real wrapper/CLI/coordinator proof that the managed-progress signal is absent from the spawned reviewer environment. Gherkin lint is healthy; the complete four-file mapped suite passes all 132 tests, and all 34 proof-tag tests pass.
+- 2026-08-23T14:44:00Z Post-fix cross-agent quality review `a96a2ba4-ecf8-4099-a96d-c460e3810982` approved the executable packet with no error-severity findings. Broader sink hardening, fixture extraction, and unrelated review-route coverage remain outside this focused repair.
+
+**Next:** merge the focused heartbeat-proof follow-up, then resume the queued per-scenario review.
