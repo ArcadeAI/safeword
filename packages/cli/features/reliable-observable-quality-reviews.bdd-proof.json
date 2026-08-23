@@ -22,28 +22,40 @@
       ]
     ],
     "Active route progress identifies the assigned reviewer": [
-      "packages/cli/tests/cli-protocol/review-wiring.test.ts",
-      "keeps managed machine output typed while identifying the active $reviewer reviewer"
+      [
+        "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+        "keeps managed machine output typed while identifying the active $reviewer reviewer"
+      ]
     ],
     "Completion cancels pending lifecycle output": [
-      "packages/cli/tests/cli-protocol/policy.test.ts",
-      "cancels a pending announcement as well as the heartbeat when the command ends"
+      [
+        "packages/cli/tests/cli-protocol/policy.test.ts",
+        "cancels a pending announcement as well as the heartbeat when the command ends"
+      ]
     ],
     "Only the exact private signal enables JSON progress": [
-      "packages/cli/tests/cli-protocol/policy.test.ts",
-      "consumes the exact private signal case $case"
+      [
+        "packages/cli/tests/cli-protocol/policy.test.ts",
+        "consumes the exact private signal case $case"
+      ]
     ],
     "Quiet mode wins over managed progress": [
-      "packages/cli/tests/cli-protocol/review-wiring.test.ts",
-      "lets quiet mode suppress managed progress for %s without suppressing the JSON result"
+      [
+        "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+        "lets quiet mode suppress managed progress for %s without suppressing the JSON result"
+      ]
     ],
     "A direct JSON review remains silent without the private signal": [
-      "packages/cli/tests/cli-protocol/policy.test.ts",
-      "reports JSON progress only for an opted-in managed review and never in quiet mode"
+      [
+        "packages/cli/tests/cli-protocol/policy.test.ts",
+        "reports JSON progress only for an opted-in managed review and never in quiet mode"
+      ]
     ],
     "Human-readable progress remains enabled with the private signal": [
-      "packages/cli/tests/cli-protocol/policy.test.ts",
-      "keeps human progress unchanged while consuming the private signal"
+      [
+        "packages/cli/tests/cli-protocol/policy.test.ts",
+        "keeps human progress unchanged while consuming the private signal"
+      ]
     ],
     "Progress write failures remain best-effort and retryable": [
       [
@@ -52,8 +64,10 @@
       ]
     ],
     "The reviewer allowlist excludes the wrapper-only signal": [
-      "packages/cli/tests/review/environment.test.ts",
-      "excludes the wrapper-only managed-progress signal from the reviewer allowlist"
+      [
+        "packages/cli/tests/review/environment.test.ts",
+        "excludes the wrapper-only managed-progress signal from the reviewer allowlist"
+      ]
     ],
     "The wrapper scopes progress to its JSON review child": [
       [
@@ -70,8 +84,10 @@
       ]
     ],
     "The wrapper remains compatible with an older review-capable CLI": [
-      "packages/cli/tests/review/surface-parity.test.ts",
-      "preserves an older CLI %s result and status without adding an argument"
+      [
+        "packages/cli/tests/review/surface-parity.test.ts",
+        "preserves an older CLI %s result and status without adding an argument"
+      ]
     ],
     "Required-review surfaces cannot bypass the review coordinator": [
       ["packages/cli/tests/review/surface-parity.test.ts", "%s enters the shared %s coordinator"],
