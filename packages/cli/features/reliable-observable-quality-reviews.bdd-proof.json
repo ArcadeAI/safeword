@@ -11,7 +11,7 @@
         "preserves an action-required result after managed progress"
       ]
     ],
-    "Waiting heartbeat respects its interval and repeats": [
+    "Waiting heartbeat starts at 30 seconds and repeats": [
       [
         "packages/cli/tests/cli-protocol/policy.test.ts",
         "keeps a long-running operation visibly alive without claiming completion progress"
@@ -33,7 +33,7 @@
         "cancels a pending announcement as well as the heartbeat when the command ends"
       ]
     ],
-    "Only the exact private signal enables JSON progress": [
+    "Only the exact managed-progress signal enables JSON progress": [
       [
         "packages/cli/tests/cli-protocol/policy.test.ts",
         "consumes the exact private signal case $case"
@@ -45,13 +45,13 @@
         "lets quiet mode suppress managed progress for %s without suppressing the JSON result"
       ]
     ],
-    "A direct JSON review remains silent without the private signal": [
+    "A direct JSON review remains silent without the managed-progress signal": [
       [
         "packages/cli/tests/cli-protocol/policy.test.ts",
         "reports JSON progress only for an opted-in managed review and never in quiet mode"
       ]
     ],
-    "Human-readable progress remains enabled with the private signal": [
+    "Human-readable progress remains enabled with the managed-progress signal": [
       [
         "packages/cli/tests/cli-protocol/policy.test.ts",
         "keeps human progress unchanged while consuming the private signal"
@@ -63,10 +63,14 @@
         "keeps descriptor write failures best-effort and retries later writes: $error at write $failureIndex"
       ]
     ],
-    "The reviewer allowlist excludes the wrapper-only signal": [
+    "The reviewer allowlist excludes the managed-progress signal": [
       [
         "packages/cli/tests/review/environment.test.ts",
         "excludes the wrapper-only managed-progress signal from the reviewer allowlist"
+      ],
+      [
+        "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+        "keeps the managed-progress signal out of the spawned reviewer environment"
       ]
     ],
     "The wrapper scopes progress to its JSON review child": [

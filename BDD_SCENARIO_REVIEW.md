@@ -1,8 +1,8 @@
 # BDD Scenario Review
 
-**Status:** Structural and lineage review complete; per-scenario semantic review in progress.
+**Status:** Historical structural and lineage snapshot complete; refreshed corpus inventory and per-scenario semantic review in progress.
 
-## Current review checkpoint — 2026-08-22
+## Current review checkpoint — 2026-08-23
 
 `main` was re-merged at `fca5a6ab5`. Its stronger review-record integrity
 validation required the controlled-deadline fixture to sign its deliberate
@@ -20,7 +20,7 @@ observable-review checks use positive controls for reviewer environment,
 lifecycle cancellation, and Cursor surface inspection. Re-review remains
 pending; this is not represented as approval.
 
-The 12-scenario `reliable-observable-quality-reviews` packet has now received
+The 13-scenario `reliable-observable-quality-reviews` packet has now received
 its direct scenario-by-scenario pass. Its independent gate found one must-fix
 vacuity: the Claude and Codex workflow catalogues could have been empty while
 the scenario passed. It also exposed a proof mismatch where the progress-sink
@@ -76,7 +76,10 @@ used a relative “interval” and cross-agent review
 `ddaf6b43-167f-4073-b121-ac62271294bf` correctly rejected it because a 1 ms or
 24-hour cadence could still pass. The absolute boundaries close that gap.
 Cross-agent re-review `4377cecc-8015-4020-b4b4-7cf59ed02550` approved the
-repair with no must-fix findings; Gherkin lint and 95 focused tests pass.
+repair with no must-fix findings. The initial 95-test run covered the changed
+policy and real CLI wiring files; after the ledger and proof-map corrections,
+the complete four-file mapped suite passes all 132 tests and Gherkin lint is
+healthy.
 
 ## Scope and method
 
@@ -141,7 +144,7 @@ an existing source changed again.
 | `features/close-completed-sessions-safely.feature`                  |        48 | Active                  | Pending refreshed review                       |
 | `features/closeout-preview-apply-convergence.feature`               |        27 | Active; `@proof.vitest` | Pending refreshed review                       |
 | `features/resume-closeout-after-upgrade.feature`                    |        54 | Active; `@proof.vitest` | Pending review                                 |
-| `packages/cli/features/reliable-observable-quality-reviews.feature` |        12 | Active; `@proof.vitest` | Semantic review complete; cross-agent approved |
+| `packages/cli/features/reliable-observable-quality-reviews.feature` |        13 | Active; `@proof.vitest` | Semantic review complete; cross-agent approved |
 
 ## Evidence
 
@@ -155,7 +158,11 @@ an existing source changed again.
 - `configure-audit-doc-sources.MA2.AC3`: changed the outcome from an `And` attached to `When` to an explicit `Then`.
 - Twelve static contract scenarios: introduced explicit validation actions and updated active step bindings where present.
 
-## Review ledger
+## Historical structural review ledger
+
+This table records the original pre-0.76 structural inventory. It is retained
+as historical evidence and is superseded by the dated sync-impact tables above;
+rows and counts here must not be read as the current corpus inventory.
 
 | Feature file                                                                 | Scenarios | Manual tags | WIP tags | Review status               |
 | ---------------------------------------------------------------------------- | --------: | ----------: | -------: | --------------------------- |
@@ -313,8 +320,10 @@ the private signal has exact-value rejection partitions; reviewer environment
 and wrapper scoping have positive and negative observations; older-CLI
 compatibility covers both terminal statuses; and lifecycle cancellation now
 advances the controlled scheduler past both canceled due points. The mapped
-proof now passes 131 tests across four files, including both assigned-reviewer
-routes. Independent re-review remains pending.
+proof now passes 132 tests across four files, including both assigned-reviewer
+routes. Cross-agent review `4377cecc-8015-4020-b4b4-7cf59ed02550` approved the
+13-scenario contract, including the absolute heartbeat boundaries, with no
+must-fix findings.
 
 ### Looks good
 
@@ -324,4 +333,7 @@ routes. Independent re-review remains pending.
 
 ## Current conclusion
 
-The structural and lineage checks are complete and the resolved items above are verified. No claim is made yet about semantic completeness for the whole corpus; that conclusion depends on the in-progress packeted review and evidence recorded for each feature.
+The historical structural and lineage snapshot is complete, and the resolved
+items above are verified. The refreshed corpus inventory and semantic review
+remain in progress; their conclusions depend on the packeted review and
+evidence recorded for each feature.
