@@ -11,6 +11,7 @@ import {
 
 interface InspectionProviderOptions {
   apiKey?: string;
+  context?: { content: string; path: string }[];
   evidence: { content: string; path: string }[];
   model: string;
 }
@@ -53,7 +54,14 @@ const INSPECTION_AUDIT: InspectionAudit = {
 
 interface InspectionInput {
   artifacts: (
-    | { content: string; kind: 'text'; path: string }
+    | {
+        content: string;
+        contextNotApplicable?: true;
+        contextUnavailable?: true;
+        fullContent?: string;
+        kind: 'text';
+        path: string;
+      }
     | { kind: 'non_text'; path: string }
     | { kind: 'unreadable_text'; path: string }
   )[];
@@ -73,6 +81,8 @@ interface InspectionConfig {
   provider: 'openai';
   requiredChecks?: { context: string }[];
 }
+
+type InspectionArtifact = InspectionInput['artifacts'][number];
 
 type InspectionInputEnvelope = Record<string, unknown> & {
   artifacts: unknown[];
@@ -139,31 +149,73 @@ function parseConfig(cwd: string): InspectionConfig {
   return config as unknown as InspectionConfig;
 }
 
+function decodeFullContent(encoded: string): string | undefined {
+  try {
+    const bytes = Buffer.from(encoded, 'base64');
+    if (bytes.toString('base64') !== encoded) throw new Error('non-canonical base64');
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch {
+    return undefined;
+  }
+}
+
+function isNonTextArtifact(
+  artifact: unknown,
+): artifact is { kind: 'non_text' | 'unreadable_text'; path: string } {
+  return (
+    isRecord(artifact) &&
+    (artifact.kind === 'non_text' || artifact.kind === 'unreadable_text') &&
+    typeof artifact.path === 'string'
+  );
+}
+
+function isTextArtifact(
+  artifact: unknown,
+): artifact is Record<string, unknown> & { content: string; kind: 'text'; path: string } {
+  return (
+    isRecord(artifact) &&
+    artifact.kind === 'text' &&
+    typeof artifact.content === 'string' &&
+    typeof artifact.path === 'string' &&
+    artifact.path.length > 0
+  );
+}
+
+function parseArtifact(artifact: unknown): InspectionArtifact {
+  if (isNonTextArtifact(artifact)) {
+    return { kind: artifact.kind, path: artifact.path };
+  }
+  if (!isTextArtifact(artifact)) {
+    throw new Error('review-pr: invalid text artifact');
+  }
+  const hasFullContent = typeof artifact.fullContentBase64 === 'string';
+  const contextNotApplicable = artifact.contextNotApplicable === true;
+  const contextUnavailable = artifact.contextUnavailable === true;
+  if (Number(hasFullContent) + Number(contextNotApplicable) + Number(contextUnavailable) > 1) {
+    throw new Error('review-pr: text artifact context is contradictory');
+  }
+  const fullContent = hasFullContent
+    ? decodeFullContent(artifact.fullContentBase64 as string)
+    : undefined;
+  return {
+    content: artifact.content,
+    ...(contextNotApplicable && { contextNotApplicable: true }),
+    ...((contextUnavailable || (!contextNotApplicable && fullContent === undefined)) && {
+      contextUnavailable: true,
+    }),
+    ...(fullContent !== undefined && { fullContent }),
+    kind: 'text',
+    path: artifact.path,
+  };
+}
+
 function parseInput(inputPath: string): InspectionInput {
   const raw: unknown = JSON.parse(readFileSync(inputPath, 'utf8'));
   if (!isRecord(raw) || !hasValidInputEnvelope(raw)) {
     throw new Error('review-pr: invalid inspection input');
   }
 
-  const artifacts = raw.artifacts.map(artifact => {
-    if (
-      isRecord(artifact) &&
-      (artifact.kind === 'non_text' || artifact.kind === 'unreadable_text') &&
-      typeof artifact.path === 'string'
-    ) {
-      return { kind: artifact.kind, path: artifact.path } as const;
-    }
-    if (
-      !isRecord(artifact) ||
-      artifact.kind !== 'text' ||
-      typeof artifact.content !== 'string' ||
-      typeof artifact.path !== 'string' ||
-      artifact.path.length === 0
-    ) {
-      throw new Error('review-pr: invalid text artifact');
-    }
-    return { content: artifact.content, kind: 'text' as const, path: artifact.path };
-  });
+  const artifacts = raw.artifacts.map(artifact => parseArtifact(artifact));
   const checks = raw.checks.map(check => {
     if (
       !isRecord(check) ||
@@ -312,15 +364,26 @@ function receiptChecks(
 function boundedTextEvidence(
   artifacts: InspectionInput['artifacts'],
   maxTotalBytes: number,
-): { content: string; path: string }[] {
+): {
+  context: { content: string; path: string }[];
+  evidence: { content: string; path: string }[];
+} {
   let usedBytes = 0;
-  return artifacts.flatMap(artifact => {
-    if (artifact.kind !== 'text') return [];
-    const byteLength = Buffer.byteLength(artifact.content, 'utf8');
-    if (usedBytes + byteLength > maxTotalBytes) return [];
+  const context: { content: string; path: string }[] = [];
+  const evidence: { content: string; path: string }[] = [];
+  for (const artifact of artifacts) {
+    if (artifact.kind !== 'text' || artifact.contextUnavailable) continue;
+    const byteLength =
+      Buffer.byteLength(artifact.content, 'utf8') +
+      (artifact.fullContent === undefined ? 0 : Buffer.byteLength(artifact.fullContent, 'utf8'));
+    if (usedBytes + byteLength > maxTotalBytes) continue;
     usedBytes += byteLength;
-    return [{ content: artifact.content, path: artifact.path }];
-  });
+    evidence.push({ content: artifact.content, path: artifact.path });
+    if (artifact.fullContent !== undefined) {
+      context.push({ content: artifact.fullContent, path: artifact.path });
+    }
+  }
+  return { context, evidence };
 }
 
 /**
@@ -331,15 +394,19 @@ function boundedTextEvidence(
 function receiptEvidence(
   artifacts: InspectionInput['artifacts'],
 ): NonNullable<AdvisoryInspection['artifacts']> {
-  return artifacts.map(artifact =>
-    artifact.kind === 'text'
-      ? {
-          byteLength: Buffer.byteLength(artifact.content, 'utf8'),
-          kind: 'text' as const,
-          path: artifact.path,
-        }
-      : { kind: artifact.kind, path: artifact.path },
-  );
+  return artifacts.map(artifact => {
+    if (artifact.kind !== 'text') return { kind: artifact.kind, path: artifact.path };
+    if (artifact.contextUnavailable) {
+      return { kind: 'unreadable_text' as const, path: artifact.path };
+    }
+    return {
+      byteLength:
+        Buffer.byteLength(artifact.content, 'utf8') +
+        (artifact.fullContent === undefined ? 0 : Buffer.byteLength(artifact.fullContent, 'utf8')),
+      kind: 'text' as const,
+      path: artifact.path,
+    };
+  });
 }
 
 export async function inspectPullRequestCommand(
@@ -361,14 +428,15 @@ export async function inspectPullRequestCommand(
     inspect: async () => {
       try {
         const textEvidence = boundedTextEvidence(input.artifacts, config.maxTotalBytes);
-        const review =
-          textEvidence.length === 0
-            ? { findings: [], tokenUsage: {} }
-            : await (options.provider ?? productionProvider)({
-                apiKey: process.env.OPENAI_API_KEY,
-                evidence: textEvidence,
-                model: config.model,
-              });
+        const noReviewableEvidence = textEvidence.evidence.length === 0;
+        const review = noReviewableEvidence
+          ? { findings: [], tokenUsage: {} }
+          : await (options.provider ?? productionProvider)({
+              apiKey: process.env.OPENAI_API_KEY,
+              ...(textEvidence.context.length > 0 && { context: textEvidence.context }),
+              evidence: textEvidence.evidence,
+              model: config.model,
+            });
         const receiptFindings = review.findings.map(finding => {
           const path = redactCredentials(finding.path, credentials);
           const consequence = redactCredentials(finding.consequence, credentials);
@@ -390,10 +458,16 @@ export async function inspectPullRequestCommand(
           consequentialFindings: receiptFindings.filter(finding => finding.consequential).length,
           findings: receiptFindings,
           maxTotalBytes: config.maxTotalBytes,
-          runState: credentialRedacted ? ('incomplete' as const) : ('complete' as const),
+          runState:
+            credentialRedacted || noReviewableEvidence
+              ? ('incomplete' as const)
+              : ('complete' as const),
           skippedChecks: [],
           tokenUsage: review.tokenUsage,
-          unknowns: credentialRedacted ? ['credential-like value redacted'] : [],
+          unknowns: [
+            ...(credentialRedacted ? ['credential-like value redacted'] : []),
+            ...(noReviewableEvidence ? ['no reviewable evidence'] : []),
+          ],
         };
       } catch {
         return {

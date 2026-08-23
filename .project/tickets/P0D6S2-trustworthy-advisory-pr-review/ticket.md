@@ -4,7 +4,7 @@ slug: trustworthy-advisory-pr-review
 type: epic
 phase: plan-implementation
 status: in_progress
-children: [HXT3GW, Z7M7Y3, 436EQW, YC6JCC]
+children: ['HXT3GW', 'Z7M7Y3', '436EQW', 'YC6JCC', 'ZA6DGD']
 scope:
   - Automatically review each ready, substantive pull request at its current head SHA after the repository's deterministic prerequisites settle.
   - Apply a technology-neutral integrity floor to every behavior-affecting artifact, including unfamiliar file types, and record any deliberate exclusion.

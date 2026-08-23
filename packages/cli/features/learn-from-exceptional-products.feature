@@ -102,6 +102,7 @@ Feature: Learn from exceptional products before committing feature decisions
   @learn-from-exceptional-products.TBU1.R4
   Rule: learn-from-exceptional-products.TBU1.R4 — Routine inspiration stays out of TDD loops and significant new choices prompt a plan refresh
 
+    @rejection
     Scenario: Routine TDD continues without repeated research
       Given the implementation inspiration still supports the current plan
       When the builder completes another RED GREEN REFACTOR loop

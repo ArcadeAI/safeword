@@ -688,6 +688,17 @@ describe('plan and remove wiring', () => {
       nodePath.join(directory, 'package.json'),
       JSON.stringify({ name: 'fixture', devDependencies: { safeword: '0.69.0' } }),
     );
+    const workflowPath = nodePath.join(
+      directory,
+      '.github',
+      'workflows',
+      'safeword-remote-tests.yml',
+    );
+    mkdirSync(nodePath.dirname(workflowPath), { recursive: true });
+    const bundledWorkflow = readFileSync(
+      nodePath.join(process.cwd(), 'templates', 'workflows', 'remote-tests.yml'),
+    );
+    writeFileSync(workflowPath, bundledWorkflow);
     const bin = nodePath.join(directory, 'bin');
     mkdirSync(bin);
     const npm = nodePath.join(bin, 'npm');
@@ -716,7 +727,15 @@ describe('plan and remove wiring', () => {
     expect(applied.exitCode).toBe(0);
     expect(JSON.parse(applied.stdout)).toMatchObject({
       effects: { packages: expect.arrayContaining([{ kind: 'remove', target: 'safeword' }]) },
+      findings: [
+        {
+          code: 'REMOTE_WORKFLOW_REMAINS',
+          message:
+            'The optional remote-test workflow remains installed. Run `bunx safeword project test-execution remote disable` to remove it.',
+        },
+      ],
     });
+    expect(readFileSync(workflowPath)).toEqual(bundledWorkflow);
   });
 
   it('refuses canonical full uninstall offline before mutation', async () => {

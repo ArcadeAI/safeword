@@ -183,7 +183,11 @@ async function removeHandler(invocation: CommandInvocation): Promise<CliResult> 
 
 async function uninstallHandler(invocation: CommandInvocation): Promise<CliResult> {
   const { uninstallLifecycle } = await import('../lifecycle/commands.js');
-  return uninstallLifecycle(invocation);
+  const result = await uninstallLifecycle(invocation);
+  if (result.state !== 'healthy' && result.state !== 'changed') return result;
+  const { remoteWorkflowUninstallFinding } = await import('../commands/test-execution.js');
+  const finding = remoteWorkflowUninstallFinding(invocation.cwd);
+  return finding === undefined ? result : { ...result, findings: [...result.findings, finding] };
 }
 
 async function syncConfigHandler(invocation: CommandInvocation): Promise<CliResult> {
@@ -650,6 +654,21 @@ function withLegacyRawJsonGuidance(
 async function testExecutionStatusHandler(invocation: CommandInvocation): Promise<CliResult> {
   const { observeTestExecutionStatus } = await import('../commands/test-execution.js');
   return observeTestExecutionStatus(invocation.cwd);
+}
+
+async function remoteWorkflowStatusHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const { observeRemoteWorkflowStatus } = await import('../commands/test-execution.js');
+  return observeRemoteWorkflowStatus(invocation.cwd);
+}
+
+async function remoteWorkflowSetupHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const { setupManagedRemoteWorkflow } = await import('../commands/test-execution.js');
+  return setupManagedRemoteWorkflow(invocation.cwd);
+}
+
+async function remoteWorkflowDisableHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const { disableManagedRemoteWorkflow } = await import('../commands/test-execution.js');
+  return disableManagedRemoteWorkflow(invocation.cwd);
 }
 
 async function projectTestHandler(invocation: CommandInvocation): Promise<CliResult> {
@@ -2141,6 +2160,9 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'project retro-drain': retroDrainHandler,
   'project test': projectTestHandler,
   'project test-execution status': testExecutionStatusHandler,
+  'project test-execution remote status': remoteWorkflowStatusHandler,
+  'project test-execution remote setup': remoteWorkflowSetupHandler,
+  'project test-execution remote disable': remoteWorkflowDisableHandler,
   'project lint-gherkin': lintGherkinHandler,
   'tracker sync': invocation => trackerHandler('tracker sync', invocation),
   'tracker connect': invocation => trackerHandler('tracker connect', invocation),

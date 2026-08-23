@@ -45,16 +45,16 @@ jobs:
           echo "observed_sha=$observed_sha" >> "$GITHUB_OUTPUT"
           [[ "$observed_sha" == "$TARGET_SHA" ]]
 
-      - name: Set up Bun
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.0.2
+      - name: Set up Safeword runtime
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          bun-version-file: package.json
+          node-version: 24
 
       - name: Run requested test lane
         id: tests
         env:
           LANE: ${{ inputs.lane }}
-        run: bunx safeword@0.78.3 project test --lane "$LANE" --execution local
+        run: npx --yes safeword@0.78.6 project test --lane "$LANE" --execution local --prepare-remote
 
       - name: Write remote test result
         id: report

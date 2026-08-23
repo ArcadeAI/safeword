@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (569)
+## Tickets (570)
 
 ### 001
 
@@ -1759,6 +1759,9 @@
 - **Ship a clean release for safeword users (P2JDY5)** (done, epic: —)
   Audit and reconcile every change merged since v0.69.0, apply justified behavior-preserving refactors, verify release readiness, and close completed tracking items.
   → `.project/tickets/P2JDY5-release-readiness-v0-70`
+- **Lint files changed by shell commands, not just file-tool edits (P6PN58)** (in_progress, epic: —)
+  Give auto-lint a path-discovery fallback so a file edited through a shell command gets linted on all three hosts, matching the coverage quality hooks already have
+  → `.project/tickets/P6PN58-lint-skips-shell-edits`
 - **Reconcile arcade `.project/` and architecture-tracking conventions with safeword (P8RJ4M)** (done, epic: —)
   Decide how safeword behaves for customers who also run arcade — specifically how shared inputs (personas, glossary) and architecture-tracking patterns reconcile when both tools want to author or read the same project knowledge.
   → `.project/tickets/P8RJ4M`

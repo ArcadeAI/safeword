@@ -1,0 +1,53 @@
+{
+  "feature": "packages/cli/features/upgrade-remote-test-workflows-safely.feature",
+  "scenarios": {
+    "Setup upgrades an unchanged released predecessor across checkout line endings": [
+      "packages/cli/tests/test-execution/remote-workflow-lifecycle.test.ts",
+      "upgrades exact released bytes from a %s checkout"
+    ],
+    "Setup preserves a customer-edited predecessor across checkout line endings": [
+      "packages/cli/tests/test-execution/remote-workflow-lifecycle.test.ts",
+      "preserves a lone-CR customer edit from a %s checkout"
+    ],
+    "Disable removes an unchanged released workflow": [
+      "packages/cli/tests/test-execution/remote-workflow-lifecycle.test.ts",
+      "disables the exact released predecessor"
+    ],
+    "Disable preserves a customer-edited workflow across checkout line endings": [
+      "packages/cli/tests/test-execution/remote-workflow-lifecycle.test.ts",
+      "does not disable a lone-CR customer edit from a %s checkout"
+    ],
+    "Disable never removes a workflow that no longer revalidates as released v1": [
+      "packages/cli/tests/test-execution/remote-workflow-lifecycle.test.ts",
+      "does not disable released v1 after commit-time %s"
+    ],
+    "Disable completes when the commit-time state already needs no file": [
+      "packages/cli/tests/test-execution/remote-workflow-lifecycle.test.ts",
+      "converges when disable revalidates the commit-time state as %s"
+    ],
+    "A changed or unreadable workflow prevents historical publication": [
+      "packages/cli/tests/test-execution/remote-workflow-lifecycle.test.ts",
+      "does not publish over commit-time %s"
+    ],
+    "Setup converges when the commit-time state needs no preservation": [
+      "packages/cli/tests/test-execution/remote-workflow-lifecycle.test.ts",
+      "converges when setup revalidates the commit-time state as %s"
+    ],
+    "Failed private-file preparation preserves the released predecessor": [
+      "packages/cli/tests/test-execution/remote-workflow-lifecycle.test.ts",
+      "preserves released v1 when replacement preparation cannot sync"
+    ],
+    "Failed publication preserves the released predecessor": [
+      "packages/cli/tests/test-execution/remote-workflow-lifecycle.test.ts",
+      "preserves released v1 when replacement rename fails"
+    ],
+    "Publication never writes through the visible workflow path": [
+      "packages/cli/tests/test-execution/remote-workflow-lifecycle.test.ts",
+      "publishes a complete private replacement only through rename"
+    ],
+    "Retry ignores foreign crash residue and installs the current workflow": [
+      "packages/cli/tests/test-execution/remote-workflow-lifecycle.test.ts",
+      "ignores foreign replacement residue when retrying released v1"
+    ]
+  }
+}

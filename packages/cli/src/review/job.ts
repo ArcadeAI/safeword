@@ -24,6 +24,7 @@ import { type CliResult, createResult } from '../cli-protocol/result.js';
 import { retryCommand } from './command.js';
 import { isReviewKind, type ReviewKind } from './contract.js';
 import { prepareReviewPacket } from './packet.js';
+import { runBoundMs } from './runtime.js';
 
 type ReviewJobState = 'launching' | 'running' | 'completed' | 'failed' | 'canceled';
 type WorkerInspection = 'match' | 'mismatch' | 'unavailable';
@@ -38,6 +39,7 @@ interface ReviewJobRecord {
   readonly source_fingerprint: string;
   readonly started_at: string;
   readonly updated_at: string;
+  readonly deadline_at?: string;
   readonly pid?: number;
   readonly result?: CliResult;
   readonly integrity?: string;
@@ -253,6 +255,10 @@ function hasReviewJobIdentity(candidate: Record<string, unknown>): boolean {
     hasStrings &&
     isStringArray(candidate.targets) &&
     isOptional(candidate.context, isStringArray) &&
+    isOptional(
+      candidate.deadline_at,
+      value => typeof value === 'string' && Number.isFinite(Date.parse(value)),
+    ) &&
     isReviewKind(candidate.kind)
   );
 }
@@ -417,6 +423,7 @@ function staleResult(record: ReviewJobRecord): CliResult {
 }
 
 function currentResult(cwd: string, record: ReviewJobRecord): CliResult {
+  if (isActiveJobPastDeadline(record)) return failTimedOutJob(cwd, record);
   if (record.state === 'launching') {
     if (record.pid !== undefined && processExists(record.pid)) return pendingResult(record);
     return failExitedJob(cwd, record);
@@ -428,6 +435,36 @@ function currentResult(cwd: string, record: ReviewJobRecord): CliResult {
     return pendingResult(record);
   }
   return terminalResult(cwd, record);
+}
+
+function isActiveJobPastDeadline(record: ReviewJobRecord): boolean {
+  if (record.state !== 'launching' && record.state !== 'running') return false;
+  const deadline = record.deadline_at === undefined ? NaN : Date.parse(record.deadline_at);
+  return Number.isFinite(deadline) && Date.now() >= deadline;
+}
+
+function failTimedOutJob(cwd: string, record: ReviewJobRecord): CliResult {
+  if (record.pid !== undefined) terminateReviewWorker(record.pid);
+  const failed = createResult({
+    state: 'failed',
+    errors: [
+      {
+        code: 'REVIEW_WORKER_TIMED_OUT',
+        message: 'The background review worker exceeded its deadline before recording a result.',
+        retryable: true,
+      },
+    ],
+    data: { command: 'review status', status: 'failed', review_id: record.id },
+  });
+  const latest = updateActiveJob(cwd, record.id, current => ({
+    ...current,
+    state: 'failed',
+    result: failed,
+    updated_at: new Date().toISOString(),
+  }));
+  return latest.state === 'failed' && latest.result === failed
+    ? failed
+    : terminalResult(cwd, latest);
 }
 
 function failExitedJob(cwd: string, record: ReviewJobRecord): CliResult {
@@ -638,6 +675,7 @@ export async function startReviewJob(input: {
       source_fingerprint: sourceFingerprint,
       started_at: now,
       updated_at: now,
+      deadline_at: new Date(Date.now() + runBoundMs()).toISOString(),
       pid: process.pid,
     };
     writeJob(input.cwd, record);

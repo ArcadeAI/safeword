@@ -291,6 +291,10 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
         description: 'local or remote-preferred',
         valueKind: 'execution-mode-list',
       },
+      {
+        flags: '--prepare-remote',
+        description: 'Run the project remote-test setup command before tests',
+      },
     ],
   }),
   command(
@@ -300,6 +304,24 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     {
       syntax: 'status',
     },
+  ),
+  command(
+    'project test-execution remote status',
+    'Show managed remote-test workflow status',
+    'observe',
+    { syntax: 'status' },
+  ),
+  command(
+    'project test-execution remote setup',
+    'Install the managed remote-test workflow',
+    'mutate',
+    { syntax: 'setup' },
+  ),
+  command(
+    'project test-execution remote disable',
+    'Remove the managed remote-test workflow',
+    'mutate',
+    { syntax: 'disable' },
   ),
   command('project lint-gherkin', 'Validate executable feature files', 'observe', {
     syntax: 'lint-gherkin [files...]',
@@ -742,6 +764,11 @@ export const commandFamilies = [
   {
     route: 'project test-execution',
     description: 'Manage test execution preferences',
+    visibility: 'public',
+  },
+  {
+    route: 'project test-execution remote',
+    description: 'Manage remote test execution',
     visibility: 'public',
   },
   {

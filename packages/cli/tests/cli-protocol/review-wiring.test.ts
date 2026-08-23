@@ -10,7 +10,7 @@ import {
 } from 'node:fs';
 import nodePath from 'node:path';
 
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 
 import { createTemporaryDirectory, runCli } from '../helpers.js';
 import { createTrustedReviewerDirectory } from '../review-fixtures.js';
@@ -109,6 +109,7 @@ env_log=$(printenv SAFEWORD_REVIEW_ENV_LOG || true)
 if [ -n "$env_log" ]; then
   if printenv ANTHROPIC_API_KEY >/dev/null 2>&1; then printf 'anthropic=present\n' >> "$env_log"; else printf 'anthropic=absent\n' >> "$env_log"; fi
   if printenv OPENAI_API_KEY >/dev/null 2>&1; then printf 'openai=present\n' >> "$env_log"; else printf 'openai=absent\n' >> "$env_log"; fi
+  if printenv SAFEWORD_REVIEW_PROGRESS >/dev/null 2>&1; then printf 'progress=present\n' >> "$env_log"; else printf 'progress=absent\n' >> "$env_log"; fi
 fi
 if [ "$identity" = "missing" ]; then
   printf '{"schema_version":1,"dispatch_id":"%s","verdict":"%s","summary":"%s","findings":[]}\n' "$dispatch_id" "$verdict" "$summary"
@@ -141,11 +142,19 @@ function installIncompatibleReviewer(directory: string, agent: ReviewAgent, log:
 
 async function runManagedJsonReview(
   directory: string,
-  options: { readonly quiet?: boolean; readonly verdict?: 'approve' | 'request_changes' } = {},
+  options: {
+    readonly environmentLog?: string;
+    readonly managed?: boolean;
+    readonly quiet?: boolean;
+    readonly reviewer?: ReviewAgent;
+    readonly verdict?: 'approve' | 'request_changes';
+  } = {},
 ) {
   writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
   const log = nodePath.join(directory, 'review.log');
-  const bin = installFakeReviewer(directory, 'codex');
+  const reviewer = options.reviewer ?? 'codex';
+  const author = reviewer === 'codex' ? 'claude' : 'codex';
+  const bin = installFakeReviewer(directory, reviewer);
   const verdictEnvironment: Record<string, string> =
     options.verdict === 'request_changes'
       ? {
@@ -170,11 +179,14 @@ async function runManagedJsonReview(
       cwd: directory,
       env: {
         PATH: `${bin}:/usr/bin:/bin`,
-        SAFEWORD_AGENT_RUNTIME: 'claude',
+        SAFEWORD_AGENT_RUNTIME: author,
         SAFEWORD_PROGRESS_HEARTBEAT_MS: '150',
-        SAFEWORD_REVIEW_FAKE_DELAY_AGENT: 'codex',
+        SAFEWORD_REVIEW_FAKE_DELAY_AGENT: reviewer,
+        ...(options.environmentLog !== undefined && {
+          SAFEWORD_REVIEW_ENV_LOG: options.environmentLog,
+        }),
         SAFEWORD_REVIEW_LOG: log,
-        SAFEWORD_REVIEW_PROGRESS: '1',
+        ...(options.managed !== false && { SAFEWORD_REVIEW_PROGRESS: '1' }),
         SAFEWORD_NO_UPDATE_CHECK: '1',
         ...verdictEnvironment,
       },
@@ -225,6 +237,61 @@ describe('cross-agent review public-command wiring', () => {
     expect(JSON.parse(result.stdout)).toMatchObject({
       errors: [{ code: 'REVIEW_JOB_NOT_FOUND' }],
     });
+  });
+
+  it('persists malformed detached reviewer output as a terminal blocked result', async () => {
+    const directory = createTemporaryDirectory();
+    const log = nodePath.join(directory, 'review.log');
+    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+    const bin = installFakeReviewer(directory, 'codex');
+    const started = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'review-input.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_REVIEW_FAKE_FAILURE: 'invalid',
+          SAFEWORD_REVIEW_FOREGROUND_MS: '0',
+          SAFEWORD_REVIEW_LOG: log,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+    const pending = JSON.parse(started.stdout) as { data: { review_id: string } };
+
+    await vi.waitFor(
+      async () => {
+        const collected = await runCli([
+          'review',
+          'status',
+          pending.data.review_id,
+          '--json',
+          '--no-input',
+          '--cwd',
+          directory,
+        ]);
+        expect(collected.exitCode, collected.stdout).toBe(2);
+        expect(JSON.parse(collected.stdout)).toMatchObject({
+          state: 'action_required',
+          findings: [{ code: 'REVIEW_ROUTES_EXHAUSTED' }],
+          data: {
+            status: 'blocked',
+            preferred_failure: 'invalid_output',
+          },
+        });
+      },
+      { timeout: 10_000 },
+    );
   });
 
   it.each(['status', 'cancel'] as const)(
@@ -317,7 +384,7 @@ describe('cross-agent review public-command wiring', () => {
         {
           cwd: directory,
           env: {
-            PATH: `${bin}:${process.env.PATH ?? ''}`,
+            PATH: `${bin}:/usr/bin:/bin`,
             SAFEWORD_AGENT_RUNTIME: author,
             SAFEWORD_REVIEW_LOG: log,
             SAFEWORD_NO_UPDATE_CHECK: '1',
@@ -499,7 +566,7 @@ describe('cross-agent review public-command wiring', () => {
       {
         cwd: directory,
         env: {
-          PATH: `${bin}:${process.env.PATH ?? ''}`,
+          PATH: `${bin}:/usr/bin:/bin`,
           SAFEWORD_AGENT_RUNTIME: 'codex',
           SAFEWORD_REVIEW_LOG: log,
           SAFEWORD_NO_UPDATE_CHECK: '1',
@@ -761,7 +828,7 @@ describe('cross-agent review public-command wiring', () => {
         {
           cwd: directory,
           env: {
-            PATH: `${bin}:${process.env.PATH ?? ''}`,
+            PATH: `${bin}:/usr/bin:/bin`,
             SAFEWORD_AGENT_RUNTIME: 'claude',
             SAFEWORD_REVIEW_FAKE_MUTATE: '1',
             SAFEWORD_REVIEW_LOG: log,
@@ -808,7 +875,7 @@ describe('cross-agent review public-command wiring', () => {
         {
           cwd: directory,
           env: {
-            PATH: `${bin}:${process.env.PATH ?? ''}`,
+            PATH: `${bin}:/usr/bin:/bin`,
             SAFEWORD_AGENT_RUNTIME: 'claude',
             SAFEWORD_REVIEW_FAKE_SOURCE_MUTATE_TARGET: target,
             SAFEWORD_REVIEW_LOG: log,
@@ -932,7 +999,7 @@ describe('cross-agent review public-command wiring', () => {
       {
         cwd: directory,
         env: {
-          PATH: `${bin}:${process.env.PATH ?? ''}`,
+          PATH: `${bin}:/usr/bin:/bin`,
           ANTHROPIC_API_KEY: authorSecret,
           OPENAI_API_KEY: reviewerSecret,
           SAFEWORD_AGENT_RUNTIME: 'claude',
@@ -946,7 +1013,9 @@ describe('cross-agent review public-command wiring', () => {
 
     expect(result.exitCode, result.stdout).toBe(0);
     expect(readFileSync(probeEnvironmentLog, 'utf8')).toBe('anthropic=absent\nopenai=absent\n');
-    expect(readFileSync(environmentLog, 'utf8')).toBe('anthropic=absent\nopenai=present\n');
+    expect(readFileSync(environmentLog, 'utf8')).toBe(
+      'anthropic=absent\nopenai=present\nprogress=absent\n',
+    );
     expect(result.stdout).not.toContain(authorSecret);
     expect(result.stdout).not.toContain(reviewerSecret);
   });
@@ -986,7 +1055,9 @@ describe('cross-agent review public-command wiring', () => {
     );
 
     expect(result.exitCode, result.stdout).toBe(0);
-    expect(readFileSync(environmentLog, 'utf8')).toBe('anthropic=present\nopenai=absent\n');
+    expect(readFileSync(environmentLog, 'utf8')).toBe(
+      'anthropic=present\nopenai=absent\nprogress=absent\n',
+    );
     expect(result.stdout).not.toContain(authorSecret);
     expect(result.stdout).not.toContain(reviewerSecret);
   });
@@ -1667,24 +1738,44 @@ describe('cross-agent review public-command wiring', () => {
     expect(result.stderr).not.toContain('Still waiting for the independent review…');
   });
 
-  it('keeps managed machine output typed while identifying the active reviewer', async () => {
+  it.each([
+    { reviewer: 'codex' as const, other: 'Claude' },
+    { reviewer: 'claude' as const, other: 'Codex' },
+  ])(
+    'keeps managed machine output typed while identifying the active $reviewer reviewer',
+    async ({ reviewer, other }) => {
+      const directory = createTemporaryDirectory();
+      const result = await runManagedJsonReview(directory, { reviewer });
+      const label = reviewer === 'codex' ? 'Codex' : 'Claude';
+
+      expect(result.exitCode, result.stdout).toBe(0);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        schema_version: 1,
+        state: 'healthy',
+        data: { actual_reviewer: reviewer, reviewer_output: { verdict: 'approve' } },
+      });
+      expect(result.stderr).toContain(`Requesting an independent ${label} review…`);
+      expect(result.stderr).toContain(`Still waiting for a response from ${label}…`);
+      expect(result.stderr).not.toContain(`independent ${other} review`);
+      expect(result.stderr).not.toContain(`response from ${other}`);
+    },
+  );
+
+  it('keeps the managed-progress signal out of the spawned reviewer environment', async () => {
     const directory = createTemporaryDirectory();
-    const result = await runManagedJsonReview(directory);
+    const environmentLog = nodePath.join(directory, 'environment.log');
+    const result = await runManagedJsonReview(directory, { environmentLog });
 
     expect(result.exitCode, result.stdout).toBe(0);
-    expect(JSON.parse(result.stdout)).toMatchObject({
-      schema_version: 1,
-      state: 'healthy',
-      data: { actual_reviewer: 'codex', reviewer_output: { verdict: 'approve' } },
-    });
     expect(result.stderr).toContain('Requesting an independent Codex review…');
-    expect(result.stderr).toContain('Still waiting for a response from Codex…');
+    expect(readFileSync(environmentLog, 'utf8')).toContain('progress=absent\n');
   });
 
   it('carries managed progress through the wrapper, real CLI, and real coordinator', () => {
     const directory = createTemporaryDirectory();
     writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
     const log = nodePath.join(directory, 'review.log');
+    const environmentLog = nodePath.join(directory, 'environment.log');
     const bin = installFakeReviewer(directory, 'codex');
     const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
     const result = spawnSync(
@@ -1710,6 +1801,7 @@ describe('cross-agent review public-command wiring', () => {
           SAFEWORD_AGENT_RUNTIME: 'claude',
           SAFEWORD_PROGRESS_HEARTBEAT_MS: '150',
           SAFEWORD_REVIEW_FAKE_DELAY_AGENT: 'codex',
+          SAFEWORD_REVIEW_ENV_LOG: environmentLog,
           SAFEWORD_REVIEW_LOG: log,
           SAFEWORD_NO_UPDATE_CHECK: '1',
         },
@@ -1725,6 +1817,7 @@ describe('cross-agent review public-command wiring', () => {
     });
     expect(result.stderr).toContain('Requesting an independent Codex review…');
     expect(readFileSync(log, 'utf8')).toBe('codex\n');
+    expect(readFileSync(environmentLog, 'utf8')).toContain('progress=absent\n');
   });
 
   it('preserves an action-required result after managed progress', async () => {
@@ -1743,6 +1836,15 @@ describe('cross-agent review public-command wiring', () => {
     expect(output.findings).toContainEqual(expect.objectContaining({ message: 'Unsafe retry' }));
     expect(result.stderr).toContain('Requesting an independent Codex review…');
     expect(result.stderr).toContain('Still waiting for a response from Codex…');
+  });
+
+  it('keeps a direct JSON review silent while its reviewer remains active', async () => {
+    const directory = createTemporaryDirectory();
+    const result = await runManagedJsonReview(directory, { managed: false });
+
+    expect(result.exitCode, result.stdout).toBe(0);
+    expect(result.stderr).toBe('');
+    expect(JSON.parse(result.stdout)).toMatchObject({ schema_version: 1, state: 'healthy' });
   });
 
   it.each([

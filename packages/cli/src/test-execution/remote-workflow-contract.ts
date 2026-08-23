@@ -12,7 +12,7 @@ type Mapping = Record<string, unknown>;
 const FULL_SHA = /^[0-9a-f]{40}$/u;
 const CHECKOUT = 'actions/checkout';
 const CHECKOUT_ACTION = 'actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0';
-const SETUP_BUN_ACTION = 'oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6';
+const SETUP_NODE_ACTION = 'actions/setup-node@820762786026740c76f36085b0efc47a31fe5020';
 const INPUT_SHA = '${{ inputs.target_sha }}';
 const INPUT_LANE = '${{ inputs.lane }}';
 const RESULT_FILE = 'safeword-remote-test-result.json';
@@ -24,6 +24,7 @@ const VERIFY_COMMAND =
   'observed_sha="$(git rev-parse HEAD)"\n' +
   'echo "observed_sha=$observed_sha" >> "$GITHUB_OUTPUT"\n' +
   '[[ "$observed_sha" == "$TARGET_SHA" ]]\n';
+// Recompute with SHA-256 over the exact report step `run` string in remote-tests.yml.
 const REPORT_COMMAND_SHA256 = 'b1cba179d7c3921553cb748e1c1759e2711f7aeef977317ec71515c6bd3608c9';
 
 function mapping(value: unknown): Mapping | undefined {
@@ -141,9 +142,9 @@ const STEP_SHAPES: StepShape[] = [
   { id: 'checkout', uses: CHECKOUT_ACTION, keys: ['name', 'id', 'uses', 'with'] },
   { id: 'verify', keys: ['name', 'id', 'env', 'run'] },
   {
-    uses: SETUP_BUN_ACTION,
+    uses: SETUP_NODE_ACTION,
     keys: ['name', 'uses', 'with'],
-    with: { 'bun-version-file': 'package.json' },
+    with: { 'node-version': 24 },
   },
   { id: 'tests', keys: ['name', 'id', 'env', 'run'] },
   { id: 'report', keys: ['name', 'id', 'if', 'env', 'run'] },
@@ -204,7 +205,8 @@ function commandViolations(steps: Mapping[]): string[] {
     ...(stepById(steps, 'validate')?.run === VALIDATE_COMMAND ? [] : ['fixed_validation']),
     ...(stepById(steps, 'verify')?.run === VERIFY_COMMAND ? [] : ['fixed_revision_verification']),
   ];
-  return testRun === 'bunx safeword@0.78.3 project test --lane "$LANE" --execution local'
+  return testRun ===
+    'npx --yes safeword@0.78.6 project test --lane "$LANE" --execution local --prepare-remote'
     ? violations
     : [...violations, 'fixed_test_command'];
 }
@@ -245,7 +247,9 @@ function hasSecretsKey(value: unknown): boolean {
 }
 
 function hasSecretExpression(value: unknown): boolean {
-  if (typeof value === 'string') return /\$\{\{[\s\S]*\bsecrets\s*[.()[\]]/iu.test(value);
+  if (typeof value === 'string') {
+    return /\$\{\{[\s\S]*\bsecrets(?:\s*[.()[\]]|\s*\}\})/iu.test(value);
+  }
   if (Array.isArray(value)) return value.some(item => hasSecretExpression(item));
   const object = mapping(value);
   return object ? Object.values(object).some(child => hasSecretExpression(child)) : false;
@@ -256,8 +260,13 @@ function secretViolations(workflow: Mapping): string[] {
 }
 
 export function evaluateRemoteTestWorkflow(source: string): RemoteWorkflowContractResult {
-  const document = parseDocument(source, { uniqueKeys: true });
-  const workflow = document.errors.length === 0 ? mapping(document.toJS()) : undefined;
+  let workflow: Mapping | undefined;
+  try {
+    const document = parseDocument(source, { uniqueKeys: true });
+    workflow = document.errors.length === 0 ? mapping(document.toJS()) : undefined;
+  } catch {
+    workflow = undefined;
+  }
   if (!workflow) return { accepted: false, violations: ['invalid_yaml'] };
 
   const job = jobViolations(workflow);

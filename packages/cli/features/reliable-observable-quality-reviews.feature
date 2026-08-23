@@ -3,7 +3,7 @@ Feature: Keep quality reviews observable and actionable
 
   Safeword-managed independent reviews should remain visibly active during long
   reviewer work without corrupting the typed result consumed by agents and
-  automation. The installed wrapper opts JSON review children into this private
+  automation. Managed host routes opt JSON review children into this progress
   side channel; direct JSON callers remain silent by default.
 
   Executable proof: packages/cli/tests/cli-protocol/review-wiring.test.ts,
@@ -12,12 +12,13 @@ Feature: Keep quality reviews observable and actionable
   packages/cli/tests/review/environment.test.ts.
 
   @reliable-observable-quality-reviews.TBU1.R1 @surface.safeword-cli
-  Rule: reliable-observable-quality-reviews.TBU1.R1 — Managed JSON reviews expose reviewer activity without changing their result
+  Rule: reliable-observable-quality-reviews.TBU1.R1 — Managed JSON reviews expose reviewer activity without changing verdict results
 
-    Scenario Outline: Managed progress preserves each terminal review outcome
+    Scenario Outline: Managed progress preserves each reviewer verdict outcome
       Given a managed JSON review remains active through a waiting heartbeat
       When the reviewer returns verdict <verdict>
-      Then stderr reports active reviewer work and a waiting heartbeat
+      Then stderr reports active reviewer work
+      And stderr reports a waiting heartbeat
       And stdout is one parseable schema-1 result classified as <classification>
       And the command exits with status <status>
 
@@ -26,24 +27,39 @@ Feature: Keep quality reviews observable and actionable
         | approve         | approved        | 0      |
         | request_changes | action-required | 2      |
 
-    Scenario: Active route progress identifies the assigned reviewer
-      Given a managed JSON review reaches an active reviewer route
+    Scenario: Waiting heartbeat starts at 30 seconds and repeats
+      Given a managed review has armed a waiting heartbeat on a controlled scheduler
+      When the scheduler advances to just before 30 seconds
+      And then advances through 30 and 60 seconds while the review remains incomplete
+      Then no waiting heartbeat is emitted before 30 seconds
+      And one waiting heartbeat is emitted at 30 and 60 seconds
+      And another heartbeat is armed for 90 seconds
+
+    Scenario Outline: Active route progress identifies the assigned reviewer
+      Given a managed JSON review assigns the active route to <assigned>
       When lifecycle progress is emitted
-      Then stderr identifies the assigned reviewer
+      Then stderr identifies <assigned> as the assigned reviewer
+      And stderr does not identify <other> as the assigned reviewer
+
+      Examples:
+        | assigned | other  |
+        | Codex    | Claude |
+        | Claude   | Codex  |
 
     Scenario: Completion cancels pending lifecycle output
-      Given a managed review has pending active and heartbeat reports
+      Given a managed review has armed active and heartbeat reports that emit when it remains incomplete
       When the review completes before those reports are due
+      And the controlled scheduler advances past both due points
       Then no pending lifecycle report is emitted afterward
 
   @reliable-observable-quality-reviews.TBU1.R2 @surface.safeword-cli
   Rule: reliable-observable-quality-reviews.TBU1.R2 — Unsupported callers retain the existing machine and human contracts
 
-    Scenario Outline: Only the exact private signal enables JSON progress
+    Scenario Outline: Only the exact managed-progress signal enables JSON progress
       Given a JSON review with managed-progress signal value <value>
       When output policy is resolved
       Then managed JSON progress is <enabled>
-      And the private signal is removed from the command environment
+      And the managed-progress signal is removed from the command environment
 
       Examples:
         | value   | enabled  |
@@ -58,56 +74,65 @@ Feature: Keep quality reviews observable and actionable
         | "TRUE"  | disabled |
 
     Scenario Outline: Quiet mode wins over managed progress
-      Given a managed JSON review with quiet mode enabled
+      Given a managed JSON review remains active through a waiting heartbeat with quiet mode enabled
       When the reviewer returns verdict <verdict>
       Then stderr is empty
-      And stdout is one parseable schema-1 result
+      And stdout is one parseable schema-1 result classified as <classification>
       And the command exits with status <status>
 
       Examples:
-        | verdict         | status |
-        | approve         | 0      |
-        | request_changes | 2      |
+        | verdict         | classification  | status |
+        | approve         | approved        | 0      |
+        | request_changes | action-required | 2      |
 
-    Scenario: Human-readable progress remains enabled without the private signal
-      Given a human-readable review without quiet mode
+    Scenario: A direct JSON review remains silent without the managed-progress signal
+      Given a direct JSON review remains active through a waiting heartbeat without the managed-progress signal
+      When the reviewer returns an approved result
+      Then stderr is empty
+      And stdout is one parseable schema-1 result classified as approved
+      And the command exits with status 0
+
+    Scenario: Human-readable progress remains enabled with the managed-progress signal
+      Given a human-readable review without quiet mode carries the managed-progress signal
       When output policy is resolved
       Then human-readable progress remains enabled
+      And the managed-progress signal is removed from the command environment
 
   @reliable-observable-quality-reviews.SWM1.R1 @surface.safeword-cli
-  Rule: reliable-observable-quality-reviews.SWM1.R1 — Progress is a best-effort Safeword-owned side channel
+  Rule: reliable-observable-quality-reviews.SWM1.R1 — Progress writes do not throw and the managed-progress signal does not reach reviewers
 
-    Scenario Outline: Progress write failures stay contained and retryable
-      Given a managed progress destination that <failure>
-      When lifecycle output is attempted more than once
-      Then every write failure is swallowed
-      And later lifecycle writes are still attempted
+    Scenario Outline: Progress write failures remain best-effort and retryable
+      Given a managed progress destination where <outcomes>
+      When exactly two lifecycle writes are attempted
+      Then the caller observes no thrown write error
+      And the non-failing write is delivered
 
       Examples:
-        | failure                                  |
-        | fails on its first write                 |
-        | succeeds once and fails on its next write |
+        | outcomes                                  |
+        | the first write fails and the second succeeds |
+        | the first write succeeds and the second fails |
 
-    Scenario: The reviewer allowlist excludes the wrapper-only signal
-      Given a managed JSON review carries the private signal
+    Scenario: The reviewer allowlist excludes the managed-progress signal
+      Given a managed JSON review carries the managed-progress signal and an allowed `PATH` value
       When the public CLI constructs a reviewer environment
-      Then the reviewer environment does not contain the private signal
+      Then the reviewer environment preserves that `PATH` value
+      And the reviewer environment does not contain the managed-progress signal
 
   @reliable-observable-quality-reviews.SWM1.R2 @surface.safeword-cli @surface.claude-code @surface.openai-codex
-  Rule: reliable-observable-quality-reviews.SWM1.R2 — Required-review workflows use a compatible managed wrapper
+  Rule: reliable-observable-quality-reviews.SWM1.R2 — Required-review workflows enter the managed coordinator through compatible host routes
 
     Scenario: The wrapper scopes progress to its JSON review child
-      Given the wrapper inherits a hostile private-signal value
+      Given the wrapper inherits a hostile managed-progress-signal value and selects a JSON review child that waits for acknowledgement
       When it probes candidates and launches a JSON review
-      Then probes receive no private signal
-      And the selected JSON review child receives the exact private signal
-      And progress reaches stderr before the child exits
-      And the child's stdout and exit status are preserved
+      Then probes receive no managed-progress signal
+      And the selected JSON review child receives the exact managed-progress signal
+      And progress reaches stderr before the child is acknowledged
+      And the child writes `RESULT` to stdout and exits with status 2
 
     Scenario Outline: The wrapper remains compatible with an older review-capable CLI
       Given an older CLI rejects unknown arguments and ignores unknown environment variables
       When the wrapper launches a JSON review returning <classification>
-      Then no new argument is passed
+      Then no managed-progress argument is passed
       And the CLI result and status <status> are preserved
 
       Examples:
@@ -116,9 +141,9 @@ Feature: Keep quality reviews observable and actionable
         | action-required | 2      |
 
     Scenario: Required-review surfaces cannot bypass the review coordinator
-      Given generated Claude Code, OpenAI Codex, and Cursor surfaces
+      Given non-empty catalogues of workflows required to launch independent reviews for Claude Code and OpenAI Codex and a non-empty Cursor catalogue
       When independent-review launch commands are inspected
       Then required Claude Code workflows invoke the wrapper with JSON output
       And required OpenAI Codex workflows invoke the pinned CLI with JSON output and managed progress
       And no required workflow invokes a reviewer directly
-      And Cursor contains no independent-review launch command
+      And the inspected Cursor catalogue is non-empty and contains no independent-review launch command
