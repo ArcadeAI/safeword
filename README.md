@@ -520,21 +520,30 @@ Keep the customer workflow disabled until a live smoke passes where it will run.
 
 ### Maintainer compatibility proof
 
-The release environment named `pr-review-smoke` must define
-`SAFEWORD_PR_REVIEW_SMOKE_TOKEN`. Its account needs narrowly scoped authority to
-create and permanently delete public repositories under two dedicated sandbox
-owners, manage their Actions environments and secrets, and create a fork from
-one owner into the other. It must not have authority over production
-repositories. Both repository variables, `SAFEWORD_PR_REVIEW_SMOKE_OWNER` and
+The release environment named `pr-review-smoke` must define the secret
+`SAFEWORD_PR_REVIEW_SMOKE_APP_PRIVATE_KEY` and the variable
+`SAFEWORD_PR_REVIEW_SMOKE_APP_CLIENT_ID` for a dedicated smoke-only GitHub App.
+Install that App for all repositories on both dedicated sandbox owners. Its
+base-owner installation needs Actions, Administration, Contents, Environments,
+Issues, Pull requests, and Workflows write access. Its fork-owner installation
+needs Administration and Contents write access. The smoke App must not have authority over production
+repositories. Do not install it on production owners.
+
+Both owner variables, `SAFEWORD_PR_REVIEW_SMOKE_OWNER` and
 `SAFEWORD_PR_REVIEW_SMOKE_FORK_OWNER`, are required and must name different
-sandbox owners. Configure the environment's deployment policies to allow only
-release tags and the default branch.
+sandbox owners. The workflow mints separate installation tokens for the two
+owners; GitHub revokes them at job completion, and they otherwise expire within
+one hour. Configure the environment's deployment policies to allow only release
+tags and the default branch.
 
 Run the same proof locally with:
 
 ```bash
 bun run --cwd packages/cli smoke:pr-review:disposable
 ```
+
+For a local run, set `GH_TOKEN` to a base-owner installation token and
+`SAFEWORD_PR_REVIEW_SMOKE_FORK_TOKEN` to a fork-owner installation token.
 
 Each daily canary or manual proof creates
 `safeword-pr-review-smoke-<unique-id>` in both owners, exercises a real fork pull

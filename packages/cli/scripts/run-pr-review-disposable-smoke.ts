@@ -7,6 +7,7 @@ import { createPrReviewSmokeFixture } from '../src/pr-review/smoke-fixture.js';
 
 interface CommandOptions {
   cwd?: string;
+  env?: NodeJS.ProcessEnv;
   input?: string;
   quiet?: boolean;
 }
@@ -38,7 +39,7 @@ function command(executable: string, arguments_: string[], options: CommandOptio
   const result = spawnSync(executable, arguments_, {
     cwd: options.cwd,
     encoding: 'utf8',
-    env: process.env,
+    env: { ...process.env, ...options.env },
     input: options.input,
     maxBuffer: 16 * 1024 * 1024,
   });
@@ -51,15 +52,18 @@ function command(executable: string, arguments_: string[], options: CommandOptio
   return result.stdout.trim();
 }
 
-function gh(arguments_: string[], options?: CommandOptions): string {
-  return command('gh', arguments_, options);
+function gh(arguments_: string[], options: CommandOptions = {}, token?: string): string {
+  return command('gh', arguments_, {
+    ...options,
+    env: token === undefined ? options.env : { ...options.env, GH_TOKEN: token },
+  });
 }
 
-function ghJson(path: string): unknown {
+function ghJson(path: string, token?: string): unknown {
   let lastError: unknown;
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     try {
-      return JSON.parse(gh(['api', path], { quiet: true })) as unknown;
+      return JSON.parse(gh(['api', path], { quiet: true }, token)) as unknown;
     } catch (error) {
       lastError = error;
       pause(attempt * 1000);
@@ -78,9 +82,9 @@ function waitFor<T>(description: string, probe: () => T | undefined, seconds = 3
   throw new Error(`timed out waiting for ${description}`);
 }
 
-function repoExists(repo: string): boolean {
+function repoExists(repo: string, token?: string): boolean {
   try {
-    ghJson(`repos/${repo}`);
+    ghJson(`repos/${repo}`, token);
     return true;
   } catch {
     return false;
@@ -208,20 +212,34 @@ function writeFixture(directory: string): void {
   }
 }
 
-function cleanupFixture(
-  baseRepo: string,
-  forkRepo: string,
-  directory: string,
-  baseCreated: boolean,
-  forkCreated: boolean,
-): void {
+interface CleanupFixtureInput {
+  baseCreated: boolean;
+  baseRepo: string;
+  baseToken: string;
+  directory: string;
+  forkCreated: boolean;
+  forkRepo: string;
+  forkToken: string;
+}
+
+function cleanupFixture(input: CleanupFixtureInput): void {
+  const { baseCreated, baseRepo, baseToken, directory, forkCreated, forkRepo, forkToken } = input;
   if (process.env.SAFEWORD_KEEP_PR_REVIEW_SMOKE === '1') {
     console.log(`Keeping ${baseRepo} and ${forkRepo}`);
     return;
   }
-  if (forkCreated) gh(['repo', 'delete', forkRepo, '--yes']);
-  if (baseCreated) gh(['repo', 'delete', baseRepo, '--yes']);
+  if (forkCreated) gh(['repo', 'delete', forkRepo, '--yes'], {}, forkToken);
+  if (baseCreated) gh(['repo', 'delete', baseRepo, '--yes'], {}, baseToken);
   rmSync(directory, { force: true, recursive: true });
+}
+
+function gitAuthentication(token: string): NodeJS.ProcessEnv {
+  const basicCredential = Buffer.from(`x-access-token:${token}`).toString('base64');
+  return {
+    GIT_CONFIG_COUNT: '1',
+    GIT_CONFIG_KEY_0: 'http.https://github.com/.extraheader',
+    GIT_CONFIG_VALUE_0: `AUTHORIZATION: basic ${basicCredential}`,
+  };
 }
 
 function verifyResult(
@@ -269,6 +287,11 @@ export function runPrReviewDisposableSmoke(): void {
   if (baseOwner.toLowerCase() === forkOwner.toLowerCase()) {
     throw new Error('base and fork owners must differ to prove pull_request_target fork behavior');
   }
+  const baseToken = (process.env.GH_TOKEN || '').trim();
+  const forkToken = (process.env.SAFEWORD_PR_REVIEW_SMOKE_FORK_TOKEN || '').trim();
+  if (!baseToken || !forkToken) {
+    throw new Error('GH_TOKEN and SAFEWORD_PR_REVIEW_SMOKE_FORK_TOKEN are required');
+  }
 
   const suffix = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`.toLowerCase();
   const repoName = `safeword-pr-review-smoke-${suffix}`;
@@ -298,7 +321,10 @@ export function runPrReviewDisposableSmoke(): void {
     command('git', ['remote', 'add', 'origin', `https://github.com/${baseRepo}.git`], {
       cwd: directory,
     });
-    command('git', ['push', '--set-upstream', 'origin', 'main'], { cwd: directory });
+    command('git', ['push', '--set-upstream', 'origin', 'main'], {
+      cwd: directory,
+      env: gitAuthentication(baseToken),
+    });
 
     gh(['api', '--method', 'PUT', `repos/${baseRepo}/environments/safeword-pr-review-model`]);
     gh(
@@ -306,8 +332,8 @@ export function runPrReviewDisposableSmoke(): void {
       { input: `smoke-${crypto.randomUUID()}\n` },
     );
 
-    gh(['repo', 'fork', baseRepo, '--clone=false', '--fork-name', repoName]);
-    waitFor('fork creation', () => (repoExists(forkRepo) ? true : undefined));
+    gh(['repo', 'fork', baseRepo, '--clone=false', '--fork-name', repoName], {}, forkToken);
+    waitFor('fork creation', () => (repoExists(forkRepo, forkToken) ? true : undefined));
     forkCreated = true;
 
     command('git', ['checkout', '-b', 'smoke-fork-change'], { cwd: directory });
@@ -316,6 +342,7 @@ export function runPrReviewDisposableSmoke(): void {
     command('git', ['commit', '-m', 'Exercise fork advisory review'], { cwd: directory });
     command('git', ['push', `https://github.com/${forkRepo}.git`, 'HEAD:smoke-fork-change'], {
       cwd: directory,
+      env: gitAuthentication(forkToken),
     });
     const pullUrl = gh([
       'pr',
@@ -393,7 +420,15 @@ export function runPrReviewDisposableSmoke(): void {
       }),
     );
   } finally {
-    cleanupFixture(baseRepo, forkRepo, directory, baseCreated, forkCreated);
+    cleanupFixture({
+      baseCreated,
+      baseRepo,
+      baseToken,
+      directory,
+      forkCreated,
+      forkRepo,
+      forkToken,
+    });
   }
 }
 

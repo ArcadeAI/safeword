@@ -37,9 +37,35 @@ jobs:
       - name: Install dependencies without repository authority
         run: bun install --frozen-lockfile
 
+      - name: Mint short-lived base-owner token
+        id: base-owner-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.SAFEWORD_PR_REVIEW_SMOKE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.SAFEWORD_PR_REVIEW_SMOKE_APP_PRIVATE_KEY }}
+          owner: ${{ vars.SAFEWORD_PR_REVIEW_SMOKE_OWNER }}
+          permission-actions: write
+          permission-administration: write
+          permission-contents: write
+          permission-environments: write
+          permission-issues: write
+          permission-pull-requests: write
+          permission-workflows: write
+
+      - name: Mint short-lived fork-owner token
+        id: fork-owner-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.SAFEWORD_PR_REVIEW_SMOKE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.SAFEWORD_PR_REVIEW_SMOKE_APP_PRIVATE_KEY }}
+          owner: ${{ vars.SAFEWORD_PR_REVIEW_SMOKE_FORK_OWNER }}
+          permission-administration: write
+          permission-contents: write
+
       - name: Prove fork-event and scheduled advisory semantics
         run: bun run --cwd packages/cli smoke:pr-review:disposable
         env:
-          GH_TOKEN: ${{ secrets.SAFEWORD_PR_REVIEW_SMOKE_TOKEN }}
+          GH_TOKEN: ${{ steps.base-owner-token.outputs.token }}
+          SAFEWORD_PR_REVIEW_SMOKE_FORK_TOKEN: ${{ steps.fork-owner-token.outputs.token }}
           SAFEWORD_PR_REVIEW_SMOKE_OWNER: ${{ vars.SAFEWORD_PR_REVIEW_SMOKE_OWNER }}
           SAFEWORD_PR_REVIEW_SMOKE_FORK_OWNER: ${{ vars.SAFEWORD_PR_REVIEW_SMOKE_FORK_OWNER }}

@@ -114,9 +114,15 @@ describe('Claude plugin release contract', () => {
     expect(canary).toContain("github.event_name == 'schedule'");
     expect(canary).toContain('github.event.repository.default_branch');
     expect(canary).toContain('environment: pr-review-smoke');
-    expect(canary).toContain('secrets.SAFEWORD_PR_REVIEW_SMOKE_TOKEN');
+    expect(canary).toContain('actions/create-github-app-token@');
+    expect(canary.match(/actions\/create-github-app-token@/gu)).toHaveLength(2);
+    expect(canary).toContain('vars.SAFEWORD_PR_REVIEW_SMOKE_APP_CLIENT_ID');
+    expect(canary).toContain('secrets.SAFEWORD_PR_REVIEW_SMOKE_APP_PRIVATE_KEY');
+    expect(canary).not.toContain('SAFEWORD_PR_REVIEW_SMOKE_TOKEN');
+    expect(canary).toContain('SAFEWORD_PR_REVIEW_SMOKE_FORK_TOKEN');
     expect(canary).toContain('smoke:pr-review:disposable');
     expect(runner).toContain('must name two dedicated sandbox owners');
+    expect(runner).toContain('GH_TOKEN and SAFEWORD_PR_REVIEW_SMOKE_FORK_TOKEN are required');
     expect(readme).toContain('SAFEWORD_PR_REVIEW_SMOKE_OWNER');
     expect(readme).toMatch(/must not have authority over production\s+repositories/u);
     expect(readme).toContain('SAFEWORD_KEEP_PR_REVIEW_SMOKE=1');
