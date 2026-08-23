@@ -46,6 +46,14 @@ describe('CLI execution policy', () => {
     expect(shouldReportProgress({ json: true, managedReview: true, quiet: true })).toBe(false);
   });
 
+  it('keeps human progress unchanged while consuming the private signal', () => {
+    const environment = { SAFEWORD_REVIEW_PROGRESS: '1' };
+
+    expect(consumeManagedProgressSignal(environment)).toBe(true);
+    expect(environment).not.toHaveProperty('SAFEWORD_REVIEW_PROGRESS');
+    expect(shouldReportProgress({ json: false, managedReview: false, quiet: false })).toBe(true);
+  });
+
   it.each([
     { failureIndex: 0, error: 'EBADF' },
     { failureIndex: 1, error: 'EPIPE' },
@@ -238,22 +246,30 @@ describe('CLI execution policy', () => {
   it('cancels a pending announcement as well as the heartbeat when the command ends', () => {
     const emit = vi.fn();
     const cancel = vi.fn();
+    const pending = new Map<number, () => void>();
     let nextHandle = 0;
     const progress = createProgressReporter({
-      schedule: () => {
+      schedule: callback => {
         nextHandle += 1;
+        pending.set(nextHandle, callback);
         return nextHandle;
       },
-      cancel,
+      cancel: handle => {
+        cancel(handle);
+        pending.delete(handle as number);
+      },
       emit,
     });
 
     progress.start('Requesting an independent Codex review…');
     progress.heartbeat?.('Still waiting for a response from Codex…');
+    expect(pending.size).toBe(2);
     progress.stop();
+    for (const callback of pending.values()) callback();
 
     expect(cancel).toHaveBeenCalledWith(1);
     expect(cancel).toHaveBeenCalledWith(2);
+    expect(pending.size).toBe(0);
     expect(emit).not.toHaveBeenCalled();
   });
 
