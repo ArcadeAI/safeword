@@ -47,6 +47,10 @@ function executable(path: string, body: string): void {
   chmodSync(path, 0o755);
 }
 
+function containsReviewLaunch(content: string): boolean {
+  return /(?:run-review\.ts|safeword(?:@\S+)?)\s+review\s+run\b/u.test(content);
+}
+
 // eslint-disable-next-line complexity -- one fixture intentionally exercises every resolver branch
 function runResolver(
   route: 'plugin' | 'local' | 'source' | 'fallback',
@@ -184,6 +188,7 @@ exit 2`,
         },
       );
       let stdout = '';
+      let stdoutAtProgress: string | undefined;
       let stderr = '';
       child.stdout.setEncoding('utf8');
       child.stderr.setEncoding('utf8');
@@ -192,8 +197,8 @@ exit 2`,
       });
       child.stderr.on('data', (chunk: string) => {
         stderr += chunk;
-        if (stderr.includes('PROGRESS\n')) {
-          expect(stdout).toBe('');
+        if (stderr.includes('PROGRESS\n') && stdoutAtProgress === undefined) {
+          stdoutAtProgress = stdout;
           writeFileSync(acknowledgement, 'ok\n');
         }
       });
@@ -203,6 +208,7 @@ exit 2`,
         child.once('close', resolve);
       });
       expect(status).toBe(2);
+      expect(stdoutAtProgress).toBe('');
       expect(readFileSync(probeEnvironment, 'utf8')).toBe('unset\n');
       expect(stderr).toBe('PROGRESS\n');
       expect(stdout).toBe('RESULT\n');
@@ -354,6 +360,7 @@ exit ${status}`,
     ];
 
     for (const { root, reviewEntrypoint, requiredReviewFiles } of generatedSurfaces) {
+      expect(requiredReviewFiles, root).not.toHaveLength(0);
       for (const relativePath of requiredReviewFiles) {
         const content = readFileSync(nodePath.join(root, relativePath), 'utf8');
         expect(content, relativePath).toContain(`${reviewEntrypoint}review run`);
@@ -371,11 +378,11 @@ exit ${status}`,
       nodePath.join(repoRoot, '.cursor/rules'),
     ];
     for (const cursorRoot of cursorRoots) {
-      for (const relativePath of filesUnder(cursorRoot)) {
-        expect(
-          readFileSync(nodePath.join(cursorRoot, relativePath), 'utf8'),
-          relativePath,
-        ).not.toContain('run-review.ts review run');
+      const cursorFiles = filesUnder(cursorRoot);
+      expect(cursorFiles, cursorRoot).not.toHaveLength(0);
+      for (const relativePath of cursorFiles) {
+        const content = readFileSync(nodePath.join(cursorRoot, relativePath), 'utf8');
+        expect(containsReviewLaunch(content), relativePath).toBe(false);
       }
     }
   });
@@ -504,7 +511,7 @@ exit ${status}`,
     'skills/tdd-review/SKILL.md',
     'skills/refactor/SKILL.md',
   ])('%s stays outside the class-1 coordinator', relativePath => {
-    expect(readTemplate(relativePath), relativePath).not.toContain('safeword review run');
+    expect(containsReviewLaunch(readTemplate(relativePath)), relativePath).toBe(false);
   });
 
   it('wires every canonical coordinator caller to the same typed-exhaustion continuation', () => {

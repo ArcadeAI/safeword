@@ -35,7 +35,9 @@ describe('CLI execution policy', () => {
   ])('consumes the exact private signal case $case', ({ value, enabled }) => {
     const environment: Record<string, string> = {};
     if (value !== undefined) environment.SAFEWORD_REVIEW_PROGRESS = value;
-    expect(consumeManagedProgressSignal(environment)).toBe(enabled);
+    const managedReview = consumeManagedProgressSignal(environment);
+    expect(managedReview).toBe(enabled);
+    expect(shouldReportProgress({ json: true, managedReview, quiet: false })).toBe(enabled);
     expect(environment).not.toHaveProperty('SAFEWORD_REVIEW_PROGRESS');
   });
 
@@ -44,6 +46,14 @@ describe('CLI execution policy', () => {
     expect(shouldReportProgress({ json: true, managedReview: false, quiet: false })).toBe(false);
     expect(shouldReportProgress({ json: false, managedReview: false, quiet: false })).toBe(true);
     expect(shouldReportProgress({ json: true, managedReview: true, quiet: true })).toBe(false);
+  });
+
+  it('keeps human progress unchanged while consuming the private signal', () => {
+    const environment = { SAFEWORD_REVIEW_PROGRESS: '1' };
+
+    expect(consumeManagedProgressSignal(environment)).toBe(true);
+    expect(environment).not.toHaveProperty('SAFEWORD_REVIEW_PROGRESS');
+    expect(shouldReportProgress({ json: false, managedReview: false, quiet: false })).toBe(true);
   });
 
   it.each([
@@ -209,51 +219,93 @@ describe('CLI execution policy', () => {
   });
 
   it('keeps a long-running operation visibly alive without claiming completion progress', () => {
-    const scheduled = new Map<number, () => void>();
-    const delays = new Map<number, number>();
+    const scheduled = new Map<number, { callback: () => void; dueAt: number }>();
     const emit = vi.fn();
-    const cancel = vi.fn();
+    let now = 0;
     let nextHandle = 0;
+    const advanceTo = (target: number) => {
+      while (true) {
+        const next = scheduled
+          .entries()
+          .filter(([, task]) => task.dueAt <= target)
+          .toArray()
+          .toSorted((left, right) => left[1].dueAt - right[1].dueAt)[0];
+        if (next === undefined) break;
+        const [handle, task] = next;
+        scheduled.delete(handle);
+        now = task.dueAt;
+        task.callback();
+      }
+      now = target;
+    };
     const progress = createProgressReporter({
       schedule: (callback, delay) => {
         nextHandle += 1;
-        scheduled.set(nextHandle, callback);
-        delays.set(nextHandle, delay);
+        scheduled.set(nextHandle, { callback, dueAt: now + delay });
         return nextHandle;
       },
-      cancel,
+      cancel: handle => scheduled.delete(handle as number),
       emit,
     });
 
     progress.heartbeat?.('Still waiting for a response from Codex…');
-    expect(delays.get(1)).toBe(30_000);
-    scheduled.get(1)?.();
-    expect(emit).toHaveBeenCalledWith('Still waiting for a response from Codex…');
-    expect(delays.get(2)).toBe(30_000);
+    advanceTo(29_999);
+    expect(emit).not.toHaveBeenCalled();
+
+    advanceTo(30_000);
+    expect(emit).toHaveBeenCalledTimes(1);
+    expect(emit).toHaveBeenLastCalledWith('Still waiting for a response from Codex…');
+
+    advanceTo(60_000);
+    expect(emit).toHaveBeenCalledTimes(2);
+    expect(emit).toHaveBeenLastCalledWith('Still waiting for a response from Codex…');
+    expect(
+      scheduled
+        .values()
+        .map(task => task.dueAt)
+        .toArray(),
+    ).toEqual([90_000]);
 
     progress.stop();
-    expect(cancel).toHaveBeenCalledWith(2);
+    advanceTo(90_000);
+    expect(emit).toHaveBeenCalledTimes(2);
   });
 
   it('cancels a pending announcement as well as the heartbeat when the command ends', () => {
     const emit = vi.fn();
     const cancel = vi.fn();
+    const scheduled = new Map<number, { callback: () => void; canceled: boolean; dueAt: number }>();
     let nextHandle = 0;
     const progress = createProgressReporter({
-      schedule: () => {
+      schedule: (callback, delay) => {
         nextHandle += 1;
+        scheduled.set(nextHandle, { callback, canceled: false, dueAt: delay });
         return nextHandle;
       },
-      cancel,
+      cancel: handle => {
+        cancel(handle);
+        const task = scheduled.get(handle as number);
+        if (task !== undefined) task.canceled = true;
+      },
       emit,
     });
 
     progress.start('Requesting an independent Codex review…');
     progress.heartbeat?.('Still waiting for a response from Codex…');
+    expect(
+      scheduled
+        .values()
+        .map(task => task.dueAt)
+        .toArray(),
+    ).toEqual([100, 30_000]);
     progress.stop();
+    for (const task of scheduled.values()) {
+      if (!task.canceled) task.callback();
+    }
 
     expect(cancel).toHaveBeenCalledWith(1);
     expect(cancel).toHaveBeenCalledWith(2);
+    expect(scheduled.values().every(task => task.canceled)).toBe(true);
     expect(emit).not.toHaveBeenCalled();
   });
 
