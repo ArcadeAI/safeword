@@ -1712,12 +1712,6 @@ export function isSharedAgentRuntimePath(path: string): boolean {
   return SHARED_AGENT_RUNTIME_ROOTS.some(root => path === root || path.startsWith(`${root}/`));
 }
 
-function withoutSharedAgentRuntimeEntries<T>(values: Record<string, T>): Record<string, T> {
-  return Object.fromEntries(
-    Object.entries(values).filter(([path]) => !isSharedAgentRuntimePath(path)),
-  );
-}
-
 /**
  * Codex shells out to `.safeword/hooks/*` and `.safeword/scripts/*` directly
  * and still reads `.safeword/guides/*` and `.safeword/templates/*` from its
@@ -1734,18 +1728,5 @@ export function schemaForSharedAgentRuntime(
   needed: boolean,
 ): SafewordSchema {
   if (needed) return schema;
-  return {
-    ...schema,
-    ownedDirs: schema.ownedDirs.filter(path => !isSharedAgentRuntimePath(path)),
-    sharedDirs: schema.sharedDirs.filter(path => !isSharedAgentRuntimePath(path)),
-    preservedDirs: schema.preservedDirs.filter(path => !isSharedAgentRuntimePath(path)),
-    deprecatedFiles: schema.deprecatedFiles.filter(path => !isSharedAgentRuntimePath(path)),
-    deprecatedDirs: schema.deprecatedDirs.filter(path => !isSharedAgentRuntimePath(path)),
-    ownedFiles: withoutSharedAgentRuntimeEntries(schema.ownedFiles),
-    managedFiles: withoutSharedAgentRuntimeEntries(schema.managedFiles),
-    jsonMerges: withoutSharedAgentRuntimeEntries(schema.jsonMerges),
-    textPatches: withoutSharedAgentRuntimeEntries(schema.textPatches),
-    legacyTextPatches: withoutSharedAgentRuntimeEntries(schema.legacyTextPatches),
-    contracts: withoutSharedAgentRuntimeEntries(schema.contracts),
-  };
+  return filterSchemaPaths(schema, path => !isSharedAgentRuntimePath(path));
 }
