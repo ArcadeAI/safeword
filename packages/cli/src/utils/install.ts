@@ -15,6 +15,7 @@ type PackageManager = 'npm' | 'yarn' | 'pnpm' | 'bun';
 
 /** Dev-dependency flag, shared across all package managers. */
 const DEV_FLAG = '-D';
+const PACKAGE_MANAGER_TIMEOUT_MS = 120_000;
 
 /**
  * Package manager command definitions.
@@ -98,7 +99,7 @@ export function installDependencies(
     execFileSync(pm, [install, DEV_FLAG, ...extraFlags, ...packages], {
       cwd,
       stdio: 'pipe',
-      timeout: 120_000,
+      timeout: PACKAGE_MANAGER_TIMEOUT_MS,
     });
     reportWhen(options.report !== false, () => {
       success(`Installed ${label}`);
@@ -134,7 +135,7 @@ export function uninstallDependencies(
     execFileSync(pm, [uninstall, ...extraFlags, ...packages], {
       cwd,
       stdio: 'pipe',
-      timeout: 120_000,
+      timeout: PACKAGE_MANAGER_TIMEOUT_MS,
     });
     reportWhen(options.report !== false, () => {
       success('Uninstalled Safeword packages');

@@ -11615,8 +11615,7 @@ __export(exports_configured_paths, {
   hasSafewordProjectMarker: () => hasSafewordProjectMarker,
   defaultConfiguredPath: () => defaultConfiguredPath,
   NAMESPACE_ROOT_LEGACY: () => NAMESPACE_ROOT_LEGACY,
-  GENERATED_ARCHITECTURE_FILENAME: () => GENERATED_ARCHITECTURE_FILENAME,
-  CONFIGURED_PATH_KEYS: () => CONFIGURED_PATH_KEYS
+  GENERATED_ARCHITECTURE_FILENAME: () => GENERATED_ARCHITECTURE_FILENAME
 });
 import nodePath12 from "path";
 function isConfiguredPathKey(value) {
@@ -12868,7 +12867,7 @@ function installDependencies(cwd, packages, label = "packages", options = {}) {
     execFileSync2(pm, [install, DEV_FLAG, ...extraFlags, ...packages], {
       cwd,
       stdio: "pipe",
-      timeout: 120000
+      timeout: PACKAGE_MANAGER_TIMEOUT_MS
     });
     reportWhen(options.report !== false, () => {
       success(`Installed ${label}`);
@@ -12898,7 +12897,7 @@ function uninstallDependencies(cwd, packages, options = {}) {
     execFileSync2(pm, [uninstall, ...extraFlags, ...packages], {
       cwd,
       stdio: "pipe",
-      timeout: 120000
+      timeout: PACKAGE_MANAGER_TIMEOUT_MS
     });
     reportWhen(options.report !== false, () => {
       success("Uninstalled Safeword packages");
@@ -12917,7 +12916,7 @@ function uninstallDependencies(cwd, packages, options = {}) {
     };
   }
 }
-var DEV_FLAG = "-D", PM_COMMANDS, MCP_SERVERS;
+var DEV_FLAG = "-D", PACKAGE_MANAGER_TIMEOUT_MS = 120000, PM_COMMANDS, MCP_SERVERS;
 var init_install = __esm(() => {
   PM_COMMANDS = {
     npm: { install: "install", uninstall: "uninstall" },
@@ -13016,55 +13015,49 @@ function boundaryShimPatch(at) {
     when: (ctx) => ctx.hookManager === "husky"
   };
 }
+function filterPathEntries(values, keepPath) {
+  return Object.fromEntries(Object.entries(values).filter(([path3]) => keepPath(path3)));
+}
+function filterSelectedPathList(collections, collection, values, keepPath) {
+  return collections.has(collection) ? values.filter((path3) => keepPath(path3)) : values;
+}
+function filterSelectedPathEntries(collections, collection, values, keepPath) {
+  return collections.has(collection) ? filterPathEntries(values, keepPath) : values;
+}
+function filterSchemaPaths(schema, keepPath, collections = ALL_SCHEMA_PATH_COLLECTIONS) {
+  const filters = new Set(collections);
+  return {
+    ...schema,
+    ownedDirs: filterSelectedPathList(filters, "ownedDirs", schema.ownedDirs, keepPath),
+    sharedDirs: filterSelectedPathList(filters, "sharedDirs", schema.sharedDirs, keepPath),
+    preservedDirs: filterSelectedPathList(filters, "preservedDirs", schema.preservedDirs, keepPath),
+    deprecatedFiles: filterSelectedPathList(filters, "deprecatedFiles", schema.deprecatedFiles, keepPath),
+    deprecatedDirs: filterSelectedPathList(filters, "deprecatedDirs", schema.deprecatedDirs, keepPath),
+    ownedFiles: filterSelectedPathEntries(filters, "ownedFiles", schema.ownedFiles, keepPath),
+    managedFiles: filterSelectedPathEntries(filters, "managedFiles", schema.managedFiles, keepPath),
+    jsonMerges: filterSelectedPathEntries(filters, "jsonMerges", schema.jsonMerges, keepPath),
+    textPatches: filterSelectedPathEntries(filters, "textPatches", schema.textPatches, keepPath),
+    legacyTextPatches: filterSelectedPathEntries(filters, "legacyTextPatches", schema.legacyTextPatches, keepPath),
+    contracts: filterSelectedPathEntries(filters, "contracts", schema.contracts, keepPath)
+  };
+}
 function isCursorProjectPath(path3) {
   return path3 === ".cursor" || path3.startsWith(".cursor/") || path3 === ".safeword/hooks/cursor" || path3.startsWith(".safeword/hooks/cursor/") || CURSOR_PROJECT_PATHS.has(path3);
-}
-function withoutCursorEntries(values) {
-  return Object.fromEntries(Object.entries(values).filter(([path3]) => !isCursorProjectPath(path3)));
 }
 function schemaForProjectSurfaces(schema, surfaces) {
   if (surfaces.includes("cursor"))
     return schema;
-  return {
-    ...schema,
-    ownedDirs: schema.ownedDirs.filter((path3) => !isCursorProjectPath(path3)),
-    sharedDirs: schema.sharedDirs.filter((path3) => !isCursorProjectPath(path3)),
-    preservedDirs: schema.preservedDirs.filter((path3) => !isCursorProjectPath(path3)),
-    deprecatedFiles: schema.deprecatedFiles.filter((path3) => !isCursorProjectPath(path3)),
-    deprecatedDirs: schema.deprecatedDirs.filter((path3) => !isCursorProjectPath(path3)),
-    ownedFiles: withoutCursorEntries(schema.ownedFiles),
-    managedFiles: withoutCursorEntries(schema.managedFiles),
-    jsonMerges: withoutCursorEntries(schema.jsonMerges),
-    textPatches: withoutCursorEntries(schema.textPatches),
-    legacyTextPatches: withoutCursorEntries(schema.legacyTextPatches),
-    contracts: withoutCursorEntries(schema.contracts)
-  };
+  return filterSchemaPaths(schema, (path3) => !isCursorProjectPath(path3));
 }
 function isSharedAgentRuntimePath(path3) {
   return SHARED_AGENT_RUNTIME_ROOTS.some((root) => path3 === root || path3.startsWith(`${root}/`));
 }
-function withoutSharedAgentRuntimeEntries(values) {
-  return Object.fromEntries(Object.entries(values).filter(([path3]) => !isSharedAgentRuntimePath(path3)));
-}
 function schemaForSharedAgentRuntime(schema, needed) {
   if (needed)
     return schema;
-  return {
-    ...schema,
-    ownedDirs: schema.ownedDirs.filter((path3) => !isSharedAgentRuntimePath(path3)),
-    sharedDirs: schema.sharedDirs.filter((path3) => !isSharedAgentRuntimePath(path3)),
-    preservedDirs: schema.preservedDirs.filter((path3) => !isSharedAgentRuntimePath(path3)),
-    deprecatedFiles: schema.deprecatedFiles.filter((path3) => !isSharedAgentRuntimePath(path3)),
-    deprecatedDirs: schema.deprecatedDirs.filter((path3) => !isSharedAgentRuntimePath(path3)),
-    ownedFiles: withoutSharedAgentRuntimeEntries(schema.ownedFiles),
-    managedFiles: withoutSharedAgentRuntimeEntries(schema.managedFiles),
-    jsonMerges: withoutSharedAgentRuntimeEntries(schema.jsonMerges),
-    textPatches: withoutSharedAgentRuntimeEntries(schema.textPatches),
-    legacyTextPatches: withoutSharedAgentRuntimeEntries(schema.legacyTextPatches),
-    contracts: withoutSharedAgentRuntimeEntries(schema.contracts)
-  };
+  return filterSchemaPaths(schema, (path3) => !isSharedAgentRuntimePath(path3));
 }
-var MCP_JSON_MERGE, MARKDOWNLINT_CLI2_IGNORES_MERGE, CURSOR_RULE_WRAPPER_OWNED_FILES, CURSOR_COMMAND_WRAPPER_OWNED_FILES, CURSOR_SHARED_SKILL_FILES, CURSOR_SHARED_SKILL_OWNED_FILES, CURSOR_SHARED_SKILL_DIRS, CODEX_RUNTIME_ASSET_FILENAMES, CODEX_RUNTIME_ASSETS, NAMESPACE_TRANSIENT_BASENAMES, SAFEWORD_TRANSIENT_PATHS, NAMESPACE_GITIGNORE_PATTERNS, NAMESPACE_GITIGNORE_CONTENT, PRETTIER_EXCLUSIONS_HEADER = "# Safeword - managed prettier exclusions (owned dirs)", GITATTRIBUTES_HEADER = "# Safeword - managed merge strategy for generated artifacts", BDD_LANE_FILE_PATHS, BDD_LANE_SCRIPT = "test:bdd", SHARED_FILING_INVARIANTS, SESSION_TOKEN_RULE, BOUNDARY_SHIM_MARKER = "# Safeword boundary gate", SAFEWORD_SCHEMA, CURSOR_PROJECT_PATHS, SHARED_AGENT_RUNTIME_ROOTS;
+var MCP_JSON_MERGE, MARKDOWNLINT_CLI2_IGNORES_MERGE, CURSOR_RULE_WRAPPER_OWNED_FILES, CURSOR_COMMAND_WRAPPER_OWNED_FILES, CURSOR_SHARED_SKILL_FILES, CURSOR_SHARED_SKILL_OWNED_FILES, CURSOR_SHARED_SKILL_DIRS, CODEX_RUNTIME_ASSET_FILENAMES, CODEX_RUNTIME_ASSETS, NAMESPACE_TRANSIENT_BASENAMES, SAFEWORD_TRANSIENT_PATHS, NAMESPACE_GITIGNORE_PATTERNS, NAMESPACE_GITIGNORE_CONTENT, PRETTIER_EXCLUSIONS_HEADER = "# Safeword - managed prettier exclusions (owned dirs)", GITATTRIBUTES_HEADER = "# Safeword - managed merge strategy for generated artifacts", BDD_LANE_FILE_PATHS, BDD_LANE_SCRIPT = "test:bdd", SHARED_FILING_INVARIANTS, SESSION_TOKEN_RULE, BOUNDARY_SHIM_MARKER = "# Safeword boundary gate", SAFEWORD_SCHEMA, ALL_SCHEMA_PATH_COLLECTIONS, CURSOR_PROJECT_PATHS, SHARED_AGENT_RUNTIME_ROOTS;
 var init_schema = __esm(() => {
   init_historical_ownership();
   init_inventory();
@@ -13966,6 +13959,19 @@ ${durableNamespaceDirectories(ctx).map((dir) => `${dir}/`).join(`
     },
     packages: typescriptPackages
   };
+  ALL_SCHEMA_PATH_COLLECTIONS = [
+    "ownedDirs",
+    "sharedDirs",
+    "preservedDirs",
+    "deprecatedFiles",
+    "deprecatedDirs",
+    "ownedFiles",
+    "managedFiles",
+    "jsonMerges",
+    "textPatches",
+    "legacyTextPatches",
+    "contracts"
+  ];
   CURSOR_PROJECT_PATHS = new Set([
     ".safeword/hooks/lib/cursor-state.ts",
     ".safeword/hooks/session-cursor-auto-upgrade.ts"
