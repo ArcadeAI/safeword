@@ -11,6 +11,16 @@
         "preserves an action-required result after managed progress"
       ]
     ],
+    "Waiting heartbeat respects its interval and repeats": [
+      [
+        "packages/cli/tests/cli-protocol/policy.test.ts",
+        "keeps a long-running operation visibly alive without claiming completion progress"
+      ],
+      [
+        "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+        "repeats a waiting heartbeat while the independent reviewer has not answered"
+      ]
+    ],
     "Active route progress identifies the assigned reviewer": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
       "keeps managed machine output typed while identifying the active $reviewer reviewer"

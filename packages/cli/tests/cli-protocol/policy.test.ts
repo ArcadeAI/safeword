@@ -235,12 +235,18 @@ describe('CLI execution policy', () => {
 
     progress.heartbeat?.('Still waiting for a response from Codex…');
     expect(delays.get(1)).toBe(30_000);
+    expect(emit).not.toHaveBeenCalled();
     scheduled.get(1)?.();
-    expect(emit).toHaveBeenCalledWith('Still waiting for a response from Codex…');
+    expect(emit).toHaveBeenCalledTimes(1);
+    expect(emit).toHaveBeenLastCalledWith('Still waiting for a response from Codex…');
     expect(delays.get(2)).toBe(30_000);
+    scheduled.get(2)?.();
+    expect(emit).toHaveBeenCalledTimes(2);
+    expect(emit).toHaveBeenLastCalledWith('Still waiting for a response from Codex…');
+    expect(delays.get(3)).toBe(30_000);
 
     progress.stop();
-    expect(cancel).toHaveBeenCalledWith(2);
+    expect(cancel).toHaveBeenCalledWith(3);
   });
 
   it('cancels a pending announcement as well as the heartbeat when the command ends', () => {

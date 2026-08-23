@@ -20,7 +20,7 @@ observable-review checks use positive controls for reviewer environment,
 lifecycle cancellation, and Cursor surface inspection. Re-review remains
 pending; this is not represented as approval.
 
-The 11-scenario `reliable-observable-quality-reviews` packet has now received
+The 12-scenario `reliable-observable-quality-reviews` packet has now received
 its direct scenario-by-scenario pass. Its independent gate found one must-fix
 vacuity: the Claude and Codex workflow catalogues could have been empty while
 the scenario passed. It also exposed a proof mismatch where the progress-sink
@@ -63,6 +63,20 @@ but both Claude models exited and the coordinator fell back to Codex. Because
 that is a self-review, its independence is degraded and it is not recorded as
 cross-agent approval. The packet is locally complete and verified; independent
 reviewer availability is the remaining blocker.
+
+After merge, cross-agent review `cb6544c6-888b-4c77-97f0-0d676d4b5d21`
+recovered and found one remaining counter-implementation: the scenarios allowed
+an immediate, one-shot heartbeat even though the feature claims long reviews
+remain visibly active. The product already delays and rearms heartbeats, and an
+integration test already observes repetition; the missing piece was the
+behavioral contract and proof mapping. The packet now includes a deterministic
+controlled-scheduler scenario that proves silence before the first due point,
+emission at 30 and 60 seconds, and rearming for 90 seconds. The first repair
+used a relative “interval” and cross-agent review
+`ddaf6b43-167f-4073-b121-ac62271294bf` correctly rejected it because a 1 ms or
+24-hour cadence could still pass. The absolute boundaries close that gap.
+Cross-agent re-review `4377cecc-8015-4020-b4b4-7cf59ed02550` approved the
+repair with no must-fix findings; Gherkin lint and 95 focused tests pass.
 
 ## Scope and method
 
@@ -121,13 +135,13 @@ were added or materially changed since the prior ledger snapshot; their 171
 scenarios are in the refreshed review queue. This overlaps the 0.77 queue where
 an existing source changed again.
 
-| Changed or new feature source                                       | Scenarios | Delivery state          | Semantic status                                       |
-| ------------------------------------------------------------------- | --------: | ----------------------- | ----------------------------------------------------- |
-| `features/automatic-claude-migration.feature`                       |        31 | Active                  | Pending refreshed review                              |
-| `features/close-completed-sessions-safely.feature`                  |        48 | Active                  | Pending refreshed review                              |
-| `features/closeout-preview-apply-convergence.feature`               |        27 | Active; `@proof.vitest` | Pending refreshed review                              |
-| `features/resume-closeout-after-upgrade.feature`                    |        54 | Active; `@proof.vitest` | Pending review                                        |
-| `packages/cli/features/reliable-observable-quality-reviews.feature` |        11 | Active; `@proof.vitest` | Direct review repaired; independent re-review pending |
+| Changed or new feature source                                       | Scenarios | Delivery state          | Semantic status                                |
+| ------------------------------------------------------------------- | --------: | ----------------------- | ---------------------------------------------- |
+| `features/automatic-claude-migration.feature`                       |        31 | Active                  | Pending refreshed review                       |
+| `features/close-completed-sessions-safely.feature`                  |        48 | Active                  | Pending refreshed review                       |
+| `features/closeout-preview-apply-convergence.feature`               |        27 | Active; `@proof.vitest` | Pending refreshed review                       |
+| `features/resume-closeout-after-upgrade.feature`                    |        54 | Active; `@proof.vitest` | Pending review                                 |
+| `packages/cli/features/reliable-observable-quality-reviews.feature` |        12 | Active; `@proof.vitest` | Semantic review complete; cross-agent approved |
 
 ## Evidence
 
