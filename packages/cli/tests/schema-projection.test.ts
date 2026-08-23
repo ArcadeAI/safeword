@@ -52,6 +52,9 @@ describe('schema path projections', () => {
     const projected = schemaForProjectSurfaces(schemaWithSentinel(path), ['core']);
 
     expectPathRemovedFromEveryCollection(projected, path);
+    expect(projected.ownedFiles['.safeword/config.json']).toEqual(
+      SAFEWORD_SCHEMA.ownedFiles['.safeword/config.json'],
+    );
   });
 
   it('removes an unneeded shared-runtime path from every path-bearing collection', () => {
@@ -60,5 +63,8 @@ describe('schema path projections', () => {
     const projected = schemaForSharedAgentRuntime(schemaWithSentinel(path), false);
 
     expectPathRemovedFromEveryCollection(projected, path);
+    expect(projected.ownedFiles['.safeword/config.json']).toEqual(
+      SAFEWORD_SCHEMA.ownedFiles['.safeword/config.json'],
+    );
   });
 });
