@@ -3,6 +3,7 @@ import nodePath from 'node:path';
 
 import { describe, expect, it, vi } from 'vitest';
 
+import { writeClaudePluginMode } from '../../src/claude-plugin/migration-state.js';
 import { projectLifecycleSchema } from '../../src/lifecycle/schema.js';
 import { observeLifecycleSurfaces } from '../../src/lifecycle/status.js';
 import { isCursorProjectPath, isSharedAgentRuntimePath } from '../../src/schema.js';
@@ -40,7 +41,17 @@ describe('lifecycle profile observation', () => {
   });
 
   it('drops the shared .safeword hooks|skills|scripts|guides|templates runtime for a Claude-only project', () => {
-    const schema = projectLifecycleSchema(createTemporaryDirectory(), ['claude']);
+    const cwd = createTemporaryDirectory();
+    writeClaudePluginMode(cwd, {
+      schema_version: 2,
+      state: 'clean',
+      plugin_version: '0.0.0-characterization',
+      hook_manifest_sha256: 'a'.repeat(64),
+      catalogue_sha256: 'b'.repeat(64),
+      unresolved_paths: [],
+    });
+
+    const schema = projectLifecycleSchema(cwd, ['claude']);
 
     const sharedRuntimePaths = [
       ...Object.keys(schema.ownedFiles),
@@ -52,6 +63,25 @@ describe('lifecycle profile observation', () => {
     // Non-runtime .safeword content Claude still reads stays installed.
     expect(schema.ownedFiles['.safeword/config.json']).toBeDefined();
     expect(schema.ownedFiles['.safeword/SAFEWORD.md']).toBeDefined();
+  });
+
+  it('keeps the shared runtime while legacy Claude delivery remains observable', () => {
+    const cwd = createTemporaryDirectory();
+    const settings = nodePath.join(cwd, '.claude/settings.json');
+    mkdirSync(nodePath.dirname(settings), { recursive: true });
+    writeFileSync(settings, '{ retained legacy configuration');
+
+    const schema = projectLifecycleSchema(cwd, ['claude']);
+
+    expect(schema.ownedFiles['.safeword/hooks/lib/cursor-run-identity.ts']).toBeDefined();
+    expect(Object.keys(schema.jsonMerges).some(path => path.startsWith('.claude/'))).toBe(true);
+  });
+
+  it('keeps the shared runtime when no agent is selected', () => {
+    const schema = projectLifecycleSchema(createTemporaryDirectory(), []);
+
+    expect(schema.ownedFiles['.safeword/hooks/lib/cursor-run-identity.ts']).toBeDefined();
+    expect(Object.keys(schema.ownedFiles).some(path => isCursorProjectPath(path))).toBe(false);
   });
 
   it('keeps the shared runtime for a Cursor-only project', () => {
