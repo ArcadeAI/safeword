@@ -1585,6 +1585,93 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
 
 export type ProjectSurface = 'core' | 'cursor';
 
+type SchemaPathCollection =
+  | 'ownedDirs'
+  | 'sharedDirs'
+  | 'preservedDirs'
+  | 'deprecatedFiles'
+  | 'deprecatedDirs'
+  | 'ownedFiles'
+  | 'managedFiles'
+  | 'jsonMerges'
+  | 'textPatches'
+  | 'legacyTextPatches'
+  | 'contracts';
+
+const ALL_SCHEMA_PATH_COLLECTIONS: readonly SchemaPathCollection[] = [
+  'ownedDirs',
+  'sharedDirs',
+  'preservedDirs',
+  'deprecatedFiles',
+  'deprecatedDirs',
+  'ownedFiles',
+  'managedFiles',
+  'jsonMerges',
+  'textPatches',
+  'legacyTextPatches',
+  'contracts',
+];
+
+function filterPathEntries<T>(values: Record<string, T>, keepPath: (path: string) => boolean) {
+  return Object.fromEntries(Object.entries(values).filter(([path]) => keepPath(path)));
+}
+
+function filterSelectedPathList(
+  collections: ReadonlySet<SchemaPathCollection>,
+  collection: SchemaPathCollection,
+  values: string[],
+  keepPath: (path: string) => boolean,
+): string[] {
+  return collections.has(collection) ? values.filter(path => keepPath(path)) : values;
+}
+
+function filterSelectedPathEntries<T>(
+  collections: ReadonlySet<SchemaPathCollection>,
+  collection: SchemaPathCollection,
+  values: Record<string, T>,
+  keepPath: (path: string) => boolean,
+): Record<string, T> {
+  return collections.has(collection) ? filterPathEntries(values, keepPath) : values;
+}
+
+/** Filter selected path-bearing schema collections while preserving every other contract. */
+export function filterSchemaPaths(
+  schema: SafewordSchema,
+  keepPath: (path: string) => boolean,
+  collections: readonly SchemaPathCollection[] = ALL_SCHEMA_PATH_COLLECTIONS,
+): SafewordSchema {
+  const filters = new Set(collections);
+  return {
+    ...schema,
+    ownedDirs: filterSelectedPathList(filters, 'ownedDirs', schema.ownedDirs, keepPath),
+    sharedDirs: filterSelectedPathList(filters, 'sharedDirs', schema.sharedDirs, keepPath),
+    preservedDirs: filterSelectedPathList(filters, 'preservedDirs', schema.preservedDirs, keepPath),
+    deprecatedFiles: filterSelectedPathList(
+      filters,
+      'deprecatedFiles',
+      schema.deprecatedFiles,
+      keepPath,
+    ),
+    deprecatedDirs: filterSelectedPathList(
+      filters,
+      'deprecatedDirs',
+      schema.deprecatedDirs,
+      keepPath,
+    ),
+    ownedFiles: filterSelectedPathEntries(filters, 'ownedFiles', schema.ownedFiles, keepPath),
+    managedFiles: filterSelectedPathEntries(filters, 'managedFiles', schema.managedFiles, keepPath),
+    jsonMerges: filterSelectedPathEntries(filters, 'jsonMerges', schema.jsonMerges, keepPath),
+    textPatches: filterSelectedPathEntries(filters, 'textPatches', schema.textPatches, keepPath),
+    legacyTextPatches: filterSelectedPathEntries(
+      filters,
+      'legacyTextPatches',
+      schema.legacyTextPatches,
+      keepPath,
+    ),
+    contracts: filterSelectedPathEntries(filters, 'contracts', schema.contracts, keepPath),
+  };
+}
+
 const CURSOR_PROJECT_PATHS = new Set([
   '.safeword/hooks/lib/cursor-state.ts',
   '.safeword/hooks/session-cursor-auto-upgrade.ts',
@@ -1600,30 +1687,13 @@ export function isCursorProjectPath(path: string): boolean {
   );
 }
 
-function withoutCursorEntries<T>(values: Record<string, T>): Record<string, T> {
-  return Object.fromEntries(Object.entries(values).filter(([path]) => !isCursorProjectPath(path)));
-}
-
 /** Select project-owned surfaces without scattering Cursor path filters through commands. */
 export function schemaForProjectSurfaces(
   schema: SafewordSchema,
   surfaces: readonly ProjectSurface[],
 ): SafewordSchema {
   if (surfaces.includes('cursor')) return schema;
-  return {
-    ...schema,
-    ownedDirs: schema.ownedDirs.filter(path => !isCursorProjectPath(path)),
-    sharedDirs: schema.sharedDirs.filter(path => !isCursorProjectPath(path)),
-    preservedDirs: schema.preservedDirs.filter(path => !isCursorProjectPath(path)),
-    deprecatedFiles: schema.deprecatedFiles.filter(path => !isCursorProjectPath(path)),
-    deprecatedDirs: schema.deprecatedDirs.filter(path => !isCursorProjectPath(path)),
-    ownedFiles: withoutCursorEntries(schema.ownedFiles),
-    managedFiles: withoutCursorEntries(schema.managedFiles),
-    jsonMerges: withoutCursorEntries(schema.jsonMerges),
-    textPatches: withoutCursorEntries(schema.textPatches),
-    legacyTextPatches: withoutCursorEntries(schema.legacyTextPatches),
-    contracts: withoutCursorEntries(schema.contracts),
-  };
+  return filterSchemaPaths(schema, path => !isCursorProjectPath(path));
 }
 
 const SHARED_AGENT_RUNTIME_ROOTS = [
