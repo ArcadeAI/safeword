@@ -22,7 +22,7 @@ import { exists, isDirectory, readFileSafe } from './fs.js';
 import { toRepoDirectory } from './repo-path.js';
 
 /** Logical project-knowledge keys safeword knows how to override via `paths.*`. */
-export const CONFIGURED_PATH_KEYS = [
+const CONFIGURED_PATH_KEYS = [
   'principles',
   'personas',
   'glossary',
