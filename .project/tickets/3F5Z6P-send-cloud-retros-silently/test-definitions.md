@@ -205,8 +205,8 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 ### Scenario: Install and upgrade reject a malformed collection setting atomically
 
 - [x] RED be77c66e4
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 7e4f6bb7d
+- [x] REFACTOR skip: the public wrapper keeps validation ahead of the unchanged setup engine
 
 ### Scenario: First install in a clone preserves project identity
 
