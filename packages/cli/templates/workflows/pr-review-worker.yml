@@ -90,8 +90,7 @@ jobs:
           jq -c '.[]' pull-files.json | while IFS= read -r file; do
             if jq -e '.patch != null and .status != "removed"' > /dev/null <<< "$file"; then
               blob_sha="$(jq -r .sha <<< "$file")"
-              if blob_json="$(gh api "repos/$GITHUB_REPOSITORY/git/blobs/$blob_sha")" &&
-                full_content="$(jq -er '
+              if gh api "repos/$GITHUB_REPOSITORY/git/blobs/$blob_sha" | jq --join-output --exit-status '
                   if .encoding == "base64" and (.content | type) == "string" then
                     .content | gsub("\\n"; "")
                   elif .size == 0 then
@@ -99,8 +98,8 @@ jobs:
                   else
                     error("blob content is not available as base64")
                   end
-                ' <<< "$blob_json")"; then
-                jq --arg fullContentBase64 "$full_content" '. + {$fullContentBase64}' <<< "$file"
+                ' > full-content.base64; then
+                jq --rawfile fullContentBase64 full-content.base64 '. + {$fullContentBase64}' <<< "$file"
               else
                 jq '. + {contextUnavailable: true}' <<< "$file"
               fi
