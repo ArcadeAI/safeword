@@ -147,6 +147,14 @@ Build the smallest end-to-end path in six TDD steps:
    This closes the real install → hook → builder → collector
    walking skeleton; no earlier step claims installed wiring.
 
+   Integration detail: start the public preparation clock immediately after
+   extraction, then reuse the exact sanitized finding returned by the existing
+   pipeline alongside its private encounter. Public delivery receives that
+   prepared finding and the original absolute deadline. This keeps extraction
+   outside the budget, sanitizer work inside it, and one sanitizer result
+   authoritative for both paths without a generic callback seam or a second
+   scrub pass.
+
 5. **Complete quarantine reads.** Keep step 1's single `BEGIN IMMEDIATE`
    raw-body authority unchanged; never use parsed, reformatted, semantic, or
    sanitized MCP reads for duplicate decisions. Add operator-only receipt reads
