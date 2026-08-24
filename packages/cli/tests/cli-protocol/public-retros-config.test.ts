@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -6,6 +6,8 @@ import { describe, expect, it } from 'vitest';
 import { createTemporaryDirectory, runCliWithoutInstall } from '../helpers.js';
 
 describe('project public-retros', () => {
+  const projectUUID = '11111111-2222-3333-4444-555555555555';
+
   it.each([
     ['off', true, false],
     ['off', undefined, false],
@@ -20,7 +22,7 @@ describe('project public-retros', () => {
       const configPath = nodePath.join(directory, '.safeword/config.json');
       mkdirSync(nodePath.dirname(configPath), { recursive: true });
       const config: Record<string, unknown> = {
-        projectUUID: '11111111-2222-3333-4444-555555555555',
+        projectUUID,
       };
       if (initialValue !== undefined) config.publicRetrospectiveCollection = initialValue;
       writeFileSync(configPath, `${JSON.stringify(config)}\n`);
@@ -33,9 +35,86 @@ describe('project public-retros', () => {
       expect(result.exitCode).toBe(0);
       expect(result.stderr).toBe('');
       expect(JSON.parse(readFileSync(configPath, 'utf8'))).toEqual({
-        projectUUID: '11111111-2222-3333-4444-555555555555',
+        projectUUID,
         publicRetrospectiveCollection: storedValue,
       });
+    },
+  );
+
+  it.each([['invalid'], ['OFF'], []] as const)(
+    'rejects invalid state arguments without changing valid configuration',
+    async (...state) => {
+      const directory = createTemporaryDirectory();
+      const configPath = nodePath.join(directory, '.safeword/config.json');
+      mkdirSync(nodePath.dirname(configPath), { recursive: true });
+      const original = `${JSON.stringify({ projectUUID })}\n`;
+      writeFileSync(configPath, original);
+
+      const result = await runCliWithoutInstall(
+        ['project', 'public-retros', ...state, '--json', '--cwd', directory],
+        { cwd: directory },
+      );
+
+      expect(result.exitCode).not.toBe(0);
+      expect(JSON.parse(result.stdout)).toMatchObject({ state: 'failed', changed: false });
+      expect(readFileSync(configPath, 'utf8')).toBe(original);
+    },
+  );
+
+  it.each([
+    ['missing', undefined],
+    ['unparseable', '{not json'],
+  ] as const)('rejects %s configuration without changing it', async (_condition, content) => {
+    const directory = createTemporaryDirectory();
+    const configPath = nodePath.join(directory, '.safeword/config.json');
+    mkdirSync(nodePath.dirname(configPath), { recursive: true });
+    if (content !== undefined) writeFileSync(configPath, content);
+
+    const result = await runCliWithoutInstall(
+      ['project', 'public-retros', 'off', '--json', '--cwd', directory],
+      { cwd: directory },
+    );
+
+    expect(result.exitCode).not.toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({ state: 'failed', changed: false });
+    if (content === undefined) expect(existsSync(configPath)).toBe(false);
+    else expect(readFileSync(configPath, 'utf8')).toBe(content);
+  });
+
+  it('creates nothing outside a SafeWord project', async () => {
+    const directory = createTemporaryDirectory();
+    const result = await runCliWithoutInstall(
+      ['project', 'public-retros', 'off', '--json', '--cwd', directory],
+      { cwd: directory },
+    );
+
+    expect(result.exitCode).not.toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({ state: 'failed', changed: false });
+    expect(existsSync(nodePath.join(directory, '.safeword'))).toBe(false);
+  });
+
+  it.skipIf(process.platform === 'win32')(
+    'leaves configuration unchanged when its directory is not writable',
+    async () => {
+      const directory = createTemporaryDirectory();
+      const configDirectory = nodePath.join(directory, '.safeword');
+      const configPath = nodePath.join(configDirectory, 'config.json');
+      mkdirSync(configDirectory);
+      const original = `${JSON.stringify({ projectUUID })}\n`;
+      writeFileSync(configPath, original);
+      chmodSync(configDirectory, 0o555);
+
+      try {
+        const result = await runCliWithoutInstall(
+          ['project', 'public-retros', 'off', '--json', '--cwd', directory],
+          { cwd: directory },
+        );
+        expect(result.exitCode).not.toBe(0);
+        expect(JSON.parse(result.stdout)).toMatchObject({ state: 'failed', changed: false });
+        expect(readFileSync(configPath, 'utf8')).toBe(original);
+      } finally {
+        chmodSync(configDirectory, 0o755);
+      }
     },
   );
 });
