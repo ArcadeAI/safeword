@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { normalizeRepoRemote } from './public-source.js';
+import { normalizeRepoRemote, selectPublicUserIdentity } from './public-source.js';
 
 describe('normalizeRepoRemote', () => {
   it.each([
@@ -27,4 +27,26 @@ describe('normalizeRepoRemote', () => {
   ])('normalizes %s without exposing credentials', (remote, expected) => {
     expect(normalizeRepoRemote(remote)).toBe(expected);
   });
+});
+
+describe('selectPublicUserIdentity', () => {
+  it.each([
+    ['octocat', 'local@example.com', 'global@example.com', 'octocat'],
+    ['octocat', undefined, undefined, 'octocat'],
+    [' '.repeat(3), 'local@example.com', 'global@example.com', 'local@example.com'],
+    ['', 'local@example.com', 'global@example.com', 'local@example.com'],
+    [' '.repeat(3), undefined, 'global@example.com', 'global@example.com'],
+    ['', undefined, 'global@example.com', 'global@example.com'],
+    [undefined, 'local@example.com', 'global@example.com', 'local@example.com'],
+    [undefined, undefined, 'global@example.com', 'global@example.com'],
+    [undefined, ' '.repeat(3), 'global@example.com', 'global@example.com'],
+    [undefined, ' '.repeat(3), undefined, undefined],
+    [undefined, undefined, ' '.repeat(3), undefined],
+    [undefined, undefined, undefined, undefined],
+  ])(
+    'prefers runtime identity, then local email, then global email',
+    (runtimeIdentity, localEmail, globalEmail, expected) => {
+      expect(selectPublicUserIdentity(runtimeIdentity, localEmail, globalEmail)).toBe(expected);
+    },
+  );
 });
