@@ -116,6 +116,13 @@ export function preparePublicRetroRequest(
   dependencies: PublicRetroPreparationDependencies,
 ): PreparedPublicRetroRequest | undefined {
   const built = buildPublicRetroEnvelope(input);
+  return claimPublicRetroRequest(built, dependencies);
+}
+
+function claimPublicRetroRequest(
+  built: BuiltPublicRetroEnvelope,
+  dependencies: PublicRetroPreparationDependencies,
+): PreparedPublicRetroRequest | undefined {
   if (built.bytes.byteLength > MAX_ENVELOPE_BYTES) return undefined;
   const requestId = dependencies.randomUUID().toLowerCase();
   if (!UUID.test(requestId)) throw new Error('Invalid public retrospective request identity');
@@ -170,7 +177,10 @@ export async function deliverPublicRetro(
 ): Promise<PublicRetroDeliveryOutcome> {
   const preparationDeadline = dependencies.now() + 1000;
   try {
-    const prepared = preparePublicRetroRequest(input, dependencies);
+    const built = buildPublicRetroEnvelope(input);
+    if (built.bytes.byteLength > MAX_ENVELOPE_BYTES) return 'abandoned';
+    if (dependencies.now() >= preparationDeadline) return 'abandoned';
+    const prepared = claimPublicRetroRequest(built, dependencies);
     if (!prepared || dependencies.now() >= preparationDeadline) return 'abandoned';
 
     const handoffDeadline = dependencies.now() + 2000;
