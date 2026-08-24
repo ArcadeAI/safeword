@@ -444,7 +444,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 ### Scenario: Public submission needs no credential
 
-- [ ] RED
+- [x] RED skip: credentialless intake was established by the packaged collector slice
 - [ ] GREEN
 - [ ] REFACTOR
 
