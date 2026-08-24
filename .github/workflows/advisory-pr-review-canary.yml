@@ -47,7 +47,6 @@ jobs:
           repositories: safeword-pr-review-smoke-base
           permission-actions: write
           permission-contents: write
-          permission-environments: write
           permission-issues: write
           permission-pull-requests: write
           permission-workflows: write

@@ -118,11 +118,13 @@ describe('Claude plugin release contract', () => {
     expect(canary).toContain('owner: TheMostlyGreat');
     expect(canary.match(/repositories: safeword-pr-review-smoke-base/gu)).toHaveLength(2);
     expect(canary).not.toContain('permission-administration');
+    expect(canary).not.toContain('permission-environments');
     expect(canary).not.toContain('SAFEWORD_PR_REVIEW_SMOKE_TOKEN');
     expect(canary).toContain('SAFEWORD_PR_REVIEW_SMOKE_FORK_TOKEN');
     expect(canary).toContain('smoke:pr-review:disposable');
     expect(readme).toContain('ArcadeAI/safeword-pr-review-smoke-base');
     expect(readme).toContain('TheMostlyGreat/safeword-pr-review-smoke-base');
+    expect(readme).toContain('safeword-pr-review-model');
     expect(readme).toMatch(/must not have authority\s+over production\s+repositories/u);
     expect(readme).toMatch(/independently closes the pull\s+request/u);
   });

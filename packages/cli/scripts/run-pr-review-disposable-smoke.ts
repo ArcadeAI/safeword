@@ -388,12 +388,6 @@ export function runPrReviewDisposableSmoke(): void {
       baseGit(['push', 'origin', 'main'], directory);
     }
 
-    baseGh(['api', '--method', 'PUT', `repos/${baseRepo}/environments/safeword-pr-review-model`]);
-    baseGh(
-      ['secret', 'set', 'OPENAI_API_KEY', '--env', 'safeword-pr-review-model', '--repo', baseRepo],
-      { input: `smoke-${crypto.randomUUID()}\n` },
-    );
-
     baseGit(['checkout', '-b', branch], directory);
     writeFileSync(
       nodePath.join(directory, '.flux'),
