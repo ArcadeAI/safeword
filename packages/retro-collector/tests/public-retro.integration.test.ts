@@ -168,13 +168,11 @@ it('does not acknowledge a submission when the quarantine store fails', async ()
       throw new Error('injected store failure');
     },
     close: () => {},
-    read: () => {},
+    read: () => {
+      throw new Error('unexpected read');
+    },
   };
-  const startWithStore = startPublicRetroCollector as unknown as (
-    options: Parameters<typeof startPublicRetroCollector>[0],
-    store: typeof failingStore,
-  ) => ReturnType<typeof startPublicRetroCollector>;
-  const runtime = await startWithStore(
+  const runtime = await startPublicRetroCollector(
     { databasePath: path.join(directory, 'unused.sqlite') },
     failingStore,
   );
