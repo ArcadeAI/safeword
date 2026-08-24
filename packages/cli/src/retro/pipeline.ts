@@ -39,6 +39,7 @@ export function manifestationKey(finding: Finding): string {
  */
 export interface EncounterReport {
   encounters: Encounter[];
+  findings: Finding[];
   drops: { schema: number; surface: number };
 }
 
@@ -78,6 +79,7 @@ export async function prepareFinding(raw: unknown): Promise<PreparedFindingResul
  */
 export async function prepareEncounters(rawFindings: readonly unknown[]): Promise<EncounterReport> {
   const encounters: Encounter[] = [];
+  const findings: Finding[] = [];
   const drops = { schema: 0, surface: 0 };
 
   for (const raw of rawFindings.slice(0, MAX_RAW_FINDINGS)) {
@@ -91,7 +93,8 @@ export async function prepareEncounters(rawFindings: readonly unknown[]): Promis
       draft: buildDraft(prepared.finding),
       manifestation: manifestationKey(prepared.finding),
     });
+    findings.push(prepared.finding);
   }
 
-  return { encounters, drops };
+  return { encounters, findings, drops };
 }
