@@ -229,8 +229,8 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 ### Scenario: Install repairs malformed project identity locally
 
 - [x] RED skip: missing and malformed identities share the already-green local replacement branch
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 99a4e47b8
+- [x] REFACTOR skip: the setup-level proof needs no new production structure
 
 ### Scenario: Uppercase project identity is serialized canonically
 
