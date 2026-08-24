@@ -451,7 +451,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 ### Scenario: Credential-bearing public submissions are rejected
 
 - [x] RED skip: credential rejection was established by the foundational intake route
-- [ ] GREEN
+- [x] GREEN 6a45edd88
 - [ ] REFACTOR
 
 ### Scenario: An authorized operator can inspect a quarantined record
