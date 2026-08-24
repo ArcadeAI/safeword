@@ -158,6 +158,36 @@ it('does not expose record or collection metadata to anonymous callers', async (
   expect(bodies).toEqual(Array.from({ length: 4 }, () => ({ error: 'not_found' })));
 });
 
+it('does not acknowledge a submission when the quarantine store fails', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  let acceptCalls = 0;
+  const failingStore = {
+    accept: () => {
+      acceptCalls += 1;
+      throw new Error('injected store failure');
+    },
+    close: () => {},
+    read: () => {},
+  };
+  const startWithStore = startPublicRetroCollector as unknown as (
+    options: Parameters<typeof startPublicRetroCollector>[0],
+    store: typeof failingStore,
+  ) => ReturnType<typeof startPublicRetroCollector>;
+  const runtime = await startWithStore(
+    { databasePath: path.join(directory, 'unused.sqlite') },
+    failingStore,
+  );
+
+  const response = await submit(runtime.url, fixtureRequest());
+  await runtime.close();
+
+  expect(response.status).toBe(500);
+  expect(response.headers.get('x-safeword-receipt')).toBeNull();
+  expect(await response.json()).toEqual({ error: 'store_unavailable' });
+  expect(acceptCalls).toBe(1);
+});
+
 function encoded(value: unknown): Uint8Array {
   return new TextEncoder().encode(JSON.stringify(value));
 }
