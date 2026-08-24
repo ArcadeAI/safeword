@@ -34642,13 +34642,18 @@ function marketplaceSource(entry) {
       kind = undefined;
     }
   }
-  return { url, ref, kind };
+  return { url: url ?? gitHubShorthandUrl(kind, source.repo), ref, kind };
+}
+function gitHubShorthandUrl(kind, repo) {
+  if (kind !== "github" || typeof repo !== "string")
+    return;
+  return repo.toLowerCase() === MARKETPLACE_REPO.toLowerCase() ? MARKETPLACE_BASE : repo;
 }
 function marketplaceSourceStatus(entry) {
   const { url, ref, kind } = marketplaceSource(entry);
   if (url !== MARKETPLACE_BASE)
     return "conflict";
-  if (kind !== undefined && (typeof kind !== "string" || !["url", "git"].includes(kind))) {
+  if (kind !== undefined && (typeof kind !== "string" || !["url", "git", "github"].includes(kind))) {
     return "conflict";
   }
   return marketplaceReferenceStatus(ref);
@@ -34656,9 +34661,13 @@ function marketplaceSourceStatus(entry) {
 function marketplaceReferenceStatus(ref) {
   if (ref === "stable")
     return "current";
+  if (ref === undefined)
+    return "stale";
   if (typeof ref !== "string" || !ref.startsWith("v"))
     return "conflict";
-  const version2 = ref.slice(1);
+  return marketplaceTagStatus(ref.slice(1));
+}
+function marketplaceTagStatus(version2) {
   if (!isSafePackageVersion(version2))
     return "conflict";
   if (version2 === VERSION) {
@@ -34761,10 +34770,21 @@ function observeMarketplace(cwd, scope, effects) {
     sharedStatus: shared === undefined ? undefined : marketplaceSourceStatus(shared)
   };
 }
+function describeMarketplaceSource(entry) {
+  if (entry === undefined)
+    return;
+  const { url, ref } = marketplaceSource(entry);
+  if (typeof url !== "string")
+    return;
+  return typeof ref === "string" ? `${url}#${ref}` : url;
+}
 function assertTrustedMarketplace(observation) {
-  if (observation.declarationStatus === "conflict" || observation.sharedStatus === "conflict") {
-    throw new ClaudeProfileError("CLAUDE_MARKETPLACE_CONFLICT", `Claude marketplace ${MARKETPLACE_NAME} has an untrusted source or version; expected ${officialMarketplaceSource()} or an older valid tag from the same repository.`);
+  if (observation.declarationStatus !== "conflict" && observation.sharedStatus !== "conflict") {
+    return;
   }
+  const offending = describeMarketplaceSource(observation.declarationStatus === "conflict" ? observation.declaration : observation.shared);
+  const found = offending === undefined ? "" : ` Found ${offending}.`;
+  throw new ClaudeProfileError("CLAUDE_MARKETPLACE_CONFLICT", `Claude marketplace ${MARKETPLACE_NAME} has an untrusted source or version; expected ${officialMarketplaceSource()} or an older valid tag from the same repository.${found} Safeword changed nothing.`);
 }
 function marketplaceIsCurrent(observation) {
   return observation.declarationStatus === "current" && observation.sharedStatus === "current";
@@ -35078,7 +35098,7 @@ function uninstallClaudePlugin(cwd, scope = "project") {
     });
   }
 }
-var MINIMUM_CLAUDE_VERSION, CLAUDE_COMMAND_TIMEOUT_MS = 30000, MAXIMUM_CLAUDE_OUTPUT_BYTES, MARKETPLACE_NAME = "safeword", MARKETPLACE_BASE = "https://github.com/ArcadeAI/safeword.git", ClaudeProfileError, DIAGNOSTIC_FAILURES;
+var MINIMUM_CLAUDE_VERSION, CLAUDE_COMMAND_TIMEOUT_MS = 30000, MAXIMUM_CLAUDE_OUTPUT_BYTES, MARKETPLACE_NAME = "safeword", MARKETPLACE_BASE = "https://github.com/ArcadeAI/safeword.git", MARKETPLACE_REPO = "ArcadeAI/safeword", ClaudeProfileError, DIAGNOSTIC_FAILURES;
 var init_profile = __esm(() => {
   init_main();
   init_result();
