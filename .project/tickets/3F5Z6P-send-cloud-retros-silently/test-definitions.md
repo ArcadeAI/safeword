@@ -458,7 +458,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 - [x] RED 1a9c36029
 - [x] GREEN a3a8edbbb
-- [ ] REFACTOR
+- [x] REFACTOR a3a8edbbb
 
 ### Scenario: Non-operator credentials cannot read public records
 
