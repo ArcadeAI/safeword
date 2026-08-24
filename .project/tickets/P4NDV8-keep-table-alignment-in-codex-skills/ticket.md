@@ -2,8 +2,8 @@
 id: P4NDV8
 slug: keep-table-alignment-in-codex-skills
 type: task
-phase: intake
-status: todo
+phase: done
+status: done
 scope:
   - preserve each column's alignment colons when normalizing table widths
   - cover left, right, and centre aligned delimiter rows with a regression test
@@ -43,3 +43,7 @@ colons while normalizing widths.
 
 Finding 1 of an independent cross-agent Codex review of `catalogue.ts` on main;
 independently raised by a second reviewer on PR #3262.
+
+## Work Log
+
+- 2026-08-24T05:36:53.716Z Phase: intake → done
