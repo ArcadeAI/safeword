@@ -15,8 +15,8 @@ afterEach(() => {
   temporaryDirectories.length = 0;
 });
 
-function fixtureRequest(): { body: Uint8Array; requestId: string } {
-  const envelope = {
+function fixtureEnvelope(): Record<string, unknown> {
+  return {
     version: 'v1',
     finding: 'fixture finding',
     source: {
@@ -27,21 +27,46 @@ function fixtureRequest(): { body: Uint8Array; requestId: string } {
     },
     sessionScope: '7'.repeat(64),
   };
+}
+
+function fixtureRequest(): { body: Uint8Array; requestId: string } {
   return {
-    body: new TextEncoder().encode(JSON.stringify(envelope)),
+    body: new TextEncoder().encode(JSON.stringify(fixtureEnvelope())),
     requestId: '01911111-2222-7333-8444-55555555555a',
   };
 }
 
-async function submit(url: string, request: ReturnType<typeof fixtureRequest>): Promise<Response> {
+async function submit(
+  url: string,
+  request: ReturnType<typeof fixtureRequest>,
+  contentType: string | false = 'application/json; charset=utf-8',
+): Promise<Response> {
+  const headers = new Headers({ 'x-safeword-request-id': request.requestId });
+  if (contentType !== false) headers.set('content-type', contentType);
   return fetch(`${url}/v1/public-retros`, {
     method: 'POST',
-    headers: {
-      'content-type': 'application/json; charset=utf-8',
-      'x-safeword-request-id': request.requestId,
-    },
+    headers,
     body: request.body,
   });
+}
+
+function encoded(value: unknown): Uint8Array {
+  return new TextEncoder().encode(JSON.stringify(value));
+}
+
+function withSource(change: Record<string, unknown>): Record<string, unknown> {
+  const envelope = fixtureEnvelope();
+  return { ...envelope, source: { ...(envelope.source as object), ...change } };
+}
+
+function nonUtf8Envelope(): Uint8Array {
+  const bytes = Buffer.from(JSON.stringify({ ...fixtureEnvelope(), finding: 'fixture § finding' }));
+  const marker = bytes.indexOf(Buffer.from('§'));
+  return Buffer.concat([
+    bytes.subarray(0, marker),
+    Buffer.from([0xff]),
+    bytes.subarray(marker + 2),
+  ]);
 }
 
 it('returns the original durable receipt for an exact retry after restart', async () => {
@@ -69,22 +94,68 @@ it('returns the original durable receipt for an exact retry after restart', asyn
   });
 });
 
-it('rejects an invalid envelope without consuming its request identity', async () => {
-  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
-  temporaryDirectories.push(directory);
-  const runtime = await startPublicRetroCollector({
-    databasePath: path.join(directory, 'collector.sqlite'),
-  });
-  const validRequest = fixtureRequest();
-  const invalidRequest = {
-    ...validRequest,
-    body: new TextEncoder().encode(JSON.stringify({ sessionScope: '7'.repeat(64) })),
-  };
+const invalidEnvelopes: readonly (readonly [string, Uint8Array, (string | false)?])[] = [
+  ['unknown version', encoded({ ...fixtureEnvelope(), version: 'v2' })],
+  ['missing required field', encoded({ sessionScope: '7'.repeat(64) })],
+  ['unknown top-level field', encoded({ ...fixtureEnvelope(), extra: true })],
+  ['unknown source field', encoded(withSource({ extra: true }))],
+  ['missing source project UUID', encoded(withSource({ projectUUID: undefined }))],
+  ['non-UUID source project UUID', encoded(withSource({ projectUUID: 'not-a-uuid' }))],
+  [
+    'uppercase source project UUID',
+    encoded(withSource({ projectUUID: '018F0F2E-ABCD-7DEF-8ABC-DEF012345678' })),
+  ],
+  ['invalid source host class', encoded(withSource({ hostClass: 7 }))],
+  ['cloud source host class', encoded(withSource({ hostClass: 'cloud' }))],
+  ['unsupported harness', encoded(withSource({ harness: 'cursor' }))],
+  ['wrong-typed required field', encoded({ ...fixtureEnvelope(), finding: 7 })],
+  ['empty required field', encoded({ ...fixtureEnvelope(), finding: '' })],
+  ['whitespace-only required field', encoded({ ...fixtureEnvelope(), finding: '  ' })],
+  ['empty optional source field', encoded(withSource({ model: '' }))],
+  ['whitespace-only optional source field', encoded(withSource({ model: '  ' }))],
+  ['12-character session scope', encoded({ ...fixtureEnvelope(), sessionScope: '7'.repeat(12) })],
+  ['63-character session scope', encoded({ ...fixtureEnvelope(), sessionScope: '7'.repeat(63) })],
+  ['65-character session scope', encoded({ ...fixtureEnvelope(), sessionScope: '7'.repeat(65) })],
+  ['uppercase session scope', encoded({ ...fixtureEnvelope(), sessionScope: 'A'.repeat(64) })],
+  [
+    'non-hexadecimal session scope',
+    encoded({ ...fixtureEnvelope(), sessionScope: 'z'.repeat(64) }),
+  ],
+  ['non-JSON body', new TextEncoder().encode('not json')],
+  ['JSON array body', encoded([])],
+  ['JSON null body', new TextEncoder().encode('null')],
+  ['empty body', new Uint8Array()],
+  [
+    'duplicate JSON keys',
+    new TextEncoder().encode(
+      JSON.stringify(fixtureEnvelope()).replace('"version":"v1"', '"version":"v1","version":"v1"'),
+    ),
+  ],
+  ['non-UTF-8 body', nonUtf8Envelope()],
+  ['missing content type', encoded(fixtureEnvelope()), false],
+  ['non-JSON content type', encoded(fixtureEnvelope()), 'text/plain'],
+];
 
-  const invalidResponse = await submit(runtime.url, invalidRequest);
-  const validResponse = await submit(runtime.url, validRequest);
-  await runtime.close();
+it.each(invalidEnvelopes)(
+  'rejects %s without consuming its request identity',
+  async (_, body, contentType) => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+    temporaryDirectories.push(directory);
+    const runtime = await startPublicRetroCollector({
+      databasePath: path.join(directory, 'collector.sqlite'),
+    });
+    const validRequest = fixtureRequest();
+    const invalidRequest = { ...validRequest, body: body as Uint8Array };
 
-  expect(invalidResponse.status).toBe(400);
-  expect(validResponse.status).toBe(201);
-});
+    const invalidResponse = await submit(
+      runtime.url,
+      invalidRequest,
+      contentType as string | false | undefined,
+    );
+    const validResponse = await submit(runtime.url, validRequest);
+    await runtime.close();
+
+    expect(invalidResponse.status).toBeGreaterThanOrEqual(400);
+    expect(validResponse.status).toBe(201);
+  },
+);
