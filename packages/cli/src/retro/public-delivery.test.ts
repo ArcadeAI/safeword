@@ -5,7 +5,12 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { buildPublicRetroEnvelope, preparePublicRetroRequest } from './public-delivery.js';
+import {
+  buildPublicRetroEnvelope,
+  preparePublicRetroRequest,
+  type PublicRetroHttpRequest,
+  submitPublicRetroRequest,
+} from './public-delivery.js';
 
 const requiredInput = {
   finding: 'fixture finding',
@@ -95,6 +100,38 @@ describe('buildPublicRetroEnvelope', () => {
       expect(readdirSync(attemptsDirectory)).toEqual([]);
     } finally {
       rmSync(attemptsDirectory, { recursive: true, force: true });
+    }
+  });
+
+  it('hands the same prepared identity and bytes to either harness transport', async () => {
+    const bytes = new TextEncoder().encode('{"fixture":true}');
+    const prepared = {
+      bytes,
+      requestId: '01911111-2222-7333-8444-55555555555a',
+      sessionScope: '7'.repeat(64),
+    };
+    const observed: PublicRetroHttpRequest[] = [];
+    const transport = (request: PublicRetroHttpRequest) => {
+      observed.push(request);
+      return Promise.resolve({ requestId: prepared.requestId, receipt: 'receipt-fixture' });
+    };
+
+    await submitPublicRetroRequest(prepared, transport);
+    await submitPublicRetroRequest(prepared, transport);
+
+    expect(observed).toHaveLength(2);
+    for (const request of observed) {
+      expect(request).toEqual({
+        method: 'POST',
+        path: '/v1/public-retros',
+        headers: {
+          'content-type': 'application/json; charset=utf-8',
+          'x-safeword-request-id': prepared.requestId,
+        },
+        body: bytes,
+        redirect: 'error',
+      });
+      expect(request.body).toBe(bytes);
     }
   });
 });

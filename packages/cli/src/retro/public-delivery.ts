@@ -30,6 +30,24 @@ export interface PreparedPublicRetroRequest extends BuiltPublicRetroEnvelope {
   requestId: string;
 }
 
+export interface PublicRetroHttpRequest {
+  method: 'POST';
+  path: '/v1/public-retros';
+  headers: {
+    'content-type': 'application/json; charset=utf-8';
+    'x-safeword-request-id': string;
+  };
+  body: Uint8Array;
+  redirect: 'error';
+}
+
+export interface PublicRetroReceipt {
+  requestId: string;
+  receipt: string;
+}
+
+export type PublicRetroTransport = (request: PublicRetroHttpRequest) => Promise<PublicRetroReceipt>;
+
 export interface PublicRetroPreparationDependencies {
   attemptsDirectory: string;
   randomUUID: () => string;
@@ -110,4 +128,11 @@ export function preparePublicRetroRequest(
   }
 
   return { ...built, requestId };
+}
+
+export function submitPublicRetroRequest(
+  _prepared: PreparedPublicRetroRequest,
+  _transport: PublicRetroTransport,
+): Promise<PublicRetroReceipt> {
+  return Promise.reject(new Error('Not implemented'));
 }
