@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 export interface PublicRetroSource {
   harness: 'claude-code' | 'codex';
   hostClass: 'local';
@@ -20,6 +22,15 @@ export interface PublicRetroEnvelopeInput {
 export interface BuiltPublicRetroEnvelope {
   bytes: Uint8Array;
   sessionScope: string;
+}
+
+export interface PreparedPublicRetroRequest extends BuiltPublicRetroEnvelope {
+  requestId: string;
+}
+
+export interface PublicRetroPreparationDependencies {
+  attemptsDirectory: string;
+  randomUUID: () => string;
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -68,4 +79,10 @@ export function buildPublicRetroEnvelope(
 
   return { bytes, sessionScope: scope };
 }
-import { createHash } from 'node:crypto';
+
+export function preparePublicRetroRequest(
+  _input: PublicRetroEnvelopeInput,
+  _dependencies: PublicRetroPreparationDependencies,
+): PreparedPublicRetroRequest | undefined {
+  throw new Error('Not implemented');
+}

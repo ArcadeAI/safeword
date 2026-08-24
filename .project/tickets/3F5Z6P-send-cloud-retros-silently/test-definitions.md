@@ -314,7 +314,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 ### Scenario: Request identity is generated once outside the envelope
 
-- [ ] RED
+- [x] RED pending
 - [ ] GREEN
 - [ ] REFACTOR
 

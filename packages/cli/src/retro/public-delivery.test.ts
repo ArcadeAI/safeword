@@ -1,8 +1,22 @@
 import { createHash } from 'node:crypto';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { buildPublicRetroEnvelope } from './public-delivery.js';
+import { buildPublicRetroEnvelope, preparePublicRetroRequest } from './public-delivery.js';
+
+const requiredInput = {
+  finding: 'fixture finding',
+  sessionId: 'session-fixture-42',
+  source: {
+    harness: 'claude-code' as const,
+    hostClass: 'local' as const,
+    projectUUID: '018F0F2E-ABCD-7DEF-8ABC-DEF012345678',
+    safewordCliVersion: '0.78.8',
+  },
+};
 
 describe('buildPublicRetroEnvelope', () => {
   it('serializes the complete source profile deterministically', () => {
@@ -34,5 +48,29 @@ describe('buildPublicRetroEnvelope', () => {
     expect(createHash('sha256').update(built.bytes).digest('hex')).toBe(
       'a6701f5fea50ec66e811833d67ff2b51fc8ea3808d9562005690c49ff07cd2df',
     );
+  });
+
+  it('generates one transport-independent request identity after claiming the scope', () => {
+    const attemptsDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-public-retro-'));
+    let uuidCalls = 0;
+
+    try {
+      const prepared = preparePublicRetroRequest(requiredInput, {
+        attemptsDirectory,
+        randomUUID: () => {
+          uuidCalls += 1;
+          return '01911111-2222-7333-8444-55555555555A';
+        },
+      });
+
+      expect(uuidCalls).toBe(1);
+      expect(prepared?.requestId).toBe('01911111-2222-7333-8444-55555555555a');
+      expect(new TextDecoder().decode(prepared?.bytes)).not.toContain(prepared?.requestId);
+      const markerPath = path.join(attemptsDirectory, `${prepared?.sessionScope}.json`);
+      const marker = JSON.parse(readFileSync(markerPath, 'utf8')) as unknown;
+      expect(marker).toEqual({ sessionScope: prepared?.sessionScope });
+    } finally {
+      rmSync(attemptsDirectory, { recursive: true, force: true });
+    }
   });
 });
