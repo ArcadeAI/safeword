@@ -236,7 +236,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 - [x] RED skip: the canonical-envelope RED already supplied an uppercase project identity
 - [x] GREEN 880df43ef
-- [ ] REFACTOR
+- [x] REFACTOR skip: canonicalization remains one validation-boundary operation
 
 ### Scenario: Cloned projects still distinguish sessions
 
