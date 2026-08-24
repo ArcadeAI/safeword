@@ -365,7 +365,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 ### Scenario: Concurrent fresh identities cannot share one session scope
 
 - [x] RED skip: scope conflict handling was necessarily established by the transactional store slice
-- [ ] GREEN
+- [x] GREEN ec46336f1
 - [ ] REFACTOR
 
 ### Scenario: Distinct submissions remain independent
