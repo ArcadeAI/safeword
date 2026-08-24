@@ -493,7 +493,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 ### Scenario: Existing private filing remains operational beside public collection
 
 - [x] RED skip: both independent services were already operational before the coexistence proof
-- [ ] GREEN
+- [x] GREEN 84bbaf204
 - [ ] REFACTOR
 
 ## Rule: send-cloud-retros-silently.SWM1.R4
