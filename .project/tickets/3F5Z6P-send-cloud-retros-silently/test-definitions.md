@@ -518,7 +518,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 ### Scenario: Preparation reaching its deadline is abandoned on the boundary
 
-- [x] RED pending
+- [x] RED 2342c57e0
 - [ ] GREEN
 - [ ] REFACTOR
 
