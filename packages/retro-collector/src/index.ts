@@ -21,6 +21,7 @@ const OPTIONAL_SOURCE_FIELDS = [
   'userIdentity',
 ] as const;
 const SOURCE_FIELDS = new Set<string>([...REQUIRED_SOURCE_FIELDS, ...OPTIONAL_SOURCE_FIELDS]);
+const UTF8_DECODER = new TextDecoder('utf-8', { fatal: true });
 
 export interface PublicRetroCollectorRuntime {
   url: string;
@@ -91,7 +92,9 @@ function validSource(value: unknown): boolean {
 
 function envelopeSessionScope(rawBody: Buffer): string | undefined {
   try {
-    const value = JSON.parse(rawBody.toString('utf8')) as unknown;
+    const source = UTF8_DECODER.decode(rawBody);
+    const value = JSON.parse(source) as unknown;
+    if (JSON.stringify(value) !== source) return undefined;
     if (!isRecord(value) || !hasExactKeys(value, TOP_LEVEL_FIELDS)) return undefined;
     if (value.version !== 'v1' || !nonemptyString(value.finding)) return undefined;
     if (!validSource(value.source)) return undefined;
