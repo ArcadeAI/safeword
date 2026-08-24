@@ -103,10 +103,6 @@ describe('Claude plugin release contract', () => {
       nodePath.join(REPO_ROOT, '.github/workflows/advisory-pr-review-canary.yml'),
       'utf8',
     );
-    const runner = readFileSync(
-      nodePath.join(CLI_ROOT, 'scripts/run-pr-review-disposable-smoke.ts'),
-      'utf8',
-    );
     const readme = readFileSync(nodePath.join(REPO_ROOT, 'README.md'), 'utf8');
 
     expect(canary).toContain('workflow_dispatch:');
@@ -118,14 +114,16 @@ describe('Claude plugin release contract', () => {
     expect(canary.match(/actions\/create-github-app-token@/gu)).toHaveLength(2);
     expect(canary).toContain('vars.SAFEWORD_PR_REVIEW_SMOKE_APP_CLIENT_ID');
     expect(canary).toContain('secrets.SAFEWORD_PR_REVIEW_SMOKE_APP_PRIVATE_KEY');
+    expect(canary).toContain('owner: ArcadeAI');
+    expect(canary).toContain('owner: TheMostlyGreat');
+    expect(canary.match(/repositories: safeword-pr-review-smoke-base/gu)).toHaveLength(2);
+    expect(canary).not.toContain('permission-administration');
     expect(canary).not.toContain('SAFEWORD_PR_REVIEW_SMOKE_TOKEN');
     expect(canary).toContain('SAFEWORD_PR_REVIEW_SMOKE_FORK_TOKEN');
     expect(canary).toContain('smoke:pr-review:disposable');
-    expect(runner).toContain('must name two dedicated sandbox owners');
-    expect(runner).toContain('GH_TOKEN and SAFEWORD_PR_REVIEW_SMOKE_FORK_TOKEN are required');
-    expect(readme).toContain('SAFEWORD_PR_REVIEW_SMOKE_OWNER');
-    expect(readme).toMatch(/must not have authority over production\s+repositories/u);
-    expect(readme).toContain('SAFEWORD_KEEP_PR_REVIEW_SMOKE=1');
-    expect(readme).toMatch(/permanently\s+deletes both repositories/u);
+    expect(readme).toContain('ArcadeAI/safeword-pr-review-smoke-base');
+    expect(readme).toContain('TheMostlyGreat/safeword-pr-review-smoke-base');
+    expect(readme).toMatch(/must not have authority\s+over production\s+repositories/u);
+    expect(readme).toMatch(/independently closes the pull\s+request/u);
   });
 });

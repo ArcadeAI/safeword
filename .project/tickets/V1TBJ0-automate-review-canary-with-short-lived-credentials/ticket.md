@@ -8,17 +8,18 @@ created: 2026-08-23T09:48:04.810Z
 last_modified: 2026-08-23T09:48:04.810Z
 ---
 
-# Keep the advisory review canary independent of personal credentials
+# Keep the advisory review canary isolated from production repositories
 
-**Goal:** Use short-lived GitHub App installation tokens for both disposable sandbox owners.
+**Goal:** Use short-lived GitHub App installation tokens against one fixed sandbox fork pair.
 
 **Why:** The canary currently depends on one missing long-lived personal token, while the production App lacks the necessary sandbox authority.
 
 ## Scope
 
-- Mint separate short-lived installation tokens for the base and fork sandbox owners.
-- Route each repository operation through the token for the owner it mutates.
-- Keep the existing create, exercise, and permanent-cleanup canary behavior.
+- Mint separate short-lived installation tokens restricted to the fixed base and fork repositories.
+- Route each repository operation through the token for the repository it mutates.
+- Update the fixed base fixture, exercise a temporary fork branch and pull request, and clean up
+  those temporary resources independently.
 - Document a dedicated smoke App rather than widening the production Safeword App.
 
 ## Out of Scope
@@ -30,21 +31,21 @@ last_modified: 2026-08-23T09:48:04.810Z
 
 ## Acceptance Criteria
 
-- The canary generates one installation token for each configured sandbox owner.
+- The canary generates one installation token for each fixed sandbox repository.
 - No long-lived personal access token is stored or consumed by the workflow.
-- Base and fork mutations use their corresponding owner token, including cleanup.
+- Base and fork mutations use their corresponding repository token, including cleanup.
 - Missing either token fails before creating a repository.
 - Existing deterministic workflow-contract checks and the full repository suite pass.
-- The live canary creates, exercises, and deletes both disposable repositories.
+- The live canary exercises the fixed fork pair and independently attempts pull-request, branch,
+  and local cleanup even when an earlier cleanup action fails.
 
 ## Design Notes
 
-GitHub documents that installation tokens expire after one hour and that creating an
-organization repository requires repository Administration write permission. Creating a
-fork with an installation token additionally requires Contents read and an all-repositories
-installation on both source and destination accounts. The dedicated smoke App therefore
-uses all-repositories installations only on the two sandbox owners; it is not installed on
-production owners.
+GitHub documents that installation tokens expire after one hour. The dedicated smoke App is
+installed for selected-repository access only on
+`ArcadeAI/safeword-pr-review-smoke-base` and its real fork,
+`TheMostlyGreat/safeword-pr-review-smoke-base`. The workflow cannot choose a different
+repository at runtime, and neither installation grants the App production authority.
 
 ## Work Log
 

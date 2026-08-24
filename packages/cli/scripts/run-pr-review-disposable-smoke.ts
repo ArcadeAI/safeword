@@ -5,12 +5,20 @@ import nodePath from 'node:path';
 
 import { createPrReviewSmokeFixture } from '../src/pr-review/smoke-fixture.js';
 
-interface CommandOptions {
+export interface CommandOptions {
   cwd?: string;
   env?: NodeJS.ProcessEnv;
   input?: string;
   quiet?: boolean;
 }
+
+export type SmokeCommandExecutor = (
+  executable: string,
+  arguments_: string[],
+  options?: CommandOptions,
+) => string;
+
+type GhClient = (arguments_: string[], options?: CommandOptions) => string;
 
 interface Job {
   name: string;
@@ -52,18 +60,49 @@ function command(executable: string, arguments_: string[], options: CommandOptio
   return result.stdout.trim();
 }
 
-function gh(arguments_: string[], options: CommandOptions = {}, token?: string): string {
-  return command('gh', arguments_, {
-    ...options,
-    env: token === undefined ? options.env : { ...options.env, GH_TOKEN: token },
-  });
+function gitAuthentication(token: string): NodeJS.ProcessEnv {
+  const basicCredential = Buffer.from(`x-access-token:${token}`).toString('base64');
+  return {
+    GIT_CONFIG_COUNT: '1',
+    GIT_CONFIG_KEY_0: 'http.https://github.com/.extraheader',
+    GIT_CONFIG_VALUE_0: `AUTHORIZATION: basic ${basicCredential}`,
+  };
 }
 
-function ghJson(path: string, token?: string): unknown {
+export function createSmokeCommandClients(
+  execute: SmokeCommandExecutor,
+  baseToken: string,
+  forkToken: string,
+): {
+  baseGh: GhClient;
+  baseGit: (arguments_: string[], cwd: string) => string;
+  forkGh: GhClient;
+  forkGit: (arguments_: string[], cwd: string) => string;
+} {
+  const githubClient =
+    (token: string): GhClient =>
+    (arguments_, options = {}) =>
+      execute('gh', arguments_, {
+        ...options,
+        env: { ...options.env, GH_TOKEN: token },
+      });
+  const gitClient =
+    (token: string) =>
+    (arguments_: string[], cwd: string): string =>
+      execute('git', arguments_, { cwd, env: gitAuthentication(token) });
+  return {
+    baseGh: githubClient(baseToken),
+    baseGit: gitClient(baseToken),
+    forkGh: githubClient(forkToken),
+    forkGit: gitClient(forkToken),
+  };
+}
+
+function ghJson(path: string, ghClient: GhClient): unknown {
   let lastError: unknown;
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     try {
-      return JSON.parse(gh(['api', path], { quiet: true }, token)) as unknown;
+      return JSON.parse(ghClient(['api', path], { quiet: true })) as unknown;
     } catch (error) {
       lastError = error;
       pause(attempt * 1000);
@@ -82,16 +121,8 @@ function waitFor<T>(description: string, probe: () => T | undefined, seconds = 3
   throw new Error(`timed out waiting for ${description}`);
 }
 
-function repoExists(repo: string, token?: string): boolean {
-  try {
-    ghJson(`repos/${repo}`, token);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 function serializedInConcurrencyGroup(
+  ghClient: GhClient,
   repo: string,
   pullNumber: number,
   eventRunId: number,
@@ -99,7 +130,7 @@ function serializedInConcurrencyGroup(
 ): boolean {
   try {
     const group = JSON.parse(
-      gh(
+      ghClient(
         [
           'api',
           '-H',
@@ -122,9 +153,15 @@ function serializedInConcurrencyGroup(
   }
 }
 
-function latestRun(repo: string, workflow: string, event: string): Run | undefined {
+function latestRun(
+  ghClient: GhClient,
+  repo: string,
+  workflow: string,
+  event: string,
+): Run | undefined {
   const response = ghJson(
     `repos/${repo}/actions/workflows/${workflow}/runs?event=${event}&per_page=10`,
+    ghClient,
   ) as { workflow_runs: Record<string, unknown>[] };
   const run = response.workflow_runs[0];
   if (run === undefined) return undefined;
@@ -136,17 +173,21 @@ function latestRun(repo: string, workflow: string, event: string): Run | undefin
   };
 }
 
-function jobs(repo: string, runId: number): Job[] {
-  return (ghJson(`repos/${repo}/actions/runs/${runId}/jobs?per_page=100`) as { jobs: Job[] }).jobs;
+function jobs(ghClient: GhClient, repo: string, runId: number): Job[] {
+  return (
+    ghJson(`repos/${repo}/actions/runs/${runId}/jobs?per_page=100`, ghClient) as {
+      jobs: Job[];
+    }
+  ).jobs;
 }
 
-function waitForSuccess(repo: string, runId: number): void {
+function waitForSuccess(ghClient: GhClient, repo: string, runId: number): void {
   let minimumAttempt = 1;
   for (let retry = 0; retry <= 1; retry += 1) {
     const run = waitFor(
       `workflow run ${runId}`,
       () => {
-        const value = ghJson(`repos/${repo}/actions/runs/${runId}`) as Run;
+        const value = ghJson(`repos/${repo}/actions/runs/${runId}`, ghClient) as Run;
         return value.status === 'completed' && value.run_attempt >= minimumAttempt
           ? value
           : undefined;
@@ -154,7 +195,7 @@ function waitForSuccess(repo: string, runId: number): void {
       600,
     );
     if (run.conclusion === 'success') return;
-    const detail = gh(['run', 'view', String(runId), '--repo', repo, '--log-failed'], {
+    const detail = ghClient(['run', 'view', String(runId), '--repo', repo, '--log-failed'], {
       quiet: true,
     });
     const infrastructureFailure =
@@ -163,7 +204,7 @@ function waitForSuccess(repo: string, runId: number): void {
       );
     if (retry === 0 && infrastructureFailure) {
       minimumAttempt = run.run_attempt + 1;
-      gh(['run', 'rerun', String(runId), '--repo', repo, '--failed']);
+      ghClient(['run', 'rerun', String(runId), '--repo', repo, '--failed']);
       continue;
     }
     throw new Error(`workflow run ${runId} concluded ${run.conclusion}\n${detail}`);
@@ -171,19 +212,19 @@ function waitForSuccess(repo: string, runId: number): void {
   throw new Error(`workflow run ${runId} exhausted its infrastructure retry`);
 }
 
-function snapshot(repo: string, pullNumber: number, headSha: string): string {
-  const pull = ghJson(`repos/${repo}/pulls/${pullNumber}`) as {
+function snapshot(ghClient: GhClient, repo: string, pullNumber: number, headSha: string): string {
+  const pull = ghJson(`repos/${repo}/pulls/${pullNumber}`, ghClient) as {
     mergeable: boolean | undefined;
     mergeable_state: string;
   };
-  const reviews = ghJson(`repos/${repo}/pulls/${pullNumber}/reviews?per_page=100`) as {
+  const reviews = ghJson(`repos/${repo}/pulls/${pullNumber}/reviews?per_page=100`, ghClient) as {
     id: number;
     state: string;
   }[];
-  const statuses = ghJson(`repos/${repo}/commits/${headSha}/status`) as {
+  const statuses = ghJson(`repos/${repo}/commits/${headSha}/status`, ghClient) as {
     statuses: { context: string; state: string }[];
   };
-  const checks = ghJson(`repos/${repo}/commits/${headSha}/check-runs`) as {
+  const checks = ghJson(`repos/${repo}/commits/${headSha}/check-runs`, ghClient) as {
     check_runs: { conclusion?: string; name: string; status: string }[];
   };
   return JSON.stringify({
@@ -212,45 +253,88 @@ function writeFixture(directory: string): void {
   }
 }
 
-interface CleanupFixtureInput {
-  baseCreated: boolean;
+interface CleanupSmokeResourcesInput {
+  baseGh: GhClient;
+  baseRepo: string;
+  branch?: string;
+  directory: string;
+  forkGh: GhClient;
+  forkRepo: string;
+  pullNumber?: number;
+  removeDirectory?: (directory: string) => void;
+}
+
+export function cleanupSmokeResources(input: CleanupSmokeResourcesInput): Error[] {
+  const errors: Error[] = [];
+  const attempt = (description: string, action: () => void): void => {
+    try {
+      action();
+    } catch (error) {
+      errors.push(
+        new Error(`${description}: ${error instanceof Error ? error.message : String(error)}`),
+      );
+    }
+  };
+  if (input.pullNumber !== undefined) {
+    attempt('close pull request', () => {
+      input.baseGh(['pr', 'close', String(input.pullNumber), '--repo', input.baseRepo]);
+    });
+  }
+  if (input.branch !== undefined) {
+    attempt('delete fork branch', () => {
+      input.forkGh([
+        'api',
+        '--method',
+        'DELETE',
+        `repos/${input.forkRepo}/git/refs/heads/${input.branch}`,
+      ]);
+    });
+  }
+  attempt('remove local fixture', () => {
+    const removeDirectory =
+      input.removeDirectory ??
+      (directory => {
+        rmSync(directory, { force: true, recursive: true });
+      });
+    removeDirectory(input.directory);
+  });
+  return errors;
+}
+
+export function resolveSmokeConfig(environment: NodeJS.ProcessEnv): {
   baseRepo: string;
   baseToken: string;
-  directory: string;
-  forkCreated: boolean;
+  forkOwner: string;
   forkRepo: string;
   forkToken: string;
-}
-
-function cleanupFixture(input: CleanupFixtureInput): void {
-  const { baseCreated, baseRepo, baseToken, directory, forkCreated, forkRepo, forkToken } = input;
-  if (process.env.SAFEWORD_KEEP_PR_REVIEW_SMOKE === '1') {
-    console.log(`Keeping ${baseRepo} and ${forkRepo}`);
-    return;
+} {
+  const baseToken = (environment.GH_TOKEN || '').trim();
+  const forkToken = (environment.SAFEWORD_PR_REVIEW_SMOKE_FORK_TOKEN || '').trim();
+  if (!baseToken || !forkToken) {
+    throw new Error('GH_TOKEN and SAFEWORD_PR_REVIEW_SMOKE_FORK_TOKEN are required');
   }
-  if (forkCreated) gh(['repo', 'delete', forkRepo, '--yes'], {}, forkToken);
-  if (baseCreated) gh(['repo', 'delete', baseRepo, '--yes'], {}, baseToken);
-  rmSync(directory, { force: true, recursive: true });
-}
-
-function gitAuthentication(token: string): NodeJS.ProcessEnv {
-  const basicCredential = Buffer.from(`x-access-token:${token}`).toString('base64');
   return {
-    GIT_CONFIG_COUNT: '1',
-    GIT_CONFIG_KEY_0: 'http.https://github.com/.extraheader',
-    GIT_CONFIG_VALUE_0: `AUTHORIZATION: basic ${basicCredential}`,
+    baseRepo: 'ArcadeAI/safeword-pr-review-smoke-base',
+    baseToken,
+    forkOwner: 'TheMostlyGreat',
+    forkRepo: 'TheMostlyGreat/safeword-pr-review-smoke-base',
+    forkToken,
   };
 }
 
-function verifyResult(
-  repo: string,
-  pullNumber: number,
-  headSha: string,
-  before: string,
-  runIds: number[],
-): string {
+interface VerifyResultInput {
+  before: string;
+  ghClient: GhClient;
+  headSha: string;
+  pullNumber: number;
+  repo: string;
+  runIds: number[];
+}
+
+function verifyResult(input: VerifyResultInput): string {
+  const { before, ghClient, headSha, pullNumber, repo, runIds } = input;
   for (const runId of runIds) {
-    const artifacts = ghJson(`repos/${repo}/actions/runs/${runId}/artifacts`) as {
+    const artifacts = ghJson(`repos/${repo}/actions/runs/${runId}/artifacts`, ghClient) as {
       total_count: number;
     };
     if (artifacts.total_count !== 1) {
@@ -259,7 +343,7 @@ function verifyResult(
   }
 
   const comments = (
-    ghJson(`repos/${repo}/issues/${pullNumber}/comments?per_page=100`) as {
+    ghJson(`repos/${repo}/issues/${pullNumber}/comments?per_page=100`, ghClient) as {
       body: string;
       html_url: string;
     }[]
@@ -267,7 +351,7 @@ function verifyResult(
   if (comments.length !== 1 || !comments[0]?.body.includes(`Reviewed revision: ${headSha}`)) {
     throw new Error('publication did not reconcile exactly one current ordinary issue comment');
   }
-  const after = snapshot(repo, pullNumber, headSha);
+  const after = snapshot(ghClient, repo, pullNumber, headSha);
   if (after !== before) {
     throw new Error(
       `advisory smoke changed merge state, reviews, checks, or statuses\nbefore=${before}\nafter=${after}`,
@@ -277,74 +361,49 @@ function verifyResult(
 }
 
 export function runPrReviewDisposableSmoke(): void {
-  const baseOwner = (process.env.SAFEWORD_PR_REVIEW_SMOKE_OWNER || '').trim();
-  const forkOwner = (process.env.SAFEWORD_PR_REVIEW_SMOKE_FORK_OWNER || '').trim();
-  if (!baseOwner || !forkOwner) {
-    throw new Error(
-      'SAFEWORD_PR_REVIEW_SMOKE_OWNER and SAFEWORD_PR_REVIEW_SMOKE_FORK_OWNER must name two dedicated sandbox owners',
-    );
-  }
-  if (baseOwner.toLowerCase() === forkOwner.toLowerCase()) {
-    throw new Error('base and fork owners must differ to prove pull_request_target fork behavior');
-  }
-  const baseToken = (process.env.GH_TOKEN || '').trim();
-  const forkToken = (process.env.SAFEWORD_PR_REVIEW_SMOKE_FORK_TOKEN || '').trim();
-  if (!baseToken || !forkToken) {
-    throw new Error('GH_TOKEN and SAFEWORD_PR_REVIEW_SMOKE_FORK_TOKEN are required');
-  }
+  const { baseRepo, baseToken, forkOwner, forkRepo, forkToken } = resolveSmokeConfig(process.env);
+  const { baseGh, baseGit, forkGh, forkGit } = createSmokeCommandClients(
+    command,
+    baseToken,
+    forkToken,
+  );
 
   const suffix = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`.toLowerCase();
-  const repoName = `safeword-pr-review-smoke-${suffix}`;
-  const baseRepo = `${baseOwner}/${repoName}`;
-  const forkRepo = `${forkOwner}/${repoName}`;
+  const branch = `safeword-pr-review-smoke-${suffix}`;
   const directory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-pr-review-smoke-'));
-  let baseCreated = false;
-  let forkCreated = false;
+  let branchPushed = false;
+  let failure: unknown;
+  let output: string | undefined;
+  let pullNumber: number | undefined;
 
   try {
-    console.log(`Creating disposable fixture ${baseRepo}`);
-    gh([
-      'repo',
-      'create',
-      baseRepo,
-      '--public',
-      '--description',
-      'Disposable Safeword release smoke',
-    ]);
-    baseCreated = true;
+    console.log(`Updating fixed sandbox fixture ${baseRepo}`);
+    baseGit(['clone', `https://github.com/${baseRepo}.git`, directory], tmpdir());
+    baseGit(['config', 'user.name', 'Safeword smoke'], directory);
+    baseGit(['config', 'user.email', 'smoke@safeword.dev'], directory);
     writeFixture(directory);
-    command('git', ['init', '--initial-branch=main'], { cwd: directory });
-    command('git', ['config', 'user.name', 'Safeword smoke'], { cwd: directory });
-    command('git', ['config', 'user.email', 'smoke@safeword.dev'], { cwd: directory });
-    command('git', ['add', '.'], { cwd: directory });
-    command('git', ['commit', '-m', 'Add advisory PR review smoke fixture'], { cwd: directory });
-    command('git', ['remote', 'add', 'origin', `https://github.com/${baseRepo}.git`], {
-      cwd: directory,
-    });
-    command('git', ['push', '--set-upstream', 'origin', 'main'], {
-      cwd: directory,
-      env: gitAuthentication(baseToken),
-    });
+    baseGit(['add', '.'], directory);
+    if (baseGit(['status', '--porcelain'], directory) !== '') {
+      baseGit(['commit', '-m', 'Update advisory PR review smoke fixture'], directory);
+      baseGit(['push', 'origin', 'main'], directory);
+    }
 
-    gh(['api', '--method', 'PUT', `repos/${baseRepo}/environments/safeword-pr-review-model`]);
-    gh(
+    baseGh(['api', '--method', 'PUT', `repos/${baseRepo}/environments/safeword-pr-review-model`]);
+    baseGh(
       ['secret', 'set', 'OPENAI_API_KEY', '--env', 'safeword-pr-review-model', '--repo', baseRepo],
       { input: `smoke-${crypto.randomUUID()}\n` },
     );
 
-    gh(['repo', 'fork', baseRepo, '--clone=false', '--fork-name', repoName], {}, forkToken);
-    waitFor('fork creation', () => (repoExists(forkRepo, forkToken) ? true : undefined));
-    forkCreated = true;
-
-    command('git', ['checkout', '-b', 'smoke-fork-change'], { cwd: directory });
-    writeFileSync(nodePath.join(directory, '.flux'), 'require_human_review = true\n');
-    command('git', ['add', '.flux'], { cwd: directory });
-    command('git', ['commit', '-m', 'Exercise fork advisory review'], { cwd: directory });
-    command('git', ['push', `https://github.com/${forkRepo}.git`, 'HEAD:smoke-fork-change'], {
-      cwd: directory,
-      env: gitAuthentication(forkToken),
-    });
-    const pullUrl = gh([
+    baseGit(['checkout', '-b', branch], directory);
+    writeFileSync(
+      nodePath.join(directory, '.flux'),
+      `require_human_review = true\nsmoke_run = ${suffix}\n`,
+    );
+    baseGit(['add', '.flux'], directory);
+    baseGit(['commit', '-m', 'Exercise fork advisory review'], directory);
+    forkGit(['push', `https://github.com/${forkRepo}.git`, `HEAD:refs/heads/${branch}`], directory);
+    branchPushed = true;
+    const pullUrl = baseGh([
       'pr',
       'create',
       '--repo',
@@ -352,40 +411,45 @@ export function runPrReviewDisposableSmoke(): void {
       '--base',
       'main',
       '--head',
-      `${forkOwner}:smoke-fork-change`,
+      `${forkOwner}:${branch}`,
       '--title',
       'Exercise advisory PR review smoke',
       '--body',
       'Disposable release compatibility proof.',
     ]);
-    const pullNumber = Number(
-      gh(['pr', 'view', pullUrl, '--repo', baseRepo, '--json', 'number', '--jq', '.number']),
+    const createdPullNumber = Number(
+      baseGh(['pr', 'view', pullUrl, '--repo', baseRepo, '--json', 'number', '--jq', '.number']),
     );
-    const headSha = (ghJson(`repos/${baseRepo}/pulls/${pullNumber}`) as { head: { sha: string } })
-      .head.sha;
+    if (!Number.isSafeInteger(createdPullNumber) || createdPullNumber <= 0) {
+      throw new Error(`GitHub returned invalid pull request number: ${createdPullNumber}`);
+    }
+    pullNumber = createdPullNumber;
+    const headSha = (
+      ghJson(`repos/${baseRepo}/pulls/${createdPullNumber}`, baseGh) as { head: { sha: string } }
+    ).head.sha;
 
     const eventRun = waitFor('fork pull_request_target run', () =>
-      latestRun(baseRepo, 'safeword-pr-review.yml', 'pull_request_target'),
+      latestRun(baseGh, baseRepo, 'safeword-pr-review.yml', 'pull_request_target'),
     );
-    waitForSuccess(baseRepo, eventRun.id);
+    waitForSuccess(baseGh, baseRepo, eventRun.id);
     const before = waitFor('stable pre-publication mergeability', () => {
-      const value = snapshot(baseRepo, pullNumber, headSha);
+      const value = snapshot(baseGh, baseRepo, createdPullNumber, headSha);
       return (JSON.parse(value) as { mergeableState: string }).mergeableState === 'unknown'
         ? undefined
         : value;
     });
     const publisherRun = waitFor('trusted fork-event publisher', () =>
-      latestRun(baseRepo, 'safeword-pr-review-publisher.yml', 'workflow_run'),
+      latestRun(baseGh, baseRepo, 'safeword-pr-review-publisher.yml', 'workflow_run'),
     );
     waitFor('trusted publication job', () =>
-      jobs(baseRepo, publisherRun.id).some(
+      jobs(baseGh, baseRepo, publisherRun.id).some(
         job => job.name === 'publish-event-result' && job.status === 'in_progress',
       )
         ? true
         : undefined,
     );
 
-    gh([
+    baseGh([
       'workflow',
       'run',
       'safeword-pr-review-smoke-sweep.yml',
@@ -394,42 +458,65 @@ export function runPrReviewDisposableSmoke(): void {
       '--ref',
       'main',
       '-f',
-      `pull_number=${pullNumber}`,
+      `pull_number=${createdPullNumber}`,
     ]);
     const sweepRun = waitFor('manual scheduled-call projection', () =>
-      latestRun(baseRepo, 'safeword-pr-review-smoke-sweep.yml', 'workflow_dispatch'),
+      latestRun(baseGh, baseRepo, 'safeword-pr-review-smoke-sweep.yml', 'workflow_dispatch'),
     );
     waitFor('two serialized per-PR concurrency leases', () =>
-      serializedInConcurrencyGroup(baseRepo, pullNumber, publisherRun.id, sweepRun.id)
+      serializedInConcurrencyGroup(
+        baseGh,
+        baseRepo,
+        createdPullNumber,
+        publisherRun.id,
+        sweepRun.id,
+      )
         ? true
         : undefined,
     );
 
-    waitForSuccess(baseRepo, publisherRun.id);
-    waitForSuccess(baseRepo, sweepRun.id);
-    const comment = verifyResult(baseRepo, pullNumber, headSha, before, [eventRun.id, sweepRun.id]);
-
-    console.log(
-      JSON.stringify({
-        comment,
-        eventRun: eventRun.id,
-        forkPullRequest: pullUrl,
-        publisherRun: publisherRun.id,
-        serialized: true,
-        sweepRun: sweepRun.id,
-      }),
-    );
-  } finally {
-    cleanupFixture({
-      baseCreated,
-      baseRepo,
-      baseToken,
-      directory,
-      forkCreated,
-      forkRepo,
-      forkToken,
+    waitForSuccess(baseGh, baseRepo, publisherRun.id);
+    waitForSuccess(baseGh, baseRepo, sweepRun.id);
+    const comment = verifyResult({
+      before,
+      ghClient: baseGh,
+      headSha,
+      pullNumber: createdPullNumber,
+      repo: baseRepo,
+      runIds: [eventRun.id, sweepRun.id],
     });
+
+    output = JSON.stringify({
+      comment,
+      eventRun: eventRun.id,
+      forkPullRequest: pullUrl,
+      publisherRun: publisherRun.id,
+      serialized: true,
+      sweepRun: sweepRun.id,
+    });
+  } catch (error) {
+    failure = error;
   }
+
+  const cleanupErrors = cleanupSmokeResources({
+    baseGh,
+    baseRepo,
+    branch: branchPushed ? branch : undefined,
+    directory,
+    forkGh,
+    forkRepo,
+    pullNumber,
+  });
+  const errors = [failure, ...cleanupErrors].filter(
+    (error): error is Error => error instanceof Error,
+  );
+  if (errors.length > 0) {
+    throw new AggregateError(errors, 'advisory PR review smoke failed');
+  }
+  if (output === undefined) {
+    throw new Error('advisory PR review smoke completed without a result');
+  }
+  console.log(output);
 }
 
 if (import.meta.main) runPrReviewDisposableSmoke();
