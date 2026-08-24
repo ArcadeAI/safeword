@@ -34,6 +34,33 @@ describe('convergent setup', () => {
     );
   });
 
+  it('repairs a malformed public-retro project identity locally', async () => {
+    const directory = createTemporaryDirectory();
+    const arguments_ = [
+      'setup',
+      '--json',
+      '--no-input',
+      '--offline',
+      '--cwd',
+      directory,
+      '--no-modify',
+    ];
+    const initialSetup = await runCliWithoutInstall(arguments_, { cwd: directory });
+    expect(initialSetup.exitCode).toBe(0);
+    const configPath = nodePath.join(directory, '.safeword/config.json');
+    const config = JSON.parse(readFileSync(configPath, 'utf8')) as Record<string, unknown>;
+    writeFileSync(configPath, `${JSON.stringify({ ...config, projectUUID: 'not-a-uuid' })}\n`);
+
+    const repair = await runCliWithoutInstall(arguments_, { cwd: directory });
+
+    expect(repair.exitCode).toBe(0);
+    const repaired = JSON.parse(readFileSync(configPath, 'utf8')) as Record<string, unknown>;
+    expect(repaired.projectUUID).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u,
+    );
+    expect(repaired.projectUUID).not.toBe('not-a-uuid');
+  });
+
   it('rejects a malformed public-retro collection setting before changing the project', async () => {
     const directory = createTemporaryDirectory();
     const arguments_ = [
