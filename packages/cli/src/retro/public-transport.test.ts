@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import type { PublicRetroHttpRequest } from './public-delivery.js';
 import { createPublicRetroTransport } from './public-transport.js';
 
 describe('public retro HTTPS transport', () => {
@@ -59,6 +60,30 @@ describe('public retro HTTPS transport', () => {
     expect(() =>
       createPublicRetroTransport({ fetch, origin: 'https://user:secret@collector.example' }),
     ).toThrow('Invalid public retrospective origin');
+  });
+
+  it.each([
+    ['https://elsewhere.example/v1/public-retros', 'error'],
+    ['//elsewhere.example/v1/public-retros', 'error'],
+    ['/v1/public-retros', 'follow'],
+  ] as const)('rejects a request that can escape the configured origin', async (path, redirect) => {
+    const transport = createPublicRetroTransport({
+      fetch,
+      origin: 'https://collector.example',
+    });
+
+    await expect(
+      transport({
+        method: 'POST',
+        path,
+        headers: {
+          'content-type': 'application/json; charset=utf-8',
+          'x-safeword-request-id': 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        },
+        body: new Uint8Array(),
+        redirect,
+      } as unknown as PublicRetroHttpRequest),
+    ).rejects.toThrow('Invalid public retrospective request');
   });
 
   it.each(['null', '{}', '{"requestId":"fixture","receipt":123}'])(

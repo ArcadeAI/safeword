@@ -41,11 +41,15 @@ export function createPublicRetroTransport(options?: {
     throw new Error('Invalid public retrospective origin');
   }
   return async (request, signal) => {
-    const response = await send(new URL(request.path, origin).href, {
+    const target = new URL(request.path, origin);
+    if (target.origin !== origin.origin || request.redirect !== 'error') {
+      throw new Error('Invalid public retrospective request');
+    }
+    const response = await send(target.href, {
       body: request.body,
       headers: request.headers,
       method: request.method,
-      redirect: request.redirect,
+      redirect: 'error',
       signal,
     });
     if (!response.ok)

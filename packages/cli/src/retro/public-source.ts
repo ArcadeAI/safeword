@@ -105,23 +105,25 @@ function repoGitConfigPath(cwd: string): string {
   if (!pointer.toLowerCase().startsWith('gitdir:'))
     throw new Error('Invalid Git directory pointer');
   const gitDirectory = nodePath.resolve(projectDirectory, pointer.slice('gitdir:'.length).trim());
+  let commonDirectory: string;
+  let backlink: string;
   try {
     const common = readFileSync(nodePath.join(gitDirectory, 'commondir'), 'utf8').trim();
-    const commonDirectory = nodePath.resolve(gitDirectory, common);
-    const backlink = readFileSync(nodePath.join(gitDirectory, 'gitdir'), 'utf8').trim();
-    if (
-      nodePath.resolve(gitDirectory, backlink) !== dotGit ||
-      nodePath.dirname(gitDirectory) !== nodePath.join(commonDirectory, 'worktrees')
-    ) {
-      throw new Error('Untrusted Git directory pointer');
-    }
-    return nodePath.join(commonDirectory, 'config');
+    commonDirectory = nodePath.resolve(gitDirectory, common);
+    backlink = readFileSync(nodePath.join(gitDirectory, 'gitdir'), 'utf8').trim();
   } catch {
     if (gitDirectory.startsWith(`${projectDirectory}${nodePath.sep}`)) {
       return nodePath.join(gitDirectory, 'config');
     }
     throw new Error('Untrusted Git directory pointer');
   }
+  if (
+    nodePath.resolve(gitDirectory, backlink) !== dotGit ||
+    nodePath.dirname(gitDirectory) !== nodePath.join(commonDirectory, 'worktrees')
+  ) {
+    throw new Error('Untrusted Git directory pointer');
+  }
+  return nodePath.join(commonDirectory, 'config');
 }
 
 function parseRepoGitConfig(content: string): {

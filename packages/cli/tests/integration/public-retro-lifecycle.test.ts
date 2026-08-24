@@ -178,12 +178,17 @@ it.each([
       const transcript = completedTranscript(project);
       const bun = spawnSync('which', ['bun'], { encoding: 'utf8' }).stdout.trim();
       expect(bun).not.toBe('');
+      const controlledEnvironment = {
+        ...process.env,
+        GIT_CONFIG_GLOBAL: path.join(project, 'missing-global-gitconfig'),
+        HOME: path.join(project, 'empty-home'),
+      };
       const result = await runHook(
         bun,
         HOOKS[harness],
         project,
         {
-          ...process.env,
+          ...controlledEnvironment,
           CLAUDE_PROJECT_DIR: project,
           CLI_PATH: path.join(buildDirectory, 'cli.js'),
           FINDINGS_PATH: findings,
@@ -215,8 +220,10 @@ it.each([
           harness,
           hostClass: 'local',
           projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+          repository: 'github.com/arcadeai/safeword',
         },
       });
+      expect(storedEnvelope.source).not.toHaveProperty('userIdentity');
       expect(storedEnvelope.finding).not.toContain(fixtureSecret);
       expect(storedEnvelope.finding).not.toContain('/Users/customer');
       expect(acceptCalls).toBe(1);
@@ -226,7 +233,7 @@ it.each([
         HOOKS[harness],
         project,
         {
-          ...process.env,
+          ...controlledEnvironment,
           CLAUDE_PROJECT_DIR: project,
           CLI_PATH: path.join(buildDirectory, 'cli.js'),
           FINDINGS_PATH: findings,
@@ -253,7 +260,7 @@ it.each([
         HOOKS[harness],
         project,
         {
-          ...process.env,
+          ...controlledEnvironment,
           CLAUDE_PROJECT_DIR: project,
           CLI_PATH: path.join(buildDirectory, 'cli.js'),
           FINDINGS_PATH: findings,
