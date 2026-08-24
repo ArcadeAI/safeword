@@ -31,6 +31,8 @@ export const SUBSTANCE_THRESHOLD = 3;
 
 interface ContentItem {
   type?: string;
+  id?: string;
+  tool_use_id?: string;
 }
 
 interface TranscriptEntry {
@@ -62,6 +64,27 @@ export function countToolUses(transcriptText: string): number {
   });
 }
 
+function matchedCount(invocations: Set<string>, results: Set<string>): number {
+  let count = 0;
+  for (const identity of invocations) if (results.has(identity)) count++;
+  return count;
+}
+
+/** Count only Claude tool invocations that have their matching terminal result. */
+export function countCompletedToolUses(transcriptText: string): number {
+  const invocations = new Set<string>();
+  const results = new Set<string>();
+  for (const raw of iterateJsonlEntries(transcriptText)) {
+    const content = (raw as TranscriptEntry).message?.content;
+    if (!Array.isArray(content)) continue;
+    for (const item of content) {
+      if (item.type === 'tool_use' && item.id) invocations.add(item.id);
+      if (item.type === 'tool_result' && item.tool_use_id) results.add(item.tool_use_id);
+    }
+  }
+  return matchedCount(invocations, results);
+}
+
 /** A per-agent tool-use counter over a transcript's raw text. */
 export type ToolUseCounter = (transcriptText: string) => number;
 
@@ -84,6 +107,34 @@ export function countToolUsesCodex(rolloutText: string): number {
       ? 1
       : 0;
   });
+}
+
+const CODEX_RESULT_EVENTS = new Map([
+  ['function_call_output', 'function_call'],
+  ['exec_command_end', 'exec_command_begin'],
+  ['mcp_tool_call_end', 'mcp_tool_call_begin'],
+]);
+
+/** Count only Codex tool invocations that have their matching terminal event. */
+export function countCompletedToolUsesCodex(rolloutText: string): number {
+  const invocations = new Set<string>();
+  const results = new Set<string>();
+  for (const raw of iterateJsonlEntries(rolloutText)) {
+    const entry = raw as {
+      type?: string;
+      call_id?: string;
+      id?: string;
+      payload?: { type?: string; call_id?: string; id?: string };
+    };
+    const event = entry.payload ?? entry;
+    const type = event.type ?? '';
+    const identity = event.call_id ?? event.id;
+    if (!identity) continue;
+    if (CODEX_TOOL_EVENTS.has(type)) invocations.add(`${type}:${identity}`);
+    const invocationType = CODEX_RESULT_EVENTS.get(type);
+    if (invocationType) results.add(`${invocationType}:${identity}`);
+  }
+  return matchedCount(invocations, results);
 }
 
 /**
@@ -316,6 +367,8 @@ export interface RetroTriggerDeps {
   threshold?: number;
   /** Per-agent tool-use counter (defaults to the Claude counter). */
   countToolUses?: ToolUseCounter;
+  /** Per-agent completed-pair counter (defaults to the Claude counter). */
+  countCompletedToolUses?: ToolUseCounter;
   /** Per-agent session-id resolver (defaults to the Claude/shared resolver). */
   resolveSessionId?: (
     input: RetroTriggerInput,
@@ -421,6 +474,8 @@ export function decideRetroAvailableNudge(
 
 /** What `decideRetroRun` returns when this Stop should run an extraction. */
 export interface RetroRunDecision {
+  /** Present only when the host transcript proves the public eligibility gate. */
+  publicRetroEligible?: true;
   /** The transcript to mine, handed to the headless extractor. */
   transcriptPath: string;
   /**
@@ -505,6 +560,8 @@ export function decideRetroRun(
   const counter = dependencies.countToolUses ?? countToolUses;
   const toolUses = counter(transcript);
   const threshold = dependencies.threshold ?? SUBSTANCE_THRESHOLD;
+  const completedCounter = dependencies.countCompletedToolUses ?? countCompletedToolUses;
+  const publicRetroEligible = completedCounter(transcript) >= threshold;
   const rearmGrowth = dependencies.rearmGrowth ?? REARM_GROWTH;
   const maxFires = dependencies.maxFires ?? MAX_FIRES;
   const baseDirectory = dependencies.baseDirectory;
@@ -583,5 +640,10 @@ export function decideRetroRun(
     // A state-write failure must not suppress the fire (mirrors markNudged); the
     // duplicate it risks next Stop is absorbed by signature dedupe (triage).
   }
-  return { transcriptPath, windowStart, sessionId };
+  return {
+    transcriptPath,
+    windowStart,
+    sessionId,
+    ...(publicRetroEligible && { publicRetroEligible: true }),
+  };
 }
