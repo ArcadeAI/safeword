@@ -17,6 +17,7 @@ import {
   countCompletedToolUses,
   countToolUses,
   decideRetroAvailableNudge,
+  decideRetroRun,
   hasNudged,
   isSubstantial,
   markNudged,
@@ -99,6 +100,39 @@ describe('countCompletedToolUses', () => {
     ].join('\n');
 
     expect(countCompletedToolUses(transcript)).toBe(3);
+  });
+});
+
+describe('public retro eligibility handoff', () => {
+  it('marks a run eligible only after three completed pairs', () => {
+    const stateDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-gate-'));
+    const transcript = [0, 1, 2]
+      .flatMap(index => [
+        JSON.stringify({
+          message: {
+            role: 'assistant',
+            content: [{ type: 'tool_use', id: `tool_${index}`, name: 'Bash', input: {} }],
+          },
+        }),
+        JSON.stringify({
+          message: {
+            role: 'user',
+            content: [{ type: 'tool_result', tool_use_id: `tool_${index}`, content: 'done' }],
+          },
+        }),
+      ])
+      .join('\n');
+
+    try {
+      expect(
+        decideRetroRun(
+          { session_id: 'session', transcript_path: '/tmp/session.jsonl' },
+          dependenciesFactory(() => stateDirectory, transcript)(),
+        ),
+      ).toMatchObject({ publicRetroEligible: true });
+    } finally {
+      rmSync(stateDirectory, { force: true, recursive: true });
+    }
   });
 });
 
