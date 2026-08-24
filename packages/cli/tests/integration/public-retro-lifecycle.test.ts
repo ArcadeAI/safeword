@@ -75,7 +75,7 @@ it('runs installed Claude lifecycle through the real collector to a durable rece
   temporaryDirectories.push(project, buildDirectory);
   const safewordDirectory = path.join(project, '.safeword');
   const attemptsDirectory = path.join(safewordDirectory, 'retro-attempts');
-  mkdirSync(attemptsDirectory, { recursive: true });
+  mkdirSync(safewordDirectory, { recursive: true });
   mkdirSync(path.join(project, '.git'));
   writeFileSync(
     path.join(safewordDirectory, 'config.json'),

@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { renameSync, unlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { assemblePublicFinding, type Finding } from './finding.js';
@@ -142,6 +142,7 @@ function claimPublicRetroRequest(
 
   const markerPath = path.join(dependencies.attemptsDirectory, `${built.sessionScope}.json`);
   try {
+    mkdirSync(dependencies.attemptsDirectory, { recursive: true });
     writeFileSync(markerPath, JSON.stringify({ sessionScope: built.sessionScope }), {
       encoding: 'utf8',
       flag: 'wx',

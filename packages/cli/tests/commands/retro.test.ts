@@ -930,6 +930,49 @@ describe('retro command configuration, extraction, egress, and relay execution',
     }
   });
 
+  it('starts the public handoff budget after sanitization completes', async () => {
+    const attemptsDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-attempts-'));
+    const publicTransport = vi.fn(request =>
+      Promise.resolve({
+        requestId: request.headers['x-safeword-request-id'],
+        receipt: 'receipt-after-sanitization',
+      }),
+    );
+    let preparationStarted = false;
+    const candidate = rawFinding();
+    Object.defineProperty(candidate, 'what_happened', {
+      enumerable: true,
+      get: () => {
+        preparationStarted = true;
+        return 'The finding was prepared before the delivery budget started.';
+      },
+    });
+    try {
+      await runRetro(
+        { transcript: '/tmp/t.jsonl' },
+        dependencies({
+          extract: () => Promise.resolve([candidate]),
+          publicRetro: {
+            attemptsDirectory,
+            now: () => (preparationStarted ? 1500 : 0),
+            randomUUID: () => 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+            source: {
+              harness: 'codex',
+              hostClass: 'local',
+              projectUUID: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+              safewordCliVersion: '0.79.0',
+            },
+            transport: publicTransport,
+          },
+        }),
+      );
+
+      expect(publicTransport).toHaveBeenCalledOnce();
+    } finally {
+      rmSync(attemptsDirectory, { force: true, recursive: true });
+    }
+  });
+
   it('does not attempt public delivery for multiple candidates', async () => {
     const publicTransport = vi.fn();
     await runRetro(
