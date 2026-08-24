@@ -127,6 +127,37 @@ it.each([
   expect(await inspected.json()).toEqual({ error: 'not_found' });
 });
 
+it('does not expose record or collection metadata to anonymous callers', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+    operatorCredential: 'operator-fixture-credential',
+  });
+  const first = fixtureRequest();
+  const second = {
+    body: encoded({ ...fixtureEnvelope(), sessionScope: '8'.repeat(64) }),
+    requestId: '01911111-2222-7333-8444-55555555555b',
+  };
+  const accepted = await Promise.all([submit(runtime.url, first), submit(runtime.url, second)]);
+  const receipts = await Promise.all(
+    accepted.map(async response => ((await response.json()) as { receipt: string }).receipt),
+  );
+
+  const anonymousReads = await Promise.all([
+    fetch(`${runtime.url}/v1/public-retros`),
+    fetch(`${runtime.url}/v1/public-retros/${receipts[0]}`),
+    fetch(`${runtime.url}/v1/public-retros/${receipts[1]}`),
+    fetch(`${runtime.url}/v1/public-retros/01911111-2222-7333-8444-55555555555c`),
+  ]);
+  const bodies = await Promise.all(anonymousReads.map(async response => response.json()));
+  await runtime.close();
+
+  expect(anonymousReads.map(response => response.status)).toEqual([404, 404, 404, 404]);
+  expect(anonymousReads.every(response => !response.headers.has('x-safeword-receipt'))).toBe(true);
+  expect(bodies).toEqual(Array.from({ length: 4 }, () => ({ error: 'not_found' })));
+});
+
 function encoded(value: unknown): Uint8Array {
   return new TextEncoder().encode(JSON.stringify(value));
 }
