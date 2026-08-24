@@ -162,6 +162,31 @@ it('accepts only one of two concurrent request identities with one session scope
   );
 });
 
+it('keeps distinct submissions independent', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+  });
+  const first = fixtureRequest();
+  const second = {
+    body: encoded({ ...fixtureEnvelope(), sessionScope: '8'.repeat(64) }),
+    requestId: '01911111-2222-7333-8444-55555555555b',
+  };
+
+  const responses = await Promise.all([submit(runtime.url, first), submit(runtime.url, second)]);
+  const receipts = await Promise.all(
+    responses.map(
+      async response => (await response.json()) as { receipt: string; requestId: string },
+    ),
+  );
+  await runtime.close();
+
+  expect(responses.map(response => response.status)).toEqual([201, 201]);
+  expect(receipts.map(receipt => receipt.requestId)).toEqual([first.requestId, second.requestId]);
+  expect(receipts[0]?.receipt).not.toBe(receipts[1]?.receipt);
+});
+
 const invalidEnvelopes: readonly (readonly [string, Uint8Array, (string | false)?])[] = [
   ['unknown version', encoded({ ...fixtureEnvelope(), version: 'v2' })],
   ['missing required field', encoded({ sessionScope: '7'.repeat(64) })],
