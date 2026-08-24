@@ -223,6 +223,31 @@ it('does not let semantic JSON equivalence override accepted raw bytes', async (
   expect(retryReceipt).toEqual(firstReceipt);
 });
 
+it('rejects byte-different reuse of an accepted session scope', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+  });
+  const acceptedRequest = fixtureRequest();
+  const conflictingRequest = {
+    body: encoded({ ...fixtureEnvelope(), finding: 'different fixture finding' }),
+    requestId: '01911111-2222-7333-8444-55555555555b',
+  };
+
+  const accepted = await submit(runtime.url, acceptedRequest);
+  const firstReceipt = await accepted.json();
+  const rejected = await submit(runtime.url, conflictingRequest);
+  const retry = await submit(runtime.url, acceptedRequest);
+  const retryReceipt = await retry.json();
+  await runtime.close();
+
+  expect(accepted.status).toBe(201);
+  expect(rejected.status).toBe(409);
+  expect(retry.status).toBe(200);
+  expect(retryReceipt).toEqual(firstReceipt);
+});
+
 it.each([
   ['ascii', 65_536, 201],
   ['ascii', 65_537, 413],
