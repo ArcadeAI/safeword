@@ -217,8 +217,8 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 ### Scenario: The local CLI turns public retros off or on
 
 - [x] RED 8fe2c2d40
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN c2c648301
+- [x] REFACTOR skip: one command handler delegates to the shared config writer without another layer
 
 ### Scenario: Invalid public-retro control leaves configuration unchanged
 
