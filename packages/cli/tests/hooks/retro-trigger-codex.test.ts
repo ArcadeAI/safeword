@@ -10,6 +10,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  countCompletedToolUsesCodex,
   countToolUsesCodex,
   isSubstantial,
   resolveCodexSessionId,
@@ -57,6 +58,25 @@ describe('countToolUsesCodex', () => {
 
   it('counts no tool uses in an empty rollout', () => {
     expect(countToolUsesCodex('')).toBe(0);
+  });
+});
+
+describe('countCompletedToolUsesCodex', () => {
+  it('counts matched invocation and terminal-result pairs, not raw invocations', () => {
+    const events = [
+      ...Array.from({ length: 4 }, (_, index) => ({
+        type: 'response_item',
+        payload: { type: 'function_call', call_id: `call_${index}` },
+      })),
+      ...Array.from({ length: 3 }, (_, index) => ({
+        type: 'response_item',
+        payload: { type: 'function_call_output', call_id: `call_${index}` },
+      })),
+    ];
+
+    expect(countCompletedToolUsesCodex(events.map(event => JSON.stringify(event)).join('\n'))).toBe(
+      3,
+    );
   });
 });
 
