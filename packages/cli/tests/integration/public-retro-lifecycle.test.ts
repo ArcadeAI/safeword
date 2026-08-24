@@ -1,6 +1,7 @@
 import { spawn, spawnSync } from 'node:child_process';
 import {
   chmodSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -17,7 +18,10 @@ import { startPublicRetroCollector } from '../../../retro-collector/src/index.js
 
 const ROOT = path.resolve(import.meta.dirname, '../../../..');
 const CLI_PACKAGE = path.join(ROOT, 'packages/cli');
-const CLAUDE_HOOK = path.join(CLI_PACKAGE, 'templates/hooks/stop-retro.ts');
+const HOOKS = {
+  'claude-code': path.join(CLI_PACKAGE, 'templates/hooks/stop-retro.ts'),
+  codex: path.join(CLI_PACKAGE, 'templates/hooks/codex/stop.ts'),
+} as const;
 const temporaryDirectories: string[] = [];
 
 afterEach(() => {
@@ -45,14 +49,31 @@ function completedClaudeTranscript(project: string): string {
   return transcript;
 }
 
+function completedCodexTranscript(project: string): string {
+  const transcript = path.join(project, 'session.jsonl');
+  const lines = [0, 1, 2].flatMap(index => [
+    JSON.stringify({
+      type: 'response_item',
+      payload: { type: 'function_call', call_id: `call_${index}` },
+    }),
+    JSON.stringify({
+      type: 'response_item',
+      payload: { type: 'function_call_output', call_id: `call_${index}` },
+    }),
+  ]);
+  writeFileSync(transcript, lines.join('\n'));
+  return transcript;
+}
+
 function runHook(
   bun: string,
+  hook: string,
   project: string,
   environment: NodeJS.ProcessEnv,
   input: string,
 ): Promise<{ status: number | null; stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
-    const child = spawn(bun, [CLAUDE_HOOK], { cwd: project, env: environment });
+    const child = spawn(bun, [hook], { cwd: project, env: environment });
     let stdout = '';
     let stderr = '';
     child.stdout.setEncoding('utf8').on('data', chunk => {
@@ -69,100 +90,118 @@ function runHook(
   });
 }
 
-it('runs installed Claude lifecycle through the real collector to a durable receipt', async () => {
-  const project = mkdtempSync(path.join(tmpdir(), 'public-retro-lifecycle-'));
-  const buildDirectory = mkdtempSync(path.join(CLI_PACKAGE, '.public-retro-build-'));
-  temporaryDirectories.push(project, buildDirectory);
-  const safewordDirectory = path.join(project, '.safeword');
-  const attemptsDirectory = path.join(safewordDirectory, 'retro-attempts');
-  mkdirSync(safewordDirectory, { recursive: true });
-  mkdirSync(path.join(project, '.git'));
-  writeFileSync(
-    path.join(safewordDirectory, 'config.json'),
-    JSON.stringify({
-      projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-      selfReport: { surface: true },
-    }),
-  );
-  writeFileSync(
-    path.join(project, '.git/config'),
-    '[remote "origin"]\nurl = git@github.com:ArcadeAI/safeword.git\n',
-  );
-  const findings = path.join(project, 'findings.json');
-  writeFileSync(
-    findings,
-    JSON.stringify([
-      {
-        category: 'rough-edge',
-        title: 'Lifecycle fixture finding',
-        safeword_surface: 'process/retro-delivery',
-        what_happened: 'The lifecycle fixture observed a delivery handoff.',
-        why_friction: 'A missing receipt would lose the retrospective.',
-        repro: 'Complete a supported local session.',
-      },
-    ]),
-  );
-  const collector = await startPublicRetroCollector({
-    databasePath: path.join(project, 'collector.sqlite'),
-    operatorCredential: 'operator-fixture-credential',
-  });
-  const sessionId = `public-lifecycle-${process.pid}-${Date.now()}`;
-
-  try {
-    const { build } = await import('tsup');
-    await build({
-      clean: false,
-      config: false,
-      define: { __SAFEWORD_PUBLIC_RETRO_ORIGIN__: JSON.stringify(collector.url) },
-      dts: false,
-      entry: [path.join(CLI_PACKAGE, 'src/cli.ts')],
-      format: ['esm'],
-      outDir: buildDirectory,
-      silent: true,
-      sourcemap: false,
-      target: 'node18',
-    });
-    const wrapper = path.join(project, 'extraction-fixture.mjs');
+it.each([
+  ['claude-code', completedClaudeTranscript],
+  ['codex', completedCodexTranscript],
+] as const)(
+  'runs installed %s lifecycle through the real collector to a durable receipt',
+  async (harness, completedTranscript) => {
+    const project = mkdtempSync(path.join(tmpdir(), 'public-retro-lifecycle-'));
+    const buildDirectory = mkdtempSync(path.join(CLI_PACKAGE, '.public-retro-build-'));
+    temporaryDirectories.push(project, buildDirectory);
+    const safewordDirectory = path.join(project, '.safeword');
+    const attemptsDirectory = path.join(safewordDirectory, 'retro-attempts');
+    mkdirSync(safewordDirectory, { recursive: true });
+    mkdirSync(path.join(project, '.git'));
     writeFileSync(
-      wrapper,
-      `#!${process.execPath}\nimport { spawnSync } from 'node:child_process';\nconst args = process.argv.slice(2).filter(arg => arg !== '--auto-extract');\nargs.push('--findings', process.env.FINDINGS_PATH);\nconst result = spawnSync(process.execPath, [process.env.CLI_PATH, ...args], { cwd: process.cwd(), env: process.env, stdio: 'ignore' });\nprocess.exit(result.status ?? 1);\n`,
-    );
-    chmodSync(wrapper, 0o755);
-    const transcript = completedClaudeTranscript(project);
-    const bun = spawnSync('which', ['bun'], { encoding: 'utf8' }).stdout.trim();
-    const result = await runHook(
-      bun,
-      project,
-      {
-        ...process.env,
-        CLAUDE_PROJECT_DIR: project,
-        CLI_PATH: path.join(buildDirectory, 'cli.js'),
-        FINDINGS_PATH: findings,
-        PATH: '/usr/bin:/bin',
-        SAFEWORD_RETRO_EXTRACT_CMD: wrapper,
-      },
-      JSON.stringify({ session_id: sessionId, transcript_path: transcript }),
-    );
-
-    expect(result).toMatchObject({ status: 0, stdout: '', stderr: '' });
-    const [markerName] = readdirSync(attemptsDirectory);
-    if (markerName === undefined) throw new Error('expected a public attempt marker');
-    const marker = JSON.parse(readFileSync(path.join(attemptsDirectory, markerName), 'utf8')) as {
-      receipt?: string;
-    };
-    expect(marker.receipt).toBeDefined();
-    const inspected = await fetch(`${collector.url}/v1/public-retros/${marker.receipt}`, {
-      headers: { authorization: 'Bearer operator-fixture-credential' },
-    });
-    expect(inspected.status).toBe(200);
-    await expect(inspected.json()).resolves.toMatchObject({
-      source: {
-        harness: 'claude-code',
-        hostClass: 'local',
+      path.join(safewordDirectory, 'config.json'),
+      JSON.stringify({
         projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-      },
+        selfReport: { surface: true },
+      }),
+    );
+    writeFileSync(
+      path.join(project, '.git/config'),
+      '[remote "origin"]\nurl = git@github.com:ArcadeAI/safeword.git\n',
+    );
+    const findings = path.join(project, 'findings.json');
+    writeFileSync(
+      findings,
+      JSON.stringify([
+        {
+          category: 'rough-edge',
+          title: 'Lifecycle fixture finding',
+          safeword_surface: 'process/retro-delivery',
+          what_happened: 'The lifecycle fixture observed a delivery handoff.',
+          why_friction: 'A missing receipt would lose the retrospective.',
+          repro: 'Complete a supported local session.',
+        },
+      ]),
+    );
+    const collector = await startPublicRetroCollector({
+      databasePath: path.join(project, 'collector.sqlite'),
+      operatorCredential: 'operator-fixture-credential',
     });
-  } finally {
-    await collector.close();
-  }
-}, 60_000);
+    const sessionId = `public-lifecycle-${process.pid}-${Date.now()}`;
+    const debugLog = path.join(project, 'retro-debug.jsonl');
+
+    try {
+      const { build } = await import('tsup');
+      await build({
+        clean: false,
+        config: false,
+        define: { __SAFEWORD_PUBLIC_RETRO_ORIGIN__: JSON.stringify(collector.url) },
+        dts: false,
+        entry: [path.join(CLI_PACKAGE, 'src/cli.ts')],
+        format: ['esm'],
+        outDir: buildDirectory,
+        silent: true,
+        sourcemap: false,
+        target: 'node18',
+      });
+      const wrapper =
+        harness === 'codex'
+          ? path.join(project, 'packages/cli/src/cli.ts')
+          : path.join(project, 'extraction-fixture.mjs');
+      mkdirSync(path.dirname(wrapper), { recursive: true });
+      writeFileSync(
+        wrapper,
+        `#!${process.execPath}\nimport { spawnSync } from 'node:child_process';\nconst args = process.argv.slice(2).filter(arg => arg !== '--auto-extract');\nargs.push('--findings', process.env.FINDINGS_PATH);\nconst result = spawnSync(process.execPath, [process.env.CLI_PATH, ...args], { cwd: process.cwd(), env: process.env, stdio: 'ignore' });\nprocess.exit(result.status ?? 1);\n`,
+      );
+      chmodSync(wrapper, 0o755);
+      const transcript = completedTranscript(project);
+      const bun = spawnSync('which', ['bun'], { encoding: 'utf8' }).stdout.trim();
+      const result = await runHook(
+        bun,
+        HOOKS[harness],
+        project,
+        {
+          ...process.env,
+          CLAUDE_PROJECT_DIR: project,
+          CLI_PATH: path.join(buildDirectory, 'cli.js'),
+          FINDINGS_PATH: findings,
+          PATH: `${path.dirname(bun)}:/usr/bin:/bin`,
+          SAFEWORD_RETRO_DEBUG_LOG: debugLog,
+          SAFEWORD_RETRO_EXTRACT_CMD: wrapper,
+        },
+        JSON.stringify({ session_id: sessionId, transcript_path: transcript, cwd: project }),
+      );
+
+      expect(result).toMatchObject({ status: 0, stderr: '' });
+      if (harness === 'claude-code') expect(result.stdout).toBe('');
+      if (!existsSync(attemptsDirectory)) {
+        throw new Error(readFileSync(debugLog, 'utf8'));
+      }
+      const [markerName] = readdirSync(attemptsDirectory);
+      if (markerName === undefined) throw new Error('expected a public attempt marker');
+      const marker = JSON.parse(readFileSync(path.join(attemptsDirectory, markerName), 'utf8')) as {
+        receipt?: string;
+      };
+      expect(marker.receipt).toBeDefined();
+      const inspected = await fetch(`${collector.url}/v1/public-retros/${marker.receipt}`, {
+        headers: { authorization: 'Bearer operator-fixture-credential' },
+      });
+      expect(inspected.status).toBe(200);
+      await expect(inspected.json()).resolves.toMatchObject({
+        source: {
+          harness,
+          hostClass: 'local',
+          projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        },
+      });
+    } finally {
+      await collector.close();
+    }
+  },
+  60_000,
+);
