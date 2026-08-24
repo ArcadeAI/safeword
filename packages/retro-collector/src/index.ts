@@ -84,6 +84,22 @@ function serveOperatorRead(
   return true;
 }
 
+function serveLiveness(request: IncomingMessage, response: ServerResponse): boolean {
+  if (request.method !== 'GET' || request.url !== '/health') return false;
+  sendJson(response, 200, { status: 'ok' });
+  return true;
+}
+
+function serveReadRoute(
+  request: IncomingMessage,
+  response: ServerResponse,
+  store: PublicRetroStorePort,
+  operatorCredential: string | undefined,
+): boolean {
+  if (serveLiveness(request, response)) return true;
+  return serveOperatorRead(request, response, store, operatorCredential);
+}
+
 async function readBody(request: IncomingMessage): Promise<Buffer> {
   const chunks: Buffer[] = [];
   let size = 0;
@@ -145,7 +161,7 @@ async function handle(
   store: PublicRetroStorePort,
   operatorCredential: string | undefined,
 ): Promise<void> {
-  if (serveOperatorRead(request, response, store, operatorCredential)) return;
+  if (serveReadRoute(request, response, store, operatorCredential)) return;
   if (!validPublicRequest(request)) {
     sendJson(response, 404, { error: 'not_found' });
     return;
