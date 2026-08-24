@@ -25,6 +25,8 @@ You use Claude Code, Cursor, or Codex the same way you always have. Type a promp
   <TabItem label="Claude Code">
     **Install the native plugin for this project.** Run `safeword install --agents=claude`, then `/reload-plugins` inside Claude Code. Project scope is the default and records activation in `.claude/settings.json`; use `safeword install --agents=claude --scope user` when you intentionally want Safeword active across every project in your Claude profile.
 
+    **Hosted sessions (Claude Code on the web) install the same way.** `/plugin` is terminal-only, and declaring the plugin in `.claude/settings.json` does not install it — a hosted session that only has the declaration starts with no Safeword skills or hooks and says nothing about it. `safeword install --agents=claude` is the non-interactive install path: it registers the marketplace, installs the plugin into the host registry, and needs no interactive command. Run it from the session terminal, then resume the session to load the plugin.
+
     **Your agent gets namespaced Safeword workflows.** Native skills use names such as `/safeword:bdd`, `/safeword:verify`, and `/safeword:explain` instead of project-local Safeword skill files.
 
     **Every edit gets linted automatically.** After your agent writes or modifies a file, Safeword runs your linter. If there are issues, your agent sees them immediately and fixes them—before you even notice.

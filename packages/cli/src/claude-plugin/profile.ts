@@ -34,6 +34,7 @@ const CLAUDE_COMMAND_TIMEOUT_MS = 30_000;
 const MAXIMUM_CLAUDE_OUTPUT_BYTES = 10 * 1024 * 1024;
 const MARKETPLACE_NAME = 'safeword';
 const MARKETPLACE_BASE = 'https://github.com/ArcadeAI/safeword.git';
+const MARKETPLACE_REPO = 'ArcadeAI/safeword';
 
 export type ClaudePluginScope = 'project' | 'user';
 
@@ -357,13 +358,29 @@ function marketplaceSource(entry: JsonObject): {
       kind = undefined;
     }
   }
-  return { url, ref, kind };
+  return { url: url ?? gitHubShorthandUrl(kind, source.repo), ref, kind };
+}
+
+/**
+ * `claude plugin marketplace add ArcadeAI/safeword` — the form the Claude Code
+ * docs lead with — registers a GitHub shorthand source carrying a `repo` and
+ * neither a URL nor a ref. Resolve it to the repository it names so the
+ * same-repository comparison recognises it. The absent ref still leaves it
+ * unpinned, which marketplaceReferenceStatus reports as repairable rather than
+ * untrusted (issue #3338).
+ */
+function gitHubShorthandUrl(kind: unknown, repo: unknown): unknown {
+  if (kind !== 'github' || typeof repo !== 'string') return undefined;
+  return repo.toLowerCase() === MARKETPLACE_REPO.toLowerCase() ? MARKETPLACE_BASE : repo;
 }
 
 function marketplaceSourceStatus(entry: JsonObject): MarketplaceSourceStatus {
   const { url, ref, kind } = marketplaceSource(entry);
   if (url !== MARKETPLACE_BASE) return 'conflict';
-  if (kind !== undefined && (typeof kind !== 'string' || !['url', 'git'].includes(kind))) {
+  if (
+    kind !== undefined &&
+    (typeof kind !== 'string' || !['url', 'git', 'github'].includes(kind))
+  ) {
     return 'conflict';
   }
   return marketplaceReferenceStatus(ref);
@@ -371,8 +388,15 @@ function marketplaceSourceStatus(entry: JsonObject): MarketplaceSourceStatus {
 
 function marketplaceReferenceStatus(ref: unknown): MarketplaceSourceStatus {
   if (ref === 'stable') return 'current';
+  // Same repository, no pinned ref: the registration tracks a default branch
+  // rather than a promoted tag. That is a reason to re-add the canonical pinned
+  // source, not to refuse the install and strand the project (issue #3338).
+  if (ref === undefined) return 'stale';
   if (typeof ref !== 'string' || !ref.startsWith('v')) return 'conflict';
-  const version = ref.slice(1);
+  return marketplaceTagStatus(ref.slice(1));
+}
+
+function marketplaceTagStatus(version: string): MarketplaceSourceStatus {
   if (!isSafePackageVersion(version)) return 'conflict';
   if (version === VERSION) {
     return VERSION.includes('-') ? 'current' : 'stale';
@@ -538,13 +562,28 @@ function observeMarketplace(
   };
 }
 
+function describeMarketplaceSource(entry: JsonObject | undefined): string | undefined {
+  if (entry === undefined) return undefined;
+  const { url, ref } = marketplaceSource(entry);
+  if (typeof url !== 'string') return undefined;
+  return typeof ref === 'string' ? `${url}#${ref}` : url;
+}
+
 function assertTrustedMarketplace(observation: MarketplaceObservation): void {
-  if (observation.declarationStatus === 'conflict' || observation.sharedStatus === 'conflict') {
-    throw new ClaudeProfileError(
-      'CLAUDE_MARKETPLACE_CONFLICT',
-      `Claude marketplace ${MARKETPLACE_NAME} has an untrusted source or version; expected ${officialMarketplaceSource()} or an older valid tag from the same repository.`,
-    );
+  if (observation.declarationStatus !== 'conflict' && observation.sharedStatus !== 'conflict') {
+    return;
   }
+  // Name the offending registration: the untrusted source usually lives in a
+  // different scope than the one being installed, so "expected X" alone does not
+  // say which entry to repair.
+  const offending = describeMarketplaceSource(
+    observation.declarationStatus === 'conflict' ? observation.declaration : observation.shared,
+  );
+  const found = offending === undefined ? '' : ` Found ${offending}.`;
+  throw new ClaudeProfileError(
+    'CLAUDE_MARKETPLACE_CONFLICT',
+    `Claude marketplace ${MARKETPLACE_NAME} has an untrusted source or version; expected ${officialMarketplaceSource()} or an older valid tag from the same repository.${found} Safeword changed nothing.`,
+  );
 }
 
 function marketplaceIsCurrent(observation: MarketplaceObservation): boolean {
