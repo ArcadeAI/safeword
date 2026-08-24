@@ -426,7 +426,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 - [x] RED 20f3d3ece
 - [x] GREEN 117ecae46
-- [ ] REFACTOR
+- [x] REFACTOR skip: canonical decode check is already the smallest clear implementation
 
 ## Rule: send-cloud-retros-silently.SWM1.R3
 
