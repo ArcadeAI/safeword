@@ -419,7 +419,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 ### Scenario: A malformed request identity is rejected
 
 - [x] RED skip: request identity validation was established by the first collector slice
-- [ ] GREEN
+- [x] GREEN 9216029fb
 - [ ] REFACTOR
 
 ### Scenario: Invalid envelope schema is rejected
