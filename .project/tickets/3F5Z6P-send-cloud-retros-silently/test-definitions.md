@@ -470,7 +470,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 - [x] RED skip: enumeration-neutral routing was established by the operator read slice
 - [x] GREEN ad721c158
-- [ ] REFACTOR
+- [x] REFACTOR skip: one comparison covers listing, existing, and missing-record anonymity
 
 ### Scenario: Public correlation values grant no read or filing authority
 
