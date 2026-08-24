@@ -394,7 +394,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 ### Scenario: Reusing a request identity with different bytes is rejected
 
-- [ ] RED
+- [x] RED skip: request conflict behavior was established by the transactional store slice
 - [ ] GREEN
 - [ ] REFACTOR
 
