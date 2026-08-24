@@ -1849,7 +1849,7 @@
   → `.project/tickets/R4S85Y-rename-dev-persona-to-tb`
 - **Protect review fallback boundaries for builders (R7K2QP)** (—, epic: —)
   → `.project/tickets/R7K2QP-protect-review-fallback-boundaries`
-- **Say when a review was not independent (R9TLC3)** (todo, epic: —)
+- **Say when a review was not independent (R9TLC3)** (done, epic: —)
   Make `independence: degraded` visible to the person reading the verdict.
   → `.project/tickets/R9TLC3-surface-degraded-review-independence`
 - **Stop-hook escalation path may be dead (0/10 BLOCKED) — revalidate post-F14BG2, recalibrate if needed (RAS9N8)** (pending, epic: —)

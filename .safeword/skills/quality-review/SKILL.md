@@ -184,14 +184,25 @@ Each pass:
    Claude-authored work prefers headless Codex; Codex-authored work prefers
    headless Claude. The coordinator uses a neutral snapshot, checks reviewer
    provenance, preserves the exact preferred-route failure, and records any
-   permitted same-agent fallback as `independence: degraded` while presenting
-   it to people as standard coverage. Treat its typed result as the
-   review verdict. Only when the typed result is
+   permitted same-agent fallback as `independence: degraded`. Treat its typed
+   result as the review verdict. Only when the typed result is
    `REVIEW_ROUTES_EXHAUSTED`, invoke `/finish-review` immediately with the
    original result and the same accepted targets. For every other result,
    return it unchanged. The canonical fallback may use one host-native
    subagent, but do not invent another private route or mint independent
    evidence yourself.
+
+   **Say when a review was not independent.** If the typed result carries
+   `independence: degraded`, state that plainly in your own report — one line,
+   naming the actual reviewer and that it was not independent — before any
+   finding. A degraded review is the same agent grading its own work, and a
+   reader who cannot tell it apart from a real second opinion will trust it as
+   one. Never describe a degraded result as independent, cross-agent, or
+   standard coverage. Say nothing extra when independence is intact.
+
+   The quiet-by-default rule below governs setup advice — recovery commands and
+   install hints. It never licenses withholding the independence of the review
+   itself.
 
    Keep optional setup advice quiet by default. When the user asks
    `Show review coverage details.`, report the typed result's achieved coverage,
