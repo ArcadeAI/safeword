@@ -217,13 +217,59 @@ function adaptScriptInvocations(markdown: string, version: string): string {
   return adapted;
 }
 
-// resolve-namespace-root.ts needs its own pass: its two positional modes
-// map onto `project namespace-root`'s flags. Every call site passes a default
-// basename of `<key>.md`, which is already the subcommand's own default, so
-// only the key survives the rewrite.
+// resolve-namespace-root.ts needs its own pass: its positional modes map onto
+// `project namespace-root`'s flags. The script's third argument defaults to
+// `<key>.md` (see resolveConfiguredPath), which is also the subcommand's own
+// default, so `<key>` and `<key> <key>.md` both reduce to `--key <key>`.
+//
+// PRESERVE ON ANYTHING UNRECOGNISED, on every branch. The subcommand takes no
+// operands, so emitting the new command in front of an argument form we did not
+// map produces a command that exits 1 — and these invocations are captured as
+// `NS_ROOT="$(… 2> /dev/null)"`, which turns that failure into a silent empty
+// path. Leaving the original text alone instead fails loudly at generation
+// review rather than quietly at runtime.
 const NAMESPACE_ROOT_INVOCATION_PREFIX =
   'bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR"';
-const NAMESPACE_ROOT_ARGUMENTS = /^ (?<key>[a-z]{1,32}) (?<basename>[\w.-]{1,64})/u;
+// Matched in two steps rather than one optional group, which keeps each
+// pattern trivially linear.
+const NAMESPACE_ROOT_KEY = /^ (?<key>[a-z]{1,32})(?=[ )"]|$)/u;
+const NAMESPACE_ROOT_BASENAME = /^ (?<basename>[\w.-]{1,64})(?=[ )"]|$)/u;
+/** A tail that continues with a positional operand rather than closing the call. */
+const TRAILING_OPERAND = /^ (?!\d?[<>]|[|&#])\S/u;
+
+function namespaceRootKey(tail: string): string | undefined {
+  const match = NAMESPACE_ROOT_KEY.exec(tail);
+  return match?.groups?.key;
+}
+
+function namespaceRootBasename(afterKey: string): string | undefined {
+  const match = NAMESPACE_ROOT_BASENAME.exec(afterKey);
+  return match?.groups?.basename;
+}
+
+/** Rewrite one invocation's trailing text, or return it unchanged to preserve. */
+function rewriteNamespaceRootTail(tail: string, replacement: string): string {
+  const preserved = NAMESPACE_ROOT_INVOCATION_PREFIX + tail;
+  const key = namespaceRootKey(tail);
+
+  // No key: safe only when nothing positional follows (`)"`, ` 2> /dev/null)"`).
+  if (key === undefined) {
+    return TRAILING_OPERAND.test(tail) ? preserved : replacement + tail;
+  }
+
+  const afterKey = tail.slice(key.length + 1);
+  const basename = namespaceRootBasename(afterKey);
+
+  // A non-default basename has no flag to carry it, so rewriting would
+  // silently resolve a different file.
+  if (basename !== undefined && basename !== `${key}.md`) return preserved;
+
+  const remainder = basename === undefined ? afterKey : afterKey.slice(basename.length + 1);
+
+  // The same guard the no-key branch uses: a key we mapped does not license
+  // dropping an operand we did not.
+  return TRAILING_OPERAND.test(remainder) ? preserved : `${replacement} --key ${key}${remainder}`;
+}
 
 function adaptNamespaceRootInvocations(markdown: string, version: string): string {
   const replacement = `bunx --bun safeword@${version} project namespace-root --cwd "$PROJECT_DIR"`;
@@ -231,18 +277,7 @@ function adaptNamespaceRootInvocations(markdown: string, version: string): strin
   let adapted = head ?? '';
 
   for (const tail of rest) {
-    const { key, basename } = NAMESPACE_ROOT_ARGUMENTS.exec(tail)?.groups ?? {};
-    if (key === undefined) {
-      adapted += replacement + tail;
-      // Only a default `<key>.md` basename survives the rewrite: the subcommand
-      // has no flag to carry any other one, so rewriting it would silently
-      // resolve a different file.
-    } else if (basename === `${key}.md`) {
-      const remainder = tail.slice(key.length + basename.length + 2);
-      adapted += `${replacement} --key ${key}${remainder}`;
-    } else {
-      adapted += NAMESPACE_ROOT_INVOCATION_PREFIX + tail;
-    }
+    adapted += rewriteNamespaceRootTail(tail, replacement);
   }
 
   return adapted;
@@ -287,6 +322,19 @@ function isTableDelimiter(cells: string[], columnCount: number): boolean {
   return cells.length === columnCount && cells.every(cell => /^:?-{3,}:?$/u.test(cell));
 }
 
+/**
+ * Rebuild one delimiter cell at the column's width while keeping its alignment.
+ * `isTableDelimiter` accepts `:---`, `---:`, and `:---:`, so dropping the colons
+ * would re-align every table the generator was only supposed to reformat.
+ */
+function formatDelimiterCell(source: string, width: number): string {
+  const left = source.startsWith(':');
+  const right = source.endsWith(':');
+  const colons = (left ? 1 : 0) + (right ? 1 : 0);
+  const dashes = Math.max(3, width - colons);
+  return `${left ? ':' : ''}${'-'.repeat(dashes)}${right ? ':' : ''}`;
+}
+
 function formatMarkdownTable(rows: string[][]): string[] {
   const contentRows = rows.filter((_, rowIndex) => rowIndex !== 1);
   const widths = rows[0]?.map((headerCell, column) =>
@@ -298,7 +346,7 @@ function formatMarkdownTable(rows: string[][]): string[] {
     const formattedCells = cells.map((cell, column) => {
       const width = widths[column];
       if (width === undefined) throw new Error('Markdown table has an invalid column width');
-      return row === 1 ? '-'.repeat(Math.max(3, width)) : cell.padEnd(width);
+      return row === 1 ? formatDelimiterCell(cell, width) : cell.padEnd(width);
     });
     return `| ${formattedCells.join(' | ')} |`;
   });
