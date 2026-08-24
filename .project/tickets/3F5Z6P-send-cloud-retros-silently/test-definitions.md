@@ -297,8 +297,8 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 ### Scenario: Both adapters preserve a prepared request unchanged
 
 - [x] RED 17d41b286
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 1e6275060
+- [x] REFACTOR skip: one shared request constructor is the intended deduplication
 
 ### Scenario: Both adapters use only the built-in HTTPS collector
 
