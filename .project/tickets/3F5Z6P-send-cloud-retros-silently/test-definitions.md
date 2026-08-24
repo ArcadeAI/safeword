@@ -155,8 +155,8 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 ### Scenario: Repository remotes normalize or are omitted
 
 - [x] RED cd27ede4f
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 0a507a103
+- [x] REFACTOR skip: URL parsing plus one SCP-shaped fallback is the smallest credential-free normalizer
 
 ### Scenario: Repository credentials never enter the envelope
 
