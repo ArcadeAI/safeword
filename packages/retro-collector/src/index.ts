@@ -2,6 +2,8 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 
 import { PublicRetroConflict, PublicRetroStore } from './store.js';
 
+type PublicRetroStorePort = Pick<PublicRetroStore, 'accept' | 'close' | 'read'>;
+
 const MAXIMUM_BODY_BYTES = 65_536;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
 const SESSION_SCOPE = /^[0-9a-f]{64}$/u;
@@ -65,7 +67,7 @@ function operatorReceipt(
 function serveOperatorRead(
   request: IncomingMessage,
   response: ServerResponse,
-  store: PublicRetroStore,
+  store: PublicRetroStorePort,
   credential: string | undefined,
 ): boolean {
   const receipt = operatorReceipt(request, credential);
@@ -140,7 +142,7 @@ function envelopeSessionScope(rawBody: Buffer): string | undefined {
 async function handle(
   request: IncomingMessage,
   response: ServerResponse,
-  store: PublicRetroStore,
+  store: PublicRetroStorePort,
   operatorCredential: string | undefined,
 ): Promise<void> {
   if (serveOperatorRead(request, response, store, operatorCredential)) return;
@@ -180,8 +182,8 @@ async function handle(
 
 export async function startPublicRetroCollector(
   options: PublicRetroCollectorOptions,
+  store: PublicRetroStorePort = new PublicRetroStore(options.databasePath),
 ): Promise<PublicRetroCollectorRuntime> {
-  const store = new PublicRetroStore(options.databasePath);
   const server = createServer((request, response) => {
     void handle(request, response, store, options.operatorCredential);
   });
