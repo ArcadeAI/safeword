@@ -125,8 +125,8 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 ### Scenario: Sanitization protects canonical bytes and the local marker
 
 - [x] RED 09d93cf52
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN fce714c72
+- [x] REFACTOR skip: candidate delivery reuses the shared sanitizer and one complete renderer
 
 ### Scenario: Contaminated sanitizer output is rejected before persistence
 
