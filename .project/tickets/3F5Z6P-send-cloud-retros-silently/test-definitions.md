@@ -440,7 +440,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 - [x] RED skip: the preceding package slice already established physical separation
 - [x] GREEN 66c60393f
-- [ ] REFACTOR
+- [x] REFACTOR skip: one manifest and artifact assertion is the smallest structural proof
 
 ### Scenario: Public submission needs no credential
 
