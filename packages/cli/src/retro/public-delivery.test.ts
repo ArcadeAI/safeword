@@ -9,6 +9,7 @@ import {
   buildPublicRetroEnvelope,
   deliverPublicRetro,
   deliverPublicRetroCandidate,
+  deliverSanitizedPublicRetroFinding,
   preparePublicRetroRequest,
   type PublicRetroHttpRequest,
   submitPublicRetroRequest,
@@ -187,6 +188,43 @@ describe('buildPublicRetroEnvelope', () => {
         sessionScope: markerName?.replace(/\.json$/u, ''),
         receipt: 'receipt-fixture',
       });
+    } finally {
+      rmSync(attemptsDirectory, { recursive: true, force: true });
+    }
+  });
+
+  it('delivers an already-sanitized finding within the original preparation deadline', async () => {
+    const attemptsDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-public-retro-'));
+    const times = [999, 999, 999, 2998, 2998];
+    try {
+      const outcome = await deliverSanitizedPublicRetroFinding(
+        {
+          finding: {
+            category: 'bug',
+            title: 'Shared sanitized finding',
+            safewordSurface: 'packages/cli/src/retro/public-delivery.ts',
+            whatHappened: 'The shared result reached delivery.',
+            whyFriction: 'A second scrub would waste the deadline.',
+            repro: 'Prepare one finding.',
+          },
+          source: requiredInput.source,
+          sessionId: requiredInput.sessionId,
+        },
+        {
+          attemptsDirectory,
+          now: () => times.shift() ?? 2998,
+          randomUUID: () => '01911111-2222-7333-8444-55555555555a',
+          transport: request =>
+            Promise.resolve({
+              requestId: request.headers['x-safeword-request-id'],
+              receipt: 'receipt-fixture',
+            }),
+        },
+        1000,
+      );
+
+      expect(outcome).toBe('preserved');
+      expect(times).toEqual([]);
     } finally {
       rmSync(attemptsDirectory, { recursive: true, force: true });
     }

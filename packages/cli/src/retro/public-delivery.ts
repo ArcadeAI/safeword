@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { assemblePublicFinding } from './finding.js';
+import { assemblePublicFinding, type Finding } from './finding.js';
 import { prepareFinding } from './pipeline.js';
 
 export interface PublicRetroSource {
@@ -253,4 +253,12 @@ export async function deliverPublicRetroCandidate(
   } catch {
     return 'abandoned';
   }
+}
+
+export function deliverSanitizedPublicRetroFinding(
+  _input: { finding: Finding; source: PublicRetroSource; sessionId: string },
+  _dependencies: PublicRetroDeliveryDependencies,
+  _preparationDeadline: number,
+): Promise<PublicRetroDeliveryOutcome> {
+  return Promise.resolve('abandoned');
 }
