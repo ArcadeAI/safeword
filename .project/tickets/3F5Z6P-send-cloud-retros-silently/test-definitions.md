@@ -401,7 +401,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 ### Scenario: Semantic equivalence cannot override byte-different raw bodies
 
 - [x] RED skip: canonical raw-byte enforcement was established by envelope validation
-- [ ] GREEN
+- [x] GREEN b71215cf9
 - [ ] REFACTOR
 
 ### Scenario: Reusing a session scope with different bytes is rejected
