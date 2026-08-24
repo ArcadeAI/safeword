@@ -22,6 +22,7 @@ import { SAFEWORD_SCHEMA } from '../../cli/src/schema.js';
 import { createProjectContext } from '../../cli/src/utils/context.js';
 import { VERSION } from '../../cli/src/version.js';
 import { offsetStatePath } from '../../cli/templates/hooks/lib/retro-trigger.js';
+import { startPublicRetroCollector } from '../../retro-collector/src/index.js';
 import {
   CredentialRegistry,
   GitHubRestClient,
@@ -483,6 +484,49 @@ const acceptedRelayOutcome = {
 };
 
 describe('real shared CLI to relay wiring', () => {
+  it('keeps public quarantine separate from authorized private filing', async () => {
+    const collectorDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-public-collector-'));
+    directories.push(collectorDirectory);
+    const collector = await startPublicRetroCollector({
+      databasePath: path.join(collectorDirectory, 'collector.sqlite'),
+    });
+    const scenario = await createRelayScenario();
+    try {
+      const publicBody = JSON.stringify({
+        version: 'v1',
+        finding: 'public fixture finding',
+        source: {
+          harness: 'codex',
+          hostClass: 'local',
+          projectUUID: '018f0f2e-abcd-7def-8abc-def012345678',
+          safewordCliVersion: '0.79.0',
+        },
+        sessionScope: '6'.repeat(64),
+      });
+      const publicResponse = await fetch(`${collector.url}/v1/public-retros`, {
+        body: publicBody,
+        headers: {
+          'content-type': 'application/json; charset=utf-8',
+          'x-safeword-request-id': '01933333-2222-7333-8444-55555555555a',
+        },
+        method: 'POST',
+      });
+      const privateRun = await runInstalledSurface(
+        scenario,
+        installedSurfaces[2],
+        scenario.secureRelayFetch,
+      );
+
+      expect(publicResponse.status).toBe(201);
+      expect(privateRun.outcome.relay).toEqual(acceptedRelayOutcome);
+      expect(scenario.githubBodies).toHaveLength(1);
+      discardProject(privateRun.project);
+    } finally {
+      await collector.close();
+      scenario.store.close();
+    }
+  }, 30_000);
+
   it.each([
     { harness: 'Claude Code' },
     { harness: 'Claude Code Cloud' },
