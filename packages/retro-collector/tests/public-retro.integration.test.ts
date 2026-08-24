@@ -141,6 +141,57 @@ it.each([
   expect(await inspected.json()).toEqual({ error: 'not_found' });
 });
 
+it('keeps operator reads disabled when the configured credential is blank', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+    operatorCredential: ' '.repeat(3),
+  });
+  const accepted = await submit(runtime.url, fixtureRequest());
+  const { receipt } = (await accepted.json()) as { receipt: string };
+
+  const inspected = await fetch(`${runtime.url}/v1/public-retros/${receipt}`, {
+    headers: { authorization: 'Bearer ' },
+  });
+  await runtime.close();
+
+  expect(inspected.status).toBe(404);
+});
+
+it('returns a bounded failure when an operator read cannot reach the store', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const failingStore = {
+    accept: () => {
+      throw new Error('unexpected accept');
+    },
+    close: () => {},
+    read: () => {
+      throw new Error('injected read failure');
+    },
+  };
+  const runtime = await startPublicRetroCollector(
+    {
+      databasePath: path.join(directory, 'unused.sqlite'),
+      operatorCredential: 'operator-fixture-credential',
+    },
+    failingStore,
+  );
+
+  const response = await fetch(
+    `${runtime.url}/v1/public-retros/01911111-2222-7333-8444-55555555555a`,
+    {
+      headers: { authorization: 'Bearer operator-fixture-credential' },
+      signal: AbortSignal.timeout(500),
+    },
+  );
+  await runtime.close();
+
+  expect(response.status).toBe(500);
+  expect(await response.json()).toEqual({ error: 'store_unavailable' });
+});
+
 it('does not expose record or collection metadata to anonymous callers', async () => {
   const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
   temporaryDirectories.push(directory);

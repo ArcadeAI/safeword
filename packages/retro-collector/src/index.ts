@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'node:crypto';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 
 import { PublicRetroConflict, PublicRetroStore } from './store.js';
@@ -59,7 +60,10 @@ function operatorReceipt(
   credential: string | undefined,
 ): string | undefined {
   if (request.method !== 'GET' || credential === undefined) return undefined;
-  if (request.headers.authorization !== `Bearer ${credential}`) return undefined;
+  const authorization = request.headers.authorization;
+  const expected = `Bearer ${credential}`;
+  if (authorization?.length !== expected.length) return undefined;
+  if (!timingSafeEqual(Buffer.from(authorization), Buffer.from(expected))) return undefined;
   const match = /^\/v1\/public-retros\/([0-9a-f-]{36})$/u.exec(request.url ?? '');
   return match?.[1] !== undefined && UUID.test(match[1]) ? match[1] : undefined;
 }
@@ -200,8 +204,16 @@ export async function startPublicRetroCollector(
   options: PublicRetroCollectorOptions,
   store: PublicRetroStorePort = new PublicRetroStore(options.databasePath),
 ): Promise<PublicRetroCollectorRuntime> {
+  const configuredCredential = options.operatorCredential?.trim();
+  const operatorCredential = configuredCredential === '' ? undefined : configuredCredential;
   const server = createServer((request, response) => {
-    void handle(request, response, store, options.operatorCredential);
+    void handle(request, response, store, operatorCredential).catch(() => {
+      if (response.headersSent) {
+        response.destroy();
+      } else {
+        sendJson(response, 500, { error: 'store_unavailable' });
+      }
+    });
   });
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject);
