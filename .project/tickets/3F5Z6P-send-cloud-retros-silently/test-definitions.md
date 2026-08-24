@@ -425,7 +425,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 ### Scenario: Invalid envelope schema is rejected
 
 - [x] RED 173cdc08b
-- [ ] GREEN
+- [x] GREEN c6558659e
 - [ ] REFACTOR
 
 ## Rule: send-cloud-retros-silently.SWM1.R3
