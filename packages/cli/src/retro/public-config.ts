@@ -65,6 +65,9 @@ export function ensurePublicRetroProjectConfig(
 }
 
 export function setPublicRetroCollection(cwd: string, enabled: boolean): boolean {
+  if (!existsSync(configPath(cwd))) {
+    throw new Error('No SafeWord project configuration found; run `safeword install` first.');
+  }
   const config = readConfig(cwd);
   validateCollectionSetting(config);
   if (config.publicRetrospectiveCollection === enabled) return false;
