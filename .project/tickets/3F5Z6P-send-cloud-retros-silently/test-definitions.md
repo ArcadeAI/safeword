@@ -396,7 +396,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 - [x] RED skip: request conflict behavior was established by the transactional store slice
 - [x] GREEN 0384f2263
-- [ ] REFACTOR
+- [x] REFACTOR skip: concurrent conflict proof is strictly stronger than a serial duplicate test
 
 ### Scenario: Semantic equivalence cannot override byte-different raw bodies
 
