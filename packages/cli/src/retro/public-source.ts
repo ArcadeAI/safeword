@@ -27,9 +27,11 @@ export function normalizeRepoRemote(remote: string): string | undefined {
 }
 
 export function selectPublicUserIdentity(
-  _runtimeIdentity: string | undefined,
-  _localEmail: string | undefined,
-  _globalEmail: string | undefined,
+  runtimeIdentity: string | undefined,
+  localEmail: string | undefined,
+  globalEmail: string | undefined,
 ): string | undefined {
-  return undefined;
+  return [runtimeIdentity, localEmail, globalEmail].find(
+    value => value !== undefined && value.trim() !== '',
+  );
 }
