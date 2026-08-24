@@ -120,4 +120,20 @@ describe('collectPublicGitContext', () => {
       localEmail: 'worktree@example.com',
     });
   });
+
+  it('reads the explicit global Git config without invoking Git', () => {
+    const directory = createTemporaryDirectory();
+    const gitDirectory = nodePath.join(directory, '.git');
+    const globalConfig = nodePath.join(directory, 'fixture-global.gitconfig');
+    mkdirSync(gitDirectory);
+    writeFileSync(nodePath.join(gitDirectory, 'config'), '[core]\n  bare = false\n');
+    writeFileSync(globalConfig, '[user]\n  email = global@example.com\n');
+
+    expect(
+      collectPublicGitContext(directory, {
+        environment: { GIT_CONFIG_GLOBAL: globalConfig },
+        homeDirectory: nodePath.join(directory, 'unused-home'),
+      }),
+    ).toEqual({ globalEmail: 'global@example.com' });
+  });
 });

@@ -105,7 +105,15 @@ function parseGitEntry(line: string): readonly [string, string] | undefined {
   return [line.slice(0, separator).trim().toLowerCase(), line.slice(separator + 1).trim()];
 }
 
-export function collectPublicGitContext(cwd: string): PublicGitContext {
+export interface PublicGitContextOptions {
+  environment?: Readonly<Record<string, string | undefined>>;
+  homeDirectory?: string;
+}
+
+export function collectPublicGitContext(
+  cwd: string,
+  _options: PublicGitContextOptions = {},
+): PublicGitContext {
   try {
     const config = parseRepoGitConfig(readFileSync(repoGitConfigPath(cwd), 'utf8'));
     const repo = config.remote === undefined ? undefined : normalizeRepoRemote(config.remote);
