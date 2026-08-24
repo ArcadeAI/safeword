@@ -148,7 +148,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 ### Scenario: Empty optional source context is omitted
 
-- [ ] RED
+- [x] RED 1031f051e
 - [ ] GREEN
 - [ ] REFACTOR
 
