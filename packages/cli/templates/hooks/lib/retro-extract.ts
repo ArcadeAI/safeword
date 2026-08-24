@@ -88,6 +88,8 @@ export function windowFor(
 
 /** A decision to run the retro child, carrying the delta window + stable session id. */
 export interface RetroChildInvocation {
+  /** Set only when the host transcript proves the public completed-pair gate. */
+  publicRetroEligible?: true;
   transcriptPath: string;
   windowStart: number;
   sessionId: string;
@@ -104,6 +106,7 @@ export function retroChildArgs(invocation: RetroChildInvocation): string[] {
     'retro',
     'run',
     '--auto-extract',
+    ...(invocation.publicRetroEligible === true ? ['--public-retro'] : []),
     '--transcript',
     invocation.transcriptPath,
     '--window-start',
