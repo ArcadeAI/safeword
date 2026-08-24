@@ -227,7 +227,8 @@ Collection is on by default and does not require an account. The envelope can
 include the project UUID, normalized repository, harness and version metadata,
 operating-system family, model, and an available GitHub identity or Git email;
 raw transcripts and credentials are not sent. Accepted records are durable, and
-the initial release does not yet provide a deletion workflow. Run
+source metadata is unauthenticated client context rather than verified identity.
+The initial release does not yet provide a deletion workflow. Run
 `safeword project public-retros off` to disable collection for the project, or
 `on` to re-enable it; both commands change only local project configuration.
 

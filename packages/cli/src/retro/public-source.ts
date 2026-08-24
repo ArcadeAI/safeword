@@ -98,12 +98,13 @@ export function buildPublicRetroSource(
 }
 
 function repoGitConfigPath(cwd: string): string {
-  const dotGit = nodePath.join(cwd, '.git');
+  const projectDirectory = nodePath.resolve(cwd);
+  const dotGit = nodePath.join(projectDirectory, '.git');
   if (statSync(dotGit).isDirectory()) return nodePath.join(dotGit, 'config');
   const pointer = readFileSync(dotGit, 'utf8').trim();
   if (!pointer.toLowerCase().startsWith('gitdir:'))
     throw new Error('Invalid Git directory pointer');
-  const gitDirectory = nodePath.resolve(cwd, pointer.slice('gitdir:'.length).trim());
+  const gitDirectory = nodePath.resolve(projectDirectory, pointer.slice('gitdir:'.length).trim());
   try {
     const common = readFileSync(nodePath.join(gitDirectory, 'commondir'), 'utf8').trim();
     const commonDirectory = nodePath.resolve(gitDirectory, common);
@@ -116,7 +117,7 @@ function repoGitConfigPath(cwd: string): string {
     }
     return nodePath.join(commonDirectory, 'config');
   } catch {
-    if (gitDirectory.startsWith(`${nodePath.resolve(cwd)}${nodePath.sep}`)) {
+    if (gitDirectory.startsWith(`${projectDirectory}${nodePath.sep}`)) {
       return nodePath.join(gitDirectory, 'config');
     }
     throw new Error('Untrusted Git directory pointer');
@@ -165,7 +166,19 @@ function parseGitSection(line: string): string | undefined {
 function parseGitEntry(line: string): readonly [string, string] | undefined {
   const separator = line.indexOf('=');
   if (separator === -1) return undefined;
-  return [line.slice(0, separator).trim().toLowerCase(), line.slice(separator + 1).trim()];
+  const rawValue = stripGitComment(line.slice(separator + 1).trim());
+  const value =
+    rawValue.startsWith('"') && rawValue.endsWith('"') ? rawValue.slice(1, -1) : rawValue;
+  return [line.slice(0, separator).trim().toLowerCase(), value];
+}
+
+function stripGitComment(value: string): string {
+  for (let index = 1; index < value.length; index += 1) {
+    if ((value[index] === ';' || value[index] === '#') && /\s/u.test(value[index - 1] ?? '')) {
+      return value.slice(0, index).trim();
+    }
+  }
+  return value;
 }
 
 export interface PublicGitContextOptions {

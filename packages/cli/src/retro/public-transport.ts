@@ -16,7 +16,9 @@ function validOrigin(origin: URL): boolean {
     (secure || loopbackHttp) &&
     origin.pathname === '/' &&
     origin.search === '' &&
-    origin.hash === ''
+    origin.hash === '' &&
+    origin.username === '' &&
+    origin.password === ''
   );
 }
 

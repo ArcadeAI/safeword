@@ -116,6 +116,7 @@ it.each([
       '[remote "origin"]\nurl = git@github.com:ArcadeAI/safeword.git\n',
     );
     const findings = path.join(project, 'findings.json');
+    const fixtureSecret = ['sk', 'live', 'fixturesecret123456'].join('_');
     writeFileSync(
       findings,
       JSON.stringify([
@@ -123,8 +124,8 @@ it.each([
           category: 'rough-edge',
           title: 'Lifecycle fixture finding',
           safeword_surface: 'process/retro-delivery',
-          what_happened: 'The lifecycle fixture observed a delivery handoff.',
-          why_friction: 'A missing receipt would lose the retrospective.',
+          what_happened: `The lifecycle fixture observed ${fixtureSecret} during a handoff.`,
+          why_friction: 'A missing receipt at /Users/customer/private/repo would lose the retro.',
           repro: 'Complete a supported local session.',
         },
       ]),
@@ -208,13 +209,16 @@ it.each([
         headers: { authorization: 'Bearer operator-fixture-credential' },
       });
       expect(inspected.status).toBe(200);
-      await expect(inspected.json()).resolves.toMatchObject({
+      const storedEnvelope = (await inspected.json()) as { finding: string; source: object };
+      expect(storedEnvelope).toMatchObject({
         source: {
           harness,
           hostClass: 'local',
           projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
         },
       });
+      expect(storedEnvelope.finding).not.toContain(fixtureSecret);
+      expect(storedEnvelope.finding).not.toContain('/Users/customer');
       expect(acceptCalls).toBe(1);
 
       const duplicate = await runHook(

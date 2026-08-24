@@ -121,6 +121,21 @@ describe('collectPublicGitContext', () => {
     });
   });
 
+  it('normalizes quoted values and strips trailing Git comments', () => {
+    const directory = createTemporaryDirectory();
+    const gitDirectory = nodePath.join(directory, '.git');
+    mkdirSync(gitDirectory);
+    writeFileSync(
+      nodePath.join(gitDirectory, 'config'),
+      '[remote "origin"]\nurl = "git@github.com:ArcadeAI/safeword.git" # primary\n[user]\nemail = dev@example.com ; local\n',
+    );
+
+    expect(collectPublicGitContext(directory, noGlobalConfig)).toEqual({
+      repository: 'github.com/arcadeai/safeword',
+      localEmail: 'dev@example.com',
+    });
+  });
+
   it('omits Git email when a consulted config delegates through an include', () => {
     const directory = createTemporaryDirectory();
     const gitDirectory = nodePath.join(directory, '.git');

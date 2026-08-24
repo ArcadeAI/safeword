@@ -11,6 +11,7 @@ examples/
 # Safeword - Local cache and transient state
 .safeword/.update-cache.json
 .safeword/config.local.json
+.safeword/retro-attempts/
 .safeword/self-reports/
 .safeword/retro-drafts/
 .safeword/boundary-audit.jsonl

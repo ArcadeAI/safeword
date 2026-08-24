@@ -55,6 +55,12 @@ describe('public retro HTTPS transport', () => {
     );
   });
 
+  it('rejects origins containing credentials', () => {
+    expect(() =>
+      createPublicRetroTransport({ fetch, origin: 'https://user:secret@collector.example' }),
+    ).toThrow('Invalid public retrospective origin');
+  });
+
   it.each(['null', '{}', '{"requestId":"fixture","receipt":123}'])(
     'rejects malformed receipt JSON',
     async receiptJson => {
