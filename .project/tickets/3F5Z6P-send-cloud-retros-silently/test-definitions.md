@@ -173,8 +173,8 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 ### Scenario: User identity follows documented precedence
 
 - [x] RED d604dfa2f
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 3b550c673
+- [x] REFACTOR skip: ordered first-nonblank selection directly expresses the contract
 
 ### Scenario: Forbidden source metadata cannot enter the envelope
 
