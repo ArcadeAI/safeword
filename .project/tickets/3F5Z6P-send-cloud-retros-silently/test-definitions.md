@@ -474,7 +474,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 ### Scenario: Public correlation values grant no read or filing authority
 
-- [ ] RED
+- [x] RED skip: the operator credential boundary already denied all non-operator values
 - [ ] GREEN
 - [ ] REFACTOR
 
