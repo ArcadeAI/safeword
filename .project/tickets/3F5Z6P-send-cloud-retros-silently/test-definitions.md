@@ -486,7 +486,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 ### Scenario: The public route cannot mutate accepted records
 
-- [ ] RED
+- [x] RED skip: the append-only route shape was established by the foundational intake slice
 - [ ] GREEN
 - [ ] REFACTOR
 
