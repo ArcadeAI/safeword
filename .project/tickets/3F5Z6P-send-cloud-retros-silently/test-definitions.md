@@ -384,7 +384,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 - [x] RED skip: minimal-profile acceptance was established by the first collector slice
 - [x] GREEN 3ad78268e
-- [ ] REFACTOR
+- [x] REFACTOR skip: existing acceptance proof already uses the minimal profile
 
 ### Scenario: The raw v1 envelope size boundary is enforced
 
