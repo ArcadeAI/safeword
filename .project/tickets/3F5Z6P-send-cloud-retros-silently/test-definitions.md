@@ -228,7 +228,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 ### Scenario: Install repairs malformed project identity locally
 
-- [ ] RED
+- [x] RED skip: missing and malformed identities share the already-green local replacement branch
 - [ ] GREEN
 - [ ] REFACTOR
 
