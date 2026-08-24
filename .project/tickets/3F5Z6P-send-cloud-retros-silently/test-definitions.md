@@ -469,7 +469,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 ### Scenario: Anonymous callers cannot enumerate public records
 
 - [x] RED skip: enumeration-neutral routing was established by the operator read slice
-- [ ] GREEN
+- [x] GREEN ad721c158
 - [ ] REFACTOR
 
 ### Scenario: Public correlation values grant no read or filing authority
