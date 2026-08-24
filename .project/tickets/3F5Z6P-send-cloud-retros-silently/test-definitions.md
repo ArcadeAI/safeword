@@ -482,7 +482,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 - [x] RED 22497a886
 - [x] GREEN f57bf51f8
-- [ ] REFACTOR
+- [x] REFACTOR a06414dbd
 
 ### Scenario: The public route cannot mutate accepted records
 
