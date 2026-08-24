@@ -186,6 +186,33 @@ it('does not acknowledge a submission when the quarantine store fails', async ()
   expect(acceptCalls).toBe(1);
 });
 
+it.each(['PUT', 'DELETE'])('does not let the public route mutate records with %s', async method => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+    operatorCredential: 'operator-fixture-credential',
+  });
+  const request = fixtureRequest();
+  const accepted = await submit(runtime.url, request);
+  const { receipt } = (await accepted.json()) as { receipt: string };
+
+  const mutation = await fetch(`${runtime.url}/v1/public-retros/${receipt}`, {
+    body: method === 'PUT' ? encoded({ ...fixtureEnvelope(), finding: 'overwritten' }) : undefined,
+    headers: method === 'PUT' ? { 'content-type': 'application/json; charset=utf-8' } : undefined,
+    method,
+  });
+  const inspected = await fetch(`${runtime.url}/v1/public-retros/${receipt}`, {
+    headers: { authorization: 'Bearer operator-fixture-credential' },
+  });
+  const inspectedBody = new Uint8Array(await inspected.arrayBuffer());
+  await runtime.close();
+
+  expect(mutation.status).toBe(404);
+  expect(inspected.status).toBe(200);
+  expect(inspectedBody).toEqual(request.body);
+});
+
 function encoded(value: unknown): Uint8Array {
   return new TextEncoder().encode(JSON.stringify(value));
 }
