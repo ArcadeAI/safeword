@@ -34,6 +34,21 @@ export function validatePublicRetroProjectConfig(cwd: string): void {
   validateCollectionSetting(readConfig(cwd));
 }
 
+/** Runtime view: malformed, missing, or explicitly disabled config is silent. */
+export function readEnabledPublicRetroProject(cwd: string): { projectUUID: string } | undefined {
+  try {
+    const config = readConfig(cwd);
+    validateCollectionSetting(config);
+    if (config.publicRetrospectiveCollection === false || typeof config.projectUUID !== 'string') {
+      return undefined;
+    }
+    const projectUUID = config.projectUUID.toLowerCase();
+    return UUID.test(projectUUID) ? { projectUUID } : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function publicRetroConfigNeedsUpdate(cwd: string): boolean {
   try {
     const config = readConfig(cwd);
