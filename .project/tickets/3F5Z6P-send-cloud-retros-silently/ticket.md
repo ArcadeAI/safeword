@@ -43,6 +43,12 @@ phase_anchors:
 
 ## Work Log
 
+- 2026-08-24T20:05:00Z Launch critical path fixed: prove both installed local
+  lifecycle adapters against the real collector, deploy that collector as a
+  separate Railway service with one persistent `/data` volume and an operator
+  credential, obtain a live synthetic receipt and operator read, then compile
+  the verified stable origin into the CLI and complete review/verification.
+  Retention and deletion remain explicit follow-up work, not launch gates.
 - 2026-08-24T06:11:00Z Implementation plan approved by Claude Sonnet
   (cross-agent) and advanced to implement. Six risk-ordered slices; no ADR
   emitted. Final simplification removed speculative multi-connection retry code
