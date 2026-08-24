@@ -68,3 +68,23 @@ it('returns the original durable receipt for an exact retry after restart', asyn
     requestId: request.requestId,
   });
 });
+
+it('rejects an invalid envelope without consuming its request identity', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+  });
+  const validRequest = fixtureRequest();
+  const invalidRequest = {
+    ...validRequest,
+    body: new TextEncoder().encode(JSON.stringify({ sessionScope: '7'.repeat(64) })),
+  };
+
+  const invalidResponse = await submit(runtime.url, invalidRequest);
+  const validResponse = await submit(runtime.url, validRequest);
+  await runtime.close();
+
+  expect(invalidResponse.status).toBe(400);
+  expect(validResponse.status).toBe(201);
+});
