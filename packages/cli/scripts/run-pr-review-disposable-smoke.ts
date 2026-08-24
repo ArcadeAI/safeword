@@ -406,6 +406,7 @@ export function runPrReviewDisposableSmoke(): void {
       'main',
       '--head',
       `${forkOwner}:${branch}`,
+      '--no-maintainer-edit',
       '--title',
       'Exercise advisory PR review smoke',
       '--body',
