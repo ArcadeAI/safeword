@@ -149,8 +149,8 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 ### Scenario: Empty optional source context is omitted
 
 - [x] RED 1031f051e
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN d5db0d09e
+- [x] REFACTOR skip: one predicate keeps all optional fields on the same canonical rule
 
 ### Scenario: Repository remotes normalize or are omitted
 
