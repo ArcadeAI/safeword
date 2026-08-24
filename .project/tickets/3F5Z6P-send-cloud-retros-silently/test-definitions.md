@@ -222,7 +222,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 ### Scenario: Invalid public-retro control leaves configuration unchanged
 
-- [ ] RED
+- [x] RED 285aeecf0
 - [ ] GREEN
 - [ ] REFACTOR
 
