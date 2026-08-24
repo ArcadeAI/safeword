@@ -378,7 +378,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 - [x] RED skip: metadata independence was necessarily established by the transactional store slice
 - [x] GREEN 3ad78268e
-- [ ] REFACTOR
+- [x] REFACTOR skip: existing distinct-submission proof covers this without duplication
 
 ### Scenario: A minimal source profile is accepted
 
