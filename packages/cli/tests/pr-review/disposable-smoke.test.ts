@@ -5,9 +5,23 @@ import {
   cleanupSmokeResources,
   createSmokeCommandClients,
   resolveSmokeConfig,
+  selectNewestRunAfter,
 } from '../../scripts/run-pr-review-disposable-smoke.js';
 
 describe('advisory PR review disposable smoke boundary', () => {
+  it('ignores retained workflow runs from earlier fixed-repository canaries', () => {
+    expect(
+      selectNewestRunAfter(
+        [
+          { conclusion: 'success', id: 100, run_attempt: 1, status: 'completed' },
+          { conclusion: 'success', id: 90, run_attempt: 1, status: 'completed' },
+        ],
+        95,
+      ),
+    ).toEqual({ conclusion: 'success', id: 100, run_attempt: 1, status: 'completed' });
+    expect(selectNewestRunAfter([{ id: 90 }], 95)).toBeUndefined();
+  });
+
   it('binds both tokens to the fixed sandbox repositories', () => {
     const config = resolveSmokeConfig({
       GH_TOKEN: 'base-token',

@@ -158,12 +158,20 @@ function latestRun(
   repo: string,
   workflow: string,
   event: string,
+  minimumRunId: number,
 ): Run | undefined {
   const response = ghJson(
     `repos/${repo}/actions/workflows/${workflow}/runs?event=${event}&per_page=10`,
     ghClient,
   ) as { workflow_runs: Record<string, unknown>[] };
-  const run = response.workflow_runs[0];
+  return selectNewestRunAfter(response.workflow_runs, minimumRunId);
+}
+
+export function selectNewestRunAfter(
+  runs: Record<string, unknown>[],
+  minimumRunId: number,
+): Run | undefined {
+  const run = runs.find(candidate => Number(candidate.id) > minimumRunId);
   if (run === undefined) return undefined;
   return {
     conclusion: typeof run.conclusion === 'string' ? run.conclusion : undefined,
@@ -171,6 +179,13 @@ function latestRun(
     run_attempt: Number(run.run_attempt),
     status: String(run.status),
   };
+}
+
+function latestRepoRunId(ghClient: GhClient, repo: string): number {
+  const response = ghJson(`repos/${repo}/actions/runs?per_page=1`, ghClient) as {
+    workflow_runs: { id?: unknown }[];
+  };
+  return Number(response.workflow_runs[0]?.id ?? 0);
 }
 
 function jobs(ghClient: GhClient, repo: string, runId: number): Job[] {
@@ -387,6 +402,7 @@ export function runPrReviewDisposableSmoke(): void {
       baseGit(['commit', '-m', 'Update advisory PR review smoke fixture'], directory);
       baseGit(['push', 'origin', 'main'], directory);
     }
+    const runFloor = latestRepoRunId(baseGh, baseRepo);
 
     baseGit(['checkout', '-b', branch], directory);
     writeFileSync(nodePath.join(directory, '.flux'), 'require_human_review = true\n');
@@ -422,7 +438,7 @@ export function runPrReviewDisposableSmoke(): void {
     ).head.sha;
 
     const eventRun = waitFor('fork pull_request_target run', () =>
-      latestRun(baseGh, baseRepo, 'safeword-pr-review.yml', 'pull_request_target'),
+      latestRun(baseGh, baseRepo, 'safeword-pr-review.yml', 'pull_request_target', runFloor),
     );
     waitForSuccess(baseGh, baseRepo, eventRun.id);
     const before = waitFor('stable pre-publication mergeability', () => {
@@ -432,7 +448,7 @@ export function runPrReviewDisposableSmoke(): void {
         : value;
     });
     const publisherRun = waitFor('trusted fork-event publisher', () =>
-      latestRun(baseGh, baseRepo, 'safeword-pr-review-publisher.yml', 'workflow_run'),
+      latestRun(baseGh, baseRepo, 'safeword-pr-review-publisher.yml', 'workflow_run', eventRun.id),
     );
     waitFor('trusted publication job', () =>
       jobs(baseGh, baseRepo, publisherRun.id).some(
@@ -454,7 +470,13 @@ export function runPrReviewDisposableSmoke(): void {
       `pull_number=${createdPullNumber}`,
     ]);
     const sweepRun = waitFor('manual scheduled-call projection', () =>
-      latestRun(baseGh, baseRepo, 'safeword-pr-review-smoke-sweep.yml', 'workflow_dispatch'),
+      latestRun(
+        baseGh,
+        baseRepo,
+        'safeword-pr-review-smoke-sweep.yml',
+        'workflow_dispatch',
+        publisherRun.id,
+      ),
     );
     waitFor('two serialized per-PR concurrency leases', () =>
       serializedInConcurrencyGroup(
