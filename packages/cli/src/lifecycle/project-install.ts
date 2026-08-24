@@ -60,6 +60,10 @@ import {
 import { getMissingPacks } from '../packs/registry.js';
 import { rustToolingTargets } from '../packs/rust/setup.js';
 import { reconcile, ReconcileExecutionError, type ReconcileResult } from '../reconcile.js';
+import {
+  ensurePublicRetroProjectConfig,
+  publicRetroConfigNeedsUpdate,
+} from '../retro/public-config.js';
 import type { SafewordSchema } from '../schema.js';
 import { createProjectContext } from '../utils/context.js';
 import { exists, writeJson } from '../utils/fs.js';
@@ -188,6 +192,7 @@ function plannedJavaScriptPackageFiles(cwd: string): Effect[] {
 }
 
 function configNeedsCompatibilityUpdate(cwd: string): boolean {
+  if (publicRetroConfigNeedsUpdate(cwd)) return true;
   if (getMissingPacks(cwd).length > 0) return true;
   try {
     const config = JSON.parse(
@@ -1240,6 +1245,9 @@ function applyCompatibilityMigrations(cwd: string, completedEffects: CompletedSe
   }
   observeFileStage(cwd, ['.safeword/config.json'], completedEffects, () =>
     stripDeadConfigVersion(nodePath.join(cwd, '.safeword')),
+  );
+  observeFileStage(cwd, ['.safeword/config.json'], completedEffects, () =>
+    ensurePublicRetroProjectConfig(cwd),
   );
 }
 
