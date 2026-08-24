@@ -14,7 +14,7 @@ describe('public retro HTTPS transport', () => {
     );
     const transport = createPublicRetroTransport({
       fetch: send,
-      origin: 'https://collector.example',
+      origin: 'http://127.0.0.1:43179',
     });
     const body = new TextEncoder().encode('{"version":"v1"}');
 
@@ -35,7 +35,7 @@ describe('public retro HTTPS transport', () => {
     });
 
     expect(send).toHaveBeenCalledWith(
-      'https://collector.example/v1/public-retros',
+      'http://127.0.0.1:43179/v1/public-retros',
       expect.objectContaining({
         body,
         method: 'POST',
@@ -46,5 +46,11 @@ describe('public retro HTTPS transport', () => {
         },
       }),
     );
+  });
+
+  it('rejects plaintext origins outside the loopback-only test boundary', () => {
+    expect(() =>
+      createPublicRetroTransport({ fetch, origin: 'https://collector.example' }),
+    ).toThrow('Invalid public retrospective origin');
   });
 });
