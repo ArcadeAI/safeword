@@ -31,6 +31,8 @@ export const SUBSTANCE_THRESHOLD = 3;
 
 interface ContentItem {
   type?: string;
+  id?: string;
+  tool_use_id?: string;
 }
 
 interface TranscriptEntry {
@@ -62,6 +64,27 @@ export function countToolUses(transcriptText: string): number {
   });
 }
 
+function matchedCount(invocations: Set<string>, results: Set<string>): number {
+  let count = 0;
+  for (const identity of invocations) if (results.has(identity)) count++;
+  return count;
+}
+
+/** Count only Claude tool invocations that have their matching terminal result. */
+export function countCompletedToolUses(transcriptText: string): number {
+  const invocations = new Set<string>();
+  const results = new Set<string>();
+  for (const raw of iterateJsonlEntries(transcriptText)) {
+    const content = (raw as TranscriptEntry).message?.content;
+    if (!Array.isArray(content)) continue;
+    for (const item of content) {
+      if (item.type === 'tool_use' && item.id) invocations.add(item.id);
+      if (item.type === 'tool_result' && item.tool_use_id) results.add(item.tool_use_id);
+    }
+  }
+  return matchedCount(invocations, results);
+}
+
 /** A per-agent tool-use counter over a transcript's raw text. */
 export type ToolUseCounter = (transcriptText: string) => number;
 
@@ -84,6 +107,34 @@ export function countToolUsesCodex(rolloutText: string): number {
       ? 1
       : 0;
   });
+}
+
+const CODEX_RESULT_EVENTS = new Map([
+  ['function_call_output', 'function_call'],
+  ['exec_command_end', 'exec_command_begin'],
+  ['mcp_tool_call_end', 'mcp_tool_call_begin'],
+]);
+
+/** Count only Codex tool invocations that have their matching terminal event. */
+export function countCompletedToolUsesCodex(rolloutText: string): number {
+  const invocations = new Set<string>();
+  const results = new Set<string>();
+  for (const raw of iterateJsonlEntries(rolloutText)) {
+    const entry = raw as {
+      type?: string;
+      call_id?: string;
+      id?: string;
+      payload?: { type?: string; call_id?: string; id?: string };
+    };
+    const event = entry.payload ?? entry;
+    const type = event.type ?? '';
+    const identity = event.call_id ?? event.id;
+    if (!identity) continue;
+    if (CODEX_TOOL_EVENTS.has(type)) invocations.add(`${type}:${identity}`);
+    const invocationType = CODEX_RESULT_EVENTS.get(type);
+    if (invocationType) results.add(`${invocationType}:${identity}`);
+  }
+  return matchedCount(invocations, results);
 }
 
 /**
