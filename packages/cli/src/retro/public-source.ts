@@ -42,7 +42,11 @@ export interface PublicGitContext {
   globalEmail?: string;
 }
 
-function parseRepoGitConfig(content: string): { email?: string; remote?: string } {
+function parseRepoGitConfig(content: string): {
+  email?: string;
+  remote?: string;
+  delegatesIdentity: boolean;
+} {
   let section = '';
   let email: string | undefined;
   let remote: string | undefined;
@@ -59,7 +63,18 @@ function parseRepoGitConfig(content: string): { email?: string; remote?: string 
     if (section === 'user' && key === 'email') email = value;
     if (section === 'remote "origin"' && key === 'url') remote = value;
   }
-  return { ...(email !== undefined && { email }), ...(remote !== undefined && { remote }) };
+  return {
+    ...(email !== undefined && { email }),
+    ...(remote !== undefined && { remote }),
+    delegatesIdentity: hasIdentityDelegate(content),
+  };
+}
+
+function hasIdentityDelegate(content: string): boolean {
+  return content.split(/\r?\n/u).some(rawLine => {
+    const section = parseGitSection(rawLine.trim());
+    return section === 'include' || section?.startsWith('includeif ') === true;
+  });
 }
 
 function parseGitSection(line: string): string | undefined {
@@ -78,7 +93,9 @@ export function collectPublicGitContext(cwd: string): PublicGitContext {
     const repo = config.remote === undefined ? undefined : normalizeRepoRemote(config.remote);
     return {
       ...(repo !== undefined && { repository: repo }),
-      ...(config.email !== undefined && config.email.trim() !== '' && { localEmail: config.email }),
+      ...(!config.delegatesIdentity &&
+        config.email !== undefined &&
+        config.email.trim() !== '' && { localEmail: config.email }),
     };
   } catch {
     return {};
