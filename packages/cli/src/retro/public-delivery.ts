@@ -3,7 +3,6 @@ import { mkdirSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { assemblePublicFinding, type Finding } from './finding.js';
-import { prepareFinding } from './pipeline.js';
 
 export interface PublicRetroSource {
   harness: 'claude-code' | 'codex';
@@ -20,12 +19,6 @@ export interface PublicRetroSource {
 
 export interface PublicRetroEnvelopeInput {
   finding: string;
-  source: PublicRetroSource;
-  sessionId: string;
-}
-
-export interface PublicRetroCandidateInput {
-  candidate: unknown;
   source: PublicRetroSource;
   sessionId: string;
 }
@@ -185,14 +178,6 @@ export async function submitPublicRetroRequest(
   return result;
 }
 
-export async function deliverPublicRetro(
-  input: PublicRetroEnvelopeInput,
-  dependencies: PublicRetroDeliveryDependencies,
-): Promise<PublicRetroDeliveryOutcome> {
-  const preparationDeadline = dependencies.now() + 1000;
-  return deliverPreparedInput(input, dependencies, preparationDeadline);
-}
-
 async function deliverPreparedInput(
   input: PublicRetroEnvelopeInput,
   dependencies: PublicRetroDeliveryDependencies,
@@ -229,28 +214,6 @@ async function deliverPreparedInput(
     if (dependencies.now() >= handoffDeadline) return 'abandoned';
     renameSync(temporaryPath, markerPath);
     return 'preserved';
-  } catch {
-    return 'abandoned';
-  }
-}
-
-export async function deliverPublicRetroCandidate(
-  input: PublicRetroCandidateInput,
-  dependencies: PublicRetroDeliveryDependencies,
-): Promise<PublicRetroDeliveryOutcome> {
-  const preparationDeadline = dependencies.now() + 1000;
-  try {
-    const prepared = await prepareFinding(input.candidate);
-    if ('dropped' in prepared || dependencies.now() >= preparationDeadline) return 'abandoned';
-    return await deliverPreparedInput(
-      {
-        finding: assemblePublicFinding(prepared.finding),
-        source: input.source,
-        sessionId: input.sessionId,
-      },
-      dependencies,
-      preparationDeadline,
-    );
   } catch {
     return 'abandoned';
   }
