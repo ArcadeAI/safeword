@@ -8,7 +8,7 @@ describe('buildPublicRetroEnvelope', () => {
   it('serializes the complete source profile deterministically', () => {
     const built = buildPublicRetroEnvelope({
       finding: 'fixture finding',
-      sessionId: 'fixture-session',
+      sessionId: 'session-fixture-42',
       source: {
         userIdentity: 'fixture@example.test',
         osFamily: 'macos',
