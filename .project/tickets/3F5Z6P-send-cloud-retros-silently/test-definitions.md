@@ -296,7 +296,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 ### Scenario: Both adapters preserve a prepared request unchanged
 
-- [x] RED pending
+- [x] RED 17d41b286
 - [ ] GREEN
 - [ ] REFACTOR
 
