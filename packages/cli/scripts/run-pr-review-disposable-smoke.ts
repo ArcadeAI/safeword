@@ -389,11 +389,9 @@ export function runPrReviewDisposableSmoke(): void {
     }
 
     baseGit(['checkout', '-b', branch], directory);
-    writeFileSync(
-      nodePath.join(directory, '.flux'),
-      `require_human_review = true\nsmoke_run = ${suffix}\n`,
-    );
-    baseGit(['add', '.flux'], directory);
+    writeFileSync(nodePath.join(directory, '.flux'), 'require_human_review = true\n');
+    writeFileSync(nodePath.join(directory, '.safeword-smoke-run'), `${suffix}\n`);
+    baseGit(['add', '.flux', '.safeword-smoke-run'], directory);
     baseGit(['commit', '-m', 'Exercise fork advisory review'], directory);
     forkGit(['push', `https://github.com/${forkRepo}.git`, `HEAD:refs/heads/${branch}`], directory);
     branchPushed = true;
