@@ -17,6 +17,22 @@ import { VERSION } from '../../src/version.js';
 import { createTemporaryDirectory, runCliWithoutInstall } from '../helpers.js';
 
 describe('convergent setup', () => {
+  it('creates a local public-retro project identity on first setup', async () => {
+    const directory = createTemporaryDirectory();
+    const result = await runCliWithoutInstall(
+      ['setup', '--json', '--no-input', '--offline', '--cwd', directory, '--no-modify'],
+      { cwd: directory },
+    );
+
+    expect(result.exitCode).toBe(0);
+    const config = JSON.parse(
+      readFileSync(nodePath.join(directory, '.safeword/config.json'), 'utf8'),
+    ) as Record<string, unknown>;
+    expect(config.projectUUID).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u,
+    );
+  });
+
   it('uses the concise shared renderer for an ordinary interactive-style invocation', async () => {
     const directory = createTemporaryDirectory();
     const result = await runCliWithoutInstall(['setup', '--cwd', directory], { cwd: directory });
