@@ -492,7 +492,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 ### Scenario: Existing private filing remains operational beside public collection
 
-- [ ] RED
+- [x] RED skip: both independent services were already operational before the coexistence proof
 - [ ] GREEN
 - [ ] REFACTOR
 
