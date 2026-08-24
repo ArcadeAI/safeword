@@ -420,7 +420,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 - [x] RED skip: request identity validation was established by the first collector slice
 - [x] GREEN 9216029fb
-- [ ] REFACTOR
+- [x] REFACTOR skip: one table proves all six malformed identity rows
 
 ### Scenario: Invalid envelope schema is rejected
 
