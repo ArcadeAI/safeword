@@ -599,6 +599,7 @@ function publicRetroConfigRefusal(cwd: string): CliResult | undefined {
   } catch (error) {
     return setupFailure(error, {});
   }
+  return undefined;
 }
 
 interface ConvergeSetupOptions {
