@@ -572,7 +572,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 ### Scenario: An oversized prepared envelope is abandoned before handoff
 
-- [x] RED pending
+- [x] RED f711991b2
 - [ ] GREEN
 - [ ] REFACTOR
 
