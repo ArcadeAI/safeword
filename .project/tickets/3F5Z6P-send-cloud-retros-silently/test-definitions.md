@@ -439,7 +439,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 ### Scenario: Public collector has no private filing authority
 
 - [x] RED skip: the preceding package slice already established physical separation
-- [ ] GREEN
+- [x] GREEN 66c60393f
 - [ ] REFACTOR
 
 ### Scenario: Public submission needs no credential
