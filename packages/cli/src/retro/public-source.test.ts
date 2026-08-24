@@ -60,6 +60,8 @@ describe('selectPublicUserIdentity', () => {
 });
 
 describe('collectPublicGitContext', () => {
+  const noGlobalConfig = { environment: { GIT_CONFIG_GLOBAL: '/fixture/missing' } };
+
   it('reads repository identity and local email from the repository Git config', () => {
     const directory = createTemporaryDirectory();
     const gitDirectory = nodePath.join(directory, '.git');
@@ -73,7 +75,7 @@ describe('collectPublicGitContext', () => {
 `,
     );
 
-    expect(collectPublicGitContext(directory)).toEqual({
+    expect(collectPublicGitContext(directory, noGlobalConfig)).toEqual({
       repository: 'github.com/arcadeai/safeword',
       localEmail: 'local@example.com',
     });
@@ -94,7 +96,7 @@ describe('collectPublicGitContext', () => {
 `,
     );
 
-    expect(collectPublicGitContext(directory)).toEqual({
+    expect(collectPublicGitContext(directory, noGlobalConfig)).toEqual({
       repository: 'github.com/arcadeai/safeword',
     });
   });
@@ -115,7 +117,7 @@ describe('collectPublicGitContext', () => {
 `,
     );
 
-    expect(collectPublicGitContext(directory)).toEqual({
+    expect(collectPublicGitContext(directory, noGlobalConfig)).toEqual({
       repository: 'gitlab.example/Team/Repo',
       localEmail: 'worktree@example.com',
     });

@@ -1,4 +1,5 @@
 import { lstatSync, readFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import nodePath from 'node:path';
 
 const SCP_REMOTE = /^[^@\s]+@([^:\s]+):(.+)$/u;
@@ -110,18 +111,43 @@ export interface PublicGitContextOptions {
   homeDirectory?: string;
 }
 
+function globalGitConfigPaths(options: PublicGitContextOptions): string[] {
+  const environment = options.environment ?? process.env;
+  if (environment.GIT_CONFIG_GLOBAL !== undefined) return [environment.GIT_CONFIG_GLOBAL];
+  const home = options.homeDirectory ?? homedir();
+  const xdg = environment.XDG_CONFIG_HOME ?? nodePath.join(home, '.config');
+  return [nodePath.join(xdg, 'git/config'), nodePath.join(home, '.gitconfig')];
+}
+
+function collectGlobalGitEmail(options: PublicGitContextOptions): string | undefined {
+  let email: string | undefined;
+  let delegatesIdentity = false;
+  for (const path of globalGitConfigPaths(options)) {
+    try {
+      const config = parseRepoGitConfig(readFileSync(path, 'utf8'));
+      delegatesIdentity ||= config.delegatesIdentity;
+      if (config.email !== undefined && config.email.trim() !== '') email = config.email;
+    } catch {
+      // Missing optional global config contributes no identity.
+    }
+  }
+  return delegatesIdentity ? undefined : email;
+}
+
 export function collectPublicGitContext(
   cwd: string,
-  _options: PublicGitContextOptions = {},
+  options: PublicGitContextOptions = {},
 ): PublicGitContext {
   try {
     const config = parseRepoGitConfig(readFileSync(repoGitConfigPath(cwd), 'utf8'));
     const repo = config.remote === undefined ? undefined : normalizeRepoRemote(config.remote);
+    const globalEmail = collectGlobalGitEmail(options);
     return {
       ...(repo !== undefined && { repository: repo }),
       ...(!config.delegatesIdentity &&
         config.email !== undefined &&
         config.email.trim() !== '' && { localEmail: config.email }),
+      ...(globalEmail !== undefined && { globalEmail }),
     };
   } catch {
     return {};
