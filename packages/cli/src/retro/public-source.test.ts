@@ -98,4 +98,26 @@ describe('collectPublicGitContext', () => {
       repository: 'github.com/arcadeai/safeword',
     });
   });
+
+  it('follows linked-worktree gitdir and commondir pointers', () => {
+    const directory = createTemporaryDirectory();
+    const commonDirectory = nodePath.join(directory, '.bare');
+    const worktreeGitDirectory = nodePath.join(commonDirectory, 'worktrees/client');
+    mkdirSync(worktreeGitDirectory, { recursive: true });
+    writeFileSync(nodePath.join(directory, '.git'), `gitdir: ${worktreeGitDirectory}\n`);
+    writeFileSync(nodePath.join(worktreeGitDirectory, 'commondir'), '../..\n');
+    writeFileSync(
+      nodePath.join(commonDirectory, 'config'),
+      `[remote "origin"]
+  url = git@gitlab.example:Team/Repo.git
+[user]
+  email = worktree@example.com
+`,
+    );
+
+    expect(collectPublicGitContext(directory)).toEqual({
+      repository: 'gitlab.example/Team/Repo',
+      localEmail: 'worktree@example.com',
+    });
+  });
 });
