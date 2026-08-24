@@ -210,7 +210,7 @@ describe('buildPublicRetroEnvelope', () => {
             safeword_surface: 'hooks/stop-quality.ts',
             what_happened: 'key ghp_raw_fixture_12345678901234567890 in /Users/fixture/private',
             why_friction: 'contact private@example.test',
-            repro: 'session-fixture-42',
+            repro: 'finish a supported local session',
           },
           sessionId: 'session-fixture-42',
           source: requiredInput.source,

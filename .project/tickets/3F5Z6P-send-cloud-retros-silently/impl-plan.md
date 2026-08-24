@@ -50,9 +50,10 @@ Build the smallest end-to-end path in six TDD steps:
    existing retro pipeline that consumes exactly one extracted candidate.
    Extract one reusable `prepareFinding` primitive from `prepareEncounters` so
    private filing and public collection share the same normalize, surface, and
-   sanitizer walls. The public envelope's string `finding` is the deterministic
-   `assembleBody` rendering of that sanitized `Finding`; it does not introduce a
-   second extraction schema or sanitizer. Expose one delivery orchestrator and
+   sanitizer walls. The public envelope's string `finding` is a deterministic
+   rendering of every field in that sanitized `Finding` (title followed by the
+   existing `assembleBody` rendering); it does not introduce a second extraction
+   schema or sanitizer. Expose one delivery orchestrator and
    keep preparation/building and claim/handoff as cohesive internal operations.
    Inject only real nondeterministic boundaries (monotonic clock, UUID source,
    and transport), never generic preparation callbacks that could let tests pass

@@ -2,6 +2,9 @@ import { createHash } from 'node:crypto';
 import { renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
+import { assemblePublicFinding } from './finding.js';
+import { prepareFinding } from './pipeline.js';
+
 export interface PublicRetroSource {
   harness: 'claude-code' | 'codex';
   hostClass: 'local';
@@ -182,6 +185,14 @@ export async function deliverPublicRetro(
   dependencies: PublicRetroDeliveryDependencies,
 ): Promise<PublicRetroDeliveryOutcome> {
   const preparationDeadline = dependencies.now() + 1000;
+  return deliverPreparedInput(input, dependencies, preparationDeadline);
+}
+
+async function deliverPreparedInput(
+  input: PublicRetroEnvelopeInput,
+  dependencies: PublicRetroDeliveryDependencies,
+  preparationDeadline: number,
+): Promise<PublicRetroDeliveryOutcome> {
   try {
     const built = buildPublicRetroEnvelope(input);
     if (built.bytes.byteLength > MAX_ENVELOPE_BYTES) return 'abandoned';
@@ -218,9 +229,24 @@ export async function deliverPublicRetro(
   }
 }
 
-export function deliverPublicRetroCandidate(
-  _input: PublicRetroCandidateInput,
-  _dependencies: PublicRetroDeliveryDependencies,
+export async function deliverPublicRetroCandidate(
+  input: PublicRetroCandidateInput,
+  dependencies: PublicRetroDeliveryDependencies,
 ): Promise<PublicRetroDeliveryOutcome> {
-  return Promise.reject(new Error('Not implemented'));
+  const preparationDeadline = dependencies.now() + 1000;
+  try {
+    const prepared = await prepareFinding(input.candidate);
+    if ('dropped' in prepared || dependencies.now() >= preparationDeadline) return 'abandoned';
+    return await deliverPreparedInput(
+      {
+        finding: assemblePublicFinding(prepared.finding),
+        source: input.source,
+        sessionId: input.sessionId,
+      },
+      dependencies,
+      preparationDeadline,
+    );
+  } catch {
+    return 'abandoned';
+  }
 }

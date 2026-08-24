@@ -85,3 +85,8 @@ export function assembleBody(finding: Finding): string {
     '<sub>Auto-filed by `safeword retro run` from a session transcript; sanitized at egress (no customer data).</sub>',
   ].join('\n');
 }
+
+/** Render every sanitized finding field into the public collector's string value. */
+export function assemblePublicFinding(finding: Finding): string {
+  return `${finding.title}\n\n${assembleBody(finding)}`;
+}
