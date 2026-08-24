@@ -130,9 +130,21 @@ export function preparePublicRetroRequest(
   return { ...built, requestId };
 }
 
-export function submitPublicRetroRequest(
-  _prepared: PreparedPublicRetroRequest,
-  _transport: PublicRetroTransport,
+export async function submitPublicRetroRequest(
+  prepared: PreparedPublicRetroRequest,
+  transport: PublicRetroTransport,
 ): Promise<PublicRetroReceipt> {
-  return Promise.reject(new Error('Not implemented'));
+  const result = await transport({
+    method: 'POST',
+    path: '/v1/public-retros',
+    headers: {
+      'content-type': 'application/json; charset=utf-8',
+      'x-safeword-request-id': prepared.requestId,
+    },
+    body: prepared.bytes,
+  });
+  if (result.requestId !== prepared.requestId || result.receipt.trim() === '') {
+    throw new Error('Invalid public retrospective receipt');
+  }
+  return result;
 }
