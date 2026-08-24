@@ -41,8 +41,9 @@ async function submit(
   request: ReturnType<typeof fixtureRequest>,
   contentType: string | false = 'application/json; charset=utf-8',
   requestIdentity: string | false | readonly string[] = request.requestId,
+  extraHeaders?: Readonly<Record<string, string>>,
 ): Promise<Response> {
-  const headers = new Headers();
+  const headers = new Headers(extraHeaders);
   if (typeof requestIdentity === 'string') {
     headers.set('x-safeword-request-id', requestIdentity);
   } else if (requestIdentity !== false) {
@@ -55,6 +56,26 @@ async function submit(
     body: request.body,
   });
 }
+
+it.each([
+  ['authorization', 'Bearer fixture'],
+  ['cookie', 'session=fixture'],
+  ['x-api-key', 'fixture'],
+])('rejects credential-bearing public submissions via %s', async (header, value) => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+  });
+  const request = fixtureRequest();
+
+  const rejected = await submit(runtime.url, request, undefined, undefined, { [header]: value });
+  const accepted = await submit(runtime.url, request);
+  await runtime.close();
+
+  expect(rejected.status).toBe(404);
+  expect(accepted.status).toBe(201);
+});
 
 function encoded(value: unknown): Uint8Array {
   return new TextEncoder().encode(JSON.stringify(value));
