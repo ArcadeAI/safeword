@@ -1,4 +1,4 @@
-import { lstatSync, readFileSync } from 'node:fs';
+import { lstatSync, readFileSync, realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -117,8 +117,9 @@ function repoGitConfigPath(cwd: string): string {
     throw new Error('Untrusted Git directory pointer');
   }
   if (
-    nodePath.resolve(gitDirectory, backlink) !== dotGit ||
-    nodePath.dirname(gitDirectory) !== nodePath.join(commonDirectory, 'worktrees')
+    realpathSync(nodePath.resolve(gitDirectory, backlink)) !== realpathSync(dotGit) ||
+    realpathSync(nodePath.dirname(gitDirectory)) !==
+      realpathSync(nodePath.join(commonDirectory, 'worktrees'))
   ) {
     throw new Error('Untrusted Git directory pointer');
   }
@@ -204,9 +205,18 @@ export interface PublicGitContextOptions {
 
 function globalGitConfigPaths(options: PublicGitContextOptions): string[] {
   const environment = options.environment ?? process.env;
-  if (environment.GIT_CONFIG_GLOBAL !== undefined) return [environment.GIT_CONFIG_GLOBAL];
+  if (
+    environment.GIT_CONFIG_GLOBAL !== undefined &&
+    nodePath.isAbsolute(environment.GIT_CONFIG_GLOBAL)
+  ) {
+    return [environment.GIT_CONFIG_GLOBAL];
+  }
   const home = options.homeDirectory ?? homedir();
-  const xdg = environment.XDG_CONFIG_HOME ?? nodePath.join(home, '.config');
+  if (!nodePath.isAbsolute(home)) return [];
+  const xdg =
+    environment.XDG_CONFIG_HOME !== undefined && nodePath.isAbsolute(environment.XDG_CONFIG_HOME)
+      ? environment.XDG_CONFIG_HOME
+      : nodePath.join(home, '.config');
   return [nodePath.join(xdg, 'git/config'), nodePath.join(home, '.gitconfig')];
 }
 

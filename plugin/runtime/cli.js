@@ -55625,7 +55625,7 @@ var init_public_delivery = __esm(() => {
 });
 
 // src/retro/public-source.ts
-import { lstatSync as lstatSync22, readFileSync as readFileSync62 } from "fs";
+import { lstatSync as lstatSync22, readFileSync as readFileSync62, realpathSync as realpathSync13 } from "fs";
 import { homedir as homedir8 } from "os";
 import nodePath99 from "path";
 function repoIdentity(hostname, rawPath) {
@@ -55710,7 +55710,7 @@ function repoGitConfigPath(cwd) {
   } catch {
     throw new Error("Untrusted Git directory pointer");
   }
-  if (nodePath99.resolve(gitDirectory, backlink) !== dotGit || nodePath99.dirname(gitDirectory) !== nodePath99.join(commonDirectory, "worktrees")) {
+  if (realpathSync13(nodePath99.resolve(gitDirectory, backlink)) !== realpathSync13(dotGit) || realpathSync13(nodePath99.dirname(gitDirectory)) !== realpathSync13(nodePath99.join(commonDirectory, "worktrees"))) {
     throw new Error("Untrusted Git directory pointer");
   }
   return trustedConfigFile(nodePath99.join(commonDirectory, "config"));
@@ -55784,10 +55784,13 @@ function stripGitComment(value) {
 }
 function globalGitConfigPaths(options) {
   const environment = options.environment ?? process.env;
-  if (environment.GIT_CONFIG_GLOBAL !== undefined)
+  if (environment.GIT_CONFIG_GLOBAL !== undefined && nodePath99.isAbsolute(environment.GIT_CONFIG_GLOBAL)) {
     return [environment.GIT_CONFIG_GLOBAL];
+  }
   const home = options.homeDirectory ?? homedir8();
-  const xdg = environment.XDG_CONFIG_HOME ?? nodePath99.join(home, ".config");
+  if (!nodePath99.isAbsolute(home))
+    return [];
+  const xdg = environment.XDG_CONFIG_HOME !== undefined && nodePath99.isAbsolute(environment.XDG_CONFIG_HOME) ? environment.XDG_CONFIG_HOME : nodePath99.join(home, ".config");
   return [nodePath99.join(xdg, "git/config"), nodePath99.join(home, ".gitconfig")];
 }
 function collectGlobalGitEmail(options) {
@@ -58302,7 +58305,7 @@ import {
   mkdirSync as mkdirSync19,
   mkdtempSync as mkdtempSync7,
   readFileSync as readFileSync63,
-  realpathSync as realpathSync13,
+  realpathSync as realpathSync14,
   statSync as statSync10,
   writeFileSync as writeFileSync23
 } from "fs";
@@ -58655,10 +58658,10 @@ function unavailableTransport() {
 }
 function physicalProjectPath(projectDirectory) {
   try {
-    return realpathSync13(projectDirectory);
+    return realpathSync14(projectDirectory);
   } catch {
     try {
-      return nodePath100.join(realpathSync13(nodePath100.dirname(projectDirectory)), nodePath100.basename(projectDirectory));
+      return nodePath100.join(realpathSync14(nodePath100.dirname(projectDirectory)), nodePath100.basename(projectDirectory));
     } catch {
       return;
     }
@@ -58666,7 +58669,7 @@ function physicalProjectPath(projectDirectory) {
 }
 function physicalOutboxPath(outboxDirectory) {
   try {
-    const physicalOutbox = realpathSync13(outboxDirectory);
+    const physicalOutbox = realpathSync14(outboxDirectory);
     return statSync10(physicalOutbox).isDirectory() ? physicalOutbox : undefined;
   } catch {
     return;

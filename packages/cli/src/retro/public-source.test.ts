@@ -282,4 +282,39 @@ describe('collectPublicGitContext', () => {
       }),
     ).toEqual({ globalEmail: 'global@example.com' });
   });
+
+  it('ignores relative global config environment paths', () => {
+    const directory = createTemporaryDirectory();
+    const gitDirectory = nodePath.join(directory, '.git');
+    mkdirSync(gitDirectory);
+    writeFileSync(nodePath.join(gitDirectory, 'config'), '[core]\nbare = false\n');
+
+    expect(
+      collectPublicGitContext(directory, {
+        environment: {
+          GIT_CONFIG_GLOBAL: 'git/config',
+          XDG_CONFIG_HOME: 'relative-config',
+        },
+        homeDirectory: nodePath.join(directory, 'missing-home'),
+      }),
+    ).toEqual({});
+  });
+
+  it('omits a global email when global config delegates identity', () => {
+    const directory = createTemporaryDirectory();
+    const gitDirectory = nodePath.join(directory, '.git');
+    const globalConfig = nodePath.join(directory, 'global.gitconfig');
+    mkdirSync(gitDirectory);
+    writeFileSync(nodePath.join(gitDirectory, 'config'), '[core]\nbare = false\n');
+    writeFileSync(
+      globalConfig,
+      '[includeIf "gitdir:~/work/"]\npath = /private/identity\n[user]\nemail = global@example.com\n',
+    );
+
+    expect(
+      collectPublicGitContext(directory, {
+        environment: { GIT_CONFIG_GLOBAL: globalConfig },
+      }),
+    ).toEqual({});
+  });
 });
