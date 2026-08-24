@@ -42,6 +42,47 @@ export interface PublicGitContext {
   globalEmail?: string;
 }
 
-export function collectPublicGitContext(_cwd: string): PublicGitContext {
-  return {};
+function parseRepoGitConfig(content: string): { email?: string; remote?: string } {
+  let section = '';
+  let email: string | undefined;
+  let remote: string | undefined;
+  for (const rawLine of content.split(/\r?\n/u)) {
+    const line = rawLine.trim();
+    const nextSection = parseGitSection(line);
+    if (nextSection !== undefined) {
+      section = nextSection;
+      continue;
+    }
+    const entry = parseGitEntry(line);
+    if (!entry) continue;
+    const [key, value] = entry;
+    if (section === 'user' && key === 'email') email = value;
+    if (section === 'remote "origin"' && key === 'url') remote = value;
+  }
+  return { ...(email !== undefined && { email }), ...(remote !== undefined && { remote }) };
 }
+
+function parseGitSection(line: string): string | undefined {
+  return line.startsWith('[') && line.endsWith(']') ? line.slice(1, -1).toLowerCase() : undefined;
+}
+
+function parseGitEntry(line: string): readonly [string, string] | undefined {
+  const separator = line.indexOf('=');
+  if (separator === -1) return undefined;
+  return [line.slice(0, separator).trim().toLowerCase(), line.slice(separator + 1).trim()];
+}
+
+export function collectPublicGitContext(cwd: string): PublicGitContext {
+  try {
+    const config = parseRepoGitConfig(readFileSync(nodePath.join(cwd, '.git/config'), 'utf8'));
+    const repo = config.remote === undefined ? undefined : normalizeRepoRemote(config.remote);
+    return {
+      ...(repo !== undefined && { repository: repo }),
+      ...(config.email !== undefined && config.email.trim() !== '' && { localEmail: config.email }),
+    };
+  } catch {
+    return {};
+  }
+}
+import { readFileSync } from 'node:fs';
+import nodePath from 'node:path';
