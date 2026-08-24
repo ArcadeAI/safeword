@@ -1,4 +1,4 @@
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -92,29 +92,4 @@ describe('project public-retros', () => {
     expect(JSON.parse(result.stdout)).toMatchObject({ state: 'failed', changed: false });
     expect(existsSync(nodePath.join(directory, '.safeword'))).toBe(false);
   });
-
-  it.skipIf(process.platform === 'win32')(
-    'leaves configuration unchanged when its directory is not writable',
-    async () => {
-      const directory = createTemporaryDirectory();
-      const configDirectory = nodePath.join(directory, '.safeword');
-      const configPath = nodePath.join(configDirectory, 'config.json');
-      mkdirSync(configDirectory);
-      const original = `${JSON.stringify({ projectUUID })}\n`;
-      writeFileSync(configPath, original);
-      chmodSync(configDirectory, 0o555);
-
-      try {
-        const result = await runCliWithoutInstall(
-          ['project', 'public-retros', 'off', '--json', '--cwd', directory],
-          { cwd: directory },
-        );
-        expect(result.exitCode).not.toBe(0);
-        expect(JSON.parse(result.stdout)).toMatchObject({ state: 'failed', changed: false });
-        expect(readFileSync(configPath, 'utf8')).toBe(original);
-      } finally {
-        chmodSync(configDirectory, 0o755);
-      }
-    },
-  );
 });

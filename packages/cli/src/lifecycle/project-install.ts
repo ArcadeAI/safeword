@@ -470,10 +470,14 @@ export async function createSetupPlan(
     options.migrateNamespace,
   );
   const reconciliationPackages = reconciliationEffects.packages.length > 0;
-  const compatibilityFiles =
-    !configured || configNeedsCompatibilityUpdate(cwd)
+  const compatibilityFiles = [
+    ...(!configured || configNeedsCompatibilityUpdate(cwd)
       ? [plannedFileEffect(cwd, '.safeword/config.json')]
-      : [];
+      : []),
+    ...(publicRetroConfigNeedsUpdate(cwd)
+      ? [{ kind: 'update' as const, target: '.safeword/config.json' }]
+      : []),
+  ];
   const packageFiles = reconciliationPackages ? plannedJavaScriptPackageFiles(cwd) : [];
   const python = plannedPythonEffects(cwd);
   const staleSafeword = staleSafewordRegistryDependency(cwd);

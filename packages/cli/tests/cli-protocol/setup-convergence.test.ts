@@ -32,9 +32,7 @@ describe('convergent setup', () => {
     expect(config.projectUUID).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u,
     );
-    expect(
-      readFileSync(nodePath.join(directory, '.safeword/retro-attempts/.gitignore'), 'utf8'),
-    ).toBe('*\n!.gitignore\n');
+    expect(existsSync(nodePath.join(directory, '.safeword/retro-attempts'))).toBe(false);
   });
 
   it('repairs a malformed public-retro project identity locally', async () => {
