@@ -223,8 +223,8 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 ### Scenario: Invalid public-retro control leaves configuration unchanged
 
 - [x] RED 285aeecf0
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN c19b049ba
+- [x] REFACTOR skip: one existence guard completes the rejection boundary
 
 ### Scenario: Install repairs malformed project identity locally
 
