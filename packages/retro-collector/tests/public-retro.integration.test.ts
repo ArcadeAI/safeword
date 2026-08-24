@@ -57,6 +57,20 @@ async function submit(
   });
 }
 
+it('exposes anonymous liveness without collection metadata', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+  });
+
+  const response = await fetch(`${runtime.url}/health`);
+  await runtime.close();
+
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual({ status: 'ok' });
+});
+
 it.each([
   ['authorization', 'Bearer fixture'],
   ['cookie', 'session=fixture'],
