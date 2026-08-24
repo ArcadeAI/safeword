@@ -408,7 +408,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 - [x] RED skip: scope conflict behavior was established by the transactional store slice
 - [x] GREEN e6f30af24
-- [ ] REFACTOR
+- [x] REFACTOR skip: one conflict test proves rejection and winner preservation
 
 ### Scenario: A fresh request identity cannot reuse an accepted session scope
 
