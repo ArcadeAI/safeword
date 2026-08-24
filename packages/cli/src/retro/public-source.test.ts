@@ -5,10 +5,50 @@ import { describe, expect, it } from 'vitest';
 
 import { createTemporaryDirectory } from '../../tests/helpers.js';
 import {
+  buildPublicRetroSource,
   collectPublicGitContext,
   normalizeRepoRemote,
   selectPublicUserIdentity,
 } from './public-source.js';
+
+describe('buildPublicRetroSource', () => {
+  it('builds the closed local profile from project config, Git, and runtime metadata', () => {
+    const directory = createTemporaryDirectory();
+    mkdirSync(nodePath.join(directory, '.safeword'));
+    mkdirSync(nodePath.join(directory, '.git'));
+    writeFileSync(
+      nodePath.join(directory, '.safeword', 'config.json'),
+      JSON.stringify({ projectUUID: 'AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA' }),
+    );
+    writeFileSync(
+      nodePath.join(directory, '.git', 'config'),
+      '[remote "origin"]\nurl = git@github.com:ArcadeAI/safeword.git\n[user]\nemail = dev@example.com\n',
+    );
+
+    expect(
+      buildPublicRetroSource(directory, {
+        agentVersion: '1.2.3',
+        cliVersion: '0.79.0',
+        environment: { GIT_CONFIG_GLOBAL: '/fixture/missing' },
+        harness: 'codex',
+        model: 'gpt-fixture',
+        osFamily: 'darwin',
+        pluginVersion: '0.79.0',
+      }),
+    ).toEqual({
+      agentVersion: '1.2.3',
+      harness: 'codex',
+      hostClass: 'local',
+      model: 'gpt-fixture',
+      osFamily: 'darwin',
+      projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+      repository: 'github.com/arcadeai/safeword',
+      safewordCliVersion: '0.79.0',
+      safewordPluginVersion: '0.79.0',
+      userIdentity: 'dev@example.com',
+    });
+  });
+});
 
 describe('normalizeRepoRemote', () => {
   it.each([
