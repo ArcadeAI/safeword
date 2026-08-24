@@ -458,7 +458,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 - [x] RED 1a9c36029
 - [x] GREEN a3a8edbbb
-- [x] REFACTOR a3a8edbbb
+- [x] REFACTOR skip: the read handler was extracted before the green commit to keep intake simple
 
 ### Scenario: Non-operator credentials cannot read public records
 
