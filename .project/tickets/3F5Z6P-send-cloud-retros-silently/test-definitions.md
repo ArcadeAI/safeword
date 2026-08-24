@@ -388,7 +388,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 ### Scenario: The raw v1 envelope size boundary is enforced
 
-- [ ] RED
+- [x] RED skip: streaming byte enforcement was established by the first collector slice
 - [ ] GREEN
 - [ ] REFACTOR
 
