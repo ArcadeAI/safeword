@@ -43,6 +43,15 @@ phase_anchors:
 
 ## Work Log
 
+- 2026-08-24T22:30:00Z Final independent quality review found four material
+  boundary gaps that were fixed: receipt JSON is shape-validated, linked
+  worktree pointers require a backlink before repository config is read,
+  allowlisted source strings are trimmed consistently, and every duplicate or
+  disabled lifecycle run must exit successfully before its negative assertion
+  counts. The accepted default-on/project-opt-out decision and explicit
+  post-launch status of retention, quotas, and rate limits were retained; the
+  strict handoff deadline, no automatic retry, and versioned canonical-byte
+  contract were also retained. Focused re-verification passed 39 tests.
 - 2026-08-24T21:30:00Z Closed the material independent-review findings without
   expanding launch scope: both real local lifecycle carriers now prove
   once-only delivery and project opt-out against the SQLite collector; client
