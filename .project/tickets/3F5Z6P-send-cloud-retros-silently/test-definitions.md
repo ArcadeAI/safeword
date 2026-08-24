@@ -359,7 +359,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 ### Scenario: Concurrent byte-different bodies cannot share one request identity
 
 - [x] RED skip: request conflict handling was necessarily established by the transactional store slice
-- [ ] GREEN
+- [x] GREEN 0384f2263
 - [ ] REFACTOR
 
 ### Scenario: Concurrent fresh identities cannot share one session scope
