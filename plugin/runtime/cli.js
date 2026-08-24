@@ -55698,20 +55698,22 @@ function repoGitConfigPath(cwd) {
   if (!pointer.toLowerCase().startsWith("gitdir:"))
     throw new Error("Invalid Git directory pointer");
   const gitDirectory = nodePath99.resolve(projectDirectory, pointer.slice("gitdir:".length).trim());
+  let commonDirectory;
+  let backlink;
   try {
     const common = readFileSync62(nodePath99.join(gitDirectory, "commondir"), "utf8").trim();
-    const commonDirectory = nodePath99.resolve(gitDirectory, common);
-    const backlink = readFileSync62(nodePath99.join(gitDirectory, "gitdir"), "utf8").trim();
-    if (nodePath99.resolve(gitDirectory, backlink) !== dotGit || nodePath99.dirname(gitDirectory) !== nodePath99.join(commonDirectory, "worktrees")) {
-      throw new Error("Untrusted Git directory pointer");
-    }
-    return nodePath99.join(commonDirectory, "config");
+    commonDirectory = nodePath99.resolve(gitDirectory, common);
+    backlink = readFileSync62(nodePath99.join(gitDirectory, "gitdir"), "utf8").trim();
   } catch {
     if (gitDirectory.startsWith(`${projectDirectory}${nodePath99.sep}`)) {
       return nodePath99.join(gitDirectory, "config");
     }
     throw new Error("Untrusted Git directory pointer");
   }
+  if (nodePath99.resolve(gitDirectory, backlink) !== dotGit || nodePath99.dirname(gitDirectory) !== nodePath99.join(commonDirectory, "worktrees")) {
+    throw new Error("Untrusted Git directory pointer");
+  }
+  return nodePath99.join(commonDirectory, "config");
 }
 function parseRepoGitConfig(content) {
   let section = "";
@@ -55822,11 +55824,15 @@ function createPublicRetroTransport(options) {
     throw new Error("Invalid public retrospective origin");
   }
   return async (request, signal) => {
-    const response = await send(new URL(request.path, origin).href, {
+    const target = new URL(request.path, origin);
+    if (target.origin !== origin.origin || request.redirect !== "error") {
+      throw new Error("Invalid public retrospective request");
+    }
+    const response = await send(target.href, {
       body: request.body,
       headers: request.headers,
       method: request.method,
-      redirect: request.redirect,
+      redirect: "error",
       signal
     });
     if (!response.ok)
