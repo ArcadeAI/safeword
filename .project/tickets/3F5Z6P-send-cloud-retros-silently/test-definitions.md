@@ -464,7 +464,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 - [x] RED skip: operator authorization was established by the preceding read slice
 - [x] GREEN a56d5cff8
-- [ ] REFACTOR
+- [x] REFACTOR skip: one table covers every non-operator credential class
 
 ### Scenario: Anonymous callers cannot enumerate public records
 
