@@ -63,6 +63,7 @@ import { reconcile, ReconcileExecutionError, type ReconcileResult } from '../rec
 import {
   ensurePublicRetroProjectConfig,
   publicRetroConfigNeedsUpdate,
+  validatePublicRetroProjectConfig,
 } from '../retro/public-config.js';
 import type { SafewordSchema } from '../schema.js';
 import { createProjectContext } from '../utils/context.js';
@@ -592,19 +593,36 @@ class SetupApplyError extends Error {
   }
 }
 
+function publicRetroConfigRefusal(cwd: string): CliResult | undefined {
+  try {
+    validatePublicRetroProjectConfig(cwd);
+  } catch (error) {
+    return setupFailure(error, {});
+  }
+}
+
+interface ConvergeSetupOptions {
+  noModify?: boolean;
+  migrateNamespace?: boolean;
+  repairVersionMarker?: boolean;
+  progress?: {
+    readonly start: (message: string) => void;
+    readonly stop: () => void;
+  };
+  adapters?: Partial<SetupAdapters>;
+  schema?: SafewordSchema;
+}
+
 export async function convergeSetup(
   cwd: string,
-  options: {
-    noModify?: boolean;
-    migrateNamespace?: boolean;
-    repairVersionMarker?: boolean;
-    progress?: {
-      readonly start: (message: string) => void;
-      readonly stop: () => void;
-    };
-    adapters?: Partial<SetupAdapters>;
-    schema?: SafewordSchema;
-  },
+  options: ConvergeSetupOptions,
+): Promise<CliResult> {
+  return publicRetroConfigRefusal(cwd) ?? convergeSetupValidated(cwd, options);
+}
+
+async function convergeSetupValidated(
+  cwd: string,
+  options: ConvergeSetupOptions,
 ): Promise<CliResult> {
   const configured = existsSync(nodePath.join(cwd, '.safeword'));
   const versionGate: ProjectVersionGate = configured

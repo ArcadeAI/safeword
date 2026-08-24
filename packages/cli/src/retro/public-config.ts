@@ -29,6 +29,11 @@ function validateCollectionSetting(config: Record<string, unknown>): void {
   }
 }
 
+/** Validate user-controlled settings before setup performs any mutation. */
+export function validatePublicRetroProjectConfig(cwd: string): void {
+  validateCollectionSetting(readConfig(cwd));
+}
+
 export function publicRetroConfigNeedsUpdate(cwd: string): boolean {
   try {
     const config = readConfig(cwd);
