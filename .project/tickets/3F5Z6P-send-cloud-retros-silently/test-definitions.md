@@ -234,7 +234,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 ### Scenario: Uppercase project identity is serialized canonically
 
-- [ ] RED
+- [x] RED skip: the canonical-envelope RED already supplied an uppercase project identity
 - [ ] GREEN
 - [ ] REFACTOR
 
