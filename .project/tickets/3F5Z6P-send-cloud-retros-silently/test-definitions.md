@@ -348,7 +348,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 - [x] RED f4911e7fb
 - [x] GREEN 3949b937c
-- [ ] REFACTOR
+- [x] REFACTOR skip: first vertical slice has no duplication or unclear ownership
 
 ### Scenario: Concurrent first submissions converge
 
