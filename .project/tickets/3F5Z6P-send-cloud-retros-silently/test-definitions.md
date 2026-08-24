@@ -187,8 +187,8 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 ### Scenario: First install creates project identity locally
 
 - [x] RED da303fab6
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN c5871be74
+- [x] REFACTOR skip: setup delegates the one local config migration to a focused helper
 
 ### Scenario: Existing project identity is preserved
 
