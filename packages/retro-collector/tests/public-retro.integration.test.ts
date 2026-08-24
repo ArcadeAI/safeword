@@ -77,6 +77,28 @@ it.each([
   expect(accepted.status).toBe(201);
 });
 
+it('returns byte-identical quarantine bytes to an authorized operator', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+    operatorCredential: 'operator-fixture-credential',
+  } as Parameters<typeof startPublicRetroCollector>[0]);
+  const request = fixtureRequest();
+  const accepted = await submit(runtime.url, request);
+  const { receipt } = (await accepted.json()) as { receipt: string };
+
+  const inspected = await fetch(`${runtime.url}/v1/public-retros/${receipt}`, {
+    headers: { authorization: 'Bearer operator-fixture-credential' },
+  });
+  const inspectedBody = new Uint8Array(await inspected.arrayBuffer());
+  await runtime.close();
+
+  expect(inspected.status).toBe(200);
+  expect(inspected.headers.get('x-safeword-receipt')).toBe(receipt);
+  expect(inspectedBody).toEqual(request.body);
+});
+
 function encoded(value: unknown): Uint8Array {
   return new TextEncoder().encode(JSON.stringify(value));
 }
