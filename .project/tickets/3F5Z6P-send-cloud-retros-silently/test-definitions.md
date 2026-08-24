@@ -172,7 +172,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 ### Scenario: User identity follows documented precedence
 
-- [ ] RED
+- [x] RED d604dfa2f
 - [ ] GREEN
 - [ ] REFACTOR
 
