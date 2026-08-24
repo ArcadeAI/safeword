@@ -240,4 +240,79 @@ describe('buildPublicRetroEnvelope', () => {
       rmSync(attemptsDirectory, { recursive: true, force: true });
     }
   });
+
+  it('contains renderer failures before claim or handoff', async () => {
+    const attemptsDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-public-retro-'));
+    const finding = {
+      category: 'bug' as const,
+      get title(): string {
+        throw new Error('injected renderer failure');
+      },
+      safewordSurface: 'packages/cli/src/retro/public-delivery.ts',
+      whatHappened: 'The renderer failed.',
+      whyFriction: 'A hook failure would be visible.',
+      repro: 'Render the finding.',
+    };
+    let transportCalls = 0;
+    try {
+      const outcome = await deliverSanitizedPublicRetroFinding(
+        { finding, source: requiredInput.source, sessionId: requiredInput.sessionId },
+        {
+          attemptsDirectory,
+          now: () => 0,
+          randomUUID: () => '01911111-2222-7333-8444-55555555555A',
+          transport: () => {
+            transportCalls += 1;
+            return Promise.reject(new Error('must not submit'));
+          },
+        },
+        1000,
+      );
+
+      expect(outcome).toBe('abandoned');
+      expect(transportCalls).toBe(0);
+      expect(readdirSync(attemptsDirectory)).toEqual([]);
+    } finally {
+      rmSync(attemptsDirectory, { recursive: true, force: true });
+    }
+  });
+
+  it('removes an uncommitted receipt temporary file at the handoff deadline', async () => {
+    const attemptsDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-public-retro-'));
+    const times = [0, 0, 0, 1999, 2000];
+    try {
+      const outcome = await deliverSanitizedPublicRetroFinding(
+        {
+          finding: {
+            category: 'bug',
+            title: 'Late receipt fixture',
+            safewordSurface: 'packages/cli/src/retro/public-delivery.ts',
+            whatHappened: 'The receipt reached its persistence deadline.',
+            whyFriction: 'Temporary files must not accumulate.',
+            repro: 'Reach the handoff deadline after the temporary write.',
+          },
+          source: requiredInput.source,
+          sessionId: requiredInput.sessionId,
+        },
+        {
+          attemptsDirectory,
+          now: () => times.shift() ?? 2000,
+          randomUUID: () => '01911111-2222-7333-8444-55555555555A',
+          transport: request =>
+            Promise.resolve({
+              requestId: request.headers['x-safeword-request-id'],
+              receipt: 'receipt-fixture',
+            }),
+        },
+        1000,
+      );
+
+      expect(outcome).toBe('abandoned');
+      expect(readdirSync(attemptsDirectory)).toEqual([
+        '724a847e56e94bd49967250b1b27444314f1e479700c1751c3723d9852e6bee0.json',
+      ]);
+    } finally {
+      rmSync(attemptsDirectory, { recursive: true, force: true });
+    }
+  });
 });

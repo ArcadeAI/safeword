@@ -60,12 +60,19 @@ function operatorReceipt(
   credential: string | undefined,
 ): string | undefined {
   if (request.method !== 'GET' || credential === undefined) return undefined;
-  const authorization = request.headers.authorization;
-  const expected = `Bearer ${credential}`;
-  if (authorization?.length !== expected.length) return undefined;
-  if (!timingSafeEqual(Buffer.from(authorization), Buffer.from(expected))) return undefined;
+  if (!matchesCredential(request.headers.authorization, credential)) return undefined;
   const match = /^\/v1\/public-retros\/([0-9a-f-]{36})$/u.exec(request.url ?? '');
   return match?.[1] !== undefined && UUID.test(match[1]) ? match[1] : undefined;
+}
+
+function matchesCredential(authorization: string | undefined, credential: string): boolean {
+  if (authorization === undefined) return false;
+  const actualBytes = Buffer.from(authorization);
+  const expectedBytes = Buffer.from(`Bearer ${credential}`);
+  return (
+    actualBytes.byteLength === expectedBytes.byteLength &&
+    timingSafeEqual(actualBytes, expectedBytes)
+  );
 }
 
 function serveOperatorRead(
@@ -83,6 +90,7 @@ function serveOperatorRead(
   }
   response.statusCode = 200;
   response.setHeader('content-type', 'application/json; charset=utf-8');
+  response.setHeader('x-content-type-options', 'nosniff');
   response.setHeader('x-safeword-receipt', record.receipt);
   response.end(record.rawBody);
   return true;
@@ -215,13 +223,18 @@ export async function startPublicRetroCollector(
       }
     });
   });
-  await new Promise<void>((resolve, reject) => {
-    server.once('error', reject);
-    server.listen(options.port ?? 0, options.host ?? '127.0.0.1', () => {
-      server.off('error', reject);
-      resolve();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(options.port ?? 0, options.host ?? '127.0.0.1', () => {
+        server.off('error', reject);
+        resolve();
+      });
     });
-  });
+  } catch (error) {
+    store.close();
+    throw error;
+  }
   const address = server.address();
   if (address === null || typeof address === 'string') {
     server.close();
@@ -231,13 +244,17 @@ export async function startPublicRetroCollector(
   return {
     url: `http://${address.address}:${address.port}`,
     close: async () => {
-      await new Promise<void>((resolve, reject) => {
-        server.close(error => {
-          if (error === undefined) resolve();
-          else reject(error);
+      server.closeIdleConnections();
+      try {
+        await new Promise<void>((resolve, reject) => {
+          server.close(error => {
+            if (error === undefined) resolve();
+            else reject(error);
+          });
         });
-      });
-      store.close();
+      } finally {
+        store.close();
+      }
     },
   };
 }

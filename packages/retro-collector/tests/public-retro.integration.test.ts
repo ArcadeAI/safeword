@@ -141,6 +141,24 @@ it.each([
   expect(await inspected.json()).toEqual({ error: 'not_found' });
 });
 
+it('treats a non-ASCII lookalike operator credential as not found', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+    operatorCredential: 'operator-fixture-credential',
+  });
+
+  const response = await fetch(
+    `${runtime.url}/v1/public-retros/01911111-2222-7333-8444-55555555555a`,
+    { headers: { authorization: 'Bearer operator-fixture-credentiaé' } },
+  );
+  await runtime.close();
+
+  expect(response.status).toBe(404);
+  expect(await response.json()).toEqual({ error: 'not_found' });
+});
+
 it('keeps operator reads disabled when the configured credential is blank', async () => {
   const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
   temporaryDirectories.push(directory);

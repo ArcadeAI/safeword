@@ -72,6 +72,22 @@ function hasValue(value: string | undefined): value is string {
   return value !== undefined && value.trim() !== '';
 }
 
+function optionalValue(value: string | undefined): string | undefined {
+  return hasValue(value) ? value.trim() : undefined;
+}
+
+function isValidEnvelopeInput(input: PublicRetroEnvelopeInput, projectUUID: string): boolean {
+  const { source } = input;
+  return (
+    UUID.test(projectUUID) &&
+    input.finding.trim() !== '' &&
+    input.sessionId.trim() !== '' &&
+    (source.harness === 'claude-code' || source.harness === 'codex') &&
+    source.hostClass === 'local' &&
+    source.safewordCliVersion.trim() !== ''
+  );
+}
+
 function deriveSessionScope(
   harness: PublicRetroSource['harness'],
   projectUUID: string,
@@ -91,7 +107,7 @@ export function buildPublicRetroEnvelope(
   input: PublicRetroEnvelopeInput,
 ): BuiltPublicRetroEnvelope {
   const projectUUID = input.source.projectUUID.toLowerCase();
-  if (!UUID.test(projectUUID) || input.finding.trim() === '' || input.sessionId.trim() === '') {
+  if (!isValidEnvelopeInput(input, projectUUID)) {
     throw new Error('Invalid public retrospective input');
   }
 
@@ -100,14 +116,24 @@ export function buildPublicRetroEnvelope(
     hostClass: input.source.hostClass,
     projectUUID,
     safewordCliVersion: input.source.safewordCliVersion,
-    ...(hasValue(input.source.repository) && { repository: input.source.repository }),
-    ...(hasValue(input.source.agentVersion) && { agentVersion: input.source.agentVersion }),
-    ...(hasValue(input.source.model) && { model: input.source.model }),
-    ...(hasValue(input.source.safewordPluginVersion) && {
-      safewordPluginVersion: input.source.safewordPluginVersion,
+    ...(optionalValue(input.source.repository) !== undefined && {
+      repository: optionalValue(input.source.repository),
     }),
-    ...(hasValue(input.source.osFamily) && { osFamily: input.source.osFamily }),
-    ...(hasValue(input.source.userIdentity) && { userIdentity: input.source.userIdentity }),
+    ...(optionalValue(input.source.agentVersion) !== undefined && {
+      agentVersion: optionalValue(input.source.agentVersion),
+    }),
+    ...(optionalValue(input.source.model) !== undefined && {
+      model: optionalValue(input.source.model),
+    }),
+    ...(optionalValue(input.source.safewordPluginVersion) !== undefined && {
+      safewordPluginVersion: optionalValue(input.source.safewordPluginVersion),
+    }),
+    ...(optionalValue(input.source.osFamily) !== undefined && {
+      osFamily: optionalValue(input.source.osFamily),
+    }),
+    ...(optionalValue(input.source.userIdentity) !== undefined && {
+      userIdentity: optionalValue(input.source.userIdentity),
+    }),
   };
   const scope = deriveSessionScope(source.harness, projectUUID, input.sessionId);
   const bytes = new TextEncoder().encode(
@@ -184,9 +210,8 @@ async function deliverPreparedInput(
   preparationDeadline: number,
 ): Promise<PublicRetroDeliveryOutcome> {
   try {
-    const built = buildPublicRetroEnvelope(input);
-    if (built.bytes.byteLength > MAX_ENVELOPE_BYTES) return 'abandoned';
     if (dependencies.now() >= preparationDeadline) return 'abandoned';
+    const built = buildPublicRetroEnvelope(input);
     const prepared = claimPublicRetroRequest(built, dependencies);
     if (!prepared || dependencies.now() >= preparationDeadline) return 'abandoned';
 
@@ -206,14 +231,26 @@ async function deliverPreparedInput(
 
     const markerPath = path.join(dependencies.attemptsDirectory, `${prepared.sessionScope}.json`);
     const temporaryPath = `${markerPath}.${prepared.requestId}.tmp`;
-    writeFileSync(
-      temporaryPath,
-      JSON.stringify({ sessionScope: prepared.sessionScope, receipt: result.receipt }),
-      { encoding: 'utf8', flag: 'wx', flush: true },
-    );
-    if (dependencies.now() >= handoffDeadline) return 'abandoned';
-    renameSync(temporaryPath, markerPath);
-    return 'preserved';
+    let committed = false;
+    try {
+      writeFileSync(
+        temporaryPath,
+        JSON.stringify({ sessionScope: prepared.sessionScope, receipt: result.receipt }),
+        { encoding: 'utf8', flag: 'wx', flush: true },
+      );
+      if (dependencies.now() >= handoffDeadline) return 'abandoned';
+      renameSync(temporaryPath, markerPath);
+      committed = true;
+      return 'preserved';
+    } finally {
+      if (!committed) {
+        try {
+          unlinkSync(temporaryPath);
+        } catch {
+          // Nothing remains when creation failed before the temporary file existed.
+        }
+      }
+    }
   } catch {
     return 'abandoned';
   }
@@ -224,13 +261,17 @@ export function deliverSanitizedPublicRetroFinding(
   dependencies: PublicRetroDeliveryDependencies,
   preparationDeadline: number,
 ): Promise<PublicRetroDeliveryOutcome> {
-  return deliverPreparedInput(
-    {
-      finding: assemblePublicFinding(input.finding),
-      source: input.source,
-      sessionId: input.sessionId,
-    },
-    dependencies,
-    preparationDeadline,
-  );
+  try {
+    return deliverPreparedInput(
+      {
+        finding: assemblePublicFinding(input.finding),
+        source: input.source,
+        sessionId: input.sessionId,
+      },
+      dependencies,
+      preparationDeadline,
+    );
+  } catch {
+    return Promise.resolve('abandoned');
+  }
 }

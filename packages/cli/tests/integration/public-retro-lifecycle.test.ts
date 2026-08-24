@@ -15,6 +15,7 @@ import path from 'node:path';
 import { afterEach, expect, it } from 'vitest';
 
 import { startPublicRetroCollector } from '../../../retro-collector/src/index.js';
+import { PublicRetroStore } from '../../../retro-collector/src/store.js';
 
 const ROOT = path.resolve(import.meta.dirname, '../../../..');
 const CLI_PACKAGE = path.join(ROOT, 'packages/cli');
@@ -128,10 +129,24 @@ it.each([
         },
       ]),
     );
-    const collector = await startPublicRetroCollector({
-      databasePath: path.join(project, 'collector.sqlite'),
-      operatorCredential: 'operator-fixture-credential',
-    });
+    const store = new PublicRetroStore(path.join(project, 'collector.sqlite'));
+    let acceptCalls = 0;
+    const collector = await startPublicRetroCollector(
+      {
+        databasePath: path.join(project, 'collector.sqlite'),
+        operatorCredential: 'operator-fixture-credential',
+      },
+      {
+        accept: (...args) => {
+          acceptCalls += 1;
+          return store.accept(...args);
+        },
+        close: () => {
+          store.close();
+        },
+        read: receipt => store.read(receipt),
+      },
+    );
     const sessionId = `public-lifecycle-${process.pid}-${Date.now()}`;
     const debugLog = path.join(project, 'retro-debug.jsonl');
 
@@ -199,6 +214,54 @@ it.each([
           projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
         },
       });
+      expect(acceptCalls).toBe(1);
+
+      await runHook(
+        bun,
+        HOOKS[harness],
+        project,
+        {
+          ...process.env,
+          CLAUDE_PROJECT_DIR: project,
+          CLI_PATH: path.join(buildDirectory, 'cli.js'),
+          FINDINGS_PATH: findings,
+          PATH: `${path.dirname(bun)}:/usr/bin:/bin`,
+          SAFEWORD_RETRO_EXTRACT_CMD: wrapper,
+        },
+        JSON.stringify({ session_id: sessionId, transcript_path: transcript, cwd: project }),
+      );
+      expect(acceptCalls).toBe(1);
+      expect(readdirSync(attemptsDirectory)).toHaveLength(1);
+
+      writeFileSync(
+        path.join(safewordDirectory, 'config.json'),
+        JSON.stringify({
+          projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+          publicRetrospectiveCollection: false,
+          selfReport: { surface: true },
+        }),
+      );
+      const disabledSessionId = `${sessionId}-disabled`;
+      await runHook(
+        bun,
+        HOOKS[harness],
+        project,
+        {
+          ...process.env,
+          CLAUDE_PROJECT_DIR: project,
+          CLI_PATH: path.join(buildDirectory, 'cli.js'),
+          FINDINGS_PATH: findings,
+          PATH: `${path.dirname(bun)}:/usr/bin:/bin`,
+          SAFEWORD_RETRO_EXTRACT_CMD: wrapper,
+        },
+        JSON.stringify({
+          session_id: disabledSessionId,
+          transcript_path: transcript,
+          cwd: project,
+        }),
+      );
+      expect(acceptCalls).toBe(1);
+      expect(readdirSync(attemptsDirectory)).toHaveLength(1);
     } finally {
       await collector.close();
     }
