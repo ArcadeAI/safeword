@@ -14,6 +14,10 @@ const workflowPath = nodePath.resolve(
   '../../../.github/workflows/deploy-retro-relay.yml',
 );
 const ciWorkflowPath = nodePath.resolve(import.meta.dirname, '../../../.github/workflows/ci.yml');
+const collectorWorkflowPath = nodePath.resolve(
+  import.meta.dirname,
+  '../../../.github/workflows/deploy-retro-collector.yml',
+);
 
 describe('Retro Relay deployment workflow', () => {
   it('keeps an environment-protected manual recovery path', () => {
@@ -66,5 +70,44 @@ describe('Retro Relay deployment workflow', () => {
     expect(source).toContain('packages/retro-relay/*');
     expect(source).toContain('RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}');
     expect(source).toContain('railway up --ci');
+  });
+});
+
+describe('Public retro collector deployment workflow', () => {
+  it('keeps a separate environment-protected manual deployment path', () => {
+    const source = readFileSync(collectorWorkflowPath, 'utf8');
+    const workflow = parse(source) as {
+      on: string;
+      permissions: { contents: string };
+      concurrency: { group: string; 'cancel-in-progress': boolean };
+    };
+
+    expect(workflow.on).toBe('workflow_dispatch');
+    expect(workflow.permissions).toEqual({ contents: 'read' });
+    expect(workflow.concurrency.group).toBe('retro-collector-production');
+    expect(source).toContain('environment: retro-relay-production');
+    expect(source).toContain('RAILWAY_SERVICE: ${{ vars.RAILWAY_RETRO_COLLECTOR_SERVICE }}');
+    expect(source).toContain('railway up --ci');
+  });
+
+  it('deploys collector changes only after every CI gate passes', () => {
+    const source = readFileSync(ciWorkflowPath, 'utf8');
+    const workflow = parse(source) as {
+      jobs: Record<string, { needs?: string[]; environment?: string; if?: string }>;
+    };
+    const deployment = workflow.jobs['deploy-retro-collector'];
+
+    expect(deployment).toBeDefined();
+    expect(deployment?.needs).toEqual([
+      'dogfood-parity',
+      'dependency-audit',
+      'test',
+      'lint',
+      'collector-inputs',
+    ]);
+    expect(deployment?.environment).toBe('retro-relay-production');
+    expect(deployment?.if).toContain("github.ref == 'refs/heads/main'");
+    expect(source).toContain('packages/retro-collector/*');
+    expect(source).toContain('RAILWAY_RETRO_COLLECTOR_SERVICE');
   });
 });
