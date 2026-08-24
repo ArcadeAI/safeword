@@ -457,7 +457,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 ### Scenario: An authorized operator can inspect a quarantined record
 
 - [x] RED 1a9c36029
-- [ ] GREEN
+- [x] GREEN a3a8edbbb
 - [ ] REFACTOR
 
 ### Scenario: Non-operator credentials cannot read public records
