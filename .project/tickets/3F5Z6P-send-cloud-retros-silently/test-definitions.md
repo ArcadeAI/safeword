@@ -573,8 +573,8 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 ### Scenario: An oversized prepared envelope is abandoned before handoff
 
 - [x] RED f711991b2
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 0a9aed190
+- [x] REFACTOR skip: one byte-length guard is the smallest complete boundary
 
 ### Scenario: A maximum-sized prepared envelope proceeds to handoff
 
