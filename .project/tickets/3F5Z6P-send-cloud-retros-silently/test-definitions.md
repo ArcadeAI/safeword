@@ -382,7 +382,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 ### Scenario: A minimal source profile is accepted
 
-- [ ] RED
+- [x] RED skip: minimal-profile acceptance was established by the first collector slice
 - [ ] GREEN
 - [ ] REFACTOR
 
