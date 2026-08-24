@@ -434,7 +434,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 - [x] RED 30e491178
 - [x] GREEN 5ac79e3d0
-- [ ] REFACTOR
+- [x] REFACTOR skip: the composition root and package wiring are already minimal
 
 ### Scenario: Public collector has no private filing authority
 
