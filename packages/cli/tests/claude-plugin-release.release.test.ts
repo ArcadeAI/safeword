@@ -117,6 +117,7 @@ describe('Claude plugin release contract', () => {
     expect(canary).toContain('owner: ArcadeAI');
     expect(canary).toContain('owner: TheMostlyGreat');
     expect(canary.match(/repositories: safeword-pr-review-smoke-base/gu)).toHaveLength(2);
+    expect(canary.match(/permission-workflows: write/gu)).toHaveLength(2);
     expect(canary).not.toContain('permission-administration');
     expect(canary).not.toContain('permission-environments');
     expect(canary).not.toContain('SAFEWORD_PR_REVIEW_SMOKE_TOKEN');

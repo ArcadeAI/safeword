@@ -527,7 +527,7 @@ Install that App with selected-repository access only on
 `ArcadeAI/safeword-pr-review-smoke-base` and its real fork,
 `TheMostlyGreat/safeword-pr-review-smoke-base`. The App needs Actions, Contents,
 Issues, Pull requests, and Workflows write access; the fork token is further
-restricted to Contents write. Before the first run, configure a non-production
+restricted to Contents and Workflows write. Before the first run, configure a non-production
 `OPENAI_API_KEY` placeholder in the base repository's
 `safeword-pr-review-model` environment. The smoke App must not have authority
 over production repositories. The workflow mints separate installation tokens

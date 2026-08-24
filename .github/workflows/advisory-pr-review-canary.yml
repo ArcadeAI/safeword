@@ -60,6 +60,7 @@ jobs:
           owner: TheMostlyGreat
           repositories: safeword-pr-review-smoke-base
           permission-contents: write
+          permission-workflows: write
 
       - name: Prove fork-event and scheduled advisory semantics
         run: bun run --cwd packages/cli smoke:pr-review:disposable
