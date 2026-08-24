@@ -204,7 +204,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 ### Scenario: Install and upgrade reject a malformed collection setting atomically
 
-- [ ] RED
+- [x] RED be77c66e4
 - [ ] GREEN
 - [ ] REFACTOR
 
