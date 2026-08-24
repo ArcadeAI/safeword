@@ -402,7 +402,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 - [x] RED skip: canonical raw-byte enforcement was established by envelope validation
 - [x] GREEN b71215cf9
-- [ ] REFACTOR
+- [x] REFACTOR skip: one raw-body authority test proves rejection and record preservation
 
 ### Scenario: Reusing a session scope with different bytes is rejected
 
