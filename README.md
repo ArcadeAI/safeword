@@ -520,15 +520,18 @@ Keep the customer workflow disabled until a live smoke passes where it will run.
 
 ### Maintainer compatibility proof
 
-The release environment named `pr-review-smoke` must define
-`SAFEWORD_PR_REVIEW_SMOKE_TOKEN`. Its account needs narrowly scoped authority to
-create and permanently delete public repositories under two dedicated sandbox
-owners, manage their Actions environments and secrets, and create a fork from
-one owner into the other. It must not have authority over production
-repositories. Both repository variables, `SAFEWORD_PR_REVIEW_SMOKE_OWNER` and
-`SAFEWORD_PR_REVIEW_SMOKE_FORK_OWNER`, are required and must name different
-sandbox owners. Configure the environment's deployment policies to allow only
-release tags and the default branch.
+The release environment named `pr-review-smoke` must define the secret
+`SAFEWORD_PR_REVIEW_SMOKE_APP_PRIVATE_KEY` and the variable
+`SAFEWORD_PR_REVIEW_SMOKE_APP_CLIENT_ID` for a dedicated smoke-only GitHub App.
+Install that App with selected-repository access only on
+`ArcadeAI/safeword-pr-review-smoke-base` and its real fork,
+`TheMostlyGreat/safeword-pr-review-smoke-base`. The App needs Actions, Contents,
+Environments, Issues, Pull requests, and Workflows write access; the fork token
+is further restricted to Contents write. The smoke App must not have authority
+over production repositories. The workflow mints separate installation tokens
+for the fixed repositories; GitHub revokes them at job completion, and they
+otherwise expire within one hour. Configure the environment's deployment
+policies to allow only the default branch.
 
 Run the same proof locally with:
 
@@ -536,14 +539,16 @@ Run the same proof locally with:
 bun run --cwd packages/cli smoke:pr-review:disposable
 ```
 
-Each daily canary or manual proof creates
-`safeword-pr-review-smoke-<unique-id>` in both owners, exercises a real fork pull
-request plus the canonical scheduled-call projection, and then permanently
-deletes both repositories. Set
-`SAFEWORD_KEEP_PR_REVIEW_SMOKE=1` only while debugging. When GitHub Actions
-semantics change, update the pinned actionlint version and checksum in CI, run
-`check:pr-review-workflows`, run this disposable proof, and record both results
-in the compatibility ticket before release.
+For a local run, set `GH_TOKEN` to a base-owner installation token and
+`SAFEWORD_PR_REVIEW_SMOKE_FORK_TOKEN` to a fork-owner installation token.
+
+Each daily canary or manual proof updates the fixed base fixture, creates a
+temporary branch in the fixed fork, exercises a real fork pull request plus the
+canonical scheduled-call projection, and then independently closes the pull
+request, deletes the temporary branch, and removes its local checkout. When
+GitHub Actions semantics change, update the pinned actionlint version and
+checksum in CI, run `check:pr-review-workflows`, run this proof, and record both
+results in the compatibility ticket before release.
 
 ---
 
