@@ -198,6 +198,31 @@ it('keeps distinct submissions independent', async () => {
   expect(receipts[0]?.receipt).not.toBe(receipts[1]?.receipt);
 });
 
+it('does not let semantic JSON equivalence override accepted raw bytes', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+  });
+  const canonical = fixtureRequest();
+  const equivalent = {
+    ...canonical,
+    body: new TextEncoder().encode(JSON.stringify(fixtureEnvelope(), undefined, 2)),
+  };
+
+  const accepted = await submit(runtime.url, canonical);
+  const firstReceipt = await accepted.json();
+  const rejected = await submit(runtime.url, equivalent);
+  const retry = await submit(runtime.url, canonical);
+  const retryReceipt = await retry.json();
+  await runtime.close();
+
+  expect(accepted.status).toBe(201);
+  expect(rejected.status).toBeGreaterThanOrEqual(400);
+  expect(retry.status).toBe(200);
+  expect(retryReceipt).toEqual(firstReceipt);
+});
+
 it.each([
   ['ascii', 65_536, 201],
   ['ascii', 65_537, 413],
