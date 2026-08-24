@@ -2,6 +2,9 @@ import { lstatSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import nodePath from 'node:path';
 
+import { readEnabledPublicRetroProject } from './public-config.js';
+import type { PublicRetroSource } from './public-delivery.js';
+
 const SCP_REMOTE = /^[^@\s]+@([^:\s]+):(.+)$/u;
 const ALLOWED_PROTOCOLS = new Set(['git:', 'https:', 'ssh:']);
 
@@ -44,6 +47,54 @@ export interface PublicGitContext {
   repository?: string;
   localEmail?: string;
   globalEmail?: string;
+}
+
+export interface PublicRetroSourceOptions {
+  agentVersion?: string;
+  cliVersion: string;
+  environment?: Readonly<Record<string, string | undefined>>;
+  harness: PublicRetroSource['harness'];
+  model?: string;
+  osFamily: string;
+  pluginVersion?: string;
+  runtimeIdentity?: string;
+}
+
+function optionalValue(value: string | undefined): string | undefined {
+  return value !== undefined && value.trim() !== '' ? value : undefined;
+}
+
+/** Build the exact allowlisted local source profile, or fail closed when disabled. */
+export function buildPublicRetroSource(
+  cwd: string,
+  options: PublicRetroSourceOptions,
+): PublicRetroSource | undefined {
+  const project = readEnabledPublicRetroProject(cwd);
+  if (project === undefined) return undefined;
+  const git = collectPublicGitContext(cwd, { environment: options.environment });
+  const userIdentity = selectPublicUserIdentity(
+    options.runtimeIdentity,
+    git.localEmail,
+    git.globalEmail,
+  );
+  return {
+    harness: options.harness,
+    hostClass: 'local',
+    projectUUID: project.projectUUID,
+    safewordCliVersion: options.cliVersion,
+    ...(git.repository !== undefined && { repository: git.repository }),
+    ...(optionalValue(options.agentVersion) !== undefined && {
+      agentVersion: optionalValue(options.agentVersion),
+    }),
+    ...(optionalValue(options.model) !== undefined && { model: optionalValue(options.model) }),
+    ...(optionalValue(options.pluginVersion) !== undefined && {
+      safewordPluginVersion: optionalValue(options.pluginVersion),
+    }),
+    ...(optionalValue(options.osFamily) !== undefined && {
+      osFamily: optionalValue(options.osFamily),
+    }),
+    ...(userIdentity !== undefined && { userIdentity }),
+  };
 }
 
 function repoGitConfigPath(cwd: string): string {
