@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { unlinkSync, writeFileSync } from 'node:fs';
+import { renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 export interface PublicRetroSource {
@@ -143,26 +143,61 @@ export function preparePublicRetroRequest(
 export async function submitPublicRetroRequest(
   prepared: PreparedPublicRetroRequest,
   transport: PublicRetroTransport,
+  signal?: AbortSignal,
 ): Promise<PublicRetroReceipt> {
-  const result = await transport({
-    method: 'POST',
-    path: '/v1/public-retros',
-    headers: {
-      'content-type': 'application/json; charset=utf-8',
-      'x-safeword-request-id': prepared.requestId,
+  const result = await transport(
+    {
+      method: 'POST',
+      path: '/v1/public-retros',
+      headers: {
+        'content-type': 'application/json; charset=utf-8',
+        'x-safeword-request-id': prepared.requestId,
+      },
+      body: prepared.bytes,
+      redirect: 'error',
     },
-    body: prepared.bytes,
-    redirect: 'error',
-  });
+    signal,
+  );
   if (result.requestId !== prepared.requestId || result.receipt.trim() === '') {
     throw new Error('Invalid public retrospective receipt');
   }
   return result;
 }
 
-export function deliverPublicRetro(
-  _input: PublicRetroEnvelopeInput,
-  _dependencies: PublicRetroDeliveryDependencies,
+export async function deliverPublicRetro(
+  input: PublicRetroEnvelopeInput,
+  dependencies: PublicRetroDeliveryDependencies,
 ): Promise<PublicRetroDeliveryOutcome> {
-  return Promise.reject(new Error('Not implemented'));
+  const preparationDeadline = dependencies.now() + 1000;
+  try {
+    const prepared = preparePublicRetroRequest(input, dependencies);
+    if (!prepared || dependencies.now() >= preparationDeadline) return 'abandoned';
+
+    const handoffDeadline = dependencies.now() + 2000;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => {
+      controller.abort();
+    }, 2000);
+    timeout.unref();
+    let result: PublicRetroReceipt;
+    try {
+      result = await submitPublicRetroRequest(prepared, dependencies.transport, controller.signal);
+    } finally {
+      clearTimeout(timeout);
+    }
+    if (dependencies.now() >= handoffDeadline) return 'abandoned';
+
+    const markerPath = path.join(dependencies.attemptsDirectory, `${prepared.sessionScope}.json`);
+    const temporaryPath = `${markerPath}.${prepared.requestId}.tmp`;
+    writeFileSync(
+      temporaryPath,
+      JSON.stringify({ sessionScope: prepared.sessionScope, receipt: result.receipt }),
+      { encoding: 'utf8', flag: 'wx', flush: true },
+    );
+    if (dependencies.now() >= handoffDeadline) return 'abandoned';
+    renameSync(temporaryPath, markerPath);
+    return 'preserved';
+  } catch {
+    return 'abandoned';
+  }
 }
