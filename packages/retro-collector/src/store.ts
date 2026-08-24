@@ -74,6 +74,13 @@ export class PublicRetroStore {
     }
   }
 
+  read(receipt: string): { rawBody: Uint8Array; receipt: string } | undefined {
+    const stored = this.#database
+      .prepare('SELECT raw_body, receipt FROM public_retros WHERE receipt = ?')
+      .get(receipt) as Pick<StoredPublicRetro, 'raw_body' | 'receipt'> | undefined;
+    return stored === undefined ? undefined : { rawBody: stored.raw_body, receipt: stored.receipt };
+  }
+
   close(): void {
     this.#database.close();
   }

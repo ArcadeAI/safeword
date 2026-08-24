@@ -31,6 +31,7 @@ export interface PublicRetroCollectorRuntime {
 export interface PublicRetroCollectorOptions {
   databasePath: string;
   host?: string;
+  operatorCredential?: string;
   port?: number;
 }
 
@@ -49,6 +50,36 @@ function validPublicRequest(request: IncomingMessage): boolean {
     request.headers.cookie === undefined &&
     request.headers['x-api-key'] === undefined
   );
+}
+
+function operatorReceipt(
+  request: IncomingMessage,
+  credential: string | undefined,
+): string | undefined {
+  if (request.method !== 'GET' || credential === undefined) return undefined;
+  if (request.headers.authorization !== `Bearer ${credential}`) return undefined;
+  const match = /^\/v1\/public-retros\/([0-9a-f-]{36})$/u.exec(request.url ?? '');
+  return match?.[1] !== undefined && UUID.test(match[1]) ? match[1] : undefined;
+}
+
+function serveOperatorRead(
+  request: IncomingMessage,
+  response: ServerResponse,
+  store: PublicRetroStore,
+  credential: string | undefined,
+): boolean {
+  const receipt = operatorReceipt(request, credential);
+  if (receipt === undefined) return false;
+  const record = store.read(receipt);
+  if (record === undefined) {
+    sendJson(response, 404, { error: 'not_found' });
+    return true;
+  }
+  response.statusCode = 200;
+  response.setHeader('content-type', 'application/json; charset=utf-8');
+  response.setHeader('x-safeword-receipt', record.receipt);
+  response.end(record.rawBody);
+  return true;
 }
 
 async function readBody(request: IncomingMessage): Promise<Buffer> {
@@ -110,7 +141,9 @@ async function handle(
   request: IncomingMessage,
   response: ServerResponse,
   store: PublicRetroStore,
+  operatorCredential: string | undefined,
 ): Promise<void> {
+  if (serveOperatorRead(request, response, store, operatorCredential)) return;
   if (!validPublicRequest(request)) {
     sendJson(response, 404, { error: 'not_found' });
     return;
@@ -150,7 +183,7 @@ export async function startPublicRetroCollector(
 ): Promise<PublicRetroCollectorRuntime> {
   const store = new PublicRetroStore(options.databasePath);
   const server = createServer((request, response) => {
-    void handle(request, response, store);
+    void handle(request, response, store, options.operatorCredential);
   });
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject);
