@@ -476,7 +476,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 - [x] RED skip: the operator credential boundary already denied all non-operator values
 - [x] GREEN 530b8f8de
-- [ ] REFACTOR
+- [x] REFACTOR skip: one real-process table covers all four correlation values
 
 ### Scenario: Collector failure cannot fall through to private filing
 
