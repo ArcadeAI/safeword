@@ -68,6 +68,7 @@ async function startCollector(
       HOST: '127.0.0.1',
       PORT: String(port),
       SAFEWORD_PUBLIC_RETRO_DATABASE_PATH: databasePath,
+      SAFEWORD_PUBLIC_RETRO_OPERATOR_CREDENTIAL: 'operator-fixture-credential',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -167,4 +168,39 @@ it('ships without private filing authority', () => {
 
   expect(manifest.dependencies ?? {}).toEqual({});
   expect(artifact).not.toMatch(/github|octokit|retro-relay|GITHUB_/iu);
+});
+
+it('grants correlation values no read or filing authority', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-packaged-collector-'));
+  directories.push(directory);
+  let githubCalls = 0;
+  const github = createServer((_request, response) => {
+    githubCalls += 1;
+    response.writeHead(500).end();
+  });
+  servers.push(github);
+  const runtime = await startCollector(
+    path.join(directory, 'collector.sqlite'),
+    await listen(github),
+  );
+  const accepted = await submit(runtime.url);
+  const { receipt } = (await accepted.json()) as { receipt: string };
+  const correlationValues = [
+    '018f0f2e-abcd-7def-8abc-def012345678',
+    '01922222-2222-7333-8444-55555555555a',
+    receipt,
+    'codex',
+  ];
+
+  const reads = await Promise.all(
+    correlationValues.map(value =>
+      fetch(`${runtime.url}/v1/public-retros/${receipt}`, {
+        headers: { authorization: `Bearer ${value}` },
+      }),
+    ),
+  );
+  await stopCollector(runtime.child);
+
+  expect(reads.map(response => response.status)).toEqual([404, 404, 404, 404]);
+  expect(githubCalls).toBe(0);
 });
