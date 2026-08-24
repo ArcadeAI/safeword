@@ -1,3 +1,6 @@
+import { lstatSync, readFileSync } from 'node:fs';
+import nodePath from 'node:path';
+
 const SCP_REMOTE = /^[^@\s]+@([^:\s]+):(.+)$/u;
 const ALLOWED_PROTOCOLS = new Set(['git:', 'https:', 'ssh:']);
 
@@ -40,6 +43,21 @@ export interface PublicGitContext {
   repository?: string;
   localEmail?: string;
   globalEmail?: string;
+}
+
+function repoGitConfigPath(cwd: string): string {
+  const dotGit = nodePath.join(cwd, '.git');
+  if (lstatSync(dotGit).isDirectory()) return nodePath.join(dotGit, 'config');
+  const pointer = readFileSync(dotGit, 'utf8').trim();
+  if (!pointer.toLowerCase().startsWith('gitdir:'))
+    throw new Error('Invalid Git directory pointer');
+  const gitDirectory = nodePath.resolve(cwd, pointer.slice('gitdir:'.length).trim());
+  try {
+    const common = readFileSync(nodePath.join(gitDirectory, 'commondir'), 'utf8').trim();
+    return nodePath.join(nodePath.resolve(gitDirectory, common), 'config');
+  } catch {
+    return nodePath.join(gitDirectory, 'config');
+  }
 }
 
 function parseRepoGitConfig(content: string): {
@@ -89,7 +107,7 @@ function parseGitEntry(line: string): readonly [string, string] | undefined {
 
 export function collectPublicGitContext(cwd: string): PublicGitContext {
   try {
-    const config = parseRepoGitConfig(readFileSync(nodePath.join(cwd, '.git/config'), 'utf8'));
+    const config = parseRepoGitConfig(readFileSync(repoGitConfigPath(cwd), 'utf8'));
     const repo = config.remote === undefined ? undefined : normalizeRepoRemote(config.remote);
     return {
       ...(repo !== undefined && { repository: repo }),
@@ -101,5 +119,3 @@ export function collectPublicGitContext(cwd: string): PublicGitContext {
     return {};
   }
 }
-import { readFileSync } from 'node:fs';
-import nodePath from 'node:path';
