@@ -65,10 +65,12 @@ fi
   inspect.env.GITHUB_TOKEN = '${{ github.token }}';
   inspect.env.SAFEWORD_PR_NUMBER = '${{ inputs.pull_number }}';
   inspect.run = `
-full_content="$(jq -r '.artifacts[] | select(.kind == "text" and .path == ".flux") | .fullContentBase64 // empty' inspection-input.json | base64 --decode)"
-if [ "$full_content" != 'require_human_review = true' ]; then
-  echo '::error::full-file context did not match the exact fork blob'
-  exit 1
+if ! jq -e '.markerReceiptExists == true and .reviewedReceiptSha == .headSha' inspection-input.json >/dev/null; then
+  full_content="$(jq -r '.artifacts[] | select(.kind == "text" and .path == ".flux") | .fullContentBase64 // empty' inspection-input.json | base64 --decode)"
+  if [ "$full_content" != 'require_human_review = true' ]; then
+    echo '::error::full-file context did not match the exact fork blob'
+    exit 1
+  fi
 fi
 if [ -z "$OPENAI_API_KEY" ]; then
   echo '::error::inspection job did not receive its environment-scoped secret'

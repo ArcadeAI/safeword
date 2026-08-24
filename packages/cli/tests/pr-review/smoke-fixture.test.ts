@@ -71,6 +71,9 @@ describe('disposable advisory PR review fixture', () => {
       SAFEWORD_PR_NUMBER: '${{ inputs.pull_number }}',
     });
     expect(fixtureInspect.run).toContain('inspection-input.json');
+    expect(fixtureInspect.run).toContain(
+      '.markerReceiptExists == true and .reviewedReceiptSha == .headSha',
+    );
     expect(fixtureInspect.run).toContain('full-file context did not match the exact fork blob');
     expect(fixtureInspect.run).toContain("grep -q 'HTTP 403'");
     for (const [job, name] of [
