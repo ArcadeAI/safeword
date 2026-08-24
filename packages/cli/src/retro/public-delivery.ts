@@ -46,12 +46,22 @@ export interface PublicRetroReceipt {
   receipt: string;
 }
 
-export type PublicRetroTransport = (request: PublicRetroHttpRequest) => Promise<PublicRetroReceipt>;
+export type PublicRetroTransport = (
+  request: PublicRetroHttpRequest,
+  signal?: AbortSignal,
+) => Promise<PublicRetroReceipt>;
 
 export interface PublicRetroPreparationDependencies {
   attemptsDirectory: string;
   randomUUID: () => string;
 }
+
+export interface PublicRetroDeliveryDependencies extends PublicRetroPreparationDependencies {
+  now: () => number;
+  transport: PublicRetroTransport;
+}
+
+export type PublicRetroDeliveryOutcome = 'preserved' | 'abandoned';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const MAX_ENVELOPE_BYTES = 65_536;
@@ -142,9 +152,17 @@ export async function submitPublicRetroRequest(
       'x-safeword-request-id': prepared.requestId,
     },
     body: prepared.bytes,
+    redirect: 'error',
   });
   if (result.requestId !== prepared.requestId || result.receipt.trim() === '') {
     throw new Error('Invalid public retrospective receipt');
   }
   return result;
+}
+
+export function deliverPublicRetro(
+  _input: PublicRetroEnvelopeInput,
+  _dependencies: PublicRetroDeliveryDependencies,
+): Promise<PublicRetroDeliveryOutcome> {
+  return Promise.reject(new Error('Not implemented'));
 }

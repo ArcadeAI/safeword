@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildPublicRetroEnvelope,
+  deliverPublicRetro,
   preparePublicRetroRequest,
   type PublicRetroHttpRequest,
   submitPublicRetroRequest,
@@ -132,6 +133,37 @@ describe('buildPublicRetroEnvelope', () => {
         redirect: 'error',
       });
       expect(request.body).toBe(bytes);
+    }
+  });
+
+  it('preserves work completed inside both exclusive budgets', async () => {
+    const attemptsDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-public-retro-'));
+    const times = [0, 999, 999, 2998, 2998];
+
+    try {
+      const outcome = await deliverPublicRetro(requiredInput, {
+        attemptsDirectory,
+        now: () => times.shift() ?? 2998,
+        randomUUID: () => '01911111-2222-7333-8444-55555555555A',
+        transport: request =>
+          Promise.resolve({
+            requestId: request.headers['x-safeword-request-id'],
+            receipt: 'receipt-fixture',
+          }),
+      });
+
+      expect(outcome).toBe('preserved');
+      expect(times).toEqual([]);
+      const markerName = readdirSync(attemptsDirectory).find(name => name.endsWith('.json'));
+      expect(markerName).toBeDefined();
+      if (!markerName) throw new Error('Expected receipt marker');
+      const marker = JSON.parse(readFileSync(path.join(attemptsDirectory, markerName), 'utf8'));
+      expect(marker).toEqual({
+        sessionScope: markerName?.replace(/\.json$/u, ''),
+        receipt: 'receipt-fixture',
+      });
+    } finally {
+      rmSync(attemptsDirectory, { recursive: true, force: true });
     }
   });
 });

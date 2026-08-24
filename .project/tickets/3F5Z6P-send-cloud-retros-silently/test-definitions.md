@@ -500,7 +500,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 ### Scenario: Work within both budgets is preserved
 
-- [ ] RED
+- [x] RED pending
 - [ ] GREEN
 - [ ] REFACTOR
 
