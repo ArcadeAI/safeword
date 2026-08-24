@@ -102,7 +102,7 @@ function repoGitConfigPath(cwd: string): string {
   const dotGit = nodePath.join(projectDirectory, '.git');
   const dotGitEntry = lstatSync(dotGit);
   if (dotGitEntry.isSymbolicLink()) throw new Error('Untrusted Git directory pointer');
-  if (dotGitEntry.isDirectory()) return nodePath.join(dotGit, 'config');
+  if (dotGitEntry.isDirectory()) return trustedConfigFile(nodePath.join(dotGit, 'config'));
   const pointer = readFileSync(dotGit, 'utf8').trim();
   if (!pointer.toLowerCase().startsWith('gitdir:'))
     throw new Error('Invalid Git directory pointer');
@@ -114,9 +114,6 @@ function repoGitConfigPath(cwd: string): string {
     commonDirectory = nodePath.resolve(gitDirectory, common);
     backlink = readFileSync(nodePath.join(gitDirectory, 'gitdir'), 'utf8').trim();
   } catch {
-    if (gitDirectory.startsWith(`${projectDirectory}${nodePath.sep}`)) {
-      return nodePath.join(gitDirectory, 'config');
-    }
     throw new Error('Untrusted Git directory pointer');
   }
   if (
@@ -125,7 +122,12 @@ function repoGitConfigPath(cwd: string): string {
   ) {
     throw new Error('Untrusted Git directory pointer');
   }
-  return nodePath.join(commonDirectory, 'config');
+  return trustedConfigFile(nodePath.join(commonDirectory, 'config'));
+}
+
+function trustedConfigFile(path: string): string {
+  if (lstatSync(path).isSymbolicLink()) throw new Error('Untrusted Git config');
+  return path;
 }
 
 function parseRepoGitConfig(content: string): {
@@ -137,11 +139,11 @@ function parseRepoGitConfig(content: string): {
   let email: string | undefined;
   let remote: string | undefined;
   for (const rawLine of content.split(/\r?\n/u)) {
-    const line = rawLine.trim();
+    let line = rawLine.trim();
     const nextSection = parseGitSection(line);
     if (nextSection !== undefined) {
       section = nextSection;
-      continue;
+      line = line.slice(line.indexOf(']') + 1).trim();
     }
     const entry = parseGitEntry(line);
     if (!entry) continue;
@@ -164,25 +166,30 @@ function hasIdentityDelegate(content: string): boolean {
 }
 
 function parseGitSection(line: string): string | undefined {
-  return line.startsWith('[') && line.endsWith(']') ? line.slice(1, -1).toLowerCase() : undefined;
+  const end = line.indexOf(']');
+  return line.startsWith('[') && end !== -1 ? line.slice(1, end).toLowerCase() : undefined;
 }
 
 function parseGitEntry(line: string): readonly [string, string] | undefined {
   const separator = line.indexOf('=');
   if (separator === -1) return undefined;
-  const rawValue = stripGitComment(line.slice(separator + 1).trim());
-  const value =
-    rawValue.startsWith('"') && rawValue.endsWith('"') ? rawValue.slice(1, -1) : rawValue;
+  const value = parseGitValue(line.slice(separator + 1).trim());
+  if (value === undefined) return undefined;
   return [line.slice(0, separator).trim().toLowerCase(), value];
 }
 
+function parseGitValue(rawValue: string): string | undefined {
+  if (!rawValue.startsWith('"')) return stripGitComment(rawValue);
+  const closingQuote = rawValue.indexOf('"', 1);
+  if (closingQuote === -1 || rawValue.slice(1, closingQuote).includes('\\')) return undefined;
+  const suffix = rawValue.slice(closingQuote + 1).trim();
+  if (suffix !== '' && !suffix.startsWith('#') && !suffix.startsWith(';')) return undefined;
+  return rawValue.slice(1, closingQuote);
+}
+
 function stripGitComment(value: string): string {
-  for (let index = 1; index < value.length; index += 1) {
-    if ((value[index] === ';' || value[index] === '#') && /\s/u.test(value[index - 1] ?? '')) {
-      return value.slice(0, index).trim();
-    }
-  }
-  return value;
+  const comment = value.search(/[;#]/u);
+  return (comment === -1 ? value : value.slice(0, comment)).trim();
 }
 
 export interface PublicGitContextOptions {

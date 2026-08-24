@@ -41,17 +41,10 @@ export function createPublicRetroTransport(options?: {
     throw new Error('Invalid public retrospective origin');
   }
   return async (request, signal) => {
-    const target = new URL(request.path, origin);
-    if (
-      request.path !== '/v1/public-retros' ||
-      target.origin !== origin.origin ||
-      target.username !== '' ||
-      target.password !== '' ||
-      request.redirect !== 'error'
-    ) {
+    if (request.path !== '/v1/public-retros' || request.redirect !== 'error') {
       throw new Error('Invalid public retrospective request');
     }
-    const response = await send(target.href, {
+    const response = await send(new URL('/v1/public-retros', origin).href, {
       body: request.body,
       headers: request.headers,
       method: request.method,
@@ -60,7 +53,12 @@ export function createPublicRetroTransport(options?: {
     });
     if (!response.ok)
       throw new Error(`Public retrospective submission failed (${response.status})`);
-    const result: unknown = await response.json();
+    let result: unknown;
+    try {
+      result = await response.json();
+    } catch {
+      throw new Error('Invalid public retrospective receipt');
+    }
     if (!isPublicRetroReceipt(result)) {
       throw new Error('Invalid public retrospective receipt');
     }

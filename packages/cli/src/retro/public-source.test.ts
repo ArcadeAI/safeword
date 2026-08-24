@@ -48,6 +48,27 @@ describe('buildPublicRetroSource', () => {
       userIdentity: 'dev@example.com',
     });
   });
+
+  it('returns no source when public collection is disabled', () => {
+    const directory = createTemporaryDirectory();
+    mkdirSync(nodePath.join(directory, '.safeword'));
+    writeFileSync(
+      nodePath.join(directory, '.safeword', 'config.json'),
+      JSON.stringify({
+        projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        publicRetrospectiveCollection: false,
+      }),
+    );
+
+    expect(
+      buildPublicRetroSource(directory, {
+        cliVersion: '0.79.0',
+        harness: 'codex',
+        osFamily: 'darwin',
+        runtimeIdentity: 'octocat',
+      }),
+    ).toBeUndefined();
+  });
 });
 
 describe('normalizeRepoRemote', () => {
@@ -163,12 +184,40 @@ describe('collectPublicGitContext', () => {
     });
   });
 
+  it('omits Git email when delegation is written beside its section header', () => {
+    const directory = createTemporaryDirectory();
+    const gitDirectory = nodePath.join(directory, '.git');
+    const globalConfig = nodePath.join(directory, 'global.gitconfig');
+    mkdirSync(gitDirectory);
+    writeFileSync(
+      nodePath.join(gitDirectory, 'config'),
+      '[include] path = /private/identity\n[user] email = local@example.com\n',
+    );
+    writeFileSync(globalConfig, '[user]\nemail = global@example.com\n');
+
+    expect(
+      collectPublicGitContext(directory, {
+        environment: { GIT_CONFIG_GLOBAL: globalConfig },
+      }),
+    ).toEqual({});
+  });
+
   it('ignores a symlinked Git directory', () => {
     const directory = createTemporaryDirectory();
     const foreign = createTemporaryDirectory();
     mkdirSync(nodePath.join(foreign, '.git'));
     writeFileSync(nodePath.join(foreign, '.git/config'), '[user]\nemail = foreign@example.com\n');
     symlinkSync(nodePath.join(foreign, '.git'), nodePath.join(directory, '.git'));
+
+    expect(collectPublicGitContext(directory, noGlobalConfig)).toEqual({});
+  });
+
+  it('ignores a symlinked repository config', () => {
+    const directory = createTemporaryDirectory();
+    const foreign = createTemporaryDirectory();
+    mkdirSync(nodePath.join(directory, '.git'));
+    writeFileSync(nodePath.join(foreign, 'config'), '[user]\nemail = foreign@example.com\n');
+    symlinkSync(nodePath.join(foreign, 'config'), nodePath.join(directory, '.git/config'));
 
     expect(collectPublicGitContext(directory, noGlobalConfig)).toEqual({});
   });

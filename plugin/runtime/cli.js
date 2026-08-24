@@ -55696,7 +55696,7 @@ function repoGitConfigPath(cwd) {
   if (dotGitEntry.isSymbolicLink())
     throw new Error("Untrusted Git directory pointer");
   if (dotGitEntry.isDirectory())
-    return nodePath99.join(dotGit, "config");
+    return trustedConfigFile(nodePath99.join(dotGit, "config"));
   const pointer = readFileSync62(dotGit, "utf8").trim();
   if (!pointer.toLowerCase().startsWith("gitdir:"))
     throw new Error("Invalid Git directory pointer");
@@ -55708,26 +55708,28 @@ function repoGitConfigPath(cwd) {
     commonDirectory = nodePath99.resolve(gitDirectory, common);
     backlink = readFileSync62(nodePath99.join(gitDirectory, "gitdir"), "utf8").trim();
   } catch {
-    if (gitDirectory.startsWith(`${projectDirectory}${nodePath99.sep}`)) {
-      return nodePath99.join(gitDirectory, "config");
-    }
     throw new Error("Untrusted Git directory pointer");
   }
   if (nodePath99.resolve(gitDirectory, backlink) !== dotGit || nodePath99.dirname(gitDirectory) !== nodePath99.join(commonDirectory, "worktrees")) {
     throw new Error("Untrusted Git directory pointer");
   }
-  return nodePath99.join(commonDirectory, "config");
+  return trustedConfigFile(nodePath99.join(commonDirectory, "config"));
+}
+function trustedConfigFile(path6) {
+  if (lstatSync22(path6).isSymbolicLink())
+    throw new Error("Untrusted Git config");
+  return path6;
 }
 function parseRepoGitConfig(content) {
   let section = "";
   let email;
   let remote;
   for (const rawLine of content.split(/\r?\n/u)) {
-    const line = rawLine.trim();
+    let line = rawLine.trim();
     const nextSection = parseGitSection(line);
     if (nextSection !== undefined) {
       section = nextSection;
-      continue;
+      line = line.slice(line.indexOf("]") + 1).trim();
     }
     const entry2 = parseGitEntry(line);
     if (!entry2)
@@ -55751,23 +55753,32 @@ function hasIdentityDelegate(content) {
   });
 }
 function parseGitSection(line) {
-  return line.startsWith("[") && line.endsWith("]") ? line.slice(1, -1).toLowerCase() : undefined;
+  const end = line.indexOf("]");
+  return line.startsWith("[") && end !== -1 ? line.slice(1, end).toLowerCase() : undefined;
 }
 function parseGitEntry(line) {
   const separator = line.indexOf("=");
   if (separator === -1)
     return;
-  const rawValue = stripGitComment(line.slice(separator + 1).trim());
-  const value = rawValue.startsWith('"') && rawValue.endsWith('"') ? rawValue.slice(1, -1) : rawValue;
+  const value = parseGitValue(line.slice(separator + 1).trim());
+  if (value === undefined)
+    return;
   return [line.slice(0, separator).trim().toLowerCase(), value];
 }
+function parseGitValue(rawValue) {
+  if (!rawValue.startsWith('"'))
+    return stripGitComment(rawValue);
+  const closingQuote = rawValue.indexOf('"', 1);
+  if (closingQuote === -1 || rawValue.slice(1, closingQuote).includes("\\"))
+    return;
+  const suffix = rawValue.slice(closingQuote + 1).trim();
+  if (suffix !== "" && !suffix.startsWith("#") && !suffix.startsWith(";"))
+    return;
+  return rawValue.slice(1, closingQuote);
+}
 function stripGitComment(value) {
-  for (let index = 1;index < value.length; index += 1) {
-    if ((value[index] === ";" || value[index] === "#") && /\s/u.test(value[index - 1] ?? "")) {
-      return value.slice(0, index).trim();
-    }
-  }
-  return value;
+  const comment = value.search(/[;#]/u);
+  return (comment === -1 ? value : value.slice(0, comment)).trim();
 }
 function globalGitConfigPaths(options) {
   const environment = options.environment ?? process.env;
@@ -55827,11 +55838,10 @@ function createPublicRetroTransport(options) {
     throw new Error("Invalid public retrospective origin");
   }
   return async (request, signal) => {
-    const target = new URL(request.path, origin);
-    if (request.path !== "/v1/public-retros" || target.origin !== origin.origin || target.username !== "" || target.password !== "" || request.redirect !== "error") {
+    if (request.path !== "/v1/public-retros" || request.redirect !== "error") {
       throw new Error("Invalid public retrospective request");
     }
-    const response = await send(target.href, {
+    const response = await send(new URL("/v1/public-retros", origin).href, {
       body: request.body,
       headers: request.headers,
       method: request.method,
@@ -55840,7 +55850,12 @@ function createPublicRetroTransport(options) {
     });
     if (!response.ok)
       throw new Error(`Public retrospective submission failed (${response.status})`);
-    const result = await response.json();
+    let result;
+    try {
+      result = await response.json();
+    } catch {
+      throw new Error("Invalid public retrospective receipt");
+    }
     if (!isPublicRetroReceipt(result)) {
       throw new Error("Invalid public retrospective receipt");
     }

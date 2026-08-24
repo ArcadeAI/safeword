@@ -113,4 +113,24 @@ describe('public retro HTTPS transport', () => {
       ).rejects.toThrow('Invalid public retrospective receipt');
     },
   );
+
+  it('normalizes a non-JSON receipt failure', async () => {
+    const transport = createPublicRetroTransport({
+      fetch: () => Promise.resolve(new Response('<html>unavailable</html>')),
+      origin: 'http://127.0.0.1:43179',
+    });
+
+    await expect(
+      transport({
+        method: 'POST',
+        path: '/v1/public-retros',
+        headers: {
+          'content-type': 'application/json; charset=utf-8',
+          'x-safeword-request-id': 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        },
+        body: new Uint8Array(),
+        redirect: 'error',
+      }),
+    ).rejects.toThrow('Invalid public retrospective receipt');
+  });
 });
