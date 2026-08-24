@@ -347,7 +347,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 ### Scenario: An exact retry returns the original receipt
 
 - [x] RED f4911e7fb
-- [ ] GREEN
+- [x] GREEN 3949b937c
 - [ ] REFACTOR
 
 ### Scenario: Concurrent first submissions converge
