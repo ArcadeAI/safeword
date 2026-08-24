@@ -729,8 +729,6 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // config.json is created by packs system but needs to be registered for cleanup on uninstall
     // Generator returns undefined = never created/updated by schema, but still deleted on uninstall
     '.safeword/config.json': { generator: (): undefined => undefined },
-    '.safeword/retro-attempts/.gitignore': { template: 'retro-attempts/.gitignore' },
-
     // Language-specific safeword configs for hooks (extend project configs if they exist)
     ...typescriptOwnedFiles,
     ...pythonOwnedFiles,
