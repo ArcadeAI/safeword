@@ -216,7 +216,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 ### Scenario: The local CLI turns public retros off or on
 
-- [ ] RED
+- [x] RED 8fe2c2d40
 - [ ] GREEN
 - [ ] REFACTOR
 
