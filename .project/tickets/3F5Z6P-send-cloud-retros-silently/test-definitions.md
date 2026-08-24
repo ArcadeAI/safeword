@@ -488,7 +488,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 - [x] RED skip: the append-only route shape was established by the foundational intake slice
 - [x] GREEN da921dc64
-- [ ] REFACTOR
+- [x] REFACTOR skip: one table proves both mutation verbs and the unchanged raw body
 
 ### Scenario: Existing private filing remains operational beside public collection
 
