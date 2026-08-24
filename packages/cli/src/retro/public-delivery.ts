@@ -21,6 +21,12 @@ export interface PublicRetroEnvelopeInput {
   sessionId: string;
 }
 
+export interface PublicRetroCandidateInput {
+  candidate: unknown;
+  source: PublicRetroSource;
+  sessionId: string;
+}
+
 export interface BuiltPublicRetroEnvelope {
   bytes: Uint8Array;
   sessionScope: string;
@@ -210,4 +216,11 @@ export async function deliverPublicRetro(
   } catch {
     return 'abandoned';
   }
+}
+
+export function deliverPublicRetroCandidate(
+  _input: PublicRetroCandidateInput,
+  _dependencies: PublicRetroDeliveryDependencies,
+): Promise<PublicRetroDeliveryOutcome> {
+  return Promise.reject(new Error('Not implemented'));
 }

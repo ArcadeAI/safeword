@@ -124,7 +124,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 ### Scenario: Sanitization protects canonical bytes and the local marker
 
-- [ ] RED
+- [x] RED pending
 - [ ] GREEN
 - [ ] REFACTOR
 

@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildPublicRetroEnvelope,
   deliverPublicRetro,
+  deliverPublicRetroCandidate,
   preparePublicRetroRequest,
   type PublicRetroHttpRequest,
   submitPublicRetroRequest,
@@ -191,6 +192,57 @@ describe('buildPublicRetroEnvelope', () => {
       expect(uuidCalls).toBe(0);
       expect(transportCalls).toBe(0);
       expect(readdirSync(attemptsDirectory)).toEqual([]);
+    } finally {
+      rmSync(attemptsDirectory, { recursive: true, force: true });
+    }
+  });
+
+  it('sanitizes the extracted candidate before bytes, claim, or handoff', async () => {
+    const attemptsDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-public-retro-'));
+    let transmitted = '';
+
+    try {
+      const outcome = await deliverPublicRetroCandidate(
+        {
+          candidate: {
+            category: 'rough-edge',
+            title: 'keep-this-finding',
+            safeword_surface: 'hooks/stop-quality.ts',
+            what_happened: 'key ghp_raw_fixture_12345678901234567890 in /Users/fixture/private',
+            why_friction: 'contact private@example.test',
+            repro: 'session-fixture-42',
+          },
+          sessionId: 'session-fixture-42',
+          source: requiredInput.source,
+        },
+        {
+          attemptsDirectory,
+          now: () => 0,
+          randomUUID: () => '01911111-2222-7333-8444-55555555555A',
+          transport: request => {
+            transmitted = new TextDecoder().decode(request.body);
+            return Promise.resolve({
+              requestId: request.headers['x-safeword-request-id'],
+              receipt: 'receipt-fixture',
+            });
+          },
+        },
+      );
+
+      expect(outcome).toBe('preserved');
+      expect(transmitted).toContain('keep-this-finding');
+      expect(transmitted).not.toContain('ghp_raw_fixture');
+      expect(transmitted).not.toContain('/Users/fixture/private');
+      expect(transmitted).not.toContain('private@example.test');
+      expect(transmitted).not.toContain('session-fixture-42');
+      const markerName = readdirSync(attemptsDirectory).find(name => name.endsWith('.json'));
+      expect(markerName).toMatch(/^[0-9a-f]{64}\.json$/u);
+      if (!markerName) throw new Error('Expected receipt marker');
+      const markerText = readFileSync(path.join(attemptsDirectory, markerName), 'utf8');
+      expect(JSON.parse(markerText)).toEqual({
+        sessionScope: markerName.replace(/\.json$/u, ''),
+        receipt: 'receipt-fixture',
+      });
     } finally {
       rmSync(attemptsDirectory, { recursive: true, force: true });
     }
