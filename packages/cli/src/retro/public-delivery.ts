@@ -256,9 +256,17 @@ export async function deliverPublicRetroCandidate(
 }
 
 export function deliverSanitizedPublicRetroFinding(
-  _input: { finding: Finding; source: PublicRetroSource; sessionId: string },
-  _dependencies: PublicRetroDeliveryDependencies,
-  _preparationDeadline: number,
+  input: { finding: Finding; source: PublicRetroSource; sessionId: string },
+  dependencies: PublicRetroDeliveryDependencies,
+  preparationDeadline: number,
 ): Promise<PublicRetroDeliveryOutcome> {
-  return Promise.resolve('abandoned');
+  return deliverPreparedInput(
+    {
+      finding: assemblePublicFinding(input.finding),
+      source: input.source,
+      sessionId: input.sessionId,
+    },
+    dependencies,
+    preparationDeadline,
+  );
 }
