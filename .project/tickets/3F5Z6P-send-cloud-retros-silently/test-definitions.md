@@ -446,7 +446,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 - [x] RED skip: credentialless intake was established by the packaged collector slice
 - [x] GREEN 5ac79e3d0
-- [ ] REFACTOR
+- [x] REFACTOR skip: the packaged no-credential request is already end-to-end proof
 
 ### Scenario: Credential-bearing public submissions are rejected
 
