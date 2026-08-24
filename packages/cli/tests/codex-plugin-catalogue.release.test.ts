@@ -205,6 +205,9 @@ describe('generated Codex plugin catalogue', () => {
           'NS_ROOT="$(bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR")"',
           'PERSONAS="$(bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR" personas personas.md 2> /dev/null)"',
           'CUSTOM="$(bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR" personas other.md)"',
+          'KEYONLY="$(bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR" personas)"',
+          'OPAQUE="$(bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR" "$KEY")"',
+          'KEYTHENOPAQUE="$(bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR" personas "$FILE")"',
           '```',
           '',
         ].join('\n'),
@@ -224,6 +227,58 @@ describe('generated Codex plugin catalogue', () => {
       expect(content).toContain(
         'CUSTOM="$(bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR" personas other.md)"',
       );
+      // The script defaults its third argument to `<key>.md`, which is also the
+      // subcommand's default, so a key-only call maps cleanly onto --key.
+      expect(content).toContain(
+        'KEYONLY="$(bunx --bun safeword@1.2.3 project namespace-root --cwd "$PROJECT_DIR" --key personas)"',
+      );
+      // An operand the rewrite cannot map is preserved rather than emitted after
+      // the new command: `namespace-root` takes no operands, so rewriting would
+      // ship a command that exits 1 — and under `2> /dev/null` that failure
+      // reads as an empty path instead of an error.
+      expect(content).toContain(
+        'OPAQUE="$(bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR" "$KEY")"',
+      );
+      // Same guard on the key-matched branch: mapping the key does not license
+      // dropping an operand the rewrite could not map.
+      expect(content).toContain(
+        'KEYTHENOPAQUE="$(bun "$PROJECT_DIR/.safeword/hooks/resolve-namespace-root.ts" "$PROJECT_DIR" personas "$FILE")"',
+      );
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
+  it('keeps table column alignment when normalizing generated Markdown tables', () => {
+    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-plugin-tables-'));
+    const canonicalSkillsDirectory = nodePath.join(fixture, 'skills');
+    try {
+      mkdirSync(nodePath.join(canonicalSkillsDirectory, 'aligned'), { recursive: true });
+      writeFileSync(
+        nodePath.join(canonicalSkillsDirectory, 'aligned/SKILL.md'),
+        [
+          '---',
+          'name: aligned',
+          'description: Aligned tables',
+          '---',
+          '',
+          '| Left | Right | Centre |',
+          '| :--- | ----: | :----: |',
+          '| a | b | c |',
+          '',
+        ].join('\n'),
+      );
+
+      const content =
+        generateCodexPluginAssets(canonicalSkillsDirectory, '1.2.3')[0]?.content ?? '';
+      const delimiter =
+        content.split('\n').find(line => line.startsWith('|') && line.includes('---')) ?? '';
+
+      // Alignment is rendered meaning, not formatting: dropping the colons
+      // silently re-aligns every right- and centre-aligned table in the corpus.
+      expect(delimiter).toMatch(/\|\s:-+\s\|/u);
+      expect(delimiter).toMatch(/\|\s-+:\s\|/u);
+      expect(delimiter).toMatch(/\|\s:-+:\s\|/u);
     } finally {
       rmSync(fixture, { recursive: true, force: true });
     }

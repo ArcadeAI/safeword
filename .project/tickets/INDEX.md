@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (570)
+## Tickets (580)
 
 ### 001
 
@@ -524,6 +524,12 @@
   Cut ~7 lines of philosophical preamble from the Stop-hook UNIVERSAL*HEADER. Every cut line is already covered (verbatim or better) in SAFEWORD.md, which loads every conversation. Keep only rules that are about the \_terminal verdict* itself and the _spec-vs-implementation distinction_ that the rest of the project doesn't sharply articulate.
   → `.project/tickets/QSNKBB-prompt-brevity-cut`
 
+### HWZZJ8
+
+- **Upgrade remote-test workflows safely (FFXB81)** (done, epic: —)
+  Let customers upgrade previously released Safeword test workflows without overwriting their CI or leaving partial workflow files.
+  → `.project/tickets/FFXB81-upgrade-remote-test-workflows-safely`
+
 ### JN403D-architecture-drift-nudge-harness-parity
 
 - **Unify the codex/cursor done-phase architecture-nudge gating (GNTCX4)** (todo, epic: —)
@@ -620,6 +626,9 @@
 - **Keep advisory reviews current without repeated noise (Z7M7Y3)** (in_progress, epic: trustworthy-advisory-pr-review)
   Preserve trustworthy freshness while reducing repeated review work and finding noise across revisions.
   → `.project/tickets/Z7M7Y3-keep-advisory-reviews-current-without-repeated-noise`
+- **Give automatic PR reviews enough context (ZA6DGD)** (in_progress, epic: —)
+  Reduce patch-only false findings by reviewing each changed patch with bounded full-file context from the exact PR head
+  → `.project/tickets/ZA6DGD-give-automatic-pr-reviews-enough-context`
 
 ### phase-step-enforcement
 
@@ -909,6 +918,18 @@
 - **Review LOC gates — keep, or move trigger to phase/step (MT27QG)** (done, epic: workflow-gate-hygiene)
   Audit safeword's LOC-triggered gating — the single `LOC_THRESHOLD = 400` commit gate — and decide whether a line-count threshold is the right trigger or whether a phase/step boundary would gate the same risk better.
   → `.project/tickets/MT27QG-loc-gate-vs-phase-placement`
+
+### X2Z8MN
+
+- **Install only trusted remote test workflows (GRDXXA)** (in_progress, epic: —)
+  Admit and install only useful, manual, least-privilege remote-test workflow bytes.
+  → `.project/tickets/GRDXXA-install-only-trusted-remote-test-workflows`
+- **Recover remote test setup after interruption (H136BP)** (superseded, epic: —)
+  Prove interrupted one-file workflow setup remains safe to retry.
+  → `.project/tickets/H136BP-recover-remote-test-setup-after-interruption`
+- **Manage remote test workflows without overwriting customers (HWZZJ8)** (done, epic: —)
+  Let builders inspect and safely manage remote-test workflows without adopting customer-owned bytes or reporting partial work as complete.
+  → `.project/tickets/HWZZJ8-manage-remote-test-workflows-without-overwriting-customers`
 
 ### ZBVGPF-embed-figure-it-out
 
@@ -1273,7 +1294,7 @@
 - **Deepen scenario-gate adversarial review (port review-spec depth) (7GER0P)** (superseded, epic: —)
   Enrich safeword's scenario-gate (SCENARIOS.md) with the adversarial-review depth from arcade's `/review-spec`, so weak scenarios are caught before they become flaky tests or false-green passes.
   → `.project/tickets/7GER0P-scenario-gate-adversarial-depth`
-- **Finish deep reviews without blocking developers (7GHXA5)** (done, epic: —)
+- **Finish deep reviews without blocking developers (7GHXA5)** (in_progress, epic: —)
   Let independent reviews continue durably after the foreground caller stops waiting and make their final result safely collectable.
   → `.project/tickets/7GHXA5-finish-deep-reviews-in-background`
 - **Move stack-specific ESLint plugins to optional peer-deps (antfu pattern) (7JDZFF)** (in_progress, epic: —)
@@ -1291,6 +1312,9 @@
 - **Make GitHub transport regressions easier to isolate (84GNG0)** (in_progress, epic: —)
   Separate transport pagination and authentication tests into focused suites
   → `.project/tickets/84GNG0-split-github-rest-transport-tests`
+- **Keep personal test settings beside project config (88JETJ)** (done, epic: —)
+  Use .safeword/config.local.json as the private project-specific override for .safeword/config.json.
+  → `.project/tickets/88JETJ-keep-personal-test-settings-beside-project-config`
 - **Keep default BDD lanes visible without manual configuration (8B4GVR)** (done, epic: —)
   Avoid a misleading Cucumber-harness advisory when Safeword already discovers a host suite under the default root features directory.
   external issue: https://github.com/ArcadeAI/safeword/issues/1105
@@ -1654,6 +1678,12 @@
 - **Epic: Make safeword legible to the Non-Technical Builder (K6CAJN)** (done, epic: —)
   Close the gaps where safeword speaks to the Non-Technical Builder (NTB) in raw jargon — across the CLI terminal, first-run runtime checks, gate blocks, and the framing rules that govern translation — so a user who can't read the diff always gets a plain-language explanation and a concrete next action.
   → `.project/tickets/K6CAJN-ntb-experience-epic`
+- **Strengthen behavior proof for Safeword users (K78FJ3)** (in_progress, epic: —)
+  Review every shipped BDD scenario against the scenario-gate rubric and record actionable findings.
+  → `.project/tickets/K78FJ3-review-bdd-scenario-semantics`
+- **Keep unmappable namespace-root calls working in generated Codex skills (K7XQ2M)** (todo, epic: —)
+  Make the namespace-root rewrite honour preserve-on-anything-unrecognised on every branch.
+  → `.project/tickets/K7XQ2M-preserve-unmappable-namespace-root-calls`
 - **Surface reply format before Claude responds (K8D3M4)** (done, epic: —)
   Keep substantive Claude work updates in Safeword’s concise decision-brief shape before they reach the user.
   external issue: https://github.com/ArcadeAI/safeword/issues/1524
@@ -1759,6 +1789,9 @@
 - **Ship a clean release for safeword users (P2JDY5)** (done, epic: —)
   Audit and reconcile every change merged since v0.69.0, apply justified behavior-preserving refactors, verify release readiness, and close completed tracking items.
   → `.project/tickets/P2JDY5-release-readiness-v0-70`
+- **Keep table alignment intact in generated Codex skills (P4NDV8)** (todo, epic: —)
+  Stop the Markdown table normalizer from changing how tables render.
+  → `.project/tickets/P4NDV8-keep-table-alignment-in-codex-skills`
 - **Lint files changed by shell commands, not just file-tool edits (P6PN58)** (in_progress, epic: —)
   Give auto-lint a path-discovery fallback so a file edited through a shell command gets linted on all three hosts, matching the coverage quality hooks already have
   → `.project/tickets/P6PN58-lint-skips-shell-edits`
@@ -1816,6 +1849,9 @@
   → `.project/tickets/R4S85Y-rename-dev-persona-to-tb`
 - **Protect review fallback boundaries for builders (R7K2QP)** (—, epic: —)
   → `.project/tickets/R7K2QP-protect-review-fallback-boundaries`
+- **Say when a review was not independent (R9TLC3)** (todo, epic: —)
+  Make `independence: degraded` visible to the person reading the verdict.
+  → `.project/tickets/R9TLC3-surface-degraded-review-independence`
 - **Stop-hook escalation path may be dead (0/10 BLOCKED) — revalidate post-F14BG2, recalibrate if needed (RAS9N8)** (pending, epic: —)
   Determine whether the Stop-hook escalation path (`BLOCKED`) is actually reachable in practice, and if it isn't, recalibrate within the existing binary-verdict architecture so genuine blockers surface instead of everything defaulting to `CONFIDENT`.
   → `.project/tickets/RAS9N8-stop-hook-escalation-calibration`
