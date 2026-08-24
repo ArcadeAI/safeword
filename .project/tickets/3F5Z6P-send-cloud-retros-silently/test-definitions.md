@@ -154,7 +154,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 ### Scenario: Repository remotes normalize or are omitted
 
-- [ ] RED
+- [x] RED cd27ede4f
 - [ ] GREEN
 - [ ] REFACTOR
 
