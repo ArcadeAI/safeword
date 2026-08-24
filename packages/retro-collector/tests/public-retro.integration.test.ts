@@ -83,7 +83,7 @@ it('returns byte-identical quarantine bytes to an authorized operator', async ()
   const runtime = await startPublicRetroCollector({
     databasePath: path.join(directory, 'collector.sqlite'),
     operatorCredential: 'operator-fixture-credential',
-  } as Parameters<typeof startPublicRetroCollector>[0]);
+  });
   const request = fixtureRequest();
   const accepted = await submit(runtime.url, request);
   const { receipt } = (await accepted.json()) as { receipt: string };
@@ -97,6 +97,34 @@ it('returns byte-identical quarantine bytes to an authorized operator', async ()
   expect(inspected.status).toBe(200);
   expect(inspected.headers.get('x-safeword-receipt')).toBe(receipt);
   expect(inspectedBody).toEqual(request.body);
+});
+
+it.each([
+  ['missing', undefined],
+  ['empty', ['']],
+  ['duplicated', ['Bearer operator-fixture-credential', 'Bearer operator-fixture-credential']],
+  ['malformed', ['operator-fixture-credential']],
+  ['invalid', ['Bearer invalid-credential']],
+  ['private filing', ['Bearer private-filing-credential']],
+] as const)('reveals no record to a %s operator credential', async (_name, credentials) => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+    operatorCredential: 'operator-fixture-credential',
+  });
+  const accepted = await submit(runtime.url, fixtureRequest());
+  const { receipt } = (await accepted.json()) as { receipt: string };
+  const headers = new Headers();
+  const suppliedCredentials = credentials ?? [];
+  for (const credential of suppliedCredentials) headers.append('authorization', credential);
+
+  const inspected = await fetch(`${runtime.url}/v1/public-retros/${receipt}`, { headers });
+  await runtime.close();
+
+  expect(inspected.status).toBe(404);
+  expect(inspected.headers.get('x-safeword-receipt')).toBeNull();
+  expect(await inspected.json()).toEqual({ error: 'not_found' });
 });
 
 function encoded(value: unknown): Uint8Array {
