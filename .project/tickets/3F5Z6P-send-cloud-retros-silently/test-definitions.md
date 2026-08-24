@@ -8,7 +8,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 ### Scenario: Install wires only the selected harness completion lifecycle
 
-- [ ] RED
+- [x] RED 30e491178
 - [ ] GREEN
 - [ ] REFACTOR
 
