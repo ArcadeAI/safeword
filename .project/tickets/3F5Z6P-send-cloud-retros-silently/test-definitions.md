@@ -326,7 +326,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 ### Scenario: Independent preparation is deterministic
 
-- [x] RED pending
+- [x] RED c9a250ca6
 - [ ] GREEN
 - [ ] REFACTOR
 
