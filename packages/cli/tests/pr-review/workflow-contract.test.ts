@@ -214,6 +214,8 @@ describe('advisory PR review workflow contract', () => {
       workerSource.indexOf('> pull-files.json'),
     );
     expect(workerSource).toContain('fullContentBase64');
+    expect(workerSource).toContain('jq --rawfile fullContentBase64 full-content.base64');
+    expect(workerSource).not.toContain('jq --arg fullContentBase64 "$full_content"');
     expect(workerSource).toContain('contextNotApplicable: true');
     expect(workerSource).toContain('contextUnavailable: true');
 
