@@ -390,7 +390,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 - [x] RED skip: streaming byte enforcement was established by the first collector slice
 - [x] GREEN 4e93f9458
-- [ ] REFACTOR
+- [x] REFACTOR skip: one table proves all four byte-boundary rows without duplication
 
 ### Scenario: Reusing a request identity with different bytes is rejected
 
