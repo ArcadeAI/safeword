@@ -366,7 +366,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 - [x] RED skip: scope conflict handling was necessarily established by the transactional store slice
 - [x] GREEN ec46336f1
-- [ ] REFACTOR
+- [x] REFACTOR skip: proof required no production change or new abstraction
 
 ### Scenario: Distinct submissions remain independent
 
