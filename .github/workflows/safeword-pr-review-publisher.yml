@@ -1,0 +1,72 @@
+name: Safeword advisory PR review publisher
+
+on:
+  workflow_run:
+    workflows: [Safeword advisory PR review]
+    types: [completed]
+
+permissions: {}
+
+jobs:
+  discover-event-result:
+    if: ${{ github.event.workflow_run.event == 'pull_request_target' && github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      has_result: ${{ steps.artifact.outputs.has_result }}
+      pull_number: ${{ steps.artifact.outputs.pull_number }}
+    steps:
+      - id: artifact
+        name: Resolve the pull request from its trusted artifact name
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SAFEWORD_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          artifact_names="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SAFEWORD_RUN_ID/artifacts" --jq '.artifacts[].name')"
+          pull_number="$(printf '%s\n' "$artifact_names" | sed -nE 's/^safeword-pr-review(-context)?-([0-9]+)$/\2/p' | sort -u)"
+          if [ "$(printf '%s\n' "$pull_number" | sed '/^$/d' | wc -l)" != 1 ]; then
+            echo '::error::event run did not identify exactly one pull request'
+            exit 1
+          fi
+          echo "pull_number=$pull_number" >> "$GITHUB_OUTPUT"
+          if printf '%s\n' "$artifact_names" | grep -qx "safeword-pr-review-$pull_number"; then
+            echo 'has_result=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'has_result=false' >> "$GITHUB_OUTPUT"
+          fi
+
+  publish-event-result:
+    needs: discover-event-result
+    if: ${{ needs.discover-event-result.outputs.pull_number != '' }}
+    runs-on: ubuntu-latest
+    concurrency:
+      group: pr-review-${{ needs.discover-event-result.outputs.pull_number }}
+      cancel-in-progress: false
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Invalidate any obsolete advisory route
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+          SAFEWORD_PR_NUMBER: ${{ needs.discover-event-result.outputs.pull_number }}
+        run: npx --yes safeword@0.79.0 --no-input --json review-pr invalidate
+      - name: Download the JSON-only advisory handoff
+        if: needs.discover-event-result.outputs.has_result == 'true'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: safeword-pr-review-${{ needs.discover-event-result.outputs.pull_number }}
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+      - name: Publish one ordinary pull-request comment
+        if: needs.discover-event-result.outputs.has_result == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+          SAFEWORD_PR_NUMBER: ${{ needs.discover-event-result.outputs.pull_number }}
+        run: npx --yes safeword@0.79.0 --no-input --json review-pr publish advisory-result.json
