@@ -433,7 +433,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 ### Scenario: Public intake stores a quarantined record without GitHub access
 
 - [x] RED 30e491178
-- [ ] GREEN
+- [x] GREEN 5ac79e3d0
 - [ ] REFACTOR
 
 ### Scenario: Public collector has no private filing authority
