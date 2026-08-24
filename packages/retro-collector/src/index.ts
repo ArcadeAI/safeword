@@ -5,6 +5,22 @@ import { PublicRetroConflict, PublicRetroStore } from './store.js';
 const MAXIMUM_BODY_BYTES = 65_536;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
 const SESSION_SCOPE = /^[0-9a-f]{64}$/u;
+const TOP_LEVEL_FIELDS = ['version', 'finding', 'source', 'sessionScope'] as const;
+const REQUIRED_SOURCE_FIELDS = [
+  'harness',
+  'hostClass',
+  'projectUUID',
+  'safewordCliVersion',
+] as const;
+const OPTIONAL_SOURCE_FIELDS = [
+  'repository',
+  'agentVersion',
+  'model',
+  'safewordPluginVersion',
+  'osFamily',
+  'userIdentity',
+] as const;
+const SOURCE_FIELDS = new Set<string>([...REQUIRED_SOURCE_FIELDS, ...OPTIONAL_SOURCE_FIELDS]);
 
 export interface PublicRetroCollectorRuntime {
   url: string;
@@ -46,12 +62,42 @@ async function readBody(request: IncomingMessage): Promise<Buffer> {
   return Buffer.concat(chunks);
 }
 
-function sessionScope(rawBody: Buffer): string | undefined {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function hasExactKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {
+  const actual = Object.keys(value);
+  return actual.length === keys.length && actual.every(key => keys.includes(key));
+}
+
+function nonemptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+function validSource(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  const keys = Object.keys(value);
+  if (REQUIRED_SOURCE_FIELDS.some(key => !keys.includes(key))) return false;
+  if (keys.some(key => !SOURCE_FIELDS.has(key))) return false;
+  if (Object.values(value).some(item => !nonemptyString(item))) return false;
+  return (
+    (value.harness === 'claude-code' || value.harness === 'codex') &&
+    value.hostClass === 'local' &&
+    typeof value.projectUUID === 'string' &&
+    UUID.test(value.projectUUID)
+  );
+}
+
+function envelopeSessionScope(rawBody: Buffer): string | undefined {
   try {
     const value = JSON.parse(rawBody.toString('utf8')) as unknown;
-    if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined;
-    const scope = (value as { sessionScope?: unknown }).sessionScope;
-    return typeof scope === 'string' && SESSION_SCOPE.test(scope) ? scope : undefined;
+    if (!isRecord(value) || !hasExactKeys(value, TOP_LEVEL_FIELDS)) return undefined;
+    if (value.version !== 'v1' || !nonemptyString(value.finding)) return undefined;
+    if (!validSource(value.source)) return undefined;
+    return typeof value.sessionScope === 'string' && SESSION_SCOPE.test(value.sessionScope)
+      ? value.sessionScope
+      : undefined;
   } catch {
     return undefined;
   }
@@ -73,7 +119,7 @@ async function handle(
   }
   try {
     const rawBody = await readBody(request);
-    const scope = sessionScope(rawBody);
+    const scope = envelopeSessionScope(rawBody);
     if (scope === undefined) {
       sendJson(response, 400, { error: 'invalid_request' });
       return;
