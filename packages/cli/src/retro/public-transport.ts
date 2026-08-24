@@ -5,7 +5,7 @@ declare const __SAFEWORD_PUBLIC_RETRO_ORIGIN__: string;
 export const PUBLIC_RETRO_ORIGIN =
   typeof __SAFEWORD_PUBLIC_RETRO_ORIGIN__ === 'string'
     ? __SAFEWORD_PUBLIC_RETRO_ORIGIN__
-    : 'https://retro-relay-production.up.railway.app';
+    : 'https://retro-collector-production.up.railway.app';
 
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', '[::1]', 'localhost']);
 

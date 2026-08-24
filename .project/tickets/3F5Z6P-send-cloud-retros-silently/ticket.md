@@ -43,6 +43,12 @@ phase_anchors:
 
 ## Work Log
 
+- 2026-08-24T20:13:00Z Production collector launched at
+  `https://retro-collector-production.up.railway.app` as a physically separate
+  Railway service with a persistent `/data` volume. Synthetic proof receipt
+  `757e7cd6-444b-43cc-81d5-fb0556c14eee` confirmed 201 intake, byte-identical
+  retry returning the same receipt, credentialed raw-byte operator read, and
+  409 rejection for conflicting reuse of the request identity.
 - 2026-08-24T20:05:00Z Launch critical path fixed: prove both installed local
   lifecycle adapters against the real collector, deploy that collector as a
   separate Railway service with one persistent `/data` volume and an operator

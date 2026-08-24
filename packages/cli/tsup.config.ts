@@ -6,7 +6,8 @@ import { defineConfig } from 'tsup';
 
 const GIT_MAX_BUFFER_BYTES = 10 * 1024 * 1024;
 const PUBLIC_RETRO_ORIGIN =
-  process.env.SAFEWORD_PUBLIC_RETRO_BUILD_ORIGIN ?? 'https://retro-relay-production.up.railway.app';
+  process.env.SAFEWORD_PUBLIC_RETRO_BUILD_ORIGIN ??
+  'https://retro-collector-production.up.railway.app';
 
 const manifestBytes = readFileSync(
   new URL('src/retro/relay-readiness-manifest.json', import.meta.url),
