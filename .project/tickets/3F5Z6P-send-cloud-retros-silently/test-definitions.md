@@ -352,7 +352,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 ### Scenario: Concurrent first submissions converge
 
-- [ ] RED
+- [x] RED skip: convergence was necessarily established by the prior transactional store slice
 - [ ] GREEN
 - [ ] REFACTOR
 
