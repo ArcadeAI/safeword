@@ -412,7 +412,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 ### Scenario: A fresh request identity cannot reuse an accepted session scope
 
-- [ ] RED
+- [x] RED skip: fresh-identity scope rejection was established by the transactional store slice
 - [ ] GREEN
 - [ ] REFACTOR
 
