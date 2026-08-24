@@ -5,6 +5,8 @@ import { readFileSync } from 'node:fs';
 import { defineConfig } from 'tsup';
 
 const GIT_MAX_BUFFER_BYTES = 10 * 1024 * 1024;
+const PUBLIC_RETRO_ORIGIN =
+  process.env.SAFEWORD_PUBLIC_RETRO_BUILD_ORIGIN ?? 'https://retro-relay-production.up.railway.app';
 
 const manifestBytes = readFileSync(
   new URL('src/retro/relay-readiness-manifest.json', import.meta.url),
@@ -144,5 +146,6 @@ export default defineConfig({
   define: {
     __SAFEWORD_BUILD_COMMIT__: JSON.stringify(buildCommit),
     __SAFEWORD_RELAY_BUILD_ATTESTATION__: JSON.stringify(relayBuildAttestation),
+    __SAFEWORD_PUBLIC_RETRO_ORIGIN__: JSON.stringify(PUBLIC_RETRO_ORIGIN),
   },
 });

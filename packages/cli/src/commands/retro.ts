@@ -15,6 +15,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import {
   mkdirSync,
   mkdtempSync,
@@ -23,7 +24,7 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { platform, tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import process from 'node:process';
 
@@ -45,6 +46,8 @@ import {
   type PublicRetroDeliveryDependencies,
   type PublicRetroSource,
 } from '../retro/public-delivery.js';
+import { buildPublicRetroSource } from '../retro/public-source.js';
+import { createPublicRetroTransport } from '../retro/public-transport.js';
 import { reconcile, type ReconcileTracker } from '../retro/reconcile.js';
 import {
   DEFAULT_RELAY_REQUEST_DEADLINE_MS,
@@ -406,6 +409,8 @@ export interface RetroCliOptions {
   findings?: string;
   /** Extract findings out-of-band via a headless `claude -p` session. */
   autoExtract?: boolean;
+  /** Internal lifecycle assertion: the host observed three completed tool pairs. */
+  publicRetro?: boolean;
   /** Delta re-arm: digest only the transcript from this char offset onward (ZFGWS1). */
   windowStart?: number;
   /** Stable session id forwarded from the hook, so the ledger isn't keyed to 'unknown'. */
@@ -921,6 +926,7 @@ async function executeRetroWithDependencies(
     output: RetroCommandOutput;
     projectDirectory: string;
     relay?: RetroReadinessComposition;
+    publicRetro?: NonNullable<RetroDependencies['publicRetro']>;
     resolveProvenance?: () => Provenance | undefined;
     restTransportAvailable: boolean;
     sessionId: string;
@@ -948,6 +954,7 @@ async function executeRetroWithDependencies(
     projectDirectory: dependencies.projectDirectory,
     readFile: (path: string) => readFileSync(path, 'utf8'),
     ...(relay !== undefined && { relay }),
+    ...(dependencies.publicRetro !== undefined && { publicRetro: dependencies.publicRetro }),
     resolveProvenance: dependencies.resolveProvenance,
     sessionId: dependencies.sessionId,
     transport: dependencies.transport,
@@ -1186,6 +1193,43 @@ export async function retryRelayDeadLetterCommand(
   return true;
 }
 
+function localPublicHarness(agent: RetroAgent): 'claude-code' | 'codex' | undefined {
+  if (agent === 'claude') return 'claude-code';
+  if (agent === 'codex') return 'codex';
+  return undefined;
+}
+
+function resolvePublicRetroRoute(input: {
+  agent: RetroAgent;
+  enabled: boolean;
+  environment: NodeJS.ProcessEnv;
+  projectDirectory: string;
+}): NonNullable<RetroDependencies['publicRetro']> | undefined {
+  if (!input.enabled || input.environment.CLAUDE_CODE_REMOTE_SESSION_ID !== undefined) {
+    return undefined;
+  }
+  const harness = localPublicHarness(input.agent);
+  if (harness === undefined) return undefined;
+  const source = buildPublicRetroSource(input.projectDirectory, {
+    agentVersion:
+      harness === 'codex' ? input.environment.CODEX_VERSION : input.environment.CLAUDE_CODE_VERSION,
+    cliVersion: VERSION,
+    environment: input.environment,
+    harness,
+    model: harness === 'codex' ? input.environment.CODEX_MODEL : input.environment.ANTHROPIC_MODEL,
+    osFamily: platform(),
+    pluginVersion: VERSION,
+  });
+  if (source === undefined) return undefined;
+  return {
+    attemptsDirectory: nodePath.join(input.projectDirectory, '.safeword', 'retro-attempts'),
+    now: () => performance.now(),
+    randomUUID,
+    source,
+    transport: createPublicRetroTransport(),
+  };
+}
+
 /**
  * CLI wrapper. Supplies the real boundaries: the extractor reads agent-produced
  * raw findings from `--findings <path>` (the agent runs the retro guide, writes
@@ -1212,12 +1256,20 @@ async function executeRetroCliCommand(
   const restTransport = createRestTransport(resolveGitHubToken());
   const transport = restTransport ?? unavailableTransport();
 
+  const harness = resolveRetroHarness(autoExtractAgent, detectAgent);
+  const publicRetro = resolvePublicRetroRoute({
+    agent: autoExtractAgent,
+    enabled: options.publicRetro === true,
+    environment: process.env,
+    projectDirectory,
+  });
+
   const outcome = await executeRetroWithDependencies(options, {
     captureFilingFault: captureRetroFilingFault,
     environment: process.env,
     extract,
     extractionSucceeded: () => extractionSucceeded,
-    harness: resolveRetroHarness(autoExtractAgent, detectAgent),
+    harness,
     // The catalog handler owns the public CLI result (including JSON output).
     // Keep this legacy wrapper side-effect-free so a machine response is never
     // prefixed with human progress lines.
@@ -1227,6 +1279,7 @@ async function executeRetroCliCommand(
       success: () => process.exitCode,
     },
     projectDirectory,
+    ...(publicRetro !== undefined && { publicRetro }),
     // Prefer the session id the hook resolved and forwarded (cloud sets
     // CLAUDE_CODE_REMOTE_SESSION_ID, not CLAUDE_SESSION_ID, so the env fallback
     // alone resolved to 'unknown' and broke ledger session-accounting; ZFGWS1).

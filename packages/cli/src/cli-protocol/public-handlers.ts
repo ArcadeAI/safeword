@@ -1995,6 +1995,7 @@ function retroOptions(invocation: CommandInvocation, transcript: string): RetroC
     transcript: nodePath.resolve(invocation.cwd, transcript),
     findings: findings === undefined ? undefined : nodePath.resolve(invocation.cwd, findings),
     autoExtract: invocation.options.autoExtract === true,
+    publicRetro: invocation.options.publicRetro === true,
     windowStart: numericOption(invocation.options, 'windowStart'),
     sessionId: stringOption(invocation.options, 'sessionId'),
   };
