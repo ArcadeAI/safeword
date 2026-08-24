@@ -426,7 +426,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 - [x] RED 20f3d3ece
 - [ ] GREEN
-- [x] REFACTOR skip: validation predicates are already small and single-purpose
+- [ ] REFACTOR
 
 ## Rule: send-cloud-retros-silently.SWM1.R3
 
