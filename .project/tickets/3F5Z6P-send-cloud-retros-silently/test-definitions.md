@@ -501,8 +501,8 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 ### Scenario: Work within both budgets is preserved
 
 - [x] RED 163c72f30
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN a0b39a084
+- [x] REFACTOR skip: the orchestrator remains linear and delegates request construction
 
 ### Scenario: Extraction time does not consume the delivery budgets
 
