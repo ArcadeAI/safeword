@@ -1,4 +1,4 @@
-@send-cloud-retros-silently
+@send-cloud-retros-silently @wip
 Feature: Send retros silently from supported local harnesses
   SafeWord preserves sanitized retros without signup, prompting, or weakening
   the private GitHub filing boundary.

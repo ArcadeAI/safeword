@@ -1,4 +1,4 @@
-@send-cloud-retros-silently
+@send-cloud-retros-silently @wip
 Feature: Deliver retros within silent bounded lifecycles
   SafeWord bounds local delivery work and enables only supported local harnesses.
 
