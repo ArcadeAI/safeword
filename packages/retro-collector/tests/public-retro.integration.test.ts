@@ -69,6 +69,17 @@ function nonUtf8Envelope(): Uint8Array {
   ]);
 }
 
+function sizedEnvelope(byteLength: number, multibyte: boolean): Uint8Array {
+  const emptyLength = encoded({ ...fixtureEnvelope(), finding: '' }).byteLength;
+  const contentBytes = byteLength - emptyLength;
+  let finding = 'a'.repeat(contentBytes);
+  if (multibyte) {
+    const trailingAscii = contentBytes % 2 === 0 ? '' : 'a';
+    finding = `${'é'.repeat(Math.floor(contentBytes / 2))}${trailingAscii}`;
+  }
+  return encoded({ ...fixtureEnvelope(), finding });
+}
+
 it('returns the original durable receipt for an exact retry after restart', async () => {
   const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
   temporaryDirectories.push(directory);
@@ -185,6 +196,38 @@ it('keeps distinct submissions independent', async () => {
   expect(responses.map(response => response.status)).toEqual([201, 201]);
   expect(receipts.map(receipt => receipt.requestId)).toEqual([first.requestId, second.requestId]);
   expect(receipts[0]?.receipt).not.toBe(receipts[1]?.receipt);
+});
+
+it.each([
+  ['ascii', 65_536, 201],
+  ['ascii', 65_537, 413],
+  ['multibyte', 65_536, 201],
+  ['multibyte', 65_537, 413],
+] as const)('handles a %s envelope of %i bytes', async (content, byteLength, expectedStatus) => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+  });
+  const request = {
+    ...fixtureRequest(),
+    body: sizedEnvelope(byteLength, content === 'multibyte'),
+  };
+
+  const response = await submit(runtime.url, request);
+  const result = (await response.json()) as { receipt?: string; requestId?: string };
+  const validAfterRejection =
+    expectedStatus === 413 ? await submit(runtime.url, fixtureRequest()) : undefined;
+  await runtime.close();
+
+  expect(request.body.byteLength).toBe(byteLength);
+  expect(response.status).toBe(expectedStatus);
+  if (expectedStatus === 201) {
+    expect(result).toEqual({ receipt: expect.any(String), requestId: request.requestId });
+  } else {
+    expect(result.receipt).toBeUndefined();
+    expect(validAfterRejection?.status).toBe(201);
+  }
 });
 
 const invalidEnvelopes: readonly (readonly [string, Uint8Array, (string | false)?])[] = [
