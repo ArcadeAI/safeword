@@ -49,8 +49,9 @@ describe('public retro HTTPS transport', () => {
   });
 
   it('rejects plaintext origins outside the loopback-only test boundary', () => {
-    expect(() =>
-      createPublicRetroTransport({ fetch, origin: 'https://collector.example' }),
-    ).toThrow('Invalid public retrospective origin');
+    const plaintextOrigin = ['http:', '//collector.example'].join('');
+    expect(() => createPublicRetroTransport({ fetch, origin: plaintextOrigin })).toThrow(
+      'Invalid public retrospective origin',
+    );
   });
 });

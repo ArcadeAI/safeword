@@ -1,4 +1,4 @@
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import {
   chmodSync,
   mkdirSync,
@@ -45,6 +45,30 @@ function completedClaudeTranscript(project: string): string {
   return transcript;
 }
 
+function runHook(
+  bun: string,
+  project: string,
+  environment: NodeJS.ProcessEnv,
+  input: string,
+): Promise<{ status: number | null; stdout: string; stderr: string }> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(bun, [CLAUDE_HOOK], { cwd: project, env: environment });
+    let stdout = '';
+    let stderr = '';
+    child.stdout.setEncoding('utf8').on('data', chunk => {
+      stdout += String(chunk);
+    });
+    child.stderr.setEncoding('utf8').on('data', chunk => {
+      stderr += String(chunk);
+    });
+    child.once('error', reject);
+    child.once('close', status => {
+      resolve({ status, stdout, stderr });
+    });
+    child.stdin.end(input);
+  });
+}
+
 it('runs installed Claude lifecycle through the real collector to a durable receipt', async () => {
   const project = mkdtempSync(path.join(tmpdir(), 'public-retro-lifecycle-'));
   const buildDirectory = mkdtempSync(path.join(CLI_PACKAGE, '.public-retro-build-'));
@@ -82,6 +106,7 @@ it('runs installed Claude lifecycle through the real collector to a durable rece
     databasePath: path.join(project, 'collector.sqlite'),
     operatorCredential: 'operator-fixture-credential',
   });
+  const sessionId = `public-lifecycle-${process.pid}-${Date.now()}`;
 
   try {
     const { build } = await import('tsup');
@@ -105,10 +130,10 @@ it('runs installed Claude lifecycle through the real collector to a durable rece
     chmodSync(wrapper, 0o755);
     const transcript = completedClaudeTranscript(project);
     const bun = spawnSync('which', ['bun'], { encoding: 'utf8' }).stdout.trim();
-    const result = spawnSync(bun, [CLAUDE_HOOK], {
-      cwd: project,
-      encoding: 'utf8',
-      env: {
+    const result = await runHook(
+      bun,
+      project,
+      {
         ...process.env,
         CLAUDE_PROJECT_DIR: project,
         CLI_PATH: path.join(buildDirectory, 'cli.js'),
@@ -117,8 +142,8 @@ it('runs installed Claude lifecycle through the real collector to a durable rece
         PATH: '/usr/bin:/bin',
         SAFEWORD_RETRO_EXTRACT_CMD: wrapper,
       },
-      input: JSON.stringify({ session_id: 'local-session', transcript_path: transcript }),
-    });
+      JSON.stringify({ session_id: sessionId, transcript_path: transcript }),
+    );
 
     expect(result).toMatchObject({ status: 0, stdout: '', stderr: '' });
     const [markerName] = readdirSync(attemptsDirectory);
