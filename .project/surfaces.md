@@ -130,3 +130,12 @@ surfaces.md from packages/cli/templates/surfaces-template.md and then own it.
 **Examples:** Railway service health checks, persistent volume mounting, relay environment configuration, deployment smoke tests
 **Coverage notes:** Tag feature scenarios with `@surface.railway-hosted-relay` when behavior depends on the hosted relay process, its persistent storage, or Railway deployment controls.
 **Do not confuse with:** Safeword CLI — the local command that prepares and delivers retro requests. The hosted relay accepts authorized requests and coordinates durable deduplication.
+
+## Railway Public Retro Collector
+
+**Kind:** Hosted service
+**Description:** The credentialless public quarantine that durably accepts sanitized local retros without importing, storing, or invoking private GitHub filing authority. It runs as a separate Railway service with its own process, SQLite volume, deployment, and operator-only read credential.
+**Audience:** Safeword Maintainer (SWM)
+**Examples:** Public intake, raw-body deduplication, opaque receipts, operator reads, isolated persistent volume
+**Coverage notes:** Tag feature scenarios with `@surface.railway-public-retro-collector` when behavior depends on public intake, quarantine storage, receipt deduplication, or collector deployment controls.
+**Do not confuse with:** Railway Hosted Relay — the existing authenticated private filing service; the public collector cannot reach its GitHub credentials, code paths, or database.
