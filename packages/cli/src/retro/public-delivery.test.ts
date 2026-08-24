@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -69,6 +69,30 @@ describe('buildPublicRetroEnvelope', () => {
       const markerPath = path.join(attemptsDirectory, `${prepared?.sessionScope}.json`);
       const marker = JSON.parse(readFileSync(markerPath, 'utf8')) as unknown;
       expect(marker).toEqual({ sessionScope: prepared?.sessionScope });
+    } finally {
+      rmSync(attemptsDirectory, { recursive: true, force: true });
+    }
+  });
+
+  it('abandons an oversized UTF-8 envelope before identity or claim', () => {
+    const attemptsDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-public-retro-'));
+    let uuidCalls = 0;
+
+    try {
+      const prepared = preparePublicRetroRequest(
+        { ...requiredInput, finding: '🚀'.repeat(16_384) },
+        {
+          attemptsDirectory,
+          randomUUID: () => {
+            uuidCalls += 1;
+            return '01911111-2222-7333-8444-55555555555A';
+          },
+        },
+      );
+
+      expect(prepared).toBeUndefined();
+      expect(uuidCalls).toBe(0);
+      expect(readdirSync(attemptsDirectory)).toEqual([]);
     } finally {
       rmSync(attemptsDirectory, { recursive: true, force: true });
     }
