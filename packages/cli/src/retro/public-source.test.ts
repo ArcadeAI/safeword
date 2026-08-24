@@ -78,4 +78,24 @@ describe('collectPublicGitContext', () => {
       localEmail: 'local@example.com',
     });
   });
+
+  it('omits Git email when a consulted config delegates through an include', () => {
+    const directory = createTemporaryDirectory();
+    const gitDirectory = nodePath.join(directory, '.git');
+    mkdirSync(gitDirectory);
+    writeFileSync(
+      nodePath.join(gitDirectory, 'config'),
+      `[include]
+  path = /private/identity
+[remote "origin"]
+  url = git@github.com:ArcadeAI/safeword.git
+[user]
+  email = local@example.com
+`,
+    );
+
+    expect(collectPublicGitContext(directory)).toEqual({
+      repository: 'github.com/arcadeai/safeword',
+    });
+  });
 });
