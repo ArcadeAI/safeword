@@ -63,3 +63,15 @@ export function ensurePublicRetroProjectConfig(
   );
   return true;
 }
+
+export function setPublicRetroCollection(cwd: string, enabled: boolean): boolean {
+  const config = readConfig(cwd);
+  validateCollectionSetting(config);
+  if (config.publicRetrospectiveCollection === enabled) return false;
+  writeDurableFile(
+    configPath(cwd),
+    `${JSON.stringify({ ...config, publicRetrospectiveCollection: enabled }, undefined, 2)}\n`,
+    { mode: 0o644 },
+  );
+  return true;
+}
