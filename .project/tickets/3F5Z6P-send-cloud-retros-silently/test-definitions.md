@@ -452,7 +452,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 - [x] RED skip: credential rejection was established by the foundational intake route
 - [x] GREEN 6a45edd88
-- [ ] REFACTOR
+- [x] REFACTOR skip: one table covers the complete credential-header denylist
 
 ### Scenario: An authorized operator can inspect a quarantined record
 
