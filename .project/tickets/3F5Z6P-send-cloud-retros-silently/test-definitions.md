@@ -604,4 +604,4 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 ## Feature-level cross-scenario refactor
 
-- [ ] cross-scenario
+- [x] cross-scenario 53ad0ba96
