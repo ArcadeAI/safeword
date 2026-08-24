@@ -400,7 +400,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 ### Scenario: Semantic equivalence cannot override byte-different raw bodies
 
-- [ ] RED
+- [x] RED skip: canonical raw-byte enforcement was established by envelope validation
 - [ ] GREEN
 - [ ] REFACTOR
 
