@@ -43,6 +43,17 @@ phase_anchors:
 
 ## Work Log
 
+- 2026-08-24T21:30:00Z Closed the material independent-review findings without
+  expanding launch scope: both real local lifecycle carriers now prove
+  once-only delivery and project opt-out against the SQLite collector; client
+  rendering and receipt handoff failures are contained and temporary receipts
+  are cleaned up; the collector closes its store on startup/shutdown failures,
+  compares operator credentials by byte length, and returns operator JSON with
+  `nosniff`. Focused CLI typecheck and 11 delivery/lifecycle tests passed;
+  collector typecheck and all 66 collector tests passed. Retention, deletion,
+  rate limiting, opt-in, and a non-root Railway image remain rejected as either
+  explicit post-launch work, contrary to the accepted default-on contract, or
+  incompatible with Railway's root-owned mounted volume.
 - 2026-08-24T20:13:00Z Production collector launched at
   `https://retro-collector-production.up.railway.app` as a physically separate
   Railway service with a persistent `/data` volume. Synthetic proof receipt
