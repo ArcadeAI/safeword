@@ -48,6 +48,15 @@ Build the smallest end-to-end path in six TDD steps:
 
 2. **Build one direct TypeScript delivery stage.** Add a small module beside the
    existing retro pipeline that consumes exactly one extracted candidate.
+   Extract one reusable `prepareFinding` primitive from `prepareEncounters` so
+   private filing and public collection share the same normalize, surface, and
+   sanitizer walls. The public envelope's string `finding` is the deterministic
+   `assembleBody` rendering of that sanitized `Finding`; it does not introduce a
+   second extraction schema or sanitizer. Expose one delivery orchestrator and
+   keep preparation/building and claim/handoff as cohesive internal operations.
+   Inject only real nondeterministic boundaries (monotonic clock, UUID source,
+   and transport), never generic preparation callbacks that could let tests pass
+   while production candidate-to-receipt wiring is broken.
    "Synchronous" at the product boundary means inline and awaited, never
    detached, not that every internal API is synchronous. Inside the 1000 ms
    preparation budget it validates the candidate structure, invokes
@@ -196,6 +205,7 @@ Build the smallest end-to-end path in six TDD steps:
 | Collector observability | No collector diagnostics/liveness HTTP route in v1; manual Railway platform inspection | Authenticated diagnostics route | The canonical 97-scenario contract authorizes intake and operator record reads only. A diagnostics route adds an unreviewed authenticated surface; the low-volume launch accepts manual capacity/write-failure discovery. |
 | Launch governance | Publish accurate notice with the feature; privacy/legal lifecycle review remains follow-up | Separate privacy/legal go/no-go gate | The user's 2026-08-23 decision explicitly superseded the earlier 2026-08-15 gate and kept retention, deletion, and separate privacy/legal review out of initial launch readiness. |
 | Upgrade default | Missing collection setting enables silent collection after upgrade | Upgrade-time prompt; default-off migration | Zero-friction default-on behavior is the explicit product choice. Release disclosure and the local project opt-out preserve control, while the lack of active notice is an accepted NTB-transparency trade. |
+| Client-stage boundary | One exported candidate-to-receipt orchestrator sharing `prepareFinding`; small internal build and handoff operations | One mixed-responsibility module; callback-driven generic executor | Sharing the sanitizer prevents policy drift, while injecting only clock/UUID/transport preserves real wiring in tests without a broad abstraction surface. |
 
 The inherited private retry, tombstone, and ambiguous-create contract remains as
 specified in `spec.md`. #834 is not superseded until the relay is deployed,
