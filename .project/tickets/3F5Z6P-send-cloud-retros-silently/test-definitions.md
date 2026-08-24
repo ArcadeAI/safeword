@@ -462,7 +462,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 ### Scenario: Non-operator credentials cannot read public records
 
-- [ ] RED
+- [x] RED skip: operator authorization was established by the preceding read slice
 - [ ] GREEN
 - [ ] REFACTOR
 
