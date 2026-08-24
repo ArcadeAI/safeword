@@ -75,6 +75,10 @@ export type PublicRetroDeliveryOutcome = 'preserved' | 'abandoned';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const MAX_ENVELOPE_BYTES = 65_536;
 
+function hasValue(value: string | undefined): value is string {
+  return value !== undefined && value.trim() !== '';
+}
+
 function deriveSessionScope(
   harness: PublicRetroSource['harness'],
   projectUUID: string,
@@ -103,14 +107,14 @@ export function buildPublicRetroEnvelope(
     hostClass: input.source.hostClass,
     projectUUID,
     safewordCliVersion: input.source.safewordCliVersion,
-    ...(input.source.repository !== undefined && { repository: input.source.repository }),
-    ...(input.source.agentVersion !== undefined && { agentVersion: input.source.agentVersion }),
-    ...(input.source.model !== undefined && { model: input.source.model }),
-    ...(input.source.safewordPluginVersion !== undefined && {
+    ...(hasValue(input.source.repository) && { repository: input.source.repository }),
+    ...(hasValue(input.source.agentVersion) && { agentVersion: input.source.agentVersion }),
+    ...(hasValue(input.source.model) && { model: input.source.model }),
+    ...(hasValue(input.source.safewordPluginVersion) && {
       safewordPluginVersion: input.source.safewordPluginVersion,
     }),
-    ...(input.source.osFamily !== undefined && { osFamily: input.source.osFamily }),
-    ...(input.source.userIdentity !== undefined && { userIdentity: input.source.userIdentity }),
+    ...(hasValue(input.source.osFamily) && { osFamily: input.source.osFamily }),
+    ...(hasValue(input.source.userIdentity) && { userIdentity: input.source.userIdentity }),
   };
   const scope = deriveSessionScope(source.harness, projectUUID, input.sessionId);
   const bytes = new TextEncoder().encode(
