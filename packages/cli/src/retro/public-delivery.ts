@@ -1,4 +1,6 @@
 import { createHash } from 'node:crypto';
+import { unlinkSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
 
 export interface PublicRetroSource {
   harness: 'claude-code' | 'codex';
@@ -81,8 +83,29 @@ export function buildPublicRetroEnvelope(
 }
 
 export function preparePublicRetroRequest(
-  _input: PublicRetroEnvelopeInput,
-  _dependencies: PublicRetroPreparationDependencies,
+  input: PublicRetroEnvelopeInput,
+  dependencies: PublicRetroPreparationDependencies,
 ): PreparedPublicRetroRequest | undefined {
-  throw new Error('Not implemented');
+  const built = buildPublicRetroEnvelope(input);
+  const requestId = dependencies.randomUUID().toLowerCase();
+  if (!UUID.test(requestId)) throw new Error('Invalid public retrospective request identity');
+
+  const markerPath = path.join(dependencies.attemptsDirectory, `${built.sessionScope}.json`);
+  try {
+    writeFileSync(markerPath, JSON.stringify({ sessionScope: built.sessionScope }), {
+      encoding: 'utf8',
+      flag: 'wx',
+      flush: true,
+    });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'EEXIST') return undefined;
+    try {
+      unlinkSync(markerPath);
+    } catch {
+      // The failed exclusive create left nothing to clean up.
+    }
+    throw error;
+  }
+
+  return { ...built, requestId };
 }
