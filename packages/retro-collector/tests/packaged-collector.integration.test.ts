@@ -1,5 +1,5 @@
 import { type ChildProcess, spawn } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { createServer, type Server } from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -153,4 +153,18 @@ it('persists a public retro in its own process without calling GitHub', async ()
   expect(retryResponse.status).toBe(200);
   expect(retryReceipt).toEqual(firstReceipt);
   expect(githubCalls).toBe(0);
+});
+
+it('ships without private filing authority', () => {
+  const packageRoot = path.resolve(import.meta.dirname, '..');
+  const manifest = JSON.parse(readFileSync(path.join(packageRoot, 'package.json'), 'utf8')) as {
+    dependencies?: Record<string, string>;
+  };
+  const artifact = readdirSync(path.join(packageRoot, 'dist'))
+    .filter(file => file.endsWith('.js'))
+    .map(file => readFileSync(path.join(packageRoot, 'dist', file), 'utf8'))
+    .join('\n');
+
+  expect(manifest.dependencies ?? {}).toEqual({});
+  expect(artifact).not.toMatch(/github|octokit|retro-relay|GITHUB_/iu);
 });
