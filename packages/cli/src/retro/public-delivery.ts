@@ -36,6 +36,7 @@ export interface PublicRetroPreparationDependencies {
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const MAX_ENVELOPE_BYTES = 65_536;
 
 function deriveSessionScope(
   harness: PublicRetroSource['harness'],
@@ -87,6 +88,7 @@ export function preparePublicRetroRequest(
   dependencies: PublicRetroPreparationDependencies,
 ): PreparedPublicRetroRequest | undefined {
   const built = buildPublicRetroEnvelope(input);
+  if (built.bytes.byteLength > MAX_ENVELOPE_BYTES) return undefined;
   const requestId = dependencies.randomUUID().toLowerCase();
   if (!UUID.test(requestId)) throw new Error('Invalid public retrospective request identity');
 
