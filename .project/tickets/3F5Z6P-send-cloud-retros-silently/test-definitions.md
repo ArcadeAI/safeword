@@ -407,7 +407,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 ### Scenario: Reusing a session scope with different bytes is rejected
 
 - [x] RED skip: scope conflict behavior was established by the transactional store slice
-- [ ] GREEN
+- [x] GREEN e6f30af24
 - [ ] REFACTOR
 
 ### Scenario: A fresh request identity cannot reuse an accepted session scope
