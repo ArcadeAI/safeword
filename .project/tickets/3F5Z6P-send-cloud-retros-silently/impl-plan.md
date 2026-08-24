@@ -174,6 +174,27 @@ Build the smallest end-to-end path in six TDD steps:
    request can be located by the opaque receipt retained in the local marker or
    by project UUID under operator authentication; v1 still exposes no delete.
 
+## Launch critical path
+
+Initial launch follows one strict sequence:
+
+1. Complete the allowlisted local source collector.
+2. Install and wire the shared TypeScript completion carrier for local Claude
+   Code and local Codex.
+3. Use the built-in HTTPS collector origin and retain the echoed durable receipt
+   within the existing exclusive deadlines.
+4. Prove installed hook → sanitized canonical bytes → public collector → SQLite
+   durable acceptance → local receipt for both harnesses, including fault and
+   concurrency cases.
+5. Deploy the collector on its persistent Railway volume as one active replica,
+   then pass the reserved synthetic live submission.
+6. Publish the collection disclosure and run the complete release verification,
+   audit, quality-review, and refactor gates.
+
+The launch gate is step 4's installed end-to-end receipt proof. Retention,
+deletion, quotas, and broader abuse controls remain follow-up operations and do
+not block the initial release.
+
 ## Decisions
 
 ### Implementation Inspiration
