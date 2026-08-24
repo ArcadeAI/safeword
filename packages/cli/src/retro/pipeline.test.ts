@@ -14,6 +14,14 @@ const rawFinding = (over: Record<string, unknown> = {}) => ({
 });
 
 describe('prepareEncounters', () => {
+  it('returns the same sanitized finding used to build the private encounter', async () => {
+    const report = await prepareEncounters([rawFinding({ title: ' shared finding ' })]);
+
+    expect(report.findings).toHaveLength(1);
+    expect(report.findings[0]?.title).toBe('shared finding');
+    expect(report.encounters).toHaveLength(1);
+  });
+
   it('turns a valid raw finding into an encounter with the resolved surface', async () => {
     const report = await prepareEncounters([rawFinding()]);
     const [encounter] = report.encounters;
