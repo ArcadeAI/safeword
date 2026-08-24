@@ -40,8 +40,14 @@ async function submit(
   url: string,
   request: ReturnType<typeof fixtureRequest>,
   contentType: string | false = 'application/json; charset=utf-8',
+  requestIdentity: string | false | readonly string[] = request.requestId,
 ): Promise<Response> {
-  const headers = new Headers({ 'x-safeword-request-id': request.requestId });
+  const headers = new Headers();
+  if (typeof requestIdentity === 'string') {
+    headers.set('x-safeword-request-id', requestIdentity);
+  } else if (requestIdentity !== false) {
+    for (const value of requestIdentity) headers.append('x-safeword-request-id', value);
+  }
   if (contentType !== false) headers.set('content-type', contentType);
   return fetch(`${url}/v1/public-retros`, {
     method: 'POST',
@@ -246,6 +252,34 @@ it('rejects byte-different reuse of an accepted session scope', async () => {
   expect(rejected.status).toBe(409);
   expect(retry.status).toBe(200);
   expect(retryReceipt).toEqual(firstReceipt);
+});
+
+it.each([
+  ['missing', false],
+  ['empty', ''],
+  ['duplicate', [fixtureRequest().requestId, fixtureRequest().requestId]],
+  ['non-UUID', 'not-a-uuid'],
+  ['uppercase', fixtureRequest().requestId.toUpperCase()],
+  ['brace-wrapped', `{${fixtureRequest().requestId}}`],
+] as const)('rejects a %s request identity without persistence', async (_, requestIdentity) => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+  });
+  const request = fixtureRequest();
+
+  const invalidResponse = await submit(
+    runtime.url,
+    request,
+    'application/json; charset=utf-8',
+    requestIdentity,
+  );
+  const validResponse = await submit(runtime.url, request);
+  await runtime.close();
+
+  expect(invalidResponse.status).toBeGreaterThanOrEqual(400);
+  expect(validResponse.status).toBe(201);
 });
 
 it.each([
