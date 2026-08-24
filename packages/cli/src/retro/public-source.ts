@@ -167,7 +167,9 @@ function hasIdentityDelegate(content: string): boolean {
 
 function parseGitSection(line: string): string | undefined {
   const end = line.indexOf(']');
-  return line.startsWith('[') && end !== -1 ? line.slice(1, end).toLowerCase() : undefined;
+  return line.startsWith('[') && end !== -1
+    ? line.slice(1, end).toLowerCase().split(/\s/u).filter(Boolean).join(' ')
+    : undefined;
 }
 
 function parseGitEntry(line: string): readonly [string, string] | undefined {
@@ -179,7 +181,10 @@ function parseGitEntry(line: string): readonly [string, string] | undefined {
 }
 
 function parseGitValue(rawValue: string): string | undefined {
-  if (!rawValue.startsWith('"')) return stripGitComment(rawValue);
+  if (!rawValue.startsWith('"')) {
+    const value = stripGitComment(rawValue);
+    return value.endsWith('\\') ? undefined : value;
+  }
   const closingQuote = rawValue.indexOf('"', 1);
   if (closingQuote === -1 || rawValue.slice(1, closingQuote).includes('\\')) return undefined;
   const suffix = rawValue.slice(closingQuote + 1).trim();

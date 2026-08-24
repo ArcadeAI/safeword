@@ -59,7 +59,10 @@ export function createPublicRetroTransport(options?: {
     } catch {
       throw new Error('Invalid public retrospective receipt');
     }
-    if (!isPublicRetroReceipt(result)) {
+    if (
+      !isPublicRetroReceipt(result) ||
+      result.requestId !== request.headers['x-safeword-request-id']
+    ) {
       throw new Error('Invalid public retrospective receipt');
     }
     return result;

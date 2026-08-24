@@ -202,6 +202,18 @@ describe('collectPublicGitContext', () => {
     ).toEqual({});
   });
 
+  it('omits Git email for whitespace variants and unquoted continuations', () => {
+    const directory = createTemporaryDirectory();
+    const gitDirectory = nodePath.join(directory, '.git');
+    mkdirSync(gitDirectory);
+    writeFileSync(
+      nodePath.join(gitDirectory, 'config'),
+      '[includeIf\t"gitdir:~/work/"] path = /private/identity\n[user]\nemail = leaked\\\n',
+    );
+
+    expect(collectPublicGitContext(directory, noGlobalConfig)).toEqual({});
+  });
+
   it('ignores a symlinked Git directory', () => {
     const directory = createTemporaryDirectory();
     const foreign = createTemporaryDirectory();

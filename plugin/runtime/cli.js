@@ -55754,7 +55754,7 @@ function hasIdentityDelegate(content) {
 }
 function parseGitSection(line) {
   const end = line.indexOf("]");
-  return line.startsWith("[") && end !== -1 ? line.slice(1, end).toLowerCase() : undefined;
+  return line.startsWith("[") && end !== -1 ? line.slice(1, end).toLowerCase().split(/\s/u).filter(Boolean).join(" ") : undefined;
 }
 function parseGitEntry(line) {
   const separator = line.indexOf("=");
@@ -55766,8 +55766,10 @@ function parseGitEntry(line) {
   return [line.slice(0, separator).trim().toLowerCase(), value];
 }
 function parseGitValue(rawValue) {
-  if (!rawValue.startsWith('"'))
-    return stripGitComment(rawValue);
+  if (!rawValue.startsWith('"')) {
+    const value = stripGitComment(rawValue);
+    return value.endsWith("\\") ? undefined : value;
+  }
   const closingQuote = rawValue.indexOf('"', 1);
   if (closingQuote === -1 || rawValue.slice(1, closingQuote).includes("\\"))
     return;
@@ -55856,7 +55858,7 @@ function createPublicRetroTransport(options) {
     } catch {
       throw new Error("Invalid public retrospective receipt");
     }
-    if (!isPublicRetroReceipt(result)) {
+    if (!isPublicRetroReceipt(result) || result.requestId !== request.headers["x-safeword-request-id"]) {
       throw new Error("Invalid public retrospective receipt");
     }
     return result;

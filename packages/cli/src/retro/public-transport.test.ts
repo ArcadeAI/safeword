@@ -4,6 +4,10 @@ import type { PublicRetroHttpRequest } from './public-delivery.js';
 import { createPublicRetroTransport } from './public-transport.js';
 
 describe('public retro HTTPS transport', () => {
+  it('constructs with the compiled production origin', () => {
+    expect(createPublicRetroTransport()).toBeTypeOf('function');
+  });
+
   it('posts canonical bytes to the sole origin and returns the echoed receipt', async () => {
     const send = vi.fn<typeof fetch>(() =>
       Promise.resolve(
@@ -117,6 +121,52 @@ describe('public retro HTTPS transport', () => {
   it('normalizes a non-JSON receipt failure', async () => {
     const transport = createPublicRetroTransport({
       fetch: () => Promise.resolve(new Response('<html>unavailable</html>')),
+      origin: 'http://127.0.0.1:43179',
+    });
+
+    await expect(
+      transport({
+        method: 'POST',
+        path: '/v1/public-retros',
+        headers: {
+          'content-type': 'application/json; charset=utf-8',
+          'x-safeword-request-id': 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        },
+        body: new Uint8Array(),
+        redirect: 'error',
+      }),
+    ).rejects.toThrow('Invalid public retrospective receipt');
+  });
+
+  it('rejects a non-success response before parsing a receipt', async () => {
+    const transport = createPublicRetroTransport({
+      fetch: () => Promise.resolve(new Response('unavailable', { status: 503 })),
+      origin: 'http://127.0.0.1:43179',
+    });
+
+    await expect(
+      transport({
+        method: 'POST',
+        path: '/v1/public-retros',
+        headers: {
+          'content-type': 'application/json; charset=utf-8',
+          'x-safeword-request-id': 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        },
+        body: new Uint8Array(),
+        redirect: 'error',
+      }),
+    ).rejects.toThrow('Public retrospective submission failed (503)');
+  });
+
+  it('rejects a receipt for a different request identity', async () => {
+    const transport = createPublicRetroTransport({
+      fetch: () =>
+        Promise.resolve(
+          Response.json({
+            requestId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+            receipt: 'receipt-fixture',
+          }),
+        ),
       origin: 'http://127.0.0.1:43179',
     });
 
