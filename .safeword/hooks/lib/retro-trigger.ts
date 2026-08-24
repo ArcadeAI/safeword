@@ -367,6 +367,8 @@ export interface RetroTriggerDeps {
   threshold?: number;
   /** Per-agent tool-use counter (defaults to the Claude counter). */
   countToolUses?: ToolUseCounter;
+  /** Per-agent completed-pair counter (defaults to the Claude counter). */
+  countCompletedToolUses?: ToolUseCounter;
   /** Per-agent session-id resolver (defaults to the Claude/shared resolver). */
   resolveSessionId?: (
     input: RetroTriggerInput,
@@ -472,6 +474,8 @@ export function decideRetroAvailableNudge(
 
 /** What `decideRetroRun` returns when this Stop should run an extraction. */
 export interface RetroRunDecision {
+  /** Present only when the host transcript proves the public eligibility gate. */
+  publicRetroEligible?: true;
   /** The transcript to mine, handed to the headless extractor. */
   transcriptPath: string;
   /**
@@ -556,6 +560,8 @@ export function decideRetroRun(
   const counter = dependencies.countToolUses ?? countToolUses;
   const toolUses = counter(transcript);
   const threshold = dependencies.threshold ?? SUBSTANCE_THRESHOLD;
+  const completedCounter = dependencies.countCompletedToolUses ?? countCompletedToolUses;
+  const publicRetroEligible = completedCounter(transcript) >= threshold;
   const rearmGrowth = dependencies.rearmGrowth ?? REARM_GROWTH;
   const maxFires = dependencies.maxFires ?? MAX_FIRES;
   const baseDirectory = dependencies.baseDirectory;
@@ -634,5 +640,10 @@ export function decideRetroRun(
     // A state-write failure must not suppress the fire (mirrors markNudged); the
     // duplicate it risks next Stop is absorbed by signature dedupe (triage).
   }
-  return { transcriptPath, windowStart, sessionId };
+  return {
+    transcriptPath,
+    windowStart,
+    sessionId,
+    ...(publicRetroEligible && { publicRetroEligible: true }),
+  };
 }
