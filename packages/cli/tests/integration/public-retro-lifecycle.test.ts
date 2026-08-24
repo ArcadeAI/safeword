@@ -138,7 +138,6 @@ it('runs installed Claude lifecycle through the real collector to a durable rece
         CLAUDE_PROJECT_DIR: project,
         CLI_PATH: path.join(buildDirectory, 'cli.js'),
         FINDINGS_PATH: findings,
-        GITHUB_TOKEN: 'proxy-injected',
         PATH: '/usr/bin:/bin',
         SAFEWORD_RETRO_EXTRACT_CMD: wrapper,
       },
