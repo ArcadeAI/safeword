@@ -519,8 +519,8 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 ### Scenario: Preparation reaching its deadline is abandoned on the boundary
 
 - [x] RED 2342c57e0
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 3fda07daa
+- [x] REFACTOR skip: the shared claim helper keeps the irreversible boundary explicit
 
 ### Scenario: An uncommitted claim is abandoned at the preparation deadline
 
