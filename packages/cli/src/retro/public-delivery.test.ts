@@ -166,4 +166,33 @@ describe('buildPublicRetroEnvelope', () => {
       rmSync(attemptsDirectory, { recursive: true, force: true });
     }
   });
+
+  it('abandons preparation on its exclusive deadline before claim', async () => {
+    const attemptsDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-public-retro-'));
+    const times = [0, 1000];
+    let uuidCalls = 0;
+    let transportCalls = 0;
+
+    try {
+      const outcome = await deliverPublicRetro(requiredInput, {
+        attemptsDirectory,
+        now: () => times.shift() ?? 1000,
+        randomUUID: () => {
+          uuidCalls += 1;
+          return '01911111-2222-7333-8444-55555555555A';
+        },
+        transport: () => {
+          transportCalls += 1;
+          return Promise.reject(new Error('must not submit'));
+        },
+      });
+
+      expect(outcome).toBe('abandoned');
+      expect(uuidCalls).toBe(0);
+      expect(transportCalls).toBe(0);
+      expect(readdirSync(attemptsDirectory)).toEqual([]);
+    } finally {
+      rmSync(attemptsDirectory, { recursive: true, force: true });
+    }
+  });
 });
