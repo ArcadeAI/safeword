@@ -360,7 +360,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 - [x] RED skip: request conflict handling was necessarily established by the transactional store slice
 - [x] GREEN 0384f2263
-- [ ] REFACTOR
+- [x] REFACTOR skip: proof required no production change or new abstraction
 
 ### Scenario: Concurrent fresh identities cannot share one session scope
 
