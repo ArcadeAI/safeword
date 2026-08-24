@@ -10,7 +10,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 - [ ] RED
 - [ ] GREEN
-- [x] REFACTOR skip: first vertical slice has no duplication or unclear ownership
+- [ ] REFACTOR
 
 ### Scenario: Installing both supported harnesses preserves both completion entries
 
