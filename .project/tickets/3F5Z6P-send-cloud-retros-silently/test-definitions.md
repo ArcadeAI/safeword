@@ -327,8 +327,8 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 ### Scenario: Independent preparation is deterministic
 
 - [x] RED c9a250ca6
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 880df43ef
+- [x] REFACTOR skip: the first pure builder slice has one responsibility and no duplication
 
 ### Scenario: Escapable and non-ASCII findings serialize deterministically
 
