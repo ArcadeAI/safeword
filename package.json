@@ -7,14 +7,14 @@
     "packages/*"
   ],
   "scripts": {
-    "test": "bun run --cwd packages/retro-relay test && bun run --cwd packages/cli test",
+    "test": "bun run --cwd packages/retro-relay test && bun run --cwd packages/retro-collector test && bun run --cwd packages/cli test",
     "test:all": "bun run test && bun run test:bdd:acceptance",
     "test:done": "bun run --cwd packages/cli test:done",
     "test:smoke:fast": "bun run --cwd packages/cli test:smoke:fast",
     "test:smoke": "bun run --cwd packages/cli test:smoke",
     "test:smoke:live": "bun run --cwd packages/cli test:smoke:live",
-    "typecheck": "bun run --cwd packages/retro-relay typecheck && bun run --cwd packages/cli typecheck",
-    "build": "bun run --cwd packages/retro-relay build && bun run --cwd packages/cli build",
+    "typecheck": "bun run --cwd packages/retro-relay typecheck && bun run --cwd packages/retro-collector typecheck && bun run --cwd packages/cli typecheck",
+    "build": "bun run --cwd packages/retro-relay build && bun run --cwd packages/retro-collector build && bun run --cwd packages/cli build",
     "lint": "eslint . && bun run lint:gherkin && bun run --cwd packages/cli typecheck",
     "format": "prettier --write .",
     "parity:fix": "bun scripts/parity-check.ts --fix",
