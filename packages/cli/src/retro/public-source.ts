@@ -5,7 +5,7 @@ import nodePath from 'node:path';
 import { readEnabledPublicRetroProject } from './public-config.js';
 import type { PublicRetroSource } from './public-delivery.js';
 
-const SCP_REMOTE = /^[^@\s]+@([^:\s]+):(.+)$/u;
+const SCP_REMOTE = /^[^@\s/]+@([^:\s/]+):(.+)$/u;
 const ALLOWED_PROTOCOLS = new Set(['git:', 'https:', 'ssh:']);
 
 function repoIdentity(hostname: string, rawPath: string): string | undefined {

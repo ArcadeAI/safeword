@@ -55823,7 +55823,7 @@ function collectPublicGitContext(cwd, options = {}) {
 var SCP_REMOTE, ALLOWED_PROTOCOLS;
 var init_public_source = __esm(() => {
   init_public_config();
-  SCP_REMOTE = /^[^@\s]+@([^:\s]+):(.+)$/u;
+  SCP_REMOTE = /^[^@\s/]+@([^:\s/]+):(.+)$/u;
   ALLOWED_PROTOCOLS = new Set(["git:", "https:", "ssh:"]);
 });
 

@@ -90,6 +90,7 @@ describe('normalizeRepoRemote', () => {
     ['https://Evil-GitHub.com/Team/Repo.git', 'evil-github.com/Team/Repo'],
     ['https://api.github.com/Team/Repo.git', 'api.github.com/Team/Repo'],
     ['/Users/fixture/private/repo', undefined],
+    ['/home/alice/Projects/client@acme:internal-tool', undefined],
     ['file:///Users/fixture/private/repo', undefined],
     ['://malformed remote', undefined],
     ['../safeword', undefined],
