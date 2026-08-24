@@ -40,6 +40,11 @@ import { type RetroAgent, windowFor } from '../../templates/hooks/lib/retro-extr
 import { captureRetroFilingFault } from '../../templates/hooks/lib/self-report.js';
 import { type Provenance, PROVENANCE_SHA } from '../retro/ledger.js';
 import { prepareEncounters } from '../retro/pipeline.js';
+import {
+  deliverSanitizedPublicRetroFinding,
+  type PublicRetroDeliveryDependencies,
+  type PublicRetroSource,
+} from '../retro/public-delivery.js';
 import { reconcile, type ReconcileTracker } from '../retro/reconcile.js';
 import {
   DEFAULT_RELAY_REQUEST_DEADLINE_MS,
@@ -90,6 +95,8 @@ export interface RetroDependencies {
    * return undefined) to file without provenance — capture never blocks filing.
    */
   resolveProvenance?: () => Provenance | undefined;
+  /** Host-approved route to the isolated public quarantine collector. */
+  publicRetro?: PublicRetroDeliveryDependencies & { source: PublicRetroSource };
   /**
    * Internal wiring seam for the gated relay path. The public CLI does not
    * populate it while CHECKED_IN_RELAY_READINESS is disabled.
@@ -315,7 +322,27 @@ export async function runRetro(
   // behavior. The window flows through the UNCHANGED egress pipeline below.
   const window = windowFor(transcript, options.windowStart ?? 0);
   const rawFindings = await dependencies.extract(window);
-  const { encounters, drops } = await prepareEncounters(rawFindings);
+  const publicPreparationDeadline =
+    dependencies.publicRetro === undefined ? undefined : dependencies.publicRetro.now() + 1000;
+  const { encounters, drops, findings } = await prepareEncounters(rawFindings);
+  const publicFinding = findings.length === 1 ? findings[0] : undefined;
+
+  if (
+    dependencies.publicRetro !== undefined &&
+    publicPreparationDeadline !== undefined &&
+    rawFindings.length === 1 &&
+    publicFinding !== undefined
+  ) {
+    await deliverSanitizedPublicRetroFinding(
+      {
+        finding: publicFinding,
+        sessionId: dependencies.sessionId,
+        source: dependencies.publicRetro.source,
+      },
+      dependencies.publicRetro,
+      publicPreparationDeadline,
+    );
+  }
 
   // Cloud-filing spool (BNGK9W): persist the post-egress drafts BEFORE filing so a
   // REST auth failure (cloud #568) can't lose them. Opt-in via projectDirectory.
