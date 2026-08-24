@@ -57,6 +57,30 @@ describe('buildPublicRetroEnvelope', () => {
     );
   });
 
+  it('omits empty and whitespace-only optional source values', () => {
+    const fields = [
+      'repository',
+      'agentVersion',
+      'model',
+      'safewordPluginVersion',
+      'osFamily',
+      'userIdentity',
+    ] as const;
+
+    for (const field of fields) {
+      for (const content of ['', ' '.repeat(3)]) {
+        const built = buildPublicRetroEnvelope({
+          ...requiredInput,
+          source: { ...requiredInput.source, [field]: content },
+        });
+        const envelope = JSON.parse(new TextDecoder().decode(built.bytes)) as {
+          source: Record<string, unknown>;
+        };
+        expect(envelope.source).not.toHaveProperty(field);
+      }
+    }
+  });
+
   it('generates one transport-independent request identity after claiming the scope', () => {
     const attemptsDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-public-retro-'));
     let uuidCalls = 0;
