@@ -90,7 +90,7 @@ jobs:
           jq -c '.[]' pull-files.json | while IFS= read -r file; do
             if jq -e '.patch != null and .status != "removed"' > /dev/null <<< "$file"; then
               blob_sha="$(jq -r .sha <<< "$file")"
-              if gh api "repos/$GITHUB_REPOSITORY/git/blobs/$blob_sha" | jq -er '
+              if gh api "repos/$GITHUB_REPOSITORY/git/blobs/$blob_sha" | jq --join-output --exit-status '
                   if .encoding == "base64" and (.content | type) == "string" then
                     .content | gsub("\\n"; "")
                   elif .size == 0 then
