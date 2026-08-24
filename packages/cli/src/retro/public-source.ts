@@ -35,3 +35,13 @@ export function selectPublicUserIdentity(
     value => value !== undefined && value.trim() !== '',
   );
 }
+
+export interface PublicGitContext {
+  repository?: string;
+  localEmail?: string;
+  globalEmail?: string;
+}
+
+export function collectPublicGitContext(_cwd: string): PublicGitContext {
+  return {};
+}

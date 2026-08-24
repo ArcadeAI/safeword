@@ -1,6 +1,14 @@
+import { mkdirSync, writeFileSync } from 'node:fs';
+import nodePath from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
-import { normalizeRepoRemote, selectPublicUserIdentity } from './public-source.js';
+import { createTemporaryDirectory } from '../../tests/helpers.js';
+import {
+  collectPublicGitContext,
+  normalizeRepoRemote,
+  selectPublicUserIdentity,
+} from './public-source.js';
 
 describe('normalizeRepoRemote', () => {
   it.each([
@@ -49,4 +57,25 @@ describe('selectPublicUserIdentity', () => {
       expect(selectPublicUserIdentity(runtimeIdentity, localEmail, globalEmail)).toBe(expected);
     },
   );
+});
+
+describe('collectPublicGitContext', () => {
+  it('reads repository identity and local email from the repository Git config', () => {
+    const directory = createTemporaryDirectory();
+    const gitDirectory = nodePath.join(directory, '.git');
+    mkdirSync(gitDirectory);
+    writeFileSync(
+      nodePath.join(gitDirectory, 'config'),
+      `[remote "origin"]
+  url = https://x-access-token:fixture-secret@github.com/ArcadeAI/Safeword.git
+[user]
+  email = local@example.com
+`,
+    );
+
+    expect(collectPublicGitContext(directory)).toEqual({
+      repository: 'github.com/arcadeai/safeword',
+      localEmail: 'local@example.com',
+    });
+  });
 });
