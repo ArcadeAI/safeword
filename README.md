@@ -526,8 +526,10 @@ The release environment named `pr-review-smoke` must define the secret
 Install that App with selected-repository access only on
 `ArcadeAI/safeword-pr-review-smoke-base` and its real fork,
 `TheMostlyGreat/safeword-pr-review-smoke-base`. The App needs Actions, Contents,
-Environments, Issues, Pull requests, and Workflows write access; the fork token
-is further restricted to Contents write. The smoke App must not have authority
+Issues, Pull requests, and Workflows write access; the fork token is further
+restricted to Contents write. Before the first run, configure a non-production
+`OPENAI_API_KEY` placeholder in the base repository's
+`safeword-pr-review-model` environment. The smoke App must not have authority
 over production repositories. The workflow mints separate installation tokens
 for the fixed repositories; GitHub revokes them at job completion, and they
 otherwise expire within one hour. Configure the environment's deployment
