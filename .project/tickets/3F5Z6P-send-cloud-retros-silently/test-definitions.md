@@ -354,7 +354,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 - [x] RED skip: convergence was necessarily established by the prior transactional store slice
 - [x] GREEN 84dff8caa
-- [ ] REFACTOR
+- [x] REFACTOR skip: proof required no production change or new abstraction
 
 ### Scenario: Concurrent byte-different bodies cannot share one request identity
 
