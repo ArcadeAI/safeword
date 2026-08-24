@@ -424,7 +424,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 ### Scenario: Invalid envelope schema is rejected
 
-- [x] RED 173cdc08b
+- [x] RED 20f3d3ece
 - [x] GREEN c6558659e
 - [x] REFACTOR skip: validation predicates are already small and single-purpose
 
