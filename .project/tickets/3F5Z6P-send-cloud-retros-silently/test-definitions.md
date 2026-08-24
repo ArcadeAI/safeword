@@ -480,7 +480,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 ### Scenario: Collector failure cannot fall through to private filing
 
-- [ ] RED
+- [x] RED 22497a886
 - [ ] GREEN
 - [ ] REFACTOR
 
