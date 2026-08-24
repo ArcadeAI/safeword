@@ -49,6 +49,27 @@ describe('buildPublicRetroSource', () => {
     });
   });
 
+  it('prefers a verified runtime identity over Git email', () => {
+    const directory = createTemporaryDirectory();
+    mkdirSync(nodePath.join(directory, '.safeword'));
+    mkdirSync(nodePath.join(directory, '.git'));
+    writeFileSync(
+      nodePath.join(directory, '.safeword', 'config.json'),
+      JSON.stringify({ projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' }),
+    );
+    writeFileSync(nodePath.join(directory, '.git', 'config'), '[user]\nemail = git@example.com\n');
+
+    expect(
+      buildPublicRetroSource(directory, {
+        cliVersion: '0.79.0',
+        environment: { GIT_CONFIG_GLOBAL: '/fixture/missing' },
+        harness: 'codex',
+        osFamily: 'darwin',
+        runtimeIdentity: 'octocat',
+      }),
+    ).toMatchObject({ userIdentity: 'octocat' });
+  });
+
   it('returns no source when public collection is disabled', () => {
     const directory = createTemporaryDirectory();
     mkdirSync(nodePath.join(directory, '.safeword'));
@@ -317,5 +338,25 @@ describe('collectPublicGitContext', () => {
         environment: { GIT_CONFIG_GLOBAL: globalConfig },
       }),
     ).toEqual({});
+  });
+
+  it('reads standard global configs with home config taking precedence over XDG', () => {
+    const directory = createTemporaryDirectory();
+    const gitDirectory = nodePath.join(directory, '.git');
+    const homeDirectory = nodePath.join(directory, 'home');
+    const xdgDirectory = nodePath.join(directory, 'xdg');
+    mkdirSync(gitDirectory);
+    mkdirSync(nodePath.join(xdgDirectory, 'git'), { recursive: true });
+    mkdirSync(homeDirectory);
+    writeFileSync(nodePath.join(gitDirectory, 'config'), '[core]\nbare = false\n');
+    writeFileSync(nodePath.join(xdgDirectory, 'git/config'), '[user]\nemail = xdg@example.com\n');
+    writeFileSync(nodePath.join(homeDirectory, '.gitconfig'), '[user]\nemail = home@example.com\n');
+
+    expect(
+      collectPublicGitContext(directory, {
+        environment: { XDG_CONFIG_HOME: xdgDirectory },
+        homeDirectory,
+      }),
+    ).toEqual({ globalEmail: 'home@example.com' });
   });
 });
