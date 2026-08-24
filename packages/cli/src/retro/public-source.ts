@@ -1,4 +1,4 @@
-import { readFileSync, statSync } from 'node:fs';
+import { lstatSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -100,7 +100,9 @@ export function buildPublicRetroSource(
 function repoGitConfigPath(cwd: string): string {
   const projectDirectory = nodePath.resolve(cwd);
   const dotGit = nodePath.join(projectDirectory, '.git');
-  if (statSync(dotGit).isDirectory()) return nodePath.join(dotGit, 'config');
+  const dotGitEntry = lstatSync(dotGit);
+  if (dotGitEntry.isSymbolicLink()) throw new Error('Untrusted Git directory pointer');
+  if (dotGitEntry.isDirectory()) return nodePath.join(dotGit, 'config');
   const pointer = readFileSync(dotGit, 'utf8').trim();
   if (!pointer.toLowerCase().startsWith('gitdir:'))
     throw new Error('Invalid Git directory pointer');
@@ -218,7 +220,7 @@ export function collectPublicGitContext(
   try {
     const config = parseRepoGitConfig(readFileSync(repoGitConfigPath(cwd), 'utf8'));
     const repo = config.remote === undefined ? undefined : normalizeRepoRemote(config.remote);
-    const globalEmail = collectGlobalGitEmail(options);
+    const globalEmail = config.delegatesIdentity ? undefined : collectGlobalGitEmail(options);
     return {
       ...(repo !== undefined && { repository: repo }),
       ...(!config.delegatesIdentity &&

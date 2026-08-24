@@ -55625,7 +55625,7 @@ var init_public_delivery = __esm(() => {
 });
 
 // src/retro/public-source.ts
-import { readFileSync as readFileSync62, statSync as statSync10 } from "fs";
+import { lstatSync as lstatSync22, readFileSync as readFileSync62 } from "fs";
 import { homedir as homedir8 } from "os";
 import nodePath99 from "path";
 function repoIdentity(hostname, rawPath) {
@@ -55692,7 +55692,10 @@ function buildPublicRetroSource(cwd, options) {
 function repoGitConfigPath(cwd) {
   const projectDirectory = nodePath99.resolve(cwd);
   const dotGit = nodePath99.join(projectDirectory, ".git");
-  if (statSync10(dotGit).isDirectory())
+  const dotGitEntry = lstatSync22(dotGit);
+  if (dotGitEntry.isSymbolicLink())
+    throw new Error("Untrusted Git directory pointer");
+  if (dotGitEntry.isDirectory())
     return nodePath99.join(dotGit, "config");
   const pointer = readFileSync62(dotGit, "utf8").trim();
   if (!pointer.toLowerCase().startsWith("gitdir:"))
@@ -55791,7 +55794,7 @@ function collectPublicGitContext(cwd, options = {}) {
   try {
     const config = parseRepoGitConfig(readFileSync62(repoGitConfigPath(cwd), "utf8"));
     const repo = config.remote === undefined ? undefined : normalizeRepoRemote(config.remote);
-    const globalEmail = collectGlobalGitEmail(options);
+    const globalEmail = config.delegatesIdentity ? undefined : collectGlobalGitEmail(options);
     return {
       ...repo !== undefined && { repository: repo },
       ...!config.delegatesIdentity && config.email !== undefined && config.email.trim() !== "" && { localEmail: config.email },
@@ -55825,7 +55828,7 @@ function createPublicRetroTransport(options) {
   }
   return async (request, signal) => {
     const target = new URL(request.path, origin);
-    if (target.origin !== origin.origin || request.redirect !== "error") {
+    if (request.path !== "/v1/public-retros" || target.origin !== origin.origin || target.username !== "" || target.password !== "" || request.redirect !== "error") {
       throw new Error("Invalid public retrospective request");
     }
     const response = await send(target.href, {
@@ -58283,7 +58286,7 @@ import {
   mkdtempSync as mkdtempSync7,
   readFileSync as readFileSync63,
   realpathSync as realpathSync13,
-  statSync as statSync11,
+  statSync as statSync10,
   writeFileSync as writeFileSync23
 } from "fs";
 import { platform, tmpdir as tmpdir5 } from "os";
@@ -58647,7 +58650,7 @@ function physicalProjectPath(projectDirectory) {
 function physicalOutboxPath(outboxDirectory) {
   try {
     const physicalOutbox = realpathSync13(outboxDirectory);
-    return statSync11(physicalOutbox).isDirectory() ? physicalOutbox : undefined;
+    return statSync10(physicalOutbox).isDirectory() ? physicalOutbox : undefined;
   } catch {
     return;
   }
@@ -62481,7 +62484,7 @@ init_migration_error();
 init_architecture_document();
 init_agent_selection();
 init_online_required();
-import { existsSync as existsSync47, lstatSync as lstatSync22, readFileSync as readFileSync64, readlinkSync as readlinkSync4 } from "fs";
+import { existsSync as existsSync47, lstatSync as lstatSync23, readFileSync as readFileSync64, readlinkSync as readlinkSync4 } from "fs";
 import nodePath101 from "path";
 
 // src/cli-protocol/option-values.ts
@@ -64389,7 +64392,7 @@ function snapshotBytes(path8, stats) {
 }
 function observeFile(path8) {
   try {
-    const stats = lstatSync22(path8);
+    const stats = lstatSync23(path8);
     const kind = snapshotKind(stats);
     const bytes = snapshotBytes(path8, stats);
     return { kind, mode: stats.mode & 511, ...bytes !== undefined && { bytes } };

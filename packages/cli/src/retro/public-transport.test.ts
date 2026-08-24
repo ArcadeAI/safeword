@@ -64,7 +64,9 @@ describe('public retro HTTPS transport', () => {
 
   it.each([
     ['https://elsewhere.example/v1/public-retros', 'error'],
+    ['https://user:secret@collector.example/v1/public-retros', 'error'],
     ['//elsewhere.example/v1/public-retros', 'error'],
+    ['/v1/other', 'error'],
     ['/v1/public-retros', 'follow'],
   ] as const)('rejects a request that can escape the configured origin', async (path, redirect) => {
     const transport = createPublicRetroTransport({

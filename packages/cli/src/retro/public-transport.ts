@@ -42,7 +42,13 @@ export function createPublicRetroTransport(options?: {
   }
   return async (request, signal) => {
     const target = new URL(request.path, origin);
-    if (target.origin !== origin.origin || request.redirect !== 'error') {
+    if (
+      request.path !== '/v1/public-retros' ||
+      target.origin !== origin.origin ||
+      target.username !== '' ||
+      target.password !== '' ||
+      request.redirect !== 'error'
+    ) {
       throw new Error('Invalid public retrospective request');
     }
     const response = await send(target.href, {

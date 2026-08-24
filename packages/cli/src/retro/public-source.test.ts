@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -151,9 +151,26 @@ describe('collectPublicGitContext', () => {
 `,
     );
 
-    expect(collectPublicGitContext(directory, noGlobalConfig)).toEqual({
+    const globalConfig = nodePath.join(directory, 'global.gitconfig');
+    writeFileSync(globalConfig, '[user]\n  email = global@example.com\n');
+
+    expect(
+      collectPublicGitContext(directory, {
+        environment: { GIT_CONFIG_GLOBAL: globalConfig },
+      }),
+    ).toEqual({
       repository: 'github.com/arcadeai/safeword',
     });
+  });
+
+  it('ignores a symlinked Git directory', () => {
+    const directory = createTemporaryDirectory();
+    const foreign = createTemporaryDirectory();
+    mkdirSync(nodePath.join(foreign, '.git'));
+    writeFileSync(nodePath.join(foreign, '.git/config'), '[user]\nemail = foreign@example.com\n');
+    symlinkSync(nodePath.join(foreign, '.git'), nodePath.join(directory, '.git'));
+
+    expect(collectPublicGitContext(directory, noGlobalConfig)).toEqual({});
   });
 
   it('follows linked-worktree gitdir and commondir pointers', () => {
