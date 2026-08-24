@@ -1,4 +1,4 @@
-import { lstatSync, readFileSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -38,9 +38,9 @@ export function selectPublicUserIdentity(
   localEmail: string | undefined,
   globalEmail: string | undefined,
 ): string | undefined {
-  return [runtimeIdentity, localEmail, globalEmail].find(
-    value => value !== undefined && value.trim() !== '',
-  );
+  return [runtimeIdentity, localEmail, globalEmail]
+    .find(value => value !== undefined && value.trim() !== '')
+    ?.trim();
 }
 
 export interface PublicGitContext {
@@ -61,7 +61,7 @@ export interface PublicRetroSourceOptions {
 }
 
 function optionalValue(value: string | undefined): string | undefined {
-  return value !== undefined && value.trim() !== '' ? value : undefined;
+  return value !== undefined && value.trim() !== '' ? value.trim() : undefined;
 }
 
 /** Build the exact allowlisted local source profile, or fail closed when disabled. */
@@ -81,7 +81,7 @@ export function buildPublicRetroSource(
     harness: options.harness,
     hostClass: 'local',
     projectUUID: project.projectUUID,
-    safewordCliVersion: options.cliVersion,
+    safewordCliVersion: options.cliVersion.trim(),
     ...(git.repository !== undefined && { repository: git.repository }),
     ...(optionalValue(options.agentVersion) !== undefined && {
       agentVersion: optionalValue(options.agentVersion),
@@ -99,16 +99,27 @@ export function buildPublicRetroSource(
 
 function repoGitConfigPath(cwd: string): string {
   const dotGit = nodePath.join(cwd, '.git');
-  if (lstatSync(dotGit).isDirectory()) return nodePath.join(dotGit, 'config');
+  if (statSync(dotGit).isDirectory()) return nodePath.join(dotGit, 'config');
   const pointer = readFileSync(dotGit, 'utf8').trim();
   if (!pointer.toLowerCase().startsWith('gitdir:'))
     throw new Error('Invalid Git directory pointer');
   const gitDirectory = nodePath.resolve(cwd, pointer.slice('gitdir:'.length).trim());
   try {
     const common = readFileSync(nodePath.join(gitDirectory, 'commondir'), 'utf8').trim();
-    return nodePath.join(nodePath.resolve(gitDirectory, common), 'config');
+    const commonDirectory = nodePath.resolve(gitDirectory, common);
+    const backlink = readFileSync(nodePath.join(gitDirectory, 'gitdir'), 'utf8').trim();
+    if (
+      nodePath.resolve(gitDirectory, backlink) !== dotGit ||
+      nodePath.dirname(gitDirectory) !== nodePath.join(commonDirectory, 'worktrees')
+    ) {
+      throw new Error('Untrusted Git directory pointer');
+    }
+    return nodePath.join(commonDirectory, 'config');
   } catch {
-    return nodePath.join(gitDirectory, 'config');
+    if (gitDirectory.startsWith(`${nodePath.resolve(cwd)}${nodePath.sep}`)) {
+      return nodePath.join(gitDirectory, 'config');
+    }
+    throw new Error('Untrusted Git directory pointer');
   }
 }
 

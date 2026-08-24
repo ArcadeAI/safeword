@@ -20,6 +20,15 @@ function validOrigin(origin: URL): boolean {
   );
 }
 
+function isPublicRetroReceipt(value: unknown): value is PublicRetroReceipt {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as Partial<PublicRetroReceipt>).requestId === 'string' &&
+    typeof (value as Partial<PublicRetroReceipt>).receipt === 'string'
+  );
+}
+
 export function createPublicRetroTransport(options?: {
   fetch: typeof fetch;
   origin: string;
@@ -39,6 +48,10 @@ export function createPublicRetroTransport(options?: {
     });
     if (!response.ok)
       throw new Error(`Public retrospective submission failed (${response.status})`);
-    return (await response.json()) as PublicRetroReceipt;
+    const result: unknown = await response.json();
+    if (!isPublicRetroReceipt(result)) {
+      throw new Error('Invalid public retrospective receipt');
+    }
+    return result;
   };
 }

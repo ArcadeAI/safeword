@@ -176,6 +176,7 @@ it.each([
       chmodSync(wrapper, 0o755);
       const transcript = completedTranscript(project);
       const bun = spawnSync('which', ['bun'], { encoding: 'utf8' }).stdout.trim();
+      expect(bun).not.toBe('');
       const result = await runHook(
         bun,
         HOOKS[harness],
@@ -216,7 +217,7 @@ it.each([
       });
       expect(acceptCalls).toBe(1);
 
-      await runHook(
+      const duplicate = await runHook(
         bun,
         HOOKS[harness],
         project,
@@ -230,6 +231,7 @@ it.each([
         },
         JSON.stringify({ session_id: sessionId, transcript_path: transcript, cwd: project }),
       );
+      expect(duplicate).toMatchObject({ status: 0, stderr: '' });
       expect(acceptCalls).toBe(1);
       expect(readdirSync(attemptsDirectory)).toHaveLength(1);
 
@@ -242,7 +244,7 @@ it.each([
         }),
       );
       const disabledSessionId = `${sessionId}-disabled`;
-      await runHook(
+      const disabled = await runHook(
         bun,
         HOOKS[harness],
         project,
@@ -260,6 +262,7 @@ it.each([
           cwd: project,
         }),
       );
+      expect(disabled).toMatchObject({ status: 0, stderr: '' });
       expect(acceptCalls).toBe(1);
       expect(readdirSync(attemptsDirectory)).toHaveLength(1);
     } finally {

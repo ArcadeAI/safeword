@@ -27,13 +27,13 @@ describe('buildPublicRetroSource', () => {
 
     expect(
       buildPublicRetroSource(directory, {
-        agentVersion: '1.2.3',
-        cliVersion: '0.79.0',
+        agentVersion: ' 1.2.3 ',
+        cliVersion: ' 0.79.0 ',
         environment: { GIT_CONFIG_GLOBAL: '/fixture/missing' },
         harness: 'codex',
-        model: 'gpt-fixture',
-        osFamily: 'darwin',
-        pluginVersion: '0.79.0',
+        model: ' gpt-fixture ',
+        osFamily: ' darwin ',
+        pluginVersion: ' 0.79.0 ',
       }),
     ).toEqual({
       agentVersion: '1.2.3',
@@ -148,6 +148,7 @@ describe('collectPublicGitContext', () => {
     mkdirSync(worktreeGitDirectory, { recursive: true });
     writeFileSync(nodePath.join(directory, '.git'), `gitdir: ${worktreeGitDirectory}\n`);
     writeFileSync(nodePath.join(worktreeGitDirectory, 'commondir'), '../..\n');
+    writeFileSync(nodePath.join(worktreeGitDirectory, 'gitdir'), nodePath.join(directory, '.git'));
     writeFileSync(
       nodePath.join(commonDirectory, 'config'),
       `[remote "origin"]
@@ -161,6 +162,16 @@ describe('collectPublicGitContext', () => {
       repository: 'gitlab.example/Team/Repo',
       localEmail: 'worktree@example.com',
     });
+  });
+
+  it('ignores a gitdir pointer that does not prove it belongs to this worktree', () => {
+    const directory = createTemporaryDirectory();
+    const foreign = createTemporaryDirectory();
+    mkdirSync(nodePath.join(foreign, '.git'));
+    writeFileSync(nodePath.join(foreign, '.git/config'), '[user]\nemail = foreign@example.com\n');
+    writeFileSync(nodePath.join(directory, '.git'), `gitdir: ${nodePath.join(foreign, '.git')}\n`);
+
+    expect(collectPublicGitContext(directory, noGlobalConfig)).toEqual({});
   });
 
   it('reads the explicit global Git config without invoking Git', () => {
