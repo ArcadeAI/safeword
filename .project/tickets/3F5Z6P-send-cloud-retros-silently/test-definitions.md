@@ -494,7 +494,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 
 - [x] RED skip: both independent services were already operational before the coexistence proof
 - [x] GREEN 84bbaf204
-- [ ] REFACTOR
+- [x] REFACTOR skip: test-only composition preserves both production package boundaries
 
 ## Rule: send-cloud-retros-silently.SWM1.R4
 
