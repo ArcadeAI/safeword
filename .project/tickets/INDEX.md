@@ -5,7 +5,7 @@
 
 <!-- prettier-ignore-start -->
 
-## Tickets (580)
+## Tickets (581)
 
 ### 001
 
@@ -1681,7 +1681,7 @@
 - **Strengthen behavior proof for Safeword users (K78FJ3)** (in_progress, epic: —)
   Review every shipped BDD scenario against the scenario-gate rubric and record actionable findings.
   → `.project/tickets/K78FJ3-review-bdd-scenario-semantics`
-- **Keep unmappable namespace-root calls working in generated Codex skills (K7XQ2M)** (todo, epic: —)
+- **Keep unmappable namespace-root calls working in generated Codex skills (K7XQ2M)** (done, epic: —)
   Make the namespace-root rewrite honour preserve-on-anything-unrecognised on every branch.
   → `.project/tickets/K7XQ2M-preserve-unmappable-namespace-root-calls`
 - **Surface reply format before Claude responds (K8D3M4)** (done, epic: —)
@@ -1789,7 +1789,7 @@
 - **Ship a clean release for safeword users (P2JDY5)** (done, epic: —)
   Audit and reconcile every change merged since v0.69.0, apply justified behavior-preserving refactors, verify release readiness, and close completed tracking items.
   → `.project/tickets/P2JDY5-release-readiness-v0-70`
-- **Keep table alignment intact in generated Codex skills (P4NDV8)** (todo, epic: —)
+- **Keep table alignment intact in generated Codex skills (P4NDV8)** (done, epic: —)
   Stop the Markdown table normalizer from changing how tables render.
   → `.project/tickets/P4NDV8-keep-table-alignment-in-codex-skills`
 - **Lint files changed by shell commands, not just file-tool edits (P6PN58)** (in_progress, epic: —)
@@ -1849,7 +1849,7 @@
   → `.project/tickets/R4S85Y-rename-dev-persona-to-tb`
 - **Protect review fallback boundaries for builders (R7K2QP)** (—, epic: —)
   → `.project/tickets/R7K2QP-protect-review-fallback-boundaries`
-- **Say when a review was not independent (R9TLC3)** (todo, epic: —)
+- **Say when a review was not independent (R9TLC3)** (done, epic: —)
   Make `independence: degraded` visible to the person reading the verdict.
   → `.project/tickets/R9TLC3-surface-degraded-review-independence`
 - **Stop-hook escalation path may be dead (0/10 BLOCKED) — revalidate post-F14BG2, recalibrate if needed (RAS9N8)** (pending, epic: —)
@@ -1910,6 +1910,9 @@
 - **Numbered Rule tier between JTBD and scenarios (V0NHT6)** (done, epic: —)
   Add an optional numbered-Rule tier (`<jtbd-id>.R<#>`) to the scenario lineage so specs carry an invariant catalog with stable IDs, tier-aware checks, and expressiveness for Arcade's existing rule-numbered corpus (issue #649).
   → `.project/tickets/V0NHT6-rule-tier`
+- **Keep the advisory review canary isolated from production repositories (V1TBJ0)** (in_progress, epic: —)
+  Use short-lived GitHub App installation tokens against one fixed sandbox fork pair.
+  → `.project/tickets/V1TBJ0-automate-review-canary-with-short-lived-credentials`
 - **Python pack: scaffold generic import-linter config (audit arch check out of the box) (V4MATC)** (done, epic: —)
   A freshly set-up Python project runs a real lint-imports cycle check under /audit with zero manual configuration (parity with JS depcruise)
   → `.project/tickets/V4MATC-python-importlinter-scaffold`

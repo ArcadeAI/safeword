@@ -2,8 +2,8 @@
 id: K7XQ2M
 slug: preserve-unmappable-namespace-root-calls
 type: task
-phase: intake
-status: todo
+phase: done
+status: done
 related: [KEQQGN]
 scope:
   - preserve a namespace-root invocation whenever the rewrite cannot map its arguments
@@ -60,3 +60,7 @@ it reads as proof of an invariant it does not exercise.
 
 Finding 2 of an independent cross-agent Codex review of `catalogue.ts` on main,
 plus a review of PR #3262; both confirmed by hand-tracing the regex.
+
+## Work Log
+
+- 2026-08-24T05:36:22.457Z Phase: intake → done

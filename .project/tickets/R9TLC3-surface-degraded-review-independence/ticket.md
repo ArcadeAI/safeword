@@ -2,8 +2,8 @@
 id: R9TLC3
 slug: surface-degraded-review-independence
 type: task
-phase: intake
-status: todo
+phase: done
+status: done
 related: [ZRV8D5, DR6M6N]
 scope:
   - tell the reader when a review was not independent, at the point of use
@@ -59,3 +59,37 @@ the healthy path.
 
 Diagnosed this session by differential-testing the Codex dispatch with and
 without `--output-schema`, then tracing the resolved CLI to a stale artifact.
+
+## Resolution — delivered differently than Direction stated
+
+Direction proposed a CLI qualifier line. That was **not** the route taken.
+
+Investigation found the CLI already tells the truth: `degradedDescription` in
+`review/coordinator.ts` emits a `warning`-severity `REVIEW_INDEPENDENCE_DEGRADED`
+finding reading "This review was not independent: the same agent (X) checked its
+own work". The suppression lived one layer up, in this skill's own guidance,
+which instructed agents to present a same-agent fallback "to people as standard
+coverage" — and paired it with "keep optional setup advice quiet by default",
+which read as licence to bury the independence signal too.
+
+A CLI change would also have reversed `clarify-review-coverage.NTB1.R1`, a
+codified feature titled "Make review coverage clear without false alarms", whose
+Examples pin the exact strings `Review complete — standard coverage.` versus
+`… independent coverage.`. Reversing a delivered spec under a different ticket's
+authority was the wrong call for a wording fix.
+
+Shipped instead: the "as standard coverage" clause is removed from
+`quality-review/SKILL.md`, replaced with an explicit instruction to state
+degraded independence plainly and never call it independent, cross-agent, or
+standard coverage; and the quiet-by-default sentence now scopes itself to
+recovery commands and install hints, never the review's independence. Applied
+across all five parity copies plus the regenerated Claude/Codex plugin assets
+and historical catalogue.
+
+`review-presentation.ts` and `clarify-review-coverage.feature` are unchanged, so
+NTB1 stands as specified. The premortem's alert-fatigue mitigation still holds:
+one line, never a block, nothing on the healthy path.
+
+## Work Log
+
+- 2026-08-24T06:03:14.948Z Phase: intake → done
