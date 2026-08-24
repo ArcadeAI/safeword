@@ -377,7 +377,7 @@ This file is the RED/GREEN/REFACTOR ledger. Each scenario below starts unchecked
 ### Scenario: Source metadata never becomes duplicate authority
 
 - [x] RED skip: metadata independence was necessarily established by the transactional store slice
-- [ ] GREEN
+- [x] GREEN 3ad78268e
 - [ ] REFACTOR
 
 ### Scenario: A minimal source profile is accepted
