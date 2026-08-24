@@ -94,6 +94,29 @@ it('returns the original durable receipt for an exact retry after restart', asyn
   });
 });
 
+it('converges concurrent first submissions on one receipt', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+  });
+  const request = fixtureRequest();
+
+  const responses = await Promise.all([submit(runtime.url, request), submit(runtime.url, request)]);
+  const receipts = await Promise.all(
+    responses.map(
+      async response => (await response.json()) as { receipt: string; requestId: string },
+    ),
+  );
+  await runtime.close();
+
+  expect(
+    responses.map(response => response.status).toSorted((left, right) => left - right),
+  ).toEqual([200, 201]);
+  expect(receipts[1]).toEqual(receipts[0]);
+  expect(receipts[0]).toEqual({ receipt: expect.any(String), requestId: request.requestId });
+});
+
 const invalidEnvelopes: readonly (readonly [string, Uint8Array, (string | false)?])[] = [
   ['unknown version', encoded({ ...fixtureEnvelope(), version: 'v2' })],
   ['missing required field', encoded({ sessionScope: '7'.repeat(64) })],
