@@ -300,16 +300,28 @@ describe('resolveRetroModel (SM1.AC2 — config-overridable per-agent defaults)'
 describe('retroChildArgs (SM2.AC2 — forward session id + window to the child)', () => {
   it('forwards the resolved session id and the delta window offset', () => {
     const args = retroChildArguments({
+      publicRetroEligible: true,
       transcriptPath: '/t/sess.jsonl',
       windowStart: 4096,
       sessionId: 'cloud-9',
     });
     expect(args.slice(0, 2)).toEqual(['retro', 'run']);
     expect(args).toContain('--auto-extract');
+    expect(args).toContain('--public-retro');
     expect(args[args.indexOf('--transcript') + 1]).toBe('/t/sess.jsonl');
     expect(args[args.indexOf('--window-start') + 1]).toBe('4096');
     // the stable session id reaches the child rather than its 'unknown' env fallback
     expect(args[args.indexOf('--session-id') + 1]).toBe('cloud-9');
+  });
+
+  it('omits public delivery when the lifecycle did not establish eligibility', () => {
+    expect(
+      retroChildArguments({
+        transcriptPath: '/t/sess.jsonl',
+        windowStart: 0,
+        sessionId: 'cloud-9',
+      }),
+    ).not.toContain('--public-retro');
   });
 });
 
