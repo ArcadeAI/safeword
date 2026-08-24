@@ -15,6 +15,11 @@ export const DEFAULT_VITEST_PROJECTS = [
     sourceDirectories: ['tests'],
     excludedSuffixes: [],
   },
+  {
+    root: 'packages/retro-collector',
+    sourceDirectories: ['tests'],
+    excludedSuffixes: [],
+  },
 ] as const satisfies readonly DefaultVitestProject[];
 
 export function defaultVitestInclude(projectRoot: string): string[] {
