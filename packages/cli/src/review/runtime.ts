@@ -244,6 +244,12 @@ export function runBoundMs(
   return Number.isFinite(configured) && configured > 0 ? Math.min(configured, ceiling) : ceiling;
 }
 
+export function reviewWorkerRunBoundMs(
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): number {
+  return runBoundMs({ ...env, SAFEWORD_REVIEW_WORKER: '1' });
+}
+
 /**
  * The least time worth starting a route with. Below this a route cannot produce
  * a real review, so it is honestly reported as not attempted rather than

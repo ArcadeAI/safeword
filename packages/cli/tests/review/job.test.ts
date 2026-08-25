@@ -178,6 +178,28 @@ describe('durable review jobs', () => {
     expect(result.findings[0]?.code).toBe('REVIEW_NOT_REQUESTED');
   });
 
+  it('gives a detached worker its configured background run bound', async () => {
+    const cwd = project();
+    disableCrossAgentReview(cwd);
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '0');
+    vi.stubEnv('SAFEWORD_REVIEW_RUN_BOUND_MS', '600000');
+
+    await startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
+
+    const jobs = nodePath.join(cwd, '.safeword', 'state', 'reviews');
+    const recordPath = readdirSync(jobs)
+      .filter(name => name.endsWith('.json'))
+      .map(name => nodePath.join(jobs, name))[0];
+    if (recordPath === undefined) throw new Error('review job record was not written');
+    const record = JSON.parse(readFileSync(recordPath, 'utf8')) as {
+      deadline_at: string;
+      started_at: string;
+    };
+    expect(Date.parse(record.deadline_at) - Date.parse(record.started_at)).toBeGreaterThanOrEqual(
+      600_000,
+    );
+  });
+
   it('collects a detached review after the initiating CLI process exits', async () => {
     const cwd = project();
     mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
