@@ -45630,6 +45630,9 @@ function runBoundMs(env = process.env) {
   const ceiling = reviewRunCeiling(env);
   return Number.isFinite(configured) && configured > 0 ? Math.min(configured, ceiling) : ceiling;
 }
+function reviewWorkerRunBoundMs(env = process.env) {
+  return runBoundMs({ ...env, SAFEWORD_REVIEW_WORKER: "1" });
+}
 function minimumRouteMs(env = process.env) {
   return Math.min(60000, reviewTimeoutMilliseconds(env));
 }
@@ -47636,7 +47639,7 @@ async function startReviewJob(input) {
       source_fingerprint: sourceFingerprint,
       started_at: now,
       updated_at: now,
-      deadline_at: new Date(Date.now() + runBoundMs()).toISOString(),
+      deadline_at: new Date(Date.now() + reviewWorkerRunBoundMs()).toISOString(),
       pid: process.pid
     };
     writeJob(input.cwd, record3);

@@ -24,7 +24,7 @@ import { type CliResult, createResult } from '../cli-protocol/result.js';
 import { retryCommand } from './command.js';
 import { isReviewKind, type ReviewKind } from './contract.js';
 import { prepareReviewPacket } from './packet.js';
-import { runBoundMs } from './runtime.js';
+import { reviewWorkerRunBoundMs } from './runtime.js';
 
 type ReviewJobState = 'launching' | 'running' | 'completed' | 'failed' | 'canceled';
 type WorkerInspection = 'match' | 'mismatch' | 'unavailable';
@@ -675,7 +675,7 @@ export async function startReviewJob(input: {
       source_fingerprint: sourceFingerprint,
       started_at: now,
       updated_at: now,
-      deadline_at: new Date(Date.now() + runBoundMs()).toISOString(),
+      deadline_at: new Date(Date.now() + reviewWorkerRunBoundMs()).toISOString(),
       pid: process.pid,
     };
     writeJob(input.cwd, record);
