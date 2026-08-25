@@ -60,6 +60,11 @@ import {
 import { getMissingPacks } from '../packs/registry.js';
 import { rustToolingTargets } from '../packs/rust/setup.js';
 import { reconcile, ReconcileExecutionError, type ReconcileResult } from '../reconcile.js';
+import {
+  ensurePublicRetroProjectConfig,
+  publicRetroConfigNeedsUpdate,
+  validatePublicRetroProjectConfig,
+} from '../retro/public-config.js';
 import type { SafewordSchema } from '../schema.js';
 import { createProjectContext } from '../utils/context.js';
 import { exists, writeJson } from '../utils/fs.js';
@@ -188,6 +193,7 @@ function plannedJavaScriptPackageFiles(cwd: string): Effect[] {
 }
 
 function configNeedsCompatibilityUpdate(cwd: string): boolean {
+  if (publicRetroConfigNeedsUpdate(cwd)) return true;
   if (getMissingPacks(cwd).length > 0) return true;
   try {
     const config = JSON.parse(
@@ -464,10 +470,14 @@ export async function createSetupPlan(
     options.migrateNamespace,
   );
   const reconciliationPackages = reconciliationEffects.packages.length > 0;
-  const compatibilityFiles =
-    !configured || configNeedsCompatibilityUpdate(cwd)
+  const compatibilityFiles = [
+    ...(!configured || configNeedsCompatibilityUpdate(cwd)
       ? [plannedFileEffect(cwd, '.safeword/config.json')]
-      : [];
+      : []),
+    ...(publicRetroConfigNeedsUpdate(cwd)
+      ? [{ kind: 'update' as const, target: '.safeword/config.json' }]
+      : []),
+  ];
   const packageFiles = reconciliationPackages ? plannedJavaScriptPackageFiles(cwd) : [];
   const python = plannedPythonEffects(cwd);
   const staleSafeword = staleSafewordRegistryDependency(cwd);
@@ -587,19 +597,37 @@ class SetupApplyError extends Error {
   }
 }
 
+function publicRetroConfigRefusal(cwd: string): CliResult | undefined {
+  try {
+    validatePublicRetroProjectConfig(cwd);
+  } catch (error) {
+    return setupFailure(error, {});
+  }
+  return undefined;
+}
+
+interface ConvergeSetupOptions {
+  noModify?: boolean;
+  migrateNamespace?: boolean;
+  repairVersionMarker?: boolean;
+  progress?: {
+    readonly start: (message: string) => void;
+    readonly stop: () => void;
+  };
+  adapters?: Partial<SetupAdapters>;
+  schema?: SafewordSchema;
+}
+
 export async function convergeSetup(
   cwd: string,
-  options: {
-    noModify?: boolean;
-    migrateNamespace?: boolean;
-    repairVersionMarker?: boolean;
-    progress?: {
-      readonly start: (message: string) => void;
-      readonly stop: () => void;
-    };
-    adapters?: Partial<SetupAdapters>;
-    schema?: SafewordSchema;
-  },
+  options: ConvergeSetupOptions,
+): Promise<CliResult> {
+  return publicRetroConfigRefusal(cwd) ?? convergeSetupValidated(cwd, options);
+}
+
+async function convergeSetupValidated(
+  cwd: string,
+  options: ConvergeSetupOptions,
 ): Promise<CliResult> {
   const configured = existsSync(nodePath.join(cwd, '.safeword'));
   const versionGate: ProjectVersionGate = configured
@@ -1240,6 +1268,9 @@ function applyCompatibilityMigrations(cwd: string, completedEffects: CompletedSe
   }
   observeFileStage(cwd, ['.safeword/config.json'], completedEffects, () =>
     stripDeadConfigVersion(nodePath.join(cwd, '.safeword')),
+  );
+  observeFileStage(cwd, ['.safeword/config.json'], completedEffects, () =>
+    ensurePublicRetroProjectConfig(cwd),
   );
 }
 

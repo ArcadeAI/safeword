@@ -5,6 +5,7 @@ import {
   mkdirSync,
   readFileSync,
   renameSync,
+  rmSync,
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
@@ -17,6 +18,82 @@ import { VERSION } from '../../src/version.js';
 import { createTemporaryDirectory, runCliWithoutInstall } from '../helpers.js';
 
 describe('convergent setup', () => {
+  it('creates a local public-retro project identity on first setup', async () => {
+    const directory = createTemporaryDirectory();
+    const result = await runCliWithoutInstall(
+      ['setup', '--json', '--no-input', '--offline', '--cwd', directory, '--no-modify'],
+      { cwd: directory },
+    );
+
+    expect(result.exitCode).toBe(0);
+    const config = JSON.parse(
+      readFileSync(nodePath.join(directory, '.safeword/config.json'), 'utf8'),
+    ) as Record<string, unknown>;
+    expect(config.projectUUID).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u,
+    );
+    expect(existsSync(nodePath.join(directory, '.safeword/retro-attempts'))).toBe(false);
+  });
+
+  it('repairs a malformed public-retro project identity locally', async () => {
+    const directory = createTemporaryDirectory();
+    const arguments_ = [
+      'setup',
+      '--json',
+      '--no-input',
+      '--offline',
+      '--cwd',
+      directory,
+      '--no-modify',
+    ];
+    const initialSetup = await runCliWithoutInstall(arguments_, { cwd: directory });
+    expect(initialSetup.exitCode).toBe(0);
+    const configPath = nodePath.join(directory, '.safeword/config.json');
+    const config = JSON.parse(readFileSync(configPath, 'utf8')) as Record<string, unknown>;
+    writeFileSync(configPath, `${JSON.stringify({ ...config, projectUUID: 'not-a-uuid' })}\n`);
+
+    const repair = await runCliWithoutInstall(arguments_, { cwd: directory });
+
+    expect(repair.exitCode).toBe(0);
+    const repaired = JSON.parse(readFileSync(configPath, 'utf8')) as Record<string, unknown>;
+    expect(repaired.projectUUID).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u,
+    );
+    expect(repaired.projectUUID).not.toBe('not-a-uuid');
+  });
+
+  it('rejects a malformed public-retro collection setting before changing the project', async () => {
+    const directory = createTemporaryDirectory();
+    const arguments_ = [
+      'setup',
+      '--json',
+      '--no-input',
+      '--offline',
+      '--cwd',
+      directory,
+      '--no-modify',
+    ];
+    const initialSetup = await runCliWithoutInstall(arguments_, { cwd: directory });
+    expect(initialSetup.exitCode).toBe(0);
+
+    const configPath = nodePath.join(directory, '.safeword/config.json');
+    const missingManagedFile = nodePath.join(directory, '.safeword/guides/testing-guide.md');
+    const malformedConfig = `${JSON.stringify({
+      ...JSON.parse(readFileSync(configPath, 'utf8')),
+      publicRetrospectiveCollection: 'off',
+    })}\n`;
+    writeFileSync(configPath, malformedConfig);
+    rmSync(missingManagedFile);
+
+    const result = await runCliWithoutInstall(arguments_, { cwd: directory });
+
+    expect(result.exitCode).not.toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({ state: 'failed', changed: false });
+    expect(readFileSync(configPath, 'utf8')).toBe(malformedConfig);
+    expect(existsSync(missingManagedFile)).toBe(false);
+    expect(result.stdout).toContain('publicRetrospectiveCollection must be true or false');
+  });
+
   it('uses the concise shared renderer for an ordinary interactive-style invocation', async () => {
     const directory = createTemporaryDirectory();
     const result = await runCliWithoutInstall(['setup', '--cwd', directory], { cwd: directory });

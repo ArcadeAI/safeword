@@ -32,6 +32,7 @@ import { RETRO_CHILD_ENV, retroChildArgs } from '../lib/retro-extract.ts';
 import { resolveRunIdentity } from '../lib/run-identity.ts';
 import { installCrashCapture, readSelfReportConfig } from '../lib/self-report.ts';
 import {
+  countCompletedToolUsesCodex,
   countToolUsesCodex,
   decideRetroRun,
   type OffsetState,
@@ -157,6 +158,7 @@ function runRetroExtraction(projectDirectory: string, input: CodexStopInput): vo
     { sessionId: string; state: OffsetState; baseDirectory: string | undefined } | undefined;
   const decision = decideRetroRun(input, {
     env: process.env,
+    countCompletedToolUses: countCompletedToolUsesCodex,
     countToolUses: countToolUsesCodex,
     resolveSessionId: resolveCodexSessionId,
     onDecision: trace => {

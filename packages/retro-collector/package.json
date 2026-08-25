@@ -1,0 +1,23 @@
+{
+  "name": "@safeword/retro-collector",
+  "version": "0.1.0",
+  "description": "Public quarantine for sanitized SafeWord retrospectives",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "^24.18.1 || >=26.5.1"
+  },
+  "scripts": {
+    "build": "tsup",
+    "start": "node dist/main.js",
+    "test": "bun run build && vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^26.1.2",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.10"
+  }
+}

@@ -346,6 +346,14 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     { syntax: 'review-knowledge' },
   ),
   command(
+    'project public-retros',
+    'Turn silent public retrospective collection on or off',
+    'mutate',
+    {
+      syntax: 'public-retros <state>',
+    },
+  ),
+  command(
     'project namespace-root',
     'Print the resolved project-knowledge namespace root',
     'observe',
@@ -560,6 +568,7 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       { flags: '--transcript <path>', description: 'Session transcript path' },
       { flags: '--findings <path>', description: 'Agent-produced findings JSON' },
       { flags: '--auto-extract', description: 'Extract findings with a headless agent' },
+      { flags: '--public-retro', description: 'Attempt eligible public quarantine delivery' },
       { flags: '--window-start <chars>', description: 'Transcript delta offset' },
       { flags: '--session-id <id>', description: 'Stable session identifier' },
     ],

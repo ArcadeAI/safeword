@@ -39,7 +39,37 @@ export function manifestationKey(finding: Finding): string {
  */
 export interface EncounterReport {
   encounters: Encounter[];
+  findings: Finding[];
   drops: { schema: number; surface: number };
+}
+
+export type PreparedFindingResult = { finding: Finding } | { dropped: 'schema' | 'surface' };
+
+/** Apply the authoritative retro schema, surface, and sanitizer walls once. */
+export async function prepareFinding(raw: unknown): Promise<PreparedFindingResult> {
+  const finding = normalizeFinding(raw);
+  if (!finding) return { dropped: 'schema' };
+
+  const surface = resolveSurface(finding.safewordSurface);
+  if (surface === undefined) return { dropped: 'surface' };
+
+  const [title, whatHappened, whyFriction, repro] = await Promise.all([
+    sanitizeTextDeep(finding.title),
+    sanitizeTextDeep(finding.whatHappened),
+    sanitizeTextDeep(finding.whyFriction),
+    sanitizeTextDeep(finding.repro),
+  ]);
+
+  return {
+    finding: {
+      category: finding.category,
+      title,
+      safewordSurface: surface,
+      whatHappened,
+      whyFriction,
+      repro,
+    },
+  };
 }
 
 /**
@@ -49,38 +79,22 @@ export interface EncounterReport {
  */
 export async function prepareEncounters(rawFindings: readonly unknown[]): Promise<EncounterReport> {
   const encounters: Encounter[] = [];
+  const findings: Finding[] = [];
   const drops = { schema: 0, surface: 0 };
 
   for (const raw of rawFindings.slice(0, MAX_RAW_FINDINGS)) {
-    const finding = normalizeFinding(raw);
-    if (!finding) {
-      drops.schema += 1;
+    const prepared = await prepareFinding(raw);
+    if ('dropped' in prepared) {
+      drops[prepared.dropped] += 1;
       continue;
     }
 
-    const surface = resolveSurface(finding.safewordSurface);
-    if (surface === undefined) {
-      drops.surface += 1;
-      continue;
-    }
-
-    const [title, whatHappened, whyFriction, repro] = await Promise.all([
-      sanitizeTextDeep(finding.title),
-      sanitizeTextDeep(finding.whatHappened),
-      sanitizeTextDeep(finding.whyFriction),
-      sanitizeTextDeep(finding.repro),
-    ]);
-    const sanitized: Finding = {
-      category: finding.category,
-      title,
-      safewordSurface: surface,
-      whatHappened,
-      whyFriction,
-      repro,
-    };
-
-    encounters.push({ draft: buildDraft(sanitized), manifestation: manifestationKey(sanitized) });
+    encounters.push({
+      draft: buildDraft(prepared.finding),
+      manifestation: manifestationKey(prepared.finding),
+    });
+    findings.push(prepared.finding);
   }
 
-  return { encounters, drops };
+  return { encounters, findings, drops };
 }

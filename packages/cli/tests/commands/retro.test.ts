@@ -883,6 +883,78 @@ describe('retro command configuration, extraction, egress, and relay execution',
     expect(transport.issues[0]?.labels).toContain('rough-edge');
   });
 
+  it('hands one sanitized finding to public quarantine without changing private filing', async () => {
+    const attemptsDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-attempts-'));
+    const privateTransport = new FakeGitHub();
+    const publicTransport = vi.fn(request =>
+      Promise.resolve({
+        requestId: request.headers['x-safeword-request-id'],
+        receipt: 'receipt-one',
+      }),
+    );
+    try {
+      const outcome = await runRetro(
+        { transcript: '/tmp/t.jsonl' },
+        dependencies({
+          extract: () =>
+            Promise.resolve([
+              rawFinding({
+                what_happened: 'Saw /Users/alex/customer.ts and sk_live_TESTONLY1',
+              }),
+            ]),
+          publicRetro: {
+            attemptsDirectory,
+            now: () => 0,
+            randomUUID: () => 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+            source: {
+              harness: 'claude-code',
+              hostClass: 'local',
+              projectUUID: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+              safewordCliVersion: '0.79.0',
+            },
+            transport: publicTransport,
+          },
+          transport: privateTransport,
+        }),
+      );
+
+      expect(outcome.ok).toBe(true);
+      expect(privateTransport.issues).toHaveLength(1);
+      expect(publicTransport).toHaveBeenCalledOnce();
+      const request = publicTransport.mock.calls[0]?.[0];
+      const body = new TextDecoder().decode(request?.body);
+      expect(body).not.toContain('/Users/alex/customer.ts');
+      expect(body).not.toContain('sk_live_TESTONLY1');
+    } finally {
+      rmSync(attemptsDirectory, { force: true, recursive: true });
+    }
+  });
+
+  it('does not attempt public delivery for multiple candidates', async () => {
+    const publicTransport = vi.fn();
+    await runRetro(
+      { transcript: '/tmp/t.jsonl' },
+      dependencies({
+        extract: () =>
+          Promise.resolve([rawFinding(), rawFinding({ title: 'A second valid finding' })]),
+        publicRetro: {
+          attemptsDirectory: '/unused',
+          now: () => 0,
+          randomUUID: () => 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+          source: {
+            harness: 'codex',
+            hostClass: 'local',
+            projectUUID: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+            safewordCliVersion: '0.79.0',
+          },
+          transport: publicTransport,
+        },
+      }),
+    );
+
+    expect(publicTransport).not.toHaveBeenCalled();
+  });
+
   it('retro-transcript-mining.TB1.AC2.missing_flag_fails_loudly_and_files_nothing', async () => {
     const transport = new FakeGitHub();
     const outcome = await runRetro({}, dependencies({ transport }));

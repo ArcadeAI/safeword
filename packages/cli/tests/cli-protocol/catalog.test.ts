@@ -102,6 +102,7 @@ describe('CLI command catalog', () => {
       'project lint-gherkin',
       'project retro-drain',
       'project review-knowledge',
+      'project public-retros',
       'project namespace-root',
       'tracker sync',
       'tracker connect',

@@ -58,6 +58,22 @@ function writeCodexRollout(directory: string, name: string, toolEvents: number):
   return file;
 }
 
+function writeCompletedCodexRollout(directory: string, name: string, pairs: number): string {
+  const lines = Array.from({ length: pairs }, (_, index) => [
+    JSON.stringify({
+      type: 'response_item',
+      payload: { type: 'function_call', call_id: `call_${index}` },
+    }),
+    JSON.stringify({
+      type: 'response_item',
+      payload: { type: 'function_call_output', call_id: `call_${index}` },
+    }),
+  ]).flat();
+  const file = nodePath.join(directory, name);
+  writeFileSync(file, lines.join('\n'));
+  return file;
+}
+
 /** A rollout of Claude-shaped tool_use lines — zero Codex tool events. */
 function writeClaudeShapedRollout(directory: string, name: string): string {
   const lines = Array.from({ length: 8 }, () =>
@@ -282,6 +298,23 @@ describe('codex/stop.ts retro adapter (CDX602)', () => {
     expect(record.argv[record.argv.indexOf('--window-start') + 1]).toBe('0');
     expect(record.argv[record.argv.indexOf('--session-id') + 1]).toBe(id);
     expect(existsSync(offsetStatePath(id))).toBe(true);
+  });
+
+  it('forwards public eligibility established by completed Codex event pairs', () => {
+    writeConfig(dir, { surface: true });
+    installFakeLocalCli(dir);
+    const transcript = writeCompletedCodexRollout(dir, 'completed.jsonl', 3);
+    const id = freshSession('completed');
+
+    runHook(
+      dir,
+      { session_id: id, transcript_path: transcript, cwd: dir },
+      {
+        RECORD_PATH: recordPath,
+      },
+    );
+
+    expect(readRecord(recordPath).argv).toContain('--public-retro');
   });
 
   it('writes opt-in sanitized diagnostics for Codex Stop child failures', () => {

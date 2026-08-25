@@ -24,7 +24,7 @@
     },
     "packages/cli": {
       "name": "safeword",
-      "version": "0.78.6",
+      "version": "0.78.8",
       "bin": {
         "safeword": "dist/cli.js",
       },
@@ -81,6 +81,16 @@
       },
       "peerDependencies": {
         "eslint": "^10.4.0",
+      },
+    },
+    "packages/retro-collector": {
+      "name": "@safeword/retro-collector",
+      "version": "0.1.0",
+      "devDependencies": {
+        "@types/node": "^26.1.2",
+        "tsup": "^8.5.1",
+        "typescript": "^5.9.3",
+        "vitest": "^4.1.10",
       },
     },
     "packages/retro-relay": {
@@ -687,6 +697,8 @@
     "@rollup/rollup-win32-x64-gnu": ["@rollup/rollup-win32-x64-gnu@4.62.4", "", { "os": "win32", "cpu": "x64" }, "sha512-qPzHqdj9rfUD+w79dtE07zi/kFwKyCJqplp5K5ygeLTp7jLpAoc16OAH39HSmRC9UpozaecsleI8uAdEj6v2yw=="],
 
     "@rollup/rollup-win32-x64-msvc": ["@rollup/rollup-win32-x64-msvc@4.62.4", "", { "os": "win32", "cpu": "x64" }, "sha512-zD6NdeWEByGE9QF9vCrlJ5YQB4oq9q91kPZS37Jwj5hOkvR1lTBSpsKhKDw4IJtbQ35LsTS1HD9DZYGKIshU1Q=="],
+
+    "@safeword/retro-collector": ["@safeword/retro-collector@workspace:packages/retro-collector"],
 
     "@safeword/retro-relay": ["@safeword/retro-relay@workspace:packages/retro-relay"],
 

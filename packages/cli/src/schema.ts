@@ -323,6 +323,7 @@ const NAMESPACE_TRANSIENT_BASENAMES: readonly string[] = [
 export const SAFEWORD_TRANSIENT_PATHS: readonly string[] = [
   '.safeword/.update-cache.json',
   '.safeword/config.local.json',
+  '.safeword/retro-attempts/',
   '.safeword/retro-drafts/',
   '.safeword/self-reports/',
   '.safeword/boundary-audit.jsonl',
@@ -728,7 +729,6 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     // config.json is created by packs system but needs to be registered for cleanup on uninstall
     // Generator returns undefined = never created/updated by schema, but still deleted on uninstall
     '.safeword/config.json': { generator: (): undefined => undefined },
-
     // Language-specific safeword configs for hooks (extend project configs if they exist)
     ...typescriptOwnedFiles,
     ...pythonOwnedFiles,

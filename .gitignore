@@ -1,6 +1,7 @@
 node_modules/
 packages/cli/.test-tmp/
 .safeword-review-runtime-*
+packages/cli/.public-retro-build-*
 package-lock.json
 .DS_Store
 dist/
@@ -11,6 +12,7 @@ examples/
 # Safeword - Local cache and transient state
 .safeword/.update-cache.json
 .safeword/config.local.json
+.safeword/retro-attempts/
 .safeword/self-reports/
 .safeword/retro-drafts/
 .safeword/boundary-audit.jsonl

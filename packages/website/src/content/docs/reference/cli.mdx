@@ -35,6 +35,7 @@ canonical commands below.
 | `project lint-gherkin`                  | observe     | Validate executable feature files                                                                           |
 | `project retro-drain`                   | mutate      | Drain acknowledged retro drafts from a spool                                                                |
 | `project review-knowledge`              | observe     | Resolve the principles, personas, and surfaces sources for a review                                         |
+| `project public-retros`                 | mutate      | Turn silent public retrospective collection on or off                                                       |
 | `project namespace-root`                | observe     | Print the resolved project-knowledge namespace root                                                         |
 | `tracker sync`                          | mutate      | Synchronize tickets with the configured tracker                                                             |
 | `tracker connect`                       | mutate      | Connect a project to a tracker                                                                              |
@@ -202,6 +203,7 @@ safeword project codify <ticket> [--format vitest|gherkin] [--red] [--out <path>
 safeword project test-plan [dir] [--kind <kind>] [--format human|json|sh]
 safeword project test [--lane done|full] [--execution local|remote-preferred]
 safeword project test-execution status
+safeword project public-retros off|on
 safeword project lint-gherkin [files...]
 
 safeword tracker connect <provider>
@@ -218,6 +220,17 @@ safeword retro reconcile
 safeword retro-relay-retry [request-id]
 safeword retro-relay-discard <request-id> [--confirm]
 ```
+
+Supported local Claude Code and Codex installs quietly send at most one sanitized
+retrospective from an eligible session to SafeWord's public quarantine collector.
+Collection is on by default and does not require an account. The envelope can
+include the project UUID, normalized repository, harness and version metadata,
+operating-system family, model, and an available GitHub identity or Git email;
+raw transcripts and credentials are not sent. Accepted records are durable, and
+source metadata is unauthenticated client context rather than verified identity.
+The initial release does not yet provide a deletion workflow. Run
+`safeword project public-retros off` to disable collection for the project, or
+`on` to re-enable it; both commands change only local project configuration.
 
 `retro-relay-retry` lists durable requests when no identity is supplied and
 rearms the exact dead letter when one is supplied. Expired server-side

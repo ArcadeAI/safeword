@@ -622,6 +622,15 @@ async function reviewKnowledgeHandler(invocation: CommandInvocation): Promise<Cl
   return observeReviewKnowledge(invocation.cwd);
 }
 
+async function publicRetrosHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const state = invocation.operands[0];
+  if (state !== 'off' && state !== 'on') {
+    return invalidOperand('project public-retros', 'public-retros state must be "off" or "on".');
+  }
+  const { configurePublicRetros } = await import('../commands/public-retros.js');
+  return configurePublicRetros(invocation.cwd, state);
+}
+
 async function retroDrainHandler(invocation: CommandInvocation): Promise<CliResult> {
   const { runRetroDrain } = await import('../commands/retro-drain.js');
   const spool = invocation.operands[0];
@@ -1986,6 +1995,7 @@ function retroOptions(invocation: CommandInvocation, transcript: string): RetroC
     transcript: nodePath.resolve(invocation.cwd, transcript),
     findings: findings === undefined ? undefined : nodePath.resolve(invocation.cwd, findings),
     autoExtract: invocation.options.autoExtract === true,
+    publicRetro: invocation.options.publicRetro === true,
     windowStart: numericOption(invocation.options, 'windowStart'),
     sessionId: stringOption(invocation.options, 'sessionId'),
   };
@@ -2157,6 +2167,7 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'project test-plan': testPlanHandler,
   'project namespace-root': namespaceRootHandler,
   'project review-knowledge': reviewKnowledgeHandler,
+  'project public-retros': publicRetrosHandler,
   'project retro-drain': retroDrainHandler,
   'project test': projectTestHandler,
   'project test-execution status': testExecutionStatusHandler,

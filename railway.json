@@ -1,8 +1,7 @@
 {
   "$schema": "https://railway.com/railway.schema.json",
   "build": {
-    "builder": "DOCKERFILE",
-    "dockerfilePath": "packages/retro-relay/Dockerfile"
+    "builder": "DOCKERFILE"
   },
   "deploy": {
     "healthcheckPath": "/health",

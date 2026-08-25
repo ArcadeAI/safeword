@@ -385,3 +385,87 @@ jobs:
           --project "$RAILWAY_PROJECT_ID"
           --environment "$RAILWAY_ENVIRONMENT"
           --service "$RAILWAY_SERVICE"
+
+  collector-inputs:
+    name: Retro collector deployment inputs
+    runs-on: ubuntu-latest
+    outputs:
+      deploy: ${{ steps.changed.outputs.deploy }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+
+      - id: changed
+        name: Detect collector deployment inputs
+        env:
+          BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
+        run: |
+          if [ "$GITHUB_REF" != 'refs/heads/main' ] || [ -z "$BEFORE" ]; then
+            echo 'deploy=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "$BEFORE" = '0000000000000000000000000000000000000000' ]; then
+            echo 'deploy=true' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git fetch --no-tags --depth=1 origin "$BEFORE"
+          git diff --name-only "$BEFORE" "$SHA" | while IFS= read -r changed; do
+            case "$changed" in
+              packages/retro-collector/*|packages/cli/package.json|packages/website/package.json|package.json|bun.lock|tsconfig.json|.dockerignore|railway.json|.github/workflows/deploy-retro-collector.yml|.github/workflows/ci.yml)
+                echo 'deploy=true' >> "$GITHUB_OUTPUT"
+                exit 0
+                ;;
+            esac
+          done
+          if ! grep -q '^deploy=true$' "$GITHUB_OUTPUT"; then
+            echo 'deploy=false' >> "$GITHUB_OUTPUT"
+          fi
+
+  deploy-retro-collector:
+    name: Deploy Retro Collector
+    needs: [dogfood-parity, dependency-audit, test, lint, collector-inputs]
+    if: github.ref == 'refs/heads/main' && needs.collector-inputs.outputs.deploy == 'true'
+    runs-on: ubuntu-latest
+    environment: retro-relay-production
+    concurrency:
+      group: retro-collector-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.18.1
+
+      - name: Install Railway CLI
+        run: npm install --global @railway/cli@5.30.3
+
+      - name: Validate deployment configuration
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_RETRO_RELAY_PROJECT_ID }}
+          RAILWAY_ENVIRONMENT: ${{ vars.RAILWAY_RETRO_RELAY_ENVIRONMENT }}
+          RAILWAY_SERVICE: ${{ vars.RAILWAY_RETRO_COLLECTOR_SERVICE }}
+        run: |
+          if [ -z "$RAILWAY_TOKEN" ]; then
+            echo '::error::Missing RAILWAY_TOKEN environment secret. Add a project-scoped Railway token.'
+            exit 1
+          fi
+          if [ -z "$RAILWAY_PROJECT_ID" ] || [ -z "$RAILWAY_ENVIRONMENT" ] || [ -z "$RAILWAY_SERVICE" ]; then
+            echo '::error::Missing Railway collector production configuration.'
+            exit 1
+          fi
+
+      - name: Deploy through Railway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_RETRO_RELAY_PROJECT_ID }}
+          RAILWAY_ENVIRONMENT: ${{ vars.RAILWAY_RETRO_RELAY_ENVIRONMENT }}
+          RAILWAY_SERVICE: ${{ vars.RAILWAY_RETRO_COLLECTOR_SERVICE }}
+        run: >-
+          railway up --ci
+          --project "$RAILWAY_PROJECT_ID"
+          --environment "$RAILWAY_ENVIRONMENT"
+          --service "$RAILWAY_SERVICE"
