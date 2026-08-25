@@ -50,7 +50,7 @@ If in a BDD workflow, read the current ticket from `<namespace-root>/tickets/` a
 
 ### Project-principle challenge
 
-For a BDD ticket, run `bunx --bun safeword@0.79.2 project review-knowledge --json` at the
+For a BDD ticket, run `bunx --bun safeword@0.79.3 project review-knowledge --json` at the
 start of each pass and read the current `principles`, `personas`, and `surfaces`
 paths and content it returns (including overrides such as `paths.principles`).
 Do not substitute labels or intake-era content.
@@ -175,7 +175,7 @@ Each pass:
    CLI first; source checkouts do not guarantee a bare `safeword` on `PATH`:
 
    ```bash
-   SAFEWORD_REVIEW_PROGRESS=1 bunx --bun safeword@0.79.2 review run quality-review changed-file [more-changed-files...] --agent-handoff --json
+   SAFEWORD_REVIEW_PROGRESS=1 bunx --bun safeword@0.79.3 review run quality-review changed-file [more-changed-files...] --agent-handoff --json
    ```
 
    A healthy deep review may return `REVIEW_PENDING` after its foreground
