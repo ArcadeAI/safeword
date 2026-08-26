@@ -185,7 +185,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 ### Scenario: Successful project classification clears a prior resolution failure
 
 - [x] RED 914475d82
-- [ ] GREEN
+- [x] GREEN 8ca264a69
 - [ ] REFACTOR
 
 ### Scenario: A confirmed project with an unavailable dispatcher denies with repair
