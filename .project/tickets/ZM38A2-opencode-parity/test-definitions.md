@@ -126,7 +126,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 - [x] RED 07db8b1fd
 - [x] GREEN 4bff60b6e
-- [ ] REFACTOR
+- [x] REFACTOR skip: generated transport is isolated and the canonical envelope remains shared
 
 ### Scenario: Guard failure denies closed
 
