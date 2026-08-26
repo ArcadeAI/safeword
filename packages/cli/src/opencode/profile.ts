@@ -6,7 +6,13 @@ import { type CliResult, createResult } from '../cli-protocol/result.js';
 import { writeDurableFile } from '../codex-plugin/durable-write.js';
 import { acquireProfileLock, releaseProfileLock } from '../utils/profile-lock.js';
 import { VERSION } from '../version.js';
-import { parseOpenCodeProfileError } from './evidence.js';
+import {
+  type OpenCodeActivationV1,
+  type OpenCodeConformanceV1,
+  parseOpenCodeActivation,
+  parseOpenCodeConformance,
+  parseOpenCodeProfileError,
+} from './evidence.js';
 import { type OpenCodeIdentityV1, parseOpenCodeIdentity } from './identity.js';
 import { generateOpenCodeProfilePlugin } from './plugin.js';
 
@@ -175,6 +181,81 @@ function observeIdentityBindings(
   return undefined;
 }
 
+interface NamedEvidence<T> {
+  readonly name: string;
+  readonly value: T;
+}
+
+function readEvidence<T>(
+  directory: string,
+  parse: (value: unknown) => T | undefined,
+): readonly NamedEvidence<T>[] {
+  let names: string[];
+  try {
+    names = readdirSync(directory);
+  } catch {
+    return [];
+  }
+  const records: NamedEvidence<T>[] = [];
+  for (const name of names) {
+    const file = observeFile(nodePath.join(directory, name));
+    if (file.kind !== 'file') continue;
+    try {
+      const value = parse(JSON.parse(file.bytes.toString('utf8')));
+      if (value !== undefined) records.push({ name, value });
+    } catch {
+      // Malformed evidence is ignored rather than promoted into proof.
+    }
+  }
+  return records;
+}
+
+function hasCurrentPreToolActivation(
+  directory: string,
+  identity: OpenCodeIdentityV1,
+  now = Date.now(),
+): boolean {
+  const maximumAge = 7 * 24 * 60 * 60 * 1000;
+  return readEvidence<OpenCodeActivationV1>(directory, parseOpenCodeActivation).some(record => {
+    const observedAt = Date.parse(record.value.observed_at);
+    const age = now - observedAt;
+    return (
+      record.name === `${record.value.project_sha256}.json` &&
+      record.value.safeword_version === identity.safeword_version &&
+      record.value.plugin_sha256 === identity.plugin_sha256 &&
+      record.value.event === 'pre_tool' &&
+      age >= 0 &&
+      age <= maximumAge
+    );
+  });
+}
+
+function isPassingConformance(
+  record: NamedEvidence<OpenCodeConformanceV1>,
+  identity: OpenCodeIdentityV1,
+): boolean {
+  const evidence = record.value;
+  return [
+    record.name === `${evidence.opencode_version}-${identity.plugin_sha256}.json`,
+    evidence.opencode_version.startsWith('1.'),
+    evidence.safeword_version === identity.safeword_version,
+    evidence.plugin_sha256 === identity.plugin_sha256,
+    evidence.platform === process.platform,
+    evidence.arch === process.arch,
+    evidence.command_catalogue,
+    evidence.agent_catalogue,
+    evidence.denial,
+    evidence.control,
+    evidence.result === 'passed',
+  ].every(Boolean);
+}
+
+function hasPassingConformance(directory: string, identity: OpenCodeIdentityV1): boolean {
+  return readEvidence<OpenCodeConformanceV1>(directory, parseOpenCodeConformance).some(record =>
+    isPassingConformance(record, identity),
+  );
+}
+
 export function observeOpenCodeProfile(root: string): CliResult {
   const paths = openCodeProfilePaths(root);
   const plugin = observeFile(paths.plugin);
@@ -217,7 +298,15 @@ export function observeOpenCodeProfile(root: string): CliResult {
       { installed: true, activated: false, pre_tool: 'block' },
     );
   }
-  return createResult({ state: 'healthy' });
+  return createResult({
+    state: 'healthy',
+    data: {
+      installed: true,
+      activated: hasCurrentPreToolActivation(paths.activation, identity),
+      pre_tool: 'block',
+      conformant: hasPassingConformance(paths.conformance, identity),
+    },
+  });
 }
 
 function sameIdentity(left: OpenCodeIdentityV1, right: OpenCodeIdentityV1): boolean {
