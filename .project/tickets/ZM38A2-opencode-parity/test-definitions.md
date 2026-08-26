@@ -418,7 +418,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 - [x] RED 02171a4da
 - [x] GREEN 3cae4aea7
-- [ ] REFACTOR
+- [x] REFACTOR skip: exact validation, path binding, and durable persistence form one small boundary
 
 ### Scenario: Conformance evidence is rejected when a binding dimension differs
 
