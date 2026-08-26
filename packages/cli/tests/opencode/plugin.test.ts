@@ -128,4 +128,70 @@ describe('generated OpenCode profile plugin', () => {
       }
     }
   });
+
+  it('TBU1.R2.S04 exposes one bounded denial reason without sensitive dispatcher data', async () => {
+    const root = temporaryDirectory();
+    const project = nodePath.join(root, 'project');
+    const profile = nodePath.join(root, 'profile');
+    const paths = openCodeProfilePaths(profile);
+    const dispatcher = nodePath.join(root, 'dispatcher.mjs');
+    const commandSentinel = 'private-command-sentinel';
+    const pathSentinel = 'private-path-sentinel';
+    const stderrSentinel = 'private-stderr-sentinel';
+    const environmentSentinel = 'private-environment-sentinel';
+    mkdirSync(nodePath.join(project, '.safeword'), { recursive: true });
+    mkdirSync(nodePath.dirname(paths.plugin), { recursive: true });
+    mkdirSync(nodePath.dirname(paths.identity), { recursive: true });
+    writeFileSync(nodePath.join(project, '.safeword', 'SAFEWORD.md'), 'managed\n');
+    writeFileSync(nodePath.join(profile, 'package.json'), '{"type":"module"}\n');
+    writeFileSync(
+      dispatcher,
+      `process.stderr.write(${JSON.stringify(stderrSentinel)});\nprocess.stdout.write(JSON.stringify({ schema_version: 1, decision: 'deny', reason: ${JSON.stringify(
+        [commandSentinel, pathSentinel, stderrSentinel, environmentSentinel].join(' '),
+      )} }));\nprocess.exitCode = 2;\n`,
+    );
+
+    const pluginBytes = generateOpenCodeProfilePlugin();
+    writeFileSync(paths.plugin, pluginBytes);
+    const digest = (value: string | Buffer): string =>
+      createHash('sha256').update(value).digest('hex');
+    const dispatcherBytes = readFileSync(dispatcher);
+    writeFileSync(
+      paths.identity,
+      `${JSON.stringify({
+        schema_version: 1,
+        safeword_version: '0.79.4',
+        plugin_path: 'plugins/safeword.js',
+        plugin_sha256: digest(pluginBytes),
+        runtime_path: process.execPath,
+        dispatcher_path: dispatcher,
+        dispatcher_sha256: digest(dispatcherBytes),
+      })}\n`,
+    );
+    const module = (await import(`${pathToFileURL(paths.plugin).href}?test=${Date.now()}`)) as {
+      Safeword: (input: { directory: string }) => Promise<{
+        'tool.execute.before': (
+          input: { tool: string; sessionID: string; callID: string },
+          output: { args: Record<string, unknown> },
+        ) => Promise<void>;
+      }>;
+    };
+    const hooks = await module.Safeword({ directory: project });
+
+    let error: unknown;
+    try {
+      await hooks['tool.execute.before'](
+        { tool: 'bash', sessionID: 'private-session', callID: 'private-call' },
+        { args: { command: commandSentinel, filePath: pathSentinel } },
+      );
+    } catch (error_) {
+      error = error_;
+    }
+
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toBe('Safeword denied this OpenCode tool call.');
+    for (const sentinel of [commandSentinel, pathSentinel, stderrSentinel, environmentSentinel]) {
+      expect((error as Error).message).not.toContain(sentinel);
+    }
+  });
 });
