@@ -209,7 +209,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 ### Scenario: Malformed covered-tool input denies closed
 
 - [x] RED 15ab1fb79
-- [ ] GREEN
+- [x] GREEN 37a69ab90
 - [ ] REFACTOR
 
 ### Scenario: An uncovered tool is observed without being presented as blocked
