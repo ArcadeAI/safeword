@@ -1,11 +1,16 @@
 const OPEN_CODE_PROFILE_PLUGIN = `import { spawn } from 'node:child_process';
-import { readFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { constants } from 'node:fs';
+import { access, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const profileRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const identityPath = path.join(profileRoot, 'safeword', 'identity-v1.json');
 const DENIAL = 'Safeword denied this OpenCode tool call.';
+const REPAIR = 'Safeword cannot run its OpenCode guard. Run safeword install --agents=opencode.';
+
+class UnavailableDispatcher extends Error {}
 
 function canonicalEnvelope(input, output) {
   const args = output?.args;
@@ -42,6 +47,20 @@ async function isMarkedProject(directory) {
 
 async function readIdentity() {
   return JSON.parse(await readFile(identityPath, 'utf8'));
+}
+
+async function readBoundIdentity() {
+  const identity = await readIdentity();
+  try {
+    const dispatcher = await readFile(identity.dispatcher_path);
+    const hash = createHash('sha256').update(dispatcher).digest('hex');
+    if (hash !== identity.dispatcher_sha256) throw new UnavailableDispatcher();
+    await access(identity.runtime_path, constants.X_OK);
+  } catch (error) {
+    if (error instanceof UnavailableDispatcher) throw error;
+    throw new UnavailableDispatcher();
+  }
+  return identity;
 }
 
 function dispatch(identity, envelope) {
@@ -84,8 +103,9 @@ export const Safeword = async input => ({
     if (envelope === undefined) return;
     let result;
     try {
-      result = await dispatch(await readIdentity(), envelope);
-    } catch {
+      result = await dispatch(await readBoundIdentity(), envelope);
+    } catch (error) {
+      if (error instanceof UnavailableDispatcher) throw new Error(REPAIR);
       throw new Error(DENIAL);
     }
     if (result.exitCode === 0) return;
