@@ -245,7 +245,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 ### Scenario: OpenCode lifecycle capabilities produce their declared evidence
 
 - [x] RED 2f2e09454
-- [ ] GREEN
+- [x] GREEN cc7dc4709
 - [ ] REFACTOR
 
 ### Scenario: Activation evidence remains isolated between projects
