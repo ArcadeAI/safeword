@@ -220,7 +220,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ### Scenario: Shell lifecycle identifiers bind guard evidence to the tool call
 
-- [ ] RED
+- [x] RED 914475d82
 - [ ] GREEN
 - [ ] REFACTOR
 
