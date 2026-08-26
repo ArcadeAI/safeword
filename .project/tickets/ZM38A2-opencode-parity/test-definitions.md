@@ -238,7 +238,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ### Scenario: A marked project records plugin-load activation
 
-- [ ] RED
+- [x] RED 80e746657
 - [ ] GREEN
 - [ ] REFACTOR
 
