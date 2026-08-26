@@ -10,7 +10,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 - [x] RED ae16c239e
 - [x] GREEN 58814ff5a
-- [ ] REFACTOR
+- [x] REFACTOR skip: one derived catalogue inventory feeds schema paths and generated bodies
 
 ### Scenario: Generated OpenCode commands bind to their canonical skills
 
