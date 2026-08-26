@@ -124,7 +124,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ### Scenario: Covered tool inputs reach the canonical pre-tool guard
 
-- [ ] RED
+- [x] RED 07db8b1fd
 - [ ] GREEN
 - [ ] REFACTOR
 
