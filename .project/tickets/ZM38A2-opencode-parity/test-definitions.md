@@ -191,7 +191,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 ### Scenario: A confirmed project with an unavailable dispatcher denies with repair
 
 - [x] RED 2599fb22b
-- [ ] GREEN
+- [x] GREEN 55d6ea80c
 - [ ] REFACTOR
 
 ### Scenario: Dispatcher unavailability outranks stale activation
