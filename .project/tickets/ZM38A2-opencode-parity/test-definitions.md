@@ -197,7 +197,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 ### Scenario: Dispatcher unavailability outranks stale activation
 
 - [x] RED ec98628fa
-- [ ] GREEN
+- [x] GREEN 1fd9465c1
 - [ ] REFACTOR
 
 ### Scenario: The profile identity version governs every marked project
