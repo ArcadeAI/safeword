@@ -2161,6 +2161,290 @@ var init_inventory = __esm(() => {
   };
 });
 
+// src/cursor-wrappers.ts
+function cursorRuleSkillPairs() {
+  const skillRules = new Map;
+  for (const wrapper of CURSOR_RULE_WRAPPERS) {
+    if (wrapper.skill === undefined)
+      continue;
+    const rules = skillRules.get(wrapper.skill);
+    if (rules === undefined) {
+      skillRules.set(wrapper.skill, [wrapper.name]);
+      continue;
+    }
+    rules.push(wrapper.name);
+  }
+  return [...skillRules].map(([skill, cursorRules]) => ({ skill, cursorRules }));
+}
+var CURSOR_ACTION_SKILLS, DEBUG_DESCRIPTION = "Finds the real cause of a bug, in four steps, before you touch a fix. Use when encountering bugs, test failures, unexpected behavior, or when previous fix attempts failed. Enforces investigate-first discipline ('debug this', 'fix this error', 'test is failing', 'not working').", REFACTOR_DESCRIPTION = "Systematic refactoring with small-step discipline. Use when user says 'refactor', 'clean up', 'restructure', 'extract', 'rename', 'simplify', or mentions code smells. Enforces one change \u2192 test \u2192 commit when the commit can stay scoped. For structural improvements, NOT style/formatting (use /lint). NOT for adding features or fixing bugs.", CURSOR_COMMAND_WRAPPERS, CURSOR_RULE_WRAPPERS, SKILL_CURSOR_PAIRS;
+var init_cursor_wrappers = __esm(() => {
+  CURSOR_ACTION_SKILLS = [
+    "lint",
+    "verify",
+    "closeout",
+    "audit",
+    "explain",
+    "cleanup-zombies",
+    "self-review",
+    "review-spec",
+    "retro",
+    "spike"
+  ];
+  CURSOR_COMMAND_WRAPPERS = [
+    {
+      name: "bdd",
+      description: "BDD orchestrator for feature-level work. Use when user says 'add', 'implement', 'build', 'feature', 'iteration', 'story', 'phase', 'resume', 'continue', or references a ticket/iteration/story. Also use when work touches 3+ files with new state/flows, or when user runs /bdd. Do NOT use for bug fixes, typos, config changes, or 1-2 file tasks.",
+      skillPath: "bdd/SKILL.md"
+    },
+    {
+      name: "debug",
+      description: DEBUG_DESCRIPTION,
+      skillPath: "debug/SKILL.md"
+    },
+    {
+      name: "quality-review",
+      description: "Deep code review with web research. Use when the user says 'double check against latest', 'verify versions', or 'check security'. Adds live research on top of the automatic quality hook \u2014 confirms you're using current library versions and APIs, not stale ones.",
+      skillPath: "quality-review/SKILL.md"
+    },
+    {
+      name: "finish-review",
+      description: "Internal fallback used only right after the shared review coordinator reports it's run out of reviewer routes. Not something a user invokes directly.",
+      skillPath: "finish-review/SKILL.md"
+    },
+    {
+      name: "audit",
+      description: "Run comprehensive code audit for architecture, dead code, and test quality",
+      skillPath: "audit/SKILL.md"
+    },
+    {
+      name: "closeout",
+      description: "Close a completed local delivery safely after verification. Use when wrapping up a finished coding session: merging only when you've been explicitly told to merge, running the retro, and cleaning up the exact merged branch and worktree.",
+      skillPath: "closeout/SKILL.md"
+    },
+    {
+      name: "refactor",
+      description: REFACTOR_DESCRIPTION,
+      skillPath: "refactor/SKILL.md"
+    },
+    {
+      name: "retro",
+      description: 'Run a safeword retrospective on the current session on demand \u2014 mine the transcript for friction (bugs / rough edges / gaps) and submit it through the outbound safety check before filing upstream. Use when the user says "run a retro", "/retro", or wants to capture friction before the session ends.',
+      skillPath: "retro/SKILL.md"
+    },
+    {
+      name: "spike",
+      description: "Run a quick, throwaway experiment to answer one open technical question before committing to the real build. Only runs when you ask for it directly.",
+      skillPath: "spike/SKILL.md"
+    },
+    {
+      name: "testing",
+      description: "How to write good tests \u2014 quality knowledge for any testing context",
+      skillPath: "testing/SKILL.md"
+    }
+  ];
+  CURSOR_RULE_WRAPPERS = [
+    {
+      name: "safeword-core",
+      alwaysApply: true,
+      referencePath: ".safeword/SAFEWORD.md"
+    },
+    {
+      name: "safeword-brainstorming",
+      alwaysApply: false,
+      description: "Collaborative brainstorming and rubber-ducking \u2014 divergence-first thinking partner. Use when the user wants to explore options, weigh approaches, or think through uncertainty before committing to a direction ('brainstorm', 'rubber duck', 'help me think', 'explore options', 'what are the tradeoffs').",
+      referencePath: ".safeword/skills/brainstorm/SKILL.md",
+      skill: "brainstorm"
+    },
+    {
+      name: "safeword-debugging",
+      alwaysApply: false,
+      description: DEBUG_DESCRIPTION,
+      referencePath: ".safeword/skills/debug/SKILL.md",
+      skill: "debug"
+    },
+    {
+      name: "safeword-elicitation",
+      alwaysApply: false,
+      description: "Extract tacit knowledge through non-obvious microquestions \u2014 things only the user knows that can't be found in code, docs, or research. Use when about to guess at intent, context, or constraints, or when user says 'ask me', 'what do you need to know', 'what's missing'. Skips questions answerable by reading the codebase or searching the web.",
+      referencePath: ".safeword/skills/elicit/SKILL.md",
+      skill: "elicit"
+    },
+    {
+      name: "safeword-figure-it-out",
+      alwaysApply: false,
+      description: "Explore and debate options with fresh documentation and research before committing. Use when facing a real decision with multiple plausible approaches \u2014 library/framework choice, architecture call, API or schema design, algorithm selection. Looks up current docs and recent research, weighs options on correctness and elegance, and resists bloat.",
+      referencePath: ".safeword/skills/figure-it-out/SKILL.md",
+      skill: "figure-it-out"
+    },
+    {
+      name: "safeword-finish-review",
+      alwaysApply: false,
+      description: "Internal fallback used only right after the shared review coordinator reports it's run out of reviewer routes. Not something a user invokes directly.",
+      referencePath: ".safeword/skills/finish-review/SKILL.md",
+      skill: "finish-review"
+    },
+    {
+      name: "safeword-quality-reviewing",
+      alwaysApply: false,
+      description: "Deep quality review of any work-product \u2014 code, docs, specs, plans, decisions \u2014 with web research. Use when explicitly verifying against latest docs ('double check against latest', 'verify versions', 'check security'), pressure-testing correctness and elegance, or needing deeper analysis beyond the automatic hook. Fetches current sources, checks versions and claims, and weighs alternatives.",
+      referencePath: ".safeword/skills/quality-review/SKILL.md",
+      skill: "quality-review"
+    },
+    {
+      name: "safeword-refactoring",
+      alwaysApply: false,
+      description: REFACTOR_DESCRIPTION,
+      referencePath: ".safeword/skills/refactor/SKILL.md",
+      skill: "refactor"
+    },
+    {
+      name: "safeword-tdd-review",
+      alwaysApply: false,
+      description: "Step-aware quality review at TDD phase boundaries \u2014 review test quality after RED, implementation correctness after GREEN, completed scenario after REFACTOR. Use when user says 'review my test', 'review my implementation', 'is this GREEN solid?', or just finished a TDD step. (Note: Claude Code triggers this automatically via the phase-tracking hook; Cursor users must invoke explicitly.)",
+      referencePath: ".safeword/skills/tdd-review/SKILL.md",
+      skill: "tdd-review"
+    },
+    {
+      name: "safeword-testing",
+      alwaysApply: false,
+      description: "How to write good tests. Use when writing tests in any context \u2014 'write tests', 'add tests', 'test this', 'need tests for', 'improve coverage'. Also consult when writing tests during BDD or debugging. Core knowledge for test quality across all workflows.",
+      referencePath: ".safeword/skills/testing/SKILL.md",
+      skill: "testing"
+    },
+    {
+      name: "safeword-ticket-system",
+      alwaysApply: false,
+      description: "Ticket system and work logs for context anchoring during complex work. Use when creating tickets, managing work logs, referencing ticket IDs, or when work needs context anchoring (multi-step tasks, debugging, investigation).",
+      globs: [".project/tickets/**", ".safeword-project/tickets/**", ".safeword/logs/**"],
+      referencePath: ".safeword/skills/ticket-system/SKILL.md",
+      skill: "ticket-system"
+    },
+    {
+      name: "safeword-retro-filer",
+      alwaysApply: false,
+      description: "Files Safeword's sanitized spooled retrospective drafts to its upstream tracker. Use only when a trusted Safeword Stop continuation or authenticated closeout cleanup guard output names a spool path. Do not use for ordinary retros, project issues, or user-authored drafts.",
+      referencePath: ".safeword/skills/retro-filer/SKILL.md",
+      skill: "retro-filer"
+    },
+    {
+      name: "bdd-core",
+      alwaysApply: false,
+      frontmatterOrder: "description-first",
+      description: "USE WHEN starting feature work, running /bdd, resuming a BDD ticket, or user says 'add', 'implement', 'build', 'feature', 'resume', 'continue'. Orchestrates BDD phases.",
+      referencePath: ".safeword/skills/bdd/SKILL.md",
+      skill: "bdd"
+    },
+    {
+      name: "bdd-discovery",
+      alwaysApply: false,
+      frontmatterOrder: "description-first",
+      description: "USE WHEN in BDD intake phase OR ticket has phase:intake. Guides discovery and context gathering for features.",
+      referencePath: ".safeword/skills/bdd/DISCOVERY.md",
+      skill: "bdd"
+    },
+    {
+      name: "bdd-scenarios",
+      alwaysApply: false,
+      frontmatterOrder: "description-first",
+      description: "USE WHEN in BDD define-behavior or scenario-gate phase. Guides Given/When/Then scenario creation and validation.",
+      referencePath: ".safeword/skills/bdd/SCENARIOS.md",
+      skill: "bdd"
+    },
+    {
+      name: "bdd-plan-implementation",
+      alwaysApply: false,
+      frontmatterOrder: "description-first",
+      description: "USE WHEN in BDD plan-implementation phase. Author impl-plan.md, run figure-it-out on load-bearing choices, ADR lifecycle, review before implement.",
+      referencePath: ".safeword/skills/bdd/PLAN_IMPLEMENTATION.md",
+      skill: "bdd"
+    },
+    {
+      name: "bdd-tdd",
+      alwaysApply: false,
+      frontmatterOrder: "description-first",
+      description: "USE WHEN in BDD implement phase. RED/GREEN TDD cycle; run /refactor after GREEN.",
+      referencePath: ".safeword/skills/bdd/TDD.md",
+      skill: "bdd"
+    },
+    {
+      name: "bdd-verify",
+      alwaysApply: false,
+      frontmatterOrder: "description-first",
+      description: "USE WHEN in BDD verify phase OR all scenarios marked [x]. Evidence gate \u2014 cross-scenario refactor, then /verify and /audit.",
+      referencePath: ".safeword/skills/bdd/VERIFY.md",
+      skill: "bdd"
+    },
+    {
+      name: "bdd-done",
+      alwaysApply: false,
+      frontmatterOrder: "description-first",
+      description: "USE WHEN in BDD done phase (verify.md exists). Close the ticket \u2014 verification already happened in verify.",
+      referencePath: ".safeword/skills/bdd/DONE.md",
+      skill: "bdd"
+    },
+    {
+      name: "bdd-splitting",
+      alwaysApply: false,
+      frontmatterOrder: "description-first",
+      description: "USE WHEN BDD thresholds exceeded (2+ stories, >15 scenarios, >20 tasks). Split protocol and examples.",
+      referencePath: ".safeword/skills/bdd/SPLITTING.md",
+      skill: "bdd"
+    }
+  ];
+  SKILL_CURSOR_PAIRS = [
+    ...cursorRuleSkillPairs(),
+    ...CURSOR_ACTION_SKILLS.map((skill) => ({ skill, cursorRules: undefined }))
+  ];
+});
+
+// src/opencode/catalogue.ts
+function skillName(command) {
+  return command.skillPath.split("/", 1)[0] ?? command.name;
+}
+function renderOpenCodeCommand(command) {
+  return `---
+description: ${command.description}
+---
+
+Load and follow the \`${skillName(command)}\` skill completely. Pass \`$ARGUMENTS\` as the user's arguments.
+`;
+}
+function renderOpenCodeAgent(agent) {
+  return `---
+description: ${agent.description}
+mode: subagent
+---
+
+Read and follow \`${agent.procedurePath}\` completely.
+`;
+}
+var SAFEWORD_SUBAGENTS, OPENCODE_CATALOGUE_OWNED_FILES;
+var init_catalogue = __esm(() => {
+  init_cursor_wrappers();
+  SAFEWORD_SUBAGENTS = [
+    {
+      name: "safeword-reviewer",
+      description: "Run the fresh-context degraded Safeword review procedure.",
+      procedurePath: ".claude/skills/finish-review/REVIEWER.md"
+    },
+    {
+      name: "safeword-retro-filer",
+      description: "File validated Safeword retrospective drafts through the guarded procedure.",
+      procedurePath: ".claude/skills/retro-filer/SKILL.md"
+    }
+  ];
+  OPENCODE_CATALOGUE_OWNED_FILES = Object.fromEntries([
+    ...CURSOR_COMMAND_WRAPPERS.map((command) => [
+      `.opencode/commands/${command.name}.md`,
+      { content: () => renderOpenCodeCommand(command) }
+    ]),
+    ...SAFEWORD_SUBAGENTS.map((agent) => [
+      `.opencode/agents/${agent.name}.md`,
+      { content: () => renderOpenCodeAgent(agent) }
+    ])
+  ]);
+});
+
 // ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/identity.js
 var require_identity = __commonJS((exports) => {
   var ALIAS = Symbol.for("yaml.alias");
@@ -12563,242 +12847,6 @@ var init_files5 = __esm(() => {
   };
 });
 
-// src/cursor-wrappers.ts
-function cursorRuleSkillPairs() {
-  const skillRules = new Map;
-  for (const wrapper of CURSOR_RULE_WRAPPERS) {
-    if (wrapper.skill === undefined)
-      continue;
-    const rules = skillRules.get(wrapper.skill);
-    if (rules === undefined) {
-      skillRules.set(wrapper.skill, [wrapper.name]);
-      continue;
-    }
-    rules.push(wrapper.name);
-  }
-  return [...skillRules].map(([skill, cursorRules]) => ({ skill, cursorRules }));
-}
-var CURSOR_ACTION_SKILLS, DEBUG_DESCRIPTION = "Finds the real cause of a bug, in four steps, before you touch a fix. Use when encountering bugs, test failures, unexpected behavior, or when previous fix attempts failed. Enforces investigate-first discipline ('debug this', 'fix this error', 'test is failing', 'not working').", REFACTOR_DESCRIPTION = "Systematic refactoring with small-step discipline. Use when user says 'refactor', 'clean up', 'restructure', 'extract', 'rename', 'simplify', or mentions code smells. Enforces one change \u2192 test \u2192 commit when the commit can stay scoped. For structural improvements, NOT style/formatting (use /lint). NOT for adding features or fixing bugs.", CURSOR_COMMAND_WRAPPERS, CURSOR_RULE_WRAPPERS, SKILL_CURSOR_PAIRS;
-var init_cursor_wrappers = __esm(() => {
-  CURSOR_ACTION_SKILLS = [
-    "lint",
-    "verify",
-    "closeout",
-    "audit",
-    "explain",
-    "cleanup-zombies",
-    "self-review",
-    "review-spec",
-    "retro",
-    "spike"
-  ];
-  CURSOR_COMMAND_WRAPPERS = [
-    {
-      name: "bdd",
-      description: "BDD orchestrator for feature-level work. Use when user says 'add', 'implement', 'build', 'feature', 'iteration', 'story', 'phase', 'resume', 'continue', or references a ticket/iteration/story. Also use when work touches 3+ files with new state/flows, or when user runs /bdd. Do NOT use for bug fixes, typos, config changes, or 1-2 file tasks.",
-      skillPath: "bdd/SKILL.md"
-    },
-    {
-      name: "debug",
-      description: DEBUG_DESCRIPTION,
-      skillPath: "debug/SKILL.md"
-    },
-    {
-      name: "quality-review",
-      description: "Deep code review with web research. Use when the user says 'double check against latest', 'verify versions', or 'check security'. Adds live research on top of the automatic quality hook \u2014 confirms you're using current library versions and APIs, not stale ones.",
-      skillPath: "quality-review/SKILL.md"
-    },
-    {
-      name: "finish-review",
-      description: "Internal fallback used only right after the shared review coordinator reports it's run out of reviewer routes. Not something a user invokes directly.",
-      skillPath: "finish-review/SKILL.md"
-    },
-    {
-      name: "audit",
-      description: "Run comprehensive code audit for architecture, dead code, and test quality",
-      skillPath: "audit/SKILL.md"
-    },
-    {
-      name: "closeout",
-      description: "Close a completed local delivery safely after verification. Use when wrapping up a finished coding session: merging only when you've been explicitly told to merge, running the retro, and cleaning up the exact merged branch and worktree.",
-      skillPath: "closeout/SKILL.md"
-    },
-    {
-      name: "refactor",
-      description: REFACTOR_DESCRIPTION,
-      skillPath: "refactor/SKILL.md"
-    },
-    {
-      name: "retro",
-      description: 'Run a safeword retrospective on the current session on demand \u2014 mine the transcript for friction (bugs / rough edges / gaps) and submit it through the outbound safety check before filing upstream. Use when the user says "run a retro", "/retro", or wants to capture friction before the session ends.',
-      skillPath: "retro/SKILL.md"
-    },
-    {
-      name: "spike",
-      description: "Run a quick, throwaway experiment to answer one open technical question before committing to the real build. Only runs when you ask for it directly.",
-      skillPath: "spike/SKILL.md"
-    },
-    {
-      name: "testing",
-      description: "How to write good tests \u2014 quality knowledge for any testing context",
-      skillPath: "testing/SKILL.md"
-    }
-  ];
-  CURSOR_RULE_WRAPPERS = [
-    {
-      name: "safeword-core",
-      alwaysApply: true,
-      referencePath: ".safeword/SAFEWORD.md"
-    },
-    {
-      name: "safeword-brainstorming",
-      alwaysApply: false,
-      description: "Collaborative brainstorming and rubber-ducking \u2014 divergence-first thinking partner. Use when the user wants to explore options, weigh approaches, or think through uncertainty before committing to a direction ('brainstorm', 'rubber duck', 'help me think', 'explore options', 'what are the tradeoffs').",
-      referencePath: ".safeword/skills/brainstorm/SKILL.md",
-      skill: "brainstorm"
-    },
-    {
-      name: "safeword-debugging",
-      alwaysApply: false,
-      description: DEBUG_DESCRIPTION,
-      referencePath: ".safeword/skills/debug/SKILL.md",
-      skill: "debug"
-    },
-    {
-      name: "safeword-elicitation",
-      alwaysApply: false,
-      description: "Extract tacit knowledge through non-obvious microquestions \u2014 things only the user knows that can't be found in code, docs, or research. Use when about to guess at intent, context, or constraints, or when user says 'ask me', 'what do you need to know', 'what's missing'. Skips questions answerable by reading the codebase or searching the web.",
-      referencePath: ".safeword/skills/elicit/SKILL.md",
-      skill: "elicit"
-    },
-    {
-      name: "safeword-figure-it-out",
-      alwaysApply: false,
-      description: "Explore and debate options with fresh documentation and research before committing. Use when facing a real decision with multiple plausible approaches \u2014 library/framework choice, architecture call, API or schema design, algorithm selection. Looks up current docs and recent research, weighs options on correctness and elegance, and resists bloat.",
-      referencePath: ".safeword/skills/figure-it-out/SKILL.md",
-      skill: "figure-it-out"
-    },
-    {
-      name: "safeword-finish-review",
-      alwaysApply: false,
-      description: "Internal fallback used only right after the shared review coordinator reports it's run out of reviewer routes. Not something a user invokes directly.",
-      referencePath: ".safeword/skills/finish-review/SKILL.md",
-      skill: "finish-review"
-    },
-    {
-      name: "safeword-quality-reviewing",
-      alwaysApply: false,
-      description: "Deep quality review of any work-product \u2014 code, docs, specs, plans, decisions \u2014 with web research. Use when explicitly verifying against latest docs ('double check against latest', 'verify versions', 'check security'), pressure-testing correctness and elegance, or needing deeper analysis beyond the automatic hook. Fetches current sources, checks versions and claims, and weighs alternatives.",
-      referencePath: ".safeword/skills/quality-review/SKILL.md",
-      skill: "quality-review"
-    },
-    {
-      name: "safeword-refactoring",
-      alwaysApply: false,
-      description: REFACTOR_DESCRIPTION,
-      referencePath: ".safeword/skills/refactor/SKILL.md",
-      skill: "refactor"
-    },
-    {
-      name: "safeword-tdd-review",
-      alwaysApply: false,
-      description: "Step-aware quality review at TDD phase boundaries \u2014 review test quality after RED, implementation correctness after GREEN, completed scenario after REFACTOR. Use when user says 'review my test', 'review my implementation', 'is this GREEN solid?', or just finished a TDD step. (Note: Claude Code triggers this automatically via the phase-tracking hook; Cursor users must invoke explicitly.)",
-      referencePath: ".safeword/skills/tdd-review/SKILL.md",
-      skill: "tdd-review"
-    },
-    {
-      name: "safeword-testing",
-      alwaysApply: false,
-      description: "How to write good tests. Use when writing tests in any context \u2014 'write tests', 'add tests', 'test this', 'need tests for', 'improve coverage'. Also consult when writing tests during BDD or debugging. Core knowledge for test quality across all workflows.",
-      referencePath: ".safeword/skills/testing/SKILL.md",
-      skill: "testing"
-    },
-    {
-      name: "safeword-ticket-system",
-      alwaysApply: false,
-      description: "Ticket system and work logs for context anchoring during complex work. Use when creating tickets, managing work logs, referencing ticket IDs, or when work needs context anchoring (multi-step tasks, debugging, investigation).",
-      globs: [".project/tickets/**", ".safeword-project/tickets/**", ".safeword/logs/**"],
-      referencePath: ".safeword/skills/ticket-system/SKILL.md",
-      skill: "ticket-system"
-    },
-    {
-      name: "safeword-retro-filer",
-      alwaysApply: false,
-      description: "Files Safeword's sanitized spooled retrospective drafts to its upstream tracker. Use only when a trusted Safeword Stop continuation or authenticated closeout cleanup guard output names a spool path. Do not use for ordinary retros, project issues, or user-authored drafts.",
-      referencePath: ".safeword/skills/retro-filer/SKILL.md",
-      skill: "retro-filer"
-    },
-    {
-      name: "bdd-core",
-      alwaysApply: false,
-      frontmatterOrder: "description-first",
-      description: "USE WHEN starting feature work, running /bdd, resuming a BDD ticket, or user says 'add', 'implement', 'build', 'feature', 'resume', 'continue'. Orchestrates BDD phases.",
-      referencePath: ".safeword/skills/bdd/SKILL.md",
-      skill: "bdd"
-    },
-    {
-      name: "bdd-discovery",
-      alwaysApply: false,
-      frontmatterOrder: "description-first",
-      description: "USE WHEN in BDD intake phase OR ticket has phase:intake. Guides discovery and context gathering for features.",
-      referencePath: ".safeword/skills/bdd/DISCOVERY.md",
-      skill: "bdd"
-    },
-    {
-      name: "bdd-scenarios",
-      alwaysApply: false,
-      frontmatterOrder: "description-first",
-      description: "USE WHEN in BDD define-behavior or scenario-gate phase. Guides Given/When/Then scenario creation and validation.",
-      referencePath: ".safeword/skills/bdd/SCENARIOS.md",
-      skill: "bdd"
-    },
-    {
-      name: "bdd-plan-implementation",
-      alwaysApply: false,
-      frontmatterOrder: "description-first",
-      description: "USE WHEN in BDD plan-implementation phase. Author impl-plan.md, run figure-it-out on load-bearing choices, ADR lifecycle, review before implement.",
-      referencePath: ".safeword/skills/bdd/PLAN_IMPLEMENTATION.md",
-      skill: "bdd"
-    },
-    {
-      name: "bdd-tdd",
-      alwaysApply: false,
-      frontmatterOrder: "description-first",
-      description: "USE WHEN in BDD implement phase. RED/GREEN TDD cycle; run /refactor after GREEN.",
-      referencePath: ".safeword/skills/bdd/TDD.md",
-      skill: "bdd"
-    },
-    {
-      name: "bdd-verify",
-      alwaysApply: false,
-      frontmatterOrder: "description-first",
-      description: "USE WHEN in BDD verify phase OR all scenarios marked [x]. Evidence gate \u2014 cross-scenario refactor, then /verify and /audit.",
-      referencePath: ".safeword/skills/bdd/VERIFY.md",
-      skill: "bdd"
-    },
-    {
-      name: "bdd-done",
-      alwaysApply: false,
-      frontmatterOrder: "description-first",
-      description: "USE WHEN in BDD done phase (verify.md exists). Close the ticket \u2014 verification already happened in verify.",
-      referencePath: ".safeword/skills/bdd/DONE.md",
-      skill: "bdd"
-    },
-    {
-      name: "bdd-splitting",
-      alwaysApply: false,
-      frontmatterOrder: "description-first",
-      description: "USE WHEN BDD thresholds exceeded (2+ stories, >15 scenarios, >20 tasks). Split protocol and examples.",
-      referencePath: ".safeword/skills/bdd/SPLITTING.md",
-      skill: "bdd"
-    }
-  ];
-  SKILL_CURSOR_PAIRS = [
-    ...cursorRuleSkillPairs(),
-    ...CURSOR_ACTION_SKILLS.map((skill) => ({ skill, cursorRules: undefined }))
-  ];
-});
-
 // src/templates/content.ts
 var AGENTS_MD_LINK = `**\u26A0\uFE0F ALWAYS READ FIRST:** \`.safeword/SAFEWORD.md\`
 
@@ -13044,10 +13092,11 @@ function filterSchemaPaths(schema, keepPath, collections = ALL_SCHEMA_PATH_COLLE
 function isCursorProjectPath(path3) {
   return path3 === ".cursor" || path3.startsWith(".cursor/") || path3 === ".safeword/hooks/cursor" || path3.startsWith(".safeword/hooks/cursor/") || CURSOR_PROJECT_PATHS.has(path3);
 }
+function isOpenCodeProjectPath(path3) {
+  return path3 === ".opencode" || path3.startsWith(".opencode/");
+}
 function schemaForProjectSurfaces(schema, surfaces) {
-  if (surfaces.includes("cursor"))
-    return schema;
-  return filterSchemaPaths(schema, (path3) => !isCursorProjectPath(path3));
+  return filterSchemaPaths(schema, (path3) => (surfaces.includes("cursor") || !isCursorProjectPath(path3)) && (surfaces.includes("opencode") || !isOpenCodeProjectPath(path3)));
 }
 function isSharedAgentRuntimePath(path3) {
   return SHARED_AGENT_RUNTIME_ROOTS.some((root) => path3 === root || path3.startsWith(`${root}/`));
@@ -13061,6 +13110,7 @@ var MCP_JSON_MERGE, MARKDOWNLINT_CLI2_IGNORES_MERGE, CURSOR_RULE_WRAPPER_OWNED_F
 var init_schema = __esm(() => {
   init_historical_ownership();
   init_inventory();
+  init_catalogue();
   init_files();
   init_files2();
   init_files3();
@@ -13211,7 +13261,10 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
       ".cursor",
       ".cursor/rules",
       ".cursor/commands",
-      ".cursor/agents"
+      ".cursor/agents",
+      ".opencode",
+      ".opencode/commands",
+      ".opencode/agents"
     ],
     sharedDirs: [
       ".claude",
@@ -13729,6 +13782,7 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
         template: "commands/cleanup-zombies.md"
       },
       ".cursor/commands/lint.md": { template: "commands/lint.md" },
+      ...OPENCODE_CATALOGUE_OWNED_FILES,
       ".safeword/hooks/cursor/after-file-edit.ts": {
         template: "hooks/cursor/after-file-edit.ts"
       },
@@ -34259,11 +34313,21 @@ __export(exports_schema, {
 function isLegacyClaudePath(path4) {
   return path4.startsWith(".claude/");
 }
+function withOpenCodeSkillDelivery(schema) {
+  const skills = Object.fromEntries(Object.entries(SAFEWORD_SCHEMA.ownedFiles).filter(([path4]) => path4.startsWith(".claude/skills/")));
+  return {
+    ...schema,
+    sharedDirs: [...new Set([...schema.sharedDirs, ".claude", ".claude/skills"])],
+    ownedFiles: { ...schema.ownedFiles, ...skills }
+  };
+}
 function projectLifecycleSchema(cwd, agents) {
-  const deliverySchema = schemaForCodexDelivery(cwd, schemaForClaudeDelivery(cwd));
+  const claudeDeliverySchema = schemaForClaudeDelivery(cwd);
+  const deliverySchema = schemaForCodexDelivery(cwd, agents.includes("opencode") ? withOpenCodeSkillDelivery(claudeDeliverySchema) : claudeDeliverySchema);
   const surfaceSchema = schemaForProjectSurfaces(deliverySchema, [
     "core",
-    ...agents.includes("cursor") ? ["cursor"] : []
+    ...agents.includes("cursor") ? ["cursor"] : [],
+    ...agents.includes("opencode") ? ["opencode"] : []
   ]);
   const legacyClaudeActive = Object.keys(deliverySchema.ownedFiles).some((path4) => isLegacyClaudePath(path4)) || Object.keys(deliverySchema.jsonMerges).some((path4) => isLegacyClaudePath(path4));
   return schemaForSharedAgentRuntime(surfaceSchema, agents.length === 0 || agents.includes("codex") || agents.includes("cursor") || legacyClaudeActive);
@@ -37300,12 +37364,60 @@ function exactRecord(value, requiredKeys, optionalKeys = []) {
   }
   return record;
 }
+function matchesRecord(record, validators) {
+  return record !== undefined && Object.entries(validators).every(([key, validate]) => validate(record[key]));
+}
 function isSha2562(value) {
   return typeof value === "string" && /^[a-f\d]{64}$/u.test(value);
 }
 function isNonEmptyString(value) {
   return typeof value === "string" && value.length > 0;
 }
+function isTimestamp(value) {
+  return isNonEmptyString(value) && Number.isFinite(Date.parse(value));
+}
+
+// src/opencode/evidence.ts
+function isSchemaVersion(value) {
+  return value === 1;
+}
+function parseOpenCodeProfileError(value) {
+  const record = exactRecord(value, [
+    "schema_version",
+    "safeword_version",
+    "plugin_sha256",
+    "error_code",
+    "observed_at"
+  ]);
+  if (!matchesRecord(record, {
+    schema_version: isSchemaVersion,
+    safeword_version: isNonEmptyString,
+    plugin_sha256: isSha2562,
+    error_code: (errorCode) => errorCode === "marker_resolution_failed",
+    observed_at: isTimestamp
+  }))
+    return;
+  return record;
+}
+var ACTIVATION_EVENTS, CALL_BOUND_EVENTS, SESSION_BOUND_EVENTS;
+var init_evidence = __esm(() => {
+  ACTIVATION_EVENTS = new Set([
+    "plugin_load",
+    "session_start",
+    "prompt_submit",
+    "pre_tool",
+    "post_tool",
+    "stop"
+  ]);
+  CALL_BOUND_EVENTS = new Set(["pre_tool", "post_tool"]);
+  SESSION_BOUND_EVENTS = new Set([
+    "session_start",
+    "prompt_submit",
+    "pre_tool",
+    "post_tool",
+    "stop"
+  ]);
+});
 
 // src/opencode/identity.ts
 function parseOpenCodeIdentity(value) {
@@ -37328,13 +37440,224 @@ var init_identity = __esm(() => {
   ];
 });
 
+// src/opencode/plugin.ts
+function profilePluginSource(markerTimeoutMilliseconds) {
+  return String.raw`import { spawn } from 'node:child_process';
+import { createHash, randomUUID } from 'node:crypto';
+import { constants } from 'node:fs';
+import { access, mkdir, readFile, realpath, rename, rm, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const profileRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+const identityPath = path.join(profileRoot, 'safeword', 'identity-v1.json');
+const profileErrorPath = path.join(profileRoot, 'safeword', 'profile-error-v1.json');
+const activationRoot = path.join(profileRoot, 'safeword', 'activation-v1');
+const MARKER_TIMEOUT_MILLISECONDS = ${markerTimeoutMilliseconds};
+const DENIAL = 'Safeword denied this OpenCode tool call.';
+const REPAIR = 'Safeword cannot run its OpenCode guard. Run safeword install --agents=opencode.';
+
+class UnavailableDispatcher extends Error {}
+
+function canonicalEnvelope(input, output) {
+  if (!['bash', 'shell', 'edit', 'write', 'patch', 'apply_patch'].includes(input?.tool)) {
+    return undefined;
+  }
+  const args = output?.args;
+  if (args === null || typeof args !== 'object' || Array.isArray(args)) throw new Error(DENIAL);
+  if (input.tool === 'bash' || input.tool === 'shell') {
+    if (typeof args.command !== 'string' || args.command.length === 0) throw new Error(DENIAL);
+    return { hook_event_name: 'PreToolUse', session_id: input.sessionID, tool_name: 'Bash', tool_input: { command: args.command } };
+  }
+  if (input.tool === 'edit' || input.tool === 'write') {
+    if (typeof args.filePath !== 'string' || args.filePath.length === 0) throw new Error(DENIAL);
+    return {
+      hook_event_name: 'PreToolUse',
+      session_id: input.sessionID,
+      tool_name: input.tool === 'edit' ? 'Edit' : 'Write',
+      tool_input: { file_path: args.filePath },
+    };
+  }
+  if (input.tool === 'patch' || input.tool === 'apply_patch') {
+    if (
+      typeof args.patchText !== 'string' ||
+      args.patchText.length === 0 ||
+      !/^[*][*][*] (?:Add|Update|Delete) File: .+$/m.test(args.patchText)
+    ) throw new Error(DENIAL);
+    return { hook_event_name: 'PreToolUse', session_id: input.sessionID, tool_name: 'apply_patch', tool_input: { command: args.patchText } };
+  }
+  return undefined;
+}
+
+async function classifyProject(directory) {
+  if (MARKER_TIMEOUT_MILLISECONDS === 0) return 'uncertain';
+  let timer;
+  const marker = access(path.join(directory, '.safeword', 'SAFEWORD.md')).then(
+    () => 'marked',
+    error => error?.code === 'ENOENT' ? 'unmarked' : 'uncertain',
+  );
+  const deadline = new Promise(resolve => {
+    timer = setTimeout(() => resolve('uncertain'), MARKER_TIMEOUT_MILLISECONDS);
+  });
+  try {
+    return await Promise.race([marker, deadline]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function readIdentity() {
+  return JSON.parse(await readFile(identityPath, 'utf8'));
+}
+
+async function atomicWrite(destination, content) {
+  let temporaryPath;
+  try {
+    await mkdir(path.dirname(destination), { recursive: true });
+    temporaryPath = destination + '.' + process.pid + '.' + randomUUID() + '.tmp';
+    await writeFile(temporaryPath, content, { mode: 0o600 });
+    await rename(temporaryPath, destination);
+    temporaryPath = undefined;
+  } finally {
+    if (temporaryPath !== undefined) await rm(temporaryPath, { force: true }).catch(() => {});
+  }
+}
+
+async function recordMarkerResolutionFailure() {
+  try {
+    const identity = await readIdentity();
+    await atomicWrite(profileErrorPath, JSON.stringify({
+      schema_version: 1,
+      safeword_version: identity.safeword_version,
+      plugin_sha256: identity.plugin_sha256,
+      error_code: 'marker_resolution_failed',
+      observed_at: new Date().toISOString(),
+    }) + '\n');
+  } catch {
+    // Evidence is diagnostic; classification uncertainty must remain fail-open.
+  }
+}
+
+async function recordActivation(directory, event, sessionID, callID) {
+  try {
+    const [identity, canonicalProject] = await Promise.all([readIdentity(), realpath(directory)]);
+    const projectHash = createHash('sha256').update(canonicalProject).digest('hex');
+    const evidence = {
+      schema_version: 1,
+      safeword_version: identity.safeword_version,
+      plugin_sha256: identity.plugin_sha256,
+      project_sha256: projectHash,
+      event,
+      ...(sessionID === undefined ? {} : { session_id_sha256: createHash('sha256').update(sessionID).digest('hex') }),
+      ...(callID === undefined ? {} : { call_id_sha256: createHash('sha256').update(callID).digest('hex') }),
+      observed_at: new Date().toISOString(),
+    };
+    await atomicWrite(path.join(activationRoot, projectHash + '.json'), JSON.stringify(evidence) + '\n');
+  } catch {
+    // Activation is diagnostic and never changes the host operation.
+  }
+}
+
+async function clearProfileError() {
+  await rm(profileErrorPath, { force: true }).catch(() => {});
+}
+
+async function readBoundIdentity() {
+  const identity = await readIdentity();
+  try {
+    const dispatcher = await readFile(identity.dispatcher_path);
+    const hash = createHash('sha256').update(dispatcher).digest('hex');
+    if (hash !== identity.dispatcher_sha256) throw new UnavailableDispatcher();
+    await access(identity.runtime_path, constants.X_OK);
+  } catch (error) {
+    if (error instanceof UnavailableDispatcher) throw error;
+    throw new UnavailableDispatcher();
+  }
+  return identity;
+}
+
+function dispatch(identity, envelope) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(identity.runtime_path, [identity.dispatcher_path], {
+      cwd: process.cwd(),
+      shell: false,
+      env: {
+        ...process.env,
+        SAFEWORD_AGENT_RUNTIME: 'opencode',
+        SAFEWORD_CODEX_DENY_MODE: 'exit-code',
+      },
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    let stdout = '';
+    let settled = false;
+    const finish = (action) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      action();
+    };
+    const timeout = setTimeout(() => {
+      child.kill('SIGTERM');
+      finish(() => reject(new Error(DENIAL)));
+    }, 2_000);
+    child.stdout.setEncoding('utf8').on('data', chunk => {
+      stdout += chunk;
+    });
+    child.once('error', () => finish(() => reject(new Error(DENIAL))));
+    child.once('close', exitCode => finish(() => resolve({ exitCode, stdout })));
+    child.stdin.end(JSON.stringify(envelope));
+  });
+}
+
+export const Safeword = async input => {
+  if (input?.directory) {
+    const classification = await classifyProject(input.directory);
+    if (classification === 'marked') await recordActivation(input.directory, 'plugin_load');
+    else if (classification === 'uncertain') await recordMarkerResolutionFailure();
+  }
+  return {
+    'tool.execute.before': async (hookInput, output) => {
+      if (!input?.directory) return;
+      const classification = await classifyProject(input.directory);
+      if (classification === 'uncertain') {
+        await recordMarkerResolutionFailure();
+        return;
+      }
+      if (classification === 'unmarked') return;
+      await clearProfileError();
+      const envelope = canonicalEnvelope(hookInput, output);
+      if (envelope === undefined) return;
+      let result;
+      try {
+        result = await dispatch(await readBoundIdentity(), envelope);
+      } catch (error) {
+        if (error instanceof UnavailableDispatcher) throw new Error(REPAIR);
+        throw new Error(DENIAL);
+      }
+      await recordActivation(input.directory, 'pre_tool', hookInput.sessionID, hookInput.callID);
+      if (result.exitCode === 0) return;
+      throw new Error(DENIAL);
+    },
+  };
+};
+`;
+}
+function generateOpenCodeProfilePlugin(options = {}) {
+  const configured = options.markerTimeoutMilliseconds;
+  const markerTimeoutMilliseconds = configured !== undefined && Number.isFinite(configured) && configured >= 0 ? configured : DEFAULT_MARKER_TIMEOUT_MILLISECONDS;
+  return profilePluginSource(markerTimeoutMilliseconds);
+}
+var DEFAULT_MARKER_TIMEOUT_MILLISECONDS = 50;
+
 // src/opencode/profile.ts
 var exports_profile2 = {};
 __export(exports_profile2, {
   resolveOpenCodeConfigRoot: () => resolveOpenCodeConfigRoot,
   reconcileOpenCodeProfile: () => reconcileOpenCodeProfile,
   openCodeProfilePaths: () => openCodeProfilePaths,
-  observeOpenCodeProfile: () => observeOpenCodeProfile
+  observeOpenCodeProfile: () => observeOpenCodeProfile,
+  installOpenCodeProfile: () => installOpenCodeProfile,
+  generateOpenCodeProfilePlugin: () => generateOpenCodeProfilePlugin
 });
 import { createHash as createHash15 } from "crypto";
 import { existsSync as existsSync33, lstatSync as lstatSync12, readdirSync as readdirSync22, readFileSync as readFileSync34, rmdirSync as rmdirSync5, rmSync as rmSync8 } from "fs";
@@ -37383,6 +37706,45 @@ function observeFile(path4) {
 function sha2564(value) {
   return createHash15("sha256").update(value).digest("hex");
 }
+function packagedDispatcherPath() {
+  const moduleDirectory = import.meta.dirname;
+  return [
+    nodePath59.join(moduleDirectory, "opencode", "dispatcher.js"),
+    nodePath59.resolve(moduleDirectory, "../../dist/opencode/dispatcher.js")
+  ].find((candidate) => existsSync33(candidate));
+}
+function installOpenCodeProfile(root) {
+  const dispatcherPath = packagedDispatcherPath();
+  if (dispatcherPath === undefined) {
+    return actionRequired("OPENCODE_DISPATCHER_MISSING", "The packaged OpenCode dispatcher is unavailable.", "safeword install --agents=opencode");
+  }
+  const pluginBytes = generateOpenCodeProfilePlugin();
+  return reconcileOpenCodeProfile({
+    operation: "install",
+    root,
+    pluginBytes,
+    identity: {
+      schema_version: 1,
+      safeword_version: VERSION,
+      plugin_path: "plugins/safeword.js",
+      plugin_sha256: sha2564(pluginBytes),
+      runtime_path: process.execPath,
+      dispatcher_path: dispatcherPath,
+      dispatcher_sha256: sha2564(readFileSync34(dispatcherPath))
+    }
+  });
+}
+function hasCurrentProfileError(path4, identity) {
+  const profileError = observeFile(path4);
+  if (profileError.kind !== "file")
+    return false;
+  try {
+    const parsed2 = parseOpenCodeProfileError(JSON.parse(profileError.bytes.toString("utf8")));
+    return parsed2?.safeword_version === identity.safeword_version && parsed2.plugin_sha256 === identity.plugin_sha256;
+  } catch {
+    return false;
+  }
+}
 function observeOpenCodeProfile(root) {
   const paths = openCodeProfilePaths(root);
   const plugin = observeFile(paths.plugin);
@@ -37404,6 +37766,9 @@ function observeOpenCodeProfile(root) {
   }
   if (plugin.kind !== "file" || sha2564(plugin.bytes) !== identity.plugin_sha256) {
     return actionRequired("OPENCODE_PLUGIN_DRIFT", "The Safeword OpenCode plugin does not match its identity.", "safeword install --agents=opencode");
+  }
+  if (hasCurrentProfileError(paths.profileError, identity)) {
+    return actionRequired("OPENCODE_MARKER_RESOLUTION_FAILED", "OpenCode project classification could not be verified.", "safeword install --agents=opencode", { installed: true, activated: false, pre_tool: "block" });
   }
   return createResult({ state: "healthy" });
 }
@@ -37444,11 +37809,12 @@ function observeProfile(paths, expectedPlugin, expectedIdentity) {
     return { ownership: "absent" };
   return identity.kind === "absent" ? classifyWithoutIdentity(plugin, expectedIdentity) : classifyWithIdentity(plugin, identity.value, expectedPlugin, expectedIdentity);
 }
-function actionRequired(code, message, command) {
+function actionRequired(code, message, command, data) {
   return createResult({
     state: "action_required",
     findings: [{ code, message, severity: "error" }],
-    nextActions: [{ command, mutates: true, requiresHuman: true }]
+    nextActions: [{ command, mutates: true, requiresHuman: true }],
+    data
   });
 }
 function writeManagedProfile(paths, pluginBytes, identity) {
@@ -37520,6 +37886,8 @@ var init_profile2 = __esm(() => {
   init_result();
   init_durable_write();
   init_profile_lock();
+  init_version();
+  init_evidence();
   init_identity();
 });
 
@@ -37844,8 +38212,12 @@ var init_integrations = __esm(() => {
     observe(context) {
       return observeOpenCode(context);
     },
-    install(context) {
-      return observeOpenCode(context);
+    async install(context) {
+      const root = await resolveOpenCodeRoot(context);
+      if (root === undefined)
+        return openCodeConfigRootRequired();
+      const { installOpenCodeProfile: installOpenCodeProfile2 } = await Promise.resolve().then(() => (init_profile2(), exports_profile2));
+      return installOpenCodeProfile2(root);
     },
     uninstall(context) {
       return observeOpenCode(context);
@@ -60408,6 +60780,7 @@ import {
   existsSync as existsSync50,
   mkdirSync as mkdirSync21,
   mkdtempSync as mkdtempSync8,
+  readdirSync as readdirSync34,
   readFileSync as readFileSync66,
   renameSync as renameSync12,
   rmSync as rmSync14,
@@ -60497,8 +60870,8 @@ function parseRecordSkillInvocationCommand(command2) {
   if (!projectArgument)
     return;
   const skillArgument = readShellArgument(command2, projectArgument.nextIndex);
-  const skillName = skillArgument?.value;
-  return skillName && SKILL_NAME_PATTERN.test(skillName) ? skillName : undefined;
+  const skillName2 = skillArgument?.value;
+  return skillName2 && SKILL_NAME_PATTERN.test(skillName2) ? skillName2 : undefined;
 }
 function commandInvokesWriteReviewStamp(command2) {
   return command2.replaceAll("\\", "/").includes(WRITE_REVIEW_STAMP_SCRIPT);
@@ -60507,13 +60880,13 @@ function writeCodexIdentityCache(input) {
   if (!hasSafewordProjectMarker(input.projectDirectory))
     return;
   const sessionId = input.sessionId?.trim();
-  const skillName = input.skillName?.trim();
-  if (!sessionId || !skillName)
+  const skillName2 = input.skillName?.trim();
+  if (!sessionId || !skillName2)
     return;
   try {
     const cachePath = nodePath106.join(resolveNamespaceRoot(input.projectDirectory), input.cacheFile);
     mkdirSync21(nodePath106.dirname(cachePath), { recursive: true });
-    writeFileSync24(cachePath, JSON.stringify({ id: sessionId, skillName, recordedAt: new Date().toISOString() }), "utf8");
+    writeFileSync24(cachePath, JSON.stringify({ id: sessionId, skillName: skillName2, recordedAt: new Date().toISOString() }), "utf8");
   } catch {}
 }
 function rememberCodexRunIdentity(input) {
@@ -60627,14 +61000,15 @@ function resolvePackagedHook(relativePath) {
   return findPackagedTemplate(nodePath106.join("hooks", relativePath));
 }
 function runHookFile(hookPath, rawInput, projectDirectory, packagedContextPath = "") {
-  const result = spawnSync11("bun", [hookPath], {
+  const runtime = process21.env.SAFEWORD_AGENT_RUNTIME === "opencode" ? process21.execPath : "bun";
+  const result = spawnSync11(runtime, [hookPath], {
     cwd: projectDirectory,
     input: rawInput,
     encoding: "utf8",
     env: {
       ...process21.env,
       CLAUDE_PROJECT_DIR: projectDirectory,
-      SAFEWORD_AGENT_RUNTIME: "codex",
+      SAFEWORD_AGENT_RUNTIME: process21.env.SAFEWORD_AGENT_RUNTIME ?? "codex",
       SAFEWORD_PACKAGED_CONTEXT_PATH: packagedContextPath
     },
     stdio: ["pipe", "pipe", "pipe"]
@@ -60678,6 +61052,22 @@ function runPackagedHook(relativePath, rawInput, projectDirectory) {
       rmSync14(temporaryHookDirectory, { recursive: true, force: true });
   }
 }
+function rewriteSnapshotImportsForNode(directory) {
+  const entries = readdirSync34(directory, { withFileTypes: true });
+  for (const entry2 of entries) {
+    const path8 = nodePath106.join(directory, entry2.name);
+    if (entry2.isDirectory()) {
+      rewriteSnapshotImportsForNode(path8);
+      continue;
+    }
+    if (!entry2.isFile() || !entry2.name.endsWith(".ts"))
+      continue;
+    const source = readFileSync66(path8, "utf8");
+    const rewritten = source.replaceAll(/(from\s+['"]|import\s*\(\s*['"])(\.{1,2}\/[^'"]+)\.js(['"])/gu, "$1$2.ts$3");
+    if (rewritten !== source)
+      writeFileSync24(path8, rewritten, "utf8");
+  }
+}
 function snapshotPackagedHook(relativePath) {
   const packagedHooksDirectory = findPackagedTemplate("hooks");
   if (!packagedHooksDirectory) {
@@ -60688,6 +61078,9 @@ function snapshotPackagedHook(relativePath) {
   const snapshotHooksDirectory = nodePath106.join(directory, "hooks");
   try {
     cpSync2(packagedHooksDirectory, stagingHooksDirectory, { recursive: true });
+    if (process21.env.SAFEWORD_AGENT_RUNTIME === "opencode") {
+      rewriteSnapshotImportsForNode(stagingHooksDirectory);
+    }
     renameSync12(stagingHooksDirectory, snapshotHooksDirectory);
     const hookPath = nodePath106.join(snapshotHooksDirectory, relativePath);
     return existsSync50(hookPath) ? { directory, hookPath } : { directory, error: new Error(`Safeword packaged hook is missing: ${relativePath}`) };
