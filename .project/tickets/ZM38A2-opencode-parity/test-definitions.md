@@ -412,7 +412,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 - [x] RED 62031948a
 - [x] GREEN d1d4aab1e
-- [ ] REFACTOR
+- [x] REFACTOR skip: executable resolution, version probing, and typed remediation are already separate functions
 
 ### Scenario: Persisted conformance evidence excludes sensitive execution content
 
