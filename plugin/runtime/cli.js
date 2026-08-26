@@ -620,7 +620,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/pre-tool-config-guard.ts": "6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084",
         ".safeword/hooks/pre-tool-dependency-readiness.ts": "d23343dc3185916140a4b25572f3bb413aece93311f5084444c0debe188f85b8",
         ".safeword/hooks/pre-tool-git-bare-fix.sh": "0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414",
-        ".safeword/hooks/pre-tool-quality.ts": "b97d1639e4598197baa11c71d640f0cbff79f5bf72b38736ad1f4484bb06e1cf",
+        ".safeword/hooks/pre-tool-quality.ts": "ea5a2beaba2384cfc3d9a8a674c5a0d0b3166ab0f7c3012b9c6f019c3980a633",
         ".safeword/hooks/pre-tool-stale-main.ts": "cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e",
         ".safeword/hooks/prompt-questions.ts": "57182cccb8550bb2b585c27672bc9bfef56f4688d0afc1afc18bf52661b7c2a6",
         ".safeword/hooks/prompt-retro-nudge.ts": "78353d6f47adb0ed9969e83b40429d5792a98789dff67ec0bc4d5a024b1da457",
@@ -37407,14 +37407,20 @@ var init_evidence = __esm(() => {
     "prompt_submit",
     "pre_tool",
     "post_tool",
+    "uncovered_tool",
     "stop"
   ]);
-  CALL_BOUND_EVENTS = new Set(["pre_tool", "post_tool"]);
+  CALL_BOUND_EVENTS = new Set([
+    "pre_tool",
+    "post_tool",
+    "uncovered_tool"
+  ]);
   SESSION_BOUND_EVENTS = new Set([
     "session_start",
     "prompt_submit",
     "pre_tool",
     "post_tool",
+    "uncovered_tool",
     "stop"
   ]);
 });
@@ -37626,7 +37632,10 @@ export const Safeword = async input => {
       if (classification === 'unmarked') return;
       await clearProfileError();
       const envelope = canonicalEnvelope(hookInput, output);
-      if (envelope === undefined) return;
+      if (envelope === undefined) {
+        await recordActivation(input.directory, 'uncovered_tool', hookInput.sessionID, hookInput.callID);
+        return;
+      }
       let result;
       try {
         result = await dispatch(await readBoundIdentity(), envelope);
@@ -37745,12 +37754,25 @@ function hasCurrentProfileError(path4, identity) {
     return false;
   }
 }
+function hasCurrentDispatcher(identity) {
+  const dispatcher = observeFile(identity.dispatcher_path);
+  return dispatcher.kind === "file" && sha2564(dispatcher.bytes) === identity.dispatcher_sha256;
+}
+function observeIdentityBindings(plugin, identity) {
+  if (plugin.kind !== "file" || sha2564(plugin.bytes) !== identity.plugin_sha256) {
+    return actionRequired("OPENCODE_PLUGIN_DRIFT", "The Safeword OpenCode plugin does not match its identity.", "safeword install --agents=opencode");
+  }
+  if (!hasCurrentDispatcher(identity)) {
+    return actionRequired("OPENCODE_DISPATCHER_UNAVAILABLE", "The identity-bound OpenCode dispatcher is unavailable.", "safeword install --agents=opencode", { installed: true, activated: false, pre_tool: "block" });
+  }
+  return;
+}
 function observeOpenCodeProfile(root) {
   const paths = openCodeProfilePaths(root);
   const plugin = observeFile(paths.plugin);
   const identityFile = observeFile(paths.identity);
   if (plugin.kind === "absent" && identityFile.kind === "absent") {
-    return actionRequired("OPENCODE_PROFILE_MISSING", "The Safeword OpenCode profile plugin is not installed.", "safeword install --agents=opencode");
+    return actionRequired("OPENCODE_PROFILE_MISSING", "The Safeword OpenCode profile plugin is not installed.", "safeword install --agents=opencode", { installed: false, activated: false, pre_tool: "unavailable", conformant: false });
   }
   if (plugin.kind === "collision" || identityFile.kind !== "file") {
     return actionRequired("OPENCODE_PROFILE_COLLISION", "The Safeword OpenCode profile cannot be verified.", "safeword install --agents=opencode");
@@ -37764,9 +37786,9 @@ function observeOpenCodeProfile(root) {
   if (identity === undefined) {
     return actionRequired("OPENCODE_IDENTITY_COLLISION", "The Safeword OpenCode identity cannot be verified.", "safeword install --agents=opencode");
   }
-  if (plugin.kind !== "file" || sha2564(plugin.bytes) !== identity.plugin_sha256) {
-    return actionRequired("OPENCODE_PLUGIN_DRIFT", "The Safeword OpenCode plugin does not match its identity.", "safeword install --agents=opencode");
-  }
+  const bindingProblem = observeIdentityBindings(plugin, identity);
+  if (bindingProblem !== undefined)
+    return bindingProblem;
   if (hasCurrentProfileError(paths.profileError, identity)) {
     return actionRequired("OPENCODE_MARKER_RESOLUTION_FAILED", "OpenCode project classification could not be verified.", "safeword install --agents=opencode", { installed: true, activated: false, pre_tool: "block" });
   }
