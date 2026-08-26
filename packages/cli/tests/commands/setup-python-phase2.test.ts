@@ -525,6 +525,108 @@ dev = ["ruff>=0.8.0"]
   );
 
   it(
+    'finalizes a uv consumer after its local dependency changes later in setup',
+    async () => {
+      createSafewordBasePackageJson(state.projectDirectory);
+      const consumer = nodePath.join(state.projectDirectory, 'apps/consumer');
+      const dependency = nodePath.join(state.projectDirectory, 'libs/shared');
+      createPythonProject(consumer, { manager: 'uv' });
+      createPythonProject(dependency, { manager: 'uv' });
+      initGitRepo(state.projectDirectory);
+      const bin = nodePath.join(state.projectDirectory, 'bin');
+      const uv = nodePath.join(bin, 'uv');
+      writeTestFile(
+        state.projectDirectory,
+        'bin/uv',
+        `#!/bin/sh
+if [ "$1" = "add" ]; then
+  printf '\ndependencies = ["deadcode"]\n' >> pyproject.toml
+  printf '\nresolved\n' >> uv.lock
+  exit 0
+fi
+if [ "$1" = "lock" ] && [ "$2" = "--check" ]; then
+  if [ "$PWD" = "$SAFEWORD_UV_CONSUMER" ] && grep -q deadcode "$SAFEWORD_UV_DEPENDENCY/pyproject.toml" && ! grep -q finalized uv.lock; then
+    exit 1
+  fi
+  exit 0
+fi
+if [ "$1" = "lock" ]; then
+  printf '\nfinalized\n' >> uv.lock
+  exit 0
+fi
+exit 1
+`,
+      );
+      chmodSync(uv, 0o755);
+
+      await runCli(['setup'], {
+        cwd: state.projectDirectory,
+        timeout: TIMEOUT_SETUP,
+        env: {
+          PATH: `${bin}:${process.env.PATH ?? ''}`,
+          SAFEWORD_SKIP_INSTALL: '',
+          SAFEWORD_UV_CONSUMER: consumer,
+          SAFEWORD_UV_DEPENDENCY: dependency,
+        },
+      });
+
+      expect(readTestFile(consumer, 'uv.lock')).toContain('finalized');
+      expect(readTestFile(dependency, 'uv.lock')).toContain('finalized');
+    },
+    TIMEOUT_SETUP,
+  );
+
+  it(
+    'restores every uv project when final lock generation fails',
+    async () => {
+      createSafewordBasePackageJson(state.projectDirectory);
+      const consumer = nodePath.join(state.projectDirectory, 'apps/consumer');
+      const dependency = nodePath.join(state.projectDirectory, 'libs/shared');
+      createPythonProject(consumer, { manager: 'uv' });
+      createPythonProject(dependency, { manager: 'uv' });
+      initGitRepo(state.projectDirectory);
+      const originals = [consumer, dependency].map(directory => ({
+        directory,
+        manifest: readTestFile(directory, 'pyproject.toml'),
+        lock: readTestFile(directory, 'uv.lock'),
+      }));
+      const bin = nodePath.join(state.projectDirectory, 'bin');
+      const uv = nodePath.join(bin, 'uv');
+      writeTestFile(
+        state.projectDirectory,
+        'bin/uv',
+        `#!/bin/sh
+if [ "$1" = "add" ]; then
+  printf '\ndependencies = ["deadcode"]\n' >> pyproject.toml
+  printf '\nresolved\n' >> uv.lock
+  exit 0
+fi
+if [ "$1" = "lock" ] && [ "$2" = "--check" ]; then
+  exit 0
+fi
+exit 1
+`,
+      );
+      chmodSync(uv, 0o755);
+
+      await runCli(['setup'], {
+        cwd: state.projectDirectory,
+        timeout: TIMEOUT_SETUP,
+        env: {
+          PATH: `${bin}:${process.env.PATH ?? ''}`,
+          SAFEWORD_SKIP_INSTALL: '',
+        },
+      });
+
+      for (const original of originals) {
+        expect(readTestFile(original.directory, 'pyproject.toml')).toBe(original.manifest);
+        expect(readTestFile(original.directory, 'uv.lock')).toBe(original.lock);
+      }
+    },
+    TIMEOUT_SETUP,
+  );
+
+  it(
     'Test 6.5: Shows poetry install command for poetry projects',
     async () => {
       createPythonProjectReadyForSetup(state.projectDirectory, { manager: 'poetry' });

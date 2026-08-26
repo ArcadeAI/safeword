@@ -54,7 +54,7 @@ import {
   detectPythonPackageManager,
   getPythonInstallCommand,
   getPythonToolDependencyGaps,
-  installPythonDependencies,
+  installPythonDependencyBatch,
   type PythonTool,
 } from '../packs/python/setup.js';
 import { getMissingPacks } from '../packs/registry.js';
@@ -571,9 +571,10 @@ function configurePython(
       installed: false,
     };
   }
-  const results = installable.map(item => ({
+  const installationResults = installPythonDependencyBatch(installable, cwd);
+  const results = installable.map((item, index) => ({
     ...item,
-    succeeded: installPythonDependencies(item.directory, item.tools, cwd),
+    succeeded: installationResults[index],
   }));
   const attemptedTools = [...new Set(installable.flatMap(item => item.tools))];
   const installedTools = [...new Set(results.flatMap(item => (item.succeeded ? item.tools : [])))];
