@@ -23,25 +23,27 @@ function temporaryDirectory(): string {
 function writePassingEvidence(
   paths: OpenCodeProfilePaths,
   identity: OpenCodeIdentityV1,
-  event: 'plugin_load' | 'pre_tool' = 'plugin_load',
+  event: 'plugin_load' | 'pre_tool' | false = 'plugin_load',
 ): void {
-  mkdirSync(paths.activation, { recursive: true });
   mkdirSync(paths.conformance, { recursive: true });
-  writeFileSync(
-    nodePath.join(paths.activation, `${'a'.repeat(64)}.json`),
-    `${JSON.stringify({
-      schema_version: 1,
-      safeword_version: identity.safeword_version,
-      plugin_sha256: identity.plugin_sha256,
-      project_sha256: 'a'.repeat(64),
-      event,
-      ...(event === 'pre_tool' && {
-        session_id_sha256: 'b'.repeat(64),
-        call_id_sha256: 'c'.repeat(64),
-      }),
-      observed_at: new Date().toISOString(),
-    })}\n`,
-  );
+  if (event !== false) {
+    mkdirSync(paths.activation, { recursive: true });
+    writeFileSync(
+      nodePath.join(paths.activation, `${'a'.repeat(64)}.json`),
+      `${JSON.stringify({
+        schema_version: 1,
+        safeword_version: identity.safeword_version,
+        plugin_sha256: identity.plugin_sha256,
+        project_sha256: 'a'.repeat(64),
+        event,
+        ...(event === 'pre_tool' && {
+          session_id_sha256: 'b'.repeat(64),
+          call_id_sha256: 'c'.repeat(64),
+        }),
+        observed_at: new Date().toISOString(),
+      })}\n`,
+    );
+  }
   writeFileSync(
     nodePath.join(paths.conformance, `1.18.23-${identity.plugin_sha256}.json`),
     `${JSON.stringify({
@@ -67,6 +69,32 @@ afterEach(() => {
 });
 
 describe('OpenCode status evidence', () => {
+  it('NTB1.R3.S03 does not claim protection without activation evidence', () => {
+    const root = temporaryDirectory();
+    const paths = openCodeProfilePaths(root);
+    expect(installOpenCodeProfile(root).state).toBe('changed');
+    const identity = JSON.parse(readFileSync(paths.identity, 'utf8')) as OpenCodeIdentityV1;
+    writePassingEvidence(paths, identity, false);
+
+    const result = observeOpenCodeProfile(root);
+
+    expect(result.state).toBe('action_required');
+    expect(result.data).toEqual({
+      installed: true,
+      activated: false,
+      pre_tool: 'block',
+      conformant: true,
+    });
+    expect(result.nextActions).toEqual([
+      {
+        kind: 'human',
+        instruction: 'Fully restart OpenCode, then reopen this project.',
+        mutates: false,
+        requiresHuman: true,
+      },
+    ]);
+  });
+
   it('NTB1.R1.S01 reports independent healthy protection dimensions', () => {
     const root = temporaryDirectory();
     const paths = openCodeProfilePaths(root);
