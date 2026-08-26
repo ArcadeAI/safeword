@@ -45,7 +45,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 ### Scenario: Profile installation resolves the documented config root
 
 - [x] RED 4915f963f
-- [ ] GREEN
+- [x] GREEN 342843e73
 - [ ] REFACTOR
 
 ### Scenario: USERPROFILE alone is not a Unix config-root fallback
