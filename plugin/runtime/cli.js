@@ -37686,12 +37686,34 @@ function dispatch(identity, envelope) {
 }
 
 export const Safeword = async input => {
+  async function recordLifecycle(event, sessionID, callID) {
+    if (!input?.directory || typeof sessionID !== 'string' || sessionID.length === 0) return;
+    const classification = await classifyProject(input.directory);
+    if (classification === 'uncertain') {
+      await recordMarkerResolutionFailure();
+      return;
+    }
+    if (classification === 'unmarked') return;
+    await clearProfileError();
+    await recordActivation(input.directory, event, sessionID, callID);
+  }
+
   if (input?.directory) {
     const classification = await classifyProject(input.directory);
     if (classification === 'marked') await recordActivation(input.directory, 'plugin_load');
     else if (classification === 'uncertain') await recordMarkerResolutionFailure();
   }
   return {
+    event: async ({ event }) => {
+      if (event?.type === 'session.created') {
+        await recordLifecycle('session_start', event.properties?.sessionID);
+      } else if (event?.type === 'session.idle') {
+        await recordLifecycle('stop', event.properties?.sessionID);
+      }
+    },
+    'chat.message': async hookInput => {
+      await recordLifecycle('prompt_submit', hookInput?.sessionID);
+    },
     'tool.execute.before': async (hookInput, output) => {
       if (!input?.directory) return;
       const classification = await classifyProject(input.directory);
@@ -37716,6 +37738,9 @@ export const Safeword = async input => {
       await recordActivation(input.directory, 'pre_tool', hookInput.sessionID, hookInput.callID);
       if (result.exitCode === 0) return;
       throw new Error(DENIAL);
+    },
+    'tool.execute.after': async hookInput => {
+      await recordLifecycle('post_tool', hookInput?.sessionID, hookInput?.callID);
     },
   };
 };
@@ -37873,11 +37898,12 @@ function hasCurrentPreToolActivation(directory, identity, now, expectedProjectSh
     return record.name === `${record.value.project_sha256}.json` && record.value.safeword_version === identity.safeword_version && record.value.plugin_sha256 === identity.plugin_sha256 && record.value.event === "pre_tool" && (expectedProjectSha256 === undefined || record.value.project_sha256 === expectedProjectSha256) && age >= 0 && age <= maximumAge;
   });
 }
-function isPassingConformance(record, identity) {
+function isPassingConformance(record, identity, opencodeVersion) {
   const evidence = record.value;
   return [
     record.name === `${evidence.opencode_version}-${identity.plugin_sha256}.json`,
     evidence.opencode_version.startsWith("1."),
+    opencodeVersion === undefined || evidence.opencode_version === opencodeVersion,
     evidence.safeword_version === identity.safeword_version,
     evidence.plugin_sha256 === identity.plugin_sha256,
     evidence.platform === process.platform,
@@ -37889,8 +37915,8 @@ function isPassingConformance(record, identity) {
     evidence.result === "passed"
   ].every(Boolean);
 }
-function hasPassingConformance(directory, identity) {
-  return readEvidence(directory, parseOpenCodeConformance).some((record) => isPassingConformance(record, identity));
+function hasPassingConformance(directory, identity, opencodeVersion) {
+  return readEvidence(directory, parseOpenCodeConformance).some((record) => isPassingConformance(record, identity, opencodeVersion));
 }
 function observeProtectionEvidence(paths, identity, input) {
   let expectedProjectSha256;
@@ -37900,7 +37926,7 @@ function observeProtectionEvidence(paths, identity, input) {
     expectedProjectSha256 = "";
   }
   const activated = hasCurrentPreToolActivation(paths.activation, identity, input.now ?? Date.now(), expectedProjectSha256);
-  const conformant = hasPassingConformance(paths.conformance, identity);
+  const conformant = hasPassingConformance(paths.conformance, identity, input.opencodeVersion);
   const data = { installed: true, activated, pre_tool: "block", conformant };
   if (!conformant) {
     return actionRequired("OPENCODE_CONFORMANCE_REQUIRED", "This OpenCode version has not passed conformance for the installed Safeword plugin.", "safeword conformance --agents=opencode", data);
