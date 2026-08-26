@@ -457,7 +457,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 ### Scenario: Fully uninstalled health emits one consistent summary
 
 - [x] RED c1dc898f2
-- [ ] GREEN
+- [x] GREEN 10cd7baa4
 - [ ] REFACTOR
 
 ### Scenario: Repair priority selects one named next action
