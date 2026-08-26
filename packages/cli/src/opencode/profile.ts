@@ -330,7 +330,17 @@ function observeProtectionEvidence(
       data,
     });
   }
-  return createResult({ state: 'healthy', data });
+  return createResult({
+    state: 'healthy',
+    findings: [
+      {
+        code: 'OPENCODE_STOP_OBSERVATIONAL',
+        message: 'OpenCode stop events are observed but cannot block the session from stopping.',
+        severity: 'info',
+      },
+    ],
+    data,
+  });
 }
 
 export function observeOpenCodeProfile(
