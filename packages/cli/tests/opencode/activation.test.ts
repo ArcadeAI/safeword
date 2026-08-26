@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -59,7 +59,7 @@ describe('OpenCode activation evidence', () => {
 
     await module.Safeword({ directory: project });
 
-    const projectHash = digest(nodePath.resolve(project));
+    const projectHash = digest(realpathSync(project));
     const recordPath = nodePath.join(paths.activation, `${projectHash}.json`);
     expect(existsSync(recordPath)).toBe(true);
     const bytes = readFileSync(recordPath, 'utf8');
