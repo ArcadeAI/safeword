@@ -2,17 +2,18 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { parseAgentSelection } from '../../src/cli-protocol/agent-selection.js';
-/* eslint-disable import-x/no-unresolved -- Intentionally absent in the committed RED step. */
+import { createResult } from '../../src/cli-protocol/result.js';
+import { installLifecycle } from '../../src/lifecycle/commands.js';
 import {
   type OpenCodeIdentityV1,
   openCodeProfilePaths,
   reconcileOpenCodeProfile,
   resolveOpenCodeConfigRoot,
 } from '../../src/opencode/profile.js';
-/* eslint-enable import-x/no-unresolved */
+import { acquireProfileLock, releaseProfileLock } from '../../src/utils/profile-lock.js';
 import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.js';
 
 const temporaryDirectories: string[] = [];
@@ -40,6 +41,7 @@ function identity(): OpenCodeIdentityV1 {
 afterEach(() => {
   for (const directory of temporaryDirectories) removeTemporaryDirectory(directory);
   temporaryDirectories.length = 0;
+  vi.unstubAllEnvs();
 });
 
 describe('OpenCode profile boundary', () => {
@@ -55,6 +57,37 @@ describe('OpenCode profile boundary', () => {
         env: { USERPROFILE: userProfile },
       }),
     ).toBeUndefined();
+    expect(readFileSync(decoy, 'utf8')).toBe('user bytes\n');
+  });
+
+  it('TBU1.R1.S08 stops explicit installation before project reconciliation', async () => {
+    const project = temporaryDirectory();
+    const userProfile = temporaryDirectory();
+    const decoy = nodePath.join(userProfile, '.config/opencode/decoy.txt');
+    mkdirSync(nodePath.dirname(decoy), { recursive: true });
+    writeFileSync(decoy, 'user bytes\n');
+    vi.stubEnv('OPENCODE_CONFIG_DIR', '');
+    vi.stubEnv('XDG_CONFIG_HOME', '');
+    vi.stubEnv('HOME', '');
+    vi.stubEnv('USERPROFILE', userProfile);
+
+    const result = await installLifecycle(
+      {
+        cwd: project,
+        noInput: true,
+        offline: false,
+        operands: [],
+        options: { agents: 'opencode', modify: false },
+      },
+      {
+        installClaude: () => Promise.resolve(createResult({ state: 'healthy' })),
+        installCodex: () => Promise.resolve(createResult({ state: 'healthy' })),
+      },
+    );
+
+    expect(result.state).toBe('action_required');
+    expect(existsSync(nodePath.join(project, '.safeword'))).toBe(false);
+    expect(existsSync(nodePath.join(project, '.opencode'))).toBe(false);
     expect(readFileSync(decoy, 'utf8')).toBe('user bytes\n');
   });
 
@@ -94,5 +127,59 @@ describe('OpenCode profile boundary', () => {
     expect(result.findings).toHaveLength(1);
     expect(readFileSync(collisionPath, 'utf8')).toBe('unrecognized user bytes\n');
     expect(existsSync(otherPath)).toBe(false);
+  });
+
+  it('publishes and removes one recognized profile under the shared lock', () => {
+    const root = temporaryDirectory();
+    const paths = openCodeProfilePaths(root);
+
+    expect(
+      reconcileOpenCodeProfile({
+        operation: 'install',
+        root,
+        pluginBytes,
+        identity: identity(),
+      }).state,
+    ).toBe('changed');
+    expect(readFileSync(paths.plugin, 'utf8')).toBe(pluginBytes);
+    expect(JSON.parse(readFileSync(paths.identity, 'utf8'))).toEqual(identity());
+
+    expect(
+      reconcileOpenCodeProfile({
+        operation: 'install',
+        root,
+        pluginBytes,
+        identity: identity(),
+      }).state,
+    ).toBe('healthy');
+    expect(
+      reconcileOpenCodeProfile({
+        operation: 'uninstall',
+        root,
+        pluginBytes,
+        identity: identity(),
+      }).state,
+    ).toBe('changed');
+    expect(existsSync(paths.plugin)).toBe(false);
+    expect(existsSync(paths.identity)).toBe(false);
+  });
+
+  it('does not mutate while another profile transaction owns the lock', () => {
+    const root = temporaryDirectory();
+    const paths = openCodeProfilePaths(root);
+    const lock = acquireProfileLock(paths.lock, { owner: 'other-install' });
+    if (lock === undefined) throw new Error('Expected the fixture to acquire its profile lock.');
+
+    const result = reconcileOpenCodeProfile({
+      operation: 'install',
+      root,
+      pluginBytes,
+      identity: identity(),
+    });
+
+    expect(result.state).toBe('action_required');
+    expect(existsSync(paths.plugin)).toBe(false);
+    expect(existsSync(paths.identity)).toBe(false);
+    expect(releaseProfileLock(lock)).toBe(true);
   });
 });

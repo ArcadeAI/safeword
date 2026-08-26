@@ -130,7 +130,9 @@ function combineInstallResults(
       command: 'install',
       operation: 'install',
       selected_agents: agents,
-      surfaces: LIFECYCLE_SURFACE_ORDER.map(name => {
+      surfaces: LIFECYCLE_SURFACE_ORDER.filter(
+        name => name !== 'opencode' || agents.includes('opencode'),
+      ).map(name => {
         const surface = surfaceByName.get(name);
         if (surface === undefined) return { name, selected: false };
         const activationActions = activationActionsFor(surface);
@@ -182,6 +184,27 @@ async function installAgentSurfaces(
   }));
 }
 
+async function preflightAgentSurfaces(
+  cwd: string,
+  agents: readonly string[],
+  scope: 'project' | 'user',
+): Promise<SurfaceResult[]> {
+  const results = await coordinateSelectedIntegrations(
+    PRODUCTION_INTEGRATIONS,
+    agents,
+    async adapter => {
+      if (!adapter.profile.available || adapter.profile.preflight === undefined) return [];
+      return [
+        {
+          name: adapter.id,
+          result: await adapter.profile.preflight({ cwd, agents, operation: 'install', scope }),
+        },
+      ];
+    },
+  );
+  return results.flat();
+}
+
 export async function installLifecycle(
   invocation: CommandInvocation,
   adapters: LifecycleInstallAdapters,
@@ -199,6 +222,12 @@ export async function installLifecycle(
   if (!scope.ok) return scope.result;
   const requiresProfileNetwork = agents.some(agent => agent === 'claude' || agent === 'codex');
   if (invocation.offline && requiresProfileNetwork) return onlineRequired('install');
+
+  const preflight = await preflightAgentSurfaces(invocation.cwd, agents, scope.value);
+  const blocked = preflight.filter(
+    surface => surface.result.state === 'failed' || surface.result.state === 'action_required',
+  );
+  if (blocked.length > 0) return combineInstallResults(agents, blocked);
 
   const projectResult = await installProjectSurface(invocation, agents);
   const surfaces = await installAgentSurfaces(

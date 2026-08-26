@@ -41,6 +41,7 @@ type ProfileDescriptor =
   | {
       readonly available: true;
       readonly observePrecondition: (context: LifecycleContext) => Promise<unknown>;
+      readonly preflight?: (context: LifecycleContext) => CliResult | Promise<CliResult>;
     };
 
 export interface IntegrationAdapter {
@@ -356,6 +357,84 @@ const codex = defineIntegrationAdapter({
   },
 });
 
+async function resolveOpenCodeRoot(context: LifecycleContext): Promise<string | undefined> {
+  const { resolveOpenCodeConfigRoot } = await import('../opencode/profile.js');
+  return resolveOpenCodeConfigRoot({
+    platform: process.platform === 'win32' ? 'windows' : 'unix',
+    env: context.environment ?? process.env,
+  });
+}
+
+function openCodeConfigRootRequired(): CliResult {
+  return createResult({
+    state: 'action_required',
+    findings: [
+      {
+        code: 'OPENCODE_CONFIG_ROOT_UNRESOLVED',
+        message: 'Set OPENCODE_CONFIG_DIR, XDG_CONFIG_HOME, or HOME for OpenCode.',
+        severity: 'error',
+      },
+    ],
+    nextActions: [
+      {
+        command: 'safeword install --agents=opencode',
+        mutates: true,
+        requiresHuman: true,
+      },
+    ],
+  });
+}
+
+async function observeOpenCode(context: LifecycleContext): Promise<CliResult> {
+  const root = await resolveOpenCodeRoot(context);
+  if (root === undefined) {
+    return openCodeConfigRootRequired();
+  }
+  const { observeOpenCodeProfile } = await import('../opencode/profile.js');
+  return observeOpenCodeProfile(root);
+}
+
+const opencode = defineIntegrationAdapter({
+  id: 'opencode',
+  defaultSelected: false,
+  project: { owned: ['opencode'], shared: ['skills'] },
+  profile: {
+    available: true,
+    async observePrecondition(context) {
+      return observeOpenCode(context);
+    },
+    async preflight(context) {
+      return (await resolveOpenCodeRoot(context)) === undefined
+        ? openCodeConfigRootRequired()
+        : createResult({ state: 'healthy' });
+    },
+  },
+  capabilities: {
+    lifecycle: {
+      session_start: 'observe',
+      prompt_submit: 'observe',
+      pre_tool: 'block',
+      post_tool: 'observe',
+      stop: 'observe',
+    },
+    blockableHooks: ['pre_tool'],
+    activation: { availability: 'available', proof: 'activation-v1' },
+    conformance: { availability: 'available', proof: 'conformance-v1' },
+  },
+  observe(context) {
+    return observeOpenCode(context);
+  },
+  install(context) {
+    return observeOpenCode(context);
+  },
+  uninstall(context) {
+    return observeOpenCode(context);
+  },
+  effects() {
+    return EMPTY_EFFECTS;
+  },
+});
+
 const cursor = defineIntegrationAdapter({
   id: 'cursor',
   defaultSelected: false,
@@ -399,4 +478,4 @@ const cursor = defineIntegrationAdapter({
   },
 });
 
-export const PRODUCTION_INTEGRATIONS = createIntegrationRegistry([claude, codex, cursor]);
+export const PRODUCTION_INTEGRATIONS = createIntegrationRegistry([claude, codex, opencode, cursor]);
