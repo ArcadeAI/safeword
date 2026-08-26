@@ -210,7 +210,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 - [x] RED 15ab1fb79
 - [x] GREEN 37a69ab90
-- [ ] REFACTOR
+- [x] REFACTOR skip: validation stays local to the single canonical-envelope boundary
 
 ### Scenario: An uncovered tool is observed without being presented as blocked
 
