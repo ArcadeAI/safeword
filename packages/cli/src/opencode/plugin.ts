@@ -173,12 +173,34 @@ function dispatch(identity, envelope) {
 }
 
 export const Safeword = async input => {
+  async function recordLifecycle(event, sessionID, callID) {
+    if (!input?.directory || typeof sessionID !== 'string' || sessionID.length === 0) return;
+    const classification = await classifyProject(input.directory);
+    if (classification === 'uncertain') {
+      await recordMarkerResolutionFailure();
+      return;
+    }
+    if (classification === 'unmarked') return;
+    await clearProfileError();
+    await recordActivation(input.directory, event, sessionID, callID);
+  }
+
   if (input?.directory) {
     const classification = await classifyProject(input.directory);
     if (classification === 'marked') await recordActivation(input.directory, 'plugin_load');
     else if (classification === 'uncertain') await recordMarkerResolutionFailure();
   }
   return {
+    event: async ({ event }) => {
+      if (event?.type === 'session.created') {
+        await recordLifecycle('session_start', event.properties?.sessionID);
+      } else if (event?.type === 'session.idle') {
+        await recordLifecycle('stop', event.properties?.sessionID);
+      }
+    },
+    'chat.message': async hookInput => {
+      await recordLifecycle('prompt_submit', hookInput?.sessionID);
+    },
     'tool.execute.before': async (hookInput, output) => {
       if (!input?.directory) return;
       const classification = await classifyProject(input.directory);
@@ -203,6 +225,9 @@ export const Safeword = async input => {
       await recordActivation(input.directory, 'pre_tool', hookInput.sessionID, hookInput.callID);
       if (result.exitCode === 0) return;
       throw new Error(DENIAL);
+    },
+    'tool.execute.after': async hookInput => {
+      await recordLifecycle('post_tool', hookInput?.sessionID, hookInput?.callID);
     },
   };
 };
