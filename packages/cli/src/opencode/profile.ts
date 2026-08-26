@@ -259,8 +259,9 @@ function hasPassingConformance(directory: string, identity: OpenCodeIdentityV1):
 function observeProtectionEvidence(
   paths: OpenCodeProfilePaths,
   identity: OpenCodeIdentityV1,
+  now: number,
 ): CliResult {
-  const activated = hasCurrentPreToolActivation(paths.activation, identity);
+  const activated = hasCurrentPreToolActivation(paths.activation, identity, now);
   const conformant = hasPassingConformance(paths.conformance, identity);
   const data = { installed: true, activated, pre_tool: 'block', conformant };
   if (!conformant) {
@@ -295,7 +296,7 @@ function observeProtectionEvidence(
   return createResult({ state: 'healthy', data });
 }
 
-export function observeOpenCodeProfile(root: string): CliResult {
+export function observeOpenCodeProfile(root: string, now = Date.now()): CliResult {
   const paths = openCodeProfilePaths(root);
   const plugin = observeFile(paths.plugin);
   const identityFile = observeFile(paths.identity);
@@ -337,7 +338,7 @@ export function observeOpenCodeProfile(root: string): CliResult {
       { installed: true, activated: false, pre_tool: 'block' },
     );
   }
-  return observeProtectionEvidence(paths, identity);
+  return observeProtectionEvidence(paths, identity, now);
 }
 
 function sameIdentity(left: OpenCodeIdentityV1, right: OpenCodeIdentityV1): boolean {
