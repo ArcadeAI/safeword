@@ -50,7 +50,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ### Scenario: USERPROFILE alone is not a Unix config-root fallback
 
-- [ ] RED
+- [x] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
@@ -294,7 +294,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ### Scenario: A profile collision is not overwritten or removed
 
-- [ ] RED
+- [x] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
