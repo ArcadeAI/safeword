@@ -22,14 +22,17 @@ const REPAIR = 'Safeword cannot run its OpenCode guard. Run safeword install --a
 class UnavailableDispatcher extends Error {}
 
 function canonicalEnvelope(input, output) {
+  if (!['bash', 'shell', 'edit', 'write', 'patch', 'apply_patch'].includes(input?.tool)) {
+    return undefined;
+  }
   const args = output?.args;
-  if (args === null || typeof args !== 'object' || Array.isArray(args)) return undefined;
+  if (args === null || typeof args !== 'object' || Array.isArray(args)) throw new Error(DENIAL);
   if (input.tool === 'bash' || input.tool === 'shell') {
-    if (typeof args.command !== 'string') throw new Error(DENIAL);
+    if (typeof args.command !== 'string' || args.command.length === 0) throw new Error(DENIAL);
     return { hook_event_name: 'PreToolUse', session_id: input.sessionID, tool_name: 'Bash', tool_input: { command: args.command } };
   }
   if (input.tool === 'edit' || input.tool === 'write') {
-    if (typeof args.filePath !== 'string') throw new Error(DENIAL);
+    if (typeof args.filePath !== 'string' || args.filePath.length === 0) throw new Error(DENIAL);
     return {
       hook_event_name: 'PreToolUse',
       session_id: input.sessionID,
@@ -38,7 +41,11 @@ function canonicalEnvelope(input, output) {
     };
   }
   if (input.tool === 'patch' || input.tool === 'apply_patch') {
-    if (typeof args.patchText !== 'string') throw new Error(DENIAL);
+    if (
+      typeof args.patchText !== 'string' ||
+      args.patchText.length === 0 ||
+      !/^[*][*][*] (?:Add|Update|Delete) File: .+$/m.test(args.patchText)
+    ) throw new Error(DENIAL);
     return { hook_event_name: 'PreToolUse', session_id: input.sessionID, tool_name: 'apply_patch', tool_input: { command: args.patchText } };
   }
   return undefined;
