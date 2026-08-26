@@ -632,6 +632,84 @@ export function installPythonDependencies(
   }
 }
 
+function restorePythonFiles(snapshots: ReadonlyMap<string, Buffer | undefined>): void {
+  for (const [path, content] of snapshots) {
+    if (content) writeFileSync(path, content);
+    else if (exists(path)) unlinkSync(path);
+  }
+}
+
+interface UvBatchTarget {
+  readonly index: number;
+  readonly lockDirectory: string;
+  readonly paths: readonly string[];
+}
+
+function uvBatchTargets(
+  gaps: readonly PythonToolDependencyGap[],
+  repoRoot: string,
+): UvBatchTarget[] {
+  return gaps.flatMap((gap, index) => {
+    if (detectPythonPackageManagerAt(gap.directory) !== 'uv') return [];
+    const lockDirectory = uvLockDirectory(gap.directory, repoRoot) ?? gap.directory;
+    return [
+      {
+        index,
+        lockDirectory,
+        paths: [
+          nodePath.join(gap.directory, 'pyproject.toml'),
+          nodePath.join(lockDirectory, 'uv.lock'),
+        ],
+      },
+    ];
+  });
+}
+
+function snapshotPythonFiles(targets: readonly UvBatchTarget[]): Map<string, Buffer | undefined> {
+  return new Map(
+    [...new Set(targets.flatMap(target => target.paths))].map(path => [
+      path,
+      exists(path) ? readFileSync(path) : undefined,
+    ]),
+  );
+}
+
+function finalizeUvLocks(targets: readonly UvBatchTarget[]): boolean {
+  try {
+    const lockDirectories = new Set(targets.map(target => target.lockDirectory));
+    for (const directory of lockDirectories) {
+      execFileSync('uv', ['lock'], { cwd: directory, stdio: 'pipe', timeout: 60_000 });
+      execFileSync('uv', ['lock', '--check'], {
+        cwd: directory,
+        stdio: 'pipe',
+        timeout: 60_000,
+      });
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function failUvResults(results: boolean[], targets: readonly UvBatchTarget[]): void {
+  for (const { index } of targets) results[index] = false;
+}
+
+/** Install every Python dependency gap, then finalize uv locks after local dependencies settle. */
+export function installPythonDependencyBatch(
+  gaps: readonly PythonToolDependencyGap[],
+  repoRoot: string,
+): boolean[] {
+  const targets = uvBatchTargets(gaps, repoRoot);
+  const snapshots = snapshotPythonFiles(targets);
+  const results = gaps.map(gap => installPythonDependencies(gap.directory, gap.tools, repoRoot));
+  const installFailed = targets.some(({ index }) => !results.at(index));
+  if (!installFailed && finalizeUvLocks(targets)) return results;
+  restorePythonFiles(snapshots);
+  failUvResults(results, targets);
+  return results;
+}
+
 /**
  * Set up Python tooling configuration.
  *

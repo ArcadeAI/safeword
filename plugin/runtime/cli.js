@@ -10941,6 +10941,68 @@ function installPythonDependencies(cwd, tools, repoRoot = cwd) {
     return false;
   }
 }
+function restorePythonFiles(snapshots) {
+  for (const [path2, content] of snapshots) {
+    if (content)
+      writeFileSync3(path2, content);
+    else if (exists(path2))
+      unlinkSync(path2);
+  }
+}
+function uvBatchTargets(gaps, repoRoot) {
+  return gaps.flatMap((gap, index) => {
+    if (detectPythonPackageManagerAt(gap.directory) !== "uv")
+      return [];
+    const lockDirectory = uvLockDirectory(gap.directory, repoRoot) ?? gap.directory;
+    return [
+      {
+        index,
+        lockDirectory,
+        paths: [
+          nodePath7.join(gap.directory, "pyproject.toml"),
+          nodePath7.join(lockDirectory, "uv.lock")
+        ]
+      }
+    ];
+  });
+}
+function snapshotPythonFiles(targets) {
+  return new Map([...new Set(targets.flatMap((target) => target.paths))].map((path2) => [
+    path2,
+    exists(path2) ? readFileSync5(path2) : undefined
+  ]));
+}
+function finalizeUvLocks(targets) {
+  try {
+    const lockDirectories = new Set(targets.map((target) => target.lockDirectory));
+    for (const directory of lockDirectories) {
+      execFileSync("uv", ["lock"], { cwd: directory, stdio: "pipe", timeout: 60000 });
+      execFileSync("uv", ["lock", "--check"], {
+        cwd: directory,
+        stdio: "pipe",
+        timeout: 60000
+      });
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+function failUvResults(results, targets) {
+  for (const { index } of targets)
+    results[index] = false;
+}
+function installPythonDependencyBatch(gaps, repoRoot) {
+  const targets = uvBatchTargets(gaps, repoRoot);
+  const snapshots = snapshotPythonFiles(targets);
+  const results = gaps.map((gap) => installPythonDependencies(gap.directory, gap.tools, repoRoot));
+  const installFailed = targets.some(({ index }) => !results.at(index));
+  if (!installFailed && finalizeUvLocks(targets))
+    return results;
+  restorePythonFiles(snapshots);
+  failUvResults(results, targets);
+  return results;
+}
 function setupPythonTooling() {
   return { files: [] };
 }
@@ -39482,9 +39544,10 @@ function configurePython(cwd, context) {
       installed: false
     };
   }
-  const results = installable.map((item) => ({
+  const installationResults = installPythonDependencyBatch(installable, cwd);
+  const results = installable.map((item, index) => ({
     ...item,
-    succeeded: installPythonDependencies(item.directory, item.tools, cwd)
+    succeeded: installationResults[index]
   }));
   const attemptedTools = [...new Set(installable.flatMap((item) => item.tools))];
   const installedTools = [...new Set(results.flatMap((item) => item.succeeded ? item.tools : []))];
