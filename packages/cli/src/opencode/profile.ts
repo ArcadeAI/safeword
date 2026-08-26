@@ -8,6 +8,7 @@ import { acquireProfileLock, releaseProfileLock } from '../utils/profile-lock.js
 import { type OpenCodeIdentityV1, parseOpenCodeIdentity } from './identity.js';
 
 export type { OpenCodeIdentityV1 } from './identity.js';
+export { generateOpenCodeProfilePlugin } from './plugin.js';
 
 export interface PlatformEnvironment {
   readonly platform: 'unix' | 'windows';
