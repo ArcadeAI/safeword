@@ -51,7 +51,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 ### Scenario: USERPROFILE alone is not a Unix config-root fallback
 
 - [x] RED
-- [ ] GREEN
+- [x] GREEN 2fd55c206
 - [ ] REFACTOR
 
 ### Scenario: All profile lifecycle operations share one config-root resolver
