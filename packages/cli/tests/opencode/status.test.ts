@@ -7,6 +7,7 @@ import {
   installOpenCodeProfile,
   observeOpenCodeProfile,
   type OpenCodeIdentityV1,
+  type OpenCodeProfilePaths,
   openCodeProfilePaths,
 } from '../../src/opencode/profile.js';
 import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.js';
@@ -17,6 +18,39 @@ function temporaryDirectory(): string {
   const directory = createTemporaryDirectory();
   temporaryDirectories.push(directory);
   return directory;
+}
+
+function writePassingEvidence(paths: OpenCodeProfilePaths, identity: OpenCodeIdentityV1): void {
+  mkdirSync(paths.activation, { recursive: true });
+  mkdirSync(paths.conformance, { recursive: true });
+  writeFileSync(
+    nodePath.join(paths.activation, `${'a'.repeat(64)}.json`),
+    `${JSON.stringify({
+      schema_version: 1,
+      safeword_version: identity.safeword_version,
+      plugin_sha256: identity.plugin_sha256,
+      project_sha256: 'a'.repeat(64),
+      event: 'plugin_load',
+      observed_at: new Date().toISOString(),
+    })}\n`,
+  );
+  writeFileSync(
+    nodePath.join(paths.conformance, `1.18.23-${identity.plugin_sha256}.json`),
+    `${JSON.stringify({
+      schema_version: 1,
+      safeword_version: identity.safeword_version,
+      opencode_version: '1.18.23',
+      platform: process.platform,
+      arch: process.arch,
+      plugin_sha256: identity.plugin_sha256,
+      command_catalogue: true,
+      agent_catalogue: true,
+      denial: true,
+      control: true,
+      checked_at: new Date().toISOString(),
+      result: 'passed',
+    })}\n`,
+  );
 }
 
 afterEach(() => {
@@ -30,36 +64,7 @@ describe('OpenCode status evidence', () => {
     const paths = openCodeProfilePaths(root);
     expect(installOpenCodeProfile(root).state).toBe('changed');
     const identity = JSON.parse(readFileSync(paths.identity, 'utf8')) as OpenCodeIdentityV1;
-    mkdirSync(paths.activation, { recursive: true });
-    mkdirSync(paths.conformance, { recursive: true });
-    writeFileSync(
-      nodePath.join(paths.activation, `${'a'.repeat(64)}.json`),
-      `${JSON.stringify({
-        schema_version: 1,
-        safeword_version: identity.safeword_version,
-        plugin_sha256: identity.plugin_sha256,
-        project_sha256: 'a'.repeat(64),
-        event: 'plugin_load',
-        observed_at: new Date().toISOString(),
-      })}\n`,
-    );
-    writeFileSync(
-      nodePath.join(paths.conformance, `1.18.23-${identity.plugin_sha256}.json`),
-      `${JSON.stringify({
-        schema_version: 1,
-        safeword_version: identity.safeword_version,
-        opencode_version: '1.18.23',
-        platform: process.platform,
-        arch: process.arch,
-        plugin_sha256: identity.plugin_sha256,
-        command_catalogue: true,
-        agent_catalogue: true,
-        denial: true,
-        control: true,
-        checked_at: new Date().toISOString(),
-        result: 'passed',
-      })}\n`,
-    );
+    writePassingEvidence(paths, identity);
     writeFileSync(
       paths.profileError,
       `${JSON.stringify({
@@ -74,6 +79,34 @@ describe('OpenCode status evidence', () => {
     const result = observeOpenCodeProfile(root);
 
     expect(result.state).toBe('action_required');
+    expect(result.data).toMatchObject({ installed: true, activated: false, pre_tool: 'block' });
+    expect(result.nextActions).toEqual([
+      {
+        command: 'safeword install --agents=opencode',
+        mutates: true,
+        requiresHuman: true,
+      },
+    ]);
+  });
+
+  it('TBU1.R2.S13 prioritizes an unavailable dispatcher over passing evidence', () => {
+    const root = temporaryDirectory();
+    const paths = openCodeProfilePaths(root);
+    expect(installOpenCodeProfile(root).state).toBe('changed');
+    const installedIdentity = JSON.parse(
+      readFileSync(paths.identity, 'utf8'),
+    ) as OpenCodeIdentityV1;
+    const identity: OpenCodeIdentityV1 = {
+      ...installedIdentity,
+      dispatcher_path: nodePath.join(root, 'pruned-dispatcher.js'),
+    };
+    writeFileSync(paths.identity, `${JSON.stringify(identity)}\n`);
+    writePassingEvidence(paths, identity);
+
+    const result = observeOpenCodeProfile(root);
+
+    expect(result.state).toBe('action_required');
+    expect(result.findings).toMatchObject([{ code: 'OPENCODE_DISPATCHER_UNAVAILABLE' }]);
     expect(result.data).toMatchObject({ installed: true, activated: false, pre_tool: 'block' });
     expect(result.nextActions).toEqual([
       {
