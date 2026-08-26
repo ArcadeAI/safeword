@@ -496,7 +496,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 - [x] RED e6e2c4eba
 - [x] GREEN 8e0ac68e8
-- [ ] REFACTOR
+- [x] REFACTOR skip: the existing freshness predicate now receives the status clock without another time abstraction
 
 ### Scenario: Missing activation evidence is not enforced protection
 
