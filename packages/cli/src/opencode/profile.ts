@@ -67,6 +67,7 @@ export interface ReconcileOpenCodeProfileInput {
 
 export interface ObserveOpenCodeProfileInput {
   readonly now?: number;
+  readonly opencodeVersion?: string;
   readonly projectDirectory?: string;
 }
 
@@ -249,11 +250,13 @@ function hasCurrentPreToolActivation(
 function isPassingConformance(
   record: NamedEvidence<OpenCodeConformanceV1>,
   identity: OpenCodeIdentityV1,
+  opencodeVersion: string | undefined,
 ): boolean {
   const evidence = record.value;
   return [
     record.name === `${evidence.opencode_version}-${identity.plugin_sha256}.json`,
     evidence.opencode_version.startsWith('1.'),
+    opencodeVersion === undefined || evidence.opencode_version === opencodeVersion,
     evidence.safeword_version === identity.safeword_version,
     evidence.plugin_sha256 === identity.plugin_sha256,
     evidence.platform === process.platform,
@@ -266,9 +269,13 @@ function isPassingConformance(
   ].every(Boolean);
 }
 
-function hasPassingConformance(directory: string, identity: OpenCodeIdentityV1): boolean {
+function hasPassingConformance(
+  directory: string,
+  identity: OpenCodeIdentityV1,
+  opencodeVersion: string | undefined,
+): boolean {
   return readEvidence<OpenCodeConformanceV1>(directory, parseOpenCodeConformance).some(record =>
-    isPassingConformance(record, identity),
+    isPassingConformance(record, identity, opencodeVersion),
   );
 }
 
@@ -292,7 +299,7 @@ function observeProtectionEvidence(
     input.now ?? Date.now(),
     expectedProjectSha256,
   );
-  const conformant = hasPassingConformance(paths.conformance, identity);
+  const conformant = hasPassingConformance(paths.conformance, identity, input.opencodeVersion);
   const data = { installed: true, activated, pre_tool: 'block', conformant };
   if (!conformant) {
     return actionRequired(
