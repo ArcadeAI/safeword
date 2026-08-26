@@ -246,7 +246,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 - [x] RED 2f2e09454
 - [x] GREEN cc7dc4709
-- [ ] REFACTOR
+- [x] REFACTOR skip: one lifecycle recorder normalizes the four observational hooks while pre-tool keeps its blocking path
 
 ### Scenario: Activation evidence remains isolated between projects
 
