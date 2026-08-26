@@ -1,3 +1,7 @@
+import nodePath from 'node:path';
+
+import { writeDurableFile } from '../codex-plugin/durable-write.js';
+import { isSafePackageVersion } from '../utils/version.js';
 import { exactRecord, isNonEmptyString, isSha256, isTimestamp, matchesRecord } from './records.js';
 
 export type OpenCodeActivationEvent =
@@ -159,6 +163,20 @@ export function parseOpenCodeConformance(value: unknown): OpenCodeConformanceV1 
   )
     return undefined;
   return record as unknown as OpenCodeConformanceV1;
+}
+
+export function writePassingOpenCodeConformance(directory: string, value: unknown): string {
+  const evidence = parseOpenCodeConformance(value);
+  if (evidence?.result !== 'passed' || !isSafePackageVersion(evidence.opencode_version)) {
+    throw new Error('Invalid passing OpenCode conformance evidence');
+  }
+
+  const path = nodePath.join(
+    directory,
+    `${evidence.opencode_version}-${evidence.plugin_sha256}.json`,
+  );
+  writeDurableFile(path, `${JSON.stringify(evidence, undefined, 2)}\n`, { mode: 0o600 });
+  return path;
 }
 
 export function parseOpenCodeProfileError(value: unknown): OpenCodeProfileErrorV1 | undefined {
