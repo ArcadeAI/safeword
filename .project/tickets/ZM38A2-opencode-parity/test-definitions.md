@@ -422,7 +422,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ### Scenario: Conformance evidence is rejected when a binding dimension differs
 
-- [ ] RED
+- [x] RED 9010b2f8b
 - [ ] GREEN
 - [ ] REFACTOR
 
