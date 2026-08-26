@@ -138,7 +138,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 - [x] RED f70367a84
 - [x] GREEN 65ad90e4c
-- [ ] REFACTOR
+- [x] REFACTOR skip: one packaged entry delegates to the existing guard without a second policy implementation
 
 ### Scenario: A policy denial exposes only a sanitized reason
 
