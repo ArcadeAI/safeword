@@ -17,7 +17,8 @@ import {
 import { checkHealth } from '../health.js';
 import { detectPackageManager } from '../utils/install.js';
 import { compareVersions, isSafePackageVersion } from '../utils/version.js';
-import { observeCursorProject, unselectedCursorFinding } from './cursor.js';
+import { unselectedCursorFinding } from './cursor.js';
+import { coordinateSelectedIntegrations, PRODUCTION_INTEGRATIONS } from './integrations.js';
 import { projectLifecycleSchema } from './schema.js';
 
 function healthFindings(
@@ -105,23 +106,21 @@ export async function observeLifecycleSurfaces(
   environment: NodeJS.ProcessEnv = process.env,
 ): Promise<readonly LifecycleSurfaceObservation[]> {
   const project = await observeStatus(cwd, agents, environment);
-  const surfaces: LifecycleSurfaceObservation[] = [{ name: 'project', result: project }];
-
-  if (agents.includes('claude')) {
-    const { observeClaudeStatus } = await import('../claude-plugin/status.js');
-    surfaces.push({ name: 'claude', result: observeClaudeStatus(cwd) });
-  }
-  if (agents.includes('codex')) {
-    const { observeCodexMigration } = await import('../codex-plugin/operations.js');
-    surfaces.push({ name: 'codex', result: observeCodexMigration(cwd, environment) });
-  }
-  if (agents.includes('cursor')) {
-    surfaces.push({
-      name: 'cursor',
-      result: observeCursorProject(cwd, projectLifecycleSchema(cwd, agents)),
-    });
-  }
-  return surfaces;
+  const integrationSurfaces = await coordinateSelectedIntegrations(
+    PRODUCTION_INTEGRATIONS,
+    agents,
+    async adapter => ({
+      name: adapter.id as AgentIntegration,
+      result: await adapter.observe({
+        cwd,
+        agents,
+        operation: 'check',
+        scope: 'project',
+        environment,
+      }),
+    }),
+  );
+  return [{ name: 'project', result: project }, ...integrationSurfaces];
 }
 
 export interface LifecycleSurfaceSummary {

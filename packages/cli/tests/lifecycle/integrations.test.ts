@@ -1,22 +1,27 @@
 import { describe, expect, it, vi } from 'vitest';
 
-/* eslint-disable import-x/no-unresolved -- Intentionally absent in the committed RED step. */
 import {
   coordinateSelectedIntegrations,
   createIntegrationRegistry,
   defineIntegrationAdapter,
   type IntegrationAdapter,
 } from '../../src/lifecycle/integrations.js';
-/* eslint-enable import-x/no-unresolved */
 
 function adapter(overrides: Partial<IntegrationAdapter> = {}): IntegrationAdapter {
   return {
     id: 'claude',
     defaultSelected: true,
     project: { owned: ['claude'], shared: ['skills'] },
-    profile: { available: true },
+    profile: { available: true, observePrecondition: vi.fn() },
     capabilities: {
-      lifecycle: { preTool: 'blocking', postTool: 'observational', stop: 'blocking' },
+      lifecycle: {
+        session_start: 'observe',
+        prompt_submit: 'observe',
+        pre_tool: 'block',
+        post_tool: 'observe',
+        stop: 'block',
+      },
+      blockableHooks: ['pre_tool', 'stop'],
       activation: { availability: 'available', proof: 'observe' },
       conformance: { availability: 'unavailable' },
     },
@@ -60,7 +65,14 @@ describe('integration registry contracts', () => {
       project: { owned: ['cursor'], shared: ['skills'] },
       profile: { available: false },
       capabilities: {
-        lifecycle: { preTool: 'blocking', postTool: 'observational', stop: 'observational' },
+        lifecycle: {
+          session_start: 'unavailable',
+          prompt_submit: 'unavailable',
+          pre_tool: 'block',
+          post_tool: 'observe',
+          stop: 'observe',
+        },
+        blockableHooks: ['pre_tool'],
         activation: { availability: 'unavailable' },
         conformance: { availability: 'unavailable' },
       },
@@ -82,12 +94,12 @@ describe('integration registry contracts', () => {
         adapter({
           capabilities: {
             ...adapter().capabilities,
-            lifecycle: { preTool: 'absolute' },
+            lifecycle: { ...adapter().capabilities.lifecycle, pre_tool: 'absolute' },
           } as unknown as IntegrationAdapter['capabilities'],
         }),
       ],
     ],
   ])('SWM1.R3.S08 rejects %s', (_name, entries) => {
-    expect(() => createIntegrationRegistry(entries as IntegrationAdapter[])).toThrow();
+    expect(() => createIntegrationRegistry(entries)).toThrow();
   });
 });

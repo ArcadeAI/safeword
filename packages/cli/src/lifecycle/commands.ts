@@ -15,7 +15,7 @@ import {
 } from '../cli-protocol/result.js';
 import { removeProject } from '../commands/remove.js';
 import type { SafewordSchema } from '../schema.js';
-import { hasCursorProjectAssets, observeCursorProject } from './cursor.js';
+import { coordinateSelectedIntegrations, PRODUCTION_INTEGRATIONS } from './integrations.js';
 import { convergeSetup, createSetupPlan, type SetupPlanOptions } from './project-install.js';
 import { projectLifecycleSchema } from './schema.js';
 
@@ -25,20 +25,14 @@ interface LifecycleInstallAdapters {
 }
 
 /** Reporting order for install surfaces: project first, then each integration. */
-const LIFECYCLE_SURFACE_ORDER: readonly ('project' | AgentIntegration)[] = [
+const LIFECYCLE_SURFACE_ORDER: readonly string[] = [
   'project',
-  'claude',
-  'codex',
-  'cursor',
+  ...PRODUCTION_INTEGRATIONS.map(adapter => adapter.id),
 ];
 
 interface SurfaceResult {
   readonly name: string;
   readonly result: CliResult;
-}
-
-function codexLegacyHandoffDeferred(result: CliResult): boolean {
-  return result.findings.some(finding => finding.code === 'CODEX_PLUGIN_HANDOFF_DEFERRED');
 }
 
 function activationActionsFor(surface: SurfaceResult): string[] {
@@ -171,34 +165,21 @@ async function installProjectSurface(
 async function installAgentSurfaces(
   cwd: string,
   agents: readonly string[],
+  scope: 'project' | 'user',
   projectResult: CliResult,
   adapters: LifecycleInstallAdapters,
 ): Promise<SurfaceResult[]> {
-  const surfaces: SurfaceResult[] = [];
-  if (agents.includes('claude')) {
-    surfaces.push({ name: 'claude', result: await adapters.installClaude() });
-  }
-  if (agents.includes('codex')) {
-    // Project convergence already attempted the legacy handoff. Its failure is
-    // deliberately advisory: legacy hooks remain active and the project
-    // bootstrap retries for the next SessionStart/developer. Retrying the same profile
-    // mutation here only changes that safe, loud outcome into a fatal install.
-    if (codexLegacyHandoffDeferred(projectResult)) {
-      surfaces.push({ name: 'codex', result: createResult({ state: 'healthy' }) });
-    } else {
-      surfaces.push({ name: 'codex', result: await adapters.installCodex() });
-    }
-  }
-  if (agents.includes('cursor')) {
-    // Cursor has no host process; read its health from the reconciled assets and
-    // carry the project reconciliation's change signal into the surface result.
-    const observed = observeCursorProject(cwd, projectLifecycleSchema(cwd, agents));
-    surfaces.push({
-      name: 'cursor',
-      result: { ...observed, changed: projectResult.changed },
-    });
-  }
-  return surfaces;
+  return coordinateSelectedIntegrations(PRODUCTION_INTEGRATIONS, agents, async adapter => ({
+    name: adapter.id,
+    result: await adapter.install({
+      cwd,
+      agents,
+      operation: 'install',
+      scope,
+      projectResult,
+      ports: adapters,
+    }),
+  }));
 }
 
 export async function installLifecycle(
@@ -220,65 +201,14 @@ export async function installLifecycle(
   if (invocation.offline && requiresProfileNetwork) return onlineRequired('install');
 
   const projectResult = await installProjectSurface(invocation, agents);
-  const surfaces = await installAgentSurfaces(invocation.cwd, agents, projectResult, adapters);
+  const surfaces = await installAgentSurfaces(
+    invocation.cwd,
+    agents,
+    scope.value,
+    projectResult,
+    adapters,
+  );
   return combineInstallResults(agents, [{ name: 'project', result: projectResult }, ...surfaces]);
-}
-
-const EMPTY_SURFACE_EFFECTS: Effects = {
-  files: [],
-  packages: [],
-  configuration: [],
-  network: [],
-  destructive: [],
-};
-
-function profileUninstallEffects(agent: 'claude' | 'codex', scope: 'project' | 'user'): Effects {
-  let label = 'Codex profile plugin';
-  if (agent === 'claude') {
-    label = scope === 'project' ? 'Claude project plugin' : 'Claude profile plugin';
-  }
-  const operation = agent === 'claude' && scope === 'project' ? 'project' : 'profile';
-  return {
-    files: [],
-    packages: [],
-    configuration: [{ kind: 'deactivate', target: label, operation }],
-    network: [],
-    destructive: [{ kind: 'remove', target: label, operation }],
-  };
-}
-
-function agentInstallEffects(
-  agent: Exclude<AgentIntegration, 'cursor'>,
-  scope: 'project' | 'user',
-): Effects {
-  if (agent === 'claude') {
-    return {
-      files: [],
-      packages: [],
-      configuration: [
-        { kind: 'add', target: 'safeword', operation: scope },
-        { kind: 'enable', target: 'safeword marketplace auto-update', operation: scope },
-        {
-          kind: 'enable',
-          target: 'safeword last-known-good marketplace fallback',
-          operation: scope,
-        },
-        { kind: 'install', target: 'safeword@safeword', operation: scope },
-      ],
-      network: [
-        { kind: 'add', target: 'Claude plugin marketplace', operation: scope },
-        { kind: 'install', target: 'Claude plugin marketplace', operation: scope },
-      ],
-      destructive: [],
-    };
-  }
-  return {
-    files: [],
-    packages: [],
-    configuration: [{ kind: 'enable', target: 'Safeword Codex profile plugin' }],
-    network: [],
-    destructive: [],
-  };
 }
 
 interface PreparedLifecycle {
@@ -298,7 +228,7 @@ interface PrepareLifecycleOptions {
 }
 
 interface ProfilePrecondition {
-  readonly agent: 'claude' | 'codex';
+  readonly agent: string;
   readonly observation: unknown;
 }
 
@@ -317,71 +247,25 @@ async function profilePreconditions(
   scope: 'project' | 'user',
   operation: 'install' | 'uninstall',
 ): Promise<ProfilePrecondition[]> {
-  const observations: ProfilePrecondition[] = [];
-  if (agents.includes('claude')) {
-    const { claudeInstallRequiresMutation, observeClaudeProfile } =
-      await import('../claude-plugin/profile.js');
-    observations.push({
-      agent: 'claude',
-      observation: {
-        ...observeClaudeProfile(cwd, scope),
-        ...(operation === 'install' && {
-          installRequired: claudeInstallRequiresMutation(cwd, scope),
+  const observations = await coordinateSelectedIntegrations(
+    PRODUCTION_INTEGRATIONS,
+    agents,
+    async adapter => {
+      if (!adapter.profile.available) return false;
+      return {
+        agent: adapter.id,
+        observation: await adapter.profile.observePrecondition({
+          cwd,
+          agents,
+          scope,
+          operation,
         }),
-      },
-    });
-  }
-  if (agents.includes('codex')) {
-    const { codexInstallRequiresMutation, observeCodexMigrationResult } =
-      await import('../codex-plugin/operations.js');
-    const observation = observeCodexMigrationResult(cwd);
-    observations.push({
-      agent: 'codex',
-      observation: {
-        ...observation,
-        ...(operation === 'install' && {
-          installRequired: codexInstallRequiresMutation(observation),
-        }),
-      },
-    });
-  }
-  return observations;
-}
-
-function observedAgentEffects(
-  operation: 'install' | 'uninstall',
-  agent: AgentIntegration,
-  observation: unknown,
-  scope: 'project' | 'user',
-): Effects {
-  if (agent === 'cursor') return EMPTY_SURFACE_EFFECTS;
-  if (agent === 'claude') {
-    const observed = observation as {
-      readonly health?: string;
-      readonly installRequired?: boolean;
-      readonly plugin?: unknown;
-    };
-    if (operation === 'install') {
-      return observed.installRequired === false
-        ? EMPTY_SURFACE_EFFECTS
-        : agentInstallEffects(agent, scope);
-    }
-    return observed.plugin === undefined
-      ? EMPTY_SURFACE_EFFECTS
-      : profileUninstallEffects(agent, scope);
-  }
-  const observed = observation as {
-    readonly installRequired?: boolean;
-    readonly plugin?: { readonly installed?: boolean };
-  };
-  if (operation === 'install') {
-    return observed.installRequired === false
-      ? EMPTY_SURFACE_EFFECTS
-      : agentInstallEffects(agent, scope);
-  }
-  return observed.plugin?.installed === true
-    ? profileUninstallEffects(agent, scope)
-    : EMPTY_SURFACE_EFFECTS;
+      };
+    },
+  );
+  return observations.filter(
+    (observation): observation is ProfilePrecondition => observation !== false,
+  );
 }
 
 async function prepareLifecycle(
@@ -404,18 +288,21 @@ async function prepareLifecycle(
   const observationByAgent = new Map(
     observations.map(observation => [observation.agent, observation.observation]),
   );
-  const surfaces = [
-    { name: 'project', effects: project.plan.effects },
-    ...agents.map(agent => ({
-      name: agent,
-      effects: observedAgentEffects(
+  const integrationSurfaces = await coordinateSelectedIntegrations(
+    PRODUCTION_INTEGRATIONS,
+    agents,
+    async adapter => ({
+      name: adapter.id,
+      effects: await adapter.effects({
+        cwd,
+        agents,
         operation,
-        agent,
-        agent === 'cursor' ? undefined : observationByAgent.get(agent),
         scope,
-      ),
-    })),
-  ];
+        observation: observationByAgent.get(adapter.id),
+      }),
+    }),
+  );
+  const surfaces = [{ name: 'project', effects: project.plan.effects }, ...integrationSurfaces];
   const preconditionDigest = createHash('sha256')
     .update(
       JSON.stringify([
@@ -594,29 +481,48 @@ function staleUninstallPlan(plan: CliPlan): CliResult {
   });
 }
 
-async function uninstallProfileSurfaces(
+async function uninstallIntegrationSurfaces(
   cwd: string,
   agents: readonly AgentIntegration[],
   scope: 'project' | 'user',
+  observations: ReadonlyMap<string, unknown>,
 ): Promise<SurfaceResult[]> {
-  const completed: SurfaceResult[] = [];
-  if (agents.includes('claude')) {
-    const { uninstallClaudePlugin } = await import('../claude-plugin/profile.js');
-    completed.push({ name: 'claude', result: uninstallClaudePlugin(cwd, scope) });
-  }
-  if (agents.includes('codex')) {
-    const { uninstallCodexPlugin } = await import('../codex-plugin/operations.js');
-    completed.push({ name: 'codex', result: uninstallCodexPlugin() });
-  }
-  return completed;
+  return coordinateSelectedIntegrations(PRODUCTION_INTEGRATIONS, agents, async adapter => ({
+    name: adapter.id,
+    result: await adapter.uninstall({
+      cwd,
+      agents,
+      operation: 'uninstall',
+      scope,
+      observation: observations.get(adapter.id),
+    }),
+  }));
 }
 
 async function applyPreparedLifecycle(
   cwd: string,
   prepared: PreparedLifecycle,
 ): Promise<CliResult> {
-  const cursorSelected = prepared.agents.includes('cursor');
-  const cursorHadAssets = cursorSelected && hasCursorProjectAssets(cwd, prepared.projectSchema);
+  const projectOnlyObservations = await coordinateSelectedIntegrations(
+    PRODUCTION_INTEGRATIONS,
+    prepared.agents,
+    async adapter =>
+      adapter.profile.available
+        ? undefined
+        : ([
+            adapter.id,
+            await adapter.observe({
+              cwd,
+              agents: prepared.agents,
+              operation: 'uninstall',
+              scope: prepared.scope,
+            }),
+          ] as const),
+  );
+  const observationByAgent = new Map<string, CliResult>();
+  for (const observation of projectOnlyObservations) {
+    if (observation !== undefined) observationByAgent.set(...observation);
+  }
   const projectResult = await removeProject(cwd, {
     full: prepared.full,
     yes: true,
@@ -632,14 +538,14 @@ async function applyPreparedLifecycle(
   if (projectResult.state === 'failed' || projectResult.state === 'action_required') {
     return combinedUninstallResult(prepared, completed);
   }
-  completed.push(...(await uninstallProfileSurfaces(cwd, prepared.agents, prepared.scope)));
-  if (cursorSelected) {
-    const cursorRemoved = cursorHadAssets && !hasCursorProjectAssets(cwd, prepared.projectSchema);
-    completed.push({
-      name: 'cursor',
-      result: createResult({ state: cursorRemoved ? 'changed' : 'healthy' }),
-    });
-  }
+  completed.push(
+    ...(await uninstallIntegrationSurfaces(
+      cwd,
+      prepared.agents,
+      prepared.scope,
+      observationByAgent,
+    )),
+  );
   return combinedUninstallResult(prepared, completed);
 }
 

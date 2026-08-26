@@ -515,13 +515,13 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 ### Scenario: An adapter without ownership declarations is rejected
 
 - [x] RED
-- [ ] GREEN
+- [x] GREEN
 - [ ] REFACTOR
 
 ### Scenario: An adapter cannot claim a dimension it cannot honor
 
 - [x] RED
-- [ ] GREEN
+- [x] GREEN
 - [ ] REFACTOR
 
 ### Scenario: Generic conformance reports an unavailable adapter dimension truthfully
@@ -591,7 +591,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 ### Scenario: Existing integration operations retain their recorded origin-main contract
 
 - [x] RED
-- [ ] GREEN
+- [x] GREEN
 - [ ] REFACTOR
 
 ### Scenario: Mixed OpenCode selection preserves existing integration bytes
@@ -609,11 +609,11 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 ### Scenario: A registered integration cannot be skipped by lifecycle coordination
 
 - [x] RED
-- [ ] GREEN
+- [x] GREEN
 - [ ] REFACTOR
 
 ### Scenario: Invalid adapter claims fail contract validation
 
 - [x] RED
-- [ ] GREEN
+- [x] GREEN
 - [ ] REFACTOR
