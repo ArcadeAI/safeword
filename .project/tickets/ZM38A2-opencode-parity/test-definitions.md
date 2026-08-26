@@ -489,7 +489,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 ### Scenario: Invalid activation evidence remains non-current
 
 - [x] RED e63f47561
-- [ ] GREEN
+- [x] GREEN 9f5c50ef5
 - [ ] REFACTOR
 
 ### Scenario: Activation at the seven-day boundary remains current
