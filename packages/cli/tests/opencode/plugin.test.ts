@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -195,4 +195,72 @@ describe('generated OpenCode profile plugin', () => {
       expect((error as Error).message).not.toContain(sentinel);
     }
   });
+
+  it.each(['absent', 'pruned-after-upgrade', 'moved-from-bound-path'] as const)(
+    'TBU1.R2.S12 denies a marked project with repair when its dispatcher is %s',
+    async dispatcherState => {
+      const root = temporaryDirectory();
+      const project = nodePath.join(root, 'project');
+      const profile = nodePath.join(root, 'profile');
+      const paths = openCodeProfilePaths(profile);
+      const dispatcher = nodePath.join(root, 'dispatcher.mjs');
+      const movedDispatcher = nodePath.join(root, 'moved-dispatcher.mjs');
+      const sentinel = nodePath.join(root, 'operation-sentinel');
+      mkdirSync(nodePath.join(project, '.safeword'), { recursive: true });
+      mkdirSync(nodePath.dirname(paths.plugin), { recursive: true });
+      mkdirSync(nodePath.dirname(paths.identity), { recursive: true });
+      writeFileSync(nodePath.join(project, '.safeword', 'SAFEWORD.md'), 'managed\n');
+      writeFileSync(nodePath.join(profile, 'package.json'), '{"type":"module"}\n');
+      if (dispatcherState !== 'absent') writeFileSync(dispatcher, 'process.exitCode = 0;\n');
+
+      const pluginBytes = generateOpenCodeProfilePlugin();
+      const dispatcherBytes = Buffer.from('process.exitCode = 0;\n');
+      const digest = (value: string | Buffer): string =>
+        createHash('sha256').update(value).digest('hex');
+      writeFileSync(paths.plugin, pluginBytes);
+      writeFileSync(
+        paths.identity,
+        `${JSON.stringify({
+          schema_version: 1,
+          safeword_version: '0.79.4',
+          plugin_path: 'plugins/safeword.js',
+          plugin_sha256: digest(pluginBytes),
+          runtime_path: process.execPath,
+          dispatcher_path: dispatcher,
+          dispatcher_sha256: digest(dispatcherBytes),
+        })}\n`,
+      );
+      if (dispatcherState === 'pruned-after-upgrade') {
+        rmSync(dispatcher);
+      } else if (dispatcherState === 'moved-from-bound-path') {
+        renameSync(dispatcher, movedDispatcher);
+      }
+
+      const module = (await import(`${pathToFileURL(paths.plugin).href}?test=${Date.now()}`)) as {
+        Safeword: (input: { directory: string }) => Promise<{
+          'tool.execute.before': (
+            input: { tool: string; sessionID: string; callID: string },
+            output: { args: Record<string, unknown> },
+          ) => Promise<void>;
+        }>;
+      };
+      const hooks = await module.Safeword({ directory: project });
+      let error: unknown;
+      try {
+        await hooks['tool.execute.before'](
+          { tool: 'bash', sessionID: 'session', callID: 'call' },
+          { args: { command: 'operation' } },
+        );
+        writeFileSync(sentinel, 'changed\n');
+      } catch (error_) {
+        error = error_;
+      }
+
+      expect(existsSync(sentinel)).toBe(false);
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error).message).toBe(
+        'Safeword cannot run its OpenCode guard. Run safeword install --agents=opencode.',
+      );
+    },
+  );
 });
