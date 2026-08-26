@@ -46,7 +46,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 - [x] RED 4915f963f
 - [x] GREEN 342843e73
-- [ ] REFACTOR
+- [x] REFACTOR skip: profile construction reuses the existing reconciliation transaction and identity schema
 
 ### Scenario: USERPROFILE alone is not a Unix config-root fallback
 
