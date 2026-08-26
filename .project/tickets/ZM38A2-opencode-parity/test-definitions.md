@@ -490,7 +490,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 - [x] RED e63f47561
 - [x] GREEN 9f5c50ef5
-- [ ] REFACTOR
+- [x] REFACTOR skip: one status input carries clock and project context while the existing parser rejects every malformed binding
 
 ### Scenario: Activation at the seven-day boundary remains current
 
