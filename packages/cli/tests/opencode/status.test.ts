@@ -20,7 +20,11 @@ function temporaryDirectory(): string {
   return directory;
 }
 
-function writePassingEvidence(paths: OpenCodeProfilePaths, identity: OpenCodeIdentityV1): void {
+function writePassingEvidence(
+  paths: OpenCodeProfilePaths,
+  identity: OpenCodeIdentityV1,
+  event: 'plugin_load' | 'pre_tool' = 'plugin_load',
+): void {
   mkdirSync(paths.activation, { recursive: true });
   mkdirSync(paths.conformance, { recursive: true });
   writeFileSync(
@@ -30,7 +34,11 @@ function writePassingEvidence(paths: OpenCodeProfilePaths, identity: OpenCodeIde
       safeword_version: identity.safeword_version,
       plugin_sha256: identity.plugin_sha256,
       project_sha256: 'a'.repeat(64),
-      event: 'plugin_load',
+      event,
+      ...(event === 'pre_tool' && {
+        session_id_sha256: 'b'.repeat(64),
+        call_id_sha256: 'c'.repeat(64),
+      }),
       observed_at: new Date().toISOString(),
     })}\n`,
   );
@@ -59,6 +67,25 @@ afterEach(() => {
 });
 
 describe('OpenCode status evidence', () => {
+  it('NTB1.R1.S01 reports independent healthy protection dimensions', () => {
+    const root = temporaryDirectory();
+    const paths = openCodeProfilePaths(root);
+    expect(installOpenCodeProfile(root).state).toBe('changed');
+    const identity = JSON.parse(readFileSync(paths.identity, 'utf8')) as OpenCodeIdentityV1;
+    writePassingEvidence(paths, identity, 'pre_tool');
+
+    const result = observeOpenCodeProfile(root);
+
+    expect(result.state).toBe('healthy');
+    expect(result.data).toEqual({
+      installed: true,
+      activated: true,
+      pre_tool: 'block',
+      conformant: true,
+    });
+    expect(result.nextActions).toEqual([]);
+  });
+
   it('NTB1.R2.S01 reports one consistent fully uninstalled summary', () => {
     const result = observeOpenCodeProfile(temporaryDirectory());
 
