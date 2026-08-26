@@ -239,7 +239,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 ### Scenario: A marked project records plugin-load activation
 
 - [x] RED 80e746657
-- [ ] GREEN
+- [x] GREEN 5989bc226
 - [ ] REFACTOR
 
 ### Scenario: OpenCode lifecycle capabilities produce their declared evidence
