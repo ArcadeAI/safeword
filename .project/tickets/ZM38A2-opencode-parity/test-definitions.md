@@ -470,7 +470,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 - [x] RED d85b1f2ab
 - [x] GREEN 954d50843
-- [ ] REFACTOR
+- [x] REFACTOR skip: the evidence projector already encodes the required conformance-before-activation priority
 
 ### Scenario: Passing conformance supports its exact stable OpenCode version
 
