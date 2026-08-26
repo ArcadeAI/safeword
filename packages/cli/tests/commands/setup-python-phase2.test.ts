@@ -448,6 +448,83 @@ dev = ["ruff>=0.8.0"]
   );
 
   it(
+    'restores a nested uv project when dependency resolution fails after changing its files',
+    async () => {
+      createSafewordBasePackageJson(state.projectDirectory);
+      const worker = nodePath.join(state.projectDirectory, 'apps/worker');
+      createPythonProject(worker, { manager: 'uv' });
+      initGitRepo(state.projectDirectory);
+      const originalManifest = readTestFile(worker, 'pyproject.toml');
+      const originalLock = readTestFile(worker, 'uv.lock');
+      const bin = nodePath.join(state.projectDirectory, 'bin');
+      const uv = nodePath.join(bin, 'uv');
+      writeTestFile(
+        state.projectDirectory,
+        'bin/uv',
+        "#!/bin/sh\nprintf '\\ndependencies = [\"deadcode\"]\\n' >> pyproject.toml\nprintf '\\ninvalid\n' >> uv.lock\nexit 1\n",
+      );
+      chmodSync(uv, 0o755);
+
+      await runCli(['setup'], {
+        cwd: state.projectDirectory,
+        timeout: TIMEOUT_SETUP,
+        env: {
+          PATH: `${bin}:${process.env.PATH ?? ''}`,
+          SAFEWORD_SKIP_INSTALL: '',
+        },
+      });
+
+      expect(readTestFile(worker, 'pyproject.toml')).toBe(originalManifest);
+      expect(readTestFile(worker, 'uv.lock')).toBe(originalLock);
+    },
+    TIMEOUT_SETUP,
+  );
+
+  it(
+    'restores a workspace lock when uv writes an invalid result',
+    async () => {
+      createSafewordBasePackageJson(state.projectDirectory);
+      writeTestFile(
+        state.projectDirectory,
+        'pyproject.toml',
+        '[tool.uv.workspace]\nmembers = ["apps/*"]\n',
+      );
+      writeTestFile(state.projectDirectory, 'uv.lock', 'version = 1\nrevision = 2\n');
+      const worker = nodePath.join(state.projectDirectory, 'apps/worker');
+      writeTestFile(
+        state.projectDirectory,
+        'apps/worker/pyproject.toml',
+        '[project]\nname = "worker"\nversion = "0.1.0"\n',
+      );
+      initGitRepo(state.projectDirectory);
+      const originalManifest = readTestFile(worker, 'pyproject.toml');
+      const originalLock = readTestFile(state.projectDirectory, 'uv.lock');
+      const bin = nodePath.join(state.projectDirectory, 'bin');
+      const uv = nodePath.join(bin, 'uv');
+      writeTestFile(
+        state.projectDirectory,
+        'bin/uv',
+        '#!/bin/sh\nif [ "$1" = "add" ]; then\n  printf \'\\ndependencies = ["deadcode"]\\n\' >> pyproject.toml\n  printf \'invalid\\n\' >> "$SAFEWORD_ROOT_UV_LOCK"\n  exit 0\nfi\nexit 1\n',
+      );
+      chmodSync(uv, 0o755);
+
+      await runCli(['setup'], {
+        cwd: state.projectDirectory,
+        timeout: TIMEOUT_SETUP,
+        env: {
+          PATH: `${bin}:${process.env.PATH ?? ''}`,
+          SAFEWORD_ROOT_UV_LOCK: nodePath.join(state.projectDirectory, 'uv.lock'),
+          SAFEWORD_SKIP_INSTALL: '',
+        },
+      });
+
+      expect(readTestFile(worker, 'pyproject.toml')).toBe(originalManifest);
+      expect(readTestFile(state.projectDirectory, 'uv.lock')).toBe(originalLock);
+    },
+    TIMEOUT_SETUP,
+  );
+
+  it(
     'Test 6.5: Shows poetry install command for poetry projects',
     async () => {
       createPythonProjectReadyForSetup(state.projectDirectory, { manager: 'poetry' });
