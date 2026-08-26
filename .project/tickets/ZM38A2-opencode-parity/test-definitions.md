@@ -424,7 +424,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 - [x] RED 9010b2f8b
 - [x] GREEN 444be3bce
-- [ ] REFACTOR
+- [x] REFACTOR skip: the existing conformance predicate now receives one optional exact-version binding
 
 ### Scenario: Bound conformance evidence does not expire by age alone
 
