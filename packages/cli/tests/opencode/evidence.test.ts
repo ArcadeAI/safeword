@@ -1,4 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { readdirSync, readFileSync } from 'node:fs';
+import nodePath from 'node:path';
+
+import { afterEach, describe, expect, it } from 'vitest';
 
 import {
   parseOpenCodeActivation,
@@ -6,8 +9,15 @@ import {
   parseOpenCodeProfileError,
 } from '../../src/opencode/evidence.js';
 import { parseOpenCodeIdentity } from '../../src/opencode/identity.js';
+import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.js';
 
 const hash = 'a'.repeat(64);
+const temporaryDirectories: string[] = [];
+
+afterEach(() => {
+  for (const directory of temporaryDirectories) removeTemporaryDirectory(directory);
+  temporaryDirectories.length = 0;
+});
 
 describe('bounded OpenCode profile records', () => {
   it('accepts an exact versioned identity and rejects extra data', () => {
@@ -61,6 +71,47 @@ describe('bounded OpenCode profile records', () => {
 
     expect(parseOpenCodeConformance(conformance)).toEqual(conformance);
     expect(parseOpenCodeConformance({ ...conformance, prompt: 'secret' })).toBeUndefined();
+  });
+
+  it('persists one exact passing conformance record without execution content', async () => {
+    const root = createTemporaryDirectory();
+    temporaryDirectories.push(root);
+    const directory = nodePath.join(root, 'safeword', 'conformance-v1');
+    const sensitive = {
+      bearer_token: 'bearer-sensitive-sentinel',
+      prompt: 'prompt-sensitive-sentinel',
+      command: 'command-sensitive-sentinel',
+      environment: 'environment-sensitive-sentinel',
+      temporary_path: '/tmp/path-sensitive-sentinel',
+    };
+    const conformance = {
+      schema_version: 1,
+      safeword_version: '0.79.4',
+      opencode_version: '1.18.23',
+      platform: 'linux',
+      arch: 'arm64',
+      plugin_sha256: hash,
+      command_catalogue: true,
+      agent_catalogue: true,
+      denial: true,
+      control: true,
+      checked_at: '2026-08-26T12:00:00.000Z',
+      result: 'passed',
+    };
+    const evidenceModule: Record<string, unknown> = await import('../../src/opencode/evidence.js');
+
+    expect(evidenceModule.writePassingOpenCodeConformance).toBeTypeOf('function');
+    const writeEvidence = evidenceModule.writePassingOpenCodeConformance;
+    if (typeof writeEvidence !== 'function') throw new Error('Missing conformance writer');
+    expect(() => writeEvidence(directory, { ...conformance, ...sensitive })).toThrow();
+    expect(writeEvidence(directory, conformance)).toBe(
+      nodePath.join(directory, `1.18.23-${hash}.json`),
+    );
+
+    expect(readdirSync(directory)).toEqual([`1.18.23-${hash}.json`]);
+    const persisted = readFileSync(nodePath.join(directory, `1.18.23-${hash}.json`), 'utf8');
+    expect(JSON.parse(persisted)).toEqual(conformance);
+    for (const sentinel of Object.values(sensitive)) expect(persisted).not.toContain(sentinel);
   });
 
   it('accepts only the bounded marker-resolution error', () => {
