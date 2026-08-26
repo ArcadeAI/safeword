@@ -449,7 +449,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 ### Scenario: An uncovered lifecycle boundary is described as observational
 
 - [x] RED 5cbabc4be
-- [ ] GREEN
+- [x] GREEN b176ae0ee
 - [ ] REFACTOR
 
 ## Rule: opencode-parity.NTB1.R2 — Incomplete states yield one truthful summary and at most one action
