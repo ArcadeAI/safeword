@@ -444,7 +444,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 - [x] RED 9b58ce129
 - [x] GREEN 9a8052bd9
-- [ ] REFACTOR
+- [x] REFACTOR skip: exact-schema scanners and named binding predicates isolate status evidence rules
 
 ### Scenario: An uncovered lifecycle boundary is described as observational
 
