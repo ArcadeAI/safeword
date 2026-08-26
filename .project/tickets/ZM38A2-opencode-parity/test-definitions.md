@@ -592,7 +592,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 - [x] RED
 - [x] GREEN
-- [ ] REFACTOR
+- [x] REFACTOR skip: selected ownership generation is already isolated at the lifecycle schema boundary
 
 ### Scenario: Mixed OpenCode selection preserves existing integration bytes
 
