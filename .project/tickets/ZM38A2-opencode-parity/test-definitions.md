@@ -295,7 +295,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 ### Scenario: A profile collision is not overwritten or removed
 
 - [x] RED
-- [ ] GREEN
+- [x] GREEN 2fd55c206
 - [ ] REFACTOR
 
 ### Scenario: Install repairs recognized managed plugin drift
