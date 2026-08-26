@@ -263,6 +263,14 @@ function observeProtectionEvidence(
   const activated = hasCurrentPreToolActivation(paths.activation, identity);
   const conformant = hasPassingConformance(paths.conformance, identity);
   const data = { installed: true, activated, pre_tool: 'block', conformant };
+  if (!conformant) {
+    return actionRequired(
+      'OPENCODE_CONFORMANCE_REQUIRED',
+      'This OpenCode version has not passed conformance for the installed Safeword plugin.',
+      'safeword conformance --agents=opencode',
+      data,
+    );
+  }
   if (conformant && !activated) {
     return createResult({
       state: 'action_required',
