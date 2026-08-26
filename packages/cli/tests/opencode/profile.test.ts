@@ -8,6 +8,7 @@ import { parseAgentSelection } from '../../src/cli-protocol/agent-selection.js';
 import { createResult } from '../../src/cli-protocol/result.js';
 import { installLifecycle } from '../../src/lifecycle/commands.js';
 import {
+  generateOpenCodeProfilePlugin,
   type OpenCodeIdentityV1,
   openCodeProfilePaths,
   reconcileOpenCodeProfile,
@@ -100,6 +101,39 @@ describe('OpenCode profile boundary', () => {
       ok: true,
       selection: { agents: ['claude', 'codex'] },
     });
+  });
+
+  it('TBU1.R1.S07 installs generated profile bytes and an executable identity binding', async () => {
+    const project = temporaryDirectory();
+    const root = temporaryDirectory();
+    vi.stubEnv('OPENCODE_CONFIG_DIR', root);
+
+    const result = await installLifecycle(
+      {
+        cwd: project,
+        noInput: true,
+        offline: false,
+        operands: [],
+        options: { agents: 'opencode', modify: false },
+      },
+      {
+        installClaude: () => Promise.resolve(createResult({ state: 'healthy' })),
+        installCodex: () => Promise.resolve(createResult({ state: 'healthy' })),
+      },
+    );
+
+    const paths = openCodeProfilePaths(root);
+    expect(result.state).toBe('changed');
+    expect(readFileSync(paths.plugin, 'utf8')).toBe(generateOpenCodeProfilePlugin());
+    const installedIdentity = JSON.parse(
+      readFileSync(paths.identity, 'utf8'),
+    ) as OpenCodeIdentityV1;
+    expect(installedIdentity.runtime_path).toBe(process.execPath);
+    expect(nodePath.isAbsolute(installedIdentity.dispatcher_path)).toBe(true);
+    expect(existsSync(installedIdentity.dispatcher_path)).toBe(true);
+    expect(installedIdentity.dispatcher_sha256).toBe(
+      createHash('sha256').update(readFileSync(installedIdentity.dispatcher_path)).digest('hex'),
+    );
   });
 
   it.each([
