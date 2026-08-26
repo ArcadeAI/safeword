@@ -380,7 +380,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ### Scenario: Pinned OpenCode proves native catalogue discovery
 
-- [ ] RED
+- [x] RED aa6742a71
 - [ ] GREEN
 - [ ] REFACTOR
 
