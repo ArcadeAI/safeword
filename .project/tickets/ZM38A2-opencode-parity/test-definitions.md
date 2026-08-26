@@ -52,7 +52,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 - [x] RED
 - [x] GREEN 2fd55c206
-- [ ] REFACTOR
+- [x] REFACTOR skip: resolver boundary is already isolated and has no duplication
 
 ### Scenario: All profile lifecycle operations share one config-root resolver
 
