@@ -1,5 +1,6 @@
 import { schemaForClaudeDelivery } from '../claude-plugin/delivery-schema.js';
 import { schemaForCodexDelivery } from '../codex-plugin/delivery-schema.js';
+import { generateOwnedPathsModule, resolvedNamespaceDirectory } from '../owned-paths.js';
 import {
   SAFEWORD_SCHEMA,
   type SafewordSchema,
@@ -21,6 +22,24 @@ function withOpenCodeSkillDelivery(schema: SafewordSchema): SafewordSchema {
     ...schema,
     sharedDirs: [...new Set([...schema.sharedDirs, '.claude', '.claude/skills'])],
     ownedFiles: { ...schema.ownedFiles, ...skills },
+  };
+}
+
+function withSelectedOwnedPaths(schema: SafewordSchema, includeOpenCode: boolean): SafewordSchema {
+  const path = '.safeword/hooks/lib/owned-paths.ts';
+  if (schema.ownedFiles[path] === undefined) return schema;
+  const ownershipSchema = includeOpenCode
+    ? SAFEWORD_SCHEMA
+    : schemaForProjectSurfaces(SAFEWORD_SCHEMA, ['core', 'cursor']);
+  return {
+    ...schema,
+    ownedFiles: {
+      ...schema.ownedFiles,
+      [path]: {
+        generator: ctx =>
+          generateOwnedPathsModule(ownershipSchema, resolvedNamespaceDirectory(ctx)),
+      },
+    },
   };
 }
 
@@ -50,11 +69,14 @@ export function projectLifecycleSchema(cwd: string, agents: readonly string[]): 
   // No agent selected at all (`--agents none`) carries no evidence that the
   // shared runtime is unused — only a project selecting Claude, and nothing
   // else, that's also confirmed native knows for certain nothing reads it.
-  return schemaForSharedAgentRuntime(
-    surfaceSchema,
-    agents.length === 0 ||
-      agents.includes('codex') ||
-      agents.includes('cursor') ||
-      legacyClaudeActive,
+  return withSelectedOwnedPaths(
+    schemaForSharedAgentRuntime(
+      surfaceSchema,
+      agents.length === 0 ||
+        agents.includes('codex') ||
+        agents.includes('cursor') ||
+        legacyClaudeActive,
+    ),
+    agents.includes('opencode'),
   );
 }

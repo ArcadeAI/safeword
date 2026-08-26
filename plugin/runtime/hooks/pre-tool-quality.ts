@@ -243,19 +243,13 @@ function enforceRefactorCommitGate(sessionId?: string): void {
   }
 }
 
-async function readHookInput(): Promise<HookInput | undefined> {
-  let raw = '';
-  process.stdin.setEncoding('utf8');
-  for await (const chunk of process.stdin) raw += String(chunk);
-  try {
-    return JSON.parse(raw) as HookInput;
-  } catch {
-    return undefined;
-  }
+// Read hook input from stdin
+let input: HookInput;
+try {
+  input = await Bun.stdin.json();
+} catch {
+  process.exit(0);
 }
-
-const input = await readHookInput();
-if (input === undefined) process.exit(0);
 
 const tool = input.tool_name ?? '';
 const editedFile = input.tool_input?.file_path ?? input.tool_input?.notebook_path ?? '';

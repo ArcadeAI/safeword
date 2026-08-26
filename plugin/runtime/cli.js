@@ -620,7 +620,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/pre-tool-config-guard.ts": "6bae1971493bc8fae0ce30db07f14a93ad660af11ca9fdf93518b23102d4f084",
         ".safeword/hooks/pre-tool-dependency-readiness.ts": "d23343dc3185916140a4b25572f3bb413aece93311f5084444c0debe188f85b8",
         ".safeword/hooks/pre-tool-git-bare-fix.sh": "0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414",
-        ".safeword/hooks/pre-tool-quality.ts": "ea5a2beaba2384cfc3d9a8a674c5a0d0b3166ab0f7c3012b9c6f019c3980a633",
+        ".safeword/hooks/pre-tool-quality.ts": "b97d1639e4598197baa11c71d640f0cbff79f5bf72b38736ad1f4484bb06e1cf",
         ".safeword/hooks/pre-tool-stale-main.ts": "cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e",
         ".safeword/hooks/prompt-questions.ts": "57182cccb8550bb2b585c27672bc9bfef56f4688d0afc1afc18bf52661b7c2a6",
         ".safeword/hooks/prompt-retro-nudge.ts": "78353d6f47adb0ed9969e83b40429d5792a98789dff67ec0bc4d5a024b1da457",
@@ -10860,7 +10860,7 @@ var init_workspace_pattern = () => {};
 
 // src/packs/python/setup.ts
 import { execFileSync } from "child_process";
-import { readdirSync as readdirSync3, realpathSync as realpathSync2 } from "fs";
+import { readdirSync as readdirSync3, readFileSync as readFileSync5, realpathSync as realpathSync2, unlinkSync, writeFileSync as writeFileSync3 } from "fs";
 import nodePath7 from "path";
 function hasAnyLayerPattern(cwd, patterns) {
   for (const pattern of patterns) {
@@ -11098,6 +11098,19 @@ function detectPythonPackageManagerAt(directory) {
   }
   return exists(nodePath7.join(directory, "Pipfile")) ? "pipenv" : undefined;
 }
+function uvLockDirectory(cwd, repoRoot) {
+  const root = nodePath7.resolve(repoRoot);
+  const projectDirectory = nodePath7.resolve(cwd);
+  let directory = projectDirectory;
+  while (true) {
+    if (exists(nodePath7.join(directory, "uv.lock")) && (directory === projectDirectory || pythonWorkspaceOwns(directory, projectDirectory))) {
+      return directory;
+    }
+    if (directory === root)
+      return;
+    directory = nodePath7.dirname(directory);
+  }
+}
 function getPythonInstallCommand(cwd, tools = ["ruff"], repoRoot = cwd) {
   const pm = detectPythonPackageManager(cwd, repoRoot);
   const toolList = tools.join(" ");
@@ -11160,6 +11173,36 @@ function getPythonToolDependencyGaps(cwd, includeImportLinter) {
     return tools.length === 0 ? [] : [{ directory, tools }];
   });
 }
+function installUvDependencies(cwd, tools, repoRoot) {
+  const manifestPath = nodePath7.join(cwd, "pyproject.toml");
+  const lockDirectory = uvLockDirectory(cwd, repoRoot);
+  const lockPath = lockDirectory && nodePath7.join(lockDirectory, "uv.lock");
+  const manifestBefore = exists(manifestPath) ? readFileSync5(manifestPath) : undefined;
+  const lockBefore = lockPath ? readFileSync5(lockPath) : undefined;
+  try {
+    execFileSync("uv", ["add", "--dev", ...tools], {
+      cwd,
+      stdio: "pipe",
+      timeout: 60000
+    });
+    if (lockDirectory) {
+      execFileSync("uv", ["lock", "--check"], {
+        cwd: lockDirectory,
+        stdio: "pipe",
+        timeout: 60000
+      });
+    }
+    return true;
+  } catch {
+    if (manifestBefore)
+      writeFileSync3(manifestPath, manifestBefore);
+    else if (exists(manifestPath))
+      unlinkSync(manifestPath);
+    if (lockPath && lockBefore)
+      writeFileSync3(lockPath, lockBefore);
+    return false;
+  }
+}
 function installPythonDependencies(cwd, tools, repoRoot = cwd) {
   if (tools.length === 0)
     return true;
@@ -11168,6 +11211,8 @@ function installPythonDependencies(cwd, tools, repoRoot = cwd) {
   const pm = detectPythonPackageManager(cwd, repoRoot);
   if (pm === "pip")
     return false;
+  if (pm === "uv")
+    return installUvDependencies(cwd, tools, repoRoot);
   try {
     const invocation = pythonInstallInvocation(cwd, tools, repoRoot);
     execFileSync(invocation.command, invocation.arguments, {
@@ -11179,6 +11224,68 @@ function installPythonDependencies(cwd, tools, repoRoot = cwd) {
   } catch {
     return false;
   }
+}
+function restorePythonFiles(snapshots) {
+  for (const [path2, content] of snapshots) {
+    if (content)
+      writeFileSync3(path2, content);
+    else if (exists(path2))
+      unlinkSync(path2);
+  }
+}
+function uvBatchTargets(gaps, repoRoot) {
+  return gaps.flatMap((gap, index) => {
+    if (detectPythonPackageManagerAt(gap.directory) !== "uv")
+      return [];
+    const lockDirectory = uvLockDirectory(gap.directory, repoRoot) ?? gap.directory;
+    return [
+      {
+        index,
+        lockDirectory,
+        paths: [
+          nodePath7.join(gap.directory, "pyproject.toml"),
+          nodePath7.join(lockDirectory, "uv.lock")
+        ]
+      }
+    ];
+  });
+}
+function snapshotPythonFiles(targets) {
+  return new Map([...new Set(targets.flatMap((target) => target.paths))].map((path2) => [
+    path2,
+    exists(path2) ? readFileSync5(path2) : undefined
+  ]));
+}
+function finalizeUvLocks(targets) {
+  try {
+    const lockDirectories = new Set(targets.map((target) => target.lockDirectory));
+    for (const directory of lockDirectories) {
+      execFileSync("uv", ["lock"], { cwd: directory, stdio: "pipe", timeout: 60000 });
+      execFileSync("uv", ["lock", "--check"], {
+        cwd: directory,
+        stdio: "pipe",
+        timeout: 60000
+      });
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+function failUvResults(results, targets) {
+  for (const { index } of targets)
+    results[index] = false;
+}
+function installPythonDependencyBatch(gaps, repoRoot) {
+  const targets = uvBatchTargets(gaps, repoRoot);
+  const snapshots = snapshotPythonFiles(targets);
+  const results = gaps.map((gap) => installPythonDependencies(gap.directory, gap.tools, repoRoot));
+  const installFailed = targets.some(({ index }) => !results.at(index));
+  if (!installFailed && finalizeUvLocks(targets))
+    return results;
+  restorePythonFiles(snapshots);
+  failUvResults(results, targets);
+  return results;
 }
 function setupPythonTooling() {
   return { files: [] };
@@ -11207,14 +11314,14 @@ var init_setup = __esm(() => {
 });
 
 // src/packs/python/files.ts
-import { existsSync as existsSync4, readFileSync as readFileSync5 } from "fs";
+import { existsSync as existsSync4, readFileSync as readFileSync6 } from "fs";
 import nodePath8 from "path";
 function hasLegacyCustomerRuffExtend(cwd) {
   const ruffPath = nodePath8.join(cwd, "ruff.toml");
   if (!existsSync4(ruffPath))
     return false;
   try {
-    const content = readFileSync5(ruffPath, "utf8");
+    const content = readFileSync6(ruffPath, "utf8");
     return content.includes('extend = ".safeword/ruff.toml"');
   } catch {
     return false;
@@ -11380,7 +11487,7 @@ ${RUFF_SHARED_SETTINGS}`;
 });
 
 // src/packs/rust/files.ts
-import { existsSync as existsSync5, readFileSync as readFileSync6 } from "fs";
+import { existsSync as existsSync5, readFileSync as readFileSync7 } from "fs";
 import nodePath9 from "path";
 function generateClippyConfig() {
   const thresholds = Object.entries(SAFEWORD_CLIPPY_THRESHOLDS).map(([key, value]) => `${key} = ${String(value)}`).join(`
@@ -11408,7 +11515,7 @@ ${generateClippyThresholds()}
 `;
   }
   try {
-    const content = readFileSync6(configPath, "utf8");
+    const content = readFileSync7(configPath, "utf8");
     const customerKeys = parseClippyKeys(content);
     const gapEntries = Object.entries(SAFEWORD_CLIPPY_THRESHOLDS).filter(([key]) => !customerKeys.has(key)).map(([key, value]) => `${key} = ${String(value)}`);
     const safewordSection = gapEntries.length > 0 ? `
@@ -11468,7 +11575,7 @@ function editionInSection(content, header2) {
 function resolveRustEdition(cwd) {
   let content;
   try {
-    content = readFileSync6(nodePath9.join(cwd, "Cargo.toml"), "utf8");
+    content = readFileSync7(nodePath9.join(cwd, "Cargo.toml"), "utf8");
   } catch {
     return FALLBACK_RUST_EDITION;
   }
@@ -11579,7 +11686,7 @@ var init_files3 = __esm(() => {
 });
 
 // src/packs/sql/dialect.ts
-import { existsSync as existsSync6, readFileSync as readFileSync7 } from "fs";
+import { existsSync as existsSync6, readFileSync as readFileSync8 } from "fs";
 import nodePath10 from "path";
 import process4 from "process";
 function detectSqlDialect(cwd) {
@@ -11588,7 +11695,7 @@ function detectSqlDialect(cwd) {
 function resolveProfileType(profilesPath, profileName) {
   if (!existsSync6(profilesPath))
     return;
-  const content = readFileSync7(profilesPath, "utf8");
+  const content = readFileSync8(profilesPath, "utf8");
   const profiles = import_yaml2.default.parse(content, { schema: "failsafe" });
   const profile = profiles[profileName];
   if (!profile?.outputs)
@@ -11605,7 +11712,7 @@ function detectFromProfiles(cwd) {
   if (!dbtProjectDirectory)
     return;
   try {
-    const projectContent = readFileSync7(nodePath10.join(dbtProjectDirectory, "dbt_project.yml"), "utf8");
+    const projectContent = readFileSync8(nodePath10.join(dbtProjectDirectory, "dbt_project.yml"), "utf8");
     const project = import_yaml2.default.parse(projectContent, { schema: "failsafe" });
     const profileName = project.profile;
     if (typeof profileName !== "string")
@@ -11634,9 +11741,9 @@ function detectFromPythonDependencies(cwd) {
   try {
     let content;
     if (existsSync6(requirementsPath)) {
-      content = readFileSync7(requirementsPath, "utf8");
+      content = readFileSync8(requirementsPath, "utf8");
     } else if (existsSync6(pyprojectPath)) {
-      content = readFileSync7(pyprojectPath, "utf8");
+      content = readFileSync8(pyprojectPath, "utf8");
     }
     if (!content)
       return;
@@ -11657,7 +11764,7 @@ function detectFromSqlcConfig(cwd) {
     if (!directory)
       continue;
     try {
-      const content = readFileSync7(nodePath10.join(directory, filename), "utf8");
+      const content = readFileSync8(nodePath10.join(directory, filename), "utf8");
       const match = /engine['":\s]+(\w+)/.exec(content);
       if (match?.[1])
         return ADAPTER_TO_DIALECT[match[1]] ?? match[1];
@@ -11672,7 +11779,7 @@ function detectFromPrismaSchema(cwd) {
   if (!existsSync6(schemaPath))
     return;
   try {
-    const content = readFileSync7(schemaPath, "utf8");
+    const content = readFileSync8(schemaPath, "utf8");
     const match = /provider\s*=\s*"(\w+)"/.exec(content);
     if (!match?.[1])
       return;
@@ -11687,7 +11794,7 @@ function detectFromDrizzleConfig(cwd) {
     if (!existsSync6(filePath))
       continue;
     try {
-      const content = readFileSync7(filePath, "utf8");
+      const content = readFileSync8(filePath, "utf8");
       const match = /dialect\s*:\s*["'](\w+)["']/.exec(content);
       if (match?.[1])
         return DRIZZLE_TO_DIALECT[match[1]];
@@ -11702,7 +11809,7 @@ function detectFromDatabaseUrl(cwd) {
   if (!existsSync6(envPath))
     return;
   try {
-    const content = readFileSync7(envPath, "utf8");
+    const content = readFileSync8(envPath, "utf8");
     const match = /DATABASE_URL\s*=\s*["']?(\w+):/.exec(content);
     if (!match?.[1])
       return;
@@ -14781,7 +14888,7 @@ var init_pyproject_manifest = () => {};
 
 // src/utils/architecture-fingerprint.ts
 import { createHash as createHash2 } from "crypto";
-import { readdirSync as readdirSync5, readFileSync as readFileSync8 } from "fs";
+import { readdirSync as readdirSync5, readFileSync as readFileSync9 } from "fs";
 import nodePath17 from "path";
 function collectShapeInputs(projectDirectory, skeleton) {
   return {
@@ -14811,14 +14918,14 @@ function readPackageJsonDependencyNames(projectDirectory) {
 }
 function readCargoDependencies(projectDirectory) {
   try {
-    return readCargoDependencyNames(readFileSync8(nodePath17.join(projectDirectory, "Cargo.toml"), "utf8"));
+    return readCargoDependencyNames(readFileSync9(nodePath17.join(projectDirectory, "Cargo.toml"), "utf8"));
   } catch {
     return [];
   }
 }
 function readPyprojectDependencyNames(projectDirectory) {
   try {
-    return readPyprojectDependencies(readFileSync8(nodePath17.join(projectDirectory, "pyproject.toml"), "utf8"));
+    return readPyprojectDependencies(readFileSync9(nodePath17.join(projectDirectory, "pyproject.toml"), "utf8"));
   } catch {
     return [];
   }
@@ -14826,7 +14933,7 @@ function readPyprojectDependencyNames(projectDirectory) {
 function readGoModuleRequires(projectDirectory) {
   let content;
   try {
-    content = readFileSync8(nodePath17.join(projectDirectory, "go.mod"), "utf8");
+    content = readFileSync9(nodePath17.join(projectDirectory, "go.mod"), "utf8");
   } catch {
     return [];
   }
@@ -15227,7 +15334,7 @@ __export(exports_architecture_document, {
   isSafewordOwned: () => isSafewordOwned
 });
 import { createHash as createHash4 } from "crypto";
-import { mkdirSync as mkdirSync3, readFileSync as readFileSync9, writeFileSync as writeFileSync3 } from "fs";
+import { mkdirSync as mkdirSync3, readFileSync as readFileSync10, writeFileSync as writeFileSync4 } from "fs";
 import nodePath19 from "path";
 function isWouldChangeAction(action) {
   return WOULD_CHANGE_ACTIONS.has(action);
@@ -15251,7 +15358,7 @@ function healTarget(target, options = {}) {
   if (isWouldChangeAction(action) || options.renderUnchanged === true && action === "unchanged") {
     mkdirSync3(nodePath19.dirname(target.path), { recursive: true });
     const { priorStamps, priorProse } = priorSectionHistory(existing, options.priorProseContent, options.preservePriorStructure ?? false, target.parseProse ?? parseSectionProse);
-    writeFileSync3(target.path, target.render(priorStamps, priorProse));
+    writeFileSync4(target.path, target.render(priorStamps, priorProse));
   }
   return { action, path: target.path };
 }
@@ -15330,7 +15437,7 @@ function planSelfHealProject(projectDirectory, snapshot) {
 }
 function readExisting(path3) {
   try {
-    return readFileSync9(path3, "utf8");
+    return readFileSync10(path3, "utf8");
   } catch {
     return;
   }
@@ -16210,7 +16317,7 @@ __export(exports_tracker_map, {
   loadTrackerMap: () => loadTrackerMap,
   TrackerMap: () => TrackerMap
 });
-import { existsSync as existsSync8, readFileSync as readFileSync10, writeFileSync as writeFileSync4 } from "fs";
+import { existsSync as existsSync8, readFileSync as readFileSync11, writeFileSync as writeFileSync5 } from "fs";
 import nodePath20 from "path";
 function trackerMapPath(cwd) {
   return nodePath20.join(cwd, ".safeword", "tracker-map.json");
@@ -16241,7 +16348,7 @@ class TrackerMap {
     return { version: SIDECAR_VERSION, issues: Object.fromEntries(this.issues) };
   }
   save(filePath) {
-    writeFileSync4(filePath, `${JSON.stringify(this.serialize(), undefined, 2)}
+    writeFileSync5(filePath, `${JSON.stringify(this.serialize(), undefined, 2)}
 `);
   }
 }
@@ -16250,7 +16357,7 @@ function loadTrackerMap(filePath) {
     return { ok: false, reason: "missing" };
   let parsed2;
   try {
-    parsed2 = JSON.parse(readFileSync10(filePath, "utf8"));
+    parsed2 = JSON.parse(readFileSync11(filePath, "utf8"));
   } catch {
     return { ok: false, reason: "corrupt" };
   }
@@ -16311,20 +16418,20 @@ var init_types = __esm(() => {
 });
 
 // src/tracker-connect/index.ts
-import { existsSync as existsSync9, readFileSync as readFileSync11, writeFileSync as writeFileSync5 } from "fs";
+import { existsSync as existsSync9, readFileSync as readFileSync12, writeFileSync as writeFileSync6 } from "fs";
 import nodePath21 from "path";
 function configPath(cwd) {
   return nodePath21.join(cwd, ".safeword", "config.json");
 }
 function writeProviderConfig(cwd, provider, target) {
   const path3 = configPath(cwd);
-  const before = existsSync9(path3) ? readFileSync11(path3, "utf8") : undefined;
+  const before = existsSync9(path3) ? readFileSync12(path3, "utf8") : undefined;
   const existing = before === undefined ? {} : JSON.parse(before);
   const priorBridge = existing.ticketBridge ?? {};
   existing.ticketBridge = { ...priorBridge, provider, body: priorBridge.body ?? "minimal", target };
   const after = `${JSON.stringify(existing, undefined, 2)}
 `;
-  writeFileSync5(path3, after);
+  writeFileSync6(path3, after);
   return before === after ? undefined : {
     surface: "file",
     kind: before === undefined ? "create" : "update",
@@ -16334,13 +16441,13 @@ function writeProviderConfig(cwd, provider, target) {
 }
 function appendMarker(path3, target, marker, mutations) {
   const existed = existsSync9(path3);
-  const before = existed ? readFileSync11(path3, "utf8") : "";
+  const before = existed ? readFileSync12(path3, "utf8") : "";
   if (before.split(/\r?\n/u).includes(marker))
     return;
   const prefix = before === "" || before.endsWith(`
 `) ? "" : `
 `;
-  writeFileSync5(path3, `${prefix}${marker}
+  writeFileSync6(path3, `${prefix}${marker}
 `, { flag: "a" });
   mutations.push({
     surface: "file",
@@ -16798,7 +16905,7 @@ var exports_config = {};
 __export(exports_config, {
   readTicketBridgeConfig: () => readTicketBridgeConfig
 });
-import { existsSync as existsSync10, readFileSync as readFileSync12 } from "fs";
+import { existsSync as existsSync10, readFileSync as readFileSync13 } from "fs";
 import nodePath22 from "path";
 function readTicketBridgeConfig(cwd) {
   const configPath2 = nodePath22.join(cwd, ".safeword", "config.json");
@@ -16806,7 +16913,7 @@ function readTicketBridgeConfig(cwd) {
     return { ...DEFAULT_CONFIG };
   let parsed2;
   try {
-    parsed2 = JSON.parse(readFileSync12(configPath2, "utf8"));
+    parsed2 = JSON.parse(readFileSync13(configPath2, "utf8"));
   } catch {
     return { ...DEFAULT_CONFIG };
   }
@@ -16961,7 +17068,7 @@ __export(exports_ticket_sync, {
   COMPLETED_INDEX_FILENAME: () => COMPLETED_INDEX_FILENAME,
   COMPLETED_DIRNAME: () => COMPLETED_DIRNAME
 });
-import { existsSync as existsSync11, readdirSync as readdirSync6, readFileSync as readFileSync13, writeFileSync as writeFileSync6 } from "fs";
+import { existsSync as existsSync11, readdirSync as readdirSync6, readFileSync as readFileSync14, writeFileSync as writeFileSync7 } from "fs";
 import nodePath23 from "path";
 function hasMergeConflictMarkers(content) {
   return MERGE_CONFLICT_MARKER_PATTERN.test(content);
@@ -16969,7 +17076,7 @@ function hasMergeConflictMarkers(content) {
 function detectConflictedIndex(indexPath) {
   if (!existsSync11(indexPath))
     return;
-  const content = readFileSync13(indexPath, "utf8");
+  const content = readFileSync14(indexPath, "utf8");
   return hasMergeConflictMarkers(content) ? indexPath : undefined;
 }
 function inspectTicketIndexConflicts(cwd) {
@@ -17029,7 +17136,7 @@ function parseStringList(raw) {
   return listBody.split(",").map((item) => stripQuotes(item.trim())).map((item) => item.trim()).filter(Boolean);
 }
 function parseTicket(filePath, folder) {
-  const content = readFileSync13(filePath, "utf8");
+  const content = readFileSync14(filePath, "utf8");
   const { fields, bodyStart } = parseFrontmatter(content);
   const id = fields.get("id");
   if (id === undefined || id.length === 0) {
@@ -17171,10 +17278,10 @@ function buildIndexContent(entries, options) {
 `);
 }
 function writeIfChanged(path3, content) {
-  const previous = existsSync11(path3) ? readFileSync13(path3, "utf8") : undefined;
+  const previous = existsSync11(path3) ? readFileSync14(path3, "utf8") : undefined;
   if (previous === content)
     return false;
-  writeFileSync6(path3, content);
+  writeFileSync7(path3, content);
   return true;
 }
 function syncTickets(cwd) {
@@ -17222,7 +17329,7 @@ __export(exports_corpus, {
   readCorpus: () => readCorpus,
   backLinkUrl: () => backLinkUrl
 });
-import { existsSync as existsSync12, readFileSync as readFileSync14 } from "fs";
+import { existsSync as existsSync12, readFileSync as readFileSync15 } from "fs";
 import nodePath24 from "path";
 function parseType(content) {
   return /^type:\s*(\S+)/m.exec(content)?.[1] ?? "task";
@@ -17263,7 +17370,7 @@ function readCorpus(cwd, repo) {
   const relativeLabel = nodePath24.relative(cwd, ticketsDirectory) || TICKETS_RELATIVE_PATH;
   return readTickets(ticketsDirectory, relativeLabel).active.map((entry) => {
     const ticketPath = nodePath24.join(cwd, entry.relativePath, "ticket.md");
-    const content = existsSync12(ticketPath) ? readFileSync14(ticketPath, "utf8") : undefined;
+    const content = existsSync12(ticketPath) ? readFileSync15(ticketPath, "utf8") : undefined;
     return toTicketInput(entry, parseType(content ?? ""), repo, content, {
       parent: parseScalar(content ?? "", "parent"),
       slug: parseScalar(content ?? "", "slug")
@@ -17556,7 +17663,7 @@ __export(exports_sync_tracker, {
   planTrackerSync: () => planTrackerSync,
   applyTrackerSyncResults: () => applyTrackerSyncResults
 });
-import { existsSync as existsSync13, readFileSync as readFileSync15 } from "fs";
+import { existsSync as existsSync13, readFileSync as readFileSync16 } from "fs";
 import process7 from "process";
 function planTrackerSync(cwd, config) {
   const provider = supportedProvider(config.provider);
@@ -17605,7 +17712,7 @@ function applyTrackerSyncResults(cwd, config, filePath) {
   }
   let raw;
   try {
-    raw = readFileSync15(filePath, "utf8");
+    raw = readFileSync16(filePath, "utf8");
   } catch {
     return {
       ok: false,
@@ -17622,13 +17729,13 @@ function applyTrackerSyncResults(cwd, config, filePath) {
   if (!loaded.ok) {
     return { ok: false, mode: "apply", reason: `${sidecarPath} is corrupt`, messages: [] };
   }
-  const before = existsSync13(sidecarPath) ? readFileSync15(sidecarPath, "utf8") : undefined;
+  const before = existsSync13(sidecarPath) ? readFileSync16(sidecarPath, "utf8") : undefined;
   const ticketIds = new Set(readCorpus(cwd, config.target?.repo).map((ticket) => ticket.id));
   const outcome = applyResults(loaded.map, parsed2.value, { provider, ticketIds });
   if (!outcome.ok)
     return { ok: false, mode: "apply", reason: outcome.reason, messages: [] };
   loaded.map.save(sidecarPath);
-  const after = readFileSync15(sidecarPath, "utf8");
+  const after = readFileSync16(sidecarPath, "utf8");
   return { ok: true, mode: "apply", provider, changed: before !== after, messages: [] };
 }
 function runPlan(cwd, config) {
@@ -17728,7 +17835,7 @@ var init_sync_tracker = __esm(() => {
 });
 
 // src/utils/ticket-writer.ts
-import { existsSync as existsSync14, mkdirSync as mkdirSync4, readdirSync as readdirSync7, readFileSync as readFileSync16, writeFileSync as writeFileSync7 } from "fs";
+import { existsSync as existsSync14, mkdirSync as mkdirSync4, readdirSync as readdirSync7, readFileSync as readFileSync17, writeFileSync as writeFileSync8 } from "fs";
 import nodePath25 from "path";
 function assertSafeTrackerIdentity(id) {
   if (!SAFE_TRACKER_IDENTITY.test(id) || WINDOWS_RESERVED_DEVICE_WITH_EXTENSION.test(id)) {
@@ -17769,15 +17876,15 @@ function ensureTicketsDirectory(cwd) {
 }
 function writeTicketContents(folderPath, id, options) {
   const ticketPath = nodePath25.join(folderPath, "ticket.md");
-  writeFileSync7(ticketPath, renderTicketMarkdown(id, options));
+  writeFileSync8(ticketPath, renderTicketMarkdown(id, options));
   if ((options.type ?? "task") === "feature") {
     const title = options.title ?? options.slug;
-    writeFileSync7(nodePath25.join(folderPath, "spec.md"), renderSpecMarkdown(title));
+    writeFileSync8(nodePath25.join(folderPath, "spec.md"), renderSpecMarkdown(title));
   }
   return { ticketPath };
 }
 function renderSpecMarkdown(title) {
-  const template = readFileSync16(nodePath25.join(getTemplatesDirectory(), "spec-template.md"), "utf8");
+  const template = readFileSync17(nodePath25.join(getTemplatesDirectory(), "spec-template.md"), "utf8");
   return template.replace("{title}", () => title);
 }
 function mintAndClaim(ticketsDirectory, minter, slug) {
@@ -18049,7 +18156,7 @@ var init_ticket_create = __esm(() => {
 });
 
 // src/utils/epic-linker.ts
-import { existsSync as existsSync16, readdirSync as readdirSync8, readFileSync as readFileSync17, renameSync as renameSync2, writeFileSync as writeFileSync8 } from "fs";
+import { existsSync as existsSync16, readdirSync as readdirSync8, readFileSync as readFileSync18, renameSync as renameSync2, writeFileSync as writeFileSync9 } from "fs";
 import nodePath27 from "path";
 function linkChildToEpic(cwd, childId, epicId) {
   const epicFolder = resolveTicketFolderById(cwd, epicId);
@@ -18086,7 +18193,7 @@ function validateEpicParent(cwd, epicId) {
 }
 function readTicketFileOrUndefined(ticketPath) {
   try {
-    return readFileSync17(ticketPath, "utf8");
+    return readFileSync18(ticketPath, "utf8");
   } catch {
     return;
   }
@@ -18163,7 +18270,7 @@ ${rendered}
 }
 function atomicWrite(filePath, content) {
   const temporaryPath = `${filePath}.tmp`;
-  writeFileSync8(temporaryPath, content);
+  writeFileSync9(temporaryPath, content);
   renameSync2(temporaryPath, filePath);
 }
 var init_epic_linker = __esm(() => {
@@ -18370,10 +18477,10 @@ import {
   existsSync as existsSync18,
   linkSync,
   mkdtempSync,
-  readFileSync as readFileSync19,
+  readFileSync as readFileSync20,
   renameSync as renameSync3,
   rmdirSync as rmdirSync2,
-  unlinkSync
+  unlinkSync as unlinkSync2
 } from "fs";
 import { homedir } from "os";
 import nodePath29 from "path";
@@ -18383,7 +18490,7 @@ function sha2562(content) {
 function readNonEmpty(path3) {
   if (!existsSync18(path3))
     return;
-  const content = readFileSync19(path3, "utf8");
+  const content = readFileSync20(path3, "utf8");
   return content.trim() === "" ? undefined : content;
 }
 function activeGlobalGuidance(environment) {
@@ -18482,7 +18589,7 @@ function planLegacyGlobalGuidanceCleanup(observation) {
 function preserveMovedArtifact(backupPath, sourcePath) {
   try {
     linkSync(backupPath, sourcePath);
-    unlinkSync(backupPath);
+    unlinkSync2(backupPath);
     return;
   } catch (error2) {
     if (error2.code !== "EEXIST")
@@ -18493,7 +18600,7 @@ function preserveMovedArtifact(backupPath, sourcePath) {
     const recoveryPath = `${sourcePath}.safeword-recovery${suffix}`;
     try {
       linkSync(backupPath, recoveryPath);
-      unlinkSync(backupPath);
+      unlinkSync2(backupPath);
       return recoveryPath;
     } catch (error2) {
       if (error2.code !== "EEXIST")
@@ -18567,7 +18674,7 @@ function applyLegacyGlobalGuidanceCleanup(options) {
     throw error2;
   }
   options.afterMove?.(sourcePath);
-  const movedDigest = sha2562(readFileSync19(stagedPath, "utf8"));
+  const movedDigest = sha2562(readFileSync20(stagedPath, "utf8"));
   if (movedDigest !== observation.digest) {
     return refusedAfterMove(stagedPath, stagingDirectory, sourcePath, backupPath, "SOURCE_CHANGED_DURING_MOVE");
   }
@@ -18581,7 +18688,7 @@ function applyLegacyGlobalGuidanceCleanup(options) {
     rmdirSync2(stagingDirectory);
     throw error2;
   }
-  unlinkSync(stagedPath);
+  unlinkSync2(stagedPath);
   rmdirSync2(stagingDirectory);
   return { ok: true, changed: true, sourcePath, backupPath };
 }
@@ -20651,7 +20758,7 @@ function assertSafeClaudeCleanupTarget(cwd, relative) {
 var init_cleanup_target = () => {};
 
 // src/claude-plugin/legacy-classifier.ts
-import { existsSync as existsSync20, lstatSync as lstatSync2, readFileSync as readFileSync20 } from "fs";
+import { existsSync as existsSync20, lstatSync as lstatSync2, readFileSync as readFileSync21 } from "fs";
 import nodePath31 from "path";
 function referencesLegacyHook(value) {
   if (typeof value === "string")
@@ -20672,7 +20779,7 @@ function observeFiles(cwd) {
     try {
       const safePath = assertSafeClaudeCleanupTarget(cwd, relativePath);
       const regular = lstatSync2(safePath).isFile();
-      if (regular && isAcceptedHistoricalFile(relativePath, readFileSync20(safePath))) {
+      if (regular && isAcceptedHistoricalFile(relativePath, readFileSync21(safePath))) {
         recognizedFiles.push(relativePath);
       } else {
         conflictingFiles.push(relativePath);
@@ -20696,7 +20803,7 @@ function observeSettings(cwd) {
     };
   }
   const errors = [];
-  const settings = parse3(readFileSync20(settingsPath, "utf8"), errors, {
+  const settings = parse3(readFileSync21(settingsPath, "utf8"), errors, {
     allowTrailingComma: true,
     disallowComments: false
   });
@@ -20749,7 +20856,7 @@ import {
   openSync,
   renameSync as renameSync4,
   rmSync as rmSync2,
-  writeFileSync as writeFileSync9
+  writeFileSync as writeFileSync10
 } from "fs";
 import nodePath32 from "path";
 function writeDurableFile(path3, content, options) {
@@ -20759,7 +20866,7 @@ function writeDurableFile(path3, content, options) {
   try {
     const descriptor = openSync(temporaryPath, "wx", options.mode);
     try {
-      writeFileSync9(descriptor, content);
+      writeFileSync10(descriptor, content);
       fsyncSync(descriptor);
     } finally {
       closeSync(descriptor);
@@ -20777,7 +20884,7 @@ function writeDurableFileExclusive(path3, content, options) {
   try {
     const descriptor = openSync(temporaryPath, "wx", options.mode);
     try {
-      writeFileSync9(descriptor, content);
+      writeFileSync10(descriptor, content);
       fsyncSync(descriptor);
     } finally {
       closeSync(descriptor);
@@ -20955,7 +21062,7 @@ var init_inventory2 = __esm(() => {
 
 // src/claude-plugin/migration-state.ts
 import { createHash as createHash7, randomUUID as randomUUID2 } from "crypto";
-import { existsSync as existsSync21, mkdirSync as mkdirSync7, readFileSync as readFileSync21, rmSync as rmSync3 } from "fs";
+import { existsSync as existsSync21, mkdirSync as mkdirSync7, readFileSync as readFileSync22, rmSync as rmSync3 } from "fs";
 import { homedir as homedir2 } from "os";
 import nodePath34 from "path";
 function createClaudePluginMode(marker) {
@@ -20985,7 +21092,7 @@ function claudeWatchedSettingsDigest(cwd) {
   for (const path3 of paths) {
     hash.update(path3);
     hash.update("\x00");
-    hash.update(existsSync21(path3) ? readFileSync21(path3) : "<absent>");
+    hash.update(existsSync21(path3) ? readFileSync22(path3) : "<absent>");
     hash.update("\x00");
   }
   return hash.digest("hex");
@@ -21015,7 +21122,7 @@ function readClaudePluginMode(cwd) {
   if (!existsSync21(path3))
     return;
   try {
-    const value = JSON.parse(readFileSync21(path3, "utf8"));
+    const value = JSON.parse(readFileSync22(path3, "utf8"));
     return validPluginMode(value) ? value : undefined;
   } catch {
     return;
@@ -21153,9 +21260,9 @@ import {
   existsSync as existsSync22,
   lstatSync as lstatSync4,
   readdirSync as readdirSync11,
-  readFileSync as readFileSync22,
+  readFileSync as readFileSync23,
   realpathSync as realpathSync4,
-  writeFileSync as writeFileSync10
+  writeFileSync as writeFileSync11
 } from "fs";
 import nodePath36 from "path";
 function isContainedPath(root, candidate) {
@@ -21233,7 +21340,7 @@ function rustToolingTargets(cwd) {
   const cargoPath = nodePath36.join(cwd, rootTarget);
   if (!isSafeCargoManifest(cwd, cargoPath))
     return [];
-  const content = readFileSync22(cargoPath, "utf8");
+  const content = readFileSync23(cargoPath, "utf8");
   const targets = hasExistingLints(content) ? [] : [rootTarget];
   if (detectWorkspaceType(content) === "single-crate")
     return targets;
@@ -21242,7 +21349,7 @@ function rustToolingTargets(cwd) {
     const memberPath = nodePath36.join(cwd, target);
     if (!isSafeCargoManifest(cwd, memberPath))
       continue;
-    if (!hasExistingLints(readFileSync22(memberPath, "utf8")))
+    if (!hasExistingLints(readFileSync23(memberPath, "utf8")))
       targets.push(target);
   }
   return targets;
@@ -21285,7 +21392,7 @@ function parseWorkspaceMembers(cargoContent, cwd) {
 function addWorkspaceLints(cwd, memberCargoPath) {
   if (!isSafeCargoManifest(cwd, memberCargoPath))
     return;
-  const content = readFileSync22(memberCargoPath, "utf8");
+  const content = readFileSync23(memberCargoPath, "utf8");
   if (hasExistingLints(content))
     return;
   const lintsSection = `[lints]
@@ -21294,7 +21401,7 @@ workspace = true
   const newContent = `${content.trimEnd()}
 
 ${lintsSection}`;
-  writeFileSync10(memberCargoPath, newContent, "utf8");
+  writeFileSync11(memberCargoPath, newContent, "utf8");
 }
 function addRootLints(cargoPath, content, isWorkspace) {
   if (hasExistingLints(content))
@@ -21303,7 +21410,7 @@ function addRootLints(cargoPath, content, isWorkspace) {
   const newContent = `${content.trimEnd()}
 
 ${lintsToAdd}`;
-  writeFileSync10(cargoPath, newContent, "utf8");
+  writeFileSync11(cargoPath, newContent, "utf8");
 }
 function addMemberLints(cwd, content) {
   const members = parseWorkspaceMembers(content, cwd);
@@ -21316,7 +21423,7 @@ function setupRustTooling(cwd) {
   const cargoPath = nodePath36.join(cwd, "Cargo.toml");
   if (!isSafeCargoManifest(cwd, cargoPath))
     return { files: [] };
-  const content = readFileSync22(cargoPath, "utf8");
+  const content = readFileSync23(cargoPath, "utf8");
   const workspaceType = detectWorkspaceType(content);
   const isWorkspace = workspaceType !== "single-crate";
   addRootLints(cargoPath, content, isWorkspace);
@@ -21549,7 +21656,7 @@ var init_workspaces = __esm(() => {
 });
 
 // src/reconcile.ts
-import { lstatSync as lstatSync5, readdirSync as readdirSync14, readlinkSync, unlinkSync as unlinkSync2 } from "fs";
+import { lstatSync as lstatSync5, readdirSync as readdirSync14, readlinkSync, unlinkSync as unlinkSync3 } from "fs";
 import nodePath40 from "path";
 function getConditionalPackages(conditionalPackages, projectType) {
   const packages = [];
@@ -22240,7 +22347,7 @@ function executeFileRemoval(cwd, path3, result) {
     return;
   }
   try {
-    unlinkSync2(fullPath);
+    unlinkSync3(fullPath);
   } catch (error2) {
     const code = error2.code;
     if (code === "ENOENT" || code === "ENOTDIR")
@@ -22591,14 +22698,14 @@ var init_hook_manager = __esm(() => {
 });
 
 // src/presets/typescript/detect.ts
-import { existsSync as existsSync24, readdirSync as readdirSync16, readFileSync as readFileSync23 } from "fs";
+import { existsSync as existsSync24, readdirSync as readdirSync16, readFileSync as readFileSync24 } from "fs";
 import path3 from "path";
 function getWorkspacePatterns2(cwd) {
   const pkgPath = path3.join(cwd, "package.json");
   if (!existsSync24(pkgPath))
     return [];
   try {
-    const pkg2 = JSON.parse(readFileSync23(pkgPath, "utf8"));
+    const pkg2 = JSON.parse(readFileSync24(pkgPath, "utf8"));
     if (!pkg2.workspaces)
       return [];
     return Array.isArray(pkg2.workspaces) ? pkg2.workspaces : pkg2.workspaces.packages ?? [];
@@ -22610,7 +22717,7 @@ function readPackageDependencies(pkgPath) {
   try {
     if (!existsSync24(pkgPath))
       return {};
-    const pkg2 = JSON.parse(readFileSync23(pkgPath, "utf8"));
+    const pkg2 = JSON.parse(readFileSync24(pkgPath, "utf8"));
     return { ...pkg2.dependencies, ...pkg2.devDependencies };
   } catch {
     return {};
@@ -22712,7 +22819,7 @@ function hasExistingPrettierConfig(cwd) {
   if (!existsSync24(pkgPath))
     return false;
   try {
-    const pkg2 = JSON.parse(readFileSync23(pkgPath, "utf8"));
+    const pkg2 = JSON.parse(readFileSync24(pkgPath, "utf8"));
     return pkg2.prettier !== undefined;
   } catch {
     return false;
@@ -22850,7 +22957,7 @@ var init_cucumber_template_revisions = __esm(() => {
 });
 
 // src/utils/project-detector.ts
-import { existsSync as existsSync25, readdirSync as readdirSync17, readFileSync as readFileSync24 } from "fs";
+import { existsSync as existsSync25, readdirSync as readdirSync17, readFileSync as readFileSync25 } from "fs";
 import nodePath44 from "path";
 function detectLanguages2(cwd) {
   const hasLanguage = (key) => LANGUAGE_PACKS[key]?.detect(cwd) ?? false;
@@ -22919,7 +23026,7 @@ function fileContainsSection(filePath, section) {
   if (!existsSync25(filePath))
     return false;
   try {
-    return readFileSync24(filePath, "utf8").includes(section);
+    return readFileSync25(filePath, "utf8").includes(section);
   } catch {
     return false;
   }
@@ -33840,7 +33947,7 @@ import {
   mkdirSync as mkdirSync8,
   mkdtempSync as mkdtempSync2,
   readdirSync as readdirSync20,
-  readFileSync as readFileSync25,
+  readFileSync as readFileSync26,
   rmdirSync as rmdirSync3,
   rmSync as rmSync4
 } from "fs";
@@ -33855,8 +33962,8 @@ async function resolveCodexFinalizationConfirmation(_options) {
 }
 function codexFinalizationIsComplete(cwd) {
   try {
-    const marker = JSON.parse(readFileSync25(assertSafeComponents(cwd, PROJECT_MARKER_PATH), "utf8"));
-    const manifest = JSON.parse(readFileSync25(assertSafeComponents(cwd, `${BACKUP_PATH}/manifest.json`), "utf8"));
+    const marker = JSON.parse(readFileSync26(assertSafeComponents(cwd, PROJECT_MARKER_PATH), "utf8"));
+    const manifest = JSON.parse(readFileSync26(assertSafeComponents(cwd, `${BACKUP_PATH}/manifest.json`), "utf8"));
     if (!isBackupManifest(manifest))
       return false;
     validateManifestIntent(manifest);
@@ -33936,7 +34043,7 @@ function beforeImage(cwd, backupDirectory, mutation, index, beforePreparationSte
   if (!existsSync27(path4))
     return { kind: "absent" };
   beforePreparationStep?.("source-read", index);
-  const content = readFileSync25(path4);
+  const content = readFileSync26(path4);
   const payload = `payloads/${index}.bin`;
   beforePreparationStep?.("payload-write", index);
   writeDurable(nodePath48.join(backupDirectory, payload), content, 384);
@@ -33985,7 +34092,7 @@ function restoreBeforeImage(cwd, backupDirectory, entry) {
     throw new Error(`Codex migration backup payload is missing for ${entry.path}.`);
   }
   const payload = assertSafeComponents(backupDirectory, entry.before.payload);
-  const content = readFileSync25(payload);
+  const content = readFileSync26(payload);
   if (sha2563(content) !== entry.before.sha256) {
     throw new Error(`Codex migration backup payload is corrupt for ${entry.path}.`);
   }
@@ -33996,7 +34103,7 @@ function observedImage(cwd, relativePath) {
   const path4 = assertSafeComponents(cwd, relativePath);
   if (!existsSync27(path4))
     return { kind: "absent" };
-  const content = readFileSync25(path4);
+  const content = readFileSync26(path4);
   return {
     kind: "file",
     mode: lstatSync6(path4).mode & 511,
@@ -34011,7 +34118,7 @@ function imagesMatch(left, right) {
 function readBackupManifest(cwd) {
   const backupDirectory = containedPath(cwd, BACKUP_PATH);
   const manifestPath = assertSafeComponents(cwd, `${BACKUP_PATH}/manifest.json`);
-  const manifest = JSON.parse(readFileSync25(manifestPath, "utf8"));
+  const manifest = JSON.parse(readFileSync26(manifestPath, "utf8"));
   if (!isBackupManifest(manifest)) {
     throw new Error("Codex migration backup manifest is malformed.");
   }
@@ -34098,7 +34205,7 @@ function backupPayloadsAreValid(cwd, manifest) {
     const payload = entry.before.payload;
     if (payload === undefined)
       return false;
-    const content = readFileSync25(assertSafeComponents(backupDirectory, payload));
+    const content = readFileSync26(assertSafeComponents(backupDirectory, payload));
     return sha2563(content) === entry.before.sha256;
   });
 }
@@ -34111,7 +34218,7 @@ function validateRecoveryEntry(cwd, backupDirectory, entry, allowBefore) {
     if (entry.before.payload === undefined) {
       throw new Error(`Codex migration backup payload is missing for ${entry.path}.`);
     }
-    const content = readFileSync25(assertSafeComponents(backupDirectory, entry.before.payload));
+    const content = readFileSync26(assertSafeComponents(backupDirectory, entry.before.payload));
     if (sha2563(content) !== entry.before.sha256) {
       throw new Error(`Codex migration backup payload is corrupt for ${entry.path}.`);
     }
@@ -34321,6 +34428,21 @@ function withOpenCodeSkillDelivery(schema) {
     ownedFiles: { ...schema.ownedFiles, ...skills }
   };
 }
+function withSelectedOwnedPaths(schema, includeOpenCode) {
+  const path4 = ".safeword/hooks/lib/owned-paths.ts";
+  if (schema.ownedFiles[path4] === undefined)
+    return schema;
+  const ownershipSchema = includeOpenCode ? SAFEWORD_SCHEMA : schemaForProjectSurfaces(SAFEWORD_SCHEMA, ["core", "cursor"]);
+  return {
+    ...schema,
+    ownedFiles: {
+      ...schema.ownedFiles,
+      [path4]: {
+        generator: (ctx) => generateOwnedPathsModule(ownershipSchema, resolvedNamespaceDirectory(ctx))
+      }
+    }
+  };
+}
 function projectLifecycleSchema(cwd, agents) {
   const claudeDeliverySchema = schemaForClaudeDelivery(cwd);
   const deliverySchema = schemaForCodexDelivery(cwd, agents.includes("opencode") ? withOpenCodeSkillDelivery(claudeDeliverySchema) : claudeDeliverySchema);
@@ -34330,11 +34452,12 @@ function projectLifecycleSchema(cwd, agents) {
     ...agents.includes("opencode") ? ["opencode"] : []
   ]);
   const legacyClaudeActive = Object.keys(deliverySchema.ownedFiles).some((path4) => isLegacyClaudePath(path4)) || Object.keys(deliverySchema.jsonMerges).some((path4) => isLegacyClaudePath(path4));
-  return schemaForSharedAgentRuntime(surfaceSchema, agents.length === 0 || agents.includes("codex") || agents.includes("cursor") || legacyClaudeActive);
+  return withSelectedOwnedPaths(schemaForSharedAgentRuntime(surfaceSchema, agents.length === 0 || agents.includes("codex") || agents.includes("cursor") || legacyClaudeActive), agents.includes("opencode"));
 }
 var init_schema2 = __esm(() => {
   init_delivery_schema();
   init_delivery_schema2();
+  init_owned_paths();
   init_schema();
 });
 
@@ -34445,7 +34568,7 @@ import {
   lstatSync as lstatSync7,
   mkdtempSync as mkdtempSync3,
   openSync as openSync3,
-  readFileSync as readFileSync26,
+  readFileSync as readFileSync27,
   rmSync as rmSync5,
   statSync as statSync3
 } from "fs";
@@ -34480,7 +34603,7 @@ function runClaude(cwd, arguments_, effects) {
     if (outputBytes > MAXIMUM_CLAUDE_OUTPUT_BYTES) {
       throw new ClaudeProfileError("CLAUDE_PROFILE_OUTPUT_TOO_LARGE", `Claude command output exceeded ${MAXIMUM_CLAUDE_OUTPUT_BYTES} bytes: claude ${arguments_.join(" ")}`, effects);
     }
-    const output = readFileSync26(outputPath, "utf8");
+    const output = readFileSync27(outputPath, "utf8");
     if (result.status !== 0) {
       const detail = `${result.stderr ?? ""}${output}`.trim();
       const detailSuffix = detail === "" ? "" : ` (${detail})`;
@@ -34543,7 +34666,7 @@ function readScopedSettings(cwd, scope) {
   let settings;
   try {
     const errors = [];
-    settings = parse3(readFileSync26(path4, "utf8"), errors, {
+    settings = parse3(readFileSync27(path4, "utf8"), errors, {
       allowTrailingComma: true,
       disallowComments: false
     });
@@ -34622,7 +34745,7 @@ function enableMarketplaceAutoUpdate(cwd, scope, effects) {
   const autoUpdateEnabled = marketplaceAutoUpdatePreference(declaration, scope) === true;
   if (autoUpdateEnabled && failurePolicy.configured)
     return;
-  let updated = readFileSync26(path4, "utf8");
+  let updated = readFileSync27(path4, "utf8");
   if (!autoUpdateEnabled) {
     updated = applyEdits(updated, modify(updated, ["extraKnownMarketplaces", MARKETPLACE_NAME, "autoUpdate"], true, {}));
   }
@@ -34849,7 +34972,7 @@ function convergePlugin(cwd, scope, effects) {
   }
 }
 function fileSha256(path4) {
-  return createHash10("sha256").update(readFileSync26(path4)).digest("hex");
+  return createHash10("sha256").update(readFileSync27(path4)).digest("hex");
 }
 function assertInstalledAsset(installPath, asset) {
   if (typeof asset.path !== "string" || nodePath50.isAbsolute(asset.path) || asset.path.split(/[\\/]/u).includes("..") || typeof asset.sha256 !== "string") {
@@ -34878,8 +35001,8 @@ function validateNativePayload(plugin) {
   }
   const identityPath = nodePath50.join(plugin.installPath, "identity.json");
   const inventoryPath = nodePath50.join(plugin.installPath, "inventory.json");
-  const identity = JSON.parse(readFileSync26(identityPath, "utf8"));
-  const inventoryContent = readFileSync26(inventoryPath, "utf8");
+  const identity = JSON.parse(readFileSync27(identityPath, "utf8"));
+  const inventoryContent = readFileSync27(inventoryPath, "utf8");
   const inventory = JSON.parse(inventoryContent);
   assertInstalledIdentity(identity, inventory, inventoryContent);
   assertRequiredNativeAssets(inventory.assets);
@@ -35225,11 +35348,11 @@ __export(exports_status, {
   equivalentClaudeInstallations: () => equivalentClaudeInstallations
 });
 import { createHash as createHash12 } from "crypto";
-import { existsSync as existsSync30, readFileSync as readFileSync27, realpathSync as realpathSync5 } from "fs";
+import { existsSync as existsSync30, readFileSync as readFileSync28, realpathSync as realpathSync5 } from "fs";
 import nodePath51 from "path";
 function jsonObject(path4) {
   try {
-    const value = JSON.parse(readFileSync27(path4, "utf8"));
+    const value = JSON.parse(readFileSync28(path4, "utf8"));
     return typeof value === "object" && value !== null && !Array.isArray(value) ? value : undefined;
   } catch {
     return;
@@ -35499,7 +35622,7 @@ var init_legacy_command = __esm(() => {
 });
 
 // src/codex-plugin/legacy-authority.ts
-import { accessSync, constants, lstatSync as lstatSync8, readFileSync as readFileSync28 } from "fs";
+import { accessSync, constants, lstatSync as lstatSync8, readFileSync as readFileSync29 } from "fs";
 import nodePath52 from "path";
 function regularFile(path4) {
   try {
@@ -35556,7 +35679,7 @@ function legacyCodexEventIsViable(cwd, event, environment = process.env) {
     return false;
   let config;
   try {
-    config = parse(readFileSync28(configPath2, "utf8"));
+    config = parse(readFileSync29(configPath2, "utf8"));
   } catch {
     return false;
   }
@@ -35570,7 +35693,7 @@ var init_legacy_authority = __esm(() => {
 });
 
 // src/codex-plugin/legacy-config.ts
-import { lstatSync as lstatSync9, readFileSync as readFileSync29 } from "fs";
+import { lstatSync as lstatSync9, readFileSync as readFileSync30 } from "fs";
 import nodePath53 from "path";
 function hookHeaderEntries(event) {
   const eventKeys = [event, `"${event}"`, `'${event}'`];
@@ -35836,7 +35959,7 @@ function prepareLegacyHookRemoval(cwd) {
   const configPath2 = nodePath53.join(cwd, CODEX_MIGRATION_SCHEMA.paths.config);
   if (regularCodexConfigMetadata(configPath2).kind === "missing")
     return;
-  const original = readFileSync29(configPath2, "utf8");
+  const original = readFileSync30(configPath2, "utf8");
   const { cleaned, removedBlocks } = prepareLegacyCodexHookBlocks(original);
   if (cleaned === original)
     return;
@@ -35847,7 +35970,7 @@ function observeLegacyEvents(cwd) {
   if (regularCodexConfigMetadata(configPath2, "observe").kind === "missing")
     return [];
   try {
-    return semanticLegacyCommandCounts(parse(readFileSync29(configPath2, "utf8"))).keys().toArray().toSorted((left, right) => left.localeCompare(right));
+    return semanticLegacyCommandCounts(parse(readFileSync30(configPath2, "utf8"))).keys().toArray().toSorted((left, right) => left.localeCompare(right));
   } catch (error2) {
     if (error2 instanceof CodexConfigObservationError)
       throw error2;
@@ -35885,11 +36008,11 @@ var init_legacy_config = __esm(() => {
 
 // src/utils/profile-lock.ts
 import { randomUUID as randomUUID4 } from "crypto";
-import { mkdirSync as mkdirSync9, readFileSync as readFileSync30, rmSync as rmSync6, statSync as statSync4, writeFileSync as writeFileSync11 } from "fs";
+import { mkdirSync as mkdirSync9, readFileSync as readFileSync31, rmSync as rmSync6, statSync as statSync4, writeFileSync as writeFileSync12 } from "fs";
 import nodePath54 from "path";
 function readRecord(path4) {
   try {
-    const value = JSON.parse(readFileSync30(nodePath54.join(path4, "owner.json"), "utf8"));
+    const value = JSON.parse(readFileSync31(nodePath54.join(path4, "owner.json"), "utf8"));
     return typeof value.owner === "string" && typeof value.acquired_at === "number" ? { owner: value.owner, acquired_at: value.acquired_at } : undefined;
   } catch {
     return;
@@ -35908,7 +36031,7 @@ function lockAge(path4, now) {
 function createLock(path4, owner, now) {
   try {
     mkdirSync9(path4);
-    writeFileSync11(nodePath54.join(path4, "owner.json"), `${JSON.stringify({ owner, acquired_at: now })}
+    writeFileSync12(nodePath54.join(path4, "owner.json"), `${JSON.stringify({ owner, acquired_at: now })}
 `, { encoding: "utf8", flag: "wx", mode: 384 });
     return { path: path4, owner };
   } catch {
@@ -36062,7 +36185,7 @@ import {
   lstatSync as lstatSync10,
   openSync as openSync4,
   readdirSync as readdirSync21,
-  readFileSync as readFileSync31,
+  readFileSync as readFileSync32,
   readSync as readSync2,
   realpathSync as realpathSync6,
   rmdirSync as rmdirSync4,
@@ -36403,7 +36526,7 @@ function legacyActivationMarkerMatches(path4, identity) {
   if (!existsSync31(path4))
     return false;
   try {
-    const marker = JSON.parse(readFileSync31(path4, "utf8"));
+    const marker = JSON.parse(readFileSync32(path4, "utf8"));
     return marker.schema_version === 1 && matchesCodexPluginIdentity(marker, identity);
   } catch {
     return false;
@@ -36593,7 +36716,7 @@ var init_profile_proof = __esm(() => {
     let cachedIdentity;
     return () => {
       cachedIdentity ??= (() => {
-        const manifest = readFileSync31(packagedHookManifestPath());
+        const manifest = readFileSync32(packagedHookManifestPath());
         return {
           plugin_version: SAFEWORD_SCHEMA.version,
           manifest_sha256: createHash13("sha256").update(manifest).digest("hex")
@@ -36606,7 +36729,7 @@ var init_profile_proof = __esm(() => {
 });
 
 // src/codex-plugin/project-bootstrap.ts
-import { readFileSync as readFileSync32 } from "fs";
+import { readFileSync as readFileSync33 } from "fs";
 import nodePath57 from "path";
 function withoutManagedBlock(content) {
   const begin = content.indexOf(BEGIN_MARKER);
@@ -36656,14 +36779,14 @@ function preparedCodexProjectBootstrap(cwd, baseContent) {
   const configPath2 = nodePath57.join(cwd, CODEX_MIGRATION_SCHEMA.paths.config);
   let content = baseContent;
   if (content === undefined) {
-    content = regularCodexConfigMetadata(configPath2).kind === "missing" ? "" : readFileSync32(configPath2, "utf8");
+    content = regularCodexConfigMetadata(configPath2).kind === "missing" ? "" : readFileSync33(configPath2, "utf8");
   }
   return codexProjectBootstrapContent(content);
 }
 function installCodexProjectBootstrap(cwd) {
   const configPath2 = nodePath57.join(cwd, CODEX_MIGRATION_SCHEMA.paths.config);
   const metadata = regularCodexConfigMetadata(configPath2);
-  const original = metadata.kind === "missing" ? "" : readFileSync32(configPath2, "utf8");
+  const original = metadata.kind === "missing" ? "" : readFileSync33(configPath2, "utf8");
   const content = codexProjectBootstrapContent(original);
   if (content === original)
     return false;
@@ -36717,7 +36840,7 @@ __export(exports_operations, {
 });
 import { spawnSync as spawnSync5 } from "child_process";
 import { createHash as createHash14 } from "crypto";
-import { existsSync as existsSync32, lstatSync as lstatSync11, readFileSync as readFileSync33 } from "fs";
+import { existsSync as existsSync32, lstatSync as lstatSync11, readFileSync as readFileSync34 } from "fs";
 import { homedir as homedir5 } from "os";
 import nodePath58 from "path";
 function run(command, arguments_) {
@@ -36778,7 +36901,7 @@ function configuredSafewordMarketplace(environment = process.env) {
   if (!existsSync32(configPath2))
     return;
   try {
-    const document2 = parse(readFileSync33(configPath2, "utf8"));
+    const document2 = parse(readFileSync34(configPath2, "utf8"));
     return document2.marketplaces?.safeword;
   } catch (error2) {
     throw new CodexMigrationError("PLUGIN_MARKETPLACE_FAILED", "The Codex profile configuration is invalid TOML; the Safeword marketplace was not changed.", { cause: error2 });
@@ -37075,14 +37198,14 @@ function buildCodexFinalizationMutations(cwd, preparedLegacyHookRemoval) {
   const mutations = [];
   let configBase;
   if (preparedLegacyHookRemoval !== undefined) {
-    if (regularCodexConfigMetadata(preparedLegacyHookRemoval.configPath).kind === "missing" || readFileSync33(preparedLegacyHookRemoval.configPath, "utf8") !== preparedLegacyHookRemoval.original) {
+    if (regularCodexConfigMetadata(preparedLegacyHookRemoval.configPath).kind === "missing" || readFileSync34(preparedLegacyHookRemoval.configPath, "utf8") !== preparedLegacyHookRemoval.original) {
       throw new Error("Codex configuration changed during plugin verification; no legacy hooks were removed.");
     }
     configBase = preparedLegacyHookRemoval.cleaned;
   }
   const configPath2 = nodePath58.join(cwd, CODEX_CONFIG_PATH2);
   const configMetadata = regularCodexConfigMetadata(configPath2);
-  const originalConfig = configMetadata.kind === "missing" ? "" : readFileSync33(configPath2, "utf8");
+  const originalConfig = configMetadata.kind === "missing" ? "" : readFileSync34(configPath2, "utf8");
   const bootstrappedConfig = preparedCodexProjectBootstrap(cwd, configBase);
   if (bootstrappedConfig !== originalConfig) {
     mutations.push({ path: CODEX_CONFIG_PATH2, content: bootstrappedConfig });
@@ -37201,7 +37324,7 @@ function snapshotCodexFinalizationInputs(cwd, mutations) {
       path: mutation.path,
       state: "file",
       mode: metadata.mode & 511,
-      content: readFileSync33(path4).toString("base64")
+      content: readFileSync34(path4).toString("base64")
     };
   });
 }
@@ -37768,7 +37891,7 @@ import {
   existsSync as existsSync33,
   lstatSync as lstatSync12,
   readdirSync as readdirSync22,
-  readFileSync as readFileSync34,
+  readFileSync as readFileSync35,
   realpathSync as realpathSync7,
   rmdirSync as rmdirSync5,
   rmSync as rmSync8
@@ -37810,7 +37933,7 @@ function observeFile(path4) {
   try {
     if (!lstatSync12(path4).isFile())
       return { kind: "collision" };
-    return { kind: "file", bytes: readFileSync34(path4) };
+    return { kind: "file", bytes: readFileSync35(path4) };
   } catch {
     return { kind: "collision" };
   }
@@ -37842,7 +37965,7 @@ function installOpenCodeProfile(root) {
       plugin_sha256: sha2564(pluginBytes),
       runtime_path: process.execPath,
       dispatcher_path: dispatcherPath,
-      dispatcher_sha256: sha2564(readFileSync34(dispatcherPath))
+      dispatcher_sha256: sha2564(readFileSync35(dispatcherPath))
     }
   });
 }
@@ -37952,7 +38075,17 @@ function observeProtectionEvidence(paths, identity, input) {
       data
     });
   }
-  return createResult({ state: "healthy", data });
+  return createResult({
+    state: "healthy",
+    findings: [
+      {
+        code: "OPENCODE_STOP_OBSERVATIONAL",
+        message: "OpenCode stop events are observed but cannot block the session from stopping.",
+        severity: "info"
+      }
+    ],
+    data
+  });
 }
 function observeOpenCodeProfile(root, input = {}) {
   const paths = openCodeProfilePaths(root);
@@ -38747,7 +38880,7 @@ var init_doctor = __esm(() => {
 
 // src/cli-protocol/reconciliation.ts
 import { createHash as createHash16 } from "crypto";
-import { lstatSync as lstatSync13, readdirSync as readdirSync23, readFileSync as readFileSync35, readlinkSync as readlinkSync2 } from "fs";
+import { lstatSync as lstatSync13, readdirSync as readdirSync23, readFileSync as readFileSync36, readlinkSync as readlinkSync2 } from "fs";
 import nodePath60 from "path";
 function actionTargets(action) {
   return action.type === "chmod" ? action.paths : [action.path];
@@ -38848,7 +38981,7 @@ async function createReconciliationPlan(cwd, mode, schema = SAFEWORD_SCHEMA, con
 async function applyReconciliation(cwd, mode, schema = SAFEWORD_SCHEMA) {
   return reconcile(schema, mode, createProjectContext(cwd));
 }
-var PACKAGE_MANAGER_INPUTS, readFileForDigest = (path4) => readFileSync35(path4);
+var PACKAGE_MANAGER_INPUTS, readFileForDigest = (path4) => readFileSync36(path4);
 var init_reconciliation = __esm(() => {
   init_reconcile();
   init_schema();
@@ -38891,14 +39024,14 @@ var exports_remove = {};
 __export(exports_remove, {
   removeProject: () => removeProject
 });
-import { existsSync as existsSync34, readFileSync as readFileSync36 } from "fs";
+import { existsSync as existsSync34, readFileSync as readFileSync37 } from "fs";
 import nodePath61 from "path";
 function snapshotPackageFiles(cwd) {
   const snapshot = new Map;
   for (const target of PACKAGE_MANAGER_FILES) {
     const path4 = nodePath61.join(cwd, target);
     if (existsSync34(path4))
-      snapshot.set(target, readFileSync36(path4).toString("base64"));
+      snapshot.set(target, readFileSync37(path4).toString("base64"));
   }
   return snapshot;
 }
@@ -39343,7 +39476,7 @@ __export(exports_sync_config, {
   hasArchitectureDetected: () => hasArchitectureDetected,
   buildArchitecture: () => buildArchitecture
 });
-import { readFileSync as readFileSync37, writeFileSync as writeFileSync12 } from "fs";
+import { readFileSync as readFileSync38, writeFileSync as writeFileSync13 } from "fs";
 import nodePath64 from "path";
 function syncConfigCore(cwd, arch) {
   const safewordDirectory = nodePath64.join(cwd, ".safeword");
@@ -39353,12 +39486,12 @@ function syncConfigCore(cwd, arch) {
   };
   const generatedConfigPath = nodePath64.join(safewordDirectory, "depcruise-config.cjs");
   const generatedConfig = generateDependencyCruiseConfigFile(arch);
-  writeFileSync12(generatedConfigPath, generatedConfig);
+  writeFileSync13(generatedConfigPath, generatedConfig);
   result.generatedConfig = true;
   const mainConfigPath = nodePath64.join(cwd, ".dependency-cruiser.cjs");
   if (!exists(mainConfigPath)) {
     const mainConfig = generateDependencyCruiseMainConfig();
-    writeFileSync12(mainConfigPath, mainConfig);
+    writeFileSync13(mainConfigPath, mainConfig);
     result.createdMainConfig = true;
   }
   return result;
@@ -39377,7 +39510,7 @@ function inspectConfig(cwd, arch) {
     return { matches: false, reason: "missing" };
   }
   const generated = generateDependencyCruiseConfigFile(arch);
-  const onDisk = readFileSync37(generatedConfigPath, "utf8");
+  const onDisk = readFileSync38(generatedConfigPath, "utf8");
   return generated === onDisk ? { matches: true } : { matches: false, reason: "drifted" };
 }
 var init_sync_config = __esm(() => {
@@ -39407,7 +39540,7 @@ var init_install2 = __esm(() => {
 
 // src/retro/public-config.ts
 import { randomUUID as randomUUID6 } from "crypto";
-import { existsSync as existsSync35, readFileSync as readFileSync38 } from "fs";
+import { existsSync as existsSync35, readFileSync as readFileSync39 } from "fs";
 import nodePath65 from "path";
 function configPath2(cwd) {
   return nodePath65.join(cwd, ".safeword", "config.json");
@@ -39416,7 +39549,7 @@ function readConfig2(cwd) {
   const path4 = configPath2(cwd);
   if (!existsSync35(path4))
     return {};
-  const parsed2 = JSON.parse(readFileSync38(path4, "utf8"));
+  const parsed2 = JSON.parse(readFileSync39(path4, "utf8"));
   if (typeof parsed2 !== "object" || parsed2 === null || Array.isArray(parsed2)) {
     throw new Error("Invalid .safeword/config.json");
   }
@@ -39574,7 +39707,7 @@ import {
   mkdirSync as mkdirSync10,
   openSync as openSync5,
   readdirSync as readdirSync25,
-  readFileSync as readFileSync39,
+  readFileSync as readFileSync40,
   readSync as readSync3,
   renameSync as renameSync5,
   rmdirSync as rmdirSync6,
@@ -39612,7 +39745,7 @@ function validateDirectoryRoot(path4, label) {
 }
 function conflictArchivePath(source, relative) {
   const metadata = lstatSync14(source);
-  const digest2 = createHash17("sha256").update(`${metadata.mode.toString(8)}\x00`).update(readFileSync39(source)).digest("hex");
+  const digest2 = createHash17("sha256").update(`${metadata.mode.toString(8)}\x00`).update(readFileSync40(source)).digest("hex");
   return nodePath67.join(".safeword", "namespace-migration-conflicts-v1", digest2, relative);
 }
 function mergeLegacyDirectory(cwd, hooks) {
@@ -39982,7 +40115,7 @@ var init_setup_workspaces = __esm(() => {
 });
 
 // src/utils/stale-config-scan.ts
-import { existsSync as existsSync37, readdirSync as readdirSync27, readFileSync as readFileSync40 } from "fs";
+import { existsSync as existsSync37, readdirSync as readdirSync27, readFileSync as readFileSync41 } from "fs";
 import nodePath70 from "path";
 function prettierignoreHasCustomerReference(content) {
   let isInsideManagedBlock = false;
@@ -40026,7 +40159,7 @@ function scanStaleNamespaceConfigs(cwd) {
       continue;
     let content;
     try {
-      content = readFileSync40(fullPath, "utf8");
+      content = readFileSync41(fullPath, "utf8");
     } catch {
       continue;
     }
@@ -40069,7 +40202,7 @@ var init_stale_config_scan = __esm(() => {
 
 // src/utils/eslint-auto-patch.ts
 import { execSync as execSync2 } from "child_process";
-import { copyFileSync, readFileSync as readFileSync41, writeFileSync as writeFileSync13 } from "fs";
+import { copyFileSync, readFileSync as readFileSync42, writeFileSync as writeFileSync14 } from "fs";
 import nodePath71 from "path";
 function findMatchingBracket(source, openIndex) {
   if (source[openIndex] !== "[")
@@ -40202,7 +40335,7 @@ function autoPatchEslintConfig(options) {
   const { configPath: configPath3 } = options;
   let source;
   try {
-    source = readFileSync41(configPath3, "utf8");
+    source = readFileSync42(configPath3, "utf8");
   } catch {
     return { kind: "bailed", reason: "read-failed" };
   }
@@ -40235,7 +40368,7 @@ function writeAndValidate(configPath3, patched, runSyntaxCheck) {
   const backupPath = `${configPath3}${BACKUP_SUFFIX}`;
   try {
     copyFileSync(configPath3, backupPath);
-    writeFileSync13(configPath3, patched, "utf8");
+    writeFileSync14(configPath3, patched, "utf8");
   } catch {
     return { ok: false, reason: "write-failed" };
   }
@@ -40258,7 +40391,7 @@ var init_eslint_auto_patch = __esm(() => {
 });
 
 // src/utils/vendored-ignores-nudge.ts
-import { readFileSync as readFileSync42 } from "fs";
+import { readFileSync as readFileSync43 } from "fs";
 import nodePath72 from "path";
 function shouldEmitVendoredIgnoresNudge(options) {
   const { cwd, existingEslintConfig, hasJavaScript } = options;
@@ -40269,7 +40402,7 @@ function shouldEmitVendoredIgnoresNudge(options) {
   const fullPath = nodePath72.join(cwd, existingEslintConfig);
   let text;
   try {
-    text = readFileSync42(fullPath, "utf8");
+    text = readFileSync43(fullPath, "utf8");
   } catch {
     return true;
   }
@@ -40310,7 +40443,7 @@ import {
   lstatSync as lstatSync15,
   openSync as openSync6,
   readdirSync as readdirSync28,
-  readFileSync as readFileSync43,
+  readFileSync as readFileSync44,
   readlinkSync as readlinkSync3,
   readSync as readSync4
 } from "fs";
@@ -40371,7 +40504,7 @@ function configNeedsCompatibilityUpdate(cwd) {
   if (getMissingPacks(cwd).length > 0)
     return true;
   try {
-    const config = JSON.parse(readFileSync43(nodePath73.join(cwd, ".safeword/config.json"), "utf8"));
+    const config = JSON.parse(readFileSync44(nodePath73.join(cwd, ".safeword/config.json"), "utf8"));
     return "version" in config;
   } catch {
     return false;
@@ -40380,7 +40513,7 @@ function configNeedsCompatibilityUpdate(cwd) {
 function plannedCodexBootstrapEffect(cwd) {
   const target = ".codex/config.toml";
   const path4 = nodePath73.join(cwd, target);
-  const original = existsSync38(path4) ? readFileSync43(path4, "utf8") : "";
+  const original = existsSync38(path4) ? readFileSync44(path4, "utf8") : "";
   try {
     return preparedCodexProjectBootstrap(cwd) === original ? [] : [plannedFileEffect(cwd, target)];
   } catch {
@@ -40400,7 +40533,7 @@ function plannedArchitectureEffects(cwd) {
 function plannedWorkspaceEffects(cwd, context) {
   return workspacePackageJsonTargets(cwd, context).flatMap((target) => {
     try {
-      const manifest = JSON.parse(readFileSync43(nodePath73.join(cwd, target), "utf8"));
+      const manifest = JSON.parse(readFileSync44(nodePath73.join(cwd, target), "utf8"));
       return manifest.scripts?.format === undefined ? [{ kind: "update", target }] : [];
     } catch {
       return [];
@@ -40461,7 +40594,7 @@ function plannedPythonEffects(cwd) {
 }
 function staleSafewordRegistryDependency(cwd) {
   try {
-    const manifest = JSON.parse(readFileSync43(nodePath73.join(cwd, "package.json"), "utf8"));
+    const manifest = JSON.parse(readFileSync44(nodePath73.join(cwd, "package.json"), "utf8"));
     const spec = manifest.devDependencies?.safeword ?? manifest.dependencies?.safeword ?? manifest.optionalDependencies?.safeword;
     if (spec === undefined)
       return false;
@@ -40554,7 +40687,7 @@ function plannedVersionMarkerEffects(cwd, repair) {
   const metadata = lstatSync15(path4, { throwIfNoEntry: false });
   if (metadata?.isFile() !== true || metadata.isSymbolicLink())
     return [];
-  const version2 = readFileSync43(path4, "utf8").trim();
+  const version2 = readFileSync44(path4, "utf8").trim();
   return metadata.nlink > 1 || !isSafePackageVersion(version2) ? [{ kind: "update", target }] : [];
 }
 async function createSetupPlan(cwd, schema, options = {}) {
@@ -40636,9 +40769,10 @@ function configurePython(cwd, context) {
       installed: false
     };
   }
-  const results = installable.map((item) => ({
+  const installationResults = installPythonDependencyBatch(installable, cwd);
+  const results = installable.map((item, index) => ({
     ...item,
-    succeeded: installPythonDependencies(item.directory, item.tools, cwd)
+    succeeded: installationResults[index]
   }));
   const attemptedTools = [...new Set(installable.flatMap((item) => item.tools))];
   const installedTools = [...new Set(results.flatMap((item) => item.succeeded ? item.tools : []))];
@@ -41015,7 +41149,7 @@ function snapshotFiles(cwd, targets) {
       return;
     }
     if (stat.isFile())
-      snapshot.set(relativePath, readFileSync43(absolutePath).toString("base64"));
+      snapshot.set(relativePath, readFileSync44(absolutePath).toString("base64"));
   };
   for (const target of targets) {
     visit3(nodePath73.isAbsolute(target) ? target : nodePath73.join(cwd, target));
@@ -41124,7 +41258,7 @@ function setupNextAction(input) {
 }
 function projectClaudePluginEnrolled(cwd) {
   try {
-    const settings = JSON.parse(readFileSync43(nodePath73.join(cwd, ".claude/settings.json"), "utf8"));
+    const settings = JSON.parse(readFileSync44(nodePath73.join(cwd, ".claude/settings.json"), "utf8"));
     return settings.enabledPlugins?.[CLAUDE_PLUGIN_ID] === true;
   } catch {
     return false;
@@ -41962,7 +42096,7 @@ import {
   lstatSync as lstatSync16,
   mkdirSync as mkdirSync11,
   openSync as openSync7,
-  readFileSync as readFileSync44,
+  readFileSync as readFileSync45,
   readSync as readSync5,
   renameSync as renameSync6,
   rmdirSync as rmdirSync7,
@@ -41983,7 +42117,7 @@ function settingsMutation(cwd, legacy) {
   const path4 = nodePath74.join(cwd, relative);
   if (!existsSync39(path4) || legacy.recognizedHooks.length === 0)
     return;
-  const original = readFileSync44(path4, "utf8");
+  const original = readFileSync45(path4, "utf8");
   return { path: relative, content: contractHistoricalClaudeSettings(original) };
 }
 function contractHistoricalClaudeSettings(original) {
@@ -42034,7 +42168,7 @@ function claudeLegacyMutations(cwd) {
 function claudeCleanupPreconditionDigest(cwd, mutations) {
   return sha2565(JSON.stringify(mutations.map((mutation) => {
     const target = assertSafeClaudeCleanupTarget(cwd, mutation.path);
-    return [mutation.path, sha2565(readFileSync44(target)), mutation.content];
+    return [mutation.path, sha2565(readFileSync45(target)), mutation.content];
   })));
 }
 function transactionPath(cwd) {
@@ -42054,7 +42188,7 @@ function writeTransaction(cwd, transaction) {
 }
 function entryFor(cwd, mutation) {
   const path4 = assertSafeClaudeCleanupTarget(cwd, mutation.path);
-  const before = readFileSync44(path4);
+  const before = readFileSync45(path4);
   const after = mutation.content === null ? null : Buffer.from(mutation.content);
   const mode = lstatSync16(path4).mode & 511;
   return {
@@ -42071,7 +42205,7 @@ function entryFor(cwd, mutation) {
   };
 }
 function observedSha(path4) {
-  return existsSync39(path4) ? sha2565(readFileSync44(path4)) : null;
+  return existsSync39(path4) ? sha2565(readFileSync45(path4)) : null;
 }
 function sameFile(left, right) {
   return left.dev === right.dev && left.ino === right.ino;
@@ -42620,7 +42754,7 @@ function ensureQuarantinePaths(projectRoot, transaction) {
 function interruptedAfterImage(path4, entry) {
   if (entry.after_base64 === null)
     return false;
-  const current = readFileSync44(path4);
+  const current = readFileSync45(path4);
   const after = Buffer.from(entry.after_base64, "base64");
   return current.length < after.length && after.subarray(0, current.length).equals(current);
 }
@@ -42849,7 +42983,7 @@ import {
   fstatSync as fstatSync6,
   lstatSync as lstatSync17,
   openSync as openSync8,
-  readFileSync as readFileSync45,
+  readFileSync as readFileSync46,
   realpathSync as realpathSync8
 } from "fs";
 import nodePath75 from "path";
@@ -42940,7 +43074,7 @@ function readPersonalFile(path4) {
     const fileError = validatePersonalFile(fstatSync6(descriptor), path4);
     if (fileError !== undefined)
       return { error: fileError };
-    return { content: readFileSync45(descriptor, "utf8") };
+    return { content: readFileSync46(descriptor, "utf8") };
   } finally {
     closeSync8(descriptor);
   }
@@ -42988,7 +43122,7 @@ function readPersonalExecutionPreference(cwd) {
 function readProjectTestConfig(cwd) {
   const path4 = nodePath75.join(cwd, ".safeword", "config.json");
   try {
-    return parseProjectConfig(JSON.parse(readFileSync45(path4, "utf8")), path4);
+    return parseProjectConfig(JSON.parse(readFileSync46(path4, "utf8")), path4);
   } catch (error2) {
     if (error2 instanceof Error && "code" in error2 && error2.code === "ENOENT")
       return { path: path4 };
@@ -43235,9 +43369,9 @@ import {
   lstatSync as lstatSync18,
   mkdirSync as mkdirSync12,
   openSync as openSync9,
-  readFileSync as readFileSync46,
+  readFileSync as readFileSync47,
   renameSync as renameSync7,
-  unlinkSync as unlinkSync3,
+  unlinkSync as unlinkSync4,
   writeSync as writeSync2
 } from "fs";
 import nodePath76 from "path";
@@ -43386,13 +43520,13 @@ var init_remote_workflow_fs = __esm(() => {
     openRead: (path4) => openSync9(path4, constants3.O_RDONLY | constants3.O_NONBLOCK | (constants3.O_NOFOLLOW ?? 0)),
     openPrivate: (path4) => openSync9(path4, "wx", 420),
     fstat: fstatSync7,
-    read: (descriptor) => readFileSync46(descriptor, "utf8"),
+    read: (descriptor) => readFileSync47(descriptor, "utf8"),
     write: (descriptor, bytes, offset) => writeSync2(descriptor, bytes, offset),
     sync: fsyncSync3,
     close: closeSync9,
     link: linkSync3,
     rename: renameSync7,
-    unlink: unlinkSync3
+    unlink: unlinkSync4
   };
 });
 
@@ -43762,7 +43896,7 @@ var init_remote_workflow_lifecycle = __esm(() => {
 
 // src/test-plan/resolve.ts
 import { spawnSync as spawnSync7 } from "child_process";
-import { existsSync as existsSync40, readFileSync as readFileSync47 } from "fs";
+import { existsSync as existsSync40, readFileSync as readFileSync48 } from "fs";
 import nodePath79 from "path";
 import process10 from "process";
 function directManifestIndex(directory) {
@@ -43782,7 +43916,7 @@ function pythonProjectIndex(directory, root) {
 }
 function cargoWorkspaceOwns(workspaceDirectory, candidate) {
   try {
-    const document2 = parse(readFileSync47(nodePath79.join(workspaceDirectory, "Cargo.toml"), "utf8"));
+    const document2 = parse(readFileSync48(nodePath79.join(workspaceDirectory, "Cargo.toml"), "utf8"));
     if (!document2.workspace || !Array.isArray(document2.workspace.members))
       return false;
     const relative = nodePath79.relative(workspaceDirectory, candidate);
@@ -43849,7 +43983,7 @@ function readInstalledPacks(root) {
   if (!existsSync40(configPath3))
     return;
   try {
-    const parsed2 = JSON.parse(readFileSync47(configPath3, "utf8"));
+    const parsed2 = JSON.parse(readFileSync48(configPath3, "utf8"));
     if (!Array.isArray(parsed2.installedPacks))
       return;
     return new Set(parsed2.installedPacks.filter((pack) => typeof pack === "string"));
@@ -43878,7 +44012,7 @@ function firstDirectory(root, index, names) {
 }
 function readRootScripts(root) {
   try {
-    const pkg2 = JSON.parse(readFileSync47(nodePath79.join(root, "package.json"), "utf8"));
+    const pkg2 = JSON.parse(readFileSync48(nodePath79.join(root, "package.json"), "utf8"));
     return pkg2.scripts ?? {};
   } catch {
     return;
@@ -43916,7 +44050,7 @@ function configContains(index, file, marker) {
   if (dir === undefined)
     return false;
   try {
-    return readFileSync47(nodePath79.join(dir, file), "utf8").includes(marker);
+    return readFileSync48(nodePath79.join(dir, file), "utf8").includes(marker);
   } catch {
     return false;
   }
@@ -44080,7 +44214,7 @@ function resolveTestPlan(root, options = {}) {
   }))));
   const go = existsSync40(nodePath79.join(root, "go.work")) ? [resolveGo(root, globalIndex, kind, isAvailable)] : findAllInTree(root, "go.mod").map((directory) => resolveGo(directory, directManifestIndex(directory), kind, isAvailable));
   const cargoDirectories = findAllInTree(root, "Cargo.toml");
-  const cargoWorkspaceDirectories = cargoDirectories.filter((directory) => readFileSync47(nodePath79.join(directory, "Cargo.toml"), "utf8").includes("[workspace]"));
+  const cargoWorkspaceDirectories = cargoDirectories.filter((directory) => readFileSync48(nodePath79.join(directory, "Cargo.toml"), "utf8").includes("[workspace]"));
   const rustDirectories = cargoDirectories.filter((directory) => cargoWorkspaceDirectories.every((workspace) => workspace === directory || !cargoWorkspaceOwns(workspace, directory)));
   const rust = rustDirectories.map((directory) => resolveRust(directory, directManifestIndex(directory), kind, isAvailable));
   const sql = directoriesWithAnyManifest(root, SQL_PROJECT_MARKERS).map((directory) => resolveSql(directory, directManifestIndex(directory), kind, isAvailable));
@@ -44132,7 +44266,7 @@ __export(exports_test_execution, {
   disableManagedRemoteWorkflow: () => disableManagedRemoteWorkflow
 });
 import { spawnSync as spawnSync8 } from "child_process";
-import { readFileSync as readFileSync48 } from "fs";
+import { readFileSync as readFileSync49 } from "fs";
 import nodePath80 from "path";
 function shellInvocation(command) {
   if (process.platform === "win32") {
@@ -44391,7 +44525,7 @@ function observeTestExecutionStatus(cwd) {
 function bundledRemoteWorkflow() {
   try {
     return {
-      content: readFileSync48(nodePath80.join(getTemplatesDirectory(), "workflows", "remote-tests.yml"), "utf8")
+      content: readFileSync49(nodePath80.join(getTemplatesDirectory(), "workflows", "remote-tests.yml"), "utf8")
     };
   } catch {
     return {
@@ -44625,11 +44759,11 @@ import {
   lstatSync as lstatSync19,
   mkdirSync as mkdirSync13,
   mkdtempSync as mkdtempSync4,
-  readFileSync as readFileSync49,
+  readFileSync as readFileSync50,
   realpathSync as realpathSync9,
   renameSync as renameSync8,
   rmSync as rmSync11,
-  writeFileSync as writeFileSync14
+  writeFileSync as writeFileSync15
 } from "fs";
 import { tmpdir as tmpdir2 } from "os";
 import nodePath81 from "path";
@@ -44745,7 +44879,7 @@ function persistWorktreeRecoveryCopy(destination, content) {
   const directory = mkdtempSync4(nodePath81.join(tmpdir2(), "safeword-architecture-recovery-"));
   const path4 = nodePath81.join(directory, `${nodePath81.basename(destination)}.recovery`);
   try {
-    writeFileSync14(path4, content, { mode: 384 });
+    writeFileSync15(path4, content, { mode: 384 });
     return { directory, path: path4 };
   } catch (error_) {
     rmSync11(directory, { recursive: true, force: true });
@@ -44976,7 +45110,7 @@ function replaceArchitectureDocument(source, destination, allowedRoot) {
 }
 function replaceArchitectureDocumentContent(content, destination, allowedRoot) {
   replaceArchitectureDocumentWith(destination, allowedRoot, (temporaryPath) => {
-    writeFileSync14(temporaryPath, content);
+    writeFileSync15(temporaryPath, content);
   });
 }
 function materializeIndexResults(cwd, snapshotDirectory, mode, reporter = defaultReporter) {
@@ -45067,7 +45201,7 @@ function indexMaterializationPolicy(mode) {
 }
 function readWorktreeDocumentState(destination) {
   try {
-    return { existed: true, content: readFileSync49(destination, "utf8") };
+    return { existed: true, content: readFileSync50(destination, "utf8") };
   } catch (error_) {
     if (error_.code === "ENOENT")
       return { existed: false };
@@ -45097,7 +45231,7 @@ function readDivergentWorktreeContent(cwd, destination) {
   assertPhysicalContainment(cwd, destination);
   let worktreeContent;
   try {
-    worktreeContent = readFileSync49(destination, "utf8");
+    worktreeContent = readFileSync50(destination, "utf8");
   } catch {
     return;
   }
@@ -45213,10 +45347,10 @@ __export(exports_learning_sync, {
   LEARNINGS_RELATIVE_PATH: () => LEARNINGS_RELATIVE_PATH,
   INDEX_FILENAME: () => INDEX_FILENAME2
 });
-import { existsSync as existsSync41, readdirSync as readdirSync29, readFileSync as readFileSync50, writeFileSync as writeFileSync15 } from "fs";
+import { existsSync as existsSync41, readdirSync as readdirSync29, readFileSync as readFileSync51, writeFileSync as writeFileSync16 } from "fs";
 import nodePath82 from "path";
 function parseLearning(filePath) {
-  const content = readFileSync50(filePath, "utf8");
+  const content = readFileSync51(filePath, "utf8");
   const lines = content.split(`
 `);
   if (lines.length < 3) {
@@ -45291,11 +45425,11 @@ function syncLearnings(cwd) {
   if (entries.length === 0 && !existsSync41(learningsDirectory)) {
     return { wrote: false, entries, skipped, indexPath };
   }
-  const previousContent = existsSync41(indexPath) ? readFileSync50(indexPath, "utf8") : undefined;
+  const previousContent = existsSync41(indexPath) ? readFileSync51(indexPath, "utf8") : undefined;
   if (previousContent === nextContent) {
     return { wrote: false, entries, skipped, indexPath };
   }
-  writeFileSync15(indexPath, nextContent);
+  writeFileSync16(indexPath, nextContent);
   return { wrote: true, entries, skipped, indexPath };
 }
 var LEARNINGS_RELATIVE_PATH = "<namespace-root>/learnings", INDEX_FILENAME2 = "INDEX.md";
@@ -45470,7 +45604,7 @@ var exports_codify = {};
 __export(exports_codify, {
   codifyResult: () => codifyResult
 });
-import { existsSync as existsSync42, readdirSync as readdirSync30, readFileSync as readFileSync51, writeFileSync as writeFileSync16 } from "fs";
+import { existsSync as existsSync42, readdirSync as readdirSync30, readFileSync as readFileSync52, writeFileSync as writeFileSync17 } from "fs";
 import nodePath83 from "path";
 function codifyResult(cwd, ticket, options) {
   try {
@@ -45506,7 +45640,7 @@ function codifyResult(cwd, ticket, options) {
       }));
     }
     const outputPath = nodePath83.resolve(cwd, options.out);
-    writeFileSync16(outputPath, skeleton, { flag: "wx" });
+    writeFileSync17(outputPath, skeleton, { flag: "wx" });
     return Promise.resolve(createResult({
       state: "changed",
       effects: {
@@ -45559,7 +45693,7 @@ function readCodifySource(cwd, ticketDirectory) {
   if (featurePath !== undefined) {
     return {
       kind: "feature",
-      content: readFileSync51(featurePath, "utf8"),
+      content: readFileSync52(featurePath, "utf8"),
       displayPath: nodePath83.relative(cwd, featurePath)
     };
   }
@@ -45569,7 +45703,7 @@ function readCodifySource(cwd, ticketDirectory) {
   }
   return {
     kind: "markdown",
-    content: readFileSync51(testDefinitionsPath, "utf8"),
+    content: readFileSync52(testDefinitionsPath, "utf8"),
     displayPath: nodePath83.relative(cwd, testDefinitionsPath)
   };
 }
@@ -45710,7 +45844,7 @@ var init_namespace_root = __esm(() => {
 });
 
 // templates/hooks/lib/namespace-root.ts
-import { existsSync as existsSync43, readFileSync as readFileSync52, statSync as statSync5 } from "fs";
+import { existsSync as existsSync43, readFileSync as readFileSync53, statSync as statSync5 } from "fs";
 import nodePath86 from "path";
 function readConfiguredPathValue(projectDirectory, key) {
   const configPath3 = nodePath86.join(projectDirectory, ".safeword", "config.json");
@@ -45718,7 +45852,7 @@ function readConfiguredPathValue(projectDirectory, key) {
     return;
   let parsed2;
   try {
-    parsed2 = JSON.parse(readFileSync52(configPath3, "utf8"));
+    parsed2 = JSON.parse(readFileSync53(configPath3, "utf8"));
   } catch {
     return;
   }
@@ -45761,7 +45895,7 @@ var NAMESPACE_ROOT_DEFAULT2 = ".project", NAMESPACE_ROOT_LEGACY2 = ".safeword-pr
 var init_namespace_root2 = () => {};
 
 // templates/hooks/lib/project-knowledge.ts
-import { readFileSync as readFileSync53, statSync as statSync6 } from "fs";
+import { readFileSync as readFileSync54, statSync as statSync6 } from "fs";
 function isRegularFile(path4) {
   try {
     return statSync6(path4).isFile();
@@ -45779,7 +45913,7 @@ function resolveReviewKnowledgeSources(projectDirectory) {
       configured: configuredPath !== undefined,
       path: path4,
       exists: exists2,
-      content: exists2 ? readFileSync53(path4, "utf8") : null
+      content: exists2 ? readFileSync54(path4, "utf8") : null
     };
   });
 }
@@ -46108,7 +46242,7 @@ var exports_lint_gherkin = {};
 __export(exports_lint_gherkin, {
   observeGherkinLint: () => observeGherkinLint
 });
-import { existsSync as existsSync45, readFileSync as readFileSync54, statSync as statSync8 } from "fs";
+import { existsSync as existsSync45, readFileSync as readFileSync55, statSync as statSync8 } from "fs";
 import nodePath91 from "path";
 function observeGherkinLint(cwd, files) {
   const featureFiles = files.length === 0 ? discoverFeatureFiles(cwd) : resolveInputFiles(cwd, files);
@@ -46148,7 +46282,7 @@ function lintFile(cwd, filePath) {
   try {
     if (!statSync8(filePath).isFile())
       throw new Error("not a regular file");
-    content = readFileSync54(filePath, "utf8");
+    content = readFileSync55(filePath, "utf8");
   } catch {
     return [
       {
@@ -46324,10 +46458,10 @@ import {
   mkdtempSync as mkdtempSync5,
   openSync as openSync10,
   readdirSync as readdirSync31,
-  readFileSync as readFileSync55,
+  readFileSync as readFileSync56,
   realpathSync as realpathSync11,
   rmSync as rmSync12,
-  writeFileSync as writeFileSync17
+  writeFileSync as writeFileSync18
 } from "fs";
 import { tmpdir as tmpdir3 } from "os";
 import nodePath92 from "path";
@@ -46336,7 +46470,7 @@ function digest2(content) {
 }
 function fileDigest(path4) {
   try {
-    return digest2(readFileSync55(path4));
+    return digest2(readFileSync56(path4));
   } catch {
     return;
   }
@@ -46346,7 +46480,7 @@ function sourceFileChanged(file) {
   try {
     descriptor = openSync10(file.source, constants4.O_RDONLY | (constants4.O_NOFOLLOW ?? 0));
     const current = fstatSync8(descriptor);
-    return !current.isFile() || current.dev !== file.device || current.ino !== file.inode || digest2(readFileSync55(descriptor)) !== file.sha256;
+    return !current.isFile() || current.dev !== file.device || current.ino !== file.inode || digest2(readFileSync56(descriptor)) !== file.sha256;
   } catch {
     return true;
   } finally {
@@ -46373,7 +46507,7 @@ function readContainedText(root, source, target, packetBytesRemaining) {
     if (opened.dev !== observed.dev || opened.ino !== observed.ino) {
       throw new Error(`Review target changed while it was being captured: ${target}`);
     }
-    const bytes = readFileSync55(descriptor);
+    const bytes = readFileSync56(descriptor);
     let content;
     try {
       content = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
@@ -46434,7 +46568,7 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = []) {
       }
       const snapshot = nodePath92.join(workspace, relative);
       mkdirSync14(nodePath92.dirname(snapshot), { recursive: true });
-      writeFileSync17(snapshot, bytes, { mode: 384 });
+      writeFileSync18(snapshot, bytes, { mode: 384 });
       let parent = nodePath92.dirname(relative);
       while (parent !== ".") {
         expectedSnapshotEntries.add(`directory:${parent}`);
@@ -46531,7 +46665,7 @@ var init_review_ledger = __esm(() => {
 });
 
 // src/review/policy.ts
-import { readFileSync as readFileSync56 } from "fs";
+import { readFileSync as readFileSync57 } from "fs";
 import nodePath93 from "path";
 function oppositeReviewPair(author) {
   if (author === "claude")
@@ -46555,7 +46689,7 @@ function readReviewerModel(cwd, reviewer, route, configKey) {
 }
 function readConfiguredModel(cwd, reviewer, configKey) {
   try {
-    const raw = JSON.parse(readFileSync56(nodePath93.join(cwd, ".safeword", "config.json"), "utf8"));
+    const raw = JSON.parse(readFileSync57(nodePath93.join(cwd, ".safeword", "config.json"), "utf8"));
     if (typeof raw !== "object" || raw === null)
       return;
     const models = raw[configKey];
@@ -46569,7 +46703,7 @@ function readConfiguredModel(cwd, reviewer, configKey) {
 }
 function readReviewPolicy(cwd) {
   try {
-    const raw = readFileSync56(nodePath93.join(cwd, ".safeword", "config.json"), "utf8");
+    const raw = readFileSync57(nodePath93.join(cwd, ".safeword", "config.json"), "utf8");
     const config = JSON.parse(raw);
     if (typeof config !== "object" || config === null || Array.isArray(config))
       return "require";
@@ -46716,11 +46850,11 @@ import {
   mkdtempSync as mkdtempSync6,
   openSync as openSync11,
   readdirSync as readdirSync32,
-  readFileSync as readFileSync57,
+  readFileSync as readFileSync58,
   realpathSync as realpathSync12,
   renameSync as renameSync9,
   rmSync as rmSync13,
-  writeFileSync as writeFileSync18
+  writeFileSync as writeFileSync19
 } from "fs";
 import { homedir as homedir6, tmpdir as tmpdir4 } from "os";
 import nodePath94 from "path";
@@ -46887,7 +47021,7 @@ function hasTrustedExecutableAncestry(candidate) {
 function digestOpenFile(fd) {
   if (!fstatSync9(fd).isFile())
     return;
-  const bytes = readFileSync57(fd);
+  const bytes = readFileSync58(fd);
   return { bytes, digest: createHash25("sha256").update(bytes).digest("hex") };
 }
 function cachedCopyMatchesDigest(copyPath, expectedDigest) {
@@ -46938,7 +47072,7 @@ function stagedTrustedReviewerCopy(reviewer, canonical, untrustedRoot) {
     if (cachedCopyMatchesDigest(copyPath, source.digest))
       return copyPath;
     const temporaryPath = `${copyPath}.${process.pid.toString(36)}.${Date.now().toString(36)}.tmp`;
-    writeFileSync18(temporaryPath, source.bytes, { mode: 448, flag: "wx" });
+    writeFileSync19(temporaryPath, source.bytes, { mode: 448, flag: "wx" });
     renameSync9(temporaryPath, copyPath);
     return copyPath;
   } catch {
@@ -47136,7 +47270,7 @@ function procGroupHasRunningMember(group) {
       continue;
     let line;
     try {
-      line = readFileSync57(`/proc/${entry2}/stat`, "utf8");
+      line = readFileSync58(`/proc/${entry2}/stat`, "utf8");
     } catch {
       continue;
     }
@@ -47334,7 +47468,7 @@ async function runHeadlessReviewer(reviewer, packet, cwd, untrustedRoot = proces
 function writeContractFile() {
   const directory = mkdtempSync6(nodePath94.join(tmpdir4(), "safeword-review-contract-"));
   const path4 = nodePath94.join(directory, "review-result.schema.json");
-  writeFileSync18(path4, REVIEW_OUTPUT_SCHEMA, { mode: 384 });
+  writeFileSync19(path4, REVIEW_OUTPUT_SCHEMA, { mode: 384 });
   return {
     path: path4,
     cleanup: () => {
@@ -48243,12 +48377,12 @@ import {
   mkdirSync as mkdirSync16,
   openSync as openSync12,
   readdirSync as readdirSync33,
-  readFileSync as readFileSync58,
+  readFileSync as readFileSync59,
   realpathSync as realpathSync13,
   renameSync as renameSync10,
   statSync as statSync9,
-  unlinkSync as unlinkSync4,
-  writeFileSync as writeFileSync19,
+  unlinkSync as unlinkSync5,
+  writeFileSync as writeFileSync20,
   writeSync as writeSync3
 } from "fs";
 import { homedir as homedir7 } from "os";
@@ -48269,14 +48403,14 @@ function integrityKeyPath() {
 function readOrCreateIntegrityKey() {
   const keyPath = integrityKeyPath();
   try {
-    return decodeIntegrityKey(readFileSync58(keyPath, "utf8"));
+    return decodeIntegrityKey(readFileSync59(keyPath, "utf8"));
   } catch {
     mkdirSync16(nodePath95.dirname(keyPath), { recursive: true, mode: 448 });
     const key = randomBytes(32);
     try {
       const descriptor = openSync12(keyPath, "wx", 384);
       try {
-        writeFileSync19(descriptor, `${key.toString("hex")}
+        writeFileSync20(descriptor, `${key.toString("hex")}
 `);
       } finally {
         closeSync12(descriptor);
@@ -48285,7 +48419,7 @@ function readOrCreateIntegrityKey() {
     } catch (error2) {
       if (!isFileExistsError(error2))
         throw error2;
-      return decodeIntegrityKey(readFileSync58(keyPath, "utf8"));
+      return decodeIntegrityKey(readFileSync59(keyPath, "utf8"));
     }
   }
 }
@@ -48347,7 +48481,7 @@ function writeJob(cwd, record2) {
   mkdirSync16(directory, { recursive: true, mode: 448 });
   const destination = jobPath(cwd, secured.id);
   const temporary = `${destination}.${process.pid}.tmp`;
-  writeFileSync19(temporary, `${JSON.stringify(secured)}
+  writeFileSync20(temporary, `${JSON.stringify(secured)}
 `, { mode: 384 });
   renameSync10(temporary, destination);
   return secured;
@@ -48362,12 +48496,12 @@ function withFileLock(lock, operation) {
     try {
       descriptor = openSync12(lock, "wx", 384);
       try {
-        writeFileSync19(descriptor, String(process.pid));
+        writeFileSync20(descriptor, String(process.pid));
       } catch (error2) {
         closeSync12(descriptor);
         descriptor = undefined;
         try {
-          unlinkSync4(lock);
+          unlinkSync5(lock);
         } catch {}
         throw error2;
       }
@@ -48386,19 +48520,19 @@ function withFileLock(lock, operation) {
     try {
       const currentLock = statSync9(lock);
       if (currentLock.dev === ownedLock.dev && currentLock.ino === ownedLock.ino)
-        unlinkSync4(lock);
+        unlinkSync5(lock);
     } catch {}
   }
 }
 function recoverStaleLock(lock) {
   try {
     const inspected = statSync9(lock);
-    const owner = Number(readFileSync58(lock, "utf8"));
+    const owner = Number(readFileSync59(lock, "utf8"));
     const invalidOwnerIsOld = !isProcessId(owner) && Date.now() - statSync9(lock).mtimeMs >= JOB_LOCK_WAIT_MS;
     if (isProcessId(owner) && !processExists(owner) || invalidOwnerIsOld) {
       const current = statSync9(lock);
       if (current.dev === inspected.dev && current.ino === inspected.ino)
-        unlinkSync4(lock);
+        unlinkSync5(lock);
     }
   } catch {}
 }
@@ -48503,7 +48637,7 @@ function hasReviewerIdentity(reviewer) {
   return typeof reviewer.dispatch_id === "string" && reviewer.dispatch_id.length > 0 && ["claude", "codex"].includes(String(reviewer.reviewer_agent));
 }
 function readJob(cwd, id) {
-  const parsed2 = JSON.parse(readFileSync58(jobPath(cwd, id), "utf8"));
+  const parsed2 = JSON.parse(readFileSync59(jobPath(cwd, id), "utf8"));
   if (!isReviewJobRecord(parsed2) || parsed2.id !== id || !hasValidIntegrity(cwd, parsed2))
     throw new Error("invalid review job record");
   return parsed2;
@@ -49353,7 +49487,7 @@ var exports_review_pr = {};
 __export(exports_review_pr, {
   inspectPullRequestCommand: () => inspectPullRequestCommand
 });
-import { readFileSync as readFileSync59, writeFileSync as writeFileSync20 } from "fs";
+import { readFileSync as readFileSync60, writeFileSync as writeFileSync21 } from "fs";
 import nodePath96 from "path";
 import process12 from "process";
 function isRecord5(value) {
@@ -49371,7 +49505,7 @@ function hasValidInputEnvelope(raw) {
   return raw.schemaVersion === 1 && validHead && validState && Array.isArray(raw.artifacts) && Array.isArray(raw.checks) && Array.isArray(raw.statuses) && typeof raw.markerReceiptExists === "boolean";
 }
 function parseConfig(cwd) {
-  const raw = JSON.parse(readFileSync59(nodePath96.join(cwd, ".safeword", "config.json"), "utf8"));
+  const raw = JSON.parse(readFileSync60(nodePath96.join(cwd, ".safeword", "config.json"), "utf8"));
   if (!isRecord5(raw) || !isRecord5(raw.prReview)) {
     throw new Error("review-pr: .safeword/config.json must define prReview");
   }
@@ -49423,7 +49557,7 @@ function parseArtifact(artifact) {
   };
 }
 function parseInput(inputPath) {
-  const raw = JSON.parse(readFileSync59(inputPath, "utf8"));
+  const raw = JSON.parse(readFileSync60(inputPath, "utf8"));
   if (!isRecord5(raw) || !hasValidInputEnvelope(raw)) {
     throw new Error("review-pr: invalid inspection input");
   }
@@ -49632,7 +49766,7 @@ async function inspectPullRequestCommand(options) {
       kind: "noop",
       schemaVersion: 1
     };
-    writeFileSync20(options.outputPath, `${JSON.stringify(handoff2)}
+    writeFileSync21(options.outputPath, `${JSON.stringify(handoff2)}
 `, { mode: 384 });
     return handoff2;
   }
@@ -49643,7 +49777,7 @@ async function inspectPullRequestCommand(options) {
     receipt,
     schemaVersion: 1
   };
-  writeFileSync20(options.outputPath, `${JSON.stringify(handoff)}
+  writeFileSync21(options.outputPath, `${JSON.stringify(handoff)}
 `, { mode: 384 });
   return handoff;
 }
@@ -49762,7 +49896,7 @@ __export(exports_review_pr_publication, {
   invalidatePullRequestCommand: () => invalidatePullRequestCommand,
   createGitHubReviewBoundary: () => createGitHubReviewBoundary
 });
-import { readFileSync as readFileSync60 } from "fs";
+import { readFileSync as readFileSync61 } from "fs";
 import process13 from "process";
 function isRecord6(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -49851,7 +49985,7 @@ function hasConsistentRoute(receipt) {
   return receipt.route === "looks_ready" === mayLookReady;
 }
 function parseHandoffEnvelope(path4) {
-  const value = JSON.parse(readFileSync60(path4, "utf8"));
+  const value = JSON.parse(readFileSync61(path4, "utf8"));
   if (!isRecord6(value) || value.schemaVersion !== 1 || value.kind !== "noop" && value.kind !== "receipt") {
     throw new Error("review-pr: invalid advisory result artifact");
   }
@@ -50280,13 +50414,13 @@ var init_codex_bootstrap = __esm(() => {
 });
 
 // templates/hooks/lib/dogfood.ts
-import { existsSync as existsSync47, readFileSync as readFileSync61 } from "fs";
+import { existsSync as existsSync47, readFileSync as readFileSync62 } from "fs";
 import nodePath98 from "path";
 function isDogfoodRepo(projectDirectory) {
   if (existsSync47(nodePath98.join(projectDirectory, "packages", "cli", "templates")))
     return true;
   try {
-    const pkg2 = JSON.parse(readFileSync61(nodePath98.join(projectDirectory, "package.json"), "utf8"));
+    const pkg2 = JSON.parse(readFileSync62(nodePath98.join(projectDirectory, "package.json"), "utf8"));
     return pkg2.name === "safeword";
   } catch {
     return false;
@@ -50368,7 +50502,7 @@ __export(exports_retro_extract, {
   DEFAULT_CLAUDE_RETRO_MODEL: () => DEFAULT_CLAUDE_RETRO_MODEL,
   CODEX_RETRO_OUTPUT_SCHEMA: () => CODEX_RETRO_OUTPUT_SCHEMA
 });
-import { readFileSync as readFileSync62, writeFileSync as writeFileSync21 } from "fs";
+import { readFileSync as readFileSync63, writeFileSync as writeFileSync22 } from "fs";
 import nodePath100 from "path";
 function defaultRetroModel(agent) {
   if (agent === "codex")
@@ -50379,7 +50513,7 @@ function defaultRetroModel(agent) {
 }
 function resolveRetroModel(projectDirectory, agent = "claude") {
   try {
-    const raw = readFileSync62(nodePath100.join(projectDirectory, ".safeword", "config.json"), "utf8");
+    const raw = readFileSync63(nodePath100.join(projectDirectory, ".safeword", "config.json"), "utf8");
     const parsed2 = JSON.parse(raw);
     const model = parsed2.retro?.model;
     return typeof model === "string" && model.length > 0 ? model : defaultRetroModel(agent);
@@ -50542,8 +50676,8 @@ async function runCodexHeadlessExtractionChecked(transcript, dependencies) {
       return { ok: false, failureReason: "empty_digest", findings: [] };
     const schemaPath = dependencies.schemaPath ?? nodePath100.join(dependencies.cwd, "schema.json");
     const outputPath = dependencies.outputPath ?? nodePath100.join(dependencies.cwd, "output.json");
-    const writeFile2 = dependencies.writeFile ?? writeFileSync21;
-    const readFile2 = dependencies.readFile ?? ((path4) => readFileSync62(path4, "utf8"));
+    const writeFile2 = dependencies.writeFile ?? writeFileSync22;
+    const readFile2 = dependencies.readFile ?? ((path4) => readFileSync63(path4, "utf8"));
     writeFile2(schemaPath, JSON.stringify(CODEX_RETRO_OUTPUT_SCHEMA));
     const argv = buildCodexExtractArgv({
       model: dependencies.model ?? DEFAULT_CODEX_RETRO_MODEL,
@@ -56621,7 +56755,7 @@ var init_pipeline = __esm(() => {
 
 // src/retro/public-delivery.ts
 import { createHash as createHash28 } from "crypto";
-import { mkdirSync as mkdirSync18, renameSync as renameSync11, unlinkSync as unlinkSync5, writeFileSync as writeFileSync22 } from "fs";
+import { mkdirSync as mkdirSync18, renameSync as renameSync11, unlinkSync as unlinkSync6, writeFileSync as writeFileSync23 } from "fs";
 import path5 from "path";
 function hasValue(value) {
   return value !== undefined && value.trim() !== "";
@@ -56678,7 +56812,7 @@ function claimPublicRetroRequest(built, dependencies) {
   const markerPath2 = path5.join(dependencies.attemptsDirectory, `${built.sessionScope}.json`);
   try {
     mkdirSync18(dependencies.attemptsDirectory, { recursive: true });
-    writeFileSync22(markerPath2, JSON.stringify({ sessionScope: built.sessionScope }), {
+    writeFileSync23(markerPath2, JSON.stringify({ sessionScope: built.sessionScope }), {
       encoding: "utf8",
       flag: "wx",
       flush: true
@@ -56687,7 +56821,7 @@ function claimPublicRetroRequest(built, dependencies) {
     if (error2.code === "EEXIST")
       return;
     try {
-      unlinkSync5(markerPath2);
+      unlinkSync6(markerPath2);
     } catch {}
     throw error2;
   }
@@ -56735,7 +56869,7 @@ async function deliverPreparedInput(input, dependencies, preparationDeadline) {
     const temporaryPath = `${markerPath2}.${prepared.requestId}.tmp`;
     let committed = false;
     try {
-      writeFileSync22(temporaryPath, JSON.stringify({ sessionScope: prepared.sessionScope, receipt: result.receipt }), { encoding: "utf8", flag: "wx", flush: true });
+      writeFileSync23(temporaryPath, JSON.stringify({ sessionScope: prepared.sessionScope, receipt: result.receipt }), { encoding: "utf8", flag: "wx", flush: true });
       if (dependencies.now() >= handoffDeadline)
         return "abandoned";
       renameSync11(temporaryPath, markerPath2);
@@ -56744,7 +56878,7 @@ async function deliverPreparedInput(input, dependencies, preparationDeadline) {
     } finally {
       if (!committed) {
         try {
-          unlinkSync5(temporaryPath);
+          unlinkSync6(temporaryPath);
         } catch {}
       }
     }
@@ -56770,7 +56904,7 @@ var init_public_delivery = __esm(() => {
 });
 
 // src/retro/public-source.ts
-import { lstatSync as lstatSync23, readFileSync as readFileSync63, realpathSync as realpathSync14 } from "fs";
+import { lstatSync as lstatSync23, readFileSync as readFileSync64, realpathSync as realpathSync14 } from "fs";
 import { homedir as homedir8 } from "os";
 import nodePath101 from "path";
 function repoIdentity(hostname, rawPath) {
@@ -56842,16 +56976,16 @@ function repoGitConfigPath(cwd) {
     throw new Error("Untrusted Git directory pointer");
   if (dotGitEntry.isDirectory())
     return trustedConfigFile(nodePath101.join(dotGit, "config"));
-  const pointer = readFileSync63(dotGit, "utf8").trim();
+  const pointer = readFileSync64(dotGit, "utf8").trim();
   if (!pointer.toLowerCase().startsWith("gitdir:"))
     throw new Error("Invalid Git directory pointer");
   const gitDirectory = nodePath101.resolve(projectDirectory, pointer.slice("gitdir:".length).trim());
   let commonDirectory;
   let backlink;
   try {
-    const common = readFileSync63(nodePath101.join(gitDirectory, "commondir"), "utf8").trim();
+    const common = readFileSync64(nodePath101.join(gitDirectory, "commondir"), "utf8").trim();
     commonDirectory = nodePath101.resolve(gitDirectory, common);
-    backlink = readFileSync63(nodePath101.join(gitDirectory, "gitdir"), "utf8").trim();
+    backlink = readFileSync64(nodePath101.join(gitDirectory, "gitdir"), "utf8").trim();
   } catch {
     throw new Error("Untrusted Git directory pointer");
   }
@@ -56943,7 +57077,7 @@ function collectGlobalGitEmail(options) {
   let delegatesIdentity = false;
   for (const path6 of globalGitConfigPaths(options)) {
     try {
-      const config = parseRepoGitConfig(readFileSync63(path6, "utf8"));
+      const config = parseRepoGitConfig(readFileSync64(path6, "utf8"));
       delegatesIdentity ||= config.delegatesIdentity;
       if (config.email !== undefined && config.email.trim() !== "")
         email = config.email;
@@ -56953,7 +57087,7 @@ function collectGlobalGitEmail(options) {
 }
 function collectPublicGitContext(cwd, options = {}) {
   try {
-    const config = parseRepoGitConfig(readFileSync63(repoGitConfigPath(cwd), "utf8"));
+    const config = parseRepoGitConfig(readFileSync64(repoGitConfigPath(cwd), "utf8"));
     const repo = config.remote === undefined ? undefined : normalizeRepoRemote(config.remote);
     const globalEmail = config.delegatesIdentity ? undefined : collectGlobalGitEmail(options);
     return {
@@ -59449,10 +59583,10 @@ import { randomUUID as randomUUID12 } from "crypto";
 import {
   mkdirSync as mkdirSync19,
   mkdtempSync as mkdtempSync7,
-  readFileSync as readFileSync64,
+  readFileSync as readFileSync65,
   realpathSync as realpathSync15,
   statSync as statSync10,
-  writeFileSync as writeFileSync23
+  writeFileSync as writeFileSync24
 } from "fs";
 import { platform, tmpdir as tmpdir5 } from "os";
 import nodePath102 from "path";
@@ -59579,7 +59713,7 @@ async function runRetro(options, dependencies) {
       errorMessage: "safeword retro requires --transcript <path>; it never guesses the session path."
     };
   }
-  const read = dependencies.readFile ?? ((path8) => readFileSync64(path8, "utf8"));
+  const read = dependencies.readFile ?? ((path8) => readFileSync65(path8, "utf8"));
   let transcript;
   try {
     transcript = read(options.transcript);
@@ -59678,11 +59812,11 @@ function prepareCursorExtractionDirectory(directory) {
     throw new Error(gitInit.stderr || "could not initialize Cursor sandbox");
   const cursorDirectory = nodePath102.join(directory, ".cursor");
   mkdirSync19(cursorDirectory, { recursive: true });
-  writeFileSync23(nodePath102.join(cursorDirectory, "cli.json"), JSON.stringify({
+  writeFileSync24(nodePath102.join(cursorDirectory, "cli.json"), JSON.stringify({
     permissions: { allow: [], deny: CURSOR_RETRO_DENY_RULES },
     approvalMode: "allowlist"
   }));
-  writeFileSync23(nodePath102.join(cursorDirectory, "sandbox.json"), JSON.stringify({
+  writeFileSync24(nodePath102.join(cursorDirectory, "sandbox.json"), JSON.stringify({
     type: "workspace_readwrite",
     disableTmpWrite: true,
     networkPolicy: { default: "deny", allow: [] }
@@ -59706,9 +59840,9 @@ async function buildAutoExtractor(projectDirectory, dependencies = {}) {
       const result = await runCodexHeadlessExtractionChecked2(transcript, {
         spawn: spawnCodex,
         writeFile: (path8, content) => {
-          writeFileSync23(path8, content);
+          writeFileSync24(path8, content);
         },
-        readFile: (path8) => readFileSync64(path8, "utf8"),
+        readFile: (path8) => readFileSync65(path8, "utf8"),
         env: headlessEnvironment(process17.env),
         cwd: workDirectory,
         model,
@@ -59753,7 +59887,7 @@ async function buildAutoExtractor(projectDirectory, dependencies = {}) {
       spawn: spawnClaude,
       writeDigest: (digest4) => {
         const path8 = nodePath102.join(workDirectory, "digest.txt");
-        writeFileSync23(path8, digest4);
+        writeFileSync24(path8, digest4);
         return path8;
       },
       env: headlessEnvironment(process17.env),
@@ -59961,7 +60095,7 @@ async function executeRetroWithDependencies(options, dependencies) {
     extract: dependencies.extract,
     harness: dependencies.harness,
     projectDirectory: dependencies.projectDirectory,
-    readFile: (path8) => readFileSync64(path8, "utf8"),
+    readFile: (path8) => readFileSync65(path8, "utf8"),
     ...relay !== undefined && { relay },
     ...dependencies.publicRetro !== undefined && { publicRetro: dependencies.publicRetro },
     resolveProvenance: dependencies.resolveProvenance,
@@ -60221,7 +60355,7 @@ async function retroCommand(options) {
 }
 function readFindings(path8) {
   try {
-    const parsed2 = JSON.parse(readFileSync64(path8, "utf8"));
+    const parsed2 = JSON.parse(readFileSync65(path8, "utf8"));
     return Array.isArray(parsed2) ? parsed2 : [];
   } catch {
     return [];
@@ -60990,10 +61124,10 @@ import {
   mkdirSync as mkdirSync21,
   mkdtempSync as mkdtempSync8,
   readdirSync as readdirSync34,
-  readFileSync as readFileSync66,
+  readFileSync as readFileSync67,
   renameSync as renameSync12,
   rmSync as rmSync14,
-  writeFileSync as writeFileSync24
+  writeFileSync as writeFileSync25
 } from "fs";
 import { tmpdir as tmpdir6 } from "os";
 import nodePath106 from "path";
@@ -61095,7 +61229,7 @@ function writeCodexIdentityCache(input) {
   try {
     const cachePath = nodePath106.join(resolveNamespaceRoot(input.projectDirectory), input.cacheFile);
     mkdirSync21(nodePath106.dirname(cachePath), { recursive: true });
-    writeFileSync24(cachePath, JSON.stringify({ id: sessionId, skillName: skillName2, recordedAt: new Date().toISOString() }), "utf8");
+    writeFileSync25(cachePath, JSON.stringify({ id: sessionId, skillName: skillName2, recordedAt: new Date().toISOString() }), "utf8");
   } catch {}
 }
 function rememberCodexRunIdentity(input) {
@@ -61189,7 +61323,7 @@ function readPackagedSafewordInstructions() {
   const instructionsPath = findPackagedTemplate("SAFEWORD.md");
   if (!instructionsPath)
     return;
-  if (!readFileSync66(instructionsPath, "utf8").trim())
+  if (!readFileSync67(instructionsPath, "utf8").trim())
     return;
   return [
     "Current Safeword authority: tickets and their user stories/test definitions live under `.project/` (or the configured namespace root), and current workflow guides live under `.safeword/guides/`.",
@@ -61251,7 +61385,7 @@ function runPackagedHook(relativePath, rawInput, projectDirectory) {
     if (relativePath === "session-codex-start.ts") {
       temporaryHookDirectory = mkdtempSync8(nodePath106.join(tmpdir6(), "safeword-codex-hook-"));
       cpSync2(nodePath106.dirname(hookPath), temporaryHookDirectory, { recursive: true });
-      writeFileSync24(nodePath106.join(temporaryHookDirectory, "lib", "owned-paths.ts"), generateOwnedPathsModule(SAFEWORD_SCHEMA, packagedNamespaceRootLabel(projectDirectory)), "utf8");
+      writeFileSync25(nodePath106.join(temporaryHookDirectory, "lib", "owned-paths.ts"), generateOwnedPathsModule(SAFEWORD_SCHEMA, packagedNamespaceRootLabel(projectDirectory)), "utf8");
       executableHookPath = nodePath106.join(temporaryHookDirectory, nodePath106.basename(hookPath));
     }
     const packagedContextPath = relativePath === "session-codex-start.ts" ? findPackagedTemplate("SAFEWORD.md") ?? "" : "";
@@ -61271,10 +61405,16 @@ function rewriteSnapshotImportsForNode(directory) {
     }
     if (!entry2.isFile() || !entry2.name.endsWith(".ts"))
       continue;
-    const source = readFileSync66(path8, "utf8");
-    const rewritten = source.replaceAll(/(from\s+['"]|import\s*\(\s*['"])(\.{1,2}\/[^'"]+)\.js(['"])/gu, "$1$2.ts$3");
+    const source = readFileSync67(path8, "utf8");
+    const rewritten = source.replaceAll(/(from\s+['"]|import\s*\(\s*['"])(\.{1,2}\/[^'"]+)\.js(['"])/gu, "$1$2.ts$3").replace("return JSON.parse(await Bun.stdin.text()) as CodexHookInput;", `let raw = '';
+    process.stdin.setEncoding('utf8');
+    for await (const chunk of process.stdin) raw += String(chunk);
+    return JSON.parse(raw) as CodexHookInput;`).replace("return spawnSync('bun', [claudeHookPath], {", "return spawnSync(process.execPath, [claudeHookPath], {").replace("SAFEWORD_AGENT_RUNTIME: 'codex',", "SAFEWORD_AGENT_RUNTIME: 'opencode',").replace("input = await Bun.stdin.json();", `let raw = '';
+  process.stdin.setEncoding('utf8');
+  for await (const chunk of process.stdin) raw += String(chunk);
+  input = JSON.parse(raw) as HookInput;`);
     if (rewritten !== source)
-      writeFileSync24(path8, rewritten, "utf8");
+      writeFileSync25(path8, rewritten, "utf8");
   }
 }
 function snapshotPackagedHook(relativePath) {
@@ -61319,7 +61459,7 @@ function emitPackagedPreToolResult(result) {
 }
 function readProjectTextFile(projectDirectory, relativePath) {
   const filePath = nodePath106.join(projectDirectory, relativePath);
-  return existsSync50(filePath) ? readFileSync66(filePath, "utf8") : undefined;
+  return existsSync50(filePath) ? readFileSync67(filePath, "utf8") : undefined;
 }
 function emitAdditionalContext(output) {
   process21.stdout.write(`${JSON.stringify(output)}
@@ -61367,7 +61507,7 @@ function maybeDenyTestDefinitionsWrite(projectDirectory, targetPath) {
   if (!ticketFolder)
     return false;
   const ticketPath = nodePath106.join(resolveNamespaceRoot(projectDirectory), "tickets", ticketFolder, "ticket.md");
-  const ticketContent = existsSync50(ticketPath) ? readFileSync66(ticketPath, "utf8") : "";
+  const ticketContent = existsSync50(ticketPath) ? readFileSync67(ticketPath, "utf8") : "";
   const missing = missingIntakeFields(ticketContent);
   if (missing.length === 0)
     return false;
@@ -63670,7 +63810,7 @@ init_migration_error();
 init_architecture_document();
 init_agent_selection();
 init_online_required();
-import { existsSync as existsSync48, lstatSync as lstatSync24, readFileSync as readFileSync65, readlinkSync as readlinkSync4 } from "fs";
+import { existsSync as existsSync48, lstatSync as lstatSync24, readFileSync as readFileSync66, readlinkSync as readlinkSync4 } from "fs";
 import nodePath103 from "path";
 
 // src/cli-protocol/option-values.ts
@@ -63695,7 +63835,7 @@ init_result();
 // src/cli-protocol/tracker-ticket-handlers.ts
 init_configured_paths();
 init_online_required();
-import { existsSync as existsSync17, readdirSync as readdirSync9, readFileSync as readFileSync18 } from "fs";
+import { existsSync as existsSync17, readdirSync as readdirSync9, readFileSync as readFileSync19 } from "fs";
 import process9 from "process";
 init_result();
 function trackerConnectReplayCommand(provider, invocation) {
@@ -63846,7 +63986,7 @@ async function runTrackerSync(invocation) {
   const config = readTicketBridgeConfig2(invocation.cwd);
   const provider = supportedProvider2(config.provider);
   const sidecarPath = trackerMapPath2(invocation.cwd);
-  const before = existsSync17(sidecarPath) ? readFileSync18(sidecarPath, "utf8") : undefined;
+  const before = existsSync17(sidecarPath) ? readFileSync19(sidecarPath, "utf8") : undefined;
   const messages = [];
   const writers = provider === undefined ? {} : buildWriterRegistry2(provider, config.target);
   const repoVisibility = provider === "github" && config.body === "full" ? resolveRepoVisibility2(config.target?.repo) : undefined;
@@ -63864,7 +64004,7 @@ async function runTrackerSync(invocation) {
       messages.push(message);
     }
   });
-  const after = existsSync17(sidecarPath) ? readFileSync18(sidecarPath, "utf8") : undefined;
+  const after = existsSync17(sidecarPath) ? readFileSync19(sidecarPath, "utf8") : undefined;
   return trackerSyncResult({ provider, exitCode: result.exitCode, before, after, messages });
 }
 function trackerHandler(name, invocation) {
@@ -65020,7 +65160,7 @@ async function codexBootstrapHandler(invocation) {
   const { bootstrapCodexPlugin: bootstrapCodexPlugin2 } = await Promise.resolve().then(() => (init_codex_bootstrap(), exports_codex_bootstrap));
   let rawInput = "";
   try {
-    rawInput = readFileSync65(0, "utf8");
+    rawInput = readFileSync66(0, "utf8");
   } catch {}
   return bootstrapCodexPlugin2(invocation.cwd, rawInput, { offline: invocation.offline });
 }
@@ -65571,7 +65711,7 @@ function snapshotKind(stats) {
 }
 function snapshotBytes(path8, stats) {
   if (stats.isFile())
-    return readFileSync65(path8).toString("base64");
+    return readFileSync66(path8).toString("base64");
   if (stats.isSymbolicLink())
     return Buffer.from(readlinkSync4(path8)).toString("base64");
   return;

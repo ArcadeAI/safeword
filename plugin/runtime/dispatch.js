@@ -1846,7 +1846,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/pre-tool-git-bare-fix.sh':
         '0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414',
       '.safeword/hooks/pre-tool-quality.ts':
-        'ea5a2beaba2384cfc3d9a8a674c5a0d0b3166ab0f7c3012b9c6f019c3980a633',
+        'b97d1639e4598197baa11c71d640f0cbff79f5bf72b38736ad1f4484bb06e1cf',
       '.safeword/hooks/pre-tool-stale-main.ts':
         'cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e',
       '.safeword/hooks/prompt-questions.ts':
