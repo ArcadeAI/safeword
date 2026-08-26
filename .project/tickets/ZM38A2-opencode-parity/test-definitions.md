@@ -502,7 +502,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 - [x] RED 41ac210de
 - [x] GREEN 3d3cd590a
-- [ ] REFACTOR
+- [x] REFACTOR skip: status reuses the shared evidence booleans and one human action boundary
 
 ## Rule: opencode-parity.SWM1.R1 — Every integration declares a complete adapter
 
