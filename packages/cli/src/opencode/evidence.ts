@@ -10,7 +10,7 @@ export interface OpenCodeActivationV1 {
   readonly project_sha256: string;
   readonly opencode_version?: string;
   readonly event: OpenCodeActivationEvent;
-  readonly session_id_sha256: string;
+  readonly session_id_sha256?: string;
   readonly call_id_sha256?: string;
   readonly observed_at: string;
 }
@@ -47,6 +47,13 @@ const ACTIVATION_EVENTS = new Set<OpenCodeActivationEvent>([
   'stop',
 ]);
 const CALL_BOUND_EVENTS = new Set<OpenCodeActivationEvent>(['pre_tool', 'post_tool']);
+const SESSION_BOUND_EVENTS = new Set<OpenCodeActivationEvent>([
+  'session_start',
+  'prompt_submit',
+  'pre_tool',
+  'post_tool',
+  'stop',
+]);
 
 function isSchemaVersion(value: unknown): boolean {
   return value === 1;
@@ -64,6 +71,21 @@ function isConformanceResult(value: unknown): boolean {
   return value === 'passed' || value === 'failed';
 }
 
+function optional(value: unknown, validate: (candidate: unknown) => boolean): boolean {
+  return value === undefined || validate(value);
+}
+
+function hasValidActivationBindings(record: Record<string, unknown>): boolean {
+  const event = record.event as OpenCodeActivationEvent;
+  return (
+    optional(record.opencode_version, isNonEmptyString) &&
+    optional(record.session_id_sha256, isSha256) &&
+    optional(record.call_id_sha256, isSha256) &&
+    (!SESSION_BOUND_EVENTS.has(event) || Boolean(record.session_id_sha256)) &&
+    (!CALL_BOUND_EVENTS.has(event) || Boolean(record.call_id_sha256))
+  );
+}
+
 export function parseOpenCodeActivation(value: unknown): OpenCodeActivationV1 | undefined {
   const record = exactRecord(
     value,
@@ -73,10 +95,9 @@ export function parseOpenCodeActivation(value: unknown): OpenCodeActivationV1 | 
       'plugin_sha256',
       'project_sha256',
       'event',
-      'session_id_sha256',
       'observed_at',
     ],
-    ['opencode_version', 'call_id_sha256'],
+    ['opencode_version', 'session_id_sha256', 'call_id_sha256'],
   );
   if (
     !matchesRecord(record, {
@@ -85,16 +106,11 @@ export function parseOpenCodeActivation(value: unknown): OpenCodeActivationV1 | 
       plugin_sha256: isSha256,
       project_sha256: isSha256,
       event: isActivationEvent,
-      session_id_sha256: isSha256,
       observed_at: isTimestamp,
     })
   )
     return undefined;
-  if (record.opencode_version !== undefined && !isNonEmptyString(record.opencode_version))
-    return undefined;
-  if (record.call_id_sha256 !== undefined && !isSha256(record.call_id_sha256)) return undefined;
-  if (CALL_BOUND_EVENTS.has(record.event as OpenCodeActivationEvent) && !record.call_id_sha256)
-    return undefined;
+  if (!hasValidActivationBindings(record)) return undefined;
   return record as unknown as OpenCodeActivationV1;
 }
 

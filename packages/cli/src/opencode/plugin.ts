@@ -8,13 +8,14 @@ function profilePluginSource(markerTimeoutMilliseconds: number): string {
   return String.raw`import { spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { constants } from 'node:fs';
-import { access, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { access, mkdir, readFile, realpath, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const profileRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const identityPath = path.join(profileRoot, 'safeword', 'identity-v1.json');
 const profileErrorPath = path.join(profileRoot, 'safeword', 'profile-error-v1.json');
+const activationRoot = path.join(profileRoot, 'safeword', 'activation-v1');
 const MARKER_TIMEOUT_MILLISECONDS = ${markerTimeoutMilliseconds};
 const DENIAL = 'Safeword denied this OpenCode tool call.';
 const REPAIR = 'Safeword cannot run its OpenCode guard. Run safeword install --agents=opencode.';
@@ -72,26 +73,51 @@ async function readIdentity() {
   return JSON.parse(await readFile(identityPath, 'utf8'));
 }
 
-async function recordMarkerResolutionFailure() {
+async function atomicWrite(destination, content) {
   let temporaryPath;
   try {
+    await mkdir(path.dirname(destination), { recursive: true });
+    temporaryPath = destination + '.' + process.pid + '.' + randomUUID() + '.tmp';
+    await writeFile(temporaryPath, content, { mode: 0o600 });
+    await rename(temporaryPath, destination);
+    temporaryPath = undefined;
+  } finally {
+    if (temporaryPath !== undefined) await rm(temporaryPath, { force: true }).catch(() => {});
+  }
+}
+
+async function recordMarkerResolutionFailure() {
+  try {
     const identity = await readIdentity();
-    const evidence = {
+    await atomicWrite(profileErrorPath, JSON.stringify({
       schema_version: 1,
       safeword_version: identity.safeword_version,
       plugin_sha256: identity.plugin_sha256,
       error_code: 'marker_resolution_failed',
       observed_at: new Date().toISOString(),
-    };
-    await mkdir(path.dirname(profileErrorPath), { recursive: true });
-    temporaryPath = profileErrorPath + '.' + process.pid + '.' + randomUUID() + '.tmp';
-    await writeFile(temporaryPath, JSON.stringify(evidence) + '\n', { mode: 0o600 });
-    await rename(temporaryPath, profileErrorPath);
-    temporaryPath = undefined;
+    }) + '\n');
   } catch {
     // Evidence is diagnostic; classification uncertainty must remain fail-open.
-  } finally {
-    if (temporaryPath !== undefined) await rm(temporaryPath, { force: true }).catch(() => {});
+  }
+}
+
+async function recordActivation(directory, event, sessionID, callID) {
+  try {
+    const [identity, canonicalProject] = await Promise.all([readIdentity(), realpath(directory)]);
+    const projectHash = createHash('sha256').update(canonicalProject).digest('hex');
+    const evidence = {
+      schema_version: 1,
+      safeword_version: identity.safeword_version,
+      plugin_sha256: identity.plugin_sha256,
+      project_sha256: projectHash,
+      event,
+      ...(sessionID === undefined ? {} : { session_id_sha256: createHash('sha256').update(sessionID).digest('hex') }),
+      ...(callID === undefined ? {} : { call_id_sha256: createHash('sha256').update(callID).digest('hex') }),
+      observed_at: new Date().toISOString(),
+    };
+    await atomicWrite(path.join(activationRoot, projectHash + '.json'), JSON.stringify(evidence) + '\n');
+  } catch {
+    // Activation is diagnostic and never changes the host operation.
   }
 }
 
@@ -142,28 +168,35 @@ function dispatch(identity, envelope) {
   });
 }
 
-export const Safeword = async input => ({
-  'tool.execute.before': async (hookInput, output) => {
-    if (!input?.directory) return;
+export const Safeword = async input => {
+  if (input?.directory) {
     const classification = await classifyProject(input.directory);
-    if (classification === 'uncertain') {
-      await recordMarkerResolutionFailure();
-      return;
-    }
-    if (classification === 'unmarked') return;
-    const envelope = canonicalEnvelope(hookInput, output);
-    if (envelope === undefined) return;
-    let result;
-    try {
-      result = await dispatch(await readBoundIdentity(), envelope);
-    } catch (error) {
-      if (error instanceof UnavailableDispatcher) throw new Error(REPAIR);
+    if (classification === 'marked') await recordActivation(input.directory, 'plugin_load');
+    else if (classification === 'uncertain') await recordMarkerResolutionFailure();
+  }
+  return {
+    'tool.execute.before': async (hookInput, output) => {
+      if (!input?.directory) return;
+      const classification = await classifyProject(input.directory);
+      if (classification === 'uncertain') {
+        await recordMarkerResolutionFailure();
+        return;
+      }
+      if (classification === 'unmarked') return;
+      const envelope = canonicalEnvelope(hookInput, output);
+      if (envelope === undefined) return;
+      let result;
+      try {
+        result = await dispatch(await readBoundIdentity(), envelope);
+      } catch (error) {
+        if (error instanceof UnavailableDispatcher) throw new Error(REPAIR);
+        throw new Error(DENIAL);
+      }
+      if (result.exitCode === 0) return;
       throw new Error(DENIAL);
-    }
-    if (result.exitCode === 0) return;
-    throw new Error(DENIAL);
-  },
-});
+    },
+  };
+};
 `;
 }
 
