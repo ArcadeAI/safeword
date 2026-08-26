@@ -30,14 +30,15 @@ export interface ClaudeHookInput {
  * self-report's detectAgent reads and what scopes the per-session state key).
  */
 export function runClaudeHookAsCodex(claudeHookPath: string, translated: ClaudeHookInput) {
-  return spawnSync('bun', [claudeHookPath], {
+  const runtime = process.env.SAFEWORD_AGENT_RUNTIME === 'opencode' ? process.execPath : 'bun';
+  return spawnSync(runtime, [claudeHookPath], {
     cwd: process.cwd(),
     input: JSON.stringify(translated),
     encoding: 'utf8',
     env: {
       ...process.env,
       CLAUDE_PROJECT_DIR: process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
-      SAFEWORD_AGENT_RUNTIME: 'codex',
+      SAFEWORD_AGENT_RUNTIME: process.env.SAFEWORD_AGENT_RUNTIME ?? 'codex',
     },
     stdio: ['pipe', 'pipe', 'pipe'],
   });

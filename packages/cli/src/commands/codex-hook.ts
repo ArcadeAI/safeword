@@ -4,6 +4,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   renameSync,
   rmSync,
@@ -345,14 +346,15 @@ function runHookFile(
   projectDirectory: string,
   packagedContextPath = '',
 ): HookProcessResult {
-  const result = spawnSync('bun', [hookPath], {
+  const runtime = process.env.SAFEWORD_AGENT_RUNTIME === 'opencode' ? process.execPath : 'bun';
+  const result = spawnSync(runtime, [hookPath], {
     cwd: projectDirectory,
     input: rawInput,
     encoding: 'utf8',
     env: {
       ...process.env,
       CLAUDE_PROJECT_DIR: projectDirectory,
-      SAFEWORD_AGENT_RUNTIME: 'codex',
+      SAFEWORD_AGENT_RUNTIME: process.env.SAFEWORD_AGENT_RUNTIME ?? 'codex',
       SAFEWORD_PACKAGED_CONTEXT_PATH: packagedContextPath,
     },
     stdio: ['pipe', 'pipe', 'pipe'],
@@ -428,6 +430,24 @@ interface PackagedHookSnapshot {
   hookPath?: string;
 }
 
+function rewriteSnapshotImportsForNode(directory: string): void {
+  const entries = readdirSync(directory, { withFileTypes: true });
+  for (const entry of entries) {
+    const path = nodePath.join(directory, entry.name);
+    if (entry.isDirectory()) {
+      rewriteSnapshotImportsForNode(path);
+      continue;
+    }
+    if (!entry.isFile() || !entry.name.endsWith('.ts')) continue;
+    const source = readFileSync(path, 'utf8');
+    const rewritten = source.replaceAll(
+      /(from\s+['"]|import\s*\(\s*['"])(\.{1,2}\/[^'"]+)\.js(['"])/gu,
+      '$1$2.ts$3',
+    );
+    if (rewritten !== source) writeFileSync(path, rewritten, 'utf8');
+  }
+}
+
 function snapshotPackagedHook(relativePath: string): PackagedHookSnapshot {
   const packagedHooksDirectory = findPackagedTemplate('hooks');
   if (!packagedHooksDirectory) {
@@ -441,6 +461,9 @@ function snapshotPackagedHook(relativePath: string): PackagedHookSnapshot {
   const snapshotHooksDirectory = nodePath.join(directory, 'hooks');
   try {
     cpSync(packagedHooksDirectory, stagingHooksDirectory, { recursive: true });
+    if (process.env.SAFEWORD_AGENT_RUNTIME === 'opencode') {
+      rewriteSnapshotImportsForNode(stagingHooksDirectory);
+    }
     renameSync(stagingHooksDirectory, snapshotHooksDirectory);
     const hookPath = nodePath.join(snapshotHooksDirectory, relativePath);
     return existsSync(hookPath)

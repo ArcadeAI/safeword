@@ -132,7 +132,12 @@ function buildRelayAttestation(): RelayBuildAttestation {
 const relayBuildAttestation = buildRelayAttestation();
 
 export default defineConfig({
-  entry: ['src/cli.ts', 'src/index.ts', 'src/presets/typescript/index.ts'],
+  entry: [
+    'src/cli.ts',
+    'src/index.ts',
+    'src/opencode/dispatcher.ts',
+    'src/presets/typescript/index.ts',
+  ],
   format: ['esm'],
   dts: true,
   sourcemap: true,
