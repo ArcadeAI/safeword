@@ -10,7 +10,7 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { readdirSync, realpathSync } from 'node:fs';
+import { readdirSync, readFileSync, realpathSync, unlinkSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { parse } from 'smol-toml';
@@ -430,6 +430,23 @@ function detectPythonPackageManagerAt(directory: string): PythonPackageManager |
   return exists(nodePath.join(directory, 'Pipfile')) ? 'pipenv' : undefined;
 }
 
+function uvLockDirectory(cwd: string, repoRoot: string): string | undefined {
+  const root = nodePath.resolve(repoRoot);
+  const projectDirectory = nodePath.resolve(cwd);
+  let directory = projectDirectory;
+
+  while (true) {
+    if (
+      exists(nodePath.join(directory, 'uv.lock')) &&
+      (directory === projectDirectory || pythonWorkspaceOwns(directory, projectDirectory))
+    ) {
+      return directory;
+    }
+    if (directory === root) return undefined;
+    directory = nodePath.dirname(directory);
+  }
+}
+
 /**
  * Get the install command for Python tools based on package manager.
  *
@@ -556,6 +573,39 @@ export function getPythonToolDependencyGaps(
   });
 }
 
+function installUvDependencies(
+  cwd: string,
+  tools: readonly PythonTool[],
+  repoRoot: string,
+): boolean {
+  const manifestPath = nodePath.join(cwd, 'pyproject.toml');
+  const lockDirectory = uvLockDirectory(cwd, repoRoot);
+  const lockPath = lockDirectory && nodePath.join(lockDirectory, 'uv.lock');
+  const manifestBefore = exists(manifestPath) ? readFileSync(manifestPath) : undefined;
+  const lockBefore = lockPath ? readFileSync(lockPath) : undefined;
+
+  try {
+    execFileSync('uv', ['add', '--dev', ...tools], {
+      cwd,
+      stdio: 'pipe',
+      timeout: 60_000,
+    });
+    if (lockDirectory) {
+      execFileSync('uv', ['lock', '--check'], {
+        cwd: lockDirectory,
+        stdio: 'pipe',
+        timeout: 60_000,
+      });
+    }
+    return true;
+  } catch {
+    if (manifestBefore) writeFileSync(manifestPath, manifestBefore);
+    else if (exists(manifestPath)) unlinkSync(manifestPath);
+    if (lockPath && lockBefore) writeFileSync(lockPath, lockBefore);
+    return false;
+  }
+}
+
 export function installPythonDependencies(
   cwd: string,
   tools: readonly PythonTool[],
@@ -567,6 +617,7 @@ export function installPythonDependencies(
   // pip projects need manual install due to PEP 668
   const pm = detectPythonPackageManager(cwd, repoRoot);
   if (pm === 'pip') return false;
+  if (pm === 'uv') return installUvDependencies(cwd, tools, repoRoot);
 
   try {
     const invocation = pythonInstallInvocation(cwd, tools, repoRoot);
