@@ -448,7 +448,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ### Scenario: An uncovered lifecycle boundary is described as observational
 
-- [ ] RED
+- [x] RED 5cbabc4be
 - [ ] GREEN
 - [ ] REFACTOR
 
