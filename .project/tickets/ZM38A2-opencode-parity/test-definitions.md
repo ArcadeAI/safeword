@@ -179,7 +179,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 ### Scenario: A marker-resolution failure invalidates prior activation
 
 - [x] RED 7a5be3f8b
-- [ ] GREEN
+- [x] GREEN 9ac237e1f
 - [ ] REFACTOR
 
 ### Scenario: Successful project classification clears a prior resolution failure
