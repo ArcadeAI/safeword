@@ -411,7 +411,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 ### Scenario: Conformance fails safely when the OpenCode executable boundary is invalid
 
 - [x] RED 62031948a
-- [ ] GREEN
+- [x] GREEN d1d4aab1e
 - [ ] REFACTOR
 
 ### Scenario: Persisted conformance evidence excludes sensitive execution content
