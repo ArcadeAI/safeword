@@ -5,10 +5,11 @@ import nodePath from 'node:path';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import { writeDurableFile } from '../codex-plugin/durable-write.js';
 import { acquireProfileLock, releaseProfileLock } from '../utils/profile-lock.js';
+import { VERSION } from '../version.js';
 import { type OpenCodeIdentityV1, parseOpenCodeIdentity } from './identity.js';
+import { generateOpenCodeProfilePlugin } from './plugin.js';
 
 export type { OpenCodeIdentityV1 } from './identity.js';
-export { generateOpenCodeProfilePlugin } from './plugin.js';
 
 export interface PlatformEnvironment {
   readonly platform: 'unix' | 'windows';
@@ -96,6 +97,40 @@ function observeFile(path: string): FileObservation {
 
 function sha256(value: Buffer | string): string {
   return createHash('sha256').update(value).digest('hex');
+}
+
+function packagedDispatcherPath(): string | undefined {
+  const moduleDirectory = import.meta.dirname;
+  return [
+    nodePath.join(moduleDirectory, 'opencode', 'dispatcher.js'),
+    nodePath.resolve(moduleDirectory, '../../dist/opencode/dispatcher.js'),
+  ].find(candidate => existsSync(candidate));
+}
+
+export function installOpenCodeProfile(root: string): CliResult {
+  const dispatcherPath = packagedDispatcherPath();
+  if (dispatcherPath === undefined) {
+    return actionRequired(
+      'OPENCODE_DISPATCHER_MISSING',
+      'The packaged OpenCode dispatcher is unavailable.',
+      'safeword install --agents=opencode',
+    );
+  }
+  const pluginBytes = generateOpenCodeProfilePlugin();
+  return reconcileOpenCodeProfile({
+    operation: 'install',
+    root,
+    pluginBytes,
+    identity: {
+      schema_version: 1,
+      safeword_version: VERSION,
+      plugin_path: 'plugins/safeword.js',
+      plugin_sha256: sha256(pluginBytes),
+      runtime_path: process.execPath,
+      dispatcher_path: dispatcherPath,
+      dispatcher_sha256: sha256(readFileSync(dispatcherPath)),
+    },
+  });
 }
 
 export function observeOpenCodeProfile(root: string): CliResult {
@@ -292,3 +327,5 @@ export function reconcileOpenCodeProfile(input: ReconcileOpenCodeProfileInput): 
     if (input.operation === 'uninstall') removeEmptyDirectory(paths.safeword);
   }
 }
+
+export { generateOpenCodeProfilePlugin } from './plugin.js';

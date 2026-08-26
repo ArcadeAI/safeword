@@ -424,8 +424,11 @@ const opencode = defineIntegrationAdapter({
   observe(context) {
     return observeOpenCode(context);
   },
-  install(context) {
-    return observeOpenCode(context);
+  async install(context) {
+    const root = await resolveOpenCodeRoot(context);
+    if (root === undefined) return openCodeConfigRootRequired();
+    const { installOpenCodeProfile } = await import('../opencode/profile.js');
+    return installOpenCodeProfile(root);
   },
   uninstall(context) {
     return observeOpenCode(context);
