@@ -184,6 +184,7 @@ export function observeOpenCodeProfile(root: string): CliResult {
       'OPENCODE_PROFILE_MISSING',
       'The Safeword OpenCode profile plugin is not installed.',
       'safeword install --agents=opencode',
+      { installed: false, activated: false, pre_tool: 'unavailable', conformant: false },
     );
   }
   if (plugin.kind === 'collision' || identityFile.kind !== 'file') {
