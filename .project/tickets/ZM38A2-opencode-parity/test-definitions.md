@@ -44,7 +44,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ### Scenario: Profile installation resolves the documented config root
 
-- [ ] RED
+- [x] RED 4915f963f
 - [ ] GREEN
 - [ ] REFACTOR
 
