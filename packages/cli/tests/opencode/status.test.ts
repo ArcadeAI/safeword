@@ -25,6 +25,7 @@ function writeActivationEvidence(
   identity: OpenCodeIdentityV1,
   event: 'plugin_load' | 'pre_tool',
   opencodeVersion?: string,
+  observedAt = new Date().toISOString(),
 ): void {
   mkdirSync(paths.activation, { recursive: true });
   writeFileSync(
@@ -40,7 +41,7 @@ function writeActivationEvidence(
         session_id_sha256: 'b'.repeat(64),
         call_id_sha256: 'c'.repeat(64),
       }),
-      observed_at: new Date().toISOString(),
+      observed_at: observedAt,
     })}\n`,
   );
 }
@@ -77,6 +78,28 @@ afterEach(() => {
 });
 
 describe('OpenCode status evidence', () => {
+  it('NTB1.R3.S02 accepts activation at the exact seven-day boundary', () => {
+    const root = temporaryDirectory();
+    const paths = openCodeProfilePaths(root);
+    expect(installOpenCodeProfile(root).state).toBe('changed');
+    const identity = JSON.parse(readFileSync(paths.identity, 'utf8')) as OpenCodeIdentityV1;
+    writePassingEvidence(paths, identity, false);
+    const now = Date.parse('2026-08-26T12:00:00.000Z');
+    writeActivationEvidence(
+      paths,
+      identity,
+      'pre_tool',
+      undefined,
+      new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString(),
+    );
+
+    const result = observeOpenCodeProfile(root, now);
+
+    expect(result.state).toBe('healthy');
+    expect(result.data).toMatchObject({ activated: true });
+    expect(result.nextActions).toEqual([]);
+  });
+
   it('NTB1.R2.S03 does not call an untested stable OpenCode version supported', () => {
     const root = temporaryDirectory();
     const paths = openCodeProfilePaths(root);
