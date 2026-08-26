@@ -514,13 +514,13 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ### Scenario: An adapter without ownership declarations is rejected
 
-- [ ] RED
+- [x] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: An adapter cannot claim a dimension it cannot honor
 
-- [ ] RED
+- [x] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
@@ -590,7 +590,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ### Scenario: Existing integration operations retain their recorded origin-main contract
 
-- [ ] RED
+- [x] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
@@ -608,12 +608,12 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ### Scenario: A registered integration cannot be skipped by lifecycle coordination
 
-- [ ] RED
+- [x] RED
 - [ ] GREEN
 - [ ] REFACTOR
 
 ### Scenario: Invalid adapter claims fail contract validation
 
-- [ ] RED
+- [x] RED
 - [ ] GREEN
 - [ ] REFACTOR
