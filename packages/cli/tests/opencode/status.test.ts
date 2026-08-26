@@ -20,30 +20,38 @@ function temporaryDirectory(): string {
   return directory;
 }
 
+function writeActivationEvidence(
+  paths: OpenCodeProfilePaths,
+  identity: OpenCodeIdentityV1,
+  event: 'plugin_load' | 'pre_tool',
+  opencodeVersion?: string,
+): void {
+  mkdirSync(paths.activation, { recursive: true });
+  writeFileSync(
+    nodePath.join(paths.activation, `${'a'.repeat(64)}.json`),
+    `${JSON.stringify({
+      schema_version: 1,
+      safeword_version: identity.safeword_version,
+      plugin_sha256: identity.plugin_sha256,
+      project_sha256: 'a'.repeat(64),
+      event,
+      ...(opencodeVersion !== undefined && { opencode_version: opencodeVersion }),
+      ...(event === 'pre_tool' && {
+        session_id_sha256: 'b'.repeat(64),
+        call_id_sha256: 'c'.repeat(64),
+      }),
+      observed_at: new Date().toISOString(),
+    })}\n`,
+  );
+}
+
 function writePassingEvidence(
   paths: OpenCodeProfilePaths,
   identity: OpenCodeIdentityV1,
   event: 'plugin_load' | 'pre_tool' | false = 'plugin_load',
 ): void {
   mkdirSync(paths.conformance, { recursive: true });
-  if (event !== false) {
-    mkdirSync(paths.activation, { recursive: true });
-    writeFileSync(
-      nodePath.join(paths.activation, `${'a'.repeat(64)}.json`),
-      `${JSON.stringify({
-        schema_version: 1,
-        safeword_version: identity.safeword_version,
-        plugin_sha256: identity.plugin_sha256,
-        project_sha256: 'a'.repeat(64),
-        event,
-        ...(event === 'pre_tool' && {
-          session_id_sha256: 'b'.repeat(64),
-          call_id_sha256: 'c'.repeat(64),
-        }),
-        observed_at: new Date().toISOString(),
-      })}\n`,
-    );
-  }
+  if (event !== false) writeActivationEvidence(paths, identity, event);
   writeFileSync(
     nodePath.join(paths.conformance, `1.18.23-${identity.plugin_sha256}.json`),
     `${JSON.stringify({
@@ -69,6 +77,31 @@ afterEach(() => {
 });
 
 describe('OpenCode status evidence', () => {
+  it('NTB1.R2.S03 does not call an untested stable OpenCode version supported', () => {
+    const root = temporaryDirectory();
+    const paths = openCodeProfilePaths(root);
+    expect(installOpenCodeProfile(root).state).toBe('changed');
+    const identity = JSON.parse(readFileSync(paths.identity, 'utf8')) as OpenCodeIdentityV1;
+    writeActivationEvidence(paths, identity, 'pre_tool', '1.18.24');
+
+    const result = observeOpenCodeProfile(root);
+
+    expect(result.state).toBe('action_required');
+    expect(result.data).toEqual({
+      installed: true,
+      activated: true,
+      pre_tool: 'block',
+      conformant: false,
+    });
+    expect(result.nextActions).toEqual([
+      {
+        command: 'safeword conformance --agents=opencode',
+        mutates: true,
+        requiresHuman: true,
+      },
+    ]);
+  });
+
   it('NTB1.R3.S03 does not claim protection without activation evidence', () => {
     const root = temporaryDirectory();
     const paths = openCodeProfilePaths(root);
