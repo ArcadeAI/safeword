@@ -442,7 +442,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ### Scenario: Healthy supported-process protection reports independent dimensions
 
-- [ ] RED
+- [x] RED 9b58ce129
 - [ ] GREEN
 - [ ] REFACTOR
 
