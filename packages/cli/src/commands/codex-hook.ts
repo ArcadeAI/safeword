@@ -440,10 +440,21 @@ function rewriteSnapshotImportsForNode(directory: string): void {
     }
     if (!entry.isFile() || !entry.name.endsWith('.ts')) continue;
     const source = readFileSync(path, 'utf8');
-    const rewritten = source.replaceAll(
-      /(from\s+['"]|import\s*\(\s*['"])(\.{1,2}\/[^'"]+)\.js(['"])/gu,
-      '$1$2.ts$3',
-    );
+    const rewritten = source
+      .replaceAll(/(from\s+['"]|import\s*\(\s*['"])(\.{1,2}\/[^'"]+)\.js(['"])/gu, '$1$2.ts$3')
+      .replace(
+        'return JSON.parse(await Bun.stdin.text()) as CodexHookInput;',
+        "let raw = '';\n    process.stdin.setEncoding('utf8');\n    for await (const chunk of process.stdin) raw += String(chunk);\n    return JSON.parse(raw) as CodexHookInput;",
+      )
+      .replace(
+        "return spawnSync('bun', [claudeHookPath], {",
+        'return spawnSync(process.execPath, [claudeHookPath], {',
+      )
+      .replace("SAFEWORD_AGENT_RUNTIME: 'codex',", "SAFEWORD_AGENT_RUNTIME: 'opencode',")
+      .replace(
+        'input = await Bun.stdin.json();',
+        "let raw = '';\n  process.stdin.setEncoding('utf8');\n  for await (const chunk of process.stdin) raw += String(chunk);\n  input = JSON.parse(raw) as HookInput;",
+      );
     if (rewritten !== source) writeFileSync(path, rewritten, 'utf8');
   }
 }

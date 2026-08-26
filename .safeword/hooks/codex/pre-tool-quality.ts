@@ -36,10 +36,7 @@ const CODEX_EXPLAIN_HINT = 'Run `$explain` for a plain-English version of this b
 
 async function readInput(): Promise<CodexHookInput | undefined> {
   try {
-    let raw = '';
-    process.stdin.setEncoding('utf8');
-    for await (const chunk of process.stdin) raw += String(chunk);
-    return JSON.parse(raw) as CodexHookInput;
+    return JSON.parse(await Bun.stdin.text()) as CodexHookInput;
   } catch {
     return undefined;
   }
