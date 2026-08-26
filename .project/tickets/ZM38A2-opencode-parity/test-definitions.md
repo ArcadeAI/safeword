@@ -423,7 +423,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 ### Scenario: Conformance evidence is rejected when a binding dimension differs
 
 - [x] RED 9010b2f8b
-- [ ] GREEN
+- [x] GREEN 444be3bce
 - [ ] REFACTOR
 
 ### Scenario: Bound conformance evidence does not expire by age alone
