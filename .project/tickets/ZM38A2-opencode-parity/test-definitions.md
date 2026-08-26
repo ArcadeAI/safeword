@@ -386,7 +386,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ### Scenario: Pinned OpenCode proves denial without a side effect
 
-- [ ] RED
+- [x] RED c49d47e7a
 - [ ] GREEN
 - [ ] REFACTOR
 
