@@ -1,4 +1,5 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
@@ -78,6 +79,57 @@ afterEach(() => {
 });
 
 describe('OpenCode status evidence', () => {
+  it.each([
+    ['7 days and 1 second old', { observed_at: '2026-08-19T11:59:59.000Z' }],
+    ['malformed', '{'],
+    ['future dated', { observed_at: '2026-08-26T12:00:01.000Z' }],
+    ['project mismatched', { project_sha256: 'd'.repeat(64) }],
+    ['plugin mismatched', { plugin_sha256: 'e'.repeat(64) }],
+    ['schema mismatched', { schema_version: 2 }],
+    ['Safeword mismatched', { safeword_version: '0.0.0' }],
+  ])('NTB1.R3.S01 keeps %s activation evidence non-current', (_state, invalid) => {
+    const root = temporaryDirectory();
+    const projectDirectory = nodePath.join(root, 'project');
+    mkdirSync(projectDirectory);
+    const projectHash = createHash('sha256').update(realpathSync(projectDirectory)).digest('hex');
+    const paths = openCodeProfilePaths(root);
+    expect(installOpenCodeProfile(root).state).toBe('changed');
+    const identity = JSON.parse(readFileSync(paths.identity, 'utf8')) as OpenCodeIdentityV1;
+    writePassingEvidence(paths, identity, false);
+    const now = Date.parse('2026-08-26T12:00:00.000Z');
+    const valid = {
+      schema_version: 1,
+      safeword_version: identity.safeword_version,
+      plugin_sha256: identity.plugin_sha256,
+      project_sha256: projectHash,
+      event: 'pre_tool',
+      session_id_sha256: 'b'.repeat(64),
+      call_id_sha256: 'c'.repeat(64),
+      observed_at: new Date(now).toISOString(),
+    };
+    mkdirSync(paths.activation, { recursive: true });
+    const activationPath = nodePath.join(paths.activation, `${projectHash}.json`);
+    writeFileSync(activationPath, `${JSON.stringify(valid)}\n`);
+    expect(observeOpenCodeProfile(root, { now, projectDirectory }).state).toBe('healthy');
+
+    writeFileSync(
+      activationPath,
+      typeof invalid === 'string' ? invalid : `${JSON.stringify({ ...valid, ...invalid })}\n`,
+    );
+    const result = observeOpenCodeProfile(root, { now, projectDirectory });
+
+    expect(result.state).toBe('action_required');
+    expect(result.data).toMatchObject({ activated: false, conformant: true });
+    expect(result.nextActions).toEqual([
+      {
+        kind: 'human',
+        instruction: 'Fully restart OpenCode, then reopen this project.',
+        mutates: false,
+        requiresHuman: true,
+      },
+    ]);
+  });
+
   it('NTB1.R3.S02 accepts activation at the exact seven-day boundary', () => {
     const root = temporaryDirectory();
     const paths = openCodeProfilePaths(root);
