@@ -77,18 +77,6 @@ function dispatch(identity, envelope) {
   });
 }
 
-function denialReason(result) {
-  if (result.exitCode !== 2) return undefined;
-  try {
-    const value = JSON.parse(result.stdout);
-    return value?.schema_version === 1 && value?.decision === 'deny' && typeof value?.reason === 'string' && value.reason.length > 0
-      ? value.reason
-      : DENIAL;
-  } catch {
-    return DENIAL;
-  }
-}
-
 export const Safeword = async input => ({
   'tool.execute.before': async (hookInput, output) => {
     if (!input?.directory || !(await isMarkedProject(input.directory))) return;
@@ -101,8 +89,7 @@ export const Safeword = async input => ({
       throw new Error(DENIAL);
     }
     if (result.exitCode === 0) return;
-    const reason = denialReason(result);
-    throw new Error(reason ?? DENIAL);
+    throw new Error(DENIAL);
   },
 });
 `;

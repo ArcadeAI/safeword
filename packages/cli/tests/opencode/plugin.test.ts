@@ -108,7 +108,8 @@ describe('generated OpenCode profile plugin', () => {
       };
       const denied = JSON.stringify(toolInput).includes('deny');
 
-      if (denied) await expect(operation()).rejects.toThrow('Safeword denied this operation.');
+      if (denied)
+        await expect(operation()).rejects.toThrow('Safeword denied this OpenCode tool call.');
       else await operation();
 
       expect(existsSync(sentinel)).toBe(!denied);
