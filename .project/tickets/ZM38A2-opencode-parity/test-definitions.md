@@ -222,7 +222,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 - [x] RED 914475d82
 - [x] GREEN 8ca264a69
-- [ ] REFACTOR
+- [x] REFACTOR skip: the shared activation writer hashes host lifecycle identifiers at one boundary
 
 ### Scenario: Activation evidence stores only hashed lifecycle identity
 
