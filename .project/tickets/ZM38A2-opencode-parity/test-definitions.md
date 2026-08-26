@@ -416,7 +416,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ### Scenario: Persisted conformance evidence excludes sensitive execution content
 
-- [ ] RED
+- [x] RED 02171a4da
 - [ ] GREEN
 - [ ] REFACTOR
 
