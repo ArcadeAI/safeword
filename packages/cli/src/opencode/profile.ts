@@ -148,6 +148,33 @@ function hasCurrentProfileError(path: string, identity: OpenCodeIdentityV1): boo
   }
 }
 
+function hasCurrentDispatcher(identity: OpenCodeIdentityV1): boolean {
+  const dispatcher = observeFile(identity.dispatcher_path);
+  return dispatcher.kind === 'file' && sha256(dispatcher.bytes) === identity.dispatcher_sha256;
+}
+
+function observeIdentityBindings(
+  plugin: FileObservation,
+  identity: OpenCodeIdentityV1,
+): CliResult | undefined {
+  if (plugin.kind !== 'file' || sha256(plugin.bytes) !== identity.plugin_sha256) {
+    return actionRequired(
+      'OPENCODE_PLUGIN_DRIFT',
+      'The Safeword OpenCode plugin does not match its identity.',
+      'safeword install --agents=opencode',
+    );
+  }
+  if (!hasCurrentDispatcher(identity)) {
+    return actionRequired(
+      'OPENCODE_DISPATCHER_UNAVAILABLE',
+      'The identity-bound OpenCode dispatcher is unavailable.',
+      'safeword install --agents=opencode',
+      { installed: true, activated: false, pre_tool: 'block' },
+    );
+  }
+  return undefined;
+}
+
 export function observeOpenCodeProfile(root: string): CliResult {
   const paths = openCodeProfilePaths(root);
   const plugin = observeFile(paths.plugin);
@@ -179,13 +206,8 @@ export function observeOpenCodeProfile(root: string): CliResult {
       'safeword install --agents=opencode',
     );
   }
-  if (plugin.kind !== 'file' || sha256(plugin.bytes) !== identity.plugin_sha256) {
-    return actionRequired(
-      'OPENCODE_PLUGIN_DRIFT',
-      'The Safeword OpenCode plugin does not match its identity.',
-      'safeword install --agents=opencode',
-    );
-  }
+  const bindingProblem = observeIdentityBindings(plugin, identity);
+  if (bindingProblem !== undefined) return bindingProblem;
   if (hasCurrentProfileError(paths.profileError, identity)) {
     return actionRequired(
       'OPENCODE_MARKER_RESOLUTION_FAILED',
