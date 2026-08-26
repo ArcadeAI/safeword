@@ -240,7 +240,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 - [x] RED 80e746657
 - [x] GREEN 5989bc226
-- [ ] REFACTOR
+- [x] REFACTOR skip: activation and profile-error evidence already share one atomic writer
 
 ### Scenario: OpenCode lifecycle capabilities produce their declared evidence
 
