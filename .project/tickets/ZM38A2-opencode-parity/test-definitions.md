@@ -450,7 +450,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 - [x] RED 5cbabc4be
 - [x] GREEN b176ae0ee
-- [ ] REFACTOR
+- [x] REFACTOR skip: the healthy projection adds one advisory without changing action precedence or dimensions
 
 ## Rule: opencode-parity.NTB1.R2 — Incomplete states yield one truthful summary and at most one action
 
