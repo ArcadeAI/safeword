@@ -443,7 +443,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 ### Scenario: Healthy supported-process protection reports independent dimensions
 
 - [x] RED 9b58ce129
-- [ ] GREEN
+- [x] GREEN 9a8052bd9
 - [ ] REFACTOR
 
 ### Scenario: An uncovered lifecycle boundary is described as observational
