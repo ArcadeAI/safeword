@@ -458,7 +458,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 - [x] RED c1dc898f2
 - [x] GREEN 10cd7baa4
-- [ ] REFACTOR
+- [x] REFACTOR skip: the existing missing-profile branch now carries the complete bounded summary
 
 ### Scenario: Repair priority selects one named next action
 
