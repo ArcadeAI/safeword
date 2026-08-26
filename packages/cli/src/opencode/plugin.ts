@@ -121,6 +121,10 @@ async function recordActivation(directory, event, sessionID, callID) {
   }
 }
 
+async function clearProfileError() {
+  await rm(profileErrorPath, { force: true }).catch(() => {});
+}
+
 async function readBoundIdentity() {
   const identity = await readIdentity();
   try {
@@ -183,6 +187,7 @@ export const Safeword = async input => {
         return;
       }
       if (classification === 'unmarked') return;
+      await clearProfileError();
       const envelope = canonicalEnvelope(hookInput, output);
       if (envelope === undefined) return;
       let result;
@@ -192,6 +197,7 @@ export const Safeword = async input => {
         if (error instanceof UnavailableDispatcher) throw new Error(REPAIR);
         throw new Error(DENIAL);
       }
+      await recordActivation(input.directory, 'pre_tool', hookInput.sessionID, hookInput.callID);
       if (result.exitCode === 0) return;
       throw new Error(DENIAL);
     },
