@@ -1,6 +1,7 @@
 import { schemaForClaudeDelivery } from '../claude-plugin/delivery-schema.js';
 import { schemaForCodexDelivery } from '../codex-plugin/delivery-schema.js';
 import {
+  SAFEWORD_SCHEMA,
   type SafewordSchema,
   schemaForProjectSurfaces,
   schemaForSharedAgentRuntime,
@@ -10,11 +11,31 @@ function isLegacyClaudePath(path: string): boolean {
   return path.startsWith('.claude/');
 }
 
+function withOpenCodeSkillDelivery(schema: SafewordSchema): SafewordSchema {
+  const skills = Object.fromEntries(
+    Object.entries(SAFEWORD_SCHEMA.ownedFiles).filter(([path]) =>
+      path.startsWith('.claude/skills/'),
+    ),
+  );
+  return {
+    ...schema,
+    sharedDirs: [...new Set([...schema.sharedDirs, '.claude', '.claude/skills'])],
+    ownedFiles: { ...schema.ownedFiles, ...skills },
+  };
+}
+
 export function projectLifecycleSchema(cwd: string, agents: readonly string[]): SafewordSchema {
-  const deliverySchema = schemaForCodexDelivery(cwd, schemaForClaudeDelivery(cwd));
+  const claudeDeliverySchema = schemaForClaudeDelivery(cwd);
+  const deliverySchema = schemaForCodexDelivery(
+    cwd,
+    agents.includes('opencode')
+      ? withOpenCodeSkillDelivery(claudeDeliverySchema)
+      : claudeDeliverySchema,
+  );
   const surfaceSchema = schemaForProjectSurfaces(deliverySchema, [
     'core',
     ...(agents.includes('cursor') ? (['cursor'] as const) : []),
+    ...(agents.includes('opencode') ? (['opencode'] as const) : []),
   ]);
   // schemaForClaudeDelivery only strips `.claude/*` once Claude is confirmed
   // native or absent — a still-present `.claude/*` entry here means legacy

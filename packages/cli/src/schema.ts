@@ -11,6 +11,7 @@ import nodePath from 'node:path';
 
 import { acceptedHistoricalHookEntries } from './claude-plugin/historical-ownership.js';
 import { CODEX_MIGRATION_SCHEMA } from './codex-plugin/inventory.js';
+import { OPENCODE_CATALOGUE_OWNED_FILES } from './opencode/catalogue.js';
 import { golangManagedFiles, golangOwnedFiles } from './packs/golang/files.js';
 import { pythonManagedFiles, pythonOwnedFiles } from './packs/python/files.js';
 import { rustManagedFiles, rustOwnedFiles } from './packs/rust/files.js';
@@ -560,6 +561,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.cursor/rules',
     '.cursor/commands',
     '.cursor/agents',
+    '.opencode',
+    '.opencode/commands',
+    '.opencode/agents',
   ],
 
   // Directories we add to but don't own (not deleted on reset)
@@ -1179,6 +1183,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.cursor/commands/lint.md': { template: 'commands/lint.md' },
 
+    // OpenCode reads thin plural-form stubs and discovers canonical bodies via .claude/skills.
+    ...OPENCODE_CATALOGUE_OWNED_FILES,
+
     // Cursor hooks adapters - TypeScript with Bun runtime
     '.safeword/hooks/cursor/after-file-edit.ts': {
       template: 'hooks/cursor/after-file-edit.ts',
@@ -1583,7 +1590,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
   packages: typescriptPackages,
 };
 
-export type ProjectSurface = 'core' | 'cursor';
+export type ProjectSurface = 'core' | 'cursor' | 'opencode';
 
 type SchemaPathCollection =
   | 'ownedDirs'
@@ -1687,13 +1694,21 @@ export function isCursorProjectPath(path: string): boolean {
   );
 }
 
+export function isOpenCodeProjectPath(path: string): boolean {
+  return path === '.opencode' || path.startsWith('.opencode/');
+}
+
 /** Select project-owned surfaces without scattering Cursor path filters through commands. */
 export function schemaForProjectSurfaces(
   schema: SafewordSchema,
   surfaces: readonly ProjectSurface[],
 ): SafewordSchema {
-  if (surfaces.includes('cursor')) return schema;
-  return filterSchemaPaths(schema, path => !isCursorProjectPath(path));
+  return filterSchemaPaths(
+    schema,
+    path =>
+      (surfaces.includes('cursor') || !isCursorProjectPath(path)) &&
+      (surfaces.includes('opencode') || !isOpenCodeProjectPath(path)),
+  );
 }
 
 const SHARED_AGENT_RUNTIME_ROOTS = [
