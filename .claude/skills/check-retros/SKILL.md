@@ -2,6 +2,7 @@
 name: check-retros
 description: Inspects SafeWord's production retro collector, durable relay, receipts, and filed GitHub issues. Use when checking whether retros are flowing, investigating a receipt or queue state, or reviewing recent retro submissions. Do not use to submit a retro or mutate production recovery state.
 compatibility: Requires Node.js 22+, scoped retro operator credentials via environment or macOS Keychain, Railway CLI access to the production project, GitHub CLI access to ArcadeAI/safeword, and outbound HTTPS.
+audience: maintainer
 ---
 
 # Check Retros
@@ -57,7 +58,7 @@ RECEIPT=
 ROOT="$(git rev-parse --show-toplevel)"
 set -- "$MODE"
 if [ -n "$RECEIPT" ]; then set -- "$@" "$RECEIPT"; fi
-node "$ROOT/.agents/skills/check-retros/scripts/check-retros.mjs" "$@"
+node "$ROOT/.claude/skills/check-retros/scripts/check-retros.mjs" "$@"
 ```
 
 - `relay` reads `SAFEWORD_RETRO_RELAY_OPERATOR_CREDENTIAL`; `collector` reads `SAFEWORD_PUBLIC_RETRO_OPERATOR_CREDENTIAL` only when reading a receipt.

@@ -1,4 +1,0 @@
-interface:
-  display_name: "Check Retros"
-  short_description: "Inspect SafeWord retro production health and receipts"
-  default_prompt: "Use $check-retros to summarize production health, queue state, and recent filed retros."
