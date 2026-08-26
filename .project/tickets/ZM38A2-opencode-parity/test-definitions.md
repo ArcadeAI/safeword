@@ -192,7 +192,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 - [x] RED 2599fb22b
 - [x] GREEN 55d6ea80c
-- [ ] REFACTOR
+- [x] REFACTOR skip: one identity-validation boundary covers every unavailable dispatcher state
 
 ### Scenario: Dispatcher unavailability outranks stale activation
 
