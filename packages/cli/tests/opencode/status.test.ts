@@ -52,24 +52,34 @@ function writePassingEvidence(
   identity: OpenCodeIdentityV1,
   event: 'plugin_load' | 'pre_tool' | false = 'plugin_load',
 ): void {
-  mkdirSync(paths.conformance, { recursive: true });
   if (event !== false) writeActivationEvidence(paths, identity, event);
+  writeConformanceEvidence(paths, identity);
+}
+
+function writeConformanceEvidence(
+  paths: OpenCodeProfilePaths,
+  identity: OpenCodeIdentityV1,
+  overrides: Readonly<Record<string, unknown>> = {},
+): void {
+  mkdirSync(paths.conformance, { recursive: true });
+  const evidence = {
+    schema_version: 1,
+    safeword_version: identity.safeword_version,
+    opencode_version: '1.18.23',
+    platform: process.platform,
+    arch: process.arch,
+    plugin_sha256: identity.plugin_sha256,
+    command_catalogue: true,
+    agent_catalogue: true,
+    denial: true,
+    control: true,
+    checked_at: new Date().toISOString(),
+    result: 'passed',
+    ...overrides,
+  };
   writeFileSync(
-    nodePath.join(paths.conformance, `1.18.23-${identity.plugin_sha256}.json`),
-    `${JSON.stringify({
-      schema_version: 1,
-      safeword_version: identity.safeword_version,
-      opencode_version: '1.18.23',
-      platform: process.platform,
-      arch: process.arch,
-      plugin_sha256: identity.plugin_sha256,
-      command_catalogue: true,
-      agent_catalogue: true,
-      denial: true,
-      control: true,
-      checked_at: new Date().toISOString(),
-      result: 'passed',
-    })}\n`,
+    nodePath.join(paths.conformance, `${evidence.opencode_version}-${evidence.plugin_sha256}.json`),
+    `${JSON.stringify(evidence)}\n`,
   );
 }
 
@@ -79,6 +89,36 @@ afterEach(() => {
 });
 
 describe('OpenCode status evidence', () => {
+  it.each([
+    ['schema version', { schema_version: 2 }],
+    ['Safeword version', { safeword_version: '0.0.0' }],
+    ['OpenCode version', { opencode_version: '1.18.24' }],
+    ['plugin hash', { plugin_sha256: 'd'.repeat(64) }],
+    ['platform', { platform: process.platform === 'darwin' ? 'linux' : 'darwin' }],
+    ['architecture', { arch: process.arch === 'arm64' ? 'x64' : 'arm64' }],
+  ])('TBU1.R4 rejects conformance when %s differs', (_dimension, overrides) => {
+    const root = temporaryDirectory();
+    const paths = openCodeProfilePaths(root);
+    expect(installOpenCodeProfile(root).state).toBe('changed');
+    const identity = JSON.parse(readFileSync(paths.identity, 'utf8')) as OpenCodeIdentityV1;
+    writePassingEvidence(paths, identity, 'pre_tool');
+    expect(observeOpenCodeProfile(root, { opencodeVersion: '1.18.23' }).state).toBe('healthy');
+
+    rmSync(paths.conformance, { recursive: true });
+    writeConformanceEvidence(paths, identity, overrides);
+    const result = observeOpenCodeProfile(root, { opencodeVersion: '1.18.23' });
+
+    expect(result.state).toBe('action_required');
+    expect(result.data).toMatchObject({ conformant: false });
+    expect(result.nextActions).toEqual([
+      {
+        command: 'safeword conformance --agents=opencode',
+        mutates: true,
+        requiresHuman: true,
+      },
+    ]);
+  });
+
   it.each([
     ['7 days and 1 second old', { observed_at: '2026-08-19T11:59:59.000Z' }],
     ['malformed', '{'],
