@@ -216,7 +216,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 - [x] RED 4e54439b0
 - [x] GREEN b78b09bae
-- [ ] REFACTOR
+- [x] REFACTOR skip: uncovered calls reuse the existing bounded activation writer and binding rules
 
 ### Scenario: Shell lifecycle identifiers bind guard evidence to the tool call
 
