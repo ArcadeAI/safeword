@@ -256,6 +256,37 @@ function hasPassingConformance(directory: string, identity: OpenCodeIdentityV1):
   );
 }
 
+function observeProtectionEvidence(
+  paths: OpenCodeProfilePaths,
+  identity: OpenCodeIdentityV1,
+): CliResult {
+  const activated = hasCurrentPreToolActivation(paths.activation, identity);
+  const conformant = hasPassingConformance(paths.conformance, identity);
+  const data = { installed: true, activated, pre_tool: 'block', conformant };
+  if (conformant && !activated) {
+    return createResult({
+      state: 'action_required',
+      findings: [
+        {
+          code: 'OPENCODE_ACTIVATION_REQUIRED',
+          message: 'OpenCode has not loaded the current Safeword protection.',
+          severity: 'error',
+        },
+      ],
+      nextActions: [
+        {
+          kind: 'human',
+          instruction: 'Fully restart OpenCode, then reopen this project.',
+          mutates: false,
+          requiresHuman: true,
+        },
+      ],
+      data,
+    });
+  }
+  return createResult({ state: 'healthy', data });
+}
+
 export function observeOpenCodeProfile(root: string): CliResult {
   const paths = openCodeProfilePaths(root);
   const plugin = observeFile(paths.plugin);
@@ -298,15 +329,7 @@ export function observeOpenCodeProfile(root: string): CliResult {
       { installed: true, activated: false, pre_tool: 'block' },
     );
   }
-  return createResult({
-    state: 'healthy',
-    data: {
-      installed: true,
-      activated: hasCurrentPreToolActivation(paths.activation, identity),
-      pre_tool: 'block',
-      conformant: hasPassingConformance(paths.conformance, identity),
-    },
-  });
+  return observeProtectionEvidence(paths, identity);
 }
 
 function sameIdentity(left: OpenCodeIdentityV1, right: OpenCodeIdentityV1): boolean {
