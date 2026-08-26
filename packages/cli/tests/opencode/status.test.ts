@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
@@ -87,7 +87,7 @@ describe('OpenCode status evidence', () => {
     ['plugin mismatched', { plugin_sha256: 'e'.repeat(64) }],
     ['schema mismatched', { schema_version: 2 }],
     ['Safeword mismatched', { safeword_version: '0.0.0' }],
-  ])('NTB1.R3.S01 keeps %s activation evidence non-current', (_state, invalid) => {
+  ])('NTB1.R3.S01 keeps %s activation evidence non-current', (state, invalid) => {
     const root = temporaryDirectory();
     const projectDirectory = nodePath.join(root, 'project');
     mkdirSync(projectDirectory);
@@ -112,8 +112,13 @@ describe('OpenCode status evidence', () => {
     writeFileSync(activationPath, `${JSON.stringify(valid)}\n`);
     expect(observeOpenCodeProfile(root, { now, projectDirectory }).state).toBe('healthy');
 
+    const invalidPath =
+      state === 'project mismatched'
+        ? nodePath.join(paths.activation, `${'d'.repeat(64)}.json`)
+        : activationPath;
+    if (invalidPath !== activationPath) rmSync(activationPath);
     writeFileSync(
-      activationPath,
+      invalidPath,
       typeof invalid === 'string' ? invalid : `${JSON.stringify({ ...valid, ...invalid })}\n`,
     );
     const result = observeOpenCodeProfile(root, { now, projectDirectory });
