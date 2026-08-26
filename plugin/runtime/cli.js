@@ -37381,6 +37381,76 @@ function isTimestamp(value) {
 function isSchemaVersion(value) {
   return value === 1;
 }
+function isBoolean(value) {
+  return typeof value === "boolean";
+}
+function isActivationEvent(value) {
+  return typeof value === "string" && ACTIVATION_EVENTS.has(value);
+}
+function isConformanceResult(value) {
+  return value === "passed" || value === "failed";
+}
+function optional(value, validate) {
+  return value === undefined || validate(value);
+}
+function hasValidActivationBindings(record) {
+  const event = record.event;
+  return optional(record.opencode_version, isNonEmptyString) && optional(record.session_id_sha256, isSha2562) && optional(record.call_id_sha256, isSha2562) && (!SESSION_BOUND_EVENTS.has(event) || Boolean(record.session_id_sha256)) && (!CALL_BOUND_EVENTS.has(event) || Boolean(record.call_id_sha256));
+}
+function parseOpenCodeActivation(value) {
+  const record = exactRecord(value, [
+    "schema_version",
+    "safeword_version",
+    "plugin_sha256",
+    "project_sha256",
+    "event",
+    "observed_at"
+  ], ["opencode_version", "session_id_sha256", "call_id_sha256"]);
+  if (!matchesRecord(record, {
+    schema_version: isSchemaVersion,
+    safeword_version: isNonEmptyString,
+    plugin_sha256: isSha2562,
+    project_sha256: isSha2562,
+    event: isActivationEvent,
+    observed_at: isTimestamp
+  }))
+    return;
+  if (!hasValidActivationBindings(record))
+    return;
+  return record;
+}
+function parseOpenCodeConformance(value) {
+  const record = exactRecord(value, [
+    "schema_version",
+    "safeword_version",
+    "opencode_version",
+    "platform",
+    "arch",
+    "plugin_sha256",
+    "command_catalogue",
+    "agent_catalogue",
+    "denial",
+    "control",
+    "checked_at",
+    "result"
+  ]);
+  if (!matchesRecord(record, {
+    schema_version: isSchemaVersion,
+    safeword_version: isNonEmptyString,
+    opencode_version: isNonEmptyString,
+    platform: isNonEmptyString,
+    arch: isNonEmptyString,
+    plugin_sha256: isSha2562,
+    command_catalogue: isBoolean,
+    agent_catalogue: isBoolean,
+    denial: isBoolean,
+    control: isBoolean,
+    checked_at: isTimestamp,
+    result: isConformanceResult
+  }))
+    return;
+  return record;
+}
 function parseOpenCodeProfileError(value) {
   const record = exactRecord(value, [
     "schema_version",
@@ -37669,7 +37739,15 @@ __export(exports_profile2, {
   generateOpenCodeProfilePlugin: () => generateOpenCodeProfilePlugin
 });
 import { createHash as createHash15 } from "crypto";
-import { existsSync as existsSync33, lstatSync as lstatSync12, readdirSync as readdirSync22, readFileSync as readFileSync34, rmdirSync as rmdirSync5, rmSync as rmSync8 } from "fs";
+import {
+  existsSync as existsSync33,
+  lstatSync as lstatSync12,
+  readdirSync as readdirSync22,
+  readFileSync as readFileSync34,
+  realpathSync as realpathSync7,
+  rmdirSync as rmdirSync5,
+  rmSync as rmSync8
+} from "fs";
 import nodePath59 from "path";
 function usable(value) {
   const trimmed = value?.trim();
@@ -37767,7 +37845,90 @@ function observeIdentityBindings(plugin, identity) {
   }
   return;
 }
-function observeOpenCodeProfile(root) {
+function readEvidence(directory, parse4) {
+  let names;
+  try {
+    names = readdirSync22(directory);
+  } catch {
+    return [];
+  }
+  const records = [];
+  for (const name of names) {
+    const file = observeFile(nodePath59.join(directory, name));
+    if (file.kind !== "file")
+      continue;
+    try {
+      const value = parse4(JSON.parse(file.bytes.toString("utf8")));
+      if (value !== undefined)
+        records.push({ name, value });
+    } catch {}
+  }
+  return records;
+}
+function hasCurrentPreToolActivation(directory, identity, now, expectedProjectSha256) {
+  const maximumAge = 7 * 24 * 60 * 60 * 1000;
+  return readEvidence(directory, parseOpenCodeActivation).some((record) => {
+    const observedAt = Date.parse(record.value.observed_at);
+    const age = now - observedAt;
+    return record.name === `${record.value.project_sha256}.json` && record.value.safeword_version === identity.safeword_version && record.value.plugin_sha256 === identity.plugin_sha256 && record.value.event === "pre_tool" && (expectedProjectSha256 === undefined || record.value.project_sha256 === expectedProjectSha256) && age >= 0 && age <= maximumAge;
+  });
+}
+function isPassingConformance(record, identity) {
+  const evidence = record.value;
+  return [
+    record.name === `${evidence.opencode_version}-${identity.plugin_sha256}.json`,
+    evidence.opencode_version.startsWith("1."),
+    evidence.safeword_version === identity.safeword_version,
+    evidence.plugin_sha256 === identity.plugin_sha256,
+    evidence.platform === process.platform,
+    evidence.arch === process.arch,
+    evidence.command_catalogue,
+    evidence.agent_catalogue,
+    evidence.denial,
+    evidence.control,
+    evidence.result === "passed"
+  ].every(Boolean);
+}
+function hasPassingConformance(directory, identity) {
+  return readEvidence(directory, parseOpenCodeConformance).some((record) => isPassingConformance(record, identity));
+}
+function observeProtectionEvidence(paths, identity, input) {
+  let expectedProjectSha256;
+  try {
+    expectedProjectSha256 = input.projectDirectory === undefined ? undefined : sha2564(realpathSync7(input.projectDirectory));
+  } catch {
+    expectedProjectSha256 = "";
+  }
+  const activated = hasCurrentPreToolActivation(paths.activation, identity, input.now ?? Date.now(), expectedProjectSha256);
+  const conformant = hasPassingConformance(paths.conformance, identity);
+  const data = { installed: true, activated, pre_tool: "block", conformant };
+  if (!conformant) {
+    return actionRequired("OPENCODE_CONFORMANCE_REQUIRED", "This OpenCode version has not passed conformance for the installed Safeword plugin.", "safeword conformance --agents=opencode", data);
+  }
+  if (conformant && !activated) {
+    return createResult({
+      state: "action_required",
+      findings: [
+        {
+          code: "OPENCODE_ACTIVATION_REQUIRED",
+          message: "OpenCode has not loaded the current Safeword protection.",
+          severity: "error"
+        }
+      ],
+      nextActions: [
+        {
+          kind: "human",
+          instruction: "Fully restart OpenCode, then reopen this project.",
+          mutates: false,
+          requiresHuman: true
+        }
+      ],
+      data
+    });
+  }
+  return createResult({ state: "healthy", data });
+}
+function observeOpenCodeProfile(root, input = {}) {
   const paths = openCodeProfilePaths(root);
   const plugin = observeFile(paths.plugin);
   const identityFile = observeFile(paths.identity);
@@ -37792,7 +37953,7 @@ function observeOpenCodeProfile(root) {
   if (hasCurrentProfileError(paths.profileError, identity)) {
     return actionRequired("OPENCODE_MARKER_RESOLUTION_FAILED", "OpenCode project classification could not be verified.", "safeword install --agents=opencode", { installed: true, activated: false, pre_tool: "block" });
   }
-  return createResult({ state: "healthy" });
+  return observeProtectionEvidence(paths, identity, input);
 }
 function sameIdentity(left, right) {
   return JSON.stringify(left) === JSON.stringify(right);
@@ -38089,7 +38250,7 @@ async function observeOpenCode(context) {
     return openCodeConfigRootRequired();
   }
   const { observeOpenCodeProfile: observeOpenCodeProfile2 } = await Promise.resolve().then(() => (init_profile2(), exports_profile2));
-  return observeOpenCodeProfile2(root);
+  return observeOpenCodeProfile2(root, { projectDirectory: context.cwd });
 }
 var LIFECYCLE_EVENTS, ADAPTER_KEYS, LIFECYCLE_STRENGTHS, EMPTY_EFFECTS3, FULL_HOOK_CAPABILITIES, claude, codex, opencode, cursor, PRODUCTION_INTEGRATIONS;
 var init_integrations = __esm(() => {
@@ -42663,7 +42824,7 @@ import {
   lstatSync as lstatSync17,
   openSync as openSync8,
   readFileSync as readFileSync45,
-  realpathSync as realpathSync7
+  realpathSync as realpathSync8
 } from "fs";
 import nodePath75 from "path";
 function parseRemoteSetup(value) {
@@ -42724,8 +42885,8 @@ function validatePersonalFile(metadata, path4) {
   return;
 }
 function validatePersonalDirectory(cwd, path4) {
-  const expectedDirectory = nodePath75.join(realpathSync7(cwd), ".safeword");
-  if (realpathSync7(nodePath75.dirname(path4)) !== expectedDirectory) {
+  const expectedDirectory = nodePath75.join(realpathSync8(cwd), ".safeword");
+  if (realpathSync8(nodePath75.dirname(path4)) !== expectedDirectory) {
     return { path: path4, error: "must remain inside the project Safeword directory" };
   }
   return;
@@ -44439,7 +44600,7 @@ import {
   mkdirSync as mkdirSync13,
   mkdtempSync as mkdtempSync4,
   readFileSync as readFileSync49,
-  realpathSync as realpathSync8,
+  realpathSync as realpathSync9,
   renameSync as renameSync8,
   rmSync as rmSync11,
   writeFileSync as writeFileSync14
@@ -44694,8 +44855,8 @@ function resolveGitContext(cwd) {
   }
   if (rootDirectory.length === 0)
     return;
-  const canonicalRoot = realpathSync8(rootDirectory);
-  const canonicalProject = realpathSync8(cwd);
+  const canonicalRoot = realpathSync9(rootDirectory);
+  const canonicalProject = realpathSync9(cwd);
   const projectRelativeDirectory = nodePath81.relative(canonicalRoot, canonicalProject);
   if (nodePath81.isAbsolute(projectRelativeDirectory) || projectRelativeDirectory === ".." || projectRelativeDirectory.startsWith(`..${nodePath81.sep}`)) {
     throw new Error("The architecture project directory is outside the Git worktree.");
@@ -44749,8 +44910,8 @@ function assertPhysicalContainment(rootDirectory, candidatePath) {
       existingAncestor = parent;
     }
   }
-  const canonicalRoot = realpathSync8(rootDirectory);
-  const canonicalAncestor = realpathSync8(existingAncestor);
+  const canonicalRoot = realpathSync9(rootDirectory);
+  const canonicalAncestor = realpathSync9(existingAncestor);
   if (toRepoDirectory(canonicalRoot, canonicalAncestor) === undefined) {
     throw new Error("The architecture path physically escapes its allowed root.");
   }
@@ -45800,7 +45961,7 @@ var exports_drain_retro_spool = {};
 __export(exports_drain_retro_spool, {
   drainRetroSpool: () => drainRetroSpool
 });
-import { existsSync as existsSync44, lstatSync as lstatSync20, realpathSync as realpathSync9 } from "fs";
+import { existsSync as existsSync44, lstatSync as lstatSync20, realpathSync as realpathSync10 } from "fs";
 import nodePath89 from "path";
 function drainRetroSpool(inputPath, mode = "drain") {
   const spoolPath2 = nodePath89.resolve(inputPath);
@@ -45822,7 +45983,7 @@ function drainRetroSpool(inputPath, mode = "drain") {
       message: "Refusing a symlinked retro spool or acknowledgement path"
     };
   }
-  if (existsSync44(spoolPath2) && (!existsSync44(draftsDirectory) || nodePath89.dirname(realpathSync9(spoolPath2)) !== realpathSync9(draftsDirectory))) {
+  if (existsSync44(spoolPath2) && (!existsSync44(draftsDirectory) || nodePath89.dirname(realpathSync10(spoolPath2)) !== realpathSync10(draftsDirectory))) {
     return {
       state: "refused",
       message: "Refusing a retro spool outside its canonical drafts directory"
@@ -46138,7 +46299,7 @@ import {
   openSync as openSync10,
   readdirSync as readdirSync31,
   readFileSync as readFileSync55,
-  realpathSync as realpathSync10,
+  realpathSync as realpathSync11,
   rmSync as rmSync12,
   writeFileSync as writeFileSync17
 } from "fs";
@@ -46179,7 +46340,7 @@ function readContainedText(root, source, target, packetBytesRemaining) {
     if (opened.size > packetBytesRemaining) {
       throw new Error(`Review packet exceeds the ${MAX_PACKET_BYTES}-byte limit`);
     }
-    const resolved = realpathSync10(source);
+    const resolved = realpathSync11(source);
     if (escapes(root, resolved))
       throw new Error(`Review target escapes the project: ${target}`);
     const observed = lstatSync21(resolved);
@@ -46218,7 +46379,7 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = []) {
   if (targets.length + context.length > MAX_FILE_COUNT) {
     throw new Error(`Review packet exceeds the ${MAX_FILE_COUNT}-file limit`);
   }
-  const canonicalRoot = realpathSync10(cwd);
+  const canonicalRoot = realpathSync11(cwd);
   const workspace = mkdtempSync5(nodePath92.join(tmpdir3(), "safeword-review-"));
   const tracked = [];
   const expectedSnapshotEntries = new Set;
@@ -46530,7 +46691,7 @@ import {
   openSync as openSync11,
   readdirSync as readdirSync32,
   readFileSync as readFileSync57,
-  realpathSync as realpathSync11,
+  realpathSync as realpathSync12,
   renameSync as renameSync9,
   rmSync as rmSync13,
   writeFileSync as writeFileSync18
@@ -46670,7 +46831,7 @@ function outsideUntrustedRoot(root, candidate) {
   if (inside(root, candidate))
     return false;
   try {
-    return !inside(root, realpathSync11(candidate));
+    return !inside(root, realpathSync12(candidate));
   } catch {
     return false;
   }
@@ -46726,7 +46887,7 @@ function preparedTrustedCacheDirectory(untrustedRoot) {
   mkdirSync15(cacheDirectory, { recursive: true, mode: 448 });
   if (lstatSync22(cacheDirectory).isSymbolicLink())
     return;
-  const resolved = realpathSync11(cacheDirectory);
+  const resolved = realpathSync12(cacheDirectory);
   if (!outsideUntrustedRoot(untrustedRoot, resolved))
     return;
   chmodSync3(resolved, 448);
@@ -46777,7 +46938,7 @@ function executableCandidates(reviewer, untrustedRoot) {
     if (inside(untrustedRoot, candidate))
       return [];
     try {
-      const canonical = realpathSync11(candidate);
+      const canonical = realpathSync12(candidate);
       if (!outsideUntrustedRoot(untrustedRoot, canonical))
         return [];
       accessSync2(canonical, constants5.X_OK);
@@ -48057,7 +48218,7 @@ import {
   openSync as openSync12,
   readdirSync as readdirSync33,
   readFileSync as readFileSync58,
-  realpathSync as realpathSync12,
+  realpathSync as realpathSync13,
   renameSync as renameSync10,
   statSync as statSync9,
   unlinkSync as unlinkSync4,
@@ -48113,7 +48274,7 @@ function unsignedRecord(record2) {
   return unsigned;
 }
 function recordIntegrity(cwd, record2) {
-  return createHmac("sha256", readOrCreateIntegrityKey()).update(realpathSync12.native(cwd)).update("\x00").update(JSON.stringify(unsignedRecord(record2))).digest("hex");
+  return createHmac("sha256", readOrCreateIntegrityKey()).update(realpathSync13.native(cwd)).update("\x00").update(JSON.stringify(unsignedRecord(record2))).digest("hex");
 }
 function hasValidIntegrity(cwd, record2) {
   if (record2.integrity === undefined || !/^[a-f\d]{64}$/u.test(record2.integrity))
@@ -56583,7 +56744,7 @@ var init_public_delivery = __esm(() => {
 });
 
 // src/retro/public-source.ts
-import { lstatSync as lstatSync23, readFileSync as readFileSync63, realpathSync as realpathSync13 } from "fs";
+import { lstatSync as lstatSync23, readFileSync as readFileSync63, realpathSync as realpathSync14 } from "fs";
 import { homedir as homedir8 } from "os";
 import nodePath101 from "path";
 function repoIdentity(hostname, rawPath) {
@@ -56668,7 +56829,7 @@ function repoGitConfigPath(cwd) {
   } catch {
     throw new Error("Untrusted Git directory pointer");
   }
-  if (realpathSync13(nodePath101.resolve(gitDirectory, backlink)) !== realpathSync13(dotGit) || realpathSync13(nodePath101.dirname(gitDirectory)) !== realpathSync13(nodePath101.join(commonDirectory, "worktrees"))) {
+  if (realpathSync14(nodePath101.resolve(gitDirectory, backlink)) !== realpathSync14(dotGit) || realpathSync14(nodePath101.dirname(gitDirectory)) !== realpathSync14(nodePath101.join(commonDirectory, "worktrees"))) {
     throw new Error("Untrusted Git directory pointer");
   }
   return trustedConfigFile(nodePath101.join(commonDirectory, "config"));
@@ -59263,7 +59424,7 @@ import {
   mkdirSync as mkdirSync19,
   mkdtempSync as mkdtempSync7,
   readFileSync as readFileSync64,
-  realpathSync as realpathSync14,
+  realpathSync as realpathSync15,
   statSync as statSync10,
   writeFileSync as writeFileSync23
 } from "fs";
@@ -59616,10 +59777,10 @@ function unavailableTransport() {
 }
 function physicalProjectPath(projectDirectory) {
   try {
-    return realpathSync14(projectDirectory);
+    return realpathSync15(projectDirectory);
   } catch {
     try {
-      return nodePath102.join(realpathSync14(nodePath102.dirname(projectDirectory)), nodePath102.basename(projectDirectory));
+      return nodePath102.join(realpathSync15(nodePath102.dirname(projectDirectory)), nodePath102.basename(projectDirectory));
     } catch {
       return;
     }
@@ -59627,7 +59788,7 @@ function physicalProjectPath(projectDirectory) {
 }
 function physicalOutboxPath(outboxDirectory) {
   try {
-    const physicalOutbox = realpathSync14(outboxDirectory);
+    const physicalOutbox = realpathSync15(outboxDirectory);
     return statSync10(physicalOutbox).isDirectory() ? physicalOutbox : undefined;
   } catch {
     return;
