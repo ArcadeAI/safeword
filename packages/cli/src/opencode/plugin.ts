@@ -1,12 +1,21 @@
-const OPEN_CODE_PROFILE_PLUGIN = `import { spawn } from 'node:child_process';
-import { createHash } from 'node:crypto';
+export interface OpenCodeProfilePluginOptions {
+  readonly markerTimeoutMilliseconds?: number;
+}
+
+const DEFAULT_MARKER_TIMEOUT_MILLISECONDS = 50;
+
+function profilePluginSource(markerTimeoutMilliseconds: number): string {
+  return String.raw`import { spawn } from 'node:child_process';
+import { createHash, randomUUID } from 'node:crypto';
 import { constants } from 'node:fs';
-import { access, readFile } from 'node:fs/promises';
+import { access, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const profileRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const identityPath = path.join(profileRoot, 'safeword', 'identity-v1.json');
+const profileErrorPath = path.join(profileRoot, 'safeword', 'profile-error-v1.json');
+const MARKER_TIMEOUT_MILLISECONDS = ${markerTimeoutMilliseconds};
 const DENIAL = 'Safeword denied this OpenCode tool call.';
 const REPAIR = 'Safeword cannot run its OpenCode guard. Run safeword install --agents=opencode.';
 
@@ -35,18 +44,48 @@ function canonicalEnvelope(input, output) {
   return undefined;
 }
 
-async function isMarkedProject(directory) {
+async function classifyProject(directory) {
+  if (MARKER_TIMEOUT_MILLISECONDS === 0) return 'uncertain';
+  let timer;
+  const marker = access(path.join(directory, '.safeword', 'SAFEWORD.md')).then(
+    () => 'marked',
+    error => error?.code === 'ENOENT' ? 'unmarked' : 'uncertain',
+  );
+  const deadline = new Promise(resolve => {
+    timer = setTimeout(() => resolve('uncertain'), MARKER_TIMEOUT_MILLISECONDS);
+  });
   try {
-    await readFile(path.join(directory, '.safeword', 'SAFEWORD.md'));
-    return true;
-  } catch (error) {
-    if (error?.code === 'ENOENT') return false;
-    throw error;
+    return await Promise.race([marker, deadline]);
+  } finally {
+    clearTimeout(timer);
   }
 }
 
 async function readIdentity() {
   return JSON.parse(await readFile(identityPath, 'utf8'));
+}
+
+async function recordMarkerResolutionFailure() {
+  let temporaryPath;
+  try {
+    const identity = await readIdentity();
+    const evidence = {
+      schema_version: 1,
+      safeword_version: identity.safeword_version,
+      plugin_sha256: identity.plugin_sha256,
+      error_code: 'marker_resolution_failed',
+      observed_at: new Date().toISOString(),
+    };
+    await mkdir(path.dirname(profileErrorPath), { recursive: true });
+    temporaryPath = profileErrorPath + '.' + process.pid + '.' + randomUUID() + '.tmp';
+    await writeFile(temporaryPath, JSON.stringify(evidence) + '\n', { mode: 0o600 });
+    await rename(temporaryPath, profileErrorPath);
+    temporaryPath = undefined;
+  } catch {
+    // Evidence is diagnostic; classification uncertainty must remain fail-open.
+  } finally {
+    if (temporaryPath !== undefined) await rm(temporaryPath, { force: true }).catch(() => {});
+  }
 }
 
 async function readBoundIdentity() {
@@ -98,7 +137,13 @@ function dispatch(identity, envelope) {
 
 export const Safeword = async input => ({
   'tool.execute.before': async (hookInput, output) => {
-    if (!input?.directory || !(await isMarkedProject(input.directory))) return;
+    if (!input?.directory) return;
+    const classification = await classifyProject(input.directory);
+    if (classification === 'uncertain') {
+      await recordMarkerResolutionFailure();
+      return;
+    }
+    if (classification === 'unmarked') return;
     const envelope = canonicalEnvelope(hookInput, output);
     if (envelope === undefined) return;
     let result;
@@ -113,7 +158,13 @@ export const Safeword = async input => ({
   },
 });
 `;
+}
 
-export function generateOpenCodeProfilePlugin(): string {
-  return OPEN_CODE_PROFILE_PLUGIN;
+export function generateOpenCodeProfilePlugin(options: OpenCodeProfilePluginOptions = {}): string {
+  const configured = options.markerTimeoutMilliseconds;
+  const markerTimeoutMilliseconds =
+    configured !== undefined && Number.isFinite(configured) && configured >= 0
+      ? configured
+      : DEFAULT_MARKER_TIMEOUT_MILLISECONDS;
+  return profilePluginSource(markerTimeoutMilliseconds);
 }
