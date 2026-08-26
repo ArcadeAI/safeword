@@ -174,7 +174,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 - [x] RED b0bd80cec
 - [x] GREEN 50a5de2b7
-- [ ] REFACTOR
+- [x] REFACTOR skip: classification, evidence, and dispatch remain separate single-purpose boundaries
 
 ### Scenario: A marker-resolution failure invalidates prior activation
 
