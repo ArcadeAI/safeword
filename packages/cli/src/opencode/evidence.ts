@@ -1,7 +1,13 @@
 import { exactRecord, isNonEmptyString, isSha256, isTimestamp, matchesRecord } from './records.js';
 
 export type OpenCodeActivationEvent =
-  'plugin_load' | 'session_start' | 'prompt_submit' | 'pre_tool' | 'post_tool' | 'stop';
+  | 'plugin_load'
+  | 'session_start'
+  | 'prompt_submit'
+  | 'pre_tool'
+  | 'post_tool'
+  | 'uncovered_tool'
+  | 'stop';
 
 export interface OpenCodeActivationV1 {
   readonly schema_version: 1;
@@ -44,14 +50,20 @@ const ACTIVATION_EVENTS = new Set<OpenCodeActivationEvent>([
   'prompt_submit',
   'pre_tool',
   'post_tool',
+  'uncovered_tool',
   'stop',
 ]);
-const CALL_BOUND_EVENTS = new Set<OpenCodeActivationEvent>(['pre_tool', 'post_tool']);
+const CALL_BOUND_EVENTS = new Set<OpenCodeActivationEvent>([
+  'pre_tool',
+  'post_tool',
+  'uncovered_tool',
+]);
 const SESSION_BOUND_EVENTS = new Set<OpenCodeActivationEvent>([
   'session_start',
   'prompt_submit',
   'pre_tool',
   'post_tool',
+  'uncovered_tool',
   'stop',
 ]);
 

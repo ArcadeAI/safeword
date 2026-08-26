@@ -189,7 +189,10 @@ export const Safeword = async input => {
       if (classification === 'unmarked') return;
       await clearProfileError();
       const envelope = canonicalEnvelope(hookInput, output);
-      if (envelope === undefined) return;
+      if (envelope === undefined) {
+        await recordActivation(input.directory, 'uncovered_tool', hookInput.sessionID, hookInput.callID);
+        return;
+      }
       let result;
       try {
         result = await dispatch(await readBoundIdentity(), envelope);
