@@ -196,7 +196,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ### Scenario: Dispatcher unavailability outranks stale activation
 
-- [ ] RED
+- [x] RED ec98628fa
 - [ ] GREEN
 - [ ] REFACTOR
 
