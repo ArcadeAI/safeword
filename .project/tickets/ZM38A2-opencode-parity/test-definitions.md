@@ -9,7 +9,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 ### Scenario: Explicit OpenCode selection installs a complete non-empty Safeword catalogue
 
 - [x] RED ae16c239e
-- [ ] GREEN
+- [x] GREEN 58814ff5a
 - [ ] REFACTOR
 
 ### Scenario: Generated OpenCode commands bind to their canonical skills
