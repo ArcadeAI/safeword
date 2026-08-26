@@ -137,7 +137,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 ### Scenario: The profile plugin honors the pinned dispatcher's exit contract
 
 - [x] RED f70367a84
-- [ ] GREEN
+- [x] GREEN 65ad90e4c
 - [ ] REFACTOR
 
 ### Scenario: A policy denial exposes only a sanitized reason
