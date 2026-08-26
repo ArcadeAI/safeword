@@ -178,7 +178,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ### Scenario: A marker-resolution failure invalidates prior activation
 
-- [ ] RED
+- [x] RED 7a5be3f8b
 - [ ] GREEN
 - [ ] REFACTOR
 
