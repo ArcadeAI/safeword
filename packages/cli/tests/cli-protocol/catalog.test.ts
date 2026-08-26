@@ -84,6 +84,7 @@ describe('CLI command catalog', () => {
       .map(definition => definition.name);
     expect(canonicalNames).toEqual([
       'status',
+      'conformance',
       'install',
       'plan',
       'doctor',
