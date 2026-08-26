@@ -500,7 +500,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ### Scenario: Missing activation evidence is not enforced protection
 
-- [ ] RED
+- [x] RED 41ac210de
 - [ ] GREEN
 - [ ] REFACTOR
 
