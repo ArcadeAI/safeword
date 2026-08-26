@@ -180,7 +180,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 - [x] RED 7a5be3f8b
 - [x] GREEN 9ac237e1f
-- [ ] REFACTOR
+- [x] REFACTOR skip: status validation now delegates only the exact profile-error binding check
 
 ### Scenario: Successful project classification clears a prior resolution failure
 
