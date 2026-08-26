@@ -89,6 +89,24 @@ afterEach(() => {
 });
 
 describe('OpenCode status evidence', () => {
+  it('NTB1.R1.S02 describes the non-blocking stop boundary as observational', () => {
+    const root = temporaryDirectory();
+    const paths = openCodeProfilePaths(root);
+    expect(installOpenCodeProfile(root).state).toBe('changed');
+    const identity = JSON.parse(readFileSync(paths.identity, 'utf8')) as OpenCodeIdentityV1;
+    writePassingEvidence(paths, identity, 'pre_tool');
+
+    const result = observeOpenCodeProfile(root);
+
+    expect(result.state).toBe('healthy');
+    expect(result.findings).toContainEqual({
+      code: 'OPENCODE_STOP_OBSERVATIONAL',
+      message: 'OpenCode stop events are observed but cannot block the session from stopping.',
+      severity: 'info',
+    });
+    expect(result.nextActions).toEqual([]);
+  });
+
   it.each([
     ['schema version', { schema_version: 2 }],
     ['Safeword version', { safeword_version: '0.0.0' }],
