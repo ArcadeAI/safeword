@@ -214,7 +214,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ### Scenario: An uncovered tool is observed without being presented as blocked
 
-- [ ] RED
+- [x] RED 4e54439b0
 - [ ] GREEN
 - [ ] REFACTOR
 
