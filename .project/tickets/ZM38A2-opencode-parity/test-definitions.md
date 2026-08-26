@@ -173,7 +173,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 ### Scenario: Marker resolution uncertainty self-disables without claiming protection
 
 - [x] RED b0bd80cec
-- [ ] GREEN
+- [x] GREEN 50a5de2b7
 - [ ] REFACTOR
 
 ### Scenario: A marker-resolution failure invalidates prior activation
