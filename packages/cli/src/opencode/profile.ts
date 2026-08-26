@@ -1,5 +1,13 @@
 import { createHash } from 'node:crypto';
-import { existsSync, lstatSync, readdirSync, readFileSync, rmdirSync, rmSync } from 'node:fs';
+import {
+  existsSync,
+  lstatSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  rmdirSync,
+  rmSync,
+} from 'node:fs';
 import nodePath from 'node:path';
 
 import { type CliResult, createResult } from '../cli-protocol/result.js';
@@ -55,6 +63,11 @@ export interface ReconcileOpenCodeProfileInput {
   readonly root: string;
   readonly pluginBytes: Buffer | string;
   readonly identity: OpenCodeIdentityV1;
+}
+
+export interface ObserveOpenCodeProfileInput {
+  readonly now?: number;
+  readonly projectDirectory?: string;
 }
 
 function usable(value: string | undefined): string | undefined {
@@ -213,7 +226,8 @@ function readEvidence<T>(
 function hasCurrentPreToolActivation(
   directory: string,
   identity: OpenCodeIdentityV1,
-  now = Date.now(),
+  now: number,
+  expectedProjectSha256: string | undefined,
 ): boolean {
   const maximumAge = 7 * 24 * 60 * 60 * 1000;
   return readEvidence<OpenCodeActivationV1>(directory, parseOpenCodeActivation).some(record => {
@@ -224,6 +238,8 @@ function hasCurrentPreToolActivation(
       record.value.safeword_version === identity.safeword_version &&
       record.value.plugin_sha256 === identity.plugin_sha256 &&
       record.value.event === 'pre_tool' &&
+      (expectedProjectSha256 === undefined ||
+        record.value.project_sha256 === expectedProjectSha256) &&
       age >= 0 &&
       age <= maximumAge
     );
@@ -259,9 +275,23 @@ function hasPassingConformance(directory: string, identity: OpenCodeIdentityV1):
 function observeProtectionEvidence(
   paths: OpenCodeProfilePaths,
   identity: OpenCodeIdentityV1,
-  now: number,
+  input: ObserveOpenCodeProfileInput,
 ): CliResult {
-  const activated = hasCurrentPreToolActivation(paths.activation, identity, now);
+  let expectedProjectSha256: string | undefined;
+  try {
+    expectedProjectSha256 =
+      input.projectDirectory === undefined
+        ? undefined
+        : sha256(realpathSync(input.projectDirectory));
+  } catch {
+    expectedProjectSha256 = '';
+  }
+  const activated = hasCurrentPreToolActivation(
+    paths.activation,
+    identity,
+    input.now ?? Date.now(),
+    expectedProjectSha256,
+  );
   const conformant = hasPassingConformance(paths.conformance, identity);
   const data = { installed: true, activated, pre_tool: 'block', conformant };
   if (!conformant) {
@@ -296,7 +326,10 @@ function observeProtectionEvidence(
   return createResult({ state: 'healthy', data });
 }
 
-export function observeOpenCodeProfile(root: string, now = Date.now()): CliResult {
+export function observeOpenCodeProfile(
+  root: string,
+  input: ObserveOpenCodeProfileInput = {},
+): CliResult {
   const paths = openCodeProfilePaths(root);
   const plugin = observeFile(paths.plugin);
   const identityFile = observeFile(paths.identity);
@@ -338,7 +371,7 @@ export function observeOpenCodeProfile(root: string, now = Date.now()): CliResul
       { installed: true, activated: false, pre_tool: 'block' },
     );
   }
-  return observeProtectionEvidence(paths, identity, now);
+  return observeProtectionEvidence(paths, identity, input);
 }
 
 function sameIdentity(left: OpenCodeIdentityV1, right: OpenCodeIdentityV1): boolean {

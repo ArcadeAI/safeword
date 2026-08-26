@@ -391,7 +391,7 @@ async function observeOpenCode(context: LifecycleContext): Promise<CliResult> {
     return openCodeConfigRootRequired();
   }
   const { observeOpenCodeProfile } = await import('../opencode/profile.js');
-  return observeOpenCodeProfile(root);
+  return observeOpenCodeProfile(root, { projectDirectory: context.cwd });
 }
 
 const opencode = defineIntegrationAdapter({

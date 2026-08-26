@@ -150,7 +150,7 @@ describe('OpenCode status evidence', () => {
       new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString(),
     );
 
-    const result = observeOpenCodeProfile(root, now);
+    const result = observeOpenCodeProfile(root, { now });
 
     expect(result.state).toBe('healthy');
     expect(result.data).toMatchObject({ activated: true });
