@@ -6,6 +6,7 @@ import { type CliResult, createResult } from '../cli-protocol/result.js';
 import { writeDurableFile } from '../codex-plugin/durable-write.js';
 import { acquireProfileLock, releaseProfileLock } from '../utils/profile-lock.js';
 import { VERSION } from '../version.js';
+import { parseOpenCodeProfileError } from './evidence.js';
 import { type OpenCodeIdentityV1, parseOpenCodeIdentity } from './identity.js';
 import { generateOpenCodeProfilePlugin } from './plugin.js';
 
@@ -133,6 +134,20 @@ export function installOpenCodeProfile(root: string): CliResult {
   });
 }
 
+function hasCurrentProfileError(path: string, identity: OpenCodeIdentityV1): boolean {
+  const profileError = observeFile(path);
+  if (profileError.kind !== 'file') return false;
+  try {
+    const parsed = parseOpenCodeProfileError(JSON.parse(profileError.bytes.toString('utf8')));
+    return (
+      parsed?.safeword_version === identity.safeword_version &&
+      parsed.plugin_sha256 === identity.plugin_sha256
+    );
+  } catch {
+    return false;
+  }
+}
+
 export function observeOpenCodeProfile(root: string): CliResult {
   const paths = openCodeProfilePaths(root);
   const plugin = observeFile(paths.plugin);
@@ -169,6 +184,14 @@ export function observeOpenCodeProfile(root: string): CliResult {
       'OPENCODE_PLUGIN_DRIFT',
       'The Safeword OpenCode plugin does not match its identity.',
       'safeword install --agents=opencode',
+    );
+  }
+  if (hasCurrentProfileError(paths.profileError, identity)) {
+    return actionRequired(
+      'OPENCODE_MARKER_RESOLUTION_FAILED',
+      'OpenCode project classification could not be verified.',
+      'safeword install --agents=opencode',
+      { installed: true, activated: false, pre_tool: 'block' },
     );
   }
   return createResult({ state: 'healthy' });
@@ -229,11 +252,17 @@ function observeProfile(
     : classifyWithIdentity(plugin, identity.value, expectedPlugin, expectedIdentity);
 }
 
-function actionRequired(code: string, message: string, command: string): CliResult {
+function actionRequired(
+  code: string,
+  message: string,
+  command: string,
+  data?: Record<string, unknown>,
+): CliResult {
   return createResult({
     state: 'action_required',
     findings: [{ code, message, severity: 'error' }],
     nextActions: [{ command, mutates: true, requiresHuman: true }],
+    data,
   });
 }
 
