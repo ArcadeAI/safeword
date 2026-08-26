@@ -65,12 +65,7 @@ interface PlatformEnvironment {
   readonly env: Readonly<Record<string, string | undefined>>;
 }
 
-type ProfileOwnership =
-  | 'absent'
-  | 'managed'
-  | 'managed-drift'
-  | 'partial'
-  | 'collision';
+type ProfileOwnership = 'absent' | 'managed' | 'managed-drift' | 'partial' | 'collision';
 ```
 
 **Tests:** TBU1.R1/R3 resolver, collision, atomicity, concurrency, read-only
@@ -93,9 +88,9 @@ Project enrollment reuses `.safeword/SAFEWORD.md` through the existing
 `hasSafewordProjectMarker` helper. Marker lookup has a 50 ms fail-open deadline
 and is rechecked per event so enrollment changes take effect without restart.
 Only after a project is confirmed marked, the first handled hook races
-`client.global.health()` against a 100 ms fail-open deadline and caches the
-settled optional version for that plugin process. Unmarked projects make no SDK
-call, and timeout leaves activation version absent.
+the identity-bound dispatcher. The stable plugin API supplies a v1 client whose
+global surface has no health method, so the hook path performs no version I/O.
+Exact OpenCode version is recorded by the conformance/status path instead.
 
 **Where:** `packages/cli/src/opencode/plugin.ts`, `dispatcher.ts`, generated
 `plugins/safeword.js`
