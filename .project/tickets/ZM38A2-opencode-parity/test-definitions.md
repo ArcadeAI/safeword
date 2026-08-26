@@ -198,7 +198,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 - [x] RED ec98628fa
 - [x] GREEN 1fd9465c1
-- [ ] REFACTOR
+- [x] REFACTOR skip: plugin and dispatcher integrity share one ordered identity-binding boundary
 
 ### Scenario: The profile identity version governs every marked project
 
