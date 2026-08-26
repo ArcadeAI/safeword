@@ -59,6 +59,25 @@ afterEach(() => {
 });
 
 describe('OpenCode status evidence', () => {
+  it('NTB1.R2.S01 reports one consistent fully uninstalled summary', () => {
+    const result = observeOpenCodeProfile(temporaryDirectory());
+
+    expect(result.state).toBe('action_required');
+    expect(result.data).toEqual({
+      installed: false,
+      activated: false,
+      pre_tool: 'unavailable',
+      conformant: false,
+    });
+    expect(result.nextActions).toEqual([
+      {
+        command: 'safeword install --agents=opencode',
+        mutates: true,
+        requiresHuman: true,
+      },
+    ]);
+  });
+
   it('TBU1.R2.S10 invalidates prior activation after marker-resolution failure', () => {
     const root = temporaryDirectory();
     const paths = openCodeProfilePaths(root);
