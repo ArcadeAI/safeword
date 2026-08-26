@@ -143,7 +143,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 ### Scenario: A policy denial exposes only a sanitized reason
 
 - [x] RED 8d8c19f94
-- [ ] GREEN
+- [x] GREEN aef8880dc
 - [ ] REFACTOR
 
 ### Scenario: Covered command input is transported without a shell
