@@ -161,6 +161,13 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   command('status', 'Report project health and the next action', 'observe', {
     commandOptions: [agentSelectionOption()],
   }),
+  command('conformance', 'Prove a selected agent integration against its real host', 'mutate', {
+    fixture: {
+      argv: ['conformance', '--agents=opencode', '--offline'],
+      environment: { ...MACHINE_ENVIRONMENT, PATH: '' },
+    },
+    commandOptions: [agentSelectionOption()],
+  }),
   command('install', 'Install Safeword for this project and selected agents', 'mutate', {
     networkPolicy: 'declared',
     fixture: { argv: ['install', '--offline'], environment: MACHINE_ENVIRONMENT },

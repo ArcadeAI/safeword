@@ -109,6 +109,26 @@ async function statusHandler(invocation: CommandInvocation): Promise<CliResult> 
   return observeLifecycleStatus(invocation.cwd, parsed.selection.agents);
 }
 
+async function conformanceHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const parsed = parseAgentSelection(invocation.options.agents);
+  if (!parsed.ok) return invalidAgentSelection('conformance', parsed.error);
+  if (parsed.selection.agents.length !== 1 || parsed.selection.agents[0] !== 'opencode') {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'CONFORMANCE_AGENT_UNSUPPORTED',
+          message: 'Conformance currently requires exactly --agents=opencode.',
+          retryable: false,
+        },
+      ],
+      data: { command: 'conformance' },
+    });
+  }
+  const { runOpenCodeConformance } = await import('../opencode/conformance.js');
+  return runOpenCodeConformance(process.env);
+}
+
 async function doctorHandler(invocation: CommandInvocation): Promise<CliResult> {
   const parsed = parseAgentSelection(invocation.options.agents);
   if (!parsed.ok) return invalidAgentSelection('doctor', parsed.error);
@@ -2154,6 +2174,7 @@ async function retroReconcileHandler(invocation: CommandInvocation): Promise<Cli
 
 const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   status: statusHandler,
+  conformance: conformanceHandler,
   install: installHandler,
   plan: planHandler,
   doctor: doctorHandler,

@@ -32,7 +32,7 @@ describe('OpenCode conformance command', () => {
       state: 'action_required',
       changed: false,
       data: { command: 'conformance', agent: 'opencode' },
-      next_actions: [{ mutates: true, requires_human: true }],
+      next_actions: [{ kind: 'human', mutates: false, requires_human: true }],
     });
     expect(existsSync(nodePath.join(config, 'safeword', 'conformance-v1'))).toBe(false);
   });
