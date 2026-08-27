@@ -1193,10 +1193,29 @@ export async function retryRelayDeadLetterCommand(
   return true;
 }
 
-function localPublicHarness(agent: RetroAgent): 'claude-code' | 'codex' | undefined {
+function publicHarness(agent: RetroAgent): 'claude-code' | 'codex' | 'cursor' | undefined {
   if (agent === 'claude') return 'claude-code';
   if (agent === 'codex') return 'codex';
-  return undefined;
+  return agent === 'cursor' ? 'cursor' : undefined;
+}
+
+function publicRuntimeMetadata(
+  harness: PublicRetroSource['harness'],
+  environment: NodeJS.ProcessEnv,
+): { agentVersion?: string; model?: string; pluginVersion?: string } {
+  if (harness === 'cursor') return {};
+  if (harness === 'codex') {
+    return {
+      agentVersion: environment.CODEX_VERSION,
+      model: environment.CODEX_MODEL,
+      pluginVersion: VERSION,
+    };
+  }
+  return {
+    agentVersion: environment.CLAUDE_CODE_VERSION,
+    model: environment.ANTHROPIC_MODEL,
+    pluginVersion: VERSION,
+  };
 }
 
 export function resolvePublicRetroRoute(input: {
@@ -1205,20 +1224,20 @@ export function resolvePublicRetroRoute(input: {
   environment: NodeJS.ProcessEnv;
   projectDirectory: string;
 }): NonNullable<RetroDependencies['publicRetro']> | undefined {
-  if (!input.enabled || input.environment.CLAUDE_CODE_REMOTE_SESSION_ID !== undefined) {
+  if (
+    !input.enabled ||
+    (input.agent === 'claude' && input.environment.CLAUDE_CODE_REMOTE_SESSION_ID !== undefined)
+  ) {
     return undefined;
   }
-  const harness = localPublicHarness(input.agent);
+  const harness = publicHarness(input.agent);
   if (harness === undefined) return undefined;
   const source = buildPublicRetroSource(input.projectDirectory, {
-    agentVersion:
-      harness === 'codex' ? input.environment.CODEX_VERSION : input.environment.CLAUDE_CODE_VERSION,
+    ...publicRuntimeMetadata(harness, input.environment),
     cliVersion: VERSION,
     environment: input.environment,
     harness,
-    model: harness === 'codex' ? input.environment.CODEX_MODEL : input.environment.ANTHROPIC_MODEL,
     osFamily: platform(),
-    pluginVersion: VERSION,
   });
   if (source === undefined) return undefined;
   return {
