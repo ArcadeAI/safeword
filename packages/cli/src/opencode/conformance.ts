@@ -8,6 +8,7 @@ import { VERSION } from '../version.js';
 import {
   OPENCODE_EXPECTED_DISCOVERY,
   type OpenCodeConformanceFault,
+  type OpenCodeConformanceProfile,
   proveOpenCodeAllow,
   proveOpenCodeCatalogue,
   proveOpenCodeControl,
@@ -75,7 +76,7 @@ function profileRemediation(): CliResult {
   });
 }
 
-interface InstalledProfile {
+interface InstalledProfile extends OpenCodeConformanceProfile {
   readonly identity: OpenCodeIdentityV1;
   readonly root: string;
 }
@@ -95,13 +96,15 @@ function installedProfile(environment: NodeJS.ProcessEnv): InstalledProfile | un
     if (!lstatSync(paths.plugin).isFile() || !lstatSync(paths.identity).isFile()) return undefined;
     const identity = parseOpenCodeIdentity(JSON.parse(readFileSync(paths.identity, 'utf8')));
     if (identity?.safeword_version !== VERSION) return undefined;
+    const pluginBytes = readFileSync(paths.plugin);
+    const dispatcherBytes = readFileSync(identity.dispatcher_path);
     if (
-      sha256(readFileSync(paths.plugin)) !== identity.plugin_sha256 ||
-      sha256(readFileSync(identity.dispatcher_path)) !== identity.dispatcher_sha256
+      sha256(pluginBytes) !== identity.plugin_sha256 ||
+      sha256(dispatcherBytes) !== identity.dispatcher_sha256
     ) {
       return undefined;
     }
-    return { identity, root };
+    return { dispatcherBytes, identity, pluginBytes, root };
   } catch {
     return undefined;
   }
@@ -173,34 +176,40 @@ function failedProof(code: string, message: string): CliResult {
 async function proveOpenCodeHost(
   executable: string,
   environment: NodeJS.ProcessEnv,
+  profile: InstalledProfile,
   fault: OpenCodeConformanceFault | undefined,
 ): Promise<CliResult | undefined> {
-  if (!proveOpenCodeCatalogue(executable, environment, fault)) {
+  if (!proveOpenCodeCatalogue(executable, environment, profile, fault)) {
     return failedProof(
       'OPENCODE_CATALOGUE_CONFORMANCE_FAILED',
       'OpenCode did not discover the required Safeword catalogue.',
     );
   }
-  if (!(await proveOpenCodeAllow(executable, environment))) {
+  if (!(await proveOpenCodeAllow(executable, environment, profile))) {
     return failedProof(
       'OPENCODE_ALLOW_CONFORMANCE_FAILED',
       'OpenCode did not prove that the installed Safeword dispatcher permits safe covered work.',
     );
   }
-  const denial = await proveOpenCodeDenial(executable, environment, fault !== 'disarmed-denial');
+  const denial = await proveOpenCodeDenial(
+    executable,
+    environment,
+    profile,
+    fault !== 'disarmed-denial',
+  );
   if (!denial.denialSurfaced || !denial.sentinelAbsent) {
     return failedProof(
       'OPENCODE_DENIAL_CONFORMANCE_FAILED',
       'OpenCode did not prove Safeword denial without a side effect.',
     );
   }
-  if (!(await proveOpenCodeControl(executable, environment))) {
+  if (!(await proveOpenCodeControl(executable, environment, profile))) {
     return failedProof(
       'OPENCODE_CONTROL_CONFORMANCE_FAILED',
       'The disarmed OpenCode sentinel did not produce its expected side effect.',
     );
   }
-  const skill = await proveOpenCodeSkillInvocation(executable, environment);
+  const skill = await proveOpenCodeSkillInvocation(executable, environment, profile);
   return skill.argumentsObserved && skill.canonicalBodyObserved
     ? undefined
     : failedProof(
@@ -220,7 +229,7 @@ export async function runOpenCodeConformance(
 
   const profile = installedProfile(environment);
   if (profile === undefined) return profileRemediation();
-  const proofFailure = await proveOpenCodeHost(executable, environment, fault);
+  const proofFailure = await proveOpenCodeHost(executable, environment, profile, fault);
   if (proofFailure !== undefined) return proofFailure;
 
   writePassingOpenCodeConformance(openCodeProfilePaths(profile.root).conformance, {
@@ -230,6 +239,7 @@ export async function runOpenCodeConformance(
     platform: process.platform,
     arch: process.arch,
     plugin_sha256: profile.identity.plugin_sha256,
+    dispatcher_sha256: profile.identity.dispatcher_sha256,
     command_catalogue: true,
     agent_catalogue: true,
     denial: true,

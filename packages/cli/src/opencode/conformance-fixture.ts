@@ -17,7 +17,8 @@ import nodePath from 'node:path';
 import { CURSOR_COMMAND_WRAPPERS } from '../cursor-wrappers.js';
 import { getTemplatesDirectory } from '../utils/fs.js';
 import { renderOpenCodeAgent, renderOpenCodeCommand, SAFEWORD_SUBAGENTS } from './catalogue.js';
-import { installOpenCodeProfile } from './profile.js';
+import { type OpenCodeIdentityV1 } from './identity.js';
+import { openCodeProfilePaths } from './profile.js';
 
 export const OPENCODE_EXPECTED_DISCOVERY = {
   command: 'bdd',
@@ -44,13 +45,23 @@ export interface OpenCodeSkillProof {
   readonly canonicalBodyObserved: boolean;
 }
 
+export interface OpenCodeConformanceProfile {
+  readonly dispatcherBytes: Buffer;
+  readonly identity: OpenCodeIdentityV1;
+  readonly pluginBytes: Buffer;
+}
+
 function skillBody(content: string): string {
   const frontmatterEnd = content.indexOf('\n---\n', 4);
   if (frontmatterEnd === -1) throw new Error('Canonical skill frontmatter is incomplete');
   return content.slice(frontmatterEnd + 5).trim();
 }
 
-function prepareCatalogueFixture(root: string, fault?: OpenCodeConformanceFault): string {
+function prepareCatalogueFixture(
+  root: string,
+  profile: OpenCodeConformanceProfile,
+  fault?: OpenCodeConformanceFault,
+): string {
   const project = nodePath.join(root, 'project');
   const config = nodePath.join(root, 'config');
   const command = CURSOR_COMMAND_WRAPPERS.find(candidate => candidate.name === 'bdd');
@@ -88,9 +99,15 @@ function prepareCatalogueFixture(root: string, fault?: OpenCodeConformanceFault)
     );
   }
   writeFileSync(nodePath.join(project, '.safeword', 'SAFEWORD.md'), '# Safeword\n');
-  if (installOpenCodeProfile(config).state !== 'changed') {
-    throw new Error('Safeword OpenCode profile fixture could not be installed');
-  }
+  const profilePaths = openCodeProfilePaths(config);
+  mkdirSync(nodePath.dirname(profilePaths.plugin), { recursive: true });
+  mkdirSync(profilePaths.safeword, { recursive: true });
+  writeFileSync(profilePaths.plugin, profile.pluginBytes);
+  writeFileSync(profilePaths.dispatcher, profile.dispatcherBytes);
+  writeFileSync(
+    profilePaths.identity,
+    `${JSON.stringify({ ...profile.identity, dispatcher_path: profilePaths.dispatcher })}\n`,
+  );
   return project;
 }
 
@@ -280,11 +297,12 @@ function fixtureEnvironment(root: string, environment: NodeJS.ProcessEnv): NodeJ
 export function proveOpenCodeCatalogue(
   executable: string,
   environment: NodeJS.ProcessEnv,
+  profile: OpenCodeConformanceProfile,
   fault?: OpenCodeConformanceFault,
 ): boolean {
   const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-opencode-conformance-'));
   try {
-    const project = prepareCatalogueFixture(root, fault);
+    const project = prepareCatalogueFixture(root, profile, fault);
     const isolatedEnvironment = fixtureEnvironment(root, environment);
     const config = runHost(executable, ['debug', 'config'], project, isolatedEnvironment);
     const skills = runHost(executable, ['debug', 'skill'], project, isolatedEnvironment);
@@ -314,10 +332,11 @@ interface SentinelExecution {
 async function executeSentinelFixture(
   executable: string,
   environment: NodeJS.ProcessEnv,
+  profile: OpenCodeConformanceProfile,
   mode: 'allow' | 'control' | 'denial',
 ): Promise<SentinelExecution> {
   const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-opencode-conformance-'));
-  const project = prepareCatalogueFixture(root);
+  const project = prepareCatalogueFixture(root, profile);
   if (mode === 'control') rmSync(nodePath.join(root, 'config', 'plugins', 'safeword.js'));
   const nonce = randomUUID();
   const sentinel = nodePath.join(project, `${mode}-${nonce}`);
@@ -366,11 +385,13 @@ async function executeSentinelFixture(
 export async function proveOpenCodeDenial(
   executable: string,
   environment: NodeJS.ProcessEnv,
+  profile: OpenCodeConformanceProfile,
   armed = true,
 ): Promise<OpenCodeDenialProof> {
   const execution = await executeSentinelFixture(
     executable,
     environment,
+    profile,
     armed ? 'denial' : 'control',
   );
   return {
@@ -382,25 +403,28 @@ export async function proveOpenCodeDenial(
 export async function proveOpenCodeAllow(
   executable: string,
   environment: NodeJS.ProcessEnv,
+  profile: OpenCodeConformanceProfile,
 ): Promise<boolean> {
-  const execution = await executeSentinelFixture(executable, environment, 'allow');
+  const execution = await executeSentinelFixture(executable, environment, profile, 'allow');
   return execution.sentinelExists;
 }
 
 export async function proveOpenCodeControl(
   executable: string,
   environment: NodeJS.ProcessEnv,
+  profile: OpenCodeConformanceProfile,
 ): Promise<boolean> {
-  const execution = await executeSentinelFixture(executable, environment, 'control');
+  const execution = await executeSentinelFixture(executable, environment, profile, 'control');
   return execution.sentinelExists;
 }
 
 export async function proveOpenCodeSkillInvocation(
   executable: string,
   environment: NodeJS.ProcessEnv,
+  profile: OpenCodeConformanceProfile,
 ): Promise<OpenCodeSkillProof> {
   const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-opencode-conformance-'));
-  const project = prepareCatalogueFixture(root);
+  const project = prepareCatalogueFixture(root, profile);
   const exactArguments = `fixture-token=${randomUUID()}`;
   const canonicalBody = skillBody(
     readFileSync(nodePath.join(project, '.claude', 'skills', 'bdd', 'SKILL.md'), 'utf8'),

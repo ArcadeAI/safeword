@@ -78,6 +78,20 @@ describe('lifecycle profile observation', () => {
     expect(Object.keys(schema.jsonMerges).some(path => path.startsWith('.claude/'))).toBe(true);
   });
 
+  it('preserves legacy Claude skills when only OpenCode is uninstalled', () => {
+    const cwd = createTemporaryDirectory();
+    const settings = nodePath.join(cwd, '.claude/settings.json');
+    mkdirSync(nodePath.dirname(settings), { recursive: true });
+    writeFileSync(settings, '{ retained legacy configuration');
+
+    const installSchema = projectLifecycleSchema(cwd, ['opencode'], 'install');
+    const uninstallSchema = projectLifecycleSchema(cwd, ['opencode'], 'uninstall');
+
+    expect(installSchema.ownedFiles['.claude/skills/bdd/SKILL.md']).toBeDefined();
+    expect(uninstallSchema.ownedFiles['.claude/skills/bdd/SKILL.md']).toBeUndefined();
+    expect(uninstallSchema.ownedFiles['.opencode/commands/bdd.md']).toBeDefined();
+  });
+
   it('keeps the shared runtime when no agent is selected', () => {
     const schema = projectLifecycleSchema(createTemporaryDirectory(), []);
 

@@ -69,6 +69,7 @@ function writeConformanceEvidence(
     platform: process.platform,
     arch: process.arch,
     plugin_sha256: identity.plugin_sha256,
+    dispatcher_sha256: identity.dispatcher_sha256,
     command_catalogue: true,
     agent_catalogue: true,
     denial: true,
@@ -112,6 +113,7 @@ describe('OpenCode status evidence', () => {
     ['Safeword version', { safeword_version: '0.0.0' }],
     ['OpenCode version', { opencode_version: '1.18.24' }],
     ['plugin hash', { plugin_sha256: 'd'.repeat(64) }],
+    ['dispatcher hash', { dispatcher_sha256: 'd'.repeat(64) }],
     ['platform', { platform: process.platform === 'darwin' ? 'linux' : 'darwin' }],
     ['architecture', { arch: process.arch === 'arm64' ? 'x64' : 'arm64' }],
   ])('TBU1.R4 rejects conformance when %s differs', (_dimension, overrides) => {
@@ -229,6 +231,7 @@ describe('OpenCode status evidence', () => {
       activated: true,
       pre_tool: 'block',
       conformant: false,
+      profile_removable: true,
     });
     expect(result.nextActions).toEqual([
       {
@@ -266,6 +269,7 @@ describe('OpenCode status evidence', () => {
       activated: true,
       pre_tool: 'block',
       conformant: true,
+      profile_removable: true,
     });
   });
 
@@ -284,6 +288,7 @@ describe('OpenCode status evidence', () => {
       activated: false,
       pre_tool: 'block',
       conformant: true,
+      profile_removable: true,
     });
     expect(result.nextActions).toEqual([
       {
@@ -310,6 +315,7 @@ describe('OpenCode status evidence', () => {
       activated: true,
       pre_tool: 'block',
       conformant: true,
+      profile_removable: true,
     });
     expect(result.nextActions).toEqual([]);
   });
@@ -323,6 +329,7 @@ describe('OpenCode status evidence', () => {
       activated: false,
       pre_tool: 'unavailable',
       conformant: false,
+      profile_removable: false,
     });
     expect(result.nextActions).toEqual([
       {
@@ -393,5 +400,77 @@ describe('OpenCode status evidence', () => {
         requiresHuman: true,
       },
     ]);
+  });
+
+  it.each(['old version', 'noncanonical plugin'] as const)(
+    'requires reinstall for a self-consistent %s profile',
+    state => {
+      const root = temporaryDirectory();
+      const paths = openCodeProfilePaths(root);
+      expect(installOpenCodeProfile(root).state).toBe('changed');
+      const identity = JSON.parse(readFileSync(paths.identity, 'utf8')) as OpenCodeIdentityV1;
+      if (state === 'old version') {
+        writeFileSync(
+          paths.identity,
+          `${JSON.stringify({ ...identity, safeword_version: '0.0.0' })}\n`,
+        );
+      } else {
+        const plugin = 'export const modified = true;\n';
+        writeFileSync(paths.plugin, plugin);
+        writeFileSync(
+          paths.identity,
+          `${JSON.stringify({
+            ...identity,
+            plugin_sha256: createHash('sha256').update(plugin).digest('hex'),
+          })}\n`,
+        );
+      }
+
+      const result = observeOpenCodeProfile(root);
+
+      expect(result.findings).toMatchObject([{ code: 'OPENCODE_PROFILE_STALE' }]);
+      expect(result.data).toMatchObject({
+        installed: false,
+        conformant: false,
+        profile_removable: true,
+      });
+    },
+  );
+
+  it('marks an identity-only profile as removable independently of protection health', () => {
+    const root = temporaryDirectory();
+    const paths = openCodeProfilePaths(root);
+    expect(installOpenCodeProfile(root).state).toBe('changed');
+    rmSync(paths.plugin);
+
+    const result = observeOpenCodeProfile(root);
+
+    expect(result.data).toMatchObject({ installed: false, profile_removable: true });
+  });
+
+  it('invalidates conformance when dispatcher bytes and identity change together', () => {
+    const root = temporaryDirectory();
+    const paths = openCodeProfilePaths(root);
+    expect(installOpenCodeProfile(root).state).toBe('changed');
+    const identity = JSON.parse(readFileSync(paths.identity, 'utf8')) as OpenCodeIdentityV1;
+    writePassingEvidence(paths, identity, 'pre_tool');
+    const dispatcher = Buffer.concat([
+      readFileSync(paths.dispatcher),
+      Buffer.from('\n// modified\n'),
+    ]);
+    writeFileSync(paths.dispatcher, dispatcher);
+    writeFileSync(
+      paths.identity,
+      `${JSON.stringify({
+        ...identity,
+        dispatcher_sha256: createHash('sha256').update(dispatcher).digest('hex'),
+      })}\n`,
+    );
+
+    const result = observeOpenCodeProfile(root, { opencodeVersion: '1.18.23' });
+
+    expect(result.state).toBe('action_required');
+    expect(result.findings).toMatchObject([{ code: 'OPENCODE_CONFORMANCE_REQUIRED' }]);
+    expect(result.data).toMatchObject({ conformant: false });
   });
 });

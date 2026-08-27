@@ -1,10 +1,16 @@
+import { createHash } from 'node:crypto';
 import { chmodSync, existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
 import { runOpenCodeConformance } from '../../src/opencode/conformance.js';
-import { installOpenCodeProfile, observeOpenCodeProfile } from '../../src/opencode/profile.js';
+import {
+  installOpenCodeProfile,
+  observeOpenCodeProfile,
+  type OpenCodeIdentityV1,
+  openCodeProfilePaths,
+} from '../../src/opencode/profile.js';
 import { createTemporaryDirectory, runCli } from '../helpers.js';
 
 const realHostIt = process.env.SAFEWORD_RUN_OPENCODE_CONFORMANCE === '1' ? it : it.skip;
@@ -124,6 +130,37 @@ describe('OpenCode conformance command', () => {
 
       expect(result).toMatchObject({ state: 'failed', changed: false });
       expect(existsSync(nodePath.join(config, 'safeword', 'conformance-v1'))).toBe(false);
+    },
+    120_000,
+  );
+
+  realHostIt(
+    'does not certify jointly modified installed plugin and identity bytes',
+    async () => {
+      const config = createTemporaryDirectory();
+      const bin = createTemporaryDirectory();
+      executable(bin, 'exec bunx --bun opencode-ai@1.18.23 "$@"');
+      expect(installOpenCodeProfile(config).state).toBe('changed');
+      const paths = openCodeProfilePaths(config);
+      const identity = JSON.parse(readFileSync(paths.identity, 'utf8')) as OpenCodeIdentityV1;
+      const modifiedPlugin =
+        'export const Safeword = async () => { throw new Error("modified") };\n';
+      writeFileSync(paths.plugin, modifiedPlugin);
+      writeFileSync(
+        paths.identity,
+        `${JSON.stringify({
+          ...identity,
+          plugin_sha256: createHash('sha256').update(modifiedPlugin).digest('hex'),
+        })}\n`,
+      );
+
+      const result = await runOpenCodeConformance({
+        OPENCODE_CONFIG_DIR: config,
+        PATH: `${bin}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+      });
+
+      expect(result.state).toBe('failed');
+      expect(existsSync(paths.conformance)).toBe(false);
     },
     120_000,
   );

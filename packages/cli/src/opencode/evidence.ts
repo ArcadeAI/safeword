@@ -32,6 +32,7 @@ export interface OpenCodeConformanceV1 {
   readonly platform: string;
   readonly arch: string;
   readonly plugin_sha256: string;
+  readonly dispatcher_sha256: string;
   readonly command_catalogue: boolean;
   readonly agent_catalogue: boolean;
   readonly denial: boolean;
@@ -138,6 +139,7 @@ export function parseOpenCodeConformance(value: unknown): OpenCodeConformanceV1 
     'platform',
     'arch',
     'plugin_sha256',
+    'dispatcher_sha256',
     'command_catalogue',
     'agent_catalogue',
     'denial',
@@ -153,6 +155,7 @@ export function parseOpenCodeConformance(value: unknown): OpenCodeConformanceV1 
       platform: isNonEmptyString,
       arch: isNonEmptyString,
       plugin_sha256: isSha256,
+      dispatcher_sha256: isSha256,
       command_catalogue: isBoolean,
       agent_catalogue: isBoolean,
       denial: isBoolean,

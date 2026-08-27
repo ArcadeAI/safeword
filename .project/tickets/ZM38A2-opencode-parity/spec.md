@@ -269,7 +269,7 @@ install action without mutation.
 ### Evidence and status
 
 Activation evidence is
-`<config-root>/safeword/activation-v1/<project-sha256>.json` with schema version,
+`<config-root>/safeword/activation-v1/<project-sha256>-<event>.json` with schema version,
 Safeword version, plugin hash, canonical project hash, OpenCode version when
 available, event, session ID hash, call ID hash when the event is call-bound,
 and `observed_at`. For a marked project, the plugin writes it atomically after
@@ -282,7 +282,7 @@ records are stale observations, never blocking proof.
 Conformance evidence is
 `<config-root>/safeword/conformance-v1/<opencode-version>-<plugin-hash>.json` and
 records schema version, exact OpenCode and Safeword versions, platform/arch,
-plugin hash, the four catalogue/denial booleans, `checked_at`, and the final
+plugin and dispatcher hashes, the four catalogue/denial booleans, `checked_at`, and the final
 result. It contains no prompts, commands, paths, environment, or model output.
 Evidence is accepted only when schema, Safeword version, OpenCode version,
 plugin hash, platform, and architecture match the current execution boundary.

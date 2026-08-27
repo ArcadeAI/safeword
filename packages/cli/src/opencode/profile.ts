@@ -241,13 +241,32 @@ function hasCurrentDispatcher(identity: OpenCodeIdentityV1): boolean {
 function observeIdentityBindings(
   plugin: FileObservation,
   identity: OpenCodeIdentityV1,
+  profileRemovable: boolean,
 ): CliResult | undefined {
+  const unavailable = {
+    installed: false,
+    activated: false,
+    pre_tool: 'unavailable',
+    conformant: false,
+    profile_removable: profileRemovable,
+  } as const;
   if (plugin.kind !== 'file' || sha256(plugin.bytes) !== identity.plugin_sha256) {
     return actionRequired(
       'OPENCODE_PLUGIN_DRIFT',
       'The Safeword OpenCode plugin does not match its identity.',
       'safeword install --agents=opencode',
-      UNAVAILABLE_PROTECTION,
+      unavailable,
+    );
+  }
+  if (
+    identity.safeword_version !== VERSION ||
+    sha256(plugin.bytes) !== sha256(generateOpenCodeProfilePlugin())
+  ) {
+    return actionRequired(
+      'OPENCODE_PROFILE_STALE',
+      'The Safeword OpenCode profile does not match this Safeword version.',
+      'safeword install --agents=opencode',
+      unavailable,
     );
   }
   if (!hasCurrentDispatcher(identity)) {
@@ -255,10 +274,22 @@ function observeIdentityBindings(
       'OPENCODE_DISPATCHER_UNAVAILABLE',
       'The identity-bound OpenCode dispatcher is unavailable.',
       'safeword install --agents=opencode',
-      UNAVAILABLE_PROTECTION,
+      unavailable,
     );
   }
   return undefined;
+}
+
+function profileIsRemovable(
+  paths: OpenCodeProfilePaths,
+  plugin: FileObservation,
+  identity: OpenCodeIdentityV1,
+): boolean {
+  if (managedDispatcherProblem(paths, identity) !== undefined) return false;
+  return (
+    plugin.kind === 'absent' ||
+    (plugin.kind === 'file' && sha256(plugin.bytes) === identity.plugin_sha256)
+  );
 }
 
 interface NamedEvidence<T> {
@@ -325,6 +356,7 @@ function isPassingConformance(
     opencodeVersion === undefined || evidence.opencode_version === opencodeVersion,
     evidence.safeword_version === identity.safeword_version,
     evidence.plugin_sha256 === identity.plugin_sha256,
+    evidence.dispatcher_sha256 === identity.dispatcher_sha256,
     evidence.platform === process.platform,
     evidence.arch === process.arch,
     evidence.command_catalogue,
@@ -366,7 +398,13 @@ function observeProtectionEvidence(
     expectedProjectSha256,
   );
   const conformant = hasPassingConformance(paths.conformance, identity, input.opencodeVersion);
-  const data = { installed: true, activated, pre_tool: 'block', conformant };
+  const data = {
+    installed: true,
+    activated,
+    pre_tool: 'block',
+    conformant,
+    profile_removable: true,
+  };
   if (!conformant) {
     return actionRequired(
       'OPENCODE_CONFORMANCE_REQUIRED',
@@ -414,6 +452,7 @@ const UNAVAILABLE_PROTECTION = {
   activated: false,
   pre_tool: 'unavailable',
   conformant: false,
+  profile_removable: false,
 } as const;
 
 function profilePresenceProblem(
@@ -475,17 +514,24 @@ export function observeOpenCodeProfile(
       'OPENCODE_IDENTITY_COLLISION',
       'The Safeword OpenCode identity cannot be verified.',
       'safeword install --agents=opencode',
-      { installed: false, activated: false, pre_tool: 'unavailable', conformant: false },
+      UNAVAILABLE_PROTECTION,
     );
   }
-  const bindingProblem = observeIdentityBindings(plugin, identity);
+  const profileRemovable = profileIsRemovable(paths, plugin, identity);
+  const bindingProblem = observeIdentityBindings(plugin, identity, profileRemovable);
   if (bindingProblem !== undefined) return bindingProblem;
   if (hasCurrentProfileError(paths.profileError, identity)) {
     return actionRequired(
       'OPENCODE_MARKER_RESOLUTION_FAILED',
       'OpenCode project classification could not be verified.',
       'safeword install --agents=opencode',
-      { installed: true, activated: false, pre_tool: 'block', conformant: false },
+      {
+        installed: true,
+        activated: false,
+        pre_tool: 'block',
+        conformant: false,
+        profile_removable: profileRemovable,
+      },
     );
   }
   return observeProtectionEvidence(paths, identity, input);

@@ -2,6 +2,7 @@ import { schemaForClaudeDelivery } from '../claude-plugin/delivery-schema.js';
 import { schemaForCodexDelivery } from '../codex-plugin/delivery-schema.js';
 import { generateOwnedPathsModule, resolvedNamespaceDirectory } from '../owned-paths.js';
 import {
+  filterSchemaPaths,
   SAFEWORD_SCHEMA,
   type SafewordSchema,
   schemaForProjectSurfaces,
@@ -43,22 +44,59 @@ function withSelectedOwnedPaths(schema: SafewordSchema, includeOpenCode: boolean
   };
 }
 
-export function projectLifecycleSchema(cwd: string, agents: readonly string[]): SafewordSchema {
-  const claudeDeliverySchema = schemaForClaudeDelivery(cwd);
-  const legacyClaudeActive =
-    Object.keys(claudeDeliverySchema.ownedFiles).some(path => isLegacyClaudePath(path)) ||
-    Object.keys(claudeDeliverySchema.jsonMerges).some(path => isLegacyClaudePath(path));
-  const deliverySchema = schemaForCodexDelivery(
-    cwd,
-    agents.includes('opencode')
-      ? withOpenCodeSkillDelivery(claudeDeliverySchema)
-      : claudeDeliverySchema,
+function hasLegacyClaudeDelivery(schema: SafewordSchema): boolean {
+  return [...Object.keys(schema.ownedFiles), ...Object.keys(schema.jsonMerges)].some(path =>
+    isLegacyClaudePath(path),
   );
-  const surfaceSchema = schemaForProjectSurfaces(deliverySchema, [
+}
+
+function selectedDeliverySchema(
+  schema: SafewordSchema,
+  selected: ReadonlySet<string>,
+  preserveLegacySkills: boolean,
+): SafewordSchema {
+  const claude = selected.has('claude')
+    ? schema
+    : filterSchemaPaths(schema, path => !isLegacyClaudePath(path));
+  return selected.has('opencode') && !preserveLegacySkills
+    ? withOpenCodeSkillDelivery(claude)
+    : claude;
+}
+
+function selectedProjectSurfaces(
+  selected: ReadonlySet<string>,
+): ('core' | 'cursor' | 'opencode')[] {
+  return [
     'core',
-    ...(agents.includes('cursor') ? (['cursor'] as const) : []),
-    ...(agents.includes('opencode') ? (['opencode'] as const) : []),
-  ]);
+    ...(selected.has('cursor') ? (['cursor'] as const) : []),
+    ...(selected.has('opencode') ? (['opencode'] as const) : []),
+  ];
+}
+
+function sharedRuntimeNeeded(selected: ReadonlySet<string>, legacyClaudeActive: boolean): boolean {
+  return (
+    selected.size === 0 ||
+    ['codex', 'cursor', 'opencode'].some(agent => selected.has(agent)) ||
+    legacyClaudeActive
+  );
+}
+
+export function projectLifecycleSchema(
+  cwd: string,
+  agents: readonly string[],
+  operation: 'check' | 'install' | 'uninstall' = 'check',
+): SafewordSchema {
+  const claudeDeliverySchema = schemaForClaudeDelivery(cwd);
+  const selected = new Set(agents);
+  const legacyClaudeActive = hasLegacyClaudeDelivery(claudeDeliverySchema);
+  const preserveLegacySkills = operation === 'uninstall' && legacyClaudeActive;
+  const openCodeSchema = selectedDeliverySchema(
+    claudeDeliverySchema,
+    selected,
+    preserveLegacySkills,
+  );
+  const deliverySchema = schemaForCodexDelivery(cwd, openCodeSchema);
+  const surfaceSchema = schemaForProjectSurfaces(deliverySchema, selectedProjectSurfaces(selected));
   // OpenCode commands load the canonical skills delivered through `.claude/skills`,
   // whose bodies reference the shared `.safeword` runtime. Legacy Claude delivery
   // needs the same runtime independently of OpenCode's injected skill catalogue.
@@ -66,14 +104,7 @@ export function projectLifecycleSchema(cwd: string, agents: readonly string[]): 
   // shared runtime is unused — only a project selecting Claude, and nothing
   // else, that's also confirmed native knows for certain nothing reads it.
   return withSelectedOwnedPaths(
-    schemaForSharedAgentRuntime(
-      surfaceSchema,
-      agents.length === 0 ||
-        agents.includes('codex') ||
-        agents.includes('cursor') ||
-        agents.includes('opencode') ||
-        legacyClaudeActive,
-    ),
-    agents.includes('opencode'),
+    schemaForSharedAgentRuntime(surfaceSchema, sharedRuntimeNeeded(selected, legacyClaudeActive)),
+    selected.has('opencode'),
   );
 }

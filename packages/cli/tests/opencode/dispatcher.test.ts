@@ -33,7 +33,7 @@ describe('packaged OpenCode dispatcher', () => {
     const project = markedProject();
     const isolated = createTemporaryDirectory();
     temporaryDirectories.push(isolated);
-    const copiedDispatcher = nodePath.join(isolated, 'dispatcher.js');
+    const copiedDispatcher = nodePath.join(isolated, 'dispatcher.mjs');
     copyFileSync(dispatcherPath, copiedDispatcher);
 
     const result = spawnSync(process.execPath, [copiedDispatcher], {

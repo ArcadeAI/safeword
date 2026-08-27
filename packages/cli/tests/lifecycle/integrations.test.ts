@@ -54,7 +54,10 @@ describe('integration registry contracts', () => {
     const uninstall = await opencode.effects({
       ...context,
       operation: 'uninstall',
-      observation: createResult({ state: 'healthy', data: { installed: true } }),
+      observation: createResult({
+        state: 'healthy',
+        data: { installed: true, profile_removable: true },
+      }),
     });
 
     expect(install.files.map(effect => effect.target)).toEqual([
@@ -70,6 +73,16 @@ describe('integration registry contracts', () => {
       destructive: [],
     });
     expect(uninstall.destructive).toHaveLength(3);
+
+    const partialUninstall = await opencode.effects({
+      ...context,
+      operation: 'uninstall',
+      observation: createResult({
+        state: 'action_required',
+        data: { installed: false, profile_removable: true },
+      }),
+    });
+    expect(partialUninstall.destructive).toHaveLength(3);
 
     for (const id of ['claude', 'codex']) {
       const integration = PRODUCTION_INTEGRATIONS.find(entry => entry.id === id);

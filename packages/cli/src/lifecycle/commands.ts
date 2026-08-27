@@ -305,7 +305,7 @@ async function prepareLifecycle(
 ): Promise<PreparedLifecycle> {
   const { full = false, install: installOptions = {}, scope = 'project' } = options;
   const uninstalling = operation === 'uninstall';
-  const projectSchema = projectLifecycleSchema(cwd, agents);
+  const projectSchema = projectLifecycleSchema(cwd, agents, operation);
   const uninstallOperation = full ? 'uninstall-full' : 'uninstall';
   const project = uninstalling
     ? await createReconciliationPlan(cwd, uninstallOperation, projectSchema)

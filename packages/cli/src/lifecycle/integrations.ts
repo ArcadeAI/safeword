@@ -400,14 +400,15 @@ function openCodeConfigRootRequired(): CliResult {
     findings: [
       {
         code: 'OPENCODE_CONFIG_ROOT_UNRESOLVED',
-        message: 'Set OPENCODE_CONFIG_DIR, XDG_CONFIG_HOME, or HOME for OpenCode.',
+        message: 'Set OPENCODE_CONFIG_DIR, XDG_CONFIG_HOME, HOME, or USERPROFILE for OpenCode.',
         severity: 'error',
       },
     ],
     nextActions: [
       {
         kind: 'human',
-        instruction: 'Set OPENCODE_CONFIG_DIR, XDG_CONFIG_HOME, or HOME, then rerun Safeword.',
+        instruction:
+          'Set OPENCODE_CONFIG_DIR, XDG_CONFIG_HOME, HOME, or USERPROFILE, then rerun Safeword.',
         mutates: false,
         requiresHuman: true,
       },
@@ -430,26 +431,38 @@ async function observeOpenCode(context: LifecycleContext): Promise<CliResult> {
   });
 }
 
-function openCodeEffects(context: LifecycleContext): Effects {
-  if (context.operation === 'check') return EMPTY_EFFECTS;
-  const installed = (
-    context.observation as { readonly data?: { readonly installed?: boolean } } | undefined
-  )?.data?.installed;
-  if (context.operation === 'install' && installed === true) return EMPTY_EFFECTS;
-  if (context.operation === 'uninstall' && installed !== true) return EMPTY_EFFECTS;
+function openCodeProfileEffects(kind: 'add' | 'remove'): Effects {
   const files = [
     'OpenCode profile plugin',
     'OpenCode Safeword identity',
     'OpenCode Safeword dispatcher',
-  ].map(target => ({ kind: context.operation === 'install' ? 'add' : 'remove', target }));
+  ].map(target => ({ kind, target }));
   return {
     ...EMPTY_EFFECTS,
     files,
     destructive:
-      context.operation === 'uninstall'
+      kind === 'remove'
         ? files.map(({ target }) => ({ kind: 'remove', target, operation: 'profile' }))
         : [],
   };
+}
+
+function openCodeEffects(context: LifecycleContext): Effects {
+  if (context.operation === 'check') return EMPTY_EFFECTS;
+  const data = (
+    context.observation as
+      | {
+          readonly data?: {
+            readonly installed?: boolean;
+            readonly profile_removable?: boolean;
+          };
+        }
+      | undefined
+  )?.data;
+  if (context.operation === 'install') {
+    return data?.installed === true ? EMPTY_EFFECTS : openCodeProfileEffects('add');
+  }
+  return data?.profile_removable === true ? openCodeProfileEffects('remove') : EMPTY_EFFECTS;
 }
 
 const opencode = defineIntegrationAdapter({
