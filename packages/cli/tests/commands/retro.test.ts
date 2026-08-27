@@ -20,6 +20,7 @@ import {
   discardRelaySpoolCommand,
   executeRetroCommand,
   reportRetroCommandOutcome,
+  resolvePublicRetroRoute,
   resolveRelayConfig,
   resolveRelayOutboxDirectory,
   retroCommand,
@@ -185,6 +186,47 @@ const dependencies = (over: Partial<Parameters<typeof runRetro>[1]> = {}) => ({
 });
 
 describe('retro command configuration, extraction, egress, and relay execution', () => {
+  it.each([
+    ['claude', false, undefined],
+    ['codex', true, 'codex'],
+    ['cursor', true, 'cursor'],
+  ] as const)(
+    'applies Claude Remote suppression only to the %s public route',
+    (agent, allowed, harness) => {
+      const project = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-route-'));
+      try {
+        mkdirSync(nodePath.join(project, '.safeword'));
+        writeFileSync(
+          nodePath.join(project, '.safeword/config.json'),
+          JSON.stringify({ projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' }),
+        );
+
+        const route = resolvePublicRetroRoute({
+          agent,
+          enabled: true,
+          environment: {
+            CLAUDE_CODE_REMOTE_SESSION_ID: 'claude-cloud-fixture',
+            CODEX_MODEL: 'gpt-fixture',
+            CODEX_VERSION: '1.2.3',
+          },
+          projectDirectory: project,
+        });
+
+        expect(route !== undefined).toBe(allowed);
+        if (harness !== undefined) {
+          expect(route?.source).toMatchObject({ harness, hostClass: 'unknown' });
+        }
+        if (agent === 'cursor') {
+          expect(route?.source).not.toHaveProperty('agentVersion');
+          expect(route?.source).not.toHaveProperty('model');
+          expect(route?.source).not.toHaveProperty('safewordPluginVersion');
+        }
+      } finally {
+        rmSync(project, { force: true, recursive: true });
+      }
+    },
+  );
+
   it('accepts only an absolute relay outbox outside the disposable project', () => {
     const project = mkdtempSync(nodePath.join(tmpdir(), 'retro-outbox-project-'));
     const external = mkdtempSync(nodePath.join(tmpdir(), 'safeword-durable-outbox-'));

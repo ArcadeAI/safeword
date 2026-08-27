@@ -1199,7 +1199,7 @@ function localPublicHarness(agent: RetroAgent): 'claude-code' | 'codex' | undefi
   return undefined;
 }
 
-function resolvePublicRetroRoute(input: {
+export function resolvePublicRetroRoute(input: {
   agent: RetroAgent;
   enabled: boolean;
   environment: NodeJS.ProcessEnv;
