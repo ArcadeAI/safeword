@@ -590,7 +590,7 @@ const invalidEnvelopes: readonly (readonly [string, Uint8Array, (string | false)
   ],
   ['invalid source host class', encoded(withSource({ hostClass: 7 }))],
   ['cloud source host class', encoded(withSource({ hostClass: 'cloud' }))],
-  ['unsupported harness', encoded(withSource({ harness: 'cursor' }))],
+  ['incompatible cursor/local source', encoded(withSource({ harness: 'cursor' }))],
   ['wrong-typed required field', encoded({ ...fixtureEnvelope(), finding: 7 })],
   ['empty required field', encoded({ ...fixtureEnvelope(), finding: '' })],
   ['whitespace-only required field', encoded({ ...fixtureEnvelope(), finding: '  ' })],
