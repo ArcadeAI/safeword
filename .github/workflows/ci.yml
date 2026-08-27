@@ -65,7 +65,7 @@ jobs:
   opencode-conformance:
     name: OpenCode conformance
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     steps:
       - name: Checkout
@@ -78,6 +78,9 @@ jobs:
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
+
+      - name: Build
+        run: bun run --cwd packages/cli build
 
       - name: Run pinned OpenCode conformance
         run: SAFEWORD_RUN_OPENCODE_CONFORMANCE=1 bun run --cwd packages/cli test tests/opencode/conformance-command.test.ts
@@ -361,7 +364,7 @@ jobs:
     # High and critical advisories block automatic production delivery. The
     # environment-protected deploy-retro-relay workflow stays the manual
     # break-glass path for an urgent relay security fix.
-    needs: [dogfood-parity, dependency-audit, test, lint, relay-inputs]
+    needs: [dogfood-parity, dependency-audit, opencode-conformance, test, lint, relay-inputs]
     if: github.ref == 'refs/heads/main' && needs.relay-inputs.outputs.deploy == 'true'
     runs-on: ubuntu-latest
     environment: retro-relay-production
@@ -445,7 +448,7 @@ jobs:
 
   deploy-retro-collector:
     name: Deploy Retro Collector
-    needs: [dogfood-parity, dependency-audit, test, lint, collector-inputs]
+    needs: [dogfood-parity, dependency-audit, opencode-conformance, test, lint, collector-inputs]
     if: github.ref == 'refs/heads/main' && needs.collector-inputs.outputs.deploy == 'true'
     runs-on: ubuntu-latest
     environment: retro-relay-production

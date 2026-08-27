@@ -60,7 +60,7 @@ describe('OpenCode activation evidence', () => {
     await module.Safeword({ directory: project });
 
     const projectHash = digest(realpathSync(project));
-    const recordPath = nodePath.join(paths.activation, `${projectHash}.json`);
+    const recordPath = nodePath.join(paths.activation, `${projectHash}-plugin_load.json`);
     expect(existsSync(recordPath)).toBe(true);
     const bytes = readFileSync(recordPath, 'utf8');
     const record = parseOpenCodeActivation(JSON.parse(bytes));

@@ -98,6 +98,7 @@ export async function observeStatus(
 export interface LifecycleSurfaceObservation {
   readonly name: 'project' | AgentIntegration;
   readonly result: CliResult;
+  readonly exposeData?: boolean;
 }
 
 export async function observeLifecycleSurfaces(
@@ -111,6 +112,7 @@ export async function observeLifecycleSurfaces(
     agents,
     async adapter => ({
       name: adapter.id as AgentIntegration,
+      exposeData: adapter.exposeStatusData,
       result: await adapter.observe({
         cwd,
         agents,
@@ -138,9 +140,38 @@ export function lifecycleSurfaceSummaries(
     name: surface.name,
     selected: true,
     state: surface.result.state,
-    ...(surface.name === 'opencode' &&
+    ...(surface.exposeData === true &&
       surface.result.data !== undefined && { data: surface.result.data }),
   }));
+}
+
+const STATE_PRIORITY: Readonly<Record<CliResult['state'], number>> = {
+  failed: 4,
+  action_required: 3,
+  changed: 2,
+  healthy: 1,
+};
+const FINDING_PRIORITY: Readonly<Record<Finding['severity'], number>> = {
+  error: 3,
+  warning: 2,
+  info: 1,
+};
+
+function actionPriority(result: CliResult): number {
+  const findingPriority = Math.max(
+    0,
+    ...result.findings.map(finding => FINDING_PRIORITY[finding.severity]),
+  );
+  return STATE_PRIORITY[result.state] * 10 + findingPriority;
+}
+
+function primaryNextAction(
+  surfaces: readonly LifecycleSurfaceObservation[],
+): readonly NextAction[] {
+  const prioritized = surfaces
+    .filter(surface => surface.result.nextActions.length > 0)
+    .toSorted((left, right) => actionPriority(right.result) - actionPriority(left.result));
+  return prioritized[0]?.result.nextActions.slice(0, 1) ?? [];
 }
 
 /** The project surface's own observation keys, which callers read top-level. */
@@ -165,7 +196,7 @@ export function summarizeLifecycleStatus(
     findings: results.flatMap(result => result.findings),
     errors: results.flatMap(result => result.errors),
     recovery: results.flatMap(result => result.recovery),
-    nextActions: results.flatMap(result => result.nextActions).slice(0, 1),
+    nextActions: primaryNextAction(surfaces),
     data: {
       ...projectObservationData(surfaces),
       command: 'status',

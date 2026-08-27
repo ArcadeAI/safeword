@@ -31,7 +31,7 @@ function writeActivationEvidence(
 ): void {
   mkdirSync(paths.activation, { recursive: true });
   writeFileSync(
-    nodePath.join(paths.activation, `${projectSha256}.json`),
+    nodePath.join(paths.activation, `${projectSha256}-${event}.json`),
     `${JSON.stringify({
       schema_version: 1,
       safeword_version: identity.safeword_version,
@@ -138,24 +138,6 @@ describe('OpenCode status evidence', () => {
   });
 
   it.each([
-    ['arbitrarily old', '2000-01-01T00:00:00.000Z'],
-    ['one day in the future', '2026-08-27T12:00:00.000Z'],
-  ])('TBU1.R4 accepts %s conformance when every boundary binding matches', (_age, checkedAt) => {
-    const root = temporaryDirectory();
-    const paths = openCodeProfilePaths(root);
-    expect(installOpenCodeProfile(root).state).toBe('changed');
-    const identity = JSON.parse(readFileSync(paths.identity, 'utf8')) as OpenCodeIdentityV1;
-    writeActivationEvidence(paths, identity, 'pre_tool');
-    writeConformanceEvidence(paths, identity, { checked_at: checkedAt });
-
-    const result = observeOpenCodeProfile(root, { opencodeVersion: '1.18.23' });
-
-    expect(result.state).toBe('healthy');
-    expect(result.data).toMatchObject({ conformant: true });
-    expect(result.nextActions).toEqual([]);
-  });
-
-  it.each([
     ['7 days and 1 second old', { observed_at: '2026-08-19T11:59:59.000Z' }],
     ['malformed', '{'],
     ['future dated', { observed_at: '2026-08-26T12:00:01.000Z' }],
@@ -184,13 +166,13 @@ describe('OpenCode status evidence', () => {
       observed_at: new Date(now).toISOString(),
     };
     mkdirSync(paths.activation, { recursive: true });
-    const activationPath = nodePath.join(paths.activation, `${projectHash}.json`);
+    const activationPath = nodePath.join(paths.activation, `${projectHash}-pre_tool.json`);
     writeFileSync(activationPath, `${JSON.stringify(valid)}\n`);
     expect(observeOpenCodeProfile(root, { now, projectDirectory }).state).toBe('healthy');
 
     const invalidPath =
       state === 'project mismatched'
-        ? nodePath.join(paths.activation, `${'d'.repeat(64)}.json`)
+        ? nodePath.join(paths.activation, `${'d'.repeat(64)}-pre_tool.json`)
         : activationPath;
     if (invalidPath !== activationPath) rmSync(activationPath);
     writeFileSync(

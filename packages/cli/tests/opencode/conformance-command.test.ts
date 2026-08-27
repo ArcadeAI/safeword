@@ -18,7 +18,7 @@ function executable(directory: string, body: string): void {
 describe('OpenCode conformance command', () => {
   it.each([
     ['unresolvable', undefined],
-    ['wrong version', String.raw`printf '1.18.24\n'`],
+    ['unstable major version', String.raw`printf '2.0.0\n'`],
     ['pre-conformance failure', 'exit 9'],
   ])('fails safely when the executable is %s', async (_state, body) => {
     const project = createTemporaryDirectory();

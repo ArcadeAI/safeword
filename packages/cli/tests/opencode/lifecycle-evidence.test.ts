@@ -106,11 +106,10 @@ describe('OpenCode lifecycle evidence', () => {
     ] as const;
     const adapter = PRODUCTION_INTEGRATIONS.find(candidate => candidate.id === 'opencode');
     const projectHash = digest(realpathSync(project));
-    const evidencePath = nodePath.join(paths.activation, `${projectHash}.json`);
-
     for (const [event, strength, invoke] of cases) {
       expect(adapter?.capabilities.lifecycle[event]).toBe(strength);
       await invoke();
+      const evidencePath = nodePath.join(paths.activation, `${projectHash}-${event}.json`);
       const evidenceBytes = readFileSync(evidencePath, 'utf8');
       const evidence = parseOpenCodeActivation(JSON.parse(evidenceBytes));
       expect(evidence).toMatchObject({

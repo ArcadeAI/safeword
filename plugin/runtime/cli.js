@@ -37701,14 +37701,24 @@ function canonicalEnvelope(input, output) {
 }
 
 async function classifyProject(directory) {
-  if (MARKER_TIMEOUT_MILLISECONDS === 0) return 'uncertain';
+  if (MARKER_TIMEOUT_MILLISECONDS === 0) return { kind: 'uncertain' };
   let timer;
-  const marker = access(path.join(directory, '.safeword', 'SAFEWORD.md')).then(
-    () => 'marked',
-    error => error?.code === 'ENOENT' ? 'unmarked' : 'uncertain',
-  );
+  const marker = (async () => {
+    let candidate = path.resolve(directory);
+    while (true) {
+      try {
+        await access(path.join(candidate, '.safeword', 'SAFEWORD.md'));
+        return { kind: 'marked', directory: candidate };
+      } catch (error) {
+        if (error?.code !== 'ENOENT') return { kind: 'uncertain' };
+      }
+      const parent = path.dirname(candidate);
+      if (parent === candidate) return { kind: 'unmarked' };
+      candidate = parent;
+    }
+  })();
   const deadline = new Promise(resolve => {
-    timer = setTimeout(() => resolve('uncertain'), MARKER_TIMEOUT_MILLISECONDS);
+    timer = setTimeout(() => resolve({ kind: 'uncertain' }), MARKER_TIMEOUT_MILLISECONDS);
   });
   try {
     return await Promise.race([marker, deadline]);
@@ -37763,7 +37773,7 @@ async function recordActivation(directory, event, sessionID, callID) {
       ...(callID === undefined ? {} : { call_id_sha256: createHash('sha256').update(callID).digest('hex') }),
       observed_at: new Date().toISOString(),
     };
-    await atomicWrite(path.join(activationRoot, projectHash + '.json'), JSON.stringify(evidence) + '\n');
+    await atomicWrite(path.join(activationRoot, projectHash + '-' + event + '.json'), JSON.stringify(evidence) + '\n');
   } catch {
     // Activation is diagnostic and never changes the host operation.
   }
@@ -37787,19 +37797,18 @@ async function readBoundIdentity() {
   return identity;
 }
 
-function dispatch(identity, envelope) {
+function dispatch(identity, envelope, directory) {
   return new Promise((resolve, reject) => {
     const child = spawn(identity.runtime_path, [identity.dispatcher_path], {
-      cwd: process.cwd(),
+      cwd: directory,
       shell: false,
       env: {
         ...process.env,
         SAFEWORD_AGENT_RUNTIME: 'opencode',
         SAFEWORD_CODEX_DENY_MODE: 'exit-code',
       },
-      stdio: ['pipe', 'pipe', 'ignore'],
+      stdio: ['pipe', 'ignore', 'ignore'],
     });
-    let stdout = '';
     let settled = false;
     const finish = (action) => {
       if (settled) return;
@@ -37811,12 +37820,9 @@ function dispatch(identity, envelope) {
       child.kill('SIGTERM');
       finish(() => reject(new Error(DENIAL)));
     }, 2_000);
-    child.stdout.setEncoding('utf8').on('data', chunk => {
-      stdout += chunk;
-    });
     child.once('error', () => finish(() => reject(new Error(DENIAL))));
     child.stdin.once('error', () => finish(() => reject(new Error(DENIAL))));
-    child.once('close', exitCode => finish(() => resolve({ exitCode, stdout })));
+    child.once('close', exitCode => finish(() => resolve({ exitCode })));
     child.stdin.end(JSON.stringify(envelope));
   });
 }
@@ -37825,19 +37831,19 @@ export const Safeword = async input => {
   async function recordLifecycle(event, sessionID, callID) {
     if (!input?.directory || typeof sessionID !== 'string' || sessionID.length === 0) return;
     const classification = await classifyProject(input.directory);
-    if (classification === 'uncertain') {
+    if (classification.kind === 'uncertain') {
       await recordMarkerResolutionFailure();
       return;
     }
-    if (classification === 'unmarked') return;
+    if (classification.kind === 'unmarked') return;
     await clearProfileError();
-    await recordActivation(input.directory, event, sessionID, callID);
+    await recordActivation(classification.directory, event, sessionID, callID);
   }
 
   if (input?.directory) {
     const classification = await classifyProject(input.directory);
-    if (classification === 'marked') await recordActivation(input.directory, 'plugin_load');
-    else if (classification === 'uncertain') await recordMarkerResolutionFailure();
+    if (classification.kind === 'marked') await recordActivation(classification.directory, 'plugin_load');
+    else if (classification.kind === 'uncertain') await recordMarkerResolutionFailure();
   }
   return {
     event: async ({ event }) => {
@@ -37853,25 +37859,25 @@ export const Safeword = async input => {
     'tool.execute.before': async (hookInput, output) => {
       if (!input?.directory) return;
       const classification = await classifyProject(input.directory);
-      if (classification === 'uncertain') {
+      if (classification.kind === 'uncertain') {
         await recordMarkerResolutionFailure();
         return;
       }
-      if (classification === 'unmarked') return;
+      if (classification.kind === 'unmarked') return;
       await clearProfileError();
       const envelope = canonicalEnvelope(hookInput, output);
       if (envelope === undefined) {
-        await recordActivation(input.directory, 'uncovered_tool', hookInput.sessionID, hookInput.callID);
+        await recordActivation(classification.directory, 'uncovered_tool', hookInput.sessionID, hookInput.callID);
         return;
       }
       let result;
       try {
-        result = await dispatch(await readBoundIdentity(), envelope);
+        result = await dispatch(await readBoundIdentity(), envelope, classification.directory);
       } catch (error) {
         if (error instanceof UnavailableDispatcher) throw new Error(REPAIR);
         throw new Error(DENIAL);
       }
-      await recordActivation(input.directory, 'pre_tool', hookInput.sessionID, hookInput.callID);
+      await recordActivation(classification.directory, 'pre_tool', hookInput.sessionID, hookInput.callID);
       if (result.exitCode === 0) return;
       throw new Error(DENIAL);
     },
@@ -38069,7 +38075,7 @@ function hasCurrentPreToolActivation(directory, identity, now, expectedProjectSh
   return readEvidence(directory, parseOpenCodeActivation).some((record) => {
     const observedAt = Date.parse(record.value.observed_at);
     const age = now - observedAt;
-    return record.name === `${record.value.project_sha256}.json` && record.value.safeword_version === identity.safeword_version && record.value.plugin_sha256 === identity.plugin_sha256 && record.value.event === "pre_tool" && (expectedProjectSha256 === undefined || record.value.project_sha256 === expectedProjectSha256) && age >= 0 && age <= maximumAge;
+    return record.name === `${record.value.project_sha256}-pre_tool.json` && record.value.safeword_version === identity.safeword_version && record.value.plugin_sha256 === identity.plugin_sha256 && record.value.event === "pre_tool" && (expectedProjectSha256 === undefined || record.value.project_sha256 === expectedProjectSha256) && age >= 0 && age <= maximumAge;
   });
 }
 function isPassingConformance(record, identity, opencodeVersion) {
@@ -38690,7 +38696,7 @@ function executableRemediation(code, message) {
     nextActions: [
       {
         kind: "human",
-        instruction: "Install OpenCode 1.18.23 and make `opencode` executable on PATH, then rerun conformance.",
+        instruction: "Install a stable OpenCode 1.x release and make `opencode` executable on PATH, then rerun conformance.",
         mutates: false,
         requiresHuman: true
       }
@@ -38771,12 +38777,13 @@ function executableBoundary(environment) {
       result: executableRemediation("OPENCODE_EXECUTABLE_FAILED", "OpenCode exited before conformance could begin.")
     };
   }
-  if (version2.stdout.trim() !== SUPPORTED_OPENCODE_VERSION) {
+  const observedVersion = version2.stdout.trim();
+  if (!/^1\.\d+\.\d+$/.test(observedVersion)) {
     return {
-      result: executableRemediation("OPENCODE_VERSION_UNSUPPORTED", `OpenCode ${version2.stdout.trim() || "<unknown>"} does not match the supported conformance fixture ${SUPPORTED_OPENCODE_VERSION}.`)
+      result: executableRemediation("OPENCODE_VERSION_UNSUPPORTED", `OpenCode ${observedVersion || "<unknown>"} is not a stable 1.x release.`)
     };
   }
-  return { executable };
+  return { executable, version: observedVersion };
 }
 function failedProof(code, message) {
   return createResult({
@@ -38803,7 +38810,7 @@ async function runOpenCodeConformance(environment = process.env, options = {}) {
   const boundary = executableBoundary(environment);
   if ("result" in boundary)
     return boundary.result;
-  const { executable } = boundary;
+  const { executable, version: version2 } = boundary;
   const { fault } = options;
   const profile = installedProfile(environment);
   if (profile === undefined)
@@ -38814,7 +38821,7 @@ async function runOpenCodeConformance(environment = process.env, options = {}) {
   writePassingOpenCodeConformance(openCodeProfilePaths(profile.root).conformance, {
     schema_version: 1,
     safeword_version: profile.identity.safeword_version,
-    opencode_version: SUPPORTED_OPENCODE_VERSION,
+    opencode_version: version2,
     platform: process.platform,
     arch: process.arch,
     plugin_sha256: profile.identity.plugin_sha256,
@@ -38830,7 +38837,7 @@ async function runOpenCodeConformance(environment = process.env, options = {}) {
     data: {
       command: "conformance",
       agent: "opencode",
-      opencode_version: SUPPORTED_OPENCODE_VERSION,
+      opencode_version: version2,
       conformant: true,
       discovery: OPENCODE_EXPECTED_DISCOVERY,
       denial: true,
@@ -38873,6 +38880,16 @@ function validateProjectOwnership(adapter) {
     invalidAdapter(adapter.id, "project ownership surfaces must be unique");
   }
 }
+function validateBlockableHooks(id, lifecycle, blockableHooks) {
+  for (const event of blockableHooks) {
+    if (!LIFECYCLE_EVENTS.includes(event)) {
+      invalidAdapter(id, `blockable hook ${String(event)} is not a lifecycle event`);
+    }
+    if (lifecycle[event] !== "block") {
+      invalidAdapter(id, `blockable hook ${String(event)} is not declared blocking`);
+    }
+  }
+}
 function validateCapabilities(adapter) {
   const lifecycle = adapter.capabilities?.lifecycle;
   const blockableHooks = adapter.capabilities?.blockableHooks;
@@ -38888,6 +38905,7 @@ function validateCapabilities(adapter) {
       invalidAdapter(adapter.id, `blocking capability ${event} has no blockable hook`);
     }
   }
+  validateBlockableHooks(adapter.id, lifecycle, blockableHooks);
   validateEvidenceCapability(adapter.id, "activation", adapter.capabilities.activation);
   validateEvidenceCapability(adapter.id, "conformance", adapter.capabilities.conformance);
 }
@@ -39034,7 +39052,7 @@ async function observeOpenCode(context) {
   ]);
   return observeOpenCodeProfile2(root, {
     projectDirectory: context.cwd,
-    opencodeVersion: observeOpenCodeVersion2(context.environment ?? process.env) ?? ""
+    opencodeVersion: observeOpenCodeVersion2(context.environment ?? process.env)
   });
 }
 function openCodeEffects(context) {
@@ -39069,6 +39087,7 @@ var init_integrations = __esm(() => {
   ADAPTER_KEYS = new Set([
     "id",
     "defaultSelected",
+    "exposeStatusData",
     "project",
     "profile",
     "capabilities",
@@ -39159,7 +39178,16 @@ var init_integrations = __esm(() => {
         return createResult({ state: "healthy" });
       }
       if (context.ports?.installCodex === undefined) {
-        invalidAdapter("codex", "install port is unavailable");
+        return createResult({
+          state: "failed",
+          errors: [
+            {
+              code: "CODEX_INSTALL_PORT_UNAVAILABLE",
+              message: "Codex installation is unavailable in this execution context.",
+              retryable: false
+            }
+          ]
+        });
       }
       return context.ports.installCodex();
     },
@@ -39174,6 +39202,7 @@ var init_integrations = __esm(() => {
   opencode = defineIntegrationAdapter({
     id: "opencode",
     defaultSelected: false,
+    exposeStatusData: true,
     project: { owned: ["opencode"], shared: ["skills"] },
     profile: {
       available: true,
@@ -39326,6 +39355,7 @@ async function observeLifecycleSurfaces(cwd, agents, environment = process.env) 
   const project = await observeStatus(cwd, agents, environment);
   const integrationSurfaces = await coordinateSelectedIntegrations(PRODUCTION_INTEGRATIONS, agents, async (adapter) => ({
     name: adapter.id,
+    exposeData: adapter.exposeStatusData,
     result: await adapter.observe({
       cwd,
       agents,
@@ -39341,8 +39371,16 @@ function lifecycleSurfaceSummaries(surfaces) {
     name: surface.name,
     selected: true,
     state: surface.result.state,
-    ...surface.name === "opencode" && surface.result.data !== undefined && { data: surface.result.data }
+    ...surface.exposeData === true && surface.result.data !== undefined && { data: surface.result.data }
   }));
+}
+function actionPriority(result) {
+  const findingPriority = Math.max(0, ...result.findings.map((finding) => FINDING_PRIORITY[finding.severity]));
+  return STATE_PRIORITY[result.state] * 10 + findingPriority;
+}
+function primaryNextAction(surfaces) {
+  const prioritized = surfaces.filter((surface) => surface.result.nextActions.length > 0).toSorted((left, right) => actionPriority(right.result) - actionPriority(left.result));
+  return prioritized[0]?.result.nextActions.slice(0, 1) ?? [];
 }
 function projectObservationData(surfaces) {
   const project = surfaces.find((surface) => surface.name === "project")?.result.data;
@@ -39357,7 +39395,7 @@ function summarizeLifecycleStatus(agents, surfaces) {
     findings: results.flatMap((result) => result.findings),
     errors: results.flatMap((result) => result.errors),
     recovery: results.flatMap((result) => result.recovery),
-    nextActions: results.flatMap((result) => result.nextActions).slice(0, 1),
+    nextActions: primaryNextAction(surfaces),
     data: {
       ...projectObservationData(surfaces),
       command: "status",
@@ -39463,6 +39501,7 @@ async function observeProjectStatus(cwd, agents) {
     });
   }
 }
+var STATE_PRIORITY, FINDING_PRIORITY;
 var init_status2 = __esm(() => {
   init_agent_selection();
   init_result();
@@ -39472,6 +39511,17 @@ var init_status2 = __esm(() => {
   init_cursor();
   init_integrations();
   init_schema2();
+  STATE_PRIORITY = {
+    failed: 4,
+    action_required: 3,
+    changed: 2,
+    healthy: 1
+  };
+  FINDING_PRIORITY = {
+    error: 3,
+    warning: 2,
+    info: 1
+  };
 });
 
 // src/lifecycle/doctor.ts

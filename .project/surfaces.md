@@ -53,7 +53,7 @@ surfaces.md from packages/cli/templates/surfaces-template.md and then own it.
 ## OpenCode
 
 **Kind:** Agent runtime
-**Delivery status:** Implemented for OpenCode CLI/TUI 1.18.23; Desktop remains advisory until native hook dispatch is reliable.
+**Delivery status:** Implemented for stable OpenCode CLI/TUI 1.x after exact-version conformance; CI pins 1.18.23, and Desktop remains advisory until native hook dispatch is reliable.
 **Description:** The OpenCode CLI, terminal UI, or desktop app running against a developer's project, with project-local skills, commands, agents, plugins, and configuration extending the agent's behavior.
 **Audience:** Technical Builder (TBU), Non-Technical Builder (NTB), Safeword Maintainer (SWM)
 **Examples:** `.claude/skills` compatibility discovery, `.opencode/commands`, `.opencode/agents`, the profile-level `plugins/safeword.js`, `opencode.json`, `opencode` CLI and TUI

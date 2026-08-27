@@ -178,7 +178,7 @@ OpenCode is explicit and non-persisted: `safeword install --agents=opencode`
 installs a managed profile plugin plus declarative project commands and agents,
 reuses OpenCode's `.claude/skills` compatibility loader, and does not edit or
 create `opencode.json`. Run `safeword conformance --agents=opencode` to prove
-the pinned real CLI/TUI host discovers the catalogue and blocks a forbidden
+the exact running stable 1.x CLI/TUI host discovers the catalogue and blocks a forbidden
 tool call before its side effect. `safeword status --agents=opencode` reports
 installation, activation, blocking capability, and conformance independently.
 OpenCode Desktop remains advisory until it dispatches the same hooks reliably.
@@ -377,7 +377,7 @@ bunx safeword@latest conformance --agents=opencode
 bunx safeword@latest status --agents=opencode
 ```
 
-Conformance is credential-free and shell-free. It runs the pinned OpenCode
+Conformance is credential-free and shell-free. It runs the installed stable OpenCode
 host against an isolated loopback fixture, proves command, agent, and canonical
 skill discovery, and verifies denial leaves no sentinel side effect. Status
 returns at most one repair action when the profile binding, activation, or

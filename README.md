@@ -41,7 +41,7 @@ bunx safeword@latest status --agents=opencode
 ```
 
 Conformance runs a credential-free real OpenCode process. Safeword reports the
-pinned CLI/TUI boundary as protected only after that process discovers the
+exact stable 1.x CLI/TUI version as protected only after that process discovers the
 native catalogue and proves a forbidden tool call produces no side effect.
 OpenCode Desktop remains advisory until it reliably dispatches the same hooks.
 

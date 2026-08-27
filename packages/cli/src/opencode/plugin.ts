@@ -53,14 +53,24 @@ function canonicalEnvelope(input, output) {
 }
 
 async function classifyProject(directory) {
-  if (MARKER_TIMEOUT_MILLISECONDS === 0) return 'uncertain';
+  if (MARKER_TIMEOUT_MILLISECONDS === 0) return { kind: 'uncertain' };
   let timer;
-  const marker = access(path.join(directory, '.safeword', 'SAFEWORD.md')).then(
-    () => 'marked',
-    error => error?.code === 'ENOENT' ? 'unmarked' : 'uncertain',
-  );
+  const marker = (async () => {
+    let candidate = path.resolve(directory);
+    while (true) {
+      try {
+        await access(path.join(candidate, '.safeword', 'SAFEWORD.md'));
+        return { kind: 'marked', directory: candidate };
+      } catch (error) {
+        if (error?.code !== 'ENOENT') return { kind: 'uncertain' };
+      }
+      const parent = path.dirname(candidate);
+      if (parent === candidate) return { kind: 'unmarked' };
+      candidate = parent;
+    }
+  })();
   const deadline = new Promise(resolve => {
-    timer = setTimeout(() => resolve('uncertain'), MARKER_TIMEOUT_MILLISECONDS);
+    timer = setTimeout(() => resolve({ kind: 'uncertain' }), MARKER_TIMEOUT_MILLISECONDS);
   });
   try {
     return await Promise.race([marker, deadline]);
@@ -115,7 +125,7 @@ async function recordActivation(directory, event, sessionID, callID) {
       ...(callID === undefined ? {} : { call_id_sha256: createHash('sha256').update(callID).digest('hex') }),
       observed_at: new Date().toISOString(),
     };
-    await atomicWrite(path.join(activationRoot, projectHash + '.json'), JSON.stringify(evidence) + '\n');
+    await atomicWrite(path.join(activationRoot, projectHash + '-' + event + '.json'), JSON.stringify(evidence) + '\n');
   } catch {
     // Activation is diagnostic and never changes the host operation.
   }
@@ -139,19 +149,18 @@ async function readBoundIdentity() {
   return identity;
 }
 
-function dispatch(identity, envelope) {
+function dispatch(identity, envelope, directory) {
   return new Promise((resolve, reject) => {
     const child = spawn(identity.runtime_path, [identity.dispatcher_path], {
-      cwd: process.cwd(),
+      cwd: directory,
       shell: false,
       env: {
         ...process.env,
         SAFEWORD_AGENT_RUNTIME: 'opencode',
         SAFEWORD_CODEX_DENY_MODE: 'exit-code',
       },
-      stdio: ['pipe', 'pipe', 'ignore'],
+      stdio: ['pipe', 'ignore', 'ignore'],
     });
-    let stdout = '';
     let settled = false;
     const finish = (action) => {
       if (settled) return;
@@ -163,12 +172,9 @@ function dispatch(identity, envelope) {
       child.kill('SIGTERM');
       finish(() => reject(new Error(DENIAL)));
     }, 2_000);
-    child.stdout.setEncoding('utf8').on('data', chunk => {
-      stdout += chunk;
-    });
     child.once('error', () => finish(() => reject(new Error(DENIAL))));
     child.stdin.once('error', () => finish(() => reject(new Error(DENIAL))));
-    child.once('close', exitCode => finish(() => resolve({ exitCode, stdout })));
+    child.once('close', exitCode => finish(() => resolve({ exitCode })));
     child.stdin.end(JSON.stringify(envelope));
   });
 }
@@ -177,19 +183,19 @@ export const Safeword = async input => {
   async function recordLifecycle(event, sessionID, callID) {
     if (!input?.directory || typeof sessionID !== 'string' || sessionID.length === 0) return;
     const classification = await classifyProject(input.directory);
-    if (classification === 'uncertain') {
+    if (classification.kind === 'uncertain') {
       await recordMarkerResolutionFailure();
       return;
     }
-    if (classification === 'unmarked') return;
+    if (classification.kind === 'unmarked') return;
     await clearProfileError();
-    await recordActivation(input.directory, event, sessionID, callID);
+    await recordActivation(classification.directory, event, sessionID, callID);
   }
 
   if (input?.directory) {
     const classification = await classifyProject(input.directory);
-    if (classification === 'marked') await recordActivation(input.directory, 'plugin_load');
-    else if (classification === 'uncertain') await recordMarkerResolutionFailure();
+    if (classification.kind === 'marked') await recordActivation(classification.directory, 'plugin_load');
+    else if (classification.kind === 'uncertain') await recordMarkerResolutionFailure();
   }
   return {
     event: async ({ event }) => {
@@ -205,25 +211,25 @@ export const Safeword = async input => {
     'tool.execute.before': async (hookInput, output) => {
       if (!input?.directory) return;
       const classification = await classifyProject(input.directory);
-      if (classification === 'uncertain') {
+      if (classification.kind === 'uncertain') {
         await recordMarkerResolutionFailure();
         return;
       }
-      if (classification === 'unmarked') return;
+      if (classification.kind === 'unmarked') return;
       await clearProfileError();
       const envelope = canonicalEnvelope(hookInput, output);
       if (envelope === undefined) {
-        await recordActivation(input.directory, 'uncovered_tool', hookInput.sessionID, hookInput.callID);
+        await recordActivation(classification.directory, 'uncovered_tool', hookInput.sessionID, hookInput.callID);
         return;
       }
       let result;
       try {
-        result = await dispatch(await readBoundIdentity(), envelope);
+        result = await dispatch(await readBoundIdentity(), envelope, classification.directory);
       } catch (error) {
         if (error instanceof UnavailableDispatcher) throw new Error(REPAIR);
         throw new Error(DENIAL);
       }
-      await recordActivation(input.directory, 'pre_tool', hookInput.sessionID, hookInput.callID);
+      await recordActivation(classification.directory, 'pre_tool', hookInput.sessionID, hookInput.callID);
       if (result.exitCode === 0) return;
       throw new Error(DENIAL);
     },

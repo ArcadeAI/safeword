@@ -76,7 +76,7 @@ describe('generated OpenCode uncovered-tool observation', () => {
 
     const projectHash = digest(realpathSync(project));
     const evidence = JSON.parse(
-      readFileSync(nodePath.join(paths.activation, `${projectHash}.json`), 'utf8'),
+      readFileSync(nodePath.join(paths.activation, `${projectHash}-uncovered_tool.json`), 'utf8'),
     ) as Record<string, unknown>;
     expect(existsSync(operationSentinel)).toBe(true);
     expect(existsSync(dispatcherSentinel)).toBe(false);

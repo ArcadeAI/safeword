@@ -100,6 +100,22 @@ describe('integration registry contracts', () => {
     ).toThrow(/activation|proof/i);
   });
 
+  it.each([
+    ['an observational hook', ['stop']],
+    ['an unknown hook', ['before_everything']],
+  ])('SWM1.R3 rejects blockableHooks containing %s', (_name, blockableHooks) => {
+    expect(() =>
+      defineIntegrationAdapter(
+        adapter({
+          capabilities: {
+            ...adapter().capabilities,
+            blockableHooks,
+          } as unknown as IntegrationAdapter['capabilities'],
+        }),
+      ),
+    ).toThrow(/blockable hook/i);
+  });
+
   it('SWM1.R3.S07 coordinates every selected registered integration exactly once', async () => {
     const claude = adapter();
     const codex = adapter({ id: 'codex' });

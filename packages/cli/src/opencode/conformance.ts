@@ -46,7 +46,7 @@ function executableRemediation(code: string, message: string): CliResult {
       {
         kind: 'human',
         instruction:
-          'Install OpenCode 1.18.23 and make `opencode` executable on PATH, then rerun conformance.',
+          'Install a stable OpenCode 1.x release and make `opencode` executable on PATH, then rerun conformance.',
         mutates: false,
         requiresHuman: true,
       },
@@ -108,7 +108,8 @@ function installedProfile(environment: NodeJS.ProcessEnv): InstalledProfile | un
   }
 }
 
-type ExecutableBoundary = { readonly executable: string } | { readonly result: CliResult };
+type ExecutableBoundary =
+  { readonly executable: string; readonly version: string } | { readonly result: CliResult };
 
 export function observeOpenCodeVersion(environment: NodeJS.ProcessEnv): string | undefined {
   const executable = resolveExecutable(environment);
@@ -145,15 +146,16 @@ function executableBoundary(environment: NodeJS.ProcessEnv): ExecutableBoundary 
       ),
     };
   }
-  if (version.stdout.trim() !== SUPPORTED_OPENCODE_VERSION) {
+  const observedVersion = version.stdout.trim();
+  if (!/^1\.\d+\.\d+$/.test(observedVersion)) {
     return {
       result: executableRemediation(
         'OPENCODE_VERSION_UNSUPPORTED',
-        `OpenCode ${version.stdout.trim() || '<unknown>'} does not match the supported conformance fixture ${SUPPORTED_OPENCODE_VERSION}.`,
+        `OpenCode ${observedVersion || '<unknown>'} is not a stable 1.x release.`,
       ),
     };
   }
-  return { executable };
+  return { executable, version: observedVersion };
 }
 
 export interface OpenCodeConformanceOptions {
@@ -208,7 +210,7 @@ export async function runOpenCodeConformance(
 ): Promise<CliResult> {
   const boundary = executableBoundary(environment);
   if ('result' in boundary) return boundary.result;
-  const { executable } = boundary;
+  const { executable, version } = boundary;
   const { fault } = options;
 
   const profile = installedProfile(environment);
@@ -219,7 +221,7 @@ export async function runOpenCodeConformance(
   writePassingOpenCodeConformance(openCodeProfilePaths(profile.root).conformance, {
     schema_version: 1,
     safeword_version: profile.identity.safeword_version,
-    opencode_version: SUPPORTED_OPENCODE_VERSION,
+    opencode_version: version,
     platform: process.platform,
     arch: process.arch,
     plugin_sha256: profile.identity.plugin_sha256,
@@ -236,7 +238,7 @@ export async function runOpenCodeConformance(
     data: {
       command: 'conformance',
       agent: 'opencode',
-      opencode_version: SUPPORTED_OPENCODE_VERSION,
+      opencode_version: version,
       conformant: true,
       discovery: OPENCODE_EXPECTED_DISCOVERY,
       denial: true,

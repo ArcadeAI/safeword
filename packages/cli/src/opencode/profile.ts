@@ -291,7 +291,7 @@ function hasCurrentPreToolActivation(
     const observedAt = Date.parse(record.value.observed_at);
     const age = now - observedAt;
     return (
-      record.name === `${record.value.project_sha256}.json` &&
+      record.name === `${record.value.project_sha256}-pre_tool.json` &&
       record.value.safeword_version === identity.safeword_version &&
       record.value.plugin_sha256 === identity.plugin_sha256 &&
       record.value.event === 'pre_tool' &&

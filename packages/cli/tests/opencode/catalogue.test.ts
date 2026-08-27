@@ -1,4 +1,4 @@
-import { readdirSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -6,6 +6,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createResult } from '../../src/cli-protocol/result.js';
 import { CURSOR_COMMAND_WRAPPERS } from '../../src/cursor-wrappers.js';
 import { installLifecycle } from '../../src/lifecycle/commands.js';
+import {
+  renderOpenCodeAgent,
+  renderOpenCodeCommand,
+  SAFEWORD_SUBAGENTS,
+} from '../../src/opencode/catalogue.js';
 import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.js';
 
 const temporaryDirectories: string[] = [];
@@ -57,5 +62,16 @@ describe('OpenCode project catalogue', () => {
       'safeword-retro-filer',
       'safeword-reviewer',
     ]);
+    for (const command of CURSOR_COMMAND_WRAPPERS) {
+      expect(
+        readFileSync(nodePath.join(project, `.opencode/commands/${command.name}.md`), 'utf8'),
+      ).toBe(renderOpenCodeCommand(command));
+    }
+    for (const agent of SAFEWORD_SUBAGENTS) {
+      expect(
+        readFileSync(nodePath.join(project, `.opencode/agents/${agent.name}.md`), 'utf8'),
+      ).toBe(renderOpenCodeAgent(agent));
+      expect(existsSync(nodePath.join(project, agent.procedurePath))).toBe(true);
+    }
   });
 });

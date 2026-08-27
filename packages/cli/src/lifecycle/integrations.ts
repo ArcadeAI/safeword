@@ -47,6 +47,7 @@ type ProfileDescriptor =
 export interface IntegrationAdapter {
   readonly id: string;
   readonly defaultSelected: boolean;
+  readonly exposeStatusData?: boolean;
   readonly project: {
     readonly owned: readonly string[];
     readonly shared: readonly string[];
@@ -64,6 +65,7 @@ export type IntegrationRegistry = readonly IntegrationAdapter[];
 const ADAPTER_KEYS = new Set([
   'id',
   'defaultSelected',
+  'exposeStatusData',
   'project',
   'profile',
   'capabilities',
@@ -107,6 +109,21 @@ function validateProjectOwnership(adapter: IntegrationAdapter): void {
   }
 }
 
+function validateBlockableHooks(
+  id: string,
+  lifecycle: Readonly<Record<LifecycleEvent, LifecycleStrength>>,
+  blockableHooks: readonly LifecycleEvent[],
+): void {
+  for (const event of blockableHooks as readonly unknown[]) {
+    if (!LIFECYCLE_EVENTS.includes(event as LifecycleEvent)) {
+      invalidAdapter(id, `blockable hook ${String(event)} is not a lifecycle event`);
+    }
+    if (lifecycle[event as LifecycleEvent] !== 'block') {
+      invalidAdapter(id, `blockable hook ${String(event)} is not declared blocking`);
+    }
+  }
+}
+
 function validateCapabilities(adapter: IntegrationAdapter): void {
   const lifecycle = adapter.capabilities?.lifecycle;
   const blockableHooks = adapter.capabilities?.blockableHooks;
@@ -122,6 +139,7 @@ function validateCapabilities(adapter: IntegrationAdapter): void {
       invalidAdapter(adapter.id, `blocking capability ${event} has no blockable hook`);
     }
   }
+  validateBlockableHooks(adapter.id, lifecycle, blockableHooks);
   validateEvidenceCapability(adapter.id, 'activation', adapter.capabilities.activation);
   validateEvidenceCapability(adapter.id, 'conformance', adapter.capabilities.conformance);
 }
@@ -346,7 +364,16 @@ const codex = defineIntegrationAdapter({
       return createResult({ state: 'healthy' });
     }
     if (context.ports?.installCodex === undefined) {
-      invalidAdapter('codex', 'install port is unavailable');
+      return createResult({
+        state: 'failed',
+        errors: [
+          {
+            code: 'CODEX_INSTALL_PORT_UNAVAILABLE',
+            message: 'Codex installation is unavailable in this execution context.',
+            retryable: false,
+          },
+        ],
+      });
     }
     return context.ports.installCodex();
   },
@@ -398,7 +425,7 @@ async function observeOpenCode(context: LifecycleContext): Promise<CliResult> {
   ]);
   return observeOpenCodeProfile(root, {
     projectDirectory: context.cwd,
-    opencodeVersion: observeOpenCodeVersion(context.environment ?? process.env) ?? '',
+    opencodeVersion: observeOpenCodeVersion(context.environment ?? process.env),
   });
 }
 
@@ -427,6 +454,7 @@ function openCodeEffects(context: LifecycleContext): Effects {
 const opencode = defineIntegrationAdapter({
   id: 'opencode',
   defaultSelected: false,
+  exposeStatusData: true,
   project: { owned: ['opencode'], shared: ['skills'] },
   profile: {
     available: true,

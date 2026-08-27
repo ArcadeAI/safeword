@@ -82,7 +82,7 @@ describe('OpenCode evidence recovery', () => {
     );
 
     const projectHash = digest(realpathSync(project));
-    const activationPath = nodePath.join(paths.activation, `${projectHash}.json`);
+    const activationPath = nodePath.join(paths.activation, `${projectHash}-pre_tool.json`);
     expect(existsSync(paths.profileError)).toBe(false);
     expect(existsSync(activationPath)).toBe(true);
     const record = parseOpenCodeActivation(JSON.parse(readFileSync(activationPath, 'utf8')));
