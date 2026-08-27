@@ -1012,26 +1012,146 @@ function hasMeaningfulTranscriptGrowth(
   // Claude and Cursor transcript records are not Codex lifecycle envelopes;
   // conservatively re-extract any growth on those host-native formats.
   if (runtime !== 'codex') return true;
+  const activeTurnId = codexTurnId(
+    current.content.subarray(0, snapshot.byteLength).toString('utf8'),
+  );
   const appended = current.content.subarray(snapshot.byteLength).toString('utf8');
-  return appended
-    .split('\n')
-    .filter(Boolean)
-    .some(line => {
-      try {
-        const record = JSON.parse(line) as { type?: unknown; payload?: { type?: unknown } };
-        return !(
-          record.type === 'response_item' &&
-          [
-            'custom_tool_call',
-            'custom_tool_call_output',
-            'function_call',
-            'function_call_output',
-          ].includes(typeof record.payload?.type === 'string' ? record.payload.type : '')
-        );
-      } catch {
-        return true;
+  const records = codexRecords(appended);
+  if (!records) return true;
+  const sameTurnCommentary = new Set(
+    records.flatMap(record => {
+      const text = sameTurnMessageText(record, activeTurnId);
+      return text === undefined ? [] : [text];
+    }),
+  );
+  const commentaryEvents = new Set(
+    records.flatMap(record => {
+      const message =
+        record.type === 'event_msg' &&
+        record.payload?.type === 'agent_message' &&
+        record.payload.phase === 'commentary' &&
+        typeof record.payload.message === 'string'
+          ? record.payload.message
+          : undefined;
+      return message === undefined ? [] : [message];
+    }),
+  );
+  return records.some(record => {
+    const payloadType = typeof record.payload?.type === 'string' ? record.payload.type : '';
+    const toolLifecycle =
+      record.type === 'response_item' &&
+      [
+        'custom_tool_call',
+        'custom_tool_call_output',
+        'function_call',
+        'function_call_output',
+      ].includes(payloadType);
+    const sameTurnBookkeeping = isSameTurnBookkeeping(record, activeTurnId);
+    const hostLifecycle = record.type === 'event_msg' && record.payload?.type === 'token_count';
+    // Codex currently writes an event and canonical response with identical text.
+    // If that host invariant changes, fail closed and re-extract the unmatched record.
+    const commentary = sameTurnMessageText(record, activeTurnId);
+    const pairedCommentary = commentary !== undefined && commentaryEvents.has(commentary);
+    const duplicateCommentary =
+      record.type === 'event_msg' &&
+      record.payload?.type === 'agent_message' &&
+      record.payload.phase === 'commentary' &&
+      typeof record.payload.message === 'string' &&
+      sameTurnCommentary.has(record.payload.message);
+    return !(
+      toolLifecycle ||
+      sameTurnBookkeeping ||
+      hostLifecycle ||
+      pairedCommentary ||
+      duplicateCommentary
+    );
+  });
+}
+
+interface CodexTranscriptRecord {
+  type?: unknown;
+  payload?: {
+    type?: unknown;
+    role?: unknown;
+    phase?: unknown;
+    message?: unknown;
+    content?: unknown;
+    internal_chat_message_metadata_passthrough?: { turn_id?: unknown };
+  };
+}
+
+function codexRecords(content: string): CodexTranscriptRecord[] | undefined {
+  const records: CodexTranscriptRecord[] = [];
+  try {
+    for (const line of content.split('\n').filter(Boolean)) {
+      records.push(JSON.parse(line) as CodexTranscriptRecord);
+    }
+    return records;
+  } catch {
+    return undefined;
+  }
+}
+
+function isSameTurnBookkeeping(
+  record: CodexTranscriptRecord,
+  activeTurnId: string | undefined,
+): boolean {
+  const payload = record.payload;
+  if (
+    activeTurnId === undefined ||
+    record.type !== 'response_item' ||
+    payload?.internal_chat_message_metadata_passthrough?.turn_id !== activeTurnId
+  ) {
+    return false;
+  }
+  return (
+    payload.type === 'reasoning' || (payload.type === 'message' && payload.role === 'developer')
+  );
+}
+
+function sameTurnMessageText(
+  record: CodexTranscriptRecord,
+  activeTurnId: string | undefined,
+): string | undefined {
+  const payload = record.payload;
+  if (
+    activeTurnId === undefined ||
+    record.type !== 'response_item' ||
+    payload?.internal_chat_message_metadata_passthrough?.turn_id !== activeTurnId ||
+    payload?.type !== 'message' ||
+    payload.role !== 'assistant' ||
+    payload.phase !== 'commentary' ||
+    !Array.isArray(payload.content)
+  ) {
+    return undefined;
+  }
+  return payload.content
+    .flatMap(item => {
+      if (typeof item !== 'object' || item === null) return [];
+      const content = item as { type?: unknown; text?: unknown };
+      return content.type === 'output_text' && typeof content.text === 'string'
+        ? [content.text]
+        : [];
+    })
+    .join('');
+}
+
+function codexTurnId(content: string): string | undefined {
+  for (const line of content.split('\n').filter(Boolean).toReversed()) {
+    try {
+      const record = JSON.parse(line) as {
+        type?: unknown;
+        payload?: { internal_chat_message_metadata_passthrough?: { turn_id?: unknown } };
+      };
+      const turnId = record.payload?.internal_chat_message_metadata_passthrough?.turn_id;
+      if (record.type === 'response_item' && typeof turnId === 'string' && turnId.trim() !== '') {
+        return turnId;
       }
-    });
+    } catch {
+      return undefined;
+    }
+  }
+  return undefined;
 }
 
 function snapshotStillMatches(snapshot: TranscriptSnapshot): boolean {
