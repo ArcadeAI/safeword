@@ -12,7 +12,7 @@ import {
 } from './public-source.js';
 
 describe('buildPublicRetroSource', () => {
-  it('builds the closed local profile from project config, Git, and runtime metadata', () => {
+  it('builds the closed current profile without user identity', () => {
     const directory = createTemporaryDirectory();
     mkdirSync(nodePath.join(directory, '.safeword'));
     mkdirSync(nodePath.join(directory, '.git'));
@@ -38,18 +38,17 @@ describe('buildPublicRetroSource', () => {
     ).toEqual({
       agentVersion: '1.2.3',
       harness: 'codex',
-      hostClass: 'local',
+      hostClass: 'unknown',
       model: 'gpt-fixture',
       osFamily: 'darwin',
       projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
       repository: 'github.com/arcadeai/safeword',
       safewordCliVersion: '0.79.0',
       safewordPluginVersion: '0.79.0',
-      userIdentity: 'dev@example.com',
     });
   });
 
-  it('prefers a verified runtime identity over Git email', () => {
+  it('does not emit runtime identity or Git email', () => {
     const directory = createTemporaryDirectory();
     mkdirSync(nodePath.join(directory, '.safeword'));
     mkdirSync(nodePath.join(directory, '.git'));
@@ -67,7 +66,7 @@ describe('buildPublicRetroSource', () => {
         osFamily: 'darwin',
         runtimeIdentity: 'octocat',
       }),
-    ).toMatchObject({ userIdentity: 'octocat' });
+    ).not.toHaveProperty('userIdentity');
   });
 
   it('returns no source when public collection is disabled', () => {
@@ -97,19 +96,19 @@ describe('normalizeRepoRemote', () => {
     ['git@github.com:ArcadeAI/safeword.git', 'github.com/arcadeai/safeword'],
     ['https://github.com/ArcadeAI/safeword/', 'github.com/arcadeai/safeword'],
     ['ssh://git@github.com/ArcadeAI/safeword.git', 'github.com/arcadeai/safeword'],
-    ['git@gitlab.example:Team/Repo.git', 'gitlab.example/Team/Repo'],
-    ['https://gitlab.example/Team/Repo.git', 'gitlab.example/Team/Repo'],
+    ['git@gitlab.com:Team/Repo.git', 'gitlab.com/Team/Repo'],
+    ['https://gitlab.example/Team/Repo.git', undefined],
     [
       'https://user@gitlab.example:443/Team/Repo.git?token=ghp_fixture_secret_1234567890#readme',
-      'gitlab.example/Team/Repo',
+      undefined,
     ],
     [
       'https://x-access-token:ghp_fixture_secret_1234567890@github.com/ArcadeAI/Safeword.git',
       'github.com/arcadeai/safeword',
     ],
     ['https://GitHub.COM/ArcadeAI/Safeword.git', 'github.com/arcadeai/safeword'],
-    ['https://Evil-GitHub.com/Team/Repo.git', 'evil-github.com/Team/Repo'],
-    ['https://api.github.com/Team/Repo.git', 'api.github.com/Team/Repo'],
+    ['https://Evil-GitHub.com/Team/Repo.git', undefined],
+    ['https://api.github.com/Team/Repo.git', undefined],
     ['/Users/fixture/private/repo', undefined],
     ['/home/alice/Projects/client@acme:internal-tool', undefined],
     ['file:///Users/fixture/private/repo', undefined],
