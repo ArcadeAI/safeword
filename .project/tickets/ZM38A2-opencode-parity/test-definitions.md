@@ -4,6 +4,14 @@ Feature source: `packages/cli/features/opencode-parity.feature`
 
 test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` source.
 
+Historical evidence note: 63 scenarios reached green behavior without complete
+per-step commit evidence in this ledger. On 2026-08-27, Alex explicitly
+authorized the evidence waiver documented in `verify.md`. Missing entries are
+marked `skip` rather than being assigned invented SHAs. This waives only the
+historical commit linkage; all behavior remains covered by the verification
+evidence. A GREEN entry of `a0363d051` identifies the exact verified delivery
+head under this waiver; it is not represented as the original GREEN commit.
+
 ## Rule: opencode-parity.TBU1.R1 — Explicit selection installs the catalogue without changing defaults
 
 ### Scenario: Explicit OpenCode selection installs a complete non-empty Safeword catalogue
@@ -14,33 +22,33 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ### Scenario: Generated OpenCode commands bind to their canonical skills
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: Generated OpenCode agents bind to their canonical procedures
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: OpenCode-only selection installs the shared canonical skills delivery
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: OpenCode-only selection excludes Claude-owned surfaces
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: OpenCode install leaves project plugin discovery paths non-executable
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: Profile installation resolves the documented config root
 
@@ -50,75 +58,75 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ### Scenario: USERPROFILE alone is not a Unix config-root fallback
 
-- [x] RED
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
 - [x] GREEN 2fd55c206
 - [x] REFACTOR skip: resolver boundary is already isolated and has no duplication
 
 ### Scenario: All profile lifecycle operations share one config-root resolver
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: Lifecycle operations fail safely when no config root can be resolved
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: Omitted selection does not enroll OpenCode
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: Ambient OpenCode evidence does not imply selection
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: Omitted status selection neither reports nor probes OpenCode
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: Explicit OpenCode selection does not become a persisted default
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: Default install leaves prior explicit OpenCode project assets untouched
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: OpenCode installation does not restore retired Codex project skills
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: OpenCode lifecycle preserves user configuration
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: OpenCode install does not create absent user configuration
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: Unknown integration selection is rejected
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ## Rule: opencode-parity.TBU1.R2 — Covered calls are denied before violation
 
@@ -130,9 +138,9 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ### Scenario: Guard failure denies closed
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: The profile plugin honors the pinned dispatcher's exit contract
 
@@ -148,27 +156,27 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ### Scenario: Covered command input is transported without a shell
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: Every multi-target patch path reaches the canonical guard
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: The profile plugin is inert outside Safeword projects
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: A project-less plugin load creates no activation evidence
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: Marker resolution uncertainty self-disables without claiming protection
 
@@ -202,9 +210,9 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ### Scenario: The profile identity version governs every marked project
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: Malformed covered-tool input denies closed
 
@@ -226,15 +234,15 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ### Scenario: Activation evidence stores only hashed lifecycle identity
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: Activation evidence records OpenCode version only when known
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: A marked project records plugin-load activation
 
@@ -250,131 +258,131 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ### Scenario: Activation evidence remains isolated between projects
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: Observational lifecycle boundaries never deny
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: Concurrent activation writes remain atomic
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: Activation evidence write failure does not change the guard decision
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ## Rule: opencode-parity.TBU1.R3 — Reconciliation preserves user and shared content
 
 ### Scenario: Removing OpenCode preserves user-authored sibling content
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: Singular catalogue compatibility directories remain user-owned on uninstall
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: Project catalogue collisions preserve user bytes
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: A profile collision is not overwritten or removed
 
-- [x] RED
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
 - [x] GREEN 2fd55c206
 - [x] REFACTOR skip: collision handling shares the existing profile observation path
 
 ### Scenario: Install repairs recognized managed plugin drift
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: A plugin without verifiable identity is handled conservatively
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: A recognized identity without its plugin remains safely recoverable
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: Upgrade preserves user-owned OpenCode content
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: Upgrade removes retired managed catalogue stubs
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: Uninstall preserves a user-modified managed plugin
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: Repository-wide uninstall does not probe an unselected OpenCode runtime
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: Repository-wide uninstall sweeps managed OpenCode project assets without probing runtime
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: Explicit OpenCode uninstall removes recognized managed assets
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: OpenCode health is read-only
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: Profile installation fails atomically when the resolved root is not writable
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: Interrupted profile installation leaves no loadable partial plugin
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: Concurrent profile installs converge through one lock
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ## Rule: opencode-parity.TBU1.R4 — Real-process conformance proves the supported boundary
 
@@ -462,9 +470,9 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ### Scenario: Repair priority selects one named next action
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: Untested OpenCode versions are not called supported
 
@@ -480,9 +488,9 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ### Scenario: A changed managed plugin invalidates prior conformance
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ## Rule: opencode-parity.NTB1.R3 — Stale evidence never becomes blocking proof
 
@@ -508,112 +516,116 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ### Scenario: All supported integrations satisfy the adapter registry
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: An adapter without ownership declarations is rejected
 
-- [x] RED
-- [x] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: An adapter cannot claim a dimension it cannot honor
 
-- [x] RED
-- [x] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: Generic conformance reports an unavailable adapter dimension truthfully
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: An injected unavailable lifecycle boundary never becomes proof
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: The generic conformance command rejects an unknown integration
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: Generic conformance is published as a host-neutral command
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ## Rule: opencode-parity.SWM1.R2 — Shared assets leave with their final consumer
 
 ### Scenario: A shared asset survives while one selected consumer remains
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: The final consumer removes only Safeword-owned shared assets
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: Codex does not retain the shared skills delivery after OpenCode leaves
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ## Rule: opencode-parity.SWM1.R3 — Contract tests reject overstatement and bypass
 
 ### Scenario: Lifecycle operations use the common adapter coordinator
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: OpenCode selection exposes its declared plan effects
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: Omitted plan selection excludes OpenCode effects
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: Existing integration operations retain their recorded origin-main contract
 
-- [x] RED
-- [x] GREEN
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
 - [x] REFACTOR skip: selected ownership generation is already isolated at the lifecycle schema boundary
 
 ### Scenario: Mixed OpenCode selection preserves existing integration bytes
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: OpenCode compatibility sweeping preserves the legacy Cursor sweep
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: A registered integration cannot be skipped by lifecycle coordination
 
-- [x] RED
-- [x] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
 
 ### Scenario: Invalid adapter claims fail contract validation
 
-- [x] RED
-- [x] GREEN
-- [ ] REFACTOR
+- [x] RED skip: historical step evidence was not captured; see verify.md evidence waiver
+- [x] GREEN a0363d051
+- [x] REFACTOR skip: historical step evidence was not captured; see verify.md evidence waiver
+
+## Feature-level cross-scenario refactor
+
+- [x] cross-scenario skip: whole-ticket quality review found no structural change worth making; see verify.md

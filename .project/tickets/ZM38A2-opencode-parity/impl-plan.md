@@ -1,6 +1,6 @@
 # Impl Plan: Give OpenCode builders full Safeword protection
 
-**Status:** planned
+**Status:** implemented
 **Planned on:** 2026-08-26
 
 ## Approach
