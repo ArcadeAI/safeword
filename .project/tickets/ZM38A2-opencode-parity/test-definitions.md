@@ -428,15 +428,15 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ### Scenario: Bound conformance evidence does not expire by age alone
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: the existing binding predicate was already intentionally age-agnostic
+- [x] GREEN b333a58b6
+- [x] REFACTOR skip: the shared age table is the smallest clear characterization
 
 ### Scenario: Future-dated conformance remains valid when bindings match
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: the existing binding predicate was already intentionally age-agnostic
+- [x] GREEN b333a58b6
+- [x] REFACTOR skip: the shared age table is the smallest clear characterization
 
 ## Rule: opencode-parity.NTB1.R1 — Health distinguishes independent dimensions
 
