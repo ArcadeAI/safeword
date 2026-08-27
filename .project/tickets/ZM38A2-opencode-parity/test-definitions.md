@@ -392,7 +392,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ### Scenario: The denial sentinel is capable of producing its side effect
 
-- [ ] RED
+- [x] RED 11d454aff
 - [ ] GREEN
 - [ ] REFACTOR
 
