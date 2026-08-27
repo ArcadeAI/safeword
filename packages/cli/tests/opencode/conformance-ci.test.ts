@@ -28,7 +28,7 @@ describe('OpenCode conformance CI lane', () => {
     expect(job?.if).toBeUndefined();
     const script = job?.steps?.find(step => step.name === 'Run pinned OpenCode conformance')?.run;
     expect(script).toContain('bun run --cwd packages/cli build');
-    expect(script).toContain('safeword install --agents=opencode');
+    expect(script).toContain('installOpenCodeProfile(process.env.OPENCODE_CONFIG_DIR)');
     expect(script).toContain('safeword conformance --agents=opencode');
     expect(script).not.toContain('continue-on-error');
     expect(script).not.toContain('|| true');

@@ -7,6 +7,7 @@ import { type CliResult, createResult } from '../cli-protocol/result.js';
 import { VERSION } from '../version.js';
 import {
   OPENCODE_EXPECTED_DISCOVERY,
+  type OpenCodeConformanceFault,
   proveOpenCodeCatalogue,
   proveOpenCodeControl,
   proveOpenCodeDenial,
@@ -17,6 +18,20 @@ import { type OpenCodeIdentityV1, parseOpenCodeIdentity } from './identity.js';
 import { openCodeProfilePaths, resolveOpenCodeConfigRoot } from './profile.js';
 
 export const SUPPORTED_OPENCODE_VERSION = '1.18.23';
+
+const CONFORMANCE_FAULTS = new Set<OpenCodeConformanceFault>([
+  'missing-command',
+  'missing-subagent',
+  'missing-skill',
+  'disarmed-denial',
+]);
+
+function conformanceFault(environment: NodeJS.ProcessEnv): OpenCodeConformanceFault | undefined {
+  const value = environment.SAFEWORD_OPENCODE_CONFORMANCE_FAULT;
+  return CONFORMANCE_FAULTS.has(value as OpenCodeConformanceFault)
+    ? (value as OpenCodeConformanceFault)
+    : undefined;
+}
 
 function resolveExecutable(environment: NodeJS.ProcessEnv): string | undefined {
   const extensions =
@@ -150,10 +165,11 @@ export async function runOpenCodeConformance(
   const boundary = executableBoundary(environment);
   if ('result' in boundary) return boundary.result;
   const { executable } = boundary;
+  const fault = conformanceFault(environment);
 
   const profile = installedProfile(environment);
   if (profile === undefined) return profileRemediation();
-  if (!proveOpenCodeCatalogue(executable, environment)) {
+  if (!proveOpenCodeCatalogue(executable, environment, fault)) {
     return createResult({
       state: 'failed',
       errors: [
@@ -166,7 +182,7 @@ export async function runOpenCodeConformance(
       data: { command: 'conformance', agent: 'opencode' },
     });
   }
-  const denial = await proveOpenCodeDenial(executable, environment);
+  const denial = await proveOpenCodeDenial(executable, environment, fault !== 'disarmed-denial');
   if (!denial.denialSurfaced || !denial.sentinelAbsent) {
     return createResult({
       state: 'failed',

@@ -24,6 +24,9 @@ export const OPENCODE_EXPECTED_DISCOVERY = {
   skill: 'bdd',
 } as const;
 
+export type OpenCodeConformanceFault =
+  'missing-command' | 'missing-subagent' | 'missing-skill' | 'disarmed-denial';
+
 interface ProcessResult {
   readonly exitCode: number;
   readonly stdout: string;
@@ -46,7 +49,7 @@ function skillBody(content: string): string {
   return content.slice(frontmatterEnd + 5).trim();
 }
 
-function prepareCatalogueFixture(root: string): string {
+function prepareCatalogueFixture(root: string, fault?: OpenCodeConformanceFault): string {
   const project = nodePath.join(root, 'project');
   const config = nodePath.join(root, 'config');
   const command = CURSOR_COMMAND_WRAPPERS.find(candidate => candidate.name === 'bdd');
@@ -60,18 +63,24 @@ function prepareCatalogueFixture(root: string): string {
   mkdirSync(nodePath.join(project, '.opencode', 'agents'), { recursive: true });
   mkdirSync(nodePath.join(project, '.claude', 'skills', 'bdd'), { recursive: true });
   mkdirSync(nodePath.join(project, '.safeword'), { recursive: true });
-  writeFileSync(
-    nodePath.join(project, '.opencode', 'commands', 'bdd.md'),
-    renderOpenCodeCommand(command),
-  );
-  writeFileSync(
-    nodePath.join(project, '.opencode', 'agents', 'safeword-reviewer.md'),
-    renderOpenCodeAgent(agent),
-  );
-  writeFileSync(
-    nodePath.join(project, '.claude', 'skills', 'bdd', 'SKILL.md'),
-    readFileSync(skillPath),
-  );
+  if (fault !== 'missing-command') {
+    writeFileSync(
+      nodePath.join(project, '.opencode', 'commands', 'bdd.md'),
+      renderOpenCodeCommand(command),
+    );
+  }
+  if (fault !== 'missing-subagent') {
+    writeFileSync(
+      nodePath.join(project, '.opencode', 'agents', 'safeword-reviewer.md'),
+      renderOpenCodeAgent(agent),
+    );
+  }
+  if (fault !== 'missing-skill') {
+    writeFileSync(
+      nodePath.join(project, '.claude', 'skills', 'bdd', 'SKILL.md'),
+      readFileSync(skillPath),
+    );
+  }
   writeFileSync(nodePath.join(project, '.safeword', 'SAFEWORD.md'), '# Safeword\n');
   if (installOpenCodeProfile(config).state !== 'changed') {
     throw new Error('Safeword OpenCode profile fixture could not be installed');
@@ -265,10 +274,11 @@ function fixtureEnvironment(root: string, environment: NodeJS.ProcessEnv): NodeJ
 export function proveOpenCodeCatalogue(
   executable: string,
   environment: NodeJS.ProcessEnv,
+  fault?: OpenCodeConformanceFault,
 ): boolean {
   const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-opencode-conformance-'));
   try {
-    const project = prepareCatalogueFixture(root);
+    const project = prepareCatalogueFixture(root, fault);
     const isolatedEnvironment = fixtureEnvironment(root, environment);
     const config = runHost(executable, ['debug', 'config'], project, isolatedEnvironment);
     const skills = runHost(executable, ['debug', 'skill'], project, isolatedEnvironment);
@@ -347,8 +357,9 @@ async function executeSentinelFixture(
 export async function proveOpenCodeDenial(
   executable: string,
   environment: NodeJS.ProcessEnv,
+  armed = true,
 ): Promise<OpenCodeDenialProof> {
-  const execution = await executeSentinelFixture(executable, environment, true);
+  const execution = await executeSentinelFixture(executable, environment, armed);
   return {
     denialSurfaced: execution.output.includes('Safeword denied this OpenCode tool call.'),
     sentinelAbsent: !execution.sentinelExists,
