@@ -45,119 +45,7 @@ describe('OpenCode conformance command', () => {
     expect(existsSync(nodePath.join(config, 'safeword', 'conformance-v1'))).toBe(false);
   });
 
-  it('uses the pinned real host to discover the generated Safeword catalogue', async () => {
-    const project = createTemporaryDirectory();
-    const config = createTemporaryDirectory();
-    const bin = createTemporaryDirectory();
-    executable(bin, 'exec bunx --bun opencode-ai@1.18.23 "$@"');
-    expect(installOpenCodeProfile(config).state).toBe('changed');
-
-    const result = await runCli(
-      ['conformance', '--agents=opencode', '--json', '--no-input', '--offline', '--cwd', project],
-      {
-        cwd: project,
-        env: {
-          OPENCODE_CONFIG_DIR: config,
-          PATH: `${bin}${nodePath.delimiter}${process.env.PATH ?? ''}`,
-        },
-        timeout: 120_000,
-      },
-    );
-
-    expect(result).toMatchObject({ exitCode: 0, stderr: '' });
-    expect(JSON.parse(result.stdout)).toMatchObject({
-      state: 'changed',
-      data: {
-        command: 'conformance',
-        agent: 'opencode',
-        discovery: { command: 'bdd', subagent: 'safeword-reviewer', skill: 'bdd' },
-      },
-    });
-    expect(existsSync(nodePath.join(config, 'safeword', 'conformance-v1'))).toBe(true);
-  }, 120_000);
-
-  it('uses the generated profile plugin to deny the real-host sentinel without a side effect', async () => {
-    const project = createTemporaryDirectory();
-    const config = createTemporaryDirectory();
-    const bin = createTemporaryDirectory();
-    executable(bin, 'exec bunx --bun opencode-ai@1.18.23 "$@"');
-    expect(installOpenCodeProfile(config).state).toBe('changed');
-
-    const result = await runCli(
-      ['conformance', '--agents=opencode', '--json', '--no-input', '--offline', '--cwd', project],
-      {
-        cwd: project,
-        env: {
-          OPENCODE_CONFIG_DIR: config,
-          PATH: `${bin}${nodePath.delimiter}${process.env.PATH ?? ''}`,
-        },
-        timeout: 120_000,
-      },
-    );
-
-    expect(result).toMatchObject({ exitCode: 0, stderr: '' });
-    expect(JSON.parse(result.stdout)).toMatchObject({
-      state: 'changed',
-      data: { command: 'conformance', agent: 'opencode', denial: true },
-    });
-    expect(existsSync(nodePath.join(config, 'safeword', 'conformance-v1'))).toBe(true);
-  }, 120_000);
-
-  it('proves the identical disarmed sentinel fixture can produce its side effect', async () => {
-    const project = createTemporaryDirectory();
-    const config = createTemporaryDirectory();
-    const bin = createTemporaryDirectory();
-    executable(bin, 'exec bunx --bun opencode-ai@1.18.23 "$@"');
-    expect(installOpenCodeProfile(config).state).toBe('changed');
-
-    const result = await runCli(
-      ['conformance', '--agents=opencode', '--json', '--no-input', '--offline', '--cwd', project],
-      {
-        cwd: project,
-        env: {
-          OPENCODE_CONFIG_DIR: config,
-          PATH: `${bin}${nodePath.delimiter}${process.env.PATH ?? ''}`,
-        },
-        timeout: 120_000,
-      },
-    );
-
-    expect(result).toMatchObject({ exitCode: 0, stderr: '' });
-    expect(JSON.parse(result.stdout)).toMatchObject({
-      state: 'changed',
-      data: { command: 'conformance', agent: 'opencode', control: true },
-    });
-    expect(existsSync(nodePath.join(config, 'safeword', 'conformance-v1'))).toBe(true);
-  }, 120_000);
-
-  it('loads the canonical bdd skill with exact arguments through the pinned real host', async () => {
-    const project = createTemporaryDirectory();
-    const config = createTemporaryDirectory();
-    const bin = createTemporaryDirectory();
-    executable(bin, 'exec bunx --bun opencode-ai@1.18.23 "$@"');
-    expect(installOpenCodeProfile(config).state).toBe('changed');
-
-    const result = await runCli(
-      ['conformance', '--agents=opencode', '--json', '--no-input', '--offline', '--cwd', project],
-      {
-        cwd: project,
-        env: {
-          OPENCODE_CONFIG_DIR: config,
-          PATH: `${bin}${nodePath.delimiter}${process.env.PATH ?? ''}`,
-        },
-        timeout: 120_000,
-      },
-    );
-
-    expect(result).toMatchObject({ exitCode: 0, stderr: '' });
-    expect(JSON.parse(result.stdout)).toMatchObject({
-      state: 'changed',
-      data: { command: 'conformance', agent: 'opencode', skill_invocation: true },
-    });
-    expect(existsSync(nodePath.join(config, 'safeword', 'conformance-v1'))).toBe(true);
-  }, 120_000);
-
-  it('persists passing evidence bound to the exact real host and installed profile', async () => {
+  it('persists passing evidence after every pinned real-host proof succeeds', async () => {
     const project = createTemporaryDirectory();
     const config = createTemporaryDirectory();
     const bin = createTemporaryDirectory();
@@ -185,6 +73,10 @@ describe('OpenCode conformance command', () => {
         agent: 'opencode',
         opencode_version: '1.18.23',
         conformant: true,
+        discovery: { command: 'bdd', subagent: 'safeword-reviewer', skill: 'bdd' },
+        denial: true,
+        control: true,
+        skill_invocation: true,
       },
     });
     const evidenceDirectory = nodePath.join(config, 'safeword', 'conformance-v1');
