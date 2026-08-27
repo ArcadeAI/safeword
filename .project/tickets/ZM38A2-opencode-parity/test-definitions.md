@@ -475,7 +475,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 ### Scenario: Passing conformance supports its exact stable OpenCode version
 
 - [x] RED 120afd5e4
-- [ ] GREEN
+- [x] GREEN 39592981c
 - [ ] REFACTOR
 
 ### Scenario: A changed managed plugin invalidates prior conformance
