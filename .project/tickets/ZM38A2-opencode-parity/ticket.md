@@ -2,11 +2,12 @@
 id: ZM38A2
 slug: opencode-parity
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 phase_anchors:
   - "implement: .project/tickets/ZM38A2-opencode-parity/impl-plan.md"
   - "verify: .project/tickets/ZM38A2-opencode-parity/test-definitions.md"
+  - "done: .project/tickets/ZM38A2-opencode-parity/verify.md"
 scope:
   - add OpenCode as an explicit agent selection while preserving the Claude-plus-Codex omitted default and existing managed legacy evidence
   - standardize Claude Code, OpenAI Codex, OpenCode, and Cursor behind one integration-adapter contract
@@ -31,7 +32,7 @@ done_when:
 inspiration_contract: v1
 inspiration_contract_scaffold: v1
 created: 2026-08-25T19:47:58.929Z
-last_modified: 2026-08-27T05:38:19.000Z
+last_modified: 2026-08-27T05:42:33.000Z
 ---
 
 # Give OpenCode builders full Safeword protection
@@ -99,3 +100,4 @@ last_modified: 2026-08-27T05:38:19.000Z
 - 2026-08-26T17:06:24.000Z Plan implementation approved and stamped by an independent cross-agent Opus review. Advanced to implement with the disposable real OpenCode 1.18.23 host-contract proof as the first stop/go boundary.
 - 2026-08-27T05:38:19.000Z Evidence waiver: Alex explicitly authorized closing with a documented waiver after being told that 63 of 99 scenarios lacked reconstructable per-step commit history. No historical SHAs were invented; the waiver covers only the missing ledger history, not behavioral verification.
 - 2026-08-27T05:38:19.000Z Verify: Exact-head GitHub CI passed at a0363d051, including OpenCode conformance, full acceptance, CLI contract, parity, lint, typecheck, architecture, dependency audit, and both supported Node lanes. Local full-suite, BDD, build, typecheck, documentation, and audit evidence is recorded in verify.md.
+- 2026-08-27T05:42:33.000Z Complete: Closed the ticket after the verification artifact and evidence-integrity waiver passed the repository's ledger, phase-anchor, verify-shape, and phase-legality gates.
