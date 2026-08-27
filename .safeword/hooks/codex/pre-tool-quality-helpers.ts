@@ -118,7 +118,11 @@ function extractPatchTargets(command: string): PatchTarget[] {
       continue;
     }
 
-    targets.push({ filePath, toolName: 'Edit' });
+    targets.push({
+      filePath,
+      toolName: 'Edit',
+      content: operation === 'Update' ? extractAddedFileContent(lines.slice(index + 1)) : undefined,
+    });
   }
 
   return targets;

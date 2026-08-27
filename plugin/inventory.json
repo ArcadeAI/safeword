@@ -55,7 +55,7 @@
     },
     {
       "path": "resources/guides/planning-guide.md",
-      "sha256": "8336ba610c8c28eb905605296155d74f7d48b9c549833acde78c9d4c2d20a756"
+      "sha256": "1714ad37d3c06879887e09b705d18d4f7e5b71b27b4bbc1dabb8f8d04ce04f2d"
     },
     {
       "path": "resources/guides/retro.md",
@@ -143,11 +143,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "f3ce61761813a91b4b46eb60b090d7c43d79f05b036905160aecbee85ad1589f"
+      "sha256": "7c0177dca003e23af9d4a5e33c41daa2643fc7cb46db6f3d678d23b3e0c148a7"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "f864b11f4bc3f82d0536ec9b89f7241653699f96f164a832300582d3b61f5113"
+      "sha256": "f58d8b0a62f440f72597cf86857fd37eac063a20b5b5069d9b5787da0b58cd45"
     },
     {
       "path": "runtime/event-groups.json",
@@ -223,7 +223,7 @@
     },
     {
       "path": "runtime/hooks/lib/done-gate.ts",
-      "sha256": "ec20a296e371793841d24f0b2d89150391d13ad40fa4faeab28c5d8193b44546"
+      "sha256": "ea0acfed5fafc861a4ecb77001ceaa5af7193c6e05335a897a59a0824be4d45b"
     },
     {
       "path": "runtime/hooks/lib/drain-retro-spool.ts",
@@ -403,7 +403,7 @@
     },
     {
       "path": "runtime/hooks/lib/test-runner.ts",
-      "sha256": "3b0669c5f23a04d4d16b15766a9718c8f2611ab383d00b2a97f54c37b80c5c91"
+      "sha256": "8c2c7cdebff38ebc086cbf427477303e3f73c8f7489fa6a25b8f610d2ad2157c"
     },
     {
       "path": "runtime/hooks/lib/typecheck-gate.ts",
@@ -563,7 +563,7 @@
     },
     {
       "path": "runtime/hooks/stop-quality.ts",
-      "sha256": "eb3bf773ffe0be9b040dd561b92749c5c469e9ca3b238f287c2533cb601875d4"
+      "sha256": "f5cf44c59ef8d7ae05d556dfbab433d9572cc2e29f67130b2c8ddac8232ae6c7"
     },
     {
       "path": "runtime/hooks/stop-reentry.ts",

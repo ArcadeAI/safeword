@@ -1,14 +1,14 @@
 // Safeword: shared done-gate evidence checks.
 //
-// The done gate is the "you may close this ticket" chokepoint. On Claude Code it
-// runs inside the blocking Stop hook (stop-quality.ts). Cursor's `stop` cannot
-// block, so the same enforcement is applied one layer earlier — at the edit that
-// flips `ticket.md` to `status: done` (the Cursor preToolUse adapter). Both paths
-// MUST agree on what counts as evidence, so the shared logic lives here:
+// The done gate is the "you may close this ticket" chokepoint. Claude and Codex
+// run it at Stop; Cursor runs it at the closing edit because its Stop cannot block.
+// OpenCode also checks unfinished feature evidence at that edit because its Stop is
+// observational and its pre-tool dispatcher has a strict two-second budget. These
+// paths MUST agree on what counts as unfinished feature evidence, so it lives here:
 //
 //   - `checkVerifyArtifact` is the exact PR-scope check the Stop hook uses (it
 //     imports this function — there is no second copy to drift).
-//   - `evaluateDoneEvidence` is the composite the Cursor edit gate calls. It runs
+//   - `evaluateDoneEvidence` is the composite the Cursor and Codex gates call. It runs
 //     the same dependency -> tests -> verify.md -> scenarios sequence the Stop
 //     hook's dependency/test/verify/scenario subset, returning a plain verdict
 //     instead of exiting. Claude still has transcript-only checks Cursor cannot
@@ -23,6 +23,8 @@ import { runTests } from './test-runner.js';
 
 /** A single line of verify.md that records whether the closing diff stayed in scope. */
 const PR_SCOPE_LINE_PATTERN = /^\*\*PR Scope:\*\*\s*(?<status>.+)$/im;
+const FEATURE_SOURCE_PATTERN = /^\s*(?:\*\*)?Feature source:(?:\*\*)?\s*`(?<path>[^`]+)`/im;
+const FEATURE_SOURCE_LABEL_PATTERN = /^\s*(?:\*\*)?Feature source:/im;
 
 export interface VerifyArtifactStatus {
   ok: boolean;
@@ -118,6 +120,12 @@ export function evaluateDoneEvidence(params: DoneEvidenceParams): DoneEvidenceVe
         reason: `Test toolchain not found — dependencies are likely not installed. Install them, then retry.\n\n${testResult.output}`,
       };
     }
+    if (testResult.resolutionFailed) {
+      return {
+        ok: false,
+        reason: `${testResult.output} Ensure the Safeword CLI is available and its test-plan command works, then retry.`,
+      };
+    }
     return {
       ok: false,
       reason: `Tests failed. Fix failures before marking done.\n\n${testResult.output}`,
@@ -140,17 +148,22 @@ export function evaluateDoneEvidence(params: DoneEvidenceParams): DoneEvidenceVe
     return { ok: false, reason: verifyStatus.reason };
   }
 
-  // 4. Features must have every scenario checked off in test-definitions.md.
+  // 4. Features must have every scenario checked off in test-definitions.md and
+  //    their referenced Gherkin source must no longer carry development-only @wip.
   if (ticketType === 'feature') {
-    const scenarioVerdict = checkFeatureScenarios(ticketDir);
+    const scenarioVerdict = checkFeatureScenarios(projectDir, ticketDir);
     if (!scenarioVerdict.ok) return scenarioVerdict;
   }
 
   return { ok: true };
 }
 
-/** Require test-definitions.md to exist and have all GFM scenario checkboxes ticked. */
-function checkFeatureScenarios(ticketDir: string): DoneEvidenceVerdict {
+/**
+ * Require complete scenario evidence and reject a referenced Gherkin source that
+ * still carries @wip. Legacy ledgers without `Feature source:` keep their existing
+ * checkbox-only behavior.
+ */
+export function checkFeatureScenarios(projectDir: string, ticketDir: string): DoneEvidenceVerdict {
   const testDefsPath = nodePath.join(ticketDir, 'test-definitions.md');
   if (!existsSync(testDefsPath)) {
     return {
@@ -160,9 +173,17 @@ function checkFeatureScenarios(ticketDir: string): DoneEvidenceVerdict {
     };
   }
 
-  const { checked, unchecked, isUnrecognized } = analyzeScenarioFormat(
-    readFileSync(testDefsPath, 'utf8'),
-  );
+  let testDefinitions: string;
+  try {
+    testDefinitions = readFileSync(testDefsPath, 'utf8');
+  } catch {
+    return {
+      ok: false,
+      reason:
+        'Feature scenario evidence could not be read. Restore test-definitions.md before marking done.',
+    };
+  }
+  const { checked, unchecked, isUnrecognized } = analyzeScenarioFormat(testDefinitions);
   if (isUnrecognized) {
     return {
       ok: false,
@@ -176,6 +197,60 @@ function checkFeatureScenarios(ticketDir: string): DoneEvidenceVerdict {
       ok: false,
       reason:
         'Not all scenarios are complete in test-definitions.md. Mark every scenario checkbox [x] before marking done.',
+    };
+  }
+
+  const source = FEATURE_SOURCE_PATTERN.exec(testDefinitions)?.groups?.path;
+  if (!source) {
+    return FEATURE_SOURCE_LABEL_PATTERN.test(testDefinitions)
+      ? {
+          ok: false,
+          reason:
+            'Feature source is malformed. Use the canonical feature-source line from the Safeword template before marking done.',
+        }
+      : { ok: true };
+  }
+
+  const featurePath = nodePath.resolve(projectDir, source);
+  const relativePath = nodePath.relative(projectDir, featurePath);
+  if (
+    nodePath.isAbsolute(source) ||
+    relativePath === '..' ||
+    relativePath.startsWith(`..${nodePath.sep}`) ||
+    nodePath.extname(featurePath) !== '.feature'
+  ) {
+    return {
+      ok: false,
+      reason: `Feature source \`${source}\` must be a project-relative .feature file before marking done.`,
+    };
+  }
+  if (!existsSync(featurePath)) {
+    return {
+      ok: false,
+      reason: `Feature source \`${source}\` was not found. Restore it or update test-definitions.md before marking done.`,
+    };
+  }
+
+  let featureSource: string;
+  try {
+    featureSource = readFileSync(featurePath, 'utf8');
+  } catch {
+    return {
+      ok: false,
+      reason: `Feature source \`${source}\` could not be read. Restore it or update test-definitions.md before marking done.`,
+    };
+  }
+
+  const wipLine = featureSource.split(/\r?\n/).findIndex(line => {
+    const tokens = line.trim().split(/\s+/);
+    return (
+      tokens.length > 0 && tokens.every(token => token.startsWith('@')) && tokens.includes('@wip')
+    );
+  });
+  if (wipLine >= 0) {
+    return {
+      ok: false,
+      reason: `Feature \`${source}\` still contains @wip at line ${wipLine + 1}. Finish or reclassify that scenario, then rerun the BDD lane before marking done.`,
     };
   }
 

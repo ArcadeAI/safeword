@@ -496,8 +496,19 @@ function hookFailureDetail(result: HookProcessResult): string {
   return result.stderr.trim() || result.error?.message || 'exited without a failure message';
 }
 
+// Exit 2 is a generic packaged-hook denial; exit 3 is the deliberate,
+// user-recoverable unfinished-feature close block consumed by OpenCode.
+const INCOMPLETE_FEATURE_EVIDENCE_EXIT_CODE = 3;
+
 function denyForPackagedHookFailure(result: HookProcessResult): never {
   const detail = hookFailureDetail(result);
+  if (
+    process.env.SAFEWORD_CODEX_DENY_MODE === EXIT_CODE_DENY_MODE &&
+    result.status === INCOMPLETE_FEATURE_EVIDENCE_EXIT_CODE
+  ) {
+    process.stderr.write(`${detail}\n`);
+    process.exit(INCOMPLETE_FEATURE_EVIDENCE_EXIT_CODE);
+  }
   process.stderr.write(`Safeword packaged PreToolUse hook failed: ${detail}\n`);
   process.exit(2);
 }
@@ -505,6 +516,12 @@ function denyForPackagedHookFailure(result: HookProcessResult): never {
 function emitPackagedPreToolResult(result: HookProcessResult): boolean {
   if (result.error || result.status !== 0) denyForPackagedHookFailure(result);
   if (result.stdout.trim() === '') return false;
+  if (process.env.SAFEWORD_CODEX_DENY_MODE === EXIT_CODE_DENY_MODE) {
+    process.stderr.write(
+      'Safeword packaged PreToolUse hook returned unsupported output in exit-code mode.\n',
+    );
+    process.exit(2);
+  }
   process.stdout.write(result.stdout);
   return true;
 }

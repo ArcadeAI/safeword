@@ -17,7 +17,9 @@ const identityPath = path.join(profileRoot, 'safeword', 'identity-v1.json');
 const profileErrorPath = path.join(profileRoot, 'safeword', 'profile-error-v1.json');
 const activationRoot = path.join(profileRoot, 'safeword', 'activation-v1');
 const MARKER_TIMEOUT_MILLISECONDS = ${markerTimeoutMilliseconds};
+const INCOMPLETE_FEATURE_EVIDENCE_EXIT_CODE = 3;
 const DENIAL = 'Safeword denied this OpenCode tool call.';
+const INCOMPLETE_FEATURE_EVIDENCE = 'Safeword blocked this ticket close because its feature evidence is incomplete. Check test-definitions.md and its referenced feature source: complete every scenario, fix missing or malformed evidence, remove @wip, and retry.';
 const REPAIR = 'Safeword cannot run its OpenCode guard. Run safeword install --agents=opencode.';
 
 class UnavailableDispatcher extends Error {}
@@ -34,11 +36,19 @@ function canonicalEnvelope(input, output) {
   }
   if (input.tool === 'edit' || input.tool === 'write') {
     if (typeof args.filePath !== 'string' || args.filePath.length === 0) throw new Error(DENIAL);
+    const editFields = input.tool === 'edit'
+      ? {
+          ...(typeof args.oldString === 'string' ? { old_string: args.oldString } : {}),
+          ...(typeof args.newString === 'string' ? { new_string: args.newString } : {}),
+        }
+      : typeof args.content === 'string'
+        ? { content: args.content }
+        : {};
     return {
       hook_event_name: 'PreToolUse',
       session_id: input.sessionID,
       tool_name: input.tool === 'edit' ? 'Edit' : 'Write',
-      tool_input: { file_path: args.filePath },
+      tool_input: { file_path: args.filePath, ...editFields },
     };
   }
   if (input.tool === 'patch' || input.tool === 'apply_patch') {
@@ -156,6 +166,7 @@ function dispatch(identity, envelope, directory) {
       shell: false,
       env: {
         ...process.env,
+        CLAUDE_PROJECT_DIR: directory,
         SAFEWORD_AGENT_RUNTIME: 'opencode',
         SAFEWORD_CODEX_DENY_MODE: 'exit-code',
       },
@@ -235,6 +246,7 @@ export const Safeword = async input => {
       }
       await recordActivation(classification.directory, 'pre_tool', hookInput.sessionID, hookInput.callID);
       if (result.exitCode === 0) return;
+      if (result.exitCode === INCOMPLETE_FEATURE_EVIDENCE_EXIT_CODE) throw new Error(INCOMPLETE_FEATURE_EVIDENCE);
       throw new Error(DENIAL);
     },
     'tool.execute.after': async hookInput => {

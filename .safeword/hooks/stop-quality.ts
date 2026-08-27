@@ -13,7 +13,7 @@ import {
   resolveStopPhase,
 } from './lib/active-ticket.ts';
 import { formatDependencyRecovery, getDependencyReadiness } from './lib/dependency-readiness.ts';
-import { checkVerifyArtifact } from './lib/done-gate.ts';
+import { checkFeatureScenarios, checkVerifyArtifact } from './lib/done-gate.ts';
 import { findNextWork, updateTicketStatus } from './lib/hierarchy.ts';
 import { hasCitation, parseImplPlan, sectionBody } from './lib/impl-plan.ts';
 import { createLedgerShaResolver } from './lib/ledger-git.ts';
@@ -46,7 +46,6 @@ import {
   recordFailure,
 } from './lib/quality-state.ts';
 import { shouldReviewPhase } from './lib/review-trigger.ts';
-import { analyzeScenarioFormat } from './lib/scenario-format.ts';
 import { checkSkillInvocations, requiredSkillsForDone } from './lib/skill-invocation-log.ts';
 import { runTests } from './lib/test-runner.ts';
 import { changedFilesSinceHead, evaluateImplementStopTypecheck } from './lib/typecheck-gate.ts';
@@ -192,30 +191,6 @@ function fallbackGlobalScan(): TicketInfo {
     type: info.type,
     folder: info.folder,
   };
-}
-
-/**
- * Check if all scenarios in test-definitions.md are complete.
- * Counts GFM task list checkboxes (- [x] / - [ ]). Headings (## Rule:)
- * are organizational only — the hook counts checkboxes, not headers.
- * Returns true if all checkboxes are checked, false otherwise.
- */
-function checkScenariosComplete(ticketInfo: TicketInfo): boolean {
-  if (!ticketInfo.folder) return false;
-  const testDefsPath = `${ticketsDir}/${ticketInfo.folder}/test-definitions.md`;
-  if (!existsSync(testDefsPath)) return false;
-
-  const content = readFileSync(testDefsPath, 'utf8');
-  const { checked, unchecked, isUnrecognized } = analyzeScenarioFormat(content);
-
-  if (isUnrecognized) {
-    hardBlockDone(
-      'test-definitions.md has content but no GFM checkboxes (- [ ] / - [x]). Unrecognized scenario format — convert to GFM task list items.',
-    );
-  }
-
-  const total = checked + unchecked;
-  return total > 0 && unchecked === 0;
 }
 
 /**
@@ -718,10 +693,18 @@ if (currentPhase === 'done') {
       );
     }
     recordFailure(projectDir, input.session_id, 'done-gate-tests-failed');
+    if (testResult.resolutionFailed) {
+      hardBlockDone(
+        `${testResult.output} Ensure the Safeword CLI is available and its test-plan command works, then retry.`,
+      );
+    }
     hardBlockDone(`Tests failed. Fix failures before marking done.\n\n${testResult.output}`);
   }
 
-  const hasScenarios = checkScenariosComplete(ticketInfo);
+  const featureScenarioVerdict =
+    isFeature && ticketInfo.folder
+      ? checkFeatureScenarios(projectDir, `${ticketsDir}/${ticketInfo.folder}`)
+      : { ok: !isFeature };
 
   // Read the ledger once: the whole-ticket quality-review + refactor pass
   // (W610WW) gates on whether it applies to this ledger, and ledger validation
@@ -783,12 +766,10 @@ if (currentPhase === 'done') {
   }
 
   if (isFeature) {
-    // Features: require all scenarios complete (tests already verified above, verify.md checked above)
-    if (!hasScenarios) {
+    // Features: require complete scenarios and a referenced Gherkin source without @wip.
+    if (!featureScenarioVerdict.ok) {
       recordFailure(projectDir, input.session_id, 'done-gate-tests-failed');
-      hardBlockDone(
-        `Not all scenarios are complete in test-definitions.md. Mark all scenario checkboxes [x] before marking done.`,
-      );
+      hardBlockDone(featureScenarioVerdict.reason ?? 'Feature scenario evidence is incomplete.');
     }
   } else if (testResult.skipped) {
     // Tasks with no test command: fall back to text evidence

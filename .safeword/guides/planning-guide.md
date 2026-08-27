@@ -318,11 +318,13 @@ User stories include Technical Constraints; each one needs a corresponding scena
 
 ### Status tracking is the checkbox state
 
-GFM checkbox state IS the status. Don't add emoji indicators (`✅ Passing`, `❌ Not Implemented`) or coverage summaries — `scenario-format.ts` computes coverage from `- [ ]` vs `- [x]` counts, and the done gate hard-blocks if any scenario remains unchecked.
+GFM checkbox state IS the status. Don't add emoji indicators (`✅ Passing`, `❌ Not Implemented`) or coverage summaries — `scenario-format.ts` computes coverage from `- [ ]` vs `- [x]` counts, and the done gate hard-blocks if any scenario remains unchecked or its referenced feature source still contains `@wip`.
 
 ### Saved path
 
 Feature source: `features/<slug>.feature` (or under the configured `paths.features` directory)
+
+Record this as a project-root-relative path, including any workspace or package prefix.
 
 Ledger: `<namespace-root>/tickets/{ID}-{slug}/test-definitions.md`
 
