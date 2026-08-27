@@ -1,5 +1,15 @@
-import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { spawn, spawnSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -13,6 +23,17 @@ export const OPENCODE_EXPECTED_DISCOVERY = {
   subagent: 'safeword-reviewer',
   skill: 'bdd',
 } as const;
+
+interface ProcessResult {
+  readonly exitCode: number;
+  readonly stdout: string;
+  readonly stderr: string;
+}
+
+export interface OpenCodeDenialProof {
+  readonly denialSurfaced: boolean;
+  readonly sentinelAbsent: boolean;
+}
 
 function prepareCatalogueFixture(root: string): string {
   const project = nodePath.join(root, 'project');
@@ -62,6 +83,146 @@ function runHost(
   });
 }
 
+function runHostAsync(
+  executable: string,
+  args: readonly string[],
+  cwd: string,
+  environment: NodeJS.ProcessEnv,
+): Promise<ProcessResult> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(executable, args, {
+      cwd,
+      env: environment,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let stdout = '';
+    let stderr = '';
+    const timeout = setTimeout(() => {
+      child.kill('SIGTERM');
+      reject(new Error('OpenCode conformance fixture timed out'));
+    }, 30_000);
+    child.stdout.setEncoding('utf8').on('data', (chunk: string) => (stdout += chunk));
+    child.stderr.setEncoding('utf8').on('data', (chunk: string) => (stderr += chunk));
+    child.once('error', reject);
+    child.once('close', exitCode => {
+      clearTimeout(timeout);
+      resolve({ exitCode: exitCode ?? -1, stdout, stderr });
+    });
+  });
+}
+
+function sse(data: unknown): string {
+  return `data: ${JSON.stringify(data)}\n\n`;
+}
+
+function toolResponse(command: string): string {
+  return [
+    sse({
+      id: 'chatcmpl-safeword',
+      object: 'chat.completion.chunk',
+      choices: [{ delta: { role: 'assistant' } }],
+    }),
+    sse({
+      id: 'chatcmpl-safeword',
+      object: 'chat.completion.chunk',
+      choices: [
+        {
+          delta: {
+            tool_calls: [
+              {
+                index: 0,
+                id: 'call_safeword_denial',
+                type: 'function',
+                function: { name: 'bash', arguments: JSON.stringify({ command }) },
+              },
+            ],
+          },
+        },
+      ],
+    }),
+    sse({
+      id: 'chatcmpl-safeword',
+      object: 'chat.completion.chunk',
+      choices: [{ delta: {}, finish_reason: 'tool_calls' }],
+    }),
+    'data: [DONE]\n\n',
+  ].join('');
+}
+
+function stopResponse(): string {
+  return [
+    sse({
+      id: 'chatcmpl-safeword',
+      object: 'chat.completion.chunk',
+      choices: [{ delta: { role: 'assistant', content: 'done' } }],
+    }),
+    sse({
+      id: 'chatcmpl-safeword',
+      object: 'chat.completion.chunk',
+      choices: [{ delta: {}, finish_reason: 'stop' }],
+    }),
+    'data: [DONE]\n\n',
+  ].join('');
+}
+
+function loopbackServer(command: string) {
+  let emitted = false;
+  return createServer((request, response) => {
+    let raw = '';
+    request.setEncoding('utf8');
+    request.on('data', (chunk: string) => (raw += chunk));
+    request.on('end', () => {
+      const title = raw.includes('Generate a title for this conversation');
+      response.writeHead(200, { 'content-type': 'text/event-stream' });
+      if (title || emitted) response.end(stopResponse());
+      else {
+        emitted = true;
+        response.end(toolResponse(command));
+      }
+    });
+  });
+}
+
+function writeLoopbackConfig(project: string, baseURL: string): void {
+  writeFileSync(
+    nodePath.join(project, 'opencode.json'),
+    JSON.stringify({
+      formatter: false,
+      lsp: false,
+      provider: {
+        test: {
+          name: 'Test',
+          id: 'test',
+          env: [],
+          npm: '@ai-sdk/openai-compatible',
+          models: {
+            'test-model': {
+              id: 'test-model',
+              name: 'Test Model',
+              tool_call: true,
+              limit: { context: 100_000, output: 10_000 },
+            },
+          },
+          options: { apiKey: 'test-key', baseURL },
+        },
+      },
+    }),
+  );
+}
+
+function fixtureEnvironment(root: string, environment: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  return {
+    ...environment,
+    PATH: `${nodePath.join(root, 'bin')}${nodePath.delimiter}${environment.PATH ?? ''}`,
+    HOME: nodePath.join(root, 'home'),
+    XDG_CONFIG_HOME: nodePath.join(root, 'xdg-config'),
+    XDG_DATA_HOME: nodePath.join(root, 'xdg-data'),
+    XDG_CACHE_HOME: nodePath.join(root, 'xdg-cache'),
+    OPENCODE_CONFIG_DIR: nodePath.join(root, 'config'),
+    OPENCODE_DISABLE_AUTOUPDATE: 'true',
+  };
+}
+
 export function proveOpenCodeCatalogue(
   executable: string,
   environment: NodeJS.ProcessEnv,
@@ -69,17 +230,9 @@ export function proveOpenCodeCatalogue(
   const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-opencode-conformance-'));
   try {
     const project = prepareCatalogueFixture(root);
-    const fixtureEnvironment = {
-      ...environment,
-      HOME: nodePath.join(root, 'home'),
-      XDG_CONFIG_HOME: nodePath.join(root, 'xdg-config'),
-      XDG_DATA_HOME: nodePath.join(root, 'xdg-data'),
-      XDG_CACHE_HOME: nodePath.join(root, 'xdg-cache'),
-      OPENCODE_CONFIG_DIR: nodePath.join(root, 'config'),
-      OPENCODE_DISABLE_AUTOUPDATE: 'true',
-    };
-    const config = runHost(executable, ['debug', 'config'], project, fixtureEnvironment);
-    const skills = runHost(executable, ['debug', 'skill'], project, fixtureEnvironment);
+    const isolatedEnvironment = fixtureEnvironment(root, environment);
+    const config = runHost(executable, ['debug', 'config'], project, isolatedEnvironment);
+    const skills = runHost(executable, ['debug', 'skill'], project, isolatedEnvironment);
     if (config.status !== 0 || skills.status !== 0) return false;
     const resolved = JSON.parse(config.stdout) as {
       command?: Record<string, unknown>;
@@ -94,6 +247,57 @@ export function proveOpenCodeCatalogue(
   } catch {
     return false;
   } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
+export async function proveOpenCodeDenial(
+  executable: string,
+  environment: NodeJS.ProcessEnv,
+): Promise<OpenCodeDenialProof> {
+  const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-opencode-conformance-'));
+  const project = prepareCatalogueFixture(root);
+  const nonce = randomUUID();
+  const sentinel = nodePath.join(project, `denied-${nonce}`);
+  const command = `touch ${JSON.stringify(sentinel)} && pkill node`;
+  const fakePkill = nodePath.join(root, 'bin', 'pkill');
+  mkdirSync(nodePath.dirname(fakePkill), { recursive: true });
+  writeFileSync(fakePkill, '#!/bin/sh\nexit 0\n');
+  chmodSync(fakePkill, 0o755);
+  const server = loopbackServer(command);
+  try {
+    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+    const address = server.address();
+    if (!address || typeof address === 'string') {
+      return { denialSurfaced: false, sentinelAbsent: !existsSync(sentinel) };
+    }
+    writeLoopbackConfig(project, `http://127.0.0.1:${address.port}/v1`);
+    const execution = await runHostAsync(
+      executable,
+      [
+        'run',
+        'exercise the Safeword denial fixture',
+        '--model',
+        'test/test-model',
+        '--dir',
+        project,
+        '--auto',
+        '--print-logs',
+        '--log-level',
+        'DEBUG',
+      ],
+      project,
+      fixtureEnvironment(root, environment),
+    );
+    const output = execution.stdout + execution.stderr;
+    return {
+      denialSurfaced: output.includes('Safeword denied this OpenCode tool call.'),
+      sentinelAbsent: !existsSync(sentinel),
+    };
+  } catch {
+    return { denialSurfaced: false, sentinelAbsent: !existsSync(sentinel) };
+  } finally {
+    server.close();
     rmSync(root, { recursive: true, force: true });
   }
 }

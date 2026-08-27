@@ -3,7 +3,11 @@ import { accessSync, constants, realpathSync, statSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { type CliResult, createResult } from '../cli-protocol/result.js';
-import { OPENCODE_EXPECTED_DISCOVERY, proveOpenCodeCatalogue } from './conformance-fixture.js';
+import {
+  OPENCODE_EXPECTED_DISCOVERY,
+  proveOpenCodeCatalogue,
+  proveOpenCodeDenial,
+} from './conformance-fixture.js';
 import { openCodeProfilePaths, resolveOpenCodeConfigRoot } from './profile.js';
 
 export const SUPPORTED_OPENCODE_VERSION = '1.18.23';
@@ -79,13 +83,17 @@ function installedProfileRoot(environment: NodeJS.ProcessEnv): string | undefine
   }
 }
 
-export function runOpenCodeConformance(environment: NodeJS.ProcessEnv = process.env): CliResult {
+type ExecutableBoundary = { readonly executable: string } | { readonly result: CliResult };
+
+function executableBoundary(environment: NodeJS.ProcessEnv): ExecutableBoundary {
   const executable = resolveExecutable(environment);
   if (executable === undefined) {
-    return executableRemediation(
-      'OPENCODE_EXECUTABLE_UNRESOLVED',
-      'OpenCode is not executable from PATH.',
-    );
+    return {
+      result: executableRemediation(
+        'OPENCODE_EXECUTABLE_UNRESOLVED',
+        'OpenCode is not executable from PATH.',
+      ),
+    };
   }
 
   const version = spawnSync(executable, ['--version'], {
@@ -94,17 +102,30 @@ export function runOpenCodeConformance(environment: NodeJS.ProcessEnv = process.
     timeout: 10_000,
   });
   if (version.status !== 0 || version.error !== undefined) {
-    return executableRemediation(
-      'OPENCODE_EXECUTABLE_FAILED',
-      'OpenCode exited before conformance could begin.',
-    );
+    return {
+      result: executableRemediation(
+        'OPENCODE_EXECUTABLE_FAILED',
+        'OpenCode exited before conformance could begin.',
+      ),
+    };
   }
   if (version.stdout.trim() !== SUPPORTED_OPENCODE_VERSION) {
-    return executableRemediation(
-      'OPENCODE_VERSION_UNSUPPORTED',
-      `OpenCode ${version.stdout.trim() || '<unknown>'} does not match the supported conformance fixture ${SUPPORTED_OPENCODE_VERSION}.`,
-    );
+    return {
+      result: executableRemediation(
+        'OPENCODE_VERSION_UNSUPPORTED',
+        `OpenCode ${version.stdout.trim() || '<unknown>'} does not match the supported conformance fixture ${SUPPORTED_OPENCODE_VERSION}.`,
+      ),
+    };
   }
+  return { executable };
+}
+
+export async function runOpenCodeConformance(
+  environment: NodeJS.ProcessEnv = process.env,
+): Promise<CliResult> {
+  const boundary = executableBoundary(environment);
+  if ('result' in boundary) return boundary.result;
+  const { executable } = boundary;
 
   if (installedProfileRoot(environment) === undefined) return profileRemediation();
   if (!proveOpenCodeCatalogue(executable, environment)) {
@@ -114,6 +135,20 @@ export function runOpenCodeConformance(environment: NodeJS.ProcessEnv = process.
         {
           code: 'OPENCODE_CATALOGUE_CONFORMANCE_FAILED',
           message: 'OpenCode did not discover the required Safeword catalogue.',
+          retryable: true,
+        },
+      ],
+      data: { command: 'conformance', agent: 'opencode' },
+    });
+  }
+  const denial = await proveOpenCodeDenial(executable, environment);
+  if (!denial.denialSurfaced || !denial.sentinelAbsent) {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'OPENCODE_DENIAL_CONFORMANCE_FAILED',
+          message: 'OpenCode did not prove Safeword denial without a side effect.',
           retryable: true,
         },
       ],
@@ -141,6 +176,7 @@ export function runOpenCodeConformance(environment: NodeJS.ProcessEnv = process.
       command: 'conformance',
       agent: 'opencode',
       discovery: OPENCODE_EXPECTED_DISCOVERY,
+      denial: true,
     },
   });
 }
