@@ -305,6 +305,29 @@ function withSource(change: Record<string, unknown>): Record<string, unknown> {
   return { ...envelope, source: { ...(envelope.source as object), ...change } };
 }
 
+it.each([
+  ['claude-code', 'local'],
+  ['codex', 'local'],
+  ['claude-code', 'unknown'],
+  ['codex', 'unknown'],
+  ['cursor', 'unknown'],
+] as const)('accepts the %s/%s source compatibility row', async (harness, hostClass) => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+  });
+  const request = {
+    ...fixtureRequest(),
+    body: encoded(withSource({ harness, hostClass })),
+  };
+
+  const response = await submit(runtime.url, request);
+  await runtime.close();
+
+  expect(response.status).toBe(201);
+});
+
 function nonUtf8Envelope(): Uint8Array {
   const bytes = Buffer.from(JSON.stringify({ ...fixtureEnvelope(), finding: 'fixture § finding' }));
   const marker = bytes.indexOf(Buffer.from('§'));
