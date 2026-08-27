@@ -8,6 +8,7 @@ import { VERSION } from '../version.js';
 import {
   OPENCODE_EXPECTED_DISCOVERY,
   type OpenCodeConformanceFault,
+  proveOpenCodeAllow,
   proveOpenCodeCatalogue,
   proveOpenCodeControl,
   proveOpenCodeDenial,
@@ -16,8 +17,6 @@ import {
 import { writePassingOpenCodeConformance } from './evidence.js';
 import { type OpenCodeIdentityV1, parseOpenCodeIdentity } from './identity.js';
 import { openCodeProfilePaths, resolveOpenCodeConfigRoot } from './profile.js';
-
-export const SUPPORTED_OPENCODE_VERSION = '1.18.23';
 
 function resolveExecutable(environment: NodeJS.ProcessEnv): string | undefined {
   const extensions =
@@ -116,7 +115,7 @@ export function observeOpenCodeVersion(environment: NodeJS.ProcessEnv): string |
   if (executable === undefined) return undefined;
   const version = spawnSync(executable, ['--version'], {
     encoding: 'utf8',
-    env: environment,
+    env: { ...environment, OPENCODE_DISABLE_AUTOUPDATE: 'true' },
     timeout: 10_000,
   });
   return version.status === 0 && version.error === undefined ? version.stdout.trim() : undefined;
@@ -135,7 +134,7 @@ function executableBoundary(environment: NodeJS.ProcessEnv): ExecutableBoundary 
 
   const version = spawnSync(executable, ['--version'], {
     encoding: 'utf8',
-    env: environment,
+    env: { ...environment, OPENCODE_DISABLE_AUTOUPDATE: 'true' },
     timeout: 10_000,
   });
   if (version.status !== 0 || version.error !== undefined) {
@@ -180,6 +179,12 @@ async function proveOpenCodeHost(
     return failedProof(
       'OPENCODE_CATALOGUE_CONFORMANCE_FAILED',
       'OpenCode did not discover the required Safeword catalogue.',
+    );
+  }
+  if (!(await proveOpenCodeAllow(executable, environment))) {
+    return failedProof(
+      'OPENCODE_ALLOW_CONFORMANCE_FAILED',
+      'OpenCode did not prove that the installed Safeword dispatcher permits safe covered work.',
     );
   }
   const denial = await proveOpenCodeDenial(executable, environment, fault !== 'disarmed-denial');

@@ -49,10 +49,12 @@ describe('OpenCode lifecycle evidence', () => {
       })}\n`,
     );
     interface OpenCodeHooks {
-      event(input: { event: { type: string; properties: { sessionID: string } } }): Promise<void>;
+      event(input: {
+        event: { type: string; properties: { info?: { id: string }; sessionID?: string } };
+      }): Promise<void>;
       'chat.message'(
-        input: { sessionID: string },
-        output: { message: object; parts: unknown[] },
+        input: object,
+        output: { message: { sessionID: string }; parts: unknown[] },
       ): Promise<void>;
       'tool.execute.before'(
         input: { tool: string; sessionID: string; callID: string },
@@ -73,12 +75,15 @@ describe('OpenCode lifecycle evidence', () => {
       [
         'session_start',
         'observe',
-        () => hooks.event({ event: { type: 'session.created', properties: { sessionID } } }),
+        () =>
+          hooks.event({
+            event: { type: 'session.created', properties: { info: { id: sessionID } } },
+          }),
       ],
       [
         'prompt_submit',
         'observe',
-        () => hooks['chat.message']({ sessionID }, { message: {}, parts: [] }),
+        () => hooks['chat.message']({}, { message: { sessionID }, parts: [] }),
       ],
       [
         'pre_tool',

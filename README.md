@@ -40,6 +40,10 @@ bunx safeword@latest conformance --agents=opencode
 bunx safeword@latest status --agents=opencode
 ```
 
+`uninstall --agents=opencode` removes the shared Safeword guard from this
+OpenCode profile, so other enrolled projects under the same OpenCode config
+root become unprotected until you reinstall it from one of them.
+
 Conformance runs a credential-free real OpenCode process. Safeword reports the
 exact stable 1.x CLI/TUI version as protected only after that process discovers the
 native catalogue and proves a forbidden tool call produces no side effect.

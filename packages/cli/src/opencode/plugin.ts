@@ -180,6 +180,10 @@ function dispatch(identity, envelope, directory) {
 }
 
 export const Safeword = async input => {
+  function eventSessionID(event) {
+    return event?.properties?.sessionID ?? event?.properties?.info?.id;
+  }
+
   async function recordLifecycle(event, sessionID, callID) {
     if (!input?.directory || typeof sessionID !== 'string' || sessionID.length === 0) return;
     const classification = await classifyProject(input.directory);
@@ -200,13 +204,13 @@ export const Safeword = async input => {
   return {
     event: async ({ event }) => {
       if (event?.type === 'session.created') {
-        await recordLifecycle('session_start', event.properties?.sessionID);
+        await recordLifecycle('session_start', eventSessionID(event));
       } else if (event?.type === 'session.idle') {
-        await recordLifecycle('stop', event.properties?.sessionID);
+        await recordLifecycle('stop', eventSessionID(event));
       }
     },
-    'chat.message': async hookInput => {
-      await recordLifecycle('prompt_submit', hookInput?.sessionID);
+    'chat.message': async (hookInput, output) => {
+      await recordLifecycle('prompt_submit', hookInput?.sessionID ?? output?.message?.sessionID);
     },
     'tool.execute.before': async (hookInput, output) => {
       if (!input?.directory) return;

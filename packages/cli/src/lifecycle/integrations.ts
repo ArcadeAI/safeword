@@ -406,8 +406,9 @@ function openCodeConfigRootRequired(): CliResult {
     ],
     nextActions: [
       {
-        command: 'safeword install --agents=opencode',
-        mutates: true,
+        kind: 'human',
+        instruction: 'Set OPENCODE_CONFIG_DIR, XDG_CONFIG_HOME, or HOME, then rerun Safeword.',
+        mutates: false,
         requiresHuman: true,
       },
     ],

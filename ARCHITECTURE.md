@@ -1,7 +1,7 @@
 # Safeword Architecture
 
-**Version:** 1.20
-**Last Updated:** 2026-08-05
+**Version:** 1.21
+**Last Updated:** 2026-08-27
 **Status:** Production
 
 ---
@@ -26,7 +26,7 @@
 
 ## Overview
 
-Safeword is a CLI tool that configures linting, hooks, and development guides for AI coding agent projects (Claude Code, Cursor, and Codex). It supports JavaScript/TypeScript projects (ESLint, Prettier), Python projects (Ruff, mypy), Go projects (golangci-lint), Rust projects (clippy, rustfmt), and dbt projects (SQLFluff).
+Safeword is a CLI tool that configures linting, hooks, and development guides for AI coding agent projects (Claude Code, Cursor, Codex, and OpenCode). It supports JavaScript/TypeScript projects (ESLint, Prettier), Python projects (Ruff, mypy), Go projects (golangci-lint), Rust projects (clippy, rustfmt), and dbt projects (SQLFluff).
 
 ### Tech Stack
 

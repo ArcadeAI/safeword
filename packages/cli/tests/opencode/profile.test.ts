@@ -1,5 +1,7 @@
+import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { once } from 'node:events';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -268,6 +270,40 @@ describe('OpenCode profile boundary', () => {
     expect(existsSync(paths.identity)).toBe(true);
   });
 
+  it.each(['missing', 'modified'] as const)(
+    'repairs a %s managed dispatcher during install',
+    state => {
+      const root = temporaryDirectory();
+      const paths = openCodeProfilePaths(root);
+      expect(installOpenCodeProfile(root).state).toBe('changed');
+      const expected = readFileSync(paths.dispatcher);
+      if (state === 'missing') rmSync(paths.dispatcher);
+      else writeFileSync(paths.dispatcher, 'modified dispatcher\n');
+
+      expect(installOpenCodeProfile(root).state).toBe('changed');
+      expect(readFileSync(paths.dispatcher)).toEqual(expected);
+      expect(installOpenCodeProfile(root).state).toBe('healthy');
+    },
+  );
+
+  it('preserves the canonical dispatcher when identity points elsewhere during uninstall', () => {
+    const root = temporaryDirectory();
+    const paths = openCodeProfilePaths(root);
+    expect(installOpenCodeProfile(root).state).toBe('changed');
+    const canonical = readFileSync(paths.dispatcher);
+    const installed = JSON.parse(readFileSync(paths.identity, 'utf8')) as OpenCodeIdentityV1;
+    writeFileSync(
+      paths.identity,
+      `${JSON.stringify({ ...installed, dispatcher_path: nodePath.join(root, 'other.js') })}\n`,
+    );
+
+    const result = uninstallOpenCodeProfile(root);
+
+    expect(result.state).toBe('action_required');
+    expect(result.findings.map(finding => finding.code)).toContain('OPENCODE_DISPATCHER_DRIFT');
+    expect(readFileSync(paths.dispatcher)).toEqual(canonical);
+  });
+
   it('does not mutate while another profile transaction owns the lock', () => {
     const root = temporaryDirectory();
     const paths = openCodeProfilePaths(root);
@@ -285,5 +321,41 @@ describe('OpenCode profile boundary', () => {
     expect(existsSync(paths.plugin)).toBe(false);
     expect(existsSync(paths.identity)).toBe(false);
     expect(releaseProfileLock(lock)).toBe(true);
+  });
+
+  it('waits briefly for a concurrent profile transaction and then converges', async () => {
+    const root = temporaryDirectory();
+    const paths = openCodeProfilePaths(root);
+    const child = spawn(
+      process.execPath,
+      [
+        '-e',
+        [
+          "const { mkdirSync, rmSync, writeFileSync } = require('node:fs');",
+          "const { dirname, join } = require('node:path');",
+          'const lock = process.argv[1];',
+          'mkdirSync(dirname(lock), { recursive: true });',
+          'mkdirSync(lock);',
+          "writeFileSync(join(lock, 'owner.json'), JSON.stringify({ owner: 'peer', acquired_at: Date.now() }));",
+          "process.stdout.write('ready');",
+          'setTimeout(() => rmSync(lock, { recursive: true, force: true }), 75);',
+        ].join(''),
+        paths.lock,
+      ],
+      { stdio: ['ignore', 'pipe', 'inherit'] },
+    );
+    await once(child.stdout, 'data');
+    const childExit = once(child, 'exit');
+
+    const result = reconcileOpenCodeProfile({
+      operation: 'install',
+      root,
+      pluginBytes,
+      identity: identity(),
+    });
+    await childExit;
+
+    expect(result.state).toBe('changed');
+    expect(readFileSync(paths.plugin, 'utf8')).toBe(pluginBytes);
   });
 });

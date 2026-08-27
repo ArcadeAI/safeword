@@ -381,7 +381,11 @@ describe('OpenCode status evidence', () => {
 
     expect(result.state).toBe('action_required');
     expect(result.findings).toMatchObject([{ code: 'OPENCODE_DISPATCHER_UNAVAILABLE' }]);
-    expect(result.data).toMatchObject({ installed: true, activated: false, pre_tool: 'block' });
+    expect(result.data).toMatchObject({
+      installed: false,
+      activated: false,
+      pre_tool: 'unavailable',
+    });
     expect(result.nextActions).toEqual([
       {
         command: 'safeword install --agents=opencode',

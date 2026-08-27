@@ -59,6 +59,10 @@ type IdentityObservation =
   | { readonly kind: 'collision' }
   | { readonly kind: 'identity'; readonly value: OpenCodeIdentityV1 };
 
+const PROFILE_LOCK_WAIT_MS = 500;
+const PROFILE_LOCK_RETRY_MS = 10;
+const PROFILE_LOCK_SLEEP = new Int32Array(new SharedArrayBuffer(4));
+
 export interface ReconcileOpenCodeProfileInput {
   readonly operation: 'install' | 'uninstall';
   readonly root: string;
@@ -168,15 +172,20 @@ function managedDispatcherProblem(
   paths: OpenCodeProfilePaths,
   identity: OpenCodeIdentityV1,
 ): CliResult | undefined {
-  if (identity.dispatcher_path !== paths.dispatcher) return undefined;
   const dispatcher = observeFile(paths.dispatcher);
-  return dispatcher.kind === 'file' && sha256(dispatcher.bytes) === identity.dispatcher_sha256
-    ? undefined
-    : actionRequired(
-        'OPENCODE_DISPATCHER_DRIFT',
-        'The managed OpenCode dispatcher was modified; Safeword preserved it.',
-        'safeword install --agents=opencode',
-      );
+  if (dispatcher.kind === 'absent') return undefined;
+  if (
+    identity.dispatcher_path === paths.dispatcher &&
+    dispatcher.kind === 'file' &&
+    sha256(dispatcher.bytes) === identity.dispatcher_sha256
+  ) {
+    return undefined;
+  }
+  return humanActionRequired(
+    'OPENCODE_DISPATCHER_DRIFT',
+    'The OpenCode dispatcher path is not bound to the managed profile; Safeword preserved it.',
+    `Inspect or move ${paths.dispatcher}, then rerun safeword uninstall --agents=opencode.`,
+  );
 }
 
 export function uninstallOpenCodeProfile(root: string): CliResult {
@@ -238,6 +247,7 @@ function observeIdentityBindings(
       'OPENCODE_PLUGIN_DRIFT',
       'The Safeword OpenCode plugin does not match its identity.',
       'safeword install --agents=opencode',
+      UNAVAILABLE_PROTECTION,
     );
   }
   if (!hasCurrentDispatcher(identity)) {
@@ -245,7 +255,7 @@ function observeIdentityBindings(
       'OPENCODE_DISPATCHER_UNAVAILABLE',
       'The identity-bound OpenCode dispatcher is unavailable.',
       'safeword install --agents=opencode',
-      { installed: true, activated: false, pre_tool: 'block', conformant: false },
+      UNAVAILABLE_PROTECTION,
     );
   }
   return undefined;
@@ -280,7 +290,7 @@ function readEvidence<T>(
   return records;
 }
 
-function hasCurrentPreToolActivation(
+function hasCurrentActivation(
   directory: string,
   identity: OpenCodeIdentityV1,
   now: number,
@@ -291,10 +301,10 @@ function hasCurrentPreToolActivation(
     const observedAt = Date.parse(record.value.observed_at);
     const age = now - observedAt;
     return (
-      record.name === `${record.value.project_sha256}-pre_tool.json` &&
+      record.name === `${record.value.project_sha256}-${record.value.event}.json` &&
       record.value.safeword_version === identity.safeword_version &&
       record.value.plugin_sha256 === identity.plugin_sha256 &&
-      record.value.event === 'pre_tool' &&
+      (record.value.event === 'plugin_load' || record.value.event === 'pre_tool') &&
       (expectedProjectSha256 === undefined ||
         record.value.project_sha256 === expectedProjectSha256) &&
       age >= 0 &&
@@ -349,7 +359,7 @@ function observeProtectionEvidence(
   } catch {
     expectedProjectSha256 = '';
   }
-  const activated = hasCurrentPreToolActivation(
+  const activated = hasCurrentActivation(
     paths.activation,
     identity,
     input.now ?? Date.now(),
@@ -550,6 +560,14 @@ function actionRequired(
   });
 }
 
+function humanActionRequired(code: string, message: string, instruction: string): CliResult {
+  return createResult({
+    state: 'action_required',
+    findings: [{ code, message, severity: 'error' }],
+    nextActions: [{ kind: 'human', instruction, mutates: false, requiresHuman: true }],
+  });
+}
+
 function writeManagedProfile(
   paths: OpenCodeProfilePaths,
   pluginBytes: Buffer | string,
@@ -623,20 +641,49 @@ function dispatcherInstallProblem(
   if (input.operation !== 'install' || input.dispatcherBytes === undefined) return undefined;
   const dispatcher = observeFile(paths.dispatcher);
   if (dispatcher.kind === 'absent') return undefined;
+  if (dispatcher.kind === 'file' && sha256(dispatcher.bytes) === sha256(input.dispatcherBytes)) {
+    return undefined;
+  }
   const identity = parsedIdentity(observeFile(paths.identity));
   const recognized =
-    dispatcher.kind === 'file' &&
-    (sha256(dispatcher.bytes) === sha256(input.dispatcherBytes) ||
-      (identity.kind === 'identity' &&
-        identity.value.dispatcher_path === paths.dispatcher &&
-        sha256(dispatcher.bytes) === identity.value.dispatcher_sha256));
+    identity.kind === 'identity' && identity.value.dispatcher_path === paths.dispatcher;
   return recognized
     ? undefined
-    : actionRequired(
+    : humanActionRequired(
         'OPENCODE_DISPATCHER_COLLISION',
         'The OpenCode dispatcher path contains unrecognized content; Safeword preserved it.',
-        'safeword install --agents=opencode',
+        `Move or remove ${paths.dispatcher}, then rerun safeword install --agents=opencode.`,
       );
+}
+
+function dispatcherMatchesExpected(
+  paths: OpenCodeProfilePaths,
+  input: ReconcileOpenCodeProfileInput,
+): boolean {
+  if (input.operation !== 'install' || input.dispatcherBytes === undefined) return true;
+  const dispatcher = observeFile(paths.dispatcher);
+  return dispatcher.kind === 'file' && sha256(dispatcher.bytes) === sha256(input.dispatcherBytes);
+}
+
+function terminalUnlessDispatcherNeedsRepair(
+  paths: OpenCodeProfilePaths,
+  input: ReconcileOpenCodeProfileInput,
+  observation: ProfileObservation,
+): CliResult | undefined {
+  const terminal = terminalObservationResult(observation, input.operation);
+  return input.operation === 'install' && !dispatcherMatchesExpected(paths, input)
+    ? undefined
+    : terminal;
+}
+
+function acquireOpenCodeProfileLock(path: string): ReturnType<typeof acquireProfileLock> {
+  const deadline = Date.now() + PROFILE_LOCK_WAIT_MS;
+  let lock = acquireProfileLock(path);
+  while (lock === undefined && Date.now() < deadline) {
+    Atomics.wait(PROFILE_LOCK_SLEEP, 0, 0, PROFILE_LOCK_RETRY_MS);
+    lock = acquireProfileLock(path);
+  }
+  return lock;
 }
 
 export function reconcileOpenCodeProfile(input: ReconcileOpenCodeProfileInput): CliResult {
@@ -644,10 +691,10 @@ export function reconcileOpenCodeProfile(input: ReconcileOpenCodeProfileInput): 
   const dispatcherProblem = dispatcherInstallProblem(paths, input);
   if (dispatcherProblem !== undefined) return dispatcherProblem;
   const initial = observeProfile(paths, input.pluginBytes, input.identity);
-  const initialResult = terminalObservationResult(initial, input.operation);
+  const initialResult = terminalUnlessDispatcherNeedsRepair(paths, input, initial);
   if (initialResult !== undefined) return initialResult;
 
-  const lock = acquireProfileLock(paths.lock);
+  const lock = acquireOpenCodeProfileLock(paths.lock);
   if (lock === undefined) {
     return actionRequired(
       'OPENCODE_PROFILE_BUSY',
@@ -659,7 +706,7 @@ export function reconcileOpenCodeProfile(input: ReconcileOpenCodeProfileInput): 
     const currentDispatcherProblem = dispatcherInstallProblem(paths, input);
     if (currentDispatcherProblem !== undefined) return currentDispatcherProblem;
     const current = observeProfile(paths, input.pluginBytes, input.identity);
-    const currentResult = terminalObservationResult(current, input.operation);
+    const currentResult = terminalUnlessDispatcherNeedsRepair(paths, input, current);
     if (currentResult !== undefined) return currentResult;
     if (input.operation === 'install') {
       writeManagedProfile(paths, input.pluginBytes, input.identity, input.dispatcherBytes);
