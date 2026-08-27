@@ -6,6 +6,7 @@ import { type CliResult, createResult } from '../cli-protocol/result.js';
 import {
   OPENCODE_EXPECTED_DISCOVERY,
   proveOpenCodeCatalogue,
+  proveOpenCodeControl,
   proveOpenCodeDenial,
 } from './conformance-fixture.js';
 import { openCodeProfilePaths, resolveOpenCodeConfigRoot } from './profile.js';
@@ -155,6 +156,19 @@ export async function runOpenCodeConformance(
       data: { command: 'conformance', agent: 'opencode' },
     });
   }
+  if (!(await proveOpenCodeControl(executable, environment))) {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'OPENCODE_CONTROL_CONFORMANCE_FAILED',
+          message: 'The disarmed OpenCode sentinel did not produce its expected side effect.',
+          retryable: true,
+        },
+      ],
+      data: { command: 'conformance', agent: 'opencode' },
+    });
+  }
 
   return createResult({
     state: 'action_required',
@@ -177,6 +191,7 @@ export async function runOpenCodeConformance(
       agent: 'opencode',
       discovery: OPENCODE_EXPECTED_DISCOVERY,
       denial: true,
+      control: true,
     },
   });
 }

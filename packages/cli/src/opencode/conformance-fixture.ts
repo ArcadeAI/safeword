@@ -251,12 +251,19 @@ export function proveOpenCodeCatalogue(
   }
 }
 
-export async function proveOpenCodeDenial(
+interface SentinelExecution {
+  readonly output: string;
+  readonly sentinelExists: boolean;
+}
+
+async function executeSentinelFixture(
   executable: string,
   environment: NodeJS.ProcessEnv,
-): Promise<OpenCodeDenialProof> {
+  armed: boolean,
+): Promise<SentinelExecution> {
   const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-opencode-conformance-'));
   const project = prepareCatalogueFixture(root);
+  if (!armed) rmSync(nodePath.join(root, 'config', 'plugins', 'safeword.js'));
   const nonce = randomUUID();
   const sentinel = nodePath.join(project, `denied-${nonce}`);
   const command = `touch ${JSON.stringify(sentinel)} && pkill node`;
@@ -269,7 +276,7 @@ export async function proveOpenCodeDenial(
     await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
     const address = server.address();
     if (!address || typeof address === 'string') {
-      return { denialSurfaced: false, sentinelAbsent: !existsSync(sentinel) };
+      return { output: '', sentinelExists: existsSync(sentinel) };
     }
     writeLoopbackConfig(project, `http://127.0.0.1:${address.port}/v1`);
     const execution = await runHostAsync(
@@ -289,15 +296,30 @@ export async function proveOpenCodeDenial(
       project,
       fixtureEnvironment(root, environment),
     );
-    const output = execution.stdout + execution.stderr;
-    return {
-      denialSurfaced: output.includes('Safeword denied this OpenCode tool call.'),
-      sentinelAbsent: !existsSync(sentinel),
-    };
+    return { output: execution.stdout + execution.stderr, sentinelExists: existsSync(sentinel) };
   } catch {
-    return { denialSurfaced: false, sentinelAbsent: !existsSync(sentinel) };
+    return { output: '', sentinelExists: existsSync(sentinel) };
   } finally {
     server.close();
     rmSync(root, { recursive: true, force: true });
   }
+}
+
+export async function proveOpenCodeDenial(
+  executable: string,
+  environment: NodeJS.ProcessEnv,
+): Promise<OpenCodeDenialProof> {
+  const execution = await executeSentinelFixture(executable, environment, true);
+  return {
+    denialSurfaced: execution.output.includes('Safeword denied this OpenCode tool call.'),
+    sentinelAbsent: !execution.sentinelExists,
+  };
+}
+
+export async function proveOpenCodeControl(
+  executable: string,
+  environment: NodeJS.ProcessEnv,
+): Promise<boolean> {
+  const execution = await executeSentinelFixture(executable, environment, false);
+  return execution.sentinelExists;
 }
