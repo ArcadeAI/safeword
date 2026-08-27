@@ -1,6 +1,6 @@
 # Impl Plan: Give OpenCode builders full Safeword protection
 
-**Status:** implemented under the ticket's approved historical-evidence waiver;
+**Status:** implemented
 the feature remains `@wip` until a complete executable proof manifest can replace that waiver.
 **Planned on:** 2026-08-26
 
