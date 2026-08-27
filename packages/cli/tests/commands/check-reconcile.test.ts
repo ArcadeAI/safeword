@@ -62,8 +62,7 @@ describe('Check Command - Reconcile Integration', () => {
   describe('checkHealth using reconcile dryRun', () => {
     it('should detect missing files via reconcile dryRun', async () => {
       const { reconcile } = await import('../../src/reconcile.js');
-      const { schemaForClaudeDelivery } =
-        await import('../../src/claude-plugin/delivery-schema.js');
+      const { projectLifecycleSchema } = await import('../../src/lifecycle/schema.js');
       const { createProjectContext } = await import('../../src/utils/context.js');
 
       createConfiguredProject();
@@ -72,9 +71,14 @@ describe('Check Command - Reconcile Integration', () => {
       unlinkSync(nodePath.join(temporaryDirectory, '.safeword/SAFEWORD.md'));
 
       const ctx = createProjectContext(temporaryDirectory);
-      const result = await reconcile(schemaForClaudeDelivery(temporaryDirectory), 'upgrade', ctx, {
-        dryRun: true,
-      });
+      const result = await reconcile(
+        projectLifecycleSchema(temporaryDirectory, ['cursor']),
+        'upgrade',
+        ctx,
+        {
+          dryRun: true,
+        },
+      );
 
       // dryRun should detect the missing file as needing to be created
       expect(result.applied).toBe(false);
@@ -89,8 +93,7 @@ describe('Check Command - Reconcile Integration', () => {
 
     it('should report healthy when no changes needed', async () => {
       const { reconcile } = await import('../../src/reconcile.js');
-      const { schemaForClaudeDelivery } =
-        await import('../../src/claude-plugin/delivery-schema.js');
+      const { projectLifecycleSchema } = await import('../../src/lifecycle/schema.js');
       const { createProjectContext } = await import('../../src/utils/context.js');
 
       // Full setup to create complete configuration
@@ -115,9 +118,14 @@ describe('Check Command - Reconcile Integration', () => {
       });
 
       const ctx = createProjectContext(temporaryDirectory);
-      const result = await reconcile(schemaForClaudeDelivery(temporaryDirectory), 'upgrade', ctx, {
-        dryRun: true,
-      });
+      const result = await reconcile(
+        projectLifecycleSchema(temporaryDirectory, ['cursor']),
+        'upgrade',
+        ctx,
+        {
+          dryRun: true,
+        },
+      );
 
       // After fresh setup, upgrade dryRun should find minimal/no changes
       // (only version file if CLI version differs from project version)

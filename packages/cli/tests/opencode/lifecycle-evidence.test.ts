@@ -48,10 +48,23 @@ describe('OpenCode lifecycle evidence', () => {
         dispatcher_sha256: digest(dispatcherBytes),
       })}\n`,
     );
+    interface OpenCodeHooks {
+      event(input: { event: { type: string; properties: { sessionID: string } } }): Promise<void>;
+      'chat.message'(
+        input: { sessionID: string },
+        output: { message: object; parts: unknown[] },
+      ): Promise<void>;
+      'tool.execute.before'(
+        input: { tool: string; sessionID: string; callID: string },
+        output: { args: { command: string } },
+      ): Promise<void>;
+      'tool.execute.after'(
+        input: { tool: string; sessionID: string; callID: string; args: { command: string } },
+        output: object,
+      ): Promise<void>;
+    }
     const module = (await import(`${pathToFileURL(paths.plugin).href}?test=${Date.now()}`)) as {
-      Safeword: (input: {
-        directory: string;
-      }) => Promise<Record<string, (...args: unknown[]) => Promise<void>>>;
+      Safeword: (input: { directory: string }) => Promise<OpenCodeHooks>;
     };
     const hooks = await module.Safeword({ directory: project });
     const sessionID = 'known-session';

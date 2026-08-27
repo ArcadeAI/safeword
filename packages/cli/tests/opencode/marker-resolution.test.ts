@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { generateOpenCodeProfilePlugin, openCodeProfilePaths } from '../../src/opencode/profile.js';
 import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.js';
+import { blockChildren } from '../helpers/io-failure.js';
 
 const temporaryDirectories: string[] = [];
 
@@ -73,7 +74,7 @@ describe('OpenCode marker resolution', () => {
         }>;
       };
       const hooks = await module.Safeword({ directory: project });
-      if (failure === 'permission-failure') chmodSync(markerDirectory, 0o000);
+      if (failure === 'permission-failure') blockChildren(markerDirectory);
 
       let error: unknown;
       try {
@@ -84,8 +85,6 @@ describe('OpenCode marker resolution', () => {
         writeFileSync(sentinel, 'changed\n');
       } catch (error_) {
         error = error_;
-      } finally {
-        if (failure === 'permission-failure') chmodSync(markerDirectory, 0o700);
       }
 
       expect(error).toBeUndefined();
