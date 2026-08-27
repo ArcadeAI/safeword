@@ -400,7 +400,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 - [x] RED 94b0636fc
 - [x] GREEN 3b2d64922
-- [ ] REFACTOR
+- [x] REFACTOR skip: the native skill call and canonical body observation form one bounded fixture proof
 
 ### Scenario: The required conformance lane fails instead of skipping
 
