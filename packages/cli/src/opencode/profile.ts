@@ -104,7 +104,7 @@ export function openCodeProfilePaths(root: string): OpenCodeProfilePaths {
   return {
     plugin: nodePath.join(root, 'plugins', 'safeword.js'),
     identity: nodePath.join(safeword, 'identity-v1.json'),
-    dispatcher: nodePath.join(safeword, 'dispatcher.js'),
+    dispatcher: nodePath.join(safeword, 'dispatcher.mjs'),
     safeword,
     activation: nodePath.join(safeword, 'activation-v1'),
     conformance: nodePath.join(safeword, 'conformance-v1'),
@@ -164,6 +164,21 @@ export function installOpenCodeProfile(root: string): CliResult {
   });
 }
 
+function managedDispatcherProblem(
+  paths: OpenCodeProfilePaths,
+  identity: OpenCodeIdentityV1,
+): CliResult | undefined {
+  if (identity.dispatcher_path !== paths.dispatcher) return undefined;
+  const dispatcher = observeFile(paths.dispatcher);
+  return dispatcher.kind === 'file' && sha256(dispatcher.bytes) === identity.dispatcher_sha256
+    ? undefined
+    : actionRequired(
+        'OPENCODE_DISPATCHER_DRIFT',
+        'The managed OpenCode dispatcher was modified; Safeword preserved it.',
+        'safeword install --agents=opencode',
+      );
+}
+
 export function uninstallOpenCodeProfile(root: string): CliResult {
   const paths = openCodeProfilePaths(root);
   const plugin = observeFile(paths.plugin);
@@ -185,6 +200,8 @@ export function uninstallOpenCodeProfile(root: string): CliResult {
       'safeword install --agents=opencode',
     );
   }
+  const dispatcherProblem = managedDispatcherProblem(paths, identity.value);
+  if (dispatcherProblem !== undefined) return dispatcherProblem;
   return reconcileOpenCodeProfile({
     operation: 'uninstall',
     root,
@@ -599,8 +616,33 @@ function terminalObservationResult(
   return undefined;
 }
 
+function dispatcherInstallProblem(
+  paths: OpenCodeProfilePaths,
+  input: ReconcileOpenCodeProfileInput,
+): CliResult | undefined {
+  if (input.operation !== 'install' || input.dispatcherBytes === undefined) return undefined;
+  const dispatcher = observeFile(paths.dispatcher);
+  if (dispatcher.kind === 'absent') return undefined;
+  const identity = parsedIdentity(observeFile(paths.identity));
+  const recognized =
+    dispatcher.kind === 'file' &&
+    (sha256(dispatcher.bytes) === sha256(input.dispatcherBytes) ||
+      (identity.kind === 'identity' &&
+        identity.value.dispatcher_path === paths.dispatcher &&
+        sha256(dispatcher.bytes) === identity.value.dispatcher_sha256));
+  return recognized
+    ? undefined
+    : actionRequired(
+        'OPENCODE_DISPATCHER_COLLISION',
+        'The OpenCode dispatcher path contains unrecognized content; Safeword preserved it.',
+        'safeword install --agents=opencode',
+      );
+}
+
 export function reconcileOpenCodeProfile(input: ReconcileOpenCodeProfileInput): CliResult {
   const paths = openCodeProfilePaths(input.root);
+  const dispatcherProblem = dispatcherInstallProblem(paths, input);
+  if (dispatcherProblem !== undefined) return dispatcherProblem;
   const initial = observeProfile(paths, input.pluginBytes, input.identity);
   const initialResult = terminalObservationResult(initial, input.operation);
   if (initialResult !== undefined) return initialResult;
@@ -614,6 +656,8 @@ export function reconcileOpenCodeProfile(input: ReconcileOpenCodeProfileInput): 
     );
   }
   try {
+    const currentDispatcherProblem = dispatcherInstallProblem(paths, input);
+    if (currentDispatcherProblem !== undefined) return currentDispatcherProblem;
     const current = observeProfile(paths, input.pluginBytes, input.identity);
     const currentResult = terminalObservationResult(current, input.operation);
     if (currentResult !== undefined) return currentResult;

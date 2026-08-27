@@ -1,9 +1,10 @@
 import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { observeLifecycleStatus } from '../../src/lifecycle/status.js';
 import {
   installOpenCodeProfile,
   observeOpenCodeProfile,
@@ -25,19 +26,18 @@ function writeActivationEvidence(
   paths: OpenCodeProfilePaths,
   identity: OpenCodeIdentityV1,
   event: 'plugin_load' | 'pre_tool',
-  opencodeVersion?: string,
   observedAt = new Date().toISOString(),
+  projectSha256 = 'a'.repeat(64),
 ): void {
   mkdirSync(paths.activation, { recursive: true });
   writeFileSync(
-    nodePath.join(paths.activation, `${'a'.repeat(64)}.json`),
+    nodePath.join(paths.activation, `${projectSha256}.json`),
     `${JSON.stringify({
       schema_version: 1,
       safeword_version: identity.safeword_version,
       plugin_sha256: identity.plugin_sha256,
-      project_sha256: 'a'.repeat(64),
+      project_sha256: projectSha256,
       event,
-      ...(opencodeVersion !== undefined && { opencode_version: opencodeVersion }),
       ...(event === 'pre_tool' && {
         session_id_sha256: 'b'.repeat(64),
         call_id_sha256: 'c'.repeat(64),
@@ -222,7 +222,6 @@ describe('OpenCode status evidence', () => {
       paths,
       identity,
       'pre_tool',
-      undefined,
       new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString(),
     );
 
@@ -238,9 +237,9 @@ describe('OpenCode status evidence', () => {
     const paths = openCodeProfilePaths(root);
     expect(installOpenCodeProfile(root).state).toBe('changed');
     const identity = JSON.parse(readFileSync(paths.identity, 'utf8')) as OpenCodeIdentityV1;
-    writeActivationEvidence(paths, identity, 'pre_tool', '1.18.24');
+    writePassingEvidence(paths, identity, 'pre_tool');
 
-    const result = observeOpenCodeProfile(root);
+    const result = observeOpenCodeProfile(root, { opencodeVersion: '1.18.24' });
 
     expect(result.state).toBe('action_required');
     expect(result.data).toEqual({
@@ -256,6 +255,36 @@ describe('OpenCode status evidence', () => {
         requiresHuman: true,
       },
     ]);
+  });
+
+  it('NTB1.R1.S01 keeps all protection dimensions in the public status envelope', async () => {
+    const root = temporaryDirectory();
+    const project = temporaryDirectory();
+    const bin = temporaryDirectory();
+    const executable = nodePath.join(bin, 'opencode');
+    writeFileSync(executable, "#!/bin/sh\nprintf '1.18.23\\n'\n");
+    chmodSync(executable, 0o755);
+    const paths = openCodeProfilePaths(root);
+    expect(installOpenCodeProfile(root).state).toBe('changed');
+    const identity = JSON.parse(readFileSync(paths.identity, 'utf8')) as OpenCodeIdentityV1;
+    const projectSha256 = createHash('sha256').update(realpathSync(project)).digest('hex');
+    writeActivationEvidence(paths, identity, 'pre_tool', undefined, projectSha256);
+    writeConformanceEvidence(paths, identity);
+
+    const result = await observeLifecycleStatus(project, ['opencode'], {
+      OPENCODE_CONFIG_DIR: root,
+      PATH: bin,
+    });
+    const surfaces = (
+      result.data as { readonly surfaces: readonly { name: string; data?: unknown }[] }
+    ).surfaces;
+
+    expect(surfaces.find(surface => surface.name === 'opencode')?.data).toEqual({
+      installed: true,
+      activated: true,
+      pre_tool: 'block',
+      conformant: true,
+    });
   });
 
   it('NTB1.R3.S03 does not claim protection without activation evidence', () => {

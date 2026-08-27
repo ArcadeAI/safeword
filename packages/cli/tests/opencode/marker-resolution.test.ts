@@ -45,10 +45,14 @@ describe('OpenCode marker resolution', () => {
           dispatcherCalled,
         )}, 'called');\n`,
       );
-      const generate = generateOpenCodeProfilePlugin;
-      const pluginBytes = generate(
-        failure === 'timeout' ? { markerTimeoutMilliseconds: 0 } : undefined,
-      );
+      const generated = generateOpenCodeProfilePlugin();
+      const pluginBytes =
+        failure === 'timeout'
+          ? generated.replace(
+              'const MARKER_TIMEOUT_MILLISECONDS = 50;',
+              'const MARKER_TIMEOUT_MILLISECONDS = 0;',
+            )
+          : generated;
       const digest = (value: string | Buffer): string =>
         createHash('sha256').update(value).digest('hex');
       const dispatcherHash = digest(readFileSync(dispatcher));

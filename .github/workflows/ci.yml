@@ -80,18 +80,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Run pinned OpenCode conformance
-        run: |
-          bun run --cwd packages/cli build
-          fixture_root="$RUNNER_TEMP/safeword-opencode-conformance"
-          mkdir -p "$fixture_root/bin" "$fixture_root/config" "$fixture_root/project"
-          printf '%s\n' '#!/bin/sh' 'exec bunx --bun opencode-ai@1.18.23 "$@"' > "$fixture_root/bin/opencode"
-          chmod 755 "$fixture_root/bin/opencode"
-          export OPENCODE_CONFIG_DIR="$fixture_root/config"
-          export PATH="$fixture_root/bin:$PATH"
-          safeword() { bun packages/cli/dist/cli.js "$@"; }
-          test "$(opencode --version)" = "1.18.23"
-          bun -e 'import { installOpenCodeProfile } from "./packages/cli/src/opencode/profile.ts"; const result = installOpenCodeProfile(process.env.OPENCODE_CONFIG_DIR); if (result.state !== "changed") process.exit(1)'
-          safeword conformance --agents=opencode --json --no-input --offline --cwd "$fixture_root/project"
+        run: SAFEWORD_RUN_OPENCODE_CONFORMANCE=1 bun run --cwd packages/cli test tests/opencode/conformance-command.test.ts
 
   dependency-audit:
     name: Dependency audit

@@ -9,10 +9,12 @@ import { createResult } from '../../src/cli-protocol/result.js';
 import { installLifecycle, uninstallLifecycle } from '../../src/lifecycle/commands.js';
 import {
   generateOpenCodeProfilePlugin,
+  installOpenCodeProfile,
   type OpenCodeIdentityV1,
   openCodeProfilePaths,
   reconcileOpenCodeProfile,
   resolveOpenCodeConfigRoot,
+  uninstallOpenCodeProfile,
 } from '../../src/opencode/profile.js';
 import { acquireProfileLock, releaseProfileLock } from '../../src/utils/profile-lock.js';
 import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.js';
@@ -59,6 +61,17 @@ describe('OpenCode profile boundary', () => {
       }),
     ).toBeUndefined();
     expect(readFileSync(decoy, 'utf8')).toBe('user bytes\n');
+  });
+
+  it('rejects a relative explicit OpenCode config root instead of falling back', () => {
+    const home = temporaryDirectory();
+
+    expect(
+      resolveOpenCodeConfigRoot({
+        platform: 'unix',
+        env: { OPENCODE_CONFIG_DIR: 'relative/profile', HOME: home },
+      }),
+    ).toBeUndefined();
   });
 
   it('TBU1.R1.S08 stops explicit installation before project reconciliation', async () => {
@@ -238,6 +251,21 @@ describe('OpenCode profile boundary', () => {
     ).toBe('changed');
     expect(existsSync(paths.plugin)).toBe(false);
     expect(existsSync(paths.identity)).toBe(false);
+  });
+
+  it('preserves a modified managed dispatcher during uninstall', () => {
+    const root = temporaryDirectory();
+    const paths = openCodeProfilePaths(root);
+    expect(installOpenCodeProfile(root).state).toBe('changed');
+    writeFileSync(paths.dispatcher, 'user-modified dispatcher\n');
+
+    const result = uninstallOpenCodeProfile(root);
+
+    expect(result.state).toBe('action_required');
+    expect(result.findings.map(finding => finding.code)).toContain('OPENCODE_DISPATCHER_DRIFT');
+    expect(readFileSync(paths.dispatcher, 'utf8')).toBe('user-modified dispatcher\n');
+    expect(existsSync(paths.plugin)).toBe(true);
+    expect(existsSync(paths.identity)).toBe(true);
   });
 
   it('does not mutate while another profile transaction owns the lock', () => {

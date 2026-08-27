@@ -1,10 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { createResult } from '../../src/cli-protocol/result.js';
 import {
   coordinateSelectedIntegrations,
   createIntegrationRegistry,
   defineIntegrationAdapter,
   type IntegrationAdapter,
+  PRODUCTION_INTEGRATIONS,
 } from '../../src/lifecycle/integrations.js';
 
 function adapter(overrides: Partial<IntegrationAdapter> = {}): IntegrationAdapter {
@@ -34,6 +36,48 @@ function adapter(overrides: Partial<IntegrationAdapter> = {}): IntegrationAdapte
 }
 
 describe('integration registry contracts', () => {
+  it('SWM1.R3.S02 declares OpenCode profile effects and keeps checks read-only', async () => {
+    const opencode = PRODUCTION_INTEGRATIONS.find(entry => entry.id === 'opencode');
+    if (opencode === undefined) throw new Error('Expected the OpenCode integration adapter.');
+    const context = {
+      cwd: '/project',
+      agents: ['opencode'],
+      scope: 'project',
+      observation: createResult({
+        state: 'action_required',
+        data: { installed: false },
+      }),
+    } as const;
+
+    const install = await opencode.effects({ ...context, operation: 'install' });
+    const check = await opencode.effects({ ...context, operation: 'check' });
+    const uninstall = await opencode.effects({
+      ...context,
+      operation: 'uninstall',
+      observation: createResult({ state: 'healthy', data: { installed: true } }),
+    });
+
+    expect(install.files.map(effect => effect.target)).toEqual([
+      'OpenCode profile plugin',
+      'OpenCode Safeword identity',
+      'OpenCode Safeword dispatcher',
+    ]);
+    expect(check).toEqual({
+      files: [],
+      packages: [],
+      configuration: [],
+      network: [],
+      destructive: [],
+    });
+    expect(uninstall.destructive).toHaveLength(3);
+
+    for (const id of ['claude', 'codex']) {
+      const integration = PRODUCTION_INTEGRATIONS.find(entry => entry.id === id);
+      if (integration === undefined) throw new Error(`Expected the ${id} integration adapter.`);
+      expect(await integration.effects({ ...context, operation: 'check' })).toEqual(check);
+    }
+  });
+
   it('SWM1.R1.S02 rejects an adapter without ownership declarations', () => {
     expect(() =>
       defineIntegrationAdapter({

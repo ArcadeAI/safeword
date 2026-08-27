@@ -45,7 +45,7 @@ interface IntegrationAdapter {
 
 **What:** Resolves the documented config root, classifies ownership without
 following managed-path symlinks, and atomically installs/removes the plugin,
-identity, and bounded evidence under one profile lock.
+profile-owned dispatcher, identity, and bounded evidence under one profile lock.
 
 **Where:** `packages/cli/src/opencode/profile.ts`, `identity.ts`, `evidence.ts`
 

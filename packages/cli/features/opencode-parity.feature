@@ -1,3 +1,4 @@
+@wip
 Feature: Give OpenCode builders full Safeword protection
 
   @opencode-parity.TBU1.R1
@@ -52,8 +53,8 @@ Feature: Give OpenCode builders full Safeword protection
     Scenario Outline: Profile installation resolves the documented config root
       Given a <platform> fixture sets OPENCODE_CONFIG_DIR=<opencode-dir>, XDG_CONFIG_HOME=<xdg>, HOME=<home>, and USERPROFILE=<userprofile> with every candidate root pre-created as a named decoy
       When the builder installs Safeword for OpenCode
-      Then `<expected-root>/plugins/safeword.js` and `<expected-root>/safeword/identity-v1.json` are installed
-      And every candidate root other than `<expected-root>` remains byte-for-byte unchanged without either managed asset
+      Then `<expected-root>/plugins/safeword.js`, `<expected-root>/safeword/dispatcher.mjs`, and `<expected-root>/safeword/identity-v1.json` are installed
+      And every candidate root other than `<expected-root>` remains byte-for-byte unchanged without any managed asset
 
       Examples:
         | platform       | opencode-dir | xdg   | home  | userprofile | expected-root                        |
@@ -516,7 +517,7 @@ Feature: Give OpenCode builders full Safeword protection
     Scenario: Explicit OpenCode uninstall removes recognized managed assets
       Given matching managed stubs for the current project, a second marked project's managed assets, and profile plugin, identity, per-project activation, conformance, and profile-error records with user content
       When the builder runs `safeword uninstall --agents=opencode`
-      Then current-project stubs, profile plugin, identity, and all profile evidence bound to that removed plugin are removed while the second project's project assets and all user content remain
+      Then current-project stubs, profile plugin, profile-owned dispatcher, identity, and all profile evidence bound to that removed plugin are removed while the second project's project assets and all user content remain
 
     @rejection @surface.opencode @surface.safeword-cli
     Scenario: OpenCode health is read-only

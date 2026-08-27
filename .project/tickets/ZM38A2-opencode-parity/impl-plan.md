@@ -1,6 +1,7 @@
 # Impl Plan: Give OpenCode builders full Safeword protection
 
-**Status:** implemented
+**Status:** implemented under the ticket's approved historical-evidence waiver;
+the feature remains `@wip` until a complete executable proof manifest can replace that waiver.
 **Planned on:** 2026-08-26
 
 ## Approach
@@ -94,11 +95,13 @@ Build order:
    production boundary and prove interrupted replacement exposes only the
    previous complete production plugin locally. The dispatcher module and its
    hidden hook-helper catalogue route both land here. Installation records the
-   installer's absolute `process.execPath` plus dispatcher path and hash. The
+   installer's absolute `process.execPath` plus the profile-owned dispatcher
+   path and hash. Copying the dispatcher into the managed config root keeps a
+   `bunx` cache prune from invalidating an otherwise healthy installation. The
    generated dispatcher stays Node/Bun-compatible; hooks spawn only the recorded
    paths, never their own runtime, `bunx`, a shell, or network resolution. Either
-   path missing or mismatched is one unavailable dispatcher binding: status sets
-   `installed=false`, and a confirmed project denies with the approved reinstall
+   path missing or mismatched is one unavailable dispatcher binding: status keeps
+   `installed=true` while setting activation and conformance false, and a confirmed project denies with the approved reinstall
    action. TBU1.R2.S12's three rows remain literal dispatcher cases; one
    additional integration case removes the recorded runtime and proves the same
    single unavailable-binding state. The stable plugin client does not expose

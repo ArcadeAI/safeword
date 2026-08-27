@@ -2403,7 +2403,7 @@ function skillName(command) {
 }
 function renderOpenCodeCommand(command) {
   return `---
-description: ${command.description}
+description: ${JSON.stringify(command.description)}
 ---
 
 Load and follow the \`${skillName(command)}\` skill completely. Pass \`$ARGUMENTS\` as the user's arguments.
@@ -2411,7 +2411,7 @@ Load and follow the \`${skillName(command)}\` skill completely. Pass \`$ARGUMENT
 }
 function renderOpenCodeAgent(agent) {
   return `---
-description: ${agent.description}
+description: ${JSON.stringify(agent.description)}
 mode: subagent
 ---
 
@@ -34445,14 +34445,14 @@ function withSelectedOwnedPaths(schema, includeOpenCode) {
 }
 function projectLifecycleSchema(cwd, agents) {
   const claudeDeliverySchema = schemaForClaudeDelivery(cwd);
+  const legacyClaudeActive = Object.keys(claudeDeliverySchema.ownedFiles).some((path4) => isLegacyClaudePath(path4)) || Object.keys(claudeDeliverySchema.jsonMerges).some((path4) => isLegacyClaudePath(path4));
   const deliverySchema = schemaForCodexDelivery(cwd, agents.includes("opencode") ? withOpenCodeSkillDelivery(claudeDeliverySchema) : claudeDeliverySchema);
   const surfaceSchema = schemaForProjectSurfaces(deliverySchema, [
     "core",
     ...agents.includes("cursor") ? ["cursor"] : [],
     ...agents.includes("opencode") ? ["opencode"] : []
   ]);
-  const legacyClaudeActive = Object.keys(deliverySchema.ownedFiles).some((path4) => isLegacyClaudePath(path4)) || Object.keys(deliverySchema.jsonMerges).some((path4) => isLegacyClaudePath(path4));
-  return withSelectedOwnedPaths(schemaForSharedAgentRuntime(surfaceSchema, agents.length === 0 || agents.includes("codex") || agents.includes("cursor") || legacyClaudeActive), agents.includes("opencode"));
+  return withSelectedOwnedPaths(schemaForSharedAgentRuntime(surfaceSchema, agents.length === 0 || agents.includes("codex") || agents.includes("cursor") || agents.includes("opencode") || legacyClaudeActive), agents.includes("opencode"));
 }
 var init_schema2 = __esm(() => {
   init_delivery_schema();
@@ -37797,7 +37797,7 @@ function dispatch(identity, envelope) {
         SAFEWORD_AGENT_RUNTIME: 'opencode',
         SAFEWORD_CODEX_DENY_MODE: 'exit-code',
       },
-      stdio: ['pipe', 'pipe', 'pipe'],
+      stdio: ['pipe', 'pipe', 'ignore'],
     });
     let stdout = '';
     let settled = false;
@@ -37815,6 +37815,7 @@ function dispatch(identity, envelope) {
       stdout += chunk;
     });
     child.once('error', () => finish(() => reject(new Error(DENIAL))));
+    child.stdin.once('error', () => finish(() => reject(new Error(DENIAL))));
     child.once('close', exitCode => finish(() => resolve({ exitCode, stdout })));
     child.stdin.end(JSON.stringify(envelope));
   });
@@ -37883,7 +37884,7 @@ export const Safeword = async input => {
 }
 function generateOpenCodeProfilePlugin(options = {}) {
   const configured = options.markerTimeoutMilliseconds;
-  const markerTimeoutMilliseconds = configured !== undefined && Number.isFinite(configured) && configured >= 0 ? configured : DEFAULT_MARKER_TIMEOUT_MILLISECONDS;
+  const markerTimeoutMilliseconds = configured !== undefined && Number.isFinite(configured) && configured > 0 ? configured : DEFAULT_MARKER_TIMEOUT_MILLISECONDS;
   return profilePluginSource(markerTimeoutMilliseconds);
 }
 var DEFAULT_MARKER_TIMEOUT_MILLISECONDS = 50;
@@ -37891,6 +37892,7 @@ var DEFAULT_MARKER_TIMEOUT_MILLISECONDS = 50;
 // src/opencode/profile.ts
 var exports_profile2 = {};
 __export(exports_profile2, {
+  uninstallOpenCodeProfile: () => uninstallOpenCodeProfile,
   resolveOpenCodeConfigRoot: () => resolveOpenCodeConfigRoot,
   reconcileOpenCodeProfile: () => reconcileOpenCodeProfile,
   openCodeProfilePaths: () => openCodeProfilePaths,
@@ -37914,6 +37916,10 @@ function usable(value) {
   return trimmed === undefined || trimmed.length === 0 || !nodePath60.isAbsolute(trimmed) ? undefined : trimmed;
 }
 function resolveOpenCodeConfigRoot(input) {
+  const explicit = input.env.OPENCODE_CONFIG_DIR?.trim();
+  if (explicit !== undefined && explicit.length > 0 && !nodePath60.isAbsolute(explicit)) {
+    return;
+  }
   const configured = usable(input.env.OPENCODE_CONFIG_DIR);
   if (configured !== undefined)
     return configured;
@@ -37932,6 +37938,7 @@ function openCodeProfilePaths(root) {
   return {
     plugin: nodePath60.join(root, "plugins", "safeword.js"),
     identity: nodePath60.join(safeword, "identity-v1.json"),
+    dispatcher: nodePath60.join(safeword, "dispatcher.mjs"),
     safeword,
     activation: nodePath60.join(safeword, "activation-v1"),
     conformance: nodePath60.join(safeword, "conformance-v1"),
@@ -37961,10 +37968,12 @@ function packagedDispatcherPath() {
   ].find((candidate) => existsSync33(candidate));
 }
 function installOpenCodeProfile(root) {
-  const dispatcherPath = packagedDispatcherPath();
-  if (dispatcherPath === undefined) {
+  const packagedPath = packagedDispatcherPath();
+  if (packagedPath === undefined) {
     return actionRequired("OPENCODE_DISPATCHER_MISSING", "The packaged OpenCode dispatcher is unavailable.", "safeword install --agents=opencode");
   }
+  const dispatcherBytes = readFileSync35(packagedPath);
+  const paths = openCodeProfilePaths(root);
   const pluginBytes = generateOpenCodeProfilePlugin();
   return reconcileOpenCodeProfile({
     operation: "install",
@@ -37976,9 +37985,39 @@ function installOpenCodeProfile(root) {
       plugin_path: "plugins/safeword.js",
       plugin_sha256: sha2564(pluginBytes),
       runtime_path: process.execPath,
-      dispatcher_path: dispatcherPath,
-      dispatcher_sha256: sha2564(readFileSync35(dispatcherPath))
-    }
+      dispatcher_path: paths.dispatcher,
+      dispatcher_sha256: sha2564(dispatcherBytes)
+    },
+    dispatcherBytes
+  });
+}
+function managedDispatcherProblem(paths, identity) {
+  if (identity.dispatcher_path !== paths.dispatcher)
+    return;
+  const dispatcher = observeFile(paths.dispatcher);
+  return dispatcher.kind === "file" && sha2564(dispatcher.bytes) === identity.dispatcher_sha256 ? undefined : actionRequired("OPENCODE_DISPATCHER_DRIFT", "The managed OpenCode dispatcher was modified; Safeword preserved it.", "safeword install --agents=opencode");
+}
+function uninstallOpenCodeProfile(root) {
+  const paths = openCodeProfilePaths(root);
+  const plugin = observeFile(paths.plugin);
+  const identity = parsedIdentity(observeFile(paths.identity));
+  if (plugin.kind === "absent" && identity.kind === "absent") {
+    return createResult({ state: "healthy" });
+  }
+  if (plugin.kind === "file" && identity.kind === "absent") {
+    return actionRequired("OPENCODE_IDENTITY_MISSING", "The OpenCode plugin has no verifiable Safeword identity; Safeword preserved it.", "safeword install --agents=opencode");
+  }
+  if (plugin.kind === "collision" || identity.kind !== "identity") {
+    return actionRequired("OPENCODE_PROFILE_COLLISION", "An OpenCode profile path contains unrecognized content; Safeword preserved it.", "safeword install --agents=opencode");
+  }
+  const dispatcherProblem = managedDispatcherProblem(paths, identity.value);
+  if (dispatcherProblem !== undefined)
+    return dispatcherProblem;
+  return reconcileOpenCodeProfile({
+    operation: "uninstall",
+    root,
+    pluginBytes: plugin.kind === "file" ? plugin.bytes : "",
+    identity: identity.value
   });
 }
 function hasCurrentProfileError(path4, identity) {
@@ -38001,7 +38040,7 @@ function observeIdentityBindings(plugin, identity) {
     return actionRequired("OPENCODE_PLUGIN_DRIFT", "The Safeword OpenCode plugin does not match its identity.", "safeword install --agents=opencode");
   }
   if (!hasCurrentDispatcher(identity)) {
-    return actionRequired("OPENCODE_DISPATCHER_UNAVAILABLE", "The identity-bound OpenCode dispatcher is unavailable.", "safeword install --agents=opencode", { installed: true, activated: false, pre_tool: "block" });
+    return actionRequired("OPENCODE_DISPATCHER_UNAVAILABLE", "The identity-bound OpenCode dispatcher is unavailable.", "safeword install --agents=opencode", { installed: true, activated: false, pre_tool: "block", conformant: false });
   }
   return;
 }
@@ -38099,15 +38138,27 @@ function observeProtectionEvidence(paths, identity, input) {
     data
   });
 }
+function profilePresenceProblem(plugin, identityFile) {
+  if (plugin.kind === "absent" && identityFile.kind === "absent") {
+    return actionRequired("OPENCODE_PROFILE_MISSING", "The Safeword OpenCode profile plugin is not installed.", "safeword install --agents=opencode", UNAVAILABLE_PROTECTION);
+  }
+  if (plugin.kind === "file" && identityFile.kind === "absent") {
+    return actionRequired("OPENCODE_IDENTITY_MISSING", "The OpenCode plugin has no verifiable Safeword identity.", "safeword install --agents=opencode", UNAVAILABLE_PROTECTION);
+  }
+  if (plugin.kind === "collision" || identityFile.kind !== "file") {
+    return actionRequired("OPENCODE_PROFILE_COLLISION", "The Safeword OpenCode profile cannot be verified.", "safeword install --agents=opencode", UNAVAILABLE_PROTECTION);
+  }
+  return;
+}
 function observeOpenCodeProfile(root, input = {}) {
   const paths = openCodeProfilePaths(root);
   const plugin = observeFile(paths.plugin);
   const identityFile = observeFile(paths.identity);
-  if (plugin.kind === "absent" && identityFile.kind === "absent") {
-    return actionRequired("OPENCODE_PROFILE_MISSING", "The Safeword OpenCode profile plugin is not installed.", "safeword install --agents=opencode", { installed: false, activated: false, pre_tool: "unavailable", conformant: false });
-  }
-  if (plugin.kind === "collision" || identityFile.kind !== "file") {
-    return actionRequired("OPENCODE_PROFILE_COLLISION", "The Safeword OpenCode profile cannot be verified.", "safeword install --agents=opencode");
+  const presenceProblem = profilePresenceProblem(plugin, identityFile);
+  if (presenceProblem !== undefined)
+    return presenceProblem;
+  if (identityFile.kind !== "file") {
+    return actionRequired("OPENCODE_PROFILE_COLLISION", "The Safeword OpenCode profile cannot be verified.", "safeword install --agents=opencode", UNAVAILABLE_PROTECTION);
   }
   let identity;
   try {
@@ -38116,13 +38167,13 @@ function observeOpenCodeProfile(root, input = {}) {
     identity = undefined;
   }
   if (identity === undefined) {
-    return actionRequired("OPENCODE_IDENTITY_COLLISION", "The Safeword OpenCode identity cannot be verified.", "safeword install --agents=opencode");
+    return actionRequired("OPENCODE_IDENTITY_COLLISION", "The Safeword OpenCode identity cannot be verified.", "safeword install --agents=opencode", { installed: false, activated: false, pre_tool: "unavailable", conformant: false });
   }
   const bindingProblem = observeIdentityBindings(plugin, identity);
   if (bindingProblem !== undefined)
     return bindingProblem;
   if (hasCurrentProfileError(paths.profileError, identity)) {
-    return actionRequired("OPENCODE_MARKER_RESOLUTION_FAILED", "OpenCode project classification could not be verified.", "safeword install --agents=opencode", { installed: true, activated: false, pre_tool: "block" });
+    return actionRequired("OPENCODE_MARKER_RESOLUTION_FAILED", "OpenCode project classification could not be verified.", "safeword install --agents=opencode", { installed: true, activated: false, pre_tool: "block", conformant: false });
   }
   return observeProtectionEvidence(paths, identity, input);
 }
@@ -38171,7 +38222,10 @@ function actionRequired(code, message, command, data) {
     data
   });
 }
-function writeManagedProfile(paths, pluginBytes, identity) {
+function writeManagedProfile(paths, pluginBytes, identity, dispatcherBytes) {
+  if (dispatcherBytes !== undefined) {
+    writeDurableFile(paths.dispatcher, dispatcherBytes, { mode: 384 });
+  }
   writeDurableFile(paths.plugin, pluginBytes, { mode: 384 });
   writeDurableFile(paths.identity, `${JSON.stringify(identity, undefined, 2)}
 `, { mode: 384 });
@@ -38185,6 +38239,7 @@ function removeEmptyDirectory(path4) {
 function removeManagedProfile(paths) {
   rmSync8(paths.plugin, { force: true });
   rmSync8(paths.identity, { force: true });
+  rmSync8(paths.dispatcher, { force: true });
   rmSync8(paths.activation, { recursive: true, force: true });
   rmSync8(paths.conformance, { recursive: true, force: true });
   rmSync8(paths.profileError, { force: true });
@@ -38209,8 +38264,21 @@ function terminalObservationResult(observation, operation) {
   }
   return;
 }
+function dispatcherInstallProblem(paths, input) {
+  if (input.operation !== "install" || input.dispatcherBytes === undefined)
+    return;
+  const dispatcher = observeFile(paths.dispatcher);
+  if (dispatcher.kind === "absent")
+    return;
+  const identity = parsedIdentity(observeFile(paths.identity));
+  const recognized = dispatcher.kind === "file" && (sha2564(dispatcher.bytes) === sha2564(input.dispatcherBytes) || identity.kind === "identity" && identity.value.dispatcher_path === paths.dispatcher && sha2564(dispatcher.bytes) === identity.value.dispatcher_sha256);
+  return recognized ? undefined : actionRequired("OPENCODE_DISPATCHER_COLLISION", "The OpenCode dispatcher path contains unrecognized content; Safeword preserved it.", "safeword install --agents=opencode");
+}
 function reconcileOpenCodeProfile(input) {
   const paths = openCodeProfilePaths(input.root);
+  const dispatcherProblem = dispatcherInstallProblem(paths, input);
+  if (dispatcherProblem !== undefined)
+    return dispatcherProblem;
   const initial = observeProfile(paths, input.pluginBytes, input.identity);
   const initialResult = terminalObservationResult(initial, input.operation);
   if (initialResult !== undefined)
@@ -38220,12 +38288,15 @@ function reconcileOpenCodeProfile(input) {
     return actionRequired("OPENCODE_PROFILE_BUSY", "Another OpenCode profile change is in progress.", `safeword ${input.operation} --agents=opencode`);
   }
   try {
+    const currentDispatcherProblem = dispatcherInstallProblem(paths, input);
+    if (currentDispatcherProblem !== undefined)
+      return currentDispatcherProblem;
     const current = observeProfile(paths, input.pluginBytes, input.identity);
     const currentResult = terminalObservationResult(current, input.operation);
     if (currentResult !== undefined)
       return currentResult;
     if (input.operation === "install") {
-      writeManagedProfile(paths, input.pluginBytes, input.identity);
+      writeManagedProfile(paths, input.pluginBytes, input.identity, input.dispatcherBytes);
     } else {
       removeManagedProfile(paths);
     }
@@ -38236,6 +38307,7 @@ function reconcileOpenCodeProfile(input) {
       removeEmptyDirectory(paths.safeword);
   }
 }
+var UNAVAILABLE_PROTECTION;
 var init_profile2 = __esm(() => {
   init_result();
   init_durable_write();
@@ -38243,597 +38315,12 @@ var init_profile2 = __esm(() => {
   init_version();
   init_evidence();
   init_identity();
-});
-
-// src/lifecycle/integrations.ts
-function invalidAdapter(id, reason) {
-  const label = typeof id === "string" && id.length > 0 ? id : "<unknown>";
-  throw new Error(`Invalid integration adapter ${label}: ${reason}.`);
-}
-function validateEvidenceCapability(id, name, capability) {
-  if (capability?.availability === "unavailable")
-    return;
-  if (capability?.availability !== "available" || typeof capability.proof !== "string" || capability.proof.length === 0) {
-    invalidAdapter(id, `${name} capability requires a proof mechanism`);
-  }
-}
-function validateProjectOwnership(adapter) {
-  if (!Array.isArray(adapter.project?.owned) || !Array.isArray(adapter.project.shared)) {
-    invalidAdapter(adapter.id, "project ownership must declare owned and shared surfaces");
-  }
-  const surfaces = [...adapter.project.owned, ...adapter.project.shared];
-  if (surfaces.some((surface) => typeof surface !== "string" || surface.length === 0)) {
-    invalidAdapter(adapter.id, "project ownership contains an undeclared surface");
-  }
-  if (new Set(surfaces).size !== surfaces.length) {
-    invalidAdapter(adapter.id, "project ownership surfaces must be unique");
-  }
-}
-function validateCapabilities(adapter) {
-  const lifecycle = adapter.capabilities?.lifecycle;
-  const blockableHooks = adapter.capabilities?.blockableHooks;
-  if (lifecycle === undefined || !Array.isArray(blockableHooks)) {
-    invalidAdapter(adapter.id, "lifecycle capabilities are incomplete");
-  }
-  for (const event of LIFECYCLE_EVENTS) {
-    const strength = lifecycle[event];
-    if (!LIFECYCLE_STRENGTHS.has(strength)) {
-      invalidAdapter(adapter.id, `lifecycle capability ${event} is invalid`);
-    }
-    if (strength === "block" && !blockableHooks.includes(event)) {
-      invalidAdapter(adapter.id, `blocking capability ${event} has no blockable hook`);
-    }
-  }
-  validateEvidenceCapability(adapter.id, "activation", adapter.capabilities.activation);
-  validateEvidenceCapability(adapter.id, "conformance", adapter.capabilities.conformance);
-}
-function defineIntegrationAdapter(adapter) {
-  if (typeof adapter?.id !== "string" || adapter.id.length === 0) {
-    invalidAdapter(adapter?.id, "id must be non-empty");
-  }
-  validateAdapterShape(adapter);
-  validateProjectOwnership(adapter);
-  validateProfile(adapter);
-  validateCapabilities(adapter);
-  validateOperations(adapter);
-  return Object.freeze(adapter);
-}
-function validateAdapterShape(adapter) {
-  const unexpectedKey = Object.keys(adapter).find((key) => !ADAPTER_KEYS.has(key));
-  if (unexpectedKey !== undefined) {
-    invalidAdapter(adapter.id, `unsupported operation or declaration ${unexpectedKey}`);
-  }
-}
-function validateProfile(adapter) {
-  if (typeof adapter.profile?.available !== "boolean") {
-    invalidAdapter(adapter.id, "profile support must be declared");
-  }
-  if (adapter.profile.available && typeof adapter.profile.observePrecondition !== "function") {
-    invalidAdapter(adapter.id, "profile support requires a precondition observer");
-  }
-}
-function validateOperations(adapter) {
-  for (const operation of ["observe", "install", "uninstall", "effects"]) {
-    if (typeof adapter[operation] !== "function") {
-      invalidAdapter(adapter.id, `${operation} operation is missing`);
-    }
-  }
-}
-function createIntegrationRegistry(entries) {
-  const ids = new Set;
-  return Object.freeze(entries.map((entry) => {
-    const adapter = defineIntegrationAdapter(entry);
-    if (ids.has(adapter.id))
-      invalidAdapter(adapter.id, "duplicate integration id");
-    ids.add(adapter.id);
-    return adapter;
-  }));
-}
-async function coordinateSelectedIntegrations(registry, selected, visit3) {
-  const selectedIds = new Set(selected);
-  const results = [];
-  for (const adapter of registry) {
-    if (selectedIds.has(adapter.id))
-      results.push(await visit3(adapter));
-  }
-  return results;
-}
-function profileUninstallEffects(agent, scope) {
-  let label = "Codex profile plugin";
-  if (agent === "claude") {
-    label = scope === "project" ? "Claude project plugin" : "Claude profile plugin";
-  }
-  const operation = agent === "claude" && scope === "project" ? "project" : "profile";
-  return {
-    ...EMPTY_EFFECTS3,
-    configuration: [{ kind: "deactivate", target: label, operation }],
-    destructive: [{ kind: "remove", target: label, operation }]
+  UNAVAILABLE_PROTECTION = {
+    installed: false,
+    activated: false,
+    pre_tool: "unavailable",
+    conformant: false
   };
-}
-function installEffects(agent, scope) {
-  if (agent === "codex") {
-    return {
-      ...EMPTY_EFFECTS3,
-      configuration: [{ kind: "enable", target: "Safeword Codex profile plugin" }]
-    };
-  }
-  return {
-    ...EMPTY_EFFECTS3,
-    configuration: [
-      { kind: "add", target: "safeword", operation: scope },
-      { kind: "enable", target: "safeword marketplace auto-update", operation: scope },
-      {
-        kind: "enable",
-        target: "safeword last-known-good marketplace fallback",
-        operation: scope
-      },
-      { kind: "install", target: "safeword@safeword", operation: scope }
-    ],
-    network: [
-      { kind: "add", target: "Claude plugin marketplace", operation: scope },
-      { kind: "install", target: "Claude plugin marketplace", operation: scope }
-    ]
-  };
-}
-function claudeEffects(context) {
-  const observed = context.observation;
-  if (context.operation === "install") {
-    return observed?.installRequired === false ? EMPTY_EFFECTS3 : installEffects("claude", context.scope);
-  }
-  return observed?.plugin === undefined ? EMPTY_EFFECTS3 : profileUninstallEffects("claude", context.scope);
-}
-function codexEffects(context) {
-  const observed = context.observation;
-  if (context.operation === "install") {
-    return observed?.installRequired === false ? EMPTY_EFFECTS3 : installEffects("codex", context.scope);
-  }
-  return observed?.plugin?.installed === true ? profileUninstallEffects("codex", context.scope) : EMPTY_EFFECTS3;
-}
-async function resolveOpenCodeRoot(context) {
-  const { resolveOpenCodeConfigRoot: resolveOpenCodeConfigRoot2 } = await Promise.resolve().then(() => (init_profile2(), exports_profile2));
-  return resolveOpenCodeConfigRoot2({
-    platform: process.platform === "win32" ? "windows" : "unix",
-    env: context.environment ?? process.env
-  });
-}
-function openCodeConfigRootRequired() {
-  return createResult({
-    state: "action_required",
-    findings: [
-      {
-        code: "OPENCODE_CONFIG_ROOT_UNRESOLVED",
-        message: "Set OPENCODE_CONFIG_DIR, XDG_CONFIG_HOME, or HOME for OpenCode.",
-        severity: "error"
-      }
-    ],
-    nextActions: [
-      {
-        command: "safeword install --agents=opencode",
-        mutates: true,
-        requiresHuman: true
-      }
-    ]
-  });
-}
-async function observeOpenCode(context) {
-  const root = await resolveOpenCodeRoot(context);
-  if (root === undefined) {
-    return openCodeConfigRootRequired();
-  }
-  const { observeOpenCodeProfile: observeOpenCodeProfile2 } = await Promise.resolve().then(() => (init_profile2(), exports_profile2));
-  return observeOpenCodeProfile2(root, { projectDirectory: context.cwd });
-}
-var LIFECYCLE_EVENTS, ADAPTER_KEYS, LIFECYCLE_STRENGTHS, EMPTY_EFFECTS3, FULL_HOOK_CAPABILITIES, claude, codex, opencode, cursor, PRODUCTION_INTEGRATIONS;
-var init_integrations = __esm(() => {
-  init_result();
-  LIFECYCLE_EVENTS = [
-    "session_start",
-    "prompt_submit",
-    "pre_tool",
-    "post_tool",
-    "stop"
-  ];
-  ADAPTER_KEYS = new Set([
-    "id",
-    "defaultSelected",
-    "project",
-    "profile",
-    "capabilities",
-    "observe",
-    "install",
-    "uninstall",
-    "effects"
-  ]);
-  LIFECYCLE_STRENGTHS = new Set(["block", "observe", "unavailable"]);
-  EMPTY_EFFECTS3 = {
-    files: [],
-    packages: [],
-    configuration: [],
-    network: [],
-    destructive: []
-  };
-  FULL_HOOK_CAPABILITIES = {
-    lifecycle: {
-      session_start: "observe",
-      prompt_submit: "observe",
-      pre_tool: "block",
-      post_tool: "observe",
-      stop: "block"
-    },
-    blockableHooks: ["pre_tool", "stop"],
-    activation: { availability: "available", proof: "observe" },
-    conformance: { availability: "unavailable" }
-  };
-  claude = defineIntegrationAdapter({
-    id: "claude",
-    defaultSelected: true,
-    project: { owned: ["claude"], shared: ["skills"] },
-    profile: {
-      available: true,
-      async observePrecondition(context) {
-        const { claudeInstallRequiresMutation: claudeInstallRequiresMutation2, observeClaudeProfile: observeClaudeProfile2 } = await Promise.resolve().then(() => (init_profile(), exports_profile));
-        return {
-          ...observeClaudeProfile2(context.cwd, context.scope),
-          ...context.operation === "install" && {
-            installRequired: claudeInstallRequiresMutation2(context.cwd, context.scope)
-          }
-        };
-      }
-    },
-    capabilities: FULL_HOOK_CAPABILITIES,
-    async observe(context) {
-      const { observeClaudeStatus: observeClaudeStatus2 } = await Promise.resolve().then(() => (init_status(), exports_status));
-      return observeClaudeStatus2(context.cwd);
-    },
-    async install(context) {
-      if (context.ports?.installClaude !== undefined)
-        return context.ports.installClaude();
-      const { installClaudePlugin: installClaudePlugin2 } = await Promise.resolve().then(() => (init_profile(), exports_profile));
-      return installClaudePlugin2(context.cwd, context.scope);
-    },
-    async uninstall(context) {
-      const { uninstallClaudePlugin: uninstallClaudePlugin2 } = await Promise.resolve().then(() => (init_profile(), exports_profile));
-      return uninstallClaudePlugin2(context.cwd, context.scope);
-    },
-    effects(context) {
-      return claudeEffects(context);
-    }
-  });
-  codex = defineIntegrationAdapter({
-    id: "codex",
-    defaultSelected: true,
-    project: { owned: ["codex"], shared: [] },
-    profile: {
-      available: true,
-      async observePrecondition(context) {
-        const { codexInstallRequiresMutation: codexInstallRequiresMutation2, observeCodexMigrationResult: observeCodexMigrationResult2 } = await Promise.resolve().then(() => (init_operations(), exports_operations));
-        const observation = observeCodexMigrationResult2(context.cwd);
-        return {
-          ...observation,
-          ...context.operation === "install" && {
-            installRequired: codexInstallRequiresMutation2(observation)
-          }
-        };
-      }
-    },
-    capabilities: FULL_HOOK_CAPABILITIES,
-    async observe(context) {
-      const { observeCodexMigration: observeCodexMigration2 } = await Promise.resolve().then(() => (init_operations(), exports_operations));
-      return observeCodexMigration2(context.cwd, context.environment);
-    },
-    async install(context) {
-      if (context.projectResult?.findings.some((finding) => finding.code === "CODEX_PLUGIN_HANDOFF_DEFERRED") === true) {
-        return createResult({ state: "healthy" });
-      }
-      if (context.ports?.installCodex === undefined) {
-        invalidAdapter("codex", "install port is unavailable");
-      }
-      return context.ports.installCodex();
-    },
-    async uninstall() {
-      const { uninstallCodexPlugin: uninstallCodexPlugin2 } = await Promise.resolve().then(() => (init_operations(), exports_operations));
-      return uninstallCodexPlugin2();
-    },
-    effects(context) {
-      return codexEffects(context);
-    }
-  });
-  opencode = defineIntegrationAdapter({
-    id: "opencode",
-    defaultSelected: false,
-    project: { owned: ["opencode"], shared: ["skills"] },
-    profile: {
-      available: true,
-      async observePrecondition(context) {
-        return observeOpenCode(context);
-      },
-      async preflight(context) {
-        return await resolveOpenCodeRoot(context) === undefined ? openCodeConfigRootRequired() : createResult({ state: "healthy" });
-      }
-    },
-    capabilities: {
-      lifecycle: {
-        session_start: "observe",
-        prompt_submit: "observe",
-        pre_tool: "block",
-        post_tool: "observe",
-        stop: "observe"
-      },
-      blockableHooks: ["pre_tool"],
-      activation: { availability: "available", proof: "activation-v1" },
-      conformance: { availability: "available", proof: "conformance-v1" }
-    },
-    observe(context) {
-      return observeOpenCode(context);
-    },
-    async install(context) {
-      const root = await resolveOpenCodeRoot(context);
-      if (root === undefined)
-        return openCodeConfigRootRequired();
-      const { installOpenCodeProfile: installOpenCodeProfile2 } = await Promise.resolve().then(() => (init_profile2(), exports_profile2));
-      return installOpenCodeProfile2(root);
-    },
-    uninstall(context) {
-      return observeOpenCode(context);
-    },
-    effects() {
-      return EMPTY_EFFECTS3;
-    }
-  });
-  cursor = defineIntegrationAdapter({
-    id: "cursor",
-    defaultSelected: false,
-    project: { owned: ["cursor"], shared: ["skills"] },
-    profile: { available: false },
-    capabilities: {
-      lifecycle: {
-        session_start: "unavailable",
-        prompt_submit: "unavailable",
-        pre_tool: "block",
-        post_tool: "observe",
-        stop: "observe"
-      },
-      blockableHooks: ["pre_tool"],
-      activation: { availability: "unavailable" },
-      conformance: { availability: "unavailable" }
-    },
-    async observe(context) {
-      const [{ hasCursorProjectAssets: hasCursorProjectAssets2, observeCursorProject: observeCursorProject2 }, { projectLifecycleSchema: projectLifecycleSchema2 }] = await Promise.all([Promise.resolve().then(() => (init_cursor(), exports_cursor)), Promise.resolve().then(() => (init_schema2(), exports_schema))]);
-      const schema = projectLifecycleSchema2(context.cwd, context.agents);
-      const result = observeCursorProject2(context.cwd, schema);
-      if (context.operation !== "uninstall")
-        return result;
-      return {
-        ...result,
-        data: { ...result.data, present: hasCursorProjectAssets2(context.cwd, schema) }
-      };
-    },
-    async install(context) {
-      const result = await cursor.observe(context);
-      return { ...result, changed: context.projectResult?.changed === true };
-    },
-    uninstall(context) {
-      const present = context.observation?.data?.present;
-      return createResult({ state: present === true ? "changed" : "healthy" });
-    },
-    effects() {
-      return EMPTY_EFFECTS3;
-    }
-  });
-  PRODUCTION_INTEGRATIONS = createIntegrationRegistry([claude, codex, opencode, cursor]);
-});
-
-// src/lifecycle/status.ts
-var exports_status2 = {};
-__export(exports_status2, {
-  summarizeLifecycleStatus: () => summarizeLifecycleStatus,
-  projectObservationData: () => projectObservationData,
-  observeStatus: () => observeStatus,
-  observeLifecycleSurfaces: () => observeLifecycleSurfaces,
-  observeLifecycleStatus: () => observeLifecycleStatus,
-  lifecycleSurfaceSummaries: () => lifecycleSurfaceSummaries
-});
-function healthFindings(values, code, severity) {
-  return values.map((message) => ({ code, message, severity }));
-}
-function statusNextActions(blockingFindings, versionAction) {
-  if (versionAction !== undefined)
-    return [versionAction];
-  return blockingFindings.length === 0 ? [] : [{ command: "safeword plan", mutates: false, requiresHuman: false }];
-}
-function projectVersionFinding(cwd, projectVersion, cliVersion) {
-  if (projectVersion === undefined)
-    return {};
-  if (!isSafePackageVersion(projectVersion)) {
-    return {
-      finding: {
-        code: "PROJECT_VERSION_UNSAFE",
-        message: "Project version is not safe to use in a package install command; inspect .safeword/version.",
-        severity: "warning"
-      }
-    };
-  }
-  const comparison = compareVersions(projectVersion, cliVersion);
-  if (comparison < 0) {
-    return {
-      finding: {
-        code: "PROJECT_UPDATE_AVAILABLE",
-        message: `Project config v${projectVersion} can be upgraded to v${cliVersion}.`,
-        severity: "info"
-      },
-      nextAction: { command: "safeword install", mutates: true, requiresHuman: false }
-    };
-  }
-  if (comparison <= 0)
-    return {};
-  const packageManager = detectPackageManager(cwd);
-  const runUpgrade = packageManager === "bun" || packageManager === "yarn" ? `${packageManager} run safeword install` : `${packageManager} exec safeword install`;
-  return {
-    finding: {
-      code: "CLI_OLDER_THAN_PROJECT",
-      message: `Project config (v${projectVersion}) is newer than CLI (v${cliVersion}).`,
-      severity: "warning"
-    },
-    nextAction: {
-      command: `${packageManager} add -D safeword@${projectVersion} && ${runUpgrade}`,
-      mutates: true,
-      requiresHuman: false
-    }
-  };
-}
-async function observeStatus(cwd, agents = DEFAULT_AGENT_INTEGRATIONS, environment = process.env) {
-  const result = await observeProjectStatus(cwd, agents);
-  return withGlobalGuidance(result, environment);
-}
-async function observeLifecycleSurfaces(cwd, agents, environment = process.env) {
-  const project = await observeStatus(cwd, agents, environment);
-  const integrationSurfaces = await coordinateSelectedIntegrations(PRODUCTION_INTEGRATIONS, agents, async (adapter) => ({
-    name: adapter.id,
-    result: await adapter.observe({
-      cwd,
-      agents,
-      operation: "check",
-      scope: "project",
-      environment
-    })
-  }));
-  return [{ name: "project", result: project }, ...integrationSurfaces];
-}
-function lifecycleSurfaceSummaries(surfaces) {
-  return surfaces.map((surface) => ({
-    name: surface.name,
-    selected: true,
-    state: surface.result.state
-  }));
-}
-function projectObservationData(surfaces) {
-  const project = surfaces.find((surface) => surface.name === "project")?.result.data;
-  return typeof project === "object" && project !== null && !Array.isArray(project) ? project : {};
-}
-function summarizeLifecycleStatus(agents, surfaces) {
-  const results = surfaces.map((surface) => surface.result);
-  return createResult({
-    state: combinedResultState(results),
-    changed: results.some((result) => result.changed),
-    effects: combineEffects(surfaces.map((surface) => surface.result.effects)),
-    findings: results.flatMap((result) => result.findings),
-    errors: results.flatMap((result) => result.errors),
-    recovery: results.flatMap((result) => result.recovery),
-    nextActions: results.flatMap((result) => result.nextActions).slice(0, 1),
-    data: {
-      ...projectObservationData(surfaces),
-      command: "status",
-      operation: "status",
-      selected_agents: agents,
-      surfaces: lifecycleSurfaceSummaries(surfaces)
-    }
-  });
-}
-async function observeLifecycleStatus(cwd, agents, environment = process.env) {
-  return summarizeLifecycleStatus(agents, await observeLifecycleSurfaces(cwd, agents, environment));
-}
-function withGlobalGuidance(result, environment) {
-  if (result.state === "failed")
-    return result;
-  if (result.data?.configured !== true)
-    return result;
-  const diagnostic = legacyGlobalGuidanceDiagnostic(observeLegacyGlobalGuidance(environment));
-  if (diagnostic.finding === undefined) {
-    return {
-      ...result,
-      data: { ...result.data, global_guidance: diagnostic.observation }
-    };
-  }
-  return {
-    ...result,
-    state: "action_required",
-    findings: [...result.findings, diagnostic.finding],
-    nextActions: [
-      ...result.nextActions,
-      ...diagnostic.nextAction === undefined ? [] : [diagnostic.nextAction]
-    ],
-    data: { ...result.data, global_guidance: diagnostic.observation }
-  };
-}
-async function observeProjectStatus(cwd, agents) {
-  try {
-    const schema = projectLifecycleSchema(cwd, agents);
-    const health = await checkHealth(cwd, { schema });
-    if (!health.configured) {
-      return createResult({
-        state: "action_required",
-        findings: [
-          {
-            code: "PROJECT_NOT_CONFIGURED",
-            message: "Safeword is not configured in this project.",
-            severity: "warning"
-          }
-        ],
-        nextActions: [{ command: "safeword install", mutates: true, requiresHuman: false }],
-        data: { configured: false, cli_version: health.cliVersion }
-      });
-    }
-    const blockingFindings = [
-      ...healthFindings(health.missingPacks.map((pack) => `${pack} language pack is not installed.`), "MISSING_LANGUAGE_PACK", "error"),
-      ...healthFindings(health.missingPackages.map((packageName2) => `${packageName2} package is not installed.`), "MISSING_PACKAGE", "error"),
-      ...healthFindings(health.missingPythonTools.map((tool) => `${tool} is not declared for this Python project.`), "MISSING_PYTHON_TOOL", "error"),
-      ...healthFindings(health.issues, "PROJECT_DRIFT", "warning")
-    ];
-    const versionGuidance = projectVersionFinding(cwd, health.projectVersion, health.cliVersion);
-    if (versionGuidance.finding?.severity === "warning") {
-      blockingFindings.push(versionGuidance.finding);
-    }
-    const findings = [
-      {
-        code: "SAFEWORD_VERSION",
-        message: `Safeword CLI v${health.cliVersion}; project config v${health.projectVersion ?? "unknown"}.`,
-        severity: "info"
-      },
-      ...blockingFindings,
-      ...versionGuidance.finding === undefined || versionGuidance.finding.severity === "warning" ? [] : [versionGuidance.finding],
-      ...healthFindings(health.advisories, "PROJECT_ADVISORY", "info"),
-      ...unselectedCursorFinding(cwd, agents)
-    ];
-    const nextActions = statusNextActions(blockingFindings, versionGuidance.nextAction);
-    return createResult({
-      state: blockingFindings.length === 0 ? "healthy" : "action_required",
-      findings,
-      nextActions,
-      data: {
-        configured: true,
-        cli_version: health.cliVersion,
-        project_version: health.projectVersion
-      }
-    });
-  } catch (statusError) {
-    return createResult({
-      state: "failed",
-      errors: [
-        {
-          code: "STATUS_FAILED",
-          message: statusError instanceof Error ? statusError.message : String(statusError),
-          retryable: false
-        }
-      ],
-      nextActions: [
-        {
-          command: "safeword doctor --verbose",
-          mutates: false,
-          requiresHuman: true
-        }
-      ]
-    });
-  }
-}
-var init_status2 = __esm(() => {
-  init_agent_selection();
-  init_result();
-  init_legacy_global_guidance();
-  init_health();
-  init_install();
-  init_cursor();
-  init_integrations();
-  init_schema2();
 });
 
 // src/opencode/conformance-fixture.ts
@@ -39173,16 +38660,13 @@ var init_conformance_fixture = __esm(() => {
 var exports_conformance = {};
 __export(exports_conformance, {
   runOpenCodeConformance: () => runOpenCodeConformance,
+  observeOpenCodeVersion: () => observeOpenCodeVersion,
   SUPPORTED_OPENCODE_VERSION: () => SUPPORTED_OPENCODE_VERSION
 });
 import { spawnSync as spawnSync7 } from "child_process";
 import { createHash as createHash16 } from "crypto";
-import { accessSync as accessSync2, constants as constants2, readFileSync as readFileSync37, realpathSync as realpathSync8, statSync as statSync5 } from "fs";
+import { accessSync as accessSync2, constants as constants2, lstatSync as lstatSync13, readFileSync as readFileSync37, realpathSync as realpathSync8, statSync as statSync5 } from "fs";
 import nodePath62 from "path";
-function conformanceFault(environment) {
-  const value = environment.SAFEWORD_OPENCODE_CONFORMANCE_FAULT;
-  return CONFORMANCE_FAULTS.has(value) ? value : undefined;
-}
 function resolveExecutable(environment) {
   const extensions = process.platform === "win32" ? (environment.PATHEXT ?? ".COM;.EXE;.BAT;.CMD").split(";") : [""];
   const pathEntries = (environment.PATH ?? "").split(nodePath62.delimiter).filter(Boolean);
@@ -39246,7 +38730,7 @@ function installedProfile(environment) {
     return;
   const paths = openCodeProfilePaths(root);
   try {
-    if (!statSync5(paths.plugin).isFile() || !statSync5(paths.identity).isFile())
+    if (!lstatSync13(paths.plugin).isFile() || !lstatSync13(paths.identity).isFile())
       return;
     const identity = parseOpenCodeIdentity(JSON.parse(readFileSync37(paths.identity, "utf8")));
     if (identity?.safeword_version !== VERSION)
@@ -39258,6 +38742,17 @@ function installedProfile(environment) {
   } catch {
     return;
   }
+}
+function observeOpenCodeVersion(environment) {
+  const executable = resolveExecutable(environment);
+  if (executable === undefined)
+    return;
+  const version2 = spawnSync7(executable, ["--version"], {
+    encoding: "utf8",
+    env: environment,
+    timeout: 1e4
+  });
+  return version2.status === 0 && version2.error === undefined ? version2.stdout.trim() : undefined;
 }
 function executableBoundary(environment) {
   const executable = resolveExecutable(environment);
@@ -39283,69 +38778,39 @@ function executableBoundary(environment) {
   }
   return { executable };
 }
-async function runOpenCodeConformance(environment = process.env) {
+function failedProof(code, message) {
+  return createResult({
+    state: "failed",
+    errors: [{ code, message, retryable: true }],
+    data: { command: "conformance", agent: "opencode" }
+  });
+}
+async function proveOpenCodeHost(executable, environment, fault) {
+  if (!proveOpenCodeCatalogue(executable, environment, fault)) {
+    return failedProof("OPENCODE_CATALOGUE_CONFORMANCE_FAILED", "OpenCode did not discover the required Safeword catalogue.");
+  }
+  const denial = await proveOpenCodeDenial(executable, environment, fault !== "disarmed-denial");
+  if (!denial.denialSurfaced || !denial.sentinelAbsent) {
+    return failedProof("OPENCODE_DENIAL_CONFORMANCE_FAILED", "OpenCode did not prove Safeword denial without a side effect.");
+  }
+  if (!await proveOpenCodeControl(executable, environment)) {
+    return failedProof("OPENCODE_CONTROL_CONFORMANCE_FAILED", "The disarmed OpenCode sentinel did not produce its expected side effect.");
+  }
+  const skill = await proveOpenCodeSkillInvocation(executable, environment);
+  return skill.argumentsObserved && skill.canonicalBodyObserved ? undefined : failedProof("OPENCODE_SKILL_CONFORMANCE_FAILED", "OpenCode did not load the canonical skill with the exact command arguments.");
+}
+async function runOpenCodeConformance(environment = process.env, options = {}) {
   const boundary = executableBoundary(environment);
   if ("result" in boundary)
     return boundary.result;
   const { executable } = boundary;
-  const fault = conformanceFault(environment);
+  const { fault } = options;
   const profile = installedProfile(environment);
   if (profile === undefined)
     return profileRemediation();
-  if (!proveOpenCodeCatalogue(executable, environment, fault)) {
-    return createResult({
-      state: "failed",
-      errors: [
-        {
-          code: "OPENCODE_CATALOGUE_CONFORMANCE_FAILED",
-          message: "OpenCode did not discover the required Safeword catalogue.",
-          retryable: true
-        }
-      ],
-      data: { command: "conformance", agent: "opencode" }
-    });
-  }
-  const denial = await proveOpenCodeDenial(executable, environment, fault !== "disarmed-denial");
-  if (!denial.denialSurfaced || !denial.sentinelAbsent) {
-    return createResult({
-      state: "failed",
-      errors: [
-        {
-          code: "OPENCODE_DENIAL_CONFORMANCE_FAILED",
-          message: "OpenCode did not prove Safeword denial without a side effect.",
-          retryable: true
-        }
-      ],
-      data: { command: "conformance", agent: "opencode" }
-    });
-  }
-  if (!await proveOpenCodeControl(executable, environment)) {
-    return createResult({
-      state: "failed",
-      errors: [
-        {
-          code: "OPENCODE_CONTROL_CONFORMANCE_FAILED",
-          message: "The disarmed OpenCode sentinel did not produce its expected side effect.",
-          retryable: true
-        }
-      ],
-      data: { command: "conformance", agent: "opencode" }
-    });
-  }
-  const skill = await proveOpenCodeSkillInvocation(executable, environment);
-  if (!skill.argumentsObserved || !skill.canonicalBodyObserved) {
-    return createResult({
-      state: "failed",
-      errors: [
-        {
-          code: "OPENCODE_SKILL_CONFORMANCE_FAILED",
-          message: "OpenCode did not load the canonical skill with the exact command arguments.",
-          retryable: true
-        }
-      ],
-      data: { command: "conformance", agent: "opencode" }
-    });
-  }
+  const proofFailure = await proveOpenCodeHost(executable, environment, fault);
+  if (proofFailure !== undefined)
+    return proofFailure;
   writePassingOpenCodeConformance(openCodeProfilePaths(profile.root).conformance, {
     schema_version: 1,
     safeword_version: profile.identity.safeword_version,
@@ -39374,7 +38839,7 @@ async function runOpenCodeConformance(environment = process.env) {
     }
   });
 }
-var SUPPORTED_OPENCODE_VERSION = "1.18.23", CONFORMANCE_FAULTS;
+var SUPPORTED_OPENCODE_VERSION = "1.18.23";
 var init_conformance = __esm(() => {
   init_result();
   init_version();
@@ -39382,12 +38847,631 @@ var init_conformance = __esm(() => {
   init_evidence();
   init_identity();
   init_profile2();
-  CONFORMANCE_FAULTS = new Set([
-    "missing-command",
-    "missing-subagent",
-    "missing-skill",
-    "disarmed-denial"
+});
+
+// src/lifecycle/integrations.ts
+function invalidAdapter(id, reason) {
+  const label = typeof id === "string" && id.length > 0 ? id : "<unknown>";
+  throw new Error(`Invalid integration adapter ${label}: ${reason}.`);
+}
+function validateEvidenceCapability(id, name, capability) {
+  if (capability?.availability === "unavailable")
+    return;
+  if (capability?.availability !== "available" || typeof capability.proof !== "string" || capability.proof.length === 0) {
+    invalidAdapter(id, `${name} capability requires a proof mechanism`);
+  }
+}
+function validateProjectOwnership(adapter) {
+  if (!Array.isArray(adapter.project?.owned) || !Array.isArray(adapter.project.shared)) {
+    invalidAdapter(adapter.id, "project ownership must declare owned and shared surfaces");
+  }
+  const surfaces = [...adapter.project.owned, ...adapter.project.shared];
+  if (surfaces.some((surface) => typeof surface !== "string" || surface.length === 0)) {
+    invalidAdapter(adapter.id, "project ownership contains an undeclared surface");
+  }
+  if (new Set(surfaces).size !== surfaces.length) {
+    invalidAdapter(adapter.id, "project ownership surfaces must be unique");
+  }
+}
+function validateCapabilities(adapter) {
+  const lifecycle = adapter.capabilities?.lifecycle;
+  const blockableHooks = adapter.capabilities?.blockableHooks;
+  if (lifecycle === undefined || !Array.isArray(blockableHooks)) {
+    invalidAdapter(adapter.id, "lifecycle capabilities are incomplete");
+  }
+  for (const event of LIFECYCLE_EVENTS) {
+    const strength = lifecycle[event];
+    if (!LIFECYCLE_STRENGTHS.has(strength)) {
+      invalidAdapter(adapter.id, `lifecycle capability ${event} is invalid`);
+    }
+    if (strength === "block" && !blockableHooks.includes(event)) {
+      invalidAdapter(adapter.id, `blocking capability ${event} has no blockable hook`);
+    }
+  }
+  validateEvidenceCapability(adapter.id, "activation", adapter.capabilities.activation);
+  validateEvidenceCapability(adapter.id, "conformance", adapter.capabilities.conformance);
+}
+function defineIntegrationAdapter(adapter) {
+  if (typeof adapter?.id !== "string" || adapter.id.length === 0) {
+    invalidAdapter(adapter?.id, "id must be non-empty");
+  }
+  validateAdapterShape(adapter);
+  validateProjectOwnership(adapter);
+  validateProfile(adapter);
+  validateCapabilities(adapter);
+  validateOperations(adapter);
+  return Object.freeze(adapter);
+}
+function validateAdapterShape(adapter) {
+  const unexpectedKey = Object.keys(adapter).find((key) => !ADAPTER_KEYS.has(key));
+  if (unexpectedKey !== undefined) {
+    invalidAdapter(adapter.id, `unsupported operation or declaration ${unexpectedKey}`);
+  }
+}
+function validateProfile(adapter) {
+  if (typeof adapter.profile?.available !== "boolean") {
+    invalidAdapter(adapter.id, "profile support must be declared");
+  }
+  if (adapter.profile.available && typeof adapter.profile.observePrecondition !== "function") {
+    invalidAdapter(adapter.id, "profile support requires a precondition observer");
+  }
+}
+function validateOperations(adapter) {
+  for (const operation of ["observe", "install", "uninstall", "effects"]) {
+    if (typeof adapter[operation] !== "function") {
+      invalidAdapter(adapter.id, `${operation} operation is missing`);
+    }
+  }
+}
+function createIntegrationRegistry(entries) {
+  const ids = new Set;
+  return Object.freeze(entries.map((entry) => {
+    const adapter = defineIntegrationAdapter(entry);
+    if (ids.has(adapter.id))
+      invalidAdapter(adapter.id, "duplicate integration id");
+    ids.add(adapter.id);
+    return adapter;
+  }));
+}
+async function coordinateSelectedIntegrations(registry, selected, visit3) {
+  const selectedIds = new Set(selected);
+  const results = [];
+  for (const adapter of registry) {
+    if (selectedIds.has(adapter.id))
+      results.push(await visit3(adapter));
+  }
+  return results;
+}
+function profileUninstallEffects(agent, scope) {
+  let label = "Codex profile plugin";
+  if (agent === "claude") {
+    label = scope === "project" ? "Claude project plugin" : "Claude profile plugin";
+  }
+  const operation = agent === "claude" && scope === "project" ? "project" : "profile";
+  return {
+    ...EMPTY_EFFECTS3,
+    configuration: [{ kind: "deactivate", target: label, operation }],
+    destructive: [{ kind: "remove", target: label, operation }]
+  };
+}
+function installEffects(agent, scope) {
+  if (agent === "codex") {
+    return {
+      ...EMPTY_EFFECTS3,
+      configuration: [{ kind: "enable", target: "Safeword Codex profile plugin" }]
+    };
+  }
+  return {
+    ...EMPTY_EFFECTS3,
+    configuration: [
+      { kind: "add", target: "safeword", operation: scope },
+      { kind: "enable", target: "safeword marketplace auto-update", operation: scope },
+      {
+        kind: "enable",
+        target: "safeword last-known-good marketplace fallback",
+        operation: scope
+      },
+      { kind: "install", target: "safeword@safeword", operation: scope }
+    ],
+    network: [
+      { kind: "add", target: "Claude plugin marketplace", operation: scope },
+      { kind: "install", target: "Claude plugin marketplace", operation: scope }
+    ]
+  };
+}
+function claudeEffects(context) {
+  const observed = context.observation;
+  if (context.operation === "install") {
+    return observed?.installRequired === false ? EMPTY_EFFECTS3 : installEffects("claude", context.scope);
+  }
+  if (context.operation === "check")
+    return EMPTY_EFFECTS3;
+  return observed?.plugin === undefined ? EMPTY_EFFECTS3 : profileUninstallEffects("claude", context.scope);
+}
+function codexEffects(context) {
+  const observed = context.observation;
+  if (context.operation === "install") {
+    return observed?.installRequired === false ? EMPTY_EFFECTS3 : installEffects("codex", context.scope);
+  }
+  if (context.operation === "check")
+    return EMPTY_EFFECTS3;
+  return observed?.plugin?.installed === true ? profileUninstallEffects("codex", context.scope) : EMPTY_EFFECTS3;
+}
+async function resolveOpenCodeRoot(context) {
+  const { resolveOpenCodeConfigRoot: resolveOpenCodeConfigRoot2 } = await Promise.resolve().then(() => (init_profile2(), exports_profile2));
+  return resolveOpenCodeConfigRoot2({
+    platform: process.platform === "win32" ? "windows" : "unix",
+    env: context.environment ?? process.env
+  });
+}
+function openCodeConfigRootRequired() {
+  return createResult({
+    state: "action_required",
+    findings: [
+      {
+        code: "OPENCODE_CONFIG_ROOT_UNRESOLVED",
+        message: "Set OPENCODE_CONFIG_DIR, XDG_CONFIG_HOME, or HOME for OpenCode.",
+        severity: "error"
+      }
+    ],
+    nextActions: [
+      {
+        command: "safeword install --agents=opencode",
+        mutates: true,
+        requiresHuman: true
+      }
+    ]
+  });
+}
+async function observeOpenCode(context) {
+  const root = await resolveOpenCodeRoot(context);
+  if (root === undefined) {
+    return openCodeConfigRootRequired();
+  }
+  const [{ observeOpenCodeProfile: observeOpenCodeProfile2 }, { observeOpenCodeVersion: observeOpenCodeVersion2 }] = await Promise.all([
+    Promise.resolve().then(() => (init_profile2(), exports_profile2)),
+    Promise.resolve().then(() => (init_conformance(), exports_conformance))
   ]);
+  return observeOpenCodeProfile2(root, {
+    projectDirectory: context.cwd,
+    opencodeVersion: observeOpenCodeVersion2(context.environment ?? process.env) ?? ""
+  });
+}
+function openCodeEffects(context) {
+  if (context.operation === "check")
+    return EMPTY_EFFECTS3;
+  const installed = context.observation?.data?.installed;
+  if (context.operation === "install" && installed === true)
+    return EMPTY_EFFECTS3;
+  if (context.operation === "uninstall" && installed !== true)
+    return EMPTY_EFFECTS3;
+  const files = [
+    "OpenCode profile plugin",
+    "OpenCode Safeword identity",
+    "OpenCode Safeword dispatcher"
+  ].map((target) => ({ kind: context.operation === "install" ? "add" : "remove", target }));
+  return {
+    ...EMPTY_EFFECTS3,
+    files,
+    destructive: context.operation === "uninstall" ? files.map(({ target }) => ({ kind: "remove", target, operation: "profile" })) : []
+  };
+}
+var LIFECYCLE_EVENTS, ADAPTER_KEYS, LIFECYCLE_STRENGTHS, EMPTY_EFFECTS3, FULL_HOOK_CAPABILITIES, claude, codex, opencode, cursor, PRODUCTION_INTEGRATIONS;
+var init_integrations = __esm(() => {
+  init_result();
+  LIFECYCLE_EVENTS = [
+    "session_start",
+    "prompt_submit",
+    "pre_tool",
+    "post_tool",
+    "stop"
+  ];
+  ADAPTER_KEYS = new Set([
+    "id",
+    "defaultSelected",
+    "project",
+    "profile",
+    "capabilities",
+    "observe",
+    "install",
+    "uninstall",
+    "effects"
+  ]);
+  LIFECYCLE_STRENGTHS = new Set(["block", "observe", "unavailable"]);
+  EMPTY_EFFECTS3 = {
+    files: [],
+    packages: [],
+    configuration: [],
+    network: [],
+    destructive: []
+  };
+  FULL_HOOK_CAPABILITIES = {
+    lifecycle: {
+      session_start: "observe",
+      prompt_submit: "observe",
+      pre_tool: "block",
+      post_tool: "observe",
+      stop: "block"
+    },
+    blockableHooks: ["pre_tool", "stop"],
+    activation: { availability: "available", proof: "observe" },
+    conformance: { availability: "unavailable" }
+  };
+  claude = defineIntegrationAdapter({
+    id: "claude",
+    defaultSelected: true,
+    project: { owned: ["claude"], shared: ["skills"] },
+    profile: {
+      available: true,
+      async observePrecondition(context) {
+        const { claudeInstallRequiresMutation: claudeInstallRequiresMutation2, observeClaudeProfile: observeClaudeProfile2 } = await Promise.resolve().then(() => (init_profile(), exports_profile));
+        return {
+          ...observeClaudeProfile2(context.cwd, context.scope),
+          ...context.operation === "install" && {
+            installRequired: claudeInstallRequiresMutation2(context.cwd, context.scope)
+          }
+        };
+      }
+    },
+    capabilities: FULL_HOOK_CAPABILITIES,
+    async observe(context) {
+      const { observeClaudeStatus: observeClaudeStatus2 } = await Promise.resolve().then(() => (init_status(), exports_status));
+      return observeClaudeStatus2(context.cwd);
+    },
+    async install(context) {
+      if (context.ports?.installClaude !== undefined)
+        return context.ports.installClaude();
+      const { installClaudePlugin: installClaudePlugin2 } = await Promise.resolve().then(() => (init_profile(), exports_profile));
+      return installClaudePlugin2(context.cwd, context.scope);
+    },
+    async uninstall(context) {
+      const { uninstallClaudePlugin: uninstallClaudePlugin2 } = await Promise.resolve().then(() => (init_profile(), exports_profile));
+      return uninstallClaudePlugin2(context.cwd, context.scope);
+    },
+    effects(context) {
+      return claudeEffects(context);
+    }
+  });
+  codex = defineIntegrationAdapter({
+    id: "codex",
+    defaultSelected: true,
+    project: { owned: ["codex"], shared: [] },
+    profile: {
+      available: true,
+      async observePrecondition(context) {
+        const { codexInstallRequiresMutation: codexInstallRequiresMutation2, observeCodexMigrationResult: observeCodexMigrationResult2 } = await Promise.resolve().then(() => (init_operations(), exports_operations));
+        const observation = observeCodexMigrationResult2(context.cwd);
+        return {
+          ...observation,
+          ...context.operation === "install" && {
+            installRequired: codexInstallRequiresMutation2(observation)
+          }
+        };
+      }
+    },
+    capabilities: FULL_HOOK_CAPABILITIES,
+    async observe(context) {
+      const { observeCodexMigration: observeCodexMigration2 } = await Promise.resolve().then(() => (init_operations(), exports_operations));
+      return observeCodexMigration2(context.cwd, context.environment);
+    },
+    async install(context) {
+      if (context.projectResult?.findings.some((finding) => finding.code === "CODEX_PLUGIN_HANDOFF_DEFERRED") === true) {
+        return createResult({ state: "healthy" });
+      }
+      if (context.ports?.installCodex === undefined) {
+        invalidAdapter("codex", "install port is unavailable");
+      }
+      return context.ports.installCodex();
+    },
+    async uninstall() {
+      const { uninstallCodexPlugin: uninstallCodexPlugin2 } = await Promise.resolve().then(() => (init_operations(), exports_operations));
+      return uninstallCodexPlugin2();
+    },
+    effects(context) {
+      return codexEffects(context);
+    }
+  });
+  opencode = defineIntegrationAdapter({
+    id: "opencode",
+    defaultSelected: false,
+    project: { owned: ["opencode"], shared: ["skills"] },
+    profile: {
+      available: true,
+      async observePrecondition(context) {
+        return observeOpenCode(context);
+      },
+      async preflight(context) {
+        return await resolveOpenCodeRoot(context) === undefined ? openCodeConfigRootRequired() : createResult({ state: "healthy" });
+      }
+    },
+    capabilities: {
+      lifecycle: {
+        session_start: "observe",
+        prompt_submit: "observe",
+        pre_tool: "block",
+        post_tool: "observe",
+        stop: "observe"
+      },
+      blockableHooks: ["pre_tool"],
+      activation: { availability: "available", proof: "activation-v1" },
+      conformance: { availability: "available", proof: "conformance-v1" }
+    },
+    observe(context) {
+      return observeOpenCode(context);
+    },
+    async install(context) {
+      const root = await resolveOpenCodeRoot(context);
+      if (root === undefined)
+        return openCodeConfigRootRequired();
+      const { installOpenCodeProfile: installOpenCodeProfile2 } = await Promise.resolve().then(() => (init_profile2(), exports_profile2));
+      return installOpenCodeProfile2(root);
+    },
+    async uninstall(context) {
+      const root = await resolveOpenCodeRoot(context);
+      if (root === undefined)
+        return openCodeConfigRootRequired();
+      const { uninstallOpenCodeProfile: uninstallOpenCodeProfile2 } = await Promise.resolve().then(() => (init_profile2(), exports_profile2));
+      return uninstallOpenCodeProfile2(root);
+    },
+    effects(context) {
+      return openCodeEffects(context);
+    }
+  });
+  cursor = defineIntegrationAdapter({
+    id: "cursor",
+    defaultSelected: false,
+    project: { owned: ["cursor"], shared: ["skills"] },
+    profile: { available: false },
+    capabilities: {
+      lifecycle: {
+        session_start: "unavailable",
+        prompt_submit: "unavailable",
+        pre_tool: "block",
+        post_tool: "observe",
+        stop: "observe"
+      },
+      blockableHooks: ["pre_tool"],
+      activation: { availability: "unavailable" },
+      conformance: { availability: "unavailable" }
+    },
+    async observe(context) {
+      const [{ hasCursorProjectAssets: hasCursorProjectAssets2, observeCursorProject: observeCursorProject2 }, { projectLifecycleSchema: projectLifecycleSchema2 }] = await Promise.all([Promise.resolve().then(() => (init_cursor(), exports_cursor)), Promise.resolve().then(() => (init_schema2(), exports_schema))]);
+      const schema = projectLifecycleSchema2(context.cwd, context.agents);
+      const result = observeCursorProject2(context.cwd, schema);
+      if (context.operation !== "uninstall")
+        return result;
+      return {
+        ...result,
+        data: { ...result.data, present: hasCursorProjectAssets2(context.cwd, schema) }
+      };
+    },
+    async install(context) {
+      const result = await cursor.observe(context);
+      return { ...result, changed: context.projectResult?.changed === true };
+    },
+    uninstall(context) {
+      const present = context.observation?.data?.present;
+      return createResult({ state: present === true ? "changed" : "healthy" });
+    },
+    effects() {
+      return EMPTY_EFFECTS3;
+    }
+  });
+  PRODUCTION_INTEGRATIONS = createIntegrationRegistry([claude, codex, opencode, cursor]);
+});
+
+// src/lifecycle/status.ts
+var exports_status2 = {};
+__export(exports_status2, {
+  summarizeLifecycleStatus: () => summarizeLifecycleStatus,
+  projectObservationData: () => projectObservationData,
+  observeStatus: () => observeStatus,
+  observeLifecycleSurfaces: () => observeLifecycleSurfaces,
+  observeLifecycleStatus: () => observeLifecycleStatus,
+  lifecycleSurfaceSummaries: () => lifecycleSurfaceSummaries
+});
+function healthFindings(values, code, severity) {
+  return values.map((message) => ({ code, message, severity }));
+}
+function statusNextActions(blockingFindings, versionAction) {
+  if (versionAction !== undefined)
+    return [versionAction];
+  return blockingFindings.length === 0 ? [] : [{ command: "safeword plan", mutates: false, requiresHuman: false }];
+}
+function projectVersionFinding(cwd, projectVersion, cliVersion) {
+  if (projectVersion === undefined)
+    return {};
+  if (!isSafePackageVersion(projectVersion)) {
+    return {
+      finding: {
+        code: "PROJECT_VERSION_UNSAFE",
+        message: "Project version is not safe to use in a package install command; inspect .safeword/version.",
+        severity: "warning"
+      }
+    };
+  }
+  const comparison = compareVersions(projectVersion, cliVersion);
+  if (comparison < 0) {
+    return {
+      finding: {
+        code: "PROJECT_UPDATE_AVAILABLE",
+        message: `Project config v${projectVersion} can be upgraded to v${cliVersion}.`,
+        severity: "info"
+      },
+      nextAction: { command: "safeword install", mutates: true, requiresHuman: false }
+    };
+  }
+  if (comparison <= 0)
+    return {};
+  const packageManager = detectPackageManager(cwd);
+  const runUpgrade = packageManager === "bun" || packageManager === "yarn" ? `${packageManager} run safeword install` : `${packageManager} exec safeword install`;
+  return {
+    finding: {
+      code: "CLI_OLDER_THAN_PROJECT",
+      message: `Project config (v${projectVersion}) is newer than CLI (v${cliVersion}).`,
+      severity: "warning"
+    },
+    nextAction: {
+      command: `${packageManager} add -D safeword@${projectVersion} && ${runUpgrade}`,
+      mutates: true,
+      requiresHuman: false
+    }
+  };
+}
+async function observeStatus(cwd, agents = DEFAULT_AGENT_INTEGRATIONS, environment = process.env) {
+  const result = await observeProjectStatus(cwd, agents);
+  return withGlobalGuidance(result, environment);
+}
+async function observeLifecycleSurfaces(cwd, agents, environment = process.env) {
+  const project = await observeStatus(cwd, agents, environment);
+  const integrationSurfaces = await coordinateSelectedIntegrations(PRODUCTION_INTEGRATIONS, agents, async (adapter) => ({
+    name: adapter.id,
+    result: await adapter.observe({
+      cwd,
+      agents,
+      operation: "check",
+      scope: "project",
+      environment
+    })
+  }));
+  return [{ name: "project", result: project }, ...integrationSurfaces];
+}
+function lifecycleSurfaceSummaries(surfaces) {
+  return surfaces.map((surface) => ({
+    name: surface.name,
+    selected: true,
+    state: surface.result.state,
+    ...surface.name === "opencode" && surface.result.data !== undefined && { data: surface.result.data }
+  }));
+}
+function projectObservationData(surfaces) {
+  const project = surfaces.find((surface) => surface.name === "project")?.result.data;
+  return typeof project === "object" && project !== null && !Array.isArray(project) ? project : {};
+}
+function summarizeLifecycleStatus(agents, surfaces) {
+  const results = surfaces.map((surface) => surface.result);
+  return createResult({
+    state: combinedResultState(results),
+    changed: results.some((result) => result.changed),
+    effects: combineEffects(surfaces.map((surface) => surface.result.effects)),
+    findings: results.flatMap((result) => result.findings),
+    errors: results.flatMap((result) => result.errors),
+    recovery: results.flatMap((result) => result.recovery),
+    nextActions: results.flatMap((result) => result.nextActions).slice(0, 1),
+    data: {
+      ...projectObservationData(surfaces),
+      command: "status",
+      operation: "status",
+      selected_agents: agents,
+      surfaces: lifecycleSurfaceSummaries(surfaces)
+    }
+  });
+}
+async function observeLifecycleStatus(cwd, agents, environment = process.env) {
+  return summarizeLifecycleStatus(agents, await observeLifecycleSurfaces(cwd, agents, environment));
+}
+function withGlobalGuidance(result, environment) {
+  if (result.state === "failed")
+    return result;
+  if (result.data?.configured !== true)
+    return result;
+  const diagnostic = legacyGlobalGuidanceDiagnostic(observeLegacyGlobalGuidance(environment));
+  if (diagnostic.finding === undefined) {
+    return {
+      ...result,
+      data: { ...result.data, global_guidance: diagnostic.observation }
+    };
+  }
+  return {
+    ...result,
+    state: "action_required",
+    findings: [...result.findings, diagnostic.finding],
+    nextActions: [
+      ...result.nextActions,
+      ...diagnostic.nextAction === undefined ? [] : [diagnostic.nextAction]
+    ],
+    data: { ...result.data, global_guidance: diagnostic.observation }
+  };
+}
+async function observeProjectStatus(cwd, agents) {
+  try {
+    const schema = projectLifecycleSchema(cwd, agents);
+    const health = await checkHealth(cwd, { schema });
+    if (!health.configured) {
+      return createResult({
+        state: "action_required",
+        findings: [
+          {
+            code: "PROJECT_NOT_CONFIGURED",
+            message: "Safeword is not configured in this project.",
+            severity: "warning"
+          }
+        ],
+        nextActions: [{ command: "safeword install", mutates: true, requiresHuman: false }],
+        data: { configured: false, cli_version: health.cliVersion }
+      });
+    }
+    const blockingFindings = [
+      ...healthFindings(health.missingPacks.map((pack) => `${pack} language pack is not installed.`), "MISSING_LANGUAGE_PACK", "error"),
+      ...healthFindings(health.missingPackages.map((packageName2) => `${packageName2} package is not installed.`), "MISSING_PACKAGE", "error"),
+      ...healthFindings(health.missingPythonTools.map((tool) => `${tool} is not declared for this Python project.`), "MISSING_PYTHON_TOOL", "error"),
+      ...healthFindings(health.issues, "PROJECT_DRIFT", "warning")
+    ];
+    const versionGuidance = projectVersionFinding(cwd, health.projectVersion, health.cliVersion);
+    if (versionGuidance.finding?.severity === "warning") {
+      blockingFindings.push(versionGuidance.finding);
+    }
+    const findings = [
+      {
+        code: "SAFEWORD_VERSION",
+        message: `Safeword CLI v${health.cliVersion}; project config v${health.projectVersion ?? "unknown"}.`,
+        severity: "info"
+      },
+      ...blockingFindings,
+      ...versionGuidance.finding === undefined || versionGuidance.finding.severity === "warning" ? [] : [versionGuidance.finding],
+      ...healthFindings(health.advisories, "PROJECT_ADVISORY", "info"),
+      ...unselectedCursorFinding(cwd, agents)
+    ];
+    const nextActions = statusNextActions(blockingFindings, versionGuidance.nextAction);
+    return createResult({
+      state: blockingFindings.length === 0 ? "healthy" : "action_required",
+      findings,
+      nextActions,
+      data: {
+        configured: true,
+        cli_version: health.cliVersion,
+        project_version: health.projectVersion
+      }
+    });
+  } catch (statusError) {
+    return createResult({
+      state: "failed",
+      errors: [
+        {
+          code: "STATUS_FAILED",
+          message: statusError instanceof Error ? statusError.message : String(statusError),
+          retryable: false
+        }
+      ],
+      nextActions: [
+        {
+          command: "safeword doctor --verbose",
+          mutates: false,
+          requiresHuman: true
+        }
+      ]
+    });
+  }
+}
+var init_status2 = __esm(() => {
+  init_agent_selection();
+  init_result();
+  init_legacy_global_guidance();
+  init_health();
+  init_install();
+  init_cursor();
+  init_integrations();
+  init_schema2();
 });
 
 // src/lifecycle/doctor.ts
@@ -39446,7 +39530,7 @@ var init_doctor = __esm(() => {
 
 // src/cli-protocol/reconciliation.ts
 import { createHash as createHash17 } from "crypto";
-import { lstatSync as lstatSync13, readdirSync as readdirSync23, readFileSync as readFileSync38, readlinkSync as readlinkSync2 } from "fs";
+import { lstatSync as lstatSync14, readdirSync as readdirSync23, readFileSync as readFileSync38, readlinkSync as readlinkSync2 } from "fs";
 import nodePath63 from "path";
 function actionTargets(action) {
   return action.type === "chmod" ? action.paths : [action.path];
@@ -39475,7 +39559,7 @@ function filesystemNodeType(stat) {
 }
 function hashPath(hash, absolutePath, relativePath, readFile2) {
   try {
-    const stat = lstatSync13(absolutePath);
+    const stat = lstatSync14(absolutePath);
     hashField(hash, "node-type", filesystemNodeType(stat));
     hashField(hash, "relative-path", relativePath);
     hashField(hash, "mode", stat.mode.toString());
@@ -40269,7 +40353,7 @@ import {
   cpSync,
   existsSync as existsSync37,
   fstatSync as fstatSync3,
-  lstatSync as lstatSync14,
+  lstatSync as lstatSync15,
   mkdirSync as mkdirSync11,
   openSync as openSync5,
   readdirSync as readdirSync25,
@@ -40281,7 +40365,7 @@ import {
 } from "fs";
 import nodePath70 from "path";
 function validateNamespaceTree(root, label) {
-  if (lstatSync14(root).isSymbolicLink()) {
+  if (lstatSync15(root).isSymbolicLink()) {
     throw new Error(`${label} is a symlink: ${root}`);
   }
   const visit3 = (directory) => {
@@ -40303,14 +40387,14 @@ function validateNamespaceTree(root, label) {
 function validateDirectoryRoot(path4, label) {
   if (!existsSync37(path4))
     return;
-  const metadata = lstatSync14(path4);
+  const metadata = lstatSync15(path4);
   if (metadata.isSymbolicLink())
     throw new Error(`${label} is a symlink: ${path4}`);
   if (!metadata.isDirectory())
     throw new Error(`${label} is not a directory: ${path4}`);
 }
 function conflictArchivePath(source, relative) {
-  const metadata = lstatSync14(source);
+  const metadata = lstatSync15(source);
   const digest2 = createHash18("sha256").update(`${metadata.mode.toString(8)}\x00`).update(readFileSync42(source)).digest("hex");
   return nodePath70.join(".safeword", "namespace-migration-conflicts-v1", digest2, relative);
 }
@@ -40332,11 +40416,11 @@ function mergeLegacyDirectory(cwd, hooks) {
       const source = nodePath70.join(from, entry.name);
       const target = nodePath70.join(current, child);
       if (entry.isDirectory()) {
-        if (existsSync37(target) && !lstatSync14(target).isDirectory()) {
+        if (existsSync37(target) && !lstatSync15(target).isDirectory()) {
           throw new NamespaceStructuralCollisionError(`Cannot merge project namespaces: directory ${child} conflicts with a file.`);
         }
         validateMergeShape(source, child);
-      } else if (existsSync37(target) && !lstatSync14(target).isFile()) {
+      } else if (existsSync37(target) && !lstatSync15(target).isFile()) {
         throw new NamespaceStructuralCollisionError(`Cannot merge project namespaces: file ${child} conflicts with a directory.`);
       }
     }
@@ -40445,7 +40529,7 @@ function isGitTracked(cwd) {
 function readSafeNamespaceConfig(path4) {
   let descriptor;
   try {
-    const before = lstatSync14(path4);
+    const before = lstatSync15(path4);
     if (!before.isFile() || before.isSymbolicLink() || before.nlink !== 1 || before.size > MAX_NAMESPACE_CONFIG_BYTES) {
       return;
     }
@@ -41006,7 +41090,7 @@ import {
   constants as fsConstants4,
   existsSync as existsSync39,
   fstatSync as fstatSync4,
-  lstatSync as lstatSync15,
+  lstatSync as lstatSync16,
   openSync as openSync6,
   readdirSync as readdirSync28,
   readFileSync as readFileSync46,
@@ -41250,7 +41334,7 @@ function plannedVersionMarkerEffects(cwd, repair) {
     return [];
   const target = ".safeword/version";
   const path4 = nodePath76.join(cwd, target);
-  const metadata = lstatSync15(path4, { throwIfNoEntry: false });
+  const metadata = lstatSync16(path4, { throwIfNoEntry: false });
   if (metadata?.isFile() !== true || metadata.isSymbolicLink())
     return [];
   const version2 = readFileSync46(path4, "utf8").trim();
@@ -41500,12 +41584,12 @@ function readProjectVersionDescriptor(descriptor) {
 function readProjectVersionFile(path4, allowMultipleLinks) {
   let descriptor;
   try {
-    const before = lstatSync15(path4);
+    const before = lstatSync16(path4);
     if (!isSafeProjectVersionMetadata(before, allowMultipleLinks))
       return;
     descriptor = openSync6(path4, fsConstants4.O_RDONLY | fsConstants4.O_NONBLOCK | (fsConstants4.O_NOFOLLOW ?? 0));
     const opened = fstatSync4(descriptor);
-    const after = lstatSync15(path4);
+    const after = lstatSync16(path4);
     if (!isSameProjectVersionFile(before, opened, after) || !isSafeProjectVersionMetadata(opened, allowMultipleLinks)) {
       return;
     }
@@ -41518,7 +41602,7 @@ function readProjectVersionFile(path4, allowMultipleLinks) {
   }
 }
 function readProjectVersionMarker(cwd, projectVersionPath, repairVersionMarker) {
-  const metadata = lstatSync15(projectVersionPath, { throwIfNoEntry: false });
+  const metadata = lstatSync16(projectVersionPath, { throwIfNoEntry: false });
   if (metadata === undefined) {
     return { kind: "version", value: "0.0.0", replaceEntry: false };
   }
@@ -41573,7 +41657,7 @@ function readProjectVersionMarker(cwd, projectVersionPath, repairVersionMarker) 
 }
 function checkProjectVersion(cwd, repairVersionMarker) {
   const safewordDirectoryPath = nodePath76.join(cwd, ".safeword");
-  const safewordDirectoryMetadata = lstatSync15(safewordDirectoryPath, {
+  const safewordDirectoryMetadata = lstatSync16(safewordDirectoryPath, {
     throwIfNoEntry: false
   });
   if (safewordDirectoryMetadata?.isDirectory() !== true) {
@@ -41703,7 +41787,7 @@ function snapshotFiles(cwd, targets) {
   const visit3 = (absolutePath) => {
     if (!existsSync39(absolutePath))
       return;
-    const stat = lstatSync15(absolutePath);
+    const stat = lstatSync16(absolutePath);
     const relativePath = nodePath76.relative(cwd, absolutePath);
     if (stat.isSymbolicLink()) {
       snapshot.set(relativePath, `link:${readlinkSync3(absolutePath)}`);
@@ -42659,7 +42743,7 @@ import {
   fstatSync as fstatSync5,
   fsyncSync as fsyncSync2,
   ftruncateSync,
-  lstatSync as lstatSync16,
+  lstatSync as lstatSync17,
   mkdirSync as mkdirSync12,
   openSync as openSync7,
   readFileSync as readFileSync47,
@@ -42756,7 +42840,7 @@ function entryFor(cwd, mutation) {
   const path4 = assertSafeClaudeCleanupTarget(cwd, mutation.path);
   const before = readFileSync47(path4);
   const after = mutation.content === null ? null : Buffer.from(mutation.content);
-  const mode = lstatSync16(path4).mode & 511;
+  const mode = lstatSync17(path4).mode & 511;
   return {
     path: mutation.path,
     before_sha256: sha2566(before),
@@ -42783,14 +42867,14 @@ function isValidOpenCleanupTarget(snapshot) {
 function openCleanupTarget(root, relative, flags) {
   const path4 = assertSafeClaudeCleanupTarget(root, relative);
   const parentPath = nodePath77.dirname(path4);
-  const targetBefore = lstatSync16(path4);
-  const parentBefore = lstatSync16(parentPath);
+  const targetBefore = lstatSync17(path4);
+  const parentBefore = lstatSync17(parentPath);
   const parentDescriptor = openSync7(parentPath, fsConstants5.O_RDONLY | (fsConstants5.O_DIRECTORY ?? 0) | (fsConstants5.O_NOFOLLOW ?? 0));
   let descriptor;
   try {
     descriptor = openSync7(path4, flags | (fsConstants5.O_NOFOLLOW ?? 0));
-    const targetAfter = lstatSync16(path4);
-    const parentAfter = lstatSync16(parentPath);
+    const targetAfter = lstatSync17(path4);
+    const parentAfter = lstatSync17(parentPath);
     const opened = fstatSync5(descriptor);
     const openedParent = fstatSync5(parentDescriptor);
     if (!isValidOpenCleanupTarget({
@@ -42820,7 +42904,7 @@ function quarantineOpenTarget(root, opened, quarantinePath, beforeQuarantine) {
   mkdirSync12(quarantineDirectory, { recursive: true, mode: 448 });
   beforeQuarantine?.();
   renameSync6(opened.path, safeQuarantinePath);
-  const quarantined = lstatSync16(safeQuarantinePath);
+  const quarantined = lstatSync17(safeQuarantinePath);
   const descriptor = fstatSync5(opened.descriptor);
   if (!sameFile(quarantined, descriptor) || descriptor.size !== opened.target.size) {
     throw new Error("Claude cleanup quarantined a replacement target; retained it for recovery.");
@@ -42831,8 +42915,8 @@ function quarantineOpenTarget(root, opened, quarantinePath, beforeQuarantine) {
 }
 function revalidateOpenTarget(root, relative, opened) {
   const path4 = assertSafeClaudeCleanupTarget(root, relative);
-  const target = lstatSync16(path4);
-  const parent = lstatSync16(nodePath77.dirname(path4));
+  const target = lstatSync17(path4);
+  const parent = lstatSync17(nodePath77.dirname(path4));
   const descriptor = fstatSync5(opened.descriptor);
   if (path4 !== opened.path || !sameFile(opened.target, descriptor) || !sameFile(descriptor, target) || !sameFile(opened.parent, parent) || descriptor.size !== opened.target.size || descriptor.nlink !== 1) {
     throw new Error(`Claude cleanup target changed before mutation: ${relative}`);
@@ -43140,10 +43224,10 @@ function isSafeTransactionMetadata(metadata) {
 function readTransactionBytes(path4) {
   let descriptor;
   try {
-    const before = lstatSync16(path4);
+    const before = lstatSync17(path4);
     descriptor = openSync7(path4, fsConstants5.O_RDONLY | fsConstants5.O_NONBLOCK | (fsConstants5.O_NOFOLLOW ?? 0));
     const opened = fstatSync5(descriptor);
-    const after = lstatSync16(path4);
+    const after = lstatSync17(path4);
     if (!isTransactionFile(before, opened, after))
       throw new Error("Unsafe transaction file.");
     const buffer = Buffer.alloc(MAX_CLAUDE_TRANSACTION_BYTES + 1);
@@ -43155,7 +43239,7 @@ function readTransactionBytes(path4) {
       offset += count;
     }
     const final = fstatSync5(descriptor);
-    if (offset > MAX_CLAUDE_TRANSACTION_BYTES || !isTransactionFile(before, final, lstatSync16(path4))) {
+    if (offset > MAX_CLAUDE_TRANSACTION_BYTES || !isTransactionFile(before, final, lstatSync17(path4))) {
       throw new Error("Unsafe transaction file.");
     }
     return buffer.subarray(0, offset);
@@ -43329,7 +43413,7 @@ function pendingRecoveryEntries(projectRoot, transaction) {
   for (const entry of transaction.entries) {
     if (entry.quarantine_path !== undefined) {
       const quarantine = assertSafeClaudeCleanupTarget(projectRoot, entry.quarantine_path);
-      if (existsSync40(quarantine) && lstatSync16(quarantine).size > 0) {
+      if (existsSync40(quarantine) && lstatSync17(quarantine).size > 0) {
         throw new Error(`Claude recovery preserved unverified bytes at ${entry.quarantine_path}; inspect and move or remove that file before retrying recovery`);
       }
     }
@@ -43547,7 +43631,7 @@ import {
   closeSync as closeSync8,
   constants as constants3,
   fstatSync as fstatSync6,
-  lstatSync as lstatSync17,
+  lstatSync as lstatSync18,
   openSync as openSync8,
   readFileSync as readFileSync48,
   realpathSync as realpathSync9
@@ -43663,7 +43747,7 @@ function parsePersonalPreference(content, path4) {
 function readPersonalExecutionPreference(cwd) {
   const path4 = personalPath(cwd);
   try {
-    const metadata = lstatSync17(path4, { throwIfNoEntry: false });
+    const metadata = lstatSync18(path4, { throwIfNoEntry: false });
     if (metadata === undefined)
       return { path: path4 };
     const fileError = validatePersonalFile(metadata, path4);
@@ -43932,7 +44016,7 @@ import {
   fstatSync as fstatSync7,
   fsyncSync as fsyncSync3,
   linkSync as linkSync3,
-  lstatSync as lstatSync18,
+  lstatSync as lstatSync19,
   mkdirSync as mkdirSync13,
   openSync as openSync9,
   readFileSync as readFileSync49,
@@ -44081,7 +44165,7 @@ var nodeRemoteWorkflowFs;
 var init_remote_workflow_fs = __esm(() => {
   nodeRemoteWorkflowFs = {
     privatePath: (directory) => nodePath79.join(directory, `.safeword-${randomUUID9()}`),
-    lstat: (path4) => lstatSync18(path4, { throwIfNoEntry: false }),
+    lstat: (path4) => lstatSync19(path4, { throwIfNoEntry: false }),
     mkdir: mkdirSync13,
     openRead: (path4) => openSync9(path4, constants4.O_RDONLY | constants4.O_NONBLOCK | (constants4.O_NOFOLLOW ?? 0)),
     openPrivate: (path4) => openSync9(path4, "wx", 420),
@@ -45322,7 +45406,7 @@ __export(exports_architecture, {
 import { execFileSync as execFileSync8 } from "child_process";
 import {
   copyFileSync as copyFileSync2,
-  lstatSync as lstatSync19,
+  lstatSync as lstatSync20,
   mkdirSync as mkdirSync14,
   mkdtempSync as mkdtempSync5,
   readFileSync as readFileSync52,
@@ -45625,7 +45709,7 @@ function assertPhysicalContainment(rootDirectory, candidatePath) {
   let existingAncestor = candidatePath;
   for (;; ) {
     try {
-      lstatSync19(existingAncestor);
+      lstatSync20(existingAncestor);
       break;
     } catch (error_) {
       if (error_.code !== "ENOENT")
@@ -45657,7 +45741,7 @@ function replaceArchitectureDocumentWith(destination, allowedRoot, writeTemporar
   assertPhysicalContainment(allowedRoot, destination);
   mkdirSync14(destinationDirectory, { recursive: true });
   let temporaryDirectory = mkdtempSync5(nodePath84.join(tmpdir3(), "safeword-architecture-replacement-"));
-  if (lstatSync19(temporaryDirectory).dev !== lstatSync19(destinationDirectory).dev) {
+  if (lstatSync20(temporaryDirectory).dev !== lstatSync20(destinationDirectory).dev) {
     rmSync12(temporaryDirectory, { recursive: true, force: true });
     temporaryDirectory = mkdtempSync5(nodePath84.join(destinationDirectory, ".safeword-architecture-"));
   }
@@ -46687,7 +46771,7 @@ var exports_drain_retro_spool = {};
 __export(exports_drain_retro_spool, {
   drainRetroSpool: () => drainRetroSpool
 });
-import { existsSync as existsSync45, lstatSync as lstatSync20, realpathSync as realpathSync11 } from "fs";
+import { existsSync as existsSync45, lstatSync as lstatSync21, realpathSync as realpathSync11 } from "fs";
 import nodePath92 from "path";
 function drainRetroSpool(inputPath, mode = "drain") {
   const spoolPath2 = nodePath92.resolve(inputPath);
@@ -46703,7 +46787,7 @@ function drainRetroSpool(inputPath, mode = "drain") {
   const sessionId = nodePath92.basename(spoolPath2, ".jsonl");
   const ackPath = ackFilePath(projectDirectory, sessionId);
   const protectedPaths = [safewordDirectory, draftsDirectory, spoolPath2, ackPath];
-  if (protectedPaths.some((path4) => existsSync45(path4) && lstatSync20(path4).isSymbolicLink())) {
+  if (protectedPaths.some((path4) => existsSync45(path4) && lstatSync21(path4).isSymbolicLink())) {
     return {
       state: "refused",
       message: "Refusing a symlinked retro spool or acknowledgement path"
@@ -47019,7 +47103,7 @@ import {
   closeSync as closeSync10,
   constants as constants5,
   fstatSync as fstatSync8,
-  lstatSync as lstatSync21,
+  lstatSync as lstatSync22,
   mkdirSync as mkdirSync15,
   mkdtempSync as mkdtempSync6,
   openSync as openSync10,
@@ -47069,7 +47153,7 @@ function readContainedText(root, source, target, packetBytesRemaining) {
     const resolved = realpathSync12(source);
     if (escapes(root, resolved))
       throw new Error(`Review target escapes the project: ${target}`);
-    const observed = lstatSync21(resolved);
+    const observed = lstatSync22(resolved);
     if (opened.dev !== observed.dev || opened.ino !== observed.ino) {
       throw new Error(`Review target changed while it was being captured: ${target}`);
     }
@@ -47093,7 +47177,7 @@ function snapshotEntries(root, directory = root) {
   return readdirSync31(directory).flatMap((name) => {
     const path4 = nodePath95.join(directory, name);
     const relative = nodePath95.relative(root, path4);
-    const stats = lstatSync21(path4);
+    const stats = lstatSync22(path4);
     if (stats.isDirectory())
       return [`directory:${relative}`, ...snapshotEntries(root, path4)];
     if (stats.isFile())
@@ -47119,7 +47203,7 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = []) {
       if (escapes(canonicalRoot, source)) {
         throw new Error(`Review target escapes the project: ${target}`);
       }
-      const stats = lstatSync21(source);
+      const stats = lstatSync22(source);
       if (!stats.isFile()) {
         throw new Error(`Review target is not a regular file: ${target}`);
       }
@@ -47411,7 +47495,7 @@ import {
   closeSync as closeSync11,
   constants as constants6,
   fstatSync as fstatSync9,
-  lstatSync as lstatSync22,
+  lstatSync as lstatSync23,
   mkdirSync as mkdirSync16,
   mkdtempSync as mkdtempSync7,
   openSync as openSync11,
@@ -47575,7 +47659,7 @@ function hasTrustedExecutableAncestry(candidate) {
   const currentUid = currentUserId();
   let current = candidate;
   while (true) {
-    const metadata = lstatSync22(current);
+    const metadata = lstatSync23(current);
     if (!pathMetadataIsTrusted(metadata.mode, metadata.uid, currentUid))
       return false;
     const parent = nodePath97.dirname(current);
@@ -47607,11 +47691,11 @@ function preparedTrustedCacheDirectory(untrustedRoot) {
   if (inside(untrustedRoot, cacheDirectory))
     return;
   try {
-    if (lstatSync22(cacheDirectory).isSymbolicLink())
+    if (lstatSync23(cacheDirectory).isSymbolicLink())
       return;
   } catch {}
   mkdirSync16(cacheDirectory, { recursive: true, mode: 448 });
-  if (lstatSync22(cacheDirectory).isSymbolicLink())
+  if (lstatSync23(cacheDirectory).isSymbolicLink())
     return;
   const resolved = realpathSync13(cacheDirectory);
   if (!outsideUntrustedRoot(untrustedRoot, resolved))
@@ -57470,7 +57554,7 @@ var init_public_delivery = __esm(() => {
 });
 
 // src/retro/public-source.ts
-import { lstatSync as lstatSync23, readFileSync as readFileSync66, realpathSync as realpathSync15 } from "fs";
+import { lstatSync as lstatSync24, readFileSync as readFileSync66, realpathSync as realpathSync15 } from "fs";
 import { homedir as homedir8 } from "os";
 import nodePath104 from "path";
 function repoIdentity(hostname, rawPath) {
@@ -57537,7 +57621,7 @@ function buildPublicRetroSource(cwd, options) {
 function repoGitConfigPath(cwd) {
   const projectDirectory = nodePath104.resolve(cwd);
   const dotGit = nodePath104.join(projectDirectory, ".git");
-  const dotGitEntry = lstatSync23(dotGit);
+  const dotGitEntry = lstatSync24(dotGit);
   if (dotGitEntry.isSymbolicLink())
     throw new Error("Untrusted Git directory pointer");
   if (dotGitEntry.isDirectory())
@@ -57561,7 +57645,7 @@ function repoGitConfigPath(cwd) {
   return trustedConfigFile(nodePath104.join(commonDirectory, "config"));
 }
 function trustedConfigFile(path6) {
-  if (lstatSync23(path6).isSymbolicLink())
+  if (lstatSync24(path6).isSymbolicLink())
     throw new Error("Untrusted Git config");
   return path6;
 }
@@ -64372,7 +64456,7 @@ init_migration_error();
 init_architecture_document();
 init_agent_selection();
 init_online_required();
-import { existsSync as existsSync49, lstatSync as lstatSync24, readFileSync as readFileSync68, readlinkSync as readlinkSync4 } from "fs";
+import { existsSync as existsSync49, lstatSync as lstatSync25, readFileSync as readFileSync68, readlinkSync as readlinkSync4 } from "fs";
 import nodePath106 from "path";
 
 // src/cli-protocol/option-values.ts
@@ -66300,7 +66384,7 @@ function snapshotBytes(path8, stats) {
 }
 function observeFile2(path8) {
   try {
-    const stats = lstatSync24(path8);
+    const stats = lstatSync25(path8);
     const kind = snapshotKind(stats);
     const bytes = snapshotBytes(path8, stats);
     return { kind, mode: stats.mode & 511, ...bytes !== undefined && { bytes } };

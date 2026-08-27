@@ -20,17 +20,15 @@ interface Workflow {
 }
 
 describe('OpenCode conformance CI lane', () => {
-  it('runs the public pinned-host conformance command as an unconditional standalone job', () => {
+  it('runs the pinned public command and fault proofs in one unconditional standalone job', () => {
     const workflow = parse(readFileSync(workflowPath, 'utf8')) as Workflow;
     const job = workflow.jobs['opencode-conformance'];
 
     expect(job).toMatchObject({ name: 'OpenCode conformance' });
     expect(job?.if).toBeUndefined();
     const script = job?.steps?.find(step => step.name === 'Run pinned OpenCode conformance')?.run;
-    expect(script).toContain('bun run --cwd packages/cli build');
-    expect(script).toContain('test "$(opencode --version)" = "1.18.23"');
-    expect(script).toContain('installOpenCodeProfile(process.env.OPENCODE_CONFIG_DIR)');
-    expect(script).toContain('safeword conformance --agents=opencode');
+    expect(script).toContain('SAFEWORD_RUN_OPENCODE_CONFORMANCE=1');
+    expect(script).toContain('tests/opencode/conformance-command.test.ts');
     expect(script).not.toContain('continue-on-error');
     expect(script).not.toContain('|| true');
   });
