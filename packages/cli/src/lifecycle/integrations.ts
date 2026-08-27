@@ -244,6 +244,7 @@ function claudeEffects(context: LifecycleContext): Effects {
       ? EMPTY_EFFECTS
       : installEffects('claude', context.scope);
   }
+  if (context.operation === 'check') return EMPTY_EFFECTS;
   return observed?.plugin === undefined
     ? EMPTY_EFFECTS
     : profileUninstallEffects('claude', context.scope);
@@ -258,6 +259,7 @@ function codexEffects(context: LifecycleContext): Effects {
       ? EMPTY_EFFECTS
       : installEffects('codex', context.scope);
   }
+  if (context.operation === 'check') return EMPTY_EFFECTS;
   return observed?.plugin?.installed === true
     ? profileUninstallEffects('codex', context.scope)
     : EMPTY_EFFECTS;
@@ -390,8 +392,36 @@ async function observeOpenCode(context: LifecycleContext): Promise<CliResult> {
   if (root === undefined) {
     return openCodeConfigRootRequired();
   }
-  const { observeOpenCodeProfile } = await import('../opencode/profile.js');
-  return observeOpenCodeProfile(root, { projectDirectory: context.cwd });
+  const [{ observeOpenCodeProfile }, { observeOpenCodeVersion }] = await Promise.all([
+    import('../opencode/profile.js'),
+    import('../opencode/conformance.js'),
+  ]);
+  return observeOpenCodeProfile(root, {
+    projectDirectory: context.cwd,
+    opencodeVersion: observeOpenCodeVersion(context.environment ?? process.env) ?? '',
+  });
+}
+
+function openCodeEffects(context: LifecycleContext): Effects {
+  if (context.operation === 'check') return EMPTY_EFFECTS;
+  const installed = (
+    context.observation as { readonly data?: { readonly installed?: boolean } } | undefined
+  )?.data?.installed;
+  if (context.operation === 'install' && installed === true) return EMPTY_EFFECTS;
+  if (context.operation === 'uninstall' && installed !== true) return EMPTY_EFFECTS;
+  const files = [
+    'OpenCode profile plugin',
+    'OpenCode Safeword identity',
+    'OpenCode Safeword dispatcher',
+  ].map(target => ({ kind: context.operation === 'install' ? 'add' : 'remove', target }));
+  return {
+    ...EMPTY_EFFECTS,
+    files,
+    destructive:
+      context.operation === 'uninstall'
+        ? files.map(({ target }) => ({ kind: 'remove', target, operation: 'profile' }))
+        : [],
+  };
 }
 
 const opencode = defineIntegrationAdapter({
@@ -430,11 +460,14 @@ const opencode = defineIntegrationAdapter({
     const { installOpenCodeProfile } = await import('../opencode/profile.js');
     return installOpenCodeProfile(root);
   },
-  uninstall(context) {
-    return observeOpenCode(context);
+  async uninstall(context) {
+    const root = await resolveOpenCodeRoot(context);
+    if (root === undefined) return openCodeConfigRootRequired();
+    const { uninstallOpenCodeProfile } = await import('../opencode/profile.js');
+    return uninstallOpenCodeProfile(root);
   },
-  effects() {
-    return EMPTY_EFFECTS;
+  effects(context) {
+    return openCodeEffects(context);
   },
 });
 

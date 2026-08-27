@@ -34,6 +34,7 @@ export interface PlatformEnvironment {
 export interface OpenCodeProfilePaths {
   readonly plugin: string;
   readonly identity: string;
+  readonly dispatcher: string;
   readonly safeword: string;
   readonly activation: string;
   readonly conformance: string;
@@ -63,6 +64,7 @@ export interface ReconcileOpenCodeProfileInput {
   readonly root: string;
   readonly pluginBytes: Buffer | string;
   readonly identity: OpenCodeIdentityV1;
+  readonly dispatcherBytes?: Buffer;
 }
 
 export interface ObserveOpenCodeProfileInput {
@@ -79,6 +81,10 @@ function usable(value: string | undefined): string | undefined {
 }
 
 export function resolveOpenCodeConfigRoot(input: PlatformEnvironment): string | undefined {
+  const explicit = input.env.OPENCODE_CONFIG_DIR?.trim();
+  if (explicit !== undefined && explicit.length > 0 && !nodePath.isAbsolute(explicit)) {
+    return undefined;
+  }
   const configured = usable(input.env.OPENCODE_CONFIG_DIR);
   if (configured !== undefined) return configured;
   const xdg = usable(input.env.XDG_CONFIG_HOME);
@@ -98,6 +104,7 @@ export function openCodeProfilePaths(root: string): OpenCodeProfilePaths {
   return {
     plugin: nodePath.join(root, 'plugins', 'safeword.js'),
     identity: nodePath.join(safeword, 'identity-v1.json'),
+    dispatcher: nodePath.join(safeword, 'dispatcher.js'),
     safeword,
     activation: nodePath.join(safeword, 'activation-v1'),
     conformance: nodePath.join(safeword, 'conformance-v1'),
@@ -129,14 +136,16 @@ function packagedDispatcherPath(): string | undefined {
 }
 
 export function installOpenCodeProfile(root: string): CliResult {
-  const dispatcherPath = packagedDispatcherPath();
-  if (dispatcherPath === undefined) {
+  const packagedPath = packagedDispatcherPath();
+  if (packagedPath === undefined) {
     return actionRequired(
       'OPENCODE_DISPATCHER_MISSING',
       'The packaged OpenCode dispatcher is unavailable.',
       'safeword install --agents=opencode',
     );
   }
+  const dispatcherBytes = readFileSync(packagedPath);
+  const paths = openCodeProfilePaths(root);
   const pluginBytes = generateOpenCodeProfilePlugin();
   return reconcileOpenCodeProfile({
     operation: 'install',
@@ -148,9 +157,39 @@ export function installOpenCodeProfile(root: string): CliResult {
       plugin_path: 'plugins/safeword.js',
       plugin_sha256: sha256(pluginBytes),
       runtime_path: process.execPath,
-      dispatcher_path: dispatcherPath,
-      dispatcher_sha256: sha256(readFileSync(dispatcherPath)),
+      dispatcher_path: paths.dispatcher,
+      dispatcher_sha256: sha256(dispatcherBytes),
     },
+    dispatcherBytes,
+  });
+}
+
+export function uninstallOpenCodeProfile(root: string): CliResult {
+  const paths = openCodeProfilePaths(root);
+  const plugin = observeFile(paths.plugin);
+  const identity = parsedIdentity(observeFile(paths.identity));
+  if (plugin.kind === 'absent' && identity.kind === 'absent') {
+    return createResult({ state: 'healthy' });
+  }
+  if (plugin.kind === 'file' && identity.kind === 'absent') {
+    return actionRequired(
+      'OPENCODE_IDENTITY_MISSING',
+      'The OpenCode plugin has no verifiable Safeword identity; Safeword preserved it.',
+      'safeword install --agents=opencode',
+    );
+  }
+  if (plugin.kind === 'collision' || identity.kind !== 'identity') {
+    return actionRequired(
+      'OPENCODE_PROFILE_COLLISION',
+      'An OpenCode profile path contains unrecognized content; Safeword preserved it.',
+      'safeword install --agents=opencode',
+    );
+  }
+  return reconcileOpenCodeProfile({
+    operation: 'uninstall',
+    root,
+    pluginBytes: plugin.kind === 'file' ? plugin.bytes : '',
+    identity: identity.value,
   });
 }
 
@@ -189,7 +228,7 @@ function observeIdentityBindings(
       'OPENCODE_DISPATCHER_UNAVAILABLE',
       'The identity-bound OpenCode dispatcher is unavailable.',
       'safeword install --agents=opencode',
-      { installed: true, activated: false, pre_tool: 'block' },
+      { installed: true, activated: false, pre_tool: 'block', conformant: false },
     );
   }
   return undefined;
@@ -343,19 +382,31 @@ function observeProtectionEvidence(
   });
 }
 
-export function observeOpenCodeProfile(
-  root: string,
-  input: ObserveOpenCodeProfileInput = {},
-): CliResult {
-  const paths = openCodeProfilePaths(root);
-  const plugin = observeFile(paths.plugin);
-  const identityFile = observeFile(paths.identity);
+const UNAVAILABLE_PROTECTION = {
+  installed: false,
+  activated: false,
+  pre_tool: 'unavailable',
+  conformant: false,
+} as const;
+
+function profilePresenceProblem(
+  plugin: FileObservation,
+  identityFile: FileObservation,
+): CliResult | undefined {
   if (plugin.kind === 'absent' && identityFile.kind === 'absent') {
     return actionRequired(
       'OPENCODE_PROFILE_MISSING',
       'The Safeword OpenCode profile plugin is not installed.',
       'safeword install --agents=opencode',
-      { installed: false, activated: false, pre_tool: 'unavailable', conformant: false },
+      UNAVAILABLE_PROTECTION,
+    );
+  }
+  if (plugin.kind === 'file' && identityFile.kind === 'absent') {
+    return actionRequired(
+      'OPENCODE_IDENTITY_MISSING',
+      'The OpenCode plugin has no verifiable Safeword identity.',
+      'safeword install --agents=opencode',
+      UNAVAILABLE_PROTECTION,
     );
   }
   if (plugin.kind === 'collision' || identityFile.kind !== 'file') {
@@ -363,6 +414,27 @@ export function observeOpenCodeProfile(
       'OPENCODE_PROFILE_COLLISION',
       'The Safeword OpenCode profile cannot be verified.',
       'safeword install --agents=opencode',
+      UNAVAILABLE_PROTECTION,
+    );
+  }
+  return undefined;
+}
+
+export function observeOpenCodeProfile(
+  root: string,
+  input: ObserveOpenCodeProfileInput = {},
+): CliResult {
+  const paths = openCodeProfilePaths(root);
+  const plugin = observeFile(paths.plugin);
+  const identityFile = observeFile(paths.identity);
+  const presenceProblem = profilePresenceProblem(plugin, identityFile);
+  if (presenceProblem !== undefined) return presenceProblem;
+  if (identityFile.kind !== 'file') {
+    return actionRequired(
+      'OPENCODE_PROFILE_COLLISION',
+      'The Safeword OpenCode profile cannot be verified.',
+      'safeword install --agents=opencode',
+      UNAVAILABLE_PROTECTION,
     );
   }
   let identity: OpenCodeIdentityV1 | undefined;
@@ -376,6 +448,7 @@ export function observeOpenCodeProfile(
       'OPENCODE_IDENTITY_COLLISION',
       'The Safeword OpenCode identity cannot be verified.',
       'safeword install --agents=opencode',
+      { installed: false, activated: false, pre_tool: 'unavailable', conformant: false },
     );
   }
   const bindingProblem = observeIdentityBindings(plugin, identity);
@@ -385,7 +458,7 @@ export function observeOpenCodeProfile(
       'OPENCODE_MARKER_RESOLUTION_FAILED',
       'OpenCode project classification could not be verified.',
       'safeword install --agents=opencode',
-      { installed: true, activated: false, pre_tool: 'block' },
+      { installed: true, activated: false, pre_tool: 'block', conformant: false },
     );
   }
   return observeProtectionEvidence(paths, identity, input);
@@ -464,7 +537,11 @@ function writeManagedProfile(
   paths: OpenCodeProfilePaths,
   pluginBytes: Buffer | string,
   identity: OpenCodeIdentityV1,
+  dispatcherBytes: Buffer | undefined,
 ): void {
+  if (dispatcherBytes !== undefined) {
+    writeDurableFile(paths.dispatcher, dispatcherBytes, { mode: 0o600 });
+  }
   writeDurableFile(paths.plugin, pluginBytes, { mode: 0o600 });
   writeDurableFile(paths.identity, `${JSON.stringify(identity, undefined, 2)}\n`, { mode: 0o600 });
 }
@@ -480,6 +557,7 @@ function removeEmptyDirectory(path: string): void {
 function removeManagedProfile(paths: OpenCodeProfilePaths): void {
   rmSync(paths.plugin, { force: true });
   rmSync(paths.identity, { force: true });
+  rmSync(paths.dispatcher, { force: true });
   rmSync(paths.activation, { recursive: true, force: true });
   rmSync(paths.conformance, { recursive: true, force: true });
   rmSync(paths.profileError, { force: true });
@@ -540,7 +618,7 @@ export function reconcileOpenCodeProfile(input: ReconcileOpenCodeProfileInput): 
     const currentResult = terminalObservationResult(current, input.operation);
     if (currentResult !== undefined) return currentResult;
     if (input.operation === 'install') {
-      writeManagedProfile(paths, input.pluginBytes, input.identity);
+      writeManagedProfile(paths, input.pluginBytes, input.identity, input.dispatcherBytes);
     } else {
       removeManagedProfile(paths);
     }

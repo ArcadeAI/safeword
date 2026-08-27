@@ -127,6 +127,7 @@ export interface LifecycleSurfaceSummary {
   readonly name: string;
   readonly selected: true;
   readonly state: CliResult['state'];
+  readonly data?: unknown;
 }
 
 /** Per-surface outcomes shared by the status summary and doctor diagnostics. */
@@ -137,6 +138,7 @@ export function lifecycleSurfaceSummaries(
     name: surface.name,
     selected: true,
     state: surface.result.state,
+    ...(surface.result.data !== undefined && { data: surface.result.data }),
   }));
 }
 

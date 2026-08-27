@@ -25,7 +25,7 @@ function skillName(command: CursorCommandWrapper): string {
 
 export function renderOpenCodeCommand(command: CursorCommandWrapper): string {
   return `---
-description: ${command.description}
+description: ${JSON.stringify(command.description)}
 ---
 
 Load and follow the \`${skillName(command)}\` skill completely. Pass \`$ARGUMENTS\` as the user's arguments.
@@ -34,7 +34,7 @@ Load and follow the \`${skillName(command)}\` skill completely. Pass \`$ARGUMENT
 
 export function renderOpenCodeAgent(agent: SafewordSubagent): string {
   return `---
-description: ${agent.description}
+description: ${JSON.stringify(agent.description)}
 mode: subagent
 ---
 
@@ -43,12 +43,18 @@ Read and follow \`${agent.procedurePath}\` completely.
 }
 
 export const OPENCODE_CATALOGUE_OWNED_FILES = Object.fromEntries([
-  ...CURSOR_COMMAND_WRAPPERS.map(command => [
-    `.opencode/commands/${command.name}.md`,
-    { content: (): string => renderOpenCodeCommand(command) },
-  ]),
-  ...SAFEWORD_SUBAGENTS.map(agent => [
-    `.opencode/agents/${agent.name}.md`,
-    { content: (): string => renderOpenCodeAgent(agent) },
-  ]),
+  ...CURSOR_COMMAND_WRAPPERS.map(
+    command =>
+      [
+        `.opencode/commands/${command.name}.md`,
+        { content: (): string => renderOpenCodeCommand(command) },
+      ] as const,
+  ),
+  ...SAFEWORD_SUBAGENTS.map(
+    agent =>
+      [
+        `.opencode/agents/${agent.name}.md`,
+        { content: (): string => renderOpenCodeAgent(agent) },
+      ] as const,
+  ),
 ]);

@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { accessSync, constants, readFileSync, realpathSync, statSync } from 'node:fs';
+import { accessSync, constants, lstatSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { type CliResult, createResult } from '../cli-protocol/result.js';
@@ -18,20 +18,6 @@ import { type OpenCodeIdentityV1, parseOpenCodeIdentity } from './identity.js';
 import { openCodeProfilePaths, resolveOpenCodeConfigRoot } from './profile.js';
 
 export const SUPPORTED_OPENCODE_VERSION = '1.18.23';
-
-const CONFORMANCE_FAULTS = new Set<OpenCodeConformanceFault>([
-  'missing-command',
-  'missing-subagent',
-  'missing-skill',
-  'disarmed-denial',
-]);
-
-function conformanceFault(environment: NodeJS.ProcessEnv): OpenCodeConformanceFault | undefined {
-  const value = environment.SAFEWORD_OPENCODE_CONFORMANCE_FAULT;
-  return CONFORMANCE_FAULTS.has(value as OpenCodeConformanceFault)
-    ? (value as OpenCodeConformanceFault)
-    : undefined;
-}
 
 function resolveExecutable(environment: NodeJS.ProcessEnv): string | undefined {
   const extensions =
@@ -107,7 +93,7 @@ function installedProfile(environment: NodeJS.ProcessEnv): InstalledProfile | un
   if (root === undefined) return undefined;
   const paths = openCodeProfilePaths(root);
   try {
-    if (!statSync(paths.plugin).isFile() || !statSync(paths.identity).isFile()) return undefined;
+    if (!lstatSync(paths.plugin).isFile() || !lstatSync(paths.identity).isFile()) return undefined;
     const identity = parseOpenCodeIdentity(JSON.parse(readFileSync(paths.identity, 'utf8')));
     if (identity?.safeword_version !== VERSION) return undefined;
     if (
@@ -123,6 +109,17 @@ function installedProfile(environment: NodeJS.ProcessEnv): InstalledProfile | un
 }
 
 type ExecutableBoundary = { readonly executable: string } | { readonly result: CliResult };
+
+export function observeOpenCodeVersion(environment: NodeJS.ProcessEnv): string | undefined {
+  const executable = resolveExecutable(environment);
+  if (executable === undefined) return undefined;
+  const version = spawnSync(executable, ['--version'], {
+    encoding: 'utf8',
+    env: environment,
+    timeout: 10_000,
+  });
+  return version.status === 0 && version.error === undefined ? version.stdout.trim() : undefined;
+}
 
 function executableBoundary(environment: NodeJS.ProcessEnv): ExecutableBoundary {
   const executable = resolveExecutable(environment);
@@ -159,70 +156,65 @@ function executableBoundary(environment: NodeJS.ProcessEnv): ExecutableBoundary 
   return { executable };
 }
 
+export interface OpenCodeConformanceOptions {
+  /** Test-only fault injected directly by the caller, never ambient process state. */
+  readonly fault?: OpenCodeConformanceFault;
+}
+
+function failedProof(code: string, message: string): CliResult {
+  return createResult({
+    state: 'failed',
+    errors: [{ code, message, retryable: true }],
+    data: { command: 'conformance', agent: 'opencode' },
+  });
+}
+
+async function proveOpenCodeHost(
+  executable: string,
+  environment: NodeJS.ProcessEnv,
+  fault: OpenCodeConformanceFault | undefined,
+): Promise<CliResult | undefined> {
+  if (!proveOpenCodeCatalogue(executable, environment, fault)) {
+    return failedProof(
+      'OPENCODE_CATALOGUE_CONFORMANCE_FAILED',
+      'OpenCode did not discover the required Safeword catalogue.',
+    );
+  }
+  const denial = await proveOpenCodeDenial(executable, environment, fault !== 'disarmed-denial');
+  if (!denial.denialSurfaced || !denial.sentinelAbsent) {
+    return failedProof(
+      'OPENCODE_DENIAL_CONFORMANCE_FAILED',
+      'OpenCode did not prove Safeword denial without a side effect.',
+    );
+  }
+  if (!(await proveOpenCodeControl(executable, environment))) {
+    return failedProof(
+      'OPENCODE_CONTROL_CONFORMANCE_FAILED',
+      'The disarmed OpenCode sentinel did not produce its expected side effect.',
+    );
+  }
+  const skill = await proveOpenCodeSkillInvocation(executable, environment);
+  return skill.argumentsObserved && skill.canonicalBodyObserved
+    ? undefined
+    : failedProof(
+        'OPENCODE_SKILL_CONFORMANCE_FAILED',
+        'OpenCode did not load the canonical skill with the exact command arguments.',
+      );
+}
+
 export async function runOpenCodeConformance(
   environment: NodeJS.ProcessEnv = process.env,
+  options: OpenCodeConformanceOptions = {},
 ): Promise<CliResult> {
   const boundary = executableBoundary(environment);
   if ('result' in boundary) return boundary.result;
   const { executable } = boundary;
-  const fault = conformanceFault(environment);
+  const { fault } = options;
 
   const profile = installedProfile(environment);
   if (profile === undefined) return profileRemediation();
-  if (!proveOpenCodeCatalogue(executable, environment, fault)) {
-    return createResult({
-      state: 'failed',
-      errors: [
-        {
-          code: 'OPENCODE_CATALOGUE_CONFORMANCE_FAILED',
-          message: 'OpenCode did not discover the required Safeword catalogue.',
-          retryable: true,
-        },
-      ],
-      data: { command: 'conformance', agent: 'opencode' },
-    });
-  }
-  const denial = await proveOpenCodeDenial(executable, environment, fault !== 'disarmed-denial');
-  if (!denial.denialSurfaced || !denial.sentinelAbsent) {
-    return createResult({
-      state: 'failed',
-      errors: [
-        {
-          code: 'OPENCODE_DENIAL_CONFORMANCE_FAILED',
-          message: 'OpenCode did not prove Safeword denial without a side effect.',
-          retryable: true,
-        },
-      ],
-      data: { command: 'conformance', agent: 'opencode' },
-    });
-  }
-  if (!(await proveOpenCodeControl(executable, environment))) {
-    return createResult({
-      state: 'failed',
-      errors: [
-        {
-          code: 'OPENCODE_CONTROL_CONFORMANCE_FAILED',
-          message: 'The disarmed OpenCode sentinel did not produce its expected side effect.',
-          retryable: true,
-        },
-      ],
-      data: { command: 'conformance', agent: 'opencode' },
-    });
-  }
-  const skill = await proveOpenCodeSkillInvocation(executable, environment);
-  if (!skill.argumentsObserved || !skill.canonicalBodyObserved) {
-    return createResult({
-      state: 'failed',
-      errors: [
-        {
-          code: 'OPENCODE_SKILL_CONFORMANCE_FAILED',
-          message: 'OpenCode did not load the canonical skill with the exact command arguments.',
-          retryable: true,
-        },
-      ],
-      data: { command: 'conformance', agent: 'opencode' },
-    });
-  }
+  const proofFailure = await proveOpenCodeHost(executable, environment, fault);
+  if (proofFailure !== undefined) return proofFailure;
 
   writePassingOpenCodeConformance(openCodeProfilePaths(profile.root).conformance, {
     schema_version: 1,

@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { parseAgentSelection } from '../../src/cli-protocol/agent-selection.js';
 import { createResult } from '../../src/cli-protocol/result.js';
-import { installLifecycle } from '../../src/lifecycle/commands.js';
+import { installLifecycle, uninstallLifecycle } from '../../src/lifecycle/commands.js';
 import {
   generateOpenCodeProfilePlugin,
   type OpenCodeIdentityV1,
@@ -129,11 +129,53 @@ describe('OpenCode profile boundary', () => {
       readFileSync(paths.identity, 'utf8'),
     ) as OpenCodeIdentityV1;
     expect(installedIdentity.runtime_path).toBe(process.execPath);
-    expect(nodePath.isAbsolute(installedIdentity.dispatcher_path)).toBe(true);
+    expect(installedIdentity.dispatcher_path).toBe(paths.dispatcher);
     expect(existsSync(installedIdentity.dispatcher_path)).toBe(true);
     expect(installedIdentity.dispatcher_sha256).toBe(
       createHash('sha256').update(readFileSync(installedIdentity.dispatcher_path)).digest('hex'),
     );
+  });
+
+  it('TBU1.R3 removes recognized profile assets through the public lifecycle', async () => {
+    const project = temporaryDirectory();
+    const root = temporaryDirectory();
+    vi.stubEnv('OPENCODE_CONFIG_DIR', root);
+    const invocation = {
+      cwd: project,
+      noInput: true,
+      offline: false,
+      operands: [],
+      options: { agents: 'opencode', modify: false },
+    } as const;
+    const adapters = {
+      installClaude: () => Promise.resolve(createResult({ state: 'healthy' })),
+      installCodex: () => Promise.resolve(createResult({ state: 'healthy' })),
+    };
+    const installed = await installLifecycle(invocation, adapters);
+    expect(installed.state).toBe('changed');
+    const paths = openCodeProfilePaths(root);
+    mkdirSync(paths.activation, { recursive: true });
+    mkdirSync(paths.conformance, { recursive: true });
+    writeFileSync(paths.profileError, '{}\n');
+
+    const preview = await uninstallLifecycle(invocation);
+    const plan = (preview.data as { readonly plan: { readonly id: string } }).plan.id;
+    const result = await uninstallLifecycle({
+      ...invocation,
+      options: { ...invocation.options, yes: true, plan },
+    });
+
+    expect(result.state).toBe('changed');
+    for (const path of [
+      paths.plugin,
+      paths.identity,
+      paths.dispatcher,
+      paths.activation,
+      paths.conformance,
+      paths.profileError,
+    ]) {
+      expect(existsSync(path)).toBe(false);
+    }
   });
 
   it.each([

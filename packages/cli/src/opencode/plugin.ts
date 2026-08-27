@@ -149,7 +149,7 @@ function dispatch(identity, envelope) {
         SAFEWORD_AGENT_RUNTIME: 'opencode',
         SAFEWORD_CODEX_DENY_MODE: 'exit-code',
       },
-      stdio: ['pipe', 'pipe', 'pipe'],
+      stdio: ['pipe', 'pipe', 'ignore'],
     });
     let stdout = '';
     let settled = false;
@@ -167,6 +167,7 @@ function dispatch(identity, envelope) {
       stdout += chunk;
     });
     child.once('error', () => finish(() => reject(new Error(DENIAL))));
+    child.stdin.once('error', () => finish(() => reject(new Error(DENIAL))));
     child.once('close', exitCode => finish(() => resolve({ exitCode, stdout })));
     child.stdin.end(JSON.stringify(envelope));
   });
@@ -237,7 +238,7 @@ export const Safeword = async input => {
 export function generateOpenCodeProfilePlugin(options: OpenCodeProfilePluginOptions = {}): string {
   const configured = options.markerTimeoutMilliseconds;
   const markerTimeoutMilliseconds =
-    configured !== undefined && Number.isFinite(configured) && configured >= 0
+    configured !== undefined && Number.isFinite(configured) && configured > 0
       ? configured
       : DEFAULT_MARKER_TIMEOUT_MILLISECONDS;
   return profilePluginSource(markerTimeoutMilliseconds);

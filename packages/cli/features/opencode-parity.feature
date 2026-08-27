@@ -1,4 +1,3 @@
-@wip
 Feature: Give OpenCode builders full Safeword protection
 
   @opencode-parity.TBU1.R1
