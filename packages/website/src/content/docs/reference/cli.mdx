@@ -146,31 +146,42 @@ may miss issues, and is not merge-safety evidence.
 
 ### What gets installed
 
-| What                 | Action                                             | Purpose                                               |
-| -------------------- | -------------------------------------------------- | ----------------------------------------------------- |
-| `.safeword/`         | Creates directory                                  | Hooks, guides, templates                              |
-| `.cursor/hooks.json` | Creates or merges only with `--agents=cursor`      | Hook configuration                                    |
-| `.cursor/rules/`     | Creates only with `--agents=cursor`                | Behavior rules                                        |
-| `.cursor/commands/`  | Creates only with `--agents=cursor`                | Slash commands                                        |
-| `eslint.config.mjs`  | Creates file                                       | Linting config (JS/TS)                                |
-| `package.json`       | Creates if missing; adds devDependencies + scripts | Quality tools + BDD lane (all projects)               |
-| `cucumber.mjs`       | Creates file                                       | Gherkin acceptance-runner config (cucumber-js)        |
-| `features/`          | Creates starter                                    | Gherkin `.feature` files — yours after creation       |
-| `steps/`             | Creates starter                                    | TypeScript step definitions — yours after creation    |
-| `.golangci.yml`      | Creates file                                       | Linting config (Go)                                   |
-| `ruff.toml`          | Creates file                                       | Linting config (Python)                               |
-| `mypy.ini`           | Creates file                                       | Type checking (Python)                                |
-| `.importlinter`      | Creates when layout is unambiguous                 | Circular-import guard (Python) — yours after creation |
-| `clippy.toml`        | Creates file                                       | Linting config (Rust)                                 |
-| `rustfmt.toml`       | Creates file                                       | Formatting config (Rust)                              |
-| `Cargo.toml`         | Adds lints section                                 | clippy lints (Rust)                                   |
-| `.sqlfluff`          | Creates file (unless Prettier formats your SQL)    | Linting config (SQL/dbt)                              |
-| `.mcp.json`          | Creates or merges                                  | MCP server config                                     |
-| `.cursor/mcp.json`   | Creates or merges only with `--agents=cursor`      | MCP server config (Cursor)                            |
+| What                  | Action                                             | Purpose                                               |
+| --------------------- | -------------------------------------------------- | ----------------------------------------------------- |
+| `.safeword/`          | Creates directory                                  | Hooks, guides, templates                              |
+| `.cursor/hooks.json`  | Creates or merges only with `--agents=cursor`      | Hook configuration                                    |
+| `.cursor/rules/`      | Creates only with `--agents=cursor`                | Behavior rules                                        |
+| `.cursor/commands/`   | Creates only with `--agents=cursor`                | Slash commands                                        |
+| `.opencode/commands/` | Creates only with `--agents=opencode`              | Native command bridges to canonical skills            |
+| `.opencode/agents/`   | Creates only with `--agents=opencode`              | Native agent bridges to canonical procedures          |
+| `eslint.config.mjs`   | Creates file                                       | Linting config (JS/TS)                                |
+| `package.json`        | Creates if missing; adds devDependencies + scripts | Quality tools + BDD lane (all projects)               |
+| `cucumber.mjs`        | Creates file                                       | Gherkin acceptance-runner config (cucumber-js)        |
+| `features/`           | Creates starter                                    | Gherkin `.feature` files — yours after creation       |
+| `steps/`              | Creates starter                                    | TypeScript step definitions — yours after creation    |
+| `.golangci.yml`       | Creates file                                       | Linting config (Go)                                   |
+| `ruff.toml`           | Creates file                                       | Linting config (Python)                               |
+| `mypy.ini`            | Creates file                                       | Type checking (Python)                                |
+| `.importlinter`       | Creates when layout is unambiguous                 | Circular-import guard (Python) — yours after creation |
+| `clippy.toml`         | Creates file                                       | Linting config (Rust)                                 |
+| `rustfmt.toml`        | Creates file                                       | Formatting config (Rust)                              |
+| `Cargo.toml`          | Adds lints section                                 | clippy lints (Rust)                                   |
+| `.sqlfluff`           | Creates file (unless Prettier formats your SQL)    | Linting config (SQL/dbt)                              |
+| `.mcp.json`           | Creates or merges                                  | MCP server config                                     |
+| `.cursor/mcp.json`    | Creates or merges only with `--agents=cursor`      | MCP server config (Cursor)                            |
 
 Install auto-detects your stack. A TypeScript project won't get Go (beta), Python (beta), Rust (beta), or SQL/dbt (beta) tooling.
 
 Claude Code delivery is separate from project reconciliation. `safeword install --agents=claude` defaults to project scope and records Claude's marketplace and plugin activation in `.claude/settings.json`; `--scope user` activates the same cached plugin across projects. Eligible stable declarations use the verified `stable` channel and opt into Claude's native marketplace updater. An explicit `autoUpdate: false` remains authoritative. Fresh install does not create legacy Safeword-owned Claude hooks or skills.
+
+OpenCode is explicit and non-persisted: `safeword install --agents=opencode`
+installs a managed profile plugin plus declarative project commands and agents,
+reuses OpenCode's `.claude/skills` compatibility loader, and does not edit or
+create `opencode.json`. Run `safeword conformance --agents=opencode` to prove
+the pinned real CLI/TUI host discovers the catalogue and blocks a forbidden
+tool call before its side effect. `safeword status --agents=opencode` reports
+installation, activation, blocking capability, and conformance independently.
+OpenCode Desktop remains advisory until it dispatches the same hooks reliably.
 
 ## Claude Code plugin
 
@@ -353,6 +364,24 @@ Install the Safeword plugin into the active Codex profile and verify Codex repor
 ```bash
 bunx safeword@latest install --agents=codex
 ```
+
+### safeword install --agents=opencode
+
+Install OpenCode's native catalogue bridges in the project and Safeword's
+stable pre-tool guard in the current OpenCode profile. Selection is explicit;
+omitting `--agents` keeps the Claude-plus-Codex default.
+
+```bash
+bunx safeword@latest install --agents=opencode
+bunx safeword@latest conformance --agents=opencode
+bunx safeword@latest status --agents=opencode
+```
+
+Conformance is credential-free and shell-free. It runs the pinned OpenCode
+host against an isolated loopback fixture, proves command, agent, and canonical
+skill discovery, and verifies denial leaves no sentinel side effect. Status
+returns at most one repair action when the profile binding, activation, or
+conformance evidence is incomplete.
 
 ### safeword codex status
 

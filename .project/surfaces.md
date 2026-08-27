@@ -53,7 +53,7 @@ surfaces.md from packages/cli/templates/surfaces-template.md and then own it.
 ## OpenCode
 
 **Kind:** Agent runtime
-**Delivery status:** Planned first-class support under ZM38A2; this catalogue entry defines the durable surface before implementation lands.
+**Delivery status:** Implemented for OpenCode CLI/TUI 1.18.23; Desktop remains advisory until native hook dispatch is reliable.
 **Description:** The OpenCode CLI, terminal UI, or desktop app running against a developer's project, with project-local skills, commands, agents, plugins, and configuration extending the agent's behavior.
 **Audience:** Technical Builder (TBU), Non-Technical Builder (NTB), Safeword Maintainer (SWM)
 **Examples:** `.claude/skills` compatibility discovery, `.opencode/commands`, `.opencode/agents`, the profile-level `plugins/safeword.js`, `opencode.json`, `opencode` CLI and TUI
@@ -83,7 +83,7 @@ surfaces.md from packages/cli/templates/surfaces-template.md and then own it.
 **Kind:** CLI
 **Description:** The `safeword` command-line tool itself — the harness-agnostic engine that installs and maintains the process layer. Runs `install` to scaffold and reconcile managed project files and configure selected agent hosts. `status`, `doctor`, `plan`, `uninstall`, and project subcommands validate and drive the workflow. Operates on the project's real filesystem independent of which agent (if any) invokes it.
 **Audience:** Technical Builder (TBU), Non-Technical Builder (NTB), Safeword Maintainer (SWM)
-**Examples:** `safeword install`, `safeword install --agents=cursor`, `safeword status`, `safeword doctor`, `safeword plan`, `safeword uninstall`, project subcommands, the managed-file reconcile contract, generated `INDEX.md`; planned OpenCode selection is documented on the OpenCode surface until it lands.
+**Examples:** `safeword install`, `safeword install --agents=opencode`, `safeword conformance --agents=opencode`, `safeword status`, `safeword doctor`, `safeword plan`, `safeword uninstall`, project subcommands, the managed-file reconcile contract, generated `INDEX.md`
 **Coverage notes:** Tag feature scenarios with `@surface.safeword-cli` when the behavior is the CLI tool's own — file scaffolding/reconciliation, config validation, index generation — rather than something that must work through a specific agent runtime.
 **Do not confuse with:** Claude Code / OpenAI Codex / OpenCode / Cursor — the agent runtimes that *invoke* safeword during a session. `@surface.safeword-cli` marks behavior that must hold no matter which agent (or a plain terminal) runs the command.
 
