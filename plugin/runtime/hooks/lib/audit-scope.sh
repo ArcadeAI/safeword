@@ -4,6 +4,7 @@
 
 audit_scope_initialize() {
   local project_dir="$1"
+  local requested_base_ref="${SAFEWORD_AUDIT_BASE_REF:-}"
 
   AUDIT_SCOPE_REQUEST="${AUDIT_SCOPE_REQUEST:-diff}"
   AUDIT_SCOPE_MODE="repository"
@@ -13,7 +14,13 @@ audit_scope_initialize() {
   AUDIT_REFERENCE_ONLY_FILES=""
 
   if [ "$AUDIT_SCOPE_REQUEST" != "repository" ]; then
-    if git -C "$project_dir" rev-parse --verify --quiet "origin/main^{commit}" > /dev/null; then
+    if [ -n "$requested_base_ref" ]; then
+      if ! git -C "$project_dir" rev-parse --verify --quiet "$requested_base_ref^{commit}" > /dev/null; then
+        echo "SAFEWORD_AUDIT_BASE_REF does not resolve to a Git commit: $requested_base_ref" >&2
+        return 2
+      fi
+      AUDIT_BASE_REF="$requested_base_ref"
+    elif git -C "$project_dir" rev-parse --verify --quiet "origin/main^{commit}" > /dev/null; then
       AUDIT_BASE_REF="origin/main"
     elif git -C "$project_dir" rev-parse --verify --quiet "main^{commit}" > /dev/null; then
       AUDIT_BASE_REF="main"

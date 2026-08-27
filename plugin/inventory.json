@@ -175,7 +175,7 @@
     },
     {
       "path": "runtime/hooks/lib/audit-scope.sh",
-      "sha256": "76904d4fb2987e0e35a47318e66ce332c2f76b2fe976814b54a83040e4ae4298"
+      "sha256": "a1550a86946cfaa8d61bcfb73d022f40bb245d9445ae04f5af15250dfc3572f0"
     },
     {
       "path": "runtime/hooks/lib/auto-upgrade-lock.ts",
@@ -587,7 +587,7 @@
     },
     {
       "path": "skills/audit/SKILL.md",
-      "sha256": "ddb6d0b5d06e2ad78daa572d046b4d9434823ef448b3d94ff52f21c20f20a1bf"
+      "sha256": "ef28c9667bb6c22b856214b2789c3c2b9c26d0176b260634819451b75ff38d8e"
     },
     {
       "path": "skills/bdd/DISCOVERY.md",
