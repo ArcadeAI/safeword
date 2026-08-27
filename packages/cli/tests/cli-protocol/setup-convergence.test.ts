@@ -17,22 +17,50 @@ import { convergeSetup } from '../../src/lifecycle/project-install.js';
 import { VERSION } from '../../src/version.js';
 import { createTemporaryDirectory, runCliWithoutInstall } from '../helpers.js';
 
+const PROJECT_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
+
+function readProjectConfig(directory: string): Record<string, unknown> {
+  return JSON.parse(
+    readFileSync(nodePath.join(directory, '.safeword/config.json'), 'utf8'),
+  ) as Record<string, unknown>;
+}
+
+function writeProjectConfig(directory: string, config: Record<string, unknown>): void {
+  writeFileSync(nodePath.join(directory, '.safeword/config.json'), `${JSON.stringify(config)}\n`);
+}
+
+function withoutProjectIdentity(config: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(config).filter(([key]) => key !== 'projectUUID'));
+}
+
+function runOfflineSetup(directory: string) {
+  return runCliWithoutInstall(
+    ['setup', '--json', '--no-input', '--offline', '--cwd', directory, '--no-modify'],
+    { cwd: directory },
+  );
+}
+
+async function expectOfflineSetupSuccess(directory: string): Promise<void> {
+  const result = await runOfflineSetup(directory);
+  expect(result.exitCode).toBe(0);
+}
+
 describe('convergent setup', () => {
   it('creates a local public-retro project identity on first setup', async () => {
-    const directory = createTemporaryDirectory();
-    const result = await runCliWithoutInstall(
-      ['setup', '--json', '--no-input', '--offline', '--cwd', directory, '--no-modify'],
-      { cwd: directory },
-    );
+    const directories = [createTemporaryDirectory(), createTemporaryDirectory()];
+    const identities: unknown[] = [];
 
-    expect(result.exitCode).toBe(0);
-    const config = JSON.parse(
-      readFileSync(nodePath.join(directory, '.safeword/config.json'), 'utf8'),
-    ) as Record<string, unknown>;
-    expect(config.projectUUID).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u,
-    );
-    expect(existsSync(nodePath.join(directory, '.safeword/retro-attempts'))).toBe(false);
+    for (const directory of directories) {
+      const result = await runOfflineSetup(directory);
+
+      expect(result.exitCode).toBe(0);
+      identities.push(readProjectConfig(directory).projectUUID);
+      expect(existsSync(nodePath.join(directory, '.safeword/retro-attempts'))).toBe(false);
+    }
+
+    expect(identities[0]).toMatch(PROJECT_UUID);
+    expect(identities[1]).toMatch(PROJECT_UUID);
+    expect(identities[0]).not.toBe(identities[1]);
   });
 
   it('repairs a malformed public-retro project identity locally', async () => {
@@ -49,17 +77,54 @@ describe('convergent setup', () => {
     const initialSetup = await runCliWithoutInstall(arguments_, { cwd: directory });
     expect(initialSetup.exitCode).toBe(0);
     const configPath = nodePath.join(directory, '.safeword/config.json');
-    const config = JSON.parse(readFileSync(configPath, 'utf8')) as Record<string, unknown>;
+    const config = readProjectConfig(directory);
     writeFileSync(configPath, `${JSON.stringify({ ...config, projectUUID: 'not-a-uuid' })}\n`);
 
     const repair = await runCliWithoutInstall(arguments_, { cwd: directory });
 
     expect(repair.exitCode).toBe(0);
-    const repaired = JSON.parse(readFileSync(configPath, 'utf8')) as Record<string, unknown>;
-    expect(repaired.projectUUID).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u,
-    );
+    const repaired = readProjectConfig(directory);
+    expect(repaired.projectUUID).toMatch(PROJECT_UUID);
     expect(repaired.projectUUID).not.toBe('not-a-uuid');
+  });
+
+  it('creates a missing identity during upgrade and preserves it on later setup', async () => {
+    const directory = createTemporaryDirectory();
+    await expectOfflineSetupSuccess(directory);
+    const legacyConfig = withoutProjectIdentity(readProjectConfig(directory));
+    writeProjectConfig(directory, legacyConfig);
+
+    await expectOfflineSetupSuccess(directory);
+    const upgradedIdentity = readProjectConfig(directory).projectUUID;
+    expect(upgradedIdentity).toMatch(PROJECT_UUID);
+
+    await expectOfflineSetupSuccess(directory);
+    expect(readProjectConfig(directory).projectUUID).toBe(upgradedIdentity);
+  });
+
+  it('normalizes an uppercase identity during setup', async () => {
+    const directory = createTemporaryDirectory();
+    await expectOfflineSetupSuccess(directory);
+    writeProjectConfig(directory, {
+      ...readProjectConfig(directory),
+      projectUUID: 'AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA',
+    });
+
+    await expectOfflineSetupSuccess(directory);
+    expect(readProjectConfig(directory).projectUUID).toBe('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+  });
+
+  it('generates a new identity when the configured identity is removed', async () => {
+    const directory = createTemporaryDirectory();
+    await expectOfflineSetupSuccess(directory);
+    const firstIdentity = readProjectConfig(directory).projectUUID;
+    const configWithoutIdentity = withoutProjectIdentity(readProjectConfig(directory));
+    writeProjectConfig(directory, configWithoutIdentity);
+
+    await expectOfflineSetupSuccess(directory);
+    const recreatedIdentity = readProjectConfig(directory).projectUUID;
+    expect(recreatedIdentity).toMatch(PROJECT_UUID);
+    expect(recreatedIdentity).not.toBe(firstIdentity);
   });
 
   it('rejects a malformed public-retro collection setting before changing the project', async () => {

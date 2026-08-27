@@ -8,39 +8,39 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: First install creates distinct project identity locally
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: first-install identity generation predates this ticket; the two-project setup characterization passed on its first run
+- [x] GREEN: setup-convergence acceptance proof passes for distinct lowercase UUIDs with offline setup
+- [x] REFACTOR: shared config and UUID helpers keep the lifecycle proof focused
 
 ### Scenario: Upgrade creates a missing project identity locally
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: missing-identity upgrade repair predates this ticket; the setup characterization passed on its first run
+- [x] GREEN: setup-convergence acceptance proof passes for a previously installed project with no identity
+- [x] REFACTOR skip: the scenario reuses the lifecycle helper without production structure
 
 ### Scenario: Project identity survives ordinary lifecycle operations
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: lifecycle preservation predates this ticket; the repeated-setup characterization passed on its first run
+- [x] GREEN: setup-convergence acceptance proof preserves the generated identity on the next setup
+- [x] REFACTOR skip: the scenario shares the upgrade fixture
 
 ### Scenario: Malformed project identity is replaced locally
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: malformed-identity repair was already covered by the setup-convergence suite
+- [x] GREEN: the existing real-setup repair proof remains green in the six-scenario lifecycle slice
+- [x] REFACTOR: the existing scenario now uses the shared config and UUID helpers
 
 ### Scenario: Noncanonical uppercase project identity is normalized locally
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: lowercase normalization predates this ticket; the real-setup characterization passed on its first run
+- [x] GREEN: setup-convergence acceptance proof persists the lowercase form
+- [x] REFACTOR skip: no production structure was needed
 
 ### Scenario: Recreated project identity is not derived from the project path
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: random regeneration predates this ticket; the same-path characterization passed on its first run
+- [x] GREEN: setup-convergence acceptance proof replaces a removed identity with a different lowercase UUID
+- [x] REFACTOR skip: the scenario reuses the lifecycle helper without production structure
 
 ## Rule: retro-runtime-context.SWM1.R2 — Every harness describes the same bounded runtime concepts through one versioned context contract
 
