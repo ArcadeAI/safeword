@@ -388,7 +388,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 - [x] RED c49d47e7a
 - [x] GREEN 159bfc498
-- [ ] REFACTOR
+- [x] REFACTOR skip: the loopback protocol stays cohesive in the isolated fixture module
 
 ### Scenario: The denial sentinel is capable of producing its side effect
 
