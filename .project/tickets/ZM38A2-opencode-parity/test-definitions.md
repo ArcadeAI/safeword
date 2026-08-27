@@ -404,7 +404,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 ### Scenario: The required conformance lane fails instead of skipping
 
-- [ ] RED
+- [x] RED 4b19d64cf
 - [ ] GREEN
 - [ ] REFACTOR
 
