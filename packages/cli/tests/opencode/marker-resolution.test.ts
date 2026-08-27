@@ -11,6 +11,7 @@ import {
   observeOpenCodeProfile,
   openCodeProfilePaths,
 } from '../../src/opencode/profile.js';
+import { VERSION } from '../../src/version.js';
 import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.js';
 import { blockChildren } from '../helpers/io-failure.js';
 
@@ -53,7 +54,7 @@ describe('OpenCode marker resolution', () => {
       createHash('sha256').update(value).digest('hex');
     const identity = {
       schema_version: 1 as const,
-      safeword_version: '0.79.6',
+      safeword_version: VERSION,
       plugin_path: 'plugins/safeword.js',
       plugin_sha256: digest(pluginBytes),
       runtime_path: process.execPath,

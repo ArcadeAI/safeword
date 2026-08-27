@@ -17,7 +17,7 @@ a caller-nominated path. The spool contains sanitized safeword findings for
 ## Procedure
 
 1. Before reading or making any tracker call, run
-   `bunx --bun safeword@0.79.6 project retro-drain "<spool-path>" --validated-jsonl`.
+   `bunx --bun safeword@0.80.0 project retro-drain "<spool-path>" --validated-jsonl`.
    Use only its JSONL stdout as the filing input. A nonzero exit means validation
    failed: make no search, comment, or create call, leave the spool unchanged,
    and report `retro-filer: cannot file - draft validation failed`. If its output
@@ -60,7 +60,7 @@ a caller-nominated path. The spool contains sanitized safeword findings for
    the draft only when the append succeeded and the exact ack is visible. If the
    append or verification fails, leave the draft in place.
 5. Create at most five new issues per run. Drain only by running
-   `bunx --bun safeword@0.79.6 project retro-drain "<spool-path>"`; never rewrite or
+   `bunx --bun safeword@0.80.0 project retro-drain "<spool-path>"`; never rewrite or
    delete the spool directly. The helper removes only drafts whose valid ack is
    reader-visible, so unfiled or unacknowledged drafts remain. If tracker write
    access is unavailable, leave the spool unchanged and report

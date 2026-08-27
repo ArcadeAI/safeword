@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bunx --bun safeword@0.79.6 hook codex session-start --plugin-hook",
+            "command": "bunx --bun safeword@0.80.0 hook codex session-start --plugin-hook",
             "timeout": 120,
             "statusMessage": "Loading Safeword standing instructions"
           }
@@ -19,7 +19,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bunx --bun safeword@0.79.6 hook codex pre-tool-use --plugin-hook",
+            "command": "bunx --bun safeword@0.80.0 hook codex pre-tool-use --plugin-hook",
             "timeout": 30,
             "statusMessage": "Checking Safeword edit gates"
           }
@@ -32,7 +32,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bunx --bun safeword@0.79.6 hook codex post-tool-use --plugin-hook",
+            "command": "bunx --bun safeword@0.80.0 hook codex post-tool-use --plugin-hook",
             "timeout": 30,
             "statusMessage": "Surfacing Safeword post-tool context"
           }
@@ -45,7 +45,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bunx --bun safeword@0.79.6 hook codex user-prompt-submit --plugin-hook",
+            "command": "bunx --bun safeword@0.80.0 hook codex user-prompt-submit --plugin-hook",
             "timeout": 30,
             "statusMessage": "Checking queued Safeword prompt context"
           }
@@ -58,7 +58,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bunx --bun safeword@0.79.6 hook codex stop --plugin-hook",
+            "command": "bunx --bun safeword@0.80.0 hook codex stop --plugin-hook",
             "timeout": 600,
             "statusMessage": "Checking Safeword stop continuation"
           }
