@@ -67,13 +67,27 @@ export type PublicRetroDeliveryOutcome = 'preserved' | 'abandoned';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const MAX_ENVELOPE_BYTES = 65_536;
+const MAX_OPTIONAL_VALUE_BYTES = 256;
 
-function hasValue(value: string | undefined): value is string {
-  return value !== undefined && value.trim() !== '';
+function containsControlCharacter(value: string): boolean {
+  for (const character of value) {
+    const codePoint = character.codePointAt(0) ?? 0;
+    if (codePoint <= 0x1f || (codePoint >= 0x7f && codePoint <= 0x9f)) return true;
+  }
+  return false;
 }
 
 function optionalValue(value: string | undefined): string | undefined {
-  return hasValue(value) ? value.trim() : undefined;
+  const normalized = value?.trim();
+  if (
+    normalized === undefined ||
+    normalized === '' ||
+    containsControlCharacter(normalized) ||
+    Buffer.byteLength(normalized, 'utf8') > MAX_OPTIONAL_VALUE_BYTES
+  ) {
+    return undefined;
+  }
+  return normalized;
 }
 
 function validSourceRoute(source: PublicRetroSource): boolean {
