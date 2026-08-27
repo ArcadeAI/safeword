@@ -35,6 +35,17 @@ export interface OpenCodeDenialProof {
   readonly sentinelAbsent: boolean;
 }
 
+export interface OpenCodeSkillProof {
+  readonly argumentsObserved: boolean;
+  readonly canonicalBodyObserved: boolean;
+}
+
+function skillBody(content: string): string {
+  const frontmatterEnd = content.indexOf('\n---\n', 4);
+  if (frontmatterEnd === -1) throw new Error('Canonical skill frontmatter is incomplete');
+  return content.slice(frontmatterEnd + 5).trim();
+}
+
 function prepareCatalogueFixture(root: string): string {
   const project = nodePath.join(root, 'project');
   const config = nodePath.join(root, 'config');
@@ -115,7 +126,7 @@ function sse(data: unknown): string {
   return `data: ${JSON.stringify(data)}\n\n`;
 }
 
-function toolResponse(command: string): string {
+function toolResponse(name: string, args: unknown, id: string): string {
   return [
     sse({
       id: 'chatcmpl-safeword',
@@ -131,9 +142,9 @@ function toolResponse(command: string): string {
             tool_calls: [
               {
                 index: 0,
-                id: 'call_safeword_denial',
+                id,
                 type: 'function',
-                function: { name: 'bash', arguments: JSON.stringify({ command }) },
+                function: { name, arguments: JSON.stringify(args) },
               },
             ],
           },
@@ -177,7 +188,35 @@ function loopbackServer(command: string) {
       if (title || emitted) response.end(stopResponse());
       else {
         emitted = true;
-        response.end(toolResponse(command));
+        response.end(toolResponse('bash', { command }, 'call_safeword_denial'));
+      }
+    });
+  });
+}
+
+function skillLoopbackServer(
+  exactArguments: string,
+  canonicalBody: string,
+  observation: { argumentsObserved: boolean; canonicalBodyObserved: boolean },
+) {
+  let requested = false;
+  const encodedBody = JSON.stringify(canonicalBody).slice(1, -1);
+  return createServer((request, response) => {
+    let raw = '';
+    request.setEncoding('utf8');
+    request.on('data', (chunk: string) => (raw += chunk));
+    request.on('end', () => {
+      const title = raw.includes('Generate a title for this conversation');
+      response.writeHead(200, { 'content-type': 'text/event-stream' });
+      if (title) {
+        response.end(stopResponse());
+      } else if (requested) {
+        observation.canonicalBodyObserved = raw.includes(encodedBody);
+        response.end(stopResponse());
+      } else {
+        requested = true;
+        observation.argumentsObserved = raw.includes(exactArguments);
+        response.end(toolResponse('skill', { name: 'bdd' }, 'call_safeword_skill'));
       }
     });
   });
@@ -322,4 +361,47 @@ export async function proveOpenCodeControl(
 ): Promise<boolean> {
   const execution = await executeSentinelFixture(executable, environment, false);
   return execution.sentinelExists;
+}
+
+export async function proveOpenCodeSkillInvocation(
+  executable: string,
+  environment: NodeJS.ProcessEnv,
+): Promise<OpenCodeSkillProof> {
+  const root = mkdtempSync(nodePath.join(tmpdir(), 'safeword-opencode-conformance-'));
+  const project = prepareCatalogueFixture(root);
+  const exactArguments = `fixture-token=${randomUUID()}`;
+  const canonicalBody = skillBody(
+    readFileSync(nodePath.join(project, '.claude', 'skills', 'bdd', 'SKILL.md'), 'utf8'),
+  );
+  const observation = { argumentsObserved: false, canonicalBodyObserved: false };
+  const server = skillLoopbackServer(exactArguments, canonicalBody, observation);
+  try {
+    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+    const address = server.address();
+    if (!address || typeof address === 'string') return observation;
+    writeLoopbackConfig(project, `http://127.0.0.1:${address.port}/v1`);
+    await runHostAsync(
+      executable,
+      [
+        'run',
+        `/bdd ${exactArguments}`,
+        '--model',
+        'test/test-model',
+        '--dir',
+        project,
+        '--auto',
+        '--print-logs',
+        '--log-level',
+        'DEBUG',
+      ],
+      project,
+      fixtureEnvironment(root, environment),
+    );
+    return observation;
+  } catch {
+    return observation;
+  } finally {
+    server.close();
+    rmSync(root, { recursive: true, force: true });
+  }
 }

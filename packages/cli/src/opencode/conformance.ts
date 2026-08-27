@@ -8,6 +8,7 @@ import {
   proveOpenCodeCatalogue,
   proveOpenCodeControl,
   proveOpenCodeDenial,
+  proveOpenCodeSkillInvocation,
 } from './conformance-fixture.js';
 import { openCodeProfilePaths, resolveOpenCodeConfigRoot } from './profile.js';
 
@@ -169,6 +170,20 @@ export async function runOpenCodeConformance(
       data: { command: 'conformance', agent: 'opencode' },
     });
   }
+  const skill = await proveOpenCodeSkillInvocation(executable, environment);
+  if (!skill.argumentsObserved || !skill.canonicalBodyObserved) {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'OPENCODE_SKILL_CONFORMANCE_FAILED',
+          message: 'OpenCode did not load the canonical skill with the exact command arguments.',
+          retryable: true,
+        },
+      ],
+      data: { command: 'conformance', agent: 'opencode' },
+    });
+  }
 
   return createResult({
     state: 'action_required',
@@ -192,6 +207,7 @@ export async function runOpenCodeConformance(
       discovery: OPENCODE_EXPECTED_DISCOVERY,
       denial: true,
       control: true,
+      skill_invocation: true,
     },
   });
 }
