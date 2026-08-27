@@ -138,6 +138,24 @@ describe('OpenCode status evidence', () => {
   });
 
   it.each([
+    ['arbitrarily old', '2000-01-01T00:00:00.000Z'],
+    ['one day in the future', '2026-08-27T12:00:00.000Z'],
+  ])('TBU1.R4 accepts %s conformance when every boundary binding matches', (_age, checkedAt) => {
+    const root = temporaryDirectory();
+    const paths = openCodeProfilePaths(root);
+    expect(installOpenCodeProfile(root).state).toBe('changed');
+    const identity = JSON.parse(readFileSync(paths.identity, 'utf8')) as OpenCodeIdentityV1;
+    writeActivationEvidence(paths, identity, 'pre_tool');
+    writeConformanceEvidence(paths, identity, { checked_at: checkedAt });
+
+    const result = observeOpenCodeProfile(root, { opencodeVersion: '1.18.23' });
+
+    expect(result.state).toBe('healthy');
+    expect(result.data).toMatchObject({ conformant: true });
+    expect(result.nextActions).toEqual([]);
+  });
+
+  it.each([
     ['7 days and 1 second old', { observed_at: '2026-08-19T11:59:59.000Z' }],
     ['malformed', '{'],
     ['future dated', { observed_at: '2026-08-26T12:00:01.000Z' }],
