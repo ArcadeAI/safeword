@@ -25,6 +25,21 @@ const requiredInput = {
 };
 
 describe('buildPublicRetroEnvelope', () => {
+  it.each(['claude-code', 'codex', 'cursor'] as const)(
+    'builds a current %s/unknown envelope',
+    harness => {
+      const built = buildPublicRetroEnvelope({
+        ...requiredInput,
+        source: { ...requiredInput.source, harness, hostClass: 'unknown' },
+      });
+      const envelope = JSON.parse(new TextDecoder().decode(built.bytes)) as {
+        source: Record<string, unknown>;
+      };
+
+      expect(envelope.source).toMatchObject({ harness, hostClass: 'unknown' });
+    },
+  );
+
   it('serializes the complete source profile deterministically', () => {
     const built = buildPublicRetroEnvelope({
       finding: 'fixture finding',
