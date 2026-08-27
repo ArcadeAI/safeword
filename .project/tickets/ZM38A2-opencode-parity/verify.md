@@ -1,26 +1,26 @@
 # Verify: ZM38A2 OpenCode parity
 
-Verified on 2026-08-27. The delivered code head is `a0363d051`.
+Verified locally on 2026-08-27. Exact-head GitHub CI is required before merge.
 
 ## Delivery evidence
 
-- Exact-head GitHub CI passed in run
-  [33034268531](https://github.com/ArcadeAI/safeword/actions/runs/33034268531).
-  Green jobs include OpenCode conformance, Dogfood parity, CLI contract,
-  dependency audit, lint, typecheck, architecture, formatting, Node 22 and 24
-  full tests, the Node 24 acceptance lane, physical install, release gates, and
-  deployment-input checks.
-- Local CLI suite: 8,582 passed and 7 skipped across 533 files.
+- Local CLI suite: 8,597 passed and 13 skipped across 533 files.
 - Local full acceptance: 1,483 passed and 3 skipped; 68,144 steps passed and 4
   skipped.
 - OpenCode BDD proof: 587 scenarios and 10,954 steps passed.
 - Repository build, TypeScript/Astro checks, documentation contracts,
   dependency audits, schema drift, domain documentation, and diff-scoped
   architecture audit passed.
+- Release contract suite: 40 passed across 10 files. CLI, Claude plugin,
+  generated workflow, package publication, and authored-diff formatting checks
+  passed.
+- Independent whole-ticket quality review approved the final implementation
+  after its lifecycle, conformance, recovery, and portability findings were
+  resolved. The refactor review found no further behavior-preserving
+  simplification worth adding.
 - The local aggregate verifier's only nonzero lane was root `mypy`, caused by
   duplicate module names in unchanged `experiments/python-skill-eval/control`
-  fixtures also present on `origin/main`. Exact-head GitHub CI did not reproduce
-  a product failure.
+  fixtures also present on `origin/main`.
 
 **PR Scope:** The branch diff against `origin/main` matches ZM38A2: adapter
 standardization, OpenCode catalogue/profile/conformance/status delivery,

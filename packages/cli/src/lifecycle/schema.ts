@@ -55,9 +55,10 @@ function selectedDeliverySchema(
   selected: ReadonlySet<string>,
   preserveLegacySkills: boolean,
 ): SafewordSchema {
-  const claude = selected.has('claude')
-    ? schema
-    : filterSchemaPaths(schema, path => !isLegacyClaudePath(path));
+  const openCodeWithoutClaude = selected.has('opencode') && !selected.has('claude');
+  const claude = openCodeWithoutClaude
+    ? filterSchemaPaths(schema, path => !isLegacyClaudePath(path))
+    : schema;
   return selected.has('opencode') && !preserveLegacySkills
     ? withOpenCodeSkillDelivery(claude)
     : claude;

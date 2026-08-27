@@ -34444,16 +34444,33 @@ function withSelectedOwnedPaths(schema, includeOpenCode) {
     }
   };
 }
-function projectLifecycleSchema(cwd, agents) {
-  const claudeDeliverySchema = schemaForClaudeDelivery(cwd);
-  const legacyClaudeActive = Object.keys(claudeDeliverySchema.ownedFiles).some((path4) => isLegacyClaudePath(path4)) || Object.keys(claudeDeliverySchema.jsonMerges).some((path4) => isLegacyClaudePath(path4));
-  const deliverySchema = schemaForCodexDelivery(cwd, agents.includes("opencode") ? withOpenCodeSkillDelivery(claudeDeliverySchema) : claudeDeliverySchema);
-  const surfaceSchema = schemaForProjectSurfaces(deliverySchema, [
+function hasLegacyClaudeDelivery(schema) {
+  return [...Object.keys(schema.ownedFiles), ...Object.keys(schema.jsonMerges)].some((path4) => isLegacyClaudePath(path4));
+}
+function selectedDeliverySchema(schema, selected, preserveLegacySkills) {
+  const openCodeWithoutClaude = selected.has("opencode") && !selected.has("claude");
+  const claude = openCodeWithoutClaude ? filterSchemaPaths(schema, (path4) => !isLegacyClaudePath(path4)) : schema;
+  return selected.has("opencode") && !preserveLegacySkills ? withOpenCodeSkillDelivery(claude) : claude;
+}
+function selectedProjectSurfaces(selected) {
+  return [
     "core",
-    ...agents.includes("cursor") ? ["cursor"] : [],
-    ...agents.includes("opencode") ? ["opencode"] : []
-  ]);
-  return withSelectedOwnedPaths(schemaForSharedAgentRuntime(surfaceSchema, agents.length === 0 || agents.includes("codex") || agents.includes("cursor") || agents.includes("opencode") || legacyClaudeActive), agents.includes("opencode"));
+    ...selected.has("cursor") ? ["cursor"] : [],
+    ...selected.has("opencode") ? ["opencode"] : []
+  ];
+}
+function sharedRuntimeNeeded(selected, legacyClaudeActive) {
+  return selected.size === 0 || ["codex", "cursor", "opencode"].some((agent) => selected.has(agent)) || legacyClaudeActive;
+}
+function projectLifecycleSchema(cwd, agents, operation = "check") {
+  const claudeDeliverySchema = schemaForClaudeDelivery(cwd);
+  const selected = new Set(agents);
+  const legacyClaudeActive = hasLegacyClaudeDelivery(claudeDeliverySchema);
+  const preserveLegacySkills = operation === "uninstall" && legacyClaudeActive;
+  const openCodeSchema = selectedDeliverySchema(claudeDeliverySchema, selected, preserveLegacySkills);
+  const deliverySchema = schemaForCodexDelivery(cwd, openCodeSchema);
+  const surfaceSchema = schemaForProjectSurfaces(deliverySchema, selectedProjectSurfaces(selected));
+  return withSelectedOwnedPaths(schemaForSharedAgentRuntime(surfaceSchema, sharedRuntimeNeeded(selected, legacyClaudeActive)), selected.has("opencode"));
 }
 var init_schema2 = __esm(() => {
   init_delivery_schema();
@@ -37552,6 +37569,7 @@ function parseOpenCodeConformance(value) {
     "platform",
     "arch",
     "plugin_sha256",
+    "dispatcher_sha256",
     "command_catalogue",
     "agent_catalogue",
     "denial",
@@ -37566,6 +37584,7 @@ function parseOpenCodeConformance(value) {
     platform: isNonEmptyString,
     arch: isNonEmptyString,
     plugin_sha256: isSha2562,
+    dispatcher_sha256: isSha2562,
     command_catalogue: isBoolean,
     agent_catalogue: isBoolean,
     denial: isBoolean,
@@ -38049,14 +38068,29 @@ function hasCurrentDispatcher(identity) {
   const dispatcher = observeFile(identity.dispatcher_path);
   return dispatcher.kind === "file" && sha2564(dispatcher.bytes) === identity.dispatcher_sha256;
 }
-function observeIdentityBindings(plugin, identity) {
+function observeIdentityBindings(plugin, identity, profileRemovable) {
+  const unavailable = {
+    installed: false,
+    activated: false,
+    pre_tool: "unavailable",
+    conformant: false,
+    profile_removable: profileRemovable
+  };
   if (plugin.kind !== "file" || sha2564(plugin.bytes) !== identity.plugin_sha256) {
-    return actionRequired("OPENCODE_PLUGIN_DRIFT", "The Safeword OpenCode plugin does not match its identity.", "safeword install --agents=opencode", UNAVAILABLE_PROTECTION);
+    return actionRequired("OPENCODE_PLUGIN_DRIFT", "The Safeword OpenCode plugin does not match its identity.", "safeword install --agents=opencode", unavailable);
+  }
+  if (identity.safeword_version !== VERSION || sha2564(plugin.bytes) !== sha2564(generateOpenCodeProfilePlugin())) {
+    return actionRequired("OPENCODE_PROFILE_STALE", "The Safeword OpenCode profile does not match this Safeword version.", "safeword install --agents=opencode", unavailable);
   }
   if (!hasCurrentDispatcher(identity)) {
-    return actionRequired("OPENCODE_DISPATCHER_UNAVAILABLE", "The identity-bound OpenCode dispatcher is unavailable.", "safeword install --agents=opencode", UNAVAILABLE_PROTECTION);
+    return actionRequired("OPENCODE_DISPATCHER_UNAVAILABLE", "The identity-bound OpenCode dispatcher is unavailable.", "safeword install --agents=opencode", unavailable);
   }
   return;
+}
+function profileIsRemovable(paths, plugin, identity) {
+  if (managedDispatcherProblem(paths, identity) !== undefined)
+    return false;
+  return plugin.kind === "absent" || plugin.kind === "file" && sha2564(plugin.bytes) === identity.plugin_sha256;
 }
 function readEvidence(directory, parse4) {
   let names;
@@ -38094,6 +38128,7 @@ function isPassingConformance(record, identity, opencodeVersion) {
     opencodeVersion === undefined || evidence.opencode_version === opencodeVersion,
     evidence.safeword_version === identity.safeword_version,
     evidence.plugin_sha256 === identity.plugin_sha256,
+    evidence.dispatcher_sha256 === identity.dispatcher_sha256,
     evidence.platform === process.platform,
     evidence.arch === process.arch,
     evidence.command_catalogue,
@@ -38115,7 +38150,13 @@ function observeProtectionEvidence(paths, identity, input) {
   }
   const activated = hasCurrentActivation(paths.activation, identity, input.now ?? Date.now(), expectedProjectSha256);
   const conformant = hasPassingConformance(paths.conformance, identity, input.opencodeVersion);
-  const data = { installed: true, activated, pre_tool: "block", conformant };
+  const data = {
+    installed: true,
+    activated,
+    pre_tool: "block",
+    conformant,
+    profile_removable: true
+  };
   if (!conformant) {
     return actionRequired("OPENCODE_CONFORMANCE_REQUIRED", "This OpenCode version has not passed conformance for the installed Safeword plugin.", "safeword conformance --agents=opencode", data);
   }
@@ -38181,13 +38222,20 @@ function observeOpenCodeProfile(root, input = {}) {
     identity = undefined;
   }
   if (identity === undefined) {
-    return actionRequired("OPENCODE_IDENTITY_COLLISION", "The Safeword OpenCode identity cannot be verified.", "safeword install --agents=opencode", { installed: false, activated: false, pre_tool: "unavailable", conformant: false });
+    return actionRequired("OPENCODE_IDENTITY_COLLISION", "The Safeword OpenCode identity cannot be verified.", "safeword install --agents=opencode", UNAVAILABLE_PROTECTION);
   }
-  const bindingProblem = observeIdentityBindings(plugin, identity);
+  const profileRemovable = profileIsRemovable(paths, plugin, identity);
+  const bindingProblem = observeIdentityBindings(plugin, identity, profileRemovable);
   if (bindingProblem !== undefined)
     return bindingProblem;
   if (hasCurrentProfileError(paths.profileError, identity)) {
-    return actionRequired("OPENCODE_MARKER_RESOLUTION_FAILED", "OpenCode project classification could not be verified.", "safeword install --agents=opencode", { installed: true, activated: false, pre_tool: "block", conformant: false });
+    return actionRequired("OPENCODE_MARKER_RESOLUTION_FAILED", "OpenCode project classification could not be verified.", "safeword install --agents=opencode", {
+      installed: true,
+      activated: false,
+      pre_tool: "block",
+      conformant: false,
+      profile_removable: profileRemovable
+    });
   }
   return observeProtectionEvidence(paths, identity, input);
 }
@@ -38363,7 +38411,8 @@ var init_profile2 = __esm(() => {
     installed: false,
     activated: false,
     pre_tool: "unavailable",
-    conformant: false
+    conformant: false,
+    profile_removable: false
   };
 });
 
@@ -38391,7 +38440,7 @@ function skillBody(content) {
     throw new Error("Canonical skill frontmatter is incomplete");
   return content.slice(frontmatterEnd + 5).trim();
 }
-function prepareCatalogueFixture(root, fault) {
+function prepareCatalogueFixture(root, profile, fault) {
   const project = nodePath61.join(root, "project");
   const config = nodePath61.join(root, "config");
   const command = CURSOR_COMMAND_WRAPPERS.find((candidate) => candidate.name === "bdd");
@@ -38416,9 +38465,13 @@ function prepareCatalogueFixture(root, fault) {
   }
   writeFileSync13(nodePath61.join(project, ".safeword", "SAFEWORD.md"), `# Safeword
 `);
-  if (installOpenCodeProfile(config).state !== "changed") {
-    throw new Error("Safeword OpenCode profile fixture could not be installed");
-  }
+  const profilePaths = openCodeProfilePaths(config);
+  mkdirSync10(nodePath61.dirname(profilePaths.plugin), { recursive: true });
+  mkdirSync10(profilePaths.safeword, { recursive: true });
+  writeFileSync13(profilePaths.plugin, profile.pluginBytes);
+  writeFileSync13(profilePaths.dispatcher, profile.dispatcherBytes);
+  writeFileSync13(profilePaths.identity, `${JSON.stringify({ ...profile.identity, dispatcher_path: profilePaths.dispatcher })}
+`);
   return project;
 }
 function runHost(executable, args, cwd, environment) {
@@ -38585,10 +38638,10 @@ function fixtureEnvironment(root, environment) {
     OPENCODE_DISABLE_AUTOUPDATE: "true"
   };
 }
-function proveOpenCodeCatalogue(executable, environment, fault) {
+function proveOpenCodeCatalogue(executable, environment, profile, fault) {
   const root = mkdtempSync4(nodePath61.join(tmpdir2(), "safeword-opencode-conformance-"));
   try {
-    const project = prepareCatalogueFixture(root, fault);
+    const project = prepareCatalogueFixture(root, profile, fault);
     const isolatedEnvironment = fixtureEnvironment(root, environment);
     const config = runHost(executable, ["debug", "config"], project, isolatedEnvironment);
     const skills = runHost(executable, ["debug", "skill"], project, isolatedEnvironment);
@@ -38603,9 +38656,9 @@ function proveOpenCodeCatalogue(executable, environment, fault) {
     rmSync9(root, { recursive: true, force: true });
   }
 }
-async function executeSentinelFixture(executable, environment, mode) {
+async function executeSentinelFixture(executable, environment, profile, mode) {
   const root = mkdtempSync4(nodePath61.join(tmpdir2(), "safeword-opencode-conformance-"));
-  const project = prepareCatalogueFixture(root);
+  const project = prepareCatalogueFixture(root, profile);
   if (mode === "control")
     rmSync9(nodePath61.join(root, "config", "plugins", "safeword.js"));
   const nonce = randomUUID6();
@@ -38645,24 +38698,24 @@ exit 0
     rmSync9(root, { recursive: true, force: true });
   }
 }
-async function proveOpenCodeDenial(executable, environment, armed = true) {
-  const execution = await executeSentinelFixture(executable, environment, armed ? "denial" : "control");
+async function proveOpenCodeDenial(executable, environment, profile, armed = true) {
+  const execution = await executeSentinelFixture(executable, environment, profile, armed ? "denial" : "control");
   return {
     denialSurfaced: execution.output.includes("Safeword denied this OpenCode tool call."),
     sentinelAbsent: !execution.sentinelExists
   };
 }
-async function proveOpenCodeAllow(executable, environment) {
-  const execution = await executeSentinelFixture(executable, environment, "allow");
+async function proveOpenCodeAllow(executable, environment, profile) {
+  const execution = await executeSentinelFixture(executable, environment, profile, "allow");
   return execution.sentinelExists;
 }
-async function proveOpenCodeControl(executable, environment) {
-  const execution = await executeSentinelFixture(executable, environment, "control");
+async function proveOpenCodeControl(executable, environment, profile) {
+  const execution = await executeSentinelFixture(executable, environment, profile, "control");
   return execution.sentinelExists;
 }
-async function proveOpenCodeSkillInvocation(executable, environment) {
+async function proveOpenCodeSkillInvocation(executable, environment, profile) {
   const root = mkdtempSync4(nodePath61.join(tmpdir2(), "safeword-opencode-conformance-"));
-  const project = prepareCatalogueFixture(root);
+  const project = prepareCatalogueFixture(root, profile);
   const exactArguments = `fixture-token=${randomUUID6()}`;
   const canonicalBody = skillBody(readFileSync36(nodePath61.join(project, ".claude", "skills", "bdd", "SKILL.md"), "utf8"));
   const observation = { argumentsObserved: false, canonicalBodyObserved: false };
@@ -38784,10 +38837,12 @@ function installedProfile(environment) {
     const identity = parseOpenCodeIdentity(JSON.parse(readFileSync37(paths.identity, "utf8")));
     if (identity?.safeword_version !== VERSION)
       return;
-    if (sha2565(readFileSync37(paths.plugin)) !== identity.plugin_sha256 || sha2565(readFileSync37(identity.dispatcher_path)) !== identity.dispatcher_sha256) {
+    const pluginBytes = readFileSync37(paths.plugin);
+    const dispatcherBytes = readFileSync37(identity.dispatcher_path);
+    if (sha2565(pluginBytes) !== identity.plugin_sha256 || sha2565(dispatcherBytes) !== identity.dispatcher_sha256) {
       return;
     }
-    return { identity, root };
+    return { dispatcherBytes, identity, pluginBytes, root };
   } catch {
     return;
   }
@@ -38835,21 +38890,21 @@ function failedProof(code, message) {
     data: { command: "conformance", agent: "opencode" }
   });
 }
-async function proveOpenCodeHost(executable, environment, fault) {
-  if (!proveOpenCodeCatalogue(executable, environment, fault)) {
+async function proveOpenCodeHost(executable, environment, profile, fault) {
+  if (!proveOpenCodeCatalogue(executable, environment, profile, fault)) {
     return failedProof("OPENCODE_CATALOGUE_CONFORMANCE_FAILED", "OpenCode did not discover the required Safeword catalogue.");
   }
-  if (!await proveOpenCodeAllow(executable, environment)) {
+  if (!await proveOpenCodeAllow(executable, environment, profile)) {
     return failedProof("OPENCODE_ALLOW_CONFORMANCE_FAILED", "OpenCode did not prove that the installed Safeword dispatcher permits safe covered work.");
   }
-  const denial = await proveOpenCodeDenial(executable, environment, fault !== "disarmed-denial");
+  const denial = await proveOpenCodeDenial(executable, environment, profile, fault !== "disarmed-denial");
   if (!denial.denialSurfaced || !denial.sentinelAbsent) {
     return failedProof("OPENCODE_DENIAL_CONFORMANCE_FAILED", "OpenCode did not prove Safeword denial without a side effect.");
   }
-  if (!await proveOpenCodeControl(executable, environment)) {
+  if (!await proveOpenCodeControl(executable, environment, profile)) {
     return failedProof("OPENCODE_CONTROL_CONFORMANCE_FAILED", "The disarmed OpenCode sentinel did not produce its expected side effect.");
   }
-  const skill = await proveOpenCodeSkillInvocation(executable, environment);
+  const skill = await proveOpenCodeSkillInvocation(executable, environment, profile);
   return skill.argumentsObserved && skill.canonicalBodyObserved ? undefined : failedProof("OPENCODE_SKILL_CONFORMANCE_FAILED", "OpenCode did not load the canonical skill with the exact command arguments.");
 }
 async function runOpenCodeConformance(environment = process.env, options = {}) {
@@ -38861,7 +38916,7 @@ async function runOpenCodeConformance(environment = process.env, options = {}) {
   const profile = installedProfile(environment);
   if (profile === undefined)
     return profileRemediation();
-  const proofFailure = await proveOpenCodeHost(executable, environment, fault);
+  const proofFailure = await proveOpenCodeHost(executable, environment, profile, fault);
   if (proofFailure !== undefined)
     return proofFailure;
   writePassingOpenCodeConformance(openCodeProfilePaths(profile.root).conformance, {
@@ -38871,6 +38926,7 @@ async function runOpenCodeConformance(environment = process.env, options = {}) {
     platform: process.platform,
     arch: process.arch,
     plugin_sha256: profile.identity.plugin_sha256,
+    dispatcher_sha256: profile.identity.dispatcher_sha256,
     command_catalogue: true,
     agent_catalogue: true,
     denial: true,
@@ -39073,14 +39129,14 @@ function openCodeConfigRootRequired() {
     findings: [
       {
         code: "OPENCODE_CONFIG_ROOT_UNRESOLVED",
-        message: "Set OPENCODE_CONFIG_DIR, XDG_CONFIG_HOME, or HOME for OpenCode.",
+        message: "Set OPENCODE_CONFIG_DIR, XDG_CONFIG_HOME, HOME, or USERPROFILE for OpenCode.",
         severity: "error"
       }
     ],
     nextActions: [
       {
         kind: "human",
-        instruction: "Set OPENCODE_CONFIG_DIR, XDG_CONFIG_HOME, or HOME, then rerun Safeword.",
+        instruction: "Set OPENCODE_CONFIG_DIR, XDG_CONFIG_HOME, HOME, or USERPROFILE, then rerun Safeword.",
         mutates: false,
         requiresHuman: true
       }
@@ -39101,24 +39157,26 @@ async function observeOpenCode(context) {
     opencodeVersion: observeOpenCodeVersion2(context.environment ?? process.env)
   });
 }
-function openCodeEffects(context) {
-  if (context.operation === "check")
-    return EMPTY_EFFECTS3;
-  const installed = context.observation?.data?.installed;
-  if (context.operation === "install" && installed === true)
-    return EMPTY_EFFECTS3;
-  if (context.operation === "uninstall" && installed !== true)
-    return EMPTY_EFFECTS3;
+function openCodeProfileEffects(kind) {
   const files = [
     "OpenCode profile plugin",
     "OpenCode Safeword identity",
     "OpenCode Safeword dispatcher"
-  ].map((target) => ({ kind: context.operation === "install" ? "add" : "remove", target }));
+  ].map((target) => ({ kind, target }));
   return {
     ...EMPTY_EFFECTS3,
     files,
-    destructive: context.operation === "uninstall" ? files.map(({ target }) => ({ kind: "remove", target, operation: "profile" })) : []
+    destructive: kind === "remove" ? files.map(({ target }) => ({ kind: "remove", target, operation: "profile" })) : []
   };
+}
+function openCodeEffects(context) {
+  if (context.operation === "check")
+    return EMPTY_EFFECTS3;
+  const data = context.observation?.data;
+  if (context.operation === "install") {
+    return data?.installed === true ? EMPTY_EFFECTS3 : openCodeProfileEffects("add");
+  }
+  return data?.profile_removable === true ? openCodeProfileEffects("remove") : EMPTY_EFFECTS3;
 }
 var LIFECYCLE_EVENTS, ADAPTER_KEYS, LIFECYCLE_STRENGTHS, EMPTY_EFFECTS3, FULL_HOOK_CAPABILITIES, claude, codex, opencode, cursor, PRODUCTION_INTEGRATIONS;
 var init_integrations = __esm(() => {
@@ -42512,7 +42570,7 @@ async function profilePreconditions(cwd, agents, scope, operation) {
 async function prepareLifecycle(cwd, operation, agents, options = {}) {
   const { full = false, install: installOptions = {}, scope = "project" } = options;
   const uninstalling = operation === "uninstall";
-  const projectSchema = projectLifecycleSchema(cwd, agents);
+  const projectSchema = projectLifecycleSchema(cwd, agents, operation);
   const uninstallOperation = full ? "uninstall-full" : "uninstall";
   const project = uninstalling ? await createReconciliationPlan(cwd, uninstallOperation, projectSchema) : {
     plan: await createSetupPlan(cwd, projectSchema, installOptions),

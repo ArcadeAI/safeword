@@ -85,6 +85,7 @@ describe('OpenCode marker resolution', () => {
       platform: process.platform,
       arch: process.arch,
       plugin_sha256: identity.plugin_sha256,
+      dispatcher_sha256: identity.dispatcher_sha256,
       command_catalogue: true,
       agent_catalogue: true,
       denial: true,
