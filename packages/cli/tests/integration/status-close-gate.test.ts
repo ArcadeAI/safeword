@@ -55,6 +55,26 @@ function writeFeatureClosedByStatus(directory: string, ticketId: string): void {
   );
 }
 
+function writeWipFeatureClosedByStatus(directory: string, ticketId: string): void {
+  writeFeatureClosedByStatus(directory, ticketId);
+  const folder = `.project/tickets/${ticketId}`;
+  writeTestFile(
+    directory,
+    `${folder}/test-definitions.md`,
+    `Feature source: \`features/${ticketId}.feature\`.\n\n## Rule: Test rule\n\n- [x] Scenario one\n`,
+  );
+  writeTestFile(
+    directory,
+    `${folder}/verify.md`,
+    '# Verify\n\n**PR Scope:** ✅ Diff matches ticket scope\n',
+  );
+  writeTestFile(
+    directory,
+    `features/${ticketId}.feature`,
+    '@wip\nFeature: Test\n\n  Scenario: one\n    Given it works\n',
+  );
+}
+
 /** Bind the session's active ticket so the session-scoped resolution path runs
  * (the sidestep only drops the ticket from the global in_progress scan). */
 function writeSessionState(directory: string, sessionId: string, ticketId: string): void {
@@ -67,6 +87,7 @@ function writeSessionState(directory: string, sessionId: string, ticketId: strin
 function runStopHook(
   targetDirectory: string,
   sessionId: string,
+  stopHookActive = false,
 ): { reason: string; systemMessage: string } {
   const transcriptPath = nodePath.join(targetDirectory, 'transcript.jsonl');
   writeFileSync(
@@ -83,7 +104,11 @@ function runStopHook(
     })}\n`,
   );
   const result = spawnSync('bun', ['.safeword/hooks/stop-quality.ts'], {
-    input: JSON.stringify({ transcript_path: transcriptPath, session_id: sessionId }),
+    input: JSON.stringify({
+      transcript_path: transcriptPath,
+      session_id: sessionId,
+      stop_hook_active: stopHookActive,
+    }),
     cwd: targetDirectory,
     env: { ...process.env, CLAUDE_PROJECT_DIR: targetDirectory },
     encoding: 'utf8',
@@ -110,5 +135,17 @@ describe('status-close done-gate (2JMQMX)', () => {
     expect(result.reason).toContain('Run `/explain` for a plain-English version');
     // 19E2XQ: the hint also rides systemMessage (the user-facing field).
     expect(result.systemMessage).toContain('Run `/explain` for a plain-English version');
+  });
+
+  it('blocks a feature closed by status:done while its Gherkin source is @wip', () => {
+    writeWipFeatureClosedByStatus(fixture.projectDirectory, '911');
+    writeSessionState(fixture.projectDirectory, 'session-911', '911');
+
+    // Re-entry skips the session skill-invocation check so this fixture reaches the scenario verdict.
+    const result = runStopHook(fixture.projectDirectory, 'session-911', true);
+
+    expect(result.reason).toContain('features/911.feature');
+    expect(result.reason).toContain('@wip');
+    expect(result.reason).toContain('line 1');
   });
 });

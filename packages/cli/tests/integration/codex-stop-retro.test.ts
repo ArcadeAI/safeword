@@ -104,6 +104,9 @@ writeFileSync(process.env.RECORD_PATH!, JSON.stringify({
 	  },
 	ticketContent: process.env.TICKET_PATH ? readFileSync(process.env.TICKET_PATH, 'utf8') : undefined,
 	}));
+	if (Bun.argv.includes('test-plan')) {
+	  process.stdout.write(JSON.stringify({ schema_version: 1, data: { plan: [] } }));
+	}
 	${exitCode === 0 ? '' : `process.exit(${exitCode});`}
 	`,
   );

@@ -6,15 +6,20 @@
 // understands.
 
 import { spawnSync } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
+  type ClaudeHookInput,
   type CodexHookInput,
   denialReasonFromHookOutput,
   runClaudeHookAsCodex,
   translateCodexInputToClaudeInputs,
 } from './pre-tool-quality-helpers.ts';
+import { classifyDoneTransition, parseTicketType } from '../cursor/gate-adapter.ts';
+import { checkFeatureScenarios } from '../lib/done-gate.ts';
+import { resolveNamespaceRoot } from '../lib/namespace-root.ts';
 import {
   commandInvokesWriteReviewStamp,
   parseRecordSkillInvocationCommand,
@@ -31,6 +36,8 @@ import { installCrashCapture } from '../lib/self-report.ts';
 installCrashCapture('codex-pre-tool-quality', undefined, 'codex');
 
 const EXIT_CODE_DENY_MODE = 'exit-code';
+// Exit 2 is a generic denial; exit 3 lets OpenCode show bounded close recovery.
+const INCOMPLETE_FEATURE_EVIDENCE_EXIT_CODE = 3;
 const CLAUDE_EXPLAIN_HINT = 'Run `/explain` for a plain-English version of this block.';
 const CODEX_EXPLAIN_HINT = 'Run `$explain` for a plain-English version of this block.';
 
@@ -49,6 +56,32 @@ function writeHookOutput(result: { stdout?: string | null; stderr?: string | nul
 
 function formatCodexReason(reason: string): string {
   return reason.replaceAll(CLAUDE_EXPLAIN_HINT, CODEX_EXPLAIN_HINT);
+}
+
+function proposedContent(input: ClaudeHookInput): string | undefined {
+  const direct = input.tool_input.content ?? input.tool_input.new_string;
+  if (direct) return direct;
+  const edits = input.tool_input.edits?.flatMap(edit => edit.new_string ?? []) ?? [];
+  return edits.length > 0 ? edits.join('\n') : undefined;
+}
+
+function denyDoneTransition(reason: string): never {
+  const fullReason = `${reason}\n\n${CODEX_EXPLAIN_HINT}`;
+  if (process.env.SAFEWORD_CODEX_DENY_MODE === EXIT_CODE_DENY_MODE) {
+    console.error(fullReason);
+    process.exit(INCOMPLETE_FEATURE_EVIDENCE_EXIT_CODE);
+  }
+  console.log(
+    JSON.stringify({
+      systemMessage: CODEX_EXPLAIN_HINT,
+      hookSpecificOutput: {
+        hookEventName: 'PreToolUse',
+        permissionDecision: 'deny',
+        permissionDecisionReason: fullReason,
+      },
+    }),
+  );
+  process.exit(0);
 }
 
 // Resolve the project root the same way the record-skill-invocation.ts fallback
@@ -83,6 +116,30 @@ if (proofCommand !== undefined) {
 
 const translatedInputs = translateCodexInputToClaudeInputs(input);
 if (translatedInputs.length === 0) process.exit(0);
+
+for (const translated of translatedInputs) {
+  const filePath = translated.tool_input.file_path;
+  if (!filePath || nodePath.basename(filePath) !== 'ticket.md') continue;
+  const content = proposedContent(translated);
+  if (classifyDoneTransition({ content }) !== 'done') continue;
+
+  const projectRoot = resolveProjectRoot();
+  const ticketPath = nodePath.resolve(projectRoot, filePath);
+  const relativeTicketPath = nodePath.relative(
+    nodePath.join(resolveNamespaceRoot(projectRoot), 'tickets'),
+    ticketPath,
+  );
+  if (nodePath.isAbsolute(relativeTicketPath) || relativeTicketPath.startsWith('..')) continue;
+  const ticketDirectory = nodePath.dirname(ticketPath);
+  let ticketType = parseTicketType(content);
+  if (!ticketType && existsSync(ticketPath)) {
+    ticketType = parseTicketType(readFileSync(ticketPath, 'utf8'));
+  }
+  if (ticketType !== 'feature') continue;
+
+  const verdict = checkFeatureScenarios(projectRoot, ticketDirectory);
+  if (!verdict.ok) denyDoneTransition(verdict.reason ?? 'Feature scenario evidence is incomplete.');
+}
 
 const hookDirectory = nodePath.dirname(fileURLToPath(import.meta.url));
 const claudeHookPath = nodePath.join(hookDirectory, '..', 'pre-tool-quality.ts');

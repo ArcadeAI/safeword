@@ -655,7 +655,7 @@ command = "npx --yes safeword hook codex post-tool-use"
       true,
     );
 
-    expect(result.status).toBe(2);
+    expect(result.status, result.stderr).toBe(2);
     expect(result.stderr).toContain('Broad process kill blocked');
   });
 
@@ -923,8 +923,43 @@ command = "npx --yes safeword hook codex pre-tool-use"
       { SAFEWORD_CODEX_DENY_MODE: 'exit-code' },
     );
 
-    expect(result.status).toBe(2);
+    expect(result.status, result.stderr).toBe(2);
     expect(result.stderr).toContain('Broad process kill blocked');
+  });
+
+  it('fails closed on structured hook output in OpenCode exit-code mode', () => {
+    const { packageDirectory, projectDirectory } = createPackagedCliFixture();
+    symlinkSync(
+      nodePath.resolve(import.meta.dirname, '../../node_modules'),
+      nodePath.join(packageDirectory, 'node_modules'),
+      'dir',
+    );
+    writeFileSync(
+      nodePath.join(packageDirectory, 'templates/hooks/codex/pre-tool-quality.ts'),
+      `process.stdout.write(JSON.stringify({ hookSpecificOutput: { permissionDecision: 'deny' } }));\n`,
+    );
+
+    const result = spawnSync(
+      process.execPath,
+      [nodePath.join(packageDirectory, 'dist/cli.js'), 'hook', 'codex', 'pre-tool-use'],
+      {
+        cwd: projectDirectory,
+        env: {
+          ...process.env,
+          SAFEWORD_AGENT_RUNTIME: 'opencode',
+          SAFEWORD_CODEX_DENY_MODE: 'exit-code',
+        },
+        input: JSON.stringify({
+          session_id: 'structured-deny-session',
+          tool_name: 'Bash',
+          tool_input: { command: 'echo safe' },
+        }),
+        encoding: 'utf8',
+      },
+    );
+
+    expect(result.status, result.stderr).toBe(2);
+    expect(result.stderr).toContain('unsupported output in exit-code mode');
   });
 
   it('allows a safe command after bunx replaces the packaged PreToolUse hook tree', async () => {

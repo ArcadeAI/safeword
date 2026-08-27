@@ -83,6 +83,17 @@ describe('evaluateDoneEvidence', () => {
     rmSync(projectDirectory, { recursive: true, force: true });
   });
 
+  function writeCompletedFeatureEvidence(feature: string): void {
+    writeFileSync(nodePath.join(ticketDirectory, 'verify.md'), VALID_VERIFY);
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'test-definitions.md'),
+      'Feature source: `features/example.feature`.\n\n## Rule: x\n- [x] one\n',
+    );
+    const featurePath = nodePath.join(projectDirectory, 'features', 'example.feature');
+    mkdirSync(nodePath.dirname(featurePath), { recursive: true });
+    writeFileSync(featurePath, feature);
+  }
+
   it('blocks a task close when verify.md is absent', () => {
     const verdict = evaluateDoneEvidence({
       projectDir: projectDirectory,
@@ -143,5 +154,91 @@ describe('evaluateDoneEvidence', () => {
         ticketType: 'feature',
       }),
     ).toEqual({ ok: true });
+  });
+
+  it('blocks a feature close when its referenced Gherkin feature is tagged @wip', () => {
+    writeCompletedFeatureEvidence(
+      '@wip\nFeature: Example\n\n  Scenario: one\n    Given it works\n',
+    );
+
+    const verdict = evaluateDoneEvidence({
+      projectDir: projectDirectory,
+      ticketDir: ticketDirectory,
+      ticketType: 'feature',
+    });
+
+    expect(verdict.ok).toBe(false);
+    expect(verdict.reason).toContain('features/example.feature');
+    expect(verdict.reason).toContain('@wip');
+    expect(verdict.reason).toContain('line 1');
+  });
+
+  it.each([
+    ['Rule', 'Feature: Example\n\n  @wip\n  Rule: nested\n'],
+    ['Scenario', 'Feature: Example\n\n  @wip\n  Scenario: nested\n'],
+    [
+      'Examples',
+      'Feature: Example\n\n  Scenario Outline: nested <value>\n    Given <value>\n\n    @wip\n    Examples:\n      | value |\n      | one   |\n',
+    ],
+  ])('blocks a feature close when a referenced %s is tagged @wip', (_scope, feature) => {
+    writeCompletedFeatureEvidence(feature);
+
+    const verdict = evaluateDoneEvidence({
+      projectDir: projectDirectory,
+      ticketDir: ticketDirectory,
+      ticketType: 'feature',
+    });
+
+    expect(verdict.ok).toBe(false);
+    expect(verdict.reason).toContain('@wip');
+  });
+
+  it('allows a completed referenced feature without the exact @wip tag', () => {
+    writeCompletedFeatureEvidence(
+      '@wipish\nFeature: Example\n\n  Scenario: one\n    Given it works\n',
+    );
+
+    expect(
+      evaluateDoneEvidence({
+        projectDir: projectDirectory,
+        ticketDir: ticketDirectory,
+        ticketType: 'feature',
+      }),
+    ).toEqual({ ok: true });
+  });
+
+  it('fails closed when a feature-source label does not use a recognized path marker', () => {
+    writeCompletedFeatureEvidence('Feature: Example\n\n  Scenario: one\n    Given it works\n');
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'test-definitions.md'),
+      'Feature source: features/example.feature\n\n- [x] one\n',
+    );
+
+    const verdict = evaluateDoneEvidence({
+      projectDir: projectDirectory,
+      ticketDir: ticketDirectory,
+      ticketType: 'feature',
+    });
+
+    expect(verdict.ok).toBe(false);
+    expect(verdict.reason).toContain('Feature source is malformed');
+  });
+
+  it('fails closed when the referenced feature source cannot be read', () => {
+    writeFileSync(nodePath.join(ticketDirectory, 'verify.md'), VALID_VERIFY);
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'test-definitions.md'),
+      'Feature source: `features/example.feature`.\n\n- [x] one\n',
+    );
+    mkdirSync(nodePath.join(projectDirectory, 'features', 'example.feature'), { recursive: true });
+
+    const verdict = evaluateDoneEvidence({
+      projectDir: projectDirectory,
+      ticketDir: ticketDirectory,
+      ticketType: 'feature',
+    });
+
+    expect(verdict.ok).toBe(false);
+    expect(verdict.reason).toContain('could not be read');
   });
 });

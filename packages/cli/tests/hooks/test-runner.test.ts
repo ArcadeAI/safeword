@@ -130,6 +130,28 @@ describe('runTests (resolves its suite via safeword project test-plan)', () => {
     expect(result).toEqual({ passed: true, output: '', skipped: true });
   });
 
+  it('fails closed when the test plan cannot be resolved', () => {
+    const project = makeProject({});
+    const failingCli = nodePath.join(project, 'failing-cli.ts');
+    writeFileSync(
+      failingCli,
+      'process.stderr.write("resolver unavailable\\n"); process.exit(2);\n',
+    );
+    const originalCli = process.env.SAFEWORD_CLI;
+    process.env.SAFEWORD_CLI = failingCli;
+
+    try {
+      const result = runTests(project);
+
+      expect(result.skipped).toBe(false);
+      expect(result.passed).toBe(false);
+      expect(result.resolutionFailed).toBe(true);
+      expect(result.output).toContain('resolver unavailable');
+    } finally {
+      process.env.SAFEWORD_CLI = originalCli;
+    }
+  });
+
   it('holds no per-language command strings and resolves via the canonical project test-plan command', () => {
     const source = readFileSync(
       nodePath.join(repoRoot, 'packages/cli/templates/hooks/lib/test-runner.ts'),

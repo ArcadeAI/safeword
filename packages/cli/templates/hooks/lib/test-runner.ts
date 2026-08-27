@@ -41,6 +41,8 @@ interface TestPlanEnvelope {
   };
 }
 
+type TestPlanResolution = { ok: true; commands: TestCommand[] } | { ok: false; reason: string };
+
 export interface TestResult {
   /** Whether tests passed (exit code 0). */
   passed: boolean;
@@ -48,6 +50,8 @@ export interface TestResult {
   output: string;
   /** true if no test command was found — caller should skip, not block. */
   skipped: boolean;
+  /** true when the canonical test-plan command failed or returned invalid output. */
+  resolutionFailed?: boolean;
   /**
    * true when a command failed because its binary was not found (exit 127 /
    * "command not found") — an environment problem (uninstalled toolchain), not a
@@ -117,24 +121,34 @@ function safewordCliCommand(cwd: string): [string, ...string[]] {
 
 /**
  * Ask `safeword project test-plan` for the project's test commands and keep the runnable
- * (available) ones. Returns [] on any failure so the caller skips, never blocks.
+ * (available) ones. Resolver failures remain distinct from a valid empty plan so the
+ * completion gate can fail closed without penalizing projects that genuinely have no tests.
  */
-function resolvePlanCommands(cwd: string): TestCommand[] {
+function resolvePlanCommands(cwd: string): TestPlanResolution {
   const cli = safewordCliCommand(cwd);
   const result = spawnSync(
     cli[0],
     [...cli.slice(1), 'project', 'test-plan', '--kind', 'test', '--json', cwd],
     { encoding: 'utf8', timeout: TEST_TIMEOUT_MS },
   );
-  if (result.status !== 0 || !result.stdout) return [];
+  if (result.status !== 0 || result.error || !result.stdout) {
+    const detail = result.stderr?.trim() || result.error?.message || `exited ${result.status}`;
+    return { ok: false, reason: `Test plan could not be resolved: ${detail}` };
+  }
   try {
     const envelope = JSON.parse(result.stdout) as TestPlanEnvelope;
-    const entries = envelope.data?.plan ?? [];
-    return entries
-      .filter(entry => entry.available)
-      .map(entry => ({ script: entry.runner, command: entry.command, cwd: entry.cwd }));
-  } catch {
-    return [];
+    if (envelope.schema_version !== 1 || !Array.isArray(envelope.data?.plan)) {
+      return { ok: false, reason: 'Test plan could not be resolved: invalid response.' };
+    }
+    return {
+      ok: true,
+      commands: envelope.data.plan
+        .filter(entry => entry.available)
+        .map(entry => ({ script: entry.runner, command: entry.command, cwd: entry.cwd })),
+    };
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : 'invalid JSON';
+    return { ok: false, reason: `Test plan could not be resolved: ${detail}` };
   }
 }
 
@@ -157,12 +171,13 @@ function bddCommand(cwd: string): TestCommand | undefined {
   return undefined;
 }
 
-/** Resolved suite (from test-plan) plus the acceptance lane; [] means skip. */
-function getTestCommands(cwd: string): TestCommand[] {
-  const commands = resolvePlanCommands(cwd);
+/** Resolved suite (from test-plan) plus the acceptance lane. */
+function getTestCommands(cwd: string): TestPlanResolution {
+  const resolution = resolvePlanCommands(cwd);
+  if (!resolution.ok) return resolution;
   const bdd = bddCommand(cwd);
-  if (bdd) commands.push(bdd);
-  return commands;
+  if (bdd) resolution.commands.push(bdd);
+  return resolution;
 }
 
 function formatCommandOutput(testCommand: TestCommand, output: string): string {
@@ -250,7 +265,16 @@ function runSingleTestCommand(testCommand: TestCommand): {
  * - Returns skipped=true if no runnable command was found (caller should not block).
  */
 export function runTests(cwd: string = projectDir): TestResult {
-  const commands = getTestCommands(cwd);
+  const resolution = getTestCommands(cwd);
+  if (!resolution.ok) {
+    return {
+      passed: false,
+      output: truncateOutput(resolution.reason),
+      skipped: false,
+      resolutionFailed: true,
+    };
+  }
+  const { commands } = resolution;
   if (commands.length === 0) return { passed: true, output: '', skipped: true };
 
   const outputs: string[] = [];

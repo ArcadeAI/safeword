@@ -638,7 +638,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".safeword/hooks/session-safeword-context.ts": "56c7a97a760c978e747010192855709baad66adda31e04f6c35d9279b87b19a5",
         ".safeword/hooks/session-start-reentry.ts": "b9f02a92eec2b195833660e9f5becab80e44a217094c188cd47b4ca9f7d1900d",
         ".safeword/hooks/session-version.ts": "c6160a3ea0ef65345c89b3c1dcf5a4177a408d94ab7efda82d86f9d455815c64",
-        ".safeword/hooks/stop-quality.ts": "34da4375dd284343bdae0f112a253d2aa2ea5d06d096dadd8774831e41018ffd",
+        ".safeword/hooks/stop-quality.ts": "81fdc8f984f926be8ccacd929dd407b5a76db39e303e12f4b7f5e85234d0705b",
         ".safeword/hooks/stop-reentry.ts": "a84d34d0798c83177d6ccc733299e9632e8485b700ef92ec53f153d68a1cfba5",
         ".safeword/hooks/stop-retro-filing.ts": "ae5693347a530547701c7fd9efd9d76ee4f690cd235b7e28b409d59d6090417d",
         ".safeword/hooks/stop-retro.ts": "5b0767121376bac1ad9f2b57765f0e705b1c34bff72724133014d31e39c0b916",
@@ -37685,7 +37685,9 @@ const identityPath = path.join(profileRoot, 'safeword', 'identity-v1.json');
 const profileErrorPath = path.join(profileRoot, 'safeword', 'profile-error-v1.json');
 const activationRoot = path.join(profileRoot, 'safeword', 'activation-v1');
 const MARKER_TIMEOUT_MILLISECONDS = ${markerTimeoutMilliseconds};
+const INCOMPLETE_FEATURE_EVIDENCE_EXIT_CODE = 3;
 const DENIAL = 'Safeword denied this OpenCode tool call.';
+const INCOMPLETE_FEATURE_EVIDENCE = 'Safeword blocked this ticket close because its feature evidence is incomplete. Check test-definitions.md and its referenced feature source: complete every scenario, fix missing or malformed evidence, remove @wip, and retry.';
 const REPAIR = 'Safeword cannot run its OpenCode guard. Run safeword install --agents=opencode.';
 
 class UnavailableDispatcher extends Error {}
@@ -37702,11 +37704,19 @@ function canonicalEnvelope(input, output) {
   }
   if (input.tool === 'edit' || input.tool === 'write') {
     if (typeof args.filePath !== 'string' || args.filePath.length === 0) throw new Error(DENIAL);
+    const editFields = input.tool === 'edit'
+      ? {
+          ...(typeof args.oldString === 'string' ? { old_string: args.oldString } : {}),
+          ...(typeof args.newString === 'string' ? { new_string: args.newString } : {}),
+        }
+      : typeof args.content === 'string'
+        ? { content: args.content }
+        : {};
     return {
       hook_event_name: 'PreToolUse',
       session_id: input.sessionID,
       tool_name: input.tool === 'edit' ? 'Edit' : 'Write',
-      tool_input: { file_path: args.filePath },
+      tool_input: { file_path: args.filePath, ...editFields },
     };
   }
   if (input.tool === 'patch' || input.tool === 'apply_patch') {
@@ -37824,6 +37834,7 @@ function dispatch(identity, envelope, directory) {
       shell: false,
       env: {
         ...process.env,
+        CLAUDE_PROJECT_DIR: directory,
         SAFEWORD_AGENT_RUNTIME: 'opencode',
         SAFEWORD_CODEX_DENY_MODE: 'exit-code',
       },
@@ -37903,6 +37914,7 @@ export const Safeword = async input => {
       }
       await recordActivation(classification.directory, 'pre_tool', hookInput.sessionID, hookInput.callID);
       if (result.exitCode === 0) return;
+      if (result.exitCode === INCOMPLETE_FEATURE_EVIDENCE_EXIT_CODE) throw new Error(INCOMPLETE_FEATURE_EVIDENCE);
       throw new Error(DENIAL);
     },
     'tool.execute.after': async hookInput => {
@@ -62246,6 +62258,11 @@ function hookFailureDetail(result) {
 }
 function denyForPackagedHookFailure(result) {
   const detail = hookFailureDetail(result);
+  if (process21.env.SAFEWORD_CODEX_DENY_MODE === EXIT_CODE_DENY_MODE && result.status === INCOMPLETE_FEATURE_EVIDENCE_EXIT_CODE) {
+    process21.stderr.write(`${detail}
+`);
+    process21.exit(INCOMPLETE_FEATURE_EVIDENCE_EXIT_CODE);
+  }
   process21.stderr.write(`Safeword packaged PreToolUse hook failed: ${detail}
 `);
   process21.exit(2);
@@ -62255,6 +62272,11 @@ function emitPackagedPreToolResult(result) {
     denyForPackagedHookFailure(result);
   if (result.stdout.trim() === "")
     return false;
+  if (process21.env.SAFEWORD_CODEX_DENY_MODE === EXIT_CODE_DENY_MODE) {
+    process21.stderr.write(`Safeword packaged PreToolUse hook returned unsupported output in exit-code mode.
+`);
+    process21.exit(2);
+  }
   process21.stdout.write(result.stdout);
   return true;
 }
@@ -62481,7 +62503,7 @@ async function codexHook(event, options = {}) {
   }
   await CODEX_HOOK_RUNNERS[normalized](projectDirectory);
 }
-var EXPLAIN_HINT = "Run `$explain` for a plain-English version of this block.", EXIT_CODE_DENY_MODE = "exit-code", PRE_TOOL_QUALITY_HOOK_PATH = "codex/pre-tool-quality.ts", REQUIRED_INTAKE_FIELDS, MODULE_DIRECTORY, TEMPLATE_DIRECTORIES, POST_TOOL_GUIDANCE_PATH = ".project/codex-post-tool-guidance.txt", PROMPT_CONTEXT_PATH = ".project/codex-prompt-context.txt", STOP_CONTINUATION_PATH = ".project/codex-stop-continuation.txt", CODEX_RUN_IDENTITY_CACHE = "codex-run-identity.json", CODEX_REVIEW_STAMP_IDENTITY_CACHE = "codex-review-stamp-identity.json", RECORD_SKILL_INVOCATION_SCRIPT = ".safeword/hooks/record-skill-invocation.ts", WRITE_REVIEW_STAMP_SCRIPT = ".safeword/hooks/write-review-stamp.ts", REVIEW_STAMP_CACHE_KEY = "review-stamp", SKILL_NAME_PATTERN, SHELL_SEPARATORS = ";&|", SHELL_WHITESPACE, SUPPORTED_CODEX_HOOK_EVENTS, stdinCache, CODEX_HOOK_RUNNERS;
+var EXPLAIN_HINT = "Run `$explain` for a plain-English version of this block.", EXIT_CODE_DENY_MODE = "exit-code", PRE_TOOL_QUALITY_HOOK_PATH = "codex/pre-tool-quality.ts", REQUIRED_INTAKE_FIELDS, MODULE_DIRECTORY, TEMPLATE_DIRECTORIES, POST_TOOL_GUIDANCE_PATH = ".project/codex-post-tool-guidance.txt", PROMPT_CONTEXT_PATH = ".project/codex-prompt-context.txt", STOP_CONTINUATION_PATH = ".project/codex-stop-continuation.txt", CODEX_RUN_IDENTITY_CACHE = "codex-run-identity.json", CODEX_REVIEW_STAMP_IDENTITY_CACHE = "codex-review-stamp-identity.json", RECORD_SKILL_INVOCATION_SCRIPT = ".safeword/hooks/record-skill-invocation.ts", WRITE_REVIEW_STAMP_SCRIPT = ".safeword/hooks/write-review-stamp.ts", REVIEW_STAMP_CACHE_KEY = "review-stamp", SKILL_NAME_PATTERN, SHELL_SEPARATORS = ";&|", SHELL_WHITESPACE, SUPPORTED_CODEX_HOOK_EVENTS, stdinCache, INCOMPLETE_FEATURE_EVIDENCE_EXIT_CODE = 3, CODEX_HOOK_RUNNERS;
 var init_codex_hook = __esm(() => {
   init_legacy_authority();
   init_profile_proof();
