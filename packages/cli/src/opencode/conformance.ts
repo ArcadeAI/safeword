@@ -1,8 +1,10 @@
 import { spawnSync } from 'node:child_process';
-import { accessSync, constants, realpathSync, statSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { accessSync, constants, readFileSync, realpathSync, statSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { type CliResult, createResult } from '../cli-protocol/result.js';
+import { VERSION } from '../version.js';
 import {
   OPENCODE_EXPECTED_DISCOVERY,
   proveOpenCodeCatalogue,
@@ -10,6 +12,8 @@ import {
   proveOpenCodeDenial,
   proveOpenCodeSkillInvocation,
 } from './conformance-fixture.js';
+import { writePassingOpenCodeConformance } from './evidence.js';
+import { type OpenCodeIdentityV1, parseOpenCodeIdentity } from './identity.js';
 import { openCodeProfilePaths, resolveOpenCodeConfigRoot } from './profile.js';
 
 export const SUPPORTED_OPENCODE_VERSION = '1.18.23';
@@ -71,7 +75,16 @@ function profileRemediation(): CliResult {
   });
 }
 
-function installedProfileRoot(environment: NodeJS.ProcessEnv): string | undefined {
+interface InstalledProfile {
+  readonly identity: OpenCodeIdentityV1;
+  readonly root: string;
+}
+
+function sha256(value: Buffer): string {
+  return createHash('sha256').update(value).digest('hex');
+}
+
+function installedProfile(environment: NodeJS.ProcessEnv): InstalledProfile | undefined {
   const root = resolveOpenCodeConfigRoot({
     platform: process.platform === 'win32' ? 'windows' : 'unix',
     env: environment,
@@ -79,7 +92,16 @@ function installedProfileRoot(environment: NodeJS.ProcessEnv): string | undefine
   if (root === undefined) return undefined;
   const paths = openCodeProfilePaths(root);
   try {
-    return statSync(paths.plugin).isFile() && statSync(paths.identity).isFile() ? root : undefined;
+    if (!statSync(paths.plugin).isFile() || !statSync(paths.identity).isFile()) return undefined;
+    const identity = parseOpenCodeIdentity(JSON.parse(readFileSync(paths.identity, 'utf8')));
+    if (identity?.safeword_version !== VERSION) return undefined;
+    if (
+      sha256(readFileSync(paths.plugin)) !== identity.plugin_sha256 ||
+      sha256(readFileSync(identity.dispatcher_path)) !== identity.dispatcher_sha256
+    ) {
+      return undefined;
+    }
+    return { identity, root };
   } catch {
     return undefined;
   }
@@ -129,7 +151,8 @@ export async function runOpenCodeConformance(
   if ('result' in boundary) return boundary.result;
   const { executable } = boundary;
 
-  if (installedProfileRoot(environment) === undefined) return profileRemediation();
+  const profile = installedProfile(environment);
+  if (profile === undefined) return profileRemediation();
   if (!proveOpenCodeCatalogue(executable, environment)) {
     return createResult({
       state: 'failed',
@@ -185,25 +208,28 @@ export async function runOpenCodeConformance(
     });
   }
 
+  writePassingOpenCodeConformance(openCodeProfilePaths(profile.root).conformance, {
+    schema_version: 1,
+    safeword_version: profile.identity.safeword_version,
+    opencode_version: SUPPORTED_OPENCODE_VERSION,
+    platform: process.platform,
+    arch: process.arch,
+    plugin_sha256: profile.identity.plugin_sha256,
+    command_catalogue: true,
+    agent_catalogue: true,
+    denial: true,
+    control: true,
+    checked_at: new Date().toISOString(),
+    result: 'passed',
+  });
+
   return createResult({
-    state: 'action_required',
-    findings: [
-      {
-        code: 'OPENCODE_CONFORMANCE_INCOMPLETE',
-        message: 'The OpenCode executable is valid, but real-process conformance has not run.',
-        severity: 'error',
-      },
-    ],
-    nextActions: [
-      {
-        command: 'safeword conformance --agents=opencode',
-        mutates: true,
-        requiresHuman: false,
-      },
-    ],
+    state: 'changed',
     data: {
       command: 'conformance',
       agent: 'opencode',
+      opencode_version: SUPPORTED_OPENCODE_VERSION,
+      conformant: true,
       discovery: OPENCODE_EXPECTED_DISCOVERY,
       denial: true,
       control: true,

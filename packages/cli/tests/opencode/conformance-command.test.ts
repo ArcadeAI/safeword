@@ -64,16 +64,16 @@ describe('OpenCode conformance command', () => {
       },
     );
 
-    expect(result).toMatchObject({ exitCode: 2, stderr: '' });
+    expect(result).toMatchObject({ exitCode: 0, stderr: '' });
     expect(JSON.parse(result.stdout)).toMatchObject({
-      state: 'action_required',
+      state: 'changed',
       data: {
         command: 'conformance',
         agent: 'opencode',
         discovery: { command: 'bdd', subagent: 'safeword-reviewer', skill: 'bdd' },
       },
     });
-    expect(existsSync(nodePath.join(config, 'safeword', 'conformance-v1'))).toBe(false);
+    expect(existsSync(nodePath.join(config, 'safeword', 'conformance-v1'))).toBe(true);
   }, 120_000);
 
   it('uses the generated profile plugin to deny the real-host sentinel without a side effect', async () => {
@@ -95,12 +95,12 @@ describe('OpenCode conformance command', () => {
       },
     );
 
-    expect(result).toMatchObject({ exitCode: 2, stderr: '' });
+    expect(result).toMatchObject({ exitCode: 0, stderr: '' });
     expect(JSON.parse(result.stdout)).toMatchObject({
-      state: 'action_required',
+      state: 'changed',
       data: { command: 'conformance', agent: 'opencode', denial: true },
     });
-    expect(existsSync(nodePath.join(config, 'safeword', 'conformance-v1'))).toBe(false);
+    expect(existsSync(nodePath.join(config, 'safeword', 'conformance-v1'))).toBe(true);
   }, 120_000);
 
   it('proves the identical disarmed sentinel fixture can produce its side effect', async () => {
@@ -122,12 +122,12 @@ describe('OpenCode conformance command', () => {
       },
     );
 
-    expect(result).toMatchObject({ exitCode: 2, stderr: '' });
+    expect(result).toMatchObject({ exitCode: 0, stderr: '' });
     expect(JSON.parse(result.stdout)).toMatchObject({
-      state: 'action_required',
+      state: 'changed',
       data: { command: 'conformance', agent: 'opencode', control: true },
     });
-    expect(existsSync(nodePath.join(config, 'safeword', 'conformance-v1'))).toBe(false);
+    expect(existsSync(nodePath.join(config, 'safeword', 'conformance-v1'))).toBe(true);
   }, 120_000);
 
   it('loads the canonical bdd skill with exact arguments through the pinned real host', async () => {
@@ -149,12 +149,12 @@ describe('OpenCode conformance command', () => {
       },
     );
 
-    expect(result).toMatchObject({ exitCode: 2, stderr: '' });
+    expect(result).toMatchObject({ exitCode: 0, stderr: '' });
     expect(JSON.parse(result.stdout)).toMatchObject({
-      state: 'action_required',
+      state: 'changed',
       data: { command: 'conformance', agent: 'opencode', skill_invocation: true },
     });
-    expect(existsSync(nodePath.join(config, 'safeword', 'conformance-v1'))).toBe(false);
+    expect(existsSync(nodePath.join(config, 'safeword', 'conformance-v1'))).toBe(true);
   }, 120_000);
 
   it('persists passing evidence bound to the exact real host and installed profile', async () => {
