@@ -94,6 +94,7 @@ function runHook(
 it.each([
   ['claude-code', completedClaudeTranscript],
   ['codex', completedCodexTranscript],
+  ['cursor', completedClaudeTranscript],
 ] as const)(
   'runs installed %s lifecycle through the real collector to a durable receipt',
   async (harness, completedTranscript) => {
@@ -176,6 +177,15 @@ it.each([
       );
       chmodSync(wrapper, 0o755);
       const transcript = completedTranscript(project);
+      const cursorRunner = path.join(project, 'cursor-retro.mjs');
+      writeFileSync(
+        cursorRunner,
+        `import { spawnSync } from 'node:child_process';
+const result = spawnSync(process.execPath, [process.env.CLI_PATH, 'retro', 'run', '--public-retro', '--transcript', process.env.TRANSCRIPT_PATH, '--findings', process.env.FINDINGS_PATH, '--session-id', process.env.SESSION_ID, '--json'], { cwd: process.cwd(), env: { ...process.env, SAFEWORD_RETRO_AGENT: 'cursor' }, stdio: 'ignore' });
+process.exit(result.status ?? 1);
+`,
+      );
+      const hook = harness === 'cursor' ? cursorRunner : HOOKS[harness];
       const bun = spawnSync('which', ['bun'], { encoding: 'utf8' }).stdout.trim();
       expect(bun).not.toBe('');
       const controlledEnvironment = {
@@ -185,7 +195,7 @@ it.each([
       };
       const result = await runHook(
         bun,
-        HOOKS[harness],
+        hook,
         project,
         {
           ...controlledEnvironment,
@@ -195,6 +205,8 @@ it.each([
           PATH: `${path.dirname(bun)}:/usr/bin:/bin`,
           SAFEWORD_RETRO_DEBUG_LOG: debugLog,
           SAFEWORD_RETRO_EXTRACT_CMD: wrapper,
+          SESSION_ID: sessionId,
+          TRANSCRIPT_PATH: transcript,
         },
         JSON.stringify({ session_id: sessionId, transcript_path: transcript, cwd: project }),
       );
@@ -230,7 +242,7 @@ it.each([
 
       const duplicate = await runHook(
         bun,
-        HOOKS[harness],
+        hook,
         project,
         {
           ...controlledEnvironment,
@@ -239,6 +251,8 @@ it.each([
           FINDINGS_PATH: findings,
           PATH: `${path.dirname(bun)}:/usr/bin:/bin`,
           SAFEWORD_RETRO_EXTRACT_CMD: wrapper,
+          SESSION_ID: sessionId,
+          TRANSCRIPT_PATH: transcript,
         },
         JSON.stringify({ session_id: sessionId, transcript_path: transcript, cwd: project }),
       );
@@ -257,7 +271,7 @@ it.each([
       const disabledSessionId = `${sessionId}-disabled`;
       const disabled = await runHook(
         bun,
-        HOOKS[harness],
+        hook,
         project,
         {
           ...controlledEnvironment,
@@ -266,6 +280,8 @@ it.each([
           FINDINGS_PATH: findings,
           PATH: `${path.dirname(bun)}:/usr/bin:/bin`,
           SAFEWORD_RETRO_EXTRACT_CMD: wrapper,
+          SESSION_ID: disabledSessionId,
+          TRANSCRIPT_PATH: transcript,
         },
         JSON.stringify({
           session_id: disabledSessionId,
