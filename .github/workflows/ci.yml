@@ -89,6 +89,7 @@ jobs:
           export OPENCODE_CONFIG_DIR="$fixture_root/config"
           export PATH="$fixture_root/bin:$PATH"
           safeword() { bun packages/cli/dist/cli.js "$@"; }
+          test "$(opencode --version)" = "1.18.23"
           bun -e 'import { installOpenCodeProfile } from "./packages/cli/src/opencode/profile.ts"; const result = installOpenCodeProfile(process.env.OPENCODE_CONFIG_DIR); if (result.state !== "changed") process.exit(1)'
           safeword conformance --agents=opencode --json --no-input --offline --cwd "$fixture_root/project"
 
