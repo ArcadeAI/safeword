@@ -5,8 +5,8 @@ import path from 'node:path';
 import { assemblePublicFinding, type Finding } from './finding.js';
 
 export interface PublicRetroSource {
-  harness: 'claude-code' | 'codex';
-  hostClass: 'local';
+  harness: 'claude-code' | 'codex' | 'cursor';
+  hostClass: 'local' | 'unknown';
   projectUUID: string;
   safewordCliVersion: string;
   repository?: string;
@@ -76,14 +76,17 @@ function optionalValue(value: string | undefined): string | undefined {
   return hasValue(value) ? value.trim() : undefined;
 }
 
+function validSourceRoute(source: PublicRetroSource): boolean {
+  return source.hostClass === 'unknown' || source.harness !== 'cursor';
+}
+
 function isValidEnvelopeInput(input: PublicRetroEnvelopeInput, projectUUID: string): boolean {
   const { source } = input;
   return (
     UUID.test(projectUUID) &&
     input.finding.trim() !== '' &&
     input.sessionId.trim() !== '' &&
-    (source.harness === 'claude-code' || source.harness === 'codex') &&
-    source.hostClass === 'local' &&
+    validSourceRoute(source) &&
     source.safewordCliVersion.trim() !== ''
   );
 }
