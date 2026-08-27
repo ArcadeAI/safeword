@@ -90,9 +90,21 @@ describe('verify report structure (146)', () => {
       expect(content).toContain('**Gherkin:**');
       expect(content).toContain('All N scenarios marked complete');
       expect(content).toContain('**PR Scope:**');
+      expect(content).toContain('**Refactor:**');
       expect(content).toContain('Audit passed');
       expect(content).not.toContain('Without all three patterns');
     });
+
+    it.each(allVerifySurfaces)(
+      '%s reports refactor disposition without requiring formal skill invocation',
+      (_name, content) => {
+        expect(content).toContain('**Refactor:**');
+        expect(content).toContain('Completed — <sha/summary>');
+        expect(content).toContain('No change warranted — <reason>');
+        expect(content).toContain('Skipped — <reason>');
+        expect(content).toContain('does not require a formal `$refactor` skill invocation');
+      },
+    );
   });
 
   describe('Rule: Decisions section contains only spec/scope/value questions', () => {
