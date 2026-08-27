@@ -100,4 +100,33 @@ describe('OpenCode conformance command', () => {
       conformant: true,
     });
   }, 120_000);
+
+  it.each(['missing-command', 'missing-subagent', 'missing-skill', 'disarmed-denial'] as const)(
+    'fails without evidence when the required lane injects %s',
+    async fault => {
+      const project = createTemporaryDirectory();
+      const config = createTemporaryDirectory();
+      const bin = createTemporaryDirectory();
+      executable(bin, 'exec bunx --bun opencode-ai@1.18.23 "$@"');
+      expect(installOpenCodeProfile(config).state).toBe('changed');
+
+      const result = await runCli(
+        ['conformance', '--agents=opencode', '--json', '--no-input', '--offline', '--cwd', project],
+        {
+          cwd: project,
+          env: {
+            OPENCODE_CONFIG_DIR: config,
+            PATH: `${bin}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+            SAFEWORD_OPENCODE_CONFORMANCE_FAULT: fault,
+          },
+          timeout: 120_000,
+        },
+      );
+
+      expect(result).toMatchObject({ exitCode: 1, stderr: '' });
+      expect(JSON.parse(result.stdout)).toMatchObject({ state: 'failed', changed: false });
+      expect(existsSync(nodePath.join(config, 'safeword', 'conformance-v1'))).toBe(false);
+    },
+    120_000,
+  );
 });
