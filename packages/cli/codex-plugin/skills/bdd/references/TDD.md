@@ -196,7 +196,7 @@ Off by default. When `.safeword/config.json` sets `architectureReviewGate: true`
 2. **A fresh-context review.** Resolve a review-capable Safeword CLI, then run the shared coordinator with only the bounded design evidence:
 
    ```bash
-   SAFEWORD_REVIEW_PROGRESS=1 bunx --bun safeword@0.79.5 review run plan-implementation impl-plan.md ticket-spec feature-file --agent-handoff --json
+   SAFEWORD_REVIEW_PROGRESS=1 bunx --bun safeword@0.79.6 review run plan-implementation impl-plan.md ticket-spec feature-file --agent-handoff --json
    ```
 
    The shared coordinator prefers the opposite headless agent. Only when its typed result is `REVIEW_ROUTES_EXHAUSTED`, invoke `$safeword:finish-review` with the original result and the same accepted targets; return every other result unchanged. Degraded findings cannot satisfy a required independent-review gate. On an independent pass, stamp it:
