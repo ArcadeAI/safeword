@@ -16,6 +16,7 @@ export const SAFEWORD_PATHS: readonly string[] = [
   '.jscpd.json',
   '.markdownlint-cli2.jsonc',
   '.mcp.json',
+  '.opencode/',
   '.oxfmtrc.json',
   '.oxfmtrc.jsonc',
   '.prettierignore',

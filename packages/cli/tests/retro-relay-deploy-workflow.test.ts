@@ -60,6 +60,7 @@ describe('Retro Relay deployment workflow', () => {
     expect(deployment.needs).toEqual([
       'dogfood-parity',
       'dependency-audit',
+      'opencode-conformance',
       'test',
       'lint',
       'relay-inputs',
@@ -101,6 +102,7 @@ describe('Public retro collector deployment workflow', () => {
     expect(deployment?.needs).toEqual([
       'dogfood-parity',
       'dependency-audit',
+      'opencode-conformance',
       'test',
       'lint',
       'collector-inputs',

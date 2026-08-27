@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { readFileSync, rmSync } from 'node:fs';
 
 import { defineConfig } from 'tsup';
 
@@ -8,6 +8,11 @@ const GIT_MAX_BUFFER_BYTES = 10 * 1024 * 1024;
 const PUBLIC_RETRO_ORIGIN =
   process.env.SAFEWORD_PUBLIC_RETRO_BUILD_ORIGIN ??
   'https://retro-collector-production.up.railway.app';
+const CLI_PACKAGE_VERSION = (
+  JSON.parse(readFileSync(new URL('package.json', import.meta.url), 'utf8')) as {
+    version: string;
+  }
+).version;
 
 const manifestBytes = readFileSync(
   new URL('src/retro/relay-readiness-manifest.json', import.meta.url),
@@ -132,7 +137,12 @@ function buildRelayAttestation(): RelayBuildAttestation {
 const relayBuildAttestation = buildRelayAttestation();
 
 export default defineConfig({
-  entry: ['src/cli.ts', 'src/index.ts', 'src/presets/typescript/index.ts'],
+  entry: [
+    'src/cli.ts',
+    'src/index.ts',
+    'src/opencode/dispatcher.ts',
+    'src/presets/typescript/index.ts',
+  ],
   format: ['esm'],
   dts: true,
   sourcemap: true,
@@ -148,5 +158,22 @@ export default defineConfig({
     __SAFEWORD_BUILD_COMMIT__: JSON.stringify(buildCommit),
     __SAFEWORD_RELAY_BUILD_ATTESTATION__: JSON.stringify(relayBuildAttestation),
     __SAFEWORD_PUBLIC_RETRO_ORIGIN__: JSON.stringify(PUBLIC_RETRO_ORIGIN),
+  },
+  onSuccess() {
+    // The OpenCode profile copies this entry without sibling tsup chunks or node_modules.
+    execFileSync(
+      'bun',
+      [
+        'build',
+        'src/opencode/dispatcher.ts',
+        '--target=node',
+        '--define',
+        `__SAFEWORD_VERSION__=${JSON.stringify(CLI_PACKAGE_VERSION)}`,
+        '--outfile=dist/opencode/dispatcher.js',
+      ],
+      { stdio: 'inherit' },
+    );
+    rmSync('dist/opencode/dispatcher.js.map', { force: true });
+    return Promise.resolve();
   },
 });

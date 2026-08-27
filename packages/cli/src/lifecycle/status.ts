@@ -17,7 +17,8 @@ import {
 import { checkHealth } from '../health.js';
 import { detectPackageManager } from '../utils/install.js';
 import { compareVersions, isSafePackageVersion } from '../utils/version.js';
-import { observeCursorProject, unselectedCursorFinding } from './cursor.js';
+import { unselectedCursorFinding } from './cursor.js';
+import { coordinateSelectedIntegrations, PRODUCTION_INTEGRATIONS } from './integrations.js';
 import { projectLifecycleSchema } from './schema.js';
 
 function healthFindings(
@@ -97,6 +98,7 @@ export async function observeStatus(
 export interface LifecycleSurfaceObservation {
   readonly name: 'project' | AgentIntegration;
   readonly result: CliResult;
+  readonly exposeData?: boolean;
 }
 
 export async function observeLifecycleSurfaces(
@@ -105,29 +107,29 @@ export async function observeLifecycleSurfaces(
   environment: NodeJS.ProcessEnv = process.env,
 ): Promise<readonly LifecycleSurfaceObservation[]> {
   const project = await observeStatus(cwd, agents, environment);
-  const surfaces: LifecycleSurfaceObservation[] = [{ name: 'project', result: project }];
-
-  if (agents.includes('claude')) {
-    const { observeClaudeStatus } = await import('../claude-plugin/status.js');
-    surfaces.push({ name: 'claude', result: observeClaudeStatus(cwd) });
-  }
-  if (agents.includes('codex')) {
-    const { observeCodexMigration } = await import('../codex-plugin/operations.js');
-    surfaces.push({ name: 'codex', result: observeCodexMigration(cwd, environment) });
-  }
-  if (agents.includes('cursor')) {
-    surfaces.push({
-      name: 'cursor',
-      result: observeCursorProject(cwd, projectLifecycleSchema(cwd, agents)),
-    });
-  }
-  return surfaces;
+  const integrationSurfaces = await coordinateSelectedIntegrations(
+    PRODUCTION_INTEGRATIONS,
+    agents,
+    async adapter => ({
+      name: adapter.id as AgentIntegration,
+      exposeData: adapter.exposeStatusData,
+      result: await adapter.observe({
+        cwd,
+        agents,
+        operation: 'check',
+        scope: 'project',
+        environment,
+      }),
+    }),
+  );
+  return [{ name: 'project', result: project }, ...integrationSurfaces];
 }
 
 export interface LifecycleSurfaceSummary {
   readonly name: string;
   readonly selected: true;
   readonly state: CliResult['state'];
+  readonly data?: unknown;
 }
 
 /** Per-surface outcomes shared by the status summary and doctor diagnostics. */
@@ -138,7 +140,38 @@ export function lifecycleSurfaceSummaries(
     name: surface.name,
     selected: true,
     state: surface.result.state,
+    ...(surface.exposeData === true &&
+      surface.result.data !== undefined && { data: surface.result.data }),
   }));
+}
+
+const STATE_PRIORITY: Readonly<Record<CliResult['state'], number>> = {
+  failed: 4,
+  action_required: 3,
+  changed: 2,
+  healthy: 1,
+};
+const FINDING_PRIORITY: Readonly<Record<Finding['severity'], number>> = {
+  error: 3,
+  warning: 2,
+  info: 1,
+};
+
+function actionPriority(result: CliResult): number {
+  const findingPriority = Math.max(
+    0,
+    ...result.findings.map(finding => FINDING_PRIORITY[finding.severity]),
+  );
+  return STATE_PRIORITY[result.state] * 10 + findingPriority;
+}
+
+function primaryNextAction(
+  surfaces: readonly LifecycleSurfaceObservation[],
+): readonly NextAction[] {
+  const prioritized = surfaces
+    .filter(surface => surface.result.nextActions.length > 0)
+    .toSorted((left, right) => actionPriority(right.result) - actionPriority(left.result));
+  return prioritized[0]?.result.nextActions.slice(0, 1) ?? [];
 }
 
 /** The project surface's own observation keys, which callers read top-level. */
@@ -163,7 +196,7 @@ export function summarizeLifecycleStatus(
     findings: results.flatMap(result => result.findings),
     errors: results.flatMap(result => result.errors),
     recovery: results.flatMap(result => result.recovery),
-    nextActions: results.flatMap(result => result.nextActions).slice(0, 1),
+    nextActions: primaryNextAction(surfaces),
     data: {
       ...projectObservationData(surfaces),
       command: 'status',

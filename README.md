@@ -20,13 +20,34 @@ bunx safeword@latest install
 ```
 
 By default, this configures the project and installs both the Claude Code and
-Codex plugins. Cursor stays untouched unless you explicitly select it:
+Codex plugins. OpenCode and Cursor stay untouched unless you explicitly select
+them:
 
 ```bash
 bunx safeword@latest install --agents=cursor
 # Or install every integration:
-bunx safeword@latest install --agents=claude,codex,cursor
+bunx safeword@latest install --agents=claude,codex,opencode,cursor
 ```
+
+OpenCode is intentionally opt-in because its guard is installed in the current
+user's OpenCode profile. The project receives declarative commands and agents,
+reuses the canonical `.claude/skills` catalogue OpenCode already discovers,
+and leaves `opencode.json` untouched:
+
+```bash
+bunx safeword@latest install --agents=opencode
+bunx safeword@latest conformance --agents=opencode
+bunx safeword@latest status --agents=opencode
+```
+
+`uninstall --agents=opencode` removes the shared Safeword guard from this
+OpenCode profile, so other enrolled projects under the same OpenCode config
+root become unprotected until you reinstall it from one of them.
+
+Conformance runs a credential-free real OpenCode process. Safeword reports the
+exact stable 1.x CLI/TUI version as protected only after that process discovers the
+native catalogue and proves a forbidden tool call produces no side effect.
+OpenCode Desktop remains advisory until it reliably dispatches the same hooks.
 
 **2. Activate the installed profile plugins:**
 
@@ -101,6 +122,8 @@ legacy content is preserved and reported instead.
 - Safeword Claude plugin - Native workflows and hooks cached by Claude; use `safeword install --agents=claude --scope user` for profile-wide activation
 - `.codex/config.toml` - Project bootstrap that enrolls each Codex profile at task start
 - Safeword Codex plugin - Profile-scoped skills and hooks following the verified `stable` channel
+- `.opencode/commands/` and `.opencode/agents/` - Native OpenCode catalogue bridges, installed only when selected
+- Safeword OpenCode profile plugin - Stable pre-tool enforcement with activation and conformance evidence
 - `.cursor/hooks.json` - Hook configuration for Cursor
 - `.cursor/rules/` - Behavior rules for Cursor
 - `.cursor/commands/` - Slash commands for Cursor
@@ -117,7 +140,7 @@ legacy content is preserved and reported instead.
 
 **Dev-only tools** — Safeword installs ESLint, Prettier, supporting plugins, `jiti` for TypeScript config loading, plus the Gherkin acceptance lane (cucumber-js + tsx), as `devDependencies` — in every project. A pure Go/Python/Rust repo gets a minimal `private: true` package.json created to host them (the lane's step definitions are TypeScript and test your app from the outside). These are development tools — they never ship with your application or affect your runtime.
 
-**AI guardrails, not human blockers** — Hooks and stricter linting rules only fire during AI agent sessions (Claude Code / Cursor / Codex events). They never run during normal human development. In repos that already use husky, install appends one warn-only line to `pre-commit`/`pre-push` (the boundary evidence check — it reports, never blocks, and `safeword uninstall --agents=none` removes it); safeword never installs a hook manager or blocks a commit.
+**AI guardrails, not human blockers** — Hooks and stricter linting rules only fire during AI agent sessions (Claude Code / Cursor / Codex / OpenCode events). They never run during normal human development. In repos that already use husky, install appends one warn-only line to `pre-commit`/`pre-push` (the boundary evidence check — it reports, never blocks, and `safeword uninstall --agents=none` removes it); safeword never installs a hook manager or blocks a commit.
 
 **Use in CI if you want** — Safeword adds `lint`, `format`, and `test:bdd` scripts to your `package.json`. You can wire these into your CI pipeline or precommit hooks — but it's your choice, not forced.
 

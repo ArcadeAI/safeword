@@ -1,0 +1,167 @@
+import { createHash } from 'node:crypto';
+import { chmodSync, existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import nodePath from 'node:path';
+
+import { describe, expect, it } from 'vitest';
+
+import { runOpenCodeConformance } from '../../src/opencode/conformance.js';
+import {
+  installOpenCodeProfile,
+  observeOpenCodeProfile,
+  type OpenCodeIdentityV1,
+  openCodeProfilePaths,
+} from '../../src/opencode/profile.js';
+import { createTemporaryDirectory, runCli } from '../helpers.js';
+
+const realHostIt = process.env.SAFEWORD_RUN_OPENCODE_CONFORMANCE === '1' ? it : it.skip;
+
+function executable(directory: string, body: string): void {
+  const path = nodePath.join(directory, 'opencode');
+  writeFileSync(path, `#!/bin/sh\n${body}\n`);
+  chmodSync(path, 0o755);
+}
+
+describe('OpenCode conformance command', () => {
+  it.each([
+    ['unresolvable', undefined],
+    ['unstable major version', String.raw`printf '2.0.0\n'`],
+    ['pre-conformance failure', 'exit 9'],
+  ])('fails safely when the executable is %s', async (_state, body) => {
+    const project = createTemporaryDirectory();
+    const config = createTemporaryDirectory();
+    const bin = createTemporaryDirectory();
+    if (body !== undefined) executable(bin, body);
+
+    const result = await runCli(
+      ['conformance', '--agents=opencode', '--json', '--no-input', '--offline', '--cwd', project],
+      { cwd: project, env: { OPENCODE_CONFIG_DIR: config, PATH: bin } },
+    );
+
+    expect(result).toMatchObject({ exitCode: 2, stderr: '' });
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'action_required',
+      changed: false,
+      data: { command: 'conformance', agent: 'opencode' },
+      next_actions: [{ kind: 'human', mutates: false, requires_human: true }],
+    });
+    expect(existsSync(nodePath.join(config, 'safeword', 'conformance-v1'))).toBe(false);
+  });
+
+  realHostIt(
+    'persists passing evidence after every pinned real-host proof succeeds',
+    async () => {
+      const project = createTemporaryDirectory();
+      const config = createTemporaryDirectory();
+      const bin = createTemporaryDirectory();
+      executable(bin, 'exec bunx --bun opencode-ai@1.18.23 "$@"');
+      expect(installOpenCodeProfile(config).state).toBe('changed');
+
+      const result = await runCli(
+        ['conformance', '--agents=opencode', '--json', '--no-input', '--offline', '--cwd', project],
+        {
+          cwd: project,
+          env: {
+            OPENCODE_CONFIG_DIR: config,
+            PATH: `${bin}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+          },
+          timeout: 120_000,
+        },
+      );
+
+      expect(result).toMatchObject({ exitCode: 0, stderr: '' });
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        state: 'changed',
+        changed: true,
+        data: {
+          command: 'conformance',
+          agent: 'opencode',
+          opencode_version: '1.18.23',
+          conformant: true,
+          discovery: { command: 'bdd', subagent: 'safeword-reviewer', skill: 'bdd' },
+          denial: true,
+          control: true,
+          skill_invocation: true,
+        },
+      });
+      const evidenceDirectory = nodePath.join(config, 'safeword', 'conformance-v1');
+      const names = readdirSync(evidenceDirectory);
+      expect(names).toHaveLength(1);
+      const [name] = names;
+      if (name === undefined) throw new Error('Expected passing OpenCode conformance evidence');
+      const evidence = JSON.parse(readFileSync(nodePath.join(evidenceDirectory, name), 'utf8'));
+      expect(evidence).toMatchObject({
+        schema_version: 1,
+        opencode_version: '1.18.23',
+        platform: process.platform,
+        arch: process.arch,
+        command_catalogue: true,
+        agent_catalogue: true,
+        denial: true,
+        control: true,
+        result: 'passed',
+      });
+      expect(observeOpenCodeProfile(config, { opencodeVersion: '1.18.23' }).data).toMatchObject({
+        conformant: true,
+      });
+    },
+    120_000,
+  );
+
+  realHostIt.each([
+    'missing-command',
+    'missing-subagent',
+    'missing-skill',
+    'disarmed-denial',
+  ] as const)(
+    'fails without evidence when the required lane injects %s',
+    async fault => {
+      const config = createTemporaryDirectory();
+      const bin = createTemporaryDirectory();
+      executable(bin, 'exec bunx --bun opencode-ai@1.18.23 "$@"');
+      expect(installOpenCodeProfile(config).state).toBe('changed');
+
+      const result = await runOpenCodeConformance(
+        {
+          OPENCODE_CONFIG_DIR: config,
+          PATH: `${bin}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+        },
+        { fault },
+      );
+
+      expect(result).toMatchObject({ state: 'failed', changed: false });
+      expect(existsSync(nodePath.join(config, 'safeword', 'conformance-v1'))).toBe(false);
+    },
+    120_000,
+  );
+
+  realHostIt(
+    'does not certify jointly modified installed plugin and identity bytes',
+    async () => {
+      const config = createTemporaryDirectory();
+      const bin = createTemporaryDirectory();
+      executable(bin, 'exec bunx --bun opencode-ai@1.18.23 "$@"');
+      expect(installOpenCodeProfile(config).state).toBe('changed');
+      const paths = openCodeProfilePaths(config);
+      const identity = JSON.parse(readFileSync(paths.identity, 'utf8')) as OpenCodeIdentityV1;
+      const modifiedPlugin =
+        'export const Safeword = async () => { throw new Error("modified") };\n';
+      writeFileSync(paths.plugin, modifiedPlugin);
+      writeFileSync(
+        paths.identity,
+        `${JSON.stringify({
+          ...identity,
+          plugin_sha256: createHash('sha256').update(modifiedPlugin).digest('hex'),
+        })}\n`,
+      );
+
+      const result = await runOpenCodeConformance({
+        OPENCODE_CONFIG_DIR: config,
+        PATH: `${bin}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+      });
+
+      expect(result.state).toBe('failed');
+      expect(existsSync(paths.conformance)).toBe(false);
+    },
+    120_000,
+  );
+});

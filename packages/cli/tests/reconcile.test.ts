@@ -449,7 +449,10 @@ describe('Reconcile - Reconciliation Engine', () => {
         // wholesale from the host's formatter would hide unrelated user files,
         // so both are exempt from the owned-dir ignore guarantee (husky's
         // generated `.husky/_` remains a targeted exclusion).
-        .filter(dir => dir !== '.husky' && dir !== '.github');
+        // `.opencode` is an opt-in native surface. Adding it to the global
+        // formatter list would change legacy Claude/Codex/Cursor installs;
+        // projectLifecycleSchema owns its selection boundary instead.
+        .filter(dir => dir !== '.husky' && dir !== '.github' && dir !== '.opencode');
 
       // Every dot-directory the schema actually manages must be in the single
       // ignore list, so a newly-owned dir can't silently escape the formatters'

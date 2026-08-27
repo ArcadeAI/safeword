@@ -4,16 +4,17 @@ import nodePath from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 
 import { writeClaudePluginMode } from '../../src/claude-plugin/migration-state.js';
+import { createResult } from '../../src/cli-protocol/result.js';
 import { projectLifecycleSchema } from '../../src/lifecycle/schema.js';
-import { observeLifecycleSurfaces } from '../../src/lifecycle/status.js';
+import { observeLifecycleSurfaces, summarizeLifecycleStatus } from '../../src/lifecycle/status.js';
 import { isCursorProjectPath, isSharedAgentRuntimePath } from '../../src/schema.js';
 import { createTemporaryDirectory } from '../helpers.js';
 
 vi.mock('../../src/claude-plugin/status.js', async () => {
-  const { createResult } = await import('../../src/cli-protocol/result.js');
+  const { createResult: resultFactory } = await import('../../src/cli-protocol/result.js');
   return {
     observeClaudeStatus: () =>
-      createResult({
+      resultFactory({
         state: 'healthy',
         data: { command: 'claude status', classification: 'plugin-mode' },
       }),
@@ -21,10 +22,10 @@ vi.mock('../../src/claude-plugin/status.js', async () => {
 });
 
 vi.mock('../../src/codex-plugin/operations.js', async () => {
-  const { createResult } = await import('../../src/cli-protocol/result.js');
+  const { createResult: resultFactory } = await import('../../src/cli-protocol/result.js');
   return {
     observeCodexMigration: () =>
-      createResult({
+      resultFactory({
         state: 'action_required',
         data: { command: 'codex status', classification: 'activation-pending' },
       }),
@@ -77,6 +78,20 @@ describe('lifecycle profile observation', () => {
     expect(Object.keys(schema.jsonMerges).some(path => path.startsWith('.claude/'))).toBe(true);
   });
 
+  it('preserves legacy Claude skills when only OpenCode is uninstalled', () => {
+    const cwd = createTemporaryDirectory();
+    const settings = nodePath.join(cwd, '.claude/settings.json');
+    mkdirSync(nodePath.dirname(settings), { recursive: true });
+    writeFileSync(settings, '{ retained legacy configuration');
+
+    const installSchema = projectLifecycleSchema(cwd, ['opencode'], 'install');
+    const uninstallSchema = projectLifecycleSchema(cwd, ['opencode'], 'uninstall');
+
+    expect(installSchema.ownedFiles['.claude/skills/bdd/SKILL.md']).toBeDefined();
+    expect(uninstallSchema.ownedFiles['.claude/skills/bdd/SKILL.md']).toBeUndefined();
+    expect(uninstallSchema.ownedFiles['.opencode/commands/bdd.md']).toBeDefined();
+  });
+
   it('keeps the shared runtime when no agent is selected', () => {
     const schema = projectLifecycleSchema(createTemporaryDirectory(), []);
 
@@ -117,6 +132,36 @@ describe('lifecycle profile observation', () => {
     expect(
       cursor?.result.nextActions.flatMap(action => ('command' in action ? [action.command] : [])),
     ).toContain('safeword install --agents=cursor');
+  });
+
+  it('prioritizes an integration error action over project update guidance', () => {
+    const project = createResult({
+      state: 'action_required',
+      findings: [{ code: 'PROJECT_UPDATE_AVAILABLE', message: 'Update.', severity: 'info' }],
+      nextActions: [{ command: 'safeword install', mutates: true, requiresHuman: false }],
+    });
+    const opencode = createResult({
+      state: 'action_required',
+      findings: [{ code: 'OPENCODE_ACTIVATION_REQUIRED', message: 'Restart.', severity: 'error' }],
+      nextActions: [
+        {
+          kind: 'human',
+          instruction: 'Fully restart OpenCode.',
+          mutates: false,
+          requiresHuman: true,
+        },
+      ],
+    });
+
+    expect(
+      summarizeLifecycleStatus(
+        ['opencode'],
+        [
+          { name: 'project', result: project },
+          { name: 'opencode', result: opencode, exposeData: true },
+        ],
+      ).nextActions,
+    ).toEqual(opencode.nextActions);
   });
 
   it('advises when a project carries Cursor assets the selection excludes', async () => {

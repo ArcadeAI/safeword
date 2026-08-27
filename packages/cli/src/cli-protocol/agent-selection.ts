@@ -1,4 +1,4 @@
-export type AgentIntegration = 'claude' | 'codex' | 'cursor';
+export type AgentIntegration = 'claude' | 'codex' | 'cursor' | 'opencode';
 
 /** Project configuration is always in scope; `agents` names the integrations. */
 interface AgentSelection {
@@ -14,7 +14,7 @@ export type AgentSelectionResult =
   | { readonly ok: true; readonly selection: AgentSelection }
   | { readonly ok: false; readonly error: AgentSelectionError };
 
-const SUPPORTED_AGENT_INTEGRATIONS = ['claude', 'codex', 'cursor'] as const;
+const SUPPORTED_AGENT_INTEGRATIONS = ['claude', 'codex', 'opencode', 'cursor'] as const;
 export const DEFAULT_AGENT_INTEGRATIONS: readonly AgentIntegration[] = Object.freeze([
   'claude',
   'codex',
@@ -39,8 +39,7 @@ export function parseAgentSelection(value: unknown): AgentSelectionResult {
           ok: false,
           error: {
             code: 'AGENT_SELECTION_INVALID',
-            message:
-              '`none` must be used alone; supported values are claude, codex, cursor, or none.',
+            message: `\`none\` must be used alone; supported values are ${AGENT_SELECTION_DESCRIPTION}.`,
           },
         };
   }
@@ -58,7 +57,7 @@ function invalidSelection(): AgentSelectionResult {
     ok: false,
     error: {
       code: 'AGENT_SELECTION_INVALID',
-      message: 'Supported agent values are claude, codex, cursor, or none.',
+      message: `Supported agent values are ${AGENT_SELECTION_DESCRIPTION}.`,
     },
   };
 }

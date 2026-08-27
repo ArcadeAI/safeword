@@ -984,7 +984,7 @@ Given('an unconfigured project', function (this: UnifiedInstallWorld) {
 
 Then('the selector error names the supported values', function (this: UnifiedInstallWorld) {
   assert.equal(this.result.exitCode, 1);
-  assert.match(this.result.stdout, /claude, codex, cursor, or none/u);
+  assert.match(this.result.stdout, /claude, codex, opencode, cursor, or none/u);
 });
 
 Then('no project or agent effect occurs', function (this: UnifiedInstallWorld) {

@@ -1,7 +1,7 @@
 # Safeword Architecture
 
-**Version:** 1.20
-**Last Updated:** 2026-08-05
+**Version:** 1.21
+**Last Updated:** 2026-08-27
 **Status:** Production
 
 ---
@@ -26,7 +26,7 @@
 
 ## Overview
 
-Safeword is a CLI tool that configures linting, hooks, and development guides for AI coding agent projects (Claude Code, Cursor, and Codex). It supports JavaScript/TypeScript projects (ESLint, Prettier), Python projects (Ruff, mypy), Go projects (golangci-lint), Rust projects (clippy, rustfmt), and dbt projects (SQLFluff).
+Safeword is a CLI tool that configures linting, hooks, and development guides for AI coding agent projects (Claude Code, Cursor, Codex, and OpenCode). It supports JavaScript/TypeScript projects (ESLint, Prettier), Python projects (Ruff, mypy), Go projects (golangci-lint), Rust projects (clippy, rustfmt), and dbt projects (SQLFluff).
 
 ### Tech Stack
 
@@ -169,6 +169,20 @@ Therefore a reverse-written `ARCHITECTURE.md` must start from every generated no
 ---
 
 ## CLI Structure
+
+### Registry-Driven Agent Integrations with Native Trust Boundaries
+
+**Status:** Accepted
+**Date:** 2026-08-25
+
+| Field          | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Context        | Claude, Codex, Cursor, and OpenCode expose different project assets, profile operations, lifecycle events, and execution proof. The lifecycle coordinator previously encoded host names directly, making each new integration another cross-cutting branch.                                                                                                                                                                                                                                                                                                                             |
+| Decision       | A typed integration registry declares each agent's project surfaces, profile operations, lifecycle capabilities, activation evidence, and conformance policy. The project reconciliation surface remains first; selected adapters follow registry declaration order. Native adapter modules retain host-specific trust, migration, and proof semantics. OpenCode uses a managed stable-1.x profile plugin and exact-version real-process conformance; its project catalogue reuses `.claude/skills` compatibility discovery plus generated `.opencode/commands` and `.opencode/agents`. |
+| Consequences   | Coordinator logic becomes integration-neutral and contract tests can reject missing dimensions, capability overstatement, duplicate identity, and skipped registry entries. Shared project assets are reconciled by aggregate consumers. Adding an adapter does not imply equal native enforcement: unsupported or observational boundaries remain explicit in status.                                                                                                                                                                                                                  |
+| Alternatives   | Add OpenCode branches to each lifecycle command: rejected because ownership and status logic would keep drifting. Flatten all hosts into one runtime: rejected because it would erase native trust and migration guarantees. Restore `.agents/skills`: rejected because Safeword-owned project copies were deliberately retired for Codex.                                                                                                                                                                                                                                              |
+| Reassess when  | A host exposes a common signed plugin/evidence protocol, OpenCode V2 becomes stable, or the registry cannot express a new integration without host-name branching.                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| Implementation | Ticket `ZM38A2`; `packages/cli/src/lifecycle/integrations.ts`, native plugin modules, schema filters, adapter contract tests, and `packages/cli/features/opencode-parity.feature`.                                                                                                                                                                                                                                                                                                                                                                                                      |
 
 The generated package leaf is the current structural inventory. These purposes explain how its top-level modules fit together:
 

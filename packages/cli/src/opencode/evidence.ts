@@ -1,0 +1,204 @@
+import nodePath from 'node:path';
+
+import { writeDurableFile } from '../codex-plugin/durable-write.js';
+import { isSafePackageVersion } from '../utils/version.js';
+import { exactRecord, isNonEmptyString, isSha256, isTimestamp, matchesRecord } from './records.js';
+
+export type OpenCodeActivationEvent =
+  | 'plugin_load'
+  | 'session_start'
+  | 'prompt_submit'
+  | 'pre_tool'
+  | 'post_tool'
+  | 'uncovered_tool'
+  | 'stop';
+
+export interface OpenCodeActivationV1 {
+  readonly schema_version: 1;
+  readonly safeword_version: string;
+  readonly plugin_sha256: string;
+  readonly project_sha256: string;
+  readonly opencode_version?: string;
+  readonly event: OpenCodeActivationEvent;
+  readonly session_id_sha256?: string;
+  readonly call_id_sha256?: string;
+  readonly observed_at: string;
+}
+
+export interface OpenCodeConformanceV1 {
+  readonly schema_version: 1;
+  readonly safeword_version: string;
+  readonly opencode_version: string;
+  readonly platform: string;
+  readonly arch: string;
+  readonly plugin_sha256: string;
+  readonly dispatcher_sha256: string;
+  readonly command_catalogue: boolean;
+  readonly agent_catalogue: boolean;
+  readonly denial: boolean;
+  readonly control: boolean;
+  readonly checked_at: string;
+  readonly result: 'passed' | 'failed';
+}
+
+export interface OpenCodeProfileErrorV1 {
+  readonly schema_version: 1;
+  readonly safeword_version: string;
+  readonly plugin_sha256: string;
+  readonly error_code: 'marker_resolution_failed';
+  readonly observed_at: string;
+}
+
+const ACTIVATION_EVENTS = new Set<OpenCodeActivationEvent>([
+  'plugin_load',
+  'session_start',
+  'prompt_submit',
+  'pre_tool',
+  'post_tool',
+  'uncovered_tool',
+  'stop',
+]);
+const CALL_BOUND_EVENTS = new Set<OpenCodeActivationEvent>([
+  'pre_tool',
+  'post_tool',
+  'uncovered_tool',
+]);
+const SESSION_BOUND_EVENTS = new Set<OpenCodeActivationEvent>([
+  'session_start',
+  'prompt_submit',
+  'pre_tool',
+  'post_tool',
+  'uncovered_tool',
+  'stop',
+]);
+
+function isSchemaVersion(value: unknown): boolean {
+  return value === 1;
+}
+
+function isBoolean(value: unknown): boolean {
+  return typeof value === 'boolean';
+}
+
+function isActivationEvent(value: unknown): value is OpenCodeActivationEvent {
+  return typeof value === 'string' && ACTIVATION_EVENTS.has(value as OpenCodeActivationEvent);
+}
+
+function isConformanceResult(value: unknown): boolean {
+  return value === 'passed' || value === 'failed';
+}
+
+function optional(value: unknown, validate: (candidate: unknown) => boolean): boolean {
+  return value === undefined || validate(value);
+}
+
+function hasValidActivationBindings(record: Record<string, unknown>): boolean {
+  const event = record.event as OpenCodeActivationEvent;
+  return (
+    optional(record.opencode_version, isNonEmptyString) &&
+    optional(record.session_id_sha256, isSha256) &&
+    optional(record.call_id_sha256, isSha256) &&
+    (!SESSION_BOUND_EVENTS.has(event) || Boolean(record.session_id_sha256)) &&
+    (!CALL_BOUND_EVENTS.has(event) || Boolean(record.call_id_sha256))
+  );
+}
+
+export function parseOpenCodeActivation(value: unknown): OpenCodeActivationV1 | undefined {
+  const record = exactRecord(
+    value,
+    [
+      'schema_version',
+      'safeword_version',
+      'plugin_sha256',
+      'project_sha256',
+      'event',
+      'observed_at',
+    ],
+    ['opencode_version', 'session_id_sha256', 'call_id_sha256'],
+  );
+  if (
+    !matchesRecord(record, {
+      schema_version: isSchemaVersion,
+      safeword_version: isNonEmptyString,
+      plugin_sha256: isSha256,
+      project_sha256: isSha256,
+      event: isActivationEvent,
+      observed_at: isTimestamp,
+    })
+  )
+    return undefined;
+  if (!hasValidActivationBindings(record)) return undefined;
+  return record as unknown as OpenCodeActivationV1;
+}
+
+export function parseOpenCodeConformance(value: unknown): OpenCodeConformanceV1 | undefined {
+  const record = exactRecord(value, [
+    'schema_version',
+    'safeword_version',
+    'opencode_version',
+    'platform',
+    'arch',
+    'plugin_sha256',
+    'dispatcher_sha256',
+    'command_catalogue',
+    'agent_catalogue',
+    'denial',
+    'control',
+    'checked_at',
+    'result',
+  ]);
+  if (
+    !matchesRecord(record, {
+      schema_version: isSchemaVersion,
+      safeword_version: isNonEmptyString,
+      opencode_version: isNonEmptyString,
+      platform: isNonEmptyString,
+      arch: isNonEmptyString,
+      plugin_sha256: isSha256,
+      dispatcher_sha256: isSha256,
+      command_catalogue: isBoolean,
+      agent_catalogue: isBoolean,
+      denial: isBoolean,
+      control: isBoolean,
+      checked_at: isTimestamp,
+      result: isConformanceResult,
+    })
+  )
+    return undefined;
+  return record as unknown as OpenCodeConformanceV1;
+}
+
+export function writePassingOpenCodeConformance(directory: string, value: unknown): string {
+  const evidence = parseOpenCodeConformance(value);
+  if (evidence?.result !== 'passed' || !isSafePackageVersion(evidence.opencode_version)) {
+    throw new Error('Invalid passing OpenCode conformance evidence');
+  }
+
+  const path = nodePath.join(
+    directory,
+    `${evidence.opencode_version}-${evidence.plugin_sha256}.json`,
+  );
+  writeDurableFile(path, `${JSON.stringify(evidence, undefined, 2)}\n`, { mode: 0o600 });
+  return path;
+}
+
+export function parseOpenCodeProfileError(value: unknown): OpenCodeProfileErrorV1 | undefined {
+  const record = exactRecord(value, [
+    'schema_version',
+    'safeword_version',
+    'plugin_sha256',
+    'error_code',
+    'observed_at',
+  ]);
+  if (
+    !matchesRecord(record, {
+      schema_version: isSchemaVersion,
+      safeword_version: isNonEmptyString,
+      plugin_sha256: isSha256,
+      error_code: errorCode => errorCode === 'marker_resolution_failed',
+      observed_at: isTimestamp,
+    })
+  )
+    return undefined;
+  return record as unknown as OpenCodeProfileErrorV1;
+}

@@ -21,7 +21,7 @@ surfaces.md from packages/cli/templates/surfaces-template.md and then own it.
 **Audience:** Technical Builder (TBU), Non-Technical Builder (NTB), Safeword Maintainer (SWM)
 **Examples:** claude.ai/code web UI, Claude mobile app, `claude --cloud` / `--teleport`, scheduled/event-driven Routines, Claude Code GitHub Actions (`anthropics/claude-code-action`, `@claude` issue/PR triggers), the repository selector below the input box (repos synced via the Claude GitHub App or `/web-setup`), per-environment network policy
 **Coverage notes:** Tag feature scenarios with `@surface.claude-code-cloud` when behavior depends on a cloud / off-machine lifecycle (ephemeral VM or CI runner, network policy, GitHub-event triggers) rather than a developer's local setup. Lifecycle hooks (`SessionStart`, `UserPromptSubmit`, etc.) do fire in cloud sessions, but interactively-authenticated MCP servers may be unavailable in headless runs.
-**Do not confuse with:** Claude Code — runs on the developer's own persistent machine, not a reclaimed VM.
+**Do not confuse with:** Claude Code — runs on the developer's own persistent machine, not a reclaimed VM. Claude Code on the Web is the browser-specific entry point within this broader cloud surface; GitHub Actions Execution Sandbox is the CI authority boundary and may be tagged alongside this surface when both concerns are under test.
 
 ## Claude Code on the Web
 
@@ -30,16 +30,16 @@ surfaces.md from packages/cli/templates/surfaces-template.md and then own it.
 **Audience:** Technical Builder (TBU), Non-Technical Builder (NTB), Safeword Maintainer (SWM)
 **Examples:** `claude.ai/code`, repository selection through the Claude GitHub App, web-launched coding tasks
 **Coverage notes:** Tag feature scenarios with `@surface.claude-code-on-the-web` when the browser-hosted entry point itself matters. Use `@surface.claude-code-cloud` for behavior common to all Claude Code cloud entry points.
-**Do not confuse with:** Claude Code — the local CLI and IDE runtime on a developer machine.
+**Do not confuse with:** Claude Code Cloud — the broader off-machine runtime family. Use this surface only when the `claude.ai/code` browser entry point matters; use `@surface.claude-code-cloud` for behavior shared across cloud entry points.
 
 ## OpenAI Codex
 
 **Kind:** Agent runtime
 **Description:** OpenAI's Codex CLI run from a terminal on a developer's own machine. Operates synchronously in the user's shell with OS-native sandboxing (macOS Seatbelt, Windows native/WSL2, Linux bubblewrap) and interactive approval prompts when crossing sandbox boundaries.
 **Audience:** Technical Builder (TBU), Non-Technical Builder (NTB), Safeword Maintainer (SWM)
-**Examples:** `.agents/skills`, `AGENTS.md`, `codex` CLI command, `~/.codex/config.toml`, repo-local `.codex/hooks.json`, sandbox modes (`read-only` / `workspace-write` / `danger-full-access`)
-**Coverage notes:** Tag feature scenarios with `@surface.openai-codex` when behavior must work through OpenAI Codex's installed files or workflow on a developer's local machine.
-**Do not confuse with:** OpenAI Codex Cloud — runs in an OpenAI-managed container instead of the local CLI; local `~/.codex/hooks.json` and CLI-local extensibility don't apply there.
+**Examples:** the packaged Safeword Codex plugin, `AGENTS.md`, `codex` CLI command, `~/.codex/config.toml`, repo-local `.codex/hooks.json`, sandbox modes (`read-only` / `workspace-write` / `danger-full-access`)
+**Coverage notes:** Tag feature scenarios with `@surface.openai-codex` when behavior must work through OpenAI Codex's installed files or workflow on a developer's local machine. Safeword's own retired `.agents/skills` project copies are migration-only; current workflows ship through the packaged plugin.
+**Do not confuse with:** OpenAI Codex Cloud — runs in an OpenAI-managed container instead of the local CLI; local `~/.codex/hooks.json` and CLI-local extensibility don't apply there. OpenCode is a separate runtime that can discover the existing `.claude/skills` project delivery but has its own plugin, lifecycle, configuration, and trust model.
 
 ## OpenAI Codex Cloud
 
@@ -49,6 +49,16 @@ surfaces.md from packages/cli/templates/surfaces-template.md and then own it.
 **Examples:** chatgpt.com/codex, `@codex` GitHub mentions, "delegate to cloud" from the CLI/IDE extension, per-repo cloud environment config (setup script, base image, allowed tools)
 **Coverage notes:** Tag feature scenarios with `@surface.openai-codex-cloud` when behavior depends on the cloud container's two-phase lifecycle (network-open setup, then network-isolated agent run) rather than local CLI mechanics. `AGENTS.md` is still read from the repo checkout.
 **Do not confuse with:** OpenAI Codex — runs synchronously on the developer's machine under OS-level sandboxing, not container isolation.
+
+## OpenCode
+
+**Kind:** Agent runtime
+**Delivery status:** Implemented for stable OpenCode CLI/TUI 1.x after exact-version conformance; CI pins 1.18.23, and Desktop remains advisory until native hook dispatch is reliable.
+**Description:** The OpenCode CLI, terminal UI, or desktop app running against a developer's project, with project-local skills, commands, agents, plugins, and configuration extending the agent's behavior.
+**Audience:** Technical Builder (TBU), Non-Technical Builder (NTB), Safeword Maintainer (SWM)
+**Examples:** `.claude/skills` compatibility discovery, `.opencode/commands`, `.opencode/agents`, the profile-level `plugins/safeword.js`, `opencode.json`, `opencode` CLI and TUI
+**Coverage notes:** Tag feature scenarios with `@surface.opencode` when behavior must work through OpenCode's installed files, plugin events, or workflow on a developer's machine. OpenCode reuses Safeword's existing `.claude/skills` delivery; cover aggregate selection plus mixed managed/unmanaged reconciliation and uninstall. Treat Desktop plugin registration as advisory until real hook dispatch is proven.
+**Do not confuse with:** OpenAI Codex — a separate agent runtime whose current Safeword workflows ship through a packaged plugin and whose lifecycle, configuration, and trust model differ.
 
 ## Cursor
 
@@ -71,11 +81,11 @@ surfaces.md from packages/cli/templates/surfaces-template.md and then own it.
 ## Safeword CLI
 
 **Kind:** CLI
-**Description:** The `safeword` command-line tool itself — the harness-agnostic engine that installs and maintains the process layer. Runs `install` to scaffold and reconcile managed project files and, by default, configure Claude and Codex; Cursor remains explicit. `status`, `doctor`, `plan`, `uninstall`, and project subcommands validate and drive the workflow. Operates on the project's real filesystem independent of which agent (if any) invokes it.
+**Description:** The `safeword` command-line tool itself — the harness-agnostic engine that installs and maintains the process layer. Runs `install` to scaffold and reconcile managed project files and configure selected agent hosts. `status`, `doctor`, `plan`, `uninstall`, and project subcommands validate and drive the workflow. Operates on the project's real filesystem independent of which agent (if any) invokes it.
 **Audience:** Technical Builder (TBU), Non-Technical Builder (NTB), Safeword Maintainer (SWM)
-**Examples:** `safeword install`, `safeword install --agents=cursor`, `safeword status`, `safeword doctor`, `safeword plan`, `safeword uninstall`, project subcommands, the managed-file reconcile contract, generated `INDEX.md`
+**Examples:** `safeword install`, `safeword install --agents=opencode`, `safeword conformance --agents=opencode`, `safeword status`, `safeword doctor`, `safeword plan`, `safeword uninstall`, project subcommands, the managed-file reconcile contract, generated `INDEX.md`
 **Coverage notes:** Tag feature scenarios with `@surface.safeword-cli` when the behavior is the CLI tool's own — file scaffolding/reconciliation, config validation, index generation — rather than something that must work through a specific agent runtime.
-**Do not confuse with:** Claude Code / OpenAI Codex / Cursor — the agent runtimes that *invoke* safeword during a session. `@surface.safeword-cli` marks behavior that must hold no matter which agent (or a plain terminal) runs the command.
+**Do not confuse with:** Claude Code / OpenAI Codex / OpenCode / Cursor — the agent runtimes that *invoke* safeword during a session. `@surface.safeword-cli` marks behavior that must hold no matter which agent (or a plain terminal) runs the command.
 
 ## Closeout Cleanup Guard
 
@@ -120,7 +130,7 @@ surfaces.md from packages/cli/templates/surfaces-template.md and then own it.
 **Audience:** Technical Builder (TBU), Safeword Maintainer (SWM)
 **Examples:** `pull_request_target`, reusable workflows, job-level `permissions`, GitHub environments, Actions artifacts, scheduled workflows
 **Coverage notes:** Tag scenarios with `@surface.github-actions-execution-sandbox` when the guarantee depends on job isolation, secret scope, token permissions, concurrency, checkout absence, or runtime execution behavior.
-**Do not confuse with:** GitHub Pull Request Conversation — that is the user-visible comment surface; the Actions sandbox is the runtime that produces and publishes the serialized result.
+**Do not confuse with:** GitHub Pull Request Conversation — that is the user-visible comment surface; the Actions sandbox is the runtime that produces and publishes the serialized result. Claude Code Cloud describes the agent lifecycle when Claude Code runs in an Actions job; tag both only when the behavior depends on both the agent host and CI authority boundary.
 
 ## Railway Hosted Relay
 
