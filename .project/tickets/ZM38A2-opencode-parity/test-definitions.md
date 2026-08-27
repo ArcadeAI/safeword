@@ -476,7 +476,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 - [x] RED 120afd5e4
 - [x] GREEN 39592981c
-- [ ] REFACTOR
+- [x] REFACTOR 349a879ef
 
 ### Scenario: A changed managed plugin invalidates prior conformance
 
