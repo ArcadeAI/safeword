@@ -399,7 +399,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 ### Scenario: Pinned OpenCode invocation loads the referenced canonical skill
 
 - [x] RED 94b0636fc
-- [ ] GREEN
+- [x] GREEN 3b2d64922
 - [ ] REFACTOR
 
 ### Scenario: The required conformance lane fails instead of skipping
