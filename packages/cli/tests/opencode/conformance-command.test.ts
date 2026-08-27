@@ -122,4 +122,31 @@ describe('OpenCode conformance command', () => {
     });
     expect(existsSync(nodePath.join(config, 'safeword', 'conformance-v1'))).toBe(false);
   }, 120_000);
+
+  it('loads the canonical bdd skill with exact arguments through the pinned real host', async () => {
+    const project = createTemporaryDirectory();
+    const config = createTemporaryDirectory();
+    const bin = createTemporaryDirectory();
+    executable(bin, 'exec bunx --bun opencode-ai@1.18.23 "$@"');
+    expect(installOpenCodeProfile(config).state).toBe('changed');
+
+    const result = await runCli(
+      ['conformance', '--agents=opencode', '--json', '--no-input', '--offline', '--cwd', project],
+      {
+        cwd: project,
+        env: {
+          OPENCODE_CONFIG_DIR: config,
+          PATH: `${bin}${nodePath.delimiter}${process.env.PATH ?? ''}`,
+        },
+        timeout: 120_000,
+      },
+    );
+
+    expect(result).toMatchObject({ exitCode: 2, stderr: '' });
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'action_required',
+      data: { command: 'conformance', agent: 'opencode', skill_invocation: true },
+    });
+    expect(existsSync(nodePath.join(config, 'safeword', 'conformance-v1'))).toBe(false);
+  }, 120_000);
 });
