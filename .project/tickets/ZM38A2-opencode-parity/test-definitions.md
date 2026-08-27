@@ -393,7 +393,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 ### Scenario: The denial sentinel is capable of producing its side effect
 
 - [x] RED 11d454aff
-- [ ] GREEN
+- [x] GREEN 0c4ac25a6
 - [ ] REFACTOR
 
 ### Scenario: Pinned OpenCode invocation loads the referenced canonical skill
