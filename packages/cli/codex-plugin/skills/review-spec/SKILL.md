@@ -16,7 +16,7 @@ Adversarially review a ticket's scenarios: treat them as if you're trying to bre
 - **Manual re-run** — invoke `$safeword:review-spec` anytime after `define-behavior` (e.g., scenarios changed during implement and you want to re-validate). Allowed on a closed ticket too — a post-hoc audit is still readable.
 
 Read the active ticket's `.feature` source first. At review time, run
-`bunx --bun safeword@0.79.6 project review-knowledge --json` and read the current
+`bunx --bun safeword@0.80.0 project review-knowledge --json` and read the current
 `principles`, `personas`, and `surfaces` source paths and content it returns, so
 the review is grounded in project knowledge rather than labels or stale intake
 context. The resolver honors `paths.principles`, `paths.personas`, and
@@ -35,7 +35,7 @@ Resolve a review-capable Safeword CLI first; source checkouts do not guarantee
 a bare `safeword` on `PATH`:
 
 ```bash
-SAFEWORD_REVIEW_PROGRESS=1 bunx --bun safeword@0.79.6 review run scenario-gate feature-file ticket-spec [legacy-test-definitions] --agent-handoff --json
+SAFEWORD_REVIEW_PROGRESS=1 bunx --bun safeword@0.80.0 review run scenario-gate feature-file ticket-spec [legacy-test-definitions] --agent-handoff --json
 ```
 
 The coordinator's assigned/actual reviewer, failure classification, and
