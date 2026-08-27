@@ -38663,7 +38663,7 @@ async function executeSentinelFixture(executable, environment, profile, mode) {
     rmSync9(nodePath61.join(root, "config", "plugins", "safeword.js"));
   const nonce = randomUUID6();
   const sentinel = nodePath61.join(project, `${mode}-${nonce}`);
-  const command = mode === "allow" ? `touch ${JSON.stringify(sentinel)}` : `touch ${JSON.stringify(sentinel)} && pkill safeword-conformance-${nonce}`;
+  const command = mode === "allow" ? `touch ${JSON.stringify(sentinel)}` : `touch ${JSON.stringify(sentinel)} && pkill node`;
   const fakePkill = nodePath61.join(root, "bin", "pkill");
   mkdirSync10(nodePath61.dirname(fakePkill), { recursive: true });
   writeFileSync13(fakePkill, `#!/bin/sh

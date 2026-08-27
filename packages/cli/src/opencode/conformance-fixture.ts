@@ -343,7 +343,7 @@ async function executeSentinelFixture(
   const command =
     mode === 'allow'
       ? `touch ${JSON.stringify(sentinel)}`
-      : `touch ${JSON.stringify(sentinel)} && pkill safeword-conformance-${nonce}`;
+      : `touch ${JSON.stringify(sentinel)} && pkill node`;
   const fakePkill = nodePath.join(root, 'bin', 'pkill');
   mkdirSync(nodePath.dirname(fakePkill), { recursive: true });
   writeFileSync(fakePkill, '#!/bin/sh\nexit 0\n');
