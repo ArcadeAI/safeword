@@ -394,7 +394,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 - [x] RED 11d454aff
 - [x] GREEN 0c4ac25a6
-- [ ] REFACTOR
+- [x] REFACTOR skip: armed and disarmed paths already share one sentinel executor
 
 ### Scenario: Pinned OpenCode invocation loads the referenced canonical skill
 
