@@ -8,7 +8,6 @@ import {
   buildPublicRetroSource,
   collectPublicGitContext,
   normalizeRepoRemote,
-  selectPublicUserIdentity,
 } from './public-source.js';
 
 describe('buildPublicRetroSource', () => {
@@ -119,28 +118,6 @@ describe('normalizeRepoRemote', () => {
   });
 });
 
-describe('selectPublicUserIdentity', () => {
-  it.each([
-    ['octocat', 'local@example.com', 'global@example.com', 'octocat'],
-    ['octocat', undefined, undefined, 'octocat'],
-    [' '.repeat(3), 'local@example.com', 'global@example.com', 'local@example.com'],
-    ['', 'local@example.com', 'global@example.com', 'local@example.com'],
-    [' '.repeat(3), undefined, 'global@example.com', 'global@example.com'],
-    ['', undefined, 'global@example.com', 'global@example.com'],
-    [undefined, 'local@example.com', 'global@example.com', 'local@example.com'],
-    [undefined, undefined, 'global@example.com', 'global@example.com'],
-    [undefined, ' '.repeat(3), 'global@example.com', 'global@example.com'],
-    [undefined, ' '.repeat(3), undefined, undefined],
-    [undefined, undefined, ' '.repeat(3), undefined],
-    [undefined, undefined, undefined, undefined],
-  ])(
-    'prefers runtime identity, then local email, then global email',
-    (runtimeIdentity, localEmail, globalEmail, expected) => {
-      expect(selectPublicUserIdentity(runtimeIdentity, localEmail, globalEmail)).toBe(expected);
-    },
-  );
-});
-
 describe('collectPublicGitContext', () => {
   const noGlobalConfig = { environment: { GIT_CONFIG_GLOBAL: '/fixture/missing' } };
 
@@ -159,7 +136,6 @@ describe('collectPublicGitContext', () => {
 
     expect(collectPublicGitContext(directory, noGlobalConfig)).toEqual({
       repository: 'github.com/arcadeai/safeword',
-      localEmail: 'local@example.com',
     });
   });
 
@@ -174,7 +150,6 @@ describe('collectPublicGitContext', () => {
 
     expect(collectPublicGitContext(directory, noGlobalConfig)).toEqual({
       repository: 'github.com/arcadeai/safeword',
-      localEmail: 'dev@example.com',
     });
   });
 
@@ -200,9 +175,7 @@ describe('collectPublicGitContext', () => {
       collectPublicGitContext(directory, {
         environment: { GIT_CONFIG_GLOBAL: globalConfig },
       }),
-    ).toEqual({
-      repository: 'github.com/arcadeai/safeword',
-    });
+    ).toEqual({});
   });
 
   it('omits Git email when delegation is written beside its section header', () => {
@@ -272,10 +245,7 @@ describe('collectPublicGitContext', () => {
 `,
     );
 
-    expect(collectPublicGitContext(directory, noGlobalConfig)).toEqual({
-      repository: 'gitlab.example/Team/Repo',
-      localEmail: 'worktree@example.com',
-    });
+    expect(collectPublicGitContext(directory, noGlobalConfig)).toEqual({});
   });
 
   it('ignores a gitdir pointer that does not prove it belongs to this worktree', () => {
@@ -301,7 +271,7 @@ describe('collectPublicGitContext', () => {
         environment: { GIT_CONFIG_GLOBAL: globalConfig },
         homeDirectory: nodePath.join(directory, 'unused-home'),
       }),
-    ).toEqual({ globalEmail: 'global@example.com' });
+    ).toEqual({});
   });
 
   it('ignores relative global config environment paths', () => {
@@ -356,6 +326,6 @@ describe('collectPublicGitContext', () => {
         environment: { XDG_CONFIG_HOME: xdgDirectory },
         homeDirectory,
       }),
-    ).toEqual({ globalEmail: 'home@example.com' });
+    ).toEqual({});
   });
 });

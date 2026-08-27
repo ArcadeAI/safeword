@@ -1,5 +1,4 @@
 import { lstatSync, readFileSync, realpathSync } from 'node:fs';
-import { homedir } from 'node:os';
 import nodePath from 'node:path';
 
 import { readEnabledPublicRetroProject } from './public-config.js';
@@ -15,6 +14,7 @@ function repoIdentity(hostname: string, rawPath: string): string | undefined {
   if (path.toLowerCase().endsWith('.git')) path = path.slice(0, -4);
   if (hostname === '' || path === '' || /\s/u.test(path)) return undefined;
   const normalizedHost = hostname.toLowerCase();
+  if (normalizedHost !== 'github.com' && normalizedHost !== 'gitlab.com') return undefined;
   return `${normalizedHost}/${normalizedHost === 'github.com' ? path.toLowerCase() : path}`;
 }
 
@@ -33,20 +33,8 @@ export function normalizeRepoRemote(remote: string): string | undefined {
   }
 }
 
-export function selectPublicUserIdentity(
-  runtimeIdentity: string | undefined,
-  localEmail: string | undefined,
-  globalEmail: string | undefined,
-): string | undefined {
-  return [runtimeIdentity, localEmail, globalEmail]
-    .find(value => value !== undefined && value.trim() !== '')
-    ?.trim();
-}
-
 export interface PublicGitContext {
   repository?: string;
-  localEmail?: string;
-  globalEmail?: string;
 }
 
 export interface PublicRetroSourceOptions {
@@ -72,14 +60,9 @@ export function buildPublicRetroSource(
   const project = readEnabledPublicRetroProject(cwd);
   if (project === undefined) return undefined;
   const git = collectPublicGitContext(cwd, { environment: options.environment });
-  const userIdentity = selectPublicUserIdentity(
-    options.runtimeIdentity,
-    git.localEmail,
-    git.globalEmail,
-  );
   return {
     harness: options.harness,
-    hostClass: 'local',
+    hostClass: 'unknown',
     projectUUID: project.projectUUID,
     safewordCliVersion: options.cliVersion.trim(),
     ...(git.repository !== undefined && { repository: git.repository }),
@@ -93,7 +76,6 @@ export function buildPublicRetroSource(
     ...(optionalValue(options.osFamily) !== undefined && {
       osFamily: optionalValue(options.osFamily),
     }),
-    ...(userIdentity !== undefined && { userIdentity }),
   };
 }
 
@@ -132,12 +114,10 @@ function trustedConfigFile(path: string): string {
 }
 
 function parseRepoGitConfig(content: string): {
-  email?: string;
   remote?: string;
   delegatesIdentity: boolean;
 } {
   let section = '';
-  let email: string | undefined;
   let remote: string | undefined;
   for (const rawLine of content.split(/\r?\n/u)) {
     let line = rawLine.trim();
@@ -149,11 +129,9 @@ function parseRepoGitConfig(content: string): {
     const entry = parseGitEntry(line);
     if (!entry) continue;
     const [key, value] = entry;
-    if (section === 'user' && key === 'email') email = value;
     if (section === 'remote "origin"' && key === 'url') remote = value;
   }
   return {
-    ...(email !== undefined && { email }),
     ...(remote !== undefined && { remote }),
     delegatesIdentity: hasIdentityDelegate(content),
   };
@@ -203,53 +181,15 @@ export interface PublicGitContextOptions {
   homeDirectory?: string;
 }
 
-function globalGitConfigPaths(options: PublicGitContextOptions): string[] {
-  const environment = options.environment ?? process.env;
-  if (
-    environment.GIT_CONFIG_GLOBAL !== undefined &&
-    nodePath.isAbsolute(environment.GIT_CONFIG_GLOBAL)
-  ) {
-    return [environment.GIT_CONFIG_GLOBAL];
-  }
-  const home = options.homeDirectory ?? homedir();
-  if (!nodePath.isAbsolute(home)) return [];
-  const xdg =
-    environment.XDG_CONFIG_HOME !== undefined && nodePath.isAbsolute(environment.XDG_CONFIG_HOME)
-      ? environment.XDG_CONFIG_HOME
-      : nodePath.join(home, '.config');
-  return [nodePath.join(xdg, 'git/config'), nodePath.join(home, '.gitconfig')];
-}
-
-function collectGlobalGitEmail(options: PublicGitContextOptions): string | undefined {
-  let email: string | undefined;
-  let delegatesIdentity = false;
-  for (const path of globalGitConfigPaths(options)) {
-    try {
-      const config = parseRepoGitConfig(readFileSync(path, 'utf8'));
-      delegatesIdentity ||= config.delegatesIdentity;
-      if (config.email !== undefined && config.email.trim() !== '') email = config.email;
-    } catch {
-      // Missing optional global config contributes no identity.
-    }
-  }
-  return delegatesIdentity ? undefined : email;
-}
-
 export function collectPublicGitContext(
   cwd: string,
-  options: PublicGitContextOptions = {},
+  _options: PublicGitContextOptions = {},
 ): PublicGitContext {
   try {
     const config = parseRepoGitConfig(readFileSync(repoGitConfigPath(cwd), 'utf8'));
+    if (config.delegatesIdentity) return {};
     const repo = config.remote === undefined ? undefined : normalizeRepoRemote(config.remote);
-    const globalEmail = config.delegatesIdentity ? undefined : collectGlobalGitEmail(options);
-    return {
-      ...(repo !== undefined && { repository: repo }),
-      ...(!config.delegatesIdentity &&
-        config.email !== undefined &&
-        config.email.trim() !== '' && { localEmail: config.email }),
-      ...(globalEmail !== undefined && { globalEmail }),
-    };
+    return { ...(repo !== undefined && { repository: repo }) };
   } catch {
     return {};
   }
