@@ -405,7 +405,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 ### Scenario: The required conformance lane fails instead of skipping
 
 - [x] RED 4b19d64cf
-- [ ] GREEN
+- [x] GREEN 24922dc01
 - [ ] REFACTOR
 
 ### Scenario: Conformance fails safely when the OpenCode executable boundary is invalid
