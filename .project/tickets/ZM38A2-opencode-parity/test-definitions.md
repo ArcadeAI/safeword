@@ -406,7 +406,7 @@ test-definitions.md is the R/G/R ledger. Given/When/Then live in the `.feature` 
 
 - [x] RED 4b19d64cf
 - [x] GREEN 24922dc01
-- [ ] REFACTOR
+- [x] REFACTOR skip: one bounded fault selector drives the real fixture and the standalone lane stays declarative
 
 ### Scenario: Conformance fails safely when the OpenCode executable boundary is invalid
 
