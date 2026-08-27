@@ -95,6 +95,27 @@ describe('buildPublicRetroEnvelope', () => {
     }
   });
 
+  it.each([
+    ['control character', `model\u{7}`, false],
+    ['C1 control character', `model\u{85}`, false],
+    ['256 UTF-8 bytes', 'é'.repeat(128), true],
+    ['257 UTF-8 bytes', `${'é'.repeat(127)}abc`, false],
+    ['256 non-BMP UTF-8 bytes', '🚀'.repeat(64), true],
+    ['260 non-BMP UTF-8 bytes', '🚀'.repeat(65), false],
+    ['trimmed non-ASCII whitespace', `\u{2003}model-fixture\u{2003}`, true],
+  ] as const)('enforces the optional source boundary for %s', (_name, model, retained) => {
+    const built = buildPublicRetroEnvelope({
+      ...requiredInput,
+      source: { ...requiredInput.source, model },
+    });
+    const envelope = JSON.parse(new TextDecoder().decode(built.bytes)) as {
+      source: Record<string, unknown>;
+    };
+
+    expect(Object.hasOwn(envelope.source, 'model')).toBe(retained);
+    if (retained) expect(envelope.source.model).toBe(model.trim());
+  });
+
   it('generates one transport-independent request identity after claiming the scope', () => {
     const attemptsDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-public-retro-'));
     let uuidCalls = 0;
