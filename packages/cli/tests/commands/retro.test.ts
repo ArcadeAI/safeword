@@ -2021,6 +2021,29 @@ describe('buildAutoExtractor (SM1.AC2 — runner model: sonnet default, config-o
     expect(result.model).toBe('auto');
   });
 
+  it('does not expose arbitrary parent environment variables to Cursor extraction', async () => {
+    vi.stubEnv('SAFEWORD_PRIVATE_PARENT_SENTINEL', 'secret-parent-value');
+    let childEnvironment: Record<string, string | undefined> | undefined;
+    const extract = await buildAutoExtractor(projectDirectory, {
+      agent: 'cursor',
+      spawn: (_argv, options) => {
+        childEnvironment = options.env;
+        return Promise.resolve({
+          code: 0,
+          stdout: JSON.stringify({ type: 'result', is_error: false, result: '[]' }),
+        });
+      },
+    });
+
+    await extract(
+      JSON.stringify({
+        message: { role: 'user', content: [{ type: 'text', text: 'retro transcript' }] },
+      }),
+    );
+
+    expect(childEnvironment).not.toHaveProperty('SAFEWORD_PRIVATE_PARENT_SENTINEL');
+  });
+
   it('installs deny-all Cursor tool and network policy before the extractor spawns', async () => {
     let policy:
       | {

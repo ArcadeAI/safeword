@@ -632,7 +632,7 @@ export async function buildAutoExtractor(
     return async (transcript: string) => {
       const result = await runCursorHeadlessExtractionChecked(transcript, {
         spawn: spawnCursor,
-        env: process.env,
+        env: headlessEnvironment(process.env),
         cwd: workDirectory,
         model,
       });
