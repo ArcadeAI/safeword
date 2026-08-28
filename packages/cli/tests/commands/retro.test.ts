@@ -210,6 +210,7 @@ describe('retro command configuration, extraction, egress, and relay execution',
             CODEX_VERSION: '1.2.3',
           },
           projectDirectory: project,
+          sessionId: 'session-fixture',
         });
 
         expect(route !== undefined).toBe(allowed);
@@ -226,6 +227,28 @@ describe('retro command configuration, extraction, egress, and relay execution',
       }
     },
   );
+
+  it('keeps Cursor public delivery disabled without a conversation identity', () => {
+    const project = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-route-'));
+    try {
+      mkdirSync(nodePath.join(project, '.safeword'));
+      writeFileSync(
+        nodePath.join(project, '.safeword/config.json'),
+        JSON.stringify({ projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' }),
+      );
+
+      expect(
+        resolvePublicRetroRoute({
+          agent: 'cursor',
+          enabled: true,
+          environment: {},
+          projectDirectory: project,
+        }),
+      ).toBeUndefined();
+    } finally {
+      rmSync(project, { force: true, recursive: true });
+    }
+  });
 
   it('accepts only an absolute relay outbox outside the disposable project', () => {
     const project = mkdtempSync(nodePath.join(tmpdir(), 'retro-outbox-project-'));
