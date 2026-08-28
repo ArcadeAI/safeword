@@ -101,14 +101,23 @@ async function stopCollector(child: ChildProcess): Promise<void> {
   expect(code).toBe(0);
 }
 
-function requestBody(): Uint8Array {
+const supportedSources = [
+  { harness: 'claude-code', hostClass: 'local' },
+  { harness: 'codex', hostClass: 'local' },
+  { harness: 'claude-code', hostClass: 'unknown' },
+  { harness: 'codex', hostClass: 'unknown' },
+  { harness: 'cursor', hostClass: 'unknown' },
+] as const;
+
+type SupportedSource = (typeof supportedSources)[number];
+
+function requestBody(source: SupportedSource = supportedSources[1]): Uint8Array {
   return new TextEncoder().encode(
     JSON.stringify({
       version: 'v1',
       finding: 'fixture finding',
       source: {
-        harness: 'codex',
-        hostClass: 'local',
+        ...source,
         projectUUID: '018f0f2e-abcd-7def-8abc-def012345678',
         safewordCliVersion: '0.79.0',
       },
@@ -117,44 +126,47 @@ function requestBody(): Uint8Array {
   );
 }
 
-async function submit(url: string): Promise<Response> {
+async function submit(url: string, source?: SupportedSource): Promise<Response> {
   return fetch(`${url}/v1/public-retros`, {
     method: 'POST',
     headers: {
       'content-type': 'application/json; charset=utf-8',
       'x-safeword-request-id': '01922222-2222-7333-8444-55555555555a',
     },
-    body: requestBody(),
+    body: requestBody(source),
   });
 }
 
-it('persists a public retro in its own process without calling GitHub', async () => {
-  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-packaged-collector-'));
-  directories.push(directory);
-  let githubCalls = 0;
-  const github = createServer((_request, response) => {
-    githubCalls += 1;
-    response.writeHead(500).end();
-  });
-  servers.push(github);
-  const githubUrl = await listen(github);
-  const databasePath = path.join(directory, 'collector.sqlite');
+it.each(supportedSources)(
+  'persists $harness/$hostClass in its own process without calling GitHub',
+  async source => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'safeword-packaged-collector-'));
+    directories.push(directory);
+    let githubCalls = 0;
+    const github = createServer((_request, response) => {
+      githubCalls += 1;
+      response.writeHead(500).end();
+    });
+    servers.push(github);
+    const githubUrl = await listen(github);
+    const databasePath = path.join(directory, 'collector.sqlite');
 
-  const firstRuntime = await startCollector(databasePath, githubUrl);
-  const firstResponse = await submit(firstRuntime.url);
-  const firstReceipt = await firstResponse.json();
-  await stopCollector(firstRuntime.child);
+    const firstRuntime = await startCollector(databasePath, githubUrl);
+    const firstResponse = await submit(firstRuntime.url, source);
+    const firstReceipt = await firstResponse.json();
+    await stopCollector(firstRuntime.child);
 
-  const restartedRuntime = await startCollector(databasePath, githubUrl);
-  const retryResponse = await submit(restartedRuntime.url);
-  const retryReceipt = await retryResponse.json();
-  await stopCollector(restartedRuntime.child);
+    const restartedRuntime = await startCollector(databasePath, githubUrl);
+    const retryResponse = await submit(restartedRuntime.url, source);
+    const retryReceipt = await retryResponse.json();
+    await stopCollector(restartedRuntime.child);
 
-  expect(firstResponse.status).toBe(201);
-  expect(retryResponse.status).toBe(200);
-  expect(retryReceipt).toEqual(firstReceipt);
-  expect(githubCalls).toBe(0);
-});
+    expect(firstResponse.status).toBe(201);
+    expect(retryResponse.status).toBe(200);
+    expect(retryReceipt).toEqual(firstReceipt);
+    expect(githubCalls).toBe(0);
+  },
+);
 
 it('ships without private filing authority', () => {
   const packageRoot = path.resolve(import.meta.dirname, '..');
