@@ -452,30 +452,9 @@ export interface AutoExtractDependencies {
 
 type AutoExtractSpawn = NonNullable<AutoExtractDependencies['spawn']>;
 
-const HEADLESS_ENVIRONMENT_KEYS = [
+const SHARED_HEADLESS_ENVIRONMENT_KEYS = [
   'ALL_PROXY',
-  'ANTHROPIC_API_KEY',
-  'ANTHROPIC_AUTH_TOKEN',
-  'ANTHROPIC_BASE_URL',
-  'ANTHROPIC_BEDROCK_BASE_URL',
-  'ANTHROPIC_BEDROCK_MANTLE_BASE_URL',
-  'ANTHROPIC_VERTEX_PROJECT_ID',
   'APPDATA',
-  'AWS_ACCESS_KEY_ID',
-  'AWS_BEARER_TOKEN_BEDROCK',
-  'AWS_PROFILE',
-  'AWS_REGION',
-  'AWS_SECRET_ACCESS_KEY',
-  'AWS_SESSION_TOKEN',
-  'CLAUDE_CODE_OAUTH_TOKEN',
-  'CLAUDE_CODE_USE_BEDROCK',
-  'CLAUDE_CODE_USE_FOUNDRY',
-  'CLAUDE_CODE_USE_MANTLE',
-  'CLAUDE_CODE_USE_VERTEX',
-  'CLAUDE_CONFIG_DIR',
-  'CLOUD_ML_REGION',
-  'CODEX_HOME',
-  'GOOGLE_APPLICATION_CREDENTIALS',
   'HOME',
   'HTTP_PROXY',
   'HTTPS_PROXY',
@@ -483,7 +462,6 @@ const HEADLESS_ENVIRONMENT_KEYS = [
   'LC_ALL',
   'NODE_EXTRA_CA_CERTS',
   'NO_PROXY',
-  'OPENAI_API_KEY',
   'PATH',
   'PATHEXT',
   'SHELL',
@@ -497,9 +475,52 @@ const HEADLESS_ENVIRONMENT_KEYS = [
   'XDG_DATA_HOME',
 ] as const;
 
-function headlessEnvironment(environment: NodeJS.ProcessEnv): Record<string, string | undefined> {
+const CLAUDE_HEADLESS_ENVIRONMENT_KEYS = [
+  'ANTHROPIC_API_KEY',
+  'ANTHROPIC_AUTH_TOKEN',
+  'ANTHROPIC_BASE_URL',
+  'ANTHROPIC_BEDROCK_BASE_URL',
+  'ANTHROPIC_BEDROCK_MANTLE_BASE_URL',
+  'ANTHROPIC_VERTEX_PROJECT_ID',
+  'AWS_ACCESS_KEY_ID',
+  'AWS_BEARER_TOKEN_BEDROCK',
+  'AWS_PROFILE',
+  'AWS_REGION',
+  'AWS_SECRET_ACCESS_KEY',
+  'AWS_SESSION_TOKEN',
+  'CLAUDE_CODE_OAUTH_TOKEN',
+  'CLAUDE_CODE_USE_BEDROCK',
+  'CLAUDE_CODE_USE_FOUNDRY',
+  'CLAUDE_CODE_USE_MANTLE',
+  'CLAUDE_CODE_USE_VERTEX',
+  'CLAUDE_CONFIG_DIR',
+  'CLOUD_ML_REGION',
+  'GOOGLE_APPLICATION_CREDENTIALS',
+] as const;
+
+const CODEX_HEADLESS_ENVIRONMENT_KEYS = ['CODEX_HOME', 'OPENAI_API_KEY'] as const;
+
+function headlessEnvironment(
+  environment: NodeJS.ProcessEnv,
+  agent: RetroAgent,
+): Record<string, string | undefined> {
+  let vendorKeys: readonly string[];
+  switch (agent) {
+    case 'claude': {
+      vendorKeys = CLAUDE_HEADLESS_ENVIRONMENT_KEYS;
+      break;
+    }
+    case 'codex': {
+      vendorKeys = CODEX_HEADLESS_ENVIRONMENT_KEYS;
+      break;
+    }
+    case 'cursor': {
+      vendorKeys = [];
+      break;
+    }
+  }
   return Object.fromEntries(
-    HEADLESS_ENVIRONMENT_KEYS.flatMap(key => {
+    [...SHARED_HEADLESS_ENVIRONMENT_KEYS, ...vendorKeys].flatMap(key => {
       const value = environment[key];
       return value === undefined ? [] : [[key, value]];
     }),
@@ -608,7 +629,7 @@ export async function buildAutoExtractor(
           writeFileSync(path, content);
         },
         readFile: (path: string) => readFileSync(path, 'utf8'),
-        env: headlessEnvironment(process.env),
+        env: headlessEnvironment(process.env, 'codex'),
         cwd: workDirectory,
         model,
         schemaPath: nodePath.join(workDirectory, 'schema.json'),
@@ -632,7 +653,7 @@ export async function buildAutoExtractor(
     return async (transcript: string) => {
       const result = await runCursorHeadlessExtractionChecked(transcript, {
         spawn: spawnCursor,
-        env: headlessEnvironment(process.env),
+        env: headlessEnvironment(process.env, 'cursor'),
         cwd: workDirectory,
         model,
       });
@@ -657,7 +678,7 @@ export async function buildAutoExtractor(
         writeFileSync(path, digest);
         return path;
       },
-      env: headlessEnvironment(process.env),
+      env: headlessEnvironment(process.env, 'claude'),
       cwd: workDirectory, // neutral cwd — not the user's project
       model,
     });

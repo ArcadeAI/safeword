@@ -1976,6 +1976,7 @@ describe('buildAutoExtractor (SM1.AC2 — runner model: sonnet default, config-o
     projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-runner-'));
   });
   afterEach(() => {
+    vi.unstubAllEnvs();
     rmSync(projectDirectory, { recursive: true, force: true });
   });
 
@@ -2022,7 +2023,6 @@ describe('buildAutoExtractor (SM1.AC2 — runner model: sonnet default, config-o
   });
 
   it('does not expose arbitrary parent environment variables to Cursor extraction', async () => {
-    vi.stubEnv('SAFEWORD_PRIVATE_PARENT_SENTINEL', 'secret-parent-value');
     let childEnvironment: Record<string, string | undefined> | undefined;
     const extract = await buildAutoExtractor(projectDirectory, {
       agent: 'cursor',
@@ -2035,6 +2035,12 @@ describe('buildAutoExtractor (SM1.AC2 — runner model: sonnet default, config-o
       },
     });
 
+    vi.stubEnv('SAFEWORD_PRIVATE_PARENT_SENTINEL', 'secret-parent-value');
+    vi.stubEnv('ANTHROPIC_API_KEY', 'anthropic-secret');
+    vi.stubEnv('AWS_SECRET_ACCESS_KEY', 'aws-secret');
+    vi.stubEnv('OPENAI_API_KEY', 'openai-secret');
+    vi.stubEnv('PATH', '/safe/shared/path');
+
     await extract(
       JSON.stringify({
         message: { role: 'user', content: [{ type: 'text', text: 'retro transcript' }] },
@@ -2042,6 +2048,10 @@ describe('buildAutoExtractor (SM1.AC2 — runner model: sonnet default, config-o
     );
 
     expect(childEnvironment).not.toHaveProperty('SAFEWORD_PRIVATE_PARENT_SENTINEL');
+    expect(childEnvironment).not.toHaveProperty('ANTHROPIC_API_KEY');
+    expect(childEnvironment).not.toHaveProperty('AWS_SECRET_ACCESS_KEY');
+    expect(childEnvironment).not.toHaveProperty('OPENAI_API_KEY');
+    expect(childEnvironment).toMatchObject({ PATH: '/safe/shared/path' });
   });
 
   it('installs deny-all Cursor tool and network policy before the extractor spawns', async () => {
