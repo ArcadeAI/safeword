@@ -104,6 +104,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN 4237f8d64
 - [x] REFACTOR c2c070fb5
 
+### Scenario: Cursor cannot claim released legacy user identity
+
+- [x] RED 2a0ef084f
+- [x] GREEN 2a0ef084f
+- [x] REFACTOR skip: the closed source validator reuses its existing harness-specific guard
+
 ### Scenario: The collector preserves released optional-value rules
 
 - [x] RED skip: released collector optional-value acceptance was unchanged
@@ -263,6 +269,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] RED 5be197598
 - [x] GREEN 42deb8685
 - [x] REFACTOR skip: one eligibility guard prevents transcript-path fallback from becoming public identity
+
+### Scenario: A Cursor stash from another project keeps existing recovery behavior
+
+- [x] RED 2a0ef084f
+- [x] GREEN 2a0ef084f
+- [x] REFACTOR 2a0ef084f
 
 ### Scenario: Collector rejection keeps existing recovery behavior
 
