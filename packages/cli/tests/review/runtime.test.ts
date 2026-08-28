@@ -17,6 +17,7 @@ import type { ReviewerOutput } from '../../src/review/contract.js';
 import {
   parseProcessStat,
   parseReviewerOutput,
+  planReviewRubric,
   procGroupHasRunningMember,
   reviewerArguments,
   reviewTimeoutMilliseconds,
@@ -68,6 +69,13 @@ describe('scenario review rubric', () => {
     expect(rubric).not.toContain('run-review.ts');
     expect(rubric).not.toContain('Authoring mode');
     expect(rubric).not.toContain('Review mode');
+  });
+
+  it('uses the generated canonical implementation-plan rubric', () => {
+    const rubric = planReviewRubric();
+    expect(rubric).toContain('## Shared implementation-plan judgment standard');
+    expect(rubric).toContain('Apply the deletion test');
+    expect(rubric).not.toContain('run-review.ts');
   });
 });
 

@@ -30,6 +30,32 @@ afterEach(() => {
 });
 
 describe('review packet containment and change accounting', () => {
+  it('treats only impl-plan.md as plan-review work and preserves supporting context', () => {
+    const root = temporaryDirectory();
+    writeFileSync(nodePath.join(root, 'impl-plan.md'), '# Plan\n');
+    writeFileSync(nodePath.join(root, 'spec.md'), '# Spec\n');
+    const prepared = prepareReviewPacket(
+      root,
+      'plan-implementation',
+      ['impl-plan.md'],
+      ['spec.md'],
+    );
+    try {
+      expect(prepared.packet.logical_files.map(file => file.path)).toEqual(['impl-plan.md']);
+      expect(prepared.packet.context_files?.map(file => file.path)).toEqual(['spec.md']);
+    } finally {
+      prepared.cleanup();
+    }
+  });
+
+  it('rejects supporting evidence supplied as plan-review work', () => {
+    const root = temporaryDirectory();
+    writeFileSync(nodePath.join(root, 'impl-plan.md'), '# Plan\n');
+    writeFileSync(nodePath.join(root, 'spec.md'), '# Spec\n');
+    expect(() =>
+      prepareReviewPacket(root, 'plan-implementation', ['impl-plan.md', 'spec.md']),
+    ).toThrow('one non-blank impl-plan.md work file');
+  });
   it('rejects a target that escapes through a symlinked parent directory', () => {
     const project = temporaryDirectory();
     const outside = temporaryDirectory();

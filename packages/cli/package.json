@@ -51,6 +51,7 @@
     "generate:codex-plugin": "bun scripts/generate-codex-plugin.ts",
     "generate:claude-plugin": "bun scripts/generate-claude-plugin.ts",
     "generate:scenario-rubric": "bun scripts/generate-scenario-rubric.ts",
+    "generate:plan-rubric": "bun scripts/generate-plan-rubric.ts",
     "generate:claude-historical-catalogue": "bun scripts/generate-claude-historical-catalogue.ts",
     "check:claude-historical-catalogue": "bun scripts/generate-claude-historical-catalogue.ts --check",
     "check:claude-plugin": "bun scripts/check-claude-plugin-release.ts",

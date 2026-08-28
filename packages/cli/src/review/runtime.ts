@@ -28,6 +28,7 @@ import type {
   UnverifiedReviewerOutput,
 } from './contract.js';
 import { reviewerEnvironment, reviewerProbeEnvironment } from './environment.js';
+import { PLAN_REVIEW_RUBRIC } from './plan-rubric.generated.js';
 import { SCENARIO_REVIEW_RUBRIC } from './scenario-rubric.generated.js';
 
 /**
@@ -190,8 +191,7 @@ const MAX_OUTPUT_BYTES = 1024 * 1024;
 const REVIEW_RUBRICS: Readonly<Record<Exclude<ReviewPacket['kind'], 'scenario-gate'>, string>> = {
   'quality-review':
     'Check correctness, edge cases, security, unnecessary complexity, and whether public wiring is proven through real collaborators.',
-  'plan-implementation':
-    'Try to refute the plan. Check wrong-direction design, missed scenarios, proof strategy, build order, architecture alignment, reversibility, and text removable without information loss.',
+  'plan-implementation': PLAN_REVIEW_RUBRIC,
 };
 
 export class ReviewRuntimeError extends Error {
@@ -210,8 +210,14 @@ export function scenarioReviewRubric(): string {
   return SCENARIO_REVIEW_RUBRIC;
 }
 
+/** Generated from the canonical planning skill so author and reviewer cannot drift. */
+export function planReviewRubric(): string {
+  return PLAN_REVIEW_RUBRIC;
+}
+
 function reviewRubric(kind: ReviewPacket['kind']): string {
   if (kind === 'scenario-gate') return scenarioReviewRubric();
+  if (kind === 'plan-implementation') return planReviewRubric();
   return REVIEW_RUBRICS[kind];
 }
 
