@@ -89,7 +89,7 @@ Rung 0 — before framing the jobs, capture the decide-to-build brief in `spec.m
 - **Cost of inaction** — what changes, breaks, or is lost if we don't build it. (Framing inaction as a risk is sharper than framing action as an opportunity.)
 - **Reversibility** — how hard this is to undo once shipped (one-way vs. two-way door). Count cross-cutting changes (data model, public API, migration) as one-way for this purpose. The readiness pointer raises this live in chat during Clarify; the brief is where it's written down and kept for later review.
 
-The brief frames _whether and how much_ to build before JTBD frames _what_. Its payoff is **triage**: when cost-of-inaction is low and reversibility is high, the feature may not warrant the full ladder — raise it at the gate below. Don't add a separate stop; present the brief together with the jobs at the **JTBD sub-phase gate**, whose question now also asks "is this a feature, or a task?" Features only — tasks and patches skip the brief and lean on the readiness pointer.
+The brief frames _whether and how much_ to build before JTBD frames _what_. Its payoff is **triage**: when cost-of-inaction is low and reversibility is high, the feature may not warrant the full ladder — raise it at the gate below. The brief triages **how much ladder**, never **which jobs** — a reversibility or cost judgment recorded here must not reappear as a reason to leave a job unwritten. Don't add a separate stop; present the brief together with the jobs at the **JTBD sub-phase gate**, whose question now also asks "is this a feature, or a task?" Features only — tasks and patches skip the brief and lean on the readiness pointer.
 
 ## Author Jobs To Be Done
 
@@ -104,6 +104,14 @@ Each JTBD is:
 Resolve each persona reference against the loaded personas before writing it. A JTBD naming a persona absent from `personas.md` blocks the next phase — the intake-exit gate denies `test-definitions.md` until every JTBD resolves, or a `skip: <reason>` is recorded under `## Jobs To Be Done` for a deliberate omission.
 
 **Pause and confirm** the JTBD set with the user before advancing to Understanding — this is the JTBD **Sub-phase gate** (see above). Converge on the jobs first, then build scope on top of them.
+
+**Coaching — a job is an outcome, not a capability you have decided you can build:**
+
+- **Never drop, merge, or narrow a job because of how it would be implemented.** Whether it needs new state, a different service, a stateless surface, or judgment the runtime cannot yet make are all _plan-implementation_ questions. Jobs drive architecture; architecture never prunes jobs.
+- Watch for the mechanism-shaped excuse. Each of these is a leak, not a reason: "that would need persistent state," "this layer is stateless," "that is the agent's job, not the tool's," "we already do that elsewhere."
+- **Fold two jobs into one only when the persona would not notice the difference.** "Tell me how much of my mail you read" and "tell me when you are unsure about a message" look mergeable to an implementer holding one status object, and are two different questions to the persona.
+- A job you cannot currently serve is still a job — and so is one something else already serves. Record it either way, size accordingly, and let it be deferred or marked already-satisfied **explicitly at the scope gate**, where the user decides, rather than deleted silently while writing the jobs, where they never see it.
+- **✗** "Dropped _remembers who matters to me_ — toolkits are stateless." That is an implementation constraint used as a scope filter, before the implementation it describes has been designed.
 
 ## Capture Product Inspiration
 

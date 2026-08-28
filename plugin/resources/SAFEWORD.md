@@ -72,7 +72,7 @@ Exit: user accepts your proposal. For features, intake builds its artifacts in o
 
 1. Load personas, glossary, and surfaces from the configured project-knowledge files.
 2. Open with a short **Intake Brief** in `spec.md` (who asked · cost of inaction · reversibility) — the framing for the decision to build, which also triages whether this is a feature or a leaner task.
-3. Author the Jobs To Be Done in `spec.md` — one persona from the configured personas file per job, in the "When I…, I want…, so I can…" form.
+3. Author the Jobs To Be Done in `spec.md` — one persona from the configured personas file per job, in the "When I…, I want…, so I can…" form. Jobs are outcomes the persona wants to be true; never drop or narrow one because of how it would be built. Feasibility, state, and which layer serves it are plan-implementation questions.
 4. Decompose each job into numbered Rules — one testable invariant per `#### <jtbd-id>.R<n>`, the level that define-behavior scenarios later prove against. (Acceptance Criteria — `#### <jtbd-id>.AC<n>` — is the still-supported legacy alternative; one criteria kind per job, never both.)
 5. Let jobs-and-rules anchor the engineering scope you write to ticket frontmatter — every resolved question produces scope (accepted choice = in scope, rejected alternative = out of scope):
 
@@ -101,6 +101,8 @@ All no or 1 file                          → patch    (fix directly)
 ```
 
 Fallback: task. User can `/bdd` to override.
+
+Sizing reads the jobs; it never edits them. A job that implies new state or a new flow makes the work **bigger** — that is a signal to split into an epic, never to drop the job so the work fits a smaller box. If you find yourself pruning jobs and the size falls, you sized the proposal instead of the work.
 
 Calibration the rules don't capture:
 
