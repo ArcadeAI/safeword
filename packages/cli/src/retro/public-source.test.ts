@@ -4,15 +4,15 @@ import nodePath from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { createTemporaryDirectory } from '../../tests/helpers.js';
+import { buildPublicRetroEnvelope } from './public-delivery.js';
 import {
   buildPublicRetroSource,
   collectPublicGitContext,
   normalizeRepoRemote,
-  selectPublicUserIdentity,
 } from './public-source.js';
 
 describe('buildPublicRetroSource', () => {
-  it('builds the closed local profile from project config, Git, and runtime metadata', () => {
+  it('builds the closed current profile without untrusted runtime identity', () => {
     const directory = createTemporaryDirectory();
     mkdirSync(nodePath.join(directory, '.safeword'));
     mkdirSync(nodePath.join(directory, '.git'));
@@ -27,29 +27,21 @@ describe('buildPublicRetroSource', () => {
 
     expect(
       buildPublicRetroSource(directory, {
-        agentVersion: ' 1.2.3 ',
         cliVersion: ' 0.79.0 ',
-        environment: { GIT_CONFIG_GLOBAL: '/fixture/missing' },
         harness: 'codex',
-        model: ' gpt-fixture ',
         osFamily: ' darwin ',
-        pluginVersion: ' 0.79.0 ',
       }),
     ).toEqual({
-      agentVersion: '1.2.3',
       harness: 'codex',
-      hostClass: 'local',
-      model: 'gpt-fixture',
+      hostClass: 'unknown',
       osFamily: 'darwin',
       projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
       repository: 'github.com/arcadeai/safeword',
       safewordCliVersion: '0.79.0',
-      safewordPluginVersion: '0.79.0',
-      userIdentity: 'dev@example.com',
     });
   });
 
-  it('prefers a verified runtime identity over Git email', () => {
+  it('builds an envelope without Git credentials or email', () => {
     const directory = createTemporaryDirectory();
     mkdirSync(nodePath.join(directory, '.safeword'));
     mkdirSync(nodePath.join(directory, '.git'));
@@ -57,17 +49,85 @@ describe('buildPublicRetroSource', () => {
       nodePath.join(directory, '.safeword', 'config.json'),
       JSON.stringify({ projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' }),
     );
-    writeFileSync(nodePath.join(directory, '.git', 'config'), '[user]\nemail = git@example.com\n');
+    writeFileSync(
+      nodePath.join(directory, '.git', 'config'),
+      '[remote "origin"]\nurl = https://creduser-9f2c:credsecret-9f2c@github.com/ArcadeAI/Safeword.git\n[user]\nemail = private@example.test\n',
+    );
 
-    expect(
-      buildPublicRetroSource(directory, {
-        cliVersion: '0.79.0',
-        environment: { GIT_CONFIG_GLOBAL: '/fixture/missing' },
-        harness: 'codex',
-        osFamily: 'darwin',
-        runtimeIdentity: 'octocat',
-      }),
-    ).toMatchObject({ userIdentity: 'octocat' });
+    const source = buildPublicRetroSource(directory, {
+      cliVersion: '0.79.0',
+      harness: 'codex',
+      osFamily: 'darwin',
+    });
+    if (source === undefined) throw new TypeError('expected public source');
+    const envelope = new TextDecoder().decode(
+      buildPublicRetroEnvelope({ finding: 'fixture', sessionId: 'session-fixture', source }).bytes,
+    );
+
+    expect(JSON.parse(envelope)).toMatchObject({
+      source: { repository: 'github.com/arcadeai/safeword' },
+    });
+    expect(envelope).not.toContain('creduser-9f2c');
+    expect(envelope).not.toContain('credsecret-9f2c');
+    expect(envelope).not.toContain('private@example.test');
+  });
+
+  it('omits Git email from the public envelope', () => {
+    const directory = createTemporaryDirectory();
+    mkdirSync(nodePath.join(directory, '.safeword'));
+    mkdirSync(nodePath.join(directory, '.git'));
+    writeFileSync(
+      nodePath.join(directory, '.safeword', 'config.json'),
+      JSON.stringify({ projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' }),
+    );
+    writeFileSync(
+      nodePath.join(directory, '.git', 'config'),
+      '[user]\nemail = private@example.test\n',
+    );
+    const source = buildPublicRetroSource(directory, {
+      cliVersion: '0.79.0',
+      harness: 'codex',
+      osFamily: 'darwin',
+    });
+    if (source === undefined) throw new TypeError('expected public source');
+
+    const envelope = new TextDecoder().decode(
+      buildPublicRetroEnvelope({ finding: 'fixture', sessionId: 'session-fixture', source }).bytes,
+    );
+    expect(envelope).not.toContain('private@example.test');
+  });
+
+  it.each([
+    [256, true],
+    [257, false],
+  ] as const)('bounds derived optional context at %i UTF-8 bytes', (byteLength, retained) => {
+    const directory = createTemporaryDirectory();
+    const repo = `gitlab.com/team/${'r'.repeat(byteLength - 'gitlab.com/team/'.length)}`;
+    mkdirSync(nodePath.join(directory, '.safeword'));
+    mkdirSync(nodePath.join(directory, '.git'));
+    writeFileSync(
+      nodePath.join(directory, '.safeword', 'config.json'),
+      JSON.stringify({ projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' }),
+    );
+    writeFileSync(
+      nodePath.join(directory, '.git', 'config'),
+      `[remote "origin"]\nurl = https://${repo}.git\n`,
+    );
+
+    const source = buildPublicRetroSource(directory, {
+      cliVersion: '0.79.0',
+      harness: 'codex',
+      osFamily: 'darwin',
+    });
+    if (source === undefined) throw new TypeError('expected public source');
+    const envelope = JSON.parse(
+      new TextDecoder().decode(
+        buildPublicRetroEnvelope({ finding: 'fixture', sessionId: 'session-fixture', source })
+          .bytes,
+      ),
+    ) as { source: Record<string, unknown> };
+
+    expect(envelope.source.repository === repo).toBe(retained);
   });
 
   it('returns no source when public collection is disabled', () => {
@@ -86,7 +146,6 @@ describe('buildPublicRetroSource', () => {
         cliVersion: '0.79.0',
         harness: 'codex',
         osFamily: 'darwin',
-        runtimeIdentity: 'octocat',
       }),
     ).toBeUndefined();
   });
@@ -95,57 +154,58 @@ describe('buildPublicRetroSource', () => {
 describe('normalizeRepoRemote', () => {
   it.each([
     ['git@github.com:ArcadeAI/safeword.git', 'github.com/arcadeai/safeword'],
+    ['github.com:ArcadeAI/safeword.git', 'github.com/arcadeai/safeword'],
     ['https://github.com/ArcadeAI/safeword/', 'github.com/arcadeai/safeword'],
     ['ssh://git@github.com/ArcadeAI/safeword.git', 'github.com/arcadeai/safeword'],
-    ['git@gitlab.example:Team/Repo.git', 'gitlab.example/Team/Repo'],
-    ['https://gitlab.example/Team/Repo.git', 'gitlab.example/Team/Repo'],
-    [
-      'https://user@gitlab.example:443/Team/Repo.git?token=ghp_fixture_secret_1234567890#readme',
-      'gitlab.example/Team/Repo',
-    ],
     [
       'https://x-access-token:ghp_fixture_secret_1234567890@github.com/ArcadeAI/Safeword.git',
       'github.com/arcadeai/safeword',
     ],
     ['https://GitHub.COM/ArcadeAI/Safeword.git', 'github.com/arcadeai/safeword'],
-    ['https://Evil-GitHub.com/Team/Repo.git', 'evil-github.com/Team/Repo'],
-    ['https://api.github.com/Team/Repo.git', 'api.github.com/Team/Repo'],
+  ])('canonicalizes the supported GitHub remote %s', (remote, expected) => {
+    expect(normalizeRepoRemote(remote)).toBe(expected);
+  });
+
+  it('preserves the public path of a supported GitLab remote', () => {
+    expect(normalizeRepoRemote('git@gitlab.com:Team/Repo.git')).toBe('gitlab.com/Team/Repo');
+  });
+
+  it.each([
+    ['https://gitlab.example/Team/Repo.git', undefined],
+    [
+      'https://user@gitlab.example:443/Team/Repo.git?token=ghp_fixture_secret_1234567890#readme',
+      undefined,
+    ],
+    ['https://Evil-GitHub.com/Team/Repo.git', undefined],
+    ['https://api.github.com/Team/Repo.git', undefined],
+    ['https://github.com.attacker-9f2c.test/team/repo.git', undefined],
     ['/Users/fixture/private/repo', undefined],
     ['/home/alice/Projects/client@acme:internal-tool', undefined],
     ['file:///Users/fixture/private/repo', undefined],
     ['://malformed remote', undefined],
     ['../safeword', undefined],
-  ])('normalizes %s without exposing credentials', (remote, expected) => {
+    ['https://github.com/team/repo/extra', undefined],
+    ['https://github.com/team//repo', undefined],
+    ['https://github.com/team%2Frepo/project', undefined],
+  ])('omits the unsupported repository remote %s', (remote, expected) => {
     expect(normalizeRepoRemote(remote)).toBe(expected);
   });
 });
 
-describe('selectPublicUserIdentity', () => {
-  it.each([
-    ['octocat', 'local@example.com', 'global@example.com', 'octocat'],
-    ['octocat', undefined, undefined, 'octocat'],
-    [' '.repeat(3), 'local@example.com', 'global@example.com', 'local@example.com'],
-    ['', 'local@example.com', 'global@example.com', 'local@example.com'],
-    [' '.repeat(3), undefined, 'global@example.com', 'global@example.com'],
-    ['', undefined, 'global@example.com', 'global@example.com'],
-    [undefined, 'local@example.com', 'global@example.com', 'local@example.com'],
-    [undefined, undefined, 'global@example.com', 'global@example.com'],
-    [undefined, ' '.repeat(3), 'global@example.com', 'global@example.com'],
-    [undefined, ' '.repeat(3), undefined, undefined],
-    [undefined, undefined, ' '.repeat(3), undefined],
-    [undefined, undefined, undefined, undefined],
-  ])(
-    'prefers runtime identity, then local email, then global email',
-    (runtimeIdentity, localEmail, globalEmail, expected) => {
-      expect(selectPublicUserIdentity(runtimeIdentity, localEmail, globalEmail)).toBe(expected);
-    },
-  );
-});
-
 describe('collectPublicGitContext', () => {
-  const noGlobalConfig = { environment: { GIT_CONFIG_GLOBAL: '/fixture/missing' } };
+  it('uses the first origin URL, matching Git config precedence', () => {
+    const directory = createTemporaryDirectory();
+    const gitDirectory = nodePath.join(directory, '.git');
+    mkdirSync(gitDirectory);
+    writeFileSync(
+      nodePath.join(gitDirectory, 'config'),
+      '[remote "origin"]\nurl = ssh://git@internal.example/team/repo.git\nurl = https://github.com/team/repo.git\n',
+    );
 
-  it('reads repository identity and local email from the repository Git config', () => {
+    expect(collectPublicGitContext(directory)).toEqual({});
+  });
+
+  it('reads repository identity without local email from the repository Git config', () => {
     const directory = createTemporaryDirectory();
     const gitDirectory = nodePath.join(directory, '.git');
     mkdirSync(gitDirectory);
@@ -158,9 +218,8 @@ describe('collectPublicGitContext', () => {
 `,
     );
 
-    expect(collectPublicGitContext(directory, noGlobalConfig)).toEqual({
+    expect(collectPublicGitContext(directory)).toEqual({
       repository: 'github.com/arcadeai/safeword',
-      localEmail: 'local@example.com',
     });
   });
 
@@ -173,13 +232,36 @@ describe('collectPublicGitContext', () => {
       '[remote "origin"]\nurl = "git@github.com:ArcadeAI/safeword.git" # primary\n[user]\nemail = dev@example.com ; local\n',
     );
 
-    expect(collectPublicGitContext(directory, noGlobalConfig)).toEqual({
+    expect(collectPublicGitContext(directory)).toEqual({
       repository: 'github.com/arcadeai/safeword',
-      localEmail: 'dev@example.com',
     });
   });
 
-  it('omits Git email when a consulted config delegates through an include', () => {
+  it('does not treat a case-distinct remote subsection as origin', () => {
+    const directory = createTemporaryDirectory();
+    const gitDirectory = nodePath.join(directory, '.git');
+    mkdirSync(gitDirectory);
+    writeFileSync(
+      nodePath.join(gitDirectory, 'config'),
+      '[remote "Origin"]\nurl = git@github.com:evil/leaked.git\n',
+    );
+
+    expect(collectPublicGitContext(directory)).toEqual({});
+  });
+
+  it('fails closed when the repository config declares a URL rewrite', () => {
+    const directory = createTemporaryDirectory();
+    const gitDirectory = nodePath.join(directory, '.git');
+    mkdirSync(gitDirectory);
+    writeFileSync(
+      nodePath.join(gitDirectory, 'config'),
+      '[url "https://internal.example/"]\ninsteadOf = https://github.com/\n[remote "origin"]\nurl = https://github.com/ArcadeAI/safeword.git\n',
+    );
+
+    expect(collectPublicGitContext(directory)).toEqual({});
+  });
+
+  it('fails closed when the repository config delegates through an include', () => {
     const directory = createTemporaryDirectory();
     const gitDirectory = nodePath.join(directory, '.git');
     mkdirSync(gitDirectory);
@@ -194,34 +276,19 @@ describe('collectPublicGitContext', () => {
 `,
     );
 
-    const globalConfig = nodePath.join(directory, 'global.gitconfig');
-    writeFileSync(globalConfig, '[user]\n  email = global@example.com\n');
-
-    expect(
-      collectPublicGitContext(directory, {
-        environment: { GIT_CONFIG_GLOBAL: globalConfig },
-      }),
-    ).toEqual({
-      repository: 'github.com/arcadeai/safeword',
-    });
+    expect(collectPublicGitContext(directory)).toEqual({});
   });
 
-  it('omits Git email when delegation is written beside its section header', () => {
+  it('fails closed when delegation is written beside its section header', () => {
     const directory = createTemporaryDirectory();
     const gitDirectory = nodePath.join(directory, '.git');
-    const globalConfig = nodePath.join(directory, 'global.gitconfig');
     mkdirSync(gitDirectory);
     writeFileSync(
       nodePath.join(gitDirectory, 'config'),
-      '[include] path = /private/identity\n[user] email = local@example.com\n',
+      '[include] path = /private/config\n[remote "origin"] url = git@github.com:ArcadeAI/safeword.git\n',
     );
-    writeFileSync(globalConfig, '[user]\nemail = global@example.com\n');
 
-    expect(
-      collectPublicGitContext(directory, {
-        environment: { GIT_CONFIG_GLOBAL: globalConfig },
-      }),
-    ).toEqual({});
+    expect(collectPublicGitContext(directory)).toEqual({});
   });
 
   it('omits Git email for whitespace variants and unquoted continuations', () => {
@@ -233,27 +300,33 @@ describe('collectPublicGitContext', () => {
       '[includeIf\t"gitdir:~/work/"] path = /private/identity\n[user]\nemail = leaked\\\n',
     );
 
-    expect(collectPublicGitContext(directory, noGlobalConfig)).toEqual({});
+    expect(collectPublicGitContext(directory)).toEqual({});
   });
 
   it('ignores a symlinked Git directory', () => {
     const directory = createTemporaryDirectory();
     const foreign = createTemporaryDirectory();
     mkdirSync(nodePath.join(foreign, '.git'));
-    writeFileSync(nodePath.join(foreign, '.git/config'), '[user]\nemail = foreign@example.com\n');
+    writeFileSync(
+      nodePath.join(foreign, '.git/config'),
+      '[remote "origin"]\nurl = git@github.com:evil/leaked.git\n',
+    );
     symlinkSync(nodePath.join(foreign, '.git'), nodePath.join(directory, '.git'));
 
-    expect(collectPublicGitContext(directory, noGlobalConfig)).toEqual({});
+    expect(collectPublicGitContext(directory)).toEqual({});
   });
 
   it('ignores a symlinked repository config', () => {
     const directory = createTemporaryDirectory();
     const foreign = createTemporaryDirectory();
     mkdirSync(nodePath.join(directory, '.git'));
-    writeFileSync(nodePath.join(foreign, 'config'), '[user]\nemail = foreign@example.com\n');
+    writeFileSync(
+      nodePath.join(foreign, 'config'),
+      '[remote "origin"]\nurl = git@github.com:evil/leaked.git\n',
+    );
     symlinkSync(nodePath.join(foreign, 'config'), nodePath.join(directory, '.git/config'));
 
-    expect(collectPublicGitContext(directory, noGlobalConfig)).toEqual({});
+    expect(collectPublicGitContext(directory)).toEqual({});
   });
 
   it('follows linked-worktree gitdir and commondir pointers', () => {
@@ -267,15 +340,14 @@ describe('collectPublicGitContext', () => {
     writeFileSync(
       nodePath.join(commonDirectory, 'config'),
       `[remote "origin"]
-  url = git@gitlab.example:Team/Repo.git
+  url = git@gitlab.com:Team/Repo.git
 [user]
   email = worktree@example.com
 `,
     );
 
-    expect(collectPublicGitContext(directory, noGlobalConfig)).toEqual({
-      repository: 'gitlab.example/Team/Repo',
-      localEmail: 'worktree@example.com',
+    expect(collectPublicGitContext(directory)).toEqual({
+      repository: 'gitlab.com/Team/Repo',
     });
   });
 
@@ -283,80 +355,12 @@ describe('collectPublicGitContext', () => {
     const directory = createTemporaryDirectory();
     const foreign = createTemporaryDirectory();
     mkdirSync(nodePath.join(foreign, '.git'));
-    writeFileSync(nodePath.join(foreign, '.git/config'), '[user]\nemail = foreign@example.com\n');
+    writeFileSync(
+      nodePath.join(foreign, '.git/config'),
+      '[remote "origin"]\nurl = git@github.com:evil/leaked.git\n',
+    );
     writeFileSync(nodePath.join(directory, '.git'), `gitdir: ${nodePath.join(foreign, '.git')}\n`);
 
-    expect(collectPublicGitContext(directory, noGlobalConfig)).toEqual({});
-  });
-
-  it('reads the explicit global Git config without invoking Git', () => {
-    const directory = createTemporaryDirectory();
-    const gitDirectory = nodePath.join(directory, '.git');
-    const globalConfig = nodePath.join(directory, 'fixture-global.gitconfig');
-    mkdirSync(gitDirectory);
-    writeFileSync(nodePath.join(gitDirectory, 'config'), '[core]\n  bare = false\n');
-    writeFileSync(globalConfig, '[user]\n  email = global@example.com\n');
-
-    expect(
-      collectPublicGitContext(directory, {
-        environment: { GIT_CONFIG_GLOBAL: globalConfig },
-        homeDirectory: nodePath.join(directory, 'unused-home'),
-      }),
-    ).toEqual({ globalEmail: 'global@example.com' });
-  });
-
-  it('ignores relative global config environment paths', () => {
-    const directory = createTemporaryDirectory();
-    const gitDirectory = nodePath.join(directory, '.git');
-    mkdirSync(gitDirectory);
-    writeFileSync(nodePath.join(gitDirectory, 'config'), '[core]\nbare = false\n');
-
-    expect(
-      collectPublicGitContext(directory, {
-        environment: {
-          GIT_CONFIG_GLOBAL: 'git/config',
-          XDG_CONFIG_HOME: 'relative-config',
-        },
-        homeDirectory: nodePath.join(directory, 'missing-home'),
-      }),
-    ).toEqual({});
-  });
-
-  it('omits a global email when global config delegates identity', () => {
-    const directory = createTemporaryDirectory();
-    const gitDirectory = nodePath.join(directory, '.git');
-    const globalConfig = nodePath.join(directory, 'global.gitconfig');
-    mkdirSync(gitDirectory);
-    writeFileSync(nodePath.join(gitDirectory, 'config'), '[core]\nbare = false\n');
-    writeFileSync(
-      globalConfig,
-      '[includeIf "gitdir:~/work/"]\npath = /private/identity\n[user]\nemail = global@example.com\n',
-    );
-
-    expect(
-      collectPublicGitContext(directory, {
-        environment: { GIT_CONFIG_GLOBAL: globalConfig },
-      }),
-    ).toEqual({});
-  });
-
-  it('reads standard global configs with home config taking precedence over XDG', () => {
-    const directory = createTemporaryDirectory();
-    const gitDirectory = nodePath.join(directory, '.git');
-    const homeDirectory = nodePath.join(directory, 'home');
-    const xdgDirectory = nodePath.join(directory, 'xdg');
-    mkdirSync(gitDirectory);
-    mkdirSync(nodePath.join(xdgDirectory, 'git'), { recursive: true });
-    mkdirSync(homeDirectory);
-    writeFileSync(nodePath.join(gitDirectory, 'config'), '[core]\nbare = false\n');
-    writeFileSync(nodePath.join(xdgDirectory, 'git/config'), '[user]\nemail = xdg@example.com\n');
-    writeFileSync(nodePath.join(homeDirectory, '.gitconfig'), '[user]\nemail = home@example.com\n');
-
-    expect(
-      collectPublicGitContext(directory, {
-        environment: { XDG_CONFIG_HOME: xdgDirectory },
-        homeDirectory,
-      }),
-    ).toEqual({ globalEmail: 'home@example.com' });
+    expect(collectPublicGitContext(directory)).toEqual({});
   });
 });

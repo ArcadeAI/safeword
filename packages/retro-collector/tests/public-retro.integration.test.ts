@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -29,11 +30,25 @@ function fixtureEnvelope(): Record<string, unknown> {
   };
 }
 
+const RELEASED_V0796_ENVELOPE =
+  '{"version":"v1","finding":"released fixture finding","source":{"harness":"claude-code","hostClass":"local","projectUUID":"018f0f2e-abcd-7def-8abc-def012345678","safewordCliVersion":"0.79.6","repository":"github.com/arcadeai/safeword","agentVersion":"1.2.3","model":"claude-fixture","safewordPluginVersion":"0.79.6","osFamily":"darwin","userIdentity":"legacy-user-fixture"},"sessionScope":"6666666666666666666666666666666666666666666666666666666666666666"}';
+
 function fixtureRequest(): { body: Uint8Array; requestId: string } {
   return {
     body: new TextEncoder().encode(JSON.stringify(fixtureEnvelope())),
     requestId: '01911111-2222-7333-8444-55555555555a',
   };
+}
+
+function sessionScope(harness: string, projectUUID: string, sessionId: string): string {
+  return createHash('sha256')
+    .update('safeword-retro-session-scope:v1\0')
+    .update(harness)
+    .update('\0')
+    .update(projectUUID)
+    .update('\0')
+    .update(sessionId)
+    .digest('hex');
 }
 
 async function submit(
@@ -111,6 +126,69 @@ it('returns byte-identical quarantine bytes to an authorized operator', async ()
   expect(inspected.status).toBe(200);
   expect(inspected.headers.get('x-safeword-receipt')).toBe(receipt);
   expect(inspectedBody).toEqual(request.body);
+});
+
+it('accepts the released v0.79.6 envelope and returns its bytes unchanged', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+    operatorCredential: 'operator-fixture-credential',
+  });
+  const body = new TextEncoder().encode(RELEASED_V0796_ENVELOPE);
+  const accepted = await submit(runtime.url, {
+    body,
+    requestId: '01911111-2222-7333-8444-55555555555b',
+  });
+  const { receipt } = (await accepted.json()) as { receipt: string };
+  const inspected = await fetch(`${runtime.url}/v1/public-retros/${receipt}`, {
+    headers: { authorization: 'Bearer operator-fixture-credential' },
+  });
+  const inspectedBody = new Uint8Array(await inspected.arrayBuffer());
+  await runtime.close();
+
+  expect(accepted.status).toBe(201);
+  expect(inspected.status).toBe(200);
+  expect(inspectedBody).toEqual(body);
+});
+
+it('accepts released local classification with legacy user identity', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+  });
+  const body = new TextEncoder().encode(RELEASED_V0796_ENVELOPE);
+
+  const response = await submit(runtime.url, {
+    body,
+    requestId: '01911111-2222-7333-8444-55555555555c',
+  });
+  await runtime.close();
+
+  expect(response.status).toBe(201);
+});
+
+it('rejects legacy user identity on a Cursor envelope', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+  });
+  const request = {
+    ...fixtureRequest(),
+    body: new TextEncoder().encode(
+      RELEASED_V0796_ENVELOPE.replace('"harness":"claude-code"', '"harness":"cursor"').replace(
+        '"hostClass":"local"',
+        '"hostClass":"unknown"',
+      ),
+    ),
+  };
+
+  const response = await submit(runtime.url, request);
+  await runtime.close();
+
+  expect(response.status).toBe(400);
 });
 
 it.each([
@@ -305,6 +383,53 @@ function withSource(change: Record<string, unknown>): Record<string, unknown> {
   return { ...envelope, source: { ...(envelope.source as object), ...change } };
 }
 
+it.each([
+  ['claude-code', 'local'],
+  ['codex', 'local'],
+  ['claude-code', 'unknown'],
+  ['codex', 'unknown'],
+  ['cursor', 'unknown'],
+] as const)('accepts the %s/%s source compatibility row', async (harness, hostClass) => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+  });
+  const request = {
+    ...fixtureRequest(),
+    body: encoded(withSource({ harness, hostClass })),
+  };
+
+  const response = await submit(runtime.url, request);
+  await runtime.close();
+
+  expect(response.status).toBe(201);
+});
+
+it('preserves a released 257-byte optional source value unchanged', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+    operatorCredential: 'operator-fixture-credential',
+  });
+  const model = `a${'é'.repeat(128)}`;
+  const request = { ...fixtureRequest(), body: encoded(withSource({ model })) };
+
+  const accepted = await submit(runtime.url, request);
+  const { receipt } = (await accepted.json()) as { receipt: string };
+  const inspected = await fetch(`${runtime.url}/v1/public-retros/${receipt}`, {
+    headers: { authorization: 'Bearer operator-fixture-credential' },
+  });
+  const envelope = (await inspected.json()) as { source: { model?: string } };
+  await runtime.close();
+
+  expect(accepted.status).toBe(201);
+  expect(inspected.status).toBe(200);
+  expect(Buffer.byteLength(model)).toBe(257);
+  expect(envelope.source.model).toBe(model);
+});
+
 function nonUtf8Envelope(): Uint8Array {
   const bytes = Buffer.from(JSON.stringify({ ...fixtureEnvelope(), finding: 'fixture § finding' }));
   const marker = bytes.indexOf(Buffer.from('§'));
@@ -419,30 +544,50 @@ it('accepts only one of two concurrent request identities with one session scope
   );
 });
 
-it('keeps distinct submissions independent', async () => {
-  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
-  temporaryDirectories.push(directory);
-  const runtime = await startPublicRetroCollector({
-    databasePath: path.join(directory, 'collector.sqlite'),
-  });
-  const first = fixtureRequest();
-  const second = {
-    body: encoded({ ...fixtureEnvelope(), sessionScope: '8'.repeat(64) }),
-    requestId: '01911111-2222-7333-8444-55555555555b',
-  };
+it.each(['harness', 'project identity', 'session identity'] as const)(
+  'keeps submissions with distinct %s independent',
+  async input => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+    temporaryDirectories.push(directory);
+    const runtime = await startPublicRetroCollector({
+      databasePath: path.join(directory, 'collector.sqlite'),
+    });
+    const first = fixtureRequest();
+    const firstEnvelope = fixtureEnvelope();
+    const source = firstEnvelope.source as Record<string, unknown>;
+    const harness = input === 'harness' ? 'codex' : String(source.harness);
+    const projectUUID =
+      input === 'project identity'
+        ? '018f0f2e-abcd-7def-8abc-def012345679'
+        : String(source.projectUUID);
+    const sessionId = input === 'session identity' ? 'session-fixture-2' : 'session-fixture-1';
+    const secondEnvelope = {
+      ...firstEnvelope,
+      sessionScope: sessionScope(harness, projectUUID, sessionId),
+      source: {
+        ...source,
+        harness,
+        projectUUID,
+      },
+    };
+    const second = {
+      body: encoded(secondEnvelope),
+      requestId: '01911111-2222-7333-8444-55555555555b',
+    };
 
-  const responses = await Promise.all([submit(runtime.url, first), submit(runtime.url, second)]);
-  const receipts = await Promise.all(
-    responses.map(
-      async response => (await response.json()) as { receipt: string; requestId: string },
-    ),
-  );
-  await runtime.close();
+    const responses = await Promise.all([submit(runtime.url, first), submit(runtime.url, second)]);
+    const receipts = await Promise.all(
+      responses.map(
+        async response => (await response.json()) as { receipt: string; requestId: string },
+      ),
+    );
+    await runtime.close();
 
-  expect(responses.map(response => response.status)).toEqual([201, 201]);
-  expect(receipts.map(receipt => receipt.requestId)).toEqual([first.requestId, second.requestId]);
-  expect(receipts[0]?.receipt).not.toBe(receipts[1]?.receipt);
-});
+    expect(responses.map(response => response.status)).toEqual([201, 201]);
+    expect(receipts.map(receipt => receipt.requestId)).toEqual([first.requestId, second.requestId]);
+    expect(receipts[0]?.receipt).not.toBe(receipts[1]?.receipt);
+  },
+);
 
 it('does not let semantic JSON equivalence override accepted raw bytes', async () => {
   const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
@@ -522,12 +667,11 @@ it.each([
   expect(validResponse.status).toBe(201);
 });
 
-it.each([
-  ['ascii', 65_536, 201],
-  ['ascii', 65_537, 413],
-  ['multibyte', 65_536, 201],
-  ['multibyte', 65_537, 413],
-] as const)('handles a %s envelope of %i bytes', async (content, byteLength, expectedStatus) => {
+async function expectSizedEnvelopeStatus(
+  content: 'ascii' | 'multibyte',
+  byteLength: number,
+  expectedStatus: 201 | 413,
+): Promise<void> {
   const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
   temporaryDirectories.push(directory);
   const runtime = await startPublicRetroCollector({
@@ -552,23 +696,25 @@ it.each([
     expect(result.receipt).toBeUndefined();
     expect(validAfterRejection?.status).toBe(201);
   }
-});
+}
 
-const invalidEnvelopes: readonly (readonly [string, Uint8Array, (string | false)?])[] = [
-  ['unknown version', encoded({ ...fixtureEnvelope(), version: 'v2' })],
-  ['missing required field', encoded({ sessionScope: '7'.repeat(64) })],
-  ['unknown top-level field', encoded({ ...fixtureEnvelope(), extra: true })],
-  ['unknown source field', encoded(withSource({ extra: true }))],
-  ['missing source project UUID', encoded(withSource({ projectUUID: undefined }))],
-  ['non-UUID source project UUID', encoded(withSource({ projectUUID: 'not-a-uuid' }))],
-  [
-    'uppercase source project UUID',
-    encoded(withSource({ projectUUID: '018F0F2E-ABCD-7DEF-8ABC-DEF012345678' })),
-  ],
-  ['invalid source host class', encoded(withSource({ hostClass: 7 }))],
-  ['cloud source host class', encoded(withSource({ hostClass: 'cloud' }))],
-  ['unsupported harness', encoded(withSource({ harness: 'cursor' }))],
-  ['wrong-typed required field', encoded({ ...fixtureEnvelope(), finding: 7 })],
+it.each([
+  ['ascii', 65_536],
+  ['multibyte', 65_536],
+] as const)('accepts a %s envelope at the 65536-byte limit', (content, byteLength) =>
+  expectSizedEnvelopeStatus(content, byteLength, 201),
+);
+
+it.each([
+  ['ascii', 65_537],
+  ['multibyte', 65_537],
+] as const)('rejects a %s envelope above the 65536-byte limit', (content, byteLength) =>
+  expectSizedEnvelopeStatus(content, byteLength, 413),
+);
+
+type InvalidEnvelope = readonly [string, Uint8Array, (string | false)?];
+
+const invalidEnvelopes: readonly InvalidEnvelope[] = [
   ['empty required field', encoded({ ...fixtureEnvelope(), finding: '' })],
   ['whitespace-only required field', encoded({ ...fixtureEnvelope(), finding: '  ' })],
   ['empty optional source field', encoded(withSource({ model: '' }))],
@@ -596,26 +742,71 @@ const invalidEnvelopes: readonly (readonly [string, Uint8Array, (string | false)
   ['non-JSON content type', encoded(fixtureEnvelope()), 'text/plain'],
 ];
 
-it.each(invalidEnvelopes)(
-  'rejects %s without consuming its request identity',
-  async (_, body, contentType) => {
-    const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
-    temporaryDirectories.push(directory);
-    const runtime = await startPublicRetroCollector({
-      databasePath: path.join(directory, 'collector.sqlite'),
-    });
-    const validRequest = fixtureRequest();
-    const invalidRequest = { ...validRequest, body: body as Uint8Array };
+async function expectEnvelopeRejected(
+  body: Uint8Array,
+  contentType?: string | false,
+): Promise<void> {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+  });
+  const validRequest = fixtureRequest();
+  const invalidRequest = { ...validRequest, body };
 
-    const invalidResponse = await submit(
-      runtime.url,
-      invalidRequest,
-      contentType as string | false | undefined,
-    );
-    const validResponse = await submit(runtime.url, validRequest);
-    await runtime.close();
+  const invalidResponse = await submit(runtime.url, invalidRequest, contentType);
+  const validResponse = await submit(runtime.url, validRequest);
+  await runtime.close();
 
-    expect(invalidResponse.status).toBeGreaterThanOrEqual(400);
-    expect(validResponse.status).toBe(201);
-  },
+  expect(invalidResponse.status).toBeGreaterThanOrEqual(400);
+  expect(validResponse.status).toBe(201);
+}
+
+it.each([
+  ['missing version', encoded({ ...fixtureEnvelope(), version: undefined })],
+  ['unknown version', encoded({ ...fixtureEnvelope(), version: 'v2' })],
+] as const)('rejects the %s without consuming its request identity', (_, body) =>
+  expectEnvelopeRejected(body),
+);
+
+it.each([
+  ['unknown top-level field', encoded({ ...fixtureEnvelope(), extra: true })],
+  ['unknown source field', encoded(withSource({ extra: true }))],
+] as const)('rejects the %s without persistence', (_, body) => expectEnvelopeRejected(body));
+
+it.each([
+  ['missing required field', encoded({ sessionScope: '7'.repeat(64) })],
+  ['missing source harness', encoded(withSource({ harness: undefined }))],
+  ['missing source host class', encoded(withSource({ hostClass: undefined }))],
+  ['missing source project UUID', encoded(withSource({ projectUUID: undefined }))],
+  ['missing SafeWord CLI version', encoded(withSource({ safewordCliVersion: undefined }))],
+] as const)('rejects a %s without persistence', (_, body) => expectEnvelopeRejected(body));
+
+it.each([
+  ['non-UUID source project UUID', encoded(withSource({ projectUUID: 'not-a-uuid' }))],
+  [
+    'uppercase source project UUID',
+    encoded(withSource({ projectUUID: '018F0F2E-ABCD-7DEF-8ABC-DEF012345678' })),
+  ],
+  ['invalid source host class', encoded(withSource({ hostClass: 7 }))],
+  ['array source host class', encoded(withSource({ hostClass: [] }))],
+  // eslint-disable-next-line unicorn/no-null -- JSON null is the malformed wire value under test.
+  ['invalid source harness', encoded(withSource({ harness: null }))],
+  ['invalid source model', encoded(withSource({ model: 7 }))],
+  ['object SafeWord CLI version', encoded(withSource({ safewordCliVersion: {} }))],
+  ['wrong-typed required field', encoded({ ...fixtureEnvelope(), finding: 7 })],
+] as const)('rejects malformed %s', (_, body) => expectEnvelopeRejected(body));
+
+it.each([
+  ['unknown source harness', encoded(withSource({ harness: 'other' }))],
+  ['cloud source host class', encoded(withSource({ hostClass: 'cloud' }))],
+  ['hostname source host class', encoded(withSource({ hostClass: 'hostname' }))],
+] as const)('rejects unsupported %s', (_, body) => expectEnvelopeRejected(body));
+
+it.each([
+  ['incompatible cursor/local source', encoded(withSource({ harness: 'cursor' }))],
+] as const)('rejects the %s compatibility row', (_, body) => expectEnvelopeRejected(body));
+
+it.each(invalidEnvelopes)('rejects malformed envelope form: %s', (_, body, type) =>
+  expectEnvelopeRejected(body as Uint8Array, type as string | false | undefined),
 );

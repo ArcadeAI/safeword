@@ -13,6 +13,9 @@ import {
 import { requirePinnedBunVersion } from './bun-version.js';
 import { generatedTreeDifferences, reconcileGeneratedTree } from './generated-tree-differences.js';
 
+await import('./generate-scenario-rubric.js');
+await import('./generate-plan-rubric.js');
+
 const packageRoot = nodePath.resolve(import.meta.dirname, '..');
 const repoRoot = nodePath.resolve(packageRoot, '../..');
 const checkOnly = process.argv.includes('--check');

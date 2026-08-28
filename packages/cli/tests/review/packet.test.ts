@@ -30,6 +30,32 @@ afterEach(() => {
 });
 
 describe('review packet containment and change accounting', () => {
+  it('treats only impl-plan.md as plan-review work and preserves supporting context', () => {
+    const root = temporaryDirectory();
+    writeFileSync(nodePath.join(root, 'impl-plan.md'), '# Plan\n');
+    writeFileSync(nodePath.join(root, 'spec.md'), '# Spec\n');
+    const prepared = prepareReviewPacket(
+      root,
+      'plan-implementation',
+      ['impl-plan.md'],
+      ['spec.md'],
+    );
+    try {
+      expect(prepared.packet.logical_files.map(file => file.path)).toEqual(['impl-plan.md']);
+      expect(prepared.packet.context_files?.map(file => file.path)).toEqual(['spec.md']);
+    } finally {
+      prepared.cleanup();
+    }
+  });
+
+  it('rejects supporting evidence supplied as plan-review work', () => {
+    const root = temporaryDirectory();
+    writeFileSync(nodePath.join(root, 'impl-plan.md'), '# Plan\n');
+    writeFileSync(nodePath.join(root, 'spec.md'), '# Spec\n');
+    expect(() =>
+      prepareReviewPacket(root, 'plan-implementation', ['impl-plan.md', 'spec.md']),
+    ).toThrow('one non-blank impl-plan.md work file');
+  });
   it('rejects a target that escapes through a symlinked parent directory', () => {
     const project = temporaryDirectory();
     const outside = temporaryDirectory();
@@ -208,6 +234,44 @@ describe('review packet containment and change accounting', () => {
     expect(prepared.packet.context_files).toEqual([
       { path: 'context.md', content: 'supporting evidence\n' },
     ]);
+    prepared.cleanup();
+  });
+
+  it('requires a non-blank spec.md as the first scenario-gate context file', () => {
+    const project = temporaryDirectory();
+    writeFileSync(nodePath.join(project, 'behavior.feature'), 'Feature: grounded review\n');
+    writeFileSync(nodePath.join(project, 'spec.md'), ' \n');
+
+    expect(() => prepareReviewPacket(project, 'scenario-gate', ['behavior.feature'])).toThrow(
+      'requires a non-blank spec.md as its first context file',
+    );
+    expect(() =>
+      prepareReviewPacket(project, 'scenario-gate', ['behavior.feature'], ['spec.md']),
+    ).toThrow('requires a non-blank spec.md as its first context file');
+    writeFileSync(nodePath.join(project, 'principles.md'), '# Principles\n');
+    writeFileSync(nodePath.join(project, 'spec.md'), '# Intended behavior\n');
+    expect(() =>
+      prepareReviewPacket(
+        project,
+        'scenario-gate',
+        ['behavior.feature'],
+        ['principles.md', 'spec.md'],
+      ),
+    ).toThrow('requires a non-blank spec.md as its first context file');
+  });
+
+  it('accepts a scenario-gate packet grounded by a non-blank ticket spec', () => {
+    const project = temporaryDirectory();
+    writeFileSync(nodePath.join(project, 'behavior.feature'), 'Feature: grounded review\n');
+    writeFileSync(nodePath.join(project, 'spec.md'), '# Intended behavior\n');
+
+    const prepared = prepareReviewPacket(
+      project,
+      'scenario-gate',
+      ['behavior.feature'],
+      ['spec.md'],
+    );
+    expect(prepared.packet.context_files?.[0]?.path).toBe('spec.md');
     prepared.cleanup();
   });
 

@@ -8,13 +8,14 @@
 
 **DERIVE DIMENSIONS BEFORE WRITING SCENARIOS** — systematic coverage, not intuition.
 
-### Pipeline (5 steps)
+### Pipeline (6 steps)
 
-1. **Derive dimensions** from intake artifacts (resolved questions, done-when, scope) + domain-knowledge dimensions not surfaced during intake
-2. **Partition** each dimension into equivalence classes + boundary values
-3. **Generate scenarios** — one per partition + boundary cases. Each scenario proves a specific **Rule** (or legacy Acceptance Criterion) from intake (`spec.md`); if a scenario doesn't map to any criterion, either it's testing implementation (drop it) or a criterion is missing (go back and add it).
-4. **Organize under Gherkin `Rule:` blocks** with card-ratio self-check (too many rules? any rules with no examples? open questions?). They group scenarios by the criterion they prove, so every criterion has ≥1 scenario and no scenario is an orphan.
-5. **Present to user** (decider) — user accepts, tweaks, or adds
+1. **Load `review-spec` in Authoring mode** — it is the single scenario-quality standard. Apply it while drafting; do not launch its independent review coordinator in this phase.
+2. **Derive dimensions** from intake artifacts (resolved questions, done-when, scope) + domain-knowledge dimensions not surfaced during intake
+3. **Partition** each dimension into equivalence classes + boundary values
+4. **Generate scenarios** — one per partition + boundary cases. Each scenario proves a specific **Rule** (or legacy Acceptance Criterion) from intake (`spec.md`); if a scenario doesn't map to any criterion, either it's testing implementation (drop it) or a criterion is missing (go back and add it).
+5. **Organize under Gherkin `Rule:` blocks** with card-ratio self-check (too many rules? any rules with no examples? open questions?). They group scenarios by the criterion they prove, so every criterion has ≥1 scenario and no scenario is an orphan.
+6. **Present to user** (decider) — user accepts, tweaks, or adds
 
 Save the dimension table to `dimensions.md` in the ticket folder before writing test-definitions.md (the pre-tool hook enforces this for features). For tiny features with one obvious behavioral dimension and no partitioning to enumerate, dimensions.md may instead be a single line `skip: <non-empty reason>`.
 
@@ -109,21 +110,6 @@ test-definitions.md is the R/G/R ledger.
 - [ ] REFACTOR
 ```
 
-### Scenario construction rules
-
-Write each saved `.feature` scenario to these rules — they head off at authoring time the defects the scenario-gate would otherwise catch later. Coaching, not a gate: when a scenario starts to break one, split it on the spot instead of accumulating violations.
-
-- **One behavior, one `When`** — each scenario specifies a single event and its outcome. Multiple `And`-joined `Then` lines are fine when they assert facets of the _same_ outcome (a withdrawal that debits **and** dispenses **and** returns the card); a second `When`, or a second behavior, means a second scenario.
-- **Outcome-oriented `Then`** — assert what is true after the `When`, never how the system gets there. "Then the order is rejected" ✓, not "Then `validateOrder()` returns false" ✗.
-- **Declarative, business language** — name the intent, not the UI mechanics. "When the customer submits the order" ✓, not "When the user clicks `#submit` and waits 200ms" ✗. Reads as living documentation and survives implementation changes.
-- **`Given` is state, not action** — establish the world, don't act in it. "Given the cart holds one item" ✓, not "Given the customer adds an item" ✗ (an action belongs in `When`).
-- **No `or` in the `Then`** — one outcome per scenario; "returns 200 **or** 201" is two scenarios. For one behavior across many inputs, use a `Scenario Outline` with an `Examples` table, not copy-pasted scenarios.
-- **Keep acceptance examples representative** — scenarios cover externally meaningful behavior partitions and boundaries, not every parser permutation or corruption mechanism. Put exhaustive schema, arithmetic, malformed-field, and implementation-level matrices in table-driven lower-level tests.
-- **Keep one numbered Rule boundary** — for a scenario under a numbered Rule, every asserted outcome must prove that enclosing Rule. If a `Then` also proves an independently valuable invariant owned by another Rule, split it into that Rule's scenario. Unnumbered grouping Rules and scenarios without lineage keep the exemptions below.
-- **Keep outlines coherent** — rows vary one behavioral dimension and retain the same outcome shape. Unrelated defect mechanisms that merely share a generic rejection belong in separate scenarios or lower-level contract matrices.
-
-Two of these rules mirror gate checks — **one behavior** is AODI's **Atomic**, and externally-observable outcomes are its **Observable** (both in the Scenario Quality Gate below). Author for them here; the gate still validates every scenario adversarially.
-
 ### Scenario naming: lineage scheme
 
 Each saved `.feature` scenario carries the criterion it proves as a
@@ -201,7 +187,7 @@ delivery retries on exponential backoff`). IDs are 1-indexed per job and
 
 **Entry:** Agent enters `scenario-gate` phase.
 
-Run the **`/review-spec`** skill — it is the gate procedure (vacuous-pass, AODI, determinism risks, adversarial pass + negative-case, cross-cutting checks, and the findings format). It reads the active ticket's `.feature` source when present, using `test-definitions.md` only as the R/G/R ledger, reports findings, and is re-invokable standalone after scenario edits. Its final reconciliation maps material dimensions, affected surfaces, and declared public outcomes to scenarios or explicit deferrals, then challenges whether the planned proof exercises the boundary each load-bearing scenario claims. Apply its findings, then complete the plain-language completeness check and exit below.
+Load the **`/review-spec`** skill in **Review mode** — it is the independent gate procedure (vacuous-pass, AODI, determinism risks, adversarial pass + negative-case, cross-cutting checks, and the findings format). It reads the active ticket's `.feature` source when present, using `test-definitions.md` only as the R/G/R ledger, reports findings, and is re-invokable standalone after scenario edits. Its final reconciliation maps material dimensions, affected surfaces, and declared public outcomes to scenarios or explicit deferrals, then challenges whether the planned proof exercises the boundary each load-bearing scenario claims. Apply its findings, then complete the plain-language completeness check and exit below.
 
 ### Are the reviewed scenarios complete?
 
@@ -209,12 +195,13 @@ Ask the user: **Do these scenarios now fully cover the intended behavior and imp
 
 ### Scenario Gate Exit
 
-1. Each scenario passes the vacuous-pass test and AODI (Atomic, Observable, Deterministic, Independent)
+1. The independent `review-spec` Review-mode result confirms each scenario passes the vacuous-pass test and AODI (Atomic, Observable, Deterministic, Independent)
 2. Adversarial pass + cross-cutting checks complete, including coverage reconciliation and the proof-claim challenge; findings presented in the findings format (or confirmed clean)
-3. **Check for one build-only kill-risk.** Run this checkpoint only here, after
-   items 1–2 pass — never during intake, define-behavior, or while scenario
-   validation is incomplete. While items 1–2 are incomplete, remain in
-   `scenario-gate`. An eligible risk is one that documentation and
+3. The approved terminal result's provenance is recorded in the `scenario-gate` review stamp; a pending, failed, stale, rejected, or unstamped review cannot exit.
+4. **Check for one build-only kill-risk.** Run this checkpoint only here, after
+   scenario validation is complete — never during intake or define-behavior.
+   Until scenario validation is complete, remain in `scenario-gate`. An
+   eligible risk is one that documentation and
    repository code cannot settle, whose failure would materially change the
    plan, and that a bounded executable proof can answer. If one exists, offer
    `/spike` as the next action. Remain in `scenario-gate`; do not set or advance
@@ -223,8 +210,8 @@ Ask the user: **Do these scenarios now fully cover the intended behavior and imp
    ready to distill. If the user declines, proceed directly to the next item.
    If no eligible risk exists, continue without offering `/spike` and update
    frontmatter directly to `phase: plan-implementation` in the next item.
-4. **Update frontmatter:** `phase: plan-implementation` — implementation design (the impl-plan, proof plan, build order, ADR work) happens there; see `PLAN_IMPLEMENTATION.md`.
-5. **Work log:** the phase hook stamps the transition with real time (Claude Code — on other harnesses add a short transition entry yourself); optionally add a narrative entry (validation outcome, proof-plan highlights).
+5. **Update frontmatter:** `phase: plan-implementation` — implementation design (the impl-plan, proof plan, build order, ADR work) happens there; see `PLAN_IMPLEMENTATION.md`.
+6. **Work log:** the phase hook stamps the transition with real time (Claude Code — on other harnesses add a short transition entry yourself); optionally add a narrative entry (validation outcome, proof-plan highlights).
 
 ### Optional: codify the scenarios
 

@@ -5,14 +5,6 @@ import { describe, expect, it } from 'vitest';
 
 const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
 
-const scenarioGuides = [
-  'packages/cli/templates/skills/bdd/SCENARIOS.md',
-  '.safeword/skills/bdd/SCENARIOS.md',
-  '.claude/skills/bdd/SCENARIOS.md',
-  'packages/cli/codex-plugin/skills/bdd/references/SCENARIOS.md',
-  'plugin/skills/bdd/SCENARIOS.md',
-];
-
 const reviewGuides = [
   'packages/cli/templates/skills/review-spec/SKILL.md',
   '.safeword/skills/review-spec/SKILL.md',
@@ -35,7 +27,7 @@ const read = (relativePath: string): string =>
 const normalized = (relativePath: string): string => read(relativePath).replaceAll(/\s+/gu, ' ');
 
 describe('BDD scenario scope guidance', () => {
-  it.each(scenarioGuides)('%s separates acceptance examples from contract matrices', path => {
+  it.each(reviewGuides)('%s separates acceptance examples from contract matrices', path => {
     const content = normalized(path);
 
     expect(content).toContain('Keep acceptance examples representative');

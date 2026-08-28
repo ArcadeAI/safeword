@@ -270,6 +270,12 @@ describe('getQualityMessage — universal binary terminal (143 + F14BG2 + QSNKBB
       expect(message).toContain('AODI');
       expect(message.toLowerCase()).toMatch(/happy.*failure.*edge|coverage/);
       expect(message.toLowerCase()).toContain('behaviors not implementation');
+      expect(message).toContain('authored against review-spec in Authoring mode');
+    });
+
+    it('scenario-gate evidence requires a passing independent review-spec result', () => {
+      const message = getQualityMessage('scenario-gate');
+      expect(message).toContain('passing independent review-spec result');
     });
 
     it('REFACTOR evidence cites one refactoring (not batched) AND smell-named AND no behavior change AND tests still pass', () => {

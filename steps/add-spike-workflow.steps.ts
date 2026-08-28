@@ -631,10 +631,8 @@ When('BDD selects the next workflow action', function (this: SpikeWorkflowWorld)
 
 Then('the spike checkpoint is not offered', function (this: SpikeWorkflowWorld) {
   const guidance = this.bddScenariosGuidance ?? '';
-  assert.match(
-    guidance,
-    /never during intake, define-behavior, or while scenario\s+validation is incomplete/i,
-  );
+  assert.match(guidance, /run this checkpoint only here, after\s+scenario validation is complete/i);
+  assert.match(guidance, /never during intake or define-behavior/i);
 });
 
 Then(
@@ -657,7 +655,7 @@ Then(
     assert.equal(transition, 'remains in scenario-gate until validation passes');
     assert.match(
       this.bddScenariosGuidance ?? '',
-      /while items 1.?2 are incomplete,\s+remain in\s+`scenario-gate`/i,
+      /until scenario validation is complete,\s+remain in\s+`scenario-gate`/i,
     );
   },
 );

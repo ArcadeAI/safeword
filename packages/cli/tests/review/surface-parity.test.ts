@@ -312,7 +312,6 @@ exit ${status}`,
   it.each([
     ['skills/quality-review/SKILL.md', 'quality-review'],
     ['skills/review-spec/SKILL.md', 'scenario-gate'],
-    ['skills/bdd/SKILL.md', 'scenario-gate'],
     ['skills/bdd/PLAN_IMPLEMENTATION.md', 'plan-implementation'],
     ['skills/bdd/TDD.md', 'plan-implementation'],
   ])('%s enters the shared %s coordinator', (relativePath, kind) => {
@@ -323,6 +322,13 @@ exit ${status}`,
       relativePath,
     ).toBe(false);
     expect(content, relativePath).toContain('bun .safeword/hooks/run-review.ts');
+  });
+
+  it('keeps scenario-gate coordinator ownership in review-spec', () => {
+    const bdd = readTemplate('skills/bdd/SKILL.md');
+    expect(bdd).toContain('`review-spec` in Review mode');
+    expect(bdd).toContain('This orchestrator owns only routing and the phase transition');
+    expect(bdd).not.toContain('run-review.ts review run scenario-gate');
   });
 
   it('keeps generated required-review surfaces on one review entrypoint and Cursor unwired', () => {
@@ -336,7 +342,6 @@ exit ${status}`,
         requiredReviewFiles: [
           'quality-review/SKILL.md',
           'review-spec/SKILL.md',
-          'bdd/SKILL.md',
           'bdd/PLAN_IMPLEMENTATION.md',
           'bdd/TDD.md',
         ],
@@ -352,7 +357,6 @@ exit ${status}`,
         requiredReviewFiles: [
           'quality-review/SKILL.md',
           'review-spec/SKILL.md',
-          'bdd/SKILL.md',
           'bdd/references/PLAN_IMPLEMENTATION.md',
           'bdd/references/TDD.md',
         ],

@@ -20,6 +20,7 @@ import {
   discardRelaySpoolCommand,
   executeRetroCommand,
   reportRetroCommandOutcome,
+  resolvePublicRetroRoute,
   resolveRelayConfig,
   resolveRelayOutboxDirectory,
   retroCommand,
@@ -27,6 +28,7 @@ import {
   runRetro,
 } from '../../src/commands/retro.js';
 import { LEDGER_MARKER, parseLedger } from '../../src/retro/ledger.js';
+import { buildPublicRetroEnvelope } from '../../src/retro/public-delivery.js';
 import {
   createRelayRequest,
   listRelayDeadLetters,
@@ -42,6 +44,12 @@ import type {
   IssueReference,
   IssueTracker,
 } from '../../src/retro/triage.js';
+import {
+  cursorConversationStashPath,
+  cursorProjectStashPath,
+  cursorTranscriptStashPath,
+  stashCursorTranscript,
+} from '../../templates/hooks/lib/cursor-state.js';
 import {
   ackFilePath,
   draftSpoolPath,
@@ -185,6 +193,336 @@ const dependencies = (over: Partial<Parameters<typeof runRetro>[1]> = {}) => ({
 });
 
 describe('retro command configuration, extraction, egress, and relay execution', () => {
+  function removeCursorBinding(sessionId: string): void {
+    const state = { conversation_id: sessionId };
+    rmSync(cursorConversationStashPath(state), { force: true });
+    rmSync(cursorProjectStashPath(state), { force: true });
+    rmSync(cursorTranscriptStashPath(state), { force: true });
+  }
+
+  function publicRouteFor(agent: 'claude' | 'codex' | 'cursor') {
+    const project = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-route-'));
+    mkdirSync(nodePath.join(project, '.safeword'));
+    writeFileSync(
+      nodePath.join(project, '.safeword/config.json'),
+      JSON.stringify({ projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' }),
+    );
+    const sessionId = 'session-fixture';
+    const transcript = nodePath.join(project, 'transcript.jsonl');
+    if (agent === 'cursor') {
+      stashCursorTranscript({ conversation_id: sessionId, transcript_path: transcript }, project);
+    }
+    const route = resolvePublicRetroRoute({
+      agent,
+      enabled: true,
+      environment: {
+        CLAUDE_CODE_REMOTE_SESSION_ID: 'claude-cloud-fixture',
+        CODEX_MODEL: 'gpt-fixture',
+        CODEX_VERSION: '1.2.3',
+      },
+      projectDirectory: project,
+      sessionId,
+      transcript,
+    });
+    removeCursorBinding(sessionId);
+    rmSync(project, { force: true, recursive: true });
+    return route;
+  }
+
+  it('suppresses the Claude public route when Claude Remote evidence is present', () => {
+    expect(publicRouteFor('claude')).toBeUndefined();
+  });
+
+  it.each(['codex', 'cursor'] as const)(
+    'does not let Claude Remote evidence suppress the %s public route',
+    agent => {
+      expect(publicRouteFor(agent)?.source).toMatchObject({
+        harness: agent,
+        hostClass: 'unknown',
+      });
+    },
+  );
+
+  it('builds a bounded Cursor source when a conversation identity is available', () => {
+    const source = publicRouteFor('cursor')?.source;
+    expect(source).toMatchObject({ harness: 'cursor', hostClass: 'unknown' });
+    expect(source).not.toHaveProperty('agentVersion');
+    expect(source).not.toHaveProperty('model');
+    expect(source).not.toHaveProperty('safewordPluginVersion');
+  });
+
+  it('keeps Cursor public delivery disabled without a conversation identity', () => {
+    const project = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-route-'));
+    try {
+      mkdirSync(nodePath.join(project, '.safeword'));
+      writeFileSync(
+        nodePath.join(project, '.safeword/config.json'),
+        JSON.stringify({ projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' }),
+      );
+
+      expect(
+        resolvePublicRetroRoute({
+          agent: 'cursor',
+          enabled: true,
+          environment: {},
+          projectDirectory: project,
+        }),
+      ).toBeUndefined();
+    } finally {
+      rmSync(project, { force: true, recursive: true });
+    }
+  });
+
+  it('keeps Cursor public delivery disabled when the paired stash belongs to another project', () => {
+    const project = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-route-'));
+    const otherProject = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-route-other-'));
+    const sessionId = 'cursor-mismatched-project';
+    const transcript = nodePath.join(otherProject, 'transcript.jsonl');
+    try {
+      mkdirSync(nodePath.join(project, '.safeword'));
+      writeFileSync(
+        nodePath.join(project, '.safeword/config.json'),
+        JSON.stringify({ projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' }),
+      );
+      stashCursorTranscript(
+        { conversation_id: sessionId, transcript_path: transcript },
+        otherProject,
+      );
+
+      expect(
+        resolvePublicRetroRoute({
+          agent: 'cursor',
+          enabled: true,
+          environment: {},
+          projectDirectory: project,
+          sessionId,
+          transcript,
+        }),
+      ).toBeUndefined();
+    } finally {
+      removeCursorBinding(sessionId);
+      rmSync(project, { force: true, recursive: true });
+      rmSync(otherProject, { force: true, recursive: true });
+    }
+  });
+
+  it.each(['absent', 'malformed'] as const)(
+    'keeps public delivery disabled when project identity is %s',
+    identityState => {
+      const project = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-route-'));
+      try {
+        mkdirSync(nodePath.join(project, '.safeword'));
+        writeFileSync(
+          nodePath.join(project, '.safeword/config.json'),
+          JSON.stringify(identityState === 'absent' ? {} : { projectUUID: 'not-a-uuid' }),
+        );
+
+        expect(
+          resolvePublicRetroRoute({
+            agent: 'codex',
+            enabled: true,
+            environment: {},
+            projectDirectory: project,
+            sessionId: 'session-fixture',
+          }),
+        ).toBeUndefined();
+      } finally {
+        rmSync(project, { force: true, recursive: true });
+      }
+    },
+  );
+
+  it('delivers required runtime context when Git discovery fails', async () => {
+    const project = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-route-'));
+    mkdirSync(nodePath.join(project, '.safeword'));
+    writeFileSync(
+      nodePath.join(project, '.safeword/config.json'),
+      JSON.stringify({ projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' }),
+    );
+    writeFileSync(nodePath.join(project, '.git'), 'invalid git pointer');
+    const sessionId = 'cursor-git-discovery-failure';
+    const transcript = '/tmp/t.jsonl';
+    stashCursorTranscript({ conversation_id: sessionId, transcript_path: transcript }, project);
+    const route = resolvePublicRetroRoute({
+      agent: 'cursor',
+      enabled: true,
+      environment: {},
+      projectDirectory: project,
+      sessionId,
+      transcript,
+    });
+    const publicTransport = vi.fn(request =>
+      Promise.resolve({
+        requestId: request.headers['x-safeword-request-id'],
+        receipt: 'receipt-context-failure',
+      }),
+    );
+
+    try {
+      if (route === undefined) throw new TypeError('expected public route');
+      const outcome = await runRetro(
+        { transcript },
+        dependencies({ publicRetro: { ...route, transport: publicTransport } }),
+      );
+      const body = JSON.parse(
+        new TextDecoder().decode(publicTransport.mock.calls[0]?.[0].body),
+      ) as { source: Record<string, unknown> };
+
+      expect(outcome.ok).toBe(true);
+      expect(publicTransport).toHaveBeenCalledOnce();
+      expect(body.source).toMatchObject({
+        harness: 'cursor',
+        hostClass: 'unknown',
+        projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+      });
+      expect(body.source).not.toHaveProperty('repository');
+      expect(body.source).not.toHaveProperty('model');
+      expect(body.source).not.toHaveProperty('agentVersion');
+    } finally {
+      removeCursorBinding(sessionId);
+      rmSync(project, { force: true, recursive: true });
+    }
+  });
+
+  it('preserves documented enrichment while omitting untrusted runtime signals', async () => {
+    const project = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-route-'));
+    mkdirSync(nodePath.join(project, '.safeword'));
+    mkdirSync(nodePath.join(project, '.git'));
+    writeFileSync(
+      nodePath.join(project, '.safeword/config.json'),
+      JSON.stringify({ projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' }),
+    );
+    writeFileSync(
+      nodePath.join(project, '.git/config'),
+      '[remote "origin"]\nurl = git@github.com:ArcadeAI/safeword.git\n',
+    );
+    const route = resolvePublicRetroRoute({
+      agent: 'codex',
+      enabled: true,
+      environment: { CODEX_MODEL: 'model-fixture', CODEX_VERSION: 'agent-1.2.3' },
+      projectDirectory: project,
+      sessionId: 'session-fixture',
+    });
+    const publicTransport = vi.fn(request =>
+      Promise.resolve({
+        requestId: request.headers['x-safeword-request-id'],
+        receipt: 'receipt-partial-context',
+      }),
+    );
+
+    try {
+      if (route === undefined) throw new TypeError('expected public route');
+      const outcome = await runRetro(
+        { transcript: '/tmp/t.jsonl' },
+        dependencies({ publicRetro: { ...route, transport: publicTransport } }),
+      );
+      const body = JSON.parse(
+        new TextDecoder().decode(publicTransport.mock.calls[0]?.[0].body),
+      ) as { source: Record<string, unknown> };
+
+      expect(outcome.ok).toBe(true);
+      expect(body.source).toMatchObject({
+        repository: 'github.com/arcadeai/safeword',
+      });
+      expect(body.source.osFamily).toEqual(expect.any(String));
+      expect(body.source).not.toHaveProperty('model');
+      expect(body.source).not.toHaveProperty('agentVersion');
+    } finally {
+      rmSync(project, { force: true, recursive: true });
+    }
+  });
+
+  it.each(['claude', 'codex'] as const)('omits undocumented %s runtime signals', agent => {
+    const project = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-route-'));
+    try {
+      mkdirSync(nodePath.join(project, '.safeword'));
+      writeFileSync(
+        nodePath.join(project, '.safeword/config.json'),
+        JSON.stringify({ projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' }),
+      );
+      const source = resolvePublicRetroRoute({
+        agent,
+        enabled: true,
+        environment: {
+          ANTHROPIC_MODEL: 'claude-model-fixture',
+          CLAUDE_CODE_VERSION: 'claude-agent-fixture',
+          CODEX_MODEL: 'codex-model-fixture',
+          CODEX_VERSION: 'codex-agent-fixture',
+        },
+        projectDirectory: project,
+        sessionId: 'session-fixture',
+      })?.source;
+
+      expect(source).not.toHaveProperty('model');
+      expect(source).not.toHaveProperty('agentVersion');
+    } finally {
+      rmSync(project, { force: true, recursive: true });
+    }
+  });
+
+  it('emits the exact allowlisted profile without unrelated runtime sentinels', () => {
+    const project = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-route-'));
+    const sentinels = [
+      'transcript-private-9f2c',
+      'source-private-9f2c',
+      'argv-private-9f2c',
+      'host-private-9f2c',
+      'secret-private-9f2c',
+      'env-private-9f2c',
+      'actor-private-9f2c',
+    ];
+    try {
+      mkdirSync(nodePath.join(project, '.safeword'));
+      mkdirSync(nodePath.join(project, '.git'));
+      writeFileSync(
+        nodePath.join(project, '.safeword/config.json'),
+        JSON.stringify({ projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' }),
+      );
+      writeFileSync(
+        nodePath.join(project, '.git/config'),
+        '[remote "origin"]\nurl = git@github.com:ArcadeAI/safeword.git\n',
+      );
+      const route = resolvePublicRetroRoute({
+        agent: 'codex',
+        enabled: true,
+        environment: {
+          CODEX_MODEL: 'model-fixture',
+          CODEX_VERSION: 'agent-1.2.3',
+          GITHUB_ACTOR: sentinels[6],
+          HOSTNAME: sentinels[3],
+          PRIVATE_ARGV: sentinels[2],
+          PRIVATE_CREDENTIAL: sentinels[4],
+          PRIVATE_ENV: sentinels[5],
+          PRIVATE_SOURCE: sentinels[1],
+          PRIVATE_TRANSCRIPT: sentinels[0],
+        },
+        projectDirectory: project,
+        sessionId: 'session-fixture',
+      });
+      if (route === undefined) throw new TypeError('expected public route');
+      const envelope = new TextDecoder().decode(
+        buildPublicRetroEnvelope({
+          finding: 'fixture finding',
+          sessionId: 'session-fixture',
+          source: route.source,
+        }).bytes,
+      );
+      const source = (JSON.parse(envelope) as { source: Record<string, unknown> }).source;
+
+      expect(source).toEqual({
+        harness: 'codex',
+        hostClass: 'unknown',
+        projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        safewordCliVersion: expect.any(String),
+        repository: 'github.com/arcadeai/safeword',
+        osFamily: expect.any(String),
+      });
+      for (const sentinel of sentinels) expect(envelope).not.toContain(sentinel);
+    } finally {
+      rmSync(project, { force: true, recursive: true });
+    }
+  });
+
   it('accepts only an absolute relay outbox outside the disposable project', () => {
     const project = mkdtempSync(nodePath.join(tmpdir(), 'retro-outbox-project-'));
     const external = mkdtempSync(nodePath.join(tmpdir(), 'safeword-durable-outbox-'));
@@ -930,6 +1268,133 @@ describe('retro command configuration, extraction, egress, and relay execution',
     }
   });
 
+  it('persists private recovery before starting the public handoff', async () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-spool-first-'));
+    const publicTransport = vi.fn(request => {
+      expect(readSpooledDrafts(projectDirectory, 'sess-a')).toHaveLength(1);
+      return Promise.resolve({
+        requestId: request.headers['x-safeword-request-id'],
+        receipt: 'receipt-spool-first',
+      });
+    });
+
+    try {
+      const outcome = await runRetro(
+        { transcript: '/tmp/t.jsonl' },
+        dependencies({
+          projectDirectory,
+          publicRetro: {
+            attemptsDirectory: nodePath.join(projectDirectory, '.safeword/retro-attempts'),
+            now: () => 0,
+            randomUUID: () => 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+            source: {
+              harness: 'codex',
+              hostClass: 'unknown',
+              projectUUID: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+              safewordCliVersion: '0.80.1',
+            },
+            transport: publicTransport,
+          },
+        }),
+      );
+
+      expect(outcome.ok).toBe(true);
+      expect(publicTransport).toHaveBeenCalledOnce();
+    } finally {
+      rmSync(projectDirectory, { force: true, recursive: true });
+    }
+  });
+
+  it('persists relay recovery before starting the public handoff', async () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-spool-first-'));
+    const publicTransport = vi.fn(async request => {
+      expect(await listRelayRequests(projectDirectory)).toHaveLength(1);
+      return {
+        requestId: request.headers['x-safeword-request-id'],
+        receipt: 'receipt-relay-spool-first',
+      };
+    });
+    const relayFetch: typeof fetch = (_input, init) => {
+      if (!(init?.body instanceof Uint8Array)) throw new Error('missing relay request body');
+      const request = JSON.parse(Buffer.from(init.body).toString('utf8')) as {
+        requestId: string;
+      };
+      return Promise.resolve(
+        Response.json({
+          receiptId: 'relay-receipt-spool-first',
+          requestId: request.requestId,
+          state: 'filed',
+        }),
+      );
+    };
+
+    try {
+      const outcome = await runRetro(
+        { transcript: '/tmp/t.jsonl' },
+        dependencies({
+          projectDirectory,
+          publicRetro: {
+            attemptsDirectory: nodePath.join(projectDirectory, '.safeword/retro-attempts'),
+            now: () => 0,
+            randomUUID: () => 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+            source: {
+              harness: 'codex',
+              hostClass: 'unknown',
+              projectUUID: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+              safewordCliVersion: '0.80.1',
+            },
+            transport: publicTransport,
+          },
+          relay: {
+            credential: 'swc_test',
+            fetch: relayFetch,
+            installationId: 42,
+            readiness: { enabled: true },
+            relayUrl: 'https://relay.invalid',
+            repository: 'arcadeai/safeword',
+          },
+        }),
+      );
+
+      expect(outcome.ok).toBe(true);
+      expect(publicTransport).toHaveBeenCalledOnce();
+    } finally {
+      rmSync(projectDirectory, { force: true, recursive: true });
+    }
+  });
+
+  it('preserves private filing when the public collector rejects the submission', async () => {
+    const attemptsDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-attempts-'));
+    const privateTransport = new FakeGitHub();
+    const publicTransport = vi.fn(() => Promise.reject(new Error('injected rejection')));
+    try {
+      const outcome = await runRetro(
+        { transcript: '/tmp/t.jsonl' },
+        dependencies({
+          publicRetro: {
+            attemptsDirectory,
+            now: () => 0,
+            randomUUID: () => 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+            source: {
+              harness: 'cursor',
+              hostClass: 'unknown',
+              projectUUID: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+              safewordCliVersion: '0.80.1',
+            },
+            transport: publicTransport,
+          },
+          transport: privateTransport,
+        }),
+      );
+
+      expect(outcome.ok).toBe(true);
+      expect(publicTransport).toHaveBeenCalledOnce();
+      expect(privateTransport.issues).toHaveLength(1);
+    } finally {
+      rmSync(attemptsDirectory, { force: true, recursive: true });
+    }
+  });
+
   it('does not attempt public delivery for multiple candidates', async () => {
     const publicTransport = vi.fn();
     await runRetro(
@@ -1511,6 +1976,7 @@ describe('buildAutoExtractor (SM1.AC2 — runner model: sonnet default, config-o
     projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-runner-'));
   });
   afterEach(() => {
+    vi.unstubAllEnvs();
     rmSync(projectDirectory, { recursive: true, force: true });
   });
 
@@ -1554,6 +2020,38 @@ describe('buildAutoExtractor (SM1.AC2 — runner model: sonnet default, config-o
     const result = await modelFromRunner(projectDirectory, 'cursor');
     expect(result.argv[0]).toBe('-p');
     expect(result.model).toBe('auto');
+  });
+
+  it('does not expose arbitrary parent environment variables to Cursor extraction', async () => {
+    let childEnvironment: Record<string, string | undefined> | undefined;
+    const extract = await buildAutoExtractor(projectDirectory, {
+      agent: 'cursor',
+      spawn: (_argv, options) => {
+        childEnvironment = options.env;
+        return Promise.resolve({
+          code: 0,
+          stdout: JSON.stringify({ type: 'result', is_error: false, result: '[]' }),
+        });
+      },
+    });
+
+    vi.stubEnv('SAFEWORD_PRIVATE_PARENT_SENTINEL', 'secret-parent-value');
+    vi.stubEnv('ANTHROPIC_API_KEY', 'anthropic-secret');
+    vi.stubEnv('AWS_SECRET_ACCESS_KEY', 'aws-secret');
+    vi.stubEnv('OPENAI_API_KEY', 'openai-secret');
+    vi.stubEnv('PATH', '/safe/shared/path');
+
+    await extract(
+      JSON.stringify({
+        message: { role: 'user', content: [{ type: 'text', text: 'retro transcript' }] },
+      }),
+    );
+
+    expect(childEnvironment).not.toHaveProperty('SAFEWORD_PRIVATE_PARENT_SENTINEL');
+    expect(childEnvironment).not.toHaveProperty('ANTHROPIC_API_KEY');
+    expect(childEnvironment).not.toHaveProperty('AWS_SECRET_ACCESS_KEY');
+    expect(childEnvironment).not.toHaveProperty('OPENAI_API_KEY');
+    expect(childEnvironment).toMatchObject({ PATH: '/safe/shared/path' });
   });
 
   it('installs deny-all Cursor tool and network policy before the extractor spawns', async () => {

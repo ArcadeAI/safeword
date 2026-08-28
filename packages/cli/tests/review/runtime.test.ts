@@ -17,11 +17,13 @@ import type { ReviewerOutput } from '../../src/review/contract.js';
 import {
   parseProcessStat,
   parseReviewerOutput,
+  planReviewRubric,
   procGroupHasRunningMember,
   reviewerArguments,
   reviewTimeoutMilliseconds,
   runBoundMs,
   runHeadlessReviewer,
+  scenarioReviewRubric,
 } from '../../src/review/runtime.js';
 import {
   cleanupTrustedReviewerDirectories,
@@ -57,6 +59,25 @@ const output: ReviewerOutput = {
   summary: 'reviewed',
   findings: [],
 };
+
+describe('scenario review rubric', () => {
+  it('uses a non-empty reviewer-only generated rubric', () => {
+    const rubric = scenarioReviewRubric();
+    expect(rubric).toContain('## Shared scenario-quality rubric');
+    expect(rubric).toContain('**Must Fix** for correctness or structural');
+    expect(rubric).toContain('and `info`, respectively');
+    expect(rubric).not.toContain('run-review.ts');
+    expect(rubric).not.toContain('Authoring mode');
+    expect(rubric).not.toContain('Review mode');
+  });
+
+  it('uses the generated canonical implementation-plan rubric', () => {
+    const rubric = planReviewRubric();
+    expect(rubric).toContain('## Shared implementation-plan judgment standard');
+    expect(rubric).toContain('Apply the deletion test');
+    expect(rubric).not.toContain('run-review.ts');
+  });
+});
 
 describe('headless reviewer timeout budgets', () => {
   // 91 real review runs put successful reviews at 47s median, 75s slowest, so

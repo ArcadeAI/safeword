@@ -358,6 +358,86 @@ describe('cross-agent review public-command wiring', () => {
     expect(prompt).toContain('supporting context, not work under review');
   });
 
+  it('delivers only the canonical shared rubric to a scenario reviewer', async () => {
+    const directory = createTemporaryDirectory();
+    const reviewLog = nodePath.join(directory, 'review.log');
+    const promptLog = nodePath.join(directory, 'prompt.log');
+    writeFileSync(nodePath.join(directory, 'behavior.feature'), 'Feature: shared rubric\n');
+    writeFileSync(nodePath.join(directory, 'spec.md'), '# Scope\n');
+    const bin = installFakeReviewer(directory, 'claude');
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'scenario-gate',
+        'behavior.feature',
+        '--context',
+        'spec.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'codex',
+          SAFEWORD_REVIEW_LOG: reviewLog,
+          SAFEWORD_REVIEW_PROMPT_LOG: promptLog,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode, result.stdout).toBe(0);
+    const prompt = readFileSync(promptLog, 'utf8');
+    expect(prompt).toContain('## Shared scenario-quality rubric');
+    expect(prompt).toContain('**Must Fix** for correctness or structural');
+    expect(prompt).toContain('and `info`, respectively');
+    expect(prompt).not.toContain('run-review.ts');
+    expect(prompt).not.toContain('Do not launch the independent review coordinator');
+    expect(prompt).not.toContain('hand control back to `bdd/SCENARIOS.md`');
+  });
+
+  it.each([
+    { label: 'missing', context: [] },
+    { label: 'blank', context: ['--context', 'spec.md'] },
+  ])('rejects a $label scenario-gate spec through the public command', async ({ context }) => {
+    const directory = createTemporaryDirectory();
+    writeFileSync(nodePath.join(directory, 'behavior.feature'), 'Feature: grounded review\n');
+    writeFileSync(nodePath.join(directory, 'spec.md'), ' \n');
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'scenario-gate',
+        'behavior.feature',
+        ...context,
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          SAFEWORD_AGENT_RUNTIME: 'codex',
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode).toBe(1);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'failed',
+      errors: [{ code: 'REVIEW_PACKET_INVALID' }],
+      data: { status: 'blocked' },
+    });
+  });
+
   it.each([
     { author: 'claude', reviewer: 'codex' },
     { author: 'codex', reviewer: 'claude' },

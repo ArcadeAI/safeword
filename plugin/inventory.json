@@ -143,11 +143,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "f7c6764f2005d17eab812bfc27826a467933f06d48a8410b1aa65e1e1f407965"
+      "sha256": "8a71848e4616ae149bc9f03c01bbf4a21bffa4eb5e02c8b01de2af0a81ff2b08"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "697799edf87312f6d7b4966cc53565fff3e818a816500e53dc56eb7e4fc87750"
+      "sha256": "a9517e47ee740303ffa6051427027ca90f5e15f3195e2ee358ba3e4ae663ee51"
     },
     {
       "path": "runtime/event-groups.json",
@@ -211,7 +211,7 @@
     },
     {
       "path": "runtime/hooks/lib/cursor-state.ts",
-      "sha256": "99bda7a9eb3f01469bf243dfe1f87dd18cf29fbe61d4533aa59839a210799adc"
+      "sha256": "6d80d1d6a6f13e1a61b8cff9800e9955cfff10040d127ae25a8160b2b799c3cb"
     },
     {
       "path": "runtime/hooks/lib/dependency-readiness.ts",
@@ -323,7 +323,7 @@
     },
     {
       "path": "runtime/hooks/lib/quality.ts",
-      "sha256": "3791e5767bccf96e8e1ce27234fc1bcb7d14020192efe597e0daf385f0a27d5e"
+      "sha256": "7bba76bd6c456d77e2dd82566b36a9c6ffdae3d00540199548745419c0c667aa"
     },
     {
       "path": "runtime/hooks/lib/re-entry.ts",
@@ -475,7 +475,7 @@
     },
     {
       "path": "runtime/hooks/prompt-questions.ts",
-      "sha256": "6ef3928c770660c7ed9fc8fc85f22c8601bfcbcb7def49a42e4e972fcde8e095"
+      "sha256": "aa9d93722e73a6af32d5cdb8b0783157dd105c2d2a1a9526e2325e33374a4887"
     },
     {
       "path": "runtime/hooks/prompt-retro-nudge.ts",
@@ -599,15 +599,15 @@
     },
     {
       "path": "skills/bdd/PLAN_IMPLEMENTATION.md",
-      "sha256": "7e37349cb23e15947f025897526c7c6c0bd61e1b35852fd3a69488a1f3287c76"
+      "sha256": "a399c814b9fa60bf7fd6230e13b710db0fd43b5c4e991f6bda49cde3fd37425d"
     },
     {
       "path": "skills/bdd/SCENARIOS.md",
-      "sha256": "c808d4c8455f8f6248f85e2d2403e881bdab83e0ac19e8c3dd9c28fb9c2ee8f4"
+      "sha256": "a79590a8dcd8c6377f92e2ec0c26d5479f28e16e53291348f86f59b73381a19e"
     },
     {
       "path": "skills/bdd/SKILL.md",
-      "sha256": "ba46dac85a05aee879e10b47d2a6aeac1d95593efdf97eac8e40c3c26bd9efd2"
+      "sha256": "81bfcf97e429b442e3708b50a692a194d31b907289febc4201471afcab7e4b9c"
     },
     {
       "path": "skills/bdd/SPLITTING.md",
@@ -675,11 +675,11 @@
     },
     {
       "path": "skills/retro/SKILL.md",
-      "sha256": "4bc28ce44be174bbc6029602d41650cfd85a6f15fd6c661e4f25d8252ca96d7d"
+      "sha256": "296e8bbde8a8e2658afee2354506006dc1b783805b565c344eebfa0f0241bcfb"
     },
     {
       "path": "skills/review-spec/SKILL.md",
-      "sha256": "09ddb1c9fca5f2d04a8ef2d6d79310d0ca9ee6ec68b14f9fef9c9d8b7384ed10"
+      "sha256": "6909d44954e7cbc63c14753f744e1c6bf7af95bff640522749c955903a383aef"
     },
     {
       "path": "skills/self-review/SKILL.md",
