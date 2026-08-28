@@ -278,6 +278,4 @@ test-definitions.md is the R/G/R ledger.
 
 ## Feature-level cross-scenario refactor
 
-- [x] REFACTOR 86fa70c08: one optional-value boundary covers direct and derived context
-- [x] REFACTOR c2c070fb5: one packaged compatibility matrix covers all supported source routes
-- [x] REFACTOR 6e6c013c4: public collector and private relay remain explicitly separate
+- [x] cross-scenario c2c070fb5
