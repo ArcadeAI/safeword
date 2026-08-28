@@ -50,11 +50,11 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN cf6bd64c0
 - [x] REFACTOR skip: one closed source builder serves both harnesses
 
-### Scenario: Cursor omits signals its harness does not expose
+### Scenario: Cursor uses the same bounded current source profile
 
 - [x] RED 4c877857e
 - [x] GREEN cf6bd64c0
-- [x] REFACTOR skip: Cursor reuses the source builder and intentionally supplies no speculative optionals
+- [x] REFACTOR skip: every harness reuses the source builder and intentionally supplies no speculative runtime-version optionals
 
 ### Scenario: Every supported harness reaches the real collector
 

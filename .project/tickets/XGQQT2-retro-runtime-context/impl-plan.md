@@ -93,11 +93,10 @@ creating the separately controlled npm/plugin release tag.
    with the explicit Cursor surface installed, Cursor already reaches `retro run`
    through the installed retro skill, transcript stash, and
    `SAFEWORD_RETRO_AGENT=cursor`; this slice changes route selection, not capture.
-   Cursor exposes no supported agent-version or model signal today, so both are
-   omitted unconditionally rather than discovered speculatively. Every current
-   producer omits `safewordPluginVersion`: Claude exposes a plugin root, but
-   Codex's retro child has no equivalent trustworthy carrier, so parity requires
-   omission rather than copying the CLI version.
+   Every current producer omits agent, model, and plugin versions rather than
+   reading undocumented environment variables or inferring the plugin version
+   from the CLI. The collector retains those released optional fields for
+   compatibility and a future documented trustworthy carrier.
    This slice also preserves route eligibility: retain
    `CLAUDE_CODE_REMOTE_SESSION_ID` denial for Claude and stop that Claude-only
    signal from suppressing Codex or Cursor. The denial occurs before source

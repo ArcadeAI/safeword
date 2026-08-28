@@ -13,7 +13,8 @@ scope:
   - Widen the existing v1 public-retro source authority for Cursor and honest unknown execution class while preserving released submissions
   - Preserve the locally generated project UUID across installs and upgrades
   - Derive one bounded source shape for Claude, Codex, and Cursor runtimes
-  - Include repository, harness, host class, model, agent version, SafeWord CLI/plugin versions, and OS family when available
+  - Include repository, harness, host class, SafeWord CLI version, and OS family from trustworthy local carriers
+  - Preserve released agent/model/plugin fields for compatibility and future documented carriers without emitting speculative values today
   - Keep every enrichment field optional and make derivation failure silent
   - Validate and durably preserve the exact canonical envelope in the existing public collector
 out_of_scope:
@@ -49,6 +50,7 @@ gate.
 
 - 2026-08-28T07:14:00Z Closed independent review: Bound Cursor public egress to real hook-stashed transcript, conversation, and project state; released failed handoff claims for later retry; pinned live hook runtime metadata, Git precedence, declared collector rows, and refreshed installed lifecycle goldens
 - 2026-08-28T06:30:46Z Tightened after review: Current producers now omit the unprovable plugin version, Cursor carries its paired conversation identity into public delivery, both private recovery lanes persist before public handoff, runtime values share one bounded normalizer, and the real collector rejects Cursor-only legacy identity leakage
+- 2026-08-28T07:45:00Z Tightened after final review: Current producers omit undocumented agent/model environment signals alongside plugin version, Git credential and email privacy are proved on canonical envelope bytes, accepted submissions retain their local claim if receipt persistence misses the deadline, and Cursor state writes refuse symlinks
 - 2026-08-27T17:34:00Z Transitioned: plan-implementation → implement after independent cross-agent approval of the seven-slice plan, including released-byte compatibility, Cursor opt-out, and explicit low-volume collector-before-tag sequencing
 - 2026-08-27T17:25:00Z Avoided release-platform scope creep: Kept the existing manual annotated-tag boundary after full packaged matrix proof and Railway health, and recorded the low-volume operational risk instead of adding a public capability, synthetic production rows, or a new tag workflow
 - 2026-08-27T17:18:00Z Corrected release mechanism: Replaced durable synthetic submissions with a validator-derived, non-writing health capability and deployed SHA; the pre-tag workflow creates the tag and invokes reusable publish jobs directly after Railway auto-deploy is verified

@@ -1210,39 +1210,6 @@ function publicHarness(agent: RetroAgent): 'claude-code' | 'codex' | 'cursor' | 
   return agent === 'cursor' ? 'cursor' : undefined;
 }
 
-function publicRuntimeMetadata(
-  harness: PublicRetroSource['harness'],
-  environment: NodeJS.ProcessEnv,
-): { agentVersion?: string; model?: string } {
-  if (harness === 'cursor') return {};
-  if (harness === 'codex') {
-    return {
-      agentVersion: publicRuntimeSignal(environment.CODEX_VERSION),
-      model: publicRuntimeSignal(environment.CODEX_MODEL),
-    };
-  }
-  return {
-    agentVersion: publicRuntimeSignal(environment.CLAUDE_CODE_VERSION),
-    model: publicRuntimeSignal(environment.ANTHROPIC_MODEL),
-  };
-}
-
-function publicRuntimeSignal(value: string | undefined): string | undefined {
-  const normalized = value?.trim();
-  if (
-    normalized === undefined ||
-    normalized === '' ||
-    normalized.toLowerCase().startsWith('arn:') ||
-    normalized.includes('://') ||
-    normalized.includes('@') ||
-    normalized.includes('/') ||
-    normalized.includes('\\')
-  ) {
-    return undefined;
-  }
-  return normalized;
-}
-
 export function resolvePublicRetroRoute(input: {
   agent: RetroAgent;
   enabled: boolean;
@@ -1261,7 +1228,6 @@ export function resolvePublicRetroRoute(input: {
   const harness = publicHarness(input.agent);
   if (harness === undefined) return undefined;
   const source = buildPublicRetroSource(input.projectDirectory, {
-    ...publicRuntimeMetadata(harness, input.environment),
     cliVersion: VERSION,
     harness,
     osFamily: platform(),

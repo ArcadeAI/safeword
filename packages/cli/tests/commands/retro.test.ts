@@ -384,7 +384,7 @@ describe('retro command configuration, extraction, egress, and relay execution',
     }
   });
 
-  it('preserves independent enrichment when model context is unavailable', async () => {
+  it('preserves documented enrichment while omitting untrusted runtime signals', async () => {
     const project = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-route-'));
     mkdirSync(nodePath.join(project, '.safeword'));
     mkdirSync(nodePath.join(project, '.git'));
@@ -399,7 +399,7 @@ describe('retro command configuration, extraction, egress, and relay execution',
     const route = resolvePublicRetroRoute({
       agent: 'codex',
       enabled: true,
-      environment: { CODEX_VERSION: 'agent-1.2.3' },
+      environment: { CODEX_MODEL: 'model-fixture', CODEX_VERSION: 'agent-1.2.3' },
       projectDirectory: project,
       sessionId: 'session-fixture',
     });
@@ -422,22 +422,17 @@ describe('retro command configuration, extraction, egress, and relay execution',
 
       expect(outcome.ok).toBe(true);
       expect(body.source).toMatchObject({
-        agentVersion: 'agent-1.2.3',
         repository: 'github.com/arcadeai/safeword',
       });
       expect(body.source.osFamily).toEqual(expect.any(String));
       expect(body.source).not.toHaveProperty('model');
+      expect(body.source).not.toHaveProperty('agentVersion');
     } finally {
       rmSync(project, { force: true, recursive: true });
     }
   });
 
-  it.each([
-    ['model URL', { CODEX_MODEL: 'https://gateway.internal/model' }],
-    ['model ARN', { ANTHROPIC_MODEL: 'arn:aws:bedrock:us-east-1:123:model/fixture' }],
-    ['agent path', { CODEX_VERSION: '/private/agent/version' }],
-  ] as const)('omits a private-looking %s runtime signal', (_name, environment) => {
-    const agent = 'ANTHROPIC_MODEL' in environment ? 'claude' : 'codex';
+  it.each(['claude', 'codex'] as const)('omits undocumented %s runtime signals', agent => {
     const project = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-route-'));
     try {
       mkdirSync(nodePath.join(project, '.safeword'));
@@ -448,13 +443,18 @@ describe('retro command configuration, extraction, egress, and relay execution',
       const source = resolvePublicRetroRoute({
         agent,
         enabled: true,
-        environment,
+        environment: {
+          ANTHROPIC_MODEL: 'claude-model-fixture',
+          CLAUDE_CODE_VERSION: 'claude-agent-fixture',
+          CODEX_MODEL: 'codex-model-fixture',
+          CODEX_VERSION: 'codex-agent-fixture',
+        },
         projectDirectory: project,
         sessionId: 'session-fixture',
       })?.source;
 
       expect(source).not.toHaveProperty('model');
-      if ('CODEX_VERSION' in environment) expect(source).not.toHaveProperty('agentVersion');
+      expect(source).not.toHaveProperty('agentVersion');
     } finally {
       rmSync(project, { force: true, recursive: true });
     }
@@ -515,8 +515,6 @@ describe('retro command configuration, extraction, egress, and relay execution',
         projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
         safewordCliVersion: expect.any(String),
         repository: 'github.com/arcadeai/safeword',
-        agentVersion: 'agent-1.2.3',
-        model: 'model-fixture',
         osFamily: expect.any(String),
       });
       for (const sentinel of sentinels) expect(envelope).not.toContain(sentinel);

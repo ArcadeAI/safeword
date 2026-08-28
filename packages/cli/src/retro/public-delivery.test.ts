@@ -470,7 +470,12 @@ describe('buildPublicRetroEnvelope', () => {
       );
 
       expect(outcome).toBe('abandoned');
-      expect(readdirSync(attemptsDirectory)).toEqual([]);
+      const [marker] = readdirSync(attemptsDirectory);
+      expect(marker).toEqual(expect.stringMatching(/\.json$/u));
+      if (marker === undefined) throw new TypeError('expected retained claim marker');
+      const markerPath = path.join(attemptsDirectory, marker);
+      const persisted = JSON.parse(readFileSync(markerPath, 'utf8')) as unknown;
+      expect(persisted).toEqual({ sessionScope: expect.any(String) });
     } finally {
       rmSync(attemptsDirectory, { recursive: true, force: true });
     }

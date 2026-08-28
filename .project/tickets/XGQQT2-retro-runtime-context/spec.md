@@ -99,7 +99,7 @@ event stream.
 
 ### retro-runtime-context — Useful context with nothing to set up
 
-- **Moment:** A maintainer opens a retro and sees the same privacy-bounded project, repository, harness, version, model, and OS facts across supported harnesses without builder setup; ambiguous execution class is honestly `unknown`.
+- **Moment:** A maintainer opens a retro and sees the same privacy-bounded project, repository, harness, SafeWord CLI version, and OS facts across supported harnesses without builder setup; ambiguous execution class is honestly `unknown`.
 - **Beats:** The expected support loop of asking which machine, harness, version, and environment reproduced the friction.
 - **They'd say:** "I installed SafeWord once, and its retros arrive with the useful context already attached."
 
@@ -107,7 +107,7 @@ event stream.
 
 - A project receives a stable random GUID locally with no registration or server dependency.
 - Claude, Codex, and Cursor attach the same optional context shape to sanitized retro submissions without guessing ambiguous execution class.
-- Maintainers retain existing Claude/Codex grouping and gain Cursor project, repository, harness, SafeWord CLI version, and OS context. Cursor exposes no supported agent-version or model signal today; all current producers omit plugin version until both hosts expose a trustworthy carrier. Exact runtime-class grouping remains #3430.
+- Maintainers retain existing Claude/Codex grouping and gain Cursor project, repository, harness, SafeWord CLI version, and OS context. All current producers omit agent, model, and plugin versions until a documented trustworthy runtime carrier exists. Exact runtime-class grouping remains #3430.
 - Email and actor identity are excluded; cloud-safe actor attribution and exact Claude/Codex cloud classification remain #3430.
 - Missing, malformed, or unavailable context has no observable effect on the builder's session or retro delivery.
 
@@ -116,7 +116,7 @@ event stream.
 - Keep envelope `version: "v1"` and widen its existing closed `source` authority for Cursor. Producer-side optional enrichment is bounded, while the collector preserves the released v1 value rules. A second `context` object or schema version would add authority without local user value.
 - `harness` is `claude-code`, `codex`, or `cursor`. Collector validation uses one harness/host-class matrix: `hostClass: "local"` is accepted for `claude-code` and `codex`, while `hostClass: "unknown"` is accepted for all three. No producer-version gate is involved. None of the three harnesses can prove local/cloud execution without registration or host attestation. Follow-up issue #3430 owns exact classification; this slice never guesses it.
 - Git-config email, `GITHUB_ACTOR`, and active identity discovery are prohibited in the local producer. `GITHUB_ACTOR` belongs to GitHub Actions/cloud classification and is deferred with that carrier to #3430.
-- Harness version and model facts come only from the harness's existing allowlisted runtime signals. Repository comes only from a credential-stripped Git origin on the explicit public-host allowlist (`github.com`, `gitlab.com`); hosts are lowercase, GitHub owner/repository paths are also lowercase, and GitLab paths preserve case. Local, file, malformed, and every non-allowlisted remote are omitted. SafeWord CLI version comes from the running package; plugin version is omitted until both hosts expose a trustworthy runtime carrier. OS family comes from the runtime's standard platform signal. Optional strings containing control characters or exceeding 256 UTF-8 bytes are omitted independently.
+- Repository comes only from a credential-stripped Git origin on the explicit public-host allowlist (`github.com`, `gitlab.com`); hosts are lowercase, GitHub owner/repository paths are also lowercase, and GitLab paths preserve case. Local, file, malformed, and every non-allowlisted remote are omitted. SafeWord CLI version comes from the running package and OS family comes from the runtime's standard platform signal. Current producers omit agent, model, and plugin versions because no documented trustworthy cross-harness runtime carrier exists. The collector retains those released fields for compatibility and future trustworthy carriers. Optional strings containing control characters or exceeding 256 UTF-8 bytes are omitted independently.
 - The collector widens the closed v1 harness allowlist for Cursor without tightening released optional-value rules, returning every accepted envelope as its original canonical bytes. The new producer no longer emits legacy `userIdentity`; the collector continues accepting it for installed clients. The collector does not normalize or rewrite stored submissions.
 - `sessionScope` remains derived only from harness, project UUID, and session ID. Runtime metadata never changes duplicate identity.
 - The local exclusive session claim suppresses a concurrent or completed second attempt before the collector; a failed handoff releases its uncommitted claim so a later invocation may retry. Collector request/session constraints remain defense in depth, not a second metadata authority.

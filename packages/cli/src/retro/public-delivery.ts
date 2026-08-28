@@ -230,7 +230,7 @@ async function deliverPreparedInput(
   preparationDeadline: number,
 ): Promise<PublicRetroDeliveryOutcome> {
   let claimedMarkerPath: string | undefined;
-  let preserved = false;
+  let accepted = false;
   try {
     if (dependencies.now() >= preparationDeadline) return 'abandoned';
     const built = buildPublicRetroEnvelope(input);
@@ -247,12 +247,13 @@ async function deliverPreparedInput(
     let result: PublicRetroReceipt;
     try {
       result = await submitPublicRetroRequest(prepared, dependencies.transport, controller.signal);
+      accepted = true;
     } finally {
       clearTimeout(timeout);
     }
     if (dependencies.now() >= handoffDeadline) return 'abandoned';
 
-    preserved = preservePublicRetroReceipt(
+    const preserved = preservePublicRetroReceipt(
       prepared,
       result,
       claimedMarkerPath,
@@ -263,7 +264,7 @@ async function deliverPreparedInput(
   } catch {
     return 'abandoned';
   } finally {
-    if (claimedMarkerPath !== undefined && !preserved) {
+    if (claimedMarkerPath !== undefined && !accepted) {
       try {
         unlinkSync(claimedMarkerPath);
       } catch {

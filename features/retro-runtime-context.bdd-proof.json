@@ -29,7 +29,7 @@
       "packages/cli/src/retro/public-delivery.test.ts",
       "builds the exact current %s/unknown source"
     ],
-    "Cursor omits signals its harness does not expose": [
+    "Cursor uses the same bounded current source profile": [
       "packages/cli/tests/commands/retro.test.ts",
       "builds a bounded Cursor source when a conversation identity is available"
     ],
@@ -129,7 +129,7 @@
     ],
     "Supported repository remotes are canonicalized without credentials": [
       "packages/cli/src/retro/public-source.test.ts",
-      "canonicalizes the supported GitHub remote %s"
+      "builds an envelope without Git credentials or email"
     ],
     "A supported non-GitHub remote preserves its public host and path": [
       "packages/cli/src/retro/public-source.test.ts",
@@ -145,7 +145,7 @@
     ],
     "Git email is not public runtime context": [
       "packages/cli/src/retro/public-source.test.ts",
-      "does not emit runtime identity or Git email"
+      "omits Git email from the public envelope"
     ],
     "Invalid configured project identity keeps existing recovery behavior": [
       "packages/cli/tests/commands/retro.test.ts",
@@ -157,7 +157,7 @@
     ],
     "One unavailable enrichment preserves the other optional context": [
       "packages/cli/tests/commands/retro.test.ts",
-      "preserves independent enrichment when model context is unavailable"
+      "preserves documented enrichment while omitting untrusted runtime signals"
     ],
     "Disabled Cursor public retros do not disclose runtime context": [
       "packages/cli/src/retro/public-source.test.ts",

@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -16,11 +16,13 @@ const CONVERSATION_ID = 'test-cursor-state-conv';
 const STASH_PATH = cursorTranscriptStashPath({ conversation_id: CONVERSATION_ID });
 const IDENTITY_PATH = cursorConversationStashPath({ conversation_id: CONVERSATION_ID });
 const PROJECT_PATH = cursorProjectStashPath({ conversation_id: CONVERSATION_ID });
+const SYMLINK_TARGET = `/tmp/safeword-cursor-state-target-${process.pid}`;
 
 afterEach(() => {
   rmSync(STASH_PATH, { force: true });
   rmSync(IDENTITY_PATH, { force: true });
   rmSync(PROJECT_PATH, { force: true });
+  rmSync(SYMLINK_TARGET, { force: true });
 });
 
 describe('cursor /tmp state keying (RTSK9C / #624)', () => {
@@ -65,5 +67,18 @@ describe('stashCursorTranscript (RTSK9C / #624)', () => {
     stashCursorTranscript({ conversation_id: CONVERSATION_ID, transcript_path: ' '.repeat(3) });
 
     expect(existsSync(STASH_PATH)).toBe(false);
+  });
+
+  it('does not follow a pre-created state symlink', () => {
+    writeFileSync(SYMLINK_TARGET, 'do-not-overwrite');
+    symlinkSync(SYMLINK_TARGET, STASH_PATH);
+
+    stashCursorTranscript({
+      conversation_id: CONVERSATION_ID,
+      transcript_path: '/private/transcript.jsonl',
+    });
+
+    expect(readFileSync(SYMLINK_TARGET, 'utf8')).toBe('do-not-overwrite');
+    expect(existsSync(IDENTITY_PATH)).toBe(false);
   });
 });

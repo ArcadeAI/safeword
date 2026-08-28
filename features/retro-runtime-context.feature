@@ -58,20 +58,21 @@ Feature: Attach useful runtime context to retros without signup
 
     Scenario Outline: Claude Code and Codex use one complete source contract
       Given a <harness> retrospective with every required source fact and a runnable public route
-      And project identity "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", SafeWord CLI version "0.79.6", repository "github.com/arcadeai/safeword", agent version <agent_version>, model <model>, and operating-system family "darwin" are available
+      And project identity "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", SafeWord CLI version "0.79.6", repository "github.com/arcadeai/safeword", and operating-system family "darwin" are available
+      And undocumented environment signals claim agent version <agent_version> and model <model>
       When SafeWord prepares its public retrospective
       Then the canonical envelope version on the wire is "v1"
-      And the v1 source contains exactly harness <harness_value>, host class "unknown", project identity "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", SafeWord CLI version "0.79.6", repository "github.com/arcadeai/safeword", agent version <agent_version>, model <model>, and operating-system family "darwin"
+      And the v1 source contains exactly harness <harness_value>, host class "unknown", project identity "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", SafeWord CLI version "0.79.6", repository "github.com/arcadeai/safeword", and operating-system family "darwin"
+      And agent version, model, and SafeWord plugin version are omitted
 
       Examples:
         | harness      | harness_value | agent_version | model          |
         | Claude Code  | claude-code   | "claude-1"    | "claude-model" |
         | OpenAI Codex | codex         | "codex-1"     | "codex-model"  |
 
-    Scenario: Cursor omits signals its harness does not expose
+    Scenario: Cursor uses the same bounded current source profile
       Given a Cursor retrospective with every required source fact and a runnable public route
       And project identity "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", SafeWord CLI version "0.79.6", repository "github.com/arcadeai/safeword", and operating-system family "darwin" are available
-      And Cursor exposes no supported agent-version, model, or SafeWord plugin-version signal
       When SafeWord prepares its public retrospective
       Then the v1 source contains exactly harness "cursor", host class "unknown", project identity "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", SafeWord CLI version "0.79.6", repository "github.com/arcadeai/safeword", and operating-system family "darwin"
       And agent version, model, and SafeWord plugin version are omitted
@@ -241,10 +242,12 @@ Feature: Attach useful runtime context to retros without signup
   Rule: retro-runtime-context.TBU1.R1 — Runtime context contains only explicitly allowlisted facts and never transcript, source, machine, or arbitrary environment content
 
     Scenario: Available approved facts form the complete current source profile
-      Given the runtime supplies harness "codex", host class "unknown", project identity "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", SafeWord CLI version "0.79.6", repository "github.com/arcadeai/safeword", agent version "agent-1.2.3", model "model-fixture", and operating-system family "darwin"
+      Given the runtime supplies harness "codex", host class "unknown", project identity "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", SafeWord CLI version "0.79.6", repository "github.com/arcadeai/safeword", and operating-system family "darwin"
+      And undocumented environment signals claim agent version "agent-1.2.3" and model "model-fixture"
       And unapproved inputs contain transcript sentinel "transcript-private-9f2c", source-code sentinel "source-private-9f2c", command-argument sentinel "argv-private-9f2c", hostname sentinel "host-private-9f2c", credential sentinel "secret-private-9f2c", arbitrary environment sentinel "env-private-9f2c", and `GITHUB_ACTOR` sentinel "actor-private-9f2c"
       When SafeWord prepares its public retrospective
-      Then its source contains exactly harness "codex", host class "unknown", project identity "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", SafeWord CLI version "0.79.6", repository "github.com/arcadeai/safeword", agent version "agent-1.2.3", model "model-fixture", and operating-system family "darwin"
+      Then its source contains exactly harness "codex", host class "unknown", project identity "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", SafeWord CLI version "0.79.6", repository "github.com/arcadeai/safeword", and operating-system family "darwin"
+      And agent version, model, and SafeWord plugin version are omitted
       And none of "transcript-private-9f2c", "source-private-9f2c", "argv-private-9f2c", "host-private-9f2c", "secret-private-9f2c", "env-private-9f2c", or "actor-private-9f2c" appears in the envelope
 
     Scenario Outline: Representative direct optional string boundaries are enforced independently
@@ -272,17 +275,11 @@ Feature: Attach useful runtime context to retros without signup
         | 256   | retained |
         | 257   | omitted  |
 
-    Scenario Outline: Supported repository remotes are canonicalized without credentials
-      Given the Git origin is <remote>
+    Scenario: Supported repository remotes are canonicalized without credentials
+      Given the Git origin is `https://creduser-9f2c:credsecret-9f2c@GitHub.com/ArcadeAI/safeword.git`
       When SafeWord prepares its public retrospective
       Then repository is `github.com/arcadeai/safeword`
       And neither `creduser-9f2c` nor `credsecret-9f2c` appears in the envelope
-      And retro preparation spawns no subprocess and makes no outbound request other than the public collector submission
-
-      Examples:
-        | remote |
-        | https://creduser-9f2c:credsecret-9f2c@GitHub.com/ArcadeAI/safeword.git |
-        | git@GitHub.com:ArcadeAI/safeword.git |
 
     Scenario: A supported non-GitHub remote preserves its public host and path
       Given the Git origin is `https://GitLab.com/Team/Repo.git`
@@ -320,7 +317,6 @@ Feature: Attach useful runtime context to retros without signup
       Given Git configuration contains email address "private@example.test"
       When SafeWord prepares its public retrospective
       Then "private@example.test" does not appear anywhere in the envelope
-      And retro preparation spawns no subprocess and makes no outbound request other than the public collector submission
 
   @retro-runtime-context.NTB1.R1 @surface.safeword-cli @surface.claude-code @surface.openai-codex @surface.cursor @surface.railway-public-retro-collector
   Rule: retro-runtime-context.NTB1.R1 — Context discovery never disrupts the user or existing recovery

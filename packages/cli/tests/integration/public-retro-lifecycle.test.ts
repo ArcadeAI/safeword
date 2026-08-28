@@ -133,20 +133,6 @@ async function primeCursorBinding(
   expect(result.status).toBe(0);
 }
 
-function runtimeMetadataEnvironment(harness: LifecycleHarness): NodeJS.ProcessEnv {
-  return {
-    'claude-code': {
-      ANTHROPIC_MODEL: 'claude-lifecycle-fixture',
-      CLAUDE_CODE_VERSION: 'claude-agent-lifecycle-fixture',
-    },
-    codex: {
-      CODEX_MODEL: 'codex-lifecycle-fixture',
-      CODEX_VERSION: 'codex-agent-lifecycle-fixture',
-    },
-    cursor: {},
-  }[harness];
-}
-
 async function primeCursorBindingIfNeeded(input: {
   bun: string;
   environment: NodeJS.ProcessEnv;
@@ -163,19 +149,6 @@ async function primeCursorBindingIfNeeded(input: {
     input.sessionId,
     input.transcript,
   );
-}
-
-function expectRuntimeMetadata(source: object, harness: LifecycleHarness): void {
-  if (harness === 'cursor') {
-    expect(source).not.toHaveProperty('agentVersion');
-    expect(source).not.toHaveProperty('model');
-    return;
-  }
-  const prefix = harness === 'codex' ? 'codex' : 'claude';
-  expect(source).toMatchObject({
-    agentVersion: `${prefix}-agent-lifecycle-fixture`,
-    model: `${prefix}-lifecycle-fixture`,
-  });
 }
 
 it('ships Cursor retro wiring with public delivery and paired conversation identity', () => {
@@ -330,7 +303,10 @@ process.exit(result.status ?? 1);
       expect(bun).not.toBe('');
       const controlledEnvironment = {
         ...process.env,
-        ...runtimeMetadataEnvironment(harness),
+        ANTHROPIC_MODEL: 'claude-model-lifecycle-sentinel',
+        CLAUDE_CODE_VERSION: 'claude-agent-lifecycle-sentinel',
+        CODEX_MODEL: 'codex-model-lifecycle-sentinel',
+        CODEX_VERSION: 'codex-agent-lifecycle-sentinel',
         GIT_CONFIG_GLOBAL: path.join(project, 'missing-global-gitconfig'),
         HOME: path.join(project, 'empty-home'),
       };
@@ -385,7 +361,8 @@ process.exit(result.status ?? 1);
         },
       });
       expect(storedEnvelope.source).not.toHaveProperty('userIdentity');
-      expectRuntimeMetadata(storedEnvelope.source, harness);
+      expect(storedEnvelope.source).not.toHaveProperty('agentVersion');
+      expect(storedEnvelope.source).not.toHaveProperty('model');
       expect(storedEnvelope.finding).not.toContain(fixtureSecret);
       expect(storedEnvelope.finding).not.toContain('/Users/customer');
       expect(acceptCalls).toBe(1);

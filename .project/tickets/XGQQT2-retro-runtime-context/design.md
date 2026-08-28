@@ -28,7 +28,7 @@ unavailable values.
 
 **Interface:** `buildPublicRetroSource(input): PublicRetroSource`
 
-**Dependencies:** Existing Git-origin reader, process runtime facts, and the
+**Dependencies:** Existing Git-origin reader, standard OS runtime fact, and the
 running SafeWord package version.
 
 **Tests:** Source parity, privacy exclusions, byte boundaries, repository
@@ -149,9 +149,10 @@ the existing overall retro boundary.
 field. A failed handoff releases only its uncommitted local claim so a later
 invocation may try again; no in-process retry, worker, or background task is added.
 
-**Gotchas:** Cursor has no supported version/model signal today, so both remain
-absent. Plugin version is omitted for all new producers because Claude and Codex
-do not share a trustworthy runtime carrier. All three harnesses report `unknown`; actor attribution and exact cloud
+**Gotchas:** Agent, model, and plugin versions are omitted for all new producers
+because the supported harnesses do not share a documented trustworthy runtime
+carrier. The collector retains those optional fields for released-client
+compatibility. All three harnesses report `unknown`; actor attribution and exact cloud
 classification remain #3430.
 
 **Open questions:** None for the local slice. Cloud proof is #3430.

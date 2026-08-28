@@ -12,7 +12,7 @@ import {
 } from './public-source.js';
 
 describe('buildPublicRetroSource', () => {
-  it('builds the closed current profile without user identity', () => {
+  it('builds the closed current profile without untrusted runtime identity', () => {
     const directory = createTemporaryDirectory();
     mkdirSync(nodePath.join(directory, '.safeword'));
     mkdirSync(nodePath.join(directory, '.git'));
@@ -27,17 +27,13 @@ describe('buildPublicRetroSource', () => {
 
     expect(
       buildPublicRetroSource(directory, {
-        agentVersion: ' 1.2.3 ',
         cliVersion: ' 0.79.0 ',
         harness: 'codex',
-        model: ' gpt-fixture ',
         osFamily: ' darwin ',
       }),
     ).toEqual({
-      agentVersion: '1.2.3',
       harness: 'codex',
       hostClass: 'unknown',
-      model: 'gpt-fixture',
       osFamily: 'darwin',
       projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
       repository: 'github.com/arcadeai/safeword',
@@ -45,7 +41,7 @@ describe('buildPublicRetroSource', () => {
     });
   });
 
-  it('does not emit runtime identity or Git email', () => {
+  it('builds an envelope without Git credentials or email', () => {
     const directory = createTemporaryDirectory();
     mkdirSync(nodePath.join(directory, '.safeword'));
     mkdirSync(nodePath.join(directory, '.git'));
@@ -53,15 +49,52 @@ describe('buildPublicRetroSource', () => {
       nodePath.join(directory, '.safeword', 'config.json'),
       JSON.stringify({ projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' }),
     );
-    writeFileSync(nodePath.join(directory, '.git', 'config'), '[user]\nemail = git@example.com\n');
+    writeFileSync(
+      nodePath.join(directory, '.git', 'config'),
+      '[remote "origin"]\nurl = https://creduser-9f2c:credsecret-9f2c@github.com/ArcadeAI/Safeword.git\n[user]\nemail = private@example.test\n',
+    );
 
-    expect(
-      buildPublicRetroSource(directory, {
-        cliVersion: '0.79.0',
-        harness: 'codex',
-        osFamily: 'darwin',
-      }),
-    ).not.toHaveProperty('userIdentity');
+    const source = buildPublicRetroSource(directory, {
+      cliVersion: '0.79.0',
+      harness: 'codex',
+      osFamily: 'darwin',
+    });
+    if (source === undefined) throw new TypeError('expected public source');
+    const envelope = new TextDecoder().decode(
+      buildPublicRetroEnvelope({ finding: 'fixture', sessionId: 'session-fixture', source }).bytes,
+    );
+
+    expect(JSON.parse(envelope)).toMatchObject({
+      source: { repository: 'github.com/arcadeai/safeword' },
+    });
+    expect(envelope).not.toContain('creduser-9f2c');
+    expect(envelope).not.toContain('credsecret-9f2c');
+    expect(envelope).not.toContain('private@example.test');
+  });
+
+  it('omits Git email from the public envelope', () => {
+    const directory = createTemporaryDirectory();
+    mkdirSync(nodePath.join(directory, '.safeword'));
+    mkdirSync(nodePath.join(directory, '.git'));
+    writeFileSync(
+      nodePath.join(directory, '.safeword', 'config.json'),
+      JSON.stringify({ projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' }),
+    );
+    writeFileSync(
+      nodePath.join(directory, '.git', 'config'),
+      '[user]\nemail = private@example.test\n',
+    );
+    const source = buildPublicRetroSource(directory, {
+      cliVersion: '0.79.0',
+      harness: 'codex',
+      osFamily: 'darwin',
+    });
+    if (source === undefined) throw new TypeError('expected public source');
+
+    const envelope = new TextDecoder().decode(
+      buildPublicRetroEnvelope({ finding: 'fixture', sessionId: 'session-fixture', source }).bytes,
+    );
+    expect(envelope).not.toContain('private@example.test');
   });
 
   it.each([

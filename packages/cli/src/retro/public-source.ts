@@ -56,10 +56,8 @@ export interface PublicGitContext {
 }
 
 export interface PublicRetroSourceOptions {
-  agentVersion?: string;
   cliVersion: string;
   harness: PublicRetroSource['harness'];
-  model?: string;
   osFamily: string;
 }
 
@@ -77,17 +75,14 @@ export function buildPublicRetroSource(
   const git = collectPublicGitContext(cwd);
   const cliVersion = normalizePublicRetroOptionalValue(options.cliVersion);
   if (cliVersion === undefined) return undefined;
-  const agentVersion = normalizePublicRetroOptionalValue(options.agentVersion);
-  const model = normalizePublicRetroOptionalValue(options.model);
   const osFamily = normalizePublicRetroOptionalValue(options.osFamily);
+  const repo = normalizePublicRetroOptionalValue(git.repository);
   return {
     harness: options.harness,
     hostClass: 'unknown',
     projectUUID: project.projectUUID,
     safewordCliVersion: cliVersion,
-    ...(git.repository !== undefined && { repository: git.repository }),
-    ...(agentVersion !== undefined && { agentVersion }),
-    ...(model !== undefined && { model }),
+    ...(repo !== undefined && { repository: repo }),
     ...(osFamily !== undefined && { osFamily }),
   };
 }
