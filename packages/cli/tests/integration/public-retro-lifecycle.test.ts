@@ -260,6 +260,27 @@ process.exit(result.status ?? 1);
       expect(acceptCalls).toBe(1);
       expect(readdirSync(attemptsDirectory)).toHaveLength(1);
 
+      if (harness === 'cursor') {
+        const distinctSessionId = `${sessionId}-distinct`;
+        const distinct = await runHook(
+          bun,
+          hook,
+          project,
+          {
+            ...controlledEnvironment,
+            CLI_PATH: path.join(buildDirectory, 'cli.js'),
+            FINDINGS_PATH: findings,
+            PATH: `${path.dirname(bun)}:/usr/bin:/bin`,
+            SESSION_ID: distinctSessionId,
+            TRANSCRIPT_PATH: transcript,
+          },
+          '{}',
+        );
+        expect(distinct).toMatchObject({ status: 0, stderr: '' });
+        expect(acceptCalls).toBe(2);
+        expect(readdirSync(attemptsDirectory)).toHaveLength(2);
+      }
+
       writeFileSync(
         path.join(safewordDirectory, 'config.json'),
         JSON.stringify({
@@ -290,8 +311,8 @@ process.exit(result.status ?? 1);
         }),
       );
       expect(disabled).toMatchObject({ status: 0, stderr: '' });
-      expect(acceptCalls).toBe(1);
-      expect(readdirSync(attemptsDirectory)).toHaveLength(1);
+      expect(acceptCalls).toBe(harness === 'cursor' ? 2 : 1);
+      expect(readdirSync(attemptsDirectory)).toHaveLength(harness === 'cursor' ? 2 : 1);
     } finally {
       await collector.close();
     }
