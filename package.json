@@ -38,8 +38,8 @@
   },
   "devDependencies": {
     "@cucumber/cucumber": "13.2.1",
-    "@openai/codex": "0.147.0",
-    "@types/node": "^26.1.2",
+    "@openai/codex": "0.149.1",
+    "@types/node": "^26.3.0",
     "dependency-cruiser": "18.2.0",
     "eslint": "^10.8.0",
     "eslint-config-prettier": "^10.1.8",
