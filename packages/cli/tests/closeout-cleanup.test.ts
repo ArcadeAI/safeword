@@ -650,6 +650,216 @@ describe('closeout cleanup guard (93C14D TBU1.R2/R3)', () => {
     }
   });
 
+  it('ignores Codex commentary appended by the turn running closeout', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'closeout-retro-turn-progress-'));
+    const id = 'codex-turn-progress';
+    const turnId = 'closeout-turn';
+    const transcript = nodePath.join(root, 'transcript.jsonl');
+    try {
+      spawnSync('git', ['init', '--quiet', root], { encoding: 'utf8' });
+      writeFileSync(
+        transcript,
+        `${[
+          JSON.stringify({ type: 'session_meta', payload: { id, cwd: root } }),
+          JSON.stringify({
+            type: 'response_item',
+            payload: {
+              type: 'custom_tool_call',
+              name: 'exec',
+              internal_chat_message_metadata_passthrough: { turn_id: turnId },
+            },
+          }),
+        ].join('\n')}\n`,
+      );
+      const binding = {
+        runtime: 'codex' as const,
+        id,
+        projectRoot: root,
+        transcriptPath: transcript,
+      };
+      let runs = 0;
+      const runner = () => {
+        runs += 1;
+        writeFileSync(
+          transcript,
+          `${[
+            JSON.stringify({ type: 'event_msg', payload: { type: 'token_count' } }),
+            JSON.stringify({
+              type: 'response_item',
+              payload: {
+                type: 'reasoning',
+                internal_chat_message_metadata_passthrough: { turn_id: turnId },
+              },
+            }),
+            JSON.stringify({
+              type: 'event_msg',
+              payload: {
+                type: 'agent_message',
+                message: 'Closeout is still running.',
+                phase: 'commentary',
+              },
+            }),
+            JSON.stringify({
+              type: 'response_item',
+              payload: {
+                type: 'message',
+                role: 'assistant',
+                phase: 'commentary',
+                content: [{ type: 'output_text', text: 'Closeout is still running.' }],
+                internal_chat_message_metadata_passthrough: { turn_id: turnId },
+              },
+            }),
+            JSON.stringify({
+              type: 'response_item',
+              payload: {
+                type: 'message',
+                role: 'developer',
+                internal_chat_message_metadata_passthrough: { turn_id: turnId },
+              },
+            }),
+          ].join('\n')}\n`,
+          { flag: 'a' },
+        );
+        return completedRetroResult();
+      };
+
+      expect(runBoundRetro(root, binding, runner).complete).toBe(true);
+      expect(runs).toBe(1);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('re-extracts differently attributed or unpaired Codex commentary', () => {
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'closeout-retro-other-turn-'));
+    const id = 'codex-other-turn';
+    const transcript = nodePath.join(root, 'transcript.jsonl');
+    try {
+      spawnSync('git', ['init', '--quiet', root], { encoding: 'utf8' });
+      writeFileSync(
+        transcript,
+        `${[
+          JSON.stringify({ type: 'session_meta', payload: { id, cwd: root } }),
+          JSON.stringify({
+            type: 'response_item',
+            payload: {
+              type: 'custom_tool_call',
+              name: 'exec',
+              internal_chat_message_metadata_passthrough: { turn_id: 'closeout-turn' },
+            },
+          }),
+        ].join('\n')}\n`,
+      );
+      const binding = {
+        runtime: 'codex' as const,
+        id,
+        projectRoot: root,
+        transcriptPath: transcript,
+      };
+      let runs = 0;
+      const runner = () => {
+        runs += 1;
+        if (runs === 1) {
+          writeFileSync(
+            transcript,
+            `${JSON.stringify({
+              type: 'response_item',
+              payload: {
+                type: 'message',
+                role: 'assistant',
+                phase: 'commentary',
+                content: [{ type: 'output_text', text: 'A later turn found something.' }],
+                internal_chat_message_metadata_passthrough: { turn_id: 'later-turn' },
+              },
+            })}\n`,
+            { flag: 'a' },
+          );
+        }
+        return completedRetroResult();
+      };
+
+      expect(runBoundRetro(root, binding, runner).complete).toBe(true);
+      expect(runs).toBe(2);
+
+      writeFileSync(
+        transcript,
+        `${JSON.stringify({
+          type: 'event_msg',
+          payload: {
+            type: 'agent_message',
+            message: 'An unpaired commentary event.',
+            phase: 'commentary',
+          },
+        })}\n`,
+        { flag: 'a' },
+      );
+      expect(runBoundRetro(root, binding, runner).complete).toBe(true);
+      expect(runs).toBe(3);
+
+      writeFileSync(
+        transcript,
+        `${JSON.stringify({
+          type: 'response_item',
+          payload: {
+            type: 'message',
+            role: 'assistant',
+            phase: 'commentary',
+            content: [{ type: 'output_text', text: 'An unpaired commentary response.' }],
+            internal_chat_message_metadata_passthrough: { turn_id: 'closeout-turn' },
+          },
+        })}\n`,
+        { flag: 'a' },
+      );
+      expect(runBoundRetro(root, binding, runner).complete).toBe(true);
+      expect(runs).toBe(4);
+
+      writeFileSync(
+        transcript,
+        `${JSON.stringify({
+          type: 'response_item',
+          payload: {
+            type: 'message',
+            role: 'user',
+            content: [{ type: 'input_text', text: 'Stop and preserve this finding.' }],
+            internal_chat_message_metadata_passthrough: { turn_id: 'closeout-turn' },
+          },
+        })}\n`,
+        { flag: 'a' },
+      );
+      expect(runBoundRetro(root, binding, runner).complete).toBe(true);
+      expect(runs).toBe(5);
+
+      writeFileSync(
+        transcript,
+        `${JSON.stringify({
+          type: 'response_item',
+          payload: {
+            type: 'message',
+            role: 'assistant',
+            phase: 'final_answer',
+            content: [{ type: 'output_text', text: 'A substantive closeout finding.' }],
+            internal_chat_message_metadata_passthrough: { turn_id: 'closeout-turn' },
+          },
+        })}\n`,
+        { flag: 'a' },
+      );
+      expect(runBoundRetro(root, binding, runner).complete).toBe(true);
+      expect(runs).toBe(6);
+
+      writeFileSync(transcript, `${JSON.stringify({ type: 'world_state', payload: {} })}\n`, {
+        flag: 'a',
+      });
+      expect(runBoundRetro(root, binding, runner).complete).toBe(true);
+      expect(runs).toBe(7);
+
+      writeFileSync(transcript, '{"type":"response_item"\n', { flag: 'a' });
+      expect(runBoundRetro(root, binding, runner).complete).toBe(true);
+      expect(runs).toBe(8);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it('derives the delta offset from the sealed UTF-16 prefix and defers a partial tail', () => {
     const root = mkdtempSync(nodePath.join(tmpdir(), 'closeout-retro-sealed-prefix-'));
     const id = 'claude-sealed-prefix';
