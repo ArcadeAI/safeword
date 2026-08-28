@@ -160,9 +160,9 @@ implementation-specific delta is the widened-source decision below.
 | Principle | Consequence | Proof | Conflict |
 | --- | --- | --- | --- |
 | Optimize for the NTB without constraining the TBU | Enrichment is invisible, optional, and requires no registration while exact evidence remains operator-readable | `features/retro-runtime-context.feature` | |
-| Structure enforces; instructions suggest | Collector closed validation enforces shape, required fields, vocabulary, and compatibility; the new producer enforces email exclusion and optional-value hygiene | Collector integration tests plus producer boundary tests | Released-client compatibility prevents retroactively enforcing the new hygiene rules at ingestion |
-| Fire at boundaries, not every turn | Context is derived once at the existing retro delivery boundary | `packages/cli/src/commands/retro.ts` | |
-| Correct and safe; then clear; then simple | Reuse one envelope, one store, one dedupe path, and the existing deadline instead of adding concurrency or another timer | `.project/tickets/XGQQT2-retro-runtime-context/design.md` | |
+| 1. Structure enforces; instructions suggest | Collector closed validation enforces shape, required fields, vocabulary, and compatibility; the new producer enforces email exclusion and optional-value hygiene | `packages/retro-collector/tests/public-retro.integration.test.ts` | |
+| 2. Fire at boundaries, not every turn | Context is derived once at the existing retro delivery boundary | `packages/cli/src/commands/retro.ts` | |
+| 5. Correct and safe; then clear; then simple | Reuse one envelope, one store, one dedupe path, and the existing deadline instead of adding concurrency or another timer | `features/retro-runtime-context.feature` | |
 
 This honors `ARCHITECTURE.md`'s published-CLI composition root, retro-domain
 ownership, private/public service separation, and durable retro relay boundary.
