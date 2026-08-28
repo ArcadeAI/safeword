@@ -106,7 +106,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Cursor cannot claim released legacy user identity
 
-- [x] RED 2a0ef084f
+- [x] RED skip: independent review supplied the failing cross-project characterization
 - [x] GREEN 2a0ef084f
 - [x] REFACTOR skip: the closed source validator reuses its existing harness-specific guard
 
@@ -272,9 +272,9 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A Cursor stash from another project keeps existing recovery behavior
 
-- [x] RED 2a0ef084f
+- [x] RED skip: independent review supplied the failing cross-project characterization
 - [x] GREEN 2a0ef084f
-- [x] REFACTOR 2a0ef084f
+- [x] REFACTOR skip: the route reuses the shared Cursor state-key contract
 
 ### Scenario: Collector rejection keeps existing recovery behavior
 
