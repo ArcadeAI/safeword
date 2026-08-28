@@ -995,6 +995,38 @@ describe('retro command configuration, extraction, egress, and relay execution',
     }
   });
 
+  it('preserves private filing when the public collector rejects the submission', async () => {
+    const attemptsDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-attempts-'));
+    const privateTransport = new FakeGitHub();
+    const publicTransport = vi.fn(() => Promise.reject(new Error('injected rejection')));
+    try {
+      const outcome = await runRetro(
+        { transcript: '/tmp/t.jsonl' },
+        dependencies({
+          publicRetro: {
+            attemptsDirectory,
+            now: () => 0,
+            randomUUID: () => 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+            source: {
+              harness: 'cursor',
+              hostClass: 'unknown',
+              projectUUID: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+              safewordCliVersion: '0.80.1',
+            },
+            transport: publicTransport,
+          },
+          transport: privateTransport,
+        }),
+      );
+
+      expect(outcome.ok).toBe(true);
+      expect(publicTransport).toHaveBeenCalledOnce();
+      expect(privateTransport.issues).toHaveLength(1);
+    } finally {
+      rmSync(attemptsDirectory, { force: true, recursive: true });
+    }
+  });
+
   it('does not attempt public delivery for multiple candidates', async () => {
     const publicTransport = vi.fn();
     await runRetro(

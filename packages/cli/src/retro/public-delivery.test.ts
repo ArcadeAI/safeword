@@ -3,7 +3,7 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   buildPublicRetroEnvelope,
@@ -273,6 +273,82 @@ describe('buildPublicRetroEnvelope', () => {
       expect(transportCalls).toBe(0);
       expect(readdirSync(attemptsDirectory)).toEqual([]);
     } finally {
+      rmSync(attemptsDirectory, { recursive: true, force: true });
+    }
+  });
+
+  it('contains a collector connection failure without retrying', async () => {
+    const attemptsDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-public-retro-'));
+    const transport = vi.fn(() => Promise.reject(new Error('injected connection failure')));
+    try {
+      const outcome = await deliverSanitizedPublicRetroFinding(
+        {
+          finding: {
+            category: 'bug',
+            title: 'Connection failure fixture',
+            safewordSurface: 'packages/cli/src/retro/public-delivery.ts',
+            whatHappened: 'The collector connection failed.',
+            whyFriction: 'Public delivery must not disrupt private recovery.',
+            repro: 'Reject the injected transport.',
+          },
+          source: requiredInput.source,
+          sessionId: requiredInput.sessionId,
+        },
+        {
+          attemptsDirectory,
+          now: () => 0,
+          randomUUID: () => '01911111-2222-7333-8444-55555555555a',
+          transport,
+        },
+        1000,
+      );
+
+      expect(outcome).toBe('abandoned');
+      expect(transport).toHaveBeenCalledOnce();
+    } finally {
+      rmSync(attemptsDirectory, { recursive: true, force: true });
+    }
+  });
+
+  it('abandons a collector handoff at the existing deadline without retrying', async () => {
+    vi.useFakeTimers();
+    const attemptsDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-public-retro-'));
+    const transport = vi.fn(
+      (_request: PublicRetroHttpRequest, signal?: AbortSignal) =>
+        new Promise<never>((_resolve, reject) => {
+          signal?.addEventListener('abort', () => {
+            reject(new Error('injected handoff timeout'));
+          });
+        }),
+    );
+    try {
+      const delivery = deliverSanitizedPublicRetroFinding(
+        {
+          finding: {
+            category: 'bug',
+            title: 'Handoff timeout fixture',
+            safewordSurface: 'packages/cli/src/retro/public-delivery.ts',
+            whatHappened: 'The collector held the request open.',
+            whyFriction: 'Public delivery must remain bounded.',
+            repro: 'Hold the injected transport open.',
+          },
+          source: requiredInput.source,
+          sessionId: requiredInput.sessionId,
+        },
+        {
+          attemptsDirectory,
+          now: () => 0,
+          randomUUID: () => '01911111-2222-7333-8444-55555555555a',
+          transport,
+        },
+        1000,
+      );
+
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(await delivery).toBe('abandoned');
+      expect(transport).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
       rmSync(attemptsDirectory, { recursive: true, force: true });
     }
   });
