@@ -2,13 +2,14 @@
 id: XGQQT2
 slug: retro-runtime-context
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 phase_anchors:
   - 'define-behavior: .project/tickets/XGQQT2-retro-runtime-context/spec.md'
   - 'scenario-gate: features/retro-runtime-context.feature'
   - 'plan-implementation: .project/tickets/XGQQT2-retro-runtime-context/impl-plan.md'
   - 'verify: .project/tickets/XGQQT2-retro-runtime-context/test-definitions.md'
+  - 'done: .project/tickets/XGQQT2-retro-runtime-context/verify.md'
 external_issue: https://github.com/ArcadeAI/safeword/issues/3429
 scope:
   - Widen the existing v1 public-retro source authority for Cursor and honest unknown execution class while preserving released submissions
