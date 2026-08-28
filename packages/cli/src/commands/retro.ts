@@ -1223,9 +1223,11 @@ export function resolvePublicRetroRoute(input: {
   enabled: boolean;
   environment: NodeJS.ProcessEnv;
   projectDirectory: string;
+  sessionId?: string;
 }): NonNullable<RetroDependencies['publicRetro']> | undefined {
   if (
     !input.enabled ||
+    (input.agent === 'cursor' && !input.sessionId?.trim()) ||
     (input.agent === 'claude' && input.environment.CLAUDE_CODE_REMOTE_SESSION_ID !== undefined)
   ) {
     return undefined;
@@ -1281,6 +1283,7 @@ async function executeRetroCliCommand(
     enabled: options.publicRetro === true,
     environment: process.env,
     projectDirectory,
+    sessionId: options.sessionId,
   });
 
   const outcome = await executeRetroWithDependencies(options, {
