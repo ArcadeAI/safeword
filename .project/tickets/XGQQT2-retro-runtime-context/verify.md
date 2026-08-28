@@ -30,4 +30,5 @@ Full evidence recorded on 2026-08-28:
 - `bun run test`: relay 186 passed/1 skipped, collector 91 passed, CLI 8647 passed/13 skipped.
 - `bun run test:bdd`: 1483 passed/3 skipped scenarios and 68144 passed/4 skipped steps; proof ledger 35/35 passed.
 - `bun run lint`, `bun run typecheck`, parity, Codex-plugin generation check, and lifecycle origin-main fixtures passed.
+- After independent review, the Cursor environment-isolation regression suite passed 95/95 and lint/typecheck remained green.
 - Refactor scout found no remaining behavior-preserving structural change that would reduce complexity without weakening the explicit recovery and trust boundaries.
