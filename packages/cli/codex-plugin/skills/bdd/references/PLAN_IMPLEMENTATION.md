@@ -127,10 +127,10 @@ findings remain. Return findings through the typed reviewer result contract.
 
 ## Exit: review, then (optionally) the user
 
-1. **Independent review first.** At review time, run `bunx --bun safeword@0.80.1 project review-knowledge --json`. Resolve a review-capable Safeword CLI, then invoke the coordinator with the current files identified by the resolver:
+1. **Independent review first.** At review time, run `bunx --bun safeword@0.81.0 project review-knowledge --json`. Resolve a review-capable Safeword CLI, then invoke the coordinator with the current files identified by the resolver:
 
    ```bash
-   SAFEWORD_REVIEW_PROGRESS=1 bunx --bun safeword@0.80.1 review run plan-implementation --agent-handoff --json --context spec.md ticket.md feature-file principles-file personas-file surfaces-file architecture-records -- impl-plan.md
+   SAFEWORD_REVIEW_PROGRESS=1 bunx --bun safeword@0.81.0 review run plan-implementation --agent-handoff --json --context spec.md ticket.md feature-file principles-file personas-file surfaces-file architecture-records -- impl-plan.md
    ```
 
    The shared coordinator sends that bounded packet to the opposite headless agent when available; its typed verdict, failure classification, and independence level are authoritative. `impl-plan.md` is the work under review; all resolved feature and project artifacts are bounded context. Only when that typed result is `REVIEW_ROUTES_EXHAUSTED`, invoke `$safeword:finish-review` immediately with the original result and the same accepted targets; return every other result unchanged and do not substitute another private subagent. Fix findings, re-resolve the sources, re-review, then stamp the exit with the returned agent provenance (`write-review-stamp.ts --author-agent "author-agent" --reviewer-agent "actual-reviewer" --independence "independence" --phase plan-implementation`, where the review gate is enabled). Add `--model` only when the executed reviewer reports a verifiable model identifier; the coordinator never invents one. Human handoff happens **only after** this review passes — raw planning output is never presented for approval. Exception, any time: information only the user has (intent, priorities, constraints not in code or docs) routes to the user the moment the gap appears — `$safeword:elicit`.
