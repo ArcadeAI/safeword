@@ -199,9 +199,9 @@ Ask the user: **Do these scenarios now fully cover the intended behavior and imp
 2. Adversarial pass + cross-cutting checks complete, including coverage reconciliation and the proof-claim challenge; findings presented in the findings format (or confirmed clean)
 3. The approved terminal result's provenance is recorded in the `scenario-gate` review stamp; a pending, failed, stale, rejected, or unstamped review cannot exit.
 4. **Check for one build-only kill-risk.** Run this checkpoint only here, after
-   items 1–3 pass — never during intake, define-behavior, or while scenario
-   validation is incomplete. While items 1–3 are incomplete, remain in
-   `scenario-gate`. An eligible risk is one that documentation and
+   scenario validation is complete — never during intake or define-behavior.
+   Until scenario validation is complete, remain in `scenario-gate`. An
+   eligible risk is one that documentation and
    repository code cannot settle, whose failure would materially change the
    plan, and that a bounded executable proof can answer. If one exists, offer
    `/spike` as the next action. Remain in `scenario-gate`; do not set or advance

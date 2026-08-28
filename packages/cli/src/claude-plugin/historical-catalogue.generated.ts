@@ -16,9 +16,9 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/bdd/PLAN_IMPLEMENTATION.md':
         '8ed89fca82f6e71b77351674f12d5d7c1380574e326e05ca1912caf84ff4ff9b',
       '.claude/skills/bdd/SCENARIOS.md':
-        'c808d4c8455f8f6248f85e2d2403e881bdab83e0ac19e8c3dd9c28fb9c2ee8f4',
+        'a79590a8dcd8c6377f92e2ec0c26d5479f28e16e53291348f86f59b73381a19e',
       '.claude/skills/bdd/SKILL.md':
-        'df9f7927be3289f3ffb0444d49ae25fe601ce33b9661f7a809f74dff8da40ff0',
+        '81bfcf97e429b442e3708b50a692a194d31b907289febc4201471afcab7e4b9c',
       '.claude/skills/bdd/SPLITTING.md':
         'e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708',
       '.claude/skills/bdd/TDD.md':
@@ -54,7 +54,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/retro/SKILL.md':
         '87c1a32d0719bfe6ecbb02a0324a6eddd436be2d398e331bb5db53bac7b88363',
       '.claude/skills/review-spec/SKILL.md':
-        'ee3d3cf1c548e67dfcfb58f55c2d667fee7466b1f0ab6cad050c67c1b940fe33',
+        'f423a45667d626840d3ff3e7c84dc51862fb563df74aacf6a730c0e730bf1bfc',
       '.claude/skills/self-review/SKILL.md':
         'e5ff994ec84573e6f129127bad89617f0a67b67c5cf792cedac558b6e419ac3b',
       '.claude/skills/spike/SKILL.md':
@@ -96,7 +96,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/pre-tool-stale-main.ts':
         'cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e',
       '.safeword/hooks/prompt-questions.ts':
-        '57182cccb8550bb2b585c27672bc9bfef56f4688d0afc1afc18bf52661b7c2a6',
+        '0d141bff2d063a61e4c1c8833d6219ceadabde861de1d23a68f2cf36e932c462',
       '.safeword/hooks/prompt-retro-nudge.ts':
         '78353d6f47adb0ed9969e83b40429d5792a98789dff67ec0bc4d5a024b1da457',
       '.safeword/hooks/prompt-timestamp.ts':
