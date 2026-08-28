@@ -45,7 +45,6 @@ describe('buildPublicRetroEnvelope', () => {
       finding: 'fixture finding',
       sessionId: 'session-fixture-42',
       source: {
-        userIdentity: 'fixture@example.test',
         osFamily: 'macos',
         safewordPluginVersion: '0.78.8',
         model: 'fixture-model',
@@ -59,15 +58,15 @@ describe('buildPublicRetroEnvelope', () => {
     });
 
     const expected =
-      '{"version":"v1","finding":"fixture finding","source":{"harness":"claude-code","hostClass":"local","projectUUID":"018f0f2e-abcd-7def-8abc-def012345678","safewordCliVersion":"0.78.8","repository":"github.com/arcadeai/safeword","agentVersion":"1.2.3","model":"fixture-model","safewordPluginVersion":"0.78.8","osFamily":"macos","userIdentity":"fixture@example.test"},"sessionScope":"724a847e56e94bd49967250b1b27444314f1e479700c1751c3723d9852e6bee0"}';
+      '{"version":"v1","finding":"fixture finding","source":{"harness":"claude-code","hostClass":"local","projectUUID":"018f0f2e-abcd-7def-8abc-def012345678","safewordCliVersion":"0.78.8","repository":"github.com/arcadeai/safeword","agentVersion":"1.2.3","model":"fixture-model","safewordPluginVersion":"0.78.8","osFamily":"macos"},"sessionScope":"724a847e56e94bd49967250b1b27444314f1e479700c1751c3723d9852e6bee0"}';
 
     expect(new TextDecoder().decode(built.bytes)).toBe(expected);
     expect(built.sessionScope).toBe(
       '724a847e56e94bd49967250b1b27444314f1e479700c1751c3723d9852e6bee0',
     );
-    expect(built.bytes.byteLength).toBe(445);
+    expect(built.bytes.byteLength).toBe(407);
     expect(createHash('sha256').update(built.bytes).digest('hex')).toBe(
-      'a6701f5fea50ec66e811833d67ff2b51fc8ea3808d9562005690c49ff07cd2df',
+      '2c387f5e86acf11f4005e23ccfc7097247ae16965b6b34a21999f0199e2ce99b',
     );
   });
 
@@ -82,7 +81,6 @@ describe('buildPublicRetroEnvelope', () => {
       'model',
       'safewordPluginVersion',
       'osFamily',
-      'userIdentity',
     ] as const;
 
     for (const field of fields) {

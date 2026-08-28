@@ -329,40 +329,12 @@ export async function runRetro(
     dependencies.publicRetro === undefined ? undefined : dependencies.publicRetro.now() + 1000;
   const { encounters, drops, findings } = await prepareEncounters(rawFindings);
   const publicFinding = findings.length === 1 ? findings[0] : undefined;
-
-  if (
-    dependencies.publicRetro !== undefined &&
-    publicPreparationDeadline !== undefined &&
-    rawFindings.length === 1 &&
-    publicFinding !== undefined
-  ) {
-    await deliverSanitizedPublicRetroFinding(
-      {
-        finding: publicFinding,
-        sessionId: dependencies.sessionId,
-        source: dependencies.publicRetro.source,
-      },
-      dependencies.publicRetro,
-      publicPreparationDeadline,
-    );
-  }
-
-  // Cloud-filing spool (BNGK9W): persist the post-egress drafts BEFORE filing so a
-  // REST auth failure (cloud #568) can't lose them. Opt-in via projectDirectory.
-  const { projectDirectory, sessionId } = dependencies;
+  const { projectDirectory, publicRetro, sessionId } = dependencies;
   const relay = dependencies.relay;
-  if (relay?.readiness.enabled === true && projectDirectory !== undefined) {
-    const sourceSession =
-      sessionId.trim().length === 0 || sessionId === 'unknown' ? options.transcript : sessionId;
-    return runRelayRetro(
-      encounters,
-      drops,
-      { session: sourceSession, windowStart: options.windowStart ?? 0 },
-      projectDirectory,
-      relay,
-    );
-  }
-  if (projectDirectory !== undefined) {
+
+  // Preserve private recovery before the best-effort public handoff. A process
+  // interruption during that network attempt must not lose the durable draft.
+  if (projectDirectory !== undefined && relay?.readiness.enabled !== true) {
     const drafts = encounters.map(encounter => encounter.draft);
     recordRetroDebugEvent({
       event: 'retro_cli_spool',
@@ -374,6 +346,36 @@ export async function runRetro(
     spoolDrafts(projectDirectory, sessionId, drafts);
   }
 
+  if (
+    publicRetro !== undefined &&
+    publicPreparationDeadline !== undefined &&
+    rawFindings.length === 1 &&
+    publicFinding !== undefined
+  ) {
+    await deliverSanitizedPublicRetroFinding(
+      {
+        finding: publicFinding,
+        sessionId,
+        source: publicRetro.source,
+      },
+      publicRetro,
+      publicPreparationDeadline,
+    );
+  }
+
+  // Cloud-filing spool (BNGK9W): persist the post-egress drafts BEFORE filing so a
+  // REST auth failure (cloud #568) can't lose them. Opt-in via projectDirectory.
+  if (relay?.readiness.enabled === true && projectDirectory !== undefined) {
+    const sourceSession =
+      sessionId.trim().length === 0 || sessionId === 'unknown' ? options.transcript : sessionId;
+    return runRelayRetro(
+      encounters,
+      drops,
+      { session: sourceSession, windowStart: options.windowStart ?? 0 },
+      projectDirectory,
+      relay,
+    );
+  }
   const provenance = dependencies.resolveProvenance?.();
   const result = await triage(dependencies.transport, encounters, {
     sessionId,
@@ -1206,16 +1208,32 @@ function publicRuntimeMetadata(
   if (harness === 'cursor') return {};
   if (harness === 'codex') {
     return {
-      agentVersion: environment.CODEX_VERSION,
-      model: environment.CODEX_MODEL,
+      agentVersion: publicRuntimeSignal(environment.CODEX_VERSION),
+      model: publicRuntimeSignal(environment.CODEX_MODEL),
       pluginVersion: VERSION,
     };
   }
   return {
-    agentVersion: environment.CLAUDE_CODE_VERSION,
-    model: environment.ANTHROPIC_MODEL,
+    agentVersion: publicRuntimeSignal(environment.CLAUDE_CODE_VERSION),
+    model: publicRuntimeSignal(environment.ANTHROPIC_MODEL),
     pluginVersion: VERSION,
   };
+}
+
+function publicRuntimeSignal(value: string | undefined): string | undefined {
+  const normalized = value?.trim();
+  if (
+    normalized === undefined ||
+    normalized === '' ||
+    normalized.toLowerCase().startsWith('arn:') ||
+    normalized.includes('://') ||
+    normalized.includes('@') ||
+    normalized.includes('/') ||
+    normalized.includes('\\')
+  ) {
+    return undefined;
+  }
+  return normalized;
 }
 
 export function resolvePublicRetroRoute(input: {
@@ -1237,7 +1255,6 @@ export function resolvePublicRetroRoute(input: {
   const source = buildPublicRetroSource(input.projectDirectory, {
     ...publicRuntimeMetadata(harness, input.environment),
     cliVersion: VERSION,
-    environment: input.environment,
     harness,
     osFamily: platform(),
   });

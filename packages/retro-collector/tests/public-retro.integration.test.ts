@@ -30,6 +30,9 @@ function fixtureEnvelope(): Record<string, unknown> {
   };
 }
 
+const RELEASED_V0796_ENVELOPE =
+  '{"version":"v1","finding":"released fixture finding","source":{"harness":"claude-code","hostClass":"local","projectUUID":"018f0f2e-abcd-7def-8abc-def012345678","safewordCliVersion":"0.79.6","repository":"github.com/arcadeai/safeword","agentVersion":"1.2.3","model":"claude-fixture","safewordPluginVersion":"0.79.6","osFamily":"darwin","userIdentity":"legacy-user-fixture"},"sessionScope":"6666666666666666666666666666666666666666666666666666666666666666"}';
+
 function fixtureRequest(): { body: Uint8Array; requestId: string } {
   return {
     body: new TextEncoder().encode(JSON.stringify(fixtureEnvelope())),
@@ -123,6 +126,47 @@ it('returns byte-identical quarantine bytes to an authorized operator', async ()
   expect(inspected.status).toBe(200);
   expect(inspected.headers.get('x-safeword-receipt')).toBe(receipt);
   expect(inspectedBody).toEqual(request.body);
+});
+
+it('accepts the released v0.79.6 envelope and returns its bytes unchanged', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+    operatorCredential: 'operator-fixture-credential',
+  });
+  const body = new TextEncoder().encode(RELEASED_V0796_ENVELOPE);
+  const accepted = await submit(runtime.url, {
+    body,
+    requestId: '01911111-2222-7333-8444-55555555555b',
+  });
+  const { receipt } = (await accepted.json()) as { receipt: string };
+  const inspected = await fetch(`${runtime.url}/v1/public-retros/${receipt}`, {
+    headers: { authorization: 'Bearer operator-fixture-credential' },
+  });
+  const inspectedBody = new Uint8Array(await inspected.arrayBuffer());
+  await runtime.close();
+
+  expect(accepted.status).toBe(201);
+  expect(inspected.status).toBe(200);
+  expect(inspectedBody).toEqual(body);
+});
+
+it('accepts released local classification with legacy user identity', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+  });
+  const body = new TextEncoder().encode(RELEASED_V0796_ENVELOPE);
+
+  const response = await submit(runtime.url, {
+    body,
+    requestId: '01911111-2222-7333-8444-55555555555c',
+  });
+  await runtime.close();
+
+  expect(response.status).toBe(201);
 });
 
 it.each([

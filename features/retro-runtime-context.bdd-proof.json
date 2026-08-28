@@ -55,11 +55,17 @@
     ],
     "A released v0.79.6 envelope remains byte-identical": [
       "packages/retro-collector/tests/public-retro.integration.test.ts",
-      "returns byte-identical quarantine bytes to an authorized operator"
+      "accepts the released v0.79.6 envelope and returns its bytes unchanged"
     ],
     "Released local host classification remains accepted": [
-      "packages/retro-collector/tests/public-retro.integration.test.ts",
-      "accepts the %s/%s source compatibility row"
+      [
+        "packages/retro-collector/tests/public-retro.integration.test.ts",
+        "accepts released local classification with legacy user identity"
+      ],
+      [
+        "packages/retro-collector/tests/public-retro.integration.test.ts",
+        "accepts the %s/%s source compatibility row"
+      ]
     ],
     "Cursor cannot claim the released-client local classification": [
       "packages/retro-collector/tests/public-retro.integration.test.ts",
@@ -102,8 +108,8 @@
       "does not let semantic JSON equivalence override accepted raw bytes"
     ],
     "A current envelope round-trips through the real collector": [
-      "packages/retro-collector/tests/public-retro.integration.test.ts",
-      "converges concurrent first submissions on one receipt"
+      "packages/cli/tests/integration/public-retro-lifecycle.test.ts",
+      "round-trips a current CLI envelope through the real collector unchanged"
     ],
     "Available approved facts form the complete current source profile": [
       "packages/cli/src/retro/public-delivery.test.ts",
@@ -142,12 +148,12 @@
       "keeps public delivery disabled when project identity is %s"
     ],
     "Context discovery failure cannot disrupt retro delivery": [
-      "packages/cli/src/retro/public-source.test.ts",
-      "omits Git email when a consulted config delegates through an include"
+      "packages/cli/tests/commands/retro.test.ts",
+      "delivers required runtime context when Git discovery fails"
     ],
-    "One enrichment failure preserves the other optional context": [
-      "packages/cli/src/retro/public-source.test.ts",
-      "omits Git email when delegation is written beside its section header"
+    "One unavailable enrichment preserves the other optional context": [
+      "packages/cli/tests/commands/retro.test.ts",
+      "preserves independent enrichment when model context is unavailable"
     ],
     "Disabled Cursor public retros do not disclose runtime context": [
       "packages/cli/src/retro/public-source.test.ts",

@@ -4,24 +4,42 @@ import nodePath from 'node:path';
 import { readEnabledPublicRetroProject } from './public-config.js';
 import type { PublicRetroSource } from './public-delivery.js';
 
-const SCP_REMOTE = /^[^@\s/]+@([^:\s/]+):(.+)$/u;
 const ALLOWED_PROTOCOLS = new Set(['git:', 'https:', 'ssh:']);
 
 function repoIdentity(hostname: string, rawPath: string): string | undefined {
-  let path = rawPath;
-  while (path.startsWith('/')) path = path.slice(1);
-  while (path.endsWith('/')) path = path.slice(0, -1);
-  if (path.toLowerCase().endsWith('.git')) path = path.slice(0, -4);
+  const path = normalizedRepoPath(rawPath);
   if (hostname === '' || path === '' || /\s/u.test(path)) return undefined;
+  if (path.split('/').filter(Boolean).length !== 2) return undefined;
   const normalizedHost = hostname.toLowerCase();
   if (normalizedHost !== 'github.com' && normalizedHost !== 'gitlab.com') return undefined;
   return `${normalizedHost}/${normalizedHost === 'github.com' ? path.toLowerCase() : path}`;
 }
 
+function normalizedRepoPath(rawPath: string): string {
+  let start = 0;
+  let end = rawPath.length;
+  while (rawPath[start] === '/') start += 1;
+  while (end > start && rawPath[end - 1] === '/') end -= 1;
+  let path = rawPath.slice(start, end);
+  if (path.toLowerCase().endsWith('.git')) path = path.slice(0, -4);
+  return path;
+}
+
+function parseScpRemote(remote: string): readonly [string, string] | undefined {
+  const separator = remote.indexOf(':');
+  if (separator <= 0) return undefined;
+  const authority = remote.slice(0, separator);
+  const path = remote.slice(separator + 1);
+  const at = authority.lastIndexOf('@');
+  const hostname = authority.slice(at + 1);
+  if (hostname === '' || path === '' || /[\s/]/u.test(authority)) return undefined;
+  return [hostname, path];
+}
+
 export function normalizeRepoRemote(remote: string): string | undefined {
   if (!remote.includes('://')) {
-    const scp = SCP_REMOTE.exec(remote);
-    if (scp) return repoIdentity(scp[1] ?? '', scp[2] ?? '');
+    const scp = parseScpRemote(remote);
+    if (scp) return repoIdentity(...scp);
   }
   if (/\s/u.test(remote)) return undefined;
   try {
@@ -40,12 +58,10 @@ export interface PublicGitContext {
 export interface PublicRetroSourceOptions {
   agentVersion?: string;
   cliVersion: string;
-  environment?: Readonly<Record<string, string | undefined>>;
   harness: PublicRetroSource['harness'];
   model?: string;
   osFamily: string;
   pluginVersion?: string;
-  runtimeIdentity?: string;
 }
 
 function optionalValue(value: string | undefined): string | undefined {
@@ -59,7 +75,7 @@ export function buildPublicRetroSource(
 ): PublicRetroSource | undefined {
   const project = readEnabledPublicRetroProject(cwd);
   if (project === undefined) return undefined;
-  const git = collectPublicGitContext(cwd, { environment: options.environment });
+  const git = collectPublicGitContext(cwd);
   return {
     harness: options.harness,
     hostClass: 'unknown',
@@ -115,7 +131,7 @@ function trustedConfigFile(path: string): string {
 
 function parseRepoGitConfig(content: string): {
   remote?: string;
-  delegatesIdentity: boolean;
+  delegatesConfig: boolean;
 } {
   let section = '';
   let remote: string | undefined;
@@ -133,11 +149,11 @@ function parseRepoGitConfig(content: string): {
   }
   return {
     ...(remote !== undefined && { remote }),
-    delegatesIdentity: hasIdentityDelegate(content),
+    delegatesConfig: hasConfigDelegate(content),
   };
 }
 
-function hasIdentityDelegate(content: string): boolean {
+function hasConfigDelegate(content: string): boolean {
   return content.split(/\r?\n/u).some(rawLine => {
     const section = parseGitSection(rawLine.trim());
     return section === 'include' || section?.startsWith('includeif ') === true;
@@ -146,9 +162,28 @@ function hasIdentityDelegate(content: string): boolean {
 
 function parseGitSection(line: string): string | undefined {
   const end = line.indexOf(']');
-  return line.startsWith('[') && end !== -1
-    ? line.slice(1, end).toLowerCase().split(/\s/u).filter(Boolean).join(' ')
-    : undefined;
+  if (!line.startsWith('[') || end === -1) return undefined;
+  const declaration = line.slice(1, end).trim();
+  let separator = -1;
+  let offset = 0;
+  for (const character of declaration) {
+    if (character.trim() === '') {
+      separator = offset;
+      break;
+    }
+    offset += character.length;
+  }
+  if (separator === -1) return declaration.toLowerCase();
+  const section = declaration.slice(0, separator).toLowerCase();
+  const quotedSubsection = declaration.slice(separator).trim();
+  if (
+    !quotedSubsection.startsWith('"') ||
+    !quotedSubsection.endsWith('"') ||
+    quotedSubsection.slice(1, -1).includes('"')
+  ) {
+    return undefined;
+  }
+  return `${section} ${quotedSubsection}`;
 }
 
 function parseGitEntry(line: string): readonly [string, string] | undefined {
@@ -176,18 +211,10 @@ function stripGitComment(value: string): string {
   return (comment === -1 ? value : value.slice(0, comment)).trim();
 }
 
-export interface PublicGitContextOptions {
-  environment?: Readonly<Record<string, string | undefined>>;
-  homeDirectory?: string;
-}
-
-export function collectPublicGitContext(
-  cwd: string,
-  _options: PublicGitContextOptions = {},
-): PublicGitContext {
+export function collectPublicGitContext(cwd: string): PublicGitContext {
   try {
     const config = parseRepoGitConfig(readFileSync(repoGitConfigPath(cwd), 'utf8'));
-    if (config.delegatesIdentity) return {};
+    if (config.delegatesConfig) return {};
     const repo = config.remote === undefined ? undefined : normalizeRepoRemote(config.remote);
     return { ...(repo !== undefined && { repository: repo }) };
   } catch {

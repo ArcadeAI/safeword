@@ -14,7 +14,6 @@ export interface PublicRetroSource {
   model?: string;
   safewordPluginVersion?: string;
   osFamily?: string;
-  userIdentity?: string;
 }
 
 export interface PublicRetroEnvelopeInput {
@@ -128,28 +127,32 @@ export function buildPublicRetroEnvelope(
     throw new Error('Invalid public retrospective input');
   }
 
+  const normalizedOptional = {
+    repository: optionalValue(input.source.repository),
+    agentVersion: optionalValue(input.source.agentVersion),
+    model: optionalValue(input.source.model),
+    safewordPluginVersion: optionalValue(input.source.safewordPluginVersion),
+    osFamily: optionalValue(input.source.osFamily),
+  };
   const source: PublicRetroSource = {
     harness: input.source.harness,
     hostClass: input.source.hostClass,
     projectUUID,
     safewordCliVersion: input.source.safewordCliVersion,
-    ...(optionalValue(input.source.repository) !== undefined && {
-      repository: optionalValue(input.source.repository),
+    ...(normalizedOptional.repository !== undefined && {
+      repository: normalizedOptional.repository,
     }),
-    ...(optionalValue(input.source.agentVersion) !== undefined && {
-      agentVersion: optionalValue(input.source.agentVersion),
+    ...(normalizedOptional.agentVersion !== undefined && {
+      agentVersion: normalizedOptional.agentVersion,
     }),
-    ...(optionalValue(input.source.model) !== undefined && {
-      model: optionalValue(input.source.model),
+    ...(normalizedOptional.model !== undefined && {
+      model: normalizedOptional.model,
     }),
-    ...(optionalValue(input.source.safewordPluginVersion) !== undefined && {
-      safewordPluginVersion: optionalValue(input.source.safewordPluginVersion),
+    ...(normalizedOptional.safewordPluginVersion !== undefined && {
+      safewordPluginVersion: normalizedOptional.safewordPluginVersion,
     }),
-    ...(optionalValue(input.source.osFamily) !== undefined && {
-      osFamily: optionalValue(input.source.osFamily),
-    }),
-    ...(optionalValue(input.source.userIdentity) !== undefined && {
-      userIdentity: optionalValue(input.source.userIdentity),
+    ...(normalizedOptional.osFamily !== undefined && {
+      osFamily: normalizedOptional.osFamily,
     }),
   };
   const scope = deriveSessionScope(source.harness, projectUUID, input.sessionId);

@@ -16,6 +16,7 @@ import { afterEach, expect, it } from 'vitest';
 
 import { startPublicRetroCollector } from '../../../retro-collector/src/index.js';
 import { PublicRetroStore } from '../../../retro-collector/src/store.js';
+import { buildPublicRetroEnvelope } from '../../src/retro/public-delivery.js';
 
 const ROOT = path.resolve(import.meta.dirname, '../../../..');
 const CLI_PACKAGE = path.join(ROOT, 'packages/cli');
@@ -90,6 +91,48 @@ function runHook(
     child.stdin.end(input);
   });
 }
+
+it('round-trips a current CLI envelope through the real collector unchanged', async () => {
+  const project = mkdtempSync(path.join(tmpdir(), 'public-retro-round-trip-'));
+  temporaryDirectories.push(project);
+  const collector = await startPublicRetroCollector({
+    databasePath: path.join(project, 'collector.sqlite'),
+    operatorCredential: 'operator-fixture-credential',
+  });
+  const prepared = buildPublicRetroEnvelope({
+    finding: 'current fixture finding',
+    sessionId: 'current-session-fixture',
+    source: {
+      harness: 'codex',
+      hostClass: 'unknown',
+      projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+      safewordCliVersion: '0.80.1',
+      repository: 'github.com/arcadeai/safeword',
+      agentVersion: 'agent-1.2.3',
+      model: 'm'.repeat(256),
+      osFamily: 'darwin',
+    },
+  });
+
+  const accepted = await fetch(`${collector.url}/v1/public-retros`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json; charset=utf-8',
+      'x-safeword-request-id': '01911111-2222-7333-8444-55555555555d',
+    },
+    body: prepared.bytes,
+  });
+  const { receipt } = (await accepted.json()) as { receipt: string };
+  const inspected = await fetch(`${collector.url}/v1/public-retros/${receipt}`, {
+    headers: { authorization: 'Bearer operator-fixture-credential' },
+  });
+  const inspectedBody = new Uint8Array(await inspected.arrayBuffer());
+  await collector.close();
+
+  expect(accepted.status).toBe(201);
+  expect(inspected.status).toBe(200);
+  expect(inspectedBody).toEqual(prepared.bytes);
+});
 
 it.each([
   ['claude-code', completedClaudeTranscript],

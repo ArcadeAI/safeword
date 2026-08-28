@@ -335,19 +335,18 @@ Feature: Attach useful runtime context to retros without signup
         | "not-a-uuid"   |
 
     Scenario: Context discovery failure cannot disrupt retro delivery
-      Given a sanitized retrospective with every required source fact and a runnable public route, and all optional-enrichment readers fail
+      Given a sanitized Cursor retrospective with a runnable public route and repository discovery fails
       When the existing retro CLI delivery boundary runs
-      Then exactly one public retrospective is accepted whose source contains exactly harness, host class, project identity, and SafeWord CLI version
-      And the command exits successfully with empty stdout and stderr
-      And the injected timer, worker, and retry-boundary recorders are empty for retro preparation
+      Then exactly one public retrospective is accepted with required source facts and no repository, model, or agent version
+      And existing private recovery still completes successfully
 
-    Scenario: One enrichment failure preserves the other optional context
-      Given a sanitized retrospective with every required source fact and a runnable public route whose model reader fails
+    Scenario: One unavailable enrichment preserves the other optional context
+      Given a sanitized retrospective with every required source fact and a runnable public route whose model signal is unavailable
       And repository "github.com/arcadeai/safeword", agent version "agent-1.2.3", and operating-system family "darwin" are available
       When the existing retro CLI delivery boundary runs
       Then exactly one public retrospective is accepted without model
       And repository remains "github.com/arcadeai/safeword", agent version remains "agent-1.2.3", and operating-system family remains "darwin"
-      And the command exits successfully with empty stdout and stderr
+      And existing private recovery still completes successfully
 
     Scenario: Disabled Cursor public retros do not disclose runtime context
       Given a sanitized Cursor retrospective with every required source fact and a runnable public carrier whose approved runtime facts contain distinct sentinels

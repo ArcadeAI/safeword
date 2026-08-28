@@ -121,7 +121,7 @@ event stream.
 - `sessionScope` remains derived only from harness, project UUID, and session ID. Runtime metadata never changes duplicate identity.
 - The local exclusive session claim suppresses a second attempt before the collector; the first canonical snapshot wins unchanged. Collector request/session constraints remain defense in depth, not a second metadata authority.
 - The existing `retro run` CLI remains the single submission boundary. Every new producer reports `hostClass: "unknown"`. Existing `CLAUDE_CODE_REMOTE_SESSION_ID` evidence continues to deny Claude delivery; it does not suppress Codex or Cursor. A missing Cursor conversation identity or runtime with no runnable public carrier keeps the existing recovery behavior—retro capture itself remains nonblocking and silent.
-- Optional enrichment uses only subprocess-free synchronous local reads inside the existing preparation flow. Each failed reader omits only its own value. No second deadline, retry, backoff, worker, or background task is added.
+- Optional enrichment uses only subprocess-free synchronous local reads inside the existing preparation flow. Each unavailable or failed input omits only its own value. Private recovery is persisted before the public attempt; that attempt uses one two-second abort timer and adds no retry, backoff, worker, or background task.
 
 ## Open Questions
 

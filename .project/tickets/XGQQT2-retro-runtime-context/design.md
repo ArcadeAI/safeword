@@ -140,12 +140,11 @@ spawning `git`, following only the existing backlink-verified `.git` file
 relationship for linked worktrees. Hostile, delegated, and unsupported Git
 config shapes and non-allowlisted Git hosts omit repository. The producer's
 public-host allowlist is `github.com` and `gitlab.com`. Optional enrichment stays inside the existing
-preparation flow; no second deadline is introduced and existing recovery
-semantics remain unchanged.
+preparation flow. Private recovery is persisted before the public attempt, which
+uses one two-second abort timer inside the existing overall retro boundary.
 
 **Error handling:** Each optional reader fails closed by omitting only its own
-field. No metadata-specific logging, retry, timer, worker, or background task is
-added.
+field. No metadata-specific logging, retry, worker, or background task is added.
 
 **Gotchas:** Cursor has no supported version/model signal today, so both remain
 absent; Cursor also has no separate SafeWord plugin bundle, so plugin version is

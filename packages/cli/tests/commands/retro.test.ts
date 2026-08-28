@@ -278,6 +278,129 @@ describe('retro command configuration, extraction, egress, and relay execution',
     },
   );
 
+  it('delivers required runtime context when Git discovery fails', async () => {
+    const project = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-route-'));
+    mkdirSync(nodePath.join(project, '.safeword'));
+    writeFileSync(
+      nodePath.join(project, '.safeword/config.json'),
+      JSON.stringify({ projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' }),
+    );
+    writeFileSync(nodePath.join(project, '.git'), 'invalid git pointer');
+    const route = resolvePublicRetroRoute({
+      agent: 'cursor',
+      enabled: true,
+      environment: {},
+      projectDirectory: project,
+      sessionId: 'session-fixture',
+    });
+    const publicTransport = vi.fn(request =>
+      Promise.resolve({
+        requestId: request.headers['x-safeword-request-id'],
+        receipt: 'receipt-context-failure',
+      }),
+    );
+
+    try {
+      if (route === undefined) throw new TypeError('expected public route');
+      const outcome = await runRetro(
+        { transcript: '/tmp/t.jsonl' },
+        dependencies({ publicRetro: { ...route, transport: publicTransport } }),
+      );
+      const body = JSON.parse(
+        new TextDecoder().decode(publicTransport.mock.calls[0]?.[0].body),
+      ) as { source: Record<string, unknown> };
+
+      expect(outcome.ok).toBe(true);
+      expect(publicTransport).toHaveBeenCalledOnce();
+      expect(body.source).toMatchObject({
+        harness: 'cursor',
+        hostClass: 'unknown',
+        projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+      });
+      expect(body.source).not.toHaveProperty('repository');
+      expect(body.source).not.toHaveProperty('model');
+      expect(body.source).not.toHaveProperty('agentVersion');
+    } finally {
+      rmSync(project, { force: true, recursive: true });
+    }
+  });
+
+  it('preserves independent enrichment when model context is unavailable', async () => {
+    const project = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-route-'));
+    mkdirSync(nodePath.join(project, '.safeword'));
+    mkdirSync(nodePath.join(project, '.git'));
+    writeFileSync(
+      nodePath.join(project, '.safeword/config.json'),
+      JSON.stringify({ projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' }),
+    );
+    writeFileSync(
+      nodePath.join(project, '.git/config'),
+      '[remote "origin"]\nurl = git@github.com:ArcadeAI/safeword.git\n',
+    );
+    const route = resolvePublicRetroRoute({
+      agent: 'codex',
+      enabled: true,
+      environment: { CODEX_VERSION: 'agent-1.2.3' },
+      projectDirectory: project,
+      sessionId: 'session-fixture',
+    });
+    const publicTransport = vi.fn(request =>
+      Promise.resolve({
+        requestId: request.headers['x-safeword-request-id'],
+        receipt: 'receipt-partial-context',
+      }),
+    );
+
+    try {
+      if (route === undefined) throw new TypeError('expected public route');
+      const outcome = await runRetro(
+        { transcript: '/tmp/t.jsonl' },
+        dependencies({ publicRetro: { ...route, transport: publicTransport } }),
+      );
+      const body = JSON.parse(
+        new TextDecoder().decode(publicTransport.mock.calls[0]?.[0].body),
+      ) as { source: Record<string, unknown> };
+
+      expect(outcome.ok).toBe(true);
+      expect(body.source).toMatchObject({
+        agentVersion: 'agent-1.2.3',
+        repository: 'github.com/arcadeai/safeword',
+      });
+      expect(body.source.osFamily).toEqual(expect.any(String));
+      expect(body.source).not.toHaveProperty('model');
+    } finally {
+      rmSync(project, { force: true, recursive: true });
+    }
+  });
+
+  it.each([
+    ['model URL', { CODEX_MODEL: 'https://gateway.internal/model' }],
+    ['model ARN', { ANTHROPIC_MODEL: 'arn:aws:bedrock:us-east-1:123:model/fixture' }],
+    ['agent path', { CODEX_VERSION: '/private/agent/version' }],
+  ] as const)('omits a private-looking %s runtime signal', (_name, environment) => {
+    const agent = 'ANTHROPIC_MODEL' in environment ? 'claude' : 'codex';
+    const project = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-route-'));
+    try {
+      mkdirSync(nodePath.join(project, '.safeword'));
+      writeFileSync(
+        nodePath.join(project, '.safeword/config.json'),
+        JSON.stringify({ projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' }),
+      );
+      const source = resolvePublicRetroRoute({
+        agent,
+        enabled: true,
+        environment,
+        projectDirectory: project,
+        sessionId: 'session-fixture',
+      })?.source;
+
+      expect(source).not.toHaveProperty('model');
+      if ('CODEX_VERSION' in environment) expect(source).not.toHaveProperty('agentVersion');
+    } finally {
+      rmSync(project, { force: true, recursive: true });
+    }
+  });
+
   it('accepts only an absolute relay outbox outside the disposable project', () => {
     const project = mkdtempSync(nodePath.join(tmpdir(), 'retro-outbox-project-'));
     const external = mkdtempSync(nodePath.join(tmpdir(), 'safeword-durable-outbox-'));
@@ -1020,6 +1143,43 @@ describe('retro command configuration, extraction, egress, and relay execution',
       expect(body).not.toContain('sk_live_TESTONLY1');
     } finally {
       rmSync(attemptsDirectory, { force: true, recursive: true });
+    }
+  });
+
+  it('persists private recovery before starting the public handoff', async () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-spool-first-'));
+    const publicTransport = vi.fn(request => {
+      expect(readSpooledDrafts(projectDirectory, 'sess-a')).toHaveLength(1);
+      return Promise.resolve({
+        requestId: request.headers['x-safeword-request-id'],
+        receipt: 'receipt-spool-first',
+      });
+    });
+
+    try {
+      const outcome = await runRetro(
+        { transcript: '/tmp/t.jsonl' },
+        dependencies({
+          projectDirectory,
+          publicRetro: {
+            attemptsDirectory: nodePath.join(projectDirectory, '.safeword/retro-attempts'),
+            now: () => 0,
+            randomUUID: () => 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+            source: {
+              harness: 'codex',
+              hostClass: 'unknown',
+              projectUUID: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+              safewordCliVersion: '0.80.1',
+            },
+            transport: publicTransport,
+          },
+        }),
+      );
+
+      expect(outcome.ok).toBe(true);
+      expect(publicTransport).toHaveBeenCalledOnce();
+    } finally {
+      rmSync(projectDirectory, { force: true, recursive: true });
     }
   });
 
