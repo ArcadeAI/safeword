@@ -699,16 +699,14 @@ async function expectEnvelopeRejected(
 it.each([
   ['missing version', encoded({ ...fixtureEnvelope(), version: undefined })],
   ['unknown version', encoded({ ...fixtureEnvelope(), version: 'v2' })],
-] as const)('rejects the %s without consuming its request identity', (_, body, type) =>
-  expectEnvelopeRejected(body, type),
+] as const)('rejects the %s without consuming its request identity', (_, body) =>
+  expectEnvelopeRejected(body),
 );
 
 it.each([
   ['unknown top-level field', encoded({ ...fixtureEnvelope(), extra: true })],
   ['unknown source field', encoded(withSource({ extra: true }))],
-] as const)('rejects the %s without persistence', (_, body, type) =>
-  expectEnvelopeRejected(body, type),
-);
+] as const)('rejects the %s without persistence', (_, body) => expectEnvelopeRejected(body));
 
 it.each([
   ['missing required field', encoded({ sessionScope: '7'.repeat(64) })],
@@ -716,9 +714,7 @@ it.each([
   ['missing source host class', encoded(withSource({ hostClass: undefined }))],
   ['missing source project UUID', encoded(withSource({ projectUUID: undefined }))],
   ['missing SafeWord CLI version', encoded(withSource({ safewordCliVersion: undefined }))],
-] as const)('rejects a %s without persistence', (_, body, type) =>
-  expectEnvelopeRejected(body, type),
-);
+] as const)('rejects a %s without persistence', (_, body) => expectEnvelopeRejected(body));
 
 it.each([
   ['non-UUID source project UUID', encoded(withSource({ projectUUID: 'not-a-uuid' }))],
@@ -731,20 +727,18 @@ it.each([
   ['invalid source harness', encoded(withSource({ harness: null }))],
   ['invalid source model', encoded(withSource({ model: 7 }))],
   ['wrong-typed required field', encoded({ ...fixtureEnvelope(), finding: 7 })],
-] as const)('rejects malformed %s', (_, body, type) => expectEnvelopeRejected(body, type));
+] as const)('rejects malformed %s', (_, body) => expectEnvelopeRejected(body));
 
 it.each([
   ['unknown source harness', encoded(withSource({ harness: 'other' }))],
   ['cloud source host class', encoded(withSource({ hostClass: 'cloud' }))],
   ['hostname source host class', encoded(withSource({ hostClass: 'hostname' }))],
-] as const)('rejects unsupported %s', (_, body, type) => expectEnvelopeRejected(body, type));
+] as const)('rejects unsupported %s', (_, body) => expectEnvelopeRejected(body));
 
 it.each([
   ['incompatible cursor/local source', encoded(withSource({ harness: 'cursor' }))],
-] as const)('rejects the %s compatibility row', (_, body, type) =>
-  expectEnvelopeRejected(body, type),
-);
+] as const)('rejects the %s compatibility row', (_, body) => expectEnvelopeRejected(body));
 
 it.each(invalidEnvelopes)('rejects malformed envelope form: %s', (_, body, type) =>
-  expectEnvelopeRejected(body, type),
+  expectEnvelopeRejected(body as Uint8Array, type as string | false | undefined),
 );
