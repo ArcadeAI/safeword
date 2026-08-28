@@ -1,6 +1,6 @@
 # Safeword Architecture
 
-**Version:** 1.21
+**Version:** 1.22
 **Last Updated:** 2026-08-27
 **Status:** Production
 
@@ -53,18 +53,36 @@ Safeword is a CLI tool that configures linting, hooks, and development guides fo
 ```text
 packages/
 ├── cli/            # Main CLI tool + ESLint configs (bunx safeword)
+├── retro-collector/ # Credential-free public retrospective intake
 ├── retro-relay/    # Private retry-safe GitHub filing service
 └── website/        # Documentation site (Astro/Starlight)
 plugin/             # Claude Code plugin (commands, hooks) — not a workspace package; distributed via .claude-plugin/marketplace.json
 ```
 
-| Package                 | Purpose                                                 | Published As |
-| ----------------------- | ------------------------------------------------------- | ------------ |
-| `packages/cli/`         | CLI + bundled ESLint configs (`safeword/eslint` export) | `safeword`   |
-| `packages/retro-relay/` | Durable, authenticated retro filing boundary            | Private      |
-| `packages/website/`     | Documentation website                                   | Private      |
+| Package                     | Purpose                                                 | Published As |
+| --------------------------- | ------------------------------------------------------- | ------------ |
+| `packages/cli/`             | CLI + bundled ESLint configs (`safeword/eslint` export) | `safeword`   |
+| `packages/retro-collector/` | Durable credential-free public retrospective intake     | Private      |
+| `packages/retro-relay/`     | Durable, authenticated retro filing boundary            | Private      |
+| `packages/website/`         | Documentation website                                   | Private      |
 
 ESLint configs are bundled in the main package and accessed via `import safeword from "safeword/eslint"`.
+
+### Public retrospective collector boundary
+
+`packages/retro-collector` accepts the CLI's canonical `v1` public-retro bytes
+without user registration or client credentials. Current producers identify
+Claude Code, Codex, or Cursor with `hostClass: "unknown"`; the collector also
+accepts released Claude Code and Codex clients that used `hostClass: "local"`.
+Cursor cannot claim that legacy local classification.
+
+The collector validates the closed source schema and stores the accepted raw
+body unchanged in SQLite. Duplicate identity is derived only from harness,
+project UUID, and session identity, so optional runtime metadata never changes
+dedupe. Operator reads require the server-side operator credential; project
+UUIDs, request IDs, receipts, and source fields grant no read or filing
+authority. This public intake is separate from the authenticated private relay
+below.
 
 ### Retro relay boundary
 

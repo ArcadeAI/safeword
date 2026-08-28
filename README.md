@@ -144,6 +144,23 @@ legacy content is preserved and reported instead.
 
 **Use in CI if you want** — Safeword adds `lint`, `format`, and `test:bdd` scripts to your `package.json`. You can wire these into your CI pipeline or precommit hooks — but it's your choice, not forced.
 
+**Privacy-bounded public retros** — Each project gets a random UUID generated
+locally during setup; it requires no account or registration. When an eligible
+retro uses the public collector, Safeword may attach the harness, an honest
+`unknown` host class, CLI version, public GitHub/GitLab repository identity,
+OS family, and supported agent/model/plugin versions. Missing optional facts
+are omitted. It does not collect Git email, user identity, hostname, IP or
+machine identifiers, credentials, arbitrary environment values, transcript
+content, source code, or command arguments as runtime context. The finding
+itself still passes through the existing public egress sanitizer.
+
+Disable public retrospective collection for any project before running a retro
+from Claude Code, Codex, or Cursor:
+
+```bash
+bunx safeword@latest project public-retros off
+```
+
 ---
 
 ## How It Works
