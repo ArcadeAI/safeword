@@ -52,11 +52,16 @@ comes up empty.
 
   ```bash
   f=$(ls -t /tmp/safeword-cursor-transcript-* 2> /dev/null | head -1)
-  [ -n "$f" ] && cat "$f"
+  transcript=$([ -n "$f" ] && cat "$f")
+  key=${f##*/safeword-cursor-transcript-}
+  session=$([ -n "$key" ] && cat "/tmp/safeword-cursor-conversation-$key" 2> /dev/null)
   ```
 
-  If no stash exists (a session with no edits or shell commands yet), **ask the user for
-  the transcript path** rather than guessing.
+  If either stash is absent (a session with no edits or shell commands yet), **ask the
+  user for the transcript path or conversation id** rather than guessing. Public delivery
+  proceeds only when the CLI can bind that transcript and conversation to the current
+  project using the paired hook state; a mismatch silently keeps the existing private
+  recovery path.
 
 Echo the resolved path back to the user before proceeding, so a wrong path is caught
 before anything is filed.
@@ -76,8 +81,11 @@ before anything is filed.
   JSON), then hand them off:
 
   ```bash
-  safeword retro run --transcript <path> --findings <findings.json>
+  safeword retro run --public-retro --transcript <path> --findings <findings.json> --session-id <session-id>
   ```
+
+  On Cursor, use the paired `transcript` and `session` values resolved above. Claude and
+  Codex may omit `--public-retro` when no stable session identity is available.
 
 Optional: `--session-id <id>` for stable ledger attribution across fires;
 `--window-start <chars>` to digest only the transcript from an offset (delta mode).

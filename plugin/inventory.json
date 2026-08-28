@@ -143,11 +143,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "7c0177dca003e23af9d4a5e33c41daa2643fc7cb46db6f3d678d23b3e0c148a7"
+      "sha256": "5d826cabb1c6ebcdb8d2ee1702db95207bc4ae633dc6ab9f3d45fab30b690877"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "f58d8b0a62f440f72597cf86857fd37eac063a20b5b5069d9b5787da0b58cd45"
+      "sha256": "995c8d2b8aff759536aeeddcc86f45924a8b539edfadb5818496eea9e63f5751"
     },
     {
       "path": "runtime/event-groups.json",
@@ -211,7 +211,7 @@
     },
     {
       "path": "runtime/hooks/lib/cursor-state.ts",
-      "sha256": "99bda7a9eb3f01469bf243dfe1f87dd18cf29fbe61d4533aa59839a210799adc"
+      "sha256": "6d80d1d6a6f13e1a61b8cff9800e9955cfff10040d127ae25a8160b2b799c3cb"
     },
     {
       "path": "runtime/hooks/lib/dependency-readiness.ts",
@@ -675,7 +675,7 @@
     },
     {
       "path": "skills/retro/SKILL.md",
-      "sha256": "4bc28ce44be174bbc6029602d41650cfd85a6f15fd6c661e4f25d8252ca96d7d"
+      "sha256": "296e8bbde8a8e2658afee2354506006dc1b783805b565c344eebfa0f0241bcfb"
     },
     {
       "path": "skills/review-spec/SKILL.md",

@@ -28,6 +28,11 @@ import { platform, tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import process from 'node:process';
 
+import {
+  cursorConversationStashPath,
+  cursorProjectStashPath,
+  cursorTranscriptStashPath,
+} from '../../templates/hooks/lib/cursor-state.js';
 import { isDogfoodRepo } from '../../templates/hooks/lib/dogfood.js';
 import { recordRetroDebugEvent } from '../../templates/hooks/lib/retro-debug.js';
 import {
@@ -202,14 +207,19 @@ function relayDraftForEncounter(
 async function runRelayRetro(
   encounters: Encounter[],
   drops: { schema: number; surface: number },
-  source: { session: string; windowStart: number },
-  projectDirectory: string,
-  relay: NonNullable<RetroDependencies['relay']>,
+  options: {
+    afterPersistence?: () => Promise<void>;
+    projectDirectory: string;
+    relay: NonNullable<RetroDependencies['relay']>;
+    source: { session: string; windowStart: number };
+  },
 ): Promise<RetroOutcome> {
+  const { afterPersistence, projectDirectory, relay, source } = options;
   const spoolDirectory = relay.spoolDirectory ?? projectDirectory;
   const relayDrafts = encounters.map(encounter => relayDraftForEncounter(encounter, source, relay));
   const persistence = await persistRelayDraftBatch(spoolDirectory, relayDrafts);
   const spoolFailed = persistence.filter(outcome => outcome.status === 'rejected').length;
+  await afterPersistence?.();
   const deadlineMs = relay.deadlineMs ?? DEFAULT_RELAY_REQUEST_DEADLINE_MS;
   let delivery: Awaited<ReturnType<typeof deliverRelayRequests>>;
   try {
@@ -329,40 +339,12 @@ export async function runRetro(
     dependencies.publicRetro === undefined ? undefined : dependencies.publicRetro.now() + 1000;
   const { encounters, drops, findings } = await prepareEncounters(rawFindings);
   const publicFinding = findings.length === 1 ? findings[0] : undefined;
-
-  if (
-    dependencies.publicRetro !== undefined &&
-    publicPreparationDeadline !== undefined &&
-    rawFindings.length === 1 &&
-    publicFinding !== undefined
-  ) {
-    await deliverSanitizedPublicRetroFinding(
-      {
-        finding: publicFinding,
-        sessionId: dependencies.sessionId,
-        source: dependencies.publicRetro.source,
-      },
-      dependencies.publicRetro,
-      publicPreparationDeadline,
-    );
-  }
-
-  // Cloud-filing spool (BNGK9W): persist the post-egress drafts BEFORE filing so a
-  // REST auth failure (cloud #568) can't lose them. Opt-in via projectDirectory.
-  const { projectDirectory, sessionId } = dependencies;
+  const { projectDirectory, publicRetro, sessionId } = dependencies;
   const relay = dependencies.relay;
-  if (relay?.readiness.enabled === true && projectDirectory !== undefined) {
-    const sourceSession =
-      sessionId.trim().length === 0 || sessionId === 'unknown' ? options.transcript : sessionId;
-    return runRelayRetro(
-      encounters,
-      drops,
-      { session: sourceSession, windowStart: options.windowStart ?? 0 },
-      projectDirectory,
-      relay,
-    );
-  }
-  if (projectDirectory !== undefined) {
+
+  // Preserve private recovery before the best-effort public handoff. A process
+  // interruption during that network attempt must not lose the durable draft.
+  if (projectDirectory !== undefined && relay?.readiness.enabled !== true) {
     const drafts = encounters.map(encounter => encounter.draft);
     recordRetroDebugEvent({
       event: 'retro_cli_spool',
@@ -374,6 +356,35 @@ export async function runRetro(
     spoolDrafts(projectDirectory, sessionId, drafts);
   }
 
+  const deliverPublic = async (): Promise<void> => {
+    if (
+      publicRetro === undefined ||
+      publicPreparationDeadline === undefined ||
+      rawFindings.length !== 1 ||
+      publicFinding === undefined
+    ) {
+      return;
+    }
+    await deliverSanitizedPublicRetroFinding(
+      { finding: publicFinding, sessionId, source: publicRetro.source },
+      publicRetro,
+      publicPreparationDeadline,
+    );
+  };
+
+  // Cloud-filing spool (BNGK9W): persist the post-egress drafts BEFORE filing so a
+  // REST auth failure (cloud #568) can't lose them. Opt-in via projectDirectory.
+  if (relay?.readiness.enabled === true && projectDirectory !== undefined) {
+    const sourceSession =
+      sessionId.trim().length === 0 || sessionId === 'unknown' ? options.transcript : sessionId;
+    return runRelayRetro(encounters, drops, {
+      afterPersistence: deliverPublic,
+      projectDirectory,
+      relay,
+      source: { session: sourceSession, windowStart: options.windowStart ?? 0 },
+    });
+  }
+  await deliverPublic();
   const provenance = dependencies.resolveProvenance?.();
   const result = await triage(dependencies.transport, encounters, {
     sessionId,
@@ -409,7 +420,7 @@ export interface RetroCliOptions {
   findings?: string;
   /** Extract findings out-of-band via a headless `claude -p` session. */
   autoExtract?: boolean;
-  /** Internal lifecycle assertion: the host observed three completed tool pairs. */
+  /** Attempt eligible public quarantine delivery without affecting private recovery. */
   publicRetro?: boolean;
   /** Delta re-arm: digest only the transcript from this char offset onward (ZFGWS1). */
   windowStart?: number;
@@ -441,30 +452,9 @@ export interface AutoExtractDependencies {
 
 type AutoExtractSpawn = NonNullable<AutoExtractDependencies['spawn']>;
 
-const HEADLESS_ENVIRONMENT_KEYS = [
+const SHARED_HEADLESS_ENVIRONMENT_KEYS = [
   'ALL_PROXY',
-  'ANTHROPIC_API_KEY',
-  'ANTHROPIC_AUTH_TOKEN',
-  'ANTHROPIC_BASE_URL',
-  'ANTHROPIC_BEDROCK_BASE_URL',
-  'ANTHROPIC_BEDROCK_MANTLE_BASE_URL',
-  'ANTHROPIC_VERTEX_PROJECT_ID',
   'APPDATA',
-  'AWS_ACCESS_KEY_ID',
-  'AWS_BEARER_TOKEN_BEDROCK',
-  'AWS_PROFILE',
-  'AWS_REGION',
-  'AWS_SECRET_ACCESS_KEY',
-  'AWS_SESSION_TOKEN',
-  'CLAUDE_CODE_OAUTH_TOKEN',
-  'CLAUDE_CODE_USE_BEDROCK',
-  'CLAUDE_CODE_USE_FOUNDRY',
-  'CLAUDE_CODE_USE_MANTLE',
-  'CLAUDE_CODE_USE_VERTEX',
-  'CLAUDE_CONFIG_DIR',
-  'CLOUD_ML_REGION',
-  'CODEX_HOME',
-  'GOOGLE_APPLICATION_CREDENTIALS',
   'HOME',
   'HTTP_PROXY',
   'HTTPS_PROXY',
@@ -472,7 +462,6 @@ const HEADLESS_ENVIRONMENT_KEYS = [
   'LC_ALL',
   'NODE_EXTRA_CA_CERTS',
   'NO_PROXY',
-  'OPENAI_API_KEY',
   'PATH',
   'PATHEXT',
   'SHELL',
@@ -486,9 +475,52 @@ const HEADLESS_ENVIRONMENT_KEYS = [
   'XDG_DATA_HOME',
 ] as const;
 
-function headlessEnvironment(environment: NodeJS.ProcessEnv): Record<string, string | undefined> {
+const CLAUDE_HEADLESS_ENVIRONMENT_KEYS = [
+  'ANTHROPIC_API_KEY',
+  'ANTHROPIC_AUTH_TOKEN',
+  'ANTHROPIC_BASE_URL',
+  'ANTHROPIC_BEDROCK_BASE_URL',
+  'ANTHROPIC_BEDROCK_MANTLE_BASE_URL',
+  'ANTHROPIC_VERTEX_PROJECT_ID',
+  'AWS_ACCESS_KEY_ID',
+  'AWS_BEARER_TOKEN_BEDROCK',
+  'AWS_PROFILE',
+  'AWS_REGION',
+  'AWS_SECRET_ACCESS_KEY',
+  'AWS_SESSION_TOKEN',
+  'CLAUDE_CODE_OAUTH_TOKEN',
+  'CLAUDE_CODE_USE_BEDROCK',
+  'CLAUDE_CODE_USE_FOUNDRY',
+  'CLAUDE_CODE_USE_MANTLE',
+  'CLAUDE_CODE_USE_VERTEX',
+  'CLAUDE_CONFIG_DIR',
+  'CLOUD_ML_REGION',
+  'GOOGLE_APPLICATION_CREDENTIALS',
+] as const;
+
+const CODEX_HEADLESS_ENVIRONMENT_KEYS = ['CODEX_HOME', 'OPENAI_API_KEY'] as const;
+
+function headlessEnvironment(
+  environment: NodeJS.ProcessEnv,
+  agent: RetroAgent,
+): Record<string, string | undefined> {
+  let vendorKeys: readonly string[];
+  switch (agent) {
+    case 'claude': {
+      vendorKeys = CLAUDE_HEADLESS_ENVIRONMENT_KEYS;
+      break;
+    }
+    case 'codex': {
+      vendorKeys = CODEX_HEADLESS_ENVIRONMENT_KEYS;
+      break;
+    }
+    case 'cursor': {
+      vendorKeys = [];
+      break;
+    }
+  }
   return Object.fromEntries(
-    HEADLESS_ENVIRONMENT_KEYS.flatMap(key => {
+    [...SHARED_HEADLESS_ENVIRONMENT_KEYS, ...vendorKeys].flatMap(key => {
       const value = environment[key];
       return value === undefined ? [] : [[key, value]];
     }),
@@ -597,7 +629,7 @@ export async function buildAutoExtractor(
           writeFileSync(path, content);
         },
         readFile: (path: string) => readFileSync(path, 'utf8'),
-        env: headlessEnvironment(process.env),
+        env: headlessEnvironment(process.env, 'codex'),
         cwd: workDirectory,
         model,
         schemaPath: nodePath.join(workDirectory, 'schema.json'),
@@ -621,7 +653,7 @@ export async function buildAutoExtractor(
     return async (transcript: string) => {
       const result = await runCursorHeadlessExtractionChecked(transcript, {
         spawn: spawnCursor,
-        env: process.env,
+        env: headlessEnvironment(process.env, 'cursor'),
         cwd: workDirectory,
         model,
       });
@@ -646,7 +678,7 @@ export async function buildAutoExtractor(
         writeFileSync(path, digest);
         return path;
       },
-      env: headlessEnvironment(process.env),
+      env: headlessEnvironment(process.env, 'claude'),
       cwd: workDirectory, // neutral cwd — not the user's project
       model,
     });
@@ -1193,32 +1225,33 @@ export async function retryRelayDeadLetterCommand(
   return true;
 }
 
-function localPublicHarness(agent: RetroAgent): 'claude-code' | 'codex' | undefined {
+function publicHarness(agent: RetroAgent): 'claude-code' | 'codex' | 'cursor' | undefined {
   if (agent === 'claude') return 'claude-code';
   if (agent === 'codex') return 'codex';
-  return undefined;
+  return agent === 'cursor' ? 'cursor' : undefined;
 }
 
-function resolvePublicRetroRoute(input: {
+export function resolvePublicRetroRoute(input: {
   agent: RetroAgent;
   enabled: boolean;
   environment: NodeJS.ProcessEnv;
   projectDirectory: string;
+  sessionId?: string;
+  transcript?: string;
 }): NonNullable<RetroDependencies['publicRetro']> | undefined {
-  if (!input.enabled || input.environment.CLAUDE_CODE_REMOTE_SESSION_ID !== undefined) {
+  if (
+    !input.enabled ||
+    (input.agent === 'cursor' && !cursorPublicBindingMatches(input)) ||
+    (input.agent === 'claude' && input.environment.CLAUDE_CODE_REMOTE_SESSION_ID !== undefined)
+  ) {
     return undefined;
   }
-  const harness = localPublicHarness(input.agent);
+  const harness = publicHarness(input.agent);
   if (harness === undefined) return undefined;
   const source = buildPublicRetroSource(input.projectDirectory, {
-    agentVersion:
-      harness === 'codex' ? input.environment.CODEX_VERSION : input.environment.CLAUDE_CODE_VERSION,
     cliVersion: VERSION,
-    environment: input.environment,
     harness,
-    model: harness === 'codex' ? input.environment.CODEX_MODEL : input.environment.ANTHROPIC_MODEL,
     osFamily: platform(),
-    pluginVersion: VERSION,
   });
   if (source === undefined) return undefined;
   return {
@@ -1228,6 +1261,27 @@ function resolvePublicRetroRoute(input: {
     source,
     transport: createPublicRetroTransport(),
   };
+}
+
+function cursorPublicBindingMatches(input: {
+  projectDirectory: string;
+  sessionId?: string;
+  transcript?: string;
+}): boolean {
+  const sessionId = input.sessionId?.trim();
+  const transcript = input.transcript?.trim();
+  if (!sessionId || !transcript) return false;
+  const state = { conversation_id: sessionId };
+  try {
+    return (
+      readFileSync(cursorConversationStashPath(state), 'utf8') === sessionId &&
+      readFileSync(cursorTranscriptStashPath(state), 'utf8') === transcript &&
+      realpathSync(readFileSync(cursorProjectStashPath(state), 'utf8')) ===
+        realpathSync(input.projectDirectory)
+    );
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -1262,6 +1316,8 @@ async function executeRetroCliCommand(
     enabled: options.publicRetro === true,
     environment: process.env,
     projectDirectory,
+    sessionId: options.sessionId,
+    transcript: options.transcript,
   });
 
   const outcome = await executeRetroWithDependencies(options, {

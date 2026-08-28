@@ -26,6 +26,7 @@ function registerRetroCommand(
       '--auto-extract',
       'Extract findings out-of-band via a headless `claude -p` session (no --findings needed)',
     )
+    .option('--public-retro', 'Attempt eligible public quarantine delivery')
     .option(
       '--window-start <chars>',
       'Delta re-arm: digest only the transcript from this char offset onward (ZFGWS1)',
@@ -36,6 +37,7 @@ function registerRetroCommand(
         transcript?: string;
         findings?: string;
         autoExtract?: boolean;
+        publicRetro?: boolean;
         windowStart?: string;
         sessionId?: string;
       }) => {
@@ -45,6 +47,7 @@ function registerRetroCommand(
           transcript: options.transcript,
           findings: options.findings,
           autoExtract: options.autoExtract,
+          publicRetro: options.publicRetro,
           windowStart: Number.isFinite(windowStart) ? windowStart : undefined,
           sessionId: options.sessionId,
         });

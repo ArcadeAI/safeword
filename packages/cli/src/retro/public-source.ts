@@ -1,27 +1,45 @@
 import { lstatSync, readFileSync, realpathSync } from 'node:fs';
-import { homedir } from 'node:os';
 import nodePath from 'node:path';
 
 import { readEnabledPublicRetroProject } from './public-config.js';
-import type { PublicRetroSource } from './public-delivery.js';
+import { normalizePublicRetroOptionalValue, type PublicRetroSource } from './public-delivery.js';
 
-const SCP_REMOTE = /^[^@\s/]+@([^:\s/]+):(.+)$/u;
 const ALLOWED_PROTOCOLS = new Set(['git:', 'https:', 'ssh:']);
 
 function repoIdentity(hostname: string, rawPath: string): string | undefined {
-  let path = rawPath;
-  while (path.startsWith('/')) path = path.slice(1);
-  while (path.endsWith('/')) path = path.slice(0, -1);
-  if (path.toLowerCase().endsWith('.git')) path = path.slice(0, -4);
-  if (hostname === '' || path === '' || /\s/u.test(path)) return undefined;
+  const path = normalizedRepoPath(rawPath);
+  if (hostname === '' || path === '' || /[%\s]/u.test(path)) return undefined;
+  if (path.split('/').length !== 2) return undefined;
   const normalizedHost = hostname.toLowerCase();
+  if (normalizedHost !== 'github.com' && normalizedHost !== 'gitlab.com') return undefined;
   return `${normalizedHost}/${normalizedHost === 'github.com' ? path.toLowerCase() : path}`;
+}
+
+function normalizedRepoPath(rawPath: string): string {
+  let start = 0;
+  let end = rawPath.length;
+  while (rawPath[start] === '/') start += 1;
+  while (end > start && rawPath[end - 1] === '/') end -= 1;
+  let path = rawPath.slice(start, end);
+  if (path.toLowerCase().endsWith('.git')) path = path.slice(0, -4);
+  return path;
+}
+
+function parseScpRemote(remote: string): readonly [string, string] | undefined {
+  const separator = remote.indexOf(':');
+  if (separator <= 0) return undefined;
+  const authority = remote.slice(0, separator);
+  const path = remote.slice(separator + 1);
+  const at = authority.lastIndexOf('@');
+  const hostname = authority.slice(at + 1);
+  if (hostname === '' || path === '' || /[\s/]/u.test(authority)) return undefined;
+  return [hostname, path];
 }
 
 export function normalizeRepoRemote(remote: string): string | undefined {
   if (!remote.includes('://')) {
-    const scp = SCP_REMOTE.exec(remote);
-    if (scp) return repoIdentity(scp[1] ?? '', scp[2] ?? '');
+    const scp = parseScpRemote(remote);
+    if (scp) return repoIdentity(...scp);
   }
   if (/\s/u.test(remote)) return undefined;
   try {
@@ -33,67 +51,39 @@ export function normalizeRepoRemote(remote: string): string | undefined {
   }
 }
 
-export function selectPublicUserIdentity(
-  runtimeIdentity: string | undefined,
-  localEmail: string | undefined,
-  globalEmail: string | undefined,
-): string | undefined {
-  return [runtimeIdentity, localEmail, globalEmail]
-    .find(value => value !== undefined && value.trim() !== '')
-    ?.trim();
-}
-
 export interface PublicGitContext {
   repository?: string;
-  localEmail?: string;
-  globalEmail?: string;
 }
 
 export interface PublicRetroSourceOptions {
-  agentVersion?: string;
   cliVersion: string;
-  environment?: Readonly<Record<string, string | undefined>>;
   harness: PublicRetroSource['harness'];
-  model?: string;
   osFamily: string;
-  pluginVersion?: string;
-  runtimeIdentity?: string;
 }
 
-function optionalValue(value: string | undefined): string | undefined {
-  return value !== undefined && value.trim() !== '' ? value.trim() : undefined;
-}
+export type CurrentPublicRetroSource = Omit<PublicRetroSource, 'hostClass'> & {
+  hostClass: 'unknown';
+};
 
 /** Build the exact allowlisted local source profile, or fail closed when disabled. */
 export function buildPublicRetroSource(
   cwd: string,
   options: PublicRetroSourceOptions,
-): PublicRetroSource | undefined {
+): CurrentPublicRetroSource | undefined {
   const project = readEnabledPublicRetroProject(cwd);
   if (project === undefined) return undefined;
-  const git = collectPublicGitContext(cwd, { environment: options.environment });
-  const userIdentity = selectPublicUserIdentity(
-    options.runtimeIdentity,
-    git.localEmail,
-    git.globalEmail,
-  );
+  const git = collectPublicGitContext(cwd);
+  const cliVersion = normalizePublicRetroOptionalValue(options.cliVersion);
+  if (cliVersion === undefined) return undefined;
+  const osFamily = normalizePublicRetroOptionalValue(options.osFamily);
+  const repo = normalizePublicRetroOptionalValue(git.repository);
   return {
     harness: options.harness,
-    hostClass: 'local',
+    hostClass: 'unknown',
     projectUUID: project.projectUUID,
-    safewordCliVersion: options.cliVersion.trim(),
-    ...(git.repository !== undefined && { repository: git.repository }),
-    ...(optionalValue(options.agentVersion) !== undefined && {
-      agentVersion: optionalValue(options.agentVersion),
-    }),
-    ...(optionalValue(options.model) !== undefined && { model: optionalValue(options.model) }),
-    ...(optionalValue(options.pluginVersion) !== undefined && {
-      safewordPluginVersion: optionalValue(options.pluginVersion),
-    }),
-    ...(optionalValue(options.osFamily) !== undefined && {
-      osFamily: optionalValue(options.osFamily),
-    }),
-    ...(userIdentity !== undefined && { userIdentity }),
+    safewordCliVersion: cliVersion,
+    ...(repo !== undefined && { repository: repo }),
+    ...(osFamily !== undefined && { osFamily }),
   };
 }
 
@@ -132,12 +122,10 @@ function trustedConfigFile(path: string): string {
 }
 
 function parseRepoGitConfig(content: string): {
-  email?: string;
   remote?: string;
-  delegatesIdentity: boolean;
+  delegatesConfig: boolean;
 } {
   let section = '';
-  let email: string | undefined;
   let remote: string | undefined;
   for (const rawLine of content.split(/\r?\n/u)) {
     let line = rawLine.trim();
@@ -149,28 +137,49 @@ function parseRepoGitConfig(content: string): {
     const entry = parseGitEntry(line);
     if (!entry) continue;
     const [key, value] = entry;
-    if (section === 'user' && key === 'email') email = value;
-    if (section === 'remote "origin"' && key === 'url') remote = value;
+    if (section === 'remote "origin"' && key === 'url' && remote === undefined) remote = value;
   }
   return {
-    ...(email !== undefined && { email }),
     ...(remote !== undefined && { remote }),
-    delegatesIdentity: hasIdentityDelegate(content),
+    delegatesConfig: hasConfigDelegate(content),
   };
 }
 
-function hasIdentityDelegate(content: string): boolean {
+function hasConfigDelegate(content: string): boolean {
   return content.split(/\r?\n/u).some(rawLine => {
     const section = parseGitSection(rawLine.trim());
-    return section === 'include' || section?.startsWith('includeif ') === true;
+    return (
+      section === 'include' ||
+      section?.startsWith('includeif ') === true ||
+      section?.startsWith('url "') === true
+    );
   });
 }
 
 function parseGitSection(line: string): string | undefined {
   const end = line.indexOf(']');
-  return line.startsWith('[') && end !== -1
-    ? line.slice(1, end).toLowerCase().split(/\s/u).filter(Boolean).join(' ')
-    : undefined;
+  if (!line.startsWith('[') || end === -1) return undefined;
+  const declaration = line.slice(1, end).trim();
+  let separator = -1;
+  let offset = 0;
+  for (const character of declaration) {
+    if (character.trim() === '') {
+      separator = offset;
+      break;
+    }
+    offset += character.length;
+  }
+  if (separator === -1) return declaration.toLowerCase();
+  const section = declaration.slice(0, separator).toLowerCase();
+  const quotedSubsection = declaration.slice(separator).trim();
+  if (
+    !quotedSubsection.startsWith('"') ||
+    !quotedSubsection.endsWith('"') ||
+    quotedSubsection.slice(1, -1).includes('"')
+  ) {
+    return undefined;
+  }
+  return `${section} ${quotedSubsection}`;
 }
 
 function parseGitEntry(line: string): readonly [string, string] | undefined {
@@ -198,58 +207,12 @@ function stripGitComment(value: string): string {
   return (comment === -1 ? value : value.slice(0, comment)).trim();
 }
 
-export interface PublicGitContextOptions {
-  environment?: Readonly<Record<string, string | undefined>>;
-  homeDirectory?: string;
-}
-
-function globalGitConfigPaths(options: PublicGitContextOptions): string[] {
-  const environment = options.environment ?? process.env;
-  if (
-    environment.GIT_CONFIG_GLOBAL !== undefined &&
-    nodePath.isAbsolute(environment.GIT_CONFIG_GLOBAL)
-  ) {
-    return [environment.GIT_CONFIG_GLOBAL];
-  }
-  const home = options.homeDirectory ?? homedir();
-  if (!nodePath.isAbsolute(home)) return [];
-  const xdg =
-    environment.XDG_CONFIG_HOME !== undefined && nodePath.isAbsolute(environment.XDG_CONFIG_HOME)
-      ? environment.XDG_CONFIG_HOME
-      : nodePath.join(home, '.config');
-  return [nodePath.join(xdg, 'git/config'), nodePath.join(home, '.gitconfig')];
-}
-
-function collectGlobalGitEmail(options: PublicGitContextOptions): string | undefined {
-  let email: string | undefined;
-  let delegatesIdentity = false;
-  for (const path of globalGitConfigPaths(options)) {
-    try {
-      const config = parseRepoGitConfig(readFileSync(path, 'utf8'));
-      delegatesIdentity ||= config.delegatesIdentity;
-      if (config.email !== undefined && config.email.trim() !== '') email = config.email;
-    } catch {
-      // Missing optional global config contributes no identity.
-    }
-  }
-  return delegatesIdentity ? undefined : email;
-}
-
-export function collectPublicGitContext(
-  cwd: string,
-  options: PublicGitContextOptions = {},
-): PublicGitContext {
+export function collectPublicGitContext(cwd: string): PublicGitContext {
   try {
     const config = parseRepoGitConfig(readFileSync(repoGitConfigPath(cwd), 'utf8'));
+    if (config.delegatesConfig) return {};
     const repo = config.remote === undefined ? undefined : normalizeRepoRemote(config.remote);
-    const globalEmail = config.delegatesIdentity ? undefined : collectGlobalGitEmail(options);
-    return {
-      ...(repo !== undefined && { repository: repo }),
-      ...(!config.delegatesIdentity &&
-        config.email !== undefined &&
-        config.email.trim() !== '' && { localEmail: config.email }),
-      ...(globalEmail !== undefined && { globalEmail }),
-    };
+    return { ...(repo !== undefined && { repository: repo }) };
   } catch {
     return {};
   }

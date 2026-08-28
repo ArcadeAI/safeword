@@ -5,8 +5,8 @@ import path from 'node:path';
 import { assemblePublicFinding, type Finding } from './finding.js';
 
 export interface PublicRetroSource {
-  harness: 'claude-code' | 'codex';
-  hostClass: 'local';
+  harness: 'claude-code' | 'codex' | 'cursor';
+  hostClass: 'local' | 'unknown';
   projectUUID: string;
   safewordCliVersion: string;
   repository?: string;
@@ -14,7 +14,6 @@ export interface PublicRetroSource {
   model?: string;
   safewordPluginVersion?: string;
   osFamily?: string;
-  userIdentity?: string;
 }
 
 export interface PublicRetroEnvelopeInput {
@@ -67,13 +66,31 @@ export type PublicRetroDeliveryOutcome = 'preserved' | 'abandoned';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const MAX_ENVELOPE_BYTES = 65_536;
+const MAX_OPTIONAL_VALUE_BYTES = 256;
 
-function hasValue(value: string | undefined): value is string {
-  return value !== undefined && value.trim() !== '';
+function containsControlCharacter(value: string): boolean {
+  for (const character of value) {
+    const codePoint = character.codePointAt(0) ?? 0;
+    if (codePoint <= 0x1f || (codePoint >= 0x7f && codePoint <= 0x9f)) return true;
+  }
+  return false;
 }
 
-function optionalValue(value: string | undefined): string | undefined {
-  return hasValue(value) ? value.trim() : undefined;
+export function normalizePublicRetroOptionalValue(value: string | undefined): string | undefined {
+  const normalized = value?.trim();
+  if (
+    normalized === undefined ||
+    normalized === '' ||
+    containsControlCharacter(normalized) ||
+    Buffer.byteLength(normalized, 'utf8') > MAX_OPTIONAL_VALUE_BYTES
+  ) {
+    return undefined;
+  }
+  return normalized;
+}
+
+function validSourceRoute(source: PublicRetroSource): boolean {
+  return source.hostClass === 'unknown' || source.harness !== 'cursor';
 }
 
 function isValidEnvelopeInput(input: PublicRetroEnvelopeInput, projectUUID: string): boolean {
@@ -82,9 +99,7 @@ function isValidEnvelopeInput(input: PublicRetroEnvelopeInput, projectUUID: stri
     UUID.test(projectUUID) &&
     input.finding.trim() !== '' &&
     input.sessionId.trim() !== '' &&
-    (source.harness === 'claude-code' || source.harness === 'codex') &&
-    source.hostClass === 'local' &&
-    source.safewordCliVersion.trim() !== ''
+    validSourceRoute(source)
   );
 }
 
@@ -107,32 +122,37 @@ export function buildPublicRetroEnvelope(
   input: PublicRetroEnvelopeInput,
 ): BuiltPublicRetroEnvelope {
   const projectUUID = input.source.projectUUID.toLowerCase();
-  if (!isValidEnvelopeInput(input, projectUUID)) {
+  const cliVersion = normalizePublicRetroOptionalValue(input.source.safewordCliVersion);
+  if (cliVersion === undefined || !isValidEnvelopeInput(input, projectUUID)) {
     throw new Error('Invalid public retrospective input');
   }
 
+  const normalizedOptional = {
+    repository: normalizePublicRetroOptionalValue(input.source.repository),
+    agentVersion: normalizePublicRetroOptionalValue(input.source.agentVersion),
+    model: normalizePublicRetroOptionalValue(input.source.model),
+    safewordPluginVersion: normalizePublicRetroOptionalValue(input.source.safewordPluginVersion),
+    osFamily: normalizePublicRetroOptionalValue(input.source.osFamily),
+  };
   const source: PublicRetroSource = {
     harness: input.source.harness,
     hostClass: input.source.hostClass,
     projectUUID,
-    safewordCliVersion: input.source.safewordCliVersion,
-    ...(optionalValue(input.source.repository) !== undefined && {
-      repository: optionalValue(input.source.repository),
+    safewordCliVersion: cliVersion,
+    ...(normalizedOptional.repository !== undefined && {
+      repository: normalizedOptional.repository,
     }),
-    ...(optionalValue(input.source.agentVersion) !== undefined && {
-      agentVersion: optionalValue(input.source.agentVersion),
+    ...(normalizedOptional.agentVersion !== undefined && {
+      agentVersion: normalizedOptional.agentVersion,
     }),
-    ...(optionalValue(input.source.model) !== undefined && {
-      model: optionalValue(input.source.model),
+    ...(normalizedOptional.model !== undefined && {
+      model: normalizedOptional.model,
     }),
-    ...(optionalValue(input.source.safewordPluginVersion) !== undefined && {
-      safewordPluginVersion: optionalValue(input.source.safewordPluginVersion),
+    ...(normalizedOptional.safewordPluginVersion !== undefined && {
+      safewordPluginVersion: normalizedOptional.safewordPluginVersion,
     }),
-    ...(optionalValue(input.source.osFamily) !== undefined && {
-      osFamily: optionalValue(input.source.osFamily),
-    }),
-    ...(optionalValue(input.source.userIdentity) !== undefined && {
-      userIdentity: optionalValue(input.source.userIdentity),
+    ...(normalizedOptional.osFamily !== undefined && {
+      osFamily: normalizedOptional.osFamily,
     }),
   };
   const scope = deriveSessionScope(source.harness, projectUUID, input.sessionId);
@@ -209,11 +229,14 @@ async function deliverPreparedInput(
   dependencies: PublicRetroDeliveryDependencies,
   preparationDeadline: number,
 ): Promise<PublicRetroDeliveryOutcome> {
+  let claimedMarkerPath: string | undefined;
+  let accepted = false;
   try {
     if (dependencies.now() >= preparationDeadline) return 'abandoned';
     const built = buildPublicRetroEnvelope(input);
     const prepared = claimPublicRetroRequest(built, dependencies);
     if (!prepared || dependencies.now() >= preparationDeadline) return 'abandoned';
+    claimedMarkerPath = path.join(dependencies.attemptsDirectory, `${prepared.sessionScope}.json`);
 
     const handoffDeadline = dependencies.now() + 2000;
     const controller = new AbortController();
@@ -224,35 +247,60 @@ async function deliverPreparedInput(
     let result: PublicRetroReceipt;
     try {
       result = await submitPublicRetroRequest(prepared, dependencies.transport, controller.signal);
+      accepted = true;
     } finally {
       clearTimeout(timeout);
     }
     if (dependencies.now() >= handoffDeadline) return 'abandoned';
 
-    const markerPath = path.join(dependencies.attemptsDirectory, `${prepared.sessionScope}.json`);
-    const temporaryPath = `${markerPath}.${prepared.requestId}.tmp`;
-    let committed = false;
-    try {
-      writeFileSync(
-        temporaryPath,
-        JSON.stringify({ sessionScope: prepared.sessionScope, receipt: result.receipt }),
-        { encoding: 'utf8', flag: 'wx', flush: true },
-      );
-      if (dependencies.now() >= handoffDeadline) return 'abandoned';
-      renameSync(temporaryPath, markerPath);
-      committed = true;
-      return 'preserved';
-    } finally {
-      if (!committed) {
-        try {
-          unlinkSync(temporaryPath);
-        } catch {
-          // Nothing remains when creation failed before the temporary file existed.
-        }
-      }
-    }
+    const preserved = preservePublicRetroReceipt(
+      prepared,
+      result,
+      claimedMarkerPath,
+      dependencies.now,
+      handoffDeadline,
+    );
+    return preserved ? 'preserved' : 'abandoned';
   } catch {
     return 'abandoned';
+  } finally {
+    if (claimedMarkerPath !== undefined && !accepted) {
+      try {
+        unlinkSync(claimedMarkerPath);
+      } catch {
+        // Another process may already have recovered the failed attempt.
+      }
+    }
+  }
+}
+
+function preservePublicRetroReceipt(
+  prepared: PreparedPublicRetroRequest,
+  result: PublicRetroReceipt,
+  markerPath: string,
+  now: () => number,
+  handoffDeadline: number,
+): boolean {
+  const temporaryPath = `${markerPath}.${prepared.requestId}.tmp`;
+  let committed = false;
+  try {
+    writeFileSync(
+      temporaryPath,
+      JSON.stringify({ sessionScope: prepared.sessionScope, receipt: result.receipt }),
+      { encoding: 'utf8', flag: 'wx', flush: true },
+    );
+    if (now() >= handoffDeadline) return false;
+    renameSync(temporaryPath, markerPath);
+    committed = true;
+    return true;
+  } finally {
+    if (!committed) {
+      try {
+        unlinkSync(temporaryPath);
+      } catch {
+        // Nothing remains when creation failed before the temporary file existed.
+      }
+    }
   }
 }
 

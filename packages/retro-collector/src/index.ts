@@ -137,15 +137,23 @@ function nonemptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
+function validSourceRoute(harness: unknown, hostClass: unknown): boolean {
+  const supportedHarness =
+    typeof harness === 'string' && ['claude-code', 'codex', 'cursor'].includes(harness);
+  return (
+    supportedHarness && (hostClass === 'unknown' || (hostClass === 'local' && harness !== 'cursor'))
+  );
+}
+
 function validSource(value: unknown): boolean {
   if (!isRecord(value)) return false;
   const keys = Object.keys(value);
   if (REQUIRED_SOURCE_FIELDS.some(key => !keys.includes(key))) return false;
   if (keys.some(key => !SOURCE_FIELDS.has(key))) return false;
   if (Object.values(value).some(item => !nonemptyString(item))) return false;
+  if (value.harness === 'cursor' && keys.includes('userIdentity')) return false;
   return (
-    (value.harness === 'claude-code' || value.harness === 'codex') &&
-    value.hostClass === 'local' &&
+    validSourceRoute(value.harness, value.hostClass) &&
     typeof value.projectUUID === 'string' &&
     UUID.test(value.projectUUID)
   );

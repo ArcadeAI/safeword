@@ -3,7 +3,7 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   buildPublicRetroEnvelope,
@@ -25,12 +25,43 @@ const requiredInput = {
 };
 
 describe('buildPublicRetroEnvelope', () => {
-  it('serializes the complete source profile deterministically', () => {
+  it.each([
+    ['claude-code', 'claude-1.2.3', 'claude-model'],
+    ['codex', 'codex-1.2.3', 'gpt-fixture'],
+  ] as const)('builds the exact current %s/unknown source', (harness, agentVersion, model) => {
+    const built = buildPublicRetroEnvelope({
+      ...requiredInput,
+      source: {
+        ...requiredInput.source,
+        harness,
+        hostClass: 'unknown',
+        repository: 'github.com/arcadeai/safeword',
+        agentVersion,
+        model,
+        osFamily: 'darwin',
+      },
+    });
+    const envelope = JSON.parse(new TextDecoder().decode(built.bytes)) as {
+      source: Record<string, unknown>;
+    };
+
+    expect(envelope.source).toEqual({
+      harness,
+      hostClass: 'unknown',
+      projectUUID: '018f0f2e-abcd-7def-8abc-def012345678',
+      safewordCliVersion: '0.78.8',
+      repository: 'github.com/arcadeai/safeword',
+      agentVersion,
+      model,
+      osFamily: 'darwin',
+    });
+  });
+
+  it('serializes the released complete source profile deterministically', () => {
     const built = buildPublicRetroEnvelope({
       finding: 'fixture finding',
       sessionId: 'session-fixture-42',
       source: {
-        userIdentity: 'fixture@example.test',
         osFamily: 'macos',
         safewordPluginVersion: '0.78.8',
         model: 'fixture-model',
@@ -44,40 +75,80 @@ describe('buildPublicRetroEnvelope', () => {
     });
 
     const expected =
-      '{"version":"v1","finding":"fixture finding","source":{"harness":"claude-code","hostClass":"local","projectUUID":"018f0f2e-abcd-7def-8abc-def012345678","safewordCliVersion":"0.78.8","repository":"github.com/arcadeai/safeword","agentVersion":"1.2.3","model":"fixture-model","safewordPluginVersion":"0.78.8","osFamily":"macos","userIdentity":"fixture@example.test"},"sessionScope":"724a847e56e94bd49967250b1b27444314f1e479700c1751c3723d9852e6bee0"}';
+      '{"version":"v1","finding":"fixture finding","source":{"harness":"claude-code","hostClass":"local","projectUUID":"018f0f2e-abcd-7def-8abc-def012345678","safewordCliVersion":"0.78.8","repository":"github.com/arcadeai/safeword","agentVersion":"1.2.3","model":"fixture-model","safewordPluginVersion":"0.78.8","osFamily":"macos"},"sessionScope":"724a847e56e94bd49967250b1b27444314f1e479700c1751c3723d9852e6bee0"}';
 
     expect(new TextDecoder().decode(built.bytes)).toBe(expected);
     expect(built.sessionScope).toBe(
       '724a847e56e94bd49967250b1b27444314f1e479700c1751c3723d9852e6bee0',
     );
-    expect(built.bytes.byteLength).toBe(445);
+    expect(built.bytes.byteLength).toBe(407);
     expect(createHash('sha256').update(built.bytes).digest('hex')).toBe(
-      'a6701f5fea50ec66e811833d67ff2b51fc8ea3808d9562005690c49ff07cd2df',
+      '2c387f5e86acf11f4005e23ccfc7097247ae16965b6b34a21999f0199e2ce99b',
     );
   });
 
-  it('omits empty and whitespace-only optional source values', () => {
+  it('normalizes required CLI version with the same bounded hygiene', () => {
+    const built = buildPublicRetroEnvelope({
+      ...requiredInput,
+      source: { ...requiredInput.source, safewordCliVersion: ' 0.80.1 ' },
+    });
+    const envelope = JSON.parse(new TextDecoder().decode(built.bytes)) as {
+      source: Record<string, unknown>;
+    };
+
+    expect(envelope.source.safewordCliVersion).toBe('0.80.1');
+    expect(() =>
+      buildPublicRetroEnvelope({
+        ...requiredInput,
+        source: { ...requiredInput.source, safewordCliVersion: 'v'.repeat(257) },
+      }),
+    ).toThrow('Invalid public retrospective input');
+  });
+
+  it.each([
+    ['absent', undefined],
+    ['empty', ''],
+    ['whitespace-only', ' '.repeat(3)],
+  ] as const)('omits %s optional source values', (_availability, content) => {
     const fields = [
       'repository',
       'agentVersion',
       'model',
       'safewordPluginVersion',
       'osFamily',
-      'userIdentity',
     ] as const;
 
     for (const field of fields) {
-      for (const content of ['', ' '.repeat(3)]) {
-        const built = buildPublicRetroEnvelope({
-          ...requiredInput,
-          source: { ...requiredInput.source, [field]: content },
-        });
-        const envelope = JSON.parse(new TextDecoder().decode(built.bytes)) as {
-          source: Record<string, unknown>;
-        };
-        expect(envelope.source).not.toHaveProperty(field);
-      }
+      const built = buildPublicRetroEnvelope({
+        ...requiredInput,
+        source: { ...requiredInput.source, [field]: content },
+      });
+      const envelope = JSON.parse(new TextDecoder().decode(built.bytes)) as {
+        source: Record<string, unknown>;
+      };
+      expect(envelope.source).not.toHaveProperty(field);
     }
+  });
+
+  it.each([
+    ['control character', `model\u{7}`, false],
+    ['C1 control character', `model\u{85}`, false],
+    ['256 UTF-8 bytes', 'é'.repeat(128), true],
+    ['257 UTF-8 bytes', `${'é'.repeat(127)}abc`, false],
+    ['256 non-BMP UTF-8 bytes', '🚀'.repeat(64), true],
+    ['260 non-BMP UTF-8 bytes', '🚀'.repeat(65), false],
+    ['trimmed non-ASCII whitespace', `\u{2003}model-fixture\u{2003}`, true],
+  ] as const)('enforces the optional source boundary for %s', (_name, model, retained) => {
+    const built = buildPublicRetroEnvelope({
+      ...requiredInput,
+      source: { ...requiredInput.source, model },
+    });
+    const envelope = JSON.parse(new TextDecoder().decode(built.bytes)) as {
+      source: Record<string, unknown>;
+    };
+
+    expect(Object.hasOwn(envelope.source, 'model')).toBe(retained);
+    if (retained) expect(envelope.source.model).toBe(model.trim());
   });
 
   it('generates one transport-independent request identity after claiming the scope', () => {
@@ -103,6 +174,19 @@ describe('buildPublicRetroEnvelope', () => {
       rmSync(attemptsDirectory, { recursive: true, force: true });
     }
   });
+
+  it.each([
+    ['the same Cursor conversation', 'cursor-1', 'cursor-1', true],
+    ['different Cursor conversations', 'cursor-1', 'cursor-2', false],
+  ] as const)(
+    'uses conversation identity to scope %s',
+    (_case, firstSessionId, secondSessionId, sameScope) => {
+      const first = buildPublicRetroEnvelope({ ...requiredInput, sessionId: firstSessionId });
+      const second = buildPublicRetroEnvelope({ ...requiredInput, sessionId: secondSessionId });
+
+      expect(first.sessionScope === second.sessionScope).toBe(sameScope);
+    },
+  );
 
   it('abandons an oversized UTF-8 envelope before identity or claim', () => {
     const attemptsDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-public-retro-'));
@@ -241,6 +325,84 @@ describe('buildPublicRetroEnvelope', () => {
     }
   });
 
+  it('contains a collector connection failure without retrying', async () => {
+    const attemptsDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-public-retro-'));
+    const transport = vi.fn(() => Promise.reject(new Error('injected connection failure')));
+    try {
+      const outcome = await deliverSanitizedPublicRetroFinding(
+        {
+          finding: {
+            category: 'bug',
+            title: 'Connection failure fixture',
+            safewordSurface: 'packages/cli/src/retro/public-delivery.ts',
+            whatHappened: 'The collector connection failed.',
+            whyFriction: 'Public delivery must not disrupt private recovery.',
+            repro: 'Reject the injected transport.',
+          },
+          source: requiredInput.source,
+          sessionId: requiredInput.sessionId,
+        },
+        {
+          attemptsDirectory,
+          now: () => 0,
+          randomUUID: () => '01911111-2222-7333-8444-55555555555a',
+          transport,
+        },
+        1000,
+      );
+
+      expect(outcome).toBe('abandoned');
+      expect(transport).toHaveBeenCalledOnce();
+      expect(readdirSync(attemptsDirectory)).toEqual([]);
+    } finally {
+      rmSync(attemptsDirectory, { recursive: true, force: true });
+    }
+  });
+
+  it('abandons a collector handoff at the existing deadline without retrying', async () => {
+    vi.useFakeTimers();
+    const attemptsDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-public-retro-'));
+    const transport = vi.fn(
+      (_request: PublicRetroHttpRequest, signal?: AbortSignal) =>
+        new Promise<never>((_resolve, reject) => {
+          signal?.addEventListener('abort', () => {
+            reject(new Error('injected handoff timeout'));
+          });
+        }),
+    );
+    try {
+      const delivery = deliverSanitizedPublicRetroFinding(
+        {
+          finding: {
+            category: 'bug',
+            title: 'Handoff timeout fixture',
+            safewordSurface: 'packages/cli/src/retro/public-delivery.ts',
+            whatHappened: 'The collector held the request open.',
+            whyFriction: 'Public delivery must remain bounded.',
+            repro: 'Hold the injected transport open.',
+          },
+          source: requiredInput.source,
+          sessionId: requiredInput.sessionId,
+        },
+        {
+          attemptsDirectory,
+          now: () => 0,
+          randomUUID: () => '01911111-2222-7333-8444-55555555555a',
+          transport,
+        },
+        1000,
+      );
+
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(await delivery).toBe('abandoned');
+      expect(transport).toHaveBeenCalledOnce();
+      expect(readdirSync(attemptsDirectory)).toEqual([]);
+    } finally {
+      vi.useRealTimers();
+      rmSync(attemptsDirectory, { recursive: true, force: true });
+    }
+  });
+
   it('contains renderer failures before claim or handoff', async () => {
     const attemptsDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-public-retro-'));
     const finding = {
@@ -308,9 +470,12 @@ describe('buildPublicRetroEnvelope', () => {
       );
 
       expect(outcome).toBe('abandoned');
-      expect(readdirSync(attemptsDirectory)).toEqual([
-        '724a847e56e94bd49967250b1b27444314f1e479700c1751c3723d9852e6bee0.json',
-      ]);
+      const [marker] = readdirSync(attemptsDirectory);
+      expect(marker).toEqual(expect.stringMatching(/\.json$/u));
+      if (marker === undefined) throw new TypeError('expected retained claim marker');
+      const markerPath = path.join(attemptsDirectory, marker);
+      const persisted = JSON.parse(readFileSync(markerPath, 'utf8')) as unknown;
+      expect(persisted).toEqual({ sessionScope: expect.any(String) });
     } finally {
       rmSync(attemptsDirectory, { recursive: true, force: true });
     }
