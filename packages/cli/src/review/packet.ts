@@ -43,6 +43,23 @@ interface CapturedFile {
   readonly inode: number;
 }
 
+function requireScenarioTicketSpec(
+  kind: ReviewKind,
+  contextFiles: readonly { readonly path: string; readonly content: string }[],
+): void {
+  if (kind !== 'scenario-gate') return;
+  const ticketSpec = contextFiles[0];
+  if (
+    ticketSpec === undefined ||
+    nodePath.basename(ticketSpec.path) !== 'spec.md' ||
+    ticketSpec.content.trim() === ''
+  ) {
+    throw new ReviewPacketError(
+      'Scenario-gate review requires a non-blank spec.md as its first context file',
+    );
+  }
+}
+
 function digest(content: string | Buffer): string {
   return createHash('sha256').update(content).digest('hex');
 }
@@ -201,6 +218,7 @@ function prepareReviewPacketUnsafe(
     for (const target of context) rejectDuplicate(target);
     logicalFiles = captureFiles(targets);
     contextFiles = captureFiles(context);
+    requireScenarioTicketSpec(kind, contextFiles);
   } catch (error) {
     rmSync(workspace, { recursive: true, force: true });
     throw error;

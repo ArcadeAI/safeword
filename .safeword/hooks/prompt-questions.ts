@@ -105,9 +105,9 @@ if (existsSync(stateFile)) {
           intake:
             'Phase: understanding. Contribute a perspective, surface open questions. If sizing as feature, run `/bdd`.',
           'define-behavior':
-            'Phase: define-behavior. Present scenarios to user for review. Do not save test-definitions.md until accepted.',
+            'Phase: define-behavior. Load review-spec in Authoring mode before drafting scenarios. Present scenarios to user for review; do not save test-definitions.md until accepted.',
           'scenario-gate':
-            'Phase: scenario-gate. AODI validation + adversarial pass. If new scenarios found, loop back to define-behavior; else advance to plan-implementation.',
+            'Phase: scenario-gate. Run review-spec as an independent review and require it to pass before exit. If new scenarios are found, loop back to define-behavior; else advance to plan-implementation.',
           'plan-implementation':
             'Phase: plan-implementation. Author impl-plan.md (scaffold from .safeword/templates/impl-plan-template.md); map installed language/component skills to the scenarios; independent review before advancing to implement.',
           implement: tddStep

@@ -266,6 +266,7 @@ describe('Phase Derivation (#124)', () => {
       expect(readinessIndex).toBeGreaterThan(-1);
       expect(scenarioIndex).toBeGreaterThan(-1);
       expect(readinessIndex).toBeLessThan(scenarioIndex);
+      expect(output).toContain('Load review-spec in Authoring mode before drafting scenarios');
       expect(output).toContain('scope');
       expect(output).toContain('spec.md');
       expect(output).toContain('dimensions.md');
@@ -579,6 +580,7 @@ describe('Phase Derivation (#124)', () => {
       const output = runPromptHook(projectDirectory);
 
       expect(output).toContain('scenario-gate');
+      expect(output).toContain('Run review-spec as an independent review');
       expect(output).not.toContain('proof plan');
       expect(output).toContain('plan-implementation');
     });
