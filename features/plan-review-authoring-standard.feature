@@ -1,4 +1,6 @@
-@surface.safeword-cli @surface.claude-code @surface.openai-codex @surface.cursor
+# Executable proof lives in the adjacent Vitest manifest: extraction and packet
+# behavior are lower-level contracts that Cucumber would only duplicate.
+@surface.safeword-cli @surface.claude-code @surface.openai-codex @surface.cursor @proof.vitest
 Feature: Judge implementation plans by their authoring standard
   Safeword maintainers need plan review to apply the same criteria used to
   author the plan, without confusing supporting context for reviewed work.
