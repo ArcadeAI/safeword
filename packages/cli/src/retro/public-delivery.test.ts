@@ -71,7 +71,11 @@ describe('buildPublicRetroEnvelope', () => {
     );
   });
 
-  it('omits empty and whitespace-only optional source values', () => {
+  it.each([
+    ['absent', undefined],
+    ['empty', ''],
+    ['whitespace-only', ' '.repeat(3)],
+  ] as const)('omits %s optional source values', (_availability, content) => {
     const fields = [
       'repository',
       'agentVersion',
@@ -82,16 +86,14 @@ describe('buildPublicRetroEnvelope', () => {
     ] as const;
 
     for (const field of fields) {
-      for (const content of ['', ' '.repeat(3)]) {
-        const built = buildPublicRetroEnvelope({
-          ...requiredInput,
-          source: { ...requiredInput.source, [field]: content },
-        });
-        const envelope = JSON.parse(new TextDecoder().decode(built.bytes)) as {
-          source: Record<string, unknown>;
-        };
-        expect(envelope.source).not.toHaveProperty(field);
-      }
+      const built = buildPublicRetroEnvelope({
+        ...requiredInput,
+        source: { ...requiredInput.source, [field]: content },
+      });
+      const envelope = JSON.parse(new TextDecoder().decode(built.bytes)) as {
+        source: Record<string, unknown>;
+      };
+      expect(envelope.source).not.toHaveProperty(field);
     }
   });
 
@@ -139,6 +141,19 @@ describe('buildPublicRetroEnvelope', () => {
       rmSync(attemptsDirectory, { recursive: true, force: true });
     }
   });
+
+  it.each([
+    ['the same Cursor conversation', 'cursor-1', 'cursor-1', true],
+    ['different Cursor conversations', 'cursor-1', 'cursor-2', false],
+  ] as const)(
+    'uses conversation identity to scope %s',
+    (_case, firstSessionId, secondSessionId, sameScope) => {
+      const first = buildPublicRetroEnvelope({ ...requiredInput, sessionId: firstSessionId });
+      const second = buildPublicRetroEnvelope({ ...requiredInput, sessionId: secondSessionId });
+
+      expect(first.sessionScope === second.sessionScope).toBe(sameScope);
+    },
+  );
 
   it('abandons an oversized UTF-8 envelope before identity or claim', () => {
     const attemptsDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-public-retro-'));

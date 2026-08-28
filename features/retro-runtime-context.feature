@@ -1,3 +1,4 @@
+@proof.vitest
 Feature: Attach useful runtime context to retros without signup
 
   Background:

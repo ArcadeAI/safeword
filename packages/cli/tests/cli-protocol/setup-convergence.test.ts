@@ -102,6 +102,17 @@ describe('convergent setup', () => {
     expect(readProjectConfig(directory).projectUUID).toBe(upgradedIdentity);
   });
 
+  it.each(['reinstalled', 'upgraded'])('preserves project identity when %s', async () => {
+    const directory = createTemporaryDirectory();
+    await expectOfflineSetupSuccess(directory);
+    const identity = readProjectConfig(directory).projectUUID;
+
+    await expectOfflineSetupSuccess(directory);
+
+    expect(readProjectConfig(directory).projectUUID).toBe(identity);
+    expect(existsSync(nodePath.join(directory, '.safeword/retro-attempts'))).toBe(false);
+  });
+
   it('normalizes an uppercase identity during setup', async () => {
     const directory = createTemporaryDirectory();
     await expectOfflineSetupSuccess(directory);

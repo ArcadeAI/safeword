@@ -186,47 +186,49 @@ const dependencies = (over: Partial<Parameters<typeof runRetro>[1]> = {}) => ({
 });
 
 describe('retro command configuration, extraction, egress, and relay execution', () => {
-  it.each([
-    ['claude', false, undefined],
-    ['codex', true, 'codex'],
-    ['cursor', true, 'cursor'],
-  ] as const)(
-    'applies Claude Remote suppression only to the %s public route',
-    (agent, allowed, harness) => {
-      const project = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-route-'));
-      try {
-        mkdirSync(nodePath.join(project, '.safeword'));
-        writeFileSync(
-          nodePath.join(project, '.safeword/config.json'),
-          JSON.stringify({ projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' }),
-        );
+  function publicRouteFor(agent: 'claude' | 'codex' | 'cursor') {
+    const project = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-route-'));
+    mkdirSync(nodePath.join(project, '.safeword'));
+    writeFileSync(
+      nodePath.join(project, '.safeword/config.json'),
+      JSON.stringify({ projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' }),
+    );
+    const route = resolvePublicRetroRoute({
+      agent,
+      enabled: true,
+      environment: {
+        CLAUDE_CODE_REMOTE_SESSION_ID: 'claude-cloud-fixture',
+        CODEX_MODEL: 'gpt-fixture',
+        CODEX_VERSION: '1.2.3',
+      },
+      projectDirectory: project,
+      sessionId: 'session-fixture',
+    });
+    rmSync(project, { force: true, recursive: true });
+    return route;
+  }
 
-        const route = resolvePublicRetroRoute({
-          agent,
-          enabled: true,
-          environment: {
-            CLAUDE_CODE_REMOTE_SESSION_ID: 'claude-cloud-fixture',
-            CODEX_MODEL: 'gpt-fixture',
-            CODEX_VERSION: '1.2.3',
-          },
-          projectDirectory: project,
-          sessionId: 'session-fixture',
-        });
+  it('suppresses the Claude public route when Claude Remote evidence is present', () => {
+    expect(publicRouteFor('claude')).toBeUndefined();
+  });
 
-        expect(route !== undefined).toBe(allowed);
-        if (harness !== undefined) {
-          expect(route?.source).toMatchObject({ harness, hostClass: 'unknown' });
-        }
-        if (agent === 'cursor') {
-          expect(route?.source).not.toHaveProperty('agentVersion');
-          expect(route?.source).not.toHaveProperty('model');
-          expect(route?.source).not.toHaveProperty('safewordPluginVersion');
-        }
-      } finally {
-        rmSync(project, { force: true, recursive: true });
-      }
+  it.each(['codex', 'cursor'] as const)(
+    'does not let Claude Remote evidence suppress the %s public route',
+    agent => {
+      expect(publicRouteFor(agent)?.source).toMatchObject({
+        harness: agent,
+        hostClass: 'unknown',
+      });
     },
   );
+
+  it('builds a bounded Cursor source when a conversation identity is available', () => {
+    const source = publicRouteFor('cursor')?.source;
+    expect(source).toMatchObject({ harness: 'cursor', hostClass: 'unknown' });
+    expect(source).not.toHaveProperty('agentVersion');
+    expect(source).not.toHaveProperty('model');
+    expect(source).not.toHaveProperty('safewordPluginVersion');
+  });
 
   it('keeps Cursor public delivery disabled without a conversation identity', () => {
     const project = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-route-'));
@@ -249,6 +251,32 @@ describe('retro command configuration, extraction, egress, and relay execution',
       rmSync(project, { force: true, recursive: true });
     }
   });
+
+  it.each(['absent', 'malformed'] as const)(
+    'keeps public delivery disabled when project identity is %s',
+    identityState => {
+      const project = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-route-'));
+      try {
+        mkdirSync(nodePath.join(project, '.safeword'));
+        writeFileSync(
+          nodePath.join(project, '.safeword/config.json'),
+          JSON.stringify(identityState === 'absent' ? {} : { projectUUID: 'not-a-uuid' }),
+        );
+
+        expect(
+          resolvePublicRetroRoute({
+            agent: 'codex',
+            enabled: true,
+            environment: {},
+            projectDirectory: project,
+            sessionId: 'session-fixture',
+          }),
+        ).toBeUndefined();
+      } finally {
+        rmSync(project, { force: true, recursive: true });
+      }
+    },
+  );
 
   it('accepts only an absolute relay outbox outside the disposable project', () => {
     const project = mkdtempSync(nodePath.join(tmpdir(), 'retro-outbox-project-'));

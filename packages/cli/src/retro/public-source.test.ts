@@ -4,6 +4,7 @@ import nodePath from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { createTemporaryDirectory } from '../../tests/helpers.js';
+import { buildPublicRetroEnvelope } from './public-delivery.js';
 import {
   buildPublicRetroSource,
   collectPublicGitContext,
@@ -68,6 +69,43 @@ describe('buildPublicRetroSource', () => {
     ).not.toHaveProperty('userIdentity');
   });
 
+  it.each([
+    [256, true],
+    [257, false],
+  ] as const)('bounds derived optional context at %i UTF-8 bytes', (byteLength, retained) => {
+    const directory = createTemporaryDirectory();
+    const repo = `gitlab.com/${'r'.repeat(byteLength - 'gitlab.com/'.length)}`;
+    const pluginVersion = 'p'.repeat(byteLength);
+    mkdirSync(nodePath.join(directory, '.safeword'));
+    mkdirSync(nodePath.join(directory, '.git'));
+    writeFileSync(
+      nodePath.join(directory, '.safeword', 'config.json'),
+      JSON.stringify({ projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' }),
+    );
+    writeFileSync(
+      nodePath.join(directory, '.git', 'config'),
+      `[remote "origin"]\nurl = https://${repo}.git\n`,
+    );
+
+    const source = buildPublicRetroSource(directory, {
+      cliVersion: '0.79.0',
+      environment: { GIT_CONFIG_GLOBAL: '/fixture/missing' },
+      harness: 'codex',
+      osFamily: 'darwin',
+      pluginVersion,
+    });
+    if (source === undefined) throw new TypeError('expected public source');
+    const envelope = JSON.parse(
+      new TextDecoder().decode(
+        buildPublicRetroEnvelope({ finding: 'fixture', sessionId: 'session-fixture', source })
+          .bytes,
+      ),
+    ) as { source: Record<string, unknown> };
+
+    expect(envelope.source.repository === repo).toBe(retained);
+    expect(envelope.source.safewordPluginVersion === pluginVersion).toBe(retained);
+  });
+
   it('returns no source when public collection is disabled', () => {
     const directory = createTemporaryDirectory();
     mkdirSync(nodePath.join(directory, '.safeword'));
@@ -95,17 +133,25 @@ describe('normalizeRepoRemote', () => {
     ['git@github.com:ArcadeAI/safeword.git', 'github.com/arcadeai/safeword'],
     ['https://github.com/ArcadeAI/safeword/', 'github.com/arcadeai/safeword'],
     ['ssh://git@github.com/ArcadeAI/safeword.git', 'github.com/arcadeai/safeword'],
-    ['git@gitlab.com:Team/Repo.git', 'gitlab.com/Team/Repo'],
-    ['https://gitlab.example/Team/Repo.git', undefined],
-    [
-      'https://user@gitlab.example:443/Team/Repo.git?token=ghp_fixture_secret_1234567890#readme',
-      undefined,
-    ],
     [
       'https://x-access-token:ghp_fixture_secret_1234567890@github.com/ArcadeAI/Safeword.git',
       'github.com/arcadeai/safeword',
     ],
     ['https://GitHub.COM/ArcadeAI/Safeword.git', 'github.com/arcadeai/safeword'],
+  ])('canonicalizes the supported GitHub remote %s', (remote, expected) => {
+    expect(normalizeRepoRemote(remote)).toBe(expected);
+  });
+
+  it('preserves the public path of a supported GitLab remote', () => {
+    expect(normalizeRepoRemote('git@gitlab.com:Team/Repo.git')).toBe('gitlab.com/Team/Repo');
+  });
+
+  it.each([
+    ['https://gitlab.example/Team/Repo.git', undefined],
+    [
+      'https://user@gitlab.example:443/Team/Repo.git?token=ghp_fixture_secret_1234567890#readme',
+      undefined,
+    ],
     ['https://Evil-GitHub.com/Team/Repo.git', undefined],
     ['https://api.github.com/Team/Repo.git', undefined],
     ['/Users/fixture/private/repo', undefined],
@@ -113,7 +159,7 @@ describe('normalizeRepoRemote', () => {
     ['file:///Users/fixture/private/repo', undefined],
     ['://malformed remote', undefined],
     ['../safeword', undefined],
-  ])('normalizes %s without exposing credentials', (remote, expected) => {
+  ])('omits the unsupported repository remote %s', (remote, expected) => {
     expect(normalizeRepoRemote(remote)).toBe(expected);
   });
 });
