@@ -148,7 +148,7 @@ legacy content is preserved and reported instead.
 locally during setup; it requires no account or registration. When an eligible
 retro uses the public collector, Safeword may attach the harness, an honest
 `unknown` host class, CLI version, public GitHub/GitLab repository identity,
-OS family, and supported agent/model/plugin versions. Missing optional facts
+OS family, and supported agent/model versions. Missing optional facts
 are omitted. Current producers do not collect Git email, user identity,
 hostname, IP or machine identifiers, credentials, arbitrary environment
 values, transcript content, source code, or command arguments as runtime
@@ -157,6 +157,9 @@ shapes are omitted. The finding itself still passes through the existing public
 egress sanitizer. The collector continues accepting older Claude/Codex rows
 whose host class is `local` and whose source may contain legacy
 `userIdentity`; new rows use `unknown` and never emit that field.
+Current producers omit plugin version because neither host provides one
+trustworthy cross-harness runtime signal; the collector retains the released
+field for compatibility.
 
 Disable public retrospective collection for any project before running a retro
 from Claude Code, Codex, or Cursor:

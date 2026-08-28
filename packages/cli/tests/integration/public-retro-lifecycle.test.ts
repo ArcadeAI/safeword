@@ -17,6 +17,11 @@ import { afterEach, expect, it } from 'vitest';
 import { startPublicRetroCollector } from '../../../retro-collector/src/index.js';
 import { PublicRetroStore } from '../../../retro-collector/src/store.js';
 import { buildPublicRetroEnvelope } from '../../src/retro/public-delivery.js';
+import {
+  cursorConversationStashPath,
+  cursorProjectStashPath,
+  cursorTranscriptStashPath,
+} from '../../templates/hooks/lib/cursor-state.js';
 
 const ROOT = path.resolve(import.meta.dirname, '../../../..');
 const CLI_PACKAGE = path.join(ROOT, 'packages/cli');
@@ -24,11 +29,24 @@ const HOOKS = {
   'claude-code': path.join(CLI_PACKAGE, 'templates/hooks/stop-retro.ts'),
   codex: path.join(CLI_PACKAGE, 'templates/hooks/codex/stop.ts'),
 } as const;
+const CURSOR_BINDING_HOOK = path.join(
+  CLI_PACKAGE,
+  'templates/hooks/cursor/before-shell-execution.ts',
+);
 const temporaryDirectories: string[] = [];
+const cursorSessions: string[] = [];
+type LifecycleHarness = 'claude-code' | 'codex' | 'cursor';
 
 afterEach(() => {
   for (const directory of temporaryDirectories) rmSync(directory, { force: true, recursive: true });
   temporaryDirectories.length = 0;
+  for (const sessionId of cursorSessions) {
+    const state = { conversation_id: sessionId };
+    rmSync(cursorConversationStashPath(state), { force: true });
+    rmSync(cursorProjectStashPath(state), { force: true });
+    rmSync(cursorTranscriptStashPath(state), { force: true });
+  }
+  cursorSessions.length = 0;
 });
 
 function completedClaudeTranscript(project: string): string {
@@ -91,6 +109,85 @@ function runHook(
     child.stdin.end(input);
   });
 }
+
+async function primeCursorBinding(
+  bun: string,
+  project: string,
+  environment: NodeJS.ProcessEnv,
+  sessionId: string,
+  transcript: string,
+): Promise<void> {
+  cursorSessions.push(sessionId);
+  const result = await runHook(
+    bun,
+    CURSOR_BINDING_HOOK,
+    project,
+    environment,
+    JSON.stringify({
+      command: 'safeword retro run',
+      conversation_id: sessionId,
+      transcript_path: transcript,
+      workspace_roots: [project],
+    }),
+  );
+  expect(result.status).toBe(0);
+}
+
+function runtimeMetadataEnvironment(harness: LifecycleHarness): NodeJS.ProcessEnv {
+  return {
+    'claude-code': {
+      ANTHROPIC_MODEL: 'claude-lifecycle-fixture',
+      CLAUDE_CODE_VERSION: 'claude-agent-lifecycle-fixture',
+    },
+    codex: {
+      CODEX_MODEL: 'codex-lifecycle-fixture',
+      CODEX_VERSION: 'codex-agent-lifecycle-fixture',
+    },
+    cursor: {},
+  }[harness];
+}
+
+async function primeCursorBindingIfNeeded(input: {
+  bun: string;
+  environment: NodeJS.ProcessEnv;
+  harness: LifecycleHarness;
+  project: string;
+  sessionId: string;
+  transcript: string;
+}): Promise<void> {
+  if (input.harness !== 'cursor') return;
+  await primeCursorBinding(
+    input.bun,
+    input.project,
+    input.environment,
+    input.sessionId,
+    input.transcript,
+  );
+}
+
+function expectRuntimeMetadata(source: object, harness: LifecycleHarness): void {
+  if (harness === 'cursor') {
+    expect(source).not.toHaveProperty('agentVersion');
+    expect(source).not.toHaveProperty('model');
+    return;
+  }
+  const prefix = harness === 'codex' ? 'codex' : 'claude';
+  expect(source).toMatchObject({
+    agentVersion: `${prefix}-agent-lifecycle-fixture`,
+    model: `${prefix}-lifecycle-fixture`,
+  });
+}
+
+it('ships Cursor retro wiring with public delivery and paired conversation identity', () => {
+  const skill = readFileSync(path.join(CLI_PACKAGE, 'templates/skills/retro/SKILL.md'), 'utf8');
+
+  expect(skill).toContain('/tmp/safeword-cursor-transcript-');
+  expect(skill).toContain('/tmp/safeword-cursor-conversation-$key');
+  expect(skill).toContain('bind that transcript and conversation to the current');
+  expect(skill).toContain(
+    'safeword retro run --public-retro --transcript <path> --findings <findings.json> --session-id <session-id>',
+  );
+});
 
 it('round-trips a current CLI envelope through the real collector unchanged', async () => {
   const project = mkdtempSync(path.join(tmpdir(), 'public-retro-round-trip-'));
@@ -233,9 +330,18 @@ process.exit(result.status ?? 1);
       expect(bun).not.toBe('');
       const controlledEnvironment = {
         ...process.env,
+        ...runtimeMetadataEnvironment(harness),
         GIT_CONFIG_GLOBAL: path.join(project, 'missing-global-gitconfig'),
         HOME: path.join(project, 'empty-home'),
       };
+      await primeCursorBindingIfNeeded({
+        bun,
+        environment: controlledEnvironment,
+        harness,
+        project,
+        sessionId,
+        transcript,
+      });
       const result = await runHook(
         bun,
         hook,
@@ -279,6 +385,7 @@ process.exit(result.status ?? 1);
         },
       });
       expect(storedEnvelope.source).not.toHaveProperty('userIdentity');
+      expectRuntimeMetadata(storedEnvelope.source, harness);
       expect(storedEnvelope.finding).not.toContain(fixtureSecret);
       expect(storedEnvelope.finding).not.toContain('/Users/customer');
       expect(acceptCalls).toBe(1);
@@ -305,6 +412,13 @@ process.exit(result.status ?? 1);
 
       if (harness === 'cursor') {
         const distinctSessionId = `${sessionId}-distinct`;
+        await primeCursorBinding(
+          bun,
+          project,
+          controlledEnvironment,
+          distinctSessionId,
+          transcript,
+        );
         const distinct = await runHook(
           bun,
           hook,
@@ -333,6 +447,14 @@ process.exit(result.status ?? 1);
         }),
       );
       const disabledSessionId = `${sessionId}-disabled`;
+      await primeCursorBindingIfNeeded({
+        bun,
+        environment: controlledEnvironment,
+        harness,
+        project,
+        sessionId: disabledSessionId,
+        transcript,
+      });
       const disabled = await runHook(
         bun,
         hook,

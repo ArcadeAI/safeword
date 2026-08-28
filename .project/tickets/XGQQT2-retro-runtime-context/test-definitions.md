@@ -228,7 +228,7 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN ecb424e22
 - [x] REFACTOR 86fa70c08
 
-### Scenario: One enrichment failure preserves the other optional context
+### Scenario: One unavailable enrichment preserves the other optional context
 
 - [x] RED c4e5d46d6
 - [x] GREEN ecb424e22

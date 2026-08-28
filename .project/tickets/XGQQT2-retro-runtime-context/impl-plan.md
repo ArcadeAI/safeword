@@ -23,7 +23,8 @@ creating the separately controlled npm/plugin release tag.
    including its `CODEX_THREAD_ID` fallback, as the `sessionScope` authority.
    For Cursor, pin `conversation_id` through the shared run-identity resolver,
    closeout binding, and explicit `--session-id` handoff as the same authority;
-   also pin that today's public route skips the literal `cursor` agent value.
+   require its paired hook-stashed transcript and project directory to match
+   before public egress.
    Pin the released route behavior that `CLAUDE_CODE_REMOTE_SESSION_ID` suppresses
    public delivery before source preparation.
    Characterize Cursor capture in a project installed with the explicit Cursor
@@ -93,9 +94,10 @@ creating the separately controlled npm/plugin release tag.
    through the installed retro skill, transcript stash, and
    `SAFEWORD_RETRO_AGENT=cursor`; this slice changes route selection, not capture.
    Cursor exposes no supported agent-version or model signal today, so both are
-   omitted unconditionally rather than discovered speculatively. Its
-   `safewordPluginVersion` is also omitted because Cursor has no separate
-   SafeWord plugin bundle; the running package remains `safewordCliVersion`.
+   omitted unconditionally rather than discovered speculatively. Every current
+   producer omits `safewordPluginVersion`: Claude exposes a plugin root, but
+   Codex's retro child has no equivalent trustworthy carrier, so parity requires
+   omission rather than copying the CLI version.
    This slice also preserves route eligibility: retain
    `CLAUDE_CODE_REMOTE_SESSION_ID` denial for Claude and stop that Claude-only
    signal from suppressing Codex or Cursor. The denial occurs before source

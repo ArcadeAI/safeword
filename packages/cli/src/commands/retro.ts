@@ -28,6 +28,11 @@ import { platform, tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import process from 'node:process';
 
+import {
+  cursorConversationStashPath,
+  cursorProjectStashPath,
+  cursorTranscriptStashPath,
+} from '../../templates/hooks/lib/cursor-state.js';
 import { isDogfoodRepo } from '../../templates/hooks/lib/dogfood.js';
 import { recordRetroDebugEvent } from '../../templates/hooks/lib/retro-debug.js';
 import {
@@ -202,14 +207,19 @@ function relayDraftForEncounter(
 async function runRelayRetro(
   encounters: Encounter[],
   drops: { schema: number; surface: number },
-  source: { session: string; windowStart: number },
-  projectDirectory: string,
-  relay: NonNullable<RetroDependencies['relay']>,
+  options: {
+    afterPersistence?: () => Promise<void>;
+    projectDirectory: string;
+    relay: NonNullable<RetroDependencies['relay']>;
+    source: { session: string; windowStart: number };
+  },
 ): Promise<RetroOutcome> {
+  const { afterPersistence, projectDirectory, relay, source } = options;
   const spoolDirectory = relay.spoolDirectory ?? projectDirectory;
   const relayDrafts = encounters.map(encounter => relayDraftForEncounter(encounter, source, relay));
   const persistence = await persistRelayDraftBatch(spoolDirectory, relayDrafts);
   const spoolFailed = persistence.filter(outcome => outcome.status === 'rejected').length;
+  await afterPersistence?.();
   const deadlineMs = relay.deadlineMs ?? DEFAULT_RELAY_REQUEST_DEADLINE_MS;
   let delivery: Awaited<ReturnType<typeof deliverRelayRequests>>;
   try {
@@ -346,36 +356,35 @@ export async function runRetro(
     spoolDrafts(projectDirectory, sessionId, drafts);
   }
 
-  if (
-    publicRetro !== undefined &&
-    publicPreparationDeadline !== undefined &&
-    rawFindings.length === 1 &&
-    publicFinding !== undefined
-  ) {
+  const deliverPublic = async (): Promise<void> => {
+    if (
+      publicRetro === undefined ||
+      publicPreparationDeadline === undefined ||
+      rawFindings.length !== 1 ||
+      publicFinding === undefined
+    ) {
+      return;
+    }
     await deliverSanitizedPublicRetroFinding(
-      {
-        finding: publicFinding,
-        sessionId,
-        source: publicRetro.source,
-      },
+      { finding: publicFinding, sessionId, source: publicRetro.source },
       publicRetro,
       publicPreparationDeadline,
     );
-  }
+  };
 
   // Cloud-filing spool (BNGK9W): persist the post-egress drafts BEFORE filing so a
   // REST auth failure (cloud #568) can't lose them. Opt-in via projectDirectory.
   if (relay?.readiness.enabled === true && projectDirectory !== undefined) {
     const sourceSession =
       sessionId.trim().length === 0 || sessionId === 'unknown' ? options.transcript : sessionId;
-    return runRelayRetro(
-      encounters,
-      drops,
-      { session: sourceSession, windowStart: options.windowStart ?? 0 },
+    return runRelayRetro(encounters, drops, {
+      afterPersistence: deliverPublic,
       projectDirectory,
       relay,
-    );
+      source: { session: sourceSession, windowStart: options.windowStart ?? 0 },
+    });
   }
+  await deliverPublic();
   const provenance = dependencies.resolveProvenance?.();
   const result = await triage(dependencies.transport, encounters, {
     sessionId,
@@ -411,7 +420,7 @@ export interface RetroCliOptions {
   findings?: string;
   /** Extract findings out-of-band via a headless `claude -p` session. */
   autoExtract?: boolean;
-  /** Internal lifecycle assertion: the host observed three completed tool pairs. */
+  /** Attempt eligible public quarantine delivery without affecting private recovery. */
   publicRetro?: boolean;
   /** Delta re-arm: digest only the transcript from this char offset onward (ZFGWS1). */
   windowStart?: number;
@@ -1204,19 +1213,17 @@ function publicHarness(agent: RetroAgent): 'claude-code' | 'codex' | 'cursor' | 
 function publicRuntimeMetadata(
   harness: PublicRetroSource['harness'],
   environment: NodeJS.ProcessEnv,
-): { agentVersion?: string; model?: string; pluginVersion?: string } {
+): { agentVersion?: string; model?: string } {
   if (harness === 'cursor') return {};
   if (harness === 'codex') {
     return {
       agentVersion: publicRuntimeSignal(environment.CODEX_VERSION),
       model: publicRuntimeSignal(environment.CODEX_MODEL),
-      pluginVersion: VERSION,
     };
   }
   return {
     agentVersion: publicRuntimeSignal(environment.CLAUDE_CODE_VERSION),
     model: publicRuntimeSignal(environment.ANTHROPIC_MODEL),
-    pluginVersion: VERSION,
   };
 }
 
@@ -1242,10 +1249,11 @@ export function resolvePublicRetroRoute(input: {
   environment: NodeJS.ProcessEnv;
   projectDirectory: string;
   sessionId?: string;
+  transcript?: string;
 }): NonNullable<RetroDependencies['publicRetro']> | undefined {
   if (
     !input.enabled ||
-    (input.agent === 'cursor' && !input.sessionId?.trim()) ||
+    (input.agent === 'cursor' && !cursorPublicBindingMatches(input)) ||
     (input.agent === 'claude' && input.environment.CLAUDE_CODE_REMOTE_SESSION_ID !== undefined)
   ) {
     return undefined;
@@ -1266,6 +1274,27 @@ export function resolvePublicRetroRoute(input: {
     source,
     transport: createPublicRetroTransport(),
   };
+}
+
+function cursorPublicBindingMatches(input: {
+  projectDirectory: string;
+  sessionId?: string;
+  transcript?: string;
+}): boolean {
+  const sessionId = input.sessionId?.trim();
+  const transcript = input.transcript?.trim();
+  if (!sessionId || !transcript) return false;
+  const state = { conversation_id: sessionId };
+  try {
+    return (
+      readFileSync(cursorConversationStashPath(state), 'utf8') === sessionId &&
+      readFileSync(cursorTranscriptStashPath(state), 'utf8') === transcript &&
+      realpathSync(readFileSync(cursorProjectStashPath(state), 'utf8')) ===
+        realpathSync(input.projectDirectory)
+    );
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -1301,6 +1330,7 @@ async function executeRetroCliCommand(
     environment: process.env,
     projectDirectory,
     sessionId: options.sessionId,
+    transcript: options.transcript,
   });
 
   const outcome = await executeRetroWithDependencies(options, {

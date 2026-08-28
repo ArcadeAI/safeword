@@ -2,14 +2,14 @@ import { lstatSync, readFileSync, realpathSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { readEnabledPublicRetroProject } from './public-config.js';
-import type { PublicRetroSource } from './public-delivery.js';
+import { normalizePublicRetroOptionalValue, type PublicRetroSource } from './public-delivery.js';
 
 const ALLOWED_PROTOCOLS = new Set(['git:', 'https:', 'ssh:']);
 
 function repoIdentity(hostname: string, rawPath: string): string | undefined {
   const path = normalizedRepoPath(rawPath);
-  if (hostname === '' || path === '' || /\s/u.test(path)) return undefined;
-  if (path.split('/').filter(Boolean).length !== 2) return undefined;
+  if (hostname === '' || path === '' || /[%\s]/u.test(path)) return undefined;
+  if (path.split('/').length !== 2) return undefined;
   const normalizedHost = hostname.toLowerCase();
   if (normalizedHost !== 'github.com' && normalizedHost !== 'gitlab.com') return undefined;
   return `${normalizedHost}/${normalizedHost === 'github.com' ? path.toLowerCase() : path}`;
@@ -61,37 +61,34 @@ export interface PublicRetroSourceOptions {
   harness: PublicRetroSource['harness'];
   model?: string;
   osFamily: string;
-  pluginVersion?: string;
 }
 
-function optionalValue(value: string | undefined): string | undefined {
-  return value !== undefined && value.trim() !== '' ? value.trim() : undefined;
-}
+export type CurrentPublicRetroSource = Omit<PublicRetroSource, 'hostClass'> & {
+  hostClass: 'unknown';
+};
 
 /** Build the exact allowlisted local source profile, or fail closed when disabled. */
 export function buildPublicRetroSource(
   cwd: string,
   options: PublicRetroSourceOptions,
-): PublicRetroSource | undefined {
+): CurrentPublicRetroSource | undefined {
   const project = readEnabledPublicRetroProject(cwd);
   if (project === undefined) return undefined;
   const git = collectPublicGitContext(cwd);
+  const cliVersion = normalizePublicRetroOptionalValue(options.cliVersion);
+  if (cliVersion === undefined) return undefined;
+  const agentVersion = normalizePublicRetroOptionalValue(options.agentVersion);
+  const model = normalizePublicRetroOptionalValue(options.model);
+  const osFamily = normalizePublicRetroOptionalValue(options.osFamily);
   return {
     harness: options.harness,
     hostClass: 'unknown',
     projectUUID: project.projectUUID,
-    safewordCliVersion: options.cliVersion.trim(),
+    safewordCliVersion: cliVersion,
     ...(git.repository !== undefined && { repository: git.repository }),
-    ...(optionalValue(options.agentVersion) !== undefined && {
-      agentVersion: optionalValue(options.agentVersion),
-    }),
-    ...(optionalValue(options.model) !== undefined && { model: optionalValue(options.model) }),
-    ...(optionalValue(options.pluginVersion) !== undefined && {
-      safewordPluginVersion: optionalValue(options.pluginVersion),
-    }),
-    ...(optionalValue(options.osFamily) !== undefined && {
-      osFamily: optionalValue(options.osFamily),
-    }),
+    ...(agentVersion !== undefined && { agentVersion }),
+    ...(model !== undefined && { model }),
+    ...(osFamily !== undefined && { osFamily }),
   };
 }
 
@@ -145,7 +142,7 @@ function parseRepoGitConfig(content: string): {
     const entry = parseGitEntry(line);
     if (!entry) continue;
     const [key, value] = entry;
-    if (section === 'remote "origin"' && key === 'url') remote = value;
+    if (section === 'remote "origin"' && key === 'url' && remote === undefined) remote = value;
   }
   return {
     ...(remote !== undefined && { remote }),
@@ -156,7 +153,11 @@ function parseRepoGitConfig(content: string): {
 function hasConfigDelegate(content: string): boolean {
   return content.split(/\r?\n/u).some(rawLine => {
     const section = parseGitSection(rawLine.trim());
-    return section === 'include' || section?.startsWith('includeif ') === true;
+    return (
+      section === 'include' ||
+      section?.startsWith('includeif ') === true ||
+      section?.startsWith('url "') === true
+    );
   });
 }
 

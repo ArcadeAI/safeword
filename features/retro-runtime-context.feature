@@ -58,10 +58,10 @@ Feature: Attach useful runtime context to retros without signup
 
     Scenario Outline: Claude Code and Codex use one complete source contract
       Given a <harness> retrospective with every required source fact and a runnable public route
-      And project identity "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", SafeWord CLI version "0.79.6", repository "github.com/arcadeai/safeword", agent version <agent_version>, model <model>, SafeWord plugin version "0.80.1", and operating-system family "darwin" are available
+      And project identity "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", SafeWord CLI version "0.79.6", repository "github.com/arcadeai/safeword", agent version <agent_version>, model <model>, and operating-system family "darwin" are available
       When SafeWord prepares its public retrospective
       Then the canonical envelope version on the wire is "v1"
-      And the v1 source contains exactly harness <harness_value>, host class "unknown", project identity "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", SafeWord CLI version "0.79.6", repository "github.com/arcadeai/safeword", agent version <agent_version>, model <model>, SafeWord plugin version "0.80.1", and operating-system family "darwin"
+      And the v1 source contains exactly harness <harness_value>, host class "unknown", project identity "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", SafeWord CLI version "0.79.6", repository "github.com/arcadeai/safeword", agent version <agent_version>, model <model>, and operating-system family "darwin"
 
       Examples:
         | harness      | harness_value | agent_version | model          |
@@ -143,6 +143,12 @@ Feature: Attach useful runtime context to retros without signup
     @rejection
     Scenario: Cursor cannot claim the released-client local classification
       Given canonical v1 envelope bytes contain harness "cursor" and host class "local"
+      When it is submitted to the real collector
+      Then the retrospective is rejected without persistence
+
+    @rejection
+    Scenario: Cursor cannot claim released legacy user identity
+      Given canonical v1 envelope bytes contain harness "cursor" and legacy user identity "legacy-user-fixture"
       When it is submitted to the real collector
       Then the retrospective is rejected without persistence
 
@@ -235,10 +241,10 @@ Feature: Attach useful runtime context to retros without signup
   Rule: retro-runtime-context.TBU1.R1 — Runtime context contains only explicitly allowlisted facts and never transcript, source, machine, or arbitrary environment content
 
     Scenario: Available approved facts form the complete current source profile
-      Given the runtime supplies harness "codex", host class "unknown", project identity "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", SafeWord CLI version "0.79.6", repository "github.com/arcadeai/safeword", agent version "agent-1.2.3", model "model-fixture", SafeWord plugin version "0.80.1", and operating-system family "darwin"
+      Given the runtime supplies harness "codex", host class "unknown", project identity "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", SafeWord CLI version "0.79.6", repository "github.com/arcadeai/safeword", agent version "agent-1.2.3", model "model-fixture", and operating-system family "darwin"
       And unapproved inputs contain transcript sentinel "transcript-private-9f2c", source-code sentinel "source-private-9f2c", command-argument sentinel "argv-private-9f2c", hostname sentinel "host-private-9f2c", credential sentinel "secret-private-9f2c", arbitrary environment sentinel "env-private-9f2c", and `GITHUB_ACTOR` sentinel "actor-private-9f2c"
       When SafeWord prepares its public retrospective
-      Then its source contains exactly harness "codex", host class "unknown", project identity "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", SafeWord CLI version "0.79.6", repository "github.com/arcadeai/safeword", agent version "agent-1.2.3", model "model-fixture", SafeWord plugin version "0.80.1", and operating-system family "darwin"
+      Then its source contains exactly harness "codex", host class "unknown", project identity "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", SafeWord CLI version "0.79.6", repository "github.com/arcadeai/safeword", agent version "agent-1.2.3", model "model-fixture", and operating-system family "darwin"
       And none of "transcript-private-9f2c", "source-private-9f2c", "argv-private-9f2c", "host-private-9f2c", "secret-private-9f2c", "env-private-9f2c", or "actor-private-9f2c" appears in the envelope
 
     Scenario Outline: Representative direct optional string boundaries are enforced independently
@@ -258,9 +264,8 @@ Feature: Attach useful runtime context to retros without signup
 
     Scenario Outline: Derived optional string boundaries are enforced on authoritative inputs
       Given the Git origin is a `gitlab.com` remote whose canonical host-and-path identity totals <bytes> UTF-8 bytes
-      And the supported package signal reports a SafeWord plugin version totaling <bytes> UTF-8 bytes
       When SafeWord prepares its public retrospective
-      Then repository and SafeWord plugin version are <outcome>
+      Then repository is <outcome>
 
       Examples:
         | bytes | outcome  |
@@ -391,6 +396,14 @@ Feature: Attach useful runtime context to retros without signup
 
     Scenario: Missing Cursor conversation identity keeps existing recovery behavior
       Given a Cursor retrospective with every required source fact and a runnable public carrier has no conversation identity
+      And existing recovery owns retrospective candidate "candidate-fixture"
+      When the existing retro CLI delivery boundary runs
+      Then no public submission is attempted
+      And existing recovery still owns exactly retrospective candidate "candidate-fixture"
+      And the command exits successfully with empty stdout and stderr
+
+    Scenario: A Cursor stash from another project keeps existing recovery behavior
+      Given a Cursor retrospective resolves a paired transcript and conversation identity from another project
       And existing recovery owns retrospective candidate "candidate-fixture"
       When the existing retro CLI delivery boundary runs
       Then no public submission is attempted

@@ -27,7 +27,7 @@
     ],
     "Claude Code and Codex use one complete source contract": [
       "packages/cli/src/retro/public-delivery.test.ts",
-      "builds a current %s/unknown envelope"
+      "builds the exact current %s/unknown source"
     ],
     "Cursor omits signals its harness does not expose": [
       "packages/cli/tests/commands/retro.test.ts",
@@ -71,6 +71,10 @@
       "packages/retro-collector/tests/public-retro.integration.test.ts",
       "rejects the %s compatibility row"
     ],
+    "Cursor cannot claim released legacy user identity": [
+      "packages/retro-collector/tests/public-retro.integration.test.ts",
+      "rejects legacy user identity on a Cursor envelope"
+    ],
     "The collector preserves released optional-value rules": [
       "packages/retro-collector/tests/public-retro.integration.test.ts",
       "preserves a released 257-byte optional source value unchanged"
@@ -112,8 +116,8 @@
       "round-trips a current CLI envelope through the real collector unchanged"
     ],
     "Available approved facts form the complete current source profile": [
-      "packages/cli/src/retro/public-delivery.test.ts",
-      "serializes the complete source profile deterministically"
+      "packages/cli/tests/commands/retro.test.ts",
+      "emits the exact allowlisted profile without unrelated runtime sentinels"
     ],
     "Representative direct optional string boundaries are enforced independently": [
       "packages/cli/src/retro/public-delivery.test.ts",
@@ -174,6 +178,10 @@
     "Missing Cursor conversation identity keeps existing recovery behavior": [
       "packages/cli/tests/commands/retro.test.ts",
       "keeps Cursor public delivery disabled without a conversation identity"
+    ],
+    "A Cursor stash from another project keeps existing recovery behavior": [
+      "packages/cli/tests/commands/retro.test.ts",
+      "keeps Cursor public delivery disabled when the paired stash belongs to another project"
     ],
     "Collector rejection keeps existing recovery behavior": [
       "packages/cli/tests/commands/retro.test.ts",

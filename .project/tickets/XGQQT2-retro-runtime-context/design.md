@@ -140,15 +140,18 @@ spawning `git`, following only the existing backlink-verified `.git` file
 relationship for linked worktrees. Hostile, delegated, and unsupported Git
 config shapes and non-allowlisted Git hosts omit repository. The producer's
 public-host allowlist is `github.com` and `gitlab.com`. Optional enrichment stays inside the existing
-preparation flow. Private recovery is persisted before the public attempt, which
-uses one two-second abort timer inside the existing overall retro boundary.
+preparation flow. Private recovery is persisted before the public attempt. Cursor
+also binds the hook-stashed transcript and conversation identity to the current
+project before public egress. The attempt uses one two-second abort timer inside
+the existing overall retro boundary.
 
 **Error handling:** Each optional reader fails closed by omitting only its own
-field. No metadata-specific logging, retry, worker, or background task is added.
+field. A failed handoff releases only its uncommitted local claim so a later
+invocation may try again; no in-process retry, worker, or background task is added.
 
 **Gotchas:** Cursor has no supported version/model signal today, so both remain
-absent; Cursor also has no separate SafeWord plugin bundle, so plugin version is
-omitted. All three harnesses report `unknown`; actor attribution and exact cloud
+absent. Plugin version is omitted for all new producers because Claude and Codex
+do not share a trustworthy runtime carrier. All three harnesses report `unknown`; actor attribution and exact cloud
 classification remain #3430.
 
 **Open questions:** None for the local slice. Cloud proof is #3430.

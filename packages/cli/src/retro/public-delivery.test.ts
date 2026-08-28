@@ -25,22 +25,39 @@ const requiredInput = {
 };
 
 describe('buildPublicRetroEnvelope', () => {
-  it.each(['claude-code', 'codex', 'cursor'] as const)(
-    'builds a current %s/unknown envelope',
-    harness => {
-      const built = buildPublicRetroEnvelope({
-        ...requiredInput,
-        source: { ...requiredInput.source, harness, hostClass: 'unknown' },
-      });
-      const envelope = JSON.parse(new TextDecoder().decode(built.bytes)) as {
-        source: Record<string, unknown>;
-      };
+  it.each([
+    ['claude-code', 'claude-1.2.3', 'claude-model'],
+    ['codex', 'codex-1.2.3', 'gpt-fixture'],
+  ] as const)('builds the exact current %s/unknown source', (harness, agentVersion, model) => {
+    const built = buildPublicRetroEnvelope({
+      ...requiredInput,
+      source: {
+        ...requiredInput.source,
+        harness,
+        hostClass: 'unknown',
+        repository: 'github.com/arcadeai/safeword',
+        agentVersion,
+        model,
+        osFamily: 'darwin',
+      },
+    });
+    const envelope = JSON.parse(new TextDecoder().decode(built.bytes)) as {
+      source: Record<string, unknown>;
+    };
 
-      expect(envelope.source).toMatchObject({ harness, hostClass: 'unknown' });
-    },
-  );
+    expect(envelope.source).toEqual({
+      harness,
+      hostClass: 'unknown',
+      projectUUID: '018f0f2e-abcd-7def-8abc-def012345678',
+      safewordCliVersion: '0.78.8',
+      repository: 'github.com/arcadeai/safeword',
+      agentVersion,
+      model,
+      osFamily: 'darwin',
+    });
+  });
 
-  it('serializes the complete source profile deterministically', () => {
+  it('serializes the released complete source profile deterministically', () => {
     const built = buildPublicRetroEnvelope({
       finding: 'fixture finding',
       sessionId: 'session-fixture-42',
@@ -68,6 +85,24 @@ describe('buildPublicRetroEnvelope', () => {
     expect(createHash('sha256').update(built.bytes).digest('hex')).toBe(
       '2c387f5e86acf11f4005e23ccfc7097247ae16965b6b34a21999f0199e2ce99b',
     );
+  });
+
+  it('normalizes required CLI version with the same bounded hygiene', () => {
+    const built = buildPublicRetroEnvelope({
+      ...requiredInput,
+      source: { ...requiredInput.source, safewordCliVersion: ' 0.80.1 ' },
+    });
+    const envelope = JSON.parse(new TextDecoder().decode(built.bytes)) as {
+      source: Record<string, unknown>;
+    };
+
+    expect(envelope.source.safewordCliVersion).toBe('0.80.1');
+    expect(() =>
+      buildPublicRetroEnvelope({
+        ...requiredInput,
+        source: { ...requiredInput.source, safewordCliVersion: 'v'.repeat(257) },
+      }),
+    ).toThrow('Invalid public retrospective input');
   });
 
   it.each([
@@ -318,6 +353,7 @@ describe('buildPublicRetroEnvelope', () => {
 
       expect(outcome).toBe('abandoned');
       expect(transport).toHaveBeenCalledOnce();
+      expect(readdirSync(attemptsDirectory)).toEqual([]);
     } finally {
       rmSync(attemptsDirectory, { recursive: true, force: true });
     }
@@ -360,6 +396,7 @@ describe('buildPublicRetroEnvelope', () => {
       await vi.advanceTimersByTimeAsync(2000);
       expect(await delivery).toBe('abandoned');
       expect(transport).toHaveBeenCalledOnce();
+      expect(readdirSync(attemptsDirectory)).toEqual([]);
     } finally {
       vi.useRealTimers();
       rmSync(attemptsDirectory, { recursive: true, force: true });
@@ -433,9 +470,7 @@ describe('buildPublicRetroEnvelope', () => {
       );
 
       expect(outcome).toBe('abandoned');
-      expect(readdirSync(attemptsDirectory)).toEqual([
-        '724a847e56e94bd49967250b1b27444314f1e479700c1751c3723d9852e6bee0.json',
-      ]);
+      expect(readdirSync(attemptsDirectory)).toEqual([]);
     } finally {
       rmSync(attemptsDirectory, { recursive: true, force: true });
     }

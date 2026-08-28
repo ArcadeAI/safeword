@@ -32,7 +32,6 @@ describe('buildPublicRetroSource', () => {
         harness: 'codex',
         model: ' gpt-fixture ',
         osFamily: ' darwin ',
-        pluginVersion: ' 0.79.0 ',
       }),
     ).toEqual({
       agentVersion: '1.2.3',
@@ -43,7 +42,6 @@ describe('buildPublicRetroSource', () => {
       projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
       repository: 'github.com/arcadeai/safeword',
       safewordCliVersion: '0.79.0',
-      safewordPluginVersion: '0.79.0',
     });
   });
 
@@ -72,7 +70,6 @@ describe('buildPublicRetroSource', () => {
   ] as const)('bounds derived optional context at %i UTF-8 bytes', (byteLength, retained) => {
     const directory = createTemporaryDirectory();
     const repo = `gitlab.com/team/${'r'.repeat(byteLength - 'gitlab.com/team/'.length)}`;
-    const pluginVersion = 'p'.repeat(byteLength);
     mkdirSync(nodePath.join(directory, '.safeword'));
     mkdirSync(nodePath.join(directory, '.git'));
     writeFileSync(
@@ -88,7 +85,6 @@ describe('buildPublicRetroSource', () => {
       cliVersion: '0.79.0',
       harness: 'codex',
       osFamily: 'darwin',
-      pluginVersion,
     });
     if (source === undefined) throw new TypeError('expected public source');
     const envelope = JSON.parse(
@@ -99,7 +95,6 @@ describe('buildPublicRetroSource', () => {
     ) as { source: Record<string, unknown> };
 
     expect(envelope.source.repository === repo).toBe(retained);
-    expect(envelope.source.safewordPluginVersion === pluginVersion).toBe(retained);
   });
 
   it('returns no source when public collection is disabled', () => {
@@ -150,18 +145,33 @@ describe('normalizeRepoRemote', () => {
     ],
     ['https://Evil-GitHub.com/Team/Repo.git', undefined],
     ['https://api.github.com/Team/Repo.git', undefined],
+    ['https://github.com.attacker-9f2c.test/team/repo.git', undefined],
     ['/Users/fixture/private/repo', undefined],
     ['/home/alice/Projects/client@acme:internal-tool', undefined],
     ['file:///Users/fixture/private/repo', undefined],
     ['://malformed remote', undefined],
     ['../safeword', undefined],
     ['https://github.com/team/repo/extra', undefined],
+    ['https://github.com/team//repo', undefined],
+    ['https://github.com/team%2Frepo/project', undefined],
   ])('omits the unsupported repository remote %s', (remote, expected) => {
     expect(normalizeRepoRemote(remote)).toBe(expected);
   });
 });
 
 describe('collectPublicGitContext', () => {
+  it('uses the first origin URL, matching Git config precedence', () => {
+    const directory = createTemporaryDirectory();
+    const gitDirectory = nodePath.join(directory, '.git');
+    mkdirSync(gitDirectory);
+    writeFileSync(
+      nodePath.join(gitDirectory, 'config'),
+      '[remote "origin"]\nurl = ssh://git@internal.example/team/repo.git\nurl = https://github.com/team/repo.git\n',
+    );
+
+    expect(collectPublicGitContext(directory)).toEqual({});
+  });
+
   it('reads repository identity without local email from the repository Git config', () => {
     const directory = createTemporaryDirectory();
     const gitDirectory = nodePath.join(directory, '.git');
@@ -201,6 +211,18 @@ describe('collectPublicGitContext', () => {
     writeFileSync(
       nodePath.join(gitDirectory, 'config'),
       '[remote "Origin"]\nurl = git@github.com:evil/leaked.git\n',
+    );
+
+    expect(collectPublicGitContext(directory)).toEqual({});
+  });
+
+  it('fails closed when the repository config declares a URL rewrite', () => {
+    const directory = createTemporaryDirectory();
+    const gitDirectory = nodePath.join(directory, '.git');
+    mkdirSync(gitDirectory);
+    writeFileSync(
+      nodePath.join(gitDirectory, 'config'),
+      '[url "https://internal.example/"]\ninsteadOf = https://github.com/\n[remote "origin"]\nurl = https://github.com/ArcadeAI/safeword.git\n',
     );
 
     expect(collectPublicGitContext(directory)).toEqual({});

@@ -169,6 +169,28 @@ it('accepts released local classification with legacy user identity', async () =
   expect(response.status).toBe(201);
 });
 
+it('rejects legacy user identity on a Cursor envelope', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+  });
+  const request = {
+    ...fixtureRequest(),
+    body: new TextEncoder().encode(
+      RELEASED_V0796_ENVELOPE.replace('"harness":"claude-code"', '"harness":"cursor"').replace(
+        '"hostClass":"local"',
+        '"hostClass":"unknown"',
+      ),
+    ),
+  };
+
+  const response = await submit(runtime.url, request);
+  await runtime.close();
+
+  expect(response.status).toBe(400);
+});
+
 it.each([
   ['missing', undefined],
   ['empty', ['']],
@@ -767,9 +789,11 @@ it.each([
     encoded(withSource({ projectUUID: '018F0F2E-ABCD-7DEF-8ABC-DEF012345678' })),
   ],
   ['invalid source host class', encoded(withSource({ hostClass: 7 }))],
+  ['array source host class', encoded(withSource({ hostClass: [] }))],
   // eslint-disable-next-line unicorn/no-null -- JSON null is the malformed wire value under test.
   ['invalid source harness', encoded(withSource({ harness: null }))],
   ['invalid source model', encoded(withSource({ model: 7 }))],
+  ['object SafeWord CLI version', encoded(withSource({ safewordCliVersion: {} }))],
   ['wrong-typed required field', encoded({ ...fixtureEnvelope(), finding: 7 })],
 ] as const)('rejects malformed %s', (_, body) => expectEnvelopeRejected(body));
 

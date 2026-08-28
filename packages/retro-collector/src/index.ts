@@ -151,6 +151,7 @@ function validSource(value: unknown): boolean {
   if (REQUIRED_SOURCE_FIELDS.some(key => !keys.includes(key))) return false;
   if (keys.some(key => !SOURCE_FIELDS.has(key))) return false;
   if (Object.values(value).some(item => !nonemptyString(item))) return false;
+  if (value.harness === 'cursor' && keys.includes('userIdentity')) return false;
   return (
     validSourceRoute(value.harness, value.hostClass) &&
     typeof value.projectUUID === 'string' &&
