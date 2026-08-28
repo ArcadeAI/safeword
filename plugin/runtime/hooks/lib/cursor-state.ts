@@ -12,7 +12,7 @@
 // Every file shares one key (the run-storage key, with a stable fallback) so the
 // writer and reader of a given file can never drift.
 
-import { writeFileSync } from 'node:fs';
+import { closeSync, constants, fchmodSync, openSync, writeFileSync } from 'node:fs';
 
 import { getRunStorageKey, resolveRunIdentity } from './run-identity.js';
 
@@ -69,12 +69,26 @@ export function stashCursorTranscript(
     typeof input.conversation_id === 'string' ? input.conversation_id.trim() : '';
 
   try {
-    writeFileSync(cursorTranscriptStashPath(input), path);
+    writePrivateState(cursorTranscriptStashPath(input), path);
     if (conversationId !== '') {
-      writeFileSync(cursorConversationStashPath(input), conversationId);
-      writeFileSync(cursorProjectStashPath(input), projectDirectory);
+      writePrivateState(cursorConversationStashPath(input), conversationId);
+      writePrivateState(cursorProjectStashPath(input), projectDirectory);
     }
   } catch {
     // Best-effort stash — never block the hook.
+  }
+}
+
+function writePrivateState(path: string, value: string): void {
+  const descriptor = openSync(
+    path,
+    constants.O_WRONLY | constants.O_CREAT | constants.O_TRUNC | constants.O_NOFOLLOW,
+    0o600,
+  );
+  try {
+    fchmodSync(descriptor, 0o600);
+    writeFileSync(descriptor, value);
+  } finally {
+    closeSync(descriptor);
   }
 }
