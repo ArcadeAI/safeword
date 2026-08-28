@@ -60,6 +60,24 @@ function requireScenarioTicketSpec(
   }
 }
 
+function requirePlanWorkArtifact(
+  kind: ReviewKind,
+  logicalFiles: readonly { readonly path: string; readonly content: string }[],
+): void {
+  if (kind !== 'plan-implementation') return;
+  const plan = logicalFiles[0];
+  if (
+    logicalFiles.length !== 1 ||
+    plan === undefined ||
+    nodePath.basename(plan.path) !== 'impl-plan.md' ||
+    plan.content.trim() === ''
+  ) {
+    throw new ReviewPacketError(
+      'Plan-implementation review requires one non-blank impl-plan.md work file; pass supporting evidence with --context',
+    );
+  }
+}
+
 function digest(content: string | Buffer): string {
   return createHash('sha256').update(content).digest('hex');
 }
@@ -219,6 +237,7 @@ function prepareReviewPacketUnsafe(
     logicalFiles = captureFiles(targets);
     contextFiles = captureFiles(context);
     requireScenarioTicketSpec(kind, contextFiles);
+    requirePlanWorkArtifact(kind, logicalFiles);
   } catch (error) {
     rmSync(workspace, { recursive: true, force: true });
     throw error;

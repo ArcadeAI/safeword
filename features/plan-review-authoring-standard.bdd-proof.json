@@ -1,0 +1,26 @@
+{
+  "feature": "features/plan-review-authoring-standard.feature",
+  "scenarios": {
+    "Runtime review uses the canonical plan judgment block": [
+      [
+        "packages/cli/tests/review/runtime.test.ts",
+        "uses the generated canonical implementation-plan rubric"
+      ]
+    ],
+    "Supporting planning evidence is context rather than reviewed work": [
+      "packages/cli/tests/review/packet.test.ts",
+      "treats only impl-plan.md as plan-review work and preserves supporting context"
+    ],
+    "Invalid canonical plan rubric cannot generate": [
+      ["packages/cli/tests/review/plan-rubric-generation.test.ts", "rejects %s"],
+      [
+        "packages/cli/tests/review/plan-rubric-generation.test.ts",
+        "rejects host-only instruction %s inside the shared block"
+      ]
+    ],
+    "Stale generated plan rubric cannot pass release checks": [
+      "packages/cli/tests/review/plan-rubric-generation.test.ts",
+      "keeps reviewer instructions byte-equal to the canonical authoring block"
+    ]
+  }
+}
