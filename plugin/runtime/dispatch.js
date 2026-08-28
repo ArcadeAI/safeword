@@ -1768,7 +1768,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/bdd/DONE.md':
         'e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60',
       '.claude/skills/bdd/PLAN_IMPLEMENTATION.md':
-        '8ed89fca82f6e71b77351674f12d5d7c1380574e326e05ca1912caf84ff4ff9b',
+        '4510c9395789929d7faa02d958f385e6498bbfe0af6a90182b0b89f0c813081f',
       '.claude/skills/bdd/SCENARIOS.md':
         'a79590a8dcd8c6377f92e2ec0c26d5479f28e16e53291348f86f59b73381a19e',
       '.claude/skills/bdd/SKILL.md':
