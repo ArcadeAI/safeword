@@ -600,7 +600,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/quality-review/SKILL.md": "75dcf079f5ac19a7a6dffca382b535ab12a637a8645fd5a8b482b2a1684a6d69",
         ".claude/skills/refactor/SKILL.md": "a51a858fb13b50cbc86789edbde8a39e364b5cdd7d5d3b025d555d90b221760e",
         ".claude/skills/retro-filer/SKILL.md": "ea126f3805a2befefb4db2011439f075ebfd6eca31b78bd5f284ac11d667b4f0",
-        ".claude/skills/retro/SKILL.md": "166e5109193bad4c26e060f6841d71c03f9155c7e74e1853c43b99b01c25d379",
+        ".claude/skills/retro/SKILL.md": "87c1a32d0719bfe6ecbb02a0324a6eddd436be2d398e331bb5db53bac7b88363",
         ".claude/skills/review-spec/SKILL.md": "ee3d3cf1c548e67dfcfb58f55c2d667fee7466b1f0ab6cad050c67c1b940fe33",
         ".claude/skills/self-review/SKILL.md": "e5ff994ec84573e6f129127bad89617f0a67b67c5cf792cedac558b6e419ac3b",
         ".claude/skills/spike/SKILL.md": "905aab56037ad5a258bafa91cb2ebf05cff1acffbc9e1fd6f7a1f27230672f37",
@@ -47237,6 +47237,14 @@ function resolveRunIdentity(rawInput = {}, options = {}) {
     source: "missing"
   };
 }
+function getRunStorageKey(identity) {
+  if (!identity?.sessionKey || identity.runtime === "unknown")
+    return null;
+  return `${identity.runtime}-${sanitizeStorageSegment(identity.sessionKey)}`;
+}
+function sanitizeStorageSegment(value) {
+  return value.trim().replace(/[^A-Za-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "id";
+}
 var RUNTIMES, RUNTIME_ENV = "SAFEWORD_AGENT_RUNTIME";
 var init_run_identity = __esm(() => {
   RUNTIMES = new Set(["claude", "codex", "cursor", "unknown"]);
@@ -51227,6 +51235,25 @@ var init_codex_bootstrap = __esm(() => {
   PROFILE_MARKER_REPAIR_REQUIRED = `Safeword is installed for your Codex profile, but its activation marker could not be verified. Repair the profile once with: ${RETRY_COMMAND}`;
   PROFILE_MARKER_VERSION_REPAIR_REQUIRED = `Safeword is installed for your Codex profile, but its activation marker belongs to a different Safeword version. Repair the profile once with: ${RETRY_COMMAND}`;
   INSTALL_COMPLETED_RESTART_REQUIRED = `Safeword was installed for your Codex profile, but the newly installed runtime is not active in this already-open task. ${CODEX_REVIEW_THEN_RESTART_ACTION} before relying on the installed version.`;
+});
+
+// templates/hooks/lib/cursor-state.ts
+function cursorStateKey(input) {
+  const identity = resolveRunIdentity(input, { runtime: "cursor" });
+  return getRunStorageKey(identity) ?? CURSOR_STATE_FALLBACK_KEY;
+}
+function cursorTranscriptStashPath(input) {
+  return `${CURSOR_TRANSCRIPT_STASH_PREFIX}${cursorStateKey(input)}`;
+}
+function cursorConversationStashPath(input) {
+  return `${CURSOR_IDENTITY_STASH_PREFIX}${cursorStateKey(input)}`;
+}
+function cursorProjectStashPath(input) {
+  return `${CURSOR_PROJECT_STASH_PREFIX}${cursorStateKey(input)}`;
+}
+var CURSOR_STATE_FALLBACK_KEY = "cursor-default", CURSOR_IDENTITY_STASH_PREFIX = "/tmp/safeword-cursor-conversation-", CURSOR_PROJECT_STASH_PREFIX = "/tmp/safeword-cursor-project-", CURSOR_TRANSCRIPT_STASH_PREFIX = "/tmp/safeword-cursor-transcript-";
+var init_cursor_state = __esm(() => {
+  init_run_identity();
 });
 
 // templates/hooks/lib/dogfood.ts
@@ -57573,46 +57600,63 @@ var init_pipeline = __esm(() => {
 import { createHash as createHash29 } from "crypto";
 import { mkdirSync as mkdirSync19, renameSync as renameSync11, unlinkSync as unlinkSync6, writeFileSync as writeFileSync24 } from "fs";
 import path5 from "path";
-function hasValue(value) {
-  return value !== undefined && value.trim() !== "";
+function containsControlCharacter(value) {
+  for (const character of value) {
+    const codePoint = character.codePointAt(0) ?? 0;
+    if (codePoint <= 31 || codePoint >= 127 && codePoint <= 159)
+      return true;
+  }
+  return false;
 }
-function optionalValue(value) {
-  return hasValue(value) ? value.trim() : undefined;
+function normalizePublicRetroOptionalValue(value) {
+  const normalized = value?.trim();
+  if (normalized === undefined || normalized === "" || containsControlCharacter(normalized) || Buffer.byteLength(normalized, "utf8") > MAX_OPTIONAL_VALUE_BYTES) {
+    return;
+  }
+  return normalized;
+}
+function validSourceRoute(source) {
+  return source.hostClass === "unknown" || source.harness !== "cursor";
 }
 function isValidEnvelopeInput(input, projectUUID) {
   const { source } = input;
-  return UUID2.test(projectUUID) && input.finding.trim() !== "" && input.sessionId.trim() !== "" && (source.harness === "claude-code" || source.harness === "codex") && source.hostClass === "local" && source.safewordCliVersion.trim() !== "";
+  return UUID2.test(projectUUID) && input.finding.trim() !== "" && input.sessionId.trim() !== "" && validSourceRoute(source);
 }
 function deriveSessionScope(harness, projectUUID, sessionId) {
   return createHash29("sha256").update("safeword-retro-session-scope:v1\x00").update(harness).update("\x00").update(projectUUID).update("\x00").update(sessionId).digest("hex");
 }
 function buildPublicRetroEnvelope(input) {
   const projectUUID = input.source.projectUUID.toLowerCase();
-  if (!isValidEnvelopeInput(input, projectUUID)) {
+  const cliVersion = normalizePublicRetroOptionalValue(input.source.safewordCliVersion);
+  if (cliVersion === undefined || !isValidEnvelopeInput(input, projectUUID)) {
     throw new Error("Invalid public retrospective input");
   }
+  const normalizedOptional = {
+    repository: normalizePublicRetroOptionalValue(input.source.repository),
+    agentVersion: normalizePublicRetroOptionalValue(input.source.agentVersion),
+    model: normalizePublicRetroOptionalValue(input.source.model),
+    safewordPluginVersion: normalizePublicRetroOptionalValue(input.source.safewordPluginVersion),
+    osFamily: normalizePublicRetroOptionalValue(input.source.osFamily)
+  };
   const source = {
     harness: input.source.harness,
     hostClass: input.source.hostClass,
     projectUUID,
-    safewordCliVersion: input.source.safewordCliVersion,
-    ...optionalValue(input.source.repository) !== undefined && {
-      repository: optionalValue(input.source.repository)
+    safewordCliVersion: cliVersion,
+    ...normalizedOptional.repository !== undefined && {
+      repository: normalizedOptional.repository
     },
-    ...optionalValue(input.source.agentVersion) !== undefined && {
-      agentVersion: optionalValue(input.source.agentVersion)
+    ...normalizedOptional.agentVersion !== undefined && {
+      agentVersion: normalizedOptional.agentVersion
     },
-    ...optionalValue(input.source.model) !== undefined && {
-      model: optionalValue(input.source.model)
+    ...normalizedOptional.model !== undefined && {
+      model: normalizedOptional.model
     },
-    ...optionalValue(input.source.safewordPluginVersion) !== undefined && {
-      safewordPluginVersion: optionalValue(input.source.safewordPluginVersion)
+    ...normalizedOptional.safewordPluginVersion !== undefined && {
+      safewordPluginVersion: normalizedOptional.safewordPluginVersion
     },
-    ...optionalValue(input.source.osFamily) !== undefined && {
-      osFamily: optionalValue(input.source.osFamily)
-    },
-    ...optionalValue(input.source.userIdentity) !== undefined && {
-      userIdentity: optionalValue(input.source.userIdentity)
+    ...normalizedOptional.osFamily !== undefined && {
+      osFamily: normalizedOptional.osFamily
     }
   };
   const scope = deriveSessionScope(source.harness, projectUUID, input.sessionId);
@@ -57660,6 +57704,8 @@ async function submitPublicRetroRequest(prepared, transport, signal) {
   return result;
 }
 async function deliverPreparedInput(input, dependencies, preparationDeadline) {
+  let claimedMarkerPath;
+  let accepted = false;
   try {
     if (dependencies.now() >= preparationDeadline)
       return "abandoned";
@@ -57667,6 +57713,7 @@ async function deliverPreparedInput(input, dependencies, preparationDeadline) {
     const prepared = claimPublicRetroRequest(built, dependencies);
     if (!prepared || dependencies.now() >= preparationDeadline)
       return "abandoned";
+    claimedMarkerPath = path5.join(dependencies.attemptsDirectory, `${prepared.sessionScope}.json`);
     const handoffDeadline = dependencies.now() + 2000;
     const controller = new AbortController;
     const timeout = setTimeout(() => {
@@ -57676,30 +57723,40 @@ async function deliverPreparedInput(input, dependencies, preparationDeadline) {
     let result;
     try {
       result = await submitPublicRetroRequest(prepared, dependencies.transport, controller.signal);
+      accepted = true;
     } finally {
       clearTimeout(timeout);
     }
     if (dependencies.now() >= handoffDeadline)
       return "abandoned";
-    const markerPath2 = path5.join(dependencies.attemptsDirectory, `${prepared.sessionScope}.json`);
-    const temporaryPath = `${markerPath2}.${prepared.requestId}.tmp`;
-    let committed = false;
-    try {
-      writeFileSync24(temporaryPath, JSON.stringify({ sessionScope: prepared.sessionScope, receipt: result.receipt }), { encoding: "utf8", flag: "wx", flush: true });
-      if (dependencies.now() >= handoffDeadline)
-        return "abandoned";
-      renameSync11(temporaryPath, markerPath2);
-      committed = true;
-      return "preserved";
-    } finally {
-      if (!committed) {
-        try {
-          unlinkSync6(temporaryPath);
-        } catch {}
-      }
-    }
+    const preserved = preservePublicRetroReceipt(prepared, result, claimedMarkerPath, dependencies.now, handoffDeadline);
+    return preserved ? "preserved" : "abandoned";
   } catch {
     return "abandoned";
+  } finally {
+    if (claimedMarkerPath !== undefined && !accepted) {
+      try {
+        unlinkSync6(claimedMarkerPath);
+      } catch {}
+    }
+  }
+}
+function preservePublicRetroReceipt(prepared, result, markerPath2, now, handoffDeadline) {
+  const temporaryPath = `${markerPath2}.${prepared.requestId}.tmp`;
+  let committed = false;
+  try {
+    writeFileSync24(temporaryPath, JSON.stringify({ sessionScope: prepared.sessionScope, receipt: result.receipt }), { encoding: "utf8", flag: "wx", flush: true });
+    if (now() >= handoffDeadline)
+      return false;
+    renameSync11(temporaryPath, markerPath2);
+    committed = true;
+    return true;
+  } finally {
+    if (!committed) {
+      try {
+        unlinkSync6(temporaryPath);
+      } catch {}
+    }
   }
 }
 function deliverSanitizedPublicRetroFinding(input, dependencies, preparationDeadline) {
@@ -57713,7 +57770,7 @@ function deliverSanitizedPublicRetroFinding(input, dependencies, preparationDead
     return Promise.resolve("abandoned");
   }
 }
-var UUID2, MAX_ENVELOPE_BYTES = 65536;
+var UUID2, MAX_ENVELOPE_BYTES = 65536, MAX_OPTIONAL_VALUE_BYTES = 256;
 var init_public_delivery = __esm(() => {
   init_finding();
   UUID2 = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -57721,26 +57778,47 @@ var init_public_delivery = __esm(() => {
 
 // src/retro/public-source.ts
 import { lstatSync as lstatSync24, readFileSync as readFileSync66, realpathSync as realpathSync15 } from "fs";
-import { homedir as homedir8 } from "os";
 import nodePath104 from "path";
 function repoIdentity(hostname, rawPath) {
-  let path6 = rawPath;
-  while (path6.startsWith("/"))
-    path6 = path6.slice(1);
-  while (path6.endsWith("/"))
-    path6 = path6.slice(0, -1);
-  if (path6.toLowerCase().endsWith(".git"))
-    path6 = path6.slice(0, -4);
-  if (hostname === "" || path6 === "" || /\s/u.test(path6))
+  const path6 = normalizedRepoPath(rawPath);
+  if (hostname === "" || path6 === "" || /[%\s]/u.test(path6))
+    return;
+  if (path6.split("/").length !== 2)
     return;
   const normalizedHost = hostname.toLowerCase();
+  if (normalizedHost !== "github.com" && normalizedHost !== "gitlab.com")
+    return;
   return `${normalizedHost}/${normalizedHost === "github.com" ? path6.toLowerCase() : path6}`;
+}
+function normalizedRepoPath(rawPath) {
+  let start = 0;
+  let end = rawPath.length;
+  while (rawPath[start] === "/")
+    start += 1;
+  while (end > start && rawPath[end - 1] === "/")
+    end -= 1;
+  let path6 = rawPath.slice(start, end);
+  if (path6.toLowerCase().endsWith(".git"))
+    path6 = path6.slice(0, -4);
+  return path6;
+}
+function parseScpRemote(remote) {
+  const separator = remote.indexOf(":");
+  if (separator <= 0)
+    return;
+  const authority = remote.slice(0, separator);
+  const path6 = remote.slice(separator + 1);
+  const at = authority.lastIndexOf("@");
+  const hostname = authority.slice(at + 1);
+  if (hostname === "" || path6 === "" || /[\s/]/u.test(authority))
+    return;
+  return [hostname, path6];
 }
 function normalizeRepoRemote(remote) {
   if (!remote.includes("://")) {
-    const scp = SCP_REMOTE.exec(remote);
+    const scp = parseScpRemote(remote);
     if (scp)
-      return repoIdentity(scp[1] ?? "", scp[2] ?? "");
+      return repoIdentity(...scp);
   }
   if (/\s/u.test(remote))
     return;
@@ -57753,35 +57831,23 @@ function normalizeRepoRemote(remote) {
     return;
   }
 }
-function selectPublicUserIdentity(runtimeIdentity, localEmail, globalEmail) {
-  return [runtimeIdentity, localEmail, globalEmail].find((value) => value !== undefined && value.trim() !== "")?.trim();
-}
-function optionalValue2(value) {
-  return value !== undefined && value.trim() !== "" ? value.trim() : undefined;
-}
 function buildPublicRetroSource(cwd, options) {
   const project = readEnabledPublicRetroProject(cwd);
   if (project === undefined)
     return;
-  const git = collectPublicGitContext(cwd, { environment: options.environment });
-  const userIdentity = selectPublicUserIdentity(options.runtimeIdentity, git.localEmail, git.globalEmail);
+  const git = collectPublicGitContext(cwd);
+  const cliVersion = normalizePublicRetroOptionalValue(options.cliVersion);
+  if (cliVersion === undefined)
+    return;
+  const osFamily = normalizePublicRetroOptionalValue(options.osFamily);
+  const repo = normalizePublicRetroOptionalValue(git.repository);
   return {
     harness: options.harness,
-    hostClass: "local",
+    hostClass: "unknown",
     projectUUID: project.projectUUID,
-    safewordCliVersion: options.cliVersion.trim(),
-    ...git.repository !== undefined && { repository: git.repository },
-    ...optionalValue2(options.agentVersion) !== undefined && {
-      agentVersion: optionalValue2(options.agentVersion)
-    },
-    ...optionalValue2(options.model) !== undefined && { model: optionalValue2(options.model) },
-    ...optionalValue2(options.pluginVersion) !== undefined && {
-      safewordPluginVersion: optionalValue2(options.pluginVersion)
-    },
-    ...optionalValue2(options.osFamily) !== undefined && {
-      osFamily: optionalValue2(options.osFamily)
-    },
-    ...userIdentity !== undefined && { userIdentity }
+    safewordCliVersion: cliVersion,
+    ...repo !== undefined && { repository: repo },
+    ...osFamily !== undefined && { osFamily }
   };
 }
 function repoGitConfigPath(cwd) {
@@ -57817,7 +57883,6 @@ function trustedConfigFile(path6) {
 }
 function parseRepoGitConfig(content) {
   let section = "";
-  let email;
   let remote;
   for (const rawLine of content.split(/\r?\n/u)) {
     let line = rawLine.trim();
@@ -57830,26 +57895,42 @@ function parseRepoGitConfig(content) {
     if (!entry2)
       continue;
     const [key, value] = entry2;
-    if (section === "user" && key === "email")
-      email = value;
-    if (section === 'remote "origin"' && key === "url")
+    if (section === 'remote "origin"' && key === "url" && remote === undefined)
       remote = value;
   }
   return {
-    ...email !== undefined && { email },
     ...remote !== undefined && { remote },
-    delegatesIdentity: hasIdentityDelegate(content)
+    delegatesConfig: hasConfigDelegate(content)
   };
 }
-function hasIdentityDelegate(content) {
+function hasConfigDelegate(content) {
   return content.split(/\r?\n/u).some((rawLine) => {
     const section = parseGitSection(rawLine.trim());
-    return section === "include" || section?.startsWith("includeif ") === true;
+    return section === "include" || section?.startsWith("includeif ") === true || section?.startsWith('url "') === true;
   });
 }
 function parseGitSection(line) {
   const end = line.indexOf("]");
-  return line.startsWith("[") && end !== -1 ? line.slice(1, end).toLowerCase().split(/\s/u).filter(Boolean).join(" ") : undefined;
+  if (!line.startsWith("[") || end === -1)
+    return;
+  const declaration = line.slice(1, end).trim();
+  let separator = -1;
+  let offset = 0;
+  for (const character of declaration) {
+    if (character.trim() === "") {
+      separator = offset;
+      break;
+    }
+    offset += character.length;
+  }
+  if (separator === -1)
+    return declaration.toLowerCase();
+  const section = declaration.slice(0, separator).toLowerCase();
+  const quotedSubsection = declaration.slice(separator).trim();
+  if (!quotedSubsection.startsWith('"') || !quotedSubsection.endsWith('"') || quotedSubsection.slice(1, -1).includes('"')) {
+    return;
+  }
+  return `${section} ${quotedSubsection}`;
 }
 function parseGitEntry(line) {
   const separator = line.indexOf("=");
@@ -57877,48 +57958,21 @@ function stripGitComment(value) {
   const comment = value.search(/[;#]/u);
   return (comment === -1 ? value : value.slice(0, comment)).trim();
 }
-function globalGitConfigPaths(options) {
-  const environment = options.environment ?? process.env;
-  if (environment.GIT_CONFIG_GLOBAL !== undefined && nodePath104.isAbsolute(environment.GIT_CONFIG_GLOBAL)) {
-    return [environment.GIT_CONFIG_GLOBAL];
-  }
-  const home = options.homeDirectory ?? homedir8();
-  if (!nodePath104.isAbsolute(home))
-    return [];
-  const xdg = environment.XDG_CONFIG_HOME !== undefined && nodePath104.isAbsolute(environment.XDG_CONFIG_HOME) ? environment.XDG_CONFIG_HOME : nodePath104.join(home, ".config");
-  return [nodePath104.join(xdg, "git/config"), nodePath104.join(home, ".gitconfig")];
-}
-function collectGlobalGitEmail(options) {
-  let email;
-  let delegatesIdentity = false;
-  for (const path6 of globalGitConfigPaths(options)) {
-    try {
-      const config = parseRepoGitConfig(readFileSync66(path6, "utf8"));
-      delegatesIdentity ||= config.delegatesIdentity;
-      if (config.email !== undefined && config.email.trim() !== "")
-        email = config.email;
-    } catch {}
-  }
-  return delegatesIdentity ? undefined : email;
-}
-function collectPublicGitContext(cwd, options = {}) {
+function collectPublicGitContext(cwd) {
   try {
     const config = parseRepoGitConfig(readFileSync66(repoGitConfigPath(cwd), "utf8"));
+    if (config.delegatesConfig)
+      return {};
     const repo = config.remote === undefined ? undefined : normalizeRepoRemote(config.remote);
-    const globalEmail = config.delegatesIdentity ? undefined : collectGlobalGitEmail(options);
-    return {
-      ...repo !== undefined && { repository: repo },
-      ...!config.delegatesIdentity && config.email !== undefined && config.email.trim() !== "" && { localEmail: config.email },
-      ...globalEmail !== undefined && { globalEmail }
-    };
+    return { ...repo !== undefined && { repository: repo } };
   } catch {
     return {};
   }
 }
-var SCP_REMOTE, ALLOWED_PROTOCOLS;
+var ALLOWED_PROTOCOLS;
 var init_public_source = __esm(() => {
   init_public_config();
-  SCP_REMOTE = /^[^@\s/]+@([^:\s/]+):(.+)$/u;
+  init_public_delivery();
   ALLOWED_PROTOCOLS = new Set(["git:", "https:", "ssh:"]);
 });
 
@@ -60387,6 +60441,7 @@ __export(exports_retro, {
   resolveRelayRecoveryOutboxDirectory: () => resolveRelayRecoveryOutboxDirectory,
   resolveRelayOutboxDirectory: () => resolveRelayOutboxDirectory,
   resolveRelayConfig: () => resolveRelayConfig,
+  resolvePublicRetroRoute: () => resolvePublicRetroRoute,
   reportRetroCommandOutcome: () => reportRetroCommandOutcome,
   executeRetroReconcile: () => executeRetroReconcile,
   executeRetroCommand: () => executeRetroCommand,
@@ -60447,11 +60502,13 @@ function relayDraftForEncounter(encounter, source, relay) {
     sourceKey: relaySourceKey(source.session, source.windowStart, relayDraft)
   };
 }
-async function runRelayRetro(encounters, drops, source, projectDirectory, relay) {
+async function runRelayRetro(encounters, drops, options) {
+  const { afterPersistence, projectDirectory, relay, source } = options;
   const spoolDirectory = relay.spoolDirectory ?? projectDirectory;
   const relayDrafts = encounters.map((encounter) => relayDraftForEncounter(encounter, source, relay));
   const persistence = await persistRelayDraftBatch(spoolDirectory, relayDrafts);
   const spoolFailed = persistence.filter((outcome) => outcome.status === "rejected").length;
+  await afterPersistence?.();
   const deadlineMs = relay.deadlineMs ?? DEFAULT_RELAY_REQUEST_DEADLINE_MS;
   let delivery;
   try {
@@ -60541,20 +60598,9 @@ async function runRetro(options, dependencies) {
   const publicPreparationDeadline = dependencies.publicRetro === undefined ? undefined : dependencies.publicRetro.now() + 1000;
   const { encounters, drops, findings } = await prepareEncounters(rawFindings);
   const publicFinding = findings.length === 1 ? findings[0] : undefined;
-  if (dependencies.publicRetro !== undefined && publicPreparationDeadline !== undefined && rawFindings.length === 1 && publicFinding !== undefined) {
-    await deliverSanitizedPublicRetroFinding({
-      finding: publicFinding,
-      sessionId: dependencies.sessionId,
-      source: dependencies.publicRetro.source
-    }, dependencies.publicRetro, publicPreparationDeadline);
-  }
-  const { projectDirectory, sessionId } = dependencies;
+  const { projectDirectory, publicRetro, sessionId } = dependencies;
   const relay = dependencies.relay;
-  if (relay?.readiness.enabled === true && projectDirectory !== undefined) {
-    const sourceSession = sessionId.trim().length === 0 || sessionId === "unknown" ? options.transcript : sessionId;
-    return runRelayRetro(encounters, drops, { session: sourceSession, windowStart: options.windowStart ?? 0 }, projectDirectory, relay);
-  }
-  if (projectDirectory !== undefined) {
+  if (projectDirectory !== undefined && relay?.readiness.enabled !== true) {
     const drafts = encounters.map((encounter) => encounter.draft);
     recordRetroDebugEvent({
       event: "retro_cli_spool",
@@ -60565,6 +60611,22 @@ async function runRetro(options, dependencies) {
     });
     spoolDrafts(projectDirectory, sessionId, drafts);
   }
+  const deliverPublic = async () => {
+    if (publicRetro === undefined || publicPreparationDeadline === undefined || rawFindings.length !== 1 || publicFinding === undefined) {
+      return;
+    }
+    await deliverSanitizedPublicRetroFinding({ finding: publicFinding, sessionId, source: publicRetro.source }, publicRetro, publicPreparationDeadline);
+  };
+  if (relay?.readiness.enabled === true && projectDirectory !== undefined) {
+    const sourceSession = sessionId.trim().length === 0 || sessionId === "unknown" ? options.transcript : sessionId;
+    return runRelayRetro(encounters, drops, {
+      afterPersistence: deliverPublic,
+      projectDirectory,
+      relay,
+      source: { session: sourceSession, windowStart: options.windowStart ?? 0 }
+    });
+  }
+  await deliverPublic();
   const provenance = dependencies.resolveProvenance?.();
   const result = await triage(dependencies.transport, encounters, {
     sessionId,
@@ -60587,8 +60649,23 @@ async function runRetro(options, dependencies) {
   });
   return { ok: true, result, agentFilingNeeded, drops };
 }
-function headlessEnvironment(environment) {
-  return Object.fromEntries(HEADLESS_ENVIRONMENT_KEYS.flatMap((key) => {
+function headlessEnvironment(environment, agent) {
+  let vendorKeys;
+  switch (agent) {
+    case "claude": {
+      vendorKeys = CLAUDE_HEADLESS_ENVIRONMENT_KEYS;
+      break;
+    }
+    case "codex": {
+      vendorKeys = CODEX_HEADLESS_ENVIRONMENT_KEYS;
+      break;
+    }
+    case "cursor": {
+      vendorKeys = [];
+      break;
+    }
+  }
+  return Object.fromEntries([...SHARED_HEADLESS_ENVIRONMENT_KEYS, ...vendorKeys].flatMap((key) => {
     const value = environment[key];
     return value === undefined ? [] : [[key, value]];
   }));
@@ -60659,7 +60736,7 @@ async function buildAutoExtractor(projectDirectory, dependencies = {}) {
           writeFileSync25(path8, content);
         },
         readFile: (path8) => readFileSync67(path8, "utf8"),
-        env: headlessEnvironment(process17.env),
+        env: headlessEnvironment(process17.env, "codex"),
         cwd: workDirectory,
         model,
         schemaPath: nodePath105.join(workDirectory, "schema.json"),
@@ -60682,7 +60759,7 @@ async function buildAutoExtractor(projectDirectory, dependencies = {}) {
     return async (transcript) => {
       const result = await runCursorHeadlessExtractionChecked2(transcript, {
         spawn: spawnCursor,
-        env: process17.env,
+        env: headlessEnvironment(process17.env, "cursor"),
         cwd: workDirectory,
         model
       });
@@ -60706,7 +60783,7 @@ async function buildAutoExtractor(projectDirectory, dependencies = {}) {
         writeFileSync25(path8, digest4);
         return path8;
       },
-      env: headlessEnvironment(process17.env),
+      env: headlessEnvironment(process17.env, "claude"),
       cwd: workDirectory,
       model
     });
@@ -61079,28 +61156,24 @@ async function retryRelayDeadLetterCommand(requestId, dependencies) {
   success2(`retro relay: rearmed ${requestId} with its original durable request identity.`);
   return true;
 }
-function localPublicHarness(agent) {
+function publicHarness(agent) {
   if (agent === "claude")
     return "claude-code";
   if (agent === "codex")
     return "codex";
-  return;
+  return agent === "cursor" ? "cursor" : undefined;
 }
 function resolvePublicRetroRoute(input) {
-  if (!input.enabled || input.environment.CLAUDE_CODE_REMOTE_SESSION_ID !== undefined) {
+  if (!input.enabled || input.agent === "cursor" && !cursorPublicBindingMatches(input) || input.agent === "claude" && input.environment.CLAUDE_CODE_REMOTE_SESSION_ID !== undefined) {
     return;
   }
-  const harness = localPublicHarness(input.agent);
+  const harness = publicHarness(input.agent);
   if (harness === undefined)
     return;
   const source = buildPublicRetroSource(input.projectDirectory, {
-    agentVersion: harness === "codex" ? input.environment.CODEX_VERSION : input.environment.CLAUDE_CODE_VERSION,
     cliVersion: VERSION,
-    environment: input.environment,
     harness,
-    model: harness === "codex" ? input.environment.CODEX_MODEL : input.environment.ANTHROPIC_MODEL,
-    osFamily: platform(),
-    pluginVersion: VERSION
+    osFamily: platform()
   });
   if (source === undefined)
     return;
@@ -61111,6 +61184,18 @@ function resolvePublicRetroRoute(input) {
     source,
     transport: createPublicRetroTransport()
   };
+}
+function cursorPublicBindingMatches(input) {
+  const sessionId = input.sessionId?.trim();
+  const transcript = input.transcript?.trim();
+  if (!sessionId || !transcript)
+    return false;
+  const state = { conversation_id: sessionId };
+  try {
+    return readFileSync67(cursorConversationStashPath(state), "utf8") === sessionId && readFileSync67(cursorTranscriptStashPath(state), "utf8") === transcript && realpathSync16(readFileSync67(cursorProjectStashPath(state), "utf8")) === realpathSync16(input.projectDirectory);
+  } catch {
+    return false;
+  }
 }
 async function executeRetroCliCommand(options, cwd) {
   const { detectAgent: detectAgent2 } = await Promise.resolve().then(() => (init_self_report(), exports_self_report));
@@ -61128,7 +61213,9 @@ async function executeRetroCliCommand(options, cwd) {
     agent: autoExtractAgent,
     enabled: options.publicRetro === true,
     environment: process17.env,
-    projectDirectory
+    projectDirectory,
+    sessionId: options.sessionId,
+    transcript: options.transcript
   });
   const outcome = await executeRetroWithDependencies(options, {
     captureFilingFault: captureRetroFilingFault,
@@ -61200,8 +61287,9 @@ async function retroReconcileCommand(dependencies = {}) {
   info2(`reconcile: ${result.flagged.length} flagged possibly-resolved, ${result.skipped.length} skipped, ${result.deferred.length} deferred to a later run, ${result.failed.length} failed`);
   success2("reconcile complete");
 }
-var HEADLESS_ENVIRONMENT_KEYS, CURSOR_RETRO_DENY_RULES, INVALID_RELAY_OUTBOX_ERROR = "retro relay configuration is invalid; SAFEWORD_RETRO_RELAY_OUTBOX must be an existing absolute directory outside the project";
+var SHARED_HEADLESS_ENVIRONMENT_KEYS, CLAUDE_HEADLESS_ENVIRONMENT_KEYS, CODEX_HEADLESS_ENVIRONMENT_KEYS, CURSOR_RETRO_DENY_RULES, INVALID_RELAY_OUTBOX_ERROR = "retro relay configuration is invalid; SAFEWORD_RETRO_RELAY_OUTBOX must be an existing absolute directory outside the project";
 var init_retro = __esm(() => {
+  init_cursor_state();
   init_dogfood();
   init_retro_debug();
   init_retro_draft_spool();
@@ -61217,15 +61305,35 @@ var init_retro = __esm(() => {
   init_relay_readiness();
   init_triage();
   init_version();
-  HEADLESS_ENVIRONMENT_KEYS = [
+  SHARED_HEADLESS_ENVIRONMENT_KEYS = [
     "ALL_PROXY",
+    "APPDATA",
+    "HOME",
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "LANG",
+    "LC_ALL",
+    "NODE_EXTRA_CA_CERTS",
+    "NO_PROXY",
+    "PATH",
+    "PATHEXT",
+    "SHELL",
+    "SystemRoot",
+    "TERM",
+    "TMPDIR",
+    "USER",
+    "USERPROFILE",
+    "XDG_CACHE_HOME",
+    "XDG_CONFIG_HOME",
+    "XDG_DATA_HOME"
+  ];
+  CLAUDE_HEADLESS_ENVIRONMENT_KEYS = [
     "ANTHROPIC_API_KEY",
     "ANTHROPIC_AUTH_TOKEN",
     "ANTHROPIC_BASE_URL",
     "ANTHROPIC_BEDROCK_BASE_URL",
     "ANTHROPIC_BEDROCK_MANTLE_BASE_URL",
     "ANTHROPIC_VERTEX_PROJECT_ID",
-    "APPDATA",
     "AWS_ACCESS_KEY_ID",
     "AWS_BEARER_TOKEN_BEDROCK",
     "AWS_PROFILE",
@@ -61239,28 +61347,9 @@ var init_retro = __esm(() => {
     "CLAUDE_CODE_USE_VERTEX",
     "CLAUDE_CONFIG_DIR",
     "CLOUD_ML_REGION",
-    "CODEX_HOME",
-    "GOOGLE_APPLICATION_CREDENTIALS",
-    "HOME",
-    "HTTP_PROXY",
-    "HTTPS_PROXY",
-    "LANG",
-    "LC_ALL",
-    "NODE_EXTRA_CA_CERTS",
-    "NO_PROXY",
-    "OPENAI_API_KEY",
-    "PATH",
-    "PATHEXT",
-    "SHELL",
-    "SystemRoot",
-    "TERM",
-    "TMPDIR",
-    "USER",
-    "USERPROFILE",
-    "XDG_CACHE_HOME",
-    "XDG_CONFIG_HOME",
-    "XDG_DATA_HOME"
+    "GOOGLE_APPLICATION_CREDENTIALS"
   ];
+  CODEX_HEADLESS_ENVIRONMENT_KEYS = ["CODEX_HOME", "OPENAI_API_KEY"];
   CURSOR_RETRO_DENY_RULES = [
     "Shell(**)",
     "Read(**)",
