@@ -22,6 +22,7 @@ import {
   reviewTimeoutMilliseconds,
   runBoundMs,
   runHeadlessReviewer,
+  scenarioReviewRubric,
 } from '../../src/review/runtime.js';
 import {
   cleanupTrustedReviewerDirectories,
@@ -57,6 +58,18 @@ const output: ReviewerOutput = {
   summary: 'reviewed',
   findings: [],
 };
+
+describe('scenario review rubric', () => {
+  it('uses a non-empty reviewer-only generated rubric', () => {
+    const rubric = scenarioReviewRubric();
+    expect(rubric).toContain('## Shared scenario-quality rubric');
+    expect(rubric).toContain('**Must Fix** for correctness or structural');
+    expect(rubric).toContain('and `info`, respectively');
+    expect(rubric).not.toContain('run-review.ts');
+    expect(rubric).not.toContain('Authoring mode');
+    expect(rubric).not.toContain('Review mode');
+  });
+});
 
 describe('headless reviewer timeout budgets', () => {
   // 91 real review runs put successful reviews at 47s median, 75s slowest, so

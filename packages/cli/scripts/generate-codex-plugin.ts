@@ -3,6 +3,8 @@ import nodePath from 'node:path';
 import { writeCodexPluginCatalogue } from '../src/codex-plugin/catalogue.js';
 import { VERSION } from '../src/version.js';
 
+await import('./generate-scenario-rubric.js');
+
 const packageRoot = nodePath.resolve(import.meta.dirname, '..');
 const assets = writeCodexPluginCatalogue(
   nodePath.join(packageRoot, 'templates/skills'),

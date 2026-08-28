@@ -41,7 +41,7 @@ describe('BDD review evidence contract', () => {
   it.each(reviewSpecCopies)('%s reconciles scope and challenges proof boundaries', path => {
     const content = read(path).replaceAll(/\s+/gu, ' ');
 
-    expect(content).toContain('material partition retained in `dimensions.md`');
+    expect(content).toContain('material partition in the supplied dimensions context');
     expect(content).toContain(
       'could the proposed test pass while the user-facing claim is still broken?',
     );

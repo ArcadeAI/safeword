@@ -46,29 +46,10 @@ phase: implement # intake | define-behavior | scenario-gate | plan-implementatio
 
 ### Phase-exit review (Tier 2)
 
-The **scenario-gate exit requires** an independent review of the scenarios — not
-your own pass. (Your own inline pass is Tier 1: `$safeword:self-review`, per asset, as you
-author.) Invoke the shared host-owned coordinator with only the phase artifacts
-and ticket scope; its typed verdict decides. Resolve a review-capable Safeword
-CLI first; source checkouts do not guarantee a bare `safeword` on `PATH`:
-
-```bash
-SAFEWORD_REVIEW_PROGRESS=1 bunx --bun safeword@0.80.1 review run scenario-gate feature-file ticket-spec [legacy-test-definitions] --agent-handoff --json
-```
-
-The coordinator prefers the opposite headless agent and labels a permitted
-same-agent fallback as degraded. Only when its typed result is
-`REVIEW_ROUTES_EXHAUSTED`, invoke `$safeword:finish-review` immediately with the original
-result and the same accepted targets. For every other result, return it
-unchanged; do not bypass it with another private subagent. On a result that
-satisfies the configured policy, record the returned provenance in the stamp
-(substitute the four values from `data` in the coordinator result):
-
-```bash
-bun .safeword/hooks/write-review-stamp.ts --author-agent "author-agent" --reviewer-agent "actual-reviewer" --independence "independence" --phase phase-name
-```
-
-If the reviewer finds blocking issues, fix them and re-review — don't stamp.
+The **scenario-gate exit requires** `review-spec` in Review mode. That skill owns
+the scenario targets, project context, coordinator protocol, verdict, and review
+stamp. This orchestrator owns only routing and the phase transition; do not
+restate or independently invoke the scenario-review protocol here.
 
 All BDD review exits share one lifecycle rule: `REVIEW_PENDING` is a live
 review, not a verdict. Keep its `review_id`, collect it through the returned

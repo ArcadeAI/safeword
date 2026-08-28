@@ -143,7 +143,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "5d826cabb1c6ebcdb8d2ee1702db95207bc4ae633dc6ab9f3d45fab30b690877"
+      "sha256": "9b888b03c48cfcdbde9fd3327123a050f6530d1867360f495ce8cc9c6cd0305a"
     },
     {
       "path": "runtime/dispatch.js",
@@ -323,7 +323,7 @@
     },
     {
       "path": "runtime/hooks/lib/quality.ts",
-      "sha256": "3791e5767bccf96e8e1ce27234fc1bcb7d14020192efe597e0daf385f0a27d5e"
+      "sha256": "7bba76bd6c456d77e2dd82566b36a9c6ffdae3d00540199548745419c0c667aa"
     },
     {
       "path": "runtime/hooks/lib/re-entry.ts",
@@ -475,7 +475,7 @@
     },
     {
       "path": "runtime/hooks/prompt-questions.ts",
-      "sha256": "6ef3928c770660c7ed9fc8fc85f22c8601bfcbcb7def49a42e4e972fcde8e095"
+      "sha256": "aa9d93722e73a6af32d5cdb8b0783157dd105c2d2a1a9526e2325e33374a4887"
     },
     {
       "path": "runtime/hooks/prompt-retro-nudge.ts",
@@ -603,11 +603,11 @@
     },
     {
       "path": "skills/bdd/SCENARIOS.md",
-      "sha256": "c808d4c8455f8f6248f85e2d2403e881bdab83e0ac19e8c3dd9c28fb9c2ee8f4"
+      "sha256": "1ae0b5b60cec96bab33c4f9448715f88455e01f1ccc22a87496fbce43a0d451c"
     },
     {
       "path": "skills/bdd/SKILL.md",
-      "sha256": "ba46dac85a05aee879e10b47d2a6aeac1d95593efdf97eac8e40c3c26bd9efd2"
+      "sha256": "81bfcf97e429b442e3708b50a692a194d31b907289febc4201471afcab7e4b9c"
     },
     {
       "path": "skills/bdd/SPLITTING.md",
@@ -679,7 +679,7 @@
     },
     {
       "path": "skills/review-spec/SKILL.md",
-      "sha256": "09ddb1c9fca5f2d04a8ef2d6d79310d0ca9ee6ec68b14f9fef9c9d8b7384ed10"
+      "sha256": "6909d44954e7cbc63c14753f744e1c6bf7af95bff640522749c955903a383aef"
     },
     {
       "path": "skills/self-review/SKILL.md",
