@@ -359,7 +359,6 @@ export async function runRetro(
     if (
       publicRetro === undefined ||
       publicPreparationDeadline === undefined ||
-      rawFindings.length === 0 ||
       findings.length === 0
     ) {
       return;
