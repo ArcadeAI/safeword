@@ -9,7 +9,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Every local carrier submits multiple findings as one ordered batch
 
 - [x] RED 9a5166e9c
-- [ ] GREEN
+- [x] GREEN e05294490
 - [ ] REFACTOR
 
 ### Scenario: One finding uses the same batch contract
