@@ -40,16 +40,18 @@ function fixtureRequest(): { body: Uint8Array; requestId: string } {
   };
 }
 
+function fixtureBatchRequestBody(): Record<string, unknown> {
+  return {
+    version: 'v2',
+    findings: ['first sanitized finding', 'second sanitized finding'],
+    source: fixtureEnvelope().source,
+    sessionScope: '8'.repeat(64),
+  };
+}
+
 function fixtureBatchRequest(): { body: Uint8Array; requestId: string } {
   return {
-    body: new TextEncoder().encode(
-      JSON.stringify({
-        version: 'v2',
-        findings: ['first sanitized finding', 'second sanitized finding'],
-        source: fixtureEnvelope().source,
-        sessionScope: '8'.repeat(64),
-      }),
-    ),
+    body: new TextEncoder().encode(JSON.stringify(fixtureBatchRequestBody())),
     requestId: '01911111-2222-7333-8444-55555555555e',
   };
 }
@@ -693,6 +695,31 @@ it('rejects byte-different reuse of an accepted session scope', async () => {
   expect(retryReceipt).toEqual(firstReceipt);
 });
 
+it('does not let a v2 batch replace a v1 body in the same session scope', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+  });
+  const first = fixtureRequest();
+  const second = {
+    body: encoded({
+      version: 'v2',
+      findings: ['fixture finding'],
+      source: fixtureEnvelope().source,
+      sessionScope: fixtureEnvelope().sessionScope,
+    }),
+    requestId: '01911111-2222-7333-8444-55555555555b',
+  };
+
+  const accepted = await submit(runtime.url, first);
+  const rejected = await submit(runtime.url, second);
+  await runtime.close();
+
+  expect(accepted.status).toBe(201);
+  expect(rejected.status).toBe(409);
+});
+
 it.each([
   ['missing', false],
   ['empty', ''],
@@ -850,6 +877,15 @@ it.each([
   ['object SafeWord CLI version', encoded(withSource({ safewordCliVersion: {} }))],
   ['wrong-typed required field', encoded({ ...fixtureEnvelope(), finding: 7 })],
 ] as const)('rejects malformed %s', (_, body) => expectEnvelopeRejected(body));
+
+it.each([
+  ['empty findings array', encoded({ ...fixtureBatchRequestBody(), findings: [] })],
+  ['empty finding', encoded({ ...fixtureBatchRequestBody(), findings: [''] })],
+  ['non-string finding', encoded({ ...fixtureBatchRequestBody(), findings: [7] })],
+  ['missing findings', encoded({ ...fixtureBatchRequestBody(), findings: undefined })],
+  ['mixed v1 and v2 fields', encoded({ ...fixtureBatchRequestBody(), finding: 'fixture finding' })],
+  ['unknown v2 field', encoded({ ...fixtureBatchRequestBody(), extra: true })],
+] as const)('rejects invalid v2 envelope: %s', (_, body) => expectEnvelopeRejected(body));
 
 it.each([
   ['unknown source harness', encoded(withSource({ harness: 'other' }))],
