@@ -57780,10 +57780,13 @@ function validSourceRoute(source) {
 }
 function isValidEnvelopeInput(input, projectUUID) {
   const { source } = input;
-  return UUID2.test(projectUUID) && input.findings.length > 0 && input.findings.every((finding) => finding.trim() !== "") && input.sessionId.trim() !== "" && validSourceRoute(source);
+  return UUID2.test(projectUUID) && input.findings.length > 0 && input.findings.every((finding) => finding.trim() !== "") && input.sessionId.trim() !== "" && (input.windowStart === undefined || Number.isSafeInteger(input.windowStart) && input.windowStart >= 0) && validSourceRoute(source);
 }
-function deriveSessionScope(harness, projectUUID, sessionId) {
-  return createHash29("sha256").update("safeword-retro-session-scope:v1\x00").update(harness).update("\x00").update(projectUUID).update("\x00").update(sessionId).digest("hex");
+function deriveSessionScope(harness, projectUUID, sessionId, windowStart) {
+  const hash = createHash29("sha256").update("safeword-retro-session-scope:v1\x00").update(harness).update("\x00").update(projectUUID).update("\x00").update(sessionId);
+  if (windowStart > 0)
+    hash.update("\x00window\x00").update(String(windowStart));
+  return hash.digest("hex");
 }
 function buildPublicRetroEnvelope(input) {
   const projectUUID = input.source.projectUUID.toLowerCase();
@@ -57819,7 +57822,7 @@ function buildPublicRetroEnvelope(input) {
       osFamily: normalizedOptional.osFamily
     }
   };
-  const scope = deriveSessionScope(source.harness, projectUUID, input.sessionId);
+  const scope = deriveSessionScope(source.harness, projectUUID, input.sessionId, input.windowStart ?? 0);
   const bytes = new TextEncoder().encode(JSON.stringify({ version: "v2", findings: input.findings, source, sessionScope: scope }));
   return { bytes, sessionScope: scope };
 }
@@ -57924,7 +57927,8 @@ function deliverSanitizedPublicRetroFindings(input, dependencies, preparationDea
     return deliverPreparedInput({
       findings: input.findings.map((finding) => assemblePublicFinding(finding)),
       source: input.source,
-      sessionId: input.sessionId
+      sessionId: input.sessionId,
+      windowStart: input.windowStart
     }, dependencies, preparationDeadline);
   } catch {
     return Promise.resolve("abandoned");
@@ -60759,6 +60763,7 @@ async function runRetro(options, dependencies) {
   const { encounters, drops, findings } = await prepareEncounters(rawFindings);
   const { projectDirectory, publicRetro, sessionId } = dependencies;
   const relay = dependencies.relay;
+  const sourceSession = sessionId.trim().length === 0 || sessionId === "unknown" ? options.transcript : sessionId;
   if (projectDirectory !== undefined && relay?.readiness.enabled !== true) {
     const drafts = encounters.map((encounter) => encounter.draft);
     recordRetroDebugEvent({
@@ -60774,10 +60779,14 @@ async function runRetro(options, dependencies) {
     if (publicRetro === undefined || publicPreparationDeadline === undefined || findings.length === 0) {
       return;
     }
-    await deliverSanitizedPublicRetroFindings({ findings, sessionId, source: publicRetro.source }, publicRetro, publicPreparationDeadline);
+    await deliverSanitizedPublicRetroFindings({
+      findings,
+      sessionId: sourceSession,
+      source: publicRetro.source,
+      windowStart: options.windowStart ?? 0
+    }, publicRetro, publicPreparationDeadline);
   };
   if (relay?.readiness.enabled === true && projectDirectory !== undefined) {
-    const sourceSession = sessionId.trim().length === 0 || sessionId === "unknown" ? options.transcript : sessionId;
     return runRelayRetro(encounters, drops, {
       afterPersistence: deliverPublic,
       projectDirectory,

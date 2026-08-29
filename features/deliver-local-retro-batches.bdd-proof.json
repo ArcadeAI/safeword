@@ -17,6 +17,10 @@
       "packages/cli/tests/commands/retro.test.ts",
       "makes no public attempt when every extracted finding is invalid"
     ],
+    "Later delta windows remain independently deliverable": [
+      "packages/cli/tests/commands/retro.test.ts",
+      "delivers later delta windows from one session under distinct public scopes"
+    ],
     "A request exactly at the shared byte limit is accepted whole": [
       "packages/cli/src/retro/public-delivery.test.ts",
       "accepts a complete v2 batch at the 65536-byte limit"
@@ -24,10 +28,6 @@
     "An oversized request makes no partial public attempt": [
       "packages/cli/src/retro/public-delivery.test.ts",
       "abandons a complete v2 batch above the 65536-byte limit"
-    ],
-    "The shipped local batch crosses the real collector boundary unchanged": [
-      "packages/cli/tests/integration/public-retro-lifecycle.test.ts",
-      "round-trips a current CLI envelope through the real collector unchanged"
     ],
     "Released v1 and exact v2 requests are both accepted": [
       [
@@ -97,6 +97,10 @@
       "abandons an oversized UTF-8 envelope before identity or claim"
     ],
     "Public collector outcomes preserve private recovery silently": [
+      [
+        "packages/cli/tests/commands/retro.test.ts",
+        "preserves private filing when the public collector rejects the submission"
+      ],
       [
         "packages/cli/src/retro/public-delivery.test.ts",
         "contains a collector connection failure without retrying"

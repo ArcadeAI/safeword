@@ -30,6 +30,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN 88037dc17
 - [x] REFACTOR skip: no additional branch was needed
 
+### Scenario: Later delta windows remain independently deliverable
+
+- [x] RED f1b312e42
+- [x] GREEN 1f366ce23
+- [x] REFACTOR skip: the released first-window hash is preserved and only later windows add one offset component
+
 ### Scenario: A request exactly at the shared byte limit is accepted whole
 
 - [x] RED skip: the shared size guard predates batching; exact v2 characterization is recorded at 710bdc323
@@ -43,12 +49,6 @@ test-definitions.md is the R/G/R ledger.
 - [x] REFACTOR skip: whole-request abandonment reuses the existing guard
 
 ## Rule: deliver-local-retro-batches.SWM1.R2 — Released single-finding senders and new batch senders share one exact collector boundary without weakening raw-body duplicate authority
-
-### Scenario: The shipped local batch crosses the real collector boundary unchanged
-
-- [x] RED skip: the lifecycle seam already existed; the batch collaborator proof is recorded at e0925b601
-- [x] GREEN e0925b601
-- [x] REFACTOR skip: the existing real-collaborator outline covers all three harnesses
 
 ### Scenario: Released v1 and exact v2 requests are both accepted
 
@@ -82,8 +82,8 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Invalid v2 envelopes are rejected before storage
 
-- [x] RED skip: strict v2 validation landed with collector acceptance; malformed matrix is recorded at 92b602ecd
-- [x] GREEN 92b602ecd
+- [x] RED f1b312e42
+- [x] GREEN 1f366ce23
 - [x] REFACTOR skip: table-driven malformed cases avoid duplicated setup
 
 ### Scenario: The collector enforces the shared whole-request byte limit

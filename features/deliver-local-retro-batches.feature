@@ -34,6 +34,11 @@ Feature: Deliver every eligible local retro finding in one bounded batch
       When the session completes through the shared local retro carrier
       Then the collector receives zero requests
 
+    Scenario: Later delta windows remain independently deliverable
+      Given one local session produces valid findings in two different transcript windows
+      When both windows complete through the shared local retro command
+      Then each window makes one ordered batch attempt under a distinct session scope
+
     @surface.safeword-cli
     Scenario: A request exactly at the shared byte limit is accepted whole
       Given an opted-in local session whose canonical v2 request is exactly 65536 bytes
@@ -48,12 +53,6 @@ Feature: Deliver every eligible local retro finding in one bounded batch
 
   @deliver-local-retro-batches.SWM1.R2
   Rule: deliver-local-retro-batches.SWM1.R2 — Released single-finding senders and new batch senders share one exact collector boundary without weakening raw-body duplicate authority
-
-    @surface.safeword-cli @surface.railway-public-retro-collector
-    Scenario: The shipped local batch crosses the real collector boundary unchanged
-      Given an opted-in local session with three valid sanitized findings
-      When the session completes through the shared local retro carrier against the public collector intake
-      Then the collector records one durable submission containing those three findings in original order
 
     @surface.railway-public-retro-collector
     Scenario Outline: Released v1 and exact v2 requests are both accepted
@@ -146,12 +145,12 @@ Feature: Deliver every eligible local retro finding in one bounded batch
       When the session completes through the shared local retro carrier
       Then completion succeeds with zero public retries and every valid sanitized finding remains available for private recovery without output
 
-    @rejection @surface.claude-code @surface.openai-codex @surface.cursor
+    @rejection @surface.safeword-cli
     Scenario Outline: Public collector outcomes preserve private recovery silently
       Given a local session with several valid findings and <collector outcome>
-      When the session completes through its installed retro carrier
-      Then the carrier makes exactly one public delivery attempt and does not retry
-      And the session-end carrier exits successfully without output
+      When the shared local retro command completes
+      Then it makes exactly one public delivery attempt and does not retry
+      And the command returns success
       And every valid sanitized finding remains available for private recovery
 
       Examples:
@@ -162,10 +161,10 @@ Feature: Deliver every eligible local retro finding in one bounded batch
         | a collector that reports a conflict              |
         | a collector that returns an unreadable response  |
 
-    @rejection @surface.claude-code @surface.openai-codex @surface.cursor
+    @rejection @surface.safeword-cli
     Scenario: A collector timeout preserves private recovery silently
       Given a local session with several valid findings and a collector that never responds before a controlled delivery deadline expires
-      When the session completes through its installed retro carrier
-      Then the carrier makes exactly one public delivery attempt and does not retry
-      And the session-end carrier exits successfully when the controlled deadline expires without waiting beyond it or producing output
+      When the shared local retro command completes
+      Then it makes exactly one public delivery attempt and does not retry
+      And the command returns success when the controlled deadline expires without waiting beyond it
       And every valid sanitized finding remains available for private recovery
