@@ -40,6 +40,20 @@ function fixtureRequest(): { body: Uint8Array; requestId: string } {
   };
 }
 
+function fixtureBatchRequest(): { body: Uint8Array; requestId: string } {
+  return {
+    body: new TextEncoder().encode(
+      JSON.stringify({
+        version: 'v2',
+        findings: ['first sanitized finding', 'second sanitized finding'],
+        source: fixtureEnvelope().source,
+        sessionScope: '8'.repeat(64),
+      }),
+    ),
+    requestId: '01911111-2222-7333-8444-55555555555e',
+  };
+}
+
 function sessionScope(harness: string, projectUUID: string, sessionId: string): string {
   return createHash('sha256')
     .update('safeword-retro-session-scope:v1\0')
@@ -150,6 +164,28 @@ it('accepts the released v0.79.6 envelope and returns its bytes unchanged', asyn
   expect(accepted.status).toBe(201);
   expect(inspected.status).toBe(200);
   expect(inspectedBody).toEqual(body);
+});
+
+it('accepts an exact v2 batch and returns its bytes unchanged', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+    operatorCredential: 'operator-fixture-credential',
+  });
+  const request = fixtureBatchRequest();
+
+  const accepted = await submit(runtime.url, request);
+  const { receipt } = (await accepted.json()) as { receipt: string };
+  const inspected = await fetch(`${runtime.url}/v1/public-retros/${receipt}`, {
+    headers: { authorization: 'Bearer operator-fixture-credential' },
+  });
+  const inspectedBody = new Uint8Array(await inspected.arrayBuffer());
+  await runtime.close();
+
+  expect(accepted.status).toBe(201);
+  expect(inspected.status).toBe(200);
+  expect(inspectedBody).toEqual(request.body);
 });
 
 it('accepts released local classification with legacy user identity', async () => {
