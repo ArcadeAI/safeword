@@ -40,6 +40,22 @@ function fixtureRequest(): { body: Uint8Array; requestId: string } {
   };
 }
 
+function fixtureBatchRequestBody(): Record<string, unknown> {
+  return {
+    version: 'v2',
+    findings: ['first sanitized finding', 'second sanitized finding'],
+    source: fixtureEnvelope().source,
+    sessionScope: '8'.repeat(64),
+  };
+}
+
+function fixtureBatchRequest(): { body: Uint8Array; requestId: string } {
+  return {
+    body: new TextEncoder().encode(JSON.stringify(fixtureBatchRequestBody())),
+    requestId: '01911111-2222-7333-8444-55555555555e',
+  };
+}
+
 function sessionScope(harness: string, projectUUID: string, sessionId: string): string {
   return createHash('sha256')
     .update('safeword-retro-session-scope:v1\0')
@@ -150,6 +166,28 @@ it('accepts the released v0.79.6 envelope and returns its bytes unchanged', asyn
   expect(accepted.status).toBe(201);
   expect(inspected.status).toBe(200);
   expect(inspectedBody).toEqual(body);
+});
+
+it('accepts an exact v2 batch and returns its bytes unchanged', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+    operatorCredential: 'operator-fixture-credential',
+  });
+  const request = fixtureBatchRequest();
+
+  const accepted = await submit(runtime.url, request);
+  const { receipt } = (await accepted.json()) as { receipt: string };
+  const inspected = await fetch(`${runtime.url}/v1/public-retros/${receipt}`, {
+    headers: { authorization: 'Bearer operator-fixture-credential' },
+  });
+  const inspectedBody = new Uint8Array(await inspected.arrayBuffer());
+  await runtime.close();
+
+  expect(accepted.status).toBe(201);
+  expect(inspected.status).toBe(200);
+  expect(inspectedBody).toEqual(request.body);
 });
 
 it('accepts released local classification with legacy user identity', async () => {
@@ -440,15 +478,23 @@ function nonUtf8Envelope(): Uint8Array {
   ]);
 }
 
-function sizedEnvelope(byteLength: number, multibyte: boolean): Uint8Array {
-  const emptyLength = encoded({ ...fixtureEnvelope(), finding: '' }).byteLength;
+function sizedEnvelope(
+  byteLength: number,
+  multibyte: boolean,
+  version: 'v1' | 'v2' = 'v1',
+): Uint8Array {
+  const base =
+    version === 'v1'
+      ? { ...fixtureEnvelope(), finding: '' }
+      : { ...fixtureBatchRequestBody(), findings: [''] };
+  const emptyLength = encoded(base).byteLength;
   const contentBytes = byteLength - emptyLength;
   let finding = 'a'.repeat(contentBytes);
   if (multibyte) {
     const trailingAscii = contentBytes % 2 === 0 ? '' : 'a';
     finding = `${'é'.repeat(Math.floor(contentBytes / 2))}${trailingAscii}`;
   }
-  return encoded({ ...fixtureEnvelope(), finding });
+  return encoded(version === 'v1' ? { ...base, finding } : { ...base, findings: [finding] });
 }
 
 it('returns the original durable receipt for an exact retry after restart', async () => {
@@ -474,6 +520,27 @@ it('returns the original durable receipt for an exact retry after restart', asyn
     receipt: expect.any(String),
     requestId: request.requestId,
   });
+});
+
+it('returns the original durable receipt for an exact v2 retry after restart', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const databasePath = path.join(directory, 'collector.sqlite');
+  const request = fixtureBatchRequest();
+
+  const firstRuntime = await startPublicRetroCollector({ databasePath });
+  const firstResponse = await submit(firstRuntime.url, request);
+  const firstReceipt = (await firstResponse.json()) as { receipt: string; requestId: string };
+  await firstRuntime.close();
+
+  const restartedRuntime = await startPublicRetroCollector({ databasePath });
+  const retryResponse = await submit(restartedRuntime.url, request);
+  const retryReceipt = (await retryResponse.json()) as { receipt: string; requestId: string };
+  await restartedRuntime.close();
+
+  expect(firstResponse.status).toBe(201);
+  expect(retryResponse.status).toBe(200);
+  expect(retryReceipt).toEqual(firstReceipt);
 });
 
 it('converges concurrent first submissions on one receipt', async () => {
@@ -523,7 +590,7 @@ it('accepts only one of two concurrent byte-different bodies with one request id
   );
 });
 
-it('accepts only one of two concurrent request identities with one session scope', async () => {
+it('deduplicates two concurrent request identities with identical bytes and scope', async () => {
   const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
   temporaryDirectories.push(directory);
   const runtime = await startPublicRetroCollector({
@@ -538,10 +605,28 @@ it('accepts only one of two concurrent request identities with one session scope
 
   expect(
     responses.map(response => response.status).toSorted((left, right) => left - right),
-  ).toEqual([201, 409]);
-  expect(retries.map(response => response.status)).toEqual(
-    responses.map(response => (response.status === 201 ? 200 : 409)),
-  );
+  ).toEqual([200, 201]);
+  expect(retries.map(response => response.status)).toEqual([200, 200]);
+});
+
+it('reuses one receipt for byte-identical v2 retries with a new request identity', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+  });
+  const first = fixtureBatchRequest();
+  const second = { ...first, requestId: '01911111-2222-7333-8444-55555555555f' };
+
+  const accepted = await submit(runtime.url, first);
+  const firstResult = (await accepted.json()) as { receipt: string; requestId: string };
+  const duplicate = await submit(runtime.url, second);
+  const secondResult = (await duplicate.json()) as { receipt: string; requestId: string };
+  await runtime.close();
+
+  expect(accepted.status).toBe(201);
+  expect(duplicate.status).toBe(200);
+  expect(secondResult).toEqual({ receipt: firstResult.receipt, requestId: second.requestId });
 });
 
 it.each(['harness', 'project identity', 'session identity'] as const)(
@@ -639,6 +724,31 @@ it('rejects byte-different reuse of an accepted session scope', async () => {
   expect(retryReceipt).toEqual(firstReceipt);
 });
 
+it('does not let a v2 batch replace a v1 body in the same session scope', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+  });
+  const first = fixtureRequest();
+  const second = {
+    body: encoded({
+      version: 'v2',
+      findings: ['fixture finding'],
+      source: fixtureEnvelope().source,
+      sessionScope: fixtureEnvelope().sessionScope,
+    }),
+    requestId: '01911111-2222-7333-8444-55555555555b',
+  };
+
+  const accepted = await submit(runtime.url, first);
+  const rejected = await submit(runtime.url, second);
+  await runtime.close();
+
+  expect(accepted.status).toBe(201);
+  expect(rejected.status).toBe(409);
+});
+
 it.each([
   ['missing', false],
   ['empty', ''],
@@ -671,6 +781,7 @@ async function expectSizedEnvelopeStatus(
   content: 'ascii' | 'multibyte',
   byteLength: number,
   expectedStatus: 201 | 413,
+  version: 'v1' | 'v2',
 ): Promise<void> {
   const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
   temporaryDirectories.push(directory);
@@ -679,7 +790,7 @@ async function expectSizedEnvelopeStatus(
   });
   const request = {
     ...fixtureRequest(),
-    body: sizedEnvelope(byteLength, content === 'multibyte'),
+    body: sizedEnvelope(byteLength, content === 'multibyte', version),
   };
 
   const response = await submit(runtime.url, request);
@@ -699,17 +810,21 @@ async function expectSizedEnvelopeStatus(
 }
 
 it.each([
-  ['ascii', 65_536],
-  ['multibyte', 65_536],
-] as const)('accepts a %s envelope at the 65536-byte limit', (content, byteLength) =>
-  expectSizedEnvelopeStatus(content, byteLength, 201),
+  ['v1', 'ascii', 65_536],
+  ['v1', 'multibyte', 65_536],
+  ['v2', 'ascii', 65_536],
+  ['v2', 'multibyte', 65_536],
+] as const)('accepts a %s %s envelope at the 65536-byte limit', (version, content, byteLength) =>
+  expectSizedEnvelopeStatus(content, byteLength, 201, version),
 );
 
 it.each([
-  ['ascii', 65_537],
-  ['multibyte', 65_537],
-] as const)('rejects a %s envelope above the 65536-byte limit', (content, byteLength) =>
-  expectSizedEnvelopeStatus(content, byteLength, 413),
+  ['v1', 'ascii', 65_537],
+  ['v1', 'multibyte', 65_537],
+  ['v2', 'ascii', 65_537],
+  ['v2', 'multibyte', 65_537],
+] as const)('rejects a %s %s envelope above the 65536-byte limit', (version, content, byteLength) =>
+  expectSizedEnvelopeStatus(content, byteLength, 413, version),
 );
 
 type InvalidEnvelope = readonly [string, Uint8Array, (string | false)?];
@@ -764,7 +879,7 @@ async function expectEnvelopeRejected(
 
 it.each([
   ['missing version', encoded({ ...fixtureEnvelope(), version: undefined })],
-  ['unknown version', encoded({ ...fixtureEnvelope(), version: 'v2' })],
+  ['unknown version', encoded({ ...fixtureEnvelope(), version: 'v3' })],
 ] as const)('rejects the %s without consuming its request identity', (_, body) =>
   expectEnvelopeRejected(body),
 );
@@ -796,6 +911,25 @@ it.each([
   ['object SafeWord CLI version', encoded(withSource({ safewordCliVersion: {} }))],
   ['wrong-typed required field', encoded({ ...fixtureEnvelope(), finding: 7 })],
 ] as const)('rejects malformed %s', (_, body) => expectEnvelopeRejected(body));
+
+it.each([
+  ['empty findings array', encoded({ ...fixtureBatchRequestBody(), findings: [] })],
+  ['empty finding', encoded({ ...fixtureBatchRequestBody(), findings: [''] })],
+  ['non-string finding', encoded({ ...fixtureBatchRequestBody(), findings: [7] })],
+  ['missing findings', encoded({ ...fixtureBatchRequestBody(), findings: undefined })],
+  ['mixed v1 and v2 fields', encoded({ ...fixtureBatchRequestBody(), finding: 'fixture finding' })],
+  ['unknown v2 field', encoded({ ...fixtureBatchRequestBody(), extra: true })],
+  [
+    'legacy user identity',
+    encoded({
+      ...fixtureBatchRequestBody(),
+      source: {
+        ...(fixtureBatchRequestBody().source as Record<string, unknown>),
+        userIdentity: 'legacy-user-fixture',
+      },
+    }),
+  ],
+] as const)('rejects invalid v2 envelope: %s', (_, body) => expectEnvelopeRejected(body));
 
 it.each([
   ['unknown source harness', encoded(withSource({ harness: 'other' }))],

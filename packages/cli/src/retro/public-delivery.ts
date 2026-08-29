@@ -17,9 +17,10 @@ export interface PublicRetroSource {
 }
 
 export interface PublicRetroEnvelopeInput {
-  finding: string;
+  findings: readonly string[];
   source: PublicRetroSource;
   sessionId: string;
+  windowStart?: number;
 }
 
 export interface BuiltPublicRetroEnvelope {
@@ -97,8 +98,11 @@ function isValidEnvelopeInput(input: PublicRetroEnvelopeInput, projectUUID: stri
   const { source } = input;
   return (
     UUID.test(projectUUID) &&
-    input.finding.trim() !== '' &&
+    input.findings.length > 0 &&
+    input.findings.every(finding => finding.trim() !== '') &&
     input.sessionId.trim() !== '' &&
+    (input.windowStart === undefined ||
+      (Number.isSafeInteger(input.windowStart) && input.windowStart >= 0)) &&
     validSourceRoute(source)
   );
 }
@@ -107,15 +111,17 @@ function deriveSessionScope(
   harness: PublicRetroSource['harness'],
   projectUUID: string,
   sessionId: string,
+  windowStart: number,
 ): string {
-  return createHash('sha256')
+  const hash = createHash('sha256')
     .update('safeword-retro-session-scope:v1\0')
     .update(harness)
     .update('\0')
     .update(projectUUID)
     .update('\0')
-    .update(sessionId)
-    .digest('hex');
+    .update(sessionId);
+  if (windowStart > 0) hash.update('\0window\0').update(String(windowStart));
+  return hash.digest('hex');
 }
 
 export function buildPublicRetroEnvelope(
@@ -155,9 +161,14 @@ export function buildPublicRetroEnvelope(
       osFamily: normalizedOptional.osFamily,
     }),
   };
-  const scope = deriveSessionScope(source.harness, projectUUID, input.sessionId);
+  const scope = deriveSessionScope(
+    source.harness,
+    projectUUID,
+    input.sessionId,
+    input.windowStart ?? 0,
+  );
   const bytes = new TextEncoder().encode(
-    JSON.stringify({ version: 'v1', finding: input.finding, source, sessionScope: scope }),
+    JSON.stringify({ version: 'v2', findings: input.findings, source, sessionScope: scope }),
   );
 
   return { bytes, sessionScope: scope };
@@ -235,8 +246,9 @@ async function deliverPreparedInput(
     if (dependencies.now() >= preparationDeadline) return 'abandoned';
     const built = buildPublicRetroEnvelope(input);
     const prepared = claimPublicRetroRequest(built, dependencies);
-    if (!prepared || dependencies.now() >= preparationDeadline) return 'abandoned';
+    if (!prepared) return 'abandoned';
     claimedMarkerPath = path.join(dependencies.attemptsDirectory, `${prepared.sessionScope}.json`);
+    if (dependencies.now() >= preparationDeadline) return 'abandoned';
 
     const handoffDeadline = dependencies.now() + 2000;
     const controller = new AbortController();
@@ -304,17 +316,23 @@ function preservePublicRetroReceipt(
   }
 }
 
-export function deliverSanitizedPublicRetroFinding(
-  input: { finding: Finding; source: PublicRetroSource; sessionId: string },
+export function deliverSanitizedPublicRetroFindings(
+  input: {
+    findings: readonly Finding[];
+    source: PublicRetroSource;
+    sessionId: string;
+    windowStart?: number;
+  },
   dependencies: PublicRetroDeliveryDependencies,
   preparationDeadline: number,
 ): Promise<PublicRetroDeliveryOutcome> {
   try {
     return deliverPreparedInput(
       {
-        finding: assemblePublicFinding(input.finding),
+        findings: input.findings.map(finding => assemblePublicFinding(finding)),
         source: input.source,
         sessionId: input.sessionId,
+        windowStart: input.windowStart,
       },
       dependencies,
       preparationDeadline,

@@ -7,14 +7,15 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   buildPublicRetroEnvelope,
-  deliverSanitizedPublicRetroFinding,
+  deliverSanitizedPublicRetroFindings,
+  type PreparedPublicRetroRequest,
   preparePublicRetroRequest,
   type PublicRetroHttpRequest,
   submitPublicRetroRequest,
 } from './public-delivery.js';
 
 const requiredInput = {
-  finding: 'fixture finding',
+  findings: ['fixture finding'],
   sessionId: 'session-fixture-42',
   source: {
     harness: 'claude-code' as const,
@@ -59,7 +60,7 @@ describe('buildPublicRetroEnvelope', () => {
 
   it('serializes the released complete source profile deterministically', () => {
     const built = buildPublicRetroEnvelope({
-      finding: 'fixture finding',
+      findings: ['fixture finding'],
       sessionId: 'session-fixture-42',
       source: {
         osFamily: 'macos',
@@ -75,15 +76,15 @@ describe('buildPublicRetroEnvelope', () => {
     });
 
     const expected =
-      '{"version":"v1","finding":"fixture finding","source":{"harness":"claude-code","hostClass":"local","projectUUID":"018f0f2e-abcd-7def-8abc-def012345678","safewordCliVersion":"0.78.8","repository":"github.com/arcadeai/safeword","agentVersion":"1.2.3","model":"fixture-model","safewordPluginVersion":"0.78.8","osFamily":"macos"},"sessionScope":"724a847e56e94bd49967250b1b27444314f1e479700c1751c3723d9852e6bee0"}';
+      '{"version":"v2","findings":["fixture finding"],"source":{"harness":"claude-code","hostClass":"local","projectUUID":"018f0f2e-abcd-7def-8abc-def012345678","safewordCliVersion":"0.78.8","repository":"github.com/arcadeai/safeword","agentVersion":"1.2.3","model":"fixture-model","safewordPluginVersion":"0.78.8","osFamily":"macos"},"sessionScope":"724a847e56e94bd49967250b1b27444314f1e479700c1751c3723d9852e6bee0"}';
 
     expect(new TextDecoder().decode(built.bytes)).toBe(expected);
     expect(built.sessionScope).toBe(
       '724a847e56e94bd49967250b1b27444314f1e479700c1751c3723d9852e6bee0',
     );
-    expect(built.bytes.byteLength).toBe(407);
+    expect(built.bytes.byteLength).toBe(410);
     expect(createHash('sha256').update(built.bytes).digest('hex')).toBe(
-      '2c387f5e86acf11f4005e23ccfc7097247ae16965b6b34a21999f0199e2ce99b',
+      '99fbe2730fac1dd0b3523467e18a40a1a11831b34c6974b24d5246b3d98783d0',
     );
   });
 
@@ -188,13 +189,22 @@ describe('buildPublicRetroEnvelope', () => {
     },
   );
 
+  it('keeps the released first-window scope while separating later delta windows', () => {
+    const firstWindow = buildPublicRetroEnvelope({ ...requiredInput, windowStart: 0 });
+    const sameFirstWindow = buildPublicRetroEnvelope({ ...requiredInput });
+    const laterWindow = buildPublicRetroEnvelope({ ...requiredInput, windowStart: 100 });
+
+    expect(firstWindow.sessionScope).toBe(sameFirstWindow.sessionScope);
+    expect(laterWindow.sessionScope).not.toBe(firstWindow.sessionScope);
+  });
+
   it('abandons an oversized UTF-8 envelope before identity or claim', () => {
     const attemptsDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-public-retro-'));
     let uuidCalls = 0;
 
     try {
       const prepared = preparePublicRetroRequest(
-        { ...requiredInput, finding: '🚀'.repeat(16_384) },
+        { ...requiredInput, findings: ['🚀'.repeat(16_384)] },
         {
           attemptsDirectory,
           randomUUID: () => {
@@ -210,6 +220,35 @@ describe('buildPublicRetroEnvelope', () => {
     } finally {
       rmSync(attemptsDirectory, { recursive: true, force: true });
     }
+  });
+
+  function prepareSizedBatch(byteLength: number): PreparedPublicRetroRequest | undefined {
+    const attemptsDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-public-retro-'));
+    const baseLength = buildPublicRetroEnvelope({
+      ...requiredInput,
+      findings: ['a'],
+    }).bytes.byteLength;
+    const input = {
+      ...requiredInput,
+      findings: ['a'.repeat(byteLength - baseLength + 1)],
+    };
+
+    try {
+      return preparePublicRetroRequest(input, {
+        attemptsDirectory,
+        randomUUID: () => '01911111-2222-7333-8444-55555555555a',
+      });
+    } finally {
+      rmSync(attemptsDirectory, { recursive: true, force: true });
+    }
+  }
+
+  it('accepts a complete v2 batch at the 65536-byte limit', () => {
+    expect(prepareSizedBatch(65_536)?.bytes.byteLength).toBe(65_536);
+  });
+
+  it('abandons a complete v2 batch above the 65536-byte limit', () => {
+    expect(prepareSizedBatch(65_537)).toBeUndefined();
   });
 
   it('hands the same prepared identity and bytes to either harness transport', async () => {
@@ -248,16 +287,18 @@ describe('buildPublicRetroEnvelope', () => {
     const attemptsDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-public-retro-'));
     const times = [999, 999, 999, 2998, 2998];
     try {
-      const outcome = await deliverSanitizedPublicRetroFinding(
+      const outcome = await deliverSanitizedPublicRetroFindings(
         {
-          finding: {
-            category: 'bug',
-            title: 'Shared sanitized finding',
-            safewordSurface: 'packages/cli/src/retro/public-delivery.ts',
-            whatHappened: 'The shared result reached delivery.',
-            whyFriction: 'A second scrub would waste the deadline.',
-            repro: 'Prepare one finding.',
-          },
+          findings: [
+            {
+              category: 'bug',
+              title: 'Shared sanitized finding',
+              safewordSurface: 'packages/cli/src/retro/public-delivery.ts',
+              whatHappened: 'The shared result reached delivery.',
+              whyFriction: 'A second scrub would waste the deadline.',
+              repro: 'Prepare one finding.',
+            },
+          ],
           source: requiredInput.source,
           sessionId: requiredInput.sessionId,
         },
@@ -288,16 +329,18 @@ describe('buildPublicRetroEnvelope', () => {
     let transportCalls = 0;
 
     try {
-      const outcome = await deliverSanitizedPublicRetroFinding(
+      const outcome = await deliverSanitizedPublicRetroFindings(
         {
-          finding: {
-            category: 'bug',
-            title: 'Deadline finding',
-            safewordSurface: 'packages/cli/src/retro/public-delivery.ts',
-            whatHappened: 'Preparation reached its deadline.',
-            whyFriction: 'Late work must not be claimed.',
-            repro: 'Reach the preparation deadline.',
-          },
+          findings: [
+            {
+              category: 'bug',
+              title: 'Deadline finding',
+              safewordSurface: 'packages/cli/src/retro/public-delivery.ts',
+              whatHappened: 'Preparation reached its deadline.',
+              whyFriction: 'Late work must not be claimed.',
+              repro: 'Reach the preparation deadline.',
+            },
+          ],
           source: requiredInput.source,
           sessionId: requiredInput.sessionId,
         },
@@ -325,20 +368,58 @@ describe('buildPublicRetroEnvelope', () => {
     }
   });
 
+  it('releases a claim when the preparation deadline expires immediately after claim', async () => {
+    const attemptsDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-public-retro-'));
+    const times = [0, 1000];
+
+    try {
+      const outcome = await deliverSanitizedPublicRetroFindings(
+        {
+          findings: [
+            {
+              category: 'bug',
+              title: 'Post-claim deadline fixture',
+              safewordSurface: 'packages/cli/src/retro/public-delivery.ts',
+              whatHappened: 'The deadline elapsed immediately after the claim.',
+              whyFriction: 'A leaked claim would suppress the window forever.',
+              repro: 'Advance the clock after exclusive claim creation.',
+            },
+          ],
+          source: requiredInput.source,
+          sessionId: requiredInput.sessionId,
+        },
+        {
+          attemptsDirectory,
+          now: () => times.shift() ?? 1000,
+          randomUUID: () => '01911111-2222-7333-8444-55555555555a',
+          transport: () => Promise.reject(new Error('must not submit')),
+        },
+        1000,
+      );
+
+      expect(outcome).toBe('abandoned');
+      expect(readdirSync(attemptsDirectory)).toEqual([]);
+    } finally {
+      rmSync(attemptsDirectory, { recursive: true, force: true });
+    }
+  });
+
   it('contains a collector connection failure without retrying', async () => {
     const attemptsDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-public-retro-'));
     const transport = vi.fn(() => Promise.reject(new Error('injected connection failure')));
     try {
-      const outcome = await deliverSanitizedPublicRetroFinding(
+      const outcome = await deliverSanitizedPublicRetroFindings(
         {
-          finding: {
-            category: 'bug',
-            title: 'Connection failure fixture',
-            safewordSurface: 'packages/cli/src/retro/public-delivery.ts',
-            whatHappened: 'The collector connection failed.',
-            whyFriction: 'Public delivery must not disrupt private recovery.',
-            repro: 'Reject the injected transport.',
-          },
+          findings: [
+            {
+              category: 'bug',
+              title: 'Connection failure fixture',
+              safewordSurface: 'packages/cli/src/retro/public-delivery.ts',
+              whatHappened: 'The collector connection failed.',
+              whyFriction: 'Public delivery must not disrupt private recovery.',
+              repro: 'Reject the injected transport.',
+            },
+          ],
           source: requiredInput.source,
           sessionId: requiredInput.sessionId,
         },
@@ -371,16 +452,18 @@ describe('buildPublicRetroEnvelope', () => {
         }),
     );
     try {
-      const delivery = deliverSanitizedPublicRetroFinding(
+      const delivery = deliverSanitizedPublicRetroFindings(
         {
-          finding: {
-            category: 'bug',
-            title: 'Handoff timeout fixture',
-            safewordSurface: 'packages/cli/src/retro/public-delivery.ts',
-            whatHappened: 'The collector held the request open.',
-            whyFriction: 'Public delivery must remain bounded.',
-            repro: 'Hold the injected transport open.',
-          },
+          findings: [
+            {
+              category: 'bug',
+              title: 'Handoff timeout fixture',
+              safewordSurface: 'packages/cli/src/retro/public-delivery.ts',
+              whatHappened: 'The collector held the request open.',
+              whyFriction: 'Public delivery must remain bounded.',
+              repro: 'Hold the injected transport open.',
+            },
+          ],
           source: requiredInput.source,
           sessionId: requiredInput.sessionId,
         },
@@ -417,8 +500,8 @@ describe('buildPublicRetroEnvelope', () => {
     };
     let transportCalls = 0;
     try {
-      const outcome = await deliverSanitizedPublicRetroFinding(
-        { finding, source: requiredInput.source, sessionId: requiredInput.sessionId },
+      const outcome = await deliverSanitizedPublicRetroFindings(
+        { findings: [finding], source: requiredInput.source, sessionId: requiredInput.sessionId },
         {
           attemptsDirectory,
           now: () => 0,
@@ -443,16 +526,18 @@ describe('buildPublicRetroEnvelope', () => {
     const attemptsDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-public-retro-'));
     const times = [0, 0, 0, 1999, 2000];
     try {
-      const outcome = await deliverSanitizedPublicRetroFinding(
+      const outcome = await deliverSanitizedPublicRetroFindings(
         {
-          finding: {
-            category: 'bug',
-            title: 'Late receipt fixture',
-            safewordSurface: 'packages/cli/src/retro/public-delivery.ts',
-            whatHappened: 'The receipt reached its persistence deadline.',
-            whyFriction: 'Temporary files must not accumulate.',
-            repro: 'Reach the handoff deadline after the temporary write.',
-          },
+          findings: [
+            {
+              category: 'bug',
+              title: 'Late receipt fixture',
+              safewordSurface: 'packages/cli/src/retro/public-delivery.ts',
+              whatHappened: 'The receipt reached its persistence deadline.',
+              whyFriction: 'Temporary files must not accumulate.',
+              repro: 'Reach the handoff deadline after the temporary write.',
+            },
+          ],
           source: requiredInput.source,
           sessionId: requiredInput.sessionId,
         },
@@ -470,7 +555,10 @@ describe('buildPublicRetroEnvelope', () => {
       );
 
       expect(outcome).toBe('abandoned');
-      const [marker] = readdirSync(attemptsDirectory);
+      const entries = readdirSync(attemptsDirectory);
+      expect(entries).toHaveLength(1);
+      expect(entries).not.toContainEqual(expect.stringMatching(/\.tmp$/u));
+      const [marker] = entries;
       expect(marker).toEqual(expect.stringMatching(/\.json$/u));
       if (marker === undefined) throw new TypeError('expected retained claim marker');
       const markerPath = path.join(attemptsDirectory, marker);

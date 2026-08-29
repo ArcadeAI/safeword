@@ -54,10 +54,16 @@ export class PublicRetroStore {
       }
 
       const scopeOwner = this.#database
-        .prepare('SELECT request_id FROM public_retros WHERE session_scope = ?')
-        .get(sessionScope) as { request_id: string } | undefined;
+        .prepare(
+          'SELECT request_id, session_scope, raw_body, receipt FROM public_retros WHERE session_scope = ?',
+        )
+        .get(sessionScope) as StoredPublicRetro | undefined;
       if (scopeOwner !== undefined) {
-        throw new PublicRetroConflict('session scope already belongs to another request');
+        if (!Buffer.from(scopeOwner.raw_body).equals(rawBody)) {
+          throw new PublicRetroConflict('session scope already has different raw bytes');
+        }
+        this.#database.exec('COMMIT;');
+        return { receipt: scopeOwner.receipt, requestId, status: 'duplicate' };
       }
 
       const receipt = randomUUID();

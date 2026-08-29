@@ -47,7 +47,7 @@ import { captureRetroFilingFault } from '../../templates/hooks/lib/self-report.j
 import { type Provenance, PROVENANCE_SHA } from '../retro/ledger.js';
 import { prepareEncounters } from '../retro/pipeline.js';
 import {
-  deliverSanitizedPublicRetroFinding,
+  deliverSanitizedPublicRetroFindings,
   type PublicRetroDeliveryDependencies,
   type PublicRetroSource,
 } from '../retro/public-delivery.js';
@@ -335,12 +335,11 @@ export async function runRetro(
   // behavior. The window flows through the UNCHANGED egress pipeline below.
   const window = windowFor(transcript, options.windowStart ?? 0);
   const rawFindings = await dependencies.extract(window);
-  const publicPreparationDeadline =
-    dependencies.publicRetro === undefined ? undefined : dependencies.publicRetro.now() + 1000;
   const { encounters, drops, findings } = await prepareEncounters(rawFindings);
-  const publicFinding = findings.length === 1 ? findings[0] : undefined;
   const { projectDirectory, publicRetro, sessionId } = dependencies;
   const relay = dependencies.relay;
+  const sourceSession =
+    sessionId.trim().length === 0 || sessionId === 'unknown' ? options.transcript : sessionId;
 
   // Preserve private recovery before the best-effort public handoff. A process
   // interruption during that network attempt must not lose the durable draft.
@@ -357,26 +356,24 @@ export async function runRetro(
   }
 
   const deliverPublic = async (): Promise<void> => {
-    if (
-      publicRetro === undefined ||
-      publicPreparationDeadline === undefined ||
-      rawFindings.length !== 1 ||
-      publicFinding === undefined
-    ) {
+    if (publicRetro === undefined || findings.length === 0) {
       return;
     }
-    await deliverSanitizedPublicRetroFinding(
-      { finding: publicFinding, sessionId, source: publicRetro.source },
+    await deliverSanitizedPublicRetroFindings(
+      {
+        findings,
+        sessionId: sourceSession,
+        source: publicRetro.source,
+        windowStart: options.windowStart ?? 0,
+      },
       publicRetro,
-      publicPreparationDeadline,
+      publicRetro.now() + 1000,
     );
   };
 
   // Cloud-filing spool (BNGK9W): persist the post-egress drafts BEFORE filing so a
   // REST auth failure (cloud #568) can't lose them. Opt-in via projectDirectory.
   if (relay?.readiness.enabled === true && projectDirectory !== undefined) {
-    const sourceSession =
-      sessionId.trim().length === 0 || sessionId === 'unknown' ? options.transcript : sessionId;
     return runRelayRetro(encounters, drops, {
       afterPersistence: deliverPublic,
       projectDirectory,

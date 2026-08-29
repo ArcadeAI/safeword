@@ -61,8 +61,8 @@ Feature: Attach useful runtime context to retros without signup
       And project identity "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", SafeWord CLI version "0.79.6", repository "github.com/arcadeai/safeword", and operating-system family "darwin" are available
       And undocumented environment signals claim agent version <agent_version> and model <model>
       When SafeWord prepares its public retrospective
-      Then the canonical envelope version on the wire is "v1"
-      And the v1 source contains exactly harness <harness_value>, host class "unknown", project identity "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", SafeWord CLI version "0.79.6", repository "github.com/arcadeai/safeword", and operating-system family "darwin"
+      Then the canonical envelope version on the wire is "v2"
+      And the v2 source contains exactly harness <harness_value>, host class "unknown", project identity "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", SafeWord CLI version "0.79.6", repository "github.com/arcadeai/safeword", and operating-system family "darwin"
       And agent version, model, and SafeWord plugin version are omitted
 
       Examples:
@@ -74,44 +74,13 @@ Feature: Attach useful runtime context to retros without signup
       Given a Cursor retrospective with every required source fact and a runnable public route
       And project identity "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", SafeWord CLI version "0.79.6", repository "github.com/arcadeai/safeword", and operating-system family "darwin" are available
       When SafeWord prepares its public retrospective
-      Then the v1 source contains exactly harness "cursor", host class "unknown", project identity "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", SafeWord CLI version "0.79.6", repository "github.com/arcadeai/safeword", and operating-system family "darwin"
+      Then the v2 source contains exactly harness "cursor", host class "unknown", project identity "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", SafeWord CLI version "0.79.6", repository "github.com/arcadeai/safeword", and operating-system family "darwin"
       And agent version, model, and SafeWord plugin version are omitted
-
-    Scenario Outline: Every supported harness reaches the real collector
-      Given a <harness> retrospective with every required source fact and a runnable public route
-      When the existing retro CLI delivery boundary runs
-      Then exactly one public submission reaches the real collector
-      And exactly one retrospective is durably retained with harness <harness_value> and host class <host_class>
-
-      Examples:
-        | harness      | harness_value | host_class |
-        | Claude Code  | claude-code   | "unknown"  |
-        | OpenAI Codex | codex         | "unknown"  |
-        | Cursor       | cursor        | "unknown"  |
 
     Scenario: Configured project identity is the emitted project identity
       Given project configuration contains identity "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
       When SafeWord prepares its public retrospective
-      Then the v1 source project identity is "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
-
-    Scenario: Runtime metadata does not change duplicate identity
-      Given one project harness session has a first snapshot and a later snapshot that differ in repository, model, agent version, SafeWord CLI version, SafeWord plugin version, and operating-system family
-      When both snapshots run through the public delivery boundary
-      Then exactly one public submission reaches the real collector
-      And exactly one retrospective is durably retained
-      And the retained retrospective contains the first snapshot unchanged
-
-    Scenario Outline: Duplicate identity changes across its authoritative inputs
-      Given two retrospective sessions differ only by <input>
-      When both sessions run through the public delivery boundary
-      Then exactly two public submissions reach the real collector
-      And exactly two retrospectives are durably retained
-
-      Examples:
-        | input            |
-        | harness          |
-        | project identity |
-        | session identity |
+      Then the v2 source project identity is "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
 
     Scenario Outline: Cursor conversation identity is the session-scope authority
       Given two Cursor retros from the same project use conversation identities <first_identity> and <second_identity>
@@ -123,12 +92,6 @@ Feature: Attach useful runtime context to retros without signup
         | first_identity | second_identity | retained_count |
         | "cursor-1"     | "cursor-1"      | 1              |
         | "cursor-1"     | "cursor-2"      | 2              |
-
-    Scenario: A released v0.79.6 envelope remains byte-identical
-      Given a checked-in canonical v1 byte fixture captured from the released SafeWord v0.79.6 public-retro builder contains exactly `harness`, `hostClass`, `projectUUID`, `safewordCliVersion`, `repository`, `agentVersion`, `model`, `safewordPluginVersion`, `osFamily`, and legacy `userIdentity` in its source
-      When it is submitted to the real collector and read by an operator
-      Then the real collector accepts it
-      And the operator receives the original canonical bytes unchanged
 
     Scenario Outline: Released local host classification remains accepted
       Given canonical v1 envelope bytes from a released client contain harness <harness>, host class "local", and legacy user identity "legacy-user-fixture"
@@ -160,18 +123,6 @@ Feature: Attach useful runtime context to retros without signup
       And the operator receives the original canonical bytes unchanged
 
     @rejection
-    Scenario: The collector rejects a body above its released byte limit
-      Given canonical v1 envelope bytes total 65537 UTF-8 bytes
-      When it is submitted to the real collector
-      Then the retrospective is rejected without persistence
-
-    Scenario: The collector accepts a body at its released byte limit
-      Given canonical v1 envelope bytes total 65536 UTF-8 bytes
-      When it is submitted to the real collector and read by an operator
-      Then the real collector accepts it
-      And the operator receives the original canonical bytes unchanged
-
-    @rejection
     Scenario: An unrecognized source field is refused
       Given a v1 envelope contains source field `extra` outside the accepted current fields and released legacy field `userIdentity`
       When the collector validates the retrospective
@@ -186,7 +137,7 @@ Feature: Attach useful runtime context to retros without signup
       Examples:
         | version |
         | omitted |
-        | "v2"    |
+        | "v3"    |
 
     @rejection
     Scenario Outline: The collector rejects malformed allowlisted source values
@@ -226,17 +177,6 @@ Feature: Attach useful runtime context to retros without signup
         | harness    | "other"     |
         | host class | "cloud"     |
         | host class | "hostname"  |
-
-    Scenario: The collector preserves first-writer bytes for a duplicate session scope
-      Given two canonical envelopes share harness, project identity, and session identity and differ only in model, agent version, and operating-system family
-      When the first envelope and then the second envelope are submitted sequentially to the real collector with different request identities
-      Then exactly one retrospective is durably retained
-      And the retained retrospective contains the first envelope's canonical bytes unchanged
-
-    Scenario: A current envelope round-trips through the real collector
-      Given the real retro CLI prepares a canonical v1 envelope whose model is exactly 256 UTF-8 bytes and whose repository, agent version, and operating-system family are present
-      When the real public collector accepts and an operator reads the retrospective
-      Then the operator receives the prepared canonical bytes unchanged
 
   @retro-runtime-context.TBU1.R1 @surface.safeword-cli
   Rule: retro-runtime-context.TBU1.R1 — Runtime context contains only explicitly allowlisted facts and never transcript, source, machine, or arbitrary environment content
@@ -359,14 +299,6 @@ Feature: Attach useful runtime context to retros without signup
       And none of the runtime-fact sentinels appears in produced output or artifacts
       And the command exits successfully with empty stdout and stderr
 
-    Scenario: A runtime without a runnable public carrier keeps existing recovery behavior
-      Given a sanitized retrospective with every required source fact is produced where the public carrier cannot run
-      And existing recovery owns retrospective candidate "candidate-fixture"
-      When the existing retro completion boundary finishes
-      Then no public submission is attempted
-      And existing recovery still owns exactly retrospective candidate "candidate-fixture"
-      And the boundary exits successfully with empty stdout and stderr
-
     @rejection
     Scenario: Claude Remote evidence keeps existing recovery behavior
       Given a Claude Code retrospective with every required source fact and a runnable public carrier
@@ -405,28 +337,3 @@ Feature: Attach useful runtime context to retros without signup
       Then no public submission is attempted
       And existing recovery still owns exactly retrospective candidate "candidate-fixture"
       And the command exits successfully with empty stdout and stderr
-
-    Scenario: Collector rejection keeps existing recovery behavior
-      Given a sanitized retrospective with every required source fact and a runnable public route, and an injected collector transport that returns a rejection
-      And existing recovery owns retrospective candidate "candidate-fixture"
-      When the existing retro CLI delivery boundary runs
-      Then exactly one public submission reaches the injected collector transport
-      And no retrospective is durably retained
-      And existing recovery still owns exactly retrospective candidate "candidate-fixture"
-      And the command exits successfully with empty stdout and stderr
-
-    Scenario Outline: Collector transport failure keeps existing recovery behavior
-      Given a sanitized retrospective with every required source fact and a runnable public route
-      And an injected collector transport that <transport_failure>
-      And existing recovery owns retrospective candidate "candidate-fixture"
-      When the existing retro CLI delivery boundary runs
-      Then exactly one public submission reaches the injected collector transport
-      And no retrospective is durably retained
-      And existing recovery still owns exactly retrospective candidate "candidate-fixture"
-      And the command exits successfully with empty stdout and stderr
-      And no new worker or retry boundary is used
-
-      Examples:
-        | transport_failure |
-        | raises a connection error |
-        | is held open past the injected existing handoff deadline |

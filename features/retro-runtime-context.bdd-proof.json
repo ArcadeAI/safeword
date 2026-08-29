@@ -33,29 +33,13 @@
       "packages/cli/tests/commands/retro.test.ts",
       "builds a bounded Cursor source when a conversation identity is available"
     ],
-    "Every supported harness reaches the real collector": [
-      "packages/cli/tests/integration/public-retro-lifecycle.test.ts",
-      "runs installed %s lifecycle through the real collector to a durable receipt"
-    ],
     "Configured project identity is the emitted project identity": [
       "packages/cli/src/retro/public-config.test.ts",
       "returns the stable project identity when collection is not disabled"
     ],
-    "Runtime metadata does not change duplicate identity": [
-      "packages/retro-collector/tests/public-retro.integration.test.ts",
-      "rejects byte-different reuse of an accepted session scope"
-    ],
-    "Duplicate identity changes across its authoritative inputs": [
-      "packages/retro-collector/tests/public-retro.integration.test.ts",
-      "keeps submissions with distinct %s independent"
-    ],
     "Cursor conversation identity is the session-scope authority": [
       "packages/cli/src/retro/public-delivery.test.ts",
       "uses conversation identity to scope %s"
-    ],
-    "A released v0.79.6 envelope remains byte-identical": [
-      "packages/retro-collector/tests/public-retro.integration.test.ts",
-      "accepts the released v0.79.6 envelope and returns its bytes unchanged"
     ],
     "Released local host classification remains accepted": [
       [
@@ -79,14 +63,6 @@
       "packages/retro-collector/tests/public-retro.integration.test.ts",
       "preserves a released 257-byte optional source value unchanged"
     ],
-    "The collector rejects a body above its released byte limit": [
-      "packages/retro-collector/tests/public-retro.integration.test.ts",
-      "rejects a %s envelope above the 65536-byte limit"
-    ],
-    "The collector accepts a body at its released byte limit": [
-      "packages/retro-collector/tests/public-retro.integration.test.ts",
-      "accepts a %s envelope at the 65536-byte limit"
-    ],
     "An unrecognized source field is refused": [
       "packages/retro-collector/tests/public-retro.integration.test.ts",
       "rejects the %s without persistence"
@@ -106,14 +82,6 @@
     "The collector rejects source vocabulary outside the local contract": [
       "packages/retro-collector/tests/public-retro.integration.test.ts",
       "rejects unsupported %s"
-    ],
-    "The collector preserves first-writer bytes for a duplicate session scope": [
-      "packages/retro-collector/tests/public-retro.integration.test.ts",
-      "does not let semantic JSON equivalence override accepted raw bytes"
-    ],
-    "A current envelope round-trips through the real collector": [
-      "packages/cli/tests/integration/public-retro-lifecycle.test.ts",
-      "round-trips a current CLI envelope through the real collector unchanged"
     ],
     "Available approved facts form the complete current source profile": [
       "packages/cli/tests/commands/retro.test.ts",
@@ -163,10 +131,6 @@
       "packages/cli/src/retro/public-source.test.ts",
       "returns no source when public collection is disabled"
     ],
-    "A runtime without a runnable public carrier keeps existing recovery behavior": [
-      "packages/cli/tests/commands/retro.test.ts",
-      "does not attempt public delivery for multiple candidates"
-    ],
     "Claude Remote evidence keeps existing recovery behavior": [
       "packages/cli/tests/commands/retro.test.ts",
       "suppresses the Claude public route when Claude Remote evidence is present"
@@ -182,20 +146,6 @@
     "A Cursor stash from another project keeps existing recovery behavior": [
       "packages/cli/tests/commands/retro.test.ts",
       "keeps Cursor public delivery disabled when the paired stash belongs to another project"
-    ],
-    "Collector rejection keeps existing recovery behavior": [
-      "packages/cli/tests/commands/retro.test.ts",
-      "preserves private filing when the public collector rejects the submission"
-    ],
-    "Collector transport failure keeps existing recovery behavior": [
-      [
-        "packages/cli/src/retro/public-delivery.test.ts",
-        "contains a collector connection failure without retrying"
-      ],
-      [
-        "packages/cli/src/retro/public-delivery.test.ts",
-        "abandons a collector handoff at the existing deadline without retrying"
-      ]
     ]
   }
 }
