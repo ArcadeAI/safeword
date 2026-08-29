@@ -143,11 +143,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "fc94820673eb3d3fa73b4ebf1e30d6e32a031e90ba371105e6628f6c204b5041"
+      "sha256": "7a4246c76160315d5a2e51e37875866bcb717388fc2e03d76f32746ec16ca0e1"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "8950758e12e908bf94530f1502040a94b108934f3625988c0c1613a69b586e50"
+      "sha256": "922db414af4b7a8486add0735d9bc9981737509bde225d5b4708218ee22b168a"
     },
     {
       "path": "runtime/event-groups.json",
@@ -607,7 +607,7 @@
     },
     {
       "path": "skills/bdd/SKILL.md",
-      "sha256": "81bfcf97e429b442e3708b50a692a194d31b907289febc4201471afcab7e4b9c"
+      "sha256": "970d5af3af22e599126b5a15f75ec9c9478fd0ca810b31ec33d2dbd94ec83516"
     },
     {
       "path": "skills/bdd/SPLITTING.md",
