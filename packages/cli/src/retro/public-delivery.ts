@@ -20,6 +20,7 @@ export interface PublicRetroEnvelopeInput {
   findings: readonly string[];
   source: PublicRetroSource;
   sessionId: string;
+  windowStart?: number;
 }
 
 export interface BuiltPublicRetroEnvelope {
@@ -100,6 +101,8 @@ function isValidEnvelopeInput(input: PublicRetroEnvelopeInput, projectUUID: stri
     input.findings.length > 0 &&
     input.findings.every(finding => finding.trim() !== '') &&
     input.sessionId.trim() !== '' &&
+    (input.windowStart === undefined ||
+      (Number.isSafeInteger(input.windowStart) && input.windowStart >= 0)) &&
     validSourceRoute(source)
   );
 }
@@ -108,15 +111,17 @@ function deriveSessionScope(
   harness: PublicRetroSource['harness'],
   projectUUID: string,
   sessionId: string,
+  windowStart: number,
 ): string {
-  return createHash('sha256')
+  const hash = createHash('sha256')
     .update('safeword-retro-session-scope:v1\0')
     .update(harness)
     .update('\0')
     .update(projectUUID)
     .update('\0')
-    .update(sessionId)
-    .digest('hex');
+    .update(sessionId);
+  if (windowStart > 0) hash.update('\0window\0').update(String(windowStart));
+  return hash.digest('hex');
 }
 
 export function buildPublicRetroEnvelope(
@@ -156,7 +161,12 @@ export function buildPublicRetroEnvelope(
       osFamily: normalizedOptional.osFamily,
     }),
   };
-  const scope = deriveSessionScope(source.harness, projectUUID, input.sessionId);
+  const scope = deriveSessionScope(
+    source.harness,
+    projectUUID,
+    input.sessionId,
+    input.windowStart ?? 0,
+  );
   const bytes = new TextEncoder().encode(
     JSON.stringify({ version: 'v2', findings: input.findings, source, sessionScope: scope }),
   );
@@ -306,7 +316,12 @@ function preservePublicRetroReceipt(
 }
 
 export function deliverSanitizedPublicRetroFindings(
-  input: { findings: readonly Finding[]; source: PublicRetroSource; sessionId: string },
+  input: {
+    findings: readonly Finding[];
+    source: PublicRetroSource;
+    sessionId: string;
+    windowStart?: number;
+  },
   dependencies: PublicRetroDeliveryDependencies,
   preparationDeadline: number,
 ): Promise<PublicRetroDeliveryOutcome> {
@@ -316,6 +331,7 @@ export function deliverSanitizedPublicRetroFindings(
         findings: input.findings.map(finding => assemblePublicFinding(finding)),
         source: input.source,
         sessionId: input.sessionId,
+        windowStart: input.windowStart,
       },
       dependencies,
       preparationDeadline,

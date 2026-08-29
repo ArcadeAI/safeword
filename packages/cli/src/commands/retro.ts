@@ -340,6 +340,8 @@ export async function runRetro(
   const { encounters, drops, findings } = await prepareEncounters(rawFindings);
   const { projectDirectory, publicRetro, sessionId } = dependencies;
   const relay = dependencies.relay;
+  const sourceSession =
+    sessionId.trim().length === 0 || sessionId === 'unknown' ? options.transcript : sessionId;
 
   // Preserve private recovery before the best-effort public handoff. A process
   // interruption during that network attempt must not lose the durable draft.
@@ -364,7 +366,12 @@ export async function runRetro(
       return;
     }
     await deliverSanitizedPublicRetroFindings(
-      { findings, sessionId, source: publicRetro.source },
+      {
+        findings,
+        sessionId: sourceSession,
+        source: publicRetro.source,
+        windowStart: options.windowStart ?? 0,
+      },
       publicRetro,
       publicPreparationDeadline,
     );
@@ -373,8 +380,6 @@ export async function runRetro(
   // Cloud-filing spool (BNGK9W): persist the post-egress drafts BEFORE filing so a
   // REST auth failure (cloud #568) can't lose them. Opt-in via projectDirectory.
   if (relay?.readiness.enabled === true && projectDirectory !== undefined) {
-    const sourceSession =
-      sessionId.trim().length === 0 || sessionId === 'unknown' ? options.transcript : sessionId;
     return runRelayRetro(encounters, drops, {
       afterPersistence: deliverPublic,
       projectDirectory,

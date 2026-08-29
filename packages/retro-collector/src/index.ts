@@ -146,13 +146,14 @@ function validSourceRoute(harness: unknown, hostClass: unknown): boolean {
   );
 }
 
-function validSource(value: unknown): boolean {
+function validSource(value: unknown, version: unknown): boolean {
   if (!isRecord(value)) return false;
   const keys = Object.keys(value);
   if (REQUIRED_SOURCE_FIELDS.some(key => !keys.includes(key))) return false;
   if (keys.some(key => !SOURCE_FIELDS.has(key))) return false;
   if (Object.values(value).some(item => !nonemptyString(item))) return false;
-  if (value.harness === 'cursor' && keys.includes('userIdentity')) return false;
+  if (keys.includes('userIdentity') && (version !== 'v1' || value.harness === 'cursor'))
+    return false;
   return (
     validSourceRoute(value.harness, value.hostClass) &&
     typeof value.projectUUID === 'string' &&
@@ -179,7 +180,7 @@ function envelopeSessionScope(rawBody: Buffer): string | undefined {
     const value = JSON.parse(source) as unknown;
     if (JSON.stringify(value) !== source) return undefined;
     if (!isRecord(value) || !validEnvelopeFindings(value)) return undefined;
-    if (!validSource(value.source)) return undefined;
+    if (!validSource(value.source, value.version)) return undefined;
     return typeof value.sessionScope === 'string' && SESSION_SCOPE.test(value.sessionScope)
       ? value.sessionScope
       : undefined;
