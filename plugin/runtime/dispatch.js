@@ -1800,7 +1800,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/lint/SKILL.md':
         'fdde749fe9ce764f6f9325f963c092d457960494fe78dd04d65d53a50e7cfd19',
       '.claude/skills/quality-review/SKILL.md':
-        '75dcf079f5ac19a7a6dffca382b535ab12a637a8645fd5a8b482b2a1684a6d69',
+        'df3c8402bf7d515a585b5e933b51cd7f8d59b38a540d5b1a8ba30353e989d695',
       '.claude/skills/refactor/SKILL.md':
         'a51a858fb13b50cbc86789edbde8a39e364b5cdd7d5d3b025d555d90b221760e',
       '.claude/skills/retro-filer/SKILL.md':
