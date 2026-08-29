@@ -1434,6 +1434,22 @@ describe('retro command configuration, extraction, egress, and relay execution',
     }
   });
 
+  it('keeps private recovery when no public carrier is available', async () => {
+    const privateTransport = new FakeGitHub();
+
+    const outcome = await runRetro(
+      { transcript: '/tmp/t.jsonl' },
+      dependencies({
+        extract: () =>
+          Promise.resolve([rawFinding(), rawFinding({ title: 'A second valid finding' })]),
+        transport: privateTransport,
+      }),
+    );
+
+    expect(outcome.ok).toBe(true);
+    expect(privateTransport.issues).toHaveLength(2);
+  });
+
   it('retro-transcript-mining.TB1.AC2.missing_flag_fails_loudly_and_files_nothing', async () => {
     const transport = new FakeGitHub();
     const outcome = await runRetro({}, dependencies({ transport }));

@@ -165,7 +165,7 @@
     ],
     "A runtime without a runnable public carrier keeps existing recovery behavior": [
       "packages/cli/tests/commands/retro.test.ts",
-      "does not attempt public delivery for multiple candidates"
+      "keeps private recovery when no public carrier is available"
     ],
     "Claude Remote evidence keeps existing recovery behavior": [
       "packages/cli/tests/commands/retro.test.ts",
