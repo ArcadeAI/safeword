@@ -27,15 +27,15 @@ phase: implement # intake | define-behavior | scenario-gate | plan-implementatio
 
 **Phase meanings:**
 
-| Phase                 | What happens                    | Details                |
-| --------------------- | ------------------------------- | ---------------------- |
-| `intake`              | Context check, discovery        | DISCOVERY.md           |
-| `define-behavior`     | Writing Given/When/Then         | SCENARIOS.md           |
-| `scenario-gate`       | Validating scenarios            | SCENARIOS.md           |
-| `plan-implementation` | Implementation design record    | PLAN_IMPLEMENTATION.md |
-| `implement`           | Outside-in TDD                  | TDD.md                 |
-| `verify`              | Evidence gate: /verify + /audit | VERIFY.md              |
-| `done`                | Close ticket                    | DONE.md                |
+| Phase                 | What happens                    | Details                                          |
+| --------------------- | ------------------------------- | ------------------------------------------------ |
+| `intake`              | Context check, discovery        | [DISCOVERY.md](DISCOVERY.md)                     |
+| `define-behavior`     | Writing Given/When/Then         | [SCENARIOS.md](SCENARIOS.md)                     |
+| `scenario-gate`       | Validating scenarios            | [SCENARIOS.md](SCENARIOS.md)                     |
+| `plan-implementation` | Implementation design record    | [PLAN_IMPLEMENTATION.md](PLAN_IMPLEMENTATION.md) |
+| `implement`           | Outside-in TDD                  | [TDD.md](TDD.md)                                 |
+| `verify`              | Evidence gate: /verify + /audit | [VERIFY.md](VERIFY.md)                           |
+| `done`                | Close ticket                    | [DONE.md](DONE.md)                               |
 
 **Update phase when:**
 
@@ -58,7 +58,7 @@ typed `nextActions` until terminal, and never start a replacement review or
 advance/stamp while it is pending. `REVIEW_STALE` means rerun against the
 current artifacts. Only a terminal verdict may advance the phase.
 
-The plan-implementation exit applies the same discipline to the implementation plan (see PLAN_IMPLEMENTATION.md's exit). Other phase exits don't need an independent review by default — they carry their
+The plan-implementation exit applies the same discipline to the implementation plan (see [PLAN_IMPLEMENTATION.md](PLAN_IMPLEMENTATION.md)'s exit). Other phase exits don't need an independent review by default — they carry their
 own guards (intake's user sub-phase gates, implement's tests, the done-gate's
 evidence checks). When the **review gate** is enabled (`reviewGate` in
 `.safeword/config.json` — e.g. autonomous runs where user gates auto-confirm,
@@ -73,15 +73,15 @@ ticket 2VCSZY), every phase advance requires a stamp, or a logged skip reason
 
 **Resume by phase:**
 
-| Phase                 | Resume action                                             |
-| --------------------- | --------------------------------------------------------- |
-| `intake`              | Start understanding (propose-and-converge)                |
-| `define-behavior`     | Continue drafting scenarios                               |
-| `scenario-gate`       | Continue validating scenarios                             |
-| `plan-implementation` | Continue the implementation plan (PLAN_IMPLEMENTATION.md) |
-| `implement`           | Find first unchecked scenario, run TDD                    |
-| `verify`              | Run /verify and /audit, write verify.md                   |
-| `done`                | Close ticket (verify.md must exist)                       |
+| Phase                 | Resume action                                                                       |
+| --------------------- | ----------------------------------------------------------------------------------- |
+| `intake`              | Start understanding (propose-and-converge)                                          |
+| `define-behavior`     | Continue drafting scenarios                                                         |
+| `scenario-gate`       | Continue validating scenarios                                                       |
+| `plan-implementation` | Continue the implementation plan ([PLAN_IMPLEMENTATION.md](PLAN_IMPLEMENTATION.md)) |
+| `implement`           | Find first unchecked scenario, run TDD                                              |
+| `verify`              | Run /verify and /audit, write verify.md                                             |
+| `done`                | Close ticket (verify.md must exist)                                                 |
 
 ---
 
@@ -97,14 +97,14 @@ Understand first and size internally (see SAFEWORD.md "Understanding" and "Sizin
 
 Load the appropriate file based on current phase:
 
-| Phase                 | File                   |
-| --------------------- | ---------------------- |
-| `intake`              | DISCOVERY.md           |
-| `define-behavior`     | SCENARIOS.md           |
-| `scenario-gate`       | SCENARIOS.md           |
-| `plan-implementation` | PLAN_IMPLEMENTATION.md |
-| `implement`           | TDD.md                 |
-| `verify`              | VERIFY.md              |
-| `done`                | DONE.md                |
+| Phase                 | File                                             |
+| --------------------- | ------------------------------------------------ |
+| `intake`              | [DISCOVERY.md](DISCOVERY.md)                     |
+| `define-behavior`     | [SCENARIOS.md](SCENARIOS.md)                     |
+| `scenario-gate`       | [SCENARIOS.md](SCENARIOS.md)                     |
+| `plan-implementation` | [PLAN_IMPLEMENTATION.md](PLAN_IMPLEMENTATION.md) |
+| `implement`           | [TDD.md](TDD.md)                                 |
+| `verify`              | [VERIFY.md](VERIFY.md)                           |
+| `done`                | [DONE.md](DONE.md)                               |
 
-For splitting large features, see SPLITTING.md.
+For splitting large features, see [SPLITTING.md](SPLITTING.md).

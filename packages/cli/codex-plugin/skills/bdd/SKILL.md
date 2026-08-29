@@ -26,15 +26,15 @@ phase: implement # intake | define-behavior | scenario-gate | plan-implementatio
 
 **Phase meanings:**
 
-| Phase                 | What happens                                      | Details                           |
-| --------------------- | ------------------------------------------------- | --------------------------------- |
-| `intake`              | Context check, discovery                          | references/DISCOVERY.md           |
-| `define-behavior`     | Writing Given/When/Then                           | references/SCENARIOS.md           |
-| `scenario-gate`       | Validating scenarios                              | references/SCENARIOS.md           |
-| `plan-implementation` | Implementation design record                      | references/PLAN_IMPLEMENTATION.md |
-| `implement`           | Outside-in TDD                                    | references/TDD.md                 |
-| `verify`              | Evidence gate: $safeword:verify + $safeword:audit | references/VERIFY.md              |
-| `done`                | Close ticket                                      | references/DONE.md                |
+| Phase                 | What happens                                      | Details                                                     |
+| --------------------- | ------------------------------------------------- | ----------------------------------------------------------- |
+| `intake`              | Context check, discovery                          | [DISCOVERY.md](references/DISCOVERY.md)                     |
+| `define-behavior`     | Writing Given/When/Then                           | [SCENARIOS.md](references/SCENARIOS.md)                     |
+| `scenario-gate`       | Validating scenarios                              | [SCENARIOS.md](references/SCENARIOS.md)                     |
+| `plan-implementation` | Implementation design record                      | [PLAN_IMPLEMENTATION.md](references/PLAN_IMPLEMENTATION.md) |
+| `implement`           | Outside-in TDD                                    | [TDD.md](references/TDD.md)                                 |
+| `verify`              | Evidence gate: $safeword:verify + $safeword:audit | [VERIFY.md](references/VERIFY.md)                           |
+| `done`                | Close ticket                                      | [DONE.md](references/DONE.md)                               |
 
 **Update phase when:**
 
@@ -57,7 +57,7 @@ typed `nextActions` until terminal, and never start a replacement review or
 advance/stamp while it is pending. `REVIEW_STALE` means rerun against the
 current artifacts. Only a terminal verdict may advance the phase.
 
-The plan-implementation exit applies the same discipline to the implementation plan (see references/PLAN_IMPLEMENTATION.md's exit). Other phase exits don't need an independent review by default — they carry their
+The plan-implementation exit applies the same discipline to the implementation plan (see [PLAN_IMPLEMENTATION.md](references/PLAN_IMPLEMENTATION.md)'s exit). Other phase exits don't need an independent review by default — they carry their
 own guards (intake's user sub-phase gates, implement's tests, the done-gate's
 evidence checks). When the **review gate** is enabled (`reviewGate` in
 `.safeword/config.json` — e.g. autonomous runs where user gates auto-confirm,
@@ -72,15 +72,15 @@ ticket 2VCSZY), every phase advance requires a stamp, or a logged skip reason
 
 **Resume by phase:**
 
-| Phase                 | Resume action                                                        |
-| --------------------- | -------------------------------------------------------------------- |
-| `intake`              | Start understanding (propose-and-converge)                           |
-| `define-behavior`     | Continue drafting scenarios                                          |
-| `scenario-gate`       | Continue validating scenarios                                        |
-| `plan-implementation` | Continue the implementation plan (references/PLAN_IMPLEMENTATION.md) |
-| `implement`           | Find first unchecked scenario, run TDD                               |
-| `verify`              | Run $safeword:verify and $safeword:audit, write verify.md            |
-| `done`                | Close ticket (verify.md must exist)                                  |
+| Phase                 | Resume action                                                                                  |
+| --------------------- | ---------------------------------------------------------------------------------------------- |
+| `intake`              | Start understanding (propose-and-converge)                                                     |
+| `define-behavior`     | Continue drafting scenarios                                                                    |
+| `scenario-gate`       | Continue validating scenarios                                                                  |
+| `plan-implementation` | Continue the implementation plan ([PLAN_IMPLEMENTATION.md](references/PLAN_IMPLEMENTATION.md)) |
+| `implement`           | Find first unchecked scenario, run TDD                                                         |
+| `verify`              | Run $safeword:verify and $safeword:audit, write verify.md                                      |
+| `done`                | Close ticket (verify.md must exist)                                                            |
 
 ---
 
@@ -96,14 +96,14 @@ Understand first and size internally (see SAFEWORD.md "Understanding" and "Sizin
 
 Load the appropriate file based on current phase:
 
-| Phase                 | File                              |
-| --------------------- | --------------------------------- |
-| `intake`              | references/DISCOVERY.md           |
-| `define-behavior`     | references/SCENARIOS.md           |
-| `scenario-gate`       | references/SCENARIOS.md           |
-| `plan-implementation` | references/PLAN_IMPLEMENTATION.md |
-| `implement`           | references/TDD.md                 |
-| `verify`              | references/VERIFY.md              |
-| `done`                | references/DONE.md                |
+| Phase                 | File                                                        |
+| --------------------- | ----------------------------------------------------------- |
+| `intake`              | [DISCOVERY.md](references/DISCOVERY.md)                     |
+| `define-behavior`     | [SCENARIOS.md](references/SCENARIOS.md)                     |
+| `scenario-gate`       | [SCENARIOS.md](references/SCENARIOS.md)                     |
+| `plan-implementation` | [PLAN_IMPLEMENTATION.md](references/PLAN_IMPLEMENTATION.md) |
+| `implement`           | [TDD.md](references/TDD.md)                                 |
+| `verify`              | [VERIFY.md](references/VERIFY.md)                           |
+| `done`                | [DONE.md](references/DONE.md)                               |
 
-For splitting large features, see references/SPLITTING.md.
+For splitting large features, see [SPLITTING.md](references/SPLITTING.md).

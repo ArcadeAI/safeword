@@ -2,10 +2,10 @@
 id: KEQQGN
 slug: reference-rewrite-boundaries
 type: task
-phase: intake
-status: in_progress
+phase: done
+status: completed
 created: 2026-08-20T23:06:48.319Z
-last_modified: 2026-08-20T23:06:48.319Z
+last_modified: 2026-08-28T17:32:00-07:00
 ---
 
 # Bound the Codex reference-path rewrite to real Markdown links
@@ -85,3 +85,4 @@ which is more correct but heavier than this corpus needs.
 ## Work Log
 
 - 2026-08-20T23:06:48.319Z Started: Created ticket KEQQGN
+- 2026-08-28T17:32:00-07:00 Completed: Replaced global filename substitution with exact Markdown-link destination rewriting, converted canonical reference mentions to links, regenerated host assets, and verified generator, parity, lifecycle, lint, typecheck, and CLI contracts.

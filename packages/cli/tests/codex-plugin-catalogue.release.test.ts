@@ -103,13 +103,19 @@ describe('generated Codex plugin catalogue', () => {
           'allowed-tools: Bash',
           '---',
           '',
-          'Run /beta, preserve /outside, /beta/README.md, and /beta/_draft.md, then consult TDD.md.',
+          'Run /beta, preserve /outside, /beta/README.md, and /beta/_draft.md.',
+          'Consult [TDD](TDD.md), [its loop](./TDD.md#loop), and [X-TDD](X-TDD.md).',
+          'Leave [prefixed](references/TDD.md), [remote](https://example.com/TDD.md), and prose TDD.md unchanged.',
           '',
         ].join('\n'),
       );
       writeFileSync(
         nodePath.join(canonicalSkillsDirectory, 'alpha/TDD.md'),
         '# TDD detail\n\nRun /beta before writing /beta.md.\n',
+      );
+      writeFileSync(
+        nodePath.join(canonicalSkillsDirectory, 'alpha/X-TDD.md'),
+        '# Extended TDD detail\n',
       );
       writeFileSync(
         nodePath.join(canonicalSkillsDirectory, 'beta/SKILL.md'),
@@ -120,11 +126,15 @@ describe('generated Codex plugin catalogue', () => {
         {
           relativePath: nodePath.join('skills', 'alpha', 'SKILL.md'),
           content:
-            '---\nname: alpha\ndescription: Invoke $safeword:beta and retain /beta.md, /beta/README.md, and /beta/_draft.md\n---\n\nRun $safeword:beta, preserve /outside, /beta/README.md, and /beta/_draft.md, then consult references/TDD.md.\n',
+            '---\nname: alpha\ndescription: Invoke $safeword:beta and retain /beta.md, /beta/README.md, and /beta/_draft.md\n---\n\nRun $safeword:beta, preserve /outside, /beta/README.md, and /beta/_draft.md.\nConsult [TDD](references/TDD.md), [its loop](references/TDD.md#loop), and [X-TDD](references/X-TDD.md).\nLeave [prefixed](references/TDD.md), [remote](https://example.com/TDD.md), and prose TDD.md unchanged.\n',
         },
         {
           relativePath: nodePath.join('skills', 'alpha', 'references', 'TDD.md'),
           content: '# TDD detail\n\nRun $safeword:beta before writing /beta.md.\n',
+        },
+        {
+          relativePath: nodePath.join('skills', 'alpha', 'references', 'X-TDD.md'),
+          content: '# Extended TDD detail\n',
         },
         {
           relativePath: nodePath.join('skills', 'beta', 'SKILL.md'),

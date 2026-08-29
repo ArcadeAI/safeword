@@ -248,7 +248,7 @@ Given('a canonical Safeword workflow', function (this: WorkflowWorld) {
       'allowed-tools: Bash',
       '---',
       '',
-      'Run /beta, preserve /outside, and consult TDD.md.',
+      'Run /beta, preserve /outside, and consult [TDD](TDD.md).',
       '',
     ].join('\n'),
   );
@@ -275,7 +275,7 @@ Then(
       {
         relativePath: nodePath.join('skills', 'alpha', 'SKILL.md'),
         content:
-          '---\nname: alpha\ndescription: Invoke $safeword:beta and retain /beta.md\n---\n\nRun $safeword:beta, preserve /outside, and consult references/TDD.md.\n',
+          '---\nname: alpha\ndescription: Invoke $safeword:beta and retain /beta.md\n---\n\nRun $safeword:beta, preserve /outside, and consult [TDD](references/TDD.md).\n',
       },
       {
         relativePath: nodePath.join('skills', 'alpha', 'references', 'TDD.md'),
