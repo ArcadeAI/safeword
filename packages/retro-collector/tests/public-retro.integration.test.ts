@@ -580,6 +580,26 @@ it('accepts only one of two concurrent request identities with one session scope
   );
 });
 
+it('reuses one receipt for byte-identical v2 retries with a new request identity', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+  });
+  const first = fixtureBatchRequest();
+  const second = { ...first, requestId: '01911111-2222-7333-8444-55555555555f' };
+
+  const accepted = await submit(runtime.url, first);
+  const firstResult = (await accepted.json()) as { receipt: string; requestId: string };
+  const duplicate = await submit(runtime.url, second);
+  const secondResult = (await duplicate.json()) as { receipt: string; requestId: string };
+  await runtime.close();
+
+  expect(accepted.status).toBe(201);
+  expect(duplicate.status).toBe(200);
+  expect(secondResult).toEqual({ receipt: firstResult.receipt, requestId: second.requestId });
+});
+
 it.each(['harness', 'project identity', 'session identity'] as const)(
   'keeps submissions with distinct %s independent',
   async input => {
