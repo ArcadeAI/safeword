@@ -559,7 +559,7 @@ it('accepts only one of two concurrent byte-different bodies with one request id
   );
 });
 
-it('accepts only one of two concurrent request identities with one session scope', async () => {
+it('deduplicates two concurrent request identities with identical bytes and scope', async () => {
   const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
   temporaryDirectories.push(directory);
   const runtime = await startPublicRetroCollector({
@@ -574,10 +574,8 @@ it('accepts only one of two concurrent request identities with one session scope
 
   expect(
     responses.map(response => response.status).toSorted((left, right) => left - right),
-  ).toEqual([201, 409]);
-  expect(retries.map(response => response.status)).toEqual(
-    responses.map(response => (response.status === 201 ? 200 : 409)),
-  );
+  ).toEqual([200, 201]);
+  expect(retries.map(response => response.status)).toEqual([200, 200]);
 });
 
 it('reuses one receipt for byte-identical v2 retries with a new request identity', async () => {
