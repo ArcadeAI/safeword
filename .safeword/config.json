@@ -19,13 +19,27 @@
     "model": "gpt-5.5",
     "maxTotalBytes": 100000,
     "requiredChecks": [
-      { "context": "Dogfood parity" },
-      { "context": "CLI contract" },
-      { "context": "Dependency audit" },
-      { "context": "test (node 22.23.2)" },
-      { "context": "test (node 24.18.1)" },
-      { "context": "lint" },
-      { "context": "Retro relay deployment inputs" }
+      {
+        "context": "Dogfood parity"
+      },
+      {
+        "context": "CLI contract"
+      },
+      {
+        "context": "Dependency audit"
+      },
+      {
+        "context": "test (node 22.23.2)"
+      },
+      {
+        "context": "test (node 24.18.1)"
+      },
+      {
+        "context": "lint"
+      },
+      {
+        "context": "Retro relay deployment inputs"
+      }
     ]
   },
   "paths": {
@@ -43,5 +57,6 @@
         "path": "packages/website/src/content/docs"
       }
     ]
-  }
+  },
+  "projectUUID": "8cb732cf-5254-485a-abb5-7bf981e9cf25"
 }
