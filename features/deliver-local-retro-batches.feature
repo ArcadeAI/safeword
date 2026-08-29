@@ -1,3 +1,4 @@
+@proof.vitest
 Feature: Deliver every eligible local retro finding in one bounded batch
 
   @deliver-local-retro-batches.SWM1.R1

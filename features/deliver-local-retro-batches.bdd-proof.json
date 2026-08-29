@@ -1,0 +1,121 @@
+{
+  "feature": "features/deliver-local-retro-batches.feature",
+  "scenarios": {
+    "Every local carrier submits multiple findings as one ordered batch": [
+      "packages/cli/tests/integration/public-retro-lifecycle.test.ts",
+      "runs installed %s lifecycle through the real collector to a durable receipt"
+    ],
+    "One finding uses the same batch contract": [
+      "packages/cli/tests/commands/retro.test.ts",
+      "hands one sanitized finding to public quarantine without changing private filing"
+    ],
+    "Invalid findings are excluded before a mixed batch leaves the project": [
+      "packages/cli/tests/commands/retro.test.ts",
+      "hands every valid sanitized finding to public quarantine in original order"
+    ],
+    "No valid findings make no public attempt": [
+      "packages/cli/tests/commands/retro.test.ts",
+      "makes no public attempt when every extracted finding is invalid"
+    ],
+    "A request exactly at the shared byte limit is accepted whole": [
+      "packages/cli/src/retro/public-delivery.test.ts",
+      "%s a complete v2 batch at %d bytes",
+      "[\"accepts\",\"65536\"]"
+    ],
+    "An oversized request makes no partial public attempt": [
+      "packages/cli/src/retro/public-delivery.test.ts",
+      "%s a complete v2 batch at %d bytes",
+      "[\"abandons\",\"65537\"]"
+    ],
+    "The shipped local batch crosses the real collector boundary unchanged": [
+      "packages/cli/tests/integration/public-retro-lifecycle.test.ts",
+      "round-trips a current CLI envelope through the real collector unchanged"
+    ],
+    "Released v1 and exact v2 requests are both accepted": [
+      [
+        "packages/retro-collector/tests/public-retro.integration.test.ts",
+        "accepts the released v0.79.6 envelope and returns its bytes unchanged"
+      ],
+      [
+        "packages/retro-collector/tests/public-retro.integration.test.ts",
+        "accepts an exact v2 batch and returns its bytes unchanged"
+      ]
+    ],
+    "Byte-identical replay in one session scope reuses the durable receipt": [
+      [
+        "packages/retro-collector/tests/public-retro.integration.test.ts",
+        "returns the original durable receipt for an exact retry after restart"
+      ],
+      [
+        "packages/retro-collector/tests/public-retro.integration.test.ts",
+        "reuses one receipt for byte-identical v2 retries with a new request identity"
+      ],
+      [
+        "packages/retro-collector/tests/public-retro.integration.test.ts",
+        "converges concurrent first submissions on one receipt"
+      ],
+      [
+        "packages/retro-collector/tests/public-retro.integration.test.ts",
+        "deduplicates two concurrent request identities with identical bytes and scope"
+      ]
+    ],
+    "Identical bytes in a different session scope receive a distinct receipt": [
+      "packages/retro-collector/tests/public-retro.integration.test.ts",
+      "keeps submissions with distinct %s independent",
+      "session identity"
+    ],
+    "Unequal raw bytes in one session scope remain a conflict": [
+      "packages/retro-collector/tests/public-retro.integration.test.ts",
+      "rejects byte-different reuse of an accepted session scope"
+    ],
+    "A v2 batch cannot replace a v1 submission in the same session scope": [
+      "packages/retro-collector/tests/public-retro.integration.test.ts",
+      "does not let a v2 batch replace a v1 body in the same session scope"
+    ],
+    "Invalid v2 envelopes are rejected before storage": [
+      "packages/retro-collector/tests/public-retro.integration.test.ts",
+      "rejects invalid v2 envelope: %s"
+    ],
+    "The collector enforces the shared whole-request byte limit": [
+      [
+        "packages/retro-collector/tests/public-retro.integration.test.ts",
+        "accepts a %s %s envelope at the 65536-byte limit"
+      ],
+      [
+        "packages/retro-collector/tests/public-retro.integration.test.ts",
+        "rejects a %s %s envelope above the 65536-byte limit"
+      ]
+    ],
+    "Public acceptance preserves private recovery silently": [
+      "packages/cli/tests/commands/retro.test.ts",
+      "hands every valid sanitized finding to public quarantine in original order"
+    ],
+    "Opt-out preserves private recovery silently": [
+      "packages/cli/tests/integration/public-retro-lifecycle.test.ts",
+      "runs installed %s lifecycle through the real collector to a durable receipt"
+    ],
+    "Oversize preserves private recovery silently": [
+      "packages/cli/src/retro/public-delivery.test.ts",
+      "abandons an oversized UTF-8 envelope before identity or claim"
+    ],
+    "Invalid input that leaves no valid findings stays silent and recoverable": [
+      "packages/cli/tests/commands/retro.test.ts",
+      "makes no public attempt when every extracted finding is invalid"
+    ],
+    "Public collector outcomes preserve private recovery silently": [
+      [
+        "packages/cli/src/retro/public-delivery.test.ts",
+        "contains a collector connection failure without retrying"
+      ],
+      ["packages/cli/src/retro/public-transport.test.ts", "rejects malformed receipt JSON"],
+      [
+        "packages/cli/src/retro/public-transport.test.ts",
+        "rejects a non-success response before parsing a receipt"
+      ]
+    ],
+    "A collector timeout preserves private recovery silently": [
+      "packages/cli/src/retro/public-delivery.test.ts",
+      "abandons a collector handoff at the existing deadline without retrying"
+    ]
+  }
+}
