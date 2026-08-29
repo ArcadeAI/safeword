@@ -215,3 +215,16 @@ last_modified: 2026-08-28T23:16:33.183Z
   stable remote session identity, carrier runtime, source profile, Stop
   registration, and collector egress; application code remains untouched until
   the identity-dependent contract is proven or redesigned.
+- 2026-08-29T05:10:00Z Real Claude Cloud probe
+  `session_01BwTczgGeabtE6keUg87QBv` observed
+  `CLAUDE_CODE_REMOTE="true"`, remote session identity
+  `cse_01BwTczgGeabtE6keUg87QBv`, and Bun 1.3.11 as the registered Stop-hook
+  interpreter. The cloud session ran on its generated
+  `claude/safeword-cloud-probe-olhhme` branch rather than the requested feature
+  branch, so it does not prove the packed release-candidate install. Its bounded
+  collector health request was rejected by Claude Cloud's egress proxy with
+  HTTP 403 at CONNECT before reaching Railway; the target hostname was absent
+  from the environment allowlist. No files, commits, pushes, or retros were
+  produced. Activation is blocked on allowing
+  `retro-relay-production.up.railway.app` in the Claude Cloud environment and
+  rerunning the exact-branch probe; reclamation stability remains unproven.
