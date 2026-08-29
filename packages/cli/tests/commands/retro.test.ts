@@ -1268,6 +1268,48 @@ describe('retro command configuration, extraction, egress, and relay execution',
     }
   });
 
+  it('starts the public preparation budget after finding preparation', async () => {
+    const attemptsDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-attempts-'));
+    let nowCalls = 0;
+    const publicTransport = vi.fn(request =>
+      Promise.resolve({
+        requestId: request.headers['x-safeword-request-id'],
+        receipt: 'receipt-after-preparation',
+      }),
+    );
+
+    try {
+      await runRetro(
+        { transcript: '/tmp/t.jsonl' },
+        dependencies({
+          extract: () => {
+            expect(nowCalls).toBe(0);
+            return Promise.resolve([rawFinding(), rawFinding({ title: 'Second finding' })]);
+          },
+          publicRetro: {
+            attemptsDirectory,
+            now: () => {
+              nowCalls += 1;
+              return 0;
+            },
+            randomUUID: () => 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+            source: {
+              harness: 'codex',
+              hostClass: 'local',
+              projectUUID: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+              safewordCliVersion: '0.81.1',
+            },
+            transport: publicTransport,
+          },
+        }),
+      );
+
+      expect(publicTransport).toHaveBeenCalledOnce();
+    } finally {
+      rmSync(attemptsDirectory, { force: true, recursive: true });
+    }
+  });
+
   it('delivers later delta windows from one session under distinct public scopes', async () => {
     const attemptsDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-attempts-'));
     const publicTransport = vi.fn(request =>
@@ -1609,20 +1651,41 @@ describe('retro command configuration, extraction, egress, and relay execution',
   });
 
   it('retro-transcript-mining.NTB1.AC2.unresolvable_surface_is_dropped_not_filed', async () => {
+    const attemptsDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-attempts-'));
     const transport = new FakeGitHub();
-    await runRetro(
-      { transcript: '/tmp/t.jsonl' },
-      dependencies({
-        transport,
-        extract: () =>
-          Promise.resolve([
-            rawFinding({ safeword_surface: 'src/billing.ts', title: 'Customer bug' }),
-            rawFinding({ title: 'Real safeword friction' }),
-          ]),
-      }),
-    );
-    expect(transport.issues).toHaveLength(1);
-    expect(transport.issues[0]?.title).toBe('Real safeword friction');
+    const publicTransport = vi.fn();
+    try {
+      await runRetro(
+        { transcript: '/tmp/t.jsonl' },
+        dependencies({
+          transport,
+          extract: () =>
+            Promise.resolve([
+              rawFinding({ safeword_surface: 'src/billing.ts', title: 'Customer bug' }),
+              rawFinding({ title: 'Real safeword friction' }),
+            ]),
+          publicRetro: {
+            attemptsDirectory,
+            now: () => 0,
+            randomUUID: () => 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+            source: {
+              harness: 'codex',
+              hostClass: 'local',
+              projectUUID: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+              safewordCliVersion: '0.81.1',
+            },
+            transport: publicTransport,
+          },
+        }),
+      );
+      expect(transport.issues).toHaveLength(1);
+      expect(transport.issues[0]?.title).toBe('Real safeword friction');
+      const publicBody = new TextDecoder().decode(publicTransport.mock.calls[0]?.[0].body);
+      expect(publicBody).toContain('Real safeword friction');
+      expect(publicBody).not.toContain('Customer bug');
+    } finally {
+      rmSync(attemptsDirectory, { force: true, recursive: true });
+    }
   });
 
   it('retro-transcript-mining.NTB1.AC2.end_to_end_filed_payload_carries_no_customer_data', async () => {

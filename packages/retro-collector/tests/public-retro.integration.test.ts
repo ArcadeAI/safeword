@@ -522,6 +522,27 @@ it('returns the original durable receipt for an exact retry after restart', asyn
   });
 });
 
+it('returns the original durable receipt for an exact v2 retry after restart', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const databasePath = path.join(directory, 'collector.sqlite');
+  const request = fixtureBatchRequest();
+
+  const firstRuntime = await startPublicRetroCollector({ databasePath });
+  const firstResponse = await submit(firstRuntime.url, request);
+  const firstReceipt = (await firstResponse.json()) as { receipt: string; requestId: string };
+  await firstRuntime.close();
+
+  const restartedRuntime = await startPublicRetroCollector({ databasePath });
+  const retryResponse = await submit(restartedRuntime.url, request);
+  const retryReceipt = (await retryResponse.json()) as { receipt: string; requestId: string };
+  await restartedRuntime.close();
+
+  expect(firstResponse.status).toBe(201);
+  expect(retryResponse.status).toBe(200);
+  expect(retryReceipt).toEqual(firstReceipt);
+});
+
 it('converges concurrent first submissions on one receipt', async () => {
   const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
   temporaryDirectories.push(directory);

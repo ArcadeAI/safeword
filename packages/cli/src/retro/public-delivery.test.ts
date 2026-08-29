@@ -368,6 +368,42 @@ describe('buildPublicRetroEnvelope', () => {
     }
   });
 
+  it('releases a claim when the preparation deadline expires immediately after claim', async () => {
+    const attemptsDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-public-retro-'));
+    const times = [0, 1000];
+
+    try {
+      const outcome = await deliverSanitizedPublicRetroFindings(
+        {
+          findings: [
+            {
+              category: 'bug',
+              title: 'Post-claim deadline fixture',
+              safewordSurface: 'packages/cli/src/retro/public-delivery.ts',
+              whatHappened: 'The deadline elapsed immediately after the claim.',
+              whyFriction: 'A leaked claim would suppress the window forever.',
+              repro: 'Advance the clock after exclusive claim creation.',
+            },
+          ],
+          source: requiredInput.source,
+          sessionId: requiredInput.sessionId,
+        },
+        {
+          attemptsDirectory,
+          now: () => times.shift() ?? 1000,
+          randomUUID: () => '01911111-2222-7333-8444-55555555555a',
+          transport: () => Promise.reject(new Error('must not submit')),
+        },
+        1000,
+      );
+
+      expect(outcome).toBe('abandoned');
+      expect(readdirSync(attemptsDirectory)).toEqual([]);
+    } finally {
+      rmSync(attemptsDirectory, { recursive: true, force: true });
+    }
+  });
+
   it('contains a collector connection failure without retrying', async () => {
     const attemptsDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-public-retro-'));
     const transport = vi.fn(() => Promise.reject(new Error('injected connection failure')));
