@@ -57780,7 +57780,7 @@ function validSourceRoute(source) {
 }
 function isValidEnvelopeInput(input, projectUUID) {
   const { source } = input;
-  return UUID2.test(projectUUID) && input.finding.trim() !== "" && input.sessionId.trim() !== "" && validSourceRoute(source);
+  return UUID2.test(projectUUID) && input.findings.length > 0 && input.findings.every((finding) => finding.trim() !== "") && input.sessionId.trim() !== "" && validSourceRoute(source);
 }
 function deriveSessionScope(harness, projectUUID, sessionId) {
   return createHash29("sha256").update("safeword-retro-session-scope:v1\x00").update(harness).update("\x00").update(projectUUID).update("\x00").update(sessionId).digest("hex");
@@ -57820,7 +57820,7 @@ function buildPublicRetroEnvelope(input) {
     }
   };
   const scope = deriveSessionScope(source.harness, projectUUID, input.sessionId);
-  const bytes = new TextEncoder().encode(JSON.stringify({ version: "v1", finding: input.finding, source, sessionScope: scope }));
+  const bytes = new TextEncoder().encode(JSON.stringify({ version: "v2", findings: input.findings, source, sessionScope: scope }));
   return { bytes, sessionScope: scope };
 }
 function claimPublicRetroRequest(built, dependencies) {
@@ -57919,10 +57919,10 @@ function preservePublicRetroReceipt(prepared, result, markerPath2, now, handoffD
     }
   }
 }
-function deliverSanitizedPublicRetroFinding(input, dependencies, preparationDeadline) {
+function deliverSanitizedPublicRetroFindings(input, dependencies, preparationDeadline) {
   try {
     return deliverPreparedInput({
-      finding: assemblePublicFinding(input.finding),
+      findings: input.findings.map((finding) => assemblePublicFinding(finding)),
       source: input.source,
       sessionId: input.sessionId
     }, dependencies, preparationDeadline);
@@ -60757,7 +60757,6 @@ async function runRetro(options, dependencies) {
   const rawFindings = await dependencies.extract(window2);
   const publicPreparationDeadline = dependencies.publicRetro === undefined ? undefined : dependencies.publicRetro.now() + 1000;
   const { encounters, drops, findings } = await prepareEncounters(rawFindings);
-  const publicFinding = findings.length === 1 ? findings[0] : undefined;
   const { projectDirectory, publicRetro, sessionId } = dependencies;
   const relay = dependencies.relay;
   if (projectDirectory !== undefined && relay?.readiness.enabled !== true) {
@@ -60772,10 +60771,10 @@ async function runRetro(options, dependencies) {
     spoolDrafts(projectDirectory, sessionId, drafts);
   }
   const deliverPublic = async () => {
-    if (publicRetro === undefined || publicPreparationDeadline === undefined || rawFindings.length !== 1 || publicFinding === undefined) {
+    if (publicRetro === undefined || publicPreparationDeadline === undefined || findings.length === 0) {
       return;
     }
-    await deliverSanitizedPublicRetroFinding({ finding: publicFinding, sessionId, source: publicRetro.source }, publicRetro, publicPreparationDeadline);
+    await deliverSanitizedPublicRetroFindings({ findings, sessionId, source: publicRetro.source }, publicRetro, publicPreparationDeadline);
   };
   if (relay?.readiness.enabled === true && projectDirectory !== undefined) {
     const sourceSession = sessionId.trim().length === 0 || sessionId === "unknown" ? options.transcript : sessionId;
