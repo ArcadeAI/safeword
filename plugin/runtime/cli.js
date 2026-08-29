@@ -57874,9 +57874,11 @@ async function deliverPreparedInput(input, dependencies, preparationDeadline) {
       return "abandoned";
     const built = buildPublicRetroEnvelope(input);
     const prepared = claimPublicRetroRequest(built, dependencies);
-    if (!prepared || dependencies.now() >= preparationDeadline)
+    if (!prepared)
       return "abandoned";
     claimedMarkerPath = path5.join(dependencies.attemptsDirectory, `${prepared.sessionScope}.json`);
+    if (dependencies.now() >= preparationDeadline)
+      return "abandoned";
     const handoffDeadline = dependencies.now() + 2000;
     const controller = new AbortController;
     const timeout = setTimeout(() => {
@@ -60759,7 +60761,6 @@ async function runRetro(options, dependencies) {
   }
   const window2 = windowFor(transcript, options.windowStart ?? 0);
   const rawFindings = await dependencies.extract(window2);
-  const publicPreparationDeadline = dependencies.publicRetro === undefined ? undefined : dependencies.publicRetro.now() + 1000;
   const { encounters, drops, findings } = await prepareEncounters(rawFindings);
   const { projectDirectory, publicRetro, sessionId } = dependencies;
   const relay = dependencies.relay;
@@ -60776,7 +60777,7 @@ async function runRetro(options, dependencies) {
     spoolDrafts(projectDirectory, sessionId, drafts);
   }
   const deliverPublic = async () => {
-    if (publicRetro === undefined || publicPreparationDeadline === undefined || findings.length === 0) {
+    if (publicRetro === undefined || findings.length === 0) {
       return;
     }
     await deliverSanitizedPublicRetroFindings({
@@ -60784,7 +60785,7 @@ async function runRetro(options, dependencies) {
       sessionId: sourceSession,
       source: publicRetro.source,
       windowStart: options.windowStart ?? 0
-    }, publicRetro, publicPreparationDeadline);
+    }, publicRetro, publicRetro.now() + 1000);
   };
   if (relay?.readiness.enabled === true && projectDirectory !== undefined) {
     return runRelayRetro(encounters, drops, {

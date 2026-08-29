@@ -335,8 +335,6 @@ export async function runRetro(
   // behavior. The window flows through the UNCHANGED egress pipeline below.
   const window = windowFor(transcript, options.windowStart ?? 0);
   const rawFindings = await dependencies.extract(window);
-  const publicPreparationDeadline =
-    dependencies.publicRetro === undefined ? undefined : dependencies.publicRetro.now() + 1000;
   const { encounters, drops, findings } = await prepareEncounters(rawFindings);
   const { projectDirectory, publicRetro, sessionId } = dependencies;
   const relay = dependencies.relay;
@@ -358,11 +356,7 @@ export async function runRetro(
   }
 
   const deliverPublic = async (): Promise<void> => {
-    if (
-      publicRetro === undefined ||
-      publicPreparationDeadline === undefined ||
-      findings.length === 0
-    ) {
+    if (publicRetro === undefined || findings.length === 0) {
       return;
     }
     await deliverSanitizedPublicRetroFindings(
@@ -373,7 +367,7 @@ export async function runRetro(
         windowStart: options.windowStart ?? 0,
       },
       publicRetro,
-      publicPreparationDeadline,
+      publicRetro.now() + 1000,
     );
   };
 

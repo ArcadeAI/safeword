@@ -246,8 +246,9 @@ async function deliverPreparedInput(
     if (dependencies.now() >= preparationDeadline) return 'abandoned';
     const built = buildPublicRetroEnvelope(input);
     const prepared = claimPublicRetroRequest(built, dependencies);
-    if (!prepared || dependencies.now() >= preparationDeadline) return 'abandoned';
+    if (!prepared) return 'abandoned';
     claimedMarkerPath = path.join(dependencies.attemptsDirectory, `${prepared.sessionScope}.json`);
+    if (dependencies.now() >= preparationDeadline) return 'abandoned';
 
     const handoffDeadline = dependencies.now() + 2000;
     const controller = new AbortController();

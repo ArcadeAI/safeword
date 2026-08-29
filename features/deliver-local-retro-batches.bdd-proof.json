@@ -46,6 +46,10 @@
       ],
       [
         "packages/retro-collector/tests/public-retro.integration.test.ts",
+        "returns the original durable receipt for an exact v2 retry after restart"
+      ],
+      [
+        "packages/retro-collector/tests/public-retro.integration.test.ts",
         "reuses one receipt for byte-identical v2 retries with a new request identity"
       ],
       [
