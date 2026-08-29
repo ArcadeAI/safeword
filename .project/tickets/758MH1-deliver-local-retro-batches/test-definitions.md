@@ -52,8 +52,8 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Released v1 and exact v2 requests are both accepted
 
-- [x] RED — `f18595c5a` proves the released collector rejects the exact v2 batch with HTTP 400.
-- [ ] GREEN
+- [x] RED f18595c5a
+- [x] GREEN bd323ba88
 - [ ] REFACTOR
 
 ### Scenario: Byte-identical replay in one session scope reuses the durable receipt
