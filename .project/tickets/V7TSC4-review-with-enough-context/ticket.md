@@ -2,8 +2,8 @@
 id: V7TSC4
 slug: review-with-enough-context
 type: task
-phase: verify
-status: in_progress
+phase: done
+status: done
 scope:
   - guide quality-review to keep authored work as the review target while passing only directly relevant source, tests, contracts, or plans as supporting context
   - prove the target/context distinction, minimum-context rule, and context-dumping rejection in the shipped skill contract
@@ -16,7 +16,7 @@ done_when:
   - guidance keeps supporting files out of the judged target set and rejects broad repository dumps
   - template, Claude, Codex, and dogfood copies remain synchronized and focused contract tests pass
 created: 2026-08-20T04:54:38.359Z
-last_modified: 2026-08-20T04:54:38.359Z
+last_modified: 2026-08-28T17:46:00-07:00
 ---
 
 # Review work with enough context to avoid false findings
@@ -64,3 +64,5 @@ repository dump.
   evidence, removing mirror-assertion duplication, and proving repeated CLI
   flags. Applied those material changes; 95 focused tests and the Claude plugin
   release contract pass. Refactor review found no worthwhile structural change.
+- 2026-08-28T17:46:00-07:00 Done: Completion evidence is present in verify.md;
+  closed the ticket so the ready PR carries its done-gate state.
