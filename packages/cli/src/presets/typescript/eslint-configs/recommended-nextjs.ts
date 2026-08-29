@@ -43,6 +43,7 @@ export const nextOnlyRules: any[] = lazyConfigArray(() => {
         '@next/next/no-css-tags': 'error',
         '@next/next/no-head-element': 'error',
         '@next/next/no-img-element': 'error',
+        '@next/next/no-location-assign-relative-destination': 'error',
         '@next/next/no-page-custom-font': 'error',
         '@next/next/no-styled-jsx-in-document': 'error',
         '@next/next/no-title-in-document-head': 'error',

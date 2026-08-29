@@ -26,7 +26,7 @@ describe('Astro config', () => {
   it('ships latest Astro 3 linting with a matching Node engine contract', async () => {
     const packageJson = await readCliPackageJson();
 
-    expect(packageJson.dependencies?.['eslint-plugin-astro']).toBe('~3.0.1');
+    expect(packageJson.dependencies?.['eslint-plugin-astro']).toBe('~3.1.0');
     expect(packageJson.engines?.node).toBe('^22.22.3 || ^24.16.0 || >=26.3.0');
   });
 
