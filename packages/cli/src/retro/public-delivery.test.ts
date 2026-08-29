@@ -212,6 +212,33 @@ describe('buildPublicRetroEnvelope', () => {
     }
   });
 
+  it.each([
+    ['accepts', 65_536, true],
+    ['abandons', 65_537, false],
+  ] as const)('%s a complete v2 batch at %d bytes', (_outcome, byteLength, accepted) => {
+    const attemptsDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-public-retro-'));
+    const baseLength = buildPublicRetroEnvelope({
+      ...requiredInput,
+      findings: ['a'],
+    }).bytes.byteLength;
+    const input = {
+      ...requiredInput,
+      findings: ['a'.repeat(byteLength - baseLength + 1)],
+    };
+
+    try {
+      const prepared = preparePublicRetroRequest(input, {
+        attemptsDirectory,
+        randomUUID: () => '01911111-2222-7333-8444-55555555555a',
+      });
+
+      expect(buildPublicRetroEnvelope(input).bytes.byteLength).toBe(byteLength);
+      expect(prepared !== undefined).toBe(accepted);
+    } finally {
+      rmSync(attemptsDirectory, { recursive: true, force: true });
+    }
+  });
+
   it('hands the same prepared identity and bytes to either harness transport', async () => {
     const bytes = new TextEncoder().encode('{"fixture":true}');
     const prepared = {
