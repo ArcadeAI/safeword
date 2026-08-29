@@ -583,7 +583,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/bdd/DONE.md": "e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60",
         ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "4510c9395789929d7faa02d958f385e6498bbfe0af6a90182b0b89f0c813081f",
         ".claude/skills/bdd/SCENARIOS.md": "a79590a8dcd8c6377f92e2ec0c26d5479f28e16e53291348f86f59b73381a19e",
-        ".claude/skills/bdd/SKILL.md": "81bfcf97e429b442e3708b50a692a194d31b907289febc4201471afcab7e4b9c",
+        ".claude/skills/bdd/SKILL.md": "970d5af3af22e599126b5a15f75ec9c9478fd0ca810b31ec33d2dbd94ec83516",
         ".claude/skills/bdd/SPLITTING.md": "e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708",
         ".claude/skills/bdd/TDD.md": "2865c9efa57682eb211cc101f9db15f529bd605c3a2bebb57131e2a6d3aec79d",
         ".claude/skills/bdd/VERIFY.md": "85abadfe756a3f391779fe500cd5c66597a33e0cab7fcef55f6b633b30818f31",

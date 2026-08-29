@@ -748,8 +748,8 @@ Then(
   function (this: PlanWorld) {
     matchDocs(
       this.docs,
-      /`plan-implementation`[^\n]*Continue the implementation plan \(PLAN_IMPLEMENTATION\.md\)/,
-      /`plan-implementation`\s*\|\s*PLAN_IMPLEMENTATION\.md/,
+      /`plan-implementation`[^\n]*Continue the implementation plan \(\[PLAN_IMPLEMENTATION\.md\]\(PLAN_IMPLEMENTATION\.md\)\)/,
+      /`plan-implementation`\s*\|\s*\[PLAN_IMPLEMENTATION\.md\]\(PLAN_IMPLEMENTATION\.md\)/,
     );
   },
 );

@@ -295,8 +295,71 @@ function adaptWorkflowMarkdown(
   return formatMarkdownTables(adapted);
 }
 
+function adaptReferenceDestination(
+  destination: string,
+  referenceNames: ReadonlySet<string>,
+): string {
+  const suffixIndex = destination.search(/[?#]/u);
+  const path = suffixIndex === -1 ? destination : destination.slice(0, suffixIndex);
+  const suffix = suffixIndex === -1 ? '' : destination.slice(suffixIndex);
+  const unprefixedPath = path.startsWith('./') ? path.slice(2) : path;
+
+  return referenceNames.has(unprefixedPath) ? `references/${unprefixedPath}${suffix}` : destination;
+}
+
+function adaptReferenceLinks(markdown: string, referenceNames: string[]): string {
+  if (referenceNames.length === 0) return markdown;
+
+  const knownReferences = new Set(referenceNames);
+  let adapted = '';
+  let cursor = 0;
+
+  while (cursor < markdown.length) {
+    const linkStart = markdown.indexOf('](', cursor);
+    if (linkStart === -1) return adapted + markdown.slice(cursor);
+
+    const prefixEnd = linkStart + 2;
+    adapted += markdown.slice(cursor, prefixEnd);
+
+    let destinationStart = prefixEnd;
+    while (/\s/u.test(markdown[destinationStart] ?? '')) destinationStart += 1;
+    adapted += markdown.slice(prefixEnd, destinationStart);
+
+    const enclosed = markdown[destinationStart] === '<';
+    if (enclosed) {
+      adapted += '<';
+      destinationStart += 1;
+    }
+
+    let destinationEnd = destinationStart;
+    while (!/[\s)>]/u.test(markdown[destinationEnd] ?? ')')) destinationEnd += 1;
+
+    const destination = markdown.slice(destinationStart, destinationEnd);
+    adapted += adaptReferenceDestination(destination, knownReferences);
+    cursor = destinationEnd;
+  }
+
+  return adapted;
+}
+
+function adaptInstalledReferencePaths(
+  markdown: string,
+  skill: string,
+  referenceNames: string[],
+): string {
+  let adapted = markdown;
+  for (const referenceName of referenceNames) {
+    adapted = adapted.replaceAll(
+      `\`.safeword/skills/${skill}/${referenceName}\``,
+      () => `\`references/${referenceName}\``,
+    );
+  }
+  return adapted;
+}
+
 function adaptSkillBody(
   body: string,
+  skill: string,
   knownSkillNames: ReadonlySet<string>,
   referenceNames: string[],
   version: string,
@@ -304,9 +367,8 @@ function adaptSkillBody(
   // Canonical skills have one blank line after frontmatter. The generated
   // frontmatter supplies that separator, so avoid duplicating it here.
   let adapted = body.replace(/^\r?\n/u, '');
-  for (const referenceName of referenceNames) {
-    adapted = adapted.split(referenceName).join(`references/${referenceName}`);
-  }
+  adapted = adaptInstalledReferencePaths(adapted, skill, referenceNames);
+  adapted = adaptReferenceLinks(adapted, referenceNames);
 
   return adaptWorkflowMarkdown(adapted, knownSkillNames, version);
 }
@@ -420,7 +482,7 @@ export function generateCodexPluginAssets(
       content: `---\n${stringify({
         name: skill,
         description: adaptWorkflowInvocations(description, knownSkillNames),
-      }).trimEnd()}\n---\n\n${adaptSkillBody(body, knownSkillNames, referenceNames, version)}`,
+      }).trimEnd()}\n---\n\n${adaptSkillBody(body, skill, knownSkillNames, referenceNames, version)}`,
     };
   });
 }
