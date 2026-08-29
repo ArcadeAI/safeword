@@ -293,8 +293,8 @@ Feature: One coherent Safeword command model
         | alias                 | canonical                              |
         | bare safeword         | status                                 |
         | setup                 | install                                |
-        | claude install        | install --agents=claude                |
-        | codex install         | install --agents=codex                 |
+        | claude install        | install --agents=claude (also reconciles the project) |
+        | codex install         | install --agents=codex (also reconciles the project)  |
         | remove                | uninstall --agents=none                |
         | check                 | status                                 |
         | upgrade               | install                                |
