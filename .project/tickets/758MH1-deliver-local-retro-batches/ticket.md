@@ -2,14 +2,15 @@
 id: 758MH1
 slug: deliver-local-retro-batches
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 external_issue: https://github.com/ArcadeAI/safeword/issues/3477
 phase_anchors:
   - define-behavior: .project/tickets/758MH1-deliver-local-retro-batches/spec.md
   - scenario-gate: features/deliver-local-retro-batches.feature
   - plan-implementation: .project/tickets/758MH1-deliver-local-retro-batches/impl-plan.md
   - verify: .project/tickets/758MH1-deliver-local-retro-batches/verify.md
+  - done: .project/tickets/758MH1-deliver-local-retro-batches/verify.md
 scope:
   - send every valid sanitized finding from one eligible local session as one ordered deterministic v2 public request
   - keep one shared request identity and receipt for the whole batch across Claude Code Codex and Cursor local carriers
