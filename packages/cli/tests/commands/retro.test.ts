@@ -1403,7 +1403,11 @@ describe('retro command configuration, extraction, egress, and relay execution',
         { transcript: '/tmp/t.jsonl' },
         dependencies({
           extract: () =>
-            Promise.resolve([rawFinding(), rawFinding({ title: 'A second valid finding' })]),
+            Promise.resolve([
+              rawFinding(),
+              rawFinding({ title: '' }),
+              rawFinding({ title: 'A second valid finding' }),
+            ]),
           publicRetro: {
             attemptsDirectory,
             now: () => 0,
@@ -1429,6 +1433,37 @@ describe('retro command configuration, extraction, egress, and relay execution',
       expect(body.findings).toHaveLength(2);
       expect(body.findings[0]).toContain('Coverage gate message omits file and number');
       expect(body.findings[1]).toContain('A second valid finding');
+    } finally {
+      rmSync(attemptsDirectory, { force: true, recursive: true });
+    }
+  });
+
+  it('makes no public attempt when every extracted finding is invalid', async () => {
+    const attemptsDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-attempts-'));
+    const publicTransport = vi.fn();
+    try {
+      const outcome = await runRetro(
+        { transcript: '/tmp/t.jsonl' },
+        dependencies({
+          extract: () => Promise.resolve([rawFinding({ title: '' })]),
+          publicRetro: {
+            attemptsDirectory,
+            now: () => 0,
+            randomUUID: () => 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+            source: {
+              harness: 'codex',
+              hostClass: 'local',
+              projectUUID: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+              safewordCliVersion: '0.81.1',
+            },
+            transport: publicTransport,
+          },
+        }),
+      );
+
+      expect(outcome.ok).toBe(true);
+      expect(publicTransport).not.toHaveBeenCalled();
+      expect(readdirSync(attemptsDirectory)).toEqual([]);
     } finally {
       rmSync(attemptsDirectory, { force: true, recursive: true });
     }
