@@ -29,6 +29,7 @@ import type {
 } from './contract.js';
 import { reviewerEnvironment, reviewerProbeEnvironment } from './environment.js';
 import { PLAN_REVIEW_RUBRIC } from './plan-rubric.generated.js';
+import { QUALITY_REVIEW_RUBRIC } from './quality-rubric.generated.js';
 import { SCENARIO_REVIEW_RUBRIC } from './scenario-rubric.generated.js';
 
 /**
@@ -188,11 +189,8 @@ const REQUIRED_CAPABILITIES: Readonly<Record<ReviewAgent, readonly string[]>> = 
 
 const MAX_OUTPUT_BYTES = 1024 * 1024;
 
-const REVIEW_RUBRICS: Readonly<Record<Exclude<ReviewPacket['kind'], 'scenario-gate'>, string>> = {
-  'quality-review':
-    'Check correctness, edge cases, security, unnecessary complexity, and whether public wiring is proven through real collaborators.',
-  'plan-implementation': PLAN_REVIEW_RUBRIC,
-};
+const QUALITY_REVIEW_FOCUS =
+  'Check correctness, regressions, edge cases, security and trust boundaries, unnecessary complexity, claims stronger than their proof, and whether public wiring is proven through real collaborators.';
 
 export class ReviewRuntimeError extends Error {
   constructor(
@@ -207,18 +205,26 @@ export class ReviewRuntimeError extends Error {
 
 /** Generated from the canonical skill so review never reads project-controlled instructions. */
 export function scenarioReviewRubric(): string {
-  return SCENARIO_REVIEW_RUBRIC;
+  return composeReviewRubric(SCENARIO_REVIEW_RUBRIC);
+}
+
+export function qualityReviewRubric(): string {
+  return composeReviewRubric(QUALITY_REVIEW_FOCUS);
 }
 
 /** Generated from the canonical planning skill so author and reviewer cannot drift. */
 export function planReviewRubric(): string {
-  return PLAN_REVIEW_RUBRIC;
+  return composeReviewRubric(PLAN_REVIEW_RUBRIC);
 }
 
 function reviewRubric(kind: ReviewPacket['kind']): string {
   if (kind === 'scenario-gate') return scenarioReviewRubric();
   if (kind === 'plan-implementation') return planReviewRubric();
-  return REVIEW_RUBRICS[kind];
+  return qualityReviewRubric();
+}
+
+function composeReviewRubric(specialistRubric: string): string {
+  return `${QUALITY_REVIEW_RUBRIC}\n\n${specialistRubric}`;
 }
 
 /**

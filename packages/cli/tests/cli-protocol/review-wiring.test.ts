@@ -360,6 +360,8 @@ describe('cross-agent review public-command wiring', () => {
     expect(prompt).toContain('"context_files":[{"path":"context.md"');
     expect(prompt).toContain('{"path":"other-context.md"');
     expect(prompt).toContain('supporting context, not work under review');
+    expect(prompt).toContain('## Shared adversarial-review severity foundation');
+    expect(prompt).toContain('supplied proof is non-discriminating');
   });
 
   it('delivers only the canonical shared rubric to a scenario reviewer', async () => {
@@ -398,11 +400,48 @@ describe('cross-agent review public-command wiring', () => {
     expect(result.exitCode, result.stdout).toBe(0);
     const prompt = readFileSync(promptLog, 'utf8');
     expect(prompt).toContain('## Shared scenario-quality rubric');
+    expect(prompt).toContain('## Shared adversarial-review severity foundation');
     expect(prompt).toContain('**Must Fix** for correctness or structural');
     expect(prompt).toContain('and `info`, respectively');
     expect(prompt).not.toContain('run-review.ts');
     expect(prompt).not.toContain('Do not launch the independent review coordinator');
     expect(prompt).not.toContain('hand control back to `bdd/SCENARIOS.md`');
+  });
+
+  it('composes the shared severity foundation with the plan-review rubric', async () => {
+    const directory = createTemporaryDirectory();
+    const reviewLog = nodePath.join(directory, 'review.log');
+    const promptLog = nodePath.join(directory, 'prompt.log');
+    writeFileSync(nodePath.join(directory, 'impl-plan.md'), '# Implementation plan\n');
+    const bin = installFakeReviewer(directory, 'claude');
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'plan-implementation',
+        'impl-plan.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'codex',
+          SAFEWORD_REVIEW_LOG: reviewLog,
+          SAFEWORD_REVIEW_PROMPT_LOG: promptLog,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode, result.stdout).toBe(0);
+    const prompt = readFileSync(promptLog, 'utf8');
+    expect(prompt).toContain('## Shared adversarial-review severity foundation');
+    expect(prompt).toContain('## Shared implementation-plan judgment standard');
   });
 
   it.each([

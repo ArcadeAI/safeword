@@ -1768,7 +1768,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/bdd/DONE.md':
         'e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60',
       '.claude/skills/bdd/PLAN_IMPLEMENTATION.md':
-        '4510c9395789929d7faa02d958f385e6498bbfe0af6a90182b0b89f0c813081f',
+        'bf7610ab88b4b89a55a233b408ef848b2e4bd413bb65a3b7a7a780a8c02f5d49',
       '.claude/skills/bdd/SCENARIOS.md':
         'a79590a8dcd8c6377f92e2ec0c26d5479f28e16e53291348f86f59b73381a19e',
       '.claude/skills/bdd/SKILL.md':
@@ -1794,13 +1794,13 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/figure-it-out/SKILL.md':
         '18e2b44e9a91562079b3e1f52fcd9f952b5f57a0f0e7647b0273809848a75c0d',
       '.claude/skills/finish-review/REVIEWER.md':
-        '0ecee21a63f91e09d3136f62cf8f7590ba9a640b85cad7b7b35c1ae334ff43c2',
+        '7575d91eb96a1c4930c8e68da1f4bb982d052c5e89f75fb38ed6422a8df96562',
       '.claude/skills/finish-review/SKILL.md':
         'e9ed5d198994b6cca12c62b1a4c13a1db2d82d65fc8a9173a41c5b5cf312cd52',
       '.claude/skills/lint/SKILL.md':
         'fdde749fe9ce764f6f9325f963c092d457960494fe78dd04d65d53a50e7cfd19',
       '.claude/skills/quality-review/SKILL.md':
-        'df3c8402bf7d515a585b5e933b51cd7f8d59b38a540d5b1a8ba30353e989d695',
+        'a884e61bb52222ecfc3d67b0332b79a72fa359fac6c87fca87efe6eb65a8a4ca',
       '.claude/skills/refactor/SKILL.md':
         'a51a858fb13b50cbc86789edbde8a39e364b5cdd7d5d3b025d555d90b221760e',
       '.claude/skills/retro-filer/SKILL.md':
@@ -1808,7 +1808,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/retro/SKILL.md':
         '87c1a32d0719bfe6ecbb02a0324a6eddd436be2d398e331bb5db53bac7b88363',
       '.claude/skills/review-spec/SKILL.md':
-        'f423a45667d626840d3ff3e7c84dc51862fb563df74aacf6a730c0e730bf1bfc',
+        'd8c5d225ea2fdb723ad9b54bbc17f8f9b566373d04504ee1a466eed50784c7d8',
       '.claude/skills/self-review/SKILL.md':
         'e5ff994ec84573e6f129127bad89617f0a67b67c5cf792cedac558b6e419ac3b',
       '.claude/skills/spike/SKILL.md':

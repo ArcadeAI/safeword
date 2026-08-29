@@ -19,6 +19,7 @@ import {
   parseReviewerOutput,
   planReviewRubric,
   procGroupHasRunningMember,
+  qualityReviewRubric,
   reviewerArguments,
   reviewTimeoutMilliseconds,
   runBoundMs,
@@ -61,8 +62,25 @@ const output: ReviewerOutput = {
 };
 
 describe('scenario review rubric', () => {
+  it('uses the generated canonical quality-review severity contract', () => {
+    const rubric = qualityReviewRubric();
+    const normalized = rubric.replaceAll(/\s+/gu, ' ');
+    expect(normalized).toContain('Shared adversarial-review severity foundation');
+    expect(normalized).toContain('Check correctness, regressions, edge cases');
+    expect(normalized).toContain('concrete, release-relevant failure');
+    expect(normalized).toContain('violated requirement, regression, established invariant');
+    expect(normalized).toContain('triggering conditions and the observable consequence');
+    expect(normalized).toContain('Speculative future-proofing');
+    expect(normalized).toContain('inside a trusted boundary');
+    expect(normalized).toContain('Do not expand the accepted scope');
+    expect(normalized).toContain('supplied proof is non-discriminating');
+    expect(normalized).toContain('future unsupported host or version');
+    expect(normalized).toContain('actor inside an explicitly trusted boundary');
+  });
+
   it('uses a non-empty reviewer-only generated rubric', () => {
     const rubric = scenarioReviewRubric();
+    expect(rubric).toContain('Shared adversarial-review severity foundation');
     expect(rubric).toContain('## Shared scenario-quality rubric');
     expect(rubric).toContain('**Must Fix** for correctness or structural');
     expect(rubric).toContain('and `info`, respectively');
@@ -73,6 +91,7 @@ describe('scenario review rubric', () => {
 
   it('uses the generated canonical implementation-plan rubric', () => {
     const rubric = planReviewRubric();
+    expect(rubric).toContain('Shared adversarial-review severity foundation');
     expect(rubric).toContain('## Shared implementation-plan judgment standard');
     expect(rubric).toContain('Apply the deletion test');
     expect(rubric).not.toContain('run-review.ts');

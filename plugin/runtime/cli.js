@@ -581,7 +581,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/audit/SKILL.md": "64afc92c419a8354c015f18ffe0cc581cfce48cb3fee3db8e3c39d75844fb2d3",
         ".claude/skills/bdd/DISCOVERY.md": "66279ceebb52f47052ff5a827106f9fbf95c999ce9bb78eca4245713c6bdf0b3",
         ".claude/skills/bdd/DONE.md": "e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60",
-        ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "4510c9395789929d7faa02d958f385e6498bbfe0af6a90182b0b89f0c813081f",
+        ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "bf7610ab88b4b89a55a233b408ef848b2e4bd413bb65a3b7a7a780a8c02f5d49",
         ".claude/skills/bdd/SCENARIOS.md": "a79590a8dcd8c6377f92e2ec0c26d5479f28e16e53291348f86f59b73381a19e",
         ".claude/skills/bdd/SKILL.md": "970d5af3af22e599126b5a15f75ec9c9478fd0ca810b31ec33d2dbd94ec83516",
         ".claude/skills/bdd/SPLITTING.md": "e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708",
@@ -594,14 +594,14 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/elicit/SKILL.md": "2638c773ce241a886563d1db8abbee70d72edefa780f762c0ed095df0f65cee5",
         ".claude/skills/explain/SKILL.md": "6673eccef3a9e68659c4e4b81b1e63bf9da03b1ae802dc7d22f419cb7c65472d",
         ".claude/skills/figure-it-out/SKILL.md": "18e2b44e9a91562079b3e1f52fcd9f952b5f57a0f0e7647b0273809848a75c0d",
-        ".claude/skills/finish-review/REVIEWER.md": "0ecee21a63f91e09d3136f62cf8f7590ba9a640b85cad7b7b35c1ae334ff43c2",
+        ".claude/skills/finish-review/REVIEWER.md": "7575d91eb96a1c4930c8e68da1f4bb982d052c5e89f75fb38ed6422a8df96562",
         ".claude/skills/finish-review/SKILL.md": "e9ed5d198994b6cca12c62b1a4c13a1db2d82d65fc8a9173a41c5b5cf312cd52",
         ".claude/skills/lint/SKILL.md": "fdde749fe9ce764f6f9325f963c092d457960494fe78dd04d65d53a50e7cfd19",
-        ".claude/skills/quality-review/SKILL.md": "df3c8402bf7d515a585b5e933b51cd7f8d59b38a540d5b1a8ba30353e989d695",
+        ".claude/skills/quality-review/SKILL.md": "a884e61bb52222ecfc3d67b0332b79a72fa359fac6c87fca87efe6eb65a8a4ca",
         ".claude/skills/refactor/SKILL.md": "a51a858fb13b50cbc86789edbde8a39e364b5cdd7d5d3b025d555d90b221760e",
         ".claude/skills/retro-filer/SKILL.md": "ea126f3805a2befefb4db2011439f075ebfd6eca31b78bd5f284ac11d667b4f0",
         ".claude/skills/retro/SKILL.md": "87c1a32d0719bfe6ecbb02a0324a6eddd436be2d398e331bb5db53bac7b88363",
-        ".claude/skills/review-spec/SKILL.md": "f423a45667d626840d3ff3e7c84dc51862fb563df74aacf6a730c0e730bf1bfc",
+        ".claude/skills/review-spec/SKILL.md": "d8c5d225ea2fdb723ad9b54bbc17f8f9b566373d04504ee1a466eed50784c7d8",
         ".claude/skills/self-review/SKILL.md": "e5ff994ec84573e6f129127bad89617f0a67b67c5cf792cedac558b6e419ac3b",
         ".claude/skills/spike/SKILL.md": "905aab56037ad5a258bafa91cb2ebf05cff1acffbc9e1fd6f7a1f27230672f37",
         ".claude/skills/tdd-review/SKILL.md": "4b945f122a90d23462845d7bdbbd0b736aa69d423a2d7e99ebf646bf118faa4f",
@@ -47671,6 +47671,35 @@ records as context around the one \`impl-plan.md\` work artifact.
 An error requires \`request_changes\`; approval is valid only when no error
 findings remain. Return findings through the typed reviewer result contract.`;
 
+// src/review/quality-rubric.generated.ts
+var QUALITY_REVIEW_RUBRIC = `## Shared adversarial-review severity foundation
+
+An \`error\` requires a concrete, release-relevant failure within the accepted
+scope: a violated requirement, regression, established invariant, or credible
+security or trust-boundary failure. State the triggering conditions and the
+observable consequence. A missing requirement may be an error when the omission
+permits materially different shipped behavior and at least one outcome would
+violate the work's goal or an established invariant.
+
+Speculative future-proofing, optional resilience, theoretical completeness,
+and protection against an actor already inside a trusted boundary are warnings
+unless the accepted scope makes that condition hostile. Do not expand the
+accepted scope through review. A concrete path that can report success while
+the accepted user-facing claim is false remains an error.
+
+Use \`request_changes\` only when an error requires action. Approve when no errors
+remain; warnings and information are non-blocking. Never invent a finding.
+
+Apply these regression boundaries:
+
+- **Error:** an omitted contract permits two reasonable implementations and one
+  can falsely report the accepted user-facing claim as satisfied.
+- **Error:** supplied proof is non-discriminating, so the claimed behavior can
+  be broken while every named check still passes.
+- **Warning:** a future unsupported host or version might add a new behavior.
+- **Warning:** an actor inside an explicitly trusted boundary could defeat a
+  diagnostic that is not claimed as protection from that actor.`;
+
 // src/review/scenario-rubric.generated.ts
 var SCENARIO_REVIEW_RUBRIC = `## Shared scenario-quality rubric
 
@@ -47828,17 +47857,25 @@ function reviewerArguments(reviewer, model, schemaPath, environment = process.en
   return [...base.slice(0, stdinMarker), ...extra, "-"];
 }
 function scenarioReviewRubric() {
-  return SCENARIO_REVIEW_RUBRIC;
+  return composeReviewRubric(SCENARIO_REVIEW_RUBRIC);
+}
+function qualityReviewRubric() {
+  return composeReviewRubric(QUALITY_REVIEW_FOCUS);
 }
 function planReviewRubric() {
-  return PLAN_REVIEW_RUBRIC;
+  return composeReviewRubric(PLAN_REVIEW_RUBRIC);
 }
 function reviewRubric(kind) {
   if (kind === "scenario-gate")
     return scenarioReviewRubric();
   if (kind === "plan-implementation")
     return planReviewRubric();
-  return REVIEW_RUBRICS[kind];
+  return qualityReviewRubric();
+}
+function composeReviewRubric(specialistRubric) {
+  return `${QUALITY_REVIEW_RUBRIC}
+
+${specialistRubric}`;
 }
 function reviewRunCeiling(env) {
   return env.SAFEWORD_REVIEW_WORKER === "1" ? BACKGROUND_RUN_BOUND_MS : RUN_BOUND_MS;
@@ -48428,7 +48465,7 @@ function writeContractFile() {
     }
   };
 }
-var REVIEW_OUTPUT_SCHEMA_SHAPE, REVIEW_OUTPUT_SCHEMA, CLAUDE_EFFORT_LEVELS, ARGUMENTS, HELP_ARGUMENTS, REQUIRED_CAPABILITIES, MAX_OUTPUT_BYTES, REVIEW_RUBRICS, ReviewRuntimeError, DEFAULT_ATTEMPT_DEADLINE_MS = 120000, RUN_BOUND_MS = 270000, BACKGROUND_RUN_BOUND_MS = 1800000, BACKGROUND_ATTEMPT_DEADLINE_MS = 600000, CLEANUP_BUDGET_MS = 250, PROCESS_GROUP_POLL_INTERVAL_MS = 50, WINDOWS_CLEANUP_BUDGET_MS = 1000, reviewerStops;
+var REVIEW_OUTPUT_SCHEMA_SHAPE, REVIEW_OUTPUT_SCHEMA, CLAUDE_EFFORT_LEVELS, ARGUMENTS, HELP_ARGUMENTS, REQUIRED_CAPABILITIES, MAX_OUTPUT_BYTES, QUALITY_REVIEW_FOCUS = "Check correctness, regressions, edge cases, security and trust boundaries, unnecessary complexity, claims stronger than their proof, and whether public wiring is proven through real collaborators.", ReviewRuntimeError, DEFAULT_ATTEMPT_DEADLINE_MS = 120000, RUN_BOUND_MS = 270000, BACKGROUND_RUN_BOUND_MS = 1800000, BACKGROUND_ATTEMPT_DEADLINE_MS = 600000, CLEANUP_BUDGET_MS = 250, PROCESS_GROUP_POLL_INTERVAL_MS = 50, WINDOWS_CLEANUP_BUDGET_MS = 1000, reviewerStops;
 var init_runtime = __esm(() => {
   init_environment();
   REVIEW_OUTPUT_SCHEMA_SHAPE = {
@@ -48515,10 +48552,6 @@ var init_runtime = __esm(() => {
     ]
   };
   MAX_OUTPUT_BYTES = 1024 * 1024;
-  REVIEW_RUBRICS = {
-    "quality-review": "Check correctness, edge cases, security, unnecessary complexity, and whether public wiring is proven through real collaborators.",
-    "plan-implementation": PLAN_REVIEW_RUBRIC
-  };
   ReviewRuntimeError = class ReviewRuntimeError extends Error {
     failure;
     terminal;
