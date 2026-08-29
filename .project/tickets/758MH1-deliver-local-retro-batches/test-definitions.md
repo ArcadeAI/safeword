@@ -52,7 +52,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Released v1 and exact v2 requests are both accepted
 
-- [ ] RED
+- [x] RED — `f18595c5a` proves the released collector rejects the exact v2 batch with HTTP 400.
 - [ ] GREEN
 - [ ] REFACTOR
 
