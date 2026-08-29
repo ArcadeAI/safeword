@@ -82,7 +82,7 @@ function findLocalExecutable(
   while (isWithin(current, root)) {
     const candidate = path.join(current, 'node_modules', '.bin', owner);
     const resolved = canonical(candidate);
-    if (resolved && isWithin(resolved, root)) return resolved;
+    if (resolved && isWithin(resolved, root)) return candidate;
     if (current === root) return undefined;
     current = path.dirname(current);
   }
@@ -126,18 +126,26 @@ function sanitizedEnvironment(): Record<string, string> {
   return environment;
 }
 
-async function runCommand(command: string[], cwd: string): Promise<string | undefined> {
+async function runCommand(
+  executable: string,
+  arguments_: string[],
+  cwd: string,
+): Promise<string | undefined> {
+  const environment = sanitizedEnvironment();
+  environment.PATH = [path.dirname(executable), environment.PATH]
+    .filter(Boolean)
+    .join(path.delimiter);
   const process_ = Bun.spawn({
-    cmd: command,
+    cmd: [executable, ...arguments_],
     cwd,
-    env: sanitizedEnvironment(),
+    env: environment,
     stdout: 'pipe',
     stderr: 'pipe',
   });
   if ((await process_.exited) === 0) return undefined;
   const output =
     `${await new Response(process_.stdout).text()}${await new Response(process_.stderr).text()}`.trim();
-  return output || `${command[0]} exited unsuccessfully`;
+  return output || `${executable} exited unsuccessfully`;
 }
 
 /** Run the selected owner without PATH lookup, shell evaluation, or inherited Biome overrides. */
@@ -155,7 +163,7 @@ export async function runHostToolchain(
           ['check', '--', owner.relativeFile],
         ];
   for (const arguments_ of commands) {
-    const errors = await runCommand([owner.executable, ...arguments_], owner.cwd);
+    const errors = await runCommand(owner.executable, arguments_, owner.cwd);
     if (errors) return { warnings: [], errors };
   }
   return { warnings: [] };

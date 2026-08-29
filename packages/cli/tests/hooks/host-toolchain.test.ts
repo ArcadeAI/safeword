@@ -64,7 +64,7 @@ describe('host JavaScript toolchain resolution', () => {
     expect(resolveHostToolchain(file, projectRoot)).toEqual({
       kind: 'biome',
       cwd: realpathSync(workspace),
-      executable: realpathSync(executable),
+      executable: path.join(realpathSync(projectRoot), 'node_modules', '.bin', 'biome'),
       relativeFile: 'src/component.ts',
     });
   });
@@ -435,6 +435,45 @@ describe('host JavaScript toolchain resolution', () => {
       ]);
     },
   );
+
+  it('lets project-local Ultracite invoke its sibling project-local Biome', async () => {
+    const projectRoot = mkdtempSync(path.join(tmpdir(), 'host-toolchain-ultracite-child-'));
+    const globalBin = mkdtempSync(path.join(tmpdir(), 'host-toolchain-ultracite-global-'));
+    directories.push(projectRoot, globalBin);
+    const file = path.join(projectRoot, 'source.ts');
+    const localBin = path.join(projectRoot, 'node_modules', '.bin');
+    const ultracitePackage = path.join(projectRoot, 'node_modules', 'ultracite', 'cli.sh');
+    const localBiomeLog = path.join(projectRoot, 'local-biome.log');
+    const globalBiomeLog = path.join(projectRoot, 'global-biome.log');
+    mkdirSync(localBin, { recursive: true });
+    mkdirSync(path.dirname(ultracitePackage), { recursive: true });
+    writeFileSync(path.join(projectRoot, 'biome.json'), '{ "extends": ["ultracite/core"] }\n');
+    writeFileSync(file, 'export const source = 1;\n');
+    writeFileSync(ultracitePackage, '#!/bin/sh\nbiome "$@"\n');
+    writeFileSync(
+      path.join(localBin, 'biome'),
+      `#!/bin/sh\nprintf '%s\\n' "$*" >> ${JSON.stringify(localBiomeLog)}\n`,
+    );
+    writeFileSync(
+      path.join(globalBin, 'biome'),
+      `#!/bin/sh\nprintf '%s\\n' "$*" >> ${JSON.stringify(globalBiomeLog)}\nexit 1\n`,
+    );
+    chmodSync(ultracitePackage, 0o755);
+    chmodSync(path.join(localBin, 'biome'), 0o755);
+    chmodSync(path.join(globalBin, 'biome'), 0o755);
+    symlinkSync(ultracitePackage, path.join(localBin, 'ultracite'));
+
+    expect(
+      await runLintFile(projectRoot, file, {
+        PATH: `${globalBin}:${process.env.PATH ?? ''}`,
+      }),
+    ).toEqual({ warnings: [] });
+    expect(readFileSync(localBiomeLog, 'utf8').trim().split('\n')).toEqual([
+      'fix -- source.ts',
+      'check -- source.ts',
+    ]);
+    expect(() => readFileSync(globalBiomeLog, 'utf8')).toThrow();
+  });
 
   it('surfaces a failed host fix without running the later check', async () => {
     const projectRoot = mkdtempSync(path.join(tmpdir(), 'host-toolchain-failure-'));
