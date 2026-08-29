@@ -18,6 +18,38 @@ diagnostics, command output, environment values, credentials, or secrets.
 
 Apply this fixed rubric:
 
+<!-- SAFEWORD:QUALITY_RUBRIC_START -->
+
+## Shared adversarial-review severity foundation
+
+An `error` requires a concrete, release-relevant failure within the accepted
+scope: a violated requirement, regression, established invariant, or credible
+security or trust-boundary failure. State the triggering conditions and the
+observable consequence. A missing requirement may be an error when the omission
+permits materially different shipped behavior and at least one outcome would
+violate the work's goal or an established invariant.
+
+Speculative future-proofing, optional resilience, theoretical completeness,
+and protection against an actor already inside a trusted boundary are warnings
+unless the accepted scope makes that condition hostile. Do not expand the
+accepted scope through review. A concrete path that can report success while
+the accepted user-facing claim is false remains an error.
+
+Use `request_changes` only when an error requires action. Approve when no errors
+remain; warnings and information are non-blocking. Never invent a finding.
+
+Apply these regression boundaries:
+
+- **Error:** an omitted contract permits two reasonable implementations and one
+  can falsely report the accepted user-facing claim as satisfied.
+- **Error:** supplied proof is non-discriminating, so the claimed behavior can
+  be broken while every named check still passes.
+- **Warning:** a future unsupported host or version might add a new behavior.
+- **Warning:** an actor inside an explicitly trusted boundary could defeat a
+  diagnostic that is not claimed as protection from that actor.
+
+<!-- SAFEWORD:QUALITY_RUBRIC_END -->
+
 1. Compare stated requirements and scenarios with the implementation and its
    observable proof.
 2. Find correctness, regression, security, trust-boundary, and policy defects.

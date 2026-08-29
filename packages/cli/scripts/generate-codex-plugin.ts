@@ -5,6 +5,7 @@ import { VERSION } from '../src/version.js';
 
 await import('./generate-scenario-rubric.js');
 await import('./generate-plan-rubric.js');
+await import('./generate-quality-rubric.js');
 
 const packageRoot = nodePath.resolve(import.meta.dirname, '..');
 const assets = writeCodexPluginCatalogue(
