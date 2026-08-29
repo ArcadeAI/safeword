@@ -898,6 +898,13 @@ it.each([
   ['missing findings', encoded({ ...fixtureBatchRequestBody(), findings: undefined })],
   ['mixed v1 and v2 fields', encoded({ ...fixtureBatchRequestBody(), finding: 'fixture finding' })],
   ['unknown v2 field', encoded({ ...fixtureBatchRequestBody(), extra: true })],
+  [
+    'legacy user identity',
+    encoded({
+      ...fixtureBatchRequestBody(),
+      source: { ...fixtureBatchRequestBody().source, userIdentity: 'legacy-user-fixture' },
+    }),
+  ],
 ] as const)('rejects invalid v2 envelope: %s', (_, body) => expectEnvelopeRejected(body));
 
 it.each([

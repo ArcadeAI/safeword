@@ -189,6 +189,15 @@ describe('buildPublicRetroEnvelope', () => {
     },
   );
 
+  it('keeps the released first-window scope while separating later delta windows', () => {
+    const firstWindow = buildPublicRetroEnvelope({ ...requiredInput, windowStart: 0 });
+    const sameFirstWindow = buildPublicRetroEnvelope({ ...requiredInput });
+    const laterWindow = buildPublicRetroEnvelope({ ...requiredInput, windowStart: 100 });
+
+    expect(firstWindow.sessionScope).toBe(sameFirstWindow.sessionScope);
+    expect(laterWindow.sessionScope).not.toBe(firstWindow.sessionScope);
+  });
+
   it('abandons an oversized UTF-8 envelope before identity or claim', () => {
     const attemptsDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-public-retro-'));
     let uuidCalls = 0;

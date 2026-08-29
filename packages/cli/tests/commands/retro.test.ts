@@ -1268,6 +1268,55 @@ describe('retro command configuration, extraction, egress, and relay execution',
     }
   });
 
+  it('delivers later delta windows from one session under distinct public scopes', async () => {
+    const attemptsDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-attempts-'));
+    const publicTransport = vi.fn(request =>
+      Promise.resolve({
+        requestId: request.headers['x-safeword-request-id'],
+        receipt: `receipt-${publicTransport.mock.calls.length}`,
+      }),
+    );
+    const requestIds = [
+      'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1',
+      'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2',
+    ];
+    let requestIndex = 0;
+    const publicRetro = {
+      attemptsDirectory,
+      now: () => 0,
+      randomUUID: () => requestIds[requestIndex++] ?? requestIds[1],
+      source: {
+        harness: 'codex' as const,
+        hostClass: 'local' as const,
+        projectUUID: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+        safewordCliVersion: '0.81.1',
+      },
+      transport: publicTransport,
+    };
+
+    try {
+      await runRetro(
+        { transcript: '/tmp/t.jsonl', windowStart: 0 },
+        dependencies({ publicRetro, sessionId: 'same-session' }),
+      );
+      await runRetro(
+        { transcript: '/tmp/t.jsonl', windowStart: 100 },
+        dependencies({ publicRetro, sessionId: 'same-session' }),
+      );
+
+      expect(publicTransport).toHaveBeenCalledTimes(2);
+      const scopes = publicTransport.mock.calls.map(([request]) => {
+        const envelope = JSON.parse(new TextDecoder().decode(request.body)) as {
+          sessionScope: string;
+        };
+        return envelope.sessionScope;
+      });
+      expect(new Set(scopes).size).toBe(2);
+    } finally {
+      rmSync(attemptsDirectory, { force: true, recursive: true });
+    }
+  });
+
   it('persists private recovery before starting the public handoff', async () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-spool-first-'));
     const publicTransport = vi.fn(request => {
