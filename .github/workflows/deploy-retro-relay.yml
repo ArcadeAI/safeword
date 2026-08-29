@@ -7,7 +7,7 @@ permissions:
 
 concurrency:
   group: retro-relay-production
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   deploy:

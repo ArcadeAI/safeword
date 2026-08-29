@@ -36,7 +36,7 @@ describe('Retro Relay deployment workflow', () => {
     expect(workflow.permissions).toEqual({ contents: 'read' });
     expect(workflow.concurrency).toEqual({
       group: 'retro-relay-production',
-      'cancel-in-progress': false,
+      'cancel-in-progress': true,
     });
     expect(source).toContain('environment: retro-relay-production');
     expect(source).toContain('actions/setup-node@v7');
@@ -55,7 +55,15 @@ describe('Retro Relay deployment workflow', () => {
   it('deploys relevant main changes only after every CI gate passes', () => {
     const source = readFileSync(ciWorkflowPath, 'utf8');
     const workflow = parse(source) as {
-      jobs: Record<string, { needs?: string[]; environment?: string; if?: string }>;
+      jobs: Record<
+        string,
+        {
+          needs?: string[];
+          environment?: string;
+          if?: string;
+          concurrency?: { group: string; 'cancel-in-progress': boolean };
+        }
+      >;
     };
 
     const deployment = workflow.jobs['deploy-retro-relay'];
@@ -70,6 +78,10 @@ describe('Retro Relay deployment workflow', () => {
       'relay-inputs',
     ]);
     expect(deployment.environment).toBe('retro-relay-production');
+    expect(deployment.concurrency).toEqual({
+      group: 'retro-relay-production',
+      'cancel-in-progress': true,
+    });
     expect(deployment.if).toContain("github.ref == 'refs/heads/main'");
     expect(source).toContain('git diff --name-only "$BEFORE" "$SHA"');
     expect(source).toContain('packages/retro-relay/*');
