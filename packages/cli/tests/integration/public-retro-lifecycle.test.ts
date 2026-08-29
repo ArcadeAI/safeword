@@ -250,6 +250,14 @@ it.each([
           why_friction: 'Dropping it would make local delivery incomplete.',
           repro: 'Complete the same supported local session.',
         },
+        {
+          category: 'rough-edge',
+          title: 'Third lifecycle fixture finding',
+          safeword_surface: 'process/retro-delivery',
+          what_happened: 'The same extraction produced a third eligible finding.',
+          why_friction: 'The batch must preserve every eligible finding in order.',
+          repro: 'Complete the same supported local session.',
+        },
       ]),
     );
     const store = new PublicRetroStore(path.join(project, 'collector.sqlite'));
@@ -371,9 +379,10 @@ process.exit(result.status ?? 1);
       expect(storedEnvelope.source).not.toHaveProperty('userIdentity');
       expect(storedEnvelope.source).not.toHaveProperty('agentVersion');
       expect(storedEnvelope.source).not.toHaveProperty('model');
-      expect(storedEnvelope.findings).toHaveLength(2);
+      expect(storedEnvelope.findings).toHaveLength(3);
       expect(storedEnvelope.findings[0]).toContain('Lifecycle fixture finding');
       expect(storedEnvelope.findings[1]).toContain('Second lifecycle fixture finding');
+      expect(storedEnvelope.findings[2]).toContain('Third lifecycle fixture finding');
       expect(storedEnvelope.findings.join('\n')).not.toContain(fixtureSecret);
       expect(storedEnvelope.findings.join('\n')).not.toContain('/Users/customer');
       expect(acceptCalls).toBe(1);
