@@ -15,7 +15,7 @@ audit_scope_initialize() {
 
   if [ "$AUDIT_SCOPE_REQUEST" != "repository" ]; then
     if [ -n "$requested_base_ref" ]; then
-      if ! git -C "$project_dir" rev-parse --verify --quiet "$requested_base_ref^{commit}" > /dev/null; then
+      if ! git -C "$project_dir" rev-parse --verify --quiet --end-of-options "$requested_base_ref^{commit}" > /dev/null; then
         echo "SAFEWORD_AUDIT_BASE_REF does not resolve to a Git commit: $requested_base_ref" >&2
         return 2
       fi

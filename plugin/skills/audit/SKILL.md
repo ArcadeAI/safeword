@@ -367,16 +367,7 @@ EOF
       while IFS= read -r project_dir; do
         [ -n "$project_dir" ] || continue
         echo "Python dead-code — $project_dir"
-        (
-          cd "$project_dir" \
-            && deadcode . --exclude \
-              .venv '*/.venv' \
-              venv '*/venv' \
-              node_modules '*/node_modules' \
-              vendor '*/vendor' \
-              target '*/target' \
-              2>&1 || true
-        )
+        (cd "$project_dir" && deadcode . 2>&1 || true)
       done << EOF
 $PYTHON_AUDIT_DIRS
 EOF

@@ -419,17 +419,6 @@ describe('audit installed-project stack awareness', () => {
     expect(result.stdout).not.toContain('./target/debug/dependency');
   });
 
-  it('keeps Python dead-code analysis out of dependency and virtual-environment trees', () => {
-    const result = runAuditAutomation({
-      'apps/coordinator/pyproject.toml': '[project]\nname = "coordinator"\n',
-    });
-
-    expect(result.status).toBe(0);
-    expect(result.stdout).toContain(
-      '[fake-deadcode] . --exclude .venv */.venv venv */venv node_modules */node_modules vendor */vendor target */target',
-    );
-  });
-
   it('runs Knip from each workspace-local configuration when the root has none', () => {
     const result = runAuditAutomation({
       'package.json': JSON.stringify({ name: 'monorepo' }),
@@ -518,19 +507,22 @@ describe('audit diff scope', () => {
     expect(result.stdout).not.toContain('src/lower-stack.ts');
   });
 
-  it('fails closed when the explicit audit base ref does not exist', () => {
-    const result = runDiffScopedAuditAutomation({
-      baseRefOverride: 'missing-stack-base',
-      baselineFiles: javascriptProject,
-      changedFiles: { 'src/changed.ts': 'export const value = 2;\n' },
-      includeOriginMain: true,
-    });
+  it.each(['missing-stack-base', '--help'])(
+    'fails closed when the explicit audit base ref does not resolve: %s',
+    baseReferenceOverride => {
+      const result = runDiffScopedAuditAutomation({
+        baseRefOverride: baseReferenceOverride,
+        baselineFiles: javascriptProject,
+        changedFiles: { 'src/changed.ts': 'export const value = 2;\n' },
+        includeOriginMain: true,
+      });
 
-    expect(result.status).not.toBe(0);
-    expect(result.stderr).toContain(
-      'SAFEWORD_AUDIT_BASE_REF does not resolve to a Git commit: missing-stack-base',
-    );
-  });
+      expect(result.status).not.toBe(0);
+      expect(result.stderr).toContain(
+        `SAFEWORD_AUDIT_BASE_REF does not resolve to a Git commit: ${baseReferenceOverride}`,
+      );
+    },
+  );
 
   it('does not run code-quality analyzers for a documentation-only diff', () => {
     const result = runDiffScopedAuditAutomation({

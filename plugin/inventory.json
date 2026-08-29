@@ -143,11 +143,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "4d5cda4f6b9f6b9b7f53a1e7eefd08e7a51a734ea43145cea3559147c080b058"
+      "sha256": "f296c691abc94bad4923f0ca6a2c7f394860187cff8d964355fd07dd897e72dc"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "a9517e47ee740303ffa6051427027ca90f5e15f3195e2ee358ba3e4ae663ee51"
+      "sha256": "94000760e1bd3deb3a9f86aaaac43211323c6aaa008312adc3ed52ee768ff0cb"
     },
     {
       "path": "runtime/event-groups.json",
@@ -175,7 +175,7 @@
     },
     {
       "path": "runtime/hooks/lib/audit-scope.sh",
-      "sha256": "a1550a86946cfaa8d61bcfb73d022f40bb245d9445ae04f5af15250dfc3572f0"
+      "sha256": "0d554b95958cc5c8386d2d26348779960cc3a585e7d2049c65048431cda8809d"
     },
     {
       "path": "runtime/hooks/lib/auto-upgrade-lock.ts",
@@ -587,7 +587,7 @@
     },
     {
       "path": "skills/audit/SKILL.md",
-      "sha256": "ef28c9667bb6c22b856214b2789c3c2b9c26d0176b260634819451b75ff38d8e"
+      "sha256": "9fbd6025d029f0144e262858650285c31c5247d45ee62d7cf7a63291a85417b7"
     },
     {
       "path": "skills/bdd/DISCOVERY.md",
