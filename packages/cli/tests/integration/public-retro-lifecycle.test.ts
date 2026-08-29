@@ -170,7 +170,7 @@ it('round-trips a current CLI envelope through the real collector unchanged', as
     operatorCredential: 'operator-fixture-credential',
   });
   const prepared = buildPublicRetroEnvelope({
-    finding: 'current fixture finding',
+    findings: ['first current fixture finding', 'second current fixture finding'],
     sessionId: 'current-session-fixture',
     source: {
       harness: 'codex',
@@ -241,6 +241,14 @@ it.each([
           what_happened: `The lifecycle fixture observed ${fixtureSecret} during a handoff.`,
           why_friction: 'A missing receipt at /Users/customer/private/repo would lose the retro.',
           repro: 'Complete a supported local session.',
+        },
+        {
+          category: 'bug',
+          title: 'Second lifecycle fixture finding',
+          safeword_surface: 'process/retro-delivery',
+          what_happened: 'The same extraction produced another eligible finding.',
+          why_friction: 'Dropping it would make local delivery incomplete.',
+          repro: 'Complete the same supported local session.',
         },
       ]),
     );
@@ -351,7 +359,7 @@ process.exit(result.status ?? 1);
         headers: { authorization: 'Bearer operator-fixture-credential' },
       });
       expect(inspected.status).toBe(200);
-      const storedEnvelope = (await inspected.json()) as { finding: string; source: object };
+      const storedEnvelope = (await inspected.json()) as { findings: string[]; source: object };
       expect(storedEnvelope).toMatchObject({
         source: {
           harness,
@@ -363,8 +371,11 @@ process.exit(result.status ?? 1);
       expect(storedEnvelope.source).not.toHaveProperty('userIdentity');
       expect(storedEnvelope.source).not.toHaveProperty('agentVersion');
       expect(storedEnvelope.source).not.toHaveProperty('model');
-      expect(storedEnvelope.finding).not.toContain(fixtureSecret);
-      expect(storedEnvelope.finding).not.toContain('/Users/customer');
+      expect(storedEnvelope.findings).toHaveLength(2);
+      expect(storedEnvelope.findings[0]).toContain('Lifecycle fixture finding');
+      expect(storedEnvelope.findings[1]).toContain('Second lifecycle fixture finding');
+      expect(storedEnvelope.findings.join('\n')).not.toContain(fixtureSecret);
+      expect(storedEnvelope.findings.join('\n')).not.toContain('/Users/customer');
       expect(acceptCalls).toBe(1);
 
       const duplicate = await runHook(
