@@ -1,6 +1,6 @@
 # Impl Plan: Deliver every eligible local retro finding in one bounded batch
 
-**Status:** planned
+**Status:** implemented
 **Planned on:** 2026-08-29
 
 ## Approach
