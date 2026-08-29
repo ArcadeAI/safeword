@@ -8,7 +8,8 @@ type PublicRetroStorePort = Pick<PublicRetroStore, 'accept' | 'close' | 'read'>;
 const MAXIMUM_BODY_BYTES = 65_536;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
 const SESSION_SCOPE = /^[0-9a-f]{64}$/u;
-const TOP_LEVEL_FIELDS = ['version', 'finding', 'source', 'sessionScope'] as const;
+const V1_FIELDS = ['version', 'finding', 'source', 'sessionScope'] as const;
+const V2_FIELDS = ['version', 'findings', 'source', 'sessionScope'] as const;
 const REQUIRED_SOURCE_FIELDS = [
   'harness',
   'hostClass',
@@ -159,13 +160,25 @@ function validSource(value: unknown): boolean {
   );
 }
 
+function validEnvelopeFindings(value: Record<string, unknown>): boolean {
+  if (value.version === 'v1') {
+    return hasExactKeys(value, V1_FIELDS) && nonemptyString(value.finding);
+  }
+  return (
+    value.version === 'v2' &&
+    hasExactKeys(value, V2_FIELDS) &&
+    Array.isArray(value.findings) &&
+    value.findings.length > 0 &&
+    value.findings.every(nonemptyString)
+  );
+}
+
 function envelopeSessionScope(rawBody: Buffer): string | undefined {
   try {
     const source = UTF8_DECODER.decode(rawBody);
     const value = JSON.parse(source) as unknown;
     if (JSON.stringify(value) !== source) return undefined;
-    if (!isRecord(value) || !hasExactKeys(value, TOP_LEVEL_FIELDS)) return undefined;
-    if (value.version !== 'v1' || !nonemptyString(value.finding)) return undefined;
+    if (!isRecord(value) || !validEnvelopeFindings(value)) return undefined;
     if (!validSource(value.source)) return undefined;
     return typeof value.sessionScope === 'string' && SESSION_SCOPE.test(value.sessionScope)
       ? value.sessionScope
