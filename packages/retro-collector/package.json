@@ -8,6 +8,7 @@
     "node": "^24.18.1 || >=26.5.1"
   },
   "scripts": {
+    "format": "prettier --write .",
     "build": "tsup",
     "start": "node dist/main.js",
     "test": "bun run build && vitest run",

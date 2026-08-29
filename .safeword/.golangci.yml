@@ -1,5 +1,9 @@
-# Safeword golangci-lint config - standalone (no project config to merge)
-# Used by hooks for LLM enforcement.
+# Safeword golangci-lint config - merged with project config
+# Used by hooks for LLM enforcement. Human pre-commits use project config.
+# Re-run `safeword install` to regenerate after project config changes.
+#
+# NOTE: Safeword adds linters via 'enable' without changing your 'default'.
+# Your disable list and exclusion presets are preserved (union, not replaced).
 
 version: "2"
 linters:
