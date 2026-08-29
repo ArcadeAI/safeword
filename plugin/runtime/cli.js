@@ -61662,7 +61662,7 @@ var init_dependency_readiness = __esm(() => {
     "-v"
   ]);
   SAFEWORD_GLOBAL_OPTIONS_WITH_VALUES = new Set(["--cwd"]);
-  SAFEWORD_RECOVERY_COMMANDS = new Set(["doctor", "plan", "setup", "status"]);
+  SAFEWORD_RECOVERY_COMMANDS = new Set(["doctor", "plan", "retro", "setup", "status"]);
   DEPENDENCY_BINARIES = new Set([
     "cypress",
     "dependency-cruiser",
@@ -61684,6 +61684,7 @@ var init_dependency_readiness = __esm(() => {
   INSTALL_MANAGERS = new Set(["bun", "pnpm", "npm", "yarn"]);
   INSTALL_SUBCOMMANDS = new Set(["install", "i", "ci"]);
   NON_RECONCILING_INSTALL_FLAGS = new Set([
+    ...PACKAGE_MANAGER_OPTIONS_WITH_VALUES,
     "--dry-run",
     "--lockfile-only",
     "--package-lock-only",

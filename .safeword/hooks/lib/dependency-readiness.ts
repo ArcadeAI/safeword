@@ -109,7 +109,7 @@ const SAFEWORD_GLOBAL_BOOLEAN_OPTIONS = new Set([
   '-v',
 ]);
 const SAFEWORD_GLOBAL_OPTIONS_WITH_VALUES = new Set(['--cwd']);
-const SAFEWORD_RECOVERY_COMMANDS = new Set(['doctor', 'plan', 'setup', 'status']);
+const SAFEWORD_RECOVERY_COMMANDS = new Set(['doctor', 'plan', 'retro', 'setup', 'status']);
 const DEPENDENCY_BINARIES = new Set([
   'cypress',
   'dependency-cruiser',
@@ -348,11 +348,40 @@ export function getDependencyReadiness(projectDirectory: string): DependencyRead
   const artifactPath = nodePath.join(projectDirectory, plan.installArtifact);
   const previousState = readDependencyReadinessState(projectDirectory);
 
+  if (!isDirectory(artifactPath)) {
+    return {
+      status: 'missing',
+      reason: 'install_artifact_missing',
+      installCommand,
+      fingerprint,
+      plan,
+    };
+  }
+
+  const marker = readInstallMarker(projectDirectory, plan);
+  const failedStateSuperseded =
+    previousState?.status === 'failed' &&
+    previousState.reason === 'install_artifact_stale' &&
+    (getMtimeMs(artifactPath) ?? 0) > Date.parse(previousState.updatedAt);
+
+  // A matching marker is proof that a later install completed successfully.
+  // Let that proof supersede durable failure state left by an earlier attempt.
+  if (marker === fingerprint) {
+    return {
+      status: 'ready',
+      reason: 'install_artifact_current',
+      installCommand,
+      fingerprint,
+      plan,
+    };
+  }
+
   // An installer may delete and partially recreate node_modules before it is
   // interrupted. Preserve the pre-install classification in durable state so
   // a partial tree can never be mistaken for ready merely because it is new.
   if (
-    (previousState?.status === 'installing' || previousState?.status === 'failed') &&
+    (previousState?.status === 'installing' ||
+      (previousState?.status === 'failed' && !failedStateSuperseded)) &&
     previousState.fingerprint === fingerprint &&
     (previousState.reason === 'install_artifact_missing' ||
       previousState.reason === 'install_artifact_stale')
@@ -366,23 +395,12 @@ export function getDependencyReadiness(projectDirectory: string): DependencyRead
     };
   }
 
-  if (!isDirectory(artifactPath)) {
-    return {
-      status: 'missing',
-      reason: 'install_artifact_missing',
-      installCommand,
-      fingerprint,
-      plan,
-    };
-  }
-
   // The content-fingerprint marker is the authoritative freshness signal: it
   // survives content-preserving operations (rebase, checkout, clone, cp) that
   // bump input mtimes without changing input content. mtime is only a bootstrap
   // fallback for the first check after an install, before any hook has stamped
   // the marker. Once present, a mismatched marker is authoritative: a newer
   // artifact mtime cannot prove that its contents match the dependency inputs.
-  const marker = readInstallMarker(projectDirectory, plan);
   const markerMismatch = marker !== undefined && marker !== fingerprint;
 
   if (
@@ -573,6 +591,7 @@ const INSTALL_SUBCOMMANDS = new Set(['install', 'i', 'ci']);
  * incomplete tree and would let the post-tool hook stamp a sticky false-ready.
  */
 const NON_RECONCILING_INSTALL_FLAGS = new Set([
+  ...PACKAGE_MANAGER_OPTIONS_WITH_VALUES,
   '--dry-run',
   '--lockfile-only',
   '--package-lock-only',
@@ -1146,7 +1165,7 @@ function isSafewordRecoverySegment(segment: string, args: string[]): boolean {
   if (args[packageIndex] === '--') packageIndex += 1;
 
   const packageSpecifier = args[packageIndex];
-  if (packageSpecifier === undefined || !/^safeword(?:@[^/@\s]+)?$/.test(packageSpecifier)) {
+  if (packageSpecifier === undefined || !/^safeword@[^/@\s]+$/.test(packageSpecifier)) {
     return false;
   }
 

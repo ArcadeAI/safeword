@@ -17,7 +17,7 @@ describe('dogfood parity', () => {
   it('points parity drift at the canonical install command', () => {
     const message = formatParityDriftFailure(['hook drift']);
 
-    expect(message).toContain('Run `bunx safeword install`');
+    expect(message).toContain('Run `bunx safeword@latest install`');
     expect(message).not.toContain('bunx safeword setup');
   });
 

@@ -90,9 +90,9 @@ before anything is filed.
 Optional: `--session-id <id>` for stable ledger attribution across fires;
 `--window-start <chars>` to digest only the transcript from an offset (delta mode).
 
-In a repo where the `safeword` binary isn't on PATH (e.g. this monorepo), substitute
-`bun run safeword` for `safeword` (runs the CLI from source via the root
-`package.json` script; `bunx safeword` also resolves the workspace-linked build).
+When the `safeword` binary isn't on PATH, substitute `bunx --bun safeword@latest`.
+This carrier is independent of the project's dependencies, so retro remains available
+while Safeword is asking the user to refresh a stale project toolchain.
 
 ## 3. Filing is code-owned — do not hand-write issues
 
