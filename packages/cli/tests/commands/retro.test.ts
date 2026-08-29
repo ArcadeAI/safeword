@@ -502,7 +502,7 @@ describe('retro command configuration, extraction, egress, and relay execution',
       if (route === undefined) throw new TypeError('expected public route');
       const envelope = new TextDecoder().decode(
         buildPublicRetroEnvelope({
-          finding: 'fixture finding',
+          findings: ['fixture finding'],
           sessionId: 'session-fixture',
           source: route.source,
         }).bytes,

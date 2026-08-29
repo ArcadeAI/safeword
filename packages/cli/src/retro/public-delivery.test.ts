@@ -7,14 +7,14 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   buildPublicRetroEnvelope,
-  deliverSanitizedPublicRetroFinding,
+  deliverSanitizedPublicRetroFindings,
   preparePublicRetroRequest,
   type PublicRetroHttpRequest,
   submitPublicRetroRequest,
 } from './public-delivery.js';
 
 const requiredInput = {
-  finding: 'fixture finding',
+  findings: ['fixture finding'],
   sessionId: 'session-fixture-42',
   source: {
     harness: 'claude-code' as const,
@@ -59,7 +59,7 @@ describe('buildPublicRetroEnvelope', () => {
 
   it('serializes the released complete source profile deterministically', () => {
     const built = buildPublicRetroEnvelope({
-      finding: 'fixture finding',
+      findings: ['fixture finding'],
       sessionId: 'session-fixture-42',
       source: {
         osFamily: 'macos',
@@ -75,15 +75,15 @@ describe('buildPublicRetroEnvelope', () => {
     });
 
     const expected =
-      '{"version":"v1","finding":"fixture finding","source":{"harness":"claude-code","hostClass":"local","projectUUID":"018f0f2e-abcd-7def-8abc-def012345678","safewordCliVersion":"0.78.8","repository":"github.com/arcadeai/safeword","agentVersion":"1.2.3","model":"fixture-model","safewordPluginVersion":"0.78.8","osFamily":"macos"},"sessionScope":"724a847e56e94bd49967250b1b27444314f1e479700c1751c3723d9852e6bee0"}';
+      '{"version":"v2","findings":["fixture finding"],"source":{"harness":"claude-code","hostClass":"local","projectUUID":"018f0f2e-abcd-7def-8abc-def012345678","safewordCliVersion":"0.78.8","repository":"github.com/arcadeai/safeword","agentVersion":"1.2.3","model":"fixture-model","safewordPluginVersion":"0.78.8","osFamily":"macos"},"sessionScope":"724a847e56e94bd49967250b1b27444314f1e479700c1751c3723d9852e6bee0"}';
 
     expect(new TextDecoder().decode(built.bytes)).toBe(expected);
     expect(built.sessionScope).toBe(
       '724a847e56e94bd49967250b1b27444314f1e479700c1751c3723d9852e6bee0',
     );
-    expect(built.bytes.byteLength).toBe(407);
+    expect(built.bytes.byteLength).toBe(410);
     expect(createHash('sha256').update(built.bytes).digest('hex')).toBe(
-      '2c387f5e86acf11f4005e23ccfc7097247ae16965b6b34a21999f0199e2ce99b',
+      '99fbe2730fac1dd0b3523467e18a40a1a11831b34c6974b24d5246b3d98783d0',
     );
   });
 
@@ -194,7 +194,7 @@ describe('buildPublicRetroEnvelope', () => {
 
     try {
       const prepared = preparePublicRetroRequest(
-        { ...requiredInput, finding: '🚀'.repeat(16_384) },
+        { ...requiredInput, findings: ['🚀'.repeat(16_384)] },
         {
           attemptsDirectory,
           randomUUID: () => {
@@ -248,16 +248,18 @@ describe('buildPublicRetroEnvelope', () => {
     const attemptsDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-public-retro-'));
     const times = [999, 999, 999, 2998, 2998];
     try {
-      const outcome = await deliverSanitizedPublicRetroFinding(
+      const outcome = await deliverSanitizedPublicRetroFindings(
         {
-          finding: {
-            category: 'bug',
-            title: 'Shared sanitized finding',
-            safewordSurface: 'packages/cli/src/retro/public-delivery.ts',
-            whatHappened: 'The shared result reached delivery.',
-            whyFriction: 'A second scrub would waste the deadline.',
-            repro: 'Prepare one finding.',
-          },
+          findings: [
+            {
+              category: 'bug',
+              title: 'Shared sanitized finding',
+              safewordSurface: 'packages/cli/src/retro/public-delivery.ts',
+              whatHappened: 'The shared result reached delivery.',
+              whyFriction: 'A second scrub would waste the deadline.',
+              repro: 'Prepare one finding.',
+            },
+          ],
           source: requiredInput.source,
           sessionId: requiredInput.sessionId,
         },
@@ -288,16 +290,18 @@ describe('buildPublicRetroEnvelope', () => {
     let transportCalls = 0;
 
     try {
-      const outcome = await deliverSanitizedPublicRetroFinding(
+      const outcome = await deliverSanitizedPublicRetroFindings(
         {
-          finding: {
-            category: 'bug',
-            title: 'Deadline finding',
-            safewordSurface: 'packages/cli/src/retro/public-delivery.ts',
-            whatHappened: 'Preparation reached its deadline.',
-            whyFriction: 'Late work must not be claimed.',
-            repro: 'Reach the preparation deadline.',
-          },
+          findings: [
+            {
+              category: 'bug',
+              title: 'Deadline finding',
+              safewordSurface: 'packages/cli/src/retro/public-delivery.ts',
+              whatHappened: 'Preparation reached its deadline.',
+              whyFriction: 'Late work must not be claimed.',
+              repro: 'Reach the preparation deadline.',
+            },
+          ],
           source: requiredInput.source,
           sessionId: requiredInput.sessionId,
         },
@@ -329,16 +333,18 @@ describe('buildPublicRetroEnvelope', () => {
     const attemptsDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-public-retro-'));
     const transport = vi.fn(() => Promise.reject(new Error('injected connection failure')));
     try {
-      const outcome = await deliverSanitizedPublicRetroFinding(
+      const outcome = await deliverSanitizedPublicRetroFindings(
         {
-          finding: {
-            category: 'bug',
-            title: 'Connection failure fixture',
-            safewordSurface: 'packages/cli/src/retro/public-delivery.ts',
-            whatHappened: 'The collector connection failed.',
-            whyFriction: 'Public delivery must not disrupt private recovery.',
-            repro: 'Reject the injected transport.',
-          },
+          findings: [
+            {
+              category: 'bug',
+              title: 'Connection failure fixture',
+              safewordSurface: 'packages/cli/src/retro/public-delivery.ts',
+              whatHappened: 'The collector connection failed.',
+              whyFriction: 'Public delivery must not disrupt private recovery.',
+              repro: 'Reject the injected transport.',
+            },
+          ],
           source: requiredInput.source,
           sessionId: requiredInput.sessionId,
         },
@@ -371,16 +377,18 @@ describe('buildPublicRetroEnvelope', () => {
         }),
     );
     try {
-      const delivery = deliverSanitizedPublicRetroFinding(
+      const delivery = deliverSanitizedPublicRetroFindings(
         {
-          finding: {
-            category: 'bug',
-            title: 'Handoff timeout fixture',
-            safewordSurface: 'packages/cli/src/retro/public-delivery.ts',
-            whatHappened: 'The collector held the request open.',
-            whyFriction: 'Public delivery must remain bounded.',
-            repro: 'Hold the injected transport open.',
-          },
+          findings: [
+            {
+              category: 'bug',
+              title: 'Handoff timeout fixture',
+              safewordSurface: 'packages/cli/src/retro/public-delivery.ts',
+              whatHappened: 'The collector held the request open.',
+              whyFriction: 'Public delivery must remain bounded.',
+              repro: 'Hold the injected transport open.',
+            },
+          ],
           source: requiredInput.source,
           sessionId: requiredInput.sessionId,
         },
@@ -417,8 +425,8 @@ describe('buildPublicRetroEnvelope', () => {
     };
     let transportCalls = 0;
     try {
-      const outcome = await deliverSanitizedPublicRetroFinding(
-        { finding, source: requiredInput.source, sessionId: requiredInput.sessionId },
+      const outcome = await deliverSanitizedPublicRetroFindings(
+        { findings: [finding], source: requiredInput.source, sessionId: requiredInput.sessionId },
         {
           attemptsDirectory,
           now: () => 0,
@@ -443,16 +451,18 @@ describe('buildPublicRetroEnvelope', () => {
     const attemptsDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-public-retro-'));
     const times = [0, 0, 0, 1999, 2000];
     try {
-      const outcome = await deliverSanitizedPublicRetroFinding(
+      const outcome = await deliverSanitizedPublicRetroFindings(
         {
-          finding: {
-            category: 'bug',
-            title: 'Late receipt fixture',
-            safewordSurface: 'packages/cli/src/retro/public-delivery.ts',
-            whatHappened: 'The receipt reached its persistence deadline.',
-            whyFriction: 'Temporary files must not accumulate.',
-            repro: 'Reach the handoff deadline after the temporary write.',
-          },
+          findings: [
+            {
+              category: 'bug',
+              title: 'Late receipt fixture',
+              safewordSurface: 'packages/cli/src/retro/public-delivery.ts',
+              whatHappened: 'The receipt reached its persistence deadline.',
+              whyFriction: 'Temporary files must not accumulate.',
+              repro: 'Reach the handoff deadline after the temporary write.',
+            },
+          ],
           source: requiredInput.source,
           sessionId: requiredInput.sessionId,
         },

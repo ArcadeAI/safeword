@@ -61,7 +61,8 @@ describe('buildPublicRetroSource', () => {
     });
     if (source === undefined) throw new TypeError('expected public source');
     const envelope = new TextDecoder().decode(
-      buildPublicRetroEnvelope({ finding: 'fixture', sessionId: 'session-fixture', source }).bytes,
+      buildPublicRetroEnvelope({ findings: ['fixture'], sessionId: 'session-fixture', source })
+        .bytes,
     );
 
     expect(JSON.parse(envelope)).toMatchObject({
@@ -92,7 +93,8 @@ describe('buildPublicRetroSource', () => {
     if (source === undefined) throw new TypeError('expected public source');
 
     const envelope = new TextDecoder().decode(
-      buildPublicRetroEnvelope({ finding: 'fixture', sessionId: 'session-fixture', source }).bytes,
+      buildPublicRetroEnvelope({ findings: ['fixture'], sessionId: 'session-fixture', source })
+        .bytes,
     );
     expect(envelope).not.toContain('private@example.test');
   });
@@ -122,7 +124,7 @@ describe('buildPublicRetroSource', () => {
     if (source === undefined) throw new TypeError('expected public source');
     const envelope = JSON.parse(
       new TextDecoder().decode(
-        buildPublicRetroEnvelope({ finding: 'fixture', sessionId: 'session-fixture', source })
+        buildPublicRetroEnvelope({ findings: ['fixture'], sessionId: 'session-fixture', source })
           .bytes,
       ),
     ) as { source: Record<string, unknown> };
