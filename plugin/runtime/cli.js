@@ -66959,7 +66959,7 @@ function alias(name, aliasFor) {
 function scopedInstallAlias(name, agent) {
   const canonical = canonicalDefinition("install");
   return {
-    ...command(name, `Deprecated alias for install --agents=${agent}`, canonical.effectClass, {
+    ...command(name, `Deprecated profile-only install; install --agents=${agent} also reconciles the project`, canonical.effectClass, {
       promptPolicy: canonical.promptPolicy,
       networkPolicy: canonical.networkPolicy,
       commandOptions: agent === "claude" ? [claudeScopeOption()] : [],
@@ -66970,7 +66970,7 @@ function scopedInstallAlias(name, agent) {
     visibility: "hidden",
     compatibility: {
       ...RETAINED_ALIAS,
-      replacement: `install --agents=${agent}`
+      replacement: `install --agents=${agent} (also reconciles the project)`
     }
   };
 }

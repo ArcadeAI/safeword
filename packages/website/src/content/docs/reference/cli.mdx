@@ -109,7 +109,9 @@ leaving Cursor untouched.
 
 {/* safeword:compatibility:start */}
 
-`setup`, `upgrade`, `claude install`, and `codex install` remain deprecated aliases.
+`setup` and `upgrade` remain deprecated aliases for `install`. `claude install` and
+`codex install` remain profile-only legacy routes; use `install --agents=claude` or
+`install --agents=codex` when you also want project reconciliation.
 
 {/* safeword:compatibility:end */}
 
@@ -198,7 +200,7 @@ safeword claude cleanup
 safeword claude recover # only when status reports recovery-required
 ```
 
-`claude install` selects and verifies the official stable plugin at project scope by default, preserving unrelated settings and an explicit native-update opt-out. Pass `--scope user` for profile-wide activation without project-file changes. After install or update, `/reload-plugins` activates it in the current task; the next successful prompt records proof bound to the installed version and bundled hook manifest, then automatically retires exact catalogued legacy Safeword files and settings entries. Modified, malformed, unknown, and third-party content is preserved with a non-blocking advisory. `claude status` is read-only; `claude cleanup` remains an explicit diagnostic/repair path. Neither path installs, updates, enables, reloads, or trusts a plugin.
+The deprecated `claude install` route selects and verifies only the official stable plugin at project scope by default; it does not reconcile project configuration. Use `safeword install --agents=claude` for the canonical project-plus-Claude flow. Pass `--scope user` to the legacy route for profile-wide activation without project-file changes. After install or update, `/reload-plugins` activates it in the current task; the next successful prompt records proof bound to the installed version and bundled hook manifest, then automatically retires exact catalogued legacy Safeword files and settings entries. Modified, malformed, unknown, and third-party content is preserved with a non-blocking advisory. `claude status` is read-only; `claude cleanup` remains an explicit diagnostic/repair path. Neither path installs, updates, enables, reloads, or trusts a plugin.
 
 The **BDD acceptance lane is universal**: every project gets cucumber-js wired (`test:bdd` script, `features/` + `steps/` starters, `@cucumber/cucumber` + `tsx` + `@types/node` as devDependencies). Step definitions are always TypeScript — they test your app from the outside (shell out to `go test`, `cargo test`, or hit it over HTTP), so a pure Go/Python/Rust repo gets a minimal private `package.json` created to host the lane.
 
@@ -270,33 +272,33 @@ compatibility metadata.
 
 {/* safeword:generated-cli-compatibility:start */}
 
-| Retained route                        | Canonical replacement                              |
-| ------------------------------------- | -------------------------------------------------- |
-| bare `safeword`                       | `status`                                           |
-| `check`                               | `status`                                           |
-| `claude install`                      | `install --agents=claude`                          |
-| `codex install`                       | `install --agents=codex`                           |
-| `setup`                               | `install`                                          |
-| `upgrade`                             | `install`                                          |
-| `diff`                                | `plan`                                             |
-| `remove`                              | `uninstall --agents=none`                          |
-| `reset`                               | `uninstall --agents=none`                          |
-| `sync-config`                         | `project sync-config`                              |
-| `architecture`                        | `project architecture`                             |
-| `sync-learnings`                      | `project sync-learnings`                           |
-| `sync-tickets`                        | `project sync-tickets`                             |
-| `codify`                              | `project codify`                                   |
-| `test-plan`                           | `project test-plan`                                |
-| `lint-gherkin`                        | `project lint-gherkin`                             |
-| `sync-tracker`                        | `tracker sync`                                     |
-| `connect`                             | `tracker connect`                                  |
-| `self-report`                         | `retro signals`                                    |
-| `retro`                               | `retro run`                                        |
-| `retro-reconcile`                     | `retro reconcile`                                  |
-| `migrate codex-plugin`                | `codex migrate`                                    |
-| `project architecture --stage`        | `project architecture --from-index --stage-output` |
-| `project architecture --staged`       | `project architecture --from-index`                |
-| `codex migrate --remove-legacy-hooks` | `codex migrate --finalize`                         |
+| Retained route                        | Canonical replacement                                   |
+| ------------------------------------- | ------------------------------------------------------- |
+| bare `safeword`                       | `status`                                                |
+| `check`                               | `status`                                                |
+| `claude install`                      | `install --agents=claude (also reconciles the project)` |
+| `codex install`                       | `install --agents=codex (also reconciles the project)`  |
+| `setup`                               | `install`                                               |
+| `upgrade`                             | `install`                                               |
+| `diff`                                | `plan`                                                  |
+| `remove`                              | `uninstall --agents=none`                               |
+| `reset`                               | `uninstall --agents=none`                               |
+| `sync-config`                         | `project sync-config`                                   |
+| `architecture`                        | `project architecture`                                  |
+| `sync-learnings`                      | `project sync-learnings`                                |
+| `sync-tickets`                        | `project sync-tickets`                                  |
+| `codify`                              | `project codify`                                        |
+| `test-plan`                           | `project test-plan`                                     |
+| `lint-gherkin`                        | `project lint-gherkin`                                  |
+| `sync-tracker`                        | `tracker sync`                                          |
+| `connect`                             | `tracker connect`                                       |
+| `self-report`                         | `retro signals`                                         |
+| `retro`                               | `retro run`                                             |
+| `retro-reconcile`                     | `retro reconcile`                                       |
+| `migrate codex-plugin`                | `codex migrate`                                         |
+| `project architecture --stage`        | `project architecture --from-index --stage-output`      |
+| `project architecture --staged`       | `project architecture --from-index`                     |
+| `codex migrate --remove-legacy-hooks` | `codex migrate --finalize`                              |
 
 {/* safeword:generated-cli-compatibility:end */}
 
