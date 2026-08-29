@@ -143,11 +143,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "8367f533579439840d409be827d1eaa0dce54cfbae812a1753953144062572d2"
+      "sha256": "2f460ca5fdea9cfdb74907ba07baca0efb2411604d9cc11667d333ae2e7ce3bf"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "3578c41e425224cb004caf7cdd431b7a249cea681c66fe1f346ed0035dc431fb"
+      "sha256": "6cc6c0ee03a6fc54db225cd078b47d3defa0e37dedcd7f451e1c55a0a012c23f"
     },
     {
       "path": "runtime/event-groups.json",
@@ -215,7 +215,7 @@
     },
     {
       "path": "runtime/hooks/lib/dependency-readiness.ts",
-      "sha256": "44461bc4ba104918ed53b8aa37edf9d2fbaa111de36550f7e11b5c17470a8729"
+      "sha256": "81c527896acd4b6aefe03caf669c44c7b5d2a5b7755666bab0015b4585d9d96a"
     },
     {
       "path": "runtime/hooks/lib/dogfood.ts",
@@ -675,7 +675,7 @@
     },
     {
       "path": "skills/retro/SKILL.md",
-      "sha256": "296e8bbde8a8e2658afee2354506006dc1b783805b565c344eebfa0f0241bcfb"
+      "sha256": "4e06549e5f0d918e1e6efe899444ec2ac86f090fe3a32029649474d8e749d230"
     },
     {
       "path": "skills/review-spec/SKILL.md",

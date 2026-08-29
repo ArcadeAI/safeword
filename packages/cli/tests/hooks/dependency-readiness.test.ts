@@ -27,6 +27,7 @@ import {
   readDependencyBootstrapConfig,
   readDependencyReadinessState,
   shouldBootstrapDependencies,
+  writeDependencyReadinessState,
   writeInstallMarker,
 } from '../../templates/hooks/lib/dependency-readiness.js';
 import {
@@ -688,6 +689,17 @@ describe('dependency readiness hook support', () => {
     mkdirSync(artifact);
     writeInstallMarker(projectDirectory, getDependencyReadiness(projectDirectory));
     writeTestFile(projectDirectory, 'bun.lock', '# changed lockfile');
+    const past = new Date(Date.now() - 60_000);
+    utimesSync(artifact, past, past);
+    const plan = detectDependencyPlan(projectDirectory);
+    if (plan === undefined) throw new Error('expected a dependency plan for the bun fixture');
+    writeDependencyReadinessState(projectDirectory, {
+      status: 'failed',
+      reason: 'install_artifact_stale',
+      fingerprint: dependencyInputFingerprint(projectDirectory, plan),
+      installCommand: 'bun ci',
+      updatedAt: new Date(Date.now() - 1000).toISOString(),
+    });
     expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
 
     const stale = getDependencyReadiness(projectDirectory);
@@ -779,6 +791,8 @@ describe('dependency readiness hook support', () => {
     ['bunx safeword-tools setup'],
     ['bunx @scope/safeword setup'],
     ['bunx safeword'],
+    ['bunx safeword setup'],
+    ['bunx --bun safeword retro run --transcript /tmp/session.jsonl --auto-extract'],
     ['bunx safeword ticket list'],
     ['bunx safeword setupx'],
     ['bunx safeword --unknown-flag setup'],
@@ -816,16 +830,17 @@ describe('dependency readiness hook support', () => {
     ['npx cowsay hello'],
     ['bunx safeword@latest setup'],
     ['bunx safeword@0.73.0 status'],
-    ['FOO=bar bunx safeword setup'],
-    ['bunx safeword status --json'],
-    ['bunx --bun safeword doctor'],
-    ['bunx safeword plan --offline'],
-    ['bunx safeword --cwd . setup'],
-    ['bunx safeword --cwd=. setup'],
-    ['bunx safeword --quiet doctor'],
-    ['bunx safeword setup && bunx safeword doctor'],
-    ['bunx safeword status benign-positional-argument'],
-    ['bunx safeword --cwd "a && b" setup'],
+    ['FOO=bar bunx safeword@latest setup'],
+    ['bunx safeword@latest status --json'],
+    ['bunx --bun safeword@latest doctor'],
+    ['bunx --bun safeword@0.82.0 retro run --transcript /tmp/session.jsonl --auto-extract'],
+    ['bunx safeword@latest plan --offline'],
+    ['bunx safeword@latest --cwd . setup'],
+    ['bunx safeword@latest --cwd=. setup'],
+    ['bunx safeword@latest --quiet doctor'],
+    ['bunx safeword@latest setup && bunx safeword@latest doctor'],
+    ['bunx safeword@latest status benign-positional-argument'],
+    ['bunx safeword@latest --cwd "a && b" setup'],
     // `>|` is a clobber redirect: `vitest` here is a target filename, not a
     // command — the pre-EDDABK private splitter treated it as one.
     ['echo cfg >| vitest'],
@@ -1189,6 +1204,27 @@ describe('dependency readiness hook support', () => {
     expect(result.stdout.trim()).toBe('');
   });
 
+  it('pre-tool hook keeps independent retro delivery reachable when dependencies are stale', () => {
+    writeBunProject();
+    markSafewordProject();
+    mkdirSync(path.join(projectDirectory, 'node_modules'), { recursive: true });
+    writeTestFile(projectDirectory, 'node_modules/.safeword-deps-fingerprint', 'old-fingerprint');
+    expect(getDependencyReadiness(projectDirectory).status).toBe('stale');
+
+    const result = runHook(
+      PRE_TOOL_HOOK,
+      JSON.stringify({
+        tool_name: 'Bash',
+        tool_input: {
+          command: 'bunx --bun safeword@0.82.0 retro run --transcript session.jsonl --auto-extract',
+        },
+      }),
+    );
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe('');
+  });
+
   it('pre-tool hook allows the documented touch recovery followed by a guarded retry over &&', () => {
     writeBunProject();
     markSafewordProject();
@@ -1513,6 +1549,17 @@ describe('dependency readiness hook support', () => {
       }
     });
 
+    it('ignores workspace-scoped installs that cannot reconcile the project root', () => {
+      for (const command of [
+        'bun --cwd packages/cli install',
+        'npm --prefix packages/cli ci',
+        'npm install -w packages/cli',
+        'pnpm install --filter @app/web',
+      ]) {
+        expect(isDependencyInstallCommand(command), command).toBe(false);
+      }
+    });
+
     it('does NOT stamp after a dry-run install (no sticky false-ready)', () => {
       makeStaleAfterNoopInstall();
 
@@ -1524,6 +1571,12 @@ describe('dependency readiness hook support', () => {
 
     it('stamps the current fingerprint after a successful no-op install (clears the block)', () => {
       const fingerprint = makeStaleAfterNoopInstall();
+      writeDependencyReadinessState(projectDirectory, {
+        status: 'failed',
+        reason: 'install_artifact_stale',
+        fingerprint,
+        installCommand: 'bun ci',
+      });
 
       const result = runHook(POST_TOOL_HOOK, postInput('bun ci', { exit_code: 0, success: true }));
       expect(result.status).toBe(0);
@@ -1591,6 +1644,8 @@ describe('isDependencyReadinessRecoveryCommand', () => {
     'npm ci --omit=dev && npm test',
     'pnpm install --prod && pnpm test',
     'yarn install --mode=update-lockfile && yarn test',
+    'bun --cwd packages/cli install && bun run test',
+    'pnpm install --filter @app/web && pnpm test',
     // Shell forms the tokenizer cannot resolve stay denied.
     '( bun ci || true ) && bun run test',
     '{ bun ci; } && bun run test',

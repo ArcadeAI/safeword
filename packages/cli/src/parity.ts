@@ -32,7 +32,7 @@ export interface ParityInput {
 }
 
 export function formatParityDriftFailure(messages: string[]): string {
-  return `Parity drift detected. Run \`bunx safeword install\` or copy templates to sync:\n  - ${messages.join('\n  - ')}`;
+  return `Parity drift detected. Run \`bunx safeword@latest install\` or copy templates to sync:\n  - ${messages.join('\n  - ')}`;
 }
 
 /** Files that must stay byte-identical between templates and dogfood. */

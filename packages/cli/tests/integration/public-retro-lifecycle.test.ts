@@ -162,6 +162,13 @@ it('ships Cursor retro wiring with public delivery and paired conversation ident
   );
 });
 
+it('ships manual retro with a project-toolchain-independent CLI carrier', () => {
+  const skill = readFileSync(path.join(CLI_PACKAGE, 'templates/skills/retro/SKILL.md'), 'utf8');
+
+  expect(skill).toContain('bunx --bun safeword@latest');
+  expect(skill).not.toContain('bun run safeword');
+});
+
 it('round-trips a current CLI envelope through the real collector unchanged', async () => {
   const project = mkdtempSync(path.join(tmpdir(), 'public-retro-round-trip-'));
   temporaryDirectories.push(project);
