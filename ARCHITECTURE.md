@@ -70,16 +70,18 @@ ESLint configs are bundled in the main package and accessed via `import safeword
 
 ### Public retrospective collector boundary
 
-`packages/retro-collector` accepts the CLI's canonical `v1` public-retro bytes
-without user registration or client credentials. Current producers identify
+`packages/retro-collector` accepts released canonical `v1` single-finding bodies and
+the CLI's canonical `v2` ordered finding batches without user registration or client
+credentials. Current producers identify
 Claude Code, Codex, or Cursor with `hostClass: "unknown"`; the collector also
 accepts released Claude Code and Codex clients that used `hostClass: "local"`.
 Cursor cannot claim that legacy local classification.
 
-The collector validates the closed source schema and stores the accepted raw
-body unchanged in SQLite. Duplicate identity is derived only from harness,
-project UUID, and session identity, so optional runtime metadata never changes
-dedupe. Operator reads require the server-side operator credential; project
+The collector validates each version's closed envelope and source schema and stores
+the accepted raw body unchanged in SQLite. Duplicate identity is derived only from
+harness, project UUID, and session identity; byte-identical retries in that scope
+reuse its receipt, while unequal raw bytes conflict. Operator reads require the
+server-side operator credential; project
 UUIDs, request IDs, receipts, and source fields grant no read or filing
 authority. This public intake is separate from the authenticated private relay
 below.
