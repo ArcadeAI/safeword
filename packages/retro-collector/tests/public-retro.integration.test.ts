@@ -858,7 +858,7 @@ async function expectEnvelopeRejected(
 
 it.each([
   ['missing version', encoded({ ...fixtureEnvelope(), version: undefined })],
-  ['unknown version', encoded({ ...fixtureEnvelope(), version: 'v2' })],
+  ['unknown version', encoded({ ...fixtureEnvelope(), version: 'v3' })],
 ] as const)('rejects the %s without consuming its request identity', (_, body) =>
   expectEnvelopeRejected(body),
 );

@@ -1438,6 +1438,49 @@ describe('retro command configuration, extraction, egress, and relay execution',
     }
   });
 
+  it('preserves every valid finding privately after public batch acceptance', async () => {
+    const attemptsDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-attempts-'));
+    const privateTransport = new FakeGitHub();
+    const publicTransport = vi.fn(request =>
+      Promise.resolve({
+        receipt: 'receipt-fixture',
+        requestId: request.headers['x-safeword-request-id'],
+      }),
+    );
+    try {
+      const outcome = await runRetro(
+        { transcript: '/tmp/t.jsonl' },
+        dependencies({
+          extract: () =>
+            Promise.resolve([
+              rawFinding(),
+              rawFinding({ title: 'A second valid finding' }),
+              rawFinding({ title: 'A third valid finding' }),
+            ]),
+          publicRetro: {
+            attemptsDirectory,
+            now: () => 0,
+            randomUUID: () => 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+            source: {
+              harness: 'codex',
+              hostClass: 'local',
+              projectUUID: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+              safewordCliVersion: '0.81.1',
+            },
+            transport: publicTransport,
+          },
+          transport: privateTransport,
+        }),
+      );
+
+      expect(outcome.ok).toBe(true);
+      expect(publicTransport).toHaveBeenCalledOnce();
+      expect(privateTransport.issues).toHaveLength(3);
+    } finally {
+      rmSync(attemptsDirectory, { force: true, recursive: true });
+    }
+  });
+
   it('makes no public attempt when every extracted finding is invalid', async () => {
     const attemptsDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-attempts-'));
     const publicTransport = vi.fn();

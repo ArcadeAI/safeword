@@ -19,13 +19,11 @@
     ],
     "A request exactly at the shared byte limit is accepted whole": [
       "packages/cli/src/retro/public-delivery.test.ts",
-      "%s a complete v2 batch at %d bytes",
-      "[\"accepts\",\"65536\"]"
+      "accepts a complete v2 batch at the 65536-byte limit"
     ],
     "An oversized request makes no partial public attempt": [
       "packages/cli/src/retro/public-delivery.test.ts",
-      "%s a complete v2 batch at %d bytes",
-      "[\"abandons\",\"65537\"]"
+      "abandons a complete v2 batch above the 65536-byte limit"
     ],
     "The shipped local batch crosses the real collector boundary unchanged": [
       "packages/cli/tests/integration/public-retro-lifecycle.test.ts",
@@ -88,19 +86,15 @@
     ],
     "Public acceptance preserves private recovery silently": [
       "packages/cli/tests/commands/retro.test.ts",
-      "hands every valid sanitized finding to public quarantine in original order"
+      "preserves every valid finding privately after public batch acceptance"
     ],
     "Opt-out preserves private recovery silently": [
-      "packages/cli/tests/integration/public-retro-lifecycle.test.ts",
-      "runs installed %s lifecycle through the real collector to a durable receipt"
+      "packages/cli/tests/commands/retro.test.ts",
+      "keeps private recovery when no public carrier is available"
     ],
     "Oversize preserves private recovery silently": [
       "packages/cli/src/retro/public-delivery.test.ts",
       "abandons an oversized UTF-8 envelope before identity or claim"
-    ],
-    "Invalid input that leaves no valid findings stays silent and recoverable": [
-      "packages/cli/tests/commands/retro.test.ts",
-      "makes no public attempt when every extracted finding is invalid"
     ],
     "Public collector outcomes preserve private recovery silently": [
       [

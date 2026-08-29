@@ -146,12 +146,6 @@ Feature: Deliver every eligible local retro finding in one bounded batch
       When the session completes through the shared local retro carrier
       Then completion succeeds with zero public retries and every valid sanitized finding remains available for private recovery without output
 
-    @rejection @surface.safeword-cli
-    Scenario: Invalid input that leaves no valid findings stays silent and recoverable
-      Given an opted-in local session in which every extracted finding is invalid for public collection
-      When the session completes through the shared local retro carrier
-      Then the carrier exits successfully with zero public retries and no output while every extracted finding remains available for private recovery
-
     @rejection @surface.claude-code @surface.openai-codex @surface.cursor
     Scenario Outline: Public collector outcomes preserve private recovery silently
       Given a local session with several valid findings and <collector outcome>

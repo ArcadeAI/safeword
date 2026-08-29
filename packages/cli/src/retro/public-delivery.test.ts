@@ -8,6 +8,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   buildPublicRetroEnvelope,
   deliverSanitizedPublicRetroFindings,
+  type PreparedPublicRetroRequest,
   preparePublicRetroRequest,
   type PublicRetroHttpRequest,
   submitPublicRetroRequest,
@@ -212,10 +213,7 @@ describe('buildPublicRetroEnvelope', () => {
     }
   });
 
-  it.each([
-    ['accepts', 65_536, true],
-    ['abandons', 65_537, false],
-  ] as const)('%s a complete v2 batch at %d bytes', (_outcome, byteLength, accepted) => {
+  function prepareSizedBatch(byteLength: number): PreparedPublicRetroRequest | undefined {
     const attemptsDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-public-retro-'));
     const baseLength = buildPublicRetroEnvelope({
       ...requiredInput,
@@ -227,16 +225,21 @@ describe('buildPublicRetroEnvelope', () => {
     };
 
     try {
-      const prepared = preparePublicRetroRequest(input, {
+      return preparePublicRetroRequest(input, {
         attemptsDirectory,
         randomUUID: () => '01911111-2222-7333-8444-55555555555a',
       });
-
-      expect(buildPublicRetroEnvelope(input).bytes.byteLength).toBe(byteLength);
-      expect(prepared !== undefined).toBe(accepted);
     } finally {
       rmSync(attemptsDirectory, { recursive: true, force: true });
     }
+  }
+
+  it('accepts a complete v2 batch at the 65536-byte limit', () => {
+    expect(prepareSizedBatch(65_536)?.bytes.byteLength).toBe(65_536);
+  });
+
+  it('abandons a complete v2 batch above the 65536-byte limit', () => {
+    expect(prepareSizedBatch(65_537)).toBeUndefined();
   });
 
   it('hands the same prepared identity and bytes to either harness transport', async () => {

@@ -112,12 +112,6 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN 710bdc323
 - [x] REFACTOR skip: the existing silent abandonment path is reused
 
-### Scenario: Invalid input that leaves no valid findings stays silent and recoverable
-
-- [x] RED skip: invalid-input recovery predates this slice; all-invalid proof is recorded at 88037dc17
-- [x] GREEN 88037dc17
-- [x] REFACTOR skip: no new recovery mechanism was introduced
-
 ### Scenario: Public collector outcomes preserve private recovery silently
 
 - [x] RED skip: collector refusal and malformed-response fault tests predate batching and were migrated at e1cd398e5
