@@ -1762,7 +1762,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/agents/safeword-reviewer.md':
         '13333228aa180c0ff040ccfe4e16058147fadc596b51df0d6d73caeb01755470',
       '.claude/skills/audit/SKILL.md':
-        '9da1c1379274ed239b02115bbb0e986c298a64dbf0a3109c8c878360a3318993',
+        '3dbfd548bb0f0635c2f71a20309a5e3f6a793d02c497e8fef45a95dc7d6ea320',
       '.claude/skills/bdd/DISCOVERY.md':
         '66279ceebb52f47052ff5a827106f9fbf95c999ce9bb78eca4245713c6bdf0b3',
       '.claude/skills/bdd/DONE.md':

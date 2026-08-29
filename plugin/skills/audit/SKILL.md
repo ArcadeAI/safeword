@@ -55,6 +55,10 @@ agent configuration, learnings, tests, documentation, and domain docs together.
 Leave the variable unset for the default diff audit; do not edit the blocks'
 commands.
 
+For a stacked branch, set `SAFEWORD_AUDIT_BASE_REF=<ref>` in the environment of
+**every executable audit block** below. The audit then covers only changes above
+that ref. An invalid ref stops the audit instead of silently widening its scope.
+
 ## Instructions
 
 ### 1. Code Quality Checks
@@ -67,7 +71,7 @@ commands.
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
 cd "$PROJECT_DIR" || exit 1
 source "${CLAUDE_PLUGIN_ROOT}/runtime/hooks/lib/audit-scope.sh"
-audit_scope_initialize "$PROJECT_DIR"
+audit_scope_initialize "$PROJECT_DIR" || exit $?
 audit_scope_print
 
 AUDIT_HAS_JS_CHANGE=false
@@ -557,7 +561,7 @@ Changed project learnings in the resolved namespace root's `learnings/*.md` must
 ```bash
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
 source "${CLAUDE_PLUGIN_ROOT}/runtime/hooks/lib/audit-scope.sh"
-audit_scope_initialize "$PROJECT_DIR"
+audit_scope_initialize "$PROJECT_DIR" || exit $?
 NS_ROOT="$(bun "${CLAUDE_PLUGIN_ROOT}/runtime/hooks/resolve-namespace-root.ts" "$PROJECT_DIR")"
 
 learning_is_in_audit_scope() {
@@ -714,7 +718,7 @@ below verbatim, as ONE bash invocation.**
 cd "${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}" || exit 1
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
 source "${CLAUDE_PLUGIN_ROOT}/runtime/hooks/lib/audit-scope.sh"
-audit_scope_initialize "$PROJECT_DIR"
+audit_scope_initialize "$PROJECT_DIR" || exit $?
 
 # Resolve the namespace root (honors config paths.projectRoot in real runs).
 # Fall back on directory existence — robust when the resolver hook is absent.

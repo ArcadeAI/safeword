@@ -173,6 +173,7 @@ function runAuditAutomation(
 }
 
 function runDiffScopedAuditAutomation(options: {
+  baseRefOverride?: string;
   baselineFiles: Record<string, string>;
   changedFiles: Record<string, string>;
   blockOrdinal?: number;
@@ -180,6 +181,7 @@ function runDiffScopedAuditAutomation(options: {
   deletedFiles?: string[];
   includeOriginMain?: boolean;
   staleLocalMain?: boolean;
+  stackedBaseFiles?: Record<string, string>;
   scopeRequest?: 'repository';
   typeChangedFiles?: Record<string, string>;
 }): { stdout: string; stderr: string; status: number } {
@@ -207,7 +209,15 @@ function runDiffScopedAuditAutomation(options: {
       git(projectDirectory, 'add', 'src/stale-main.ts');
       git(projectDirectory, 'commit', '--quiet', '--message', 'stale local main');
     }
-    git(projectDirectory, 'checkout', '--quiet', '-b', 'feature', baseSha);
+    let featureBaseSha = baseSha;
+    if (options.stackedBaseFiles) {
+      git(projectDirectory, 'checkout', '--quiet', '-b', 'stack-base', baseSha);
+      applyWorktreeChanges(projectDirectory, options.stackedBaseFiles);
+      git(projectDirectory, 'add', '.');
+      git(projectDirectory, 'commit', '--quiet', '--message', 'stack base');
+      featureBaseSha = git(projectDirectory, 'rev-parse', 'HEAD');
+    }
+    git(projectDirectory, 'checkout', '--quiet', '-b', 'feature', featureBaseSha);
 
     applyWorktreeChanges(
       projectDirectory,
@@ -231,6 +241,7 @@ function runDiffScopedAuditAutomation(options: {
           AUDIT_SCOPE_REQUEST: options.scopeRequest ?? 'diff',
           CLAUDE_PROJECT_DIR: projectDirectory,
           PATH: `${binDirectory}:/usr/bin:/bin`,
+          SAFEWORD_AUDIT_BASE_REF: options.baseRefOverride ?? '',
         },
         encoding: 'utf8',
       },
@@ -477,6 +488,41 @@ describe('audit diff scope', () => {
     expect(result.status).toBe(0);
     expect(result.stdout).toContain('Audit scope: main');
   });
+
+  it('uses an explicit stacked branch base without including the lower stack', () => {
+    const result = runDiffScopedAuditAutomation({
+      baseRefOverride: 'stack-base',
+      baselineFiles: javascriptProject,
+      changedFiles: { 'src/changed.ts': 'export const value = 3;\n' },
+      includeOriginMain: true,
+      stackedBaseFiles: {
+        'src/changed.ts': 'export const value = 2;\n',
+        'src/lower-stack.ts': 'export const lowerStack = true;\n',
+      },
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('Audit scope: stack-base');
+    expect(result.stdout).toContain('src/changed.ts');
+    expect(result.stdout).not.toContain('src/lower-stack.ts');
+  });
+
+  it.each(['missing-stack-base', '--help'])(
+    'fails closed when the explicit audit base ref does not resolve: %s',
+    baseReferenceOverride => {
+      const result = runDiffScopedAuditAutomation({
+        baseRefOverride: baseReferenceOverride,
+        baselineFiles: javascriptProject,
+        changedFiles: { 'src/changed.ts': 'export const value = 2;\n' },
+        includeOriginMain: true,
+      });
+
+      expect(result.status).not.toBe(0);
+      expect(result.stderr).toContain(
+        `SAFEWORD_AUDIT_BASE_REF does not resolve to a Git commit: ${baseReferenceOverride}`,
+      );
+    },
+  );
 
   it('does not run code-quality analyzers for a documentation-only diff', () => {
     const result = runDiffScopedAuditAutomation({
