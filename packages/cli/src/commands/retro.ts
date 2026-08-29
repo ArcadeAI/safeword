@@ -47,7 +47,7 @@ import { captureRetroFilingFault } from '../../templates/hooks/lib/self-report.j
 import { type Provenance, PROVENANCE_SHA } from '../retro/ledger.js';
 import { prepareEncounters } from '../retro/pipeline.js';
 import {
-  deliverSanitizedPublicRetroFinding,
+  deliverSanitizedPublicRetroFindings,
   type PublicRetroDeliveryDependencies,
   type PublicRetroSource,
 } from '../retro/public-delivery.js';
@@ -338,7 +338,6 @@ export async function runRetro(
   const publicPreparationDeadline =
     dependencies.publicRetro === undefined ? undefined : dependencies.publicRetro.now() + 1000;
   const { encounters, drops, findings } = await prepareEncounters(rawFindings);
-  const publicFinding = findings.length === 1 ? findings[0] : undefined;
   const { projectDirectory, publicRetro, sessionId } = dependencies;
   const relay = dependencies.relay;
 
@@ -360,13 +359,13 @@ export async function runRetro(
     if (
       publicRetro === undefined ||
       publicPreparationDeadline === undefined ||
-      rawFindings.length !== 1 ||
-      publicFinding === undefined
+      rawFindings.length === 0 ||
+      findings.length === 0
     ) {
       return;
     }
-    await deliverSanitizedPublicRetroFinding(
-      { finding: publicFinding, sessionId, source: publicRetro.source },
+    await deliverSanitizedPublicRetroFindings(
+      { findings, sessionId, source: publicRetro.source },
       publicRetro,
       publicPreparationDeadline,
     );

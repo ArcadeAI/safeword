@@ -17,7 +17,7 @@ export interface PublicRetroSource {
 }
 
 export interface PublicRetroEnvelopeInput {
-  finding: string;
+  findings: readonly string[];
   source: PublicRetroSource;
   sessionId: string;
 }
@@ -97,7 +97,8 @@ function isValidEnvelopeInput(input: PublicRetroEnvelopeInput, projectUUID: stri
   const { source } = input;
   return (
     UUID.test(projectUUID) &&
-    input.finding.trim() !== '' &&
+    input.findings.length > 0 &&
+    input.findings.every(finding => finding.trim() !== '') &&
     input.sessionId.trim() !== '' &&
     validSourceRoute(source)
   );
@@ -157,7 +158,7 @@ export function buildPublicRetroEnvelope(
   };
   const scope = deriveSessionScope(source.harness, projectUUID, input.sessionId);
   const bytes = new TextEncoder().encode(
-    JSON.stringify({ version: 'v1', finding: input.finding, source, sessionScope: scope }),
+    JSON.stringify({ version: 'v2', findings: input.findings, source, sessionScope: scope }),
   );
 
   return { bytes, sessionScope: scope };
@@ -304,15 +305,15 @@ function preservePublicRetroReceipt(
   }
 }
 
-export function deliverSanitizedPublicRetroFinding(
-  input: { finding: Finding; source: PublicRetroSource; sessionId: string },
+export function deliverSanitizedPublicRetroFindings(
+  input: { findings: readonly Finding[]; source: PublicRetroSource; sessionId: string },
   dependencies: PublicRetroDeliveryDependencies,
   preparationDeadline: number,
 ): Promise<PublicRetroDeliveryOutcome> {
   try {
     return deliverPreparedInput(
       {
-        finding: assemblePublicFinding(input.finding),
+        findings: input.findings.map(finding => assemblePublicFinding(finding)),
         source: input.source,
         sessionId: input.sessionId,
       },

@@ -1396,37 +1396,42 @@ describe('retro command configuration, extraction, egress, and relay execution',
   });
 
   it('hands every valid sanitized finding to public quarantine in original order', async () => {
+    const attemptsDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-attempts-'));
     const publicTransport = vi.fn();
-    await runRetro(
-      { transcript: '/tmp/t.jsonl' },
-      dependencies({
-        extract: () =>
-          Promise.resolve([rawFinding(), rawFinding({ title: 'A second valid finding' })]),
-        publicRetro: {
-          attemptsDirectory: '/unused',
-          now: () => 0,
-          randomUUID: () => 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-          source: {
-            harness: 'codex',
-            hostClass: 'local',
-            projectUUID: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
-            safewordCliVersion: '0.79.0',
+    try {
+      await runRetro(
+        { transcript: '/tmp/t.jsonl' },
+        dependencies({
+          extract: () =>
+            Promise.resolve([rawFinding(), rawFinding({ title: 'A second valid finding' })]),
+          publicRetro: {
+            attemptsDirectory,
+            now: () => 0,
+            randomUUID: () => 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+            source: {
+              harness: 'codex',
+              hostClass: 'local',
+              projectUUID: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+              safewordCliVersion: '0.79.0',
+            },
+            transport: publicTransport,
           },
-          transport: publicTransport,
-        },
-      }),
-    );
+        }),
+      );
 
-    expect(publicTransport).toHaveBeenCalledOnce();
-    const request = publicTransport.mock.calls[0]?.[0];
-    const body = JSON.parse(new TextDecoder().decode(request?.body)) as {
-      findings: string[];
-      version: string;
-    };
-    expect(body.version).toBe('v2');
-    expect(body.findings).toHaveLength(2);
-    expect(body.findings[0]).toContain('Retro finding');
-    expect(body.findings[1]).toContain('A second valid finding');
+      expect(publicTransport).toHaveBeenCalledOnce();
+      const request = publicTransport.mock.calls[0]?.[0];
+      const body = JSON.parse(new TextDecoder().decode(request?.body)) as {
+        findings: string[];
+        version: string;
+      };
+      expect(body.version).toBe('v2');
+      expect(body.findings).toHaveLength(2);
+      expect(body.findings[0]).toContain('Coverage gate message omits file and number');
+      expect(body.findings[1]).toContain('A second valid finding');
+    } finally {
+      rmSync(attemptsDirectory, { force: true, recursive: true });
+    }
   });
 
   it('retro-transcript-mining.TB1.AC2.missing_flag_fails_loudly_and_files_nothing', async () => {
