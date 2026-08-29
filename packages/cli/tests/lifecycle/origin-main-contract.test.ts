@@ -51,7 +51,7 @@ vi.mock('../../src/codex-plugin/operations.js', () => ({
 }));
 
 const FIXTURE_ROOT = nodePath.join(import.meta.dirname, '../fixtures/lifecycle-origin-main');
-const ORIGIN_MAIN_COMMIT = '64c6bd16fb82e16d7c744a1133fb9c8e3af9d2c4';
+const ORIGIN_MAIN_COMMIT = '726399216b6599f0840ab673835bb7c15d8b7f1b';
 const CONTRACT_CASES = [
   'claude-install',
   'claude-upgrade',
