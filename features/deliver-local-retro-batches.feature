@@ -34,6 +34,7 @@ Feature: Deliver every eligible local retro finding in one bounded batch
       When the session completes through the shared local retro carrier
       Then the collector receives zero requests
 
+    @surface.safeword-cli
     Scenario: Later delta windows remain independently deliverable
       Given one local session produces valid findings in two different transcript windows
       When both windows complete through the shared local retro command
@@ -73,9 +74,9 @@ Feature: Deliver every eligible local retro finding in one bounded batch
       Then the collector returns the original receipt and retains one durable submission
 
       Examples:
-        | recorded request                       | request identity              |
+        | recorded request                        | request identity              |
         | a recorded v2 batch                     | the original request identity |
-        | a recorded v2 batch                     | a new request identity         |
+        | a recorded v2 batch                     | a new request identity        |
         | a recorded v1 single-finding submission | the original request identity |
         | a recorded v1 single-finding submission | a new request identity         |
 

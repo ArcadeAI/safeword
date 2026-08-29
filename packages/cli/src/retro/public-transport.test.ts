@@ -138,9 +138,12 @@ describe('public retro HTTPS transport', () => {
     ).rejects.toThrow('Invalid public retrospective receipt');
   });
 
-  it('rejects a non-success response before parsing a receipt', async () => {
+  it.each([
+    ['conflict', 409],
+    ['unavailable', 503],
+  ] as const)('rejects a %s response before parsing a receipt', async (_name, status) => {
     const transport = createPublicRetroTransport({
-      fetch: () => Promise.resolve(new Response('unavailable', { status: 503 })),
+      fetch: () => Promise.resolve(new Response('unavailable', { status })),
       origin: 'http://127.0.0.1:43179',
     });
 
@@ -155,7 +158,7 @@ describe('public retro HTTPS transport', () => {
         body: new Uint8Array(),
         redirect: 'error',
       }),
-    ).rejects.toThrow('Public retrospective submission failed (503)');
+    ).rejects.toThrow(`Public retrospective submission failed (${status})`);
   });
 
   it('rejects a receipt for a different request identity', async () => {

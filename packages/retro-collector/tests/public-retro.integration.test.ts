@@ -923,7 +923,10 @@ it.each([
     'legacy user identity',
     encoded({
       ...fixtureBatchRequestBody(),
-      source: { ...fixtureBatchRequestBody().source, userIdentity: 'legacy-user-fixture' },
+      source: {
+        ...(fixtureBatchRequestBody().source as Record<string, unknown>),
+        userIdentity: 'legacy-user-fixture',
+      },
     }),
   ],
 ] as const)('rejects invalid v2 envelope: %s', (_, body) => expectEnvelopeRejected(body));

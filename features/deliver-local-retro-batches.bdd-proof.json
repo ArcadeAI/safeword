@@ -93,8 +93,14 @@
       "preserves every valid finding privately after public batch acceptance"
     ],
     "Opt-out preserves private recovery silently": [
-      "packages/cli/tests/commands/retro.test.ts",
-      "keeps private recovery when no public carrier is available"
+      [
+        "packages/cli/src/retro/public-config.test.ts",
+        "honors an explicit public retrospective opt-out"
+      ],
+      [
+        "packages/cli/tests/commands/retro.test.ts",
+        "keeps private recovery when no public carrier is available"
+      ]
     ],
     "Oversize preserves private recovery silently": [
       "packages/cli/src/retro/public-delivery.test.ts",
@@ -112,7 +118,11 @@
       ["packages/cli/src/retro/public-transport.test.ts", "rejects malformed receipt JSON"],
       [
         "packages/cli/src/retro/public-transport.test.ts",
-        "rejects a non-success response before parsing a receipt"
+        "posts canonical bytes to the sole origin and returns the echoed receipt"
+      ],
+      [
+        "packages/cli/src/retro/public-transport.test.ts",
+        "rejects a %s response before parsing a receipt"
       ]
     ],
     "A collector timeout preserves private recovery silently": [

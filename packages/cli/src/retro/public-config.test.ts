@@ -33,9 +33,17 @@ describe('enabled public retro project', () => {
   it.each([
     {},
     { projectUUID: 'not-a-uuid' },
-    { projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', publicRetrospectiveCollection: false },
     { projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', publicRetrospectiveCollection: 'yes' },
   ])('fails closed without throwing for disabled or invalid runtime config', config => {
     expect(readEnabledPublicRetroProject(projectWith(config))).toBeUndefined();
+  });
+
+  it('honors an explicit public retrospective opt-out', () => {
+    const project = projectWith({
+      projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+      publicRetrospectiveCollection: false,
+    });
+
+    expect(readEnabledPublicRetroProject(project)).toBeUndefined();
   });
 });

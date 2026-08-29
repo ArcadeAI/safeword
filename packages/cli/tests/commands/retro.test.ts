@@ -1321,7 +1321,7 @@ describe('retro command configuration, extraction, egress, and relay execution',
     const requestIds = [
       'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1',
       'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2',
-    ];
+    ] as const;
     let requestIndex = 0;
     const publicRetro = {
       attemptsDirectory,
