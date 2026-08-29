@@ -10,7 +10,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 9a5166e9c
 - [x] GREEN e05294490
-- [ ] REFACTOR
+- [x] REFACTOR skip: first slice is the minimal shared batch handoff; cross-scenario cleanup follows after collector compatibility
 
 ### Scenario: One finding uses the same batch contract
 
