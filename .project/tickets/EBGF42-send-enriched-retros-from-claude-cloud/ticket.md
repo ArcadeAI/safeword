@@ -228,3 +228,17 @@ last_modified: 2026-08-28T23:16:33.183Z
   produced. Activation is blocked on allowing
   `retro-relay-production.up.railway.app` in the Claude Cloud environment and
   rerunning the exact-branch probe; reclamation stability remains unproven.
+- 2026-08-29T05:25:00Z Reopened the same cloud session after environment
+  reclamation. `CLAUDE_CODE_REMOTE_SESSION_ID` remained
+  `cse_01BwTczgGeabtE6keUg87QBv`, the source checkout remained clean, and the
+  Stop runtime remained Bun 1.3.11, proving the native session identity is
+  stable across this observed reclamation. A fresh cloud session
+  `session_019iycgfYkEo2HvFGEjxAM5X` checked out the rebased feature content at
+  exact commit `8cf8d7a716918479b5e35cc0e6b1fbe0fe7a893a` on its generated
+  `claude/verify-safeword-readiness-csvwgn` branch and observed a distinct
+  native session identity. The environment UI reports Full network access, but
+  its organization-level proxy still rejected Railway, `arcade.dev`, and
+  `api.arcade.dev` at CONNECT before origin traffic. A first-party hostname is
+  therefore not a carrier workaround. Application-code implementation remains
+  blocked on the effective Claude Cloud organization allowlist admitting the
+  chosen collector hostname; no repository or transport redesign is justified.
