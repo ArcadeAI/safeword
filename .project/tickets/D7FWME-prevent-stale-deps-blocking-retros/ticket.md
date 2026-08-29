@@ -2,11 +2,11 @@
 id: D7FWME
 slug: prevent-stale-deps-blocking-retros
 type: task
-phase: verification
+phase: done
 subtype: bug-investigated
-status: in_progress
+status: done
 created: 2026-08-29T15:54:29.285Z
-last_modified: 2026-08-29T17:25:00.000Z
+last_modified: 2026-08-29T17:55:00.000Z
 ---
 
 # Keep routine retros running after tool-list changes
@@ -21,6 +21,7 @@ last_modified: 2026-08-29T17:25:00.000Z
 - 2026-08-29T16:00:00.000Z Reproduced: the manual retro skill selected `bun run safeword`, and the dependency-readiness guard correctly denied that project-toolchain command while its fingerprint was stale.
 - 2026-08-29T17:25:00.000Z Implemented: manual retros use a versioned independent `bunx` carrier; pinned `retro run` is available during stale readiness; a successful later install now supersedes durable failed-install state.
 - 2026-08-29T17:25:00.000Z Verified: changed-path tests, generated plugin integrity, lifecycle fixtures, lint, typecheck, build, and 38 acceptance scenarios are green. The full 8,731-test CLI run had one unrelated 30-second closeout receipt timeout; that exact test passed in isolation.
+- 2026-08-29T17:55:00.000Z Completed: independent cross-agent quality review approved the final diff and PR #3507 carries the implementation and verification evidence.
 
 ## Root Cause
 
