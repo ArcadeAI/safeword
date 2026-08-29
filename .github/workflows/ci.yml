@@ -454,7 +454,7 @@ jobs:
     environment: retro-relay-production
     concurrency:
       group: retro-collector-production
-      cancel-in-progress: false
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v7
 
@@ -492,3 +492,6 @@ jobs:
           --project "$RAILWAY_PROJECT_ID"
           --environment "$RAILWAY_ENVIRONMENT"
           --service "$RAILWAY_SERVICE"
+
+      - name: Verify production collector
+        run: node packages/retro-collector/scripts/production-canary.mjs

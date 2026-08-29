@@ -18,6 +18,10 @@ const collectorWorkflowPath = nodePath.resolve(
   import.meta.dirname,
   '../../../.github/workflows/deploy-retro-collector.yml',
 );
+const collectorCanaryPath = nodePath.resolve(
+  import.meta.dirname,
+  '../../retro-collector/scripts/production-canary.mjs',
+);
 
 describe('Retro Relay deployment workflow', () => {
   it('keeps an environment-protected manual recovery path', () => {
@@ -85,16 +89,28 @@ describe('Public retro collector deployment workflow', () => {
 
     expect(workflow.on).toBe('workflow_dispatch');
     expect(workflow.permissions).toEqual({ contents: 'read' });
-    expect(workflow.concurrency.group).toBe('retro-collector-production');
+    expect(workflow.concurrency).toEqual({
+      group: 'retro-collector-production',
+      'cancel-in-progress': true,
+    });
     expect(source).toContain('environment: retro-relay-production');
     expect(source).toContain('RAILWAY_SERVICE: ${{ vars.RAILWAY_RETRO_COLLECTOR_SERVICE }}');
     expect(source).toContain('railway up --ci');
+    expect(source).toContain('node packages/retro-collector/scripts/production-canary.mjs');
   });
 
   it('deploys collector changes only after every CI gate passes', () => {
     const source = readFileSync(ciWorkflowPath, 'utf8');
     const workflow = parse(source) as {
-      jobs: Record<string, { needs?: string[]; environment?: string; if?: string }>;
+      jobs: Record<
+        string,
+        {
+          needs?: string[];
+          environment?: string;
+          if?: string;
+          concurrency?: { group: string; 'cancel-in-progress': boolean };
+        }
+      >;
     };
     const deployment = workflow.jobs['deploy-retro-collector'];
 
@@ -108,8 +124,23 @@ describe('Public retro collector deployment workflow', () => {
       'collector-inputs',
     ]);
     expect(deployment?.environment).toBe('retro-relay-production');
+    expect(deployment?.concurrency).toEqual({
+      group: 'retro-collector-production',
+      'cancel-in-progress': true,
+    });
     expect(deployment?.if).toContain("github.ref == 'refs/heads/main'");
     expect(source).toContain('packages/retro-collector/*');
     expect(source).toContain('RAILWAY_RETRO_COLLECTOR_SERVICE');
+    expect(source).toContain('node packages/retro-collector/scripts/production-canary.mjs');
+  });
+
+  it('checks liveness, acceptance, and idempotent persistence after deployment', () => {
+    const source = readFileSync(collectorCanaryPath, 'utf8');
+
+    expect(source).toContain("'/health'");
+    expect(source).toContain("'/v1/public-retros'");
+    expect(source).toContain('first.status !== 201');
+    expect(source).toContain('replay.status !== 200');
+    expect(source).toContain('first.body.receipt !== replay.body.receipt');
   });
 });
