@@ -478,15 +478,23 @@ function nonUtf8Envelope(): Uint8Array {
   ]);
 }
 
-function sizedEnvelope(byteLength: number, multibyte: boolean): Uint8Array {
-  const emptyLength = encoded({ ...fixtureEnvelope(), finding: '' }).byteLength;
+function sizedEnvelope(
+  byteLength: number,
+  multibyte: boolean,
+  version: 'v1' | 'v2' = 'v1',
+): Uint8Array {
+  const base =
+    version === 'v1'
+      ? { ...fixtureEnvelope(), finding: '' }
+      : { ...fixtureBatchRequestBody(), findings: [''] };
+  const emptyLength = encoded(base).byteLength;
   const contentBytes = byteLength - emptyLength;
   let finding = 'a'.repeat(contentBytes);
   if (multibyte) {
     const trailingAscii = contentBytes % 2 === 0 ? '' : 'a';
     finding = `${'é'.repeat(Math.floor(contentBytes / 2))}${trailingAscii}`;
   }
-  return encoded({ ...fixtureEnvelope(), finding });
+  return encoded(version === 'v1' ? { ...base, finding } : { ...base, findings: [finding] });
 }
 
 it('returns the original durable receipt for an exact retry after restart', async () => {
@@ -752,6 +760,7 @@ async function expectSizedEnvelopeStatus(
   content: 'ascii' | 'multibyte',
   byteLength: number,
   expectedStatus: 201 | 413,
+  version: 'v1' | 'v2',
 ): Promise<void> {
   const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
   temporaryDirectories.push(directory);
@@ -760,7 +769,7 @@ async function expectSizedEnvelopeStatus(
   });
   const request = {
     ...fixtureRequest(),
-    body: sizedEnvelope(byteLength, content === 'multibyte'),
+    body: sizedEnvelope(byteLength, content === 'multibyte', version),
   };
 
   const response = await submit(runtime.url, request);
@@ -780,17 +789,21 @@ async function expectSizedEnvelopeStatus(
 }
 
 it.each([
-  ['ascii', 65_536],
-  ['multibyte', 65_536],
-] as const)('accepts a %s envelope at the 65536-byte limit', (content, byteLength) =>
-  expectSizedEnvelopeStatus(content, byteLength, 201),
+  ['v1', 'ascii', 65_536],
+  ['v1', 'multibyte', 65_536],
+  ['v2', 'ascii', 65_536],
+  ['v2', 'multibyte', 65_536],
+] as const)('accepts a %s %s envelope at the 65536-byte limit', (version, content, byteLength) =>
+  expectSizedEnvelopeStatus(content, byteLength, 201, version),
 );
 
 it.each([
-  ['ascii', 65_537],
-  ['multibyte', 65_537],
-] as const)('rejects a %s envelope above the 65536-byte limit', (content, byteLength) =>
-  expectSizedEnvelopeStatus(content, byteLength, 413),
+  ['v1', 'ascii', 65_537],
+  ['v1', 'multibyte', 65_537],
+  ['v2', 'ascii', 65_537],
+  ['v2', 'multibyte', 65_537],
+] as const)('rejects a %s %s envelope above the 65536-byte limit', (version, content, byteLength) =>
+  expectSizedEnvelopeStatus(content, byteLength, 413, version),
 );
 
 type InvalidEnvelope = readonly [string, Uint8Array, (string | false)?];
