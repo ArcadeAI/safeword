@@ -419,6 +419,17 @@ describe('audit installed-project stack awareness', () => {
     expect(result.stdout).not.toContain('./target/debug/dependency');
   });
 
+  it('excludes dependency and virtual-environment trees from recursive Python dead-code checks', () => {
+    const result = runAuditAutomation({
+      'apps/coordinator/pyproject.toml': '[project]\nname = "coordinator"\n',
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain(
+      '[fake-deadcode] . --exclude .git */.git node_modules */node_modules .venv */.venv venv */venv vendor */vendor target */target',
+    );
+  });
+
   it('runs Knip from each workspace-local configuration when the root has none', () => {
     const result = runAuditAutomation({
       'package.json': JSON.stringify({ name: 'monorepo' }),

@@ -310,6 +310,7 @@ The Status section uses the existing Verify Checklist format. Format with these 
 **Build:** ✅ Success (or ❌ Failed, or ⏭️ Skipped — no build step)
 **Lint:** ✅ Clean (or ❌ N errors)
 **Scenarios:** All N scenarios marked complete (or ❌ X/Y complete, or ⏭️ Skipped — no ticket)
+**Refactor:** ✅ Completed — <sha/summary> (or ✅ No change warranted — <reason>, or ⏭️ Skipped — <reason>)
 **PR Scope:** ✅ Diff matches ticket scope (or ❌ Piggybacked changes: <paths/behaviors>, or ⏭️ Skipped — no ticket/diff)
 **Dep Drift:** ✅ Clean (or ⚠️ N undocumented deps, or ⏭️ Skipped — no ARCHITECTURE.md/package.json)
 **Parent Epic:** {id} (siblings: X/Y done) or N/A
@@ -318,6 +319,8 @@ The Status section uses the existing Verify Checklist format. Format with these 
 **Surface Evidence:** ✅ N/N affected surfaces have recorded proof (or ⚠️ N unproven/limited, or ⏭️ N/A — no affected surfaces)
 **Evidence limits:** ✅ None (or ⚠️ <local limitation>; affected failures are not product evidence until reproduced outside the limit)
 ```
+
+**Refactor** reports the ticket's recorded cross-scenario refactor disposition. It does not require a formal `$refactor` skill invocation: report the refactor commit or summary when performed, `No change warranted` when review found no beneficial structural change, or `Skipped` with the recorded reason when the workflow did not require it.
 
 **PR Scope** is the final "one purpose" guard. It blocks the all-green collapse: if it is ❌, the ticket is not ready to mark done until the unrelated work is reverted, split into another ticket/PR, or explicitly accepted as a scope change and reflected in the ticket artifacts.
 
