@@ -596,7 +596,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/figure-it-out/SKILL.md": "18e2b44e9a91562079b3e1f52fcd9f952b5f57a0f0e7647b0273809848a75c0d",
         ".claude/skills/finish-review/REVIEWER.md": "7575d91eb96a1c4930c8e68da1f4bb982d052c5e89f75fb38ed6422a8df96562",
         ".claude/skills/finish-review/SKILL.md": "e9ed5d198994b6cca12c62b1a4c13a1db2d82d65fc8a9173a41c5b5cf312cd52",
-        ".claude/skills/lint/SKILL.md": "fdde749fe9ce764f6f9325f963c092d457960494fe78dd04d65d53a50e7cfd19",
+        ".claude/skills/lint/SKILL.md": "f8bc868fb10a06ca46a22236309b9f0c3ffbd70eecc024d3c79de8ef0e42fd14",
         ".claude/skills/quality-review/SKILL.md": "a884e61bb52222ecfc3d67b0332b79a72fa359fac6c87fca87efe6eb65a8a4ca",
         ".claude/skills/refactor/SKILL.md": "a51a858fb13b50cbc86789edbde8a39e364b5cdd7d5d3b025d555d90b221760e",
         ".claude/skills/retro-filer/SKILL.md": "ea126f3805a2befefb4db2011439f075ebfd6eca31b78bd5f284ac11d667b4f0",
@@ -49638,7 +49638,7 @@ function pendingResult(record2) {
     ],
     nextActions: [
       {
-        command: `safeword review status ${record2.id}`,
+        command: reviewStatusCommand(record2.id),
         mutates: false,
         requiresHuman: false
       }
@@ -49650,6 +49650,14 @@ function pendingResult(record2) {
       started_at: record2.started_at
     }
   });
+}
+function shellQuote4(value) {
+  if (/^[\w./-]+$/u.test(value))
+    return value;
+  return `'${value.replaceAll("'", `'"'"'`)}'`;
+}
+function reviewStatusCommand(id) {
+  return `${shellQuote4(process.execPath)} ${shellQuote4(cliEntrypoint())} review status ${id}`;
 }
 function staleResult(record2) {
   return createResult({
@@ -65896,7 +65904,7 @@ async function reviewPrInspectHandler(invocation) {
       ],
       recovery: [
         {
-          command: `safeword review-pr inspect ${shellQuote4(inputPath)} --output ${shellQuote4(outputPath)}`,
+          command: `safeword review-pr inspect ${shellQuote5(inputPath)} --output ${shellQuote5(outputPath)}`,
           description: "Check .safeword/config.json, the input artifact, and OPENAI_API_KEY, then retry.",
           requiresHuman: true
         }
@@ -66006,7 +66014,7 @@ function cleanGuidanceRefusal(cleanup) {
     data: { command: "codex clean-guidance", cleanup }
   });
 }
-function shellQuote4(value) {
+function shellQuote5(value) {
   const escaped = (value ?? "").replaceAll("'", `'"'"'`);
   return `'${escaped}'`;
 }
@@ -66029,7 +66037,7 @@ function cleanGuidanceSuccess(cleanup) {
     },
     recovery: [
       {
-        command: `mv -- ${shellQuote4(cleanup.backupPath)} ${shellQuote4(cleanup.sourcePath)}`,
+        command: `mv -- ${shellQuote5(cleanup.backupPath)} ${shellQuote5(cleanup.sourcePath)}`,
         description: "Restore the backed-up profile guidance if it is still wanted.",
         requiresHuman: true
       }
