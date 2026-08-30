@@ -1,3 +1,5 @@
+/** Enforces packaged-runtime authority for native plugin workflow assets. */
+
 export interface RuntimeAuthorityAsset {
   readonly relativePath: string;
   readonly content: string;
