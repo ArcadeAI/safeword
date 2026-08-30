@@ -56,6 +56,23 @@ function fixtureBatchRequest(): { body: Uint8Array; requestId: string } {
   };
 }
 
+function fixtureServerOwnedRequest(): { body: Uint8Array; requestId: string } {
+  return {
+    body: encoded({
+      version: 'v3',
+      findings: ['server-owned sanitized finding'],
+      source: {
+        harness: 'cursor',
+        hostClass: 'local',
+        projectUUID: '018f0f2e-abcd-4def-8abc-def012345678',
+        safewordCliVersion: '0.82.1',
+      },
+      sessionScope: '9'.repeat(64),
+    }),
+    requestId: '11111111-2222-4333-8444-555555555555',
+  };
+}
+
 function sessionScope(harness: string, projectUUID: string, sessionId: string): string {
   return createHash('sha256')
     .update('safeword-retro-session-scope:v1\0')
@@ -522,6 +539,110 @@ it('returns the original durable receipt for an exact retry after restart', asyn
   });
 });
 
+it('leases exact server-owned bytes after collector restart', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const databasePath = path.join(directory, 'collector.sqlite');
+  const request = fixtureServerOwnedRequest();
+
+  const firstRuntime = await startPublicRetroCollector({
+    databasePath,
+    collectorWorkerCredential: 'worker-fixture-credential',
+  });
+  const accepted = await submit(firstRuntime.url, request);
+  await firstRuntime.close();
+
+  const restartedRuntime = await startPublicRetroCollector({
+    databasePath,
+    collectorWorkerCredential: 'worker-fixture-credential',
+  });
+  const claimed = await fetch(`${restartedRuntime.url}/v1/private/retro-claims`, {
+    method: 'POST',
+    headers: { authorization: 'Bearer worker-fixture-credential' },
+  });
+  const claim = (await claimed.json()) as {
+    acceptedAt: string;
+    bodyBase64: string;
+    digest: string;
+    leaseToken: string;
+    requestId: string;
+  };
+  await restartedRuntime.close();
+
+  expect(accepted.status).toBe(201);
+  expect(claimed.status).toBe(200);
+  expect(claim.requestId).toBe(request.requestId);
+  expect(new Uint8Array(Buffer.from(claim.bodyBase64, 'base64'))).toEqual(request.body);
+  expect(claim.digest).toBe(createHash('sha256').update(request.body).digest('hex'));
+  expect(claim.acceptedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/u);
+  expect(claim.leaseToken).toMatch(/^[0-9a-f-]{36}$/u);
+});
+
+it('uses only the v3 request UUID for duplicate decisions', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+  });
+  const first = fixtureServerOwnedRequest();
+  const second = {
+    requestId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+    body: encoded({
+      ...(JSON.parse(new TextDecoder().decode(first.body)) as Record<string, unknown>),
+      findings: ['a later transcript offset'],
+    }),
+  };
+
+  const firstResponse = await submit(runtime.url, first);
+  const secondResponse = await submit(runtime.url, second);
+  await runtime.close();
+
+  expect(firstResponse.status).toBe(201);
+  expect(secondResponse.status).toBe(201);
+});
+
+it('releases and completes a lease without losing or resurrecting the request', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+    collectorWorkerCredential: 'worker-fixture-credential',
+  });
+  const request = fixtureServerOwnedRequest();
+  await submit(runtime.url, request);
+  const workerHeaders = { authorization: 'Bearer worker-fixture-credential' };
+  const firstResponse = await fetch(`${runtime.url}/v1/private/retro-claims`, {
+    method: 'POST',
+    headers: workerHeaders,
+  });
+  const first = (await firstResponse.json()) as { leaseToken: string; requestId: string };
+
+  const released = await fetch(`${runtime.url}/v1/private/retro-claims/${first.requestId}`, {
+    method: 'DELETE',
+    headers: { ...workerHeaders, 'x-safeword-lease-token': first.leaseToken },
+  });
+  const secondResponse = await fetch(`${runtime.url}/v1/private/retro-claims`, {
+    method: 'POST',
+    headers: workerHeaders,
+  });
+  const second = (await secondResponse.json()) as { leaseToken: string; requestId: string };
+  const completed = await fetch(`${runtime.url}/v1/private/retro-claims/${second.requestId}`, {
+    method: 'PUT',
+    headers: { ...workerHeaders, 'x-safeword-lease-token': second.leaseToken },
+  });
+  const empty = await fetch(`${runtime.url}/v1/private/retro-claims`, {
+    method: 'POST',
+    headers: workerHeaders,
+  });
+  await runtime.close();
+
+  expect(released.status).toBe(204);
+  expect(second.requestId).toBe(first.requestId);
+  expect(second.leaseToken).not.toBe(first.leaseToken);
+  expect(completed.status).toBe(204);
+  expect(empty.status).toBe(204);
+});
+
 it('returns the original durable receipt for an exact v2 retry after restart', async () => {
   const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
   temporaryDirectories.push(directory);
@@ -810,21 +931,22 @@ async function expectSizedEnvelopeStatus(
 }
 
 it.each([
-  ['v1', 'ascii', 65_536],
-  ['v1', 'multibyte', 65_536],
-  ['v2', 'ascii', 65_536],
-  ['v2', 'multibyte', 65_536],
-] as const)('accepts a %s %s envelope at the 65536-byte limit', (version, content, byteLength) =>
+  ['v1', 'ascii', 262_144],
+  ['v1', 'multibyte', 262_144],
+  ['v2', 'ascii', 262_144],
+  ['v2', 'multibyte', 262_144],
+] as const)('accepts a %s %s envelope at the 262144-byte limit', (version, content, byteLength) =>
   expectSizedEnvelopeStatus(content, byteLength, 201, version),
 );
 
 it.each([
-  ['v1', 'ascii', 65_537],
-  ['v1', 'multibyte', 65_537],
-  ['v2', 'ascii', 65_537],
-  ['v2', 'multibyte', 65_537],
-] as const)('rejects a %s %s envelope above the 65536-byte limit', (version, content, byteLength) =>
-  expectSizedEnvelopeStatus(content, byteLength, 413, version),
+  ['v1', 'ascii', 262_145],
+  ['v1', 'multibyte', 262_145],
+  ['v2', 'ascii', 262_145],
+  ['v2', 'multibyte', 262_145],
+] as const)(
+  'rejects a %s %s envelope above the 262144-byte limit',
+  (version, content, byteLength) => expectSizedEnvelopeStatus(content, byteLength, 413, version),
 );
 
 type InvalidEnvelope = readonly [string, Uint8Array, (string | false)?];

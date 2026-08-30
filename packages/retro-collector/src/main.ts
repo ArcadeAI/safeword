@@ -2,6 +2,7 @@ import { startPublicRetroCollector } from './index.js';
 
 const runtime = await startPublicRetroCollector({
   databasePath: process.env.SAFEWORD_PUBLIC_RETRO_DATABASE_PATH ?? '/data/public-retros.sqlite',
+  collectorWorkerCredential: process.env.SAFEWORD_COLLECTOR_WORKER_CREDENTIAL,
   host: process.env.HOST ?? '0.0.0.0',
   operatorCredential: process.env.SAFEWORD_PUBLIC_RETRO_OPERATOR_CREDENTIAL,
   port: Number(process.env.PORT ?? 3000),

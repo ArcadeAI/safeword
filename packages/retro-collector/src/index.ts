@@ -3,10 +3,15 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 
 import { PublicRetroConflict, PublicRetroStore } from './store.js';
 
-type PublicRetroStorePort = Pick<PublicRetroStore, 'accept' | 'close' | 'read'>;
+interface PublicRetroStorePort extends Pick<PublicRetroStore, 'accept' | 'close' | 'read'> {
+  claim?: PublicRetroStore['claim'];
+  complete?: PublicRetroStore['complete'];
+  release?: PublicRetroStore['release'];
+}
 
-const MAXIMUM_BODY_BYTES = 65_536;
+const MAXIMUM_BODY_BYTES = 262_144;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
+const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u;
 const SESSION_SCOPE = /^[0-9a-f]{64}$/u;
 const V1_FIELDS = ['version', 'finding', 'source', 'sessionScope'] as const;
 const V2_FIELDS = ['version', 'findings', 'source', 'sessionScope'] as const;
@@ -34,6 +39,7 @@ export interface PublicRetroCollectorRuntime {
 
 export interface PublicRetroCollectorOptions {
   databasePath: string;
+  collectorWorkerCredential?: string;
   host?: string;
   operatorCredential?: string;
   port?: number;
@@ -146,16 +152,33 @@ function validSourceRoute(harness: unknown, hostClass: unknown): boolean {
   );
 }
 
+function validV3SourceRoute(harness: unknown, hostClass: unknown): boolean {
+  return (
+    typeof harness === 'string' &&
+    ['claude-code', 'codex', 'cursor'].includes(harness) &&
+    hostClass === 'local'
+  );
+}
+
+function validSourceFields(value: Record<string, unknown>): boolean {
+  const keys = Object.keys(value);
+  return (
+    REQUIRED_SOURCE_FIELDS.every(key => keys.includes(key)) &&
+    keys.every(key => SOURCE_FIELDS.has(key)) &&
+    Object.values(value).every(nonemptyString)
+  );
+}
+
 function validSource(value: unknown, version: unknown): boolean {
   if (!isRecord(value)) return false;
   const keys = Object.keys(value);
-  if (REQUIRED_SOURCE_FIELDS.some(key => !keys.includes(key))) return false;
-  if (keys.some(key => !SOURCE_FIELDS.has(key))) return false;
-  if (Object.values(value).some(item => !nonemptyString(item))) return false;
+  if (!validSourceFields(value)) return false;
   if (keys.includes('userIdentity') && (version !== 'v1' || value.harness === 'cursor'))
     return false;
   return (
-    validSourceRoute(value.harness, value.hostClass) &&
+    (version === 'v3'
+      ? validV3SourceRoute(value.harness, value.hostClass)
+      : validSourceRoute(value.harness, value.hostClass)) &&
     typeof value.projectUUID === 'string' &&
     UUID.test(value.projectUUID)
   );
@@ -166,7 +189,7 @@ function validEnvelopeFindings(value: Record<string, unknown>): boolean {
     return hasExactKeys(value, V1_FIELDS) && nonemptyString(value.finding);
   }
   return (
-    value.version === 'v2' &&
+    (value.version === 'v2' || value.version === 'v3') &&
     hasExactKeys(value, V2_FIELDS) &&
     Array.isArray(value.findings) &&
     value.findings.length > 0 &&
@@ -174,7 +197,9 @@ function validEnvelopeFindings(value: Record<string, unknown>): boolean {
   );
 }
 
-function envelopeSessionScope(rawBody: Buffer): string | undefined {
+function envelopeMetadata(
+  rawBody: Buffer,
+): { sessionScope: string; version: 'legacy' | 'v3' } | undefined {
   try {
     const source = UTF8_DECODER.decode(rawBody);
     const value = JSON.parse(source) as unknown;
@@ -182,24 +207,102 @@ function envelopeSessionScope(rawBody: Buffer): string | undefined {
     if (!isRecord(value) || !validEnvelopeFindings(value)) return undefined;
     if (!validSource(value.source, value.version)) return undefined;
     return typeof value.sessionScope === 'string' && SESSION_SCOPE.test(value.sessionScope)
-      ? value.sessionScope
+      ? { sessionScope: value.sessionScope, version: value.version === 'v3' ? 'v3' : 'legacy' }
       : undefined;
   } catch {
     return undefined;
   }
 }
 
-async function handle(
+function workerAuthorized(
+  request: IncomingMessage,
+  credential: string | undefined,
+  store: PublicRetroStorePort,
+): boolean {
+  return (
+    credential !== undefined &&
+    matchesCredential(request.headers.authorization, credential) &&
+    store.claim !== undefined
+  );
+}
+
+function sendNoContent(response: ServerResponse): void {
+  response.statusCode = 204;
+  response.end();
+}
+
+function workerLeaseInput(
+  request: IncomingMessage,
+): { action: 'complete' | 'release'; leaseToken: string } | undefined {
+  const leaseToken = request.headers['x-safeword-lease-token'];
+  if (typeof leaseToken !== 'string' || !UUID.test(leaseToken)) return undefined;
+  if (request.method === 'DELETE') return { action: 'release', leaseToken };
+  if (request.method === 'PUT') return { action: 'complete', leaseToken };
+  return undefined;
+}
+
+function serveWorkerLifecycle(
   request: IncomingMessage,
   response: ServerResponse,
   store: PublicRetroStorePort,
-  operatorCredential: string | undefined,
-): Promise<void> {
-  if (serveReadRoute(request, response, store, operatorCredential)) return;
-  if (!validPublicRequest(request)) {
-    sendJson(response, 404, { error: 'not_found' });
+  requestId: string,
+): void {
+  const input = workerLeaseInput(request);
+  if (
+    !UUID_V4.test(requestId) ||
+    input === undefined ||
+    store.complete === undefined ||
+    store.release === undefined
+  ) {
+    sendJson(response, 400, { error: 'invalid_request' });
     return;
   }
+  const changed =
+    input.action === 'release'
+      ? store.release(requestId, input.leaseToken)
+      : store.complete(requestId, input.leaseToken);
+  if (changed) sendNoContent(response);
+  else sendJson(response, 409, { error: 'lease_conflict' });
+}
+
+function serveWorkerRoute(
+  request: IncomingMessage,
+  response: ServerResponse,
+  store: PublicRetroStorePort,
+  credential: string | undefined,
+): boolean {
+  const isClaim = request.method === 'POST' && request.url === '/v1/private/retro-claims';
+  const lifecycle = /^\/v1\/private\/retro-claims\/([0-9a-f-]{36})$/u.exec(request.url ?? '');
+  if (!isClaim && lifecycle === null) return false;
+  if (!workerAuthorized(request, credential, store)) {
+    sendJson(response, 404, { error: 'not_found' });
+    return true;
+  }
+  if (lifecycle !== null) {
+    serveWorkerLifecycle(request, response, store, lifecycle[1]);
+    return true;
+  }
+  const claim = store.claim?.();
+  if (claim === undefined) {
+    sendNoContent(response);
+  } else {
+    sendJson(response, 200, claim);
+  }
+  return true;
+}
+
+function validRequestIdentity(requestId: unknown, version: 'legacy' | 'v3'): requestId is string {
+  return (
+    typeof requestId === 'string' &&
+    (version === 'legacy' ? UUID.test(requestId) : UUID_V4.test(requestId))
+  );
+}
+
+async function servePublicSubmission(
+  request: IncomingMessage,
+  response: ServerResponse,
+  store: PublicRetroStorePort,
+): Promise<void> {
   const requestId = request.headers['x-safeword-request-id'];
   if (typeof requestId !== 'string' || !UUID.test(requestId)) {
     sendJson(response, 400, { error: 'invalid_request' });
@@ -207,12 +310,12 @@ async function handle(
   }
   try {
     const rawBody = await readBody(request);
-    const scope = envelopeSessionScope(rawBody);
-    if (scope === undefined) {
+    const metadata = envelopeMetadata(rawBody);
+    if (metadata === undefined || !validRequestIdentity(requestId, metadata.version)) {
       sendJson(response, 400, { error: 'invalid_request' });
       return;
     }
-    const result = store.accept(requestId, scope, rawBody);
+    const result = store.accept(requestId, metadata.sessionScope, rawBody, metadata.version);
     sendJson(response, result.status === 'accepted' ? 201 : 200, {
       requestId: result.requestId,
       receipt: result.receipt,
@@ -230,20 +333,41 @@ async function handle(
   }
 }
 
+async function handle(
+  request: IncomingMessage,
+  response: ServerResponse,
+  store: PublicRetroStorePort,
+  operatorCredential: string | undefined,
+  collectorWorkerCredential: string | undefined,
+): Promise<void> {
+  if (serveWorkerRoute(request, response, store, collectorWorkerCredential)) return;
+  if (serveReadRoute(request, response, store, operatorCredential)) return;
+  if (!validPublicRequest(request)) {
+    sendJson(response, 404, { error: 'not_found' });
+    return;
+  }
+  await servePublicSubmission(request, response, store);
+}
+
 export async function startPublicRetroCollector(
   options: PublicRetroCollectorOptions,
   store: PublicRetroStorePort = new PublicRetroStore(options.databasePath),
 ): Promise<PublicRetroCollectorRuntime> {
   const configuredCredential = options.operatorCredential?.trim();
   const operatorCredential = configuredCredential === '' ? undefined : configuredCredential;
+  const configuredWorkerCredential = options.collectorWorkerCredential?.trim();
+  const collectorWorkerCredential =
+    configuredWorkerCredential === '' ? undefined : configuredWorkerCredential;
   const server = createServer((request, response) => {
-    void handle(request, response, store, operatorCredential).catch(() => {
-      if (response.headersSent) {
-        response.destroy();
-      } else {
-        sendJson(response, 500, { error: 'store_unavailable' });
-      }
-    });
+    void handle(request, response, store, operatorCredential, collectorWorkerCredential).catch(
+      () => {
+        if (response.headersSent) {
+          response.destroy();
+        } else {
+          sendJson(response, 500, { error: 'store_unavailable' });
+        }
+      },
+    );
   });
   try {
     await new Promise<void>((resolve, reject) => {
