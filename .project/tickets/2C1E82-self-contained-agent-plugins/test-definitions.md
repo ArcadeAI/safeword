@@ -106,7 +106,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED c201d29c3
 - [x] GREEN 82f0cacbd
-- [ ] REFACTOR
+- [x] REFACTOR skip: the shared initializer is already the smallest reusable boundary
 
 ### Scenario: Existing runtime state is reopened without replacement
 
