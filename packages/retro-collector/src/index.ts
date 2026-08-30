@@ -281,7 +281,7 @@ function validEnvelopeFindings(value: Record<string, unknown>): boolean {
 function validV3Findings(findings: string[]): boolean {
   return (
     findings.length <= 50 &&
-    findings[0]?.split('\n', 1)[0]?.trim() !== '' &&
+    findings[0]?.split('\n', 1)[0]?.slice(0, 256).trim() !== '' &&
     Buffer.byteLength(findings.join(FINDING_SEPARATOR), 'utf8') <= MAXIMUM_RELAY_BODY_BYTES &&
     findings.every(
       finding =>

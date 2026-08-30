@@ -57,6 +57,7 @@ import {
   ackFilePath,
   draftSpoolPath,
   readAcks,
+  readServerSpooledDrafts,
   readSpooledDrafts,
   verifyDraftBody,
 } from '../../templates/hooks/lib/retro-draft-spool.js';
@@ -1339,11 +1340,11 @@ describe('retro command configuration, extraction, egress, and relay execution',
   });
 
   it.each([
-    ['accepted', true],
-    ['unreachable', false],
+    ['accepted', true, false],
+    ['unreachable', false, true],
   ] as const)(
     'routes a server-v3 finding only through the collector when it is %s',
-    async (_outcome, accepted) => {
+    async (_outcome, accepted, recoveryRetained) => {
       const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-server-route-'));
       const attemptsDirectory = nodePath.join(projectDirectory, '.safeword/public-retro-attempts');
       const privateTransport = new FakeGitHub();
@@ -1382,7 +1383,12 @@ describe('retro command configuration, extraction, egress, and relay execution',
         expect(privateTransport.issues).toHaveLength(0);
         expect(publicTransport).toHaveBeenCalledOnce();
         expect(readSpooledDrafts(projectDirectory, 'server-route-session')).toEqual([]);
-        expect(existsSync(draftSpoolPath(projectDirectory, 'server-route-session'))).toBe(false);
+        expect(readServerSpooledDrafts(projectDirectory, 'server-route-session')).toHaveLength(
+          recoveryRetained ? 1 : 0,
+        );
+        if (recoveryRetained) {
+          expect(existsSync(draftSpoolPath(projectDirectory, 'server-route-session'))).toBe(true);
+        }
         expect(readdirSync(attemptsDirectory)).toHaveLength(1);
       } finally {
         rmSync(projectDirectory, { force: true, recursive: true });

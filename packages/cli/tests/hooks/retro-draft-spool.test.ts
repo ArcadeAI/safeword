@@ -8,7 +8,9 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   canonicalSignatureForDraft,
   draftSpoolPath,
+  markDraftsAcceptedByServer,
   markDraftsFiled,
+  readServerSpooledDrafts,
   readSpooledDrafts,
   spoolDrafts,
   spoolSiblingPath,
@@ -73,6 +75,10 @@ describe('retro draft spool (BNGK9W — persist post-egress drafts on filing fai
     expect(readFileSync(draftSpoolPath(projectDirectory, 'sess-routes'), 'utf8')).toContain(
       '"route":"server-v3"',
     );
+
+    expect(readServerSpooledDrafts(projectDirectory, 'sess-routes')).toEqual([serverDraft]);
+    markDraftsAcceptedByServer(projectDirectory, 'sess-routes', [serverDraft.signature]);
+    expect(readServerSpooledDrafts(projectDirectory, 'sess-routes')).toEqual([]);
   });
 
   it('reads an empty list when the spool is absent or unreadable (never throws)', () => {

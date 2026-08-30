@@ -46738,8 +46738,10 @@ __export(exports_retro_draft_spool, {
   spoolDrafts: () => spoolDrafts,
   recordFiledAck: () => recordFiledAck,
   readSpooledDrafts: () => readSpooledDrafts,
+  readServerSpooledDrafts: () => readServerSpooledDrafts,
   readAcks: () => readAcks,
   markDraftsFiled: () => markDraftsFiled,
+  markDraftsAcceptedByServer: () => markDraftsAcceptedByServer,
   fileSpooledDrafts: () => fileSpooledDrafts,
   drainAcknowledgedDrafts: () => drainAcknowledgedDrafts,
   draftSpoolPath: () => draftSpoolPath,
@@ -46789,6 +46791,9 @@ function readAllSpooledDrafts(projectDirectory, sessionId) {
 function readSpooledDrafts(projectDirectory, sessionId) {
   return readAllSpooledDrafts(projectDirectory, sessionId).filter((draft) => draft.route !== "server-v3");
 }
+function readServerSpooledDrafts(projectDirectory, sessionId) {
+  return readAllSpooledDrafts(projectDirectory, sessionId).filter((draft) => draft.route === "server-v3");
+}
 function draftLine(draft) {
   return JSON.stringify({
     signature: draft.signature,
@@ -46830,6 +46835,9 @@ function removeDrafts(projectDirectory, sessionId, removedSignatures, routeMatch
 }
 function markDraftsFiled(projectDirectory, sessionId, filedSignatures) {
   removeDrafts(projectDirectory, sessionId, filedSignatures, (draft) => draft.route !== "server-v3");
+}
+function markDraftsAcceptedByServer(projectDirectory, sessionId, acceptedSignatures) {
+  removeDrafts(projectDirectory, sessionId, acceptedSignatures, (draft) => draft.route === "server-v3");
 }
 function ackFilePath(projectDirectory, sessionId) {
   return spoolSiblingPath(projectDirectory, sessionId, ".acks.jsonl");
@@ -60918,11 +60926,9 @@ async function runRetro(options, dependencies) {
   const { projectDirectory, publicRetro, sessionId } = dependencies;
   const relay = dependencies.relay;
   const sourceSession = sessionId.trim().length === 0 || sessionId === "unknown" ? options.transcript : sessionId;
-  if (projectDirectory !== undefined && relay?.readiness.enabled !== true && publicRetro?.route !== "server-v3") {
-    const drafts = encounters.map((encounter) => ({
-      ...encounter.draft,
-      route: "direct-v2"
-    }));
+  if (projectDirectory !== undefined && relay?.readiness.enabled !== true) {
+    const route = publicRetro?.route ?? "direct-v2";
+    const drafts = encounters.map((encounter) => ({ ...encounter.draft, route }));
     recordRetroDebugEvent({
       event: "retro_cli_spool",
       sessionId,
@@ -60953,8 +60959,11 @@ async function runRetro(options, dependencies) {
       windowStart: options.windowStart ?? 0
     }, publicRetro, publicRetro.now() + 750);
   };
-  await deliverPublic();
+  const publicOutcome = await deliverPublic();
   if (publicRetro?.route === "server-v3") {
+    if (publicOutcome === "preserved" && projectDirectory !== undefined) {
+      markDraftsAcceptedByServer(projectDirectory, sessionId, encounters.map((encounter) => encounter.draft.signature));
+    }
     return {
       ok: true,
       result: {

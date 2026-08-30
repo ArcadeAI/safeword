@@ -38,6 +38,7 @@ import { recordRetroDebugEvent } from '../../templates/hooks/lib/retro-debug.js'
 import {
   draftSpoolPath,
   drainAcknowledgedDrafts,
+  markDraftsAcceptedByServer,
   readSpooledDrafts,
   recordFiledAck,
   spoolDrafts,
@@ -348,15 +349,9 @@ export async function runRetro(
 
   // Preserve private recovery before the best-effort public handoff. A process
   // interruption during that network attempt must not lose the durable draft.
-  if (
-    projectDirectory !== undefined &&
-    relay?.readiness.enabled !== true &&
-    publicRetro?.route !== 'server-v3'
-  ) {
-    const drafts = encounters.map(encounter => ({
-      ...encounter.draft,
-      route: 'direct-v2' as const,
-    }));
+  if (projectDirectory !== undefined && relay?.readiness.enabled !== true) {
+    const route = publicRetro?.route ?? 'direct-v2';
+    const drafts = encounters.map(encounter => ({ ...encounter.draft, route }));
     recordRetroDebugEvent({
       event: 'retro_cli_spool',
       sessionId,
@@ -393,8 +388,15 @@ export async function runRetro(
       publicRetro.now() + 750,
     );
   };
-  await deliverPublic();
+  const publicOutcome = await deliverPublic();
   if (publicRetro?.route === 'server-v3') {
+    if (publicOutcome === 'preserved' && projectDirectory !== undefined) {
+      markDraftsAcceptedByServer(
+        projectDirectory,
+        sessionId,
+        encounters.map(encounter => encounter.draft.signature),
+      );
+    }
     return {
       ok: true,
       result: {
