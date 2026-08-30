@@ -5,6 +5,7 @@
  */
 
 import { execSync, spawnSync } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -12,7 +13,10 @@ import { describe, expect, it } from 'vitest';
 import { createTemporaryDirectory, initGitRepo, writeTestFile } from '../helpers.js';
 
 const SAFEWORD_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
-const POST_TOOL_QUALITY = nodePath.join(SAFEWORD_ROOT, '.safeword/hooks/post-tool-quality.ts');
+const POST_TOOL_QUALITY = nodePath.join(
+  SAFEWORD_ROOT,
+  'packages/cli/templates/hooks/post-tool-quality.ts',
+);
 const TICKET_FOLDER = '.safeword-project/tickets/ABC123-demo';
 
 interface ToolInput {
@@ -46,7 +50,7 @@ function run(cwd: string, toolName: string, toolInput: ToolInput, sessionId = 's
   });
   const out = (result.stdout ?? '').trim();
   const context = out ? JSON.parse(out).hookSpecificOutput?.additionalContext : undefined;
-  return { out, context };
+  return { status: result.status, out, context };
 }
 
 function ticketPath(cwd: string): string {
@@ -66,6 +70,19 @@ function defsPath(cwd: string): string {
 }
 
 describe('PostToolUse implement-step review surface (JENFZX)', () => {
+  it('ignores a missing runtime state file before creating it for any agent', () => {
+    const cwd = project();
+
+    const result = run(cwd, 'Edit', { file_path: 'init.txt' });
+
+    expect(result.status).toBe(0);
+    expect(readFileSync(nodePath.join(cwd, '.safeword-project/.gitignore'), 'utf8')).toBe(
+      '/quality-state-s1.json\n',
+    );
+    expect(existsSync(nodePath.join(cwd, '.safeword-project/quality-state-s1.json'))).toBe(true);
+    expect(existsSync(nodePath.join(cwd, '.safeword'))).toBe(false);
+  });
+
   it('surfaces no user-facing review on a RED flip during implement (JENFZX)', () => {
     const cwd = project();
     const { context } = run(cwd, 'Edit', {
