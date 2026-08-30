@@ -350,7 +350,6 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     'destructive',
     {
       syntax: 'runtime <helper> [args...]',
-      promptPolicy: 'confirm',
       networkPolicy: 'declared',
     },
   ),

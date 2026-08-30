@@ -34,6 +34,9 @@ canonical commands below.
 | `project test-execution remote setup`   | mutate      | Install the managed remote-test workflow                                                                    |
 | `project test-execution remote disable` | mutate      | Remove the managed remote-test workflow                                                                     |
 | `project lint-gherkin`                  | observe     | Validate executable feature files                                                                           |
+| `project audit-scope`                   | observe     | Print the packaged audit scope shell contract                                                               |
+| `project record-skill-invocation`       | mutate      | Record current-run workflow proof                                                                           |
+| `project runtime`                       | destructive | Run an allowlisted packaged helper with the helper arguments after --                                       |
 | `project retro-drain`                   | mutate      | Drain acknowledged retro drafts from a spool                                                                |
 | `project review-knowledge`              | observe     | Resolve the principles, personas, and surfaces sources for a review                                         |
 | `project public-retros`                 | mutate      | Turn silent public retrospective collection on or off                                                       |
