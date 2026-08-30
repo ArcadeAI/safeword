@@ -249,6 +249,44 @@ describe('retro command configuration, extraction, egress, and relay execution',
     ).toBe(false);
   });
 
+  it('selects the local server route only for proven local provenance', () => {
+    expect(
+      localServerRouteEnabled(
+        {
+          harness: 'codex',
+          hostClass: 'local',
+          projectUUID: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          safewordCliVersion: '0.82.1',
+        },
+        true,
+      ),
+    ).toBe(true);
+  });
+
+  it('resolves the server-owned route when local readiness is proven', () => {
+    const project = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-route-'));
+    try {
+      mkdirSync(nodePath.join(project, '.safeword'));
+      writeFileSync(
+        nodePath.join(project, '.safeword/config.json'),
+        JSON.stringify({ projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' }),
+      );
+
+      expect(
+        resolvePublicRetroRoute({
+          agent: 'codex',
+          enabled: true,
+          environment: {},
+          projectDirectory: project,
+          serverReady: true,
+          sessionId: 'session-fixture',
+        }),
+      ).toMatchObject({ route: 'server-v3', source: { harness: 'codex', hostClass: 'local' } });
+    } finally {
+      rmSync(project, { force: true, recursive: true });
+    }
+  });
+
   it('classifies Cursor managed, local, and indeterminate runtime evidence conservatively', () => {
     const missing = () => {
       const error = new Error('missing') as NodeJS.ErrnoException;
@@ -269,14 +307,14 @@ describe('retro command configuration, extraction, egress, and relay execution',
     agent => {
       expect(publicRouteFor(agent)?.source).toMatchObject({
         harness: agent,
-        hostClass: 'local',
+        hostClass: 'unknown',
       });
     },
   );
 
   it('builds a bounded Cursor source when a conversation identity is available', () => {
     const source = publicRouteFor('cursor')?.source;
-    expect(source).toMatchObject({ harness: 'cursor', hostClass: 'local' });
+    expect(source).toMatchObject({ harness: 'cursor', hostClass: 'unknown' });
     expect(source).not.toHaveProperty('agentVersion');
     expect(source).not.toHaveProperty('model');
     expect(source).not.toHaveProperty('safewordPluginVersion');
@@ -403,7 +441,7 @@ describe('retro command configuration, extraction, egress, and relay execution',
       expect(publicTransport).toHaveBeenCalledOnce();
       expect(body.source).toMatchObject({
         harness: 'cursor',
-        hostClass: 'local',
+        hostClass: 'unknown',
         projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
       });
       expect(body.source).not.toHaveProperty('repository');
@@ -542,7 +580,7 @@ describe('retro command configuration, extraction, egress, and relay execution',
 
       expect(source).toEqual({
         harness: 'codex',
-        hostClass: 'local',
+        hostClass: 'unknown',
         projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
         safewordCliVersion: expect.any(String),
         repository: 'github.com/arcadeai/safeword',

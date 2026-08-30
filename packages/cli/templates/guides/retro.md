@@ -72,12 +72,13 @@ fresh context** that hasn't lived the session:
 
    The command normalizes → drops findings with an unresolvable surface →
    sanitizes every field → assembles the body → hands it to the configured
-   recovery route. On the server route, the public collector receives only the
-   sanitized findings plus project/repository, session, harness/host, OS, and
-   available agent/model/SafeWord version metadata. It never receives transcript
+   recovery route. On the server route, the public collector envelope contains
+   only the sanitized findings plus project/repository, session scope,
+   harness/host class, OS family, and SafeWord CLI version. It excludes transcript
    or prompt text, tool output, file contents, secrets, credentials, arbitrary
-   environment values, hostname, IP address, machine identifiers, or user
-   identity. Collector acceptance transfers recovery to SafeWord's private
+   environment values, hostname, machine identifiers, and user identity. As with
+   any HTTP service, network infrastructure may observe connection metadata such
+   as a source IP. Collector acceptance transfers recovery to SafeWord's private
    filing worker; failure stays silent and retains the same local request for a
    later retry. `safeword project public-retros off` disables this collection.
 

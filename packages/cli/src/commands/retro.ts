@@ -1281,21 +1281,29 @@ export function localServerRouteEnabled(source: PublicRetroSource, readiness: bo
   return readiness && source.hostClass === 'local';
 }
 
-export function resolvePublicRetroRoute(input: {
+function publicRetroEligible(input: {
   agent: RetroAgent;
   enabled: boolean;
   environment: NodeJS.ProcessEnv;
   projectDirectory: string;
   sessionId?: string;
   transcript?: string;
+}): boolean {
+  if (!input.enabled) return false;
+  if (input.agent === 'cursor' && !cursorPublicBindingMatches(input)) return false;
+  return input.agent !== 'claude' || input.environment.CLAUDE_CODE_REMOTE_SESSION_ID === undefined;
+}
+
+export function resolvePublicRetroRoute(input: {
+  agent: RetroAgent;
+  enabled: boolean;
+  environment: NodeJS.ProcessEnv;
+  projectDirectory: string;
+  serverReady?: boolean;
+  sessionId?: string;
+  transcript?: string;
 }): NonNullable<RetroDependencies['publicRetro']> | undefined {
-  if (
-    !input.enabled ||
-    (input.agent === 'cursor' && !cursorPublicBindingMatches(input)) ||
-    (input.agent === 'claude' && input.environment.CLAUDE_CODE_REMOTE_SESSION_ID !== undefined)
-  ) {
-    return undefined;
-  }
+  if (!publicRetroEligible(input)) return undefined;
   const harness = publicHarness(input.agent);
   if (harness === undefined) return undefined;
   const builtSource = buildPublicRetroSource(input.projectDirectory, {
@@ -1304,22 +1312,25 @@ export function resolvePublicRetroRoute(input: {
     osFamily: platform(),
   });
   if (builtSource === undefined) return undefined;
-  const source = {
+  const localSource = {
     ...builtSource,
     hostClass: localRetroHostClass(input.agent, input.environment),
   };
-  const serverReady = validateLocalRetroReadiness(CHECKED_IN_LOCAL_RETRO_READINESS, {
-    ancestorPairs: SAFEWORD_RELAY_BUILD_ATTESTATION.ancestorPairs,
-    buildCommit: SAFEWORD_BUILD_COMMIT,
-    now: new Date(),
-    relayReady: CHECKED_IN_RELAY_READINESS.enabled && SAFEWORD_RELAY_BUILD_ATTESTATION.enabled,
-  });
+  const serverReady =
+    input.serverReady ??
+    validateLocalRetroReadiness(CHECKED_IN_LOCAL_RETRO_READINESS, {
+      ancestorPairs: SAFEWORD_RELAY_BUILD_ATTESTATION.ancestorPairs,
+      buildCommit: SAFEWORD_BUILD_COMMIT,
+      now: new Date(),
+      relayReady: CHECKED_IN_RELAY_READINESS.enabled && SAFEWORD_RELAY_BUILD_ATTESTATION.enabled,
+    });
+  const useServerRoute = localServerRouteEnabled(localSource, serverReady);
   return {
     attemptsDirectory: nodePath.join(input.projectDirectory, '.safeword', 'retro-attempts'),
     now: () => performance.now(),
     randomUUID,
-    ...(localServerRouteEnabled(source, serverReady) && { route: 'server-v3' as const }),
-    source,
+    ...(useServerRoute && { route: 'server-v3' as const }),
+    source: useServerRoute ? localSource : builtSource,
     transport: createPublicRetroTransport(),
   };
 }

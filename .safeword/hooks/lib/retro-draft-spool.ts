@@ -135,6 +135,16 @@ export function readSpooledDrafts(projectDirectory: string, sessionId: string): 
   );
 }
 
+/** Read server-routed drafts retained until collector acceptance. */
+export function readServerSpooledDrafts(
+  projectDirectory: string,
+  sessionId: string,
+): SpooledDraft[] {
+  return readAllSpooledDrafts(projectDirectory, sessionId).filter(
+    draft => draft.route === 'server-v3',
+  );
+}
+
 /** Serialize one draft to its canonical spool line (only the code-assembled fields). */
 function draftLine(draft: SpooledDraft): string {
   return JSON.stringify({
@@ -190,11 +200,12 @@ function removeDrafts(
   projectDirectory: string,
   sessionId: string,
   removedSignatures: readonly string[],
+  routeMatches: (draft: SpooledDraft) => boolean,
 ): void {
   try {
     const removed = new Set(removedSignatures);
     const remaining = readAllSpooledDrafts(projectDirectory, sessionId).filter(
-      draft => !removed.has(draft.signature),
+      draft => !removed.has(draft.signature) || !routeMatches(draft),
     );
     const body =
       remaining.length > 0 ? `${remaining.map(draft => draftLine(draft)).join('\n')}\n` : '';
@@ -209,7 +220,7 @@ export function markDraftsFiled(
   sessionId: string,
   filedSignatures: readonly string[],
 ): void {
-  removeDrafts(projectDirectory, sessionId, filedSignatures);
+  removeDrafts(projectDirectory, sessionId, filedSignatures, draft => draft.route !== 'server-v3');
 }
 
 /** Remove drafts after the collector has durably accepted ownership of them. */
@@ -218,7 +229,12 @@ export function markDraftsAcceptedByServer(
   sessionId: string,
   acceptedSignatures: readonly string[],
 ): void {
-  removeDrafts(projectDirectory, sessionId, acceptedSignatures);
+  removeDrafts(
+    projectDirectory,
+    sessionId,
+    acceptedSignatures,
+    draft => draft.route === 'server-v3',
+  );
 }
 
 /** One filed-draft ack: the signature and the tracker issue it landed on (GH644A). */

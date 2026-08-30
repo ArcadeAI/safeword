@@ -13,7 +13,14 @@ export interface LocalRetroReadinessManifest {
       terminal: 'duplicate' | 'filed';
     }
   >;
-  recoveredFaults: Record<'ambiguousCreate' | 'retryExhaustion' | 'workerOutage', string>;
+  recoveredFaults: Record<
+    | 'ambiguousCreateMatch'
+    | 'ambiguousCreateNoMatch'
+    | 'claimCrash'
+    | 'retryExhaustion'
+    | 'workerOutage',
+    string
+  >;
   reviewedAt: string;
   version: 1;
 }
@@ -85,7 +92,14 @@ export function validateLocalRetroReadiness(
     left.localeCompare(right),
   );
   return (
-    faultKeys.join('\0') === ['ambiguousCreate', 'retryExhaustion', 'workerOutage'].join('\0') &&
+    faultKeys.join('\0') ===
+      [
+        'ambiguousCreateMatch',
+        'ambiguousCreateNoMatch',
+        'claimCrash',
+        'retryExhaustion',
+        'workerOutage',
+      ].join('\0') &&
     Object.values(manifest.recoveredFaults).every(value => /^[\da-f]{64}$/u.test(value))
   );
 }

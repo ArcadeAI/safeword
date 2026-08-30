@@ -46738,6 +46738,7 @@ __export(exports_retro_draft_spool, {
   spoolDrafts: () => spoolDrafts,
   recordFiledAck: () => recordFiledAck,
   readSpooledDrafts: () => readSpooledDrafts,
+  readServerSpooledDrafts: () => readServerSpooledDrafts,
   readAcks: () => readAcks,
   markDraftsFiled: () => markDraftsFiled,
   markDraftsAcceptedByServer: () => markDraftsAcceptedByServer,
@@ -46790,6 +46791,9 @@ function readAllSpooledDrafts(projectDirectory, sessionId) {
 function readSpooledDrafts(projectDirectory, sessionId) {
   return readAllSpooledDrafts(projectDirectory, sessionId).filter((draft) => draft.route !== "server-v3");
 }
+function readServerSpooledDrafts(projectDirectory, sessionId) {
+  return readAllSpooledDrafts(projectDirectory, sessionId).filter((draft) => draft.route === "server-v3");
+}
 function draftLine(draft) {
   return JSON.stringify({
     signature: draft.signature,
@@ -46819,10 +46823,10 @@ function verifyDraftBody(draft) {
     return true;
   return createHash24("sha256").update(draft.body).digest("hex").slice(0, 12) === draft.bodyDigest;
 }
-function removeDrafts(projectDirectory, sessionId, removedSignatures) {
+function removeDrafts(projectDirectory, sessionId, removedSignatures, routeMatches) {
   try {
     const removed = new Set(removedSignatures);
-    const remaining = readAllSpooledDrafts(projectDirectory, sessionId).filter((draft) => !removed.has(draft.signature));
+    const remaining = readAllSpooledDrafts(projectDirectory, sessionId).filter((draft) => !removed.has(draft.signature) || !routeMatches(draft));
     const body = remaining.length > 0 ? `${remaining.map((draft) => draftLine(draft)).join(`
 `)}
 ` : "";
@@ -46830,10 +46834,10 @@ function removeDrafts(projectDirectory, sessionId, removedSignatures) {
   } catch {}
 }
 function markDraftsFiled(projectDirectory, sessionId, filedSignatures) {
-  removeDrafts(projectDirectory, sessionId, filedSignatures);
+  removeDrafts(projectDirectory, sessionId, filedSignatures, (draft) => draft.route !== "server-v3");
 }
 function markDraftsAcceptedByServer(projectDirectory, sessionId, acceptedSignatures) {
-  removeDrafts(projectDirectory, sessionId, acceptedSignatures);
+  removeDrafts(projectDirectory, sessionId, acceptedSignatures, (draft) => draft.route === "server-v3");
 }
 function ackFilePath(projectDirectory, sessionId) {
   return spoolSiblingPath(projectDirectory, sessionId, ".acks.jsonl");
@@ -52011,7 +52015,13 @@ function validateLocalRetroReadiness(manifest, input) {
   if (harnesses.some((evidence) => !validHarnessEvidence(evidence, manifest, input)))
     return false;
   const faultKeys = Object.keys(manifest.recoveredFaults).toSorted((left, right) => left.localeCompare(right));
-  return faultKeys.join("\x00") === ["ambiguousCreate", "retryExhaustion", "workerOutage"].join("\x00") && Object.values(manifest.recoveredFaults).every((value) => /^[\da-f]{64}$/u.test(value));
+  return faultKeys.join("\x00") === [
+    "ambiguousCreateMatch",
+    "ambiguousCreateNoMatch",
+    "claimCrash",
+    "retryExhaustion",
+    "workerOutage"
+  ].join("\x00") && Object.values(manifest.recoveredFaults).every((value) => /^[\da-f]{64}$/u.test(value));
 }
 var CHECKED_IN_LOCAL_RETRO_READINESS, COMMIT, UUID2;
 var init_local_retro_readiness = __esm(() => {
@@ -61521,10 +61531,16 @@ function localRetroHostClass(agent, environment, socketStatus = statSync11) {
 function localServerRouteEnabled(source, readiness) {
   return readiness && source.hostClass === "local";
 }
+function publicRetroEligible(input) {
+  if (!input.enabled)
+    return false;
+  if (input.agent === "cursor" && !cursorPublicBindingMatches(input))
+    return false;
+  return input.agent !== "claude" || input.environment.CLAUDE_CODE_REMOTE_SESSION_ID === undefined;
+}
 function resolvePublicRetroRoute(input) {
-  if (!input.enabled || input.agent === "cursor" && !cursorPublicBindingMatches(input) || input.agent === "claude" && input.environment.CLAUDE_CODE_REMOTE_SESSION_ID !== undefined) {
+  if (!publicRetroEligible(input))
     return;
-  }
   const harness = publicHarness(input.agent);
   if (harness === undefined)
     return;
@@ -61535,22 +61551,23 @@ function resolvePublicRetroRoute(input) {
   });
   if (builtSource === undefined)
     return;
-  const source = {
+  const localSource = {
     ...builtSource,
     hostClass: localRetroHostClass(input.agent, input.environment)
   };
-  const serverReady = validateLocalRetroReadiness(CHECKED_IN_LOCAL_RETRO_READINESS, {
+  const serverReady = input.serverReady ?? validateLocalRetroReadiness(CHECKED_IN_LOCAL_RETRO_READINESS, {
     ancestorPairs: SAFEWORD_RELAY_BUILD_ATTESTATION.ancestorPairs,
     buildCommit: SAFEWORD_BUILD_COMMIT,
     now: new Date,
     relayReady: CHECKED_IN_RELAY_READINESS.enabled && SAFEWORD_RELAY_BUILD_ATTESTATION.enabled
   });
+  const useServerRoute = localServerRouteEnabled(localSource, serverReady);
   return {
     attemptsDirectory: nodePath105.join(input.projectDirectory, ".safeword", "retro-attempts"),
     now: () => performance.now(),
     randomUUID: randomUUID13,
-    ...localServerRouteEnabled(source, serverReady) && { route: "server-v3" },
-    source,
+    ...useServerRoute && { route: "server-v3" },
+    source: useServerRoute ? localSource : builtSource,
     transport: createPublicRetroTransport()
   };
 }

@@ -10,6 +10,7 @@ import {
   draftSpoolPath,
   markDraftsAcceptedByServer,
   markDraftsFiled,
+  readServerSpooledDrafts,
   readSpooledDrafts,
   spoolDrafts,
   spoolSiblingPath,
@@ -59,12 +60,26 @@ describe('retro draft spool (BNGK9W — persist post-egress drafts on filing fai
     spoolDrafts(projectDirectory, 'sess-1', [serverDraft]);
 
     expect(readSpooledDrafts(projectDirectory, 'sess-1')).toEqual([]);
+    expect(readServerSpooledDrafts(projectDirectory, 'sess-1')).toEqual([serverDraft]);
     expect(readFileSync(draftSpoolPath(projectDirectory, 'sess-1'), 'utf8')).toContain(
       '"route":"server-v3"',
     );
 
     markDraftsAcceptedByServer(projectDirectory, 'sess-1', [serverDraft.signature]);
     expect(readFileSync(draftSpoolPath(projectDirectory, 'sess-1'), 'utf8')).toBe('');
+  });
+
+  it('drains matching signatures only from the owning route', () => {
+    const directDraft = draft('retro:aaaaaaaaaaaa');
+    const serverDraft = { ...directDraft, route: 'server-v3' as const };
+    spoolDrafts(projectDirectory, 'sess-routes', [directDraft, serverDraft]);
+
+    markDraftsFiled(projectDirectory, 'sess-routes', [directDraft.signature]);
+    expect(readSpooledDrafts(projectDirectory, 'sess-routes')).toEqual([]);
+    expect(readServerSpooledDrafts(projectDirectory, 'sess-routes')).toEqual([serverDraft]);
+
+    markDraftsAcceptedByServer(projectDirectory, 'sess-routes', [serverDraft.signature]);
+    expect(readServerSpooledDrafts(projectDirectory, 'sess-routes')).toEqual([]);
   });
 
   it('reads an empty list when the spool is absent or unreadable (never throws)', () => {
