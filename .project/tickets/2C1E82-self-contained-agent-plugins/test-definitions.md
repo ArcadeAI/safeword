@@ -6,29 +6,23 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: self-contained-plugins.TBU1.R1 — Every agent workflow executes from its declared authority without borrowing runtime
 
-### Scenario: A native agent workflow executes from its profile entry point
-
-- [x] RED 46918e4b0
-- [x] GREEN 90e1090b8
-- [x] REFACTOR skip: selection is expressed by the existing schema projection rather than host branches
-
 ### Scenario: A packaged shared-shell helper executes without project runtime
 
 - [x] RED 7d4d3af5b
 - [x] GREEN b537aed65
 - [x] REFACTOR skip: the command emits the existing sourceable shell contract
 
+### Scenario: A sourced helper failure preserves the caller shell
+
+- [x] RED 7d4d3af5b
+- [x] GREEN b537aed65
+- [x] REFACTOR skip: success and failure share the same sourced-shell return contract
+
 ### Scenario: Legacy project runtime cannot regain native workflow authority
 
 - [x] RED 7d4d3af5b
 - [x] GREEN ee65a9dba
 - [x] REFACTOR skip: packaged resolution does not inspect project runtime completeness
-
-### Scenario: OpenCode installation delivers no project runtime
-
-- [x] RED 024bca4fe
-- [x] GREEN 570f86734
-- [x] REFACTOR skip: identity digests are the existing profile ownership contract
 
 ### Scenario: A packaged OpenCode workflow executes without project runtime
 
@@ -82,7 +76,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Existing framework state is updated without reinitialization
 
-- [x] RED skip: existing state-merge tests cover value preservation and 419a73696 covers ignore idempotency
+- [x] RED ccb60ea0d
 - [x] GREEN ae4e417a5
 - [x] REFACTOR skip: lazy initialization shares the existing read-update-write state path
 
@@ -99,6 +93,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] REFACTOR skip: packaged commands share the existing enrollment predicate
 
 ## Rule: self-contained-plugins.NTB1.R1 — Project reconciliation is bounded to selected delivery authorities
+
+### Scenario: OpenCode installation delivers no project runtime
+
+- [x] RED 024bca4fe
+- [x] GREEN 570f86734
+- [x] REFACTOR skip: identity digests are the existing profile ownership contract
 
 ### Scenario: A native single-agent project schema excludes project delivery
 
