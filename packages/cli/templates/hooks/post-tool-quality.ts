@@ -4,10 +4,11 @@
 // per-session quality state. Fires on Edit|Write|MultiEdit|NotebookEdit|Bash
 
 import { execFileSync, execSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { isGitOperationInProgress } from './lib/git-operation.ts';
+import { ensureTransientStateIgnore } from './lib/project-state.ts';
 import { getQualityMessage } from './lib/quality.ts';
 import {
   getStateFilePath,
@@ -82,10 +83,7 @@ function loadState(): QualityState {
 }
 
 function saveState(state: QualityState): void {
-  const dir = nodePath.dirname(stateFile);
-  if (!existsSync(dir)) {
-    mkdirSync(dir, { recursive: true });
-  }
+  ensureTransientStateIgnore(projectDirectory, nodePath.basename(stateFile));
   writeFileSync(stateFile, JSON.stringify(state, null, 2));
 }
 
