@@ -18,12 +18,6 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN 90e1090b8
 - [x] REFACTOR skip: Cursor remains the sole project-runtime consumer
 
-### Scenario: Codex helpers resolve through version-pinned package commands
-
-- [x] RED 7d4d3af5b
-- [x] GREEN ee65a9dba
-- [x] REFACTOR skip: one allowlisted packaged runtime command serves the remaining helpers
-
 ### Scenario: A packaged shared-shell helper executes without project runtime
 
 - [x] RED 7d4d3af5b
@@ -76,11 +70,17 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: self-contained-plugins.NTB1.R1 — Project reconciliation is bounded to selected delivery authorities
 
-### Scenario: A single-agent project schema excludes unselected hosts
+### Scenario: A native single-agent project schema excludes project delivery
 
 - [x] RED 46918e4b0
 - [x] GREEN 90e1090b8
 - [x] REFACTOR skip: schema projection already computes the selected consumer set
+
+### Scenario: A Cursor-only project schema retains Cursor authority
+
+- [x] RED 46918e4b0
+- [x] GREEN 90e1090b8
+- [x] REFACTOR skip: Cursor remains the sole project-runtime consumer
 
 ### Scenario: Mixed selection preserves Cursor without copying native runtimes
 
@@ -99,8 +99,8 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Complete native catalogues pass executable-reference validation
 
 - [x] RED d7fb488ee
-- [x] GREEN 6d13e53cc
-- [x] REFACTOR skip: Codex and OpenCode share one narrow validator
+- [x] GREEN f7f4cd053
+- [x] REFACTOR f7f4cd053
 
 ### Scenario: OpenCode profile identity records the complete owned catalogue
 
@@ -117,8 +117,8 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: OpenCode upgrade removes only prior identity-owned catalogue bytes
 
 - [x] RED 024bca4fe
-- [x] GREEN 570f86734
-- [x] REFACTOR skip: upgrade uses the recorded identity inventory
+- [x] GREEN f7f4cd053
+- [x] REFACTOR f7f4cd053
 
 ### Scenario: OpenCode uninstall preserves drifted catalogue content
 
