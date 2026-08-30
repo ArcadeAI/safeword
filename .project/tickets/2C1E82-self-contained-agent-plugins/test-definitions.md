@@ -10,7 +10,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 753327940
 - [x] GREEN effd1849b
-- [ ] REFACTOR
+- [x] REFACTOR skip: the package command directly reuses the canonical logger; no duplicate behavior remains
 
 ### Scenario: A plugin-backed agent ignores a complete legacy project runtime
 
