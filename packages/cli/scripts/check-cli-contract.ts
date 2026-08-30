@@ -43,6 +43,11 @@ const checks: readonly Check[] = [
     args: ['scripts/generate-claude-plugin.ts', '--check'],
   },
   {
+    name: 'generated Codex plugin',
+    command: 'bun',
+    args: ['scripts/generate-codex-plugin.ts', '--check'],
+  },
+  {
     name: 'Claude plugin release contract',
     command: 'bun',
     args: ['scripts/check-claude-plugin-release.ts'],

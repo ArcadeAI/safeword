@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -15,7 +15,8 @@ import {
 } from '../helpers/review-entrypoints.js';
 
 const RESOLVER_COMMAND = REVIEW_KNOWLEDGE_RESOLVER;
-const CLI_ENTRY = nodePath.resolve(import.meta.dirname, '../../src/cli.ts');
+const BUNDLED_CLI = nodePath.resolve(import.meta.dirname, '../../codex-plugin/runtime/cli.js');
+const BUNDLED_PACKAGE = nodePath.resolve(import.meta.dirname, '../../codex-plugin/package.json');
 
 /** The resolver each host's shipped procedure is expected to name. */
 function resolverFor(host: string): string {
@@ -63,21 +64,33 @@ function readEntrypoint(root: string, path: string, resolver: string): string {
 /**
  * Run what the host is actually told to run. Codex's generated procedure names
  * the versioned bundled CLI followed by `project review-knowledge`; this
- * exercises the same subcommand through the local source entry point, so the
- * check stays behavioural without reaching the registry for an unpublished pin.
+ * materializes that exact cache layout and executes the generated command.
  */
 function followCodexResolverInstruction(projectDirectory: string, instructions: string) {
-  const command = /runtime\/cli\.js"\s+(project review-knowledge)\s+--json/u.exec(
-    instructions,
-  )?.[1];
-  expect(command, 'Codex procedure must name the bundled review-knowledge subcommand').toBe(
-    CODEX_REVIEW_KNOWLEDGE_RESOLVER,
+  const match =
+    /(bun "\$\{CODEX_HOME:-\$HOME\/\.codex\}\/plugins\/cache\/safeword\/safeword\/(?<version>[\w.-]+)\/runtime\/cli\.js" project review-knowledge --json)/u.exec(
+      instructions,
+    );
+  expect(match?.[1], 'Codex procedure must name the versioned bundled CLI command').toBeDefined();
+  expect(match?.[1]).toContain(CODEX_REVIEW_KNOWLEDGE_RESOLVER);
+
+  const codexHome = nodePath.join(projectDirectory, '.codex-home');
+  const runtime = nodePath.join(
+    codexHome,
+    'plugins/cache/safeword/safeword',
+    match?.groups?.version ?? '',
+    'runtime/cli.js',
   );
-  return spawnSync(
-    'bun',
-    [CLI_ENTRY, 'project', 'review-knowledge', '--cwd', projectDirectory, '--json'],
-    { encoding: 'utf8' },
-  );
+  mkdirSync(nodePath.dirname(runtime), { recursive: true });
+  copyFileSync(BUNDLED_CLI, runtime);
+  copyFileSync(BUNDLED_PACKAGE, nodePath.join(nodePath.dirname(runtime), '../package.json'));
+
+  return spawnSync(match?.[1] ?? '', {
+    cwd: projectDirectory,
+    encoding: 'utf8',
+    env: { ...process.env, CODEX_HOME: codexHome },
+    shell: true,
+  });
 }
 
 function followResolverInstruction(projectDirectory: string, instructions: string) {

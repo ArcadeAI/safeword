@@ -20,13 +20,13 @@ interface HooksManifest {
   hooks?: Record<string, Array<{ hooks?: Array<{ command?: unknown }> }>>;
 }
 
-const CODEX_HOOK_EVENTS = [
-  'session-start',
-  'pre-tool-use',
-  'post-tool-use',
-  'user-prompt-submit',
-  'stop',
-] as const;
+const CODEX_HOOK_EVENTS = {
+  SessionStart: 'session-start',
+  PreToolUse: 'pre-tool-use',
+  PostToolUse: 'post-tool-use',
+  UserPromptSubmit: 'user-prompt-submit',
+  Stop: 'stop',
+} as const;
 
 function readJson<T>(relativePath: string): T {
   const filePath = nodePath.join(process.cwd(), relativePath);
@@ -45,14 +45,12 @@ function readVersion(value: unknown, location: string): string {
   return value;
 }
 
-function getHookCommands(manifest: HooksManifest): string[] {
+function getHookCommands(manifest: HooksManifest, event: string): string[] {
   const commands: string[] = [];
 
-  for (const entries of Object.values(manifest.hooks ?? {})) {
-    for (const entry of entries) {
-      for (const hook of entry.hooks ?? []) {
-        if (typeof hook.command === 'string') commands.push(hook.command);
-      }
+  for (const entry of manifest.hooks?.[event] ?? []) {
+    for (const hook of entry.hooks ?? []) {
+      if (typeof hook.command === 'string') commands.push(hook.command);
     }
   }
 
@@ -91,20 +89,12 @@ if (
   );
 }
 
-const expectedCommands = new Set(
-  CODEX_HOOK_EVENTS.map(
-    event => `bun "\${PLUGIN_ROOT}/runtime/cli.js" hook codex ${event} --plugin-hook`,
-  ),
-);
-const hookCommands = getHookCommands(codexHooks);
-const actualCommands = new Set(hookCommands);
-
-if (
-  hookCommands.length !== expectedCommands.size ||
-  actualCommands.size !== expectedCommands.size ||
-  [...expectedCommands].some(command => !actualCommands.has(command))
-) {
-  fail(
-    'Runtime mismatch: packages/cli/codex-plugin/hooks.json must use the bundled CLI for every Codex hook.',
-  );
+for (const [manifestEvent, cliEvent] of Object.entries(CODEX_HOOK_EVENTS)) {
+  const expectedCommand = `bun "\${PLUGIN_ROOT}/runtime/cli.js" hook codex ${cliEvent} --plugin-hook`;
+  const commands = getHookCommands(codexHooks, manifestEvent);
+  if (commands.length !== 1 || commands[0] !== expectedCommand) {
+    fail(
+      `Runtime mismatch: packages/cli/codex-plugin/hooks.json must bind ${manifestEvent} to its bundled CLI command.`,
+    );
+  }
 }

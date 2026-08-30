@@ -65,7 +65,7 @@ var __export = (target, all) => {
 var __esm = (fn, res) => () => (fn && (res = fn(fn = 0)), res);
 var __require = import.meta.require;
 
-// templates/hooks/lib/jsonl-spool.ts
+// packages/cli/templates/hooks/lib/jsonl-spool.ts
 import { appendFileSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "fs";
 import nodePath from "path";
 function* iterateJsonlEntries(text) {
@@ -135,7 +135,7 @@ function atomicWriteFile(file, contents) {
 }
 var init_jsonl_spool = () => {};
 
-// templates/hooks/lib/self-report.ts
+// packages/cli/templates/hooks/lib/self-report.ts
 var exports_self_report = {};
 __export(exports_self_report, {
   surfacedMarkerPath: () => surfacedMarkerPath,
@@ -414,7 +414,7 @@ var init_self_report = __esm(() => {
   SAFE_FRAME_LABEL = /^(?:async |get |set |new )*[\w$.<>]+(?: \[as [\w$.<>]+\])?$/;
 });
 
-// src/version.ts
+// packages/cli/src/version.ts
 import { createRequire } from "module";
 var require2, builtVersion, pkg, VERSION, SAFEWORD_PEER_DEPENDENCIES;
 var init_version = __esm(() => {
@@ -425,7 +425,7 @@ var init_version = __esm(() => {
   SAFEWORD_PEER_DEPENDENCIES = pkg.peerDependencies ?? {};
 });
 
-// src/utils/output.ts
+// packages/cli/src/utils/output.ts
 var exports_output = {};
 __export(exports_output, {
   warn: () => warn,
@@ -461,7 +461,7 @@ function listItem(item, indent = 2) {
   console.log(`${" ".repeat(indent)}\u2022 ${item}`);
 }
 
-// src/cli-protocol/agent-selection.ts
+// packages/cli/src/cli-protocol/agent-selection.ts
 function parseAgentSelection(value) {
   if (value === undefined) {
     return { ok: true, selection: { agents: DEFAULT_AGENT_INTEGRATIONS } };
@@ -507,7 +507,7 @@ var init_agent_selection = __esm(() => {
   AGENT_SELECTION_DESCRIPTION = `${SUPPORTED_AGENT_INTEGRATIONS.join(", ")}, or none`;
 });
 
-// src/utils/hooks.ts
+// packages/cli/src/utils/hooks.ts
 function stable(value) {
   if (Array.isArray(value))
     return value.map((child) => stable(child));
@@ -569,7 +569,7 @@ function filterOutEquivalentSafewordHooks(hooks, ownedHooks) {
   return filterHooksByIdentity(hooks, ownedHooks, true);
 }
 
-// src/claude-plugin/historical-catalogue.generated.ts
+// packages/cli/src/claude-plugin/historical-catalogue.generated.ts
 var CLAUDE_HISTORICAL_CATALOGUE;
 var init_historical_catalogue_generated = __esm(() => {
   CLAUDE_HISTORICAL_CATALOGUE = {
@@ -2020,7 +2020,7 @@ var init_historical_catalogue_generated = __esm(() => {
   };
 });
 
-// src/claude-plugin/historical-ownership.ts
+// packages/cli/src/claude-plugin/historical-ownership.ts
 import { createHash } from "crypto";
 function sha256(content) {
   return createHash("sha256").update(content).digest("hex");
@@ -2071,7 +2071,7 @@ var init_historical_ownership = __esm(() => {
   init_historical_catalogue_generated();
 });
 
-// src/codex-plugin/inventory.ts
+// packages/cli/src/codex-plugin/inventory.ts
 var LEGACY_SKILL_FILES, LEGACY_SKILL_PATHS, LEGACY_SKILL_DIRECTORIES, LEGACY_AGENT_PATHS, LEGACY_HOOK_EVENTS, LEGACY_HOOK_EVENT_NAMES, LEGACY_HOOK_SCRIPT_EVENTS, LEGACY_HOOK_SCRIPTS, LEGACY_RUNTIME_PATHS, SHARED_RUNTIME_PATHS, CODEX_EXCLUSIVE_RUNTIME_PATHS, CODEX_MIGRATION_SCHEMA;
 var init_inventory = __esm(() => {
   LEGACY_SKILL_FILES = [
@@ -2162,7 +2162,7 @@ var init_inventory = __esm(() => {
   };
 });
 
-// src/cursor-wrappers.ts
+// packages/cli/src/cursor-wrappers.ts
 function cursorRuleSkillPairs() {
   const skillRules = new Map;
   for (const wrapper of CURSOR_RULE_WRAPPERS) {
@@ -2398,7 +2398,7 @@ var init_cursor_wrappers = __esm(() => {
   ];
 });
 
-// src/opencode/catalogue.ts
+// packages/cli/src/opencode/catalogue.ts
 function skillName(command) {
   return command.skillPath.split("/", 1)[0] ?? command.name;
 }
@@ -2446,7 +2446,7 @@ var init_catalogue = __esm(() => {
   ]);
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/identity.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/identity.js
 var require_identity = __commonJS((exports) => {
   var ALIAS = Symbol.for("yaml.alias");
   var DOC = Symbol.for("yaml.document");
@@ -2500,7 +2500,7 @@ var require_identity = __commonJS((exports) => {
   exports.isSeq = isSeq;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/visit.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/visit.js
 var require_visit = __commonJS((exports) => {
   var identity = require_identity();
   var BREAK = Symbol("break visit");
@@ -2655,7 +2655,7 @@ var require_visit = __commonJS((exports) => {
   exports.visitAsync = visitAsync;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/doc/directives.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/doc/directives.js
 var require_directives = __commonJS((exports) => {
   var identity = require_identity();
   var visit = require_visit();
@@ -2807,7 +2807,7 @@ var require_directives = __commonJS((exports) => {
   exports.Directives = Directives;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/doc/anchors.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/doc/anchors.js
 var require_anchors = __commonJS((exports) => {
   var identity = require_identity();
   var visit = require_visit();
@@ -2869,7 +2869,7 @@ var require_anchors = __commonJS((exports) => {
   exports.findNewAnchor = findNewAnchor;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/doc/applyReviver.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/doc/applyReviver.js
 var require_applyReviver = __commonJS((exports) => {
   function applyReviver(reviver, obj, key, val) {
     if (val && typeof val === "object") {
@@ -2916,7 +2916,7 @@ var require_applyReviver = __commonJS((exports) => {
   exports.applyReviver = applyReviver;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/toJS.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/toJS.js
 var require_toJS = __commonJS((exports) => {
   var identity = require_identity();
   function toJS(value, arg, ctx) {
@@ -2943,7 +2943,7 @@ var require_toJS = __commonJS((exports) => {
   exports.toJS = toJS;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/Node.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/Node.js
 var require_Node = __commonJS((exports) => {
   var applyReviver = require_applyReviver();
   var identity = require_identity();
@@ -2980,7 +2980,7 @@ var require_Node = __commonJS((exports) => {
   exports.NodeBase = NodeBase;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/Alias.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/Alias.js
 var require_Alias = __commonJS((exports) => {
   var anchors = require_anchors();
   var visit = require_visit();
@@ -3090,7 +3090,7 @@ var require_Alias = __commonJS((exports) => {
   exports.Alias = Alias;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/Scalar.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/Scalar.js
 var require_Scalar = __commonJS((exports) => {
   var identity = require_identity();
   var Node = require_Node();
@@ -3118,7 +3118,7 @@ var require_Scalar = __commonJS((exports) => {
   exports.isScalarValue = isScalarValue;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/doc/createNode.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/doc/createNode.js
 var require_createNode = __commonJS((exports) => {
   var Alias = require_Alias();
   var identity = require_identity();
@@ -3190,7 +3190,7 @@ var require_createNode = __commonJS((exports) => {
   exports.createNode = createNode;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/Collection.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/Collection.js
 var require_Collection = __commonJS((exports) => {
   var createNode = require_createNode();
   var identity = require_identity();
@@ -3305,7 +3305,7 @@ var require_Collection = __commonJS((exports) => {
   exports.isEmptyPath = isEmptyPath;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyComment.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyComment.js
 var require_stringifyComment = __commonJS((exports) => {
   var stringifyComment = (str) => str.replace(/^(?!$)(?: $)?/gm, "#");
   function indentComment(comment, indent) {
@@ -3322,7 +3322,7 @@ var require_stringifyComment = __commonJS((exports) => {
   exports.stringifyComment = stringifyComment;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/foldFlowLines.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/foldFlowLines.js
 var require_foldFlowLines = __commonJS((exports) => {
   var FOLD_FLOW = "flow";
   var FOLD_BLOCK = "block";
@@ -3459,7 +3459,7 @@ ${indent}${text.slice(fold + 1, end2)}`;
   exports.foldFlowLines = foldFlowLines;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyString.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyString.js
 var require_stringifyString = __commonJS((exports) => {
   var Scalar = require_Scalar();
   var foldFlowLines = require_foldFlowLines();
@@ -3757,7 +3757,7 @@ ${indent}`);
   exports.stringifyString = stringifyString;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringify.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringify.js
 var require_stringify = __commonJS((exports) => {
   var anchors = require_anchors();
   var identity = require_identity();
@@ -3878,7 +3878,7 @@ ${ctx.indent}${str}`;
   exports.stringify = stringify;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyPair.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyPair.js
 var require_stringifyPair = __commonJS((exports) => {
   var identity = require_identity();
   var Scalar = require_Scalar();
@@ -4014,7 +4014,7 @@ ${ctx.indent}`;
   exports.stringifyPair = stringifyPair;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/log.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/log.js
 var require_log = __commonJS((exports) => {
   var node_process = __require("process");
   function debug(logLevel, ...messages) {
@@ -4033,7 +4033,7 @@ var require_log = __commonJS((exports) => {
   exports.warn = warn2;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/merge.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/merge.js
 var require_merge = __commonJS((exports) => {
   var identity = require_identity();
   var Scalar = require_Scalar();
@@ -4090,7 +4090,7 @@ var require_merge = __commonJS((exports) => {
   exports.merge = merge;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/addPairToJSMap.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/addPairToJSMap.js
 var require_addPairToJSMap = __commonJS((exports) => {
   var log = require_log();
   var merge = require_merge();
@@ -4151,7 +4151,7 @@ var require_addPairToJSMap = __commonJS((exports) => {
   exports.addPairToJSMap = addPairToJSMap;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/Pair.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/Pair.js
 var require_Pair = __commonJS((exports) => {
   var createNode = require_createNode();
   var stringifyPair = require_stringifyPair();
@@ -4189,7 +4189,7 @@ var require_Pair = __commonJS((exports) => {
   exports.createPair = createPair;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyCollection.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyCollection.js
 var require_stringifyCollection = __commonJS((exports) => {
   var identity = require_identity();
   var stringify = require_stringify();
@@ -4341,7 +4341,7 @@ ${indent}${end}`;
   exports.stringifyCollection = stringifyCollection;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/YAMLMap.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/YAMLMap.js
 var require_YAMLMap = __commonJS((exports) => {
   var stringifyCollection = require_stringifyCollection();
   var addPairToJSMap = require_addPairToJSMap();
@@ -4468,7 +4468,7 @@ var require_YAMLMap = __commonJS((exports) => {
   exports.findPair = findPair;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/common/map.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/common/map.js
 var require_map = __commonJS((exports) => {
   var identity = require_identity();
   var YAMLMap = require_YAMLMap();
@@ -4487,7 +4487,7 @@ var require_map = __commonJS((exports) => {
   exports.map = map;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/YAMLSeq.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/nodes/YAMLSeq.js
 var require_YAMLSeq = __commonJS((exports) => {
   var createNode = require_createNode();
   var stringifyCollection = require_stringifyCollection();
@@ -4580,7 +4580,7 @@ var require_YAMLSeq = __commonJS((exports) => {
   exports.YAMLSeq = YAMLSeq;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/common/seq.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/common/seq.js
 var require_seq = __commonJS((exports) => {
   var identity = require_identity();
   var YAMLSeq = require_YAMLSeq();
@@ -4599,7 +4599,7 @@ var require_seq = __commonJS((exports) => {
   exports.seq = seq;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/common/string.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/common/string.js
 var require_string = __commonJS((exports) => {
   var stringifyString = require_stringifyString();
   var string = {
@@ -4615,7 +4615,7 @@ var require_string = __commonJS((exports) => {
   exports.string = string;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/common/null.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/common/null.js
 var require_null = __commonJS((exports) => {
   var Scalar = require_Scalar();
   var nullTag = {
@@ -4630,7 +4630,7 @@ var require_null = __commonJS((exports) => {
   exports.nullTag = nullTag;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/core/bool.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/core/bool.js
 var require_bool = __commonJS((exports) => {
   var Scalar = require_Scalar();
   var boolTag = {
@@ -4651,7 +4651,7 @@ var require_bool = __commonJS((exports) => {
   exports.boolTag = boolTag;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyNumber.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyNumber.js
 var require_stringifyNumber = __commonJS((exports) => {
   function stringifyNumber({ format, minFractionDigits, tag, value }) {
     if (typeof value === "bigint")
@@ -4675,7 +4675,7 @@ var require_stringifyNumber = __commonJS((exports) => {
   exports.stringifyNumber = stringifyNumber;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/core/float.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/core/float.js
 var require_float = __commonJS((exports) => {
   var Scalar = require_Scalar();
   var stringifyNumber = require_stringifyNumber();
@@ -4718,7 +4718,7 @@ var require_float = __commonJS((exports) => {
   exports.floatNaN = floatNaN;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/core/int.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/core/int.js
 var require_int = __commonJS((exports) => {
   var stringifyNumber = require_stringifyNumber();
   var intIdentify = (value) => typeof value === "bigint" || Number.isInteger(value);
@@ -4760,7 +4760,7 @@ var require_int = __commonJS((exports) => {
   exports.intOct = intOct;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/core/schema.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/core/schema.js
 var require_schema = __commonJS((exports) => {
   var map = require_map();
   var _null = require_null();
@@ -4785,7 +4785,7 @@ var require_schema = __commonJS((exports) => {
   exports.schema = schema;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/json/schema.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/json/schema.js
 var require_schema2 = __commonJS((exports) => {
   var Scalar = require_Scalar();
   var map = require_map();
@@ -4849,7 +4849,7 @@ var require_schema2 = __commonJS((exports) => {
   exports.schema = schema;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/binary.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/binary.js
 var require_binary = __commonJS((exports) => {
   var node_buffer = __require("buffer");
   var Scalar = require_Scalar();
@@ -4904,7 +4904,7 @@ var require_binary = __commonJS((exports) => {
   exports.binary = binary;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/pairs.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/pairs.js
 var require_pairs = __commonJS((exports) => {
   var identity = require_identity();
   var Pair = require_Pair();
@@ -4979,7 +4979,7 @@ ${cn.comment}` : item.comment;
   exports.resolvePairs = resolvePairs;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/omap.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/omap.js
 var require_omap = __commonJS((exports) => {
   var identity = require_identity();
   var toJS = require_toJS();
@@ -5051,7 +5051,7 @@ var require_omap = __commonJS((exports) => {
   exports.omap = omap;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/bool.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/bool.js
 var require_bool2 = __commonJS((exports) => {
   var Scalar = require_Scalar();
   function boolStringify({ value, source }, ctx) {
@@ -5080,7 +5080,7 @@ var require_bool2 = __commonJS((exports) => {
   exports.trueTag = trueTag;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/float.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/float.js
 var require_float2 = __commonJS((exports) => {
   var Scalar = require_Scalar();
   var stringifyNumber = require_stringifyNumber();
@@ -5126,7 +5126,7 @@ var require_float2 = __commonJS((exports) => {
   exports.floatNaN = floatNaN;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/int.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/int.js
 var require_int2 = __commonJS((exports) => {
   var stringifyNumber = require_stringifyNumber();
   var intIdentify = (value) => typeof value === "bigint" || Number.isInteger(value);
@@ -5202,7 +5202,7 @@ var require_int2 = __commonJS((exports) => {
   exports.intOct = intOct;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/set.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/set.js
 var require_set = __commonJS((exports) => {
   var identity = require_identity();
   var Pair = require_Pair();
@@ -5285,7 +5285,7 @@ var require_set = __commonJS((exports) => {
   exports.set = set;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/timestamp.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/timestamp.js
 var require_timestamp = __commonJS((exports) => {
   var stringifyNumber = require_stringifyNumber();
   function parseSexagesimal(str, asBigInt) {
@@ -5367,7 +5367,7 @@ var require_timestamp = __commonJS((exports) => {
   exports.timestamp = timestamp;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/schema.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/schema.js
 var require_schema3 = __commonJS((exports) => {
   var map = require_map();
   var _null = require_null();
@@ -5408,7 +5408,7 @@ var require_schema3 = __commonJS((exports) => {
   exports.schema = schema;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/tags.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/tags.js
 var require_tags = __commonJS((exports) => {
   var map = require_map();
   var _null = require_null();
@@ -5499,7 +5499,7 @@ var require_tags = __commonJS((exports) => {
   exports.getTags = getTags;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/Schema.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/schema/Schema.js
 var require_Schema = __commonJS((exports) => {
   var identity = require_identity();
   var map = require_map();
@@ -5529,7 +5529,7 @@ var require_Schema = __commonJS((exports) => {
   exports.Schema = Schema;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyDocument.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyDocument.js
 var require_stringifyDocument = __commonJS((exports) => {
   var identity = require_identity();
   var stringify = require_stringify();
@@ -5609,7 +5609,7 @@ var require_stringifyDocument = __commonJS((exports) => {
   exports.stringifyDocument = stringifyDocument;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/doc/Document.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/doc/Document.js
 var require_Document = __commonJS((exports) => {
   var Alias = require_Alias();
   var Collection = require_Collection();
@@ -5844,7 +5844,7 @@ var require_Document = __commonJS((exports) => {
   exports.Document = Document;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/errors.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/errors.js
 var require_errors = __commonJS((exports) => {
   class YAMLError extends Error {
     constructor(name, pos, code, message) {
@@ -5909,7 +5909,7 @@ ${pointer}
   exports.prettifyError = prettifyError;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-props.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-props.js
 var require_resolve_props = __commonJS((exports) => {
   function resolveProps(tokens, { flow, indicator, next, offset, onError, parentIndent, startOnNewline }) {
     let spaceBefore = false;
@@ -6039,7 +6039,7 @@ var require_resolve_props = __commonJS((exports) => {
   exports.resolveProps = resolveProps;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/util-contains-newline.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/util-contains-newline.js
 var require_util_contains_newline = __commonJS((exports) => {
   function containsNewline(key) {
     if (!key)
@@ -6079,7 +6079,7 @@ var require_util_contains_newline = __commonJS((exports) => {
   exports.containsNewline = containsNewline;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/util-flow-indent-check.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/util-flow-indent-check.js
 var require_util_flow_indent_check = __commonJS((exports) => {
   var utilContainsNewline = require_util_contains_newline();
   function flowIndentCheck(indent, fc, onError) {
@@ -6094,7 +6094,7 @@ var require_util_flow_indent_check = __commonJS((exports) => {
   exports.flowIndentCheck = flowIndentCheck;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/util-map-includes.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/util-map-includes.js
 var require_util_map_includes = __commonJS((exports) => {
   var identity = require_identity();
   function mapIncludes(ctx, items, search) {
@@ -6107,7 +6107,7 @@ var require_util_map_includes = __commonJS((exports) => {
   exports.mapIncludes = mapIncludes;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-block-map.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-block-map.js
 var require_resolve_block_map = __commonJS((exports) => {
   var Pair = require_Pair();
   var YAMLMap = require_YAMLMap();
@@ -6214,7 +6214,7 @@ var require_resolve_block_map = __commonJS((exports) => {
   exports.resolveBlockMap = resolveBlockMap;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-block-seq.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-block-seq.js
 var require_resolve_block_seq = __commonJS((exports) => {
   var YAMLSeq = require_YAMLSeq();
   var resolveProps = require_resolve_props();
@@ -6262,7 +6262,7 @@ var require_resolve_block_seq = __commonJS((exports) => {
   exports.resolveBlockSeq = resolveBlockSeq;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-end.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-end.js
 var require_resolve_end = __commonJS((exports) => {
   function resolveEnd(end, offset, reqSpace, onError) {
     let comment = "";
@@ -6302,7 +6302,7 @@ var require_resolve_end = __commonJS((exports) => {
   exports.resolveEnd = resolveEnd;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-flow-collection.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-flow-collection.js
 var require_resolve_flow_collection = __commonJS((exports) => {
   var identity = require_identity();
   var Pair = require_Pair();
@@ -6493,7 +6493,7 @@ var require_resolve_flow_collection = __commonJS((exports) => {
   exports.resolveFlowCollection = resolveFlowCollection;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/compose-collection.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/compose-collection.js
 var require_compose_collection = __commonJS((exports) => {
   var identity = require_identity();
   var Scalar = require_Scalar();
@@ -6555,7 +6555,7 @@ var require_compose_collection = __commonJS((exports) => {
   exports.composeCollection = composeCollection;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-block-scalar.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-block-scalar.js
 var require_resolve_block_scalar = __commonJS((exports) => {
   var Scalar = require_Scalar();
   function resolveBlockScalar(ctx, scalar, onError) {
@@ -6748,7 +6748,7 @@ var require_resolve_block_scalar = __commonJS((exports) => {
   exports.resolveBlockScalar = resolveBlockScalar;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-flow-scalar.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-flow-scalar.js
 var require_resolve_flow_scalar = __commonJS((exports) => {
   var Scalar = require_Scalar();
   var resolveEnd = require_resolve_end();
@@ -6965,7 +6965,7 @@ var require_resolve_flow_scalar = __commonJS((exports) => {
   exports.resolveFlowScalar = resolveFlowScalar;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/compose-scalar.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/compose-scalar.js
 var require_compose_scalar = __commonJS((exports) => {
   var identity = require_identity();
   var Scalar = require_Scalar();
@@ -7043,7 +7043,7 @@ var require_compose_scalar = __commonJS((exports) => {
   exports.composeScalar = composeScalar;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/util-empty-scalar-position.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/util-empty-scalar-position.js
 var require_util_empty_scalar_position = __commonJS((exports) => {
   function emptyScalarPosition(offset, before, pos) {
     if (before) {
@@ -7070,7 +7070,7 @@ var require_util_empty_scalar_position = __commonJS((exports) => {
   exports.emptyScalarPosition = emptyScalarPosition;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/compose-node.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/compose-node.js
 var require_compose_node = __commonJS((exports) => {
   var Alias = require_Alias();
   var identity = require_identity();
@@ -7173,7 +7173,7 @@ var require_compose_node = __commonJS((exports) => {
   exports.composeNode = composeNode;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/compose-doc.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/compose-doc.js
 var require_compose_doc = __commonJS((exports) => {
   var Document = require_Document();
   var composeNode = require_compose_node();
@@ -7213,7 +7213,7 @@ var require_compose_doc = __commonJS((exports) => {
   exports.composeDoc = composeDoc;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/composer.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/compose/composer.js
 var require_composer = __commonJS((exports) => {
   var node_process = __require("process");
   var directives = require_directives();
@@ -7404,7 +7404,7 @@ ${end.comment}` : end.comment;
   exports.Composer = Composer;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/cst-scalar.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/cst-scalar.js
 var require_cst_scalar = __commonJS((exports) => {
   var resolveBlockScalar = require_resolve_block_scalar();
   var resolveFlowScalar = require_resolve_flow_scalar();
@@ -7594,7 +7594,7 @@ var require_cst_scalar = __commonJS((exports) => {
   exports.setScalarValue = setScalarValue;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/cst-stringify.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/cst-stringify.js
 var require_cst_stringify = __commonJS((exports) => {
   var stringify = (cst) => ("type" in cst) ? stringifyToken(cst) : stringifyItem(cst);
   function stringifyToken(token) {
@@ -7652,7 +7652,7 @@ var require_cst_stringify = __commonJS((exports) => {
   exports.stringify = stringify;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/cst-visit.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/cst-visit.js
 var require_cst_visit = __commonJS((exports) => {
   var BREAK = Symbol("break visit");
   var SKIP = Symbol("skip children");
@@ -7711,7 +7711,7 @@ var require_cst_visit = __commonJS((exports) => {
   exports.visit = visit;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/cst.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/cst.js
 var require_cst = __commonJS((exports) => {
   var cstScalar = require_cst_scalar();
   var cstStringify = require_cst_stringify();
@@ -7812,7 +7812,7 @@ var require_cst = __commonJS((exports) => {
   exports.tokenType = tokenType;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/lexer.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/lexer.js
 var require_lexer = __commonJS((exports) => {
   var cst = require_cst();
   function isEmpty(ch) {
@@ -8409,7 +8409,7 @@ var require_lexer = __commonJS((exports) => {
   exports.Lexer = Lexer;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/line-counter.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/line-counter.js
 var require_line_counter = __commonJS((exports) => {
   class LineCounter {
     constructor() {
@@ -8437,7 +8437,7 @@ var require_line_counter = __commonJS((exports) => {
   exports.LineCounter = LineCounter;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/parser.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/parse/parser.js
 var require_parser = __commonJS((exports) => {
   var node_process = __require("process");
   var cst = require_cst();
@@ -9293,7 +9293,7 @@ var require_parser = __commonJS((exports) => {
   exports.Parser = Parser;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/public-api.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/public-api.js
 var require_public_api = __commonJS((exports) => {
   var composer = require_composer();
   var Document = require_Document();
@@ -9387,7 +9387,7 @@ var require_public_api = __commonJS((exports) => {
   exports.stringify = stringify;
 });
 
-// ../../node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/index.js
+// node_modules/.bun/yaml@2.9.0/node_modules/yaml/dist/index.js
 var require_dist = __commonJS((exports) => {
   var composer = require_composer();
   var Document = require_Document();
@@ -9436,7 +9436,7 @@ var require_dist = __commonJS((exports) => {
   exports.visitAsync = visit.visitAsync;
 });
 
-// src/utils/fs.ts
+// packages/cli/src/utils/fs.ts
 import {
   chmodSync,
   existsSync as existsSync3,
@@ -9670,7 +9670,7 @@ var init_fs = __esm(() => {
   ]);
 });
 
-// src/packs/golang/files.ts
+// packages/cli/src/packs/golang/files.ts
 import { readFileSync as readFileSync4 } from "fs";
 import nodePath5 from "path";
 function buildStandaloneConfig() {
@@ -9860,7 +9860,7 @@ var init_files = __esm(() => {
   };
 });
 
-// ../../node_modules/.bun/smol-toml@1.8.0/node_modules/smol-toml/dist/date.js
+// node_modules/.bun/smol-toml@1.8.0/node_modules/smol-toml/dist/date.js
 var DATE_TIME_RE, TomlDate;
 var init_date = __esm(() => {
   /*!
@@ -9982,7 +9982,7 @@ var init_date = __esm(() => {
   };
 });
 
-// ../../node_modules/.bun/smol-toml@1.8.0/node_modules/smol-toml/dist/error.js
+// node_modules/.bun/smol-toml@1.8.0/node_modules/smol-toml/dist/error.js
 function getLineColFromPtr(string, ptr) {
   let lines = string.slice(0, ptr).split(/\r\n|\n|\r/g);
   return [lines.length, lines.pop().length + 1];
@@ -10054,7 +10054,7 @@ ${codeblock}`, options);
   };
 });
 
-// ../../node_modules/.bun/smol-toml@1.8.0/node_modules/smol-toml/dist/util.js
+// node_modules/.bun/smol-toml@1.8.0/node_modules/smol-toml/dist/util.js
 function indexOfNewline(str, start = 0) {
   let idx = str.indexOf(`
 `, start);
@@ -10140,7 +10140,7 @@ var init_util = __esm(() => {
    */
 });
 
-// ../../node_modules/.bun/smol-toml@1.8.0/node_modules/smol-toml/dist/primitive.js
+// node_modules/.bun/smol-toml@1.8.0/node_modules/smol-toml/dist/primitive.js
 function parseString(ctx) {
   let start = ctx.p;
   let c = ctx.s.charCodeAt(ctx.p++);
@@ -10321,7 +10321,7 @@ var init_primitive = __esm(() => {
   LEADING_ZERO = /^[+-]?0[0-9_]/;
 });
 
-// ../../node_modules/.bun/smol-toml@1.8.0/node_modules/smol-toml/dist/extract.js
+// node_modules/.bun/smol-toml@1.8.0/node_modules/smol-toml/dist/extract.js
 function extractValue(ctx, end, integersAsBigInt) {
   let ptr = ctx.p;
   let c = ctx.s.charCodeAt(ptr);
@@ -10386,7 +10386,7 @@ var init_extract = __esm(() => {
    */
 });
 
-// ../../node_modules/.bun/smol-toml@1.8.0/node_modules/smol-toml/dist/struct.js
+// node_modules/.bun/smol-toml@1.8.0/node_modules/smol-toml/dist/struct.js
 function parseKey(ctx, end = "=") {
   let start = ctx.p;
   let dot = start - 1;
@@ -10562,7 +10562,7 @@ var init_struct = __esm(() => {
   KEY_PART_RE = /^[a-zA-Z0-9-_]+[ \t]*$/;
 });
 
-// ../../node_modules/.bun/smol-toml@1.8.0/node_modules/smol-toml/dist/parse.js
+// node_modules/.bun/smol-toml@1.8.0/node_modules/smol-toml/dist/parse.js
 function peekTable(key, table, meta, type) {
   let t = table;
   let m = meta;
@@ -10710,7 +10710,7 @@ var init_parse = __esm(() => {
    */
 });
 
-// ../../node_modules/.bun/smol-toml@1.8.0/node_modules/smol-toml/dist/stringify.js
+// node_modules/.bun/smol-toml@1.8.0/node_modules/smol-toml/dist/stringify.js
 var init_stringify = __esm(() => {
   /*!
    * Copyright (c) Squirrel Chat et al., All rights reserved.
@@ -10741,7 +10741,7 @@ var init_stringify = __esm(() => {
    */
 });
 
-// ../../node_modules/.bun/smol-toml@1.8.0/node_modules/smol-toml/dist/index.js
+// node_modules/.bun/smol-toml@1.8.0/node_modules/smol-toml/dist/index.js
 var init_dist = __esm(() => {
   init_parse();
   init_stringify();
@@ -10776,7 +10776,7 @@ var init_dist = __esm(() => {
    */
 });
 
-// src/utils/workspace-pattern.ts
+// packages/cli/src/utils/workspace-pattern.ts
 import nodePath6 from "path";
 function matchesSegment(value, pattern) {
   let positions = new Set([0]);
@@ -10810,7 +10810,7 @@ function matchesWorkspacePattern(relative, pattern) {
 }
 var init_workspace_pattern = () => {};
 
-// src/packs/python/setup.ts
+// packages/cli/src/packs/python/setup.ts
 import { execFileSync } from "child_process";
 import { readdirSync as readdirSync3, readFileSync as readFileSync5, realpathSync as realpathSync2, unlinkSync, writeFileSync as writeFileSync3 } from "fs";
 import nodePath7 from "path";
@@ -11265,7 +11265,7 @@ var init_setup = __esm(() => {
   PYTHON_DEPENDENCY_SEPARATORS = new Set(["[", "<", ">", "=", "!", "~", ";", "@"]);
 });
 
-// src/packs/python/files.ts
+// packages/cli/src/packs/python/files.ts
 import { existsSync as existsSync4, readFileSync as readFileSync6 } from "fs";
 import nodePath8 from "path";
 function hasLegacyCustomerRuffExtend(cwd) {
@@ -11438,7 +11438,7 @@ ${RUFF_SHARED_SETTINGS}`;
   };
 });
 
-// src/packs/rust/files.ts
+// packages/cli/src/packs/rust/files.ts
 import { existsSync as existsSync5, readFileSync as readFileSync7 } from "fs";
 import nodePath9 from "path";
 function generateClippyConfig() {
@@ -11637,7 +11637,7 @@ var init_files3 = __esm(() => {
   };
 });
 
-// src/packs/sql/dialect.ts
+// packages/cli/src/packs/sql/dialect.ts
 import { existsSync as existsSync6, readFileSync as readFileSync8 } from "fs";
 import nodePath10 from "path";
 import process4 from "process";
@@ -11839,7 +11839,7 @@ var init_dialect = __esm(() => {
   };
 });
 
-// src/packs/sql/files.ts
+// packages/cli/src/packs/sql/files.ts
 function hostOwnsSqlFormatting(ctx) {
   return "prettier-plugin-sql" in ctx.developmentDeps || "prettier-plugin-sql" in ctx.productionDeps;
 }
@@ -11917,7 +11917,7 @@ var init_files4 = __esm(() => {
   };
 });
 
-// src/utils/repo-path.ts
+// packages/cli/src/utils/repo-path.ts
 import nodePath11 from "path";
 function toRepoPath(value) {
   return value.split(nodePath11.win32.sep).join(nodePath11.posix.sep);
@@ -11937,7 +11937,7 @@ function toRepoDirectory(cwd, configuredPath) {
 }
 var init_repo_path = () => {};
 
-// src/utils/configured-paths.ts
+// packages/cli/src/utils/configured-paths.ts
 var exports_configured_paths = {};
 __export(exports_configured_paths, {
   ticketDirectoriesForConfiguredRoot: () => ticketDirectoriesForConfiguredRoot,
@@ -12139,7 +12139,7 @@ var init_configured_paths = __esm(() => {
   SAFEWORD_PROJECT_MARKER_SUBPATH = [".safeword", "SAFEWORD.md"];
 });
 
-// src/owned-paths.ts
+// packages/cli/src/owned-paths.ts
 import nodePath13 from "path";
 function safewordIgnoreDirectories(namespaceRootLabel) {
   return namespaceRootLabel !== undefined && !SAFEWORD_IGNORE_DIRS.includes(namespaceRootLabel) ? [...SAFEWORD_IGNORE_DIRS, namespaceRootLabel] : SAFEWORD_IGNORE_DIRS;
@@ -12261,7 +12261,7 @@ var init_owned_paths = __esm(() => {
   ];
 });
 
-// src/templates/config.ts
+// packages/cli/src/templates/config.ts
 function getPrettierConfig(hasExistingFormatter) {
   if (hasExistingFormatter) {
     return { import: "", configEntry: "" };
@@ -12570,7 +12570,7 @@ var init_config = __esm(() => {
   };
 });
 
-// src/utils/json-merge.ts
+// packages/cli/src/utils/json-merge.ts
 function assignOrPrune(target, key, value) {
   if (Object.keys(value).length > 0) {
     target[key] = value;
@@ -12580,7 +12580,7 @@ function assignOrPrune(target, key, value) {
   return false;
 }
 
-// src/packs/typescript/files.ts
+// packages/cli/src/packs/typescript/files.ts
 function addKnipIgnores(config, ctx) {
   const allDependencies = ctx.developmentDeps;
   if (ctx.projectType.nextjs)
@@ -12906,7 +12906,7 @@ var init_files5 = __esm(() => {
   };
 });
 
-// src/templates/content.ts
+// packages/cli/src/templates/content.ts
 var AGENTS_MD_LINK = `**\u26A0\uFE0F ALWAYS READ FIRST:** \`.safeword/SAFEWORD.md\`
 
 The SAFEWORD.md file contains core development patterns, workflows, and conventions.
@@ -12920,7 +12920,7 @@ Read it BEFORE working on any task in this project.
 
 `;
 
-// src/utils/install.ts
+// packages/cli/src/utils/install.ts
 import { execFileSync as execFileSync2 } from "child_process";
 import { existsSync as existsSync7 } from "fs";
 import path2 from "path";
@@ -13042,7 +13042,7 @@ var init_install = __esm(() => {
   };
 });
 
-// src/schema.ts
+// packages/cli/src/schema.ts
 import nodePath14 from "path";
 function skipCodexRuntimeAssetInstall() {
   return;
@@ -14100,7 +14100,7 @@ ${durableNamespaceDirectories(ctx).map((dir) => `${dir}/`).join(`
   ];
 });
 
-// src/codex-plugin/migration.ts
+// packages/cli/src/codex-plugin/migration.ts
 function codexInstallRequiresMutation(observation) {
   return observation.plugin.enabled !== true || observation.state === "plugin_update_required";
 }
@@ -14226,7 +14226,7 @@ var init_migration = __esm(() => {
   };
 });
 
-// src/codex-plugin/migration-error.ts
+// packages/cli/src/codex-plugin/migration-error.ts
 var CodexMigrationError;
 var init_migration_error = __esm(() => {
   CodexMigrationError = class CodexMigrationError extends Error {
@@ -14243,7 +14243,7 @@ var init_migration_error = __esm(() => {
   };
 });
 
-// src/utils/toml.ts
+// packages/cli/src/utils/toml.ts
 function readTomlTableArray(content, table, key) {
   const found = tableArrayBody(content.split(/\r?\n/), table, key);
   if (found === undefined)
@@ -14355,7 +14355,7 @@ function stripTomlComment(line) {
   return hash === -1 ? line : line.slice(0, hash);
 }
 
-// src/utils/architecture-skeleton.ts
+// packages/cli/src/utils/architecture-skeleton.ts
 import { readdirSync as readdirSync4 } from "fs";
 import nodePath15 from "path";
 function extractSkeleton(projectDirectory, options = {}) {
@@ -14709,7 +14709,7 @@ var init_architecture_skeleton = __esm(() => {
   JS_SOURCE_EXTENSIONS = [".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"];
 });
 
-// src/utils/boundary-config.ts
+// packages/cli/src/utils/boundary-config.ts
 import nodePath16 from "path";
 function readBoundaryConfig(projectDirectory) {
   for (const name of DEPENDENCY_CRUISER_CONFIG_NAMES) {
@@ -14730,7 +14730,7 @@ var init_boundary_config = __esm(() => {
   ];
 });
 
-// src/utils/cargo-manifest.ts
+// packages/cli/src/utils/cargo-manifest.ts
 function readCargoWorkspaceMembers(content) {
   return readTomlTableArray(content, "workspace", "members");
 }
@@ -14781,7 +14781,7 @@ var init_cargo_manifest = __esm(() => {
   DEPENDENCY_TABLES = ["dependencies", "dev-dependencies", "build-dependencies"];
 });
 
-// src/utils/manifest-block.ts
+// packages/cli/src/utils/manifest-block.ts
 function readDelimitedBlock(lines, opener) {
   const entries = [];
   let inBlock = false;
@@ -14800,7 +14800,7 @@ function readDelimitedBlock(lines, opener) {
   return entries;
 }
 
-// src/utils/manifest-dependencies.ts
+// packages/cli/src/utils/manifest-dependencies.ts
 function dependencySectionNames(manifest) {
   const names = new Set;
   for (const section of DEPENDENCY_SECTIONS) {
@@ -14822,7 +14822,7 @@ var init_manifest_dependencies = __esm(() => {
   ];
 });
 
-// src/utils/pyproject-manifest.ts
+// packages/cli/src/utils/pyproject-manifest.ts
 function readPyprojectName(content) {
   return readTomlTableString(content, "project", "name");
 }
@@ -14838,7 +14838,7 @@ function distributionName(specifier) {
 }
 var init_pyproject_manifest = () => {};
 
-// src/utils/architecture-fingerprint.ts
+// packages/cli/src/utils/architecture-fingerprint.ts
 import { createHash as createHash2 } from "crypto";
 import { readdirSync as readdirSync5, readFileSync as readFileSync9 } from "fs";
 import nodePath17 from "path";
@@ -14956,7 +14956,7 @@ var init_architecture_fingerprint = __esm(() => {
   ]);
 });
 
-// src/utils/architecture-monorepo.ts
+// packages/cli/src/utils/architecture-monorepo.ts
 var exports_architecture_monorepo = {};
 __export(exports_architecture_monorepo, {
   monorepoFingerprintOf: () => monorepoFingerprintOf,
@@ -15252,7 +15252,7 @@ var init_architecture_monorepo = __esm(() => {
   ];
 });
 
-// src/utils/architecture-reconcile.ts
+// packages/cli/src/utils/architecture-reconcile.ts
 function reconcileSections(input) {
   const verdicts = input.nodeNames.map((node) => ({
     node,
@@ -15273,7 +15273,7 @@ function liveNodeStatus(stamp, fingerprint) {
   return "current";
 }
 
-// src/utils/architecture-document.ts
+// packages/cli/src/utils/architecture-document.ts
 var exports_architecture_document = {};
 __export(exports_architecture_document, {
   selfHealProjectPreservingProse: () => selfHealProjectPreservingProse,
@@ -15677,7 +15677,7 @@ var init_architecture_document = __esm(() => {
   WOULD_CHANGE_ACTIONS = new Set(["created", "healed", "regenerated"]);
 });
 
-// src/cli-protocol/review-presentation.ts
+// packages/cli/src/cli-protocol/review-presentation.ts
 function isRecord(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -15836,7 +15836,7 @@ var init_review_presentation = __esm(() => {
   ]);
 });
 
-// src/cli-protocol/result.ts
+// packages/cli/src/cli-protocol/result.ts
 function combineEffects(groups) {
   return {
     files: groups.flatMap((effects) => effects.files ?? []),
@@ -16129,7 +16129,7 @@ var init_result = __esm(() => {
   };
 });
 
-// src/cli-protocol/online-required.ts
+// packages/cli/src/cli-protocol/online-required.ts
 function onlineRequired(name, nextCommand = name) {
   return createResult({
     state: "action_required",
@@ -16154,7 +16154,7 @@ var init_online_required = __esm(() => {
   init_result();
 });
 
-// src/cli-protocol/plan.ts
+// packages/cli/src/cli-protocol/plan.ts
 import { createHash as createHash5 } from "crypto";
 function isPlanIdentity(value) {
   return PLAN_IDENTITY_PATTERN.test(value);
@@ -16211,7 +16211,7 @@ var init_plan = __esm(() => {
   PLAN_IDENTITY_PATTERN = /^[a-f\d]{64}$/u;
 });
 
-// src/cli-protocol/mutation-effects.ts
+// packages/cli/src/cli-protocol/mutation-effects.ts
 function effectsFromMutationJournal(mutations) {
   const toEffect = ({ kind, target, operation }) => ({
     kind,
@@ -16225,7 +16225,7 @@ function effectsFromMutationJournal(mutations) {
   };
 }
 
-// src/cli-protocol/replay-command.ts
+// packages/cli/src/cli-protocol/replay-command.ts
 function shellArgument(value) {
   const escapedSingleQuote = `'"'"'`;
   return `'${value.split("'").join(escapedSingleQuote)}'`;
@@ -16240,7 +16240,7 @@ function buildReplayCommand(input) {
   ].join(" ");
 }
 
-// src/tracker-sync/secrets.ts
+// packages/cli/src/tracker-sync/secrets.ts
 function resolveCredential(provider, dependencies) {
   const fromKeychain = dependencies.keychain?.(provider);
   if (fromKeychain !== undefined && fromKeychain.length > 0) {
@@ -16260,7 +16260,7 @@ var init_secrets = __esm(() => {
   };
 });
 
-// src/tracker-sync/tracker-map.ts
+// packages/cli/src/tracker-sync/tracker-map.ts
 var exports_tracker_map = {};
 __export(exports_tracker_map, {
   trackerMapPath: () => trackerMapPath,
@@ -16338,7 +16338,7 @@ function planTicketSync(map, ticketId) {
 var SIDECAR_VERSION = 1;
 var init_tracker_map = () => {};
 
-// src/tracker-connect/handoff.ts
+// packages/cli/src/tracker-connect/handoff.ts
 function handoffSteps(provider, target) {
   if (provider === "github") {
     const repo = target.repo ?? "<owner/repo>";
@@ -16356,7 +16356,7 @@ function handoffSteps(provider, target) {
   ];
 }
 
-// src/tracker-connect/types.ts
+// packages/cli/src/tracker-connect/types.ts
 var ConnectExecutionError;
 var init_types = __esm(() => {
   ConnectExecutionError = class ConnectExecutionError extends Error {
@@ -16369,7 +16369,7 @@ var init_types = __esm(() => {
   };
 });
 
-// src/tracker-connect/index.ts
+// packages/cli/src/tracker-connect/index.ts
 import { existsSync as existsSync9, readFileSync as readFileSync12, writeFileSync as writeFileSync6 } from "fs";
 import nodePath21 from "path";
 function configPath(cwd) {
@@ -16483,7 +16483,7 @@ var init_tracker_connect = __esm(() => {
   SUPPORTED = new Set(["linear", "github"]);
 });
 
-// src/tracker-connect/prompt.ts
+// packages/cli/src/tracker-connect/prompt.ts
 var exports_prompt = {};
 __export(exports_prompt, {
   createPrompt: () => createPrompt
@@ -16508,7 +16508,7 @@ function createPrompt() {
 }
 var init_prompt = () => {};
 
-// src/tracker-connect/secret-store.ts
+// packages/cli/src/tracker-connect/secret-store.ts
 function createSecretStore() {
   return {
     store(_provider) {
@@ -16517,7 +16517,7 @@ function createSecretStore() {
   };
 }
 
-// src/tracker-connect/verify.ts
+// packages/cli/src/tracker-connect/verify.ts
 import { execFileSync as execFileSync3 } from "child_process";
 function classifyGithubFailure(message) {
   if (/command not found|ENOENT|Executable not found/i.test(message)) {
@@ -16555,7 +16555,7 @@ function createVerifyClient() {
 }
 var init_verify = () => {};
 
-// src/tracker-connect/run.ts
+// packages/cli/src/tracker-connect/run.ts
 var exports_run = {};
 __export(exports_run, {
   runConnect: () => runConnect
@@ -16594,7 +16594,7 @@ var init_run = __esm(() => {
   init_verify();
 });
 
-// src/tracker-sync/apply-results.ts
+// packages/cli/src/tracker-sync/apply-results.ts
 function urlTail(url) {
   const [path3 = url] = url.split(/[?#]/, 1);
   const segments = path3.split("/").filter((segment) => segment.length > 0);
@@ -16642,7 +16642,7 @@ function applyResults(map, results, input) {
   return { ok: true };
 }
 
-// src/tracker-sync/backoff.ts
+// packages/cli/src/tracker-sync/backoff.ts
 function isRateLimit(message) {
   return /rate limit|\b429\b|\bAPI rate limit exceeded\b|secondary rate/i.test(message);
 }
@@ -16667,7 +16667,7 @@ var init_backoff = __esm(() => {
   };
 });
 
-// src/tracker-sync/labels.ts
+// packages/cli/src/tracker-sync/labels.ts
 function isOwned(label) {
   return OWNED_LABEL_PREFIXES.some((prefix) => label.startsWith(prefix));
 }
@@ -16684,7 +16684,7 @@ var init_labels = __esm(() => {
   OWNED_LABEL_PREFIXES = ["epic:", "type:"];
 });
 
-// src/tracker-sync/writers.ts
+// packages/cli/src/tracker-sync/writers.ts
 function createWriter(provider, client) {
   return {
     provider,
@@ -16716,7 +16716,7 @@ function dispatchCreate(registry, provider, payload) {
   return registry[provider].create(payload);
 }
 
-// src/tracker-sync/clients.ts
+// packages/cli/src/tracker-sync/clients.ts
 var exports_clients = {};
 __export(exports_clients, {
   resolveRepoVisibility: () => resolveRepoVisibility,
@@ -16852,7 +16852,7 @@ var init_clients = __esm(() => {
   init_labels();
 });
 
-// src/tracker-sync/config.ts
+// packages/cli/src/tracker-sync/config.ts
 var exports_config = {};
 __export(exports_config, {
   readTicketBridgeConfig: () => readTicketBridgeConfig
@@ -16888,7 +16888,7 @@ var init_config2 = __esm(() => {
   DEFAULT_CONFIG = { provider: "none", body: "minimal" };
 });
 
-// src/tracker-sync/contract.ts
+// packages/cli/src/tracker-sync/contract.ts
 function emptyPlan() {
   return { version: PLAN_CONTRACT_VERSION, intents: [] };
 }
@@ -16947,12 +16947,12 @@ function parseResults(jsonText) {
 }
 var PLAN_CONTRACT_VERSION = 1;
 
-// src/utils/ticket-reference.ts
+// packages/cli/src/utils/ticket-reference.ts
 function formatTicketReference(id, label) {
   return label ? `${label} (${id})` : id;
 }
 
-// src/utils/ticket-relations.ts
+// packages/cli/src/utils/ticket-relations.ts
 function parseTicketIdList(raw) {
   if (raw === undefined)
     return [];
@@ -17008,7 +17008,7 @@ function reachesSelf(start, edges) {
   return false;
 }
 
-// src/ticket-sync/index.ts
+// packages/cli/src/ticket-sync/index.ts
 var exports_ticket_sync = {};
 __export(exports_ticket_sync, {
   syncTickets: () => syncTickets,
@@ -17274,7 +17274,7 @@ var init_ticket_sync = __esm(() => {
   MERGE_CONFLICT_MARKER_PATTERN = /^(?:<{7}|={7}|>{7})(?:\s|$)/m;
 });
 
-// src/tracker-sync/corpus.ts
+// packages/cli/src/tracker-sync/corpus.ts
 var exports_corpus = {};
 __export(exports_corpus, {
   toTicketInput: () => toTicketInput,
@@ -17334,7 +17334,7 @@ var init_corpus = __esm(() => {
   init_configured_paths();
 });
 
-// src/tracker-sync/payload.ts
+// packages/cli/src/tracker-sync/payload.ts
 function banner(ticket) {
   return `\uD83D\uDD01 Mirror of safeword ticket ${ticket.id}. Source of truth is the repo. ` + `Status & assignee are yours to set here; title & labels sync from the repo and overwrite edits.`;
 }
@@ -17369,7 +17369,7 @@ var init_payload = __esm(() => {
   TERMINAL_STATUSES = new Set(["done", "cancelled", "superseded", "wontfix"]);
 });
 
-// src/tracker-sync/ticket-references.ts
+// packages/cli/src/tracker-sync/ticket-references.ts
 function ticketAliases(ticket) {
   return [ticket.id, ticket.slug, ticket.folder].filter(isString);
 }
@@ -17436,7 +17436,7 @@ function orderTicketsForProjection(tickets) {
   return ordered;
 }
 
-// src/tracker-sync/index.ts
+// packages/cli/src/tracker-sync/index.ts
 var exports_tracker_sync = {};
 __export(exports_tracker_sync, {
   syncTracker: () => syncTracker,
@@ -17545,7 +17545,7 @@ var init_tracker_sync = __esm(() => {
   BACKOFF = { maxRetries: 3, baseMs: 50 };
 });
 
-// src/tracker-sync/plan.ts
+// packages/cli/src/tracker-sync/plan.ts
 function buildGraphEdges(ticket, aliases) {
   const { parentTicketId, blockedByTicketIds } = resolveGraphTicketIds(ticket, aliases);
   const graph = {};
@@ -17581,7 +17581,7 @@ var init_plan2 = __esm(() => {
   init_tracker_map();
 });
 
-// src/utils/gh-cli.ts
+// packages/cli/src/utils/gh-cli.ts
 var exports_gh_cli = {};
 __export(exports_gh_cli, {
   resolveGhCliToken: () => resolveGhCliToken,
@@ -17608,7 +17608,7 @@ function resolveGhCliToken(env) {
 var GITHUB_TOKEN_ENV_KEY = "GITHUB_TOKEN";
 var init_gh_cli = () => {};
 
-// src/commands/sync-tracker.ts
+// packages/cli/src/commands/sync-tracker.ts
 var exports_sync_tracker = {};
 __export(exports_sync_tracker, {
   syncTrackerCommand: () => syncTrackerCommand,
@@ -17786,7 +17786,7 @@ var init_sync_tracker = __esm(() => {
   init_gh_cli();
 });
 
-// src/utils/ticket-writer.ts
+// packages/cli/src/utils/ticket-writer.ts
 import { existsSync as existsSync14, mkdirSync as mkdirSync4, readdirSync as readdirSync7, readFileSync as readFileSync17, writeFileSync as writeFileSync8 } from "fs";
 import nodePath25 from "path";
 function assertSafeTrackerIdentity(id) {
@@ -17932,7 +17932,7 @@ var init_ticket_writer = __esm(() => {
   WINDOWS_RESERVED_DEVICE_WITH_EXTENSION = /^(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])\./i;
 });
 
-// src/utils/ticket-folder-matches.ts
+// packages/cli/src/utils/ticket-folder-matches.ts
 function findTicketFolderMatch(names, ticketId) {
   let sluggedMatch;
   const slugPrefix = `${ticketId}-`;
@@ -17947,13 +17947,13 @@ function findTicketFolderMatch(names, ticketId) {
   return sluggedMatch;
 }
 
-// src/tracker-sync/resolve-by-key.ts
+// packages/cli/src/tracker-sync/resolve-by-key.ts
 function normalizeTrackerKey(key) {
   return key.startsWith("#") ? key.slice(1) : key;
 }
 var init_resolve_by_key = () => {};
 
-// src/ticket-create/creation-mode.ts
+// packages/cli/src/ticket-create/creation-mode.ts
 function resolveCreationMode(config, options) {
   if (!ISSUE_FIRST_PROVIDERS.has(config.provider))
     return { mode: "local" };
@@ -17972,7 +17972,7 @@ var init_creation_mode = __esm(() => {
   ISSUE_FIRST_PROVIDERS = new Set(["github", "linear"]);
 });
 
-// src/ticket-create/identity.ts
+// packages/cli/src/ticket-create/identity.ts
 function buildIdentitySource(mode, writer, payload) {
   if (mode.mode === "adopt") {
     const key = mode.key;
@@ -17984,7 +17984,7 @@ function buildIdentitySource(mode, writer, payload) {
   };
 }
 
-// src/ticket-create/index.ts
+// packages/cli/src/ticket-create/index.ts
 import { existsSync as existsSync15, mkdirSync as mkdirSync5 } from "fs";
 import nodePath26 from "path";
 async function createTicketRouted(cwd, options, dependencies) {
@@ -18107,7 +18107,7 @@ var init_ticket_create = __esm(() => {
   };
 });
 
-// src/utils/epic-linker.ts
+// packages/cli/src/utils/epic-linker.ts
 import { existsSync as existsSync16, readdirSync as readdirSync8, readFileSync as readFileSync18, renameSync as renameSync2, writeFileSync as writeFileSync9 } from "fs";
 import nodePath27 from "path";
 function linkChildToEpic(cwd, childId, epicId) {
@@ -18229,7 +18229,7 @@ var init_epic_linker = __esm(() => {
   init_configured_paths();
 });
 
-// src/utils/id-minter.ts
+// packages/cli/src/utils/id-minter.ts
 import { randomInt } from "crypto";
 function buildId(nextIndex) {
   const chars = [];
@@ -18244,7 +18244,7 @@ function cryptoIdMinter() {
 var CROCKFORD_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ", ID_LENGTH = 6;
 var init_id_minter = () => {};
 
-// src/utils/slug.ts
+// packages/cli/src/utils/slug.ts
 function normalizeSlug(input) {
   const folded = input.normalize("NFKD").replaceAll(COMBINING_MARKS, "");
   const collapsed = stripDashEdges(folded.toLowerCase().replaceAll(NON_ALNUM, "-"));
@@ -18275,7 +18275,7 @@ var init_slug = __esm(() => {
   NON_ALNUM = /[^a-z\d]+/g;
 });
 
-// src/commands/ticket-new.ts
+// packages/cli/src/commands/ticket-new.ts
 var exports_ticket_new = {};
 __export(exports_ticket_new, {
   createTicketResult: () => createTicketResult
@@ -18416,7 +18416,7 @@ var init_ticket_new = __esm(() => {
   VALID_TYPES = new Set(["patch", "task", "feature", "epic"]);
 });
 
-// src/codex-plugin/legacy-global-guidance.ts
+// packages/cli/src/codex-plugin/legacy-global-guidance.ts
 var exports_legacy_global_guidance = {};
 __export(exports_legacy_global_guidance, {
   planLegacyGlobalGuidanceCleanup: () => planLegacyGlobalGuidanceCleanup,
@@ -18658,7 +18658,7 @@ var init_legacy_global_guidance = __esm(() => {
   ];
 });
 
-// templates/hooks/lib/hierarchy.ts
+// packages/cli/templates/hooks/lib/hierarchy.ts
 function parseFrontmatter2(yaml) {
   const result = {};
   const lines = yaml.split(/\r?\n/);
@@ -18702,7 +18702,7 @@ function stripQuotes2(value) {
 }
 var init_hierarchy = () => {};
 
-// templates/hooks/lib/markdown-structure.ts
+// packages/cli/templates/hooks/lib/markdown-structure.ts
 function stripHtmlComments(content) {
   return content.replaceAll(/<!--[\s\S]*?-->/g, (comment) => comment.replaceAll(/[^\r\n]/g, ""));
 }
@@ -18743,7 +18743,7 @@ function withoutFencedCode(content, preserveHtmlComments = false) {
   return preserveHtmlComments ? projected : stripHtmlComments(projected);
 }
 
-// templates/hooks/lib/inspiration.ts
+// packages/cli/templates/hooks/lib/inspiration.ts
 var IMPLEMENTATION_INSPIRATION_GRAMMAR;
 var init_inspiration = __esm(() => {
   IMPLEMENTATION_INSPIRATION_GRAMMAR = {
@@ -18759,7 +18759,7 @@ var init_inspiration = __esm(() => {
   };
 });
 
-// templates/hooks/lib/impl-plan.ts
+// packages/cli/templates/hooks/lib/impl-plan.ts
 function activeLines(content) {
   return withoutFencedCode(content).split(`
 `).filter((line) => !/^(?: {4}|\t)/u.test(line));
@@ -18882,7 +18882,7 @@ var init_impl_plan = __esm(() => {
   ]);
 });
 
-// templates/hooks/lib/jtbd.ts
+// packages/cli/templates/hooks/lib/jtbd.ts
 function parseJtbdSection(specContent) {
   const entries = [];
   let skip = null;
@@ -18991,7 +18991,7 @@ function parseSectionHeading(trimmed) {
 var JTBD_HEADING = "jobs to be done", PERSONA_PREFIX = "**Persona:**", SKIP_PREFIX2 = "skip:";
 var init_jtbd = () => {};
 
-// templates/hooks/lib/parse-annotation.ts
+// packages/cli/templates/hooks/lib/parse-annotation.ts
 function parseCheckboxAnnotation(line) {
   const match = CHECKBOX_LINE.exec(line);
   if (!match)
@@ -19025,7 +19025,7 @@ var init_parse_annotation = __esm(() => {
   SHA_PATTERN = /^[0-9a-f]{7,40}$/i;
 });
 
-// templates/hooks/lib/phase-provenance.ts
+// packages/cli/templates/hooks/lib/phase-provenance.ts
 function canonicalIndex(phase) {
   return CANONICAL_PHASES.indexOf(phase);
 }
@@ -19333,7 +19333,7 @@ var init_phase_provenance = __esm(() => {
   NOT_APPLICABLE = { kind: "not-applicable" };
 });
 
-// ../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/scanner.js
+// node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/scanner.js
 function createScanner(text, ignoreTrivia = false) {
   const len = text.length;
   let pos = 0, value = "", tokenOffset = 0, token = 16, lineNumber = 0, lineStartOffset = 0, tokenLineStartOffset = 0, prevTokenLineStartOffset = 0, scanError = 0;
@@ -19750,7 +19750,7 @@ var init_scanner = __esm(() => {
   })(CharacterCodes || (CharacterCodes = {}));
 });
 
-// ../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/string-intern.js
+// node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/string-intern.js
 var cachedSpaces, maxCachedValues = 200, cachedBreakLinesWithSpaces, supportedEols;
 var init_string_intern = __esm(() => {
   cachedSpaces = new Array(20).fill(0).map((_, index) => {
@@ -19789,7 +19789,7 @@ var init_string_intern = __esm(() => {
 `];
 });
 
-// ../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/format.js
+// node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/format.js
 function format(documentText, range, options) {
   let initialIndentLevel;
   let formatText;
@@ -20033,7 +20033,7 @@ var init_format = __esm(() => {
   init_string_intern();
 });
 
-// ../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/parser.js
+// node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/parser.js
 function parse2(text, errors = [], options = ParseOptions.DEFAULT) {
   let currentProperty = null;
   let currentParent = [];
@@ -20448,7 +20448,7 @@ var init_parser = __esm(() => {
   })(ParseOptions || (ParseOptions = {}));
 });
 
-// ../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/edit.js
+// node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/edit.js
 function setProperty(text, originalPath, value, options) {
   const path3 = originalPath.slice();
   const errors = [];
@@ -20596,7 +20596,7 @@ var init_edit = __esm(() => {
   init_parser();
 });
 
-// ../../node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/main.js
+// node_modules/.bun/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/main.js
 function modify(text, path3, value, options) {
   return setProperty(text, path3, value, options);
 }
@@ -20676,7 +20676,7 @@ var init_main = __esm(() => {
   })(ParseErrorCode || (ParseErrorCode = {}));
 });
 
-// src/claude-plugin/cleanup-target.ts
+// packages/cli/src/claude-plugin/cleanup-target.ts
 import { existsSync as existsSync19, lstatSync } from "fs";
 import nodePath30 from "path";
 function containedClaudeCleanupPath(cwd, relative) {
@@ -20709,7 +20709,7 @@ function assertSafeClaudeCleanupTarget(cwd, relative) {
 }
 var init_cleanup_target = () => {};
 
-// src/claude-plugin/legacy-classifier.ts
+// packages/cli/src/claude-plugin/legacy-classifier.ts
 import { existsSync as existsSync20, lstatSync as lstatSync2, readFileSync as readFileSync21 } from "fs";
 import nodePath31 from "path";
 function referencesLegacyHook(value) {
@@ -20798,7 +20798,7 @@ var init_legacy_classifier = __esm(() => {
   init_historical_ownership();
 });
 
-// src/codex-plugin/durable-write.ts
+// packages/cli/src/codex-plugin/durable-write.ts
 import { randomUUID } from "crypto";
 import {
   closeSync,
@@ -20874,7 +20874,7 @@ function durableRename(source, destination) {
 }
 var init_durable_write = () => {};
 
-// src/claude-plugin/inventory.ts
+// packages/cli/src/claude-plugin/inventory.ts
 import {
   closeSync as closeSync2,
   constants as fsConstants,
@@ -21012,7 +21012,7 @@ var init_inventory2 = __esm(() => {
   ];
 });
 
-// src/claude-plugin/migration-state.ts
+// packages/cli/src/claude-plugin/migration-state.ts
 import { createHash as createHash7, randomUUID as randomUUID2 } from "crypto";
 import { existsSync as existsSync21, mkdirSync as mkdirSync7, readFileSync as readFileSync22, rmSync as rmSync3 } from "fs";
 import { homedir as homedir2 } from "os";
@@ -21108,7 +21108,7 @@ var init_migration_state = __esm(() => {
   PROCESS_SESSION_ID = `process-${randomUUID2()}`;
 });
 
-// src/claude-plugin/delivery-schema.ts
+// packages/cli/src/claude-plugin/delivery-schema.ts
 function withoutLegacyClaude(values) {
   return Object.fromEntries(Object.entries(values).filter(([path3]) => !path3.startsWith(".claude/")));
 }
@@ -21135,7 +21135,7 @@ var init_delivery_schema = __esm(() => {
   init_migration_state();
 });
 
-// src/packs/config.ts
+// packages/cli/src/packs/config.ts
 import nodePath35 from "path";
 function readConfig(cwd) {
   const configPath2 = nodePath35.join(cwd, CONFIG_PATH);
@@ -21167,12 +21167,12 @@ var init_config3 = __esm(() => {
   init_fs();
 });
 
-// src/packs/golang/setup.ts
+// packages/cli/src/packs/golang/setup.ts
 function setupGoTooling() {
   return { files: [] };
 }
 
-// src/packs/golang/index.ts
+// packages/cli/src/packs/golang/index.ts
 var golangPack;
 var init_golang = __esm(() => {
   init_fs();
@@ -21189,7 +21189,7 @@ var init_golang = __esm(() => {
   };
 });
 
-// src/packs/python/index.ts
+// packages/cli/src/packs/python/index.ts
 var pythonPack;
 var init_python = __esm(() => {
   init_fs();
@@ -21207,7 +21207,7 @@ var init_python = __esm(() => {
   };
 });
 
-// src/packs/rust/setup.ts
+// packages/cli/src/packs/rust/setup.ts
 import {
   existsSync as existsSync22,
   lstatSync as lstatSync4,
@@ -21423,7 +21423,7 @@ var init_setup2 = __esm(() => {
   init_dist();
 });
 
-// src/packs/rust/index.ts
+// packages/cli/src/packs/rust/index.ts
 var rustPack;
 var init_rust = __esm(() => {
   init_fs();
@@ -21441,7 +21441,7 @@ var init_rust = __esm(() => {
   };
 });
 
-// src/packs/sql/index.ts
+// packages/cli/src/packs/sql/index.ts
 import { existsSync as existsSync23, readdirSync as readdirSync12 } from "fs";
 import nodePath37 from "path";
 function directoryHasSqlFiles(directory) {
@@ -21501,12 +21501,12 @@ var init_sql = __esm(() => {
   };
 });
 
-// src/packs/typescript/setup.ts
+// packages/cli/src/packs/typescript/setup.ts
 function setupTypescriptTooling() {
   return { files: [] };
 }
 
-// src/packs/typescript/index.ts
+// packages/cli/src/packs/typescript/index.ts
 import nodePath38 from "path";
 var typescriptPack;
 var init_typescript = __esm(() => {
@@ -21524,7 +21524,7 @@ var init_typescript = __esm(() => {
   };
 });
 
-// src/packs/registry.ts
+// packages/cli/src/packs/registry.ts
 function detectLanguages(cwd) {
   const detected = [];
   for (const pack of Object.values(LANGUAGE_PACKS)) {
@@ -21556,13 +21556,13 @@ var init_registry = __esm(() => {
   };
 });
 
-// src/utils/workspace-roots.ts
+// packages/cli/src/utils/workspace-roots.ts
 var WORKSPACE_ROOTS;
 var init_workspace_roots = __esm(() => {
   WORKSPACE_ROOTS = ["packages", "apps", "libs", "modules"];
 });
 
-// src/utils/workspaces.ts
+// packages/cli/src/utils/workspaces.ts
 import { readdirSync as readdirSync13 } from "fs";
 import nodePath39 from "path";
 function getWorkspacePatterns(cwd) {
@@ -21607,7 +21607,7 @@ var init_workspaces = __esm(() => {
   init_workspace_roots();
 });
 
-// src/reconcile.ts
+// packages/cli/src/reconcile.ts
 import { lstatSync as lstatSync5, readdirSync as readdirSync14, readlinkSync, unlinkSync as unlinkSync3 } from "fs";
 import nodePath40 from "path";
 function getConditionalPackages(conditionalPackages, projectType) {
@@ -22554,7 +22554,7 @@ var init_reconcile = __esm(() => {
   };
 });
 
-// src/utils/architecture-records.ts
+// packages/cli/src/utils/architecture-records.ts
 import { readdirSync as readdirSync15, statSync as statSync2 } from "fs";
 import nodePath41 from "path";
 function listArchitectureRecords(resolvedPath) {
@@ -22575,7 +22575,7 @@ function listArchitectureRecords(resolvedPath) {
 }
 var init_architecture_records = () => {};
 
-// src/utils/git.ts
+// packages/cli/src/utils/git.ts
 import { execFileSync as execFileSync5 } from "child_process";
 import nodePath42 from "path";
 function isGitRepo(cwd) {
@@ -22597,7 +22597,7 @@ var init_git = __esm(() => {
   init_fs();
 });
 
-// src/utils/hook-manager.ts
+// packages/cli/src/utils/hook-manager.ts
 import { execFileSync as execFileSync6 } from "child_process";
 import nodePath43 from "path";
 function configuredHooksPath(cwd) {
@@ -22649,7 +22649,7 @@ var init_hook_manager = __esm(() => {
   ];
 });
 
-// src/presets/typescript/detect.ts
+// packages/cli/src/presets/typescript/detect.ts
 import { existsSync as existsSync24, readdirSync as readdirSync16, readFileSync as readFileSync24 } from "fs";
 import path3 from "path";
 function getWorkspacePatterns2(cwd) {
@@ -22890,7 +22890,7 @@ var init_detect = __esm(() => {
   };
 });
 
-// src/utils/cucumber-template-revisions.ts
+// packages/cli/src/utils/cucumber-template-revisions.ts
 import { createHash as createHash8 } from "crypto";
 function isShippedCucumberTemplateRevision(content) {
   const hash = createHash8("sha256").update(content).digest("hex");
@@ -22908,7 +22908,7 @@ var init_cucumber_template_revisions = __esm(() => {
   ]);
 });
 
-// src/utils/project-detector.ts
+// packages/cli/src/utils/project-detector.ts
 import { existsSync as existsSync25, readdirSync as readdirSync17, readFileSync as readFileSync25 } from "fs";
 import nodePath44 from "path";
 function detectLanguages2(cwd) {
@@ -23214,7 +23214,7 @@ var init_project_detector = __esm(() => {
   ];
 });
 
-// src/utils/context.ts
+// packages/cli/src/utils/context.ts
 import nodePath45 from "path";
 function createProjectContext(cwd) {
   const packageJson = readJson(nodePath45.join(cwd, "package.json"));
@@ -23240,7 +23240,7 @@ var init_context = __esm(() => {
   init_project_detector();
 });
 
-// src/utils/frontmatter.ts
+// packages/cli/src/utils/frontmatter.ts
 function readFrontmatterScalar(content, field) {
   const lines = content?.split(/\r?\n/) ?? [];
   if (lines[0] !== "---")
@@ -23257,7 +23257,7 @@ function readFrontmatterScalar(content, field) {
   return;
 }
 
-// src/utils/feature-source.ts
+// packages/cli/src/utils/feature-source.ts
 import { existsSync as existsSync26, readdirSync as readdirSync18 } from "fs";
 import nodePath46 from "path";
 function slugForTicket(cwd, ticketFolder) {
@@ -23358,7 +23358,7 @@ var init_feature_source = __esm(() => {
   init_workspaces();
 });
 
-// ../../node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/AstNode.js
+// node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/AstNode.js
 class AstNode {
   ruleType;
   subItems = new Map;
@@ -23387,7 +23387,7 @@ class AstNode {
   }
 }
 
-// ../../node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/Errors.js
+// node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/Errors.js
 var GherkinException, ParserException, CompositeParserException, AstBuilderException, NoSuchLanguageException;
 var init_Errors = __esm(() => {
   GherkinException = class GherkinException extends Error {
@@ -23441,7 +23441,7 @@ ${errors.map((e) => e.message).join(`
   };
 });
 
-// ../../node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/TokenExceptions.js
+// node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/TokenExceptions.js
 function tokenLocation(token) {
   return token.location?.line && token.line && token.line.indent !== undefined ? {
     line: token.location.line,
@@ -23467,7 +23467,7 @@ var init_TokenExceptions = __esm(() => {
   };
 });
 
-// ../../node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/TokenScanner.js
+// node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/TokenScanner.js
 class TokenScanner {
   makeToken;
   lineNumber = 0;
@@ -23488,7 +23488,7 @@ class TokenScanner {
   }
 }
 
-// ../../node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/countSymbols.js
+// node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/countSymbols.js
 function countSymbols(s) {
   return s.replace(regexAstralSymbols, "_").length;
 }
@@ -23497,7 +23497,7 @@ var init_countSymbols = __esm(() => {
   regexAstralSymbols = /[\uD800-\uDBFF][\uDC00-\uDFFF]/g;
 });
 
-// ../../node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/GherkinLine.js
+// node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/GherkinLine.js
 class GherkinLine {
   lineText;
   lineNumber;
@@ -23579,7 +23579,7 @@ var init_GherkinLine = __esm(() => {
   init_countSymbols();
 });
 
-// ../../node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/Parser.js
+// node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/Parser.js
 class Token {
   line;
   location;
@@ -27517,7 +27517,7 @@ var init_Parser = __esm(() => {
   })(RuleType || (RuleType = {}));
 });
 
-// ../../node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/AstBuilder.js
+// node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/AstBuilder.js
 class AstBuilder {
   stack;
   comments;
@@ -27808,7 +27808,7 @@ var init_AstBuilder = __esm(() => {
   init_Parser();
 });
 
-// ../../node_modules/.bun/@cucumber+messages@34.2.1/node_modules/@cucumber/messages/dist/IdGenerator.js
+// node_modules/.bun/@cucumber+messages@34.2.1/node_modules/@cucumber/messages/dist/IdGenerator.js
 var exports_IdGenerator = {};
 __export(exports_IdGenerator, {
   uuid: () => uuid,
@@ -27822,7 +27822,7 @@ function incrementing() {
   return () => (next++).toString();
 }
 
-// ../../node_modules/.bun/@cucumber+messages@34.2.1/node_modules/@cucumber/messages/dist/messages.js
+// node_modules/.bun/@cucumber+messages@34.2.1/node_modules/@cucumber/messages/dist/messages.js
 var AttachmentContentEncoding, HookType, PickleStepType, SourceMediaType, StepDefinitionPatternType, StepKeywordType, TestStepResultStatus;
 var init_messages = __esm(() => {
   (function(AttachmentContentEncoding2) {
@@ -27869,17 +27869,17 @@ var init_messages = __esm(() => {
   })(TestStepResultStatus || (TestStepResultStatus = {}));
 });
 
-// ../../node_modules/.bun/@cucumber+messages@34.2.1/node_modules/@cucumber/messages/dist/index.js
+// node_modules/.bun/@cucumber+messages@34.2.1/node_modules/@cucumber/messages/dist/index.js
 var init_dist2 = __esm(() => {
   init_messages();
 });
 
-// ../../node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/compareStepKeywords.js
+// node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/compareStepKeywords.js
 function compareStepKeywords(a, b) {
   return b.length - a.length;
 }
 
-// ../../node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/gherkin-languages.json
+// node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/gherkin-languages.json
 var gherkin_languages_default;
 var init_gherkin_languages = __esm(() => {
   gherkin_languages_default = {
@@ -31783,7 +31783,7 @@ var init_gherkin_languages = __esm(() => {
   };
 });
 
-// ../../node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/GherkinClassicTokenMatcher.js
+// node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/GherkinClassicTokenMatcher.js
 function addKeywordTypeMappings(h, keywords, keywordType) {
   for (const k of keywords) {
     if (!(k in h)) {
@@ -31992,7 +31992,7 @@ var init_GherkinClassicTokenMatcher = __esm(() => {
   LANGUAGE_PATTERN = /^\s*#\s*language\s*:\s*([a-zA-Z\-_]+)\s*$/;
 });
 
-// ../../node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/GherkinInMarkdownTokenMatcher.js
+// node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/GherkinInMarkdownTokenMatcher.js
 var KeywordPrefix;
 var init_GherkinInMarkdownTokenMatcher = __esm(() => {
   init_Errors();
@@ -32004,10 +32004,10 @@ var init_GherkinInMarkdownTokenMatcher = __esm(() => {
   })(KeywordPrefix || (KeywordPrefix = {}));
 });
 
-// ../../node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/makeSourceEnvelope.js
+// node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/makeSourceEnvelope.js
 var init_makeSourceEnvelope = () => {};
 
-// ../../node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/pickles/compile.js
+// node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/pickles/compile.js
 var pickleStepTypeFromKeyword;
 var init_compile = __esm(() => {
   init_dist2();
@@ -32020,7 +32020,7 @@ var init_compile = __esm(() => {
   };
 });
 
-// ../../node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/generateMessages.js
+// node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/generateMessages.js
 var init_generateMessages = __esm(() => {
   init_AstBuilder();
   init_GherkinClassicTokenMatcher();
@@ -32030,7 +32030,7 @@ var init_generateMessages = __esm(() => {
   init_compile();
 });
 
-// ../../node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/index.js
+// node_modules/.bun/@cucumber+gherkin@42.0.1/node_modules/@cucumber/gherkin/dist/index.js
 var init_dist3 = __esm(() => {
   init_AstBuilder();
   init_Errors();
@@ -32043,7 +32043,7 @@ var init_dist3 = __esm(() => {
   init_compile();
 });
 
-// src/utils/gherkin-feature.ts
+// packages/cli/src/utils/gherkin-feature.ts
 function parseFeatureScenarios(featureContent) {
   const document2 = parseFeature(featureContent);
   const feature = document2.feature;
@@ -32499,7 +32499,7 @@ var init_gherkin_feature = __esm(() => {
   };
 });
 
-// src/utils/markdown-sections.ts
+// packages/cli/src/utils/markdown-sections.ts
 function computeSkipMask2(lines) {
   const skip = [];
   let isInsideCodeFence = false;
@@ -32562,7 +32562,7 @@ var init_markdown_sections = __esm(() => {
   HEADING_WHITESPACE = /^\s/;
 });
 
-// src/utils/validation.ts
+// packages/cli/src/utils/validation.ts
 function groupByLine(entries, pick) {
   const grouped = new Map;
   for (const entry of entries) {
@@ -32588,7 +32588,7 @@ function findDuplicates(grouped, kind) {
   return issues;
 }
 
-// src/utils/glossary.ts
+// packages/cli/src/utils/glossary.ts
 function groupAliasesByLine(entries) {
   const grouped = new Map;
   for (const entry of entries) {
@@ -32751,7 +32751,7 @@ var init_glossary = __esm(() => {
   ]);
 });
 
-// src/utils/personas.ts
+// packages/cli/src/utils/personas.ts
 function derivePersonaCode(name) {
   const trimmed = name.trim();
   if (trimmed.length === 0)
@@ -32920,7 +32920,7 @@ var init_personas = __esm(() => {
   CANONICAL_PERSONA_CODE_PATTERN = /^[A-Z][A-Z0-9]{2,3}$/;
 });
 
-// src/utils/scenario-coverage.ts
+// packages/cli/src/utils/scenario-coverage.ts
 function parseAcReferenceFromTitle(title) {
   const match = CONFORMANT_TITLE.exec(title.trim());
   if (!match)
@@ -33210,13 +33210,13 @@ var init_scenario_coverage = __esm(() => {
   LINEAGE_TAG_TOKEN = /@\S+/g;
 });
 
-// src/utils/ticket-index-warnings.ts
+// packages/cli/src/utils/ticket-index-warnings.ts
 function buildIndexConflictListMessage(paths) {
   return `Ticket index file(s) contained merge-conflict markers: ${paths.join(", ")}. ` + `Run ${SYNCTICKETS_QUIET_COMMAND} after resolving the merge conflict.`;
 }
 var SYNCTICKETS_QUIET_COMMAND = "`safeword project sync-tickets --quiet`";
 
-// src/health.ts
+// packages/cli/src/health.ts
 import { execFileSync as execFileSync7 } from "child_process";
 import { readdirSync as readdirSync19 } from "fs";
 import nodePath47 from "path";
@@ -33746,7 +33746,7 @@ var init_health = __esm(() => {
   ];
 });
 
-// src/utils/version.ts
+// packages/cli/src/utils/version.ts
 function onlyAsciiDigits(value) {
   if (value.length === 0)
     return false;
@@ -33880,7 +33880,7 @@ function isSafePackageVersion(version2) {
   return parseSemver(version2) !== undefined;
 }
 
-// src/codex-plugin/finalization.ts
+// packages/cli/src/codex-plugin/finalization.ts
 var exports_finalization = {};
 __export(exports_finalization, {
   validateCodexFinalizationPaths: () => validateCodexFinalizationPaths,
@@ -34341,7 +34341,7 @@ var init_finalization = __esm(() => {
   CODEX_CONFIG_PATH = CODEX_MIGRATION_SCHEMA.paths.config;
 });
 
-// src/codex-plugin/delivery-schema.ts
+// packages/cli/src/codex-plugin/delivery-schema.ts
 function withoutFinalizedCodexEntries(values, retiredPaths) {
   return Object.fromEntries(Object.entries(values).filter(([path4]) => !retiredPaths.has(path4)));
 }
@@ -34364,7 +34364,7 @@ var init_delivery_schema2 = __esm(() => {
   init_finalization();
 });
 
-// src/lifecycle/schema.ts
+// packages/cli/src/lifecycle/schema.ts
 var exports_schema = {};
 __export(exports_schema, {
   projectLifecycleSchema: () => projectLifecycleSchema
@@ -34430,7 +34430,7 @@ var init_schema2 = __esm(() => {
   init_schema();
 });
 
-// src/lifecycle/cursor.ts
+// packages/cli/src/lifecycle/cursor.ts
 var exports_cursor = {};
 __export(exports_cursor, {
   unselectedCursorFinding: () => unselectedCursorFinding,
@@ -34497,7 +34497,7 @@ var init_cursor = __esm(() => {
   init_schema2();
 });
 
-// src/claude-plugin/project-root.ts
+// packages/cli/src/claude-plugin/project-root.ts
 import { spawnSync as spawnSync2 } from "child_process";
 function canonicalClaudeProjectRoot(cwd) {
   const configuredRoot = process.env.CLAUDE_PROJECT_DIR;
@@ -34520,7 +34520,7 @@ var init_project_root = __esm(() => {
   init_fs();
 });
 
-// src/claude-plugin/profile.ts
+// packages/cli/src/claude-plugin/profile.ts
 var exports_profile = {};
 __export(exports_profile, {
   uninstallClaudePlugin: () => uninstallClaudePlugin,
@@ -35243,7 +35243,7 @@ var init_profile = __esm(() => {
   };
 });
 
-// src/claude-plugin/hook-manifest.ts
+// packages/cli/src/claude-plugin/hook-manifest.ts
 import { createHash as createHash11 } from "crypto";
 function adaptHookValue(value) {
   if (typeof value === "string") {
@@ -35310,7 +35310,7 @@ var init_hook_manifest = __esm(() => {
   init_config();
 });
 
-// src/claude-plugin/status.ts
+// packages/cli/src/claude-plugin/status.ts
 var exports_status = {};
 __export(exports_status, {
   observeClaudeStatus: () => observeClaudeStatus,
@@ -35544,7 +35544,7 @@ var init_status = __esm(() => {
   };
 });
 
-// src/codex-plugin/legacy-command.ts
+// packages/cli/src/codex-plugin/legacy-command.ts
 function commandParts(command) {
   return command.trim().split(" ").filter((part) => part !== "");
 }
@@ -35590,7 +35590,7 @@ var init_legacy_command = __esm(() => {
   init_inventory();
 });
 
-// src/codex-plugin/legacy-authority.ts
+// packages/cli/src/codex-plugin/legacy-authority.ts
 import { accessSync, constants, lstatSync as lstatSync8, readFileSync as readFileSync29 } from "fs";
 import nodePath52 from "path";
 function regularFile(path4) {
@@ -35661,7 +35661,7 @@ var init_legacy_authority = __esm(() => {
   init_legacy_command();
 });
 
-// src/codex-plugin/legacy-config.ts
+// packages/cli/src/codex-plugin/legacy-config.ts
 import { lstatSync as lstatSync9, readFileSync as readFileSync30 } from "fs";
 import nodePath53 from "path";
 function hookHeaderEntries(event) {
@@ -35975,7 +35975,7 @@ var init_legacy_config = __esm(() => {
   };
 });
 
-// src/utils/profile-lock.ts
+// packages/cli/src/utils/profile-lock.ts
 import { randomUUID as randomUUID4 } from "crypto";
 import { mkdirSync as mkdirSync9, readFileSync as readFileSync31, rmSync as rmSync6, statSync as statSync4, writeFileSync as writeFileSync12 } from "fs";
 import nodePath54 from "path";
@@ -36040,7 +36040,7 @@ var init_profile_lock = __esm(() => {
   DEFAULT_MAX_AGE_MS = 10 * 60 * 1000;
 });
 
-// src/codex-plugin/profile-lock.ts
+// packages/cli/src/codex-plugin/profile-lock.ts
 import { homedir as homedir3 } from "os";
 import nodePath55 from "path";
 function profileDirectory(environment) {
@@ -36054,7 +36054,7 @@ var init_profile_lock2 = __esm(() => {
   init_profile_lock();
 });
 
-// src/codex-plugin/host-process.ts
+// packages/cli/src/codex-plugin/host-process.ts
 import { spawnSync as spawnSync4 } from "child_process";
 function parseProcessRows(output) {
   return output.split(`
@@ -36144,7 +36144,7 @@ function sameCodexHost(left, right) {
 var WINDOWS_PROCESS_COMMAND = 'Get-CimInstance Win32_Process | ForEach-Object { $started = [DateTimeOffset]$_.CreationDate; Write-Output ("{0}`t{1}`t{2}`t{3}" -f $_.ProcessId, $_.ParentProcessId, $started.ToUnixTimeMilliseconds(), $_.CommandLine) }';
 var init_host_process = () => {};
 
-// src/codex-plugin/profile-proof.ts
+// packages/cli/src/codex-plugin/profile-proof.ts
 import { createHash as createHash13, randomUUID as randomUUID5 } from "crypto";
 import {
   closeSync as closeSync4,
@@ -36697,7 +36697,7 @@ var init_profile_proof = __esm(() => {
   MAX_CODEX_HOOK_PROOF_BYTES = 64 * 1024;
 });
 
-// src/codex-plugin/project-bootstrap.ts
+// packages/cli/src/codex-plugin/project-bootstrap.ts
 import { readFileSync as readFileSync33 } from "fs";
 import nodePath57 from "path";
 function withoutManagedBlock(content) {
@@ -36792,7 +36792,7 @@ ${END_MARKER}
 `;
 });
 
-// src/codex-plugin/operations.ts
+// packages/cli/src/codex-plugin/operations.ts
 var exports_operations = {};
 __export(exports_operations, {
   uninstallCodexPlugin: () => uninstallCodexPlugin,
@@ -37444,7 +37444,7 @@ var init_operations = __esm(() => {
   };
 });
 
-// src/opencode/records.ts
+// packages/cli/src/opencode/records.ts
 function exactRecord(value, requiredKeys, optionalKeys = []) {
   if (typeof value !== "object" || value === null || Array.isArray(value))
     return;
@@ -37469,7 +37469,7 @@ function isTimestamp(value) {
   return isNonEmptyString(value) && Number.isFinite(Date.parse(value));
 }
 
-// src/opencode/evidence.ts
+// packages/cli/src/opencode/evidence.ts
 import nodePath59 from "path";
 function isSchemaVersion(value) {
   return value === 1;
@@ -37601,7 +37601,7 @@ var init_evidence = __esm(() => {
   ]);
 });
 
-// src/opencode/identity.ts
+// packages/cli/src/opencode/identity.ts
 function parseOpenCodeIdentity(value) {
   const record = exactRecord(value, IDENTITY_KEYS);
   if (record?.schema_version !== 1 || record.plugin_path !== "plugins/safeword.js" || !isNonEmptyString(record.safeword_version) || !isSha2562(record.plugin_sha256) || !isNonEmptyString(record.runtime_path) || !isNonEmptyString(record.dispatcher_path) || !isSha2562(record.dispatcher_sha256)) {
@@ -37622,7 +37622,7 @@ var init_identity = __esm(() => {
   ];
 });
 
-// src/opencode/plugin.ts
+// packages/cli/src/opencode/plugin.ts
 function profilePluginSource(markerTimeoutMilliseconds) {
   return String.raw`import { spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
@@ -37882,7 +37882,7 @@ function generateOpenCodeProfilePlugin(options = {}) {
 }
 var DEFAULT_MARKER_TIMEOUT_MILLISECONDS = 50;
 
-// src/opencode/profile.ts
+// packages/cli/src/opencode/profile.ts
 var exports_profile2 = {};
 __export(exports_profile2, {
   uninstallOpenCodeProfile: () => uninstallOpenCodeProfile,
@@ -38379,7 +38379,7 @@ var init_profile2 = __esm(() => {
   };
 });
 
-// src/opencode/conformance-fixture.ts
+// packages/cli/src/opencode/conformance-fixture.ts
 import { spawn, spawnSync as spawnSync6 } from "child_process";
 import { randomUUID as randomUUID6 } from "crypto";
 import {
@@ -38722,7 +38722,7 @@ var init_conformance_fixture = __esm(() => {
   };
 });
 
-// src/opencode/conformance.ts
+// packages/cli/src/opencode/conformance.ts
 var exports_conformance = {};
 __export(exports_conformance, {
   runOpenCodeConformance: () => runOpenCodeConformance,
@@ -38920,7 +38920,7 @@ var init_conformance = __esm(() => {
   init_profile2();
 });
 
-// src/lifecycle/integrations.ts
+// packages/cli/src/lifecycle/integrations.ts
 function invalidAdapter(id, reason) {
   const label = typeof id === "string" && id.length > 0 ? id : "<unknown>";
   throw new Error(`Invalid integration adapter ${label}: ${reason}.`);
@@ -39356,7 +39356,7 @@ var init_integrations = __esm(() => {
   PRODUCTION_INTEGRATIONS = createIntegrationRegistry([claude, codex, opencode, cursor]);
 });
 
-// src/lifecycle/status.ts
+// packages/cli/src/lifecycle/status.ts
 var exports_status2 = {};
 __export(exports_status2, {
   summarizeLifecycleStatus: () => summarizeLifecycleStatus,
@@ -39591,7 +39591,7 @@ var init_status2 = __esm(() => {
   };
 });
 
-// src/lifecycle/doctor.ts
+// packages/cli/src/lifecycle/doctor.ts
 var exports_doctor = {};
 __export(exports_doctor, {
   diagnoseLifecycle: () => diagnoseLifecycle
@@ -39645,7 +39645,7 @@ var init_doctor = __esm(() => {
   init_status2();
 });
 
-// src/cli-protocol/reconciliation.ts
+// packages/cli/src/cli-protocol/reconciliation.ts
 import { createHash as createHash17 } from "crypto";
 import { lstatSync as lstatSync14, readdirSync as readdirSync23, readFileSync as readFileSync38, readlinkSync as readlinkSync2 } from "fs";
 import nodePath63 from "path";
@@ -39769,7 +39769,7 @@ var init_reconciliation = __esm(() => {
   ];
 });
 
-// src/cli-protocol/file-effects.ts
+// packages/cli/src/cli-protocol/file-effects.ts
 function diffFileSnapshots(before, after) {
   const effects = [];
   for (const [target, content] of after) {
@@ -39786,7 +39786,7 @@ function diffFileSnapshots(before, after) {
   return effects;
 }
 
-// src/commands/remove.ts
+// packages/cli/src/commands/remove.ts
 var exports_remove = {};
 __export(exports_remove, {
   removeProject: () => removeProject
@@ -40003,7 +40003,7 @@ var init_remove = __esm(() => {
   ];
 });
 
-// src/utils/boundaries.ts
+// packages/cli/src/utils/boundaries.ts
 import { readdirSync as readdirSync24 } from "fs";
 import nodePath65 from "path";
 function findMonorepoPackages(projectDirectory) {
@@ -40089,7 +40089,7 @@ var init_boundaries = __esm(() => {
   ];
 });
 
-// src/utils/depcruise-config.ts
+// packages/cli/src/utils/depcruise-config.ts
 import nodePath66 from "path";
 function detectWorkspaces(cwd) {
   const packageJsonPath = nodePath66.join(cwd, "package.json");
@@ -40235,7 +40235,7 @@ var init_depcruise_config = __esm(() => {
   init_fs();
 });
 
-// src/commands/sync-config.ts
+// packages/cli/src/commands/sync-config.ts
 var exports_sync_config = {};
 __export(exports_sync_config, {
   syncConfigCore: () => syncConfigCore,
@@ -40286,7 +40286,7 @@ var init_sync_config = __esm(() => {
   init_fs();
 });
 
-// src/packs/install.ts
+// packages/cli/src/packs/install.ts
 function installPack(packId, cwd) {
   if (isPackInstalled(cwd, packId)) {
     return { files: [] };
@@ -40305,7 +40305,7 @@ var init_install2 = __esm(() => {
   init_registry();
 });
 
-// src/retro/public-config.ts
+// packages/cli/src/retro/public-config.ts
 import { randomUUID as randomUUID7 } from "crypto";
 import { existsSync as existsSync36, readFileSync as readFileSync41 } from "fs";
 import nodePath68 from "path";
@@ -40383,7 +40383,7 @@ var init_public_config = __esm(() => {
   UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 });
 
-// src/utils/hook-nudge.ts
+// packages/cli/src/utils/hook-nudge.ts
 import nodePath69 from "path";
 function configAlreadyIntegrates(cwd, configNames) {
   return configNames.some((name) => (readFileSafe(nodePath69.join(cwd, name)) ?? "").includes(BOUNDARY_INVOCATION));
@@ -40461,7 +40461,7 @@ To wire the warn-only boundary gate, add under repos:
         stages: [pre-push]`;
 });
 
-// src/utils/namespace-migration.ts
+// packages/cli/src/utils/namespace-migration.ts
 import { execSync } from "child_process";
 import { createHash as createHash18 } from "crypto";
 import {
@@ -40747,7 +40747,7 @@ var init_namespace_migration = __esm(() => {
   MAX_NAMESPACE_CONFIG_BYTES = 1024 * 1024;
 });
 
-// src/utils/safeword-version-sync.ts
+// packages/cli/src/utils/safeword-version-sync.ts
 import nodePath71 from "path";
 function stripDeadConfigVersion(safewordDirectory) {
   const configPath3 = nodePath71.join(safewordDirectory, "config.json");
@@ -40817,7 +40817,7 @@ var init_safeword_version_sync = __esm(() => {
   ];
 });
 
-// src/utils/setup-workspaces.ts
+// packages/cli/src/utils/setup-workspaces.ts
 import { readdirSync as readdirSync26 } from "fs";
 import nodePath72 from "path";
 function workspacePackageJsonTargets(cwd, context) {
@@ -40881,7 +40881,7 @@ var init_setup_workspaces = __esm(() => {
   init_workspaces();
 });
 
-// src/utils/stale-config-scan.ts
+// packages/cli/src/utils/stale-config-scan.ts
 import { existsSync as existsSync38, readdirSync as readdirSync27, readFileSync as readFileSync43 } from "fs";
 import nodePath73 from "path";
 function prettierignoreHasCustomerReference(content) {
@@ -40967,7 +40967,7 @@ var init_stale_config_scan = __esm(() => {
   ];
 });
 
-// src/utils/eslint-auto-patch.ts
+// packages/cli/src/utils/eslint-auto-patch.ts
 import { execSync as execSync2 } from "child_process";
 import { copyFileSync, readFileSync as readFileSync44, writeFileSync as writeFileSync15 } from "fs";
 import nodePath74 from "path";
@@ -41157,7 +41157,7 @@ var init_eslint_auto_patch = __esm(() => {
   CJS_EXTENSIONS = new Set([".cjs"]);
 });
 
-// src/utils/vendored-ignores-nudge.ts
+// packages/cli/src/utils/vendored-ignores-nudge.ts
 import { readFileSync as readFileSync45 } from "fs";
 import nodePath75 from "path";
 function shouldEmitVendoredIgnoresNudge(options) {
@@ -41200,7 +41200,7 @@ var init_vendored_ignores_nudge = __esm(() => {
   init_eslint_auto_patch();
 });
 
-// src/lifecycle/project-install.ts
+// packages/cli/src/lifecycle/project-install.ts
 import { createHash as createHash19 } from "crypto";
 import {
   closeSync as closeSync6,
@@ -42363,7 +42363,7 @@ var init_project_install = __esm(() => {
   };
 });
 
-// src/lifecycle/commands.ts
+// packages/cli/src/lifecycle/commands.ts
 var exports_commands = {};
 __export(exports_commands, {
   uninstallLifecycle: () => uninstallLifecycle,
@@ -42843,7 +42843,7 @@ var init_commands = __esm(() => {
   ];
 });
 
-// src/claude-plugin/cleanup.ts
+// packages/cli/src/claude-plugin/cleanup.ts
 var exports_cleanup = {};
 __export(exports_cleanup, {
   recoverClaudeCleanup: () => recoverClaudeCleanup,
@@ -43629,7 +43629,7 @@ var init_cleanup = __esm(() => {
   ];
 });
 
-// src/claude-plugin/cleanup-command.ts
+// packages/cli/src/claude-plugin/cleanup-command.ts
 var exports_cleanup_command = {};
 __export(exports_cleanup_command, {
   cleanupClaudeLegacy: () => cleanupClaudeLegacy
@@ -43742,7 +43742,7 @@ var init_cleanup_command = __esm(() => {
   init_status();
 });
 
-// src/test-execution/config.ts
+// packages/cli/src/test-execution/config.ts
 import { spawnSync as spawnSync8 } from "child_process";
 import {
   closeSync as closeSync8,
@@ -43898,7 +43898,7 @@ function readProjectTestConfig(cwd) {
 }
 var init_config4 = () => {};
 
-// src/test-execution/mode.ts
+// packages/cli/src/test-execution/mode.ts
 function resolveExecutionMode(input) {
   if (input.command !== undefined)
     return { mode: input.command, source: "command" };
@@ -43909,7 +43909,7 @@ function resolveExecutionMode(input) {
   return { mode: "local", source: "built-in" };
 }
 
-// src/test-execution/remote-workflow-contract.ts
+// packages/cli/src/test-execution/remote-workflow-contract.ts
 import { createHash as createHash22 } from "crypto";
 function mapping(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value) ? value : undefined;
@@ -44125,7 +44125,7 @@ var init_remote_workflow_contract = __esm(() => {
   ];
 });
 
-// src/test-execution/remote-workflow-fs.ts
+// packages/cli/src/test-execution/remote-workflow-fs.ts
 import { randomUUID as randomUUID9 } from "crypto";
 import {
   closeSync as closeSync9,
@@ -44297,7 +44297,7 @@ var init_remote_workflow_fs = __esm(() => {
   };
 });
 
-// src/test-execution/remote-workflow-state.ts
+// packages/cli/src/test-execution/remote-workflow-state.ts
 import { createHash as createHash23 } from "crypto";
 import nodePath80 from "path";
 function observationError(error2, path4) {
@@ -44449,7 +44449,7 @@ var init_remote_workflow_state = __esm(() => {
   HISTORICAL_MANAGED_DIGESTS = new Set(REMOTE_WORKFLOW_RELEASE_MANIFEST.slice(0, -1).map((release) => release.normalizedSha256));
 });
 
-// src/test-execution/remote-workflow-lifecycle.ts
+// packages/cli/src/test-execution/remote-workflow-lifecycle.ts
 import nodePath81 from "path";
 function retryFailure() {
   return {
@@ -44661,7 +44661,7 @@ var init_remote_workflow_lifecycle = __esm(() => {
   init_remote_workflow_state();
 });
 
-// src/test-plan/resolve.ts
+// packages/cli/src/test-plan/resolve.ts
 import { spawnSync as spawnSync9 } from "child_process";
 import { existsSync as existsSync41, readFileSync as readFileSync50 } from "fs";
 import nodePath82 from "path";
@@ -45022,7 +45022,7 @@ var init_resolve = __esm(() => {
   };
 });
 
-// src/commands/test-execution.ts
+// packages/cli/src/commands/test-execution.ts
 var exports_test_execution = {};
 __export(exports_test_execution, {
   setupManagedRemoteWorkflow: () => setupManagedRemoteWorkflow,
@@ -45513,7 +45513,7 @@ var init_test_execution = __esm(() => {
   };
 });
 
-// src/commands/architecture.ts
+// packages/cli/src/commands/architecture.ts
 var exports_architecture = {};
 __export(exports_architecture, {
   architectureStaged: () => architectureStaged,
@@ -46104,7 +46104,7 @@ var init_architecture = __esm(() => {
   ]);
 });
 
-// src/learning-sync/index.ts
+// packages/cli/src/learning-sync/index.ts
 var exports_learning_sync = {};
 __export(exports_learning_sync, {
   syncLearnings: () => syncLearnings,
@@ -46204,7 +46204,7 @@ var init_learning_sync = __esm(() => {
   init_configured_paths();
 });
 
-// src/utils/test-skeleton.ts
+// packages/cli/src/utils/test-skeleton.ts
 function parseScenarios(testDefinitionsContent) {
   const lines = testDefinitionsContent.split(`
 `);
@@ -46366,7 +46366,7 @@ var init_test_skeleton = __esm(() => {
   init_scenario_coverage();
 });
 
-// src/commands/codify.ts
+// packages/cli/src/commands/codify.ts
 var exports_codify = {};
 __export(exports_codify, {
   codifyResult: () => codifyResult
@@ -46502,7 +46502,7 @@ var init_codify = __esm(() => {
   init_test_skeleton();
 });
 
-// src/test-plan/render.ts
+// packages/cli/src/test-plan/render.ts
 function shellQuote2(value) {
   const escaped = value.replaceAll("'", String.raw`'\''`);
   return `'${escaped}'`;
@@ -46519,7 +46519,7 @@ function renderShellPlan(entries) {
 `;
 }
 
-// src/commands/test-plan.ts
+// packages/cli/src/commands/test-plan.ts
 var exports_test_plan = {};
 __export(exports_test_plan, {
   observeTestPlan: () => observeTestPlan
@@ -46574,7 +46574,7 @@ var init_test_plan = __esm(() => {
   init_resolve();
 });
 
-// src/commands/namespace-root.ts
+// packages/cli/src/commands/namespace-root.ts
 var exports_namespace_root = {};
 __export(exports_namespace_root, {
   observeNamespaceRoot: () => observeNamespaceRoot
@@ -46610,7 +46610,7 @@ var init_namespace_root = __esm(() => {
   init_configured_paths();
 });
 
-// templates/hooks/lib/namespace-root.ts
+// packages/cli/templates/hooks/lib/namespace-root.ts
 import { existsSync as existsSync44, readFileSync as readFileSync55, statSync as statSync6 } from "fs";
 import nodePath89 from "path";
 function readConfiguredPathValue(projectDirectory, key) {
@@ -46661,7 +46661,7 @@ function resolveNamespaceRoot2(projectDirectory) {
 var NAMESPACE_ROOT_DEFAULT2 = ".project", NAMESPACE_ROOT_LEGACY2 = ".safeword-project";
 var init_namespace_root2 = () => {};
 
-// templates/hooks/lib/project-knowledge.ts
+// packages/cli/templates/hooks/lib/project-knowledge.ts
 import { readFileSync as readFileSync56, statSync as statSync7 } from "fs";
 function isRegularFile(path4) {
   try {
@@ -46690,7 +46690,7 @@ var init_project_knowledge = __esm(() => {
   REVIEW_KNOWLEDGE_KEYS = ["principles", "personas", "surfaces"];
 });
 
-// src/commands/review-knowledge.ts
+// packages/cli/src/commands/review-knowledge.ts
 var exports_review_knowledge = {};
 __export(exports_review_knowledge, {
   observeReviewKnowledge: () => observeReviewKnowledge
@@ -46711,7 +46711,7 @@ var init_review_knowledge = __esm(() => {
   init_result();
 });
 
-// src/commands/public-retros.ts
+// packages/cli/src/commands/public-retros.ts
 var exports_public_retros = {};
 __export(exports_public_retros, {
   configurePublicRetros: () => configurePublicRetros
@@ -46730,7 +46730,7 @@ var init_public_retros = __esm(() => {
   init_public_config();
 });
 
-// templates/hooks/lib/retro-draft-spool.ts
+// packages/cli/templates/hooks/lib/retro-draft-spool.ts
 var exports_retro_draft_spool = {};
 __export(exports_retro_draft_spool, {
   verifyDraftBody: () => verifyDraftBody,
@@ -46883,7 +46883,7 @@ var init_retro_draft_spool = __esm(() => {
   SPOOL_DIR = nodePath91.join(".safeword", "retro-drafts");
 });
 
-// templates/hooks/lib/drain-retro-spool.ts
+// packages/cli/templates/hooks/lib/drain-retro-spool.ts
 var exports_drain_retro_spool = {};
 __export(exports_drain_retro_spool, {
   drainRetroSpool: () => drainRetroSpool
@@ -46934,7 +46934,7 @@ var init_drain_retro_spool = __esm(() => {
   if (false) {}
 });
 
-// src/commands/retro-drain.ts
+// packages/cli/src/commands/retro-drain.ts
 var exports_retro_drain = {};
 __export(exports_retro_drain, {
   runRetroDrain: () => runRetroDrain
@@ -47004,7 +47004,7 @@ var init_retro_drain = __esm(() => {
   init_result();
 });
 
-// src/commands/lint-gherkin.ts
+// packages/cli/src/commands/lint-gherkin.ts
 var exports_lint_gherkin = {};
 __export(exports_lint_gherkin, {
   observeGherkinLint: () => observeGherkinLint
@@ -47087,7 +47087,7 @@ var init_lint_gherkin = __esm(() => {
   };
 });
 
-// src/review/contract.ts
+// packages/cli/src/review/contract.ts
 var exports_contract = {};
 __export(exports_contract, {
   isReviewKind: () => isReviewKind
@@ -47104,7 +47104,7 @@ var init_contract = __esm(() => {
   ]);
 });
 
-// templates/hooks/lib/run-identity.ts
+// packages/cli/templates/hooks/lib/run-identity.ts
 function asInput(value) {
   return value !== null && typeof value === "object" ? value : {};
 }
@@ -47201,7 +47201,7 @@ var init_run_identity = __esm(() => {
   RUNTIMES = new Set(["claude", "codex", "cursor", "unknown"]);
 });
 
-// src/review/command.ts
+// packages/cli/src/review/command.ts
 function shellQuote3(value) {
   if (/^[\w./-]+$/u.test(value))
     return value;
@@ -47217,7 +47217,7 @@ function retryCommand(kind, targets, context = []) {
   return `safeword review run ${kind}${contextOption} -- ${quoted}`;
 }
 
-// src/review/packet.ts
+// packages/cli/src/review/packet.ts
 var exports_packet = {};
 __export(exports_packet, {
   prepareReviewPacket: () => prepareReviewPacket,
@@ -47439,7 +47439,7 @@ var init_packet = __esm(() => {
   };
 });
 
-// templates/hooks/lib/review-ledger.ts
+// packages/cli/templates/hooks/lib/review-ledger.ts
 function readCrossAgentReviewPolicy(rawConfig) {
   if (rawConfig === undefined)
     return "prefer";
@@ -47457,7 +47457,7 @@ var init_review_ledger = __esm(() => {
   init_parse_annotation();
 });
 
-// src/review/policy.ts
+// packages/cli/src/review/policy.ts
 import { readFileSync as readFileSync59 } from "fs";
 import nodePath96 from "path";
 function oppositeReviewPair(author) {
@@ -47513,7 +47513,7 @@ var init_policy = __esm(() => {
   DEFAULT_ALTERNATE_MODEL = { claude: "sonnet" };
 });
 
-// src/review/environment.ts
+// packages/cli/src/review/environment.ts
 function filteredEnvironment(reviewer, source = process.env, platform = process.platform) {
   const normalize = (name) => platform === "win32" ? name.toUpperCase() : name;
   const allowed = new Set([
@@ -47629,7 +47629,7 @@ var init_environment = __esm(() => {
   ];
 });
 
-// src/review/plan-rubric.generated.ts
+// packages/cli/src/review/plan-rubric.generated.ts
 var PLAN_REVIEW_RUBRIC = `## Shared implementation-plan judgment standard
 
 This block is the complete plan-quality standard used by both the author and
@@ -47671,7 +47671,7 @@ records as context around the one \`impl-plan.md\` work artifact.
 An error requires \`request_changes\`; approval is valid only when no error
 findings remain. Return findings through the typed reviewer result contract.`;
 
-// src/review/quality-rubric.generated.ts
+// packages/cli/src/review/quality-rubric.generated.ts
 var QUALITY_REVIEW_RUBRIC = `## Shared adversarial-review severity foundation
 
 An \`error\` requires a concrete, release-relevant failure within the accepted
@@ -47700,7 +47700,7 @@ Apply these regression boundaries:
 - **Warning:** an actor inside an explicitly trusted boundary could defeat a
   diagnostic that is not claimed as protection from that actor.`;
 
-// src/review/scenario-rubric.generated.ts
+// packages/cli/src/review/scenario-rubric.generated.ts
 var SCENARIO_REVIEW_RUBRIC = `## Shared scenario-quality rubric
 
 This block is the complete judgment standard used in both modes. Treat review
@@ -47804,7 +47804,7 @@ and \`info\`, respectively. An \`error\` requires \`request_changes\`; \`approve
 valid only when there are no \`error\` findings. Return findings through the typed
 result contract.`;
 
-// src/review/runtime.ts
+// packages/cli/src/review/runtime.ts
 import { spawn as spawn2 } from "child_process";
 import { createHash as createHash26 } from "crypto";
 import {
@@ -48565,7 +48565,7 @@ var init_runtime = __esm(() => {
   reviewerStops = new WeakMap;
 });
 
-// src/review/coordinator.ts
+// packages/cli/src/review/coordinator.ts
 var exports_coordinator = {};
 __export(exports_coordinator, {
   runReview: () => runReview
@@ -49229,7 +49229,7 @@ var init_coordinator = __esm(() => {
   ]);
 });
 
-// src/cli-protocol/policy.ts
+// packages/cli/src/cli-protocol/policy.ts
 function firstNonEmptyEffect(effects) {
   return Object.keys(effects).find((effectClass) => effects[effectClass].length > 0);
 }
@@ -49342,7 +49342,7 @@ var init_policy2 = __esm(() => {
   };
 });
 
-// src/review/job.ts
+// packages/cli/src/review/job.ts
 var exports_job = {};
 __export(exports_job, {
   startReviewJob: () => startReviewJob,
@@ -50185,7 +50185,7 @@ var init_job = __esm(() => {
   init_runtime();
 });
 
-// src/pr-review/providers/openai.ts
+// packages/cli/src/pr-review/providers/openai.ts
 function isRecord4(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -50321,7 +50321,7 @@ var init_openai = __esm(() => {
   };
 });
 
-// src/pr-review/split-privilege.ts
+// packages/cli/src/pr-review/split-privilege.ts
 function isObject(value) {
   return typeof value === "object" && value !== null;
 }
@@ -50343,7 +50343,7 @@ async function publishValidatedSplitPrivilegeEvidence(dependencies) {
   return { publicationBlocked: false };
 }
 
-// src/pr-review/review.ts
+// packages/cli/src/pr-review/review.ts
 function resolvePrerequisites(pullRequest) {
   return pullRequest.requiredPrerequisites?.length === 0 ? "passed" : pullRequest.prerequisites;
 }
@@ -50474,7 +50474,7 @@ var init_review = __esm(() => {
   };
 });
 
-// src/commands/review-pr.ts
+// packages/cli/src/commands/review-pr.ts
 var exports_review_pr = {};
 __export(exports_review_pr, {
   inspectPullRequestCommand: () => inspectPullRequestCommand
@@ -50799,7 +50799,7 @@ var init_review_pr = __esm(() => {
   ]);
 });
 
-// src/pr-review/publish.ts
+// packages/cli/src/pr-review/publish.ts
 function hasExactReceiptMarker(body) {
   return body.split(/\r?\n/u).includes(RECEIPT_MARKER);
 }
@@ -50880,7 +50880,7 @@ ${renderedReceipt}`;
 }
 var RECEIPT_MARKER = "<!-- safeword:pr-review-receipt:v1 -->";
 
-// src/commands/review-pr-publication.ts
+// packages/cli/src/commands/review-pr-publication.ts
 var exports_review_pr_publication = {};
 __export(exports_review_pr_publication, {
   renderReviewedReceipt: () => renderReviewedReceipt,
@@ -51187,7 +51187,7 @@ var init_review_pr_publication = __esm(() => {
   ]);
 });
 
-// src/codex-plugin/project-directory.ts
+// packages/cli/src/codex-plugin/project-directory.ts
 import { execFileSync as execFileSync9 } from "child_process";
 import nodePath100 from "path";
 function resolveCodexProjectDirectory(cwd = process.cwd(), environment = process.env) {
@@ -51207,7 +51207,7 @@ function resolveCodexProjectDirectory(cwd = process.cwd(), environment = process
 }
 var init_project_directory = () => {};
 
-// src/commands/codex-bootstrap.ts
+// packages/cli/src/commands/codex-bootstrap.ts
 var exports_codex_bootstrap = {};
 __export(exports_codex_bootstrap, {
   bootstrapCodexPlugin: () => bootstrapCodexPlugin
@@ -51405,7 +51405,7 @@ var init_codex_bootstrap = __esm(() => {
   INSTALL_COMPLETED_RESTART_REQUIRED = `Safeword was installed for your Codex profile, but the newly installed runtime is not active in this already-open task. ${CODEX_REVIEW_THEN_RESTART_ACTION} before relying on the installed version.`;
 });
 
-// templates/hooks/lib/cursor-state.ts
+// packages/cli/templates/hooks/lib/cursor-state.ts
 function cursorStateKey(input) {
   const identity = resolveRunIdentity(input, { runtime: "cursor" });
   return getRunStorageKey(identity) ?? CURSOR_STATE_FALLBACK_KEY;
@@ -51424,7 +51424,7 @@ var init_cursor_state = __esm(() => {
   init_run_identity();
 });
 
-// templates/hooks/lib/dogfood.ts
+// packages/cli/templates/hooks/lib/dogfood.ts
 import { existsSync as existsSync48, readFileSync as readFileSync64 } from "fs";
 import nodePath101 from "path";
 function isDogfoodRepo(projectDirectory) {
@@ -51439,7 +51439,7 @@ function isDogfoodRepo(projectDirectory) {
 }
 var init_dogfood = () => {};
 
-// templates/hooks/lib/retro-debug.ts
+// packages/cli/templates/hooks/lib/retro-debug.ts
 import { appendFileSync as appendFileSync2, mkdirSync as mkdirSync18 } from "fs";
 import nodePath102 from "path";
 import process14 from "process";
@@ -51486,7 +51486,7 @@ var init_retro_debug = __esm(() => {
   REDACT_KEY_PATTERN = /^(?:transcript|transcriptText|transcriptContent|prompt|stdout|stderr|findings|rawFindings|body)$/i;
 });
 
-// templates/hooks/lib/retro-extract.ts
+// packages/cli/templates/hooks/lib/retro-extract.ts
 var exports_retro_extract = {};
 __export(exports_retro_extract, {
   windowFor: () => windowFor,
@@ -51846,7 +51846,7 @@ var init_retro_extract = __esm(() => {
   FRICTION = /error|fail|block|denied|stale|drift|guard|FAILED/i;
 });
 
-// src/retro/ledger.ts
+// packages/cli/src/retro/ledger.ts
 function emptyLedger() {
   return { total: 0, harness: {}, sessions: [], manifestations: [] };
 }
@@ -51965,7 +51965,7 @@ var init_ledger = __esm(() => {
   PROVENANCE_AT_CHARS = /^[\d.:TZ-]{20,24}$/;
 });
 
-// ../../node_modules/.bun/boundary@2.0.0/node_modules/boundary/lib/index.js
+// node_modules/.bun/boundary@2.0.0/node_modules/boundary/lib/index.js
 var require_lib = __commonJS((exports) => {
   Object.defineProperty(exports, "__esModule", { value: true });
   exports.binarySearch = exports.upperBound = exports.lowerBound = exports.compare = undefined;
@@ -52012,7 +52012,7 @@ var require_lib = __commonJS((exports) => {
   exports.binarySearch = binarySearch;
 });
 
-// ../../node_modules/.bun/structured-source@4.0.0/node_modules/structured-source/lib/structured-source.js
+// node_modules/.bun/structured-source@4.0.0/node_modules/structured-source/lib/structured-source.js
 var require_structured_source = __commonJS((exports) => {
   Object.defineProperty(exports, "__esModule", { value: true });
   exports.StructuredSource = undefined;
@@ -52068,13 +52068,13 @@ var require_structured_source = __commonJS((exports) => {
   exports.StructuredSource = StructuredSource;
 });
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/helper/invariant.js
+// node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/helper/invariant.js
 function invariant(condition, message) {
   if (!condition)
     throw new Error(message);
 }
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/SecretLintSourceCodeImpl.js
+// node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/SecretLintSourceCodeImpl.js
 class SecretLintSourceCodeImpl {
   hasBOM;
   content;
@@ -52131,7 +52131,7 @@ var init_SecretLintSourceCodeImpl = __esm(() => {
   import_structured_source = __toESM(require_structured_source(), 1);
 });
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/helper/promise-event-emitter.js
+// node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/helper/promise-event-emitter.js
 class EventEmitter2 {
   #listeners = new Map;
   on(type, listener) {
@@ -52191,7 +52191,7 @@ class PromiseEventEmitter {
   }
 }
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/helper/SecretLintRuleMessageTranslator.js
+// node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/helper/SecretLintRuleMessageTranslator.js
 var DEFAULT_LOCAL = "en", formatMessage = (messageHandler, props) => {
   if (typeof props !== "object" || props === null) {
     return messageHandler();
@@ -52252,7 +52252,7 @@ var DEFAULT_LOCAL = "en", formatMessage = (messageHandler, props) => {
   };
 };
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/RuleContext.js
+// node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/RuleContext.js
 var createContextEvents = () => {
   const contextEvents = new EventEmitter2;
   const REPORT_SYMBOL = Symbol("report");
@@ -52337,7 +52337,7 @@ var createContextEvents = () => {
 };
 var init_RuleContext = () => {};
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/SecretLintRuleImpl.js
+// node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/SecretLintRuleImpl.js
 class SecretLintRule {
   ruleReportHandle;
   ruleCreator;
@@ -52379,7 +52379,7 @@ class SecretLintRule {
   }
 }
 
-// ../../node_modules/.bun/@secretlint+profiler@13.0.4/node_modules/@secretlint/profiler/module/index.js
+// node_modules/.bun/@secretlint+profiler@13.0.4/node_modules/@secretlint/profiler/module/index.js
 class SecretLintProfiler {
   perf;
   entries = [];
@@ -52436,7 +52436,7 @@ class SecretLintProfiler {
   }
 }
 
-// ../../node_modules/.bun/@secretlint+profiler@13.0.4/node_modules/@secretlint/profiler/module/node.js
+// node_modules/.bun/@secretlint+profiler@13.0.4/node_modules/@secretlint/profiler/module/node.js
 import perf_hooks from "perf_hooks";
 
 class NullPerformanceObserver {
@@ -52451,7 +52451,7 @@ var init_node = __esm(() => {
   });
 });
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/RunningEvents.js
+// node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/RunningEvents.js
 var createRunningEvents = () => {
   const contextEvents = new PromiseEventEmitter;
   const registerSet = new Set;
@@ -52508,7 +52508,7 @@ var init_RunningEvents = __esm(() => {
   init_node();
 });
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/RulePresetContext.js
+// node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/RulePresetContext.js
 var createRulePresetContext = ({ configRulePreset, sourceCode, runningEvents, contextEvents, sharedOptions, locale }) => {
   const presetRules = configRulePreset.rules || [];
   if (!Array.isArray(presetRules)) {
@@ -52556,7 +52556,7 @@ var init_RulePresetContext = __esm(() => {
   init_RuleContext();
 });
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/messages/filter-ignored-process.js
+// node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/messages/filter-ignored-process.js
 function filterIgnoredMessages(options) {
   const reportedMessages = options.reportedMessages;
   const ignoreMessages = options.ignoredMessages;
@@ -52578,7 +52578,7 @@ var isContainedRange = (index, range) => {
   return start <= index && index <= end;
 };
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/messages/MessageProcessManager.js
+// node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/messages/MessageProcessManager.js
 var createMessageProcessor = (processors) => {
   return {
     process(messages2) {
@@ -52593,7 +52593,7 @@ var createMessageProcessor = (processors) => {
   };
 };
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/messages/filter-duplicated-process.js
+// node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/messages/filter-duplicated-process.js
 function filterDuplicatedMessages(messages2 = []) {
   return messages2.filter((message, index) => {
     const restMessages = messages2.slice(index + 1);
@@ -52606,7 +52606,7 @@ var isEqualMessage = (aMessage, bMessage) => {
   return aMessage.range[0] === bMessage.range[0] && aMessage.range[1] === bMessage.range[1] && "severity" in aMessage && "severity" in bMessage && aMessage.severity === bMessage.severity && aMessage.message === bMessage.message;
 };
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/messages/sort-messages-process.js
+// node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/messages/sort-messages-process.js
 function sortMessagesByLocation(messages2) {
   return messages2.sort(function(a, b) {
     const startIndexDiff = a.range[0] - b.range[0];
@@ -52618,7 +52618,7 @@ function sortMessagesByLocation(messages2) {
   });
 }
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/messages/filter-message-id.js
+// node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/messages/filter-message-id.js
 var filterByAllowMessageIds = (messages2, allowMessageIds) => {
   const disabledSet = new Set(allowMessageIds.map((allowMessage) => {
     return `${allowMessage.ruleId}--${allowMessage.messageId}`;
@@ -52628,7 +52628,7 @@ var filterByAllowMessageIds = (messages2, allowMessageIds) => {
   });
 };
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/messages/filter-mask-secrets.js
+// node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/messages/filter-mask-secrets.js
 var deepMask = (object, handler) => {
   for (const key of Object.keys(object)) {
     if (typeof object[key] === "object") {
@@ -52670,7 +52670,7 @@ var deepMask = (object, handler) => {
   });
 };
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/messages/index.js
+// node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/messages/index.js
 var cleanupMessages = (options) => {
   const reportedMessages = filterIgnoredMessages(options);
   const reportedMessagesWithoutAllowMessageIds = filterByAllowMessageIds(reportedMessages, options.allowMessageIds);
@@ -52680,7 +52680,7 @@ var cleanupMessages = (options) => {
 };
 var init_messages2 = () => {};
 
-// ../../node_modules/.bun/ms@2.1.3/node_modules/ms/index.js
+// node_modules/.bun/ms@2.1.3/node_modules/ms/index.js
 var require_ms = __commonJS((exports, module) => {
   var s = 1000;
   var m = s * 60;
@@ -52790,7 +52790,7 @@ var require_ms = __commonJS((exports, module) => {
   }
 });
 
-// ../../node_modules/.bun/debug@4.4.3/node_modules/debug/src/common.js
+// node_modules/.bun/debug@4.4.3+7f1b8241f77f2ecc/node_modules/debug/src/common.js
 var require_common = __commonJS((exports, module) => {
   function setup(env) {
     createDebug.debug = createDebug;
@@ -52965,7 +52965,7 @@ var require_common = __commonJS((exports, module) => {
   module.exports = setup;
 });
 
-// ../../node_modules/.bun/debug@4.4.3/node_modules/debug/src/browser.js
+// node_modules/.bun/debug@4.4.3+7f1b8241f77f2ecc/node_modules/debug/src/browser.js
 var require_browser = __commonJS((exports, module) => {
   exports.formatArgs = formatArgs;
   exports.save = save;
@@ -53125,7 +53125,7 @@ var require_browser = __commonJS((exports, module) => {
   };
 });
 
-// ../../node_modules/.bun/supports-color@11.0.0/node_modules/supports-color/index.js
+// node_modules/.bun/supports-color@11.0.0/node_modules/supports-color/index.js
 var exports_supports_color = {};
 __export(exports_supports_color, {
   default: () => supports_color_default,
@@ -53278,7 +53278,7 @@ var init_supports_color = __esm(() => {
   supports_color_default = supportsColor;
 });
 
-// ../../node_modules/.bun/debug@4.4.3/node_modules/debug/src/node.js
+// node_modules/.bun/debug@4.4.3+7f1b8241f77f2ecc/node_modules/debug/src/node.js
 var require_node = __commonJS((exports, module) => {
   var tty2 = __require("tty");
   var util = __require("util");
@@ -53449,7 +53449,7 @@ var require_node = __commonJS((exports, module) => {
   };
 });
 
-// ../../node_modules/.bun/debug@4.4.3/node_modules/debug/src/index.js
+// node_modules/.bun/debug@4.4.3+7f1b8241f77f2ecc/node_modules/debug/src/index.js
 var require_src = __commonJS((exports, module) => {
   if (typeof process === "undefined" || process.type === "renderer" || false || process.__nwjs) {
     module.exports = require_browser();
@@ -53458,7 +53458,7 @@ var require_src = __commonJS((exports, module) => {
   }
 });
 
-// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/index.js
+// node_modules/.bun/@secretlint+core@13.0.4+7f1b8241f77f2ecc/node_modules/@secretlint/core/module/index.js
 var import_debug, debug, lintSource = ({ source, options }) => {
   secretLintProfiler.mark({
     type: "@core>lint::start",
@@ -53585,7 +53585,7 @@ var init_module = __esm(() => {
   debug = import_debug.default("@secretlint/core");
 });
 
-// ../../node_modules/.bun/@secretlint+secretlint-rule-preset-recommend@13.0.4/node_modules/@secretlint/secretlint-rule-preset-recommend/module/index.js
+// node_modules/.bun/@secretlint+secretlint-rule-preset-recommend@13.0.4/node_modules/@secretlint/secretlint-rule-preset-recommend/module/index.js
 import path4 from "path";
 function requireLodash_uniq() {
   if (hasRequiredLodash_uniq)
@@ -57425,7 +57425,7 @@ var init_module2 = __esm(() => {
   };
 });
 
-// src/retro/egress.ts
+// packages/cli/src/retro/egress.ts
 function scrubSecrets(text) {
   let out = text;
   for (const pattern of SECRET_PATTERNS)
@@ -57599,7 +57599,7 @@ var init_egress = __esm(() => {
   PROCESS_HEX_SUBSTRING = /[0-9a-f]{8}/;
 });
 
-// src/retro/finding.ts
+// packages/cli/src/retro/finding.ts
 function boundedString(value) {
   if (typeof value !== "string")
     return;
@@ -57662,14 +57662,14 @@ var init_finding = __esm(() => {
   CATEGORIES = new Set(["bug", "rough-edge", "gap"]);
 });
 
-// src/retro/hash.ts
+// packages/cli/src/retro/hash.ts
 import { createHash as createHash28 } from "crypto";
 function shortHash(material) {
   return createHash28("sha256").update(material).digest("hex").slice(0, 12);
 }
 var init_hash = () => {};
 
-// src/retro/draft.ts
+// packages/cli/src/retro/draft.ts
 function normalizeForKey(value) {
   return value.toLowerCase().replaceAll(/\s+/g, " ").trim();
 }
@@ -57709,7 +57709,7 @@ var init_draft = __esm(() => {
   init_hash();
 });
 
-// src/retro/pipeline.ts
+// packages/cli/src/retro/pipeline.ts
 function manifestationKey(finding) {
   return shortHash([finding.whatHappened, finding.whyFriction, finding.repro].join(`
 `));
@@ -57764,7 +57764,7 @@ var init_pipeline = __esm(() => {
   init_hash();
 });
 
-// src/retro/public-delivery.ts
+// packages/cli/src/retro/public-delivery.ts
 import { createHash as createHash29 } from "crypto";
 import { mkdirSync as mkdirSync19, renameSync as renameSync11, unlinkSync as unlinkSync6, writeFileSync as writeFileSync24 } from "fs";
 import path5 from "path";
@@ -57950,7 +57950,7 @@ var init_public_delivery = __esm(() => {
   UUID2 = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 });
 
-// src/retro/public-source.ts
+// packages/cli/src/retro/public-source.ts
 import { lstatSync as lstatSync24, readFileSync as readFileSync66, realpathSync as realpathSync15 } from "fs";
 import nodePath104 from "path";
 function repoIdentity(hostname, rawPath) {
@@ -58150,7 +58150,7 @@ var init_public_source = __esm(() => {
   ALLOWED_PROTOCOLS = new Set(["git:", "https:", "ssh:"]);
 });
 
-// src/retro/public-transport.ts
+// packages/cli/src/retro/public-transport.ts
 function validOrigin(origin) {
   const secure = origin.protocol === "https:";
   const loopbackHttp = origin.protocol === "http:" && LOOPBACK_HOSTS.has(origin.hostname);
@@ -58196,7 +58196,7 @@ var init_public_transport = __esm(() => {
   LOOPBACK_HOSTS = new Set(["127.0.0.1", "[::1]", "localhost"]);
 });
 
-// src/retro/reconcile.ts
+// packages/cli/src/retro/reconcile.ts
 function surfaceOf(issue2) {
   return SURFACE_LINE.exec(issue2.body)?.[1];
 }
@@ -58293,7 +58293,7 @@ var init_reconcile2 = __esm(() => {
   SURFACE_LINE = /\*\*Safeword surface:\*\* `([^`]+)`/;
 });
 
-// src/retro/durable-fs.ts
+// packages/cli/src/retro/durable-fs.ts
 import { link, mkdir, open, rename, stat, unlink } from "fs/promises";
 import path6 from "path";
 function errorCode(error2) {
@@ -58373,7 +58373,7 @@ var init_durable_fs = __esm(() => {
   durableDirectoryIdentities = new Map;
 });
 
-// src/retro/relay-delivery.ts
+// packages/cli/src/retro/relay-delivery.ts
 import { createHash as createHash30, randomUUID as randomUUID12 } from "crypto";
 import { access, readdir, readFile as readFile2, stat as stat2, unlink as unlink2 } from "fs/promises";
 import path7 from "path";
@@ -60131,7 +60131,7 @@ var init_relay_delivery = __esm(() => {
   };
 });
 
-// src/retro/relay-readiness-manifest.json
+// packages/cli/src/retro/relay-readiness-manifest.json
 var relay_readiness_manifest_default;
 var init_relay_readiness_manifest = __esm(() => {
   relay_readiness_manifest_default = {
@@ -60140,7 +60140,7 @@ var init_relay_readiness_manifest = __esm(() => {
   };
 });
 
-// src/retro/relay-readiness.ts
+// packages/cli/src/retro/relay-readiness.ts
 import { createHash as createHash31 } from "crypto";
 function validDate(value) {
   const date = new Date(value);
@@ -60322,7 +60322,7 @@ var init_relay_readiness = __esm(() => {
   MAX_EVIDENCE_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 });
 
-// src/retro/triage.ts
+// packages/cli/src/retro/triage.ts
 function recordFiledDestination(result, signature, issue2) {
   result.filedSignatures.push(signature);
   result.filedDestinations.push({ signature, issue: issue2 });
@@ -60407,7 +60407,7 @@ var init_triage = __esm(() => {
   init_ledger();
 });
 
-// src/retro/github-rest.ts
+// packages/cli/src/retro/github-rest.ts
 var exports_github_rest = {};
 __export(exports_github_rest, {
   resolveGitHubToken: () => resolveGitHubToken,
@@ -60605,7 +60605,7 @@ var init_github_rest = __esm(() => {
   };
 });
 
-// src/commands/retro.ts
+// packages/cli/src/commands/retro.ts
 var exports_retro = {};
 __export(exports_retro, {
   runRetro: () => runRetro,
@@ -61537,7 +61537,7 @@ var init_retro = __esm(() => {
   ];
 });
 
-// templates/hooks/lib/ledger-git.ts
+// packages/cli/templates/hooks/lib/ledger-git.ts
 import { execFileSync as execFileSync10 } from "child_process";
 function git(cwd, args, input) {
   return execFileSync10("git", args, {
@@ -61617,13 +61617,13 @@ function createLedgerShaResolver(cwd) {
 }
 var init_ledger_git = () => {};
 
-// templates/hooks/lib/shell-segments.ts
+// packages/cli/templates/hooks/lib/shell-segments.ts
 var ENV_OPTIONS_WITH_VALUES;
 var init_shell_segments = __esm(() => {
   ENV_OPTIONS_WITH_VALUES = new Set(["--argv0", "--chdir", "--unset", "-a", "-C", "-u"]);
 });
 
-// templates/hooks/lib/dependency-readiness.ts
+// packages/cli/templates/hooks/lib/dependency-readiness.ts
 var WORKSPACE_SCAN_EXCLUDED_DIRECTORIES, BUN_OPTIONS_WITH_VALUES, PACKAGE_MANAGER_OPTIONS_WITH_VALUES, PACKAGE_SCRIPT_COMMANDS, BUNX_BOOLEAN_OPTIONS, SAFEWORD_GLOBAL_BOOLEAN_OPTIONS, SAFEWORD_GLOBAL_OPTIONS_WITH_VALUES, SAFEWORD_RECOVERY_COMMANDS, DEPENDENCY_BINARIES, INSTALL_MANAGERS, INSTALL_SUBCOMMANDS, NON_RECONCILING_INSTALL_FLAGS, NON_RECONCILING_INSTALL_OPTIONS, REPORT_ONLY_INSTALL_FLAGS;
 var init_dependency_readiness = __esm(() => {
   init_namespace_root2();
@@ -61705,14 +61705,14 @@ var init_dependency_readiness = __esm(() => {
   NON_RECONCILING_INSTALL_OPTIONS = new Set(["--omit", "--only", "--mode"]);
   REPORT_ONLY_INSTALL_FLAGS = new Set(["--version", "-v", "--help", "-h"]);
 });
-// templates/hooks/lib/test-runner.ts
+// packages/cli/templates/hooks/lib/test-runner.ts
 var BDD_TEST_TIMEOUT_MS, projectDir;
 var init_test_runner = __esm(() => {
   BDD_TEST_TIMEOUT_MS = 5 * 60000;
   projectDir = process.env.CLAUDE_PROJECT_DIR || process.cwd();
 });
 
-// templates/hooks/lib/done-gate.ts
+// packages/cli/templates/hooks/lib/done-gate.ts
 function checkVerifyArtifact(content) {
   const prScopeMatch = PR_SCOPE_LINE_PATTERN.exec(content);
   if (!prScopeMatch?.groups?.status) {
@@ -61738,7 +61738,7 @@ var init_done_gate = __esm(() => {
   PR_SCOPE_LINE_PATTERN = /^\*\*PR Scope:\*\*\s*(?<status>.+)$/im;
 });
 
-// templates/hooks/lib/ledger-validation.ts
+// packages/cli/templates/hooks/lib/ledger-validation.ts
 function parseLedger2(content) {
   const lines = content.split(`
 `);
@@ -61872,7 +61872,7 @@ var init_ledger_validation = __esm(() => {
   init_parse_annotation();
 });
 
-// src/boundary/engine.ts
+// packages/cli/src/boundary/engine.ts
 function frontmatterOf2(content) {
   return frontmatterOf(content.replaceAll(`\r
 `, `
@@ -62023,7 +62023,7 @@ var init_engine = __esm(() => {
   ]);
 });
 
-// src/commands/boundary.ts
+// packages/cli/src/commands/boundary.ts
 var exports_boundary = {};
 __export(exports_boundary, {
   boundary: () => boundary
@@ -62193,7 +62193,7 @@ var init_boundary = __esm(() => {
   AUDIT_RELATIVE_PATH = nodePath108.join(".safeword", "boundary-audit.jsonl");
 });
 
-// src/commands/codex-hook.ts
+// packages/cli/src/commands/codex-hook.ts
 var exports_codex_hook = {};
 __export(exports_codex_hook, {
   packagedNamespaceRootLabel: () => packagedNamespaceRootLabel,
@@ -62798,7 +62798,7 @@ var init_codex_hook = __esm(() => {
   };
 });
 
-// src/commands/feature-directories.ts
+// packages/cli/src/commands/feature-directories.ts
 var exports_feature_directories = {};
 __export(exports_feature_directories, {
   featureDirectories: () => featureDirectories
@@ -62812,13 +62812,13 @@ var init_feature_directories = __esm(() => {
   init_feature_source();
 });
 
-// src/cli.ts
+// packages/cli/src/cli.ts
 import process23 from "process";
 
-// src/cli-protocol/program.ts
+// packages/cli/src/cli-protocol/program.ts
 import process22 from "process";
 
-// ../../node_modules/.bun/commander@15.0.0/node_modules/commander/lib/error.js
+// node_modules/.bun/commander@15.0.0/node_modules/commander/lib/error.js
 class CommanderError extends Error {
   constructor(exitCode, code, message) {
     super(message);
@@ -62838,7 +62838,7 @@ class InvalidArgumentError extends CommanderError {
   }
 }
 
-// ../../node_modules/.bun/commander@15.0.0/node_modules/commander/lib/argument.js
+// node_modules/.bun/commander@15.0.0/node_modules/commander/lib/argument.js
 class Argument {
   constructor(name, description) {
     this.description = description || "";
@@ -62912,7 +62912,7 @@ function humanReadableArgName(arg) {
   return arg.required ? "<" + nameOutput + ">" : "[" + nameOutput + "]";
 }
 
-// ../../node_modules/.bun/commander@15.0.0/node_modules/commander/lib/command.js
+// node_modules/.bun/commander@15.0.0/node_modules/commander/lib/command.js
 import { EventEmitter } from "events";
 import childProcess from "child_process";
 import path from "path";
@@ -62920,7 +62920,7 @@ import fs from "fs";
 import process2 from "process";
 import { stripVTControlCharacters as stripVTControlCharacters2 } from "util";
 
-// ../../node_modules/.bun/commander@15.0.0/node_modules/commander/lib/help.js
+// node_modules/.bun/commander@15.0.0/node_modules/commander/lib/help.js
 import { stripVTControlCharacters } from "util";
 
 class Help {
@@ -63269,7 +63269,7 @@ ${itemIndentStr}`);
   }
 }
 
-// ../../node_modules/.bun/commander@15.0.0/node_modules/commander/lib/option.js
+// node_modules/.bun/commander@15.0.0/node_modules/commander/lib/option.js
 class Option {
   constructor(flags, description) {
     this.flags = flags;
@@ -63447,7 +63447,7 @@ function splitOptionFlags(flags) {
   return { shortFlag, longFlag };
 }
 
-// ../../node_modules/.bun/commander@15.0.0/node_modules/commander/lib/suggestSimilar.js
+// node_modules/.bun/commander@15.0.0/node_modules/commander/lib/suggestSimilar.js
 var maxDistance = 3;
 function editDistance(a, b) {
   if (Math.abs(a.length - b.length) > maxDistance)
@@ -63517,7 +63517,7 @@ function suggestSimilar(word, candidates) {
   return "";
 }
 
-// ../../node_modules/.bun/commander@15.0.0/node_modules/commander/lib/command.js
+// node_modules/.bun/commander@15.0.0/node_modules/commander/lib/command.js
 class Command extends EventEmitter {
   constructor(name) {
     super();
@@ -64859,10 +64859,10 @@ function useColor() {
   return;
 }
 
-// ../../node_modules/.bun/commander@15.0.0/node_modules/commander/index.js
+// node_modules/.bun/commander@15.0.0/node_modules/commander/index.js
 var program = new Command;
 
-// src/self-report-capture.ts
+// packages/cli/src/self-report-capture.ts
 init_self_report();
 init_version();
 import { existsSync as existsSync2 } from "fs";
@@ -64888,13 +64888,13 @@ function installCliCrashCapture() {
   process3.on("unhandledRejection", handler);
 }
 
-// src/cli-protocol/program.ts
+// packages/cli/src/cli-protocol/program.ts
 init_version();
 
-// src/cli-protocol/catalog.ts
+// packages/cli/src/cli-protocol/catalog.ts
 init_agent_selection();
 
-// src/cli-protocol/public-handlers.ts
+// packages/cli/src/cli-protocol/public-handlers.ts
 init_migration();
 init_migration_error();
 init_architecture_document();
@@ -64903,7 +64903,7 @@ init_online_required();
 import { existsSync as existsSync49, lstatSync as lstatSync25, readFileSync as readFileSync68, readlinkSync as readlinkSync4 } from "fs";
 import nodePath106 from "path";
 
-// src/cli-protocol/option-values.ts
+// packages/cli/src/cli-protocol/option-values.ts
 function stringOption(options, name) {
   const value = options[name];
   return typeof value === "string" ? value : undefined;
@@ -64918,11 +64918,11 @@ function numericOption(options, name) {
   return Number.isFinite(parsed2) ? parsed2 : undefined;
 }
 
-// src/cli-protocol/public-handlers.ts
+// packages/cli/src/cli-protocol/public-handlers.ts
 init_plan();
 init_result();
 
-// src/cli-protocol/tracker-ticket-handlers.ts
+// packages/cli/src/cli-protocol/tracker-ticket-handlers.ts
 init_configured_paths();
 init_online_required();
 import { existsSync as existsSync17, readdirSync as readdirSync9, readFileSync as readFileSync19 } from "fs";
@@ -65143,7 +65143,7 @@ async function ticketNewHandler(invocation) {
   return createTicketResult2(String(invocation.operands[0]), invocation.options, invocation.cwd);
 }
 
-// src/cli-protocol/public-handlers.ts
+// packages/cli/src/cli-protocol/public-handlers.ts
 function notConfigured(command) {
   return createResult({
     state: "action_required",
@@ -66963,7 +66963,7 @@ function publicHandler(name) {
   return handler;
 }
 
-// src/cli-protocol/catalog.ts
+// packages/cli/src/cli-protocol/catalog.ts
 init_result();
 var MACHINE_ENVIRONMENT = { SAFEWORD_NO_UPDATE_CHECK: "1" };
 var RETAINED_ALIAS = {
@@ -67707,7 +67707,7 @@ function createCapabilitiesResult() {
   });
 }
 
-// src/cli-protocol/execute.ts
+// packages/cli/src/cli-protocol/execute.ts
 import nodePath107 from "path";
 import process18 from "process";
 init_policy2();
@@ -67781,7 +67781,7 @@ function reportResult(result, options, commandName, delivery) {
   process18.exitCode = delivery?.actionRequiredAsSuccess === true && reportableResult.state === "action_required" ? 0 : exitStatusFor(reportableResult);
 }
 
-// src/cli-protocol/machine-output.ts
+// packages/cli/src/cli-protocol/machine-output.ts
 function machineOutputRequested(arguments_) {
   for (const argument of arguments_) {
     if (argument === "--")
@@ -67792,7 +67792,7 @@ function machineOutputRequested(arguments_) {
   return false;
 }
 
-// src/cli-protocol/register.ts
+// packages/cli/src/cli-protocol/register.ts
 import { writeSync as writeSync4 } from "fs";
 import process19 from "process";
 init_plan();
@@ -67997,7 +67997,7 @@ ${compatibilityHelp}
   });
 }
 
-// src/cli-protocol/program.ts
+// packages/cli/src/cli-protocol/program.ts
 init_result();
 function isCommanderError(value) {
   if (value instanceof CommanderError)
@@ -68126,5 +68126,5 @@ async function runCli(argv) {
   }
 }
 
-// src/cli.ts
+// packages/cli/src/cli.ts
 await runCli(process23.argv);

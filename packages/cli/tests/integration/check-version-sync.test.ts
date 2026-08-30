@@ -16,13 +16,13 @@ import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.j
 
 const REPO_ROOT = nodePath.resolve(import.meta.dirname, '..', '..', '..', '..');
 const SCRIPT_PATH = nodePath.join(REPO_ROOT, 'scripts', 'check-version-sync.ts');
-const CODEX_EVENTS = [
-  'session-start',
-  'pre-tool-use',
-  'post-tool-use',
-  'user-prompt-submit',
-  'stop',
-];
+const CODEX_EVENTS = {
+  SessionStart: 'session-start',
+  PreToolUse: 'pre-tool-use',
+  PostToolUse: 'post-tool-use',
+  UserPromptSubmit: 'user-prompt-submit',
+  Stop: 'stop',
+} as const;
 
 function writeReleaseFixture(projectDirectory: string, version: string): void {
   const cliDirectory = nodePath.join(projectDirectory, 'packages', 'cli');
@@ -31,12 +31,12 @@ function writeReleaseFixture(projectDirectory: string, version: string): void {
   mkdirSync(pluginDirectory, { recursive: true });
   mkdirSync(nodePath.join(projectDirectory, '.claude-plugin'), { recursive: true });
 
-  for (const event of CODEX_EVENTS) {
-    hooks[event] = [
+  for (const [manifestEvent, cliEvent] of Object.entries(CODEX_EVENTS)) {
+    hooks[manifestEvent] = [
       {
         hooks: [
           {
-            command: `bun "\${PLUGIN_ROOT}/runtime/cli.js" hook codex ${event} --plugin-hook`,
+            command: `bun "\${PLUGIN_ROOT}/runtime/cli.js" hook codex ${cliEvent} --plugin-hook`,
           },
         ],
       },
@@ -97,7 +97,7 @@ describe('scripts/check-version-sync.ts', () => {
     const manifest = JSON.parse(readFileSync(hooksPath, 'utf8')) as {
       hooks: Record<string, { hooks: { command: string }[] }[]>;
     };
-    manifest.hooks.stop = [
+    manifest.hooks.Stop = [
       {
         hooks: [{ command: 'bunx --bun safeword@1.2.3 hook codex stop --plugin-hook' }],
       },
@@ -108,6 +108,28 @@ describe('scripts/check-version-sync.ts', () => {
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain('hooks.json');
     expect(result.stderr).toContain('bundled CLI');
+  });
+
+  it('rejects bundled hook commands registered under the wrong events', () => {
+    writeReleaseFixture(projectDirectory, '1.2.3');
+    const hooksPath = nodePath.join(
+      projectDirectory,
+      'packages',
+      'cli',
+      'codex-plugin',
+      'hooks.json',
+    );
+    const manifest = JSON.parse(readFileSync(hooksPath, 'utf8')) as {
+      hooks: Record<string, { hooks: { command: string }[] }[]>;
+    };
+    const sessionStartHooks = manifest.hooks.SessionStart;
+    manifest.hooks.SessionStart = manifest.hooks.Stop;
+    manifest.hooks.Stop = sessionStartHooks;
+    writeFileSync(hooksPath, JSON.stringify(manifest));
+
+    const result = runGuard(projectDirectory);
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain('SessionStart');
   });
 
   it('rejects a stale bundled runtime package identity', () => {
