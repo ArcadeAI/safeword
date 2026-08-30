@@ -357,13 +357,9 @@ function readPackagedSafewordInstructions(): string | undefined {
 }
 
 function findPackagedTemplate(relativePath: string): string | undefined {
-  const directories =
-    process.env.SAFEWORD_AGENT_RUNTIME === 'opencode'
-      ? [nodePath.join(resolveCodexProjectDirectory(), '.safeword'), ...TEMPLATE_DIRECTORIES]
-      : TEMPLATE_DIRECTORIES;
-  return directories
-    .map(directory => nodePath.join(directory, relativePath))
-    .find(candidate => existsSync(candidate));
+  return TEMPLATE_DIRECTORIES.map(directory => nodePath.join(directory, relativePath)).find(
+    candidate => existsSync(candidate),
+  );
 }
 
 function resolvePackagedHook(relativePath: string): string | undefined {

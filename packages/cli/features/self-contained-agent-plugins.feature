@@ -43,6 +43,13 @@ Feature: Every agent delivery is self-contained
       Then the workflow dispatches a review using its profile-packaged reviewer instructions
       And no project installation or cross-host runtime is requested
 
+    @rejection @surface.opencode
+    Scenario: Legacy project hooks cannot regain OpenCode workflow authority
+      Given an enrolled project contains a complete legacy runtime
+      When the Technical Builder invokes a packaged OpenCode hook
+      Then the hook executes from the installed OpenCode plugin package
+      And no project-local executable runtime is loaded
+
     @surface.cursor
     Scenario: A Cursor workflow executes from its complete project authority
       Given a Cursor-only enrolled project has a known merge base and two changed files
