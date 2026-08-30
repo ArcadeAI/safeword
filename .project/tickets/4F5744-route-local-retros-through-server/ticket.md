@@ -2,8 +2,10 @@
 id: 4F5744
 slug: route-local-retros-through-server
 type: feature
-phase: implement
+phase: verify
 status: in_progress
+phase_anchors:
+  - verify: .project/tickets/4F5744-route-local-retros-through-server/test-definitions.md
 external_issue: https://github.com/ArcadeAI/safeword/issues/3514
 scope:
   - Route eligible sanitized local retros from Claude Code, OpenAI Codex, and Cursor through public intake that requires no customer credential and holds no filing authority.
@@ -77,3 +79,4 @@ Production relay credentials must add the independently rotatable `collector-wor
 - 2026-08-30T09:16:00.000Z Verified: Full package pass reached relay 189/189, collector 134/134, and CLI 8,740/8,740 with 13 intentional skips. BDD reached 1,484 passing scenarios plus three skips; its sole failure was dogfood parity, then reconciled and proven directly across 255 pairs and eight contracts. Builds, TypeScript/Astro checks, lint, and dependency audits passed. The repository-wide Python lane remains red on pre-existing duplicate experiment module names outside this branch; the load-sensitive review-route test passed in the first full run and in isolated rerun.
 - 2026-08-30T09:20:00.000Z Reviewed: Rejected blank-title v3 envelopes before durable acceptance, proved the routine operator route cannot read v3 payloads, removed the unused collector timestamp header, and made relay mode fail closed without a project directory.
 - 2026-08-30T15:08:00.000Z Reopened: Test-quality review found the collector-to-worker-to-relay seam was proved only against a permissive relay stub, allowing the collector acceptance timestamp and authorization contracts to drift while all suites stayed green. Resumed implementation with a real-collaborator RED.
+- 2026-08-30T16:43:00.000Z Completed: Replaced the permissive relay stub with a real collector-to-worker-to-relay integration, anchored relay ownership at relay acceptance, pinned the exact 60 KB boundary, closed authorization/readiness/version/legacy-row proof gaps, clarified exact-request versus cross-session deduplication, restored collector-route observability, and removed the idle worker's abort-listener leak. Full package, acceptance, build, type, lint, and supply-chain lanes passed except the unchanged repository-wide Python duplicate-module baseline recorded in verify.md.

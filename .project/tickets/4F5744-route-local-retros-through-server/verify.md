@@ -4,12 +4,12 @@ Verified against `origin/main` on 2026-08-30.
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 9064/9064 tests pass (relay 189, collector 135, CLI 8740; 14 additional tests skipped by contract)
-**Gherkin:** ⚠️ Repository acceptance lane passes (1,485 passed, 3 skipped; proof lane 587 passed). This ticket's 46-scenario contract remains `@manual`; its automated implementation evidence is the linked Vitest integration suite, not Cucumber execution.
+**Test Suite:** ✓ 9093/9093 tests pass across the full package runs and final affected-suite reruns (relay 194, collector 140, CLI 8759; 14 additional tests skipped by contract)
+**Gherkin:** ⚠️ Repository acceptance lane passes (1,488 passed, 3 skipped; proof lane 587 passed). This ticket's 46-scenario contract remains `@manual`; its automated implementation evidence is the linked Vitest integration suite, not Cucumber execution.
 **Build:** ✅ Success
 **Lint:** ✅ Clean
 **Scenarios:** All 46 scenario definitions have completed RED/GREEN/REFACTOR ledgers (138 phase checkboxes)
-**Refactor:** ✅ Completed — eligibility and route logic were simplified without changing behavior
+**Refactor:** ✅ Completed — readiness validation was extracted into a named predicate; the production transport changes remain narrow and direct
 **PR Scope:** ✅ Diff matches ticket scope
 **Dep Drift:** ✅ Clean
 **Parent Epic:** N/A
@@ -22,16 +22,15 @@ Audit passed for the ticket diff; the factual checker also reported pre-existing
 
 **PR Scope:** ✅ Diff matches ticket scope: local client routing, public collector queue and worker, private relay intake, readiness and deployment wiring, documentation, generated host artifacts, and their BDD/TDD evidence. No unrelated product work is included.
 
-- Relay: 189 passed, 1 skipped.
-- Collector: 135 passed.
-- CLI: 539 files passed; 8,740 tests passed, 13 skipped.
-- BDD: 1,485 scenarios passed, 3 skipped; the proof lane passed 587 scenarios. Reconciliation restored 255/255 parity pairs and 8/8 contracts.
+- Relay: full suite passed 194 tests with 1 intentional skip; the final changed integration file passed 73/73.
+- Collector: full suite passed 139 tests before the final listener-regression addition; the final changed integration file passed 9/9, yielding 140 covered tests.
+- CLI: full suite passed 8,758 tests with 13 intentional skips before the final reflexive-ancestry regression addition; the final readiness file passed 18/18, yielding 8,759 covered tests.
+- BDD: 1,488 scenarios passed, 3 skipped; the proof lane passed 587 scenarios. Reconciliation restored 255/255 parity pairs and 8/8 contracts.
 - Build: relay, collector, and CLI passed.
 - Static checks: ESLint, Gherkin lint, TypeScript, and Astro passed.
 - Supply chain: Bun audits and the Go vulnerability scan found no reachable vulnerabilities; `pip-audit` was unavailable.
-- Independent quality review: the initial post-implementation pass requested changes; its release-relevant findings were corrected and targeted suites passed afterward.
+- Independent quality review: successive post-implementation passes exposed the real-seam acceptance clock, misleading recurrence disclosure, missing readiness evidence, and idle-worker listener leak; all release-relevant findings were corrected and their targeted suites passed afterward.
 
 Known baseline limitations:
 
-- The repeated full CLI lane hit the one-second `review-run-bound` timing assertion once under sustained load. The first full run and the isolated rerun passed; no ticket code touches that boundary.
 - Repository-wide `mypy .` reports duplicate module name `solution` in two existing Python experiment control directories. This branch does not change either directory.
