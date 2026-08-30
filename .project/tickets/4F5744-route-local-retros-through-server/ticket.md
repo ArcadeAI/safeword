@@ -2,8 +2,8 @@
 id: 4F5744
 slug: route-local-retros-through-server
 type: feature
-phase: done
-status: done
+phase: implement
+status: in_progress
 external_issue: https://github.com/ArcadeAI/safeword/issues/3514
 scope:
   - Route eligible sanitized local retros from Claude Code, OpenAI Codex, and Cursor through public intake that requires no customer credential and holds no filing authority.
@@ -75,3 +75,4 @@ Production relay credentials must add the independently rotatable `collector-wor
 - 2026-08-30T08:15:00.000Z Reviewed: Independent quality review found the accepted batch could exceed GitHub's issue-body limit, delayed collector work inherited an expired relay clock, terminal relay receipts were flattened, and two delivery routes could own one window. Bounded the rendered body before acceptance, anchored retry at relay acceptance, preserved terminal state, and made route ownership exclusive.
 - 2026-08-30T09:16:00.000Z Verified: Full package pass reached relay 189/189, collector 134/134, and CLI 8,740/8,740 with 13 intentional skips. BDD reached 1,484 passing scenarios plus three skips; its sole failure was dogfood parity, then reconciled and proven directly across 255 pairs and eight contracts. Builds, TypeScript/Astro checks, lint, and dependency audits passed. The repository-wide Python lane remains red on pre-existing duplicate experiment module names outside this branch; the load-sensitive review-route test passed in the first full run and in isolated rerun.
 - 2026-08-30T09:20:00.000Z Reviewed: Rejected blank-title v3 envelopes before durable acceptance, proved the routine operator route cannot read v3 payloads, removed the unused collector timestamp header, and made relay mode fail closed without a project directory.
+- 2026-08-30T15:08:00.000Z Reopened: Test-quality review found the collector-to-worker-to-relay seam was proved only against a permissive relay stub, allowing the collector acceptance timestamp and authorization contracts to drift while all suites stayed green. Resumed implementation with a real-collaborator RED.

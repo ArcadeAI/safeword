@@ -5,7 +5,14 @@ import path from 'node:path';
 
 import { afterEach, expect, it } from 'vitest';
 
+import {
+  CredentialRegistry,
+  GitHubRestClient,
+  RelayStore,
+  startRelayServer,
+} from '../../retro-relay/src/index.js';
 import { startPublicRetroCollector } from '../src/index.js';
+import { PublicRetroStore } from '../src/store.js';
 import { runRetroTransferWorker, transferOneRetro } from '../src/worker.js';
 
 const directories: string[] = [];
@@ -13,6 +20,129 @@ const directories: string[] = [];
 afterEach(() => {
   for (const directory of directories) rmSync(directory, { force: true, recursive: true });
   directories.length = 0;
+});
+
+it('transfers collector acceptance through the real relay contract', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-worker-relay-'));
+  directories.push(directory);
+  const collectorAcceptedAt = new Date('2026-08-28T20:00:00.000Z');
+  const relayAcceptedAt = new Date('2026-08-29T20:00:00.000Z');
+  const collectorStore = new PublicRetroStore(path.join(directory, 'collector.sqlite'), {
+    now: () => collectorAcceptedAt.getTime(),
+  });
+  const collector = await startPublicRetroCollector(
+    {
+      databasePath: path.join(directory, 'collector.sqlite'),
+      collectorWorkerCredential: 'collector-secret',
+    },
+    collectorStore,
+  );
+  let createdIssues = 0;
+  const github = createServer((request, response) => {
+    if (request.method === 'GET' && request.url?.includes('/issues')) {
+      response.setHeader('content-type', 'application/json');
+      response.end('[]');
+      return;
+    }
+    if (request.method === 'POST' && request.url?.endsWith('/issues')) {
+      createdIssues += 1;
+      response.statusCode = 201;
+      response.setHeader('content-type', 'application/json');
+      response.end(JSON.stringify({ number: 3514 }));
+      return;
+    }
+    response.statusCode = 404;
+    response.end();
+  });
+  await new Promise<void>(resolve => github.listen(0, '127.0.0.1', resolve));
+  const githubAddress = github.address();
+  if (githubAddress === null || typeof githubAddress === 'string') {
+    throw new Error('GitHub fixture did not bind');
+  }
+  const credentials = new CredentialRegistry('worker-relay-pepper');
+  const relayCredential = credentials.issue({
+    credentialId: 'collector-worker-integration',
+    harness: 'collector-worker',
+    installationId: 42,
+    repository: 'arcadeai/safeword',
+    roles: ['ingest'],
+    secret: 'e'.repeat(64),
+    subject: 'collector-worker-integration',
+    tenantId: 'tenant-1',
+  });
+  const relayStore = RelayStore.open(path.join(directory, 'relay.sqlite'), {
+    now: () => relayAcceptedAt,
+  });
+  const relay = await startRelayServer({
+    allowUnlockedForTests: true,
+    credentials,
+    github: new GitHubRestClient({
+      baseUrl: `http://127.0.0.1:${githubAddress.port}`,
+      installationToken: () => Promise.resolve('github-installation-token'),
+    }),
+    now: () => relayAcceptedAt,
+    payloadKey: Buffer.alloc(32, 7),
+    store: relayStore,
+  });
+  const requestId = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
+  const bytes = Buffer.from(
+    JSON.stringify({
+      version: 'v3',
+      findings: ['Real worker and relay contract'],
+      source: {
+        harness: 'codex',
+        hostClass: 'local',
+        projectUUID: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        safewordCliVersion: '0.82.1',
+      },
+      sessionScope: 'a'.repeat(64),
+    }),
+  );
+
+  try {
+    const accepted = await fetch(`${collector.url}/v1/public-retros`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json; charset=utf-8',
+        'x-safeword-request-id': requestId,
+      },
+      body: bytes,
+    });
+    expect(accepted.status).toBe(201);
+
+    await expect(
+      transferOneRetro({
+        collectorCredential: 'collector-secret',
+        collectorUrl: collector.url,
+        relayCredential,
+        relayUrl: relay.url,
+      }),
+    ).resolves.toBe('transferred');
+
+    const stored = relayStore.load({
+      installationId: 42,
+      repository: 'arcadeai/safeword',
+      requestId,
+      tenantId: 'tenant-1',
+    });
+    expect(createdIssues).toBe(1);
+    expect(stored?.acceptedAt).toBe(collectorAcceptedAt.toISOString());
+    expect(stored?.retryDeadlineAt).toBe('2026-08-30T20:00:00.000Z');
+  } finally {
+    await collector.close();
+    relay.server.closeAllConnections();
+    await new Promise<void>(resolve =>
+      relay.server.close(() => {
+        resolve();
+      }),
+    );
+    await new Promise<void>(resolve =>
+      github.close(() => {
+        resolve();
+      }),
+    );
+    relayStore.close();
+  }
 });
 
 it('hands exact claimed bytes to the relay and completes collector ownership', async () => {
