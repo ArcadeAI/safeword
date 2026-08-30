@@ -2,6 +2,7 @@
 
 import { recordSkillInvocation } from '../../templates/hooks/record-skill-invocation.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
+import { ensureTransientStateIgnore } from '../project-state.js';
 
 const SKILL_NAME_PATTERN = /^[a-z][a-z0-9-]*$/u;
 
@@ -25,6 +26,7 @@ export function runRecordSkillInvocation(
     );
   }
 
+  ensureTransientStateIgnore(cwd, 'skill-invocations.log');
   recordSkillInvocation(cwd, skillName, sessionId);
   return Promise.resolve(
     createResult({
