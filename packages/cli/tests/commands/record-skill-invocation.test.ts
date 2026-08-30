@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -22,5 +23,18 @@ describe('project record-skill-invocation', () => {
       '/skill-invocations.log',
     );
     expect(existsSync(nodePath.join(cwd, '.safeword/hooks'))).toBe(false);
+  });
+
+  it('preserves a broader customer ignore rule without adding a duplicate', async () => {
+    const cwd = createTemporaryDirectory();
+    execFileSync('git', ['init', '--quiet'], { cwd });
+    mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
+    mkdirSync(nodePath.join(cwd, '.project'), { recursive: true });
+    writeFileSync(nodePath.join(cwd, '.safeword/SAFEWORD.md'), '# enrolled\n');
+    writeFileSync(nodePath.join(cwd, '.project/.gitignore'), '/*\n');
+
+    await runRecordSkillInvocation(cwd, 'verify', 'session-1');
+
+    expect(readFileSync(nodePath.join(cwd, '.project/.gitignore'), 'utf8')).toBe('/*\n');
   });
 });
