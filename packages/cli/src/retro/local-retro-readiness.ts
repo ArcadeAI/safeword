@@ -27,10 +27,17 @@ const UUID = /^[\da-f]{8}-[\da-f]{4}-[1-5][\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12
 
 function validHarnessEvidence(
   evidence: LocalRetroReadinessManifest['harnesses']['codex'],
+  manifest: LocalRetroReadinessManifest,
+  input: Parameters<typeof validateLocalRetroReadiness>[1],
 ): boolean {
   return (
     evidence.hostClass === 'local' &&
     COMMIT.test(evidence.buildCommit) &&
+    (evidence.buildCommit === manifest.evidenceCommit ||
+      input.ancestorPairs.some(
+        pair =>
+          pair.ancestor === evidence.buildCommit && pair.descendant === manifest.evidenceCommit,
+      )) &&
     UUID.test(evidence.collectorReceipt) &&
     UUID.test(evidence.relayReceipt) &&
     ['duplicate', 'filed'].includes(evidence.terminal)
@@ -68,8 +75,17 @@ export function validateLocalRetroReadiness(
   if (!manifest.enabled || !input.relayReady || !COMMIT.test(input.buildCommit)) return false;
   if (!validReviewWindow(manifest, input.now) || !manifestBuildIsAncestor(manifest, input))
     return false;
+  const harnessKeys = Object.keys(manifest.harnesses).toSorted((left, right) =>
+    left.localeCompare(right),
+  );
+  if (harnessKeys.join('\0') !== ['claude-code', 'codex', 'cursor'].join('\0')) return false;
   const harnesses = Object.values(manifest.harnesses);
-  if (harnesses.length !== 3 || harnesses.some(evidence => !validHarnessEvidence(evidence)))
-    return false;
-  return Object.values(manifest.recoveredFaults).every(value => /^[\da-f]{64}$/u.test(value));
+  if (harnesses.some(evidence => !validHarnessEvidence(evidence, manifest, input))) return false;
+  const faultKeys = Object.keys(manifest.recoveredFaults).toSorted((left, right) =>
+    left.localeCompare(right),
+  );
+  return (
+    faultKeys.join('\0') === ['ambiguousCreate', 'retryExhaustion', 'workerOutage'].join('\0') &&
+    Object.values(manifest.recoveredFaults).every(value => /^[\da-f]{64}$/u.test(value))
+  );
 }

@@ -19,6 +19,7 @@ import {
   buildProvenanceResolver,
   discardRelaySpoolCommand,
   executeRetroCommand,
+  localServerRouteEnabled,
   reportRetroCommandOutcome,
   resolvePublicRetroRoute,
   resolveRelayConfig,
@@ -231,6 +232,20 @@ describe('retro command configuration, extraction, egress, and relay execution',
 
   it('suppresses the Claude public route when Claude Remote evidence is present', () => {
     expect(publicRouteFor('claude')).toBeUndefined();
+  });
+
+  it('never selects the local server route for indeterminate host provenance', () => {
+    expect(
+      localServerRouteEnabled(
+        {
+          harness: 'codex',
+          hostClass: 'unknown',
+          projectUUID: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          safewordCliVersion: '0.82.1',
+        },
+        true,
+      ),
+    ).toBe(false);
   });
 
   it.each(['codex', 'cursor'] as const)(

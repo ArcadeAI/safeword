@@ -1259,6 +1259,10 @@ function publicHarness(agent: RetroAgent): 'claude-code' | 'codex' | 'cursor' | 
   return agent === 'cursor' ? 'cursor' : undefined;
 }
 
+export function localServerRouteEnabled(source: PublicRetroSource, readiness: boolean): boolean {
+  return readiness && source.hostClass === 'local';
+}
+
 export function resolvePublicRetroRoute(input: {
   agent: RetroAgent;
   enabled: boolean;
@@ -1282,16 +1286,17 @@ export function resolvePublicRetroRoute(input: {
     osFamily: platform(),
   });
   if (source === undefined) return undefined;
+  const serverReady = validateLocalRetroReadiness(CHECKED_IN_LOCAL_RETRO_READINESS, {
+    ancestorPairs: SAFEWORD_RELAY_BUILD_ATTESTATION.ancestorPairs,
+    buildCommit: SAFEWORD_BUILD_COMMIT,
+    now: new Date(),
+    relayReady: CHECKED_IN_RELAY_READINESS.enabled && SAFEWORD_RELAY_BUILD_ATTESTATION.enabled,
+  });
   return {
     attemptsDirectory: nodePath.join(input.projectDirectory, '.safeword', 'retro-attempts'),
     now: () => performance.now(),
     randomUUID,
-    ...(validateLocalRetroReadiness(CHECKED_IN_LOCAL_RETRO_READINESS, {
-      ancestorPairs: SAFEWORD_RELAY_BUILD_ATTESTATION.ancestorPairs,
-      buildCommit: SAFEWORD_BUILD_COMMIT,
-      now: new Date(),
-      relayReady: CHECKED_IN_RELAY_READINESS.enabled && SAFEWORD_RELAY_BUILD_ATTESTATION.enabled,
-    }) && { route: 'server-v3' as const }),
+    ...(localServerRouteEnabled(source, serverReady) && { route: 'server-v3' as const }),
     source,
     transport: createPublicRetroTransport(),
   };

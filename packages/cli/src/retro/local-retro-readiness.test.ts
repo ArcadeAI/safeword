@@ -42,5 +42,29 @@ it('enables only complete local harness and recovered-fault evidence on a ready 
       input,
     ),
   ).toBe(false);
+  expect(
+    validateLocalRetroReadiness(
+      { ...manifest, harnesses: { codex: evidence, cursor: evidence } } as never,
+      input,
+    ),
+  ).toBe(false);
+  expect(
+    validateLocalRetroReadiness(
+      {
+        ...manifest,
+        harnesses: {
+          ...manifest.harnesses,
+          codex: { ...evidence, buildCommit: 'c'.repeat(40) },
+        },
+      },
+      input,
+    ),
+  ).toBe(false);
+  expect(
+    validateLocalRetroReadiness(
+      { ...manifest, recoveredFaults: { ...manifest.recoveredFaults, workerOutage: 'missing' } },
+      input,
+    ),
+  ).toBe(false);
   expect(validateLocalRetroReadiness(manifest, { ...input, relayReady: false })).toBe(false);
 });
