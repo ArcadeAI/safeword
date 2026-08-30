@@ -22,6 +22,14 @@ const collectorCanaryPath = nodePath.resolve(
   import.meta.dirname,
   '../../retro-collector/scripts/production-canary.mjs',
 );
+const workerWorkflowPath = nodePath.resolve(
+  import.meta.dirname,
+  '../../../.github/workflows/deploy-retro-worker.yml',
+);
+const workerRailwayConfigPath = nodePath.resolve(
+  import.meta.dirname,
+  '../../retro-collector/railway.worker.json',
+);
 
 describe('Retro Relay deployment workflow', () => {
   it('keeps an environment-protected manual recovery path', () => {
@@ -154,5 +162,35 @@ describe('Public retro collector deployment workflow', () => {
     expect(source).toContain('first.status !== 201');
     expect(source).toContain('replay.status !== 200');
     expect(source).toContain('first.body.receipt !== replay.body.receipt');
+  });
+});
+
+describe('Retro transfer worker deployment workflow', () => {
+  it('keeps the private worker separately deployable with no public credential', () => {
+    const source = readFileSync(workerWorkflowPath, 'utf8');
+
+    expect(source).toContain('on: workflow_dispatch');
+    expect(source).toContain('group: retro-worker-production');
+    expect(source).toContain('RAILWAY_SERVICE: ${{ vars.RAILWAY_RETRO_WORKER_SERVICE }}');
+    expect(source).toContain('railway up --ci');
+    expect(source).not.toContain('SAFEWORD_COLLECTOR_WORKER_CREDENTIAL');
+    expect(source).not.toContain('SAFEWORD_RELAY_COLLECTOR_WORKER_CREDENTIAL');
+    const railway = JSON.parse(readFileSync(workerRailwayConfigPath, 'utf8')) as {
+      deploy: { numReplicas: number; startCommand: string };
+    };
+    expect(railway.deploy).toMatchObject({
+      numReplicas: 1,
+      startCommand: 'node dist/worker-main.js',
+    });
+  });
+
+  it('deploys worker changes only after every CI gate passes', () => {
+    const source = readFileSync(ciWorkflowPath, 'utf8');
+    const workflow = parse(source) as { jobs: Record<string, { if?: string; needs?: string[] }> };
+    const deployment = workflow.jobs['deploy-retro-worker'];
+
+    expect(deployment?.needs).toContain('worker-inputs');
+    expect(deployment?.if).toContain("github.ref == 'refs/heads/main'");
+    expect(source).toContain('RAILWAY_RETRO_WORKER_SERVICE');
   });
 });
