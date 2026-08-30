@@ -88,7 +88,9 @@ describe('lifecycle profile observation', () => {
     expect(
       Object.keys(installSchema.ownedFiles).filter(path => isSharedAgentRuntimePath(path)),
     ).toEqual([]);
-    expect(installSchema.ownedFiles['.opencode/commands/bdd.md']).toBeDefined();
+    expect(
+      Object.keys(installSchema.ownedFiles).filter(path => path.startsWith('.opencode/')),
+    ).toEqual([]);
   });
 
   it('keeps the shared runtime when no agent is selected', () => {
