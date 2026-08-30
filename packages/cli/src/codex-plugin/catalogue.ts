@@ -213,6 +213,10 @@ const SCRIPT_REWRITES: readonly { readonly invocation: string; readonly replacem
     invocation: 'bun .safeword/hooks/lib/drain-retro-spool.ts ',
     replacement: '{cli} project retro-drain ',
   },
+  {
+    invocation: 'source "$PROJECT_DIR/.safeword/hooks/lib/audit-scope.sh"',
+    replacement: 'source <(bunx --bun safeword@{version} project audit-scope)',
+  },
 ];
 
 function codexBundledCliCommand(version: string): string {

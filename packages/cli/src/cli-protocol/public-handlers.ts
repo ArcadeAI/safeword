@@ -647,6 +647,11 @@ async function reviewKnowledgeHandler(invocation: CommandInvocation): Promise<Cl
   return observeReviewKnowledge(invocation.cwd);
 }
 
+async function auditScopeHandler(): Promise<CliResult> {
+  const { observeAuditScope } = await import('../commands/audit-scope.js');
+  return observeAuditScope();
+}
+
 async function publicRetrosHandler(invocation: CommandInvocation): Promise<CliResult> {
   const state = invocation.operands[0];
   if (state !== 'off' && state !== 'on') {
@@ -2192,6 +2197,7 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'project codify': codifyHandler,
   'project test-plan': testPlanHandler,
   'project namespace-root': namespaceRootHandler,
+  'project audit-scope': auditScopeHandler,
   'project review-knowledge': reviewKnowledgeHandler,
   'project public-retros': publicRetrosHandler,
   'project retro-drain': retroDrainHandler,

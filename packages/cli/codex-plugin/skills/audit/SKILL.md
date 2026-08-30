@@ -69,7 +69,7 @@ that ref. An invalid ref stops the audit instead of silently widening its scope.
 # same scope contract every executable audit block uses.
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
 cd "$PROJECT_DIR" || exit 1
-source "$PROJECT_DIR/.safeword/hooks/lib/audit-scope.sh"
+source <(bunx --bun safeword@0.82.1 project audit-scope)
 audit_scope_initialize "$PROJECT_DIR" || exit $?
 audit_scope_print
 
@@ -559,7 +559,7 @@ Changed project learnings in the resolved namespace root's `learnings/*.md` must
 
 ```bash
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
-source "$PROJECT_DIR/.safeword/hooks/lib/audit-scope.sh"
+source <(bunx --bun safeword@0.82.1 project audit-scope)
 audit_scope_initialize "$PROJECT_DIR" || exit $?
 NS_ROOT="$(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.0/runtime/cli.js" project namespace-root --cwd "$PROJECT_DIR")"
 
@@ -716,7 +716,7 @@ below verbatim, as ONE bash invocation.**
 # Class-2: observable facts only. Emits W008 (empty). Never writes the tree.
 cd "${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}" || exit 1
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
-source "$PROJECT_DIR/.safeword/hooks/lib/audit-scope.sh"
+source <(bunx --bun safeword@0.82.1 project audit-scope)
 audit_scope_initialize "$PROJECT_DIR" || exit $?
 
 # Resolve the namespace root (honors config paths.projectRoot in real runs).
