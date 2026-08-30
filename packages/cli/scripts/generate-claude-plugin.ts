@@ -9,9 +9,8 @@ import {
   sealClaudePluginCatalogue,
   writeClaudePluginCatalogue,
 } from '../src/claude-plugin/catalogue.js';
-import { normalizePluginCliBundle } from '../src/plugin-cli-bundle.js';
-import { requirePinnedBunVersion } from './bun-version.js';
 import { generatedTreeDifferences, reconcileGeneratedTree } from './generated-tree-differences.js';
+import { buildPluginCliBundle } from './lib/build-plugin-cli-bundle.js';
 
 await import('./generate-scenario-rubric.js');
 await import('./generate-plan-rubric.js');
@@ -26,26 +25,11 @@ const shippedRoot = nodePath.join(repoRoot, 'plugin');
 const authoredShippedFiles = ['README.md'] as const;
 
 try {
-  // @ts-expect-error -- this production generator executes under Bun; the CLI's
-  // Node-targeted tsconfig intentionally does not expose Bun globals elsewhere.
-  requirePinnedBunVersion(rootPackageJson.packageManager, Bun.version);
-
-  // `plugin/runtime/cli.js` comes out of Bun.build below, so its bytes depend on
-  // the Bun version. Check before writing any generated or sealed plugin files.
-  // @ts-expect-error -- this production generator executes under Bun; the CLI's
-  // Node-targeted tsconfig intentionally does not expose Bun globals elsewhere.
-  const cliBuild = await Bun.build({
-    entrypoints: [nodePath.join(packageRoot, 'src', 'cli.ts')],
-    format: 'esm',
-    packages: 'bundle',
-    splitting: false,
-    target: 'bun',
-    write: false,
-  });
-  if (!cliBuild.success || cliBuild.outputs.length !== 1 || cliBuild.outputs[0] === undefined) {
-    throw new Error(`Failed to bundle the Claude plugin CLI: ${cliBuild.logs.join('\n')}`);
-  }
-  const cliBundle = normalizePluginCliBundle(await cliBuild.outputs[0].text());
+  const cliBundle = await buildPluginCliBundle(
+    packageRoot,
+    rootPackageJson.packageManager,
+    'Claude',
+  );
   const assets = writeClaudePluginCatalogue(
     {
       cliBundle,
