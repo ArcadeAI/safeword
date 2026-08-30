@@ -104,7 +104,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Every host initializes a missing state file and parent directory
 
-- [ ] RED
+- [x] RED c201d29c3
 - [ ] GREEN
 - [ ] REFACTOR
 
