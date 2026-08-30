@@ -64,6 +64,7 @@ const marketplace = readJson<MarketplaceManifest>('.claude-plugin/marketplace.js
 const codexPlugin = readJson<VersionManifest>(
   'packages/cli/codex-plugin/.codex-plugin/plugin.json',
 );
+const codexRuntimePackage = readJson<VersionManifest>('packages/cli/codex-plugin/package.json');
 const codexHooks = readJson<HooksManifest>('packages/cli/codex-plugin/hooks.json');
 
 const version = readVersion(cli.version, 'packages/cli/package.json');
@@ -75,10 +76,18 @@ const codexPluginVersion = readVersion(
   codexPlugin.version,
   'packages/cli/codex-plugin/.codex-plugin/plugin.json',
 );
+const codexRuntimeVersion = readVersion(
+  codexRuntimePackage.version,
+  'packages/cli/codex-plugin/package.json',
+);
 
-if (version !== marketplaceVersion || version !== codexPluginVersion) {
+if (
+  version !== marketplaceVersion ||
+  version !== codexPluginVersion ||
+  version !== codexRuntimeVersion
+) {
   fail(
-    `Version mismatch: package.json=${version} marketplace.json=${marketplaceVersion} codex-plugin=${codexPluginVersion}. Update plugin manifests.`,
+    `Version mismatch: package.json=${version} marketplace.json=${marketplaceVersion} codex-plugin=${codexPluginVersion} codex-runtime=${codexRuntimeVersion}. Update plugin manifests and regenerate plugin runtimes.`,
   );
 }
 

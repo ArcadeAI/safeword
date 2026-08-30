@@ -62,13 +62,15 @@ function readEntrypoint(root: string, path: string, resolver: string): string {
 
 /**
  * Run what the host is actually told to run. Codex's generated procedure names
- * the published `bunx --bun safeword@<version> project review-knowledge`; this
+ * the versioned bundled CLI followed by `project review-knowledge`; this
  * exercises the same subcommand through the local source entry point, so the
  * check stays behavioural without reaching the registry for an unpublished pin.
  */
 function followCodexResolverInstruction(projectDirectory: string, instructions: string) {
-  const command = /safeword@[\w.-]+\s+(project review-knowledge)\s+--json/u.exec(instructions)?.[1];
-  expect(command, 'Codex procedure must name the pinned review-knowledge subcommand').toBe(
+  const command = /runtime\/cli\.js"\s+(project review-knowledge)\s+--json/u.exec(
+    instructions,
+  )?.[1];
+  expect(command, 'Codex procedure must name the bundled review-knowledge subcommand').toBe(
     CODEX_REVIEW_KNOWLEDGE_RESOLVER,
   );
   return spawnSync(

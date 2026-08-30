@@ -7,7 +7,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -24,11 +24,7 @@ const CODEX_EVENTS = [
   'stop',
 ];
 
-function writeReleaseFixture(
-  projectDirectory: string,
-  version: string,
-  hookVersion = version,
-): void {
+function writeReleaseFixture(projectDirectory: string, version: string): void {
   const cliDirectory = nodePath.join(projectDirectory, 'packages', 'cli');
   const pluginDirectory = nodePath.join(cliDirectory, 'codex-plugin', '.codex-plugin');
   const hooks: Record<string, { hooks: { command: string }[] }[]> = {};
@@ -40,7 +36,7 @@ function writeReleaseFixture(
       {
         hooks: [
           {
-            command: `bunx --bun safeword@${hookVersion} hook codex ${event} --plugin-hook`,
+            command: `bun "\${PLUGIN_ROOT}/runtime/cli.js" hook codex ${event} --plugin-hook`,
           },
         ],
       },
@@ -53,6 +49,10 @@ function writeReleaseFixture(
     JSON.stringify({ plugins: [{ version }] }),
   );
   writeFileSync(nodePath.join(pluginDirectory, 'plugin.json'), JSON.stringify({ version }));
+  writeFileSync(
+    nodePath.join(cliDirectory, 'codex-plugin', 'package.json'),
+    JSON.stringify({ version }),
+  );
   writeFileSync(
     nodePath.join(cliDirectory, 'codex-plugin', 'hooks.json'),
     JSON.stringify({ hooks }),
@@ -79,18 +79,46 @@ describe('scripts/check-version-sync.ts', () => {
     removeTemporaryDirectory(projectDirectory);
   });
 
-  it('accepts matching release manifests and pinned Codex hook commands', () => {
+  it('accepts matching release manifests and bundled Codex hook commands', () => {
     writeReleaseFixture(projectDirectory, '1.2.3');
 
     expect(runGuard(projectDirectory).exitCode).toBe(0);
   });
 
-  it('rejects a Codex hook command pinned to a stale CLI version', () => {
-    writeReleaseFixture(projectDirectory, '1.2.3', '1.2.2');
+  it('rejects a Codex hook command that bypasses the bundled runtime', () => {
+    writeReleaseFixture(projectDirectory, '1.2.3');
+    const hooksPath = nodePath.join(
+      projectDirectory,
+      'packages',
+      'cli',
+      'codex-plugin',
+      'hooks.json',
+    );
+    const manifest = JSON.parse(readFileSync(hooksPath, 'utf8')) as {
+      hooks: Record<string, { hooks: { command: string }[] }[]>;
+    };
+    manifest.hooks.stop = [
+      {
+        hooks: [{ command: 'bunx --bun safeword@1.2.3 hook codex stop --plugin-hook' }],
+      },
+    ];
+    writeFileSync(hooksPath, JSON.stringify(manifest));
 
     const result = runGuard(projectDirectory);
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain('hooks.json');
-    expect(result.stderr).toContain('safeword@1.2.3');
+    expect(result.stderr).toContain('bundled CLI');
+  });
+
+  it('rejects a stale bundled runtime package identity', () => {
+    writeReleaseFixture(projectDirectory, '1.2.3');
+    writeFileSync(
+      nodePath.join(projectDirectory, 'packages', 'cli', 'codex-plugin', 'package.json'),
+      JSON.stringify({ version: '1.2.2' }),
+    );
+
+    const result = runGuard(projectDirectory);
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain('codex-runtime=1.2.2');
   });
 });
