@@ -30,15 +30,14 @@ export function runRecordSkillInvocation(
   if (!hasSafewordProjectMarker(cwd)) {
     return Promise.resolve(
       createResult({
-        state: 'action_required',
+        state: 'healthy',
         findings: [
           {
             code: 'PROJECT_NOT_ENROLLED',
-            message: 'This repository is not enrolled with Safeword.',
-            severity: 'warning',
+            message: 'No invocation proof was recorded because this repository is not enrolled.',
+            severity: 'info',
           },
         ],
-        nextActions: [{ command: 'safeword install', mutates: true, requiresHuman: true }],
       }),
     );
   }

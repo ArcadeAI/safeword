@@ -6,6 +6,7 @@ export interface RuntimeAuthorityAsset {
 const PROJECT_RUNTIME_PATHS = ['.safeword/hooks/', '.safeword/scripts/'] as const;
 const UNAVAILABLE_NATIVE_PROJECT_PATHS = [
   '.safeword/guides/',
+  '.safeword/skills/',
   '.safeword/templates/',
   '.claude/skills/',
 ] as const;

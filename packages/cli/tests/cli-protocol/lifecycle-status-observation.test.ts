@@ -91,6 +91,9 @@ describe('lifecycle profile observation', () => {
     expect(
       Object.keys(installSchema.ownedFiles).filter(path => path.startsWith('.opencode/')),
     ).toEqual([]);
+    expect(
+      installSchema.sharedDirs.filter(path => path === '.claude' || path.startsWith('.claude/')),
+    ).toEqual([]);
   });
 
   it.each(['codex', 'cursor'] as const)(

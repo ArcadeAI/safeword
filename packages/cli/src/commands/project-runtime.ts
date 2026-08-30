@@ -118,7 +118,7 @@ export function runProjectRuntime(
     );
   if (helper === 'write-review-stamp')
     ensureTransientStateIgnore(projectDirectory, 'skill-invocations.log');
-  const result = spawnSync(runtime === 'bun' ? process.execPath : 'bash', [script, ...args], {
+  const result = spawnSync(runtime, [script, ...args], {
     cwd: projectDirectory,
     encoding: 'utf8',
     env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory },

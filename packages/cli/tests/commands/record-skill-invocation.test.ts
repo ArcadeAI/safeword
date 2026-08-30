@@ -13,8 +13,9 @@ describe('project record-skill-invocation', () => {
 
     const result = await runRecordSkillInvocation(cwd, 'verify', 'session-1');
 
-    expect(result.state).toBe('action_required');
+    expect(result.state).toBe('healthy');
     expect(result.findings.map(finding => finding.code)).toEqual(['PROJECT_NOT_ENROLLED']);
+    expect(result.nextActions).toEqual([]);
     expect(existsSync(nodePath.join(cwd, '.project'))).toBe(false);
     expect(existsSync(nodePath.join(cwd, '.safeword'))).toBe(false);
   });

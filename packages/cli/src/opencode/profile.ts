@@ -762,6 +762,13 @@ function managedCatalogueProblem(input: ReconcileOpenCodeProfileInput): CliResul
         ? installed.value.assets?.find(candidate => candidate.path === asset.relativePath)
         : undefined;
     if (catalogueAssetRecognized(observed, asset.content, previous?.sha256)) continue;
+    if (previous !== undefined) {
+      return humanActionRequired(
+        'OPENCODE_MANAGED_ASSET_DRIFT',
+        `The managed OpenCode asset ${nodePath.join(input.root, asset.relativePath)} was modified; Safeword preserved the profile.`,
+        `Move ${nodePath.join(input.root, asset.relativePath)} aside, then rerun safeword install --agents=opencode.`,
+      );
+    }
     return humanActionRequired(
       'OPENCODE_CATALOGUE_COLLISION',
       `The OpenCode profile asset ${asset.relativePath} contains unrecognized content; Safeword preserved it.`,

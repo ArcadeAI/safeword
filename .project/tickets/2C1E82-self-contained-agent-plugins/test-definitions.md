@@ -30,6 +30,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN f7f4cd053
 - [x] REFACTOR skip: generated OpenCode workflows reuse the self-contained Codex catalogue with host-native frontmatter
 
+### Scenario: Legacy project hooks cannot regain OpenCode workflow authority
+
+- [x] RED db353a98b (regression test fails against db353a98b^)
+- [x] GREEN db353a98b
+- [x] REFACTOR skip: packaged template lookup now has one authority for every native hook
+
 ### Scenario: A Cursor workflow executes from its complete project authority
 
 - [x] RED 46918e4b0

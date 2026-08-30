@@ -280,6 +280,19 @@ describe('OpenCode profile boundary', () => {
     ]);
   });
 
+  it('reports managed drift when install encounters a modified identity-owned asset', () => {
+    const root = temporaryDirectory();
+    expect(installOpenCodeProfile(root).state).toBe('changed');
+    const managedSkill = nodePath.join(root, 'skills/safeword-verify/SKILL.md');
+    writeFileSync(managedSkill, 'user-modified skill\n');
+
+    const result = installOpenCodeProfile(root);
+
+    expect(result.state).toBe('action_required');
+    expect(result.findings.map(finding => finding.code)).toContain('OPENCODE_MANAGED_ASSET_DRIFT');
+    expect(readFileSync(managedSkill, 'utf8')).toBe('user-modified skill\n');
+  });
+
   it.each([
     ['plugin', 'install'],
     ['plugin', 'uninstall'],

@@ -13,7 +13,7 @@ import {
 } from '../schema.js';
 
 function isLegacyClaudePath(path: string): boolean {
-  return path.startsWith('.claude/');
+  return path === '.claude' || path.startsWith('.claude/');
 }
 
 function withSelectedOwnedPaths(schema: SafewordSchema): SafewordSchema {

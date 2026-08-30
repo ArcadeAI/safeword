@@ -118,10 +118,8 @@ legacy content is preserved and reported instead.
 **Result**: Your project now has:
 
 - `.safeword/SAFEWORD.md` - Global patterns and workflows
-- `.safeword/guides/` - Testing methodology (BDD/TDD), code philosophy
-- `.safeword/skills/` - Canonical project-local skill references when Cursor is selected
-- `.safeword/hooks/` - Auto-linting, quality review hooks
-- `.claude/settings.json` - Project-scoped Safeword Claude activation by default
+- `.safeword/guides/`, `.safeword/skills/`, and `.safeword/hooks/` - Cursor's complete project-local workflow authority, only when Cursor is selected
+- `.claude/settings.json` - Project-scoped Safeword Claude activation when Claude is selected
 - Safeword Claude plugin - Native workflows and hooks cached by Claude; use `safeword install --agents=claude --scope user` for profile-wide activation
 - `.codex/config.toml` - Project bootstrap that enrolls each Codex profile at task start
 - Safeword Codex plugin - Profile-scoped skills and hooks following the verified `stable` channel
@@ -241,11 +239,10 @@ You direct in plain language; safeword keeps the agent honest. Auditing the code
 
 Key directories created in your project:
 
-- `.safeword/guides/` - Core methodology and best practices
-- `.safeword/templates/` - Fillable document structures
+- `.safeword/SAFEWORD.md` and `.safeword/config.json` - Shared project enrollment and configuration
 - `<namespace-root>/tickets/` - Tickets for complex/multi-step work (context anchors)
-- `.safeword/hooks/` - Automation scripts for Claude Code and Cursor
-- Safeword Claude plugin, `.cursor/rules/` - Specialized agent capabilities
+- `.safeword/guides/`, `.safeword/templates/`, and `.safeword/hooks/` - Cursor's project-local workflow runtime, only when Cursor is selected
+- Safeword Claude plugin, `.cursor/rules/` - Selected agent capabilities
 - Safeword Codex plugin - Profile-scoped workflow skills and hooks
 - `.cursor/commands/` - Slash commands for Cursor
 

@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -45,13 +45,23 @@ describe('packaged project runtime', () => {
     const project = createTemporaryDirectory();
     directories.push(project);
     mkdirSync(nodePath.join(project, '.safeword-project'), { recursive: true });
+    mkdirSync(nodePath.join(project, '.safeword'), { recursive: true });
+    writeFileSync(nodePath.join(project, '.safeword/SAFEWORD.md'), '# enrolled\n');
     const child = nodePath.join(project, 'nested');
     mkdirSync(child);
     vi.stubEnv('CLAUDE_PROJECT_DIR', project);
 
-    const result = await runProjectRuntime(child, 'resolve-verify-ticket', []);
+    const ticket = nodePath.join(project, '.safeword-project/tickets/ABC-proof/ticket.md');
+    mkdirSync(nodePath.dirname(ticket), { recursive: true });
+    writeFileSync(ticket, '---\nid: ABC\n---\n');
 
-    expect(result.errors.map(error => error.code)).not.toContain('PROJECT_NOT_ENROLLED');
+    const result = await runProjectRuntime(child, 'resolve-verify-ticket', ['--ticket', 'ABC']);
+
+    expect(result.state).toBe('healthy');
+    expect(result.presentation).toMatchObject({ kind: 'raw' });
+    expect(result.presentation?.body.trim()).toMatch(
+      /\.safeword-project\/tickets\/ABC-proof\/ticket\.md$/u,
+    );
   });
 
   it('recognizes packaged proof commands for Codex session bridging', () => {

@@ -63,16 +63,19 @@ describe('generated Codex plugin catalogue', () => {
     }).toThrow('skills/broken/SKILL.md');
   });
 
-  it('rejects references to native-host project assets that are no longer installed', () => {
-    expect(() => {
-      assertNativePluginRuntimeAuthority([
-        {
-          relativePath: 'skills/broken/SKILL.md',
-          content: 'Read `.safeword/guides/architecture-guide.md`.',
-        },
-      ]);
-    }).toThrow('skills/broken/SKILL.md');
-  });
+  it.each(['.safeword/guides/architecture-guide.md', '.safeword/skills/bdd/TDD.md'])(
+    'rejects references to native-host project asset %s that is no longer installed',
+    path => {
+      expect(() => {
+        assertNativePluginRuntimeAuthority([
+          {
+            relativePath: 'skills/broken/SKILL.md',
+            content: `Read \`${path}\`.`,
+          },
+        ]);
+      }).toThrow('skills/broken/SKILL.md');
+    },
+  );
 
   it.each([
     'Run `"$PROJECT_DIR/.safeword/scripts/cleanup-zombies.sh"`.',
