@@ -128,7 +128,11 @@ describe('scripts/check-version-sync.ts', () => {
       hooks: Record<string, { hooks: { command: string }[] }[]>;
     };
     const sessionStartHooks = manifest.hooks.SessionStart;
-    manifest.hooks.SessionStart = manifest.hooks.Stop;
+    const stopHooks = manifest.hooks.Stop;
+    if (sessionStartHooks === undefined || stopHooks === undefined) {
+      throw new Error('fixture must define SessionStart and Stop hooks');
+    }
+    manifest.hooks.SessionStart = stopHooks;
     manifest.hooks.Stop = sessionStartHooks;
     writeFileSync(hooksPath, JSON.stringify(manifest));
 
