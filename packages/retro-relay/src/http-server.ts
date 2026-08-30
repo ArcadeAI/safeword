@@ -58,8 +58,12 @@ async function readBytes(request: IncomingMessage, maximumBytes: number): Promis
   return Buffer.concat(chunks);
 }
 
-function shortDigest(value: string): string {
-  return createHash('sha256').update(value).digest('hex').slice(0, 12);
+function filingIdentity(requestId: string, findings: string[]): string {
+  return createHash('sha256')
+    .update(requestId)
+    .update('\0')
+    .update(findings.join('\0'))
+    .digest('hex');
 }
 
 function nonemptyStringArray(value: unknown): value is string[] {
@@ -105,7 +109,7 @@ function collectorDraft(
   const [firstLine = ''] = findings[0]?.split('\n') ?? [];
   const title = firstLine.slice(0, 256);
   if (title.trim() === '') throw new RelayError(400, 'collector envelope is invalid');
-  const identity = shortDigest(findings.join('\0'));
+  const identity = filingIdentity(requestId, findings);
   return {
     body,
     canonicalKey: `canonical:${identity}`,
@@ -120,23 +124,19 @@ function collectorDraft(
 }
 
 function collectorHeaders(request: IncomingMessage): {
-  acceptedAt: string;
   digest: string;
   requestId: string;
 } {
   const requestId = request.headers['x-safeword-request-id'];
   const digest = request.headers['x-safeword-envelope-digest'];
-  const acceptedAt = request.headers['x-safeword-accepted-at'];
   if (
     typeof requestId !== 'string' ||
     typeof digest !== 'string' ||
-    typeof acceptedAt !== 'string' ||
-    !Number.isFinite(Date.parse(acceptedAt)) ||
     !/^[\da-f]{64}$/u.test(digest)
   ) {
     throw new RelayError(400, 'collector envelope headers are invalid');
   }
-  return { acceptedAt, digest, requestId };
+  return { digest, requestId };
 }
 
 function sendJson(response: ServerResponse, status: number, value: unknown): void {
@@ -433,6 +433,17 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
       filingPrincipal,
       collectorDraft(bytes, headers.requestId, principal, retryDeadlineAt),
     );
+    observability.logs.push({
+      event: 'retro_filing',
+      harness: principal.harness,
+      requestId: receipt.requestId,
+      state: receipt.state,
+    });
+    observability.metrics.push({
+      metric: 'retro_filing_outcome',
+      requestId: receipt.requestId,
+      state: receipt.state,
+    });
     sendJson(response, receipt.state === 'filed' ? 201 : 202, receipt);
   };
 

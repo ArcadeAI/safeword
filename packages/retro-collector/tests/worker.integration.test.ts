@@ -1,3 +1,4 @@
+import { getEventListeners } from 'node:events';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
@@ -13,13 +14,21 @@ import {
 } from '../../retro-relay/src/index.js';
 import { startPublicRetroCollector } from '../src/index.js';
 import { PublicRetroStore } from '../src/store.js';
-import { runRetroTransferWorker, transferOneRetro } from '../src/worker.js';
+import { runRetroTransferWorker, transferOneRetro, waitForWorkerPoll } from '../src/worker.js';
 
 const directories: string[] = [];
 
 afterEach(() => {
   for (const directory of directories) rmSync(directory, { force: true, recursive: true });
   directories.length = 0;
+});
+
+it('releases the abort listener after every ordinary worker pause', async () => {
+  const signal = new AbortController().signal;
+
+  for (let index = 0; index < 20; index += 1) await waitForWorkerPoll(0, signal);
+
+  expect(getEventListeners(signal, 'abort')).toHaveLength(0);
 });
 
 it('transfers collector acceptance through the real relay contract', async () => {

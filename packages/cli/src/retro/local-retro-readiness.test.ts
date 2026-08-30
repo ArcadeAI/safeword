@@ -55,6 +55,18 @@ describe('local retro readiness', () => {
     expect(validateLocalRetroReadiness(manifest, input)).toBe(true);
   });
 
+  it('accepts a running build at the reviewed evidence commit', () => {
+    const { input, manifest } = readinessFixture();
+
+    expect(
+      validateLocalRetroReadiness(manifest, {
+        ...input,
+        ancestorPairs: [],
+        buildCommit: evidenceCommit,
+      }),
+    ).toBe(true);
+  });
+
   it.each(['managed', 'unknown'] as const)(
     'rejects Cursor evidence with %s host provenance',
     hostClass => {

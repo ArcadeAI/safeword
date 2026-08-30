@@ -51997,18 +51997,21 @@ function validHarnessEvidence(evidence, manifest, input) {
   return evidence.hostClass === "local" && COMMIT.test(evidence.buildCommit) && (evidence.buildCommit === manifest.evidenceCommit || input.ancestorPairs.some((pair) => pair.ancestor === evidence.buildCommit && pair.descendant === manifest.evidenceCommit)) && UUID2.test(evidence.collectorReceipt) && UUID2.test(evidence.relayReceipt) && ["duplicate", "filed"].includes(evidence.terminal);
 }
 function manifestBuildIsAncestor(manifest, input) {
-  return input.ancestorPairs.some((pair) => pair.ancestor === manifest.evidenceCommit && pair.descendant === input.buildCommit);
+  return manifest.evidenceCommit === input.buildCommit || input.ancestorPairs.some((pair) => pair.ancestor === manifest.evidenceCommit && pair.descendant === input.buildCommit);
 }
 function validReviewWindow(manifest, now) {
   const reviewedAt = new Date(manifest.reviewedAt);
   return COMMIT.test(manifest.evidenceCommit) && !Number.isNaN(reviewedAt.getTime()) && reviewedAt <= now && now.getTime() - reviewedAt.getTime() <= 30 * 86400000;
+}
+function hasEvidenceCollections(manifest) {
+  return typeof manifest.harnesses === "object" && manifest.harnesses !== null && typeof manifest.recoveredFaults === "object" && manifest.recoveredFaults !== null;
 }
 function validateLocalRetroReadiness(manifest, input) {
   if (!manifest.enabled || !input.relayReady || !COMMIT.test(input.buildCommit))
     return false;
   if (!validReviewWindow(manifest, input.now) || !manifestBuildIsAncestor(manifest, input))
     return false;
-  if (typeof manifest.harnesses !== "object" || manifest.harnesses === null || typeof manifest.recoveredFaults !== "object" || manifest.recoveredFaults === null)
+  if (!hasEvidenceCollections(manifest))
     return false;
   const harnessKeys = Object.keys(manifest.harnesses).toSorted((left, right) => left.localeCompare(right));
   if (harnessKeys.join("\x00") !== ["claude-code", "codex", "cursor"].join("\x00"))

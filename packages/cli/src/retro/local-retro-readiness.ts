@@ -25,6 +25,10 @@ export interface LocalRetroReadinessManifest {
   version: 1;
 }
 
+// This checked-in manifest is a maintainer attestation. Digests identify reviewed
+// production artifacts; the validator proves completeness, freshness, and ancestry,
+// while the release process owns the artifacts' substantive review.
+
 type DisabledManifest = { enabled: false; version: 1 };
 export const CHECKED_IN_LOCAL_RETRO_READINESS = checkedInManifest as
   DisabledManifest | LocalRetroReadinessManifest;
@@ -55,8 +59,11 @@ function manifestBuildIsAncestor(
   manifest: LocalRetroReadinessManifest,
   input: Parameters<typeof validateLocalRetroReadiness>[1],
 ): boolean {
-  return input.ancestorPairs.some(
-    pair => pair.ancestor === manifest.evidenceCommit && pair.descendant === input.buildCommit,
+  return (
+    manifest.evidenceCommit === input.buildCommit ||
+    input.ancestorPairs.some(
+      pair => pair.ancestor === manifest.evidenceCommit && pair.descendant === input.buildCommit,
+    )
   );
 }
 

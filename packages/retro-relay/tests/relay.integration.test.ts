@@ -408,12 +408,37 @@ describe('retry-safe retro relay', () => {
       },
       body,
     });
+    const laterSession = await fetch(`${setup.relay.url}/v1/collector-retros`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${setup.credentials.collectorWorker}`,
+        'content-type': 'application/json; charset=utf-8',
+        'x-safeword-envelope-digest': createHash('sha256').update(body).digest('hex'),
+        'x-safeword-request-id': 'bbbbbbbb-cccc-4ddd-8eee-ffffffffffff',
+      },
+      body,
+    });
 
     expect(response.status).toBe(201);
     expect(duplicate.status).toBe(201);
-    expect(setup.createBodies).toHaveLength(1);
+    expect(laterSession.status).toBe(201);
+    expect(setup.createBodies).toHaveLength(2);
     expect(setup.createBodies[0]).toContain('The worker preserved exact bytes.');
     expect(setup.createBodies[0]).toContain('The whole batch remained intact.');
+    expect(setup.relay.observability.logs).toEqual([
+      expect.objectContaining({
+        event: 'retro_filing',
+        requestId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+      }),
+      expect.objectContaining({
+        event: 'retro_filing',
+        requestId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+      }),
+      expect.objectContaining({
+        event: 'retro_filing',
+        requestId: 'bbbbbbbb-cccc-4ddd-8eee-ffffffffffff',
+      }),
+    ]);
     const stored = setup.store.load({
       installationId: 42,
       repository: 'arcadeai/safeword',

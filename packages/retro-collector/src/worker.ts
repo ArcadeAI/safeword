@@ -1,5 +1,6 @@
+import { setTimeout as delay } from 'node:timers/promises';
+
 interface CollectorClaim {
-  acceptedAt: string;
   bodyBase64: string;
   digest: string;
   leaseToken: string;
@@ -62,7 +63,6 @@ export async function transferOneRetro(
       headers: {
         ...authorization(options.relayCredential),
         'content-type': 'application/json; charset=utf-8',
-        'x-safeword-accepted-at': claim.acceptedAt,
         'x-safeword-envelope-digest': claim.digest,
         'x-safeword-request-id': claim.requestId,
       },
@@ -93,19 +93,12 @@ export async function transferOneRetro(
   return disposition.result;
 }
 
-function wait(milliseconds: number, signal: AbortSignal): Promise<void> {
-  return new Promise(resolve => {
-    const timer = setTimeout(resolve, milliseconds);
-    timer.unref();
-    signal.addEventListener(
-      'abort',
-      () => {
-        clearTimeout(timer);
-        resolve();
-      },
-      { once: true },
-    );
-  });
+export async function waitForWorkerPoll(milliseconds: number, signal: AbortSignal): Promise<void> {
+  try {
+    await delay(milliseconds, undefined, { ref: false, signal });
+  } catch (error) {
+    if (!signal.aborted) throw error;
+  }
 }
 
 /** Drain continuously; idle and transient failures stay quiet and retry later. */
@@ -114,7 +107,7 @@ export async function runRetroTransferWorker(
   signal: AbortSignal,
   dependencies: RetroTransferWorkerDependencies = {},
 ): Promise<void> {
-  const pause = dependencies.wait ?? wait;
+  const pause = dependencies.wait ?? waitForWorkerPoll;
   while (!signal.aborted) {
     let result: RetroTransferResult = 'retained';
     try {
