@@ -3,7 +3,7 @@ id: 2C1E82
 slug: self-contained-agent-plugins
 type: epic
 subtype: bug-investigated
-phase: implement
+phase: verify
 status: in_progress
 children: ['V2AH4B', 'KDED4X', 'SF0RS0', 'GJB22B', 'JNZ2H5', '1DZ9W8']
 phase_anchors:
@@ -69,3 +69,4 @@ Ruled out:
 - 2026-08-30T17:23:00.000Z Implementation complete: native Codex, Claude Code, and OpenCode workflows now execute from packaged authorities; Cursor retains its complete project authority; selected-agent reconciliation omits unselected runtimes; missing transient state and precise ignore rules initialize lazily after enrollment. Focused implementation and release-contract lanes passed, and the final independent Claude Opus quality review approved the delivery after its blocking findings were resolved. Advanced to verification.
 - Verification exposed an invalid implement exit: the feature had no executable Cucumber or Vitest-proof registration, and the full suite retained assumptions from unconditional project runtime. Returned to implementation after documenting the process root cause and ruled-out alternatives.
 - 2026-08-30T21:30:00.000Z Closed the executable-route gap: bound every epic scenario to the normal Vitest lane, made the package-local BDD command run both Cucumber and proof provenance like the repository-root lane, reconciled selected-agent legacy fixtures, regenerated versioned plugin artifacts after merging current main, and reconciled the implementation plan against shipped runtime authority.
+- 2026-08-30T21:50:00.000Z Implement exit passed: the corrected package-local BDD entry point ran 587/587 Cucumber scenarios (10,954/10,954 steps) and 38/38 proof-provenance tests; advanced to authoritative verification.
