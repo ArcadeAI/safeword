@@ -32,7 +32,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Legacy project hooks cannot regain OpenCode workflow authority
 
-- [x] RED db353a98b (regression test fails against db353a98b^)
+- [x] RED db353a98b
 - [x] GREEN db353a98b
 - [x] REFACTOR skip: packaged template lookup now has one authority for every native hook
 
