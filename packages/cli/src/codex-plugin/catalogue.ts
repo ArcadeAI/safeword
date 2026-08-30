@@ -263,8 +263,14 @@ export function adaptPackagedRuntimeInvocations(markdown: string, version: strin
   return adaptRuntimeInvocations(markdown, `bunx --bun safeword@${version}`);
 }
 
-function adaptCodexPackagedRuntimeInvocations(markdown: string, version: string): string {
-  return adaptRuntimeInvocations(markdown, codexBundledCliCommand(version));
+export function adaptNativeRuntimeInvocations(markdown: string, version: string): string {
+  const cli = `bunx --bun safeword@${version}`;
+  return adaptNamespaceRootInvocations(adaptRuntimeInvocations(markdown, cli), cli);
+}
+
+function adaptCodexNativeRuntimeInvocations(markdown: string, version: string): string {
+  const cli = codexBundledCliCommand(version);
+  return adaptNamespaceRootInvocations(adaptRuntimeInvocations(markdown, cli), cli);
 }
 
 // resolve-namespace-root.ts needs its own pass: its positional modes map onto
@@ -321,8 +327,8 @@ function rewriteNamespaceRootTail(tail: string, replacement: string): string {
   return TRAILING_OPERAND.test(remainder) ? preserved : `${replacement} --key ${key}${remainder}`;
 }
 
-function adaptNamespaceRootInvocations(markdown: string, version: string): string {
-  const replacement = `${codexBundledCliCommand(version)} project namespace-root --cwd "$PROJECT_DIR"`;
+function adaptNamespaceRootInvocations(markdown: string, cli: string): string {
+  const replacement = `${cli} project namespace-root --cwd "$PROJECT_DIR"`;
   const [head, ...rest] = markdown.split(NAMESPACE_ROOT_INVOCATION_PREFIX);
   let adapted = head ?? '';
 
@@ -339,8 +345,7 @@ function adaptWorkflowMarkdown(
   version: string,
 ): string {
   let adapted = adaptCodexWorkflowInvocations(markdown, knownSkillNames);
-  adapted = adaptCodexPackagedRuntimeInvocations(adapted, version);
-  adapted = adaptNamespaceRootInvocations(adapted, version);
+  adapted = adaptCodexNativeRuntimeInvocations(adapted, version);
 
   return formatMarkdownTables(adapted);
 }

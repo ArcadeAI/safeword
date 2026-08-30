@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { adaptPackagedRuntimeInvocations } from '../codex-plugin/catalogue.js';
+import { adaptNativeRuntimeInvocations } from '../codex-plugin/catalogue.js';
 import { CURSOR_COMMAND_WRAPPERS, type CursorCommandWrapper } from '../cursor-wrappers.js';
 import { VERSION } from '../version.js';
 
@@ -53,7 +53,7 @@ export interface OpenCodeCatalogueAsset {
 }
 
 function renderOpenCodeSkill(name: string, content: string): string {
-  const lines = adaptPackagedRuntimeInvocations(content, VERSION).split('\n');
+  const lines = adaptNativeRuntimeInvocations(content, VERSION).split('\n');
   const frontmatterEnd = lines.indexOf('---', 1);
   const nameIndex = lines.findIndex(
     (line, index) => index > 0 && index < frontmatterEnd && line.startsWith('name:'),
