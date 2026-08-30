@@ -85,11 +85,7 @@ function collectorDraft(
 ): FileRetroDraftRequest {
   const envelope = JSON.parse(bytes.toString('utf8')) as { source?: { repository?: unknown } };
   const findings = collectorFindings(envelope);
-  const repo =
-    typeof envelope.source?.repository === 'string'
-      ? envelope.source.repository.replace(/^github\.com\//u, '').toLowerCase()
-      : principal.repository;
-  if (repo !== principal.repository) throw new RelayError(403, 'collector scope is invalid');
+  const repo = principal.repository;
   const [title = ''] = findings[0]?.split('\n') ?? [];
   if (title.trim() === '') throw new RelayError(400, 'collector envelope is invalid');
   const identity = shortDigest(findings.join('\0'));

@@ -379,7 +379,7 @@ describe('retry-safe retro relay', () => {
           harness: 'codex',
           hostClass: 'local',
           projectUUID: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-          repository: 'github.com/arcadeai/safeword',
+          repository: 'github.com/customer/example',
           safewordCliVersion: '0.82.1',
         },
         sessionScope: 'a'.repeat(64),
