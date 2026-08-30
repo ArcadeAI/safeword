@@ -119,6 +119,100 @@ it('exposes anonymous liveness without collection metadata', async () => {
   expect(await response.json()).toEqual({ status: 'ok' });
 });
 
+it('persists the public intake quota across collector restarts', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const databasePath = path.join(directory, 'collector.sqlite');
+  const firstRuntime = await startPublicRetroCollector({
+    databasePath,
+    intakeLimitPerMinute: 1,
+  });
+  const first = await submit(firstRuntime.url, fixtureServerOwnedRequest());
+  await firstRuntime.close();
+
+  const secondRuntime = await startPublicRetroCollector({
+    databasePath,
+    intakeLimitPerMinute: 1,
+  });
+  const secondRequest = fixtureServerOwnedRequest();
+  secondRequest.requestId = '22222222-2222-4222-8222-222222222222';
+  secondRequest.body = encoded({
+    ...JSON.parse(new TextDecoder().decode(secondRequest.body)),
+    sessionScope: 'a'.repeat(64),
+  });
+  const rejected = await submit(secondRuntime.url, secondRequest);
+  const duplicate = await submit(secondRuntime.url, fixtureServerOwnedRequest());
+  await secondRuntime.close();
+
+  expect(first.status).toBe(201);
+  expect(rejected.status).toBe(429);
+  expect(await rejected.json()).toEqual({ error: 'intake_quota_exhausted' });
+  expect(duplicate.status).toBe(200);
+});
+
+it('persists global and per-project filing reservations across restarts', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const databasePath = path.join(directory, 'collector.sqlite');
+  const options = {
+    collectorWorkerCredential: 'worker-secret',
+    databasePath,
+    filingLimitPerHour: 2,
+    projectFilingLimitPerHour: 1,
+  };
+  const requestFor = (requestId: string, projectUUID: string, scope: string) => {
+    const fixture = fixtureServerOwnedRequest();
+    const envelope = JSON.parse(new TextDecoder().decode(fixture.body)) as Record<string, unknown>;
+    envelope.source = { ...(envelope.source as object), projectUUID };
+    envelope.sessionScope = scope.repeat(64);
+    return { body: encoded(envelope), requestId };
+  };
+  const firstRuntime = await startPublicRetroCollector(options);
+  await submit(
+    firstRuntime.url,
+    requestFor('11111111-1111-4111-8111-111111111111', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '1'),
+  );
+  await submit(
+    firstRuntime.url,
+    requestFor('22222222-2222-4222-8222-222222222222', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '2'),
+  );
+  await submit(
+    firstRuntime.url,
+    requestFor('33333333-3333-4333-8333-333333333333', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', '3'),
+  );
+  const workerHeaders = { authorization: 'Bearer worker-secret' };
+  const firstClaim = await fetch(`${firstRuntime.url}/v1/private/retro-claims`, {
+    method: 'POST',
+    headers: workerHeaders,
+  });
+  const firstLease = (await firstClaim.json()) as { leaseToken: string; requestId: string };
+  await fetch(`${firstRuntime.url}/v1/private/retro-claims/${firstLease.requestId}`, {
+    method: 'PUT',
+    headers: { ...workerHeaders, 'x-safeword-lease-token': firstLease.leaseToken },
+  });
+  const secondClaim = await fetch(`${firstRuntime.url}/v1/private/retro-claims`, {
+    method: 'POST',
+    headers: workerHeaders,
+  });
+  const secondLease = (await secondClaim.json()) as { leaseToken: string; requestId: string };
+  await fetch(`${firstRuntime.url}/v1/private/retro-claims/${secondLease.requestId}`, {
+    method: 'PUT',
+    headers: { ...workerHeaders, 'x-safeword-lease-token': secondLease.leaseToken },
+  });
+  await firstRuntime.close();
+
+  const restarted = await startPublicRetroCollector(options);
+  const exhausted = await fetch(`${restarted.url}/v1/private/retro-claims`, {
+    method: 'POST',
+    headers: workerHeaders,
+  });
+  await restarted.close();
+
+  expect(firstLease.requestId).toBe('11111111-1111-4111-8111-111111111111');
+  expect(secondLease.requestId).toBe('33333333-3333-4333-8333-333333333333');
+  expect(exhausted.status).toBe(204);
+});
+
 it.each([
   ['authorization', 'Bearer fixture'],
   ['cookie', 'session=fixture'],

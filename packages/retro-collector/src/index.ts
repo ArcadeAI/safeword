@@ -1,7 +1,7 @@
 import { timingSafeEqual } from 'node:crypto';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 
-import { PublicRetroConflict, PublicRetroStore } from './store.js';
+import { PublicRetroConflict, PublicRetroQuotaExceeded, PublicRetroStore } from './store.js';
 
 interface PublicRetroStorePort extends Pick<PublicRetroStore, 'accept' | 'close' | 'read'> {
   claim?: PublicRetroStore['claim'];
@@ -42,8 +42,11 @@ export interface PublicRetroCollectorOptions {
   databasePath: string;
   collectorWorkerCredential?: string;
   host?: string;
+  filingLimitPerHour?: number;
+  intakeLimitPerMinute?: number;
   operatorCredential?: string;
   port?: number;
+  projectFilingLimitPerHour?: number;
 }
 
 function sendJson(response: ServerResponse, status: number, body: unknown): void {
@@ -214,7 +217,7 @@ function validV3Findings(findings: string[]): boolean {
 
 function envelopeMetadata(
   rawBody: Buffer,
-): { sessionScope: string; version: 'legacy' | 'v3' } | undefined {
+): { projectUUID: string; sessionScope: string; version: 'legacy' | 'v3' } | undefined {
   try {
     const source = UTF8_DECODER.decode(rawBody);
     const value = JSON.parse(source) as unknown;
@@ -222,7 +225,11 @@ function envelopeMetadata(
     if (!isRecord(value) || !validEnvelopeFindings(value)) return undefined;
     if (!validSource(value.source, value.version)) return undefined;
     return typeof value.sessionScope === 'string' && SESSION_SCOPE.test(value.sessionScope)
-      ? { sessionScope: value.sessionScope, version: value.version === 'v3' ? 'v3' : 'legacy' }
+      ? {
+          projectUUID: (value.source as Record<string, unknown>).projectUUID as string,
+          sessionScope: value.sessionScope,
+          version: value.version === 'v3' ? 'v3' : 'legacy',
+        }
       : undefined;
   } catch {
     return undefined;
@@ -339,7 +346,13 @@ async function servePublicSubmission(
       sendJson(response, 400, { error: 'invalid_request' });
       return;
     }
-    const result = store.accept(requestId, metadata.sessionScope, rawBody, metadata.version);
+    const result = store.accept(
+      requestId,
+      metadata.sessionScope,
+      rawBody,
+      metadata.version,
+      metadata.projectUUID,
+    );
     sendJson(response, result.status === 'accepted' ? 201 : 200, {
       requestId: result.requestId,
       receipt: result.receipt,
@@ -351,6 +364,10 @@ async function servePublicSubmission(
     }
     if (error instanceof RangeError) {
       sendJson(response, 413, { error: 'too_large' });
+      return;
+    }
+    if (error instanceof PublicRetroQuotaExceeded) {
+      sendJson(response, 429, { error: 'intake_quota_exhausted' });
       return;
     }
     sendJson(response, 500, { error: 'store_unavailable' });
@@ -375,7 +392,11 @@ async function handle(
 
 export async function startPublicRetroCollector(
   options: PublicRetroCollectorOptions,
-  store: PublicRetroStorePort = new PublicRetroStore(options.databasePath),
+  store: PublicRetroStorePort = new PublicRetroStore(options.databasePath, {
+    filingLimitPerHour: options.filingLimitPerHour,
+    intakeLimitPerMinute: options.intakeLimitPerMinute,
+    projectFilingLimitPerHour: options.projectFilingLimitPerHour,
+  }),
 ): Promise<PublicRetroCollectorRuntime> {
   const configuredCredential = options.operatorCredential?.trim();
   const operatorCredential = configuredCredential === '' ? undefined : configuredCredential;
