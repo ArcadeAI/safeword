@@ -2123,13 +2123,13 @@ Given(
   'an apply would require an effect not present in the reviewed plan',
   function (this: UnifiedInstallWorld) {
     initializeHosts(this);
-    runInstall(this, ['--agents', 'none']);
+    runInstall(this, ['--agents', 'cursor']);
     assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
     const project = requiredValue(this.projectRoot, 'project root');
     const managedPath = nodePath.join(project, '.safeword/templates/work-log-template.md');
     this.unplannedContent = readFileSync(managedPath, 'utf8');
     rmSync(managedPath);
-    runRawCommand(this, ['uninstall', '--agents', 'none']);
+    runRawCommand(this, ['uninstall', '--agents', 'cursor']);
     const envelope = JSON.parse(this.result.stdout) as { data?: { plan?: { id?: string } } };
     this.planId = envelope.data?.plan?.id;
     assert.match(this.planId ?? '', /^[a-f\d]{64}$/u);
@@ -2142,7 +2142,7 @@ When('the user confirms that plan', function (this: UnifiedInstallWorld) {
   runRawCommand(this, [
     'uninstall',
     '--agents',
-    'none',
+    'cursor',
     '--yes',
     '--plan',
     requiredValue(this.planId, 'plan id'),

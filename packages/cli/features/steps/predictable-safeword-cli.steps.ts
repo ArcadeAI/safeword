@@ -378,13 +378,8 @@ Given('a configured project without native profile plugins', function (this: Pre
 });
 
 Given('a configured project with managed drift', function (this: PredictableCliWorld) {
-  mkdirSync(join(temporaryProject(this), '.claude'), { recursive: true });
-  writeFileSync(
-    join(temporaryProject(this), '.claude', 'settings.json'),
-    '{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"bun .safeword/hooks/session-version.ts"}]}]}}\n',
-  );
   setupProject(this);
-  rmSync(join(temporaryProject(this), '.claude', 'settings.json'));
+  writeFileSync(join(temporaryProject(this), '.safeword', 'version'), '0.0.0\n');
 });
 
 When('the user runs Safeword with no command', function (this: PredictableCliWorld) {
@@ -402,7 +397,7 @@ Then(
   'the result requires action and recommends {string}',
   function (this: PredictableCliWorld, command: string) {
     const result = wireResult(this);
-    assert.equal(result.state, 'action_required');
+    assert.equal(result.state, 'action_required', JSON.stringify(result));
     assert.equal((result.next_actions as { command: string }[])[0]?.command, command);
   },
 );
