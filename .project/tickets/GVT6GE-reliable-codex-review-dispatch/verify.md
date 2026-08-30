@@ -1,5 +1,7 @@
 # Verification
 
+**PR Scope:** ✅ Diff matches ticket scope: bundled Codex runtime generation and cache-path invocation, hook/runtime release guards, behavioral and release coverage, generator refactors required by the review, generated architecture/format ownership, and this ticket's evidence. No unrelated product changes.
+
 ## Acceptance
 
 - [x] Generated Codex review and project-knowledge commands invoke the bundled plugin CLI without `bunx`.
