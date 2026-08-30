@@ -631,13 +631,25 @@ function humanActionRequired(code: string, message: string, instruction: string)
   });
 }
 
-function writeManagedProfile(
-  paths: OpenCodeProfilePaths,
-  pluginBytes: Buffer | string,
-  identity: OpenCodeIdentityV1,
-  dispatcherBytes: Buffer | undefined,
-  catalogueAssets: readonly OpenCodeCatalogueAsset[] = [],
-): void {
+interface ManagedProfileWrite {
+  readonly root: string;
+  readonly paths: OpenCodeProfilePaths;
+  readonly pluginBytes: Buffer | string;
+  readonly identity: OpenCodeIdentityV1;
+  readonly dispatcherBytes: Buffer | undefined;
+  readonly catalogueAssets: readonly OpenCodeCatalogueAsset[];
+}
+
+function writeManagedProfile(input: ManagedProfileWrite): void {
+  const { root, paths, pluginBytes, identity, dispatcherBytes, catalogueAssets } = input;
+  const previous = parsedIdentity(observeFile(paths.identity));
+  const desiredPaths = new Set(catalogueAssets.map(asset => asset.relativePath));
+  if (previous.kind === 'identity') {
+    const previousAssets = previous.value.assets ?? [];
+    for (const asset of previousAssets) {
+      if (!desiredPaths.has(asset.path)) rmSync(nodePath.join(root, asset.path), { force: true });
+    }
+  }
   if (dispatcherBytes !== undefined) {
     writeDurableFile(paths.dispatcher, dispatcherBytes, { mode: 0o600 });
   }
@@ -652,6 +664,30 @@ function writeManagedProfile(
   writeDurableFile(paths.identity, `${JSON.stringify(identity, undefined, 2)}\n`, { mode: 0o600 });
 }
 
+function retiredCatalogueProblem(
+  input: ReconcileOpenCodeProfileInput,
+  installed: IdentityObservation,
+  desiredPaths: ReadonlySet<string>,
+): CliResult | undefined {
+  if (installed.kind !== 'identity') return undefined;
+  const installedAssets = installed.value.assets ?? [];
+  for (const asset of installedAssets) {
+    if (desiredPaths.has(asset.path)) continue;
+    const observed = observeFile(nodePath.join(input.root, asset.path));
+    if (
+      observed.kind === 'absent' ||
+      (observed.kind === 'file' && sha256(observed.bytes) === asset.sha256)
+    )
+      continue;
+    return humanActionRequired(
+      'OPENCODE_MANAGED_ASSET_DRIFT',
+      `The retired OpenCode profile asset ${asset.path} was modified; Safeword preserved it.`,
+      `Move ${nodePath.join(input.root, asset.path)} aside, then rerun safeword install --agents=opencode.`,
+    );
+  }
+  return undefined;
+}
+
 function removeEmptyDirectory(path: string): void {
   try {
     if (readdirSync(path).length === 0) rmdirSync(path);
@@ -664,6 +700,7 @@ function managedCatalogueProblem(input: ReconcileOpenCodeProfileInput): CliResul
   if (input.operation !== 'install') return undefined;
   const installed = parsedIdentity(observeFile(openCodeProfilePaths(input.root).identity));
   const catalogueAssets = input.catalogueAssets ?? [];
+  const desiredPaths = new Set(catalogueAssets.map(asset => asset.relativePath));
   for (const asset of catalogueAssets) {
     const observed = observeFile(nodePath.join(input.root, asset.relativePath));
     const previous =
@@ -677,7 +714,7 @@ function managedCatalogueProblem(input: ReconcileOpenCodeProfileInput): CliResul
       `Move ${nodePath.join(input.root, asset.relativePath)} aside, then rerun safeword install --agents=opencode.`,
     );
   }
-  return undefined;
+  return retiredCatalogueProblem(input, installed, desiredPaths);
 }
 
 function catalogueAssetRecognized(
@@ -847,13 +884,14 @@ export function reconcileOpenCodeProfile(input: ReconcileOpenCodeProfileInput): 
     const currentResult = terminalUnlessDispatcherNeedsRepair(paths, input, current);
     if (currentResult !== undefined) return currentResult;
     if (input.operation === 'install') {
-      writeManagedProfile(
+      writeManagedProfile({
+        root: input.root,
         paths,
-        input.pluginBytes,
-        input.identity,
-        input.dispatcherBytes,
-        input.catalogueAssets,
-      );
+        pluginBytes: input.pluginBytes,
+        identity: input.identity,
+        dispatcherBytes: input.dispatcherBytes,
+        catalogueAssets: input.catalogueAssets ?? [],
+      });
     } else {
       removeManagedProfile(input.root, paths, input.identity);
     }

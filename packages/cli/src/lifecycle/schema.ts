@@ -39,10 +39,9 @@ function selectedDeliverySchema(
   schema: SafewordSchema,
   selected: ReadonlySet<string>,
 ): SafewordSchema {
-  const openCodeWithoutClaude = selected.has('opencode') && !selected.has('claude');
-  return openCodeWithoutClaude
-    ? filterSchemaPaths(schema, path => !isLegacyClaudePath(path))
-    : schema;
+  return selected.has('claude')
+    ? schema
+    : filterSchemaPaths(schema, path => !isLegacyClaudePath(path));
 }
 
 function selectedProjectSurfaces(selected: ReadonlySet<string>): ('core' | 'cursor')[] {
@@ -60,7 +59,8 @@ export function projectLifecycleSchema(
 ): SafewordSchema {
   const claudeDeliverySchema = schemaForClaudeDelivery(cwd);
   const selected = new Set(agents);
-  const legacyClaudeActive = hasLegacyClaudeDelivery(claudeDeliverySchema);
+  const legacyClaudeActive =
+    selected.has('claude') && hasLegacyClaudeDelivery(claudeDeliverySchema);
   const openCodeSchema = selectedDeliverySchema(claudeDeliverySchema, selected);
   const deliverySchema = schemaForCodexDelivery(cwd, openCodeSchema);
   const surfaceSchema = schemaForProjectSurfaces(deliverySchema, selectedProjectSurfaces(selected));

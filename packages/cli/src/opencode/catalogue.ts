@@ -1,7 +1,7 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { adaptNativeRuntimeInvocations } from '../codex-plugin/catalogue.js';
+import { generateCodexPluginAssets } from '../codex-plugin/catalogue.js';
 import { CURSOR_COMMAND_WRAPPERS, type CursorCommandWrapper } from '../cursor-wrappers.js';
 import { VERSION } from '../version.js';
 
@@ -53,31 +53,31 @@ export interface OpenCodeCatalogueAsset {
 }
 
 function renderOpenCodeSkill(name: string, content: string): string {
-  const lines = adaptNativeRuntimeInvocations(content, VERSION).split('\n');
-  const frontmatterEnd = lines.indexOf('---', 1);
-  const nameIndex = lines.findIndex(
-    (line, index) => index > 0 && index < frontmatterEnd && line.startsWith('name:'),
-  );
-  if (frontmatterEnd === -1 || nameIndex === -1) {
-    throw new Error(`Canonical skill ${name} has no frontmatter name.`);
-  }
-  lines[nameIndex] = `name: safeword-${name}`;
-  return lines.join('\n');
+  return content
+    .replace(`name: ${name}\n`, () => `name: safeword-${name}\n`)
+    .replaceAll(`$safeword:${name}`, () => `/safeword-${name}`);
 }
 
 export function generateOpenCodeCatalogueAssets(
   templatesRoot: string,
 ): readonly OpenCodeCatalogueAsset[] {
   const skillsRoot = nodePath.join(templatesRoot, 'skills');
-  const skills = readdirSync(skillsRoot, { withFileTypes: true })
+  const skillNames = readdirSync(skillsRoot, { withFileTypes: true })
     .filter(entry => entry.isDirectory())
-    .map(entry => ({
-      relativePath: nodePath.join('skills', `safeword-${entry.name}`, 'SKILL.md'),
-      content: renderOpenCodeSkill(
-        entry.name,
-        readFileSync(nodePath.join(skillsRoot, entry.name, 'SKILL.md'), 'utf8'),
-      ),
-    }));
+    .map(entry => entry.name);
+  const knownSkills = new Set(skillNames);
+  const skills = generateCodexPluginAssets(skillsRoot, VERSION).map(asset => {
+    const [, name, ...suffix] = asset.relativePath.split(nodePath.sep);
+    if (name === undefined || !knownSkills.has(name)) {
+      throw new Error(`Generated native skill has an unexpected path: ${asset.relativePath}`);
+    }
+    let content = asset.content;
+    for (const skill of skillNames) content = renderOpenCodeSkill(skill, content);
+    return {
+      relativePath: nodePath.join('skills', `safeword-${name}`, ...suffix),
+      content,
+    };
+  });
   const commands = CURSOR_COMMAND_WRAPPERS.map(command => ({
     relativePath: nodePath.join('commands', `safeword-${command.name}.md`),
     content: renderOpenCodeCommand(command),

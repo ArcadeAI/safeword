@@ -36,6 +36,19 @@ describe('OpenCode profile catalogue', () => {
       assertNativePluginRuntimeAuthority(generateOpenCodeCatalogueAssets(templatesRoot));
     }).not.toThrow();
   });
+  it('ships referenced skill material and rewrites native workflow invocations', () => {
+    const templatesRoot = nodePath.resolve(import.meta.dirname, '../../templates');
+    const assets = generateOpenCodeCatalogueAssets(templatesRoot);
+    const bdd = assets.find(asset => asset.relativePath === 'skills/safeword-bdd/SKILL.md');
+
+    expect(
+      assets.some(asset => asset.relativePath === 'skills/safeword-bdd/references/DISCOVERY.md'),
+    ).toBe(true);
+    expect(bdd?.content).toContain('references/DISCOVERY.md');
+    expect(bdd?.content).not.toContain('.safeword/skills/bdd/');
+    expect(bdd?.content).toContain('/safeword-verify');
+    expect(bdd?.content).not.toContain('$safeword:verify');
+  });
   it('installs the complete native catalogue without project host files', async () => {
     const project = temporaryDirectory();
     const profile = temporaryDirectory();

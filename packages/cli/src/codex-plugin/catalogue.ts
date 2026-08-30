@@ -219,15 +219,15 @@ const SCRIPT_REWRITES: readonly { readonly invocation: string; readonly replacem
   },
   {
     invocation: 'bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" ',
-    replacement: '{cli} project record-skill-invocation ',
+    replacement: '{cli} project record-skill-invocation --cwd "$PROJECT_DIR" ',
   },
   {
     invocation: 'bun "$PROJECT_DIR/.safeword/hooks/audit-principle-trace.ts" "$PROJECT_DIR"',
-    replacement: '{cli} project runtime audit-principle-trace',
+    replacement: '{cli} project runtime audit-principle-trace --cwd "$PROJECT_DIR"',
   },
   {
     invocation: 'bun "$PROJECT_DIR/.safeword/hooks/resolve-verify-ticket.ts" "$PROJECT_DIR"',
-    replacement: '{cli} project runtime resolve-verify-ticket',
+    replacement: '{cli} project runtime resolve-verify-ticket --cwd "$PROJECT_DIR"',
   },
   {
     invocation: 'bun "$PROJECT_DIR/.safeword/hooks/write-review-stamp.ts" ',

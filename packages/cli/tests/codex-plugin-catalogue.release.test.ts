@@ -270,7 +270,7 @@ describe('generated Codex plugin catalogue', () => {
         generateCodexPluginAssets(canonicalSkillsDirectory, '1.2.3')[0]?.content ?? '';
 
       expect(content).toContain(
-        'bunx --bun safeword@1.2.3 project record-skill-invocation verify "${CLAUDE_SESSION_ID:-}"',
+        'bunx --bun safeword@1.2.3 project record-skill-invocation --cwd "$PROJECT_DIR" verify "${CLAUDE_SESSION_ID:-}"',
       );
       expect(content).not.toContain('.safeword/hooks/record-skill-invocation.ts');
     } finally {

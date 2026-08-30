@@ -11,7 +11,7 @@ Feature: Every agent delivery is self-contained
       Given a project selects only <agent>
       When the Technical Builder previews project reconciliation
       Then the project plan contains no Safeword hooks, skills, scripts, or guides
-      And the <agent> profile delivery remains the workflow authority
+      And the plan reports the <agent> profile as the workflow entry point
 
       Examples:
         | agent       |
@@ -27,14 +27,6 @@ Feature: Every agent delivery is self-contained
       And it contains no Claude Code, Codex, or OpenCode project delivery
 
     @surface.openai-codex
-    Scenario: Codex helpers resolve through version-pinned package commands
-      Given the generated Codex catalogue advertises every Safeword workflow
-      When the maintainer validates its executable references
-      Then every helper invocation resolves through the packaged Codex authority
-      And every helper invocation names the pinned plugin package version
-      And no helper references a project-local Safeword executable
-
-    @surface.openai-codex
     Scenario: A packaged shared-shell helper executes without project runtime
       Given an enrolled project contains no Safeword hooks, skills, scripts, or guides
       When the Technical Builder sources the packaged Codex audit-scope command
@@ -45,7 +37,7 @@ Feature: Every agent delivery is self-contained
     Scenario Outline: Legacy project runtime cannot regain native workflow authority
       Given an enrolled project contains <legacy runtime> and authored project knowledge
       When the Technical Builder invokes the packaged Codex audit workflow
-      Then the audit workflow executes through the Codex profile authority
+      Then the audit result names the pinned Codex plugin package as its entry point
       And the authored project knowledge remains unchanged
       And no broader installation is proposed
 
@@ -57,8 +49,9 @@ Feature: Every agent delivery is self-contained
     @surface.opencode
     Scenario: OpenCode owns its full workflow catalogue in the profile
       Given an OpenCode profile has the Safeword plugin installed
-      When Safeword reconciles the generated commands, agents, and skills
-      Then the project receives no OpenCode or Claude compatibility catalogue
+      When Safeword reconciles the generated commands, agents, and skills into the profile
+      Then the OpenCode profile holds the complete generated command, agent, skill, and reference catalogue
+      And the project receives no OpenCode or Claude compatibility catalogue
 
   @self-contained-plugins.TBU1.R2
   Rule: self-contained-plugins.TBU1.R2 — Missing framework state initializes lazily after explicit enrollment
@@ -72,14 +65,14 @@ Feature: Every agent delivery is self-contained
       And the project ignore file contains only the precise state rule
       And the transient state file is created without installing Safeword
 
-    @shared-project-state
+    @shared-project-state @surface.safeword-cli
     Scenario: Lazy state initialization preserves customer ignore policy
       Given an enrolled project ignore file contains unrelated customer content
       When a Safeword workflow first writes framework-owned state
       Then the customer content remains byte-for-byte unchanged
       And one precise state rule is appended
 
-    @shared-project-state
+    @shared-project-state @surface.safeword-cli
     Scenario Outline: Existing effective ignore policy is not duplicated
       Given an enrolled project's ignore policy covers transient state with <coverage>
       When a Safeword workflow first writes framework-owned state
@@ -91,7 +84,7 @@ Feature: Every agent delivery is self-contained
         | the exact state rule    |
         | a broader customer rule |
 
-    @rejection @shared-project-state
+    @rejection @shared-project-state @surface.safeword-cli
     Scenario Outline: Lifecycle state respects explicit enrollment
       Given a repository with a profile plugin is <enrollment>
       When a Safeword lifecycle event observes project activity
@@ -102,51 +95,65 @@ Feature: Every agent delivery is self-contained
         | enrolled   | its precise ignore rule and framework state are created               |
         | unenrolled | no project knowledge, ignore policy, or framework state is created   |
 
-    @rejection @shared-project-state
+    @rejection @shared-project-state @surface.safeword-cli
     Scenario: A direct workflow does not silently enroll a repository
       Given a repository has no Safeword enrollment marker
       When the Technical Builder invokes a state-writing packaged workflow
       Then the workflow reports that explicit enrollment is required
+      And the workflow completes without blocking the Technical Builder
       And no project namespace or executable runtime is created
 
   @self-contained-plugins.NTB1.R1
   Rule: self-contained-plugins.NTB1.R1 — Project reconciliation is bounded to selected delivery authorities
 
     @surface.safeword-cli
-    Scenario Outline: A single-agent project schema excludes unselected hosts
+    Scenario Outline: A native single-agent project schema excludes project delivery
       Given an uninitialized project selects only <agent>
       When the Non-Technical Builder previews Safeword installation
-      Then the project schema contains only shared substrate and <agent>'s project authority
+      Then the project schema contains shared substrate and no project-delivered workflow authority
 
       Examples:
         | agent       |
         | Codex       |
         | Claude Code |
         | OpenCode    |
-        | Cursor      |
 
     @surface.safeword-cli @surface.cursor
-    Scenario: Mixed selection preserves Cursor without copying native runtimes
-      Given a project selects Cursor and one native profile agent
-      When the maintainer reconciles the project
+    Scenario: A Cursor-only project schema retains Cursor authority
+      Given an uninitialized project selects only Cursor
+      When the Non-Technical Builder previews Safeword installation
+      Then the project schema contains shared substrate and Cursor's project authority
+
+    @surface.safeword-cli @surface.cursor
+    Scenario Outline: Mixed selection preserves Cursor without copying native runtimes
+      Given a project selects Cursor and <native agent>
+      When the Non-Technical Builder reconciles the project
       Then Cursor's project authority remains present
       And no native profile runtime is copied into the project
+
+      Examples:
+        | native agent |
+        | Codex        |
+        | Claude Code  |
+        | OpenCode     |
 
     @surface.safeword-cli
     Scenario: Removing a native selection preserves Cursor and project content
       Given an enrolled project contains Cursor, Codex, authored knowledge, and unrelated content
       When the Non-Technical Builder uninstalls only Codex
-      Then Cursor's project hooks, rules, commands, and skills remain present
+      Then Codex's selected delivery is removed from the project plan
+      And Cursor's project hooks, rules, commands, and skills remain present
       And authored knowledge, enrollment state, and unrelated content remain unchanged
 
   @self-contained-plugins.SWM1.R1
   Rule: self-contained-plugins.SWM1.R1 — Package and profile ownership is enforced at release and reconciliation boundaries
 
-    @surface.safeword-cli @surface.openai-codex @surface.opencode
+    @surface.safeword-cli @surface.openai-codex @surface.claude-code @surface.opencode
     Scenario: Complete native catalogues pass executable-reference validation
-      Given generated Codex and OpenCode catalogues use packaged commands
+      Given generated Codex, Claude Code, and OpenCode catalogues use their packaged authorities
       When the maintainer runs release validation
-      Then both catalogues pass runtime-authority validation
+      Then all three catalogues pass runtime-authority validation
+      And Codex helper invocations name the pinned plugin package version
 
     @surface.opencode
     Scenario: OpenCode profile identity records the complete owned catalogue
@@ -173,3 +180,4 @@ Feature: Every agent delivery is self-contained
       When Safeword uninstalls the OpenCode profile delivery
       Then uninstall reports managed-asset drift
       And the edited asset and unrelated profile content remain unchanged
+      And undrifted identity-owned catalogue assets are removed

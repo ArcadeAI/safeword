@@ -93,6 +93,21 @@ describe('lifecycle profile observation', () => {
     ).toEqual([]);
   });
 
+  it.each(['codex', 'cursor'] as const)(
+    'does not retain legacy Claude delivery when only %s is selected',
+    agent => {
+      const cwd = createTemporaryDirectory();
+      const settings = nodePath.join(cwd, '.claude/settings.json');
+      mkdirSync(nodePath.dirname(settings), { recursive: true });
+      writeFileSync(settings, '{ retained legacy configuration');
+
+      const schema = projectLifecycleSchema(cwd, [agent]);
+
+      expect(Object.keys(schema.ownedFiles).some(path => path.startsWith('.claude/'))).toBe(false);
+      expect(Object.keys(schema.jsonMerges).some(path => path.startsWith('.claude/'))).toBe(false);
+    },
+  );
+
   it('keeps an agent-free project free of executable runtime', () => {
     const schema = projectLifecycleSchema(createTemporaryDirectory(), []);
 

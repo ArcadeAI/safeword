@@ -211,6 +211,36 @@ describe('OpenCode profile boundary', () => {
     expect(existsSync(paths.identity)).toBe(true);
   });
 
+  it('removes an unchanged catalogue asset retired by the next profile identity', () => {
+    const root = temporaryDirectory();
+    const paths = openCodeProfilePaths(root);
+    expect(installOpenCodeProfile(root).state).toBe('changed');
+    const retiredRelativePath = 'skills/safeword-retired/SKILL.md';
+    const retiredPath = nodePath.join(root, retiredRelativePath);
+    const retiredContent = 'retired managed skill\n';
+    mkdirSync(nodePath.dirname(retiredPath), { recursive: true });
+    writeFileSync(retiredPath, retiredContent);
+    const installedIdentity = JSON.parse(
+      readFileSync(paths.identity, 'utf8'),
+    ) as OpenCodeIdentityV1;
+    writeFileSync(
+      paths.identity,
+      `${JSON.stringify({
+        ...installedIdentity,
+        assets: [
+          ...(installedIdentity.assets ?? []),
+          {
+            path: retiredRelativePath,
+            sha256: createHash('sha256').update(retiredContent).digest('hex'),
+          },
+        ],
+      })}\n`,
+    );
+
+    expect(installOpenCodeProfile(root).state).toBe('changed');
+    expect(existsSync(retiredPath)).toBe(false);
+  });
+
   it.each([
     ['plugin', 'install'],
     ['plugin', 'uninstall'],
