@@ -110,4 +110,4 @@ test-definitions.md is the R/G/R ledger.
 
 ## Feature-level cross-scenario refactor
 
-- [x] REFACTOR ae4e417a5: moved state initialization into one schema-shipped helper shared by packaged commands and every real host adapter
+- [x] cross-scenario ae4e417a5
