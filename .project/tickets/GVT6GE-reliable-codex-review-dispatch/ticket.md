@@ -2,10 +2,10 @@
 id: GVT6GE
 slug: reliable-codex-review-dispatch
 type: task
-phase: verify
-status: in_progress
+phase: done
+status: done
 created: 2026-08-30T15:42:06.625Z
-last_modified: 2026-08-30T16:08:00.000Z
+last_modified: 2026-08-30T21:35:00.000Z
 ---
 
 # Keep Codex reviews reliable without package bootstrap
