@@ -420,7 +420,7 @@ describe('retry-safe retro relay', () => {
       requestId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
       tenantId: 'tenant-1',
     });
-    expect(stored?.acceptedAt).toBe('2026-08-28T20:00:00Z');
+    expect(stored?.acceptedAt).toBe('2026-08-29T20:00:00.000Z');
     expect(stored?.retryDeadlineAt).toBe('2026-08-30T20:00:00.000Z');
   });
 

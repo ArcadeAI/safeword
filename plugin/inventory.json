@@ -59,7 +59,7 @@
     },
     {
       "path": "resources/guides/retro.md",
-      "sha256": "c8ca781464fb93baddc3661c0aebf4702a8c68d8d8566f4ada293e5ce6b9c484"
+      "sha256": "b0ebf3b8971c52e107f7ea9c656316f31594f2cafc601813dc3f850a8eccc09b"
     },
     {
       "path": "resources/guides/self-report-filing.md",
@@ -143,7 +143,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "94f36b948cf019cce718a5c8a004ea1eff80f521a3c29e984e0732235955fd6e"
+      "sha256": "833b47d9f6e0c0fba366970496b2ae8cdf311374ad3e1aede826d98923cd0916"
     },
     {
       "path": "runtime/dispatch.js",

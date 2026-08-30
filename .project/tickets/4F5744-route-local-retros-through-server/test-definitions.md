@@ -120,7 +120,7 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 
 ## Rule: local-retro-cutover.TBU1.R4 — Accepted intake is safe and relay-compatible
 
-### Scenario: The largest normalized batch is accepted
+### Scenario: The largest relay-compatible normalized batch is accepted
 
 - [x] RED
 - [x] GREEN

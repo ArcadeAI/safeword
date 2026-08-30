@@ -70,6 +70,15 @@ function validReviewWindow(manifest: LocalRetroReadinessManifest, now: Date): bo
   );
 }
 
+function hasEvidenceCollections(manifest: LocalRetroReadinessManifest): boolean {
+  return (
+    typeof manifest.harnesses === 'object' &&
+    manifest.harnesses !== null &&
+    typeof manifest.recoveredFaults === 'object' &&
+    manifest.recoveredFaults !== null
+  );
+}
+
 export function validateLocalRetroReadiness(
   manifest: DisabledManifest | LocalRetroReadinessManifest,
   input: {
@@ -82,6 +91,7 @@ export function validateLocalRetroReadiness(
   if (!manifest.enabled || !input.relayReady || !COMMIT.test(input.buildCommit)) return false;
   if (!validReviewWindow(manifest, input.now) || !manifestBuildIsAncestor(manifest, input))
     return false;
+  if (!hasEvidenceCollections(manifest)) return false;
   const harnessKeys = Object.keys(manifest.harnesses).toSorted((left, right) =>
     left.localeCompare(right),
   );

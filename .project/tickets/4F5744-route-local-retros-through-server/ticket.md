@@ -21,6 +21,7 @@ out_of_scope:
   - OpenCode retrospective dispatch, which does not exist today.
   - Retention policy, dashboards, background daemons, customer accounts, customer credentials, or customer infrastructure.
   - Moving relay or GitHub credentials into the internet-facing public collector.
+  - Consolidating similar findings from genuinely later sessions onto an existing issue; this cutover preserves exact-request idempotency and ambiguity recovery only.
 done_when:
   - A fresh local install needs no customer action or secret to submit eligible sanitized findings.
   - Collector acceptance durably guarantees transfer through a terminal filing disposition under one request identity.
@@ -54,7 +55,7 @@ last_modified: 2026-08-30T00:19:30.350Z
 
 The existing relay readiness manifest must enable production filing before this cutover can collect terminal-filing evidence or enable.
 
-Production relay credentials must add the independently rotatable `collector-worker` principal with only the `file` role before the private worker can deploy.
+Production relay credentials must add the independently rotatable `collector-worker` principal with only the `ingest` role before the private worker can deploy.
 
 ## Work Log
 

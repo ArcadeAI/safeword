@@ -432,7 +432,6 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
     const receipt = await service.submit(
       filingPrincipal,
       collectorDraft(bytes, headers.requestId, principal, retryDeadlineAt),
-      headers.acceptedAt,
     );
     sendJson(response, receipt.state === 'filed' ? 201 : 202, receipt);
   };

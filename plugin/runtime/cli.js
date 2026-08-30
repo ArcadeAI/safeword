@@ -52008,6 +52008,8 @@ function validateLocalRetroReadiness(manifest, input) {
     return false;
   if (!validReviewWindow(manifest, input.now) || !manifestBuildIsAncestor(manifest, input))
     return false;
+  if (typeof manifest.harnesses !== "object" || manifest.harnesses === null || typeof manifest.recoveredFaults !== "object" || manifest.recoveredFaults === null)
+    return false;
   const harnessKeys = Object.keys(manifest.harnesses).toSorted((left, right) => left.localeCompare(right));
   if (harnessKeys.join("\x00") !== ["claude-code", "codex", "cursor"].join("\x00"))
     return false;

@@ -52,8 +52,10 @@ fresh context** that hasn't lived the session:
      if it can't name a safeword surface at all, drop it — the command drops it
      anyway.
    - **Canonical titles.** Title by safeword's behavior ("Coverage gate message
-     omits file and number"), not the customer's situation. Stable titles keep
-     recurrences on one issue.
+     omits file and number"), not the customer's situation. Stable titles make
+     recurrences recognizable. The direct filing lane may consolidate them;
+     the initial server route suppresses retries of the same request but does
+     not yet consolidate genuinely later sessions.
    - **The agent filing lane is not evidence of friction by itself.** When drafts
      remain queued, spool + filer is safeword's designed recovery path. Don't file
      the handoff, its extra turn, or the subagent dispatch as a finding without
@@ -81,7 +83,9 @@ fresh context** that hasn't lived the session:
    identifiers, or user identity. As with any HTTP service, network infrastructure
    may observe connection metadata such as a source IP. Collector acceptance
    transfers recovery to SafeWord's private filing worker; failure stays silent
-   and retains the same local request for a later retry.
+   and retains the same local request for a later retry. For this route, the
+   dedup safeguard below means exact-request idempotency and ambiguity recovery;
+   cross-session recurrence consolidation is not part of the initial cutover.
    `safeword project public-retros off` disables this collection.
 
 ## Rules

@@ -85,10 +85,15 @@ it('transfers collector acceptance through the real relay contract', async () =>
     store: relayStore,
   });
   const requestId = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
+  const findings = [
+    ...Array.from({ length: 15 }, (_, index) => `${index}:`.padEnd(3990, 'x')),
+    'largest accepted relay boundary'.padEnd(45, 'y'),
+  ];
+  expect(Buffer.byteLength(findings.join('\n\n---\n\n'), 'utf8')).toBe(60_000);
   const bytes = Buffer.from(
     JSON.stringify({
       version: 'v3',
-      findings: ['Real worker and relay contract'],
+      findings,
       source: {
         harness: 'codex',
         hostClass: 'local',
@@ -126,7 +131,7 @@ it('transfers collector acceptance through the real relay contract', async () =>
       tenantId: 'tenant-1',
     });
     expect(createdIssues).toBe(1);
-    expect(stored?.acceptedAt).toBe(collectorAcceptedAt.toISOString());
+    expect(stored?.acceptedAt).toBe(relayAcceptedAt.toISOString());
     expect(stored?.retryDeadlineAt).toBe('2026-08-30T20:00:00.000Z');
   } finally {
     await collector.close();

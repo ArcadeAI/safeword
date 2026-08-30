@@ -110,6 +110,22 @@ describe('local retro readiness', () => {
     },
   );
 
+  it('rejects a missing recovery artifact key', () => {
+    const { input, manifest } = readinessFixture();
+    const { workerOutage: _workerOutage, ...recoveredFaults } = manifest.recoveredFaults;
+
+    expect(validateLocalRetroReadiness({ ...manifest, recoveredFaults } as never, input)).toBe(
+      false,
+    );
+  });
+
+  it('rejects a missing recovery artifact collection', () => {
+    const { input, manifest } = readinessFixture();
+    const { recoveredFaults: _recoveredFaults, ...withoutRecoveredFaults } = manifest;
+
+    expect(validateLocalRetroReadiness(withoutRecoveredFaults as never, input)).toBe(false);
+  });
+
   it.each([
     ['relay is not ready', { relayReady: false }],
     ['build ancestry is missing', { ancestorPairs: [] }],
