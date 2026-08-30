@@ -93,10 +93,12 @@ describe('lifecycle profile observation', () => {
     ).toEqual([]);
   });
 
-  it('keeps the shared runtime when no agent is selected', () => {
+  it('keeps an agent-free project free of executable runtime', () => {
     const schema = projectLifecycleSchema(createTemporaryDirectory(), []);
 
-    expect(schema.ownedFiles['.safeword/hooks/lib/cursor-run-identity.ts']).toBeDefined();
+    expect(Object.keys(schema.ownedFiles).filter(path => isSharedAgentRuntimePath(path))).toEqual(
+      [],
+    );
     expect(Object.keys(schema.ownedFiles).some(path => isCursorProjectPath(path))).toBe(false);
   });
 
