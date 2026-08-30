@@ -6,6 +6,8 @@ import { PublicRetroConflict, PublicRetroQuotaExceeded, PublicRetroStore } from 
 interface PublicRetroStorePort extends Pick<PublicRetroStore, 'accept' | 'close' | 'read'> {
   claim?: PublicRetroStore['claim'];
   complete?: PublicRetroStore['complete'];
+  listLifecycle?: PublicRetroStore['listLifecycle'];
+  readServerPayload?: PublicRetroStore['readServerPayload'];
   release?: PublicRetroStore['release'];
 }
 
@@ -39,6 +41,7 @@ export interface PublicRetroCollectorRuntime {
 }
 
 export interface PublicRetroCollectorOptions {
+  breakGlassCredential?: string;
   databasePath: string;
   collectorWorkerCredential?: string;
   host?: string;
@@ -121,6 +124,73 @@ function serveReadRoute(
 ): boolean {
   if (serveLiveness(request, response)) return true;
   return serveOperatorRead(request, response, store, operatorCredential);
+}
+
+function servePrivateInspection(
+  request: IncomingMessage,
+  response: ServerResponse,
+  store: PublicRetroStorePort,
+  operatorCredential: string | undefined,
+  breakGlassCredential: string | undefined,
+): boolean {
+  if (request.method !== 'GET') return false;
+  if (request.url === '/v1/private/retros')
+    return serveLifecycleInspection(request, response, store, operatorCredential);
+  const requestId = /^\/v1\/private\/retros\/([0-9a-f-]{36})\/payload$/u.exec(
+    request.url ?? '',
+  )?.[1];
+  if (requestId === undefined) return false;
+  return servePayloadInspection(request, response, store, breakGlassCredential, requestId);
+}
+
+function serveLifecycleInspection(
+  request: IncomingMessage,
+  response: ServerResponse,
+  store: PublicRetroStorePort,
+  credential: string | undefined,
+): true {
+  if (
+    credential === undefined ||
+    !matchesCredential(request.headers.authorization, credential) ||
+    store.listLifecycle === undefined
+  ) {
+    sendJson(response, 404, { error: 'not_found' });
+    return true;
+  }
+  sendJson(response, 200, { retros: store.listLifecycle() });
+  return true;
+}
+
+function servePayloadInspection(
+  request: IncomingMessage,
+  response: ServerResponse,
+  store: PublicRetroStorePort,
+  credential: string | undefined,
+  requestId: string,
+): true {
+  if (
+    credential === undefined ||
+    !matchesCredential(request.headers.authorization, credential) ||
+    store.readServerPayload === undefined
+  ) {
+    sendJson(response, 404, { error: 'not_found' });
+    return true;
+  }
+  const payload = store.readServerPayload(requestId, 'break-glass');
+  if (payload === undefined) sendJson(response, 404, { error: 'not_found' });
+  else {
+    response.statusCode = 200;
+    response.setHeader('content-type', 'application/json; charset=utf-8');
+    response.setHeader('x-content-type-options', 'nosniff');
+    response.end(payload);
+  }
+  return true;
+}
+
+interface PrivateCredentials {
+  breakGlass?: string;
+  operator?: string;
+  worker?: string;
 }
 
 async function readBody(request: IncomingMessage): Promise<Buffer> {
@@ -378,11 +448,14 @@ async function handle(
   request: IncomingMessage,
   response: ServerResponse,
   store: PublicRetroStorePort,
-  operatorCredential: string | undefined,
-  collectorWorkerCredential: string | undefined,
+  credentials: PrivateCredentials,
 ): Promise<void> {
-  if (serveWorkerRoute(request, response, store, collectorWorkerCredential)) return;
-  if (serveReadRoute(request, response, store, operatorCredential)) return;
+  if (serveWorkerRoute(request, response, store, credentials.worker)) return;
+  if (
+    servePrivateInspection(request, response, store, credentials.operator, credentials.breakGlass)
+  )
+    return;
+  if (serveReadRoute(request, response, store, credentials.operator)) return;
   if (!validPublicRequest(request)) {
     sendJson(response, 404, { error: 'not_found' });
     return;
@@ -398,21 +471,19 @@ export async function startPublicRetroCollector(
     projectFilingLimitPerHour: options.projectFilingLimitPerHour,
   }),
 ): Promise<PublicRetroCollectorRuntime> {
-  const configuredCredential = options.operatorCredential?.trim();
-  const operatorCredential = configuredCredential === '' ? undefined : configuredCredential;
-  const configuredWorkerCredential = options.collectorWorkerCredential?.trim();
-  const collectorWorkerCredential =
-    configuredWorkerCredential === '' ? undefined : configuredWorkerCredential;
+  const credentials: PrivateCredentials = {
+    breakGlass: normalizedCredential(options.breakGlassCredential),
+    operator: normalizedCredential(options.operatorCredential),
+    worker: normalizedCredential(options.collectorWorkerCredential),
+  };
   const server = createServer((request, response) => {
-    void handle(request, response, store, operatorCredential, collectorWorkerCredential).catch(
-      () => {
-        if (response.headersSent) {
-          response.destroy();
-        } else {
-          sendJson(response, 500, { error: 'store_unavailable' });
-        }
-      },
-    );
+    void handle(request, response, store, credentials).catch(() => {
+      if (response.headersSent) {
+        response.destroy();
+      } else {
+        sendJson(response, 500, { error: 'store_unavailable' });
+      }
+    });
   });
   try {
     await new Promise<void>((resolve, reject) => {
@@ -448,4 +519,9 @@ export async function startPublicRetroCollector(
       }
     },
   };
+}
+
+function normalizedCredential(value: string | undefined): string | undefined {
+  const normalized = value?.trim();
+  return normalized === '' ? undefined : normalized;
 }

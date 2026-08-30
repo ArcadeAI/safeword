@@ -42,6 +42,16 @@ export interface ClaimedPublicRetro {
   requestId: string;
 }
 
+export interface PublicRetroLifecycle {
+  acceptedAt: string;
+  attempts: number;
+  completedAt?: string;
+  leaseExpiresAt?: number;
+  receipt: string;
+  requestId: string;
+  state: 'completed' | 'leased' | 'queued';
+}
+
 export class PublicRetroStore {
   readonly #database: DatabaseSync;
   readonly #intakeLimitPerMinute: number;
@@ -90,6 +100,12 @@ export class PublicRetroStore {
       ) STRICT;
       CREATE INDEX IF NOT EXISTS filing_reservations_time
         ON filing_reservations (reserved_at_ms, project_uuid);
+      CREATE TABLE IF NOT EXISTS payload_access_audit (
+        id INTEGER PRIMARY KEY,
+        request_id TEXT NOT NULL,
+        principal TEXT NOT NULL,
+        accessed_at TEXT NOT NULL
+      ) STRICT;
     `);
   }
 
@@ -249,6 +265,11 @@ export class PublicRetroStore {
           'UPDATE server_retros SET lease_token = ?, lease_expires_at = ?, attempts = attempts + 1 WHERE request_id = ?',
         )
         .run(leaseToken, now + leaseMilliseconds, stored.request_id);
+      this.#database
+        .prepare(
+          'INSERT INTO payload_access_audit (request_id, principal, accessed_at) VALUES (?, ?, ?)',
+        )
+        .run(stored.request_id, 'collector-worker', new Date(now).toISOString());
       this.#database.exec('COMMIT;');
       return {
         acceptedAt: stored.accepted_at,
@@ -258,6 +279,59 @@ export class PublicRetroStore {
         receipt: stored.receipt,
         requestId: stored.request_id,
       };
+    } catch (error) {
+      if (this.#database.isTransaction) this.#database.exec('ROLLBACK;');
+      throw error;
+    }
+  }
+
+  listLifecycle(): PublicRetroLifecycle[] {
+    const rows = this.#database
+      .prepare(
+        `SELECT request_id, receipt, accepted_at, attempts, lease_token, lease_expires_at, completed_at
+           FROM server_retros
+          ORDER BY accepted_at, request_id`,
+      )
+      .all() as unknown as {
+      accepted_at: string;
+      attempts: number;
+      completed_at: string | null;
+      lease_expires_at: number | null;
+      lease_token: string | null;
+      receipt: string;
+      request_id: string;
+    }[];
+    return rows.map(row => {
+      let state: PublicRetroLifecycle['state'] = 'queued';
+      if (row.completed_at !== null) state = 'completed';
+      else if (row.lease_token !== null) state = 'leased';
+      return {
+        acceptedAt: row.accepted_at,
+        attempts: row.attempts,
+        ...(row.completed_at !== null && { completedAt: row.completed_at }),
+        ...(row.lease_expires_at !== null && { leaseExpiresAt: row.lease_expires_at }),
+        receipt: row.receipt,
+        requestId: row.request_id,
+        state,
+      };
+    });
+  }
+
+  readServerPayload(requestId: string, principal: 'break-glass'): Uint8Array | undefined {
+    this.#database.exec('BEGIN IMMEDIATE;');
+    try {
+      const stored = this.#database
+        .prepare('SELECT raw_body FROM server_retros WHERE request_id = ?')
+        .get(requestId) as Pick<StoredServerRetro, 'raw_body'> | undefined;
+      if (stored !== undefined) {
+        this.#database
+          .prepare(
+            'INSERT INTO payload_access_audit (request_id, principal, accessed_at) VALUES (?, ?, ?)',
+          )
+          .run(requestId, principal, new Date(this.#now()).toISOString());
+      }
+      this.#database.exec('COMMIT;');
+      return stored?.raw_body;
     } catch (error) {
       if (this.#database.isTransaction) this.#database.exec('ROLLBACK;');
       throw error;

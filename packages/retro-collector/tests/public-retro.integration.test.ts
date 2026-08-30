@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 
 import { afterEach, expect, it } from 'vitest';
 
@@ -211,6 +212,50 @@ it('persists global and per-project filing reservations across restarts', async 
   expect(firstLease.requestId).toBe('11111111-1111-4111-8111-111111111111');
   expect(secondLease.requestId).toBe('33333333-3333-4333-8333-333333333333');
   expect(exhausted.status).toBe(204);
+});
+
+it('keeps lifecycle inspection payload-free and audits separate payload principals', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const databasePath = path.join(directory, 'collector.sqlite');
+  const runtime = await startPublicRetroCollector({
+    breakGlassCredential: 'break-glass-secret',
+    collectorWorkerCredential: 'worker-secret',
+    databasePath,
+    operatorCredential: 'operator-secret',
+  });
+  const request = fixtureServerOwnedRequest();
+  await submit(runtime.url, request);
+
+  const lifecycle = await fetch(`${runtime.url}/v1/private/retros`, {
+    headers: { authorization: 'Bearer operator-secret' },
+  });
+  const lifecycleText = await lifecycle.text();
+  const operatorPayload = await fetch(
+    `${runtime.url}/v1/private/retros/${request.requestId}/payload`,
+    { headers: { authorization: 'Bearer operator-secret' } },
+  );
+  const breakGlassPayload = await fetch(
+    `${runtime.url}/v1/private/retros/${request.requestId}/payload`,
+    { headers: { authorization: 'Bearer break-glass-secret' } },
+  );
+  const workerClaim = await fetch(`${runtime.url}/v1/private/retro-claims`, {
+    method: 'POST',
+    headers: { authorization: 'Bearer worker-secret' },
+  });
+  await runtime.close();
+  const database = new DatabaseSync(databasePath);
+  const audit = database
+    .prepare('SELECT principal FROM payload_access_audit ORDER BY id')
+    .all() as unknown as { principal: string }[];
+  database.close();
+
+  expect(lifecycle.status).toBe(200);
+  expect(lifecycleText).not.toContain('server-owned sanitized finding');
+  expect(operatorPayload.status).toBe(404);
+  expect(new Uint8Array(await breakGlassPayload.arrayBuffer())).toEqual(request.body);
+  expect(workerClaim.status).toBe(200);
+  expect(audit).toEqual([{ principal: 'break-glass' }, { principal: 'collector-worker' }]);
 });
 
 it.each([

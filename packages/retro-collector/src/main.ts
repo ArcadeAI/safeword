@@ -1,6 +1,7 @@
 import { startPublicRetroCollector } from './index.js';
 
 const runtime = await startPublicRetroCollector({
+  breakGlassCredential: process.env.SAFEWORD_PUBLIC_RETRO_BREAK_GLASS_CREDENTIAL,
   databasePath: process.env.SAFEWORD_PUBLIC_RETRO_DATABASE_PATH ?? '/data/public-retros.sqlite',
   collectorWorkerCredential: process.env.SAFEWORD_COLLECTOR_WORKER_CREDENTIAL,
   filingLimitPerHour: Number(process.env.SAFEWORD_RETRO_FILING_PER_HOUR ?? 20),
