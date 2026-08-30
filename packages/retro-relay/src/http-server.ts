@@ -81,10 +81,22 @@ function collectorDraft(
   bytes: Buffer,
   requestId: string,
   principal: RelayPrincipal,
-  now: Date,
+  retryDeadlineAt: string,
 ): FileRetroDraftRequest {
-  const envelope = JSON.parse(bytes.toString('utf8')) as { source?: { repository?: unknown } };
+  let envelope: unknown;
+  try {
+    envelope = JSON.parse(bytes.toString('utf8'));
+  } catch {
+    throw new RelayError(400, 'collector envelope is invalid');
+  }
   const findings = collectorFindings(envelope);
+  if (
+    findings.some(finding =>
+      /<!--\s*safeword-retro-(?:canonical|request-v1|signature):/u.test(finding),
+    )
+  ) {
+    throw new RelayError(400, 'collector envelope is invalid');
+  }
   const repo = principal.repository;
   const [firstLine = ''] = findings[0]?.split('\n') ?? [];
   const title = firstLine.slice(0, 256);
@@ -98,7 +110,7 @@ function collectorDraft(
     legacySignature: `retro:${identity}`,
     repository: repo,
     requestId,
-    retryDeadlineAt: new Date(now.getTime() + 86_400_000).toISOString(),
+    retryDeadlineAt,
     title,
   };
 }
@@ -410,9 +422,12 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
     if (actualDigest !== headers.digest)
       throw new RelayError(409, 'collector envelope digest differs');
     const filingPrincipal: RelayPrincipal = { ...principal, roles: ['file'] };
+    const retryDeadlineAt =
+      service.collectorRetryDeadline(principal, headers.requestId) ??
+      new Date((input.now?.() ?? new Date()).getTime() + 86_400_000).toISOString();
     const receipt = await service.submit(
       filingPrincipal,
-      collectorDraft(bytes, headers.requestId, principal, input.now?.() ?? new Date()),
+      collectorDraft(bytes, headers.requestId, principal, retryDeadlineAt),
       headers.acceptedAt,
     );
     sendJson(response, receipt.state === 'filed' ? 201 : 202, receipt);

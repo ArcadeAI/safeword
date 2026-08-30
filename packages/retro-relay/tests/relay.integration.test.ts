@@ -366,7 +366,7 @@ async function fixture(
 
 describe('retry-safe retro relay', () => {
   it('accepts exact collector bytes only through the ingest principal', async () => {
-    const now = new Date('2026-08-29T20:00:00.000Z');
+    let now = new Date('2026-08-29T20:00:00.000Z');
     const setup = await fixture({ now: () => now });
     const body = Buffer.from(
       JSON.stringify({
@@ -396,8 +396,21 @@ describe('retry-safe retro relay', () => {
       },
       body,
     });
+    now = new Date('2026-08-29T21:00:00.000Z');
+    const duplicate = await fetch(`${setup.relay.url}/v1/collector-retros`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${setup.credentials.collectorWorker}`,
+        'content-type': 'application/json; charset=utf-8',
+        'x-safeword-accepted-at': '2026-08-28T20:00:00Z',
+        'x-safeword-envelope-digest': createHash('sha256').update(body).digest('hex'),
+        'x-safeword-request-id': 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+      },
+      body,
+    });
 
     expect(response.status).toBe(201);
+    expect(duplicate.status).toBe(201);
     expect(setup.createBodies).toHaveLength(1);
     expect(setup.createBodies[0]).toContain('The worker preserved exact bytes.');
     expect(setup.createBodies[0]).toContain('The whole batch remained intact.');

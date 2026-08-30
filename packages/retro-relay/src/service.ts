@@ -337,6 +337,18 @@ export class RelayService {
     return filingReceipt(record);
   }
 
+  collectorRetryDeadline(principal: RelayPrincipal, requestId: string): string | undefined {
+    if (!principal.roles.includes('ingest')) {
+      throw new RelayError(403, 'ingest role is required');
+    }
+    return this.#store.load({
+      installationId: principal.installationId,
+      repository: principal.repository,
+      requestId,
+      tenantId: principal.tenantId,
+    })?.retryDeadlineAt;
+  }
+
   async maintain(now = new Date()): Promise<{
     alerts: ReturnType<RelayStore['maintain']>['alerts'];
     attempted: number;
