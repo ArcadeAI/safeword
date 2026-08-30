@@ -162,6 +162,7 @@ export function installOpenCodeProfile(root: string): CliResult {
   const dispatcherBytes = readFileSync(packagedPath);
   const paths = openCodeProfilePaths(root);
   const pluginBytes = generateOpenCodeProfilePlugin();
+  const catalogueAssets = generateOpenCodeCatalogueAssets(templatesRoot);
   return reconcileOpenCodeProfile({
     operation: 'install',
     root,
@@ -174,9 +175,13 @@ export function installOpenCodeProfile(root: string): CliResult {
       runtime_path: process.execPath,
       dispatcher_path: paths.dispatcher,
       dispatcher_sha256: sha256(dispatcherBytes),
+      assets: catalogueAssets.map(asset => ({
+        path: asset.relativePath,
+        sha256: sha256(asset.content),
+      })),
     },
     dispatcherBytes,
-    catalogueAssets: generateOpenCodeCatalogueAssets(templatesRoot),
+    catalogueAssets,
   });
 }
 
@@ -655,7 +660,63 @@ function removeEmptyDirectory(path: string): void {
   }
 }
 
-function removeManagedProfile(paths: OpenCodeProfilePaths): void {
+function managedCatalogueProblem(input: ReconcileOpenCodeProfileInput): CliResult | undefined {
+  if (input.operation !== 'install') return undefined;
+  const installed = parsedIdentity(observeFile(openCodeProfilePaths(input.root).identity));
+  const catalogueAssets = input.catalogueAssets ?? [];
+  for (const asset of catalogueAssets) {
+    const observed = observeFile(nodePath.join(input.root, asset.relativePath));
+    const previous =
+      installed.kind === 'identity'
+        ? installed.value.assets?.find(candidate => candidate.path === asset.relativePath)
+        : undefined;
+    if (catalogueAssetRecognized(observed, asset.content, previous?.sha256)) continue;
+    return humanActionRequired(
+      'OPENCODE_CATALOGUE_COLLISION',
+      `The OpenCode profile asset ${asset.relativePath} contains unrecognized content; Safeword preserved it.`,
+      `Move ${nodePath.join(input.root, asset.relativePath)} aside, then rerun safeword install --agents=opencode.`,
+    );
+  }
+  return undefined;
+}
+
+function catalogueAssetRecognized(
+  observed: FileObservation,
+  desired: string,
+  previousHash: string | undefined,
+): boolean {
+  if (observed.kind === 'absent') return true;
+  if (observed.kind !== 'file') return false;
+  const observedHash = sha256(observed.bytes);
+  return observedHash === sha256(desired) || observedHash === previousHash;
+}
+
+function managedAssetProblem(root: string, identity: OpenCodeIdentityV1): CliResult | undefined {
+  const assets = identity.assets ?? [];
+  for (const asset of assets) {
+    const path = nodePath.join(root, asset.path);
+    const observed = observeFile(path);
+    if (
+      observed.kind === 'absent' ||
+      (observed.kind === 'file' && sha256(observed.bytes) === asset.sha256)
+    )
+      continue;
+    return humanActionRequired(
+      'OPENCODE_MANAGED_ASSET_DRIFT',
+      `The managed OpenCode asset ${path} was modified; Safeword preserved the profile.`,
+      `Move ${path} aside, then rerun safeword uninstall --agents=opencode.`,
+    );
+  }
+  return undefined;
+}
+
+function removeManagedProfile(
+  root: string,
+  paths: OpenCodeProfilePaths,
+  identity: OpenCodeIdentityV1,
+): void {
+  const assets = identity.assets ?? [];
+  for (const asset of assets) rmSync(nodePath.join(root, asset.path), { force: true });
   rmSync(paths.plugin, { force: true });
   rmSync(paths.identity, { force: true });
   rmSync(paths.dispatcher, { force: true });
@@ -752,10 +813,21 @@ function acquireOpenCodeProfileLock(path: string): ReturnType<typeof acquireProf
   return lock;
 }
 
+function profileMutationProblem(
+  paths: OpenCodeProfilePaths,
+  input: ReconcileOpenCodeProfileInput,
+): CliResult | undefined {
+  const catalogueProblem = managedCatalogueProblem(input);
+  if (catalogueProblem !== undefined) return catalogueProblem;
+  const assetProblem =
+    input.operation === 'uninstall' ? managedAssetProblem(input.root, input.identity) : undefined;
+  return assetProblem ?? dispatcherInstallProblem(paths, input);
+}
+
 export function reconcileOpenCodeProfile(input: ReconcileOpenCodeProfileInput): CliResult {
   const paths = openCodeProfilePaths(input.root);
-  const dispatcherProblem = dispatcherInstallProblem(paths, input);
-  if (dispatcherProblem !== undefined) return dispatcherProblem;
+  const initialProblem = profileMutationProblem(paths, input);
+  if (initialProblem !== undefined) return initialProblem;
   const initial = observeProfile(paths, input.pluginBytes, input.identity);
   const initialResult = terminalUnlessDispatcherNeedsRepair(paths, input, initial);
   if (initialResult !== undefined) return initialResult;
@@ -769,8 +841,8 @@ export function reconcileOpenCodeProfile(input: ReconcileOpenCodeProfileInput): 
     );
   }
   try {
-    const currentDispatcherProblem = dispatcherInstallProblem(paths, input);
-    if (currentDispatcherProblem !== undefined) return currentDispatcherProblem;
+    const currentProblem = profileMutationProblem(paths, input);
+    if (currentProblem !== undefined) return currentProblem;
     const current = observeProfile(paths, input.pluginBytes, input.identity);
     const currentResult = terminalUnlessDispatcherNeedsRepair(paths, input, current);
     if (currentResult !== undefined) return currentResult;
@@ -783,7 +855,7 @@ export function reconcileOpenCodeProfile(input: ReconcileOpenCodeProfileInput): 
         input.catalogueAssets,
       );
     } else {
-      removeManagedProfile(paths);
+      removeManagedProfile(input.root, paths, input.identity);
     }
     return createResult({ state: 'changed' });
   } finally {
