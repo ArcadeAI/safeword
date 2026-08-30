@@ -210,7 +210,7 @@ const SCRIPT_REWRITES: readonly { readonly invocation: string; readonly replacem
   },
 ];
 
-export function codexBundledCliCommand(version: string): string {
+function codexBundledCliCommand(version: string): string {
   return `bun "\${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/${version}/runtime/cli.js"`;
 }
 
