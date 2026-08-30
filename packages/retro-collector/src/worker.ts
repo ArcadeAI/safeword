@@ -62,6 +62,7 @@ export async function transferOneRetro(
       headers: {
         ...authorization(options.relayCredential),
         'content-type': 'application/json; charset=utf-8',
+        'x-safeword-accepted-at': claim.acceptedAt,
         'x-safeword-envelope-digest': claim.digest,
         'x-safeword-request-id': claim.requestId,
       },

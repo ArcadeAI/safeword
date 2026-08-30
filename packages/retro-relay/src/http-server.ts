@@ -120,19 +120,23 @@ function collectorDraft(
 }
 
 function collectorHeaders(request: IncomingMessage): {
+  acceptedAt: string;
   digest: string;
   requestId: string;
 } {
   const requestId = request.headers['x-safeword-request-id'];
   const digest = request.headers['x-safeword-envelope-digest'];
+  const acceptedAt = request.headers['x-safeword-accepted-at'];
   if (
     typeof requestId !== 'string' ||
     typeof digest !== 'string' ||
+    typeof acceptedAt !== 'string' ||
+    !Number.isFinite(Date.parse(acceptedAt)) ||
     !/^[\da-f]{64}$/u.test(digest)
   ) {
     throw new RelayError(400, 'collector envelope headers are invalid');
   }
-  return { digest, requestId };
+  return { acceptedAt, digest, requestId };
 }
 
 function sendJson(response: ServerResponse, status: number, value: unknown): void {
@@ -428,6 +432,7 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
     const receipt = await service.submit(
       filingPrincipal,
       collectorDraft(bytes, headers.requestId, principal, retryDeadlineAt),
+      headers.acceptedAt,
     );
     sendJson(response, receipt.state === 'filed' ? 201 : 202, receipt);
   };
