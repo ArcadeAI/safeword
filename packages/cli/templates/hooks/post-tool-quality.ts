@@ -90,7 +90,13 @@ function loadState(): QualityState {
 }
 
 function saveState(state: QualityState): void {
-  ensureTransientStateIgnore(projectDirectory, nodePath.basename(stateFile));
+  if (!existsSync(stateFile)) {
+    ensureTransientStateIgnore(
+      projectDirectory,
+      nodePath.basename(stateFile),
+      '/quality-state-*.json',
+    );
+  }
   writeFileSync(stateFile, JSON.stringify(state, null, 2));
 }
 

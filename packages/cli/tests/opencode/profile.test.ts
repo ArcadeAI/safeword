@@ -12,6 +12,7 @@ import { installLifecycle, uninstallLifecycle } from '../../src/lifecycle/comman
 import {
   generateOpenCodeProfilePlugin,
   installOpenCodeProfile,
+  observeOpenCodeProfile,
   type OpenCodeIdentityV1,
   openCodeProfilePaths,
   reconcileOpenCodeProfile,
@@ -239,6 +240,22 @@ describe('OpenCode profile boundary', () => {
 
     expect(installOpenCodeProfile(root).state).toBe('changed');
     expect(existsSync(retiredPath)).toBe(false);
+  });
+
+  it('reports and repairs a missing managed catalogue asset', () => {
+    const root = temporaryDirectory();
+    expect(installOpenCodeProfile(root).state).toBe('changed');
+    const managedSkill = nodePath.join(root, 'skills/safeword-verify/SKILL.md');
+    rmSync(managedSkill);
+
+    const observed = observeOpenCodeProfile(root);
+    expect(observed.state).toBe('action_required');
+    expect(observed.findings.map(finding => finding.code)).toContain(
+      'OPENCODE_CATALOGUE_ASSET_MISSING',
+    );
+
+    expect(installOpenCodeProfile(root).state).toBe('changed');
+    expect(existsSync(managedSkill)).toBe(true);
   });
 
   it.each([

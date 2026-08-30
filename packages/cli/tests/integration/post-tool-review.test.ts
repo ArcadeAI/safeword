@@ -78,10 +78,22 @@ describe('PostToolUse implement-step review surface (JENFZX)', () => {
 
     expect(result.status).toBe(0);
     expect(readFileSync(nodePath.join(cwd, '.safeword-project/.gitignore'), 'utf8')).toBe(
-      '/quality-state-s1.json\n',
+      '/quality-state-*.json\n',
     );
     expect(existsSync(nodePath.join(cwd, '.safeword-project/quality-state-s1.json'))).toBe(true);
     expect(existsSync(nodePath.join(cwd, '.safeword/hooks'))).toBe(false);
+  });
+
+  it('uses one stable ignore rule across runtime sessions', () => {
+    const cwd = project();
+
+    expect(run(cwd, 'Edit', { file_path: 'first.txt' }, 's1').status).toBe(0);
+    expect(run(cwd, 'Edit', { file_path: 'second.txt' }, 's2').status).toBe(0);
+
+    expect(readFileSync(nodePath.join(cwd, '.safeword-project/.gitignore'), 'utf8')).toBe(
+      '/quality-state-*.json\n',
+    );
+    expect(existsSync(nodePath.join(cwd, '.safeword-project/quality-state-s2.json'))).toBe(true);
   });
 
   it('does not create knowledge, ignore policy, or state in an unenrolled repository', () => {

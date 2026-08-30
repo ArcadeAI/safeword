@@ -16,20 +16,24 @@ function gitAlreadyIgnores(cwd: string, path: string): boolean {
 }
 
 /** Ensure a transient namespace-root file is ignored before any caller creates it. */
-export function ensureTransientStateIgnore(cwd: string, basename: string): void {
+export function ensureTransientStateIgnore(
+  cwd: string,
+  basename: string,
+  rule = `/${basename}`,
+): void {
   const namespaceRoot = resolveNamespaceRoot(cwd);
   const ignorePath = nodePath.join(namespaceRoot, '.gitignore');
-  const rule = `/${basename}`;
+  const statePath = nodePath.join(namespaceRoot, basename);
 
   mkdirSync(namespaceRoot, { recursive: true });
+  if (gitAlreadyIgnores(cwd, statePath)) return;
   if (!existsSync(ignorePath)) {
     writeFileSync(ignorePath, `${rule}\n`, 'utf8');
     return;
   }
 
   const content = readFileSync(ignorePath, 'utf8');
-  const statePath = nodePath.join(namespaceRoot, basename);
-  if (content.split(/\r?\n/u).includes(rule) || gitAlreadyIgnores(cwd, statePath)) return;
+  if (content.split(/\r?\n/u).includes(rule)) return;
   appendFileSync(
     ignorePath,
     `${content.endsWith('\n') || content.length === 0 ? '' : '\n'}${rule}\n`,

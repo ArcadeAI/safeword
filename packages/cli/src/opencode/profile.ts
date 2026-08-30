@@ -297,6 +297,26 @@ function observeIdentityBindings(
   return undefined;
 }
 
+function catalogueObservationProblem(
+  root: string,
+  identity: OpenCodeIdentityV1,
+): CliResult | undefined {
+  const assets = identity.assets ?? [];
+  for (const asset of assets) {
+    const observed = observeFile(nodePath.join(root, asset.path));
+    if (observed.kind === 'file' && sha256(observed.bytes) === asset.sha256) continue;
+    const missing = observed.kind === 'absent';
+    return actionRequired(
+      missing ? 'OPENCODE_CATALOGUE_ASSET_MISSING' : 'OPENCODE_MANAGED_ASSET_DRIFT',
+      missing
+        ? `The managed OpenCode catalogue asset ${asset.path} is missing.`
+        : `The managed OpenCode catalogue asset ${asset.path} was modified.`,
+      'safeword install --agents=opencode',
+    );
+  }
+  return undefined;
+}
+
 function profileIsRemovable(
   paths: OpenCodeProfilePaths,
   plugin: FileObservation,
@@ -537,6 +557,8 @@ export function observeOpenCodeProfile(
   const profileRemovable = profileIsRemovable(paths, plugin, identity);
   const bindingProblem = observeIdentityBindings(plugin, identity, profileRemovable);
   if (bindingProblem !== undefined) return bindingProblem;
+  const catalogueProblem = catalogueObservationProblem(root, identity);
+  if (catalogueProblem !== undefined) return catalogueProblem;
   if (hasCurrentProfileError(paths.profileError, identity)) {
     return actionRequired(
       'OPENCODE_MARKER_RESOLUTION_FAILED',
@@ -829,13 +851,23 @@ function dispatcherMatchesExpected(
   return dispatcher.kind === 'file' && sha256(dispatcher.bytes) === sha256(input.dispatcherBytes);
 }
 
+function catalogueMatchesExpected(input: ReconcileOpenCodeProfileInput): boolean {
+  if (input.operation !== 'install') return true;
+  const assets = input.catalogueAssets ?? [];
+  return assets.every(asset => {
+    const observed = observeFile(nodePath.join(input.root, asset.relativePath));
+    return observed.kind === 'file' && sha256(observed.bytes) === sha256(asset.content);
+  });
+}
+
 function terminalUnlessDispatcherNeedsRepair(
   paths: OpenCodeProfilePaths,
   input: ReconcileOpenCodeProfileInput,
   observation: ProfileObservation,
 ): CliResult | undefined {
   const terminal = terminalObservationResult(observation, input.operation);
-  return input.operation === 'install' && !dispatcherMatchesExpected(paths, input)
+  return input.operation === 'install' &&
+    (!dispatcherMatchesExpected(paths, input) || !catalogueMatchesExpected(input))
     ? undefined
     : terminal;
 }
