@@ -128,6 +128,21 @@ describe('lifecycle profile observation', () => {
     });
   });
 
+  it.each(['codex', 'claude', 'opencode'] as const)(
+    'keeps Cursor project authority without copying %s runtime into the project',
+    nativeAgent => {
+      const schema = projectLifecycleSchema(createTemporaryDirectory(), ['cursor', nativeAgent]);
+      const ownedPaths = Object.keys(schema.ownedFiles);
+
+      expect(ownedPaths.some(path => isCursorProjectPath(path))).toBe(true);
+      expect(
+        ownedPaths.filter(path =>
+          ['.claude/', '.codex/', '.opencode/'].some(prefix => path.startsWith(prefix)),
+        ),
+      ).toEqual([]);
+    },
+  );
+
   it('preserves shared runtime when uninstalling Cursor while legacy Claude remains', () => {
     const cwd = createTemporaryDirectory();
     const settings = nodePath.join(cwd, '.claude/settings.json');

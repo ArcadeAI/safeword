@@ -37,6 +37,65 @@ describe('project record-skill-invocation', () => {
     expect(existsSync(nodePath.join(cwd, '.safeword/hooks'))).toBe(false);
   });
 
+  it('reuses an existing framework directory without changing its sibling content', async () => {
+    const cwd = createTemporaryDirectory();
+    mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
+    mkdirSync(nodePath.join(cwd, '.project'), { recursive: true });
+    writeFileSync(nodePath.join(cwd, '.safeword/SAFEWORD.md'), '# enrolled\n');
+    writeFileSync(nodePath.join(cwd, '.project/customer-note.txt'), 'keep exactly\n');
+
+    await runRecordSkillInvocation(cwd, 'verify', 'session-1');
+
+    expect(readFileSync(nodePath.join(cwd, '.project/customer-note.txt'), 'utf8')).toBe(
+      'keep exactly\n',
+    );
+    expect(readFileSync(nodePath.join(cwd, '.project/skill-invocations.log'), 'utf8')).toContain(
+      'session-1 verify',
+    );
+  });
+
+  it('does not invent authored knowledge or project configuration during lazy state creation', async () => {
+    const cwd = createTemporaryDirectory();
+    mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
+    writeFileSync(nodePath.join(cwd, '.safeword/SAFEWORD.md'), '# enrolled\n');
+
+    await runRecordSkillInvocation(cwd, 'verify', 'session-1');
+
+    expect(existsSync(nodePath.join(cwd, '.project/personas.md'))).toBe(false);
+    expect(existsSync(nodePath.join(cwd, '.project/surfaces.md'))).toBe(false);
+    expect(existsSync(nodePath.join(cwd, '.safeword/config.json'))).toBe(false);
+    expect(existsSync(nodePath.join(cwd, '.project/skill-invocations.log'))).toBe(true);
+  });
+
+  it('appends one precise state rule while preserving customer ignore content', async () => {
+    const cwd = createTemporaryDirectory();
+    mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
+    mkdirSync(nodePath.join(cwd, '.project'), { recursive: true });
+    writeFileSync(nodePath.join(cwd, '.safeword/SAFEWORD.md'), '# enrolled\n');
+    writeFileSync(nodePath.join(cwd, '.project/.gitignore'), 'customer-cache/\n');
+
+    await runRecordSkillInvocation(cwd, 'verify', 'session-1');
+
+    expect(readFileSync(nodePath.join(cwd, '.project/.gitignore'), 'utf8')).toBe(
+      'customer-cache/\n/skill-invocations.log\n',
+    );
+  });
+
+  it('does not duplicate an existing exact transient-state ignore rule', async () => {
+    const cwd = createTemporaryDirectory();
+    execFileSync('git', ['init', '--quiet'], { cwd });
+    mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
+    mkdirSync(nodePath.join(cwd, '.project'), { recursive: true });
+    writeFileSync(nodePath.join(cwd, '.safeword/SAFEWORD.md'), '# enrolled\n');
+    writeFileSync(nodePath.join(cwd, '.project/.gitignore'), '/skill-invocations.log\n');
+
+    await runRecordSkillInvocation(cwd, 'verify', 'session-1');
+
+    expect(readFileSync(nodePath.join(cwd, '.project/.gitignore'), 'utf8')).toBe(
+      '/skill-invocations.log\n',
+    );
+  });
+
   it('preserves a broader customer ignore rule without adding a duplicate', async () => {
     const cwd = createTemporaryDirectory();
     execFileSync('git', ['init', '--quiet'], { cwd });
@@ -48,5 +107,26 @@ describe('project record-skill-invocation', () => {
     await runRecordSkillInvocation(cwd, 'verify', 'session-1');
 
     expect(readFileSync(nodePath.join(cwd, '.project/.gitignore'), 'utf8')).toBe('/*\n');
+  });
+
+  it('updates existing framework state without replacing in-flight values', async () => {
+    const cwd = createTemporaryDirectory();
+    mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
+    mkdirSync(nodePath.join(cwd, '.project'), { recursive: true });
+    writeFileSync(nodePath.join(cwd, '.safeword/SAFEWORD.md'), '# enrolled\n');
+    writeFileSync(
+      nodePath.join(cwd, '.project/skill-invocations.log'),
+      'prior-session quality-review\n',
+    );
+    writeFileSync(nodePath.join(cwd, '.project/.gitignore'), '/skill-invocations.log\n');
+
+    await runRecordSkillInvocation(cwd, 'verify', 'session-1');
+
+    const updated = readFileSync(nodePath.join(cwd, '.project/skill-invocations.log'), 'utf8');
+    expect(updated.startsWith('prior-session quality-review\n')).toBe(true);
+    expect(updated).toContain('session-1 verify\n');
+    expect(readFileSync(nodePath.join(cwd, '.project/.gitignore'), 'utf8')).toBe(
+      '/skill-invocations.log\n',
+    );
   });
 });

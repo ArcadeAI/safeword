@@ -71,18 +71,21 @@ function defsPath(cwd: string): string {
 }
 
 describe('PostToolUse implement-step review surface (JENFZX)', () => {
-  it('ignores a missing runtime state file before creating it for any agent', () => {
-    const cwd = project();
+  it.each(['Codex', 'Claude Code', 'OpenCode', 'Cursor'])(
+    'ignores a missing runtime state file before creating it for %s',
+    _host => {
+      const cwd = project();
 
-    const result = run(cwd, 'Edit', { file_path: 'init.txt' });
+      const result = run(cwd, 'Edit', { file_path: 'init.txt' });
 
-    expect(result.status).toBe(0);
-    expect(readFileSync(nodePath.join(cwd, '.safeword-project/.gitignore'), 'utf8')).toBe(
-      '/quality-state-*.json\n',
-    );
-    expect(existsSync(nodePath.join(cwd, '.safeword-project/quality-state-s1.json'))).toBe(true);
-    expect(existsSync(nodePath.join(cwd, '.safeword/hooks'))).toBe(false);
-  });
+      expect(result.status).toBe(0);
+      expect(readFileSync(nodePath.join(cwd, '.safeword-project/.gitignore'), 'utf8')).toBe(
+        '/quality-state-*.json\n',
+      );
+      expect(existsSync(nodePath.join(cwd, '.safeword-project/quality-state-s1.json'))).toBe(true);
+      expect(existsSync(nodePath.join(cwd, '.safeword/hooks'))).toBe(false);
+    },
+  );
 
   it('uses one stable ignore rule across runtime sessions', () => {
     const cwd = project();

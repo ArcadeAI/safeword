@@ -2,22 +2,16 @@
   "feature": "packages/cli/features/self-contained-agent-plugins.feature",
   "scenarios": {
     "A packaged shared-shell helper executes without project runtime": [
-      "packages/cli/tests/codex-plugin-catalogue.release.test.ts",
-      "sources audit scope from the pinned package instead of a project runtime"
+      "packages/cli/tests/commands/audit-scope.test.ts",
+      "executes the shared-shell helper without project runtime"
     ],
     "A sourced helper failure preserves the caller shell": [
-      "packages/cli/tests/commands/project-runtime.test.ts",
-      "passes helper flags after the argument delimiter"
+      "packages/cli/tests/commands/audit-scope.test.ts",
+      "preserves the caller shell and empty exports when merge-base resolution fails"
     ],
     "Legacy project runtime cannot regain native workflow authority": [
-      [
-        "packages/cli/tests/codex-plugin-catalogue.release.test.ts",
-        "accepts the complete generated Codex catalogue"
-      ],
-      [
-        "packages/cli/tests/codex-plugin-catalogue.release.test.ts",
-        "rejects executable references to project-local runtime"
-      ]
+      "packages/cli/tests/codex-plugin/catalogue.test.ts",
+      "keeps the pinned plugin authoritative beside %s legacy project runtime"
     ],
     "A packaged OpenCode workflow executes without project runtime": [
       "packages/cli/tests/opencode/catalogue.test.ts",
@@ -32,44 +26,33 @@
       "keeps Cursor audit registered as a generated command wrapper (#597)"
     ],
     "An unavailable pinned package never falls back to project runtime": [
-      "packages/cli/tests/codex-plugin-catalogue.release.test.ts",
-      "rewrites run-review.ts invocations to a pinned, self-contained Bunx call"
+      "packages/cli/tests/codex-plugin/catalogue.test.ts",
+      "keeps an unavailable pinned package fail-closed without project-runtime fallback"
     ],
     "A packaged Claude workflow executes without project runtime": [
       "packages/cli/tests/claude-plugin/catalogue.test.ts",
-      "passes the shared native runtime-authority release gate"
+      "packages the handbook so SessionStart never needs project-local .safeword/SAFEWORD.md"
     ],
     "Every host lazily creates missing workflow state and its precise ignore rule": [
-      [
-        "packages/cli/tests/integration/post-tool-review.test.ts",
-        "ignores a missing runtime state file before creating it for any agent"
-      ],
-      [
-        "packages/cli/tests/commands/record-skill-invocation.test.ts",
-        "creates missing runtime state and its precise ignore rule without installing"
-      ],
-      [
-        "packages/cli/tests/integration/post-tool-review.test.ts",
-        "uses one stable ignore rule across runtime sessions"
-      ],
-      ["packages/cli/tests/schema.test.ts", "ignores all generated transient files"]
+      "packages/cli/tests/integration/post-tool-review.test.ts",
+      "ignores a missing runtime state file before creating it for %s"
     ],
     "First workflow state write reuses an existing framework directory": [
       "packages/cli/tests/commands/record-skill-invocation.test.ts",
-      "creates missing runtime state and its precise ignore rule without installing"
+      "reuses an existing framework directory without changing its sibling content"
     ],
     "Lazy state never invents missing authored knowledge or configuration": [
-      "packages/cli/tests/integration/post-tool-review.test.ts",
-      "does not create knowledge, ignore policy, or state in an unenrolled repository"
+      "packages/cli/tests/commands/record-skill-invocation.test.ts",
+      "does not invent authored knowledge or project configuration during lazy state creation"
     ],
     "Lazy state initialization preserves customer ignore policy": [
-      "packages/cli/tests/integration/post-tool-review.test.ts",
-      "uses one stable ignore rule across runtime sessions"
+      "packages/cli/tests/commands/record-skill-invocation.test.ts",
+      "appends one precise state rule while preserving customer ignore content"
     ],
     "Existing effective ignore policy is not duplicated": [
       [
         "packages/cli/tests/commands/record-skill-invocation.test.ts",
-        "creates missing runtime state and its precise ignore rule without installing"
+        "does not duplicate an existing exact transient-state ignore rule"
       ],
       [
         "packages/cli/tests/commands/record-skill-invocation.test.ts",
@@ -77,8 +60,8 @@
       ]
     ],
     "Existing framework state is updated without reinitialization": [
-      "packages/cli/tests/integration/post-tool-review.test.ts",
-      "uses one stable ignore rule across runtime sessions"
+      "packages/cli/tests/commands/record-skill-invocation.test.ts",
+      "updates existing framework state without replacing in-flight values"
     ],
     "Lifecycle state respects explicit enrollment": [
       [
@@ -86,8 +69,8 @@
         "creates missing runtime state and its precise ignore rule without installing"
       ],
       [
-        "packages/cli/tests/commands/record-skill-invocation.test.ts",
-        "does not enroll a repository as a side effect of workflow logging"
+        "packages/cli/tests/integration/post-tool-review.test.ts",
+        "does not create knowledge, ignore policy, or state in an unenrolled repository"
       ]
     ],
     "A direct workflow does not silently enroll a repository": [
@@ -117,18 +100,8 @@
       "keeps the shared runtime for a Cursor-only project"
     ],
     "Mixed selection preserves Cursor without copying native runtimes": [
-      [
-        "packages/cli/tests/cli-protocol/lifecycle-status-observation.test.ts",
-        "keeps a Codex-only project free of project-delivered executable runtime"
-      ],
-      [
-        "packages/cli/tests/cli-protocol/lifecycle-status-observation.test.ts",
-        "preserves shared runtime when uninstalling Cursor while legacy Claude remains"
-      ],
-      [
-        "packages/cli/tests/cli-protocol/lifecycle-status-observation.test.ts",
-        "keeps an OpenCode-only install free of Claude and shared project runtime"
-      ]
+      "packages/cli/tests/cli-protocol/lifecycle-status-observation.test.ts",
+      "keeps Cursor project authority without copying %s runtime into the project"
     ],
     "Removing a native selection preserves Cursor and project content": [
       "packages/cli/tests/cli-protocol/lifecycle-status-observation.test.ts",
@@ -140,8 +113,8 @@
     ],
     "Complete agent catalogues pass executable-reference validation": [
       [
-        "packages/cli/tests/codex-plugin-catalogue.release.test.ts",
-        "accepts the complete generated Codex catalogue"
+        "packages/cli/tests/codex-plugin/catalogue.test.ts",
+        "accepts a pinned self-contained Codex catalogue"
       ],
       [
         "packages/cli/tests/claude-plugin/catalogue.test.ts",
@@ -157,20 +130,20 @@
       ]
     ],
     "An unpinned Codex helper blocks release": [
-      "packages/cli/tests/codex-plugin-catalogue.release.test.ts",
-      "rewrites run-review.ts invocations to a pinned, self-contained Bunx call"
+      "packages/cli/tests/codex-plugin/catalogue.test.ts",
+      "rejects an unpinned Codex helper invocation"
     ],
     "OpenCode profile identity records the complete owned catalogue": [
       "packages/cli/tests/opencode/profile.test.ts",
       "TBU1.R1.S07 installs generated profile bytes and an executable identity binding"
     ],
     "A project-runtime reference blocks native plugin release": [
-      "packages/cli/tests/codex-plugin-catalogue.release.test.ts",
-      "rejects executable references to project-local runtime"
+      "packages/cli/tests/codex-plugin/catalogue.test.ts",
+      "rejects a project-local executable reference from a native catalogue"
     ],
     "A cross-host executable reference blocks Cursor release": [
       "packages/cli/tests/schema.test.ts",
-      "keeps thin Cursor command wrappers generated from metadata"
+      "keeps Cursor rule skill metadata aligned with Claude skill references"
     ],
     "OpenCode install preserves an unrecognized catalogue collision": [
       "packages/cli/tests/opencode/profile.test.ts",
