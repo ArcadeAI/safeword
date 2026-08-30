@@ -39,7 +39,7 @@ surfaces.md from packages/cli/templates/surfaces-template.md and then own it.
 **Audience:** Technical Builder (TBU), Non-Technical Builder (NTB), Safeword Maintainer (SWM)
 **Examples:** the packaged Safeword Codex plugin, `AGENTS.md`, `codex` CLI command, `~/.codex/config.toml`, repo-local `.codex/hooks.json`, sandbox modes (`read-only` / `workspace-write` / `danger-full-access`)
 **Coverage notes:** Tag feature scenarios with `@surface.openai-codex` when behavior must work through OpenAI Codex's installed files or workflow on a developer's local machine. Safeword's own retired `.agents/skills` project copies are migration-only; current workflows ship through the packaged plugin.
-**Do not confuse with:** OpenAI Codex Cloud — runs in an OpenAI-managed container instead of the local CLI; local `~/.codex/hooks.json` and CLI-local extensibility don't apply there. OpenCode is a separate runtime that can discover the existing `.claude/skills` project delivery but has its own plugin, lifecycle, configuration, and trust model.
+**Do not confuse with:** OpenAI Codex Cloud — runs in an OpenAI-managed container instead of the local CLI; local `~/.codex/hooks.json` and CLI-local extensibility don't apply there. OpenCode is a separate runtime with its own profile delivery, lifecycle, configuration, and trust model.
 
 ## OpenAI Codex Cloud
 
@@ -54,10 +54,10 @@ surfaces.md from packages/cli/templates/surfaces-template.md and then own it.
 
 **Kind:** Agent runtime
 **Delivery status:** Implemented for stable OpenCode CLI/TUI 1.x after exact-version conformance; CI pins 1.18.23, and Desktop remains advisory until native hook dispatch is reliable.
-**Description:** The OpenCode CLI, terminal UI, or desktop app running against a developer's project, with project-local skills, commands, agents, plugins, and configuration extending the agent's behavior.
+**Description:** The OpenCode CLI, terminal UI, or desktop app running against a developer's project, with a Safeword-managed profile catalogue extending the agent's behavior.
 **Audience:** Technical Builder (TBU), Non-Technical Builder (NTB), Safeword Maintainer (SWM)
-**Examples:** `.claude/skills` compatibility discovery, `.opencode/commands`, `.opencode/agents`, the profile-level `plugins/safeword.js`, `opencode.json`, `opencode` CLI and TUI
-**Coverage notes:** Tag feature scenarios with `@surface.opencode` when behavior must work through OpenCode's installed files, plugin events, or workflow on a developer's machine. OpenCode reuses Safeword's existing `.claude/skills` delivery; cover aggregate selection plus mixed managed/unmanaged reconciliation and uninstall. Treat Desktop plugin registration as advisory until real hook dispatch is proven.
+**Examples:** profile-level `plugins/safeword.js`, `commands/safeword-*`, `agents/safeword-*`, `skills/safeword-*`, `opencode.json`, OpenCode CLI and TUI
+**Coverage notes:** Tag feature scenarios with `@surface.opencode` when behavior must work through OpenCode's installed profile catalogue, plugin events, or workflow on a developer's machine. Project reconciliation does not install OpenCode commands, agents, skills, or executable runtime. Treat Desktop plugin registration as advisory until real hook dispatch is proven.
 **Do not confuse with:** OpenAI Codex — a separate agent runtime whose current Safeword workflows ship through a packaged plugin and whose lifecycle, configuration, and trust model differ.
 
 ## Cursor

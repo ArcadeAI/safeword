@@ -178,9 +178,9 @@ Install auto-detects your stack. A TypeScript project won't get Go (beta), Pytho
 Claude Code delivery is separate from project reconciliation. `safeword install --agents=claude` defaults to project scope and records Claude's marketplace and plugin activation in `.claude/settings.json`; `--scope user` activates the same cached plugin across projects. Eligible stable declarations use the verified `stable` channel and opt into Claude's native marketplace updater. An explicit `autoUpdate: false` remains authoritative. Fresh install does not create legacy Safeword-owned Claude hooks or skills.
 
 OpenCode is explicit and non-persisted: `safeword install --agents=opencode`
-installs a managed profile plugin plus declarative project commands and agents,
-reuses OpenCode's `.claude/skills` compatibility loader, and does not edit or
-create `opencode.json`. Run `safeword conformance --agents=opencode` to prove
+installs a managed profile delivery containing its plugin, commands, agents,
+and skills. It installs no OpenCode executable catalogue in the project and
+does not edit or create `opencode.json`. Run `safeword conformance --agents=opencode` to prove
 the exact running stable 1.x CLI/TUI host discovers the catalogue and blocks a forbidden
 tool call before its side effect. `safeword status --agents=opencode` reports
 installation, activation, blocking capability, and conformance independently.
@@ -370,8 +370,9 @@ bunx safeword@latest install --agents=codex
 
 ### safeword install --agents=opencode
 
-Install OpenCode's native catalogue bridges in the project and Safeword's
-stable pre-tool guard in the current OpenCode profile. Selection is explicit;
+Install OpenCode's native catalogue and stable pre-tool guard in the current
+OpenCode profile. No OpenCode commands, agents, skills, or runtime are copied
+into the project. Selection is explicit;
 omitting `--agents` keeps the Claude-plus-Codex default.
 
 ```bash
@@ -500,7 +501,9 @@ use npx or bypass Codex hook trust.
 Installing the plugin does not enroll repositories. Project-scoped Codex gates
 and state activate only after `safeword install` creates
 `.safeword/SAFEWORD.md`; before then they fail open without creating
-`.project/`.
+`.project/`. After enrollment, a workflow creates missing framework-owned
+transient state and its precise ignore rule on demand without rerunning install;
+it never creates missing authored principles, tickets, or configuration.
 
 ### Legacy: safeword migrate codex-plugin
 

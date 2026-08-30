@@ -30,9 +30,9 @@ bunx safeword@latest install --agents=claude,codex,opencode,cursor
 ```
 
 OpenCode is intentionally opt-in because its guard is installed in the current
-user's OpenCode profile. The project receives declarative commands and agents,
-reuses the canonical `.claude/skills` catalogue OpenCode already discovers,
-and leaves `opencode.json` untouched:
+user's OpenCode profile. That profile delivery contains Safeword's plugin,
+commands, agents, and skills; the project receives no OpenCode executable
+catalogue and `opencode.json` stays untouched:
 
 ```bash
 bunx safeword@latest install --agents=opencode
@@ -125,8 +125,7 @@ legacy content is preserved and reported instead.
 - Safeword Claude plugin - Native workflows and hooks cached by Claude; use `safeword install --agents=claude --scope user` for profile-wide activation
 - `.codex/config.toml` - Project bootstrap that enrolls each Codex profile at task start
 - Safeword Codex plugin - Profile-scoped skills and hooks following the verified `stable` channel
-- `.opencode/commands/` and `.opencode/agents/` - Native OpenCode catalogue bridges, installed only when selected
-- Safeword OpenCode profile plugin - Stable pre-tool enforcement with activation and conformance evidence
+- Safeword OpenCode profile delivery - Native plugin, commands, agents, and skills with activation and conformance evidence
 - `.cursor/hooks.json` - Hook configuration for Cursor
 - `.cursor/rules/` - Behavior rules for Cursor
 - `.cursor/commands/` - Slash commands for Cursor
@@ -222,7 +221,7 @@ flowchart TD
 - **Verify** — the agent runs the relevant tests itself, never handing you something untested.
 - **Done** — hard-blocked until `/verify` writes `verify.md` to the ticket.
 
-Project state remains local in `.safeword/` and the configured namespace root. Claude Code and Codex load framework workflows from versioned user-profile plugins; Cursor keeps its project-local rules and hooks. Guides and learnings live in-repo and evolve as you work.
+Project state remains local in `.safeword/` and the configured namespace root. Claude Code, Codex, and OpenCode load framework workflows from versioned profile deliveries; Cursor keeps its project-local rules and hooks. Missing transient state and its precise ignore rule are created on first use after enrollment, without running installation. Guides, principles, and learnings remain authored in-repo and are never invented by that lazy initialization.
 
 ---
 
