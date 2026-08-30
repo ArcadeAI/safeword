@@ -132,6 +132,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN 570f86734
 - [x] REFACTOR skip: drift fails closed before any owned asset is removed
 
+### Scenario: OpenCode uninstall removes its recognized catalogue
+
+- [x] RED 024bca4fe
+- [x] GREEN 570f86734
+- [x] REFACTOR skip: identity digests already bound the complete removal set
+
 ## Feature-level cross-scenario refactor
 
 - [x] cross-scenario ae4e417a5

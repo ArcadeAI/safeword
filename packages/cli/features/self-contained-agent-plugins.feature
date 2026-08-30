@@ -183,10 +183,17 @@ Feature: Every agent delivery is self-contained
       Then prior identity-owned assets are replaced by the current catalogue
       And unrelated profile content remains unchanged
 
+    @surface.opencode
+    Scenario: OpenCode uninstall removes its recognized catalogue
+      Given an OpenCode profile contains an unchanged identity-owned catalogue
+      When Safeword uninstalls the OpenCode profile delivery
+      Then every identity-owned catalogue asset is removed
+      And unrelated profile content remains unchanged
+
     @rejection @surface.opencode
     Scenario: OpenCode uninstall preserves drifted catalogue content
       Given an identity-owned OpenCode catalogue asset was edited after installation
       When Safeword uninstalls the OpenCode profile delivery
       Then uninstall reports managed-asset drift
       And the edited asset and unrelated profile content remain unchanged
-      And undrifted identity-owned catalogue assets are removed
+      And no other managed profile content is removed
