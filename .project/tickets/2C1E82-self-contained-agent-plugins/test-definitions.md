@@ -22,7 +22,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 7d4d3af5b
 - [x] GREEN b537aed65
-- [ ] REFACTOR
+- [x] REFACTOR skip: command and rewrite each have one responsibility; no structural change warranted
 
 ### Scenario: Cursor executes from its selected project authority without another host
 
