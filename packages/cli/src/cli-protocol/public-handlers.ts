@@ -652,6 +652,17 @@ async function auditScopeHandler(): Promise<CliResult> {
   return observeAuditScope();
 }
 
+async function recordSkillInvocationHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const { runRecordSkillInvocation } = await import('../commands/record-skill-invocation.js');
+  const skill = invocation.operands[0];
+  const sessionId = invocation.operands[1];
+  return runRecordSkillInvocation(
+    invocation.cwd,
+    typeof skill === 'string' ? skill : undefined,
+    typeof sessionId === 'string' && sessionId.length > 0 ? sessionId : undefined,
+  );
+}
+
 async function publicRetrosHandler(invocation: CommandInvocation): Promise<CliResult> {
   const state = invocation.operands[0];
   if (state !== 'off' && state !== 'on') {
@@ -2198,6 +2209,7 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'project test-plan': testPlanHandler,
   'project namespace-root': namespaceRootHandler,
   'project audit-scope': auditScopeHandler,
+  'project record-skill-invocation': recordSkillInvocationHandler,
   'project review-knowledge': reviewKnowledgeHandler,
   'project public-retros': publicRetrosHandler,
   'project retro-drain': retroDrainHandler,

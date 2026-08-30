@@ -341,6 +341,9 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   command('project audit-scope', 'Print the packaged audit scope shell contract', 'observe', {
     syntax: 'audit-scope',
   }),
+  command('project record-skill-invocation', 'Record current-run workflow proof', 'mutate', {
+    syntax: 'record-skill-invocation <skill> [session-id]',
+  }),
   command('project retro-drain', 'Drain acknowledged retro drafts from a spool', 'mutate', {
     syntax: 'retro-drain <spool>',
     commandOptions: [

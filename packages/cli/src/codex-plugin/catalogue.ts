@@ -217,6 +217,10 @@ const SCRIPT_REWRITES: readonly { readonly invocation: string; readonly replacem
     invocation: 'source "$PROJECT_DIR/.safeword/hooks/lib/audit-scope.sh"',
     replacement: 'source <(bunx --bun safeword@{version} project audit-scope)',
   },
+  {
+    invocation: 'bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" ',
+    replacement: 'bunx --bun safeword@{version} project record-skill-invocation ',
+  },
 ];
 
 function codexBundledCliCommand(version: string): string {
