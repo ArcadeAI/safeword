@@ -6,7 +6,7 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: self-contained-plugins.TBU1.R1 — Native plugin workflows do not borrow project or cross-host runtime
 
-### Scenario: A native agent selection resolves its profile entry point
+### Scenario: A native agent workflow executes from its profile entry point
 
 - [x] RED 46918e4b0
 - [x] GREEN 90e1090b8
@@ -29,6 +29,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] RED 024bca4fe
 - [x] GREEN 570f86734
 - [x] REFACTOR skip: identity digests are the existing profile ownership contract
+
+### Scenario: A packaged OpenCode workflow executes without project runtime
+
+- [x] RED 024bca4fe
+- [x] GREEN f7f4cd053
+- [x] REFACTOR skip: generated OpenCode workflows reuse the self-contained Codex catalogue with host-native frontmatter
 
 ### Scenario: A packaged Claude workflow executes without project runtime
 

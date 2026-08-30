@@ -7,10 +7,10 @@ Feature: Every agent delivery is self-contained
   Rule: self-contained-plugins.TBU1.R1 — Native plugin workflows do not borrow project or cross-host runtime
 
     @surface.safeword-cli @surface.openai-codex @surface.claude-code @surface.opencode
-    Scenario Outline: A native agent selection resolves its profile entry point
+    Scenario Outline: A native agent workflow executes from its profile entry point
       Given a project selects only <agent>
-      When the Technical Builder previews project reconciliation
-      Then the plan reports the <agent> profile as the workflow entry point
+      When the Technical Builder invokes a packaged <agent> workflow
+      Then the workflow executes from the <agent> profile with no project-local runtime reference
 
       Examples:
         | agent       |
@@ -47,6 +47,13 @@ Feature: Every agent delivery is self-contained
       Then the OpenCode profile holds the complete generated command, agent, skill, and reference catalogue
       And no OpenCode executable runtime is delivered into the project
 
+    @surface.opencode
+    Scenario: A packaged OpenCode workflow executes without project runtime
+      Given an enrolled project contains no Safeword hooks, skills, scripts, or guides
+      When the Technical Builder invokes a generated OpenCode workflow through the profile catalogue
+      Then the workflow executes from the OpenCode profile catalogue
+      And no project installation or cross-host runtime is requested
+
     @surface.claude-code
     Scenario: A packaged Claude workflow executes without project runtime
       Given an enrolled project contains no Safeword hooks, skills, scripts, or guides
@@ -60,7 +67,7 @@ Feature: Every agent delivery is self-contained
     @shared-project-state @surface.safeword-cli @surface.openai-codex
     Scenario: First workflow state write creates its missing parent and precise ignore rule
       Given an enrolled project lacks the framework state directory, transient state file, and project ignore file
-      When a state-writing packaged workflow first writes framework-owned state
+      When the Technical Builder invokes a state-writing packaged workflow for the first time
       Then the framework state directory and project ignore file are created
       And the transient state file never appears in the project's version-control status
       And the project ignore file contains only the precise state rule
@@ -69,21 +76,21 @@ Feature: Every agent delivery is self-contained
     @shared-project-state @surface.safeword-cli
     Scenario: First workflow state write reuses an existing framework directory
       Given an enrolled project has a framework state directory but no transient state file
-      When a state-writing packaged workflow first writes framework-owned state
+      When the Technical Builder invokes a state-writing packaged workflow for the first time
       Then the existing framework directory remains intact
       And the precise ignore rule and transient state file are created without installing Safeword
 
     @shared-project-state @surface.safeword-cli
     Scenario: Lazy state initialization preserves customer ignore policy
       Given an enrolled project ignore file contains unrelated customer content
-      When a Safeword workflow first writes framework-owned state
+      When the Technical Builder invokes a Safeword workflow that first writes framework-owned state
       Then the customer content remains byte-for-byte unchanged
       And one precise state rule is appended
 
     @shared-project-state @surface.safeword-cli
     Scenario Outline: Existing effective ignore policy is not duplicated
       Given an enrolled project's ignore policy covers transient state with <coverage>
-      When a Safeword workflow first writes framework-owned state
+      When the Technical Builder invokes a Safeword workflow that first writes framework-owned state
       Then the ignore file remains byte-for-byte unchanged
       And the transient state is created
 
@@ -96,7 +103,7 @@ Feature: Every agent delivery is self-contained
     Scenario: Existing framework state is updated without reinitialization
       Given an enrolled project's framework state contains in-flight workflow values
       And its ignore policy already covers the state file
-      When a state-writing packaged workflow updates framework-owned state
+      When the Technical Builder invokes a state-writing packaged workflow that updates framework-owned state
       Then the newly written workflow value is readable from framework state
       And the in-flight workflow values are preserved
       And the ignore file remains byte-for-byte unchanged
@@ -104,7 +111,7 @@ Feature: Every agent delivery is self-contained
     @rejection @shared-project-state @surface.safeword-cli
     Scenario Outline: Lifecycle state respects explicit enrollment
       Given a repository with a profile plugin is <enrollment>
-      When a Safeword lifecycle event attempts to record framework-owned state
+      When the Technical Builder triggers a Safeword lifecycle event that attempts to record framework-owned state
       Then <state outcome>
 
       Examples:
@@ -131,6 +138,7 @@ Feature: Every agent delivery is self-contained
       And the plan contains no profile or project delivery for any unselected agent
       And the project schema contains only enrollment, authored knowledge, configuration, and lazy state
       And it contains no project-delivered workflow authority
+      And the plan creates no framework state directory or transient state file
 
       Examples:
         | agent       |
@@ -144,6 +152,7 @@ Feature: Every agent delivery is self-contained
       When the Non-Technical Builder previews Safeword installation
       Then the project schema contains enrollment, authored knowledge, configuration, lazy state, and Cursor's project authority
       And the plan contains no profile or project delivery for any unselected agent
+      And the plan creates no framework state directory or transient state file
 
     @surface.safeword-cli @surface.cursor
     Scenario Outline: Mixed selection preserves Cursor without copying native runtimes
@@ -214,6 +223,7 @@ Feature: Every agent delivery is self-contained
       When Safeword upgrades the profile delivery
       Then upgrade reports managed-asset drift
       And the edited asset and unrelated profile content remain unchanged
+      And no other identity-owned catalogue asset is changed
 
     @surface.opencode
     Scenario: OpenCode uninstall removes its recognized catalogue
