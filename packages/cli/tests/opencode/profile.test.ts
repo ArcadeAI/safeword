@@ -169,6 +169,8 @@ describe('OpenCode profile boundary', () => {
     const installed = await installLifecycle(invocation, adapters);
     expect(installed.state).toBe('changed');
     const paths = openCodeProfilePaths(root);
+    const managedSkill = nodePath.join(root, 'skills/safeword-verify/SKILL.md');
+    expect(existsSync(managedSkill)).toBe(true);
     mkdirSync(paths.activation, { recursive: true });
     mkdirSync(paths.conformance, { recursive: true });
     writeFileSync(paths.profileError, '{}\n');
@@ -188,9 +190,25 @@ describe('OpenCode profile boundary', () => {
       paths.activation,
       paths.conformance,
       paths.profileError,
+      managedSkill,
     ]) {
       expect(existsSync(path)).toBe(false);
     }
+  });
+
+  it('preserves a modified managed catalogue asset during uninstall', () => {
+    const root = temporaryDirectory();
+    const paths = openCodeProfilePaths(root);
+    expect(installOpenCodeProfile(root).state).toBe('changed');
+    const managedSkill = nodePath.join(root, 'skills/safeword-verify/SKILL.md');
+    writeFileSync(managedSkill, 'user-modified skill\n');
+
+    const result = uninstallOpenCodeProfile(root);
+
+    expect(result.state).toBe('action_required');
+    expect(result.findings.map(finding => finding.code)).toContain('OPENCODE_MANAGED_ASSET_DRIFT');
+    expect(readFileSync(managedSkill, 'utf8')).toBe('user-modified skill\n');
+    expect(existsSync(paths.identity)).toBe(true);
   });
 
   it.each([
