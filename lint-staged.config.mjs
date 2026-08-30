@@ -1,5 +1,6 @@
 const GENERATED_SAFEWORD_PATH = '.safeword/';
 const GENERATED_CLAUDE_PLUGIN_PATH = 'plugin/';
+const GENERATED_CODEX_RUNTIME_PATH = 'packages/cli/codex-plugin/runtime/';
 
 function shellQuote(filePath) {
   return JSON.stringify(filePath);
@@ -11,7 +12,9 @@ function withoutGeneratedDeliveryFiles(files) {
       !filePath.startsWith(GENERATED_SAFEWORD_PATH) &&
       !filePath.includes('/.safeword/') &&
       !filePath.startsWith(GENERATED_CLAUDE_PLUGIN_PATH) &&
-      !filePath.includes('/plugin/'),
+      !filePath.includes('/plugin/') &&
+      !filePath.startsWith(GENERATED_CODEX_RUNTIME_PATH) &&
+      !filePath.includes(`/${GENERATED_CODEX_RUNTIME_PATH}`),
   );
 }
 

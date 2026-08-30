@@ -16,7 +16,10 @@ import { parse } from 'yaml';
 import { requirePinnedBunVersion } from '../scripts/bun-version.js';
 
 const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
-const generatorPath = nodePath.join(repoRoot, 'packages/cli/scripts/generate-claude-plugin.ts');
+const bundleBuilderPath = nodePath.join(
+  repoRoot,
+  'packages/cli/scripts/lib/build-plugin-cli-bundle.ts',
+);
 
 interface Workflow {
   jobs?: Record<string, { steps?: { uses?: string; with?: Record<string, unknown> }[] }>;
@@ -59,9 +62,9 @@ describe('Claude plugin Bun version contract', () => {
   });
 
   it('runs the version guard before invoking Bun.build', () => {
-    const generator = readFileSync(generatorPath, 'utf8');
-    const guardIndex = generator.indexOf('requirePinnedBunVersion(');
-    const buildIndex = generator.indexOf('Bun.build(');
+    const bundleBuilder = readFileSync(bundleBuilderPath, 'utf8');
+    const guardIndex = bundleBuilder.indexOf('requirePinnedBunVersion(');
+    const buildIndex = bundleBuilder.indexOf('Bun.build(');
 
     expect(guardIndex).toBeGreaterThan(-1);
     expect(buildIndex).toBeGreaterThan(guardIndex);

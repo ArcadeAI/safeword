@@ -347,13 +347,12 @@ exit ${status}`,
         ],
       },
       {
-        // Codex cannot: `PLUGIN_ROOT` is injected only into hook-command
-        // shells, so a vendored wrapper path would rest on the model resolving
-        // a relative path. It calls the pinned CLI directly instead, carrying
+        // Codex skills do not receive `PLUGIN_ROOT`, so they address the
+        // bundled CLI through Codex's stable versioned plugin-cache layout, carrying
         // the managed-progress signal the wrapper would otherwise have set —
         // without it a multi-minute review runs silent.
         root: nodePath.join(repoRoot, 'packages/cli/codex-plugin/skills'),
-        reviewEntrypoint: `SAFEWORD_REVIEW_PROGRESS=1 bunx --bun safeword@${VERSION} `,
+        reviewEntrypoint: `SAFEWORD_REVIEW_PROGRESS=1 bun "\${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/${VERSION}/runtime/cli.js" `,
         requiredReviewFiles: [
           'quality-review/SKILL.md',
           'review-spec/SKILL.md',

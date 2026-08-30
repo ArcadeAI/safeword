@@ -63,6 +63,11 @@ export function assertCachedCodexPlugin(
     'Cached plugin manifest',
   );
   requireFile(nodePath.join(resolvedInstalledPath, 'hooks.json'), 'Cached plugin hooks');
+  requireFile(
+    nodePath.join(resolvedInstalledPath, 'package.json'),
+    'Cached plugin package identity',
+  );
+  requireFile(nodePath.join(resolvedInstalledPath, 'runtime/cli.js'), 'Cached plugin CLI runtime');
   const version = (
     JSON.parse(readFileSync(nodePath.join(cliRoot, 'package.json'), 'utf8')) as { version: string }
   ).version;

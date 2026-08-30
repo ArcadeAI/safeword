@@ -11,7 +11,9 @@
 
 # Deterministic Bun build output; formatted canonical sources are bundled into it.
 plugin/runtime/cli.js
+packages/cli/codex-plugin/runtime/cli.js
 packages/cli/src/review/scenario-rubric.generated.ts
+packages/website/.astro/
 
 # Safeword - managed prettier exclusions (owned dirs)
 .husky/_

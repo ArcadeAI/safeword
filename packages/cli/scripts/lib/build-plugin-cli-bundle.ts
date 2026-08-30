@@ -1,0 +1,44 @@
+import nodePath from 'node:path';
+
+import { requirePinnedBunVersion } from '../bun-version.js';
+
+const BUN_INSTALL_INSTANCE_PATH =
+  /([/\\]node_modules[/\\]\.bun[/\\][^/\\\r\n]+)\+[0-9a-f]{16}([/\\]node_modules[/\\])/giu;
+
+/**
+ * Bun includes content-addressed install instance suffixes in bundle source comments.
+ * They vary between otherwise equivalent installs, so remove them before sealing a
+ * generated plugin catalogue. Trailing whitespace is also normalized so generated
+ * artifacts remain diff-clean and byte-stable across the shared Bun build.
+ */
+export function normalizePluginCliBundle(bundle: string): string {
+  return bundle
+    .replaceAll(BUN_INSTALL_INSTANCE_PATH, '$1$2')
+    .split('\n')
+    .map(line => line.trimEnd())
+    .join('\n');
+}
+
+export async function buildPluginCliBundle(
+  packageRoot: string,
+  packageManager: string,
+  pluginName: string,
+): Promise<string> {
+  // @ts-expect-error -- plugin generators execute under Bun; the CLI's
+  // Node-targeted tsconfig intentionally does not expose Bun globals elsewhere.
+  requirePinnedBunVersion(packageManager, Bun.version);
+
+  // @ts-expect-error -- plugin generators execute under Bun.
+  const result = await Bun.build({
+    entrypoints: [nodePath.join(packageRoot, 'src', 'cli.ts')],
+    format: 'esm',
+    packages: 'bundle',
+    splitting: false,
+    target: 'bun',
+    write: false,
+  });
+  if (!result.success || result.outputs.length !== 1 || result.outputs[0] === undefined) {
+    throw new Error(`Failed to bundle the ${pluginName} plugin CLI: ${result.logs.join('\n')}`);
+  }
+  return normalizePluginCliBundle(await result.outputs[0].text());
+}
