@@ -1,14 +1,4 @@
-import { spawnSync } from 'node:child_process';
-import {
-  chmodSync,
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -17,95 +7,48 @@ const REPOSITORY_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
 
 const LINT_SURFACES = [
   'packages/cli/templates/skills/lint/SKILL.md',
-  'packages/cli/templates/commands/lint.md',
   '.safeword/skills/lint/SKILL.md',
   '.claude/skills/lint/SKILL.md',
-  '.cursor/commands/lint.md',
   'packages/cli/codex-plugin/skills/lint/SKILL.md',
 ] as const;
 
-function extractLintBlock(relativePath: string): string {
-  const content = readFileSync(nodePath.join(REPOSITORY_ROOT, relativePath), 'utf8');
-  const block = /```bash\n([\s\S]*?)\n```/.exec(content)?.[1];
-  if (block === undefined) throw new Error(`Missing lint bash block in ${relativePath}`);
-  return block;
+const LINT_COMMAND_SURFACES = [
+  'packages/cli/templates/commands/lint.md',
+  '.cursor/commands/lint.md',
+] as const;
+
+function lintInstructions(relativePath: string): string {
+  return readFileSync(nodePath.join(REPOSITORY_ROOT, relativePath), 'utf8');
 }
 
-function writeExecutable(directory: string, name: string, body: string): void {
-  const executablePath = nodePath.join(directory, name);
-  writeFileSync(executablePath, `#!/usr/bin/env bash\n${body}\n`);
-  chmodSync(executablePath, 0o755);
-}
+describe('bounded lint instruction behavior (#3515)', () => {
+  it.each(LINT_SURFACES)('%s defaults to changed files', relativePath => {
+    const content = lintInstructions(relativePath);
 
-function readCommandLog(logPath: string): string[] {
-  return existsSync(logPath)
-    ? readFileSync(logPath, 'utf8').trim().split('\n').filter(Boolean)
-    : [];
-}
-
-function installFakeLintTools(
-  binDirectory: string,
-  bunCommandsPath: string,
-  goCommandsPath: string,
-): void {
-  writeExecutable(binDirectory, 'bun', String.raw`printf '%s\n' "$*" >> "${bunCommandsPath}"`);
-  writeExecutable(binDirectory, 'bunx', 'exit 0');
-  writeExecutable(
-    binDirectory,
-    'golangci-lint',
-    String.raw`printf '%s\n' "$*" >> "${goCommandsPath}"`,
-  );
-}
-
-function runLintInstructions(
-  relativePath: string,
-  options: { hasGoManifest?: boolean } = {},
-): { status: number | null; bunCommands: string[]; goCommands: string[] } {
-  const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-lint-skill-'));
-  const binDirectory = nodePath.join(projectDirectory, 'fake-bin');
-  const bunCommandsPath = nodePath.join(projectDirectory, 'bun-commands.log');
-  const goCommandsPath = nodePath.join(projectDirectory, 'go-commands.log');
-
-  try {
-    mkdirSync(binDirectory);
-    writeFileSync(nodePath.join(projectDirectory, 'package.json'), '{"scripts":{}}\n');
-    if (options.hasGoManifest)
-      writeFileSync(nodePath.join(projectDirectory, 'go.mod'), 'module example\n');
-
-    installFakeLintTools(binDirectory, bunCommandsPath, goCommandsPath);
-
-    const result = spawnSync('bash', ['-c', extractLintBlock(relativePath)], {
-      cwd: projectDirectory,
-      env: { ...process.env, PATH: `${binDirectory}:/usr/bin:/bin` },
-      encoding: 'utf8',
-    });
-
-    return {
-      status: result.status,
-      bunCommands: readCommandLog(bunCommandsPath),
-      goCommands: readCommandLog(goCommandsPath),
-    };
-  } finally {
-    rmSync(projectDirectory, { recursive: true, force: true });
-  }
-}
-
-describe('lint instruction command behavior (#1701, #2060)', () => {
-  it.each(LINT_SURFACES)('%s succeeds for a JavaScript-only project', relativePath => {
-    const result = runLintInstructions(relativePath);
-
-    expect(result.status).toBe(0);
-    expect(result.bunCommands).toContain('run --if-present format');
-    expect(result.goCommands).toEqual([]);
+    expect(content).toContain('git diff --name-only');
+    expect(content).toContain('git ls-files --others --exclude-standard');
+    expect(content).toContain('pass only those changed files');
+    expect(content).toContain('explicitly asks for a **full** lint');
   });
 
-  it.each(LINT_SURFACES)(
-    '%s runs the existing Go commands when go.mod is present',
-    relativePath => {
-      const result = runLintInstructions(relativePath, { hasGoManifest: true });
+  it.each(LINT_SURFACES)('%s does not prescribe a silent full-root fallback', relativePath => {
+    const content = lintInstructions(relativePath);
 
-      expect(result.status).toBe(0);
-      expect(result.goCommands).toEqual(['run --fix ./...', 'fmt ./...']);
-    },
-  );
+    expect(content).not.toContain('ruff check --fix .');
+    expect(content).not.toContain('ruff format .');
+    expect(content).not.toContain('golangci-lint run --fix ./...');
+    expect(content).not.toContain('2>&1 || true');
+  });
+
+  it.each(LINT_SURFACES)('%s keeps polyglot changed-scope examples', relativePath => {
+    const content = lintInstructions(relativePath);
+
+    expect(content).toContain('ruff check --fix <changed-python-files...>');
+    expect(content).toContain('bunx eslint --fix -- <changed-js-ts-files...>');
+    expect(content).toContain('golangci-lint run --fix <changed-go-package-patterns...>');
+  });
+
+  it.each(LINT_COMMAND_SURFACES)('%s delegates to the canonical installed skill', relativePath => {
+    expect(lintInstructions(relativePath)).toContain('.safeword/skills/lint/SKILL.md');
+  });
 });
