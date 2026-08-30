@@ -83,6 +83,8 @@ const CODEX_RUN_IDENTITY_CACHE = 'codex-run-identity.json';
 const CODEX_REVIEW_STAMP_IDENTITY_CACHE = 'codex-review-stamp-identity.json';
 const RECORD_SKILL_INVOCATION_SCRIPT = '.safeword/hooks/record-skill-invocation.ts';
 const WRITE_REVIEW_STAMP_SCRIPT = '.safeword/hooks/write-review-stamp.ts';
+const PACKAGED_RECORD_SKILL_INVOCATION = 'project record-skill-invocation';
+const PACKAGED_WRITE_REVIEW_STAMP = 'project runtime write-review-stamp';
 const REVIEW_STAMP_CACHE_KEY = 'review-stamp';
 const SKILL_NAME_PATTERN = /^[a-z][a-z0-9-]*$/u;
 const SHELL_SEPARATORS = ';&|';
@@ -171,9 +173,29 @@ function readShellArgument(
   return { value: command.slice(index, endIndex), nextIndex: endIndex };
 }
 
+export function parsePackagedRecordSkillInvocation(command: string): string | undefined {
+  const packagedIndex = command.indexOf(PACKAGED_RECORD_SKILL_INVOCATION);
+  if (packagedIndex === -1) return undefined;
+  let nextIndex = packagedIndex + PACKAGED_RECORD_SKILL_INVOCATION.length;
+  while (nextIndex < command.length) {
+    const argument = readShellArgument(command, nextIndex);
+    if (argument === undefined) return undefined;
+    nextIndex = argument.nextIndex;
+    if (argument.value === '--cwd') {
+      const cwd = readShellArgument(command, nextIndex);
+      if (cwd === undefined) return undefined;
+      nextIndex = cwd.nextIndex;
+      continue;
+    }
+    if (argument.value === '--') continue;
+    return SKILL_NAME_PATTERN.test(argument.value) ? argument.value : undefined;
+  }
+  return undefined;
+}
+
 function parseRecordSkillInvocationCommand(command: string): string | undefined {
   const scriptIndex = command.indexOf(RECORD_SKILL_INVOCATION_SCRIPT);
-  if (scriptIndex === -1) return undefined;
+  if (scriptIndex === -1) return parsePackagedRecordSkillInvocation(command);
 
   let nextIndex = scriptIndex + RECORD_SKILL_INVOCATION_SCRIPT.length;
   const closingQuote = command[nextIndex];
@@ -187,8 +209,12 @@ function parseRecordSkillInvocationCommand(command: string): string | undefined 
   return skillName && SKILL_NAME_PATTERN.test(skillName) ? skillName : undefined;
 }
 
-function commandInvokesWriteReviewStamp(command: string): boolean {
-  return command.replaceAll('\\', '/').includes(WRITE_REVIEW_STAMP_SCRIPT);
+export function commandInvokesWriteReviewStamp(command: string): boolean {
+  const normalized = command.replaceAll('\\', '/');
+  return (
+    normalized.includes(WRITE_REVIEW_STAMP_SCRIPT) ||
+    normalized.includes(PACKAGED_WRITE_REVIEW_STAMP)
+  );
 }
 
 function writeCodexIdentityCache(input: {

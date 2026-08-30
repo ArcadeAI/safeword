@@ -84,6 +84,9 @@ export function runProjectRuntime(
         ],
       }),
     );
+  const projectDirectory = hasSafewordProjectMarker(cwd)
+    ? cwd
+    : (process.env.CLAUDE_PROJECT_DIR ?? cwd);
   const [relativePath, runtime] = definition;
   const script = nodePath.join(packageRoot(), relativePath);
   if (!existsSync(script))
@@ -99,7 +102,7 @@ export function runProjectRuntime(
         ],
       }),
     );
-  if (!hasSafewordProjectMarker(cwd))
+  if (!hasSafewordProjectMarker(projectDirectory))
     return Promise.resolve(
       createResult({
         state: 'action_required',
@@ -113,11 +116,12 @@ export function runProjectRuntime(
         nextActions: [{ command: 'safeword install', mutates: true, requiresHuman: true }],
       }),
     );
-  if (helper === 'write-review-stamp') ensureTransientStateIgnore(cwd, 'skill-invocations.log');
+  if (helper === 'write-review-stamp')
+    ensureTransientStateIgnore(projectDirectory, 'skill-invocations.log');
   const result = spawnSync(runtime === 'bun' ? process.execPath : 'bash', [script, ...args], {
-    cwd,
+    cwd: projectDirectory,
     encoding: 'utf8',
-    env: { ...process.env, CLAUDE_PROJECT_DIR: cwd },
+    env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory },
   });
   return Promise.resolve(completedResult(helper, result.status, result.stdout, result.stderr));
 }

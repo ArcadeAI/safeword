@@ -227,23 +227,23 @@ const SCRIPT_REWRITES: readonly { readonly invocation: string; readonly replacem
   },
   {
     invocation: 'bun "$PROJECT_DIR/.safeword/hooks/resolve-verify-ticket.ts" "$PROJECT_DIR"',
-    replacement: '{cli} project runtime resolve-verify-ticket --cwd "$PROJECT_DIR"',
+    replacement: '{cli} project runtime resolve-verify-ticket --cwd "$PROJECT_DIR" --',
   },
   {
     invocation: 'bun "$PROJECT_DIR/.safeword/hooks/write-review-stamp.ts" ',
-    replacement: '{cli} project runtime write-review-stamp ',
+    replacement: '{cli} project runtime write-review-stamp -- ',
   },
   {
     invocation: 'bun .safeword/hooks/write-review-stamp.ts ',
-    replacement: '{cli} project runtime write-review-stamp ',
+    replacement: '{cli} project runtime write-review-stamp -- ',
   },
   {
     invocation: 'bun .safeword/scripts/closeout-cleanup.ts ',
-    replacement: '{cli} project runtime closeout-cleanup ',
+    replacement: '{cli} project runtime closeout-cleanup -- ',
   },
   {
     invocation: './.safeword/scripts/cleanup-zombies.sh',
-    replacement: '{cli} project runtime cleanup-zombies',
+    replacement: '{cli} project runtime cleanup-zombies --',
   },
 ];
 

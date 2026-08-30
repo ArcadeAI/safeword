@@ -63,6 +63,17 @@ describe('generated Codex plugin catalogue', () => {
     }).toThrow('skills/broken/SKILL.md');
   });
 
+  it('rejects references to native-host project assets that are no longer installed', () => {
+    expect(() => {
+      assertNativePluginRuntimeAuthority([
+        {
+          relativePath: 'skills/broken/SKILL.md',
+          content: 'Read `.safeword/guides/architecture-guide.md`.',
+        },
+      ]);
+    }).toThrow('skills/broken/SKILL.md');
+  });
+
   it.each([
     'Run `"$PROJECT_DIR/.safeword/scripts/cleanup-zombies.sh"`.',
     'Run `node .safeword/hooks/run-review.ts`.',
@@ -298,6 +309,15 @@ describe('generated Codex plugin catalogue', () => {
     } finally {
       rmSync(fixture, { recursive: true, force: true });
     }
+  });
+
+  it('separates packaged helper flags from CLI options', () => {
+    const assets = generateCodexPluginAssets(CANONICAL_SKILLS, '1.2.3');
+    const cleanup = assets.find(asset => asset.relativePath === 'skills/cleanup-zombies/SKILL.md');
+    const closeout = assets.find(asset => asset.relativePath === 'skills/closeout/SKILL.md');
+
+    expect(cleanup?.content).toContain('project runtime cleanup-zombies -- --yes');
+    expect(closeout?.content).toContain('project runtime closeout-cleanup -- --pr PR_NUMBER');
   });
 
   it('rewrites resolve-namespace-root.ts invocations to the pinned namespace-root subcommand', () => {

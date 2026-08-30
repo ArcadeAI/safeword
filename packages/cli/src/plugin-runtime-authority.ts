@@ -4,6 +4,11 @@ export interface RuntimeAuthorityAsset {
 }
 
 const PROJECT_RUNTIME_PATHS = ['.safeword/hooks/', '.safeword/scripts/'] as const;
+const UNAVAILABLE_NATIVE_PROJECT_PATHS = [
+  '.safeword/guides/',
+  '.safeword/templates/',
+  '.claude/skills/',
+] as const;
 const EXECUTABLE_RUNNERS = new Set(['bun', 'node', 'bash', 'sh', 'source', 'exec']);
 
 function quotedProjectPrefix(beforePath: string): boolean {
@@ -47,7 +52,11 @@ function isProjectRuntimeCommand(content: string): boolean {
 /** Release invariant for native-plugin workflow catalogues. */
 export function assertNativePluginRuntimeAuthority(assets: readonly RuntimeAuthorityAsset[]): void {
   const violations = assets
-    .filter(asset => isProjectRuntimeCommand(asset.content))
+    .filter(
+      asset =>
+        isProjectRuntimeCommand(asset.content) ||
+        UNAVAILABLE_NATIVE_PROJECT_PATHS.some(path => asset.content.includes(path)),
+    )
     .map(asset => asset.relativePath);
   if (violations.length > 0) {
     throw new Error(

@@ -673,6 +673,9 @@ async function projectRuntimeHandler(invocation: CommandInvocation): Promise<Cli
     (!Array.isArray(rawArguments) || rawArguments.some(argument => typeof argument !== 'string'))
   )
     return invalidOperand('project runtime', 'runtime arguments must be text.');
+  if (helper === 'closeout-cleanup' && invocation.offline) {
+    return onlineRequired('project runtime closeout-cleanup');
+  }
   const { runProjectRuntime } = await import('../commands/project-runtime.js');
   return runProjectRuntime(invocation.cwd, helper, (rawArguments as string[] | undefined) ?? []);
 }

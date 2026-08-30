@@ -77,7 +77,7 @@ before anything is filed.
   ```
 
 - **In-context (any harness):** extract the friction yourself following
-  `.safeword/guides/retro.md` (fresh-context read of the transcript → structured findings
+  the packaged retro procedure (fresh-context read of the transcript → structured findings
   JSON), then hand them off:
 
   ```bash
@@ -100,7 +100,7 @@ Everything flows through the egress guard, then files upstream:
 
 - **Lane 1 (token available):** the CLI files via REST and drains the spool, silently.
 - **Lane 2 (no token / cloud):** the CLI spools the sanitized, post-egress drafts and a
-  nudge surfaces them; file each **verbatim** per `.safeword/guides/self-report-filing.md`
+  nudge surfaces them; file each **verbatim** through the supported filing route
   using your GitHub access. Never re-word or re-sanitize a spooled draft — the body is
   already code-assembled and egress-clean; the sanitizer is the security boundary.
   Enforced at the code-owned seams: each body is sealed with a `bodyDigest` at

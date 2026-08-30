@@ -149,29 +149,27 @@ may miss issues, and is not merge-safety evidence.
 
 ### What gets installed
 
-| What                  | Action                                             | Purpose                                               |
-| --------------------- | -------------------------------------------------- | ----------------------------------------------------- |
-| `.safeword/`          | Creates directory                                  | Hooks, guides, templates                              |
-| `.cursor/hooks.json`  | Creates or merges only with `--agents=cursor`      | Hook configuration                                    |
-| `.cursor/rules/`      | Creates only with `--agents=cursor`                | Behavior rules                                        |
-| `.cursor/commands/`   | Creates only with `--agents=cursor`                | Slash commands                                        |
-| `.opencode/commands/` | Creates only with `--agents=opencode`              | Native command bridges to canonical skills            |
-| `.opencode/agents/`   | Creates only with `--agents=opencode`              | Native agent bridges to canonical procedures          |
-| `eslint.config.mjs`   | Creates file                                       | Linting config (JS/TS)                                |
-| `package.json`        | Creates if missing; adds devDependencies + scripts | Quality tools + BDD lane (all projects)               |
-| `cucumber.mjs`        | Creates file                                       | Gherkin acceptance-runner config (cucumber-js)        |
-| `features/`           | Creates starter                                    | Gherkin `.feature` files — yours after creation       |
-| `steps/`              | Creates starter                                    | TypeScript step definitions — yours after creation    |
-| `.golangci.yml`       | Creates file                                       | Linting config (Go)                                   |
-| `ruff.toml`           | Creates file                                       | Linting config (Python)                               |
-| `mypy.ini`            | Creates file                                       | Type checking (Python)                                |
-| `.importlinter`       | Creates when layout is unambiguous                 | Circular-import guard (Python) — yours after creation |
-| `clippy.toml`         | Creates file                                       | Linting config (Rust)                                 |
-| `rustfmt.toml`        | Creates file                                       | Formatting config (Rust)                              |
-| `Cargo.toml`          | Adds lints section                                 | clippy lints (Rust)                                   |
-| `.sqlfluff`           | Creates file (unless Prettier formats your SQL)    | Linting config (SQL/dbt)                              |
-| `.mcp.json`           | Creates or merges                                  | MCP server config                                     |
-| `.cursor/mcp.json`    | Creates or merges only with `--agents=cursor`      | MCP server config (Cursor)                            |
+| What                 | Action                                             | Purpose                                               |
+| -------------------- | -------------------------------------------------- | ----------------------------------------------------- |
+| `.safeword/`         | Creates directory                                  | Hooks, guides, templates                              |
+| `.cursor/hooks.json` | Creates or merges only with `--agents=cursor`      | Hook configuration                                    |
+| `.cursor/rules/`     | Creates only with `--agents=cursor`                | Behavior rules                                        |
+| `.cursor/commands/`  | Creates only with `--agents=cursor`                | Slash commands                                        |
+| `eslint.config.mjs`  | Creates file                                       | Linting config (JS/TS)                                |
+| `package.json`       | Creates if missing; adds devDependencies + scripts | Quality tools + BDD lane (all projects)               |
+| `cucumber.mjs`       | Creates file                                       | Gherkin acceptance-runner config (cucumber-js)        |
+| `features/`          | Creates starter                                    | Gherkin `.feature` files — yours after creation       |
+| `steps/`             | Creates starter                                    | TypeScript step definitions — yours after creation    |
+| `.golangci.yml`      | Creates file                                       | Linting config (Go)                                   |
+| `ruff.toml`          | Creates file                                       | Linting config (Python)                               |
+| `mypy.ini`           | Creates file                                       | Type checking (Python)                                |
+| `.importlinter`      | Creates when layout is unambiguous                 | Circular-import guard (Python) — yours after creation |
+| `clippy.toml`        | Creates file                                       | Linting config (Rust)                                 |
+| `rustfmt.toml`       | Creates file                                       | Formatting config (Rust)                              |
+| `Cargo.toml`         | Adds lints section                                 | clippy lints (Rust)                                   |
+| `.sqlfluff`          | Creates file (unless Prettier formats your SQL)    | Linting config (SQL/dbt)                              |
+| `.mcp.json`          | Creates or merges                                  | MCP server config                                     |
+| `.cursor/mcp.json`   | Creates or merges only with `--agents=cursor`      | MCP server config (Cursor)                            |
 
 Install auto-detects your stack. A TypeScript project won't get Go (beta), Python (beta), Rust (beta), or SQL/dbt (beta) tooling.
 

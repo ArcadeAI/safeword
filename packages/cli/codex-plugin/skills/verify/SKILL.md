@@ -49,7 +49,7 @@ ticket remains relevant after its status changes during closeout; a changed
 
 ```bash
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
-bunx --bun safeword@0.82.1 project runtime resolve-verify-ticket --cwd "$PROJECT_DIR"
+bunx --bun safeword@0.82.1 project runtime resolve-verify-ticket --cwd "$PROJECT_DIR" --
 ```
 
 If Safeword's injected context names a ticket but the host exposes no runtime
@@ -323,7 +323,7 @@ The Status section uses the existing Verify Checklist format. Format with these 
 
 **PR Scope** is the final "one purpose" guard. It blocks the all-green collapse: if it is ❌, the ticket is not ready to mark done until the unrelated work is reverted, split into another ticket/PR, or explicitly accepted as a scope change and reflected in the ticket artifacts.
 
-**Reconcile** is soft — it never blocks the done gate. If the work introduced a pattern that diverges from existing siblings (see `.safeword/guides/architecture-guide.md` → Survey & Reconcile), confirm the ticket carries a reconcile record and every deviation has an uplevel follow-up ticket; flag any that don't. Use `N/A` when the work conformed or introduced no new pattern.
+**Reconcile** is soft — it never blocks the done gate. If the work introduced a pattern that diverges from existing siblings, confirm the ticket carries a reconcile record and every deviation has an uplevel follow-up ticket; flag any that don't. Use `N/A` when the work conformed or introduced no new pattern.
 
 **Experience** is soft — it never blocks the done gate (no done-gate evidence pattern; a ⚠️ never hard-blocks `done`). Run it for persona-facing work; use `N/A` for internal/plumbing. You are grading your own work here, so the walk-artifact below is mandatory — a bare `✅` or "feels clean" is exactly the self-rating it exists to defeat. Two lenses:
 

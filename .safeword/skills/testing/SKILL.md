@@ -47,7 +47,7 @@ Fallback (lowest scope):
 
 State the test-scope choice and why in one line, unless it's obvious from context.
 
-For the full decision tree, bug detection matrix, and edge cases: `.safeword/guides/testing-guide.md`
+Use the decision tree, bug detection matrix, and edge cases in this skill.
 
 ---
 
@@ -316,20 +316,19 @@ Assert the pin, never the bug — a test that reproduces the bug goes green when
 upstream fixes it, silently, leaving the dead workaround behind.
 
 Warranted when removal depends on someone else's release _and_ the failure
-mode is silent. Rules: `.safeword/guides/testing-guide.md` → "Upstream
-Workaround Tripwires". Scaffold: `.safeword/templates/tripwire-template.md`.
+mode is silent. Apply the upstream-workaround tripwire rules in this skill.
 
 ---
 
 ## Quick Reference
 
-| Need                             | Action                                            |
-| -------------------------------- | ------------------------------------------------- |
-| Full test type selection guide   | `.safeword/guides/testing-guide.md`               |
-| Upstream-workaround tripwire     | `.safeword/templates/tripwire-template.md`        |
-| Smoke/live/release lane guidance | `.safeword/guides/verification-lanes-guide.md`    |
-| LLM eval design guide            | `.safeword/guides/llm-evals-guide.md`             |
-| Test definition template (BDD)   | `.safeword/templates/test-definitions-feature.md` |
-| Test quality review              | `/audit`                                          |
-| Feature-level TDD with scenarios | `/bdd`                                            |
-| Debugging failing tests          | `/debug`                                          |
+| Need                             | Action                                          |
+| -------------------------------- | ----------------------------------------------- |
+| Full test type selection guide   | This skill's test-selection sections            |
+| Upstream-workaround tripwire     | This skill's tripwire section                   |
+| Smoke/live/release lane guidance | The `$safeword:verify` workflow                 |
+| LLM eval design guide            | The repository's configured evaluation guidance |
+| Test definition template (BDD)   | The `$safeword:bdd` workflow                    |
+| Test quality review              | `/audit`                                        |
+| Feature-level TDD with scenarios | `/bdd`                                          |
+| Debugging failing tests          | `/debug`                                        |
