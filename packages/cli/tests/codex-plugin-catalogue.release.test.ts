@@ -198,7 +198,7 @@ describe('generated Codex plugin catalogue', () => {
     }
   });
 
-  it('rewrites resolve-namespace-root.ts invocations to the pinned namespace-root subcommand', () => {
+  it('rewrites resolve-namespace-root.ts invocations to the bundled namespace-root subcommand', () => {
     const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-plugin-ns-root-'));
     const canonicalSkillsDirectory = nodePath.join(fixture, 'skills');
     try {
@@ -294,7 +294,7 @@ describe('generated Codex plugin catalogue', () => {
     }
   });
 
-  it('rewrites resolve-project-knowledge.ts invocations to the pinned review-knowledge subcommand', () => {
+  it('rewrites resolve-project-knowledge.ts invocations to the bundled review-knowledge subcommand', () => {
     const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-plugin-knowledge-'));
     const canonicalSkillsDirectory = nodePath.join(fixture, 'skills');
     try {
