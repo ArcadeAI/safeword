@@ -1,6 +1,6 @@
 # Impl Plan: Make each agent plugin fully self-contained
 
-**Status:** planned
+**Status:** implemented
 **Planned on:** 2026-08-30
 
 ## Approach
@@ -46,7 +46,7 @@ The plan has six implementation components and reuses the epic's existing child 
 | Package native runtime; reduce project effects by declared consumers | Bundle every native host's executable helpers with its distribution; derive project effects from shared substrate plus selected project consumers | Keep project runtime for all hosts; invoke a pinned CLI subprocess for every helper | Project runtime recreates the reported install explosion and split authority; subprocess-only cannot preserve sourced-shell behavior |
 | Centralize lazy framework state | One shared state initializer called through each real host adapter, with exact idempotent ignore editing | Per-host copies; invoke lifecycle install when state is absent | Copies drift; installation is broader than state initialization and violates the accepted behavior |
 | Respect broader customer ignore rules | Evaluate whether existing gitignore patterns already cover the exact transient path; append the precise rule only when coverage is absent | Exact-line matching only; always append the precise rule | Exact-line matching creates redundant narrower rules; unconditional append changes customer files unnecessarily |
-| Extend the integration registry contract | Add runtime authority/ownership data and validate it at release time | New parallel delivery registry; host-name branches in lifecycle commands | A second registry duplicates authority; branching contradicts the accepted registry-driven architecture |
+| Keep lifecycle selection in the integration registry and validate native runtime authority separately | Continue deriving project delivery from each selected integration's declared project assets; use one narrow validator for packaged native catalogues | Add runtime-authority fields to every integration; create a second delivery registry; add host-name branches in lifecycle commands | Runtime authority is a release property of packaged catalogues, while the integration registry already owns project delivery. Combining them would widen the lifecycle model without improving the selection boundary. |
 
 ## Design alignment
 
@@ -63,6 +63,10 @@ Architecture decisions updated in place: `ARCHITECTURE.md` — “Registry-Drive
 ## Known deviations
 
 Concurrent first-use initialization by multiple host sessions is outside this epic's sequential lifecycle contract. The initializer is idempotent, but atomic multi-process coordination is deferred until observed concurrent mutation justifies it.
+
+OpenCode's installed dispatcher can be copied away from its profile directory, so it embeds the two canonical guard closures rather than resolving sibling source files at runtime. The build derives those closures from the canonical hook templates and copied-dispatcher tests execute them after relocation.
+
+The epic's scenarios use the repository's `@proof.vitest` manifest lane instead of duplicating existing command and lifecycle integration coverage as Cucumber glue. Both repository-root and package-local `test:bdd` entry points now execute the manifest-provenance gate, closing the package-local false-green that verification exposed.
 
 ## Doc impact
 

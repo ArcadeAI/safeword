@@ -78,6 +78,8 @@ const fixtureControlVariables = new Set([
 ]);
 const CHANGE_REQUEST_VERDICT = 'request_changes';
 const CHANGE_REQUEST_FINDING = 'Needs work.';
+const REAL_CLI_PROCESS_TIMEOUT_MS = 15_000;
+const REAL_CLI_STEP_TIMEOUT_MS = 20_000;
 const fixtureDirectories = new Set<string>();
 const trustedFixtureRoot = repoRoot;
 const ownedFixtureMarker = '.safeword-test-fixture';
@@ -823,6 +825,8 @@ async function runFixtureCli(
           XDG_CONFIG_HOME: nodePath.join(fixture.directory, '.config'),
           ...environment,
         },
+        timeout: REAL_CLI_PROCESS_TIMEOUT_MS,
+        killSignal: 'SIGKILL',
       },
     );
     return { stdout: result.stdout, stderr: result.stderr, exitCode: 0 };
@@ -975,17 +979,21 @@ function successfulModeArgumentName(mode: string): string {
   return mode === 'JSON' ? 'json' : mode;
 }
 
-When('successful review runs in {word} mode', async function (this: ReviewWorld, mode: string) {
-  assert.equal(this.cliFixtureReady, true);
-  const fixture = installStandardReviewerFixture();
-  this.singleCliMode = {
-    name: mode,
-    result: await runFixtureCli(
-      fixture,
-      fixtureArguments(successfulModeArgumentName(mode), fixture.directory),
-    ),
-  };
-});
+When(
+  'successful review runs in {word} mode',
+  { timeout: REAL_CLI_STEP_TIMEOUT_MS },
+  async function (this: ReviewWorld, mode: string) {
+    assert.equal(this.cliFixtureReady, true);
+    const fixture = installStandardReviewerFixture();
+    this.singleCliMode = {
+      name: mode,
+      result: await runFixtureCli(
+        fixture,
+        fixtureArguments(successfulModeArgumentName(mode), fixture.directory),
+      ),
+    };
+  },
+);
 
 Then(
   'successful {word} output preserves its channel contract',
@@ -1005,6 +1013,7 @@ Given(
 
 When(
   'a real {word} review with {word} verdict runs in {word} mode',
+  { timeout: REAL_CLI_STEP_TIMEOUT_MS },
   async function (this: ReviewWorld, coverage: string, verdict: string, mode: string) {
     assert.equal(this.cliFixtureReady, true);
     assert.ok(coverage === 'standard' || coverage === 'independent');
@@ -1150,15 +1159,19 @@ const realSchemaOutcomeRunners: Readonly<Record<string, () => Promise<CliExecuti
   exhausted: () => runRequiredFixture({ SAFEWORD_REVIEW_COVERAGE_FAIL: '1' }),
 };
 
-When('a real review ends as {word}', async function (this: ReviewWorld, outcome: string) {
-  assert.equal(this.cliFixtureReady, true);
-  const runOutcome = realSchemaOutcomeRunners[outcome];
-  assert.ok(runOutcome, `Unknown real review outcome: ${outcome}`);
-  const result = await runOutcome();
-  assert.equal(result.exitCode, outcome === 'approved' ? 0 : 2, JSON.stringify(result));
-  assert.equal(result.stderr, '');
-  this.json = result.stdout;
-});
+When(
+  'a real review ends as {word}',
+  { timeout: REAL_CLI_STEP_TIMEOUT_MS },
+  async function (this: ReviewWorld, outcome: string) {
+    assert.equal(this.cliFixtureReady, true);
+    const runOutcome = realSchemaOutcomeRunners[outcome];
+    assert.ok(runOutcome, `Unknown real review outcome: ${outcome}`);
+    const result = await runOutcome();
+    assert.equal(result.exitCode, outcome === 'approved' ? 0 : 2, JSON.stringify(result));
+    assert.equal(result.stderr, '');
+    this.json = result.stdout;
+  },
+);
 
 Given('isolated real CLI fixtures can require independent review', markCliFixtureReady);
 
@@ -1334,6 +1347,7 @@ function requiredOutcomeEnvironment(outcome: string): Record<string, string> {
 
 When(
   'required review runs with {word} in isolation',
+  { timeout: REAL_CLI_STEP_TIMEOUT_MS },
   async function (this: ReviewWorld, outcome: string) {
     assert.equal(this.cliFixtureReady, true);
     this.requiredOutcome = {
@@ -1356,6 +1370,7 @@ Then(
 
 When(
   'a blocked required review runs in {word} mode',
+  { timeout: REAL_CLI_STEP_TIMEOUT_MS },
   async function (this: ReviewWorld, mode: string) {
     assert.equal(this.cliFixtureReady, true);
     assert.ok(mode === 'quiet' || mode === 'JSON');
