@@ -15,6 +15,10 @@ export interface RetroTransferOptions {
 
 export type RetroTransferResult = 'empty' | 'retained' | 'transferred';
 
+export interface RetroTransferWorkerDependencies {
+  wait?: (milliseconds: number, signal: AbortSignal) => Promise<void>;
+}
+
 function authorization(secret: string): { authorization: string } {
   return { authorization: `Bearer ${secret}` };
 }
@@ -57,4 +61,37 @@ export async function transferOneRetro(
     },
   );
   return relayAccepted && lifecycleResponse.ok ? 'transferred' : 'retained';
+}
+
+function wait(milliseconds: number, signal: AbortSignal): Promise<void> {
+  return new Promise(resolve => {
+    const timer = setTimeout(resolve, milliseconds);
+    timer.unref();
+    signal.addEventListener(
+      'abort',
+      () => {
+        clearTimeout(timer);
+        resolve();
+      },
+      { once: true },
+    );
+  });
+}
+
+/** Drain continuously; idle and transient failures stay quiet and retry later. */
+export async function runRetroTransferWorker(
+  options: RetroTransferOptions,
+  signal: AbortSignal,
+  dependencies: RetroTransferWorkerDependencies = {},
+): Promise<void> {
+  const pause = dependencies.wait ?? wait;
+  while (!signal.aborted) {
+    let result: RetroTransferResult = 'retained';
+    try {
+      result = await transferOneRetro(options);
+    } catch {
+      // The collector remains authoritative; retry without terminating the service.
+    }
+    if (result !== 'transferred') await pause(1000, signal);
+  }
 }

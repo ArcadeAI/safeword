@@ -6,7 +6,7 @@ import path from 'node:path';
 import { afterEach, expect, it } from 'vitest';
 
 import { startPublicRetroCollector } from '../src/index.js';
-import { transferOneRetro } from '../src/worker.js';
+import { runRetroTransferWorker, transferOneRetro } from '../src/worker.js';
 
 const directories: string[] = [];
 
@@ -79,4 +79,28 @@ it('hands exact claimed bytes to the relay and completes collector ownership', a
   expect(result).toBe('transferred');
   expect(observedBody).toEqual(bytes);
   expect(empty.status).toBe(204);
+});
+
+it('keeps the worker alive across an unavailable collector', async () => {
+  const controller = new AbortController();
+  let waits = 0;
+
+  await runRetroTransferWorker(
+    {
+      collectorCredential: 'collector-secret',
+      collectorUrl: 'http://127.0.0.1:1',
+      relayCredential: 'relay-secret',
+      relayUrl: 'http://127.0.0.1:2',
+    },
+    controller.signal,
+    {
+      wait: () => {
+        waits += 1;
+        controller.abort();
+        return Promise.resolve();
+      },
+    },
+  );
+
+  expect(waits).toBe(1);
 });
