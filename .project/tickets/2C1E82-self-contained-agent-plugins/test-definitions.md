@@ -150,7 +150,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 419a73696
 - [x] GREEN 0cfc8ee95
-- [ ] REFACTOR
+- [x] REFACTOR skip: Git remains the single ignore-semantics authority; no custom matcher was introduced
 
 ### Scenario: An unwritable ignore file prevents unignored transient state
 
