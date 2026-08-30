@@ -30,7 +30,7 @@ function relayDisposition(status: number | undefined): {
   if (status !== undefined && status >= 200 && status < 300) {
     return { method: 'PUT', result: 'transferred' };
   }
-  if (status !== undefined && status >= 400 && status < 500 && status !== 429) {
+  if (status !== undefined && [400, 409, 413, 422].includes(status)) {
     return { method: 'PATCH', result: 'rejected' };
   }
   return { method: 'DELETE', result: 'retained' };

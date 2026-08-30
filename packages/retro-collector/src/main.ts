@@ -1,15 +1,28 @@
 import { startPublicRetroCollector } from './index.js';
+import { positiveInteger } from './runtime-config.js';
 
 const runtime = await startPublicRetroCollector({
   breakGlassCredential: process.env.SAFEWORD_PUBLIC_RETRO_BREAK_GLASS_CREDENTIAL,
   databasePath: process.env.SAFEWORD_PUBLIC_RETRO_DATABASE_PATH ?? '/data/public-retros.sqlite',
   collectorWorkerCredential: process.env.SAFEWORD_COLLECTOR_WORKER_CREDENTIAL,
-  filingLimitPerHour: Number(process.env.SAFEWORD_RETRO_FILING_PER_HOUR ?? 20),
+  filingLimitPerHour: positiveInteger(
+    process.env.SAFEWORD_RETRO_FILING_PER_HOUR,
+    20,
+    'SAFEWORD_RETRO_FILING_PER_HOUR',
+  ),
   host: process.env.HOST ?? '0.0.0.0',
-  intakeLimitPerMinute: Number(process.env.SAFEWORD_PUBLIC_RETRO_INTAKE_PER_MINUTE ?? 60),
+  intakeLimitPerMinute: positiveInteger(
+    process.env.SAFEWORD_PUBLIC_RETRO_INTAKE_PER_MINUTE,
+    60,
+    'SAFEWORD_PUBLIC_RETRO_INTAKE_PER_MINUTE',
+  ),
   operatorCredential: process.env.SAFEWORD_PUBLIC_RETRO_OPERATOR_CREDENTIAL,
-  port: Number(process.env.PORT ?? 3000),
-  projectFilingLimitPerHour: Number(process.env.SAFEWORD_RETRO_PROJECT_FILING_PER_HOUR ?? 5),
+  port: positiveInteger(process.env.PORT, 3000, 'PORT'),
+  projectFilingLimitPerHour: positiveInteger(
+    process.env.SAFEWORD_RETRO_PROJECT_FILING_PER_HOUR,
+    5,
+    'SAFEWORD_RETRO_PROJECT_FILING_PER_HOUR',
+  ),
 });
 
 const state = { stopping: false };

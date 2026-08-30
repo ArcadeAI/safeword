@@ -809,7 +809,7 @@ it.each([
   expect(claim.status).toBe(204);
 });
 
-it('releases and completes a lease without losing or resurrecting the request', async () => {
+it('releases a lease without immediately hot-looping the same request', async () => {
   const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
   temporaryDirectories.push(directory);
   const runtime = await startPublicRetroCollector({
@@ -833,22 +833,39 @@ it('releases and completes a lease without losing or resurrecting the request', 
     method: 'POST',
     headers: workerHeaders,
   });
-  const second = (await secondResponse.json()) as { leaseToken: string; requestId: string };
-  const completed = await fetch(`${runtime.url}/v1/private/retro-claims/${second.requestId}`, {
-    method: 'PUT',
-    headers: { ...workerHeaders, 'x-safeword-lease-token': second.leaseToken },
-  });
-  const empty = await fetch(`${runtime.url}/v1/private/retro-claims`, {
-    method: 'POST',
-    headers: workerHeaders,
-  });
   await runtime.close();
 
   expect(released.status).toBe(204);
-  expect(second.requestId).toBe(first.requestId);
-  expect(second.leaseToken).not.toBe(first.leaseToken);
-  expect(completed.status).toBe(204);
-  expect(empty.status).toBe(204);
+  expect(secondResponse.status).toBe(204);
+});
+
+it('lets newer accepted work pass a retained request during backoff', () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const store = new PublicRetroStore(path.join(directory, 'collector.sqlite'), { now: () => 0 });
+  const first = fixtureServerOwnedRequest();
+  const secondBody = encoded({
+    ...(JSON.parse(new TextDecoder().decode(first.body)) as Record<string, unknown>),
+    findings: ['second server-owned finding'],
+    sessionScope: 'a'.repeat(64),
+  });
+  store.accept(first.requestId, '9'.repeat(64), first.body, 'v3', 'project-a');
+  store.accept(
+    '22222222-3333-4444-8555-666666666666',
+    'a'.repeat(64),
+    secondBody,
+    'v3',
+    'project-b',
+  );
+
+  const retained = store.claim();
+  if (retained === undefined) throw new Error('expected first claim');
+  store.release(retained.requestId, retained.leaseToken);
+  const next = store.claim();
+  store.close();
+
+  expect(retained.requestId).toBe(first.requestId);
+  expect(next?.requestId).toBe('22222222-3333-4444-8555-666666666666');
 });
 
 it('dead-letters and alerts a relay-rejected lease', async () => {

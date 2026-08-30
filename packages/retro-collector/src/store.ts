@@ -16,7 +16,9 @@ interface StoredPublicRetro {
 
 interface StoredServerRetro {
   accepted_at: string;
+  attempts: number;
   body_digest: string;
+  next_attempt_at: number;
   raw_body: Uint8Array;
   receipt: string;
   request_id: string;
@@ -87,7 +89,8 @@ export class PublicRetroStore {
         attempts INTEGER NOT NULL DEFAULT 0,
         completed_at TEXT,
         dead_lettered_at TEXT,
-        terminal_reason TEXT
+        terminal_reason TEXT,
+        next_attempt_at INTEGER NOT NULL DEFAULT 0
       ) STRICT;
       CREATE TABLE IF NOT EXISTS intake_events (
         request_id TEXT PRIMARY KEY,
@@ -114,6 +117,14 @@ export class PublicRetroStore {
         created_at TEXT NOT NULL
       ) STRICT;
     `);
+    const serverColumns = this.#database.prepare('PRAGMA table_info(server_retros)').all() as {
+      name: string;
+    }[];
+    if (serverColumns.every(column => column.name !== 'next_attempt_at')) {
+      this.#database.exec(
+        'ALTER TABLE server_retros ADD COLUMN next_attempt_at INTEGER NOT NULL DEFAULT 0',
+      );
+    }
   }
 
   private acceptServer(
@@ -206,6 +217,26 @@ export class PublicRetroStore {
     return true;
   }
 
+  private deadLetterRetryExpired(stored: StoredServerRetro, now: number): boolean {
+    if (stored.attempts === 0 || Date.parse(stored.accepted_at) > now - 86_400_000) return false;
+    const deadLetteredAt = new Date(now).toISOString();
+    this.#database
+      .prepare(
+        `UPDATE server_retros
+            SET dead_lettered_at = ?, terminal_reason = 'retry_exhausted'
+          WHERE request_id = ? AND completed_at IS NULL AND dead_lettered_at IS NULL`,
+      )
+      .run(deadLetteredAt, stored.request_id);
+    this.#database
+      .prepare(
+        `INSERT INTO operator_alerts (request_id, code, created_at)
+         VALUES (?, 'retry_exhausted', ?)
+         ON CONFLICT (request_id) DO NOTHING`,
+      )
+      .run(stored.request_id, deadLetteredAt);
+    return true;
+  }
+
   accept(
     requestId: string,
     sessionScope: string,
@@ -266,16 +297,18 @@ export class PublicRetroStore {
     try {
       const candidates = this.#database
         .prepare(
-          `SELECT request_id, raw_body, receipt, accepted_at, body_digest, project_uuid
+          `SELECT request_id, raw_body, receipt, accepted_at, body_digest, project_uuid,
+                  attempts, next_attempt_at
              FROM server_retros
             WHERE completed_at IS NULL
               AND dead_lettered_at IS NULL
+              AND next_attempt_at <= ?
               AND (lease_token IS NULL OR lease_expires_at <= ?)
-            ORDER BY accepted_at, request_id
-            LIMIT 100`,
+            ORDER BY next_attempt_at, accepted_at, request_id`,
         )
-        .all(now) as unknown as StoredServerRetro[];
+        .all(now, now) as unknown as StoredServerRetro[];
       const stored = candidates.find(candidate => {
+        if (this.deadLetterRetryExpired(candidate, now)) return false;
         if (this.hasFilingCapacity(candidate, now)) return true;
         this.deadLetterQuotaBlocked(candidate, now);
         return false;
@@ -379,10 +412,11 @@ export class PublicRetroStore {
       const result = this.#database
         .prepare(
           `UPDATE server_retros
-            SET lease_token = NULL, lease_expires_at = NULL
+            SET lease_token = NULL, lease_expires_at = NULL,
+                next_attempt_at = ?
           WHERE request_id = ? AND lease_token = ? AND completed_at IS NULL`,
         )
-        .run(requestId, leaseToken);
+        .run(this.#now() + 60_000, requestId, leaseToken);
       if (result.changes === 1) {
         this.#database
           .prepare("DELETE FROM filing_reservations WHERE request_id = ? AND state = 'reserved'")

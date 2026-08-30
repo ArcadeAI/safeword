@@ -81,6 +81,62 @@ it('hands exact claimed bytes to the relay and completes collector ownership', a
   expect(empty.status).toBe(204);
 });
 
+it.each([401, 403, 404])('retains accepted work when the relay returns %i', async status => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-worker-'));
+  directories.push(directory);
+  const collector = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+    collectorWorkerCredential: 'collector-secret',
+    operatorCredential: 'operator-secret',
+  });
+  const body = JSON.stringify({
+    version: 'v3',
+    findings: ['retained fixture'],
+    source: {
+      harness: 'codex',
+      hostClass: 'local',
+      projectUUID: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      safewordCliVersion: '0.82.1',
+    },
+    sessionScope: 'c'.repeat(64),
+  });
+  await fetch(`${collector.url}/v1/public-retros`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json; charset=utf-8',
+      'x-safeword-request-id': 'cccccccc-dddd-4eee-8fff-aaaaaaaaaaaa',
+    },
+    body,
+  });
+  const relay = createServer((_request, response) => {
+    response.statusCode = status;
+    response.end();
+  });
+  await new Promise<void>(resolve => relay.listen(0, '127.0.0.1', resolve));
+  const address = relay.address();
+  if (address === null || typeof address === 'string') throw new Error('relay did not bind');
+
+  const result = await transferOneRetro({
+    collectorCredential: 'collector-secret',
+    collectorUrl: collector.url,
+    relayCredential: 'relay-secret',
+    relayUrl: `http://127.0.0.1:${address.port}`,
+  });
+  const lifecycle = await fetch(`${collector.url}/v1/private/retros`, {
+    headers: { authorization: 'Bearer operator-secret' },
+  });
+  const records = (await lifecycle.json()) as { retros: { state: string }[] };
+  await collector.close();
+  await new Promise<void>(resolve =>
+    relay.close(() => {
+      resolve();
+    }),
+  );
+
+  expect(result).toBe('retained');
+  expect(records.retros).toEqual([expect.objectContaining({ state: 'queued' })]);
+});
+
 it('dead-letters a permanent relay rejection and transfers the next retro', async () => {
   const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-worker-'));
   directories.push(directory);
