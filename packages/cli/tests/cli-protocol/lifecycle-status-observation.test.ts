@@ -33,12 +33,12 @@ vi.mock('../../src/codex-plugin/operations.js', async () => {
 });
 
 describe('lifecycle profile observation', () => {
-  it('installs the shared proof-identity bridge for a Codex-only project', () => {
+  it('keeps a Codex-only project free of project-delivered executable runtime', () => {
     const schema = projectLifecycleSchema(createTemporaryDirectory(), ['codex']);
 
-    expect(schema.ownedFiles['.safeword/hooks/lib/cursor-run-identity.ts']).toEqual({
-      template: 'hooks/lib/cursor-run-identity.ts',
-    });
+    expect(Object.keys(schema.ownedFiles).filter(path => isSharedAgentRuntimePath(path))).toEqual(
+      [],
+    );
   });
 
   it('drops the shared .safeword hooks|skills|scripts|guides|templates runtime for a Claude-only project', () => {
@@ -78,18 +78,17 @@ describe('lifecycle profile observation', () => {
     expect(Object.keys(schema.jsonMerges).some(path => path.startsWith('.claude/'))).toBe(true);
   });
 
-  it('preserves legacy Claude skills when only OpenCode is uninstalled', () => {
+  it('keeps an OpenCode-only install free of Claude and shared project runtime', () => {
     const cwd = createTemporaryDirectory();
-    const settings = nodePath.join(cwd, '.claude/settings.json');
-    mkdirSync(nodePath.dirname(settings), { recursive: true });
-    writeFileSync(settings, '{ retained legacy configuration');
-
     const installSchema = projectLifecycleSchema(cwd, ['opencode'], 'install');
-    const uninstallSchema = projectLifecycleSchema(cwd, ['opencode'], 'uninstall');
 
-    expect(installSchema.ownedFiles['.claude/skills/bdd/SKILL.md']).toBeDefined();
-    expect(uninstallSchema.ownedFiles['.claude/skills/bdd/SKILL.md']).toBeUndefined();
-    expect(uninstallSchema.ownedFiles['.opencode/commands/bdd.md']).toBeDefined();
+    expect(
+      Object.keys(installSchema.ownedFiles).filter(path => path.startsWith('.claude/')),
+    ).toEqual([]);
+    expect(
+      Object.keys(installSchema.ownedFiles).filter(path => isSharedAgentRuntimePath(path)),
+    ).toEqual([]);
+    expect(installSchema.ownedFiles['.opencode/commands/bdd.md']).toBeDefined();
   });
 
   it('keeps the shared runtime when no agent is selected', () => {
