@@ -149,7 +149,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: A broader customer ignore rule is preserved without adding a narrower duplicate
 
 - [x] RED 419a73696
-- [ ] GREEN
+- [x] GREEN 0cfc8ee95
 - [ ] REFACTOR
 
 ### Scenario: An unwritable ignore file prevents unignored transient state
