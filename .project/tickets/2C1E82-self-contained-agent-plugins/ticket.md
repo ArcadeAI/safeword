@@ -2,7 +2,7 @@
 id: 2C1E82
 slug: self-contained-agent-plugins
 type: epic
-phase: implement
+phase: verify
 status: in_progress
 children: ['V2AH4B', 'KDED4X', 'SF0RS0', 'GJB22B', 'JNZ2H5', '1DZ9W8']
 phase_anchors:
@@ -23,7 +23,7 @@ done_when:
   - Single-agent and mixed-agent plans contain only declared selected-host requirements.
   - Release coverage rejects undeclared project-local executable references from native plugins.
 created: 2026-08-18T16:58:37.428Z
-last_modified: 2026-08-30T05:40:00.000Z
+last_modified: 2026-08-30T17:23:00.000Z
 ---
 
 # Make each agent's plugin fully self-contained
@@ -45,3 +45,4 @@ last_modified: 2026-08-30T05:40:00.000Z
 - 2026-08-30T04:00:00.000Z Scenario review requested changes: closed three blocking vacuous/lineage gaps and strengthened recovery, surface, enrollment, version, ignore, persona, and partition coverage before re-review.
 - 2026-08-30T05:18:00.000Z Scenario gate approved by an independent Claude Opus review after proving per-host runtime authority, lazy state and ignore hygiene, selection-scoped reconciliation, and safe migration boundaries. Advanced to implementation planning.
 - 2026-08-30T05:40:00.000Z Implementation plan approved by an independent Claude Opus review after tightening Cursor/OpenCode authority proof, failure containment, legacy precedence, ignore ordering, principles alignment, and child-ticket reconciliation. Advanced to outside-in implementation.
+- 2026-08-30T17:23:00.000Z Implementation complete: native Codex, Claude Code, and OpenCode workflows now execute from packaged authorities; Cursor retains its complete project authority; selected-agent reconciliation omits unselected runtimes; missing transient state and precise ignore rules initialize lazily after enrollment. Focused implementation and release-contract lanes passed, and the final independent Claude Opus quality review approved the delivery after its blocking findings were resolved. Advanced to verification.
