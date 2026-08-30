@@ -169,7 +169,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: A single-agent plan contains no other agent delivery
 
 - [x] RED 46918e4b0
-- [ ] GREEN
+- [x] GREEN 90e1090b8
 - [ ] REFACTOR
 
 ### Scenario: A plugin-backed agent plan contains no project runtime copy
