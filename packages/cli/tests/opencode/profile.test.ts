@@ -286,6 +286,20 @@ describe('OpenCode profile boundary', () => {
     expect(existsSync(otherPath)).toBe(false);
   });
 
+  it('preserves a colliding plugin through the packaged install path', () => {
+    const root = temporaryDirectory();
+    const paths = openCodeProfilePaths(root);
+    mkdirSync(nodePath.dirname(paths.plugin), { recursive: true });
+    writeFileSync(paths.plugin, 'unrecognized user bytes\n');
+
+    const result = installOpenCodeProfile(root);
+
+    expect(result.state).toBe('action_required');
+    expect(readFileSync(paths.plugin, 'utf8')).toBe('unrecognized user bytes\n');
+    expect(existsSync(paths.identity)).toBe(false);
+    expect(existsSync(paths.dispatcher)).toBe(false);
+  });
+
   it('publishes and removes one recognized profile under the shared lock', () => {
     const root = temporaryDirectory();
     const paths = openCodeProfilePaths(root);

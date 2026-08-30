@@ -896,6 +896,7 @@ function terminalUnlessDispatcherNeedsRepair(
   observation: ProfileObservation,
 ): CliResult | undefined {
   const terminal = terminalObservationResult(observation, input.operation);
+  if (terminal?.state !== 'healthy') return terminal;
   return input.operation === 'install' &&
     (!dispatcherMatchesExpected(paths, input) || !catalogueMatchesExpected(input))
     ? undefined

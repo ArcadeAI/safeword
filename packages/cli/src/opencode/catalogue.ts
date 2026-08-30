@@ -94,20 +94,3 @@ export function generateOpenCodeCatalogueAssets(
     left.relativePath.localeCompare(right.relativePath),
   );
 }
-
-export const OPENCODE_CATALOGUE_OWNED_FILES = Object.fromEntries([
-  ...CURSOR_COMMAND_WRAPPERS.map(
-    command =>
-      [
-        `.opencode/commands/${command.name}.md`,
-        { content: (): string => renderOpenCodeCommand(command) },
-      ] as const,
-  ),
-  ...SAFEWORD_SUBAGENTS.map(
-    agent =>
-      [
-        `.opencode/agents/${agent.name}.md`,
-        { content: (): string => renderOpenCodeAgent(agent) },
-      ] as const,
-  ),
-]);
