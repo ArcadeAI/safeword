@@ -198,7 +198,38 @@ describe('generated Codex plugin catalogue', () => {
     }
   });
 
-  it('rewrites resolve-namespace-root.ts invocations to the bundled namespace-root subcommand', () => {
+  it('sources audit scope from the pinned package instead of a project runtime', () => {
+    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-plugin-audit-scope-'));
+    const canonicalSkillsDirectory = nodePath.join(fixture, 'skills');
+    try {
+      mkdirSync(nodePath.join(canonicalSkillsDirectory, 'audit'), { recursive: true });
+      writeFileSync(
+        nodePath.join(canonicalSkillsDirectory, 'audit/SKILL.md'),
+        [
+          '---',
+          'name: audit',
+          'description: Audit changes',
+          '---',
+          '',
+          '```bash',
+          'source "$PROJECT_DIR/.safeword/hooks/lib/audit-scope.sh"',
+          'audit_scope_initialize "$PROJECT_DIR"',
+          '```',
+          '',
+        ].join('\n'),
+      );
+
+      const content =
+        generateCodexPluginAssets(canonicalSkillsDirectory, '1.2.3')[0]?.content ?? '';
+
+      expect(content).toContain('source <(bunx --bun safeword@1.2.3 project audit-scope)');
+      expect(content).not.toContain('.safeword/hooks/lib/audit-scope.sh');
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
+  it('rewrites resolve-namespace-root.ts invocations to the pinned namespace-root subcommand', () => {
     const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-plugin-ns-root-'));
     const canonicalSkillsDirectory = nodePath.join(fixture, 'skills');
     try {
