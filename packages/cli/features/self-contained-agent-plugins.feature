@@ -11,20 +11,12 @@ Feature: Every agent delivery is self-contained
       Given a project selects only <agent>
       When the Technical Builder previews project reconciliation
       Then the plan reports the <agent> profile as the workflow entry point
-      And the plan contains no profile or project delivery for any unselected agent
 
       Examples:
         | agent       |
         | Codex       |
         | Claude Code |
         | OpenCode    |
-
-    @surface.safeword-cli @surface.cursor
-    Scenario: Cursor retains its complete selected project authority
-      Given a project selects only Cursor
-      When the Technical Builder previews project reconciliation
-      Then the plan contains Cursor's declared project hooks, rules, commands, and skills
-      And it contains no Claude Code, Codex, or OpenCode project delivery
 
     @surface.openai-codex
     Scenario: A packaged shared-shell helper executes without project runtime
@@ -104,7 +96,7 @@ Feature: Every agent delivery is self-contained
     @rejection @shared-project-state @surface.safeword-cli
     Scenario Outline: Lifecycle state respects explicit enrollment
       Given a repository with a profile plugin is <enrollment>
-      When a Safeword lifecycle event observes project activity
+      When a Safeword lifecycle event records framework-owned state
       Then <state outcome>
 
       Examples:
@@ -167,12 +159,17 @@ Feature: Every agent delivery is self-contained
   @self-contained-plugins.SWM1.R1
   Rule: self-contained-plugins.SWM1.R1 — Package and profile ownership is enforced at release and reconciliation boundaries
 
-    @surface.safeword-cli @surface.openai-codex @surface.claude-code @surface.opencode
-    Scenario: Complete native catalogues pass executable-reference validation
-      Given generated Codex, Claude Code, and OpenCode catalogues use their packaged authorities
+    @surface.safeword-cli @surface.openai-codex @surface.claude-code @surface.opencode @surface.cursor
+    Scenario: Complete agent catalogues pass executable-reference validation
+      Given generated Codex, Claude Code, OpenCode, and Cursor catalogues use their declared authorities
       When the maintainer runs release validation
-      Then all three catalogues pass runtime-authority validation
-      And Codex helper invocations name the pinned plugin package version
+      Then all four catalogues pass runtime-authority validation
+
+    @rejection @surface.openai-codex
+    Scenario: An unpinned Codex helper blocks release
+      Given a generated Codex helper invocation omits the pinned plugin package version
+      When the maintainer runs release validation
+      Then validation fails and names the unpinned catalogue asset
 
     @surface.opencode
     Scenario: OpenCode profile identity records the complete owned catalogue
@@ -183,6 +180,12 @@ Feature: Every agent delivery is self-contained
     @rejection @surface.safeword-cli
     Scenario: A project-runtime reference blocks native plugin release
       Given a native catalogue contains a project-local executable reference
+      When the maintainer validates its runtime authority
+      Then validation fails and names the offending catalogue asset
+
+    @rejection @surface.cursor
+    Scenario: A cross-host executable reference blocks Cursor release
+      Given a Cursor catalogue asset references a Claude Code executable
       When the maintainer validates its runtime authority
       Then validation fails and names the offending catalogue asset
 

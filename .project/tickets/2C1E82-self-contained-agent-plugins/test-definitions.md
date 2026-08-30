@@ -12,12 +12,6 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN 90e1090b8
 - [x] REFACTOR skip: selection is expressed by the existing schema projection rather than host branches
 
-### Scenario: Cursor retains its complete selected project authority
-
-- [x] RED 46918e4b0
-- [x] GREEN 90e1090b8
-- [x] REFACTOR skip: Cursor remains the sole project-runtime consumer
-
 ### Scenario: A packaged shared-shell helper executes without project runtime
 
 - [x] RED 7d4d3af5b
@@ -108,11 +102,17 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: self-contained-plugins.SWM1.R1 — Package and profile ownership is enforced at release and reconciliation boundaries
 
-### Scenario: Complete native catalogues pass executable-reference validation
+### Scenario: Complete agent catalogues pass executable-reference validation
 
 - [x] RED d7fb488ee
 - [x] GREEN f7f4cd053
 - [x] REFACTOR skip: the three native catalogues share one narrow authority validator
+
+### Scenario: An unpinned Codex helper blocks release
+
+- [x] RED d7fb488ee
+- [x] GREEN 6d13e53cc
+- [x] REFACTOR skip: the release catalogue comparison already owns version-pin drift
 
 ### Scenario: OpenCode profile identity records the complete owned catalogue
 
@@ -125,6 +125,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] RED d7fb488ee
 - [x] GREEN 6d13e53cc
 - [x] REFACTOR skip: one diagnostic lists all offending assets
+
+### Scenario: A cross-host executable reference blocks Cursor release
+
+- [x] RED 46918e4b0
+- [x] GREEN 90e1090b8
+- [x] REFACTOR skip: Cursor parity derives executables only from its declared project authority
 
 ### Scenario: OpenCode upgrade removes only prior identity-owned catalogue bytes
 

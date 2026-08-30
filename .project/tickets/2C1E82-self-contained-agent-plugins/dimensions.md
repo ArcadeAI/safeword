@@ -18,6 +18,8 @@ skip: Cross-host package-reference syntax is host-specific and already rejected 
 
 skip: Filesystem permission failures are platform policy rather than a Safeword behavior partition; durable writes surface the underlying failure and never trigger installation fallback.
 
+skip: OpenCode is the representative identity-owned profile lifecycle because Codex and Claude Code use their hosts' package managers rather than Safeword-managed profile asset identities.
+
 ## Boundary reconciliation
 
 - **Zero project runtime files for plugin-backed hosts** and **only the selected project authority for project-delivered hosts** are the load-bearing cold-start boundaries.
