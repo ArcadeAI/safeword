@@ -553,6 +553,57 @@ it('does not expose record or collection metadata to anonymous callers', async (
   expect(bodies).toEqual(Array.from({ length: 4 }, () => ({ error: 'not_found' })));
 });
 
+it('denies anonymous access to private lifecycle, payload, and claim routes', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    breakGlassCredential: 'break-glass-secret',
+    collectorWorkerCredential: 'worker-secret',
+    databasePath: path.join(directory, 'collector.sqlite'),
+    operatorCredential: 'operator-secret',
+  });
+  const request = fixtureServerOwnedRequest();
+  await submit(runtime.url, request);
+
+  const responses = await Promise.all([
+    fetch(`${runtime.url}/v1/private/retros`),
+    fetch(`${runtime.url}/v1/private/retros/${request.requestId}/payload`),
+    fetch(`${runtime.url}/v1/private/retro-claims`, { method: 'POST' }),
+  ]);
+  await runtime.close();
+
+  expect(responses.map(response => response.status)).toEqual([404, 404, 404]);
+  await expect(Promise.all(responses.map(response => response.json()))).resolves.toEqual([
+    { error: 'not_found' },
+    { error: 'not_found' },
+    { error: 'not_found' },
+  ]);
+});
+
+it.each([
+  ['v1', fixtureRequest],
+  ['v2', fixtureBatchRequest],
+] as const)(
+  'keeps accepted %s quarantine records out of worker leases',
+  async (_version, build) => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+    temporaryDirectories.push(directory);
+    const runtime = await startPublicRetroCollector({
+      collectorWorkerCredential: 'worker-secret',
+      databasePath: path.join(directory, 'collector.sqlite'),
+    });
+    const accepted = await submit(runtime.url, build());
+    const claim = await fetch(`${runtime.url}/v1/private/retro-claims`, {
+      method: 'POST',
+      headers: { authorization: 'Bearer worker-secret' },
+    });
+    await runtime.close();
+
+    expect(accepted.status).toBe(201);
+    expect(claim.status).toBe(204);
+  },
+);
+
 it('does not acknowledge a submission when the quarantine store fails', async () => {
   const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
   temporaryDirectories.push(directory);
@@ -1267,7 +1318,7 @@ async function expectEnvelopeRejected(
 
 it.each([
   ['missing version', encoded({ ...fixtureEnvelope(), version: undefined })],
-  ['unknown version', encoded({ ...fixtureEnvelope(), version: 'v3' })],
+  ['unknown version', encoded({ ...fixtureEnvelope(), version: 'v4' })],
 ] as const)('rejects the %s without consuming its request identity', (_, body) =>
   expectEnvelopeRejected(body),
 );

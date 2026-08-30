@@ -420,9 +420,59 @@ describe('retry-safe retro relay', () => {
       requestId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
       tenantId: 'tenant-1',
     });
-    expect(stored?.acceptedAt).toBe('2026-08-29T20:00:00.000Z');
+    expect(stored?.acceptedAt).toBe('2026-08-28T20:00:00Z');
     expect(stored?.retryDeadlineAt).toBe('2026-08-30T20:00:00.000Z');
   });
+
+  it.each([
+    ['claude', ['file'], 'f'],
+    ['codex', ['file'], 'g'],
+    ['cursor', ['file'], 'h'],
+    ['operator', ['reconcile', 'operate'], 'i'],
+  ] as const)(
+    'denies the %s principal at collector ingest before GitHub access',
+    async (harness, roles, secretCharacter) => {
+      const setup = await fixture();
+      const credential = setup.registry.issue({
+        credentialId: `${harness}-without-ingest`,
+        harness,
+        installationId: 42,
+        repository: 'arcadeai/safeword',
+        roles: [...roles],
+        secret: secretCharacter.repeat(64),
+        subject: `${harness}-without-ingest`,
+        tenantId: 'tenant-1',
+      });
+      const body = Buffer.from(
+        JSON.stringify({
+          version: 'v3',
+          findings: ['Unauthorized collector ingest'],
+          source: {
+            harness: 'codex',
+            hostClass: 'local',
+            projectUUID: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+            safewordCliVersion: '0.82.1',
+          },
+          sessionScope: 'b'.repeat(64),
+        }),
+      );
+
+      const response = await fetch(`${setup.relay.url}/v1/collector-retros`, {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${credential}`,
+          'content-type': 'application/json; charset=utf-8',
+          'x-safeword-accepted-at': '2026-08-28T20:00:00Z',
+          'x-safeword-envelope-digest': createHash('sha256').update(body).digest('hex'),
+          'x-safeword-request-id': 'bbbbbbbb-cccc-4ddd-8eee-ffffffffffff',
+        },
+        body,
+      });
+
+      expect(response.status).toBe(403);
+      expect(setup.createBodies).toHaveLength(0);
+    },
+  );
 
   it('accepts the largest relay-compatible collector batch without truncating its body', async () => {
     const setup = await fixture();
