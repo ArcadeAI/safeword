@@ -54,6 +54,7 @@ Feature: Every agent delivery is self-contained
     @rejection @surface.openai-codex
     Scenario: An unavailable pinned package never falls back to project runtime
       Given an enrolled project cannot resolve the packaged workflow's pinned Safeword version
+      And the project contains a complete legacy runtime
       When the Technical Builder invokes the packaged Codex workflow
       Then the workflow reports the unavailable pinned package
       And no project installation, dependency change, or project-local runtime is proposed
@@ -86,10 +87,17 @@ Feature: Every agent delivery is self-contained
 
     @shared-project-state @surface.safeword-cli
     Scenario: First workflow state write reuses an existing framework directory
-      Given an enrolled project has a framework state directory but no transient state file
+      Given an enrolled project has a framework state directory with an unrelated sibling file but no transient state file
       When the Technical Builder invokes a state-writing packaged workflow for the first time
-      Then the existing framework directory remains intact
+      Then the unrelated sibling file remains byte-for-byte unchanged
       And the precise ignore rule and transient state file are created without installing Safeword
+
+    @rejection @shared-project-state @surface.safeword-cli
+    Scenario: Lazy state never invents missing authored knowledge or configuration
+      Given an enrolled project lacks authored knowledge and project configuration
+      When the Technical Builder invokes a state-writing packaged workflow
+      Then the workflow reports the missing authored inputs
+      And no authored knowledge or project configuration is created
 
     @shared-project-state @surface.safeword-cli
     Scenario: Lazy state initialization preserves customer ignore policy
@@ -148,7 +156,7 @@ Feature: Every agent delivery is self-contained
       Then the OpenCode profile receives its complete packaged catalogue
       And no OpenCode executable runtime is delivered into the project
 
-    @surface.safeword-cli @surface.openai-codex @surface.cursor
+    @surface.safeword-cli @surface.openai-codex @surface.claude-code @surface.opencode
     Scenario Outline: A native single-agent project schema excludes project delivery
       Given an uninitialized project selects only <agent>
       When the Non-Technical Builder previews Safeword installation
@@ -164,7 +172,7 @@ Feature: Every agent delivery is self-contained
         | Claude Code |
         | OpenCode    |
 
-    @surface.safeword-cli @surface.cursor
+    @surface.safeword-cli @surface.cursor @surface.openai-codex @surface.claude-code @surface.opencode
     Scenario: A Cursor-only project schema retains Cursor authority
       Given an uninitialized project selects only Cursor
       When the Non-Technical Builder previews Safeword installation
@@ -186,7 +194,7 @@ Feature: Every agent delivery is self-contained
         | Claude Code  |
         | OpenCode     |
 
-    @surface.safeword-cli
+    @surface.safeword-cli @surface.cursor @surface.openai-codex
     Scenario: Removing a native selection preserves Cursor and project content
       Given an enrolled project contains Cursor delivery, an obsolete Codex runtime copy, authored knowledge, and unrelated content
       When the Non-Technical Builder uninstalls only Codex

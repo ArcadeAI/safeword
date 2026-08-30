@@ -62,6 +62,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN ae4e417a5
 - [x] REFACTOR skip: recursive directory creation converges for present and absent parents
 
+### Scenario: Lazy state never invents missing authored knowledge or configuration
+
+- [x] RED ccb60ea0d
+- [x] GREEN ae4e417a5
+- [x] REFACTOR skip: lazy initialization is restricted to the framework state path
+
 ### Scenario: Lazy state initialization preserves customer ignore policy
 
 - [x] RED c201d29c3
@@ -190,8 +196,8 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 024bca4fe
 - [x] GREEN 570f86734
-- [x] REFACTOR skip: install and uninstall share the identity-bound drift predicate
+- [x] REFACTOR skip: upgrade fails closed through the identity-bound drift predicate
 
 ## Feature-level cross-scenario refactor
 
-- [x] cross-scenario ae4e417a5
+- [x] cross-scenario skip: the shared state helper and profile reconciler already provide the narrow common seams
