@@ -2,11 +2,11 @@
 id: V2AH4B
 slug: codex-self-contained-scripts
 type: task
-phase: intake
-status: in_progress
+phase: done
+status: done
 parent: 2C1E82
 created: 2026-08-18T16:58:46.360Z
-last_modified: 2026-08-18T16:58:46.360Z
+last_modified: 2026-08-30T08:00:00.000Z
 ---
 
 # Let Codex skills run without project-local .safeword scripts
@@ -19,3 +19,4 @@ last_modified: 2026-08-18T16:58:46.360Z
 
 - 2026-08-18T16:58:46.360Z Started: Created ticket V2AH4B
 - 2026-08-19T21:56:00.000Z Shipped a scoped-down first slice: `catalogue.ts` now rewrites `bun .safeword/hooks/run-review.ts ...` to `bunx --bun safeword@<version> review run ...` at generation time, across all 5 skill occurrences (bdd/SKILL.md, quality-review/SKILL.md, review-spec/SKILL.md, bdd/TDD.md, bdd/PLAN_IMPLEMENTATION.md). Independent Codex review (`review run quality-review`) confirmed the change itself is sound; it also surfaced 3 pre-existing, unrelated catalogue bugs (exact-match validation only checks `.md` files, unsafe global-replace reference rewriting, Markdown table alignment/trailing-pipe loss) — spun off as a separate background task rather than fixed inline, to avoid scope creep. Committed as d12172b4d. The other 10 project-local scripts (write-review-stamp.ts, record-skill-invocation.ts, closeout-cleanup.ts, cleanup-zombies.sh, lib/audit-scope.sh, resolve-project-knowledge.ts, resolve-namespace-root.ts, resolve-verify-ticket.ts, audit-principle-trace.ts, lib/drain-retro-spool.ts) remain out of scope for this slice — each needs either a new public CLI subcommand built or carries session-identity-bridging risk via codex-hook.ts's literal string matching on `write-review-stamp.ts`/`record-skill-invocation.ts` invocation text. Follow-up tickets for those not yet drafted.
+- 2026-08-30T08:00:00.000Z Completed by epic 2C1E82: every remaining Codex skill helper resolves through a version-pinned packaged CLI entry point, and release validation rejects project-runtime references.
