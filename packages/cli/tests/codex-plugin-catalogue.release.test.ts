@@ -229,6 +229,38 @@ describe('generated Codex plugin catalogue', () => {
     }
   });
 
+  it('records skill invocation through the pinned package instead of a project helper', () => {
+    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-plugin-invocation-'));
+    const canonicalSkillsDirectory = nodePath.join(fixture, 'skills');
+    try {
+      mkdirSync(nodePath.join(canonicalSkillsDirectory, 'verify'), { recursive: true });
+      writeFileSync(
+        nodePath.join(canonicalSkillsDirectory, 'verify/SKILL.md'),
+        [
+          '---',
+          'name: verify',
+          'description: Verify work',
+          '---',
+          '',
+          '```bash',
+          'bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" verify "${CLAUDE_SESSION_ID:-}"',
+          '```',
+          '',
+        ].join('\n'),
+      );
+
+      const content =
+        generateCodexPluginAssets(canonicalSkillsDirectory, '1.2.3')[0]?.content ?? '';
+
+      expect(content).toContain(
+        'bunx --bun safeword@1.2.3 project record-skill-invocation verify "${CLAUDE_SESSION_ID:-}"',
+      );
+      expect(content).not.toContain('.safeword/hooks/record-skill-invocation.ts');
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
   it('rewrites resolve-namespace-root.ts invocations to the pinned namespace-root subcommand', () => {
     const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-plugin-ns-root-'));
     const canonicalSkillsDirectory = nodePath.join(fixture, 'skills');
