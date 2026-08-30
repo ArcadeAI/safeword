@@ -7,6 +7,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { afterEach, expect, it } from 'vitest';
 
 import { startPublicRetroCollector } from '../src/index.js';
+import { PublicRetroStore } from '../src/store.js';
 
 const temporaryDirectories: string[] = [];
 
@@ -256,6 +257,41 @@ it('keeps lifecycle inspection payload-free and audits separate payload principa
   expect(new Uint8Array(await breakGlassPayload.arrayBuffer())).toEqual(request.body);
   expect(workerClaim.status).toBe(200);
   expect(audit).toEqual([{ principal: 'break-glass' }, { principal: 'collector-worker' }]);
+});
+
+it('dead-letters and alerts work blocked by filing quota for 24 hours', () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const databasePath = path.join(directory, 'collector.sqlite');
+  let now = 0;
+  const store = new PublicRetroStore(databasePath, {
+    filingLimitPerHour: 0,
+    now: () => now,
+  });
+  const request = fixtureServerOwnedRequest();
+  const envelope = JSON.parse(new TextDecoder().decode(request.body)) as {
+    sessionScope: string;
+    source: { projectUUID: string };
+  };
+  store.accept(
+    request.requestId,
+    envelope.sessionScope,
+    request.body,
+    'v3',
+    envelope.source.projectUUID,
+  );
+
+  now = 86_400_001;
+  expect(store.claim()).toBeUndefined();
+  expect(store.listLifecycle()).toEqual([
+    expect.objectContaining({ requestId: request.requestId, state: 'dead-lettered' }),
+  ]);
+  store.close();
+  const database = new DatabaseSync(databasePath);
+  const alerts = database.prepare('SELECT request_id, code FROM operator_alerts').all();
+  database.close();
+
+  expect(alerts).toEqual([{ request_id: request.requestId, code: 'quota_exhausted' }]);
 });
 
 it.each([

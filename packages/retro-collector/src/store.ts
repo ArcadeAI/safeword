@@ -49,7 +49,7 @@ export interface PublicRetroLifecycle {
   leaseExpiresAt?: number;
   receipt: string;
   requestId: string;
-  state: 'completed' | 'leased' | 'queued';
+  state: 'completed' | 'dead-lettered' | 'leased' | 'queued';
 }
 
 export class PublicRetroStore {
@@ -85,7 +85,9 @@ export class PublicRetroStore {
         lease_token TEXT,
         lease_expires_at INTEGER,
         attempts INTEGER NOT NULL DEFAULT 0,
-        completed_at TEXT
+        completed_at TEXT,
+        dead_lettered_at TEXT,
+        terminal_reason TEXT
       ) STRICT;
       CREATE TABLE IF NOT EXISTS intake_events (
         request_id TEXT PRIMARY KEY,
@@ -105,6 +107,11 @@ export class PublicRetroStore {
         request_id TEXT NOT NULL,
         principal TEXT NOT NULL,
         accessed_at TEXT NOT NULL
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS operator_alerts (
+        request_id TEXT PRIMARY KEY,
+        code TEXT NOT NULL,
+        created_at TEXT NOT NULL
       ) STRICT;
     `);
   }
@@ -146,7 +153,7 @@ export class PublicRetroStore {
           sessionScope,
           rawBody,
           receipt,
-          new Date().toISOString(),
+          new Date(now).toISOString(),
           createHash('sha256').update(rawBody).digest('hex'),
           projectUUID,
         );
@@ -177,6 +184,26 @@ export class PublicRetroStore {
       )
       .get(cutoff, stored.project_uuid) as { count: number };
     return project.count < this.#projectFilingLimitPerHour;
+  }
+
+  private deadLetterQuotaBlocked(stored: StoredServerRetro, now: number): boolean {
+    if (Date.parse(stored.accepted_at) > now - 86_400_000) return false;
+    const deadLetteredAt = new Date(now).toISOString();
+    this.#database
+      .prepare(
+        `UPDATE server_retros
+            SET dead_lettered_at = ?, terminal_reason = 'quota_exhausted'
+          WHERE request_id = ? AND completed_at IS NULL AND dead_lettered_at IS NULL`,
+      )
+      .run(deadLetteredAt, stored.request_id);
+    this.#database
+      .prepare(
+        `INSERT INTO operator_alerts (request_id, code, created_at)
+         VALUES (?, 'quota_exhausted', ?)
+         ON CONFLICT (request_id) DO NOTHING`,
+      )
+      .run(stored.request_id, deadLetteredAt);
+    return true;
   }
 
   accept(
@@ -234,7 +261,7 @@ export class PublicRetroStore {
     }
   }
 
-  claim(now = Date.now(), leaseMilliseconds = 60_000): ClaimedPublicRetro | undefined {
+  claim(now = this.#now(), leaseMilliseconds = 60_000): ClaimedPublicRetro | undefined {
     this.#database.exec('BEGIN IMMEDIATE;');
     try {
       const candidates = this.#database
@@ -242,12 +269,17 @@ export class PublicRetroStore {
           `SELECT request_id, raw_body, receipt, accepted_at, body_digest, project_uuid
              FROM server_retros
             WHERE completed_at IS NULL
+              AND dead_lettered_at IS NULL
               AND (lease_token IS NULL OR lease_expires_at <= ?)
             ORDER BY accepted_at, request_id
             LIMIT 100`,
         )
         .all(now) as unknown as StoredServerRetro[];
-      const stored = candidates.find(candidate => this.hasFilingCapacity(candidate, now));
+      const stored = candidates.find(candidate => {
+        if (this.hasFilingCapacity(candidate, now)) return true;
+        this.deadLetterQuotaBlocked(candidate, now);
+        return false;
+      });
       if (stored === undefined) {
         this.#database.exec('COMMIT;');
         return undefined;
@@ -288,7 +320,8 @@ export class PublicRetroStore {
   listLifecycle(): PublicRetroLifecycle[] {
     const rows = this.#database
       .prepare(
-        `SELECT request_id, receipt, accepted_at, attempts, lease_token, lease_expires_at, completed_at
+        `SELECT request_id, receipt, accepted_at, attempts, lease_token, lease_expires_at,
+                completed_at, dead_lettered_at
            FROM server_retros
           ORDER BY accepted_at, request_id`,
       )
@@ -296,6 +329,7 @@ export class PublicRetroStore {
       accepted_at: string;
       attempts: number;
       completed_at: string | null;
+      dead_lettered_at: string | null;
       lease_expires_at: number | null;
       lease_token: string | null;
       receipt: string;
@@ -304,6 +338,7 @@ export class PublicRetroStore {
     return rows.map(row => {
       let state: PublicRetroLifecycle['state'] = 'queued';
       if (row.completed_at !== null) state = 'completed';
+      else if (row.dead_lettered_at !== null) state = 'dead-lettered';
       else if (row.lease_token !== null) state = 'leased';
       return {
         acceptedAt: row.accepted_at,
