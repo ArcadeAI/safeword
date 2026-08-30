@@ -6,11 +6,12 @@ Feature: Every agent delivery is self-contained
   @self-contained-plugins.TBU1.R1
   Rule: self-contained-plugins.TBU1.R1 — Native plugin workflows do not borrow project or cross-host runtime
 
-    @surface.openai-codex @surface.claude-code @surface.opencode
+    @surface.safeword-cli @surface.openai-codex @surface.claude-code @surface.opencode
     Scenario Outline: A native agent selection resolves its profile entry point
       Given a project selects only <agent>
       When the Technical Builder previews project reconciliation
       Then the plan reports the <agent> profile as the workflow entry point
+      And the plan contains no profile or project delivery for any unselected agent
 
       Examples:
         | agent       |
@@ -18,7 +19,7 @@ Feature: Every agent delivery is self-contained
         | Claude Code |
         | OpenCode    |
 
-    @surface.cursor
+    @surface.safeword-cli @surface.cursor
     Scenario: Cursor retains its complete selected project authority
       Given a project selects only Cursor
       When the Technical Builder previews project reconciliation
@@ -52,7 +53,6 @@ Feature: Every agent delivery is self-contained
       Given an OpenCode profile has no Safeword catalogue
       When the Technical Builder installs Safeword with OpenCode selected
       Then the OpenCode profile holds the complete generated command, agent, skill, and reference catalogue
-      And the project receives no OpenCode or Claude compatibility catalogue
 
     @surface.claude-code
     Scenario: A packaged Claude workflow executes without project runtime
@@ -64,7 +64,7 @@ Feature: Every agent delivery is self-contained
   @self-contained-plugins.TBU1.R2
   Rule: self-contained-plugins.TBU1.R2 — Missing framework state initializes lazily after explicit enrollment
 
-    @shared-project-state @surface.safeword-cli
+    @shared-project-state @surface.safeword-cli @surface.openai-codex
     Scenario: First workflow state write creates its missing parent and precise ignore rule before state
       Given an enrolled project lacks the framework state directory, transient state file, and project ignore file
       When a state-writing packaged workflow first writes framework-owned state
@@ -117,7 +117,7 @@ Feature: Every agent delivery is self-contained
       Given a repository has no Safeword enrollment marker
       When the Technical Builder invokes a state-writing packaged workflow
       Then the workflow reports that explicit enrollment is required
-      And the workflow exits successfully and the agent session continues
+      And the workflow exits successfully without an approval prompt or blocking error
       And no project namespace or executable runtime is created
 
   @self-contained-plugins.NTB1.R1
@@ -128,6 +128,7 @@ Feature: Every agent delivery is self-contained
       Given an uninitialized project selects only <agent>
       When the Non-Technical Builder previews Safeword installation
       Then the installation plan includes the <agent> profile delivery
+      And the plan contains no profile or project delivery for any unselected agent
       And the project schema contains shared substrate and no project-delivered workflow authority
 
       Examples:
@@ -159,7 +160,7 @@ Feature: Every agent delivery is self-contained
     Scenario: Removing a native selection preserves Cursor and project content
       Given an enrolled project contains Cursor delivery, an obsolete Codex runtime copy, authored knowledge, and unrelated content
       When the Non-Technical Builder uninstalls only Codex
-      Then the obsolete Codex runtime copy is removed from the project plan
+      Then the obsolete Codex runtime copy is removed from the project
       And Cursor's project hooks, rules, commands, and skills remain present
       And authored knowledge, enrollment state, and unrelated content remain unchanged
 
@@ -191,6 +192,13 @@ Feature: Every agent delivery is self-contained
       When Safeword upgrades the profile delivery
       Then prior identity-owned assets are replaced by the current catalogue
       And unrelated profile content remains unchanged
+
+    @rejection @surface.opencode
+    Scenario: OpenCode upgrade preserves a drifted catalogue asset
+      Given an identity-owned OpenCode catalogue asset was edited after installation
+      When Safeword upgrades the profile delivery
+      Then upgrade reports managed-asset drift
+      And the edited asset and unrelated profile content remain unchanged
 
     @surface.opencode
     Scenario: OpenCode uninstall removes its recognized catalogue

@@ -144,6 +144,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN 570f86734
 - [x] REFACTOR skip: identity digests already bound the complete removal set
 
+### Scenario: OpenCode upgrade preserves a drifted catalogue asset
+
+- [x] RED 024bca4fe
+- [x] GREEN 570f86734
+- [x] REFACTOR skip: install and uninstall share the identity-bound drift predicate
+
 ## Feature-level cross-scenario refactor
 
 - [x] cross-scenario ae4e417a5
