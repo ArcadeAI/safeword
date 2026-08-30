@@ -17,6 +17,14 @@ import {
 const RESOLVER_COMMAND = REVIEW_KNOWLEDGE_RESOLVER;
 const BUNDLED_CLI = nodePath.resolve(import.meta.dirname, '../../codex-plugin/runtime/cli.js');
 const BUNDLED_PACKAGE = nodePath.resolve(import.meta.dirname, '../../codex-plugin/package.json');
+const CODEX_MARKETPLACE = JSON.parse(
+  readFileSync(
+    nodePath.resolve(import.meta.dirname, '../../../../.agents/plugins/marketplace.json'),
+    'utf8',
+  ),
+) as { name: string; plugins: { name: string }[] };
+const BUNDLED_VERSION = (JSON.parse(readFileSync(BUNDLED_PACKAGE, 'utf8')) as { version: string })
+  .version;
 
 /** The resolver each host's shipped procedure is expected to name. */
 function resolverFor(host: string): string {
@@ -67,25 +75,26 @@ function readEntrypoint(root: string, path: string, resolver: string): string {
  * materializes that exact cache layout and executes the generated command.
  */
 function followCodexResolverInstruction(projectDirectory: string, instructions: string) {
-  const match =
-    /(bun "\$\{CODEX_HOME:-\$HOME\/\.codex\}\/plugins\/cache\/safeword\/safeword\/(?<version>[\w.-]+)\/runtime\/cli\.js" project review-knowledge --json)/u.exec(
-      instructions,
-    );
-  expect(match?.[1], 'Codex procedure must name the versioned bundled CLI command').toBeDefined();
-  expect(match?.[1]).toContain(CODEX_REVIEW_KNOWLEDGE_RESOLVER);
+  const pluginName = CODEX_MARKETPLACE.plugins[0]?.name ?? '';
+  const command = `bun "\${CODEX_HOME:-$HOME/.codex}/plugins/cache/${CODEX_MARKETPLACE.name}/${pluginName}/${BUNDLED_VERSION}/runtime/cli.js" ${CODEX_REVIEW_KNOWLEDGE_RESOLVER} --json`;
+  expect(instructions, 'Codex procedure must use the shipped marketplace cache identity').toContain(
+    command,
+  );
 
   const codexHome = nodePath.join(projectDirectory, '.codex-home');
   const runtime = nodePath.join(
     codexHome,
-    'plugins/cache/safeword/safeword',
-    match?.groups?.version ?? '',
+    'plugins/cache',
+    CODEX_MARKETPLACE.name,
+    pluginName,
+    BUNDLED_VERSION,
     'runtime/cli.js',
   );
   mkdirSync(nodePath.dirname(runtime), { recursive: true });
   copyFileSync(BUNDLED_CLI, runtime);
   copyFileSync(BUNDLED_PACKAGE, nodePath.join(nodePath.dirname(runtime), '../package.json'));
 
-  return spawnSync(match?.[1] ?? '', {
+  return spawnSync(command, {
     cwd: projectDirectory,
     encoding: 'utf8',
     env: { ...process.env, CODEX_HOME: codexHome },

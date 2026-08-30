@@ -30,6 +30,7 @@ function writeReleaseFixture(projectDirectory: string, version: string): void {
   const hooks: Record<string, { hooks: { command: string }[] }[]> = {};
   mkdirSync(pluginDirectory, { recursive: true });
   mkdirSync(nodePath.join(projectDirectory, '.claude-plugin'), { recursive: true });
+  mkdirSync(nodePath.join(projectDirectory, '.agents', 'plugins'), { recursive: true });
 
   for (const [manifestEvent, cliEvent] of Object.entries(CODEX_EVENTS)) {
     hooks[manifestEvent] = [
@@ -47,6 +48,10 @@ function writeReleaseFixture(projectDirectory: string, version: string): void {
   writeFileSync(
     nodePath.join(projectDirectory, '.claude-plugin', 'marketplace.json'),
     JSON.stringify({ plugins: [{ version }] }),
+  );
+  writeFileSync(
+    nodePath.join(projectDirectory, '.agents', 'plugins', 'marketplace.json'),
+    JSON.stringify({ name: 'safeword', plugins: [{ name: 'safeword' }] }),
   );
   writeFileSync(nodePath.join(pluginDirectory, 'plugin.json'), JSON.stringify({ version }));
   writeFileSync(
@@ -142,5 +147,17 @@ describe('scripts/check-version-sync.ts', () => {
     const result = runGuard(projectDirectory);
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain('codex-runtime=1.2.2');
+  });
+
+  it('rejects marketplace identities that disagree with generated cache paths', () => {
+    writeReleaseFixture(projectDirectory, '1.2.3');
+    writeFileSync(
+      nodePath.join(projectDirectory, '.agents', 'plugins', 'marketplace.json'),
+      JSON.stringify({ name: 'renamed', plugins: [{ name: 'safeword' }] }),
+    );
+
+    const result = runGuard(projectDirectory);
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain('marketplace identity mismatch');
   });
 });

@@ -13,7 +13,13 @@ interface VersionManifest {
 }
 
 interface MarketplaceManifest {
+  name?: unknown;
   plugins?: VersionManifest[];
+}
+
+interface CodexMarketplaceManifest {
+  name?: unknown;
+  plugins?: Array<{ name?: unknown }>;
 }
 
 interface HooksManifest {
@@ -59,6 +65,7 @@ function getHookCommands(manifest: HooksManifest, event: string): string[] {
 
 const cli = readJson<VersionManifest>('packages/cli/package.json');
 const marketplace = readJson<MarketplaceManifest>('.claude-plugin/marketplace.json');
+const codexMarketplace = readJson<CodexMarketplaceManifest>('.agents/plugins/marketplace.json');
 const codexPlugin = readJson<VersionManifest>(
   'packages/cli/codex-plugin/.codex-plugin/plugin.json',
 );
@@ -78,6 +85,12 @@ const codexRuntimeVersion = readVersion(
   codexRuntimePackage.version,
   'packages/cli/codex-plugin/package.json',
 );
+
+if (codexMarketplace.name !== 'safeword' || codexMarketplace.plugins?.[0]?.name !== 'safeword') {
+  fail(
+    'Codex marketplace identity mismatch: generated skill commands require safeword/safeword cache segments.',
+  );
+}
 
 if (
   version !== marketplaceVersion ||

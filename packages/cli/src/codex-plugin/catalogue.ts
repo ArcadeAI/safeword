@@ -9,6 +9,8 @@ export interface GeneratedPluginAsset {
 }
 
 export const CODEX_SKILL_METADATA_LIMIT = 8000;
+export const CODEX_MARKETPLACE_NAME = 'safeword';
+export const CODEX_PLUGIN_NAME = 'safeword';
 
 interface CanonicalSkillMetadata extends Record<string, unknown> {
   name?: unknown;
@@ -211,7 +213,7 @@ const SCRIPT_REWRITES: readonly { readonly invocation: string; readonly replacem
 ];
 
 function codexBundledCliCommand(version: string): string {
-  return `bun "\${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/${version}/runtime/cli.js"`;
+  return `bun "\${CODEX_HOME:-$HOME/.codex}/plugins/cache/${CODEX_MARKETPLACE_NAME}/${CODEX_PLUGIN_NAME}/${version}/runtime/cli.js"`;
 }
 
 function adaptScriptInvocations(markdown: string, version: string): string {
@@ -494,7 +496,7 @@ export function generateCodexPluginAssets(
 }
 
 function skillMetadataLength(asset: GeneratedPluginAsset): number {
-  if (!asset.relativePath.endsWith(nodePath.join('SKILL.md'))) return 0;
+  if (nodePath.basename(asset.relativePath) !== 'SKILL.md') return 0;
   const frontmatter = readFrontmatter(asset.content);
   if (frontmatter === undefined) {
     throw new Error(`generated skill ${asset.relativePath} has no YAML frontmatter`);
