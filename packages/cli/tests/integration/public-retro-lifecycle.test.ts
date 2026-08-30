@@ -175,6 +175,16 @@ it('ships manual retro with a project-toolchain-independent CLI carrier', () => 
   expect(skill).not.toContain('bun run safeword');
 });
 
+it('ships the public retro metadata, exclusion, and opt-out disclosure', () => {
+  const guide = readFileSync(path.join(CLI_PACKAGE, 'templates/guides/retro.md'), 'utf8');
+
+  expect(guide).toContain('project UUID, repository identity, session scope, harness, host class');
+  expect(guide).toContain('available agent, model, SafeWord CLI, and plugin versions');
+  expect(guide).toContain('transcript or prompt text, tool output, file contents, secrets');
+  expect(guide).toContain('hostname, IP address, machine identifiers, or user identity');
+  expect(guide).toContain('safeword project public-retros off');
+});
+
 it('round-trips a current CLI envelope through the real collector unchanged', async () => {
   const project = mkdtempSync(path.join(tmpdir(), 'public-retro-round-trip-'));
   temporaryDirectories.push(project);
