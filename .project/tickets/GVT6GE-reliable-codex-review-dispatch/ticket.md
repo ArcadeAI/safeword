@@ -20,6 +20,7 @@ last_modified: 2026-08-30T16:08:00.000Z
 - 2026-08-30T15:42:30Z Found: Codex loaded the v0.82.2 skill, but initial review dispatch still used bunx and reused a partial temporary commander install. The v0.82.2 self-contained runtime fix only covers status recovery after REVIEW_PENDING.
 - 2026-08-30T15:42:30Z Decided: Bundle the standalone CLI in the Codex plugin and generate versioned plugin-cache invocations; reject global-PATH and bunx-repair designs because both retain external mutable state.
 - 2026-08-30T16:08:00Z Implemented: Generated the standalone runtime into the Codex plugin, routed hooks and generated skills through it, and added release-contract, parity, schema, BDD, and empty-cache execution coverage.
+- 2026-08-30T21:25:00Z Verified: Full tests, BDD acceptance, release contracts, lint, formatting, typechecks, builds, CLI contract, repository audit, refactor review, and independent quality review completed. Follow-up review found no release-relevant failure.
 
 ## Acceptance
 
