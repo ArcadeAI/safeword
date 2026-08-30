@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -92,6 +92,60 @@ describe('Codex plugin release contract', () => {
       rmSync(fixture, { recursive: true, force: true });
     }
   });
+
+  it('executes from the cache path reported by a real Codex plugin install', () => {
+    const root = nodePath.resolve(import.meta.dirname, '..');
+    const repoRoot = nodePath.resolve(root, '../..');
+    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-install-'));
+    const codexHome = nodePath.join(fixture, 'home');
+    const marketplaceRoot = nodePath.join(fixture, 'marketplace');
+    mkdirSync(codexHome, { recursive: true });
+    mkdirSync(nodePath.join(marketplaceRoot, '.agents/plugins'), { recursive: true });
+    mkdirSync(nodePath.join(marketplaceRoot, 'packages/cli'), { recursive: true });
+    cpSync(
+      nodePath.join(repoRoot, '.agents/plugins/marketplace.json'),
+      nodePath.join(marketplaceRoot, '.agents/plugins/marketplace.json'),
+    );
+    cpSync(
+      nodePath.join(root, 'codex-plugin'),
+      nodePath.join(marketplaceRoot, 'packages/cli/codex-plugin'),
+      {
+        recursive: true,
+      },
+    );
+
+    try {
+      const environment = { ...process.env, CODEX_HOME: codexHome };
+      const marketplaceAddResult = spawnSync(
+        'codex',
+        ['plugin', 'marketplace', 'add', marketplaceRoot, '--json'],
+        { encoding: 'utf8', env: environment },
+      );
+      expect(marketplaceAddResult.status, marketplaceAddResult.stderr).toBe(0);
+      const install = spawnSync(
+        'codex',
+        ['plugin', 'add', 'safeword', '--marketplace', 'safeword', '--json'],
+        { encoding: 'utf8', env: environment },
+      );
+      expect(install.status, install.stderr).toBe(0);
+
+      const installed = JSON.parse(install.stdout) as { installedPath: string; version: string };
+      expect(realpathSync(installed.installedPath)).toBe(
+        realpathSync(
+          nodePath.join(codexHome, 'plugins/cache/safeword/safeword', installed.version),
+        ),
+      );
+      const runtime = spawnSync(
+        'bun',
+        [nodePath.join(installed.installedPath, 'runtime/cli.js'), '--version'],
+        { encoding: 'utf8', env: environment },
+      );
+      expect(runtime.status, runtime.stderr).toBe(0);
+      expect(runtime.stdout.trim()).toBe(installed.version);
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  }, 15_000);
 
   it('includes the complete generated plugin in a Bun-packed archive', () => {
     const root = nodePath.resolve(import.meta.dirname, '..');

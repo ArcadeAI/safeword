@@ -549,6 +549,12 @@ function pluginAssetPaths(pluginDirectory: string): string[] {
 // where `bun run test:release` surfaces these errors.
 const REGENERATE_REMEDY =
   'Regenerate the catalogue: `bun run generate:codex-plugin` from packages/cli.';
+const UNBUNDLED_RUNTIME_HELPERS = [
+  '.safeword/hooks/run-review.ts',
+  '.safeword/hooks/resolve-project-knowledge.ts',
+  '.safeword/hooks/resolve-namespace-root.ts',
+  '.safeword/hooks/lib/drain-retro-spool.ts',
+] as const;
 
 /** Ensure the checked-in plugin is the exact allowed transformation of canonical skills. */
 export function assertCodexPluginCatalogue(
@@ -558,6 +564,14 @@ export function assertCodexPluginCatalogue(
 ): void {
   const expectedAssets = generateCodexPluginAssets(canonicalSkillsDirectory, version);
   assertCodexSkillMetadataBudget(expectedAssets);
+  for (const asset of expectedAssets) {
+    const residualHelper = UNBUNDLED_RUNTIME_HELPERS.find(helper => asset.content.includes(helper));
+    if (residualHelper !== undefined) {
+      throw new Error(
+        `Codex plugin asset retains unbundled runtime helper ${residualHelper}: ${asset.relativePath}\n${REGENERATE_REMEDY}`,
+      );
+    }
+  }
 
   const expectedPaths = expectedAssetPaths(expectedAssets);
   const actualPaths = pluginAssetPaths(pluginDirectory);
