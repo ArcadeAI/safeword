@@ -20,6 +20,7 @@ import {
   codexSkillMetadataCharacters,
   generateCodexPluginAssets,
 } from '../src/codex-plugin/catalogue.js';
+import { assertNativePluginRuntimeAuthority } from '../src/plugin-runtime-authority.js';
 import { VERSION as CLI_VERSION } from '../src/version.js';
 
 const CLI_ROOT = nodePath.resolve(import.meta.dirname, '..');
@@ -51,6 +52,22 @@ function expectedPluginAssets(): string[] {
 }
 
 describe('generated Codex plugin catalogue', () => {
+  it('rejects executable references to project-local runtime', () => {
+    expect(() => {
+      assertNativePluginRuntimeAuthority([
+        {
+          relativePath: 'skills/broken/SKILL.md',
+          content: 'Run `bun .safeword/hooks/run-review.ts review run quality-review`.\n',
+        },
+      ]);
+    }).toThrow('skills/broken/SKILL.md');
+  });
+
+  it('accepts the complete generated Codex catalogue', () => {
+    expect(() => {
+      assertNativePluginRuntimeAuthority(generateCodexPluginAssets(CANONICAL_SKILLS, CLI_VERSION));
+    }).not.toThrow();
+  });
   it('ships every canonical workflow and its supporting phase material', () => {
     const expectedAssets = expectedPluginAssets();
     const actualAssets = markdownFiles(PLUGIN_SKILLS);

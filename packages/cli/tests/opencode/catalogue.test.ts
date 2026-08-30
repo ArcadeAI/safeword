@@ -7,10 +7,12 @@ import { createResult } from '../../src/cli-protocol/result.js';
 import { CURSOR_COMMAND_WRAPPERS } from '../../src/cursor-wrappers.js';
 import { installLifecycle } from '../../src/lifecycle/commands.js';
 import {
+  generateOpenCodeCatalogueAssets,
   renderOpenCodeAgent,
   renderOpenCodeCommand,
   SAFEWORD_SUBAGENTS,
 } from '../../src/opencode/catalogue.js';
+import { assertNativePluginRuntimeAuthority } from '../../src/plugin-runtime-authority.js';
 import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.js';
 
 const temporaryDirectories: string[] = [];
@@ -28,6 +30,12 @@ afterEach(() => {
 });
 
 describe('OpenCode profile catalogue', () => {
+  it('contains no executable project-runtime references', () => {
+    const templatesRoot = nodePath.resolve(import.meta.dirname, '../../templates');
+    expect(() => {
+      assertNativePluginRuntimeAuthority(generateOpenCodeCatalogueAssets(templatesRoot));
+    }).not.toThrow();
+  });
   it('installs the complete native catalogue without project host files', async () => {
     const project = temporaryDirectory();
     const profile = temporaryDirectory();
