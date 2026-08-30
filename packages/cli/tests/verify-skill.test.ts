@@ -66,10 +66,14 @@ describe('verify.md artifact step (7PG694)', () => {
 describe('verify current-ticket resolution (#2083)', () => {
   it.each(allVerifySurfaces)(
     '%s runs the installed current-work resolver with the project root',
-    (_name, content) => {
-      expect(content).toMatch(
-        /bun "\$PROJECT_DIR\/\.safeword\/hooks\/resolve-verify-ticket\.ts" "\$PROJECT_DIR"/,
-      );
+    (name, content) => {
+      if (name === 'Codex plugin skill') {
+        expect(content).toContain('project runtime resolve-verify-ticket --cwd "$PROJECT_DIR" --');
+      } else {
+        expect(content).toMatch(
+          /bun "\$PROJECT_DIR\/\.safeword\/hooks\/resolve-verify-ticket\.ts" "\$PROJECT_DIR"/,
+        );
+      }
     },
   );
 });

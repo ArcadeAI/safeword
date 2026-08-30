@@ -15,13 +15,13 @@ Run a diff-scoped code audit. Execute checks and report results by severity.
 
 This skill is required before marking a feature ticket done. The line below appends a current-run entry to `skill-invocations.log` under the project namespace root (`.project/`, or legacy `.safeword-project/` where that exists) so the done-gate hook can verify $safeword:audit was actually invoked. Claude Code expands the `!` line automatically and passes `${CLAUDE_SESSION_ID}` when available. The helper also resolves Claude remote-container ids from the runtime environment, and on Cursor and Codex the pre-shell hook (beforeShellExecution / PreToolUse) bridges the session id to the helper — so on all three runtimes the fallback runs without hand-picking an id. Hand-writing audit results cannot produce this feature-gate proof.
 
-!`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && bunx --bun safeword@0.82.1 project record-skill-invocation --cwd "$PROJECT_DIR" audit "${CLAUDE_SESSION_ID:-}" || echo "[skill-invocation-log] FAILED - no current-run proof logged"`
+!`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && bunx --bun safeword@0.82.2 project record-skill-invocation --cwd "$PROJECT_DIR" audit "${CLAUDE_SESSION_ID:-}" || echo "[skill-invocation-log] FAILED - no current-run proof logged"`
 
 If no `[skill-invocation-log] audit ✓` line appears above, run this fallback before continuing:
 
 ```bash
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
-bunx --bun safeword@0.82.1 project record-skill-invocation --cwd "$PROJECT_DIR" audit "${CLAUDE_SESSION_ID:-}"
+bunx --bun safeword@0.82.2 project record-skill-invocation --cwd "$PROJECT_DIR" audit "${CLAUDE_SESSION_ID:-}"
 ```
 
 **If the automatic line or fallback prints `[skill-invocation-log] FAILED`, prints `no run identity`, or still does not print `audit ✓`**: a feature ticket can't be marked done without this proof — don't hand-write audit results as a substitute. Report the failure to the user (most likely cause: inline shell execution was denied, the runtime did not expose a usable run identity, or Bun could not run the installed helper) and ask them to resolve it before re-invoking $safeword:audit.
@@ -69,7 +69,7 @@ that ref. An invalid ref stops the audit instead of silently widening its scope.
 # same scope contract every executable audit block uses.
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
 cd "$PROJECT_DIR" || exit 1
-source <(bunx --bun safeword@0.82.1 project audit-scope)
+source <(bunx --bun safeword@0.82.2 project audit-scope)
 audit_scope_initialize "$PROJECT_DIR" || exit $?
 audit_scope_print
 
@@ -559,7 +559,7 @@ Changed project learnings in the resolved namespace root's `learnings/*.md` must
 
 ```bash
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
-source <(bunx --bun safeword@0.82.1 project audit-scope)
+source <(bunx --bun safeword@0.82.2 project audit-scope)
 audit_scope_initialize "$PROJECT_DIR" || exit $?
 NS_ROOT="$(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.0/runtime/cli.js" project namespace-root --cwd "$PROJECT_DIR")"
 
@@ -699,7 +699,7 @@ contract testable without turning semantic review into shell heuristics.
 ```bash
 # principle-trace-check — E010 objective trace integrity only.
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
-bunx --bun safeword@0.82.1 project runtime audit-principle-trace --cwd "$PROJECT_DIR"
+bunx --bun safeword@0.82.2 project runtime audit-principle-trace --cwd "$PROJECT_DIR"
 ```
 
 ### 7. Namespace Domain Docs
@@ -716,7 +716,7 @@ below verbatim, as ONE bash invocation.**
 # Class-2: observable facts only. Emits W008 (empty). Never writes the tree.
 cd "${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}" || exit 1
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
-source <(bunx --bun safeword@0.82.1 project audit-scope)
+source <(bunx --bun safeword@0.82.2 project audit-scope)
 audit_scope_initialize "$PROJECT_DIR" || exit $?
 
 # Resolve the namespace root (honors config paths.projectRoot in real runs).
