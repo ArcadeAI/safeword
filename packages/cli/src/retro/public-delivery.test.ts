@@ -320,7 +320,7 @@ describe('buildPublicRetroEnvelope', () => {
 
   it('delivers an already-sanitized finding within the original preparation deadline', async () => {
     const attemptsDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-public-retro-'));
-    const times = [999, 999, 999, 2998, 2998];
+    const times = [999, 999, 999, 999];
     try {
       const outcome = await deliverSanitizedPublicRetroFindings(
         {
@@ -339,7 +339,7 @@ describe('buildPublicRetroEnvelope', () => {
         },
         {
           attemptsDirectory,
-          now: () => times.shift() ?? 2998,
+          now: () => times.shift() ?? 999,
           randomUUID: () => '01911111-2222-7333-8444-55555555555a',
           transport: request =>
             Promise.resolve({
@@ -695,7 +695,7 @@ describe('buildPublicRetroEnvelope', () => {
         1000,
       );
 
-      await vi.advanceTimersByTimeAsync(2000);
+      await vi.advanceTimersByTimeAsync(1000);
       expect(await delivery).toBe('abandoned');
       expect(transport).toHaveBeenCalledOnce();
       expect(readdirSync(attemptsDirectory)).toEqual([]);
@@ -743,7 +743,7 @@ describe('buildPublicRetroEnvelope', () => {
 
   it('removes an uncommitted receipt temporary file at the handoff deadline', async () => {
     const attemptsDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-public-retro-'));
-    const times = [0, 0, 0, 1999, 2000];
+    const times = [0, 0, 0, 1000];
     try {
       const outcome = await deliverSanitizedPublicRetroFindings(
         {
@@ -762,7 +762,7 @@ describe('buildPublicRetroEnvelope', () => {
         },
         {
           attemptsDirectory,
-          now: () => times.shift() ?? 2000,
+          now: () => times.shift() ?? 1000,
           randomUUID: () => '01911111-2222-7333-8444-55555555555A',
           transport: request =>
             Promise.resolve({

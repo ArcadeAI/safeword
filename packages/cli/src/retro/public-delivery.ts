@@ -320,10 +320,7 @@ function handoffTiming(
 ): { deadline: number; timeoutMs: number } | undefined {
   const now = dependencies.now();
   if (now >= preparationDeadline) return undefined;
-  if (dependencies.route === 'server-v3') {
-    return { deadline: preparationDeadline, timeoutMs: preparationDeadline - now };
-  }
-  return { deadline: dependencies.now() + 2000, timeoutMs: 2000 };
+  return { deadline: preparationDeadline, timeoutMs: preparationDeadline - now };
 }
 
 async function deliverPreparedInput(
