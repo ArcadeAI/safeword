@@ -284,7 +284,7 @@ Feature: Route local retros through the durable server
       Examples:
         | runtime-evidence                              | host-class    | eligibility |
         | no managed metadata socket in a local runtime | local         | eligible    |
-        | agent runtime managed from the metadata socket | managed cloud | ineligible  |
+        | metadata socket exists but does not prove locality | unknown    | ineligible  |
         | indeterminate metadata                        | unknown       | ineligible  |
 
   @local-retro-cutover.SWM1.R3 @surface.railway-public-retro-collector @surface.railway-hosted-relay @manual @production-evidence
