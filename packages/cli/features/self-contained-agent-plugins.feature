@@ -234,6 +234,12 @@ Feature: Every agent delivery is self-contained
       When the Safeword Maintainer runs release validation
       Then validation fails and names the unpinned catalogue asset
 
+    @surface.safeword-cli
+    Scenario: Current-ticket resolution ignores completed child-ticket lineage
+      Given current work changes one in-progress epic and completed child tickets
+      When the Safeword Maintainer resolves the current ticket
+      Then the in-progress epic is selected without treating completed children as competing work
+
     @surface.opencode
     Scenario: OpenCode profile identity records the complete owned catalogue
       Given a generated OpenCode catalogue of plugin, commands, agents, and skills

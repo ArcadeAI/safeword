@@ -52,11 +52,11 @@ The plan has six implementation components and reuses the epic's existing child 
 
 | Principle | Consequence | Proof | Conflict |
 | --- | --- | --- | --- |
-| Optimize for the NTB without constraining the TBU | Plans explain only selected effects and missing capabilities produce one bounded action without installer jargon; automatic state/ignore edits remain exact, inspectable, and independently invocable | `packages/cli/features/self-contained-agent-plugins.feature` NTB1 rules, TBU1.R3-R5, and CLI protocol tests | |
-| Structure enforces; instructions suggest | Ownership is enforced by schema validation, generated catalogues, and executable-path tests rather than prose declarations | Validation rejection tests, release/parity tests, and real host invocation tests | |
-| Fire at boundaries, not every turn | State initialization runs only when a workflow first needs framework-owned state; ordinary turns and read-only plan/status remain mutation-free | TBU1.R3-R5 adapter and CLI protocol tests | |
-| Add, never replace | Lazy ignore editing preserves customer bytes; migration removes only proven unedited legacy runtime | TBU1.R5/SWM1.R4 scenarios and reconciliation integration tests | |
-| Correct and safe; then clear; then simple | Add only the ownership declaration and state initializer required to make authority and initialization deterministic; reuse the registry and reconciliation engine | Real execution/failure tests first, user-facing plan wording assertions second, whole-ticket quality review last | |
+| Optimize for the NTB without constraining the TBU | Plans explain only selected effects and missing capabilities produce one bounded action without installer jargon; automatic state/ignore edits remain exact, inspectable, and independently invocable | `packages/cli/features/self-contained-agent-plugins.feature` | |
+| 1. Structure enforces; instructions suggest | Ownership is enforced by schema validation, generated catalogues, and executable-path tests rather than prose declarations | `packages/cli/tests/codex-plugin/catalogue.test.ts` | |
+| 2. Fire at boundaries, not every turn | State initialization runs only when a workflow first needs framework-owned state; ordinary turns and read-only plan/status remain mutation-free | `packages/cli/tests/integration/post-tool-review.test.ts` | |
+| 3. Add, never replace | Lazy ignore editing preserves customer bytes; migration removes only proven unedited legacy runtime | `packages/cli/tests/integration/post-tool-review.test.ts` | |
+| 5. Correct and safe; then clear; then simple | Add only the ownership declaration and state initializer required to make authority and initialization deterministic; reuse the registry and reconciliation engine | `packages/cli/tests/lifecycle/integrations.test.ts` | |
 
 Architecture decisions updated in place: `ARCHITECTURE.md` — “Registry-Driven Agent Integrations with Native Trust Boundaries” and “Explicit Project Enrollment for Profile-Scoped Codex Hooks.” The first retains the registry but changes aggregate runtime consumers to selected project consumers; the second retains explicit enrollment and fail-open pre-enrollment behavior but permits exact ignore/state initialization at the first workflow boundary. No new ADR is needed.
 

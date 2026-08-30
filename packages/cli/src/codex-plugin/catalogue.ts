@@ -223,7 +223,7 @@ const SCRIPT_REWRITES: readonly { readonly invocation: string; readonly replacem
   },
   {
     invocation: 'bun "$PROJECT_DIR/.safeword/hooks/audit-principle-trace.ts" "$PROJECT_DIR"',
-    replacement: '{cli} project runtime audit-principle-trace --cwd "$PROJECT_DIR"',
+    replacement: '{cli} project runtime audit-principle-trace --cwd "$PROJECT_DIR" --',
   },
   {
     invocation: 'bun "$PROJECT_DIR/.safeword/hooks/resolve-verify-ticket.ts" "$PROJECT_DIR"',

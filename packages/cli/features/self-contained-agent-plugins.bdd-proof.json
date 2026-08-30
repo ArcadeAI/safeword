@@ -133,6 +133,10 @@
       "packages/cli/tests/codex-plugin/catalogue.test.ts",
       "rejects an unpinned Codex helper invocation"
     ],
+    "Current-ticket resolution ignores completed child-ticket lineage": [
+      "packages/cli/tests/hooks/resolve-verify-ticket.test.ts",
+      "selects one active epic when current work also changes completed child tickets"
+    ],
     "OpenCode profile identity records the complete owned catalogue": [
       "packages/cli/tests/opencode/profile.test.ts",
       "TBU1.R1.S07 installs generated profile bytes and an executable identity binding"

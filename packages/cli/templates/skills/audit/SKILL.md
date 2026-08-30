@@ -700,7 +700,15 @@ contract testable without turning semantic review into shell heuristics.
 ```bash
 # principle-trace-check — E010 objective trace integrity only.
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
-bun "$PROJECT_DIR/.safeword/hooks/audit-principle-trace.ts" "$PROJECT_DIR"
+TICKET_PATH="$(bun "$PROJECT_DIR/.safeword/hooks/resolve-verify-ticket.ts" "$PROJECT_DIR")"
+ticket_status=$?
+if [ "$ticket_status" -ne 0 ]; then
+  exit "$ticket_status"
+fi
+if [ -n "$TICKET_PATH" ]; then
+  PLAN_PATH="$(dirname "$TICKET_PATH")/impl-plan.md"
+  [ ! -f "$PLAN_PATH" ] || bun "$PROJECT_DIR/.safeword/hooks/audit-principle-trace.ts" "$PROJECT_DIR" "$PLAN_PATH"
+fi
 ```
 
 ### 7. Namespace Domain Docs

@@ -156,6 +156,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN 6d13e53cc
 - [x] REFACTOR skip: the release catalogue comparison already owns version-pin drift
 
+### Scenario: Current-ticket resolution ignores completed child-ticket lineage
+
+- [x] RED skip: the authoritative audit reproduced the false ambiguity across this epic and its six completed children
+- [ ] GREEN
+- [x] REFACTOR skip: the existing resolver remains fail-closed for zero or multiple active candidates
+
 ### Scenario: OpenCode profile identity records the complete owned catalogue
 
 - [x] RED 024bca4fe
