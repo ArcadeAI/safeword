@@ -54,7 +54,7 @@ function moveArchitectureFingerprint(cwd: string): void {
 function buildProject(phase: string, options: { architectureDrift?: boolean } = {}): string {
   const cwd = createTemporaryDirectory();
   initGitRepo(cwd);
-  writeTestFile(cwd, '.safeword/.gitkeep', '');
+  writeTestFile(cwd, '.safeword/SAFEWORD.md', '# Safeword\n');
   writeTestFile(cwd, 'ARCHITECTURE.md', '# Architecture\n\nHuman narrative.\n');
   writeTestFile(
     cwd,

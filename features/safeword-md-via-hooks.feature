@@ -29,10 +29,10 @@ Feature: Load SAFEWORD.md through safeword-owned hooks
   Rule: Supported agents receive SAFEWORD context from owned hook surfaces
 
     @safeword-md-via-hooks.TB1.AC3
-    Scenario: Startup hooks are wired for Claude and Cursor
-      Given safeword's generated Claude settings and Cursor hooks
+    Scenario: Startup hooks are wired for native Claude and project Cursor runtimes
+      Given safeword's generated Claude plugin hooks and Cursor hooks
       When the generated hook wiring is inspected
-      Then Claude SessionStart runs the SAFEWORD context hook
+      Then Claude plugin SessionStart runs the SAFEWORD context hook
       And Cursor sessionStart runs the SAFEWORD context hook
 
     @safeword-md-via-hooks.TB1.AC3
@@ -42,11 +42,11 @@ Feature: Load SAFEWORD.md through safeword-owned hooks
       Then each output contains the exact compact project-handbook bootstrap once as model-visible context
       And the output shape matches that agent's hook context contract
 
-  Rule: Claude compaction restores SAFEWORD context
+  Rule: Native Claude compaction restores SAFEWORD context
 
     @safeword-md-via-hooks.TB1.AC4
-    Scenario: Claude compact path re-injects SAFEWORD context
-      Given safeword's generated Claude settings
+    Scenario: Claude plugin compact path re-injects SAFEWORD context
+      Given safeword's generated Claude plugin hooks
       When the SessionStart compact matcher is inspected
-      Then it runs the SAFEWORD context hook
+      Then the Claude plugin compact matcher runs the SAFEWORD compact context hook
       And the compact context hook still restores active ticket context

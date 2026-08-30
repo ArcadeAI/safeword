@@ -1,9 +1,9 @@
 /**
- * E2E Test: Claude Code Hook Path Resolution
+ * E2E Test: Native Claude Plugin Hook Path Resolution
  *
  * Simulates Claude Code executing hooks from a DIFFERENT working directory.
- * This catches the bug where relative paths fail because Claude Code's cwd
- * differs from the project root.
+ * This catches the bug where plugin-relative paths fail because Claude Code's
+ * cwd differs from both the project root and the plugin root.
  *
  * Path format is tested in conditional-setup.test.ts.
  * Hook behavior is tested in hooks.test.ts.
@@ -11,6 +11,8 @@
  */
 
 import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import nodePath from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -18,26 +20,20 @@ import {
   createTemporaryDirectory,
   createTypeScriptPackageJson,
   initGitRepo,
-  readTestFile,
   removeTemporaryDirectory,
-  setupOrThrow,
-  writeTestFile,
 } from '../helpers';
 
-describe('E2E: Claude Code Hook Path Resolution', () => {
+const REPO_ROOT = nodePath.resolve(import.meta.dirname, '../../../..');
+const CLAUDE_PLUGIN_ROOT = nodePath.join(REPO_ROOT, 'plugin');
+
+describe('E2E: Native Claude Plugin Hook Path Resolution', () => {
   let projectDirectory: string;
   let differentDirectory: string;
 
-  beforeAll(async () => {
+  beforeAll(() => {
     projectDirectory = createTemporaryDirectory();
     createTypeScriptPackageJson(projectDirectory);
     initGitRepo(projectDirectory);
-    writeTestFile(
-      projectDirectory,
-      '.claude/settings.json',
-      '{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"bun .safeword/hooks/session-version.ts"}]}]}}\n',
-    );
-    await setupOrThrow(projectDirectory, ['setup']);
     differentDirectory = createTemporaryDirectory();
   });
 
@@ -48,7 +44,9 @@ describe('E2E: Claude Code Hook Path Resolution', () => {
 
   // eslint-disable-next-line complexity -- Complexity 12, threshold 10; nested loops match nested hook structure in settings
   it('all hooks execute without "not found" errors from different cwd', () => {
-    const settings = JSON.parse(readTestFile(projectDirectory, '.claude/settings.json'));
+    const settings = JSON.parse(
+      readFileSync(nodePath.join(CLAUDE_PLUGIN_ROOT, 'hooks/hooks.json'), 'utf8'),
+    );
     const commands: string[] = [];
 
     // Extract all hook commands
@@ -69,7 +67,12 @@ describe('E2E: Claude Code Hook Path Resolution', () => {
     for (const command of commands) {
       const result = spawnSync('/bin/sh', ['-c', command], {
         cwd: differentDirectory, // Simulates Claude Code running from different directory
-        env: { ...process.env, CLAUDE_PROJECT_DIR: projectDirectory },
+        env: {
+          ...process.env,
+          CLAUDE_PLUGIN_ROOT,
+          CLAUDE_PROJECT_DIR: projectDirectory,
+        },
+        input: JSON.stringify({ cwd: projectDirectory }),
         encoding: 'utf8',
         timeout: 10_000,
       });

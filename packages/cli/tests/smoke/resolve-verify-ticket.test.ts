@@ -1,5 +1,12 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { copyFileSync, cpSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  copyFileSync,
+  cpSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  writeFileSync,
+} from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -18,14 +25,17 @@ const hostSurfaces = [
   {
     name: 'Claude',
     surface: nodePath.join(repoRoot, '.claude/skills/verify/SKILL.md'),
+    authority: 'project',
   },
   {
     name: 'Codex',
     surface: nodePath.join(repoRoot, 'packages/cli/codex-plugin/skills/verify/SKILL.md'),
+    authority: 'plugin',
   },
   {
     name: 'Cursor',
     surface: nodePath.join(repoRoot, '.cursor/commands/verify.md'),
+    authority: 'project',
   },
 ] as const;
 
@@ -45,6 +55,33 @@ function git(projectDirectory: string, ...args: string[]): void {
   });
 }
 
+function loadVerifySurface(surface: string, projectDirectory: string): string {
+  const source = readFileSync(surface, 'utf8');
+  if (!surface.endsWith('.cursor/commands/verify.md')) return source;
+
+  const pointer =
+    /^Read and follow the instructions in (?<path>\.safeword\/skills\/verify\/SKILL\.md)$/mu.exec(
+      source,
+    );
+  expect(pointer?.groups?.path).toBe('.safeword/skills/verify/SKILL.md');
+  return readFileSync(nodePath.join(projectDirectory, pointer?.groups?.path ?? ''), 'utf8');
+}
+
+function localVerifyCommand(authority: 'plugin' | 'project', source: string): string | undefined {
+  const projectCommand =
+    /^bun "\$PROJECT_DIR\/\.safeword\/hooks\/resolve-verify-ticket\.ts" "\$PROJECT_DIR"$/mu.exec(
+      source,
+    )?.[0];
+  if (authority === 'project') return projectCommand;
+
+  const pluginCommand =
+    /^bunx --bun safeword@\d+\.\d+\.\d+ project runtime resolve-verify-ticket --cwd "\$PROJECT_DIR" --$/mu.exec(
+      source,
+    )?.[0];
+  expect(pluginCommand).toBeDefined();
+  return `bun "${nodePath.join(repoRoot, 'packages/cli/src/cli.ts')}" project runtime resolve-verify-ticket --cwd "$PROJECT_DIR" --`;
+}
+
 describe('installed resolve-verify-ticket.ts smoke', () => {
   let projectDirectory: string;
 
@@ -60,6 +97,7 @@ describe('installed resolve-verify-ticket.ts smoke', () => {
     const hooksDirectory = nodePath.join(projectDirectory, '.safeword/hooks');
     const skillsDirectory = nodePath.join(projectDirectory, '.safeword/skills/verify');
     cpSync(nodePath.join(repoRoot, '.safeword/hooks'), hooksDirectory, { recursive: true });
+    writeFileSync(nodePath.join(projectDirectory, '.safeword/SAFEWORD.md'), '# Safeword\n');
     mkdirSync(skillsDirectory, { recursive: true });
     copyFileSync(installedSkill, nodePath.join(skillsDirectory, 'SKILL.md'));
     const ticketDirectory = nodePath.join(
@@ -85,26 +123,12 @@ describe('installed resolve-verify-ticket.ts smoke', () => {
 
   it.each(hostSurfaces)(
     'executes the installed $name verify surface against current-work evidence',
-    ({ surface }) => {
-      let surfaceSource = readFileSync(surface, 'utf8');
-      if (surface.endsWith('.cursor/commands/verify.md')) {
-        const pointer =
-          /^Read and follow the instructions in (?<path>\.safeword\/skills\/verify\/SKILL\.md)$/mu.exec(
-            surfaceSource,
-          );
-        expect(pointer?.groups?.path).toBe('.safeword/skills/verify/SKILL.md');
-        surfaceSource = readFileSync(
-          nodePath.join(projectDirectory, pointer?.groups?.path ?? ''),
-          'utf8',
-        );
-      }
-      const command =
-        /^bun "\$PROJECT_DIR\/\.safeword\/hooks\/resolve-verify-ticket\.ts" "\$PROJECT_DIR"$/mu.exec(
-          surfaceSource,
-        )?.[0];
-      expect(command).toBeDefined();
+    ({ authority, surface }) => {
+      const surfaceSource = loadVerifySurface(surface, projectDirectory);
+      const executableCommand = localVerifyCommand(authority, surfaceSource);
+      expect(executableCommand).toBeDefined();
 
-      const result = spawnSync('/bin/bash', ['-c', command ?? 'exit 127'], {
+      const result = spawnSync('/bin/bash', ['-c', executableCommand ?? 'exit 127'], {
         cwd: projectDirectory,
         encoding: 'utf8',
         env: { ...isolatedGitEnvironment(), PROJECT_DIR: projectDirectory },
@@ -112,8 +136,10 @@ describe('installed resolve-verify-ticket.ts smoke', () => {
 
       expect(result.status).toBe(0);
       expect(result.stderr).toBe('');
-      expect(result.stdout.trim()).toBe(
-        nodePath.join(projectDirectory, '.project/tickets/SMOKE1-current-ticket/ticket.md'),
+      expect(realpathSync(result.stdout.trim())).toBe(
+        realpathSync(
+          nodePath.join(projectDirectory, '.project/tickets/SMOKE1-current-ticket/ticket.md'),
+        ),
       );
     },
   );
