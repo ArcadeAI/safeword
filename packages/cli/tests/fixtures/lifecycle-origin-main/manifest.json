@@ -5,13 +5,13 @@
     "claude-check": "b1037d2e865d2e88c96eae146171fe741523790048e0393e5464471494105b54",
     "claude-upgrade": "d865a8ae51add86b4a95de3c496e3fefcced9eb7def2486a3efa1a60fe6bfc80",
     "claude-uninstall": "6e51c9f1843dc28ac22cbadc97bf9c6cf23c00f29f5d339cc21657860411a438",
-    "codex-install": "541c6fe92c68aa31bfe8d802bd3270e9830f07d1aedd7ac96f46c12be6b4e5f6",
-    "codex-check": "80810b133b22161eece401be9e7ca158f5cef8dc9846c09146684ff83628298a",
-    "codex-upgrade": "a1a1debd7f1c44b1c40ef690b814849c8fb26e55eea2fa1975042f228af3b7f2",
+    "codex-install": "55a738181f72b495b21c518f7b978370aaa247627789c91d1cb2c41d5940caa2",
+    "codex-check": "9d147221c4ef64f25d7501418eab0e542f01f36307a827c92d4ae46d46ab92f4",
+    "codex-upgrade": "d255ec5d0630ae97a7508340c43b10a991fe782ab9b5489329e0c0207af8909f",
     "codex-uninstall": "b65b6f93f8842b0e2f7a84b8fb50e353b9cc0e0d451cb3ffa70e6fb7837a67fe",
-    "cursor-install": "dc13eb3ad975257d4c1ca2700c93ee4d870cb762074423e650163bce48e975d1",
-    "cursor-check": "1e7f4cd49515f97022ef2deeb50ff7aceebcd058f9d3ae4fcaeb631c086f19e7",
-    "cursor-upgrade": "71e0f30bc90eccba986879430571bfb6d12168283129a803c0a7f95d6a7fa1b8",
+    "cursor-install": "41a53d7a9531ee2a4a229f892c763051bbf47c12127bd17cd45caacb40e4a5a2",
+    "cursor-check": "66218bafcb154efa8dcac22465989e2f170f89a333c86c44b5d3088634866f1b",
+    "cursor-upgrade": "d1fe78560c0bb9c4c39fcb5da3052283bb5bad976d5f5888d5d72a40684b9e54",
     "cursor-uninstall": "3a8843ccfef486832f68db7b50b0438d3e23f1f748117776b7f1c76a338ac20f"
   }
 }
