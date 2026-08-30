@@ -30,6 +30,7 @@ function project(): string {
   const dir = createTemporaryDirectory();
   initGitRepo(dir);
   writeTestFile(dir, '.safeword-project/.gitkeep', '');
+  writeTestFile(dir, '.safeword/SAFEWORD.md', '# enrolled\n');
   writeTestFile(dir, 'init.txt', 'init');
   execSync('git add . && git commit -m init', { cwd: dir, stdio: 'pipe' });
   return dir;
@@ -80,6 +81,20 @@ describe('PostToolUse implement-step review surface (JENFZX)', () => {
       '/quality-state-s1.json\n',
     );
     expect(existsSync(nodePath.join(cwd, '.safeword-project/quality-state-s1.json'))).toBe(true);
+    expect(existsSync(nodePath.join(cwd, '.safeword/hooks'))).toBe(false);
+  });
+
+  it('does not create knowledge, ignore policy, or state in an unenrolled repository', () => {
+    const cwd = createTemporaryDirectory();
+    initGitRepo(cwd);
+    writeTestFile(cwd, 'init.txt', 'init');
+    execSync('git add . && git commit -m init', { cwd, stdio: 'pipe' });
+
+    const result = run(cwd, 'Edit', { file_path: 'init.txt' });
+
+    expect(result.status).toBe(0);
+    expect(existsSync(nodePath.join(cwd, '.project'))).toBe(false);
+    expect(existsSync(nodePath.join(cwd, '.safeword-project'))).toBe(false);
     expect(existsSync(nodePath.join(cwd, '.safeword'))).toBe(false);
   });
 

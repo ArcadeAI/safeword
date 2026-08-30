@@ -8,6 +8,17 @@ import { runRecordSkillInvocation } from '../../src/commands/record-skill-invoca
 import { createTemporaryDirectory } from '../helpers.js';
 
 describe('project record-skill-invocation', () => {
+  it('does not enroll a repository as a side effect of workflow logging', async () => {
+    const cwd = createTemporaryDirectory();
+
+    const result = await runRecordSkillInvocation(cwd, 'verify', 'session-1');
+
+    expect(result.state).toBe('action_required');
+    expect(result.findings.map(finding => finding.code)).toEqual(['PROJECT_NOT_ENROLLED']);
+    expect(existsSync(nodePath.join(cwd, '.project'))).toBe(false);
+    expect(existsSync(nodePath.join(cwd, '.safeword'))).toBe(false);
+  });
+
   it('creates missing runtime state and its precise ignore rule without installing', async () => {
     const cwd = createTemporaryDirectory();
     mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
