@@ -6,10 +6,10 @@ import nodePath from 'node:path';
 import rootPackageJson from '../../../package.json' with { type: 'json' };
 import packageJson from '../package.json' with { type: 'json' };
 import {
-  normalizeClaudePluginCliBundle,
   sealClaudePluginCatalogue,
   writeClaudePluginCatalogue,
 } from '../src/claude-plugin/catalogue.js';
+import { normalizePluginCliBundle } from '../src/plugin-cli-bundle.js';
 import { requirePinnedBunVersion } from './bun-version.js';
 import { generatedTreeDifferences, reconcileGeneratedTree } from './generated-tree-differences.js';
 
@@ -45,7 +45,7 @@ try {
   if (!cliBuild.success || cliBuild.outputs.length !== 1 || cliBuild.outputs[0] === undefined) {
     throw new Error(`Failed to bundle the Claude plugin CLI: ${cliBuild.logs.join('\n')}`);
   }
-  const cliBundle = normalizeClaudePluginCliBundle(await cliBuild.outputs[0].text());
+  const cliBundle = normalizePluginCliBundle(await cliBuild.outputs[0].text());
   const assets = writeClaudePluginCatalogue(
     {
       cliBundle,

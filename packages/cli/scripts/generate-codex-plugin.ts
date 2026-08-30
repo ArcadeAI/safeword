@@ -2,8 +2,8 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import rootPackageJson from '../../../package.json' with { type: 'json' };
-import { normalizeClaudePluginCliBundle } from '../src/claude-plugin/catalogue.js';
 import { writeCodexPluginCatalogue } from '../src/codex-plugin/catalogue.js';
+import { normalizePluginCliBundle } from '../src/plugin-cli-bundle.js';
 import { VERSION } from '../src/version.js';
 import { requirePinnedBunVersion } from './bun-version.js';
 
@@ -30,7 +30,7 @@ const cliBuild = await Bun.build({
 if (!cliBuild.success || cliBuild.outputs.length !== 1 || cliBuild.outputs[0] === undefined) {
   throw new Error(`Failed to bundle the Codex plugin CLI: ${cliBuild.logs.join('\n')}`);
 }
-const cliBundle = normalizeClaudePluginCliBundle(await cliBuild.outputs[0].text());
+const cliBundle = normalizePluginCliBundle(await cliBuild.outputs[0].text());
 const runtimeDirectory = nodePath.join(packageRoot, 'codex-plugin/runtime');
 mkdirSync(runtimeDirectory, { recursive: true });
 writeFileSync(nodePath.join(runtimeDirectory, 'cli.js'), cliBundle, { mode: 0o755 });

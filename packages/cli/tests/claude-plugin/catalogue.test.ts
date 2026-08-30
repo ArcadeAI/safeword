@@ -5,8 +5,8 @@ import { describe, expect, it } from 'vitest';
 import {
   assertClaudePluginAssetReferences,
   generateClaudePluginAssets,
-  normalizeClaudePluginCliBundle,
 } from '../../src/claude-plugin/catalogue.js';
+import { normalizePluginCliBundle } from '../../src/plugin-cli-bundle.js';
 
 const packageRoot = nodePath.resolve(import.meta.dirname, '../..');
 
@@ -19,9 +19,9 @@ describe('Claude plugin catalogue generation', () => {
     ].join('\n');
     const secondBundle = firstBundle.replaceAll('2b91fc17bf64bdfd', '7f1b8241f77f2ecc');
 
-    const normalized = normalizeClaudePluginCliBundle(firstBundle);
+    const normalized = normalizePluginCliBundle(firstBundle);
 
-    expect(normalized).toBe(normalizeClaudePluginCliBundle(secondBundle));
+    expect(normalized).toBe(normalizePluginCliBundle(secondBundle));
     expect(normalized).toContain(
       'node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/index.js',
     );
