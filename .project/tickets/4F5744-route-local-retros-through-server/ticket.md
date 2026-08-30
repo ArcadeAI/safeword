@@ -2,8 +2,8 @@
 id: 4F5744
 slug: route-local-retros-through-server
 type: feature
-phase: implement
-status: in_progress
+phase: done
+status: done
 external_issue: https://github.com/ArcadeAI/safeword/issues/3514
 scope:
   - Route eligible sanitized local retros from Claude Code, OpenAI Codex, and Cursor through public intake that requires no customer credential and holds no filing authority.
