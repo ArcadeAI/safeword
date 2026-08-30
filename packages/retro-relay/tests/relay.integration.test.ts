@@ -390,7 +390,7 @@ describe('retry-safe retro relay', () => {
       headers: {
         authorization: `Bearer ${setup.credentials.collectorWorker}`,
         'content-type': 'application/json; charset=utf-8',
-        'x-safeword-accepted-at': '2026-08-28T20:00:00.000Z',
+        'x-safeword-accepted-at': '2026-08-28T20:00:00Z',
         'x-safeword-envelope-digest': createHash('sha256').update(body).digest('hex'),
         'x-safeword-request-id': 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
       },

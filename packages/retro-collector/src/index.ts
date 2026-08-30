@@ -200,7 +200,10 @@ async function readBody(request: IncomingMessage): Promise<Buffer> {
   for await (const chunk of request as AsyncIterable<Buffer>) {
     const bytes = Buffer.from(chunk);
     size += bytes.length;
-    if (size > MAXIMUM_BODY_BYTES) throw new RangeError('public retro body is too large');
+    if (size > MAXIMUM_BODY_BYTES) {
+      request.resume();
+      throw new RangeError('public retro body is too large');
+    }
     chunks.push(bytes);
   }
   return Buffer.concat(chunks);

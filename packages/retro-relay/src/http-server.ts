@@ -120,7 +120,7 @@ function collectorHeaders(request: IncomingMessage): {
   ) {
     throw new RelayError(400, 'collector envelope headers are invalid');
   }
-  return { acceptedAt, digest, requestId };
+  return { acceptedAt: new Date(acceptedAt).toISOString(), digest, requestId };
 }
 
 function sendJson(response: ServerResponse, status: number, value: unknown): void {
