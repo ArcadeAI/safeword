@@ -13,7 +13,7 @@ export interface RetroTransferOptions {
   relayUrl: string;
 }
 
-export type RetroTransferResult = 'empty' | 'retained' | 'transferred';
+export type RetroTransferResult = 'empty' | 'rejected' | 'retained' | 'transferred';
 
 export interface RetroTransferWorkerDependencies {
   wait?: (milliseconds: number, signal: AbortSignal) => Promise<void>;
@@ -23,17 +23,31 @@ function authorization(secret: string): { authorization: string } {
   return { authorization: `Bearer ${secret}` };
 }
 
+function relayDisposition(status: number | undefined): {
+  method: 'DELETE' | 'PATCH' | 'PUT';
+  result: Exclude<RetroTransferResult, 'empty'>;
+} {
+  if (status !== undefined && status >= 200 && status < 300) {
+    return { method: 'PUT', result: 'transferred' };
+  }
+  if (status !== undefined && status >= 400 && status < 500 && status !== 429) {
+    return { method: 'PATCH', result: 'rejected' };
+  }
+  return { method: 'DELETE', result: 'retained' };
+}
+
 export async function transferOneRetro(
   options: RetroTransferOptions,
 ): Promise<RetroTransferResult> {
   const claimResponse = await fetch(new URL('/v1/private/retro-claims', options.collectorUrl), {
     method: 'POST',
     headers: authorization(options.collectorCredential),
+    signal: AbortSignal.timeout(10_000),
   });
   if (claimResponse.status === 204) return 'empty';
   if (!claimResponse.ok) return 'retained';
   const claim = (await claimResponse.json()) as CollectorClaim;
-  let relayAccepted = false;
+  let relayStatus: number | undefined;
   try {
     const relayResponse = await fetch(new URL('/v1/collector-retros', options.relayUrl), {
       method: 'POST',
@@ -45,22 +59,26 @@ export async function transferOneRetro(
         'x-safeword-request-id': claim.requestId,
       },
       body: Buffer.from(claim.bodyBase64, 'base64'),
+      signal: AbortSignal.timeout(10_000),
     });
-    relayAccepted = relayResponse.ok;
+    relayStatus = relayResponse.status;
   } catch {
     // Collector ownership remains durable when the private relay is unavailable.
   }
+  const disposition = relayDisposition(relayStatus);
   const lifecycleResponse = await fetch(
     new URL(`/v1/private/retro-claims/${claim.requestId}`, options.collectorUrl),
     {
-      method: relayAccepted ? 'PUT' : 'DELETE',
+      method: disposition.method,
       headers: {
         ...authorization(options.collectorCredential),
         'x-safeword-lease-token': claim.leaseToken,
       },
+      signal: AbortSignal.timeout(10_000),
     },
   );
-  return relayAccepted && lifecycleResponse.ok ? 'transferred' : 'retained';
+  if (!lifecycleResponse.ok) return 'retained';
+  return disposition.result;
 }
 
 function wait(milliseconds: number, signal: AbortSignal): Promise<void> {
@@ -92,6 +110,6 @@ export async function runRetroTransferWorker(
     } catch {
       // The collector remains authoritative; retry without terminating the service.
     }
-    if (result !== 'transferred') await pause(1000, signal);
+    if (result !== 'transferred' && result !== 'rejected') await pause(1000, signal);
   }
 }

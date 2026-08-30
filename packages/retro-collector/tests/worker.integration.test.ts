@@ -81,6 +81,73 @@ it('hands exact claimed bytes to the relay and completes collector ownership', a
   expect(empty.status).toBe(204);
 });
 
+it('dead-letters a permanent relay rejection and transfers the next retro', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-worker-'));
+  directories.push(directory);
+  const collector = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+    collectorWorkerCredential: 'collector-secret',
+  });
+  const envelope = (finding: string, sessionScope: string) =>
+    JSON.stringify({
+      version: 'v3',
+      findings: [finding],
+      source: {
+        harness: 'codex',
+        hostClass: 'local',
+        projectUUID: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        safewordCliVersion: '0.82.1',
+      },
+      sessionScope,
+    });
+  for (const [requestId, finding, sessionScope] of [
+    ['aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee', 'poisoned fixture', 'a'.repeat(64)],
+    ['bbbbbbbb-cccc-4ddd-8eee-ffffffffffff', 'healthy fixture', 'b'.repeat(64)],
+  ]) {
+    await fetch(`${collector.url}/v1/public-retros`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json; charset=utf-8',
+        'x-safeword-request-id': requestId,
+      },
+      body: envelope(finding, sessionScope),
+    });
+  }
+  let relayRequests = 0;
+  const relay = createServer((_request, response) => {
+    relayRequests += 1;
+    response.statusCode = relayRequests === 1 ? 400 : 202;
+    response.end();
+  });
+  await new Promise<void>(resolve => relay.listen(0, '127.0.0.1', resolve));
+  const address = relay.address();
+  if (address === null || typeof address === 'string') throw new Error('relay did not bind');
+  const options = {
+    collectorCredential: 'collector-secret',
+    collectorUrl: collector.url,
+    relayCredential: 'relay-secret',
+    relayUrl: `http://127.0.0.1:${address.port}`,
+  };
+
+  const rejected = await transferOneRetro(options);
+  const transferred = await transferOneRetro(options);
+  const empty = await fetch(`${collector.url}/v1/private/retro-claims`, {
+    method: 'POST',
+    headers: { authorization: 'Bearer collector-secret' },
+  });
+  await collector.close();
+  await new Promise<void>(resolve =>
+    relay.close(() => {
+      resolve();
+    }),
+  );
+
+  expect(rejected).toBe('rejected');
+  expect(transferred).toBe('transferred');
+  expect(relayRequests).toBe(2);
+  expect(empty.status).toBe(204);
+});
+
 it('keeps the worker alive across an unavailable collector', async () => {
   const controller = new AbortController();
   let waits = 0;

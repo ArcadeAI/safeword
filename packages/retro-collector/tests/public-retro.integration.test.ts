@@ -851,6 +851,41 @@ it('releases and completes a lease without losing or resurrecting the request', 
   expect(empty.status).toBe(204);
 });
 
+it('dead-letters and alerts a relay-rejected lease', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const databasePath = path.join(directory, 'collector.sqlite');
+  const runtime = await startPublicRetroCollector({
+    databasePath,
+    collectorWorkerCredential: 'worker-fixture-credential',
+  });
+  await submit(runtime.url, fixtureServerOwnedRequest());
+  const workerHeaders = { authorization: 'Bearer worker-fixture-credential' };
+  const claimResponse = await fetch(`${runtime.url}/v1/private/retro-claims`, {
+    method: 'POST',
+    headers: workerHeaders,
+  });
+  const claim = (await claimResponse.json()) as { leaseToken: string; requestId: string };
+
+  const rejected = await fetch(`${runtime.url}/v1/private/retro-claims/${claim.requestId}`, {
+    method: 'PATCH',
+    headers: { ...workerHeaders, 'x-safeword-lease-token': claim.leaseToken },
+  });
+  await runtime.close();
+  const database = new DatabaseSync(databasePath);
+  const lifecycle = database
+    .prepare('SELECT dead_lettered_at, terminal_reason FROM server_retros WHERE request_id = ?')
+    .get(claim.requestId);
+  const alert = database
+    .prepare('SELECT code FROM operator_alerts WHERE request_id = ?')
+    .get(claim.requestId);
+  database.close();
+
+  expect(rejected.status).toBe(204);
+  expect(lifecycle).toMatchObject({ terminal_reason: 'relay_rejected' });
+  expect(alert).toEqual({ code: 'relay_rejected' });
+});
+
 it('returns the original durable receipt for an exact v2 retry after restart', async () => {
   const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
   temporaryDirectories.push(directory);

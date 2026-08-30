@@ -8,6 +8,7 @@ interface PublicRetroStorePort extends Pick<PublicRetroStore, 'accept' | 'close'
   complete?: PublicRetroStore['complete'];
   listLifecycle?: PublicRetroStore['listLifecycle'];
   readServerPayload?: PublicRetroStore['readServerPayload'];
+  reject?: PublicRetroStore['reject'];
   release?: PublicRetroStore['release'];
 }
 
@@ -325,10 +326,11 @@ function sendNoContent(response: ServerResponse): void {
 
 function workerLeaseInput(
   request: IncomingMessage,
-): { action: 'complete' | 'release'; leaseToken: string } | undefined {
+): { action: 'complete' | 'reject' | 'release'; leaseToken: string } | undefined {
   const leaseToken = request.headers['x-safeword-lease-token'];
   if (typeof leaseToken !== 'string' || !UUID.test(leaseToken)) return undefined;
   if (request.method === 'DELETE') return { action: 'release', leaseToken };
+  if (request.method === 'PATCH') return { action: 'reject', leaseToken };
   if (request.method === 'PUT') return { action: 'complete', leaseToken };
   return undefined;
 }
@@ -344,15 +346,27 @@ function serveWorkerLifecycle(
     !UUID_V4.test(requestId) ||
     input === undefined ||
     store.complete === undefined ||
+    store.reject === undefined ||
     store.release === undefined
   ) {
     sendJson(response, 400, { error: 'invalid_request' });
     return;
   }
-  const changed =
-    input.action === 'release'
-      ? store.release(requestId, input.leaseToken)
-      : store.complete(requestId, input.leaseToken);
+  let changed: boolean;
+  switch (input.action) {
+    case 'release': {
+      changed = store.release(requestId, input.leaseToken);
+      break;
+    }
+    case 'reject': {
+      changed = store.reject(requestId, input.leaseToken);
+      break;
+    }
+    case 'complete': {
+      changed = store.complete(requestId, input.leaseToken);
+      break;
+    }
+  }
   if (changed) sendNoContent(response);
   else sendJson(response, 409, { error: 'lease_conflict' });
 }
