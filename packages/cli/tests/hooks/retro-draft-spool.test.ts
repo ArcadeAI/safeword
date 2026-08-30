@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   canonicalSignatureForDraft,
   draftSpoolPath,
+  markDraftsAcceptedByServer,
   markDraftsFiled,
   readSpooledDrafts,
   spoolDrafts,
@@ -51,6 +52,19 @@ describe('retro draft spool (BNGK9W — persist post-egress drafts on filing fai
     spoolDrafts(projectDirectory, 'sess-1', [draft('retro:aaaaaaaaaaaa')]);
     spoolDrafts(projectDirectory, 'sess-1', [draft('retro:bbbbbbbbbbbb')]);
     expect(readSpooledDrafts(projectDirectory, 'sess-1')).toHaveLength(2);
+  });
+
+  it('hides server-owned recovery from the direct filer until collector acknowledgement', () => {
+    const serverDraft = { ...draft('retro:aaaaaaaaaaaa'), route: 'server-v3' as const };
+    spoolDrafts(projectDirectory, 'sess-1', [serverDraft]);
+
+    expect(readSpooledDrafts(projectDirectory, 'sess-1')).toEqual([]);
+    expect(readFileSync(draftSpoolPath(projectDirectory, 'sess-1'), 'utf8')).toContain(
+      '"route":"server-v3"',
+    );
+
+    markDraftsAcceptedByServer(projectDirectory, 'sess-1', [serverDraft.signature]);
+    expect(readFileSync(draftSpoolPath(projectDirectory, 'sess-1'), 'utf8')).toBe('');
   });
 
   it('reads an empty list when the spool is absent or unreadable (never throws)', () => {

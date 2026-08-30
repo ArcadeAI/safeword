@@ -1284,11 +1284,11 @@ describe('retro command configuration, extraction, egress, and relay execution',
   });
 
   it.each([
-    ['accepted', true, 0],
-    ['unreachable', false, 1],
+    ['accepted', true, false],
+    ['unreachable', false, true],
   ] as const)(
     'routes a server-v3 finding only through the collector when it is %s',
-    async (_outcome, accepted, remainingDrafts) => {
+    async (_outcome, accepted, recoveryRetained) => {
       const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-server-route-'));
       const attemptsDirectory = nodePath.join(projectDirectory, '.safeword/public-retro-attempts');
       const privateTransport = new FakeGitHub();
@@ -1326,9 +1326,12 @@ describe('retro command configuration, extraction, egress, and relay execution',
         expect(outcome.ok).toBe(true);
         expect(privateTransport.issues).toHaveLength(0);
         expect(publicTransport).toHaveBeenCalledOnce();
-        expect(readSpooledDrafts(projectDirectory, 'server-route-session')).toHaveLength(
-          remainingDrafts,
+        expect(readSpooledDrafts(projectDirectory, 'server-route-session')).toEqual([]);
+        const recovery = readFileSync(
+          draftSpoolPath(projectDirectory, 'server-route-session'),
+          'utf8',
         );
+        expect(recovery.includes('"route":"server-v3"')).toBe(recoveryRetained);
       } finally {
         rmSync(projectDirectory, { force: true, recursive: true });
       }
@@ -2156,6 +2159,7 @@ describe('runRetro transport selection (BNGK9W — spool → try-REST → drain 
         'bodyDigest',
         'canonicalSignature',
         'labels',
+        'route',
         'signature',
         'title',
       ]);

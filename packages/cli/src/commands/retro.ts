@@ -350,7 +350,8 @@ export async function runRetro(
   // Preserve private recovery before the best-effort public handoff. A process
   // interruption during that network attempt must not lose the durable draft.
   if (projectDirectory !== undefined && relay?.readiness.enabled !== true) {
-    const drafts = encounters.map(encounter => encounter.draft);
+    const route = publicRetro?.route ?? 'direct-v2';
+    const drafts = encounters.map(encounter => ({ ...encounter.draft, route }));
     recordRetroDebugEvent({
       event: 'retro_cli_spool',
       sessionId,

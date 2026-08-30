@@ -46,6 +46,7 @@ export interface SpooledDraft {
    * seam refuses it.
    */
   bodyDigest?: string;
+  route?: 'direct-v2' | 'server-v3';
 }
 
 /** Per-session spool cap — bounds a crash-looping or runaway session's disk use. */
@@ -94,7 +95,7 @@ export function spoolSiblingPath(
 function toDraft(value: unknown): SpooledDraft | undefined {
   if (typeof value !== 'object' || value === null) return undefined;
   const record = value as Record<string, unknown>;
-  const { signature, canonicalSignature, title, body, labels, bodyDigest } = record;
+  const { signature, canonicalSignature, title, body, labels, bodyDigest, route } = record;
   if (
     typeof signature !== 'string' ||
     typeof title !== 'string' ||
@@ -107,6 +108,7 @@ function toDraft(value: unknown): SpooledDraft | undefined {
   // The seal is optional (legacy lines predate it) but must be a string when present.
   if (bodyDigest !== undefined && typeof bodyDigest !== 'string') return undefined;
   if (canonicalSignature !== undefined && typeof canonicalSignature !== 'string') return undefined;
+  if (route !== undefined && route !== 'direct-v2' && route !== 'server-v3') return undefined;
   return {
     signature,
     ...(canonicalSignature === undefined ? {} : { canonicalSignature }),
@@ -114,7 +116,12 @@ function toDraft(value: unknown): SpooledDraft | undefined {
     body,
     labels,
     ...(bodyDigest === undefined ? {} : { bodyDigest }),
+    ...(route === undefined ? {} : { route }),
   };
+}
+
+function readAllSpooledDrafts(projectDirectory: string, sessionId: string): SpooledDraft[] {
+  return readJsonlRecords(draftSpoolPath(projectDirectory, sessionId), toDraft);
 }
 
 /**
@@ -123,7 +130,9 @@ function toDraft(value: unknown): SpooledDraft | undefined {
  * skipped, never thrown, so the filing path never crashes on a bad spool.
  */
 export function readSpooledDrafts(projectDirectory: string, sessionId: string): SpooledDraft[] {
-  return readJsonlRecords(draftSpoolPath(projectDirectory, sessionId), toDraft);
+  return readAllSpooledDrafts(projectDirectory, sessionId).filter(
+    draft => draft.route !== 'server-v3',
+  );
 }
 
 /** Serialize one draft to its canonical spool line (only the code-assembled fields). */
@@ -136,6 +145,7 @@ function draftLine(draft: SpooledDraft): string {
     labels: draft.labels,
     // JSON.stringify drops an undefined seal, so legacy drafts stay four-field.
     bodyDigest: draft.bodyDigest,
+    route: draft.route,
   });
 }
 
@@ -183,7 +193,7 @@ function removeDrafts(
 ): void {
   try {
     const removed = new Set(removedSignatures);
-    const remaining = readSpooledDrafts(projectDirectory, sessionId).filter(
+    const remaining = readAllSpooledDrafts(projectDirectory, sessionId).filter(
       draft => !removed.has(draft.signature),
     );
     const body =
