@@ -21,7 +21,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: A packaged audit helper preserves its shared-shell contract
 
 - [x] RED 7d4d3af5b
-- [ ] GREEN
+- [x] GREEN b537aed65
 - [ ] REFACTOR
 
 ### Scenario: Cursor executes from its selected project authority without another host
