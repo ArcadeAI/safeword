@@ -16,6 +16,8 @@ function isLegacyClaudePath(path: string): boolean {
 function withSelectedOwnedPaths(schema: SafewordSchema): SafewordSchema {
   const path = '.safeword/hooks/lib/owned-paths.ts';
   if (schema.ownedFiles[path] === undefined) return schema;
+  // Hooks must recognize every Safeword-owned project path, including a
+  // previously selected Cursor delivery that the current plan is removing.
   const ownershipSchema = schemaForProjectSurfaces(SAFEWORD_SCHEMA, ['core', 'cursor']);
   return {
     ...schema,

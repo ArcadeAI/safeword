@@ -45,6 +45,8 @@ describe('OpenCode profile catalogue', () => {
       assets.some(asset => asset.relativePath === 'skills/safeword-bdd/references/DISCOVERY.md'),
     ).toBe(true);
     expect(bdd?.content).toContain('references/DISCOVERY.md');
+    expect(bdd?.content).toMatch(/^name: safeword-bdd$/mu);
+    expect(bdd?.content).not.toMatch(/^name: bdd$/mu);
     expect(bdd?.content).not.toContain('.safeword/skills/bdd/');
     expect(bdd?.content).toContain('/safeword-verify');
     expect(bdd?.content).not.toContain('$safeword:verify');

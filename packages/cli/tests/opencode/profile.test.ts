@@ -195,6 +195,7 @@ describe('OpenCode profile boundary', () => {
     ]) {
       expect(existsSync(path)).toBe(false);
     }
+    expect(existsSync(nodePath.join(root, 'skills/safeword-verify'))).toBe(false);
   });
 
   it('preserves a modified managed catalogue asset during uninstall', () => {

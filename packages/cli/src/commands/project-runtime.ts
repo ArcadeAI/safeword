@@ -117,7 +117,7 @@ export function runProjectRuntime(
   const result = spawnSync(runtime === 'bun' ? process.execPath : 'bash', [script, ...args], {
     cwd,
     encoding: 'utf8',
-    env: { ...process.env, CLAUDE_PROJECT_DIR: process.env.CLAUDE_PROJECT_DIR ?? cwd },
+    env: { ...process.env, CLAUDE_PROJECT_DIR: cwd },
   });
   return Promise.resolve(completedResult(helper, result.status, result.stdout, result.stderr));
 }

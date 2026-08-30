@@ -151,11 +151,18 @@ function packagedTemplatesRoot(): string | undefined {
 
 export function installOpenCodeProfile(root: string): CliResult {
   const packagedPath = packagedDispatcherPath();
-  const templatesRoot = packagedTemplatesRoot();
-  if (packagedPath === undefined || templatesRoot === undefined) {
+  if (packagedPath === undefined) {
     return actionRequired(
       'OPENCODE_DISPATCHER_MISSING',
       'The packaged OpenCode dispatcher is unavailable.',
+      'safeword install --agents=opencode',
+    );
+  }
+  const templatesRoot = packagedTemplatesRoot();
+  if (templatesRoot === undefined) {
+    return actionRequired(
+      'OPENCODE_CATALOGUE_MISSING',
+      'The packaged OpenCode workflow catalogue is unavailable.',
       'safeword install --agents=opencode',
     );
   }
@@ -300,6 +307,7 @@ function observeIdentityBindings(
 function catalogueObservationProblem(
   root: string,
   identity: OpenCodeIdentityV1,
+  profileRemovable: boolean,
 ): CliResult | undefined {
   const assets = identity.assets ?? [];
   for (const asset of assets) {
@@ -312,6 +320,13 @@ function catalogueObservationProblem(
         ? `The managed OpenCode catalogue asset ${asset.path} is missing.`
         : `The managed OpenCode catalogue asset ${asset.path} was modified.`,
       'safeword install --agents=opencode',
+      {
+        installed: true,
+        activated: false,
+        pre_tool: 'block',
+        conformant: false,
+        profile_removable: profileRemovable,
+      },
     );
   }
   return undefined;
@@ -557,7 +572,7 @@ export function observeOpenCodeProfile(
   const profileRemovable = profileIsRemovable(paths, plugin, identity);
   const bindingProblem = observeIdentityBindings(plugin, identity, profileRemovable);
   if (bindingProblem !== undefined) return bindingProblem;
-  const catalogueProblem = catalogueObservationProblem(root, identity);
+  const catalogueProblem = catalogueObservationProblem(root, identity, profileRemovable);
   if (catalogueProblem !== undefined) return catalogueProblem;
   if (hasCurrentProfileError(paths.profileError, identity)) {
     return actionRequired(
@@ -669,7 +684,10 @@ function writeManagedProfile(input: ManagedProfileWrite): void {
   if (previous.kind === 'identity') {
     const previousAssets = previous.value.assets ?? [];
     for (const asset of previousAssets) {
-      if (!desiredPaths.has(asset.path)) rmSync(nodePath.join(root, asset.path), { force: true });
+      if (desiredPaths.has(asset.path)) continue;
+      const retiredPath = nodePath.join(root, asset.path);
+      rmSync(retiredPath, { force: true });
+      removeEmptyAssetParents(root, retiredPath);
     }
   }
   if (dispatcherBytes !== undefined) {
@@ -715,6 +733,14 @@ function removeEmptyDirectory(path: string): void {
     if (readdirSync(path).length === 0) rmdirSync(path);
   } catch {
     // A missing, non-empty, or inaccessible directory is not Safeword-owned cleanup work.
+  }
+}
+
+function removeEmptyAssetParents(root: string, path: string): void {
+  let directory = nodePath.dirname(path);
+  while (directory !== root && directory.startsWith(`${root}${nodePath.sep}`)) {
+    removeEmptyDirectory(directory);
+    directory = nodePath.dirname(directory);
   }
 }
 
@@ -775,7 +801,11 @@ function removeManagedProfile(
   identity: OpenCodeIdentityV1,
 ): void {
   const assets = identity.assets ?? [];
-  for (const asset of assets) rmSync(nodePath.join(root, asset.path), { force: true });
+  for (const asset of assets) {
+    const assetPath = nodePath.join(root, asset.path);
+    rmSync(assetPath, { force: true });
+    removeEmptyAssetParents(root, assetPath);
+  }
   rmSync(paths.plugin, { force: true });
   rmSync(paths.identity, { force: true });
   rmSync(paths.dispatcher, { force: true });

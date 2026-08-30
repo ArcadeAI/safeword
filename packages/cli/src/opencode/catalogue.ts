@@ -52,10 +52,13 @@ export interface OpenCodeCatalogueAsset {
   readonly content: string;
 }
 
-function renderOpenCodeSkill(name: string, content: string): string {
-  return content
-    .replace(`name: ${name}\n`, () => `name: safeword-${name}\n`)
-    .replaceAll(`$safeword:${name}`, () => `/safeword-${name}`);
+function renderOpenCodeSkill(name: string, content: string, skillEntry: boolean): string {
+  const renamed = skillEntry
+    ? content.replace(/^name: [a-z-]+$/mu, line =>
+        line === `name: ${name}` ? `name: safeword-${name}` : line,
+      )
+    : content;
+  return renamed.replaceAll(`$safeword:${name}`, () => `/safeword-${name}`);
 }
 
 export function generateOpenCodeCatalogueAssets(
@@ -72,7 +75,8 @@ export function generateOpenCodeCatalogueAssets(
       throw new Error(`Generated native skill has an unexpected path: ${asset.relativePath}`);
     }
     let content = asset.content;
-    for (const skill of skillNames) content = renderOpenCodeSkill(skill, content);
+    const skillEntry = nodePath.basename(asset.relativePath) === 'SKILL.md';
+    for (const skill of skillNames) content = renderOpenCodeSkill(skill, content, skillEntry);
     return {
       relativePath: nodePath.join('skills', `safeword-${name}`, ...suffix),
       content,
