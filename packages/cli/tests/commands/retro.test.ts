@@ -19,6 +19,7 @@ import {
   buildProvenanceResolver,
   discardRelaySpoolCommand,
   executeRetroCommand,
+  localRetroHostClass,
   localServerRouteEnabled,
   reportRetroCommandOutcome,
   resolvePublicRetroRoute,
@@ -248,19 +249,33 @@ describe('retro command configuration, extraction, egress, and relay execution',
     ).toBe(false);
   });
 
+  it('classifies Cursor managed, local, and indeterminate runtime evidence conservatively', () => {
+    const missing = () => {
+      const error = new Error('missing') as NodeJS.ErrnoException;
+      error.code = 'ENOENT';
+      throw error;
+    };
+
+    expect(localRetroHostClass('cursor', {}, missing)).toBe('local');
+    expect(localRetroHostClass('cursor', {}, () => ({ isSocket: () => true }))).toBe('unknown');
+    expect(localRetroHostClass('cursor', { CURSOR_AGENT_SOCKET: '/custom.sock' }, missing)).toBe(
+      'unknown',
+    );
+  });
+
   it.each(['codex', 'cursor'] as const)(
     'does not let Claude Remote evidence suppress the %s public route',
     agent => {
       expect(publicRouteFor(agent)?.source).toMatchObject({
         harness: agent,
-        hostClass: 'unknown',
+        hostClass: 'local',
       });
     },
   );
 
   it('builds a bounded Cursor source when a conversation identity is available', () => {
     const source = publicRouteFor('cursor')?.source;
-    expect(source).toMatchObject({ harness: 'cursor', hostClass: 'unknown' });
+    expect(source).toMatchObject({ harness: 'cursor', hostClass: 'local' });
     expect(source).not.toHaveProperty('agentVersion');
     expect(source).not.toHaveProperty('model');
     expect(source).not.toHaveProperty('safewordPluginVersion');
@@ -387,7 +402,7 @@ describe('retro command configuration, extraction, egress, and relay execution',
       expect(publicTransport).toHaveBeenCalledOnce();
       expect(body.source).toMatchObject({
         harness: 'cursor',
-        hostClass: 'unknown',
+        hostClass: 'local',
         projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
       });
       expect(body.source).not.toHaveProperty('repository');
@@ -526,7 +541,7 @@ describe('retro command configuration, extraction, egress, and relay execution',
 
       expect(source).toEqual({
         harness: 'codex',
-        hostClass: 'unknown',
+        hostClass: 'local',
         projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
         safewordCliVersion: expect.any(String),
         repository: 'github.com/arcadeai/safeword',

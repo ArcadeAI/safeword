@@ -1260,6 +1260,23 @@ function publicHarness(agent: RetroAgent): 'claude-code' | 'codex' | 'cursor' | 
   return agent === 'cursor' ? 'cursor' : undefined;
 }
 
+export function localRetroHostClass(
+  agent: RetroAgent,
+  environment: NodeJS.ProcessEnv,
+  socketStatus: (path: string) => { isSocket: () => boolean } = statSync,
+): PublicRetroSource['hostClass'] {
+  if (agent !== 'cursor') return 'local';
+  const configuredSocket = environment.CURSOR_AGENT_SOCKET?.trim();
+  const socketPath = configuredSocket || '/run/cursor/api.sock';
+  try {
+    socketStatus(socketPath);
+    return 'unknown';
+  } catch (error_) {
+    const error = error_ as NodeJS.ErrnoException;
+    return error.code === 'ENOENT' && configuredSocket === undefined ? 'local' : 'unknown';
+  }
+}
+
 export function localServerRouteEnabled(source: PublicRetroSource, readiness: boolean): boolean {
   return readiness && source.hostClass === 'local';
 }
@@ -1281,12 +1298,16 @@ export function resolvePublicRetroRoute(input: {
   }
   const harness = publicHarness(input.agent);
   if (harness === undefined) return undefined;
-  const source = buildPublicRetroSource(input.projectDirectory, {
+  const builtSource = buildPublicRetroSource(input.projectDirectory, {
     cliVersion: VERSION,
     harness,
     osFamily: platform(),
   });
-  if (source === undefined) return undefined;
+  if (builtSource === undefined) return undefined;
+  const source = {
+    ...builtSource,
+    hostClass: localRetroHostClass(input.agent, input.environment),
+  };
   const serverReady = validateLocalRetroReadiness(CHECKED_IN_LOCAL_RETRO_READINESS, {
     ancestorPairs: SAFEWORD_RELAY_BUILD_ATTESTATION.ancestorPairs,
     buildCommit: SAFEWORD_BUILD_COMMIT,

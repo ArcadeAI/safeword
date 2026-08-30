@@ -94,7 +94,7 @@ export function normalizePublicRetroOptionalValue(value: string | undefined): st
 }
 
 function validSourceRoute(source: PublicRetroSource): boolean {
-  return source.hostClass === 'unknown' || source.harness !== 'cursor';
+  return source.hostClass === 'local' || source.hostClass === 'unknown';
 }
 
 function isValidEnvelopeInput(
