@@ -20,6 +20,8 @@ skip: Filesystem permission failures are platform policy rather than a Safeword 
 
 skip: OpenCode is the representative identity-owned profile lifecycle because Codex and Claude Code use their hosts' package managers rather than Safeword-managed profile asset identities.
 
+skip: User-facing drift-report wording is owned by the existing OpenCode lifecycle contract; this epic preserves its typed drift finding and recovery action without redesigning CLI copy.
+
 ## Boundary reconciliation
 
 - **Zero project runtime files for plugin-backed hosts** and **only the selected project authority for project-delivered hosts** are the load-bearing cold-start boundaries.

@@ -45,12 +45,13 @@ Feature: Every agent delivery is self-contained
       Given an OpenCode profile has no Safeword catalogue
       When the Technical Builder installs Safeword with OpenCode selected
       Then the OpenCode profile holds the complete generated command, agent, skill, and reference catalogue
+      And no OpenCode executable runtime is delivered into the project
 
     @surface.claude-code
     Scenario: A packaged Claude workflow executes without project runtime
       Given an enrolled project contains no Safeword hooks, skills, scripts, or guides
-      When the Technical Builder invokes a generated Claude workflow through the plugin
-      Then the workflow loads its packaged skill and reference material
+      When the Technical Builder invokes the generated Claude quality-review workflow through the plugin
+      Then the workflow dispatches a review using its packaged reviewer instructions
       And no project installation or cross-host runtime is requested
 
   @self-contained-plugins.TBU1.R2
@@ -61,7 +62,7 @@ Feature: Every agent delivery is self-contained
       Given an enrolled project lacks the framework state directory, transient state file, and project ignore file
       When a state-writing packaged workflow first writes framework-owned state
       Then the framework state directory and project ignore file are created
-      And the state path is already ignored when the transient state write begins
+      And the transient state file never appears in the project's version-control status
       And the project ignore file contains only the precise state rule
       And the transient state file is created without installing Safeword
 
@@ -134,12 +135,14 @@ Feature: Every agent delivery is self-contained
       Given an uninitialized project selects only Cursor
       When the Non-Technical Builder previews Safeword installation
       Then the project schema contains shared substrate and Cursor's project authority
+      And the plan contains no profile or project delivery for any unselected agent
 
     @surface.safeword-cli @surface.cursor
     Scenario Outline: Mixed selection preserves Cursor without copying native runtimes
       Given a project selects Cursor and <native agent>
       When the Non-Technical Builder reconciles the project
       Then Cursor's project authority remains present
+      And the <native agent> profile delivery is present
       And no native profile runtime is copied into the project
 
       Examples:
@@ -173,7 +176,7 @@ Feature: Every agent delivery is self-contained
 
     @surface.opencode
     Scenario: OpenCode profile identity records the complete owned catalogue
-      Given Safeword generates the OpenCode plugin, commands, agents, and skills
+      Given a generated OpenCode catalogue of plugin, commands, agents, and skills
       When Safeword installs the profile delivery
       Then the profile identity records every owned catalogue asset and digest
 
@@ -198,7 +201,7 @@ Feature: Every agent delivery is self-contained
 
     @rejection @surface.opencode
     Scenario: OpenCode upgrade preserves a drifted catalogue asset
-      Given an identity-owned OpenCode catalogue asset was edited after installation
+      Given an identity-owned OpenCode catalogue asset differs from its recorded digest
       When Safeword upgrades the profile delivery
       Then upgrade reports managed-asset drift
       And the edited asset and unrelated profile content remain unchanged
@@ -212,7 +215,7 @@ Feature: Every agent delivery is self-contained
 
     @rejection @surface.opencode
     Scenario: OpenCode uninstall preserves drifted catalogue content
-      Given an identity-owned OpenCode catalogue asset was edited after installation
+      Given an identity-owned OpenCode catalogue asset differs from its recorded digest
       When Safeword uninstalls the OpenCode profile delivery
       Then uninstall reports managed-asset drift
       And the edited asset and unrelated profile content remain unchanged
