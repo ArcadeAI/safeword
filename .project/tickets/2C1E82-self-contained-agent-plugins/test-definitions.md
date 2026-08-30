@@ -9,7 +9,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: A plugin-backed agent executes quality review in a runtime-free enrolled project
 
 - [x] RED 753327940
-- [ ] GREEN
+- [x] GREEN effd1849b
 - [ ] REFACTOR
 
 ### Scenario: A plugin-backed agent ignores a complete legacy project runtime
