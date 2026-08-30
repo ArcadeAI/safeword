@@ -170,7 +170,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 46918e4b0
 - [x] GREEN 90e1090b8
-- [ ] REFACTOR
+- [x] REFACTOR skip: the obsolete OpenCode compatibility branches were deleted; no further structure is needed
 
 ### Scenario: A plugin-backed agent plan contains no project runtime copy
 
