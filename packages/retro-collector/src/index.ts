@@ -286,15 +286,14 @@ function serveWorkerRoute(
   store: PublicRetroStorePort,
   credential: string | undefined,
 ): boolean {
-  const isClaim = request.method === 'POST' && request.url === '/v1/private/retro-claims';
-  const lifecycle = /^\/v1\/private\/retro-claims\/([0-9a-f-]{36})$/u.exec(request.url ?? '');
-  if (!isClaim && lifecycle === null) return false;
+  const route = workerRoute(request);
+  if (route === undefined) return false;
   if (!workerAuthorized(request, credential, store)) {
     sendJson(response, 404, { error: 'not_found' });
     return true;
   }
-  if (lifecycle !== null) {
-    serveWorkerLifecycle(request, response, store, lifecycle[1]);
+  if (route.kind === 'lifecycle') {
+    serveWorkerLifecycle(request, response, store, route.requestId);
     return true;
   }
   const claim = store.claim?.();
@@ -304,6 +303,16 @@ function serveWorkerRoute(
     sendJson(response, 200, claim);
   }
   return true;
+}
+
+function workerRoute(
+  request: IncomingMessage,
+): { kind: 'claim' } | { kind: 'lifecycle'; requestId: string } | undefined {
+  if (request.method === 'POST' && request.url === '/v1/private/retro-claims') {
+    return { kind: 'claim' };
+  }
+  const requestId = /^\/v1\/private\/retro-claims\/([0-9a-f-]{36})$/u.exec(request.url ?? '')?.[1];
+  return requestId === undefined ? undefined : { kind: 'lifecycle', requestId };
 }
 
 function validRequestIdentity(requestId: unknown, version: 'legacy' | 'v3'): requestId is string {

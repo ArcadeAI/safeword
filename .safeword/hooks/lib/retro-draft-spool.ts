@@ -176,15 +176,15 @@ export function verifyDraftBody(draft: SpooledDraft): boolean {
  * throws; on any error the spool is left as-is (a filed draft may re-nudge, which
  * the signature dedupe still catches — the safe direction).
  */
-export function markDraftsFiled(
+function removeDrafts(
   projectDirectory: string,
   sessionId: string,
-  filedSignatures: readonly string[],
+  removedSignatures: readonly string[],
 ): void {
   try {
-    const filed = new Set(filedSignatures);
+    const removed = new Set(removedSignatures);
     const remaining = readSpooledDrafts(projectDirectory, sessionId).filter(
-      draft => !filed.has(draft.signature),
+      draft => !removed.has(draft.signature),
     );
     const body =
       remaining.length > 0 ? `${remaining.map(draft => draftLine(draft)).join('\n')}\n` : '';
@@ -192,6 +192,23 @@ export function markDraftsFiled(
   } catch {
     // Self-observation must never break the host. Swallow.
   }
+}
+
+export function markDraftsFiled(
+  projectDirectory: string,
+  sessionId: string,
+  filedSignatures: readonly string[],
+): void {
+  removeDrafts(projectDirectory, sessionId, filedSignatures);
+}
+
+/** Remove drafts after the collector has durably accepted ownership of them. */
+export function markDraftsAcceptedByServer(
+  projectDirectory: string,
+  sessionId: string,
+  acceptedSignatures: readonly string[],
+): void {
+  removeDrafts(projectDirectory, sessionId, acceptedSignatures);
 }
 
 /** One filed-draft ack: the signature and the tracker issue it landed on (GH644A). */

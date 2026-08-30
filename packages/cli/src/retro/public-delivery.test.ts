@@ -176,6 +176,41 @@ describe('buildPublicRetroEnvelope', () => {
     }
   });
 
+  it('reuses one atomic server-v3 identity and exact bytes after interruption', () => {
+    const attemptsDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-public-retro-'));
+    let uuidCalls = 0;
+    try {
+      const dependencies = {
+        attemptsDirectory,
+        randomUUID: () => {
+          uuidCalls += 1;
+          return uuidCalls === 1
+            ? '11111111-2222-4333-8444-555555555555'
+            : 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
+        },
+        route: 'server-v3' as const,
+      };
+      const first = preparePublicRetroRequest(requiredInput, dependencies);
+      const retried = preparePublicRetroRequest(requiredInput, dependencies);
+      const record = JSON.parse(
+        readFileSync(path.join(attemptsDirectory, `${first?.sessionScope}.json`), 'utf8'),
+      ) as Record<string, unknown>;
+
+      expect(uuidCalls).toBe(1);
+      expect(retried).toEqual(first);
+      expect(JSON.parse(new TextDecoder().decode(first?.bytes))).toMatchObject({ version: 'v3' });
+      expect(record).toEqual({
+        bodyBase64: Buffer.from(first?.bytes ?? []).toString('base64'),
+        requestId: first?.requestId,
+        route: 'server-v3',
+        sessionScope: first?.sessionScope,
+        state: 'pending',
+      });
+    } finally {
+      rmSync(attemptsDirectory, { recursive: true, force: true });
+    }
+  });
+
   it.each([
     ['the same Cursor conversation', 'cursor-1', 'cursor-1', true],
     ['different Cursor conversations', 'cursor-1', 'cursor-2', false],
@@ -435,6 +470,190 @@ describe('buildPublicRetroEnvelope', () => {
       expect(outcome).toBe('abandoned');
       expect(transport).toHaveBeenCalledOnce();
       expect(readdirSync(attemptsDirectory)).toEqual([]);
+    } finally {
+      rmSync(attemptsDirectory, { recursive: true, force: true });
+    }
+  });
+
+  it('retains the exact pending server-v3 record when collector delivery fails', async () => {
+    const attemptsDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-public-retro-'));
+    try {
+      const outcome = await deliverSanitizedPublicRetroFindings(
+        {
+          findings: [
+            {
+              category: 'bug',
+              title: 'Retained server finding',
+              safewordSurface: 'packages/cli/src/retro/public-delivery.ts',
+              whatHappened: 'The collector was unreachable.',
+              whyFriction: 'The same request must remain recoverable.',
+              repro: 'Reject the transport.',
+            },
+          ],
+          source: requiredInput.source,
+          sessionId: requiredInput.sessionId,
+        },
+        {
+          attemptsDirectory,
+          now: () => 0,
+          randomUUID: () => '11111111-2222-4333-8444-555555555555',
+          route: 'server-v3',
+          transport: () => Promise.reject(new Error('injected collector outage')),
+        },
+        750,
+      );
+      const [filename] = readdirSync(attemptsDirectory);
+      const record = JSON.parse(
+        readFileSync(path.join(attemptsDirectory, filename ?? ''), 'utf8'),
+      ) as Record<string, unknown>;
+
+      expect(outcome).toBe('abandoned');
+      expect(record).toMatchObject({
+        requestId: '11111111-2222-4333-8444-555555555555',
+        route: 'server-v3',
+        state: 'pending',
+      });
+      expect(record.bodyBase64).toEqual(expect.any(String));
+    } finally {
+      rmSync(attemptsDirectory, { recursive: true, force: true });
+    }
+  });
+
+  it('persists server-v3 recovery without dialing when the shared deadline is exhausted', async () => {
+    const attemptsDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-public-retro-'));
+    const transport = vi.fn(() => Promise.reject(new Error('must not submit')));
+    try {
+      const outcome = await deliverSanitizedPublicRetroFindings(
+        {
+          findings: [
+            {
+              category: 'bug',
+              title: 'Exhausted server deadline',
+              safewordSurface: 'packages/cli/src/retro/public-delivery.ts',
+              whatHappened: 'The capture used its entire stop budget.',
+              whyFriction: 'Recovery must survive without extending the hook.',
+              repro: 'Reach the deadline before transport.',
+            },
+          ],
+          source: requiredInput.source,
+          sessionId: requiredInput.sessionId,
+        },
+        {
+          attemptsDirectory,
+          now: () => 750,
+          randomUUID: () => '11111111-2222-4333-8444-555555555555',
+          route: 'server-v3',
+          transport,
+        },
+        750,
+      );
+
+      expect(outcome).toBe('abandoned');
+      expect(transport).not.toHaveBeenCalled();
+      expect(readdirSync(attemptsDirectory)).toHaveLength(1);
+    } finally {
+      rmSync(attemptsDirectory, { recursive: true, force: true });
+    }
+  });
+
+  it('bounds server-v3 transport by the remaining shared deadline', async () => {
+    vi.useFakeTimers();
+    const attemptsDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-public-retro-'));
+    const transport = vi.fn(
+      (_request: PublicRetroHttpRequest, signal?: AbortSignal) =>
+        new Promise<never>((_resolve, reject) => {
+          signal?.addEventListener('abort', () => {
+            reject(new Error('deadline'));
+          });
+        }),
+    );
+    try {
+      const delivery = deliverSanitizedPublicRetroFindings(
+        {
+          findings: [
+            {
+              category: 'bug',
+              title: 'Remaining deadline',
+              safewordSurface: 'packages/cli/src/retro/public-delivery.ts',
+              whatHappened: 'Four hundred milliseconds were already spent.',
+              whyFriction: 'The collector must receive only the remaining budget.',
+              repro: 'Begin transport at 400ms.',
+            },
+          ],
+          source: requiredInput.source,
+          sessionId: requiredInput.sessionId,
+        },
+        {
+          attemptsDirectory,
+          now: () => 400,
+          randomUUID: () => '11111111-2222-4333-8444-555555555555',
+          route: 'server-v3',
+          transport,
+        },
+        750,
+      );
+
+      await vi.advanceTimersByTimeAsync(349);
+      expect(transport).toHaveBeenCalledOnce();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(await delivery).toBe('abandoned');
+    } finally {
+      vi.useRealTimers();
+      rmSync(attemptsDirectory, { recursive: true, force: true });
+    }
+  });
+
+  it('compacts accepted server-v3 recovery and never submits that window again', async () => {
+    const attemptsDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-public-retro-'));
+    let transportCalls = 0;
+    let uuidCalls = 0;
+    const input = {
+      findings: [
+        {
+          category: 'bug' as const,
+          title: 'Accepted server finding',
+          safewordSurface: 'packages/cli/src/retro/public-delivery.ts',
+          whatHappened: 'The collector durably accepted it.',
+          whyFriction: 'Local payload recovery is no longer needed.',
+          repro: 'Return a valid receipt.',
+        },
+      ],
+      source: requiredInput.source,
+      sessionId: requiredInput.sessionId,
+    };
+    const dependencies = {
+      attemptsDirectory,
+      now: () => 0,
+      randomUUID: () => {
+        uuidCalls += 1;
+        return '11111111-2222-4333-8444-555555555555';
+      },
+      route: 'server-v3' as const,
+      transport: (request: PublicRetroHttpRequest) => {
+        transportCalls += 1;
+        return Promise.resolve({
+          receipt: 'collector-receipt',
+          requestId: request.headers['x-safeword-request-id'],
+        });
+      },
+    };
+    try {
+      expect(await deliverSanitizedPublicRetroFindings(input, dependencies, 750)).toBe('preserved');
+      expect(await deliverSanitizedPublicRetroFindings(input, dependencies, 750)).toBe('abandoned');
+      const [filename] = readdirSync(attemptsDirectory);
+      const record = JSON.parse(
+        readFileSync(path.join(attemptsDirectory, filename ?? ''), 'utf8'),
+      ) as Record<string, unknown>;
+
+      expect(transportCalls).toBe(1);
+      expect(uuidCalls).toBe(1);
+      expect(record).toEqual({
+        receipt: 'collector-receipt',
+        requestId: '11111111-2222-4333-8444-555555555555',
+        route: 'server-v3',
+        sessionScope: expect.any(String),
+        state: 'accepted',
+      });
     } finally {
       rmSync(attemptsDirectory, { recursive: true, force: true });
     }

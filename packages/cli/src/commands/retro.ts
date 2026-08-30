@@ -38,6 +38,7 @@ import { recordRetroDebugEvent } from '../../templates/hooks/lib/retro-debug.js'
 import {
   draftSpoolPath,
   drainAcknowledgedDrafts,
+  markDraftsAcceptedByServer,
   readSpooledDrafts,
   recordFiledAck,
   spoolDrafts,
@@ -49,6 +50,7 @@ import { prepareEncounters } from '../retro/pipeline.js';
 import {
   deliverSanitizedPublicRetroFindings,
   type PublicRetroDeliveryDependencies,
+  type PublicRetroDeliveryOutcome,
   type PublicRetroSource,
 } from '../retro/public-delivery.js';
 import { buildPublicRetroSource } from '../retro/public-source.js';
@@ -355,11 +357,11 @@ export async function runRetro(
     spoolDrafts(projectDirectory, sessionId, drafts);
   }
 
-  const deliverPublic = async (): Promise<void> => {
+  const deliverPublic = async (): Promise<PublicRetroDeliveryOutcome | undefined> => {
     if (publicRetro === undefined || findings.length === 0) {
-      return;
+      return undefined;
     }
-    await deliverSanitizedPublicRetroFindings(
+    return deliverSanitizedPublicRetroFindings(
       {
         findings,
         sessionId: sourceSession,
@@ -367,7 +369,7 @@ export async function runRetro(
         windowStart: options.windowStart ?? 0,
       },
       publicRetro,
-      publicRetro.now() + 1000,
+      publicRetro.now() + 750,
     );
   };
 
@@ -375,13 +377,38 @@ export async function runRetro(
   // REST auth failure (cloud #568) can't lose them. Opt-in via projectDirectory.
   if (relay?.readiness.enabled === true && projectDirectory !== undefined) {
     return runRelayRetro(encounters, drops, {
-      afterPersistence: deliverPublic,
+      afterPersistence: async () => {
+        await deliverPublic();
+      },
       projectDirectory,
       relay,
       source: { session: sourceSession, windowStart: options.windowStart ?? 0 },
     });
   }
-  await deliverPublic();
+  const publicOutcome = await deliverPublic();
+  if (publicRetro?.route === 'server-v3') {
+    if (publicOutcome === 'preserved' && projectDirectory !== undefined) {
+      markDraftsAcceptedByServer(
+        projectDirectory,
+        sessionId,
+        encounters.map(encounter => encounter.draft.signature),
+      );
+    }
+    return {
+      ok: true,
+      result: {
+        created: [],
+        bumped: [],
+        commented: [],
+        deferred: [],
+        failed: [],
+        filedSignatures: [],
+        filedDestinations: [],
+      },
+      agentFilingNeeded: false,
+      drops,
+    };
+  }
   const provenance = dependencies.resolveProvenance?.();
   const result = await triage(dependencies.transport, encounters, {
     sessionId,

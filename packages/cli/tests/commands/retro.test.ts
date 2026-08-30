@@ -1268,6 +1268,58 @@ describe('retro command configuration, extraction, egress, and relay execution',
     }
   });
 
+  it.each([
+    ['accepted', true, 0],
+    ['unreachable', false, 1],
+  ] as const)(
+    'routes a server-v3 finding only through the collector when it is %s',
+    async (_outcome, accepted, remainingDrafts) => {
+      const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-server-route-'));
+      const attemptsDirectory = nodePath.join(projectDirectory, '.safeword/public-retro-attempts');
+      const privateTransport = new FakeGitHub();
+      const publicTransport = vi.fn(request =>
+        accepted
+          ? Promise.resolve({
+              receipt: 'server-receipt',
+              requestId: request.headers['x-safeword-request-id'],
+            })
+          : Promise.reject(new Error('collector unavailable')),
+      );
+      try {
+        const outcome = await runRetro(
+          { transcript: '/tmp/t.jsonl' },
+          dependencies({
+            projectDirectory,
+            publicRetro: {
+              attemptsDirectory,
+              now: () => 0,
+              randomUUID: () => '11111111-2222-4333-8444-555555555555',
+              route: 'server-v3',
+              source: {
+                harness: 'codex',
+                hostClass: 'local',
+                projectUUID: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+                safewordCliVersion: '0.82.1',
+              },
+              transport: publicTransport,
+            },
+            sessionId: 'server-route-session',
+            transport: privateTransport,
+          }),
+        );
+
+        expect(outcome.ok).toBe(true);
+        expect(privateTransport.issues).toHaveLength(0);
+        expect(publicTransport).toHaveBeenCalledOnce();
+        expect(readSpooledDrafts(projectDirectory, 'server-route-session')).toHaveLength(
+          remainingDrafts,
+        );
+      } finally {
+        rmSync(projectDirectory, { force: true, recursive: true });
+      }
+    },
+  );
+
   it('starts the public preparation budget after finding preparation', async () => {
     const attemptsDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-attempts-'));
     let nowCalls = 0;
