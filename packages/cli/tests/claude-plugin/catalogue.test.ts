@@ -2,11 +2,11 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { normalizePluginCliBundle } from '../../scripts/lib/build-plugin-cli-bundle.js';
 import {
   assertClaudePluginAssetReferences,
   generateClaudePluginAssets,
 } from '../../src/claude-plugin/catalogue.js';
-import { normalizePluginCliBundle } from '../../src/plugin-cli-bundle.js';
 
 const packageRoot = nodePath.resolve(import.meta.dirname, '../..');
 
