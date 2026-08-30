@@ -225,9 +225,7 @@ function nonemptyString(value: unknown): value is string {
 function validSourceRoute(harness: unknown, hostClass: unknown): boolean {
   const supportedHarness =
     typeof harness === 'string' && ['claude-code', 'codex', 'cursor'].includes(harness);
-  return (
-    supportedHarness && (hostClass === 'unknown' || (hostClass === 'local' && harness !== 'cursor'))
-  );
+  return supportedHarness && (hostClass === 'unknown' || hostClass === 'local');
 }
 
 function validV3SourceRoute(harness: unknown, hostClass: unknown): boolean {

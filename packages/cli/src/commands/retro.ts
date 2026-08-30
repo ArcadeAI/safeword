@@ -1266,7 +1266,7 @@ export function localRetroHostClass(
   socketStatus: (path: string) => { isSocket: () => boolean } = statSync,
 ): PublicRetroSource['hostClass'] {
   if (agent !== 'cursor') return 'local';
-  const configuredSocket = environment.CURSOR_AGENT_SOCKET?.trim();
+  const configuredSocket = environment.CURSOR_AGENT_SOCKET?.trim() || undefined;
   const socketPath = configuredSocket || '/run/cursor/api.sock';
   try {
     socketStatus(socketPath);

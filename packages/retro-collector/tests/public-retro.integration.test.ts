@@ -1302,9 +1302,21 @@ it.each([
   ['hostname source host class', encoded(withSource({ hostClass: 'hostname' }))],
 ] as const)('rejects unsupported %s', (_, body) => expectEnvelopeRejected(body));
 
-it.each([
-  ['incompatible cursor/local source', encoded(withSource({ harness: 'cursor' }))],
-] as const)('rejects the %s compatibility row', (_, body) => expectEnvelopeRejected(body));
+it('accepts a local Cursor source while the legacy compatibility route remains active', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+  });
+  const requestId = '018f0f2e-abcd-4def-8abc-def01234567d';
+  const response = await submit(runtime.url, {
+    body: encoded(withSource({ harness: 'cursor' })),
+    requestId,
+  });
+  await runtime.close();
+
+  expect(response.status).toBe(201);
+});
 
 it.each(invalidEnvelopes)('rejects malformed envelope form: %s', (_, body, type) =>
   expectEnvelopeRejected(body as Uint8Array, type as string | false | undefined),

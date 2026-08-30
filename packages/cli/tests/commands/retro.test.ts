@@ -257,6 +257,7 @@ describe('retro command configuration, extraction, egress, and relay execution',
     };
 
     expect(localRetroHostClass('cursor', {}, missing)).toBe('local');
+    expect(localRetroHostClass('cursor', { CURSOR_AGENT_SOCKET: '' }, missing)).toBe('local');
     expect(localRetroHostClass('cursor', {}, () => ({ isSocket: () => true }))).toBe('unknown');
     expect(localRetroHostClass('cursor', { CURSOR_AGENT_SOCKET: '/custom.sock' }, missing)).toBe(
       'unknown',

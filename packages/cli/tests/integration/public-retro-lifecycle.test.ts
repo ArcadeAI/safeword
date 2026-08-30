@@ -6,6 +6,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -131,6 +132,11 @@ async function primeCursorBinding(
     }),
   );
   expect(result.status).toBe(0);
+  const state = { conversation_id: sessionId };
+  const stashedProject = readFileSync(cursorProjectStashPath(state), 'utf8');
+  expect(readFileSync(cursorConversationStashPath(state), 'utf8')).toBe(sessionId);
+  expect(readFileSync(cursorTranscriptStashPath(state), 'utf8')).toBe(transcript);
+  expect(realpathSync(stashedProject)).toBe(realpathSync(project));
 }
 
 async function primeCursorBindingIfNeeded(input: {
@@ -365,7 +371,9 @@ process.exit(result.status ?? 1);
         throw new Error(readFileSync(debugLog, 'utf8'));
       }
       const [markerName] = readdirSync(attemptsDirectory);
-      if (markerName === undefined) throw new Error('expected a public attempt marker');
+      if (markerName === undefined) {
+        throw new Error(`expected a public attempt marker\n${readFileSync(debugLog, 'utf8')}`);
+      }
       const marker = JSON.parse(readFileSync(path.join(attemptsDirectory, markerName), 'utf8')) as {
         receipt?: string;
       };
@@ -378,7 +386,7 @@ process.exit(result.status ?? 1);
       expect(storedEnvelope).toMatchObject({
         source: {
           harness,
-          hostClass: 'unknown',
+          hostClass: 'local',
           projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
           repository: 'github.com/arcadeai/safeword',
         },
