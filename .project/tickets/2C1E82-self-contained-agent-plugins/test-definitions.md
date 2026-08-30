@@ -168,7 +168,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A single-agent plan contains no other agent delivery
 
-- [ ] RED
+- [x] RED 46918e4b0
 - [ ] GREEN
 - [ ] REFACTOR
 
