@@ -159,7 +159,7 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Current-ticket resolution ignores completed child-ticket lineage
 
 - [x] RED skip: the authoritative audit reproduced the false ambiguity across this epic and its six completed children
-- [ ] GREEN
+- [x] GREEN 4c93d3a86
 - [x] REFACTOR skip: the existing resolver remains fail-closed for zero or multiple active candidates
 
 ### Scenario: OpenCode profile identity records the complete owned catalogue
