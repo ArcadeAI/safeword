@@ -387,7 +387,7 @@ function pendingResult(record: ReviewJobRecord): CliResult {
     ],
     nextActions: [
       {
-        command: `safeword review status ${record.id}`,
+        command: reviewStatusCommand(record.id),
         mutates: false,
         requiresHuman: false,
       },
@@ -399,6 +399,15 @@ function pendingResult(record: ReviewJobRecord): CliResult {
       started_at: record.started_at,
     },
   });
+}
+
+function shellQuote(value: string): string {
+  if (/^[\w./-]+$/u.test(value)) return value;
+  return `'${value.replaceAll("'", "'\"'\"'")}'`;
+}
+
+function reviewStatusCommand(id: string): string {
+  return `${shellQuote(process.execPath)} ${shellQuote(cliEntrypoint())} review status ${id}`;
 }
 
 function staleResult(record: ReviewJobRecord): CliResult {

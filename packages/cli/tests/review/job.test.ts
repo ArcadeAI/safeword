@@ -331,9 +331,27 @@ describe('durable review jobs', () => {
     expect(result.state).toBe('action_required');
     expect(result.findings[0]?.code).toBe('REVIEW_PENDING');
     const next = result.nextActions[0];
-    expect(next !== undefined && 'command' in next ? next.command : undefined).toMatch(
-      /^safeword review status /u,
+    expect(next !== undefined && 'command' in next ? next.command : undefined).toBe(
+      `${process.execPath} ${process.env.SAFEWORD_CLI_ENTRYPOINT} review status ${(result.data as { review_id: string }).review_id}`,
     );
+  });
+
+  it('shell-quotes the proven CLI entrypoint in the status action', async () => {
+    const cwd = project();
+    const entrypoint = nodePath.join(cwd, 'worker entrypoint.mjs');
+    writeFileSync(entrypoint, 'setTimeout(() => {}, 1000);');
+    vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', entrypoint);
+    vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '0');
+
+    const result = await startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
+    const id = (result.data as { review_id: string }).review_id;
+
+    expect(result.nextActions).toContainEqual({
+      command: `${process.execPath} '${entrypoint}' review status ${id}`,
+      mutates: false,
+      requiresHuman: false,
+    });
+    cancelReviewJob(cwd, id);
   });
 
   it('reports a blocked review pending before its absolute deadline', async () => {
@@ -346,7 +364,11 @@ describe('durable review jobs', () => {
     expect(reviewJobStatus(cwd, id)).toMatchObject({
       state: 'action_required',
       findings: [{ code: 'REVIEW_PENDING' }],
-      nextActions: [{ command: `safeword review status ${id}` }],
+      nextActions: [
+        {
+          command: `${process.execPath} ${process.env.SAFEWORD_CLI_ENTRYPOINT} review status ${id}`,
+        },
+      ],
     });
     cancelReviewJob(cwd, id);
   });
