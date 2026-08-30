@@ -2,7 +2,8 @@
 id: 2C1E82
 slug: self-contained-agent-plugins
 type: epic
-phase: verify
+subtype: bug-investigated
+phase: implement
 status: in_progress
 children: ['V2AH4B', 'KDED4X', 'SF0RS0', 'GJB22B', 'JNZ2H5', '1DZ9W8']
 phase_anchors:
@@ -32,6 +33,18 @@ last_modified: 2026-08-30T17:23:00.000Z
 
 **Why:** Claude has already packaged guides/scripts/hooks into the plugin bundle but a few wiring gaps (dispatch.js env var, unconditional install schema) still leave stale project-local .safeword content around with no auto-upgrade path; Codex still shells out to project-local .safeword/hooks and .safeword/scripts directly from its skills, unlike its already-self-contained lifecycle hooks (bunx --bun safeword@version)
 
+## Root Cause
+
+The epic advanced from implementation to verification without an executable route for its feature source. Safeword's ledger validation proved only that RED/GREEN/REFACTOR annotations were syntactically valid and reachable; it did not prove that each Gherkin scenario was registered in either the Cucumber lane or the repository's `@proof.vitest` manifest lane. The implementation workflow described that requirement, but no phase-transition boundary enforced it, so the first hard failure arrived in the final full verification run as 32 undefined scenarios.
+
+Confirmed by the acceptance runner reporting every scenario in `self-contained-agent-plugins.feature` as undefined, followed by the proof-manifest oracle rejecting release-only Codex tests and excessive shared-test fan-in. The existing boundary engine's `ledgerChecks` validates ledger presence, annotations, and SHAs but never reads the feature source or its executable proof registration.
+
+Ruled out:
+
+- Missing behavioral tests: focused Vitest and release-contract tests existed and passed; the gap was their registration and normal-lane eligibility, not the absence of all assertions.
+- A Cucumber discovery/configuration defect: other feature step files are discovered and run by the same configured lane; only this unregistered feature was undefined.
+- An independent-review failure: the scenario and quality reviews correctly assessed their bounded behavior/design/code packets, but executable-lane registration was outside those packets and gates.
+
 ## Work Log
 
 - 2026-08-18T16:58:37.428Z Started: Created ticket 2C1E82
@@ -46,3 +59,4 @@ last_modified: 2026-08-30T17:23:00.000Z
 - 2026-08-30T05:18:00.000Z Scenario gate approved by an independent Claude Opus review after proving per-host runtime authority, lazy state and ignore hygiene, selection-scoped reconciliation, and safe migration boundaries. Advanced to implementation planning.
 - 2026-08-30T05:40:00.000Z Implementation plan approved by an independent Claude Opus review after tightening Cursor/OpenCode authority proof, failure containment, legacy precedence, ignore ordering, principles alignment, and child-ticket reconciliation. Advanced to outside-in implementation.
 - 2026-08-30T17:23:00.000Z Implementation complete: native Codex, Claude Code, and OpenCode workflows now execute from packaged authorities; Cursor retains its complete project authority; selected-agent reconciliation omits unselected runtimes; missing transient state and precise ignore rules initialize lazily after enrollment. Focused implementation and release-contract lanes passed, and the final independent Claude Opus quality review approved the delivery after its blocking findings were resolved. Advanced to verification.
+- Verification exposed an invalid implement exit: the feature had no executable Cucumber or Vitest-proof registration, and the full suite retained assumptions from unconditional project runtime. Returned to implementation after documenting the process root cause and ruled-out alternatives.

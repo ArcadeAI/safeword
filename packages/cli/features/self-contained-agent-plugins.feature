@@ -1,3 +1,4 @@
+@proof.vitest
 Feature: Every agent delivery is self-contained
   Supported agents execute Safeword workflows from one declared authority,
   while shared project substrate means only enrollment, authored knowledge,
