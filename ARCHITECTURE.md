@@ -70,23 +70,29 @@ ESLint configs are bundled in the main package and accessed via `import safeword
 
 ### Public retrospective collector boundary
 
-`packages/retro-collector` accepts released canonical `v1` single-finding bodies and
-the CLI's canonical `v2` ordered finding batches without user registration or client
-credentials. Current producers identify
-Claude Code, Codex, or Cursor with `hostClass: "unknown"`; the collector also
-accepts released Claude Code and Codex clients that used `hostClass: "local"`.
-Cursor cannot claim that legacy local classification. The current v2 source does not
-accept the released v1-only `userIdentity` field.
+`packages/retro-collector` accepts released canonical `v1` single-finding bodies,
+canonical `v2` ordered finding batches, and server-owned `v3` local batches without
+user registration or client credentials. Legacy `v1`/`v2` rows remain inert
+quarantine. A `v3` row is keyed only by its transport-independent UUIDv4 request
+identity and retains the admitted bytes, digest, acceptance time, project identity,
+lease state, quota reservation, and terminal metadata in SQLite.
 
 The collector validates each version's closed envelope and source schema and stores
-the accepted raw body unchanged in SQLite. Duplicate identity is derived only from
-harness, project UUID, session identity, and (after the compatibility-preserving
-first window) transcript window; byte-identical retries in that scope reuse its
-receipt, while unequal raw bytes conflict. Operator reads require the
-server-side operator credential; project
-UUIDs, request IDs, receipts, and source fields grant no read or filing
-authority. This public intake is separate from the authenticated private relay
-below.
+the accepted raw body unchanged in SQLite. Legacy duplicate rules remain unchanged;
+`v3` retries reuse a receipt only when the request UUID and exact bytes agree.
+Routine operator inspection is payload-free. Worker and break-glass payload reads
+use separate credentials and append audit records. Public fields grant no read or
+filing authority. Rolling intake and filing quota windows persist across restarts;
+quota-blocked work stays queued and reaches an alerted dead letter after 24 hours.
+
+### Collector transfer worker boundary
+
+The single-replica Railway worker has no public route and no customer credential.
+It leases FIFO `v3` rows over private networking, forwards the original bytes,
+collector digest, acceptance time, and request UUID to the relay's dedicated
+`collector-worker` principal, and completes collector ownership only after relay
+acceptance. A failed handoff releases the lease; a crash is recovered by lease
+expiry. Collector SQLite remains mounted only by the collector service.
 
 ### Retro relay boundary
 

@@ -235,14 +235,20 @@ safeword retro-relay-retry [request-id]
 safeword retro-relay-discard <request-id> [--confirm]
 ```
 
-Supported local Claude Code and Codex installs quietly send at most one sanitized
-retrospective from an eligible session to SafeWord's public quarantine collector.
-Collection is on by default and does not require an account. The envelope can
-include the project UUID, normalized repository, harness and version metadata,
-operating-system family, model, and an available GitHub identity or Git email;
-raw transcripts and credentials are not sent. Accepted records are durable, and
-source metadata is unauthenticated client context rather than verified identity.
-The initial release does not yet provide a deletion workflow. Run
+Supported local Claude Code, Codex, and Cursor installs can quietly send sanitized
+retrospective findings to SafeWord's durable public collector. Collection requires
+no account or registration. The envelope can include the project UUID, normalized
+repository, session scope, harness and host class, operating-system family, and
+available agent, model, SafeWord CLI, and plugin versions. It excludes transcript
+and prompt text, tool output, file contents, secrets, credentials, arbitrary
+environment values, hostname, IP address, machine identifiers, and user identity.
+
+Collector acceptance transfers recovery to SafeWord's server. A separately
+authenticated private worker forwards the same immutable request to the filing
+relay; customer projects receive no filing credential. Failures stay quiet and
+retain recovery for a later retry. The server route becomes the default only after
+production canaries prove terminal filing for every supported local harness.
+Pre-cutover drafts keep their original direct route. Run
 `safeword project public-retros off` to disable collection for the project, or
 `on` to re-enable it; both commands change only local project configuration.
 

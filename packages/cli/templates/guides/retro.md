@@ -71,9 +71,15 @@ fresh context** that hasn't lived the session:
    ```
 
    The command normalizes → drops findings with an unresolvable surface →
-   sanitizes every field → assembles the body → files upstream, deduped, under
-   the caps. It prints a one-line summary (filed / recurrences / new
-   manifestations / deferred / failed).
+   sanitizes every field → assembles the body → hands it to the configured
+   recovery route. On the server route, the public collector receives only the
+   sanitized findings plus project/repository, session, harness/host, OS, and
+   available agent/model/SafeWord version metadata. It never receives transcript
+   or prompt text, tool output, file contents, secrets, credentials, arbitrary
+   environment values, hostname, IP address, machine identifiers, or user
+   identity. Collector acceptance transfers recovery to SafeWord's private
+   filing worker; failure stays silent and retains the same local request for a
+   later retry. `safeword project public-retros off` disables this collection.
 
 ## Rules
 
