@@ -425,10 +425,10 @@ describe('retry-safe retro relay', () => {
   });
 
   it.each([
-    ['claude', ['file'], 'f'],
-    ['codex', ['file'], 'g'],
-    ['cursor', ['file'], 'h'],
-    ['operator', ['reconcile', 'operate'], 'i'],
+    ['claude', ['file'], 'fa'],
+    ['codex', ['file'], 'fb'],
+    ['cursor', ['file'], 'fc'],
+    ['operator', ['reconcile', 'operate'], 'fd'],
   ] as const)(
     'denies the %s principal at collector ingest before GitHub access',
     async (harness, roles, secretCharacter) => {
@@ -439,7 +439,7 @@ describe('retry-safe retro relay', () => {
         installationId: 42,
         repository: 'arcadeai/safeword',
         roles: [...roles],
-        secret: secretCharacter.repeat(64),
+        secret: secretCharacter.repeat(32),
         subject: `${harness}-without-ingest`,
         tenantId: 'tenant-1',
       });
@@ -473,6 +473,22 @@ describe('retry-safe retro relay', () => {
       expect(setup.createBodies).toHaveLength(0);
     },
   );
+
+  it('denies the ingest-only collector worker at the harness filing route', async () => {
+    const setup = await fixture();
+
+    const response = await fetch(`${setup.relay.url}/v1/retro-filings`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${setup.credentials.collectorWorker}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify(draft()),
+    });
+
+    expect(response.status).toBe(403);
+    expect(setup.createBodies).toHaveLength(0);
+  });
 
   it('accepts the largest relay-compatible collector batch without truncating its body', async () => {
     const setup = await fixture();

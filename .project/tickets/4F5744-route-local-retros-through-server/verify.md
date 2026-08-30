@@ -5,10 +5,10 @@ Verified against `origin/main` on 2026-08-30.
 ## Verify Checklist
 
 **Test Suite:** ✓ 9064/9064 tests pass (relay 189, collector 135, CLI 8740; 14 additional tests skipped by contract)
-**Gherkin:** ✅ Acceptance lane passes (1,485 passed, 3 skipped; proof lane 587 passed)
+**Gherkin:** ⚠️ Repository acceptance lane passes (1,485 passed, 3 skipped; proof lane 587 passed). This ticket's 46-scenario contract remains `@manual`; its automated implementation evidence is the linked Vitest integration suite, not Cucumber execution.
 **Build:** ✅ Success
 **Lint:** ✅ Clean
-**Scenarios:** All 138 scenarios marked complete
+**Scenarios:** All 46 scenario definitions have completed RED/GREEN/REFACTOR ledgers (138 phase checkboxes)
 **Refactor:** ✅ Completed — eligibility and route logic were simplified without changing behavior
 **PR Scope:** ✅ Diff matches ticket scope
 **Dep Drift:** ✅ Clean

@@ -26,13 +26,13 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 - [x] GREEN
 - [x] REFACTOR
 
-### Scenario: An exhausted stop budget prevents another transport attempt
+### Scenario: An exhausted stop budget prevents transport
 
 - [x] RED
 - [x] GREEN
 - [x] REFACTOR
 
-### Scenario: Multiple pending requests share one stop budget
+### Scenario: Preparation and transport share one stop budget
 
 - [x] RED
 - [x] GREEN

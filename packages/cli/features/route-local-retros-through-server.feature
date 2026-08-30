@@ -47,16 +47,16 @@ Feature: Route local retros through the durable server
         | unreachable connection attempt stalls beyond the budget |
 
     @rejection
-    Scenario: An exhausted stop budget prevents another transport attempt
-      Given earlier retrospective work consumed the shared stop budget
-      When another pending request is considered
-      Then no additional network attempt begins and the request remains locally recoverable
+    Scenario: An exhausted stop budget prevents transport
+      Given retrospective preparation consumed the shared stop budget
+      When the prepared request is considered for transport
+      Then no network attempt begins and the request remains locally recoverable
 
-    Scenario: Multiple pending requests share one stop budget
-      Given two pending requests and a controlled transport whose first attempt fails after 400 milliseconds
-      When retrospective transport drains under an injected clock
+    Scenario: Preparation and transport share one stop budget
+      Given retrospective preparation consumed 400 milliseconds
+      When transport begins under an injected clock
       Then the session stop completes within one 750 millisecond budget
-      And the second attempt receives a deadline of at most 350 milliseconds
+      And transport receives a deadline of at most 350 milliseconds
 
   @local-retro-cutover.NTB1.R3 @surface.safeword-cli
   Rule: local-retro-cutover.NTB1.R3 — Collection remains disclosed and optional

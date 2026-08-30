@@ -1341,6 +1341,7 @@ describe('retro command configuration, extraction, egress, and relay execution',
 
   it.each([
     ['accepted', true, false],
+    ['typed rejection', false, true],
     ['unreachable', false, true],
   ] as const)(
     'routes a server-v3 finding only through the collector when it is %s',
@@ -1354,7 +1355,7 @@ describe('retro command configuration, extraction, egress, and relay execution',
               receipt: 'server-receipt',
               requestId: request.headers['x-safeword-request-id'],
             })
-          : Promise.reject(new Error('collector unavailable')),
+          : Promise.reject(new Error(_outcome)),
       );
       try {
         const outcome = await runRetro(
