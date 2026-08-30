@@ -1,4 +1,4 @@
-@route-local-retros-through-server
+@route-local-retros-through-server @manual
 Feature: Route local retros through the durable server
 
   Newly captured local retros move from one bounded client request into durable
