@@ -60919,7 +60919,10 @@ async function runRetro(options, dependencies) {
   const relay = dependencies.relay;
   const sourceSession = sessionId.trim().length === 0 || sessionId === "unknown" ? options.transcript : sessionId;
   if (projectDirectory !== undefined && relay?.readiness.enabled !== true && publicRetro?.route !== "server-v3") {
-    const drafts = encounters.map((encounter) => ({ ...encounter.draft, route: "direct-v2" }));
+    const drafts = encounters.map((encounter) => ({
+      ...encounter.draft,
+      route: "direct-v2"
+    }));
     recordRetroDebugEvent({
       event: "retro_cli_spool",
       sessionId,
