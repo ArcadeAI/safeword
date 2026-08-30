@@ -148,7 +148,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A broader customer ignore rule is preserved without adding a narrower duplicate
 
-- [ ] RED
+- [x] RED 419a73696
 - [ ] GREEN
 - [ ] REFACTOR
 
