@@ -699,7 +699,7 @@ contract testable without turning semantic review into shell heuristics.
 ```bash
 # principle-trace-check — E010 objective trace integrity only.
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
-bun "$PROJECT_DIR/.safeword/hooks/audit-principle-trace.ts" "$PROJECT_DIR"
+bunx --bun safeword@0.82.1 project runtime audit-principle-trace
 ```
 
 ### 7. Namespace Domain Docs

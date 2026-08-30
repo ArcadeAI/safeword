@@ -344,6 +344,9 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   command('project record-skill-invocation', 'Record current-run workflow proof', 'mutate', {
     syntax: 'record-skill-invocation <skill> [session-id]',
   }),
+  command('project runtime', 'Run an allowlisted helper from the installed package', 'mutate', {
+    syntax: 'runtime <helper> [args...]',
+  }),
   command('project retro-drain', 'Drain acknowledged retro drafts from a spool', 'mutate', {
     syntax: 'retro-drain <spool>',
     commandOptions: [

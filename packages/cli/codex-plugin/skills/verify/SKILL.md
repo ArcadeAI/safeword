@@ -49,7 +49,7 @@ ticket remains relevant after its status changes during closeout; a changed
 
 ```bash
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
-bun "$PROJECT_DIR/.safeword/hooks/resolve-verify-ticket.ts" "$PROJECT_DIR"
+bunx --bun safeword@0.82.1 project runtime resolve-verify-ticket
 ```
 
 If Safeword's injected context names a ticket but the host exposes no runtime
