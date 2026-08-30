@@ -5,7 +5,7 @@ Feature: Route local retros through the durable server
   server ownership without customer setup. Legacy records remain inert, and a
   production-evidence gate controls the global cutover.
 
-  @local-retro-cutover.NTB1.R1 @surface.claude-code @surface.openai-codex @surface.cursor @surface.safeword-cli @surface.railway-public-retro-collector @proof.vitest
+  @local-retro-cutover.NTB1.R1 @surface.claude-code @surface.openai-codex @surface.cursor @surface.safeword-cli @surface.railway-public-retro-collector
   Rule: local-retro-cutover.NTB1.R1 — Local submission requires no customer setup
 
     # Real installed-harness wiring is proven by the production canaries in SWM1.R1.
@@ -27,7 +27,7 @@ Feature: Route local retros through the durable server
       When an eligible finding is captured
       Then no public request is attempted and the finding remains locally recoverable
 
-  @local-retro-cutover.NTB1.R2 @surface.safeword-cli @proof.vitest
+  @local-retro-cutover.NTB1.R2 @surface.safeword-cli
   Rule: local-retro-cutover.NTB1.R2 — Retrospective transport is silent and bounded
 
     Scenario Outline: Every transport outcome stays within the shared stop budget
@@ -58,7 +58,7 @@ Feature: Route local retros through the durable server
       Then the session stop completes within one 750 millisecond budget
       And the second attempt receives a deadline of at most 350 milliseconds
 
-  @local-retro-cutover.NTB1.R3 @surface.safeword-cli @proof.vitest
+  @local-retro-cutover.NTB1.R3 @surface.safeword-cli
   Rule: local-retro-cutover.NTB1.R3 — Collection remains disclosed and optional
 
     Scenario: Default installation documents the sanitized feedback path
@@ -72,7 +72,7 @@ Feature: Route local retros through the durable server
       When an eligible local finding is captured
       Then no public request or server record is created
 
-  @local-retro-cutover.TBU1.R1 @surface.safeword-cli @surface.railway-public-retro-collector @proof.vitest
+  @local-retro-cutover.TBU1.R1 @surface.safeword-cli @surface.railway-public-retro-collector
   Rule: local-retro-cutover.TBU1.R1 — One captured window keeps one request identity
 
     Scenario: A lost receipt retries the persisted request
@@ -95,7 +95,7 @@ Feature: Route local retros through the durable server
       When that identity is retried with different bytes
       Then the collector preserves the original receipt and bytes and the client retains the divergent copy as a local diagnostic
 
-  @local-retro-cutover.TBU1.R2 @surface.retro-filer @surface.railway-public-retro-collector @proof.vitest
+  @local-retro-cutover.TBU1.R2 @surface.retro-filer @surface.railway-public-retro-collector
   Rule: local-retro-cutover.TBU1.R2 — Durable acceptance transfers recovery exactly once
 
     Scenario: Collector acceptance transfers recovery to the server
@@ -126,7 +126,7 @@ Feature: Route local retros through the durable server
         | times out           |
         | cannot be reached   |
 
-  @local-retro-cutover.TBU1.R3 @surface.railway-hosted-relay @proof.vitest
+  @local-retro-cutover.TBU1.R3 @surface.railway-hosted-relay
   Rule: local-retro-cutover.TBU1.R3 — Raw GitHub bodies are duplicate authority
 
     Scenario: Exact authority markers suppress a duplicate create
@@ -147,7 +147,7 @@ Feature: Route local retros through the durable server
         | a lone request marker |
         | an incomplete scan    |
 
-  @local-retro-cutover.TBU1.R4 @surface.safeword-cli @surface.railway-public-retro-collector @surface.railway-hosted-relay @proof.vitest
+  @local-retro-cutover.TBU1.R4 @surface.safeword-cli @surface.railway-public-retro-collector @surface.railway-hosted-relay
   Rule: local-retro-cutover.TBU1.R4 — Accepted intake is safe and relay-compatible
 
     Scenario: The largest normalized batch is accepted
@@ -190,7 +190,7 @@ Feature: Route local retros through the durable server
       When the collector accepts it under a controlled outbound transport
       Then no outbound GitHub request is recorded and the relay filing credential is absent from the collector process configuration
 
-  @local-retro-cutover.TBU1.R5 @surface.railway-public-retro-collector @surface.railway-hosted-relay @proof.vitest
+  @local-retro-cutover.TBU1.R5 @surface.railway-public-retro-collector @surface.railway-hosted-relay
   Rule: local-retro-cutover.TBU1.R5 — Server ownership survives interrupted filing
 
     Scenario: A claim crash is reclaimed and filed once
@@ -215,7 +215,7 @@ Feature: Route local retros through the durable server
       When server-side ambiguity recovery runs
       Then no create is issued and the retained payload remains retryable for another complete scan
 
-  @local-retro-cutover.TBU1.R6 @surface.railway-public-retro-collector @proof.vitest
+  @local-retro-cutover.TBU1.R6 @surface.railway-public-retro-collector
   Rule: local-retro-cutover.TBU1.R6 — Routine operations do not expose findings
 
     Scenario: Lifecycle inspection returns metadata without payload
@@ -245,7 +245,7 @@ Feature: Route local retros through the durable server
       When the worker leases and reads its raw body
       Then the payload is returned and an audit entry records the worker principal and request identity
 
-  @local-retro-cutover.TBU1.R7 @surface.safeword-cli @surface.retro-filer @proof.vitest
+  @local-retro-cutover.TBU1.R7 @surface.safeword-cli @surface.retro-filer
   Rule: local-retro-cutover.TBU1.R7 — Cutover preserves old work and routes new work only through the server
 
     Scenario: Cutover preserves a draft captured under the old route
@@ -273,7 +273,7 @@ Feature: Route local retros through the durable server
         | OpenAI Codex |
         | Cursor       |
 
-  @local-retro-cutover.SWM1.R2 @surface.cursor @proof.vitest
+  @local-retro-cutover.SWM1.R2 @surface.cursor
   Rule: local-retro-cutover.SWM1.R2 — Readiness proves truthful runtime provenance
 
     Scenario Outline: Cursor host detection records truthful provenance
@@ -303,7 +303,7 @@ Feature: Route local retros through the durable server
         | ambiguous GitHub creation | GitHub created the marked issue        | an exact-duplicate disposition     |
         | ambiguous GitHub creation | GitHub created no matching marked issue | a filed disposition              |
 
-  @local-retro-cutover.SWM1.R4 @surface.railway-public-retro-collector @surface.railway-hosted-relay @proof.vitest
+  @local-retro-cutover.SWM1.R4 @surface.railway-public-retro-collector @surface.railway-hosted-relay
   Rule: local-retro-cutover.SWM1.R4 — Intake and filing bounds contain anonymous volume
 
     Scenario: Admitted work drains oldest-first within filing quotas
@@ -328,7 +328,7 @@ Feature: Route local retros through the durable server
       When filing maintenance evaluates it
       Then the request dead-letters with a payload-free alert
 
-  @local-retro-cutover.SWM1.R5 @surface.claude-code @surface.openai-codex @surface.cursor @surface.safeword-cli @proof.vitest
+  @local-retro-cutover.SWM1.R5 @surface.claude-code @surface.openai-codex @surface.cursor @surface.safeword-cli
   Rule: local-retro-cutover.SWM1.R5 — Readiness rejects incomplete or untruthful evidence
 
     Scenario: Complete truthful evidence enables global cutover

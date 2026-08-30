@@ -81,11 +81,11 @@
     "The collector enforces the shared whole-request byte limit": [
       [
         "packages/retro-collector/tests/public-retro.integration.test.ts",
-        "accepts a %s %s envelope at the 65536-byte limit"
+        "accepts a %s %s envelope at the 262144-byte limit"
       ],
       [
         "packages/retro-collector/tests/public-retro.integration.test.ts",
-        "rejects a %s %s envelope above the 65536-byte limit"
+        "rejects a %s %s envelope above the 262144-byte limit"
       ]
     ],
     "Public acceptance preserves private recovery silently": [
