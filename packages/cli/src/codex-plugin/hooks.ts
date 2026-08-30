@@ -12,21 +12,17 @@ export function codexPluginHookCommands(hooks: Record<string, CodexPluginHookEnt
   );
 }
 
-/** Reject a hook command that could evade the reviewed, versioned Bunx path. */
-export function assertPinnedBunxHookCommand(command: string, version: string): void {
+/** Reject a hook command that could evade the reviewed bundled plugin runtime. */
+export function assertBundledHookCommand(command: string): void {
   if (command.includes('--dangerously-bypass-hook-trust')) {
     throw new Error('Safeword plugin hooks must not bypass Codex hook trust');
   }
-  if (/\bnpx\b/u.test(command)) {
-    throw new Error('Safeword plugin hooks must use Bunx, never npx');
+  if (/\b(?:bunx|npx)\b/u.test(command)) {
+    throw new Error('Safeword plugin hooks must not install packages at runtime');
   }
-  if (!command.startsWith('bunx --bun safeword')) {
-    throw new Error('Safeword plugin hooks must use pinned Bunx Safeword commands');
-  }
-  if (!command.startsWith(`bunx --bun safeword@${version} `)) {
-    throw new Error(`Safeword plugin hooks must pin safeword@${version}`);
-  }
-  if (!/^bunx --bun safeword@\S+ hook codex [a-z-]+ --plugin-hook$/u.test(command)) {
-    throw new Error('Safeword plugin hooks must use the Safeword Codex hook command form');
+  if (
+    !/^bun "\$\{PLUGIN_ROOT\}\/runtime\/cli\.js" hook codex [a-z-]+ --plugin-hook$/u.test(command)
+  ) {
+    throw new Error('Safeword plugin hooks must use the bundled Safeword Codex hook command form');
   }
 }

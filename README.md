@@ -353,8 +353,8 @@ Key directories created in your project:
 
 **Hooks** (in `.safeword/hooks/`): TypeScript and shell automation organized by lifecycle and host. Session hooks load standing context, heal generated architecture, check dependencies, and manage resumable state. Pre/post-tool hooks guard owned configuration, enforce ticket phases, lint edits, record evidence, and protect Git/process boundaries. Stop hooks run verification, review, retro, and re-entry flows. Claude Code and Cursor use project-local adapters; Codex dispatches equivalent events through the profile plugin. The installed hook manifests—not a hand-maintained README list—are the source of truth.
 
-Codex hooks live in the Safeword plugin and run from the package with
-`bunx --bun safeword@<plugin-version> hook codex <event>`. Install and verify
+Codex hooks live in the Safeword plugin and run through the CLI bundled with
+that exact plugin version, without a package-manager lookup at hook time. Install and verify
 the profile-scoped plugin immediately with `safeword install --agents=codex`; install also
 creates project-level SessionStart hooks for enrollment and dependency
 preparation, never an edit or shell-command interception hook. Startup remains
@@ -774,11 +774,11 @@ The CLI installs matching workflow capabilities for Claude Code, Cursor, and Cod
 
 **Parity tests:** `packages/cli/tests/schema.test.ts`
 
-| Agent       | Workflow Surface                         | Commands / Hooks                                                                    |
-| ----------- | ---------------------------------------- | ----------------------------------------------------------------------------------- |
-| Claude Code | `.claude/skills/*`                       | Skills expose slash-command behavior                                                |
-| Cursor      | `.cursor/rules/{safeword-*,bdd-*}.mdc`   | `.cursor/commands/*.md`, `.cursor/hooks.json`                                       |
-| Codex       | Codex plugin skills (`safeword:<skill>`) | Plugin hooks call version-pinned `bunx --bun safeword@<version> hook codex <event>` |
+| Agent       | Workflow Surface                         | Commands / Hooks                                                    |
+| ----------- | ---------------------------------------- | ------------------------------------------------------------------- |
+| Claude Code | `.claude/skills/*`                       | Skills expose slash-command behavior                                |
+| Cursor      | `.cursor/rules/{safeword-*,bdd-*}.mdc`   | `.cursor/commands/*.md`, `.cursor/hooks.json`                       |
+| Codex       | Codex plugin skills (`safeword:<skill>`) | Plugin hooks call the CLI bundled with the installed plugin version |
 
 **Editing skills:**
 

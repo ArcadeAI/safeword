@@ -1,6 +1,7 @@
 /**
- * Verifies that every release-tracked manifest and Codex hook command uses
- * the CLI package version. This is called by pre-commit and release tests.
+ * Verifies that every release-tracked manifest uses the CLI package version
+ * and every Codex hook uses the bundled plugin runtime. This is called by
+ * pre-commit and release tests.
  */
 
 import { readFileSync } from 'node:fs';
@@ -83,7 +84,7 @@ if (version !== marketplaceVersion || version !== codexPluginVersion) {
 
 const expectedCommands = new Set(
   CODEX_HOOK_EVENTS.map(
-    event => `bunx --bun safeword@${version} hook codex ${event} --plugin-hook`,
+    event => `bun "\${PLUGIN_ROOT}/runtime/cli.js" hook codex ${event} --plugin-hook`,
   ),
 );
 const hookCommands = getHookCommands(codexHooks);
@@ -95,6 +96,6 @@ if (
   [...expectedCommands].some(command => !actualCommands.has(command))
 ) {
   fail(
-    `Version mismatch: packages/cli/codex-plugin/hooks.json must pin every Codex hook to safeword@${version}.`,
+    'Runtime mismatch: packages/cli/codex-plugin/hooks.json must use the bundled CLI for every Codex hook.',
   );
 }

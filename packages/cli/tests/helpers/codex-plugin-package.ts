@@ -57,7 +57,12 @@ export function assertPackedCodexPlugin(cliRoot: string, packageDirectory: strin
   const pluginDirectory = nodePath.join(packageDirectory, 'codex-plugin');
   requireDirectory(pluginDirectory, 'Packed Codex plugin');
 
-  for (const artifact of ['.codex-plugin/plugin.json', 'hooks.json']) {
+  for (const artifact of [
+    '.codex-plugin/plugin.json',
+    'hooks.json',
+    'package.json',
+    'runtime/cli.js',
+  ]) {
     const artifactPath = nodePath.join(pluginDirectory, artifact);
     if (!existsSync(artifactPath) || !statSync(artifactPath).isFile()) {
       throw new Error(`Packed Codex plugin is missing required artifact: ${artifact}`);

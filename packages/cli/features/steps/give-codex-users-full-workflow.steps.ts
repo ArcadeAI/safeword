@@ -24,7 +24,7 @@ import {
   type GeneratedPluginAsset,
 } from '../../src/codex-plugin/catalogue.ts';
 import {
-  assertPinnedBunxHookCommand,
+  assertBundledHookCommand,
   codexPluginHookCommands,
   type CodexPluginHookEntry,
 } from '../../src/codex-plugin/hooks.ts';
@@ -426,11 +426,10 @@ Then('the installation is rejected', function (this: WorkflowWorld) {
 });
 
 Given('the generated Safeword plugin hooks', function (this: WorkflowWorld) {
-  const version = VERSION;
   const hooks = readPluginHooks();
   this.hookContract = () => {
     for (const command of codexPluginHookCommands(hooks)) {
-      assertPinnedBunxHookCommand(command, version);
+      assertBundledHookCommand(command);
     }
   };
 });
@@ -440,7 +439,7 @@ When('the hook release contract runs', function (this: WorkflowWorld) {
   this.hookContractError = captureContractError(this.hookContract);
 });
 
-Then('every Safeword hook invokes a version-pinned Bunx command', function (this: WorkflowWorld) {
+Then('every Safeword hook invokes the bundled plugin runtime', function (this: WorkflowWorld) {
   assert.equal(this.hookContractError, undefined);
 });
 
@@ -456,7 +455,7 @@ Given(
 
         break;
       }
-      case 'unpinned CLI version': {
+      case 'package bootstrap': {
         command.command = 'bunx --bun safeword hook codex session-start';
 
         break;
@@ -472,7 +471,7 @@ Given(
     }
     this.hookContract = () => {
       for (const hookCommand of codexPluginHookCommands(hooks)) {
-        assertPinnedBunxHookCommand(hookCommand, version);
+        assertBundledHookCommand(hookCommand);
       }
     };
   },
@@ -481,8 +480,8 @@ Given(
 Then('the release is rejected for {string}', function (this: WorkflowWorld, policy: string) {
   assert.ok(this.hookContractError !== undefined, 'expected hook contract to reject the fixture');
   const expectedMessage = {
-    'npx execution': 'Bunx',
-    'unpinned CLI version': `safeword@${VERSION}`,
+    'npx execution': 'must not install packages',
+    'package bootstrap': 'must not install packages',
     'hook-trust bypass flag': 'must not bypass',
   }[policy];
   assert.ok(expectedMessage !== undefined, `unknown hook policy: ${policy}`);

@@ -145,12 +145,12 @@ Feature: Give Codex users the full Safeword workflow
       Then the installation is rejected
 
   @workflow-maintenance.SWM1.R4
-  Rule: workflow-maintenance.SWM1.R4 - Plugin hook commands use version-pinned Bunx and never bypass Codex hook trust
+  Rule: workflow-maintenance.SWM1.R4 - Plugin hook commands use the bundled runtime and never bypass Codex hook trust
 
-    Scenario: Plugin hooks invoke the pinned Safeword CLI through Bunx
+    Scenario: Plugin hooks invoke the bundled Safeword CLI
       Given the generated Safeword plugin hooks
       When the hook release contract runs
-      Then every Safeword hook invokes a version-pinned Bunx command
+      Then every Safeword hook invokes the bundled plugin runtime
 
     @rejection
     Scenario Outline: Unsafe hook execution path rejects the plugin release
@@ -161,5 +161,5 @@ Feature: Give Codex users the full Safeword workflow
       Examples:
         | policy                 |
         | npx execution          |
-        | unpinned CLI version   |
+        | package bootstrap      |
         | hook-trust bypass flag |

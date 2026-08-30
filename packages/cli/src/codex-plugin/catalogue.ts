@@ -171,15 +171,16 @@ function adaptWorkflowInvocations(markdown: string, knownSkillNames: ReadonlySet
 
 // Codex skills invoke project-local `.safeword/hooks` scripts, none of which
 // exist in Codex's self-contained plugin. Each is rewritten to the equivalent
-// pinned, public subcommand, mirroring how Codex's lifecycle hooks already
-// invoke safeword via `bunx --bun safeword@<version>`.
+// public subcommand in the plugin's bundled CLI. Skills do not receive the
+// PLUGIN_ROOT variable that hook-command shells receive, so use Codex's stable
+// versioned plugin-cache layout instead.
 //
 // Codex cannot instead ship and call those scripts: its plugin-root anchor
 // (`PLUGIN_ROOT`) is injected only into hook-command shells, never into the
 // shell a skill's bash block runs in, so a vendored path would rest on the
 // model resolving a relative path — too soft for a gate.
 //
-// `{version}` in a replacement is filled with the pinned CLI version.
+// `{cli}` in a replacement is filled with the versioned bundled CLI command.
 const SCRIPT_REWRITES: readonly { readonly invocation: string; readonly replacement: string }[] = [
   // Prefix swap: `review run …` and its own arguments follow unchanged.
   //
@@ -193,26 +194,31 @@ const SCRIPT_REWRITES: readonly { readonly invocation: string; readonly replacem
   // stays clean for the caller parsing the JSON envelope.
   {
     invocation: 'bun .safeword/hooks/run-review.ts ',
-    replacement: 'SAFEWORD_REVIEW_PROGRESS=1 bunx --bun safeword@{version} ',
+    replacement: 'SAFEWORD_REVIEW_PROGRESS=1 {cli} ',
   },
   // Whole-invocation swap: the script takes no arguments at its call sites, and
   // the caller reads the JSON envelope.
   {
     invocation: 'bun .safeword/hooks/resolve-project-knowledge.ts',
-    replacement: 'bunx --bun safeword@{version} project review-knowledge --json',
+    replacement: '{cli} project review-knowledge --json',
   },
   // Prefix swap with no `--json`: the caller consumes raw stdout (the retro
   // filer streams the validated JSONL onward), which the envelope would replace.
   {
     invocation: 'bun .safeword/hooks/lib/drain-retro-spool.ts ',
-    replacement: 'bunx --bun safeword@{version} project retro-drain ',
+    replacement: '{cli} project retro-drain ',
   },
 ];
 
+export function codexBundledCliCommand(version: string): string {
+  return `bun "\${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/${version}/runtime/cli.js"`;
+}
+
 function adaptScriptInvocations(markdown: string, version: string): string {
   let adapted = markdown;
+  const cli = codexBundledCliCommand(version);
   for (const { invocation, replacement } of SCRIPT_REWRITES) {
-    adapted = adapted.split(invocation).join(replacement.split('{version}').join(version));
+    adapted = adapted.split(invocation).join(replacement.split('{cli}').join(cli));
   }
   return adapted;
 }
@@ -272,7 +278,7 @@ function rewriteNamespaceRootTail(tail: string, replacement: string): string {
 }
 
 function adaptNamespaceRootInvocations(markdown: string, version: string): string {
-  const replacement = `bunx --bun safeword@${version} project namespace-root --cwd "$PROJECT_DIR"`;
+  const replacement = `${codexBundledCliCommand(version)} project namespace-root --cwd "$PROJECT_DIR"`;
   const [head, ...rest] = markdown.split(NAMESPACE_ROOT_INVOCATION_PREFIX);
   let adapted = head ?? '';
 
@@ -442,8 +448,8 @@ function formatMarkdownTables(markdown: string): string {
  * Adapt the canonical skill corpus into Codex's plugin layout. Only the source
  * metadata, explicit workflow invocations, and sibling reference paths change.
  *
- * `version` is REQUIRED, not defaulted: it is what the generated skills pin
- * their `bunx --bun safeword@<version>` calls to, so a caller that omitted it
+ * `version` is REQUIRED, not defaulted: it is what the generated skills use
+ * to address their bundled CLI in Codex's versioned plugin cache, so a caller that omitted it
  * would silently produce a catalogue that compares unequal to what ships —
  * the failure mode this signature exists to make a compile error. Production
  * callers pass {@link VERSION}; tests pin a literal.

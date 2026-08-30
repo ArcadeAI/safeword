@@ -164,7 +164,7 @@ describe('generated Codex plugin catalogue', () => {
     }
   });
 
-  it('rewrites run-review.ts invocations to a pinned, self-contained Bunx call', () => {
+  it('rewrites run-review.ts invocations to the bundled Codex plugin CLI', () => {
     const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-plugin-run-review-'));
     const canonicalSkillsDirectory = nodePath.join(fixture, 'skills');
     try {
@@ -190,7 +190,7 @@ describe('generated Codex plugin catalogue', () => {
       // in the child environment: without it a multi-minute review runs silent.
       const generated = generateCodexPluginAssets(canonicalSkillsDirectory, '1.2.3');
       expect(generated[0]?.content).toContain(
-        'SAFEWORD_REVIEW_PROGRESS=1 bunx --bun safeword@1.2.3 review run quality-review changed-file [more-changed-files...] --agent-handoff --json',
+        'SAFEWORD_REVIEW_PROGRESS=1 bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.3/runtime/cli.js" review run quality-review changed-file [more-changed-files...] --agent-handoff --json',
       );
       expect(generated[0]?.content).not.toContain('.safeword/hooks/run-review.ts');
     } finally {
@@ -227,10 +227,10 @@ describe('generated Codex plugin catalogue', () => {
         generateCodexPluginAssets(canonicalSkillsDirectory, '1.2.3')[0]?.content ?? '';
 
       expect(content).toContain(
-        'NS_ROOT="$(bunx --bun safeword@1.2.3 project namespace-root --cwd "$PROJECT_DIR")"',
+        'NS_ROOT="$(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.3/runtime/cli.js" project namespace-root --cwd "$PROJECT_DIR")"',
       );
       expect(content).toContain(
-        'PERSONAS="$(bunx --bun safeword@1.2.3 project namespace-root --cwd "$PROJECT_DIR" --key personas 2> /dev/null)"',
+        'PERSONAS="$(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.3/runtime/cli.js" project namespace-root --cwd "$PROJECT_DIR" --key personas 2> /dev/null)"',
       );
       // A non-default basename has no flag to carry it, so it stays untouched
       // rather than silently resolving a different file.
@@ -240,7 +240,7 @@ describe('generated Codex plugin catalogue', () => {
       // The script defaults its third argument to `<key>.md`, which is also the
       // subcommand's default, so a key-only call maps cleanly onto --key.
       expect(content).toContain(
-        'KEYONLY="$(bunx --bun safeword@1.2.3 project namespace-root --cwd "$PROJECT_DIR" --key personas)"',
+        'KEYONLY="$(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.3/runtime/cli.js" project namespace-root --cwd "$PROJECT_DIR" --key personas)"',
       );
       // An operand the rewrite cannot map is preserved rather than emitted after
       // the new command: `namespace-root` takes no operands, so rewriting would
@@ -316,7 +316,7 @@ describe('generated Codex plugin catalogue', () => {
         generateCodexPluginAssets(canonicalSkillsDirectory, '1.2.3')[0]?.content ?? '';
 
       expect(content).toContain(
-        'Run `bunx --bun safeword@1.2.3 project review-knowledge --json` and use its sources.',
+        'Run `bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.3/runtime/cli.js" project review-knowledge --json` and use its sources.',
       );
       expect(content).not.toContain('.safeword/hooks/resolve-project-knowledge.ts');
     } finally {
