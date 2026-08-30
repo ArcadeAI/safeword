@@ -8,11 +8,6 @@ const GIT_MAX_BUFFER_BYTES = 10 * 1024 * 1024;
 const PUBLIC_RETRO_ORIGIN =
   process.env.SAFEWORD_PUBLIC_RETRO_BUILD_ORIGIN ??
   'https://retro-collector-production.up.railway.app';
-const CLI_PACKAGE_VERSION = (
-  JSON.parse(readFileSync(new URL('package.json', import.meta.url), 'utf8')) as {
-    version: string;
-  }
-).version;
 
 const manifestBytes = readFileSync(
   new URL('src/retro/relay-readiness-manifest.json', import.meta.url),
@@ -161,18 +156,7 @@ export default defineConfig({
   },
   onSuccess() {
     // The OpenCode profile copies this entry without sibling tsup chunks or node_modules.
-    execFileSync(
-      'bun',
-      [
-        'build',
-        'src/opencode/dispatcher.ts',
-        '--target=node',
-        '--define',
-        `__SAFEWORD_VERSION__=${JSON.stringify(CLI_PACKAGE_VERSION)}`,
-        '--outfile=dist/opencode/dispatcher.js',
-      ],
-      { stdio: 'inherit' },
-    );
+    execFileSync('bun', ['scripts/build-opencode-dispatcher.ts'], { stdio: 'inherit' });
     rmSync('dist/opencode/dispatcher.js.map', { force: true });
     return Promise.resolve();
   },
