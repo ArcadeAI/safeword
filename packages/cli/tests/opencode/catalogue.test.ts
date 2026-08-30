@@ -27,10 +27,11 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-describe('OpenCode project catalogue', () => {
-  it('TBU1.R1.S01 installs the complete non-empty canonical command and agent sets', async () => {
+describe('OpenCode profile catalogue', () => {
+  it('installs the complete native catalogue without project host files', async () => {
     const project = temporaryDirectory();
-    vi.stubEnv('OPENCODE_CONFIG_DIR', temporaryDirectory());
+    const profile = temporaryDirectory();
+    vi.stubEnv('OPENCODE_CONFIG_DIR', profile);
 
     const result = await installLifecycle(
       {
@@ -47,31 +48,38 @@ describe('OpenCode project catalogue', () => {
     );
 
     const markdownNames = (directory: string): string[] =>
-      readdirSync(nodePath.join(project, directory))
+      readdirSync(nodePath.join(profile, directory))
         .filter(name => name.endsWith('.md'))
         .map(name => name.slice(0, -3))
         .toSorted((left, right) => left.localeCompare(right));
-    const commandNames = CURSOR_COMMAND_WRAPPERS.map(wrapper => wrapper.name).toSorted(
-      (left, right) => left.localeCompare(right),
-    );
+    const commandNames = CURSOR_COMMAND_WRAPPERS.map(
+      wrapper => `safeword-${wrapper.name}`,
+    ).toSorted((left, right) => left.localeCompare(right));
+    const skillNames = readdirSync(
+      nodePath.resolve(import.meta.dirname, '../../templates/skills'),
+      { withFileTypes: true },
+    )
+      .filter(entry => entry.isDirectory())
+      .map(entry => `safeword-${entry.name}`)
+      .toSorted((left, right) => left.localeCompare(right));
 
     expect(result.errors).toEqual([]);
     expect(commandNames.length).toBeGreaterThan(0);
-    expect(markdownNames('.opencode/commands')).toEqual(commandNames);
-    expect(markdownNames('.opencode/agents')).toEqual([
-      'safeword-retro-filer',
-      'safeword-reviewer',
-    ]);
-    for (const command of CURSOR_COMMAND_WRAPPERS) {
-      expect(
-        readFileSync(nodePath.join(project, `.opencode/commands/${command.name}.md`), 'utf8'),
-      ).toBe(renderOpenCodeCommand(command));
-    }
+    expect(markdownNames('commands')).toEqual(commandNames);
+    expect(markdownNames('agents')).toEqual(['safeword-retro-filer', 'safeword-reviewer']);
+    expect(
+      readdirSync(nodePath.join(profile, 'skills')).toSorted((left, right) =>
+        left.localeCompare(right),
+      ),
+    ).toEqual(skillNames);
+    expect(existsSync(nodePath.join(project, '.opencode'))).toBe(false);
+    expect(existsSync(nodePath.join(project, '.claude/skills'))).toBe(false);
+    expect(existsSync(nodePath.join(profile, 'plugins/safeword.js'))).toBe(true);
+    expect(existsSync(nodePath.join(profile, 'safeword/dispatcher.mjs'))).toBe(true);
     for (const agent of SAFEWORD_SUBAGENTS) {
-      expect(
-        readFileSync(nodePath.join(project, `.opencode/agents/${agent.name}.md`), 'utf8'),
-      ).toBe(renderOpenCodeAgent(agent));
-      expect(existsSync(nodePath.join(project, agent.procedurePath))).toBe(true);
+      expect(readFileSync(nodePath.join(profile, `agents/${agent.name}.md`), 'utf8')).toBe(
+        renderOpenCodeAgent(agent),
+      );
     }
   });
 });

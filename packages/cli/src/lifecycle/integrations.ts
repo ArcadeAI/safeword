@@ -469,7 +469,7 @@ const opencode = defineIntegrationAdapter({
   id: 'opencode',
   defaultSelected: false,
   exposeStatusData: true,
-  project: { owned: ['opencode'], shared: ['skills'] },
+  project: { owned: [], shared: [] },
   profile: {
     available: true,
     async observePrecondition(context) {

@@ -14,6 +14,7 @@ import { type CliResult, createResult } from '../cli-protocol/result.js';
 import { writeDurableFile } from '../codex-plugin/durable-write.js';
 import { acquireProfileLock, releaseProfileLock } from '../utils/profile-lock.js';
 import { VERSION } from '../version.js';
+import { generateOpenCodeCatalogueAssets, type OpenCodeCatalogueAsset } from './catalogue.js';
 import {
   type OpenCodeActivationV1,
   type OpenCodeConformanceV1,
@@ -69,6 +70,7 @@ export interface ReconcileOpenCodeProfileInput {
   readonly pluginBytes: Buffer | string;
   readonly identity: OpenCodeIdentityV1;
   readonly dispatcherBytes?: Buffer;
+  readonly catalogueAssets?: readonly OpenCodeCatalogueAsset[];
 }
 
 export interface ObserveOpenCodeProfileInput {
@@ -139,9 +141,18 @@ function packagedDispatcherPath(): string | undefined {
   ].find(candidate => existsSync(candidate));
 }
 
+function packagedTemplatesRoot(): string | undefined {
+  const moduleDirectory = import.meta.dirname;
+  return [
+    nodePath.resolve(moduleDirectory, '../templates'),
+    nodePath.resolve(moduleDirectory, '../../templates'),
+  ].find(candidate => existsSync(nodePath.join(candidate, 'skills')));
+}
+
 export function installOpenCodeProfile(root: string): CliResult {
   const packagedPath = packagedDispatcherPath();
-  if (packagedPath === undefined) {
+  const templatesRoot = packagedTemplatesRoot();
+  if (packagedPath === undefined || templatesRoot === undefined) {
     return actionRequired(
       'OPENCODE_DISPATCHER_MISSING',
       'The packaged OpenCode dispatcher is unavailable.',
@@ -165,6 +176,7 @@ export function installOpenCodeProfile(root: string): CliResult {
       dispatcher_sha256: sha256(dispatcherBytes),
     },
     dispatcherBytes,
+    catalogueAssets: generateOpenCodeCatalogueAssets(templatesRoot),
   });
 }
 
@@ -619,11 +631,19 @@ function writeManagedProfile(
   pluginBytes: Buffer | string,
   identity: OpenCodeIdentityV1,
   dispatcherBytes: Buffer | undefined,
+  catalogueAssets: readonly OpenCodeCatalogueAsset[] = [],
 ): void {
   if (dispatcherBytes !== undefined) {
     writeDurableFile(paths.dispatcher, dispatcherBytes, { mode: 0o600 });
   }
   writeDurableFile(paths.plugin, pluginBytes, { mode: 0o600 });
+  for (const asset of catalogueAssets) {
+    writeDurableFile(
+      nodePath.join(nodePath.dirname(paths.plugin), '..', asset.relativePath),
+      asset.content,
+      { mode: 0o600 },
+    );
+  }
   writeDurableFile(paths.identity, `${JSON.stringify(identity, undefined, 2)}\n`, { mode: 0o600 });
 }
 
@@ -755,7 +775,13 @@ export function reconcileOpenCodeProfile(input: ReconcileOpenCodeProfileInput): 
     const currentResult = terminalUnlessDispatcherNeedsRepair(paths, input, current);
     if (currentResult !== undefined) return currentResult;
     if (input.operation === 'install') {
-      writeManagedProfile(paths, input.pluginBytes, input.identity, input.dispatcherBytes);
+      writeManagedProfile(
+        paths,
+        input.pluginBytes,
+        input.identity,
+        input.dispatcherBytes,
+        input.catalogueAssets,
+      );
     } else {
       removeManagedProfile(paths);
     }
