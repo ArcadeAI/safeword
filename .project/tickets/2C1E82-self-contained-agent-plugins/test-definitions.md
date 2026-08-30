@@ -100,7 +100,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED d7fb488ee
 - [x] GREEN f7f4cd053
-- [x] REFACTOR f7f4cd053
+- [x] REFACTOR skip: the three native catalogues share one narrow authority validator
 
 ### Scenario: OpenCode profile identity records the complete owned catalogue
 
@@ -118,7 +118,7 @@ test-definitions.md is the R/G/R ledger.
 
 - [x] RED 024bca4fe
 - [x] GREEN f7f4cd053
-- [x] REFACTOR f7f4cd053
+- [x] REFACTOR skip: retirement and drift checks share the recorded identity inventory
 
 ### Scenario: OpenCode uninstall preserves drifted catalogue content
 
