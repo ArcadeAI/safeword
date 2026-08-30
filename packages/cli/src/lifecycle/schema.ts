@@ -1,3 +1,6 @@
+import { existsSync } from 'node:fs';
+import nodePath from 'node:path';
+
 import { schemaForClaudeDelivery } from '../claude-plugin/delivery-schema.js';
 import { schemaForCodexDelivery } from '../codex-plugin/delivery-schema.js';
 import { generateOwnedPathsModule, resolvedNamespaceDirectory } from '../owned-paths.js';
@@ -54,15 +57,22 @@ function sharedRuntimeNeeded(selected: ReadonlySet<string>, legacyClaudeActive: 
   return selected.has('cursor') || legacyClaudeActive;
 }
 
+function installedCursorActive(cwd: string): boolean {
+  const cursorSchema = schemaForProjectSurfaces(SAFEWORD_SCHEMA, ['cursor']);
+  return [...Object.keys(cursorSchema.ownedFiles), ...Object.keys(cursorSchema.jsonMerges)].some(
+    path => path.startsWith('.cursor/') && existsSync(nodePath.join(cwd, path)),
+  );
+}
+
 export function projectLifecycleSchema(
   cwd: string,
   agents: readonly string[],
-  _operation: 'check' | 'install' | 'uninstall' = 'check',
+  operation: 'check' | 'install' | 'uninstall' = 'check',
 ): SafewordSchema {
   const claudeDeliverySchema = schemaForClaudeDelivery(cwd);
   const selected = new Set(agents);
-  const legacyClaudeActive =
-    selected.has('claude') && hasLegacyClaudeDelivery(claudeDeliverySchema);
+  const legacyClaudeInstalled = hasLegacyClaudeDelivery(claudeDeliverySchema);
+  const legacyClaudeActive = selected.has('claude') && legacyClaudeInstalled;
   const openCodeSchema = selectedDeliverySchema(claudeDeliverySchema, selected);
   const deliverySchema = schemaForCodexDelivery(cwd, openCodeSchema);
   const surfaceSchema = schemaForProjectSurfaces(deliverySchema, selectedProjectSurfaces(selected));
@@ -70,7 +80,14 @@ export function projectLifecycleSchema(
   // workflow assets. Cursor is the only selected host whose declared authority
   // remains project-delivered; an observed legacy Claude install keeps its
   // runtime until the migration proves replacement.
+  const remainingHostNeedsRuntime =
+    operation === 'uninstall' &&
+    ((!selected.has('claude') && legacyClaudeInstalled) ||
+      (!selected.has('cursor') && installedCursorActive(cwd)));
   return withSelectedOwnedPaths(
-    schemaForSharedAgentRuntime(surfaceSchema, sharedRuntimeNeeded(selected, legacyClaudeActive)),
+    schemaForSharedAgentRuntime(
+      surfaceSchema,
+      !remainingHostNeedsRuntime && sharedRuntimeNeeded(selected, legacyClaudeActive),
+    ),
   );
 }

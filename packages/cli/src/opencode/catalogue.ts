@@ -25,7 +25,24 @@ export const SAFEWORD_SUBAGENTS: readonly SafewordSubagent[] = [
 ] as const;
 
 function skillName(command: CursorCommandWrapper): string {
-  return command.skillPath.split('/', 1)[0] ?? command.name;
+  const [name] = command.skillPath.split('/', 1);
+  if (name === undefined) throw new Error(`OpenCode command ${command.name} has no skill path`);
+  return name;
+}
+
+export function validateOpenCodeCatalogueReferences(
+  knownSkills: ReadonlySet<string>,
+  commands: readonly CursorCommandWrapper[],
+  agents: readonly SafewordSubagent[],
+): void {
+  for (const reference of [
+    ...commands.map(command => skillName(command)),
+    ...agents.map(agent => agent.skill),
+  ]) {
+    if (!knownSkills.has(reference)) {
+      throw new Error(`OpenCode catalogue references unknown skill: ${reference}`);
+    }
+  }
 }
 
 export function renderOpenCodeCommand(command: CursorCommandWrapper): string {
@@ -53,11 +70,16 @@ export interface OpenCodeCatalogueAsset {
 }
 
 function renderOpenCodeSkill(name: string, content: string, skillEntry: boolean): string {
-  const renamed = skillEntry
-    ? content.replace(/^name: [a-z-]+$/mu, line =>
-        line === `name: ${name}` ? `name: safeword-${name}` : line,
-      )
-    : content;
+  if (!skillEntry) return content.replaceAll(`$safeword:${name}`, () => `/safeword-${name}`);
+  const expected = `name: ${name}`;
+  const nameFields = content
+    .matchAll(/^name: [a-z][a-z0-9-]*$/gmu)
+    .map(match => match[0])
+    .toArray();
+  if (nameFields.length !== 1 || nameFields[0] !== expected) {
+    throw new Error(`Generated OpenCode skill ${name} has an invalid name field`);
+  }
+  const renamed = content.replace(/^name: [a-z][a-z0-9-]*$/mu, () => `name: safeword-${name}`);
   return renamed.replaceAll(`$safeword:${name}`, () => `/safeword-${name}`);
 }
 
@@ -69,6 +91,7 @@ export function generateOpenCodeCatalogueAssets(
     .filter(entry => entry.isDirectory())
     .map(entry => entry.name);
   const knownSkills = new Set(skillNames);
+  validateOpenCodeCatalogueReferences(knownSkills, CURSOR_COMMAND_WRAPPERS, SAFEWORD_SUBAGENTS);
   const skills = generateCodexPluginAssets(skillsRoot, VERSION).map(asset => {
     const [, name, ...suffix] = asset.relativePath.split(nodePath.sep);
     if (name === undefined || !knownSkills.has(name)) {
@@ -76,7 +99,8 @@ export function generateOpenCodeCatalogueAssets(
     }
     let content = asset.content;
     const skillEntry = nodePath.basename(asset.relativePath) === 'SKILL.md';
-    for (const skill of skillNames) content = renderOpenCodeSkill(skill, content, skillEntry);
+    for (const skill of skillNames) content = renderOpenCodeSkill(skill, content, false);
+    if (skillEntry) content = renderOpenCodeSkill(name, content, true);
     return {
       relativePath: nodePath.join('skills', `safeword-${name}`, ...suffix),
       content,

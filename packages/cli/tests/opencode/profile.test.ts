@@ -259,6 +259,27 @@ describe('OpenCode profile boundary', () => {
     expect(existsSync(managedSkill)).toBe(true);
   });
 
+  it('reports the actionable recovery for a modified managed catalogue asset', () => {
+    const root = temporaryDirectory();
+    expect(installOpenCodeProfile(root).state).toBe('changed');
+    const managedSkill = nodePath.join(root, 'skills/safeword-verify/SKILL.md');
+    writeFileSync(managedSkill, 'user-modified skill\n');
+
+    const observed = observeOpenCodeProfile(root);
+
+    expect(observed.findings.map(finding => finding.code)).toContain(
+      'OPENCODE_MANAGED_ASSET_DRIFT',
+    );
+    expect(observed.nextActions).toEqual([
+      {
+        kind: 'human',
+        instruction: `Move ${managedSkill} aside, then rerun safeword install --agents=opencode.`,
+        mutates: false,
+        requiresHuman: true,
+      },
+    ]);
+  });
+
   it.each([
     ['plugin', 'install'],
     ['plugin', 'uninstall'],

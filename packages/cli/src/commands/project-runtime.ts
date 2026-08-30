@@ -71,7 +71,7 @@ export function runProjectRuntime(
   args: readonly string[],
 ): Promise<CliResult> {
   const definition = helperDefinition(helper);
-  if (definition === undefined)
+  if (helper === undefined || definition === undefined)
     return Promise.resolve(
       createResult({
         state: 'failed',

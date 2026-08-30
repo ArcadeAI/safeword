@@ -63,6 +63,28 @@ describe('generated Codex plugin catalogue', () => {
     }).toThrow('skills/broken/SKILL.md');
   });
 
+  it.each([
+    'Run `"$PROJECT_DIR/.safeword/scripts/cleanup-zombies.sh"`.',
+    'Run `node .safeword/hooks/run-review.ts`.',
+    'Run `exec "$PROJECT_DIR/.safeword/hooks/check.ts"`.',
+    'Run `bash \\\n+      "$PROJECT_DIR/.safeword/scripts/check.sh"`.',
+  ])('rejects project runtime invocation shape %s', content => {
+    expect(() => {
+      assertNativePluginRuntimeAuthority([{ relativePath: 'skills/broken/SKILL.md', content }]);
+    }).toThrow('skills/broken/SKILL.md');
+  });
+
+  it('does not treat pinned bunx prose as a project runtime invocation', () => {
+    expect(() => {
+      assertNativePluginRuntimeAuthority([
+        {
+          relativePath: 'skills/clean/SKILL.md',
+          content: 'The bunx --bun package replaces old `.safeword/hooks/` references.',
+        },
+      ]);
+    }).not.toThrow();
+  });
+
   it('accepts the complete generated Codex catalogue', () => {
     expect(() => {
       assertNativePluginRuntimeAuthority(generateCodexPluginAssets(CANONICAL_SKILLS, CLI_VERSION));

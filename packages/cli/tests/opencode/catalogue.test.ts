@@ -9,8 +9,8 @@ import { installLifecycle } from '../../src/lifecycle/commands.js';
 import {
   generateOpenCodeCatalogueAssets,
   renderOpenCodeAgent,
-  renderOpenCodeCommand,
   SAFEWORD_SUBAGENTS,
+  validateOpenCodeCatalogueReferences,
 } from '../../src/opencode/catalogue.js';
 import { assertNativePluginRuntimeAuthority } from '../../src/plugin-runtime-authority.js';
 import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.js';
@@ -30,6 +30,22 @@ afterEach(() => {
 });
 
 describe('OpenCode profile catalogue', () => {
+  it('rejects command and subagent references to unknown skills', () => {
+    expect(() => {
+      validateOpenCodeCatalogueReferences(
+        new Set(['bdd']),
+        [{ name: 'broken', description: 'broken', skillPath: 'missing/SKILL.md' }],
+        [],
+      );
+    }).toThrow('missing');
+    expect(() => {
+      validateOpenCodeCatalogueReferences(
+        new Set(['bdd']),
+        [],
+        [{ name: 'broken', description: 'broken', skill: 'missing' }],
+      );
+    }).toThrow('missing');
+  });
   it('contains no executable project-runtime references', () => {
     const templatesRoot = nodePath.resolve(import.meta.dirname, '../../templates');
     expect(() => {

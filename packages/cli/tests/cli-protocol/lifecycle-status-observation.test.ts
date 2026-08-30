@@ -125,6 +125,35 @@ describe('lifecycle profile observation', () => {
     });
   });
 
+  it('preserves shared runtime when uninstalling Cursor while legacy Claude remains', () => {
+    const cwd = createTemporaryDirectory();
+    const settings = nodePath.join(cwd, '.claude/settings.json');
+    mkdirSync(nodePath.dirname(settings), { recursive: true });
+    writeFileSync(settings, '{ retained legacy configuration');
+
+    const schema = projectLifecycleSchema(cwd, ['cursor'], 'uninstall');
+
+    expect(Object.keys(schema.ownedFiles).filter(path => isSharedAgentRuntimePath(path))).toEqual(
+      [],
+    );
+  });
+
+  it('preserves shared runtime when uninstalling Claude while Cursor remains', () => {
+    const cwd = createTemporaryDirectory();
+    const cursorSchema = projectLifecycleSchema(cwd, ['cursor']);
+    const cursorFile = Object.keys(cursorSchema.ownedFiles).find(path => isCursorProjectPath(path));
+    expect(cursorFile).toBeDefined();
+    const absolute = nodePath.join(cwd, cursorFile ?? '');
+    mkdirSync(nodePath.dirname(absolute), { recursive: true });
+    writeFileSync(absolute, '# installed Cursor authority\n');
+
+    const schema = projectLifecycleSchema(cwd, ['claude'], 'uninstall');
+
+    expect(Object.keys(schema.ownedFiles).filter(path => isSharedAgentRuntimePath(path))).toEqual(
+      [],
+    );
+  });
+
   it('observes selected independent profiles when project configuration is absent', async () => {
     const surfaces = await observeLifecycleSurfaces(createTemporaryDirectory(), [
       'claude',

@@ -314,11 +314,17 @@ function catalogueObservationProblem(
     const observed = observeFile(nodePath.join(root, asset.path));
     if (observed.kind === 'file' && sha256(observed.bytes) === asset.sha256) continue;
     const missing = observed.kind === 'absent';
+    if (!missing) {
+      const path = nodePath.join(root, asset.path);
+      return humanActionRequired(
+        'OPENCODE_MANAGED_ASSET_DRIFT',
+        `The managed OpenCode catalogue asset ${asset.path} was modified.`,
+        `Move ${path} aside, then rerun safeword install --agents=opencode.`,
+      );
+    }
     return actionRequired(
-      missing ? 'OPENCODE_CATALOGUE_ASSET_MISSING' : 'OPENCODE_MANAGED_ASSET_DRIFT',
-      missing
-        ? `The managed OpenCode catalogue asset ${asset.path} is missing.`
-        : `The managed OpenCode catalogue asset ${asset.path} was modified.`,
+      'OPENCODE_CATALOGUE_ASSET_MISSING',
+      `The managed OpenCode catalogue asset ${asset.path} is missing.`,
       'safeword install --agents=opencode',
       {
         installed: true,

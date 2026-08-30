@@ -24,7 +24,7 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN ee65a9dba
 - [x] REFACTOR skip: packaged resolution does not inspect project runtime completeness
 
-### Scenario: OpenCode owns its full workflow catalogue in the profile
+### Scenario: OpenCode installation delivers no project runtime
 
 - [x] RED 024bca4fe
 - [x] GREEN 570f86734
@@ -36,6 +36,18 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN f7f4cd053
 - [x] REFACTOR skip: generated OpenCode workflows reuse the self-contained Codex catalogue with host-native frontmatter
 
+### Scenario: A Cursor workflow executes from its complete project authority
+
+- [x] RED 46918e4b0
+- [x] GREEN 90e1090b8
+- [x] REFACTOR skip: Cursor retains the existing sourceable project audit helper contract
+
+### Scenario: An unavailable pinned package never falls back to project runtime
+
+- [x] RED d7fb488ee
+- [x] GREEN 6d13e53cc
+- [x] REFACTOR skip: the pinned package invocation has no project-runtime fallback branch
+
 ### Scenario: A packaged Claude workflow executes without project runtime
 
 - [x] RED 46918e4b0
@@ -44,7 +56,7 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: self-contained-plugins.TBU1.R2 — Missing framework state initializes lazily after explicit enrollment
 
-### Scenario: First workflow state write creates its missing parent and precise ignore rule
+### Scenario: Every host lazily creates missing workflow state and its precise ignore rule
 
 - [x] RED ccb60ea0d
 - [x] GREEN ae4e417a5
@@ -70,7 +82,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Existing framework state is updated without reinitialization
 
-- [x] RED skip: existing state-merge tests already cover preservation during workflow updates
+- [x] RED skip: existing state-merge tests cover value preservation and 419a73696 covers ignore idempotency
 - [x] GREEN ae4e417a5
 - [x] REFACTOR skip: lazy initialization shares the existing read-update-write state path
 
@@ -108,9 +120,15 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Removing a native selection preserves Cursor and project content
 
-- [x] RED skip: origin/main fixtures already covered selected uninstall preservation
+- [x] RED skip: origin/main selected-uninstall fixtures already prove obsolete native runtime removal and preservation
 - [x] GREEN 91c730e90
 - [x] REFACTOR skip: accepted fixtures retain the public lifecycle seam
+
+### Scenario: Reconciliation removes an obsolete native runtime while preserving selected authorities
+
+- [x] RED 46918e4b0
+- [x] GREEN 91c730e90
+- [x] REFACTOR skip: reconciliation uses the selected schema projection and existing ownership-aware removal
 
 ## Rule: self-contained-plugins.SWM1.R1 — Package and profile ownership is enforced at release and reconciliation boundaries
 
@@ -143,6 +161,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] RED 46918e4b0
 - [x] GREEN 90e1090b8
 - [x] REFACTOR skip: Cursor parity derives executables only from its declared project authority
+
+### Scenario: OpenCode install preserves an unrecognized catalogue collision
+
+- [x] RED 024bca4fe
+- [x] GREEN 570f86734
+- [x] REFACTOR skip: profile collision handling is shared across all identity-owned catalogue paths
 
 ### Scenario: OpenCode upgrade removes only prior identity-owned catalogue bytes
 
