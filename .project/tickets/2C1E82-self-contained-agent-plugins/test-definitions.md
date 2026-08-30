@@ -4,328 +4,110 @@ Feature source: `packages/cli/features/self-contained-agent-plugins.feature`
 
 test-definitions.md is the R/G/R ledger.
 
-## Rule: self-contained-plugins.TBU1.R1 — every advertised agent workflow executes from its one declared runtime authority without borrowing another delivery
+## Rule: self-contained-plugins.TBU1.R1 — Native plugin workflows do not borrow project or cross-host runtime
 
-### Scenario: A plugin-backed agent executes quality review in a runtime-free enrolled project
-
-- [x] RED 753327940
-- [x] GREEN effd1849b
-- [x] REFACTOR skip: the package command directly reuses the canonical logger; no duplicate behavior remains
-
-### Scenario: A plugin-backed agent ignores a complete legacy project runtime
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: A packaged audit helper preserves its shared-shell contract
-
-- [x] RED 7d4d3af5b
-- [x] GREEN b537aed65
-- [x] REFACTOR skip: command and rewrite each have one responsibility; no structural change warranted
-
-### Scenario: Cursor executes from its selected project authority without another host
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Mixed hosts execute only from their own declared authority
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: An incomplete agent authority fails in a bounded way for every host
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-## Rule: self-contained-plugins.TBU1.R2 — invoking an agent workflow never requires a broader installation solely to recover executable code already owned by its delivery authority
-
-### Scenario: Codex audit does not escalate a missing project helper into installation
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Claude rejects installer escalation as plugin capability recovery
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-## Rule: self-contained-plugins.TBU1.R3 — agent execution reads enrolled project knowledge and writes project workflow state without turning either into a second runtime distribution
-
-### Scenario: Every host adapter enforces the enrollment boundary for lifecycle state
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: An agent workflow uses project knowledge without project executable files
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: An enrolled lifecycle event performs its declared state effect
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: An unenrolled repository does not gain invented project knowledge or state
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: A workflow invocation does not silently enroll a repository
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Malformed enrollment is preserved rather than repaired as runtime state
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Missing authored knowledge is not invented during lazy state initialization
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-## Rule: self-contained-plugins.TBU1.R4 — a workflow creates its missing framework-owned runtime state on demand without requiring an install or upgrade
-
-### Scenario: Every host initializes a missing state file and parent directory
-
-- [x] RED c201d29c3
-- [x] GREEN 82f0cacbd
-- [x] REFACTOR skip: the shared initializer is already the smallest reusable boundary
-
-### Scenario: Existing runtime state is reopened without replacement
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: An unwritable state path does not escalate to lifecycle installation
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-## Rule: self-contained-plugins.TBU1.R5 — lazy initialization adds any required narrow gitignore rule idempotently while preserving existing project ignore content
-
-### Scenario: Every host adds one precise ignore rule on first state initialization
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: First state initialization creates a missing project ignore file
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: State initialization appends a precise rule without replacing customer ignore content
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Repeated state access does not duplicate or broaden ignore policy
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: A broader customer ignore rule is preserved without adding a narrower duplicate
-
-- [x] RED 419a73696
-- [x] GREEN 0cfc8ee95
-- [x] REFACTOR skip: Git remains the single ignore-semantics authority; no custom matcher was introduced
-
-### Scenario: An unwritable ignore file prevents unignored transient state
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Reconciliation preserves lazily initialized state policy
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-## Rule: self-contained-plugins.NTB1.R1 — selecting one agent never proposes another agent's files, skills, hooks, configuration, or dependencies
-
-### Scenario: A single-agent plan contains no other agent delivery
+### Scenario: A native agent selection installs no project executable runtime
 
 - [x] RED 46918e4b0
 - [x] GREEN 90e1090b8
-- [x] REFACTOR skip: the obsolete OpenCode compatibility branches were deleted; no further structure is needed
+- [x] REFACTOR skip: selection is expressed by the existing schema projection rather than host branches
 
-### Scenario: A plugin-backed agent plan contains no project runtime copy
+### Scenario: Cursor retains its complete selected project authority
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 46918e4b0
+- [x] GREEN 90e1090b8
+- [x] REFACTOR skip: Cursor remains the sole project-runtime consumer
 
-### Scenario: An unselected host asset makes a single-agent plan invalid
+### Scenario: Codex helpers resolve through version-pinned package commands
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 7d4d3af5b
+- [x] GREEN ee65a9dba
+- [x] REFACTOR skip: one allowlisted packaged runtime command serves the remaining helpers
 
-## Rule: self-contained-plugins.NTB1.R2 — an installation plan distinguishes the minimal shared project substrate from selected-agent delivery and optional workflow tooling, and explains why each effect is required
+### Scenario: OpenCode owns its full workflow catalogue in the profile
 
-### Scenario: A native-plugin plan classifies every project effect by owner
+- [x] RED 024bca4fe
+- [x] GREEN 570f86734
+- [x] REFACTOR skip: identity digests are the existing profile ownership contract
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+## Rule: self-contained-plugins.TBU1.R2 — Missing framework state initializes lazily after explicit enrollment
 
-### Scenario: Declining optional workflow tooling produces no tooling effects
+### Scenario: First workflow state write creates its precise ignore rule before state
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED ccb60ea0d
+- [x] GREEN ae4e417a5
+- [x] REFACTOR skip: every host reaches the same schema-shipped hook helper
 
-### Scenario: A monorepo plan excludes unrelated language-tool fan-out
+### Scenario: Lazy state initialization preserves customer ignore policy
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED c201d29c3
+- [x] GREEN 82f0cacbd
+- [x] REFACTOR skip: append-only editing preserves existing bytes
 
-## Rule: self-contained-plugins.NTB1.R3 — a single missing plugin capability fails with one bounded recovery action rather than expanding into repository-wide setup
+### Scenario: A broader customer ignore rule is not duplicated
 
-### Scenario: Missing packaged audit support reports one capability recovery
+- [x] RED 419a73696
+- [x] GREEN 0cfc8ee95
+- [x] REFACTOR skip: Git remains the ignore-semantics authority
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+### Scenario: An unenrolled repository remains untouched by lifecycle state
 
-### Scenario: Capability recovery cannot invoke the full project installer
+- [x] RED 37abbc8f1
+- [x] GREEN bbfcd440e
+- [x] REFACTOR skip: the existing enrollment marker is the single boundary
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+### Scenario: A direct workflow does not silently enroll a repository
 
-## Rule: self-contained-plugins.NTB1.R4 — automatic state initialization is silent when successful and names the exact state path and recovery when it cannot be created
+- [x] RED 37abbc8f1
+- [x] GREEN bbfcd440e
+- [x] REFACTOR skip: packaged commands share the existing enrollment predicate
 
-### Scenario: Successful state initialization does not interrupt the workflow
+## Rule: self-contained-plugins.NTB1.R1 — Project reconciliation is bounded to selected delivery authorities
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+### Scenario: A single-agent project schema excludes unselected hosts
 
-### Scenario: Failed state initialization does not masquerade as missing installation
+- [x] RED 46918e4b0
+- [x] GREEN 90e1090b8
+- [x] REFACTOR skip: schema projection already computes the selected consumer set
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+### Scenario: Mixed selection preserves Cursor without copying native runtimes
 
-## Rule: self-contained-plugins.SWM1.R1 — each host's delivery contract explicitly classifies executable runtime, shared project substrate, authored state, and host-specific assets
+- [x] RED 46918e4b0
+- [x] GREEN 90e1090b8
+- [x] REFACTOR skip: mixed selection is the union of shared substrate and Cursor
 
-### Scenario: Managed assets use their required lifecycle class
+### Scenario: Selected-agent lifecycle contracts remain deterministic
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED skip: origin/main fixtures already covered install, check, upgrade, and uninstall
+- [x] GREEN 91c730e90
+- [x] REFACTOR skip: accepted fixtures retain the public lifecycle seam
 
-### Scenario: Every managed asset has exactly one lifecycle class
+## Rule: self-contained-plugins.SWM1.R1 — Package and profile ownership is enforced at release and reconciliation boundaries
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+### Scenario: Complete native catalogues pass executable-reference validation
 
-### Scenario: An unclassified executable asset fails contract validation
+- [x] RED d7fb488ee
+- [x] GREEN 6d13e53cc
+- [x] REFACTOR skip: Codex and OpenCode share one narrow validator
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+### Scenario: A project-runtime reference blocks native plugin release
 
-### Scenario: An asset with two lifecycle classes fails contract validation
+- [x] RED d7fb488ee
+- [x] GREEN 6d13e53cc
+- [x] REFACTOR skip: one diagnostic lists all offending assets
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+### Scenario: OpenCode upgrade removes only prior identity-owned catalogue bytes
 
-## Rule: self-contained-plugins.SWM1.R2 — selecting multiple agents produces the union of their declared requirements without duplicate runtime authorities or order-dependent output
+- [x] RED 024bca4fe
+- [x] GREEN 570f86734
+- [x] REFACTOR skip: upgrade uses the recorded identity inventory
 
-### Scenario: Every mixed-agent selection produces an order-independent plan
+### Scenario: OpenCode uninstall preserves drifted catalogue content
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED 024bca4fe
+- [x] GREEN 570f86734
+- [x] REFACTOR skip: drift fails closed before any owned asset is removed
 
-### Scenario: Every mixed-agent selection contains the complete authority union
+## Feature-level cross-scenario refactor
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Mixed selection cannot duplicate or replace Cursor's authority
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Repeated reconciliation has no additional effects
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-## Rule: self-contained-plugins.SWM1.R3 — release and parity checks reject any agent workflow that references an executable outside its declared runtime authority
-
-### Scenario: Complete agent catalogues pass executable-reference validation
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: A cross-authority executable reference blocks release
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: A plugin executable version mismatch blocks release
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-## Rule: self-contained-plugins.SWM1.R4 — upgrades and uninstalls remove only proven host-owned runtime while preserving authored, ambiguous, and other selected-host content
-
-### Scenario: Proven plugins retire recognized obsolete project runtime
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Plugin cleanup preserves selected Cursor delivery
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Uninstall removes only the selected host's owned delivery
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
-
-### Scenario: Unsafe legacy cleanup remains blocked
-
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] REFACTOR ae4e417a5: moved state initialization into one schema-shipped helper shared by packaged commands and every real host adapter
