@@ -31,23 +31,45 @@ Feature: Every agent delivery is self-contained
       Given the generated Codex catalogue advertises every Safeword workflow
       When the maintainer validates its executable references
       Then every helper invocation resolves through the packaged Codex authority
+      And every helper invocation names the pinned plugin package version
       And no helper references a project-local Safeword executable
+
+    @surface.openai-codex
+    Scenario: A packaged shared-shell helper executes without project runtime
+      Given an enrolled project contains no Safeword hooks, skills, scripts, or guides
+      When the Technical Builder sources the packaged Codex audit-scope command
+      Then the caller shell receives the computed audit mode, base SHA, and changed-file scope
+      And no project installation or dependency change is proposed
+
+    @surface.openai-codex
+    Scenario Outline: Legacy project runtime cannot regain native workflow authority
+      Given an enrolled project contains <legacy runtime> and authored project knowledge
+      When the Technical Builder invokes the packaged Codex audit workflow
+      Then the audit workflow executes through the Codex profile authority
+      And the authored project knowledge remains unchanged
+      And no broader installation is proposed
+
+      Examples:
+        | legacy runtime                 |
+        | a complete legacy runtime      |
+        | a partially missing runtime    |
 
     @surface.opencode
     Scenario: OpenCode owns its full workflow catalogue in the profile
       Given an OpenCode profile has the Safeword plugin installed
       When Safeword reconciles the generated commands, agents, and skills
-      Then the profile identity records every owned catalogue asset and digest
-      And the project receives no OpenCode or Claude compatibility catalogue
+      Then the project receives no OpenCode or Claude compatibility catalogue
 
   @self-contained-plugins.TBU1.R2
   Rule: self-contained-plugins.TBU1.R2 — Missing framework state initializes lazily after explicit enrollment
 
     @shared-project-state @surface.openai-codex @surface.claude-code @surface.opencode @surface.cursor
-    Scenario: First workflow state write creates its precise ignore rule before state
-      Given an enrolled project lacks a transient state file and project ignore file
+    Scenario: First workflow state write creates its missing parent and precise ignore rule before state
+      Given an enrolled project lacks the framework state directory, transient state file, and project ignore file
       When a Safeword workflow first writes framework-owned state
-      Then the project ignore file contains only the precise state rule
+      Then the framework state directory and project ignore file are created
+      And the ignore rule exists before the transient state write is attempted
+      And the project ignore file contains only the precise state rule
       And the transient state file is created without installing Safeword
 
     @shared-project-state
@@ -58,17 +80,27 @@ Feature: Every agent delivery is self-contained
       And one precise state rule is appended
 
     @shared-project-state
-    Scenario: A broader customer ignore rule is not duplicated
-      Given an enrolled project's existing ignore policy already covers transient state
+    Scenario Outline: Existing effective ignore policy is not duplicated
+      Given an enrolled project's ignore policy covers transient state with <coverage>
       When a Safeword workflow first writes framework-owned state
       Then the ignore file remains byte-for-byte unchanged
       And the transient state is created
 
+      Examples:
+        | coverage                |
+        | the exact state rule    |
+        | a broader customer rule |
+
     @rejection @shared-project-state
-    Scenario: An unenrolled repository remains untouched by lifecycle state
-      Given a repository has a profile plugin but no Safeword enrollment marker
+    Scenario Outline: Lifecycle state respects explicit enrollment
+      Given a repository with a profile plugin is <enrollment>
       When a Safeword lifecycle event observes project activity
-      Then the event completes without creating project knowledge, ignore policy, or state
+      Then <state outcome>
+
+      Examples:
+        | enrollment | state outcome                                                        |
+        | enrolled   | its precise ignore rule and framework state are created               |
+        | unenrolled | no project knowledge, ignore policy, or framework state is created   |
 
     @rejection @shared-project-state
     Scenario: A direct workflow does not silently enroll a repository
@@ -101,10 +133,11 @@ Feature: Every agent delivery is self-contained
       And no native profile runtime is copied into the project
 
     @surface.safeword-cli
-    Scenario: Selected-agent lifecycle contracts remain deterministic
-      Given each supported project authority has been installed
-      When the maintainer checks, upgrades, and uninstalls each selection
-      Then the lifecycle results and managed trees match their accepted contracts
+    Scenario: Removing a native selection preserves Cursor and project content
+      Given an enrolled project contains Cursor, Codex, authored knowledge, and unrelated content
+      When the Non-Technical Builder uninstalls only Codex
+      Then Cursor's project hooks, rules, commands, and skills remain present
+      And authored knowledge, enrollment state, and unrelated content remain unchanged
 
   @self-contained-plugins.SWM1.R1
   Rule: self-contained-plugins.SWM1.R1 — Package and profile ownership is enforced at release and reconciliation boundaries
@@ -114,6 +147,12 @@ Feature: Every agent delivery is self-contained
       Given generated Codex and OpenCode catalogues use packaged commands
       When the maintainer runs release validation
       Then both catalogues pass runtime-authority validation
+
+    @surface.opencode
+    Scenario: OpenCode profile identity records the complete owned catalogue
+      Given Safeword generates the OpenCode plugin, commands, agents, and skills
+      When Safeword installs the profile delivery
+      Then the profile identity records every owned catalogue asset and digest
 
     @rejection @surface.safeword-cli
     Scenario: A project-runtime reference blocks native plugin release

@@ -24,6 +24,18 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN ee65a9dba
 - [x] REFACTOR skip: one allowlisted packaged runtime command serves the remaining helpers
 
+### Scenario: A packaged shared-shell helper executes without project runtime
+
+- [x] RED 7d4d3af5b
+- [x] GREEN b537aed65
+- [x] REFACTOR skip: the command emits the existing sourceable shell contract
+
+### Scenario: Legacy project runtime cannot regain native workflow authority
+
+- [x] RED 7d4d3af5b
+- [x] GREEN ee65a9dba
+- [x] REFACTOR skip: packaged resolution does not inspect project runtime completeness
+
 ### Scenario: OpenCode owns its full workflow catalogue in the profile
 
 - [x] RED 024bca4fe
@@ -32,7 +44,7 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: self-contained-plugins.TBU1.R2 — Missing framework state initializes lazily after explicit enrollment
 
-### Scenario: First workflow state write creates its precise ignore rule before state
+### Scenario: First workflow state write creates its missing parent and precise ignore rule before state
 
 - [x] RED ccb60ea0d
 - [x] GREEN ae4e417a5
@@ -44,13 +56,13 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN 82f0cacbd
 - [x] REFACTOR skip: append-only editing preserves existing bytes
 
-### Scenario: A broader customer ignore rule is not duplicated
+### Scenario: Existing effective ignore policy is not duplicated
 
 - [x] RED 419a73696
 - [x] GREEN 0cfc8ee95
 - [x] REFACTOR skip: Git remains the ignore-semantics authority
 
-### Scenario: An unenrolled repository remains untouched by lifecycle state
+### Scenario: Lifecycle state respects explicit enrollment
 
 - [x] RED 37abbc8f1
 - [x] GREEN bbfcd440e
@@ -76,9 +88,9 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN 90e1090b8
 - [x] REFACTOR skip: mixed selection is the union of shared substrate and Cursor
 
-### Scenario: Selected-agent lifecycle contracts remain deterministic
+### Scenario: Removing a native selection preserves Cursor and project content
 
-- [x] RED skip: origin/main fixtures already covered install, check, upgrade, and uninstall
+- [x] RED skip: origin/main fixtures already covered selected uninstall preservation
 - [x] GREEN 91c730e90
 - [x] REFACTOR skip: accepted fixtures retain the public lifecycle seam
 
@@ -89,6 +101,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] RED d7fb488ee
 - [x] GREEN 6d13e53cc
 - [x] REFACTOR skip: Codex and OpenCode share one narrow validator
+
+### Scenario: OpenCode profile identity records the complete owned catalogue
+
+- [x] RED 024bca4fe
+- [x] GREEN 570f86734
+- [x] REFACTOR skip: the identity inventory is generated from the catalogue itself
 
 ### Scenario: A project-runtime reference blocks native plugin release
 
