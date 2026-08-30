@@ -36,6 +36,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN 570f86734
 - [x] REFACTOR skip: identity digests are the existing profile ownership contract
 
+### Scenario: A packaged Claude workflow executes without project runtime
+
+- [x] RED 46918e4b0
+- [x] GREEN a2cf1b82c
+- [x] REFACTOR skip: the generated Claude catalogue already owns skill references and packaged resources
+
 ## Rule: self-contained-plugins.TBU1.R2 — Missing framework state initializes lazily after explicit enrollment
 
 ### Scenario: First workflow state write creates its missing parent and precise ignore rule before state
