@@ -292,11 +292,3 @@ Provides shared architecture, manifest, filesystem, Git, path, detection, Gherki
 `src/version.ts`
 
 Reads the Safeword release version from package metadata.
-
-### plugin-cli-bundle
-
-<!-- reconciled: c6f28b66b6a8bda5f5f50c4ca0107c98b71804261987a7865c6ae476284f88b4 -->
-
-> ⚠ orphaned: this section describes a module that no longer exists.
-
-No description yet — awaiting prose.
