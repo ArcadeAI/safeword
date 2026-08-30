@@ -41,9 +41,9 @@ function productionEnvironment(dataDirectory: string): NodeJS.ProcessEnv {
   const repo = 'arcadeai/safeword';
   const credential = (
     credentialId: string,
-    harness: 'claude' | 'codex' | 'cursor' | 'operator',
+    harness: 'claude' | 'codex' | 'cursor' | 'operator' | 'collector-worker',
     secret: string,
-    roles: ('file' | 'reconcile' | 'operate')[],
+    roles: ('file' | 'reconcile' | 'operate' | 'ingest')[],
   ) => ({
     credentialId,
     harness,
@@ -59,6 +59,7 @@ function productionEnvironment(dataDirectory: string): NodeJS.ProcessEnv {
     credential('codex-prod', 'codex', 'b'.repeat(64), ['file']),
     credential('cursor-prod', 'cursor', 'c'.repeat(64), ['file']),
     credential('operator-prod', 'operator', 'd'.repeat(64), ['reconcile', 'operate']),
+    credential('collector-worker-prod', 'collector-worker', 'e'.repeat(64), ['ingest']),
   ];
   environment.RELAY_CREDENTIALS_BASE64 = Buffer.from(JSON.stringify(credentials)).toString(
     'base64',
@@ -229,6 +230,7 @@ describe('production runtime configuration', () => {
       ['codex', ['file']],
       ['cursor', ['file']],
       ['operator', ['reconcile', 'operate']],
+      ['collector-worker', ['ingest']],
     ]);
   });
 

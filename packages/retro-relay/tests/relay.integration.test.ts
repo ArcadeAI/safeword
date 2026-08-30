@@ -310,9 +310,9 @@ async function fixture(
   const githubFixture = await startGitHubFixture(options);
   const registry = new CredentialRegistry('deployment-pepper');
   const issueCredential = (
-    harness: 'claude' | 'codex' | 'cursor' | 'operator',
+    harness: 'claude' | 'codex' | 'cursor' | 'operator' | 'collector-worker',
     secretCharacter: string,
-    roles: ('file' | 'operate' | 'reconcile')[] = ['file'],
+    roles: ('file' | 'ingest' | 'operate' | 'reconcile')[] = ['file'],
   ) =>
     registry.issue({
       credentialId: `${harness}-integration`,
@@ -329,6 +329,7 @@ async function fixture(
     codex: issueCredential('codex', 'b'),
     cursor: issueCredential('cursor', 'c'),
     operator: issueCredential('operator', 'd', ['reconcile', 'operate']),
+    collectorWorker: issueCredential('collector-worker', 'e', ['ingest']),
   };
   const credential = credentials.claude;
   const store = RelayStore.open(path.join(directory, 'relay.sqlite'), {
@@ -364,6 +365,52 @@ async function fixture(
 }
 
 describe('retry-safe retro relay', () => {
+  it('accepts exact collector bytes only through the ingest principal', async () => {
+    const now = new Date('2026-08-29T20:00:00.000Z');
+    const setup = await fixture({ now: () => now });
+    const body = Buffer.from(
+      JSON.stringify({
+        version: 'v3',
+        findings: [
+          'Collector-owned finding\n\nThe worker preserved exact bytes.',
+          'Second finding\n\nThe whole batch remained intact.',
+        ],
+        source: {
+          harness: 'codex',
+          hostClass: 'local',
+          projectUUID: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          repository: 'github.com/arcadeai/safeword',
+          safewordCliVersion: '0.82.1',
+        },
+        sessionScope: 'a'.repeat(64),
+      }),
+    );
+    const response = await fetch(`${setup.relay.url}/v1/collector-retros`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${setup.credentials.collectorWorker}`,
+        'content-type': 'application/json; charset=utf-8',
+        'x-safeword-accepted-at': '2026-08-28T20:00:00.000Z',
+        'x-safeword-envelope-digest': createHash('sha256').update(body).digest('hex'),
+        'x-safeword-request-id': 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+      },
+      body,
+    });
+
+    expect(response.status).toBe(201);
+    expect(setup.createBodies).toHaveLength(1);
+    expect(setup.createBodies[0]).toContain('The worker preserved exact bytes.');
+    expect(setup.createBodies[0]).toContain('The whole batch remained intact.');
+    const stored = setup.store.load({
+      installationId: 42,
+      repository: 'arcadeai/safeword',
+      requestId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+      tenantId: 'tenant-1',
+    });
+    expect(stored?.acceptedAt).toBe('2026-08-28T20:00:00.000Z');
+    expect(stored?.retryDeadlineAt).toBe('2026-08-30T20:00:00.000Z');
+  });
+
   it('coalesces concurrent installation-token minting for the same repository scope', async () => {
     const github = await startGitHubFixture({ tokenDelayMs: 25 });
     const provider = new GitHubAppTokenProvider({

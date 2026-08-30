@@ -12,7 +12,7 @@ import { RelayStore } from './store.js';
 export interface RelayRuntime {
   url: string;
   authorization: string;
-  authorizations: Record<'claude' | 'codex' | 'cursor' | 'operator', string>;
+  authorizations: Record<'claude' | 'codex' | 'cursor' | 'operator' | 'collector-worker', string>;
   close: () => Promise<void>;
 }
 

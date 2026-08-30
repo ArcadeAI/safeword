@@ -70,9 +70,10 @@ the built artifact on the deployed runtime, and may emit Node's experimental
 SQLite warning on supported Node 22 releases.
 
 Set `RELAY_MODE=production` and provide `RELAY_CREDENTIALS_BASE64` as strict
-base64-encoded JSON containing exactly four independently rotatable principals:
-Claude, Codex, and Cursor with only the `file` role, plus an operator with only
-the `reconcile` and `operate` roles. Every principal is bound to the configured
+base64-encoded JSON containing exactly five independently rotatable principals:
+Claude, Codex, and Cursor with only the `file` role, an operator with only
+the `reconcile` and `operate` roles, and a collector worker with only the
+`ingest` role. Every principal is bound to the configured
 GitHub App installation and repository. GitHub App credentials and installation
 tokens remain server-side. `RELAY_MODE=spike` accepts the legacy single
 credential variables but makes every route except `GET /health` unavailable.

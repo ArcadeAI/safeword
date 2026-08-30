@@ -353,7 +353,11 @@ export class RelayService {
     return { attempted: due.length, ...this.#store.maintain(now) };
   }
 
-  async submit(principal: RelayPrincipal, request: FileRetroDraftRequest): Promise<FilingReceipt> {
+  async submit(
+    principal: RelayPrincipal,
+    request: FileRetroDraftRequest,
+    acceptedAt?: string,
+  ): Promise<FilingReceipt> {
     const now = this.#now();
     validateRequest(request);
     const scope = authorize(principal, request, 'file');
@@ -368,6 +372,7 @@ export class RelayService {
     }
     const marker = requestMarker(scope);
     const accepted = this.#store.accept({
+      ...(acceptedAt !== undefined && { acceptedAt }),
       scope,
       payloadHash: hash,
       envelope: encryptPayload(request, scope, hash, this.#payloadKeyring),
