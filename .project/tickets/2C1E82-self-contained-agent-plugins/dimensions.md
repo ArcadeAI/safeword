@@ -14,6 +14,10 @@
 
 skip: Zero-agent installation is not a supported selection in this epic; the CLI requires at least one delivery authority.
 
+skip: Cross-host package-reference syntax is host-specific and already rejected by each native catalogue's own reference validator; the shared release gate covers the portable project-runtime reference class.
+
+skip: Filesystem permission failures are platform policy rather than a Safeword behavior partition; durable writes surface the underlying failure and never trigger installation fallback.
+
 ## Boundary reconciliation
 
 - **Zero project runtime files for plugin-backed hosts** and **only the selected project authority for project-delivered hosts** are the load-bearing cold-start boundaries.

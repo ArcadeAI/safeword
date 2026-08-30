@@ -1,17 +1,16 @@
 Feature: Every agent delivery is self-contained
   Supported agents execute Safeword workflows from one declared authority,
-  while projects retain only enrollment, authored knowledge, selected-host
-  assets, and lazily initialized framework state.
+  while shared project substrate means only enrollment, authored knowledge,
+  selected-host assets, and lazily initialized framework state.
 
   @self-contained-plugins.TBU1.R1
   Rule: self-contained-plugins.TBU1.R1 — Native plugin workflows do not borrow project or cross-host runtime
 
     @surface.openai-codex @surface.claude-code @surface.opencode
-    Scenario Outline: A native agent selection installs no project executable runtime
+    Scenario Outline: A native agent selection resolves its profile entry point
       Given a project selects only <agent>
       When the Technical Builder previews project reconciliation
-      Then the project plan contains no Safeword hooks, skills, scripts, or guides
-      And the plan reports the <agent> profile as the workflow entry point
+      Then the plan reports the <agent> profile as the workflow entry point
 
       Examples:
         | agent       |
@@ -28,9 +27,11 @@ Feature: Every agent delivery is self-contained
 
     @surface.openai-codex
     Scenario: A packaged shared-shell helper executes without project runtime
-      Given an enrolled project contains no Safeword hooks, skills, scripts, or guides
+      Given an enrolled feature branch has a known merge base and two changed files
+      And the project contains no Safeword hooks, skills, scripts, or guides
       When the Technical Builder sources the packaged Codex audit-scope command
-      Then the caller shell receives the computed audit mode, base SHA, and changed-file scope
+      Then the caller shell receives diff mode and the known merge-base SHA
+      And the caller shell receives exactly the two changed files
       And no project installation or dependency change is proposed
 
     @surface.openai-codex
@@ -49,17 +50,17 @@ Feature: Every agent delivery is self-contained
     @surface.opencode
     Scenario: OpenCode owns its full workflow catalogue in the profile
       Given an OpenCode profile has the Safeword plugin installed
-      When Safeword reconciles the generated commands, agents, and skills into the profile
+      When the Non-Technical Builder installs Safeword with OpenCode selected
       Then the OpenCode profile holds the complete generated command, agent, skill, and reference catalogue
       And the project receives no OpenCode or Claude compatibility catalogue
 
   @self-contained-plugins.TBU1.R2
   Rule: self-contained-plugins.TBU1.R2 — Missing framework state initializes lazily after explicit enrollment
 
-    @shared-project-state @surface.openai-codex @surface.claude-code @surface.opencode @surface.cursor
+    @shared-project-state @surface.safeword-cli
     Scenario: First workflow state write creates its missing parent and precise ignore rule before state
       Given an enrolled project lacks the framework state directory, transient state file, and project ignore file
-      When a Safeword workflow first writes framework-owned state
+      When a state-writing packaged workflow first writes framework-owned state
       Then the framework state directory and project ignore file are created
       And the ignore rule exists before the transient state write is attempted
       And the project ignore file contains only the precise state rule
@@ -84,6 +85,14 @@ Feature: Every agent delivery is self-contained
         | the exact state rule    |
         | a broader customer rule |
 
+    @shared-project-state @surface.safeword-cli
+    Scenario: Existing framework state is updated without reinitialization
+      Given an enrolled project's framework state contains in-flight workflow values
+      And its ignore policy already covers the state file
+      When a state-writing packaged workflow updates framework-owned state
+      Then the in-flight workflow values are preserved
+      And the ignore file remains byte-for-byte unchanged
+
     @rejection @shared-project-state @surface.safeword-cli
     Scenario Outline: Lifecycle state respects explicit enrollment
       Given a repository with a profile plugin is <enrollment>
@@ -100,7 +109,7 @@ Feature: Every agent delivery is self-contained
       Given a repository has no Safeword enrollment marker
       When the Technical Builder invokes a state-writing packaged workflow
       Then the workflow reports that explicit enrollment is required
-      And the workflow completes without blocking the Technical Builder
+      And the workflow exits successfully and the agent session continues
       And no project namespace or executable runtime is created
 
   @self-contained-plugins.NTB1.R1

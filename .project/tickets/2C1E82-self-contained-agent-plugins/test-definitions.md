@@ -6,7 +6,7 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: self-contained-plugins.TBU1.R1 — Native plugin workflows do not borrow project or cross-host runtime
 
-### Scenario: A native agent selection installs no project executable runtime
+### Scenario: A native agent selection resolves its profile entry point
 
 - [x] RED 46918e4b0
 - [x] GREEN 90e1090b8
@@ -55,6 +55,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] RED 419a73696
 - [x] GREEN 0cfc8ee95
 - [x] REFACTOR skip: Git remains the ignore-semantics authority
+
+### Scenario: Existing framework state is updated without reinitialization
+
+- [x] RED skip: existing state-merge tests already cover preservation during workflow updates
+- [x] GREEN ae4e417a5
+- [x] REFACTOR skip: lazy initialization shares the existing read-update-write state path
 
 ### Scenario: Lifecycle state respects explicit enrollment
 
