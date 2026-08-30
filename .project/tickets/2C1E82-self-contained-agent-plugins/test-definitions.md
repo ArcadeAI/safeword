@@ -4,7 +4,7 @@ Feature source: `packages/cli/features/self-contained-agent-plugins.feature`
 
 test-definitions.md is the R/G/R ledger.
 
-## Rule: self-contained-plugins.TBU1.R1 — Native plugin workflows do not borrow project or cross-host runtime
+## Rule: self-contained-plugins.TBU1.R1 — Every agent workflow executes from its declared authority without borrowing runtime
 
 ### Scenario: A native agent workflow executes from its profile entry point
 
@@ -120,7 +120,7 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: Removing a native selection preserves Cursor and project content
 
-- [x] RED skip: origin/main selected-uninstall fixtures already prove obsolete native runtime removal and preservation
+- [x] RED 46918e4b0
 - [x] GREEN 91c730e90
 - [x] REFACTOR skip: accepted fixtures retain the public lifecycle seam
 

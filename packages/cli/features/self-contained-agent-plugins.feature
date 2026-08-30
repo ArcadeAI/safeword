@@ -4,11 +4,12 @@ Feature: Every agent delivery is self-contained
   selected-host assets, and lazily initialized framework state.
 
   @self-contained-plugins.TBU1.R1
-  Rule: self-contained-plugins.TBU1.R1 — Native plugin workflows do not borrow project or cross-host runtime
+  Rule: self-contained-plugins.TBU1.R1 — Every agent workflow executes from its declared authority without borrowing runtime
 
     @surface.openai-codex @surface.claude-code @surface.opencode
     Scenario Outline: A native agent workflow executes from its profile entry point
       Given a project selects only <agent>
+      And the project contains no Safeword executable runtime
       When the Technical Builder invokes a packaged <agent> workflow
       Then the workflow executes from the <agent> profile with no project-local runtime reference
 
@@ -152,7 +153,7 @@ Feature: Every agent delivery is self-contained
   @self-contained-plugins.NTB1.R1
   Rule: self-contained-plugins.NTB1.R1 — Project reconciliation is bounded to selected delivery authorities
 
-    @surface.safeword-cli
+    @surface.safeword-cli @surface.openai-codex @surface.cursor
     Scenario Outline: A native single-agent project schema excludes project delivery
       Given an uninitialized project selects only <agent>
       When the Non-Technical Builder previews Safeword installation
@@ -239,6 +240,7 @@ Feature: Every agent delivery is self-contained
     Scenario: A cross-host executable reference blocks Cursor release
       Given a Cursor catalogue asset references a Claude Code executable
       When the Safeword Maintainer runs release validation
+      Then validation fails and names the offending catalogue asset
 
     @rejection @surface.opencode
     Scenario: OpenCode install preserves an unrecognized catalogue collision
@@ -246,7 +248,7 @@ Feature: Every agent delivery is self-contained
       When the Safeword Maintainer installs the profile delivery
       Then installation reports the catalogue collision
       And the unrelated profile content remains byte-for-byte unchanged
-      Then validation fails and names the offending catalogue asset
+      And no catalogue asset is installed
 
     @surface.opencode
     Scenario: OpenCode upgrade removes only prior identity-owned catalogue bytes
