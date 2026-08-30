@@ -1,5 +1,6 @@
 /** Record current-run workflow proof without requiring project-local helpers. */
 
+import { hasSafewordProjectMarker } from '../../templates/hooks/lib/namespace-root.js';
 import { recordSkillInvocation } from '../../templates/hooks/record-skill-invocation.js';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 import { ensureTransientStateIgnore } from '../project-state.js';
@@ -22,6 +23,22 @@ export function runRecordSkillInvocation(
             retryable: false,
           },
         ],
+      }),
+    );
+  }
+
+  if (!hasSafewordProjectMarker(cwd)) {
+    return Promise.resolve(
+      createResult({
+        state: 'action_required',
+        findings: [
+          {
+            code: 'PROJECT_NOT_ENROLLED',
+            message: 'This repository is not enrolled with Safeword.',
+            severity: 'warning',
+          },
+        ],
+        nextActions: [{ command: 'safeword install', mutates: true, requiresHuman: true }],
       }),
     );
   }

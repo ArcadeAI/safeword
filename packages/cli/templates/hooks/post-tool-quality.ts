@@ -18,6 +18,7 @@ import {
 } from './lib/quality-state.ts';
 import { shouldReviewPhase } from './lib/review-trigger.ts';
 import {
+  hasSafewordProjectMarker,
   isNamespacePath,
   NAMESPACE_ROOT_DEFAULT,
   NAMESPACE_ROOT_LEGACY,
@@ -47,6 +48,12 @@ let input: HookInput;
 try {
   input = await Bun.stdin.json();
 } catch {
+  process.exit(0);
+}
+
+// Profile plugins may run in any repository. Project state is only meaningful
+// after explicit Safeword enrollment; observing a tool must never enroll one.
+if (!hasSafewordProjectMarker(projectDirectory)) {
   process.exit(0);
 }
 
