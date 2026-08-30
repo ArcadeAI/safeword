@@ -1,7 +1,19 @@
+import { spawnSync } from 'node:child_process';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { resolveNamespaceRoot } from './utils/configured-paths.js';
+
+function gitAlreadyIgnores(cwd: string, path: string): boolean {
+  const relativePath = nodePath.relative(cwd, path);
+  if (relativePath.startsWith('..') || nodePath.isAbsolute(relativePath)) return false;
+  return (
+    spawnSync('git', ['check-ignore', '--no-index', '--quiet', '--', relativePath], {
+      cwd,
+      stdio: 'ignore',
+    }).status === 0
+  );
+}
 
 /** Ensure a transient namespace-root file is ignored before any caller creates it. */
 export function ensureTransientStateIgnore(cwd: string, basename: string): void {
@@ -16,7 +28,8 @@ export function ensureTransientStateIgnore(cwd: string, basename: string): void 
   }
 
   const content = readFileSync(ignorePath, 'utf8');
-  if (content.split(/\r?\n/u).includes(rule)) return;
+  const statePath = nodePath.join(namespaceRoot, basename);
+  if (content.split(/\r?\n/u).includes(rule) || gitAlreadyIgnores(cwd, statePath)) return;
   appendFileSync(
     ignorePath,
     `${content.endsWith('\n') || content.length === 0 ? '' : '\n'}${rule}\n`,
