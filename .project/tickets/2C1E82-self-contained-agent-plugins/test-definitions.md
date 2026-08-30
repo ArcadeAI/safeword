@@ -38,11 +38,17 @@ test-definitions.md is the R/G/R ledger.
 
 ## Rule: self-contained-plugins.TBU1.R2 — Missing framework state initializes lazily after explicit enrollment
 
-### Scenario: First workflow state write creates its missing parent and precise ignore rule before state
+### Scenario: First workflow state write creates its missing parent and precise ignore rule
 
 - [x] RED ccb60ea0d
 - [x] GREEN ae4e417a5
 - [x] REFACTOR skip: every host reaches the same schema-shipped hook helper
+
+### Scenario: First workflow state write reuses an existing framework directory
+
+- [x] RED ccb60ea0d
+- [x] GREEN ae4e417a5
+- [x] REFACTOR skip: recursive directory creation converges for present and absent parents
 
 ### Scenario: Lazy state initialization preserves customer ignore policy
 
