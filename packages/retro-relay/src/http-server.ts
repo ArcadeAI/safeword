@@ -86,7 +86,8 @@ function collectorDraft(
   const envelope = JSON.parse(bytes.toString('utf8')) as { source?: { repository?: unknown } };
   const findings = collectorFindings(envelope);
   const repo = principal.repository;
-  const [title = ''] = findings[0]?.split('\n') ?? [];
+  const [firstLine = ''] = findings[0]?.split('\n') ?? [];
+  const title = firstLine.slice(0, 256);
   if (title.trim() === '') throw new RelayError(400, 'collector envelope is invalid');
   const identity = shortDigest(findings.join('\0'));
   return {

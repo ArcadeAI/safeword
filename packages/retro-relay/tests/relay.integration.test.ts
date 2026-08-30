@@ -411,6 +411,45 @@ describe('retry-safe retro relay', () => {
     expect(stored?.retryDeadlineAt).toBe('2026-08-30T20:00:00.000Z');
   });
 
+  it('accepts the largest collector finding batch without truncating its body', async () => {
+    const setup = await fixture();
+    const findings = Array.from({ length: 50 }, (_, index) => {
+      const prefix = `${String(index).padStart(2, '0')}:${'t'.repeat(300)}\n`;
+      return prefix + String(index % 10).repeat(4096 - prefix.length);
+    });
+    const body = Buffer.from(
+      JSON.stringify({
+        version: 'v3',
+        findings,
+        source: {
+          harness: 'codex',
+          hostClass: 'local',
+          projectUUID: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          repository: 'github.com/customer/example',
+          safewordCliVersion: '0.82.1',
+        },
+        sessionScope: 'a'.repeat(64),
+      }),
+    );
+
+    const response = await fetch(`${setup.relay.url}/v1/collector-retros`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${setup.credentials.collectorWorker}`,
+        'content-type': 'application/json; charset=utf-8',
+        'x-safeword-accepted-at': '2026-08-28T20:00:00.000Z',
+        'x-safeword-envelope-digest': createHash('sha256').update(body).digest('hex'),
+        'x-safeword-request-id': 'bbbbbbbb-cccc-4ddd-8eee-ffffffffffff',
+      },
+      body,
+    });
+
+    expect(response.status).toBe(201);
+    expect(setup.createBodies).toHaveLength(1);
+    expect(setup.createBodies[0]).toContain(findings[0]);
+    expect(setup.createBodies[0]).toContain(findings.at(-1));
+  });
+
   it('coalesces concurrent installation-token minting for the same repository scope', async () => {
     const github = await startGitHubFixture({ tokenDelayMs: 25 });
     const provider = new GitHubAppTokenProvider({
