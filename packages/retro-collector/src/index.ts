@@ -31,6 +31,7 @@ const OPTIONAL_SOURCE_FIELDS = [
 ] as const;
 const SOURCE_FIELDS = new Set<string>([...REQUIRED_SOURCE_FIELDS, ...OPTIONAL_SOURCE_FIELDS]);
 const UTF8_DECODER = new TextDecoder('utf-8', { fatal: true });
+const RELAY_AUTHORITY_MARKER = /<!--\s*safeword-retro-(?:canonical|request-v1|signature):/u;
 
 export interface PublicRetroCollectorRuntime {
   url: string;
@@ -188,12 +189,26 @@ function validEnvelopeFindings(value: Record<string, unknown>): boolean {
   if (value.version === 'v1') {
     return hasExactKeys(value, V1_FIELDS) && nonemptyString(value.finding);
   }
+  if (
+    (value.version !== 'v2' && value.version !== 'v3') ||
+    !hasExactKeys(value, V2_FIELDS) ||
+    !Array.isArray(value.findings) ||
+    value.findings.length === 0 ||
+    !value.findings.every(nonemptyString)
+  ) {
+    return false;
+  }
+  return value.version !== 'v3' || validV3Findings(value.findings);
+}
+
+function validV3Findings(findings: string[]): boolean {
   return (
-    (value.version === 'v2' || value.version === 'v3') &&
-    hasExactKeys(value, V2_FIELDS) &&
-    Array.isArray(value.findings) &&
-    value.findings.length > 0 &&
-    value.findings.every(nonemptyString)
+    findings.length <= 50 &&
+    findings.every(
+      finding =>
+        Buffer.byteLength(JSON.stringify(finding), 'utf8') <= 4096 &&
+        !RELAY_AUTHORITY_MARKER.test(finding),
+    )
   );
 }
 

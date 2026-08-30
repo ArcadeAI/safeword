@@ -601,6 +601,39 @@ it('uses only the v3 request UUID for duplicate decisions', async () => {
   expect(secondResponse.status).toBe(201);
 });
 
+it.each([
+  ['more than 50 findings', Array.from({ length: 51 }, (_, index) => `finding ${index}`)],
+  ['a finding above 4 KiB serialized', ['x'.repeat(4096)]],
+  ['relay signature authority syntax', ['<!-- safeword-retro-signature: retro:abc -->']],
+  ['relay canonical authority syntax', ['<!-- safeword-retro-canonical: canonical:abc -->']],
+  ['relay request authority syntax', ['<!-- safeword-retro-request-v1: abc -->']],
+] as const)('rejects v3 with %s before durable storage', async (_, findings) => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+    collectorWorkerCredential: 'worker-fixture-credential',
+  });
+  const fixture = fixtureServerOwnedRequest();
+  const request = {
+    ...fixture,
+    body: encoded({
+      ...(JSON.parse(new TextDecoder().decode(fixture.body)) as Record<string, unknown>),
+      findings,
+    }),
+  };
+
+  const rejected = await submit(runtime.url, request);
+  const claim = await fetch(`${runtime.url}/v1/private/retro-claims`, {
+    method: 'POST',
+    headers: { authorization: 'Bearer worker-fixture-credential' },
+  });
+  await runtime.close();
+
+  expect(rejected.status).toBe(400);
+  expect(claim.status).toBe(204);
+});
+
 it('releases and completes a lease without losing or resurrecting the request', async () => {
   const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
   temporaryDirectories.push(directory);
