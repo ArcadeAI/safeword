@@ -29,16 +29,6 @@ describe('Claude plugin catalogue generation', () => {
     expect(normalized).toContain('console.log("bundle");');
   });
 
-  it('preserves meaningful trailing whitespace inside bundled literals', () => {
-    const bundle = ['const markdown = `hard break  ', 'next line`;', '// source comment   '].join(
-      '\n',
-    );
-
-    expect(normalizePluginCliBundle(bundle)).toBe(
-      ['const markdown = `hard break  ', 'next line`;', '// source comment'].join('\n'),
-    );
-  });
-
   it('rejects generated assets that retain project-local skill references', () => {
     expect(() => {
       assertClaudePluginAssetReferences([

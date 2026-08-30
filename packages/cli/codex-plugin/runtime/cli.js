@@ -52471,8 +52471,8 @@ var createRunningEvents = () => {
     registerRule({ descriptorRule, context }) {
       if (registerSet.has(descriptorRule.id)) {
         throw new Error(`rule.id:${descriptorRule.id} is already registered.
-                
-Duplicated rule.id is something wrong in .secretlintrc.                
+
+Duplicated rule.id is something wrong in .secretlintrc.
 `);
       }
       registerSet.add(descriptorRule.id);

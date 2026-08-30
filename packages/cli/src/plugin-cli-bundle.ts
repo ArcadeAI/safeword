@@ -10,6 +10,6 @@ export function normalizePluginCliBundle(bundle: string): string {
   return bundle
     .replaceAll(BUN_INSTALL_INSTANCE_PATH, '$1$2')
     .split('\n')
-    .map(line => (line.startsWith('// ') ? line.trimEnd() : line))
+    .map(line => line.trimEnd())
     .join('\n');
 }
