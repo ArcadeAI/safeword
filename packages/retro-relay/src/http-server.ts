@@ -90,6 +90,10 @@ function collectorDraft(
     throw new RelayError(400, 'collector envelope is invalid');
   }
   const findings = collectorFindings(envelope);
+  const body = findings.join('\n\n---\n\n');
+  if (Buffer.byteLength(body, 'utf8') > 60_000) {
+    throw new RelayError(400, 'collector envelope is too large to file');
+  }
   if (
     findings.some(finding =>
       /<!--\s*safeword-retro-(?:canonical|request-v1|signature):/u.test(finding),
@@ -103,7 +107,7 @@ function collectorDraft(
   if (title.trim() === '') throw new RelayError(400, 'collector envelope is invalid');
   const identity = shortDigest(findings.join('\0'));
   return {
-    body: findings.join('\n\n---\n\n'),
+    body,
     canonicalKey: `canonical:${identity}`,
     installationId: principal.installationId,
     labels: ['self-report', 'retro'],
@@ -116,23 +120,19 @@ function collectorDraft(
 }
 
 function collectorHeaders(request: IncomingMessage): {
-  acceptedAt: string;
   digest: string;
   requestId: string;
 } {
   const requestId = request.headers['x-safeword-request-id'];
   const digest = request.headers['x-safeword-envelope-digest'];
-  const acceptedAt = request.headers['x-safeword-accepted-at'];
   if (
     typeof requestId !== 'string' ||
     typeof digest !== 'string' ||
-    !/^[\da-f]{64}$/u.test(digest) ||
-    typeof acceptedAt !== 'string' ||
-    !Number.isFinite(Date.parse(acceptedAt))
+    !/^[\da-f]{64}$/u.test(digest)
   ) {
     throw new RelayError(400, 'collector envelope headers are invalid');
   }
-  return { acceptedAt: new Date(acceptedAt).toISOString(), digest, requestId };
+  return { digest, requestId };
 }
 
 function sendJson(response: ServerResponse, status: number, value: unknown): void {
@@ -428,7 +428,6 @@ export async function startRelayServer(input: RelayServerOptions): Promise<{
     const receipt = await service.submit(
       filingPrincipal,
       collectorDraft(bytes, headers.requestId, principal, retryDeadlineAt),
-      headers.acceptedAt,
     );
     sendJson(response, receipt.state === 'filed' ? 201 : 202, receipt);
   };

@@ -51,11 +51,11 @@ Figure It Out debate: moving intake into the relay is operationally compact but 
 
 | Principle | Consequence | Proof | Conflict |
 | --- | --- | --- | --- |
-| Optimize for the NTB without constraining the TBU | Zero customer credentials or setup; opt-out remains project-owned; operators retain payload-free status and audited recovery | CLI lifecycle and collector authorization integration tests implementing NTB1.R1, NTB1.R3, and TBU1.R6 |  |
-| 1. Structure enforces; instructions suggest | Durable receipt gates local cleanup; private credentials and readiness artifacts gate filing/cutover | Collector/worker/relay integration tests and readiness manifest tests |  |
-| 2. Fire at boundaries, not every turn | Transport runs only at existing retrospective lifecycle boundaries and shares one stop budget | CLI lifecycle integration tests |  |
-| 3. Add, never replace | Pre-cutover drafts keep their route and project opt-out remains authoritative | TBU1.R7 and NTB1.R3 scenarios |  |
-| 5. Correct and safe; then clear; then simple | Reuse Node SQLite and relay lifecycle; no new broker, database, client secret, or duplicate mechanism | Packaged three-service wiring test and full verification |  |
+| Optimize for the NTB without constraining the TBU | Zero customer credentials or setup; opt-out remains project-owned; operators retain payload-free status and audited recovery | `packages/cli/tests/integration/public-retro-lifecycle.test.ts` |  |
+| 1. Structure enforces; instructions suggest | Durable receipt gates local cleanup; private credentials and readiness artifacts gate filing/cutover | `packages/retro-collector/tests/worker.integration.test.ts` |  |
+| 2. Fire at boundaries, not every turn | Transport runs only at existing retrospective lifecycle boundaries and shares one stop budget | `packages/cli/tests/commands/retro.test.ts` |  |
+| 3. Add, never replace | Pre-cutover drafts keep their route and project opt-out remains authoritative | `packages/cli/tests/hooks/retro-draft-spool.test.ts` |  |
+| 5. Correct and safe; then clear; then simple | Reuse Node SQLite and relay lifecycle; no new broker, database, client secret, or duplicate mechanism | `packages/retro-relay/tests/relay.integration.test.ts` |  |
 
 Architecture decisions honored: public collector and private relay separation; one-host SQLite WAL with PostgreSQL as the multi-host migration boundary; one transport-independent request identity; raw REST marker authority; compiled/readiness-gated cutover; #834 remains active; #1495 is not a gate because no client credential helper is reused.
 

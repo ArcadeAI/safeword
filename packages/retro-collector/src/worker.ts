@@ -23,11 +23,18 @@ function authorization(secret: string): { authorization: string } {
   return { authorization: `Bearer ${secret}` };
 }
 
-function relayDisposition(status: number | undefined): {
+function relayDisposition(
+  status: number | undefined,
+  state: string | undefined,
+): {
   method: 'DELETE' | 'PATCH' | 'PUT';
   result: Exclude<RetroTransferResult, 'empty'>;
 } {
   if (status !== undefined && status >= 200 && status < 300) {
+    if (state === 'dead-letter' || state === 'rejected') {
+      return { method: 'PATCH', result: 'rejected' };
+    }
+    if (state === undefined) return { method: 'DELETE', result: 'retained' };
     return { method: 'PUT', result: 'transferred' };
   }
   if (status !== undefined && [400, 409, 413, 422].includes(status)) {
@@ -48,13 +55,13 @@ export async function transferOneRetro(
   if (!claimResponse.ok) return 'retained';
   const claim = (await claimResponse.json()) as CollectorClaim;
   let relayStatus: number | undefined;
+  let relayState: string | undefined;
   try {
     const relayResponse = await fetch(new URL('/v1/collector-retros', options.relayUrl), {
       method: 'POST',
       headers: {
         ...authorization(options.relayCredential),
         'content-type': 'application/json; charset=utf-8',
-        'x-safeword-accepted-at': claim.acceptedAt,
         'x-safeword-envelope-digest': claim.digest,
         'x-safeword-request-id': claim.requestId,
       },
@@ -62,10 +69,14 @@ export async function transferOneRetro(
       signal: AbortSignal.timeout(10_000),
     });
     relayStatus = relayResponse.status;
+    if (relayResponse.ok) {
+      const receipt = (await relayResponse.json()) as { state?: unknown };
+      if (typeof receipt.state === 'string') relayState = receipt.state;
+    }
   } catch {
     // Collector ownership remains durable when the private relay is unavailable.
   }
-  const disposition = relayDisposition(relayStatus);
+  const disposition = relayDisposition(relayStatus, relayState);
   const lifecycleResponse = await fetch(
     new URL(`/v1/private/retro-claims/${claim.requestId}`, options.collectorUrl),
     {

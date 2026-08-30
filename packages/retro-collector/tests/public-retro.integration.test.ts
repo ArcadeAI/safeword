@@ -236,6 +236,9 @@ it('keeps lifecycle inspection payload-free and audits separate payload principa
     `${runtime.url}/v1/private/retros/${request.requestId}/payload`,
     { headers: { authorization: 'Bearer operator-secret' } },
   );
+  const operatorLegacyRead = await fetch(`${runtime.url}/v1/public-retros/${request.requestId}`, {
+    headers: { authorization: 'Bearer operator-secret' },
+  });
   const breakGlassPayload = await fetch(
     `${runtime.url}/v1/private/retros/${request.requestId}/payload`,
     { headers: { authorization: 'Bearer break-glass-secret' } },
@@ -254,6 +257,7 @@ it('keeps lifecycle inspection payload-free and audits separate payload principa
   expect(lifecycle.status).toBe(200);
   expect(lifecycleText).not.toContain('server-owned sanitized finding');
   expect(operatorPayload.status).toBe(404);
+  expect(operatorLegacyRead.status).toBe(404);
   expect(new Uint8Array(await breakGlassPayload.arrayBuffer())).toEqual(request.body);
   expect(workerClaim.status).toBe(200);
   expect(audit).toEqual([{ principal: 'break-glass' }, { principal: 'collector-worker' }]);
@@ -779,6 +783,8 @@ it('uses only the v3 request UUID for duplicate decisions', async () => {
 it.each([
   ['more than 50 findings', Array.from({ length: 51 }, (_, index) => `finding ${index}`)],
   ['a finding above 4 KiB serialized', ['x'.repeat(4096)]],
+  ['a blank first title line', ['\nbody without a title']],
+  ['a combined filing body above 60 KB', Array.from({ length: 16 }, () => 'x'.repeat(4000))],
   ['relay signature authority syntax', ['<!-- safeword-retro-signature: retro:abc -->']],
   ['relay canonical authority syntax', ['<!-- safeword-retro-canonical: canonical:abc -->']],
   ['relay request authority syntax', ['<!-- safeword-retro-request-v1: abc -->']],

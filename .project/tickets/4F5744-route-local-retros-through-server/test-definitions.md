@@ -8,304 +8,304 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 
 ### Scenario: A fresh local installation submits through its installed harness
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: Missing project identity prevents public submission
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ## Rule: local-retro-cutover.NTB1.R2 — Retrospective transport is silent and bounded
 
 ### Scenario: Every transport outcome stays within the shared stop budget
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: An exhausted stop budget prevents another transport attempt
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: Multiple pending requests share one stop budget
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ## Rule: local-retro-cutover.NTB1.R3 — Collection remains disclosed and optional
 
 ### Scenario: Default installation documents the sanitized feedback path
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: A project opt-out prevents collection
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ## Rule: local-retro-cutover.TBU1.R1 — One captured window keeps one request identity
 
 ### Scenario: A lost receipt retries the persisted request
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: Re-extracting the same transcript window reuses its durable identity
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: A later transcript window is not suppressed by an earlier request
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: Conflicting retry bytes preserve both recovery records
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ## Rule: local-retro-cutover.TBU1.R2 — Durable acceptance transfers recovery exactly once
 
 ### Scenario: Collector acceptance transfers recovery to the server
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: A legacy quarantine receipt does not transfer recovery
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: A typed intake rejection preserves local diagnosis
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: A transport failure before acceptance preserves local recovery
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ## Rule: local-retro-cutover.TBU1.R3 — Raw GitHub bodies are duplicate authority
 
 ### Scenario: Exact authority markers suppress a duplicate create
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: Non-authoritative evidence cannot suppress filing
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ## Rule: local-retro-cutover.TBU1.R4 — Accepted intake is safe and relay-compatible
 
 ### Scenario: The largest normalized batch is accepted
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: The largest accepted batch remains relay-compatible
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: An oversized envelope is rejected before storage
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: A malformed request identity is rejected before storage
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: Prohibited finding content is rejected before storage
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: Public intake holds no GitHub filing authority
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ## Rule: local-retro-cutover.TBU1.R5 — Server ownership survives interrupted filing
 
 ### Scenario: A claim crash is reclaimed and filed once
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: Ambiguous creation follows raw-body ground truth
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: Incomplete ambiguity scan retains the request for reconciliation
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ## Rule: local-retro-cutover.TBU1.R6 — Routine operations do not expose findings
 
 ### Scenario: Lifecycle inspection returns metadata without payload
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: An ordinary operator credential cannot read raw payloads
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: An unauthenticated caller cannot inspect accepted work
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: Break-glass payload access is audited
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: Authorized worker payload access is separately authenticated and audited
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ## Rule: local-retro-cutover.TBU1.R7 — Cutover preserves old work and routes new work only through the server
 
 ### Scenario: Cutover preserves a draft captured under the old route
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: Cutover routes a newly captured finding only through the server
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ## Rule: local-retro-cutover.SWM1.R1 — Real harness canaries precede global cutover
 
 ### Scenario: A real harness canary proves terminal production filing
 
-- [ ] CAPTURED
-- [ ] VERIFIED
-- [ ] LINKED IN READINESS MANIFEST
+- [x] CAPTURED
+- [x] VERIFIED
+- [x] LINKED IN READINESS MANIFEST
 
 ## Rule: local-retro-cutover.SWM1.R2 — Readiness proves truthful runtime provenance
 
 ### Scenario: Cursor host detection records truthful provenance
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ## Rule: local-retro-cutover.SWM1.R3 — Production fault evidence proves recoverable ownership
 
 ### Scenario: Server-owned work survives a filing fault
 
-- [ ] CAPTURED
-- [ ] VERIFIED
-- [ ] LINKED IN READINESS MANIFEST
+- [x] CAPTURED
+- [x] VERIFIED
+- [x] LINKED IN READINESS MANIFEST
 
 ## Rule: local-retro-cutover.SWM1.R4 — Intake and filing bounds contain anonymous volume
 
 ### Scenario: Admitted work drains oldest-first within filing quotas
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: Configured filing quota controls admitted filing volume
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: Exhausted public intake rejects before storage
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: Prolonged filing quota exhaustion reaches an alerted terminal state
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ## Rule: local-retro-cutover.SWM1.R5 — Readiness rejects incomplete or untruthful evidence
 
 ### Scenario: Complete truthful evidence enables global cutover
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: Managed Cursor evidence cannot satisfy local readiness
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: Missing harness evidence keeps the global cutover disabled
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: Indeterminate Cursor provenance cannot satisfy local readiness
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: Mismatched build ancestry cannot satisfy readiness
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR
 
 ### Scenario: A fault artifact without recovery evidence cannot enable cutover
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED
+- [x] GREEN
+- [x] REFACTOR

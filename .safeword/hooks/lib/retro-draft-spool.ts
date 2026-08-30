@@ -135,16 +135,6 @@ export function readSpooledDrafts(projectDirectory: string, sessionId: string): 
   );
 }
 
-/** Read server-routed drafts retained until collector acceptance. */
-export function readServerSpooledDrafts(
-  projectDirectory: string,
-  sessionId: string,
-): SpooledDraft[] {
-  return readAllSpooledDrafts(projectDirectory, sessionId).filter(
-    draft => draft.route === 'server-v3',
-  );
-}
-
 /** Serialize one draft to its canonical spool line (only the code-assembled fields). */
 function draftLine(draft: SpooledDraft): string {
   return JSON.stringify({
@@ -221,20 +211,6 @@ export function markDraftsFiled(
   filedSignatures: readonly string[],
 ): void {
   removeDrafts(projectDirectory, sessionId, filedSignatures, draft => draft.route !== 'server-v3');
-}
-
-/** Remove drafts after the collector has durably accepted ownership of them. */
-export function markDraftsAcceptedByServer(
-  projectDirectory: string,
-  sessionId: string,
-  acceptedSignatures: readonly string[],
-): void {
-  removeDrafts(
-    projectDirectory,
-    sessionId,
-    acceptedSignatures,
-    draft => draft.route === 'server-v3',
-  );
 }
 
 /** One filed-draft ack: the signature and the tracker issue it landed on (GH644A). */

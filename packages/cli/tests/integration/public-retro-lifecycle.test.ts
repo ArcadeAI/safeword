@@ -386,7 +386,7 @@ process.exit(result.status ?? 1);
       expect(storedEnvelope).toMatchObject({
         source: {
           harness,
-          hostClass: 'local',
+          hostClass: 'unknown',
           projectUUID: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
           repository: 'github.com/arcadeai/safeword',
         },

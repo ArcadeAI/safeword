@@ -64,7 +64,7 @@ Feature: Route local retros through the durable server
     Scenario: Default installation documents the sanitized feedback path
       Given a default installation
       When the managed retrospective documentation is inspected
-      Then the installed documentation is present and identifies the transmitted finding, repository identity, session scope, harness and agent versions, SafeWord CLI version, model, host class, operating-system family, excluded transcript, prompt, tool-output, file-content, secret, and user-identity fields, and the project opt-out
+      Then the installed documentation identifies every transmitted metadata field, every excluded sensitive field, and the project opt-out
 
     @rejection
     Scenario: A project opt-out prevents collection
@@ -150,13 +150,13 @@ Feature: Route local retros through the durable server
   @local-retro-cutover.TBU1.R4 @surface.safeword-cli @surface.railway-public-retro-collector @surface.railway-hosted-relay
   Rule: local-retro-cutover.TBU1.R4 — Accepted intake is safe and relay-compatible
 
-    Scenario: The largest normalized batch is accepted
-      Given fifty findings whose serialized representations reach their four KiB boundaries
+    Scenario: The largest relay-compatible normalized batch is accepted
+      Given fifty findings whose rendered issue body remains below sixty thousand bytes
       When the client and collector validate the complete envelope
-      Then both accept it below the shared 256 KiB limit with every finding present
+      Then both accept it with every finding present
 
     Scenario: The largest accepted batch remains relay-compatible
-      Given the largest accepted fifty-finding envelope reaches the filing worker
+      Given the largest relay-compatible fifty-finding envelope reaches the filing worker
       When the relay files it
       Then the relay records one created GitHub issue with every finding represented
 

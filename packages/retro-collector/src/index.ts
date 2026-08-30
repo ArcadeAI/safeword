@@ -13,6 +13,8 @@ interface PublicRetroStorePort extends Pick<PublicRetroStore, 'accept' | 'close'
 }
 
 const MAXIMUM_BODY_BYTES = 262_144;
+const MAXIMUM_RELAY_BODY_BYTES = 60_000;
+const FINDING_SEPARATOR = '\n\n---\n\n';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u;
 const SESSION_SCOPE = /^[0-9a-f]{64}$/u;
@@ -279,6 +281,8 @@ function validEnvelopeFindings(value: Record<string, unknown>): boolean {
 function validV3Findings(findings: string[]): boolean {
   return (
     findings.length <= 50 &&
+    findings[0]?.split('\n', 1)[0]?.trim() !== '' &&
+    Buffer.byteLength(findings.join(FINDING_SEPARATOR), 'utf8') <= MAXIMUM_RELAY_BODY_BYTES &&
     findings.every(
       finding =>
         Buffer.byteLength(JSON.stringify(finding), 'utf8') <= 4096 &&

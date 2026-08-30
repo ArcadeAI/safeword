@@ -420,15 +420,15 @@ describe('retry-safe retro relay', () => {
       requestId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
       tenantId: 'tenant-1',
     });
-    expect(stored?.acceptedAt).toBe('2026-08-28T20:00:00.000Z');
+    expect(stored?.acceptedAt).toBe('2026-08-29T20:00:00.000Z');
     expect(stored?.retryDeadlineAt).toBe('2026-08-30T20:00:00.000Z');
   });
 
-  it('accepts the largest collector finding batch without truncating its body', async () => {
+  it('accepts the largest relay-compatible collector batch without truncating its body', async () => {
     const setup = await fixture();
     const findings = Array.from({ length: 50 }, (_, index) => {
       const prefix = `${String(index).padStart(2, '0')}:${'t'.repeat(300)}\n`;
-      return prefix + String(index % 10).repeat(4096 - prefix.length);
+      return prefix + String(index % 10).repeat(1000 - prefix.length);
     });
     const body = Buffer.from(
       JSON.stringify({
@@ -461,6 +461,30 @@ describe('retry-safe retro relay', () => {
     expect(setup.createBodies).toHaveLength(1);
     expect(setup.createBodies[0]).toContain(findings[0]);
     expect(setup.createBodies[0]).toContain(findings.at(-1));
+  });
+
+  it('rejects a collector batch whose rendered issue body exceeds 60 KB', async () => {
+    const setup = await fixture();
+    const body = Buffer.from(
+      JSON.stringify({
+        version: 'v3',
+        findings: Array.from({ length: 16 }, () => 'x'.repeat(4000)),
+      }),
+    );
+    const response = await fetch(`${setup.relay.url}/v1/collector-retros`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${setup.credentials.collectorWorker}`,
+        'content-type': 'application/json; charset=utf-8',
+        'x-safeword-accepted-at': '2026-08-28T20:00:00.000Z',
+        'x-safeword-envelope-digest': createHash('sha256').update(body).digest('hex'),
+        'x-safeword-request-id': 'cccccccc-dddd-4eee-8fff-aaaaaaaaaaaa',
+      },
+      body,
+    });
+
+    expect(response.status).toBe(400);
+    expect(setup.createBodies).toHaveLength(0);
   });
 
   it('coalesces concurrent installation-token minting for the same repository scope', async () => {

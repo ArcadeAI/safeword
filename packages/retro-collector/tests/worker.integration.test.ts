@@ -52,7 +52,7 @@ it('hands exact claimed bytes to the relay and completes collector ownership', a
     request.on('end', () => {
       observedBody = Buffer.concat(chunks);
       response.statusCode = 202;
-      response.end();
+      response.end(JSON.stringify({ state: 'accepted' }));
     });
   });
   await new Promise<void>(resolve => relay.listen(0, '127.0.0.1', resolve));
@@ -137,6 +137,61 @@ it.each([401, 403, 404])('retains accepted work when the relay returns %i', asyn
   expect(records.retros).toEqual([expect.objectContaining({ state: 'queued' })]);
 });
 
+it('records a terminal relay dead letter as rejected instead of completed', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-worker-'));
+  directories.push(directory);
+  const collector = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+    collectorWorkerCredential: 'collector-secret',
+    operatorCredential: 'operator-secret',
+  });
+  await fetch(`${collector.url}/v1/public-retros`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json; charset=utf-8',
+      'x-safeword-request-id': 'dddddddd-eeee-4fff-8aaa-bbbbbbbbbbbb',
+    },
+    body: JSON.stringify({
+      version: 'v3',
+      findings: ['terminal fixture'],
+      source: {
+        harness: 'codex',
+        hostClass: 'local',
+        projectUUID: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        safewordCliVersion: '0.82.1',
+      },
+      sessionScope: 'd'.repeat(64),
+    }),
+  });
+  const relay = createServer((_request, response) => {
+    response.statusCode = 202;
+    response.end(JSON.stringify({ state: 'dead-letter' }));
+  });
+  await new Promise<void>(resolve => relay.listen(0, '127.0.0.1', resolve));
+  const address = relay.address();
+  if (address === null || typeof address === 'string') throw new Error('relay did not bind');
+
+  const result = await transferOneRetro({
+    collectorCredential: 'collector-secret',
+    collectorUrl: collector.url,
+    relayCredential: 'relay-secret',
+    relayUrl: `http://127.0.0.1:${address.port}`,
+  });
+  const lifecycle = await fetch(`${collector.url}/v1/private/retros`, {
+    headers: { authorization: 'Bearer operator-secret' },
+  });
+  const records = (await lifecycle.json()) as { retros: { state: string }[] };
+  await collector.close();
+  await new Promise<void>(resolve => {
+    relay.close(() => {
+      resolve();
+    });
+  });
+
+  expect(result).toBe('rejected');
+  expect(records.retros).toEqual([expect.objectContaining({ state: 'dead-lettered' })]);
+});
+
 it('dead-letters a permanent relay rejection and transfers the next retro', async () => {
   const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-worker-'));
   directories.push(directory);
@@ -173,7 +228,7 @@ it('dead-letters a permanent relay rejection and transfers the next retro', asyn
   const relay = createServer((_request, response) => {
     relayRequests += 1;
     response.statusCode = relayRequests === 1 ? 400 : 202;
-    response.end();
+    response.end(relayRequests === 1 ? undefined : JSON.stringify({ state: 'accepted' }));
   });
   await new Promise<void>(resolve => relay.listen(0, '127.0.0.1', resolve));
   const address = relay.address();

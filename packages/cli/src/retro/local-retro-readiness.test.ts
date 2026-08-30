@@ -69,4 +69,22 @@ it('enables only complete local harness and recovered-fault evidence on a ready 
     ),
   ).toBe(false);
   expect(validateLocalRetroReadiness(manifest, { ...input, relayReady: false })).toBe(false);
+  expect(
+    validateLocalRetroReadiness(manifest, {
+      ...input,
+      ancestorPairs: [],
+    }),
+  ).toBe(false);
+  expect(
+    validateLocalRetroReadiness(manifest, {
+      ...input,
+      now: new Date('2026-09-29T00:00:00.001Z'),
+    }),
+  ).toBe(false);
+  expect(
+    validateLocalRetroReadiness(manifest, {
+      ...input,
+      now: new Date('2026-08-28T23:59:59.999Z'),
+    }),
+  ).toBe(false);
 });

@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -1338,11 +1339,11 @@ describe('retro command configuration, extraction, egress, and relay execution',
   });
 
   it.each([
-    ['accepted', true, false],
-    ['unreachable', false, true],
+    ['accepted', true],
+    ['unreachable', false],
   ] as const)(
     'routes a server-v3 finding only through the collector when it is %s',
-    async (_outcome, accepted, recoveryRetained) => {
+    async (_outcome, accepted) => {
       const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-server-route-'));
       const attemptsDirectory = nodePath.join(projectDirectory, '.safeword/public-retro-attempts');
       const privateTransport = new FakeGitHub();
@@ -1381,11 +1382,8 @@ describe('retro command configuration, extraction, egress, and relay execution',
         expect(privateTransport.issues).toHaveLength(0);
         expect(publicTransport).toHaveBeenCalledOnce();
         expect(readSpooledDrafts(projectDirectory, 'server-route-session')).toEqual([]);
-        const recovery = readFileSync(
-          draftSpoolPath(projectDirectory, 'server-route-session'),
-          'utf8',
-        );
-        expect(recovery.includes('"route":"server-v3"')).toBe(recoveryRetained);
+        expect(existsSync(draftSpoolPath(projectDirectory, 'server-route-session'))).toBe(false);
+        expect(readdirSync(attemptsDirectory)).toHaveLength(1);
       } finally {
         rmSync(projectDirectory, { force: true, recursive: true });
       }
@@ -1520,7 +1518,7 @@ describe('retro command configuration, extraction, egress, and relay execution',
     }
   });
 
-  it('persists relay recovery before starting the public handoff', async () => {
+  it('uses only relay recovery when the configured relay owns the window', async () => {
     const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-relay-spool-first-'));
     const publicTransport = vi.fn(async request => {
       expect(await listRelayRequests(projectDirectory)).toHaveLength(1);
@@ -1572,7 +1570,7 @@ describe('retro command configuration, extraction, egress, and relay execution',
       );
 
       expect(outcome.ok).toBe(true);
-      expect(publicTransport).toHaveBeenCalledOnce();
+      expect(publicTransport).not.toHaveBeenCalled();
     } finally {
       rmSync(projectDirectory, { force: true, recursive: true });
     }

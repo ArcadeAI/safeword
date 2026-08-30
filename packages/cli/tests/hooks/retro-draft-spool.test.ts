@@ -8,9 +8,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   canonicalSignatureForDraft,
   draftSpoolPath,
-  markDraftsAcceptedByServer,
   markDraftsFiled,
-  readServerSpooledDrafts,
   readSpooledDrafts,
   spoolDrafts,
   spoolSiblingPath,
@@ -55,18 +53,14 @@ describe('retro draft spool (BNGK9W — persist post-egress drafts on filing fai
     expect(readSpooledDrafts(projectDirectory, 'sess-1')).toHaveLength(2);
   });
 
-  it('hides server-owned recovery from the direct filer until collector acknowledgement', () => {
+  it('keeps legacy server-owned recovery hidden from the direct filer', () => {
     const serverDraft = { ...draft('retro:aaaaaaaaaaaa'), route: 'server-v3' as const };
     spoolDrafts(projectDirectory, 'sess-1', [serverDraft]);
 
     expect(readSpooledDrafts(projectDirectory, 'sess-1')).toEqual([]);
-    expect(readServerSpooledDrafts(projectDirectory, 'sess-1')).toEqual([serverDraft]);
     expect(readFileSync(draftSpoolPath(projectDirectory, 'sess-1'), 'utf8')).toContain(
       '"route":"server-v3"',
     );
-
-    markDraftsAcceptedByServer(projectDirectory, 'sess-1', [serverDraft.signature]);
-    expect(readFileSync(draftSpoolPath(projectDirectory, 'sess-1'), 'utf8')).toBe('');
   });
 
   it('drains matching signatures only from the owning route', () => {
@@ -76,10 +70,9 @@ describe('retro draft spool (BNGK9W — persist post-egress drafts on filing fai
 
     markDraftsFiled(projectDirectory, 'sess-routes', [directDraft.signature]);
     expect(readSpooledDrafts(projectDirectory, 'sess-routes')).toEqual([]);
-    expect(readServerSpooledDrafts(projectDirectory, 'sess-routes')).toEqual([serverDraft]);
-
-    markDraftsAcceptedByServer(projectDirectory, 'sess-routes', [serverDraft.signature]);
-    expect(readServerSpooledDrafts(projectDirectory, 'sess-routes')).toEqual([]);
+    expect(readFileSync(draftSpoolPath(projectDirectory, 'sess-routes'), 'utf8')).toContain(
+      '"route":"server-v3"',
+    );
   });
 
   it('reads an empty list when the spool is absent or unreadable (never throws)', () => {

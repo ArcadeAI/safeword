@@ -10,12 +10,12 @@ scope:
   - Add a server-owned envelope version that is leasable only after the emitting client has disabled direct filing; keep every legacy collector row inert.
   - Extend the public collector with truthful local Cursor admission, relay-compatible validation and limits, durable queue visibility, and a least-privilege read-and-claim boundary for the private worker while keeping filing credentials out.
   - Update the CLI client to accept truthful local Cursor metadata, persist request identity and bytes before transport, enforce the 256 KiB serialized envelope limit, and derive its timeout from the 750 ms budget.
-  - Add a private server-side filing worker that leases accepted collector records with a dedicated claim principal and submits them through a new `collector-worker` relay principal with only `file` authority.
+  - Add a private server-side filing worker that leases accepted collector records with a dedicated claim principal and submits them through a new `collector-worker` relay principal with only `ingest` authority.
   - Preserve local recovery until collector acceptance and prevent direct agent-side GitHub fallback after acceptance.
   - Gate cutover on production evidence for all three current local filing carriers and eventual filing.
   - Bound automatic GitHub creation with configurable global and per-project worker quotas while preserving excess accepted records.
   - Add a global public-intake rate bound and a build-attested per-source canary mode for non-circular production proof.
-  - Extend relay credential parsing and attribution for the fifth `collector-worker` file-only principal.
+  - Extend relay credential parsing and attribution for the fifth `collector-worker` ingest-only principal.
 out_of_scope:
   - Cloud-hosted agent carriers; tracked by #3476.
   - OpenCode retrospective dispatch, which does not exist today.
@@ -25,7 +25,7 @@ done_when:
   - A fresh local install needs no customer action or secret to submit eligible sanitized findings.
   - Collector acceptance durably guarantees transfer through a terminal filing disposition under one request identity.
   - The collector accepts Cursor with truthful local host metadata, and the production proof asserts that exact provenance.
-  - Collector acceptance persists one server acceptance timestamp and a server-derived digest of the stored bytes; the worker reuses that timestamp as relay creation time while setting a fresh deadline anchored at first relay acceptance and preserving it across retries.
+  - Collector acceptance persists its acceptance timestamp and a server-derived digest of the stored bytes; the relay anchors a fresh retry deadline at first relay acceptance and preserves it across retries.
   - Pre-acceptance failures retain local recovery; post-acceptance handling never invokes direct agent-side GitHub create.
   - Exact duplicate decisions use a complete raw REST body scan, never sanitized reads or similarity alone.
   - Build-attested production tests prove Claude Code, OpenAI Codex, and Cursor before the cutover gate can enable.
@@ -72,3 +72,6 @@ Production relay credentials must add the independently rotatable `collector-wor
 - 2026-08-30T02:18:00.000Z Drafted: Derived eight behavioral dimensions and authored 26 representative scenarios covering all 13 Rules, affected surfaces, happy paths, and rejection paths; awaiting the required completeness confirmation.
 - 2026-08-30T02:22:00.000Z Advanced: User confirmed the scenario set fully covers intended behavior and important boundaries; entered the independent scenario-quality gate.
 - 2026-08-30T01:52:00.000Z Converged: Made the new server-owned envelope the atomic cutover boundary, kept all legacy quarantine rows inert, bound production proof to real harness artifacts, and added minimal global/per-project filing quotas with durable overflow.
+- 2026-08-30T08:15:00.000Z Reviewed: Independent quality review found the accepted batch could exceed GitHub's issue-body limit, delayed collector work inherited an expired relay clock, terminal relay receipts were flattened, and two delivery routes could own one window. Bounded the rendered body before acceptance, anchored retry at relay acceptance, preserved terminal state, and made route ownership exclusive.
+- 2026-08-30T09:16:00.000Z Verified: Full package pass reached relay 189/189, collector 134/134, and CLI 8,740/8,740 with 13 intentional skips. BDD reached 1,484 passing scenarios plus three skips; its sole failure was dogfood parity, then reconciled and proven directly across 255 pairs and eight contracts. Builds, TypeScript/Astro checks, lint, and dependency audits passed. The repository-wide Python lane remains red on pre-existing duplicate experiment module names outside this branch; the load-sensitive review-route test passed in the first full run and in isolated rerun.
+- 2026-08-30T09:20:00.000Z Reviewed: Rejected blank-title v3 envelopes before durable acceptance, proved the routine operator route cannot read v3 payloads, removed the unused collector timestamp header, and made relay mode fail closed without a project directory.
