@@ -1303,14 +1303,17 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     expect(marker.manifest_sha256).toMatch(/^[\da-f]{64}$/u);
     expect(marker.activation_id).toEqual(expect.any(String));
     expect(marker.installed_at).toEqual(expect.any(String));
-    // Developer machines may have a live app-server while CI does not. The
-    // contract is the coherent pair: observed means at least one concrete
-    // host; unavailable means no host identities were trusted.
+    // Developer machines may have a live app-server while CI does not. An
+    // observed process table can legitimately contain no Codex hosts when the
+    // app was closed during installation; unavailable observations must not
+    // invent host identities.
     expect(['observed', 'unavailable']).toContain(marker.host_observation);
     expect(marker.active_hosts).toEqual(expect.any(Array));
-    if (marker.host_observation === 'observed') {
-      expect(marker.active_hosts).not.toHaveLength(0);
-    } else {
+    for (const host of marker.active_hosts as Record<string, unknown>[]) {
+      expect(host.pid).toEqual(expect.any(Number));
+      expect(host.started_at).toEqual(expect.any(String));
+    }
+    if (marker.host_observation === 'unavailable') {
       expect(marker.active_hosts).toHaveLength(0);
     }
   });
