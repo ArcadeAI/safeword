@@ -269,6 +269,7 @@ export function codexActivationMarkerIssue(
 
 function packagedHookManifestPath(): string {
   const candidates = [
+    nodePath.resolve(import.meta.dirname, '../hooks.json'),
     nodePath.resolve(import.meta.dirname, '../codex-plugin/hooks.json'),
     nodePath.resolve(import.meta.dirname, '../../codex-plugin/hooks.json'),
   ];
