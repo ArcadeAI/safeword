@@ -115,7 +115,7 @@ describe('Codex plugin release contract', () => {
     );
 
     try {
-      const environment = { ...process.env, CODEX_HOME: codexHome };
+      const environment = { ...process.env, CLAUDE_PROJECT_DIR: '', CODEX_HOME: codexHome };
       const marketplaceAddResult = spawnSync(
         'codex',
         ['plugin', 'marketplace', 'add', marketplaceRoot, '--json'],
@@ -142,6 +142,61 @@ describe('Codex plugin release contract', () => {
       );
       expect(runtime.status, runtime.stderr).toBe(0);
       expect(runtime.stdout.trim()).toBe(installed.version);
+
+      const unenrolledProject = nodePath.join(fixture, 'unenrolled-project');
+      mkdirSync(unenrolledProject, { recursive: true });
+      const sessionStart = spawnSync(
+        'bun',
+        [
+          nodePath.join(installed.installedPath, 'runtime/cli.js'),
+          'hook',
+          'codex',
+          'session-start',
+          '--plugin-hook',
+        ],
+        {
+          cwd: unenrolledProject,
+          encoding: 'utf8',
+          env: environment,
+          input: JSON.stringify({ session_id: 'release-contract' }),
+        },
+      );
+      expect(sessionStart.status, sessionStart.stderr).toBe(0);
+      expect(JSON.parse(sessionStart.stdout)).toMatchObject({
+        hookSpecificOutput: {
+          hookEventName: 'SessionStart',
+          additionalContext: expect.stringContaining('Safeword session bootstrap'),
+        },
+      });
+
+      const projectDirectory = nodePath.join(fixture, 'project');
+      mkdirSync(nodePath.join(projectDirectory, '.safeword'), { recursive: true });
+      cpSync(
+        nodePath.join(root, 'templates/SAFEWORD.md'),
+        nodePath.join(projectDirectory, '.safeword/SAFEWORD.md'),
+      );
+      const hook = spawnSync(
+        'bun',
+        [
+          nodePath.join(installed.installedPath, 'runtime/cli.js'),
+          'hook',
+          'codex',
+          'pre-tool-use',
+          '--plugin-hook',
+        ],
+        {
+          cwd: projectDirectory,
+          encoding: 'utf8',
+          env: { ...environment, CLAUDE_PROJECT_DIR: projectDirectory },
+          input: JSON.stringify({
+            session_id: 'release-contract',
+            tool_name: 'Bash',
+            tool_input: { command: "sed -n '1,20p' README.md" },
+          }),
+        },
+      );
+      expect(hook.status, hook.stderr).toBe(0);
+      expect(hook.stdout).toBe('');
     } finally {
       rmSync(fixture, { recursive: true, force: true });
     }
@@ -173,6 +228,22 @@ describe('Codex plugin release contract', () => {
       expect(() => {
         assertPackedCodexPlugin(root, packageDirectory);
       }).toThrow('missing expected asset');
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  }, 15_000);
+
+  it('rejects a packed plugin with a missing packaged hook artifact', () => {
+    const root = nodePath.resolve(import.meta.dirname, '..');
+    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-plugin-pack-'));
+    try {
+      const archive = packCliPackage(root, fixture);
+      const packageDirectory = extractPackedCliPackage(archive, fixture);
+      rmSync(nodePath.join(packageDirectory, 'codex-plugin/templates/SAFEWORD.md'));
+
+      expect(() => {
+        assertPackedCodexPlugin(root, packageDirectory);
+      }).toThrow('generated tree does not match its source tree');
     } finally {
       rmSync(fixture, { recursive: true, force: true });
     }

@@ -144,7 +144,10 @@ function hasWorkflowInvocationBoundary(markdown: string, nameEnd: number): boole
   );
 }
 
-function adaptWorkflowInvocations(markdown: string, knownSkillNames: ReadonlySet<string>): string {
+export function adaptCodexWorkflowInvocations(
+  markdown: string,
+  knownSkillNames: ReadonlySet<string>,
+): string {
   let adapted = '';
   let copiedThrough = 0;
   let slash = markdown.indexOf('/');
@@ -296,7 +299,7 @@ function adaptWorkflowMarkdown(
   knownSkillNames: ReadonlySet<string>,
   version: string,
 ): string {
-  let adapted = adaptWorkflowInvocations(markdown, knownSkillNames);
+  let adapted = adaptCodexWorkflowInvocations(markdown, knownSkillNames);
   adapted = adaptScriptInvocations(adapted, version);
   adapted = adaptNamespaceRootInvocations(adapted, version);
 
@@ -489,7 +492,7 @@ export function generateCodexPluginAssets(
       relativePath: nodePath.join('skills', skill, 'SKILL.md'),
       content: `---\n${stringify({
         name: skill,
-        description: adaptWorkflowInvocations(description, knownSkillNames),
+        description: adaptCodexWorkflowInvocations(description, knownSkillNames),
       }).trimEnd()}\n---\n\n${adaptSkillBody(body, skill, knownSkillNames, referenceNames, version)}`,
     };
   });

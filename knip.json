@@ -2,6 +2,7 @@
   "ignore": [
     ".safeword/**",
     "plugin/**",
+    "packages/cli/codex-plugin/**",
     "packages/cli/templates/**",
     "packages/cli/tests/fixtures/bdd-proof-corpus/actor-adapter.ts",
     "packages/cli/tests/fixtures/bdd-proof-corpus/fixture-runner.ts",
