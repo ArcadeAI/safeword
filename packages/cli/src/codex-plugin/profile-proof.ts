@@ -382,7 +382,7 @@ function activationReceiptForRestart(
     currentHost === null ||
     marker.host_observation !== 'observed' ||
     now.getTime() < installedAt ||
-    (marker.active_hosts.length === 0 && Date.parse(currentHost.started_at) < installedAt) ||
+    Date.parse(currentHost.started_at) < installedAt ||
     marker.active_hosts.some(installedHost => sameCodexHost(installedHost, currentHost)) ||
     marker.active_hosts.some(installedHost =>
       hostObservation.running.some(runningHost => sameCodexHost(installedHost, runningHost)),

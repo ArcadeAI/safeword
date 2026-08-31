@@ -167,12 +167,13 @@ describe('migrate codex-plugin command', () => {
     const activationPending = existsSync(markerPath);
     if (activationPending) {
       const marker = JSON.parse(readFileSync(markerPath, 'utf8')) as { activation_id: string };
-      writeCodexActivationMarker(environment, new Date(Date.now() - 1000), {
+      const now = Date.now();
+      writeCodexActivationMarker(environment, new Date(now - 1000), {
         activationId: marker.activation_id,
-        activeHosts: [{ pid: 100, started_at: '2026-08-14T08:00:00.000Z' }],
+        activeHosts: [{ pid: 100, started_at: new Date(now - 2000).toISOString() }],
       });
-      recordCodexHookProof('session-start', environment, new Date(), {
-        currentHost: { pid: 200, started_at: '2026-08-14T09:00:00.000Z' },
+      recordCodexHookProof('session-start', environment, new Date(now), {
+        currentHost: { pid: 200, started_at: new Date(now - 500).toISOString() },
       });
     }
     for (const event of CODEX_PLUGIN_HOOK_EVENTS) {
@@ -1966,6 +1967,13 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
 
     expect(status.exitCode, status.stderr).toBe(2);
     expect(JSON.parse(status.stdout)).toMatchObject({
+      findings: [
+        {
+          message: expect.stringContaining(
+            'Continue in this Codex session. Safeword will confirm protection after the remaining lifecycle hooks run.',
+          ),
+        },
+      ],
       next_actions: [
         {
           kind: 'human',
@@ -1979,6 +1987,9 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
         },
       },
     });
+    expect(JSON.parse(status.stdout).findings[0].message).not.toContain(
+      'Then run safeword codex migrate --finalize.',
+    );
   });
 
   it('does not reinstall an enabled plugin whose hook proof is still unproven', async () => {

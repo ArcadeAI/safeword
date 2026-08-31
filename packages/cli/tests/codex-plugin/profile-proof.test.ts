@@ -430,6 +430,25 @@ describe('Codex profile hook proof', () => {
     expect(existsSync(nodePath.join(codexHome, 'safeword/activation-current-v1.json'))).toBe(false);
   });
 
+  it('does not activate from an unobserved host that predates installation', () => {
+    const { codexHome, environment } = createProfileFixture();
+    writeCodexActivationMarker(environment, new Date('2026-08-02T08:52:42.000Z'), {
+      activationId: 'activation-racy-host-scan',
+      activeHosts: [OLD_HOST],
+    });
+
+    recordCodexHookProof('session-start', environment, new Date('2026-08-02T09:01:00.000Z'), {
+      hostObservation: {
+        available: true,
+        current: OTHER_OLD_HOST,
+        running: [OTHER_OLD_HOST],
+      },
+    });
+
+    expect(existsSync(nodePath.join(codexHome, 'safeword/activation-pending-v2.json'))).toBe(true);
+    expect(existsSync(nodePath.join(codexHome, 'safeword/activation-current-v1.json'))).toBe(false);
+  });
+
   it('bounds retained task proof history while keeping the newest task', () => {
     const { codexHome, environment } = createProfileFixture();
     const project = nodePath.join(codexHome, 'project');

@@ -2,10 +2,10 @@
 id: 2Q5V78
 slug: restore-codex-hook-activation
 type: task
-phase: intake
-status: in_progress
+phase: done
+status: done
 created: 2026-08-31T17:42:09.861Z
-last_modified: 2026-08-31T17:42:09.861Z
+last_modified: 2026-08-31T20:24:00.000Z
 scope:
   - "Distinguish an app restart that completed without hook activation from an app that still needs restarting"
   - "Keep protection unverified until Codex emits exact current hook proof"
@@ -41,10 +41,11 @@ done_when:
 - 2026-08-31T18:15:00.000Z Regression: packaged-hook subprocesses now receive a disposable `CODEX_HOME` unless the fixture explicitly provides one.
 - 2026-08-31T18:15:00.000Z BDD gap: the existing continuity feature covered restart-pending and successful post-restart proof, but omitted the completed-restart/no-dispatch branch. Added that fixture to both human and schema-2 status matrices.
 - 2026-08-31T18:15:00.000Z Primary-source evidence: OpenAI documents enabled/trusted hook state separately from execution; current Code Mode source does not provide the normal pre-tool hook payload, and open upstream issues report missing nested Code Mode hook dispatch (https://github.com/openai/codex/blob/main/codex-rs/app-server/README.md, https://github.com/openai/codex/issues/23411, https://github.com/openai/codex/issues/38850, https://github.com/openai/codex/issues/21639).
+- 2026-08-31T20:24:00.000Z Verified: 9,032 automated tests passed, the full 1,493-scenario acceptance corpus passed, all lint/build/typecheck and generated-plugin checks passed, and the 43-test release suite passed. Independent quality review approved the final behavior with no blocking findings.
 
 ## Tests
 
-- [ ] A different current app-server with no install-time host left converts pending activation into hook-unproven status and actionable host-dispatch guidance.
-- [ ] The same install-time host, an overlapping old host, and unavailable process observation retain restart-required status.
-- [ ] Hook-test subprocesses receive an isolated `CODEX_HOME` unless the test explicitly supplies one.
-- [ ] The real profile proof path remains unchanged across the packaged-hook compatibility regression test.
+- [x] A different current app-server with no install-time host left converts pending activation into hook-unproven status and actionable host-dispatch guidance.
+- [x] The same install-time host, an overlapping old host, and unavailable process observation retain restart-required status.
+- [x] Hook-test subprocesses receive an isolated `CODEX_HOME` unless the test explicitly supplies one.
+- [x] The real profile proof path remains unchanged across the packaged-hook compatibility regression test.

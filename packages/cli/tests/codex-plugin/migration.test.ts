@@ -163,6 +163,23 @@ describe('Codex migration result', () => {
     );
   });
 
+  it.each([
+    { name: 'restart receipt without partial proof', activationRestartProven: true },
+    { name: 'restart observation after the marker was retired', activationRestartObserved: true },
+  ])('keeps restart guidance for $name', overrides => {
+    const result = deriveCodexMigrationResult(facts({ plugin: enabledPlugin, ...overrides }));
+
+    expect(result).toMatchObject({
+      state: 'plugin_enabled_hook_unproven',
+      next_actions: [
+        {
+          instruction:
+            'Review the installed hooks in Codex Desktop under Settings > Hooks (or with /hooks in the terminal TUI). Fully restart Codex, then resume this task.',
+        },
+      ],
+    });
+  });
+
   it('falls back to manifest-bound proof when an older Codex omits plugin version metadata', () => {
     const result = deriveCodexMigrationResult(
       facts({
@@ -326,7 +343,7 @@ describe('Codex migration result', () => {
     ['plugin', facts({ plugin: enabledPlugin, proof: currentProof }), 0],
     ['legacy', facts({ legacyEvents: ['PreToolUse'], viableLegacyEvents: ['PreToolUse'] }), 2],
     ['not_configured', facts(), 2],
-  ] as const)('returns a complete schema-1 object for %s', (state, input, exitCode) => {
+  ] as const)('returns a complete schema-2 object for %s', (state, input, exitCode) => {
     const result = deriveCodexMigrationResult(input);
 
     expect(result.state).toBe(state);
@@ -355,7 +372,7 @@ describe('Codex migration result', () => {
         observation: expect.stringMatching(/^(observed|unknown)$/u),
       },
       proof: {
-        status: expect.stringMatching(/^(current|missing|stale|malformed)$/u),
+        status: expect.stringMatching(/^(current|missing|partial|stale|malformed)$/u),
       },
       legacy: {
         events: expect.any(Array),
