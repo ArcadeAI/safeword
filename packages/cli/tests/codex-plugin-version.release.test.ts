@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
@@ -166,6 +167,37 @@ describe('Codex plugin release contract', () => {
         hookSpecificOutput: {
           hookEventName: 'SessionStart',
           additionalContext: expect.stringContaining('Safeword session bootstrap'),
+        },
+      });
+      const sessionProof = JSON.parse(
+        readFileSync(nodePath.join(codexHome, 'safeword/hook-proof-v2/session-start.json'), 'utf8'),
+      ) as Record<string, unknown>;
+      const hookManifest = readFileSync(nodePath.join(installed.installedPath, 'hooks.json'));
+      const sourceHookManifest = readFileSync(nodePath.join(root, 'codex-plugin/hooks.json'));
+      expect(hookManifest).toEqual(sourceHookManifest);
+      expect(sessionProof).toMatchObject({
+        schema_version: 3,
+        event: 'session-start',
+        plugin_version: installed.version,
+        manifest_sha256: createHash('sha256').update(sourceHookManifest).digest('hex'),
+        project_directory: realpathSync(unenrolledProject),
+        session_id: 'release-contract',
+      });
+      const status = spawnSync(
+        'bun',
+        [nodePath.join(installed.installedPath, 'runtime/cli.js'), 'codex', 'status', '--json'],
+        { cwd: unenrolledProject, encoding: 'utf8', env: environment },
+      );
+      expect(status.status, status.stderr).toBe(2);
+      expect(JSON.parse(status.stdout)).toMatchObject({
+        data: {
+          migration: { state: 'plugin_enabled_hook_unproven' },
+          proof: {
+            status: 'partial',
+            plugin_version: installed.version,
+            manifest_sha256: createHash('sha256').update(sourceHookManifest).digest('hex'),
+            events: ['session-start'],
+          },
         },
       });
 

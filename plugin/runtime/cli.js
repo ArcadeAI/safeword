@@ -36282,6 +36282,7 @@ function codexActivationMarkerIssue(environment = process.env) {
 }
 function packagedHookManifestPath() {
   const candidates = [
+    nodePath56.resolve(import.meta.dirname, "../hooks.json"),
     nodePath56.resolve(import.meta.dirname, "../codex-plugin/hooks.json"),
     nodePath56.resolve(import.meta.dirname, "../../codex-plugin/hooks.json")
   ];
