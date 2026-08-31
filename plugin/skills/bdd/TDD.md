@@ -199,7 +199,7 @@ Off by default. When `.safeword/config.json` sets `architectureReviewGate: true`
    bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/run-review.ts review run plan-implementation impl-plan.md ticket-spec feature-file --agent-handoff --json
    ```
 
-   The shared coordinator prefers the opposite headless agent. Only when its typed result is `REVIEW_ROUTES_EXHAUSTED`, invoke `/finish-review` with the original result and the same accepted targets; return every other result unchanged. Degraded findings cannot satisfy a required independent-review gate. On an independent pass, stamp it:
+   The shared coordinator prefers the opposite headless agent. If the typed result is `REVIEW_AUTHENTICATION_REQUIRED`, execute its exact recovery command; the user's browser or device flow may need to complete. After successful authentication, rerun the same coordinator command once. Do not invoke `/finish-review`, accept degraded coverage, or loop on another auth denial; report an unsuccessful reauthentication as the blocker. Only when its typed result is `REVIEW_ROUTES_EXHAUSTED`, invoke `/finish-review` with the original result and the same accepted targets; return every other result unchanged. Degraded findings cannot satisfy a required independent-review gate. On an independent pass, stamp it:
 
    ```bash
    bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/write-review-stamp.ts --author-agent "author-agent" --reviewer-agent "actual-reviewer" --independence "independence" impl-plan

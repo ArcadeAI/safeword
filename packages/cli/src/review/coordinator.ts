@@ -191,6 +191,11 @@ function agentName(agent: ReviewAgent): string {
   return agent === 'codex' ? 'Codex' : 'Claude';
 }
 
+/** The vendor-owned interactive login flow for a reviewer profile. */
+function reviewerLoginCommand(agent: ReviewAgent): string {
+  return agent === 'codex' ? 'codex login' : 'claude auth login';
+}
+
 const FAILURE_CAUSES: Readonly<Record<string, string>> = {
   process_failed: 'exited before returning a review',
   timed_out: 'ran out of time',
@@ -380,6 +385,56 @@ function routeFailureData(input: {
       ...(input.alternateModel !== undefined && { alternate_model: input.alternateModel }),
     }),
   };
+}
+
+/**
+ * Authentication is recoverable user state, not evidence that the review
+ * route is unusable. The review worker is detached and cannot own an
+ * interactive browser/device login, so hand that exact foreground action to
+ * the calling agent before any same-agent fallback can weaken coverage.
+ */
+function authenticationRequiredResult(input: {
+  readonly author: ReviewAgent;
+  readonly assignedReviewer: ReviewAgent;
+  readonly preferredFailure: ReviewFailure;
+  readonly preferredModel?: string;
+  readonly alternateFailure?: ReviewFailure;
+  readonly alternateModel?: string;
+  readonly policy: ReviewPolicy;
+}): CliResult {
+  const reviewer = agentName(input.assignedReviewer);
+  return createResult({
+    state: 'action_required',
+    findings: [
+      {
+        code: 'REVIEW_AUTHENTICATION_REQUIRED',
+        message: `The independent ${reviewer} review needs authentication. Reauthenticate ${reviewer}, then retry the same review; no fallback or review evidence was recorded.`,
+        severity: 'warning',
+      },
+    ],
+    effects: {
+      network: [
+        ...networkEffectsForFailure(input.assignedReviewer, input.preferredFailure),
+        ...networkEffectsForFailure(input.assignedReviewer, input.alternateFailure),
+      ],
+    },
+    recovery: [
+      {
+        command: reviewerLoginCommand(input.assignedReviewer),
+        description: `Reauthenticate ${reviewer}, then retry the original independent review.`,
+        requiresHuman: true,
+      },
+    ],
+    data: {
+      command: 'review run',
+      status: 'blocked',
+      author_agent: input.author,
+      assigned_reviewer: input.assignedReviewer,
+      ...routeFailureData(input),
+      review_policy: input.policy,
+      independence: 'none',
+    },
+  });
 }
 
 function reviewRequest(reviewer: ReviewAgent): Effect {
@@ -722,11 +777,7 @@ async function runAlternateModelRoute(
   if (changedResult !== undefined) return { kind: 'completed', result: changedResult };
   const assessment = assessFallback(outcome, input.reviewer, prepared.packet.dispatch_id);
   if (assessment.kind === 'failed') {
-    // A configured model is not a usable route when no installed candidate
-    // advertises model selection. Capability rejection is a skip, not a review
-    // attempt or failure, so it must not displace the funded fallback route.
-    if (ALTERNATE_MODEL_SKIP_FAILURES.has(assessment.failure)) return { kind: 'skipped' };
-    return { ...assessment, model };
+    return failedAlternateModelRoute(input, model, assessment);
   }
   const output = assessment.output;
 
@@ -739,6 +790,48 @@ async function runAlternateModelRoute(
     preferredFailure: input.preferredFailure,
   });
   return { kind: 'completed', result };
+}
+
+function failedAlternateModelRoute(
+  input: ReviewRunInput & {
+    readonly author: ReviewAgent;
+    readonly reviewer: ReviewAgent;
+    readonly preferredModel?: string;
+    readonly preferredFailure: ReviewFailure;
+    readonly policy: ReviewPolicy;
+  },
+  model: string,
+  assessment: {
+    readonly kind: 'failed';
+    readonly failure: ReviewFailure;
+    readonly terminal: boolean;
+  },
+):
+  | { readonly kind: 'completed'; readonly result: CliResult }
+  | {
+      readonly kind: 'failed';
+      readonly failure: ReviewFailure;
+      readonly terminal: boolean;
+      readonly model: string;
+    }
+  | { readonly kind: 'skipped' } {
+  // A configured model is not a usable route when no installed candidate
+  // advertises model selection. Capability rejection is a skip, not a review
+  // attempt or failure, so it must not displace the funded fallback route.
+  if (ALTERNATE_MODEL_SKIP_FAILURES.has(assessment.failure)) return { kind: 'skipped' };
+  if (assessment.failure !== 'not_authenticated') return { ...assessment, model };
+  return {
+    kind: 'completed',
+    result: authenticationRequiredResult({
+      author: input.author,
+      assignedReviewer: input.reviewer,
+      preferredModel: input.preferredModel,
+      preferredFailure: input.preferredFailure,
+      alternateModel: model,
+      alternateFailure: assessment.failure,
+      policy: input.policy,
+    }),
+  };
 }
 
 /**
@@ -907,6 +1000,15 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
   });
   if (changedResult !== undefined) return changedResult;
   if (outcome.kind === 'failed') {
+    if (outcome.failure === 'not_authenticated') {
+      return authenticationRequiredResult({
+        author: pair.author,
+        assignedReviewer: reviewer,
+        preferredModel: completedModel,
+        preferredFailure: outcome.failure,
+        policy,
+      });
+    }
     if (outcome.terminal) {
       return exhaustedRunResult({
         ...input,

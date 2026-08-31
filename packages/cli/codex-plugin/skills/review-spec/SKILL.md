@@ -62,7 +62,12 @@ SAFEWORD_REVIEW_PROGRESS=1 bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safewo
 ```
 
 The coordinator's assigned/actual reviewer, failure classification, and
-independence level are authoritative. Only when the typed result is
+independence level are authoritative. If the typed result is
+`REVIEW_AUTHENTICATION_REQUIRED`, execute its exact recovery command; the
+user's browser or device flow may need to complete. After successful
+authentication, rerun the same coordinator command once. Do not invoke
+`$safeword:finish-review`, accept degraded coverage, or loop on another auth denial;
+report an unsuccessful reauthentication as the blocker. Only when the typed result is
 `REVIEW_ROUTES_EXHAUSTED`, invoke `$safeword:finish-review` immediately with the original
 result and the same accepted targets. For every other result, return it
 unchanged. Never substitute another surface-private reviewer or hand-written

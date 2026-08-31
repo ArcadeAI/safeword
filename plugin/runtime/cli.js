@@ -48753,6 +48753,9 @@ function assessFallback(outcome, reviewer, dispatchId) {
 function agentName(agent) {
   return agent === "codex" ? "Codex" : "Claude";
 }
+function reviewerLoginCommand(agent) {
+  return agent === "codex" ? "codex login" : "claude auth login";
+}
 function causePhrase(failure) {
   return FAILURE_CAUSES[failure] ?? "could not be run";
 }
@@ -48880,6 +48883,41 @@ function routeFailureData(input) {
       ...input.alternateModel !== undefined && { alternate_model: input.alternateModel }
     }
   };
+}
+function authenticationRequiredResult(input) {
+  const reviewer = agentName(input.assignedReviewer);
+  return createResult({
+    state: "action_required",
+    findings: [
+      {
+        code: "REVIEW_AUTHENTICATION_REQUIRED",
+        message: `The independent ${reviewer} review needs authentication. Reauthenticate ${reviewer}, then retry the same review; no fallback or review evidence was recorded.`,
+        severity: "warning"
+      }
+    ],
+    effects: {
+      network: [
+        ...networkEffectsForFailure(input.assignedReviewer, input.preferredFailure),
+        ...networkEffectsForFailure(input.assignedReviewer, input.alternateFailure)
+      ]
+    },
+    recovery: [
+      {
+        command: reviewerLoginCommand(input.assignedReviewer),
+        description: `Reauthenticate ${reviewer}, then retry the original independent review.`,
+        requiresHuman: true
+      }
+    ],
+    data: {
+      command: "review run",
+      status: "blocked",
+      author_agent: input.author,
+      assigned_reviewer: input.assignedReviewer,
+      ...routeFailureData(input),
+      review_policy: input.policy,
+      independence: "none"
+    }
+  });
 }
 function reviewRequest(reviewer) {
   return { kind: "review", target: reviewer, operation: "request" };
@@ -49102,9 +49140,7 @@ async function runAlternateModelRoute(input) {
     return { kind: "completed", result: changedResult };
   const assessment = assessFallback(outcome, input.reviewer, prepared.packet.dispatch_id);
   if (assessment.kind === "failed") {
-    if (ALTERNATE_MODEL_SKIP_FAILURES.has(assessment.failure))
-      return { kind: "skipped" };
-    return { ...assessment, model };
+    return failedAlternateModelRoute(input, model, assessment);
   }
   const output = assessment.output;
   const result = independentReviewResult({
@@ -49116,6 +49152,24 @@ async function runAlternateModelRoute(input) {
     preferredFailure: input.preferredFailure
   });
   return { kind: "completed", result };
+}
+function failedAlternateModelRoute(input, model, assessment) {
+  if (ALTERNATE_MODEL_SKIP_FAILURES.has(assessment.failure))
+    return { kind: "skipped" };
+  if (assessment.failure !== "not_authenticated")
+    return { ...assessment, model };
+  return {
+    kind: "completed",
+    result: authenticationRequiredResult({
+      author: input.author,
+      assignedReviewer: input.reviewer,
+      preferredModel: input.preferredModel,
+      preferredFailure: input.preferredFailure,
+      alternateModel: model,
+      alternateFailure: assessment.failure,
+      policy: input.policy
+    })
+  };
 }
 async function runRemainingRoutes(input) {
   const alternate = await runAlternateModelRoute({
@@ -49248,6 +49302,15 @@ async function runReview(input) {
   if (changedResult !== undefined)
     return changedResult;
   if (outcome.kind === "failed") {
+    if (outcome.failure === "not_authenticated") {
+      return authenticationRequiredResult({
+        author: pair.author,
+        assignedReviewer: reviewer,
+        preferredModel: completedModel,
+        preferredFailure: outcome.failure,
+        policy
+      });
+    }
     if (outcome.terminal) {
       return exhaustedRunResult({
         ...input,

@@ -1194,7 +1194,7 @@ describe('cross-agent review public-command wiring', () => {
     {
       failure: 'auth',
       classification: 'not_authenticated',
-      action: 'Sign in to Codex, then run the review again.',
+      action: 'Reauthenticate Codex, then retry the original independent review.',
     },
     {
       failure: 'process',
@@ -1267,6 +1267,85 @@ describe('cross-agent review public-command wiring', () => {
         },
       });
       expect(payload.recovery).toHaveLength(1);
+    },
+  );
+
+  it.each([
+    {
+      author: 'claude',
+      reviewer: 'codex',
+      reviewerName: 'Codex',
+      loginCommand: 'codex login',
+    },
+    {
+      author: 'codex',
+      reviewer: 'claude',
+      reviewerName: 'Claude',
+      loginCommand: 'claude auth login',
+    },
+  ] as const)(
+    'hands an unauthenticated $reviewer route back for reauthentication before fallback',
+    async ({ author, reviewer, reviewerName, loginCommand }) => {
+      const directory = createTemporaryDirectory();
+      const log = nodePath.join(directory, 'review.log');
+      writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+      const bin = installFakeReviewer(directory, reviewer);
+      installFakeReviewer(directory, author);
+
+      const result = await runCli(
+        [
+          'review',
+          'run',
+          'quality-review',
+          'review-input.md',
+          '--json',
+          '--no-input',
+          '--cwd',
+          directory,
+        ],
+        {
+          cwd: directory,
+          env: {
+            PATH: `${bin}:/usr/bin:/bin`,
+            SAFEWORD_AGENT_RUNTIME: author,
+            SAFEWORD_REVIEW_FAKE_FAILURE: 'auth',
+            SAFEWORD_REVIEW_FAKE_FAILURE_AGENT: reviewer,
+            SAFEWORD_REVIEW_LOG: log,
+            SAFEWORD_NO_UPDATE_CHECK: '1',
+          },
+        },
+      );
+
+      expect(result.exitCode, result.stdout).toBe(2);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        state: 'action_required',
+        findings: [
+          {
+            code: 'REVIEW_AUTHENTICATION_REQUIRED',
+            message: expect.stringContaining(
+              `The independent ${reviewerName} review needs authentication. Reauthenticate ${reviewerName}`,
+            ),
+          },
+        ],
+        effects: {
+          network: [{ kind: 'review', target: reviewer, operation: 'request' }],
+        },
+        recovery: [
+          {
+            command: loginCommand,
+            description: expect.stringMatching(/reauthenticate.*retry/iu),
+            requires_human: true,
+          },
+        ],
+        data: {
+          status: 'blocked',
+          assigned_reviewer: reviewer,
+          preferred_failure: 'not_authenticated',
+          review_policy: 'prefer',
+          independence: 'none',
+        },
+      });
+      expect(readFileSync(log, 'utf8')).toBe(`${reviewer}\n`);
     },
   );
 
