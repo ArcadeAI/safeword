@@ -31,7 +31,7 @@ const ignores = [
   'examples/',
   'eslint.config.ts', // Self - loaded by ESLint's own pipeline, not part of the linted tree
   'packages/cli/templates/', // Template files copied to customer projects - not part of CLI build
-  'packages/cli/codex-plugin/runtime/', // Generated Codex plugin bundle - canonical source is linted separately
+  'packages/cli/codex-plugin/', // Generated Codex plugin bundle - canonical source is linted separately
   'plugin/', // Generated Claude plugin bundle - canonical templates are linted at source
   '**/.dependency-cruiser.cjs', // CommonJS config file
   'packages/cli/scripts/*.js', // Node.js scripts with CommonJS globals

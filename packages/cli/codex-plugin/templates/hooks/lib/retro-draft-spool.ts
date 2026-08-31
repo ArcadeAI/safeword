@@ -1,0 +1,329 @@
+// Retro draft spool (ticket BNGK9W — cloud filing transport).
+//
+// The invisible retro extracts + sanitizes findings into code-assembled drafts,
+// then tries to file them via the REST transport. The spool persists POST-EGRESS
+// drafts before that attempt so anything unfiled survives a missing credential,
+// upstream failure, filing cap, or acknowledgement failure. The agent-filing path
+// (PATH B) reads the spool and
+// posts each draft verbatim via its inherited GitHub MCP, then marks them filed.
+//
+// Only the code-assembled draft ({signature, title, body, labels}) is written —
+// it is already sanitized at egress, so no raw finding text reaches disk.
+//
+// The per-session JSONL I/O (append+cap, read-skip-torn, atomic rewrite) lives in
+// lib/jsonl-spool.ts, shared with the self-report spool; this module owns only what
+// is retro-specific: the subdir, the draft schema, and the drain/filing semantics.
+// Self-contained (node:* only): the CLI's `src/` imports it AND the surfacing hook
+// runs it under bun in a customer repo. `SpooledDraft` is structurally `RetroDraft`.
+
+import { createHash } from 'node:crypto';
+import nodePath from 'node:path';
+
+import {
+  appendJsonlRecords,
+  atomicWriteFile,
+  readJsonlRecords,
+  tryAppendJsonlRecords,
+} from './jsonl-spool.js';
+
+/** The code-assembled, post-egress fields — structurally the CLI's RetroDraft. */
+export interface SpooledDraft {
+  signature: string;
+  /**
+   * Code-derived canonical identity from a current CLI draft. Optional so old
+   * JSONL records remain readable. It is usable for matching only when its
+   * exact marker is also present in the code-assembled body.
+   */
+  canonicalSignature?: string;
+  title: string;
+  body: string;
+  labels: string[];
+  /**
+   * Seal over the body as it was assembled post-egress (JDK0F0): the CLI's
+   * `shortHash(body)`. Optional because pre-seal spool lines have no digest —
+   * those stay fileable (fail-open), but a PRESENT digest that no longer
+   * matches means the body was modified after sanitization, and the filing
+   * seam refuses it.
+   */
+  bodyDigest?: string;
+}
+
+/** Per-session spool cap — bounds a crash-looping or runaway session's disk use. */
+const MAX_DRAFTS_PER_SESSION = 20;
+
+/** Spool lives under the project's `.safeword/` so it travels with the install. */
+const SPOOL_DIR = nodePath.join('.safeword', 'retro-drafts');
+
+/** The extension every retro spool name carries and every sibling marker replaces. */
+const SPOOL_EXTENSION = '.jsonl';
+
+/** Collapse a session id to one safe filename component (no path escape).
+ * FG6V57: the rule is pinned byte-identical with triage.ts and self-report.ts
+ * by a parity contract. */
+function spoolName(sessionId: string): string {
+  return `${sessionId.replaceAll(/[^\w.-]/g, '_').slice(0, 80) || 'unknown'}${SPOOL_EXTENSION}`;
+}
+
+/** Absolute path of the per-session retro-draft spool file. */
+export function draftSpoolPath(projectDirectory: string, sessionId: string): string {
+  return nodePath.join(projectDirectory, SPOOL_DIR, spoolName(sessionId));
+}
+
+/**
+ * Path of a sibling file sharing the spool's session-derived basename — the acks
+ * ledger, the nudge marker, the filing-attempt marker. Three modules previously
+ * each did their own `draftSpoolPath(...).replace(/\.jsonl$/, ...)`; a regex that
+ * failed to match would silently no-op and hand back the SPOOL's own path, so the
+ * marker write would overwrite the drafts it exists to protect. Appending when the
+ * extension is absent makes that collision unrepresentable instead of relying on
+ * `spoolName` never changing.
+ */
+export function spoolSiblingPath(
+  projectDirectory: string,
+  sessionId: string,
+  suffix: string,
+): string {
+  const spool = draftSpoolPath(projectDirectory, sessionId);
+  const base = spool.endsWith(SPOOL_EXTENSION)
+    ? spool.slice(0, -SPOOL_EXTENSION.length)
+    : /* istanbul ignore next — unreachable while spoolName appends the extension */ spool;
+  return `${base}${suffix}`;
+}
+
+/** A parsed spool line is a draft only when the required code-assembled fields are present. */
+function toDraft(value: unknown): SpooledDraft | undefined {
+  if (typeof value !== 'object' || value === null) return undefined;
+  const record = value as Record<string, unknown>;
+  const { signature, canonicalSignature, title, body, labels, bodyDigest } = record;
+  if (
+    typeof signature !== 'string' ||
+    typeof title !== 'string' ||
+    typeof body !== 'string' ||
+    !Array.isArray(labels) ||
+    !labels.every((label): label is string => typeof label === 'string')
+  ) {
+    return undefined;
+  }
+  // The seal is optional (legacy lines predate it) but must be a string when present.
+  if (bodyDigest !== undefined && typeof bodyDigest !== 'string') return undefined;
+  if (canonicalSignature !== undefined && typeof canonicalSignature !== 'string') return undefined;
+  return {
+    signature,
+    ...(canonicalSignature === undefined ? {} : { canonicalSignature }),
+    title,
+    body,
+    labels,
+    ...(bodyDigest === undefined ? {} : { bodyDigest }),
+  };
+}
+
+/**
+ * Read the drafts spooled for one session, or `[]` when the spool is absent,
+ * unreadable, or torn. Fail-open by construction — a partial/malformed line is
+ * skipped, never thrown, so the filing path never crashes on a bad spool.
+ */
+export function readSpooledDrafts(projectDirectory: string, sessionId: string): SpooledDraft[] {
+  return readJsonlRecords(draftSpoolPath(projectDirectory, sessionId), toDraft);
+}
+
+/** Serialize one draft to its canonical spool line (only the code-assembled fields). */
+function draftLine(draft: SpooledDraft): string {
+  return JSON.stringify({
+    signature: draft.signature,
+    canonicalSignature: draft.canonicalSignature,
+    title: draft.title,
+    body: draft.body,
+    labels: draft.labels,
+    // JSON.stringify drops an undefined seal, so legacy drafts stay four-field.
+    bodyDigest: draft.bodyDigest,
+  });
+}
+
+/** Return a canonical identity only when the immutable body carries its exact marker. */
+export function canonicalSignatureForDraft(draft: SpooledDraft): string | undefined {
+  if (draft.canonicalSignature === undefined) return undefined;
+  const marker = `<!-- safeword-retro-canonical: ${draft.canonicalSignature} -->`;
+  return draft.body.includes(marker) ? draft.canonicalSignature : undefined;
+}
+
+/** Remove canonical metadata when it disagrees with the code-assembled body. */
+function draftForPosting(draft: SpooledDraft): SpooledDraft {
+  if (canonicalSignatureForDraft(draft) !== undefined || draft.canonicalSignature === undefined) {
+    return draft;
+  }
+  const { canonicalSignature: _canonicalSignature, ...withoutCanonicalSignature } = draft;
+  return withoutCanonicalSignature;
+}
+
+/**
+ * True unless the draft carries a seal that no longer matches its body. The
+ * digest algorithm MUST stay byte-identical to the CLI's `src/retro/hash.ts`
+ * `shortHash` (sha256, hex, first 12 chars) — this module is self-contained
+ * (node:* only; hooks run it under bun in customer repos), so it cannot import
+ * that definition. `draft.test.ts` pins the two implementations together.
+ */
+export function verifyDraftBody(draft: SpooledDraft): boolean {
+  if (draft.bodyDigest === undefined) return true;
+  return createHash('sha256').update(draft.body).digest('hex').slice(0, 12) === draft.bodyDigest;
+}
+
+/**
+ * Drain the drafts whose signatures were just filed (by either transport) so they
+ * neither re-nudge nor re-file. Rewrites the per-session spool minus the filed
+ * signatures — a persisted removal, not an in-memory filter, so a fresh read no
+ * longer yields them. Atomic (temp-write + rename) so a concurrent reader sees the
+ * whole old or whole new file, never a half-written one. BEST-EFFORT — never
+ * throws; on any error the spool is left as-is (a filed draft may re-nudge, which
+ * the signature dedupe still catches — the safe direction).
+ */
+export function markDraftsFiled(
+  projectDirectory: string,
+  sessionId: string,
+  filedSignatures: readonly string[],
+): void {
+  try {
+    const filed = new Set(filedSignatures);
+    const remaining = readSpooledDrafts(projectDirectory, sessionId).filter(
+      draft => !filed.has(draft.signature),
+    );
+    const body =
+      remaining.length > 0 ? `${remaining.map(draft => draftLine(draft)).join('\n')}\n` : '';
+    atomicWriteFile(draftSpoolPath(projectDirectory, sessionId), body);
+  } catch {
+    // Self-observation must never break the host. Swallow.
+  }
+}
+
+/** One filed-draft ack: the signature and the tracker issue it landed on (GH644A). */
+export interface FiledAck {
+  signature: string;
+  issue: number | string;
+}
+
+/** Ack file beside the spool: `<session>.acks.jsonl`, one FiledAck per line. */
+export function ackFilePath(projectDirectory: string, sessionId: string): string {
+  return spoolSiblingPath(projectDirectory, sessionId, '.acks.jsonl');
+}
+
+/** A filed ack names a non-empty signature and a meaningful tracker destination. */
+function isFiledAck(value: unknown): value is FiledAck {
+  if (typeof value !== 'object' || value === null) return false;
+  const { signature, issue } = value as Record<string, unknown>;
+  if (typeof signature !== 'string' || signature.length === 0) return false;
+  if (typeof issue === 'number') return Number.isSafeInteger(issue) && issue > 0;
+  return typeof issue === 'string' && issue.trim().length > 0;
+}
+
+/** Parse only records that satisfy the same contract used to authorize a drain. */
+function toAck(value: unknown): FiledAck | undefined {
+  return isFiledAck(value) ? value : undefined;
+}
+
+/**
+ * Read the session's filed-draft acks, `[]` when absent/unreadable/torn. The
+ * gate's tripwire (lib/retro-filing-gate.ts) treats these as the ONLY proof
+ * that a removed draft was filed — local contract validation, no network.
+ */
+export function readAcks(projectDirectory: string, sessionId: string): FiledAck[] {
+  return readJsonlRecords(ackFilePath(projectDirectory, sessionId), toAck);
+}
+
+/**
+ * Persist one filed-draft acknowledgement. Returns true only when the complete
+ * record was written, so callers can retain the draft instead of performing an
+ * unacknowledged drain when local storage fails.
+ */
+export function recordFiledAck(
+  projectDirectory: string,
+  sessionId: string,
+  ack: FiledAck,
+): boolean {
+  if (!isFiledAck(ack)) return false;
+  const appended = tryAppendJsonlRecords(
+    ackFilePath(projectDirectory, sessionId),
+    [JSON.stringify(ack)],
+    Number.POSITIVE_INFINITY,
+  );
+  if (!appended) return false;
+  return readAcks(projectDirectory, sessionId).some(
+    recorded => recorded.signature === ack.signature && recorded.issue === ack.issue,
+  );
+}
+
+/** Drain only drafts with a reader-visible, destination-bound acknowledgement. */
+export function drainAcknowledgedDrafts(projectDirectory: string, sessionId: string): void {
+  markDraftsFiled(
+    projectDirectory,
+    sessionId,
+    readAcks(projectDirectory, sessionId).map(ack => ack.signature),
+  );
+}
+
+/**
+ * Posts one spooled draft to a tracker (the agent's GitHub MCP, or a REST
+ * client) and returns the issue the draft landed on, so the ack can name it.
+ */
+export type DraftPoster = (draft: SpooledDraft) => Promise<{ issue: number | string }>;
+
+/**
+ * The agent filing seam (PATH B), as an EXECUTABLE REFERENCE-SPEC. In production the
+ * cloud subagent files by reading the spool and calling its GitHub MCP directly,
+ * guided by `guides/self-report-filing.md` — there is deliberately NO code caller
+ * here (an LLM's MCP calls aren't a TS function). This function pins the contract
+ * that guide describes in prose, so it can be tested: read the session spool, post
+ * each draft's code-assembled body VERBATIM through `post` (mocked in tests), then
+ * drain exactly the drafts that posted. A draft whose post throws stays spooled so a
+ * later boundary re-nudges and it retries — findings are never dropped. A draft
+ * whose body no longer matches its seal (JDK0F0) is REFUSED — never posted, left
+ * spooled for a human to inspect, counted in `rejected`. Returns the counts. The
+ * spool already holds post-egress bodies, so "verbatim" carries no un-sanitized
+ * text. (Covers done_when: the subagent posts each draft verbatim — proven at the
+ * spool→transport seam, the MCP call mocked.)
+ */
+export async function fileSpooledDrafts(
+  projectDirectory: string,
+  sessionId: string,
+  post: DraftPoster,
+): Promise<{ posted: number; failed: number; rejected: number }> {
+  let posted = 0;
+  let failed = 0;
+  let rejected = 0;
+  for (const draft of readSpooledDrafts(projectDirectory, sessionId)) {
+    if (!verifyDraftBody(draft)) {
+      rejected += 1;
+      continue;
+    }
+    try {
+      const { issue } = await post(draftForPosting(draft));
+      // Ack IMMEDIATELY after the post, before any drain (GH644A): a crash
+      // between post and drain must read as "posted but undrained", never as a
+      // bare drain. Uncapped by design — the filer appends, the gate reads.
+      if (!recordFiledAck(projectDirectory, sessionId, { signature: draft.signature, issue })) {
+        failed += 1;
+        continue;
+      }
+      posted += 1;
+    } catch {
+      failed += 1;
+    }
+  }
+  drainAcknowledgedDrafts(projectDirectory, sessionId);
+  return { posted, failed, rejected };
+}
+
+/**
+ * Append post-egress drafts to the session spool (writing ONLY the
+ * code-assembled fields). BEST-EFFORT and capped at `MAX_DRAFTS_PER_SESSION` — both
+ * handled by the shared `appendJsonlRecords`.
+ */
+export function spoolDrafts(
+  projectDirectory: string,
+  sessionId: string,
+  drafts: readonly SpooledDraft[],
+): void {
+  appendJsonlRecords(
+    draftSpoolPath(projectDirectory, sessionId),
+    drafts.map(draft => draftLine(draft)),
+    MAX_DRAFTS_PER_SESSION,
+  );
+}

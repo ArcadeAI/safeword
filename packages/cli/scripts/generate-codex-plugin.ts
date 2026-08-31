@@ -1,9 +1,12 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import rootPackageJson from '../../../package.json' with { type: 'json' };
-import { writeCodexPluginCatalogue } from '../src/codex-plugin/catalogue.js';
+import {
+  adaptCodexWorkflowInvocations,
+  writeCodexPluginCatalogue,
+} from '../src/codex-plugin/catalogue.js';
 import { VERSION } from '../src/version.js';
 import { generatedTreeDifferences, reconcileGeneratedTree } from './generated-tree-differences.js';
 import { buildPluginCliBundle } from './lib/build-plugin-cli-bundle.js';
@@ -39,6 +42,29 @@ try {
     nodePath.join(packageRoot, 'templates/skills'),
     generatedRoot,
     VERSION,
+  );
+  const knownSkillNames = new Set<string>();
+  for (const asset of assets) {
+    const [directory, skill, filename] = asset.relativePath.split(nodePath.sep);
+    if (directory === 'skills' && skill !== undefined && filename === 'SKILL.md') {
+      knownSkillNames.add(skill);
+    }
+  }
+
+  const templatesDirectory = nodePath.join(generatedRoot, 'templates');
+  const handbookSource = nodePath.join(packageRoot, 'templates/SAFEWORD.md');
+  const handbook = adaptCodexWorkflowInvocations(
+    readFileSync(handbookSource, 'utf8'),
+    knownSkillNames,
+  );
+  mkdirSync(templatesDirectory, { recursive: true });
+  writeFileSync(nodePath.join(templatesDirectory, 'SAFEWORD.md'), handbook);
+  cpSync(
+    nodePath.join(packageRoot, 'templates/hooks'),
+    nodePath.join(templatesDirectory, 'hooks'),
+    {
+      recursive: true,
+    },
   );
 
   if (checkOnly) {

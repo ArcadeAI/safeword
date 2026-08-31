@@ -20,7 +20,7 @@ const ignores = [
   ...detect.getIgnores(),
   'templates/**',
   'packages/cli/templates/**',
-  'codex-plugin/runtime/**',
+  'codex-plugin/**',
 ];
 
 // Map framework to base config
