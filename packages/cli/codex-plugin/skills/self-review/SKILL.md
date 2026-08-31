@@ -45,7 +45,7 @@ installed helper — report it to the user and resolve before retrying.
 ## Review the spec (do this now, with the stamp written)
 
 The stamp records that a review was invoked; the actual scrutiny is yours. At
-review time, run `bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.82.3/runtime/cli.js" project review-knowledge --json` and use its
+review time, run `bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.82.4/runtime/cli.js" project review-knowledge --json` and use its
 current `principles`, `personas`, and `surfaces` source paths and content—not
 labels remembered from intake. These resolve from `paths.principles`,
 `paths.personas`, and `paths.surfaces` when configured. Read those sources with the active ticket's
