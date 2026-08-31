@@ -3,13 +3,15 @@ id: 2C1E82
 slug: self-contained-agent-plugins
 type: epic
 subtype: bug-investigated
-phase: verify
-status: in_progress
+phase: done
+status: done
 children: ['V2AH4B', 'KDED4X', 'SF0RS0', 'GJB22B', 'JNZ2H5', '1DZ9W8']
 phase_anchors:
   - 'define-behavior: .project/tickets/2C1E82-self-contained-agent-plugins/spec.md'
   - 'scenario-gate: packages/cli/features/self-contained-agent-plugins.feature'
   - 'plan-implementation: .project/tickets/2C1E82-self-contained-agent-plugins/impl-plan.md'
+  - 'verify: .project/tickets/2C1E82-self-contained-agent-plugins/verify.md'
+  - 'done: .project/tickets/2C1E82-self-contained-agent-plugins/verify.md'
 scope:
   - Give every supported agent one complete runtime authority while retaining project-authored knowledge and lazy runtime state.
   - Bound reconciliation to the selected agents and explicitly declared shared substrate.
@@ -24,7 +26,7 @@ done_when:
   - Single-agent and mixed-agent plans contain only declared selected-host requirements.
   - Release coverage rejects undeclared project-local executable references from native plugins.
 created: 2026-08-18T16:58:37.428Z
-last_modified: 2026-08-30T22:35:00.000Z
+last_modified: 2026-08-31T01:35:00.000Z
 ---
 
 # Make each agent's plugin fully self-contained
@@ -58,7 +60,12 @@ Ruled out:
 - **Fixed here — principle identity was coupled to heading decoration:** the audit called configured principles “missing” when an implementation plan omitted only their numeric heading prefix. Source headings and plan traces now share one normalization rule, with unit and Gherkin regression coverage.
 - **Fixed here — current-ticket audit leaked across the backlog:** the principle checker scanned every `in_progress` ticket, while the current-work resolver treated completed child-ticket changes as competitors to their active epic. Audit now resolves one current ticket first, and the resolver selects the sole active candidate while remaining fail-closed for multiple active candidates.
 - **Fixed here — generated Go experiment output escaped its local ignore file:** the checker directory ignored `checkbin`, but a normal Go build emits `checker`. The exact generated binary name is now ignored, so verification no longer dirties the worktree.
+- **Fixed here — generated Claude release checks trusted a self-consistent stale bundle:** the release contract verified the generated plugin's internal inventory seals but did not compare that bundle with the canonical templates and runtime sources. Release validation now runs the generator in check mode, so a stale generated bundle fails even when its own hashes agree.
+- **Fixed here — Claude bundle generation inherited the caller's test environment:** `Bun.build` folded the ambient `NODE_ENV` into generated runtime bytes, so generation under Vitest differed from generation in a normal release shell and could preserve test-only seams. Generation now defines one deterministic development environment, and BDD proves release validation is independent of the caller's environment.
+- **Fixed here — catalogue regeneration did not cascade to downstream release artifacts:** refreshing the historical Claude catalogue changed the canonical runtime without refreshing the committed plugin bundle or lifecycle-origin fixture results. The generated plugin and supported origin/main fixture baselines were regenerated, and release plus lifecycle contracts now reject either stale layer.
+- **Fixed here — documentation audit exposed a split authority claim:** one legacy README paragraph still said Claude used project-local hook adapters. The paragraph now matches the shipped authority partition: Claude, Codex, and OpenCode execute packaged hooks; Cursor owns the selected project-local adapters.
 - **Still a Safeword follow-up — phase boundaries validate ledger bookkeeping, not executable routing:** the boundary engine cannot generically prove arbitrary host BDD conventions. The authoritative BDD lane is therefore the independent observation; the remaining process improvement is to bind a successful lane receipt to implement exit rather than trusting workflow guidance until verify/done.
+- **Still a Safeword follow-up — verification repeats the CLI suite through root and package plans:** the exact verifier ran the root aggregate and then the CLI package suite again, and likewise ran root and package BDD entry points. The duplicate BDD entry point is useful contract coverage after this fix, but the repeated test corpus makes authoritative verification materially slower; test-plan composition needs a deduplicated execution model without losing entry-point parity proof.
 - **Still a Safeword follow-up — generated architecture reconciliation has no supported acknowledgement command:** healing marks all surviving prose stale, the guide forbids editing machine-owned stamps, and `architecture --check` does not reject already-rendered stale markers. This branch followed repository precedent by reviewing the prose and mechanically reconciling stamps, but the product needs one explicit reconcile operation.
 - **Still a tooling follow-up — the system skill validator has an undeclared dependency:** its validation script imports PyYAML, which is unavailable in the workspace dependency set. Verification did not install packages to compensate; the validator must declare or vendor its runtime dependency.
 
@@ -81,3 +88,5 @@ Ruled out:
 - 2026-08-30T21:50:00.000Z Implement exit passed: the corrected package-local BDD entry point ran 587/587 Cucumber scenarios (10,954/10,954 steps) and 38/38 proof-provenance tests; advanced to authoritative verification.
 - 2026-08-30T22:35:00.000Z Verification fixture reconciliation complete: project-runtime helpers now declare Cursor authority, native Claude/Codex smokes execute packaged surfaces, enrolled hook fixtures use the real marker, reset and conditional-setup expectations follow selected authority, the test-runner lock recognizes commands rather than tag prose, and the maintained Python experiment sources pass strict mypy with generated controls explicitly excluded. Focused regressions passed, including 174/174 corrected BDD scenarios, 75/75 affected tests, and the final 19/19 smoke/contract checks.
 - 2026-08-30T23:05:00.000Z Audit feedback closed three more process defects instead of suppressing them: principle numbers are no longer part of identity, the audit resolves only the current ticket, completed child lineage no longer makes an active epic ambiguous, and the Go experiment binary is ignored under the name the tool actually emits. Added Gherkin and normally collected Vitest proofs; 131 focused tests and both new behavior scenarios passed.
+- 2026-08-31T01:30:00.000Z Final verification and release-contract repair complete: both full test-suite passes, both BDD entry points, build, typecheck, and dependency scans passed on `4260bfcfd`. Release validation now compares generated Claude output with canonical sources under a deterministic environment; supported lifecycle fixtures were refreshed after the resulting plugin identity change. The diff audit passed with explicit Python experiment coverage limitations and corrected one stale README authority claim.
+- 2026-08-31T01:35:00.000Z Done: recorded exact-head verification, four-agent surface evidence, the clean diff audit, known evidence limits, and the remaining Safeword process follow-ups in `verify.md`.

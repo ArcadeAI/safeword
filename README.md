@@ -350,7 +350,7 @@ Key directories created in your project:
 
 ## Hooks, Commands & Skills
 
-**Hooks** (in `.safeword/hooks/`): TypeScript and shell automation organized by lifecycle and host. Session hooks load standing context, heal generated architecture, check dependencies, and manage resumable state. Pre/post-tool hooks guard owned configuration, enforce ticket phases, lint edits, record evidence, and protect Git/process boundaries. Stop hooks run verification, review, retro, and re-entry flows. Claude Code and Cursor use project-local adapters; Codex dispatches equivalent events through the profile plugin. The installed hook manifests—not a hand-maintained README list—are the source of truth.
+**Hooks**: TypeScript and shell automation organized by lifecycle and host. Session hooks load standing context, heal generated architecture, check dependencies, and manage resumable state. Pre/post-tool hooks guard owned configuration, enforce ticket phases, lint edits, record evidence, and protect Git/process boundaries. Stop hooks run verification, review, retro, and re-entry flows. Claude Code, Codex, and OpenCode execute their packaged hook authorities; Cursor uses the selected project-local adapters in `.safeword/hooks/`. The installed hook manifests—not a hand-maintained README list—are the source of truth.
 
 Codex hooks live in the Safeword plugin and run through the CLI bundled with
 that exact plugin version, without a package-manager lookup at hook time. Install and verify
