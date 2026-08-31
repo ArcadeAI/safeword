@@ -22,3 +22,4 @@
 - [15:47] Strengthened GREEN passed 8/8 after validating the proof digest, installed version, source/build/installed manifest identity, and public status observation.
 - [16:00] Final independent quality review approved the strengthened snapshot with no error-level findings. Its remaining warnings concern pre-existing fail-closed durability edges in the broader proof state machine, not this hotfix.
 - [16:00] Final verification: full monorepo suite passed 9,032 tests with 14 skipped; release contract passed 43/43; generated Codex and Claude plugins are current at 0.82.6; CLI and Claude release contracts, lint, typecheck, and formatting are clean.
+- [16:06] Closed the verified ticket with user authorization to complete and release the hotfix; CI's ready-PR guard requires the done flip to travel with `verify.md`.

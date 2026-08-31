@@ -3,8 +3,8 @@ id: P4A681
 slug: let-installed-codex-hooks-prove-protection
 type: task
 subtype: bug-investigated
-phase: verify
-status: in_progress
+phase: done
+status: done
 created: 2026-08-31T21:58:11.001Z
 last_modified: 2026-08-31T21:58:11.001Z
 ---
@@ -48,3 +48,4 @@ Ruled out: host dispatch failure (the terminal TUI visibly ran the hook); plugin
 - 2026-08-31T22:04:00.000Z GREEN: resolving `../hooks.json` from the bundled runtime produced identity-bound proof; the release-contract file passed 8/8 after regenerating both plugin runtimes.
 - 2026-08-31T22:47:00.000Z Strengthened GREEN: the physical-cache release test compares the installed manifest to source, validates the proof digest and installed version, and confirms the public `codex status --json` observer reports partial proof after SessionStart.
 - 2026-08-31T22:47:00.000Z Versioned release artifacts at 0.82.6 and refreshed the origin-main lifecycle fixtures from the released 0.82.5 baseline.
+- 2026-08-31T23:06:00.000Z Complete: full verification, release contracts, audit, refactor assessment, and two independent quality reviews passed; user authorized completion and release.
