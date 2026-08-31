@@ -1951,6 +1951,36 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     expect(calls).not.toContain('plugin marketplace add');
   });
 
+  it('does not request another restart after the restart receipt has partial hook proof', async () => {
+    const fixture = createMigrationFixture('');
+    const environment = { CODEX_HOME: fixture.codexHome };
+    writeCodexActivationMarker(environment, new Date('2026-08-14T08:30:00.000Z'), {
+      activationId: 'activation-partial',
+      activeHosts: [{ pid: 100, started_at: '2026-08-14T08:00:00.000Z' }],
+    });
+    recordCodexHookProof('session-start', environment, new Date('2026-08-14T09:01:00.000Z'), {
+      currentHost: { pid: 200, started_at: '2026-08-14T09:00:00.000Z' },
+    });
+
+    const status = await runCodexCommand(fixture, ['codex', 'status', '--json']);
+
+    expect(status.exitCode, status.stderr).toBe(2);
+    expect(JSON.parse(status.stdout)).toMatchObject({
+      next_actions: [
+        {
+          kind: 'human',
+          instruction:
+            'Continue in this Codex session. Safeword will confirm protection after the remaining lifecycle hooks run.',
+        },
+      ],
+      data: {
+        migration: {
+          state: 'plugin_enabled_hook_unproven',
+        },
+      },
+    });
+  });
+
   it('does not reinstall an enabled plugin whose hook proof is still unproven', async () => {
     const fixture = createMigrationFixture('');
 

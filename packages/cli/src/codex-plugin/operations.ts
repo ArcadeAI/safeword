@@ -35,6 +35,7 @@ import {
   observeLegacyGlobalGuidance,
 } from './legacy-global-guidance.js';
 import {
+  CODEX_HOOK_ACTIVATION_FAILED_CONTEXT,
   CODEX_RESTART_CONTEXT,
   CODEX_REVIEW_THEN_RESTART_ACTION,
   codexMigrationExitCode,
@@ -48,6 +49,8 @@ import { CodexMigrationError } from './migration-error.js';
 import { acquireCodexProfileLock, releaseCodexProfileLock } from './profile-lock.js';
 import {
   codexActivationIsPending,
+  codexActivationRestartIsProven,
+  codexActivationRestartWasObserved,
   type CodexHookProofObservation,
   observeCodexHookProof,
   writeCodexActivationMarker,
@@ -426,6 +429,8 @@ export function observeCodexMigrationResult(
     finalized: codexFinalizationIsComplete(cwd),
     recoveryRequired,
     activationPending: codexActivationIsPending(environment),
+    activationRestartObserved: codexActivationRestartWasObserved(environment),
+    activationRestartProven: codexActivationRestartIsProven(environment),
   });
   if (pluginObservationError !== undefined) {
     result.errors.push({
@@ -447,6 +452,7 @@ export function observeCodexMigrationResult(
 const CODEX_MIGRATION_MESSAGES: Partial<Readonly<Record<CodexMigrationResultV2['state'], string>>> =
   {
     plugin_installed_app_restart_required: CODEX_RESTART_CONTEXT,
+    plugin_installed_hook_activation_failed: CODEX_HOOK_ACTIVATION_FAILED_CONTEXT,
     compatibility:
       'Codex is protected by the current profile plugin; verified legacy protection remains until explicit finalization.',
     plugin_enabled_hook_unproven:
@@ -461,6 +467,9 @@ function codexMigrationMessage(
 ): string {
   if (state === 'plugin_enabled_hook_unproven' && proof !== undefined) {
     return `Codex migration state: plugin_enabled_hook_unproven. In the restarted Codex app, review /hooks and exercise these missing hooks: ${proof.missing_events.join(', ')}. Then run safeword codex migrate --finalize.`;
+  }
+  if (state === 'plugin_installed_hook_activation_failed' && proof !== undefined) {
+    return `Codex restarted, but Safeword received no current lifecycle hook proof. Missing proof: ${proof.missing_events.join(', ')}. Safeword protection is unavailable in this Codex surface.`;
   }
   return CODEX_MIGRATION_MESSAGES[state] ?? `Codex migration state: ${state}.`;
 }

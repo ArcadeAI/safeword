@@ -23,6 +23,7 @@ import {
   applyCodexFinalization,
   type CodexFinalizationMutation,
 } from '../../src/codex-plugin/finalization.ts';
+import { observeCodexHostProcesses } from '../../src/codex-plugin/host-process.ts';
 import {
   type CodexHostProcessIdentity,
   type CodexPluginHookEvent,
@@ -342,6 +343,7 @@ function pendingMarkerPayload(options: {
   legacy?: boolean;
   version?: string;
   manifest?: string;
+  activeHosts?: CodexHostProcessIdentity[];
 }): object {
   const identity = currentCodexPluginIdentity();
   const pluginIdentity = {
@@ -349,19 +351,27 @@ function pendingMarkerPayload(options: {
     manifest_sha256: options.manifest ?? identity.manifest_sha256,
   };
   if (options.legacy === true) return { schema_version: 1, ...pluginIdentity };
+  const observedCurrentHost = observeCodexHostProcesses().current;
   return {
     schema_version: 2,
     ...pluginIdentity,
     activation_id: 'acceptance-activation',
     installed_at: '2026-08-02T08:30:00.000Z',
     host_observation: 'observed',
-    active_hosts: [INSTALLING_HOST],
+    active_hosts:
+      options.activeHosts ??
+      (observedCurrentHost === null ? [INSTALLING_HOST] : [observedCurrentHost]),
   };
 }
 
 function writePendingMarker(
   world: ContinuityCliWorld,
-  options: { legacy?: boolean; version?: string; manifest?: string } = {},
+  options: {
+    legacy?: boolean;
+    version?: string;
+    manifest?: string;
+    activeHosts?: CodexHostProcessIdentity[];
+  } = {},
 ): string {
   const path =
     options.legacy === true ? legacyRestartMarkerPath(world) : activationMarkerPath(world);
@@ -1565,6 +1575,11 @@ Given(
   },
 );
 
+Given('a profile installed while no Codex host was running', function (this: ContinuityCliWorld) {
+  initialize(this, { pluginState: 'enabled' });
+  writePendingMarker(this, { activeHosts: [] });
+});
+
 Given(
   /^activation is pending for (older|current) version and (older|current) hook manifest identity$/u,
   function (this: ContinuityCliWorld, version: string, manifest: string) {
@@ -1580,7 +1595,11 @@ Given(
 When(
   'the resumed task in the same Codex app invokes the installed profile-plugin SessionStart dispatcher',
   function (this: ContinuityCliWorld) {
-    recordEventProofForHost(this, 'session-start', INSTALLING_HOST);
+    recordEventProofForHost(
+      this,
+      'session-start',
+      observeCodexHostProcesses().current ?? INSTALLING_HOST,
+    );
   },
 );
 
@@ -1602,6 +1621,13 @@ When(
 
 When(
   'a restarted Codex app invokes the installed profile-plugin SessionStart dispatcher',
+  function (this: ContinuityCliWorld) {
+    recordEventProofForHost(this, 'session-start', RESTARTED_HOST);
+  },
+);
+
+When(
+  'the next Codex app invokes the installed profile-plugin SessionStart dispatcher',
   function (this: ContinuityCliWorld) {
     recordEventProofForHost(this, 'session-start', RESTARTED_HOST);
   },

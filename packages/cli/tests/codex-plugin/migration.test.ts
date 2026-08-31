@@ -52,6 +52,8 @@ function facts(overrides: Partial<CodexMigrationFacts> = {}): CodexMigrationFact
     finalized: false,
     recoveryRequired: false,
     activationPending: false,
+    activationRestartObserved: false,
+    activationRestartProven: false,
     ...overrides,
   };
 }
@@ -103,6 +105,62 @@ describe('Codex migration result', () => {
       state: 'plugin_installed_app_restart_required',
       protected: 'unprotected',
     });
+  });
+
+  it('reports a completed restart whose hooks did not activate without requesting another restart', () => {
+    const result = deriveCodexMigrationResult(
+      facts({
+        plugin: enabledPlugin,
+        activationPending: true,
+        activationRestartObserved: true,
+      }),
+    );
+
+    expect(result).toMatchObject({
+      state: 'plugin_installed_hook_activation_failed',
+      protected: 'unprotected',
+      next_actions: [
+        {
+          kind: 'human',
+          instruction:
+            'Review the installed hooks in Codex Desktop under Settings > Hooks (or with /hooks in the terminal TUI). If they are enabled and trusted, use a Codex surface that dispatches lifecycle hooks before relying on Safeword protection.',
+        },
+      ],
+    });
+    expect(renderCodexMigrationHuman(result)).toBe(
+      'Codex migration: plugin_installed_hook_activation_failed\nProtection: unprotected\nCodex restarted, but Safeword received no current lifecycle hook proof.\nNext: Review the installed hooks in Codex Desktop under Settings > Hooks (or with /hooks in the terminal TUI). If they are enabled and trusted, use a Codex surface that dispatches lifecycle hooks before relying on Safeword protection.\n',
+    );
+  });
+
+  it('does not request another restart while current hook proof is still partial', () => {
+    const result = deriveCodexMigrationResult(
+      facts({
+        plugin: enabledPlugin,
+        proof: {
+          ...missingProof,
+          status: 'partial',
+          activation_id: 'activation-rc2',
+          events: ['session-start'],
+          missing_events: ['pre-tool-use', 'post-tool-use', 'user-prompt-submit', 'stop'],
+        },
+        activationRestartProven: true,
+      }),
+    );
+
+    expect(result).toMatchObject({
+      state: 'plugin_enabled_hook_unproven',
+      protected: 'unprotected',
+      next_actions: [
+        {
+          kind: 'human',
+          instruction:
+            'Continue in this Codex session. Safeword will confirm protection after the remaining lifecycle hooks run.',
+        },
+      ],
+    });
+    expect(renderCodexMigrationHuman(result)).toBe(
+      'Codex migration: plugin_enabled_hook_unproven\nProtection: unprotected\nCodex restarted and Safeword has partial current lifecycle hook proof.\nNext: Continue in this Codex session. Safeword will confirm protection after the remaining lifecycle hooks run.\n',
+    );
   });
 
   it('falls back to manifest-bound proof when an older Codex omits plugin version metadata', () => {
@@ -243,6 +301,15 @@ describe('Codex migration result', () => {
     [
       'plugin_installed_app_restart_required',
       facts({ plugin: enabledPlugin, activationPending: true }),
+      2,
+    ],
+    [
+      'plugin_installed_hook_activation_failed',
+      facts({
+        plugin: enabledPlugin,
+        activationPending: true,
+        activationRestartObserved: true,
+      }),
       2,
     ],
     ['plugin_enabled_hook_unproven', facts({ plugin: enabledPlugin }), 2],
