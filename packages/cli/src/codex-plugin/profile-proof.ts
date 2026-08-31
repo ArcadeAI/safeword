@@ -199,6 +199,38 @@ export function codexActivationIsPending(environment: NodeJS.ProcessEnv = proces
   }
 }
 
+export function codexActivationRestartWasObserved(
+  environment: NodeJS.ProcessEnv = process.env,
+  now = new Date(),
+  options: { hostObservation?: CodexHostProcessObservation } = {},
+): boolean {
+  try {
+    const identity = currentCodexPluginIdentity();
+    const marker = readActivationMarkerV2(environment, identity);
+    if (marker === null) return false;
+    return (
+      activationReceiptForRestart(
+        marker,
+        options.hostObservation ?? observeCodexHostProcesses(),
+        identity,
+        now,
+      ) !== null
+    );
+  } catch {
+    return false;
+  }
+}
+
+export function codexActivationRestartIsProven(
+  environment: NodeJS.ProcessEnv = process.env,
+): boolean {
+  try {
+    return readActivationReceipt(environment, currentCodexPluginIdentity()) !== null;
+  } catch {
+    return false;
+  }
+}
+
 function activationIsPendingForIdentity(
   environment: NodeJS.ProcessEnv,
   identity: CodexPluginIdentity,
@@ -315,9 +347,7 @@ function activeHostsForMarker(options: {
   hostObservation?: CodexHostProcessObservation;
 }): CodexHostProcessIdentity[] | null {
   if (options.activeHosts !== undefined) {
-    return options.activeHosts === null || options.activeHosts.length === 0
-      ? null
-      : options.activeHosts;
+    return options.activeHosts;
   }
   const observation = options.hostObservation ?? observeCodexHostProcesses();
   if (!observation.available) return null;
@@ -326,7 +356,7 @@ function activeHostsForMarker(options: {
   if (currentHost !== null && activeHosts.every(host => !sameCodexHost(host, currentHost))) {
     activeHosts.push(currentHost);
   }
-  return activeHosts.length === 0 ? null : activeHosts;
+  return activeHosts;
 }
 
 function hostObservationForOverride(
@@ -346,12 +376,13 @@ function activationReceiptForRestart(
   now: Date,
 ): CodexActivationReceiptV1 | null {
   const currentHost = hostObservation.current;
+  const installedAt = Date.parse(marker.installed_at);
   if (
     !hostObservation.available ||
     currentHost === null ||
     marker.host_observation !== 'observed' ||
-    marker.active_hosts.length === 0 ||
-    now.getTime() < Date.parse(marker.installed_at) ||
+    now.getTime() < installedAt ||
+    Date.parse(currentHost.started_at) < installedAt ||
     marker.active_hosts.some(installedHost => sameCodexHost(installedHost, currentHost)) ||
     marker.active_hosts.some(installedHost =>
       hostObservation.running.some(runningHost => sameCodexHost(installedHost, runningHost)),
@@ -941,9 +972,7 @@ function isActivationMarkerV2(value: unknown): value is CodexActivationMarkerV2 
     (marker.host_observation === 'observed' || marker.host_observation === 'unavailable') &&
     Array.isArray(marker.active_hosts) &&
     marker.active_hosts.every(isCodexHostProcessIdentity) &&
-    (marker.host_observation === 'observed'
-      ? marker.active_hosts.length > 0
-      : marker.active_hosts.length === 0)
+    (marker.host_observation === 'observed' || marker.active_hosts.length === 0)
   );
 }
 

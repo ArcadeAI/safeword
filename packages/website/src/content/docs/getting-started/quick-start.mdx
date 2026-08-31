@@ -87,7 +87,7 @@ Open your project and ask your agent to build something real:
     1. Install commits project SessionStart hooks for enrollment and dependency preparation
     2. On each teammate's first task, it enrolls that teammate's Codex profile in the stable plugin channel
     3. If the current task cannot load the plugin yet, it warns loudly and asks you to review changed hooks, fully restart Codex, then resume this task; it does not block edits or commands
-    4. After the restart, your agent follows scoped plugin skills such as `safeword:bdd`
+    4. After the restart, your agent follows scoped plugin skills such as `safeword:bdd`; if lifecycle proof is still absent, status reports the unsupported surface without repeating the restart step
     5. Native plugin hooks provide the normal Safeword workflow gates
     6. A recognized legacy installation is backed up and removed automatically only after native installation succeeds
 

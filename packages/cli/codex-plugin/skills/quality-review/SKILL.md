@@ -50,7 +50,7 @@ If in a BDD workflow, read the current ticket from `<namespace-root>/tickets/` a
 
 ### Project-principle challenge
 
-For a BDD ticket, run `bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.82.4/runtime/cli.js" project review-knowledge --json` at the
+For a BDD ticket, run `bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.82.5/runtime/cli.js" project review-knowledge --json` at the
 start of each pass and read the current `principles`, `personas`, and `surfaces`
 paths and content it returns (including overrides such as `paths.principles`).
 Do not substitute labels or intake-era content.
@@ -212,7 +212,7 @@ Each pass:
    guarantee a bare `safeword` on `PATH`:
 
    ```bash
-   SAFEWORD_REVIEW_PROGRESS=1 bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.82.4/runtime/cli.js" review run quality-review [--context path/to/evidence] --agent-handoff --json -- changed-file [more-changed-files...]
+   SAFEWORD_REVIEW_PROGRESS=1 bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.82.5/runtime/cli.js" review run quality-review [--context path/to/evidence] --agent-handoff --json -- changed-file [more-changed-files...]
    ```
 
    A healthy deep review may return `REVIEW_PENDING` after its foreground

@@ -104,7 +104,10 @@ already started — and starting a new task alone isn't enough either, since the
 app itself keeps the old plugin catalogue loaded. The bootstrap therefore
 prints a loud startup warning until you fully restart Codex and resume the
 task, which records native proof for that same task. It never intercepts or blocks
-edits or commands. If the already-open task previously observed an older
+edits or commands. If Safeword observes that the app restarted but receives no
+current lifecycle hook proof, status stops repeating the restart instruction
+and reports that protection is unavailable in that Codex surface. If the
+already-open task previously observed an older
 Safeword runtime, bootstrap reports that narrower fact instead of calling the
 task wholly unverified; the retained history never proves the installed update
 and never authorizes cleanup. On the first ordinary upgrade of an unmodified

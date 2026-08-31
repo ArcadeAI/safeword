@@ -81,7 +81,7 @@ Hooks run automatically at key moments. You don't invoke them—they work in the
 
   </TabItem>
   <TabItem label="Codex">
-    Safeword's Codex support is plugin-backed. Install writes project SessionStart hooks that enroll each active Codex profile and prepare missing dependencies in trusted fresh worktrees; `safeword install --agents=codex` remains available for immediate manual enrollment. Review changed hooks in Desktop Settings > Hooks (or `/hooks` in the terminal TUI), fully restart Codex, then resume this task to load the plugin. Install writes no repository workflow tree or mutation-event hook.
+    Safeword's Codex support is plugin-backed. Install writes project SessionStart hooks that enroll each active Codex profile and prepare missing dependencies in trusted fresh worktrees; `safeword install --agents=codex` remains available for immediate manual enrollment. Review changed hooks in Desktop Settings > Hooks (or `/hooks` in the terminal TUI), fully restart Codex, then resume this task to load the plugin. If the restart completes without current lifecycle hook proof, status reports that the Codex surface remains unprotected instead of asking for another restart. Install writes no repository workflow tree or mutation-event hook.
 
 | When                            | What happens                                                                      |
 | ------------------------------- | --------------------------------------------------------------------------------- |

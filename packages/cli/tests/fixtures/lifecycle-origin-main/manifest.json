@@ -1,17 +1,17 @@
 {
-  "originMainCommit": "d970fd9739e0e7fba944395b2ad89fe5959dea24",
+  "originMainCommit": "4a4b1c815a479dfa013910ba260d825100f92a6e",
   "fixtures": {
-    "claude-install": "789a241fdb88c20522a5d7f35293b4176a8a254cd99881097e5cbdb5ce7c6637",
-    "claude-check": "b1037d2e865d2e88c96eae146171fe741523790048e0393e5464471494105b54",
-    "claude-upgrade": "d865a8ae51add86b4a95de3c496e3fefcced9eb7def2486a3efa1a60fe6bfc80",
+    "claude-install": "5e6c836b1f519500c74cb368b6fc48ac88851defaa762c209bb02e649f339d02",
+    "claude-check": "e33107babf16291f132be8eb0bc7b405d97b1467be4e24ade1f87dd23678de2c",
+    "claude-upgrade": "53cfe89bb9df0eda2561b5ccefdf4b8cc87702ccf55fbfac7cac7eaf6941359e",
     "claude-uninstall": "6e51c9f1843dc28ac22cbadc97bf9c6cf23c00f29f5d339cc21657860411a438",
-    "codex-install": "541c6fe92c68aa31bfe8d802bd3270e9830f07d1aedd7ac96f46c12be6b4e5f6",
-    "codex-check": "80810b133b22161eece401be9e7ca158f5cef8dc9846c09146684ff83628298a",
-    "codex-upgrade": "a1a1debd7f1c44b1c40ef690b814849c8fb26e55eea2fa1975042f228af3b7f2",
+    "codex-install": "cffb4175c66785d803bd2e4c75e65ece5d07a0692d76246b9d2f3d7203309c18",
+    "codex-check": "2391231e5f647a4f2a541e11a676eced79a53308196c906777f90c5d77a17fc4",
+    "codex-upgrade": "cc4996bceb9527cca69be341212d0f0867fe96cc40a121ecd30ffed22d53d002",
     "codex-uninstall": "b65b6f93f8842b0e2f7a84b8fb50e353b9cc0e0d451cb3ffa70e6fb7837a67fe",
-    "cursor-install": "dc13eb3ad975257d4c1ca2700c93ee4d870cb762074423e650163bce48e975d1",
-    "cursor-check": "1e7f4cd49515f97022ef2deeb50ff7aceebcd058f9d3ae4fcaeb631c086f19e7",
-    "cursor-upgrade": "71e0f30bc90eccba986879430571bfb6d12168283129a803c0a7f95d6a7fa1b8",
+    "cursor-install": "b528d9c6b00ca959410fa798bc8f235ee2cefd82f6b2c57cc6f5ba9fd71e28bf",
+    "cursor-check": "3889eedfba26a63796a5f1fe94e743c8be7680b17c9d557bd75c69dd25df07c1",
+    "cursor-upgrade": "5dbfe3331efe9c5db3b5c6858dbf98a3658003b9ce3797c116dafd2fed9ccf9a",
     "cursor-uninstall": "3a8843ccfef486832f68db7b50b0438d3e23f1f748117776b7f1c76a338ac20f"
   }
 }

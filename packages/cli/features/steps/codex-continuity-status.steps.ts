@@ -75,6 +75,8 @@ function facts(overrides: Partial<CodexMigrationFacts> = {}): CodexMigrationFact
     finalized: false,
     recoveryRequired: false,
     activationPending: false,
+    activationRestartObserved: false,
+    activationRestartProven: false,
     ...overrides,
   };
 }
@@ -153,6 +155,20 @@ function fixtureFacts(name: string): CodexMigrationFacts {
     }
     case 'restart pending without legacy': {
       return facts({ plugin: enabledPlugin, activationPending: true });
+    }
+    case 'restart completed without hook activation': {
+      return facts({
+        plugin: enabledPlugin,
+        activationPending: true,
+        activationRestartObserved: true,
+      });
+    }
+    case 'restart completed with partial hook activation': {
+      return facts({
+        plugin: enabledPlugin,
+        proof: partialProof,
+        activationRestartProven: true,
+      });
     }
     case 'restart pending with complete legacy': {
       return completeLegacy({ plugin: enabledPlugin, activationPending: true });

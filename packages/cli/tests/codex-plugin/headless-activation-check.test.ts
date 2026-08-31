@@ -30,7 +30,7 @@ const OLD_HOST: CodexHostProcessIdentity = {
 };
 const RESTARTED_HOST: CodexHostProcessIdentity = {
   pid: 9002,
-  started_at: '2026-08-03T00:00:00.000Z',
+  started_at: '2026-08-03T00:02:00.000Z',
 };
 
 function writeExecutable(path: string, content: string): void {
@@ -47,7 +47,11 @@ function installFakeCodex(directory: string): { bin: string; log: string } {
     String.raw`#!/bin/sh
 set -eu
 printf '%s %s Mon Aug  3 00:00:00 2026 fake-codex exec\n' "$SAFEWORD_FAKE_CODEX_PID" "$SAFEWORD_FAKE_HOST_PID"
-printf '%s 1 Mon Aug  3 00:00:00 2026 codex app-server\n' "$SAFEWORD_FAKE_HOST_PID"
+if [ "$SAFEWORD_FAKE_HOST_PID" = "9002" ]; then
+  printf '%s 1 Mon Aug  3 00:02:00 2026 codex app-server\n' "$SAFEWORD_FAKE_HOST_PID"
+else
+  printf '%s 1 Mon Aug  3 00:00:00 2026 codex app-server\n' "$SAFEWORD_FAKE_HOST_PID"
+fi
 `,
   );
   writeExecutable(

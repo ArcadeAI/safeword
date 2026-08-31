@@ -422,7 +422,10 @@ is versioned independently at `data.migration`:
 New consumers use `data.migration.schema_version` and `data.migration.state`.
 `data.migration_state` remains a deprecated schema-1 compatibility field and
 retains its former value. New consumers should follow the canonical v2 state
-and restart the Codex application before checking activation again.
+and restart the Codex application before checking activation again. If the
+process transition completed but Safeword received no current lifecycle hook
+proof, status instead reports `plugin_installed_hook_activation_failed`; it does
+not ask for another restart and keeps protection unverified for that surface.
 
 ### safeword codex clean-guidance
 

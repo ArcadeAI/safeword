@@ -55,6 +55,11 @@ Feature: Keep Codex protection continuous during profile-plugin migration
       When a restarted Codex app invokes the installed profile-plugin SessionStart dispatcher
       Then restart-bound proof replaces the pending marker and status no longer requires an app restart
 
+    Scenario: Installing while Codex is closed activates on the next app start
+      Given a profile installed while no Codex host was running
+      When the next Codex app invokes the installed profile-plugin SessionStart dispatcher
+      Then restart-bound proof replaces the pending marker and status no longer requires an app restart
+
     Scenario: Trusted plugin SessionStart records event-specific proof
       Given the Safeword profile-plugin SessionStart dispatcher is trusted
       When Codex invokes it with the plugin-hook marker
@@ -253,6 +258,8 @@ Feature: Keep Codex protection continuous during profile-plugin migration
         | disabled plugin with partial legacy | plugin_disabled | partial | safeword codex migrate             |
         | outdated plugin without legacy | plugin_update_required | unprotected | safeword codex migrate          |
         | restart pending without legacy | plugin_installed_app_restart_required | unprotected | Review the installed hooks in Codex Desktop under Settings > Hooks (or with /hooks in the terminal TUI). Fully restart Codex, then resume this task. |
+        | restart completed without hook activation | plugin_installed_hook_activation_failed | unprotected | Review the installed hooks in Codex Desktop under Settings > Hooks (or with /hooks in the terminal TUI). If they are enabled and trusted, use a Codex surface that dispatches lifecycle hooks before relying on Safeword protection. |
+        | restart completed with partial hook activation | plugin_enabled_hook_unproven | unprotected | Continue in this Codex session. Safeword will confirm protection after the remaining lifecycle hooks run. |
         | restart pending with complete legacy | plugin_installed_app_restart_required | protected | Review the installed hooks in Codex Desktop under Settings > Hooks (or with /hooks in the terminal TUI). Fully restart Codex, then resume this task. |
         | restart pending with partial legacy | plugin_installed_app_restart_required | partial | Review the installed hooks in Codex Desktop under Settings > Hooks (or with /hooks in the terminal TUI). Fully restart Codex, then resume this task. |
         | current proof and legacy  | compatibility     | protected  | safeword codex migrate --finalize |
@@ -312,6 +319,8 @@ Feature: Keep Codex protection continuous during profile-plugin migration
         | disabled with partial legacy   | plugin_disabled                    | partial     | 1            | safeword codex migrate             | 2         |
         | outdated plugin without legacy | plugin_update_required             | unprotected | 1            | safeword codex migrate             | 2         |
         | restart pending without legacy | plugin_installed_app_restart_required  | unprotected | 1            | Review the installed hooks in Codex Desktop under Settings > Hooks (or with /hooks in the terminal TUI). Fully restart Codex, then resume this task. | 2         |
+        | restart completed without hook activation | plugin_installed_hook_activation_failed | unprotected | 1            | Review the installed hooks in Codex Desktop under Settings > Hooks (or with /hooks in the terminal TUI). If they are enabled and trusted, use a Codex surface that dispatches lifecycle hooks before relying on Safeword protection. | 2         |
+        | restart completed with partial hook activation | plugin_enabled_hook_unproven | unprotected | 1            | Continue in this Codex session. Safeword will confirm protection after the remaining lifecycle hooks run. | 2         |
         | restart pending with complete legacy | plugin_installed_app_restart_required | protected | 1            | Review the installed hooks in Codex Desktop under Settings > Hooks (or with /hooks in the terminal TUI). Fully restart Codex, then resume this task. | 2         |
         | restart pending with partial legacy | plugin_installed_app_restart_required | partial | 1            | Review the installed hooks in Codex Desktop under Settings > Hooks (or with /hooks in the terminal TUI). Fully restart Codex, then resume this task. | 2         |
         | complete legacy                | legacy                             | protected   | 1            | safeword codex migrate             | 2         |

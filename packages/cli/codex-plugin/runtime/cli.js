@@ -14114,7 +14114,7 @@ function deriveCodexMigrationResult(facts) {
   const hasLegacy = facts.legacyAssets.length > 0 || facts.legacyEvents.length > 0;
   const protectedStatus = legacyProtection(facts, hasLegacy);
   const state = migrationState(facts, hasLegacy);
-  const next = nextAction(state);
+  const next = nextAction(state, facts);
   return {
     schema_version: "2",
     ok: state === "plugin",
@@ -14143,7 +14143,23 @@ function legacyProtection(facts, hasLegacy) {
     return "unprotected";
   return facts.viableLegacyEvents.length === facts.legacyEvents.length ? "protected" : "partial";
 }
-function nextAction(state) {
+function nextAction(state, facts) {
+  if (state === "plugin_installed_hook_activation_failed") {
+    return {
+      kind: "human",
+      instruction: CODEX_HOOK_ACTIVATION_FAILED_ACTION,
+      mutates: false,
+      requires_human: true
+    };
+  }
+  if (state === "plugin_enabled_hook_unproven" && facts.activationRestartProven && facts.proof.status === "partial") {
+    return {
+      kind: "human",
+      instruction: CODEX_PARTIAL_ACTIVATION_ACTION,
+      mutates: false,
+      requires_human: true
+    };
+  }
   if (state === "plugin_installed_app_restart_required" || state === "plugin_enabled_hook_unproven") {
     return {
       kind: "human",
@@ -14157,11 +14173,9 @@ function nextAction(state) {
 }
 function renderCodexMigrationHuman(result) {
   const lines = [`Codex migration: ${result.state}`, `Protection: ${result.protected}`];
-  if (result.state === "plugin_setup_required") {
-    lines.push(`Setup: ${CODEX_MIGRATION_SCHEMA.paths.bootstrapSkill}`);
-  } else if (result.state === "plugin_installed_app_restart_required" || result.state === "plugin_enabled_hook_unproven") {
-    lines.push(CODEX_RESTART_CONTEXT);
-  }
+  const context = codexMigrationContext(result);
+  if (context !== undefined)
+    lines.push(context);
   const next = result.next_actions[0];
   if (next !== undefined) {
     lines.push(`Next: ${"command" in next ? next.command : next.instruction}`);
@@ -14170,12 +14184,19 @@ function renderCodexMigrationHuman(result) {
 `)}
 `;
 }
+function codexMigrationContext(result) {
+  const next = result.next_actions[0];
+  if (result.state === "plugin_enabled_hook_unproven" && next !== undefined && "instruction" in next && next.instruction === CODEX_PARTIAL_ACTIVATION_ACTION) {
+    return CODEX_PARTIAL_ACTIVATION_CONTEXT;
+  }
+  return CODEX_MIGRATION_CONTEXT[result.state];
+}
 function codexMigrationExitCode(result) {
   if (result.errors.length > 0)
     return 1;
   return result.ok ? 0 : 2;
 }
-var CODEX_RESTART_ACTION = "Fully restart Codex, then resume this task", CODEX_REVIEW_THEN_RESTART_ACTION = "Review the installed hooks in Codex Desktop under Settings > Hooks (or with /hooks in the terminal TUI). Fully restart Codex, then resume this task", CODEX_RESTART_INSTRUCTION, CODEX_RESTART_CONTEXT = "This Codex app may keep its loaded Safeword catalogue.", MIGRATION_STATE_RULES, NEXT_COMMANDS;
+var CODEX_RESTART_ACTION = "Fully restart Codex, then resume this task", CODEX_REVIEW_THEN_RESTART_ACTION = "Review the installed hooks in Codex Desktop under Settings > Hooks (or with /hooks in the terminal TUI). Fully restart Codex, then resume this task", CODEX_RESTART_INSTRUCTION, CODEX_RESTART_CONTEXT = "This Codex app may keep its loaded Safeword catalogue.", CODEX_HOOK_ACTIVATION_FAILED_CONTEXT = "Codex restarted, but Safeword received no current lifecycle hook proof.", CODEX_HOOK_ACTIVATION_FAILED_ACTION = "Review the installed hooks in Codex Desktop under Settings > Hooks (or with /hooks in the terminal TUI). If they are enabled and trusted, use a Codex surface that dispatches lifecycle hooks before relying on Safeword protection.", CODEX_PARTIAL_ACTIVATION_CONTEXT = "Codex restarted and Safeword has partial current lifecycle hook proof.", CODEX_PARTIAL_ACTIVATION_ACTION = "Continue in this Codex session. Safeword will confirm protection after the remaining lifecycle hooks run.", MIGRATION_STATE_RULES, NEXT_COMMANDS, CODEX_MIGRATION_CONTEXT;
 var init_migration = __esm(() => {
   init_schema();
   init_inventory();
@@ -14193,6 +14214,10 @@ var init_migration = __esm(() => {
     {
       state: "plugin_update_required",
       matches: (facts) => facts.plugin.enabled === true && !codexPluginVersionMatchesPackage(facts.plugin)
+    },
+    {
+      state: "plugin_installed_hook_activation_failed",
+      matches: (facts) => facts.plugin.enabled === true && !pluginProtectionIsCurrent(facts) && facts.activationPending && facts.activationRestartObserved
     },
     {
       state: "plugin_installed_app_restart_required",
@@ -14217,12 +14242,26 @@ var init_migration = __esm(() => {
     compatibility: "safeword codex migrate --finalize",
     plugin: undefined,
     plugin_installed_app_restart_required: undefined,
+    plugin_installed_hook_activation_failed: undefined,
     plugin_enabled_hook_unproven: undefined,
     plugin_setup_required: "safeword codex migrate",
     plugin_disabled: "safeword codex migrate",
     plugin_update_required: "safeword codex migrate",
     legacy: "safeword codex migrate",
     not_configured: "safeword codex migrate"
+  };
+  CODEX_MIGRATION_CONTEXT = {
+    recovery_required: undefined,
+    plugin_setup_required: `Setup: ${CODEX_MIGRATION_SCHEMA.paths.bootstrapSkill}`,
+    plugin_disabled: undefined,
+    plugin_update_required: undefined,
+    legacy: undefined,
+    plugin_installed_app_restart_required: CODEX_RESTART_CONTEXT,
+    plugin_installed_hook_activation_failed: CODEX_HOOK_ACTIVATION_FAILED_CONTEXT,
+    plugin_enabled_hook_unproven: CODEX_RESTART_CONTEXT,
+    compatibility: undefined,
+    plugin: undefined,
+    not_configured: undefined
   };
 });
 
@@ -36201,6 +36240,24 @@ function codexActivationIsPending(environment = process.env) {
     return true;
   }
 }
+function codexActivationRestartWasObserved(environment = process.env, now = new Date, options = {}) {
+  try {
+    const identity = currentCodexPluginIdentity();
+    const marker = readActivationMarkerV2(environment, identity);
+    if (marker === null)
+      return false;
+    return activationReceiptForRestart(marker, options.hostObservation ?? observeCodexHostProcesses(), identity, now) !== null;
+  } catch {
+    return false;
+  }
+}
+function codexActivationRestartIsProven(environment = process.env) {
+  try {
+    return readActivationReceipt(environment, currentCodexPluginIdentity()) !== null;
+  } catch {
+    return false;
+  }
+}
 function activationIsPendingForIdentity(environment, identity) {
   return existsSync31(codexActivationMarkerPath(environment)) || [legacyCodexActivationMarkerPath(environment), legacyCodexRestartMarkerPath(environment)].some((path4) => legacyActivationMarkerMatches(path4, identity));
 }
@@ -36262,7 +36319,7 @@ function writeCodexActivationMarker(environment = process.env, now = new Date, o
 }
 function activeHostsForMarker(options) {
   if (options.activeHosts !== undefined) {
-    return options.activeHosts === null || options.activeHosts.length === 0 ? null : options.activeHosts;
+    return options.activeHosts;
   }
   const observation = options.hostObservation ?? observeCodexHostProcesses();
   if (!observation.available)
@@ -36272,7 +36329,7 @@ function activeHostsForMarker(options) {
   if (currentHost !== null && activeHosts.every((host) => !sameCodexHost(host, currentHost))) {
     activeHosts.push(currentHost);
   }
-  return activeHosts.length === 0 ? null : activeHosts;
+  return activeHosts;
 }
 function hostObservationForOverride(current = null) {
   return {
@@ -36283,7 +36340,8 @@ function hostObservationForOverride(current = null) {
 }
 function activationReceiptForRestart(marker, hostObservation, identity, now) {
   const currentHost = hostObservation.current;
-  if (!hostObservation.available || currentHost === null || marker.host_observation !== "observed" || marker.active_hosts.length === 0 || now.getTime() < Date.parse(marker.installed_at) || marker.active_hosts.some((installedHost) => sameCodexHost(installedHost, currentHost)) || marker.active_hosts.some((installedHost) => hostObservation.running.some((runningHost) => sameCodexHost(installedHost, runningHost)))) {
+  const installedAt = Date.parse(marker.installed_at);
+  if (!hostObservation.available || currentHost === null || marker.host_observation !== "observed" || now.getTime() < installedAt || Date.parse(currentHost.started_at) < installedAt || marker.active_hosts.some((installedHost) => sameCodexHost(installedHost, currentHost)) || marker.active_hosts.some((installedHost) => hostObservation.running.some((runningHost) => sameCodexHost(installedHost, runningHost)))) {
     return null;
   }
   return {
@@ -36649,7 +36707,7 @@ function isActivationMarkerV2(value) {
   if (typeof value !== "object" || value === null)
     return false;
   const marker = value;
-  return marker.schema_version === 2 && pluginVersionIsWellFormed(marker.plugin_version) && typeof marker.manifest_sha256 === "string" && SHA256_PATTERN.test(marker.manifest_sha256) && typeof marker.activation_id === "string" && typeof marker.installed_at === "string" && !Number.isNaN(Date.parse(marker.installed_at)) && (marker.host_observation === "observed" || marker.host_observation === "unavailable") && Array.isArray(marker.active_hosts) && marker.active_hosts.every(isCodexHostProcessIdentity) && (marker.host_observation === "observed" ? marker.active_hosts.length > 0 : marker.active_hosts.length === 0);
+  return marker.schema_version === 2 && pluginVersionIsWellFormed(marker.plugin_version) && typeof marker.manifest_sha256 === "string" && SHA256_PATTERN.test(marker.manifest_sha256) && typeof marker.activation_id === "string" && typeof marker.installed_at === "string" && !Number.isNaN(Date.parse(marker.installed_at)) && (marker.host_observation === "observed" || marker.host_observation === "unavailable") && Array.isArray(marker.active_hosts) && marker.active_hosts.every(isCodexHostProcessIdentity) && (marker.host_observation === "observed" || marker.active_hosts.length === 0);
 }
 function isActivationReceiptV1(value) {
   if (typeof value !== "object" || value === null)
@@ -37035,7 +37093,9 @@ function observeCodexMigrationResult(cwd = process.cwd(), environment = process.
     viableLegacyEvents: observeViableLegacyEvents(cwd, legacyEvents, environment),
     finalized: codexFinalizationIsComplete(cwd),
     recoveryRequired,
-    activationPending: codexActivationIsPending(environment)
+    activationPending: codexActivationIsPending(environment),
+    activationRestartObserved: codexActivationRestartWasObserved(environment),
+    activationRestartProven: codexActivationRestartIsProven(environment)
   });
   if (pluginObservationError !== undefined) {
     result.errors.push({
@@ -37053,9 +37113,18 @@ function observeCodexMigrationResult(cwd = process.cwd(), environment = process.
   }
   return result;
 }
-function codexMigrationMessage(state, proof) {
-  if (state === "plugin_enabled_hook_unproven" && proof !== undefined) {
+function codexMigrationMessage(result) {
+  const { proof, state } = result;
+  const next = result.next_actions[0];
+  if (state === "plugin_enabled_hook_unproven" && proof.status === "partial" && next !== undefined && "instruction" in next) {
+    return `Codex restarted and Safeword has partial current lifecycle hook proof. Missing proof: ${proof.missing_events.join(", ")}. ${next.instruction}`;
+  }
+  if (state === "plugin_enabled_hook_unproven") {
     return `Codex migration state: plugin_enabled_hook_unproven. In the restarted Codex app, review /hooks and exercise these missing hooks: ${proof.missing_events.join(", ")}. Then run safeword codex migrate --finalize.`;
+  }
+  if (state === "plugin_installed_hook_activation_failed") {
+    const protection = result.protected === "unprotected" ? "Safeword protection is unavailable in this Codex surface." : `Current plugin protection is unavailable; ${result.protected} legacy protection remains configured.`;
+    return `Codex restarted, but Safeword received no current lifecycle hook proof. Missing proof: ${proof.missing_events.join(", ")}. ${protection}`;
   }
   return CODEX_MIGRATION_MESSAGES[state] ?? `Codex migration state: ${state}.`;
 }
@@ -37076,7 +37145,7 @@ function observeCodexMigration(cwd = process.cwd(), environment = process.env) {
     findings: result.errors.length > 0 ? [] : [
       {
         code: `CODEX_${legacyState.toUpperCase()}`,
-        message: codexMigrationMessage(result.state, result.proof),
+        message: codexMigrationMessage(result),
         severity: result.ok ? "info" : "warning",
         metadata: {
           migration_schema_version: result.schema_version,
@@ -37438,6 +37507,7 @@ var init_operations = __esm(() => {
   CODEX_CONFIG_PATH2 = CODEX_MIGRATION_SCHEMA.paths.config;
   CODEX_MIGRATION_MESSAGES = {
     plugin_installed_app_restart_required: CODEX_RESTART_CONTEXT,
+    plugin_installed_hook_activation_failed: CODEX_HOOK_ACTIVATION_FAILED_CONTEXT,
     compatibility: "Codex is protected by the current profile plugin; verified legacy protection remains until explicit finalization.",
     plugin_enabled_hook_unproven: "Codex migration state: plugin_enabled_hook_unproven. Review /hooks in the restarted Codex app; when protection is confirmed, run safeword codex migrate --finalize.",
     recovery_required: "Codex migration state: recovery_required. Recovery is required before migration can continue."
