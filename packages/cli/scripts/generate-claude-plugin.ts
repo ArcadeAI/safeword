@@ -21,7 +21,10 @@ const repoRoot = nodePath.resolve(packageRoot, '../..');
 const checkOnly = process.argv.includes('--check');
 const temporaryRoot = mkdtempSync(nodePath.join(tmpdir(), 'safeword-claude-plugin-'));
 const pluginRoot = temporaryRoot;
-const shippedRoot = nodePath.join(repoRoot, 'plugin');
+// Testability seam: release-contract scenarios compare canonical generation to
+// a deliberately stale copy without mutating the committed plugin tree.
+const shippedRoot =
+  process.env.SAFEWORD_CLAUDE_GENERATED_PLUGIN_ROOT ?? nodePath.join(repoRoot, 'plugin');
 const authoredShippedFiles = ['README.md'] as const;
 
 try {

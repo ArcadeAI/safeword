@@ -244,6 +244,17 @@ Feature: Migrate legacy Claude projects automatically
       When the automatic Claude migration release catalogue is validated
       Then validation fails naming the missing runtime dependency or wiring proof
 
+    @rejection
+    Scenario: Release validation rejects a stale generated plugin bundle
+      Given the generated Claude plugin predates the current historical catalogue
+      When the Claude plugin release contract validates that generated bundle
+      Then validation fails naming the stale generated runtime and regeneration action
+
+    Scenario: Release validation is independent of the caller's test environment
+      Given every supported pre-plugin fixture is catalogued and the generated dispatcher reaches automatic migration
+      When the Claude plugin release contract runs from a test environment
+      Then the generated plugin remains aligned with canonical sources
+
   @automatic-claude-migration.SWM1.R3 @surface.claude-code @surface.safeword-cli
   Rule: automatic-claude-migration.SWM1.R3 — Automatic contraction never mutates the safeword dev repository itself
 
