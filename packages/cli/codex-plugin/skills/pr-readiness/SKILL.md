@@ -23,11 +23,14 @@ the reviewer context.
 Keep speculative work on a branch. Open a Draft only to get concrete CI, AI
 review, or a narrow human sanity check. Creating a PR, pushing, or publishing
 does not authorize Ready promotion; the user must explicitly ask for Ready.
+Changing an existing pull request's Draft/Ready state also requires explicit
+authority in the current user request. A readiness check observes and reports
+state by default; it never promotes or demotes the pull request on its own.
 
 ## Seven hard Ready-for-Review gates
 
 Evaluate every gate. Missing, stale, unknown, pending, or contradicted evidence
-is a **hard blocker**: report it and make or keep the pull request Draft.
+is a **hard blocker**: report it and recommend Draft.
 
 1. **Ticket linkage:** the PR links the Linear ticket or the repository's
    authoritative tracker item.
@@ -35,6 +38,9 @@ is a **hard blocker**: report it and make or keep the pull request Draft.
    unexplained generated, copied, or agent-authored output blocks readiness.
 3. **End-user execution:** exercise the current head through its end-user path.
    Tests alone are insufficient; record the concrete steps and observed result.
+   If the change genuinely has no runnable end-user surface, record `not applicable`,
+   explain why, and exercise the nearest real delivery boundary. Never invent a
+   walkthrough to make this gate look complete.
 4. **Checks:** relevant local checks and CI are terminal and green for the current
    head. A skipped check is an evidence gap unless its reason and consequence are
    explicit.
@@ -48,6 +54,10 @@ is a **hard blocker**: report it and make or keep the pull request Draft.
 Do not promote while any gate is incomplete. Name each blocker and the exact
 recovery action. Never reinterpret “unit tests pass” as end-user verification or
 pending CI as green.
+
+When `$safeword:quality-review` or `$safeword:finish-review` returns, consume its result as gate 5
+evidence. Do not re-enter the AI review loop unless a later material change makes
+that evidence stale.
 
 ## Write for the reviewer
 
@@ -83,8 +93,12 @@ Report the current head and each gate as `pass` or `blocked`, with its concrete
 evidence. Then provide the reviewer-oriented body or the minimal edits it needs.
 End with exactly one outcome:
 
-- `READY` only when all seven gates pass for the current head and the user has
-  explicitly authorized Ready promotion.
-- `DRAFT — <blockers>` otherwise.
+- `READY` when all seven gates pass for the current head and the pull request is
+  already Ready, or when the user explicitly authorized Ready promotion.
+- `GATES PASS — awaiting explicit Ready authorization` when all seven gates pass,
+  the pull request is Draft, and the current request did not authorize promotion.
+- `DRAFT — <blockers>` when one or more gates are blocked. This reports the
+  observed or recommended state; it does not authorize demotion.
 
-Do not run `gh pr ready` on a `DRAFT` outcome.
+Do not run `gh pr ready` or `gh pr ready --undo` unless the current user request
+explicitly authorizes that exact state change.

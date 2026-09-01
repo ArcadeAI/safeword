@@ -631,7 +631,7 @@
     },
     {
       "path": "skills/closeout/SKILL.md",
-      "sha256": "59455217af580693f730c468e3c10c41bac0b6ef07e23794bf1f710c3fbec4e0"
+      "sha256": "677acd871d3a16ba1c4aae936a9ee12b2bcefef80e6ad4991de0f54905ab5398"
     },
     {
       "path": "skills/debug/SKILL.md",
@@ -663,7 +663,7 @@
     },
     {
       "path": "skills/pr-readiness/SKILL.md",
-      "sha256": "8b7a70b9a91ad7895e696b934229e2290e4cef2546c88bef08e938ae09bd8dff"
+      "sha256": "0d966293f1fe6f53e1df8bde463d116668f28041e01a144639844c599f8b1aae"
     },
     {
       "path": "skills/quality-review/SKILL.md",

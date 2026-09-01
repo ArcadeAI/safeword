@@ -27,6 +27,10 @@ describe('reviewer-as-customer PR readiness (#3579)', () => {
     expect(readRepoFile('.cursor/rules/safeword-pr-readiness.mdc')).toContain(
       '@.safeword/skills/pr-readiness/SKILL.md',
     );
+    expect(readRepoFile('.cursor/commands/pr-readiness.md')).toContain(
+      'Read and follow the instructions in .safeword/skills/pr-readiness/SKILL.md',
+    );
+    expect(SAFEWORD_SCHEMA.ownedFiles['.opencode/commands/pr-readiness.md']).toBeDefined();
     expect(readRepoFile('packages/cli/codex-plugin/skills/pr-readiness/SKILL.md')).toContain(
       'name: pr-readiness',
     );
@@ -47,8 +51,13 @@ describe('reviewer-as-customer PR readiness (#3579)', () => {
       expect(normalized).toContain(requirement.toLowerCase());
     }
     expect(normalized).toContain('top-to-bottom');
-    expect(normalized).toContain('keep the pull request draft');
+    expect(normalized).toContain('recommend draft');
     expect(normalized).toContain('hard blocker');
+    expect(skill).toContain('GATES PASS — awaiting explicit Ready authorization');
+    expect(skill).toContain('gh pr ready --undo');
+    expect(skill).toContain('explicitly authorizes that exact state change');
+    expect(skill).toContain('Never invent a');
+    expect(skill).toMatch(/consume its result as gate 5\s+evidence/);
   });
 
   it('writes for the reviewer without manufacturing evidence or stack scope', () => {
@@ -79,11 +88,19 @@ describe('reviewer-as-customer PR readiness (#3579)', () => {
   });
 
   it.each([
-    ['SAFEWORD', 'packages/cli/templates/SAFEWORD.md'],
-    ['quality review', 'packages/cli/templates/skills/quality-review/SKILL.md'],
-    ['finish review', 'packages/cli/templates/skills/finish-review/SKILL.md'],
-    ['closeout', 'packages/cli/templates/skills/closeout/SKILL.md'],
-  ])('%s routes its PR boundary through the readiness workflow', (_label, path) => {
-    expect(readRepoFile(path)).toContain('pr-readiness');
+    ['SAFEWORD', 'packages/cli/templates/SAFEWORD.md', 'seven current-head gates'],
+    ['quality review', 'packages/cli/templates/skills/quality-review/SKILL.md', 'review gate only'],
+    [
+      'finish review',
+      'packages/cli/templates/skills/finish-review/SKILL.md',
+      'never authorizes Ready promotion',
+    ],
+    [
+      'closeout',
+      'packages/cli/templates/skills/closeout/SKILL.md',
+      'current-head `/pr-readiness` decision',
+    ],
+  ])('%s routes its PR boundary through the readiness workflow', (_label, path, binding) => {
+    expect(readRepoFile(path)).toContain(binding);
   });
 });
