@@ -271,6 +271,8 @@ function ticketNewReplayCommand(invocation: CommandInvocation): string {
       ['--goal', stringOption(invocation.options, 'goal')],
       ['--why', stringOption(invocation.options, 'why')],
       ['--parent', stringOption(invocation.options, 'parent')],
+      ['--milestone', stringOption(invocation.options, 'milestone')],
+      ['--parent-job', stringOption(invocation.options, 'parent-job')],
       ['--issue', stringOption(invocation.options, 'issue')],
     ],
     cwd: invocation.cwd,
