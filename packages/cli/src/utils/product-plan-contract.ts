@@ -74,7 +74,7 @@ function fieldValue(content: string, label: string): string | undefined {
   const remainingLines = lines.slice(index + 1);
   for (const line of remainingLines) {
     const trimmed = line.trim();
-    if (trimmed === '' || trimmed.startsWith('#') || trimmed.startsWith('- ')) break;
+    if (trimmed === '' || trimmed.startsWith('#')) break;
     if (!/^\s/.test(line)) break;
     continuation.push(trimmed);
   }

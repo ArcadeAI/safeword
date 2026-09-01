@@ -420,24 +420,49 @@ if (
   // was already denied above.
   if (specExists) {
     const specContent = readFileSync(specFile, 'utf8');
-
-    const jtbdVerdict = evaluateJtbdGate(specContent, readPersonasForGate(ticketDirectory));
-    if (!jtbdVerdict.ok) {
-      deny(
-        `spec.md JTBD gate: ${jtbdVerdict.reason}.`,
-        'Author a Job To Be Done in spec.md under `## Jobs To Be Done` (persona from personas.md, in the "When I…, I want…, so I can…" form), or write `skip: <reason>` there to deliberately omit.',
+    const isContractedChild =
+      frontmatterScalar(meta, 'product_plan_contract') === 'v1' &&
+      ['parent', 'parent_job', 'milestone'].every(
+        key => frontmatterScalar(meta, key) !== undefined,
       );
-    }
 
-    // Criteria gate (ticket 31W8M3): each JTBD needs ≥1 numbered Rule
-    // (`#### <jtbd-id>.R<n>`) or legacy Acceptance Criterion
-    // (`#### <jtbd-id>.AC<n>`), or a per-JTBD `skip: <reason>`.
-    const criteriaVerdict = evaluateCriteriaGate(specContent);
-    if (!criteriaVerdict.ok) {
-      deny(
-        `spec.md criteria gate: ${criteriaVerdict.reason}.`,
-        'Add a numbered Rule under each JTBD as `#### <jtbd-id>.R<n> — <invariant>` (a product-level invariant, not implementation) — or a legacy `#### <jtbd-id>.AC<n> — <capability>` — or `skip: <reason>` under that JTBD to omit it deliberately.',
+    // Contracted children inherit the parent JTBD and own only Contribution +
+    // Rules. Applying the standalone JTBD/criteria gates would force copied
+    // prose or a fake skip marker into the deliberately delta-only child spec.
+    if (isContractedChild) {
+      const parentJob = frontmatterScalar(meta, 'parent_job')!;
+      const ticketId = frontmatterScalar(meta, 'id')!;
+      const escapePattern = (value: string): string =>
+        value.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const lineageRule = new RegExp(
+        `^####\\s+${escapePattern(parentJob)}\\.${escapePattern(ticketId)}\\.R\\d+\\b`,
+        'm',
       );
+      if (!lineageRule.test(specContent)) {
+        deny(
+          'spec.md criteria gate: contracted children require at least one child-owned lineage Rule.',
+          `Add a Rule under \`## Rules\` as \`#### ${parentJob}.${ticketId}.R1 — <business invariant>\`.`,
+        );
+      }
+    } else {
+      const jtbdVerdict = evaluateJtbdGate(specContent, readPersonasForGate(ticketDirectory));
+      if (!jtbdVerdict.ok) {
+        deny(
+          `spec.md JTBD gate: ${jtbdVerdict.reason}.`,
+          'Author a Job To Be Done in spec.md under `## Jobs To Be Done` (persona from personas.md, in the "When I…, I want…, so I can…" form), or write `skip: <reason>` there to deliberately omit.',
+        );
+      }
+
+      // Criteria gate (ticket 31W8M3): each JTBD needs ≥1 numbered Rule
+      // (`#### <jtbd-id>.R<n>`) or legacy Acceptance Criterion
+      // (`#### <jtbd-id>.AC<n>`), or a per-JTBD `skip: <reason>`.
+      const criteriaVerdict = evaluateCriteriaGate(specContent);
+      if (!criteriaVerdict.ok) {
+        deny(
+          `spec.md criteria gate: ${criteriaVerdict.reason}.`,
+          'Add a numbered Rule under each JTBD as `#### <jtbd-id>.R<n> — <invariant>` (a product-level invariant, not implementation) — or a legacy `#### <jtbd-id>.AC<n> — <capability>` — or `skip: <reason>` under that JTBD to omit it deliberately.',
+        );
+      }
     }
 
     // Review gate (NMSD94, Tier 1) — DEFAULT-OFF: only fires when

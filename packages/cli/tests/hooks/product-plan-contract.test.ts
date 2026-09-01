@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -139,14 +139,22 @@ describe('Product Plan parent contract parity', () => {
     writeFileSync(nodePath.join(parent, 'ticket.md'), '---\ntype: epic\n---\n');
     writeFileSync(
       nodePath.join(parent, 'spec.md'),
-      '## Product Bet\n- **Project non-goals:** no tracker sync,\n  no bulk import\n- **Success threshold:** live\n## Jobs To Be Done\n### J1\n## Shape\n### M1\n- **Outcome:** first customer\n  completes the flow\n- **Non-goals:** none\n',
+      '## Product Bet\n- **Project non-goals:** excluded:\n  - tracker sync\n  - bulk import\n- **Success threshold:** live\n## Jobs To Be Done\n### J1\n## Shape\n### M1\n- **Outcome:** first customer\n  completes the flow\n- **Non-goals:** none\n',
     );
 
     const cli = resolveParentContract(project, 'EPIC01', 'J1', 'M1');
     const hook = resolveHookParentContract(project, 'EPIC01', 'J1', 'M1');
     expect(hook).toEqual(cli);
-    expect(cli.values.projectNonGoals).toBe('no tracker sync, no bulk import');
+    expect(cli.values.projectNonGoals).toBe('excluded: - tracker sync - bulk import');
     expect(cli.values.milestoneOutcome).toBe('first customer completes the flow');
+
+    const specPath = nodePath.join(parent, 'spec.md');
+    const before = cli.digest;
+    writeFileSync(
+      specPath,
+      readFileSync(specPath, 'utf8').replace('bulk import', 'account import'),
+    );
+    expect(resolveParentContract(project, 'EPIC01', 'J1', 'M1').digest).not.toBe(before);
   });
 
   it('prefers an exact ticket folder and rejects ids from the wrong Product Plan section', () => {
