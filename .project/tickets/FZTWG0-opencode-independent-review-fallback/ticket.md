@@ -4,6 +4,13 @@ slug: opencode-independent-review-fallback
 type: feature
 phase: done
 status: done
+phase_skips:
+  - "intake: intake, scope, and exclusions are preserved in this ticket and its timestamped work log; the ticket was first committed only after the delivery gates completed"
+  - "define-behavior: spec.md preserves the reviewed jobs, outcomes, and behavioral decisions"
+  - "scenario-gate: the approved executable feature and test-definitions ledger preserve scenario-gate evidence"
+  - "plan-implementation: impl-plan.md preserves the independently reviewed implementation plan"
+  - "implement: reachable implementation commits and the completed R/G/R ledger preserve implementation evidence"
+  - "verify: verify.md preserves the completed verification and audit evidence"
 phase_anchors:
   - "define-behavior: .project/tickets/FZTWG0-opencode-independent-review-fallback/spec.md"
   - "scenario-gate: packages/cli/features/opencode-independent-review-fallback.feature"
