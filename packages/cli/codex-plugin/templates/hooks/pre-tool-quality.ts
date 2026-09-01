@@ -596,6 +596,7 @@ function phaseTransitionContext(): {
   proposedType: string | undefined;
   priorHadParentReferences: boolean;
   proposedHasParentReferences: boolean;
+  priorParentContractActivated: boolean;
   priorContent: string;
   proposedContent: string;
 } {
@@ -610,29 +611,40 @@ function phaseTransitionContext(): {
     proposedHasParentReferences: ['parent', 'parent_job', 'milestone'].some(
       key => frontmatterScalar(context.proposedMeta, key) !== undefined,
     ),
+    priorParentContractActivated:
+      frontmatterScalar(context.priorMeta, 'product_plan_contract') === 'v1' ||
+      frontmatterScalar(context.priorMeta, 'parent_job') !== undefined ||
+      frontmatterScalar(context.priorMeta, 'parent_contract_digest') !== undefined,
     priorContent: context.priorContent,
     proposedContent: context.proposedContent,
   };
 }
 
-// A child may advance only while its selected parent contract still matches the
-// digest it explicitly accepted. Ordinary ticket edits do not pay this check.
+// A child may not shed its lineage in one edit and advance in a later edit.
+// Parent resolution remains a phase-boundary cost; activation loss is checked
+// on every existing canonical ticket edit because it is cheap and state-local.
 if (isCanonicalTicketEdit) {
   const {
     priorPhase,
     proposedPhase,
     priorHadParentReferences,
     proposedHasParentReferences,
+    priorParentContractActivated,
     priorContent,
     proposedContent,
   } = phaseTransitionContext();
-  if (proposedPhase !== priorPhase) {
-    if (priorHadParentReferences && !proposedHasParentReferences) {
-      deny(
-        'Parent Product Plan reconciliation required: parent references cannot be removed while advancing the ticket.',
-        'Preserve the child references, or make the re-parenting change separately before advancing.',
-      );
-    }
+  if (
+    existsSync(editedFile) &&
+    priorParentContractActivated &&
+    priorHadParentReferences &&
+    !proposedHasParentReferences
+  ) {
+    deny(
+      'Parent Product Plan reconciliation required: parent references cannot be removed from a contracted child.',
+      'Preserve the child references; converting a child to standalone work requires an explicit preservation-first migration.',
+    );
+  }
+  if (existsSync(editedFile) && proposedPhase !== priorPhase) {
     const verdict = evaluateParentContract(projectDirectory, proposedContent, priorContent);
     if (!verdict.ok) {
       deny(

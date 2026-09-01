@@ -77,6 +77,60 @@ describe('child Product Plan phase boundaries', () => {
     expect(result.stdout).toContain('parent references cannot be removed');
   });
 
+  it('blocks lineage removal before a later phase-advance edit', () => {
+    const prior = readFileSync(childTicket, 'utf8');
+    const content = prior
+      .replace('product_plan_contract: v1\n', '')
+      .replace('parent: EPIC01\n', '')
+      .replace('parent_job: parent.PLO1\n', '')
+      .replace('milestone: M1\n', '');
+    const result = spawnSync('bun', [preTool], {
+      input: JSON.stringify({
+        tool_name: 'Write',
+        tool_input: { file_path: childTicket, content },
+      }),
+      encoding: 'utf8',
+      env: { ...process.env, CLAUDE_PROJECT_DIR: project },
+    });
+    expect(result.stdout).toContain('parent references cannot be removed');
+  });
+
+  it('does not apply the contracted-child removal gate to legacy parent metadata', () => {
+    writeFileSync(
+      childTicket,
+      '---\nid: CHILD1\ntype: feature\nphase: intake\nstatus: in_progress\nparent: EPIC01\n---\n',
+    );
+    const content = readFileSync(childTicket, 'utf8')
+      .replace('phase: intake', 'phase: define-behavior')
+      .replace('parent: EPIC01\n', '');
+    const result = spawnSync('bun', [preTool], {
+      input: JSON.stringify({
+        tool_name: 'Write',
+        tool_input: { file_path: childTicket, content },
+      }),
+      encoding: 'utf8',
+      env: { ...process.env, CLAUDE_PROJECT_DIR: project },
+    });
+    expect(result.stdout).not.toContain('Parent Product Plan reconciliation required');
+  });
+
+  it('does not reconcile a child ticket before its file exists', () => {
+    rmSync(childTicket);
+    const result = spawnSync('bun', [preTool], {
+      input: JSON.stringify({
+        tool_name: 'Write',
+        tool_input: {
+          file_path: childTicket,
+          content:
+            '---\nid: CHILD1\ntype: feature\nphase: intake\nstatus: in_progress\nproduct_plan_contract: v1\nparent: EPIC01\nparent_job: parent.PLO1\nmilestone: M1\n---\n',
+        },
+      }),
+      encoding: 'utf8',
+      env: { ...process.env, CLAUDE_PROJECT_DIR: project },
+    });
+    expect(result.stdout).not.toContain('Parent Product Plan reconciliation required');
+  });
+
   it('blocks a phase change that removes activation while leaving partial references', () => {
     const prior = readFileSync(childTicket, 'utf8');
     const content = prior
