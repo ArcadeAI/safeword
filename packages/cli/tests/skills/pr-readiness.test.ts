@@ -83,7 +83,7 @@ describe('reviewer-as-customer PR readiness (#3579)', () => {
   it('writes for the reviewer without manufacturing evidence or stack scope', () => {
     const skill = readRepoFile(canonicalPath);
     for (const field of [
-      'Job to be done',
+      '**Why:**',
       'What changed',
       'Verification',
       'Risks and review focus',
