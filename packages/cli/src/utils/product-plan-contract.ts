@@ -19,6 +19,14 @@ export interface ResolvedParentContract {
   digest: string;
 }
 
+const CONTRACT_KEYS: readonly (keyof ParentContractValues)[] = [
+  'parentJob',
+  'milestoneOutcome',
+  'milestoneNonGoals',
+  'projectNonGoals',
+  'successThreshold',
+];
+
 function sectionAfterHeading(content: string, level: number, id: string): string | undefined {
   const prefix = '#'.repeat(level);
   const lines = content.split(/\r?\n/);
@@ -59,10 +67,7 @@ export function canonicalizeContractValue(value: string): string {
 }
 
 export function digestParentContract(values: ParentContractValues): string {
-  const canonical = Object.entries(values).map(([key, value]) => [
-    key,
-    canonicalizeContractValue(value),
-  ]);
+  const canonical = CONTRACT_KEYS.map(key => [key, canonicalizeContractValue(values[key])]);
   return createHash('sha256').update(JSON.stringify(canonical)).digest('hex');
 }
 

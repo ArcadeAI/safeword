@@ -59,6 +59,22 @@ describe('child Product Plan phase boundaries', () => {
     expect(result.stdout).toContain('ticket reconcile-parent');
   });
 
+  it('blocks a phase change that removes the child lineage in the same edit', () => {
+    const result = spawnSync('bun', [preTool], {
+      input: JSON.stringify({
+        tool_name: 'Write',
+        tool_input: {
+          file_path: childTicket,
+          content:
+            '---\nid: CHILD1\ntype: feature\nphase: define-behavior\nstatus: in_progress\nproduct_plan_contract: v1\nscope: local\nout_of_scope: none\ndone_when: works\n---\n',
+        },
+      }),
+      encoding: 'utf8',
+      env: { ...process.env, CLAUDE_PROJECT_DIR: project },
+    });
+    expect(result.stdout).toContain('parent references cannot be removed');
+  });
+
   it('blocks completion when the parent digest is missing', () => {
     writeFileSync(childTicket, readDoneTicket());
     const transcript = nodePath.join(project, 'transcript.jsonl');

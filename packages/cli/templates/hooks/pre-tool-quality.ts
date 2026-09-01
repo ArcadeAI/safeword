@@ -594,6 +594,8 @@ function phaseTransitionContext(): {
   priorPhase: string | undefined;
   proposedPhase: string | undefined;
   proposedType: string | undefined;
+  priorHadParentReferences: boolean;
+  proposedHasParentReferences: boolean;
   proposedContent: string;
 } {
   const context = canonicalTicketEditContext();
@@ -601,6 +603,12 @@ function phaseTransitionContext(): {
     priorPhase: frontmatterScalar(context.priorMeta, 'phase'),
     proposedPhase: frontmatterScalar(context.proposedMeta, 'phase'),
     proposedType: frontmatterScalar(context.proposedMeta, 'type'),
+    priorHadParentReferences: ['parent', 'parent_job', 'milestone'].some(
+      key => frontmatterScalar(context.priorMeta, key) !== undefined,
+    ),
+    proposedHasParentReferences: ['parent', 'parent_job', 'milestone'].some(
+      key => frontmatterScalar(context.proposedMeta, key) !== undefined,
+    ),
     proposedContent: context.proposedContent,
   };
 }
@@ -608,8 +616,20 @@ function phaseTransitionContext(): {
 // A child may advance only while its selected parent contract still matches the
 // digest it explicitly accepted. Ordinary ticket edits do not pay this check.
 if (isCanonicalTicketEdit) {
-  const { priorPhase, proposedPhase, proposedContent } = phaseTransitionContext();
+  const {
+    priorPhase,
+    proposedPhase,
+    priorHadParentReferences,
+    proposedHasParentReferences,
+    proposedContent,
+  } = phaseTransitionContext();
   if (proposedPhase !== priorPhase) {
+    if (priorHadParentReferences && !proposedHasParentReferences) {
+      deny(
+        'Parent Product Plan reconciliation required: parent references cannot be removed while advancing the ticket.',
+        'Preserve the child references, or make the re-parenting change separately before advancing.',
+      );
+    }
     const verdict = evaluateParentContract(projectDirectory, proposedContent);
     if (!verdict.ok) {
       deny(

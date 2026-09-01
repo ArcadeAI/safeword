@@ -13,6 +13,19 @@ interface ParentContractValues {
   successThreshold: string;
 }
 
+export interface ResolvedHookParentContract {
+  values: ParentContractValues;
+  digest: string;
+}
+
+const CONTRACT_KEYS: readonly (keyof ParentContractValues)[] = [
+  'parentJob',
+  'milestoneOutcome',
+  'milestoneNonGoals',
+  'projectNonGoals',
+  'successThreshold',
+];
+
 export interface ParentContractVerdict {
   ok: boolean;
   reason?: string;
@@ -65,28 +78,26 @@ export function canonicalizeParentContractValue(value: string): string {
 }
 
 export function parentContractDigest(values: ParentContractValues): string {
-  const canonical = Object.entries(values).map(([key, value]) => [
-    key,
-    canonicalizeParentContractValue(value),
-  ]);
+  const canonical = CONTRACT_KEYS.map(key => [key, canonicalizeParentContractValue(values[key])]);
   return createHash('sha256').update(JSON.stringify(canonical)).digest('hex');
 }
 
 function ticketDirectory(projectDirectory: string, id: string): string | undefined {
   const root = nodePath.join(resolveNamespaceRoot(projectDirectory), 'tickets');
   if (!existsSync(root)) return undefined;
-  const matches = readdirSync(root, { withFileTypes: true }).filter(
-    entry => entry.isDirectory() && (entry.name === id || entry.name.startsWith(`${id}-`)),
-  );
-  return matches.length === 1 ? nodePath.join(root, matches[0]!.name) : undefined;
+  const names = readdirSync(root, { withFileTypes: true })
+    .filter(entry => entry.isDirectory())
+    .map(entry => entry.name);
+  const match = names.find(name => name === id) ?? names.find(name => name.startsWith(`${id}-`));
+  return match ? nodePath.join(root, match) : undefined;
 }
 
-function resolveDigest(
+export function resolveHookParentContract(
   projectDirectory: string,
   parent: string,
   parentJob: string,
   milestoneId: string,
-): string {
+): ResolvedHookParentContract {
   const directory = ticketDirectory(projectDirectory, parent);
   if (!directory) throw new Error(`parent ticket "${parent}" does not resolve`);
   const ticket = readFileSync(nodePath.join(directory, 'ticket.md'), 'utf8');
@@ -108,7 +119,7 @@ function resolveDigest(
   const missing = Object.entries(values).filter(([, value]) => value.trim() === '');
   if (missing.length > 0)
     throw new Error(`parent contract is missing ${missing.map(([key]) => key).join(', ')}`);
-  return parentContractDigest(values);
+  return { values, digest: parentContractDigest(values) };
 }
 
 export function evaluateParentContract(
@@ -120,22 +131,27 @@ export function evaluateParentContract(
   const parentJob = scalar(meta, 'parent_job');
   const milestone = scalar(meta, 'milestone');
   const persisted = scalar(meta, 'parent_contract_digest');
-  const activated =
-    marker === 'v1' ||
-    parentJob !== undefined ||
-    milestone !== undefined ||
-    persisted !== undefined;
+  const activated = marker === 'v1' || parentJob !== undefined || persisted !== undefined;
   if (!activated) return { ok: true };
 
   const parent = scalar(meta, 'parent');
   const references = [parent, parentJob, milestone];
-  if (references.every(value => value === undefined)) return { ok: true };
+  if (references.every(value => value === undefined)) {
+    return persisted === undefined
+      ? { ok: true }
+      : { ok: false, reason: 'parent references were removed without clearing reconciliation' };
+  }
   if (references.some(value => value === undefined)) {
     return { ok: false, reason: 'parent, parent_job, and milestone must be declared together' };
   }
 
   try {
-    const current = resolveDigest(projectDirectory, parent!, parentJob!, milestone!);
+    const current = resolveHookParentContract(
+      projectDirectory,
+      parent!,
+      parentJob!,
+      milestone!,
+    ).digest;
     if (persisted === current) return { ok: true };
     return {
       ok: false,
