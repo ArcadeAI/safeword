@@ -21,6 +21,9 @@ recreate session-local author comprehension, end-user execution, or self-review.
 If that decision is absent, stale, or blocked, report the recovery action and stop.
 Closeout never changes Draft/Ready state. Unanswered or unresolved review work
 remains a blocker even when CI is green.
+This requirement applies before merge. When fresh observation proves the exact
+pull request head is already merged, resume the unfinished post-merge suffix in
+§3–6 without requiring a new readiness decision.
 A non-empty hosted check rollup whose checks are all terminal and green is
 authoritative exact-head verification. When CI is absent, incomplete, failing,
 or unobservable, run `$safeword:verify` for the current pull request head instead. Require

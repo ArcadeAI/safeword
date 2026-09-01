@@ -34,7 +34,8 @@ Single-loop tickets, patches, and no-ticket reviews may continue the same way â€
 ### Pull-request boundary
 
 When the work-product is a pull request or this review will be used to promote
-one, apply `/pr-readiness` after the review loop. This review supplies the AI
+one, resume the same `/pr-readiness` run after the review loop; do not start a
+second readiness run. This review supplies the AI
 review gate only: every finding must be applied or answered, and the other six
 current-head gates still decide whether the PR remains Draft. Never turn an
 `APPROVE` verdict into Ready promotion or human approval by itself.

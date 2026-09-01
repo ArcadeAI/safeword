@@ -30,6 +30,12 @@ describe('reviewer-as-customer PR readiness (#3579)', () => {
     expect(readRepoFile('.cursor/commands/pr-readiness.md')).toContain(
       'Read and follow the instructions in .safeword/skills/pr-readiness/SKILL.md',
     );
+    expect(readRepoFile('packages/cli/templates/commands/pr-readiness.md')).toContain(
+      '.safeword/skills/pr-readiness/SKILL.md',
+    );
+    expect(readRepoFile('packages/cli/templates/cursor/rules/safeword-pr-readiness.mdc')).toContain(
+      '@.safeword/skills/pr-readiness/SKILL.md',
+    );
     expect(SAFEWORD_SCHEMA.ownedFiles['.opencode/commands/pr-readiness.md']).toBeDefined();
     expect(readRepoFile('packages/cli/codex-plugin/skills/pr-readiness/SKILL.md')).toContain(
       'name: pr-readiness',
@@ -39,6 +45,10 @@ describe('reviewer-as-customer PR readiness (#3579)', () => {
   it('keeps all seven non-negotiables as Ready-for-Review blockers', () => {
     const skill = readRepoFile(canonicalPath);
     const normalized = skill.toLowerCase();
+    const gates =
+      /## Seven hard Ready-for-Review gates(?<body>[\s\S]*?)## Write for the reviewer/.exec(skill)
+        ?.groups?.body;
+    expect(gates).toBeDefined();
     for (const requirement of [
       'ticket linkage',
       'understand every change',
@@ -48,8 +58,9 @@ describe('reviewer-as-customer PR readiness (#3579)', () => {
       'fresh self-review',
       'mergeable after approval',
     ]) {
-      expect(normalized).toContain(requirement.toLowerCase());
+      expect(gates?.toLowerCase()).toContain(requirement.toLowerCase());
     }
+    expect(gates?.match(/^\d\. \*\*/gm)).toHaveLength(7);
     expect(normalized).toContain('top-to-bottom');
     expect(normalized).toContain('recommend draft');
     expect(normalized).toContain('hard blocker');
@@ -57,7 +68,9 @@ describe('reviewer-as-customer PR readiness (#3579)', () => {
     expect(skill).toContain('gh pr ready --undo');
     expect(skill).toContain('explicitly authorizes that exact state change');
     expect(skill).toContain('Never invent a');
-    expect(skill).toMatch(/consume its result as gate 5\s+evidence/);
+    expect(skill).toContain('require unsatisfied');
+    expect(skill).toContain('independence: none');
+    expect(skill).toContain('resume this same readiness run');
   });
 
   it('writes for the reviewer without manufacturing evidence or stack scope', () => {
@@ -93,7 +106,7 @@ describe('reviewer-as-customer PR readiness (#3579)', () => {
     [
       'finish review',
       'packages/cli/templates/skills/finish-review/SKILL.md',
-      'never authorizes Ready promotion',
+      'never authorizes Ready',
     ],
     [
       'closeout',

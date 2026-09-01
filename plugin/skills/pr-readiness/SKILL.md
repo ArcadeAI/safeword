@@ -52,9 +52,12 @@ Do not promote while any gate is incomplete. Name each blocker and the exact
 recovery action. Never reinterpret “unit tests pass” as end-user verification or
 pending CI as green.
 
-When `/quality-review` or `/finish-review` returns, consume its result as gate 5
-evidence. Do not re-enter the AI review loop unless a later material change makes
-that evidence stale.
+When `/quality-review` or `/finish-review` returns, resume this same readiness run
+and evaluate its result as gate 5 evidence. A result carrying `require unsatisfied`
+or `independence: none` is contradicted evidence and blocks gate 5. Degraded
+independence passes only when the configured review policy permits it, and must
+be disclosed. Do not re-enter the AI review loop unless a later material change
+makes its evidence stale.
 
 ## Write for the reviewer
 

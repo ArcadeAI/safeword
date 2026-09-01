@@ -76,8 +76,9 @@ route below it and no retry.
 
 When this supplemental result will count toward a pull request's AI-review
 evidence, return to `$safeword:pr-readiness` after reporting it. Apply or answer every
-finding there; this fallback never satisfies the other current-head gates and
-never authorizes Ready promotion.
+finding there. Under a `require` policy, an unsatisfied result satisfies no
+readiness gate, including AI review. This fallback never authorizes Ready
+promotion.
 
 Lead with the assurance before findings.
 
