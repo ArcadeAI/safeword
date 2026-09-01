@@ -45,12 +45,11 @@ Primary proof is CLI integration because the value crosses command parsing, file
 
 | Principle | Consequence | Proof | Conflict |
 | --- | --- | --- | --- |
-| Optimize NTB experience without constraining TBU control | Defaults create the right plan shape while explicit references and reconciliation remain scriptable | `packages/cli/tests/commands/ticket-new.test.ts` and `packages/cli/tests/cli-protocol/cli-contract.test.ts` | |
-| Structure enforces, agents guide | CLI validates identity and phase invariants; skills guide judgment-heavy drafting | `packages/cli/tests/hooks/pre-tool-quality.test.ts` and stop-quality tests reject stale/dangling contracts and permit persisted reconciliation | |
-| Fire at boundaries, not continuously | Parent drift is checked only when a child advances or the stop hook completes it | pre-tool tests prove ordinary edits remain allowed; stop-quality tests prove stale children cannot reach done or cascade | |
-| Add, never replace | Demand research uses the existing managed skill/schema path; legacy specs remain readable | `packages/cli/tests/schema.test.ts`, host-parity tests, and a legacy doctor fixture | |
-| Correct, safe, clear, then simple | Validation happens before ticket creation; one plan and one compact fingerprint are the smallest safe model | `packages/cli/tests/commands/ticket-new.test.ts` proves invalid references leave no folder | |
-| Product-framing scenario lineage | Delta-only child Rules combine the parent-job prefix with immutable child ID so doctor resolves coverage without copied JTBD prose or sibling collisions | `packages/cli/tests/commands/doctor.test.ts` epic/two-child fixture proves each sibling's scenario covers only its own same-numbered Rule | |
+| Optimize for the NTB without constraining the TBU | Defaults create the right plan shape while explicit references and reconciliation remain scriptable | `packages/cli/tests/commands/ticket-new.test.ts` | |
+| 1. Structure enforces; instructions suggest | CLI validates resolvable parent references and persisted phase invariants; skills guide judgment-heavy drafting | `packages/cli/tests/integration/product-plan-parent-gate.test.ts` | |
+| 2. Fire at boundaries, not every turn | Parent drift is checked only when a child advances or the stop hook completes it | `packages/cli/tests/integration/product-plan-parent-gate.test.ts` | |
+| 3. Add, never replace | Demand research uses the existing managed skill/schema path; legacy specs remain readable | `packages/cli/tests/skills/demand-research-contract.test.ts` | |
+| 5. Correct and safe; then clear; then simple | Validation happens before ticket creation; one plan and one compact fingerprint are the smallest safe model | `packages/cli/tests/commands/ticket-new.test.ts` | |
 
 The design preserves schema-as-source-of-truth, reconciliation-over-copy, and agent parity from `ARCHITECTURE.md` and `AGENTS.md`.
 
