@@ -27,7 +27,7 @@ work remains a blocker even when CI is green.
 This requirement applies before merge. When fresh observation proves the exact
 pull request head is already merged, resume the unfinished post-merge suffix in
 §3–6 without requiring a new readiness decision.
-A non-empty hosted check rollup whose checks are all terminal and green is
+A non-empty hosted check rollup whose required checks all conclude `success` is
 authoritative exact-head verification. When CI is absent, incomplete, failing,
 or unobservable, run `/verify` for the current pull request head instead. Require
 all of these before any merge:

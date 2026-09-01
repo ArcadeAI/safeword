@@ -42,7 +42,8 @@ Draft and give the recovery action.
    exists, record `not applicable`, why, and the nearest real delivery boundary.
    Never invent a walkthrough.
 4. **Checks:** relevant local checks and CI are terminal and green for the current
-   head.
+   head. If the repository has no CI, record that and use current-head `$safeword:verify`
+   evidence instead.
 5. **AI review:** complete the configured AI review and apply every finding or
    answer it with a reason. Configured policy decides acceptable independence;
    `require unsatisfied` blocks. AI review is evidence, never approval.
@@ -66,7 +67,8 @@ Build the body from the ticket and diff. Keep only applicable sections and write
 - **Verification:** commands, end-user steps, results, and yellow coverage gaps.
 - **Risks and review focus:** blast radius, rollback, open questions, and where
   human judgment is wanted.
-- **Readiness evidence:** use this exact durable handoff shape:
+- **Readiness evidence:** use this exact durable handoff shape. Use `PASS` only
+  for complete gates and `BLOCKED` with the recovery action for all others:
 
   ```text
   Head: <full current head SHA>
@@ -94,7 +96,8 @@ End with exactly one outcome:
   authorized Ready promotion.
 - `GATES PASS — awaiting explicit Ready authorization` when all seven gates pass,
   the pull request is Draft, and the current request did not authorize promotion.
-- `DRAFT — <blockers>` when one or more gates are blocked.
+- `DRAFT — <blockers>` when one or more gates are blocked; this recommends state
+  and does not authorize demotion.
 
 Do not run `gh pr ready` or `gh pr ready --undo` unless the current user request
 explicitly authorizes that exact state change.

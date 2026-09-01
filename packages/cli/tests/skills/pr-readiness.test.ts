@@ -44,9 +44,12 @@ describe('reviewer-as-customer PR readiness (#3579)', () => {
       '@.safeword/skills/pr-readiness/SKILL.md',
     );
     expect(SAFEWORD_SCHEMA.ownedFiles['.opencode/commands/pr-readiness.md']).toBeDefined();
-    expect(
-      workflowBody(readRepoFile('packages/cli/codex-plugin/skills/pr-readiness/SKILL.md')),
-    ).toBe(workflowBody(readRepoFile(canonicalPath)));
+    const codexSkill = readRepoFile('packages/cli/codex-plugin/skills/pr-readiness/SKILL.md');
+    expect(codexSkill).toContain('name: pr-readiness');
+    expect(codexSkill.replaceAll(/\s+/g, ' ')).toContain(
+      'description: Prepare a pull request for human review and decide whether it may leave Draft.',
+    );
+    expect(workflowBody(codexSkill)).toBe(workflowBody(readRepoFile(canonicalPath)));
   });
 
   it('keeps all seven non-negotiables as Ready-for-Review blockers', () => {
@@ -92,6 +95,7 @@ describe('reviewer-as-customer PR readiness (#3579)', () => {
       expect(skill).toContain(field);
     }
     expect(skill).toContain('Never manufacture verification');
+    expect(skill).toContain('`BLOCKED` with the recovery action');
     expect(skill).toContain('direct dependency');
     expect(skill).toContain('cumulative stack changes');
     expect(skill).toContain('Head: <full current head SHA>');
@@ -120,5 +124,13 @@ describe('reviewer-as-customer PR readiness (#3579)', () => {
     ['closeout', 'packages/cli/templates/skills/closeout/SKILL.md', 'require `Head:`'],
   ])('%s routes its PR boundary through the readiness workflow', (_label, path, binding) => {
     expect(readRepoFile(path)).toContain(binding);
+  });
+
+  it('makes closeout require every current-head gate and unresolved review to pass', () => {
+    const closeout = readRepoFile('packages/cli/templates/skills/closeout/SKILL.md');
+    const normalized = closeout.replaceAll(/\s+/g, ' ');
+    expect(normalized).toContain('numbered entries `1` through `7` to say `PASS:`');
+    expect(normalized).toContain('Unanswered or unresolved review work remains a blocker');
+    expect(normalized).toContain('required checks all conclude `success`');
   });
 });
