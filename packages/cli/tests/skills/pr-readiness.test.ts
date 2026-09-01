@@ -20,23 +20,35 @@ describe('reviewer-as-customer PR readiness (#3579)', () => {
     expect(SAFEWORD_SCHEMA.ownedFiles['.safeword/skills/pr-readiness/SKILL.md']).toEqual({
       template: 'skills/pr-readiness/SKILL.md',
     });
+    expect(readRepoFile('.claude/skills/pr-readiness/SKILL.md')).toBe(readRepoFile(canonicalPath));
+    expect(readRepoFile('.safeword/skills/pr-readiness/SKILL.md')).toBe(
+      readRepoFile(canonicalPath),
+    );
+    expect(readRepoFile('.cursor/rules/safeword-pr-readiness.mdc')).toContain(
+      '@.safeword/skills/pr-readiness/SKILL.md',
+    );
+    expect(readRepoFile('packages/cli/codex-plugin/skills/pr-readiness/SKILL.md')).toContain(
+      'name: pr-readiness',
+    );
   });
 
   it('keeps all seven non-negotiables as Ready-for-Review blockers', () => {
     const skill = readRepoFile(canonicalPath);
+    const normalized = skill.toLowerCase();
     for (const requirement of [
       'ticket linkage',
       'understand every change',
       'end-user path',
       'local checks and CI',
       'AI review',
-      'top-to-bottom self-review',
-      'immediately mergeable after approval',
+      'fresh self-review',
+      'mergeable after approval',
     ]) {
-      expect(skill).toContain(requirement);
+      expect(normalized).toContain(requirement.toLowerCase());
     }
-    expect(skill).toContain('remain Draft');
-    expect(skill).toContain('hard blocker');
+    expect(normalized).toContain('top-to-bottom');
+    expect(normalized).toContain('keep the pull request draft');
+    expect(normalized).toContain('hard blocker');
   });
 
   it('writes for the reviewer without manufacturing evidence or stack scope', () => {

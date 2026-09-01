@@ -2182,7 +2182,6 @@ var init_cursor_wrappers = __esm(() => {
   CURSOR_ACTION_SKILLS = [
     "lint",
     "verify",
-    "pr-readiness",
     "closeout",
     "audit",
     "explain",
