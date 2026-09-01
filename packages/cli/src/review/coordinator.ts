@@ -13,10 +13,10 @@ import type {
 } from './contract.js';
 import { prepareReviewPacket } from './packet.js';
 import {
-  oppositeReviewPair,
   readAlternateReviewerModel,
   readPrimaryReviewerModel,
   readReviewPolicy,
+  reviewRoutePlan,
 } from './policy.js';
 import { minimumRouteMs, ReviewRuntimeError, runBoundMs, runHeadlessReviewer } from './runtime.js';
 
@@ -743,6 +743,61 @@ async function runAlternateModelRoute(
   return { kind: 'completed', result };
 }
 
+async function runIndependentFallback(
+  input: ReviewRunInput & {
+    readonly author: ReviewAgent;
+    readonly reviewer: ReviewAgent;
+    readonly preferredReviewer: ReviewAgent;
+    readonly preferredModel?: string;
+    readonly preferredFailure: ReviewFailure;
+    readonly runDeadline: number;
+  },
+): Promise<
+  | { readonly kind: 'completed'; readonly result: CliResult }
+  | { readonly kind: 'failed'; readonly failure: ReviewFailure; readonly terminal: boolean }
+  | { readonly kind: 'skipped' }
+> {
+  if (!canFundRoute(input.runDeadline)) return { kind: 'skipped' };
+  input.progress?.start(
+    `${agentName(input.preferredReviewer)} did not complete; trying an independent ${agentName(input.reviewer)} review…`,
+  );
+  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets, input.context);
+  input.progress?.heartbeat?.(`Still waiting for a response from ${agentName(input.reviewer)}…`);
+  const { outcome, sourceChanged, snapshotChanged } = await executeReview(
+    input.reviewer,
+    prepared,
+    undefined,
+    input.runDeadline,
+  );
+  const changedResult = changedReviewResult({
+    author: input.author,
+    reviewer: input.reviewer,
+    policy: readReviewPolicy(input.cwd),
+    kind: input.kind,
+    targets: input.targets,
+    context: input.context,
+    sourceChanged,
+    snapshotChanged,
+    network:
+      outcome.kind === 'failed'
+        ? networkEffectsForFailure(input.reviewer, outcome.failure)
+        : [reviewRequest(input.reviewer)],
+  });
+  if (changedResult !== undefined) return { kind: 'completed', result: changedResult };
+  const assessment = assessFallback(outcome, input.reviewer, prepared.packet.dispatch_id);
+  if (assessment.kind === 'failed') return assessment;
+  return {
+    kind: 'completed',
+    result: independentReviewResult({
+      author: input.author,
+      reviewer: input.reviewer,
+      output: assessment.output,
+      preferredModel: input.preferredModel,
+      preferredFailure: input.preferredFailure,
+    }),
+  };
+}
+
 /**
  * Everything after the assigned reviewer failed: the alternate model, then the
  * author's own runtime, each only while the run bound can still fund it.
@@ -753,31 +808,41 @@ async function runRemainingRoutes(
     readonly assignedReviewer: ReviewAgent;
     readonly preferredModel?: string;
     readonly preferredFailure: ReviewFailure;
+    readonly preferredTerminal?: boolean;
+    readonly independentFallback: ReviewAgent;
     readonly policy: ReviewPolicy;
     readonly runDeadline: number;
   },
 ): Promise<CliResult> {
-  const alternate = await runAlternateModelRoute({
-    cwd: input.cwd,
-    kind: input.kind,
-    targets: input.targets,
-    context: input.context,
-    progress: input.progress,
-    author: input.author,
-    reviewer: input.assignedReviewer,
-    preferredModel: input.preferredModel,
-    preferredFailure: input.preferredFailure,
-    policy: input.policy,
-    runDeadline: input.runDeadline,
-  });
+  const alternate = input.preferredTerminal
+    ? ({ kind: 'skipped' } as const)
+    : await runAlternateModelRoute({
+        cwd: input.cwd,
+        kind: input.kind,
+        targets: input.targets,
+        context: input.context,
+        progress: input.progress,
+        author: input.author,
+        reviewer: input.assignedReviewer,
+        preferredModel: input.preferredModel,
+        preferredFailure: input.preferredFailure,
+        policy: input.policy,
+        runDeadline: input.runDeadline,
+      });
   if (alternate.kind === 'completed') return alternate.result;
   // An attempted-and-failed alternate model is part of the story; a skipped one
   // never happened and must not be reported as a route that failed.
   const alternateFailure = alternate.kind === 'failed' ? alternate.failure : undefined;
   const alternateModel = alternate.kind === 'failed' ? alternate.model : undefined;
-  if (alternate.kind === 'failed' && alternate.terminal) {
+  if (!canFundRoute(input.runDeadline)) {
     return exhaustedRunResult({ ...input, alternateFailure, alternateModel });
   }
+  const independent = await runIndependentFallback({
+    ...input,
+    reviewer: input.independentFallback,
+    preferredReviewer: input.assignedReviewer,
+  });
+  if (independent.kind === 'completed') return independent.result;
   if (!canFundRoute(input.runDeadline)) {
     return exhaustedRunResult({ ...input, alternateFailure, alternateModel });
   }
@@ -870,8 +935,8 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
       },
     });
   }
-  const pair = oppositeReviewPair(author);
-  if (pair === undefined) {
+  const routes = reviewRoutePlan(author);
+  if (routes === undefined) {
     return unsupportedAuthorResult({
       author,
       policy,
@@ -880,7 +945,7 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
       context: input.context,
     });
   }
-  const { reviewer } = pair;
+  const reviewer = routes.preferred;
   const primaryModel = readPrimaryReviewerModel(input.cwd, reviewer);
 
   // One bound for reviewer work across the whole run. Initial packet sealing is
@@ -894,7 +959,7 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
     dispatchId,
   } = await executePrimaryReview(input, reviewer, primaryModel, runDeadline);
   const changedResult = changedReviewResult({
-    author: pair.author,
+    author: routes.author,
     reviewer,
     policy,
     kind: input.kind,
@@ -909,25 +974,17 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
   });
   if (changedResult !== undefined) return changedResult;
   if (outcome.kind === 'failed') {
-    if (outcome.terminal) {
-      return exhaustedRunResult({
-        ...input,
-        author: pair.author,
-        assignedReviewer: reviewer,
-        preferredModel: completedModel,
-        preferredFailure: outcome.failure,
-        policy,
-      });
-    }
     // Before settling for the author reviewing its own work, give the reviewer
     // agent one more attempt on a configured alternate model. It is still not
     // the author, so a completed review there is fully independent.
     return runRemainingRoutes({
       ...input,
-      author: pair.author,
+      author: routes.author,
       assignedReviewer: reviewer,
+      independentFallback: routes.independentFallback,
       preferredModel: completedModel,
       preferredFailure: outcome.failure,
+      preferredTerminal: outcome.terminal,
       policy,
       runDeadline,
     });
@@ -939,8 +996,9 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
     // opportunity they receive after parse- or schema-invalid output.
     return runRemainingRoutes({
       ...input,
-      author: pair.author,
+      author: routes.author,
       assignedReviewer: reviewer,
+      independentFallback: routes.independentFallback,
       preferredModel: completedModel,
       preferredFailure: provenance.code,
       policy,
@@ -949,5 +1007,10 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
   }
   const output = provenance.output;
 
-  return independentReviewResult({ author: pair.author, reviewer, output, model: completedModel });
+  return independentReviewResult({
+    author: routes.author,
+    reviewer,
+    output,
+    model: completedModel,
+  });
 }
