@@ -1067,6 +1067,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/templates/spec-template.md': {
       template: 'spec-template.md',
     },
+    '.safeword/templates/child-spec-template.md': {
+      template: 'child-spec-template.md',
+    },
 
     // Prompts
     '.safeword/prompts/architecture.md': {

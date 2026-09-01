@@ -288,3 +288,14 @@ export async function ticketNewHandler(invocation: CommandInvocation): Promise<C
   const { createTicketResult } = await import('../commands/ticket-new.js');
   return createTicketResult(String(invocation.operands[0]), invocation.options, invocation.cwd);
 }
+
+export async function ticketReconcileParentHandler(
+  invocation: CommandInvocation,
+): Promise<CliResult> {
+  const { reconcileParentResult } = await import('../commands/ticket-reconcile-parent.js');
+  return reconcileParentResult(
+    String(invocation.operands[0]),
+    { accept: invocation.options.accept === true },
+    invocation.cwd,
+  );
+}
