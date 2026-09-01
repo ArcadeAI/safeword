@@ -324,6 +324,17 @@ exit ${status}`,
     expect(content, relativePath).toContain('bun .safeword/hooks/run-review.ts');
   });
 
+  it.each(['skills/bdd/PLAN_IMPLEMENTATION.md', 'skills/bdd/TDD.md'])(
+    '%s reviews only impl-plan.md as plan work',
+    relativePath => {
+      const command = readTemplate(relativePath)
+        .split('\n')
+        .find(line => line.includes('run-review.ts review run plan-implementation'));
+
+      expect(command, relativePath).toMatch(/ --context .+ -- impl-plan\.md$/u);
+    },
+  );
+
   it.each([
     'skills/quality-review/SKILL.md',
     'skills/review-spec/SKILL.md',
