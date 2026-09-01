@@ -25,9 +25,7 @@ const BDD_GUIDANCE_PATHS = [
 ];
 const FEATURE_SPEC_TEMPLATE_PATHS = [
   'packages/cli/templates/spec-template.md',
-  'packages/cli/templates/doc-templates/feature-spec-template.md',
   '.safeword/templates/spec-template.md',
-  '.safeword/templates/feature-spec-template.md',
 ];
 
 function createCustomerProject(prefix: string): string {

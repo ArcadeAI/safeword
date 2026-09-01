@@ -67,6 +67,8 @@ function newTicket(world: SafewordWorld, args: string[]): Promise<void> {
 function childArguments(world: SafewordWorld, slug: string, parentSlug: string): string[] {
   return [
     slug,
+    '--type',
+    'feature',
     '--parent',
     idBySlug(world, parentSlug),
     '--parent-job',
