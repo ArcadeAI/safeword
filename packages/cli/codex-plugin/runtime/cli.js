@@ -47646,9 +47646,16 @@ function reviewerEnvironment(reviewer, source = process.env, platform = process.
   const environment = filteredEnvironment(reviewer, source, platform);
   if (reviewer !== "opencode")
     return environment;
+  let inlineConfig = {};
+  try {
+    const parsed2 = JSON.parse(environment.OPENCODE_CONFIG_CONTENT ?? "{}");
+    if (parsed2 !== null && typeof parsed2 === "object" && !Array.isArray(parsed2)) {
+      inlineConfig = parsed2;
+    }
+  } catch {}
   return {
     ...environment,
-    OPENCODE_PERMISSION: JSON.stringify({ "*": "deny" }),
+    OPENCODE_CONFIG_CONTENT: JSON.stringify({ ...inlineConfig, permission: { "*": "deny" } }),
     OPENCODE_DISABLE_AUTOUPDATE: "true",
     OPENCODE_DISABLE_DEFAULT_PLUGINS: "true",
     OPENCODE_DISABLE_LSP_DOWNLOAD: "true"
@@ -47736,6 +47743,7 @@ var init_environment = __esm(() => {
     "SAFEWORD_REVIEW_FAKE_FAILURE_AGENT",
     "SAFEWORD_REVIEW_FAKE_FAILURE_CLAUDE",
     "SAFEWORD_REVIEW_FAKE_FAILURE_CODEX",
+    "SAFEWORD_REVIEW_FAKE_FAILURE_OPENCODE",
     "SAFEWORD_REVIEW_FAKE_FAIL_PATH_CONTAINS",
     "SAFEWORD_REVIEW_FAKE_FINDING",
     "SAFEWORD_REVIEW_FAKE_HELP_FAILURE",
