@@ -17,9 +17,9 @@ workflow into “merge succeeded, so we are done.”
 
 Observe the pull request directly with structured `gh pr view --json` output,
 including `body` and `headRefOid`. A Ready label is not readiness evidence by
-itself. Read the PR body's **Readiness evidence** section and require its recorded
-head SHA to equal `headRefOid` and all seven gates to carry concrete passing
-evidence. This is the durable `/pr-readiness` handoff; closeout does not recreate
+itself. Read the PR body's **Readiness evidence** section and require `Head:` to
+equal `headRefOid` and numbered entries `1` through `7` to say `PASS:` with
+concrete evidence. This is the durable `/pr-readiness` handoff; closeout does not recreate
 session-local author comprehension, end-user execution, or self-review. If the
 section is absent, stale, incomplete, or blocked, report the recovery action and
 stop. Closeout never changes Draft/Ready state. Unanswered or unresolved review

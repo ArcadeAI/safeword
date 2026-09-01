@@ -69,14 +69,14 @@ describe('reviewer-as-customer PR readiness (#3579)', () => {
     }
     expect(gates?.match(/^\d\. \*\*/gm)).toHaveLength(7);
     expect(normalized).toContain('top-to-bottom');
-    expect(normalized).toContain('recommend draft');
+    expect(normalized).toMatch(/recommend\s+draft/);
     expect(normalized).toContain('hard blocker');
     expect(skill).toContain('GATES PASS — awaiting explicit Ready authorization');
     expect(skill).toContain('gh pr ready --undo');
     expect(skill).toContain('explicitly authorizes that exact state change');
     expect(skill).toContain('Never invent a');
     expect(skill).toContain('require unsatisfied');
-    expect(skill).toContain('Independence: none');
+    expect(skill).toContain('Disclose degraded or absent independence');
     expect(skill).toContain('resume this same readiness run');
   });
 
@@ -84,28 +84,29 @@ describe('reviewer-as-customer PR readiness (#3579)', () => {
     const skill = readRepoFile(canonicalPath);
     for (const field of [
       'Job to be done',
-      'Summary and approach',
-      'Design decisions',
-      'Scope and exclusions',
-      'Stack context',
+      'What changed',
       'Verification',
-      'Open questions and review focus',
-      'Risk and blast radius',
-      'Coverage status',
+      'Risks and review focus',
       'Readiness evidence',
     ]) {
       expect(skill).toContain(field);
     }
-    expect(skill).toContain('Never turn unknown or unchecked evidence into completed verification');
+    expect(skill).toContain('Never manufacture verification');
     expect(skill).toContain('direct dependency');
     expect(skill).toContain('cumulative stack changes');
+    expect(skill).toContain('Head: <full current head SHA>');
+    expect(
+      skill
+        .split('\n')
+        .filter(line => /^[1-7]\./.exec(line.trim()) && line.endsWith('— PASS: <evidence>')),
+    ).toHaveLength(7);
   });
 
   it('preserves reviewer conversation and freshness', () => {
     const skill = readRepoFile(canonicalPath);
-    expect(skill).toContain('Reply before resolving every review thread');
-    expect(skill).toContain('Leave disagreements unresolved');
-    expect(skill).toContain('Re-request review after every material push');
+    expect(skill).toContain('Reply before resolving every thread');
+    expect(skill).toContain('leave disagreements for the reviewer to resolve');
+    expect(skill).toContain('re-request review after a');
   });
 
   it.each([
@@ -116,11 +117,7 @@ describe('reviewer-as-customer PR readiness (#3579)', () => {
       'packages/cli/templates/skills/finish-review/SKILL.md',
       'never authorizes Ready',
     ],
-    [
-      'closeout',
-      'packages/cli/templates/skills/closeout/SKILL.md',
-      "PR body's readiness evidence covers all seven gates at `headRefOid`",
-    ],
+    ['closeout', 'packages/cli/templates/skills/closeout/SKILL.md', 'require `Head:`'],
   ])('%s routes its PR boundary through the readiness workflow', (_label, path, binding) => {
     expect(readRepoFile(path)).toContain(binding);
   });
