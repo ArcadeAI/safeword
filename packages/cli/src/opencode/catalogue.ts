@@ -1,7 +1,10 @@
 import { readdirSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { generateCodexPluginAssets } from '../codex-plugin/catalogue.js';
+import {
+  adaptNativeRuntimeInvocations,
+  generateCodexPluginAssets,
+} from '../codex-plugin/catalogue.js';
 import { CURSOR_COMMAND_WRAPPERS, type CursorCommandWrapper } from '../cursor-wrappers.js';
 import { VERSION } from '../version.js';
 
@@ -97,7 +100,7 @@ export function generateOpenCodeCatalogueAssets(
     if (name === undefined || !knownSkills.has(name)) {
       throw new Error(`Generated native skill has an unexpected path: ${asset.relativePath}`);
     }
-    let content = asset.content;
+    let content = adaptNativeRuntimeInvocations(asset.content, VERSION);
     const skillEntry = nodePath.basename(asset.relativePath) === 'SKILL.md';
     for (const skill of skillNames) content = renderOpenCodeSkill(skill, content, false);
     if (skillEntry) content = renderOpenCodeSkill(name, content, true);

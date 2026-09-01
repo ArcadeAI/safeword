@@ -251,7 +251,7 @@ describe('generated Codex plugin catalogue', () => {
     }
   });
 
-  it('sources audit scope from the pinned package instead of a project runtime', () => {
+  it('sources audit scope from the pinned bundled runtime instead of a project runtime', () => {
     const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-plugin-audit-scope-'));
     const canonicalSkillsDirectory = nodePath.join(fixture, 'skills');
     try {
@@ -275,14 +275,16 @@ describe('generated Codex plugin catalogue', () => {
       const content =
         generateCodexPluginAssets(canonicalSkillsDirectory, '1.2.3')[0]?.content ?? '';
 
-      expect(content).toContain('source <(bunx --bun safeword@1.2.3 project audit-scope)');
+      expect(content).toContain(
+        'source <(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.3/runtime/cli.js" project audit-scope)',
+      );
       expect(content).not.toContain('.safeword/hooks/lib/audit-scope.sh');
     } finally {
       rmSync(fixture, { recursive: true, force: true });
     }
   });
 
-  it('records skill invocation through the pinned package instead of a project helper', () => {
+  it('records skill invocation through the pinned bundled runtime instead of a project helper', () => {
     const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-plugin-invocation-'));
     const canonicalSkillsDirectory = nodePath.join(fixture, 'skills');
     try {
@@ -306,7 +308,7 @@ describe('generated Codex plugin catalogue', () => {
         generateCodexPluginAssets(canonicalSkillsDirectory, '1.2.3')[0]?.content ?? '';
 
       expect(content).toContain(
-        'bunx --bun safeword@1.2.3 project record-skill-invocation --cwd "$PROJECT_DIR" verify "${CLAUDE_SESSION_ID:-}"',
+        'bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.3/runtime/cli.js" project record-skill-invocation --cwd "$PROJECT_DIR" verify "${CLAUDE_SESSION_ID:-}"',
       );
       expect(content).not.toContain('.safeword/hooks/record-skill-invocation.ts');
     } finally {

@@ -13,6 +13,7 @@ import {
   validateOpenCodeCatalogueReferences,
 } from '../../src/opencode/catalogue.js';
 import { assertNativePluginRuntimeAuthority } from '../../src/plugin-runtime-authority.js';
+import { VERSION } from '../../src/version.js';
 import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.js';
 
 const temporaryDirectories: string[] = [];
@@ -66,6 +67,21 @@ describe('OpenCode profile catalogue', () => {
     expect(bdd?.content).not.toContain('.safeword/skills/bdd/');
     expect(bdd?.content).toContain('/safeword-verify');
     expect(bdd?.content).not.toContain('$safeword:verify');
+  });
+  it('uses the pinned package runtime rather than Codex plugin-cache paths', () => {
+    const templatesRoot = nodePath.resolve(import.meta.dirname, '../../templates');
+    const assets = generateOpenCodeCatalogueAssets(templatesRoot);
+    const audit = assets.find(asset => asset.relativePath === 'skills/safeword-audit/SKILL.md');
+    const verify = assets.find(asset => asset.relativePath === 'skills/safeword-verify/SKILL.md');
+
+    expect(audit?.content).toContain(
+      `source <(bunx --bun safeword@${VERSION} project audit-scope)`,
+    );
+    expect(verify?.content).toContain(
+      `bunx --bun safeword@${VERSION} project record-skill-invocation --cwd "$PROJECT_DIR" verify`,
+    );
+    expect(audit?.content).not.toContain('/plugins/cache/safeword/');
+    expect(verify?.content).not.toContain('/plugins/cache/safeword/');
   });
   it('installs the complete native catalogue without project host files', async () => {
     const project = temporaryDirectory();
