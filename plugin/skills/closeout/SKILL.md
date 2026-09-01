@@ -15,12 +15,26 @@ workflow into “merge succeeded, so we are done.”
 
 ## 1. Prove delivery readiness
 
-Observe the pull request directly with structured `gh pr view --json` output.
-A non-empty hosted check rollup whose checks are all terminal and green is
-authoritative exact-head verification. When CI is absent, incomplete, failing,
+Observe the pull request directly with structured `gh pr view --json` output,
+including `body` and `headRefOid`. A Ready label is not readiness evidence by
+itself. Read the PR body's **Readiness evidence** section and require `Head:` to
+equal `headRefOid`; gates `1`, `2`, and `4` through `7` to say `PASS:` with
+concrete evidence; and gate `3` to say either `PASS:` or `N/A:` with a reason and
+nearest-boundary proof. This is the durable `/pr-readiness` handoff; closeout does not recreate
+session-local author comprehension, end-user execution, or self-review. If the
+section is absent, stale, incomplete, or blocked, report the recovery action and
+stop. Closeout never changes Draft/Ready state. Unanswered or unresolved review
+work remains a blocker even when CI is green.
+This requirement applies before merge. When fresh observation proves the exact
+pull request head is already merged, resume the unfinished post-merge suffix in
+§3–6 without requiring a new readiness decision.
+A hosted check rollup is authoritative exact-head verification only when its
+configured required-check set is non-empty, every required check concludes
+`success`, and no observed check fails. When CI is absent, incomplete, failing,
 or unobservable, run `/safeword:verify` for the current pull request head instead. Require
 all of these before any merge:
 
+- the PR body's readiness evidence covers all seven gates at `headRefOid`;
 - green hosted CI or local verification covers the current pull request head;
 - all required checks pass;
 - review requirements are satisfied; and

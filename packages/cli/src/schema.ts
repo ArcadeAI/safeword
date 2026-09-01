@@ -235,6 +235,7 @@ const CURSOR_SHARED_SKILL_FILES = [
   'finish-review/SKILL.md',
   'finish-review/REVIEWER.md',
   'lint/SKILL.md',
+  'pr-readiness/SKILL.md',
   'quality-review/SKILL.md',
   'refactor/SKILL.md',
   'retro/SKILL.md',
@@ -1096,6 +1097,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.claude/skills/quality-review/SKILL.md': {
       template: 'skills/quality-review/SKILL.md',
+    },
+    '.claude/skills/pr-readiness/SKILL.md': {
+      template: 'skills/pr-readiness/SKILL.md',
     },
     '.claude/skills/finish-review/SKILL.md': {
       template: 'skills/finish-review/SKILL.md',

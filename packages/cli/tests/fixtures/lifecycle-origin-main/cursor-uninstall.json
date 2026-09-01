@@ -1,6 +1,6 @@
 {
   "integration": "cursor",
   "operation": "uninstall",
-  "result_sha256": "ea70425b03d597d6b73e86538460e454f06ed0853ce4d406b1501faaa19a10cb",
-  "tree_sha256": "f373b8a7b895206dfa6bdf4a4d28c59dcef29311b3a7c7f7a397cd57e1a1e7a5"
+  "result_sha256": "49f43716725d4ece1c0128c6ca47955c14070e493d97249f895f296204de547c",
+  "tree_sha256": "a706de0beec309aec7d468d3ff2d2f456d848f94b54c979364712bcc5c92d2b8"
 }

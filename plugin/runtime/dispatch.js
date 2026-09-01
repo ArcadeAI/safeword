@@ -1784,7 +1784,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/cleanup-zombies/SKILL.md':
         'e0af9635774767cf36eb69726e11c642ec1dad42839c11407ea8ef60f89fc289',
       '.claude/skills/closeout/SKILL.md':
-        '3eda7ae5172eb795da38c31a6e96d07a40154fd7a3ae4d9824c9c044b286f571',
+        '1fcbf06b7acf0e549cad4b964fbde3e4dc31feb601e75516041ec211c1bcb66a',
       '.claude/skills/debug/SKILL.md':
         'ae56c4c9287f76a2250d13fa9908f5726ed4edbe4080ece10d1559507e242bd0',
       '.claude/skills/elicit/SKILL.md':
@@ -1796,11 +1796,13 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/finish-review/REVIEWER.md':
         '7575d91eb96a1c4930c8e68da1f4bb982d052c5e89f75fb38ed6422a8df96562',
       '.claude/skills/finish-review/SKILL.md':
-        'e9ed5d198994b6cca12c62b1a4c13a1db2d82d65fc8a9173a41c5b5cf312cd52',
+        'fdb8800d140467f1747f7b0ee067137386026003126ff17c00758940766dd07a',
       '.claude/skills/lint/SKILL.md':
         'f8bc868fb10a06ca46a22236309b9f0c3ffbd70eecc024d3c79de8ef0e42fd14',
+      '.claude/skills/pr-readiness/SKILL.md':
+        'b23b1bb565f0a4551defa0641b52254133807b1c79495641d82bba9102fd19ff',
       '.claude/skills/quality-review/SKILL.md':
-        'a884e61bb52222ecfc3d67b0332b79a72fa359fac6c87fca87efe6eb65a8a4ca',
+        '6c356d37a4894d9456639236b9d305e2b9a42491119e55cb437a246e0096500d',
       '.claude/skills/refactor/SKILL.md':
         'a51a858fb13b50cbc86789edbde8a39e364b5cdd7d5d3b025d555d90b221760e',
       '.claude/skills/retro-filer/SKILL.md':

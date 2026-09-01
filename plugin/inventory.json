@@ -83,7 +83,7 @@
     },
     {
       "path": "resources/SAFEWORD.md",
-      "sha256": "2339d41b737559c8aa99b07601d63da084427887d230ca362e48a3f845c71386"
+      "sha256": "25d9c345b5e563a3c8304aa0056480444a10baa3443c9239198a01ffb279ece0"
     },
     {
       "path": "resources/scripts/bisect-test-pollution.sh",
@@ -143,11 +143,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "518eb71c1f61fba2b9a0f1090fd7bad5aa14fa01d3e3a37578fde429e201cfa6"
+      "sha256": "9eef2ea0c2fc13cbec0d4b04aafa2bfede1209722326b72c891f55eeaf510a23"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "b2c5252bf06206afcfbe59c22c679fef73e15f2b00bb1c3193a9e16a9d6058aa"
+      "sha256": "2ea17806fe755762b3bfabca49477c4c663d2487f659da8edd83c8034f96bd55"
     },
     {
       "path": "runtime/event-groups.json",
@@ -631,7 +631,7 @@
     },
     {
       "path": "skills/closeout/SKILL.md",
-      "sha256": "a6011c14158325205c1d520879690f585c41ae13fe4dd7a961f50f985a0c1f4d"
+      "sha256": "10df991cbe6b5c1a72767a00295886881afd8e623d1614655953f428d8bf8f26"
     },
     {
       "path": "skills/debug/SKILL.md",
@@ -655,15 +655,19 @@
     },
     {
       "path": "skills/finish-review/SKILL.md",
-      "sha256": "4ac4c3d6d9f077290c2d18019270625efa2406dd7860b0cea8a26e75cb003936"
+      "sha256": "84a9d06619bda24dee6fc2e7879ec76de8bcbcaafda28e365562b3fc6bd5f281"
     },
     {
       "path": "skills/lint/SKILL.md",
       "sha256": "24bfa8002b53326acd3cd56b616fbd84c330260bc5689a581daa4ef72e8bd1ae"
     },
     {
+      "path": "skills/pr-readiness/SKILL.md",
+      "sha256": "e9f7c2a1c71acbeef8ac0eb79c05bb8b2ea6efcdcf850d81ff3865780b09b3a6"
+    },
+    {
       "path": "skills/quality-review/SKILL.md",
-      "sha256": "baf54b2f8b935c852165c8731e9af4e3b09226a08b8ae14063a3fe29ebc21697"
+      "sha256": "77519a263d815414ff08171ce34f868f7df3a2e737f7b7b38ef1616acd7c31b1"
     },
     {
       "path": "skills/refactor/SKILL.md",
