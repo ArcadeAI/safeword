@@ -99,6 +99,8 @@ Then emit these fields in order, without copying raw route diagnostics:
 
 - Coordinator: `REVIEW_ROUTES_EXHAUSTED`
 - Assurance: the exact fresh-context or self-review assurance above
+- Independence: `degraded` for fresh-context same-agent feedback or `none` for
+  main-thread self-review
 - Policy: `prefer complete` or `require unsatisfied`
 - State: `approved` or `action required`
 - Verdict: `approve` or `request_changes`
@@ -119,8 +121,8 @@ approval.
 - Under `require`, report the supplemental findings as additional feedback, keep
   the coordinator's unsatisfied-independence verdict action required, and say:
   "Required independent coverage remains unsatisfied. Use an environment with a
-  usable independent reviewer. Include the coordinator's recovery command exactly as provided.
-  Alternatively, explicitly choose `prefer`."
+  usable independent reviewer. Alternatively, explicitly choose `prefer`."
+  Then include the coordinator's recovery command exactly as provided.
 
 Never describe either supplemental route as completed standard or independent
 coverage, and never write an

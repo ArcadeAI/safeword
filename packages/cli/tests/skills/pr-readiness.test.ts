@@ -8,6 +8,13 @@ import { SAFEWORD_SCHEMA } from '../../src/schema.js';
 const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
 const readRepoFile = (relativePath: string): string =>
   readFileSync(nodePath.join(repoRoot, relativePath), 'utf8');
+const workflowBody = (content: string): string => {
+  const frontmatterEnd = content.indexOf('---', 3);
+  return content
+    .slice(frontmatterEnd + 3)
+    .trim()
+    .replaceAll('$safeword:', '/');
+};
 
 const canonicalPath = 'packages/cli/templates/skills/pr-readiness/SKILL.md';
 
@@ -37,9 +44,9 @@ describe('reviewer-as-customer PR readiness (#3579)', () => {
       '@.safeword/skills/pr-readiness/SKILL.md',
     );
     expect(SAFEWORD_SCHEMA.ownedFiles['.opencode/commands/pr-readiness.md']).toBeDefined();
-    expect(readRepoFile('packages/cli/codex-plugin/skills/pr-readiness/SKILL.md')).toContain(
-      'name: pr-readiness',
-    );
+    expect(
+      workflowBody(readRepoFile('packages/cli/codex-plugin/skills/pr-readiness/SKILL.md')),
+    ).toBe(workflowBody(readRepoFile(canonicalPath)));
   });
 
   it('keeps all seven non-negotiables as Ready-for-Review blockers', () => {
@@ -69,7 +76,7 @@ describe('reviewer-as-customer PR readiness (#3579)', () => {
     expect(skill).toContain('explicitly authorizes that exact state change');
     expect(skill).toContain('Never invent a');
     expect(skill).toContain('require unsatisfied');
-    expect(skill).toContain('independence: none');
+    expect(skill).toContain('Independence: none');
     expect(skill).toContain('resume this same readiness run');
   });
 
@@ -85,6 +92,7 @@ describe('reviewer-as-customer PR readiness (#3579)', () => {
       'Open questions and review focus',
       'Risk and blast radius',
       'Coverage status',
+      'Readiness evidence',
     ]) {
       expect(skill).toContain(field);
     }
@@ -111,7 +119,7 @@ describe('reviewer-as-customer PR readiness (#3579)', () => {
     [
       'closeout',
       'packages/cli/templates/skills/closeout/SKILL.md',
-      'current-head `/pr-readiness` decision',
+      "PR body's readiness evidence covers all seven gates at `headRefOid`",
     ],
   ])('%s routes its PR boundary through the readiness workflow', (_label, path, binding) => {
     expect(readRepoFile(path)).toContain(binding);

@@ -20,9 +20,10 @@ and unresolved threads. Bind every conclusion to the current head SHA. Generated
 summaries may supplement this evidence, but may not replace, obscure, or repeat
 the reviewer context.
 
-Keep speculative work on a branch. Open a Draft only to get concrete CI, AI
-review, or a narrow human sanity check. Creating a PR, pushing, or publishing
-does not authorize Ready promotion; the user must explicitly ask for Ready.
+Keep speculative work on a branch. When the user asked for a pull request, open
+it as Draft only to get concrete CI, AI review, or a narrow human sanity check.
+Creating a PR, pushing, or publishing does not authorize Ready promotion; the
+user must explicitly ask for Ready.
 Changing an existing pull request's Draft/Ready state also requires explicit
 authority in the current user request. A readiness check observes and reports
 state by default; it never promotes or demotes the pull request on its own.
@@ -57,10 +58,10 @@ pending CI as green.
 
 When `$safeword:quality-review` or `$safeword:finish-review` returns, resume this same readiness run
 and evaluate its result as gate 5 evidence. A result carrying `require unsatisfied`
-or `independence: none` is contradicted evidence and blocks gate 5. Degraded
-independence passes only when the configured review policy permits it, and must
-be disclosed. Do not re-enter the AI review loop unless a later material change
-makes its evidence stale.
+is contradicted evidence and blocks gate 5. `Independence: none` or
+`Independence: degraded` passes only when the configured review policy permits
+it, and must be disclosed. Do not re-enter the AI review loop unless a later
+material change makes its evidence stale.
 
 ## Write for the reviewer
 
@@ -76,6 +77,9 @@ write `None` for a meaningful empty state rather than silently omitting it.
 - **Open questions and review focus:** unresolved decisions and where human judgment is wanted.
 - **Risk and blast radius:** sensitive paths, failure consequences, and rollback notes.
 - **Coverage status:** green or yellow; explain every yellow gap and its consequence.
+- **Readiness evidence:** the exact current head SHA and compact evidence for all
+  seven gates. This durable, reviewer-visible section is the handoff that
+  closeout validates; never carry it forward after the head changes.
 
 Never turn unknown or unchecked evidence into completed verification. Never
 describe cumulative stack changes as this slice's work: name its direct dependency,

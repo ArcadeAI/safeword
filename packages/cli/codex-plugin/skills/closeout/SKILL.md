@@ -14,13 +14,15 @@ workflow into “merge succeeded, so we are done.”
 
 ## 1. Prove delivery readiness
 
-Observe the pull request directly with structured `gh pr view --json` output.
-A Ready label is not readiness evidence by itself. Consume the latest
-current-head `$safeword:pr-readiness` decision and its per-gate evidence; closeout does not
-recreate session-local author comprehension, end-user execution, or self-review.
-If that decision is absent, stale, or blocked, report the recovery action and stop.
-Closeout never changes Draft/Ready state. Unanswered or unresolved review work
-remains a blocker even when CI is green.
+Observe the pull request directly with structured `gh pr view --json` output,
+including `body` and `headRefOid`. A Ready label is not readiness evidence by
+itself. Read the PR body's **Readiness evidence** section and require its recorded
+head SHA to equal `headRefOid` and all seven gates to carry concrete passing
+evidence. This is the durable `$safeword:pr-readiness` handoff; closeout does not recreate
+session-local author comprehension, end-user execution, or self-review. If the
+section is absent, stale, incomplete, or blocked, report the recovery action and
+stop. Closeout never changes Draft/Ready state. Unanswered or unresolved review
+work remains a blocker even when CI is green.
 This requirement applies before merge. When fresh observation proves the exact
 pull request head is already merged, resume the unfinished post-merge suffix in
 §3–6 without requiring a new readiness decision.
@@ -29,6 +31,7 @@ authoritative exact-head verification. When CI is absent, incomplete, failing,
 or unobservable, run `$safeword:verify` for the current pull request head instead. Require
 all of these before any merge:
 
+- the PR body's readiness evidence covers all seven gates at `headRefOid`;
 - green hosted CI or local verification covers the current pull request head;
 - all required checks pass;
 - review requirements are satisfied; and
