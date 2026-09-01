@@ -53,7 +53,7 @@ describe('Product Plan parent contract parity', () => {
     writeFileSync(nodePath.join(parent, 'ticket.md'), '---\ntype: epic\n---\n');
     const specPath = nodePath.join(parent, 'spec.md');
     const spec =
-      '## Product Bet\n- **Project non-goals:** none\n- **Success threshold:** live\n### J1 — Ship safely\n### M1\n- **Outcome:** live\n- **Non-goals:** none\n';
+      '## Product Bet\n- **Project non-goals:** none\n- **Success threshold:** live\n## Jobs To Be Done\n### J1 — Ship safely\n## Shape\n### M1\n- **Outcome:** live\n- **Non-goals:** none\n';
     writeFileSync(specPath, spec);
     const before = resolveParentContract(project, 'EPIC01', 'J1', 'M1').digest;
     writeFileSync(specPath, spec.replace('Ship safely', 'Ship anything'));
@@ -123,7 +123,7 @@ describe('Product Plan parent contract parity', () => {
     writeFileSync(nodePath.join(parent, 'ticket.md'), '---\ntype: epic\n---\n');
     writeFileSync(
       nodePath.join(parent, 'spec.md'),
-      '## Product Bet\n- **Project non-goals:** none\n### J1\n### M1\n- **Outcome:** live\n- **Non-goals:** none\n',
+      '## Product Bet\n- **Project non-goals:** none\n## Jobs To Be Done\n### J1\n## Shape\n### M1\n- **Outcome:** live\n- **Non-goals:** none\n',
     );
 
     expect(() => resolveParentContract(project, 'EPIC01', 'J1', 'M1')).toThrow(/successThreshold/);
@@ -139,7 +139,7 @@ describe('Product Plan parent contract parity', () => {
     writeFileSync(nodePath.join(parent, 'ticket.md'), '---\ntype: epic\n---\n');
     writeFileSync(
       nodePath.join(parent, 'spec.md'),
-      '## Product Bet\n- **Project non-goals:** no tracker sync,\n  no bulk import\n- **Success threshold:** live\n### J1\n### M1\n- **Outcome:** first customer\n  completes the flow\n- **Non-goals:** none\n',
+      '## Product Bet\n- **Project non-goals:** no tracker sync,\n  no bulk import\n- **Success threshold:** live\n## Jobs To Be Done\n### J1\n## Shape\n### M1\n- **Outcome:** first customer\n  completes the flow\n- **Non-goals:** none\n',
     );
 
     const cli = resolveParentContract(project, 'EPIC01', 'J1', 'M1');
@@ -147,6 +147,29 @@ describe('Product Plan parent contract parity', () => {
     expect(hook).toEqual(cli);
     expect(cli.values.projectNonGoals).toBe('no tracker sync, no bulk import');
     expect(cli.values.milestoneOutcome).toBe('first customer completes the flow');
+  });
+
+  it('prefers an exact ticket folder and rejects ids from the wrong Product Plan section', () => {
+    const project = mkdtempSync(nodePath.join(tmpdir(), 'safeword-parent-contract-'));
+    const tickets = nodePath.join(project, '.project', 'tickets');
+    const slugged = nodePath.join(tickets, 'EPIC01-parent');
+    const exact = nodePath.join(tickets, 'EPIC01');
+    mkdirSync(slugged, { recursive: true });
+    mkdirSync(exact, { recursive: true });
+    for (const directory of [slugged, exact]) {
+      writeFileSync(nodePath.join(directory, 'ticket.md'), '---\ntype: epic\n---\n');
+    }
+    writeFileSync(nodePath.join(slugged, 'spec.md'), '## Product Bet\n');
+    writeFileSync(
+      nodePath.join(exact, 'spec.md'),
+      '## Product Bet\n- **Project non-goals:** none\n- **Success threshold:** live\n## Jobs To Be Done\n### J1 — job\n## Shape\n### M1\n- **Outcome:** live\n- **Non-goals:** none\n',
+    );
+
+    expect(resolveHookParentContract(project, 'EPIC01', 'J1', 'M1')).toEqual(
+      resolveParentContract(project, 'EPIC01', 'J1', 'M1'),
+    );
+    expect(() => resolveParentContract(project, 'EPIC01', 'M1', 'M1')).toThrow(/Parent job/);
+    expect(() => resolveHookParentContract(project, 'EPIC01', 'M1', 'M1')).toThrow(/parent job/);
   });
 
   it('does not activate the new contract for an unmarked legacy milestone', () => {

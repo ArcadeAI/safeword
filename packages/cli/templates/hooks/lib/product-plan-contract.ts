@@ -110,8 +110,13 @@ function ticketDirectory(projectDirectory: string, id: string): string | undefin
   const names = readdirSync(root, { withFileTypes: true })
     .filter(entry => entry.isDirectory())
     .map(entry => entry.name);
-  const match = names.find(name => name === id) ?? names.find(name => name.startsWith(`${id}-`));
-  return match ? nodePath.join(root, match) : undefined;
+  let sluggedMatch: string | undefined;
+  const slugPrefix = `${id}-`;
+  for (const name of names) {
+    if (name === id) return nodePath.join(root, name);
+    if (sluggedMatch === undefined && name.startsWith(slugPrefix)) sluggedMatch = name;
+  }
+  return sluggedMatch === undefined ? undefined : nodePath.join(root, sluggedMatch);
 }
 
 export function resolveHookParentContract(
@@ -127,9 +132,13 @@ export function resolveHookParentContract(
   const specPath = nodePath.join(directory, 'spec.md');
   if (!existsSync(specPath)) throw new Error('parent Product Plan is missing');
   const spec = readFileSync(specPath, 'utf8');
-  const resolvedParentJob = contractSection(spec, 3, parentJob);
+  const jobs = section(spec, 2, 'Jobs To Be Done');
+  const shape = section(spec, 2, 'Shape');
+  if (jobs === undefined) throw new Error('Jobs To Be Done does not resolve');
+  if (shape === undefined) throw new Error('Shape does not resolve');
+  const resolvedParentJob = contractSection(jobs, 3, parentJob);
   if (resolvedParentJob === undefined) throw new Error('parent job does not resolve');
-  const milestone = section(spec, 3, milestoneId);
+  const milestone = section(shape, 3, milestoneId);
   if (milestone === undefined) throw new Error('milestone does not resolve');
   const productBet = section(spec, 2, 'Product Bet') ?? '';
   const values: ParentContractValues = {

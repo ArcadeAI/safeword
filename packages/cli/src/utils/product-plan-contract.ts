@@ -112,8 +112,10 @@ export function resolveParentContract(
   const directory = resolveTicketDirectory(cwd, parentId);
   if (!directory) throw new Error(`Parent ticket "${parentId}" does not resolve.`);
   const spec = readParentSpec(directory, parentId);
-  const parentJob = requireContractSection(spec, 3, parentJobId, `Parent job "${parentJobId}"`);
-  const milestone = requireSection(spec, 3, milestoneId, `Milestone "${milestoneId}"`);
+  const jobs = requireSection(spec, 2, 'Jobs To Be Done', 'Jobs To Be Done');
+  const shape = requireSection(spec, 2, 'Shape', 'Shape');
+  const parentJob = requireContractSection(jobs, 3, parentJobId, `Parent job "${parentJobId}"`);
+  const milestone = requireSection(shape, 3, milestoneId, `Milestone "${milestoneId}"`);
   const productBet = sectionAfterHeading(spec, 2, 'Product Bet') ?? '';
   const values = contractValues(parentJob, milestone, productBet);
   return { values, digest: digestParentContract(values) };
