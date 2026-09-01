@@ -363,7 +363,7 @@ function hasReviewerIdentity(reviewer: Record<string, unknown>): boolean {
   return (
     typeof reviewer.dispatch_id === 'string' &&
     reviewer.dispatch_id.length > 0 &&
-    ['claude', 'codex'].includes(String(reviewer.reviewer_agent))
+    ['claude', 'codex', 'opencode'].includes(String(reviewer.reviewer_agent))
   );
 }
 
