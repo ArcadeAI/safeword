@@ -1445,8 +1445,8 @@ approval.
 - Under \`require\`, report the supplemental findings as additional feedback, keep
   the coordinator's unsatisfied-independence verdict action required, and say:
   "Required independent coverage remains unsatisfied. Use an environment with a
-  usable independent reviewer. Include the coordinator's recovery command exactly as provided.
-  Alternatively, explicitly choose \`prefer\`."
+  usable independent reviewer. Alternatively, explicitly choose \`prefer\`."
+  Include the coordinator's recovery command exactly as provided.
 
 Never describe either supplemental route as completed standard or independent
 coverage, and never write an

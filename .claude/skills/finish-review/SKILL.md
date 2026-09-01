@@ -122,7 +122,7 @@ approval.
   the coordinator's unsatisfied-independence verdict action required, and say:
   "Required independent coverage remains unsatisfied. Use an environment with a
   usable independent reviewer. Alternatively, explicitly choose `prefer`."
-  Then include the coordinator's recovery command exactly as provided.
+  Include the coordinator's recovery command exactly as provided.
 
 Never describe either supplemental route as completed standard or independent
 coverage, and never write an
