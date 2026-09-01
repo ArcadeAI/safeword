@@ -1,6 +1,6 @@
 # Impl Plan: Lean Product Plans
 
-**Status:** planned
+**Status:** implemented
 **Planned on:** 2026-09-01
 
 ## Approach
@@ -56,6 +56,10 @@ The design preserves schema-as-source-of-truth, reconciliation-over-copy, and ag
 
 ## Known deviations
 
+- The independent release review found that the original parity test compared
+  only the final digest function. The implementation now fixes canonical key
+  order and proves CLI/hook equivalence from the same on-disk Product Plan,
+  including CRLF and a configured namespace root.
 - Automatic conversion from delta child to standalone Product Plan is deferred. The first version blocks a partial move and gives a manual preservation-first recovery because rewriting a live spec would risk destroying the child's authored Contribution and Rules.
 - Automatic conversion from standalone Product Plan to delta child is deferred for the same reason; manual re-parenting must preserve feature-specific Rules and Contribution while removing inherited parent prose.
 

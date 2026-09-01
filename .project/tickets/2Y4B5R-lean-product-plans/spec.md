@@ -1,13 +1,5 @@
 # Product Plan: Create lean product plans for features and epics
 
-<!-- safeword:inspiration-contract:v1 -->
-
-## Product Inspiration
-
-| Reference | Checked on | Source version / edition | Customer-value evidence | Principle to borrow | Non-copy boundary | Decision impact |
-| --- | --- | --- | --- | --- | --- | --- |
-| https://linear.app/docs/initiatives | 2026-09-01 | Current web documentation | Initiatives hold shared objectives while projects contribute execution and roll progress upward | Own shared intent once above contributing work | Safeword remains repository-local and behavior-traceable rather than cloning Linear's tracker model | changed: use parent references and generated rollups instead of copied child prose |
-
 ## Product Bet
 
 - **Problem:** Safeword captures useful product intent during feature intake,
@@ -16,8 +8,9 @@
   multiply authoring and let copied context drift.
 - **Demand evidence:** The requested workflow comes directly from a Safeword
   maintainer using the product on this repository. The external-demand strength
-  is unverified; implementing the planning workflow does not require a broader
-  market claim.
+  is unverified. Linear's current project and milestone documentation supports
+  keeping durable intent with the owning work, but is design evidence rather
+  than proof of market demand.
 - **Why now:** Product planning is being extended to feature epics. Defining
   ownership and inheritance first avoids shipping a second document model that
   later has to be reconciled with `spec.md`.
@@ -27,6 +20,8 @@
   boundaries, and credible demo from the epic or standalone feature, while a
   child feature contains no copied parent prose and no inapplicable placeholder
   sections.
+- **Project non-goals:** A second plan artifact, copied parent intent, mandatory
+  research, nested epics, or tracker synchronization.
 
 ### Demand-research trigger
 
@@ -49,49 +44,9 @@ When invoked, summarize only the decision-bearing result here: demand strength,
 evidence rungs, the skeptic case, load-bearing gaps, and the cheapest validation.
 Link the full research output rather than copying it into this plan.
 
-### Bundled skill contract
-
-The packaged skill is the demand-signal subset of the personal
-`evidence-research` skill, not the general research suite.
-
-Keep:
-
-- The evidence ladder, with first-party behavior, inbound artifacts, and direct
-  conversations ahead of public web evidence.
-- Precise capability framing and a decision threshold set before searching.
-- Pain-language queries: symptom, workaround, frustration, and incident before
-  any vendor-created category name.
-- Sacrifice grading for evidence: built, paid, detailed issue, complaint, or
-  mention.
-- Attribution of builder, buyer/operator, and interested-party voices.
-- Deliberate skeptic and counter-evidence searches.
-- A STRONG / MODERATE / WEAK / ABSENT verdict stated only at the strength the
-  evidence supports.
-- One adversarial close: could the same evidence support the opposite verdict,
-  and which specific fact or experiment would resolve that uncertainty?
-- A compact result containing verdict, strongest evidence, evidence gaps,
-  channel bias when public evidence was used, and cheapest validation.
-
-Strip:
-
-- Vendor, competitor, market-history, and technology-history research modes.
-- Regulator filings, vendor financial analysis, standards history, repository
-  traction, and other generic research-source guidance.
-- Per-claim `F1`, `F2` identifiers; retain checked-on dates and direct links on
-  the few decision-bearing facts instead.
-- Confidence tags on every sentence; grade the evidence rows and final verdict
-  instead.
-- A separate corrections-log section; record a material correction in the
-  ticket work log when research overturns an existing claim.
-- Mandatory 5–6 interview questions; name only the one to three questions or
-  observations that would change an underdetermined verdict.
-- Mandatory exact-phrase counts and channel-bias analysis when the verdict does
-  not rely on public speech.
-- Mandatory isolated-subagent execution; run inline by default and isolate only
-  a broad research pass.
-- The 30–40-fetch full-analysis budget and separate sources appendix. Stop once
-  the build decision is supported, rejected, or reduced to a cheaper test, and
-  cite evidence inline.
+The bundled skill keeps only the demand decision: verdict, strongest evidence,
+load-bearing gaps, skeptic case, and cheapest validation. It excludes general
+vendor, competitor, market-history, and technology-history research.
 
 ## Jobs To Be Done
 
