@@ -22,7 +22,9 @@ describe('review route policy', () => {
       independentFallback: 'codex',
       degradedFallback: 'opencode',
     });
-    expect(reviewRoutePlan('cursor')).toBeUndefined();
-    expect(reviewRoutePlan('unknown')).toBeUndefined();
+  });
+
+  it.each(['cursor', 'unknown'])('keeps unsupported author %s outside review routing', author => {
+    expect(reviewRoutePlan(author)).toBeUndefined();
   });
 });

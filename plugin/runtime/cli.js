@@ -48764,6 +48764,7 @@ function independentReviewResult(input) {
     effects: {
       network: [
         ...networkEffectsForFailure(input.preferredReviewer ?? input.reviewer, input.preferredFailure),
+        ...networkEffectsForFailure(input.alternateReviewer, input.alternateFailure),
         reviewRequest(input.reviewer)
       ]
     },
@@ -48776,6 +48777,10 @@ function independentReviewResult(input) {
       ...input.model !== undefined && { reviewer_model: input.model },
       ...input.preferredModel !== undefined && { preferred_model: input.preferredModel },
       ...input.preferredFailure !== undefined && { preferred_failure: input.preferredFailure },
+      ...input.alternateFailure !== undefined && {
+        alternate_model_failure: input.alternateFailure,
+        ...input.alternateModel !== undefined && { alternate_model: input.alternateModel }
+      },
       independence: "cross-agent",
       reviewer_output: input.output
     }
@@ -48972,7 +48977,7 @@ function reviewRequest(reviewer) {
   return { kind: "review", target: reviewer, operation: "request" };
 }
 function networkEffectsForFailure(reviewer, failure) {
-  return failure === undefined || NON_ATTEMPT_FAILURES.has(failure) ? [] : [reviewRequest(reviewer)];
+  return reviewer === undefined || failure === undefined || NON_ATTEMPT_FAILURES.has(failure) ? [] : [reviewRequest(reviewer)];
 }
 function degradedNetworkEffects(input) {
   return [
@@ -49059,6 +49064,13 @@ async function runDegradedFallback(input) {
                 role: "same reviewer on its alternate model",
                 model: input.alternateModel,
                 failure: input.alternateFailure
+              }
+            ],
+            ...input.independentFallbackFailure === undefined || input.independentFallback === undefined ? [] : [
+              {
+                agent: input.independentFallback,
+                role: "second independent reviewer",
+                failure: input.independentFallbackFailure
               }
             ],
             { agent: input.author, role: "fallback review", failure: assessment.failure }
@@ -49229,7 +49241,15 @@ async function runIndependentFallback(input) {
     context: input.context,
     sourceChanged,
     snapshotChanged,
-    network: outcome.kind === "failed" ? networkEffectsForFailure(input.reviewer, outcome.failure) : [reviewRequest(input.reviewer)]
+    network: outcome.kind === "failed" ? [
+      ...networkEffectsForFailure(input.preferredReviewer, input.preferredFailure),
+      ...networkEffectsForFailure(input.preferredReviewer, input.alternateFailure),
+      ...networkEffectsForFailure(input.reviewer, outcome.failure)
+    ] : [
+      ...networkEffectsForFailure(input.preferredReviewer, input.preferredFailure),
+      ...networkEffectsForFailure(input.preferredReviewer, input.alternateFailure),
+      reviewRequest(input.reviewer)
+    ]
   });
   if (changedResult !== undefined)
     return { kind: "completed", result: changedResult };
@@ -49244,7 +49264,10 @@ async function runIndependentFallback(input) {
       output: assessment.output,
       preferredReviewer: input.preferredReviewer,
       preferredModel: input.preferredModel,
-      preferredFailure: input.preferredFailure
+      preferredFailure: input.preferredFailure,
+      alternateReviewer: input.preferredReviewer,
+      alternateModel: input.alternateModel,
+      alternateFailure: input.alternateFailure
     })
   };
 }
@@ -49272,7 +49295,9 @@ async function runRemainingRoutes(input) {
   const independent = await runIndependentFallback({
     ...input,
     reviewer: input.independentFallback,
-    preferredReviewer: input.assignedReviewer
+    preferredReviewer: input.assignedReviewer,
+    alternateFailure,
+    alternateModel
   });
   if (independent.kind === "completed")
     return independent.result;

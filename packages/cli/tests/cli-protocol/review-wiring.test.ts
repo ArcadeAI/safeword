@@ -123,6 +123,13 @@ if [ "$identity" = "missing" ]; then
   printf '{"schema_version":1,"dispatch_id":"%s","verdict":"%s","summary":"%s","findings":[]}\n' "$dispatch_id" "$verdict" "$summary"
 elif [ "$identity" = "contradictory" ]; then
   printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"other","verdict":"%s","summary":"%s","findings":[]}\n' "$dispatch_id" "$verdict" "$summary"
+elif [ "$identity" = "dispatch" ]; then
+  result=$(printf '{"schema_version":1,"dispatch_id":"different-dispatch","reviewer_agent":"${agent}","verdict":"%s","summary":"%s","findings":[]}' "$verdict" "$summary")
+  if [ "${agent}" = "opencode" ]; then
+    printf '{"type":"text","part":{"type":"text","time":{"end":1},"text":"%s"}}\n' "$(printf '%s' "$result" | sed 's/"/\\"/g')"
+  else
+    printf '%s\n' "$result"
+  fi
 elif [ -n "$finding" ]; then
   printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verdict":"%s","summary":"%s","findings":[{"severity":"error","message":"%s"}]}\n' "$dispatch_id" "$verdict" "$summary" "$finding"
 elif [ "${agent}" = "opencode" ]; then
@@ -1558,6 +1565,11 @@ describe('cross-agent review public-command wiring', () => {
   it('uses OpenCode as an independent fallback before same-agent degraded review', async () => {
     const directory = createTemporaryDirectory();
     const log = nodePath.join(directory, 'review.log');
+    mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(directory, '.safeword', 'config.json'),
+      JSON.stringify({ crossAgentReview: 'require' }),
+    );
     writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
     const bin = installFakeReviewer(directory, 'codex');
     installFakeReviewer(directory, 'opencode');
@@ -1648,6 +1660,59 @@ describe('cross-agent review public-command wiring', () => {
       },
     });
     expect(readFileSync(log, 'utf8')).toBe('claude\n');
+  });
+
+  it('blocks required review when OpenCode returns a different dispatch identity', async () => {
+    const directory = createTemporaryDirectory();
+    const log = nodePath.join(directory, 'review.log');
+    mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(directory, '.safeword', 'config.json'),
+      JSON.stringify({ crossAgentReview: 'require' }),
+    );
+    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+    const bin = installFakeReviewer(directory, 'codex');
+    installFakeReviewer(directory, 'opencode');
+    installFakeReviewer(directory, 'claude');
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'review-input.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_REVIEW_FAKE_FAILURE_CODEX: 'process',
+          SAFEWORD_REVIEW_FAKE_IDENTITY: 'dispatch',
+          SAFEWORD_REVIEW_LOG: log,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode, result.stdout).toBe(2);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'action_required',
+      data: {
+        status: 'blocked',
+        author_agent: 'claude',
+        assigned_reviewer: 'codex',
+        preferred_failure: 'process_failed',
+        independent_fallback_failure: 'REVIEWER_PROVENANCE_CONTRADICTORY',
+        independence: 'none',
+      },
+    });
+    expect(JSON.parse(result.stdout).data).not.toHaveProperty('reviewer_output');
+    expect(readFileSync(log, 'utf8')).toBe('codex\nopencode\nclaude\n');
   });
 
   it('reports an OpenCode process failure before returning degraded same-author feedback', async () => {
@@ -1882,11 +1947,13 @@ describe('cross-agent review public-command wiring', () => {
       data: {
         status: 'blocked',
         preferred_failure: 'process_failed',
+        independent_fallback_failure: 'not_installed',
         fallback_failure: 'not_authenticated',
         review_policy: 'prefer',
         independence: 'none',
       },
     });
+    expect(output.findings[0].message).toContain('second independent reviewer (OpenCode)');
     expect(output.data).not.toHaveProperty('reviewer_output');
     const humanResult = await runCli(
       ['review', 'run', 'quality-review', 'review-input.md', '--no-input', '--cwd', directory],

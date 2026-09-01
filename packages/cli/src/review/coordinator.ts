@@ -72,6 +72,9 @@ function independentReviewResult(input: {
   readonly preferredReviewer?: ReviewAgent;
   readonly preferredModel?: string;
   readonly preferredFailure?: ReviewFailure;
+  readonly alternateReviewer?: ReviewAgent;
+  readonly alternateModel?: string;
+  readonly alternateFailure?: ReviewFailure;
 }): CliResult {
   return createResult({
     state: input.output.verdict === 'approve' ? 'healthy' : 'action_required',
@@ -89,6 +92,7 @@ function independentReviewResult(input: {
           input.preferredReviewer ?? input.reviewer,
           input.preferredFailure,
         ),
+        ...networkEffectsForFailure(input.alternateReviewer, input.alternateFailure),
         reviewRequest(input.reviewer),
       ],
     },
@@ -101,6 +105,10 @@ function independentReviewResult(input: {
       ...(input.model !== undefined && { reviewer_model: input.model }),
       ...(input.preferredModel !== undefined && { preferred_model: input.preferredModel }),
       ...(input.preferredFailure !== undefined && { preferred_failure: input.preferredFailure }),
+      ...(input.alternateFailure !== undefined && {
+        alternate_model_failure: input.alternateFailure,
+        ...(input.alternateModel !== undefined && { alternate_model: input.alternateModel }),
+      }),
       independence: 'cross-agent',
       reviewer_output: input.output,
     },
@@ -410,10 +418,10 @@ const ALTERNATE_MODEL_SKIP_FAILURES: ReadonlySet<ReviewFailure> = new Set([
 ]);
 
 function networkEffectsForFailure(
-  reviewer: ReviewAgent,
+  reviewer: ReviewAgent | undefined,
   failure: ReviewFailure | undefined,
 ): readonly Effect[] {
-  return failure === undefined || NON_ATTEMPT_FAILURES.has(failure)
+  return reviewer === undefined || failure === undefined || NON_ATTEMPT_FAILURES.has(failure)
     ? []
     : [reviewRequest(reviewer)];
 }
@@ -567,6 +575,16 @@ async function runDegradedFallback(
                     role: 'same reviewer on its alternate model',
                     model: input.alternateModel,
                     failure: input.alternateFailure,
+                  },
+                ]),
+            ...(input.independentFallbackFailure === undefined ||
+            input.independentFallback === undefined
+              ? []
+              : [
+                  {
+                    agent: input.independentFallback,
+                    role: 'second independent reviewer',
+                    failure: input.independentFallbackFailure,
                   },
                 ]),
             { agent: input.author, role: 'fallback review', failure: assessment.failure },
@@ -773,6 +791,8 @@ async function runIndependentFallback(
     readonly preferredReviewer: ReviewAgent;
     readonly preferredModel?: string;
     readonly preferredFailure: ReviewFailure;
+    readonly alternateFailure?: ReviewFailure;
+    readonly alternateModel?: string;
     readonly runDeadline: number;
   },
 ): Promise<
@@ -803,8 +823,16 @@ async function runIndependentFallback(
     snapshotChanged,
     network:
       outcome.kind === 'failed'
-        ? networkEffectsForFailure(input.reviewer, outcome.failure)
-        : [reviewRequest(input.reviewer)],
+        ? [
+            ...networkEffectsForFailure(input.preferredReviewer, input.preferredFailure),
+            ...networkEffectsForFailure(input.preferredReviewer, input.alternateFailure),
+            ...networkEffectsForFailure(input.reviewer, outcome.failure),
+          ]
+        : [
+            ...networkEffectsForFailure(input.preferredReviewer, input.preferredFailure),
+            ...networkEffectsForFailure(input.preferredReviewer, input.alternateFailure),
+            reviewRequest(input.reviewer),
+          ],
   });
   if (changedResult !== undefined) return { kind: 'completed', result: changedResult };
   const assessment = assessFallback(outcome, input.reviewer, prepared.packet.dispatch_id);
@@ -818,6 +846,9 @@ async function runIndependentFallback(
       preferredReviewer: input.preferredReviewer,
       preferredModel: input.preferredModel,
       preferredFailure: input.preferredFailure,
+      alternateReviewer: input.preferredReviewer,
+      alternateModel: input.alternateModel,
+      alternateFailure: input.alternateFailure,
     }),
   };
 }
@@ -865,6 +896,8 @@ async function runRemainingRoutes(
     ...input,
     reviewer: input.independentFallback,
     preferredReviewer: input.assignedReviewer,
+    alternateFailure,
+    alternateModel,
   });
   if (independent.kind === 'completed') return independent.result;
   const independentFallbackFailure =
@@ -996,8 +1029,9 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
   const reviewer = routes.preferred;
   const primaryModel = readPrimaryReviewerModel(input.cwd, reviewer);
 
-  // One bound for reviewer work across the whole run. Initial packet sealing is
-  // deliberately outside it; later probes, routes, and cleanups share it.
+  // One bound for packet preparation and reviewer work across the whole run.
+  // Later probes and routes share it; final integrity checks and cleanup may
+  // finish after it.
   const runDeadline = Date.now() + runBoundMs();
   const {
     outcome,

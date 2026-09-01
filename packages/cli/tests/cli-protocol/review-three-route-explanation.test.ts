@@ -13,9 +13,9 @@ import {
 afterAll(cleanupTrustedReviewerDirectories);
 
 /**
- * Three routes, three different causes: the reviewer's default model never
- * answers, its alternate model is not signed in, and the author's own runtime
- * answers off-contract.
+ * Four routes, four different causes: the reviewer's default model never
+ * answers, its alternate model is not signed in, OpenCode is unavailable, and
+ * the author's own runtime answers off-contract.
  */
 function installThreeFailures(host: string): string {
   const bin = nodePath.join(host, 'bin');
@@ -49,7 +49,7 @@ printf 'not-a-review\n'
   return bin;
 }
 
-describe('when all three routes fail', () => {
+describe('when all four routes fail', () => {
   it('keeps each route its own cause, including the alternate model', async () => {
     const directory = createTemporaryDirectory();
     const host = createTrustedReviewerDirectory('safeword-three-route-');
@@ -77,8 +77,8 @@ describe('when all three routes fail', () => {
         env: {
           PATH: `${bin}:/usr/bin:/bin`,
           SAFEWORD_AGENT_RUNTIME: 'claude',
-          SAFEWORD_REVIEW_TIMEOUT_MS: '800',
-          SAFEWORD_REVIEW_RUN_BOUND_MS: '6000',
+          SAFEWORD_REVIEW_TIMEOUT_MS: '2500',
+          SAFEWORD_REVIEW_RUN_BOUND_MS: '12000',
           SAFEWORD_NO_UPDATE_CHECK: '1',
         },
       },
@@ -90,9 +90,10 @@ describe('when all three routes fail', () => {
     };
     const explanation = payload.findings.map(finding => finding.message).join(' ');
 
-    // Three attempts, three distinct causes.
+    // Four attempts, four distinct causes.
     expect(explanation).toMatch(/ran out of time/i);
     expect(explanation).toMatch(/not signed in/i);
+    expect(explanation).toMatch(/OpenCode.*not found on PATH/i);
     expect(explanation).toMatch(/could not be accepted/i);
     // The alternate-model attempt names the selected model so operators can
     // distinguish a failed override from the primary route.

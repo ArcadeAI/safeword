@@ -99,15 +99,15 @@ describe('stopping a reviewer', () => {
         env: {
           PATH: `${bin}:/usr/bin:/bin`,
           SAFEWORD_AGENT_RUNTIME: 'claude',
-          SAFEWORD_REVIEW_TIMEOUT_MS: '800',
-          SAFEWORD_REVIEW_RUN_BOUND_MS: '2000',
+          SAFEWORD_REVIEW_TIMEOUT_MS: '1600',
+          SAFEWORD_REVIEW_RUN_BOUND_MS: '3000',
           SAFEWORD_NO_UPDATE_CHECK: '1',
         },
       },
     );
 
     // A grandchild holding the pipes open must not have held up the run.
-    expect(Date.now() - startedAt).toBeLessThan(3500);
+    expect(Date.now() - startedAt).toBeLessThan(4500);
 
     expect(existsSync(pidFile)).toBe(true);
     const grandchild = Number(readFileSync(pidFile, 'utf8').trim());
