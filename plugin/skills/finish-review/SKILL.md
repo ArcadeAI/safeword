@@ -74,6 +74,11 @@ route below it and no retry.
 
 ## Report the result
 
+When this supplemental result will count toward a pull request's AI-review
+evidence, return to `/pr-readiness` after reporting it. Apply or answer every
+finding there; this fallback never satisfies the other current-head gates and
+never authorizes Ready promotion.
+
 Lead with the assurance before findings.
 
 Provide supplemental review feedback in this foreground session.

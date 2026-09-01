@@ -27,6 +27,7 @@ interface FrontmatterField {
 const CURSOR_ACTION_SKILLS = [
   'lint',
   'verify',
+  'pr-readiness',
   'closeout',
   'audit',
   'explain',
@@ -45,6 +46,12 @@ const REFACTOR_DESCRIPTION =
   "Systematic refactoring with small-step discipline. Use when user says 'refactor', 'clean up', 'restructure', 'extract', 'rename', 'simplify', or mentions code smells. Enforces one change → test → commit when the commit can stay scoped. For structural improvements, NOT style/formatting (use /lint). NOT for adding features or fixing bugs.";
 
 export const CURSOR_COMMAND_WRAPPERS: readonly CursorCommandWrapper[] = [
+  {
+    name: 'pr-readiness',
+    description:
+      'Prepare a pull request for human review and decide whether it may leave Draft. Use when creating or rewriting a PR description, marking a PR ready, responding to review, or checking mergeability.',
+    skillPath: 'pr-readiness/SKILL.md',
+  },
   {
     name: 'bdd',
     description:
@@ -147,6 +154,14 @@ export const CURSOR_RULE_WRAPPERS: readonly CursorRuleWrapper[] = [
       "Internal fallback used only right after the shared review coordinator reports it's run out of reviewer routes. Not something a user invokes directly.",
     referencePath: '.safeword/skills/finish-review/SKILL.md',
     skill: 'finish-review',
+  },
+  {
+    name: 'safeword-pr-readiness',
+    alwaysApply: false,
+    description:
+      'Prepare a pull request for human review and decide whether it may leave Draft. Use when creating or rewriting a PR description, marking a PR ready, responding to review, or checking mergeability.',
+    referencePath: '.safeword/skills/pr-readiness/SKILL.md',
+    skill: 'pr-readiness',
   },
   {
     name: 'safeword-quality-reviewing',

@@ -16,6 +16,11 @@ workflow into “merge succeeded, so we are done.”
 ## 1. Prove delivery readiness
 
 Observe the pull request directly with structured `gh pr view --json` output.
+A Ready label is not readiness evidence by itself. Re-run `/pr-readiness` against
+the current head and require its seven gates to pass, including concrete end-user
+execution, a fresh top-to-bottom self-review, and every review finding applied or
+answered. Unanswered or unresolved review work remains a blocker even when CI is
+green.
 A non-empty hosted check rollup whose checks are all terminal and green is
 authoritative exact-head verification. When CI is absent, incomplete, failing,
 or unobservable, run `/safeword:verify` for the current pull request head instead. Require

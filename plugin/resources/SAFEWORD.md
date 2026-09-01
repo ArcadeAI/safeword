@@ -195,7 +195,7 @@ Read the matching guide when its trigger fires:
 
 **Commit frequently.** After each GREEN phase, before and after refactors, when switching tasks. The LOC gate fires near 400 lines — commit to reset it.
 
-**Draft pull requests.** Create every pull request as a draft by default (`gh pr create --draft` on GitHub). Only create or mark a pull request ready for review when the user explicitly asks; a request to push, publish, or open a pull request does not count.
+**Reviewer-as-customer pull requests.** Keep speculative work on a branch. Open a Draft only for concrete CI, AI review, or a narrow human sanity check. Before writing a PR body, responding to review, or promoting a PR to Ready, run `/pr-readiness`: its seven current-head gates and reviewer-oriented description contract are the single source of truth. Missing evidence keeps the PR Draft. Only create or mark a pull request ready for review when the user explicitly asks; a request to push, publish, or open a pull request does not count.
 
 **Worktree entry (all hosts).** At session start and after moving roots or creating a worktree, run `pwd && git rev-parse --show-toplevel && git branch --show-current && git rev-parse --short HEAD` before evidence gathering or edits. Do not guess a package directory or probe a speculative path. Work from the reported repository root; use `<namespace-root>/architecture.generated.md` to find monorepo packages when present, otherwise inspect the root once. If the path, repo root, branch, or commit is wrong, stop and fix the workspace before touching files.
 
