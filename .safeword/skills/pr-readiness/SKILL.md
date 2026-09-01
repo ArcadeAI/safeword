@@ -65,13 +65,14 @@ Build the body from the ticket and diff. Keep only applicable sections and write
 - **Risks and review focus:** blast radius, rollback, open questions, and where
   human judgment is wanted.
 - **Readiness evidence:** use this exact durable handoff shape. Use `PASS` only
-  for complete gates and `BLOCKED` with the recovery action for all others:
+  for complete gates, `N/A` only for gate 3 with its reason and nearest-boundary
+  proof, and `BLOCKED` with the recovery action for all others:
 
   ```text
   Head: <full current head SHA>
   1. Ticket linkage — PASS: <evidence>
   2. Author comprehension — PASS: <evidence>
-  3. End-user execution — PASS: <evidence>
+  3. End-user execution — <PASS: evidence | N/A: reason + nearest-boundary proof>
   4. Checks — PASS: <evidence>
   5. AI review — PASS: <evidence>
   6. Fresh self-review — PASS: <evidence>

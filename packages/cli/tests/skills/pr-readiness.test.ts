@@ -43,7 +43,11 @@ describe('reviewer-as-customer PR readiness (#3579)', () => {
     expect(readRepoFile('packages/cli/templates/cursor/rules/safeword-pr-readiness.mdc')).toContain(
       '@.safeword/skills/pr-readiness/SKILL.md',
     );
-    expect(SAFEWORD_SCHEMA.ownedFiles['.opencode/commands/pr-readiness.md']).toBeDefined();
+    const openCodeCommand = SAFEWORD_SCHEMA.ownedFiles['.opencode/commands/pr-readiness.md'];
+    expect(typeof openCodeCommand?.content).toBe('function');
+    expect((openCodeCommand?.content as () => string)()).toContain(
+      'Load and follow the `pr-readiness` skill completely',
+    );
     const codexSkill = readRepoFile('packages/cli/codex-plugin/skills/pr-readiness/SKILL.md');
     expect(codexSkill).toContain('name: pr-readiness');
     expect(codexSkill.replaceAll(/\s+/g, ' ')).toContain(
@@ -77,8 +81,8 @@ describe('reviewer-as-customer PR readiness (#3579)', () => {
     expect(skill).toContain('GATES PASS — awaiting explicit Ready authorization');
     expect(skill).toContain('gh pr ready --undo');
     expect(skill).toContain('explicitly authorizes that exact state change');
-    expect(skill).toContain('Never invent a');
-    expect(skill).toContain('require unsatisfied');
+    expect(normalized).toContain('never invent a walkthrough');
+    expect(normalized).toContain('require unsatisfied');
     expect(skill).toContain('Disclose degraded or absent independence');
     expect(skill).toContain('resume this same readiness run');
   });
@@ -102,15 +106,18 @@ describe('reviewer-as-customer PR readiness (#3579)', () => {
     expect(
       skill
         .split('\n')
-        .filter(line => /^[1-7]\./.exec(line.trim()) && line.endsWith('— PASS: <evidence>')),
-    ).toHaveLength(7);
+        .filter(line => /^[124-7]\./.exec(line.trim()) && line.endsWith('— PASS: <evidence>')),
+    ).toHaveLength(6);
+    expect(skill).toContain(
+      '3. End-user execution — <PASS: evidence | N/A: reason + nearest-boundary proof>',
+    );
   });
 
   it('preserves reviewer conversation and freshness', () => {
     const skill = readRepoFile(canonicalPath);
     expect(skill).toContain('Reply before resolving every thread');
     expect(skill).toContain('leave disagreements for the reviewer to resolve');
-    expect(skill).toContain('re-request review after a');
+    expect(skill.replaceAll(/\s+/g, ' ')).toContain('re-request review after a material push');
   });
 
   it.each([
@@ -129,7 +136,8 @@ describe('reviewer-as-customer PR readiness (#3579)', () => {
   it('makes closeout require every current-head gate and unresolved review to pass', () => {
     const closeout = readRepoFile('packages/cli/templates/skills/closeout/SKILL.md');
     const normalized = closeout.replaceAll(/\s+/g, ' ');
-    expect(normalized).toContain('numbered entries `1` through `7` to say `PASS:`');
+    expect(normalized).toContain('gates `1`, `2`, and `4` through `7` to say `PASS:`');
+    expect(normalized).toContain('gate `3` to say either `PASS:` or `N/A:`');
     expect(normalized).toContain('Unanswered or unresolved review work remains a blocker');
     expect(normalized).toContain('required checks all conclude `success`');
   });
