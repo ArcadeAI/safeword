@@ -9,10 +9,44 @@ export interface OppositeReviewPair {
   readonly reviewer: ReviewAgent;
 }
 
-export function oppositeReviewPair(author: ReviewAuthor): OppositeReviewPair | undefined {
-  if (author === 'claude') return { author, reviewer: 'codex' };
-  if (author === 'codex') return { author, reviewer: 'claude' };
+export interface ReviewRoutePlan {
+  readonly author: ReviewAgent;
+  readonly preferred: ReviewAgent;
+  readonly independentFallback: ReviewAgent;
+  readonly degradedFallback: ReviewAgent;
+}
+
+export function reviewRoutePlan(author: ReviewAuthor): ReviewRoutePlan | undefined {
+  if (author === 'claude') {
+    return {
+      author,
+      preferred: 'codex',
+      independentFallback: 'opencode',
+      degradedFallback: author,
+    };
+  }
+  if (author === 'codex') {
+    return {
+      author,
+      preferred: 'claude',
+      independentFallback: 'opencode',
+      degradedFallback: author,
+    };
+  }
+  if (author === 'opencode') {
+    return {
+      author,
+      preferred: 'claude',
+      independentFallback: 'codex',
+      degradedFallback: author,
+    };
+  }
   return undefined;
+}
+
+export function oppositeReviewPair(author: ReviewAuthor): OppositeReviewPair | undefined {
+  const plan = reviewRoutePlan(author);
+  return plan === undefined ? undefined : { author: plan.author, reviewer: plan.preferred };
 }
 
 /**
