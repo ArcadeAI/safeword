@@ -47,6 +47,7 @@ import {
 import { isNamespacePath, resolveNamespaceRoot } from './lib/namespace-root.ts';
 import { evaluateTicketWrite } from './lib/phase-provenance.ts';
 import { evaluateImplementEntry } from './lib/plan-gate.ts';
+import { evaluateParentContract } from './lib/product-plan-contract.ts';
 import { installCrashCapture } from './lib/self-report.ts';
 
 installCrashCapture('pre-tool-quality');
@@ -602,6 +603,21 @@ function phaseTransitionContext(): {
     proposedType: frontmatterScalar(context.proposedMeta, 'type'),
     proposedContent: context.proposedContent,
   };
+}
+
+// A child may advance only while its selected parent contract still matches the
+// digest it explicitly accepted. Ordinary ticket edits do not pay this check.
+if (isCanonicalTicketEdit) {
+  const { priorPhase, proposedPhase, proposedContent } = phaseTransitionContext();
+  if (proposedPhase !== priorPhase) {
+    const verdict = evaluateParentContract(projectDirectory, proposedContent);
+    if (!verdict.ok) {
+      deny(
+        `Parent Product Plan reconciliation required: ${verdict.reason}.`,
+        'Review the parent changes, then run `safeword ticket reconcile-parent <ticket-id>` in intake or add `--accept` after intake.',
+      );
+    }
+  }
 }
 
 // Feature readiness gate (#404): block new entries into define-behavior before

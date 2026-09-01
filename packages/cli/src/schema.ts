@@ -229,6 +229,7 @@ const CURSOR_SHARED_SKILL_FILES = [
   'cleanup-zombies/SKILL.md',
   'closeout/SKILL.md',
   'debug/SKILL.md',
+  'demand-research/SKILL.md',
   'elicit/SKILL.md',
   'explain/SKILL.md',
   'figure-it-out/SKILL.md',
@@ -819,6 +820,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/project-knowledge.ts': { template: 'hooks/lib/project-knowledge.ts' },
     '.safeword/hooks/lib/principle-trace.ts': { template: 'hooks/lib/principle-trace.ts' },
     '.safeword/hooks/lib/plan-gate.ts': { template: 'hooks/lib/plan-gate.ts' },
+    '.safeword/hooks/lib/product-plan-contract.ts': {
+      template: 'hooks/lib/product-plan-contract.ts',
+    },
     '.safeword/hooks/lib/replan-relevance.ts': { template: 'hooks/lib/replan-relevance.ts' },
     '.safeword/hooks/lib/replan.ts': { template: 'hooks/lib/replan.ts' },
     '.safeword/hooks/lib/review-ledger.ts': { template: 'hooks/lib/review-ledger.ts' },
@@ -1103,6 +1107,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.claude/skills/pr-readiness/SKILL.md': {
       template: 'skills/pr-readiness/SKILL.md',
+    },
+    '.claude/skills/demand-research/SKILL.md': {
+      template: 'skills/demand-research/SKILL.md',
     },
     '.claude/skills/finish-review/SKILL.md': {
       template: 'skills/finish-review/SKILL.md',

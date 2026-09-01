@@ -63,6 +63,12 @@ export const CURSOR_COMMAND_WRAPPERS: readonly CursorCommandWrapper[] = [
     skillPath: 'debug/SKILL.md',
   },
   {
+    name: 'demand-research',
+    description:
+      'Tests whether a proposed product bet has credible demand. Use when Why now depends on an unresolved, decision-critical demand claim or when the user explicitly asks for demand research. Do NOT use for child features, mandated work, parity work, or when a cheaper experiment can answer the question first.',
+    skillPath: 'demand-research/SKILL.md',
+  },
+  {
     name: 'quality-review',
     description:
       "Deep code review with web research. Use when the user says 'double check against latest', 'verify versions', or 'check security'. Adds live research on top of the automatic quality hook — confirms you're using current library versions and APIs, not stale ones.",
@@ -129,6 +135,14 @@ export const CURSOR_RULE_WRAPPERS: readonly CursorRuleWrapper[] = [
     description: DEBUG_DESCRIPTION,
     referencePath: '.safeword/skills/debug/SKILL.md',
     skill: 'debug',
+  },
+  {
+    name: 'safeword-demand-research',
+    alwaysApply: false,
+    description:
+      'Tests whether a proposed product bet has credible demand. Use when Why now depends on an unresolved, decision-critical demand claim or when the user explicitly asks for demand research. Do NOT use for child features, mandated work, parity work, or when a cheaper experiment can answer the question first.',
+    referencePath: '.safeword/skills/demand-research/SKILL.md',
+    skill: 'demand-research',
   },
   {
     name: 'safeword-elicitation',
