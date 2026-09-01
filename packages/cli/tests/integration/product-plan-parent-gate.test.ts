@@ -1,9 +1,11 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
+import { resolveParentContract } from '../../src/utils/product-plan-contract.js';
 
 const root = nodePath.resolve(import.meta.dirname, '../../../..');
 const preTool = nodePath.join(root, 'packages/cli/templates/hooks/pre-tool-quality.ts');
@@ -73,6 +75,59 @@ describe('child Product Plan phase boundaries', () => {
       env: { ...process.env, CLAUDE_PROJECT_DIR: project },
     });
     expect(result.stdout).toContain('parent references cannot be removed');
+  });
+
+  it('blocks a phase change that removes activation while leaving partial references', () => {
+    const prior = readFileSync(childTicket, 'utf8');
+    const content = prior
+      .replace('phase: intake', 'phase: define-behavior')
+      .replace('product_plan_contract: v1\n', '')
+      .replace('parent_job: parent.PLO1\n', '');
+    const result = spawnSync('bun', [preTool], {
+      input: JSON.stringify({
+        tool_name: 'Write',
+        tool_input: { file_path: childTicket, content },
+      }),
+      encoding: 'utf8',
+      env: { ...process.env, CLAUDE_PROJECT_DIR: project },
+    });
+    expect(result.stdout).toContain('parent, parent_job, and milestone must be declared together');
+  });
+
+  it('allows a reconciled parent contract and rejects its later drift', () => {
+    const digest = resolveParentContract(project, 'EPIC01', 'parent.PLO1', 'M1').digest;
+    writeFileSync(
+      childTicket,
+      readFileSync(childTicket, 'utf8')
+        .split('milestone: M1')
+        .join(`milestone: M1\nparent_contract_digest: ${digest}`),
+    );
+    const edit = {
+      tool_name: 'Edit',
+      tool_input: {
+        file_path: childTicket,
+        old_string: 'phase: intake',
+        new_string: 'phase: define-behavior',
+      },
+    };
+    const allowed = spawnSync('bun', [preTool], {
+      input: JSON.stringify(edit),
+      encoding: 'utf8',
+      env: { ...process.env, CLAUDE_PROJECT_DIR: project },
+    });
+    expect(allowed.stdout).not.toContain('Parent Product Plan reconciliation required');
+
+    const parentSpec = nodePath.join(project, '.project/tickets/EPIC01-parent/spec.md');
+    writeFileSync(
+      parentSpec,
+      readFileSync(parentSpec, 'utf8').replace('Outcome:** value', 'Outcome:** changed'),
+    );
+    const denied = spawnSync('bun', [preTool], {
+      input: JSON.stringify(edit),
+      encoding: 'utf8',
+      env: { ...process.env, CLAUDE_PROJECT_DIR: project },
+    });
+    expect(denied.stdout).toContain('the referenced parent Product Plan changed');
   });
 
   it('blocks completion when the parent digest is missing', () => {

@@ -596,6 +596,7 @@ function phaseTransitionContext(): {
   proposedType: string | undefined;
   priorHadParentReferences: boolean;
   proposedHasParentReferences: boolean;
+  priorContent: string;
   proposedContent: string;
 } {
   const context = canonicalTicketEditContext();
@@ -609,6 +610,7 @@ function phaseTransitionContext(): {
     proposedHasParentReferences: ['parent', 'parent_job', 'milestone'].some(
       key => frontmatterScalar(context.proposedMeta, key) !== undefined,
     ),
+    priorContent: context.priorContent,
     proposedContent: context.proposedContent,
   };
 }
@@ -621,6 +623,7 @@ if (isCanonicalTicketEdit) {
     proposedPhase,
     priorHadParentReferences,
     proposedHasParentReferences,
+    priorContent,
     proposedContent,
   } = phaseTransitionContext();
   if (proposedPhase !== priorPhase) {
@@ -630,7 +633,7 @@ if (isCanonicalTicketEdit) {
         'Preserve the child references, or make the re-parenting change separately before advancing.',
       );
     }
-    const verdict = evaluateParentContract(projectDirectory, proposedContent);
+    const verdict = evaluateParentContract(projectDirectory, proposedContent, priorContent);
     if (!verdict.ok) {
       deny(
         `Parent Product Plan reconciliation required: ${verdict.reason}.`,

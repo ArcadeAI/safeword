@@ -63,11 +63,21 @@ function section(content: string, level: number, id: string): string | undefined
 
 function field(content: string, label: string): string | undefined {
   const prefix = `- **${label}:**`;
-  return content
-    .split(/\r?\n/)
-    .find(line => line.startsWith(prefix))
-    ?.slice(prefix.length)
-    .trim();
+  const lines = content.split(/\r?\n/);
+  const index = lines.findIndex(line => line.trimStart().startsWith(prefix));
+  if (index === -1) return undefined;
+  const matchedLine = lines[index];
+  if (matchedLine === undefined) return undefined;
+  const first = matchedLine.trimStart().slice(prefix.length).trim();
+  const continuation: string[] = [];
+  const remainingLines = lines.slice(index + 1);
+  for (const line of remainingLines) {
+    const trimmed = line.trim();
+    if (trimmed === '' || trimmed.startsWith('#') || trimmed.startsWith('- ')) break;
+    if (!/^\s/.test(line)) break;
+    continuation.push(trimmed);
+  }
+  return [first, ...continuation].join(' ').trim();
 }
 
 export function canonicalizeParentContractValue(value: string): string {
@@ -125,13 +135,21 @@ export function resolveHookParentContract(
 export function evaluateParentContract(
   projectDirectory: string,
   ticketContent: string,
+  priorTicketContent?: string,
 ): ParentContractVerdict {
   const meta = metadata(ticketContent);
   const marker = scalar(meta, 'product_plan_contract');
   const parentJob = scalar(meta, 'parent_job');
   const milestone = scalar(meta, 'milestone');
   const persisted = scalar(meta, 'parent_contract_digest');
-  const activated = marker === 'v1' || parentJob !== undefined || persisted !== undefined;
+  const priorMeta = priorTicketContent === undefined ? {} : metadata(priorTicketContent);
+  const activated =
+    marker === 'v1' ||
+    parentJob !== undefined ||
+    persisted !== undefined ||
+    scalar(priorMeta, 'product_plan_contract') === 'v1' ||
+    scalar(priorMeta, 'parent_job') !== undefined ||
+    scalar(priorMeta, 'parent_contract_digest') !== undefined;
   if (!activated) return { ok: true };
 
   const parent = scalar(meta, 'parent');

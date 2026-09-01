@@ -52,11 +52,21 @@ function sectionAfterHeading(content: string, level: number, id: string): string
 
 function fieldValue(content: string, label: string): string | undefined {
   const prefix = `- **${label}:**`;
-  return content
-    .split(/\r?\n/)
-    .find(line => line.startsWith(prefix))
-    ?.slice(prefix.length)
-    .trim();
+  const lines = content.split(/\r?\n/);
+  const index = lines.findIndex(line => line.trimStart().startsWith(prefix));
+  if (index === -1) return undefined;
+  const matchedLine = lines[index];
+  if (matchedLine === undefined) return undefined;
+  const first = matchedLine.trimStart().slice(prefix.length).trim();
+  const continuation: string[] = [];
+  const remainingLines = lines.slice(index + 1);
+  for (const line of remainingLines) {
+    const trimmed = line.trim();
+    if (trimmed === '' || trimmed.startsWith('#') || trimmed.startsWith('- ')) break;
+    if (!/^\s/.test(line)) break;
+    continuation.push(trimmed);
+  }
+  return [first, ...continuation].join(' ').trim();
 }
 
 export function canonicalizeContractValue(value: string): string {

@@ -117,6 +117,23 @@ describe('Product Plan parent contract parity', () => {
     );
   });
 
+  it('includes wrapped contract bullet continuations in both implementations', () => {
+    const project = mkdtempSync(nodePath.join(tmpdir(), 'safeword-parent-contract-'));
+    const parent = nodePath.join(project, '.project', 'tickets', 'EPIC01-parent');
+    mkdirSync(parent, { recursive: true });
+    writeFileSync(nodePath.join(parent, 'ticket.md'), '---\ntype: epic\n---\n');
+    writeFileSync(
+      nodePath.join(parent, 'spec.md'),
+      '## Product Bet\n- **Project non-goals:** no tracker sync,\n  no bulk import\n- **Success threshold:** live\n### J1\n### M1\n- **Outcome:** first customer\n  completes the flow\n- **Non-goals:** none\n',
+    );
+
+    const cli = resolveParentContract(project, 'EPIC01', 'J1', 'M1');
+    const hook = resolveHookParentContract(project, 'EPIC01', 'J1', 'M1');
+    expect(hook).toEqual(cli);
+    expect(cli.values.projectNonGoals).toBe('no tracker sync, no bulk import');
+    expect(cli.values.milestoneOutcome).toBe('first customer completes the flow');
+  });
+
   it('does not activate the new contract for an unmarked legacy milestone', () => {
     expect(
       evaluateParentContract('/unused', '---\ntype: feature\nmilestone: release-1\n---\n'),
