@@ -2,12 +2,13 @@
 id: 2Y4B5R
 slug: lean-product-plans
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 product_plan_contract: v1
 phase_anchors:
   - implement: fb7fc5217
   - verify: .project/tickets/2Y4B5R-lean-product-plans/test-definitions.md
+  - done: .project/tickets/2Y4B5R-lean-product-plans/verify.md
 scope:
   - create one compact Product Plan shape for feature epics and standalone features
   - create delta-only child feature specs linked by parent, milestone, and parent job
