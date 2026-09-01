@@ -15,6 +15,14 @@ const VENDOR_VARIABLES: Readonly<Record<ReviewAgent, readonly string[]>> = {
     'CODEX_HOME',
     'CODEX_THREAD_ID',
   ],
+  opencode: [
+    'ANTHROPIC_API_KEY',
+    'OPENAI_API_KEY',
+    'AZURE_OPENAI_API_KEY',
+    'OPENCODE_CONFIG',
+    'OPENCODE_CONFIG_CONTENT',
+    'OPENCODE_CONFIG_DIR',
+  ],
 };
 
 const PROCESS_VARIABLES = [
@@ -127,7 +135,15 @@ export function reviewerEnvironment(
   source: NodeJS.ProcessEnv = process.env,
   platform: NodeJS.Platform = process.platform,
 ): NodeJS.ProcessEnv {
-  return filteredEnvironment(reviewer, source, platform);
+  const environment = filteredEnvironment(reviewer, source, platform);
+  if (reviewer !== 'opencode') return environment;
+  return {
+    ...environment,
+    OPENCODE_PERMISSION: JSON.stringify({ '*': 'deny' }),
+    OPENCODE_DISABLE_AUTOUPDATE: 'true',
+    OPENCODE_DISABLE_DEFAULT_PLUGINS: 'true',
+    OPENCODE_DISABLE_LSP_DOWNLOAD: 'true',
+  };
 }
 
 /** Capability probes must never receive vendor credentials. */

@@ -129,7 +129,7 @@ function terminalSafeReviewerText(value: string): string {
 }
 
 async function executeReview(
-  reviewer: 'claude' | 'codex',
+  reviewer: ReviewAgent,
   prepared: ReturnType<typeof prepareReviewPacket>,
   model?: string,
   runDeadline?: number,
@@ -188,7 +188,9 @@ function assessFallback(
 
 /** How an agent is written for a reader: the product name, not the runtime id. */
 function agentName(agent: ReviewAgent): string {
-  return agent === 'codex' ? 'Codex' : 'Claude';
+  if (agent === 'codex') return 'Codex';
+  if (agent === 'opencode') return 'OpenCode';
+  return 'Claude';
 }
 
 const FAILURE_CAUSES: Readonly<Record<string, string>> = {

@@ -44,7 +44,7 @@ const REVIEW_OUTPUT_SCHEMA_SHAPE = {
   properties: {
     schema_version: { type: 'integer', enum: [1] },
     dispatch_id: { type: 'string' },
-    reviewer_agent: { type: 'string', enum: ['claude', 'codex'] },
+    reviewer_agent: { type: 'string', enum: ['claude', 'codex', 'opencode'] },
     verdict: { type: 'string', enum: ['approve', 'request_changes'] },
     summary: { type: 'string' },
     findings: {
@@ -115,6 +115,7 @@ const ARGUMENTS: Readonly<Record<ReviewAgent, readonly string[]>> = {
     'mcp_servers={}',
     '-',
   ],
+  opencode: ['run', '--format', 'json', '--pure'],
 };
 
 /**
@@ -156,6 +157,7 @@ interface ReviewAttempt {
 const HELP_ARGUMENTS: Readonly<Record<ReviewAgent, readonly string[]>> = {
   claude: ['--help'],
   codex: ['exec', '--help'],
+  opencode: ['run', '--help'],
 };
 
 /**
@@ -185,6 +187,7 @@ const REQUIRED_CAPABILITIES: Readonly<Record<ReviewAgent, readonly string[]>> = 
     '--config',
     '--output-schema',
   ],
+  opencode: ['--format', '--pure', '--model'],
 };
 
 const MAX_OUTPUT_BYTES = 1024 * 1024;
@@ -344,6 +347,35 @@ function parseCodexOutput(stdout: string): unknown {
   return parseJson(stdout);
 }
 
+function parseOpenCodeOutput(stdout: string): unknown {
+  const completed = stdout
+    .split('\n')
+    .filter(line => line.trim() !== '')
+    .flatMap(line => {
+      try {
+        return [parseJson(line)];
+      } catch {
+        return [];
+      }
+    })
+    .filter(
+      event =>
+        isRecord(event) &&
+        event.type === 'text' &&
+        isRecord(event.part) &&
+        event.part.type === 'text' &&
+        isRecord(event.part.time) &&
+        typeof event.part.time.end === 'number' &&
+        typeof event.part.text === 'string',
+    );
+  if (completed.length !== 1) throw new Error('invalid reviewer output');
+  const [event] = completed;
+  if (!isRecord(event) || !isRecord(event.part) || typeof event.part.text !== 'string') {
+    throw new Error('invalid reviewer output');
+  }
+  return parseJson(event.part.text);
+}
+
 function reviewerVerdictMatchesFindings(verdict: unknown, findings: readonly unknown[]): boolean {
   return (
     verdict !== 'approve' ||
@@ -393,7 +425,10 @@ export function parseReviewerOutput(
   reviewer: ReviewAgent,
   stdout: string,
 ): UnverifiedReviewerOutput {
-  const output = reviewer === 'claude' ? parseClaudeOutput(stdout) : parseCodexOutput(stdout);
+  let output: unknown;
+  if (reviewer === 'claude') output = parseClaudeOutput(stdout);
+  else if (reviewer === 'codex') output = parseCodexOutput(stdout);
+  else output = parseOpenCodeOutput(stdout);
   if (!hasValidReviewerOutputBody(output)) throw new Error('invalid reviewer output');
   // Identity fields cross a separate trust boundary in coordinator.ts, which
   // reports missing and contradictory provenance as distinct public failures.
