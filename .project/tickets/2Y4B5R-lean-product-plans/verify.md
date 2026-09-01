@@ -8,6 +8,10 @@ parent reconciliation, a Killer Demo, and conditional focused demand research.
 
 ## Evidence
 
+**PR Scope:** ✅ Diff matches ticket scope: Product Plan templates, delta-child
+lineage/reconciliation, focused demand research, generated host artifacts,
+documentation, tests, and ticket evidence only; no piggybacked work.
+
 - Independent cross-agent quality review: approved with no release-blocking defect.
 - Latest parent-contract, delta-child, and lifecycle lane: 36/36 tests passed.
 - Broader focused Product Plan lane: 288/288 tests passed before the final
@@ -34,4 +38,3 @@ parent reconciliation, a Killer Demo, and conditional focused demand research.
 - One broad native-plugin acceptance scenario can observe both legacy and
   plugin effects in the currently loaded profile; focused source/plugin parity
   checks are green.
-
