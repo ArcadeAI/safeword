@@ -69,7 +69,7 @@ default.
 ```markdown
 ### oauth-flow.PLO1 — <job title>
 
-**Persona:** <canonical persona>
+**Persona:** <canonical persona> (`<persona-code>`)
 
 > When I <situation>, I want <motivation>, so I can <outcome>.
 

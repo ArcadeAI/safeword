@@ -146,6 +146,10 @@ describe('spec-template.md is well-formed (Rule 3)', () => {
     ]);
   });
 
+  it('contains no comms or launch planning section', () => {
+    expect(template).not.toMatch(/^## .*\b(comms|launch)\b/im);
+  });
+
   it('carries a JTBD and numbered Rule scaffold in canonical form', () => {
     const jtbdSection = template.slice(
       template.indexOf('## Jobs To Be Done'),

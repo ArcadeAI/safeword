@@ -82,4 +82,33 @@ describe('ticket reconcile-parent', () => {
     expect(reconcileParentResult('CHILD1', {}, cwd).state).toBe('failed');
     expect(readFileSync(childTicket, 'utf8')).toBe(before);
   });
+
+  it('rejects an unknown milestone reference', () => {
+    writeFileSync(
+      childTicket,
+      readFileSync(childTicket, 'utf8').replace('milestone: M1', 'milestone: M9'),
+    );
+    expect(reconcileParentResult('CHILD1', {}, cwd).state).toBe('failed');
+  });
+
+  const expectNonContractChangeIgnored = (edit: (spec: string) => string): void => {
+    reconcileParentResult('CHILD1', {}, cwd);
+    const specPath = nodePath.join(parentFolder, 'spec.md');
+    writeFileSync(specPath, edit(readFileSync(specPath, 'utf8')));
+    expect(reconcileParentResult('CHILD1', {}, cwd).state).toBe('healthy');
+  };
+
+  it('ignores changed editorial prose outside the parent contract', () => {
+    expectNonContractChangeIgnored(spec => `${spec}\nEditorial clarification.\n`);
+  });
+
+  it('ignores a changed research reference outside the parent contract', () => {
+    expectNonContractChangeIgnored(spec => `${spec}\nResearch: updated source.\n`);
+  });
+
+  it('ignores changed Killer Demo wording outside the parent contract', () => {
+    expectNonContractChangeIgnored(spec =>
+      spec.replace('## Killer Demo', '## Killer Demo\nNew wording.'),
+    );
+  });
 });

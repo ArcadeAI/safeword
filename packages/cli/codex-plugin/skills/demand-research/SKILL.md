@@ -49,6 +49,9 @@ Return exactly these four compact parts:
 - **Cheapest validation:** one concrete next test, or `none` when evidence is
   already sufficient.
 
+`ABSENT` and `UNAVAILABLE` are evidence states, not approval blockers. Do not
+invent evidence or upgrade demand strength when sources are unavailable.
+
 Update **Problem / Why now** with the verdict and strongest decision-bearing
 evidence. Do not add a separate research document unless the evidence itself is
 too large to cite compactly.

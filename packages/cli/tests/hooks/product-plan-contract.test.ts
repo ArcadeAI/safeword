@@ -36,6 +36,32 @@ describe('Product Plan parent contract parity', () => {
     expect(parentContractDigest(values)).toBe(digestParentContract(values));
   });
 
+  const expectDigestChange = (field: keyof ParentContractValues): void => {
+    expect(digestParentContract({ ...values, [field]: `${values[field]} changed` })).not.toBe(
+      digestParentContract(values),
+    );
+  };
+
+  it('changes the digest when the parent job changes', () => {
+    expectDigestChange('parentJob');
+  });
+
+  it('changes the digest when the milestone outcome changes', () => {
+    expectDigestChange('milestoneOutcome');
+  });
+
+  it('changes the digest when the milestone non-goals change', () => {
+    expectDigestChange('milestoneNonGoals');
+  });
+
+  it('changes the digest when the project non-goals change', () => {
+    expectDigestChange('projectNonGoals');
+  });
+
+  it('changes the digest when the success threshold changes', () => {
+    expectDigestChange('successThreshold');
+  });
+
   it.each([
     ['LF with heading suffixes', '\n', '.project'],
     ['CRLF in a configured namespace root', '\r\n', 'planning'],
