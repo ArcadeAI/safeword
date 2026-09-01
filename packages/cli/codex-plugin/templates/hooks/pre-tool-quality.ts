@@ -596,6 +596,7 @@ function phaseTransitionContext(): {
   proposedType: string | undefined;
   priorHadParentReferences: boolean;
   proposedHasParentReferences: boolean;
+  proposedHasCompleteParentReferences: boolean;
   priorParentContractActivated: boolean;
   priorContent: string;
   proposedContent: string;
@@ -609,6 +610,9 @@ function phaseTransitionContext(): {
       key => frontmatterScalar(context.priorMeta, key) !== undefined,
     ),
     proposedHasParentReferences: ['parent', 'parent_job', 'milestone'].some(
+      key => frontmatterScalar(context.proposedMeta, key) !== undefined,
+    ),
+    proposedHasCompleteParentReferences: ['parent', 'parent_job', 'milestone'].every(
       key => frontmatterScalar(context.proposedMeta, key) !== undefined,
     ),
     priorParentContractActivated:
@@ -629,6 +633,7 @@ if (isCanonicalTicketEdit) {
     proposedPhase,
     priorHadParentReferences,
     proposedHasParentReferences,
+    proposedHasCompleteParentReferences,
     priorParentContractActivated,
     priorContent,
     proposedContent,
@@ -637,8 +642,14 @@ if (isCanonicalTicketEdit) {
     existsSync(editedFile) &&
     priorParentContractActivated &&
     priorHadParentReferences &&
-    !proposedHasParentReferences
+    !proposedHasCompleteParentReferences
   ) {
+    if (proposedHasParentReferences) {
+      deny(
+        'Parent Product Plan reconciliation required: parent, parent_job, and milestone must be declared together.',
+        'Restore the complete child lineage before making any other ticket change.',
+      );
+    }
     deny(
       'Parent Product Plan reconciliation required: parent references cannot be removed from a contracted child.',
       'Preserve the child references; converting a child to standalone work requires an explicit preservation-first migration.',

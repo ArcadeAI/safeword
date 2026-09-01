@@ -50,6 +50,18 @@ function sectionAfterHeading(content: string, level: number, id: string): string
     .trim();
 }
 
+function sectionContractValue(content: string, level: number, id: string): string | undefined {
+  const prefix = `${'#'.repeat(level)} `;
+  const heading = content.split(/\r?\n/).find(line => {
+    if (!line.startsWith(`${prefix}${id}`)) return false;
+    const suffix = line.slice(prefix.length + id.length);
+    return suffix === '' || /^\s|^—/.test(suffix);
+  });
+  if (heading === undefined) return undefined;
+  const body = sectionAfterHeading(content, level, id) ?? '';
+  return [heading.slice(prefix.length).trim(), body].filter(Boolean).join('\n');
+}
+
 function fieldValue(content: string, label: string): string | undefined {
   const prefix = `- **${label}:**`;
   const lines = content.split(/\r?\n/);
@@ -100,10 +112,10 @@ export function resolveParentContract(
   const directory = resolveTicketDirectory(cwd, parentId);
   if (!directory) throw new Error(`Parent ticket "${parentId}" does not resolve.`);
   const spec = readParentSpec(directory, parentId);
-  requireSection(spec, 3, parentJobId, `Parent job "${parentJobId}"`);
+  const parentJob = requireContractSection(spec, 3, parentJobId, `Parent job "${parentJobId}"`);
   const milestone = requireSection(spec, 3, milestoneId, `Milestone "${milestoneId}"`);
   const productBet = sectionAfterHeading(spec, 2, 'Product Bet') ?? '';
-  const values = contractValues(parentJobId, milestone, productBet);
+  const values = contractValues(parentJob, milestone, productBet);
   return { values, digest: digestParentContract(values) };
 }
 
@@ -124,13 +136,20 @@ function requireSection(spec: string, level: number, id: string, label: string):
   return section;
 }
 
+function requireContractSection(spec: string, level: number, id: string, label: string): string {
+  const section = sectionContractValue(spec, level, id);
+  if (section === undefined)
+    throw new Error(`${label} does not resolve in the parent Product Plan.`);
+  return section;
+}
+
 function contractValues(
-  parentJobId: string,
+  parentJob: string,
   milestone: string,
   productBet: string,
 ): ParentContractValues {
   const values: ParentContractValues = {
-    parentJob: parentJobId,
+    parentJob,
     milestoneOutcome: fieldValue(milestone, 'Outcome') ?? '',
     milestoneNonGoals: fieldValue(milestone, 'Non-goals') ?? '',
     projectNonGoals: fieldValue(productBet, 'Project non-goals') ?? '',

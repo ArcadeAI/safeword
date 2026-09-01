@@ -55,7 +55,9 @@ Keep the four template sections and no others.
 
 Capture Problem / Why now, Expected outcome, Success threshold, and Project
 non-goals. Why now carries only decision-bearing evidence. The success threshold
-is falsifiable; use an observable outcome when no honest metric exists.
+is falsifiable; use an observable outcome when no honest metric exists. A
+restated template prompt is not a threshold: rewrite it until the claimed
+outcome could be disproven.
 
 Use `$safeword:demand-research` only when Why now contains an unresolved,
 decision-critical demand claim or the user explicitly requests demand research.
@@ -96,7 +98,9 @@ and its own non-goals:
 ### Killer Demo
 
 Define Audience, Starting state, Action, Payoff, Proof, and Boundary. This is the
-shortest credible demonstration of the bet—not another scope list.
+shortest credible demonstration of the bet—not another scope list. Template
+prompts or generic restatements do not qualify; the Payoff must name the
+persona-facing before/after change and the Proof must make it observable.
 
 ## Child contribution
 

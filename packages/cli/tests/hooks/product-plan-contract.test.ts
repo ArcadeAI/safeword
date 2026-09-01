@@ -46,6 +46,21 @@ describe('Product Plan parent contract parity', () => {
     expectDigestChange('parentJob');
   });
 
+  it('changes the resolved digest when the parent rewrites a referenced job', () => {
+    const project = mkdtempSync(nodePath.join(tmpdir(), 'safeword-parent-contract-'));
+    const parent = nodePath.join(project, '.project', 'tickets', 'EPIC01-parent');
+    mkdirSync(parent, { recursive: true });
+    writeFileSync(nodePath.join(parent, 'ticket.md'), '---\ntype: epic\n---\n');
+    const specPath = nodePath.join(parent, 'spec.md');
+    const spec =
+      '## Product Bet\n- **Project non-goals:** none\n- **Success threshold:** live\n### J1 — Ship safely\n### M1\n- **Outcome:** live\n- **Non-goals:** none\n';
+    writeFileSync(specPath, spec);
+    const before = resolveParentContract(project, 'EPIC01', 'J1', 'M1').digest;
+    writeFileSync(specPath, spec.replace('Ship safely', 'Ship anything'));
+    expect(resolveParentContract(project, 'EPIC01', 'J1', 'M1').digest).not.toBe(before);
+    expect(resolveHookParentContract(project, 'EPIC01', 'J1', 'M1').digest).not.toBe(before);
+  });
+
   it('changes the digest when the milestone outcome changes', () => {
     expectDigestChange('milestoneOutcome');
   });

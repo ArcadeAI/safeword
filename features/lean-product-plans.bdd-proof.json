@@ -14,13 +14,12 @@
       "feature ticket.md has Goal + See pointer and no Why"
     ],
     "Template prose does not qualify as a success threshold": [
-      "packages/cli/tests/hooks/product-plan-contract.test.ts",
-      "rejects the same missing field in both implementations"
+      "packages/cli/tests/intake-brief.test.ts",
+      "rejects template prose as a falsifiable success threshold"
     ],
     "An authored Product Bet has a falsifiable success threshold": [
-      "packages/cli/tests/hooks/product-plan-contract.test.ts",
-      "resolves identical values and digests from disk: %s",
-      "LF with heading suffixes"
+      "packages/cli/tests/intake-brief.test.ts",
+      "requires an authored success threshold that can be disproven"
     ],
     "An observable outcome replaces an invented metric": [
       "packages/cli/tests/skills/demand-research-contract.test.ts",
@@ -111,8 +110,8 @@
       ]
     ],
     "Boilerplate does not qualify as a Killer Demo": [
-      "packages/cli/tests/utils/ticket-writer.test.ts",
-      "scaffolded spec.md equals the template with {title} substituted"
+      "packages/cli/tests/intake-brief.test.ts",
+      "requires a persona-facing, observable Killer Demo payoff"
     ],
     "Product Plans contain no comms or launch prompt": [
       "packages/cli/tests/utils/ticket-writer.test.ts",

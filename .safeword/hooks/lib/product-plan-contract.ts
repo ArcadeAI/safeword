@@ -61,6 +61,18 @@ function section(content: string, level: number, id: string): string | undefined
     .trim();
 }
 
+function contractSection(content: string, level: number, id: string): string | undefined {
+  const prefix = `${'#'.repeat(level)} `;
+  const heading = content.split(/\r?\n/).find(line => {
+    if (!line.startsWith(`${prefix}${id}`)) return false;
+    const suffix = line.slice(prefix.length + id.length);
+    return suffix === '' || /^\s|^—/.test(suffix);
+  });
+  if (heading === undefined) return undefined;
+  const body = section(content, level, id) ?? '';
+  return [heading.slice(prefix.length).trim(), body].filter(Boolean).join('\n');
+}
+
 function field(content: string, label: string): string | undefined {
   const prefix = `- **${label}:**`;
   const lines = content.split(/\r?\n/);
@@ -115,12 +127,13 @@ export function resolveHookParentContract(
   const specPath = nodePath.join(directory, 'spec.md');
   if (!existsSync(specPath)) throw new Error('parent Product Plan is missing');
   const spec = readFileSync(specPath, 'utf8');
-  if (section(spec, 3, parentJob) === undefined) throw new Error('parent job does not resolve');
+  const resolvedParentJob = contractSection(spec, 3, parentJob);
+  if (resolvedParentJob === undefined) throw new Error('parent job does not resolve');
   const milestone = section(spec, 3, milestoneId);
   if (milestone === undefined) throw new Error('milestone does not resolve');
   const productBet = section(spec, 2, 'Product Bet') ?? '';
   const values: ParentContractValues = {
-    parentJob,
+    parentJob: resolvedParentJob,
     milestoneOutcome: field(milestone, 'Outcome') ?? '',
     milestoneNonGoals: field(milestone, 'Non-goals') ?? '',
     projectNonGoals: field(productBet, 'Project non-goals') ?? '',

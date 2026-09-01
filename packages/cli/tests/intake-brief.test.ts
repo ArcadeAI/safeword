@@ -16,4 +16,21 @@ describe('lean Product Plan intake', () => {
     expect(discovery).toContain('unresolved,\ndecision-critical demand claim');
     expect(discovery).toContain('cheaper\nexperiment');
   });
+
+  it('rejects template prose as a falsifiable success threshold', () => {
+    const discovery = read('packages/cli/templates/skills/bdd/DISCOVERY.md');
+    expect(discovery).toContain('restated template prompt is not a threshold');
+  });
+
+  it('requires an authored success threshold that can be disproven', () => {
+    const discovery = read('packages/cli/templates/skills/bdd/DISCOVERY.md');
+    expect(discovery).toContain('outcome could be disproven');
+  });
+
+  it('requires a persona-facing, observable Killer Demo payoff', () => {
+    const discovery = read('packages/cli/templates/skills/bdd/DISCOVERY.md');
+    expect(discovery).toContain('Template\nprompts or generic restatements do not qualify');
+    expect(discovery).toContain('persona-facing before/after change');
+    expect(discovery).toContain('Proof must make it observable');
+  });
 });

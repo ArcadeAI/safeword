@@ -10,7 +10,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/audit/SKILL.md':
         '64afc92c419a8354c015f18ffe0cc581cfce48cb3fee3db8e3c39d75844fb2d3',
       '.claude/skills/bdd/DISCOVERY.md':
-        'b994c8297f244993a7012df313fc9b8180c33f43b9755725e667f5d9491c8f4d',
+        'ac8f221691aeffaa16ca6a15a7930a462bdf64aeaf2fe9600903a9dbb417f992',
       '.claude/skills/bdd/DONE.md':
         'e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60',
       '.claude/skills/bdd/PLAN_IMPLEMENTATION.md':
@@ -96,7 +96,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/pre-tool-git-bare-fix.sh':
         '0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414',
       '.safeword/hooks/pre-tool-quality.ts':
-        '3a26d5dceab25d991afdea3b12f40daf1384403ab0ae8109853763924e1658f2',
+        '6503156f1b1e50a685de0fed3d317de0b6a28f91c9c06dfdc9735f6e27520db2',
       '.safeword/hooks/pre-tool-stale-main.ts':
         'cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e',
       '.safeword/hooks/prompt-questions.ts':

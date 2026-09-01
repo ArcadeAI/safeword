@@ -81,7 +81,6 @@ describe('child Product Plan phase boundaries', () => {
     const prior = readFileSync(childTicket, 'utf8');
     const content = prior
       .replace('product_plan_contract: v1\n', '')
-      .replace('parent: EPIC01\n', '')
       .replace('parent_job: parent.PLO1\n', '')
       .replace('milestone: M1\n', '');
     const result = spawnSync('bun', [preTool], {
@@ -92,7 +91,7 @@ describe('child Product Plan phase boundaries', () => {
       encoding: 'utf8',
       env: { ...process.env, CLAUDE_PROJECT_DIR: project },
     });
-    expect(result.stdout).toContain('parent references cannot be removed');
+    expect(result.stdout).toContain('parent, parent_job, and milestone must be declared together');
   });
 
   it('does not apply the contracted-child removal gate to legacy parent metadata', () => {
