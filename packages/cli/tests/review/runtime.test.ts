@@ -192,6 +192,23 @@ describe('headless reviewer output adapters', () => {
     expect(parseReviewerOutput('codex', stdout)).toEqual(codexOutput);
   });
 
+  it('extracts one completed text result from OpenCode JSON events', () => {
+    const opencodeOutput = { ...output, reviewer_agent: 'opencode' as const };
+    const stdout = [
+      JSON.stringify({ type: 'step_start', part: { type: 'step-start' } }),
+      JSON.stringify({
+        type: 'text',
+        part: {
+          type: 'text',
+          text: JSON.stringify(opencodeOutput),
+          time: { start: 1, end: 2 },
+        },
+      }),
+    ].join('\n');
+
+    expect(parseReviewerOutput('opencode', stdout)).toEqual(opencodeOutput);
+  });
+
   it('retains the direct JSON test adapter contract', () => {
     expect(parseReviewerOutput('claude', JSON.stringify(output))).toEqual(output);
   });
