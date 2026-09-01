@@ -104,10 +104,24 @@ describe('reviewer-scoped environment', () => {
       ANTHROPIC_API_KEY: 'anthropic',
       OPENAI_API_KEY: 'openai',
       OPENCODE_CONFIG_DIR: '/isolated/config',
-      OPENCODE_PERMISSION: JSON.stringify({ '*': 'deny' }),
+      OPENCODE_CONFIG_CONTENT: JSON.stringify({ permission: { '*': 'deny' } }),
       OPENCODE_DISABLE_AUTOUPDATE: 'true',
       OPENCODE_DISABLE_DEFAULT_PLUGINS: 'true',
       OPENCODE_DISABLE_LSP_DOWNLOAD: 'true',
+    });
+  });
+
+  it('preserves an OpenCode inline provider while overriding its permissions', () => {
+    const environment = reviewerEnvironment('opencode', {
+      OPENCODE_CONFIG_CONTENT: JSON.stringify({
+        provider: { local: { name: 'Local' } },
+        permission: { bash: 'allow' },
+      }),
+    });
+
+    expect(JSON.parse(environment.OPENCODE_CONFIG_CONTENT ?? '{}')).toEqual({
+      provider: { local: { name: 'Local' } },
+      permission: { '*': 'deny' },
     });
   });
 

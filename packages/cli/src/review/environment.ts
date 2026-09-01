@@ -82,6 +82,7 @@ const REVIEWER_FIXTURE_VARIABLES = [
   'SAFEWORD_REVIEW_FAKE_FAILURE_AGENT',
   'SAFEWORD_REVIEW_FAKE_FAILURE_CLAUDE',
   'SAFEWORD_REVIEW_FAKE_FAILURE_CODEX',
+  'SAFEWORD_REVIEW_FAKE_FAILURE_OPENCODE',
   'SAFEWORD_REVIEW_FAKE_FAIL_PATH_CONTAINS',
   'SAFEWORD_REVIEW_FAKE_FINDING',
   'SAFEWORD_REVIEW_FAKE_HELP_FAILURE',
@@ -137,9 +138,18 @@ export function reviewerEnvironment(
 ): NodeJS.ProcessEnv {
   const environment = filteredEnvironment(reviewer, source, platform);
   if (reviewer !== 'opencode') return environment;
+  let inlineConfig: Record<string, unknown> = {};
+  try {
+    const parsed: unknown = JSON.parse(environment.OPENCODE_CONFIG_CONTENT ?? '{}');
+    if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      inlineConfig = parsed as Record<string, unknown>;
+    }
+  } catch {
+    // An invalid ambient overlay cannot weaken the reviewer's deny-all policy.
+  }
   return {
     ...environment,
-    OPENCODE_PERMISSION: JSON.stringify({ '*': 'deny' }),
+    OPENCODE_CONFIG_CONTENT: JSON.stringify({ ...inlineConfig, permission: { '*': 'deny' } }),
     OPENCODE_DISABLE_AUTOUPDATE: 'true',
     OPENCODE_DISABLE_DEFAULT_PLUGINS: 'true',
     OPENCODE_DISABLE_LSP_DOWNLOAD: 'true',

@@ -1650,6 +1650,59 @@ describe('cross-agent review public-command wiring', () => {
     expect(readFileSync(log, 'utf8')).toBe('claude\n');
   });
 
+  it('reports an OpenCode process failure before returning degraded same-author feedback', async () => {
+    const directory = createTemporaryDirectory();
+    const log = nodePath.join(directory, 'review.log');
+    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+    const bin = installFakeReviewer(directory, 'codex');
+    installFakeReviewer(directory, 'opencode');
+    installFakeReviewer(directory, 'claude');
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'review-input.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_REVIEW_FAKE_FAILURE_CODEX: 'process',
+          SAFEWORD_REVIEW_FAKE_FAILURE_OPENCODE: 'process',
+          SAFEWORD_REVIEW_LOG: log,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode, result.stdout).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'healthy',
+      effects: {
+        network: [
+          { kind: 'review', target: 'codex', operation: 'request' },
+          { kind: 'review', target: 'opencode', operation: 'request' },
+          { kind: 'review', target: 'claude', operation: 'request' },
+        ],
+      },
+      data: {
+        status: 'approved',
+        actual_reviewer: 'claude',
+        preferred_failure: 'process_failed',
+        independent_fallback_failure: 'process_failed',
+        independence: 'degraded',
+      },
+    });
+    expect(readFileSync(log, 'utf8')).toBe('codex\nopencode\nclaude\n');
+  });
+
   it.each([
     { author: 'claude', reviewerName: 'Codex' },
     { author: 'codex', reviewerName: 'Claude' },
