@@ -89,12 +89,12 @@ slice's work. Prefer a concise reviewer narrative over an implementation manifes
 
 ## Report the decision
 
-Report the current head and each gate as `pass` or `blocked`, with its concrete
-evidence. Then provide the reviewer-oriented body or the minimal edits it needs.
-End with exactly one outcome:
+Report the current head and each gate as `pass`, gate 3 as justified `n/a`, or
+`blocked`, with concrete evidence. Then provide the reviewer-oriented body or
+the minimal edits it needs. End with exactly one outcome:
 
-- `READY` when all gates pass and the PR is already Ready, or the user explicitly
-  authorized Ready promotion.
+- `READY` when all gates pass (including a valid gate 3 `n/a`) and the PR is
+  already Ready, or the user explicitly authorized Ready promotion.
 - `GATES PASS — awaiting explicit Ready authorization` when all seven gates pass,
   the pull request is Draft, and the current request did not authorize promotion.
 - `DRAFT — <blockers>` when one or more gates are blocked; this recommends state

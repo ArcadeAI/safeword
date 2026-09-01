@@ -103,6 +103,8 @@ describe('reviewer-as-customer PR readiness (#3579)', () => {
     expect(skill).toContain('direct dependency');
     expect(skill).toContain('cumulative stack changes');
     expect(skill).toContain('Head: <full current head SHA>');
+    expect(skill).toContain('Never carry this evidence forward after the head changes');
+    expect(skill).toContain('including a valid gate 3 `n/a`');
     expect(
       skill
         .split('\n')
@@ -138,7 +140,9 @@ describe('reviewer-as-customer PR readiness (#3579)', () => {
     const normalized = closeout.replaceAll(/\s+/g, ' ');
     expect(normalized).toContain('gates `1`, `2`, and `4` through `7` to say `PASS:`');
     expect(normalized).toContain('gate `3` to say either `PASS:` or `N/A:`');
+    expect(normalized).toContain('equal `headRefOid`');
     expect(normalized).toContain('Unanswered or unresolved review work remains a blocker');
-    expect(normalized).toContain('required checks all conclude `success`');
+    expect(normalized).toContain('configured required-check set is non-empty');
+    expect(normalized).toContain('no observed check fails');
   });
 });
