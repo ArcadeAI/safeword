@@ -14,13 +14,13 @@ Run the cleanup script — it previews what would be killed (nothing dies withou
 explicit consent; the preview-first ritual is script-enforced):
 
 ```bash
-bunx --bun safeword@0.82.2 project runtime cleanup-zombies --
+bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.82.6/runtime/cli.js" project runtime cleanup-zombies --
 ```
 
 If the preview looks correct, confirm the kill with `--yes`:
 
 ```bash
-bunx --bun safeword@0.82.2 project runtime cleanup-zombies -- --yes
+bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.82.6/runtime/cli.js" project runtime cleanup-zombies -- --yes
 ```
 
 ## What It Does
@@ -36,10 +36,10 @@ If auto-detection fails or you need a specific port:
 
 ```bash
 # Explicit port (preview, then add --yes to kill)
-bunx --bun safeword@0.82.2 project runtime cleanup-zombies -- 5173
+bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.82.6/runtime/cli.js" project runtime cleanup-zombies -- 5173
 
 # Port + additional pattern
-bunx --bun safeword@0.82.2 project runtime cleanup-zombies -- --yes 5173 "electron"
+bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.82.6/runtime/cli.js" project runtime cleanup-zombies -- --yes 5173 "electron"
 ```
 
 ## When to Use
