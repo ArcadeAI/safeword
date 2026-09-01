@@ -1,3 +1,7 @@
+# This feature is proven by CLI, hook, schema, and skill-contract Vitest suites;
+# duplicating those filesystem and phase-boundary fixtures in Cucumber would add
+# no independent signal.
+@proof.vitest
 Feature: Lean Product Plans
   Safeword captures product intent once and carries it into feature delivery
   without repetitive planning documents.

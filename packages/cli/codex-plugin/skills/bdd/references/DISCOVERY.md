@@ -67,13 +67,13 @@ default.
 ## Author Jobs To Be Done
 
 ```markdown
-### <slug>.<persona-code><n> — <job title>
+### oauth-flow.PLO1 — <job title>
 
 **Persona:** <canonical persona>
 
 > When I <situation>, I want <motivation>, so I can <outcome>.
 
-#### <jtbd-id>.R1 — <one testable business invariant>
+#### oauth-flow.PLO1.R1 — <one testable business invariant>
 ```
 
 Jobs are persona outcomes, not proposed mechanisms. Never drop or narrow a job
@@ -132,6 +132,9 @@ changed contract and rerun with `--accept`; never accept drift invisibly.
 Advance only when you can name the behavior that changes, the behavior that
 stays the same, and an observable done state. Then create scenarios using the
 Rule IDs as lineage.
+
+Update frontmatter: set `phase: define-behavior` after the intake artifacts are
+accepted (and after child reconciliation, when applicable).
 
 ## Intake exit
 
