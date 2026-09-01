@@ -6,6 +6,31 @@ Create enough durable product context to decide and define the work. Do not
 repeat parent prose in child features and do not create research artifacts by
 default.
 
+## Sub-phase gates
+
+For each meaningful unit, present the artifact, ask one closing question, and
+wait for confirmation. On resume, re-present the current unit. Under YOLO mode,
+auto-confirm and record the decision in the work log.
+
+## Load project personas
+
+Read `paths.personas` (default `<namespace-root>/personas.md`). If empty, ask
+whether to add personas now or proceed. A JTBD names one persona and preserves
+its canonical code.
+
+## Load project glossary
+
+Read `paths.glossary` (default `<namespace-root>/glossary.md`). If empty, ask
+whether to add terms now or proceed. Keep one-ticket vocabulary local.
+
+## Load project surfaces
+
+Read `paths.surfaces` (default `<namespace-root>/surfaces.md`). If empty, ask
+whether to add surfaces now or proceed. Examples include OpenAI Codex. Tag an
+affected context `@surface.<slug>`. Promote a local surface only when it is
+recurring across tickets, ambiguous enough to drift, or omission leaves it
+untested.
+
 ## Load project context
 
 Read the configured principles, personas, glossary, and surfaces files. Missing
@@ -39,7 +64,7 @@ experiment answers the assumption more directly. Fold the compact verdict and
 strongest evidence into Product Bet; do not create a research appendix by
 default.
 
-### Jobs To Be Done and Rules
+## Author Jobs To Be Done
 
 ```markdown
 ### <slug>.<persona-code><n> — <job title>
@@ -53,7 +78,8 @@ default.
 
 Jobs are persona outcomes, not proposed mechanisms. Never drop or narrow a job
 because it looks difficult to implement. Split a Rule when either half could
-ship as an independently valuable invariant.
+ship as an independently valuable invariant. Use one persona per JTBD, then
+pause and confirm the jobs before authoring Rules.
 
 ### Shape
 
@@ -106,3 +132,15 @@ changed contract and rerun with `--accept`; never accept drift invisibly.
 Advance only when you can name the behavior that changes, the behavior that
 stays the same, and an observable done state. Then create scenarios using the
 Rule IDs as lineage.
+
+## Intake exit
+
+Implementation design happens in the `plan-implementation` phase. Offer the
+cold-start check only when the recorded Reversibility says one-way, including a
+data model, public API, or migration. Do not re-judge it at exit. A missing or
+`skip:` Reversibility means no offer. Under YOLO, auto-run it, log the decision
+in the work log, and record returned gaps as `defer:`.
+
+## Understanding
+
+Converge on the smallest scope that serves the accepted jobs and Product Bet.

@@ -117,6 +117,7 @@ describe('CLI command catalog', () => {
       'codex recover',
       'ticket list',
       'ticket new',
+      'ticket reconcile-parent',
       'review run',
       'review status',
       'review cancel',
