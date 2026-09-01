@@ -31,6 +31,21 @@ describe('run identity normalization (WHFTDK)', () => {
     expect(getRunStorageKey(identity)).toBe('codex-codex-session');
   });
 
+  it('normalizes OpenCode session_id and turn_id without colliding with other runtimes', () => {
+    const identity = resolveRunIdentity(
+      { session_id: 'shared-session', turn_id: 'turn-9' },
+      { runtime: 'opencode', env: {} },
+    );
+
+    expect(identity).toEqual({
+      runtime: 'opencode',
+      sessionKey: 'shared-session',
+      turnKey: 'turn-9',
+      source: 'input.session_id',
+    });
+    expect(getRunStorageKey(identity)).toBe('opencode-shared-session');
+  });
+
   it('falls back to CODEX_THREAD_ID as a Codex session when the payload omits session_id', () => {
     const identity = resolveRunIdentity(
       { turn_id: 'per-turn-id' },
@@ -108,13 +123,14 @@ describe('run identity normalization (WHFTDK)', () => {
     const keys = [
       getRunStorageKey(resolveRunIdentity({ session_id: rawId }, { runtime: 'claude', env: {} })),
       getRunStorageKey(resolveRunIdentity({ session_id: rawId }, { runtime: 'codex', env: {} })),
+      getRunStorageKey(resolveRunIdentity({ session_id: rawId }, { runtime: 'opencode', env: {} })),
       getRunStorageKey(
         resolveRunIdentity({ conversation_id: rawId }, { runtime: 'cursor', env: {} }),
       ),
     ];
 
-    expect(new Set(keys).size).toBe(3);
-    expect(keys).toEqual(['claude-same-id', 'codex-same-id', 'cursor-same-id']);
+    expect(new Set(keys).size).toBe(4);
+    expect(keys).toEqual(['claude-same-id', 'codex-same-id', 'opencode-same-id', 'cursor-same-id']);
   });
 
   it('reports unknown when no durable runtime identity is available', () => {

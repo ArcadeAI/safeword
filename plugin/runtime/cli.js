@@ -15876,8 +15876,8 @@ function reviewResultLines(result, options) {
 }
 var REVIEW_AGENTS, REVIEW_AUTHORS, REPLACED_REVIEW_FINDINGS, RETRYABLE_REVIEW_FAILURES;
 var init_review_presentation = __esm(() => {
-  REVIEW_AGENTS = new Set(["claude", "codex"]);
-  REVIEW_AUTHORS = new Set(["claude", "codex", "cursor"]);
+  REVIEW_AGENTS = new Set(["claude", "codex", "opencode"]);
+  REVIEW_AUTHORS = new Set(["claude", "codex", "cursor", "opencode"]);
   REPLACED_REVIEW_FINDINGS = new Set([
     "REVIEW_INDEPENDENCE",
     "REVIEW_NOT_REQUESTED",
@@ -47269,6 +47269,15 @@ function resolveRunIdentity(rawInput = {}, options = {}) {
       source: session?.source ?? "missing"
     };
   }
+  if (runtime === "opencode") {
+    const session = firstString("input.session_id", input.session_id);
+    return {
+      runtime,
+      sessionKey: session?.value ?? null,
+      turnKey: nonEmptyString2(input.turn_id),
+      source: session?.source ?? "missing"
+    };
+  }
   return {
     runtime: "unknown",
     sessionKey: null,
@@ -47286,7 +47295,7 @@ function sanitizeStorageSegment(value) {
 }
 var RUNTIMES, RUNTIME_ENV = "SAFEWORD_AGENT_RUNTIME";
 var init_run_identity = __esm(() => {
-  RUNTIMES = new Set(["claude", "codex", "cursor", "unknown"]);
+  RUNTIMES = new Set(["claude", "codex", "cursor", "opencode", "unknown"]);
 });
 
 // src/review/command.ts
@@ -47548,11 +47557,31 @@ var init_review_ledger = __esm(() => {
 // src/review/policy.ts
 import { readFileSync as readFileSync59 } from "fs";
 import nodePath96 from "path";
-function oppositeReviewPair(author) {
-  if (author === "claude")
-    return { author, reviewer: "codex" };
-  if (author === "codex")
-    return { author, reviewer: "claude" };
+function reviewRoutePlan(author) {
+  if (author === "claude") {
+    return {
+      author,
+      preferred: "codex",
+      independentFallback: "opencode",
+      degradedFallback: author
+    };
+  }
+  if (author === "codex") {
+    return {
+      author,
+      preferred: "claude",
+      independentFallback: "opencode",
+      degradedFallback: author
+    };
+  }
+  if (author === "opencode") {
+    return {
+      author,
+      preferred: "claude",
+      independentFallback: "codex",
+      degradedFallback: author
+    };
+  }
   return;
 }
 function readPrimaryReviewerModel(cwd, reviewer) {
@@ -47614,7 +47643,16 @@ function filteredEnvironment(reviewer, source = process.env, platform = process.
   return Object.fromEntries(Object.entries(source).filter(([name]) => normalize(name) !== managedProgressSignal && allowed.has(normalize(name))));
 }
 function reviewerEnvironment(reviewer, source = process.env, platform = process.platform) {
-  return filteredEnvironment(reviewer, source, platform);
+  const environment = filteredEnvironment(reviewer, source, platform);
+  if (reviewer !== "opencode")
+    return environment;
+  return {
+    ...environment,
+    OPENCODE_PERMISSION: JSON.stringify({ "*": "deny" }),
+    OPENCODE_DISABLE_AUTOUPDATE: "true",
+    OPENCODE_DISABLE_DEFAULT_PLUGINS: "true",
+    OPENCODE_DISABLE_LSP_DOWNLOAD: "true"
+  };
 }
 function reviewerProbeEnvironment(source = process.env, platform = process.platform) {
   return filteredEnvironment(undefined, source, platform);
@@ -47635,6 +47673,14 @@ var init_environment = __esm(() => {
       "CODEX_API_KEY",
       "CODEX_HOME",
       "CODEX_THREAD_ID"
+    ],
+    opencode: [
+      "ANTHROPIC_API_KEY",
+      "OPENAI_API_KEY",
+      "AZURE_OPENAI_API_KEY",
+      "OPENCODE_CONFIG",
+      "OPENCODE_CONFIG_CONTENT",
+      "OPENCODE_CONFIG_DIR"
     ]
   };
   PROCESS_VARIABLES = [
@@ -48019,6 +48065,23 @@ function parseCodexOutput(stdout) {
   }
   return parseJson(stdout);
 }
+function parseOpenCodeOutput(stdout) {
+  const completed = stdout.split(`
+`).filter((line) => line.trim() !== "").flatMap((line) => {
+    try {
+      return [parseJson(line)];
+    } catch {
+      return [];
+    }
+  }).filter((event2) => isRecord3(event2) && event2.type === "text" && isRecord3(event2.part) && event2.part.type === "text" && isRecord3(event2.part.time) && typeof event2.part.time.end === "number" && typeof event2.part.text === "string");
+  if (completed.length !== 1)
+    throw new Error("invalid reviewer output");
+  const [event] = completed;
+  if (!isRecord3(event) || !isRecord3(event.part) || typeof event.part.text !== "string") {
+    throw new Error("invalid reviewer output");
+  }
+  return parseJson(event.part.text);
+}
 function reviewerVerdictMatchesFindings(verdict, findings) {
   return verdict !== "approve" || findings.every((finding) => isRecord3(finding) && finding.severity !== "error");
 }
@@ -48042,7 +48105,13 @@ function hasValidReviewerOutputBody(value) {
   return reviewerVerdictMatchesFindings(value.verdict, value.findings);
 }
 function parseReviewerOutput(reviewer, stdout) {
-  const output = reviewer === "claude" ? parseClaudeOutput(stdout) : parseCodexOutput(stdout);
+  let output;
+  if (reviewer === "claude")
+    output = parseClaudeOutput(stdout);
+  else if (reviewer === "codex")
+    output = parseCodexOutput(stdout);
+  else
+    output = parseOpenCodeOutput(stdout);
   if (!hasValidReviewerOutputBody(output))
     throw new Error("invalid reviewer output");
   return output;
@@ -48561,7 +48630,7 @@ var init_runtime = __esm(() => {
     properties: {
       schema_version: { type: "integer", enum: [1] },
       dispatch_id: { type: "string" },
-      reviewer_agent: { type: "string", enum: ["claude", "codex"] },
+      reviewer_agent: { type: "string", enum: ["claude", "codex", "opencode"] },
       verdict: { type: "string", enum: ["approve", "request_changes"] },
       summary: { type: "string" },
       findings: {
@@ -48611,11 +48680,13 @@ var init_runtime = __esm(() => {
       "--config",
       "mcp_servers={}",
       "-"
-    ]
+    ],
+    opencode: ["run", "--format", "json", "--pure"]
   };
   HELP_ARGUMENTS = {
     claude: ["--help"],
-    codex: ["exec", "--help"]
+    codex: ["exec", "--help"],
+    opencode: ["run", "--help"]
   };
   REQUIRED_CAPABILITIES = {
     claude: [
@@ -48637,7 +48708,8 @@ var init_runtime = __esm(() => {
       "--disable",
       "--config",
       "--output-schema"
-    ]
+    ],
+    opencode: ["--format", "--pure", "--model"]
   };
   MAX_OUTPUT_BYTES = 1024 * 1024;
   ReviewRuntimeError = class ReviewRuntimeError extends Error {
@@ -48683,7 +48755,7 @@ function independentReviewResult(input) {
     ],
     effects: {
       network: [
-        ...networkEffectsForFailure(input.reviewer, input.preferredFailure),
+        ...networkEffectsForFailure(input.preferredReviewer ?? input.reviewer, input.preferredFailure),
         reviewRequest(input.reviewer)
       ]
     },
@@ -48751,7 +48823,11 @@ function assessFallback(outcome, reviewer, dispatchId) {
   return provenance.kind === "failed" ? { kind: "failed", failure: provenance.code, terminal: false } : { kind: "completed", output: provenance.output };
 }
 function agentName(agent) {
-  return agent === "codex" ? "Codex" : "Claude";
+  if (agent === "codex")
+    return "Codex";
+  if (agent === "opencode")
+    return "OpenCode";
+  return "Claude";
 }
 function causePhrase(failure) {
   return FAILURE_CAUSES[failure] ?? "could not be run";
@@ -48878,6 +48954,9 @@ function routeFailureData(input) {
     ...input.alternateFailure !== undefined && {
       alternate_model_failure: input.alternateFailure,
       ...input.alternateModel !== undefined && { alternate_model: input.alternateModel }
+    },
+    ...input.independentFallbackFailure !== undefined && {
+      independent_fallback_failure: input.independentFallbackFailure
     }
   };
 }
@@ -48891,6 +48970,7 @@ function degradedNetworkEffects(input) {
   return [
     ...networkEffectsForFailure(input.assignedReviewer, input.preferredFailure),
     ...networkEffectsForFailure(input.assignedReviewer, input.alternateFailure),
+    ...input.independentFallback === undefined ? [] : networkEffectsForFailure(input.independentFallback, input.independentFallbackFailure),
     ...input.fallback.kind === "completed" ? [reviewRequest(input.author)] : networkEffectsForFailure(input.author, input.fallback.failure)
   ];
 }
@@ -48944,6 +49024,8 @@ async function runDegradedFallback(input) {
       author: input.author,
       preferredFailure: input.preferredFailure,
       alternateFailure: input.alternateFailure,
+      independentFallback: input.independentFallback,
+      independentFallbackFailure: input.independentFallbackFailure,
       fallback
     })
   });
@@ -48982,6 +49064,8 @@ async function runDegradedFallback(input) {
           author: input.author,
           preferredFailure: input.preferredFailure,
           alternateFailure: input.alternateFailure,
+          independentFallback: input.independentFallback,
+          independentFallbackFailure: input.independentFallbackFailure,
           fallback: { kind: "failed", failure: assessment.failure }
         })
       },
@@ -49022,6 +49106,8 @@ async function runDegradedFallback(input) {
           author: input.author,
           preferredFailure: input.preferredFailure,
           alternateFailure: input.alternateFailure,
+          independentFallback: input.independentFallback,
+          independentFallbackFailure: input.independentFallbackFailure,
           fallback: { kind: "completed" }
         })
       },
@@ -49061,6 +49147,8 @@ async function runDegradedFallback(input) {
         author: input.author,
         preferredFailure: input.preferredFailure,
         alternateFailure: input.alternateFailure,
+        independentFallback: input.independentFallback,
+        independentFallbackFailure: input.independentFallbackFailure,
         fallback: { kind: "completed" }
       })
     },
@@ -49117,8 +49205,43 @@ async function runAlternateModelRoute(input) {
   });
   return { kind: "completed", result };
 }
+async function runIndependentFallback(input) {
+  if (!canFundRoute(input.runDeadline))
+    return { kind: "skipped" };
+  input.progress?.start(`${agentName(input.preferredReviewer)} did not complete; trying an independent ${agentName(input.reviewer)} review\u2026`);
+  const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets, input.context);
+  input.progress?.heartbeat?.(`Still waiting for a response from ${agentName(input.reviewer)}\u2026`);
+  const { outcome, sourceChanged, snapshotChanged } = await executeReview(input.reviewer, prepared, undefined, input.runDeadline);
+  const changedResult = changedReviewResult({
+    author: input.author,
+    reviewer: input.reviewer,
+    policy: readReviewPolicy(input.cwd),
+    kind: input.kind,
+    targets: input.targets,
+    context: input.context,
+    sourceChanged,
+    snapshotChanged,
+    network: outcome.kind === "failed" ? networkEffectsForFailure(input.reviewer, outcome.failure) : [reviewRequest(input.reviewer)]
+  });
+  if (changedResult !== undefined)
+    return { kind: "completed", result: changedResult };
+  const assessment = assessFallback(outcome, input.reviewer, prepared.packet.dispatch_id);
+  if (assessment.kind === "failed")
+    return assessment;
+  return {
+    kind: "completed",
+    result: independentReviewResult({
+      author: input.author,
+      reviewer: input.reviewer,
+      output: assessment.output,
+      preferredReviewer: input.preferredReviewer,
+      preferredModel: input.preferredModel,
+      preferredFailure: input.preferredFailure
+    })
+  };
+}
 async function runRemainingRoutes(input) {
-  const alternate = await runAlternateModelRoute({
+  const alternate = input.preferredTerminal ? { kind: "skipped" } : await runAlternateModelRoute({
     cwd: input.cwd,
     kind: input.kind,
     targets: input.targets,
@@ -49135,13 +49258,31 @@ async function runRemainingRoutes(input) {
     return alternate.result;
   const alternateFailure = alternate.kind === "failed" ? alternate.failure : undefined;
   const alternateModel = alternate.kind === "failed" ? alternate.model : undefined;
-  if (alternate.kind === "failed" && alternate.terminal) {
-    return exhaustedRunResult({ ...input, alternateFailure, alternateModel });
-  }
   if (!canFundRoute(input.runDeadline)) {
     return exhaustedRunResult({ ...input, alternateFailure, alternateModel });
   }
-  return runDegradedFallback({ ...input, alternateFailure, alternateModel });
+  const independent = await runIndependentFallback({
+    ...input,
+    reviewer: input.independentFallback,
+    preferredReviewer: input.assignedReviewer
+  });
+  if (independent.kind === "completed")
+    return independent.result;
+  const independentFallbackFailure = independent.kind === "failed" ? independent.failure : undefined;
+  if (!canFundRoute(input.runDeadline)) {
+    return exhaustedRunResult({
+      ...input,
+      alternateFailure,
+      alternateModel,
+      independentFallbackFailure
+    });
+  }
+  return runDegradedFallback({
+    ...input,
+    alternateFailure,
+    alternateModel,
+    independentFallbackFailure
+  });
 }
 function exhaustedRunResult(input) {
   return createResult({
@@ -49163,6 +49304,13 @@ function exhaustedRunResult(input) {
               model: input.alternateModel,
               failure: input.alternateFailure
             }
+          ],
+          ...input.independentFallbackFailure === undefined ? [] : [
+            {
+              agent: input.independentFallback,
+              role: "second independent reviewer",
+              failure: input.independentFallbackFailure
+            }
           ]
         ]),
         severity: "warning"
@@ -49171,7 +49319,8 @@ function exhaustedRunResult(input) {
     effects: {
       network: [
         ...networkEffectsForFailure(input.assignedReviewer, input.preferredFailure),
-        ...networkEffectsForFailure(input.assignedReviewer, input.alternateFailure)
+        ...networkEffectsForFailure(input.assignedReviewer, input.alternateFailure),
+        ...networkEffectsForFailure(input.independentFallback, input.independentFallbackFailure)
       ]
     },
     recovery: [
@@ -49214,8 +49363,8 @@ async function runReview(input) {
       }
     });
   }
-  const pair = oppositeReviewPair(author);
-  if (pair === undefined) {
+  const routes = reviewRoutePlan(author);
+  if (routes === undefined) {
     return unsupportedAuthorResult({
       author,
       policy,
@@ -49224,7 +49373,7 @@ async function runReview(input) {
       context: input.context
     });
   }
-  const { reviewer } = pair;
+  const reviewer = routes.preferred;
   const primaryModel = readPrimaryReviewerModel(input.cwd, reviewer);
   const runDeadline = Date.now() + runBoundMs();
   const {
@@ -49235,7 +49384,7 @@ async function runReview(input) {
     dispatchId
   } = await executePrimaryReview(input, reviewer, primaryModel, runDeadline);
   const changedResult = changedReviewResult({
-    author: pair.author,
+    author: routes.author,
     reviewer,
     policy,
     kind: input.kind,
@@ -49248,22 +49397,14 @@ async function runReview(input) {
   if (changedResult !== undefined)
     return changedResult;
   if (outcome.kind === "failed") {
-    if (outcome.terminal) {
-      return exhaustedRunResult({
-        ...input,
-        author: pair.author,
-        assignedReviewer: reviewer,
-        preferredModel: completedModel,
-        preferredFailure: outcome.failure,
-        policy
-      });
-    }
     return runRemainingRoutes({
       ...input,
-      author: pair.author,
+      author: routes.author,
       assignedReviewer: reviewer,
+      independentFallback: routes.independentFallback,
       preferredModel: completedModel,
       preferredFailure: outcome.failure,
+      preferredTerminal: outcome.terminal,
       policy,
       runDeadline
     });
@@ -49272,8 +49413,9 @@ async function runReview(input) {
   if (provenance.kind === "failed") {
     return runRemainingRoutes({
       ...input,
-      author: pair.author,
+      author: routes.author,
       assignedReviewer: reviewer,
+      independentFallback: routes.independentFallback,
       preferredModel: completedModel,
       preferredFailure: provenance.code,
       policy,
@@ -49281,7 +49423,12 @@ async function runReview(input) {
     });
   }
   const output = provenance.output;
-  return independentReviewResult({ author: pair.author, reviewer, output, model: completedModel });
+  return independentReviewResult({
+    author: routes.author,
+    reviewer,
+    output,
+    model: completedModel
+  });
 }
 var MAX_TERMINAL_REVIEWER_TEXT_LENGTH = 2000, FAILURE_CAUSES, NON_ATTEMPT_FAILURES, ALTERNATE_MODEL_SKIP_FAILURES;
 var init_coordinator = __esm(() => {
@@ -49706,7 +49853,7 @@ function isCompletedReviewData(data, state) {
   return hasReviewerIdentity(reviewer) && reviewer.verdict === verdict && typeof reviewer.summary === "string" && Array.isArray(reviewer.findings) && state === (data.status === "approved" ? "healthy" : "action_required");
 }
 function hasReviewerIdentity(reviewer) {
-  return typeof reviewer.dispatch_id === "string" && reviewer.dispatch_id.length > 0 && ["claude", "codex"].includes(String(reviewer.reviewer_agent));
+  return typeof reviewer.dispatch_id === "string" && reviewer.dispatch_id.length > 0 && ["claude", "codex", "opencode"].includes(String(reviewer.reviewer_agent));
 }
 function readJob(cwd, id) {
   const parsed2 = JSON.parse(readFileSync61(jobPath(cwd, id), "utf8"));

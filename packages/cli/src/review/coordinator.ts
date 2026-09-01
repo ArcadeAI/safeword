@@ -69,6 +69,7 @@ function independentReviewResult(input: {
   readonly reviewer: ReviewAgent;
   readonly output: ReviewerOutput;
   readonly model?: string;
+  readonly preferredReviewer?: ReviewAgent;
   readonly preferredModel?: string;
   readonly preferredFailure?: ReviewFailure;
 }): CliResult {
@@ -84,7 +85,10 @@ function independentReviewResult(input: {
     ],
     effects: {
       network: [
-        ...networkEffectsForFailure(input.reviewer, input.preferredFailure),
+        ...networkEffectsForFailure(
+          input.preferredReviewer ?? input.reviewer,
+          input.preferredFailure,
+        ),
         reviewRequest(input.reviewer),
       ],
     },
@@ -373,6 +377,7 @@ function routeFailureData(input: {
   readonly preferredModel?: string;
   readonly alternateFailure?: ReviewFailure;
   readonly alternateModel?: string;
+  readonly independentFallbackFailure?: ReviewFailure;
 }): Record<string, unknown> {
   return {
     ...(input.preferredModel !== undefined && { preferred_model: input.preferredModel }),
@@ -380,6 +385,9 @@ function routeFailureData(input: {
     ...(input.alternateFailure !== undefined && {
       alternate_model_failure: input.alternateFailure,
       ...(input.alternateModel !== undefined && { alternate_model: input.alternateModel }),
+    }),
+    ...(input.independentFallbackFailure !== undefined && {
+      independent_fallback_failure: input.independentFallbackFailure,
     }),
   };
 }
@@ -415,12 +423,17 @@ function degradedNetworkEffects(input: {
   readonly author: ReviewAgent;
   readonly preferredFailure: ReviewFailure;
   readonly alternateFailure: ReviewFailure | undefined;
+  readonly independentFallback?: ReviewAgent;
+  readonly independentFallbackFailure?: ReviewFailure;
   readonly fallback:
     { readonly kind: 'completed' } | { readonly kind: 'failed'; failure: ReviewFailure };
 }): readonly Effect[] {
   return [
     ...networkEffectsForFailure(input.assignedReviewer, input.preferredFailure),
     ...networkEffectsForFailure(input.assignedReviewer, input.alternateFailure),
+    ...(input.independentFallback === undefined
+      ? []
+      : networkEffectsForFailure(input.independentFallback, input.independentFallbackFailure)),
     ...(input.fallback.kind === 'completed'
       ? [reviewRequest(input.author)]
       : networkEffectsForFailure(input.author, input.fallback.failure)),
@@ -497,6 +510,8 @@ async function runDegradedFallback(
     readonly runDeadline: number;
     readonly alternateFailure?: ReviewFailure;
     readonly alternateModel?: string;
+    readonly independentFallback?: ReviewAgent;
+    readonly independentFallbackFailure?: ReviewFailure;
   },
 ): Promise<CliResult> {
   const prepared = prepareFallbackReview(input, input.assignedReviewer, input.author);
@@ -524,6 +539,8 @@ async function runDegradedFallback(
       author: input.author,
       preferredFailure: input.preferredFailure,
       alternateFailure: input.alternateFailure,
+      independentFallback: input.independentFallback,
+      independentFallbackFailure: input.independentFallbackFailure,
       fallback,
     }),
   });
@@ -563,6 +580,8 @@ async function runDegradedFallback(
           author: input.author,
           preferredFailure: input.preferredFailure,
           alternateFailure: input.alternateFailure,
+          independentFallback: input.independentFallback,
+          independentFallbackFailure: input.independentFallbackFailure,
           fallback: { kind: 'failed', failure: assessment.failure },
         }),
       },
@@ -604,6 +623,8 @@ async function runDegradedFallback(
           author: input.author,
           preferredFailure: input.preferredFailure,
           alternateFailure: input.alternateFailure,
+          independentFallback: input.independentFallback,
+          independentFallbackFailure: input.independentFallbackFailure,
           fallback: { kind: 'completed' },
         }),
       },
@@ -648,6 +669,8 @@ async function runDegradedFallback(
         author: input.author,
         preferredFailure: input.preferredFailure,
         alternateFailure: input.alternateFailure,
+        independentFallback: input.independentFallback,
+        independentFallbackFailure: input.independentFallbackFailure,
         fallback: { kind: 'completed' },
       }),
     },
@@ -792,6 +815,7 @@ async function runIndependentFallback(
       author: input.author,
       reviewer: input.reviewer,
       output: assessment.output,
+      preferredReviewer: input.preferredReviewer,
       preferredModel: input.preferredModel,
       preferredFailure: input.preferredFailure,
     }),
@@ -843,10 +867,22 @@ async function runRemainingRoutes(
     preferredReviewer: input.assignedReviewer,
   });
   if (independent.kind === 'completed') return independent.result;
+  const independentFallbackFailure =
+    independent.kind === 'failed' ? independent.failure : undefined;
   if (!canFundRoute(input.runDeadline)) {
-    return exhaustedRunResult({ ...input, alternateFailure, alternateModel });
+    return exhaustedRunResult({
+      ...input,
+      alternateFailure,
+      alternateModel,
+      independentFallbackFailure,
+    });
   }
-  return runDegradedFallback({ ...input, alternateFailure, alternateModel });
+  return runDegradedFallback({
+    ...input,
+    alternateFailure,
+    alternateModel,
+    independentFallbackFailure,
+  });
 }
 
 /** The run bound arrived before a later route could be funded. */
@@ -861,6 +897,8 @@ function exhaustedRunResult(input: {
   readonly policy: ReviewPolicy;
   readonly alternateFailure?: ReviewFailure;
   readonly alternateModel?: string;
+  readonly independentFallback: ReviewAgent;
+  readonly independentFallbackFailure?: ReviewFailure;
 }): CliResult {
   return createResult({
     state: 'action_required',
@@ -884,6 +922,15 @@ function exhaustedRunResult(input: {
                   failure: input.alternateFailure,
                 },
               ]),
+          ...(input.independentFallbackFailure === undefined
+            ? []
+            : [
+                {
+                  agent: input.independentFallback,
+                  role: 'second independent reviewer',
+                  failure: input.independentFallbackFailure,
+                },
+              ]),
         ]),
         severity: 'warning',
       },
@@ -892,6 +939,7 @@ function exhaustedRunResult(input: {
       network: [
         ...networkEffectsForFailure(input.assignedReviewer, input.preferredFailure),
         ...networkEffectsForFailure(input.assignedReviewer, input.alternateFailure),
+        ...networkEffectsForFailure(input.independentFallback, input.independentFallbackFailure),
       ],
     },
     recovery: [

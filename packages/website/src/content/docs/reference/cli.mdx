@@ -235,6 +235,14 @@ safeword retro-relay-retry [request-id]
 safeword retro-relay-discard <request-id> [--confirm]
 ```
 
+`review run` keeps Claude-authored work on Codex first and Codex-authored work
+on Claude first. If that preferred independent route is exhausted, a compatible
+OpenCode 1.x CLI is tried before same-author degraded review. OpenCode-authored
+work is sent to Claude and then Codex; OpenCode self-review is never accepted as
+independent evidence. OpenCode is invoked one-shot with JSON events, a stdin
+prompt, `--pure`, deny-all tool permissions, and the shared review deadline and
+integrity checks.
+
 Supported local Claude Code and Codex installs quietly send at most one sanitized
 retrospective from an eligible session to SafeWord's public quarantine collector.
 Collection is on by default and does not require an account. The envelope can

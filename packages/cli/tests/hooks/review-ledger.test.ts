@@ -95,6 +95,32 @@ describe('gatePhaseAdvance (TB2.AC1 — phase advance needs an independent revie
     expect(gatePhaseAdvance('scenario-gate', independent, 'require')).toEqual({ ok: true });
   });
 
+  it('hard cross-agent enforcement accepts OpenCode as a distinct reviewer', () => {
+    const independent: ReviewStamp[] = [
+      {
+        scope: 'scenario-gate',
+        author: 'claude',
+        reviewer: 'opencode',
+        independence: 'cross-agent',
+      },
+    ];
+
+    expect(gatePhaseAdvance('scenario-gate', independent, 'require')).toEqual({ ok: true });
+  });
+
+  it('hard cross-agent enforcement rejects OpenCode reviewing its own work', () => {
+    const contradictory: ReviewStamp[] = [
+      {
+        scope: 'scenario-gate',
+        author: 'opencode',
+        reviewer: 'opencode',
+        independence: 'cross-agent',
+      },
+    ];
+
+    expect(gatePhaseAdvance('scenario-gate', contradictory, 'require').ok).toBe(false);
+  });
+
   it('hard cross-agent enforcement rejects a same-agent stamp that claims independence', () => {
     const contradictory: ReviewStamp[] = [
       {
@@ -182,6 +208,26 @@ describe('formatReviewStamp (write a stamp the gate will read — inverse of par
         model: 'codex-default',
         author: 'claude',
         reviewer: 'codex',
+        independence: 'cross-agent',
+      },
+    ]);
+  });
+
+  it('round-trips OpenCode reviewer provenance', () => {
+    const line = formatReviewStamp(
+      'FZTWG0:phase@scenario-gate',
+      undefined,
+      undefined,
+      'claude',
+      'opencode',
+      'cross-agent',
+    );
+
+    expect(parseReviewStamps(`ts session ${line}`)).toEqual([
+      {
+        scope: 'FZTWG0:phase@scenario-gate',
+        author: 'claude',
+        reviewer: 'opencode',
         independence: 'cross-agent',
       },
     ]);

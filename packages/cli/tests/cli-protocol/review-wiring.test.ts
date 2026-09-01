@@ -15,7 +15,7 @@ import { afterAll, describe, expect, it, vi } from 'vitest';
 import { createTemporaryDirectory, runCli } from '../helpers.js';
 import { createTrustedReviewerDirectory } from '../review-fixtures.js';
 
-type ReviewAgent = 'claude' | 'codex';
+type ReviewAgent = 'claude' | 'codex' | 'opencode';
 
 const trustedReviewerRoots = new Map<string, string>();
 
@@ -37,6 +37,14 @@ function installFakeReviewer(directory: string, agent: ReviewAgent): string {
   const bin = nodePath.join(trustedReviewerRoot(directory), 'bin');
   mkdirSync(bin, { recursive: true });
   const executable = nodePath.join(bin, agent);
+  let capabilities = '--format --pure';
+  if (agent === 'claude') {
+    capabilities =
+      '--output-format --json-schema --no-session-persistence --disable-slash-commands --setting-sources --strict-mcp-config --tools';
+  } else if (agent === 'codex') {
+    capabilities =
+      '--json --sandbox --skip-git-repo-check --ephemeral --ignore-user-config --ignore-rules --disable --config --output-schema';
+  }
   writeFileSync(
     executable,
     String.raw`#!/bin/sh
@@ -64,7 +72,7 @@ if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then
     /bin/ln -s "$swap_target" "$swap_alias"
   fi
   model_capability=$(printenv SAFEWORD_REVIEW_FAKE_MODEL_CAPABILITY || true)
-  capabilities='${agent === 'claude' ? '--output-format --json-schema --no-session-persistence --disable-slash-commands --setting-sources --strict-mcp-config --tools' : '--json --sandbox --skip-git-repo-check --ephemeral --ignore-user-config --ignore-rules --disable --config --output-schema'}'
+  capabilities='${capabilities}'
   if [ "$model_capability" != "missing" ]; then capabilities="$capabilities --model"; fi
   printf '%s\n' "$capabilities"
   exit 0
@@ -117,6 +125,9 @@ elif [ "$identity" = "contradictory" ]; then
   printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"other","verdict":"%s","summary":"%s","findings":[]}\n' "$dispatch_id" "$verdict" "$summary"
 elif [ -n "$finding" ]; then
   printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verdict":"%s","summary":"%s","findings":[{"severity":"error","message":"%s"}]}\n' "$dispatch_id" "$verdict" "$summary" "$finding"
+elif [ "${agent}" = "opencode" ]; then
+  result=$(printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"opencode","verdict":"%s","summary":"%s","findings":[]}' "$dispatch_id" "$verdict" "$summary")
+  printf '{"type":"text","part":{"type":"text","time":{"end":1},"text":"%s"}}\n' "$(printf '%s' "$result" | sed 's/"/\\"/g')"
 else
   printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verdict":"%s","summary":"%s","findings":[]}\n' "$dispatch_id" "$verdict" "$summary"
 fi
@@ -1542,6 +1553,101 @@ describe('cross-agent review public-command wiring', () => {
     expect(JSON.parse(result.stdout).data).not.toHaveProperty('reviewer_model');
     expect(readFileSync(log, 'utf8')).toBe('codex\n');
     expect(existsSync(modelPromptLog)).toBe(false);
+  });
+
+  it('uses OpenCode as an independent fallback before same-agent degraded review', async () => {
+    const directory = createTemporaryDirectory();
+    const log = nodePath.join(directory, 'review.log');
+    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+    const bin = installFakeReviewer(directory, 'codex');
+    installFakeReviewer(directory, 'opencode');
+    installFakeReviewer(directory, 'claude');
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'review-input.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_REVIEW_FAKE_FAILURE: 'process',
+          SAFEWORD_REVIEW_FAKE_FAILURE_AGENT: 'codex',
+          SAFEWORD_REVIEW_LOG: log,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode, result.stdout).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'healthy',
+      effects: {
+        network: [
+          { kind: 'review', target: 'codex', operation: 'request' },
+          { kind: 'review', target: 'opencode', operation: 'request' },
+        ],
+      },
+      data: {
+        status: 'approved',
+        author_agent: 'claude',
+        assigned_reviewer: 'opencode',
+        actual_reviewer: 'opencode',
+        preferred_failure: 'process_failed',
+        independence: 'cross-agent',
+      },
+    });
+    expect(readFileSync(log, 'utf8')).toBe('codex\nopencode\n');
+  });
+
+  it('routes OpenCode-authored work to Claude instead of self-review', async () => {
+    const directory = createTemporaryDirectory();
+    const log = nodePath.join(directory, 'review.log');
+    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+    const bin = installFakeReviewer(directory, 'claude');
+    installFakeReviewer(directory, 'opencode');
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'review-input.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'opencode',
+          SAFEWORD_REVIEW_LOG: log,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode, result.stdout).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'healthy',
+      data: {
+        author_agent: 'opencode',
+        assigned_reviewer: 'claude',
+        actual_reviewer: 'claude',
+        independence: 'cross-agent',
+      },
+    });
+    expect(readFileSync(log, 'utf8')).toBe('claude\n');
   });
 
   it.each([
