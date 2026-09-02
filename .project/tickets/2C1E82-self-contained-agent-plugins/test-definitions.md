@@ -48,6 +48,18 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN 07b5b7632
 - [x] REFACTOR skip: Cursor retains the existing sourceable project audit helper contract
 
+### Scenario: A sourced Cursor helper failure preserves the caller shell
+
+- [x] RED 0cd8244e9
+- [x] GREEN 2308a9595
+- [x] REFACTOR skip: Cursor success and failure share one installed sourceable-shell helper
+
+### Scenario: A sourced Cursor helper exports an empty changed-file list
+
+- [x] RED 0cd8244e9
+- [x] GREEN 2308a9595
+- [x] REFACTOR skip: populated and empty Cursor diffs share the same installed helper contract
+
 ### Scenario: An unavailable pinned package never falls back to project runtime
 
 - [x] RED d5d6f60ad
