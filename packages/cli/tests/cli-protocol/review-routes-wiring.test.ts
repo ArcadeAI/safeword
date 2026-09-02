@@ -70,6 +70,12 @@ describe('review routes CLI wiring', () => {
       state: 'changed',
       changed: true,
       effects: { files: [{ kind: 'create', target: profile }] },
+      data: {
+        routes: [
+          { reviewer: 'opencode', model: 'vendor/model', independence: 'cross-agent' },
+          { reviewer: 'codex', independence: 'cross-agent' },
+        ],
+      },
     });
     expect(JSON.parse(readFileSync(profile, 'utf8'))).toMatchObject({
       crossAgentReviewRoutes: {

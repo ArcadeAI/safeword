@@ -829,9 +829,10 @@ async function reviewRoutesSetHandler(invocation: CommandInvocation): Promise<Cl
       command: 'review routes set',
       scope,
       author,
-      routes: routes.map(({ reviewer, model }) => ({
+      routes: routes.map(({ reviewer, model, independence }) => ({
         reviewer,
         ...(model !== undefined && { model }),
+        independence,
       })),
     },
   });

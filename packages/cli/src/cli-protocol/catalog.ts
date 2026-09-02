@@ -538,6 +538,7 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       {
         flags: '--worker-job-id <id>',
         description: 'Internal detached-worker identity',
+        hidden: true,
       },
     ],
     exitPolicy: { actionRequiredAsSuccessOption: 'agentHandoff' },

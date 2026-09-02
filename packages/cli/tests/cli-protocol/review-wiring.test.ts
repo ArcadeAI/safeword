@@ -2954,7 +2954,7 @@ describe('cross-agent review public-command wiring', () => {
     });
   });
 
-  it('skips later models after a runtime-wide ranked-route failure', async () => {
+  it('hands ranked-route authentication back before any fallback runs', async () => {
     const directory = createTemporaryDirectory();
     const log = nodePath.join(directory, 'review.log');
     mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
@@ -2997,16 +2997,23 @@ describe('cross-agent review public-command wiring', () => {
       },
     );
 
-    expect(result.exitCode, result.stdout).toBe(0);
-    expect(readFileSync(log, 'utf8')).toBe('codex\nopencode\n');
+    expect(result.exitCode, result.stdout).toBe(2);
+    expect(readFileSync(log, 'utf8')).toBe('codex\n');
     expect(JSON.parse(result.stdout)).toMatchObject({
+      findings: [{ code: 'REVIEW_AUTHENTICATION_REQUIRED' }],
+      recovery: [{ command: 'codex login', requires_human: true }],
       data: {
-        assigned_reviewer: 'opencode',
-        independence: 'cross-agent',
+        assigned_reviewer: 'codex',
+        preferred_model: 'model-a',
+        preferred_failure: 'not_authenticated',
+        independence: 'none',
         review_routes: [
-          { reviewer: 'codex', model: 'model-a', failure: 'not_authenticated' },
-          { reviewer: 'codex', model: 'model-b', status: 'skipped' },
-          { reviewer: 'opencode', model: 'vendor/model-c', status: 'attempted' },
+          {
+            reviewer: 'codex',
+            model: 'model-a',
+            status: 'attempted',
+            failure: 'not_authenticated',
+          },
         ],
       },
     });

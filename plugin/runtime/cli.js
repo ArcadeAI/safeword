@@ -50764,6 +50764,38 @@ function recordRankedFailure(route, failure, evidence, unavailable) {
   }
   return failure.terminal;
 }
+function rankedAuthenticationRequiredResult(input) {
+  const result = authenticationRequiredResult({
+    author: input.author,
+    assignedReviewer: input.route.reviewer,
+    preferredModel: input.route.model,
+    preferredFailure: "not_authenticated",
+    policy: input.policy
+  });
+  return {
+    ...result,
+    effects: { ...result.effects, network: rankedNetworkEffects(input.evidence) },
+    data: { ...result.data, review_routes: input.evidence }
+  };
+}
+function rankedFailureResult(input) {
+  const terminal = recordRankedFailure(input.route, input.failure, input.evidence, input.unavailable);
+  if (input.route.independence === "cross-agent" && input.failure.failure === "not_authenticated") {
+    return rankedAuthenticationRequiredResult(input);
+  }
+  if (!terminal)
+    return;
+  input.evidence.push(...input.remainingRoutes.map((route) => ({ ...route, status: "unattempted" })));
+  return rankedExhaustedResult({
+    author: input.author,
+    policy: input.policy,
+    kind: input.run.kind,
+    targets: input.run.targets,
+    context: input.run.context,
+    evidence: input.evidence,
+    degraded: input.degraded
+  });
+}
 async function executeRankedRoute(input) {
   const independentLabel = input.route.independence === "cross-agent" ? "an independent " : "";
   const modelLabel = input.route.model === undefined ? "" : ` with ${input.route.model}`;
@@ -50817,10 +50849,19 @@ async function runRankedRoutes(input, author, policy, routes) {
       };
     }
     if (assessment.kind === "failed") {
-      if (recordRankedFailure(route, assessment, evidence, unavailable)) {
-        evidence.push(...routes.slice(index + 1).map((remaining) => ({ ...remaining, status: "unattempted" })));
-        break;
-      }
+      const result = rankedFailureResult({
+        run: input,
+        author,
+        policy,
+        route,
+        remainingRoutes: routes.slice(index + 1),
+        failure: assessment,
+        evidence,
+        unavailable,
+        degraded
+      });
+      if (result !== undefined)
+        return result;
       continue;
     }
     evidence.push({ ...route, status: "attempted" });
@@ -67165,9 +67206,10 @@ async function reviewRoutesSetHandler(invocation) {
       command: "review routes set",
       scope,
       author,
-      routes: routes.map(({ reviewer, model }) => ({
+      routes: routes.map(({ reviewer, model, independence }) => ({
         reviewer,
-        ...model !== undefined && { model }
+        ...model !== undefined && { model },
+        independence
       }))
     }
   });
@@ -68861,7 +68903,8 @@ var CANONICAL_COMMANDS = [
       },
       {
         flags: "--worker-job-id <id>",
-        description: "Internal detached-worker identity"
+        description: "Internal detached-worker identity",
+        hidden: true
       }
     ],
     exitPolicy: { actionRequiredAsSuccessOption: "agentHandoff" },
@@ -69287,7 +69330,7 @@ import nodePath110 from "path";
 import process18 from "process";
 init_policy();
 init_result();
-var GLOBAL_OPTION_KEYS = new Set(["json", "noInput", "cwd", "quiet", "offline", "verbose"]);
+var GLOBAL_OPTION_KEYS = new Set(["json", "input", "cwd", "quiet", "offline", "verbose"]);
 var GLOBAL_OPTION_DEFINITIONS = [
   { flags: "--json", description: "Write one versioned result envelope as JSON" },
   { flags: "--no-input", description: "Never prompt or infer consent" },
@@ -69308,7 +69351,7 @@ function readGlobalOptions(command2) {
   const options = command2.optsWithGlobals();
   return {
     json: options.json === true,
-    noInput: options.noInput === true,
+    noInput: options.input === false,
     cwd: nodePath110.resolve(process18.cwd(), options.cwd ?? "."),
     quiet: options.quiet === true,
     offline: options.offline === true,

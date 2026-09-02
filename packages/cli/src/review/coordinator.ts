@@ -546,6 +546,61 @@ function recordRankedFailure(
   return failure.terminal;
 }
 
+function rankedAuthenticationRequiredResult(input: {
+  readonly author: ReviewAgent;
+  readonly policy: ReviewPolicy;
+  readonly route: ReviewRoute;
+  readonly evidence: readonly RankedRouteEvidence[];
+}): CliResult {
+  const result = authenticationRequiredResult({
+    author: input.author,
+    assignedReviewer: input.route.reviewer,
+    preferredModel: input.route.model,
+    preferredFailure: 'not_authenticated',
+    policy: input.policy,
+  });
+  return {
+    ...result,
+    effects: { ...result.effects, network: rankedNetworkEffects(input.evidence) },
+    data: { ...(result.data as Record<string, unknown>), review_routes: input.evidence },
+  };
+}
+
+function rankedFailureResult(input: {
+  readonly run: ReviewRunInput;
+  readonly author: ReviewAgent;
+  readonly policy: ReviewPolicy;
+  readonly route: ReviewRoute;
+  readonly remainingRoutes: readonly ReviewRoute[];
+  readonly failure: Extract<ReturnType<typeof assessReviewOutcome>, { readonly kind: 'failed' }>;
+  readonly evidence: RankedRouteEvidence[];
+  readonly unavailable: Set<ReviewAgent>;
+  readonly degraded?: { readonly output: ReviewerOutput; readonly route: ReviewRoute };
+}): CliResult | undefined {
+  const terminal = recordRankedFailure(
+    input.route,
+    input.failure,
+    input.evidence,
+    input.unavailable,
+  );
+  if (input.route.independence === 'cross-agent' && input.failure.failure === 'not_authenticated') {
+    return rankedAuthenticationRequiredResult(input);
+  }
+  if (!terminal) return undefined;
+  input.evidence.push(
+    ...input.remainingRoutes.map(route => ({ ...route, status: 'unattempted' as const })),
+  );
+  return rankedExhaustedResult({
+    author: input.author,
+    policy: input.policy,
+    kind: input.run.kind,
+    targets: input.run.targets,
+    context: input.run.context,
+    evidence: input.evidence,
+    degraded: input.degraded,
+  });
+}
+
 async function executeRankedRoute(input: {
   readonly run: ReviewRunInput;
   readonly author: ReviewAgent;
@@ -633,14 +688,18 @@ async function runRankedRoutes(
       };
     }
     if (assessment.kind === 'failed') {
-      if (recordRankedFailure(route, assessment, evidence, unavailable)) {
-        evidence.push(
-          ...routes
-            .slice(index + 1)
-            .map(remaining => ({ ...remaining, status: 'unattempted' as const })),
-        );
-        break;
-      }
+      const result = rankedFailureResult({
+        run: input,
+        author,
+        policy,
+        route,
+        remainingRoutes: routes.slice(index + 1),
+        failure: assessment,
+        evidence,
+        unavailable,
+        degraded,
+      });
+      if (result !== undefined) return result;
       continue;
     }
 

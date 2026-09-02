@@ -16,7 +16,7 @@ export interface GlobalCliOptions {
   readonly verbose: boolean;
 }
 
-const GLOBAL_OPTION_KEYS = new Set(['json', 'noInput', 'cwd', 'quiet', 'offline', 'verbose']);
+const GLOBAL_OPTION_KEYS = new Set(['json', 'input', 'cwd', 'quiet', 'offline', 'verbose']);
 
 export const GLOBAL_OPTION_DEFINITIONS = [
   { flags: '--json', description: 'Write one versioned result envelope as JSON' },
@@ -38,7 +38,7 @@ export function addGlobalOptions(command: Command): Command {
 export function readGlobalOptions(command: Command): GlobalCliOptions {
   const options = command.optsWithGlobals<{
     json?: boolean;
-    noInput?: boolean;
+    input?: boolean;
     cwd?: string;
     quiet?: boolean;
     offline?: boolean;
@@ -46,7 +46,7 @@ export function readGlobalOptions(command: Command): GlobalCliOptions {
   }>();
   return {
     json: options.json === true,
-    noInput: options.noInput === true,
+    noInput: options.input === false,
     cwd: nodePath.resolve(process.cwd(), options.cwd ?? '.'),
     quiet: options.quiet === true,
     offline: options.offline === true,
