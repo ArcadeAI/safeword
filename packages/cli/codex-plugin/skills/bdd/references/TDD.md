@@ -196,13 +196,13 @@ Off by default. When `.safeword/config.json` sets `architectureReviewGate: true`
 2. **A fresh-context review.** Resolve a review-capable Safeword CLI, then run the shared coordinator with only the bounded design evidence:
 
    ```bash
-   SAFEWORD_REVIEW_PROGRESS=1 bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.0/runtime/cli.js" review run plan-implementation --agent-handoff --json --context spec.md ticket.md feature-file principles-file personas-file surfaces-file architecture-records -- impl-plan.md
+   SAFEWORD_REVIEW_PROGRESS=1 bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.1/runtime/cli.js" review run plan-implementation --agent-handoff --json --context spec.md ticket.md feature-file principles-file personas-file surfaces-file architecture-records -- impl-plan.md
    ```
 
    The shared coordinator prefers the opposite headless agent. If the typed result is `REVIEW_AUTHENTICATION_REQUIRED`, execute its exact recovery command; the user's browser or device flow may need to complete. After successful authentication, rerun the same coordinator command once. Do not invoke `$safeword:finish-review`, accept degraded coverage, or loop on another auth denial; report an unsuccessful reauthentication as the blocker. Only when its typed result is `REVIEW_ROUTES_EXHAUSTED`, invoke `$safeword:finish-review` with the original result and the same accepted targets; return every other result unchanged. Degraded findings cannot satisfy a required independent-review gate. On an independent pass, stamp it:
 
    ```bash
-   bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.0/runtime/cli.js" project runtime write-review-stamp -- --author-agent "author-agent" --reviewer-agent "actual-reviewer" --independence "independence" impl-plan
+   bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.1/runtime/cli.js" project runtime write-review-stamp -- --author-agent "author-agent" --reviewer-agent "actual-reviewer" --independence "independence" impl-plan
    ```
 
    The stamp binds to the plan's current content, so editing the design after review invalidates it — re-review and re-stamp.
@@ -210,7 +210,7 @@ Off by default. When `.safeword/config.json` sets `architectureReviewGate: true`
 **Cross-model (`crossModelReview: true`).** The reviewer must run on a **different model than the author** — a same-model reviewer shares the author's blind spots (correlated errors). Prefer one of comparable-or-better capability; never weaker. Record a model only when the executed reviewer reports a verifiable identifier; the cross-agent coordinator does not guess a default model:
 
 ```bash
-bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.0/runtime/cli.js" project runtime write-review-stamp -- --author-agent "author-agent" --reviewer-agent "actual-reviewer" --model "verified-model" --independence "independence" impl-plan
+bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.1/runtime/cli.js" project runtime write-review-stamp -- --author-agent "author-agent" --reviewer-agent "actual-reviewer" --model "verified-model" --independence "independence" impl-plan
 ```
 
 The gate compares that tag against the author model (captured at SessionStart) and enforces **different only** — "comparable-or-better" is your judgment, not gate-checked. An absent tag fails closed. When `crossAgentReview` is `require`, degraded evidence and skips also fail closed; restore the opposite reviewer and rerun the coordinator. (This gate is stricter than quality-review's advisory loop, which may accept a labeled same-agent result under the default `prefer` policy.)

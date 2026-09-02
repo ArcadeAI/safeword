@@ -34709,6 +34709,13 @@ function installedCursorActive(cwd) {
   const cursorSchema = schemaForProjectSurfaces(SAFEWORD_SCHEMA, ["cursor"]);
   return [...Object.keys(cursorSchema.ownedFiles), ...Object.keys(cursorSchema.jsonMerges)].some((path4) => path4.startsWith(".cursor/") && existsSync29(nodePath51.join(cwd, path4)));
 }
+function profileOnlyUninstallSchema(schema) {
+  return {
+    ...filterSchemaPaths(schema, () => false),
+    deprecatedPackages: [],
+    packages: { base: [], conditional: {} }
+  };
+}
 function projectLifecycleSchema(cwd, agents, operation = "check") {
   const claudeDeliverySchema = schemaForClaudeDelivery(cwd);
   const selected = new Set(agents);
@@ -34717,7 +34724,10 @@ function projectLifecycleSchema(cwd, agents, operation = "check") {
   const openCodeSchema = selectedDeliverySchema(claudeDeliverySchema, selected);
   const deliverySchema = schemaForCodexDelivery(cwd, openCodeSchema);
   const surfaceSchema = schemaForProjectSurfaces(deliverySchema, selectedProjectSurfaces(selected));
-  const remainingHostNeedsRuntime = operation === "uninstall" && (!selected.has("claude") && legacyClaudeInstalled || !selected.has("cursor") && installedCursorActive(cwd));
+  if (operation === "uninstall" && !selected.has("cursor") && installedCursorActive(cwd)) {
+    return profileOnlyUninstallSchema(surfaceSchema);
+  }
+  const remainingHostNeedsRuntime = operation === "uninstall" && !selected.has("claude") && legacyClaudeInstalled;
   return withSelectedOwnedPaths(schemaForSharedAgentRuntime(surfaceSchema, !remainingHostNeedsRuntime && sharedRuntimeNeeded(selected, legacyClaudeActive)));
 }
 var init_schema2 = __esm(() => {

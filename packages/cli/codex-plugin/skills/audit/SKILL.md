@@ -15,13 +15,13 @@ Run a diff-scoped code audit. Execute checks and report results by severity.
 
 This skill is required before marking a feature ticket done. The line below appends a current-run entry to `skill-invocations.log` under the project namespace root (`.project/`, or legacy `.safeword-project/` where that exists) so the done-gate hook can verify $safeword:audit was actually invoked. Claude Code expands the `!` line automatically and passes `${CLAUDE_SESSION_ID}` when available. The helper also resolves Claude remote-container ids from the runtime environment, and on Cursor and Codex the pre-shell hook (beforeShellExecution / PreToolUse) bridges the session id to the helper — so on all three runtimes the fallback runs without hand-picking an id. Hand-writing audit results cannot produce this feature-gate proof.
 
-!`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.0/runtime/cli.js" project record-skill-invocation --cwd "$PROJECT_DIR" audit "${CLAUDE_SESSION_ID:-}" || echo "[skill-invocation-log] FAILED - no current-run proof logged"`
+!`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.1/runtime/cli.js" project record-skill-invocation --cwd "$PROJECT_DIR" audit "${CLAUDE_SESSION_ID:-}" || echo "[skill-invocation-log] FAILED - no current-run proof logged"`
 
 If no `[skill-invocation-log] audit ✓` line appears above, run this fallback before continuing:
 
 ```bash
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
-bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.0/runtime/cli.js" project record-skill-invocation --cwd "$PROJECT_DIR" audit "${CLAUDE_SESSION_ID:-}"
+bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.1/runtime/cli.js" project record-skill-invocation --cwd "$PROJECT_DIR" audit "${CLAUDE_SESSION_ID:-}"
 ```
 
 **If the automatic line or fallback prints `[skill-invocation-log] FAILED`, prints `no run identity`, or still does not print `audit ✓`**: a feature ticket can't be marked done without this proof — don't hand-write audit results as a substitute. Report the failure to the user (most likely cause: inline shell execution was denied, the runtime did not expose a usable run identity, or Bun could not run the installed helper) and ask them to resolve it before re-invoking $safeword:audit.
@@ -69,7 +69,7 @@ that ref. An invalid ref stops the audit instead of silently widening its scope.
 # same scope contract every executable audit block uses.
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
 cd "$PROJECT_DIR" || exit 1
-source <(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.0/runtime/cli.js" project audit-scope)
+source <(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.1/runtime/cli.js" project audit-scope)
 audit_scope_initialize "$PROJECT_DIR" || exit $?
 audit_scope_print
 
@@ -559,9 +559,9 @@ Changed project learnings in the resolved namespace root's `learnings/*.md` must
 
 ```bash
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
-source <(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.0/runtime/cli.js" project audit-scope)
+source <(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.1/runtime/cli.js" project audit-scope)
 audit_scope_initialize "$PROJECT_DIR" || exit $?
-NS_ROOT="$(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.0/runtime/cli.js" project namespace-root --cwd "$PROJECT_DIR")"
+NS_ROOT="$(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.1/runtime/cli.js" project namespace-root --cwd "$PROJECT_DIR")"
 
 learning_is_in_audit_scope() {
   [ "$AUDIT_SCOPE_MODE" = "repository" ] && return 0
@@ -699,14 +699,14 @@ contract testable without turning semantic review into shell heuristics.
 ```bash
 # principle-trace-check — E010 objective trace integrity only.
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
-TICKET_PATH="$(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.0/runtime/cli.js" project runtime resolve-verify-ticket --cwd "$PROJECT_DIR" --)"
+TICKET_PATH="$(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.1/runtime/cli.js" project runtime resolve-verify-ticket --cwd "$PROJECT_DIR" --)"
 ticket_status=$?
 if [ "$ticket_status" -ne 0 ]; then
   exit "$ticket_status"
 fi
 if [ -n "$TICKET_PATH" ]; then
   PLAN_PATH="$(dirname "$TICKET_PATH")/impl-plan.md"
-  [ ! -f "$PLAN_PATH" ] || bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.0/runtime/cli.js" project runtime audit-principle-trace --cwd "$PROJECT_DIR" -- "$PLAN_PATH"
+  [ ! -f "$PLAN_PATH" ] || bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.1/runtime/cli.js" project runtime audit-principle-trace --cwd "$PROJECT_DIR" -- "$PLAN_PATH"
 fi
 ```
 
@@ -724,18 +724,18 @@ below verbatim, as ONE bash invocation.**
 # Class-2: observable facts only. Emits W008 (empty). Never writes the tree.
 cd "${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}" || exit 1
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
-source <(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.0/runtime/cli.js" project audit-scope)
+source <(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.1/runtime/cli.js" project audit-scope)
 audit_scope_initialize "$PROJECT_DIR" || exit $?
 
 # Resolve the namespace root (honors config paths.projectRoot in real runs).
 # Fall back on directory existence — robust when the resolver hook is absent.
-NS_ROOT="$(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.0/runtime/cli.js" project namespace-root --cwd "$PROJECT_DIR" 2> /dev/null)"
+NS_ROOT="$(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.1/runtime/cli.js" project namespace-root --cwd "$PROJECT_DIR" 2> /dev/null)"
 [ -d "$NS_ROOT" ] || {
   if [ -d "$PROJECT_DIR/.project" ]; then NS_ROOT="$PROJECT_DIR/.project"; else NS_ROOT="$PROJECT_DIR/.safeword-project"; fi
 }
-PERSONAS_FILE="$(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.0/runtime/cli.js" project namespace-root --cwd "$PROJECT_DIR" --key personas 2> /dev/null)"
-SURFACES_FILE="$(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.0/runtime/cli.js" project namespace-root --cwd "$PROJECT_DIR" --key surfaces 2> /dev/null)"
-GLOSSARY_FILE="$(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.0/runtime/cli.js" project namespace-root --cwd "$PROJECT_DIR" --key glossary 2> /dev/null)"
+PERSONAS_FILE="$(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.1/runtime/cli.js" project namespace-root --cwd "$PROJECT_DIR" --key personas 2> /dev/null)"
+SURFACES_FILE="$(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.1/runtime/cli.js" project namespace-root --cwd "$PROJECT_DIR" --key surfaces 2> /dev/null)"
+GLOSSARY_FILE="$(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.1/runtime/cli.js" project namespace-root --cwd "$PROJECT_DIR" --key glossary 2> /dev/null)"
 [ -n "$PERSONAS_FILE" ] || PERSONAS_FILE="$NS_ROOT/personas.md"
 [ -n "$SURFACES_FILE" ] || SURFACES_FILE="$NS_ROOT/surfaces.md"
 [ -n "$GLOSSARY_FILE" ] || GLOSSARY_FILE="$NS_ROOT/glossary.md"

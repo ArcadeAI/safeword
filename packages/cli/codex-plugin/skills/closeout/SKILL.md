@@ -131,7 +131,7 @@ substitute, discover, or accept a caller-provided spool path.
 Run the guard from the delivery worktree; preview is the default:
 
 ```sh
-bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.0/runtime/cli.js" project runtime closeout-cleanup -- --pr PR_NUMBER
+bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.1/runtime/cli.js" project runtime closeout-cleanup -- --pr PR_NUMBER
 ```
 
 At the exact clean delivery head, the post-merge preview reuses a fresh receipt
@@ -154,7 +154,7 @@ user request explicitly authorizes cleanup. Cleanup authority is consumed when
 apply is attempted, and applies only to the unchanged preview:
 
 ```sh
-bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.0/runtime/cli.js" project runtime closeout-cleanup -- --pr PR_NUMBER --yes --plan PLAN_DIGEST
+bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.1/runtime/cli.js" project runtime closeout-cleanup -- --pr PR_NUMBER --yes --plan PLAN_DIGEST
 ```
 
 The guard re-observes identity and executes only this order: worktree, remote

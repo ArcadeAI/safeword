@@ -21,13 +21,13 @@ Deep review with research to verify a work-product — code, docs, specs, plans,
 
 Required before marking done a ticket with **two or more RGR loops**. The line below logs a current-run entry to `skill-invocations.log` under the project namespace root so the done-gate hook can verify $safeword:quality-review actually ran; Claude Code expands the `!` line automatically. On Cursor and Codex the pre-shell hook (beforeShellExecution / PreToolUse) bridges the session id, so the fallback runs on all three runtimes without hand-picking one. Hand-writing review notes cannot produce this gate proof.
 
-!`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.0/runtime/cli.js" project record-skill-invocation --cwd "$PROJECT_DIR" quality-review "${CLAUDE_SESSION_ID:-}" || echo "[skill-invocation-log] FAILED - no current-run proof logged"`
+!`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.1/runtime/cli.js" project record-skill-invocation --cwd "$PROJECT_DIR" quality-review "${CLAUDE_SESSION_ID:-}" || echo "[skill-invocation-log] FAILED - no current-run proof logged"`
 
 If no `[skill-invocation-log] quality-review ✓` line appears above, run this fallback before continuing:
 
 ```bash
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
-bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.0/runtime/cli.js" project record-skill-invocation --cwd "$PROJECT_DIR" quality-review "${CLAUDE_SESSION_ID:-}"
+bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.1/runtime/cli.js" project record-skill-invocation --cwd "$PROJECT_DIR" quality-review "${CLAUDE_SESSION_ID:-}"
 ```
 
 **If the automatic line or fallback prints `[skill-invocation-log] FAILED`, prints `no run identity`, or still does not print `quality-review ✓`**: a ticket with 2+ RGR loops can't be marked done without this proof — don't substitute hand-written notes for it. Report the failure to the user (usual causes: inline shell execution was denied, the runtime exposed no usable run identity, or Bun could not run the installed helper) and ask them to resolve it before re-invoking $safeword:quality-review.
@@ -59,7 +59,7 @@ If in a BDD workflow, read the current ticket from `<namespace-root>/tickets/` a
 
 ### Project-principle challenge
 
-For a BDD ticket, run `bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.0/runtime/cli.js" project review-knowledge --json` at the
+For a BDD ticket, run `bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.1/runtime/cli.js" project review-knowledge --json` at the
 start of each pass and read the current `principles`, `personas`, and `surfaces`
 paths and content it returns (including overrides such as `paths.principles`).
 Do not substitute labels or intake-era content.
@@ -221,7 +221,7 @@ Each pass:
    guarantee a bare `safeword` on `PATH`:
 
    ```bash
-   SAFEWORD_REVIEW_PROGRESS=1 bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.0/runtime/cli.js" review run quality-review [--context path/to/evidence] --agent-handoff --json -- changed-file [more-changed-files...]
+   SAFEWORD_REVIEW_PROGRESS=1 bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.1/runtime/cli.js" review run quality-review [--context path/to/evidence] --agent-handoff --json -- changed-file [more-changed-files...]
    ```
 
    A healthy deep review may return `REVIEW_PENDING` after its foreground
