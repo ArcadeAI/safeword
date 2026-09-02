@@ -48,6 +48,7 @@ Feature: Every agent delivery is self-contained
         | a complete legacy runtime      |
         | a partially missing runtime    |
 
+    # Proof boundary: the generated profile skill runs through its pinned runtime and a real reviewer subprocess records the dispatch.
     @surface.opencode
     Scenario: A packaged OpenCode workflow executes without project runtime
       Given an enrolled project contains no Safeword hooks, skills, scripts, or guides
@@ -78,6 +79,7 @@ Feature: Every agent delivery is self-contained
       Then the workflow reports the unavailable pinned package
       And no project installation, dependency change, or project-local runtime is proposed
 
+    # Proof boundary: the generated plugin skill runs through its bundled runtime and a real reviewer subprocess records the dispatch.
     @surface.claude-code
     Scenario: A packaged Claude workflow executes without project runtime
       Given an enrolled project contains no Safeword hooks, skills, scripts, or guides
@@ -175,7 +177,7 @@ Feature: Every agent delivery is self-contained
     Scenario: OpenCode installation delivers no project runtime
       Given an OpenCode profile has no Safeword catalogue
       When the Non-Technical Builder installs Safeword with OpenCode selected
-      Then the OpenCode profile receives its complete command, agent, skill, and reference catalogue
+      Then the selected OpenCode profile delivery is present
       And no OpenCode executable runtime is delivered into the project
 
     @surface.safeword-cli @surface.openai-codex @surface.claude-code @surface.opencode
@@ -202,7 +204,7 @@ Feature: Every agent delivery is self-contained
       And the plan contains no profile or project delivery for any unselected agent
       And the plan creates no framework state directory or transient state file
 
-    @surface.safeword-cli @surface.cursor
+    @surface.safeword-cli @surface.cursor @surface.openai-codex @surface.claude-code @surface.opencode
     Scenario Outline: Mixed selection preserves Cursor without copying native runtimes
       Given a project selects Cursor and <native agent>
       When the Non-Technical Builder reconciles the project
