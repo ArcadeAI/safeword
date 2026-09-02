@@ -27,6 +27,8 @@ skip: User-facing drift-report wording is owned by the existing OpenCode lifecyc
 
 skip: Cleanup of obsolete native project runtime copies remains owned by the existing proof-bound Codex and Claude migration contracts; this epic proves legacy copies cannot regain execution authority and does not authorize deleting unproven project content.
 
+skip: Complete and partial legacy project payload precedence is exercised through Codex as the representative native package-cache host; Claude's plugin-root migration authority remains covered by its existing proof-bound lifecycle contract rather than duplicating that migration matrix here.
+
 ## Boundary reconciliation
 
 - **Zero project runtime files for plugin-backed hosts** and **only the selected project authority for project-delivered hosts** are the load-bearing cold-start boundaries.

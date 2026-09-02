@@ -93,6 +93,7 @@ Feature: Every agent delivery is self-contained
       Then the caller shell receives diff mode, the known merge-base SHA, and an empty changed-file list
       And the caller shell remains available for the next command
 
+    # Proof boundary: the generated pinned command runs with its cache entry absent beside a marker-emitting legacy helper.
     @rejection @surface.openai-codex
     Scenario: An unavailable pinned package never falls back to project runtime
       Given an enrolled project cannot resolve the packaged workflow's pinned Safeword version
@@ -100,7 +101,7 @@ Feature: Every agent delivery is self-contained
       When the Technical Builder invokes the packaged Codex workflow
       Then the workflow reports the unavailable pinned package
       And the emitted output contains no installation or dependency-change directive
-      And the complete legacy runtime remains unused
+      And no legacy-runtime marker is created
 
     # Proof boundary: the generated plugin skill runs through its bundled runtime and a real reviewer subprocess records the dispatch.
     @surface.claude-code
@@ -114,6 +115,7 @@ Feature: Every agent delivery is self-contained
   @self-contained-plugins.TBU1.R2
   Rule: self-contained-plugins.TBU1.R2 — Missing framework state initializes lazily after explicit enrollment
 
+    # Proof boundary: each row executes the generated workflow through that host's real declared authority, mocking only the external process boundary.
     @shared-project-state @surface.safeword-cli @surface.openai-codex @surface.claude-code @surface.opencode @surface.cursor
     Scenario Outline: Every host lazily creates missing workflow state and its precise ignore rule
       Given an enrolled version-controlled project configures <host> with its declared Safeword authority
@@ -230,7 +232,7 @@ Feature: Every agent delivery is self-contained
 
     @surface.safeword-cli @surface.cursor @surface.openai-codex @surface.claude-code @surface.opencode
     Scenario Outline: Mixed selection preserves Cursor without copying native runtimes
-      Given a project selects Cursor and <native agent>
+      Given an enrolled project selects Cursor and <native agent>
       When the Non-Technical Builder reconciles the project
       Then Cursor's project authority remains present
       And the <native agent> profile delivery is present
@@ -264,9 +266,9 @@ Feature: Every agent delivery is self-contained
 
     @surface.safeword-cli @surface.opencode
     Scenario: OpenCode profile identity records the complete owned catalogue
-      Given a generated OpenCode catalogue of plugin, commands, agents, and skills
+      Given a generated OpenCode catalogue of plugin, command, agent, skill, and reference assets
       When the Non-Technical Builder installs the profile delivery
-      Then the complete command, agent, skill, and reference catalogue is installed
+      Then the complete plugin, command, agent, skill, and reference catalogue is installed
       And the profile identity records every owned catalogue asset and digest
 
     @rejection @surface.safeword-cli @surface.opencode
@@ -317,7 +319,7 @@ Feature: Every agent delivery is self-contained
       When the Safeword Maintainer runs release validation
       Then all four catalogues pass runtime-authority validation
 
-    @rejection @surface.openai-codex
+    @rejection @surface.safeword-cli @surface.openai-codex
     Scenario: An unpinned Codex helper blocks release
       Given a generated Codex helper invocation omits the pinned plugin package version
       When the Safeword Maintainer runs release validation
@@ -329,7 +331,7 @@ Feature: Every agent delivery is self-contained
       When the Safeword Maintainer runs release validation
       Then validation fails and names the offending catalogue asset
 
-    @rejection @surface.cursor
+    @rejection @surface.safeword-cli @surface.cursor
     Scenario: A cross-host executable reference blocks Cursor release
       Given a Cursor catalogue asset references a Claude Code executable
       When the Safeword Maintainer runs release validation
