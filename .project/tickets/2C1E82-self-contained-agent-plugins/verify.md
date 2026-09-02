@@ -3,7 +3,7 @@
 ## Verify Checklist
 
 **Test Suite:** ✓ 9065/9065 executed tests pass (14 intentional skips)
-**Gherkin:** ✅ Acceptance lanes pass: root 1488/1491 scenarios (3 intentional skips), package 587/587 scenarios
+**Gherkin:** ✅ Acceptance lanes pass: root 1493/1496 scenarios (3 intentional skips), package 587/587 scenarios
 **Build:** ✅ Success
 **Lint:** ✅ Clean
 **Scenarios:** All 33 scenarios marked complete
@@ -30,7 +30,7 @@ Audit passed with warnings. Dependency-cruiser found no violations across 408 mo
 
 - Exact Safeword verifier on `4260bfcfd` completed both full test plans, both BDD plans, every build and typecheck plan, and dependency scans under one serialized Vitest process at a time.
 - Unique test corpus: CLI 8773 passed with 13 skipped; retro relay 186 passed with 1 skipped; retro collector 106 passed.
-- Root BDD: 1491 scenarios, 1488 passed and 3 skipped; 68,373 steps, 68,369 passed and 4 skipped.
+- Root BDD: 1496 scenarios, 1493 passed and 3 skipped; 68,600 steps, 68,596 passed and 4 skipped. The full-suite rerun also proves route-classification scenarios retain their intended review and fallback budgets under accumulated subprocess load.
 - Package BDD: 587/587 scenarios and 10,954/10,954 steps passed, including the adjacent 33-scenario self-contained-plugin proof manifest.
 - Build and typecheck passed for the root aggregate, CLI, website, retro packages, Go checker, TypeScript, Astro, and strict Python mypy lanes.
 - `bun audit` reported no vulnerabilities; the Go vulnerability scan reported zero affected vulnerabilities. `pip-audit` was unavailable and reported as a coverage limit rather than a pass.

@@ -21,6 +21,8 @@ import type { SafewordWorld } from './world.js';
 // Review scenarios use real subprocess timeouts. Scope their longer budget to
 // the steps that invoke the CLI so unrelated Cucumber scenarios still fail fast.
 const REVIEW_STEP_TIMEOUT_MS = 20_000;
+const ROUTE_CLASSIFICATION_TIMEOUT_MS = 5000;
+const ROUTE_CLASSIFICATION_RUN_BOUND_MS = 30_000;
 
 const execFileAsync = promisify(execFile);
 const CLI_PATH = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
@@ -102,6 +104,15 @@ function state(world: SafewordWorld): ReviewScenario {
     },
   };
   return world_.review;
+}
+
+function fundRouteClassificationUnderSuiteLoad(current: ReviewScenario): void {
+  // These scenarios prove which route failed and whether the fallback verdict
+  // survives. Give real subprocess startup the runtime's normal probe ceiling
+  // so a loaded acceptance host cannot turn that behavior into probe timeout
+  // or exhaust the fallback before it starts.
+  current.environment.SAFEWORD_REVIEW_TIMEOUT_MS = String(ROUTE_CLASSIFICATION_TIMEOUT_MS);
+  current.environment.SAFEWORD_REVIEW_RUN_BOUND_MS = String(ROUTE_CLASSIFICATION_RUN_BOUND_MS);
 }
 
 function behaviourScript(agent: Agent, behaviour: Behaviour): string {
@@ -451,7 +462,9 @@ Given(
 );
 
 Given("only the author's own runtime completed the review", async function (this: SafewordWorld) {
-  installReviewer(state(this), 'claude', 'answers');
+  const current = state(this);
+  fundRouteClassificationUnderSuiteLoad(current);
+  installReviewer(current, 'claude', 'answers');
   await runReview(this);
 });
 
@@ -480,7 +493,9 @@ Given(
 );
 
 Given('the assigned reviewer timed out', function (this: SafewordWorld) {
-  installReviewer(state(this), 'codex', 'never answers');
+  const current = state(this);
+  fundRouteClassificationUnderSuiteLoad(current);
+  installReviewer(current, 'codex', 'never answers');
 });
 
 Given(
