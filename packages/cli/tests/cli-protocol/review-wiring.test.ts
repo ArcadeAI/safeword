@@ -3096,6 +3096,61 @@ describe('cross-agent review public-command wiring', () => {
     });
   });
 
+  it('skips later models after a runtime-wide ranked-route failure', async () => {
+    const directory = createTemporaryDirectory();
+    const log = nodePath.join(directory, 'review.log');
+    mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(directory, '.safeword', 'config.json'),
+      JSON.stringify({
+        crossAgentReviewRoutes: {
+          claude: [
+            { reviewer: 'codex', model: 'model-a' },
+            { reviewer: 'codex', model: 'model-b' },
+            { reviewer: 'opencode' },
+          ],
+        },
+      }),
+    );
+    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+    const bin = installFakeReviewer(directory, 'opencode');
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'review-input.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_REVIEW_LOG: log,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode, result.stdout).toBe(0);
+    expect(readFileSync(log, 'utf8')).toBe('opencode\n');
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      data: {
+        actual_reviewer: 'opencode',
+        independence: 'cross-agent',
+        review_routes: [
+          { reviewer: 'codex', model: 'model-a', status: 'unavailable', failure: 'not_installed' },
+          { reviewer: 'codex', model: 'model-b', status: 'skipped' },
+          { reviewer: 'opencode', status: 'attempted' },
+        ],
+      },
+    });
+  });
+
   it('hands ranked-route authentication back before any fallback runs', async () => {
     const directory = createTemporaryDirectory();
     const log = nodePath.join(directory, 'review.log');

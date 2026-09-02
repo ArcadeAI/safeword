@@ -27,7 +27,8 @@
     ],
     "Empty route lists reject configuration": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
-      "rejects invalid opted-in routes without launching a reviewer"
+      "rejects $name safely without launching a reviewer",
+      "empty author routes"
     ],
     "Unfunded routes are reported without launch": [
       "packages/cli/tests/review/attempt-deadline.test.ts",
