@@ -5,7 +5,7 @@ import nodePath from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import type { ReviewAuthor } from '../../src/review/contract.js';
-import { readReviewRoutes, reviewRoutePlan } from '../../src/review/policy.js';
+import { readConfiguredReviewRoutes, reviewRoutePlan } from '../../src/review/policy.js';
 
 describe('review route policy', () => {
   function project(config: unknown): string {
@@ -55,7 +55,7 @@ describe('review route policy', () => {
       crossAgentReviewPrimaryModel: { codex: 'legacy-primary' },
     });
 
-    expect(readReviewRoutes(cwd, 'claude')).toEqual([
+    expect(readConfiguredReviewRoutes(cwd, 'claude')).toEqual([
       { reviewer: 'opencode', model: 'vendor/model-b', independence: 'cross-agent' },
       { reviewer: 'codex', model: 'model-a', independence: 'cross-agent' },
       { reviewer: 'claude', independence: 'degraded' },
@@ -68,16 +68,20 @@ describe('review route policy', () => {
     { crossAgentReviewRoutes: { claude: [{ reviewer: 'cursor' }] } },
     { crossAgentReviewRoutes: { cursor: [{ reviewer: 'codex' }] } },
   ])('rejects invalid ordered route configuration %#', config => {
-    expect(() => readReviewRoutes(project(config), 'claude')).toThrow('crossAgentReviewRoutes');
+    expect(() => readConfiguredReviewRoutes(project(config), 'claude')).toThrow(
+      'crossAgentReviewRoutes',
+    );
   });
 
-  it('compiles the existing plan when ordered routes are absent', () => {
+  it('leaves the existing plan in authority when ordered routes are absent', () => {
     const cwd = project({ crossAgentReviewAlternateModel: { codex: 'alternate' } });
-    expect(readReviewRoutes(cwd, 'claude')).toEqual([
-      { reviewer: 'codex', independence: 'cross-agent' },
-      { reviewer: 'codex', model: 'alternate', independence: 'cross-agent' },
-      { reviewer: 'opencode', independence: 'cross-agent' },
-      { reviewer: 'claude', independence: 'degraded' },
-    ]);
+    expect(readConfiguredReviewRoutes(cwd, 'claude')).toBeUndefined();
+  });
+
+  it('leaves malformed legacy configuration on the existing tolerant path', () => {
+    const cwd = project({});
+    writeFileSync(nodePath.join(cwd, '.safeword', 'config.json'), '{ malformed');
+
+    expect(readConfiguredReviewRoutes(cwd, 'claude')).toBeUndefined();
   });
 });

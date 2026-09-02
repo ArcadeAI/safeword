@@ -760,17 +760,79 @@ async function captureCommand(
   return result;
 }
 
+async function inspectOpenCodeCatalogue(
+  executable: string,
+  model: string,
+  cwd: string,
+  deadline: number,
+): Promise<ReviewRouteObservation> {
+  const catalogue = await captureCommand(
+    'opencode',
+    executable,
+    ['models', '--pure'],
+    cwd,
+    Math.max(1, deadline - Date.now()),
+  );
+  if (catalogue.kind === 'failed') {
+    return { installed: true, compatibility: 'compatible', catalogue: 'unavailable' };
+  }
+  const listedModels = catalogue.stdout
+    .split(/\r?\n/u)
+    .map(value => value.trim())
+    .filter(value => value.length > 0);
+  if (listedModels.length === 0) {
+    return { installed: true, compatibility: 'compatible', catalogue: 'unavailable' };
+  }
+  return {
+    installed: true,
+    compatibility: 'compatible',
+    catalogue: listedModels.includes(model) ? 'catalogued' : 'not_catalogued',
+  };
+}
+
+function compatibleRouteObservation(
+  reviewer: ReviewAgent,
+  model: string | undefined,
+  skipCatalogue: boolean,
+):
+  | { readonly kind: 'completed'; readonly observation: ReviewRouteObservation }
+  | { readonly kind: 'catalogue'; readonly model: string } {
+  if (model === undefined) {
+    return {
+      kind: 'completed',
+      observation: {
+        installed: true,
+        compatibility: 'compatible',
+        catalogue: 'not_applicable',
+      },
+    };
+  }
+  if (reviewer !== 'opencode' || skipCatalogue) {
+    return {
+      kind: 'completed',
+      observation: { installed: true, compatibility: 'compatible', catalogue: 'unavailable' },
+    };
+  }
+  return { kind: 'catalogue', model };
+}
+
+function unavailableCandidateObservation(rejectedForTrust: boolean): ReviewRouteObservation {
+  return rejectedForTrust
+    ? { installed: true, compatibility: 'inspection_unavailable', catalogue: 'unavailable' }
+    : { installed: false, compatibility: 'not_compatible', catalogue: 'unavailable' };
+}
+
 /** Read-only local evidence. It never stages executables, authenticates, or performs inference. */
-// eslint-disable-next-line complexity -- Evidence distinguishes trusted discovery, capability, and catalogue failures.
 export async function inspectReviewRoute(
   reviewer: ReviewAgent,
   model: string | undefined,
   cwd: string,
   timeoutMs = 5000,
+  skipCatalogue = false,
 ): Promise<ReviewRouteObservation> {
   const candidates = executableCandidates(reviewer, cwd, false);
   if (candidates.paths.length === 0) {
-    return { installed: false, compatibility: 'not_compatible', catalogue: 'unavailable' };
+    return unavailableCandidateObservation(candidates.rejectedForTrust);
   }
   const deadline = Date.now() + timeoutMs;
   let inspectionUnavailable = false;
@@ -782,28 +844,9 @@ export async function inspectReviewRoute(
       inspectionUnavailable ||= capability.failure !== 'unsupported';
       continue;
     }
-    if (model === undefined) {
-      return { installed: true, compatibility: 'compatible', catalogue: 'not_applicable' };
-    }
-    if (reviewer !== 'opencode') {
-      return { installed: true, compatibility: 'compatible', catalogue: 'unavailable' };
-    }
-    const catalogue = await captureCommand(
-      reviewer,
-      candidate,
-      ['models', '--pure'],
-      cwd,
-      Math.max(1, deadline - Date.now()),
-    );
-    if (catalogue.kind === 'failed') {
-      return { installed: true, compatibility: 'compatible', catalogue: 'unavailable' };
-    }
-    const models = new Set(catalogue.stdout.split(/\r?\n/u).map(value => value.trim()));
-    return {
-      installed: true,
-      compatibility: 'compatible',
-      catalogue: models.has(model) ? 'catalogued' : 'not_catalogued',
-    };
+    const compatible = compatibleRouteObservation(reviewer, model, skipCatalogue);
+    if (compatible.kind === 'completed') return compatible.observation;
+    return inspectOpenCodeCatalogue(candidate, compatible.model, cwd, deadline);
   }
   return {
     installed: true,

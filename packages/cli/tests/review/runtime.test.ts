@@ -192,6 +192,46 @@ echo '--json --sandbox --skip-git-repo-check --ephemeral --ignore-user-config --
       catalogue: 'unavailable',
     });
   });
+
+  it('treats empty OpenCode catalogue output as unavailable rather than absent', async () => {
+    const bin = trustedTemporaryDirectory();
+    const project = temporaryDirectory();
+    const executable = nodePath.join(bin, 'opencode');
+    writeFileSync(
+      executable,
+      `#!/bin/sh
+if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then echo '--format --pure --model'; exit 0; fi
+if [ "\${1:-}" = "models" ]; then exit 0; fi
+exit 9
+`,
+    );
+    chmodSync(executable, 0o755);
+    vi.stubEnv('PATH', bin);
+
+    await expect(inspectReviewRoute('opencode', 'vendor/model-a', project)).resolves.toEqual({
+      installed: true,
+      compatibility: 'compatible',
+      catalogue: 'unavailable',
+    });
+  });
+
+  it.skipIf(process.platform === 'win32')(
+    'does not report a stageable reviewer as missing during read-only inspection',
+    async () => {
+      const bin = trustedTemporaryDirectory();
+      const project = temporaryDirectory();
+      const executable = nodePath.join(bin, 'claude');
+      writeFileSync(executable, '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+      chmodSync(bin, 0o775);
+      vi.stubEnv('PATH', bin);
+
+      await expect(inspectReviewRoute('claude', undefined, project)).resolves.toEqual({
+        installed: true,
+        compatibility: 'inspection_unavailable',
+        catalogue: 'unavailable',
+      });
+    },
+  );
 });
 
 describe('headless reviewer output adapters', () => {

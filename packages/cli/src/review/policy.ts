@@ -70,19 +70,6 @@ const DEFAULT_ALTERNATE_MODEL: Partial<Record<ReviewAgent, string>> = { claude: 
 
 const REVIEW_AGENTS = new Set<ReviewAgent>(['claude', 'codex', 'opencode']);
 
-/**
- * Read the user's exact route order, or compile the legacy fixed plan when the
- * ordered setting is absent. An invalid ordered setting is an action-required
- * configuration error; silently falling back would run a route the user did
- * not authorize.
- */
-export function readReviewRoutes(cwd: string, author: ReviewAuthor): readonly ReviewRoute[] {
-  const plan = reviewRoutePlan(author);
-  if (plan === undefined) return [];
-
-  return readConfiguredReviewRoutes(cwd, author) ?? legacyReviewRoutes(cwd, plan);
-}
-
 export function readConfiguredReviewRoutes(
   cwd: string,
   author: ReviewAuthor,
@@ -106,17 +93,6 @@ export function readConfiguredReviewRoutes(
   }
 
   return authorRoutes.map((value, index) => parseReviewRoute(value, index, plan.author));
-}
-
-function legacyReviewRoutes(cwd: string, plan: ReviewRoutePlan): readonly ReviewRoute[] {
-  const primaryModel = readPrimaryReviewerModel(cwd, plan.preferred);
-  const alternateModel = readAlternateReviewerModel(cwd, plan.preferred);
-  return [
-    reviewRoute(plan.preferred, primaryModel, plan.author),
-    reviewRoute(plan.preferred, alternateModel, plan.author),
-    reviewRoute(plan.independentFallback, undefined, plan.author),
-    reviewRoute(plan.degradedFallback, undefined, plan.author),
-  ];
 }
 
 function parseReviewRoute(value: unknown, index: number, author: ReviewAgent): ReviewRoute {
@@ -154,7 +130,9 @@ function readProjectConfig(cwd: string): Record<string, unknown> {
     return isRecord(parsed) && !Array.isArray(parsed) ? parsed : {};
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return {};
-    throw routeConfigError('could not be read');
+    // Preserve the pre-ranked legacy path for projects that have not opted in.
+    // A malformed file cannot safely establish that the new key is present.
+    return {};
   }
 }
 

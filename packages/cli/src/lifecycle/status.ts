@@ -30,15 +30,8 @@ async function inspectConfiguredRoute(
   cwd: string,
   offline: boolean,
 ): Promise<ReviewRouteObservation> {
-  if (offline) {
-    return {
-      installed: 'inspection_skipped',
-      compatibility: 'inspection_skipped',
-      catalogue: route.model === undefined ? 'not_applicable' : 'unavailable',
-    };
-  }
   try {
-    return await inspectReviewRoute(route.reviewer, route.model, cwd);
+    return await inspectReviewRoute(route.reviewer, route.model, cwd, 5000, offline);
   } catch {
     return {
       installed: 'inspection_unavailable',
@@ -363,31 +356,30 @@ async function observeProjectStatus(
     ];
     const nextActions = statusNextActions(blockingFindings, versionGuidance.nextAction);
     let reviewRoutes: readonly Record<string, unknown>[];
+    let routeFinding: Finding | undefined;
     try {
       reviewRoutes = await reviewRouteObservations(cwd, environment, offline);
     } catch (error) {
-      return createResult({
-        state: 'action_required',
-        findings: [
-          {
-            code: 'REVIEW_ROUTE_CONFIG_INVALID',
-            message: error instanceof Error ? error.message : String(error),
-            severity: 'warning',
-          },
-        ],
-        data: { configured: true, review_routes: [] },
-      });
+      reviewRoutes = [];
+      routeFinding = {
+        code: 'REVIEW_ROUTE_CONFIG_INVALID',
+        message: error instanceof Error ? error.message : String(error),
+        severity: 'warning',
+      };
     }
 
     return createResult({
-      state: blockingFindings.length === 0 ? 'healthy' : 'action_required',
-      findings,
+      state:
+        blockingFindings.length === 0 && routeFinding === undefined ? 'healthy' : 'action_required',
+      findings: [...findings, ...(routeFinding === undefined ? [] : [routeFinding])],
       nextActions,
       data: {
         configured: true,
         cli_version: health.cliVersion,
         project_version: health.projectVersion,
-        ...(reviewRoutes.length > 0 && { review_routes: reviewRoutes }),
+        ...((reviewRoutes.length > 0 || routeFinding !== undefined) && {
+          review_routes: reviewRoutes,
+        }),
       },
     });
   } catch (statusError) {

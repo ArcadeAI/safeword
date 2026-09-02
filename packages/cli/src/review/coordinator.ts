@@ -425,7 +425,14 @@ function rankedExhaustedResult(input: {
       review_policy: input.policy,
       independence: hasDegraded ? 'degraded' : 'none',
       review_routes: input.evidence,
-      ...(input.degraded !== undefined && { reviewer_output: input.degraded.output }),
+      ...(input.degraded !== undefined && {
+        assigned_reviewer: input.degraded.route.reviewer,
+        actual_reviewer: input.degraded.output.reviewer_agent,
+        ...(input.degraded.route.model !== undefined && {
+          reviewer_model: input.degraded.route.model,
+        }),
+        reviewer_output: input.degraded.output,
+      }),
     },
   });
 }
@@ -525,9 +532,24 @@ async function runRankedRoutes(
       route,
       runDeadline,
     });
-    if (assessment.kind === 'result') return assessment.result;
+    if (assessment.kind === 'result') {
+      return {
+        ...assessment.result,
+        effects: {
+          ...assessment.result.effects,
+          network: [...rankedNetworkEffects(evidence), ...assessment.result.effects.network],
+        },
+      };
+    }
     if (assessment.kind === 'failed') {
-      if (recordRankedFailure(route, assessment, evidence, unavailable)) break;
+      if (recordRankedFailure(route, assessment, evidence, unavailable)) {
+        evidence.push(
+          ...routes
+            .slice(index + 1)
+            .map(remaining => ({ ...remaining, status: 'unattempted' as const })),
+        );
+        break;
+      }
       continue;
     }
 
