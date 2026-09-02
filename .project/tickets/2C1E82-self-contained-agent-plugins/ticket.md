@@ -47,9 +47,20 @@ Ruled out:
 - A Cucumber discovery/configuration defect: other feature step files are discovered and run by the same configured lane; only this unregistered feature was undefined.
 - An independent-review failure: the scenario and quality reviews correctly assessed their bounded behavior/design/code packets, but executable-lane registration was outside those packets and gates.
 
+A later Node 24 acceptance run exposed a second fixture root cause: the bare-CLI
+scenario expected Codex repair to outrank project drift but left every default
+agent selected and inherited the runner's real `PATH`. Its first action therefore
+depended on whether a `claude` executable happened to exist. The same Node 22
+runtime passed with Claude on `PATH` and failed with the exact CI result when it
+was removed, ruling out Node-version behavior and accumulated suite load. The
+scenario now supplies an explicit current Claude profile fixture, preserving the
+bare command's default multi-agent behavior while making Codex repair the first
+native action by construction.
+
 ## Process Gaps Found
 
 - **Fixed here — divergent BDD entry points:** repository-root `test:bdd` composed Cucumber and Vitest-proof provenance, while `packages/cli test:bdd` ran only Cucumber and excluded proof-backed features. Both entry points now compose the same two proof classes, with a contract test preventing drift.
+- **Fixed here — host-dependent acceptance state:** the bare-CLI fixture isolated profile directories but not host executables, so its result depended on the runner's installed tools. It now declares Claude's payload and activation state explicitly while retaining the real default-agent route.
 - **Fixed here — proof registration was implicit:** all 33 epic scenarios now have an adjacent manifest mapping them to exact, normally collected executable Vitest declarations; release-only, skipped, focused, missing, duplicated, or under-enumerated proofs fail the normal lane.
 - **Fixed here — late fixture inventory:** selected-agent behavior changed the meaning of default install fixtures, but implementation tested only new authority paths. The full fixture and Gherkin inventories were reconciled so every legacy scenario names an explicit host selection where that is its real precondition.
 - **Fixed here — shared fixtures silently selected no runtime:** lifecycle helpers appended `--agents none` even when their callers exercised project-installed runtime. The helpers now select Cursor explicitly, while native-plugin tests invoke the packaged authority they actually claim to prove.
