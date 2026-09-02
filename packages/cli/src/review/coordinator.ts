@@ -491,9 +491,7 @@ async function runRankedRoutes(
   let degraded: { readonly output: ReviewerOutput; readonly route: ReviewRoute } | undefined;
   const runDeadline = Date.now() + runBoundMs();
 
-  for (let index = 0; index < routes.length; index += 1) {
-    const route = routes[index];
-    if (route === undefined) break;
+  for (const [index, route] of routes.entries()) {
     if (unavailable.has(route.reviewer)) {
       evidence.push({ ...route, status: 'skipped' });
       continue;
@@ -526,7 +524,10 @@ async function runRankedRoutes(
         output: assessment.output,
         model: route.model,
       });
-      return createResult({ ...result, data: { ...result.data, review_routes: evidence } });
+      return {
+        ...result,
+        data: { ...(result.data as Record<string, unknown>), review_routes: evidence },
+      };
     }
     degraded = { output: assessment.output, route };
   }

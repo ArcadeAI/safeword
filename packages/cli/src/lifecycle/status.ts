@@ -369,7 +369,7 @@ async function observeProjectStatus(
         configured: true,
         cli_version: health.cliVersion,
         project_version: health.projectVersion,
-        review_routes: reviewRoutes,
+        ...(reviewRoutes.length > 0 && { review_routes: reviewRoutes }),
       },
     });
   } catch (statusError) {
