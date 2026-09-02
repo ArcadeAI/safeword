@@ -2,12 +2,9 @@
  * R8.1 (ticket Y2HCNJ, slice D) — DISCOVERY.md Phase 0 documents an
  * "Jobs To Be Done" section inside the full Product Plan, after glossary
  * loading and before "Understanding", in BOTH the canonical template
- * and this repo's dogfood copy (canonical-first discipline; dogfood-parity
- * keeps them in sync).
+ * and this repo's dogfood copy. Separate parity checks own byte equality.
  *
- * Doc-presence test: the agent reads DISCOVERY.md at intake start, so the
- * authoring instruction living in the file IS the shipped behavior. Run
- * from packages/cli (cwd), per the project's vitest convention.
+ * Doc-presence test only: this does not prove packaging or model compliance.
  */
 
 import { readFileSync } from 'node:fs';
@@ -43,11 +40,12 @@ describe.each([
   });
 
   it('references the one-persona-per-JTBD rule and the pause-and-confirm step', () => {
-    const jtbdSection = content.slice(
-      content.indexOf('### Jobs To Be Done'),
-      content.indexOf('### Shape'),
+    const start = content.indexOf('### Jobs To Be Done');
+    const end = content.indexOf('### Shape');
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    expect(content.slice(start, end).replaceAll(/\s+/gu, ' ')).toContain(
+      'Use one persona per JTBD, then pause and confirm the jobs before authoring Rules',
     );
-    expect(jtbdSection).toMatch(/one persona/i);
-    expect(jtbdSection).toMatch(/pause|confirm/i);
   });
 });

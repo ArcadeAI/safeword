@@ -26,6 +26,10 @@ describe('lean Product Plan intake', () => {
     expect(discovery).toContain('outcome could be disproven');
   });
 
+  it('documents observable outcomes instead of inventing metrics', () => {
+    expect(discovery).toContain('use an observable outcome when no honest metric exists');
+  });
+
   it('requires a desirable, falsifiable Killer Demo in one sentence', () => {
     const spec = read('packages/cli/templates/spec-template.md');
     expect(discovery).toContain('understand, believe, and want');

@@ -84,3 +84,37 @@ Fetched this session:
   evidence or a guarantee that this prompt removes sycophancy.
 
 Next: complete normal-mode tests and current-head CI; admin merge only when green.
+
+## CI follow-up
+
+The full suite and both CI nodes found five failures after the initial review:
+removed test names still appeared in the proof manifest, and a JTBD test still
+expected the old heading. Restored distinct scenario checks without repeating their
+assertions in the broad test, updated three renamed proof references, and corrected
+the heading check. The proof-sharing ratchet remains unchanged. A final five-file
+run passed 75 tests, including normal-mode lifecycle snapshots.
+
+Review `59ca8a70-d413-4157-ad87-4614a058e6c4` requested changes for two existing
+proof gaps exposed by the manifest review. Added a direct observable-outcome
+guidance assertion and a real pre-tool phase-gate test with an ABSENT Product Bet.
+The latter first proves the gate rejects missing review, then stamps the review
+and proves the same ABSENT plan is allowed. This exercises the real hook boundary;
+the host's subsequent file write is not a Safeword CLI operation.
+
+Also anchored research exclusions to the skip-guidance body, tightened the JTBD
+section bounds and exact confirmation instruction, and removed misleading
+packaging/parity claims from the doc-presence test. Remaining warnings:
+
+- Negative mode checks are intentionally lexical regression guards, not semantic
+  proof against every possible synonym. No runtime mode parser is being added.
+- Tool pre-approval absence is intentional, verified against permission docs above;
+  the test is not a claim of a read-only sandbox.
+- Distinct scenario tests remain for proof provenance. The small shared advisory
+  assertion covers both absent demand and ambiguity; it is not runtime proof.
+- Other unchanged mappings have narrower evidence than their scenario wording:
+  no-second-artifact checks ticket prose; milestone selection checks a happy path;
+  Killer Demo checks scaffolding; child isolation points to walkthrough prose even
+  though ticket-writer separately tests delta-only output. These pre-existing mapping
+  limitations are disclosed, not claimed as newly verified behavior in this patch.
+- Manifest tuple shapes and unreferenced additional tests use existing conventions;
+  no schema redesign or new planning ceremony is warranted for this fix.

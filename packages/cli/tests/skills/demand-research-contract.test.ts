@@ -11,6 +11,9 @@ describe('bounded demand research contract', () => {
     /\s+/gu,
     ' ',
   );
+  const skipGuidance = skill
+    .split('## First decide whether research earns its cost', 2)[1]
+    ?.split('## Research loop', 1)[0];
 
   it('keeps the useful decision output and explicit no-busy-work exclusions', () => {
     for (const token of [
@@ -34,19 +37,23 @@ describe('bounded demand research contract', () => {
   });
 
   it('keeps child features out of repeated demand research', () => {
-    expect(skill).toContain('child features');
+    expect(skipGuidance).toContain(
+      "Skip research when any applies: - The ticket is a child contribution; inherit the epic's demand case.",
+    );
   });
 
   it('excludes mandated work from automatic demand research', () => {
-    expect(skill).toContain('mandated work');
+    expect(skipGuidance).toContain('The work is mandated, compliance-driven, or parity work');
   });
 
   it('excludes parity work from automatic demand research', () => {
-    expect(skill).toContain('parity work');
+    expect(skipGuidance).toContain('The work is mandated, compliance-driven, or parity work');
   });
 
   it('prefers a cheaper experiment when it can settle the decision', () => {
-    expect(skill).toContain('cheaper experiment');
+    expect(skipGuidance).toContain(
+      'A cheap reversible experiment can test the assumption more directly',
+    );
   });
 
   it('honors an explicit demand-research request', () => {

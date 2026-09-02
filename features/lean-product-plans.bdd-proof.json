@@ -22,8 +22,8 @@
       "requires an authored success threshold that can be disproven"
     ],
     "An observable outcome replaces an invented metric": [
-      "packages/cli/tests/skills/demand-research-contract.test.ts",
-      "routes Product Bet research conditionally and reconciles children at intake exit"
+      "packages/cli/tests/intake-brief.test.ts",
+      "documents observable outcomes instead of inventing metrics"
     ],
     "A child feature stores a valid parent contribution without copied prose": [
       "packages/cli/tests/utils/ticket-writer.test.ts",
@@ -92,8 +92,8 @@
       "documents inconclusive evidence without sponsor-favoring certainty"
     ],
     "An absent demand verdict does not block approval": [
-      "packages/cli/tests/skills/demand-research-contract.test.ts",
-      "documents absent and unavailable verdicts as advisory evidence states"
+      "packages/cli/tests/integration/phase-review-gate.test.ts",
+      "allows phase advancement with ABSENT demand after the required review"
     ],
     "Unavailable demand research does not invent a verdict": [
       "packages/cli/tests/skills/demand-research-contract.test.ts",

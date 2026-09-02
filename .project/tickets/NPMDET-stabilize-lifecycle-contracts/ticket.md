@@ -73,3 +73,10 @@ distinct scenario checks; their assertions were removed from the broad test rath
 than duplicated. The ratchet is unchanged. Final focused checks pass 75/75,
 including normal-mode lifecycle snapshots and all proof mappings. Targeted lint
 and package typecheck pass. Await fresh independent review and CI before merge.
+
+The follow-up review found two additional proof gaps. Added a direct observable-
+outcome guidance check and an actual phase-gate check: ABSENT demand does not block
+advancement after the required review stamp, while missing review still blocks.
+Anchored exclusions to the skill body and strengthened JTBD section assertions.
+The six-file final run passes 93/93 tests; lint and TypeScript pass. Review remains
+pending before the next push; no production behavior changed in this follow-up.
