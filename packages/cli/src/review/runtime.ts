@@ -632,6 +632,7 @@ function executableCandidates(
   untrustedRoot: string,
   allowStaging = true,
 ): { readonly paths: string[]; readonly rejectedForTrust: boolean } {
+  const canonicalUntrustedRoot = realpathSync(untrustedRoot);
   const extensions =
     process.platform === 'win32'
       ? (process.env.PATHEXT ?? '.COM;.EXE;.BAT;.CMD')
@@ -656,7 +657,7 @@ function executableCandidates(
     if (inside(untrustedRoot, candidate)) return [];
     try {
       const canonical = realpathSync(candidate);
-      if (!outsideUntrustedRoot(untrustedRoot, canonical)) return [];
+      if (!outsideUntrustedRoot(canonicalUntrustedRoot, canonical)) return [];
       accessSync(canonical, constants.X_OK);
       if (!hasTrustedExecutableAncestry(canonical)) {
         rejectedForTrust = true;
@@ -678,7 +679,7 @@ function executableCandidates(
   // stagedTrustedReviewerCopy re-checks the file itself from an open descriptor
   // and refuses to stage a writable — potentially tampered — executable.
   const staged = stageable.flatMap(canonical => {
-    const copy = stagedTrustedReviewerCopy(reviewer, canonical, untrustedRoot);
+    const copy = stagedTrustedReviewerCopy(reviewer, canonical, canonicalUntrustedRoot);
     return copy !== undefined && hasTrustedExecutableAncestry(copy) ? [copy] : [];
   });
   return { paths: [...new Set(staged)], rejectedForTrust };
