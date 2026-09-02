@@ -2,7 +2,7 @@
 id: FJAKRN
 slug: rank-local-reviewers-and-models
 type: feature
-phase: implement
+phase: verify
 status: in_progress
 scope:
   - configure an ordered reviewer/model route list per supported author runtime

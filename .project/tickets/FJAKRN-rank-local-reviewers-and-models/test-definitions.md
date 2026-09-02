@@ -4,136 +4,136 @@ Feature source: `packages/cli/features/rank-local-reviewers-and-models.feature`
 
 ## Scenario: Explicit reviewer and model routes run in configured order
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED: `db83e7761` introduced the approved behavior contract before the ranked-route implementation existed.
+- [x] GREEN: the focused policy, runtime, durable-job, and public-command suites pass against the implemented behavior.
+- [x] REFACTOR: the shared refactor/fix passes through `a78fe51a4`, `bc22a2382`, `84cebba2b`, and `9f6f6efbd` preserved this scenario while reducing duplication and correcting evidence semantics.
 
 ## Scenario: Reversed reviewer and model routes run in configured order
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED: `db83e7761` introduced the approved behavior contract before the ranked-route implementation existed.
+- [x] GREEN: the focused policy, runtime, durable-job, and public-command suites pass against the implemented behavior.
+- [x] REFACTOR: the shared refactor/fix passes through `a78fe51a4`, `bc22a2382`, `84cebba2b`, and `9f6f6efbd` preserved this scenario while reducing duplication and correcting evidence semantics.
 
 ## Scenario: Cached observations do not change route order
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED: `db83e7761` introduced the approved behavior contract before the ranked-route implementation existed.
+- [x] GREEN: the focused policy, runtime, durable-job, and public-command suites pass against the implemented behavior.
+- [x] REFACTOR: the shared refactor/fix passes through `a78fe51a4`, `bc22a2382`, `84cebba2b`, and `9f6f6efbd` preserved this scenario while reducing duplication and correcting evidence semantics.
 
 ## Scenario: Runtime default keeps its configured position
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED: `db83e7761` introduced the approved behavior contract before the ranked-route implementation existed.
+- [x] GREEN: the focused policy, runtime, durable-job, and public-command suites pass against the implemented behavior.
+- [x] REFACTOR: the shared refactor/fix passes through `a78fe51a4`, `bc22a2382`, `84cebba2b`, and `9f6f6efbd` preserved this scenario while reducing duplication and correcting evidence semantics.
 
 ## Scenario: First successful independent route completes the review
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED: `db83e7761` introduced the approved behavior contract before the ranked-route implementation existed.
+- [x] GREEN: the focused policy, runtime, durable-job, and public-command suites pass against the implemented behavior.
+- [x] REFACTOR: the shared refactor/fix passes through `a78fe51a4`, `bc22a2382`, `84cebba2b`, and `9f6f6efbd` preserved this scenario while reducing duplication and correcting evidence semantics.
 
 ## Scenario: Invalid model identifiers reject route configuration
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED: `db83e7761` introduced the approved behavior contract before the ranked-route implementation existed.
+- [x] GREEN: the focused policy, runtime, durable-job, and public-command suites pass against the implemented behavior.
+- [x] REFACTOR: the shared refactor/fix passes through `a78fe51a4`, `bc22a2382`, `84cebba2b`, and `9f6f6efbd` preserved this scenario while reducing duplication and correcting evidence semantics.
 
 ## Scenario: Empty route lists reject configuration
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED: `db83e7761` introduced the approved behavior contract before the ranked-route implementation existed.
+- [x] GREEN: the focused policy, runtime, durable-job, and public-command suites pass against the implemented behavior.
+- [x] REFACTOR: the shared refactor/fix passes through `a78fe51a4`, `bc22a2382`, `84cebba2b`, and `9f6f6efbd` preserved this scenario while reducing duplication and correcting evidence semantics.
 
 ## Scenario: Unfunded routes are reported without launch
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED: `db83e7761` introduced the approved behavior contract before the ranked-route implementation existed.
+- [x] GREEN: the focused policy, runtime, durable-job, and public-command suites pass against the implemented behavior.
+- [x] REFACTOR: the shared refactor/fix passes through `a78fe51a4`, `bc22a2382`, `84cebba2b`, and `9f6f6efbd` preserved this scenario while reducing duplication and correcting evidence semantics.
 
 ## Scenario: Runtime-wide failure skips later models on that runtime
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED: `db83e7761` introduced the approved behavior contract before the ranked-route implementation existed.
+- [x] GREEN: the focused policy, runtime, durable-job, and public-command suites pass against the implemented behavior.
+- [x] REFACTOR: the shared refactor/fix passes through `a78fe51a4`, `bc22a2382`, `84cebba2b`, and `9f6f6efbd` preserved this scenario while reducing duplication and correcting evidence semantics.
 
 ## Scenario: Attempt failure keeps the next model on that runtime eligible
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED: `db83e7761` introduced the approved behavior contract before the ranked-route implementation existed.
+- [x] GREEN: the focused policy, runtime, durable-job, and public-command suites pass against the implemented behavior.
+- [x] REFACTOR: the shared refactor/fix passes through `a78fe51a4`, `bc22a2382`, `84cebba2b`, and `9f6f6efbd` preserved this scenario while reducing duplication and correcting evidence semantics.
 
 ## Scenario: Exhausted configured routes remain blocked
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED: `db83e7761` introduced the approved behavior contract before the ranked-route implementation existed.
+- [x] GREEN: the focused policy, runtime, durable-job, and public-command suites pass against the implemented behavior.
+- [x] REFACTOR: the shared refactor/fix passes through `a78fe51a4`, `bc22a2382`, `84cebba2b`, and `9f6f6efbd` preserved this scenario while reducing duplication and correcting evidence semantics.
 
 ## Scenario: A valid funded route launches normally
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED: `db83e7761` introduced the approved behavior contract before the ranked-route implementation existed.
+- [x] GREEN: the focused policy, runtime, durable-job, and public-command suites pass against the implemented behavior.
+- [x] REFACTOR: the shared refactor/fix passes through `a78fe51a4`, `bc22a2382`, `84cebba2b`, and `9f6f6efbd` preserved this scenario while reducing duplication and correcting evidence semantics.
 
 ## Scenario: Same-author success cannot satisfy independent review
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED: `db83e7761` introduced the approved behavior contract before the ranked-route implementation existed.
+- [x] GREEN: the focused policy, runtime, durable-job, and public-command suites pass against the implemented behavior.
+- [x] REFACTOR: the shared refactor/fix passes through `a78fe51a4`, `bc22a2382`, `84cebba2b`, and `9f6f6efbd` preserved this scenario while reducing duplication and correcting evidence semantics.
 
 ## Scenario: Last same-author success remains degraded
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED: `db83e7761` introduced the approved behavior contract before the ranked-route implementation existed.
+- [x] GREEN: the focused policy, runtime, durable-job, and public-command suites pass against the implemented behavior.
+- [x] REFACTOR: the shared refactor/fix passes through `a78fe51a4`, `bc22a2382`, `84cebba2b`, and `9f6f6efbd` preserved this scenario while reducing duplication and correcting evidence semantics.
 
 ## Scenario: Catalogued models are not reported as proven
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED: `db83e7761` introduced the approved behavior contract before the ranked-route implementation existed.
+- [x] GREEN: the focused policy, runtime, durable-job, and public-command suites pass against the implemented behavior.
+- [x] REFACTOR: the shared refactor/fix passes through `a78fe51a4`, `bc22a2382`, `84cebba2b`, and `9f6f6efbd` preserved this scenario while reducing duplication and correcting evidence semantics.
 
 ## Scenario: Successful review records proven evidence
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED: `db83e7761` introduced the approved behavior contract before the ranked-route implementation existed.
+- [x] GREEN: the focused policy, runtime, durable-job, and public-command suites pass against the implemented behavior.
+- [x] REFACTOR: the shared refactor/fix passes through `a78fe51a4`, `bc22a2382`, `84cebba2b`, and `9f6f6efbd` preserved this scenario while reducing duplication and correcting evidence semantics.
 
 ## Scenario: Unlisted models are not reported as catalogued
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED: `db83e7761` introduced the approved behavior contract before the ranked-route implementation existed.
+- [x] GREEN: the focused policy, runtime, durable-job, and public-command suites pass against the implemented behavior.
+- [x] REFACTOR: the shared refactor/fix passes through `a78fe51a4`, `bc22a2382`, `84cebba2b`, and `9f6f6efbd` preserved this scenario while reducing duplication and correcting evidence semantics.
 
 ## Scenario: Installed runtimes without model selection are not compatible
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED: `db83e7761` introduced the approved behavior contract before the ranked-route implementation existed.
+- [x] GREEN: the focused policy, runtime, durable-job, and public-command suites pass against the implemented behavior.
+- [x] REFACTOR: the shared refactor/fix passes through `a78fe51a4`, `bc22a2382`, `84cebba2b`, and `9f6f6efbd` preserved this scenario while reducing duplication and correcting evidence semantics.
 
 ## Scenario: Missing runtimes are reported as not installed
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED: `db83e7761` introduced the approved behavior contract before the ranked-route implementation existed.
+- [x] GREEN: the focused policy, runtime, durable-job, and public-command suites pass against the implemented behavior.
+- [x] REFACTOR: the shared refactor/fix passes through `a78fe51a4`, `bc22a2382`, `84cebba2b`, and `9f6f6efbd` preserved this scenario while reducing duplication and correcting evidence semantics.
 
 ## Scenario: Most recent failure replaces stale proven evidence
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED: `db83e7761` introduced the approved behavior contract before the ranked-route implementation existed.
+- [x] GREEN: the focused policy, runtime, durable-job, and public-command suites pass against the implemented behavior.
+- [x] REFACTOR: the shared refactor/fix passes through `a78fe51a4`, `bc22a2382`, `84cebba2b`, and `9f6f6efbd` preserved this scenario while reducing duplication and correcting evidence semantics.
 
 ## Scenario Outline: Legacy settings preserve the existing route plan
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED: `db83e7761` introduced the approved behavior contract before the ranked-route implementation existed.
+- [x] GREEN: the focused policy, runtime, durable-job, and public-command suites pass against the implemented behavior.
+- [x] REFACTOR: the shared refactor/fix passes through `a78fe51a4`, `bc22a2382`, `84cebba2b`, and `9f6f6efbd` preserved this scenario while reducing duplication and correcting evidence semantics.
 
 ## Scenario: Ordered routes replace legacy route settings when both exist
 
-- [ ] RED
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] RED: `db83e7761` introduced the approved behavior contract before the ranked-route implementation existed.
+- [x] GREEN: the focused policy, runtime, durable-job, and public-command suites pass against the implemented behavior.
+- [x] REFACTOR: the shared refactor/fix passes through `a78fe51a4`, `bc22a2382`, `84cebba2b`, and `9f6f6efbd` preserved this scenario while reducing duplication and correcting evidence semantics.
 
 ## Feature-level cross-scenario refactor
 
-- [ ] cross-scenario
+- [x] cross-scenario: shared route parsing, evidence projection, and inspection helpers were simplified across `a78fe51a4`, `bc22a2382`, `84cebba2b`, and `9f6f6efbd`; focused suites remained green.

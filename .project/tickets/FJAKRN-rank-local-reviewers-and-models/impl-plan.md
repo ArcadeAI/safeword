@@ -1,6 +1,6 @@
 # Impl Plan: Let users rank local reviewers and models
 
-**Status:** planned
+**Status:** implemented
 **Planned on:** 2026-09-01
 
 ## Approach
