@@ -52,7 +52,10 @@ function isProjectRuntimeCommand(content: string): boolean {
     .matchAll(/`([^`]+)`/gu)
     .map(match => match[1] ?? '')
     .toArray();
-  const commandLines = content.split(/\r?\n/u).map(line => line.replace(/^\s*[-*]\s+/u, ''));
+  // Fenced blocks can mispair the inline-code scan; line tokens must not retain backticks.
+  const commandLines = content
+    .split(/\r?\n/u)
+    .map(line => line.replace(/^\s*[-*]\s+/u, '').replaceAll('`', ''));
   return PROJECT_RUNTIME_PATHS.some(
     path =>
       segmentInvokesPath(normalized, path, false) ||
@@ -63,7 +66,7 @@ function isProjectRuntimeCommand(content: string): boolean {
 function isCrossHostRuntimeCommand(content: string): boolean {
   const segments = [
     ...content.matchAll(/`([^`]+)`/gu).map(match => match[1] ?? ''),
-    ...content.split(/\r?\n/u).map(line => line.replace(/^\s*[-*]\s+/u, '')),
+    ...content.split(/\r?\n/u).map(line => line.replace(/^\s*[-*]\s+/u, '').replaceAll('`', '')),
   ];
   return segments.some(segment => {
     const tokens = segment.trim().split(/\s+/u);

@@ -37,7 +37,7 @@ describe('Cursor runtime authority', () => {
         {
           relativePath: '.cursor/commands/audit.md',
           content:
-            'Run `bun "${CLAUDE_PLUGIN_ROOT}/runtime/cli.js" project audit-scope` for this project.',
+            '```bash\necho audit\n```\nRun `bun "${CLAUDE_PLUGIN_ROOT}/runtime/cli.js" project audit-scope` for this project.',
         },
       ]);
     }).toThrow('.cursor/commands/audit.md');

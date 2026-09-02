@@ -140,7 +140,10 @@ describe('lifecycle profile observation', () => {
   it.each(['codex', 'claude', 'opencode'] as const)(
     'keeps Cursor project authority without copying %s runtime into the project',
     nativeAgent => {
-      const schema = projectLifecycleSchema(createTemporaryDirectory(), ['cursor', nativeAgent]);
+      const cwd = createTemporaryDirectory();
+      mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
+      writeFileSync(nodePath.join(cwd, '.safeword/SAFEWORD.md'), '# enrolled\n');
+      const schema = projectLifecycleSchema(cwd, ['cursor', nativeAgent]);
       const ownedPaths = declaredSchemaPaths(schema);
 
       expect(ownedPaths.some(path => isCursorProjectPath(path))).toBe(true);

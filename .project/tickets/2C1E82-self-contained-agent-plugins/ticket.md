@@ -59,6 +59,8 @@ native action by construction.
 
 ## Process Gaps Found
 
+- **Runtime-validator root cause:** whole-document single-backtick matching pairs delimiters across fenced code blocks. A later inline `bun .safeword/hooks/...` command is missed, and the line fallback sees the runner as `` `bun `` instead of `bun`. Confirmed by all three generated native catalogues accepting the injected command and a minimized fenced-block-plus-command reproduction. Ruled out host-specific generation (all three fail) and an unrecognized executable path (the identical command alone is rejected). Line-level delimiter normalization fixes the shared scanner without adding a Markdown parser.
+
 - **Fixed here — divergent BDD entry points:** repository-root `test:bdd` composed Cucumber and Vitest-proof provenance, while `packages/cli test:bdd` ran only Cucumber and excluded proof-backed features. Both entry points now compose the same two proof classes, with a contract test preventing drift.
 - **Fixed here — host-dependent acceptance state:** the bare-CLI fixture isolated profile directories but not host executables, so its result depended on the runner's installed tools. It now declares Claude's payload and activation state explicitly while retaining the real default-agent route.
 - **Fixed here — release proof budget below measured work:** the generated Claude release checker took 14–16 seconds after the final `main` integration, but its Vitest wrapper allowed only 15 seconds. The proof remains single-attempt and bounded, with a 30-second budget that covers the measured check instead of misclassifying valid output as a contract failure.
