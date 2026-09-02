@@ -22,28 +22,12 @@
       "lists exact project routes when user routes are absent"
     ],
     "Set replaces one author only at the selected scope": [
-      [
-        "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
-        "sets only the selected author at %s scope",
-        "user"
-      ],
-      [
-        "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
-        "sets only the selected author at %s scope",
-        "project"
-      ]
+      "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
+      "sets only the selected author at %s scope"
     ],
     "Reset removes one author only at the selected scope": [
-      [
-        "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
-        "resets only the selected author at %s scope",
-        "user"
-      ],
-      [
-        "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
-        "resets only the selected author at %s scope",
-        "project"
-      ]
+      "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
+      "resets only the selected author at %s scope"
     ],
     "Resetting an absent project entry is a no-op": [
       "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
@@ -58,76 +42,28 @@
       "lists only project routes when both scopes configure the author"
     ],
     "Malformed scoped configuration fails visibly": [
-      [
-        "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
-        "rejects malformed %s configuration instead of resolving other routes",
-        "user"
-      ],
-      [
-        "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
-        "rejects malformed %s configuration instead of resolving other routes",
-        "project"
-      ]
+      "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
+      "rejects malformed %s configuration instead of resolving other routes"
     ],
     "Malformed scoped configuration is never overwritten": [
-      [
-        "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
-        "refuses to set malformed %s configuration",
-        "user"
-      ],
-      [
-        "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
-        "refuses to set malformed %s configuration",
-        "project"
-      ]
+      "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
+      "refuses to set malformed %s configuration"
     ],
     "Malformed scoped configuration is not reset": [
-      [
-        "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
-        "refuses to reset malformed %s configuration",
-        "user"
-      ],
-      [
-        "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
-        "refuses to reset malformed %s configuration",
-        "project"
-      ]
+      "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
+      "refuses to reset malformed %s configuration"
     ],
     "A malformed non-target scope does not block mutation": [
-      [
-        "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
-        "sets %s routes despite malformed non-target configuration",
-        "user"
-      ],
-      [
-        "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
-        "sets %s routes despite malformed non-target configuration",
-        "project"
-      ]
+      "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
+      "sets %s routes despite malformed non-target configuration"
     ],
     "A malformed non-target scope does not block reset": [
-      [
-        "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
-        "resets %s routes despite malformed non-target configuration",
-        "user"
-      ],
-      [
-        "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
-        "resets %s routes despite malformed non-target configuration",
-        "project"
-      ]
+      "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
+      "resets %s routes despite malformed non-target configuration"
     ],
     "An empty configured route list fails visibly": [
-      [
-        "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
-        "rejects an empty %s route list instead of resolving other routes",
-        "user"
-      ],
-      [
-        "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
-        "rejects an empty %s route list instead of resolving other routes",
-        "project"
-      ]
+      "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
+      "rejects an empty %s route list instead of resolving other routes"
     ],
     "Absent scoped preferences preserve built-in behavior": [
       "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",

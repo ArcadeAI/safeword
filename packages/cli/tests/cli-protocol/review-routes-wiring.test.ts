@@ -56,6 +56,29 @@ function independent(routes: readonly { reviewer: string; model?: string }[]) {
   return routes.map(route => ({ ...route, independence: 'cross-agent' }));
 }
 
+async function firstScopedWrite(scope: 'user' | 'project') {
+  const fixture = scopedFixture();
+  const result = await invoke(fixture.cwd, [
+    'review',
+    'routes',
+    'set',
+    '--scope',
+    scope,
+    '--author',
+    'claude',
+    '--route',
+    'opencode=vendor/model',
+    '--route',
+    'codex',
+  ]);
+  expect(result.state).toBe('changed');
+  expect(JSON.parse(readFileSync(fixture[scope], 'utf8'))).toEqual({
+    crossAgentReviewRoutes: { claude: userRoutes },
+  });
+  expect(readdirSync(nodePath.dirname(fixture[scope]))).toEqual(['config.json']);
+  return fixture;
+}
+
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllEnvs();
@@ -101,6 +124,23 @@ describe('review routes CLI wiring', () => {
     await expectEffectiveRoutes(fixture.cwd, 'user', independent(userRoutes));
   });
 
+  it('explains user source and model defaults in the human route listing', async () => {
+    const fixture = scopedFixture();
+    writeConfig(fixture.user, { crossAgentReviewRoutes: { claude: userRoutes } });
+    const output = await invokeHuman(fixture.cwd, [
+      'review',
+      'routes',
+      'list',
+      '--author',
+      'claude',
+    ]);
+    expect(output.trim().split('\n')).toEqual([
+      'claude review routes (user):',
+      '1. opencode (vendor/model) [cross-agent]',
+      '2. codex (runtime default) [cross-agent]',
+    ]);
+  });
+
   it('lists exact user routes when project configures another author', async () => {
     const fixture = scopedFixture();
     writeConfig(fixture.user, { crossAgentReviewRoutes: { claude: userRoutes } });
@@ -120,6 +160,24 @@ describe('review routes CLI wiring', () => {
     writeConfig(fixture.user, { crossAgentReviewRoutes: { claude: userRoutes } });
     writeConfig(fixture.project, { crossAgentReviewRoutes: { claude: projectRoutes } });
     await expectEffectiveRoutes(fixture.cwd, 'project', independent(projectRoutes));
+  });
+
+  it('explains the project override in the human route listing', async () => {
+    const fixture = scopedFixture();
+    writeConfig(fixture.user, { crossAgentReviewRoutes: { claude: userRoutes } });
+    writeConfig(fixture.project, { crossAgentReviewRoutes: { claude: projectRoutes } });
+    const output = await invokeHuman(fixture.cwd, [
+      'review',
+      'routes',
+      'list',
+      '--author',
+      'claude',
+    ]);
+    expect(output.trim().split('\n')).toEqual([
+      'claude review routes (project):',
+      '1. codex (custom-model) [cross-agent]',
+      '2. opencode (runtime default) [cross-agent]',
+    ]);
   });
 
   it('lists exact project routes when user routes are absent', async () => {
@@ -379,33 +437,17 @@ describe('review routes CLI wiring', () => {
     await expectEffectiveRoutes(fixture.cwd, 'user', independent(userRoutes));
   });
 
-  it.each(['user', 'project'] as const)(
-    'creates only the selected config on first %s write',
-    async scope => {
-      const fixture = scopedFixture();
-      const other = scope === 'user' ? 'project' : 'user';
-      const result = await invoke(fixture.cwd, [
-        'review',
-        'routes',
-        'set',
-        '--scope',
-        scope,
-        '--author',
-        'claude',
-        '--route',
-        'opencode=vendor/model',
-        '--route',
-        'codex',
-      ]);
-      expect(result.state).toBe('changed');
-      expect(JSON.parse(readFileSync(fixture[scope], 'utf8'))).toEqual({
-        crossAgentReviewRoutes: { claude: userRoutes },
-      });
-      expect(existsSync(fixture[other])).toBe(false);
-      expect(readdirSync(fixture.cwd)).toEqual(scope === 'user' ? [] : ['.safeword']);
-      expect(readdirSync(nodePath.dirname(fixture[scope]))).toEqual(['config.json']);
-    },
-  );
+  it('creates the first user profile without adding project files', async () => {
+    const fixture = await firstScopedWrite('user');
+    expect(existsSync(fixture.project)).toBe(false);
+    expect(readdirSync(fixture.cwd)).toEqual([]);
+  });
+
+  it('creates the first project config without creating a user profile', async () => {
+    const fixture = await firstScopedWrite('project');
+    expect(existsSync(fixture.user)).toBe(false);
+    expect(readdirSync(fixture.cwd)).toEqual(['.safeword']);
+  });
 
   it('sets, lists, and resets ordered user routes through the assembled program', async () => {
     const root = createTemporaryDirectory();

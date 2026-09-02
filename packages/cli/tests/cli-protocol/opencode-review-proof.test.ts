@@ -102,6 +102,15 @@ else {
   return {
     target,
     tool,
+    models: () =>
+      readFileSync(log, 'utf8')
+        .trim()
+        .split('\n')
+        .map(line => {
+          const { args } = JSON.parse(line) as { args: string[] };
+          const index = args.indexOf('--model');
+          return index === -1 ? undefined : args[index + 1];
+        }),
     requests: () =>
       existsSync(log)
         ? readFileSync(log, 'utf8')
@@ -110,7 +119,24 @@ else {
             .map(line => (JSON.parse(line) as { agent: Agent }).agent)
         : [],
     async run() {
-      const result = await runCli(
+      const env = {
+        PATH: `${bin}:/usr/bin:/bin`,
+        XDG_CONFIG_HOME: nodePath.join(cwd, 'profile'),
+        SAFEWORD_AGENT_RUNTIME: options.author ?? 'claude',
+        CLAUDE_SESSION_ID: '',
+        CLAUDE_CODE_SESSION_ID: '',
+        CODEX_THREAD_ID: '',
+        SAFEWORD_NO_UPDATE_CHECK: '1',
+        ...(options.remainingBudget !== undefined && {
+          NODE_OPTIONS: `--require=${clock}`,
+          SAFEWORD_REVIEW_RUN_BOUND_MS: '270000',
+          SAFEWORD_REVIEW_TIMEOUT_MS: '60000',
+        }),
+        ...(Object.values(options.reviewers ?? {}).includes('timeout') && {
+          SAFEWORD_REVIEW_TIMEOUT_MS: '5000',
+        }),
+      };
+      let result = await runCli(
         [
           'review',
           'run',
@@ -123,48 +149,103 @@ else {
         ],
         {
           cwd,
-          env: {
-            PATH: `${bin}:/usr/bin:/bin`,
-            XDG_CONFIG_HOME: nodePath.join(cwd, 'profile'),
-            SAFEWORD_AGENT_RUNTIME: options.author ?? 'claude',
-            SAFEWORD_NO_UPDATE_CHECK: '1',
-            ...(options.remainingBudget !== undefined && {
-              NODE_OPTIONS: `--require=${clock}`,
-              SAFEWORD_REVIEW_RUN_BOUND_MS: '270000',
-              SAFEWORD_REVIEW_TIMEOUT_MS: '60000',
-            }),
-            ...(Object.values(options.reviewers ?? {}).includes('timeout') && {
-              SAFEWORD_REVIEW_TIMEOUT_MS: '5000',
-            }),
-          },
+          env,
         },
       );
-      return { ...result, payload: JSON.parse(result.stdout) };
+      let payload = JSON.parse(result.stdout);
+      if (payload.data?.status === 'pending') {
+        const id = payload.data.review_id as string;
+        await expect
+          .poll(
+            async () => {
+              result = await runCli(
+                ['review', 'status', id, '--json', '--no-input', '--cwd', cwd],
+                {
+                  cwd,
+                  env: { ...env, NODE_OPTIONS: '' },
+                },
+              );
+              payload = JSON.parse(result.stdout);
+              return payload.data?.status;
+            },
+            { timeout: 30_000 },
+          )
+          .not.toBe('pending');
+      }
+      return { ...result, payload };
     },
   };
+}
+
+async function expectPreferredReviewer(author: Agent, reviewer: Agent) {
+  const test = fixture({
+    author,
+    reviewers: { claude: 'approve', codex: 'approve', opencode: 'approve' },
+  });
+  const result = await test.run();
+  expect(result.exitCode, result.stdout).toBe(0);
+  expect(result.payload.data).toMatchObject({
+    actual_reviewer: reviewer,
+    independence: 'cross-agent',
+  });
+  expect(test.requests()).toEqual([reviewer]);
+}
+
+async function expectFallbackAfterClaude(author: Agent, reviewer: Agent) {
+  const test = fixture({
+    author,
+    reviewers: { claude: 'process', codex: 'approve', opencode: 'approve' },
+  });
+  const result = await test.run();
+  expect(result.exitCode, result.stdout).toBe(0);
+  expect(result.payload.data).toMatchObject({
+    actual_reviewer: reviewer,
+    independence: 'cross-agent',
+  });
+  expect(test.requests()).toEqual(['claude', 'claude', reviewer]);
+  expect(test.models()).toEqual(['opus', 'sonnet', undefined]);
+}
+
+async function expectRejectedOpenCode(behavior: Behavior, failure: string) {
+  const test = fixture({ reviewers: { opencode: behavior } });
+  const result = await test.run();
+  expect(result.exitCode, result.stdout).toBe(2);
+  expect(result.payload.data).toMatchObject({
+    independence: 'none',
+    independent_fallback_failure: failure,
+  });
+  expect(result.payload.data).not.toHaveProperty('reviewer_output');
+  expect(test.requests()).toEqual(['opencode']);
 }
 
 describe('OpenCode behavior proof through the built CLI', () => {
   it.each([
     { author: 'claude', reviewer: 'codex' },
     { author: 'codex', reviewer: 'claude' },
-    { author: 'opencode', reviewer: 'claude' },
   ] as const)(
     'keeps $reviewer preferred for $author while OpenCode is available',
     async ({ author, reviewer }) => {
-      const test = fixture({
-        author,
-        reviewers: { claude: 'approve', codex: 'approve', opencode: 'approve' },
-      });
-      const result = await test.run();
-      expect(result.exitCode, result.stdout).toBe(0);
-      expect(result.payload.data).toMatchObject({
-        actual_reviewer: reviewer,
-        independence: 'cross-agent',
-      });
-      expect(test.requests()).toEqual([reviewer]);
+      await expectPreferredReviewer(author, reviewer);
     },
   );
+
+  it('prefers Claude for OpenCode authors with every reviewer available', async () => {
+    await expectPreferredReviewer('opencode', 'claude');
+  });
+
+  it('prefers independent OpenCode fallback over same-author feedback', async () => {
+    const test = fixture({
+      policy: 'prefer',
+      reviewers: { codex: 'process', opencode: 'approve', claude: 'approve' },
+    });
+    const result = await test.run();
+    expect(result.exitCode, result.stdout).toBe(0);
+    expect(result.payload.data).toMatchObject({
+      actual_reviewer: 'opencode',
+      independence: 'cross-agent',
+    });
+    expect(test.requests()).toEqual(['codex', 'opencode']);
+  });
 
   it('completes the eligible Codex retry before considering OpenCode', async () => {
     const test = fixture({ alternate: true, reviewers: { codex: 'retry', opencode: 'approve' } });
@@ -209,30 +290,13 @@ describe('OpenCode behavior proof through the built CLI', () => {
     },
   );
 
-  it.each([
-    { author: 'codex', failed: 'claude', reviewer: 'opencode' },
-    { author: 'opencode', failed: 'claude', reviewer: 'codex' },
-  ] as const)(
-    'uses $reviewer independently for $author after $failed fails',
-    async ({ author, failed, reviewer }) => {
-      const reviewers: Partial<Record<Agent, Behavior>> = {
-        claude: 'process',
-        codex: 'approve',
-        opencode: 'approve',
-      };
-      const test = fixture({
-        author,
-        reviewers,
-      });
-      const result = await test.run();
-      expect(result.exitCode, result.stdout).toBe(0);
-      expect(result.payload.data).toMatchObject({
-        actual_reviewer: reviewer,
-        independence: 'cross-agent',
-      });
-      expect(test.requests()).toEqual([failed, reviewer]);
-    },
-  );
+  it('uses OpenCode independently for Codex authors after Claude routes fail', async () => {
+    await expectFallbackAfterClaude('codex', 'opencode');
+  });
+
+  it('uses Codex independently for OpenCode authors after Claude routes fail', async () => {
+    await expectFallbackAfterClaude('opencode', 'codex');
+  });
 
   it.each(['prefer', 'require'] as const)(
     'retains degraded feedback after OpenCode failure under %s',
@@ -279,25 +343,28 @@ describe('OpenCode behavior proof through the built CLI', () => {
   it.each([
     { behavior: 'malformed', failure: 'invalid_output' },
     { behavior: 'incomplete', failure: 'invalid_output' },
-    { behavior: 'oversized', failure: 'invalid_output' },
+  ] as const)('rejects ambiguous OpenCode $behavior output', async ({ behavior, failure }) => {
+    await expectRejectedOpenCode(behavior, failure);
+  });
+
+  it.each([
     { behavior: 'missing', failure: 'REVIEWER_PROVENANCE_MISSING' },
     { behavior: 'contradictory', failure: 'REVIEWER_PROVENANCE_CONTRADICTORY' },
-    { behavior: 'process', failure: 'process_failed' },
-    { behavior: 'timeout', failure: 'timed_out' },
-  ] as const)(
-    'rejects OpenCode $behavior output without independent evidence',
-    async ({ behavior, failure }) => {
-      const test = fixture({ reviewers: { opencode: behavior } });
-      const result = await test.run();
-      expect(result.exitCode, result.stdout).toBe(2);
-      expect(result.payload.data).toMatchObject({
-        independence: 'none',
-        independent_fallback_failure: failure,
-      });
-      expect(result.payload.data).not.toHaveProperty('reviewer_output');
-      expect(test.requests()).toEqual(['opencode']);
-    },
-  );
+  ] as const)('rejects OpenCode $behavior provenance', async ({ behavior, failure }) => {
+    await expectRejectedOpenCode(behavior, failure);
+  });
+
+  it('rejects an oversized OpenCode event stream without evidence', async () => {
+    await expectRejectedOpenCode('oversized', 'invalid_output');
+  });
+
+  it('records a failed OpenCode process without evidence', async () => {
+    await expectRejectedOpenCode('process', 'process_failed');
+  });
+
+  it('records a timed-out OpenCode route without evidence', async () => {
+    await expectRejectedOpenCode('timeout', 'timed_out');
+  });
 
   it('denies a requested OpenCode tool before accepting its complete result', async () => {
     const test = fixture({ reviewers: { opencode: 'tool' } });
@@ -332,7 +399,8 @@ describe('OpenCode behavior proof through the built CLI', () => {
       findings: [{ code: 'REVIEW_STALE' }],
       data: { status: 'stale' },
     });
-    expect(result.payload.data.independence).toBe('none');
+    expect(result.payload.data).not.toHaveProperty('reviewer_output');
+    expect(result.payload.data.independence).not.toBe('cross-agent');
   });
 
   it.each(['cursor', 'unknown'])(
