@@ -24,7 +24,12 @@ import {
   toWirePlan,
 } from './plan.js';
 import { type CliResult, createResult } from './result.js';
-import { ticketListHandler, ticketNewHandler, trackerHandler } from './tracker-ticket-handlers.js';
+import {
+  ticketListHandler,
+  ticketNewHandler,
+  ticketReconcileParentHandler,
+  trackerHandler,
+} from './tracker-ticket-handlers.js';
 
 function notConfigured(command: string): CliResult {
   return createResult({
@@ -2360,6 +2365,7 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'codex recover': invocation => codexMutationHandler('codex recover', invocation),
   'ticket list': ticketListHandler,
   'ticket new': ticketNewHandler,
+  'ticket reconcile-parent': ticketReconcileParentHandler,
   'review run': reviewRunHandler,
   'review status': reviewStatusHandler,
   'review routes set': reviewRoutesSetHandler,

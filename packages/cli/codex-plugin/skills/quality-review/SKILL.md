@@ -59,7 +59,7 @@ If in a BDD workflow, read the current ticket from `<namespace-root>/tickets/` a
 
 ### Project-principle challenge
 
-For a BDD ticket, run `bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.82.6/runtime/cli.js" project review-knowledge --json` at the
+For a BDD ticket, run `bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.0/runtime/cli.js" project review-knowledge --json` at the
 start of each pass and read the current `principles`, `personas`, and `surfaces`
 paths and content it returns (including overrides such as `paths.principles`).
 Do not substitute labels or intake-era content.
@@ -221,7 +221,7 @@ Each pass:
    guarantee a bare `safeword` on `PATH`:
 
    ```bash
-   SAFEWORD_REVIEW_PROGRESS=1 bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.82.6/runtime/cli.js" review run quality-review [--context path/to/evidence] --agent-handoff --json -- changed-file [more-changed-files...]
+   SAFEWORD_REVIEW_PROGRESS=1 bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.0/runtime/cli.js" review run quality-review [--context path/to/evidence] --agent-handoff --json -- changed-file [more-changed-files...]
    ```
 
    A healthy deep review may return `REVIEW_PENDING` after its foreground
@@ -236,7 +236,12 @@ Each pass:
    headless Claude. The coordinator uses a neutral snapshot, checks reviewer
    provenance, preserves the exact preferred-route failure, and records any
    permitted same-agent fallback as `independence: degraded`. Treat its typed
-   result as the review verdict. Only when the typed result is
+   result as the review verdict. If the typed result is
+   `REVIEW_AUTHENTICATION_REQUIRED`, execute its exact recovery command; the
+   user's browser or device flow may need to complete. After successful
+   authentication, rerun the same coordinator command once. Do not invoke
+   `$safeword:finish-review`, accept degraded coverage, or loop on another auth denial;
+   report an unsuccessful reauthentication as the blocker. Only when the typed result is
    `REVIEW_ROUTES_EXHAUSTED`, invoke `$safeword:finish-review` immediately with the
    original result and the same accepted targets. For every other result,
    return it unchanged. The canonical fallback may use one host-native

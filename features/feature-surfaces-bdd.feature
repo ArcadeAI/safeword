@@ -40,10 +40,10 @@ Feature: Let projects track feature surfaces during BDD
       Then the guidance tells the agent to load surfaces.md after personas.md and glossary.md
 
     @feature-surfaces-bdd.NTB1.AC1
-    Scenario: Feature specs include an optional Surfaces section
+    Scenario: Feature specs avoid a duplicated Surfaces section
       Given the installed feature spec template
       When a feature spec is scaffolded
-      Then it includes a Surfaces section for affected runtime contexts
+      Then it relies on the project inventory and scenario tags for affected runtime contexts
 
   @feature-surfaces-bdd.SM1.AC2
   Rule: Feature sources prove affected surface coverage

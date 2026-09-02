@@ -561,7 +561,7 @@ Changed project learnings in the resolved namespace root's `learnings/*.md` must
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
 source "$PROJECT_DIR/.safeword/hooks/lib/audit-scope.sh"
 audit_scope_initialize "$PROJECT_DIR" || exit $?
-NS_ROOT="$(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.82.6/runtime/cli.js" project namespace-root --cwd "$PROJECT_DIR")"
+NS_ROOT="$(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.0/runtime/cli.js" project namespace-root --cwd "$PROJECT_DIR")"
 
 learning_is_in_audit_scope() {
   [ "$AUDIT_SCOPE_MODE" = "repository" ] && return 0
@@ -721,13 +721,13 @@ audit_scope_initialize "$PROJECT_DIR" || exit $?
 
 # Resolve the namespace root (honors config paths.projectRoot in real runs).
 # Fall back on directory existence — robust when the resolver hook is absent.
-NS_ROOT="$(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.82.6/runtime/cli.js" project namespace-root --cwd "$PROJECT_DIR" 2> /dev/null)"
+NS_ROOT="$(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.0/runtime/cli.js" project namespace-root --cwd "$PROJECT_DIR" 2> /dev/null)"
 [ -d "$NS_ROOT" ] || {
   if [ -d "$PROJECT_DIR/.project" ]; then NS_ROOT="$PROJECT_DIR/.project"; else NS_ROOT="$PROJECT_DIR/.safeword-project"; fi
 }
-PERSONAS_FILE="$(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.82.6/runtime/cli.js" project namespace-root --cwd "$PROJECT_DIR" --key personas 2> /dev/null)"
-SURFACES_FILE="$(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.82.6/runtime/cli.js" project namespace-root --cwd "$PROJECT_DIR" --key surfaces 2> /dev/null)"
-GLOSSARY_FILE="$(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.82.6/runtime/cli.js" project namespace-root --cwd "$PROJECT_DIR" --key glossary 2> /dev/null)"
+PERSONAS_FILE="$(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.0/runtime/cli.js" project namespace-root --cwd "$PROJECT_DIR" --key personas 2> /dev/null)"
+SURFACES_FILE="$(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.0/runtime/cli.js" project namespace-root --cwd "$PROJECT_DIR" --key surfaces 2> /dev/null)"
+GLOSSARY_FILE="$(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.0/runtime/cli.js" project namespace-root --cwd "$PROJECT_DIR" --key glossary 2> /dev/null)"
 [ -n "$PERSONAS_FILE" ] || PERSONAS_FILE="$NS_ROOT/personas.md"
 [ -n "$SURFACES_FILE" ] || SURFACES_FILE="$NS_ROOT/surfaces.md"
 [ -n "$GLOSSARY_FILE" ] || GLOSSARY_FILE="$NS_ROOT/glossary.md"

@@ -44,10 +44,10 @@ describe('ticket-writer — spec.md scaffold by type (Rule 1)', () => {
     expect(existsSync(nodePath.join(folderPath, 'spec.md'))).toBe(true);
     const ticket = readFileSync(nodePath.join(folderPath, 'ticket.md'), 'utf8');
     const spec = readFileSync(nodePath.join(folderPath, 'spec.md'), 'utf8');
-    expect(ticket).toContain('inspiration_contract: v1');
-    expect(ticket).toContain('inspiration_contract_scaffold: v1');
-    expect(spec).toContain('<!-- safeword:inspiration-contract:v1 -->');
-    expect(spec).toContain('## Product Inspiration');
+    expect(ticket).toContain('product_plan_contract: v1');
+    expect(ticket).not.toContain('inspiration_contract');
+    expect(spec).toContain('<!-- safeword:product-plan-contract:v1 -->');
+    expect(specHeaders(spec)).toEqual(['Product Bet', 'Jobs To Be Done', 'Shape', 'Killer Demo']);
   });
 
   it('task does not scaffold spec.md', () => {
@@ -139,32 +139,48 @@ describe('spec-template.md is well-formed (Rule 3)', () => {
 
   it('has the section headers in canonical order', () => {
     expect(specHeaders(template)).toEqual([
-      'Intent',
-      'Intake Brief',
-      'References',
-      'Personas',
-      'Surfaces',
-      'Vocabulary',
-      'Product Inspiration',
+      'Product Bet',
       'Jobs To Be Done',
-      'Rave Moment',
-      'Outcomes',
-      'Open Questions',
+      'Shape',
+      'Killer Demo',
     ]);
   });
 
-  it('carries an HTML-commented worked JTBD example in canonical form', () => {
+  it('contains no comms or launch planning section', () => {
+    expect(template).not.toMatch(/^## .*\b(comms|launch)\b/im);
+  });
+
+  it('carries a JTBD and numbered Rule scaffold in canonical form', () => {
     const jtbdSection = template.slice(
       template.indexOf('## Jobs To Be Done'),
-      template.indexOf('## Outcomes'),
+      template.indexOf('## Shape'),
     );
-    // The example heading + persona + statement live inside an HTML comment,
-    // so a freshly scaffolded spec.md parses to zero real JTBD entries.
-    const commentOpen = jtbdSection.indexOf('<!--');
-    const commentClose = jtbdSection.indexOf('-->');
-    const example = jtbdSection.slice(commentOpen, commentClose);
-    expect(example).toMatch(/### \S+\.\w+\d/); // <slug>.<persona-code><n> id
-    expect(example).toContain('**Persona:**');
-    expect(example).toMatch(/When I .+, I want .+, so I can .+/);
+    expect(jtbdSection).toMatch(/### <slug>\.<persona-code>1/);
+    expect(jtbdSection).toContain('**Persona:**');
+    expect(jtbdSection).toMatch(/When I .+, I want .+, so I can .+/);
+    expect(jtbdSection).toMatch(/#### <slug>\.<persona-code>1\.R1/);
+  });
+
+  it('scaffolds a delta-only child spec with stable references', () => {
+    const temporaryDirectory = createTemporaryDirectory();
+    try {
+      const { folderPath, ticketPath } = createTicket(temporaryDirectory, fixedMinter('CHILD1'), {
+        slug: 'child-flow',
+        type: 'feature',
+        parent: 'EPIC01',
+        milestone: 'M1',
+        parentJob: 'epic.NTB1',
+      });
+      const ticket = readFileSync(ticketPath, 'utf8');
+      const spec = readFileSync(nodePath.join(folderPath, 'spec.md'), 'utf8');
+      expect(ticket).toContain('parent_job: epic.NTB1');
+      expect(ticket).toContain('milestone: M1');
+      expect(specHeaders(spec)).toEqual(['Parent References', 'Contribution', 'Rules']);
+      expect(spec).toContain('#### epic.NTB1.CHILD1.R1');
+      expect(spec).not.toMatch(/^## (Product Bet|Jobs To Be Done|Shape|Killer Demo)$/m);
+      expect(spec).not.toContain('skip:');
+    } finally {
+      removeTemporaryDirectory(temporaryDirectory);
+    }
   });
 });

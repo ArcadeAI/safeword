@@ -1764,11 +1764,11 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/audit/SKILL.md':
         '64afc92c419a8354c015f18ffe0cc581cfce48cb3fee3db8e3c39d75844fb2d3',
       '.claude/skills/bdd/DISCOVERY.md':
-        '66279ceebb52f47052ff5a827106f9fbf95c999ce9bb78eca4245713c6bdf0b3',
+        'ac8f221691aeffaa16ca6a15a7930a462bdf64aeaf2fe9600903a9dbb417f992',
       '.claude/skills/bdd/DONE.md':
         'e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60',
       '.claude/skills/bdd/PLAN_IMPLEMENTATION.md':
-        'bf7610ab88b4b89a55a233b408ef848b2e4bd413bb65a3b7a7a780a8c02f5d49',
+        '0d1c9103c9e6c00b4fb43d3c90a5118f90b9feb964b15daf12340a06d53e4f9a',
       '.claude/skills/bdd/SCENARIOS.md':
         'a79590a8dcd8c6377f92e2ec0c26d5479f28e16e53291348f86f59b73381a19e',
       '.claude/skills/bdd/SKILL.md':
@@ -1776,7 +1776,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/bdd/SPLITTING.md':
         'e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708',
       '.claude/skills/bdd/TDD.md':
-        '2865c9efa57682eb211cc101f9db15f529bd605c3a2bebb57131e2a6d3aec79d',
+        'ed311cb035ab485577319ed21866b40a8406e3551989e4e5ae8b414cbb165eb9',
       '.claude/skills/bdd/VERIFY.md':
         '85abadfe756a3f391779fe500cd5c66597a33e0cab7fcef55f6b633b30818f31',
       '.claude/skills/brainstorm/SKILL.md':
@@ -1787,6 +1787,8 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
         '1fcbf06b7acf0e549cad4b964fbde3e4dc31feb601e75516041ec211c1bcb66a',
       '.claude/skills/debug/SKILL.md':
         'ae56c4c9287f76a2250d13fa9908f5726ed4edbe4080ece10d1559507e242bd0',
+      '.claude/skills/demand-research/SKILL.md':
+        '9271c21513cdb7048cf72c6343af17fed76a381569211eba24b31ba71c79381a',
       '.claude/skills/elicit/SKILL.md':
         '2638c773ce241a886563d1db8abbee70d72edefa780f762c0ed095df0f65cee5',
       '.claude/skills/explain/SKILL.md':
@@ -1802,7 +1804,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/pr-readiness/SKILL.md':
         'b23b1bb565f0a4551defa0641b52254133807b1c79495641d82bba9102fd19ff',
       '.claude/skills/quality-review/SKILL.md':
-        '6c356d37a4894d9456639236b9d305e2b9a42491119e55cb437a246e0096500d',
+        '9c7b0a5065d184fed0fd19e449c7a304eee35e376d052409163c3a83501ece27',
       '.claude/skills/refactor/SKILL.md':
         'a51a858fb13b50cbc86789edbde8a39e364b5cdd7d5d3b025d555d90b221760e',
       '.claude/skills/retro-filer/SKILL.md':
@@ -1810,7 +1812,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/retro/SKILL.md':
         'd01abb281a1c941024f304709c8727769383eb76d0ccc7da53f73776c4a0122d',
       '.claude/skills/review-spec/SKILL.md':
-        'd8c5d225ea2fdb723ad9b54bbc17f8f9b566373d04504ee1a466eed50784c7d8',
+        '1003829012f8134a805f26635782b1e14a5165caa28d6747e7cb9cabfc78bec0',
       '.claude/skills/self-review/SKILL.md':
         'e5ff994ec84573e6f129127bad89617f0a67b67c5cf792cedac558b6e419ac3b',
       '.claude/skills/spike/SKILL.md':
@@ -1848,7 +1850,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/pre-tool-git-bare-fix.sh':
         '0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414',
       '.safeword/hooks/pre-tool-quality.ts':
-        'b97d1639e4598197baa11c71d640f0cbff79f5bf72b38736ad1f4484bb06e1cf',
+        'cf0af5ea412b487aa4cd3ed514123d6bd689056a57cd41bca511d01dfcf6831e',
       '.safeword/hooks/pre-tool-stale-main.ts':
         'cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e',
       '.safeword/hooks/prompt-questions.ts':
@@ -1882,7 +1884,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/session-version.ts':
         'c6160a3ea0ef65345c89b3c1dcf5a4177a408d94ab7efda82d86f9d455815c64',
       '.safeword/hooks/stop-quality.ts':
-        '81fdc8f984f926be8ccacd929dd407b5a76db39e303e12f4b7f5e85234d0705b',
+        'bf6faa1401fd655fe9ac64cde87cd47fa0accac96f300487a2528c9491a06d13',
       '.safeword/hooks/stop-reentry.ts':
         'a84d34d0798c83177d6ccc733299e9632e8485b700ef92ec53f153d68a1cfba5',
       '.safeword/hooks/stop-retro-filing.ts':

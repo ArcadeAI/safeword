@@ -17,7 +17,7 @@ import { createTrustedReviewerDirectory, REVIEWER_CAPABILITIES } from '../review
  * and it is the class a reader is most likely to act on by retrying.
  */
 const directories: string[] = [];
-type ReviewerFailure = 'hang' | 'process' | 'unauthenticated';
+type ReviewerFailure = 'hang' | 'process';
 
 afterEach(() => {
   for (const directory of directories) rmSync(directory, { recursive: true, force: true });
@@ -36,10 +36,6 @@ function reviewerBody(failure: ReviewerFailure): string {
   switch (failure) {
     case 'hang': {
       return 'exec /bin/sleep 3600';
-    }
-    case 'unauthenticated': {
-      return String.raw`printf 'not logged in\n' >&2
-exit 1`;
     }
     case 'process': {
       return 'exit 3';
@@ -122,13 +118,6 @@ describe('a degraded review explains why it fell back', () => {
     // And still says what happened instead, and that it was isolated.
     expect(message).toMatch(/not independent/iu);
     expect(message).toMatch(/separate headless process/iu);
-  }, 30_000);
-
-  it('names a reviewer that is not signed in', async () => {
-    const message = await degradedMessage('unauthenticated');
-
-    expect(message).toMatch(/not signed in/iu);
-    expect(message).toMatch(/not independent/iu);
   }, 30_000);
 
   it('explains when a reviewer process exits without a review', async () => {

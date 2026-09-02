@@ -35,7 +35,7 @@ Adversarially review a ticket's scenarios: treat them as if you're trying to bre
 - **Manual re-run** — invoke `$safeword:review-spec` anytime after `define-behavior` (e.g., scenarios changed during implement and you want to re-validate). Allowed on a closed ticket too — a post-hoc audit is still readable.
 
 Read the active ticket's `.feature` source first. At review time, run
-`bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.82.6/runtime/cli.js" project review-knowledge --json` and read the current
+`bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.0/runtime/cli.js" project review-knowledge --json` and read the current
 `principles`, `personas`, and `surfaces` source paths and content it returns, so
 the review is grounded in project knowledge rather than labels or stale intake
 context. The resolver honors `paths.principles`, `paths.personas`, and
@@ -58,11 +58,16 @@ Resolve a review-capable Safeword CLI first; source checkouts do not guarantee
 a bare `safeword` on `PATH`:
 
 ```bash
-SAFEWORD_REVIEW_PROGRESS=1 bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.82.6/runtime/cli.js" review run scenario-gate feature-file [legacy-test-definitions] --context ticket-spec [dimensions-file] principles-file personas-file surfaces-file --agent-handoff --json
+SAFEWORD_REVIEW_PROGRESS=1 bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.0/runtime/cli.js" review run scenario-gate feature-file [legacy-test-definitions] --context ticket-spec [dimensions-file] principles-file personas-file surfaces-file --agent-handoff --json
 ```
 
 The coordinator's assigned/actual reviewer, failure classification, and
-independence level are authoritative. Only when the typed result is
+independence level are authoritative. If the typed result is
+`REVIEW_AUTHENTICATION_REQUIRED`, execute its exact recovery command; the
+user's browser or device flow may need to complete. After successful
+authentication, rerun the same coordinator command once. Do not invoke
+`$safeword:finish-review`, accept degraded coverage, or loop on another auth denial;
+report an unsuccessful reauthentication as the blocker. Only when the typed result is
 `REVIEW_ROUTES_EXHAUSTED`, invoke `$safeword:finish-review` immediately with the original
 result and the same accepted targets. For every other result, return it
 unchanged. Never substitute another surface-private reviewer or hand-written

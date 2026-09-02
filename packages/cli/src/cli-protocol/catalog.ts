@@ -505,6 +505,8 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       { flags: '--goal <goal>', description: 'One-line goal' },
       { flags: '--why <why>', description: 'One-line rationale' },
       { flags: '--parent <epicId>', description: 'Link the ticket to an epic' },
+      { flags: '--milestone <id>', description: 'Select a parent Product Plan milestone' },
+      { flags: '--parent-job <id>', description: 'Select a parent Product Plan job' },
       { flags: '--issue <key>', description: 'Adopt an existing tracker issue key' },
     ],
     fixture: {
@@ -514,6 +516,12 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
         SAFEWORD_TICKET_ID_OVERRIDE: 'N80D28',
       },
     },
+  }),
+  command('ticket reconcile-parent', 'Record the current parent Product Plan contract', 'mutate', {
+    syntax: 'reconcile-parent <ticketId>',
+    commandOptions: [
+      { flags: '--accept', description: 'Accept a changed parent contract after intake' },
+    ],
   }),
   command('review run', 'Run an independent adversarial review', 'mutate', {
     networkPolicy: 'declared',

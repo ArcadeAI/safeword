@@ -6,6 +6,7 @@
  * hand-writing frontmatter), per the scenario-gate strengthen.
  */
 
+import { writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -39,9 +40,28 @@ describe('epic-child --parent navigation (F9W3JP AC1)', () => {
     async () => {
       await runCli(['ticket', 'new', 'the-epic', '--type', 'epic'], { cwd: temporaryDirectory });
       const epicId = idBySlug(temporaryDirectory, 'the-epic');
-      await runCli(['ticket', 'new', 'the-child', '--parent', epicId], {
-        cwd: temporaryDirectory,
-      });
+      writeFileSync(
+        nodePath.join(ticketFolderBySlug(temporaryDirectory, 'the-epic'), 'spec.md'),
+        `# Product Plan\n\n## Product Bet\n\n- **Success threshold:** live\n- **Project non-goals:** none\n\n## Jobs To Be Done\n\n### the-epic.PLO1 — job\n\n## Shape\n\n### M1 — first\n\n- **Outcome:** value\n- **Non-goals:** none\n`,
+      );
+      await runCli(
+        [
+          'ticket',
+          'new',
+          'the-child',
+          '--type',
+          'feature',
+          '--parent',
+          epicId,
+          '--parent-job',
+          'the-epic.PLO1',
+          '--milestone',
+          'M1',
+        ],
+        {
+          cwd: temporaryDirectory,
+        },
+      );
 
       const childFolder = ticketFolderBySlug(temporaryDirectory, 'the-child');
       const childId = idBySlug(temporaryDirectory, 'the-child');

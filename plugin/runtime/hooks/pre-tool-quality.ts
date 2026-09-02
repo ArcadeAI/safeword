@@ -47,6 +47,7 @@ import {
 import { isNamespacePath, resolveNamespaceRoot } from './lib/namespace-root.ts';
 import { evaluateTicketWrite } from './lib/phase-provenance.ts';
 import { evaluateImplementEntry } from './lib/plan-gate.ts';
+import { evaluateParentContract } from './lib/product-plan-contract.ts';
 import { installCrashCapture } from './lib/self-report.ts';
 
 installCrashCapture('pre-tool-quality');
@@ -419,24 +420,49 @@ if (
   // was already denied above.
   if (specExists) {
     const specContent = readFileSync(specFile, 'utf8');
-
-    const jtbdVerdict = evaluateJtbdGate(specContent, readPersonasForGate(ticketDirectory));
-    if (!jtbdVerdict.ok) {
-      deny(
-        `spec.md JTBD gate: ${jtbdVerdict.reason}.`,
-        'Author a Job To Be Done in spec.md under `## Jobs To Be Done` (persona from personas.md, in the "When I…, I want…, so I can…" form), or write `skip: <reason>` there to deliberately omit.',
+    const isContractedChild =
+      frontmatterScalar(meta, 'product_plan_contract') === 'v1' &&
+      ['parent', 'parent_job', 'milestone'].every(
+        key => frontmatterScalar(meta, key) !== undefined,
       );
-    }
 
-    // Criteria gate (ticket 31W8M3): each JTBD needs ≥1 numbered Rule
-    // (`#### <jtbd-id>.R<n>`) or legacy Acceptance Criterion
-    // (`#### <jtbd-id>.AC<n>`), or a per-JTBD `skip: <reason>`.
-    const criteriaVerdict = evaluateCriteriaGate(specContent);
-    if (!criteriaVerdict.ok) {
-      deny(
-        `spec.md criteria gate: ${criteriaVerdict.reason}.`,
-        'Add a numbered Rule under each JTBD as `#### <jtbd-id>.R<n> — <invariant>` (a product-level invariant, not implementation) — or a legacy `#### <jtbd-id>.AC<n> — <capability>` — or `skip: <reason>` under that JTBD to omit it deliberately.',
+    // Contracted children inherit the parent JTBD and own only Contribution +
+    // Rules. Applying the standalone JTBD/criteria gates would force copied
+    // prose or a fake skip marker into the deliberately delta-only child spec.
+    if (isContractedChild) {
+      const parentJob = frontmatterScalar(meta, 'parent_job')!;
+      const ticketId = frontmatterScalar(meta, 'id')!;
+      const escapePattern = (value: string): string =>
+        value.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const lineageRule = new RegExp(
+        `^####\\s+${escapePattern(parentJob)}\\.${escapePattern(ticketId)}\\.R\\d+\\b`,
+        'm',
       );
+      if (!lineageRule.test(specContent)) {
+        deny(
+          'spec.md criteria gate: contracted children require at least one child-owned lineage Rule.',
+          `Add a Rule under \`## Rules\` as \`#### ${parentJob}.${ticketId}.R1 — <business invariant>\`.`,
+        );
+      }
+    } else {
+      const jtbdVerdict = evaluateJtbdGate(specContent, readPersonasForGate(ticketDirectory));
+      if (!jtbdVerdict.ok) {
+        deny(
+          `spec.md JTBD gate: ${jtbdVerdict.reason}.`,
+          'Author a Job To Be Done in spec.md under `## Jobs To Be Done` (persona from personas.md, in the "When I…, I want…, so I can…" form), or write `skip: <reason>` there to deliberately omit.',
+        );
+      }
+
+      // Criteria gate (ticket 31W8M3): each JTBD needs ≥1 numbered Rule
+      // (`#### <jtbd-id>.R<n>`) or legacy Acceptance Criterion
+      // (`#### <jtbd-id>.AC<n>`), or a per-JTBD `skip: <reason>`.
+      const criteriaVerdict = evaluateCriteriaGate(specContent);
+      if (!criteriaVerdict.ok) {
+        deny(
+          `spec.md criteria gate: ${criteriaVerdict.reason}.`,
+          'Add a numbered Rule under each JTBD as `#### <jtbd-id>.R<n> — <invariant>` (a product-level invariant, not implementation) — or a legacy `#### <jtbd-id>.AC<n> — <capability>` — or `skip: <reason>` under that JTBD to omit it deliberately.',
+        );
+      }
     }
 
     // Review gate (NMSD94, Tier 1) — DEFAULT-OFF: only fires when
@@ -593,6 +619,11 @@ function phaseTransitionContext(): {
   priorPhase: string | undefined;
   proposedPhase: string | undefined;
   proposedType: string | undefined;
+  priorHadParentReferences: boolean;
+  proposedHasParentReferences: boolean;
+  proposedHasCompleteParentReferences: boolean;
+  priorParentContractActivated: boolean;
+  priorContent: string;
   proposedContent: string;
 } {
   const context = canonicalTicketEditContext();
@@ -600,8 +631,64 @@ function phaseTransitionContext(): {
     priorPhase: frontmatterScalar(context.priorMeta, 'phase'),
     proposedPhase: frontmatterScalar(context.proposedMeta, 'phase'),
     proposedType: frontmatterScalar(context.proposedMeta, 'type'),
+    priorHadParentReferences: ['parent', 'parent_job', 'milestone'].some(
+      key => frontmatterScalar(context.priorMeta, key) !== undefined,
+    ),
+    proposedHasParentReferences: ['parent', 'parent_job', 'milestone'].some(
+      key => frontmatterScalar(context.proposedMeta, key) !== undefined,
+    ),
+    proposedHasCompleteParentReferences: ['parent', 'parent_job', 'milestone'].every(
+      key => frontmatterScalar(context.proposedMeta, key) !== undefined,
+    ),
+    priorParentContractActivated:
+      frontmatterScalar(context.priorMeta, 'product_plan_contract') === 'v1' ||
+      frontmatterScalar(context.priorMeta, 'parent_job') !== undefined ||
+      frontmatterScalar(context.priorMeta, 'parent_contract_digest') !== undefined,
+    priorContent: context.priorContent,
     proposedContent: context.proposedContent,
   };
+}
+
+// A child may not shed its lineage in one edit and advance in a later edit.
+// Parent resolution remains a phase-boundary cost; activation loss is checked
+// on every existing canonical ticket edit because it is cheap and state-local.
+if (isCanonicalTicketEdit) {
+  const {
+    priorPhase,
+    proposedPhase,
+    priorHadParentReferences,
+    proposedHasParentReferences,
+    proposedHasCompleteParentReferences,
+    priorParentContractActivated,
+    priorContent,
+    proposedContent,
+  } = phaseTransitionContext();
+  if (
+    existsSync(editedFile) &&
+    priorParentContractActivated &&
+    priorHadParentReferences &&
+    !proposedHasCompleteParentReferences
+  ) {
+    if (proposedHasParentReferences) {
+      deny(
+        'Parent Product Plan reconciliation required: parent, parent_job, and milestone must be declared together.',
+        'Restore the complete child lineage before making any other ticket change.',
+      );
+    }
+    deny(
+      'Parent Product Plan reconciliation required: parent references cannot be removed from a contracted child.',
+      'Preserve the child references; converting a child to standalone work requires an explicit preservation-first migration.',
+    );
+  }
+  if (existsSync(editedFile) && proposedPhase !== priorPhase) {
+    const verdict = evaluateParentContract(projectDirectory, proposedContent, priorContent);
+    if (!verdict.ok) {
+      deny(
+        `Parent Product Plan reconciliation required: ${verdict.reason}.`,
+        'Review the parent changes, then run `safeword ticket reconcile-parent <ticket-id>` in intake or add `--accept` after intake.',
+      );
+    }
+  }
 }
 
 // Feature readiness gate (#404): block new entries into define-behavior before

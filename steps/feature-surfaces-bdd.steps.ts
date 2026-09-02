@@ -25,9 +25,7 @@ const BDD_GUIDANCE_PATHS = [
 ];
 const FEATURE_SPEC_TEMPLATE_PATHS = [
   'packages/cli/templates/spec-template.md',
-  'packages/cli/templates/doc-templates/feature-spec-template.md',
   '.safeword/templates/spec-template.md',
-  '.safeword/templates/feature-spec-template.md',
 ];
 
 function createCustomerProject(prefix: string): string {
@@ -306,7 +304,7 @@ Then(
       ]);
       assert.ok(content.includes('paths.surfaces'), content);
       assert.ok(content.includes('<namespace-root>/surfaces.md'), content);
-      assert.match(content, /surfaces\.md` is empty.*add surfaces now/is);
+      assert.match(content, /surfaces\.md`\)\. If empty, ask.*add surfaces now/is);
     }
   },
 );
@@ -325,11 +323,13 @@ When('a feature spec is scaffolded', function () {
   );
 });
 
-Then('it includes a Surfaces section for affected runtime contexts', function () {
-  for (const content of readRepoFiles(FEATURE_SPEC_TEMPLATE_PATHS)) {
-    assert.ok(content.includes('## Surfaces'), content);
-    assert.match(content, /configured\s+surfaces file/, content);
-    assert.ok(content.includes('Affected:'), content);
-    assert.ok(content.includes('@surface.<slug>'), content);
-  }
-});
+Then(
+  'it relies on the project inventory and scenario tags for affected runtime contexts',
+  function () {
+    for (const content of readRepoFiles(FEATURE_SPEC_TEMPLATE_PATHS)) {
+      assert.ok(!content.includes('## Surfaces'), content);
+      assert.ok(content.includes('## Product Bet'), content);
+      assert.ok(content.includes('## Killer Demo'), content);
+    }
+  },
+);

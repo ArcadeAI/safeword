@@ -231,7 +231,12 @@ Each pass:
    headless Claude. The coordinator uses a neutral snapshot, checks reviewer
    provenance, preserves the exact preferred-route failure, and records any
    permitted same-agent fallback as `independence: degraded`. Treat its typed
-   result as the review verdict. Only when the typed result is
+   result as the review verdict. If the typed result is
+   `REVIEW_AUTHENTICATION_REQUIRED`, execute its exact recovery command; the
+   user's browser or device flow may need to complete. After successful
+   authentication, rerun the same coordinator command once. Do not invoke
+   `/finish-review`, accept degraded coverage, or loop on another auth denial;
+   report an unsuccessful reauthentication as the blocker. Only when the typed result is
    `REVIEW_ROUTES_EXHAUSTED`, invoke `/finish-review` immediately with the
    original result and the same accepted targets. For every other result,
    return it unchanged. The canonical fallback may use one host-native
