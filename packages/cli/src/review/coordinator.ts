@@ -385,17 +385,37 @@ const RUNTIME_WIDE_FAILURES: ReadonlySet<ReviewFailure> = new Set([
   'not_authenticated',
 ]);
 
-function invalidRouteConfigResult(error: unknown): CliResult {
+function invalidRouteConfigResult(
+  error: unknown,
+  author: ReviewAgent,
+  policy: ReviewPolicy,
+): CliResult {
   return createResult({
     state: 'action_required',
     findings: [
       {
         code: 'REVIEW_ROUTE_CONFIG_INVALID',
-        message: error instanceof Error ? error.message : 'Invalid review route configuration.',
+        message: terminalSafeReviewerText(
+          error instanceof Error ? error.message : 'Invalid review route configuration.',
+        ),
         severity: 'warning',
       },
     ],
-    data: { command: 'review run', status: 'blocked', independence: 'none' },
+    recovery: [
+      {
+        command: `safeword review routes list --author ${author}`,
+        description:
+          'Inspect the configuration error, correct the named file, then retry the review.',
+        requiresHuman: true,
+      },
+    ],
+    data: {
+      command: 'review run',
+      status: 'blocked',
+      independence: 'none',
+      author_agent: author,
+      review_policy: policy,
+    },
   });
 }
 
@@ -1652,7 +1672,7 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
   try {
     configuredRoutes = readConfiguredReviewRoutes(input.cwd, routes.author);
   } catch (error) {
-    return invalidRouteConfigResult(error);
+    return invalidRouteConfigResult(error, routes.author, policy);
   }
   if (configuredRoutes !== undefined) {
     return runRankedRoutes(input, routes.author, policy, configuredRoutes);

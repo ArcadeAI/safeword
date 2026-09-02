@@ -63,7 +63,7 @@ describe('public command machine contract', () => {
           [...definition.fixture.argv, '--json', '--no-input', '--offline', '--cwd', directory],
           {
             cwd: directory,
-            env: definition.fixture.environment,
+            env: { ...definition.fixture.environment, XDG_CONFIG_HOME: directory },
             timeout: 30_000,
           },
         );
@@ -125,7 +125,7 @@ describe('public command machine contract', () => {
         [...fixture.argv, '--json', '--no-input', '--offline', '--cwd', directory],
         {
           cwd: directory,
-          env: fixture.environment,
+          env: { ...fixture.environment, XDG_CONFIG_HOME: directory },
           timeout: 30_000,
         },
       );

@@ -50670,17 +50670,30 @@ function rankedNetworkEffects(evidence) {
     return route.failure === undefined ? [reviewRequest(route.reviewer)] : networkEffectsForFailure(route.reviewer, route.failure);
   });
 }
-function invalidRouteConfigResult(error2) {
+function invalidRouteConfigResult(error2, author, policy) {
   return createResult({
     state: "action_required",
     findings: [
       {
         code: "REVIEW_ROUTE_CONFIG_INVALID",
-        message: error2 instanceof Error ? error2.message : "Invalid review route configuration.",
+        message: terminalSafeReviewerText(error2 instanceof Error ? error2.message : "Invalid review route configuration."),
         severity: "warning"
       }
     ],
-    data: { command: "review run", status: "blocked", independence: "none" }
+    recovery: [
+      {
+        command: `safeword review routes list --author ${author}`,
+        description: "Inspect the configuration error, correct the named file, then retry the review.",
+        requiresHuman: true
+      }
+    ],
+    data: {
+      command: "review run",
+      status: "blocked",
+      independence: "none",
+      author_agent: author,
+      review_policy: policy
+    }
   });
 }
 function degradedIndependenceMessage(author, evidence) {
@@ -50792,7 +50805,10 @@ function rankedAuthenticationRequiredResult(input) {
   });
   return {
     ...result,
-    findings: [...result.findings, ...input.degraded ? reviewerFeedback(input.degraded.output) : []],
+    findings: [
+      ...result.findings,
+      ...input.degraded ? reviewerFeedback(input.degraded.output) : []
+    ],
     effects: { ...result.effects, network: rankedNetworkEffects(input.evidence) },
     data: {
       ...result.data,
@@ -51524,7 +51540,7 @@ async function runReview(input) {
   try {
     configuredRoutes = readConfiguredReviewRoutes(input.cwd, routes.author);
   } catch (error2) {
-    return invalidRouteConfigResult(error2);
+    return invalidRouteConfigResult(error2, routes.author, policy);
   }
   if (configuredRoutes !== undefined) {
     return runRankedRoutes(input, routes.author, policy, configuredRoutes);

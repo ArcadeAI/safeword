@@ -143,6 +143,76 @@ describe('review routes CLI wiring', () => {
     });
   });
 
+  it('resolves each author independently across project and user scopes', async () => {
+    const root = createTemporaryDirectory();
+    directories.push(root);
+    const xdg = nodePath.join(root, 'profile');
+    vi.stubEnv('XDG_CONFIG_HOME', xdg);
+    await invoke(root, ['review', 'routes', 'set', '--author', 'claude', '--route', 'opencode']);
+    await invoke(root, [
+      'review',
+      'routes',
+      'set',
+      '--scope',
+      'project',
+      '--author',
+      'codex',
+      '--route',
+      'claude',
+    ]);
+
+    expect(await invoke(root, ['review', 'routes', 'list', '--author', 'claude'])).toMatchObject({
+      data: { source: 'user', routes: [{ reviewer: 'opencode' }] },
+    });
+  });
+
+  it('validates the user profile even when the project has a valid route', async () => {
+    const root = createTemporaryDirectory();
+    directories.push(root);
+    const xdg = nodePath.join(root, 'profile');
+    vi.stubEnv('XDG_CONFIG_HOME', xdg);
+    mkdirSync(nodePath.join(root, '.safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(root, '.safeword', 'config.json'),
+      JSON.stringify({ crossAgentReviewRoutes: { claude: [{ reviewer: 'codex' }] } }),
+    );
+    const profile = nodePath.join(xdg, 'safeword', 'config.json');
+    mkdirSync(nodePath.dirname(profile), { recursive: true });
+    writeFileSync(profile, '{ malformed');
+
+    const listed = await invoke(root, ['review', 'routes', 'list', '--author', 'claude']);
+    expect(listed).toMatchObject({
+      state: 'failed',
+      errors: [{ code: 'REVIEW_ROUTE_CONFIG_INVALID' }],
+    });
+    expect((listed.errors as { message: string }[])[0]?.message).toContain(profile);
+  });
+
+  it('preserves unrelated project configuration while setting and resetting routes', async () => {
+    const root = createTemporaryDirectory();
+    directories.push(root);
+    vi.stubEnv('XDG_CONFIG_HOME', nodePath.join(root, 'profile'));
+    const configPath = nodePath.join(root, '.safeword', 'config.json');
+    mkdirSync(nodePath.dirname(configPath), { recursive: true });
+    const unrelated = { installedPacks: ['typescript'], crossAgentReview: 'prefer' };
+    writeFileSync(configPath, JSON.stringify(unrelated));
+
+    await invoke(root, [
+      'review',
+      'routes',
+      'set',
+      '--scope',
+      'project',
+      '--author',
+      'claude',
+      '--route',
+      'codex',
+    ]);
+    expect(JSON.parse(readFileSync(configPath, 'utf8'))).toMatchObject(unrelated);
+    await invoke(root, ['review', 'routes', 'reset', '--scope', 'project', '--author', 'claude']);
+    expect(JSON.parse(readFileSync(configPath, 'utf8'))).toEqual(unrelated);
+  });
+
   it('reports malformed profile configuration through the JSON result envelope', async () => {
     const root = createTemporaryDirectory();
     directories.push(root);

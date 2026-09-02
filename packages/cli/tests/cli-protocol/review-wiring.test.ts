@@ -2850,66 +2850,94 @@ describe('cross-agent review public-command wiring', () => {
     });
   });
 
-  it('executes the exact route order written to the user profile', async () => {
-    const directory = createTemporaryDirectory();
-    const profile = nodePath.join(directory, 'profile');
-    const log = nodePath.join(directory, 'review.log');
-    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
-    const bin = installFakeReviewer(directory, 'opencode');
-    const environment = {
-      XDG_CONFIG_HOME: profile,
-      SAFEWORD_AGENT_RUNTIME: 'claude',
-      SAFEWORD_NO_UPDATE_CHECK: '1',
-    };
+  it.each([
+    { projectOverride: false, reviewer: 'opencode' },
+    { projectOverride: true, reviewer: 'codex' },
+  ])(
+    'executes only $reviewer with project override=$projectOverride',
+    async ({ projectOverride, reviewer }) => {
+      const directory = createTemporaryDirectory();
+      const profile = nodePath.join(directory, 'profile');
+      const log = nodePath.join(directory, 'review.log');
+      writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+      const bin = installFakeReviewer(directory, 'opencode');
+      installFakeReviewer(directory, 'codex');
+      const environment = {
+        XDG_CONFIG_HOME: profile,
+        SAFEWORD_AGENT_RUNTIME: 'claude',
+        SAFEWORD_NO_UPDATE_CHECK: '1',
+      };
 
-    const configured = await runCli(
-      [
-        'review',
-        'routes',
-        'set',
-        '--author',
-        'claude',
-        '--route',
-        'opencode',
-        '--json',
-        '--no-input',
-        '--cwd',
-        directory,
-      ],
-      { cwd: directory, env: environment },
-    );
-    expect(configured.exitCode, configured.stdout).toBe(0);
+      const configured = await runCli(
+        [
+          'review',
+          'routes',
+          'set',
+          '--author',
+          'claude',
+          '--route',
+          'opencode',
+          '--json',
+          '--no-input',
+          '--cwd',
+          directory,
+        ],
+        { cwd: directory, env: environment },
+      );
+      expect(configured.exitCode, configured.stdout).toBe(0);
+      if (projectOverride) {
+        const projectConfigured = await runCli(
+          [
+            'review',
+            'routes',
+            'set',
+            '--scope',
+            'project',
+            '--author',
+            'claude',
+            '--route',
+            'codex',
+            '--json',
+            '--no-input',
+            '--cwd',
+            directory,
+          ],
+          { cwd: directory, env: environment },
+        );
+        expect(projectConfigured.exitCode, projectConfigured.stdout).toBe(0);
+      }
 
-    const result = await runCli(
-      [
-        'review',
-        'run',
-        'quality-review',
-        'review-input.md',
-        '--json',
-        '--no-input',
-        '--cwd',
-        directory,
-      ],
-      {
-        cwd: directory,
-        env: {
-          ...environment,
-          PATH: `${bin}:/usr/bin:/bin`,
-          SAFEWORD_REVIEW_LOG: log,
+      const result = await runCli(
+        [
+          'review',
+          'run',
+          'quality-review',
+          'review-input.md',
+          '--json',
+          '--no-input',
+          '--cwd',
+          directory,
+        ],
+        {
+          cwd: directory,
+          env: {
+            ...environment,
+            PATH: `${bin}:/usr/bin:/bin`,
+            SAFEWORD_REVIEW_LOG: log,
+          },
         },
-      },
-    );
+      );
 
-    expect(result.exitCode, result.stdout).toBe(0);
-    expect(readFileSync(log, 'utf8')).toBe('opencode\n');
-    expect(JSON.parse(result.stdout)).toMatchObject({
-      data: {
-        assigned_reviewer: 'opencode',
-        review_routes: [{ reviewer: 'opencode', independence: 'cross-agent', status: 'attempted' }],
-      },
-    });
-  });
+      expect(result.exitCode, result.stdout).toBe(0);
+      expect(readFileSync(log, 'utf8')).toBe(`${reviewer}\n`);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        data: {
+          assigned_reviewer: reviewer,
+          review_routes: [{ reviewer, independence: 'cross-agent', status: 'attempted' }],
+        },
+      });
+    },
+  );
 
   it('reports every attempted request when a ranked review completes degraded', async () => {
     const directory = createTemporaryDirectory();
@@ -3133,13 +3161,16 @@ describe('cross-agent review public-command wiring', () => {
     });
   });
 
-  it('rejects invalid opted-in routes without launching a reviewer', async () => {
+  it.each([
+    { name: 'empty author routes', routes: { claude: [] } },
+    { name: 'terminal controls in an unknown author', routes: { ['bad\u{1B}\u{7}\u{202E}']: [] } },
+  ])('rejects $name safely without launching a reviewer', async ({ routes }) => {
     const directory = createTemporaryDirectory();
     const log = nodePath.join(directory, 'review.log');
     mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
     writeFileSync(
       nodePath.join(directory, '.safeword', 'config.json'),
-      JSON.stringify({ crossAgentReviewRoutes: { claude: [] } }),
+      JSON.stringify({ crossAgentReviewRoutes: routes }),
     );
     writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
     const bin = installFakeReviewer(directory, 'codex');
@@ -3169,7 +3200,13 @@ describe('cross-agent review public-command wiring', () => {
     expect(result.exitCode).toBe(2);
     expect(JSON.parse(result.stdout)).toMatchObject({
       findings: [{ code: 'REVIEW_ROUTE_CONFIG_INVALID' }],
+      recovery: [{ command: 'safeword review routes list --author claude' }],
+      data: { author_agent: 'claude', independence: 'none' },
     });
+    const output = JSON.parse(result.stdout) as { findings: { message: string }[] };
+    for (const control of ['\u{1B}', '\u{7}', '\u{202E}']) {
+      expect(output.findings[0]?.message).not.toContain(control);
+    }
     expect(existsSync(log)).toBe(false);
   });
 });
