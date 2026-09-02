@@ -170,7 +170,7 @@ async function executeReview(
   }
 }
 
-function assessFallback(
+function assessReviewOutcome(
   outcome:
     | { readonly kind: 'completed'; readonly output: UnverifiedReviewerOutput }
     | { readonly kind: 'failed'; readonly failure: ReviewFailure; readonly terminal: boolean },
@@ -580,7 +580,7 @@ async function runDegradedFallback(
     }),
   });
   if (changedResult !== undefined) return changedResult;
-  const assessment = assessFallback(outcome, input.author, prepared.packet.dispatch_id);
+  const assessment = assessReviewOutcome(outcome, input.author, prepared.packet.dispatch_id);
   if (assessment.kind === 'failed') {
     return createResult({
       state: 'action_required',
@@ -774,7 +774,7 @@ async function runAlternateModelRoute(
     ],
   });
   if (changedResult !== undefined) return { kind: 'completed', result: changedResult };
-  const assessment = assessFallback(outcome, input.reviewer, prepared.packet.dispatch_id);
+  const assessment = assessReviewOutcome(outcome, input.reviewer, prepared.packet.dispatch_id);
   if (assessment.kind === 'failed') {
     return failedAlternateModelRoute(input, model, assessment);
   }
