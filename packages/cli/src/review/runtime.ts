@@ -630,6 +630,7 @@ function remainingReviewTime(
 function executableCandidates(
   reviewer: ReviewAgent,
   untrustedRoot: string,
+  allowStaging = true,
 ): { readonly paths: string[]; readonly rejectedForTrust: boolean } {
   const extensions =
     process.platform === 'win32'
@@ -671,6 +672,7 @@ function executableCandidates(
   // This closes the project-controlled parent/file symlink swap window.
   const trusted = [...new Set(canonicalCandidates)];
   if (trusted.length > 0) return { paths: trusted, rejectedForTrust };
+  if (!allowStaging) return { paths: [], rejectedForTrust };
   // Nothing directly trusted: rescue an installation whose only problem is a
   // package manager's group-writable directory (Homebrew's default). Each
   // stagedTrustedReviewerCopy re-checks the file itself from an open descriptor
@@ -703,12 +705,14 @@ type CapabilityAssessment =
     };
 
 export interface ReviewRouteObservation {
-  readonly installed: boolean;
-  readonly compatibility: 'compatible' | 'not_compatible' | 'inspection_unavailable';
+  readonly installed: boolean | 'inspection_skipped' | 'inspection_unavailable';
+  readonly compatibility:
+    'compatible' | 'not_compatible' | 'inspection_skipped' | 'inspection_unavailable';
   readonly catalogue: 'catalogued' | 'not_catalogued' | 'not_applicable' | 'unavailable';
 }
 
 async function captureCommand(
+  reviewer: ReviewAgent,
   executable: string,
   arguments_: readonly string[],
   cwd: string,
@@ -750,13 +754,13 @@ async function captureCommand(
       finish(code === 0 ? { kind: 'completed', stdout } : { kind: 'failed' });
     });
   });
-  await stopReviewerOrThrow(child, 'opencode');
+  await stopReviewerOrThrow(child, reviewer);
   child.stdout.destroy();
   child.unref();
   return result;
 }
 
-/** Read-only local evidence. It never authenticates, performs inference, or changes route order. */
+/** Read-only local evidence. It never stages executables, authenticates, or performs inference. */
 // eslint-disable-next-line complexity -- Evidence distinguishes trusted discovery, capability, and catalogue failures.
 export async function inspectReviewRoute(
   reviewer: ReviewAgent,
@@ -764,7 +768,7 @@ export async function inspectReviewRoute(
   cwd: string,
   timeoutMs = 5000,
 ): Promise<ReviewRouteObservation> {
-  const candidates = executableCandidates(reviewer, cwd);
+  const candidates = executableCandidates(reviewer, cwd, false);
   if (candidates.paths.length === 0) {
     return { installed: false, compatibility: 'not_compatible', catalogue: 'unavailable' };
   }
@@ -785,6 +789,7 @@ export async function inspectReviewRoute(
       return { installed: true, compatibility: 'compatible', catalogue: 'unavailable' };
     }
     const catalogue = await captureCommand(
+      reviewer,
       candidate,
       ['models', '--pure'],
       cwd,

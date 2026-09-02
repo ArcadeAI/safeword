@@ -321,6 +321,15 @@ type RankedRouteEvidence = {
   readonly failure?: ReviewFailure;
 };
 
+function rankedNetworkEffects(evidence: readonly RankedRouteEvidence[]): readonly Effect[] {
+  return evidence.flatMap(route => {
+    if (route.status !== 'attempted') return [];
+    return route.failure === undefined
+      ? [reviewRequest(route.reviewer)]
+      : networkEffectsForFailure(route.reviewer, route.failure);
+  });
+}
+
 const RUNTIME_WIDE_FAILURES: ReadonlySet<ReviewFailure> = new Set([
   'not_installed',
   'untrusted_install',
@@ -367,6 +376,7 @@ function rankedExhaustedResult(input: {
         },
         ...reviewerFeedback(input.degraded.output),
       ],
+      effects: { network: rankedNetworkEffects(input.evidence) },
       data: {
         command: 'review run',
         status: input.degraded.output.verdict === 'approve' ? 'approved' : 'changes_requested',
@@ -400,9 +410,7 @@ function rankedExhaustedResult(input: {
       },
       ...(hasDegraded ? reviewerFeedback(input.degraded.output) : []),
     ],
-    effects: {
-      network: attempted.flatMap(route => networkEffectsForFailure(route.reviewer, route.failure)),
-    },
+    effects: { network: rankedNetworkEffects(input.evidence) },
     recovery: [
       {
         command: retryCommand(input.kind, input.targets, input.context),
@@ -429,7 +437,14 @@ function recordRankedFailure(
   unavailable: Set<ReviewAgent>,
 ): boolean {
   evidence.push({ ...route, status: 'attempted', failure: failure.failure });
-  if (RUNTIME_WIDE_FAILURES.has(failure.failure)) unavailable.add(route.reviewer);
+  // A model-specific capability miss does not make the runtime-default route
+  // unusable. Let that later route prove its own base capabilities.
+  if (
+    RUNTIME_WIDE_FAILURES.has(failure.failure) &&
+    (failure.failure !== 'unsupported' || route.model === undefined)
+  ) {
+    unavailable.add(route.reviewer);
+  }
   return failure.terminal;
 }
 
@@ -526,6 +541,7 @@ async function runRankedRoutes(
       });
       return {
         ...result,
+        effects: { ...result.effects, network: rankedNetworkEffects(evidence) },
         data: { ...(result.data as Record<string, unknown>), review_routes: evidence },
       };
     }

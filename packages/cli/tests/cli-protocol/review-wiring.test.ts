@@ -2588,6 +2588,12 @@ describe('cross-agent review public-command wiring', () => {
     expect(result.exitCode, result.stdout).toBe(0);
     expect(readFileSync(log, 'utf8')).toBe('opencode\ncodex\n');
     expect(JSON.parse(result.stdout)).toMatchObject({
+      effects: {
+        network: [
+          { kind: 'review', target: 'opencode', operation: 'request' },
+          { kind: 'review', target: 'codex', operation: 'request' },
+        ],
+      },
       data: {
         assigned_reviewer: 'codex',
         reviewer_model: 'model-a',
@@ -2597,6 +2603,109 @@ describe('cross-agent review public-command wiring', () => {
           { reviewer: 'codex', model: 'model-a', status: 'attempted' },
         ],
       },
+    });
+  });
+
+  it('keeps a runtime-default route eligible after model selection is unsupported', async () => {
+    const directory = createTemporaryDirectory();
+    const log = nodePath.join(directory, 'review.log');
+    mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(directory, '.safeword', 'config.json'),
+      JSON.stringify({
+        crossAgentReviewRoutes: {
+          claude: [{ reviewer: 'codex', model: 'model-a' }, { reviewer: 'codex' }],
+        },
+      }),
+    );
+    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+    const bin = installFakeReviewer(directory, 'codex');
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'review-input.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_REVIEW_FAKE_MODEL_CAPABILITY: 'missing',
+          SAFEWORD_REVIEW_LOG: log,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode, result.stdout).toBe(0);
+    expect(readFileSync(log, 'utf8')).toBe('codex\n');
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      data: {
+        assigned_reviewer: 'codex',
+        independence: 'cross-agent',
+        review_routes: [
+          { reviewer: 'codex', model: 'model-a', failure: 'unsupported' },
+          { reviewer: 'codex', status: 'attempted' },
+        ],
+      },
+    });
+  });
+
+  it('reports every attempted request when a ranked review completes degraded', async () => {
+    const directory = createTemporaryDirectory();
+    const log = nodePath.join(directory, 'review.log');
+    mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(directory, '.safeword', 'config.json'),
+      JSON.stringify({
+        crossAgentReviewRoutes: {
+          claude: [{ reviewer: 'codex' }, { reviewer: 'claude' }],
+        },
+      }),
+    );
+    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+    const bin = installFakeReviewer(directory, 'codex');
+    installFakeReviewer(directory, 'claude');
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'review-input.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_REVIEW_FAKE_FAILURE_CODEX: 'process',
+          SAFEWORD_REVIEW_LOG: log,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode, result.stdout).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      effects: {
+        network: [
+          { kind: 'review', target: 'codex', operation: 'request' },
+          { kind: 'review', target: 'claude', operation: 'request' },
+        ],
+      },
+      data: { independence: 'degraded' },
     });
   });
 

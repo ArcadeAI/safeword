@@ -18,12 +18,35 @@ import {
 import { checkHealth } from '../health.js';
 import { readReviewRouteProofs } from '../review/job.js';
 import { readConfiguredReviewRoutes } from '../review/policy.js';
-import { inspectReviewRoute } from '../review/runtime.js';
+import { inspectReviewRoute, type ReviewRouteObservation } from '../review/runtime.js';
 import { detectPackageManager } from '../utils/install.js';
 import { compareVersions, isSafePackageVersion } from '../utils/version.js';
 import { unselectedCursorFinding } from './cursor.js';
 import { coordinateSelectedIntegrations, PRODUCTION_INTEGRATIONS } from './integrations.js';
 import { projectLifecycleSchema } from './schema.js';
+
+async function inspectConfiguredRoute(
+  route: { readonly reviewer: 'claude' | 'codex' | 'opencode'; readonly model?: string },
+  cwd: string,
+  offline: boolean,
+): Promise<ReviewRouteObservation> {
+  if (offline) {
+    return {
+      installed: 'inspection_skipped',
+      compatibility: 'inspection_skipped',
+      catalogue: route.model === undefined ? 'not_applicable' : 'unavailable',
+    };
+  }
+  try {
+    return await inspectReviewRoute(route.reviewer, route.model, cwd);
+  } catch {
+    return {
+      installed: 'inspection_unavailable',
+      compatibility: 'inspection_unavailable',
+      catalogue: route.model === undefined ? 'not_applicable' : 'unavailable',
+    };
+  }
+}
 
 async function reviewRouteObservations(
   cwd: string,
@@ -41,18 +64,13 @@ async function reviewRouteObservations(
   return await Promise.all(
     routes.map(async route => {
       const proof = proofs.get(`${route.reviewer}\0${route.model ?? '<runtime-default>'}`);
+      const inspection = await inspectConfiguredRoute(route, cwd, offline);
       return {
         reviewer: route.reviewer,
         ...(route.model !== undefined && { model: route.model }),
         runtime_default: route.model === undefined,
         independence: route.independence,
-        ...(offline
-          ? {
-              installed: 'inspection_skipped',
-              compatibility: 'inspection_skipped',
-              catalogue: route.model === undefined ? 'not_applicable' : 'unavailable',
-            }
-          : await inspectReviewRoute(route.reviewer, route.model, cwd)),
+        ...inspection,
         proof: proof?.proof ?? 'unknown',
         ...(proof?.failure !== undefined && { known_failure: proof.failure }),
         ...(proof !== undefined && { proof_observed_at: proof.observed_at }),

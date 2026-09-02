@@ -922,8 +922,16 @@ function routeProofsFromRecord(record: ReviewJobRecord): readonly ReviewRoutePro
 /** Most recent integrity-validated evidence for each exact reviewer/model route. */
 export function readReviewRouteProofs(cwd: string): readonly ReviewRouteProof[] {
   const directory = jobsDirectory(cwd);
-  if (!existsSync(directory)) return [];
-  const records = readdirSync(directory)
+  // Status evidence is observational: without an existing integrity key it
+  // cannot validate prior jobs and must not create state merely by reading.
+  if (!existsSync(directory) || !existsSync(integrityKeyPath())) return [];
+  let entries: string[];
+  try {
+    entries = readdirSync(directory);
+  } catch {
+    return [];
+  }
+  const records = entries
     .flatMap(name => {
       if (!/^[a-f\d-]{36}\.json$/u.test(name)) return [];
       try {
