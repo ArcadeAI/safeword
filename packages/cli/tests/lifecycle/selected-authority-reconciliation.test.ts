@@ -94,6 +94,23 @@ afterEach(() => {
 });
 
 describe('selected authority lifecycle reconciliation', () => {
+  it('honors explicit project removal without uninstalling profile plugins', async () => {
+    const cwd = project();
+    profileState.claude = true;
+    const installed = await installLifecycle(invocation(cwd, 'codex'), adapters);
+    expect(installed.errors).toEqual([]);
+    expect(existsSync(nodePath.join(cwd, '.safeword/SAFEWORD.md'))).toBe(true);
+
+    const preview = await uninstallLifecycle(invocation(cwd, 'none'));
+    const plan = (preview.data as { readonly plan: { readonly id: string } }).plan.id;
+    const result = await uninstallLifecycle(invocation(cwd, 'none', { yes: true, plan }));
+
+    expect(result.errors).toEqual([]);
+    expect(existsSync(nodePath.join(cwd, '.safeword/SAFEWORD.md'))).toBe(false);
+    expect(profileState.claude).toBe(true);
+    expect(profileState.codex).toBe(true);
+  });
+
   it.each([
     ['codex', 'claude'],
     ['claude', 'codex'],
