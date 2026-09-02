@@ -59,6 +59,8 @@ native action by construction.
 
 ## Process Gaps Found
 
+- **Direct-helper root cause:** enrollment was checked only in the CLI wrapper, while Claude and Cursor invoke the canonical script directly. A real subprocess in an empty repository wrote state and printed success; the equivalent CLI test correctly reported `PROJECT_NOT_ENROLLED`. This rules out namespace resolution and host identity as causes. The shared writer now refuses unenrolled writes before creating either the directory or ignore policy.
+
 - **Runtime-validator root cause:** whole-document single-backtick matching pairs delimiters across fenced code blocks. A later inline `bun .safeword/hooks/...` command is missed, and the line fallback sees the runner as `` `bun `` instead of `bun`. Confirmed by all three generated native catalogues accepting the injected command and a minimized fenced-block-plus-command reproduction. Ruled out host-specific generation (all three fail) and an unrecognized executable path (the identical command alone is rejected). Line-level delimiter normalization fixes the shared scanner without adding a Markdown parser.
 
 - **Fixed here — divergent BDD entry points:** repository-root `test:bdd` composed Cucumber and Vitest-proof provenance, while `packages/cli test:bdd` ran only Cucumber and excluded proof-backed features. Both entry points now compose the same two proof classes, with a contract test preventing drift.

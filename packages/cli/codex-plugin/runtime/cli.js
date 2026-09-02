@@ -47926,6 +47926,9 @@ function recordSkillInvocation(projectDirectory, skillName2, sessionId) {
   if (!SKILL_NAME_PATTERN.test(skillName2)) {
     throw new Error(`Invalid skill name "${skillName2}"`);
   }
+  if (!hasSafewordProjectMarker2(projectDirectory)) {
+    throw new Error("No invocation proof was recorded because this repository is not enrolled.");
+  }
   const proofSessionKey = resolveProofSessionKey({
     projectDirectory,
     skillName: skillName2,

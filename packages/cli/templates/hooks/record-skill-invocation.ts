@@ -8,7 +8,7 @@ import {
   readFreshCodexRunIdentity,
   readFreshCursorRunIdentity,
 } from './lib/cursor-run-identity.ts';
-import { resolveNamespaceRoot } from './lib/namespace-root.ts';
+import { hasSafewordProjectMarker, resolveNamespaceRoot } from './lib/namespace-root.ts';
 import { ensureTransientStateIgnore } from './lib/project-state.ts';
 import { resolveRunIdentity } from './lib/run-identity.ts';
 import { SKILL_INVOCATIONS_LOG } from './lib/skill-invocation-log.ts';
@@ -48,6 +48,9 @@ export function recordSkillInvocation(
 ): void {
   if (!SKILL_NAME_PATTERN.test(skillName)) {
     throw new Error(`Invalid skill name "${skillName}"`);
+  }
+  if (!hasSafewordProjectMarker(projectDirectory)) {
+    throw new Error('No invocation proof was recorded because this repository is not enrolled.');
   }
   const proofSessionKey = resolveProofSessionKey({
     projectDirectory,
