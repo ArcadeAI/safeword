@@ -29,6 +29,14 @@
       "packages/cli/tests/commands/audit-scope.test.ts",
       "executes the installed Cursor audit workflow from project authority"
     ],
+    "A sourced Cursor helper failure preserves the caller shell": [
+      "packages/cli/tests/commands/audit-scope.test.ts",
+      "preserves the caller shell when the sourced Cursor helper cannot resolve a merge base"
+    ],
+    "A sourced Cursor helper exports an empty changed-file list": [
+      "packages/cli/tests/commands/audit-scope.test.ts",
+      "exports an empty changed-file list through the sourced Cursor helper"
+    ],
     "An unavailable pinned package never falls back to project runtime": [
       "packages/cli/tests/integration/self-contained-agent-workflows.test.ts",
       "fails closed when the pinned Codex package is unavailable beside legacy project runtime"

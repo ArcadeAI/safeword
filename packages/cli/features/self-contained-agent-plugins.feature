@@ -15,7 +15,8 @@ Feature: Every agent delivery is self-contained
       When the Technical Builder sources the packaged Codex audit-scope command
       Then the caller shell receives diff mode and the known merge-base SHA
       And the caller shell receives exactly the two changed files
-      And no project installation or dependency change is proposed
+      And the emitted output contains no installation or dependency-change directive
+      And the project still contains no Safeword hooks, skills, scripts, or guides
 
     # Proof boundary: a real Bash caller remains available after the sourced helper returns an error.
     @rejection @surface.openai-codex
@@ -41,7 +42,7 @@ Feature: Every agent delivery is self-contained
       When the Technical Builder invokes the packaged Codex audit workflow
       Then the audit result names the pinned Codex plugin package as its entry point
       And the authored project knowledge remains unchanged
-      And no broader installation is proposed
+      And the emitted output contains no installation directive
 
       Examples:
         | legacy runtime                 |
@@ -54,7 +55,8 @@ Feature: Every agent delivery is self-contained
       Given an enrolled project contains no Safeword hooks, skills, scripts, or guides
       When the Technical Builder invokes the generated OpenCode quality-review workflow
       Then the workflow dispatches a review using its profile-packaged reviewer instructions
-      And no project installation or cross-host runtime is requested
+      And the emitted output contains no installation or cross-host-runtime directive
+      And the project still contains no Safeword hooks, skills, scripts, or guides
 
     @rejection @surface.opencode
     Scenario: Legacy project hooks cannot regain OpenCode workflow authority
@@ -63,13 +65,33 @@ Feature: Every agent delivery is self-contained
       Then the caller receives exit status 2 and an unsupported-output diagnostic
       And the legacy-only marker is absent
 
+    # Proof boundary: a real Bash caller sources Cursor's installed project helper and executes a following command.
     @surface.cursor
     Scenario: A Cursor workflow executes from its complete project authority
       Given a Cursor-only enrolled project has a known merge base and two changed files
       And the project contains no Claude Code, Codex, or OpenCode runtime
       When the Technical Builder invokes the generated Cursor audit workflow
       Then the workflow reports the known merge-base SHA and exactly the two changed files
-      And no cross-host runtime is requested
+      And the emitted output contains no installation or cross-host-runtime directive
+      And no Claude Code, Codex, or OpenCode runtime is created
+
+    # Proof boundary: a real Bash caller remains available after Cursor's sourced project helper returns an error.
+    @rejection @surface.cursor
+    Scenario: A sourced Cursor helper failure preserves the caller shell
+      Given a Cursor-only enrolled project has no resolvable merge base
+      And the project contains no Claude Code, Codex, or OpenCode runtime
+      When the Technical Builder sources the installed Cursor audit helper
+      Then the caller shell reports the merge-base failure and remains available for the next command
+      And no partial diff mode or changed-file values are exported
+
+    # Proof boundary: a real Bash caller sources Cursor's installed project helper and executes a following command.
+    @surface.cursor
+    Scenario: A sourced Cursor helper exports an empty changed-file list
+      Given a Cursor-only enrolled project has a known merge base and no changed files
+      And the project contains no Claude Code, Codex, or OpenCode runtime
+      When the Technical Builder sources the installed Cursor audit helper
+      Then the caller shell receives diff mode, the known merge-base SHA, and an empty changed-file list
+      And the caller shell remains available for the next command
 
     @rejection @surface.openai-codex
     Scenario: An unavailable pinned package never falls back to project runtime
@@ -77,7 +99,8 @@ Feature: Every agent delivery is self-contained
       And the project contains a complete legacy runtime
       When the Technical Builder invokes the packaged Codex workflow
       Then the workflow reports the unavailable pinned package
-      And no project installation, dependency change, or project-local runtime is proposed
+      And the emitted output contains no installation or dependency-change directive
+      And the complete legacy runtime remains unused
 
     # Proof boundary: the generated plugin skill runs through its bundled runtime and a real reviewer subprocess records the dispatch.
     @surface.claude-code
@@ -85,7 +108,8 @@ Feature: Every agent delivery is self-contained
       Given an enrolled project contains no Safeword hooks, skills, scripts, or guides
       When the Technical Builder invokes the generated Claude quality-review workflow through the plugin
       Then the workflow dispatches a review using its packaged reviewer instructions
-      And no project installation or cross-host runtime is requested
+      And the emitted output contains no installation or cross-host-runtime directive
+      And the project still contains no Safeword hooks, skills, scripts, or guides
 
   @self-contained-plugins.TBU1.R2
   Rule: self-contained-plugins.TBU1.R2 — Missing framework state initializes lazily after explicit enrollment
