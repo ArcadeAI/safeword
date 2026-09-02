@@ -3,8 +3,8 @@ id: 2C1E82
 slug: self-contained-agent-plugins
 type: epic
 subtype: bug-investigated
-phase: done
-status: done
+phase: implement
+status: in_progress
 children: ['V2AH4B', 'KDED4X', 'SF0RS0', 'GJB22B', 'JNZ2H5', '1DZ9W8']
 phase_anchors:
   - 'define-behavior: .project/tickets/2C1E82-self-contained-agent-plugins/spec.md'
@@ -26,7 +26,7 @@ done_when:
   - Single-agent and mixed-agent plans contain only declared selected-host requirements.
   - Release coverage rejects undeclared project-local executable references from native plugins.
 created: 2026-08-18T16:58:37.428Z
-last_modified: 2026-08-31T01:35:00.000Z
+last_modified: 2026-09-02T19:43:11.000Z
 ---
 
 # Make each agent's plugin fully self-contained
@@ -102,3 +102,4 @@ native action by construction.
 - 2026-08-30T23:05:00.000Z Audit feedback closed three more process defects instead of suppressing them: principle numbers are no longer part of identity, the audit resolves only the current ticket, completed child lineage no longer makes an active epic ambiguous, and the Go experiment binary is ignored under the name the tool actually emits. Added Gherkin and normally collected Vitest proofs; 131 focused tests and both new behavior scenarios passed.
 - 2026-08-31T01:30:00.000Z Final verification and release-contract repair complete: both full test-suite passes, both BDD entry points, build, typecheck, and dependency scans passed on `4260bfcfd`. Release validation now compares generated Claude output with canonical sources under a deterministic environment; supported lifecycle fixtures were refreshed after the resulting plugin identity change. The diff audit passed with explicit Python experiment coverage limitations and corrected one stale README authority claim.
 - 2026-08-31T01:35:00.000Z Done: recorded exact-head verification, four-agent surface evidence, the clean diff audit, known evidence limits, and the remaining Safeword process follow-ups in `verify.md`.
+- 2026-09-02T19:43:11.000Z Reopened at implementation after the post-completion BDD/TDD quality audit found non-discriminating proof mappings, outline examples that did not alter their fixtures, one out-of-scope scenario, and stale rebased ledger evidence. The repair is limited to real entry-point proof, truthful scenario wording, and durable lineage.

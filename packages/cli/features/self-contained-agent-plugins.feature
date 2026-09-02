@@ -79,7 +79,8 @@ Feature: Every agent delivery is self-contained
 
     @shared-project-state @surface.safeword-cli @surface.openai-codex @surface.claude-code @surface.opencode @surface.cursor
     Scenario Outline: Every host lazily creates missing workflow state and its precise ignore rule
-      Given an enrolled project lacks the framework state directory, transient state file, and project ignore file
+      Given <host> is configured with its declared Safeword authority
+      And the enrolled project lacks the framework state directory, transient state file, and project ignore file
       When the Technical Builder invokes a state-writing <host> workflow for the first time
       Then the framework state directory and project ignore file are created
       And the transient state file never appears in the project's version-control status
@@ -104,8 +105,7 @@ Feature: Every agent delivery is self-contained
     Scenario: Lazy state never invents missing authored knowledge or configuration
       Given an enrolled project lacks authored knowledge and project configuration
       When the Technical Builder invokes a state-writing packaged workflow
-      Then the workflow reports the missing authored inputs
-      And no authored knowledge or project configuration is created
+      Then no authored knowledge or project configuration is created
 
     @shared-project-state @surface.safeword-cli
     Scenario: Lazy state initialization preserves customer ignore policy
@@ -137,7 +137,7 @@ Feature: Every agent delivery is self-contained
 
     @rejection @shared-project-state @surface.safeword-cli
     Scenario Outline: Lifecycle state respects explicit enrollment
-      Given a repository with a Codex profile plugin is <enrollment>
+      Given a repository with a Codex profile plugin is <enrollment> and lacks framework state
       When the Technical Builder triggers a Safeword lifecycle event that attempts to record framework-owned state
       Then <state outcome>
 
@@ -170,7 +170,7 @@ Feature: Every agent delivery is self-contained
       When the Non-Technical Builder previews Safeword installation
       Then the installation plan includes the <agent> profile delivery
       And the plan contains no profile or project delivery for any unselected agent
-      And the project schema contains only enrollment, authored knowledge, configuration, and lazy state
+      And the project schema declares only enrollment, authored knowledge, configuration, and workflow-created lazy state
       And it contains no project-delivered workflow authority
       And the plan creates no framework state directory or transient state file
 
@@ -204,15 +204,15 @@ Feature: Every agent delivery is self-contained
 
     @surface.safeword-cli @surface.cursor @surface.openai-codex
     Scenario: Removing a native selection preserves Cursor and project content
-      Given an enrolled project contains Cursor delivery, an obsolete Codex runtime copy, authored knowledge, and unrelated content
+      Given an enrolled project contains Cursor delivery, an installed Codex profile, authored knowledge, and unrelated content
       When the Non-Technical Builder uninstalls only Codex
-      Then the obsolete Codex runtime copy is removed from the project
+      Then the Codex profile delivery is removed
       And Cursor's project hooks, rules, commands, and skills remain present
       And authored knowledge, enrollment state, and unrelated content remain unchanged
 
     @surface.safeword-cli @surface.openai-codex @surface.cursor
     Scenario: Reconciliation removes an obsolete native runtime while preserving selected authorities
-      Given an enrolled project selects Codex and Cursor and contains an obsolete project-local Codex runtime copy
+      Given an enrolled project selects Codex and Cursor and contains a retired Codex-only project hook
       And the project contains authored knowledge, enrollment state, and unrelated content
       When the Non-Technical Builder reconciles the project
       Then the obsolete Codex runtime copy is removed from the project
@@ -234,16 +234,10 @@ Feature: Every agent delivery is self-contained
       When the Safeword Maintainer runs release validation
       Then validation fails and names the unpinned catalogue asset
 
-    @surface.safeword-cli
-    Scenario: Current-ticket resolution ignores completed child-ticket lineage
-      Given current work changes one in-progress epic and completed child tickets
-      When the Safeword Maintainer resolves the current ticket
-      Then the in-progress epic is selected without treating completed children as competing work
-
     @surface.opencode
     Scenario: OpenCode profile identity records the complete owned catalogue
       Given a generated OpenCode catalogue of plugin, commands, agents, and skills
-      When the Technical Builder installs the profile delivery
+      When the Safeword Maintainer installs the profile delivery
       Then the complete command, agent, skill, and reference catalogue is installed
       And the profile identity records every owned catalogue asset and digest
 
@@ -262,7 +256,7 @@ Feature: Every agent delivery is self-contained
     @rejection @surface.opencode
     Scenario: OpenCode install preserves an unrecognized catalogue collision
       Given an OpenCode profile has unrelated content at a catalogue path with no recorded Safeword identity
-      When the Technical Builder installs the profile delivery
+      When the Safeword Maintainer installs the profile delivery
       Then installation reports the catalogue collision
       And the unrelated profile content remains byte-for-byte unchanged
       And no catalogue asset is installed
@@ -270,7 +264,7 @@ Feature: Every agent delivery is self-contained
     @surface.opencode
     Scenario: OpenCode upgrade removes only prior identity-owned catalogue bytes
       Given an OpenCode profile's recorded prior catalogue includes an asset absent from the current catalogue
-      When the Technical Builder upgrades the profile delivery
+      When the Safeword Maintainer upgrades the profile delivery
       Then current identity-owned assets are replaced by the current catalogue
       And the retired identity-owned asset is removed
       And unrelated profile content remains unchanged
@@ -278,7 +272,7 @@ Feature: Every agent delivery is self-contained
     @rejection @surface.opencode
     Scenario: OpenCode upgrade preserves a drifted catalogue asset
       Given an identity-owned OpenCode catalogue asset differs from its recorded digest
-      When the Technical Builder upgrades the profile delivery
+      When the Safeword Maintainer upgrades the profile delivery
       Then upgrade reports managed-asset drift
       And the edited asset and unrelated profile content remain unchanged
       And no other identity-owned catalogue asset is changed
@@ -286,14 +280,14 @@ Feature: Every agent delivery is self-contained
     @surface.opencode
     Scenario: OpenCode uninstall removes its recognized catalogue
       Given an OpenCode profile contains an unchanged identity-owned catalogue
-      When the Technical Builder uninstalls the OpenCode profile delivery
+      When the Safeword Maintainer uninstalls the OpenCode profile delivery
       Then every identity-owned catalogue asset is removed
       And unrelated profile content remains unchanged
 
     @rejection @surface.opencode
     Scenario: OpenCode uninstall preserves drifted catalogue content
       Given an identity-owned OpenCode catalogue asset differs from its recorded digest
-      When the Technical Builder uninstalls the OpenCode profile delivery
+      When the Safeword Maintainer uninstalls the OpenCode profile delivery
       Then uninstall reports managed-asset drift
       And the edited asset and unrelated profile content remain unchanged
       And no other managed profile content is removed
