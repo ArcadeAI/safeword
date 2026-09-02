@@ -48744,7 +48744,7 @@ async function executeReview(reviewer, prepared, model, runDeadline) {
     prepared.cleanup();
   }
 }
-function assessFallback(outcome, reviewer, dispatchId) {
+function assessReviewOutcome(outcome, reviewer, dispatchId) {
   if (outcome.kind === "failed")
     return outcome;
   const provenance = verifyProvenance(outcome.output, reviewer, dispatchId);
@@ -48778,8 +48778,6 @@ function nextStepFor(reviewer, failure) {
     return `Run ${name} --help to diagnose it, then retry review.`;
   if (failure === "launch_failed")
     return `Run ${name} --help and fix its launch failure, then retry review.`;
-  if (failure === "not_authenticated")
-    return `Sign in to ${name}, then run the review again.`;
   return "Run the review again.";
 }
 function degradedDescription(assignedReviewer, actualReviewer, failure) {
@@ -48987,7 +48985,7 @@ async function runDegradedFallback(input) {
   });
   if (changedResult !== undefined)
     return changedResult;
-  const assessment = assessFallback(outcome, input.author, prepared.packet.dispatch_id);
+  const assessment = assessReviewOutcome(outcome, input.author, prepared.packet.dispatch_id);
   if (assessment.kind === "failed") {
     return createResult({
       state: "action_required",
@@ -49138,9 +49136,9 @@ async function runAlternateModelRoute(input) {
   });
   if (changedResult !== undefined)
     return { kind: "completed", result: changedResult };
-  const assessment = assessFallback(outcome, input.reviewer, prepared.packet.dispatch_id);
+  const assessment = assessReviewOutcome(outcome, input.reviewer, prepared.packet.dispatch_id);
   if (assessment.kind === "failed") {
-    return failedAlternateModelRoute(input, model, assessment);
+    return resolveAlternateModelFailure(input, model, assessment);
   }
   const output = assessment.output;
   const result = independentReviewResult({
@@ -49153,7 +49151,7 @@ async function runAlternateModelRoute(input) {
   });
   return { kind: "completed", result };
 }
-function failedAlternateModelRoute(input, model, assessment) {
+function resolveAlternateModelFailure(input, model, assessment) {
   if (ALTERNATE_MODEL_SKIP_FAILURES.has(assessment.failure))
     return { kind: "skipped" };
   if (assessment.failure !== "not_authenticated")
