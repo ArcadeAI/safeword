@@ -72,7 +72,7 @@ describe('review route policy', () => {
     );
   });
 
-  it('ignores routes for unknown future authors', () => {
+  it('rejects unknown author keys instead of silently ignoring a typo', () => {
     const cwd = project({
       crossAgentReviewRoutes: {
         claude: [{ reviewer: 'codex' }],
@@ -80,9 +80,9 @@ describe('review route policy', () => {
       },
     });
 
-    expect(readConfiguredReviewRoutes(cwd, 'claude')).toEqual([
-      { reviewer: 'codex', independence: 'cross-agent' },
-    ]);
+    expect(() => readConfiguredReviewRoutes(cwd, 'claude')).toThrow(
+      '.future author is unsupported',
+    );
   });
 
   it('leaves the existing plan in authority when ordered routes are absent', () => {

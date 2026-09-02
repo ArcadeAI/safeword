@@ -771,11 +771,15 @@ function reviewRoutesFailure(command: string, error: unknown): CliResult {
   const invalid =
     message.startsWith('Invalid ') ||
     message.startsWith('Cannot locate the Safeword user configuration directory.');
+  const readFailure = command === 'review routes list' && !invalid;
+  let code = 'REVIEW_ROUTE_CONFIG_WRITE_FAILED';
+  if (invalid) code = 'REVIEW_ROUTE_CONFIG_INVALID';
+  else if (readFailure) code = 'REVIEW_ROUTE_CONFIG_READ_FAILED';
   return createResult({
     state: 'failed',
     errors: [
       {
-        code: invalid ? 'REVIEW_ROUTE_CONFIG_INVALID' : 'REVIEW_ROUTE_CONFIG_WRITE_FAILED',
+        code,
         message,
         retryable: !invalid,
       },

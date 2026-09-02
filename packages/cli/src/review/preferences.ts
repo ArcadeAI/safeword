@@ -56,9 +56,18 @@ export function scopedConfigPath(cwd: string, scope: ReviewRouteScope): string {
 
 export function readConfigFile(path: string): Record<string, unknown> {
   if (!existsSync(path)) return {};
+  let contents: string;
+  try {
+    contents = readFileSync(path, 'utf8');
+  } catch (error) {
+    throw new Error(
+      `Unable to read Safeword configuration at ${path}: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error },
+    );
+  }
   let parsed: unknown;
   try {
-    parsed = JSON.parse(readFileSync(path, 'utf8'));
+    parsed = JSON.parse(contents);
   } catch {
     throw new Error(`Invalid Safeword configuration at ${path}: expected valid JSON.`);
   }

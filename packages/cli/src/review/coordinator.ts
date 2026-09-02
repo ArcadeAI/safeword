@@ -551,6 +551,7 @@ function rankedAuthenticationRequiredResult(input: {
   readonly policy: ReviewPolicy;
   readonly route: ReviewRoute;
   readonly evidence: readonly RankedRouteEvidence[];
+  readonly degraded?: { readonly output: ReviewerOutput; readonly route: ReviewRoute };
 }): CliResult {
   const result = authenticationRequiredResult({
     author: input.author,
@@ -558,11 +559,23 @@ function rankedAuthenticationRequiredResult(input: {
     preferredModel: input.route.model,
     preferredFailure: 'not_authenticated',
     policy: input.policy,
+    degradedReviewRecorded: input.degraded !== undefined,
   });
   return {
     ...result,
+    findings: [
+      ...result.findings,
+      ...(input.degraded ? reviewerFeedback(input.degraded.output) : []),
+    ],
     effects: { ...result.effects, network: rankedNetworkEffects(input.evidence) },
-    data: { ...(result.data as Record<string, unknown>), review_routes: input.evidence },
+    data: {
+      ...(result.data as Record<string, unknown>),
+      review_routes: input.evidence,
+      ...(input.degraded !== undefined && {
+        actual_reviewer: input.degraded.output.reviewer_agent,
+        reviewer_output: input.degraded.output,
+      }),
+    },
   };
 }
 
@@ -849,14 +862,18 @@ function authenticationRequiredResult(input: {
   readonly alternateFailure?: ReviewFailure;
   readonly alternateModel?: string;
   readonly policy: ReviewPolicy;
+  readonly degradedReviewRecorded?: boolean;
 }): CliResult {
   const reviewer = agentName(input.assignedReviewer);
+  const evidenceMessage = input.degradedReviewRecorded
+    ? 'A same-agent review completed, but no independent evidence was recorded.'
+    : 'No fallback or review evidence was recorded.';
   return createResult({
     state: 'action_required',
     findings: [
       {
         code: 'REVIEW_AUTHENTICATION_REQUIRED',
-        message: `The independent ${reviewer} review needs authentication. Reauthenticate ${reviewer}, then retry the same review; no fallback or review evidence was recorded.`,
+        message: `The independent ${reviewer} review needs authentication. Reauthenticate ${reviewer}, then retry the same review. ${evidenceMessage}`,
         severity: 'warning',
       },
     ],
@@ -880,7 +897,7 @@ function authenticationRequiredResult(input: {
       assigned_reviewer: input.assignedReviewer,
       ...routeFailureData(input),
       review_policy: input.policy,
-      independence: 'none',
+      independence: input.degradedReviewRecorded ? 'degraded' : 'none',
     },
   });
 }

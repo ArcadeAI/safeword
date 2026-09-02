@@ -10,7 +10,7 @@ import {
 } from 'node:fs';
 import nodePath from 'node:path';
 
-import { afterAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { createTemporaryDirectory, runCli } from '../helpers.js';
 import { createTrustedReviewerDirectory } from '../review-fixtures.js';
@@ -18,9 +18,18 @@ import { createTrustedReviewerDirectory } from '../review-fixtures.js';
 type ReviewAgent = 'claude' | 'codex' | 'opencode';
 
 const trustedReviewerRoots = new Map<string, string>();
+const isolatedUserConfig = createTemporaryDirectory();
+const previousXdgConfigHome = process.env.XDG_CONFIG_HOME;
+
+beforeAll(() => {
+  process.env.XDG_CONFIG_HOME = isolatedUserConfig;
+});
 
 afterAll(() => {
   for (const root of trustedReviewerRoots.values()) rmSync(root, { recursive: true, force: true });
+  rmSync(isolatedUserConfig, { recursive: true, force: true });
+  if (previousXdgConfigHome === undefined) delete process.env.XDG_CONFIG_HOME;
+  else process.env.XDG_CONFIG_HOME = previousXdgConfigHome;
 });
 
 function trustedReviewerRoot(directory: string): string {
@@ -331,7 +340,7 @@ describe('cross-agent review public-command wiring', () => {
       expect(JSON.parse(result.stdout)).toMatchObject({
         state: 'failed',
         errors: [{ code: 'REVIEW_JOB_NOT_FOUND' }],
-        data: { command: 'review cancel' },
+        data: { command: `review ${command}` },
       });
     },
   );
@@ -2837,6 +2846,67 @@ describe('cross-agent review public-command wiring', () => {
           { reviewer: 'codex', model: 'model-a', failure: 'unsupported' },
           { reviewer: 'codex', status: 'attempted' },
         ],
+      },
+    });
+  });
+
+  it('executes the exact route order written to the user profile', async () => {
+    const directory = createTemporaryDirectory();
+    const profile = nodePath.join(directory, 'profile');
+    const log = nodePath.join(directory, 'review.log');
+    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+    const bin = installFakeReviewer(directory, 'opencode');
+    const environment = {
+      XDG_CONFIG_HOME: profile,
+      SAFEWORD_AGENT_RUNTIME: 'claude',
+      SAFEWORD_NO_UPDATE_CHECK: '1',
+    };
+
+    const configured = await runCli(
+      [
+        'review',
+        'routes',
+        'set',
+        '--author',
+        'claude',
+        '--route',
+        'opencode',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      { cwd: directory, env: environment },
+    );
+    expect(configured.exitCode, configured.stdout).toBe(0);
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'review-input.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          ...environment,
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_REVIEW_LOG: log,
+        },
+      },
+    );
+
+    expect(result.exitCode, result.stdout).toBe(0);
+    expect(readFileSync(log, 'utf8')).toBe('opencode\n');
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      data: {
+        assigned_reviewer: 'opencode',
+        review_routes: [{ reviewer: 'opencode', independence: 'cross-agent', status: 'attempted' }],
       },
     });
   });

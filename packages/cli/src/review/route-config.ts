@@ -26,6 +26,11 @@ export function parseConfiguredReviewRoutes(
   if (configured === undefined) return undefined;
   if (!isRecord(configured) || Array.isArray(configured))
     throw configError('must be an object', source);
+  const unsupportedAuthor = Object.keys(configured).find(
+    key => !REVIEW_AGENTS.has(key as ReviewAgent),
+  );
+  if (unsupportedAuthor !== undefined)
+    throw configError(`.${unsupportedAuthor} author is unsupported`, source);
   const values = configured[author];
   if (values === undefined) return undefined;
   if (!Array.isArray(values) || values.length === 0)

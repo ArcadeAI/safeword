@@ -183,4 +183,18 @@ describe('review routes CLI wiring', () => {
       errors: [{ code: 'REVIEW_ROUTE_CONFIG_WRITE_FAILED', retryable: true }],
     });
   });
+
+  it('reports route-list read failures as read failures', async () => {
+    const root = createTemporaryDirectory();
+    directories.push(root);
+    mkdirSync(nodePath.join(root, '.safeword', 'config.json'), { recursive: true });
+
+    const result = await invoke(root, ['review', 'routes', 'list', '--author', 'claude']);
+
+    expect(result).toMatchObject({
+      state: 'failed',
+      errors: [{ code: 'REVIEW_ROUTE_CONFIG_READ_FAILED', retryable: true }],
+      data: { command: 'review routes list' },
+    });
+  });
 });

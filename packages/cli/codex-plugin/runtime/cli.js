@@ -36731,6 +36731,9 @@ function parseConfiguredReviewRoutes(config, author, source) {
     return;
   if (!isRecord4(configured) || Array.isArray(configured))
     throw configError("must be an object", source);
+  const unsupportedAuthor = Object.keys(configured).find((key) => !REVIEW_AGENTS2.has(key));
+  if (unsupportedAuthor !== undefined)
+    throw configError(`.${unsupportedAuthor} author is unsupported`, source);
   const values = configured[author];
   if (values === undefined)
     return;
@@ -36823,9 +36826,15 @@ function scopedConfigPath(cwd, scope) {
 function readConfigFile(path4) {
   if (!existsSync29(path4))
     return {};
+  let contents;
+  try {
+    contents = readFileSync31(path4, "utf8");
+  } catch (error2) {
+    throw new Error(`Unable to read Safeword configuration at ${path4}: ${error2 instanceof Error ? error2.message : String(error2)}`, { cause: error2 });
+  }
   let parsed2;
   try {
-    parsed2 = JSON.parse(readFileSync31(path4, "utf8"));
+    parsed2 = JSON.parse(contents);
   } catch {
     throw new Error(`Invalid Safeword configuration at ${path4}: expected valid JSON.`);
   }
@@ -50778,12 +50787,21 @@ function rankedAuthenticationRequiredResult(input) {
     assignedReviewer: input.route.reviewer,
     preferredModel: input.route.model,
     preferredFailure: "not_authenticated",
-    policy: input.policy
+    policy: input.policy,
+    degradedReviewRecorded: input.degraded !== undefined
   });
   return {
     ...result,
+    findings: [...result.findings, ...input.degraded ? reviewerFeedback(input.degraded.output) : []],
     effects: { ...result.effects, network: rankedNetworkEffects(input.evidence) },
-    data: { ...result.data, review_routes: input.evidence }
+    data: {
+      ...result.data,
+      review_routes: input.evidence,
+      ...input.degraded !== undefined && {
+        actual_reviewer: input.degraded.output.reviewer_agent,
+        reviewer_output: input.degraded.output
+      }
+    }
   };
 }
 function rankedFailureResult(input) {
@@ -50977,12 +50995,13 @@ function routeFailureData(input) {
 }
 function authenticationRequiredResult(input) {
   const reviewer = agentName(input.assignedReviewer);
+  const evidenceMessage = input.degradedReviewRecorded ? "A same-agent review completed, but no independent evidence was recorded." : "No fallback or review evidence was recorded.";
   return createResult({
     state: "action_required",
     findings: [
       {
         code: "REVIEW_AUTHENTICATION_REQUIRED",
-        message: `The independent ${reviewer} review needs authentication. Reauthenticate ${reviewer}, then retry the same review; no fallback or review evidence was recorded.`,
+        message: `The independent ${reviewer} review needs authentication. Reauthenticate ${reviewer}, then retry the same review. ${evidenceMessage}`,
         severity: "warning"
       }
     ],
@@ -51006,7 +51025,7 @@ function authenticationRequiredResult(input) {
       assigned_reviewer: input.assignedReviewer,
       ...routeFailureData(input),
       review_policy: input.policy,
-      independence: "none"
+      independence: input.degradedReviewRecorded ? "degraded" : "none"
     }
   });
 }
@@ -67166,11 +67185,17 @@ function reviewRouteAuthor(value) {
 function reviewRoutesFailure(command, error2) {
   const message = error2 instanceof Error ? error2.message : "Review route configuration is invalid.";
   const invalid = message.startsWith("Invalid ") || message.startsWith("Cannot locate the Safeword user configuration directory.");
+  const readFailure = command === "review routes list" && !invalid;
+  let code = "REVIEW_ROUTE_CONFIG_WRITE_FAILED";
+  if (invalid)
+    code = "REVIEW_ROUTE_CONFIG_INVALID";
+  else if (readFailure)
+    code = "REVIEW_ROUTE_CONFIG_READ_FAILED";
   return createResult({
     state: "failed",
     errors: [
       {
-        code: invalid ? "REVIEW_ROUTE_CONFIG_INVALID" : "REVIEW_ROUTE_CONFIG_WRITE_FAILED",
+        code,
         message,
         retryable: !invalid
       }
