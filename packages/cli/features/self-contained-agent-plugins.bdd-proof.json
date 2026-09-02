@@ -159,7 +159,7 @@
     ],
     "A cross-host executable reference blocks Cursor release": [
       "packages/cli/tests/cursor/runtime-authority.test.ts",
-      "rejects a Cursor executable reference to another host's runtime"
+      "rejects cross-host runtime regardless of command shape: %s"
     ],
     "OpenCode install preserves an unrecognized catalogue collision": [
       "packages/cli/tests/opencode/profile.test.ts",

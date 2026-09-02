@@ -13,7 +13,6 @@ const UNAVAILABLE_NATIVE_PROJECT_PATHS = [
   '.safeword/templates/',
   '.claude/skills/',
 ] as const;
-const EXECUTABLE_RUNNERS = new Set(['bun', 'node', 'bash', 'sh', 'source', 'exec']);
 const CROSS_HOST_RUNTIME_MARKERS = [
   'CLAUDE_PLUGIN_ROOT',
   'CODEX_HOME',
@@ -24,17 +23,14 @@ const CROSS_HOST_RUNTIME_MARKERS = [
 ] as const;
 
 function isCrossHostRuntimeCommand(content: string): boolean {
-  const segments = content
-    .replaceAll(/\\\r?\n\s*/gu, ' ')
-    .split(/\r?\n/u)
-    .map(line => line.replaceAll('`', ''));
-  return segments.some(segment => {
-    const tokens = segment.trim().split(/\s+/u);
-    return (
-      tokens.some(token => EXECUTABLE_RUNNERS.has(token)) &&
-      CROSS_HOST_RUNTIME_MARKERS.some(marker => segment.includes(marker))
-    );
-  });
+  // The shared retro/audit guidance reads transcript data and project guidance
+  // from other hosts. Exempt those specific data roots, not whole lines or
+  // assets: a neighboring runtime reference must still fail the release gate.
+  const runtimeReferences = content
+    .replaceAll('.claude/projects/', '')
+    .replaceAll('.claude/CLAUDE.md', '')
+    .replaceAll('${CODEX_HOME:-$HOME/.codex}/sessions', '');
+  return CROSS_HOST_RUNTIME_MARKERS.some(marker => runtimeReferences.includes(marker));
 }
 
 /** Release invariant for native-plugin workflow catalogues. */

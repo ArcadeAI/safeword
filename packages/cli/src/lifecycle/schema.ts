@@ -6,6 +6,8 @@ import { schemaForCodexDelivery } from '../codex-plugin/delivery-schema.js';
 import { generateOwnedPathsModule, resolvedNamespaceDirectory } from '../owned-paths.js';
 import {
   filterSchemaPaths,
+  isCursorProjectPath,
+  isSharedAgentRuntimePath,
   SAFEWORD_SCHEMA,
   type SafewordSchema,
   schemaForProjectSurfaces,
@@ -64,42 +66,68 @@ function installedCursorActive(cwd: string): boolean {
   );
 }
 
-function profileOnlyUninstallSchema(schema: SafewordSchema): SafewordSchema {
+function preserveSharedProjectSchema(
+  schema: SafewordSchema,
+  keepPath: (path: string) => boolean = () => false,
+): SafewordSchema {
   return {
-    ...filterSchemaPaths(schema, () => false),
+    ...filterSchemaPaths(schema, keepPath),
     deprecatedPackages: [],
     packages: { base: [], conditional: {} },
   };
+}
+
+function retainedHostUninstallSchema(
+  cwd: string,
+  schema: SafewordSchema,
+  selected: ReadonlySet<string>,
+  legacyClaudeInstalled: boolean,
+  remainingNativeProfile: boolean,
+): SafewordSchema | undefined {
+  if (!selected.has('cursor') && installedCursorActive(cwd)) {
+    return preserveSharedProjectSchema(schema);
+  }
+  const remainingLegacyClaude = legacyClaudeInstalled && !selected.has('claude');
+  if (!remainingNativeProfile && !remainingLegacyClaude) return undefined;
+  // Retain shared enrollment, configuration, and dependencies. Only remove the
+  // selected host's payload; native profiles do not need shared executables.
+  return preserveSharedProjectSchema(schema, path => {
+    if (isSharedAgentRuntimePath(path)) return selected.has('cursor') && !remainingLegacyClaude;
+    return (
+      (selected.has('cursor') && isCursorProjectPath(path)) ||
+      (selected.has('claude') && isLegacyClaudePath(path))
+    );
+  });
 }
 
 export function projectLifecycleSchema(
   cwd: string,
   agents: readonly string[],
   operation: 'check' | 'install' | 'uninstall' = 'check',
+  remainingNativeProfile = false,
 ): SafewordSchema {
   const claudeDeliverySchema = schemaForClaudeDelivery(cwd);
   const selected = new Set(agents);
   const legacyClaudeInstalled = hasLegacyClaudeDelivery(claudeDeliverySchema);
   const legacyClaudeActive = selected.has('claude') && legacyClaudeInstalled;
-  const openCodeSchema = selectedDeliverySchema(claudeDeliverySchema, selected);
-  const deliverySchema = schemaForCodexDelivery(cwd, openCodeSchema);
+  const selectedSchema = selectedDeliverySchema(claudeDeliverySchema, selected);
+  const deliverySchema = schemaForCodexDelivery(cwd, selectedSchema);
   const surfaceSchema = schemaForProjectSurfaces(deliverySchema, selectedProjectSurfaces(selected));
-  // Removing one native profile must not turn into a project uninstall while
-  // Cursor still owns the selected project authority. There is no native
-  // Codex/Claude/OpenCode project payload to remove in this state.
-  if (operation === 'uninstall' && !selected.has('cursor') && installedCursorActive(cwd)) {
-    return profileOnlyUninstallSchema(surfaceSchema);
+  if (operation === 'uninstall') {
+    const retained = retainedHostUninstallSchema(
+      cwd,
+      surfaceSchema,
+      selected,
+      legacyClaudeInstalled,
+      remainingNativeProfile,
+    );
+    if (retained !== undefined) return retained;
   }
   // Native Codex, Claude, and OpenCode distributions own their executable
   // workflow assets. Cursor is the only selected host whose declared authority
   // remains project-delivered; an observed legacy Claude install keeps its
   // runtime until the migration proves replacement.
-  const remainingHostNeedsRuntime =
-    operation === 'uninstall' && !selected.has('claude') && legacyClaudeInstalled;
   return withSelectedOwnedPaths(
-    schemaForSharedAgentRuntime(
-      surfaceSchema,
-      !remainingHostNeedsRuntime && sharedRuntimeNeeded(selected, legacyClaudeActive),
-    ),
+    schemaForSharedAgentRuntime(surfaceSchema, sharedRuntimeNeeded(selected, legacyClaudeActive)),
   );
 }

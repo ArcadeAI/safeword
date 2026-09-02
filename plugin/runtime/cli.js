@@ -34709,26 +34709,40 @@ function installedCursorActive(cwd) {
   const cursorSchema = schemaForProjectSurfaces(SAFEWORD_SCHEMA, ["cursor"]);
   return [...Object.keys(cursorSchema.ownedFiles), ...Object.keys(cursorSchema.jsonMerges)].some((path4) => path4.startsWith(".cursor/") && existsSync29(nodePath51.join(cwd, path4)));
 }
-function profileOnlyUninstallSchema(schema) {
+function preserveSharedProjectSchema(schema, keepPath = () => false) {
   return {
-    ...filterSchemaPaths(schema, () => false),
+    ...filterSchemaPaths(schema, keepPath),
     deprecatedPackages: [],
     packages: { base: [], conditional: {} }
   };
 }
-function projectLifecycleSchema(cwd, agents, operation = "check") {
+function retainedHostUninstallSchema(cwd, schema, selected, legacyClaudeInstalled, remainingNativeProfile) {
+  if (!selected.has("cursor") && installedCursorActive(cwd)) {
+    return preserveSharedProjectSchema(schema);
+  }
+  const remainingLegacyClaude = legacyClaudeInstalled && !selected.has("claude");
+  if (!remainingNativeProfile && !remainingLegacyClaude)
+    return;
+  return preserveSharedProjectSchema(schema, (path4) => {
+    if (isSharedAgentRuntimePath(path4))
+      return selected.has("cursor") && !remainingLegacyClaude;
+    return selected.has("cursor") && isCursorProjectPath(path4) || selected.has("claude") && isLegacyClaudePath(path4);
+  });
+}
+function projectLifecycleSchema(cwd, agents, operation = "check", remainingNativeProfile = false) {
   const claudeDeliverySchema = schemaForClaudeDelivery(cwd);
   const selected = new Set(agents);
   const legacyClaudeInstalled = hasLegacyClaudeDelivery(claudeDeliverySchema);
   const legacyClaudeActive = selected.has("claude") && legacyClaudeInstalled;
-  const openCodeSchema = selectedDeliverySchema(claudeDeliverySchema, selected);
-  const deliverySchema = schemaForCodexDelivery(cwd, openCodeSchema);
+  const selectedSchema = selectedDeliverySchema(claudeDeliverySchema, selected);
+  const deliverySchema = schemaForCodexDelivery(cwd, selectedSchema);
   const surfaceSchema = schemaForProjectSurfaces(deliverySchema, selectedProjectSurfaces(selected));
-  if (operation === "uninstall" && !selected.has("cursor") && installedCursorActive(cwd)) {
-    return profileOnlyUninstallSchema(surfaceSchema);
+  if (operation === "uninstall") {
+    const retained = retainedHostUninstallSchema(cwd, surfaceSchema, selected, legacyClaudeInstalled, remainingNativeProfile);
+    if (retained !== undefined)
+      return retained;
   }
-  const remainingHostNeedsRuntime = operation === "uninstall" && !selected.has("claude") && legacyClaudeInstalled;
-  return withSelectedOwnedPaths(schemaForSharedAgentRuntime(surfaceSchema, !remainingHostNeedsRuntime && sharedRuntimeNeeded(selected, legacyClaudeActive)));
+  return withSelectedOwnedPaths(schemaForSharedAgentRuntime(surfaceSchema, sharedRuntimeNeeded(selected, legacyClaudeActive)));
 }
 var init_schema2 = __esm(() => {
   init_delivery_schema();
@@ -40136,7 +40150,7 @@ var init_integrations = __esm(() => {
       async observePrecondition(context) {
         const { claudeInstallRequiresMutation: claudeInstallRequiresMutation2, observeClaudeProfile: observeClaudeProfile2 } = await Promise.resolve().then(() => (init_profile(), exports_profile));
         return {
-          ...observeClaudeProfile2(context.cwd, context.scope),
+          ...observeClaudeProfile2(context.cwd, context.agents.includes("claude") ? context.scope : undefined),
           ...context.operation === "install" && {
             installRequired: claudeInstallRequiresMutation2(context.cwd, context.scope)
           }
@@ -43458,8 +43472,8 @@ async function installLifecycle(invocation, adapters) {
 function serializedProfilePreconditions(cwd, observations) {
   return JSON.stringify(observations, (_key, value) => typeof value === "string" ? value.replaceAll(cwd, "<project>") : value);
 }
-async function profilePreconditions(cwd, agents, scope, operation) {
-  const observations = await coordinateSelectedIntegrations(PRODUCTION_INTEGRATIONS, agents, async (adapter) => {
+async function profilePreconditions(cwd, agents, scope, operation, observedAgents = agents) {
+  const observations = await coordinateSelectedIntegrations(PRODUCTION_INTEGRATIONS, observedAgents, async (adapter) => {
     if (!adapter.profile.available)
       return false;
     return {
@@ -43477,15 +43491,11 @@ async function profilePreconditions(cwd, agents, scope, operation) {
 async function prepareLifecycle(cwd, operation, agents, options = {}) {
   const { full = false, install: installOptions = {}, scope = "project" } = options;
   const uninstalling = operation === "uninstall";
-  const projectSchema = projectLifecycleSchema(cwd, agents, operation);
-  const uninstallOperation = full ? "uninstall-full" : "uninstall";
-  const project = uninstalling ? await createReconciliationPlan(cwd, uninstallOperation, projectSchema) : {
-    plan: await createSetupPlan(cwd, projectSchema, installOptions),
-    dryRun: undefined
-  };
-  const observations = await profilePreconditions(cwd, agents, scope, operation);
+  const selected = new Set(agents);
+  const observedAgents = uninstalling ? PRODUCTION_INTEGRATIONS.map((adapter) => adapter.id) : agents;
+  const observations = await profilePreconditions(cwd, agents, scope, operation, observedAgents);
   const observationByAgent = new Map(observations.map((observation) => [observation.agent, observation.observation]));
-  const integrationSurfaces = await coordinateSelectedIntegrations(PRODUCTION_INTEGRATIONS, agents, async (adapter) => ({
+  const observedSurfaces = await coordinateSelectedIntegrations(PRODUCTION_INTEGRATIONS, observedAgents, async (adapter) => ({
     name: adapter.id,
     effects: await adapter.effects({
       cwd,
@@ -43495,6 +43505,14 @@ async function prepareLifecycle(cwd, operation, agents, options = {}) {
       observation: observationByAgent.get(adapter.id)
     })
   }));
+  const remainingNativeProfile = observedSurfaces.some((surface) => !selected.has(surface.name) && surface.effects.destructive.length > 0);
+  const projectSchema = projectLifecycleSchema(cwd, agents, operation, remainingNativeProfile);
+  const uninstallOperation = full ? "uninstall-full" : "uninstall";
+  const project = uninstalling ? await createReconciliationPlan(cwd, uninstallOperation, projectSchema) : {
+    plan: await createSetupPlan(cwd, projectSchema, installOptions),
+    dryRun: undefined
+  };
+  const integrationSurfaces = observedSurfaces.filter((surface) => selected.has(surface.name));
   const surfaces = [{ name: "project", effects: project.plan.effects }, ...integrationSurfaces];
   const preconditionDigest2 = createHash21("sha256").update(JSON.stringify([
     project.plan.preconditionDigest,

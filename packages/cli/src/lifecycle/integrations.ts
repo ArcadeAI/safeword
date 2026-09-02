@@ -306,7 +306,10 @@ const claude = defineIntegrationAdapter({
       const { claudeInstallRequiresMutation, observeClaudeProfile } =
         await import('../claude-plugin/profile.js');
       return {
-        ...observeClaudeProfile(context.cwd, context.scope),
+        ...observeClaudeProfile(
+          context.cwd,
+          context.agents.includes('claude') ? context.scope : undefined,
+        ),
         ...(context.operation === 'install' && {
           installRequired: claudeInstallRequiresMutation(context.cwd, context.scope),
         }),

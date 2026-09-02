@@ -149,6 +149,22 @@ afterEach(() => {
 });
 
 describe('packaged audit scope command', () => {
+  it('returns byte-exact shell source without incidental stdout', () => {
+    const { project } = createEnrolledFeatureBranch();
+    const result = spawnSync('bun', [cli, 'project', 'audit-scope'], {
+      cwd: project,
+      env: process.env,
+      encoding: 'utf8',
+    });
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toBe(
+      readFileSync(
+        nodePath.resolve(import.meta.dirname, '../../templates/hooks/lib/audit-scope.sh'),
+        'utf8',
+      ),
+    );
+  });
+
   it('executes the shared-shell helper without project runtime', () => {
     const { project, mergeBase } = createEnrolledFeatureBranch();
 
