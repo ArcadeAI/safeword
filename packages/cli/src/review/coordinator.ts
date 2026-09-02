@@ -493,6 +493,7 @@ async function runRankedRoutes(
 
   for (let index = 0; index < routes.length; index += 1) {
     const route = routes[index];
+    if (route === undefined) break;
     if (unavailable.has(route.reviewer)) {
       evidence.push({ ...route, status: 'skipped' });
       continue;
