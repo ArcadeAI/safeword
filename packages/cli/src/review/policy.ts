@@ -16,6 +16,12 @@ export interface ReviewRoutePlan {
   readonly degradedFallback: ReviewAgent;
 }
 
+export interface ReviewRoute {
+  readonly reviewer: ReviewAgent;
+  readonly model?: string;
+  readonly independence: 'cross-agent' | 'degraded';
+}
+
 export function reviewRoutePlan(author: ReviewAuthor): ReviewRoutePlan | undefined {
   if (author === 'claude') {
     return {
@@ -61,6 +67,104 @@ const MODEL_NAME = /^[\w.:/][\w.:/-]{0,199}$/u;
 
 const DEFAULT_PRIMARY_MODEL: Partial<Record<ReviewAgent, string>> = { claude: 'opus' };
 const DEFAULT_ALTERNATE_MODEL: Partial<Record<ReviewAgent, string>> = { claude: 'sonnet' };
+
+const REVIEW_AGENTS = new Set<ReviewAgent>(['claude', 'codex', 'opencode']);
+
+/**
+ * Read the user's exact route order, or compile the legacy fixed plan when the
+ * ordered setting is absent. An invalid ordered setting is an action-required
+ * configuration error; silently falling back would run a route the user did
+ * not authorize.
+ */
+export function readReviewRoutes(cwd: string, author: ReviewAuthor): readonly ReviewRoute[] {
+  const plan = reviewRoutePlan(author);
+  if (plan === undefined) return [];
+
+  return readConfiguredReviewRoutes(cwd, author) ?? legacyReviewRoutes(cwd, plan);
+}
+
+export function readConfiguredReviewRoutes(
+  cwd: string,
+  author: ReviewAuthor,
+): readonly ReviewRoute[] | undefined {
+  const plan = reviewRoutePlan(author);
+  if (plan === undefined) return undefined;
+  const config = readProjectConfig(cwd);
+  if (!Object.hasOwn(config, 'crossAgentReviewRoutes')) return undefined;
+
+  const configuredRoutes = config.crossAgentReviewRoutes;
+  if (!isRecord(configuredRoutes)) throw routeConfigError('must be an object');
+  for (const configuredAuthor of Object.keys(configuredRoutes)) {
+    if (!REVIEW_AGENTS.has(configuredAuthor as ReviewAgent)) {
+      throw routeConfigError(`contains unsupported author "${configuredAuthor}"`);
+    }
+  }
+
+  const authorRoutes = configuredRoutes[plan.author];
+  if (!Array.isArray(authorRoutes) || authorRoutes.length === 0) {
+    throw routeConfigError(`.${plan.author} must be a non-empty array`);
+  }
+
+  return authorRoutes.map((value, index) => parseReviewRoute(value, index, plan.author));
+}
+
+function legacyReviewRoutes(cwd: string, plan: ReviewRoutePlan): readonly ReviewRoute[] {
+  const primaryModel = readPrimaryReviewerModel(cwd, plan.preferred);
+  const alternateModel = readAlternateReviewerModel(cwd, plan.preferred);
+  return [
+    reviewRoute(plan.preferred, primaryModel, plan.author),
+    reviewRoute(plan.preferred, alternateModel, plan.author),
+    reviewRoute(plan.independentFallback, undefined, plan.author),
+    reviewRoute(plan.degradedFallback, undefined, plan.author),
+  ];
+}
+
+function parseReviewRoute(value: unknown, index: number, author: ReviewAgent): ReviewRoute {
+  if (!isRecord(value) || Array.isArray(value)) {
+    throw routeConfigError(`.${author}[${index}] must be an object`);
+  }
+  const reviewer = value.reviewer;
+  if (typeof reviewer !== 'string' || !REVIEW_AGENTS.has(reviewer as ReviewAgent)) {
+    throw routeConfigError(`.${author}[${index}].reviewer is unsupported`);
+  }
+  const model = value.model;
+  if (model !== undefined && (typeof model !== 'string' || !MODEL_NAME.test(model))) {
+    throw routeConfigError(`.${author}[${index}].model is invalid`);
+  }
+  return reviewRoute(reviewer as ReviewAgent, model, author);
+}
+
+function reviewRoute(
+  reviewer: ReviewAgent,
+  model: string | undefined,
+  author: ReviewAgent,
+): ReviewRoute {
+  return {
+    reviewer,
+    ...(model !== undefined && { model }),
+    independence: reviewer === author ? 'degraded' : 'cross-agent',
+  };
+}
+
+function readProjectConfig(cwd: string): Record<string, unknown> {
+  try {
+    const parsed: unknown = JSON.parse(
+      readFileSync(nodePath.join(cwd, '.safeword', 'config.json'), 'utf8'),
+    );
+    return isRecord(parsed) && !Array.isArray(parsed) ? parsed : {};
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return {};
+    throw routeConfigError('could not be read');
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function routeConfigError(detail: string): Error {
+  return new Error(`Invalid crossAgentReviewRoutes configuration: ${detail}`);
+}
 
 export function readPrimaryReviewerModel(cwd: string, reviewer: ReviewAgent): string | undefined {
   return (
