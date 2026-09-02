@@ -14,7 +14,7 @@
 | Profile ownership | Current identity; previous identity-owned bytes; edited owned asset; unrelated profile content | Upgrade and uninstall mutate only bytes proven by the profile identity. |
 | Release integrity | All references packaged; undeclared project-local executable reference | Release validation rejects native catalogues that borrow project runtime. |
 
-skip: Zero-agent installation is not a supported selection in this epic; the CLI requires at least one delivery authority.
+skip: Zero-agent installation is an existing project-only mode rather than an agent runtime authority. Its explicit project-removal counterpart (`uninstall --agents=none`) is covered because remaining-host preservation must not disable that control.
 
 skip: Cross-host package-reference syntax is host-specific and already rejected by each native catalogue's own reference validator; the shared release gate covers the portable project-runtime reference class.
 

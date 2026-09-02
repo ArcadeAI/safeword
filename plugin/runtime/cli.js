@@ -34737,7 +34737,7 @@ function projectLifecycleSchema(cwd, agents, operation = "check", remainingNativ
   const selectedSchema = selectedDeliverySchema(claudeDeliverySchema, selected);
   const deliverySchema = schemaForCodexDelivery(cwd, selectedSchema);
   const surfaceSchema = schemaForProjectSurfaces(deliverySchema, selectedProjectSurfaces(selected));
-  if (operation === "uninstall") {
+  if (operation === "uninstall" && selected.size > 0) {
     const retained = retainedHostUninstallSchema(cwd, surfaceSchema, selected, legacyClaudeInstalled, remainingNativeProfile);
     if (retained !== undefined)
       return retained;
@@ -43492,7 +43492,7 @@ async function prepareLifecycle(cwd, operation, agents, options = {}) {
   const { full = false, install: installOptions = {}, scope = "project" } = options;
   const uninstalling = operation === "uninstall";
   const selected = new Set(agents);
-  const observedAgents = uninstalling ? PRODUCTION_INTEGRATIONS.map((adapter) => adapter.id) : agents;
+  const observedAgents = uninstalling && agents.length > 0 ? PRODUCTION_INTEGRATIONS.map((adapter) => adapter.id) : agents;
   const observations = await profilePreconditions(cwd, agents, scope, operation, observedAgents);
   const observationByAgent = new Map(observations.map((observation) => [observation.agent, observation.observation]));
   const observedSurfaces = await coordinateSelectedIntegrations(PRODUCTION_INTEGRATIONS, observedAgents, async (adapter) => ({

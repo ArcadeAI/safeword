@@ -172,6 +172,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN a81f5897d
 - [x] REFACTOR skip: reconciliation preserves the selected schema projection without inventing retired runtime
 
+### Scenario: Explicit project removal leaves installed profile plugins alone
+
+- [x] RED cc5d1cb9e
+- [ ] GREEN
+- [ ] REFACTOR
+
 ## Rule: self-contained-plugins.NTB1.R2 — Profile lifecycle preserves customer content by identity
 
 ### Scenario: OpenCode profile identity records the complete owned catalogue

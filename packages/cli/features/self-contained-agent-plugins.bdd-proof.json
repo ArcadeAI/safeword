@@ -165,6 +165,10 @@
       "packages/cli/tests/cursor/runtime-authority.test.ts",
       "rejects cross-host runtime regardless of command shape: %s"
     ],
+    "Explicit project removal leaves installed profile plugins alone": [
+      "packages/cli/tests/lifecycle/selected-authority-reconciliation.test.ts",
+      "honors explicit project removal without uninstalling profile plugins"
+    ],
     "OpenCode install preserves an unrecognized catalogue collision": [
       "packages/cli/tests/opencode/profile.test.ts",
       "preserves a colliding plugin through the packaged install path"

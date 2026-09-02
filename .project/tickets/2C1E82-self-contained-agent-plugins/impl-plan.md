@@ -55,6 +55,8 @@ The final guard decision was checked against the actual generated catalogues, si
 
 The same runner-independent check applies to Cursor. Its shared guidance legitimately reads Claude transcript/project-guidance paths and Codex session data; only those exact data-root references are exempted, never whole lines or assets. A mixed data/runtime regression proves the exemption does not hide an adjacent executable reference. These release checks validate trusted shipped catalogues, not hostile shell input.
 
+Remaining-host preservation applies to partial host removal, not explicit project removal. Current CLI selection code and the README/FAQ document `uninstall --agents=none` as the project-only escape hatch; keeping enrollment in that case would remove an existing user control. The lifecycle therefore observes and retains other profiles only when at least one host is selected for removal. This uses the existing selection boundary rather than adding a new flag or ownership model.
+
 | Principle | Consequence | Proof | Conflict |
 | --- | --- | --- | --- |
 | Optimize for the NTB without constraining the TBU | Plans explain only selected effects and missing capabilities produce one bounded action without installer jargon; automatic state/ignore edits remain exact, inspectable, and independently invocable | `packages/cli/features/self-contained-agent-plugins.feature` | |

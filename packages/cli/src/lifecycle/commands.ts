@@ -309,7 +309,8 @@ async function prepareLifecycle(
   const selected = new Set<string>(agents);
   // Unselected profiles also depend on enrollment. Observe them for retention
   // and plan freshness, but never include their effects in the selected plan.
-  const observedAgents = uninstalling ? PRODUCTION_INTEGRATIONS.map(adapter => adapter.id) : agents;
+  const observedAgents =
+    uninstalling && agents.length > 0 ? PRODUCTION_INTEGRATIONS.map(adapter => adapter.id) : agents;
   const observations = await profilePreconditions(cwd, agents, scope, operation, observedAgents);
   const observationByAgent = new Map(
     observations.map(observation => [observation.agent, observation.observation]),

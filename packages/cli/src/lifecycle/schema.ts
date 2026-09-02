@@ -113,7 +113,8 @@ export function projectLifecycleSchema(
   const selectedSchema = selectedDeliverySchema(claudeDeliverySchema, selected);
   const deliverySchema = schemaForCodexDelivery(cwd, selectedSchema);
   const surfaceSchema = schemaForProjectSurfaces(deliverySchema, selectedProjectSurfaces(selected));
-  if (operation === 'uninstall') {
+  // `--agents=none` explicitly removes project enrollment, not a host profile.
+  if (operation === 'uninstall' && selected.size > 0) {
     const retained = retainedHostUninstallSchema(
       cwd,
       surfaceSchema,

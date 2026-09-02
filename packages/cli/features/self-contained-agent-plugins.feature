@@ -279,6 +279,14 @@ Feature: Every agent delivery is self-contained
       And the Codex profile delivery remains the sole Codex runtime authority
       And Cursor's project authority, authored knowledge, enrollment state, and unrelated content remain unchanged
 
+    @surface.safeword-cli @surface.openai-codex @surface.claude-code
+    Scenario: Explicit project removal leaves installed profile plugins alone
+      Given an enrolled project has installed Codex and Claude Code plugins and authored knowledge
+      When the Non-Technical Builder explicitly removes project enrollment with no agent selected
+      Then the project enrollment is removed
+      And both profile plugins remain installed
+      And authored knowledge remains byte-for-byte unchanged
+
   @self-contained-plugins.NTB1.R2
   Rule: self-contained-plugins.NTB1.R2 — Profile lifecycle preserves customer content by identity
 

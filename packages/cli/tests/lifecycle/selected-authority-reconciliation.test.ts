@@ -100,6 +100,8 @@ describe('selected authority lifecycle reconciliation', () => {
     const installed = await installLifecycle(invocation(cwd, 'codex'), adapters);
     expect(installed.errors).toEqual([]);
     expect(existsSync(nodePath.join(cwd, '.safeword/SAFEWORD.md'))).toBe(true);
+    mkdirSync(nodePath.join(cwd, '.project'), { recursive: true });
+    writeFileSync(nodePath.join(cwd, '.project/authored.md'), 'authored knowledge\n');
 
     const preview = await uninstallLifecycle(invocation(cwd, 'none'));
     const plan = (preview.data as { readonly plan: { readonly id: string } }).plan.id;
@@ -109,6 +111,7 @@ describe('selected authority lifecycle reconciliation', () => {
     expect(existsSync(nodePath.join(cwd, '.safeword/SAFEWORD.md'))).toBe(false);
     expect(profileState.claude).toBe(true);
     expect(profileState.codex).toBe(true);
+    expect(projectBytes(cwd, '.project/authored.md')).toBe('authored knowledge\n');
   });
 
   it.each([
