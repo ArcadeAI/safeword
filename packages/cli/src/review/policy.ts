@@ -80,7 +80,9 @@ export function readConfiguredReviewRoutes(
   if (!Object.hasOwn(config, 'crossAgentReviewRoutes')) return undefined;
 
   const configuredRoutes = config.crossAgentReviewRoutes;
-  if (!isRecord(configuredRoutes)) throw routeConfigError('must be an object');
+  if (!isRecord(configuredRoutes) || Array.isArray(configuredRoutes)) {
+    throw routeConfigError('must be an object');
+  }
   for (const configuredAuthor of Object.keys(configuredRoutes)) {
     if (!REVIEW_AGENTS.has(configuredAuthor as ReviewAgent)) {
       throw routeConfigError('contains an unsupported author');

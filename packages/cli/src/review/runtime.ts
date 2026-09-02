@@ -705,9 +705,8 @@ type CapabilityAssessment =
     };
 
 export interface ReviewRouteObservation {
-  readonly installed: boolean | 'inspection_skipped' | 'inspection_unavailable';
-  readonly compatibility:
-    'compatible' | 'not_compatible' | 'inspection_skipped' | 'inspection_unavailable';
+  readonly installed: boolean | 'inspection_unavailable';
+  readonly compatibility: 'compatible' | 'not_compatible' | 'inspection_unavailable';
   readonly catalogue: 'catalogued' | 'not_catalogued' | 'not_applicable' | 'unavailable';
 }
 
@@ -970,8 +969,9 @@ function classifyExit(stderr: string, otherwise: ReviewFailure): ReviewFailure {
 const reviewerStops = new WeakMap<ReturnType<typeof spawn>, Promise<boolean>>();
 
 function stopWindowsReviewer(child: ReturnType<typeof spawn>, pid: number): Promise<boolean> {
+  const streamClosed = (stream: typeof child.stdout): boolean => stream === null || stream.closed;
   const childClosed = (): boolean =>
-    child.exitCode !== null && child.stdout?.closed === true && child.stderr?.closed === true;
+    child.exitCode !== null && streamClosed(child.stdout) && streamClosed(child.stderr);
   if (childClosed()) return Promise.resolve(true);
   return new Promise(resolve => {
     let settled = false;
