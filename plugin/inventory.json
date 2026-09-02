@@ -143,11 +143,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "5fd5b10fdb61a771c7b64f75ca1ff8c68b27952d9562d75dad67e6dde2cfa04f"
+      "sha256": "637574b2094f951950c0c7c8e654be9b093e4602455c436f8d7769f59bb63a6c"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "dcf4de96d1427d9b51566fe23d21390c925966b7c3af6c7954cdbbc232ef1c52"
+      "sha256": "eb6e87302c4b673beef17d0e696c1c4ebaed275d88cf8a4900382d547902a9ae"
     },
     {
       "path": "runtime/event-groups.json",
@@ -643,7 +643,7 @@
     },
     {
       "path": "skills/demand-research/SKILL.md",
-      "sha256": "9271c21513cdb7048cf72c6343af17fed76a381569211eba24b31ba71c79381a"
+      "sha256": "99b2d4062d6daf4308468db00d5c5a3b71e1e33d40e228c285d38612b7eca4ba"
     },
     {
       "path": "skills/elicit/SKILL.md",

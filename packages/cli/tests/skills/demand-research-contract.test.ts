@@ -47,6 +47,14 @@ describe('bounded demand research contract', () => {
     expect(skill).toContain('Start with first-party evidence');
   });
 
+  it('documents anti-confirmation-bias controls without a separate audit', () => {
+    expect(skill).toMatch(/Frame the single decision neutrally/i);
+    expect(skill).toMatch(/Do not frame the task as proving demand/i);
+    expect(skill).toMatch(/seek the strongest evidence against demand/i);
+    expect(skill).toMatch(/supporting and contradicting evidence together/i);
+    expect(skill).toMatch(/instead of resolving it in the sponsor's favor/i);
+  });
+
   it('honors an explicit demand-research request', () => {
     expect(discovery).toContain('user explicitly requests demand research');
   });

@@ -26,15 +26,21 @@ appendix to make the plan look complete.
 
 ## Research loop
 
-1. Frame the single decision and the demand claim that could change it.
+1. Frame the single decision neutrally so either outcome is acceptable, and name
+   the demand claim that could change it. Do not frame the task as proving demand.
 2. Start with first-party evidence: customer requests, usage, sales/support
    records, interviews, or the user's supplied material.
 3. Fill only meaningful gaps with current external sources. Prefer primary
    sources and record the date checked.
 4. Grade evidence by sacrifice: behavior, money, time, or switching cost beats
    stated interest. Separate direct evidence from inference.
-5. Run a skeptic pass: name the strongest alternative explanation and whether
-   the evidence survives it.
+5. Run a disconfirmation pass: seek the strongest evidence against demand,
+   including non-adoption, abandonment, unwillingness to pay, and contradictory
+   usage. Report supporting and contradicting evidence together, name the
+   strongest alternative explanation, and say what would change the verdict.
+   When the evidence permits competing interpretations, state the ambiguity
+   instead of resolving it in the sponsor's favor. Missing negative evidence is
+   unknown, not support.
 6. Stop when the decision can be made or the cheapest next validation is clear.
 
 ## Output
