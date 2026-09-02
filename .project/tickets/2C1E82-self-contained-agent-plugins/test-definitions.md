@@ -18,6 +18,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN 1143df8bc
 - [x] REFACTOR skip: success and failure share the same sourced-shell return contract
 
+### Scenario: A packaged shared-shell helper exports an empty changed-file list
+
+- [x] RED 13cf4010d
+- [x] GREEN d5b0ecdde
+- [x] REFACTOR skip: the populated and empty diff cases share the same sourced-shell contract
+
 ### Scenario: Legacy project runtime cannot regain native workflow authority
 
 - [x] RED f2b511ef1
@@ -92,11 +98,17 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN d107eff97
 - [x] REFACTOR skip: lazy initialization shares the existing read-update-write state path
 
-### Scenario: Lifecycle state respects explicit enrollment
+### Scenario: Enrolled lifecycle state initializes lazily
 
 - [x] RED 5229869ac
 - [x] GREEN 919504dd0
-- [x] REFACTOR skip: the existing enrollment marker is the single boundary
+- [x] REFACTOR skip: the existing enrollment marker is the single positive boundary
+
+### Scenario: Unenrolled lifecycle state remains absent without blocking
+
+- [x] RED 5229869ac
+- [x] GREEN 919504dd0
+- [x] REFACTOR skip: the absent enrollment marker is the single rejection boundary
 
 ### Scenario: A direct workflow does not silently enroll a repository
 
@@ -142,37 +154,13 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN a81f5897d
 - [x] REFACTOR skip: reconciliation preserves the selected schema projection without inventing retired runtime
 
-## Rule: self-contained-plugins.SWM1.R1 — Package and profile ownership is enforced at release and reconciliation boundaries
-
-### Scenario: Complete agent catalogues pass executable-reference validation
-
-- [x] RED d5d6f60ad
-- [x] GREEN a81f5897d
-- [x] REFACTOR skip: the three native catalogues share one narrow authority validator
-
-### Scenario: An unpinned Codex helper blocks release
-
-- [x] RED d5d6f60ad
-- [x] GREEN 273a45ab4
-- [x] REFACTOR skip: the release catalogue comparison already owns version-pin drift
+## Rule: self-contained-plugins.NTB1.R2 — Profile lifecycle preserves customer content by identity
 
 ### Scenario: OpenCode profile identity records the complete owned catalogue
 
 - [x] RED 2b4fc15c4
 - [x] GREEN 00b372ea1
 - [x] REFACTOR skip: the identity inventory is generated from the catalogue itself
-
-### Scenario: A project-runtime reference blocks native plugin release
-
-- [x] RED d5d6f60ad
-- [x] GREEN 273a45ab4
-- [x] REFACTOR skip: one diagnostic lists all offending assets
-
-### Scenario: A cross-host executable reference blocks Cursor release
-
-- [x] RED 62067afe1
-- [x] GREEN 07b5b7632
-- [x] REFACTOR skip: Cursor parity derives executables only from its declared project authority
 
 ### Scenario: OpenCode install preserves an unrecognized catalogue collision
 
@@ -186,11 +174,11 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN 48bf33de2
 - [x] REFACTOR skip: retirement and drift checks share the recorded identity inventory
 
-### Scenario: OpenCode uninstall preserves drifted catalogue content
+### Scenario: OpenCode upgrade preserves a drifted catalogue asset
 
 - [x] RED 2b4fc15c4
 - [x] GREEN 00b372ea1
-- [x] REFACTOR skip: drift fails closed before any owned asset is removed
+- [x] REFACTOR skip: upgrade fails closed through the identity-bound drift predicate
 
 ### Scenario: OpenCode uninstall removes its recognized catalogue
 
@@ -198,11 +186,37 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN 00b372ea1
 - [x] REFACTOR skip: identity digests already bound the complete removal set
 
-### Scenario: OpenCode upgrade preserves a drifted catalogue asset
+### Scenario: OpenCode uninstall preserves drifted catalogue content
 
 - [x] RED 2b4fc15c4
 - [x] GREEN 00b372ea1
-- [x] REFACTOR skip: upgrade fails closed through the identity-bound drift predicate
+- [x] REFACTOR skip: drift fails closed before any owned asset is removed
+
+## Rule: self-contained-plugins.SWM1.R1 — Package authority is enforced at release boundaries
+
+### Scenario: Complete agent catalogues pass executable-reference validation
+
+- [x] RED d5d6f60ad
+- [x] GREEN a81f5897d
+- [x] REFACTOR skip: the three native catalogues share one narrow authority validator
+
+### Scenario: An unpinned Codex helper blocks release
+
+- [x] RED d5d6f60ad
+- [x] GREEN 273a45ab4
+- [x] REFACTOR skip: the release catalogue comparison already owns version-pin drift
+
+### Scenario: A project-runtime reference blocks native plugin release
+
+- [x] RED d5d6f60ad
+- [x] GREEN 273a45ab4
+- [x] REFACTOR skip: one diagnostic lists all offending assets
+
+### Scenario: A cross-host executable reference blocks Cursor release
+
+- [x] RED 62067afe1
+- [x] GREEN 07b5b7632
+- [x] REFACTOR skip: Cursor parity derives executables only from its declared project authority
 
 ## Feature-level cross-scenario refactor
 
