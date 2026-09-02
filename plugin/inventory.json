@@ -135,7 +135,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "44f3bf3b7526460d26da362e51f756c0c923503eb802857152c19bcb24ddc08e"
+      "sha256": "0bf2f0ecde2e3af2312f3b561dad5ed1012df89d376443040953fd583d48dcd5"
     },
     {
       "path": "runtime/dispatch.js",
@@ -711,7 +711,7 @@
     },
     {
       "path": "skills/verify/SKILL.md",
-      "sha256": "222ffeb7257f943040a4dbb16dc9545d4d8b870ef08b0951c87ca89c9cae2906"
+      "sha256": "8533fea4f29942747e7799a58560bcabd07b2e71ee9da7c102319cf6eb063ddb"
     }
   ]
 }

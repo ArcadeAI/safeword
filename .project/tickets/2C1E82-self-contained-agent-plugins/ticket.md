@@ -59,6 +59,12 @@ native action by construction.
 
 ## Process Gaps Found
 
+- **Fixed here — helper lookup was tested inside its source checkout:** the generic packaged-helper command walked above `runtime/` and accidentally found the checkout's canonical templates. An isolated versioned plugin cache reproduced the missing helper; the same layout correction now covers both generic helpers and audit scope.
+
+- **Fixed here — workflow proof omitted its consumer-facing confirmation:** Codex and OpenCode wrote the invocation log but printed only generic CLI success, while their generated skills require `[skill-invocation-log] <skill> ✓`. The all-host real workflow proof now asserts that confirmation as well as the state and ignore artifacts.
+
+- **Fixed here — the release guard approximated shell syntax:** an interpreter allowlist and first-occurrence scan missed six ordinary command forms. Native catalogues now reject unavailable project-runtime paths directly, removing the heuristic; the only legitimate example was rewritten without a project-local path.
+
 - **Direct-helper root cause:** enrollment was checked only in the CLI wrapper, while Claude and Cursor invoke the canonical script directly. A real subprocess in an empty repository wrote state and printed success; the equivalent CLI test correctly reported `PROJECT_NOT_ENROLLED`. This rules out namespace resolution and host identity as causes. The shared writer now refuses unenrolled writes before creating either the directory or ignore policy.
 
 - **Runtime-validator root cause:** whole-document single-backtick matching pairs delimiters across fenced code blocks. A later inline `bun .safeword/hooks/...` command is missed, and the line fallback sees the runner as `` `bun `` instead of `bun`. Confirmed by all three generated native catalogues accepting the injected command and a minimized fenced-block-plus-command reproduction. Ruled out host-specific generation (all three fail) and an unrecognized executable path (the identical command alone is rejected). Line-level delimiter normalization fixes the shared scanner without adding a Markdown parser.

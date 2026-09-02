@@ -47999,6 +47999,8 @@ function runRecordSkillInvocation(cwd, skillName2, sessionId) {
   return Promise.resolve(createResult({
     state: "changed",
     changed: true,
+    presentation: { kind: "raw", body: `[skill-invocation-log] ${skillName2} \u2713
+` },
     data: { command: "project record-skill-invocation", skill: skillName2 }
   }));
 }

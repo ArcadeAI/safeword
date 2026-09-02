@@ -75,7 +75,7 @@ Run these in sequence, reporting each result:
 1. **Run `$safeword:lint`** to auto-fix style issues first
 2. Then run target-project verification checks from project evidence.
 
-**Safeword runtime vs target project:** Safeword may use Bun for installed helpers such as `.safeword/hooks/*.ts`; that does not mean the target project uses Bun. Use Bun for installed helpers, then choose target project verification commands from stack manifests, lockfiles, and available scripts. A `package.json` may be safeword lane-host evidence in pure Python, Rust, and Go installs, so do not treat `package.json` as proof the target project is only JavaScript.
+**Safeword runtime vs target project:** Safeword may use Bun for its TypeScript helpers; that does not mean the target project uses Bun. Use Bun for installed helpers, then choose target project verification commands from stack manifests, lockfiles, and available scripts. A `package.json` may be safeword lane-host evidence in pure Python, Rust, and Go installs, so do not treat `package.json` as proof the target project is only JavaScript.
 
 Per-language test/build/typecheck/bdd/deps commands all come from `safeword
 test-plan` — one source of truth (the same plan the stop-hook gate runs). Eval its

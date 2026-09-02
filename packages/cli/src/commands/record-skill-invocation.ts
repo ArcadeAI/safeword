@@ -59,6 +59,7 @@ export function runRecordSkillInvocation(
     createResult({
       state: 'changed',
       changed: true,
+      presentation: { kind: 'raw', body: `[skill-invocation-log] ${skillName} ✓\n` },
       data: { command: 'project record-skill-invocation', skill: skillName },
     }),
   );
