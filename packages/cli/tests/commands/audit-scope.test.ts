@@ -10,7 +10,7 @@ const temporaryDirectories: string[] = [];
 const cli = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
 const sourceCli = nodePath.resolve(import.meta.dirname, '../../src/cli.ts');
 
-function createEnrolledFeatureBranch(): { project: string; mergeBase: string } {
+function createEnrolledFeatureBranch(withChanges = true): { project: string; mergeBase: string } {
   const project = createTemporaryDirectory();
   temporaryDirectories.push(project);
   initGitRepo(project);
@@ -25,8 +25,10 @@ function createEnrolledFeatureBranch(): { project: string; mergeBase: string } {
   }).stdout.trim();
   spawnSync('git', ['branch', '-M', 'main'], { cwd: project });
   spawnSync('git', ['switch', '-c', 'feature'], { cwd: project });
-  writeFileSync(nodePath.join(project, 'first.txt'), 'changed\n');
-  writeFileSync(nodePath.join(project, 'second.txt'), 'added\n');
+  if (withChanges) {
+    writeFileSync(nodePath.join(project, 'first.txt'), 'changed\n');
+    writeFileSync(nodePath.join(project, 'second.txt'), 'added\n');
+  }
   return { project, mergeBase };
 }
 
@@ -119,6 +121,18 @@ describe('packaged audit scope command', () => {
     );
     expect(result.stdout).toContain('status=2\nmode=repository\nsha=\nfiles=');
     expect(result.stdout).toContain('caller=available');
+  });
+
+  it('exports an empty changed-file list through a sourced caller shell', () => {
+    const { project, mergeBase } = createEnrolledFeatureBranch(false);
+
+    const result = sourcePackagedScope(project, 'main');
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe('');
+    expect(result.stdout).toContain(`status=0\nmode=diff\nsha=${mergeBase}\nfiles=\n`);
+    expect(result.stdout).toContain('caller=available');
+    expect(result.stdout).not.toMatch(/install|dependenc/iu);
   });
 
   it('executes the installed Cursor audit workflow from project authority', () => {
