@@ -1,3 +1,6 @@
+import { readdirSync, readFileSync } from 'node:fs';
+import nodePath from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -52,5 +55,3 @@ describe('Cursor runtime authority', () => {
     }).toThrow('.safeword/skills/audit/SKILL.md');
   });
 });
-import { readdirSync, readFileSync } from 'node:fs';
-import nodePath from 'node:path';

@@ -449,6 +449,7 @@ describe('self-contained generated workflows', () => {
 
       const statePath = nodePath.join(project, '.project/skill-invocations.log');
       expect(result.status, result.stderr || result.stdout).toBe(0);
+      expect(result.stdout).toContain('[skill-invocation-log] verify ✓');
       expect(readFileSync(nodePath.join(project, '.project/.gitignore'), 'utf8')).toBe(
         '/skill-invocations.log\n',
       );

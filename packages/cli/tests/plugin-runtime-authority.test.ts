@@ -27,6 +27,19 @@ function generatedCatalogue(host: string) {
 }
 
 describe('native catalogue release authority', () => {
+  it.each([
+    'bunx tsx .safeword/hooks/run-review.ts',
+    'npx tsx .safeword/hooks/run-review.ts',
+    'python3 .safeword/scripts/cleanup-zombies.py',
+    'deno run .safeword/hooks/check.ts',
+    '$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts "$PROJECT_DIR" verify',
+    'echo .safeword/hooks/old.ts; bun .safeword/hooks/run-review.ts',
+  ])('rejects native runtime borrowing regardless of command shape: %s', content => {
+    expect(() => {
+      assertNativePluginRuntimeAuthority([{ relativePath: 'skills/audit/SKILL.md', content }]);
+    }).toThrow('skills/audit/SKILL.md');
+  });
+
   it.each(['Codex', 'Claude Code', 'OpenCode'])(
     'rejects a project-runtime reference in the generated %s catalogue',
     host => {
