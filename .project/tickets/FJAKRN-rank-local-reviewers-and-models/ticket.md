@@ -2,14 +2,15 @@
 id: FJAKRN
 slug: rank-local-reviewers-and-models
 type: feature
-phase: verify
-status: in_progress
+phase: done
+status: done
 phase_anchors:
   - 'define-behavior: .project/tickets/FJAKRN-rank-local-reviewers-and-models/spec.md'
   - 'scenario-gate: packages/cli/features/rank-local-reviewers-and-models.feature'
   - 'plan-implementation: .project/tickets/FJAKRN-rank-local-reviewers-and-models/impl-plan.md'
   - 'implement: .project/tickets/FJAKRN-rank-local-reviewers-and-models/test-definitions.md'
   - 'verify: .project/tickets/FJAKRN-rank-local-reviewers-and-models/test-definitions.md'
+  - 'done: .project/tickets/FJAKRN-rank-local-reviewers-and-models/verify.md'
 scope:
   - configure an ordered reviewer/model route list per supported author runtime
   - preserve reviewer independence and classify every same-author route as degraded
@@ -60,3 +61,4 @@ last_modified: 2026-09-01T23:21:41.787Z
 - 2026-09-02T00:48:00.000Z Plan implementation: Fourth review closed pre-change evidence ambiguity: records without exact model/default identity prove no route. Also preserved earlier degraded success for prefer-policy exhaustion and named the cache-order discriminator.
 - 2026-09-02T00:53:00.000Z Plan implementation: Fifth review elevated legacy compatibility to three public-command process-boundary tests, defined runtime-default and invalid-config status output, and cited the existing minimum-route funding gate.
 - 2026-09-02T00:58:00.000Z Plan implementation: Independent Claude review approved the final plan with no blocking findings. Review ID 2360c307-0dfa-4572-911b-44d14c7df9ac; cross-agent stamp recorded. Advanced to implementation.
+- 2026-09-02T06:00:00.000Z Done: Implemented exact per-author reviewer/model ordering, honest local capability/proof evidence, runtime-wide failure skipping, and legacy compatibility. Verify, audit, refactor, and repeated independent Claude/Opus quality reviews completed; all 67 scenario checks are complete. PR #3617 carries the delivery.
