@@ -324,6 +324,31 @@ exit ${status}`,
     expect(content, relativePath).toContain('bun .safeword/hooks/run-review.ts');
   });
 
+  it.each(['skills/bdd/PLAN_IMPLEMENTATION.md', 'skills/bdd/TDD.md'])(
+    '%s reviews only impl-plan.md as plan work',
+    relativePath => {
+      const command = readTemplate(relativePath)
+        .split('\n')
+        .find(line => line.includes('run-review.ts review run plan-implementation'));
+
+      expect(command, relativePath).toMatch(/ --context .+ -- impl-plan\.md$/u);
+    },
+  );
+
+  it.each([
+    'skills/quality-review/SKILL.md',
+    'skills/review-spec/SKILL.md',
+    'skills/bdd/PLAN_IMPLEMENTATION.md',
+    'skills/bdd/TDD.md',
+  ])('%s processes a typed authentication handoff before review fallback', relativePath => {
+    const content = readTemplate(relativePath).replaceAll(/\s+/gu, ' ');
+
+    expect(content, relativePath).toContain('`REVIEW_AUTHENTICATION_REQUIRED`');
+    expect(content, relativePath).toMatch(/execute its exact recovery command/iu);
+    expect(content, relativePath).toMatch(/rerun the same coordinator command once/iu);
+    expect(content, relativePath).toMatch(/do not.*finish-review/iu);
+  });
+
   it('keeps scenario-gate coordinator ownership in review-spec', () => {
     const bdd = readTemplate('skills/bdd/SKILL.md');
     expect(bdd).toContain('`review-spec` in Review mode');

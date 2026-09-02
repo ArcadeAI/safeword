@@ -70,6 +70,7 @@ function independentReviewResult(input: {
   readonly output: ReviewerOutput;
   readonly model?: string;
   readonly preferredModel?: string;
+  readonly preferredModelFailure?: ReviewFailure;
   readonly preferredFailure?: ReviewFailure;
 }): CliResult {
   return createResult({
@@ -96,6 +97,9 @@ function independentReviewResult(input: {
       actual_reviewer: input.output.reviewer_agent,
       ...(input.model !== undefined && { reviewer_model: input.model }),
       ...(input.preferredModel !== undefined && { preferred_model: input.preferredModel }),
+      ...(input.preferredModelFailure !== undefined && {
+        preferred_model_failure: input.preferredModelFailure,
+      }),
       ...(input.preferredFailure !== undefined && { preferred_failure: input.preferredFailure }),
       independence: 'cross-agent',
       reviewer_output: input.output,
@@ -170,7 +174,7 @@ async function executeReview(
   }
 }
 
-function assessFallback(
+function assessReviewOutcome(
   outcome:
     | { readonly kind: 'completed'; readonly output: UnverifiedReviewerOutput }
     | { readonly kind: 'failed'; readonly failure: ReviewFailure; readonly terminal: boolean },
@@ -189,6 +193,11 @@ function assessFallback(
 /** How an agent is written for a reader: the product name, not the runtime id. */
 function agentName(agent: ReviewAgent): string {
   return agent === 'codex' ? 'Codex' : 'Claude';
+}
+
+/** The vendor-owned interactive login flow for a reviewer profile. */
+function reviewerLoginCommand(agent: ReviewAgent): string {
+  return agent === 'codex' ? 'codex login' : 'claude auth login';
 }
 
 const FAILURE_CAUSES: Readonly<Record<string, string>> = {
@@ -230,6 +239,42 @@ function exhaustedExplanation(
   return [...sentences, 'No independent check was recorded.'].join(' ');
 }
 
+function primaryFailureRoutes(input: {
+  readonly assignedReviewer: ReviewAgent;
+  readonly preferredModel?: string;
+  readonly preferredModelFailure?: ReviewFailure;
+  readonly preferredFailure: ReviewFailure;
+}): readonly {
+  readonly agent: ReviewAgent;
+  readonly role: string;
+  readonly model?: string;
+  readonly failure: ReviewFailure;
+}[] {
+  if (input.preferredModelFailure === undefined) {
+    return [
+      {
+        agent: input.assignedReviewer,
+        role: 'independent reviewer',
+        model: input.preferredModel,
+        failure: input.preferredFailure,
+      },
+    ];
+  }
+  return [
+    {
+      agent: input.assignedReviewer,
+      role: 'independent reviewer on its configured model',
+      model: input.preferredModel,
+      failure: input.preferredModelFailure,
+    },
+    {
+      agent: input.assignedReviewer,
+      role: 'independent reviewer on its default model',
+      failure: input.preferredFailure,
+    },
+  ];
+}
+
 /** The single next step, chosen from the assigned reviewer's own failure. */
 function nextStepFor(reviewer: ReviewAgent, failure: ReviewFailure): string {
   const name = agentName(reviewer);
@@ -240,7 +285,6 @@ function nextStepFor(reviewer: ReviewAgent, failure: ReviewFailure): string {
   if (failure === 'probe_timed_out') return `Run ${name} --help to diagnose it, then retry review.`;
   if (failure === 'launch_failed')
     return `Run ${name} --help and fix its launch failure, then retry review.`;
-  if (failure === 'not_authenticated') return `Sign in to ${name}, then run the review again.`;
   return 'Run the review again.';
 }
 
@@ -369,17 +413,72 @@ function changedReviewResult(input: {
 function routeFailureData(input: {
   readonly preferredFailure: ReviewFailure;
   readonly preferredModel?: string;
+  readonly preferredModelFailure?: ReviewFailure;
   readonly alternateFailure?: ReviewFailure;
   readonly alternateModel?: string;
 }): Record<string, unknown> {
   return {
     ...(input.preferredModel !== undefined && { preferred_model: input.preferredModel }),
+    ...(input.preferredModelFailure !== undefined && {
+      preferred_model_failure: input.preferredModelFailure,
+    }),
     preferred_failure: input.preferredFailure,
     ...(input.alternateFailure !== undefined && {
       alternate_model_failure: input.alternateFailure,
       ...(input.alternateModel !== undefined && { alternate_model: input.alternateModel }),
     }),
   };
+}
+
+/**
+ * Authentication is recoverable user state, not evidence that the review
+ * route is unusable. The review worker is detached and cannot own an
+ * interactive browser/device login, so hand that exact foreground action to
+ * the calling agent before any same-agent fallback can weaken coverage.
+ */
+function authenticationRequiredResult(input: {
+  readonly author: ReviewAgent;
+  readonly assignedReviewer: ReviewAgent;
+  readonly preferredFailure: ReviewFailure;
+  readonly preferredModel?: string;
+  readonly preferredModelFailure?: ReviewFailure;
+  readonly alternateFailure?: ReviewFailure;
+  readonly alternateModel?: string;
+  readonly policy: ReviewPolicy;
+}): CliResult {
+  const reviewer = agentName(input.assignedReviewer);
+  return createResult({
+    state: 'action_required',
+    findings: [
+      {
+        code: 'REVIEW_AUTHENTICATION_REQUIRED',
+        message: `The independent ${reviewer} review needs authentication. Reauthenticate ${reviewer}, then retry the same review; no fallback or review evidence was recorded.`,
+        severity: 'warning',
+      },
+    ],
+    effects: {
+      network: [
+        ...networkEffectsForFailure(input.assignedReviewer, input.preferredFailure),
+        ...networkEffectsForFailure(input.assignedReviewer, input.alternateFailure),
+      ],
+    },
+    recovery: [
+      {
+        command: reviewerLoginCommand(input.assignedReviewer),
+        description: `Reauthenticate ${reviewer}, then retry the original independent review.`,
+        requiresHuman: true,
+      },
+    ],
+    data: {
+      command: 'review run',
+      status: 'blocked',
+      author_agent: input.author,
+      assigned_reviewer: input.assignedReviewer,
+      ...routeFailureData(input),
+      review_policy: input.policy,
+      independence: 'none',
+    },
+  });
 }
 
 function reviewRequest(reviewer: ReviewAgent): Effect {
@@ -442,12 +541,19 @@ async function executePrimaryReview(
   primaryModel: string | undefined,
   runDeadline: number,
 ): Promise<
-  Awaited<ReturnType<typeof executeReview>> & { model: string | undefined; dispatchId: string }
+  Awaited<ReturnType<typeof executeReview>> & {
+    model: string | undefined;
+    dispatchId: string;
+    preferredModel?: string;
+    preferredModelFailure?: ReviewFailure;
+  }
 > {
   const prepared = preparePrimaryReview(input, reviewer);
   let execution = await executeReview(reviewer, prepared, primaryModel, runDeadline);
   let model = primaryModel;
   let dispatchId = prepared.packet.dispatch_id;
+  let rejectedModel: string | undefined;
+  let rejectedModelFailure: ReviewFailure | undefined;
   // A configured model is an optional routing preference, not a prerequisite
   // for independent coverage. Alternate-model retries remain strict because
   // their only purpose is selecting that specific model.
@@ -458,6 +564,8 @@ async function executePrimaryReview(
     !execution.outcome.terminal &&
     canFundRoute(runDeadline)
   ) {
+    rejectedModel = primaryModel;
+    rejectedModelFailure = execution.outcome.failure;
     const defaultPrepared = preparePrimaryReview(input, reviewer);
     const retried = await executeReview(reviewer, defaultPrepared, undefined, runDeadline);
     execution = {
@@ -468,7 +576,13 @@ async function executePrimaryReview(
     model = undefined;
     dispatchId = defaultPrepared.packet.dispatch_id;
   }
-  return { ...execution, model, dispatchId };
+  return {
+    ...execution,
+    model,
+    dispatchId,
+    preferredModel: rejectedModel,
+    preferredModelFailure: rejectedModelFailure,
+  };
 }
 
 function prepareFallbackReview(
@@ -490,6 +604,7 @@ async function runDegradedFallback(
     readonly author: ReviewAgent;
     readonly assignedReviewer: ReviewAgent;
     readonly preferredModel?: string;
+    readonly preferredModelFailure?: ReviewFailure;
     readonly preferredFailure: ReviewFailure;
     readonly policy: ReviewPolicy;
     readonly runDeadline: number;
@@ -526,7 +641,7 @@ async function runDegradedFallback(
     }),
   });
   if (changedResult !== undefined) return changedResult;
-  const assessment = assessFallback(outcome, input.author, prepared.packet.dispatch_id);
+  const assessment = assessReviewOutcome(outcome, input.author, prepared.packet.dispatch_id);
   if (assessment.kind === 'failed') {
     return createResult({
       state: 'action_required',
@@ -534,12 +649,7 @@ async function runDegradedFallback(
         {
           code: 'REVIEW_ROUTES_EXHAUSTED',
           message: exhaustedExplanation([
-            {
-              agent: input.assignedReviewer,
-              role: 'independent reviewer',
-              model: input.preferredModel,
-              failure: input.preferredFailure,
-            },
+            ...primaryFailureRoutes(input),
             ...(input.alternateFailure === undefined
               ? []
               : [
@@ -567,7 +677,10 @@ async function runDegradedFallback(
       recovery: [
         {
           command: retryCommand(input.kind, input.targets, input.context),
-          description: nextStepFor(input.assignedReviewer, input.preferredFailure),
+          description: nextStepFor(
+            input.assignedReviewer,
+            input.preferredModelFailure ?? input.preferredFailure,
+          ),
           requiresHuman: true,
         },
       ],
@@ -663,16 +776,16 @@ async function runDegradedFallback(
 }
 
 /**
- * The reviewer agent retried on its configured alternate model. Returns
- * undefined when no model is configured or the retry did not produce a
- * verifiable review, leaving the caller to fall back to the author's own
- * runtime exactly as before.
+ * The reviewer agent retries on its configured alternate model. The tagged
+ * result either completes the review, records why the route failed, or leaves
+ * the caller to continue to the author's fallback.
  */
 async function runAlternateModelRoute(
   input: ReviewRunInput & {
     readonly author: ReviewAgent;
     readonly reviewer: ReviewAgent;
     readonly preferredModel?: string;
+    readonly preferredModelFailure?: ReviewFailure;
     readonly preferredFailure: ReviewFailure;
     readonly policy: ReviewPolicy;
     readonly runDeadline: number;
@@ -720,13 +833,9 @@ async function runAlternateModelRoute(
     ],
   });
   if (changedResult !== undefined) return { kind: 'completed', result: changedResult };
-  const assessment = assessFallback(outcome, input.reviewer, prepared.packet.dispatch_id);
+  const assessment = assessReviewOutcome(outcome, input.reviewer, prepared.packet.dispatch_id);
   if (assessment.kind === 'failed') {
-    // A configured model is not a usable route when no installed candidate
-    // advertises model selection. Capability rejection is a skip, not a review
-    // attempt or failure, so it must not displace the funded fallback route.
-    if (ALTERNATE_MODEL_SKIP_FAILURES.has(assessment.failure)) return { kind: 'skipped' };
-    return { ...assessment, model };
+    return resolveAlternateModelFailure(input, model, assessment);
   }
   const output = assessment.output;
 
@@ -736,9 +845,54 @@ async function runAlternateModelRoute(
     output,
     model,
     preferredModel: input.preferredModel,
+    preferredModelFailure: input.preferredModelFailure,
     preferredFailure: input.preferredFailure,
   });
   return { kind: 'completed', result };
+}
+
+function resolveAlternateModelFailure(
+  input: ReviewRunInput & {
+    readonly author: ReviewAgent;
+    readonly reviewer: ReviewAgent;
+    readonly preferredModel?: string;
+    readonly preferredModelFailure?: ReviewFailure;
+    readonly preferredFailure: ReviewFailure;
+    readonly policy: ReviewPolicy;
+  },
+  model: string,
+  assessment: {
+    readonly kind: 'failed';
+    readonly failure: ReviewFailure;
+    readonly terminal: boolean;
+  },
+):
+  | { readonly kind: 'completed'; readonly result: CliResult }
+  | {
+      readonly kind: 'failed';
+      readonly failure: ReviewFailure;
+      readonly terminal: boolean;
+      readonly model: string;
+    }
+  | { readonly kind: 'skipped' } {
+  // A configured model is not a usable route when no installed candidate
+  // advertises model selection. Capability rejection is a skip, not a review
+  // attempt or failure, so it must not displace the funded fallback route.
+  if (ALTERNATE_MODEL_SKIP_FAILURES.has(assessment.failure)) return { kind: 'skipped' };
+  if (assessment.failure !== 'not_authenticated') return { ...assessment, model };
+  return {
+    kind: 'completed',
+    result: authenticationRequiredResult({
+      author: input.author,
+      assignedReviewer: input.reviewer,
+      preferredModel: input.preferredModel,
+      preferredModelFailure: input.preferredModelFailure,
+      preferredFailure: input.preferredFailure,
+      alternateModel: model,
+      alternateFailure: assessment.failure,
+      policy: input.policy,
+    }),
+  };
 }
 
 /**
@@ -750,6 +904,7 @@ async function runRemainingRoutes(
     readonly author: ReviewAgent;
     readonly assignedReviewer: ReviewAgent;
     readonly preferredModel?: string;
+    readonly preferredModelFailure?: ReviewFailure;
     readonly preferredFailure: ReviewFailure;
     readonly policy: ReviewPolicy;
     readonly runDeadline: number;
@@ -764,6 +919,7 @@ async function runRemainingRoutes(
     author: input.author,
     reviewer: input.assignedReviewer,
     preferredModel: input.preferredModel,
+    preferredModelFailure: input.preferredModelFailure,
     preferredFailure: input.preferredFailure,
     policy: input.policy,
     runDeadline: input.runDeadline,
@@ -787,6 +943,7 @@ function exhaustedRunResult(input: {
   readonly author: ReviewAgent;
   readonly assignedReviewer: ReviewAgent;
   readonly preferredModel?: string;
+  readonly preferredModelFailure?: ReviewFailure;
   readonly preferredFailure: ReviewFailure;
   readonly kind: ReviewKind;
   readonly targets: readonly string[];
@@ -801,12 +958,7 @@ function exhaustedRunResult(input: {
       {
         code: 'REVIEW_ROUTES_EXHAUSTED',
         message: exhaustedExplanation([
-          {
-            agent: input.assignedReviewer,
-            role: 'independent reviewer',
-            model: input.preferredModel,
-            failure: input.preferredFailure,
-          },
+          ...primaryFailureRoutes(input),
           ...(input.alternateFailure === undefined
             ? []
             : [
@@ -830,7 +982,10 @@ function exhaustedRunResult(input: {
     recovery: [
       {
         command: retryCommand(input.kind, input.targets, input.context),
-        description: nextStepFor(input.assignedReviewer, input.preferredFailure),
+        description: nextStepFor(
+          input.assignedReviewer,
+          input.preferredModelFailure ?? input.preferredFailure,
+        ),
         requiresHuman: true,
       },
     ],
@@ -881,8 +1036,8 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
   const { reviewer } = pair;
   const primaryModel = readPrimaryReviewerModel(input.cwd, reviewer);
 
-  // One bound for reviewer work across the whole run. Initial packet sealing is
-  // deliberately outside it; later probes, routes, and cleanups share it.
+  // One bound starts before initial packet sealing and covers reviewer work
+  // across every route; bounded cleanup may finish after it.
   const runDeadline = Date.now() + runBoundMs();
   const {
     outcome,
@@ -890,7 +1045,10 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
     snapshotChanged,
     model: completedModel,
     dispatchId,
+    preferredModel,
+    preferredModelFailure,
   } = await executePrimaryReview(input, reviewer, primaryModel, runDeadline);
+  const reportedPreferredModel = preferredModel ?? completedModel;
   const changedResult = changedReviewResult({
     author: pair.author,
     reviewer,
@@ -907,12 +1065,23 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
   });
   if (changedResult !== undefined) return changedResult;
   if (outcome.kind === 'failed') {
+    if (outcome.failure === 'not_authenticated') {
+      return authenticationRequiredResult({
+        author: pair.author,
+        assignedReviewer: reviewer,
+        preferredModel: reportedPreferredModel,
+        preferredModelFailure,
+        preferredFailure: outcome.failure,
+        policy,
+      });
+    }
     if (outcome.terminal) {
       return exhaustedRunResult({
         ...input,
         author: pair.author,
         assignedReviewer: reviewer,
-        preferredModel: completedModel,
+        preferredModel: reportedPreferredModel,
+        preferredModelFailure,
         preferredFailure: outcome.failure,
         policy,
       });
@@ -924,7 +1093,8 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
       ...input,
       author: pair.author,
       assignedReviewer: reviewer,
-      preferredModel: completedModel,
+      preferredModel: reportedPreferredModel,
+      preferredModelFailure,
       preferredFailure: outcome.failure,
       policy,
       runDeadline,
@@ -939,7 +1109,8 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
       ...input,
       author: pair.author,
       assignedReviewer: reviewer,
-      preferredModel: completedModel,
+      preferredModel: reportedPreferredModel,
+      preferredModelFailure,
       preferredFailure: provenance.code,
       policy,
       runDeadline,
@@ -947,5 +1118,12 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
   }
   const output = provenance.output;
 
-  return independentReviewResult({ author: pair.author, reviewer, output, model: completedModel });
+  return independentReviewResult({
+    author: pair.author,
+    reviewer,
+    output,
+    model: completedModel,
+    preferredModel,
+    preferredModelFailure,
+  });
 }

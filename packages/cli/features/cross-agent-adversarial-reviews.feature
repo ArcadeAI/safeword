@@ -2,7 +2,10 @@
 # content-bound stamp mechanics remain covered by their original features and
 # Vitest suites; these scenarios prove the new cross-agent coordinator contract.
 # `@manual` keeps the contract readable by codify/review-spec while the real
-# CLI subprocess boundary is exercised by focused Vitest integration tests.
+# CLI subprocess boundary is exercised by
+# packages/cli/tests/cli-protocol/review-wiring.test.ts,
+# packages/cli/tests/cli-protocol/review-alternate-authentication.test.ts, and
+# packages/cli/tests/review/surface-parity.test.ts.
 @cross-agent-adversarial-reviews @manual
 Feature: Cross-agent adversarial reviews
 
@@ -99,11 +102,25 @@ Feature: Cross-agent adversarial reviews
         | the child exceeds its deadline  | reviewer timed out     |
         | the child returns invalid output| invalid reviewer output|
 
+    @rejection
+    Scenario Outline: Missing reviewer authentication routes to reauthentication before fallback
+      Given <reviewer> is the assigned opposite-agent reviewer
+      And its independent route reports no valid login
+      When Safeword evaluates whether to fall back
+      Then the result is action required with code REVIEW_AUTHENTICATION_REQUIRED
+      And recovery tells the agent to run <login_command> and retry the same review once
+      And no same-agent fallback starts
+
+      Examples:
+        | reviewer | login_command     |
+        | Codex    | codex login       |
+        | Claude   | claude auth login |
+
   @cross-agent-review.TBU2.R2
   Rule: cross-agent-review.TBU2.R2 — Fallback evidence never overstates independence
 
     Scenario: A permitted host-native fallback is recorded as degraded
-      Given the opposite reviewer is unavailable
+      Given the opposite reviewer is not installed
       And current policy permits a fresh host-native fallback
       When the fallback completes successfully
       Then its evidence names the actual same-agent reviewer
@@ -111,7 +128,7 @@ Feature: Cross-agent adversarial reviews
 
     @rejection
     Scenario: A degraded fallback cannot satisfy hard cross-agent enforcement
-      Given the opposite reviewer is unavailable
+      Given the opposite reviewer is not installed
       And hard cross-agent enforcement is enabled
       When a same-agent fallback completes successfully
       Then the cross-agent gate remains unsatisfied

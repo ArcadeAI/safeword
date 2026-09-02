@@ -581,11 +581,11 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/audit/SKILL.md": "64afc92c419a8354c015f18ffe0cc581cfce48cb3fee3db8e3c39d75844fb2d3",
         ".claude/skills/bdd/DISCOVERY.md": "ac8f221691aeffaa16ca6a15a7930a462bdf64aeaf2fe9600903a9dbb417f992",
         ".claude/skills/bdd/DONE.md": "e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60",
-        ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "bf7610ab88b4b89a55a233b408ef848b2e4bd413bb65a3b7a7a780a8c02f5d49",
+        ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "0d1c9103c9e6c00b4fb43d3c90a5118f90b9feb964b15daf12340a06d53e4f9a",
         ".claude/skills/bdd/SCENARIOS.md": "a79590a8dcd8c6377f92e2ec0c26d5479f28e16e53291348f86f59b73381a19e",
         ".claude/skills/bdd/SKILL.md": "970d5af3af22e599126b5a15f75ec9c9478fd0ca810b31ec33d2dbd94ec83516",
         ".claude/skills/bdd/SPLITTING.md": "e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708",
-        ".claude/skills/bdd/TDD.md": "2865c9efa57682eb211cc101f9db15f529bd605c3a2bebb57131e2a6d3aec79d",
+        ".claude/skills/bdd/TDD.md": "ed311cb035ab485577319ed21866b40a8406e3551989e4e5ae8b414cbb165eb9",
         ".claude/skills/bdd/VERIFY.md": "85abadfe756a3f391779fe500cd5c66597a33e0cab7fcef55f6b633b30818f31",
         ".claude/skills/brainstorm/SKILL.md": "fe99638bd1621cbd5fe3780a8d39023d4b175e3be2aef2e60d0ebe7558848f2e",
         ".claude/skills/cleanup-zombies/SKILL.md": "e0af9635774767cf36eb69726e11c642ec1dad42839c11407ea8ef60f89fc289",
@@ -599,11 +599,11 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/finish-review/SKILL.md": "fdb8800d140467f1747f7b0ee067137386026003126ff17c00758940766dd07a",
         ".claude/skills/lint/SKILL.md": "f8bc868fb10a06ca46a22236309b9f0c3ffbd70eecc024d3c79de8ef0e42fd14",
         ".claude/skills/pr-readiness/SKILL.md": "b23b1bb565f0a4551defa0641b52254133807b1c79495641d82bba9102fd19ff",
-        ".claude/skills/quality-review/SKILL.md": "6c356d37a4894d9456639236b9d305e2b9a42491119e55cb437a246e0096500d",
+        ".claude/skills/quality-review/SKILL.md": "9c7b0a5065d184fed0fd19e449c7a304eee35e376d052409163c3a83501ece27",
         ".claude/skills/refactor/SKILL.md": "a51a858fb13b50cbc86789edbde8a39e364b5cdd7d5d3b025d555d90b221760e",
         ".claude/skills/retro-filer/SKILL.md": "ea126f3805a2befefb4db2011439f075ebfd6eca31b78bd5f284ac11d667b4f0",
         ".claude/skills/retro/SKILL.md": "d01abb281a1c941024f304709c8727769383eb76d0ccc7da53f73776c4a0122d",
-        ".claude/skills/review-spec/SKILL.md": "d8c5d225ea2fdb723ad9b54bbc17f8f9b566373d04504ee1a466eed50784c7d8",
+        ".claude/skills/review-spec/SKILL.md": "1003829012f8134a805f26635782b1e14a5165caa28d6747e7cb9cabfc78bec0",
         ".claude/skills/self-review/SKILL.md": "e5ff994ec84573e6f129127bad89617f0a67b67c5cf792cedac558b6e419ac3b",
         ".claude/skills/spike/SKILL.md": "905aab56037ad5a258bafa91cb2ebf05cff1acffbc9e1fd6f7a1f27230672f37",
         ".claude/skills/tdd-review/SKILL.md": "4b945f122a90d23462845d7bdbbd0b736aa69d423a2d7e99ebf646bf118faa4f",
@@ -48995,6 +48995,9 @@ function independentReviewResult(input) {
       actual_reviewer: input.output.reviewer_agent,
       ...input.model !== undefined && { reviewer_model: input.model },
       ...input.preferredModel !== undefined && { preferred_model: input.preferredModel },
+      ...input.preferredModelFailure !== undefined && {
+        preferred_model_failure: input.preferredModelFailure
+      },
       ...input.preferredFailure !== undefined && { preferred_failure: input.preferredFailure },
       independence: "cross-agent",
       reviewer_output: input.output
@@ -49044,7 +49047,7 @@ async function executeReview(reviewer, prepared, model, runDeadline) {
     prepared.cleanup();
   }
 }
-function assessFallback(outcome, reviewer, dispatchId) {
+function assessReviewOutcome(outcome, reviewer, dispatchId) {
   if (outcome.kind === "failed")
     return outcome;
   const provenance = verifyProvenance(outcome.output, reviewer, dispatchId);
@@ -49052,6 +49055,9 @@ function assessFallback(outcome, reviewer, dispatchId) {
 }
 function agentName(agent) {
   return agent === "codex" ? "Codex" : "Claude";
+}
+function reviewerLoginCommand(agent) {
+  return agent === "codex" ? "codex login" : "claude auth login";
 }
 function causePhrase(failure) {
   return FAILURE_CAUSES[failure] ?? "could not be run";
@@ -49062,6 +49068,31 @@ function exhaustedExplanation(routes) {
     return `The ${route.role}${modelPhrase} (${agentName(route.agent)}) ${causePhrase(route.failure)}.`;
   });
   return [...sentences, "No independent check was recorded."].join(" ");
+}
+function primaryFailureRoutes(input) {
+  if (input.preferredModelFailure === undefined) {
+    return [
+      {
+        agent: input.assignedReviewer,
+        role: "independent reviewer",
+        model: input.preferredModel,
+        failure: input.preferredFailure
+      }
+    ];
+  }
+  return [
+    {
+      agent: input.assignedReviewer,
+      role: "independent reviewer on its configured model",
+      model: input.preferredModel,
+      failure: input.preferredModelFailure
+    },
+    {
+      agent: input.assignedReviewer,
+      role: "independent reviewer on its default model",
+      failure: input.preferredFailure
+    }
+  ];
 }
 function nextStepFor(reviewer, failure) {
   const name = agentName(reviewer);
@@ -49075,8 +49106,6 @@ function nextStepFor(reviewer, failure) {
     return `Run ${name} --help to diagnose it, then retry review.`;
   if (failure === "launch_failed")
     return `Run ${name} --help and fix its launch failure, then retry review.`;
-  if (failure === "not_authenticated")
-    return `Sign in to ${name}, then run the review again.`;
   return "Run the review again.";
 }
 function degradedDescription(assignedReviewer, actualReviewer, failure) {
@@ -49174,12 +49203,50 @@ function changedReviewResult(input) {
 function routeFailureData(input) {
   return {
     ...input.preferredModel !== undefined && { preferred_model: input.preferredModel },
+    ...input.preferredModelFailure !== undefined && {
+      preferred_model_failure: input.preferredModelFailure
+    },
     preferred_failure: input.preferredFailure,
     ...input.alternateFailure !== undefined && {
       alternate_model_failure: input.alternateFailure,
       ...input.alternateModel !== undefined && { alternate_model: input.alternateModel }
     }
   };
+}
+function authenticationRequiredResult(input) {
+  const reviewer = agentName(input.assignedReviewer);
+  return createResult({
+    state: "action_required",
+    findings: [
+      {
+        code: "REVIEW_AUTHENTICATION_REQUIRED",
+        message: `The independent ${reviewer} review needs authentication. Reauthenticate ${reviewer}, then retry the same review; no fallback or review evidence was recorded.`,
+        severity: "warning"
+      }
+    ],
+    effects: {
+      network: [
+        ...networkEffectsForFailure(input.assignedReviewer, input.preferredFailure),
+        ...networkEffectsForFailure(input.assignedReviewer, input.alternateFailure)
+      ]
+    },
+    recovery: [
+      {
+        command: reviewerLoginCommand(input.assignedReviewer),
+        description: `Reauthenticate ${reviewer}, then retry the original independent review.`,
+        requiresHuman: true
+      }
+    ],
+    data: {
+      command: "review run",
+      status: "blocked",
+      author_agent: input.author,
+      assigned_reviewer: input.assignedReviewer,
+      ...routeFailureData(input),
+      review_policy: input.policy,
+      independence: "none"
+    }
+  });
 }
 function reviewRequest(reviewer) {
   return { kind: "review", target: reviewer, operation: "request" };
@@ -49206,7 +49273,11 @@ async function executePrimaryReview(input, reviewer, primaryModel, runDeadline) 
   let execution = await executeReview(reviewer, prepared, primaryModel, runDeadline);
   let model = primaryModel;
   let dispatchId = prepared.packet.dispatch_id;
+  let rejectedModel;
+  let rejectedModelFailure;
   if (primaryModel !== undefined && execution.outcome.kind === "failed" && execution.outcome.failure === "unsupported" && !execution.outcome.terminal && canFundRoute(runDeadline)) {
+    rejectedModel = primaryModel;
+    rejectedModelFailure = execution.outcome.failure;
     const defaultPrepared = preparePrimaryReview(input, reviewer);
     const retried = await executeReview(reviewer, defaultPrepared, undefined, runDeadline);
     execution = {
@@ -49217,7 +49288,13 @@ async function executePrimaryReview(input, reviewer, primaryModel, runDeadline) 
     model = undefined;
     dispatchId = defaultPrepared.packet.dispatch_id;
   }
-  return { ...execution, model, dispatchId };
+  return {
+    ...execution,
+    model,
+    dispatchId,
+    preferredModel: rejectedModel,
+    preferredModelFailure: rejectedModelFailure
+  };
 }
 function prepareFallbackReview(input, assignedReviewer, author) {
   const fallbackName = agentName(author);
@@ -49249,7 +49326,7 @@ async function runDegradedFallback(input) {
   });
   if (changedResult !== undefined)
     return changedResult;
-  const assessment = assessFallback(outcome, input.author, prepared.packet.dispatch_id);
+  const assessment = assessReviewOutcome(outcome, input.author, prepared.packet.dispatch_id);
   if (assessment.kind === "failed") {
     return createResult({
       state: "action_required",
@@ -49257,12 +49334,7 @@ async function runDegradedFallback(input) {
         {
           code: "REVIEW_ROUTES_EXHAUSTED",
           message: exhaustedExplanation([
-            {
-              agent: input.assignedReviewer,
-              role: "independent reviewer",
-              model: input.preferredModel,
-              failure: input.preferredFailure
-            },
+            ...primaryFailureRoutes(input),
             ...input.alternateFailure === undefined ? [] : [
               {
                 agent: input.assignedReviewer,
@@ -49288,7 +49360,7 @@ async function runDegradedFallback(input) {
       recovery: [
         {
           command: retryCommand(input.kind, input.targets, input.context),
-          description: nextStepFor(input.assignedReviewer, input.preferredFailure),
+          description: nextStepFor(input.assignedReviewer, input.preferredModelFailure ?? input.preferredFailure),
           requiresHuman: true
         }
       ],
@@ -49400,11 +49472,9 @@ async function runAlternateModelRoute(input) {
   });
   if (changedResult !== undefined)
     return { kind: "completed", result: changedResult };
-  const assessment = assessFallback(outcome, input.reviewer, prepared.packet.dispatch_id);
+  const assessment = assessReviewOutcome(outcome, input.reviewer, prepared.packet.dispatch_id);
   if (assessment.kind === "failed") {
-    if (ALTERNATE_MODEL_SKIP_FAILURES.has(assessment.failure))
-      return { kind: "skipped" };
-    return { ...assessment, model };
+    return resolveAlternateModelFailure(input, model, assessment);
   }
   const output = assessment.output;
   const result = independentReviewResult({
@@ -49413,9 +49483,29 @@ async function runAlternateModelRoute(input) {
     output,
     model,
     preferredModel: input.preferredModel,
+    preferredModelFailure: input.preferredModelFailure,
     preferredFailure: input.preferredFailure
   });
   return { kind: "completed", result };
+}
+function resolveAlternateModelFailure(input, model, assessment) {
+  if (ALTERNATE_MODEL_SKIP_FAILURES.has(assessment.failure))
+    return { kind: "skipped" };
+  if (assessment.failure !== "not_authenticated")
+    return { ...assessment, model };
+  return {
+    kind: "completed",
+    result: authenticationRequiredResult({
+      author: input.author,
+      assignedReviewer: input.reviewer,
+      preferredModel: input.preferredModel,
+      preferredModelFailure: input.preferredModelFailure,
+      preferredFailure: input.preferredFailure,
+      alternateModel: model,
+      alternateFailure: assessment.failure,
+      policy: input.policy
+    })
+  };
 }
 async function runRemainingRoutes(input) {
   const alternate = await runAlternateModelRoute({
@@ -49427,6 +49517,7 @@ async function runRemainingRoutes(input) {
     author: input.author,
     reviewer: input.assignedReviewer,
     preferredModel: input.preferredModel,
+    preferredModelFailure: input.preferredModelFailure,
     preferredFailure: input.preferredFailure,
     policy: input.policy,
     runDeadline: input.runDeadline
@@ -49450,12 +49541,7 @@ function exhaustedRunResult(input) {
       {
         code: "REVIEW_ROUTES_EXHAUSTED",
         message: exhaustedExplanation([
-          {
-            agent: input.assignedReviewer,
-            role: "independent reviewer",
-            model: input.preferredModel,
-            failure: input.preferredFailure
-          },
+          ...primaryFailureRoutes(input),
           ...input.alternateFailure === undefined ? [] : [
             {
               agent: input.assignedReviewer,
@@ -49477,7 +49563,7 @@ function exhaustedRunResult(input) {
     recovery: [
       {
         command: retryCommand(input.kind, input.targets, input.context),
-        description: nextStepFor(input.assignedReviewer, input.preferredFailure),
+        description: nextStepFor(input.assignedReviewer, input.preferredModelFailure ?? input.preferredFailure),
         requiresHuman: true
       }
     ],
@@ -49532,8 +49618,11 @@ async function runReview(input) {
     sourceChanged,
     snapshotChanged,
     model: completedModel,
-    dispatchId
+    dispatchId,
+    preferredModel,
+    preferredModelFailure
   } = await executePrimaryReview(input, reviewer, primaryModel, runDeadline);
+  const reportedPreferredModel = preferredModel ?? completedModel;
   const changedResult = changedReviewResult({
     author: pair.author,
     reviewer,
@@ -49548,12 +49637,23 @@ async function runReview(input) {
   if (changedResult !== undefined)
     return changedResult;
   if (outcome.kind === "failed") {
+    if (outcome.failure === "not_authenticated") {
+      return authenticationRequiredResult({
+        author: pair.author,
+        assignedReviewer: reviewer,
+        preferredModel: reportedPreferredModel,
+        preferredModelFailure,
+        preferredFailure: outcome.failure,
+        policy
+      });
+    }
     if (outcome.terminal) {
       return exhaustedRunResult({
         ...input,
         author: pair.author,
         assignedReviewer: reviewer,
-        preferredModel: completedModel,
+        preferredModel: reportedPreferredModel,
+        preferredModelFailure,
         preferredFailure: outcome.failure,
         policy
       });
@@ -49562,7 +49662,8 @@ async function runReview(input) {
       ...input,
       author: pair.author,
       assignedReviewer: reviewer,
-      preferredModel: completedModel,
+      preferredModel: reportedPreferredModel,
+      preferredModelFailure,
       preferredFailure: outcome.failure,
       policy,
       runDeadline
@@ -49574,14 +49675,22 @@ async function runReview(input) {
       ...input,
       author: pair.author,
       assignedReviewer: reviewer,
-      preferredModel: completedModel,
+      preferredModel: reportedPreferredModel,
+      preferredModelFailure,
       preferredFailure: provenance.code,
       policy,
       runDeadline
     });
   }
   const output = provenance.output;
-  return independentReviewResult({ author: pair.author, reviewer, output, model: completedModel });
+  return independentReviewResult({
+    author: pair.author,
+    reviewer,
+    output,
+    model: completedModel,
+    preferredModel,
+    preferredModelFailure
+  });
 }
 var MAX_TERMINAL_REVIEWER_TEXT_LENGTH = 2000, FAILURE_CAUSES, NON_ATTEMPT_FAILURES, ALTERNATE_MODEL_SKIP_FAILURES;
 var init_coordinator = __esm(() => {
