@@ -123,6 +123,10 @@
       "packages/cli/tests/lifecycle/selected-authority-reconciliation.test.ts",
       "uninstalls the Codex profile without changing Cursor or project content"
     ],
+    "Removing one selection retains enrollment for another native host": [
+      "packages/cli/tests/lifecycle/selected-authority-reconciliation.test.ts",
+      "removes %s without unenrolling the remaining %s host"
+    ],
     "Reconciliation preserves selected authorities without restoring native project runtime": [
       "packages/cli/tests/lifecycle/selected-authority-reconciliation.test.ts",
       "reconciles Codex and Cursor without restoring native project runtime"

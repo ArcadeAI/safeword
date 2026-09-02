@@ -160,6 +160,12 @@ test-definitions.md is the R/G/R ledger.
 - [x] GREEN a81f5897d
 - [x] REFACTOR skip: accepted fixtures retain the public lifecycle seam
 
+### Scenario: Removing one selection retains enrollment for another native host
+
+- [x] RED dc52dd7c7
+- [x] GREEN 8c4147a80
+- [x] REFACTOR skip: reuse existing profile observations and schema filtering rather than a second ownership registry
+
 ### Scenario: Reconciliation preserves selected authorities without restoring native project runtime
 
 - [x] RED 62067afe1
@@ -226,9 +232,9 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A cross-host executable reference blocks Cursor release
 
-- [x] RED 62067afe1
-- [x] GREEN 07b5b7632
-- [x] REFACTOR skip: Cursor parity derives executables only from its declared project authority
+- [x] RED dc52dd7c7
+- [x] GREEN 8c4147a80
+- [x] REFACTOR skip: runner-independent references with explicit transcript-data exemptions replace the interpreter heuristic
 
 ## Feature-level cross-scenario refactor
 

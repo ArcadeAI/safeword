@@ -10,6 +10,7 @@
 | Runtime state | Existing; missing file; missing parent directory | Missing framework state initializes lazily without invoking installation. |
 | Ignore hygiene | Rule absent; exact rule present; broader customer rule present; unrelated existing content | Initialization adds at most one precise rule and preserves the customer's bytes and effective policy. |
 | Selected agents | Each host alone; native host plus Cursor | Plans contain shared substrate plus the selected project authority and no native project runtime. |
+| Remaining consumer after removal | Cursor; another native plugin; no remaining host | Remove only the selected delivery while retaining enrollment/configuration required by another host; existing single-host uninstall contracts cover the no-consumer case. |
 | Profile ownership | Current identity; previous identity-owned bytes; edited owned asset; unrelated profile content | Upgrade and uninstall mutate only bytes proven by the profile identity. |
 | Release integrity | All references packaged; undeclared project-local executable reference | Release validation rejects native catalogues that borrow project runtime. |
 

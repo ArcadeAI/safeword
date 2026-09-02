@@ -254,6 +254,22 @@ Feature: Every agent delivery is self-contained
       And Cursor's project hooks, rules, commands, and skills remain present
       And authored knowledge, enrollment state, and unrelated content remain unchanged
 
+    @surface.safeword-cli @surface.openai-codex @surface.claude-code @surface.opencode @surface.cursor
+    Scenario Outline: Removing one selection retains enrollment for another native host
+      Given an enrolled project has <removed> delivery and an installed <remaining> plugin
+      And no other agent delivery is installed
+      When the Non-Technical Builder uninstalls only <removed>
+      Then the <removed> delivery is removed
+      And the <remaining> plugin remains installed
+      And the project enrollment and configuration remain byte-for-byte unchanged
+
+      Examples:
+        | removed | remaining |
+        | Codex   | Claude Code |
+        | Claude Code | Codex |
+        | Codex   | OpenCode |
+        | Cursor  | Claude Code |
+
     @surface.safeword-cli @surface.openai-codex @surface.cursor
     Scenario: Reconciliation preserves selected authorities without restoring native project runtime
       Given an enrolled project selects Codex and Cursor with no project-local Codex runtime
