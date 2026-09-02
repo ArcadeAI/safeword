@@ -21,7 +21,6 @@ const builtInRoutes = [
   { reviewer: 'opencode', independence: 'cross-agent' },
   { reviewer: 'claude', independence: 'degraded' },
 ];
-const scopes = ['user', 'project'] as const;
 
 function scopedFixture() {
   const root = createTemporaryDirectory();
@@ -129,69 +128,75 @@ describe('review routes CLI wiring', () => {
     await expectEffectiveRoutes(fixture.cwd, 'project', independent(projectRoutes));
   });
 
-  it.each(scopes)('sets only the selected author at %s scope', async scope => {
-    const fixture = scopedFixture();
-    const other = scope === 'user' ? 'project' : 'user';
-    const config = {
-      installedPacks: ['typescript'],
-      crossAgentReview: 'prefer',
-      crossAgentReviewRoutes: { claude: projectRoutes, codex: [{ reviewer: 'claude' }] },
-    };
-    writeConfig(fixture.user, config);
-    writeConfig(fixture.project, config);
-    const otherBefore = readFileSync(fixture[other], 'utf8');
+  it.each(['user', 'project'] as const)(
+    'sets only the selected author at %s scope',
+    async scope => {
+      const fixture = scopedFixture();
+      const other = scope === 'user' ? 'project' : 'user';
+      const config = {
+        installedPacks: ['typescript'],
+        crossAgentReview: 'prefer',
+        crossAgentReviewRoutes: { claude: projectRoutes, codex: [{ reviewer: 'claude' }] },
+      };
+      writeConfig(fixture.user, config);
+      writeConfig(fixture.project, config);
+      const otherBefore = readFileSync(fixture[other], 'utf8');
 
-    const result = await invoke(fixture.cwd, [
-      'review',
-      'routes',
-      'set',
-      '--scope',
-      scope,
-      '--author',
-      'claude',
-      '--route',
-      'opencode=vendor/model',
-      '--route',
-      'codex',
-    ]);
+      const result = await invoke(fixture.cwd, [
+        'review',
+        'routes',
+        'set',
+        '--scope',
+        scope,
+        '--author',
+        'claude',
+        '--route',
+        'opencode=vendor/model',
+        '--route',
+        'codex',
+      ]);
 
-    expect(result.state).toBe('changed');
-    expect(JSON.parse(readFileSync(fixture[scope], 'utf8'))).toEqual({
-      ...config,
-      crossAgentReviewRoutes: { ...config.crossAgentReviewRoutes, claude: userRoutes },
-    });
-    expect(readFileSync(fixture[other], 'utf8')).toBe(otherBefore);
-  });
+      expect(result.state).toBe('changed');
+      expect(JSON.parse(readFileSync(fixture[scope], 'utf8'))).toEqual({
+        ...config,
+        crossAgentReviewRoutes: { ...config.crossAgentReviewRoutes, claude: userRoutes },
+      });
+      expect(readFileSync(fixture[other], 'utf8')).toBe(otherBefore);
+    },
+  );
 
-  it.each(scopes)('resets only the selected author at %s scope', async scope => {
-    const fixture = scopedFixture();
-    const other = scope === 'user' ? 'project' : 'user';
-    const config = {
-      installedPacks: ['typescript'],
-      crossAgentReview: 'prefer',
-      crossAgentReviewRoutes: { claude: userRoutes, codex: [{ reviewer: 'claude' }] },
-    };
-    writeConfig(fixture.user, config);
-    writeConfig(fixture.project, config);
-    const otherBefore = readFileSync(fixture[other], 'utf8');
+  it.each(['user', 'project'] as const)(
+    'resets only the selected author at %s scope',
+    async scope => {
+      const fixture = scopedFixture();
+      const other = scope === 'user' ? 'project' : 'user';
+      const config = {
+        installedPacks: ['typescript'],
+        crossAgentReview: 'prefer',
+        crossAgentReviewRoutes: { claude: userRoutes, codex: [{ reviewer: 'claude' }] },
+      };
+      writeConfig(fixture.user, config);
+      writeConfig(fixture.project, config);
+      const otherBefore = readFileSync(fixture[other], 'utf8');
 
-    const result = await invoke(fixture.cwd, [
-      'review',
-      'routes',
-      'reset',
-      '--scope',
-      scope,
-      '--author',
-      'claude',
-    ]);
+      const result = await invoke(fixture.cwd, [
+        'review',
+        'routes',
+        'reset',
+        '--scope',
+        scope,
+        '--author',
+        'claude',
+      ]);
 
-    expect(result.state).toBe('changed');
-    expect(JSON.parse(readFileSync(fixture[scope], 'utf8'))).toEqual({
-      ...config,
-      crossAgentReviewRoutes: { codex: [{ reviewer: 'claude' }] },
-    });
-    expect(readFileSync(fixture[other], 'utf8')).toBe(otherBefore);
-  });
+      expect(result.state).toBe('changed');
+      expect(JSON.parse(readFileSync(fixture[scope], 'utf8'))).toEqual({
+        ...config,
+        crossAgentReviewRoutes: { codex: [{ reviewer: 'claude' }] },
+      });
+      expect(readFileSync(fixture[other], 'utf8')).toBe(otherBefore);
+    },
+  );
 
   it('does not create a project config when resetting an absent entry', async () => {
     const fixture = scopedFixture();
@@ -212,7 +217,7 @@ describe('review routes CLI wiring', () => {
     await expectEffectiveRoutes(fixture.cwd, 'user', independent(userRoutes));
   });
 
-  it.each(scopes)(
+  it.each(['user', 'project'] as const)(
     'rejects malformed %s configuration instead of resolving other routes',
     async scope => {
       const fixture = scopedFixture();
@@ -230,92 +235,104 @@ describe('review routes CLI wiring', () => {
     },
   );
 
-  it.each(scopes)('refuses to set malformed %s configuration', async scope => {
-    const fixture = scopedFixture();
-    writeConfig(fixture[scope], '{ malformed');
-    const result = await invoke(fixture.cwd, [
-      'review',
-      'routes',
-      'set',
-      '--scope',
-      scope,
-      '--author',
-      'claude',
-      '--route',
-      'codex',
-    ]);
-    expect(result).toMatchObject({
-      state: 'failed',
-      errors: [{ code: 'REVIEW_ROUTE_CONFIG_INVALID' }],
-    });
-    expect((result.errors as { message: string }[])[0]?.message).toContain(fixture[scope]);
-    expect(readFileSync(fixture[scope], 'utf8')).toBe('{ malformed');
-  });
+  it.each(['user', 'project'] as const)(
+    'refuses to set malformed %s configuration',
+    async scope => {
+      const fixture = scopedFixture();
+      writeConfig(fixture[scope], '{ malformed');
+      const result = await invoke(fixture.cwd, [
+        'review',
+        'routes',
+        'set',
+        '--scope',
+        scope,
+        '--author',
+        'claude',
+        '--route',
+        'codex',
+      ]);
+      expect(result).toMatchObject({
+        state: 'failed',
+        errors: [{ code: 'REVIEW_ROUTE_CONFIG_INVALID' }],
+      });
+      expect((result.errors as { message: string }[])[0]?.message).toContain(fixture[scope]);
+      expect(readFileSync(fixture[scope], 'utf8')).toBe('{ malformed');
+    },
+  );
 
-  it.each(scopes)('refuses to reset malformed %s configuration', async scope => {
-    const fixture = scopedFixture();
-    writeConfig(fixture[scope], '{ malformed');
-    const result = await invoke(fixture.cwd, [
-      'review',
-      'routes',
-      'reset',
-      '--scope',
-      scope,
-      '--author',
-      'claude',
-    ]);
-    expect(result).toMatchObject({
-      state: 'failed',
-      errors: [{ code: 'REVIEW_ROUTE_CONFIG_INVALID' }],
-    });
-    expect((result.errors as { message: string }[])[0]?.message).toContain(fixture[scope]);
-    expect(readFileSync(fixture[scope], 'utf8')).toBe('{ malformed');
-  });
+  it.each(['user', 'project'] as const)(
+    'refuses to reset malformed %s configuration',
+    async scope => {
+      const fixture = scopedFixture();
+      writeConfig(fixture[scope], '{ malformed');
+      const result = await invoke(fixture.cwd, [
+        'review',
+        'routes',
+        'reset',
+        '--scope',
+        scope,
+        '--author',
+        'claude',
+      ]);
+      expect(result).toMatchObject({
+        state: 'failed',
+        errors: [{ code: 'REVIEW_ROUTE_CONFIG_INVALID' }],
+      });
+      expect((result.errors as { message: string }[])[0]?.message).toContain(fixture[scope]);
+      expect(readFileSync(fixture[scope], 'utf8')).toBe('{ malformed');
+    },
+  );
 
-  it.each(scopes)('sets %s routes despite malformed non-target configuration', async scope => {
-    const fixture = scopedFixture();
-    const other = scope === 'user' ? 'project' : 'user';
-    writeConfig(fixture[other], '{ malformed');
-    const result = await invoke(fixture.cwd, [
-      'review',
-      'routes',
-      'set',
-      '--scope',
-      scope,
-      '--author',
-      'claude',
-      '--route',
-      'opencode=vendor/model',
-      '--route',
-      'codex',
-    ]);
-    expect(result.state).toBe('changed');
-    expect(JSON.parse(readFileSync(fixture[scope], 'utf8'))).toEqual({
-      crossAgentReviewRoutes: { claude: userRoutes },
-    });
-    expect(readFileSync(fixture[other], 'utf8')).toBe('{ malformed');
-  });
+  it.each(['user', 'project'] as const)(
+    'sets %s routes despite malformed non-target configuration',
+    async scope => {
+      const fixture = scopedFixture();
+      const other = scope === 'user' ? 'project' : 'user';
+      writeConfig(fixture[other], '{ malformed');
+      const result = await invoke(fixture.cwd, [
+        'review',
+        'routes',
+        'set',
+        '--scope',
+        scope,
+        '--author',
+        'claude',
+        '--route',
+        'opencode=vendor/model',
+        '--route',
+        'codex',
+      ]);
+      expect(result.state).toBe('changed');
+      expect(JSON.parse(readFileSync(fixture[scope], 'utf8'))).toEqual({
+        crossAgentReviewRoutes: { claude: userRoutes },
+      });
+      expect(readFileSync(fixture[other], 'utf8')).toBe('{ malformed');
+    },
+  );
 
-  it.each(scopes)('resets %s routes despite malformed non-target configuration', async scope => {
-    const fixture = scopedFixture();
-    const other = scope === 'user' ? 'project' : 'user';
-    writeConfig(fixture[other], '{ malformed');
-    writeConfig(fixture[scope], { crossAgentReviewRoutes: { claude: userRoutes } });
-    const result = await invoke(fixture.cwd, [
-      'review',
-      'routes',
-      'reset',
-      '--scope',
-      scope,
-      '--author',
-      'claude',
-    ]);
-    expect(result.state).toBe('changed');
-    expect(JSON.parse(readFileSync(fixture[scope], 'utf8'))).toEqual({});
-    expect(readFileSync(fixture[other], 'utf8')).toBe('{ malformed');
-  });
+  it.each(['user', 'project'] as const)(
+    'resets %s routes despite malformed non-target configuration',
+    async scope => {
+      const fixture = scopedFixture();
+      const other = scope === 'user' ? 'project' : 'user';
+      writeConfig(fixture[other], '{ malformed');
+      writeConfig(fixture[scope], { crossAgentReviewRoutes: { claude: userRoutes } });
+      const result = await invoke(fixture.cwd, [
+        'review',
+        'routes',
+        'reset',
+        '--scope',
+        scope,
+        '--author',
+        'claude',
+      ]);
+      expect(result.state).toBe('changed');
+      expect(JSON.parse(readFileSync(fixture[scope], 'utf8'))).toEqual({});
+      expect(readFileSync(fixture[other], 'utf8')).toBe('{ malformed');
+    },
+  );
 
-  it.each(scopes)(
+  it.each(['user', 'project'] as const)(
     'rejects an empty %s route list instead of resolving other routes',
     async scope => {
       const fixture = scopedFixture();
@@ -362,30 +379,33 @@ describe('review routes CLI wiring', () => {
     await expectEffectiveRoutes(fixture.cwd, 'user', independent(userRoutes));
   });
 
-  it.each(scopes)('creates only the selected config on first %s write', async scope => {
-    const fixture = scopedFixture();
-    const other = scope === 'user' ? 'project' : 'user';
-    const result = await invoke(fixture.cwd, [
-      'review',
-      'routes',
-      'set',
-      '--scope',
-      scope,
-      '--author',
-      'claude',
-      '--route',
-      'opencode=vendor/model',
-      '--route',
-      'codex',
-    ]);
-    expect(result.state).toBe('changed');
-    expect(JSON.parse(readFileSync(fixture[scope], 'utf8'))).toEqual({
-      crossAgentReviewRoutes: { claude: userRoutes },
-    });
-    expect(existsSync(fixture[other])).toBe(false);
-    expect(readdirSync(fixture.cwd)).toEqual(scope === 'user' ? [] : ['.safeword']);
-    expect(readdirSync(nodePath.dirname(fixture[scope]))).toEqual(['config.json']);
-  });
+  it.each(['user', 'project'] as const)(
+    'creates only the selected config on first %s write',
+    async scope => {
+      const fixture = scopedFixture();
+      const other = scope === 'user' ? 'project' : 'user';
+      const result = await invoke(fixture.cwd, [
+        'review',
+        'routes',
+        'set',
+        '--scope',
+        scope,
+        '--author',
+        'claude',
+        '--route',
+        'opencode=vendor/model',
+        '--route',
+        'codex',
+      ]);
+      expect(result.state).toBe('changed');
+      expect(JSON.parse(readFileSync(fixture[scope], 'utf8'))).toEqual({
+        crossAgentReviewRoutes: { claude: userRoutes },
+      });
+      expect(existsSync(fixture[other])).toBe(false);
+      expect(readdirSync(fixture.cwd)).toEqual(scope === 'user' ? [] : ['.safeword']);
+      expect(readdirSync(nodePath.dirname(fixture[scope]))).toEqual(['config.json']);
+    },
+  );
 
   it('sets, lists, and resets ordered user routes through the assembled program', async () => {
     const root = createTemporaryDirectory();
