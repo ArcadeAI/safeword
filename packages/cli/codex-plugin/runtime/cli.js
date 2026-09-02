@@ -36733,7 +36733,7 @@ function parseConfiguredReviewRoutes(config, author, source) {
     throw configError("must be an object", source);
   const unsupportedAuthor = Object.keys(configured).find((key) => !REVIEW_AGENTS2.has(key));
   if (unsupportedAuthor !== undefined)
-    throw configError(`.${unsupportedAuthor} author is unsupported`, source);
+    throw configError("contains an unsupported author key; use claude, codex, or opencode", source);
   const values = configured[author];
   if (values === undefined)
     return;

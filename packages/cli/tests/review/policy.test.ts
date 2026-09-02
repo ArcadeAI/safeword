@@ -81,7 +81,7 @@ describe('review route policy', () => {
     });
 
     expect(() => readConfiguredReviewRoutes(cwd, 'claude')).toThrow(
-      '.future author is unsupported',
+      'contains an unsupported author key',
     );
   });
 

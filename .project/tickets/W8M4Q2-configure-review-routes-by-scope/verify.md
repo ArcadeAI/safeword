@@ -34,3 +34,15 @@ Using an isolated temporary XDG profile and project, the real CLI successfully:
 - Kept the default set/reset scope at `user` because the command family exists specifically to manage personal ranking; project overrides remain explicit with `--scope project` and every result identifies its scope/path effect.
 - Kept shadowed-scope inspection as a follow-up rather than expanding `list` into a multi-scope diagnostic surface; the current command truthfully reports the effective source and does not merge lists.
 - Kept the existing durable-write module location because multiple review, OpenCode, Claude, utility, and Codex modules already share it; relocating that cross-cutting primitive is repository-wide architecture work, not this focused feature.
+
+## Post-main integration review (2026-09-02)
+
+The historical review and CI references above describe earlier heads. PR #3617 carries the final exact-head readiness receipt.
+
+- Merged the authentication-recovery changes and the v0.83.1 release from main; regenerated both host bundles and lifecycle fixtures.
+- Applied review findings for ranked authentication recovery, canceled-job effect reporting, safe worker PID ownership, user-profile execution, malformed-config diagnostics, and user/project precedence.
+- The focused public-CLI, route configuration, preferences, and machine-contract run passed 133/133 tests. Release lifecycle regeneration passed 12/12. The final parser-diagnostic and route-command run passed 18/18.
+- Public-CLI proof now exercises user-only execution and project replacement with both scopes populated, author-independent resolution, malformed shadowed user configuration, unrelated project-setting preservation, and terminal-safe blocked-review recovery.
+- Repeated the end-user walkthrough with the regenerated CLI in an isolated profile: set `claude=opus → opencode` for Codex-authored work, list user routes, set and list a project-only `opencode` override, reset the project override, and confirm the original user list reappears. All six commands succeeded; the real user profile was untouched.
+- Authentication remains a stop condition even after a degraded result: existing feedback is preserved, but the independent login recovery contract is not weakened.
+- Deferred non-blocking presentation suggestions: the legacy built-in listing does not enumerate its conditional runtime-default retry; route failure prose could distinguish unattempted routes more explicitly. Structured route evidence remains authoritative.
