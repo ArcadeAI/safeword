@@ -66713,7 +66713,10 @@ async function reviewRoutesSetHandler(invocation) {
       command: "review routes set",
       scope,
       author,
-      routes: routes.map(({ reviewer, model }) => ({ reviewer, ...model !== undefined && { model } }))
+      routes: routes.map(({ reviewer, model }) => ({
+        reviewer,
+        ...model !== undefined && { model }
+      }))
     }
   });
 }
@@ -68427,13 +68430,26 @@ var CANONICAL_COMMANDS = [
       }
     ],
     fixture: {
-      argv: ["review", "routes", "set", "--scope", "project", "--author", "claude", "--route", "codex"],
+      argv: [
+        "review",
+        "routes",
+        "set",
+        "--scope",
+        "project",
+        "--author",
+        "claude",
+        "--route",
+        "codex"
+      ],
       environment: MACHINE_ENVIRONMENT
     }
   }),
   command("review routes list", "List effective ranked review routes", "observe", {
     commandOptions: [{ flags: "--author <author>", description: "claude, codex, or opencode" }],
-    fixture: { argv: ["review", "routes", "list", "--author", "claude"], environment: MACHINE_ENVIRONMENT }
+    fixture: {
+      argv: ["review", "routes", "list", "--author", "claude"],
+      environment: MACHINE_ENVIRONMENT
+    }
   }),
   command("review routes reset", "Reset ranked review routes", "mutate", {
     commandOptions: [
