@@ -94,9 +94,37 @@ afterEach(() => {
 });
 
 describe('selected authority lifecycle reconciliation', () => {
+  it('removes selected legacy Claude files while preserving Cursor runtime', async () => {
+    const cwd = project();
+    profileState.codex = true;
+    await installSelected(cwd);
+    const legacyPath = nodePath.join(cwd, '.claude/skills/debug/SKILL.md');
+    mkdirSync(nodePath.dirname(legacyPath), { recursive: true });
+    writeFileSync(
+      legacyPath,
+      readFileSync(new URL('../../templates/skills/debug/SKILL.md', import.meta.url)),
+    );
+    const preserved = [
+      '.safeword/SAFEWORD.md',
+      '.safeword/skills/debug/SKILL.md',
+      '.cursor/commands/audit.md',
+    ];
+    const before = new Map(preserved.map(path => [path, projectBytes(cwd, path)]));
+
+    const preview = await uninstallLifecycle(invocation(cwd, 'claude'));
+    const plan = (preview.data as { readonly plan: { readonly id: string } }).plan.id;
+    const result = await uninstallLifecycle(invocation(cwd, 'claude', { yes: true, plan }));
+
+    expect(result.errors).toEqual([]);
+    expect(existsSync(legacyPath)).toBe(false);
+    for (const [path, content] of before) expect(projectBytes(cwd, path)).toBe(content);
+    expect(profileState.codex).toBe(true);
+  });
+
   it('honors explicit project removal without uninstalling profile plugins', async () => {
     const cwd = project();
     profileState.claude = true;
+    profileState.codex = true;
     const installed = await installLifecycle(invocation(cwd, 'codex'), adapters);
     expect(installed.errors).toEqual([]);
     expect(existsSync(nodePath.join(cwd, '.safeword/SAFEWORD.md'))).toBe(true);

@@ -961,20 +961,17 @@ When('the user previews user-scoped Claude uninstall', function (this: UnifiedIn
 });
 
 Then(
-  'the plan preserves user scope and excludes project-scoped Claude removal',
+  'the plan reports no removable user-scoped Claude installation',
   function (this: UnifiedInstallWorld) {
-    assert.equal(this.result.exitCode, 2, this.result.stderr || this.result.stdout);
+    assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
     const envelope = JSON.parse(this.result.stdout) as {
       next_actions?: { command?: string }[];
       data?: { plan?: { effects?: { destructive?: { target?: string }[] } } };
     };
-    assert.match(envelope.next_actions?.[0]?.command ?? '', /--scope=user/u);
-    assert.equal(
-      envelope.data?.plan?.effects?.destructive?.some(
-        effect => effect.target === 'Claude profile plugin',
-      ),
-      false,
-    );
+    // Only project-scoped Claude and Codex are installed. There is no user
+    // plugin to remove, and Codex still needs the shared project enrollment.
+    assert.deepEqual(envelope.next_actions, []);
+    assert.deepEqual(envelope.data?.plan?.effects?.destructive, []);
   },
 );
 
