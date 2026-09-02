@@ -1824,7 +1824,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/ticket-system/SKILL.md':
         '765e4118b54e7e4984da4268244b45b5dc6d57b221964563d49076ac49cc9b7a',
       '.claude/skills/verify/SKILL.md':
-        'e2ffc7849d67ca347e4b14395d0e56320a94c509f4ae29b8223a1a64494ab84d',
+        'd62f42eb8ac18f1d270e4b7646d0cef02db857dcf576c06de91e54f03fc28829',
     },
     hook_files: {
       '.safeword/hooks/post-tool-bypass-warn.ts':

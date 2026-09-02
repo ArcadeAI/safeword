@@ -609,7 +609,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/tdd-review/SKILL.md": "4b945f122a90d23462845d7bdbbd0b736aa69d423a2d7e99ebf646bf118faa4f",
         ".claude/skills/testing/SKILL.md": "fe43d03ffe4e39393def44e60a2b88a5f3c70faa878e5e3323f2a22f18470686",
         ".claude/skills/ticket-system/SKILL.md": "765e4118b54e7e4984da4268244b45b5dc6d57b221964563d49076ac49cc9b7a",
-        ".claude/skills/verify/SKILL.md": "e2ffc7849d67ca347e4b14395d0e56320a94c509f4ae29b8223a1a64494ab84d"
+        ".claude/skills/verify/SKILL.md": "d62f42eb8ac18f1d270e4b7646d0cef02db857dcf576c06de91e54f03fc28829"
       },
       hook_files: {
         ".safeword/hooks/post-tool-bypass-warn.ts": "f7f9d408e58e2f3f223b9a2a94447560671dcdc7e7bac8d35e786417337fce8a",

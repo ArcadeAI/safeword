@@ -88,7 +88,7 @@ describe('generated Codex plugin catalogue', () => {
     }).toThrow('skills/broken/SKILL.md');
   });
 
-  it('does not treat pinned bunx prose as a project runtime invocation', () => {
+  it('rejects unavailable native paths even in migration prose', () => {
     expect(() => {
       assertNativePluginRuntimeAuthority([
         {
@@ -96,7 +96,7 @@ describe('generated Codex plugin catalogue', () => {
           content: 'The bunx --bun package replaces old `.safeword/hooks/` references.',
         },
       ]);
-    }).not.toThrow();
+    }).toThrow('skills/clean/SKILL.md');
   });
 
   it('accepts the complete generated Codex catalogue', () => {
