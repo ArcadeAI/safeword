@@ -26,13 +26,13 @@ per-asset gate reads it back. Invoking this skill is what writes the stamp —
 hand-editing the log would let you fake this, a known gap this tier accepts to
 stay cheap.
 
-!`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && CLAUDE_PROJECT_DIR="$PROJECT_DIR" bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.82.6/runtime/cli.js" project runtime write-review-stamp -- spec`
+!`PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}" && CLAUDE_PROJECT_DIR="$PROJECT_DIR" bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.0/runtime/cli.js" project runtime write-review-stamp -- spec`
 
 If no `[skill-invocation-log] ... ✓` line appears above, run this fallback before stopping:
 
 ```bash
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}"
-CLAUDE_PROJECT_DIR="$PROJECT_DIR" bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.82.6/runtime/cli.js" project runtime write-review-stamp -- spec
+CLAUDE_PROJECT_DIR="$PROJECT_DIR" bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.0/runtime/cli.js" project runtime write-review-stamp -- spec
 ```
 
 The stamp is tied to the spec's exact current content — edit the spec, and the stamp goes stale automatically.
@@ -75,7 +75,7 @@ change), log a skip with a reason instead of a review — it clears the same gat
 and records why:
 
 ```bash
-bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.82.6/runtime/cli.js" project runtime write-review-stamp -- spec --skip "<why this spec needs no review>"
+bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.0/runtime/cli.js" project runtime write-review-stamp -- spec --skip "<why this spec needs no review>"
 ```
 
 To skip, pass `--skip "<reason>"` as one quoted argument. A reason is required — an empty one won't clear the gate.
