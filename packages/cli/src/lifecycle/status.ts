@@ -29,9 +29,16 @@ async function inspectConfiguredRoute(
   route: { readonly reviewer: 'claude' | 'codex' | 'opencode'; readonly model?: string },
   cwd: string,
   offline: boolean,
+  deadline: number,
 ): Promise<ReviewRouteObservation> {
   try {
-    return await inspectReviewRoute(route.reviewer, route.model, cwd, 5000, offline);
+    return await inspectReviewRoute(
+      route.reviewer,
+      route.model,
+      cwd,
+      Math.max(1, deadline - Date.now()),
+      offline,
+    );
   } catch {
     return {
       installed: 'inspection_unavailable',
@@ -48,6 +55,7 @@ async function reviewRouteObservations(
 ): Promise<readonly Record<string, unknown>[]> {
   const author = resolveRunIdentity({}, { env: environment }).runtime;
   const routes = readConfiguredReviewRoutes(cwd, author) ?? [];
+  const inspectionDeadline = Date.now() + 5000;
   const proofs = new Map(
     readReviewRouteProofs(cwd).map(proof => [
       `${proof.reviewer}\0${proof.model ?? '<runtime-default>'}`,
@@ -57,7 +65,7 @@ async function reviewRouteObservations(
   return await Promise.all(
     routes.map(async route => {
       const proof = proofs.get(`${route.reviewer}\0${route.model ?? '<runtime-default>'}`);
-      const inspection = await inspectConfiguredRoute(route, cwd, offline);
+      const inspection = await inspectConfiguredRoute(route, cwd, offline, inspectionDeadline);
       return {
         reviewer: route.reviewer,
         ...(route.model !== undefined && { model: route.model }),

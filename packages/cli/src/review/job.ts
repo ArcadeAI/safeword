@@ -891,7 +891,11 @@ function routeProofFromValue(
 ): ReviewRouteProof | undefined {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined;
   const route = value as Record<string, unknown>;
-  if (typeof route.reviewer !== 'string' || route.status !== 'attempted') return undefined;
+  if (
+    typeof route.reviewer !== 'string' ||
+    !['attempted', 'unavailable'].includes(String(route.status))
+  )
+    return undefined;
   const model = typeof route.model === 'string' ? route.model : undefined;
   const failure = typeof route.failure === 'string' ? route.failure : undefined;
   const proven = failure === undefined && actualReviewer === route.reviewer;

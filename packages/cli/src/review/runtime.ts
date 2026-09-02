@@ -838,7 +838,10 @@ export async function inspectReviewRoute(
   let inspectionUnavailable = false;
   for (const candidate of candidates.paths) {
     const remaining = deadline - Date.now();
-    if (remaining <= 0) break;
+    if (remaining <= 0) {
+      inspectionUnavailable = true;
+      break;
+    }
     const capability = await supportsReviewContract(reviewer, candidate, cwd, remaining, model);
     if (capability.kind === 'failed') {
       inspectionUnavailable ||= capability.failure !== 'unsupported';

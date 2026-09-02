@@ -83,11 +83,12 @@ export function readConfiguredReviewRoutes(
   if (!isRecord(configuredRoutes)) throw routeConfigError('must be an object');
   for (const configuredAuthor of Object.keys(configuredRoutes)) {
     if (!REVIEW_AGENTS.has(configuredAuthor as ReviewAgent)) {
-      throw routeConfigError(`contains unsupported author "${configuredAuthor}"`);
+      throw routeConfigError('contains an unsupported author');
     }
   }
 
   const authorRoutes = configuredRoutes[plan.author];
+  if (authorRoutes === undefined) return undefined;
   if (!Array.isArray(authorRoutes) || authorRoutes.length === 0) {
     throw routeConfigError(`.${plan.author} must be a non-empty array`);
   }

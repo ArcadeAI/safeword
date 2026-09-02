@@ -317,7 +317,7 @@ type RankedRouteEvidence = {
   readonly reviewer: ReviewAgent;
   readonly model?: string;
   readonly independence: ReviewRoute['independence'];
-  readonly status: 'attempted' | 'skipped' | 'unattempted';
+  readonly status: 'attempted' | 'skipped' | 'unattempted' | 'unavailable';
   readonly failure?: ReviewFailure;
 };
 
@@ -353,6 +353,16 @@ function invalidRouteConfigResult(error: unknown): CliResult {
   });
 }
 
+function degradedIndependenceMessage(
+  author: ReviewAgent,
+  evidence: readonly RankedRouteEvidence[],
+): string {
+  const suffix = evidence.some(route => route.independence === 'cross-agent')
+    ? ' after the independent routes did not complete'
+    : '';
+  return `This review was not independent: ${agentName(author)} checked its own work${suffix}.`;
+}
+
 // The result mirrors the evidence matrix deliberately; flattening these
 // policy-dependent fields would make degraded proof easier to misreport.
 // eslint-disable-next-line complexity -- Result fields vary together by review policy and proof state.
@@ -371,7 +381,7 @@ function rankedExhaustedResult(input: {
       findings: [
         {
           code: 'REVIEW_INDEPENDENCE_DEGRADED',
-          message: `This review was not independent: ${agentName(input.author)} checked its own work after the independent routes did not complete.`,
+          message: degradedIndependenceMessage(input.author, input.evidence),
           severity: 'warning',
         },
         ...reviewerFeedback(input.degraded.output),
@@ -393,13 +403,15 @@ function rankedExhaustedResult(input: {
     });
   }
 
-  const attempted = input.evidence.filter(route => route.status === 'attempted');
+  const evaluated = input.evidence.filter(route =>
+    ['attempted', 'unavailable'].includes(route.status),
+  );
   const hasDegraded = input.degraded !== undefined;
-  const attemptedLabel = attempted.length === 1 ? 'route was' : 'routes were';
+  const evaluatedLabel = evaluated.length === 1 ? 'route was' : 'routes were';
   const code = hasDegraded ? 'REVIEW_INDEPENDENCE_REQUIRED' : 'REVIEW_ROUTES_EXHAUSTED';
   const message = hasDegraded
     ? 'A same-agent review completed, but the configured independent-review requirement remains unsatisfied.'
-    : `${attempted.length} configured review ${attemptedLabel} attempted; no independent check was recorded.`;
+    : `${evaluated.length} configured review ${evaluatedLabel} evaluated; no independent check was recorded.`;
   return createResult({
     state: 'action_required',
     findings: [
@@ -443,7 +455,11 @@ function recordRankedFailure(
   evidence: RankedRouteEvidence[],
   unavailable: Set<ReviewAgent>,
 ): boolean {
-  evidence.push({ ...route, status: 'attempted', failure: failure.failure });
+  evidence.push({
+    ...route,
+    status: NON_ATTEMPT_FAILURES.has(failure.failure) ? 'unavailable' : 'attempted',
+    failure: failure.failure,
+  });
   // A model-specific capability miss does not make the runtime-default route
   // unusable. Let that later route prove its own base capabilities.
   if (
