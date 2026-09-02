@@ -245,7 +245,6 @@ function nextStepFor(reviewer: ReviewAgent, failure: ReviewFailure): string {
   if (failure === 'probe_timed_out') return `Run ${name} --help to diagnose it, then retry review.`;
   if (failure === 'launch_failed')
     return `Run ${name} --help and fix its launch failure, then retry review.`;
-  if (failure === 'not_authenticated') return `Sign in to ${name}, then run the review again.`;
   return 'Run the review again.';
 }
 
