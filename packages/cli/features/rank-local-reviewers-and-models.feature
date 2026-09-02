@@ -1,6 +1,6 @@
 Feature: Rank local reviewers and models
 
-  @ranked-local-reviews.TBU1.R1 @proof.vitest @surface.safeword-cli
+  @ranked-local-reviews.TBU1.R1 @surface.safeword-cli
   Rule: ranked-local-reviews.TBU1.R1 Routes execute in declared order without cache-driven reordering
 
     Scenario: Explicit reviewer and model routes run in configured order
@@ -28,7 +28,7 @@ Feature: Rank local reviewers and models
       When a review starts through the public command
       Then an independent review is recorded and OpenCode is not attempted
 
-  @ranked-local-reviews.TBU1.R2 @proof.vitest @surface.safeword-cli
+  @ranked-local-reviews.TBU1.R2 @surface.safeword-cli
   Rule: ranked-local-reviews.TBU1.R2 Invalid or unfunded routes fail visibly without changing model intent
 
     Scenario: Invalid model identifiers reject route configuration
@@ -56,7 +56,7 @@ Feature: Rank local reviewers and models
       When the public review command reaches that route
       Then the route is launched at the process boundary
 
-  @ranked-local-reviews.TBU1.R3 @proof.vitest @surface.safeword-cli
+  @ranked-local-reviews.TBU1.R3 @surface.safeword-cli
   Rule: ranked-local-reviews.TBU1.R3 Same-author routes are always degraded regardless of position
 
     Scenario: Same-author success cannot satisfy independent review
@@ -69,7 +69,7 @@ Feature: Rank local reviewers and models
       When the review continues through the public command
       Then it is labelled degraded and no independent review is recorded
 
-  @ranked-local-reviews.TBU1.R4 @proof.vitest @surface.safeword-cli
+  @ranked-local-reviews.TBU1.R4 @surface.safeword-cli
   Rule: ranked-local-reviews.TBU1.R4 Runtime-wide failures skip remaining models without hiding route evidence
 
     Scenario: Runtime-wide failure skips later models on that runtime
@@ -82,7 +82,7 @@ Feature: Rank local reviewers and models
       When the review starts through the public command
       Then the second Codex model is attempted before OpenCode
 
-  @ranked-local-reviews.NTB1.R1 @proof.vitest @surface.safeword-cli
+  @ranked-local-reviews.NTB1.R1 @surface.safeword-cli
   Rule: ranked-local-reviews.NTB1.R1 Status distinguishes installed compatible catalogued and proven evidence
 
     Scenario: Catalogued models are not reported as proven
@@ -115,7 +115,7 @@ Feature: Rank local reviewers and models
       When the public status command describes local review routes
       Then the route reports its known failure and is not reported as proven
 
-  @ranked-local-reviews.NTB1.R2 @proof.vitest @surface.safeword-cli
+  @ranked-local-reviews.NTB1.R2 @surface.safeword-cli
   Rule: ranked-local-reviews.NTB1.R2 Existing projects keep today's behavior until they opt in
 
     Scenario: Ordered routes replace legacy route settings when both exist
