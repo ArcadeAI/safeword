@@ -44,6 +44,17 @@ function enrolledProject(): string {
   return project;
 }
 
+function expectNoProjectRuntime(project: string): void {
+  for (const relativePath of [
+    '.safeword/hooks',
+    '.safeword/skills',
+    '.safeword/scripts',
+    '.safeword/guides',
+  ]) {
+    expect(existsSync(nodePath.join(project, relativePath))).toBe(false);
+  }
+}
+
 function commitProject(project: string): void {
   expect(spawnSync('git', ['add', '.'], { cwd: project }).status).toBe(0);
   expect(
@@ -352,7 +363,10 @@ describe('self-contained generated workflows', () => {
     });
     expect(readFileSync(reviewer.log, 'utf8')).toBe('codex\n');
     expect(command).toContain('${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/run-review.ts');
-    expect(existsSync(nodePath.join(project, '.safeword/hooks'))).toBe(false);
+    expect(`${result.stdout}${result.stderr}`).not.toMatch(
+      /install|CODEX_HOME|OPENCODE_CONFIG_DIR/iu,
+    );
+    expectNoProjectRuntime(project);
   });
 
   it('executes the installed OpenCode quality-review workflow through its pinned profile runtime', () => {
@@ -375,7 +389,10 @@ describe('self-contained generated workflows', () => {
     });
     expect(readFileSync(reviewer.log, 'utf8')).toBe('codex\n');
     expect(command).toContain(`bunx --bun safeword@${VERSION}`);
-    expect(existsSync(nodePath.join(project, '.safeword/hooks'))).toBe(false);
+    expect(`${result.stdout}${result.stderr}`).not.toMatch(
+      /install|CLAUDE_PLUGIN_ROOT|CODEX_HOME/iu,
+    );
+    expectNoProjectRuntime(project);
   });
 
   it.each(['Codex', 'Claude Code', 'OpenCode', 'Cursor'] as const)(

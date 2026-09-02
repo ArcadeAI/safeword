@@ -32,7 +32,10 @@ function createEnrolledFeatureBranch(withChanges = true): { project: string; mer
   return { project, mergeBase };
 }
 
-function createInstalledCursorFeatureBranch(): { project: string; mergeBase: string } {
+function createInstalledCursorFeatureBranch(withChanges = true): {
+  project: string;
+  mergeBase: string;
+} {
   const project = createTemporaryDirectory();
   temporaryDirectories.push(project);
   initGitRepo(project);
@@ -60,8 +63,10 @@ function createInstalledCursorFeatureBranch(): { project: string; mergeBase: str
   }).stdout.trim();
   spawnSync('git', ['branch', '-M', 'main'], { cwd: project });
   spawnSync('git', ['switch', '-c', 'feature'], { cwd: project });
-  writeFileSync(nodePath.join(project, 'first.txt'), 'changed\n');
-  writeFileSync(nodePath.join(project, 'second.txt'), 'added\n');
+  if (withChanges) {
+    writeFileSync(nodePath.join(project, 'first.txt'), 'changed\n');
+    writeFileSync(nodePath.join(project, 'second.txt'), 'added\n');
+  }
   return { project, mergeBase };
 }
 
@@ -90,6 +95,48 @@ function sourcePackagedScope(project: string, baseReference: string): ReturnType
   );
 }
 
+function sourceCursorScope(project: string, baseReference: string): ReturnType<typeof spawnSync> {
+  return spawnSync(
+    'bash',
+    [
+      '-c',
+      [
+        'source "$PROJECT_DIR/.safeword/hooks/lib/audit-scope.sh"',
+        'audit_scope_initialize "$PROJECT_DIR"',
+        'status=$?',
+        String.raw`printf "status=%s\nmode=%s\nsha=%s\nfiles=%s\n" "$status" "$AUDIT_SCOPE_MODE" "$AUDIT_BASE_SHA" "$AUDIT_CHANGED_FILES"`,
+        String.raw`printf "caller=available\n"`,
+      ].join('; '),
+    ],
+    {
+      cwd: project,
+      env: {
+        ...process.env,
+        PROJECT_DIR: project,
+        SAFEWORD_AUDIT_BASE_REF: baseReference,
+      },
+      encoding: 'utf8',
+    },
+  );
+}
+
+function expectNoPluginBackedProjectRuntime(project: string): void {
+  for (const relativePath of [
+    '.safeword/hooks',
+    '.safeword/skills',
+    '.safeword/scripts',
+    '.safeword/guides',
+  ]) {
+    expect(existsSync(nodePath.join(project, relativePath))).toBe(false);
+  }
+}
+
+function expectNoCrossHostRuntime(project: string): void {
+  for (const relativePath of ['.claude/skills', '.codex/skills', '.opencode']) {
+    expect(existsSync(nodePath.join(project, relativePath))).toBe(false);
+  }
+}
+
 afterEach(() => {
   for (const directory of temporaryDirectories) removeTemporaryDirectory(directory);
   temporaryDirectories.length = 0;
@@ -108,6 +155,7 @@ describe('packaged audit scope command', () => {
     expect(result.stdout).toContain('files=first.txt\nsecond.txt');
     expect(result.stdout).toContain('caller=available');
     expect(result.stdout).not.toMatch(/install|dependenc/iu);
+    expectNoPluginBackedProjectRuntime(project);
   });
 
   it('preserves the caller shell and empty exports when merge-base resolution fails', () => {
@@ -144,31 +192,42 @@ describe('packaged audit scope command', () => {
       'Read and follow the instructions in .safeword/skills/audit/SKILL.md',
     );
     expect(skill).toContain('source "$PROJECT_DIR/.safeword/hooks/lib/audit-scope.sh"');
-    expect(existsSync(nodePath.join(project, '.claude/skills'))).toBe(false);
-    expect(existsSync(nodePath.join(project, '.codex/skills'))).toBe(false);
-    expect(existsSync(nodePath.join(project, '.opencode'))).toBe(false);
+    expectNoCrossHostRuntime(project);
 
-    const result = spawnSync(
-      'bash',
-      [
-        '-c',
-        [
-          'source "$PROJECT_DIR/.safeword/hooks/lib/audit-scope.sh"',
-          'audit_scope_initialize "$PROJECT_DIR"',
-          String.raw`printf "mode=%s\nsha=%s\nfiles=%s\n" "$AUDIT_SCOPE_MODE" "$AUDIT_BASE_SHA" "$AUDIT_CHANGED_FILES"`,
-        ].join('; '),
-      ],
-      {
-        cwd: project,
-        env: { ...process.env, PROJECT_DIR: project, SAFEWORD_AUDIT_BASE_REF: 'main' },
-        encoding: 'utf8',
-      },
-    );
+    const result = sourceCursorScope(project, 'main');
 
     expect(result.status, result.stderr).toBe(0);
-    expect(result.stdout).toContain('mode=diff');
+    expect(result.stdout).toContain('status=0\nmode=diff');
     expect(result.stdout).toContain(`sha=${mergeBase}`);
     expect(result.stdout).toContain('files=first.txt\nsecond.txt');
+    expect(result.stdout).toContain('caller=available');
     expect(`${result.stdout}${result.stderr}`).not.toMatch(/install|dependenc/iu);
+    expectNoCrossHostRuntime(project);
+  });
+
+  it('preserves the caller shell when the sourced Cursor helper cannot resolve a merge base', () => {
+    const { project } = createInstalledCursorFeatureBranch();
+
+    const result = sourceCursorScope(project, 'missing-base');
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toContain(
+      'SAFEWORD_AUDIT_BASE_REF does not resolve to a Git commit: missing-base',
+    );
+    expect(result.stdout).toContain('status=2\nmode=repository\nsha=\nfiles=');
+    expect(result.stdout).toContain('caller=available');
+    expectNoCrossHostRuntime(project);
+  });
+
+  it('exports an empty changed-file list through the sourced Cursor helper', () => {
+    const { project, mergeBase } = createInstalledCursorFeatureBranch(false);
+
+    const result = sourceCursorScope(project, 'main');
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe('');
+    expect(result.stdout).toContain(`status=0\nmode=diff\nsha=${mergeBase}\nfiles=\n`);
+    expect(result.stdout).toContain('caller=available');
+    expectNoCrossHostRuntime(project);
   });
 });
