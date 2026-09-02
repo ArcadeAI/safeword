@@ -11,6 +11,7 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { VERSION } from '../../src/version.js';
 import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.js';
 
 const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
@@ -74,10 +75,8 @@ function localVerifyCommand(authority: 'plugin' | 'project', source: string): st
     )?.[0];
   if (authority === 'project') return projectCommand;
 
-  const pluginCommand =
-    /^bunx --bun safeword@\d+\.\d+\.\d+ project runtime resolve-verify-ticket --cwd "\$PROJECT_DIR" --$/mu.exec(
-      source,
-    )?.[0];
+  const expectedPluginCommand = `bun "\${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/${VERSION}/runtime/cli.js" project runtime resolve-verify-ticket --cwd "$PROJECT_DIR" --`;
+  const pluginCommand = source.split('\n').find(line => line === expectedPluginCommand);
   expect(pluginCommand).toBeDefined();
   return `bun "${nodePath.join(repoRoot, 'packages/cli/src/cli.ts')}" project runtime resolve-verify-ticket --cwd "$PROJECT_DIR" --`;
 }

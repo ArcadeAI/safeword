@@ -39,7 +39,9 @@ describe('Codex plugin catalogue runtime authority', () => {
         ].join('\n'),
       );
 
-      expect(content).toContain('source <(bunx --bun safeword@1.2.3 project audit-scope)');
+      expect(content).toContain(
+        'source <(bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.3/runtime/cli.js" project audit-scope)',
+      );
       expect(content).not.toContain('.safeword/hooks/lib/audit-scope.sh');
     },
   );
@@ -49,9 +51,11 @@ describe('Codex plugin catalogue runtime authority', () => {
       'Run `bun .safeword/hooks/run-review.ts review run audit changed-file --agent-handoff --json`.',
     );
 
-    expect(content).toContain('bunx --bun safeword@1.2.3 review run audit');
+    expect(content).toContain(
+      'bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/1.2.3/runtime/cli.js" review run audit',
+    );
     expect(content).not.toContain('.safeword/hooks/run-review.ts');
-    expect(content).not.toMatch(/(?:fallback|safeword install|bun install)/iu);
+    expect(content).not.toMatch(/(?:fallback|safeword install|bun install|bunx)/iu);
   });
 
   it('accepts a pinned self-contained Codex catalogue', () => {
@@ -88,7 +92,7 @@ describe('Codex plugin catalogue runtime authority', () => {
         generatedPath,
         generatedSkill(
           'Run `bun .safeword/hooks/run-review.ts review run audit changed-file --agent-handoff --json`.',
-        ).replaceAll('safeword@1.2.3', 'safeword'),
+        ).replaceAll('/1.2.3/runtime/cli.js', '/latest/runtime/cli.js'),
       );
 
       expect(() => {
