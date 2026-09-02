@@ -17,7 +17,7 @@ import {
 } from '../codex-plugin/legacy-global-guidance.js';
 import { checkHealth } from '../health.js';
 import { readReviewRouteProofs } from '../review/job.js';
-import { readReviewRoutes } from '../review/policy.js';
+import { readConfiguredReviewRoutes } from '../review/policy.js';
 import { inspectReviewRoute } from '../review/runtime.js';
 import { detectPackageManager } from '../utils/install.js';
 import { compareVersions, isSafePackageVersion } from '../utils/version.js';
@@ -31,7 +31,7 @@ async function reviewRouteObservations(
   offline: boolean,
 ): Promise<readonly Record<string, unknown>[]> {
   const author = resolveRunIdentity({}, { env: environment }).runtime;
-  const routes = readReviewRoutes(cwd, author);
+  const routes = readConfiguredReviewRoutes(cwd, author) ?? [];
   const proofs = new Map(
     readReviewRouteProofs(cwd).map(proof => [
       `${proof.reviewer}\0${proof.model ?? '<runtime-default>'}`,

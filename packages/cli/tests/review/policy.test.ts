@@ -4,6 +4,7 @@ import nodePath from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import type { ReviewAuthor } from '../../src/review/contract.js';
 import { readReviewRoutes, reviewRoutePlan } from '../../src/review/policy.js';
 
 describe('review route policy', () => {
@@ -35,9 +36,12 @@ describe('review route policy', () => {
     });
   });
 
-  it.each(['cursor', 'unknown'])('keeps unsupported author %s outside review routing', author => {
-    expect(reviewRoutePlan(author)).toBeUndefined();
-  });
+  it.each<ReviewAuthor>(['cursor', 'unknown'])(
+    'keeps unsupported author %s outside review routing',
+    author => {
+      expect(reviewRoutePlan(author)).toBeUndefined();
+    },
+  );
 
   it('uses an ordered reviewer and model list as the complete route authority', () => {
     const cwd = project({
