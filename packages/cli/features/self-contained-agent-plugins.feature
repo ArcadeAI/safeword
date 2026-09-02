@@ -326,10 +326,16 @@ Feature: Every agent delivery is self-contained
       Then validation fails and names the unpinned catalogue asset
 
     @rejection @surface.safeword-cli @surface.openai-codex @surface.claude-code @surface.opencode
-    Scenario: A project-runtime reference blocks native plugin release
-      Given a native catalogue contains a project-local executable reference
+    Scenario Outline: A project-runtime reference blocks native plugin release
+      Given the generated <native host> catalogue contains a project-local executable reference
       When the Safeword Maintainer runs release validation
       Then validation fails and names the offending catalogue asset
+
+      Examples:
+        | native host |
+        | Codex       |
+        | Claude Code |
+        | OpenCode    |
 
     @rejection @surface.safeword-cli @surface.cursor
     Scenario: A cross-host executable reference blocks Cursor release

@@ -148,8 +148,8 @@
       "TBU1.R1.S07 installs generated profile bytes and an executable identity binding"
     ],
     "A project-runtime reference blocks native plugin release": [
-      "packages/cli/tests/codex-plugin/catalogue.test.ts",
-      "rejects a project-local executable reference from a native catalogue"
+      "packages/cli/tests/plugin-runtime-authority.test.ts",
+      "rejects a project-runtime reference in the generated %s catalogue"
     ],
     "A cross-host executable reference blocks Cursor release": [
       "packages/cli/tests/cursor/runtime-authority.test.ts",
