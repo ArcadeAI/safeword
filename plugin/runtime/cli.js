@@ -36423,10 +36423,6 @@ function parseConfiguredReviewRoutes(config, author) {
     return;
   if (!isRecord4(configured) || Array.isArray(configured))
     throw configError("must be an object");
-  for (const key of Object.keys(configured)) {
-    if (!REVIEW_AGENTS2.has(key))
-      throw configError("contains an unsupported author");
-  }
   const values = configured[author];
   if (values === undefined)
     return;
@@ -42395,7 +42391,7 @@ async function configuredReviewRouteStatus(cwd, environment, offline) {
       reviewRoutes: [],
       routeFinding: {
         code: "REVIEW_ROUTE_CONFIG_INVALID",
-        message: error2 instanceof Error && error2.message.startsWith("Invalid crossAgentReviewRoutes") ? error2.message : "Invalid crossAgentReviewRoutes configuration.",
+        message: error2 instanceof Error ? error2.message : "Invalid crossAgentReviewRoutes configuration.",
         severity: "warning"
       }
     };
@@ -50452,7 +50448,7 @@ async function runRankedRoutes(input, author, policy, routes) {
   let degraded;
   const runDeadline = Date.now() + runBoundMs();
   for (const [index, route] of routes.entries()) {
-    if (unavailable.has(route.reviewer)) {
+    if (shouldSkipRankedRoute(route, degraded, unavailable)) {
       evidence.push({ ...route, status: "skipped" });
       continue;
     }
@@ -50508,6 +50504,9 @@ async function runRankedRoutes(input, author, policy, routes) {
     evidence,
     degraded
   });
+}
+function shouldSkipRankedRoute(route, degraded, unavailable) {
+  return unavailable.has(route.reviewer) || degraded !== undefined && route.independence === "degraded";
 }
 function changedReviewResult(input) {
   const network = input.network ?? [
@@ -66664,13 +66663,15 @@ function reviewRouteAuthor(value) {
   return typeof value === "string" && ["claude", "codex", "opencode"].includes(value) ? value : undefined;
 }
 function reviewRoutesFailure(command, error2) {
+  const message = error2 instanceof Error ? error2.message : "Review route configuration is invalid.";
+  const invalid = message.startsWith("Invalid ") || message.startsWith("Cannot locate the Safeword user configuration directory.");
   return createResult({
     state: "failed",
     errors: [
       {
-        code: "REVIEW_ROUTE_CONFIG_INVALID",
-        message: error2 instanceof Error ? error2.message : "Review route configuration is invalid.",
-        retryable: false
+        code: invalid ? "REVIEW_ROUTE_CONFIG_INVALID" : "REVIEW_ROUTE_CONFIG_WRITE_FAILED",
+        message,
+        retryable: !invalid
       }
     ],
     data: { command }
@@ -68097,6 +68098,7 @@ function claudeScopeOption() {
 }
 var CANONICAL_COMMANDS = [
   command("status", "Report project health and the next action", "observe", {
+    networkPolicy: "declared",
     commandOptions: [agentSelectionOption()]
   }),
   command("conformance", "Prove a selected agent integration against its real host", "mutate", {

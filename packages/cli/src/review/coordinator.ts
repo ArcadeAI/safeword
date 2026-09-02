@@ -559,7 +559,7 @@ async function runRankedRoutes(
   const runDeadline = Date.now() + runBoundMs();
 
   for (const [index, route] of routes.entries()) {
-    if (unavailable.has(route.reviewer)) {
+    if (shouldSkipRankedRoute(route, degraded, unavailable)) {
       evidence.push({ ...route, status: 'skipped' });
       continue;
     }
@@ -624,6 +624,16 @@ async function runRankedRoutes(
     evidence,
     degraded,
   });
+}
+
+function shouldSkipRankedRoute(
+  route: ReviewRoute,
+  degraded: { readonly output: ReviewerOutput; readonly route: ReviewRoute } | undefined,
+  unavailable: ReadonlySet<ReviewAgent>,
+): boolean {
+  return (
+    unavailable.has(route.reviewer) || (degraded !== undefined && route.independence === 'degraded')
+  );
 }
 
 function changedReviewResult(input: {

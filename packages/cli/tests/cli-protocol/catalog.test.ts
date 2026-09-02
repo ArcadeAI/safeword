@@ -40,6 +40,12 @@ function expectPublishedCommandShape(command: Record<string, unknown> | undefine
 }
 
 describe('CLI command catalog', () => {
+  it('declares the optional network used to inspect configured reviewer catalogues', () => {
+    expect(commandCatalog.find(command => command.name === 'status')?.networkPolicy).toBe(
+      'declared',
+    );
+  });
+
   it('describes every public command with executable policy and a fixture', () => {
     expect(publicCommands.length).toBeGreaterThan(0);
     for (const command of publicCommands) {

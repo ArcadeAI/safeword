@@ -27,6 +27,7 @@ Using an isolated temporary XDG profile and project, the real CLI successfully:
 
 - Review `2c0fb2ac-011f-474d-ae76-e0c614d1681c`: approved by independent Claude/Opus; model-aware built-in listing, strict-scope documentation, malformed reset behavior, and effect reporting findings applied.
 - Review `6acb9050-531e-425c-9f6e-3daaa3d43adc`: approved by independent Claude/Opus; typed malformed-config envelopes, same-author replacement proof, persisted-output fidelity, and architecture freshness findings applied.
+- Review `217b97de-aa97-49a4-86a8-98d364abd602`: approved by independent Claude/Opus on the CI-corrected head; declared status network effects, path-preserving diagnostics, retryable write failures, forward-compatible author keys, and duplicate degraded-run findings applied.
 
 ## Dispositions
 

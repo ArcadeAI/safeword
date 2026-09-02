@@ -169,6 +169,7 @@ function claudeScopeOption(): CommandDefinition['registration']['options'][numbe
 
 const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   command('status', 'Report project health and the next action', 'observe', {
+    networkPolicy: 'declared',
     commandOptions: [agentSelectionOption()],
   }),
   command('conformance', 'Prove a selected agent integration against its real host', 'mutate', {

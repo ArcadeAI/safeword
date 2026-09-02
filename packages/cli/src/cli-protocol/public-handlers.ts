@@ -762,13 +762,17 @@ function reviewRouteAuthor(value: unknown): 'claude' | 'codex' | 'opencode' | un
 }
 
 function reviewRoutesFailure(command: string, error: unknown): CliResult {
+  const message = error instanceof Error ? error.message : 'Review route configuration is invalid.';
+  const invalid =
+    message.startsWith('Invalid ') ||
+    message.startsWith('Cannot locate the Safeword user configuration directory.');
   return createResult({
     state: 'failed',
     errors: [
       {
-        code: 'REVIEW_ROUTE_CONFIG_INVALID',
-        message: error instanceof Error ? error.message : 'Review route configuration is invalid.',
-        retryable: false,
+        code: invalid ? 'REVIEW_ROUTE_CONFIG_INVALID' : 'REVIEW_ROUTE_CONFIG_WRITE_FAILED',
+        message,
+        retryable: !invalid,
       },
     ],
     data: { command },

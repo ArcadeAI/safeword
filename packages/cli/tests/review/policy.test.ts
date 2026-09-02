@@ -66,11 +66,23 @@ describe('review route policy', () => {
     { crossAgentReviewRoutes: { claude: [] } },
     { crossAgentReviewRoutes: { claude: [{ reviewer: 'codex', model: '--quiet' }] } },
     { crossAgentReviewRoutes: { claude: [{ reviewer: 'cursor' }] } },
-    { crossAgentReviewRoutes: { cursor: [{ reviewer: 'codex' }] } },
   ])('rejects invalid ordered route configuration %#', config => {
     expect(() => readConfiguredReviewRoutes(project(config), 'claude')).toThrow(
       'crossAgentReviewRoutes',
     );
+  });
+
+  it('ignores routes for unknown future authors', () => {
+    const cwd = project({
+      crossAgentReviewRoutes: {
+        claude: [{ reviewer: 'codex' }],
+        future: [{ reviewer: 'opencode' }],
+      },
+    });
+
+    expect(readConfiguredReviewRoutes(cwd, 'claude')).toEqual([
+      { reviewer: 'codex', independence: 'cross-agent' },
+    ]);
   });
 
   it('leaves the existing plan in authority when ordered routes are absent', () => {

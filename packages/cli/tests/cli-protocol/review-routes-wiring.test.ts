@@ -140,4 +140,27 @@ describe('review routes CLI wiring', () => {
       data: { command: 'review routes list' },
     });
   });
+
+  it('reports durable write failures as retryable instead of invalid configuration', async () => {
+    const root = createTemporaryDirectory();
+    directories.push(root);
+    writeFileSync(nodePath.join(root, '.safeword'), 'not a directory');
+
+    const result = await invoke(root, [
+      'review',
+      'routes',
+      'set',
+      '--scope',
+      'project',
+      '--author',
+      'claude',
+      '--route',
+      'codex',
+    ]);
+
+    expect(result).toMatchObject({
+      state: 'failed',
+      errors: [{ code: 'REVIEW_ROUTE_CONFIG_WRITE_FAILED', retryable: true }],
+    });
+  });
 });

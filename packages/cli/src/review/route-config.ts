@@ -24,9 +24,6 @@ export function parseConfiguredReviewRoutes(
   const configured = config.crossAgentReviewRoutes;
   if (configured === undefined) return undefined;
   if (!isRecord(configured) || Array.isArray(configured)) throw configError('must be an object');
-  for (const key of Object.keys(configured)) {
-    if (!REVIEW_AGENTS.has(key as ReviewAgent)) throw configError('contains an unsupported author');
-  }
   const values = configured[author];
   if (values === undefined) return undefined;
   if (!Array.isArray(values) || values.length === 0)

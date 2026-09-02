@@ -100,9 +100,7 @@ async function configuredReviewRouteStatus(
       routeFinding: {
         code: 'REVIEW_ROUTE_CONFIG_INVALID',
         message:
-          error instanceof Error && error.message.startsWith('Invalid crossAgentReviewRoutes')
-            ? error.message
-            : 'Invalid crossAgentReviewRoutes configuration.',
+          error instanceof Error ? error.message : 'Invalid crossAgentReviewRoutes configuration.',
         severity: 'warning',
       },
     };
