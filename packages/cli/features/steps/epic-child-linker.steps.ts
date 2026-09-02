@@ -7,7 +7,7 @@
 
 import { strict as assert } from 'node:assert';
 import { execFile } from 'node:child_process';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import process from 'node:process';
@@ -64,6 +64,27 @@ function newTicket(world: SafewordWorld, args: string[]): Promise<void> {
   return runCli(world, ['ticket', 'new', ...args]);
 }
 
+function childArguments(world: SafewordWorld, slug: string, parentSlug: string): string[] {
+  return [
+    slug,
+    '--type',
+    'feature',
+    '--parent',
+    idBySlug(world, parentSlug),
+    '--parent-job',
+    'epic.NTB1',
+    '--milestone',
+    'M1',
+  ];
+}
+
+function authorEpicPlan(world: SafewordWorld, slug = 'the-epic'): void {
+  writeFileSync(
+    nodePath.join(folderBySlug(world, slug), 'spec.md'),
+    '# Product Plan\n\n## Product Bet\n\n- **Success threshold:** live\n- **Project non-goals:** none\n\n## Jobs To Be Done\n\n### epic.NTB1 — ship value\n\n## Shape\n\n### M1 — first value\n\n- **Outcome:** value delivered\n- **Non-goals:** none\n\n## Killer Demo\n',
+  );
+}
+
 function freshProject(world: SafewordWorld): void {
   world.temporaryDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-epic-link-'));
 }
@@ -75,12 +96,14 @@ After(function (this: SafewordWorld) {
 Given('an epic ticket with an empty children list', async function (this: SafewordWorld) {
   freshProject(this);
   await newTicket(this, ['the-epic', '--type', 'epic']);
+  authorEpicPlan(this);
 });
 
 Given('an epic and a child linked to it with --parent', async function (this: SafewordWorld) {
   freshProject(this);
   await newTicket(this, ['the-epic', '--type', 'epic']);
-  await newTicket(this, ['the-child', '--parent', idBySlug(this, 'the-epic')]);
+  authorEpicPlan(this);
+  await newTicket(this, childArguments(this, 'the-child', 'the-epic'));
 });
 
 Given('no ticket exists with the id {string}', function (this: SafewordWorld, _missingId: string) {
@@ -95,13 +118,14 @@ Given('a task ticket that is not an epic', async function (this: SafewordWorld) 
 Given('an epic whose children list already names one child', async function (this: SafewordWorld) {
   freshProject(this);
   await newTicket(this, ['the-epic', '--type', 'epic']);
-  await newTicket(this, ['first-child', '--parent', idBySlug(this, 'the-epic')]);
+  authorEpicPlan(this);
+  await newTicket(this, childArguments(this, 'first-child', 'the-epic'));
 });
 
 When(
   'I create a child ticket with --parent naming that epic',
   async function (this: SafewordWorld) {
-    await newTicket(this, ['the-child', '--parent', idBySlug(this, 'the-epic')]);
+    await newTicket(this, childArguments(this, 'the-child', 'the-epic'));
   },
 );
 
@@ -121,7 +145,7 @@ When(
 );
 
 When('I link a second child to that epic with --parent', async function (this: SafewordWorld) {
-  await newTicket(this, ['second-child', '--parent', idBySlug(this, 'the-epic')]);
+  await newTicket(this, childArguments(this, 'second-child', 'the-epic'));
 });
 
 When('the ticket index is regenerated', async function (this: SafewordWorld) {

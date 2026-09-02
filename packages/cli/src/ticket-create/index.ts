@@ -35,6 +35,8 @@ export interface RoutedTicketOptions {
   why?: string;
   /** Epic id this ticket is a child of; written as `parent:` frontmatter. */
   parent?: string;
+  milestone?: string;
+  parentJob?: string;
   /** Adopt an existing tracker issue instead of creating one. */
   issue?: string;
 }
@@ -84,6 +86,8 @@ export async function createTicketRouted(
     goal: options.goal,
     why: options.why,
     parent: options.parent,
+    milestone: options.milestone,
+    parentJob: options.parentJob,
   };
 
   if (mode.mode === 'local') {

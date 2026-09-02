@@ -51,6 +51,7 @@ import { runTests } from './lib/test-runner.ts';
 import { changedFilesSinceHead, evaluateImplementStopTypecheck } from './lib/typecheck-gate.ts';
 import { resolveNamespaceRoot } from './lib/namespace-root.ts';
 import { architectureDocumentNudgeForProject } from './lib/architecture-document-nudge.ts';
+import { evaluateParentContract } from './lib/product-plan-contract.ts';
 import { installCrashCapture } from './lib/self-report.ts';
 
 installCrashCapture('stop-quality');
@@ -226,6 +227,18 @@ function checkCumulativeArtifacts(ticketInfo: TicketInfo): void {
   }
 }
 
+function checkParentProductPlan(ticketInfo: TicketInfo): void {
+  if (ticketInfo.phase !== 'done' || !ticketInfo.folder) return;
+  const ticketPath = `${ticketsDir}/${ticketInfo.folder}/ticket.md`;
+  if (!existsSync(ticketPath)) return;
+  const verdict = evaluateParentContract(projectDir, readFileSync(ticketPath, 'utf8'));
+  if (!verdict.ok) {
+    hardBlockDone(
+      `Parent Product Plan reconciliation required: ${verdict.reason}. Review the parent changes, then run \`safeword ticket reconcile-parent <ticket-id> --accept\`.`,
+    );
+  }
+}
+
 /**
  * Check the impl-plan artifact for new-flow features (tickets XDNSZA + ERVA6V).
  * Features with spec.md (post-DZ2NM5 flow) at implement+ require an
@@ -378,6 +391,7 @@ const sessionState = readSessionState(projectDir, input.session_id);
 // whether or not the recent transcript window contained an edit (ticket MR5M3A). The edit-tools
 // gate then guards only the review/backstop path.
 checkCumulativeArtifacts(ticketInfo);
+checkParentProductPlan(ticketInfo);
 checkImplPlanArtifact(ticketInfo);
 checkArchitectureReviewGate(ticketInfo);
 
