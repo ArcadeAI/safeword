@@ -2,133 +2,154 @@
   "feature": "packages/cli/features/configure-review-routes-by-scope.feature",
   "scenarios": {
     "A user preference supplies the effective route list": [
-      "packages/cli/tests/review/preferences.test.ts",
-      "uses project then user precedence independently per author"
+      "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
+      "lists exact user routes when project routes are absent"
     ],
     "A project preference for another author does not mask the user list": [
-      "packages/cli/tests/review/preferences.test.ts",
-      "keeps user routes when the project configures another author"
+      "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
+      "lists exact user routes when project configures another author"
     ],
     "An empty project routes object preserves the user list": [
-      "packages/cli/tests/review/preferences.test.ts",
-      "treats an empty project route map as absent but rejects an empty author list"
+      "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
+      "lists exact user routes when project routes object is empty"
     ],
     "A project list wins without merging": [
-      "packages/cli/tests/review/preferences.test.ts",
-      "replaces a user list with the complete project list"
+      "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
+      "lists only project routes when both scopes configure the author"
     ],
     "A project-only list is authoritative": [
-      "packages/cli/tests/review/preferences.test.ts",
-      "uses a project-only route list as authority"
+      "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
+      "lists exact project routes when user routes are absent"
     ],
     "Set replaces one author only at the selected scope": [
       [
-        "packages/cli/tests/review/preferences.test.ts",
-        "sets and resets one author without changing unrelated content"
+        "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
+        "sets only the selected author at %s scope",
+        "user"
       ],
       [
-        "packages/cli/tests/review/preferences.test.ts",
-        "sets project routes without creating a user profile"
+        "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
+        "sets only the selected author at %s scope",
+        "project"
       ]
     ],
     "Reset removes one author only at the selected scope": [
       [
-        "packages/cli/tests/review/preferences.test.ts",
-        "removes only the selected author during reset"
+        "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
+        "resets only the selected author at %s scope",
+        "user"
       ],
       [
-        "packages/cli/tests/review/preferences.test.ts",
-        "resets project routes without changing the user list"
+        "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
+        "resets only the selected author at %s scope",
+        "project"
       ]
     ],
     "Resetting an absent project entry is a no-op": [
-      "packages/cli/tests/review/preferences.test.ts",
-      "creates only the selected scope and leaves an absent reset as a no-op"
+      "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
+      "does not create a project config when resetting an absent entry"
     ],
     "Effective list reports source order and runtime defaults": [
       "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
-      "sets, lists, and resets ordered user routes through the assembled program"
+      "lists exact user routes when project routes are absent"
     ],
     "Effective list reports a project override": [
-      "packages/cli/tests/review/policy.test.ts",
-      "uses an ordered reviewer and model list as the complete route authority"
+      "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
+      "lists only project routes when both scopes configure the author"
     ],
     "Malformed scoped configuration fails visibly": [
       [
-        "packages/cli/tests/review/preferences.test.ts",
-        "fails effective resolution when either scoped file is malformed"
+        "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
+        "rejects malformed %s configuration instead of resolving other routes",
+        "user"
       ],
       [
-        "packages/cli/tests/review/preferences.test.ts",
-        "fails effective resolution when the user profile is malformed"
+        "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
+        "rejects malformed %s configuration instead of resolving other routes",
+        "project"
       ]
     ],
     "Malformed scoped configuration is never overwritten": [
       [
-        "packages/cli/tests/review/preferences.test.ts",
-        "refuses to overwrite malformed scoped configuration"
+        "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
+        "refuses to set malformed %s configuration",
+        "user"
       ],
       [
-        "packages/cli/tests/review/preferences.test.ts",
-        "refuses to overwrite malformed project configuration"
+        "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
+        "refuses to set malformed %s configuration",
+        "project"
       ]
     ],
     "Malformed scoped configuration is not reset": [
       [
-        "packages/cli/tests/review/preferences.test.ts",
-        "refuses to reset malformed target configuration"
+        "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
+        "refuses to reset malformed %s configuration",
+        "user"
       ],
       [
-        "packages/cli/tests/review/preferences.test.ts",
-        "refuses to reset malformed project configuration"
+        "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
+        "refuses to reset malformed %s configuration",
+        "project"
       ]
     ],
     "A malformed non-target scope does not block mutation": [
       [
-        "packages/cli/tests/review/preferences.test.ts",
-        "project set ignores a malformed user scope"
+        "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
+        "sets %s routes despite malformed non-target configuration",
+        "user"
       ],
       [
-        "packages/cli/tests/review/preferences.test.ts",
-        "user set ignores a malformed project scope"
+        "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
+        "sets %s routes despite malformed non-target configuration",
+        "project"
       ]
     ],
     "A malformed non-target scope does not block reset": [
       [
-        "packages/cli/tests/review/preferences.test.ts",
-        "project reset ignores a malformed user scope"
+        "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
+        "resets %s routes despite malformed non-target configuration",
+        "user"
       ],
       [
-        "packages/cli/tests/review/preferences.test.ts",
-        "user reset ignores a malformed project scope"
+        "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
+        "resets %s routes despite malformed non-target configuration",
+        "project"
       ]
     ],
     "An empty configured route list fails visibly": [
-      ["packages/cli/tests/review/preferences.test.ts", "rejects an empty project author list"],
       [
-        "packages/cli/tests/review/preferences.test.ts",
-        "rejects an empty user route list before using project routes"
+        "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
+        "rejects an empty %s route list instead of resolving other routes",
+        "user"
+      ],
+      [
+        "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
+        "rejects an empty %s route list instead of resolving other routes",
+        "project"
       ]
     ],
     "Absent scoped preferences preserve built-in behavior": [
-      "packages/cli/tests/review/preferences.test.ts",
-      "falls back to built-in routes when both scopes are absent"
+      "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
+      "lists the built-in chain when neither scope has routes"
     ],
     "Reset restores built-in defaults": [
-      "packages/cli/tests/review/preferences.test.ts",
-      "reveals built-in routes after the only configured list is reset"
+      "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
+      "reveals the built-in chain after resetting the only user routes"
     ],
     "Reset restores the next scope": [
-      "packages/cli/tests/review/preferences.test.ts",
-      "reveals the user list after the project list is reset"
+      "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
+      "reveals the exact user chain after resetting project routes"
     ],
     "First user-scope set creates one profile outside the project": [
-      "packages/cli/tests/review/preferences.test.ts",
-      "first user write creates no project file"
+      "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
+      "creates only the selected config on first %s write",
+      "user"
     ],
     "First project-scope set creates the project config": [
-      "packages/cli/tests/review/preferences.test.ts",
-      "first project write creates no user file"
+      "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
+      "creates only the selected config on first %s write",
+      "project"
     ]
   }
 }
