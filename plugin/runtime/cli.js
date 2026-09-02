@@ -48695,6 +48695,9 @@ function independentReviewResult(input) {
       actual_reviewer: input.output.reviewer_agent,
       ...input.model !== undefined && { reviewer_model: input.model },
       ...input.preferredModel !== undefined && { preferred_model: input.preferredModel },
+      ...input.preferredModelFailure !== undefined && {
+        preferred_model_failure: input.preferredModelFailure
+      },
       ...input.preferredFailure !== undefined && { preferred_failure: input.preferredFailure },
       independence: "cross-agent",
       reviewer_output: input.output
@@ -48765,6 +48768,31 @@ function exhaustedExplanation(routes) {
     return `The ${route.role}${modelPhrase} (${agentName(route.agent)}) ${causePhrase(route.failure)}.`;
   });
   return [...sentences, "No independent check was recorded."].join(" ");
+}
+function primaryFailureRoutes(input) {
+  if (input.preferredModelFailure === undefined) {
+    return [
+      {
+        agent: input.assignedReviewer,
+        role: "independent reviewer",
+        model: input.preferredModel,
+        failure: input.preferredFailure
+      }
+    ];
+  }
+  return [
+    {
+      agent: input.assignedReviewer,
+      role: "independent reviewer on its configured model",
+      model: input.preferredModel,
+      failure: input.preferredModelFailure
+    },
+    {
+      agent: input.assignedReviewer,
+      role: "independent reviewer on its default model",
+      failure: input.preferredFailure
+    }
+  ];
 }
 function nextStepFor(reviewer, failure) {
   const name = agentName(reviewer);
@@ -48875,6 +48903,9 @@ function changedReviewResult(input) {
 function routeFailureData(input) {
   return {
     ...input.preferredModel !== undefined && { preferred_model: input.preferredModel },
+    ...input.preferredModelFailure !== undefined && {
+      preferred_model_failure: input.preferredModelFailure
+    },
     preferred_failure: input.preferredFailure,
     ...input.alternateFailure !== undefined && {
       alternate_model_failure: input.alternateFailure,
@@ -48942,7 +48973,11 @@ async function executePrimaryReview(input, reviewer, primaryModel, runDeadline) 
   let execution = await executeReview(reviewer, prepared, primaryModel, runDeadline);
   let model = primaryModel;
   let dispatchId = prepared.packet.dispatch_id;
+  let rejectedModel;
+  let rejectedModelFailure;
   if (primaryModel !== undefined && execution.outcome.kind === "failed" && execution.outcome.failure === "unsupported" && !execution.outcome.terminal && canFundRoute(runDeadline)) {
+    rejectedModel = primaryModel;
+    rejectedModelFailure = execution.outcome.failure;
     const defaultPrepared = preparePrimaryReview(input, reviewer);
     const retried = await executeReview(reviewer, defaultPrepared, undefined, runDeadline);
     execution = {
@@ -48953,7 +48988,13 @@ async function executePrimaryReview(input, reviewer, primaryModel, runDeadline) 
     model = undefined;
     dispatchId = defaultPrepared.packet.dispatch_id;
   }
-  return { ...execution, model, dispatchId };
+  return {
+    ...execution,
+    model,
+    dispatchId,
+    preferredModel: rejectedModel,
+    preferredModelFailure: rejectedModelFailure
+  };
 }
 function prepareFallbackReview(input, assignedReviewer, author) {
   const fallbackName = agentName(author);
@@ -48993,12 +49034,7 @@ async function runDegradedFallback(input) {
         {
           code: "REVIEW_ROUTES_EXHAUSTED",
           message: exhaustedExplanation([
-            {
-              agent: input.assignedReviewer,
-              role: "independent reviewer",
-              model: input.preferredModel,
-              failure: input.preferredFailure
-            },
+            ...primaryFailureRoutes(input),
             ...input.alternateFailure === undefined ? [] : [
               {
                 agent: input.assignedReviewer,
@@ -49024,7 +49060,7 @@ async function runDegradedFallback(input) {
       recovery: [
         {
           command: retryCommand(input.kind, input.targets, input.context),
-          description: nextStepFor(input.assignedReviewer, input.preferredFailure),
+          description: nextStepFor(input.assignedReviewer, input.preferredModelFailure ?? input.preferredFailure),
           requiresHuman: true
         }
       ],
@@ -49147,6 +49183,7 @@ async function runAlternateModelRoute(input) {
     output,
     model,
     preferredModel: input.preferredModel,
+    preferredModelFailure: input.preferredModelFailure,
     preferredFailure: input.preferredFailure
   });
   return { kind: "completed", result };
@@ -49162,6 +49199,7 @@ function resolveAlternateModelFailure(input, model, assessment) {
       author: input.author,
       assignedReviewer: input.reviewer,
       preferredModel: input.preferredModel,
+      preferredModelFailure: input.preferredModelFailure,
       preferredFailure: input.preferredFailure,
       alternateModel: model,
       alternateFailure: assessment.failure,
@@ -49179,6 +49217,7 @@ async function runRemainingRoutes(input) {
     author: input.author,
     reviewer: input.assignedReviewer,
     preferredModel: input.preferredModel,
+    preferredModelFailure: input.preferredModelFailure,
     preferredFailure: input.preferredFailure,
     policy: input.policy,
     runDeadline: input.runDeadline
@@ -49202,12 +49241,7 @@ function exhaustedRunResult(input) {
       {
         code: "REVIEW_ROUTES_EXHAUSTED",
         message: exhaustedExplanation([
-          {
-            agent: input.assignedReviewer,
-            role: "independent reviewer",
-            model: input.preferredModel,
-            failure: input.preferredFailure
-          },
+          ...primaryFailureRoutes(input),
           ...input.alternateFailure === undefined ? [] : [
             {
               agent: input.assignedReviewer,
@@ -49229,7 +49263,7 @@ function exhaustedRunResult(input) {
     recovery: [
       {
         command: retryCommand(input.kind, input.targets, input.context),
-        description: nextStepFor(input.assignedReviewer, input.preferredFailure),
+        description: nextStepFor(input.assignedReviewer, input.preferredModelFailure ?? input.preferredFailure),
         requiresHuman: true
       }
     ],
@@ -49284,8 +49318,11 @@ async function runReview(input) {
     sourceChanged,
     snapshotChanged,
     model: completedModel,
-    dispatchId
+    dispatchId,
+    preferredModel,
+    preferredModelFailure
   } = await executePrimaryReview(input, reviewer, primaryModel, runDeadline);
+  const reportedPreferredModel = preferredModel ?? completedModel;
   const changedResult = changedReviewResult({
     author: pair.author,
     reviewer,
@@ -49304,7 +49341,8 @@ async function runReview(input) {
       return authenticationRequiredResult({
         author: pair.author,
         assignedReviewer: reviewer,
-        preferredModel: completedModel,
+        preferredModel: reportedPreferredModel,
+        preferredModelFailure,
         preferredFailure: outcome.failure,
         policy
       });
@@ -49314,7 +49352,8 @@ async function runReview(input) {
         ...input,
         author: pair.author,
         assignedReviewer: reviewer,
-        preferredModel: completedModel,
+        preferredModel: reportedPreferredModel,
+        preferredModelFailure,
         preferredFailure: outcome.failure,
         policy
       });
@@ -49323,7 +49362,8 @@ async function runReview(input) {
       ...input,
       author: pair.author,
       assignedReviewer: reviewer,
-      preferredModel: completedModel,
+      preferredModel: reportedPreferredModel,
+      preferredModelFailure,
       preferredFailure: outcome.failure,
       policy,
       runDeadline
@@ -49335,14 +49375,22 @@ async function runReview(input) {
       ...input,
       author: pair.author,
       assignedReviewer: reviewer,
-      preferredModel: completedModel,
+      preferredModel: reportedPreferredModel,
+      preferredModelFailure,
       preferredFailure: provenance.code,
       policy,
       runDeadline
     });
   }
   const output = provenance.output;
-  return independentReviewResult({ author: pair.author, reviewer, output, model: completedModel });
+  return independentReviewResult({
+    author: pair.author,
+    reviewer,
+    output,
+    model: completedModel,
+    preferredModel,
+    preferredModelFailure
+  });
 }
 var MAX_TERMINAL_REVIEWER_TEXT_LENGTH = 2000, FAILURE_CAUSES, NON_ATTEMPT_FAILURES, ALTERNATE_MODEL_SKIP_FAILURES;
 var init_coordinator = __esm(() => {

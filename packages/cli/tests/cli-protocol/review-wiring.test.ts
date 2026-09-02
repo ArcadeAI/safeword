@@ -1616,11 +1616,70 @@ describe('cross-agent review public-command wiring', () => {
     expect(result.exitCode, result.stdout).toBe(0);
     expect(JSON.parse(result.stdout)).toMatchObject({
       state: 'healthy',
-      data: { status: 'approved', actual_reviewer: 'codex', independence: 'cross-agent' },
+      data: {
+        status: 'approved',
+        actual_reviewer: 'codex',
+        preferred_model: 'vendor-model-1',
+        preferred_model_failure: 'unsupported',
+        independence: 'cross-agent',
+      },
     });
     expect(JSON.parse(result.stdout).data).not.toHaveProperty('reviewer_model');
     expect(readFileSync(log, 'utf8')).toBe('codex\n');
     expect(existsSync(modelPromptLog)).toBe(false);
+  });
+
+  it('preserves the configured-model rejection when the default-model retry needs authentication', async () => {
+    const directory = createTemporaryDirectory();
+    const log = nodePath.join(directory, 'review.log');
+    mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(directory, '.safeword', 'config.json'),
+      JSON.stringify({ crossAgentReviewPrimaryModel: { codex: 'vendor-model-1' } }),
+    );
+    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+    const bin = installFakeReviewer(directory, 'codex');
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'review-input.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_REVIEW_FAKE_MODEL_CAPABILITY: 'missing',
+          SAFEWORD_REVIEW_FAKE_FAILURE: 'auth',
+          SAFEWORD_REVIEW_LOG: log,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode, result.stdout).toBe(2);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      state: 'action_required',
+      findings: [{ code: 'REVIEW_AUTHENTICATION_REQUIRED' }],
+      recovery: [{ command: 'codex login', requires_human: true }],
+      data: {
+        status: 'blocked',
+        assigned_reviewer: 'codex',
+        preferred_model: 'vendor-model-1',
+        preferred_model_failure: 'unsupported',
+        preferred_failure: 'not_authenticated',
+        review_policy: 'prefer',
+        independence: 'none',
+      },
+    });
+    expect(readFileSync(log, 'utf8')).toBe('codex\n');
   });
 
   it.each([
