@@ -360,7 +360,22 @@ function degradedIndependenceMessage(
   const suffix = evidence.some(route => route.independence === 'cross-agent')
     ? ' after the independent routes did not complete'
     : '';
-  return `This review was not independent: ${agentName(author)} checked its own work${suffix}.`;
+  const failures = rankedFailureExplanation(evidence);
+  const detail = failures === '' ? '' : ` ${failures}`;
+  return `This review was not independent: ${agentName(author)} checked its own work${suffix}.${detail}`;
+}
+
+function rankedFailureExplanation(evidence: readonly RankedRouteEvidence[]): string {
+  return evidence
+    .filter(
+      (route): route is RankedRouteEvidence & { readonly failure: ReviewFailure } =>
+        route.failure !== undefined,
+    )
+    .map(route => {
+      const model = route.model === undefined ? '' : ` using ${route.model}`;
+      return `${agentName(route.reviewer)}${model} ${causePhrase(route.failure)}.`;
+    })
+    .join(' ');
 }
 
 // The result mirrors the evidence matrix deliberately; flattening these
@@ -409,9 +424,15 @@ function rankedExhaustedResult(input: {
   const hasDegraded = input.degraded !== undefined;
   const evaluatedLabel = evaluated.length === 1 ? 'route was' : 'routes were';
   const code = hasDegraded ? 'REVIEW_INDEPENDENCE_REQUIRED' : 'REVIEW_ROUTES_EXHAUSTED';
+  const failureExplanation = rankedFailureExplanation(input.evidence);
+  const failureDetail = failureExplanation === '' ? '' : ` ${failureExplanation}`;
   const message = hasDegraded
     ? 'A same-agent review completed, but the configured independent-review requirement remains unsatisfied.'
-    : `${evaluated.length} configured review ${evaluatedLabel} evaluated; no independent check was recorded.`;
+    : `${evaluated.length} configured review ${evaluatedLabel} evaluated; no independent check was recorded.${failureDetail}`;
+  const firstFailure = input.evidence.find(
+    (route): route is RankedRouteEvidence & { readonly failure: ReviewFailure } =>
+      route.failure !== undefined,
+  );
   return createResult({
     state: 'action_required',
     findings: [
@@ -426,7 +447,7 @@ function rankedExhaustedResult(input: {
     recovery: [
       {
         command: retryCommand(input.kind, input.targets, input.context),
-        description: 'Restore a configured independent reviewer, then run the review again.',
+        description: rankedRecoveryDescription(firstFailure),
         requiresHuman: true,
       },
     ],
@@ -447,6 +468,14 @@ function rankedExhaustedResult(input: {
       }),
     },
   });
+}
+
+function rankedRecoveryDescription(
+  firstFailure: (RankedRouteEvidence & { readonly failure: ReviewFailure }) | undefined,
+): string {
+  return firstFailure === undefined
+    ? 'Restore a configured independent reviewer, then run the review again.'
+    : nextStepFor(firstFailure.reviewer, firstFailure.failure);
 }
 
 function recordRankedFailure(

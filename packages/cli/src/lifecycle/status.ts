@@ -50,11 +50,13 @@ async function inspectConfiguredRoute(
 
 async function reviewRouteObservations(
   cwd: string,
-  environment: NodeJS.ProcessEnv,
   offline: boolean,
+  routes: readonly {
+    readonly reviewer: 'claude' | 'codex' | 'opencode';
+    readonly model?: string;
+    readonly independence: 'cross-agent' | 'degraded';
+  }[],
 ): Promise<readonly Record<string, unknown>[]> {
-  const author = resolveRunIdentity({}, { env: environment }).runtime;
-  const routes = readConfiguredReviewRoutes(cwd, author) ?? [];
   const inspectionDeadline = Date.now() + 5000;
   const proofs = new Map(
     readReviewRouteProofs(cwd).map(proof => [
@@ -78,6 +80,40 @@ async function reviewRouteObservations(
       };
     }),
   );
+}
+
+async function configuredReviewRouteStatus(
+  cwd: string,
+  environment: NodeJS.ProcessEnv,
+  offline: boolean,
+): Promise<{
+  readonly reviewRoutes: readonly Record<string, unknown>[];
+  readonly routeFinding?: Finding;
+}> {
+  const author = resolveRunIdentity({}, { env: environment }).runtime;
+  let configuredRoutes: ReturnType<typeof readConfiguredReviewRoutes>;
+  try {
+    configuredRoutes = readConfiguredReviewRoutes(cwd, author);
+  } catch (error) {
+    return {
+      reviewRoutes: [],
+      routeFinding: {
+        code: 'REVIEW_ROUTE_CONFIG_INVALID',
+        message:
+          error instanceof Error && error.message.startsWith('Invalid crossAgentReviewRoutes')
+            ? error.message
+            : 'Invalid crossAgentReviewRoutes configuration.',
+        severity: 'warning',
+      },
+    };
+  }
+  try {
+    return {
+      reviewRoutes: await reviewRouteObservations(cwd, offline, configuredRoutes ?? []),
+    };
+  } catch {
+    return { reviewRoutes: [] };
+  }
 }
 
 function healthFindings(
@@ -363,18 +399,11 @@ async function observeProjectStatus(
       ...unselectedCursorFinding(cwd, agents),
     ];
     const nextActions = statusNextActions(blockingFindings, versionGuidance.nextAction);
-    let reviewRoutes: readonly Record<string, unknown>[];
-    let routeFinding: Finding | undefined;
-    try {
-      reviewRoutes = await reviewRouteObservations(cwd, environment, offline);
-    } catch (error) {
-      reviewRoutes = [];
-      routeFinding = {
-        code: 'REVIEW_ROUTE_CONFIG_INVALID',
-        message: error instanceof Error ? error.message : String(error),
-        severity: 'warning',
-      };
-    }
+    const { reviewRoutes, routeFinding } = await configuredReviewRouteStatus(
+      cwd,
+      environment,
+      offline,
+    );
 
     return createResult({
       state:

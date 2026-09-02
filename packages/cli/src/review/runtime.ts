@@ -842,14 +842,20 @@ export async function inspectReviewRoute(
       inspectionUnavailable = true;
       break;
     }
-    const capability = await supportsReviewContract(reviewer, candidate, cwd, remaining, model);
+    const capability = await supportsReviewContract(
+      reviewer,
+      candidate,
+      tmpdir(),
+      remaining,
+      model,
+    );
     if (capability.kind === 'failed') {
       inspectionUnavailable ||= capability.failure !== 'unsupported';
       continue;
     }
     const compatible = compatibleRouteObservation(reviewer, model, skipCatalogue);
     if (compatible.kind === 'completed') return compatible.observation;
-    return inspectOpenCodeCatalogue(candidate, compatible.model, cwd, deadline);
+    return inspectOpenCodeCatalogue(candidate, compatible.model, tmpdir(), deadline);
   }
   return {
     installed: true,
