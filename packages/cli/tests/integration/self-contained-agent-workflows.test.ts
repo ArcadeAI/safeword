@@ -295,6 +295,29 @@ afterEach(() => {
 afterAll(cleanupTrustedReviewerDirectories);
 
 describe('self-contained generated workflows', () => {
+  it('resolves the current ticket through the generated Codex helper in an isolated plugin cache', () => {
+    const project = enrolledProject();
+    const ticket = nodePath.join(project, '.project/tickets/ABC-proof/ticket.md');
+    mkdirSync(nodePath.dirname(ticket), { recursive: true });
+    writeFileSync(ticket, '---\nid: ABC\nstatus: in_progress\n---\n');
+    const command = commandFromSkill(
+      nodePath.join(CODEX_PLUGIN, 'skills/audit/SKILL.md'),
+      'project runtime resolve-verify-ticket',
+      'Codex',
+    );
+
+    const result = spawnSync('bash', ['-c', String.raw`${command}; printf '%s\n' "$TICKET_PATH"`], {
+      cwd: project,
+      encoding: 'utf8',
+      env: { ...process.env, CODEX_HOME: installCodexRuntime(), PROJECT_DIR: project },
+    });
+
+    expect(result.status, result.stderr || result.stdout).toBe(0);
+    expect(result.stdout.trim()).toBe(ticket);
+    expect(result.stderr).toBe('');
+    expectNoProjectRuntime(project);
+  });
+
   it.each(['complete', 'partially missing'] as const)(
     'executes the pinned Codex audit beside %s legacy project runtime',
     fixture => {
