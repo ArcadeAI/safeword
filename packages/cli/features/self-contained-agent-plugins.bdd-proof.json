@@ -84,8 +84,14 @@
       "does not create knowledge, ignore policy, or state in an unenrolled repository"
     ],
     "A direct workflow does not silently enroll a repository": [
-      "packages/cli/tests/commands/record-skill-invocation.test.ts",
-      "does not enroll a repository as a side effect of workflow logging"
+      [
+        "packages/cli/tests/commands/record-skill-invocation.test.ts",
+        "does not enroll a repository as a side effect of workflow logging"
+      ],
+      [
+        "packages/cli/tests/commands/record-skill-invocation.test.ts",
+        "does not create state through a direct helper in an unenrolled repository"
+      ]
     ],
     "OpenCode installation delivers no project runtime": [
       "packages/cli/tests/opencode/catalogue.test.ts",

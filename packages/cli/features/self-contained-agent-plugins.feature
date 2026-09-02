@@ -36,6 +36,7 @@ Feature: Every agent delivery is self-contained
       Then the caller shell receives diff mode, the known merge-base SHA, and an empty changed-file list
       And the caller shell remains available for the next command
 
+    # Proof boundary: the generated command runs from a versioned cache; any available legacy helper writes a sentinel if executed.
     @surface.openai-codex
     Scenario Outline: Legacy project runtime cannot regain native workflow authority
       Given an enrolled project contains <legacy runtime> and authored project knowledge
@@ -43,6 +44,7 @@ Feature: Every agent delivery is self-contained
       Then the audit result names the pinned Codex plugin package as its entry point
       And the authored project knowledge remains unchanged
       And the emitted output contains no installation directive
+      And no legacy-runtime marker is created
 
       Examples:
         | legacy runtime                 |
@@ -194,7 +196,7 @@ Feature: Every agent delivery is self-contained
       When the Technical Builder invokes a state-writing packaged workflow
       Then the workflow reports that explicit enrollment is required
       And the workflow exits successfully without an approval prompt or blocking error
-      And no project namespace or executable runtime is created
+      And no project namespace, framework state, ignore rule, or executable runtime is created
 
   @self-contained-plugins.NTB1.R1
   Rule: self-contained-plugins.NTB1.R1 — Project reconciliation is bounded to selected delivery authorities
@@ -315,7 +317,7 @@ Feature: Every agent delivery is self-contained
 
     @surface.safeword-cli
     Scenario: Complete agent catalogues pass executable-reference validation
-      Given generated Codex, Claude Code, OpenCode, and Cursor catalogues use their declared authorities
+      Given the generated Codex, Claude Code, OpenCode, and Cursor workflow catalogues
       When the Safeword Maintainer runs release validation
       Then all four catalogues pass runtime-authority validation
 

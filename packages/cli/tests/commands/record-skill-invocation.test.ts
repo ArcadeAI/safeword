@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
@@ -8,6 +8,24 @@ import { runRecordSkillInvocation } from '../../src/commands/record-skill-invoca
 import { createTemporaryDirectory } from '../helpers.js';
 
 describe('project record-skill-invocation', () => {
+  it('does not create state through a direct helper in an unenrolled repository', () => {
+    const cwd = createTemporaryDirectory();
+    const helper = nodePath.resolve(
+      import.meta.dirname,
+      '../../templates/hooks/record-skill-invocation.ts',
+    );
+
+    const result = spawnSync('bun', [helper, cwd, 'verify', 'session-1'], {
+      cwd,
+      encoding: 'utf8',
+    });
+
+    expect(`${result.stdout}${result.stderr}`).toMatch(/not enrolled/iu);
+    expect(result.stdout).not.toContain('verify ✓');
+    expect(existsSync(nodePath.join(cwd, '.project'))).toBe(false);
+    expect(existsSync(nodePath.join(cwd, '.safeword'))).toBe(false);
+  });
+
   it('does not enroll a repository as a side effect of workflow logging', async () => {
     const cwd = createTemporaryDirectory();
 
