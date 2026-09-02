@@ -36417,18 +36417,18 @@ __export(exports_route_config, {
   parseConfiguredReviewRoutes: () => parseConfiguredReviewRoutes,
   MODEL_NAME: () => MODEL_NAME
 });
-function parseConfiguredReviewRoutes(config, author) {
+function parseConfiguredReviewRoutes(config, author, source) {
   const configured = config.crossAgentReviewRoutes;
   if (configured === undefined)
     return;
   if (!isRecord4(configured) || Array.isArray(configured))
-    throw configError("must be an object");
+    throw configError("must be an object", source);
   const values = configured[author];
   if (values === undefined)
     return;
   if (!Array.isArray(values) || values.length === 0)
-    throw configError(`.${author} must be a non-empty array`);
-  return values.map((value, index) => parseRoute(value, index, author));
+    throw configError(`.${author} must be a non-empty array`, source);
+  return values.map((value, index) => parseRoute(value, index, author, source));
 }
 function parseRouteText(value, author) {
   const separator = value.indexOf("=");
@@ -36437,15 +36437,15 @@ function parseRouteText(value, author) {
     ...separator !== -1 && { model: value.slice(separator + 1) }
   }, 0, author);
 }
-function parseRoute(value, index, author) {
+function parseRoute(value, index, author, source) {
   if (!isRecord4(value) || Array.isArray(value))
-    throw configError(`.${author}[${index}] must be an object`);
+    throw configError(`.${author}[${index}] must be an object`, source);
   const reviewer = value.reviewer;
   if (typeof reviewer !== "string" || !REVIEW_AGENTS2.has(reviewer))
-    throw configError(`.${author}[${index}].reviewer is unsupported`);
+    throw configError(`.${author}[${index}].reviewer is unsupported`, source);
   const model = value.model;
   if (model !== undefined && (typeof model !== "string" || !MODEL_NAME.test(model)))
-    throw configError(`.${author}[${index}].model is invalid`);
+    throw configError(`.${author}[${index}].model is invalid`, source);
   return {
     reviewer,
     ...model !== undefined && { model },
@@ -36455,8 +36455,9 @@ function parseRoute(value, index, author) {
 function isRecord4(value) {
   return typeof value === "object" && value !== null;
 }
-function configError(detail) {
-  return new Error(`Invalid crossAgentReviewRoutes configuration: ${detail}`);
+function configError(detail, source) {
+  const location = source === undefined ? "" : ` at ${source}`;
+  return new Error(`Invalid crossAgentReviewRoutes configuration${location}: ${detail}`);
 }
 var MODEL_NAME, REVIEW_AGENTS2;
 var init_route_config = __esm(() => {
@@ -36569,8 +36570,9 @@ function effectiveConfiguredRoutes(cwd, author) {
   if (author !== "claude" && author !== "codex" && author !== "opencode")
     return;
   const userPath = optionalCurrentUserConfigPath();
-  const userRoutes = userPath === undefined ? undefined : parseConfiguredReviewRoutes(readConfigFile(userPath), author);
-  const projectRoutes = parseConfiguredReviewRoutes(readConfigFile(scopedConfigPath(cwd, "project")), author);
+  const userRoutes = userPath === undefined ? undefined : parseConfiguredReviewRoutes(readConfigFile(userPath), author, userPath);
+  const projectPath = scopedConfigPath(cwd, "project");
+  const projectRoutes = parseConfiguredReviewRoutes(readConfigFile(projectPath), author, projectPath);
   if (projectRoutes !== undefined)
     return { source: "project", routes: projectRoutes };
   return userRoutes === undefined ? undefined : { source: "user", routes: userRoutes };
@@ -42580,7 +42582,16 @@ async function observeProjectStatus(cwd, agents, environment, offline) {
     return createResult({
       state: blockingFindings.length === 0 && routeFinding === undefined ? "healthy" : "action_required",
       findings: [...findings, ...routeFinding === undefined ? [] : [routeFinding]],
-      nextActions,
+      nextActions: [
+        ...nextActions,
+        ...routeFinding === undefined ? [] : [
+          {
+            command: `safeword review routes list --author ${resolveRunIdentity({}, { env: environment }).runtime}`,
+            mutates: false,
+            requiresHuman: false
+          }
+        ]
+      ],
       data: {
         configured: true,
         cli_version: health.cliVersion,
@@ -66741,6 +66752,14 @@ async function reviewRoutesListHandler(invocation) {
   };
   return createResult({
     state: "healthy",
+    presentation: {
+      kind: "raw",
+      body: [
+        `${author} review routes (${data.source}):`,
+        ...data.routes.map((route, index) => `${index + 1}. ${route.reviewer} (${route.model ?? "runtime default"}) [${route.independence}]`)
+      ].join(`
+`)
+    },
     data: { command: "review routes list", author, ...data }
   });
 }
@@ -68825,7 +68844,10 @@ var GLOBAL_OPTION_DEFINITIONS = [
   { flags: "--no-input", description: "Never prompt or infer consent" },
   { flags: "--cwd <path>", description: "Run against this project directory" },
   { flags: "--quiet", description: "Suppress healthy and progress prose" },
-  { flags: "--offline", description: "Reject declared network effects" },
+  {
+    flags: "--offline",
+    description: "Reject required network effects and skip optional network inspection"
+  },
   { flags: "-v, --verbose", description: "Include implementation detail" }
 ];
 function addGlobalOptions(command2) {

@@ -407,7 +407,18 @@ async function observeProjectStatus(
       state:
         blockingFindings.length === 0 && routeFinding === undefined ? 'healthy' : 'action_required',
       findings: [...findings, ...(routeFinding === undefined ? [] : [routeFinding])],
-      nextActions,
+      nextActions: [
+        ...nextActions,
+        ...(routeFinding === undefined
+          ? []
+          : [
+              {
+                command: `safeword review routes list --author ${resolveRunIdentity({}, { env: environment }).runtime}`,
+                mutates: false,
+                requiresHuman: false,
+              } as const,
+            ]),
+      ],
       data: {
         configured: true,
         cli_version: health.cliVersion,

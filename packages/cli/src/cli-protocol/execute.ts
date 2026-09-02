@@ -23,7 +23,10 @@ export const GLOBAL_OPTION_DEFINITIONS = [
   { flags: '--no-input', description: 'Never prompt or infer consent' },
   { flags: '--cwd <path>', description: 'Run against this project directory' },
   { flags: '--quiet', description: 'Suppress healthy and progress prose' },
-  { flags: '--offline', description: 'Reject declared network effects' },
+  {
+    flags: '--offline',
+    description: 'Reject required network effects and skip optional network inspection',
+  },
   { flags: '-v, --verbose', description: 'Include implementation detail' },
 ] as const;
 

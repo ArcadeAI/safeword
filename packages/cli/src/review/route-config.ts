@@ -20,15 +20,17 @@ const REVIEW_AGENTS = new Set<ReviewAgent>(['claude', 'codex', 'opencode']);
 export function parseConfiguredReviewRoutes(
   config: Record<string, unknown>,
   author: ReviewAgent,
+  source: string,
 ): readonly ReviewRoute[] | undefined {
   const configured = config.crossAgentReviewRoutes;
   if (configured === undefined) return undefined;
-  if (!isRecord(configured) || Array.isArray(configured)) throw configError('must be an object');
+  if (!isRecord(configured) || Array.isArray(configured))
+    throw configError('must be an object', source);
   const values = configured[author];
   if (values === undefined) return undefined;
   if (!Array.isArray(values) || values.length === 0)
-    throw configError(`.${author} must be a non-empty array`);
-  return values.map((value, index) => parseRoute(value, index, author));
+    throw configError(`.${author} must be a non-empty array`, source);
+  return values.map((value, index) => parseRoute(value, index, author, source));
 }
 
 export function parseRouteText(value: string, author: ReviewAgent): ReviewRoute {
@@ -43,15 +45,20 @@ export function parseRouteText(value: string, author: ReviewAgent): ReviewRoute 
   );
 }
 
-function parseRoute(value: unknown, index: number, author: ReviewAgent): ReviewRoute {
+function parseRoute(
+  value: unknown,
+  index: number,
+  author: ReviewAgent,
+  source?: string,
+): ReviewRoute {
   if (!isRecord(value) || Array.isArray(value))
-    throw configError(`.${author}[${index}] must be an object`);
+    throw configError(`.${author}[${index}] must be an object`, source);
   const reviewer = value.reviewer;
   if (typeof reviewer !== 'string' || !REVIEW_AGENTS.has(reviewer as ReviewAgent))
-    throw configError(`.${author}[${index}].reviewer is unsupported`);
+    throw configError(`.${author}[${index}].reviewer is unsupported`, source);
   const model = value.model;
   if (model !== undefined && (typeof model !== 'string' || !MODEL_NAME.test(model)))
-    throw configError(`.${author}[${index}].model is invalid`);
+    throw configError(`.${author}[${index}].model is invalid`, source);
   return {
     reviewer: reviewer as ReviewAgent,
     ...(model !== undefined && { model }),
@@ -63,6 +70,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-function configError(detail: string): Error {
-  return new Error(`Invalid crossAgentReviewRoutes configuration: ${detail}`);
+function configError(detail: string, source?: string): Error {
+  const location = source === undefined ? '' : ` at ${source}`;
+  return new Error(`Invalid crossAgentReviewRoutes configuration${location}: ${detail}`);
 }

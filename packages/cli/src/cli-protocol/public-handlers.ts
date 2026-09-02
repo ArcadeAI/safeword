@@ -852,6 +852,16 @@ async function reviewRoutesListHandler(invocation: CommandInvocation): Promise<C
   };
   return createResult({
     state: 'healthy',
+    presentation: {
+      kind: 'raw',
+      body: [
+        `${author} review routes (${data.source}):`,
+        ...data.routes.map(
+          (route, index) =>
+            `${index + 1}. ${route.reviewer} (${route.model ?? 'runtime default'}) [${route.independence}]`,
+        ),
+      ].join('\n'),
+    },
     data: { command: 'review routes list', author, ...data },
   });
 }

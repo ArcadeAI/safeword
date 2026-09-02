@@ -65,7 +65,9 @@ describe('review route preferences', () => {
       nodePath.join(cwd, '.safeword', 'config.json'),
       JSON.stringify({ crossAgentReviewRoutes: { claude: [] } }),
     );
-    expect(() => effectiveConfiguredRoutes(cwd, 'claude')).toThrow('non-empty array');
+    expect(() => effectiveConfiguredRoutes(cwd, 'claude')).toThrow(
+      nodePath.join(cwd, '.safeword', 'config.json'),
+    );
   });
 
   it('uses project then user precedence independently per author', () => {
@@ -237,7 +239,7 @@ describe('review route preferences', () => {
     mkdirSync(nodePath.dirname(user), { recursive: true });
     writeFileSync(user, JSON.stringify({ crossAgentReviewRoutes: { claude: [] } }));
     setScopedReviewRoutes(cwd, 'project', 'claude', [{ reviewer: 'codex' }]);
-    expect(() => effectiveConfiguredRoutes(cwd, 'claude')).toThrow('non-empty array');
+    expect(() => effectiveConfiguredRoutes(cwd, 'claude')).toThrow(user);
   });
 
   it('keeps user routes when the project configures another author', () => {

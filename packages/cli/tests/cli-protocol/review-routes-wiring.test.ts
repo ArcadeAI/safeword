@@ -35,6 +35,17 @@ async function invoke(cwd: string, args: readonly string[]): Promise<Record<stri
   return JSON.parse(output.join('')) as Record<string, unknown>;
 }
 
+async function invokeHuman(cwd: string, args: readonly string[]): Promise<string> {
+  const output: string[] = [];
+  const writeSpy = vi.spyOn(process.stdout, 'write').mockImplementation(chunk => {
+    output.push(String(chunk));
+    return true;
+  });
+  await createCliProgram().parseAsync(['node', 'safeword', ...args, '--no-input', '--cwd', cwd]);
+  writeSpy.mockRestore();
+  return output.join('');
+}
+
 describe('review routes CLI wiring', () => {
   it('sets, lists, and resets ordered user routes through the assembled program', async () => {
     const root = createTemporaryDirectory();
@@ -78,6 +89,9 @@ describe('review routes CLI wiring', () => {
         ],
       },
     });
+    expect(await invokeHuman(cwd, ['review', 'routes', 'list', '--author', 'claude'])).toContain(
+      '1. opencode (vendor/model) [cross-agent]',
+    );
 
     const reset = await invoke(cwd, ['review', 'routes', 'reset', '--author', 'claude']);
     expect(reset).toMatchObject({

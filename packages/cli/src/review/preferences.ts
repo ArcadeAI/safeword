@@ -130,10 +130,12 @@ export function effectiveConfiguredRoutes(
   const userRoutes =
     userPath === undefined
       ? undefined
-      : parseConfiguredReviewRoutes(readConfigFile(userPath), author);
+      : parseConfiguredReviewRoutes(readConfigFile(userPath), author, userPath);
+  const projectPath = scopedConfigPath(cwd, 'project');
   const projectRoutes = parseConfiguredReviewRoutes(
-    readConfigFile(scopedConfigPath(cwd, 'project')),
+    readConfigFile(projectPath),
     author,
+    projectPath,
   );
   if (projectRoutes !== undefined) return { source: 'project', routes: projectRoutes };
   return userRoutes === undefined ? undefined : { source: 'user', routes: userRoutes };
