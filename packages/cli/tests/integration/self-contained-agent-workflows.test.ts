@@ -6,6 +6,7 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -313,7 +314,7 @@ describe('self-contained generated workflows', () => {
     });
 
     expect(result.status, result.stderr || result.stdout).toBe(0);
-    expect(result.stdout.trim()).toBe(ticket);
+    expect(result.stdout.trim()).toBe(realpathSync(ticket));
     expect(result.stderr).toBe('');
     expectNoProjectRuntime(project);
   });

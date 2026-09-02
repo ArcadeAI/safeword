@@ -48059,7 +48059,8 @@ function completedResult(helper, status, stdout, stderr) {
   });
 }
 function packageRoot() {
-  return nodePath101.basename(import.meta.dirname) === "dist" ? nodePath101.dirname(import.meta.dirname) : nodePath101.resolve(import.meta.dirname, "../..");
+  const runtimeDirectory = nodePath101.basename(import.meta.dirname);
+  return runtimeDirectory === "dist" || runtimeDirectory === "runtime" ? nodePath101.dirname(import.meta.dirname) : nodePath101.resolve(import.meta.dirname, "../..");
 }
 function runProjectRuntime(cwd, helper, args) {
   const definition = helperDefinition(helper);

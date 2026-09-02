@@ -60,7 +60,8 @@ function completedResult(
 }
 
 function packageRoot(): string {
-  return nodePath.basename(import.meta.dirname) === 'dist'
+  const runtimeDirectory = nodePath.basename(import.meta.dirname);
+  return runtimeDirectory === 'dist' || runtimeDirectory === 'runtime'
     ? nodePath.dirname(import.meta.dirname)
     : nodePath.resolve(import.meta.dirname, '../..');
 }
