@@ -4,6 +4,12 @@ slug: rank-local-reviewers-and-models
 type: feature
 phase: verify
 status: in_progress
+phase_anchors:
+  - 'define-behavior: .project/tickets/FJAKRN-rank-local-reviewers-and-models/spec.md'
+  - 'scenario-gate: packages/cli/features/rank-local-reviewers-and-models.feature'
+  - 'plan-implementation: .project/tickets/FJAKRN-rank-local-reviewers-and-models/impl-plan.md'
+  - 'implement: .project/tickets/FJAKRN-rank-local-reviewers-and-models/test-definitions.md'
+  - 'verify: .project/tickets/FJAKRN-rank-local-reviewers-and-models/test-definitions.md'
 scope:
   - configure an ordered reviewer/model route list per supported author runtime
   - preserve reviewer independence and classify every same-author route as degraded
