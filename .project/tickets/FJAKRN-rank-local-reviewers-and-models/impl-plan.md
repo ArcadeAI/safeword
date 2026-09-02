@@ -45,10 +45,10 @@ If a same-author route succeeds and every later independent route fails, `prefer
 
 | Principle | Consequence | Proof | Conflict |
 | --- | --- | --- | --- |
-| Optimize for the NTB without constraining the TBU | Plain evidence states in status; exact ordered route control in config | `packages/cli/tests/lifecycle/status.test.ts`; public review command tests | |
-| 1. Structure enforces; instructions suggest | Closed parser rejects invalid/empty routes and coordinator derives independence from author/reviewer identity | `packages/cli/tests/review/policy.test.ts`; coordinator tests | |
-| 3. Add, never replace | Existing settings preserve behavior until the new list is present | public `review run` tests for all three legacy author chains plus focused compilation tests | |
-| 5. Correct and safe; then clear; then simple | One route type and one loop replace parallel preferred/alternate/fallback branches | coordinator tests and audit | |
+| Optimize for the NTB without constraining the TBU | Plain evidence states in status; exact ordered route control in config | `packages/cli/tests/cli-protocol/review-wiring.test.ts`; `packages/cli/tests/review/runtime.test.ts` | |
+| 1. Structure enforces; instructions suggest | Closed parser rejects invalid/empty routes and coordinator derives independence from author/reviewer identity | `packages/cli/tests/review/policy.test.ts`; `packages/cli/tests/cli-protocol/review-wiring.test.ts` | |
+| 3. Add, never replace | Existing settings preserve behavior until the new list is present | `packages/cli/tests/review/policy.test.ts`; `packages/cli/tests/cli-protocol/review-wiring.test.ts` | |
+| 5. Correct and safe; then clear; then simple | One route type and one loop execute opt-in routes without replacing the legacy path | `packages/cli/src/review/policy.ts`; `packages/cli/src/review/coordinator.ts` | |
 
 Architecture alignment: supersedes only the fixed route-authority clause in the existing cross-agent coordinator record. It preserves trusted executable discovery, read-only reviewer processes, provenance, shared deadline, and typed CLI results; `ARCHITECTURE.md` is updated in the same change.
 
