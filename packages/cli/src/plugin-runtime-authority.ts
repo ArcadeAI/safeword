@@ -24,12 +24,18 @@ const CROSS_HOST_RUNTIME_MARKERS = [
 
 function isCrossHostRuntimeCommand(content: string): boolean {
   // The shared retro/audit guidance reads transcript data and project guidance
-  // from other hosts. Exempt those specific data roots, not whole lines or
-  // assets: a neighboring runtime reference must still fail the release gate.
-  const runtimeReferences = content
-    .replaceAll('.claude/projects/', '')
-    .replaceAll('.claude/CLAUDE.md', '')
-    .replaceAll('${CODEX_HOME:-$HOME/.codex}/sessions', '');
+  // from other hosts. Exempt only those complete documented data expressions,
+  // not prefixes that could also hide executables or parent traversal.
+  const dataReferences = [
+    '`.claude/CLAUDE.md`',
+    '`~/.claude/projects/<encoded-cwd>/$CLAUDE_SESSION_ID.jsonl`',
+    '~/.claude/projects/"${PWD//[^a-zA-Z0-9]/-}"/*.jsonl',
+    '`${CODEX_HOME:-$HOME/.codex}/sessions/YYYY/MM/DD/rollout-<timestamp>-<id>.jsonl`',
+    '"${CODEX_HOME:-$HOME/.codex}/sessions"',
+  ];
+  let runtimeReferences = content;
+  for (const reference of dataReferences)
+    runtimeReferences = runtimeReferences.replaceAll(reference, '');
   return CROSS_HOST_RUNTIME_MARKERS.some(marker => runtimeReferences.includes(marker));
 }
 

@@ -85,7 +85,10 @@ function retainedHostUninstallSchema(
   remainingNativeProfile: boolean,
 ): SafewordSchema | undefined {
   if (!selected.has('cursor') && installedCursorActive(cwd)) {
-    return preserveSharedProjectSchema(schema);
+    return preserveSharedProjectSchema(
+      schema,
+      path => selected.has('claude') && isLegacyClaudePath(path),
+    );
   }
   const remainingLegacyClaude = legacyClaudeInstalled && !selected.has('claude');
   if (!remainingNativeProfile && !remainingLegacyClaude) return undefined;

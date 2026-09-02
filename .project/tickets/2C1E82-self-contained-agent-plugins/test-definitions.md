@@ -175,8 +175,8 @@ test-definitions.md is the R/G/R ledger.
 ### Scenario: Explicit project removal leaves installed profile plugins alone
 
 - [x] RED cc5d1cb9e
-- [ ] GREEN
-- [ ] REFACTOR
+- [x] GREEN 56b4acaf5 (installed-profile fixture made explicit in 3cd6fae58)
+- [x] REFACTOR skip: the existing empty-selection escape hatch bypasses partial-host retention
 
 ## Rule: self-contained-plugins.NTB1.R2 — Profile lifecycle preserves customer content by identity
 

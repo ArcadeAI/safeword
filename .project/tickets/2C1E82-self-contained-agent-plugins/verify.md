@@ -1,5 +1,7 @@
 # Verification: Make each agent's plugin fully self-contained
 
+> Superseded evidence: the checklist below describes the earlier `4260bfcfd` run, not the current head. Current verification is pending. The September 2 full run failed five CLI planning tests and the user-scoped Claude acceptance expectation; repairs and review regressions must pass before this ticket can be marked done.
+
 ## Verify Checklist
 
 **Test Suite:** ✓ 9065/9065 executed tests pass (14 intentional skips)

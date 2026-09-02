@@ -34718,7 +34718,7 @@ function preserveSharedProjectSchema(schema, keepPath = () => false) {
 }
 function retainedHostUninstallSchema(cwd, schema, selected, legacyClaudeInstalled, remainingNativeProfile) {
   if (!selected.has("cursor") && installedCursorActive(cwd)) {
-    return preserveSharedProjectSchema(schema);
+    return preserveSharedProjectSchema(schema, (path4) => selected.has("claude") && isLegacyClaudePath(path4));
   }
   const remainingLegacyClaude = legacyClaudeInstalled && !selected.has("claude");
   if (!remainingNativeProfile && !remainingLegacyClaude)
