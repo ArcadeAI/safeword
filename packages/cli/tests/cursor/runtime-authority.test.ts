@@ -12,7 +12,14 @@ import {
 } from '../../src/plugin-runtime-authority.js';
 
 function generatedCursorCatalogue(): RuntimeAuthorityAsset[] {
+  const skillsRoot = nodePath.resolve(import.meta.dirname, '../../templates/skills');
   return [
+    ...readdirSync(skillsRoot, { recursive: true })
+      .filter(path => path.endsWith('.md'))
+      .map(path => ({
+        relativePath: `.safeword/skills/${path}`,
+        content: readFileSync(nodePath.join(skillsRoot, path), 'utf8'),
+      })),
     ...CURSOR_COMMAND_WRAPPERS.map(wrapper => ({
       relativePath: `.cursor/commands/${wrapper.name}.md`,
       content: renderCursorCommandWrapper({ wrapper }),
@@ -32,14 +39,18 @@ describe('Cursor runtime authority', () => {
   });
 
   it("rejects a Cursor executable reference to another host's runtime", () => {
+    const assets = generatedCursorCatalogue().map(asset =>
+      asset.relativePath === '.safeword/skills/audit/SKILL.md'
+        ? {
+            ...asset,
+            content: `${asset.content}\nRun \`bun "\${CLAUDE_PLUGIN_ROOT}/runtime/cli.js" project audit-scope\`.\n`,
+          }
+        : asset,
+    );
     expect(() => {
-      assertCursorRuntimeAuthority([
-        {
-          relativePath: '.cursor/commands/audit.md',
-          content:
-            '```bash\necho audit\n```\nRun `bun "${CLAUDE_PLUGIN_ROOT}/runtime/cli.js" project audit-scope` for this project.',
-        },
-      ]);
-    }).toThrow('.cursor/commands/audit.md');
+      assertCursorRuntimeAuthority(assets);
+    }).toThrow('.safeword/skills/audit/SKILL.md');
   });
 });
+import { readdirSync, readFileSync } from 'node:fs';
+import nodePath from 'node:path';

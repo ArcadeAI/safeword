@@ -70,7 +70,7 @@ function createInstalledCursorFeatureBranch(withChanges = true): {
   return { project, mergeBase };
 }
 
-function sourcePackagedScope(project: string, baseReference: string): ReturnType<typeof spawnSync> {
+function sourcePackagedScope(project: string, baseReference: string) {
   return spawnSync(
     'bash',
     [
@@ -95,7 +95,7 @@ function sourcePackagedScope(project: string, baseReference: string): ReturnType
   );
 }
 
-function sourceCursorScope(project: string, baseReference: string): ReturnType<typeof spawnSync> {
+function sourceCursorScope(project: string, baseReference: string) {
   return spawnSync(
     'bash',
     [

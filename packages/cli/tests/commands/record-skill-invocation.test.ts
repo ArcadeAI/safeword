@@ -2,12 +2,31 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { runRecordSkillInvocation } from '../../src/commands/record-skill-invocation.js';
 import { createTemporaryDirectory } from '../helpers.js';
 
+afterEach(() => vi.unstubAllEnvs());
+
 describe('project record-skill-invocation', () => {
+  it('reports no proof recorded when the current run has no identity', async () => {
+    for (const name of ['CLAUDE_SESSION_ID', 'CLAUDE_CODE_SESSION_ID', 'CODEX_THREAD_ID']) {
+      vi.stubEnv(name, undefined);
+    }
+    const cwd = createTemporaryDirectory();
+    mkdirSync(nodePath.join(cwd, '.safeword'), { recursive: true });
+    writeFileSync(nodePath.join(cwd, '.safeword/SAFEWORD.md'), '# enrolled\n');
+
+    const result = await runRecordSkillInvocation(cwd, 'verify', undefined);
+
+    expect(result).toMatchObject({ state: 'healthy', changed: false });
+    expect(result.findings.map(finding => finding.code)).toContain(
+      'SKILL_INVOCATION_IDENTITY_MISSING',
+    );
+    expect(existsSync(nodePath.join(cwd, '.project'))).toBe(false);
+  });
+
   it('does not create state through a direct helper in an unenrolled repository', () => {
     const cwd = createTemporaryDirectory();
     const helper = nodePath.resolve(
@@ -21,6 +40,7 @@ describe('project record-skill-invocation', () => {
     });
 
     expect(`${result.stdout}${result.stderr}`).toMatch(/not enrolled/iu);
+    expect(result.status).toBe(1);
     expect(result.stdout).not.toContain('verify ✓');
     expect(existsSync(nodePath.join(cwd, '.project'))).toBe(false);
     expect(existsSync(nodePath.join(cwd, '.safeword'))).toBe(false);

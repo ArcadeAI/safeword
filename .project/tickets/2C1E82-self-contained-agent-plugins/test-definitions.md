@@ -124,8 +124,8 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A direct workflow does not silently enroll a repository
 
-- [x] RED 5229869ac
-- [x] GREEN 919504dd0
+- [x] RED 7061d3076
+- [x] GREEN c0772e301
 - [x] REFACTOR skip: packaged commands share the existing enrollment predicate
 
 ## Rule: self-contained-plugins.NTB1.R1 — Project reconciliation is bounded to selected delivery authorities
@@ -220,8 +220,8 @@ test-definitions.md is the R/G/R ledger.
 
 ### Scenario: A project-runtime reference blocks native plugin release
 
-- [x] RED d5d6f60ad
-- [x] GREEN 273a45ab4
+- [x] RED f288c363c
+- [x] GREEN ff88e9d08
 - [x] REFACTOR skip: one diagnostic lists all offending assets
 
 ### Scenario: A cross-host executable reference blocks Cursor release
