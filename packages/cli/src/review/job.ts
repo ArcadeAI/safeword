@@ -453,7 +453,9 @@ function isActiveJobPastDeadline(record: ReviewJobRecord): boolean {
 }
 
 function failTimedOutJob(cwd: string, record: ReviewJobRecord): CliResult {
-  if (record.pid !== undefined) terminateReviewWorker(record.pid);
+  if (record.pid !== undefined && inspectReviewWorker(record.pid, record.id) === 'match') {
+    terminateReviewWorker(record.pid);
+  }
   const failed = createResult({
     state: 'failed',
     errors: [
@@ -1043,7 +1045,7 @@ export function reviewJobStatus(cwd: string, requestedId?: string): CliResult {
 export function cancelReviewJob(cwd: string, requestedId?: string): CliResult {
   try {
     const id = requestedId ?? latestJobId(cwd);
-    if (id === undefined) return reviewJobStatus(cwd, id);
+    if (id === undefined) return asCancelResult(reviewJobStatus(cwd, id));
     const canceled = withJobLock(cwd, id, () => {
       const record = readJob(cwd, id);
       if (record.state !== 'launching' && record.state !== 'running') return record;
@@ -1061,10 +1063,18 @@ export function cancelReviewJob(cwd: string, requestedId?: string): CliResult {
       };
       return writeJob(cwd, next);
     });
-    return currentResult(cwd, canceled);
+    return asCancelResult(currentResult(cwd, canceled));
   } catch {
-    return reviewJobStatus(cwd, requestedId);
+    return asCancelResult(reviewJobStatus(cwd, requestedId));
   }
+}
+
+function asCancelResult(result: CliResult): CliResult {
+  return {
+    ...result,
+    effects: { ...result.effects, network: [] },
+    data: { ...(result.data as Record<string, unknown>), command: 'review cancel' },
+  };
 }
 
 function isJobId(value: string): boolean {

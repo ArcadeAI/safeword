@@ -9,8 +9,9 @@ import {
 import { renderJsonResult } from '../../src/cli-protocol/result.js';
 
 function publishedOptions(definition: (typeof publicCommands)[number]): Record<string, unknown>[] {
-  return definition.registration.options.map(
-    ({ flags, description, defaultValue, valueKind, compatibilityReplacement }) => ({
+  return definition.registration.options
+    .filter(option => option.hidden !== true)
+    .map(({ flags, description, defaultValue, valueKind, compatibilityReplacement }) => ({
       flags,
       description,
       ...(defaultValue !== undefined && { default_value: defaultValue }),
@@ -21,8 +22,7 @@ function publishedOptions(definition: (typeof publicCommands)[number]): Record<s
           retention: 'indefinite',
         },
       }),
-    }),
-  );
+    }));
 }
 
 function expectPublishedCommandShape(command: Record<string, unknown> | undefined): void {

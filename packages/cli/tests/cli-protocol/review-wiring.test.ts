@@ -331,7 +331,7 @@ describe('cross-agent review public-command wiring', () => {
       expect(JSON.parse(result.stdout)).toMatchObject({
         state: 'failed',
         errors: [{ code: 'REVIEW_JOB_NOT_FOUND' }],
-        data: { command: 'review status' },
+        data: { command: 'review cancel' },
       });
     },
   );
@@ -1538,6 +1538,50 @@ describe('cross-agent review public-command wiring', () => {
     expect(readFileSync(alternatePromptLog, 'utf8')).toContain(
       String.raw`"context_files":[{"path":"context.md","content":"supporting evidence\n"}]`,
     );
+  });
+
+  it('does not retry the same configured model as both primary and alternate', async () => {
+    const directory = createTemporaryDirectory();
+    const log = nodePath.join(directory, 'review.log');
+    mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(directory, '.safeword', 'config.json'),
+      JSON.stringify({
+        crossAgentReviewPrimaryModel: { codex: 'vendor-model-1' },
+        crossAgentReviewAlternateModel: { codex: 'vendor-model-1' },
+      }),
+    );
+    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+    const bin = installFakeReviewer(directory, 'codex');
+    installFakeReviewer(directory, 'claude');
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'review-input.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_REVIEW_FAKE_FAILURE_AGENT: 'codex',
+          SAFEWORD_REVIEW_FAKE_FAILURE: 'process',
+          SAFEWORD_REVIEW_LOG: log,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode, result.stdout).toBe(0);
+    expect(readFileSync(log, 'utf8')).toBe('codex\nclaude\n');
+    expect(JSON.parse(result.stdout).data).not.toHaveProperty('alternate_model_failure');
   });
 
   it('skips an alternate-model route when the reviewer does not advertise model selection', async () => {

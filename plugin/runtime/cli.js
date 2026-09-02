@@ -36149,8 +36149,9 @@ function isActiveJobPastDeadline(record) {
   return Number.isFinite(deadline) && Date.now() >= deadline;
 }
 function failTimedOutJob(cwd, record) {
-  if (record.pid !== undefined)
+  if (record.pid !== undefined && inspectReviewWorker(record.pid, record.id) === "match") {
     terminateReviewWorker(record.pid);
+  }
   const failed = createResult({
     state: "failed",
     errors: [
@@ -36646,7 +36647,7 @@ function cancelReviewJob(cwd, requestedId) {
   try {
     const id = requestedId ?? latestJobId(cwd);
     if (id === undefined)
-      return reviewJobStatus(cwd, id);
+      return asCancelResult(reviewJobStatus(cwd, id));
     const canceled = withJobLock(cwd, id, () => {
       const record = readJob(cwd, id);
       if (record.state !== "launching" && record.state !== "running")
@@ -36661,10 +36662,17 @@ function cancelReviewJob(cwd, requestedId) {
       };
       return writeJob(cwd, next);
     });
-    return currentResult(cwd, canceled);
+    return asCancelResult(currentResult(cwd, canceled));
   } catch {
-    return reviewJobStatus(cwd, requestedId);
+    return asCancelResult(reviewJobStatus(cwd, requestedId));
   }
+}
+function asCancelResult(result) {
+  return {
+    ...result,
+    effects: { ...result.effects, network: [] },
+    data: { ...result.data, command: "review cancel" }
+  };
 }
 function isJobId(value) {
   return /^[a-f\d-]{36}$/u.test(value);
@@ -51222,8 +51230,9 @@ async function runDegradedFallback(input) {
 }
 async function runAlternateModelRoute(input) {
   const model = readAlternateReviewerModel(input.cwd, input.reviewer);
-  if (model === undefined || !canFundRoute(input.runDeadline))
+  if (model === undefined || model === input.preferredModel || !canFundRoute(input.runDeadline)) {
     return { kind: "skipped" };
+  }
   input.progress?.start(`Trying ${agentName(input.reviewer)} again with the configured alternate model\u2026`);
   const prepared = prepareReviewPacket(input.cwd, input.kind, input.targets, input.context);
   input.progress?.heartbeat?.(`Still waiting for ${agentName(input.reviewer)} on the alternate model\u2026`);
@@ -69285,7 +69294,7 @@ function capability(definition) {
     network_policy: definition.networkPolicy,
     schema_versions: definition.schemaVersions,
     fixture: definition.fixture,
-    options: definition.registration.options.map(({ flags, description, defaultValue, valueKind, compatibilityReplacement }) => ({
+    options: definition.registration.options.filter((option) => option.hidden !== true).map(({ flags, description, defaultValue, valueKind, compatibilityReplacement }) => ({
       flags,
       description,
       ...defaultValue !== undefined && { default_value: defaultValue },

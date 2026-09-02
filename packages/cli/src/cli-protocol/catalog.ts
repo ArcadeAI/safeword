@@ -982,8 +982,9 @@ function capability(definition: CommandDefinition): Record<string, unknown> {
     network_policy: definition.networkPolicy,
     schema_versions: definition.schemaVersions,
     fixture: definition.fixture,
-    options: definition.registration.options.map(
-      ({ flags, description, defaultValue, valueKind, compatibilityReplacement }) => ({
+    options: definition.registration.options
+      .filter(option => option.hidden !== true)
+      .map(({ flags, description, defaultValue, valueKind, compatibilityReplacement }) => ({
         flags,
         description,
         ...(defaultValue !== undefined && { default_value: defaultValue }),
@@ -994,8 +995,7 @@ function capability(definition: CommandDefinition): Record<string, unknown> {
             retention: 'indefinite',
           },
         }),
-      }),
-    ),
+      })),
     ...(definition.compatibility !== undefined && {
       compatibility: {
         introduced_in: definition.compatibility.introducedIn,

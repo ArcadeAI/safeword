@@ -1241,7 +1241,9 @@ async function runAlternateModelRoute(
   | { readonly kind: 'skipped' }
 > {
   const model = readAlternateReviewerModel(input.cwd, input.reviewer);
-  if (model === undefined || !canFundRoute(input.runDeadline)) return { kind: 'skipped' };
+  if (model === undefined || model === input.preferredModel || !canFundRoute(input.runDeadline)) {
+    return { kind: 'skipped' };
+  }
 
   input.progress?.start(
     `Trying ${agentName(input.reviewer)} again with the configured alternate model…`,
