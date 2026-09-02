@@ -3223,8 +3223,21 @@ describe('cross-agent review public-command wiring', () => {
           { kind: 'review', target: 'claude', operation: 'request' },
         ],
       },
-      data: { independence: 'degraded' },
+      data: {
+        actual_reviewer: 'claude',
+        independence: 'degraded',
+        review_routes: [
+          {
+            reviewer: 'codex',
+            independence: 'cross-agent',
+            status: 'attempted',
+            failure: 'process_failed',
+          },
+          { reviewer: 'claude', independence: 'degraded', status: 'attempted' },
+        ],
+      },
     });
+    expect(readFileSync(log, 'utf8')).toBe('codex\nclaude\n');
   });
 
   it('continues past a same-author success to the next independent route', async () => {
