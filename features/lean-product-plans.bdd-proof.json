@@ -1,0 +1,165 @@
+{
+  "feature": "features/lean-product-plans.feature",
+  "scenarios": {
+    "Creating a feature epic creates one compact Product Plan": [
+      "packages/cli/tests/commands/ticket-new.test.ts",
+      "accepts --type=epic and scaffolds an empty children list and Product Plan"
+    ],
+    "Creating a standalone feature creates the same four sections scaled to the feature": [
+      "packages/cli/tests/utils/ticket-writer.test.ts",
+      "feature scaffolds spec.md alongside ticket.md"
+    ],
+    "Product planning does not create a second product-plan artifact": [
+      "packages/cli/tests/utils/ticket-writer.test.ts",
+      "feature ticket.md has Goal + See pointer and no Why"
+    ],
+    "Template prose does not qualify as a success threshold": [
+      "packages/cli/tests/intake-brief.test.ts",
+      "rejects template prose as a falsifiable success threshold"
+    ],
+    "An authored Product Bet has a falsifiable success threshold": [
+      "packages/cli/tests/intake-brief.test.ts",
+      "requires an authored success threshold that can be disproven"
+    ],
+    "An observable outcome replaces an invented metric": [
+      "packages/cli/tests/skills/demand-research-contract.test.ts",
+      "routes Product Bet research conditionally and reconciles children at intake exit"
+    ],
+    "A child feature stores a valid parent contribution without copied prose": [
+      "packages/cli/tests/utils/ticket-writer.test.ts",
+      "scaffolds a delta-only child spec with stable references"
+    ],
+    "An unknown milestone is rejected when a child is created": [
+      "packages/cli/tests/commands/ticket-reconcile-parent.test.ts",
+      "rejects an unknown milestone reference"
+    ],
+    "A child feature must select a declared milestone": [
+      "packages/cli/tests/commands/ticket-new.test.ts",
+      "links a child to its epic both ways with --parent"
+    ],
+    "A renamed milestone invalidates an existing child reference": [
+      "packages/cli/tests/commands/ticket-reconcile-parent.test.ts",
+      "does not write when a reference no longer resolves"
+    ],
+    "An unknown parent cannot be assigned to a child feature": [
+      "packages/cli/tests/commands/ticket-new.test.ts",
+      "rejects --parent naming no existing ticket and creates no child"
+    ],
+    "A non-epic ticket cannot own a child feature": [
+      "packages/cli/tests/commands/ticket-new.test.ts",
+      "rejects --parent naming a non-epic ticket, leaving it unchanged and creating no child"
+    ],
+    "The bundled workflow reports a compact decision result": [
+      "packages/cli/tests/skills/demand-research-contract.test.ts",
+      "keeps the useful decision output and explicit no-busy-work exclusions"
+    ],
+    "The bundled workflow excludes general research modes": [
+      "packages/cli/tests/skills/demand-research-contract.test.ts",
+      "excludes general market-history and vendor-research modes"
+    ],
+    "Existing first-party evidence is used before external research": [
+      "packages/cli/tests/skills/demand-research-contract.test.ts",
+      "uses existing decision-bearing evidence before external research"
+    ],
+    "An explicit demand-validation request uses the bundled workflow": [
+      "packages/cli/tests/skills/demand-research-contract.test.ts",
+      "honors an explicit demand-research request"
+    ],
+    "Unresolved demand routes to the bundled demand-research skill": [
+      "packages/cli/tests/skills/demand-research-contract.test.ts",
+      "routes unresolved decision-critical demand to research"
+    ],
+    "Child features do not repeat parent demand research": [
+      "packages/cli/tests/skills/demand-research-contract.test.ts",
+      "keeps child features out of repeated demand research"
+    ],
+    "A cheaper reversible experiment replaces a broad research pass": [
+      "packages/cli/tests/skills/demand-research-contract.test.ts",
+      "prefers a cheaper experiment when it can settle the decision"
+    ],
+    "Work with settled demand does not trigger demand research": [
+      [
+        "packages/cli/tests/skills/demand-research-contract.test.ts",
+        "excludes mandated work from automatic demand research"
+      ],
+      [
+        "packages/cli/tests/skills/demand-research-contract.test.ts",
+        "excludes parity work from automatic demand research"
+      ]
+    ],
+    "Inconclusive demand research does not block product planning": [
+      "packages/cli/tests/skills/demand-research-contract.test.ts",
+      "records an inconclusive result as an absent evidence state"
+    ],
+    "An absent demand verdict does not block approval": [
+      "packages/cli/tests/skills/demand-research-contract.test.ts",
+      "keeps an absent verdict advisory rather than blocking"
+    ],
+    "Unavailable demand research does not invent a verdict": [
+      "packages/cli/tests/skills/demand-research-contract.test.ts",
+      "reports unavailable evidence without inventing demand strength"
+    ],
+    "Each Product Plan owner captures a credible Killer Demo": [
+      [
+        "packages/cli/tests/commands/ticket-new.test.ts",
+        "keeps epic motivation in its Product Plan"
+      ],
+      [
+        "packages/cli/tests/utils/ticket-writer.test.ts",
+        "has the section headers in canonical order"
+      ]
+    ],
+    "Boilerplate does not qualify as a Killer Demo": [
+      "packages/cli/tests/intake-brief.test.ts",
+      "requires a persona-facing, observable Killer Demo payoff"
+    ],
+    "Product Plans contain no comms or launch prompt": [
+      "packages/cli/tests/utils/ticket-writer.test.ts",
+      "contains no comms or launch planning section"
+    ],
+    "Child specs contain no inherited headings or skip placeholders": [
+      "packages/cli/tests/integration/phase0-walkthrough.test.ts",
+      "covers the full-plan and delta-child paths without a duplicated worked example"
+    ],
+    "A referenced parent contract change blocks advancement": [
+      [
+        "packages/cli/tests/hooks/product-plan-contract.test.ts",
+        "changes the digest when the parent job changes"
+      ],
+      [
+        "packages/cli/tests/hooks/product-plan-contract.test.ts",
+        "changes the digest when the milestone outcome changes"
+      ],
+      [
+        "packages/cli/tests/hooks/product-plan-contract.test.ts",
+        "changes the digest when the milestone non-goals change"
+      ],
+      [
+        "packages/cli/tests/hooks/product-plan-contract.test.ts",
+        "changes the digest when the project non-goals change"
+      ],
+      [
+        "packages/cli/tests/hooks/product-plan-contract.test.ts",
+        "changes the digest when the success threshold changes"
+      ]
+    ],
+    "Reconciling a changed parent contract unblocks advancement": [
+      "packages/cli/tests/commands/ticket-reconcile-parent.test.ts",
+      "requires explicit acceptance after parent drift"
+    ],
+    "A non-contract parent change creates no reconciliation work": [
+      [
+        "packages/cli/tests/commands/ticket-reconcile-parent.test.ts",
+        "ignores changed editorial prose outside the parent contract"
+      ],
+      [
+        "packages/cli/tests/commands/ticket-reconcile-parent.test.ts",
+        "ignores a changed research reference outside the parent contract"
+      ],
+      [
+        "packages/cli/tests/commands/ticket-reconcile-parent.test.ts",
+        "ignores changed Killer Demo wording outside the parent contract"
+      ]
+    ]
+  }
+}

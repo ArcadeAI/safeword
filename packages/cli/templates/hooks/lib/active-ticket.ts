@@ -56,6 +56,53 @@ export interface FeatureTicketReadiness {
 
 const REQUIRED_READINESS_FRONTMATTER = ['scope', 'out_of_scope', 'done_when'] as const;
 
+function frontmatterScalar(
+  meta: Record<string, string | string[]>,
+  field: string,
+): string | undefined {
+  const value = meta[field];
+  return Array.isArray(value) ? undefined : value;
+}
+
+function childSpecIssues(
+  specContent: string,
+  ticketId: string | undefined,
+  parentJob: string | undefined,
+): FeatureTicketReadinessIssue[] {
+  const issues: FeatureTicketReadinessIssue[] = [];
+  const lines = specContent.split(/\r?\n/);
+  const contributionStart = lines.findIndex(line => line === '## Contribution');
+  const contributionEnd = lines.findIndex(
+    (line, index) => index > contributionStart && line.startsWith('## '),
+  );
+  const contribution = lines
+    .slice(contributionStart + 1, contributionEnd === -1 ? lines.length : contributionEnd)
+    .join('\n')
+    .trim();
+  if (!contribution || contribution.startsWith('<')) {
+    addReadinessIssue(
+      issues,
+      'spec.md Contribution',
+      'missing or still placeholder text',
+      'Describe the feature-specific contribution without copying the parent Product Plan.',
+    );
+  }
+  const rulePrefix = ticketId && parentJob ? `${parentJob}.${ticketId}.R` : undefined;
+  const rules = [...specContent.matchAll(/^####\s+(\S+)\s+—\s+(.+)$/gm)];
+  if (
+    !rulePrefix ||
+    !rules.some(match => match[1]?.startsWith(rulePrefix) && !match[2]?.startsWith('<'))
+  ) {
+    addReadinessIssue(
+      issues,
+      'spec.md Rules',
+      'no feature-owned Rule with parent-job and ticket lineage',
+      'Add a Rule as `#### <parent-job>.<ticket-id>.R<n> — <business invariant>`.',
+    );
+  }
+  return issues;
+}
+
 /**
  * A required frontmatter field counts as missing when it is absent, the literal
  * string `'null'`, or empty — including an empty block sequence (which parses to
@@ -114,6 +161,7 @@ export function evaluateFeatureTicketReadiness(
   const ticketContent =
     options.ticketContent ?? (existsSync(ticketFile) ? readFileSync(ticketFile, 'utf8') : '');
   const frontmatterMatch = ticketContent.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  let ticketMeta: Record<string, string | string[]> = {};
 
   if (!frontmatterMatch) {
     addReadinessIssue(
@@ -124,6 +172,7 @@ export function evaluateFeatureTicketReadiness(
     );
   } else {
     const meta = parseFrontmatter(frontmatterMatch[1] ?? '');
+    ticketMeta = meta;
     const missing = REQUIRED_READINESS_FRONTMATTER.filter(field =>
       isMissingReadinessFrontmatterField(meta[field]),
     );
@@ -147,24 +196,30 @@ export function evaluateFeatureTicketReadiness(
     );
   } else {
     const specContent = readFileSync(specFile, 'utf8');
-    const jtbdVerdict = evaluateJtbdGate(specContent, readPersonasForReadiness(projectDirectory));
-    if (!jtbdVerdict.ok) {
-      addReadinessIssue(
-        issues,
-        'spec.md',
-        `JTBD gate: ${jtbdVerdict.reason}`,
-        'Add a Job To Be Done under `## Jobs To Be Done`, or write `skip: <reason>` there.',
-      );
-    }
+    const parentJob = frontmatterScalar(ticketMeta, 'parent_job');
+    const milestone = frontmatterScalar(ticketMeta, 'milestone');
+    if (parentJob !== undefined || milestone !== undefined) {
+      issues.push(...childSpecIssues(specContent, frontmatterScalar(ticketMeta, 'id'), parentJob));
+    } else {
+      const jtbdVerdict = evaluateJtbdGate(specContent, readPersonasForReadiness(projectDirectory));
+      if (!jtbdVerdict.ok) {
+        addReadinessIssue(
+          issues,
+          'spec.md',
+          `JTBD gate: ${jtbdVerdict.reason}`,
+          'Add a Job To Be Done under `## Jobs To Be Done`, or write `skip: <reason>` there.',
+        );
+      }
 
-    const criteriaVerdict = evaluateCriteriaGate(specContent);
-    if (!criteriaVerdict.ok) {
-      addReadinessIssue(
-        issues,
-        'spec.md',
-        `criteria gate: ${criteriaVerdict.reason}`,
-        'Add a numbered Rule under each JTBD as `#### <jtbd-id>.R<n>` (or a legacy `#### <jtbd-id>.AC<n>`), or add a per-JTBD `skip: <reason>`.',
-      );
+      const criteriaVerdict = evaluateCriteriaGate(specContent);
+      if (!criteriaVerdict.ok) {
+        addReadinessIssue(
+          issues,
+          'spec.md',
+          `criteria gate: ${criteriaVerdict.reason}`,
+          'Add a numbered Rule under each JTBD as `#### <jtbd-id>.R<n>` (or a legacy `#### <jtbd-id>.AC<n>`), or add a per-JTBD `skip: <reason>`.',
+        );
+      }
     }
 
     const inspirationVerdict = evaluateProductInspiration({

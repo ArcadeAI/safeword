@@ -42,6 +42,10 @@ export interface NewTicketOptions {
   why?: string;
   /** Epic id this ticket is a child of; written as `parent:` frontmatter. */
   parent?: string;
+  /** Stable milestone id declared by the parent Product Plan. */
+  milestone?: string;
+  /** Stable parent JTBD id declared by the parent Product Plan. */
+  parentJob?: string;
   /** Override `new Date()` for tests. */
   now?: () => Date;
 }
@@ -162,11 +166,14 @@ function writeTicketContents(
   const ticketPath = nodePath.join(folderPath, 'ticket.md');
   writeFileSync(ticketPath, renderTicketMarkdown(id, options));
 
-  // Features carry a product-framing spec.md sibling (epic DZ2NM5/D2 + D4).
-  // Tasks and patches don't pay the persona/JTBD tax.
-  if ((options.type ?? 'task') === 'feature') {
+  // Epics and features own Product Plan context. Child features receive only
+  // their contribution and Rules; their parent remains the intent owner.
+  if (['feature', 'epic'].includes(options.type ?? 'task')) {
     const title = options.title ?? options.slug;
-    writeFileSync(nodePath.join(folderPath, 'spec.md'), renderSpecMarkdown(title));
+    const spec = options.parent
+      ? renderChildSpecMarkdown(title, id, options)
+      : renderSpecMarkdown(title);
+    writeFileSync(nodePath.join(folderPath, 'spec.md'), spec);
   }
 
   return { ticketPath };
@@ -175,6 +182,19 @@ function writeTicketContents(
 function renderSpecMarkdown(title: string): string {
   const template = readFileSync(nodePath.join(getTemplatesDirectory(), 'spec-template.md'), 'utf8');
   return template.replace('{title}', () => title);
+}
+
+function renderChildSpecMarkdown(title: string, id: string, options: NewTicketOptions): string {
+  const template = readFileSync(
+    nodePath.join(getTemplatesDirectory(), 'child-spec-template.md'),
+    'utf8',
+  );
+  return template
+    .replaceAll('{title}', () => title)
+    .replaceAll('{ticket_id}', () => id)
+    .replaceAll('{parent}', () => options.parent ?? '')
+    .replaceAll('{milestone}', () => options.milestone ?? '')
+    .replaceAll('{parent_job}', () => options.parentJob ?? '');
 }
 
 function mintAndClaim(
@@ -230,35 +250,13 @@ function renderTicketMarkdown(id: string, options: NewTicketOptions): string {
   const type = options.type ?? 'task';
   const now = (options.now ?? (() => new Date()))().toISOString();
   const title = options.title ?? options.slug;
-  const featureReadinessFrontmatter =
-    type === 'feature'
-      ? `scope:
-out_of_scope:
-done_when:
-inspiration_contract: v1
-inspiration_contract_scaffold: v1
-`
-      : '';
-  // Epics are containers: they carry a `children:` list (bidirectional with each
-  // child's `parent:`). Born empty; children link in as they're created. Epics
-  // use the same inline **Goal:**/**Why:** body as tasks — matching the
-  // index-visible epic precedent (Q4FX8Y) so `sync-tickets` picks up the goal.
+  const productPlanFrontmatter = renderProductPlanFrontmatter(type);
   const childrenFrontmatter = type === 'epic' ? 'children: []\n' : '';
-  // A child records its epic via `parent:` — the single source of truth the
-  // epic's `children:` reverse-index and hierarchy navigation read (F9W3JP).
-  const parentFrontmatter =
-    options.parent !== undefined && options.parent !== '' ? `parent: ${options.parent}\n` : '';
+  const parentFrontmatter = renderParentFrontmatter(options);
+  const childReferenceFrontmatter = renderChildReferenceFrontmatter(options);
 
-  // A blank/whitespace-only flag value keeps the placeholder rather than
-  // rendering `**Goal:** ` with a trailing space and no content.
   const goal = filledOr(options.goal, '{One sentence: what are we trying to achieve?}');
-
-  // Features keep motivation in spec.md's ## Intent (single source of truth)
-  // and point there; task/patch/epic have no spec.md, so they keep **Why:**.
-  const motivation =
-    type === 'feature'
-      ? '**See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.'
-      : `**Why:** ${filledOr(options.why, '{One sentence: why does this matter?}')}`;
+  const motivation = renderMotivation(type, options.why);
 
   return `---
 id: ${id}
@@ -266,7 +264,7 @@ slug: ${options.slug}
 type: ${type}
 phase: intake
 status: in_progress
-${featureReadinessFrontmatter}${childrenFrontmatter}${parentFrontmatter}created: ${now}
+${productPlanFrontmatter}${childrenFrontmatter}${parentFrontmatter}${childReferenceFrontmatter}created: ${now}
 last_modified: ${now}
 ---
 
@@ -280,4 +278,34 @@ ${motivation}
 
 - ${now} Started: Created ticket ${id}
 `;
+}
+
+function ownsProductPlan(type: TicketType): boolean {
+  return type === 'feature' || type === 'epic';
+}
+
+function renderProductPlanFrontmatter(type: TicketType): string {
+  return ownsProductPlan(type)
+    ? `scope:
+out_of_scope:
+done_when:
+product_plan_contract: v1
+`
+    : '';
+}
+
+function renderParentFrontmatter(options: NewTicketOptions): string {
+  return options.parent ? `parent: ${options.parent}\n` : '';
+}
+
+function renderChildReferenceFrontmatter(options: NewTicketOptions): string {
+  return options.parent
+    ? `parent_job: ${options.parentJob ?? ''}\nmilestone: ${options.milestone ?? ''}\n`
+    : '';
+}
+
+function renderMotivation(type: TicketType, why: string | undefined): string {
+  return ownsProductPlan(type)
+    ? '**See:** [spec.md](./spec.md) for personas, jobs-to-be-done, and outcomes.'
+    : `**Why:** ${filledOr(why, '{One sentence: why does this matter?}')}`;
 }

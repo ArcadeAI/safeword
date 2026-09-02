@@ -19,7 +19,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "2fe202bf9f99f4c3a55fb36876f1a059f22b919d3151adfd7d68194f0b5031b0"
+      "sha256": "15f636b12a9a67508ded78e2ef75de7b375d55fb8e6fe7c15315b4865e0a43ad"
     },
     {
       "path": "resources/guides/architecture-guide.md",
@@ -143,11 +143,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "68c23bfb5f8d724bb78b96625cb9113fa1d2432c5e7ee3c5176b1620c338ac01"
+      "sha256": "5fd5b10fdb61a771c7b64f75ca1ff8c68b27952d9562d75dad67e6dde2cfa04f"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "ff8bfbdbb922126293016ccd002d7a80b3baf168c12dbd409988bbd12de631d2"
+      "sha256": "dcf4de96d1427d9b51566fe23d21390c925966b7c3af6c7954cdbbc232ef1c52"
     },
     {
       "path": "runtime/event-groups.json",
@@ -163,7 +163,7 @@
     },
     {
       "path": "runtime/hooks/lib/active-ticket.ts",
-      "sha256": "8fe763ed30c197049ead9796d3bc43ca1b1c076b75824979511cc7ef9f05294a"
+      "sha256": "9dca29f6a71ce7159ce249b7ce6b46a5f6849b6e2ce8ad9fa85e5b201cc2c2af"
     },
     {
       "path": "runtime/hooks/lib/architecture-document-nudge.ts",
@@ -312,6 +312,10 @@
     {
       "path": "runtime/hooks/lib/process-kill-guard.ts",
       "sha256": "e7bf036f0f1971da1c51afc996f75e2941ee0d024d9a5b208e6f96709ed1c193"
+    },
+    {
+      "path": "runtime/hooks/lib/product-plan-contract.ts",
+      "sha256": "ff2a3b27aca5fff94ac146e5313a619c8fbf3b1867597ec49cc70ce1f11b1f34"
     },
     {
       "path": "runtime/hooks/lib/project-knowledge.ts",
@@ -467,7 +471,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "aa40eb1f1d341b632aed450057c27945faf9132b58609a7b0a680175d981aa87"
+      "sha256": "bbaec3bc6c07fae1d747d7b901d89e1386212ff1ffa997fb9bfd2f3dcf322b9c"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -563,7 +567,7 @@
     },
     {
       "path": "runtime/hooks/stop-quality.ts",
-      "sha256": "f5cf44c59ef8d7ae05d556dfbab433d9572cc2e29f67130b2c8ddac8232ae6c7"
+      "sha256": "035b4c52500e3225341bb406ba82bc6f314e1b62c7f0cf2b7f46d60af423faf0"
     },
     {
       "path": "runtime/hooks/stop-reentry.ts",
@@ -591,7 +595,7 @@
     },
     {
       "path": "skills/bdd/DISCOVERY.md",
-      "sha256": "154dfd3774e568daa7f52f21992855f22758904b6eddbf8cfc3aba504901eb07"
+      "sha256": "ac8f221691aeffaa16ca6a15a7930a462bdf64aeaf2fe9600903a9dbb417f992"
     },
     {
       "path": "skills/bdd/DONE.md",
@@ -636,6 +640,10 @@
     {
       "path": "skills/debug/SKILL.md",
       "sha256": "6fe09a11fea73743711cf620a222056fcc89e6b51e6a30f2dacce812a92c1b51"
+    },
+    {
+      "path": "skills/demand-research/SKILL.md",
+      "sha256": "9271c21513cdb7048cf72c6343af17fed76a381569211eba24b31ba71c79381a"
     },
     {
       "path": "skills/elicit/SKILL.md",

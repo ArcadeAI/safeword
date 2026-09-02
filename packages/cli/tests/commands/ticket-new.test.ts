@@ -6,7 +6,7 @@
  * slug suffix is for legibility when scanning `ls`. End-to-end via the built CLI.
  */
 
-import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -202,7 +202,7 @@ describe('safeword ticket new', () => {
 
   // #699 — epic is a first-class type; the CLI scaffolds a container ticket.
   it(
-    'accepts --type=epic and scaffolds an empty children list, no spec.md (#699)',
+    'accepts --type=epic and scaffolds an empty children list and Product Plan',
     async () => {
       const result = await runCli(['ticket', 'new', 'big-rollout', '--type', 'epic'], {
         cwd: temporaryDirectory,
@@ -215,9 +215,9 @@ describe('safeword ticket new', () => {
       expect(ticketContent).toMatch(/^children:\s*\[\]$/m);
       // epics keep the inline **Goal:** shape (index-visible), not a ## Goal section
       expect(ticketContent).toMatch(/^\*\*Goal:\*\*/m);
-      // container, not a feature: no spec.md and no scenario-gate readiness fields
-      expect(existsSync(nodePath.join(folder, 'spec.md'))).toBe(false);
-      expect(ticketContent).not.toMatch(/^scope:/m);
+      expect(existsSync(nodePath.join(folder, 'spec.md'))).toBe(true);
+      expect(ticketContent).toMatch(/^scope:/m);
+      expect(ticketContent).toMatch(/^product_plan_contract: v1$/m);
     },
     TIMEOUT_QUICK,
   );
@@ -264,10 +264,8 @@ describe('safeword ticket new', () => {
     TIMEOUT_QUICK,
   );
 
-  // The epic + --goal/--why interaction is the novel path: epics render the same
-  // inline **Goal:**/**Why:** fields as tasks, so both flags must land there.
   it(
-    'fills Goal and Why from flags on an epic',
+    'keeps epic motivation in its Product Plan',
     async () => {
       await runCli(
         [
@@ -286,7 +284,8 @@ describe('safeword ticket new', () => {
 
       const ticketContent = readSoleTicket(temporaryDirectory);
       expect(ticketContent).toMatch(/^\*\*Goal:\*\* Coordinate rollout$/m);
-      expect(ticketContent).toMatch(/^\*\*Why:\*\* Too many moving parts$/m);
+      expect(ticketContent).not.toMatch(/^\*\*Why:\*\*/m);
+      expect(ticketContent).toMatch(/^\*\*See:\*\*/m);
     },
     TIMEOUT_QUICK,
   );
@@ -311,14 +310,48 @@ describe('safeword ticket new', () => {
     async () => {
       await runCli(['ticket', 'new', 'the-epic', '--type', 'epic'], { cwd: temporaryDirectory });
       const epicId = idBySlug(temporaryDirectory, 'the-epic');
+      writeFileSync(
+        nodePath.join(ticketFolderBySlug(temporaryDirectory, 'the-epic'), 'spec.md'),
+        `# Product Plan: Epic
 
-      const result = await runCli(['ticket', 'new', 'the-child', '--parent', epicId], {
-        cwd: temporaryDirectory,
-      });
+## Product Bet
+- **Success threshold:** first customer succeeds
+- **Project non-goals:** unrelated workflows
+
+## Jobs To Be Done
+### epic.NTB1 — Do the job
+The parent job.
+
+## Shape
+### M1 — First milestone
+- **Outcome:** useful value
+- **Non-goals:** later value
+
+## Killer Demo
+`,
+      );
+
+      const result = await runCli(
+        [
+          'ticket',
+          'new',
+          'the-child',
+          '--type',
+          'feature',
+          '--parent',
+          epicId,
+          '--milestone',
+          'M1',
+          '--parent-job',
+          'epic.NTB1',
+        ],
+        { cwd: temporaryDirectory },
+      );
       expect(result.exitCode).toBe(0);
 
       const childId = idBySlug(temporaryDirectory, 'the-child');
       expect(readTicketBySlug(temporaryDirectory, 'the-child')).toContain(`parent: ${epicId}`);
+      expect(readTicketBySlug(temporaryDirectory, 'the-child')).toContain('milestone: M1');
       expect(readTicketBySlug(temporaryDirectory, 'the-epic')).toContain(childId);
     },
     TIMEOUT_QUICK,
