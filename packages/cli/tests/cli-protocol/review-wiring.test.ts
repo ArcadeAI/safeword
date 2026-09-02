@@ -1650,7 +1650,7 @@ describe('cross-agent review public-command wiring', () => {
       expect(result.exitCode, result.stdout).toBe(0);
       expect(result.stdout.split('\n', 1)[0]).toBe('Review complete — standard coverage.');
       expect(result.stdout).toContain('not independent');
-      expect(result.stdout).not.toContain('install or update');
+      expect(result.stdout).not.toContain('To add independent coverage,');
 
       const verbose = await runCli(
         [

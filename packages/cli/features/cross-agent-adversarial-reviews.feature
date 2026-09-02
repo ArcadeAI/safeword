@@ -103,13 +103,18 @@ Feature: Cross-agent adversarial reviews
         | the child returns invalid output| invalid reviewer output|
 
     @rejection
-    Scenario: Missing reviewer authentication is recovered before fallback
-      Given Codex is the assigned opposite-agent reviewer
+    Scenario Outline: Missing reviewer authentication routes to reauthentication before fallback
+      Given <reviewer> is the assigned opposite-agent reviewer
       And its independent route reports no valid login
       When Safeword evaluates whether to fall back
       Then the result is action required with code REVIEW_AUTHENTICATION_REQUIRED
-      And recovery tells the agent to run codex login and retry the same review once
+      And recovery tells the agent to run <login_command> and retry the same review once
       And no same-agent fallback starts
+
+      Examples:
+        | reviewer | login_command     |
+        | Codex    | codex login       |
+        | Claude   | claude auth login |
 
   @cross-agent-review.TBU2.R2
   Rule: cross-agent-review.TBU2.R2 — Fallback evidence never overstates independence
