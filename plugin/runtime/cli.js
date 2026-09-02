@@ -47935,12 +47935,13 @@ function recordSkillInvocation(projectDirectory, skillName2, sessionId) {
     explicitSessionId: sessionId
   });
   if (proofSessionKey === undefined) {
-    return;
+    return false;
   }
   const namespaceRoot = resolveNamespaceRoot2(projectDirectory);
   ensureTransientStateIgnore(projectDirectory, SKILL_INVOCATIONS_LOG);
   appendFileSync3(nodePath100.join(namespaceRoot, SKILL_INVOCATIONS_LOG), `${new Date().toISOString()} ${proofSessionKey} ${skillName2}
 `, "utf8");
+  return true;
 }
 var SKILL_NAME_PATTERN;
 var init_record_skill_invocation = __esm(() => {
@@ -47983,7 +47984,18 @@ function runRecordSkillInvocation(cwd, skillName2, sessionId) {
       ]
     }));
   }
-  recordSkillInvocation(cwd, skillName2, sessionId);
+  if (!recordSkillInvocation(cwd, skillName2, sessionId)) {
+    return Promise.resolve(createResult({
+      state: "healthy",
+      findings: [
+        {
+          code: "SKILL_INVOCATION_IDENTITY_MISSING",
+          message: "No invocation proof was recorded because this run has no identity.",
+          severity: "info"
+        }
+      ]
+    }));
+  }
   return Promise.resolve(createResult({
     state: "changed",
     changed: true,

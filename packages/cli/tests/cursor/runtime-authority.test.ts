@@ -14,7 +14,7 @@ import {
 function generatedCursorCatalogue(): RuntimeAuthorityAsset[] {
   const skillsRoot = nodePath.resolve(import.meta.dirname, '../../templates/skills');
   return [
-    ...readdirSync(skillsRoot, { recursive: true })
+    ...readdirSync(skillsRoot, { recursive: true, encoding: 'utf8' })
       .filter(path => path.endsWith('.md'))
       .map(path => ({
         relativePath: `.safeword/skills/${path}`,

@@ -4,7 +4,12 @@ import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { createTemporaryDirectory, initGitRepo, removeTemporaryDirectory } from '../helpers.js';
+import {
+  createTemporaryDirectory,
+  initGitRepo,
+  removeTemporaryDirectory,
+  SKIP_INSTALL_ENV,
+} from '../helpers.js';
 
 const temporaryDirectories: string[] = [];
 const cli = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
@@ -52,7 +57,8 @@ function createInstalledCursorFeatureBranch(withChanges = true): {
       project,
       '--json',
     ],
-    { cwd: project, encoding: 'utf8' },
+    // The fixture needs generated Cursor files, not an application dependency install.
+    { cwd: project, encoding: 'utf8', env: { ...process.env, ...SKIP_INSTALL_ENV } },
   );
   expect(installed.status, installed.stderr || installed.stdout).toBe(0);
   spawnSync('git', ['add', '.'], { cwd: project });

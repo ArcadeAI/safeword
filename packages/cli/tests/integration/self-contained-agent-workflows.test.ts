@@ -15,7 +15,12 @@ import { afterAll, afterEach, describe, expect, it } from 'vitest';
 
 import { installOpenCodeProfile } from '../../src/opencode/profile.js';
 import { VERSION } from '../../src/version.js';
-import { createTemporaryDirectory, initGitRepo, removeTemporaryDirectory } from '../helpers.js';
+import {
+  createTemporaryDirectory,
+  initGitRepo,
+  removeTemporaryDirectory,
+  SKIP_INSTALL_ENV,
+} from '../helpers.js';
 import {
   cleanupTrustedReviewerDirectories,
   createTrustedReviewerDirectory,
@@ -258,7 +263,8 @@ function cursorStateWorkflow(project: string): StateWorkflow {
       project,
       '--json',
     ],
-    { cwd: project, encoding: 'utf8' },
+    // Only fixture setup skips application packages; the workflow below runs normally.
+    { cwd: project, encoding: 'utf8', env: { ...process.env, ...SKIP_INSTALL_ENV } },
   );
   expect(installed.status, installed.stderr || installed.stdout).toBe(0);
   return {

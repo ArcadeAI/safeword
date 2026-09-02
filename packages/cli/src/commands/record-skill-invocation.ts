@@ -41,7 +41,20 @@ export function runRecordSkillInvocation(
     );
   }
 
-  recordSkillInvocation(cwd, skillName, sessionId);
+  if (!recordSkillInvocation(cwd, skillName, sessionId)) {
+    return Promise.resolve(
+      createResult({
+        state: 'healthy',
+        findings: [
+          {
+            code: 'SKILL_INVOCATION_IDENTITY_MISSING',
+            message: 'No invocation proof was recorded because this run has no identity.',
+            severity: 'info',
+          },
+        ],
+      }),
+    );
+  }
   return Promise.resolve(
     createResult({
       state: 'changed',

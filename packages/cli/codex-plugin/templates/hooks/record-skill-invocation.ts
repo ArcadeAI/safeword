@@ -45,7 +45,7 @@ export function recordSkillInvocation(
   projectDirectory: string,
   skillName: string,
   sessionId?: string,
-): void {
+): boolean {
   if (!SKILL_NAME_PATTERN.test(skillName)) {
     throw new Error(`Invalid skill name "${skillName}"`);
   }
@@ -59,7 +59,7 @@ export function recordSkillInvocation(
   });
   if (proofSessionKey === undefined) {
     // Runtimes without a compatible run identity cannot produce gate proof.
-    return;
+    return false;
   }
 
   const namespaceRoot = resolveNamespaceRoot(projectDirectory);
@@ -69,6 +69,7 @@ export function recordSkillInvocation(
     `${new Date().toISOString()} ${proofSessionKey} ${skillName}\n`,
     'utf8',
   );
+  return true;
 }
 
 if (import.meta.main) {

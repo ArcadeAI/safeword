@@ -64,10 +64,10 @@ function isProjectRuntimeCommand(content: string): boolean {
 }
 
 function isCrossHostRuntimeCommand(content: string): boolean {
-  const segments = [
-    ...content.matchAll(/`([^`]+)`/gu).map(match => match[1] ?? ''),
-    ...content.split(/\r?\n/u).map(line => line.replace(/^\s*[-*]\s+/u, '').replaceAll('`', '')),
-  ];
+  const segments = content
+    .replaceAll(/\\\r?\n\s*/gu, ' ')
+    .split(/\r?\n/u)
+    .map(line => line.replaceAll('`', ''));
   return segments.some(segment => {
     const tokens = segment.trim().split(/\s+/u);
     return (
