@@ -8,10 +8,10 @@ import { createResult } from '../../src/cli-protocol/result.js';
 import { installLifecycle, uninstallLifecycle } from '../../src/lifecycle/commands.js';
 import { createTemporaryDirectory, removeTemporaryDirectory } from '../helpers.js';
 
-const profileState = vi.hoisted(() => ({ codex: false }));
+const profileState = vi.hoisted(() => ({ codex: false, claude: false }));
 
 vi.mock('../../src/claude-plugin/profile.js', () => ({
-  observeClaudeProfile: () => ({ plugin: undefined }),
+  observeClaudeProfile: () => ({ plugin: profileState.claude ? { installed: true } : undefined }),
   claudeInstallRequiresMutation: () => false,
   uninstallClaudePlugin: () => createResult({ state: 'healthy' }),
 }));
@@ -71,11 +71,32 @@ function projectBytes(cwd: string, relativePath: string): string {
 
 afterEach(() => {
   profileState.codex = false;
+  profileState.claude = false;
   for (const directory of temporaryDirectories) removeTemporaryDirectory(directory);
   temporaryDirectories.length = 0;
 });
 
 describe('selected authority lifecycle reconciliation', () => {
+  it('removes Codex without unenrolling the remaining native Claude host', async () => {
+    const cwd = project();
+    profileState.claude = true;
+    const installed = await installLifecycle(invocation(cwd, 'codex'), adapters);
+    expect(installed.errors).toEqual([]);
+    expect(existsSync(nodePath.join(cwd, '.cursor'))).toBe(false);
+    const preserved = ['.safeword/SAFEWORD.md', '.safeword/config.json'];
+    const before = new Map(preserved.map(path => [path, projectBytes(cwd, path)]));
+
+    const preview = await uninstallLifecycle(invocation(cwd, 'codex'));
+    const plan = (preview.data as { readonly plan: { readonly id: string } }).plan.id;
+    const result = await uninstallLifecycle(invocation(cwd, 'codex', { yes: true, plan }));
+
+    expect(result.errors).toEqual([]);
+    expect(profileState.codex).toBe(false);
+    expect(profileState.claude).toBe(true);
+    for (const [path, content] of before) expect(projectBytes(cwd, path)).toBe(content);
+    expect(existsSync(nodePath.join(cwd, '.safeword/hooks'))).toBe(false);
+  });
+
   it('uninstalls the Codex profile without changing Cursor or project content', async () => {
     const cwd = project();
     profileState.codex = true;

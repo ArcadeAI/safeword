@@ -41,12 +41,22 @@ describe('Cursor runtime authority', () => {
     }).not.toThrow();
   });
 
-  it("rejects a Cursor executable reference to another host's runtime", () => {
+  it.each([
+    'bun "${CLAUDE_PLUGIN_ROOT}/runtime/cli.js" project audit-scope',
+    'npx tsx "${CLAUDE_PLUGIN_ROOT}/runtime/cli.js"',
+    'bunx safeword --config "$CODEX_HOME/config.toml"',
+    'python3 .codex/helper.py',
+    'deno run .opencode/helper.ts',
+    '. "$CODEX_HOME/lib.sh"',
+    'CLI="${CLAUDE_PLUGIN_ROOT}/runtime/cli.js"\nbun "$CLI"',
+    '.claude/skills/helper.sh',
+    'ls ~/.claude/projects/; python3 .codex/helper.py',
+  ])('rejects cross-host runtime regardless of command shape: %s', command => {
     const assets = generatedCursorCatalogue().map(asset =>
       asset.relativePath === '.safeword/skills/audit/SKILL.md'
         ? {
             ...asset,
-            content: `${asset.content}\nRun \`bun "\${CLAUDE_PLUGIN_ROOT}/runtime/cli.js" project audit-scope\`.\n`,
+            content: `${asset.content}\n${command}\n`,
           }
         : asset,
     );
