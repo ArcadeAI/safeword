@@ -60,7 +60,16 @@ Root lint (including Gherkin lint and TypeScript) and generated-plugin checks pa
 A tool-disabled synthetic walkthrough of the shipped demand skill resisted sponsor
 framing; it does not prove installed-host behavior or elimination of model bias.
 
-Full CLI verification is queued behind another worktree's test lock. The overall
-verify command's first CLI attempt timed out on that lock; its acceptance lane is
-still running and has reported failures, pending diagnostics. Do not treat local
-verification as green or merge until current-head CI and failure triage are complete.
+The overall verify command initially timed out on another worktree's lock. Its
+acceptance lane passed 1,488 scenarios with three skips and two stale-catalogue
+failures observed before regeneration; both failures passed a final-head rerun
+(two scenarios, 90 steps).
+
+Full CLI verification later completed: 8,862 passed, 13 skipped, five failed.
+CI reproduced those five failures: BDD proof references still named removed tests,
+and the JTBD integration test still searched for the old heading. Updated the
+references and heading expectations. The proof-sharing ratchet required retaining
+distinct scenario checks; their assertions were removed from the broad test rather
+than duplicated. The ratchet is unchanged. Final focused checks pass 75/75,
+including normal-mode lifecycle snapshots and all proof mappings. Targeted lint
+and package typecheck pass. Await fresh independent review and CI before merge.

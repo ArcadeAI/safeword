@@ -1,7 +1,7 @@
 /**
  * R8.1 (ticket Y2HCNJ, slice D) — DISCOVERY.md Phase 0 documents an
- * "Author Jobs To Be Done" sub-step positioned after "Load project
- * glossary" and before "Understanding", in BOTH the canonical template
+ * "Jobs To Be Done" section inside the full Product Plan, after glossary
+ * loading and before "Understanding", in BOTH the canonical template
  * and this repo's dogfood copy (canonical-first discipline; dogfood-parity
  * keeps them in sync).
  *
@@ -29,19 +29,23 @@ describe.each([
 ])('DISCOVERY.md JTBD sub-step — %s', (_label, filePath) => {
   const content = readFileSync(filePath, 'utf8');
 
-  it('has an "Author Jobs To Be Done" sub-step between glossary loading and Understanding', () => {
+  it('places Jobs To Be Done inside the full Product Plan after glossary loading', () => {
     const glossaryAt = content.indexOf('## Load project glossary');
-    const jtbdAt = content.indexOf('## Author Jobs To Be Done');
+    const planAt = content.indexOf('## Full Product Plan');
+    const jtbdAt = content.indexOf('### Jobs To Be Done');
+    const shapeAt = content.indexOf('### Shape');
     const understandingAt = content.indexOf('## Understanding');
-    expect(jtbdAt).toBeGreaterThan(-1);
-    expect(jtbdAt).toBeGreaterThan(glossaryAt);
-    expect(jtbdAt).toBeLessThan(understandingAt);
+    expect(glossaryAt).toBeGreaterThan(-1);
+    expect(planAt).toBeGreaterThan(glossaryAt);
+    expect(jtbdAt).toBeGreaterThan(planAt);
+    expect(shapeAt).toBeGreaterThan(jtbdAt);
+    expect(understandingAt).toBeGreaterThan(shapeAt);
   });
 
   it('references the one-persona-per-JTBD rule and the pause-and-confirm step', () => {
     const jtbdSection = content.slice(
-      content.indexOf('## Author Jobs To Be Done'),
-      content.indexOf('## Understanding'),
+      content.indexOf('### Jobs To Be Done'),
+      content.indexOf('### Shape'),
     );
     expect(jtbdSection).toMatch(/one persona/i);
     expect(jtbdSection).toMatch(/pause|confirm/i);

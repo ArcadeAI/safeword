@@ -89,11 +89,11 @@
     ],
     "Inconclusive demand research does not block product planning": [
       "packages/cli/tests/skills/demand-research-contract.test.ts",
-      "records an inconclusive result as an absent evidence state"
+      "documents inconclusive evidence without sponsor-favoring certainty"
     ],
     "An absent demand verdict does not block approval": [
       "packages/cli/tests/skills/demand-research-contract.test.ts",
-      "keeps an absent verdict advisory rather than blocking"
+      "documents absent and unavailable verdicts as advisory evidence states"
     ],
     "Unavailable demand research does not invent a verdict": [
       "packages/cli/tests/skills/demand-research-contract.test.ts",
@@ -111,7 +111,7 @@
     ],
     "Boilerplate does not qualify as a Killer Demo": [
       "packages/cli/tests/intake-brief.test.ts",
-      "requires a persona-facing, observable Killer Demo payoff"
+      "requires a desirable, falsifiable Killer Demo in one sentence"
     ],
     "Product Plans contain no comms or launch prompt": [
       "packages/cli/tests/utils/ticket-writer.test.ts",
