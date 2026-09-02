@@ -4,7 +4,7 @@
 # `@manual` keeps the contract readable by codify/review-spec while the real
 # CLI subprocess boundary is exercised by
 # packages/cli/tests/cli-protocol/review-wiring.test.ts,
-# packages/cli/tests/cli-protocol/review-three-route-explanation.test.ts, and
+# packages/cli/tests/cli-protocol/review-alternate-authentication.test.ts, and
 # packages/cli/tests/review/surface-parity.test.ts.
 @cross-agent-adversarial-reviews @manual
 Feature: Cross-agent adversarial reviews

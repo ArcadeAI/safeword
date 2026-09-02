@@ -13,7 +13,7 @@ import {
 afterAll(cleanupTrustedReviewerDirectories);
 
 /** The default model times out before the alternate exposes expired auth. */
-function installAlternateAuthenticationFailure(host: string): string {
+function installTimedOutPrimaryWithUnauthenticatedAlternate(host: string): string {
   const bin = nodePath.join(host, 'bin');
   mkdirSync(bin, { recursive: true });
 
@@ -50,7 +50,7 @@ printf 'not-a-review\n'
 describe('when an alternate independent route exposes expired authentication', () => {
   it('returns a reauthentication handoff without launching the author fallback', async () => {
     const directory = createTemporaryDirectory();
-    const host = createTrustedReviewerDirectory('safeword-three-route-');
+    const host = createTrustedReviewerDirectory('safeword-alternate-auth-');
     const routeLog = nodePath.join(directory, 'routes.log');
     writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
     mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
@@ -58,7 +58,7 @@ describe('when an alternate independent route exposes expired authentication', (
       nodePath.join(directory, '.safeword', 'config.json'),
       JSON.stringify({ crossAgentReviewAlternateModel: { codex: 'vendor-model-2' } }),
     );
-    const bin = installAlternateAuthenticationFailure(host);
+    const bin = installTimedOutPrimaryWithUnauthenticatedAlternate(host);
 
     const result = await runCli(
       [
