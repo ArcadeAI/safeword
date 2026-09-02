@@ -972,8 +972,8 @@ export async function runReview(input: ReviewRunInput): Promise<CliResult> {
   const { reviewer } = pair;
   const primaryModel = readPrimaryReviewerModel(input.cwd, reviewer);
 
-  // One bound for reviewer work across the whole run. Initial packet sealing is
-  // deliberately outside it; later probes, routes, and cleanups share it.
+  // One bound starts before initial packet sealing and covers reviewer work
+  // across every route; bounded cleanup may finish after it.
   const runDeadline = Date.now() + runBoundMs();
   const {
     outcome,
