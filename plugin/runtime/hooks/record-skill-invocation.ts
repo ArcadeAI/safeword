@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { appendFileSync, mkdirSync } from 'node:fs';
+import { appendFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
@@ -9,6 +9,7 @@ import {
   readFreshCursorRunIdentity,
 } from './lib/cursor-run-identity.ts';
 import { resolveNamespaceRoot } from './lib/namespace-root.ts';
+import { ensureTransientStateIgnore } from './lib/project-state.ts';
 import { resolveRunIdentity } from './lib/run-identity.ts';
 import { SKILL_INVOCATIONS_LOG } from './lib/skill-invocation-log.ts';
 
@@ -59,7 +60,7 @@ export function recordSkillInvocation(
   }
 
   const namespaceRoot = resolveNamespaceRoot(projectDirectory);
-  mkdirSync(namespaceRoot, { recursive: true });
+  ensureTransientStateIgnore(projectDirectory, SKILL_INVOCATIONS_LOG);
   appendFileSync(
     nodePath.join(namespaceRoot, SKILL_INVOCATIONS_LOG),
     `${new Date().toISOString()} ${proofSessionKey} ${skillName}\n`,

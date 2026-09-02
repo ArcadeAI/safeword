@@ -47656,7 +47656,8 @@ __export(exports_audit_scope, {
 import { existsSync as existsSync48, readFileSync as readFileSync60 } from "fs";
 import nodePath97 from "path";
 function auditScopePath() {
-  const packageRoot = nodePath97.basename(import.meta.dirname) === "dist" ? nodePath97.dirname(import.meta.dirname) : nodePath97.resolve(import.meta.dirname, "../..");
+  const runtimeDirectory = nodePath97.basename(import.meta.dirname);
+  const packageRoot = runtimeDirectory === "dist" || runtimeDirectory === "runtime" ? nodePath97.dirname(import.meta.dirname) : nodePath97.resolve(import.meta.dirname, "../..");
   return nodePath97.join(packageRoot, "templates/hooks/lib/audit-scope.sh");
 }
 function observeAuditScope() {
@@ -47747,6 +47748,43 @@ var init_cursor_run_identity = __esm(() => {
   init_namespace_root2();
   init_shell_segments();
   DEFAULT_MAX_AGE_MS2 = 5 * 60 * 1000;
+});
+
+// templates/hooks/lib/project-state.ts
+import { spawnSync as spawnSync11 } from "child_process";
+import { appendFileSync as appendFileSync2, existsSync as existsSync50, mkdirSync as mkdirSync17, readFileSync as readFileSync62, writeFileSync as writeFileSync22 } from "fs";
+import nodePath99 from "path";
+function gitAlreadyIgnores(cwd, path4) {
+  const relativePath = nodePath99.relative(cwd, path4);
+  if (relativePath.startsWith("..") || nodePath99.isAbsolute(relativePath))
+    return false;
+  return spawnSync11("git", ["check-ignore", "--no-index", "--quiet", "--", relativePath], {
+    cwd,
+    stdio: "ignore"
+  }).status === 0;
+}
+function ensureTransientStateIgnore(cwd, basename, rule = `/${basename}`) {
+  const namespaceRoot = resolveNamespaceRoot2(cwd);
+  const ignorePath = nodePath99.join(namespaceRoot, ".gitignore");
+  const statePath = nodePath99.join(namespaceRoot, basename);
+  mkdirSync17(namespaceRoot, { recursive: true });
+  if (gitAlreadyIgnores(cwd, statePath))
+    return;
+  if (!existsSync50(ignorePath)) {
+    writeFileSync22(ignorePath, `${rule}
+`, "utf8");
+    return;
+  }
+  const content = readFileSync62(ignorePath, "utf8");
+  if (content.split(/\r?\n/u).includes(rule))
+    return;
+  appendFileSync2(ignorePath, `${content.endsWith(`
+`) || content.length === 0 ? "" : `
+`}${rule}
+`);
+}
+var init_project_state = __esm(() => {
+  init_namespace_root2();
 });
 
 // templates/hooks/lib/run-identity.ts
@@ -47853,8 +47891,8 @@ var init_skill_invocation_log = __esm(() => {
 });
 
 // templates/hooks/record-skill-invocation.ts
-import { appendFileSync as appendFileSync2, mkdirSync as mkdirSync17 } from "fs";
-import nodePath99 from "path";
+import { appendFileSync as appendFileSync3 } from "fs";
+import nodePath100 from "path";
 import process12 from "process";
 function resolveProofSessionKey(input) {
   const { projectDirectory, skillName: skillName2, explicitSessionId } = input;
@@ -47887,60 +47925,19 @@ function recordSkillInvocation(projectDirectory, skillName2, sessionId) {
     return;
   }
   const namespaceRoot = resolveNamespaceRoot2(projectDirectory);
-  mkdirSync17(namespaceRoot, { recursive: true });
-  appendFileSync2(nodePath99.join(namespaceRoot, SKILL_INVOCATIONS_LOG), `${new Date().toISOString()} ${proofSessionKey} ${skillName2}
+  ensureTransientStateIgnore(projectDirectory, SKILL_INVOCATIONS_LOG);
+  appendFileSync3(nodePath100.join(namespaceRoot, SKILL_INVOCATIONS_LOG), `${new Date().toISOString()} ${proofSessionKey} ${skillName2}
 `, "utf8");
 }
 var SKILL_NAME_PATTERN;
 var init_record_skill_invocation = __esm(() => {
   init_cursor_run_identity();
   init_namespace_root2();
+  init_project_state();
   init_run_identity();
   init_skill_invocation_log();
   SKILL_NAME_PATTERN = /^[a-z][a-z0-9-]*$/;
   if (false) {}
-});
-
-// templates/hooks/lib/project-state.ts
-import { spawnSync as spawnSync11 } from "child_process";
-import { appendFileSync as appendFileSync3, existsSync as existsSync50, mkdirSync as mkdirSync18, readFileSync as readFileSync62, writeFileSync as writeFileSync22 } from "fs";
-import nodePath100 from "path";
-function gitAlreadyIgnores(cwd, path4) {
-  const relativePath = nodePath100.relative(cwd, path4);
-  if (relativePath.startsWith("..") || nodePath100.isAbsolute(relativePath))
-    return false;
-  return spawnSync11("git", ["check-ignore", "--no-index", "--quiet", "--", relativePath], {
-    cwd,
-    stdio: "ignore"
-  }).status === 0;
-}
-function ensureTransientStateIgnore(cwd, basename, rule = `/${basename}`) {
-  const namespaceRoot = resolveNamespaceRoot2(cwd);
-  const ignorePath = nodePath100.join(namespaceRoot, ".gitignore");
-  const statePath = nodePath100.join(namespaceRoot, basename);
-  mkdirSync18(namespaceRoot, { recursive: true });
-  if (gitAlreadyIgnores(cwd, statePath))
-    return;
-  if (!existsSync50(ignorePath)) {
-    writeFileSync22(ignorePath, `${rule}
-`, "utf8");
-    return;
-  }
-  const content = readFileSync62(ignorePath, "utf8");
-  if (content.split(/\r?\n/u).includes(rule))
-    return;
-  appendFileSync3(ignorePath, `${content.endsWith(`
-`) || content.length === 0 ? "" : `
-`}${rule}
-`);
-}
-var init_project_state = __esm(() => {
-  init_namespace_root2();
-});
-
-// src/project-state.ts
-var init_project_state2 = __esm(() => {
-  init_project_state();
 });
 
 // src/commands/record-skill-invocation.ts
@@ -47973,7 +47970,6 @@ function runRecordSkillInvocation(cwd, skillName2, sessionId) {
       ]
     }));
   }
-  ensureTransientStateIgnore(cwd, "skill-invocations.log");
   recordSkillInvocation(cwd, skillName2, sessionId);
   return Promise.resolve(createResult({
     state: "changed",
@@ -47986,8 +47982,12 @@ var init_record_skill_invocation2 = __esm(() => {
   init_namespace_root2();
   init_record_skill_invocation();
   init_result();
-  init_project_state2();
   SKILL_NAME_PATTERN2 = /^[a-z][a-z0-9-]*$/u;
+});
+
+// src/project-state.ts
+var init_project_state2 = __esm(() => {
+  init_project_state();
 });
 
 // src/commands/project-runtime.ts
@@ -48519,7 +48519,7 @@ import {
   constants as constants5,
   fstatSync as fstatSync8,
   lstatSync as lstatSync22,
-  mkdirSync as mkdirSync19,
+  mkdirSync as mkdirSync18,
   mkdtempSync as mkdtempSync6,
   openSync as openSync10,
   readdirSync as readdirSync34,
@@ -48648,7 +48648,7 @@ function prepareReviewPacketUnsafe(cwd, kind, targets, context = []) {
         throw new Error(`Review packet exceeds the ${MAX_PACKET_BYTES}-byte limit`);
       }
       const snapshot = nodePath106.join(workspace, relative);
-      mkdirSync19(nodePath106.dirname(snapshot), { recursive: true });
+      mkdirSync18(nodePath106.dirname(snapshot), { recursive: true });
       writeFileSync23(snapshot, bytes, { mode: 384 });
       let parent = nodePath106.dirname(relative);
       while (parent !== ".") {
@@ -49104,7 +49104,7 @@ import {
   constants as constants6,
   fstatSync as fstatSync9,
   lstatSync as lstatSync23,
-  mkdirSync as mkdirSync20,
+  mkdirSync as mkdirSync19,
   mkdtempSync as mkdtempSync7,
   openSync as openSync11,
   readdirSync as readdirSync35,
@@ -49323,7 +49323,7 @@ function preparedTrustedCacheDirectory(untrustedRoot) {
     if (lstatSync23(cacheDirectory).isSymbolicLink())
       return;
   } catch {}
-  mkdirSync20(cacheDirectory, { recursive: true, mode: 448 });
+  mkdirSync19(cacheDirectory, { recursive: true, mode: 448 });
   if (lstatSync23(cacheDirectory).isSymbolicLink())
     return;
   const resolved = realpathSync13(cacheDirectory);
@@ -50757,7 +50757,7 @@ import {
   closeSync as closeSync12,
   existsSync as existsSync54,
   fstatSync as fstatSync10,
-  mkdirSync as mkdirSync21,
+  mkdirSync as mkdirSync20,
   openSync as openSync12,
   readdirSync as readdirSync36,
   readFileSync as readFileSync67,
@@ -50788,7 +50788,7 @@ function readOrCreateIntegrityKey() {
   try {
     return decodeIntegrityKey(readFileSync67(keyPath, "utf8"));
   } catch {
-    mkdirSync21(nodePath109.dirname(keyPath), { recursive: true, mode: 448 });
+    mkdirSync20(nodePath109.dirname(keyPath), { recursive: true, mode: 448 });
     const key = randomBytes(32);
     try {
       const descriptor = openSync12(keyPath, "wx", 384);
@@ -50861,7 +50861,7 @@ function writeJob(cwd, record2) {
   if (!isReviewJobRecord(secured))
     throw new Error("invalid review job record");
   const directory = jobsDirectory(cwd);
-  mkdirSync21(directory, { recursive: true, mode: 448 });
+  mkdirSync20(directory, { recursive: true, mode: 448 });
   const destination = jobPath(cwd, secured.id);
   const temporary = `${destination}.${process.pid}.tmp`;
   writeFileSync25(temporary, `${JSON.stringify(secured)}
@@ -51280,7 +51280,7 @@ function announceBackgroundProgress(progress, managedProgress) {
 async function startReviewJob(input) {
   const context = input.context ?? [];
   const sourceFingerprint = fingerprint(input.cwd, input.kind, input.targets, context);
-  mkdirSync21(jobsDirectory(input.cwd), { recursive: true, mode: 448 });
+  mkdirSync20(jobsDirectory(input.cwd), { recursive: true, mode: 448 });
   const reserved = withFileLock(nodePath109.join(jobsDirectory(input.cwd), "start.lock"), () => {
     const existing = runningJob(input.cwd, input.kind, sourceFingerprint);
     if (existing !== undefined)
@@ -52839,7 +52839,7 @@ function isDogfoodRepo(projectDirectory) {
 var init_dogfood = () => {};
 
 // templates/hooks/lib/retro-debug.ts
-import { appendFileSync as appendFileSync4, mkdirSync as mkdirSync22 } from "fs";
+import { appendFileSync as appendFileSync4, mkdirSync as mkdirSync21 } from "fs";
 import nodePath113 from "path";
 import process15 from "process";
 function sanitizeDebugValue(key, value) {
@@ -52875,7 +52875,7 @@ function recordRetroDebugEvent(event, env = process15.env) {
   if (!logPath)
     return;
   try {
-    mkdirSync22(nodePath113.dirname(logPath), { recursive: true });
+    mkdirSync21(nodePath113.dirname(logPath), { recursive: true });
     appendFileSync4(logPath, `${JSON.stringify({ timestamp: new Date().toISOString(), ...sanitizedEvent(event) })}
 `);
   } catch {}
@@ -59165,7 +59165,7 @@ var init_pipeline = __esm(() => {
 
 // src/retro/public-delivery.ts
 import { createHash as createHash30 } from "crypto";
-import { mkdirSync as mkdirSync23, renameSync as renameSync12, unlinkSync as unlinkSync6, writeFileSync as writeFileSync28 } from "fs";
+import { mkdirSync as mkdirSync22, renameSync as renameSync12, unlinkSync as unlinkSync6, writeFileSync as writeFileSync28 } from "fs";
 import path5 from "path";
 function containsControlCharacter(value) {
   for (const character of value) {
@@ -59241,7 +59241,7 @@ function claimPublicRetroRequest(built, dependencies) {
     throw new Error("Invalid public retrospective request identity");
   const markerPath2 = path5.join(dependencies.attemptsDirectory, `${built.sessionScope}.json`);
   try {
-    mkdirSync23(dependencies.attemptsDirectory, { recursive: true });
+    mkdirSync22(dependencies.attemptsDirectory, { recursive: true });
     writeFileSync28(markerPath2, JSON.stringify({ sessionScope: built.sessionScope }), {
       encoding: "utf8",
       flag: "wx",
@@ -62025,7 +62025,7 @@ __export(exports_retro, {
 import { spawnSync as spawnSync14 } from "child_process";
 import { randomUUID as randomUUID13 } from "crypto";
 import {
-  mkdirSync as mkdirSync24,
+  mkdirSync as mkdirSync23,
   mkdtempSync as mkdtempSync8,
   readFileSync as readFileSync73,
   realpathSync as realpathSync16,
@@ -62280,7 +62280,7 @@ function prepareCursorExtractionDirectory(directory) {
   if (gitInit.status !== 0)
     throw new Error(gitInit.stderr || "could not initialize Cursor sandbox");
   const cursorDirectory = nodePath116.join(directory, ".cursor");
-  mkdirSync24(cursorDirectory, { recursive: true });
+  mkdirSync23(cursorDirectory, { recursive: true });
   writeFileSync29(nodePath116.join(cursorDirectory, "cli.json"), JSON.stringify({
     permissions: { allow: [], deny: CURSOR_RETRO_DENY_RULES },
     approvalMode: "allowlist"
@@ -63422,7 +63422,7 @@ __export(exports_boundary, {
   boundary: () => boundary
 });
 import { execFileSync as execFileSync11 } from "child_process";
-import { appendFileSync as appendFileSync5, existsSync as existsSync57, mkdirSync as mkdirSync25 } from "fs";
+import { appendFileSync as appendFileSync5, existsSync as existsSync57, mkdirSync as mkdirSync24 } from "fs";
 import nodePath119 from "path";
 import process21 from "process";
 function tryGit(cwd, args) {
@@ -63524,7 +63524,7 @@ function legalityStepsFor(cwd, path8, priorReference) {
 }
 function appendAudit(cwd, entry2) {
   const auditPath = nodePath119.join(cwd, AUDIT_RELATIVE_PATH);
-  mkdirSync25(nodePath119.dirname(auditPath), { recursive: true });
+  mkdirSync24(nodePath119.dirname(auditPath), { recursive: true });
   appendFileSync5(auditPath, `${JSON.stringify(entry2)}
 `);
 }
@@ -63599,7 +63599,7 @@ import { spawnSync as spawnSync15 } from "child_process";
 import {
   cpSync as cpSync3,
   existsSync as existsSync58,
-  mkdirSync as mkdirSync26,
+  mkdirSync as mkdirSync25,
   mkdtempSync as mkdtempSync9,
   readdirSync as readdirSync37,
   readFileSync as readFileSync75,
@@ -63730,7 +63730,7 @@ function writeCodexIdentityCache(input) {
     return;
   try {
     const cachePath = nodePath120.join(resolveNamespaceRoot(input.projectDirectory), input.cacheFile);
-    mkdirSync26(nodePath120.dirname(cachePath), { recursive: true });
+    mkdirSync25(nodePath120.dirname(cachePath), { recursive: true });
     writeFileSync30(cachePath, JSON.stringify({ id: sessionId, skillName: skillName2, recordedAt: new Date().toISOString() }), "utf8");
   } catch {}
 }
@@ -63917,7 +63917,7 @@ function snapshotEmbeddedOpenCodePreToolHook(relativePath) {
   const directory = mkdtempSync9(nodePath120.join(tmpdir7(), `safeword-opencode-hook-snapshot-${process22.pid}-`));
   const hooksDirectory = nodePath120.join(directory, "hooks");
   const codexDirectory = nodePath120.join(hooksDirectory, "codex");
-  mkdirSync26(codexDirectory, { recursive: true });
+  mkdirSync25(codexDirectory, { recursive: true });
   writeFileSync30(nodePath120.join(hooksDirectory, "pre-tool-quality.ts"), embedded.preTool, "utf8");
   const hookPath = nodePath120.join(codexDirectory, "pre-tool-quality.ts");
   writeFileSync30(hookPath, embedded.codexPreTool, "utf8");

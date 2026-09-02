@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
@@ -8,6 +8,7 @@ import { createTemporaryDirectory, initGitRepo, removeTemporaryDirectory } from 
 
 const temporaryDirectories: string[] = [];
 const cli = nodePath.resolve(import.meta.dirname, '../../dist/cli.js');
+const sourceCli = nodePath.resolve(import.meta.dirname, '../../src/cli.ts');
 
 function createEnrolledFeatureBranch(): { project: string; mergeBase: string } {
   const project = createTemporaryDirectory();
@@ -17,7 +18,40 @@ function createEnrolledFeatureBranch(): { project: string; mergeBase: string } {
   writeFileSync(nodePath.join(project, '.safeword/SAFEWORD.md'), '# enrolled\n');
   writeFileSync(nodePath.join(project, 'first.txt'), 'base\n');
   spawnSync('git', ['add', '.'], { cwd: project });
-  spawnSync('git', ['commit', '-m', 'base'], { cwd: project });
+  spawnSync('git', ['commit', '--no-verify', '-m', 'base'], { cwd: project });
+  const mergeBase = spawnSync('git', ['rev-parse', 'HEAD'], {
+    cwd: project,
+    encoding: 'utf8',
+  }).stdout.trim();
+  spawnSync('git', ['branch', '-M', 'main'], { cwd: project });
+  spawnSync('git', ['switch', '-c', 'feature'], { cwd: project });
+  writeFileSync(nodePath.join(project, 'first.txt'), 'changed\n');
+  writeFileSync(nodePath.join(project, 'second.txt'), 'added\n');
+  return { project, mergeBase };
+}
+
+function createInstalledCursorFeatureBranch(): { project: string; mergeBase: string } {
+  const project = createTemporaryDirectory();
+  temporaryDirectories.push(project);
+  initGitRepo(project);
+  writeFileSync(nodePath.join(project, 'first.txt'), 'base\n');
+  const installed = spawnSync(
+    'bun',
+    [
+      sourceCli,
+      'install',
+      '--agents=cursor',
+      '--no-modify',
+      '--no-input',
+      '--cwd',
+      project,
+      '--json',
+    ],
+    { cwd: project, encoding: 'utf8' },
+  );
+  expect(installed.status, installed.stderr || installed.stdout).toBe(0);
+  spawnSync('git', ['add', '.'], { cwd: project });
+  spawnSync('git', ['commit', '--no-verify', '-m', 'base'], { cwd: project });
   const mergeBase = spawnSync('git', ['rev-parse', 'HEAD'], {
     cwd: project,
     encoding: 'utf8',
@@ -85,5 +119,42 @@ describe('packaged audit scope command', () => {
     );
     expect(result.stdout).toContain('status=2\nmode=repository\nsha=\nfiles=');
     expect(result.stdout).toContain('caller=available');
+  });
+
+  it('executes the installed Cursor audit workflow from project authority', () => {
+    const { project, mergeBase } = createInstalledCursorFeatureBranch();
+    const command = readFileSync(nodePath.join(project, '.cursor/commands/audit.md'), 'utf8');
+    const skill = readFileSync(nodePath.join(project, '.safeword/skills/audit/SKILL.md'), 'utf8');
+
+    expect(command).toContain(
+      'Read and follow the instructions in .safeword/skills/audit/SKILL.md',
+    );
+    expect(skill).toContain('source "$PROJECT_DIR/.safeword/hooks/lib/audit-scope.sh"');
+    expect(existsSync(nodePath.join(project, '.claude/skills'))).toBe(false);
+    expect(existsSync(nodePath.join(project, '.codex/skills'))).toBe(false);
+    expect(existsSync(nodePath.join(project, '.opencode'))).toBe(false);
+
+    const result = spawnSync(
+      'bash',
+      [
+        '-c',
+        [
+          'source "$PROJECT_DIR/.safeword/hooks/lib/audit-scope.sh"',
+          'audit_scope_initialize "$PROJECT_DIR"',
+          String.raw`printf "mode=%s\nsha=%s\nfiles=%s\n" "$AUDIT_SCOPE_MODE" "$AUDIT_BASE_SHA" "$AUDIT_CHANGED_FILES"`,
+        ].join('; '),
+      ],
+      {
+        cwd: project,
+        env: { ...process.env, PROJECT_DIR: project, SAFEWORD_AUDIT_BASE_REF: 'main' },
+        encoding: 'utf8',
+      },
+    );
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain('mode=diff');
+    expect(result.stdout).toContain(`sha=${mergeBase}`);
+    expect(result.stdout).toContain('files=first.txt\nsecond.txt');
+    expect(`${result.stdout}${result.stderr}`).not.toMatch(/install|dependenc/iu);
   });
 });

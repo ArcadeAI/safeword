@@ -107,9 +107,9 @@
       "packages/cli/tests/lifecycle/selected-authority-reconciliation.test.ts",
       "uninstalls the Codex profile without changing Cursor or project content"
     ],
-    "Reconciliation removes an obsolete native runtime while preserving selected authorities": [
+    "Reconciliation preserves selected authorities without restoring native project runtime": [
       "packages/cli/tests/lifecycle/selected-authority-reconciliation.test.ts",
-      "removes a retired Codex-only project hook while preserving selected authorities"
+      "reconciles Codex and Cursor without restoring native project runtime"
     ],
     "Complete agent catalogues pass executable-reference validation": [
       [

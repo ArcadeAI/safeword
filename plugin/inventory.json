@@ -135,7 +135,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "9c6ebad8c3801d11623039027988720d5c15c43459e228a95990b053b54412a2"
+      "sha256": "dfc8a8b533e662df0c17c79a8daac616cffdf9d5864de2b54d982972aa2524e0"
     },
     {
       "path": "runtime/dispatch.js",
@@ -487,7 +487,7 @@
     },
     {
       "path": "runtime/hooks/record-skill-invocation.ts",
-      "sha256": "b700df1e48aeb3e85aded1bcd042d12b82a901d4b1af79503a248df41045566f"
+      "sha256": "83511c9ccc2dece02e1a51c133dfbde8b3e729677cfb799dfde267734e8ab3c7"
     },
     {
       "path": "runtime/hooks/resolve-namespace-root.ts",

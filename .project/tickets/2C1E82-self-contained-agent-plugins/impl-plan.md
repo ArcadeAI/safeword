@@ -64,6 +64,8 @@ Architecture decisions updated in place: `ARCHITECTURE.md` — “Registry-Drive
 
 Concurrent first-use initialization by multiple host sessions is outside this epic's sequential lifecycle contract. The initializer is idempotent, but atomic multi-process coordination is deferred until observed concurrent mutation justifies it.
 
+“Precise ignore rule” means the narrowest stable rule for the state writer: fixed-name state such as `skill-invocations.log` receives an exact basename rule, while session-keyed `quality-state-<id>.json` receives the single `/quality-state-*.json` family rule required to cover future sessions. Neither form broadens to unrelated namespace content.
+
 OpenCode's installed dispatcher can be copied away from its profile directory, so it embeds the two canonical guard closures rather than resolving sibling source files at runtime. The build derives those closures from the canonical hook templates and copied-dispatcher tests execute them after relocation.
 
 The epic's scenarios use the repository's `@proof.vitest` manifest lane instead of duplicating existing command and lifecycle integration coverage as Cucumber glue. Both repository-root and package-local `test:bdd` entry points now execute the manifest-provenance gate, closing the package-local false-green that verification exposed.

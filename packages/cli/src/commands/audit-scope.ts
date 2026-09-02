@@ -6,8 +6,9 @@ import nodePath from 'node:path';
 import { type CliResult, createResult } from '../cli-protocol/result.js';
 
 function auditScopePath(): string {
+  const runtimeDirectory = nodePath.basename(import.meta.dirname);
   const packageRoot =
-    nodePath.basename(import.meta.dirname) === 'dist'
+    runtimeDirectory === 'dist' || runtimeDirectory === 'runtime'
       ? nodePath.dirname(import.meta.dirname)
       : nodePath.resolve(import.meta.dirname, '../..');
   return nodePath.join(packageRoot, 'templates/hooks/lib/audit-scope.sh');

@@ -211,11 +211,11 @@ Feature: Every agent delivery is self-contained
       And authored knowledge, enrollment state, and unrelated content remain unchanged
 
     @surface.safeword-cli @surface.openai-codex @surface.cursor
-    Scenario: Reconciliation removes an obsolete native runtime while preserving selected authorities
-      Given an enrolled project selects Codex and Cursor and contains a retired Codex-only project hook
+    Scenario: Reconciliation preserves selected authorities without restoring native project runtime
+      Given an enrolled project selects Codex and Cursor with no project-local Codex runtime
       And the project contains authored knowledge, enrollment state, and unrelated content
       When the Non-Technical Builder reconciles the project
-      Then the obsolete Codex runtime copy is removed from the project
+      Then no project-local Codex runtime is created
       And the Codex profile delivery remains the sole Codex runtime authority
       And Cursor's project authority, authored knowledge, enrollment state, and unrelated content remain unchanged
 

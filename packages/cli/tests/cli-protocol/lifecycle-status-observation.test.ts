@@ -7,7 +7,11 @@ import { writeClaudePluginMode } from '../../src/claude-plugin/migration-state.j
 import { createResult } from '../../src/cli-protocol/result.js';
 import { projectLifecycleSchema } from '../../src/lifecycle/schema.js';
 import { observeLifecycleSurfaces, summarizeLifecycleStatus } from '../../src/lifecycle/status.js';
-import { isCursorProjectPath, isSharedAgentRuntimePath } from '../../src/schema.js';
+import {
+  isCursorProjectPath,
+  isSharedAgentRuntimePath,
+  type SafewordSchema,
+} from '../../src/schema.js';
 import { createTemporaryDirectory } from '../helpers.js';
 
 vi.mock('../../src/claude-plugin/status.js', async () => {
@@ -32,13 +36,22 @@ vi.mock('../../src/codex-plugin/operations.js', async () => {
   };
 });
 
+function declaredSchemaPaths(schema: SafewordSchema): string[] {
+  return [
+    ...Object.keys(schema.ownedFiles),
+    ...Object.keys(schema.managedFiles),
+    ...Object.keys(schema.jsonMerges),
+    ...Object.keys(schema.textPatches),
+    ...schema.ownedDirs,
+    ...schema.sharedDirs,
+  ];
+}
+
 describe('lifecycle profile observation', () => {
   it('keeps a Codex-only project free of project-delivered executable runtime', () => {
     const schema = projectLifecycleSchema(createTemporaryDirectory(), ['codex']);
 
-    expect(Object.keys(schema.ownedFiles).filter(path => isSharedAgentRuntimePath(path))).toEqual(
-      [],
-    );
+    expect(declaredSchemaPaths(schema).filter(path => isSharedAgentRuntimePath(path))).toEqual([]);
   });
 
   it('drops the shared .safeword hooks|skills|scripts|guides|templates runtime for a Claude-only project', () => {
@@ -54,11 +67,9 @@ describe('lifecycle profile observation', () => {
 
     const schema = projectLifecycleSchema(cwd, ['claude']);
 
-    const sharedRuntimePaths = [
-      ...Object.keys(schema.ownedFiles),
-      ...Object.keys(schema.managedFiles),
-      ...schema.ownedDirs,
-    ].filter(path => isSharedAgentRuntimePath(path));
+    const sharedRuntimePaths = declaredSchemaPaths(schema).filter(path =>
+      isSharedAgentRuntimePath(path),
+    );
 
     expect(sharedRuntimePaths).toEqual([]);
     // Non-runtime .safeword content Claude still reads stays installed.
@@ -86,7 +97,7 @@ describe('lifecycle profile observation', () => {
       Object.keys(installSchema.ownedFiles).filter(path => path.startsWith('.claude/')),
     ).toEqual([]);
     expect(
-      Object.keys(installSchema.ownedFiles).filter(path => isSharedAgentRuntimePath(path)),
+      declaredSchemaPaths(installSchema).filter(path => isSharedAgentRuntimePath(path)),
     ).toEqual([]);
     expect(
       Object.keys(installSchema.ownedFiles).filter(path => path.startsWith('.opencode/')),
@@ -114,10 +125,8 @@ describe('lifecycle profile observation', () => {
   it('keeps an agent-free project free of executable runtime', () => {
     const schema = projectLifecycleSchema(createTemporaryDirectory(), []);
 
-    expect(Object.keys(schema.ownedFiles).filter(path => isSharedAgentRuntimePath(path))).toEqual(
-      [],
-    );
-    expect(Object.keys(schema.ownedFiles).some(path => isCursorProjectPath(path))).toBe(false);
+    expect(declaredSchemaPaths(schema).filter(path => isSharedAgentRuntimePath(path))).toEqual([]);
+    expect(declaredSchemaPaths(schema).some(path => isCursorProjectPath(path))).toBe(false);
   });
 
   it('keeps the shared runtime for a Cursor-only project', () => {
@@ -132,7 +141,7 @@ describe('lifecycle profile observation', () => {
     'keeps Cursor project authority without copying %s runtime into the project',
     nativeAgent => {
       const schema = projectLifecycleSchema(createTemporaryDirectory(), ['cursor', nativeAgent]);
-      const ownedPaths = Object.keys(schema.ownedFiles);
+      const ownedPaths = declaredSchemaPaths(schema);
 
       expect(ownedPaths.some(path => isCursorProjectPath(path))).toBe(true);
       expect(
