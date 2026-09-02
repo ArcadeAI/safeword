@@ -26,13 +26,15 @@
 
 #### self-contained-plugins.NTB1.R1 — project reconciliation is bounded to selected delivery authorities
 
+#### self-contained-plugins.NTB1.R2 — profile lifecycle changes only identity-owned catalogue content
+
 ### self-contained-plugins.SWM1 — preserve host parity without duplicate runtime authorities
 
 **Persona:** Safeword Maintainer (SWM)
 
 > When I change a shared Safeword workflow, I want each native plugin to carry and invoke its own complete runtime while project reconciliation installs only the assets selected hosts truly require, so I can maintain parity without stale or duplicated implementations.
 
-#### self-contained-plugins.SWM1.R1 — package and profile ownership is enforced at release and reconciliation boundaries
+#### self-contained-plugins.SWM1.R1 — package authority is enforced at release boundaries
 
 ## Product Inspiration
 
@@ -75,6 +77,7 @@ skip: internal delivery boundary; the highest persona-facing moment belongs to t
 - Make framework-owned runtime state and its parent directories initialize lazily at the workflow boundary.
 - Add precise transient-state gitignore rules lazily, idempotently, and without replacing or reformatting customer ignore content.
 - Filter project reconciliation to shared substrate plus selected project-delivered consumers.
+- Preserve unrelated or drifted profile content across identity-owned install, upgrade, and uninstall reconciliation.
 - Prove Codex-only, Claude-only, OpenCode-only, Cursor-only, representative mixed selection, and accepted lifecycle behavior.
 - Add release/parity checks that reject agent skills referencing executables outside their declared runtime authority.
 - Reconcile the existing child tickets under this epic against the behavioral scenarios, merging or closing implementation-shaped slices where the shared solution makes them redundant.
@@ -94,6 +97,7 @@ skip: internal delivery boundary; the highest persona-facing moment belongs to t
 - A missing framework-owned state file is created by the invoking workflow, and transient state receives exactly one narrow ignore rule without an install or upgrade command.
 - Every single-agent plan contains no other host's assets. Plugin-backed agent plans contain no project-local copies of their executable workflow runtime, while Cursor retains only its declared project-local delivery.
 - Accepted lifecycle contracts preserve selected Cursor delivery and remove no unrelated profile or project content.
+- OpenCode profile lifecycle operations mutate only catalogue content proven by the recorded profile identity.
 - Static release/parity coverage fails on any agent workflow reference to an executable outside its declared runtime authority.
 - Acceptance scenarios reproduce the observed Codex helper and lazy-state gaps without inventing a new general ownership taxonomy or optional-tooling product.
 

@@ -25,6 +25,8 @@ skip: OpenCode is the representative identity-owned profile lifecycle because Co
 
 skip: User-facing drift-report wording is owned by the existing OpenCode lifecycle contract; this epic preserves its typed drift finding and recovery action without redesigning CLI copy.
 
+skip: Cleanup of obsolete native project runtime copies remains owned by the existing proof-bound Codex and Claude migration contracts; this epic proves legacy copies cannot regain execution authority and does not authorize deleting unproven project content.
+
 ## Boundary reconciliation
 
 - **Zero project runtime files for plugin-backed hosts** and **only the selected project authority for project-delivered hosts** are the load-bearing cold-start boundaries.

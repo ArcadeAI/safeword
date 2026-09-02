@@ -26,6 +26,7 @@ Feature: Every agent delivery is self-contained
       Then the caller shell reports the merge-base failure and remains available for the next command
       And no partial diff mode or changed-file values are exported
 
+    # Proof boundary: a real Bash caller sources the generated command and executes a following command.
     @surface.openai-codex
     Scenario: A packaged shared-shell helper exports an empty changed-file list
       Given an enrolled feature branch has a known merge base and no changed files
@@ -58,7 +59,7 @@ Feature: Every agent delivery is self-contained
     Scenario: Legacy project hooks cannot regain OpenCode workflow authority
       Given an enrolled project contains a complete legacy runtime whose hook reports a legacy-only marker
       When the Technical Builder invokes a packaged OpenCode hook
-      Then the hook reports the packaged hook's exit-code incompatibility
+      Then the caller receives exit status 2 and an unsupported-output diagnostic
       And the legacy-only marker is absent
 
     @surface.cursor
@@ -89,9 +90,9 @@ Feature: Every agent delivery is self-contained
 
     @shared-project-state @surface.safeword-cli @surface.openai-codex @surface.claude-code @surface.opencode @surface.cursor
     Scenario Outline: Every host lazily creates missing workflow state and its precise ignore rule
-      Given <host> is configured with its declared Safeword authority
+      Given an enrolled version-controlled project configures <host> with its declared Safeword authority
       And the enrolled project lacks the framework state directory, transient state file, and project ignore file
-      When the Technical Builder invokes a state-writing <host> workflow for the first time
+      When the Technical Builder invokes the generated <host> state-writing workflow through that authority for the first time
       Then the framework state directory and project ignore file are created
       And the transient state file never appears in the project's version-control status
       And the project ignore file contains only the precise state rule
@@ -116,6 +117,7 @@ Feature: Every agent delivery is self-contained
       Given an enrolled project lacks authored knowledge and project configuration
       When the Technical Builder invokes a state-writing packaged workflow
       Then no authored knowledge or project configuration is created
+      And the framework state file is created
 
     @shared-project-state @surface.safeword-cli
     Scenario: Lazy state initialization preserves customer ignore policy
@@ -234,14 +236,14 @@ Feature: Every agent delivery is self-contained
   @self-contained-plugins.NTB1.R2
   Rule: self-contained-plugins.NTB1.R2 — Profile lifecycle preserves customer content by identity
 
-    @surface.opencode
+    @surface.safeword-cli @surface.opencode
     Scenario: OpenCode profile identity records the complete owned catalogue
       Given a generated OpenCode catalogue of plugin, commands, agents, and skills
       When the Non-Technical Builder installs the profile delivery
       Then the complete command, agent, skill, and reference catalogue is installed
       And the profile identity records every owned catalogue asset and digest
 
-    @rejection @surface.opencode
+    @rejection @surface.safeword-cli @surface.opencode
     Scenario: OpenCode install preserves an unrecognized catalogue collision
       Given an OpenCode profile has unrelated content at a catalogue path with no recorded Safeword identity
       When the Non-Technical Builder installs the profile delivery
@@ -249,7 +251,7 @@ Feature: Every agent delivery is self-contained
       And the unrelated profile content remains byte-for-byte unchanged
       And no catalogue asset is installed
 
-    @surface.opencode
+    @surface.safeword-cli @surface.opencode
     Scenario: OpenCode upgrade removes only prior identity-owned catalogue bytes
       Given an OpenCode profile's recorded prior catalogue includes an asset absent from the current catalogue
       When the Non-Technical Builder upgrades the profile delivery
@@ -257,7 +259,7 @@ Feature: Every agent delivery is self-contained
       And the retired identity-owned asset is removed
       And unrelated profile content remains unchanged
 
-    @rejection @surface.opencode
+    @rejection @surface.safeword-cli @surface.opencode
     Scenario: OpenCode upgrade preserves a drifted catalogue asset
       Given an identity-owned OpenCode catalogue asset differs from its recorded digest
       When the Non-Technical Builder upgrades the profile delivery
@@ -265,14 +267,14 @@ Feature: Every agent delivery is self-contained
       And the edited asset and unrelated profile content remain unchanged
       And no other identity-owned catalogue asset is changed
 
-    @surface.opencode
+    @surface.safeword-cli @surface.opencode
     Scenario: OpenCode uninstall removes its recognized catalogue
       Given an OpenCode profile contains an unchanged identity-owned catalogue
       When the Non-Technical Builder uninstalls the OpenCode profile delivery
       Then every identity-owned catalogue asset is removed
       And unrelated profile content remains unchanged
 
-    @rejection @surface.opencode
+    @rejection @surface.safeword-cli @surface.opencode
     Scenario: OpenCode uninstall preserves drifted catalogue content
       Given an identity-owned OpenCode catalogue asset differs from its recorded digest
       When the Non-Technical Builder uninstalls the OpenCode profile delivery
