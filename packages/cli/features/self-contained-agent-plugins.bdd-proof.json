@@ -9,6 +9,10 @@
       "packages/cli/tests/commands/audit-scope.test.ts",
       "preserves the caller shell and empty exports when merge-base resolution fails"
     ],
+    "A packaged shared-shell helper exports an empty changed-file list": [
+      "packages/cli/tests/commands/audit-scope.test.ts",
+      "exports an empty changed-file list through a sourced caller shell"
+    ],
     "Legacy project runtime cannot regain native workflow authority": [
       "packages/cli/tests/integration/self-contained-agent-workflows.test.ts",
       "executes the pinned Codex audit beside %s legacy project runtime"
@@ -63,15 +67,13 @@
       "packages/cli/tests/commands/record-skill-invocation.test.ts",
       "updates existing framework state without replacing in-flight values"
     ],
-    "Lifecycle state respects explicit enrollment": [
-      [
-        "packages/cli/tests/commands/record-skill-invocation.test.ts",
-        "creates missing runtime state and its precise ignore rule without installing"
-      ],
-      [
-        "packages/cli/tests/integration/post-tool-review.test.ts",
-        "does not create knowledge, ignore policy, or state in an unenrolled repository"
-      ]
+    "Enrolled lifecycle state initializes lazily": [
+      "packages/cli/tests/commands/record-skill-invocation.test.ts",
+      "creates missing runtime state and its precise ignore rule without installing"
+    ],
+    "Unenrolled lifecycle state remains absent without blocking": [
+      "packages/cli/tests/integration/post-tool-review.test.ts",
+      "does not create knowledge, ignore policy, or state in an unenrolled repository"
     ],
     "A direct workflow does not silently enroll a repository": [
       "packages/cli/tests/commands/record-skill-invocation.test.ts",

@@ -5,6 +5,7 @@
 | Agent host | Codex; Claude Code; OpenCode; Cursor | Each agent executes every advertised workflow from one declared authority. |
 | Runtime authority | Profile plugin; project-local host delivery | Plugin-backed agents need no project executable copies; project-delivered agents are complete without borrowing another host's assets. |
 | Project runtime payload | Complete legacy payload; no hooks/skills/scripts; selected host-only payload; partially missing runtime | Workflows do not recover code through a broader or cross-host installation. |
+| Audit diff cardinality | No changed files; two changed files | A sourced audit helper exports a stable empty list as well as a populated list without ending the caller shell. |
 | Project enrollment | Enrolled with authored knowledge; unenrolled | Workflows may use enrolled knowledge/state, fail open outside enrollment, and never invent authored configuration. |
 | Runtime state | Existing; missing file; missing parent directory | Missing framework state initializes lazily without invoking installation. |
 | Ignore hygiene | Rule absent; exact rule present; broader customer rule present; unrelated existing content | Initialization adds at most one precise rule and preserves the customer's bytes and effective policy. |
@@ -17,6 +18,8 @@ skip: Zero-agent installation is not a supported selection in this epic; the CLI
 skip: Cross-host package-reference syntax is host-specific and already rejected by each native catalogue's own reference validator; the shared release gate covers the portable project-runtime reference class.
 
 skip: Filesystem permission failures are platform policy rather than a Safeword behavior partition; durable writes surface the underlying failure and never trigger installation fallback.
+
+skip: A non-version-controlled directory has no version-control status in which transient state could appear; precise ignore behavior is verified in enrolled Git repositories, where the guarantee is observable.
 
 skip: OpenCode is the representative identity-owned profile lifecycle because Codex and Claude Code use their hosts' package managers rather than Safeword-managed profile asset identities.
 
