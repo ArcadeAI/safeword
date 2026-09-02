@@ -66,7 +66,7 @@ experiment answers the assumption more directly. Fold the compact verdict and
 strongest evidence into Product Bet; do not create a research appendix by
 default.
 
-## Author Jobs To Be Done
+### Jobs To Be Done
 
 ```markdown
 ### oauth-flow.PLO1 — <job title>
@@ -97,10 +97,12 @@ and its own non-goals:
 
 ### Killer Demo
 
-Define Audience, Starting state, Action, Payoff, Proof, and Boundary. This is the
-shortest credible demonstration of the bet—not another scope list. Template
-prompts or generic restatements do not qualify; the Payoff must name the
-persona-facing before/after change and the Proof must make it observable.
+Write one sentence that makes the target user understand, believe, and want the
+value: `For <audience> starting with <real pain>, <decisive action> produces
+<unmistakably better outcome>, visibly proven by <evidence>, within <boundary>.`
+The payoff should feel like magic; realistic inputs, visible evidence, and an
+explicit boundary prove it is not a trick. This is not another scope list, and
+template prompts or generic restatements do not qualify.
 
 ## Child contribution
 

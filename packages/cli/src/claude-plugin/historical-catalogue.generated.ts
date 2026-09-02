@@ -10,7 +10,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/audit/SKILL.md':
         '64afc92c419a8354c015f18ffe0cc581cfce48cb3fee3db8e3c39d75844fb2d3',
       '.claude/skills/bdd/DISCOVERY.md':
-        'ac8f221691aeffaa16ca6a15a7930a462bdf64aeaf2fe9600903a9dbb417f992',
+        'c317894d75ed665f0cd082ee3a8306a0d25b47b700fdb733b94cfc55d9092aca',
       '.claude/skills/bdd/DONE.md':
         'e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60',
       '.claude/skills/bdd/PLAN_IMPLEMENTATION.md':
@@ -34,7 +34,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/debug/SKILL.md':
         'ae56c4c9287f76a2250d13fa9908f5726ed4edbe4080ece10d1559507e242bd0',
       '.claude/skills/demand-research/SKILL.md':
-        '99b2d4062d6daf4308468db00d5c5a3b71e1e33d40e228c285d38612b7eca4ba',
+        '5912afe5c717c634455ec88b050df6af80ffb994ddd26c55811b2977522a72fc',
       '.claude/skills/elicit/SKILL.md':
         '2638c773ce241a886563d1db8abbee70d72edefa780f762c0ed095df0f65cee5',
       '.claude/skills/explain/SKILL.md':

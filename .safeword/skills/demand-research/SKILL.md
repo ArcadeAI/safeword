@@ -5,7 +5,6 @@ description: Tests whether a proposed product bet has credible demand. Use when
   user explicitly asks for demand research. Do NOT use for child features,
   mandated work, parity work, or when a cheaper experiment can answer the
   question before research.
-allowed-tools: '*'
 ---
 
 # Demand Research
