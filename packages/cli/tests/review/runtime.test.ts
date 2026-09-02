@@ -15,6 +15,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { ReviewerOutput } from '../../src/review/contract.js';
 import {
+  inspectReviewRoute,
   parseProcessStat,
   parseReviewerOutput,
   planReviewRubric,
@@ -141,6 +142,55 @@ describe('headless reviewer timeout budgets', () => {
 
     expect(runBoundMs(env)).toBe(900_000);
     expect(reviewTimeoutMilliseconds(env)).toBe(45_000);
+  });
+});
+
+describe('review route inspection', () => {
+  it('distinguishes OpenCode catalogue presence from runtime-default routes', async () => {
+    const bin = trustedTemporaryDirectory();
+    const project = temporaryDirectory();
+    const executable = nodePath.join(bin, 'opencode');
+    writeFileSync(
+      executable,
+      `#!/bin/sh
+if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then echo '--format --pure --model'; exit 0; fi
+if [ "\${1:-}" = "models" ]; then printf 'vendor/model-a\nvendor/model-b\n'; exit 0; fi
+exit 9
+`,
+    );
+    chmodSync(executable, 0o755);
+    vi.stubEnv('PATH', bin);
+
+    await expect(inspectReviewRoute('opencode', 'vendor/model-b', project)).resolves.toEqual({
+      installed: true,
+      compatibility: 'compatible',
+      catalogue: 'catalogued',
+    });
+    await expect(inspectReviewRoute('opencode', undefined, project)).resolves.toEqual({
+      installed: true,
+      compatibility: 'compatible',
+      catalogue: 'not_applicable',
+    });
+  });
+
+  it('reports an installed runtime without model selection as incompatible', async () => {
+    const bin = trustedTemporaryDirectory();
+    const project = temporaryDirectory();
+    const executable = nodePath.join(bin, 'codex');
+    writeFileSync(
+      executable,
+      `#!/bin/sh
+echo '--json --sandbox --skip-git-repo-check --ephemeral --ignore-user-config --ignore-rules --disable --config --output-schema'
+`,
+    );
+    chmodSync(executable, 0o755);
+    vi.stubEnv('PATH', bin);
+
+    await expect(inspectReviewRoute('codex', 'model-a', project)).resolves.toEqual({
+      installed: true,
+      compatibility: 'not_compatible',
+      catalogue: 'unavailable',
+    });
   });
 });
 

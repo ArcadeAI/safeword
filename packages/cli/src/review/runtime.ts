@@ -702,6 +702,111 @@ type CapabilityAssessment =
       readonly failure: Extract<ReviewFailure, 'unsupported' | 'probe_timed_out' | 'launch_failed'>;
     };
 
+export interface ReviewRouteObservation {
+  readonly installed: boolean;
+  readonly compatibility: 'compatible' | 'not_compatible' | 'inspection_unavailable';
+  readonly catalogue: 'catalogued' | 'not_catalogued' | 'not_applicable' | 'unavailable';
+}
+
+async function captureCommand(
+  executable: string,
+  arguments_: readonly string[],
+  cwd: string,
+  timeoutMs: number,
+): Promise<{ readonly kind: 'completed'; readonly stdout: string } | { readonly kind: 'failed' }> {
+  const child = spawn(executable, arguments_, {
+    cwd,
+    env: reviewerProbeEnvironment(),
+    stdio: ['ignore', 'pipe', 'ignore'],
+    detached: process.platform !== 'win32',
+  });
+  const result = await new Promise<
+    { readonly kind: 'completed'; readonly stdout: string } | { readonly kind: 'failed' }
+  >(resolve => {
+    let stdout = '';
+    let settled = false;
+    const finish = (
+      value: { readonly kind: 'completed'; readonly stdout: string } | { readonly kind: 'failed' },
+    ): void => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      resolve(value);
+    };
+    const timeout = setTimeout(() => {
+      finish({ kind: 'failed' });
+    }, timeoutMs);
+    child.stdout.on('data', (chunk: Buffer) => {
+      if (Buffer.byteLength(stdout) + chunk.byteLength > MAX_OUTPUT_BYTES) {
+        finish({ kind: 'failed' });
+        return;
+      }
+      stdout += chunk.toString('utf8');
+    });
+    child.on('error', () => {
+      finish({ kind: 'failed' });
+    });
+    child.on('close', code => {
+      finish(code === 0 ? { kind: 'completed', stdout } : { kind: 'failed' });
+    });
+  });
+  await stopReviewerOrThrow(child, 'opencode');
+  child.stdout.destroy();
+  child.unref();
+  return result;
+}
+
+/** Read-only local evidence. It never authenticates, performs inference, or changes route order. */
+// eslint-disable-next-line complexity -- Evidence distinguishes trusted discovery, capability, and catalogue failures.
+export async function inspectReviewRoute(
+  reviewer: ReviewAgent,
+  model: string | undefined,
+  cwd: string,
+  timeoutMs = 5000,
+): Promise<ReviewRouteObservation> {
+  const candidates = executableCandidates(reviewer, cwd);
+  if (candidates.paths.length === 0) {
+    return { installed: false, compatibility: 'not_compatible', catalogue: 'unavailable' };
+  }
+  const deadline = Date.now() + timeoutMs;
+  let inspectionUnavailable = false;
+  for (const candidate of candidates.paths) {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) break;
+    const capability = await supportsReviewContract(reviewer, candidate, cwd, remaining, model);
+    if (capability.kind === 'failed') {
+      inspectionUnavailable ||= capability.failure !== 'unsupported';
+      continue;
+    }
+    if (model === undefined) {
+      return { installed: true, compatibility: 'compatible', catalogue: 'not_applicable' };
+    }
+    if (reviewer !== 'opencode') {
+      return { installed: true, compatibility: 'compatible', catalogue: 'unavailable' };
+    }
+    const catalogue = await captureCommand(
+      candidate,
+      ['models', '--pure'],
+      cwd,
+      Math.max(1, deadline - Date.now()),
+    );
+    if (catalogue.kind === 'failed') {
+      return { installed: true, compatibility: 'compatible', catalogue: 'unavailable' };
+    }
+    const models = new Set(catalogue.stdout.split(/\r?\n/u).map(value => value.trim()));
+    return {
+      installed: true,
+      compatibility: 'compatible',
+      catalogue: models.has(model) ? 'catalogued' : 'not_catalogued',
+    };
+  }
+  return {
+    installed: true,
+    compatibility: inspectionUnavailable ? 'inspection_unavailable' : 'not_compatible',
+    catalogue: 'unavailable',
+  };
+}
+
 async function supportsReviewContract(
   reviewer: ReviewAgent,
   executable: string,

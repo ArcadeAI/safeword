@@ -1,3 +1,4 @@
+import { resolveRunIdentity } from '../../templates/hooks/lib/run-identity.js';
 import {
   type AgentIntegration,
   DEFAULT_AGENT_INTEGRATIONS,
@@ -15,11 +16,50 @@ import {
   observeLegacyGlobalGuidance,
 } from '../codex-plugin/legacy-global-guidance.js';
 import { checkHealth } from '../health.js';
+import { readReviewRouteProofs } from '../review/job.js';
+import { readReviewRoutes } from '../review/policy.js';
+import { inspectReviewRoute } from '../review/runtime.js';
 import { detectPackageManager } from '../utils/install.js';
 import { compareVersions, isSafePackageVersion } from '../utils/version.js';
 import { unselectedCursorFinding } from './cursor.js';
 import { coordinateSelectedIntegrations, PRODUCTION_INTEGRATIONS } from './integrations.js';
 import { projectLifecycleSchema } from './schema.js';
+
+async function reviewRouteObservations(
+  cwd: string,
+  environment: NodeJS.ProcessEnv,
+  offline: boolean,
+): Promise<readonly Record<string, unknown>[]> {
+  const author = resolveRunIdentity({}, { env: environment }).runtime;
+  const routes = readReviewRoutes(cwd, author);
+  const proofs = new Map(
+    readReviewRouteProofs(cwd).map(proof => [
+      `${proof.reviewer}\0${proof.model ?? '<runtime-default>'}`,
+      proof,
+    ]),
+  );
+  return await Promise.all(
+    routes.map(async route => {
+      const proof = proofs.get(`${route.reviewer}\0${route.model ?? '<runtime-default>'}`);
+      return {
+        reviewer: route.reviewer,
+        ...(route.model !== undefined && { model: route.model }),
+        runtime_default: route.model === undefined,
+        independence: route.independence,
+        ...(offline
+          ? {
+              installed: 'inspection_skipped',
+              compatibility: 'inspection_skipped',
+              catalogue: route.model === undefined ? 'not_applicable' : 'unavailable',
+            }
+          : await inspectReviewRoute(route.reviewer, route.model, cwd)),
+        proof: proof?.proof ?? 'unknown',
+        ...(proof?.failure !== undefined && { known_failure: proof.failure }),
+        ...(proof !== undefined && { proof_observed_at: proof.observed_at }),
+      };
+    }),
+  );
+}
 
 function healthFindings(
   values: readonly string[],
@@ -90,8 +130,9 @@ export async function observeStatus(
   cwd: string,
   agents: readonly AgentIntegration[] = DEFAULT_AGENT_INTEGRATIONS,
   environment: NodeJS.ProcessEnv = process.env,
+  offline = false,
 ): Promise<CliResult> {
-  const result = await observeProjectStatus(cwd, agents);
+  const result = await observeProjectStatus(cwd, agents, environment, offline);
   return withGlobalGuidance(result, environment);
 }
 
@@ -105,8 +146,9 @@ export async function observeLifecycleSurfaces(
   cwd: string,
   agents: readonly AgentIntegration[],
   environment: NodeJS.ProcessEnv = process.env,
+  offline = false,
 ): Promise<readonly LifecycleSurfaceObservation[]> {
-  const project = await observeStatus(cwd, agents, environment);
+  const project = await observeStatus(cwd, agents, environment, offline);
   const integrationSurfaces = await coordinateSelectedIntegrations(
     PRODUCTION_INTEGRATIONS,
     agents,
@@ -211,8 +253,12 @@ export async function observeLifecycleStatus(
   cwd: string,
   agents: readonly AgentIntegration[],
   environment: NodeJS.ProcessEnv = process.env,
+  offline = false,
 ): Promise<CliResult> {
-  return summarizeLifecycleStatus(agents, await observeLifecycleSurfaces(cwd, agents, environment));
+  return summarizeLifecycleStatus(
+    agents,
+    await observeLifecycleSurfaces(cwd, agents, environment, offline),
+  );
 }
 
 function withGlobalGuidance(result: CliResult, environment: NodeJS.ProcessEnv): CliResult {
@@ -237,9 +283,12 @@ function withGlobalGuidance(result: CliResult, environment: NodeJS.ProcessEnv): 
   };
 }
 
+// eslint-disable-next-line complexity -- Project health and route evidence have distinct recovery states.
 async function observeProjectStatus(
   cwd: string,
   agents: readonly AgentIntegration[],
+  environment: NodeJS.ProcessEnv,
+  offline: boolean,
 ): Promise<CliResult> {
   try {
     const schema = projectLifecycleSchema(cwd, agents);
@@ -295,6 +344,22 @@ async function observeProjectStatus(
       ...unselectedCursorFinding(cwd, agents),
     ];
     const nextActions = statusNextActions(blockingFindings, versionGuidance.nextAction);
+    let reviewRoutes: readonly Record<string, unknown>[];
+    try {
+      reviewRoutes = await reviewRouteObservations(cwd, environment, offline);
+    } catch (error) {
+      return createResult({
+        state: 'action_required',
+        findings: [
+          {
+            code: 'REVIEW_ROUTE_CONFIG_INVALID',
+            message: error instanceof Error ? error.message : String(error),
+            severity: 'warning',
+          },
+        ],
+        data: { configured: true, review_routes: [] },
+      });
+    }
 
     return createResult({
       state: blockingFindings.length === 0 ? 'healthy' : 'action_required',
@@ -304,6 +369,7 @@ async function observeProjectStatus(
         configured: true,
         cli_version: health.cliVersion,
         project_version: health.projectVersion,
+        review_routes: reviewRoutes,
       },
     });
   } catch (statusError) {

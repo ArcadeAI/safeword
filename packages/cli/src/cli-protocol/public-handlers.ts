@@ -106,7 +106,12 @@ async function statusHandler(invocation: CommandInvocation): Promise<CliResult> 
   const parsed = parseAgentSelection(invocation.options.agents);
   if (!parsed.ok) return invalidAgentSelection('status', parsed.error);
   const { observeLifecycleStatus } = await import('../lifecycle/status.js');
-  return observeLifecycleStatus(invocation.cwd, parsed.selection.agents);
+  return observeLifecycleStatus(
+    invocation.cwd,
+    parsed.selection.agents,
+    process.env,
+    invocation.offline,
+  );
 }
 
 async function conformanceHandler(invocation: CommandInvocation): Promise<CliResult> {

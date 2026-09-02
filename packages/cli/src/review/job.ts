@@ -874,6 +874,75 @@ function latestJobId(cwd: string): string | undefined {
     )[0]?.record.id;
 }
 
+export interface ReviewRouteProof {
+  readonly reviewer: string;
+  readonly model?: string;
+  readonly runtime_default: boolean;
+  readonly proof: 'proven' | 'known_failure';
+  readonly failure?: string;
+  readonly observed_at: string;
+}
+
+// eslint-disable-next-line complexity -- Integrity proof requires each route field to be validated independently.
+function routeProofFromValue(
+  value: unknown,
+  actualReviewer: unknown,
+  observedAt: string,
+): ReviewRouteProof | undefined {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined;
+  const route = value as Record<string, unknown>;
+  if (typeof route.reviewer !== 'string' || route.status !== 'attempted') return undefined;
+  const model = typeof route.model === 'string' ? route.model : undefined;
+  const failure = typeof route.failure === 'string' ? route.failure : undefined;
+  const proven = failure === undefined && actualReviewer === route.reviewer;
+  if (!proven && failure === undefined) return undefined;
+  return {
+    reviewer: route.reviewer,
+    ...(model !== undefined && { model }),
+    runtime_default: model === undefined,
+    proof: proven ? 'proven' : 'known_failure',
+    ...(failure !== undefined && { failure }),
+    observed_at: observedAt,
+  };
+}
+
+function routeProofsFromRecord(record: ReviewJobRecord): readonly ReviewRouteProof[] {
+  const data = record.result?.data;
+  if (typeof data !== 'object' || data === null || Array.isArray(data)) return [];
+  const resultData = data as Record<string, unknown>;
+  const routes = resultData.review_routes;
+  return Array.isArray(routes)
+    ? routes.flatMap(value => {
+        const proof = routeProofFromValue(value, resultData.actual_reviewer, record.updated_at);
+        return proof === undefined ? [] : [proof];
+      })
+    : [];
+}
+
+/** Most recent integrity-validated evidence for each exact reviewer/model route. */
+export function readReviewRouteProofs(cwd: string): readonly ReviewRouteProof[] {
+  const directory = jobsDirectory(cwd);
+  if (!existsSync(directory)) return [];
+  const records = readdirSync(directory)
+    .flatMap(name => {
+      if (!/^[a-f\d-]{36}\.json$/u.test(name)) return [];
+      try {
+        return [readJob(cwd, name.slice(0, -5))];
+      } catch {
+        return [];
+      }
+    })
+    .toSorted((left, right) => right.updated_at.localeCompare(left.updated_at));
+  const proofs = new Map<string, ReviewRouteProof>();
+  for (const record of records) {
+    for (const proof of routeProofsFromRecord(record)) {
+      const key = `${proof.reviewer}\0${proof.model ?? '<runtime-default>'}`;
+      if (!proofs.has(key)) proofs.set(key, proof);
+    }
+  }
+  return proofs.values().toArray();
+}
+
 function runningJob(
   cwd: string,
   kind: ReviewKind,

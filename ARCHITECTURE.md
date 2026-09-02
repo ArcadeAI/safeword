@@ -806,14 +806,22 @@ safeword accepts this trade — **consistency and enforcement over independent b
 | Reassess when  | A host offers a supported credential broker or external-review primitive; Claude/Codex materially change noninteractive or sandbox contracts; Cursor joins the pairing; or review packets regularly exceed bounded snapshot limits.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | Implementation | Tickets `QZAFT2` and `ZRV8D5`; `packages/cli/src/review/`, typed `review run` CLI wiring, optional agent provenance on review stamps, canonical class-1 and internal `finish-review` skill templates, the `safeword-reviewer` host agent, parity tests, and desktop/cloud simulation plus live smoke coverage.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 
-**OpenCode extension (2026-09-01).** The same coordinator now uses a fixed
-three-runtime route plan: Claude-authored work prefers Codex, Codex-authored
+**OpenCode extension (2026-09-01, superseded 2026-09-02).** The coordinator's
+default remains the three-runtime route plan: Claude-authored work prefers Codex, Codex-authored
 work prefers Claude, and either may use OpenCode as the next independent route
 before same-author degraded review. OpenCode-authored work prefers Claude and
 then Codex; its own fallback remains explicitly non-independent. The OpenCode
 adapter uses the trusted executable boundary, stdin prompt, completed JSON text
 events, `--pure`, deny-all permissions, shared deadlines, closed provenance,
-and post-run integrity checks. Reassess the fixed plan when a fourth concrete
+and post-run integrity checks.
+
+**Ranked local routes (2026-09-02).** `crossAgentReviewRoutes[author]` can replace
+that default with one exact ordered list of reviewer and optional model pairs.
+The coordinator derives independence from reviewer versus author identity,
+never from position, and cached status observations are descriptive only.
+Runtime-wide failures skip later models on that runtime; attempt-specific
+failures leave them eligible. Exact runtime/model (or explicit runtime-default)
+identity binds durable proof. Reassess this design when a fourth concrete
 review runtime is requested or OpenCode changes this stable-1.x contract.
 
 ### Profile-Scoped Generated Codex Plugin and Staged Hook Migration
