@@ -1,3 +1,4 @@
+@proof.vitest
 Feature: Rank local reviewers and models
 
   @ranked-local-reviews.TBU1.R1 @surface.safeword-cli

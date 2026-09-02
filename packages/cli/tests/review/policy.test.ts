@@ -78,10 +78,10 @@ describe('review route policy', () => {
     expect(readConfiguredReviewRoutes(cwd, 'claude')).toBeUndefined();
   });
 
-  it('leaves malformed legacy configuration on the existing tolerant path', () => {
+  it('rejects malformed project configuration instead of silently falling back', () => {
     const cwd = project({});
     writeFileSync(nodePath.join(cwd, '.safeword', 'config.json'), '{ malformed');
 
-    expect(readConfiguredReviewRoutes(cwd, 'claude')).toBeUndefined();
+    expect(() => readConfiguredReviewRoutes(cwd, 'claude')).toThrow('expected valid JSON');
   });
 });

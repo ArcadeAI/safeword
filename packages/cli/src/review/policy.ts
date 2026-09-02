@@ -3,6 +3,10 @@ import nodePath from 'node:path';
 
 import { readCrossAgentReviewPolicy } from '../../templates/hooks/lib/review-ledger.js';
 import type { ReviewAgent, ReviewAuthor, ReviewPolicy } from './contract.js';
+import { effectiveConfiguredRoutes } from './preferences.js';
+import { MODEL_NAME, type ReviewRoute } from './route-config.js';
+
+export type { ReviewRoute } from './route-config.js';
 
 export interface OppositeReviewPair {
   readonly author: ReviewAgent;
@@ -14,12 +18,6 @@ export interface ReviewRoutePlan {
   readonly preferred: ReviewAgent;
   readonly independentFallback: ReviewAgent;
   readonly degradedFallback: ReviewAgent;
-}
-
-export interface ReviewRoute {
-  readonly reviewer: ReviewAgent;
-  readonly model?: string;
-  readonly independence: 'cross-agent' | 'degraded';
 }
 
 export function reviewRoutePlan(author: ReviewAuthor): ReviewRoutePlan | undefined {
@@ -55,20 +53,8 @@ export function oppositeReviewPair(author: ReviewAuthor): OppositeReviewPair | u
   return plan === undefined ? undefined : { author: plan.author, reviewer: plan.preferred };
 }
 
-/**
- * An accepted alternate model value: 1-200 characters of ASCII letters, digits,
- * dot, underscore, colon, slash or hyphen, never leading with a hyphen. Real
- * model identifiers fit (`claude-sonnet-4-5-20250929`, `vendor/model:tag`);
- * whitespace, control characters, shell metacharacters and option-like values
- * do not. Safeword passes the value as its own argument and never through a
- * shell, so this is a second line of defence rather than the only one.
- */
-const MODEL_NAME = /^[\w.:/][\w.:/-]{0,199}$/u;
-
 const DEFAULT_PRIMARY_MODEL: Partial<Record<ReviewAgent, string>> = { claude: 'opus' };
 const DEFAULT_ALTERNATE_MODEL: Partial<Record<ReviewAgent, string>> = { claude: 'sonnet' };
-
-const REVIEW_AGENTS = new Set<ReviewAgent>(['claude', 'codex', 'opencode']);
 
 export function readConfiguredReviewRoutes(
   cwd: string,
@@ -76,75 +62,26 @@ export function readConfiguredReviewRoutes(
 ): readonly ReviewRoute[] | undefined {
   const plan = reviewRoutePlan(author);
   if (plan === undefined) return undefined;
-  const config = readProjectConfig(cwd);
-  if (!Object.hasOwn(config, 'crossAgentReviewRoutes')) return undefined;
-
-  const configuredRoutes = config.crossAgentReviewRoutes;
-  if (!isRecord(configuredRoutes) || Array.isArray(configuredRoutes)) {
-    throw routeConfigError('must be an object');
-  }
-  for (const configuredAuthor of Object.keys(configuredRoutes)) {
-    if (!REVIEW_AGENTS.has(configuredAuthor as ReviewAgent)) {
-      throw routeConfigError('contains an unsupported author');
-    }
-  }
-
-  const authorRoutes = configuredRoutes[plan.author];
-  if (authorRoutes === undefined) return undefined;
-  if (!Array.isArray(authorRoutes) || authorRoutes.length === 0) {
-    throw routeConfigError(`.${plan.author} must be a non-empty array`);
-  }
-
-  return authorRoutes.map((value, index) => parseReviewRoute(value, index, plan.author));
+  return effectiveConfiguredRoutes(cwd, author)?.routes;
 }
 
-function parseReviewRoute(value: unknown, index: number, author: ReviewAgent): ReviewRoute {
-  if (!isRecord(value) || Array.isArray(value)) {
-    throw routeConfigError(`.${author}[${index}] must be an object`);
-  }
-  const reviewer = value.reviewer;
-  if (typeof reviewer !== 'string' || !REVIEW_AGENTS.has(reviewer as ReviewAgent)) {
-    throw routeConfigError(`.${author}[${index}].reviewer is unsupported`);
-  }
-  const model = value.model;
-  if (model !== undefined && (typeof model !== 'string' || !MODEL_NAME.test(model))) {
-    throw routeConfigError(`.${author}[${index}].model is invalid`);
-  }
-  return reviewRoute(reviewer as ReviewAgent, model, author);
-}
-
-function reviewRoute(
-  reviewer: ReviewAgent,
-  model: string | undefined,
-  author: ReviewAgent,
-): ReviewRoute {
-  return {
-    reviewer,
-    ...(model !== undefined && { model }),
-    independence: reviewer === author ? 'degraded' : 'cross-agent',
-  };
-}
-
-function readProjectConfig(cwd: string): Record<string, unknown> {
-  try {
-    const parsed: unknown = JSON.parse(
-      readFileSync(nodePath.join(cwd, '.safeword', 'config.json'), 'utf8'),
-    );
-    return isRecord(parsed) && !Array.isArray(parsed) ? parsed : {};
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return {};
-    // Preserve the pre-ranked legacy path for projects that have not opted in.
-    // A malformed file cannot safely establish that the new key is present.
-    return {};
-  }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
-
-function routeConfigError(detail: string): Error {
-  return new Error(`Invalid crossAgentReviewRoutes configuration: ${detail}`);
+export function builtInReviewRoutes(cwd: string, author: ReviewAuthor): readonly ReviewRoute[] {
+  const plan = reviewRoutePlan(author);
+  if (plan === undefined) return [];
+  const primaryModel = readPrimaryReviewerModel(cwd, plan.preferred);
+  const alternateModel = readAlternateReviewerModel(cwd, plan.preferred);
+  return [
+    {
+      reviewer: plan.preferred,
+      ...(primaryModel !== undefined && { model: primaryModel }),
+      independence: 'cross-agent',
+    },
+    ...(alternateModel !== undefined && alternateModel !== primaryModel
+      ? [{ reviewer: plan.preferred, model: alternateModel, independence: 'cross-agent' as const }]
+      : []),
+    { reviewer: plan.independentFallback, independence: 'cross-agent' },
+    { reviewer: plan.degradedFallback, independence: 'degraded' },
+  ];
 }
 
 export function readPrimaryReviewerModel(cwd: string, reviewer: ReviewAgent): string | undefined {

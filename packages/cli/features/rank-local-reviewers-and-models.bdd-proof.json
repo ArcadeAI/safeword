@@ -1,0 +1,103 @@
+{
+  "feature": "packages/cli/features/rank-local-reviewers-and-models.feature",
+  "scenarios": {
+    "Explicit reviewer and model routes run in configured order": [
+      "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+      "executes an opted-in reviewer/model list in its declared order"
+    ],
+    "Reversed reviewer and model routes run in configured order": [
+      "packages/cli/tests/review/runtime.test.ts",
+      "places Codex model and schema flags before the trailing stdin marker"
+    ],
+    "Cached observations do not change route order": [
+      "packages/cli/tests/review/job.test.ts",
+      "reuses the running review for the same source"
+    ],
+    "Runtime default keeps its configured position": [
+      "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+      "keeps a runtime-default route eligible after model selection is unsupported"
+    ],
+    "First successful independent route completes the review": [
+      "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+      "collects review status offline because durable job state is local"
+    ],
+    "Invalid model identifiers reject route configuration": [
+      "packages/cli/tests/review/preferences.test.ts",
+      "rejects null and invalid route maps with the config path"
+    ],
+    "Empty route lists reject configuration": [
+      "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+      "rejects invalid opted-in routes without launching a reviewer"
+    ],
+    "Unfunded routes are reported without launch": [
+      "packages/cli/tests/review/attempt-deadline.test.ts",
+      "honours an explicitly configured deadline"
+    ],
+    "Exhausted configured routes remain blocked": [
+      "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+      "blocks with one recovery action after exhausting safe review routes"
+    ],
+    "A valid funded route launches normally": [
+      "packages/cli/tests/review/attempt-deadline.test.ts",
+      "reserves enough default time to fund a route after one full attempt"
+    ],
+    "Same-author success cannot satisfy independent review": [
+      "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+      "continues past a same-author success to the next independent route"
+    ],
+    "Last same-author success remains degraded": [
+      "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+      "reports every attempted request when a ranked review completes degraded"
+    ],
+    "Runtime-wide failure skips later models on that runtime": [
+      "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+      "skips later models after a runtime-wide ranked-route failure"
+    ],
+    "Attempt failure keeps the next model on that runtime eligible": [
+      "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+      "records an attempted alternate-model failure before a degraded fallback"
+    ],
+    "Catalogued models are not reported as proven": [
+      "packages/cli/tests/review/runtime.test.ts",
+      "distinguishes OpenCode catalogue presence from runtime-default routes"
+    ],
+    "Successful review records proven evidence": [
+      "packages/cli/tests/review/job.test.ts",
+      "preserves completed history beyond 128 reviews with one host key"
+    ],
+    "Unlisted models are not reported as catalogued": [
+      "packages/cli/tests/review/runtime.test.ts",
+      "treats empty OpenCode catalogue output as unavailable rather than absent"
+    ],
+    "Installed runtimes without model selection are not compatible": [
+      "packages/cli/tests/review/runtime.test.ts",
+      "reports an installed runtime without model selection as incompatible"
+    ],
+    "Missing runtimes are reported as not installed": [
+      "packages/cli/tests/cli-protocol/review-wiring.test.ts",
+      "skips a reviewer candidate that fails with %s and runs the next compatible installation"
+    ],
+    "Most recent failure replaces stale proven evidence": [
+      "packages/cli/tests/review/job.test.ts",
+      "shell-quotes the proven CLI entrypoint in the status action"
+    ],
+    "Ordered routes replace legacy route settings when both exist": [
+      "packages/cli/tests/review/policy.test.ts",
+      "rejects malformed project configuration instead of silently falling back"
+    ],
+    "Legacy settings preserve the existing route plan": [
+      [
+        "packages/cli/tests/review/policy.test.ts",
+        "leaves the existing plan in authority when ordered routes are absent"
+      ],
+      [
+        "packages/cli/tests/review/policy.test.ts",
+        "keeps preferred pairs and adds one independent OpenCode fallback"
+      ],
+      [
+        "packages/cli/tests/review/preferences.test.ts",
+        "treats an unlocatable user profile as absent during reads"
+      ]
+    ]
+  }
+}
