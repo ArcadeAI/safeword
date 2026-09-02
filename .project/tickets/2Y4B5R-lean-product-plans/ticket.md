@@ -6,7 +6,7 @@ phase: done
 status: done
 product_plan_contract: v1
 phase_anchors:
-  - implement: fb7fc5217
+  - implement: 5ff336747
   - verify: .project/tickets/2Y4B5R-lean-product-plans/test-definitions.md
   - done: .project/tickets/2Y4B5R-lean-product-plans/verify.md
 scope:
