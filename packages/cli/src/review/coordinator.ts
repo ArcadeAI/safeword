@@ -717,10 +717,9 @@ async function runDegradedFallback(
 }
 
 /**
- * The reviewer agent retried on its configured alternate model. Returns
- * undefined when no model is configured or the retry did not produce a
- * verifiable review, leaving the caller to fall back to the author's own
- * runtime exactly as before.
+ * The reviewer agent retries on its configured alternate model. The tagged
+ * result either completes the review, records why the route failed, or leaves
+ * the caller to continue to the author's fallback.
  */
 async function runAlternateModelRoute(
   input: ReviewRunInput & {
@@ -776,7 +775,7 @@ async function runAlternateModelRoute(
   if (changedResult !== undefined) return { kind: 'completed', result: changedResult };
   const assessment = assessReviewOutcome(outcome, input.reviewer, prepared.packet.dispatch_id);
   if (assessment.kind === 'failed') {
-    return failedAlternateModelRoute(input, model, assessment);
+    return resolveAlternateModelFailure(input, model, assessment);
   }
   const output = assessment.output;
 
@@ -791,7 +790,7 @@ async function runAlternateModelRoute(
   return { kind: 'completed', result };
 }
 
-function failedAlternateModelRoute(
+function resolveAlternateModelFailure(
   input: ReviewRunInput & {
     readonly author: ReviewAgent;
     readonly reviewer: ReviewAgent;
