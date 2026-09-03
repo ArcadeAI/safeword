@@ -152,29 +152,33 @@ and `results.md` in that directory. Template-shape tests are not semantic proof.
 
 ## Rule: lean-product-plans.NTB1.R4 — A Product Plan identifies the shortest credible demo of its product payoff
 
+All four scenarios below have bounded smoke evidence only: one shared-reviewer
+run per case, not full host coverage or automatic workflow execution. GREEN
+records that smoke checkpoint, not completion of every tagged surface.
+
 ### Scenario: Each Product Plan owner captures a credible Killer Demo
 
-- [x] RED: PR #3630 review found the template-shape proof non-discriminating
-- [x] GREEN: live evaluation case a accepted the concrete payoff; see results.md
-- [x] REFACTOR: moved semantic claims out of the Vitest proof lane
+- [x] RED skip: PR #3630 review exposed non-discriminating proof, not a failing runtime test
+- [x] GREEN 32eff0e2c
+- [x] REFACTOR 32eff0e2c
 - Limitation: shared owner context evaluated once, not separate host/owner paths
 
 ### Scenario: Boilerplate does not qualify as a Killer Demo
 
-- [x] RED: the prior string assertion did not exercise reviewer judgment
-- [x] GREEN: live evaluation case b rejected the unsubstituted placeholders
-- [x] REFACTOR: preserved the requirement in the manual evaluation lane
+- [x] RED skip: the prior string assertion did not exercise reviewer judgment
+- [x] GREEN 32eff0e2c
+- [x] REFACTOR 32eff0e2c
 
 ### Scenario: A working interaction without the promised payoff does not qualify
 
 - [x] RED skip: new fixed negative case, not a claimed behavior regression
-- [x] GREEN: live evaluation case c identified unchanged reconciliation pain
+- [x] GREEN 32eff0e2c
 - [x] REFACTOR skip: no additional runner or grading framework needed
 
 ### Scenario: An impressive claim without supporting evidence does not qualify
 
 - [x] RED skip: new fixed negative case, not a claimed behavior regression
-- [x] GREEN: live evaluation case d identified unsupported capabilities and proof
+- [x] GREEN 32eff0e2c
 - [x] REFACTOR skip: no additional runner or grading framework needed
 
 ## Rule: lean-product-plans.NTB1.R5 — Inapplicable planning sections create no placeholder or skip work

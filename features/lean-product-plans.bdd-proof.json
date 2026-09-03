@@ -30,12 +30,12 @@
       "scaffolds a delta-only child spec with stable references"
     ],
     "An unknown milestone is rejected when a child is created": [
-      "packages/cli/tests/commands/ticket-reconcile-parent.test.ts",
-      "rejects an unknown milestone reference"
+      "packages/cli/tests/commands/ticket-new.test.ts",
+      "rejects child creation with an unknown milestone and leaves the parent unchanged"
     ],
     "A child feature must select a declared milestone": [
       "packages/cli/tests/commands/ticket-new.test.ts",
-      "links a child to its epic both ways with --parent"
+      "rejects child creation without a milestone and leaves the parent unchanged"
     ],
     "A renamed milestone invalidates an existing child reference": [
       "packages/cli/tests/commands/ticket-reconcile-parent.test.ts",

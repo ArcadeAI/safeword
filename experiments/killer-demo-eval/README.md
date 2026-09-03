@@ -1,7 +1,8 @@
 # Killer Demo reviewer smoke evaluation
 
-Four fixed cases test judgment that template-string tests cannot prove.
-Run when changing the demo standard or its review guidance, before merging.
+Four fixed cases test basic payoff and evidence judgments, not nuanced appeal
+or reliability across unfamiliar products. Run when changing the demo standard
+in `DISCOVERY.md`, before merging.
 Owner: the author of that change. This is opt-in, spends reviewer tokens, and
 does not belong in the default Vitest suite. No customer data or external writes.
 
@@ -9,6 +10,7 @@ Use the shared reviewer, one case per review, passing only `context.md` and
 the shipped `packages/cli/templates/skills/bdd/DISCOVERY.md` as context:
 
 ```sh
+bun run --cwd packages/cli build
 bun packages/cli/dist/cli.js review run quality-review \
   --context experiments/killer-demo-eval/context.md \
   --context packages/cli/templates/skills/bdd/DISCOVERY.md \

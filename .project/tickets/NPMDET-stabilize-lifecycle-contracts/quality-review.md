@@ -118,3 +118,41 @@ packaging/parity claims from the doc-presence test. Remaining warnings:
   limitations are disclosed, not claimed as newly verified behavior in this patch.
 - Manifest tuple shapes and unreferenced additional tests use existing conventions;
   no schema redesign or new planning ceremony is warranted for this fix.
+
+## Killer Demo proof follow-up — 2026-09-03
+
+The user authorized fixing the advisory's demo-quality proof gap. Four real
+shared-coordinator reviews matched frozen expectations (accept concrete value;
+reject placeholders, unchanged pain, unsupported claims). Inputs, limitations,
+model alias and review IDs live in `experiments/killer-demo-eval/results.md`.
+Semantic scenarios now live in the manual evaluation lane, not a false Vitest
+mapping. Self-review links the existing intake standard in one additional bullet.
+
+Review `a4dcb6d5-942c-47bb-9057-375fe88ca925` requested changes. Dispositions:
+
+- **Milestone rejection proof:** confirmed the two existing mappings missed the
+  creation boundary. Added built-CLI tests for missing and unknown milestones,
+  asserting rejection, no child, and an unchanged parent; remapped both scenarios.
+- **Evidence scope:** made the shared-reviewer-only limitation apply to all four
+  ledger entries. The outline remains a requirement, not a claim of independently
+  exercised host/owner combinations. Fixed ledger syntax to reference the actual
+  evaluation checkpoint. Narrowed the eval cadence to the intake standard; it
+  does not test the self-review invocation/stamp mechanism.
+- **Easy fixtures:** retained deliberately obvious positive/negative smoke cases
+  and narrowed the description. Supplied product facts are necessary to judge
+  evidence; no expected labels are supplied. This is not subtle persuasion or
+  generalization testing. A larger benchmark is outside this fix.
+- **Lane wiring:** Gherkin lint and the proof-map suite pass after the split;
+  `cucumber.mjs` excludes `@manual` from ordinary acceptance. Rule lineage stays
+  attached to the existing ticket. No requirement or surface tag was deleted.
+- **Older self-review stamp timing and relative commands:** unchanged Tier 1
+  limitations, not new demo behavior. No gate hardening or unrelated command
+  rewrite added. Repro command now includes the source build; results identify
+  the installed 0.83.1 coordinator actually used.
+- **Other old proof limitations:** retained the earlier disclosure rather than
+  expanding this fix into a rewrite of all demand/parent-contract evaluations.
+
+Merged main `258b1055e` and regenerated conflicting assets/snapshots rather than
+choosing either side's hashes. Lifecycle result hashes are unchanged; installed
+Codex/Cursor tree hashes reflect the merged template changes. Normal-mode
+six-file verification passed 96 tests. No release or version bump.
