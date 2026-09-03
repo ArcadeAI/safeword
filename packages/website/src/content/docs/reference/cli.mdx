@@ -54,6 +54,9 @@ canonical commands below.
 | `review run`                            | mutate      | Run an independent adversarial review                                                                       |
 | `review status`                         | mutate      | Collect a durable independent review                                                                        |
 | `review cancel`                         | mutate      | Cancel a durable independent review                                                                         |
+| `review routes set`                     | mutate      | Set ranked review routes                                                                                    |
+| `review routes list`                    | observe     | List effective ranked review routes                                                                         |
+| `review routes reset`                   | mutate      | Reset ranked review routes                                                                                  |
 | `review-pr inspect`                     | mutate      | Inspect bounded pull-request evidence as untrusted data                                                     |
 | `review-pr invalidate`                  | mutate      | Remove an obsolete advisory route                                                                           |
 | `review-pr publish`                     | mutate      | Publish a validated advisory result                                                                         |
@@ -235,6 +238,14 @@ safeword retro reconcile
 safeword retro-relay-retry [request-id]
 safeword retro-relay-discard <request-id> [--confirm]
 ```
+
+`review run` keeps Claude-authored work on Codex first and Codex-authored work
+on Claude first. If that preferred independent route is exhausted, a compatible
+OpenCode 1.x CLI is tried before same-author degraded review. OpenCode-authored
+work is sent to Claude and then Codex; OpenCode self-review is never accepted as
+independent evidence. OpenCode is invoked one-shot with JSON events, a stdin
+prompt, `--pure`, deny-all tool permissions, and the shared review deadline and
+integrity checks.
 
 Supported local Claude Code and Codex installs quietly send at most one sanitized
 retrospective from an eligible session to SafeWord's public quarantine collector.

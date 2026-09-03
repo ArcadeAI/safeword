@@ -363,7 +363,7 @@ function hasReviewerIdentity(reviewer: Record<string, unknown>): boolean {
   return (
     typeof reviewer.dispatch_id === 'string' &&
     reviewer.dispatch_id.length > 0 &&
-    ['claude', 'codex'].includes(String(reviewer.reviewer_agent))
+    ['claude', 'codex', 'opencode'].includes(String(reviewer.reviewer_agent))
   );
 }
 
@@ -453,7 +453,9 @@ function isActiveJobPastDeadline(record: ReviewJobRecord): boolean {
 }
 
 function failTimedOutJob(cwd: string, record: ReviewJobRecord): CliResult {
-  if (record.pid !== undefined) terminateReviewWorker(record.pid);
+  if (record.pid !== undefined && inspectReviewWorker(record.pid, record.id) === 'match') {
+    terminateReviewWorker(record.pid);
+  }
   const failed = createResult({
     state: 'failed',
     errors: [
@@ -874,6 +876,87 @@ function latestJobId(cwd: string): string | undefined {
     )[0]?.record.id;
 }
 
+export interface ReviewRouteProof {
+  readonly reviewer: string;
+  readonly model?: string;
+  readonly runtime_default: boolean;
+  readonly proof: 'proven' | 'known_failure';
+  readonly failure?: string;
+  readonly observed_at: string;
+}
+
+// eslint-disable-next-line complexity -- Integrity proof requires each route field to be validated independently.
+function routeProofFromValue(
+  value: unknown,
+  actualReviewer: unknown,
+  observedAt: string,
+): ReviewRouteProof | undefined {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined;
+  const route = value as Record<string, unknown>;
+  if (
+    typeof route.reviewer !== 'string' ||
+    !['attempted', 'unavailable'].includes(String(route.status))
+  )
+    return undefined;
+  const model = typeof route.model === 'string' ? route.model : undefined;
+  const failure = typeof route.failure === 'string' ? route.failure : undefined;
+  const proven = failure === undefined && actualReviewer === route.reviewer;
+  if (!proven && failure === undefined) return undefined;
+  return {
+    reviewer: route.reviewer,
+    ...(model !== undefined && { model }),
+    runtime_default: model === undefined,
+    proof: proven ? 'proven' : 'known_failure',
+    ...(failure !== undefined && { failure }),
+    observed_at: observedAt,
+  };
+}
+
+function routeProofsFromRecord(record: ReviewJobRecord): readonly ReviewRouteProof[] {
+  const data = record.result?.data;
+  if (typeof data !== 'object' || data === null || Array.isArray(data)) return [];
+  const resultData = data as Record<string, unknown>;
+  const routes = resultData.review_routes;
+  return Array.isArray(routes)
+    ? routes.flatMap(value => {
+        const proof = routeProofFromValue(value, resultData.actual_reviewer, record.updated_at);
+        return proof === undefined ? [] : [proof];
+      })
+    : [];
+}
+
+/** Most recent integrity-validated evidence for each exact reviewer/model route. */
+export function readReviewRouteProofs(cwd: string): readonly ReviewRouteProof[] {
+  const directory = jobsDirectory(cwd);
+  // Status evidence is observational: without an existing integrity key it
+  // cannot validate prior jobs and must not create state merely by reading.
+  if (!existsSync(directory) || !existsSync(integrityKeyPath())) return [];
+  let entries: string[];
+  try {
+    entries = readdirSync(directory);
+  } catch {
+    return [];
+  }
+  const records = entries
+    .flatMap(name => {
+      if (!/^[a-f\d-]{36}\.json$/u.test(name)) return [];
+      try {
+        return [readJob(cwd, name.slice(0, -5))];
+      } catch {
+        return [];
+      }
+    })
+    .toSorted((left, right) => right.updated_at.localeCompare(left.updated_at));
+  const proofs = new Map<string, ReviewRouteProof>();
+  for (const record of records) {
+    for (const proof of routeProofsFromRecord(record)) {
+      const key = `${proof.reviewer}\0${proof.model ?? '<runtime-default>'}`;
+      if (!proofs.has(key)) proofs.set(key, proof);
+    }
+  }
+  return proofs.values().toArray();
+}
+
 function runningJob(
   cwd: string,
   kind: ReviewKind,
@@ -962,7 +1045,7 @@ export function reviewJobStatus(cwd: string, requestedId?: string): CliResult {
 export function cancelReviewJob(cwd: string, requestedId?: string): CliResult {
   try {
     const id = requestedId ?? latestJobId(cwd);
-    if (id === undefined) return reviewJobStatus(cwd, id);
+    if (id === undefined) return asCancelResult(reviewJobStatus(cwd, id));
     const canceled = withJobLock(cwd, id, () => {
       const record = readJob(cwd, id);
       if (record.state !== 'launching' && record.state !== 'running') return record;
@@ -980,10 +1063,18 @@ export function cancelReviewJob(cwd: string, requestedId?: string): CliResult {
       };
       return writeJob(cwd, next);
     });
-    return currentResult(cwd, canceled);
+    return asCancelResult(currentResult(cwd, canceled));
   } catch {
-    return reviewJobStatus(cwd, requestedId);
+    return asCancelResult(reviewJobStatus(cwd, requestedId));
   }
+}
+
+function asCancelResult(result: CliResult): CliResult {
+  return {
+    ...result,
+    effects: { ...result.effects, network: [] },
+    data: { ...(result.data as Record<string, unknown>), command: 'review cancel' },
+  };
 }
 
 function isJobId(value: string): boolean {

@@ -1,7 +1,13 @@
 import { readFileSync } from 'node:fs';
 
+import { Command } from 'commander';
 import { describe, expect, it } from 'vitest';
 
+import {
+  addGlobalOptions,
+  readCommandOptions,
+  readGlobalOptions,
+} from '../../src/cli-protocol/execute.js';
 import { createCliProgram, normalizeCliArgv } from '../../src/cli-protocol/program.js';
 
 function commandRoutes(program: ReturnType<typeof createCliProgram>): string[] {
@@ -21,6 +27,14 @@ function commandRoutes(program: ReturnType<typeof createCliProgram>): string[] {
 }
 
 describe('production CLI program factory', () => {
+  it('maps Commander negated input state to no-input without leaking a command option', () => {
+    const command = addGlobalOptions(new Command()).exitOverride();
+    command.parse(['node', 'safeword', '--no-input']);
+
+    expect(readGlobalOptions(command).noInput).toBe(true);
+    expect(readCommandOptions(command)).not.toHaveProperty('input');
+  });
+
   it('assembles the complete production tree without touching process state', () => {
     const argvBefore = [...process.argv];
     const environmentBefore = { ...process.env };
