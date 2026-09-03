@@ -2,16 +2,8 @@
   "feature": "packages/cli/features/opencode-independent-review-fallback.feature",
   "scenarios": {
     "Existing author pairings remain preferred": [
-      [
-        "packages/cli/tests/cli-protocol/opencode-review-proof.test.ts",
-        "keeps $reviewer preferred for $author while OpenCode is available",
-        "[\"codex\",\"claude\"]"
-      ],
-      [
-        "packages/cli/tests/cli-protocol/opencode-review-proof.test.ts",
-        "keeps $reviewer preferred for $author while OpenCode is available",
-        "[\"claude\",\"codex\"]"
-      ]
+      "packages/cli/tests/cli-protocol/opencode-review-proof.test.ts",
+      "keeps $reviewer preferred for $author while OpenCode is available"
     ],
     "A retryable preferred-reviewer failure stays on the preferred route": [
       "packages/cli/tests/cli-protocol/opencode-review-proof.test.ts",
@@ -22,8 +14,8 @@
       "skips an alternate-model route when the reviewer does not advertise model selection"
     ],
     "OpenCode independently reviews Claude-authored work after Codex cannot complete": [
-      "packages/cli/tests/cli-protocol/review-wiring.test.ts",
-      "uses OpenCode as an independent fallback before same-agent degraded review"
+      "packages/cli/tests/cli-protocol/opencode-review-proof.test.ts",
+      "prefers independent OpenCode fallback over same-author feedback"
     ],
     "OpenCode independent evidence satisfies the required review gate": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
@@ -31,8 +23,7 @@
     ],
     "OpenCode independently reviews Codex-authored work after Claude cannot complete": [
       "packages/cli/tests/cli-protocol/opencode-review-proof.test.ts",
-      "uses $reviewer independently for $author after $failed fails",
-      "[\"opencode\",\"codex\",\"claude\"]"
+      "uses OpenCode independently for Codex authors after Claude routes fail"
     ],
     "OpenCode starts when the shared deadline leaves exactly one route budget": [
       "packages/cli/tests/cli-protocol/opencode-review-proof.test.ts",
@@ -48,13 +39,11 @@
     ],
     "Claude is the preferred reviewer for OpenCode-authored work": [
       "packages/cli/tests/cli-protocol/opencode-review-proof.test.ts",
-      "keeps $reviewer preferred for $author while OpenCode is available",
-      "[\"claude\",\"opencode\"]"
+      "prefers Claude for OpenCode authors with every reviewer available"
     ],
     "Codex reviews OpenCode-authored work when Claude cannot complete": [
       "packages/cli/tests/cli-protocol/opencode-review-proof.test.ts",
-      "uses $reviewer independently for $author after $failed fails",
-      "[\"codex\",\"opencode\",\"claude\"]"
+      "uses Codex independently for OpenCode authors after Claude routes fail"
     ],
     "OpenCode self-review cannot satisfy independence": [
       "packages/cli/tests/cli-protocol/opencode-review-proof.test.ts",
@@ -65,33 +54,16 @@
       "accepts one closed OpenCode result as required independent evidence"
     ],
     "Ambiguous OpenCode output is rejected": [
-      [
-        "packages/cli/tests/cli-protocol/opencode-review-proof.test.ts",
-        "rejects OpenCode $behavior output without independent evidence",
-        "malformed"
-      ],
-      [
-        "packages/cli/tests/cli-protocol/opencode-review-proof.test.ts",
-        "rejects OpenCode $behavior output without independent evidence",
-        "incomplete"
-      ]
+      "packages/cli/tests/cli-protocol/opencode-review-proof.test.ts",
+      "rejects ambiguous OpenCode $behavior output"
     ],
     "An oversized OpenCode event stream is rejected": [
       "packages/cli/tests/cli-protocol/opencode-review-proof.test.ts",
-      "rejects OpenCode $behavior output without independent evidence",
-      "oversized"
+      "rejects an oversized OpenCode event stream without evidence"
     ],
     "Invalid OpenCode provenance is rejected": [
-      [
-        "packages/cli/tests/cli-protocol/opencode-review-proof.test.ts",
-        "rejects OpenCode $behavior output without independent evidence",
-        "missing"
-      ],
-      [
-        "packages/cli/tests/cli-protocol/opencode-review-proof.test.ts",
-        "rejects OpenCode $behavior output without independent evidence",
-        "contradictory"
-      ]
+      "packages/cli/tests/cli-protocol/opencode-review-proof.test.ts",
+      "rejects OpenCode $behavior provenance"
     ],
     "A mismatched OpenCode dispatch blocks the required command": [
       "packages/cli/tests/cli-protocol/review-wiring.test.ts",
@@ -111,13 +83,11 @@
     ],
     "A timed-out OpenCode route records no evidence": [
       "packages/cli/tests/cli-protocol/opencode-review-proof.test.ts",
-      "rejects OpenCode $behavior output without independent evidence",
-      "timeout"
+      "records a timed-out OpenCode route without evidence"
     ],
     "A failed OpenCode process records no evidence": [
       "packages/cli/tests/cli-protocol/opencode-review-proof.test.ts",
-      "rejects OpenCode $behavior output without independent evidence",
-      "process"
+      "records a failed OpenCode process without evidence"
     ],
     "Unsupported authors do not gain an OpenCode route": [
       "packages/cli/tests/cli-protocol/opencode-review-proof.test.ts",

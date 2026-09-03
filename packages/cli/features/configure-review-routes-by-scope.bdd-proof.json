@@ -35,11 +35,11 @@
     ],
     "Effective list reports source order and runtime defaults": [
       "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
-      "lists exact user routes when project routes are absent"
+      "explains user source and model defaults in the human route listing"
     ],
     "Effective list reports a project override": [
       "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
-      "lists only project routes when both scopes configure the author"
+      "explains the project override in the human route listing"
     ],
     "Malformed scoped configuration fails visibly": [
       "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
@@ -79,13 +79,11 @@
     ],
     "First user-scope set creates one profile outside the project": [
       "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
-      "creates only the selected config on first %s write",
-      "user"
+      "creates the first user profile without adding project files"
     ],
     "First project-scope set creates the project config": [
       "packages/cli/tests/cli-protocol/review-routes-wiring.test.ts",
-      "creates only the selected config on first %s write",
-      "project"
+      "creates the first project config without creating a user profile"
     ]
   }
 }
