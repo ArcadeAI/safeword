@@ -38445,7 +38445,7 @@ function claudeInstallRequiresMutation(cwd, scope) {
     return true;
   }
 }
-function installClaudePlugin(cwd, scope = "project") {
+function installClaudePlugin(cwd, scope = "user") {
   const effects = [];
   try {
     const projectRoot = canonicalClaudeProjectRoot(cwd);
@@ -38474,7 +38474,7 @@ function installClaudePlugin(cwd, scope = "project") {
     return failedResult(error2, scope);
   }
 }
-function uninstallClaudePlugin(cwd, scope = "project") {
+function uninstallClaudePlugin(cwd, scope = "user") {
   const effects = [];
   try {
     const projectRoot = canonicalClaudeProjectRoot(cwd);
@@ -46000,7 +46000,7 @@ async function profilePreconditions(cwd, agents, scope, operation) {
   return observations.filter((observation) => observation !== false);
 }
 async function prepareLifecycle(cwd, operation, agents, options = {}) {
-  const { full = false, install: installOptions = {}, scope = "project" } = options;
+  const { full = false, install: installOptions = {}, scope = "user" } = options;
   const uninstalling = operation === "uninstall";
   const projectSchema = projectLifecycleSchema(cwd, agents, operation);
   const uninstallOperation = full ? "uninstall-full" : "uninstall";
@@ -46086,7 +46086,9 @@ function installReplayFlags(options) {
   ].filter((flag) => flag !== undefined).map((flag) => ` ${flag}`).join("");
 }
 function lifecycleScope(value, command, agents) {
-  if (value === undefined || value === "project")
+  if (value === undefined)
+    return { ok: true, value: agents.includes("claude") ? "user" : "project" };
+  if (value === "project")
     return { ok: true, value: "project" };
   if (value === "user" && agents.includes("claude"))
     return { ok: true, value: "user" };
@@ -53676,13 +53678,13 @@ var require_structured_source = __commonJS((exports) => {
   exports.StructuredSource = StructuredSource;
 });
 
-// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/helper/invariant.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/helper/invariant.js
 function invariant(condition, message) {
   if (!condition)
     throw new Error(message);
 }
 
-// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/SecretLintSourceCodeImpl.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/SecretLintSourceCodeImpl.js
 class SecretLintSourceCodeImpl {
   hasBOM;
   content;
@@ -53739,7 +53741,7 @@ var init_SecretLintSourceCodeImpl = __esm(() => {
   import_structured_source = __toESM(require_structured_source(), 1);
 });
 
-// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/helper/promise-event-emitter.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/helper/promise-event-emitter.js
 class EventEmitter2 {
   #listeners = new Map;
   on(type, listener) {
@@ -53799,7 +53801,7 @@ class PromiseEventEmitter {
   }
 }
 
-// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/helper/SecretLintRuleMessageTranslator.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/helper/SecretLintRuleMessageTranslator.js
 var DEFAULT_LOCAL = "en", formatMessage = (messageHandler, props) => {
   if (typeof props !== "object" || props === null) {
     return messageHandler();
@@ -53860,7 +53862,7 @@ var DEFAULT_LOCAL = "en", formatMessage = (messageHandler, props) => {
   };
 };
 
-// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/RuleContext.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/RuleContext.js
 var createContextEvents = () => {
   const contextEvents = new EventEmitter2;
   const REPORT_SYMBOL = Symbol("report");
@@ -53945,7 +53947,7 @@ var createContextEvents = () => {
 };
 var init_RuleContext = () => {};
 
-// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/SecretLintRuleImpl.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/SecretLintRuleImpl.js
 class SecretLintRule {
   ruleReportHandle;
   ruleCreator;
@@ -53987,39 +53989,16 @@ class SecretLintRule {
   }
 }
 
-// ../../node_modules/.bun/@secretlint+profiler@13.0.5/node_modules/@secretlint/profiler/module/index.js
+// ../../node_modules/.bun/@secretlint+profiler@13.0.4/node_modules/@secretlint/profiler/module/index.js
 class SecretLintProfiler {
   perf;
-  PerformanceObserver;
-  observer;
-  enabled;
   entries = [];
   measures = [];
-  startMarkNames = new Set;
   executionPromises = [];
   constructor(options) {
     this.perf = options.perf;
-    this.PerformanceObserver = options.PerformanceObserver;
-    this.enabled = options.enabled ?? true;
-  }
-  get isEnabled() {
-    return this.enabled;
-  }
-  setEnabled(enabled) {
-    if (this.enabled === enabled) {
-      return;
-    }
-    this.enabled = enabled;
-    if (!enabled) {
-      this.stopObserving();
-    }
-  }
-  startObserving() {
     const pattern = /(.*?)::end(\|\|.*)?/;
-    const observer = new this.PerformanceObserver((items) => {
-      if (!this.enabled) {
-        return;
-      }
+    const observer = new options.PerformanceObserver((items) => {
       const entries = items.getEntries();
       entries.forEach((entry2) => {
         if (entry2.entryType === "mark") {
@@ -54027,14 +54006,15 @@ class SecretLintProfiler {
           const endIdentifier = match ? match[1] : undefined;
           const suffix = match && match[2] ? match[2] : "";
           if (endIdentifier) {
-            const startMarkName = `${endIdentifier}::start${suffix}`;
-            if (this.startMarkNames.has(startMarkName)) {
+            const startIdentifier = `${endIdentifier}::start`;
+            this.entries.find((savedEntry) => {
+              return savedEntry.name === startIdentifier;
+            });
+            if (startIdentifier) {
               this.executionPromises.push(Promise.resolve().then(() => {
-                this.perf.measure(endIdentifier + suffix, startMarkName, entry2.name);
+                this.perf.measure(endIdentifier + suffix, `${endIdentifier}::start${suffix}`, `${endIdentifier}::end${suffix}`);
               }));
             }
-          } else {
-            this.startMarkNames.add(entry2.name);
           }
           this.entries.push(entry2);
         } else if (entry2.entryType === "measure") {
@@ -54043,23 +54023,8 @@ class SecretLintProfiler {
       });
     });
     observer.observe({ entryTypes: ["mark", "measure"] });
-    this.observer = observer;
-  }
-  stopObserving() {
-    this.observer?.disconnect();
-    this.observer = undefined;
-    this.entries.length = 0;
-    this.measures.length = 0;
-    this.executionPromises.length = 0;
-    this.startMarkNames.clear();
   }
   mark(marker) {
-    if (!this.enabled) {
-      return;
-    }
-    if (!this.observer) {
-      this.startObserving();
-    }
     if ("id" in marker) {
       this.perf.mark(`${marker.type}||${marker.id}`);
     } else {
@@ -54081,7 +54046,7 @@ class SecretLintProfiler {
   }
 }
 
-// ../../node_modules/.bun/@secretlint+profiler@13.0.5/node_modules/@secretlint/profiler/module/node.js
+// ../../node_modules/.bun/@secretlint+profiler@13.0.4/node_modules/@secretlint/profiler/module/node.js
 import perf_hooks from "perf_hooks";
 
 class NullPerformanceObserver {
@@ -54096,7 +54061,7 @@ var init_node = __esm(() => {
   });
 });
 
-// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/RunningEvents.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/RunningEvents.js
 var createRunningEvents = () => {
   const contextEvents = new PromiseEventEmitter;
   const registerSet = new Set;
@@ -54153,7 +54118,7 @@ var init_RunningEvents = __esm(() => {
   init_node();
 });
 
-// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/RulePresetContext.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/RulePresetContext.js
 var createRulePresetContext = ({ configRulePreset, sourceCode, runningEvents, contextEvents, sharedOptions, locale }) => {
   const presetRules = configRulePreset.rules || [];
   if (!Array.isArray(presetRules)) {
@@ -54201,7 +54166,7 @@ var init_RulePresetContext = __esm(() => {
   init_RuleContext();
 });
 
-// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/messages/filter-ignored-process.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/messages/filter-ignored-process.js
 function filterIgnoredMessages(options) {
   const reportedMessages = options.reportedMessages;
   const ignoreMessages = options.ignoredMessages;
@@ -54223,7 +54188,7 @@ var isContainedRange = (index, range) => {
   return start <= index && index <= end;
 };
 
-// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/messages/MessageProcessManager.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/messages/MessageProcessManager.js
 var createMessageProcessor = (processors) => {
   return {
     process(messages2) {
@@ -54238,7 +54203,7 @@ var createMessageProcessor = (processors) => {
   };
 };
 
-// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/messages/filter-duplicated-process.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/messages/filter-duplicated-process.js
 function filterDuplicatedMessages(messages2 = []) {
   return messages2.filter((message, index) => {
     const restMessages = messages2.slice(index + 1);
@@ -54251,7 +54216,7 @@ var isEqualMessage = (aMessage, bMessage) => {
   return aMessage.range[0] === bMessage.range[0] && aMessage.range[1] === bMessage.range[1] && "severity" in aMessage && "severity" in bMessage && aMessage.severity === bMessage.severity && aMessage.message === bMessage.message;
 };
 
-// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/messages/sort-messages-process.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/messages/sort-messages-process.js
 function sortMessagesByLocation(messages2) {
   return messages2.sort(function(a, b) {
     const startIndexDiff = a.range[0] - b.range[0];
@@ -54263,7 +54228,7 @@ function sortMessagesByLocation(messages2) {
   });
 }
 
-// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/messages/filter-message-id.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/messages/filter-message-id.js
 var filterByAllowMessageIds = (messages2, allowMessageIds) => {
   const disabledSet = new Set(allowMessageIds.map((allowMessage) => {
     return `${allowMessage.ruleId}--${allowMessage.messageId}`;
@@ -54273,7 +54238,7 @@ var filterByAllowMessageIds = (messages2, allowMessageIds) => {
   });
 };
 
-// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/messages/filter-mask-secrets.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/messages/filter-mask-secrets.js
 var deepMask = (object, handler) => {
   for (const key of Object.keys(object)) {
     if (typeof object[key] === "object") {
@@ -54315,7 +54280,7 @@ var deepMask = (object, handler) => {
   });
 };
 
-// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/messages/index.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/messages/index.js
 var cleanupMessages = (options) => {
   const reportedMessages = filterIgnoredMessages(options);
   const reportedMessagesWithoutAllowMessageIds = filterByAllowMessageIds(reportedMessages, options.allowMessageIds);
@@ -55103,7 +55068,7 @@ var require_src = __commonJS((exports, module) => {
   }
 });
 
-// ../../node_modules/.bun/@secretlint+core@13.0.5/node_modules/@secretlint/core/module/index.js
+// ../../node_modules/.bun/@secretlint+core@13.0.4/node_modules/@secretlint/core/module/index.js
 var import_debug, debug, lintSource = ({ source, options }) => {
   secretLintProfiler.mark({
     type: "@core>lint::start",
@@ -55230,7 +55195,7 @@ var init_module = __esm(() => {
   debug = import_debug.default("@secretlint/core");
 });
 
-// ../../node_modules/.bun/@secretlint+secretlint-rule-preset-recommend@13.0.5/node_modules/@secretlint/secretlint-rule-preset-recommend/module/index.js
+// ../../node_modules/.bun/@secretlint+secretlint-rule-preset-recommend@13.0.4/node_modules/@secretlint/secretlint-rule-preset-recommend/module/index.js
 import path4 from "path";
 function requireLodash_uniq() {
   if (hasRequiredLodash_uniq)
@@ -67157,7 +67122,7 @@ async function installHandler(invocation) {
 async function claudeInstallHandler(invocation) {
   if (invocation.offline)
     return onlineRequired("claude install");
-  const requestedScope = invocation.options.scope ?? "project";
+  const requestedScope = invocation.options.scope ?? "user";
   if (requestedScope !== "project" && requestedScope !== "user") {
     return createResult({
       state: "failed",
@@ -69079,7 +69044,7 @@ function claudeScopeOption() {
   return {
     flags: "--scope <scope>",
     description: "Claude activation boundary: this project or the current user profile",
-    defaultValue: "project",
+    defaultValue: "user",
     valueKind: "claude-plugin-scope"
   };
 }
@@ -69844,7 +69809,7 @@ function readGlobalOptions(command2) {
   };
 }
 function readCommandOptions(command2) {
-  return Object.fromEntries(Object.entries(command2.optsWithGlobals()).filter(([name]) => !GLOBAL_OPTION_KEYS.has(name)));
+  return Object.fromEntries(Object.entries(command2.optsWithGlobals()).filter(([name]) => !GLOBAL_OPTION_KEYS.has(name) && !(name === "scope" && command2.getOptionValueSourceWithGlobals(name) === "default")));
 }
 function reportResult(result, options, commandName, delivery) {
   let reportableResult = result;

@@ -1487,7 +1487,7 @@ Then(
 );
 
 Then(
-  'the result records the project plugin install and recommends reloading it',
+  'the result records the user plugin install and recommends reloading it',
   function (this: NativeClaudePluginWorld) {
     assert.equal(this.lifecycle?.result?.status, 2, this.lifecycle?.result?.output);
     const result = JSON.parse(this.lifecycle?.result?.output ?? '') as {
@@ -1505,7 +1505,7 @@ Then(
         effect =>
           effect.kind === 'install' &&
           effect.target === 'safeword@safeword' &&
-          effect.operation === 'project',
+          effect.operation === 'user',
       ),
       JSON.stringify(result),
     );

@@ -62,14 +62,13 @@ OpenCode Desktop remains advisory until it reliably dispatches the same hooks.
 bunx safeword@latest doctor
 ```
 
-**Claude activation scope.** `install` records Claude activation for this
-project in `.claude/settings.json`, so the repository declares its dependency
-and collaborators are prompted to install it after trusting the folder. Add
-`--scope user` to activate Safeword across every project in your Claude
-profile instead:
+**Claude activation scope.** `install` activates Safeword across every project
+in your Claude user profile by default. Add `--scope project` to limit
+activation to this repository and record it in `.claude/settings.json`, so
+collaborators are prompted to install it after trusting the folder:
 
 ```bash
-bunx safeword@latest install --agents=claude --scope user
+bunx safeword@latest install --agents=claude --scope project
 bunx safeword@latest claude status
 ```
 
@@ -77,8 +76,8 @@ Existing projects keep their working legacy Claude hooks until the exact current
 plugin successfully handles a prompt. That prompt then retires every byte and
 hook entry Safeword can prove came from a supported release. Clean migration is
 silent; edited, third-party, symlinked, or otherwise unrecognized content stays
-untouched and produces one plain-language advisory per Claude session. The
-project-scoped marketplace and enablement declarations remain committed so the
+untouched and produces one plain-language advisory per Claude session. When using
+`--scope project`, the project-scoped marketplace and enablement declarations remain committed so the
 next trusted teammate is offered the plugin normally.
 
 The explicit commands remain available for diagnosis and recovery:
@@ -121,8 +120,8 @@ legacy content is preserved and reported instead.
 - `.safeword/guides/` - Testing methodology (BDD/TDD), code philosophy
 - `.safeword/skills/` - Canonical project-local skill references when Cursor is selected
 - `.safeword/hooks/` - Auto-linting, quality review hooks
-- `.claude/settings.json` - Project-scoped Safeword Claude activation by default
-- Safeword Claude plugin - Native workflows and hooks cached by Claude; use `safeword install --agents=claude --scope user` for profile-wide activation
+- `.claude/settings.json` - Project-scoped Safeword Claude activation with `--scope project`
+- Safeword Claude plugin - Native workflows and hooks cached by Claude; `safeword install --agents=claude` activates them profile-wide by default
 - `.codex/config.toml` - Project bootstrap that enrolls each Codex profile at task start
 - Safeword Codex plugin - Profile-scoped skills and hooks following the verified `stable` channel
 - `.opencode/commands/` and `.opencode/agents/` - Native OpenCode catalogue bridges, installed only when selected
@@ -139,7 +138,7 @@ legacy content is preserved and reported instead.
 
 **Stack-agnostic** — Safeword is a process layer, not a framework opinion. It works alongside any stack — Next, Elysia, Astro, Django, Gin, whatever you use. Your application code and runtime dependencies are never touched.
 
-**Your agent config stays yours** — Safeword-owned hooks load `.safeword/SAFEWORD.md` for Claude Code, Cursor, and Codex. Claude plugin installation defaults to project-scoped activation in `.claude/settings.json`, while `--scope user` remains available for profile-wide activation; explicit native-update opt-outs are preserved. Codex install merges only its marked SessionStart bootstrap into `.codex/config.toml` and preserves unrelated configuration. Install does not create or add imports to customer-owned `AGENTS.md` or `CLAUDE.md`; existing project instructions remain yours.
+**Your agent config stays yours** — Safeword-owned hooks load `.safeword/SAFEWORD.md` for Claude Code, Cursor, and Codex. Claude plugin installation defaults to profile-wide activation, while `--scope project` records project-scoped activation in `.claude/settings.json`; explicit native-update opt-outs are preserved. Codex install merges only its marked SessionStart bootstrap into `.codex/config.toml` and preserves unrelated configuration. Install does not create or add imports to customer-owned `AGENTS.md` or `CLAUDE.md`; existing project instructions remain yours.
 
 **Dev-only tools** — Safeword installs ESLint, Prettier, supporting plugins, `jiti` for TypeScript config loading, plus the Gherkin acceptance lane (cucumber-js + tsx), as `devDependencies` — in every project. A pure Go/Python/Rust repo gets a minimal `private: true` package.json created to host them (the lane's step definitions are TypeScript and test your app from the outside). These are development tools — they never ship with your application or affect your runtime.
 

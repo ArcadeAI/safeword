@@ -251,7 +251,7 @@ describe('CLI command catalog', () => {
     const claudeInstall = data.commands.find(command => command.name === 'claude install');
     const codexInstall = data.commands.find(command => command.name === 'codex install');
     expect(claudeInstall?.options).toEqual([
-      expect.objectContaining({ flags: '--scope <scope>', default_value: 'project' }),
+      expect.objectContaining({ flags: '--scope <scope>', default_value: 'user' }),
     ]);
     expect(codexInstall?.options).toEqual([]);
 

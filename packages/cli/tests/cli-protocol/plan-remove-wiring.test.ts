@@ -313,7 +313,7 @@ describe('plan and remove wiring', () => {
     expect(envelope.next_actions[0]?.command).toContain('--agents=claude,codex,cursor');
   });
 
-  it('binds install plans to the requested Claude scope and its observed state', async () => {
+  it('defaults install plans to user scope and its observed state', async () => {
     const directory = createTemporaryDirectory();
     configureMinimalProject(directory);
     const { bin, claudeConfig } = createUserScopedClaudeHost(directory);
@@ -323,16 +323,7 @@ describe('plan and remove wiring', () => {
     };
 
     const preview = await runCli(
-      [
-        'plan',
-        'install',
-        '--agents=claude',
-        '--scope=user',
-        '--json',
-        '--no-input',
-        '--cwd',
-        directory,
-      ],
+      ['plan', 'install', '--agents=claude', '--json', '--no-input', '--cwd', directory],
       { cwd: directory, env: environment },
     );
     const envelope = JSON.parse(preview.stdout) as {

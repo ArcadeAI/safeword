@@ -39,11 +39,11 @@ Feature: Ship Safeword as a native Claude Code plugin
         | packed string    | v0.70.0         | 0.70.0        |
         | flattened fields | v0.71.0         | 0.71.0        |
 
-    Scenario: Fresh setup installs the project-scoped plugin without writing legacy Claude assets
+    Scenario: Fresh setup installs the user-scoped plugin without writing legacy Claude assets
       Given a project that has never installed Safeword
       When safeword setup runs for native Claude delivery
       Then project-owned Safeword state is created
-      And the exact official Safeword plugin is enabled at project scope for the current project
+      And the exact official Safeword plugin is enabled at user scope for the current project
       And no Claude-only legacy hooks, skills, commands, or agents are materialized
       And no Cursor configuration is materialized
       And the result names /reload-plugins as the sole immediate action
@@ -134,7 +134,7 @@ Feature: Ship Safeword as a native Claude Code plugin
       Given an existing project has viable legacy Claude protection and arbitrary profile state
       When ordinary safeword setup upgrades the project
       Then every viable legacy asset and unrelated Claude profile state are preserved
-      And the result records the project plugin install and recommends reloading it
+      And the result records the user plugin install and recommends reloading it
 
   @native-claude-plugin.TBU1.R3 @surface.claude-code @surface.safeword-cli
   Rule: native-claude-plugin.TBU1.R3 — Framework code executes from the installed versioned plugin while project state remains in the repository
