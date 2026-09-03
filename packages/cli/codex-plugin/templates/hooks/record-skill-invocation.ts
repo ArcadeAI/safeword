@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { appendFileSync, mkdirSync } from 'node:fs';
+import { appendFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
@@ -8,7 +8,8 @@ import {
   readFreshCodexRunIdentity,
   readFreshCursorRunIdentity,
 } from './lib/cursor-run-identity.ts';
-import { resolveNamespaceRoot } from './lib/namespace-root.ts';
+import { hasSafewordProjectMarker, resolveNamespaceRoot } from './lib/namespace-root.ts';
+import { ensureTransientStateIgnore } from './lib/project-state.ts';
 import { resolveRunIdentity } from './lib/run-identity.ts';
 import { SKILL_INVOCATIONS_LOG } from './lib/skill-invocation-log.ts';
 
@@ -44,9 +45,12 @@ export function recordSkillInvocation(
   projectDirectory: string,
   skillName: string,
   sessionId?: string,
-): void {
+): boolean {
   if (!SKILL_NAME_PATTERN.test(skillName)) {
     throw new Error(`Invalid skill name "${skillName}"`);
+  }
+  if (!hasSafewordProjectMarker(projectDirectory)) {
+    throw new Error('No invocation proof was recorded because this repository is not enrolled.');
   }
   const proofSessionKey = resolveProofSessionKey({
     projectDirectory,
@@ -55,16 +59,17 @@ export function recordSkillInvocation(
   });
   if (proofSessionKey === undefined) {
     // Runtimes without a compatible run identity cannot produce gate proof.
-    return;
+    return false;
   }
 
   const namespaceRoot = resolveNamespaceRoot(projectDirectory);
-  mkdirSync(namespaceRoot, { recursive: true });
+  ensureTransientStateIgnore(projectDirectory, SKILL_INVOCATIONS_LOG);
   appendFileSync(
     nodePath.join(namespaceRoot, SKILL_INVOCATIONS_LOG),
     `${new Date().toISOString()} ${proofSessionKey} ${skillName}\n`,
     'utf8',
   );
+  return true;
 }
 
 if (import.meta.main) {

@@ -275,10 +275,11 @@ async function profilePreconditions(
   agents: readonly AgentIntegration[],
   scope: 'project' | 'user',
   operation: 'install' | 'uninstall',
+  observedAgents: readonly string[] = agents,
 ): Promise<ProfilePrecondition[]> {
   const observations = await coordinateSelectedIntegrations(
     PRODUCTION_INTEGRATIONS,
-    agents,
+    observedAgents,
     async adapter => {
       if (!adapter.profile.available) return false;
       return {
@@ -305,21 +306,18 @@ async function prepareLifecycle(
 ): Promise<PreparedLifecycle> {
   const { full = false, install: installOptions = {}, scope = 'project' } = options;
   const uninstalling = operation === 'uninstall';
-  const projectSchema = projectLifecycleSchema(cwd, agents, operation);
-  const uninstallOperation = full ? 'uninstall-full' : 'uninstall';
-  const project = uninstalling
-    ? await createReconciliationPlan(cwd, uninstallOperation, projectSchema)
-    : {
-        plan: await createSetupPlan(cwd, projectSchema, installOptions),
-        dryRun: undefined,
-      };
-  const observations = await profilePreconditions(cwd, agents, scope, operation);
+  const selected = new Set<string>(agents);
+  // Unselected profiles also depend on enrollment. Observe them for retention
+  // and plan freshness, but never include their effects in the selected plan.
+  const observedAgents =
+    uninstalling && agents.length > 0 ? PRODUCTION_INTEGRATIONS.map(adapter => adapter.id) : agents;
+  const observations = await profilePreconditions(cwd, agents, scope, operation, observedAgents);
   const observationByAgent = new Map(
     observations.map(observation => [observation.agent, observation.observation]),
   );
-  const integrationSurfaces = await coordinateSelectedIntegrations(
+  const observedSurfaces = await coordinateSelectedIntegrations(
     PRODUCTION_INTEGRATIONS,
-    agents,
+    observedAgents,
     async adapter => ({
       name: adapter.id,
       effects: await adapter.effects({
@@ -331,6 +329,18 @@ async function prepareLifecycle(
       }),
     }),
   );
+  const remainingNativeProfile = observedSurfaces.some(
+    surface => !selected.has(surface.name) && surface.effects.destructive.length > 0,
+  );
+  const projectSchema = projectLifecycleSchema(cwd, agents, operation, remainingNativeProfile);
+  const uninstallOperation = full ? 'uninstall-full' : 'uninstall';
+  const project = uninstalling
+    ? await createReconciliationPlan(cwd, uninstallOperation, projectSchema)
+    : {
+        plan: await createSetupPlan(cwd, projectSchema, installOptions),
+        dryRun: undefined,
+      };
+  const integrationSurfaces = observedSurfaces.filter(surface => selected.has(surface.name));
   const surfaces = [{ name: 'project', effects: project.plan.effects }, ...integrationSurfaces];
   const preconditionDigest = createHash('sha256')
     .update(

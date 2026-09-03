@@ -258,6 +258,18 @@ function runDiffScopedAuditAutomation(options: {
 }
 
 describe('audit documentation source guidance', () => {
+  it.each(AUDIT_SURFACES)('%s scopes principle checks to the current ticket', relativePath => {
+    const content = readAuditSurface(relativePath);
+    const principleSection = content
+      .split('### 6. Principle Trace Integrity', 2)[1]
+      ?.split('### 7. Namespace Domain Docs', 2)[0];
+
+    expect(principleSection).toBeDefined();
+    expect(principleSection).toContain('resolve-verify-ticket.ts');
+    expect(principleSection).toContain('PLAN_PATH="$(dirname "$TICKET_PATH")/impl-plan.md"');
+    expect(principleSection).toContain('audit-principle-trace.ts" "$PROJECT_DIR" "$PLAN_PATH"');
+  });
+
   it.each(AUDIT_SURFACES)('%s prompts only when docs.sources is absent', relativePath => {
     const content = readAuditSurface(relativePath);
 

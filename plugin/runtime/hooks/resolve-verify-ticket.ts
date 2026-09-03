@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
 
@@ -146,6 +146,14 @@ function matchingTicketPaths(projectDirectory: string, prefix: string, paths: st
     .sort();
 }
 
+function ticketIsInProgress(ticketPath: string): boolean {
+  try {
+    return /^status:\s*in_progress\s*$/mu.test(readFileSync(ticketPath, 'utf8'));
+  } catch {
+    return false;
+  }
+}
+
 function changedTicketPaths(projectDirectory: string): ChangedPathsResult {
   const namespaceRoot = resolveNamespaceRoot(projectDirectory);
   const namespaceRelative = nodePath.relative(projectDirectory, namespaceRoot);
@@ -212,6 +220,10 @@ export function resolveVerifyTicket(
   if (candidates.length === 0) return { state: 'none' };
   if (candidates.length === 1) {
     return { state: 'resolved', source: 'diff', ticketPath: candidates[0] as string };
+  }
+  const activeCandidates = candidates.filter(ticketIsInProgress);
+  if (activeCandidates.length === 1) {
+    return { state: 'resolved', source: 'diff', ticketPath: activeCandidates[0] as string };
   }
   return {
     state: 'error',

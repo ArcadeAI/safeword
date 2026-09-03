@@ -652,6 +652,39 @@ async function reviewKnowledgeHandler(invocation: CommandInvocation): Promise<Cl
   return observeReviewKnowledge(invocation.cwd);
 }
 
+async function auditScopeHandler(): Promise<CliResult> {
+  const { observeAuditScope } = await import('../commands/audit-scope.js');
+  return observeAuditScope();
+}
+
+async function recordSkillInvocationHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const { runRecordSkillInvocation } = await import('../commands/record-skill-invocation.js');
+  const skill = invocation.operands[0];
+  const sessionId = invocation.operands[1];
+  return runRecordSkillInvocation(
+    invocation.cwd,
+    typeof skill === 'string' ? skill : undefined,
+    typeof sessionId === 'string' && sessionId.length > 0 ? sessionId : undefined,
+  );
+}
+
+async function projectRuntimeHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const helper = invocation.operands[0];
+  if (helper !== undefined && typeof helper !== 'string')
+    return invalidOperand('project runtime', 'runtime helper must be text.');
+  const rawArguments = invocation.operands[1];
+  if (
+    rawArguments !== undefined &&
+    (!Array.isArray(rawArguments) || rawArguments.some(argument => typeof argument !== 'string'))
+  )
+    return invalidOperand('project runtime', 'runtime arguments must be text.');
+  if (helper === 'closeout-cleanup' && invocation.offline) {
+    return onlineRequired('project runtime closeout-cleanup');
+  }
+  const { runProjectRuntime } = await import('../commands/project-runtime.js');
+  return runProjectRuntime(invocation.cwd, helper, (rawArguments as string[] | undefined) ?? []);
+}
+
 async function publicRetrosHandler(invocation: CommandInvocation): Promise<CliResult> {
   const state = invocation.operands[0];
   if (state !== 'off' && state !== 'on') {
@@ -2347,6 +2380,9 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'project codify': codifyHandler,
   'project test-plan': testPlanHandler,
   'project namespace-root': namespaceRootHandler,
+  'project audit-scope': auditScopeHandler,
+  'project record-skill-invocation': recordSkillInvocationHandler,
+  'project runtime': projectRuntimeHandler,
   'project review-knowledge': reviewKnowledgeHandler,
   'project public-retros': publicRetrosHandler,
   'project retro-drain': retroDrainHandler,

@@ -185,7 +185,7 @@ export function adaptCodexWorkflowInvocations(
 // shell a skill's bash block runs in, so a vendored path would rest on the
 // model resolving a relative path — too soft for a gate.
 //
-// `{cli}` in a replacement is filled with the versioned bundled CLI command.
+// `{cli}` in a replacement is filled with the host's packaged CLI command.
 const SCRIPT_REWRITES: readonly { readonly invocation: string; readonly replacement: string }[] = [
   // Prefix swap: `review run …` and its own arguments follow unchanged.
   //
@@ -213,19 +213,65 @@ const SCRIPT_REWRITES: readonly { readonly invocation: string; readonly replacem
     invocation: 'bun .safeword/hooks/lib/drain-retro-spool.ts ',
     replacement: '{cli} project retro-drain ',
   },
+  {
+    invocation: 'source "$PROJECT_DIR/.safeword/hooks/lib/audit-scope.sh"',
+    replacement: 'source <({cli} project audit-scope)',
+  },
+  {
+    invocation: 'bun "$PROJECT_DIR/.safeword/hooks/record-skill-invocation.ts" "$PROJECT_DIR" ',
+    replacement: '{cli} project record-skill-invocation --cwd "$PROJECT_DIR" ',
+  },
+  {
+    invocation: 'bun "$PROJECT_DIR/.safeword/hooks/audit-principle-trace.ts" "$PROJECT_DIR"',
+    replacement: '{cli} project runtime audit-principle-trace --cwd "$PROJECT_DIR" --',
+  },
+  {
+    invocation: 'bun "$PROJECT_DIR/.safeword/hooks/resolve-verify-ticket.ts" "$PROJECT_DIR"',
+    replacement: '{cli} project runtime resolve-verify-ticket --cwd "$PROJECT_DIR" --',
+  },
+  {
+    invocation: 'bun "$PROJECT_DIR/.safeword/hooks/write-review-stamp.ts" ',
+    replacement: '{cli} project runtime write-review-stamp -- ',
+  },
+  {
+    invocation: 'bun .safeword/hooks/write-review-stamp.ts ',
+    replacement: '{cli} project runtime write-review-stamp -- ',
+  },
+  {
+    invocation: 'bun .safeword/scripts/closeout-cleanup.ts ',
+    replacement: '{cli} project runtime closeout-cleanup -- ',
+  },
+  {
+    invocation: './.safeword/scripts/cleanup-zombies.sh',
+    replacement: '{cli} project runtime cleanup-zombies --',
+  },
 ];
 
 function codexBundledCliCommand(version: string): string {
   return `bun "\${CODEX_HOME:-$HOME/.codex}/plugins/cache/${CODEX_MARKETPLACE_NAME}/${CODEX_PLUGIN_NAME}/${version}/runtime/cli.js"`;
 }
 
-function adaptScriptInvocations(markdown: string, version: string): string {
+function adaptRuntimeInvocations(markdown: string, cli: string): string {
   let adapted = markdown;
-  const cli = codexBundledCliCommand(version);
   for (const { invocation, replacement } of SCRIPT_REWRITES) {
     adapted = adapted.split(invocation).join(replacement.split('{cli}').join(cli));
   }
   return adapted;
+}
+
+export function adaptPackagedRuntimeInvocations(markdown: string, version: string): string {
+  return adaptRuntimeInvocations(markdown, `bunx --bun safeword@${version}`);
+}
+
+export function adaptNativeRuntimeInvocations(markdown: string, version: string): string {
+  const cli = `bunx --bun safeword@${version}`;
+  const withoutCodexCachePaths = markdown.split(codexBundledCliCommand(version)).join(cli);
+  return adaptNamespaceRootInvocations(adaptRuntimeInvocations(withoutCodexCachePaths, cli), cli);
+}
+
+function adaptCodexNativeRuntimeInvocations(markdown: string, version: string): string {
+  const cli = codexBundledCliCommand(version);
+  return adaptNamespaceRootInvocations(adaptRuntimeInvocations(markdown, cli), cli);
 }
 
 // resolve-namespace-root.ts needs its own pass: its positional modes map onto
@@ -282,8 +328,8 @@ function rewriteNamespaceRootTail(tail: string, replacement: string): string {
   return TRAILING_OPERAND.test(remainder) ? preserved : `${replacement} --key ${key}${remainder}`;
 }
 
-function adaptNamespaceRootInvocations(markdown: string, version: string): string {
-  const replacement = `${codexBundledCliCommand(version)} project namespace-root --cwd "$PROJECT_DIR"`;
+function adaptNamespaceRootInvocations(markdown: string, cli: string): string {
+  const replacement = `${cli} project namespace-root --cwd "$PROJECT_DIR"`;
   const [head, ...rest] = markdown.split(NAMESPACE_ROOT_INVOCATION_PREFIX);
   let adapted = head ?? '';
 
@@ -300,8 +346,7 @@ function adaptWorkflowMarkdown(
   version: string,
 ): string {
   let adapted = adaptCodexWorkflowInvocations(markdown, knownSkillNames);
-  adapted = adaptScriptInvocations(adapted, version);
-  adapted = adaptNamespaceRootInvocations(adapted, version);
+  adapted = adaptCodexNativeRuntimeInvocations(adapted, version);
 
   return formatMarkdownTables(adapted);
 }

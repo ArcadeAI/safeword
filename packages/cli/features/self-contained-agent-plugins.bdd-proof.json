@@ -1,0 +1,193 @@
+{
+  "feature": "packages/cli/features/self-contained-agent-plugins.feature",
+  "scenarios": {
+    "A packaged shared-shell helper executes without project runtime": [
+      "packages/cli/tests/commands/audit-scope.test.ts",
+      "executes the shared-shell helper without project runtime"
+    ],
+    "A sourced helper failure preserves the caller shell": [
+      "packages/cli/tests/commands/audit-scope.test.ts",
+      "preserves the caller shell and empty exports when merge-base resolution fails"
+    ],
+    "A packaged shared-shell helper exports an empty changed-file list": [
+      "packages/cli/tests/commands/audit-scope.test.ts",
+      "exports an empty changed-file list through a sourced caller shell"
+    ],
+    "Legacy project runtime cannot regain native workflow authority": [
+      "packages/cli/tests/integration/self-contained-agent-workflows.test.ts",
+      "executes the pinned Codex audit beside %s legacy project runtime"
+    ],
+    "A packaged OpenCode workflow executes without project runtime": [
+      "packages/cli/tests/integration/self-contained-agent-workflows.test.ts",
+      "executes the installed OpenCode quality-review workflow through its pinned profile runtime"
+    ],
+    "Legacy project hooks cannot regain OpenCode workflow authority": [
+      "packages/cli/tests/commands/codex-hook.test.ts",
+      "keeps packaged OpenCode hooks authoritative when legacy project hooks exist"
+    ],
+    "A Cursor workflow executes from its complete project authority": [
+      "packages/cli/tests/commands/audit-scope.test.ts",
+      "executes the installed Cursor audit workflow from project authority"
+    ],
+    "A sourced Cursor helper failure preserves the caller shell": [
+      "packages/cli/tests/commands/audit-scope.test.ts",
+      "preserves the caller shell when the sourced Cursor helper cannot resolve a merge base"
+    ],
+    "A sourced Cursor helper exports an empty changed-file list": [
+      "packages/cli/tests/commands/audit-scope.test.ts",
+      "exports an empty changed-file list through the sourced Cursor helper"
+    ],
+    "An unavailable pinned package never falls back to project runtime": [
+      "packages/cli/tests/integration/self-contained-agent-workflows.test.ts",
+      "fails closed when the pinned Codex package is unavailable beside legacy project runtime"
+    ],
+    "A packaged Claude workflow executes without project runtime": [
+      "packages/cli/tests/integration/self-contained-agent-workflows.test.ts",
+      "executes the generated Claude quality-review workflow through the bundled plugin"
+    ],
+    "Every host lazily creates missing workflow state and its precise ignore rule": [
+      "packages/cli/tests/integration/self-contained-agent-workflows.test.ts",
+      "creates missing state through the %s workflow authority"
+    ],
+    "First workflow state write reuses an existing framework directory": [
+      "packages/cli/tests/commands/record-skill-invocation.test.ts",
+      "reuses an existing framework directory without changing its sibling content"
+    ],
+    "Lazy state never invents missing authored knowledge or configuration": [
+      "packages/cli/tests/commands/record-skill-invocation.test.ts",
+      "does not invent authored knowledge or project configuration during lazy state creation"
+    ],
+    "Lazy state initialization preserves customer ignore policy": [
+      "packages/cli/tests/commands/record-skill-invocation.test.ts",
+      "appends one precise state rule while preserving customer ignore content"
+    ],
+    "Existing effective ignore policy is not duplicated": [
+      [
+        "packages/cli/tests/commands/record-skill-invocation.test.ts",
+        "does not duplicate an existing exact transient-state ignore rule"
+      ],
+      [
+        "packages/cli/tests/commands/record-skill-invocation.test.ts",
+        "preserves a broader customer ignore rule without adding a duplicate"
+      ]
+    ],
+    "Existing framework state is updated without reinitialization": [
+      "packages/cli/tests/commands/record-skill-invocation.test.ts",
+      "updates existing framework state without replacing in-flight values"
+    ],
+    "Enrolled lifecycle state initializes lazily": [
+      "packages/cli/tests/commands/record-skill-invocation.test.ts",
+      "creates missing runtime state and its precise ignore rule without installing"
+    ],
+    "Unenrolled lifecycle state remains absent without blocking": [
+      "packages/cli/tests/integration/post-tool-review.test.ts",
+      "does not create knowledge, ignore policy, or state in an unenrolled repository"
+    ],
+    "A direct workflow does not silently enroll a repository": [
+      [
+        "packages/cli/tests/commands/record-skill-invocation.test.ts",
+        "does not enroll a repository as a side effect of workflow logging"
+      ],
+      [
+        "packages/cli/tests/commands/record-skill-invocation.test.ts",
+        "does not create state through a direct helper in an unenrolled repository"
+      ]
+    ],
+    "OpenCode installation delivers no project runtime": [
+      "packages/cli/tests/opencode/catalogue.test.ts",
+      "installs the complete native catalogue without project host files"
+    ],
+    "A native single-agent project schema excludes project delivery": [
+      [
+        "packages/cli/tests/cli-protocol/lifecycle-status-observation.test.ts",
+        "keeps a Codex-only project free of project-delivered executable runtime"
+      ],
+      [
+        "packages/cli/tests/cli-protocol/lifecycle-status-observation.test.ts",
+        "drops the shared .safeword hooks|skills|scripts|guides|templates runtime for a Claude-only project"
+      ],
+      [
+        "packages/cli/tests/cli-protocol/lifecycle-status-observation.test.ts",
+        "keeps an OpenCode-only install free of Claude and shared project runtime"
+      ]
+    ],
+    "A Cursor-only project schema retains Cursor authority": [
+      "packages/cli/tests/cli-protocol/lifecycle-status-observation.test.ts",
+      "keeps the shared runtime for a Cursor-only project"
+    ],
+    "Mixed selection preserves Cursor without copying native runtimes": [
+      "packages/cli/tests/cli-protocol/lifecycle-status-observation.test.ts",
+      "keeps Cursor project authority without copying %s runtime into the project"
+    ],
+    "Removing a native selection preserves Cursor and project content": [
+      "packages/cli/tests/lifecycle/selected-authority-reconciliation.test.ts",
+      "uninstalls the Codex profile without changing Cursor or project content"
+    ],
+    "Removing one selection retains enrollment for another native host": [
+      "packages/cli/tests/lifecycle/selected-authority-reconciliation.test.ts",
+      "removes %s without unenrolling the remaining %s host"
+    ],
+    "Reconciliation preserves selected authorities without restoring native project runtime": [
+      "packages/cli/tests/lifecycle/selected-authority-reconciliation.test.ts",
+      "reconciles Codex and Cursor without restoring native project runtime"
+    ],
+    "Complete agent catalogues pass executable-reference validation": [
+      [
+        "packages/cli/tests/codex-plugin/catalogue.test.ts",
+        "accepts a pinned self-contained Codex catalogue"
+      ],
+      [
+        "packages/cli/tests/claude-plugin/catalogue.test.ts",
+        "passes the shared native runtime-authority release gate"
+      ],
+      [
+        "packages/cli/tests/opencode/catalogue.test.ts",
+        "contains no executable project-runtime references"
+      ],
+      [
+        "packages/cli/tests/cursor/runtime-authority.test.ts",
+        "accepts the generated Cursor catalogue's project authority"
+      ]
+    ],
+    "An unpinned Codex helper blocks release": [
+      "packages/cli/tests/codex-plugin/catalogue.test.ts",
+      "rejects an unpinned Codex helper invocation"
+    ],
+    "OpenCode profile identity records the complete owned catalogue": [
+      "packages/cli/tests/opencode/profile.test.ts",
+      "TBU1.R1.S07 installs generated profile bytes and an executable identity binding"
+    ],
+    "A project-runtime reference blocks native plugin release": [
+      "packages/cli/tests/plugin-runtime-authority.test.ts",
+      "rejects a project-runtime reference in the generated %s catalogue"
+    ],
+    "A cross-host executable reference blocks Cursor release": [
+      "packages/cli/tests/cursor/runtime-authority.test.ts",
+      "rejects cross-host runtime regardless of command shape: %s"
+    ],
+    "Explicit project removal leaves installed profile plugins alone": [
+      "packages/cli/tests/lifecycle/selected-authority-reconciliation.test.ts",
+      "honors explicit project removal without uninstalling profile plugins"
+    ],
+    "OpenCode install preserves an unrecognized catalogue collision": [
+      "packages/cli/tests/opencode/profile.test.ts",
+      "preserves a colliding plugin through the packaged install path"
+    ],
+    "OpenCode upgrade removes only prior identity-owned catalogue bytes": [
+      "packages/cli/tests/opencode/profile.test.ts",
+      "removes an unchanged catalogue asset retired by the next profile identity"
+    ],
+    "OpenCode upgrade preserves a drifted catalogue asset": [
+      "packages/cli/tests/opencode/profile.test.ts",
+      "reports managed drift when install encounters a modified identity-owned asset"
+    ],
+    "OpenCode uninstall removes its recognized catalogue": [
+      "packages/cli/tests/opencode/profile.test.ts",
+      "TBU1.R3 removes recognized profile assets through the public lifecycle"
+    ],
+    "OpenCode uninstall preserves drifted catalogue content": [
+      "packages/cli/tests/opencode/profile.test.ts",
+      "preserves a modified managed catalogue asset during uninstall"
+    ]
+  }
+}

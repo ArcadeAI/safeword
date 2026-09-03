@@ -26,7 +26,7 @@ Feature: Give Codex users the full Safeword workflow
       Given an empty project has no Safeword workflow material
       When the builder installs Safeword for Codex
       Then the project bootstrap will enroll each Codex profile automatically
-      And no Codex-owned workflow tree is written to .agents or .codex while shared Cursor skills remain available
+      And no Codex or Cursor workflow tree is written into the project
 
     @rejection
     Scenario: Project-local workflow output rejects the integration

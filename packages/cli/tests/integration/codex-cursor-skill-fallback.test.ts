@@ -66,7 +66,12 @@ function runFallback(
 ): { exitCode: number; output: string } {
   const result = spawnSync(
     'bun',
-    ['.safeword/hooks/record-skill-invocation.ts', projectDirectory, skill, sessionIdArgument],
+    [
+      nodePath.join(projectDirectory, '.safeword/hooks/record-skill-invocation.ts'),
+      projectDirectory,
+      skill,
+      sessionIdArgument,
+    ],
     {
       cwd: projectDirectory,
       env: fallbackEnvironment(projectDirectory, sessionEnvironment),
@@ -99,11 +104,11 @@ function bindCodexSession(projectDirectory: string, skill: string, sessionId: st
   expect(result.status ?? 0).toBe(0);
 }
 
-// Drive Cursor's real beforeShellExecution adapter with the supported relative
+// Drive Cursor's real beforeShellExecution adapter with the documented absolute
 // helper command. The helper relies on this adapter to bridge conversation_id;
 // it receives neither a session argument nor a runtime identity in its env.
 function bindCursorSession(projectDirectory: string, skill: string, conversationId: string): void {
-  const command = `bun .safeword/hooks/record-skill-invocation.ts "${projectDirectory}" ${skill}`;
+  const command = `bun "${projectDirectory}/.safeword/hooks/record-skill-invocation.ts" "${projectDirectory}" ${skill}`;
   const result = spawnSync('bun', ['.safeword/hooks/cursor/before-shell-execution.ts'], {
     cwd: projectDirectory,
     input: JSON.stringify({
@@ -214,7 +219,7 @@ describe('Codex/Cursor skill-invocation fallback → done-gate E2E (#295)', () =
     expect(logContents(projectDirectory)).not.toContain(`${environmentSessionId} audit`);
   });
 
-  it('feature done PASSES when Cursor binds the supported relative helper command', () => {
+  it('feature done PASSES when Cursor binds the documented absolute helper command', () => {
     writeFeatureTicketAtDone(projectDirectory, '953');
     const conversationId = 'cursor-session-953';
 

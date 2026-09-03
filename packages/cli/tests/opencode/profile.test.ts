@@ -9,9 +9,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { parseAgentSelection } from '../../src/cli-protocol/agent-selection.js';
 import { createResult } from '../../src/cli-protocol/result.js';
 import { installLifecycle, uninstallLifecycle } from '../../src/lifecycle/commands.js';
+import { generateOpenCodeCatalogueAssets } from '../../src/opencode/catalogue.js';
 import {
   generateOpenCodeProfilePlugin,
   installOpenCodeProfile,
+  observeOpenCodeProfile,
   type OpenCodeIdentityV1,
   openCodeProfilePaths,
   reconcileOpenCodeProfile,
@@ -149,6 +151,13 @@ describe('OpenCode profile boundary', () => {
     expect(installedIdentity.dispatcher_sha256).toBe(
       createHash('sha256').update(readFileSync(installedIdentity.dispatcher_path)).digest('hex'),
     );
+    const expectedAssets = generateOpenCodeCatalogueAssets(
+      nodePath.resolve(import.meta.dirname, '../../templates'),
+    ).map(asset => ({
+      path: asset.relativePath,
+      sha256: createHash('sha256').update(asset.content).digest('hex'),
+    }));
+    expect(installedIdentity.assets).toEqual(expectedAssets);
   });
 
   it('TBU1.R3 removes recognized profile assets through the public lifecycle', async () => {
@@ -169,6 +178,10 @@ describe('OpenCode profile boundary', () => {
     const installed = await installLifecycle({ ...invocation, offline: true }, adapters);
     expect(installed.state).toBe('changed');
     const paths = openCodeProfilePaths(root);
+    const managedSkill = nodePath.join(root, 'skills/safeword-verify/SKILL.md');
+    expect(existsSync(managedSkill)).toBe(true);
+    const unrelated = nodePath.join(root, 'customer-note.md');
+    writeFileSync(unrelated, 'customer content\n');
     mkdirSync(paths.activation, { recursive: true });
     mkdirSync(paths.conformance, { recursive: true });
     writeFileSync(paths.profileError, '{}\n');
@@ -188,9 +201,122 @@ describe('OpenCode profile boundary', () => {
       paths.activation,
       paths.conformance,
       paths.profileError,
+      managedSkill,
     ]) {
       expect(existsSync(path)).toBe(false);
     }
+    expect(existsSync(nodePath.join(root, 'skills/safeword-verify'))).toBe(false);
+    expect(readFileSync(unrelated, 'utf8')).toBe('customer content\n');
+  });
+
+  it('preserves a modified managed catalogue asset during uninstall', () => {
+    const root = temporaryDirectory();
+    const paths = openCodeProfilePaths(root);
+    expect(installOpenCodeProfile(root).state).toBe('changed');
+    const managedSkill = nodePath.join(root, 'skills/safeword-verify/SKILL.md');
+    const untouchedSkill = nodePath.join(root, 'skills/safeword-audit/SKILL.md');
+    const untouchedBytes = readFileSync(untouchedSkill, 'utf8');
+    const unrelated = nodePath.join(root, 'customer-note.md');
+    writeFileSync(unrelated, 'customer content\n');
+    writeFileSync(managedSkill, 'user-modified skill\n');
+
+    const result = uninstallOpenCodeProfile(root);
+
+    expect(result.state).toBe('action_required');
+    expect(result.findings.map(finding => finding.code)).toContain('OPENCODE_MANAGED_ASSET_DRIFT');
+    expect(readFileSync(managedSkill, 'utf8')).toBe('user-modified skill\n');
+    expect(readFileSync(untouchedSkill, 'utf8')).toBe(untouchedBytes);
+    expect(readFileSync(unrelated, 'utf8')).toBe('customer content\n');
+    expect(existsSync(paths.identity)).toBe(true);
+  });
+
+  it('removes an unchanged catalogue asset retired by the next profile identity', () => {
+    const root = temporaryDirectory();
+    const paths = openCodeProfilePaths(root);
+    expect(installOpenCodeProfile(root).state).toBe('changed');
+    const retiredRelativePath = 'skills/safeword-retired/SKILL.md';
+    const retiredPath = nodePath.join(root, retiredRelativePath);
+    const retiredContent = 'retired managed skill\n';
+    const unrelated = nodePath.join(root, 'customer-note.md');
+    writeFileSync(unrelated, 'customer content\n');
+    mkdirSync(nodePath.dirname(retiredPath), { recursive: true });
+    writeFileSync(retiredPath, retiredContent);
+    const installedIdentity = JSON.parse(
+      readFileSync(paths.identity, 'utf8'),
+    ) as OpenCodeIdentityV1;
+    writeFileSync(
+      paths.identity,
+      `${JSON.stringify({
+        ...installedIdentity,
+        assets: [
+          ...(installedIdentity.assets ?? []),
+          {
+            path: retiredRelativePath,
+            sha256: createHash('sha256').update(retiredContent).digest('hex'),
+          },
+        ],
+      })}\n`,
+    );
+
+    expect(installOpenCodeProfile(root).state).toBe('changed');
+    expect(existsSync(retiredPath)).toBe(false);
+    expect(readFileSync(unrelated, 'utf8')).toBe('customer content\n');
+  });
+
+  it('reports and repairs a missing managed catalogue asset', () => {
+    const root = temporaryDirectory();
+    expect(installOpenCodeProfile(root).state).toBe('changed');
+    const managedSkill = nodePath.join(root, 'skills/safeword-verify/SKILL.md');
+    rmSync(managedSkill);
+
+    const observed = observeOpenCodeProfile(root);
+    expect(observed.state).toBe('action_required');
+    expect(observed.findings.map(finding => finding.code)).toContain(
+      'OPENCODE_CATALOGUE_ASSET_MISSING',
+    );
+
+    expect(installOpenCodeProfile(root).state).toBe('changed');
+    expect(existsSync(managedSkill)).toBe(true);
+  });
+
+  it('reports the actionable recovery for a modified managed catalogue asset', () => {
+    const root = temporaryDirectory();
+    expect(installOpenCodeProfile(root).state).toBe('changed');
+    const managedSkill = nodePath.join(root, 'skills/safeword-verify/SKILL.md');
+    writeFileSync(managedSkill, 'user-modified skill\n');
+
+    const observed = observeOpenCodeProfile(root);
+
+    expect(observed.findings.map(finding => finding.code)).toContain(
+      'OPENCODE_MANAGED_ASSET_DRIFT',
+    );
+    expect(observed.nextActions).toEqual([
+      {
+        kind: 'human',
+        instruction: `Move ${managedSkill} aside, then rerun safeword install --agents=opencode.`,
+        mutates: false,
+        requiresHuman: true,
+      },
+    ]);
+  });
+
+  it('reports managed drift when install encounters a modified identity-owned asset', () => {
+    const root = temporaryDirectory();
+    expect(installOpenCodeProfile(root).state).toBe('changed');
+    const managedSkill = nodePath.join(root, 'skills/safeword-verify/SKILL.md');
+    const untouchedSkill = nodePath.join(root, 'skills/safeword-audit/SKILL.md');
+    const untouchedBytes = readFileSync(untouchedSkill, 'utf8');
+    const unrelated = nodePath.join(root, 'customer-note.md');
+    writeFileSync(unrelated, 'customer content\n');
+    writeFileSync(managedSkill, 'user-modified skill\n');
+
+    const result = installOpenCodeProfile(root);
+
+    expect(result.state).toBe('action_required');
+    expect(result.findings.map(finding => finding.code)).toContain('OPENCODE_MANAGED_ASSET_DRIFT');
+    expect(readFileSync(managedSkill, 'utf8')).toBe('user-modified skill\n');
+    expect(readFileSync(untouchedSkill, 'utf8')).toBe(untouchedBytes);
+    expect(readFileSync(unrelated, 'utf8')).toBe('customer content\n');
   });
 
   it.each([
@@ -218,6 +344,23 @@ describe('OpenCode profile boundary', () => {
     expect(result.findings).toHaveLength(1);
     expect(readFileSync(collisionPath, 'utf8')).toBe('unrecognized user bytes\n');
     expect(existsSync(otherPath)).toBe(false);
+  });
+
+  it('preserves a colliding plugin through the packaged install path', () => {
+    const root = temporaryDirectory();
+    const paths = openCodeProfilePaths(root);
+    mkdirSync(nodePath.dirname(paths.plugin), { recursive: true });
+    writeFileSync(paths.plugin, 'unrecognized user bytes\n');
+    const unrelated = nodePath.join(root, 'customer-note.md');
+    writeFileSync(unrelated, 'customer content\n');
+
+    const result = installOpenCodeProfile(root);
+
+    expect(result.state).toBe('action_required');
+    expect(readFileSync(paths.plugin, 'utf8')).toBe('unrecognized user bytes\n');
+    expect(readFileSync(unrelated, 'utf8')).toBe('customer content\n');
+    expect(existsSync(paths.identity)).toBe(false);
+    expect(existsSync(paths.dispatcher)).toBe(false);
   });
 
   it('publishes and removes one recognized profile under the shared lock', () => {

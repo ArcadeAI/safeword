@@ -160,16 +160,16 @@ single-action task.
 
 **Use the matching template when ANY trigger fires:**
 
-| Trigger                                                                | Template                                                                  |
-| ---------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| Planning new feature scope OR creating feature spec                    | `spec-template.md` (auto-scaffolded at intake; JTBD + Numbered Rules)     |
-| Writing a feature spec by hand in the older user-story format (legacy) | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/feature-spec-template.md`    |
-| Bug, improvement, refactor, or internal task                           | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/task-spec-template.md`       |
-| Need test definitions for a feature OR acceptance criteria             | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/test-definitions-feature.md` |
-| Feature spans 3+ components OR needs technical spec                    | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/design-doc-template.md`      |
-| Making decision with long-term impact OR trade-offs                    | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/architecture-template.md`    |
-| Recording a structural or hard-to-reverse decision as its own record   | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/adr-template.md`             |
-| Planning a feature's implementation before TDD starts                  | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/impl-plan-template.md`       |
-| Guarding a temporary upstream workaround so its removal isn't missed   | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/tripwire-template.md`        |
-| Task needs context anchoring                                           | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/ticket-template.md`          |
-| Starting execution of a plan, ticket, or spec                          | `"${CLAUDE_PLUGIN_ROOT}"/resources/templates/work-log-template.md`        |
+| Trigger                                                                | Template                                                              |
+| ---------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| Planning new feature scope OR creating feature spec                    | `spec-template.md` (auto-scaffolded at intake; JTBD + Numbered Rules) |
+| Writing a feature spec by hand in the older user-story format (legacy) | Use the legacy feature fields described below                         |
+| Bug, improvement, refactor, or internal task                           | Use the task fields described below                                   |
+| Need test definitions for a feature OR acceptance criteria             | Use the `$safeword:bdd` workflow                                      |
+| Feature spans 3+ components OR needs technical spec                    | Use the implementation-plan sections in `$safeword:bdd`               |
+| Making decision with long-term impact OR trade-offs                    | Use the configured architecture document                              |
+| Recording a structural or hard-to-reverse decision as its own record   | Use the configured architecture document's ADR format                 |
+| Planning a feature's implementation before TDD starts                  | Use the `$safeword:bdd` implementation-plan phase                     |
+| Guarding a temporary upstream workaround so its removal isn't missed   | Use the `$safeword:testing` tripwire procedure                        |
+| Task needs context anchoring                                           | Use the ticket fields described below                                 |
+| Starting execution of a plan, ticket, or spec                          | Append a timestamped entry to the ticket's work log                   |

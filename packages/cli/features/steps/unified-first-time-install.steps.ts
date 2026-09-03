@@ -961,20 +961,17 @@ When('the user previews user-scoped Claude uninstall', function (this: UnifiedIn
 });
 
 Then(
-  'the plan preserves user scope and excludes project-scoped Claude removal',
+  'the plan reports no removable user-scoped Claude installation',
   function (this: UnifiedInstallWorld) {
-    assert.equal(this.result.exitCode, 2, this.result.stderr || this.result.stdout);
+    assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
     const envelope = JSON.parse(this.result.stdout) as {
       next_actions?: { command?: string }[];
       data?: { plan?: { effects?: { destructive?: { target?: string }[] } } };
     };
-    assert.match(envelope.next_actions?.[0]?.command ?? '', /--scope=user/u);
-    assert.equal(
-      envelope.data?.plan?.effects?.destructive?.some(
-        effect => effect.target === 'Claude profile plugin',
-      ),
-      false,
-    );
+    // Only project-scoped Claude and Codex are installed. There is no user
+    // plugin to remove, and Codex still needs the shared project enrollment.
+    assert.deepEqual(envelope.next_actions, []);
+    assert.deepEqual(envelope.data?.plan?.effects?.destructive, []);
   },
 );
 
@@ -2123,13 +2120,13 @@ Given(
   'an apply would require an effect not present in the reviewed plan',
   function (this: UnifiedInstallWorld) {
     initializeHosts(this);
-    runInstall(this, ['--agents', 'none']);
+    runInstall(this, ['--agents', 'cursor']);
     assert.equal(this.result.exitCode, 0, this.result.stderr || this.result.stdout);
     const project = requiredValue(this.projectRoot, 'project root');
     const managedPath = nodePath.join(project, '.safeword/templates/work-log-template.md');
     this.unplannedContent = readFileSync(managedPath, 'utf8');
     rmSync(managedPath);
-    runRawCommand(this, ['uninstall', '--agents', 'none']);
+    runRawCommand(this, ['uninstall', '--agents', 'cursor']);
     const envelope = JSON.parse(this.result.stdout) as { data?: { plan?: { id?: string } } };
     this.planId = envelope.data?.plan?.id;
     assert.match(this.planId ?? '', /^[a-f\d]{64}$/u);
@@ -2142,7 +2139,7 @@ When('the user confirms that plan', function (this: UnifiedInstallWorld) {
   runRawCommand(this, [
     'uninstall',
     '--agents',
-    'none',
+    'cursor',
     '--yes',
     '--plan',
     requiredValue(this.planId, 'plan id'),

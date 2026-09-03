@@ -25,6 +25,9 @@ import { generateOwnedPathsModule } from '../owned-paths.js';
 import { SAFEWORD_SCHEMA } from '../schema.js';
 import { hasSafewordProjectMarker, resolveNamespaceRoot } from '../utils/configured-paths.js';
 
+declare const __SAFEWORD_OPENCODE_CODEX_PRE_TOOL_SOURCE__: string | undefined;
+declare const __SAFEWORD_OPENCODE_PRE_TOOL_SOURCE__: string | undefined;
+
 type AdditionalContextHookEvent = 'PostToolUse' | 'SessionStart' | 'UserPromptSubmit';
 type SupportedCodexHookEvent = CodexPluginHookEvent;
 
@@ -83,6 +86,8 @@ const CODEX_RUN_IDENTITY_CACHE = 'codex-run-identity.json';
 const CODEX_REVIEW_STAMP_IDENTITY_CACHE = 'codex-review-stamp-identity.json';
 const RECORD_SKILL_INVOCATION_SCRIPT = '.safeword/hooks/record-skill-invocation.ts';
 const WRITE_REVIEW_STAMP_SCRIPT = '.safeword/hooks/write-review-stamp.ts';
+const PACKAGED_RECORD_SKILL_INVOCATION = 'project record-skill-invocation';
+const PACKAGED_WRITE_REVIEW_STAMP = 'project runtime write-review-stamp';
 const REVIEW_STAMP_CACHE_KEY = 'review-stamp';
 const SKILL_NAME_PATTERN = /^[a-z][a-z0-9-]*$/u;
 const SHELL_SEPARATORS = ';&|';
@@ -171,9 +176,29 @@ function readShellArgument(
   return { value: command.slice(index, endIndex), nextIndex: endIndex };
 }
 
+export function parsePackagedRecordSkillInvocation(command: string): string | undefined {
+  const packagedIndex = command.indexOf(PACKAGED_RECORD_SKILL_INVOCATION);
+  if (packagedIndex === -1) return undefined;
+  let nextIndex = packagedIndex + PACKAGED_RECORD_SKILL_INVOCATION.length;
+  while (nextIndex < command.length) {
+    const argument = readShellArgument(command, nextIndex);
+    if (argument === undefined) return undefined;
+    nextIndex = argument.nextIndex;
+    if (argument.value === '--cwd') {
+      const cwd = readShellArgument(command, nextIndex);
+      if (cwd === undefined) return undefined;
+      nextIndex = cwd.nextIndex;
+      continue;
+    }
+    if (argument.value === '--') continue;
+    return SKILL_NAME_PATTERN.test(argument.value) ? argument.value : undefined;
+  }
+  return undefined;
+}
+
 function parseRecordSkillInvocationCommand(command: string): string | undefined {
   const scriptIndex = command.indexOf(RECORD_SKILL_INVOCATION_SCRIPT);
-  if (scriptIndex === -1) return undefined;
+  if (scriptIndex === -1) return parsePackagedRecordSkillInvocation(command);
 
   let nextIndex = scriptIndex + RECORD_SKILL_INVOCATION_SCRIPT.length;
   const closingQuote = command[nextIndex];
@@ -187,8 +212,12 @@ function parseRecordSkillInvocationCommand(command: string): string | undefined 
   return skillName && SKILL_NAME_PATTERN.test(skillName) ? skillName : undefined;
 }
 
-function commandInvokesWriteReviewStamp(command: string): boolean {
-  return command.replaceAll('\\', '/').includes(WRITE_REVIEW_STAMP_SCRIPT);
+export function commandInvokesWriteReviewStamp(command: string): boolean {
+  const normalized = command.replaceAll('\\', '/');
+  return (
+    normalized.includes(WRITE_REVIEW_STAMP_SCRIPT) ||
+    normalized.includes(PACKAGED_WRITE_REVIEW_STAMP)
+  );
 }
 
 function writeCodexIdentityCache(input: {
@@ -331,13 +360,9 @@ function readPackagedSafewordInstructions(): string | undefined {
 }
 
 function findPackagedTemplate(relativePath: string): string | undefined {
-  const directories =
-    process.env.SAFEWORD_AGENT_RUNTIME === 'opencode'
-      ? [nodePath.join(resolveCodexProjectDirectory(), '.safeword'), ...TEMPLATE_DIRECTORIES]
-      : TEMPLATE_DIRECTORIES;
-  return directories
-    .map(directory => nodePath.join(directory, relativePath))
-    .find(candidate => existsSync(candidate));
+  return TEMPLATE_DIRECTORIES.map(directory => nodePath.join(directory, relativePath)).find(
+    candidate => existsSync(candidate),
+  );
 }
 
 function resolvePackagedHook(relativePath: string): string | undefined {
@@ -434,6 +459,39 @@ interface PackagedHookSnapshot {
   hookPath?: string;
 }
 
+function embeddedOpenCodePreToolHooks(): { codexPreTool: string; preTool: string } | undefined {
+  if (process.env.SAFEWORD_AGENT_RUNTIME !== 'opencode') return undefined;
+  if (
+    typeof __SAFEWORD_OPENCODE_CODEX_PRE_TOOL_SOURCE__ !== 'string' ||
+    typeof __SAFEWORD_OPENCODE_PRE_TOOL_SOURCE__ !== 'string'
+  ) {
+    return undefined;
+  }
+  return {
+    codexPreTool: __SAFEWORD_OPENCODE_CODEX_PRE_TOOL_SOURCE__,
+    preTool: __SAFEWORD_OPENCODE_PRE_TOOL_SOURCE__,
+  };
+}
+
+function snapshotEmbeddedOpenCodePreToolHook(
+  relativePath: string,
+): PackagedHookSnapshot | undefined {
+  if (relativePath !== PRE_TOOL_QUALITY_HOOK_PATH) return undefined;
+  const embedded = embeddedOpenCodePreToolHooks();
+  if (!embedded) return undefined;
+
+  const directory = mkdtempSync(
+    nodePath.join(tmpdir(), `safeword-opencode-hook-snapshot-${process.pid}-`),
+  );
+  const hooksDirectory = nodePath.join(directory, 'hooks');
+  const codexDirectory = nodePath.join(hooksDirectory, 'codex');
+  mkdirSync(codexDirectory, { recursive: true });
+  writeFileSync(nodePath.join(hooksDirectory, 'pre-tool-quality.ts'), embedded.preTool, 'utf8');
+  const hookPath = nodePath.join(codexDirectory, 'pre-tool-quality.ts');
+  writeFileSync(hookPath, embedded.codexPreTool, 'utf8');
+  return { directory, hookPath };
+}
+
 function rewriteSnapshotImportsForNode(directory: string): void {
   const entries = readdirSync(directory, { withFileTypes: true });
   for (const entry of entries) {
@@ -466,7 +524,11 @@ function rewriteSnapshotImportsForNode(directory: string): void {
 function snapshotPackagedHook(relativePath: string): PackagedHookSnapshot {
   const packagedHooksDirectory = findPackagedTemplate('hooks');
   if (!packagedHooksDirectory) {
-    return { error: new Error(`Safeword packaged hook is missing: ${relativePath}`) };
+    return (
+      snapshotEmbeddedOpenCodePreToolHook(relativePath) ?? {
+        error: new Error(`Safeword packaged hook is missing: ${relativePath}`),
+      }
+    );
   }
 
   const directory = mkdtempSync(

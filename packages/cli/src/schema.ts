@@ -11,7 +11,6 @@ import nodePath from 'node:path';
 
 import { acceptedHistoricalHookEntries } from './claude-plugin/historical-ownership.js';
 import { CODEX_MIGRATION_SCHEMA } from './codex-plugin/inventory.js';
-import { OPENCODE_CATALOGUE_OWNED_FILES } from './opencode/catalogue.js';
 import { golangManagedFiles, golangOwnedFiles } from './packs/golang/files.js';
 import { pythonManagedFiles, pythonOwnedFiles } from './packs/python/files.js';
 import { rustManagedFiles, rustOwnedFiles } from './packs/rust/files.js';
@@ -563,9 +562,6 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.cursor/rules',
     '.cursor/commands',
     '.cursor/agents',
-    '.opencode',
-    '.opencode/commands',
-    '.opencode/agents',
   ],
 
   // Directories we add to but don't own (not deleted on reset)
@@ -795,6 +791,7 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/host-toolchain.ts': { template: 'hooks/lib/host-toolchain.ts' },
     '.safeword/hooks/lib/quality.ts': { template: 'hooks/lib/quality.ts' },
     '.safeword/hooks/lib/quality-state.ts': { template: 'hooks/lib/quality-state.ts' },
+    '.safeword/hooks/lib/project-state.ts': { template: 'hooks/lib/project-state.ts' },
     '.safeword/hooks/lib/run-identity.ts': { template: 'hooks/lib/run-identity.ts' },
     '.safeword/hooks/lib/dependency-readiness.ts': {
       template: 'hooks/lib/dependency-readiness.ts',
@@ -1196,9 +1193,6 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
       template: 'commands/cleanup-zombies.md',
     },
     '.cursor/commands/lint.md': { template: 'commands/lint.md' },
-
-    // OpenCode reads thin plural-form stubs and discovers canonical bodies via .claude/skills.
-    ...OPENCODE_CATALOGUE_OWNED_FILES,
 
     // Cursor hooks adapters - TypeScript with Bun runtime
     '.safeword/hooks/cursor/after-file-edit.ts': {

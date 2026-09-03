@@ -82,7 +82,7 @@ function runPromptHook(cwd: string, sessionId = 'test-session'): string {
 function createTestProject(): string {
   const directory = createTemporaryDirectory();
   initGitRepo(directory);
-  writeTestFile(directory, '.safeword/.gitkeep', '');
+  writeTestFile(directory, '.safeword/SAFEWORD.md', '# Safeword\n');
   writeTestFile(directory, '.safeword-project/.gitkeep', '');
   writeTestFile(directory, 'init.txt', 'init');
   execSync('git add . && git commit -m "init"', { cwd: directory, stdio: 'pipe' });

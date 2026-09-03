@@ -376,6 +376,18 @@ describe('resolve-verify-ticket', () => {
     expect(result.stderr).toContain(second);
   });
 
+  it('selects one active epic when current work also changes completed child tickets', () => {
+    const epic = writeTicket('EPIC001-active-epic', 'EPIC001');
+    writeTicket('CHILD01-completed-child', 'CHILD01', 'done');
+    writeTicket('CHILD02-completed-child', 'CHILD02', 'done');
+
+    const result = runResolver();
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe('');
+    expect(result.stdout.trim()).toBe(epic);
+  });
+
   it('accepts an explicit ticket id from injected session context', () => {
     const ticketPath = writeTicket('EXPL123-explicit-context', 'EXPL123', 'done');
     commitAll('add explicit ticket');

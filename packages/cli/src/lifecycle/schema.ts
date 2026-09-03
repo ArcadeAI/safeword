@@ -1,8 +1,13 @@
+import { existsSync } from 'node:fs';
+import nodePath from 'node:path';
+
 import { schemaForClaudeDelivery } from '../claude-plugin/delivery-schema.js';
 import { schemaForCodexDelivery } from '../codex-plugin/delivery-schema.js';
 import { generateOwnedPathsModule, resolvedNamespaceDirectory } from '../owned-paths.js';
 import {
   filterSchemaPaths,
+  isCursorProjectPath,
+  isSharedAgentRuntimePath,
   SAFEWORD_SCHEMA,
   type SafewordSchema,
   schemaForProjectSurfaces,
@@ -10,28 +15,15 @@ import {
 } from '../schema.js';
 
 function isLegacyClaudePath(path: string): boolean {
-  return path.startsWith('.claude/');
+  return path === '.claude' || path.startsWith('.claude/');
 }
 
-function withOpenCodeSkillDelivery(schema: SafewordSchema): SafewordSchema {
-  const skills = Object.fromEntries(
-    Object.entries(SAFEWORD_SCHEMA.ownedFiles).filter(([path]) =>
-      path.startsWith('.claude/skills/'),
-    ),
-  );
-  return {
-    ...schema,
-    sharedDirs: [...new Set([...schema.sharedDirs, '.claude', '.claude/skills'])],
-    ownedFiles: { ...schema.ownedFiles, ...skills },
-  };
-}
-
-function withSelectedOwnedPaths(schema: SafewordSchema, includeOpenCode: boolean): SafewordSchema {
+function withSelectedOwnedPaths(schema: SafewordSchema): SafewordSchema {
   const path = '.safeword/hooks/lib/owned-paths.ts';
   if (schema.ownedFiles[path] === undefined) return schema;
-  const ownershipSchema = includeOpenCode
-    ? SAFEWORD_SCHEMA
-    : schemaForProjectSurfaces(SAFEWORD_SCHEMA, ['core', 'cursor']);
+  // Hooks must recognize every Safeword-owned project path, including a
+  // previously selected Cursor delivery that the current plan is removing.
+  const ownershipSchema = schemaForProjectSurfaces(SAFEWORD_SCHEMA, ['core', 'cursor']);
   return {
     ...schema,
     ownedFiles: {
@@ -53,59 +45,93 @@ function hasLegacyClaudeDelivery(schema: SafewordSchema): boolean {
 function selectedDeliverySchema(
   schema: SafewordSchema,
   selected: ReadonlySet<string>,
-  preserveLegacySkills: boolean,
 ): SafewordSchema {
-  const openCodeWithoutClaude = selected.has('opencode') && !selected.has('claude');
-  const claude = openCodeWithoutClaude
-    ? filterSchemaPaths(schema, path => !isLegacyClaudePath(path))
-    : schema;
-  return selected.has('opencode') && !preserveLegacySkills
-    ? withOpenCodeSkillDelivery(claude)
-    : claude;
+  return selected.has('claude')
+    ? schema
+    : filterSchemaPaths(schema, path => !isLegacyClaudePath(path));
 }
 
-function selectedProjectSurfaces(
-  selected: ReadonlySet<string>,
-): ('core' | 'cursor' | 'opencode')[] {
-  return [
-    'core',
-    ...(selected.has('cursor') ? (['cursor'] as const) : []),
-    ...(selected.has('opencode') ? (['opencode'] as const) : []),
-  ];
+function selectedProjectSurfaces(selected: ReadonlySet<string>): ('core' | 'cursor')[] {
+  return ['core', ...(selected.has('cursor') ? (['cursor'] as const) : [])];
 }
 
 function sharedRuntimeNeeded(selected: ReadonlySet<string>, legacyClaudeActive: boolean): boolean {
-  return (
-    selected.size === 0 ||
-    ['codex', 'cursor', 'opencode'].some(agent => selected.has(agent)) ||
-    legacyClaudeActive
+  return selected.has('cursor') || legacyClaudeActive;
+}
+
+function installedCursorActive(cwd: string): boolean {
+  const cursorSchema = schemaForProjectSurfaces(SAFEWORD_SCHEMA, ['cursor']);
+  return [...Object.keys(cursorSchema.ownedFiles), ...Object.keys(cursorSchema.jsonMerges)].some(
+    path => path.startsWith('.cursor/') && existsSync(nodePath.join(cwd, path)),
   );
+}
+
+function preserveSharedProjectSchema(
+  schema: SafewordSchema,
+  keepPath: (path: string) => boolean = () => false,
+): SafewordSchema {
+  return {
+    ...filterSchemaPaths(schema, keepPath),
+    deprecatedPackages: [],
+    packages: { base: [], conditional: {} },
+  };
+}
+
+function retainedHostUninstallSchema(
+  cwd: string,
+  schema: SafewordSchema,
+  selected: ReadonlySet<string>,
+  legacyClaudeInstalled: boolean,
+  remainingNativeProfile: boolean,
+): SafewordSchema | undefined {
+  if (!selected.has('cursor') && installedCursorActive(cwd)) {
+    return preserveSharedProjectSchema(
+      schema,
+      path => selected.has('claude') && isLegacyClaudePath(path),
+    );
+  }
+  const remainingLegacyClaude = legacyClaudeInstalled && !selected.has('claude');
+  if (!remainingNativeProfile && !remainingLegacyClaude) return undefined;
+  // Retain shared enrollment, configuration, and dependencies. Only remove the
+  // selected host's payload; native profiles do not need shared executables.
+  return preserveSharedProjectSchema(schema, path => {
+    if (isSharedAgentRuntimePath(path)) return selected.has('cursor') && !remainingLegacyClaude;
+    return (
+      (selected.has('cursor') && isCursorProjectPath(path)) ||
+      (selected.has('claude') && isLegacyClaudePath(path))
+    );
+  });
 }
 
 export function projectLifecycleSchema(
   cwd: string,
   agents: readonly string[],
   operation: 'check' | 'install' | 'uninstall' = 'check',
+  remainingNativeProfile = false,
 ): SafewordSchema {
   const claudeDeliverySchema = schemaForClaudeDelivery(cwd);
   const selected = new Set(agents);
-  const legacyClaudeActive = hasLegacyClaudeDelivery(claudeDeliverySchema);
-  const preserveLegacySkills = operation === 'uninstall' && legacyClaudeActive;
-  const openCodeSchema = selectedDeliverySchema(
-    claudeDeliverySchema,
-    selected,
-    preserveLegacySkills,
-  );
-  const deliverySchema = schemaForCodexDelivery(cwd, openCodeSchema);
+  const legacyClaudeInstalled = hasLegacyClaudeDelivery(claudeDeliverySchema);
+  const legacyClaudeActive = selected.has('claude') && legacyClaudeInstalled;
+  const selectedSchema = selectedDeliverySchema(claudeDeliverySchema, selected);
+  const deliverySchema = schemaForCodexDelivery(cwd, selectedSchema);
   const surfaceSchema = schemaForProjectSurfaces(deliverySchema, selectedProjectSurfaces(selected));
-  // OpenCode commands load the canonical skills delivered through `.claude/skills`,
-  // whose bodies reference the shared `.safeword` runtime. Legacy Claude delivery
-  // needs the same runtime independently of OpenCode's injected skill catalogue.
-  // No agent selected at all (`--agents none`) carries no evidence that the
-  // shared runtime is unused — only a project selecting Claude, and nothing
-  // else, that's also confirmed native knows for certain nothing reads it.
+  // `--agents=none` explicitly removes project enrollment, not a host profile.
+  if (operation === 'uninstall' && selected.size > 0) {
+    const retained = retainedHostUninstallSchema(
+      cwd,
+      surfaceSchema,
+      selected,
+      legacyClaudeInstalled,
+      remainingNativeProfile,
+    );
+    if (retained !== undefined) return retained;
+  }
+  // Native Codex, Claude, and OpenCode distributions own their executable
+  // workflow assets. Cursor is the only selected host whose declared authority
+  // remains project-delivered; an observed legacy Claude install keeps its
+  // runtime until the migration proves replacement.
   return withSelectedOwnedPaths(
     schemaForSharedAgentRuntime(surfaceSchema, sharedRuntimeNeeded(selected, legacyClaudeActive)),
-    selected.has('opencode'),
   );
 }

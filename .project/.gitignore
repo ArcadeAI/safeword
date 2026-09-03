@@ -2,6 +2,7 @@
 /quality-state*.json
 /cursor-run-identity.json
 /codex-run-identity.json
+/codex-review-stamp-identity.json
 /failure-counts.json
 /skill-invocations.log
 /re-entry.md

@@ -30,9 +30,9 @@ bunx safeword@latest install --agents=claude,codex,opencode,cursor
 ```
 
 OpenCode is intentionally opt-in because its guard is installed in the current
-user's OpenCode profile. The project receives declarative commands and agents,
-reuses the canonical `.claude/skills` catalogue OpenCode already discovers,
-and leaves `opencode.json` untouched:
+user's OpenCode profile. That profile delivery contains Safeword's plugin,
+commands, agents, and skills; the project receives no OpenCode executable
+catalogue and `opencode.json` stays untouched:
 
 ```bash
 bunx safeword@latest install --agents=opencode
@@ -118,15 +118,12 @@ legacy content is preserved and reported instead.
 **Result**: Your project now has:
 
 - `.safeword/SAFEWORD.md` - Global patterns and workflows
-- `.safeword/guides/` - Testing methodology (BDD/TDD), code philosophy
-- `.safeword/skills/` - Canonical project-local skill references when Cursor is selected
-- `.safeword/hooks/` - Auto-linting, quality review hooks
-- `.claude/settings.json` - Project-scoped Safeword Claude activation by default
+- `.safeword/guides/`, `.safeword/skills/`, and `.safeword/hooks/` - Cursor's complete project-local workflow authority, only when Cursor is selected
+- `.claude/settings.json` - Project-scoped Safeword Claude activation when Claude is selected
 - Safeword Claude plugin - Native workflows and hooks cached by Claude; use `safeword install --agents=claude --scope user` for profile-wide activation
 - `.codex/config.toml` - Project bootstrap that enrolls each Codex profile at task start
 - Safeword Codex plugin - Profile-scoped skills and hooks following the verified `stable` channel
-- `.opencode/commands/` and `.opencode/agents/` - Native OpenCode catalogue bridges, installed only when selected
-- Safeword OpenCode profile plugin - Stable pre-tool enforcement with activation and conformance evidence
+- Safeword OpenCode profile delivery - Native plugin, commands, agents, and skills with activation and conformance evidence
 - `.cursor/hooks.json` - Hook configuration for Cursor
 - `.cursor/rules/` - Behavior rules for Cursor
 - `.cursor/commands/` - Slash commands for Cursor
@@ -222,7 +219,7 @@ flowchart TD
 - **Verify** — the agent runs the relevant tests itself, never handing you something untested.
 - **Done** — hard-blocked until `/verify` writes `verify.md` to the ticket.
 
-Project state remains local in `.safeword/` and the configured namespace root. Claude Code and Codex load framework workflows from versioned user-profile plugins; Cursor keeps its project-local rules and hooks. Guides and learnings live in-repo and evolve as you work.
+Project state remains local in `.safeword/` and the configured namespace root. Claude Code, Codex, and OpenCode load framework workflows from versioned profile deliveries; Cursor keeps its project-local rules and hooks. Missing transient state and its precise ignore rule are created on first use after enrollment, without running installation. Guides, principles, and learnings remain authored in-repo and are never invented by that lazy initialization.
 
 ---
 
@@ -242,11 +239,10 @@ You direct in plain language; safeword keeps the agent honest. Auditing the code
 
 Key directories created in your project:
 
-- `.safeword/guides/` - Core methodology and best practices
-- `.safeword/templates/` - Fillable document structures
+- `.safeword/SAFEWORD.md` and `.safeword/config.json` - Shared project enrollment and configuration
 - `<namespace-root>/tickets/` - Tickets for complex/multi-step work (context anchors)
-- `.safeword/hooks/` - Automation scripts for Claude Code and Cursor
-- Safeword Claude plugin, `.cursor/rules/` - Specialized agent capabilities
+- `.safeword/guides/`, `.safeword/templates/`, and `.safeword/hooks/` - Cursor's project-local workflow runtime, only when Cursor is selected
+- Safeword Claude plugin, `.cursor/rules/` - Selected agent capabilities
 - Safeword Codex plugin - Profile-scoped workflow skills and hooks
 - `.cursor/commands/` - Slash commands for Cursor
 
@@ -354,7 +350,7 @@ Key directories created in your project:
 
 ## Hooks, Commands & Skills
 
-**Hooks** (in `.safeword/hooks/`): TypeScript and shell automation organized by lifecycle and host. Session hooks load standing context, heal generated architecture, check dependencies, and manage resumable state. Pre/post-tool hooks guard owned configuration, enforce ticket phases, lint edits, record evidence, and protect Git/process boundaries. Stop hooks run verification, review, retro, and re-entry flows. Claude Code and Cursor use project-local adapters; Codex dispatches equivalent events through the profile plugin. The installed hook manifests—not a hand-maintained README list—are the source of truth.
+**Hooks**: TypeScript and shell automation organized by lifecycle and host. Session hooks load standing context, heal generated architecture, check dependencies, and manage resumable state. Pre/post-tool hooks guard owned configuration, enforce ticket phases, lint edits, record evidence, and protect Git/process boundaries. Stop hooks run verification, review, retro, and re-entry flows. Claude Code, Codex, and OpenCode execute their packaged hook authorities; Cursor uses the selected project-local adapters in `.safeword/hooks/`. The installed hook manifests—not a hand-maintained README list—are the source of truth.
 
 Codex hooks live in the Safeword plugin and run through the CLI bundled with
 that exact plugin version, without a package-manager lookup at hook time. Install and verify

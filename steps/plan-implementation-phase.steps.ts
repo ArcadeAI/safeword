@@ -824,12 +824,6 @@ Then(
   },
 );
 
-Then('it directs scaffolding new ADRs from the safeword ADR template', function (this: PlanWorld) {
-  eachDoc(this.docs, (text, path) => {
-    assert.ok(text.includes('adr-template.md'), path);
-  });
-});
-
 Then(
   'it directs writing them to the location resolved from paths.architecture, appending to a file or adding a date-prefixed file to a directory',
   function (this: PlanWorld) {
