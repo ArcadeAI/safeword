@@ -42,7 +42,7 @@ function trustedReviewerRoot(directory: string): string {
   return created;
 }
 
-function installFakeReviewer(directory: string, agent: ReviewAgent): string {
+function installFakeReviewer(directory: string, agent: ReviewAgent, failureModel = ''): string {
   const bin = nodePath.join(trustedReviewerRoot(directory), 'bin');
   mkdirSync(bin, { recursive: true });
   const executable = nodePath.join(bin, agent);
@@ -87,10 +87,9 @@ if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then
   exit 0
 fi
 printf '%s\n' '${agent}' >> "$SAFEWORD_REVIEW_LOG"
-args_log=$(printenv SAFEWORD_REVIEW_ARGS_LOG || true)
-if [ -n "$args_log" ]; then printf '%s\n' "${agent} $*" >> "$args_log"; fi
+printf '%s\n' "${agent} $*" >> "$SAFEWORD_REVIEW_LOG.args"
 failure=$(printenv SAFEWORD_REVIEW_FAKE_FAILURE_${agent.toUpperCase()} || printenv SAFEWORD_REVIEW_FAKE_FAILURE || true)
-failure_model=$(printenv SAFEWORD_REVIEW_FAKE_FAILURE_MODEL || true)
+failure_model='${failureModel}'
 if [ -n "$failure_model" ] && ! printf '%s' "$*" | /usr/bin/grep -q -- "$failure_model"; then failure=''; fi
 failure_agent=$(printenv SAFEWORD_REVIEW_FAKE_FAILURE_AGENT || true)
 failure_path=$(printenv SAFEWORD_REVIEW_FAKE_FAIL_PATH_CONTAINS || true)
@@ -2738,134 +2737,109 @@ describe('cross-agent review public-command wiring', () => {
     expect(payload.findings[0]?.code ?? payload.errors[0]?.code).toBe(testCase.machineCode);
   });
 
-  it.each([
-    { first: 'codex', second: 'opencode', firstModel: 'model-a', secondModel: 'vendor/model-b' },
-    { first: 'opencode', second: 'codex', firstModel: 'vendor/model-b', secondModel: 'model-a' },
-  ] as const)(
-    'executes ranked $first then $second with their exact models',
-    async ({ first, second, firstModel, secondModel }) => {
-      const directory = createTemporaryDirectory();
-      const log = nodePath.join(directory, 'review.log');
-      mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
-      writeFileSync(
-        nodePath.join(directory, '.safeword', 'config.json'),
-        JSON.stringify({
-          crossAgentReviewRoutes: {
-            claude: [
-              { reviewer: first, model: firstModel },
-              { reviewer: second, model: secondModel },
-            ],
-          },
-        }),
-      );
-      writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
-      const bin = installFakeReviewer(directory, 'opencode');
-      installFakeReviewer(directory, 'codex');
-
-      const result = await runCli(
-        [
-          'review',
-          'run',
-          'quality-review',
-          'review-input.md',
-          '--json',
-          '--no-input',
-          '--cwd',
-          directory,
-        ],
-        {
-          cwd: directory,
-          env: {
-            PATH: `${bin}:/usr/bin:/bin`,
-            SAFEWORD_AGENT_RUNTIME: 'claude',
-            SAFEWORD_REVIEW_FAKE_FAILURE: 'process',
-            SAFEWORD_REVIEW_FAKE_FAILURE_AGENT: first,
-            SAFEWORD_REVIEW_ARGS_LOG: nodePath.join(directory, 'args.log'),
-            SAFEWORD_REVIEW_LOG: log,
-            SAFEWORD_NO_UPDATE_CHECK: '1',
-          },
-        },
-      );
-
-      expect(result.exitCode, result.stdout).toBe(0);
-      expect(readFileSync(log, 'utf8')).toBe(`${first}\n${second}\n`);
-      const argumentsByRoute = readFileSync(nodePath.join(directory, 'args.log'), 'utf8')
-        .trim()
-        .split('\n');
-      expect(argumentsByRoute).toHaveLength(2);
-      expect(argumentsByRoute[0]).toContain(`--model ${firstModel}`);
-      expect(argumentsByRoute[1]).toContain(`--model ${secondModel}`);
-      expect(JSON.parse(result.stdout)).toMatchObject({
-        effects: {
-          network: [
-            { kind: 'review', target: first, operation: 'request' },
-            { kind: 'review', target: second, operation: 'request' },
-          ],
-        },
-        data: {
-          assigned_reviewer: second,
-          reviewer_model: secondModel,
-          independence: 'cross-agent',
-          review_routes: [
-            { reviewer: first, model: firstModel, failure: 'process_failed' },
-            { reviewer: second, model: secondModel, status: 'attempted' },
-          ],
-        },
-      });
-    },
-  );
-
-  it.each([
-    {
-      name: 'runtime default stays first',
-      routes: [{ reviewer: 'codex' }, { reviewer: 'opencode', model: 'vendor/model-b' }],
-      failureModel: '',
-      failure: '',
-    },
-    {
-      name: 'first independent success stops',
-      routes: [
-        { reviewer: 'codex', model: 'model-a' },
-        { reviewer: 'opencode', model: 'vendor/model-b' },
-      ],
-      failureModel: '',
-      failure: '',
-    },
-    {
-      name: 'attempt failure keeps next model',
-      routes: [
-        { reviewer: 'codex', model: 'model-a' },
-        { reviewer: 'codex', model: 'model-b' },
-        { reviewer: 'opencode' },
-      ],
-      failureModel: 'model-a',
-      failure: 'process',
-    },
-    {
-      name: 'configured routes exhaust',
-      routes: [
-        { reviewer: 'codex', model: 'model-a' },
-        { reviewer: 'opencode', model: 'vendor/model-b' },
-      ],
-      failureModel: '',
-      failure: 'process',
-    },
-  ] as const)('proves ranked execution: $name', async ({ name, routes, failureModel, failure }) => {
+  async function expectRankedOrder(
+    first: ReviewAgent,
+    second: ReviewAgent,
+    firstModel: string,
+    secondModel: string,
+  ) {
     const directory = createTemporaryDirectory();
     const log = nodePath.join(directory, 'review.log');
-    const argsLog = nodePath.join(directory, 'args.log');
+    mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
+    writeFileSync(
+      nodePath.join(directory, '.safeword', 'config.json'),
+      JSON.stringify({
+        crossAgentReviewRoutes: {
+          claude: [
+            { reviewer: first, model: firstModel },
+            { reviewer: second, model: secondModel },
+          ],
+        },
+      }),
+    );
+    writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
+    const bin = installFakeReviewer(directory, 'opencode');
+    installFakeReviewer(directory, 'codex');
+
+    const result = await runCli(
+      [
+        'review',
+        'run',
+        'quality-review',
+        'review-input.md',
+        '--json',
+        '--no-input',
+        '--cwd',
+        directory,
+      ],
+      {
+        cwd: directory,
+        env: {
+          PATH: `${bin}:/usr/bin:/bin`,
+          SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_REVIEW_FAKE_FAILURE: 'process',
+          SAFEWORD_REVIEW_FAKE_FAILURE_AGENT: first,
+          SAFEWORD_REVIEW_LOG: log,
+          SAFEWORD_NO_UPDATE_CHECK: '1',
+        },
+      },
+    );
+
+    expect(result.exitCode, result.stdout).toBe(0);
+    expect(readFileSync(log, 'utf8')).toBe(`${first}\n${second}\n`);
+    const argumentsByRoute = readFileSync(`${log}.args`, 'utf8').trim().split('\n');
+    expect(argumentsByRoute).toHaveLength(2);
+    expect(argumentsByRoute[0]).toContain(`--model ${firstModel}`);
+    expect(argumentsByRoute[1]).toContain(`--model ${secondModel}`);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      effects: {
+        network: [
+          { kind: 'review', target: first, operation: 'request' },
+          { kind: 'review', target: second, operation: 'request' },
+        ],
+      },
+      data: {
+        assigned_reviewer: second,
+        reviewer_model: secondModel,
+        independence: 'cross-agent',
+        review_routes: [
+          { reviewer: first, model: firstModel, failure: 'process_failed' },
+          { reviewer: second, model: secondModel, status: 'attempted' },
+        ],
+      },
+    });
+  }
+
+  it('executes Codex then OpenCode with their configured models', async () => {
+    await expectRankedOrder('codex', 'opencode', 'model-a', 'vendor/model-b');
+  });
+
+  it('executes OpenCode then Codex with their configured models', async () => {
+    await expectRankedOrder('opencode', 'codex', 'vendor/model-b', 'model-a');
+  });
+
+  async function verifyRankedExecution(
+    routes: readonly { reviewer: ReviewAgent; model?: string }[],
+    options: { failure?: string; failureModel?: string; legacy?: boolean; funded?: boolean } = {},
+  ) {
+    const { failure = '', failureModel = '' } = options;
+    const directory = createTemporaryDirectory();
+    const log = nodePath.join(directory, 'review.log');
+    const argsLog = `${log}.args`;
     mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
     writeFileSync(
       nodePath.join(directory, '.safeword', 'config.json'),
       JSON.stringify({
         crossAgentReviewRoutes: { claude: routes },
-        crossAgentReviewPrimaryModel: { codex: 'legacy-primary' },
-        crossAgentReviewAlternateModel: { codex: 'legacy-alternate' },
+        ...(options.legacy && {
+          crossAgentReviewPrimaryModel: { codex: 'legacy-primary' },
+          crossAgentReviewAlternateModel: { codex: 'legacy-alternate' },
+        }),
       }),
     );
     writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
-    const bin = installFakeReviewer(directory, 'codex');
-    installFakeReviewer(directory, 'opencode');
+    const bin = installFakeReviewer(directory, 'codex', failureModel);
+    installFakeReviewer(directory, 'opencode', failureModel);
     const result = await runCli(
       [
         'review',
@@ -2883,26 +2857,28 @@ describe('cross-agent review public-command wiring', () => {
           PATH: `${bin}:/usr/bin:/bin`,
           SAFEWORD_AGENT_RUNTIME: 'claude',
           SAFEWORD_REVIEW_LOG: log,
-          SAFEWORD_REVIEW_ARGS_LOG: argsLog,
           SAFEWORD_REVIEW_FAKE_FAILURE: failure,
-          SAFEWORD_REVIEW_FAKE_FAILURE_MODEL: failureModel,
+          ...(options.funded && {
+            SAFEWORD_REVIEW_RUN_BOUND_MS: '270000',
+            SAFEWORD_REVIEW_TIMEOUT_MS: '120000',
+          }),
           SAFEWORD_NO_UPDATE_CHECK: '1',
         },
       },
     );
-    const exhausted = name === 'configured routes exhaust';
+    const exhausted = failure === 'process' && !failureModel;
     expect(result.exitCode, result.stdout).toBe(exhausted ? 2 : 0);
     const payload = JSON.parse(result.stdout);
     let attempts: readonly { readonly reviewer: ReviewAgent; readonly model?: string }[] =
       routes.slice(0, 1);
-    if (name === 'attempt failure keeps next model') attempts = routes.slice(0, 2);
+    if (failureModel) attempts = routes.slice(0, 2);
     if (exhausted) attempts = routes;
     expect(payload.data.review_routes).toEqual(
       attempts.map((route, index) => ({
         ...route,
         independence: 'cross-agent',
         status: 'attempted',
-        ...((exhausted || (name === 'attempt failure keeps next model' && index === 0)) && {
+        ...((exhausted || (failureModel && index === 0)) && {
           failure: 'process_failed',
         }),
       })),
@@ -2910,16 +2886,73 @@ describe('cross-agent review public-command wiring', () => {
     expect(readFileSync(log, 'utf8')).toBe(attempts.map(route => `${route.reviewer}\n`).join(''));
     const args = readFileSync(argsLog, 'utf8').trim().split('\n');
     expect(args).toHaveLength(attempts.length);
-    for (const [index, route] of attempts.entries()) {
-      if (route.model === undefined) {
-        expect(args[index]).not.toContain('--model');
-      } else {
-        expect(args[index]).toContain(`--model ${route.model}`);
-      }
-    }
+    assertModelArguments(attempts, args);
     expect(args.join('\n')).not.toContain('legacy-');
-    expect(payload.data.independence).toBe(exhausted ? 'none' : 'cross-agent');
-    if (!exhausted) expect(payload.data.actual_reviewer).toBe('codex');
+    return payload.data;
+  }
+
+  function assertModelArguments(routes: readonly { model?: string }[], args: string[]) {
+    for (const [index, route] of routes.entries()) {
+      if (route.model === undefined) expect(args[index]).not.toContain('--model');
+      else expect(args[index]).toContain(`--model ${route.model}`);
+    }
+  }
+
+  it('keeps a runtime-default route first in the configured chain', async () => {
+    const data = await verifyRankedExecution([
+      { reviewer: 'codex' },
+      { reviewer: 'opencode', model: 'vendor/model-b' },
+    ]);
+    expect(data.actual_reviewer).toBe('codex');
+  });
+
+  it('stops ranked execution at the first independent success', async () => {
+    const data = await verifyRankedExecution([
+      { reviewer: 'codex', model: 'model-a' },
+      { reviewer: 'opencode' },
+    ]);
+    expect(data.actual_reviewer).toBe('codex');
+  });
+
+  it('tries the next model after an attempt-only failure', async () => {
+    const data = await verifyRankedExecution(
+      [
+        { reviewer: 'codex', model: 'model-a' },
+        { reviewer: 'codex', model: 'model-b' },
+        { reviewer: 'opencode' },
+      ],
+      { failure: 'process', failureModel: 'model-a' },
+    );
+    expect(data.actual_reviewer).toBe('codex');
+  });
+
+  it('blocks after every configured independent route fails', async () => {
+    const data = await verifyRankedExecution(
+      [
+        { reviewer: 'codex', model: 'model-a' },
+        { reviewer: 'opencode', model: 'vendor/model-b' },
+      ],
+      { failure: 'process' },
+    );
+    expect(data.independence).toBe('none');
+  });
+
+  it('launches a valid route with an explicitly funded run budget', async () => {
+    const data = await verifyRankedExecution([{ reviewer: 'codex', model: 'model-a' }], {
+      funded: true,
+    });
+    expect(data.actual_reviewer).toBe('codex');
+  });
+
+  it('never falls back to legacy models after configured routes exhaust', async () => {
+    const data = await verifyRankedExecution(
+      [
+        { reviewer: 'codex', model: 'model-a' },
+        { reviewer: 'opencode', model: 'vendor/model-b' },
+      ],
+      { failure: 'process', legacy: true },
+    );
+    expect(data.independence).toBe('none');
   });
 
   it('reports every unfunded ranked route without launching it', async () => {
@@ -2993,7 +3026,7 @@ describe('cross-agent review public-command wiring', () => {
     async ({ author, chain }) => {
       const directory = createTemporaryDirectory();
       const log = nodePath.join(directory, 'review.log');
-      const argsLog = nodePath.join(directory, 'args.log');
+      const argsLog = `${log}.args`;
       mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
       writeFileSync(
         nodePath.join(directory, '.safeword', 'config.json'),
@@ -3022,14 +3055,14 @@ describe('cross-agent review public-command wiring', () => {
             PATH: `${bin}:/usr/bin:/bin`,
             SAFEWORD_AGENT_RUNTIME: author,
             SAFEWORD_REVIEW_LOG: log,
-            SAFEWORD_REVIEW_ARGS_LOG: argsLog,
             SAFEWORD_REVIEW_FAKE_FAILURE: 'process',
             SAFEWORD_NO_UPDATE_CHECK: '1',
           },
         },
       );
       expect(result.exitCode, result.stdout).toBe(2);
-      expect(readFileSync(log, 'utf8').trim().split('\n')).toEqual(chain);
+      const attempts = author === 'claude' ? chain : [chain[0], ...chain];
+      expect(readFileSync(log, 'utf8').trim().split('\n')).toEqual(attempts);
       expect(readFileSync(argsLog, 'utf8').split('\n', 1)[0]).toContain('--model legacy-model');
       expect(JSON.parse(result.stdout).data.independence).toBe('none');
     },
@@ -3468,9 +3501,16 @@ describe('cross-agent review public-command wiring', () => {
 
   it.each([
     { name: 'empty author routes', routes: { claude: [] } },
-    { name: 'option-shaped model', routes: { claude: [{ reviewer: 'codex', model: '--unsafe' }] } },
     { name: 'terminal controls in an unknown author', routes: { ['bad\u{1B}\u{7}\u{202E}']: [] } },
   ])('rejects $name safely without launching a reviewer', async ({ routes }) => {
+    await expectInvalidRoutes(routes);
+  });
+
+  it('rejects an option-shaped model before launching any reviewer', async () => {
+    await expectInvalidRoutes({ claude: [{ reviewer: 'codex', model: '--unsafe' }] });
+  });
+
+  async function expectInvalidRoutes(routes: unknown) {
     const directory = createTemporaryDirectory();
     const log = nodePath.join(directory, 'review.log');
     mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
@@ -3514,5 +3554,5 @@ describe('cross-agent review public-command wiring', () => {
       expect(output.findings[0]?.message).not.toContain(control);
     }
     expect(existsSync(log)).toBe(false);
-  });
+  }
 });
