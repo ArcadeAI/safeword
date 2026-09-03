@@ -2,6 +2,10 @@
 
 Feature source: `features/lean-product-plans.feature`
 
+Semantic demo scenarios: `features/killer-demo-quality.feature` (manual reviewer
+evaluation). Procedure and evidence: `experiments/killer-demo-eval/README.md`
+and `results.md` in that directory. Template-shape tests are not semantic proof.
+
 ## Rule: lean-product-plans.NTB1.R1 — Every feature epic and standalone feature has one decision-ready Product Plan
 
 ### Scenario: Creating a feature epic creates one compact Product Plan
@@ -150,15 +154,28 @@ Feature source: `features/lean-product-plans.feature`
 
 ### Scenario: Each Product Plan owner captures a credible Killer Demo
 
-- [x] RED skip: behavior test and implementation share the recorded delivery checkpoint
-- [x] GREEN a578d4269
-- [x] REFACTOR skip: no scenario-local cleanup remained after the delivery checkpoint
+- [x] RED: PR #3630 review found the template-shape proof non-discriminating
+- [x] GREEN: live evaluation case a accepted the concrete payoff; see results.md
+- [x] REFACTOR: moved semantic claims out of the Vitest proof lane
+- Limitation: shared owner context evaluated once, not separate host/owner paths
 
 ### Scenario: Boilerplate does not qualify as a Killer Demo
 
-- [x] RED skip: behavior test and implementation share the recorded delivery checkpoint
-- [x] GREEN a578d4269
-- [x] REFACTOR skip: no scenario-local cleanup remained after the delivery checkpoint
+- [x] RED: the prior string assertion did not exercise reviewer judgment
+- [x] GREEN: live evaluation case b rejected the unsubstituted placeholders
+- [x] REFACTOR: preserved the requirement in the manual evaluation lane
+
+### Scenario: A working interaction without the promised payoff does not qualify
+
+- [x] RED skip: new fixed negative case, not a claimed behavior regression
+- [x] GREEN: live evaluation case c identified unchanged reconciliation pain
+- [x] REFACTOR skip: no additional runner or grading framework needed
+
+### Scenario: An impressive claim without supporting evidence does not qualify
+
+- [x] RED skip: new fixed negative case, not a claimed behavior regression
+- [x] GREEN: live evaluation case d identified unsupported capabilities and proof
+- [x] REFACTOR skip: no additional runner or grading framework needed
 
 ## Rule: lean-product-plans.NTB1.R5 — Inapplicable planning sections create no placeholder or skip work
 

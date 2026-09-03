@@ -99,20 +99,6 @@
       "packages/cli/tests/skills/demand-research-contract.test.ts",
       "reports unavailable evidence without inventing demand strength"
     ],
-    "Each Product Plan owner captures a credible Killer Demo": [
-      [
-        "packages/cli/tests/commands/ticket-new.test.ts",
-        "keeps epic motivation in its Product Plan"
-      ],
-      [
-        "packages/cli/tests/utils/ticket-writer.test.ts",
-        "has the section headers in canonical order"
-      ]
-    ],
-    "Boilerplate does not qualify as a Killer Demo": [
-      "packages/cli/tests/intake-brief.test.ts",
-      "requires a desirable, falsifiable Killer Demo in one sentence"
-    ],
     "Product Plans contain no comms or launch prompt": [
       "packages/cli/tests/utils/ticket-writer.test.ts",
       "contains no comms or launch planning section"
