@@ -160,14 +160,14 @@ records that smoke checkpoint, not completion of every tagged surface.
 
 - [x] RED skip: PR #3630 review exposed non-discriminating proof, not a failing runtime test
 - [x] GREEN 32eff0e2c
-- [x] REFACTOR 32eff0e2c
+- [x] REFACTOR skip: manual-lane move shipped with the smoke evidence; no separate refactor
 - Limitation: shared owner context evaluated once, not separate host/owner paths
 
 ### Scenario: Boilerplate does not qualify as a Killer Demo
 
 - [x] RED skip: the prior string assertion did not exercise reviewer judgment
 - [x] GREEN 32eff0e2c
-- [x] REFACTOR 32eff0e2c
+- [x] REFACTOR skip: manual-lane move shipped with the smoke evidence; no separate refactor
 
 ### Scenario: A working interaction without the promised payoff does not qualify
 
