@@ -1,4 +1,4 @@
-export type ReviewAgent = 'claude' | 'codex';
+export type ReviewAgent = 'claude' | 'codex' | 'opencode';
 export type ReviewAuthor = ReviewAgent | 'cursor' | 'unknown';
 export type ReviewKind = 'quality-review' | 'scenario-gate' | 'plan-implementation';
 export type ReviewPolicy = 'prefer' | 'require' | 'off';

@@ -44,7 +44,7 @@ const REVIEW_OUTPUT_SCHEMA_SHAPE = {
   properties: {
     schema_version: { type: 'integer', enum: [1] },
     dispatch_id: { type: 'string' },
-    reviewer_agent: { type: 'string', enum: ['claude', 'codex'] },
+    reviewer_agent: { type: 'string', enum: ['claude', 'codex', 'opencode'] },
     verdict: { type: 'string', enum: ['approve', 'request_changes'] },
     summary: { type: 'string' },
     findings: {
@@ -115,6 +115,7 @@ const ARGUMENTS: Readonly<Record<ReviewAgent, readonly string[]>> = {
     'mcp_servers={}',
     '-',
   ],
+  opencode: ['run', '--format', 'json', '--pure'],
 };
 
 /**
@@ -156,6 +157,7 @@ interface ReviewAttempt {
 const HELP_ARGUMENTS: Readonly<Record<ReviewAgent, readonly string[]>> = {
   claude: ['--help'],
   codex: ['exec', '--help'],
+  opencode: ['run', '--help'],
 };
 
 /**
@@ -185,6 +187,7 @@ const REQUIRED_CAPABILITIES: Readonly<Record<ReviewAgent, readonly string[]>> = 
     '--config',
     '--output-schema',
   ],
+  opencode: ['--format', '--pure', '--model'],
 };
 
 const MAX_OUTPUT_BYTES = 1024 * 1024;
@@ -344,6 +347,35 @@ function parseCodexOutput(stdout: string): unknown {
   return parseJson(stdout);
 }
 
+function parseOpenCodeOutput(stdout: string): unknown {
+  const completed = stdout
+    .split('\n')
+    .filter(line => line.trim() !== '')
+    .flatMap(line => {
+      try {
+        return [parseJson(line)];
+      } catch {
+        return [];
+      }
+    })
+    .filter(
+      event =>
+        isRecord(event) &&
+        event.type === 'text' &&
+        isRecord(event.part) &&
+        event.part.type === 'text' &&
+        isRecord(event.part.time) &&
+        typeof event.part.time.end === 'number' &&
+        typeof event.part.text === 'string',
+    );
+  if (completed.length !== 1) throw new Error('invalid reviewer output');
+  const [event] = completed;
+  if (!isRecord(event) || !isRecord(event.part) || typeof event.part.text !== 'string') {
+    throw new Error('invalid reviewer output');
+  }
+  return parseJson(event.part.text);
+}
+
 function reviewerVerdictMatchesFindings(verdict: unknown, findings: readonly unknown[]): boolean {
   return (
     verdict !== 'approve' ||
@@ -393,7 +425,10 @@ export function parseReviewerOutput(
   reviewer: ReviewAgent,
   stdout: string,
 ): UnverifiedReviewerOutput {
-  const output = reviewer === 'claude' ? parseClaudeOutput(stdout) : parseCodexOutput(stdout);
+  let output: unknown;
+  if (reviewer === 'claude') output = parseClaudeOutput(stdout);
+  else if (reviewer === 'codex') output = parseCodexOutput(stdout);
+  else output = parseOpenCodeOutput(stdout);
   if (!hasValidReviewerOutputBody(output)) throw new Error('invalid reviewer output');
   // Identity fields cross a separate trust boundary in coordinator.ts, which
   // reports missing and contradictory provenance as distinct public failures.
@@ -595,7 +630,9 @@ function remainingReviewTime(
 function executableCandidates(
   reviewer: ReviewAgent,
   untrustedRoot: string,
+  allowStaging = true,
 ): { readonly paths: string[]; readonly rejectedForTrust: boolean } {
+  const canonicalUntrustedRoot = realpathSync(untrustedRoot);
   const extensions =
     process.platform === 'win32'
       ? (process.env.PATHEXT ?? '.COM;.EXE;.BAT;.CMD')
@@ -620,7 +657,7 @@ function executableCandidates(
     if (inside(untrustedRoot, candidate)) return [];
     try {
       const canonical = realpathSync(candidate);
-      if (!outsideUntrustedRoot(untrustedRoot, canonical)) return [];
+      if (!outsideUntrustedRoot(canonicalUntrustedRoot, canonical)) return [];
       accessSync(canonical, constants.X_OK);
       if (!hasTrustedExecutableAncestry(canonical)) {
         rejectedForTrust = true;
@@ -636,12 +673,13 @@ function executableCandidates(
   // This closes the project-controlled parent/file symlink swap window.
   const trusted = [...new Set(canonicalCandidates)];
   if (trusted.length > 0) return { paths: trusted, rejectedForTrust };
+  if (!allowStaging) return { paths: [], rejectedForTrust };
   // Nothing directly trusted: rescue an installation whose only problem is a
   // package manager's group-writable directory (Homebrew's default). Each
   // stagedTrustedReviewerCopy re-checks the file itself from an open descriptor
   // and refuses to stage a writable — potentially tampered — executable.
   const staged = stageable.flatMap(canonical => {
-    const copy = stagedTrustedReviewerCopy(reviewer, canonical, untrustedRoot);
+    const copy = stagedTrustedReviewerCopy(reviewer, canonical, canonicalUntrustedRoot);
     return copy !== undefined && hasTrustedExecutableAncestry(copy) ? [copy] : [];
   });
   return { paths: [...new Set(staged)], rejectedForTrust };
@@ -666,6 +704,165 @@ type CapabilityAssessment =
       readonly kind: 'failed';
       readonly failure: Extract<ReviewFailure, 'unsupported' | 'probe_timed_out' | 'launch_failed'>;
     };
+
+export interface ReviewRouteObservation {
+  readonly installed: boolean | 'inspection_unavailable';
+  readonly compatibility: 'compatible' | 'not_compatible' | 'inspection_unavailable';
+  readonly catalogue: 'catalogued' | 'not_catalogued' | 'not_applicable' | 'unavailable';
+}
+
+async function captureCommand(
+  reviewer: ReviewAgent,
+  executable: string,
+  arguments_: readonly string[],
+  cwd: string,
+  timeoutMs: number,
+): Promise<{ readonly kind: 'completed'; readonly stdout: string } | { readonly kind: 'failed' }> {
+  const child = spawn(executable, arguments_, {
+    cwd,
+    env: reviewerProbeEnvironment(),
+    stdio: ['ignore', 'pipe', 'ignore'],
+    detached: process.platform !== 'win32',
+  });
+  const result = await new Promise<
+    { readonly kind: 'completed'; readonly stdout: string } | { readonly kind: 'failed' }
+  >(resolve => {
+    let stdout = '';
+    let settled = false;
+    const finish = (
+      value: { readonly kind: 'completed'; readonly stdout: string } | { readonly kind: 'failed' },
+    ): void => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      resolve(value);
+    };
+    const timeout = setTimeout(() => {
+      finish({ kind: 'failed' });
+    }, timeoutMs);
+    child.stdout.on('data', (chunk: Buffer) => {
+      if (Buffer.byteLength(stdout) + chunk.byteLength > MAX_OUTPUT_BYTES) {
+        finish({ kind: 'failed' });
+        return;
+      }
+      stdout += chunk.toString('utf8');
+    });
+    child.on('error', () => {
+      finish({ kind: 'failed' });
+    });
+    child.on('close', code => {
+      finish(code === 0 ? { kind: 'completed', stdout } : { kind: 'failed' });
+    });
+  });
+  await stopReviewerOrThrow(child, reviewer);
+  child.stdout.destroy();
+  child.unref();
+  return result;
+}
+
+async function inspectOpenCodeCatalogue(
+  executable: string,
+  model: string,
+  cwd: string,
+  deadline: number,
+): Promise<ReviewRouteObservation> {
+  const catalogue = await captureCommand(
+    'opencode',
+    executable,
+    ['models', '--pure'],
+    cwd,
+    Math.max(1, deadline - Date.now()),
+  );
+  if (catalogue.kind === 'failed') {
+    return { installed: true, compatibility: 'compatible', catalogue: 'unavailable' };
+  }
+  const listedModels = catalogue.stdout
+    .split(/\r?\n/u)
+    .map(value => value.trim())
+    .filter(value => value.length > 0);
+  if (listedModels.length === 0) {
+    return { installed: true, compatibility: 'compatible', catalogue: 'unavailable' };
+  }
+  return {
+    installed: true,
+    compatibility: 'compatible',
+    catalogue: listedModels.includes(model) ? 'catalogued' : 'not_catalogued',
+  };
+}
+
+function compatibleRouteObservation(
+  reviewer: ReviewAgent,
+  model: string | undefined,
+  skipCatalogue: boolean,
+):
+  | { readonly kind: 'completed'; readonly observation: ReviewRouteObservation }
+  | { readonly kind: 'catalogue'; readonly model: string } {
+  if (model === undefined) {
+    return {
+      kind: 'completed',
+      observation: {
+        installed: true,
+        compatibility: 'compatible',
+        catalogue: 'not_applicable',
+      },
+    };
+  }
+  if (reviewer !== 'opencode' || skipCatalogue) {
+    return {
+      kind: 'completed',
+      observation: { installed: true, compatibility: 'compatible', catalogue: 'unavailable' },
+    };
+  }
+  return { kind: 'catalogue', model };
+}
+
+function unavailableCandidateObservation(rejectedForTrust: boolean): ReviewRouteObservation {
+  return rejectedForTrust
+    ? { installed: true, compatibility: 'inspection_unavailable', catalogue: 'unavailable' }
+    : { installed: false, compatibility: 'not_compatible', catalogue: 'unavailable' };
+}
+
+/** Read-only local evidence. It never stages executables, authenticates, or performs inference. */
+export async function inspectReviewRoute(
+  reviewer: ReviewAgent,
+  model: string | undefined,
+  cwd: string,
+  timeoutMs = 5000,
+  skipCatalogue = false,
+): Promise<ReviewRouteObservation> {
+  const candidates = executableCandidates(reviewer, cwd, false);
+  if (candidates.paths.length === 0) {
+    return unavailableCandidateObservation(candidates.rejectedForTrust);
+  }
+  const deadline = Date.now() + timeoutMs;
+  let inspectionUnavailable = false;
+  for (const candidate of candidates.paths) {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) {
+      inspectionUnavailable = true;
+      break;
+    }
+    const capability = await supportsReviewContract(
+      reviewer,
+      candidate,
+      tmpdir(),
+      remaining,
+      model,
+    );
+    if (capability.kind === 'failed') {
+      inspectionUnavailable ||= capability.failure !== 'unsupported';
+      continue;
+    }
+    const compatible = compatibleRouteObservation(reviewer, model, skipCatalogue);
+    if (compatible.kind === 'completed') return compatible.observation;
+    return inspectOpenCodeCatalogue(candidate, compatible.model, tmpdir(), deadline);
+  }
+  return {
+    installed: true,
+    compatibility: inspectionUnavailable ? 'inspection_unavailable' : 'not_compatible',
+    catalogue: 'unavailable',
+  };
+}
 
 async function supportsReviewContract(
   reviewer: ReviewAgent,
@@ -773,8 +970,9 @@ function classifyExit(stderr: string, otherwise: ReviewFailure): ReviewFailure {
 const reviewerStops = new WeakMap<ReturnType<typeof spawn>, Promise<boolean>>();
 
 function stopWindowsReviewer(child: ReturnType<typeof spawn>, pid: number): Promise<boolean> {
+  const streamClosed = (stream: typeof child.stdout): boolean => stream === null || stream.closed;
   const childClosed = (): boolean =>
-    child.exitCode !== null && child.stdout?.closed === true && child.stderr?.closed === true;
+    child.exitCode !== null && streamClosed(child.stdout) && streamClosed(child.stderr);
   if (childClosed()) return Promise.resolve(true);
   return new Promise(resolve => {
     let settled = false;

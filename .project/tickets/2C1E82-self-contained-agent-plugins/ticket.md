@@ -26,7 +26,7 @@ done_when:
   - Single-agent and mixed-agent plans contain only declared selected-host requirements.
   - Release coverage rejects undeclared project-local executable references from native plugins.
 created: 2026-08-18T16:58:37.428Z
-last_modified: 2026-09-03T01:38:14.000Z
+last_modified: 2026-09-03T02:32:02.000Z
 ---
 
 # Make each agent's plugin fully self-contained

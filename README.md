@@ -387,8 +387,10 @@ it never stages, commits, or opens a PR.
 
 **Skills** (in `.claude/skills/`): On-demand workflows for planning, BDD/TDD, debugging, elicitation, architecture exploration, review, refactoring, verification, retrospectives, linting, testing, ticket management, and safe session closeout. The directory is the source of truth; generated Codex equivalents use the `safeword:<skill>` namespace. Internal `finish-review` guidance is not a user command: class-1 review workflows (those requiring independent/cross-model review, as opposed to class-2's self-verifiable checks) invoke it only after the CLI coordinator returns typed route exhaustion.
 
-Review prefers every independent Claude/Codex CLI route, then same-agent
-headless review. If those routes cannot complete, a foreground agent makes one
+Review keeps the existing Claude↔Codex pairing first, then tries OpenCode as a
+second independent runtime before same-agent headless review. OpenCode-authored
+work routes to Claude and then Codex, so OpenCode self-review is never counted
+as independent. If those routes cannot complete, a foreground agent makes one
 best-effort fresh-context host review and then one bounded self-review. Those
 last two routes are useful feedback, not independent evidence; `require` stays
 blocked and no independent stamp is written. Both read the live worktree, so

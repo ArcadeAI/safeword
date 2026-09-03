@@ -93,7 +93,7 @@ describe('OpenCode profile boundary', () => {
       {
         cwd: project,
         noInput: true,
-        offline: false,
+        offline: true,
         operands: [],
         options: { agents: 'opencode', modify: false },
       },
@@ -129,7 +129,7 @@ describe('OpenCode profile boundary', () => {
       {
         cwd: project,
         noInput: true,
-        offline: false,
+        offline: true,
         operands: [],
         options: { agents: 'opencode', modify: false },
       },
@@ -175,7 +175,7 @@ describe('OpenCode profile boundary', () => {
       installClaude: () => Promise.resolve(createResult({ state: 'healthy' })),
       installCodex: () => Promise.resolve(createResult({ state: 'healthy' })),
     };
-    const installed = await installLifecycle(invocation, adapters);
+    const installed = await installLifecycle({ ...invocation, offline: true }, adapters);
     expect(installed.state).toBe('changed');
     const paths = openCodeProfilePaths(root);
     const managedSkill = nodePath.join(root, 'skills/safeword-verify/SKILL.md');

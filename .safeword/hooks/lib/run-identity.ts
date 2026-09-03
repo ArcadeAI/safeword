@@ -1,4 +1,4 @@
-export type AgentRuntime = 'claude' | 'codex' | 'cursor' | 'unknown';
+export type AgentRuntime = 'claude' | 'codex' | 'cursor' | 'opencode' | 'unknown';
 
 export interface RunIdentity {
   runtime: AgentRuntime;
@@ -19,7 +19,7 @@ interface RunIdentityInput {
   generation_id?: unknown;
 }
 
-const RUNTIMES = new Set<AgentRuntime>(['claude', 'codex', 'cursor', 'unknown']);
+const RUNTIMES = new Set<AgentRuntime>(['claude', 'codex', 'cursor', 'opencode', 'unknown']);
 const RUNTIME_ENV = 'SAFEWORD_AGENT_RUNTIME';
 
 function asInput(value: unknown): RunIdentityInput {
@@ -129,6 +129,16 @@ export function resolveRunIdentity(
       runtime,
       sessionKey: session?.value ?? null,
       turnKey: null,
+      source: session?.source ?? 'missing',
+    };
+  }
+
+  if (runtime === 'opencode') {
+    const session = firstString('input.session_id', input.session_id);
+    return {
+      runtime,
+      sessionKey: session?.value ?? null,
+      turnKey: nonEmptyString(input.turn_id),
       source: session?.source ?? 'missing',
     };
   }

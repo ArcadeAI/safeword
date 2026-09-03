@@ -22,9 +22,9 @@ export interface ReviewStamp {
   /** The reviewing model, recorded by the orchestrator that assigned it (ticket MR5M3A). Absent on pre-MR5M3A stamps. */
   model?: string;
   /** Author runtime recorded from the validated coordinator result. */
-  author?: 'claude' | 'codex';
+  author?: 'claude' | 'codex' | 'opencode';
   /** Actual reviewer runtime recorded from the validated coordinator result. */
-  reviewer?: 'claude' | 'codex';
+  reviewer?: 'claude' | 'codex' | 'opencode';
   /** Independence earned by the validated route. */
   independence?: 'cross-agent' | 'degraded' | 'none';
 }
@@ -118,7 +118,7 @@ export function gatePhaseAdvance(
 // fork review). The content-hash binding in <scope> at least defeats accidental
 // stale-after-edit passes, not deliberate spoofing.
 const REVIEW_LINE =
-  /(?:^|\s)review:(\S+)(?:\s+model:(\S+))?(?:\s+author:(claude|codex))?(?:\s+reviewer:(claude|codex))?(?:\s+independence:(cross-agent|degraded|none))?(?:\s+skip:(.+))?$/;
+  /(?:^|\s)review:(\S+)(?:\s+model:(\S+))?(?:\s+author:(claude|codex|opencode))?(?:\s+reviewer:(claude|codex|opencode))?(?:\s+independence:(cross-agent|degraded|none))?(?:\s+skip:(.+))?$/;
 
 /**
  * Rollout guard: the review gate is OFF unless `.safeword/config.json` sets

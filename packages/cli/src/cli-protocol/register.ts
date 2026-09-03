@@ -77,7 +77,8 @@ function configureValueParser(
       });
       return;
     }
-    case 'claude-plugin-scope': {
+    case 'claude-plugin-scope':
+    case 'review-route-scope': {
       option.argParser(value => {
         if (value !== 'project' && value !== 'user') {
           throw new InvalidArgumentError('scope must be either project or user');
@@ -86,7 +87,8 @@ function configureValueParser(
       });
       return;
     }
-    case 'execution-mode-list': {
+    case 'execution-mode-list':
+    case 'review-route-list': {
       option.argParser((value: string, previous: string[] | undefined) => [
         ...(previous ?? []),
         value,

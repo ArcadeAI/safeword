@@ -15,6 +15,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { ReviewerOutput } from '../../src/review/contract.js';
 import {
+  inspectReviewRoute,
   parseProcessStat,
   parseReviewerOutput,
   planReviewRubric,
@@ -144,6 +145,95 @@ describe('headless reviewer timeout budgets', () => {
   });
 });
 
+describe('review route inspection', () => {
+  it('distinguishes OpenCode catalogue presence from runtime-default routes', async () => {
+    const bin = trustedTemporaryDirectory();
+    const project = temporaryDirectory();
+    const executable = nodePath.join(bin, 'opencode');
+    writeFileSync(
+      executable,
+      `#!/bin/sh
+if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then echo '--format --pure --model'; exit 0; fi
+if [ "\${1:-}" = "models" ]; then printf 'vendor/model-a\nvendor/model-b\n'; exit 0; fi
+exit 9
+`,
+    );
+    chmodSync(executable, 0o755);
+    vi.stubEnv('PATH', bin);
+
+    await expect(inspectReviewRoute('opencode', 'vendor/model-b', project)).resolves.toEqual({
+      installed: true,
+      compatibility: 'compatible',
+      catalogue: 'catalogued',
+    });
+    await expect(inspectReviewRoute('opencode', undefined, project)).resolves.toEqual({
+      installed: true,
+      compatibility: 'compatible',
+      catalogue: 'not_applicable',
+    });
+  });
+
+  it('reports an installed runtime without model selection as incompatible', async () => {
+    const bin = trustedTemporaryDirectory();
+    const project = temporaryDirectory();
+    const executable = nodePath.join(bin, 'codex');
+    writeFileSync(
+      executable,
+      `#!/bin/sh
+echo '--json --sandbox --skip-git-repo-check --ephemeral --ignore-user-config --ignore-rules --disable --config --output-schema'
+`,
+    );
+    chmodSync(executable, 0o755);
+    vi.stubEnv('PATH', bin);
+
+    await expect(inspectReviewRoute('codex', 'model-a', project)).resolves.toEqual({
+      installed: true,
+      compatibility: 'not_compatible',
+      catalogue: 'unavailable',
+    });
+  });
+
+  it('treats empty OpenCode catalogue output as unavailable rather than absent', async () => {
+    const bin = trustedTemporaryDirectory();
+    const project = temporaryDirectory();
+    const executable = nodePath.join(bin, 'opencode');
+    writeFileSync(
+      executable,
+      `#!/bin/sh
+if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then echo '--format --pure --model'; exit 0; fi
+if [ "\${1:-}" = "models" ]; then exit 0; fi
+exit 9
+`,
+    );
+    chmodSync(executable, 0o755);
+    vi.stubEnv('PATH', bin);
+
+    await expect(inspectReviewRoute('opencode', 'vendor/model-a', project)).resolves.toEqual({
+      installed: true,
+      compatibility: 'compatible',
+      catalogue: 'unavailable',
+    });
+  });
+
+  it.skipIf(process.platform === 'win32')(
+    'does not report a stageable reviewer as missing during read-only inspection',
+    async () => {
+      const bin = trustedTemporaryDirectory();
+      const project = temporaryDirectory();
+      const executable = nodePath.join(bin, 'claude');
+      writeFileSync(executable, '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+      chmodSync(bin, 0o775);
+      vi.stubEnv('PATH', bin);
+
+      await expect(inspectReviewRoute('claude', undefined, project)).resolves.toEqual({
+        installed: true,
+        compatibility: 'inspection_unavailable',
+        catalogue: 'unavailable',
+      });
+    },
+  );
+});
+
 describe('headless reviewer output adapters', () => {
   it('extracts a review result from the Claude JSON envelope', () => {
     const result = JSON.stringify(output);
@@ -190,6 +280,23 @@ describe('headless reviewer output adapters', () => {
     ].join('\n');
 
     expect(parseReviewerOutput('codex', stdout)).toEqual(codexOutput);
+  });
+
+  it('extracts one completed text result from OpenCode JSON events', () => {
+    const opencodeOutput = { ...output, reviewer_agent: 'opencode' as const };
+    const stdout = [
+      JSON.stringify({ type: 'step_start', part: { type: 'step-start' } }),
+      JSON.stringify({
+        type: 'text',
+        part: {
+          type: 'text',
+          text: JSON.stringify(opencodeOutput),
+          time: { start: 1, end: 2 },
+        },
+      }),
+    ].join('\n');
+
+    expect(parseReviewerOutput('opencode', stdout)).toEqual(opencodeOutput);
   });
 
   it('retains the direct JSON test adapter contract', () => {

@@ -2,7 +2,7 @@
 
 ## Verify Checklist
 
-**Test Suite:** ✓ 9260/9260 tests pass (14 intentional skips; both root/package plans completed)
+**Test Suite:** ✓ Full pre-merge verification: 9260/9260 tests pass (14 intentional skips; both root/package plans completed). Combined-tree focused lane: 535 passed / 2 skipped, with its one probe-timeout failure passing unchanged on recheck; release checks: 55/55.
 **Gherkin:** ⚠️ Local environment limitation: intermittent full-suite reviewer startup timeout; full root retry and package baseline pass, final reviewer feature passes 37/37, both proof entry points pass 39/39
 **Build:** ✅ Success
 **Lint:** ✅ Clean
@@ -14,13 +14,21 @@
 **Reconcile:** ✅ No pattern deviation
 **Experience:** ✅ No new friction — the packaged first-use state walkthrough required no installer and preserved authored content
 **Surface Evidence:** ✅ 5/5 affected surfaces have recorded proof; interactive host UI activation is not claimed
-**Evidence limits:** ⚠️ Desktop hook protection remains unverified for this task. Local Python import-linter and pip-audit coverage is unavailable. Full local acceptance retries had intermittent reviewer-startup timeout failures; the affected feature passes in isolation, documented below. The linked CI result covers unchanged production source; the PR readiness record tracks CI for the final fixture commit separately.
+**Evidence limits:** ⚠️ Desktop hook protection remains unverified for this task. Local Python import-linter and pip-audit coverage is unavailable. Full local acceptance retries had intermittent reviewer-startup timeout failures; the affected feature passes in isolation, documented below. Pre-merge CI is historical evidence; the PR readiness record tracks CI for the final merge commit separately.
 
-Audit passed with documented limitations. Dependency-cruiser found no violations across 417 modules and 691 dependencies. Principle trace, learnings, domain references, and configuration sync passed. Python dead-code findings for `ReviewSpecAdapter.evaluate` and `make_reflective_dataset` are callbacks used by GEPA, not unused production paths.
+Audit passed with documented limitations. The final combined-tree dependency audit found no violations across 475 modules and 886 dependencies. Epic principle trace and configuration sync passed; the earlier learnings/domain checks remain applicable. Python dead-code findings for `ReviewSpecAdapter.evaluate` and `make_reflective_dataset` are callbacks used by GEPA, not unused production paths.
 
 ## Current-head evidence
 
-Verified production source head: `09b9f942131080ed7e29fde48b4bec22c6b20633`. Subsequent reviewer-fixture corrections change no production source or explicit deadline contract; they fund classification cases and make the invalid-model proof discriminating.
+Integration update: CI run `33704538993` passed on `e130f285aecd8bc5ffa36efbf4246836959202fe`, including both Node jobs, acceptance, physical install, and release gates. While it ran, main advanced to `258b1055e4be7a3ef71b60c16fd59aef6a210e49` (OpenCode fallback and ranked review routes, PR #3617). The combined tree has completed local verification; the pre-merge CI result is not represented as post-merge evidence. Both native bundles were regenerated, and compatibility recapture passed 12/12 with only three Cursor tree digests changing relative to `e130f285a`; existing result digests remained unchanged.
+
+Combined-tree checks passed root/package TypeScript and the diff audit (475 modules / 886 dependencies, no dependency violations or config drift). The explicit epic principle trace passed; a repository-wide scan found seven baseline dead references in two unrelated unchanged plans, which were left untouched. The focused integration lane recorded 535 passes, two skips, and one capability-probe timeout before the writable-PATH assertion was reached; all compatibility cases passed with update mode disabled. The unchanged targeted recheck passed both writable-PATH cases, and all 55 release checks passed. The original failed aggregate remains recorded, not relabeled green.
+
+Fresh review `32a289fb-4912-4be4-b8d2-db1dbd092020` identified a false-green credential fixture: its successful exit bypassed nonzero-exit diagnostics. The fixture now exits 7, and the leak assertion requires the typed `process_failed` classification. All 37 reviewer scenarios / 699 steps passed on the merged runtime, including the strict three-second deadline. A disposable negative control restored the old successful exit and failed specifically on `invalid_output` versus `process_failed`; it is not shipped. Final-file formatting, lint, and TypeScript passed. The merged packaged-runtime first-use walkthrough also passed: truthful confirmation, one precise ignore rule, unchanged authored note, no installer or project executable runtime.
+
+Final independent review `bbc02ed5-6a0d-4ac2-965b-1811d08b572d` approved with no errors (Claude Opus, cross-agent). Remaining warnings have explicit work-log dispositions. Passing the surrounding reviewer feature is not a claim that every one of its fixtures is maximally discriminating: contract-writing and late-answer Cucumber preconditions, user-config/cache isolation, and minor fixture hygiene remain follow-ups. The lower-level contract-file test directly verifies classified, redacted failure. These limitations do not leave an accepted self-contained-agent-plugins scenario uncovered.
+
+Pre-merge full-verification production source head: `09b9f942131080ed7e29fde48b4bec22c6b20633`. Subsequent reviewer-fixture corrections change no production source or explicit deadline contract; they fund classification cases and make the invalid-model proof discriminating. The main integration's additional runtime changes are covered by the combined-tree evidence above and final-head CI tracked in the PR.
 
 - Both full local CLI passes: 8968 passed, 13 skipped, 551 files. Both relay passes: 186 passed / 1 skipped. Both collector passes: 106 passed. The checklist counts unique executed tests, not duplicate runs.
 - All 38 epic scenarios have executable proof registrations and complete RED/GREEN/REFACTOR evidence. Independent scenario gate `a77603b7-0153-44f0-907e-4cef2a675801` approved with no errors.

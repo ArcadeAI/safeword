@@ -144,7 +144,7 @@ printf '{"type":"item.completed","item":{"id":"i0","type":"agent_message","text"
 exec /bin/sleep 3600`;
   }
   if (behaviour === 'emits a credential') {
-    return `printf 'trace token=${CREDENTIAL}\\n' >&2\nprintf 'not-a-review\\n'`;
+    return `printf 'trace token=${CREDENTIAL}\\n' >&2\nprintf 'not-a-review\\n'\nexit 7`;
   }
   if (behaviour === 'answers off contract') {
     return `${body}\nanswer=$(printf '{"schema_version":1,"dispatch_id":"%s","reviewer_agent":"${agent}","verdict":"approve","summary":"reviewed","findings":[{"severity":"fatal","message":"invalid severity"}]}' "$dispatch_id")\n${emit}`;
@@ -865,6 +865,7 @@ Then(
 Then(
   'the explanation contains neither that output nor the credential',
   function (this: SafewordWorld) {
+    assert.equal(payload(this).data.fallback_failure, 'process_failed');
     for (const output of [this.result.stdout, this.result.stderr]) {
       assert.ok(!output.includes(CREDENTIAL));
       assert.ok(!output.includes('not-a-review'));

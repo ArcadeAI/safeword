@@ -111,7 +111,12 @@ async function statusHandler(invocation: CommandInvocation): Promise<CliResult> 
   const parsed = parseAgentSelection(invocation.options.agents);
   if (!parsed.ok) return invalidAgentSelection('status', parsed.error);
   const { observeLifecycleStatus } = await import('../lifecycle/status.js');
-  return observeLifecycleStatus(invocation.cwd, parsed.selection.agents);
+  return observeLifecycleStatus(
+    invocation.cwd,
+    parsed.selection.agents,
+    process.env,
+    invocation.offline,
+  );
 }
 
 async function conformanceHandler(invocation: CommandInvocation): Promise<CliResult> {
@@ -786,6 +791,156 @@ async function reviewRunHandler(invocation: CommandInvocation): Promise<CliResul
   const context = reviewContext(invocation.options.context);
   if (process.env.SAFEWORD_REVIEW_WORKER === '1') return runReviewWorker(invocation);
   return startReviewInBackground(invocation, rawKind, targets, context);
+}
+
+function reviewRouteAuthor(value: unknown): 'claude' | 'codex' | 'opencode' | undefined {
+  return typeof value === 'string' && ['claude', 'codex', 'opencode'].includes(value)
+    ? (value as 'claude' | 'codex' | 'opencode')
+    : undefined;
+}
+
+function reviewRoutesFailure(command: string, error: unknown): CliResult {
+  const message = error instanceof Error ? error.message : 'Review route configuration is invalid.';
+  const invalid =
+    message.startsWith('Invalid ') ||
+    message.startsWith('Cannot locate the Safeword user configuration directory.');
+  const readFailure = command === 'review routes list' && !invalid;
+  let code = 'REVIEW_ROUTE_CONFIG_WRITE_FAILED';
+  if (invalid) code = 'REVIEW_ROUTE_CONFIG_INVALID';
+  else if (readFailure) code = 'REVIEW_ROUTE_CONFIG_READ_FAILED';
+  return createResult({
+    state: 'failed',
+    errors: [
+      {
+        code,
+        message,
+        retryable: !invalid,
+      },
+    ],
+    data: { command },
+  });
+}
+
+async function reviewRoutesSetHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const author = reviewRouteAuthor(invocation.options.author);
+  const scope = invocation.options.scope;
+  const routeValues = invocation.options.route;
+  if (
+    author === undefined ||
+    (scope !== 'user' && scope !== 'project') ||
+    !Array.isArray(routeValues) ||
+    routeValues.length === 0
+  ) {
+    return invalidOperand(
+      'review routes set',
+      'Provide --author and at least one --route; scope must be user or project.',
+    );
+  }
+  const [{ parseRouteText }, { scopedConfigPath, setScopedReviewRoutes }] = await Promise.all([
+    import('../review/route-config.js'),
+    import('../review/preferences.js'),
+  ]);
+  let routes: ReturnType<typeof parseRouteText>[];
+  let target: string;
+  let existed: boolean;
+  try {
+    routes = routeValues.map(value => parseRouteText(String(value), author));
+    target = scopedConfigPath(invocation.cwd, scope);
+    existed = existsSync(target);
+    setScopedReviewRoutes(invocation.cwd, scope, author, routes);
+  } catch (error) {
+    return reviewRoutesFailure('review routes set', error);
+  }
+  return createResult({
+    state: 'changed',
+    changed: true,
+    effects: {
+      files: [
+        {
+          kind: existed ? 'update' : 'create',
+          target: scope === 'project' ? nodePath.relative(invocation.cwd, target) : target,
+        },
+      ],
+    },
+    data: {
+      command: 'review routes set',
+      scope,
+      author,
+      routes: routes.map(({ reviewer, model, independence }) => ({
+        reviewer,
+        ...(model !== undefined && { model }),
+        independence,
+      })),
+    },
+  });
+}
+
+async function reviewRoutesListHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const author = reviewRouteAuthor(invocation.options.author);
+  if (author === undefined)
+    return invalidOperand('review routes list', 'Provide --author as claude, codex, or opencode.');
+  const [{ effectiveConfiguredRoutes }, { builtInReviewRoutes }] = await Promise.all([
+    import('../review/preferences.js'),
+    import('../review/policy.js'),
+  ]);
+  let configured: ReturnType<typeof effectiveConfiguredRoutes>;
+  try {
+    configured = effectiveConfiguredRoutes(invocation.cwd, author);
+  } catch (error) {
+    return reviewRoutesFailure('review routes list', error);
+  }
+  const data = configured ?? {
+    source: 'built-in',
+    routes: builtInReviewRoutes(invocation.cwd, author),
+  };
+  return createResult({
+    state: 'healthy',
+    presentation: {
+      kind: 'raw',
+      body: [
+        `${author} review routes (${data.source}):`,
+        ...data.routes.map(
+          (route, index) =>
+            `${index + 1}. ${route.reviewer} (${route.model ?? 'runtime default'}) [${route.independence}]`,
+        ),
+      ].join('\n'),
+    },
+    data: { command: 'review routes list', author, ...data },
+  });
+}
+
+async function reviewRoutesResetHandler(invocation: CommandInvocation): Promise<CliResult> {
+  const author = reviewRouteAuthor(invocation.options.author);
+  const scope = invocation.options.scope;
+  if (author === undefined || (scope !== 'user' && scope !== 'project'))
+    return invalidOperand(
+      'review routes reset',
+      'Provide --author; scope must be user or project.',
+    );
+  const { resetScopedReviewRoutes, scopedConfigPath } = await import('../review/preferences.js');
+  let target: string;
+  let changed: boolean;
+  try {
+    target = scopedConfigPath(invocation.cwd, scope);
+    changed = resetScopedReviewRoutes(invocation.cwd, scope, author);
+  } catch (error) {
+    return reviewRoutesFailure('review routes reset', error);
+  }
+  return createResult({
+    state: changed ? 'changed' : 'healthy',
+    changed,
+    ...(changed && {
+      effects: {
+        files: [
+          {
+            kind: 'update',
+            target: scope === 'project' ? nodePath.relative(invocation.cwd, target) : target,
+          },
+        ],
+      },
+    }),
+    data: { command: 'review routes reset', scope, author },
+  });
 }
 
 function reviewContext(rawContext: unknown): string[] {
@@ -2254,6 +2409,9 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'ticket reconcile-parent': ticketReconcileParentHandler,
   'review run': reviewRunHandler,
   'review status': reviewStatusHandler,
+  'review routes set': reviewRoutesSetHandler,
+  'review routes list': reviewRoutesListHandler,
+  'review routes reset': reviewRoutesResetHandler,
   'review cancel': reviewCancelHandler,
   'review-pr inspect': reviewPrInspectHandler,
   'review-pr invalidate': invocation => reviewPrPublicationHandler('invalidate', invocation),
