@@ -35478,7 +35478,7 @@ function claudeInstallRequiresMutation(cwd, scope) {
     return true;
   }
 }
-function installClaudePlugin(cwd, scope = "project") {
+function installClaudePlugin(cwd, scope = "user") {
   const effects = [];
   try {
     const projectRoot = canonicalClaudeProjectRoot(cwd);
@@ -35507,7 +35507,7 @@ function installClaudePlugin(cwd, scope = "project") {
     return failedResult(error2, scope);
   }
 }
-function uninstallClaudePlugin(cwd, scope = "project") {
+function uninstallClaudePlugin(cwd, scope = "user") {
   const effects = [];
   try {
     const projectRoot = canonicalClaudeProjectRoot(cwd);
@@ -42919,7 +42919,7 @@ async function profilePreconditions(cwd, agents, scope, operation) {
   return observations.filter((observation) => observation !== false);
 }
 async function prepareLifecycle(cwd, operation, agents, options = {}) {
-  const { full = false, install: installOptions = {}, scope = "project" } = options;
+  const { full = false, install: installOptions = {}, scope = "user" } = options;
   const uninstalling = operation === "uninstall";
   const projectSchema = projectLifecycleSchema(cwd, agents, operation);
   const uninstallOperation = full ? "uninstall-full" : "uninstall";
@@ -43005,7 +43005,9 @@ function installReplayFlags(options) {
   ].filter((flag) => flag !== undefined).map((flag) => ` ${flag}`).join("");
 }
 function lifecycleScope(value, command, agents) {
-  if (value === undefined || value === "project")
+  if (value === undefined)
+    return { ok: true, value: agents.includes("claude") ? "user" : "project" };
+  if (value === "project")
     return { ok: true, value: "project" };
   if (value === "user" && agents.includes("claude"))
     return { ok: true, value: "user" };
@@ -65754,7 +65756,7 @@ async function installHandler(invocation) {
 async function claudeInstallHandler(invocation) {
   if (invocation.offline)
     return onlineRequired("claude install");
-  const requestedScope = invocation.options.scope ?? "project";
+  const requestedScope = invocation.options.scope ?? "user";
   if (requestedScope !== "project" && requestedScope !== "user") {
     return createResult({
       state: "failed",
@@ -67543,7 +67545,7 @@ function claudeScopeOption() {
   return {
     flags: "--scope <scope>",
     description: "Claude activation boundary: this project or the current user profile",
-    defaultValue: "project",
+    defaultValue: "user",
     valueKind: "claude-plugin-scope"
   };
 }
@@ -68250,7 +68252,7 @@ function readGlobalOptions(command2) {
   };
 }
 function readCommandOptions(command2) {
-  return Object.fromEntries(Object.entries(command2.optsWithGlobals()).filter(([name]) => !GLOBAL_OPTION_KEYS.has(name)));
+  return Object.fromEntries(Object.entries(command2.optsWithGlobals()).filter(([name]) => !GLOBAL_OPTION_KEYS.has(name) && !(name === "scope" && command2.getOptionValueSourceWithGlobals(name) === "default")));
 }
 function reportResult(result, options, commandName, delivery) {
   let reportableResult = result;

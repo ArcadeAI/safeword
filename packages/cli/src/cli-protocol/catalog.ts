@@ -157,7 +157,7 @@ function claudeScopeOption(): CommandDefinition['registration']['options'][numbe
   return {
     flags: '--scope <scope>',
     description: 'Claude activation boundary: this project or the current user profile',
-    defaultValue: 'project',
+    defaultValue: 'user',
     valueKind: 'claude-plugin-scope',
   };
 }

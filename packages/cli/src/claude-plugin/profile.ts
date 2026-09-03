@@ -904,7 +904,7 @@ export function claudeInstallRequiresMutation(cwd: string, scope: ClaudePluginSc
   }
 }
 
-export function installClaudePlugin(cwd: string, scope: ClaudePluginScope = 'project'): CliResult {
+export function installClaudePlugin(cwd: string, scope: ClaudePluginScope = 'user'): CliResult {
   const effects: Effect[] = [];
   try {
     const projectRoot = canonicalClaudeProjectRoot(cwd);
@@ -944,10 +944,7 @@ export function installClaudePlugin(cwd: string, scope: ClaudePluginScope = 'pro
   }
 }
 
-export function uninstallClaudePlugin(
-  cwd: string,
-  scope: ClaudePluginScope = 'project',
-): CliResult {
+export function uninstallClaudePlugin(cwd: string, scope: ClaudePluginScope = 'user'): CliResult {
   const effects: Effect[] = [];
   try {
     // Project-scope matching compares a realpath'd projectPath, so resolve the

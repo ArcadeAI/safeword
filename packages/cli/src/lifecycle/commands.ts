@@ -303,7 +303,7 @@ async function prepareLifecycle(
   agents: readonly AgentIntegration[],
   options: PrepareLifecycleOptions = {},
 ): Promise<PreparedLifecycle> {
-  const { full = false, install: installOptions = {}, scope = 'project' } = options;
+  const { full = false, install: installOptions = {}, scope = 'user' } = options;
   const uninstalling = operation === 'uninstall';
   const projectSchema = projectLifecycleSchema(cwd, agents, operation);
   const uninstallOperation = full ? 'uninstall-full' : 'uninstall';
@@ -424,7 +424,9 @@ function lifecycleScope(
 ):
   | { readonly ok: true; readonly value: 'project' | 'user' }
   | { readonly ok: false; readonly result: CliResult } {
-  if (value === undefined || value === 'project') return { ok: true, value: 'project' };
+  if (value === undefined)
+    return { ok: true, value: agents.includes('claude') ? 'user' : 'project' };
+  if (value === 'project') return { ok: true, value: 'project' };
   if (value === 'user' && agents.includes('claude')) return { ok: true, value: 'user' };
   const message =
     value === 'user'

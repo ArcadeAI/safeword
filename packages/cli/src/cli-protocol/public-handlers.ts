@@ -151,7 +151,7 @@ async function installHandler(invocation: CommandInvocation): Promise<CliResult>
 
 async function claudeInstallHandler(invocation: CommandInvocation): Promise<CliResult> {
   if (invocation.offline) return onlineRequired('claude install');
-  const requestedScope = invocation.options.scope ?? 'project';
+  const requestedScope = invocation.options.scope ?? 'user';
   if (requestedScope !== 'project' && requestedScope !== 'user') {
     return createResult({
       state: 'failed',

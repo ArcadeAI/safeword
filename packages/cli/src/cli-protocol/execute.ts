@@ -59,7 +59,11 @@ export function readGlobalOptions(command: Command): GlobalCliOptions {
 export function readCommandOptions(command: Command): Readonly<Record<string, unknown>> {
   return Object.fromEntries(
     Object.entries(command.optsWithGlobals<Record<string, unknown>>()).filter(
-      ([name]) => !GLOBAL_OPTION_KEYS.has(name),
+      // Let lifecycle selection apply the Claude default only when Claude is selected.
+      // Explicit --scope=user still requires Claude in the selection.
+      ([name]) =>
+        !GLOBAL_OPTION_KEYS.has(name) &&
+        !(name === 'scope' && command.getOptionValueSourceWithGlobals(name) === 'default'),
     ),
   );
 }
