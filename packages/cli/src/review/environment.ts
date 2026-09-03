@@ -15,6 +15,14 @@ const VENDOR_VARIABLES: Readonly<Record<ReviewAgent, readonly string[]>> = {
     'CODEX_HOME',
     'CODEX_THREAD_ID',
   ],
+  opencode: [
+    'ANTHROPIC_API_KEY',
+    'OPENAI_API_KEY',
+    'AZURE_OPENAI_API_KEY',
+    'OPENCODE_CONFIG',
+    'OPENCODE_CONFIG_CONTENT',
+    'OPENCODE_CONFIG_DIR',
+  ],
 };
 
 const PROCESS_VARIABLES = [
@@ -74,6 +82,7 @@ const REVIEWER_FIXTURE_VARIABLES = [
   'SAFEWORD_REVIEW_FAKE_FAILURE_AGENT',
   'SAFEWORD_REVIEW_FAKE_FAILURE_CLAUDE',
   'SAFEWORD_REVIEW_FAKE_FAILURE_CODEX',
+  'SAFEWORD_REVIEW_FAKE_FAILURE_OPENCODE',
   'SAFEWORD_REVIEW_FAKE_FAIL_PATH_CONTAINS',
   'SAFEWORD_REVIEW_FAKE_FINDING',
   'SAFEWORD_REVIEW_FAKE_HELP_FAILURE',
@@ -127,7 +136,24 @@ export function reviewerEnvironment(
   source: NodeJS.ProcessEnv = process.env,
   platform: NodeJS.Platform = process.platform,
 ): NodeJS.ProcessEnv {
-  return filteredEnvironment(reviewer, source, platform);
+  const environment = filteredEnvironment(reviewer, source, platform);
+  if (reviewer !== 'opencode') return environment;
+  let inlineConfig: Record<string, unknown> = {};
+  try {
+    const parsed: unknown = JSON.parse(environment.OPENCODE_CONFIG_CONTENT ?? '{}');
+    if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      inlineConfig = parsed as Record<string, unknown>;
+    }
+  } catch {
+    // An invalid ambient overlay cannot weaken the reviewer's deny-all policy.
+  }
+  return {
+    ...environment,
+    OPENCODE_CONFIG_CONTENT: JSON.stringify({ ...inlineConfig, permission: { '*': 'deny' } }),
+    OPENCODE_DISABLE_AUTOUPDATE: 'true',
+    OPENCODE_DISABLE_DEFAULT_PLUGINS: 'true',
+    OPENCODE_DISABLE_LSP_DOWNLOAD: 'true',
+  };
 }
 
 /** Capability probes must never receive vendor credentials. */

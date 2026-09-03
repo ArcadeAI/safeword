@@ -100,8 +100,8 @@ interface ParsedArguments {
   positional: string[];
   explicitTicket: string | undefined;
   reviewerModel: string | undefined;
-  authorAgent: 'claude' | 'codex' | undefined;
-  reviewerAgent: 'claude' | 'codex' | undefined;
+  authorAgent: 'claude' | 'codex' | 'opencode' | undefined;
+  reviewerAgent: 'claude' | 'codex' | 'opencode' | undefined;
   independence: 'cross-agent' | 'degraded' | 'none' | undefined;
   skipReason: string | undefined;
 }
@@ -126,8 +126,8 @@ function parseArguments(argv: string[]): ParsedArguments {
   const positional: string[] = [];
   let explicitTicket: string | undefined;
   let reviewerModel: string | undefined;
-  let authorAgent: 'claude' | 'codex' | undefined;
-  let reviewerAgent: 'claude' | 'codex' | undefined;
+  let authorAgent: 'claude' | 'codex' | 'opencode' | undefined;
+  let reviewerAgent: 'claude' | 'codex' | 'opencode' | undefined;
   let independence: 'cross-agent' | 'degraded' | 'none' | undefined;
   let skipReason: string | undefined;
   const seen = new Set<string>();
@@ -166,7 +166,9 @@ function parseArguments(argv: string[]): ParsedArguments {
       }
       independence = value as 'cross-agent' | 'degraded' | 'none';
     } else {
-      if (value !== 'claude' && value !== 'codex') fail(`${flag} must be claude or codex`);
+      if (value !== 'claude' && value !== 'codex' && value !== 'opencode') {
+        fail(`${flag} must be claude, codex, or opencode`);
+      }
       if (flag === '--author-agent') authorAgent = value;
       else reviewerAgent = value;
     }

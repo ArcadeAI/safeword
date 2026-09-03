@@ -1,4 +1,4 @@
-import { type ChildProcess, spawnSync } from 'node:child_process';
+import { type ChildProcess, spawn, spawnSync } from 'node:child_process';
 import { createHmac } from 'node:crypto';
 import {
   existsSync,
@@ -584,6 +584,44 @@ describe('durable review jobs', () => {
     });
   });
 
+  it.runIf(process.platform !== 'win32')(
+    'does not terminate a recycled pid when a stored review deadline expires',
+    async () => {
+      const cwd = project();
+      vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, 'setTimeout(() => {}, 10_000);'));
+      vi.stubEnv('SAFEWORD_REVIEW_FOREGROUND_MS', '0');
+      const pending = await startReviewJob({ cwd, kind: 'quality-review', targets: ['input.md'] });
+      const id = (pending.data as { review_id: string }).review_id;
+      const recordPath = nodePath.join(cwd, '.safeword', 'state', 'reviews', `${id}.json`);
+      const record = JSON.parse(readFileSync(recordPath, 'utf8')) as {
+        pid: number;
+        deadline_at: string;
+        integrity?: string;
+      };
+      const workerPid = record.pid;
+      const unrelated = spawn('/bin/sleep', ['30'], { detached: true, stdio: 'ignore' });
+      if (unrelated.pid === undefined) throw new Error('unrelated fixture process did not start');
+      const unrelatedPid = unrelated.pid;
+      record.pid = unrelatedPid;
+      record.deadline_at = new Date(0).toISOString();
+      record.integrity = signRecord(cwd, record);
+      writeFileSync(recordPath, `${JSON.stringify(record)}\n`);
+
+      try {
+        expect(reviewJobStatus(cwd, id).errors[0]?.code).toBe('REVIEW_WORKER_TIMED_OUT');
+        expect(() => process.kill(unrelatedPid, 0)).not.toThrow();
+      } finally {
+        for (const pid of [workerPid, unrelatedPid]) {
+          try {
+            process.kill(-pid, 'SIGTERM');
+          } catch {
+            // The fixture process may already have exited.
+          }
+        }
+      }
+    },
+  );
+
   it('preserves a timed-out result when its former worker completes late', async () => {
     const cwd = project();
     vi.stubEnv('SAFEWORD_CLI_ENTRYPOINT', worker(cwd, 'setTimeout(() => {}, 1_000);'));
@@ -951,11 +989,26 @@ ${COMPLETE_WORKER}`,
     await vi.waitFor(() => {
       expect(reviewJobStatus(cwd, id).state).toBe('healthy');
     });
+    const recordPath = nodePath.join(cwd, '.safeword', 'state', 'reviews', `${id}.json`);
+    const record = JSON.parse(readFileSync(recordPath, 'utf8')) as Record<string, unknown> & {
+      result: ReturnType<typeof createResult>;
+    };
+    record.result = {
+      ...record.result,
+      effects: {
+        ...record.result.effects,
+        network: [{ kind: 'review', target: 'codex', operation: 'request' }],
+      },
+    };
+    record.integrity = signRecord(cwd, record);
+    writeFileSync(recordPath, `${JSON.stringify(record)}\n`);
 
     const canceled = cancelReviewJob(cwd, id);
 
     expect(canceled.state).toBe('healthy');
     expect(canceled.findings[0]?.message).toBe('Independent review complete.');
+    expect(canceled.effects.network).toEqual([]);
+    expect(canceled.data).toMatchObject({ command: 'review cancel', status: 'approved' });
     expect(reviewJobStatus(cwd, id).state).toBe('healthy');
   });
 

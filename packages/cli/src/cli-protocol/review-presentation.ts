@@ -3,8 +3,8 @@ import type { CliResult } from './result.js';
 type ReviewCoverage = 'standard' | 'independent' | 'incomplete';
 type ReviewVerdict = 'approve' | 'request_changes';
 
-const REVIEW_AGENTS = new Set(['claude', 'codex']);
-const REVIEW_AUTHORS = new Set(['claude', 'codex', 'cursor']);
+const REVIEW_AGENTS = new Set(['claude', 'codex', 'opencode']);
+const REVIEW_AUTHORS = new Set(['claude', 'codex', 'cursor', 'opencode']);
 const REPLACED_REVIEW_FINDINGS = new Set([
   'REVIEW_INDEPENDENCE',
   'REVIEW_NOT_REQUESTED',
