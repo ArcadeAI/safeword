@@ -1,48 +1,67 @@
 # Verification: Make each agent's plugin fully self-contained
 
-> Superseded evidence: the checklist below describes the earlier `4260bfcfd` run, not the current head. Current verification is pending. The September 2 full run failed five CLI planning tests and the user-scoped Claude acceptance expectation; repairs and review regressions must pass before this ticket can be marked done.
-
 ## Verify Checklist
 
-**Test Suite:** ✓ 9065/9065 executed tests pass (14 intentional skips)
-**Gherkin:** ✅ Acceptance lanes pass: root 1493/1496 scenarios (3 intentional skips), package 587/587 scenarios
+**Test Suite:** ✓ 9260/9260 tests pass (14 intentional skips; both root/package plans completed)
+**Gherkin:** ⚠️ Local environment limitation: intermittent full-suite reviewer startup timeout; full root retry and package baseline pass, final reviewer feature passes 37/37, both proof entry points pass 39/39
 **Build:** ✅ Success
 **Lint:** ✅ Clean
-**Scenarios:** All 33 scenarios marked complete
+**Scenarios:** All 38 scenarios marked complete
+**Refactor:** ✅ No change warranted — the cross-scenario review retained the shared state writer and existing profile registry as the narrow common seams
 **PR Scope:** ✅ Diff matches ticket scope
 **Dep Drift:** ✅ Clean
-**Parent Epic:** N/A
+**Parent Epic:** N/A (all 6 child tickets are done)
 **Reconcile:** ✅ No pattern deviation
-**Experience:** ✅ No new friction — Walked each supported agent from an enrolled project with missing transient state through first workflow use; state and the precise ignore rule appear lazily, with zero install steps and no authored knowledge invented.
-**Surface Evidence:** ✅ 4/4 affected agent surfaces have recorded proof
-**Evidence limits:** ⚠️ The current Codex task has not restarted into the installed plugin update, so live hook protection remains unverified. The isolated GEPA experiment has strict mypy coverage but no import-linter contract, and `pip-audit` is unavailable locally.
+**Experience:** ✅ No new friction — the packaged first-use state walkthrough required no installer and preserved authored content
+**Surface Evidence:** ✅ 5/5 affected surfaces have recorded proof; interactive host UI activation is not claimed
+**Evidence limits:** ⚠️ Desktop hook protection remains unverified for this task. Local Python import-linter and pip-audit coverage is unavailable. Full local acceptance retries had intermittent reviewer-startup timeout failures; the affected feature passes in isolation, documented below. The linked CI result covers unchanged production source; the PR readiness record tracks CI for the final fixture commit separately.
 
-Audit passed with warnings. Dependency-cruiser found no violations across 408 modules and 671 dependencies. Python dead-code reported `ReviewSpecAdapter.evaluate` and `make_reflective_dataset`; both are framework callback methods on the adapter passed to GEPA, so the static findings are false positives. The documentation audit found and corrected one stale README claim about Claude's runtime authority.
+Audit passed with documented limitations. Dependency-cruiser found no violations across 417 modules and 691 dependencies. Principle trace, learnings, domain references, and configuration sync passed. Python dead-code findings for `ReviewSpecAdapter.evaluate` and `make_reflective_dataset` are callbacks used by GEPA, not unused production paths.
+
+## Current-head evidence
+
+Verified production source head: `09b9f942131080ed7e29fde48b4bec22c6b20633`. Subsequent reviewer-fixture corrections change no production source or explicit deadline contract; they fund classification cases and make the invalid-model proof discriminating.
+
+- Both full local CLI passes: 8968 passed, 13 skipped, 551 files. Both relay passes: 186 passed / 1 skipped. Both collector passes: 106 passed. The checklist counts unique executed tests, not duplicate runs.
+- All 38 epic scenarios have executable proof registrations and complete RED/GREEN/REFACTOR evidence. Independent scenario gate `a77603b7-0153-44f0-907e-4cef2a675801` approved with no errors.
+- Independent code reviews `5c7fa297-48e9-4efc-bf7a-e04141e015a9` and final repair review `4ba1237f-6da0-4400-a9f2-eb2240682de7` approved (Claude Opus, cross-agent). Findings were applied or explicitly answered in the work log.
+- Latest focused repair run: 97/97 tests passed across authority validation, actual Cursor installation, lifecycle preservation, isolated planning, compatibility fixtures, and BDD proof provenance.
+- Full lint and typecheck passed. Pre-push schema checks passed 865/865. Builds passed for CLI, website, and retro services; TypeScript, Astro, and strict mypy checks passed.
+- [CI run 33692911053](https://github.com/ArcadeAI/safeword/actions/runs/33692911053) passed on the verified source head. Both Node 22 and Node 24 jobs passed. Node 24 recorded 8972 CLI tests passed / 9 skipped, 1496 acceptance scenarios and 68600 steps passed, 1 physical-install proof passed, 39 provenance checks passed, and 55 release checks passed.
+- Bun audits reported no vulnerabilities. Go reported zero affected vulnerabilities, with one vulnerability in imported packages and nine in required modules whose vulnerable symbols are not called. The missing Python scanner is a coverage limit, not a pass.
+
+## Local acceptance retry
+
+The verbatim full verifier completed with exit 1: its test, build, typecheck, and dependency lanes passed, but root acceptance had 1485 passing scenarios, 3 skipped, and 8 failing reviewer-process fixtures. The package acceptance command was therefore not reached. This is retained as failed-run evidence, not an all-green aggregate.
+
+The eight failures concerned reviewer startup/probe deadlines and exhausted routes during concurrent local workload. All 15 focused cases covering them then passed unchanged in 14.984 seconds (681 steps). The same scenarios also passed in the full CI run. This supports local timing sensitivity; it does not establish a production regression.
+
+The complete root acceptance rerun passed unchanged: 1493 scenarios passed / 3 skipped, 68596 steps passed / 4 skipped, and 39 proof registrations passed. Package acceptance then reproduced four short-deadline classification failures (588 passed / 4 failed). That second observation exposed an incomplete fixture repair: only two classification cases had received the normal probe allowance, while the fixture default remained two seconds. The fixture now shares a five-second attempt and thirty-second run budget, with a forty-second Cucumber step budget; the explicit three-second deadline assertion remains unchanged. All 592 package scenarios and 11046 steps then passed. No production deadlines, assertions, or skip conditions were weakened.
+
+Independent fixture review `8a0b890c-496c-4b65-b57d-773dffa230b9` found a separate non-discriminating invalid-model input: `--help` was intercepted by the fake reviewer's capability probe before launch logging. Replaced it with `invalid model`, so an accidental alternate-model launch is logged and violates the existing assertion. Both model-grammar scenarios passed through the real CLI (38 steps). The fixture process timeout now expires at 35 seconds, inside its 40-second step timeout.
+
+The next full package retry passed 591 scenarios, with one failure: the strict three-second case expired during capability probing instead of after reviewer launch. Its deadline and launch assertions were retained. Package proof provenance passed 39/39 separately. This failed aggregate is not reported as an all-green run.
+
+Fixture review `e1e1d681-ff31-4f80-83ae-8eb124b1caf0` also exposed prefix checks that could miss supporting evidence duplicated into the review-target array. The final fixture captures real reviewer input through the existing permitted prompt-log channel, then checks exact target/context membership for primary and alternate routes. A disposable counterexample injection failed both assertions specifically on the duplicated evidence file. With the counterexample removed, the complete final reviewer feature passed 37 scenarios / 699 steps, including the unchanged strict three-second test. Formatting, lint, and package TypeScript checks passed on this final file. Review `f1175b4f-a99d-4f10-bf25-cf064ce8297e` was correctly marked stale after the capture-channel correction and is not approval evidence. Final review `485a1b8c-1dff-4364-a252-986c809bd363` approved the current file with no errors (Claude Opus, cross-agent); optional findings are answered in the work log.
 
 ## Surface evidence
 
-| Affected surface | Proof | Result |
+| Affected surface | Proof boundary | Result |
 | --- | --- | --- |
-| Claude Code | Generated-plugin freshness check, release-contract BDD, catalogue tests, and a packaged workflow smoke from a foreign working directory | Passed; Claude's workflows and hooks resolve from the generated plugin rather than project-local runtime |
-| Codex | Codex catalogue release tests, packaged helper and lifecycle smoke tests, and selected-agent reconciliation proofs | Passed; skills and helpers resolve from the versioned plugin while missing transient state initializes after enrollment |
-| OpenCode | Profile catalogue identity, collision, upgrade/uninstall, copied-guard containment, and real-process conformance contracts | Passed; plugin, commands, agents, skills, and guard stay profile-owned and selection-scoped |
-| Cursor | Selected-agent lifecycle fixtures, project-runtime tests, and mixed-selection proofs | Passed; Cursor retains its complete project-local authority without forcing that runtime onto native-plugin agents |
+| Claude Code | Generated plugin workflow and bundled helper subprocess; native catalogue mutation tests | Passed; no project-runtime dependency |
+| Codex | Versioned-cache workflow, real sourced Bash helper, isolated package helpers, release proof through a real Codex plugin install | Passed; package-owned execution and truthful state-write confirmation |
+| OpenCode | Installed profile workflow, catalogue identity/digests, copied dispatcher, upgrade/uninstall and conformance contracts | Passed; the package resolver/reviewer subprocess is the controlled external boundary |
+| Cursor | Actual installed catalogue and audit/state commands; sourced helper failure and empty-export cases; selected legacy/native removal | Passed; complete project authority preserved without borrowing another host |
+| Safeword CLI | Real command and reconciliation tests; exact no-op and explicit project-removal plans; profile-manager boundaries isolated | Passed; selected removal preserves remaining hosts and authored content |
 
-## Evidence
+Manual walk: a technical builder invoked the current packaged Codex state helper in an enrolled scratch repository with the state file absent, then repeated it. The helper confirmed the write; Git confirmed one precise ignore rule; authored notes were unchanged and no installer ran. The worst step is obtaining a valid host run identity; no new user step was introduced. Packaged ticket resolution and principle audit also succeeded. Explicit `--agents=none` removed only that scratch project's enrollment, leaving its authored notes and host profiles alone.
 
-- Exact Safeword verifier on `4260bfcfd` completed both full test plans, both BDD plans, every build and typecheck plan, and dependency scans under one serialized Vitest process at a time.
-- Unique test corpus: CLI 8773 passed with 13 skipped; retro relay 186 passed with 1 skipped; retro collector 106 passed.
-- Root BDD: 1496 scenarios, 1493 passed and 3 skipped; 68,600 steps, 68,596 passed and 4 skipped. The full-suite rerun also proves route-classification scenarios retain their intended review and fallback budgets under accumulated subprocess load.
-- Package BDD: 587/587 scenarios and 10,954/10,954 steps passed, including the adjacent 33-scenario self-contained-plugin proof manifest.
-- Build and typecheck passed for the root aggregate, CLI, website, retro packages, Go checker, TypeScript, Astro, and strict Python mypy lanes.
-- `bun audit` reported no vulnerabilities; the Go vulnerability scan reported zero affected vulnerabilities. `pip-audit` was unavailable and reported as a coverage limit rather than a pass.
-- Release validation passed after checking the committed Claude plugin against canonical sources under both normal and test caller environments.
-- Diff-scoped audit: config sync healthy; dependency-cruiser clean; principle trace, learnings, surface/persona references, README, website docs, and architecture narrative reconciled.
-- Test-quality review covered 70 changed test/step files. Assertions are behavior-specific and include failure and boundary cases. The only timer matches are controlled concurrency fixtures that synchronize on observable child readiness; they are not arbitrary sleeps.
+These are real process/CLI proofs, not a claim that every host's interactive UI was restarted. The installed Desktop update is not relied on as verified protection.
 
 ## Remaining process follow-ups
 
-- Bind a successful executable BDD receipt to implement exit instead of relying on ledger syntax until verify/done.
-- Deduplicate root/package verification execution while retaining entry-point parity proof.
-- Add a supported generated-architecture acknowledgement/reconcile command.
+- Issue #3531: bind a successful executable BDD receipt to implement exit instead of relying on ledger syntax until verify/done.
+- Deduplicate root/package verification while retaining entry-point parity proof; the duplicated full suites materially lengthened this run.
+- Provide a supported generated-architecture acknowledgement/reconcile command.
 - Declare or vendor PyYAML for the system skill validator.
+- Optional reviewer observations are retained with dispositions in the work log; they do not expand this epic's accepted behavior matrix.

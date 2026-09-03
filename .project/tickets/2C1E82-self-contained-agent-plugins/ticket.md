@@ -3,8 +3,8 @@ id: 2C1E82
 slug: self-contained-agent-plugins
 type: epic
 subtype: bug-investigated
-phase: implement
-status: in_progress
+phase: done
+status: done
 children: ['V2AH4B', 'KDED4X', 'SF0RS0', 'GJB22B', 'JNZ2H5', '1DZ9W8']
 phase_anchors:
   - 'define-behavior: .project/tickets/2C1E82-self-contained-agent-plugins/spec.md'
@@ -26,12 +26,12 @@ done_when:
   - Single-agent and mixed-agent plans contain only declared selected-host requirements.
   - Release coverage rejects undeclared project-local executable references from native plugins.
 created: 2026-08-18T16:58:37.428Z
-last_modified: 2026-09-02T22:21:00.000Z
+last_modified: 2026-09-03T01:38:14.000Z
 ---
 
 # Make each agent's plugin fully self-contained
 
-**Goal:** Neither Claude nor Codex should depend on project-local .safeword/hooks, .safeword/skills, or .safeword/scripts once selected without the other — each plugin package ships and runs its own copies
+**Goal:** Every supported agent executes workflows from its declared authority: Claude Code, Codex, and OpenCode use their packages; Cursor retains its complete project delivery. Missing transient state and precise ignore rules initialize without installation, while project-authored knowledge is preserved.
 
 **Why:** Claude has already packaged guides/scripts/hooks into the plugin bundle but a few wiring gaps (dispatch.js env var, unconditional install schema) still leave stale project-local .safeword content around with no auto-upgrade path; Codex still shells out to project-local .safeword/hooks and .safeword/scripts directly from its skills, unlike its already-self-contained lifecycle hooks (bunx --bun safeword@version)
 
@@ -72,7 +72,7 @@ native action by construction.
 - **Fixed here — divergent BDD entry points:** repository-root `test:bdd` composed Cucumber and Vitest-proof provenance, while `packages/cli test:bdd` ran only Cucumber and excluded proof-backed features. Both entry points now compose the same two proof classes, with a contract test preventing drift.
 - **Fixed here — host-dependent acceptance state:** the bare-CLI fixture isolated profile directories but not host executables, so its result depended on the runner's installed tools. It now declares Claude's payload and activation state explicitly while retaining the real default-agent route.
 - **Fixed here — release proof budget below measured work:** the generated Claude release checker took 14–16 seconds after the final `main` integration, but its Vitest wrapper allowed only 15 seconds. The proof remains single-attempt and bounded, with a 30-second budget that covers the measured check instead of misclassifying valid output as a contract failure.
-- **Fixed here — proof registration was implicit:** all 36 epic scenarios now have an adjacent manifest mapping them to exact, normally collected executable Vitest declarations; release-only, skipped, focused, missing, duplicated, or under-enumerated proofs fail the normal lane.
+- **Fixed here — proof registration was implicit:** all 38 epic scenarios now have an adjacent manifest mapping them to exact, normally collected executable Vitest declarations; release-only, skipped, focused, missing, duplicated, or under-enumerated proofs fail the normal lane.
 - **Fixed here — proof registration could still be non-discriminating:** the manifest previously accepted static catalogue declarations and adjacent lifecycle checks for behavior that claimed real actor-facing execution. The affected scenarios now run installed/generated Cursor, Codex, Claude, and OpenCode entry points; outline fixtures alter the runtime on disk; and lifecycle apply tests preserve the selected authorities and authored content they name.
 - **Fixed here — direct helper paths skipped lazy ignore creation:** `project record-skill-invocation` added the precise ignore rule, but generated Claude and Cursor workflows invoked `record-skill-invocation.ts` directly and created `skill-invocations.log` without it. The canonical helper now owns ignore-before-state ordering, and the CLI command delegates to that same implementation for all hosts.
 - **Fixed here — packaged audit lookup assumed a `dist/` directory:** the bundled command resolved templates correctly from the npm CLI but walked above a plugin installed under `runtime/`, making the generated Codex audit command report a missing packaged helper. Package-root resolution now recognizes both layouts and a real versioned plugin-cache fixture executes the sourced-shell contract.
