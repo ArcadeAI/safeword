@@ -263,6 +263,14 @@ const basePluginsUnscoped: any[] = [
       // applied blindly) is unsafe to enforce. Ordering is a readability judgment,
       // not a correctness one.
       'unicorn/prefer-simple-condition-first': 'off',
+      //
+      // single-line-block-comment-style (new in unicorn 74's recommended set):
+      // rewrites every one-line `/* ... */` into a three-line block. It is a
+      // pure formatting preference with no correctness content, and it is
+      // autofixable — so enabling it reformats comments across a customer's
+      // whole codebase on what is, for them, a routine safeword upgrade. It
+      // fires 813 times in this repo alone. Comment shape is the author's call.
+      'unicorn/single-line-block-comment-style': 'off',
       'unicorn/no-array-reduce': 'error', // LLMs write confusing reduce
       // Renamed from unicorn/prevent-abbreviations in eslint-plugin-unicorn 68.
       'unicorn/name-replacements': [
