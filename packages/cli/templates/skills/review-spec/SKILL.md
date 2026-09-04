@@ -190,7 +190,7 @@ For each `Scenario Outline`, confirm its rows vary one behavioral dimension and 
 
 ## Cross-cutting checks
 
-Eight lenses across the whole scenario set (not per scenario) — each asks "what's missing?":
+Nine lenses across the whole scenario set (not per scenario). Eight ask "what's missing?"; the last asks "what's extra?":
 
 - **Conflict** — do two scenarios contradict (one allows X, another rejects it) with no distinguishing precondition?
 - **Boundary** — zero / one / max / empty / null covered where they apply?
@@ -200,11 +200,13 @@ Eight lenses across the whole scenario set (not per scenario) — each asks "wha
 - **Surface coverage** — does each affected surface resolve in the configured surfaces file (or stay explicitly spec-local), have a matching `@surface.<slug>` scenario tag or an explicit `skip:` reason, and are any `@surface.*` tags stale?
 - **Invariant binding** — for each normative clause in the supplied ticket-spec context (never / must not / always / only), name the scenario whose failure would falsify it **and** the condition under which it fails; a bare scenario reference is not a binding, it's a pointer that survives the invariant being violated. An invariant no scenario would catch is a **must-fix** — cheapest to write now, while no code exists to work around. Worse than a gap is the scenario whose title names the invariant while its `Given` establishes a weaker precondition: it reads as coverage and proves nothing, so report it as a vacuous pass, not a missing scenario.
 - **Wiring** — for each behavior that crosses a module/command boundary, is there a scenario exercised end-to-end through the real entry point (real config → real collaborators, mocking only the process boundary), not only via injected internals? A path reachable solely through a short circuit has no wiring coverage.
+- **Scope boundary** — does any scenario assert behavior the ticket's `out_of_scope` or the milestone's Non-goals exclude? Proving a real Rule does not settle this: a Rule states its invariant generally, while `out_of_scope` is where this ticket stops, so a legitimate Rule can be illustrated by an example past the line. A crossing is a **must-fix** — it is cheapest to delete now, before TDD builds it and `/verify` finds it in the diff. Report it as a crossing and name the excluded item; deciding the behavior belongs in scope is the author's call to make by amending `out_of_scope`, never the reviewer's to make by approving.
 
-Finish by reconciling the set instead of adding speculative cases: every
-material partition in the supplied dimensions context, affected surface, and public
-command or user-visible outcome declared in ticket scope needs a scenario or an
-explicit `skip: <reason>`. For each load-bearing scenario ask: _could the
+Finish by reconciling the set in both directions instead of adding speculative
+cases: every material partition in the supplied dimensions context, affected
+surface, and public command or user-visible outcome declared in ticket scope
+needs a scenario or an explicit `skip: <reason>` — and no scenario asserts an
+outcome the ticket excluded. For each load-bearing scenario ask: _could the
 proposed test pass while the user-facing claim is still broken?_ Same-process
 proof cannot establish caller-exit survival; an injected fake cannot establish
 real CLI wiring; a unit test cannot establish a runtime or protocol boundary.

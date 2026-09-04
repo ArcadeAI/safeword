@@ -541,7 +541,7 @@ const PHASE_EVIDENCE: Record<BddPhase, string> = {
   intake:
     'Phase: intake. CONFIDENT cites that scope/out_of_scope/done_when are bounded, failure modes were surfaced, and open questions are resolved (or explicitly deferred).',
   'define-behavior':
-    'Phase: define-behavior. CONFIDENT cites derived dimensions, N user-confirmed scenarios authored against review-spec in Authoring mode, AODI for each, happy/failure/edge coverage, and that scenarios test behaviors not implementation.',
+    'Phase: define-behavior. CONFIDENT cites derived dimensions, N user-confirmed scenarios authored against review-spec in Authoring mode, AODI for each, happy/failure/edge coverage, that scenarios test behaviors not implementation, and that none asserts an outcome out_of_scope excludes.',
   'scenario-gate':
     'Phase: scenario-gate. CONFIDENT cites a passing independent review-spec result, N validated scenarios, and either issues resolved or "No issues."',
   'plan-implementation':
