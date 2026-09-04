@@ -582,7 +582,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/bdd/DISCOVERY.md": "79c0e4ed452cbb3409b9cb10979307a1f9e2f2852da9cc2cfed6badbdd203b7e",
         ".claude/skills/bdd/DONE.md": "e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60",
         ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "0d1c9103c9e6c00b4fb43d3c90a5118f90b9feb964b15daf12340a06d53e4f9a",
-        ".claude/skills/bdd/SCENARIOS.md": "1e52b8a00f4ac02d6b5a9aff34b37166069dab2b8d38b5eb08bcad33334ce06f",
+        ".claude/skills/bdd/SCENARIOS.md": "bf274ec48d1693d8cc301b717e08e872ecf20e11e5e610f141dce2b45b330b4f",
         ".claude/skills/bdd/SKILL.md": "970d5af3af22e599126b5a15f75ec9c9478fd0ca810b31ec33d2dbd94ec83516",
         ".claude/skills/bdd/SPLITTING.md": "e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708",
         ".claude/skills/bdd/TDD.md": "ed311cb035ab485577319ed21866b40a8406e3551989e4e5ae8b414cbb165eb9",
@@ -603,7 +603,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/refactor/SKILL.md": "a51a858fb13b50cbc86789edbde8a39e364b5cdd7d5d3b025d555d90b221760e",
         ".claude/skills/retro-filer/SKILL.md": "ea126f3805a2befefb4db2011439f075ebfd6eca31b78bd5f284ac11d667b4f0",
         ".claude/skills/retro/SKILL.md": "d01abb281a1c941024f304709c8727769383eb76d0ccc7da53f73776c4a0122d",
-        ".claude/skills/review-spec/SKILL.md": "1003829012f8134a805f26635782b1e14a5165caa28d6747e7cb9cabfc78bec0",
+        ".claude/skills/review-spec/SKILL.md": "00cef99ca3236a12923dbd93e66da911870c38f2d0a95ea5fdbd7942df716fb8",
         ".claude/skills/self-review/SKILL.md": "e5ff994ec84573e6f129127bad89617f0a67b67c5cf792cedac558b6e419ac3b",
         ".claude/skills/spike/SKILL.md": "905aab56037ad5a258bafa91cb2ebf05cff1acffbc9e1fd6f7a1f27230672f37",
         ".claude/skills/tdd-review/SKILL.md": "4b945f122a90d23462845d7bdbbd0b736aa69d423a2d7e99ebf646bf118faa4f",
@@ -34876,7 +34876,7 @@ For each \`Scenario Outline\`, confirm its rows vary one behavioral dimension an
 
 ## Cross-cutting checks
 
-Eight lenses across the whole scenario set (not per scenario) \u2014 each asks "what's missing?":
+Nine lenses across the whole scenario set (not per scenario). Eight ask "what's missing?"; the last asks "what's extra?":
 
 - **Conflict** \u2014 do two scenarios contradict (one allows X, another rejects it) with no distinguishing precondition?
 - **Boundary** \u2014 zero / one / max / empty / null covered where they apply?
@@ -34886,11 +34886,13 @@ Eight lenses across the whole scenario set (not per scenario) \u2014 each asks "
 - **Surface coverage** \u2014 does each affected surface resolve in the configured surfaces file (or stay explicitly spec-local), have a matching \`@surface.<slug>\` scenario tag or an explicit \`skip:\` reason, and are any \`@surface.*\` tags stale?
 - **Invariant binding** \u2014 for each normative clause in the supplied ticket-spec context (never / must not / always / only), name the scenario whose failure would falsify it **and** the condition under which it fails; a bare scenario reference is not a binding, it's a pointer that survives the invariant being violated. An invariant no scenario would catch is a **must-fix** \u2014 cheapest to write now, while no code exists to work around. Worse than a gap is the scenario whose title names the invariant while its \`Given\` establishes a weaker precondition: it reads as coverage and proves nothing, so report it as a vacuous pass, not a missing scenario.
 - **Wiring** \u2014 for each behavior that crosses a module/command boundary, is there a scenario exercised end-to-end through the real entry point (real config \u2192 real collaborators, mocking only the process boundary), not only via injected internals? A path reachable solely through a short circuit has no wiring coverage.
+- **Scope boundary** \u2014 does any scenario assert behavior the ticket excluded? The exclusions live in two supplied files: \`out_of_scope\` in \`ticket.md\` frontmatter, and the project non-goals plus each milestone's Non-goals in \`spec.md\` \u2014 a child feature's \`spec.md\` carries neither by design, so there \`out_of_scope\` is the whole edge. If \`ticket.md\` was not supplied \u2014 or arrives blank, unreadable, or carrying no \`out_of_scope\` \u2014 scope the lens to \`spec.md\` and report the unread boundary as a **must-fix**, naming \`out_of_scope\` as unchecked. A file that is present but says nothing about scope leaves the boundary exactly as unread as a missing one. Reduced scope is not a clean result: the gate cannot clear a boundary it never read, so approving here would be the false clearance this lens exists to prevent. The fix is to re-dispatch with \`ticket.md\`, not to accept the narrower pass. Proving a real Rule does not settle this: a Rule states its invariant generally, while \`out_of_scope\` is where this ticket stops, so a legitimate Rule can be illustrated by an example past the line. A crossing is a **must-fix** \u2014 it is cheapest to delete now, before TDD builds it and \`/verify\` finds it in the diff. Report it as a crossing and name the excluded item; deciding the behavior belongs in scope is the author's call to make by amending \`out_of_scope\`, never the reviewer's to make by approving.
 
-Finish by reconciling the set instead of adding speculative cases: every
-material partition in the supplied dimensions context, affected surface, and public
-command or user-visible outcome declared in ticket scope needs a scenario or an
-explicit \`skip: <reason>\`. For each load-bearing scenario ask: _could the
+Finish by reconciling the set in both directions instead of adding speculative
+cases: every material partition in the supplied dimensions context, affected
+surface, and public command or user-visible outcome declared in ticket scope
+needs a scenario or an explicit \`skip: <reason>\` \u2014 and no scenario asserts an
+outcome the ticket excluded. For each load-bearing scenario ask: _could the
 proposed test pass while the user-facing claim is still broken?_ Same-process
 proof cannot establish caller-exit survival; an injected fake cannot establish
 real CLI wiring; a unit test cannot establish a runtime or protocol boundary.
