@@ -3954,12 +3954,24 @@ function isLeaseRecord(value, expectedPid) {
     record2.procStart.length > 0
   );
 }
+var LEASE_TEMP_INFIX = '.tmp.';
+var LEASE_PID = /^\d{1,10}$/u;
+var LEASE_TEMP_SUFFIX = /^[0-9a-f]{1,32}$/u;
+function leaseMarkerPid(name) {
+  const infix = name.indexOf(LEASE_TEMP_INFIX);
+  if (infix === -1) return LEASE_PID.test(name) ? name : void 0;
+  const pid = name.slice(0, infix);
+  const suffix = name.slice(infix + LEASE_TEMP_INFIX.length);
+  if (!LEASE_PID.test(pid) || !LEASE_TEMP_SUFFIX.test(suffix)) return void 0;
+  return pid;
+}
 function isClaudeLeaseMarker(path, name) {
-  if (!/^\d+$/u.test(name)) return false;
+  const pid = leaseMarkerPid(name);
+  if (pid === void 0) return false;
   const content = readSmallMetadataFile(path);
   if (content === void 0) return false;
   try {
-    return isLeaseRecord(JSON.parse(content), Number(name));
+    return isLeaseRecord(JSON.parse(content), Number(pid));
   } catch {
     return false;
   }

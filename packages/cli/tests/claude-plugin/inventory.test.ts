@@ -25,11 +25,27 @@ describe('Claude cache metadata inventory', () => {
     expect(claudeNativePayloadFiles(root)).toEqual(['identity.json']);
   });
 
+  it('excludes an orphaned lease temp file left by an interrupted rename', () => {
+    const root = cacheFixture();
+    writeFileSync(
+      nodePath.join(root, '.in_use/65506.tmp.d9f968fe'),
+      JSON.stringify({ pid: 65_506, procStart: 'Mon Aug 31 21:28:08 2026' }),
+    );
+
+    expect(claudeNativePayloadFiles(root)).toEqual(['identity.json']);
+  });
+
   it.each([
     ['non-PID lease name', '.in_use/unexpected-runtime.js', '{}'],
     ['lease PID mismatch', '.in_use/12345', '{"pid":54321,"procStart":"now"}'],
     ['extra lease fields', '.in_use/12345', '{"pid":12345,"procStart":"now","extra":true}'],
     ['malformed lease', '.in_use/12345', 'not json'],
+    ['lease temp PID mismatch', '.in_use/12345.tmp.d9f968fe', '{"pid":54321,"procStart":"now"}'],
+    [
+      'lease temp with non-hex suffix',
+      '.in_use/12345.tmp.payload',
+      '{"pid":12345,"procStart":"now"}',
+    ],
     ['malformed orphan marker', '.orphaned_at', 'not-an-epoch'],
     ['root OS metadata', '.DS_Store', 'arbitrary bytes'],
     ['nested OS metadata', '.in_use/.DS_Store', 'arbitrary bytes'],
