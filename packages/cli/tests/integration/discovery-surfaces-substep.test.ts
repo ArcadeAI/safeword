@@ -39,12 +39,15 @@ describe.each([
     expect(surfacesAt).toBeGreaterThan(glossaryAt);
   });
 
-  it('references paths.surfaces, the default surfaces path, and the empty-file soft prompt', () => {
+  it('references paths.surfaces, the default surfaces path, and routes an empty file into the single ask', () => {
     const section = content.slice(content.indexOf('## Load project surfaces'));
 
     expect(section).toContain('paths.surfaces');
     expect(section).toContain('<namespace-root>/surfaces.md');
-    expect(section).toMatch(/empty.*add.*surfaces.*now|add.*surfaces.*now.*proceed/i);
+    // An empty surfaces file must still reach the user. It no longer prompts on
+    // its own: every empty project-knowledge file is collected into one prompt
+    // before the first checkpoint, so the sub-step defers instead of asking.
+    expect(section).toMatch(/if empty[\s\S]*single project-knowledge prompt/i);
   });
 
   it('explains when to promote a spec-local surface into project surfaces', () => {
