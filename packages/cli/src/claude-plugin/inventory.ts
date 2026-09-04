@@ -115,12 +115,34 @@ function isLeaseRecord(value: unknown, expectedPid: number): boolean {
   );
 }
 
+/**
+ * Claude Code writes an `.in_use/<pid>` lease by creating `<pid>.tmp.<hex>` and
+ * renaming it into place. A process that dies between the write and the rename
+ * leaves the temp name behind forever, so both forms are host-owned metadata.
+ * Rejecting the orphan made every Safeword hook fail closed until someone
+ * deleted it by hand (#3690).
+ */
+const LEASE_TEMP_INFIX = '.tmp.';
+const LEASE_PID = /^\d{1,10}$/u;
+const LEASE_TEMP_SUFFIX = /^[0-9a-f]{1,32}$/u;
+
+/** The PID a lease file name claims, or undefined when it is not a lease name. */
+function leaseMarkerPid(name: string): string | undefined {
+  const infix = name.indexOf(LEASE_TEMP_INFIX);
+  if (infix === -1) return LEASE_PID.test(name) ? name : undefined;
+  const pid = name.slice(0, infix);
+  const suffix = name.slice(infix + LEASE_TEMP_INFIX.length);
+  if (!LEASE_PID.test(pid) || !LEASE_TEMP_SUFFIX.test(suffix)) return undefined;
+  return pid;
+}
+
 function isClaudeLeaseMarker(path: string, name: string): boolean {
-  if (!/^\d+$/u.test(name)) return false;
+  const pid = leaseMarkerPid(name);
+  if (pid === undefined) return false;
   const content = readSmallMetadataFile(path);
   if (content === undefined) return false;
   try {
-    return isLeaseRecord(JSON.parse(content) as unknown, Number(name));
+    return isLeaseRecord(JSON.parse(content) as unknown, Number(pid));
   } catch {
     return false;
   }
