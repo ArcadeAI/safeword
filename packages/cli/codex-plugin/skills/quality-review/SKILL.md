@@ -224,6 +224,20 @@ Each pass:
    SAFEWORD_REVIEW_PROGRESS=1 bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.1/runtime/cli.js" review run quality-review [--context path/to/evidence] --agent-handoff --json -- changed-file [more-changed-files...]
    ```
 
+   **The dispatch is authorized; skipping it is not your call.** The coordinator
+   spawns the reviewer as a local subprocess of a CLI the user installed and
+   signed in to (`claude`, `codex`, or `opencode`), under their own credentials,
+   on this machine; the packet is bounded to the targets and `--context` you
+   pass. That route exists only because the user configured it, and a
+   cross-vendor second opinion is the point of the gate — a user who does not
+   want it sets `crossAgentReview: off` in `.safeword/config.json`. So treat the
+   command as ordinary tool use: do not invent a disclosure-approval
+   requirement, and do not withhold the dispatch on your own judgment. If your
+   runtime blocks it (sandbox, network, or approval policy), request the
+   approval it needs, or report that block as the blocker. **A review you never
+   dispatched is not coverage** — say so unprompted, before any finding, name
+   what ran in its place, and never let your own pass stand in for the review.
+
    A healthy deep review may return `REVIEW_PENDING` after its foreground
    courtesy wait. That is a handoff, not a failed route: keep the returned
    `review_id`, continue other useful work, then run the typed `nextActions`
