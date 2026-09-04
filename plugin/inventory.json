@@ -83,7 +83,7 @@
     },
     {
       "path": "resources/SAFEWORD.md",
-      "sha256": "25d9c345b5e563a3c8304aa0056480444a10baa3443c9239198a01ffb279ece0"
+      "sha256": "452e342d49fe13c5e66da8684a17d8c8d8eafc58420a030a1168b4fea72da0e9"
     },
     {
       "path": "resources/scripts/bisect-test-pollution.sh",
@@ -143,11 +143,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "4e7da52f7ef0def8bc0aa3ab7c7a0a21957c1fc3d99520c398b2fa858fedaf74"
+      "sha256": "575a6b6cbd910bfb0aa5f46d96f4916cad59b935b196da867f05de3e4b2931d1"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "dcf4de96d1427d9b51566fe23d21390c925966b7c3af6c7954cdbbc232ef1c52"
+      "sha256": "babb0112e989f06d3be6fd33332e68f4d51bf1e75aa051d292824cabfe627a9e"
     },
     {
       "path": "runtime/event-groups.json",
@@ -595,7 +595,7 @@
     },
     {
       "path": "skills/bdd/DISCOVERY.md",
-      "sha256": "ac8f221691aeffaa16ca6a15a7930a462bdf64aeaf2fe9600903a9dbb417f992"
+      "sha256": "7f15522bd58c47e807bdf34ddd025eed4b6af4555b4d4884723535596e5ae729"
     },
     {
       "path": "skills/bdd/DONE.md",
@@ -607,7 +607,7 @@
     },
     {
       "path": "skills/bdd/SCENARIOS.md",
-      "sha256": "a79590a8dcd8c6377f92e2ec0c26d5479f28e16e53291348f86f59b73381a19e"
+      "sha256": "a6e112c0c6f17f0f26b4b99023d25c1bc5b2c513c61cd9a28f7acff4aabcb6aa"
     },
     {
       "path": "skills/bdd/SKILL.md",
