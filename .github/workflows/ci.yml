@@ -271,13 +271,28 @@ jobs:
           }
 
       - name: Claude plugin catalogue freshness
+        id: catalogue-freshness
+        # plugin/runtime/cli.js is a Bun bundle of the CLI *and its
+        # dependencies*, so a dependency bump legitimately changes it. Dependabot
+        # cannot run the generator, which left every dependency PR unmergeable on
+        # a gate it had no way to satisfy. Attach the regenerated tree to the run
+        # so the fix is a download and a commit rather than a local repro.
         run: |
           bun run --cwd packages/cli generate:claude-plugin
-          git diff --exit-code -- plugin || {
-            echo "::error::Generated Claude plugin drifted from canonical sources. Run 'bun run --cwd packages/cli generate:claude-plugin' and commit plugin/."
+          if ! git diff --quiet -- plugin; then
+            echo 'drifted=true' >> "$GITHUB_OUTPUT"
+            echo "::error::Generated Claude plugin drifted from canonical sources. Download this run's 'regenerated-plugin' artifact and commit it, or run 'bun run --cwd packages/cli generate:claude-plugin' and commit plugin/."
             exit 1
-          }
+          fi
           bun run --cwd packages/cli check:claude-plugin
+
+      - name: Upload the regenerated plugin tree
+        if: ${{ failure() && steps.catalogue-freshness.outputs.drifted == 'true' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: regenerated-plugin
+          path: plugin/
+          retention-days: 7
 
       - name: Lint
         run: bun run lint
