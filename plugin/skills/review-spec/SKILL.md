@@ -47,15 +47,18 @@ gate.)
 
 Run the adversarial judgment through the shared coordinator. Pass the feature
 (and any legacy scenario source) as bounded work. Pass the required `spec.md`
-first, followed by the dimension table and every existing project-knowledge file,
-as supporting context. Omit optional paths that do not exist; preserve the path
+first. When the ticket names a parent in `Parent References`, resolve that
+parent's `spec.md` and pass it next: a child inherits its Killer Demo by
+reference, so a reviewer without the parent file cannot tell whether `@demo`
+is missing, stale, or proving the wrong Payoff. Then pass the dimension table
+and every existing project-knowledge file, as supporting context. Omit optional paths that do not exist; preserve the path
 and content of optional files that do exist, even when their content is blank.
 Refuse dispatch when `spec.md` is absent, blank, or not the first context file.
 Resolve a review-capable Safeword CLI first; source checkouts do not guarantee
 a bare `safeword` on `PATH`:
 
 ```bash
-bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/run-review.ts review run scenario-gate feature-file [legacy-test-definitions] --context ticket-spec [dimensions-file] principles-file personas-file surfaces-file --agent-handoff --json
+bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/run-review.ts review run scenario-gate feature-file [legacy-test-definitions] --context ticket-spec [parent-spec] [dimensions-file] principles-file personas-file surfaces-file --agent-handoff --json
 ```
 
 The coordinator's assigned/actual reviewer, failure classification, and
@@ -198,7 +201,7 @@ Nine lenses across the whole scenario set (not per scenario) — each asks "what
 - **Security** — authn/authz failures and abuse vectors covered?
 - **Persona consistency** — does each scenario's triggering persona resolve in the configured personas file, and would another defined persona experience it differently?
 - **Surface coverage** — does each affected surface resolve in the configured surfaces file (or stay explicitly spec-local), have a matching `@surface.<slug>` scenario tag or an explicit `skip:` reason, and are any `@surface.*` tags stale?
-- **Killer Demo proof** — when `spec.md` declares a `## Killer Demo` (a child inherits its parent's by reference), does one scenario carry `@demo` and actually demonstrate the Payoff? Check the scenario against the Payoff text, not against the tag: a tag on a scenario that exercises a neighbouring behavior is the same false coverage as a surface tag on the wrong context. A declared Killer Demo with no `@demo` tag and no `skip: <reason>` is a **should-strengthen**, not a must-fix — the demo is a value claim rather than a correctness invariant, so a missing one weakens the release story without letting a defect ship. Raise it as a must-fix only when the Payoff restates a Rule that no scenario proves, because then the gap is coverage wearing a demo's clothes.
+- **Killer Demo proof** — when `spec.md` declares a `## Killer Demo` (a child inherits its parent's by reference), does one scenario carry `@demo` and actually demonstrate the Payoff? Check the scenario against the Payoff text, not against the tag: a tag on a scenario that exercises a neighbouring behavior is the same false coverage as a surface tag on the wrong context. A declared Killer Demo with no `@demo` tag and no `skip: <reason>` is a **should-strengthen**, not a must-fix — the demo is a value claim rather than a correctness invariant, so a missing one weakens the release story without letting a defect ship. Raise it as a must-fix only when the Payoff restates a Rule that no scenario proves, because then the gap is coverage wearing a demo's clothes. When the ticket inherits a demo and the parent `spec.md` was not supplied, report that the lens could not run rather than passing it — an unreadable Payoff is not a satisfied one.
 - **Invariant binding** — for each normative clause in the supplied ticket-spec context (never / must not / always / only), name the scenario whose failure would falsify it **and** the condition under which it fails; a bare scenario reference is not a binding, it's a pointer that survives the invariant being violated. An invariant no scenario would catch is a **must-fix** — cheapest to write now, while no code exists to work around. Worse than a gap is the scenario whose title names the invariant while its `Given` establishes a weaker precondition: it reads as coverage and proves nothing, so report it as a vacuous pass, not a missing scenario.
 - **Wiring** — for each behavior that crosses a module/command boundary, is there a scenario exercised end-to-end through the real entry point (real config → real collaborators, mocking only the process boundary), not only via injected internals? A path reachable solely through a short circuit has no wiring coverage.
 

@@ -29,7 +29,7 @@ describe('shared scenario-quality contract', () => {
     const reviewSpec = read('packages/cli/templates/skills/review-spec/SKILL.md');
 
     expect(reviewSpec).toContain(
-      'review run scenario-gate feature-file [legacy-test-definitions] --context ticket-spec [dimensions-file] principles-file personas-file surfaces-file',
+      'review run scenario-gate feature-file [legacy-test-definitions] --context ticket-spec [parent-spec] [dimensions-file] principles-file personas-file surfaces-file',
     );
     expect(reviewSpec.toLowerCase().replaceAll(/\s+/gu, ' ')).toContain(
       'omit optional paths that do not exist',
