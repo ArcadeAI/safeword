@@ -2,10 +2,11 @@
 id: G2E72G
 slug: yolo-mode
 type: feature
-phase: define-behavior
+phase: intake
 status: in_progress
+product_plan_contract: v1
 created: 2026-05-23T19:15:19.361Z
-last_modified: 2026-05-24T05:07:00.000Z
+last_modified: 2026-09-04T15:58:00.000Z
 scope:
   - New /yolo slash command that toggles YOLO mode on/off for the active ticket
   - Per-user safeword config setting (default mode) so users can opt into YOLO globally
@@ -80,3 +81,5 @@ When YOLO is active for a ticket, every point where the agent would normally han
 - 2026-05-23T19:15:19.361Z Started: Created ticket G2E72G
 - 2026-05-23T19:15:30.000Z Drafted intake: sketch + 8 open questions
 - 2026-05-24T05:07:00.000Z Clarify complete: scope/out_of_scope/done_when bounded. 6 opens resolved, 2 deferred (cost ceiling → v2; /figure-it-out failure mode → BDD). Advancing to define-behavior.
+- 2026-09-04T15:58:00.000Z Intake re-opened. Ticket sat at define-behavior since 2026-05-24 with no spec.md, while YOLO prose shipped into DISCOVERY.md, cold-start-check.md and their mirrors and two tests began asserting that prose. Reset to `phase: intake`, adopted `product_plan_contract: v1`, authored Product Bet + 4 JTBD (TBU1-3, SWM1) in spec.md. Surfaced the central fork: shipped docs say gates *auto-confirm*, the ticket says every pause routes through `/figure-it-out` — two different products wearing one name. Awaiting confirmation on unit 1.
+- 2026-09-04T15:59:04.919Z Phase: define-behavior → intake
