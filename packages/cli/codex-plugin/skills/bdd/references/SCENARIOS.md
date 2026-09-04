@@ -191,7 +191,7 @@ Load the **`$safeword:review-spec`** skill in **Review mode** — it is the inde
 
 ### Are the reviewed scenarios complete?
 
-Ask the user: **Do these scenarios now fully cover the intended behavior and important boundaries, or is anything still missing?** If the adversarial pass or user feedback produced new scenarios, loop back to define-behavior. When nothing is missing, the quality gate is complete.
+Ask the user both halves again, because review edits scenarios. Gaps: **Do these scenarios now fully cover the intended behavior and important boundaries, or is anything still missing?** Then the edge: **Does any of these go past what we agreed not to build?** If the adversarial pass or user feedback produced new scenarios, loop back to define-behavior; if it flags an overshoot, drop those scenarios or amend `out_of_scope` on their call. When nothing is missing and nothing crosses the line, the quality gate is complete.
 
 ### Scenario Gate Exit
 
