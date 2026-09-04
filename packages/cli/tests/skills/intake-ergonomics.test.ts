@@ -92,7 +92,12 @@ describe('intake ergonomics', () => {
 
     // "too many rules?" alone had no answer, so nothing pushed toward fewer.
     expect(content).toContain('would dropping this scenario let a real defect ship');
-    expect(content).toContain('they are one scenario with a better name');
+    expect(content).toContain('are one scenario with a better name');
+    // Merge on the obligation proved, never on a shared failure cause: which
+    // partitions break together is an implementation fact, so merging on it
+    // silently drops a partition as soon as the implementation changes.
+    expect(content).toContain('same Rule over the same partition');
+    expect(content).toContain('never by their sharing a failure cause today');
   });
 
   it.each(orchestratorSurfaces)('%s tells the user where to start', relative => {
