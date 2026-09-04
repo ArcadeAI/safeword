@@ -41,7 +41,11 @@ describe('review-spec invariant-binding lens (Y9P3ZC)', () => {
       ?.count;
     const bullets = section.slice(0, section.indexOf('\n## ', 1)).match(/^- \*\*/gm)?.length;
 
-    expect(declared).toBe('Nine');
-    expect(bullets).toBe(9);
+    // Eight original lenses, plus Scope boundary (#3687) and Killer Demo proof
+    // (#3713). The pair matters more than the number: a declared count that
+    // drifts from the bullets means a lens was added without being announced,
+    // or announced without being written.
+    expect(declared).toBe('Ten');
+    expect(bullets).toBe(10);
   });
 });

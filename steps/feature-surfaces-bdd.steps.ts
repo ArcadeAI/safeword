@@ -304,7 +304,13 @@ Then(
       ]);
       assert.ok(content.includes('paths.surfaces'), content);
       assert.ok(content.includes('<namespace-root>/surfaces.md'), content);
-      assert.match(content, /surfaces\.md`\)\. If empty, ask.*add surfaces now/is);
+      // An empty surfaces file must still reach the user. It no longer prompts
+      // on its own: every empty project-knowledge file is collected into one
+      // prompt before the first checkpoint, so the sub-step defers instead.
+      assert.match(
+        content,
+        /surfaces\.md`\)\. If empty, carry it into the.*single project-knowledge prompt/is,
+      );
     }
   },
 );

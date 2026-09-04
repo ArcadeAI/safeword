@@ -8,25 +8,43 @@ default.
 
 ## Sub-phase gates
 
-For each meaningful unit, present the artifact, ask one closing question, and
-wait for confirmation. On resume, re-present the current unit. Under YOLO mode,
-auto-confirm and record the decision in the work log.
+Confirm once per artifact, not once per item inside it. The four checkpoints are
+Product Bet and jobs, Rules, Shape and Killer Demo, and engineering scope —
+present each as a complete set, ask one closing question, and wait. Never walk a
+user through milestones or Rules one at a time collecting a yes for each; that
+turns a design conversation into rubber-stamping and buys no clarity the whole
+set would not have shown. On resume, re-present the current checkpoint.
+
+The confirmations you keep should be the ones worth having. Spend the user's
+attention on the substance — interrogating intent into jobs, testing proposed
+capability against what the platform can actually do — not on approving a list
+they can read in one pass. If you find yourself asking for a fifth checkpoint
+confirmation, you have split the artifact too finely: present the rest together.
+
+Missing project knowledge is one ask, not three. Collect every empty file —
+personas, glossary, surfaces — into a single prompt before the first checkpoint.
+A fresh project is missing all three, which is exactly when a user is least
+served by answering the same question three times before the design
+conversation starts. That prompt plus the four checkpoints is the whole intake
+budget.
+
+Under YOLO mode, auto-confirm and record the decision in the work log.
 
 ## Load project personas
 
-Read `paths.personas` (default `<namespace-root>/personas.md`). If empty, ask
-whether to add personas now or proceed. A JTBD names one persona and preserves
+Read `paths.personas` (default `<namespace-root>/personas.md`). If empty, carry it into the
+single project-knowledge prompt rather than asking on its own. A JTBD names one persona and preserves
 its canonical code.
 
 ## Load project glossary
 
-Read `paths.glossary` (default `<namespace-root>/glossary.md`). If empty, ask
-whether to add terms now or proceed. Keep one-ticket vocabulary local.
+Read `paths.glossary` (default `<namespace-root>/glossary.md`). If empty, carry it into the
+single project-knowledge prompt rather than asking on its own. Keep one-ticket vocabulary local.
 
 ## Load project surfaces
 
-Read `paths.surfaces` (default `<namespace-root>/surfaces.md`). If empty, ask
-whether to add surfaces now or proceed. Examples include OpenAI Codex. Tag an
+Read `paths.surfaces` (default `<namespace-root>/surfaces.md`). If empty, carry it into the
+single project-knowledge prompt rather than asking on its own. Examples include OpenAI Codex. Tag an
 affected context `@surface.<slug>`. Promote a local surface only when it is
 recurring across tickets, ambiguous enough to drift, or omission leaves it
 untested.
@@ -81,7 +99,16 @@ default.
 Jobs are persona outcomes, not proposed mechanisms. Never drop or narrow a job
 because it looks difficult to implement. Split a Rule when either half could
 ship as an independently valuable invariant. Use one persona per JTBD, then
-pause and confirm the jobs before authoring Rules.
+pause once and confirm the jobs as a set before authoring Rules.
+
+Write the fewest Rules that make the job decidable, not every invariant you can
+name. A Rule earns its place when it could fail on its own and a user would
+notice — when its violation would produce a complaint someone could describe.
+Merge Rules that always pass or fail together; drop one whose failure only shows
+up as another Rule already failing. A shorter set the user can hold in their
+head serves the job better than an exhaustive one they skim, and exhaustiveness
+belongs in lower-level tests rather than product invariants. If a Rule exists
+only because the template has a slot for it, cut it.
 
 ### Shape
 
@@ -142,9 +169,11 @@ mechanism.
 ## Scope and gates
 
 Derive `scope`, `out_of_scope`, and `done_when` from accepted product decisions.
-Present and confirm the smallest useful units in order: Product Bet and jobs,
-Rules, Shape and Killer Demo, then engineering scope. For a child, present
-Contribution and Rules, then local scope. Under YOLO mode, record the
+Present and confirm the four checkpoints in order: Product Bet and jobs, Rules,
+Shape and Killer Demo, then engineering scope. Each is one confirmation covering
+the whole set — every job together, every Rule together, every milestone
+together — not one per item. For a child, present Contribution and Rules, then
+local scope: two confirmations, not one per Rule. Under YOLO mode, record the
 auto-decision in the work log instead of pausing.
 
 Immediately before changing a child from `intake` to `define-behavior`, run:
