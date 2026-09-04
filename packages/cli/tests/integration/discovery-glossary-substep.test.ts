@@ -36,11 +36,13 @@ describe.each([
     expect(content).toContain('## Load project glossary');
   });
 
-  it('references the configured glossary path and the empty-file soft prompt', () => {
+  it('references the configured glossary path and routes an empty file into the single ask', () => {
     expect(content).toContain('paths.glossary');
     expect(content).toContain('<namespace-root>/glossary.md');
-    // Soft-prompt wording mirrors the persona equivalent ("empty — want to add").
+    // An empty glossary must still reach the user. It no longer prompts on its
+    // own: every empty project-knowledge file is collected into one prompt
+    // before the first checkpoint, so the sub-step defers instead of asking.
     const glossarySection = content.slice(content.indexOf('## Load project glossary'));
-    expect(glossarySection).toMatch(/empty.*add.*now|add.*now.*proceed/i);
+    expect(glossarySection).toMatch(/if empty[\s\S]*single project-knowledge prompt/i);
   });
 });

@@ -83,7 +83,7 @@
     },
     {
       "path": "resources/SAFEWORD.md",
-      "sha256": "25d9c345b5e563a3c8304aa0056480444a10baa3443c9239198a01ffb279ece0"
+      "sha256": "452e342d49fe13c5e66da8684a17d8c8d8eafc58420a030a1168b4fea72da0e9"
     },
     {
       "path": "resources/scripts/bisect-test-pollution.sh",
@@ -143,11 +143,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "8eb0c155e167fa5e58cf2b8bd2acb2975c8b34ecd69e500111a6e64eacc16e22"
+      "sha256": "1b3a3347758942d47bdb2526518d95f9a5df95557fd17de3dc7773c621c8caec"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "e9c94f6b57a8e2556a1345a3c98a2d637e945a7c84bd8224271bb06b632ff22a"
+      "sha256": "f67ca37127b97851566d35b3a19ba74714850630985a80ef98b2d288edcfc4af"
     },
     {
       "path": "runtime/event-groups.json",
@@ -327,7 +327,7 @@
     },
     {
       "path": "runtime/hooks/lib/quality.ts",
-      "sha256": "7bba76bd6c456d77e2dd82566b36a9c6ffdae3d00540199548745419c0c667aa"
+      "sha256": "630782acc22a007f01a80b966583aa3bc8266d7919658bfb63d4aa83e7c07631"
     },
     {
       "path": "runtime/hooks/lib/re-entry.ts",
@@ -595,7 +595,7 @@
     },
     {
       "path": "skills/bdd/DISCOVERY.md",
-      "sha256": "10e7d7ad38205f48383c1379f81a6601b72b9001fc886d2ab9b94562be069bc7"
+      "sha256": "0e4644722ff34bf9da50f175939d13410df2cda943e669e21391c437abf6feb6"
     },
     {
       "path": "skills/bdd/DONE.md",
@@ -603,11 +603,11 @@
     },
     {
       "path": "skills/bdd/PLAN_IMPLEMENTATION.md",
-      "sha256": "5e4c249680bcfa4de4e07eb4cd72bffa4e6f8f79465aae8fb13538da85528905"
+      "sha256": "81e8b5df1328ab87154e7639e81c3b4d56ad3b1473b183f3d9284c35efa49193"
     },
     {
       "path": "skills/bdd/SCENARIOS.md",
-      "sha256": "0abfced2f9473ae33f63913890d63dcd2232f1aad6779020449cc3e16f182fc7"
+      "sha256": "a12f8574734678367dc91b0c84e5bc390e51ad6ceee00fcf890a5b4ac7572bc5"
     },
     {
       "path": "skills/bdd/SKILL.md",
@@ -619,7 +619,7 @@
     },
     {
       "path": "skills/bdd/TDD.md",
-      "sha256": "d7c3639500c45f0768f94fc231c32fec6e729afb066bcad816a37b4b96bf915d"
+      "sha256": "16f6bb450aff9f896842f7e9d9f01c769e0c07cddd026c2d6a1697da07358932"
     },
     {
       "path": "skills/bdd/VERIFY.md",
@@ -675,7 +675,7 @@
     },
     {
       "path": "skills/quality-review/SKILL.md",
-      "sha256": "7fca8b8ffa7ae9828672500cc43c966df7a24cdb73e3456ea8f2456e72948165"
+      "sha256": "76fb9fc24162045005a2b354e808dbda281dcdc15b300f216af9d379d2cd5fb1"
     },
     {
       "path": "skills/refactor/SKILL.md",
@@ -691,7 +691,7 @@
     },
     {
       "path": "skills/review-spec/SKILL.md",
-      "sha256": "052c0b46a55fc4d3c94003db008ae49b9e00b6f70a1588662b2cf2fb88d77a87"
+      "sha256": "945c1bb549fca025bbed809759d57ca690aac6ca0a36a523ea9046a9c36ccd2a"
     },
     {
       "path": "skills/self-review/SKILL.md",
