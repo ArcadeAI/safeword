@@ -252,6 +252,12 @@ If ticket has `parent:` field:
 2. Get `children:` array
 3. Check each child's `status:`
 4. Report: "Siblings: X/Y done"
+5. Read the parent `spec.md` and extract `## Killer Demo`. The Experience
+   Peak below walks the inherited Payoff, so it needs the parent's Audience,
+   Starting state, Action, Payoff, and Proof. When the parent spec is missing
+   or declares none, record the demo as unresolved — that is a finding, not
+   an `N/A`, because `N/A` claims no demo exists rather than that you could
+   not read one.
 
 ### 5. Check Dependency Drift
 

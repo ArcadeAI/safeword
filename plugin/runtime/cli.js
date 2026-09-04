@@ -582,7 +582,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/bdd/DISCOVERY.md": "be062a41a83a9e68a65b6b3dbf631721edf15d5e06c9b71070a8bcd007662d31",
         ".claude/skills/bdd/DONE.md": "e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60",
         ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "0d1c9103c9e6c00b4fb43d3c90a5118f90b9feb964b15daf12340a06d53e4f9a",
-        ".claude/skills/bdd/SCENARIOS.md": "1dfe974b205b7cd6922b2f2437a520b8ca5967affdbf4b3dd04d461c560f20b8",
+        ".claude/skills/bdd/SCENARIOS.md": "6a4b7cad72fc3c997c0b6b841f1b5238e31404b5fa876c394d4a053fe19cb32b",
         ".claude/skills/bdd/SKILL.md": "970d5af3af22e599126b5a15f75ec9c9478fd0ca810b31ec33d2dbd94ec83516",
         ".claude/skills/bdd/SPLITTING.md": "e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708",
         ".claude/skills/bdd/TDD.md": "ed311cb035ab485577319ed21866b40a8406e3551989e4e5ae8b414cbb165eb9",
@@ -603,13 +603,13 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/refactor/SKILL.md": "a51a858fb13b50cbc86789edbde8a39e364b5cdd7d5d3b025d555d90b221760e",
         ".claude/skills/retro-filer/SKILL.md": "ea126f3805a2befefb4db2011439f075ebfd6eca31b78bd5f284ac11d667b4f0",
         ".claude/skills/retro/SKILL.md": "d01abb281a1c941024f304709c8727769383eb76d0ccc7da53f73776c4a0122d",
-        ".claude/skills/review-spec/SKILL.md": "ed398bc4a06eff61863cad41f638567b964736e9ae98ce035f82b75ebb5fcd50",
+        ".claude/skills/review-spec/SKILL.md": "e5b335195da77f49f691142e7554140a268923f16ef6eb911fde601ec1693cd1",
         ".claude/skills/self-review/SKILL.md": "e5ff994ec84573e6f129127bad89617f0a67b67c5cf792cedac558b6e419ac3b",
         ".claude/skills/spike/SKILL.md": "905aab56037ad5a258bafa91cb2ebf05cff1acffbc9e1fd6f7a1f27230672f37",
         ".claude/skills/tdd-review/SKILL.md": "4b945f122a90d23462845d7bdbbd0b736aa69d423a2d7e99ebf646bf118faa4f",
         ".claude/skills/testing/SKILL.md": "697a4b090935989e0c8a53462d2b44087afafa50adc69e9a98da14bed23dbde9",
         ".claude/skills/ticket-system/SKILL.md": "97595a9875cdca30ea26c809a26e5be7df338a42034d6122b559e70275f2477e",
-        ".claude/skills/verify/SKILL.md": "6fdf6a7a34bb6a56b994c75df3fd116e632e2e3584ab153d16551f362f8245d1"
+        ".claude/skills/verify/SKILL.md": "66ddb0dd09e6059093bb0a590d27a7cf8ce16a30e62f8a4b24f67964cda90af7"
       },
       hook_files: {
         ".safeword/hooks/post-tool-bypass-warn.ts": "f7f9d408e58e2f3f223b9a2a94447560671dcdc7e7bac8d35e786417337fce8a",
@@ -34884,7 +34884,7 @@ Nine lenses across the whole scenario set (not per scenario) \u2014 each asks "w
 - **Security** \u2014 authn/authz failures and abuse vectors covered?
 - **Persona consistency** \u2014 does each scenario's triggering persona resolve in the configured personas file, and would another defined persona experience it differently?
 - **Surface coverage** \u2014 does each affected surface resolve in the configured surfaces file (or stay explicitly spec-local), have a matching \`@surface.<slug>\` scenario tag or an explicit \`skip:\` reason, and are any \`@surface.*\` tags stale?
-- **Killer Demo proof** \u2014 when \`spec.md\` declares a \`## Killer Demo\` (a child inherits its parent's by reference), does one scenario carry \`@demo\` and actually demonstrate the Payoff? Check the scenario against the Payoff text, not against the tag: a tag on a scenario that exercises a neighbouring behavior is the same false coverage as a surface tag on the wrong context. A declared Killer Demo with no \`@demo\` tag and no \`skip: <reason>\` is a **should-strengthen**, not a must-fix \u2014 the demo is a value claim rather than a correctness invariant, so a missing one weakens the release story without letting a defect ship. Raise it as a must-fix only when the Payoff restates a Rule that no scenario proves, because then the gap is coverage wearing a demo's clothes.
+- **Killer Demo proof** \u2014 when \`spec.md\` declares a \`## Killer Demo\` (a child inherits its parent's by reference), does one scenario carry \`@demo\` and actually demonstrate the Payoff? Check the scenario against the Payoff text, not against the tag: a tag on a scenario that exercises a neighbouring behavior is the same false coverage as a surface tag on the wrong context. A declared Killer Demo with no \`@demo\` tag and no \`skip: <reason>\` is a **should-strengthen**, not a must-fix \u2014 the demo is a value claim rather than a correctness invariant, so a missing one weakens the release story without letting a defect ship. Raise it as a must-fix only when the Payoff restates a Rule that no scenario proves, because then the gap is coverage wearing a demo's clothes. When the ticket inherits a demo and the parent \`spec.md\` was not supplied, report that the lens could not run rather than passing it \u2014 an unreadable Payoff is not a satisfied one.
 - **Invariant binding** \u2014 for each normative clause in the supplied ticket-spec context (never / must not / always / only), name the scenario whose failure would falsify it **and** the condition under which it fails; a bare scenario reference is not a binding, it's a pointer that survives the invariant being violated. An invariant no scenario would catch is a **must-fix** \u2014 cheapest to write now, while no code exists to work around. Worse than a gap is the scenario whose title names the invariant while its \`Given\` establishes a weaker precondition: it reads as coverage and proves nothing, so report it as a vacuous pass, not a missing scenario.
 - **Wiring** \u2014 for each behavior that crosses a module/command boundary, is there a scenario exercised end-to-end through the real entry point (real config \u2192 real collaborators, mocking only the process boundary), not only via injected internals? A path reachable solely through a short circuit has no wiring coverage.
 
