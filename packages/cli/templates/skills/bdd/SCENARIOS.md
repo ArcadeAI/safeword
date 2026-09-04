@@ -68,6 +68,10 @@ Ask the user: **Do these scenarios fully describe the intended behavior and impo
 
 If `spec.md` `## Surfaces` lists `Affected:` entries, each affected surface needs at least one saved scenario tagged `@surface.<slug>` or an explicit `skip: <reason>` on the affected-surface line. Slug = lowercase name with non-alphanumerics collapsed to hyphens (`OpenAI Codex` -> `@surface.openai-codex`). One scenario can carry multiple surface tags when the same behavior proves parity across contexts. `safeword doctor` reports missing or stale surface tags as advisories.
 
+### Killer Demo tag
+
+If `spec.md` carries a `## Killer Demo` — on this ticket, or on the parent named in `Parent References` for a child — exactly one saved scenario tags `@demo` to mark the one that demonstrates the Payoff, or the ticket records `skip: <reason>` on the Killer Demo line. Prefer tagging a scenario that already exists: the demo is the shortest credible path through behavior the Rules already require, not an extra scenario written to satisfy a tag. If nothing in the set can prove the Payoff, that is a finding about the Payoff or the scenarios, not a reason to invent a demo-shaped scenario. One tag per ticket — a Killer Demo has one Payoff, so a second `@demo` means the demo was split or the tag was copied.
+
 **Progress ledger** (`test-definitions.md` on disk): scenario headings plus per-scenario `- [ ] RED / GREEN / REFACTOR` sub-checkboxes. test-definitions.md is the R/G/R ledger. The prompt hook parses those checkboxes to inject TDD-step guidance during implement, and they enforce one-commit-per-step discipline. Do not duplicate Given/When/Then here when a `.feature` source exists.
 
 ```gherkin

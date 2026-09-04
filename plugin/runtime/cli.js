@@ -579,10 +579,10 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/agents/safeword-retro-filer.md": "008fa4b5777834118ba0efd008862df52dd32d3feec2218537d7c90cbfdfd904",
         ".claude/agents/safeword-reviewer.md": "13333228aa180c0ff040ccfe4e16058147fadc596b51df0d6d73caeb01755470",
         ".claude/skills/audit/SKILL.md": "64afc92c419a8354c015f18ffe0cc581cfce48cb3fee3db8e3c39d75844fb2d3",
-        ".claude/skills/bdd/DISCOVERY.md": "ac8f221691aeffaa16ca6a15a7930a462bdf64aeaf2fe9600903a9dbb417f992",
+        ".claude/skills/bdd/DISCOVERY.md": "be062a41a83a9e68a65b6b3dbf631721edf15d5e06c9b71070a8bcd007662d31",
         ".claude/skills/bdd/DONE.md": "e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60",
         ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "0d1c9103c9e6c00b4fb43d3c90a5118f90b9feb964b15daf12340a06d53e4f9a",
-        ".claude/skills/bdd/SCENARIOS.md": "a79590a8dcd8c6377f92e2ec0c26d5479f28e16e53291348f86f59b73381a19e",
+        ".claude/skills/bdd/SCENARIOS.md": "1dfe974b205b7cd6922b2f2437a520b8ca5967affdbf4b3dd04d461c560f20b8",
         ".claude/skills/bdd/SKILL.md": "970d5af3af22e599126b5a15f75ec9c9478fd0ca810b31ec33d2dbd94ec83516",
         ".claude/skills/bdd/SPLITTING.md": "e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708",
         ".claude/skills/bdd/TDD.md": "ed311cb035ab485577319ed21866b40a8406e3551989e4e5ae8b414cbb165eb9",
@@ -603,13 +603,13 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/refactor/SKILL.md": "a51a858fb13b50cbc86789edbde8a39e364b5cdd7d5d3b025d555d90b221760e",
         ".claude/skills/retro-filer/SKILL.md": "ea126f3805a2befefb4db2011439f075ebfd6eca31b78bd5f284ac11d667b4f0",
         ".claude/skills/retro/SKILL.md": "d01abb281a1c941024f304709c8727769383eb76d0ccc7da53f73776c4a0122d",
-        ".claude/skills/review-spec/SKILL.md": "1003829012f8134a805f26635782b1e14a5165caa28d6747e7cb9cabfc78bec0",
+        ".claude/skills/review-spec/SKILL.md": "ed398bc4a06eff61863cad41f638567b964736e9ae98ce035f82b75ebb5fcd50",
         ".claude/skills/self-review/SKILL.md": "e5ff994ec84573e6f129127bad89617f0a67b67c5cf792cedac558b6e419ac3b",
         ".claude/skills/spike/SKILL.md": "905aab56037ad5a258bafa91cb2ebf05cff1acffbc9e1fd6f7a1f27230672f37",
         ".claude/skills/tdd-review/SKILL.md": "4b945f122a90d23462845d7bdbbd0b736aa69d423a2d7e99ebf646bf118faa4f",
         ".claude/skills/testing/SKILL.md": "697a4b090935989e0c8a53462d2b44087afafa50adc69e9a98da14bed23dbde9",
         ".claude/skills/ticket-system/SKILL.md": "97595a9875cdca30ea26c809a26e5be7df338a42034d6122b559e70275f2477e",
-        ".claude/skills/verify/SKILL.md": "1dbfddca0701b09d45c77ecd626ce526018f0c746a276fef3b417c0138526694"
+        ".claude/skills/verify/SKILL.md": "6fdf6a7a34bb6a56b994c75df3fd116e632e2e3584ab153d16551f362f8245d1"
       },
       hook_files: {
         ".safeword/hooks/post-tool-bypass-warn.ts": "f7f9d408e58e2f3f223b9a2a94447560671dcdc7e7bac8d35e786417337fce8a",
@@ -34863,7 +34863,7 @@ For each \`Scenario Outline\`, confirm its rows vary one behavioral dimension an
 
 ## Cross-cutting checks
 
-Eight lenses across the whole scenario set (not per scenario) \u2014 each asks "what's missing?":
+Nine lenses across the whole scenario set (not per scenario) \u2014 each asks "what's missing?":
 
 - **Conflict** \u2014 do two scenarios contradict (one allows X, another rejects it) with no distinguishing precondition?
 - **Boundary** \u2014 zero / one / max / empty / null covered where they apply?
@@ -34871,13 +34871,14 @@ Eight lenses across the whole scenario set (not per scenario) \u2014 each asks "
 - **Security** \u2014 authn/authz failures and abuse vectors covered?
 - **Persona consistency** \u2014 does each scenario's triggering persona resolve in the configured personas file, and would another defined persona experience it differently?
 - **Surface coverage** \u2014 does each affected surface resolve in the configured surfaces file (or stay explicitly spec-local), have a matching \`@surface.<slug>\` scenario tag or an explicit \`skip:\` reason, and are any \`@surface.*\` tags stale?
+- **Killer Demo proof** \u2014 when \`spec.md\` declares a \`## Killer Demo\` (a child inherits its parent's by reference), does one scenario carry \`@demo\` and actually demonstrate the Payoff? Check the scenario against the Payoff text, not against the tag: a tag on a scenario that exercises a neighbouring behavior is the same false coverage as a surface tag on the wrong context. A declared Killer Demo with no \`@demo\` tag and no \`skip: <reason>\` is a **should-strengthen**, not a must-fix \u2014 the demo is a value claim rather than a correctness invariant, so a missing one weakens the release story without letting a defect ship. Raise it as a must-fix only when the Payoff restates a Rule that no scenario proves, because then the gap is coverage wearing a demo's clothes.
 - **Invariant binding** \u2014 for each normative clause in the supplied ticket-spec context (never / must not / always / only), name the scenario whose failure would falsify it **and** the condition under which it fails; a bare scenario reference is not a binding, it's a pointer that survives the invariant being violated. An invariant no scenario would catch is a **must-fix** \u2014 cheapest to write now, while no code exists to work around. Worse than a gap is the scenario whose title names the invariant while its \`Given\` establishes a weaker precondition: it reads as coverage and proves nothing, so report it as a vacuous pass, not a missing scenario.
 - **Wiring** \u2014 for each behavior that crosses a module/command boundary, is there a scenario exercised end-to-end through the real entry point (real config \u2192 real collaborators, mocking only the process boundary), not only via injected internals? A path reachable solely through a short circuit has no wiring coverage.
 
 Finish by reconciling the set instead of adding speculative cases: every
-material partition in the supplied dimensions context, affected surface, and public
-command or user-visible outcome declared in ticket scope needs a scenario or an
-explicit \`skip: <reason>\`. For each load-bearing scenario ask: _could the
+material partition in the supplied dimensions context, affected surface, declared
+Killer Demo Payoff, and public command or user-visible outcome declared in ticket
+scope needs a scenario or an explicit \`skip: <reason>\`. For each load-bearing scenario ask: _could the
 proposed test pass while the user-facing claim is still broken?_ Same-process
 proof cannot establish caller-exit survival; an injected fake cannot establish
 real CLI wiring; a unit test cannot establish a runtime or protocol boundary.

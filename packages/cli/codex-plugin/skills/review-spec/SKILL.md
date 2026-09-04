@@ -193,7 +193,7 @@ For each `Scenario Outline`, confirm its rows vary one behavioral dimension and 
 
 ## Cross-cutting checks
 
-Eight lenses across the whole scenario set (not per scenario) — each asks "what's missing?":
+Nine lenses across the whole scenario set (not per scenario) — each asks "what's missing?":
 
 - **Conflict** — do two scenarios contradict (one allows X, another rejects it) with no distinguishing precondition?
 - **Boundary** — zero / one / max / empty / null covered where they apply?
@@ -201,13 +201,14 @@ Eight lenses across the whole scenario set (not per scenario) — each asks "wha
 - **Security** — authn/authz failures and abuse vectors covered?
 - **Persona consistency** — does each scenario's triggering persona resolve in the configured personas file, and would another defined persona experience it differently?
 - **Surface coverage** — does each affected surface resolve in the configured surfaces file (or stay explicitly spec-local), have a matching `@surface.<slug>` scenario tag or an explicit `skip:` reason, and are any `@surface.*` tags stale?
+- **Killer Demo proof** — when `spec.md` declares a `## Killer Demo` (a child inherits its parent's by reference), does one scenario carry `@demo` and actually demonstrate the Payoff? Check the scenario against the Payoff text, not against the tag: a tag on a scenario that exercises a neighbouring behavior is the same false coverage as a surface tag on the wrong context. A declared Killer Demo with no `@demo` tag and no `skip: <reason>` is a **should-strengthen**, not a must-fix — the demo is a value claim rather than a correctness invariant, so a missing one weakens the release story without letting a defect ship. Raise it as a must-fix only when the Payoff restates a Rule that no scenario proves, because then the gap is coverage wearing a demo's clothes.
 - **Invariant binding** — for each normative clause in the supplied ticket-spec context (never / must not / always / only), name the scenario whose failure would falsify it **and** the condition under which it fails; a bare scenario reference is not a binding, it's a pointer that survives the invariant being violated. An invariant no scenario would catch is a **must-fix** — cheapest to write now, while no code exists to work around. Worse than a gap is the scenario whose title names the invariant while its `Given` establishes a weaker precondition: it reads as coverage and proves nothing, so report it as a vacuous pass, not a missing scenario.
 - **Wiring** — for each behavior that crosses a module/command boundary, is there a scenario exercised end-to-end through the real entry point (real config → real collaborators, mocking only the process boundary), not only via injected internals? A path reachable solely through a short circuit has no wiring coverage.
 
 Finish by reconciling the set instead of adding speculative cases: every
-material partition in the supplied dimensions context, affected surface, and public
-command or user-visible outcome declared in ticket scope needs a scenario or an
-explicit `skip: <reason>`. For each load-bearing scenario ask: _could the
+material partition in the supplied dimensions context, affected surface, declared
+Killer Demo Payoff, and public command or user-visible outcome declared in ticket
+scope needs a scenario or an explicit `skip: <reason>`. For each load-bearing scenario ask: _could the
 proposed test pass while the user-facing claim is still broken?_ Same-process
 proof cannot establish caller-exit survival; an injected fake cannot establish
 real CLI wiring; a unit test cannot establish a runtime or protocol boundary.
