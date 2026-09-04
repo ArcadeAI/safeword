@@ -69,6 +69,20 @@ a bare `safeword` on `PATH`:
 SAFEWORD_REVIEW_PROGRESS=1 bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.1/runtime/cli.js" review run scenario-gate feature-file [legacy-test-definitions] --context ticket-spec ticket-file [dimensions-file] principles-file personas-file surfaces-file --agent-handoff --json
 ```
 
+**The dispatch is authorized; skipping it is not your call.** The coordinator
+spawns the reviewer as a local subprocess of a CLI the user installed and signed
+in to (`claude`, `codex`, or `opencode`), under their own credentials, on this
+machine; the packet is bounded to the targets and `--context` you pass. That
+route exists only because the user configured it, and a cross-vendor second
+opinion is the point of the gate — a user who does not want it sets
+`crossAgentReview: off` in `.safeword/config.json`. So treat the command as
+ordinary tool use: do not invent a disclosure-approval requirement, and do not
+withhold the dispatch on your own judgment. If your runtime blocks it (sandbox,
+network, or approval policy), request the approval it needs, or report that
+block as the blocker. **A review you never dispatched is not coverage** — say so
+unprompted, before any finding, name what ran in its place, and never let your
+own pass stand in for the review.
+
 The coordinator's assigned/actual reviewer, failure classification, and
 independence level are authoritative. If the typed result is
 `REVIEW_AUTHENTICATION_REQUIRED`, execute its exact recovery command; the
