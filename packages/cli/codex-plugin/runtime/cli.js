@@ -21410,14 +21410,25 @@ function isLeaseRecord(value, expectedPid) {
   const hasExactFields = Object.keys(record).length === 2 && Object.hasOwn(record, "pid") && Object.hasOwn(record, "procStart");
   return hasExactFields && Number.isSafeInteger(record.pid) && record.pid === expectedPid && typeof record.procStart === "string" && record.procStart.length > 0;
 }
+function leaseMarkerPid(name) {
+  const infix = name.indexOf(LEASE_TEMP_INFIX);
+  if (infix === -1)
+    return LEASE_PID.test(name) ? name : undefined;
+  const pid = name.slice(0, infix);
+  const suffix = name.slice(infix + LEASE_TEMP_INFIX.length);
+  if (!LEASE_PID.test(pid) || !LEASE_TEMP_SUFFIX.test(suffix))
+    return;
+  return pid;
+}
 function isClaudeLeaseMarker(path3, name) {
-  if (!/^\d+$/u.test(name))
+  const pid = leaseMarkerPid(name);
+  if (pid === undefined)
     return false;
   const content = readSmallMetadataFile(path3);
   if (content === undefined)
     return false;
   try {
-    return isLeaseRecord(JSON.parse(content), Number(name));
+    return isLeaseRecord(JSON.parse(content), Number(pid));
   } catch {
     return false;
   }
@@ -21464,7 +21475,7 @@ function claudeNativePayloadFiles(root) {
   visit3(root, "");
   return files;
 }
-var CLAUDE_PLUGIN_ID = "safeword@safeword", CLAUDE_MIGRATION_SCHEMA, CLAUDE_NATIVE_REQUIRED_ASSETS, CLAUDE_NATIVE_METADATA_FILES, MAX_CLAUDE_CACHE_METADATA_BYTES = 1024;
+var CLAUDE_PLUGIN_ID = "safeword@safeword", CLAUDE_MIGRATION_SCHEMA, CLAUDE_NATIVE_REQUIRED_ASSETS, CLAUDE_NATIVE_METADATA_FILES, MAX_CLAUDE_CACHE_METADATA_BYTES = 1024, LEASE_TEMP_INFIX = ".tmp.", LEASE_PID, LEASE_TEMP_SUFFIX;
 var init_inventory2 = __esm(() => {
   CLAUDE_MIGRATION_SCHEMA = {
     paths: {
@@ -21489,6 +21500,8 @@ var init_inventory2 = __esm(() => {
     "identity.json",
     "inventory.json"
   ];
+  LEASE_PID = /^\d{1,10}$/u;
+  LEASE_TEMP_SUFFIX = /^[0-9a-f]{1,32}$/u;
 });
 
 // src/claude-plugin/migration-state.ts
