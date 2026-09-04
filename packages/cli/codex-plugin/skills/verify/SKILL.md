@@ -253,10 +253,11 @@ If ticket has `parent:` field:
 4. Report: "Siblings: X/Y done"
 5. Read the parent `spec.md` and extract `## Killer Demo`. The Experience
    Peak below walks the inherited Payoff, so it needs the parent's Audience,
-   Starting state, Action, Payoff, and Proof. When the parent spec is missing
-   or declares none, record the demo as unresolved — that is a finding, not
-   an `N/A`, because `N/A` claims no demo exists rather than that you could
-   not read one.
+   Starting state, Action, Payoff, and Proof. Separate the two ways this can
+   come up empty: a parent spec you could not read is unresolved, and that is
+   a finding, because `N/A` would claim no demo exists rather than that you
+   could not look. A parent you read that simply declares none is `N/A`, the
+   same as a ticket with no demo of its own.
 
 ### 5. Check Dependency Drift
 
