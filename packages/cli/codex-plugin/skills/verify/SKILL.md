@@ -65,6 +65,10 @@ If a ticket is found, read it to get:
 
 - `parent:` field (if any)
 - Ticket ID/slug for test-definitions lookup
+- `## Killer Demo` from this ticket's own `spec.md`, when it declares one — the
+  Experience Peak below walks that Payoff, so a ticket that declares its own
+  demo must never reach `N/A` for want of reading it. A child inherits instead:
+  step 4 resolves the demo from the parent.
 
 If no ticket is found, skip scenario validation (step 3) and parent check (step 4).
 
