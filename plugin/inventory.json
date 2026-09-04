@@ -83,7 +83,7 @@
     },
     {
       "path": "resources/SAFEWORD.md",
-      "sha256": "25d9c345b5e563a3c8304aa0056480444a10baa3443c9239198a01ffb279ece0"
+      "sha256": "452e342d49fe13c5e66da8684a17d8c8d8eafc58420a030a1168b4fea72da0e9"
     },
     {
       "path": "resources/scripts/bisect-test-pollution.sh",
@@ -143,11 +143,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "ab066450627d60aefefac0b64eead4c6d064b09f83d8c2cd9685f487dcce853c"
+      "sha256": "e4ee1297dd9d29ed12e82259393c320b468e27375b7d1ad6787497a561015714"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "947ffb319e823f437e0352d076f2c783334dd1666c35d4e6c28fad610172c08e"
+      "sha256": "c8b22e7220e216728c2d1544829c691ceb2ac0c23b78197180f3fa61b64d2162"
     },
     {
       "path": "runtime/event-groups.json",
@@ -327,7 +327,7 @@
     },
     {
       "path": "runtime/hooks/lib/quality.ts",
-      "sha256": "7bba76bd6c456d77e2dd82566b36a9c6ffdae3d00540199548745419c0c667aa"
+      "sha256": "630782acc22a007f01a80b966583aa3bc8266d7919658bfb63d4aa83e7c07631"
     },
     {
       "path": "runtime/hooks/lib/re-entry.ts",
@@ -595,7 +595,7 @@
     },
     {
       "path": "skills/bdd/DISCOVERY.md",
-      "sha256": "ac8f221691aeffaa16ca6a15a7930a462bdf64aeaf2fe9600903a9dbb417f992"
+      "sha256": "79c0e4ed452cbb3409b9cb10979307a1f9e2f2852da9cc2cfed6badbdd203b7e"
     },
     {
       "path": "skills/bdd/DONE.md",
@@ -607,7 +607,7 @@
     },
     {
       "path": "skills/bdd/SCENARIOS.md",
-      "sha256": "a79590a8dcd8c6377f92e2ec0c26d5479f28e16e53291348f86f59b73381a19e"
+      "sha256": "bf274ec48d1693d8cc301b717e08e872ecf20e11e5e610f141dce2b45b330b4f"
     },
     {
       "path": "skills/bdd/SKILL.md",
@@ -691,7 +691,7 @@
     },
     {
       "path": "skills/review-spec/SKILL.md",
-      "sha256": "4f1cfaa52193c95f24d8927a9ff36ba4ec621d56e6a23b13b56999df67f0ce20"
+      "sha256": "55cccfa39073886e46ae5db02b81c528e311be60c916a0b7516c6011b4deb5cc"
     },
     {
       "path": "skills/self-review/SKILL.md",

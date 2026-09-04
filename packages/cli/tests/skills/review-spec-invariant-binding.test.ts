@@ -41,7 +41,7 @@ describe('review-spec invariant-binding lens (Y9P3ZC)', () => {
       ?.count;
     const bullets = section.slice(0, section.indexOf('\n## ', 1)).match(/^- \*\*/gm)?.length;
 
-    expect(declared).toBe('Eight');
-    expect(bullets).toBe(8);
+    expect(declared).toBe('Nine');
+    expect(bullets).toBe(9);
   });
 });

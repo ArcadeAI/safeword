@@ -11,17 +11,17 @@
 ### Pipeline (6 steps)
 
 1. **Load `review-spec` in Authoring mode** — it is the single scenario-quality standard. Apply it while drafting; do not launch its independent review coordinator in this phase.
-2. **Derive dimensions** from intake artifacts (resolved questions, done-when, scope) + domain-knowledge dimensions not surfaced during intake
+2. **Derive dimensions** from intake artifacts (resolved questions, `done_when`, `scope`) + domain-knowledge dimensions not surfaced during intake. Read `out_of_scope`, the Product Bet's project non-goals, and the applicable milestone's Non-goals in the same pass and hold all three as the outer edge — a child feature's `spec.md` carries no non-goals by design, so there `out_of_scope` is the whole edge: a dimension or partition that exists only past that line is dropped here, before partitioning — not carried forward and not "covered for completeness". Domain knowledge is the usual source of the overshoot, because it arrives unbounded by intake.
 3. **Partition** each dimension into equivalence classes + boundary values
-4. **Generate scenarios** — one per partition + boundary cases. Each scenario proves a specific **Rule** (or legacy Acceptance Criterion) from intake (`spec.md`); if a scenario doesn't map to any criterion, either it's testing implementation (drop it) or a criterion is missing (go back and add it).
-5. **Organize under Gherkin `Rule:` blocks** with card-ratio self-check (too many rules? any rules with no examples? open questions?). They group scenarios by the criterion they prove, so every criterion has ≥1 scenario and no scenario is an orphan.
+4. **Generate scenarios** — one per partition + boundary cases. Each scenario proves a specific **Rule** (or legacy Acceptance Criterion) from intake (`spec.md`); if a scenario doesn't map to any criterion, either it's testing implementation (drop it) or a criterion is missing (go back and add it). Mapping to a Rule does not by itself put a scenario in scope: a Rule states an invariant generally, so an example of a real Rule can still assert behavior `out_of_scope`, a project non-goal, or a milestone Non-goal excludes. That is a scope conflict, not coverage — name it and let the user decide (amend `out_of_scope`, or drop the scenario). Never settle it by keeping the scenario quietly.
+5. **Organize under Gherkin `Rule:` blocks** with card-ratio self-check. They group scenarios by the criterion they prove, so every criterion has ≥1 scenario and no scenario is an orphan. Ask: any Rule with no examples? Any open questions? And the one with teeth — **would dropping this scenario let a real defect ship?** Two scenarios that prove the same Rule over the same partition are one scenario with a better name. Judge that sameness by the obligation they prove, never by their sharing a failure cause today — which partitions break together is a fact about the current implementation, and merging on it drops a partition the moment that implementation changes. Cover each partition once; a second example of a partition already covered adds review cost and no proof. Representative beats exhaustive — exhaustive matrices belong in table-driven lower-level tests.
 6. **Present to user** (decider) — user accepts, tweaks, or adds
 
 Save the dimension table to `dimensions.md` in the ticket folder before writing test-definitions.md (the pre-tool hook enforces this for features). For tiny features with one obvious behavioral dimension and no partitioning to enumerate, dimensions.md may instead be a single line `skip: <non-empty reason>`.
 
 ### Are the scenarios complete?
 
-Ask the user: **Do these scenarios fully describe the intended behavior and important boundaries, or is anything missing?** If their feedback adds scenarios, revise the set and ask again. When they confirm nothing is missing, proceed to scenario-gate.
+Ask the user both halves. Gaps: **Do these scenarios fully describe the intended behavior and important boundaries, or is anything missing?** Then the edge: **Does any of these go past what we agreed not to build?** If their feedback adds scenarios, revise the set and ask again; if it flags an overshoot, drop those scenarios or amend `out_of_scope` on their call. When nothing is missing and nothing crosses the line, proceed to scenario-gate.
 
 ### Concrete example
 
@@ -191,7 +191,7 @@ Load the **`/review-spec`** skill in **Review mode** — it is the independent g
 
 ### Are the reviewed scenarios complete?
 
-Ask the user: **Do these scenarios now fully cover the intended behavior and important boundaries, or is anything still missing?** If the adversarial pass or user feedback produced new scenarios, loop back to define-behavior. When nothing is missing, the quality gate is complete.
+Ask the user both halves again, because review edits scenarios. Gaps: **Do these scenarios now fully cover the intended behavior and important boundaries, or is anything still missing?** Then the edge: **Does any of these go past what we agreed not to build?** If the adversarial pass or user feedback produced new scenarios, loop back to define-behavior; if it flags an overshoot, drop those scenarios or amend `out_of_scope` on their call. When nothing is missing and nothing crosses the line, the quality gate is complete.
 
 ### Scenario Gate Exit
 
