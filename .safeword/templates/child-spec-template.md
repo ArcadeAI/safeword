@@ -20,5 +20,8 @@
 
 ## Rules
 
-<!-- markdownlint-disable-next-line MD001 -->
+<!-- markdownlint-disable MD001 -->
+
 #### {parent_job}.{ticket_id}.R1 — <business invariant owned by this feature>
+
+<!-- markdownlint-enable MD001 -->
