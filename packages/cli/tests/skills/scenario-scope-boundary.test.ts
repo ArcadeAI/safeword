@@ -94,6 +94,12 @@ describe('scenario scope boundary', () => {
     const content = read('packages/cli/templates/hooks/lib/quality.ts');
     const evidence = /'Phase: define-behavior\.[^']*'/.exec(content)?.[0];
 
-    expect(evidence).toContain('out_of_scope excludes');
+    // Name the whole edge, not just out_of_scope: review-spec's Scope boundary
+    // lens judges against the project and milestone non-goals too, so evidence
+    // citing only out_of_scope would let define-behavior claim CONFIDENT on a
+    // narrower check than the gate applies.
+    expect(evidence).toContain('the scope edge excludes');
+    expect(evidence).toContain('out_of_scope');
+    expect(evidence).toContain('project and milestone non-goals');
   });
 });

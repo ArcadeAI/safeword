@@ -56,7 +56,10 @@ dimension table, and every existing project-knowledge file, as supporting contex
 Unlike the bracketed paths, `ticket.md` is not optional in practice — every BDD
 ticket has one and dispatch should always pass it. `packet.ts` enforces only
 `spec.md`, so the lens's not-supplied clause covers a hand-run dispatch that
-skipped `ticket.md`, never a normal one. Omit optional paths that do not exist; preserve the path
+skipped `ticket.md`, never a normal one. That clause degrades the lens, it does
+not satisfy it: without `ticket.md` the Scope boundary result is a reported
+limitation naming what went unchecked, and a gate that never read `out_of_scope`
+has not cleared scope. Omit optional paths that do not exist; preserve the path
 and content of optional files that do exist, even when their content is blank.
 Refuse dispatch when `spec.md` is absent, blank, or not the first context file.
 Resolve a review-capable Safeword CLI first; source checkouts do not guarantee
