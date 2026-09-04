@@ -49,7 +49,11 @@ Run the adversarial judgment through the shared coordinator. Pass the feature
 (and any legacy scenario source) as bounded work. Pass the required `spec.md`
 first, followed by `ticket.md` (without it the reviewer cannot see `out_of_scope`
 and the Scope boundary lens silently degrades to the spec's non-goals alone), the
-dimension table, and every existing project-knowledge file, as supporting context. Omit optional paths that do not exist; preserve the path
+dimension table, and every existing project-knowledge file, as supporting context.
+Unlike the bracketed paths, `ticket.md` is not optional in practice — every BDD
+ticket has one and dispatch should always pass it. `packet.ts` enforces only
+`spec.md`, so the lens's not-supplied clause covers a hand-run dispatch that
+skipped `ticket.md`, never a normal one. Omit optional paths that do not exist; preserve the path
 and content of optional files that do exist, even when their content is blank.
 Refuse dispatch when `spec.md` is absent, blank, or not the first context file.
 Resolve a review-capable Safeword CLI first; source checkouts do not guarantee

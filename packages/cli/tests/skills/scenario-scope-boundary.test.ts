@@ -16,7 +16,9 @@ const read = (relative: string): string => readFileSync(nodePath.join(repoRoot, 
  * derived dimensions from `scope` alone and the review gate's cross-cutting
  * lenses all asked "what's missing?", so behavior the ticket had explicitly
  * excluded entered at the scenario layer and was built by TDD before anything
- * looked. These assertions pin the two reads that close that window.
+ * looked. These assertions pin the three reads that close that window --
+ * authoring, the review gate, and the define-behavior evidence line -- plus the
+ * context plumbing the gate's read depends on.
  */
 
 const reviewSurfaces = [
