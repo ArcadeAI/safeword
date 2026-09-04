@@ -10,13 +10,13 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/audit/SKILL.md':
         '64afc92c419a8354c015f18ffe0cc581cfce48cb3fee3db8e3c39d75844fb2d3',
       '.claude/skills/bdd/DISCOVERY.md':
-        'ac8f221691aeffaa16ca6a15a7930a462bdf64aeaf2fe9600903a9dbb417f992',
+        '79c0e4ed452cbb3409b9cb10979307a1f9e2f2852da9cc2cfed6badbdd203b7e',
       '.claude/skills/bdd/DONE.md':
         'e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60',
       '.claude/skills/bdd/PLAN_IMPLEMENTATION.md':
         '0d1c9103c9e6c00b4fb43d3c90a5118f90b9feb964b15daf12340a06d53e4f9a',
       '.claude/skills/bdd/SCENARIOS.md':
-        'a79590a8dcd8c6377f92e2ec0c26d5479f28e16e53291348f86f59b73381a19e',
+        '1e52b8a00f4ac02d6b5a9aff34b37166069dab2b8d38b5eb08bcad33334ce06f',
       '.claude/skills/bdd/SKILL.md':
         '970d5af3af22e599126b5a15f75ec9c9478fd0ca810b31ec33d2dbd94ec83516',
       '.claude/skills/bdd/SPLITTING.md':
