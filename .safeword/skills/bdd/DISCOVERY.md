@@ -129,6 +129,15 @@ shortest credible demonstration of the bet—not another scope list. Template
 prompts or generic restatements do not qualify; the Payoff must name the
 persona-facing before/after change and the Proof must make it observable.
 
+Write the Payoff so a scenario can prove it. Define-behavior tags the scenario
+that demonstrates it `@demo`, the scenario gate checks that tag exists, and
+`/verify` walks the Payoff as the persona before the ticket closes — so a Payoff
+stated as an unfalsifiable mood ("feels fast", "delights the user") leaves those
+three checks with nothing to hold. A child feature inherits its parent's Killer
+Demo by reference and never restates it; the parent contract carries the
+milestone and threshold, so resolve the demo itself from the parent `spec.md`
+named in `Parent References`.
+
 ## Child contribution
 
 Keep only `Parent References`, `Contribution`, and `Rules` in the child
