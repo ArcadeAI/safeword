@@ -579,7 +579,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/agents/safeword-retro-filer.md": "008fa4b5777834118ba0efd008862df52dd32d3feec2218537d7c90cbfdfd904",
         ".claude/agents/safeword-reviewer.md": "13333228aa180c0ff040ccfe4e16058147fadc596b51df0d6d73caeb01755470",
         ".claude/skills/audit/SKILL.md": "64afc92c419a8354c015f18ffe0cc581cfce48cb3fee3db8e3c39d75844fb2d3",
-        ".claude/skills/bdd/DISCOVERY.md": "be062a41a83a9e68a65b6b3dbf631721edf15d5e06c9b71070a8bcd007662d31",
+        ".claude/skills/bdd/DISCOVERY.md": "cc296952af2673b55adec79e61d4ea2c6c44b2865308fa85444b18dd1907b5e1",
         ".claude/skills/bdd/DONE.md": "e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60",
         ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "0d1c9103c9e6c00b4fb43d3c90a5118f90b9feb964b15daf12340a06d53e4f9a",
         ".claude/skills/bdd/SCENARIOS.md": "1dfe974b205b7cd6922b2f2437a520b8ca5967affdbf4b3dd04d461c560f20b8",
