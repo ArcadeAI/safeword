@@ -18,26 +18,33 @@ set would not have shown. On resume, re-present the current checkpoint.
 The confirmations you keep should be the ones worth having. Spend the user's
 attention on the substance — interrogating intent into jobs, testing proposed
 capability against what the platform can actually do — not on approving a list
-they can read in one pass. If you find yourself asking for a fifth confirmation
-in one phase, you have split the artifact too finely: present the rest together.
+they can read in one pass. If you find yourself asking for a fifth checkpoint
+confirmation, you have split the artifact too finely: present the rest together.
+
+Missing project knowledge is one ask, not three. Collect every empty file —
+personas, glossary, surfaces — into a single prompt before the first checkpoint.
+A fresh project is missing all three, which is exactly when a user is least
+served by answering the same question three times before the design
+conversation starts. That prompt plus the four checkpoints is the whole intake
+budget.
 
 Under YOLO mode, auto-confirm and record the decision in the work log.
 
 ## Load project personas
 
-Read `paths.personas` (default `<namespace-root>/personas.md`). If empty, ask
-whether to add personas now or proceed. A JTBD names one persona and preserves
+Read `paths.personas` (default `<namespace-root>/personas.md`). If empty, carry it into the
+single project-knowledge prompt rather than asking on its own. A JTBD names one persona and preserves
 its canonical code.
 
 ## Load project glossary
 
-Read `paths.glossary` (default `<namespace-root>/glossary.md`). If empty, ask
-whether to add terms now or proceed. Keep one-ticket vocabulary local.
+Read `paths.glossary` (default `<namespace-root>/glossary.md`). If empty, carry it into the
+single project-knowledge prompt rather than asking on its own. Keep one-ticket vocabulary local.
 
 ## Load project surfaces
 
-Read `paths.surfaces` (default `<namespace-root>/surfaces.md`). If empty, ask
-whether to add surfaces now or proceed. Examples include OpenAI Codex. Tag an
+Read `paths.surfaces` (default `<namespace-root>/surfaces.md`). If empty, carry it into the
+single project-knowledge prompt rather than asking on its own. Examples include OpenAI Codex. Tag an
 affected context `@surface.<slug>`. Promote a local surface only when it is
 recurring across tickets, ambiguous enough to drift, or omission leaves it
 untested.
