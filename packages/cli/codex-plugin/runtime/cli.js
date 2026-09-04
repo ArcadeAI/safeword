@@ -9886,7 +9886,7 @@ var init_files = __esm(() => {
   };
 });
 
-// ../../node_modules/.bun/smol-toml@1.8.0/node_modules/smol-toml/dist/date.js
+// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/date.js
 var DATE_TIME_RE, TomlDate;
 var init_date = __esm(() => {
   /*!
@@ -10008,7 +10008,7 @@ var init_date = __esm(() => {
   };
 });
 
-// ../../node_modules/.bun/smol-toml@1.8.0/node_modules/smol-toml/dist/error.js
+// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/error.js
 function getLineColFromPtr(string, ptr) {
   let lines = string.slice(0, ptr).split(/\r\n|\n|\r/g);
   return [lines.length, lines.pop().length + 1];
@@ -10080,58 +10080,251 @@ ${codeblock}`, options);
   };
 });
 
-// ../../node_modules/.bun/smol-toml@1.8.0/node_modules/smol-toml/dist/util.js
-function indexOfNewline(str, start = 0) {
+// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/primitive.js
+function parseString(str, ptr) {
+  let c = str[ptr++];
+  let first = c;
+  let isLiteral = c === "'";
+  let isMultiline = c === str[ptr] && c === str[ptr + 1];
+  if (isMultiline) {
+    if (str[ptr += 2] === `
+`)
+      ptr++;
+    else if (str[ptr] === "\r" && str[ptr + 1] === `
+`)
+      ptr += 2;
+  }
+  let parsed = "";
+  let sliceStart = ptr;
+  let state = 0;
+  for (let i = ptr;i < str.length; i++) {
+    c = str[i];
+    if (isMultiline && (c === `
+` || c === "\r" && str[i + 1] === `
+`)) {
+      state = state && 3;
+    } else if (c < " " && c !== "\t" || c === "\x7F") {
+      throw new TomlError("control characters are not allowed in strings", {
+        toml: str,
+        ptr: i
+      });
+    } else if ((!state || state === 3) && c === first && (!isMultiline || str[i + 1] === first && str[i + 2] === first)) {
+      if (isMultiline) {
+        if (str[i + 3] === first)
+          i++;
+        if (str[i + 3] === first)
+          i++;
+      }
+      return [
+        state ? parsed : parsed + str.slice(sliceStart, i),
+        i + (isMultiline ? 3 : 1)
+      ];
+    } else if (!state) {
+      if (!isLiteral && c === "\\") {
+        parsed += str.slice(sliceStart, sliceStart = i);
+        state = 1;
+      }
+    } else if (state === 1) {
+      if (c === "x" || c === "u" || c === "U") {
+        let value = 0;
+        let len = c === "x" ? 2 : c === "u" ? 4 : 8;
+        for (let j = 0;j < len; j++, i++) {
+          let hex = str.charCodeAt(i + 1);
+          let digit = hex >= 48 && hex <= 57 ? hex - 48 : hex >= 65 && hex <= 70 ? hex - 65 + 10 : hex >= 97 && hex <= 102 ? hex - 97 + 10 : -1;
+          if (digit < 0)
+            throw new TomlError("invalid non-hex character in unicode escape", { toml: str, ptr: i + 1 });
+          value = value << 4 | digit;
+        }
+        if (value < 0 || value > 1114111 || value >= 55296 && value <= 57343) {
+          throw new TomlError("invalid unicode escape", { toml: str, ptr: i });
+        }
+        parsed += String.fromCodePoint(value);
+        sliceStart = i + 1;
+        state = 0;
+      } else if (c === " " || c === "\t") {
+        state = 2;
+      } else {
+        if (c === "b")
+          parsed += "\b";
+        else if (c === "t")
+          parsed += "\t";
+        else if (c === "n")
+          parsed += `
+`;
+        else if (c === "f")
+          parsed += "\f";
+        else if (c === "r")
+          parsed += "\r";
+        else if (c === "e")
+          parsed += "\x1B";
+        else if (c === '"')
+          parsed += '"';
+        else if (c === "\\")
+          parsed += "\\";
+        else
+          throw new TomlError("unrecognized escape sequence", { toml: str, ptr: i });
+        sliceStart = i + 1;
+        state = 0;
+      }
+    } else if (c !== " " && c !== "\t") {
+      if (state === 2) {
+        throw new TomlError("invalid escape: only line-ending whitespace may be escaped", {
+          toml: str,
+          ptr: sliceStart
+        });
+      }
+      state = !isLiteral && c === "\\" ? 1 : 0;
+      sliceStart = i;
+    }
+  }
+  throw new TomlError("unfinished string", { toml: str, ptr });
+}
+function parseValue(value, toml, ptr, integersAsBigInt) {
+  if (value === "true")
+    return true;
+  if (value === "false")
+    return false;
+  if (value === "-inf")
+    return -Infinity;
+  if (value === "inf" || value === "+inf")
+    return Infinity;
+  if (value === "nan" || value === "+nan" || value === "-nan")
+    return NaN;
+  if (value === "-0")
+    return integersAsBigInt ? 0n : 0;
+  let isInt = INT_REGEX.test(value);
+  if (isInt || FLOAT_REGEX.test(value)) {
+    if (LEADING_ZERO.test(value)) {
+      throw new TomlError("leading zeroes are not allowed", {
+        toml,
+        ptr
+      });
+    }
+    value = value.replace(/_/g, "");
+    let numeric = +value;
+    if (isNaN(numeric)) {
+      throw new TomlError("invalid number", {
+        toml,
+        ptr
+      });
+    }
+    if (isInt) {
+      if ((isInt = !Number.isSafeInteger(numeric)) && !integersAsBigInt) {
+        throw new TomlError("integer value cannot be represented losslessly", {
+          toml,
+          ptr
+        });
+      }
+      if (isInt || integersAsBigInt === true)
+        numeric = BigInt(value);
+    }
+    return numeric;
+  }
+  const date = new TomlDate(value);
+  if (!date.isValid()) {
+    throw new TomlError("invalid value", {
+      toml,
+      ptr
+    });
+  }
+  return date;
+}
+var INT_REGEX, FLOAT_REGEX, LEADING_ZERO;
+var init_primitive = __esm(() => {
+  init_date();
+  init_error();
+  /*!
+   * Copyright (c) Squirrel Chat et al., All rights reserved.
+   * SPDX-License-Identifier: BSD-3-Clause
+   *
+   * Redistribution and use in source and binary forms, with or without
+   * modification, are permitted provided that the following conditions are met:
+   *
+   * 1. Redistributions of source code must retain the above copyright notice, this
+   *    list of conditions and the following disclaimer.
+   * 2. Redistributions in binary form must reproduce the above copyright notice,
+   *    this list of conditions and the following disclaimer in the
+   *    documentation and/or other materials provided with the distribution.
+   * 3. Neither the name of the copyright holder nor the names of its contributors
+   *    may be used to endorse or promote products derived from this software without
+   *    specific prior written permission.
+   *
+   * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+   * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+   * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+   * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+   * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+   * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+   * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+   * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+   * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+   * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+   */
+  INT_REGEX = /^((0x[0-9a-fA-F](_?[0-9a-fA-F])*)|(([+-]|0[ob])?\d(_?\d)*))$/;
+  FLOAT_REGEX = /^[+-]?\d(_?\d)*(\.\d(_?\d)*)?([eE][+-]?\d(_?\d)*)?$/;
+  LEADING_ZERO = /^[+-]?0[0-9_]/;
+});
+
+// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/util.js
+function indexOfNewline(str, start = 0, end = str.length) {
   let idx = str.indexOf(`
 `, start);
-  if (str.charCodeAt(idx - 1) === 13)
+  if (str[idx - 1] === "\r")
     idx--;
-  return idx;
+  return idx <= end ? idx : -1;
 }
-function skipComment(ctx) {
-  for (;ctx.p < ctx.s.length; ctx.p++) {
-    let c = ctx.s.charCodeAt(ctx.p);
-    if (c === 10)
-      break;
-    if (c === 13 && ctx.s.charCodeAt(ctx.p + 1) === 10) {
-      ctx.p++;
-      break;
-    }
-    if (c < 32 && c !== 9 || c === 127) {
+function skipComment(str, ptr) {
+  for (let i = ptr;i < str.length; i++) {
+    let c = str[i];
+    if (c === `
+`)
+      return i;
+    if (c === "\r" && str[i + 1] === `
+`)
+      return i + 1;
+    if (c < " " && c !== "\t" || c === "\x7F") {
       throw new TomlError("control characters are not allowed in comments", {
-        toml: ctx.s,
-        ptr: ctx.p
+        toml: str,
+        ptr
       });
     }
   }
+  return str.length;
 }
-function skipVoid(ctx, banNewLines, banComments) {
+function skipVoid(str, ptr, banNewLines, banComments) {
   let c;
   while (true) {
-    while ((c = ctx.s.charCodeAt(ctx.p)) === 32 || c === 9 || !banNewLines && (c === 10 || c === 13 && ctx.s.charCodeAt(ctx.p + 1) === 10))
-      ctx.p++;
-    if (banComments || c !== 35)
+    while ((c = str[ptr]) === " " || c === "\t" || !banNewLines && (c === `
+` || c === "\r" && str[ptr + 1] === `
+`))
+      ptr++;
+    if (banComments || c !== "#")
       break;
-    skipComment(ctx);
+    ptr = skipComment(str, ptr);
   }
+  return ptr;
 }
-function skipUntil(ctx, sep, end) {
-  let ptr = ctx.p;
+function skipUntil(str, ptr, sep, end, banNewLines = false) {
   if (!end) {
-    ptr = indexOfNewline(ctx.s, ptr);
-    ctx.p = ptr < 0 ? ctx.s.length : ptr;
-    return;
+    ptr = indexOfNewline(str, ptr);
+    return ptr < 0 ? str.length : ptr;
   }
-  for (;ctx.p < ctx.s.length; ctx.p++) {
-    let c = ctx.s.charCodeAt(ctx.p);
-    if (c === 35) {
-      skipComment(ctx);
-    } else if (c === end || c === sep) {
-      return;
+  for (let i = ptr;i < str.length; i++) {
+    let c = str[i];
+    if (c === "#") {
+      i = indexOfNewline(str, i);
+      if (i < 0)
+        break;
+    } else if (c === sep) {
+      return i + 1;
+    } else if (c === end || banNewLines && (c === `
+` || c === "\r" && str[i + 1] === `
+`)) {
+      return i;
     }
   }
   throw new TomlError("cannot find end of structure", {
-    toml: ctx.s,
+    toml: str,
     ptr
   });
 }
@@ -10166,222 +10359,77 @@ var init_util = __esm(() => {
    */
 });
 
-// ../../node_modules/.bun/smol-toml@1.8.0/node_modules/smol-toml/dist/primitive.js
-function parseString(ctx) {
-  let start = ctx.p;
-  let c = ctx.s.charCodeAt(ctx.p++);
-  let first = c;
-  let isLiteral = c === 39;
-  let isMultiline = c === ctx.s.charCodeAt(ctx.p) && c === ctx.s.charCodeAt(ctx.p + 1);
-  if (isMultiline) {
-    if ((c = ctx.s.charCodeAt(ctx.p += 2)) === 10)
-      ctx.p++;
-    else if (c === 13 && ctx.s.charCodeAt(ctx.p + 1) === 10)
-      ctx.p += 2;
-  }
-  let parsed = "";
-  let sliceStart = ctx.p;
-  let state = 0;
-  for (;ctx.p < ctx.s.length; ctx.p++) {
-    c = ctx.s.charCodeAt(ctx.p);
-    if (isMultiline && (c === 10 || c === 13 && ctx.s.charCodeAt(ctx.p + 1) === 10)) {
-      state = state && 3;
-    } else if (c < 32 && c !== 9 || c === 127) {
-      throw new TomlError("control characters are not allowed in strings", {
-        toml: ctx.s,
-        ptr: ctx.p
-      });
-    } else if ((!state || state === 3) && c === first && (!isMultiline || ctx.s.charCodeAt(ctx.p + 1) === first && ctx.s.charCodeAt(ctx.p + 2) === first)) {
-      if (isMultiline) {
-        if (ctx.s.charCodeAt(ctx.p + 3) === first)
-          ctx.p++;
-        if (ctx.s.charCodeAt(ctx.p + 3) === first)
-          ctx.p++;
-      }
-      if (!state)
-        parsed += ctx.s.slice(sliceStart, ctx.p);
-      ctx.p += isMultiline ? 3 : 1;
-      return parsed;
-    } else if (!state) {
-      if (!isLiteral && c === 92) {
-        parsed += ctx.s.slice(sliceStart, sliceStart = ctx.p);
-        state = 1;
-      }
-    } else if (state === 1) {
-      if (c === 120 || c === 117 || c === 85) {
-        let value = 0;
-        let len = c === 120 ? 2 : c === 117 ? 4 : 8;
-        for (let j = 0;j < len; j++, ctx.p++) {
-          let hex = ctx.s.charCodeAt(ctx.p + 1);
-          let digit = hex >= 48 && hex <= 57 ? hex - 48 : hex >= 65 && hex <= 70 ? hex - 65 + 10 : hex >= 97 && hex <= 102 ? hex - 97 + 10 : -1;
-          if (digit < 0)
-            throw new TomlError("invalid non-hex character in unicode escape", { toml: ctx.s, ptr: ctx.p + 1 });
-          value = value << 4 | digit;
-        }
-        if (value < 0 || value > 1114111 || value >= 55296 && value <= 57343) {
-          throw new TomlError("invalid unicode escape", { toml: ctx.s, ptr: ctx.p });
-        }
-        parsed += String.fromCodePoint(value);
-        sliceStart = ctx.p + 1;
-        state = 0;
-      } else if (c === 32 || c === 9) {
-        state = 2;
-      } else {
-        if (c === 98)
-          parsed += "\b";
-        else if (c === 116)
-          parsed += "\t";
-        else if (c === 110)
-          parsed += `
-`;
-        else if (c === 102)
-          parsed += "\f";
-        else if (c === 114)
-          parsed += "\r";
-        else if (c === 101)
-          parsed += "\x1B";
-        else if (c === 34)
-          parsed += '"';
-        else if (c === 92)
-          parsed += "\\";
-        else
-          throw new TomlError("unrecognized escape sequence", { toml: ctx.s, ptr: ctx.p });
-        sliceStart = ctx.p + 1;
-        state = 0;
-      }
-    } else if (c !== 32 && c !== 9) {
-      if (state === 2) {
-        throw new TomlError("invalid escape: only line-ending whitespace may be escaped", {
-          toml: ctx.s,
-          ptr: sliceStart
-        });
-      }
-      state = !isLiteral && c === 92 ? 1 : 0;
-      sliceStart = ctx.p;
-    }
-  }
-  throw new TomlError("unfinished string", { toml: ctx.s, ptr: start });
-}
-function sliceAndTrimEndOf(ctx, start, end) {
-  let value = ctx.s.slice(start, end);
+// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/extract.js
+function sliceAndTrimEndOf(str, startPtr, endPtr) {
+  let value = str.slice(startPtr, endPtr);
   let commentIdx = value.indexOf("#");
-  if (commentIdx > 0) {
-    skipComment({ s: value, p: commentIdx, d: 0 });
+  if (commentIdx > -1) {
+    skipComment(str, commentIdx);
     value = value.slice(0, commentIdx);
   }
-  return value.trimEnd();
+  return [value.trimEnd(), commentIdx];
 }
-function parseValue(ctx, integersAsBigInt, end) {
-  let ptr = ctx.p;
-  let err = { toml: ctx.s, ptr };
-  skipUntil(ctx, 44, end);
-  let value = sliceAndTrimEndOf(ctx, ptr, ctx.p);
-  if (!value)
-    throw new TomlError("incomplete declaration: value expected", err);
-  if (value === "-inf")
-    return -Infinity;
-  if (value === "inf" || value === "+inf")
-    return Infinity;
-  if (value === "nan" || value === "+nan" || value === "-nan")
-    return NaN;
-  if (value === "-0")
-    return integersAsBigInt ? 0n : 0;
-  let isInt = INT_REGEX.test(value);
-  if (isInt || FLOAT_REGEX.test(value)) {
-    if (LEADING_ZERO.test(value)) {
-      throw new TomlError("leading zeroes are not allowed", err);
-    }
-    value = value.replace(/_/g, "");
-    let numeric = +value;
-    if (isNaN(numeric)) {
-      throw new TomlError("invalid number", err);
-    }
-    if (isInt) {
-      if ((isInt = !Number.isSafeInteger(numeric)) && !integersAsBigInt) {
-        throw new TomlError("integer value cannot be represented losslessly", err);
+function extractValue(str, ptr, end, depth, integersAsBigInt) {
+  if (depth === 0) {
+    throw new TomlError("document contains excessively nested structures. aborting.", {
+      toml: str,
+      ptr
+    });
+  }
+  let c = str[ptr];
+  if (c === "[" || c === "{") {
+    let [value, endPtr2] = c === "[" ? parseArray(str, ptr, depth, integersAsBigInt) : parseInlineTable(str, ptr, depth, integersAsBigInt);
+    if (end) {
+      endPtr2 = skipVoid(str, endPtr2);
+      if (str[endPtr2] === ",")
+        endPtr2++;
+      else if (str[endPtr2] !== end) {
+        throw new TomlError("expected comma or end of structure", {
+          toml: str,
+          ptr: endPtr2
+        });
       }
-      if (isInt || integersAsBigInt === true)
-        numeric = BigInt(value);
     }
-    return numeric;
+    return [value, endPtr2];
   }
-  const date = new TomlDate(value);
-  if (!date.isValid())
-    throw new TomlError("invalid value", err);
-  return date;
-}
-var INT_REGEX, FLOAT_REGEX, LEADING_ZERO;
-var init_primitive = __esm(() => {
-  init_date();
-  init_error();
-  init_util();
-  /*!
-   * Copyright (c) Squirrel Chat et al., All rights reserved.
-   * SPDX-License-Identifier: BSD-3-Clause
-   *
-   * Redistribution and use in source and binary forms, with or without
-   * modification, are permitted provided that the following conditions are met:
-   *
-   * 1. Redistributions of source code must retain the above copyright notice, this
-   *    list of conditions and the following disclaimer.
-   * 2. Redistributions in binary form must reproduce the above copyright notice,
-   *    this list of conditions and the following disclaimer in the
-   *    documentation and/or other materials provided with the distribution.
-   * 3. Neither the name of the copyright holder nor the names of its contributors
-   *    may be used to endorse or promote products derived from this software without
-   *    specific prior written permission.
-   *
-   * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-   * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-   * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-   * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-   * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-   * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-   * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-   * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-   * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-   * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-   */
-  INT_REGEX = /^((0x[0-9a-fA-F](_?[0-9a-fA-F])*)|(([+-]|0[ob])?\d(_?\d)*))$/;
-  FLOAT_REGEX = /^[+-]?\d(_?\d)*(\.\d(_?\d)*)?([eE][+-]?\d(_?\d)*)?$/;
-  LEADING_ZERO = /^[+-]?0[0-9_]/;
-});
-
-// ../../node_modules/.bun/smol-toml@1.8.0/node_modules/smol-toml/dist/extract.js
-function extractValue(ctx, end, integersAsBigInt) {
-  let ptr = ctx.p;
-  let c = ctx.s.charCodeAt(ptr);
-  if (c === 91 || c === 123) {
-    if (!ctx.d--) {
-      throw new TomlError("document contains excessively nested structures. aborting.", {
-        toml: ctx.s,
-        ptr
-      });
+  if (c === '"' || c === "'") {
+    let [parsed, endPtr2] = parseString(str, ptr);
+    if (end) {
+      endPtr2 = skipVoid(str, endPtr2);
+      if (str[endPtr2] && str[endPtr2] !== "," && str[endPtr2] !== end && str[endPtr2] !== `
+` && str[endPtr2] !== "\r") {
+        throw new TomlError("unexpected character encountered", {
+          toml: str,
+          ptr: endPtr2
+        });
+      }
+      if (str[endPtr2] === ",")
+        endPtr2++;
     }
-    let value = c === 91 ? parseArray(ctx, integersAsBigInt) : parseInlineTable(ctx, integersAsBigInt);
-    ctx.d++;
-    return value;
+    return [parsed, endPtr2];
   }
-  if (c === 34 || c === 39) {
-    return parseString(ctx);
+  let endPtr = skipUntil(str, ptr, ",", end);
+  let slice = sliceAndTrimEndOf(str, ptr, endPtr - (str[endPtr - 1] === "," ? 1 : 0));
+  if (!slice[0]) {
+    throw new TomlError("incomplete key-value declaration: no value specified", {
+      toml: str,
+      ptr
+    });
   }
-  if (c === 116) {
-    if (ctx.s.charCodeAt(++ctx.p) !== 114 || ctx.s.charCodeAt(++ctx.p) !== 117 || ctx.s.charCodeAt(++ctx.p) !== 101)
-      throw new TomlError("invalid value", { toml: ctx.s, ptr });
-    ctx.p++;
-    return true;
+  if (end && slice[1] > -1) {
+    endPtr = skipVoid(str, ptr + slice[1]);
+    if (str[endPtr] === ",")
+      endPtr++;
   }
-  if (c === 102) {
-    if (ctx.s.charCodeAt(++ctx.p) !== 97 || ctx.s.charCodeAt(++ctx.p) !== 108 || ctx.s.charCodeAt(++ctx.p) !== 115 || ctx.s.charCodeAt(++ctx.p) !== 101)
-      throw new TomlError("invalid value", { toml: ctx.s, ptr });
-    ctx.p++;
-    return false;
-  }
-  return parseValue(ctx, integersAsBigInt, end);
+  return [
+    parseValue(slice[0], str, ptr, integersAsBigInt),
+    endPtr
+  ];
 }
 var init_extract = __esm(() => {
   init_primitive();
   init_struct();
+  init_util();
   init_error();
   /*!
    * Copyright (c) Squirrel Chat et al., All rights reserved.
@@ -10412,145 +10460,147 @@ var init_extract = __esm(() => {
    */
 });
 
-// ../../node_modules/.bun/smol-toml@1.8.0/node_modules/smol-toml/dist/struct.js
-function parseKey(ctx, end = "=") {
-  let start = ctx.p;
-  let dot = start - 1;
+// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/struct.js
+function parseKey(str, ptr, end = "=") {
+  let dot = ptr - 1;
   let parsed = [];
-  let endPtr = ctx.s.indexOf(end, start);
+  let endPtr = str.indexOf(end, ptr);
   if (endPtr < 0) {
     throw new TomlError("incomplete key-value: cannot find end of key", {
-      toml: ctx.s,
-      ptr: start
+      toml: str,
+      ptr
     });
   }
   do {
-    let c = ctx.s.charCodeAt(ctx.p = ++dot);
-    if (c !== 32 && c !== 9) {
-      if (c === 34 || c === 39) {
-        if (c === ctx.s.charCodeAt(ctx.p + 1) && c === ctx.s.charCodeAt(ctx.p + 2)) {
+    let c = str[ptr = ++dot];
+    if (c !== " " && c !== "\t") {
+      if (c === '"' || c === "'") {
+        if (c === str[ptr + 1] && c === str[ptr + 2]) {
           throw new TomlError("multiline strings are not allowed in keys", {
-            toml: ctx.s,
-            ptr: ctx.p
+            toml: str,
+            ptr
           });
         }
-        let part = parseString(ctx);
-        dot = ctx.s.indexOf(".", ctx.p);
-        let strEnd = ctx.s.slice(ctx.p, dot < 0 || dot > endPtr ? endPtr : dot);
+        let [part, eos] = parseString(str, ptr);
+        dot = str.indexOf(".", eos);
+        let strEnd = str.slice(eos, dot < 0 || dot > endPtr ? endPtr : dot);
         let newLine = indexOfNewline(strEnd);
         if (newLine > -1) {
           throw new TomlError("newlines are not allowed in keys", {
-            toml: ctx.s,
-            ptr: newLine
+            toml: str,
+            ptr: ptr + dot + newLine
           });
         }
         if (strEnd.trimStart()) {
           throw new TomlError("found extra tokens after the string part", {
-            toml: ctx.s,
-            ptr: ctx.p
+            toml: str,
+            ptr: eos
           });
         }
-        if (endPtr < ctx.p) {
-          endPtr = ctx.s.indexOf(end, ctx.p);
+        if (endPtr < eos) {
+          endPtr = str.indexOf(end, eos);
           if (endPtr < 0) {
             throw new TomlError("incomplete key-value: cannot find end of key", {
-              toml: ctx.s,
-              ptr: start
+              toml: str,
+              ptr
             });
           }
         }
         parsed.push(part);
       } else {
-        dot = ctx.s.indexOf(".", ctx.p);
-        let part = ctx.s.slice(ctx.p, dot < 0 || dot > endPtr ? endPtr : dot);
+        dot = str.indexOf(".", ptr);
+        let part = str.slice(ptr, dot < 0 || dot > endPtr ? endPtr : dot);
         if (!KEY_PART_RE.test(part)) {
           throw new TomlError("only letter, numbers, dashes and underscores are allowed in keys", {
-            toml: ctx.s,
-            ptr: ctx.p
+            toml: str,
+            ptr
           });
         }
         parsed.push(part.trimEnd());
       }
     }
   } while (dot + 1 && dot < endPtr);
-  ctx.p = endPtr + 1;
-  skipVoid(ctx, true, true);
-  return parsed;
+  return [parsed, skipVoid(str, endPtr + 1, true, true)];
 }
-function parseInlineTable(ctx, integersAsBigInt) {
+function parseInlineTable(str, ptr, depth, integersAsBigInt) {
   let res = {};
   let seen = new Set;
   let c;
-  ctx.p++;
-  while (ctx.p < ctx.s.length) {
-    skipVoid(ctx);
-    if ((c = ctx.s.charCodeAt(ctx.p)) === 125) {
-      ctx.p++;
-      return res;
-    }
-    let k;
-    let t = res;
-    let hasOwn = false;
-    let p = ctx.p;
-    let key = parseKey(ctx);
-    for (let i = 0;i < key.length; i++) {
-      if (i)
-        t = hasOwn ? t[k] : t[k] = {};
-      k = key[i];
-      if ((hasOwn = Object.hasOwn(t, k)) && (typeof t[k] !== "object" || seen.has(t[k]))) {
+  ptr++;
+  while ((c = str[ptr++]) !== "}" && c) {
+    if (c === ",") {
+      throw new TomlError("expected value, found comma", {
+        toml: str,
+        ptr: ptr - 1
+      });
+    } else if (c === "#")
+      ptr = skipComment(str, ptr);
+    else if (c !== " " && c !== "\t" && c !== `
+` && c !== "\r") {
+      let k;
+      let t = res;
+      let hasOwn = false;
+      let [key, keyEndPtr] = parseKey(str, ptr - 1);
+      for (let i = 0;i < key.length; i++) {
+        if (i)
+          t = hasOwn ? t[k] : t[k] = {};
+        k = key[i];
+        if ((hasOwn = Object.hasOwn(t, k)) && (typeof t[k] !== "object" || seen.has(t[k]))) {
+          throw new TomlError("trying to redefine an already defined value", {
+            toml: str,
+            ptr
+          });
+        }
+        if (!hasOwn && k === "__proto__") {
+          Object.defineProperty(t, k, { enumerable: true, configurable: true, writable: true });
+        }
+      }
+      if (hasOwn) {
         throw new TomlError("trying to redefine an already defined value", {
-          toml: ctx.s,
-          ptr: p
+          toml: str,
+          ptr
         });
       }
-      if (!hasOwn && k === "__proto__") {
-        Object.defineProperty(t, k, { enumerable: true, configurable: true, writable: true });
-      }
-    }
-    if (hasOwn) {
-      throw new TomlError("trying to redefine an already defined value", {
-        toml: ctx.s,
-        ptr: ctx.p
-      });
-    }
-    let value = extractValue(ctx, 125, integersAsBigInt);
-    seen.add(t[k] = value);
-    skipVoid(ctx);
-    if ((c = ctx.s.charCodeAt(ctx.p++)) === 125) {
-      return res;
-    }
-    if (c !== 44) {
-      throw new TomlError("expected comma or end of structure", { toml: ctx.s, ptr: ctx.p - 1 });
+      let [value, valueEndPtr] = extractValue(str, keyEndPtr, "}", depth - 1, integersAsBigInt);
+      seen.add(value);
+      t[k] = value;
+      ptr = valueEndPtr;
     }
   }
-  throw new TomlError("unfinished table encountered", {
-    toml: ctx.s,
-    ptr: ctx.p
-  });
+  if (!c) {
+    throw new TomlError("unfinished table encountered", {
+      toml: str,
+      ptr
+    });
+  }
+  return [res, ptr];
 }
-function parseArray(ctx, integersAsBigInt) {
+function parseArray(str, ptr, depth, integersAsBigInt) {
   let res = [];
   let c;
-  ctx.p++;
-  while (ctx.p < ctx.s.length) {
-    skipVoid(ctx);
-    if ((c = ctx.s.charCodeAt(ctx.p)) === 93) {
-      ctx.p++;
-      return res;
-    }
-    res.push(extractValue(ctx, 93, integersAsBigInt));
-    skipVoid(ctx);
-    if ((c = ctx.s.charCodeAt(ctx.p++)) === 93) {
-      return res;
-    }
-    if (c !== 44) {
-      throw new TomlError("expected comma or end of structure", { toml: ctx.s, ptr: ctx.p - 1 });
+  ptr++;
+  while ((c = str[ptr++]) !== "]" && c) {
+    if (c === ",") {
+      throw new TomlError("expected value, found comma", {
+        toml: str,
+        ptr: ptr - 1
+      });
+    } else if (c === "#")
+      ptr = skipComment(str, ptr);
+    else if (c !== " " && c !== "\t" && c !== `
+` && c !== "\r") {
+      let e = extractValue(str, ptr - 1, "]", depth - 1, integersAsBigInt);
+      res.push(e[0]);
+      ptr = e[1];
     }
   }
-  throw new TomlError("unfinished array encountered", {
-    toml: ctx.s,
-    ptr: ctx.p
-  });
+  if (!c) {
+    throw new TomlError("unfinished array encountered", {
+      toml: str,
+      ptr
+    });
+  }
+  return [res, ptr];
 }
 var KEY_PART_RE;
 var init_struct = __esm(() => {
@@ -10588,7 +10638,7 @@ var init_struct = __esm(() => {
   KEY_PART_RE = /^[a-zA-Z0-9-_]+[ \t]*$/;
 });
 
-// ../../node_modules/.bun/smol-toml@1.8.0/node_modules/smol-toml/dist/parse.js
+// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/parse.js
 function peekTable(key, table, meta, type) {
   let t = table;
   let m = meta;
@@ -10649,56 +10699,55 @@ function peekTable(key, table, meta, type) {
   return [k, t, state.c];
 }
 function parse(toml, { maxDepth = 1000, integersAsBigInt } = {}) {
-  let ctx = { s: toml, p: 0, d: maxDepth };
   let res = {};
   let meta = {};
-  let tmp;
   let tbl = res;
   let m = meta;
-  skipVoid(ctx);
-  while (ctx.p < toml.length) {
-    if (toml.charCodeAt(ctx.p) === 91) {
-      let isTableArray = toml.charCodeAt(++ctx.p) === 91;
-      tmp = ctx.p += +isTableArray;
-      let k = parseKey(ctx, "]");
+  for (let ptr = skipVoid(toml, 0);ptr < toml.length; ) {
+    if (toml[ptr] === "[") {
+      let isTableArray = toml[++ptr] === "[";
+      let k = parseKey(toml, ptr += +isTableArray, "]");
       if (isTableArray) {
-        if (toml.charCodeAt(ctx.p - 1) !== 93) {
+        if (toml[k[1] - 1] !== "]") {
           throw new TomlError("expected end of table declaration", {
             toml,
-            ptr: ctx.p - 1
+            ptr: k[1] - 1
           });
         }
-        ctx.p++;
+        k[1]++;
       }
-      let p = peekTable(k, res, meta, isTableArray ? 2 : 1);
+      let p = peekTable(k[0], res, meta, isTableArray ? 2 : 1);
       if (!p) {
         throw new TomlError("trying to redefine an already defined table or value", {
           toml,
-          ptr: tmp
+          ptr
         });
       }
       m = p[2];
       tbl = p[1];
+      ptr = k[1];
     } else {
-      tmp = ctx.p;
-      let k = parseKey(ctx);
-      let p = peekTable(k, tbl, m, 0);
+      let k = parseKey(toml, ptr);
+      let p = peekTable(k[0], tbl, m, 0);
       if (!p) {
         throw new TomlError("trying to redefine an already defined table or value", {
           toml,
-          ptr: tmp
+          ptr
         });
       }
-      p[1][p[0]] = extractValue(ctx, undefined, integersAsBigInt);
+      let v = extractValue(toml, k[1], undefined, maxDepth, integersAsBigInt);
+      p[1][p[0]] = v[0];
+      ptr = v[1];
     }
-    skipVoid(ctx, true);
-    if (ctx.p < toml.length && (tmp = toml.charCodeAt(ctx.p)) !== 10 && tmp !== 13) {
+    ptr = skipVoid(toml, ptr, true);
+    if (toml[ptr] && toml[ptr] !== `
+` && toml[ptr] !== "\r") {
       throw new TomlError("each key-value declaration must be followed by an end-of-line", {
         toml,
-        ptr: ctx.p
+        ptr
       });
     }
-    skipVoid(ctx);
+    ptr = skipVoid(toml, ptr);
   }
   return res;
 }
@@ -10736,7 +10785,7 @@ var init_parse = __esm(() => {
    */
 });
 
-// ../../node_modules/.bun/smol-toml@1.8.0/node_modules/smol-toml/dist/stringify.js
+// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/stringify.js
 var init_stringify = __esm(() => {
   /*!
    * Copyright (c) Squirrel Chat et al., All rights reserved.
@@ -10767,7 +10816,7 @@ var init_stringify = __esm(() => {
    */
 });
 
-// ../../node_modules/.bun/smol-toml@1.8.0/node_modules/smol-toml/dist/index.js
+// ../../node_modules/.bun/smol-toml@1.7.1/node_modules/smol-toml/dist/index.js
 var init_dist = __esm(() => {
   init_parse();
   init_stringify();
@@ -21410,14 +21459,25 @@ function isLeaseRecord(value, expectedPid) {
   const hasExactFields = Object.keys(record).length === 2 && Object.hasOwn(record, "pid") && Object.hasOwn(record, "procStart");
   return hasExactFields && Number.isSafeInteger(record.pid) && record.pid === expectedPid && typeof record.procStart === "string" && record.procStart.length > 0;
 }
+function leaseMarkerPid(name) {
+  const infix = name.indexOf(LEASE_TEMP_INFIX);
+  if (infix === -1)
+    return LEASE_PID.test(name) ? name : undefined;
+  const pid = name.slice(0, infix);
+  const suffix = name.slice(infix + LEASE_TEMP_INFIX.length);
+  if (!LEASE_PID.test(pid) || !LEASE_TEMP_SUFFIX.test(suffix))
+    return;
+  return pid;
+}
 function isClaudeLeaseMarker(path3, name) {
-  if (!/^\d+$/u.test(name))
+  const pid = leaseMarkerPid(name);
+  if (pid === undefined)
     return false;
   const content = readSmallMetadataFile(path3);
   if (content === undefined)
     return false;
   try {
-    return isLeaseRecord(JSON.parse(content), Number(name));
+    return isLeaseRecord(JSON.parse(content), Number(pid));
   } catch {
     return false;
   }
@@ -21464,7 +21524,7 @@ function claudeNativePayloadFiles(root) {
   visit3(root, "");
   return files;
 }
-var CLAUDE_PLUGIN_ID = "safeword@safeword", CLAUDE_MIGRATION_SCHEMA, CLAUDE_NATIVE_REQUIRED_ASSETS, CLAUDE_NATIVE_METADATA_FILES, MAX_CLAUDE_CACHE_METADATA_BYTES = 1024;
+var CLAUDE_PLUGIN_ID = "safeword@safeword", CLAUDE_MIGRATION_SCHEMA, CLAUDE_NATIVE_REQUIRED_ASSETS, CLAUDE_NATIVE_METADATA_FILES, MAX_CLAUDE_CACHE_METADATA_BYTES = 1024, LEASE_TEMP_INFIX = ".tmp.", LEASE_PID, LEASE_TEMP_SUFFIX;
 var init_inventory2 = __esm(() => {
   CLAUDE_MIGRATION_SCHEMA = {
     paths: {
@@ -21489,6 +21549,8 @@ var init_inventory2 = __esm(() => {
     "identity.json",
     "inventory.json"
   ];
+  LEASE_PID = /^\d{1,10}$/u;
+  LEASE_TEMP_SUFFIX = /^[0-9a-f]{1,32}$/u;
 });
 
 // src/claude-plugin/migration-state.ts
