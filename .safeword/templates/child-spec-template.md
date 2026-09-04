@@ -21,5 +21,4 @@
 ## Rules
 
 <!-- markdownlint-disable-next-line MD001 -->
-
 #### {parent_job}.{ticket_id}.R1 — <business invariant owned by this feature>
