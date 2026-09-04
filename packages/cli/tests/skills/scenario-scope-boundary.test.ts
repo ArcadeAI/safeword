@@ -51,6 +51,22 @@ describe('scenario scope boundary', () => {
     expect(content).toContain('never the reviewer');
   });
 
+  it.each(reviewSurfaces)('%s hands the reviewer the file out_of_scope lives in', relative => {
+    const content = read(relative);
+
+    // `out_of_scope` is ticket.md frontmatter; the packet only requires spec.md
+    // (packet.ts requireScenarioTicketSpec), which carries project and
+    // milestone non-goals but never `out_of_scope`. Without ticket.md in the
+    // context list the lens reads as enforced while the headless reviewer
+    // cannot see the field it names — it would pass the exact crossing the
+    // lens was added to catch.
+    expect(content).toContain('--context ticket-spec ticket-file');
+    expect(content).toContain('cannot see `out_of_scope`');
+    // A missing ticket.md must degrade loudly; a silent fallback to spec.md
+    // reproduces the same false-clean verdict.
+    expect(content).toContain('If `ticket.md` was not supplied');
+  });
+
   it.each(authoringSurfaces)('%s bounds dimension derivation by out_of_scope', relative => {
     const content = read(relative);
 

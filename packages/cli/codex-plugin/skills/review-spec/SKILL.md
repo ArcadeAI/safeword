@@ -39,7 +39,7 @@ Read the active ticket's `.feature` source first. At review time, run
 `principles`, `personas`, and `surfaces` source paths and content it returns, so
 the review is grounded in project knowledge rather than labels or stale intake
 context. The resolver honors `paths.principles`, `paths.personas`, and
-`paths.surfaces`. Also read `spec.md`. Use `test-definitions.md` only as the R/G/R ledger
+`paths.surfaces`. Also read `spec.md` and the ticket's `ticket.md` — `spec.md` carries the Product Bet's project non-goals and each milestone's Non-goals, while `out_of_scope` lives only in `ticket.md` frontmatter, and the Scope boundary lens needs both. Use `test-definitions.md` only as the R/G/R ledger
 and as a legacy scenario fallback when no feature source exists.
 test-definitions.md is the R/G/R ledger. Run every check below against the
 scenarios, and present findings in the **Findings format** at the end. **Review
@@ -50,15 +50,16 @@ gate.)
 
 Run the adversarial judgment through the shared coordinator. Pass the feature
 (and any legacy scenario source) as bounded work. Pass the required `spec.md`
-first, followed by the dimension table and every existing project-knowledge file,
-as supporting context. Omit optional paths that do not exist; preserve the path
+first, followed by `ticket.md` (without it the reviewer cannot see `out_of_scope`
+and the Scope boundary lens silently degrades to the spec's non-goals alone), the
+dimension table, and every existing project-knowledge file, as supporting context. Omit optional paths that do not exist; preserve the path
 and content of optional files that do exist, even when their content is blank.
 Refuse dispatch when `spec.md` is absent, blank, or not the first context file.
 Resolve a review-capable Safeword CLI first; source checkouts do not guarantee
 a bare `safeword` on `PATH`:
 
 ```bash
-SAFEWORD_REVIEW_PROGRESS=1 bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.1/runtime/cli.js" review run scenario-gate feature-file [legacy-test-definitions] --context ticket-spec [dimensions-file] principles-file personas-file surfaces-file --agent-handoff --json
+SAFEWORD_REVIEW_PROGRESS=1 bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.1/runtime/cli.js" review run scenario-gate feature-file [legacy-test-definitions] --context ticket-spec ticket-file [dimensions-file] principles-file personas-file surfaces-file --agent-handoff --json
 ```
 
 The coordinator's assigned/actual reviewer, failure classification, and
@@ -203,7 +204,7 @@ Nine lenses across the whole scenario set (not per scenario). Eight ask "what's 
 - **Surface coverage** — does each affected surface resolve in the configured surfaces file (or stay explicitly spec-local), have a matching `@surface.<slug>` scenario tag or an explicit `skip:` reason, and are any `@surface.*` tags stale?
 - **Invariant binding** — for each normative clause in the supplied ticket-spec context (never / must not / always / only), name the scenario whose failure would falsify it **and** the condition under which it fails; a bare scenario reference is not a binding, it's a pointer that survives the invariant being violated. An invariant no scenario would catch is a **must-fix** — cheapest to write now, while no code exists to work around. Worse than a gap is the scenario whose title names the invariant while its `Given` establishes a weaker precondition: it reads as coverage and proves nothing, so report it as a vacuous pass, not a missing scenario.
 - **Wiring** — for each behavior that crosses a module/command boundary, is there a scenario exercised end-to-end through the real entry point (real config → real collaborators, mocking only the process boundary), not only via injected internals? A path reachable solely through a short circuit has no wiring coverage.
-- **Scope boundary** — does any scenario assert behavior the ticket's `out_of_scope` or the milestone's Non-goals exclude? Proving a real Rule does not settle this: a Rule states its invariant generally, while `out_of_scope` is where this ticket stops, so a legitimate Rule can be illustrated by an example past the line. A crossing is a **must-fix** — it is cheapest to delete now, before TDD builds it and `$safeword:verify` finds it in the diff. Report it as a crossing and name the excluded item; deciding the behavior belongs in scope is the author's call to make by amending `out_of_scope`, never the reviewer's to make by approving.
+- **Scope boundary** — does any scenario assert behavior the ticket excluded? The exclusions live in two supplied files: `out_of_scope` in `ticket.md` frontmatter, and the project non-goals plus each milestone's Non-goals in `spec.md` — a child feature's `spec.md` carries neither by design, so there `out_of_scope` is the whole edge. If `ticket.md` was not supplied, say so and scope the lens to `spec.md` rather than reporting the set clean. Proving a real Rule does not settle this: a Rule states its invariant generally, while `out_of_scope` is where this ticket stops, so a legitimate Rule can be illustrated by an example past the line. A crossing is a **must-fix** — it is cheapest to delete now, before TDD builds it and `$safeword:verify` finds it in the diff. Report it as a crossing and name the excluded item; deciding the behavior belongs in scope is the author's call to make by amending `out_of_scope`, never the reviewer's to make by approving.
 
 Finish by reconciling the set in both directions instead of adding speculative
 cases: every material partition in the supplied dimensions context, affected
