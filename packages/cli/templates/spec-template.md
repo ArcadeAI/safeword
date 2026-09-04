@@ -37,24 +37,13 @@
 
 ## Surfaces
 
-<!--
-Which supported contexts must keep working: agent, runtime, protocol, client, or
-deployment. Name surfaces from the configured surfaces inventory (paths.surfaces)
-where one exists; a context that only ever matters to this ticket can stay local.
-
-Every entry under Affected needs a scenario tagged @surface.<slug> (lowercase,
-non-alphanumerics to hyphens: OpenAI Codex -> @surface.openai-codex), or an
-inline skip on its own line. Unaffected is informational -- record it so a
-reviewer can see the boundary was considered rather than missed.
-
-Delete this section only when the work touches no supported context at all.
-These comment lines are ignored by the parser, so an unfilled template declares
-no surfaces.
+<!-- Contexts this must keep working in (see paths.surfaces). Each Affected entry
+needs a scenario tagged @surface.<slug> or an inline skip; Unaffected is
+informational. These comment lines declare nothing until you fill them in.
 
 Affected:
 - Claude Code
-- OpenAI Codex — skip: <why this surface needs no scenario of its own>
+- OpenAI Codex — skip: <why no scenario of its own>
 
 Unaffected:
-- Cursor — <why this work cannot reach it>
--->
+- Cursor — <why this work cannot reach it> -->
