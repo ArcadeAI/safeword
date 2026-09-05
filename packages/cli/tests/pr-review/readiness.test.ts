@@ -72,6 +72,26 @@ describe('readiness evidence freshness', () => {
     expect(report).toMatchObject({ state: 'failure', verdict: 'blocked' });
   });
 
+  it('catches a blocked gate written with a plain hyphen', () => {
+    const report = evaluateReadinessEvidence({
+      body: `Head: ${HEAD}\n3. End-user execution - BLOCKED: never ran it`,
+      draft: false,
+      headSha: HEAD,
+    });
+
+    expect(report.verdict).toBe('blocked');
+  });
+
+  it('reads an uppercase SHA as the revision it names, not as a missing block', () => {
+    const report = evaluateReadinessEvidence({
+      body: evidence(HEAD.toUpperCase()),
+      draft: false,
+      headSha: HEAD,
+    });
+
+    expect(report.verdict).toBe('current');
+  });
+
   it('does not ask a draft for evidence it has not written yet', () => {
     const report = evaluateReadinessEvidence({ body: undefined, draft: true, headSha: HEAD });
 

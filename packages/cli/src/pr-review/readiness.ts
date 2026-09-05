@@ -45,8 +45,10 @@ const FAILING: ReadonlySet<ReadinessVerdict> = new Set<ReadinessVerdict>([
   'stale',
 ]);
 
-const EVIDENCE_HEAD = /^[ \t]*Head:[ \t]*([0-9a-f]{7,64})[ \t]*$/mu;
-const BLOCKED_GATE = /^[ \t]*\d+\.[^\n]*—[ \t]*BLOCKED\b/mu;
+const EVIDENCE_HEAD = /^[ \t]*Head:[ \t]*([0-9a-f]{7,64})[ \t]*$/imu;
+// Dash-agnostic: a numbered gate line that says BLOCKED. Missing a real block
+// would be a false pass, which is the one direction this must not fail in.
+const BLOCKED_GATE = /^[ \t]*\d+\..*\bBLOCKED\b/mu;
 
 function report(verdict: ReadinessVerdict, evidenceSha?: string): ReadinessEvidenceReport {
   return {
@@ -60,12 +62,13 @@ function report(verdict: ReadinessVerdict, evidenceSha?: string): ReadinessEvide
 export function evaluateReadinessEvidence(input: ReadinessEvidenceInput): ReadinessEvidenceReport {
   if (input.draft) return report('draft');
 
-  const evidenceSha = EVIDENCE_HEAD.exec(input.body ?? '')?.[1];
+  const body = input.body ?? '';
+  const evidenceSha = EVIDENCE_HEAD.exec(body)?.[1]?.toLowerCase();
   if (evidenceSha === undefined) return report('missing');
   // An abbreviated SHA in the body still identifies the head it was written
   // for; requiring the full form would fail authors for a formatting choice.
-  if (!input.headSha.startsWith(evidenceSha)) return report('stale', evidenceSha);
-  if (BLOCKED_GATE.test(input.body ?? '')) return report('blocked', evidenceSha);
+  if (!input.headSha.toLowerCase().startsWith(evidenceSha)) return report('stale', evidenceSha);
+  if (BLOCKED_GATE.test(body)) return report('blocked', evidenceSha);
 
   return report('current', evidenceSha);
 }
