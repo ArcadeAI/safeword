@@ -12,6 +12,7 @@ import {
 } from '../../src/claude-plugin/catalogue.js';
 import { schemaForClaudeDelivery } from '../../src/claude-plugin/delivery-schema.js';
 import { writeClaudePluginMode } from '../../src/claude-plugin/migration-state.js';
+import { SAFEWORD_SCHEMA } from '../../src/schema.js';
 import { useIsolatedClaudePluginState } from '../helpers/claude-plugin-state.js';
 
 const roots: string[] = [];
@@ -115,6 +116,30 @@ describe('Claude delivery schema', () => {
     const schema = schemaForClaudeDelivery(root);
     expect(Object.keys(schema.ownedFiles).some(path => path.startsWith('.claude/'))).toBe(false);
     expect(Object.keys(schema.managedFiles).some(path => path.startsWith('.claude/'))).toBe(false);
+  });
+
+  it('never delivers a path the cleanup advisory said it preserved', () => {
+    // Cleanup reports unrecognized project content as preserved and leaves it
+    // alone; install then rewrote the same file with safeword's version, with no
+    // prompt and no diff (#3790). One path cannot be both preserved and owned.
+    // The path is outside `.claude/` on purpose: inside it, plugin mode already
+    // strips everything and the assertion would hold for the wrong reason.
+    const root = mkdtempSync(nodePath.join(tmpdir(), 'claude-preserved-schema-'));
+    roots.push(root);
+    const preserved = Object.keys(SAFEWORD_SCHEMA.ownedFiles).find(
+      path => !path.startsWith('.claude/'),
+    );
+    if (preserved === undefined) throw new Error('No non-.claude owned file to preserve.');
+    writeClaudePluginMode(root, {
+      schema_version: 2,
+      state: 'unresolved',
+      plugin_version: '0.73.0',
+      hook_manifest_sha256: digest,
+      catalogue_sha256: digest,
+      unresolved_paths: [preserved],
+    });
+
+    expect(schemaForClaudeDelivery(root).ownedFiles[preserved]).toBeUndefined();
   });
 
   it('keeps the checked-in inspiration gate collaborators byte-identical to generated assets', () => {
