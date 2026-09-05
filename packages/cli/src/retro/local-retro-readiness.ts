@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 import checkedInManifest from './local-retro-readiness-manifest.json' with { type: 'json' };
 
 export interface LocalRetroReadinessManifest {
@@ -6,10 +8,13 @@ export interface LocalRetroReadinessManifest {
   harnesses: Record<
     'claude-code' | 'codex' | 'cursor',
     {
+      artifactDigest: string;
       buildCommit: string;
       collectorReceipt: string;
       hostClass: 'local';
       relayReceipt: string;
+      requestId: string;
+      sessionScope: string;
       terminal: 'duplicate' | 'filed';
     }
   >;
@@ -34,24 +39,87 @@ export const CHECKED_IN_LOCAL_RETRO_READINESS = checkedInManifest as
   DisabledManifest | LocalRetroReadinessManifest;
 
 const COMMIT = /^[\da-f]{40}$/u;
+const DIGEST = /^[\da-f]{64}$/u;
 const UUID = /^[\da-f]{8}-[\da-f]{4}-[1-5][\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/u;
 
-function validHarnessEvidence(
-  evidence: LocalRetroReadinessManifest['harnesses']['codex'],
+function harnessBuildIsCurrent(
+  buildCommit: string,
   manifest: LocalRetroReadinessManifest,
   input: Parameters<typeof validateLocalRetroReadiness>[1],
 ): boolean {
   return (
-    evidence.hostClass === 'local' &&
-    COMMIT.test(evidence.buildCommit) &&
-    (evidence.buildCommit === manifest.evidenceCommit ||
+    COMMIT.test(buildCommit) &&
+    (buildCommit === manifest.evidenceCommit ||
       input.ancestorPairs.some(
-        pair =>
-          pair.ancestor === evidence.buildCommit && pair.descendant === manifest.evidenceCommit,
-      )) &&
+        pair => pair.ancestor === buildCommit && pair.descendant === manifest.evidenceCommit,
+      ))
+  );
+}
+
+function receiptPairIsValid(evidence: LocalRetroReadinessManifest['harnesses']['codex']): boolean {
+  return (
     UUID.test(evidence.collectorReceipt) &&
     UUID.test(evidence.relayReceipt) &&
+    evidence.collectorReceipt !== evidence.relayReceipt
+  );
+}
+
+function validHarnessEvidence(
+  harness: keyof LocalRetroReadinessManifest['harnesses'],
+  evidence: LocalRetroReadinessManifest['harnesses']['codex'],
+  manifest: LocalRetroReadinessManifest,
+  input: Parameters<typeof validateLocalRetroReadiness>[1],
+): boolean {
+  const expectedArtifactDigest = createHash('sha256')
+    .update(
+      [
+        'local-retro-canary:v1',
+        harness,
+        evidence.buildCommit,
+        evidence.requestId,
+        evidence.sessionScope,
+        evidence.collectorReceipt,
+        evidence.relayReceipt,
+        evidence.terminal,
+      ].join('\0'),
+    )
+    .digest('hex');
+  const requestIdentityIsValid =
+    UUID.test(evidence.requestId) && DIGEST.test(evidence.sessionScope);
+  return (
+    evidence.hostClass === 'local' &&
+    harnessBuildIsCurrent(evidence.buildCommit, manifest, input) &&
+    receiptPairIsValid(evidence) &&
+    requestIdentityIsValid &&
+    evidence.artifactDigest === expectedArtifactDigest &&
     ['duplicate', 'filed'].includes(evidence.terminal)
+  );
+}
+
+function allUnique(values: readonly string[]): boolean {
+  return new Set(values).size === values.length;
+}
+
+function validHarnesses(
+  manifest: LocalRetroReadinessManifest,
+  input: Parameters<typeof validateLocalRetroReadiness>[1],
+): boolean {
+  const harnesses = Object.entries(manifest.harnesses) as [
+    keyof LocalRetroReadinessManifest['harnesses'],
+    LocalRetroReadinessManifest['harnesses']['codex'],
+  ][];
+  if (
+    harnesses.some(
+      ([harness, evidence]) => !validHarnessEvidence(harness, evidence, manifest, input),
+    )
+  ) {
+    return false;
+  }
+  const evidenceValues = harnesses.map(([, evidence]) => evidence);
+  return (
+    allUnique(evidenceValues.map(evidence => evidence.requestId)) &&
+    allUnique(evidenceValues.map(evidence => evidence.sessionScope)) &&
+    allUnique(evidenceValues.map(evidence => evidence.artifactDigest))
   );
 }
 
@@ -103,8 +171,7 @@ export function validateLocalRetroReadiness(
     left.localeCompare(right),
   );
   if (harnessKeys.join('\0') !== ['claude-code', 'codex', 'cursor'].join('\0')) return false;
-  const harnesses = Object.values(manifest.harnesses);
-  if (harnesses.some(evidence => !validHarnessEvidence(evidence, manifest, input))) return false;
+  if (!validHarnesses(manifest, input)) return false;
   const faultKeys = Object.keys(manifest.recoveredFaults).toSorted((left, right) =>
     left.localeCompare(right),
   );
@@ -116,7 +183,6 @@ export function validateLocalRetroReadiness(
         'claimCrash',
         'retryExhaustion',
         'workerOutage',
-      ].join('\0') &&
-    Object.values(manifest.recoveredFaults).every(value => /^[\da-f]{64}$/u.test(value))
+      ].join('\0') && Object.values(manifest.recoveredFaults).every(value => DIGEST.test(value))
   );
 }
