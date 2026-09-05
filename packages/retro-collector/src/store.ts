@@ -23,6 +23,7 @@ interface StoredServerRetro {
   receipt: string;
   request_id: string;
   project_uuid: string;
+  quota_blocked_at: number | null;
 }
 
 type ClaimCandidate = Omit<StoredServerRetro, 'raw_body'>;
@@ -92,7 +93,8 @@ export class PublicRetroStore {
         completed_at TEXT,
         dead_lettered_at TEXT,
         terminal_reason TEXT,
-        next_attempt_at INTEGER NOT NULL DEFAULT 0
+        next_attempt_at INTEGER NOT NULL DEFAULT 0,
+        quota_blocked_at INTEGER
       ) STRICT;
       CREATE TABLE IF NOT EXISTS intake_events (
         request_id TEXT PRIMARY KEY,
@@ -127,6 +129,9 @@ export class PublicRetroStore {
         'ALTER TABLE server_retros ADD COLUMN next_attempt_at INTEGER NOT NULL DEFAULT 0',
       );
     }
+    if (serverColumns.every(column => column.name !== 'quota_blocked_at')) {
+      this.#database.exec('ALTER TABLE server_retros ADD COLUMN quota_blocked_at INTEGER');
+    }
   }
 
   private assertIntakeCapacity(now: number): void {
@@ -139,6 +144,7 @@ export class PublicRetroStore {
   }
 
   private recordIntake(envelopeFamily: 'legacy' | 'v3', requestId: string, now: number): void {
+    this.#database.prepare('DELETE FROM intake_events WHERE accepted_at_ms <= ?').run(now - 60_000);
     this.#database
       .prepare('INSERT INTO intake_events (request_id, accepted_at_ms) VALUES (?, ?)')
       .run(`${envelopeFamily}:${requestId}`, now);
@@ -207,8 +213,18 @@ export class PublicRetroStore {
     return project.count < this.#projectFilingLimitPerHour;
   }
 
-  private deadLetterQuotaBlocked(stored: ClaimCandidate, now: number): boolean {
-    if (Date.parse(stored.accepted_at) > now - 86_400_000) return false;
+  private recordQuotaBlocked(stored: ClaimCandidate, now: number): boolean {
+    if (stored.quota_blocked_at === null) {
+      this.#database
+        .prepare(
+          `UPDATE server_retros SET quota_blocked_at = ?
+            WHERE request_id = ? AND quota_blocked_at IS NULL
+              AND completed_at IS NULL AND dead_lettered_at IS NULL`,
+        )
+        .run(now, stored.request_id);
+      return false;
+    }
+    if (stored.quota_blocked_at > now - 86_400_000) return false;
     const deadLetteredAt = new Date(now).toISOString();
     this.#database
       .prepare(
@@ -295,7 +311,7 @@ export class PublicRetroStore {
       const candidates = this.#database
         .prepare(
           `SELECT request_id, receipt, accepted_at, body_digest, project_uuid,
-                  attempts, next_attempt_at
+                  attempts, next_attempt_at, quota_blocked_at
              FROM server_retros
             WHERE completed_at IS NULL
               AND dead_lettered_at IS NULL
@@ -303,14 +319,14 @@ export class PublicRetroStore {
               AND (lease_token IS NULL OR lease_expires_at <= ?)
             ORDER BY next_attempt_at, accepted_at, request_id`,
         )
-        .iterate(now, now) as IterableIterator<ClaimCandidate>;
+        .all(now, now) as unknown as ClaimCandidate[];
       let stored: ClaimCandidate | undefined;
       for (const candidate of candidates) {
         if (this.hasFilingCapacity(candidate, now)) {
           stored = candidate;
           break;
         }
-        this.deadLetterQuotaBlocked(candidate, now);
+        this.recordQuotaBlocked(candidate, now);
       }
       if (stored === undefined) {
         this.#database.exec('COMMIT;');
@@ -326,7 +342,10 @@ export class PublicRetroStore {
         .run(stored.request_id, stored.project_uuid, now);
       this.#database
         .prepare(
-          'UPDATE server_retros SET lease_token = ?, lease_expires_at = ?, attempts = attempts + 1 WHERE request_id = ?',
+          `UPDATE server_retros
+              SET lease_token = ?, lease_expires_at = ?, attempts = attempts + 1,
+                  quota_blocked_at = NULL
+            WHERE request_id = ?`,
         )
         .run(leaseToken, now + leaseMilliseconds, stored.request_id);
       this.#database

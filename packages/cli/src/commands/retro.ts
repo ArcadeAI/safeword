@@ -334,9 +334,6 @@ export async function runRetro(
     };
   }
 
-  const publicRetroDeadline =
-    dependencies.publicRetro === undefined ? undefined : dependencies.publicRetro.now() + 750;
-
   const read = dependencies.readFile ?? ((path: string) => readFileSync(path, 'utf8'));
   let transcript: string;
   try {
@@ -351,6 +348,8 @@ export async function runRetro(
   // behavior. The window flows through the UNCHANGED egress pipeline below.
   const window = windowFor(transcript, options.windowStart ?? 0);
   const rawFindings = await dependencies.extract(window);
+  const publicRetroDeadline =
+    dependencies.publicRetro === undefined ? undefined : dependencies.publicRetro.now() + 750;
   const { encounters, drops, findings } = await prepareEncounters(rawFindings);
   const { projectDirectory, publicRetro, sessionId } = dependencies;
   const relay = dependencies.relay;
@@ -1088,8 +1087,8 @@ export function reportRetroCommandOutcome(
   if (outcome.agentFilingNeeded) {
     info(
       options.restTransportAvailable
-        ? 'retro: unfiled drafts were spooled for the agent filing path.'
-        : 'retro: no GitHub access; unfiled drafts were spooled for the agent filing path.',
+        ? 'retro: unfiled drafts remain queued for recovery.'
+        : 'retro: no GitHub access; unfiled drafts remain queued for recovery.',
     );
   }
   success('retro complete');

@@ -300,7 +300,7 @@ it('keeps lifecycle inspection payload-free and audits separate payload principa
   expect(audit).toEqual([{ principal: 'break-glass' }, { principal: 'collector-worker' }]);
 });
 
-it('dead-letters and alerts work blocked by filing quota for 24 hours', () => {
+it('dead-letters and alerts work only after filing quota blocks it for 24 hours', () => {
   const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
   temporaryDirectories.push(directory);
   const databasePath = path.join(directory, 'collector.sqlite');
@@ -323,6 +323,12 @@ it('dead-letters and alerts work blocked by filing quota for 24 hours', () => {
   );
 
   now = 86_400_001;
+  expect(store.claim()).toBeUndefined();
+  expect(store.listLifecycle()).toEqual([
+    expect.objectContaining({ requestId: request.requestId, state: 'queued' }),
+  ]);
+
+  now += 86_400_001;
   expect(store.claim()).toBeUndefined();
   expect(store.listLifecycle()).toEqual([
     expect.objectContaining({ requestId: request.requestId, state: 'dead-lettered' }),
@@ -398,6 +404,42 @@ it('reports an expired collector lease as queued before it is reclaimed', () => 
   expect(store.listLifecycle()).toEqual([
     expect.objectContaining({ requestId: request.requestId, state: 'queued' }),
   ]);
+  store.close();
+});
+
+it('prevents a stale lease token from mutating a reclaimed live lease', () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  let now = 0;
+  const store = new PublicRetroStore(path.join(directory, 'collector.sqlite'), {
+    now: () => now,
+  });
+  const request = fixtureServerOwnedRequest();
+  const envelope = JSON.parse(new TextDecoder().decode(request.body)) as {
+    sessionScope: string;
+    source: { projectUUID: string };
+  };
+  store.accept(
+    request.requestId,
+    envelope.sessionScope,
+    request.body,
+    'v3',
+    envelope.source.projectUUID,
+  );
+  const stale = store.claim(now, 1000);
+  if (stale === undefined) throw new Error('expected initial lease');
+
+  now = 1001;
+  const current = store.claim(now, 1000);
+  if (current === undefined) throw new Error('expected reclaimed lease');
+
+  expect(store.release(request.requestId, stale.leaseToken)).toBe(false);
+  expect(store.reject(request.requestId, stale.leaseToken)).toBe(false);
+  expect(store.complete(request.requestId, stale.leaseToken)).toBe(false);
+  expect(store.listLifecycle()).toEqual([
+    expect.objectContaining({ requestId: request.requestId, state: 'leased' }),
+  ]);
+  expect(store.complete(request.requestId, current.leaseToken)).toBe(true);
   store.close();
 });
 

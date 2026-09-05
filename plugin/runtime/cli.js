@@ -62436,7 +62436,6 @@ async function runRetro(options, dependencies) {
       errorMessage: "safeword retro requires --transcript <path>; it never guesses the session path."
     };
   }
-  const publicRetroDeadline = dependencies.publicRetro === undefined ? undefined : dependencies.publicRetro.now() + 750;
   const read = dependencies.readFile ?? ((path8) => readFileSync71(path8, "utf8"));
   let transcript;
   try {
@@ -62446,6 +62445,7 @@ async function runRetro(options, dependencies) {
   }
   const window2 = windowFor(transcript, options.windowStart ?? 0);
   const rawFindings = await dependencies.extract(window2);
+  const publicRetroDeadline = dependencies.publicRetro === undefined ? undefined : dependencies.publicRetro.now() + 750;
   const { encounters, drops, findings } = await prepareEncounters(rawFindings);
   const { projectDirectory, publicRetro, sessionId } = dependencies;
   const relay = dependencies.relay;
@@ -62916,7 +62916,7 @@ function reportRetroCommandOutcome(outcome, options) {
   if (dropLine)
     info2(dropLine);
   if (outcome.agentFilingNeeded) {
-    info2(options.restTransportAvailable ? "retro: unfiled drafts were spooled for the agent filing path." : "retro: no GitHub access; unfiled drafts were spooled for the agent filing path.");
+    info2(options.restTransportAvailable ? "retro: unfiled drafts remain queued for recovery." : "retro: no GitHub access; unfiled drafts remain queued for recovery.");
   }
   success2("retro complete");
 }
