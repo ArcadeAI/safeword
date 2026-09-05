@@ -52409,12 +52409,13 @@ function report(verdict, evidenceSha) {
 function evaluateReadinessEvidence(input) {
   if (input.draft)
     return report("draft");
-  const evidenceSha = EVIDENCE_HEAD.exec(input.body ?? "")?.[1];
+  const body = input.body ?? "";
+  const evidenceSha = EVIDENCE_HEAD.exec(body)?.[1]?.toLowerCase();
   if (evidenceSha === undefined)
     return report("missing");
-  if (!input.headSha.startsWith(evidenceSha))
+  if (!input.headSha.toLowerCase().startsWith(evidenceSha))
     return report("stale", evidenceSha);
-  if (BLOCKED_GATE.test(input.body ?? ""))
+  if (BLOCKED_GATE.test(body))
     return report("blocked", evidenceSha);
   return report("current", evidenceSha);
 }
@@ -52432,8 +52433,8 @@ var init_readiness = __esm(() => {
     "missing",
     "stale"
   ]);
-  EVIDENCE_HEAD = /^[ \t]*Head:[ \t]*([0-9a-f]{7,64})[ \t]*$/mu;
-  BLOCKED_GATE = /^[ \t]*\d+\.[^\n]*\u2014[ \t]*BLOCKED\b/mu;
+  EVIDENCE_HEAD = /^[ \t]*Head:[ \t]*([0-9a-f]{7,64})[ \t]*$/imu;
+  BLOCKED_GATE = /^[ \t]*\d+\..*\bBLOCKED\b/mu;
 });
 
 // src/commands/review-pr-readiness.ts
