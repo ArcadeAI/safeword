@@ -1764,7 +1764,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/audit/SKILL.md':
         '64afc92c419a8354c015f18ffe0cc581cfce48cb3fee3db8e3c39d75844fb2d3',
       '.claude/skills/bdd/DISCOVERY.md':
-        'd6f2c76eba72315aee8ffee932dc3581f3728270efba396405d90a91e6198ad7',
+        'eaa9ce3b440f40e1908076b7afe5b2db19d2fc54474cb404853f794c3a22a841',
       '.claude/skills/bdd/DONE.md':
         'e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60',
       '.claude/skills/bdd/PLAN_IMPLEMENTATION.md':
@@ -1788,7 +1788,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/debug/SKILL.md':
         'ae56c4c9287f76a2250d13fa9908f5726ed4edbe4080ece10d1559507e242bd0',
       '.claude/skills/demand-research/SKILL.md':
-        '9271c21513cdb7048cf72c6343af17fed76a381569211eba24b31ba71c79381a',
+        '5912afe5c717c634455ec88b050df6af80ffb994ddd26c55811b2977522a72fc',
       '.claude/skills/elicit/SKILL.md':
         '2638c773ce241a886563d1db8abbee70d72edefa780f762c0ed095df0f65cee5',
       '.claude/skills/explain/SKILL.md':
@@ -1814,7 +1814,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/review-spec/SKILL.md':
         'c0bfb8fdc08c13764c93daf91b3807d04eb59984313cab3e424a5243eb1d8429',
       '.claude/skills/self-review/SKILL.md':
-        'e5ff994ec84573e6f129127bad89617f0a67b67c5cf792cedac558b6e419ac3b',
+        'e2c56e6ac5427cd64386234129a5dffa4030c2baabd0cb4fb8e159e6750998db',
       '.claude/skills/spike/SKILL.md':
         '905aab56037ad5a258bafa91cb2ebf05cff1acffbc9e1fd6f7a1f27230672f37',
       '.claude/skills/tdd-review/SKILL.md':

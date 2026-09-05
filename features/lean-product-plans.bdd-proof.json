@@ -22,20 +22,20 @@
       "requires an authored success threshold that can be disproven"
     ],
     "An observable outcome replaces an invented metric": [
-      "packages/cli/tests/skills/demand-research-contract.test.ts",
-      "routes Product Bet research conditionally and reconciles children at intake exit"
+      "packages/cli/tests/intake-brief.test.ts",
+      "documents observable outcomes instead of inventing metrics"
     ],
     "A child feature stores a valid parent contribution without copied prose": [
       "packages/cli/tests/utils/ticket-writer.test.ts",
       "scaffolds a delta-only child spec with stable references"
     ],
     "An unknown milestone is rejected when a child is created": [
-      "packages/cli/tests/commands/ticket-reconcile-parent.test.ts",
-      "rejects an unknown milestone reference"
+      "packages/cli/tests/commands/ticket-new.test.ts",
+      "rejects child creation with an unknown milestone and leaves the parent unchanged"
     ],
     "A child feature must select a declared milestone": [
       "packages/cli/tests/commands/ticket-new.test.ts",
-      "links a child to its epic both ways with --parent"
+      "rejects child creation without a milestone and leaves the parent unchanged"
     ],
     "A renamed milestone invalidates an existing child reference": [
       "packages/cli/tests/commands/ticket-reconcile-parent.test.ts",
@@ -89,29 +89,15 @@
     ],
     "Inconclusive demand research does not block product planning": [
       "packages/cli/tests/skills/demand-research-contract.test.ts",
-      "records an inconclusive result as an absent evidence state"
+      "documents inconclusive evidence without sponsor-favoring certainty"
     ],
     "An absent demand verdict does not block approval": [
-      "packages/cli/tests/skills/demand-research-contract.test.ts",
-      "keeps an absent verdict advisory rather than blocking"
+      "packages/cli/tests/integration/phase-review-gate.test.ts",
+      "allows phase advancement with ABSENT demand after the required review"
     ],
     "Unavailable demand research does not invent a verdict": [
       "packages/cli/tests/skills/demand-research-contract.test.ts",
       "reports unavailable evidence without inventing demand strength"
-    ],
-    "Each Product Plan owner captures a credible Killer Demo": [
-      [
-        "packages/cli/tests/commands/ticket-new.test.ts",
-        "keeps epic motivation in its Product Plan"
-      ],
-      [
-        "packages/cli/tests/utils/ticket-writer.test.ts",
-        "has the section headers in canonical order"
-      ]
-    ],
-    "Boilerplate does not qualify as a Killer Demo": [
-      "packages/cli/tests/intake-brief.test.ts",
-      "requires a persona-facing, observable Killer Demo payoff"
     ],
     "Product Plans contain no comms or launch prompt": [
       "packages/cli/tests/utils/ticket-writer.test.ts",

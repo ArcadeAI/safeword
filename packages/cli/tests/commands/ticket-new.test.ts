@@ -357,6 +357,51 @@ The parent job.
     TIMEOUT_QUICK,
   );
 
+  async function expectMilestoneRejected(milestone: string | undefined, error: RegExp) {
+    await runCli(['ticket', 'new', 'the-epic', '--type', 'epic'], { cwd: temporaryDirectory });
+    const epicId = idBySlug(temporaryDirectory, 'the-epic');
+    writeFileSync(
+      nodePath.join(ticketFolderBySlug(temporaryDirectory, 'the-epic'), 'spec.md'),
+      '# Product Plan\n\n## Jobs To Be Done\n### epic.NTB1 — Reconcile payments\nMatch invoices.\n\n## Shape\n### M1 — First bank\nOne supported bank.\n',
+    );
+    const parentBefore = readTicketBySlug(temporaryDirectory, 'the-epic');
+    const result = await runCli(
+      [
+        'ticket',
+        'new',
+        'invalid-child',
+        '--type',
+        'feature',
+        '--parent',
+        epicId,
+        '--parent-job',
+        'epic.NTB1',
+        ...(milestone === undefined ? [] : ['--milestone', milestone]),
+      ],
+      { cwd: temporaryDirectory },
+    );
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toMatch(error);
+    expect(ticketExistsForSlug(temporaryDirectory, 'invalid-child')).toBe(false);
+    expect(readTicketBySlug(temporaryDirectory, 'the-epic')).toBe(parentBefore);
+  }
+
+  it(
+    'rejects child creation without a milestone and leaves the parent unchanged',
+    async () => {
+      await expectMilestoneRejected(undefined, /--milestone is required/u);
+    },
+    TIMEOUT_QUICK,
+  );
+
+  it(
+    'rejects child creation with an unknown milestone and leaves the parent unchanged',
+    async () => {
+      await expectMilestoneRejected('M9', /Milestone "M9" does not resolve/u);
+    },
+    TIMEOUT_QUICK,
+  );
+
   // epic-child-linker.TB1.AC3.missing_parent_rejected (S4)
   it(
     'rejects --parent naming no existing ticket and creates no child',
