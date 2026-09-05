@@ -59460,11 +59460,12 @@ function readServerAttempt(markerPath2, built) {
     }
     const bytes = Buffer.from(record2.bodyBase64, "base64");
     if (!bytes.equals(built.bytes))
-      return { kind: "blocked" };
+      return { kind: "conflict" };
     return {
       kind: "pending",
       prepared: {
         bytes: new Uint8Array(bytes),
+        markerPath: markerPath2,
         requestId: record2.requestId,
         sessionScope: built.sessionScope
       }
@@ -59478,8 +59479,13 @@ function readServerAttempt(markerPath2, built) {
 function claimServerPublicRetroRequest(built, dependencies) {
   if (built.bytes.byteLength > SERVER_MAX_ENVELOPE_BYTES)
     return;
-  const markerPath2 = path5.join(dependencies.attemptsDirectory, `${built.sessionScope}.json`);
-  const existing = readServerAttempt(markerPath2, built);
+  let markerPath2 = path5.join(dependencies.attemptsDirectory, `${built.sessionScope}.json`);
+  let existing = readServerAttempt(markerPath2, built);
+  if (existing.kind === "conflict") {
+    const digest4 = createHash30("sha256").update(built.bytes).digest("hex");
+    markerPath2 = path5.join(dependencies.attemptsDirectory, `${built.sessionScope}.${digest4}.json`);
+    existing = readServerAttempt(markerPath2, built);
+  }
   if (existing.kind !== "absent") {
     return existing.kind === "pending" ? existing.prepared : undefined;
   }
@@ -59495,7 +59501,7 @@ function claimServerPublicRetroRequest(built, dependencies) {
       sessionScope: built.sessionScope,
       state: "pending"
     }), { encoding: "utf8", flag: "wx", flush: true });
-    return { ...built, requestId };
+    return { ...built, markerPath: markerPath2, requestId };
   } catch (error2) {
     if (error2.code === "EEXIST") {
       const raced = readServerAttempt(markerPath2, built);
@@ -59526,6 +59532,9 @@ function handoffTiming(dependencies, preparationDeadline) {
     return;
   return { deadline: preparationDeadline, timeoutMs: preparationDeadline - now };
 }
+function preparedMarkerPath(prepared, attemptsDirectory) {
+  return prepared.markerPath ?? path5.join(attemptsDirectory, `${prepared.sessionScope}.json`);
+}
 async function deliverPreparedInput(input, dependencies, preparationDeadline) {
   let claimedMarkerPath;
   let accepted = false;
@@ -59537,7 +59546,7 @@ async function deliverPreparedInput(input, dependencies, preparationDeadline) {
     const prepared = claimPublicRetroRequest(built, dependencies);
     if (!prepared)
       return "abandoned";
-    claimedMarkerPath = path5.join(dependencies.attemptsDirectory, `${prepared.sessionScope}.json`);
+    claimedMarkerPath = preparedMarkerPath(prepared, dependencies.attemptsDirectory);
     const timing = handoffTiming(dependencies, preparationDeadline);
     if (timing === undefined)
       return "abandoned";

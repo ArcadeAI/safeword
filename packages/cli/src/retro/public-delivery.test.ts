@@ -520,6 +520,61 @@ describe('buildPublicRetroEnvelope', () => {
     }
   });
 
+  it('preserves conflicting bytes for one session scope under distinct request identities', async () => {
+    const attemptsDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-public-retro-'));
+    const identities = [
+      '11111111-2222-4333-8444-555555555551',
+      '11111111-2222-4333-8444-555555555552',
+    ];
+    const dependencies = {
+      attemptsDirectory,
+      now: () => 0,
+      randomUUID: () => identities.shift() ?? 'unexpected',
+      route: 'server-v3' as const,
+      transport: () => Promise.reject(new Error('retain both attempts')),
+    };
+    const originalFinding = {
+      category: 'bug' as const,
+      title: 'Original finding',
+      safewordSurface: 'packages/cli/src/retro/public-delivery.ts',
+      whatHappened: 'The first extraction produced these bytes.',
+      whyFriction: 'Recovery must retain the original.',
+      repro: 'Run the first extraction.',
+    };
+    const input = {
+      findings: [originalFinding],
+      source: requiredInput.source,
+      sessionId: requiredInput.sessionId,
+    };
+
+    try {
+      expect(await deliverSanitizedPublicRetroFindings(input, dependencies, 750)).toBe('abandoned');
+      expect(
+        await deliverSanitizedPublicRetroFindings(
+          {
+            ...input,
+            findings: [{ ...originalFinding, title: 'Different later finding' }],
+          },
+          dependencies,
+          750,
+        ),
+      ).toBe('abandoned');
+      const records = readdirSync(attemptsDirectory).map(filename =>
+        JSON.parse(readFileSync(path.join(attemptsDirectory, filename), 'utf8')),
+      ) as { requestId: string; bodyBase64: string }[];
+
+      expect(records).toHaveLength(2);
+      expect(
+        records
+          .map(record => record.requestId)
+          .toSorted((left, right) => left.localeCompare(right)),
+      ).toEqual(['11111111-2222-4333-8444-555555555551', '11111111-2222-4333-8444-555555555552']);
+      expect(new Set(records.map(record => record.bodyBase64))).toHaveProperty('size', 2);
+    } finally {
+      rmSync(attemptsDirectory, { recursive: true, force: true });
+    }
+  });
+
   it('persists a typed collector rejection with the pending server-v3 recovery record', async () => {
     const attemptsDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-public-retro-'));
     try {

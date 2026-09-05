@@ -29,6 +29,7 @@ export interface BuiltPublicRetroEnvelope {
 }
 
 export interface PreparedPublicRetroRequest extends BuiltPublicRetroEnvelope {
+  markerPath?: string;
   requestId: string;
 }
 
@@ -234,7 +235,9 @@ function claimPublicRetroRequest(
 function readServerAttempt(
   markerPath: string,
   built: BuiltPublicRetroEnvelope,
-): { kind: 'absent' | 'blocked' } | { kind: 'pending'; prepared: PreparedPublicRetroRequest } {
+):
+  | { kind: 'absent' | 'blocked' | 'conflict' }
+  | { kind: 'pending'; prepared: PreparedPublicRetroRequest } {
   try {
     const record = JSON.parse(readFileSync(markerPath, 'utf8')) as Record<string, unknown>;
     if (record.route !== 'server-v3' || record.sessionScope !== built.sessionScope) {
@@ -249,11 +252,12 @@ function readServerAttempt(
       return { kind: 'blocked' };
     }
     const bytes = Buffer.from(record.bodyBase64, 'base64');
-    if (!bytes.equals(built.bytes)) return { kind: 'blocked' };
+    if (!bytes.equals(built.bytes)) return { kind: 'conflict' };
     return {
       kind: 'pending',
       prepared: {
         bytes: new Uint8Array(bytes),
+        markerPath,
         requestId: record.requestId,
         sessionScope: built.sessionScope,
       },
@@ -269,8 +273,13 @@ function claimServerPublicRetroRequest(
   dependencies: PublicRetroPreparationDependencies,
 ): PreparedPublicRetroRequest | undefined {
   if (built.bytes.byteLength > SERVER_MAX_ENVELOPE_BYTES) return undefined;
-  const markerPath = path.join(dependencies.attemptsDirectory, `${built.sessionScope}.json`);
-  const existing = readServerAttempt(markerPath, built);
+  let markerPath = path.join(dependencies.attemptsDirectory, `${built.sessionScope}.json`);
+  let existing = readServerAttempt(markerPath, built);
+  if (existing.kind === 'conflict') {
+    const digest = createHash('sha256').update(built.bytes).digest('hex');
+    markerPath = path.join(dependencies.attemptsDirectory, `${built.sessionScope}.${digest}.json`);
+    existing = readServerAttempt(markerPath, built);
+  }
   if (existing.kind !== 'absent') {
     return existing.kind === 'pending' ? existing.prepared : undefined;
   }
@@ -289,7 +298,7 @@ function claimServerPublicRetroRequest(
       }),
       { encoding: 'utf8', flag: 'wx', flush: true },
     );
-    return { ...built, requestId };
+    return { ...built, markerPath, requestId };
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
       const raced = readServerAttempt(markerPath, built);
@@ -332,6 +341,13 @@ function handoffTiming(
   return { deadline: preparationDeadline, timeoutMs: preparationDeadline - now };
 }
 
+function preparedMarkerPath(
+  prepared: PreparedPublicRetroRequest,
+  attemptsDirectory: string,
+): string {
+  return prepared.markerPath ?? path.join(attemptsDirectory, `${prepared.sessionScope}.json`);
+}
+
 async function deliverPreparedInput(
   input: PublicRetroEnvelopeInput,
   dependencies: PublicRetroDeliveryDependencies,
@@ -345,7 +361,7 @@ async function deliverPreparedInput(
     const built = buildPublicRetroEnvelope(input, serverRoute ? 'v3' : 'v2');
     const prepared = claimPublicRetroRequest(built, dependencies);
     if (!prepared) return 'abandoned';
-    claimedMarkerPath = path.join(dependencies.attemptsDirectory, `${prepared.sessionScope}.json`);
+    claimedMarkerPath = preparedMarkerPath(prepared, dependencies.attemptsDirectory);
     const timing = handoffTiming(dependencies, preparationDeadline);
     if (timing === undefined) return 'abandoned';
     const controller = new AbortController();
