@@ -24,6 +24,7 @@ import {
   malformedPlanIdentity,
   toWirePlan,
 } from './plan.js';
+import { shellQuote } from './replay-command.js';
 import { type CliResult, createResult } from './result.js';
 import {
   retroReconcileHandler,
@@ -1235,11 +1236,6 @@ function cleanGuidanceRefusal(cleanup: LegacyGlobalGuidanceCleanupResult): CliRe
         : [],
     data: { command: 'codex clean-guidance', cleanup },
   });
-}
-
-function shellQuote(value: string | undefined): string {
-  const escaped = (value ?? '').replaceAll("'", "'\"'\"'");
-  return `'${escaped}'`;
 }
 
 function cleanGuidanceSuccess(cleanup: LegacyGlobalGuidanceCleanupResult): CliResult {

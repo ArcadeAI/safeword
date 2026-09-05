@@ -1,6 +1,6 @@
 export type ReplayOption = readonly [flag: string, value: string | undefined];
 
-function shellArgument(value: string): string {
+export function shellArgument(value: string): string {
   const escapedSingleQuote = `'"'"'`;
   return `'${value.split("'").join(escapedSingleQuote)}'`;
 }
@@ -20,4 +20,12 @@ export function buildReplayCommand(input: {
     '--cwd',
     shellArgument(input.cwd),
   ].join(' ');
+}
+
+/**
+ * `shellArgument` for values that may be absent; an absent value quotes to an
+ * empty argument rather than disappearing from the command line.
+ */
+export function shellQuote(value: string | undefined): string {
+  return shellArgument(value ?? '');
 }
