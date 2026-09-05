@@ -56,6 +56,26 @@ done_when: |
   protected-branch docs state plainly that required status checks "can be checks
   or commit statuses", so the cheap Statuses API is enough — no GitHub App and
   no `checks: write`.
+- 2026-09-05T22:55:00Z Full suite: 9095 passed, 6 failed, all six in
+  `tests/lifecycle/origin-main-contract.test.ts` — the pinned origin/main
+  install-tree baselines for codex-{install,check,upgrade} and
+  cursor-{install,check,upgrade}. Only `tree_sha256` moved; every
+  `result_sha256` still matches, so the install *outcome* is unchanged and
+  only the byte content of a managed file differs.
+- 2026-09-05T22:55:00Z Confirmed the cause rather than assuming it: restoring
+  both edited templates to their pre-session content makes all 13 pass, and
+  restoring the current content reproduces exactly the same six failures. The
+  drift starts at the coverage-wording commit (9fa59c222), not at the
+  readiness feature.
+- 2026-09-05T22:55:00Z Explained the claude/codex-cursor asymmetry instead of
+  waving it off: `projectLifecycleSchema` gives Claude native plugin delivery,
+  so `.claude/skills/**` is not a managed project path and the edited skill
+  never enters Claude's tree. Cursor and Codex both carry the shared
+  `.safeword` runtime copy, which does contain it. Consistent, and it confirms
+  the edit landed on the surfaces that need it.
+- 2026-09-05T22:55:00Z BLOCKED on refreshing those baselines
+  (`SAFEWORD_UPDATE_ORIGIN_MAIN_FIXTURES=1`). Standing instruction is never to
+  update a baseline without explicit human approval.
 - 2026-09-05T22:20:00Z Known limitation, accepted deliberately: the readiness
   job lives in the workflow that `install` only generates when `prReview.enabled`
   is true, so a repository that wants readiness discipline without an LLM
