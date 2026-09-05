@@ -23,15 +23,6 @@ const manifest = JSON.parse(manifestBytes.toString('utf8')) as {
   measurements?: Record<string, { path: string }>;
   prerequisites?: { mergedCommit: string }[];
 };
-const localManifestBytes = readFileSync(
-  new URL('src/retro/local-retro-readiness-manifest.json', import.meta.url),
-);
-const localManifest = JSON.parse(localManifestBytes.toString('utf8')) as {
-  enabled: boolean;
-  evidenceCommit?: string;
-  harnesses?: Record<string, { artifactPath: string }>;
-  recoveredFaults?: Record<string, { artifactPath: string }>;
-};
 
 function gitText(arguments_: string[]): string {
   return execFileSync('git', arguments_, {
@@ -145,71 +136,6 @@ function buildRelayAttestation(): RelayBuildAttestation {
 
 const relayBuildAttestation = buildRelayAttestation();
 
-function buildLocalRetroAttestation() {
-  const disabled = {
-    ancestorPairs: [] as { ancestor: string; descendant: string }[],
-    artifacts: {},
-    enabled: false,
-    manifestBase64: localManifestBytes.toString('base64'),
-    manifestSha256: createHash('sha256').update(localManifestBytes).digest('hex'),
-  };
-  if (!localManifest.enabled) return disabled;
-  if (
-    localManifest.evidenceCommit === undefined ||
-    localManifest.harnesses === undefined ||
-    localManifest.recoveredFaults === undefined
-  ) {
-    throw new Error('enabled local retro readiness manifest cannot be attested by this build');
-  }
-  const evidence = {
-    ...Object.fromEntries(
-      Object.entries(localManifest.harnesses).map(([name, item]) => [`harness:${name}`, item]),
-    ),
-    ...Object.fromEntries(
-      Object.entries(localManifest.recoveredFaults).map(([name, item]) => [`fault:${name}`, item]),
-    ),
-  };
-  assertSafeRelayInputs(
-    localManifest.evidenceCommit,
-    Object.fromEntries(
-      Object.entries(evidence).map(([name, item]) => [name, { path: item.artifactPath }]),
-    ),
-    [],
-  );
-  if (gitText(['status', '--porcelain']).length > 0) {
-    throw new Error('enabled local retro readiness manifest requires a clean source tree');
-  }
-  execFileSync('git', ['merge-base', '--is-ancestor', localManifest.evidenceCommit, buildCommit], {
-    maxBuffer: GIT_MAX_BUFFER_BYTES,
-  });
-  const artifacts = Object.fromEntries(
-    Object.values(evidence).map(item => {
-      const bytes = execFileSync(
-        'git',
-        ['show', `${localManifest.evidenceCommit}:${item.artifactPath}`],
-        {
-          maxBuffer: GIT_MAX_BUFFER_BYTES,
-        },
-      );
-      return [
-        item.artifactPath,
-        {
-          contentBase64: bytes.toString('base64'),
-          sha256: createHash('sha256').update(bytes).digest('hex'),
-        },
-      ];
-    }),
-  );
-  return {
-    ...disabled,
-    ancestorPairs: [{ ancestor: localManifest.evidenceCommit, descendant: buildCommit }],
-    artifacts,
-    enabled: true,
-  };
-}
-
-const localRetroBuildAttestation = buildLocalRetroAttestation();
-
 export default defineConfig({
   entry: [
     'src/cli.ts',
@@ -231,7 +157,6 @@ export default defineConfig({
   define: {
     __SAFEWORD_BUILD_COMMIT__: JSON.stringify(buildCommit),
     __SAFEWORD_RELAY_BUILD_ATTESTATION__: JSON.stringify(relayBuildAttestation),
-    __SAFEWORD_LOCAL_RETRO_BUILD_ATTESTATION__: JSON.stringify(localRetroBuildAttestation),
     __SAFEWORD_PUBLIC_RETRO_ORIGIN__: JSON.stringify(PUBLIC_RETRO_ORIGIN),
   },
   onSuccess() {

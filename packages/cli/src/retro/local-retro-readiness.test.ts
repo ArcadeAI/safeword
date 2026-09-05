@@ -19,54 +19,9 @@ function harnessEvidence(harness: 'claude-code' | 'codex' | 'cursor', index: num
     sessionScope: String(index).repeat(64),
     terminal: 'filed' as const,
   };
-  const artifactContent = [
-    'local-retro-canary:v1',
-    harness,
-    evidence.buildCommit,
-    evidence.requestId,
-    evidence.sessionScope,
-    evidence.collectorReceipt,
-    evidence.relayReceipt,
-    evidence.terminal,
-  ].join('\0');
-  const artifactDigest = createHash('sha256').update(artifactContent).digest('hex');
-  return { ...evidence, artifactDigest, artifactPath: `evidence/${harness}.txt` };
-}
-
-function readinessFixture(): {
-  input: Parameters<typeof validateLocalRetroReadiness>[1];
-  manifest: LocalRetroReadinessManifest;
-} {
-  const faultEvidence = Object.fromEntries(
-    [
-      'ambiguousCreateMatch',
-      'ambiguousCreateNoMatch',
-      'claimCrash',
-      'retryExhaustion',
-      'workerOutage',
-    ].map(name => [
-      name,
-      {
-        artifactDigest: createHash('sha256').update(`fault:${name}`).digest('hex'),
-        artifactPath: `evidence/${name}.txt`,
-      },
-    ]),
-  ) as LocalRetroReadinessManifest['recoveredFaults'];
-  const manifest: LocalRetroReadinessManifest = {
-    enabled: true,
-    evidenceCommit,
-    harnesses: {
-      'claude-code': harnessEvidence('claude-code', 1),
-      codex: harnessEvidence('codex', 2),
-      cursor: harnessEvidence('cursor', 3),
-    },
-    recoveredFaults: faultEvidence,
-    reviewedAt: '2026-08-29T00:00:00.000Z',
-    version: 1,
-  };
-  const artifacts = Object.fromEntries([
-    ...Object.entries(manifest.harnesses).map(([harness, evidence]) => {
-      const content = [
+  const artifactDigest = createHash('sha256')
+    .update(
+      [
         'local-retro-canary:v1',
         harness,
         evidence.buildCommit,
@@ -75,31 +30,37 @@ function readinessFixture(): {
         evidence.collectorReceipt,
         evidence.relayReceipt,
         evidence.terminal,
-      ].join('\0');
-      return [
-        evidence.artifactPath,
-        { contentBase64: Buffer.from(content).toString('base64'), sha256: evidence.artifactDigest },
-      ];
-    }),
-    ...Object.entries(manifest.recoveredFaults).map(([name, evidence]) => [
-      evidence.artifactPath,
-      {
-        contentBase64: Buffer.from(`fault:${name}`).toString('base64'),
-        sha256: evidence.artifactDigest,
-      },
-    ]),
-  ]);
-  const manifestBytes = Buffer.from(JSON.stringify(manifest));
+      ].join('\0'),
+    )
+    .digest('hex');
+  return { ...evidence, artifactDigest };
+}
+
+function readinessFixture(): {
+  input: Parameters<typeof validateLocalRetroReadiness>[1];
+  manifest: LocalRetroReadinessManifest;
+} {
   return {
-    manifest,
-    input: {
-      buildAttestation: {
-        ancestorPairs: [{ ancestor: evidenceCommit, descendant: buildCommit }],
-        artifacts,
-        enabled: true,
-        manifestBase64: manifestBytes.toString('base64'),
-        manifestSha256: createHash('sha256').update(manifestBytes).digest('hex'),
+    manifest: {
+      enabled: true,
+      evidenceCommit,
+      harnesses: {
+        'claude-code': harnessEvidence('claude-code', 1),
+        codex: harnessEvidence('codex', 2),
+        cursor: harnessEvidence('cursor', 3),
       },
+      recoveredFaults: {
+        ambiguousCreateMatch: '1'.repeat(64),
+        ambiguousCreateNoMatch: '2'.repeat(64),
+        claimCrash: '3'.repeat(64),
+        retryExhaustion: '4'.repeat(64),
+        workerOutage: '5'.repeat(64),
+      },
+      reviewedAt: '2026-08-29T00:00:00.000Z',
+      version: 1,
+    },
+    input: {
+      ancestorPairs: [{ ancestor: evidenceCommit, descendant: buildCommit }],
       buildCommit,
       now: new Date('2026-08-29T01:00:00.000Z'),
       relayReady: true,
@@ -120,7 +81,7 @@ describe('local retro readiness', () => {
     expect(
       validateLocalRetroReadiness(manifest, {
         ...input,
-        buildAttestation: { ...input.buildAttestation, ancestorPairs: [] },
+        ancestorPairs: [],
         buildCommit: evidenceCommit,
       }),
     ).toBe(true);
@@ -146,17 +107,6 @@ describe('local retro readiness', () => {
     const { input } = readinessFixture();
 
     expect(validateLocalRetroReadiness({ enabled: false, version: 1 }, input)).toBe(false);
-  });
-
-  it('rejects manifest-controlled evidence that is absent from the build attestation', () => {
-    const { input, manifest } = readinessFixture();
-
-    expect(
-      validateLocalRetroReadiness(manifest, {
-        ...input,
-        buildAttestation: { ...input.buildAttestation, artifacts: {} },
-      }),
-    ).toBe(false);
   });
 
   it('rejects missing harness evidence', () => {
@@ -199,10 +149,7 @@ describe('local retro readiness', () => {
     'rejects a missing or malformed %s recovery artifact',
     fault => {
       const { input, manifest } = readinessFixture();
-      const recoveredFaults = {
-        ...manifest.recoveredFaults,
-        [fault]: { artifactDigest: 'missing', artifactPath: `evidence/${fault}.txt` },
-      };
+      const recoveredFaults = { ...manifest.recoveredFaults, [fault]: 'missing' };
 
       expect(validateLocalRetroReadiness({ ...manifest, recoveredFaults }, input)).toBe(false);
     },
@@ -226,10 +173,7 @@ describe('local retro readiness', () => {
 
   it.each([
     ['relay is not ready', { relayReady: false }],
-    [
-      'build ancestry is missing',
-      { buildAttestation: { ...readinessFixture().input.buildAttestation, ancestorPairs: [] } },
-    ],
+    ['build ancestry is missing', { ancestorPairs: [] }],
     ['review evidence is stale', { now: new Date('2026-09-29T00:00:00.001Z') }],
     ['review evidence is future-dated', { now: new Date('2026-08-28T23:59:59.999Z') }],
   ] as const)('rejects when %s', (_case, override) => {
