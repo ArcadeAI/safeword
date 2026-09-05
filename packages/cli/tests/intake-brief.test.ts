@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { readRepoFile as read } from './helpers';
+import { PRODUCT_PLAN_SECTIONS, readRepoFile as read } from './helpers';
 
 const discovery = read('packages/cli/templates/skills/bdd/DISCOVERY.md').replaceAll(/\s+/gu, ' ');
 
@@ -47,13 +47,9 @@ describe('lean Product Plan intake', () => {
     const plan = instructions
       .split('## Full Product Plan', 2)[1]
       ?.split('## Child contribution', 1)[0];
-    expect(plan?.replaceAll(/```[\s\S]*?```/gu, '').match(/^### .+$/gm)).toEqual([
-      '### Product Bet',
-      '### Jobs To Be Done',
-      '### Shape',
-      '### Killer Demo',
-      '### Surfaces',
-    ]);
+    expect(plan?.replaceAll(/```[\s\S]*?```/gu, '').match(/^### .+$/gm)).toEqual(
+      PRODUCT_PLAN_SECTIONS.map(section => `### ${section}`),
+    );
     expect(spec).toContain('**Persona:** <canonical persona> (`<persona-code>`)');
   });
 });
