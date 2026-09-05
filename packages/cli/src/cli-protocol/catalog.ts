@@ -167,6 +167,29 @@ function claudeScopeOption(): CommandDefinition['registration']['options'][numbe
   };
 }
 
+/**
+ * The `--yes` / `--plan <id>` pair every confirm-policy command carries. The
+ * descriptions differ per command; the flag spellings and the plan-identity
+ * value kind must not, so they live here.
+ */
+function planConfirmationOptions(descriptions: {
+  confirm: string;
+  plan: string;
+  yesAlias?: boolean;
+}): CommandDefinition['registration']['options'] {
+  return [
+    {
+      flags: descriptions.yesAlias === true ? '-y, --yes' : '--yes',
+      description: descriptions.confirm,
+    },
+    {
+      flags: '--plan <id>',
+      description: descriptions.plan,
+      valueKind: 'plan-identity',
+    },
+  ];
+}
+
 const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   command('status', 'Report project health and the next action', 'observe', {
     networkPolicy: 'declared',
@@ -228,12 +251,11 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       commandOptions: [
         agentSelectionOption(),
         claudeScopeOption(),
-        { flags: '-y, --yes', description: 'Confirm the supplied plan identity' },
-        {
-          flags: '--plan <id>',
-          description: 'Identity of the exact plan being confirmed',
-          valueKind: 'plan-identity',
-        },
+        ...planConfirmationOptions({
+          confirm: 'Confirm the supplied plan identity',
+          plan: 'Identity of the exact plan being confirmed',
+          yesAlias: true,
+        }),
         {
           flags: '--full',
           description: 'Also remove unmodified tooling configuration and supporting packages',
@@ -418,12 +440,10 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       networkPolicy: 'declared',
       commandOptions: [
         { flags: '--finalize', description: 'Finalize after current plugin-hook proof exists' },
-        { flags: '--yes', description: 'Confirm the observed migration plan' },
-        {
-          flags: '--plan <id>',
-          description: 'Identity of the exact migration plan',
-          valueKind: 'plan-identity',
-        },
+        ...planConfirmationOptions({
+          confirm: 'Confirm the observed migration plan',
+          plan: 'Identity of the exact migration plan',
+        }),
         {
           flags: '--remove-legacy-hooks',
           description: 'Deprecated alias for --finalize',
@@ -445,12 +465,10 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     {
       promptPolicy: 'confirm',
       commandOptions: [
-        { flags: '--yes', description: 'Confirm cleanup of the observed exact revision' },
-        {
-          flags: '--plan <id>',
-          description: 'Identity of the exact cleanup plan',
-          valueKind: 'plan-identity',
-        },
+        ...planConfirmationOptions({
+          confirm: 'Confirm cleanup of the observed exact revision',
+          plan: 'Identity of the exact cleanup plan',
+        }),
       ],
     },
   ),
@@ -466,12 +484,10 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     {
       promptPolicy: 'confirm',
       commandOptions: [
-        { flags: '--yes', description: 'Confirm cleanup of the observed exact revision' },
-        {
-          flags: '--plan <id>',
-          description: 'Identity of the exact profile-guidance cleanup plan',
-          valueKind: 'plan-identity',
-        },
+        ...planConfirmationOptions({
+          confirm: 'Confirm cleanup of the observed exact revision',
+          plan: 'Identity of the exact profile-guidance cleanup plan',
+        }),
       ],
     },
   ),
@@ -482,12 +498,10 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     {
       promptPolicy: 'confirm',
       commandOptions: [
-        { flags: '--yes', description: 'Confirm recovery of the observed backup' },
-        {
-          flags: '--plan <id>',
-          description: 'Identity of the exact recovery plan',
-          valueKind: 'plan-identity',
-        },
+        ...planConfirmationOptions({
+          confirm: 'Confirm recovery of the observed backup',
+          plan: 'Identity of the exact recovery plan',
+        }),
       ],
     },
   ),
