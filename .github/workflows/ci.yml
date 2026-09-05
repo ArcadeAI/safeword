@@ -270,18 +270,24 @@ jobs:
             exit 1
           }
 
-      - name: Claude plugin catalogue freshness
+      - name: Generated plugin freshness
         id: catalogue-freshness
-        # plugin/runtime/cli.js is a Bun bundle of the CLI *and its
-        # dependencies*, so a dependency bump legitimately changes it. Dependabot
-        # cannot run the generator, which left every dependency PR unmergeable on
-        # a gate it had no way to satisfy. Attach the regenerated tree to the run
-        # so the fix is a download and a commit rather than a local repro.
+        # plugin/runtime/cli.js and packages/cli/codex-plugin/runtime/cli.js are
+        # Bun bundles of the CLI *and its dependencies*, so a dependency bump
+        # legitimately changes them. Dependabot cannot run the generators, which
+        # left every dependency PR unmergeable on a gate it had no way to satisfy.
+        # Attach the regenerated trees to the run so the fix is a download and a
+        # commit rather than a local repro.
+        #
+        # Both trees must be regenerated here, not just the Claude one: the Codex
+        # bundle drifts from the same source edits, and its drift surfaces only in
+        # the separate `CLI contract` job, which publishes nothing to download.
         run: |
           bun run --cwd packages/cli generate:claude-plugin
-          if ! git diff --quiet -- plugin; then
+          bun run --cwd packages/cli generate:codex-plugin
+          if ! git diff --quiet -- plugin packages/cli/codex-plugin; then
             echo 'drifted=true' >> "$GITHUB_OUTPUT"
-            echo "::error::Generated Claude plugin drifted from canonical sources. Download this run's 'regenerated-plugin' artifact and commit it, or run 'bun run --cwd packages/cli generate:claude-plugin' and commit plugin/."
+            echo "::error::Generated plugin trees drifted from canonical sources. Download this run's 'regenerated-plugin' artifact and commit it, or run 'bun run --cwd packages/cli generate:claude-plugin && bun run --cwd packages/cli generate:codex-plugin' and commit plugin/ and packages/cli/codex-plugin/."
             exit 1
           fi
           bun run --cwd packages/cli check:claude-plugin
@@ -291,7 +297,14 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: regenerated-plugin
-          path: plugin/
+          # Both trees carry required hidden paths — plugin/.claude-plugin/plugin.json
+          # is CLAUDE_NATIVE_REQUIRED_ASSETS[0], and packages/cli/codex-plugin has
+          # .codex-plugin/. upload-artifact drops hidden files by default, so without
+          # this the documented "download and commit" fix silently deletes them.
+          include-hidden-files: true
+          path: |
+            plugin/
+            packages/cli/codex-plugin/
           retention-days: 7
 
       - name: Lint
