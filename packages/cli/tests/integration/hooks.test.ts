@@ -428,9 +428,37 @@ describe('E2E: SessionStart Hooks', () => {
             env: { ...process.env, HOME: home },
             encoding: 'utf8',
           });
-
           expect(applied.status).toBe(0);
-          expect(readTestFile(home, profile)).toContain(shims);
+
+          // The point isn't the file's contents — it's that loading the profile
+          // actually puts bun back within reach.
+          const resolved = spawnSync('bash', ['-c', `. "$HOME/${profile}"; command -v bun`], {
+            env: { ...process.env, HOME: home },
+            encoding: 'utf8',
+          });
+
+          expect(resolved.stdout.trim()).toBe(nodePath.join(shims, 'bun'));
+        } finally {
+          removeTemporaryDirectory(enclosing);
+        }
+      });
+
+      // A path holding a quote or a `$` cannot be embedded in a pasteable
+      // command safely, so describe the step instead of emitting one that
+      // breaks on paste or mis-expands when the profile loads.
+      it('describes the step instead of emitting an unpasteable command', () => {
+        const enclosing = createTemporaryDirectory();
+        const home = nodePath.join(enclosing, "O'Neil");
+        try {
+          const shims = nodePath.join(home, '.local/share/mise/shims');
+          mkdirSync(shims, { recursive: true });
+          writeTestFile(shims, 'bun', '#!/bin/sh\nexit 0\n');
+          chmodSync(nodePath.join(shims, 'bun'), 0o755);
+
+          const result = runWithoutBun(home, { SHELL: '/bin/zsh' });
+
+          expect(result.stderr).toContain(shims);
+          expect(result.stderr).not.toContain('.zprofile');
         } finally {
           removeTemporaryDirectory(enclosing);
         }

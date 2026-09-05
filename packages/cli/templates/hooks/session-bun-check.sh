@@ -47,6 +47,13 @@ print_path_repair() {
     bash) profile="~/.bash_profile" ;;
     *) profile="" ;;
   esac
+  # A path holding shell metacharacters cannot be embedded in a pasteable
+  # command safely: a quote breaks the paste, and $ or ` would expand when the
+  # profile is loaded. Describe the step rather than emit something that fails.
+  case "$MISE_SHIMS" in
+    *[\'\"\$\`\\]*) profile="" ;;
+  esac
+
   if [ -n "$profile" ]; then
     echo "  echo 'export PATH=\"$MISE_SHIMS:\$PATH\"' >> $profile" >&2
   else
