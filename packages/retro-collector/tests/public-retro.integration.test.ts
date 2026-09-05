@@ -368,6 +368,35 @@ it('keeps pre-relay work claimable after 24 hours and a failed attempt', () => {
   store.close();
 });
 
+it('reports an expired collector lease as queued before it is reclaimed', () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  let now = 0;
+  const store = new PublicRetroStore(path.join(directory, 'collector.sqlite'), {
+    now: () => now,
+  });
+  const request = fixtureServerOwnedRequest();
+  const envelope = JSON.parse(new TextDecoder().decode(request.body)) as {
+    sessionScope: string;
+    source: { projectUUID: string };
+  };
+  store.accept(
+    request.requestId,
+    envelope.sessionScope,
+    request.body,
+    'v3',
+    envelope.source.projectUUID,
+  );
+  expect(store.claim(now, 1000)).toBeDefined();
+
+  now = 1001;
+
+  expect(store.listLifecycle()).toEqual([
+    expect.objectContaining({ requestId: request.requestId, state: 'queued' }),
+  ]);
+  store.close();
+});
+
 it.each([
   ['authorization', 'Bearer fixture'],
   ['cookie', 'session=fixture'],
