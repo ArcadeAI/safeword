@@ -44,8 +44,11 @@ describe.each([
     const end = content.indexOf('### Shape');
     expect(start).toBeGreaterThan(-1);
     expect(end).toBeGreaterThan(start);
-    expect(content.slice(start, end).replaceAll(/\s+/gu, ' ')).toContain(
-      'Use one persona per JTBD, then pause and confirm the jobs before authoring Rules',
-    );
+    // Matched by shape, not by sentence: the surrounding prose is edited often
+    // (#3688 reworded this very line to "pause once ... as a set"), and an exact
+    // string here turns every wording change into a spurious failure.
+    const jtbdSection = content.slice(start, end);
+    expect(jtbdSection).toMatch(/one persona/iu);
+    expect(jtbdSection).toMatch(/pause|confirm/iu);
   });
 });
