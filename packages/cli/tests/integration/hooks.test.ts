@@ -335,10 +335,10 @@ describe('E2E: SessionStart Hooks', () => {
 
       expect(result.status).toBe(2);
       // UJSZXB: plain-language, safety-framed wording for the NTB (no "PATH" /
-      // "quality hooks" jargon) — still names bun and the install step.
+      // "quality hooks" jargon) — still names bun. Which remedy it recommends
+      // depends on the host's toolchain; those cases are covered below.
       expect(result.stderr).toContain('bun');
       expect(result.stderr).toContain('safety checks');
-      expect(result.stderr).toContain('Install bun');
     });
 
     describe('when the host manages its toolchain with mise', () => {
@@ -366,7 +366,7 @@ describe('E2E: SessionStart Hooks', () => {
         try {
           const shims = nodePath.join(home, '.local/share/mise/shims');
           mkdirSync(shims, { recursive: true });
-          writeTestFile(nodePath.join(shims, 'bun'), '#!/bin/sh\nexit 0\n');
+          writeTestFile(shims, 'bun', '#!/bin/sh\nexit 0\n');
           chmodSync(nodePath.join(shims, 'bun'), 0o755);
 
           const result = runWithoutBun(home);
@@ -384,7 +384,7 @@ describe('E2E: SessionStart Hooks', () => {
         const home = createTemporaryDirectory();
         const miseConfig = nodePath.join(shared.projectDirectory, 'mise.toml');
         try {
-          writeTestFile(miseConfig, '[tools]\nnode = "24"\n');
+          writeTestFile(shared.projectDirectory, 'mise.toml', '[tools]\nnode = "24"\n');
 
           const result = runWithoutBun(home);
 
