@@ -4,10 +4,11 @@
 # This is a bash hook because it can't depend on the runtime it's checking for.
 #
 # Version-manager awareness (mise): hooks run in a NON-INTERACTIVE shell, so a
-# customer whose shell rc does `mise activate` has no shims on PATH here even
-# though `bun` works fine in their terminal. Telling that customer to curl a
-# fresh bun installs a second, unmanaged copy that shadows their pinned one.
-# Detect that case and hand back the toolchain-correct step instead.
+# host whose shell rc runs `mise activate` has no shims on PATH here even though
+# `bun` works in their terminal. Telling that host to curl a fresh bun installs a
+# second, unmanaged copy that shadows their pinned one, so hand back the step
+# that actually restores bun instead. Installing through mise only helps once the
+# shims directory is reachable, so recommend both whenever it isn't.
 
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}"
 
@@ -22,40 +23,50 @@ fi
 
 MISE_SHIMS="${MISE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/mise}/shims"
 
-mise_governs_project() {
-  [ -f "$PROJECT_DIR/mise.toml" ] ||
-    [ -f "$PROJECT_DIR/.mise.toml" ] ||
-    [ -f "$PROJECT_DIR/mise.local.toml" ] ||
-    [ -f "$PROJECT_DIR/.config/mise/config.toml" ]
+mise_manages_host() {
+  [ -d "$MISE_SHIMS" ] \
+    || command -v mise &> /dev/null \
+    || [ -f "$PROJECT_DIR/mise.toml" ] \
+    || [ -f "$PROJECT_DIR/.mise.toml" ] \
+    || [ -f "$PROJECT_DIR/mise.local.toml" ] \
+    || [ -f "$PROJECT_DIR/.config/mise/config.toml" ]
+}
+
+# Print the step that puts the shims directory on the PATH this hook inherits.
+# Login shells read different files, so name the one this host actually uses.
+print_path_repair() {
+  # Already reachable: the tool is simply not installed under mise yet.
+  case ":$PATH:" in
+    *":$MISE_SHIMS:"*) return 0 ;;
+  esac
+  case "${SHELL##*/}" in
+    zsh) profile="$HOME/.zprofile" ;;
+    bash) profile="$HOME/.bash_profile" ;;
+    *) profile="" ;;
+  esac
+  if [ -n "$profile" ]; then
+    echo "  echo 'export PATH=\"$MISE_SHIMS:\$PATH\"' >> $profile" >&2
+  else
+    echo "  Add $MISE_SHIMS to PATH in your login shell's startup file." >&2
+  fi
 }
 
 echo "safeword needs a small tool called \"bun\" to run its safety checks, and this session can't find it." >&2
 echo "Until it is, safeword can't catch unsafe or untested changes — the agent runs unguarded." >&2
 echo "" >&2
 
-if [ -x "$MISE_SHIMS/bun" ]; then
-  # mise already owns bun; the only problem is that this non-interactive shell
-  # never sourced the shell rc that activates it.
-  echo "You already manage bun with mise — this session just can't see it, because agent" >&2
-  echo "hooks don't load your shell startup file. Put mise's shims on your login PATH," >&2
-  echo "then restart your terminal and your agent session:" >&2
-  echo "  echo 'export PATH=\"$MISE_SHIMS:\$PATH\"' >> ~/.zprofile" >&2
-  exit 2
-fi
-
-if command -v mise &> /dev/null; then
-  echo "You use mise for your toolchain, so install bun through mise rather than separately" >&2
-  echo "(a standalone install would shadow your pinned versions). Then restart your agent session:" >&2
-  echo "  mise use -g bun@latest" >&2
-  exit 2
-fi
-
-if [ -d "$MISE_SHIMS" ] || mise_governs_project; then
-  echo "This project's toolchain is managed by mise, but mise isn't on this session's PATH." >&2
-  echo "Install bun through mise so it stays pinned with your other tools, then restart" >&2
-  echo "your terminal and your agent session:" >&2
-  echo "  mise use -g bun@latest" >&2
-  echo "  echo 'export PATH=\"$MISE_SHIMS:\$PATH\"' >> ~/.zprofile" >&2
+if mise_manages_host; then
+  if [ -x "$MISE_SHIMS/bun" ]; then
+    echo "You already manage bun with mise — this session just can't see it, because agent" >&2
+    echo "hooks don't load your shell startup file. Put mise's shims on your login PATH," >&2
+    echo "then restart your terminal and your agent session:" >&2
+  else
+    echo "You use mise for your toolchain, so install bun through mise rather than separately" >&2
+    echo "(a standalone install would shadow your pinned versions). Run every step below," >&2
+    echo "then restart your terminal and your agent session:" >&2
+    echo "  mise use -g bun@latest" >&2
+  fi
+  print_path_repair
   exit 2
 fi
 

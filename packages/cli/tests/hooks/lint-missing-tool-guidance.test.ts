@@ -39,14 +39,14 @@ describe('lint hook guidance for a tool it cannot reach', () => {
   });
 
   /** Lint a Python file with `ruff` unreachable, and return the warnings. */
-  const lintPythonWithoutRuff = async (): Promise<string> => {
+  const lintPythonWithoutRuff = async (extraPath = ''): Promise<string> => {
     const pythonFile = path.join(projectDirectory, 'main.py');
     writeFileSync(pythonFile, 'x = 1\n');
     const script = `
       process.env.HOME = ${JSON.stringify(home)};
       process.env.CLAUDE_PROJECT_DIR = ${JSON.stringify(projectDirectory)};
       // Enough to resolve \`which\`, not enough to resolve ruff.
-      process.env.PATH = '/usr/bin:/bin';
+      process.env.PATH = ${JSON.stringify(`${extraPath}${extraPath ? ':' : ''}/usr/bin:/bin`)};
       const { lintFile } = await import(${JSON.stringify(LINT_MODULE)});
       const result = await lintFile(${JSON.stringify(pythonFile)}, ${JSON.stringify(projectDirectory)});
       console.log(JSON.stringify(result.warnings));
@@ -74,6 +74,27 @@ describe('lint hook guidance for a tool it cannot reach', () => {
 
     expect(warnings).toContain('mise use ruff');
     expect(warnings).not.toContain('pip install');
+  });
+
+  // Installing through mise drops the tool into the shims directory, so install
+  // guidance alone leaves the hook exactly as blind as it was.
+  it('also repairs PATH when the shims directory is unreachable', async () => {
+    writeFileSync(path.join(projectDirectory, 'mise.toml'), '[tools]\npython = "3.13"\n');
+
+    const warnings = await lintPythonWithoutRuff();
+
+    expect(warnings).toContain(path.join(home, '.local/share/mise/shims'));
+  });
+
+  it('omits the PATH step when the shims directory is already reachable', async () => {
+    writeFileSync(path.join(projectDirectory, 'mise.toml'), '[tools]\npython = "3.13"\n');
+    const shims = path.join(home, '.local/share/mise/shims');
+    mkdirSync(shims, { recursive: true });
+
+    const warnings = await lintPythonWithoutRuff(shims);
+
+    expect(warnings).toContain('mise use ruff');
+    expect(warnings).not.toContain('login PATH');
   });
 
   it('keeps the package-manager hint when nothing indicates mise', async () => {

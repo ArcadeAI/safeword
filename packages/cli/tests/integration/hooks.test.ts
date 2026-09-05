@@ -391,8 +391,32 @@ describe('E2E: SessionStart Hooks', () => {
           expect(result.status).toBe(2);
           expect(result.stderr).toContain('mise use -g bun@latest');
           expect(result.stderr).not.toContain('bun.sh/install');
+          // Installing through mise drops bun into the shims directory, so
+          // install guidance alone leaves the next session just as blind.
+          expect(result.stderr).toContain(nodePath.join(home, '.local/share/mise/shims'));
         } finally {
           rmSync(miseConfig, { force: true });
+          removeTemporaryDirectory(home);
+        }
+      });
+
+      // Login shells read different files; a bash host told to edit ~/.zprofile
+      // restarts into the same broken session.
+      it.each([
+        ['/bin/zsh', '.zprofile'],
+        ['/bin/bash', '.bash_profile'],
+      ])('names the login file %s actually reads', (shell, profile) => {
+        const home = createTemporaryDirectory();
+        try {
+          const shims = nodePath.join(home, '.local/share/mise/shims');
+          mkdirSync(shims, { recursive: true });
+          writeTestFile(shims, 'bun', '#!/bin/sh\nexit 0\n');
+          chmodSync(nodePath.join(shims, 'bun'), 0o755);
+
+          const result = runWithoutBun(home, { SHELL: shell });
+
+          expect(result.stderr).toContain(nodePath.join(home, profile));
+        } finally {
           removeTemporaryDirectory(home);
         }
       });

@@ -145,16 +145,16 @@ const MISE_CONFIG_FILES = [
  * for non-interactive callers is the shims directory, so hand that back instead.
  */
 function installGuidance(tool: string, fallback: string): string {
+  const reachShims = `add ${MISE_SHIMS} to their login PATH, which reaches every mise-managed tool at once`;
   if (existsSync(nodePath.join(MISE_SHIMS, tool))) {
-    return (
-      `The user already manages "${tool}" with mise; this hook's PATH just can't see it. ` +
-      `Ask them to add ${MISE_SHIMS} to their login PATH — that reaches every mise-managed tool at once.`
-    );
+    return `The user already manages "${tool}" with mise; this hook's PATH just can't see it. Ask them to ${reachShims}.`;
   }
-  if (MISE_CONFIG_FILES.some(file => existsSync(nodePath.join(projectDir, file)))) {
-    return `This project's toolchain is managed by mise. Ask the user if they'd like you to install it by running: mise use ${tool}`;
-  }
-  return fallback;
+  if (!MISE_CONFIG_FILES.some(file => existsSync(nodePath.join(projectDir, file)))) return fallback;
+  // Installing through mise only helps once the shims directory is reachable.
+  const lead = "This project's toolchain is managed by mise. Ask the user if they'd like you to";
+  return (process.env.PATH ?? '').split(nodePath.delimiter).includes(MISE_SHIMS)
+    ? `${lead} install it by running: mise use ${tool}`
+    : `${lead} ${reachShims}, then install it by running: mise use ${tool}`;
 }
 
 /**
