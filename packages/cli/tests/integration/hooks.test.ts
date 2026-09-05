@@ -11,7 +11,7 @@
  */
 
 import { execSync, spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import process from 'node:process';
@@ -339,6 +339,76 @@ describe('E2E: SessionStart Hooks', () => {
       expect(result.stderr).toContain('bun');
       expect(result.stderr).toContain('safety checks');
       expect(result.stderr).toContain('Install bun');
+    });
+
+    describe('when the host manages its toolchain with mise', () => {
+      // Hooks run non-interactively, so a customer whose shell rc does
+      // `mise activate` reaches this hook with no shims on PATH even though
+      // `bun` works in their terminal. Recommending a curl install there would
+      // plant a second, unmanaged bun that shadows their pinned one.
+      const runWithoutBun = (home: string, extraEnvironment: Record<string, string> = {}) =>
+        spawnSync('bash', ['.safeword/hooks/session-bun-check.sh'], {
+          cwd: shared.projectDirectory,
+          env: {
+            ...process.env,
+            CLAUDE_PROJECT_DIR: shared.projectDirectory,
+            HOME: home,
+            PATH: '/usr/bin:/bin',
+            MISE_DATA_DIR: '',
+            XDG_DATA_HOME: '',
+            ...extraEnvironment,
+          },
+          encoding: 'utf8',
+        });
+
+      it('points at the existing mise-managed bun instead of a competing install', () => {
+        const home = createTemporaryDirectory();
+        try {
+          const shims = nodePath.join(home, '.local/share/mise/shims');
+          mkdirSync(shims, { recursive: true });
+          writeTestFile(nodePath.join(shims, 'bun'), '#!/bin/sh\nexit 0\n');
+          chmodSync(nodePath.join(shims, 'bun'), 0o755);
+
+          const result = runWithoutBun(home);
+
+          expect(result.status).toBe(2);
+          expect(result.stderr).toContain('mise');
+          expect(result.stderr).toContain(shims);
+          expect(result.stderr).not.toContain('bun.sh/install');
+        } finally {
+          removeTemporaryDirectory(home);
+        }
+      });
+
+      it('recommends installing bun through mise when mise governs the project', () => {
+        const home = createTemporaryDirectory();
+        const miseConfig = nodePath.join(shared.projectDirectory, 'mise.toml');
+        try {
+          writeTestFile(miseConfig, '[tools]\nnode = "24"\n');
+
+          const result = runWithoutBun(home);
+
+          expect(result.status).toBe(2);
+          expect(result.stderr).toContain('mise use -g bun@latest');
+          expect(result.stderr).not.toContain('bun.sh/install');
+        } finally {
+          rmSync(miseConfig, { force: true });
+          removeTemporaryDirectory(home);
+        }
+      });
+
+      it('falls back to the standalone installer when nothing indicates mise', () => {
+        const home = createTemporaryDirectory();
+        try {
+          const result = runWithoutBun(home);
+
+          expect(result.status).toBe(2);
+          expect(result.stderr).toContain('bun.sh/install');
+          expect(result.stderr).not.toContain('mise');
+        } finally {
+          removeTemporaryDirectory(home);
+        }
+      });
     });
   });
 
