@@ -67,15 +67,46 @@ function digest(value: Buffer | string): string {
  */
 const adopted = new Set<string>();
 
-/** Move legacy state across a filesystem boundary when rename cannot. */
-function relocate(from: string, to: string): void {
+/**
+ * Move legacy state, falling back to a copy across a filesystem boundary.
+ *
+ * The copy lands on a staging sibling and is published with a rename, so the
+ * destination only ever appears complete. Copying straight into place looked
+ * equivalent and was not: a copy that failed partway (a full disk, an
+ * interrupted process) left a partial destination behind, and because adoption
+ * treats an existing destination as the newer authoritative state, the next run
+ * would delete the intact working-tree copy in its favour — destroying the
+ * durable cleanup transaction that is the only record a half-finished migration
+ * can be recovered from. Found by an independent review of the original fix.
+ *
+ * `rename` and `copy` are injectable so both failure modes can be exercised
+ * without a second filesystem or a permissions trick: a copy that dies partway,
+ * and a copy that completes but cannot be published. A crash between the two
+ * orphans one `*.partial` entry, which no reader resolves and the next attempt
+ * replaces.
+ */
+export function relocateLegacyState(
+  from: string,
+  to: string,
+  rename: (source: string, destination: string) => void = renameSync,
+  copy: (source: string, destination: string) => void = (source, destination) => {
+    cpSync(source, destination, { recursive: true, errorOnExist: true, force: false });
+  },
+): void {
   try {
-    renameSync(from, to);
+    rename(from, to);
     return;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'EXDEV') throw error;
   }
-  cpSync(from, to, { recursive: true, errorOnExist: true, force: false });
+  const staging = `${to}.${randomUUID()}.partial`;
+  try {
+    copy(from, staging);
+    rename(staging, to);
+  } catch (error) {
+    rmSync(staging, { recursive: true, force: true });
+    throw error;
+  }
   rmSync(from, { recursive: true, force: true });
 }
 
@@ -98,12 +129,33 @@ function adoptLegacyProjectState(cwd: string, directory: string): void {
       if (existsSync(destination)) rmSync(legacy, { recursive: true, force: true });
       else {
         mkdirSync(directory, { recursive: true, mode: 0o700 });
-        relocate(legacy, destination);
+        relocateLegacyState(legacy, destination);
       }
+      recordAdoption(directory, key);
     } catch {
       // A repository we cannot write to must not fail the session. The legacy
       // copy stays put and the next run tries again.
     }
+  }
+}
+
+/**
+ * Marks one key as adopted, so a legacy copy that survived removal is inert.
+ * Written in the data directory, which is necessarily writable at this point —
+ * the publish that precedes it just succeeded there.
+ */
+function adoptionReceipt(
+  directory: string,
+  key: keyof typeof CLAUDE_MIGRATION_SCHEMA.state,
+): string {
+  return nodePath.join(directory, `.adopted-${CLAUDE_MIGRATION_SCHEMA.state[key]}`);
+}
+
+function recordAdoption(directory: string, key: keyof typeof CLAUDE_MIGRATION_SCHEMA.state): void {
+  try {
+    writeDurableFile(adoptionReceipt(directory, key), '', { mode: 0o600 });
+  } catch {
+    // A missing receipt only costs a redundant reconciliation next run.
   }
 }
 
@@ -114,12 +166,36 @@ function stateDirectory(cwd: string): string {
   return directory;
 }
 
-/** Path of one per-project state entry. */
+/**
+ * Where one per-project state entry actually lives.
+ *
+ * Normally the plugin data directory, because adoption has already moved
+ * anything the working tree held. When adoption could not complete — an
+ * unwritable data directory, a full disk — it deliberately leaves the legacy
+ * bytes intact, and this resolves to them rather than to the empty new path.
+ * Retaining the source is worthless if no reader can find it: a stranded
+ * cleanup transaction would read as "no migration in progress", and a stranded
+ * marker would hide the preserved paths `delivery-schema.ts` reads from it.
+ *
+ * One resolver serves reads, writes and deletes, which is what makes the
+ * fallback safe: an exclusive create still collides with a stranded
+ * transaction instead of opening a second one beside it.
+ */
 export function claudeProjectStatePath(
   cwd: string,
   key: keyof typeof CLAUDE_MIGRATION_SCHEMA.state,
 ): string {
-  return nodePath.join(stateDirectory(cwd), CLAUDE_MIGRATION_SCHEMA.state[key]);
+  const directory = stateDirectory(cwd);
+  const adoptedPath = nodePath.join(directory, CLAUDE_MIGRATION_SCHEMA.state[key]);
+  if (existsSync(adoptedPath)) return adoptedPath;
+  // Adoption may publish the copy and still fail to remove the source, leaving
+  // both. Falling back on the source's mere presence would then resurrect it:
+  // deleting a completed transaction would make its stale twin read as pending
+  // again, and recovery would loop. The receipt records that this key was
+  // adopted, so a source that outlived its adoption never resolves again.
+  if (existsSync(adoptionReceipt(directory, key))) return adoptedPath;
+  const legacy = nodePath.join(cwd, CLAUDE_MIGRATION_SCHEMA.legacy[key]);
+  return existsSync(legacy) ? legacy : adoptedPath;
 }
 
 function attemptsPath(cwd: string): string {

@@ -1,4 +1,13 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -8,15 +17,18 @@ import { CLAUDE_PLUGIN_ID } from '../../src/claude-plugin/inventory.js';
 import {
   claudeProjectStatePath,
   readClaudePluginMode,
+  relocateLegacyState,
   writeClaudePluginMode,
 } from '../../src/claude-plugin/migration-state.js';
 import {
   claudePluginDataDirectory,
   claudePluginDataId,
+  claudeProjectStateDirectory,
   claudeProofDirectory,
 } from '../../src/claude-plugin/plugin-data.js';
 import { checkHealth } from '../../src/health.js';
 import { useIsolatedClaudePluginState } from '../helpers/claude-plugin-state.js';
+import { blockChildren } from '../helpers/io-failure.js';
 
 const roots: string[] = [];
 const digest = 'a'.repeat(64);
@@ -95,6 +107,129 @@ describe('Claude plugin session state placement (#3787)', () => {
     expect(readFileSync(claudeProjectStatePath(root, 'transaction'), 'utf8')).toContain('"t"');
     expect(existsSync(nodePath.join(legacy, 'plugin-mode-v2.json'))).toBe(false);
     expect(existsSync(nodePath.join(legacy, 'cleanup-transaction-v1.json'))).toBe(false);
+  });
+});
+
+describe('cross-filesystem adoption (#3787 review follow-up)', () => {
+  /** Forces the copy branch: every rename reports the state dir is another device. */
+  const crossDevice = (): never => {
+    const error: NodeJS.ErrnoException = new Error('EXDEV');
+    error.code = 'EXDEV';
+    throw error;
+  };
+
+  it('publishes nothing when the staging copy cannot be published', () => {
+    // Failure at the publish step: the copy completed into staging and the
+    // rename into place did not.
+    const root = temporary('safeword-relocate-partial-');
+    const from = nodePath.join(root, 'legacy');
+    const to = nodePath.join(root, 'adopted');
+    mkdirSync(from, { recursive: true });
+    writeFileSync(nodePath.join(from, 'cleanup-transaction-v1.json'), '{"transaction_id":"t"}\n');
+
+    expect(() => {
+      relocateLegacyState(from, to, crossDevice);
+    }).toThrow();
+
+    expect(existsSync(to)).toBe(false);
+    expect(existsSync(nodePath.join(from, 'cleanup-transaction-v1.json'))).toBe(true);
+    expect(readdirSync(root).filter(entry => entry.endsWith('.partial'))).toEqual([]);
+  });
+
+  it('publishes nothing when the copy itself fails partway', () => {
+    // The failure that motivated staging. Copying straight into the destination
+    // left a partial directory behind, and because adoption treats an existing
+    // destination as the newer authoritative state, the next run would delete
+    // the intact working-tree copy in its favour — losing the cleanup
+    // transaction that is the only record a half-finished migration recovers
+    // from. The injected copy writes part of the payload, then fails.
+    const root = temporary('safeword-relocate-partial-copy-');
+    const from = nodePath.join(root, 'legacy');
+    const to = nodePath.join(root, 'adopted');
+    mkdirSync(from, { recursive: true });
+    writeFileSync(nodePath.join(from, 'cleanup-transaction-v1.json'), '{"transaction_id":"t"}\n');
+    const copyHalfThenFail = (_source: string, destination: string): never => {
+      mkdirSync(destination, { recursive: true });
+      writeFileSync(nodePath.join(destination, 'cleanup-transaction-v1.json'), '{"transac');
+      throw new Error('ENOSPC: no space left on device');
+    };
+
+    expect(() => {
+      relocateLegacyState(from, to, crossDevice, copyHalfThenFail);
+    }).toThrow();
+
+    expect(existsSync(to)).toBe(false);
+    expect(readFileSync(nodePath.join(from, 'cleanup-transaction-v1.json'), 'utf8')).toContain(
+      '"t"',
+    );
+    expect(readdirSync(root).filter(entry => entry.endsWith('.partial'))).toEqual([]);
+  });
+
+  it('publishes the whole payload when the copy succeeds', () => {
+    const root = temporary('safeword-relocate-ok-');
+    const from = nodePath.join(root, 'legacy');
+    const to = nodePath.join(root, 'adopted');
+    mkdirSync(from, { recursive: true });
+    writeFileSync(nodePath.join(from, 'cleanup-transaction-v1.json'), '{"transaction_id":"t"}\n');
+    let renames = 0;
+    const crossDeviceOnce = (source: string, destination: string): void => {
+      renames += 1;
+      if (renames === 1) {
+        const error: NodeJS.ErrnoException = new Error('EXDEV');
+        error.code = 'EXDEV';
+        throw error;
+      }
+      renameSync(source, destination);
+    };
+
+    relocateLegacyState(from, to, crossDeviceOnce);
+
+    expect(readFileSync(nodePath.join(to, 'cleanup-transaction-v1.json'), 'utf8')).toContain('"t"');
+    expect(existsSync(from)).toBe(false);
+    expect(readdirSync(root).filter(entry => entry.endsWith('.partial'))).toEqual([]);
+  });
+});
+
+describe('adoption that cannot complete (#3787 review follow-up)', () => {
+  it('still resolves state left in the working tree', () => {
+    // Adoption leaves the legacy bytes alone when it cannot move them. Readers
+    // must follow: a stranded cleanup transaction that resolves to the empty
+    // adopted path reads as "no migration in progress", and the recovery record
+    // is invisible even though it survived. `blockChildren` occupies the state
+    // directory with a regular file so nothing can be created beneath it —
+    // permission bits would simulate nothing under uid 0.
+    const root = temporary('safeword-adoption-blocked-');
+    const legacy = nodePath.join(root, '.safeword/claude-plugin');
+    mkdirSync(legacy, { recursive: true });
+    writeFileSync(nodePath.join(legacy, 'cleanup-transaction-v1.json'), '{"transaction_id":"t"}\n');
+    blockChildren(claudeProjectStateDirectory(root));
+
+    const resolved = claudeProjectStatePath(root, 'transaction');
+
+    expect(readFileSync(resolved, 'utf8')).toContain('"t"');
+    expect(resolved.startsWith(root)).toBe(true);
+  });
+});
+
+describe('adoption receipts (#3787 review follow-up)', () => {
+  it('does not resurrect a legacy copy that outlived its adoption', () => {
+    // Adoption can publish and still fail to remove the source. Deleting the
+    // adopted transaction after a completed cleanup must not make the stale twin
+    // read as pending again — that would loop recovery forever.
+    const root = temporary('safeword-adoption-resurrect-');
+    const legacy = nodePath.join(root, '.safeword/claude-plugin');
+    mkdirSync(legacy, { recursive: true });
+    const legacyTransaction = nodePath.join(legacy, 'cleanup-transaction-v1.json');
+    writeFileSync(legacyTransaction, '{"transaction_id":"t"}\n');
+
+    const adopted = claudeProjectStatePath(root, 'transaction');
+    expect(readFileSync(adopted, 'utf8')).toContain('"t"');
+    // Simulate the source surviving removal, then a completed cleanup deleting
+    // the authoritative entry.
+    writeFileSync(legacyTransaction, '{"transaction_id":"t"}\n');
+    rmSync(adopted, { force: true });
+
+    expect(existsSync(claudeProjectStatePath(root, 'transaction'))).toBe(false);
   });
 });
 
