@@ -143,11 +143,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "c62b17a1c6223366be6fc5e449ab11e906834c55020b33326e264e662e9d3e97"
+      "sha256": "8b021410cb18eea9bfb9fd9495025436d4607e4ec6cc5e3c075449c27d8142df"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "81cef38fcda0638de383505f4eb11fe1ee27818045f619a72f66075e06147c7b"
+      "sha256": "3fe6521c800585c97125e5dc515ba4eff9874c43164250a2f61172b8f06c6580"
     },
     {
       "path": "runtime/event-groups.json",
@@ -334,10 +334,6 @@
       "sha256": "224925aa872ca6f91afcb6b182cbd18fedd1ed4dd27d2fec13248bae472341fe"
     },
     {
-      "path": "runtime/hooks/lib/read-receipt.ts",
-      "sha256": "6a72638e664174b49e1c8a5459a686fdb2ded16dc4859da1e4c8f69c8264579e"
-    },
-    {
       "path": "runtime/hooks/lib/readiness-pointer.ts",
       "sha256": "83b589de37027e17cf2477fd6f77607aab7b28948173385fc0bed1866fa043f4"
     },
@@ -375,11 +371,7 @@
     },
     {
       "path": "runtime/hooks/lib/review-ledger.ts",
-      "sha256": "21bb54aa861375c97592946e4335551b057a839428cb10e2cfd266a2312ea4a7"
-    },
-    {
-      "path": "runtime/hooks/lib/review-receipt.ts",
-      "sha256": "e205c293de97c576a5d83f89ca51d6d9a9ef082e6f8bd7449a6f20c375e3f418"
+      "sha256": "1f3724f92558ffbe4077c012573c1cb30660f67867a0b3682b8aeb18a2c69a6d"
     },
     {
       "path": "runtime/hooks/lib/review-trigger.ts",
@@ -424,10 +416,6 @@
     {
       "path": "runtime/hooks/lib/update-cache.ts",
       "sha256": "3f6531ae313e372d87cd48b04f2ec6f9ca827a431fca4032bcd085edff1c600f"
-    },
-    {
-      "path": "runtime/hooks/lib/verify-stamp-claims.ts",
-      "sha256": "7cab1fa2deb53a57d4cb8da28d26534e0e87ed0eb5278994f04ae2ebb2f40d59"
     },
     {
       "path": "runtime/hooks/lib/version.ts",
@@ -483,7 +471,7 @@
     },
     {
       "path": "runtime/hooks/pre-tool-quality.ts",
-      "sha256": "1b7d431f529afdadf4610dcf82995763d75203119ac72e7b816537ce5c24ef12"
+      "sha256": "bbaec3bc6c07fae1d747d7b901d89e1386212ff1ffa997fb9bfd2f3dcf322b9c"
     },
     {
       "path": "runtime/hooks/pre-tool-stale-main.ts",
@@ -519,7 +507,7 @@
     },
     {
       "path": "runtime/hooks/run-review.ts",
-      "sha256": "5c60750f9ee2e2cd7ebc78472bfcaa145def9352c437041f1618ba349ef3b29f"
+      "sha256": "b9676ad0d742502ab540c0a37ff15abd613675f26e4aa93e0deed23011e4487f"
     },
     {
       "path": "runtime/hooks/session-architecture-heal.ts",
@@ -579,7 +567,7 @@
     },
     {
       "path": "runtime/hooks/stop-quality.ts",
-      "sha256": "f31bd62bffff22ede98e3df3cc1179ee321f48f394566bcd56d190dd3389d67d"
+      "sha256": "035b4c52500e3225341bb406ba82bc6f314e1b62c7f0cf2b7f46d60af423faf0"
     },
     {
       "path": "runtime/hooks/stop-reentry.ts",
@@ -599,7 +587,7 @@
     },
     {
       "path": "runtime/hooks/write-review-stamp.ts",
-      "sha256": "00f78aab0f760e250336a7b30b7bfe508f6cd443f2c1d7c7117b9d58bf14e5d9"
+      "sha256": "3a287df75eff8137ca7626c4b73bb1f08edcd4d187244d2c13136518fd40a42a"
     },
     {
       "path": "skills/audit/SKILL.md",
@@ -615,7 +603,7 @@
     },
     {
       "path": "skills/bdd/PLAN_IMPLEMENTATION.md",
-      "sha256": "76a20577409fb9d514b06f84a8c3e37ef4f2bf3d2d30f42300713cc1cde80d9e"
+      "sha256": "81e8b5df1328ab87154e7639e81c3b4d56ad3b1473b183f3d9284c35efa49193"
     },
     {
       "path": "skills/bdd/SCENARIOS.md",
@@ -631,7 +619,7 @@
     },
     {
       "path": "skills/bdd/TDD.md",
-      "sha256": "7ebc4d5494c17b2c6536c5eaaf154a08053fe3f5c3c7fd210e1ebe2b01bb0b08"
+      "sha256": "16f6bb450aff9f896842f7e9d9f01c769e0c07cddd026c2d6a1697da07358932"
     },
     {
       "path": "skills/bdd/VERIFY.md",
@@ -703,7 +691,7 @@
     },
     {
       "path": "skills/review-spec/SKILL.md",
-      "sha256": "6f7db49984af9e3aaa48d3ae54a92b9547ea5af6c552fee7b8d85d866a0f8898"
+      "sha256": "945c1bb549fca025bbed809759d57ca690aac6ca0a36a523ea9046a9c36ccd2a"
     },
     {
       "path": "skills/self-review/SKILL.md",
