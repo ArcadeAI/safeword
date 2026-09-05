@@ -356,6 +356,7 @@ describe('E2E: SessionStart Hooks', () => {
             PATH: '/usr/bin:/bin',
             MISE_DATA_DIR: '',
             XDG_DATA_HOME: '',
+            ZDOTDIR: '',
             ...extraEnvironment,
           },
           encoding: 'utf8',
@@ -440,6 +441,24 @@ describe('E2E: SessionStart Hooks', () => {
           expect(resolved.stdout.trim()).toBe(nodePath.join(shims, 'bun'));
         } finally {
           removeTemporaryDirectory(enclosing);
+        }
+      });
+
+      it('targets the zsh startup directory the host actually reads', () => {
+        const home = createTemporaryDirectory();
+        try {
+          const shims = nodePath.join(home, '.local/share/mise/shims');
+          mkdirSync(shims, { recursive: true });
+          writeTestFile(shims, 'bun', '#!/bin/sh\nexit 0\n');
+          chmodSync(nodePath.join(shims, 'bun'), 0o755);
+          const zdotdir = nodePath.join(home, 'dotfiles');
+          mkdirSync(zdotdir, { recursive: true });
+
+          const result = runWithoutBun(home, { SHELL: '/bin/zsh', ZDOTDIR: zdotdir });
+
+          expect(result.stderr).toContain(nodePath.join(zdotdir, '.zprofile'));
+        } finally {
+          removeTemporaryDirectory(home);
         }
       });
 

@@ -43,15 +43,26 @@ print_path_repair() {
   # home directory containing spaces, which an absolute path would not.
   # shellcheck disable=SC2088 # printed for the user to paste, never used as a path here
   case "${SHELL##*/}" in
-    zsh) profile="~/.zprofile" ;;
+    # zsh reads its startup files from $ZDOTDIR when the host exports one.
+    zsh)
+      if [ -n "${ZDOTDIR:-}" ]; then
+        profile="$ZDOTDIR/.zprofile"
+      else
+        profile="~/.zprofile"
+      fi
+      ;;
     bash) profile="~/.bash_profile" ;;
     *) profile="" ;;
   esac
-  # A path holding shell metacharacters cannot be embedded in a pasteable
-  # command safely: a quote breaks the paste, and $ or ` would expand when the
-  # profile is loaded. Describe the step rather than emit something that fails.
+  # Neither path may hold shell metacharacters: a quote breaks the paste, and $
+  # or ` would expand when the profile is loaded. Describe the step rather than
+  # emit something that fails.
   case "$MISE_SHIMS" in
     *[\'\"\$\`\\]*) profile="" ;;
+  esac
+  # The redirection target is unquoted, so a space disqualifies it too.
+  case "$profile" in
+    *[\'\"\$\`\\\ ]*) profile="" ;;
   esac
 
   if [ -n "$profile" ]; then
