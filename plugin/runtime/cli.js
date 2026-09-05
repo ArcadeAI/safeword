@@ -53542,82 +53542,13 @@ var init_local_retro_readiness_manifest = __esm(() => {
 });
 
 // src/retro/local-retro-readiness.ts
-import { createHash as createHash29 } from "crypto";
-function hasAuthoritativeProductionEvidence() {
+function validateLocalRetroReadiness(_manifest, _input) {
   return false;
 }
-function harnessBuildIsCurrent(buildCommit, manifest, input) {
-  return COMMIT.test(buildCommit) && (buildCommit === manifest.evidenceCommit || input.ancestorPairs.some((pair) => pair.ancestor === buildCommit && pair.descendant === manifest.evidenceCommit));
-}
-function receiptPairIsValid(evidence) {
-  return UUID2.test(evidence.collectorReceipt) && UUID2.test(evidence.relayReceipt) && evidence.collectorReceipt !== evidence.relayReceipt;
-}
-function validHarnessEvidence(harness, evidence, manifest, input) {
-  const expectedArtifactDigest = createHash29("sha256").update([
-    "local-retro-canary:v1",
-    harness,
-    evidence.buildCommit,
-    evidence.requestId,
-    evidence.sessionScope,
-    evidence.collectorReceipt,
-    evidence.relayReceipt,
-    evidence.terminal
-  ].join("\x00")).digest("hex");
-  const requestIdentityIsValid = UUID2.test(evidence.requestId) && DIGEST.test(evidence.sessionScope);
-  return evidence.hostClass === "local" && harnessBuildIsCurrent(evidence.buildCommit, manifest, input) && receiptPairIsValid(evidence) && requestIdentityIsValid && evidence.artifactDigest === expectedArtifactDigest && ["duplicate", "filed"].includes(evidence.terminal);
-}
-function allUnique(values) {
-  return new Set(values).size === values.length;
-}
-function validHarnesses(manifest, input) {
-  const harnesses = Object.entries(manifest.harnesses);
-  if (harnesses.some(([harness, evidence]) => !validHarnessEvidence(harness, evidence, manifest, input))) {
-    return false;
-  }
-  const evidenceValues = harnesses.map(([, evidence]) => evidence);
-  return allUnique(evidenceValues.map((evidence) => evidence.requestId)) && allUnique(evidenceValues.map((evidence) => evidence.sessionScope)) && allUnique(evidenceValues.map((evidence) => evidence.artifactDigest));
-}
-function manifestBuildIsAncestor(manifest, input) {
-  return manifest.evidenceCommit === input.buildCommit || input.ancestorPairs.some((pair) => pair.ancestor === manifest.evidenceCommit && pair.descendant === input.buildCommit);
-}
-function validReviewWindow(manifest, now) {
-  const reviewedAt = new Date(manifest.reviewedAt);
-  return COMMIT.test(manifest.evidenceCommit) && !Number.isNaN(reviewedAt.getTime()) && reviewedAt <= now && now.getTime() - reviewedAt.getTime() <= 30 * 86400000;
-}
-function hasEvidenceCollections(manifest) {
-  return typeof manifest.harnesses === "object" && manifest.harnesses !== null && typeof manifest.recoveredFaults === "object" && manifest.recoveredFaults !== null;
-}
-function readinessPrerequisites(manifest, input) {
-  return manifest.enabled && input.relayReady && COMMIT.test(input.buildCommit) && hasAuthoritativeProductionEvidence();
-}
-function validateLocalRetroReadiness(manifest, input) {
-  if (!readinessPrerequisites(manifest, input))
-    return false;
-  if (!validReviewWindow(manifest, input.now) || !manifestBuildIsAncestor(manifest, input))
-    return false;
-  if (!hasEvidenceCollections(manifest))
-    return false;
-  const harnessKeys = Object.keys(manifest.harnesses).toSorted((left, right) => left.localeCompare(right));
-  if (harnessKeys.join("\x00") !== ["claude-code", "codex", "cursor"].join("\x00"))
-    return false;
-  if (!validHarnesses(manifest, input))
-    return false;
-  const faultKeys = Object.keys(manifest.recoveredFaults).toSorted((left, right) => left.localeCompare(right));
-  return faultKeys.join("\x00") === [
-    "ambiguousCreateMatch",
-    "ambiguousCreateNoMatch",
-    "claimCrash",
-    "retryExhaustion",
-    "workerOutage"
-  ].join("\x00") && Object.values(manifest.recoveredFaults).every((value) => DIGEST.test(value));
-}
-var CHECKED_IN_LOCAL_RETRO_READINESS, COMMIT, DIGEST, UUID2;
+var CHECKED_IN_LOCAL_RETRO_READINESS;
 var init_local_retro_readiness = __esm(() => {
   init_local_retro_readiness_manifest();
   CHECKED_IN_LOCAL_RETRO_READINESS = local_retro_readiness_manifest_default;
-  COMMIT = /^[\da-f]{40}$/u;
-  DIGEST = /^[\da-f]{64}$/u;
-  UUID2 = /^[\da-f]{8}-[\da-f]{4}-[1-5][\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/u;
 });
 
 // ../../node_modules/.bun/boundary@2.0.0/node_modules/boundary/lib/index.js
@@ -59318,9 +59249,9 @@ var init_finding = __esm(() => {
 });
 
 // src/retro/hash.ts
-import { createHash as createHash30 } from "crypto";
+import { createHash as createHash29 } from "crypto";
 function shortHash(material) {
-  return createHash30("sha256").update(material).digest("hex").slice(0, 12);
+  return createHash29("sha256").update(material).digest("hex").slice(0, 12);
 }
 var init_hash = () => {};
 
@@ -59420,7 +59351,7 @@ var init_pipeline = __esm(() => {
 });
 
 // src/retro/public-delivery.ts
-import { createHash as createHash31 } from "crypto";
+import { createHash as createHash30 } from "crypto";
 import { mkdirSync as mkdirSync19, readFileSync as readFileSync69, renameSync as renameSync12, unlinkSync as unlinkSync6, writeFileSync as writeFileSync25 } from "fs";
 import path5 from "path";
 function containsControlCharacter(value) {
@@ -59443,10 +59374,10 @@ function validSourceRoute(source) {
 }
 function isValidEnvelopeInput(input, projectUUID, version2) {
   const { source } = input;
-  return UUID3.test(projectUUID) && input.findings.length > 0 && input.findings.every((finding) => finding.trim() !== "") && input.sessionId.trim() !== "" && (input.windowStart === undefined || Number.isSafeInteger(input.windowStart) && input.windowStart >= 0) && (version2 === "v3" ? source.hostClass === "local" : validSourceRoute(source));
+  return UUID2.test(projectUUID) && input.findings.length > 0 && input.findings.every((finding) => finding.trim() !== "") && input.sessionId.trim() !== "" && (input.windowStart === undefined || Number.isSafeInteger(input.windowStart) && input.windowStart >= 0) && (version2 === "v3" ? source.hostClass === "local" : validSourceRoute(source));
 }
 function deriveSessionScope(harness, projectUUID, sessionId, windowStart) {
-  const hash = createHash31("sha256").update("safeword-retro-session-scope:v1\x00").update(harness).update("\x00").update(projectUUID).update("\x00").update(sessionId);
+  const hash = createHash30("sha256").update("safeword-retro-session-scope:v1\x00").update(harness).update("\x00").update(projectUUID).update("\x00").update(sessionId);
   if (windowStart > 0)
     hash.update("\x00window\x00").update(String(windowStart));
   return hash.digest("hex");
@@ -59496,7 +59427,7 @@ function claimPublicRetroRequest(built, dependencies) {
   if (built.bytes.byteLength > LEGACY_MAX_ENVELOPE_BYTES)
     return;
   const requestId = dependencies.randomUUID().toLowerCase();
-  if (!UUID3.test(requestId))
+  if (!UUID2.test(requestId))
     throw new Error("Invalid public retrospective request identity");
   const markerPath2 = path5.join(dependencies.attemptsDirectory, `${built.sessionScope}.json`);
   try {
@@ -59683,10 +59614,10 @@ function deliverSanitizedPublicRetroFindings(input, dependencies, preparationDea
     return Promise.resolve("abandoned");
   }
 }
-var UUID3, UUID_V4, LEGACY_MAX_ENVELOPE_BYTES = 65536, SERVER_MAX_ENVELOPE_BYTES = 262144, MAX_OPTIONAL_VALUE_BYTES = 256;
+var UUID2, UUID_V4, LEGACY_MAX_ENVELOPE_BYTES = 65536, SERVER_MAX_ENVELOPE_BYTES = 262144, MAX_OPTIONAL_VALUE_BYTES = 256;
 var init_public_delivery = __esm(() => {
   init_finding();
-  UUID3 = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+  UUID2 = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
   UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 });
 
@@ -60114,7 +60045,7 @@ var init_durable_fs = __esm(() => {
 });
 
 // src/retro/relay-delivery.ts
-import { createHash as createHash32, randomUUID as randomUUID12 } from "crypto";
+import { createHash as createHash31, randomUUID as randomUUID12 } from "crypto";
 import { access, readdir, readFile as readFile2, stat as stat2, unlink as unlink2 } from "fs/promises";
 import path7 from "path";
 function normalizeRelayOrigin(value) {
@@ -60151,10 +60082,10 @@ function relaySourcePayloadDigest(request) {
     repository: request.repository,
     title: request.title
   };
-  return createHash32("sha256").update(JSON.stringify(payload)).digest("hex");
+  return createHash31("sha256").update(JSON.stringify(payload)).digest("hex");
 }
 function relayRequestDigest(request) {
-  return createHash32("sha256").update(JSON.stringify(request)).digest("hex");
+  return createHash31("sha256").update(JSON.stringify(request)).digest("hex");
 }
 function createRelayRequest(input, dependencies) {
   const createdAt = (dependencies?.now ?? Date.now)();
@@ -60166,7 +60097,7 @@ function createRelayRequest(input, dependencies) {
   };
 }
 function relaySourceKey(sessionIdentity, windowStart, payload) {
-  return createHash32("sha256").update(`relay-source-v3\x00${sessionIdentity}\x00${windowStart}\x00${relaySourcePayloadDigest(payload)}`).digest("hex");
+  return createHash31("sha256").update(`relay-source-v3\x00${sessionIdentity}\x00${windowStart}\x00${relaySourcePayloadDigest(payload)}`).digest("hex");
 }
 function relayDirectory(projectDirectory) {
   return path7.join(projectDirectory, ".safeword", "retro-drafts", "relay");
@@ -60206,7 +60137,7 @@ function discardIntentTokenPath(projectDirectory, requestId, token) {
   return path7.join(relayDirectory(projectDirectory), `${requestId}.discarding.${token}.json`);
 }
 function sourcePath(projectDirectory, sourceKey, suffix) {
-  const key = createHash32("sha256").update(sourceKey).digest("hex");
+  const key = createHash31("sha256").update(sourceKey).digest("hex");
   return path7.join(relayDirectory(projectDirectory), `source-${key}${suffix}.json`);
 }
 function sourceReservationPath(projectDirectory, sourceKey) {
@@ -61881,7 +61812,7 @@ var init_relay_readiness_manifest = __esm(() => {
 });
 
 // src/retro/relay-readiness.ts
-import { createHash as createHash33 } from "crypto";
+import { createHash as createHash32 } from "crypto";
 function validDate(value) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) || date.toISOString() !== value ? undefined : date;
@@ -62013,7 +61944,7 @@ function matchesAttestedManifest(manifest, attestation) {
   try {
     const bytes = Buffer.from(attestation.manifestBase64, "base64");
     const parsed2 = JSON.parse(bytes.toString("utf8"));
-    return createHash33("sha256").update(bytes).digest("hex") === attestation.manifestSha256 && JSON.stringify(parsed2) === JSON.stringify(manifest);
+    return createHash32("sha256").update(bytes).digest("hex") === attestation.manifestSha256 && JSON.stringify(parsed2) === JSON.stringify(manifest);
   } catch {
     return false;
   }
@@ -62033,7 +61964,7 @@ function validateBuildAttestedRelayReadiness(manifest, attestation, now) {
         return Promise.resolve(undefined);
       }
       const bytes = Buffer.from(artifact.contentBase64, "base64");
-      const sha2567 = createHash33("sha256").update(bytes).digest("hex");
+      const sha2567 = createHash32("sha256").update(bytes).digest("hex");
       return Promise.resolve(sha2567 === artifact.sha256 ? { content: bytes.toString("utf8"), sha256: sha2567 } : undefined);
     }
   });
@@ -62495,6 +62426,9 @@ function relayPersistenceErrorMessage(persistence, spoolFailed) {
     return fallback;
   return `retro relay could not durably persist ${spoolFailed} ${noun}; request ${requestId} is corrupt. Inspect it with \`safeword retro-relay-retry\`; only if intentionally abandoning it, run \`safeword retro-relay-discard ${requestId} --confirm\`.`;
 }
+function serverRecoveryNeeded(findingCount, outcome) {
+  return findingCount > 0 && outcome !== "preserved";
+}
 async function runRetro(options, dependencies) {
   if (!options.transcript) {
     return {
@@ -62566,7 +62500,7 @@ async function runRetro(options, dependencies) {
         filedSignatures: [],
         filedDestinations: []
       },
-      agentFilingNeeded: publicOutcome !== "preserved",
+      agentFilingNeeded: serverRecoveryNeeded(findings.length, publicOutcome),
       drops
     };
   }
@@ -62960,8 +62894,8 @@ function renderDropReport(drops) {
 }
 function reportRetroCommandOutcome(outcome, options) {
   const { error: error2, info: info2, success: success2 } = options.output;
-  reportRelayOutcome(outcome, options.output, outcome.ok);
   if (!outcome.ok) {
+    reportRelayOutcome(outcome, options.output, false);
     error2(outcome.errorMessage ?? "safeword retro failed");
     process17.exitCode = 1;
     return;
@@ -62971,6 +62905,7 @@ function reportRetroCommandOutcome(outcome, options) {
     process17.exitCode = 1;
     return;
   }
+  reportRelayOutcome(outcome, options.output, true);
   if (outcome.relay !== undefined)
     return;
   const r = outcome.result;
