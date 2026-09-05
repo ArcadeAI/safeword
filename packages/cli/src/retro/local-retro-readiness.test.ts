@@ -61,6 +61,7 @@ function readinessFixture(): {
     },
     input: {
       ancestorPairs: [{ ancestor: evidenceCommit, descendant: buildCommit }],
+      authoritativeEvidenceVerified: true,
       buildCommit,
       now: new Date('2026-08-29T01:00:00.000Z'),
       relayReady: true,
@@ -69,13 +70,13 @@ function readinessFixture(): {
 }
 
 describe('local retro readiness', () => {
-  it('keeps rollout disabled when committed evidence lacks authoritative provenance', () => {
+  it('accepts complete evidence after the authority boundary verifies its provenance', () => {
     const { input, manifest } = readinessFixture();
 
-    expect(validateLocalRetroReadiness(manifest, input)).toBe(false);
+    expect(validateLocalRetroReadiness(manifest, input)).toBe(true);
   });
 
-  it('keeps rollout disabled at the reviewed evidence commit', () => {
+  it('accepts a running build at the reviewed evidence commit', () => {
     const { input, manifest } = readinessFixture();
 
     expect(
@@ -83,6 +84,17 @@ describe('local retro readiness', () => {
         ...input,
         ancestorPairs: [],
         buildCommit: evidenceCommit,
+      }),
+    ).toBe(true);
+  });
+
+  it('rejects committed evidence without authoritative production provenance', () => {
+    const { input, manifest } = readinessFixture();
+
+    expect(
+      validateLocalRetroReadiness(manifest, {
+        ...input,
+        authoritativeEvidenceVerified: false,
       }),
     ).toBe(false);
   });

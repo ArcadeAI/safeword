@@ -40,7 +40,7 @@ done_when:
   - A crash after collector claim but before relay acceptance expires the lease and recovers the same request exactly once.
   - Build-attested evidence correlates each real harness's durable local request identity and session scope with the collector and terminal relay receipt.
   - Legacy collector rows are never leased, and quota overflow remains durably queued rather than creating unbounded GitHub issues.
-  - Cursor Cloud Agent metadata produces a cloud host class and cannot satisfy the local readiness gate; absence of its managed-runtime socket identifies local Cursor.
+  - Cursor Cloud Agent metadata produces a non-local host classification and cannot satisfy the local readiness gate; absence of its managed-runtime socket identifies local Cursor.
   - Maintainer canary runs prove the real server-owned path before the global default changes.
 inspiration_contract: v1
 inspiration_contract_scaffold: v1

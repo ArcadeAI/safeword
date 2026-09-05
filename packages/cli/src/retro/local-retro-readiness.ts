@@ -46,10 +46,6 @@ const UUID = /^[\da-f]{8}-[\da-f]{4}-[1-5][\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12
 // signature or another independently verifiable provenance record. Keep this
 // rollout gate closed until that authority exists; committed digests alone are
 // not evidence of production behavior.
-function hasAuthoritativeProductionEvidence(): boolean {
-  return false;
-}
-
 function harnessBuildIsCurrent(
   buildCommit: string,
   manifest: LocalRetroReadinessManifest,
@@ -168,9 +164,9 @@ function readinessPrerequisites(
 ): manifest is LocalRetroReadinessManifest {
   return (
     manifest.enabled &&
+    input.authoritativeEvidenceVerified &&
     input.relayReady &&
-    COMMIT.test(input.buildCommit) &&
-    hasAuthoritativeProductionEvidence()
+    COMMIT.test(input.buildCommit)
   );
 }
 
@@ -178,6 +174,7 @@ export function validateLocalRetroReadiness(
   manifest: DisabledManifest | LocalRetroReadinessManifest,
   input: {
     ancestorPairs: readonly { ancestor: string; descendant: string }[];
+    authoritativeEvidenceVerified: boolean;
     buildCommit: string;
     now: Date;
     relayReady: boolean;

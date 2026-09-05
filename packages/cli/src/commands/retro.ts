@@ -310,6 +310,13 @@ function relayPersistenceErrorMessage(
   return `retro relay could not durably persist ${spoolFailed} ${noun}; request ${requestId} is corrupt. Inspect it with \`safeword retro-relay-retry\`; only if intentionally abandoning it, run \`safeword retro-relay-discard ${requestId} --confirm\`.`;
 }
 
+function serverRecoveryNeeded(
+  findingCount: number,
+  outcome: PublicRetroDeliveryOutcome | undefined,
+): boolean {
+  return findingCount > 0 && outcome !== 'preserved';
+}
+
 /**
  * Deterministic retro core. Never guesses the transcript path; fails loudly and
  * files nothing when it is missing or unreadable.
@@ -413,7 +420,7 @@ export async function runRetro(
         filedSignatures: [],
         filedDestinations: [],
       },
-      agentFilingNeeded: publicOutcome !== 'preserved',
+      agentFilingNeeded: serverRecoveryNeeded(findings.length, publicOutcome),
       drops,
     };
   }
@@ -1055,8 +1062,8 @@ export function reportRetroCommandOutcome(
   },
 ): void {
   const { error, info, success } = options.output;
-  reportRelayOutcome(outcome, options.output, outcome.ok);
   if (!outcome.ok) {
+    reportRelayOutcome(outcome, options.output, false);
     error(outcome.errorMessage ?? 'safeword retro failed');
     process.exitCode = 1;
     return;
@@ -1066,6 +1073,8 @@ export function reportRetroCommandOutcome(
     process.exitCode = 1;
     return;
   }
+
+  reportRelayOutcome(outcome, options.output, true);
 
   if (outcome.relay !== undefined) return;
 
@@ -1323,6 +1332,9 @@ export function resolvePublicRetroRoute(input: {
     input.serverReady ??
     validateLocalRetroReadiness(CHECKED_IN_LOCAL_RETRO_READINESS, {
       ancestorPairs: SAFEWORD_RELAY_BUILD_ATTESTATION.ancestorPairs,
+      // No production authority verifier is wired yet. Committed hashes alone
+      // cannot authorize local cutover.
+      authoritativeEvidenceVerified: false,
       buildCommit: SAFEWORD_BUILD_COMMIT,
       now: new Date(),
       relayReady: CHECKED_IN_RELAY_READINESS.enabled && SAFEWORD_RELAY_BUILD_ATTESTATION.enabled,

@@ -25,6 +25,8 @@ interface StoredServerRetro {
   project_uuid: string;
 }
 
+type ClaimCandidate = Omit<StoredServerRetro, 'raw_body'>;
+
 export class PublicRetroConflict extends Error {}
 export class PublicRetroQuotaExceeded extends Error {}
 
@@ -187,7 +189,7 @@ export class PublicRetroStore {
     }
   }
 
-  private hasFilingCapacity(stored: StoredServerRetro, now: number): boolean {
+  private hasFilingCapacity(stored: ClaimCandidate, now: number): boolean {
     const existing = this.#database
       .prepare('SELECT request_id FROM filing_reservations WHERE request_id = ?')
       .get(stored.request_id);
@@ -205,7 +207,7 @@ export class PublicRetroStore {
     return project.count < this.#projectFilingLimitPerHour;
   }
 
-  private deadLetterQuotaBlocked(stored: StoredServerRetro, now: number): boolean {
+  private deadLetterQuotaBlocked(stored: ClaimCandidate, now: number): boolean {
     if (Date.parse(stored.accepted_at) > now - 86_400_000) return false;
     const deadLetteredAt = new Date(now).toISOString();
     this.#database
@@ -292,7 +294,7 @@ export class PublicRetroStore {
     try {
       const candidates = this.#database
         .prepare(
-          `SELECT request_id, raw_body, receipt, accepted_at, body_digest, project_uuid,
+          `SELECT request_id, receipt, accepted_at, body_digest, project_uuid,
                   attempts, next_attempt_at
              FROM server_retros
             WHERE completed_at IS NULL
@@ -301,12 +303,15 @@ export class PublicRetroStore {
               AND (lease_token IS NULL OR lease_expires_at <= ?)
             ORDER BY next_attempt_at, accepted_at, request_id`,
         )
-        .all(now, now) as unknown as StoredServerRetro[];
-      const stored = candidates.find(candidate => {
-        if (this.hasFilingCapacity(candidate, now)) return true;
+        .iterate(now, now) as IterableIterator<ClaimCandidate>;
+      let stored: ClaimCandidate | undefined;
+      for (const candidate of candidates) {
+        if (this.hasFilingCapacity(candidate, now)) {
+          stored = candidate;
+          break;
+        }
         this.deadLetterQuotaBlocked(candidate, now);
-        return false;
-      });
+      }
       if (stored === undefined) {
         this.#database.exec('COMMIT;');
         return undefined;
@@ -329,10 +334,13 @@ export class PublicRetroStore {
           'INSERT INTO payload_access_audit (request_id, principal, accessed_at) VALUES (?, ?, ?)',
         )
         .run(stored.request_id, 'collector-worker', new Date(now).toISOString());
+      const payload = this.#database
+        .prepare('SELECT raw_body FROM server_retros WHERE request_id = ?')
+        .get(stored.request_id) as { raw_body: Uint8Array };
       this.#database.exec('COMMIT;');
       return {
         acceptedAt: stored.accepted_at,
-        bodyBase64: Buffer.from(stored.raw_body).toString('base64'),
+        bodyBase64: Buffer.from(payload.raw_body).toString('base64'),
         digest: stored.body_digest,
         leaseToken,
         receipt: stored.receipt,
