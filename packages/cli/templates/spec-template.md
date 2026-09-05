@@ -13,7 +13,7 @@
 
 ### <slug>.<persona-code>1 — <job title>
 
-**Persona:** <canonical persona>
+**Persona:** <canonical persona> (`<persona-code>`)
 
 > When I <situation>, I want <motivation>, so I can <outcome>.
 
@@ -28,12 +28,7 @@
 
 ## Killer Demo
 
-- **Audience:** <canonical persona>
-- **Starting state:** <recognizable before-state>
-- **Action:** <shortest credible action>
-- **Payoff:** <persona-facing result>
-- **Proof:** <what makes the payoff observable>
-- **Boundary:** <what the demo deliberately does not prove>
+> For <audience> starting with <real pain>, <decisive action> produces <unmistakably better outcome>, visibly proven by <evidence>, within <boundary>.
 
 ## Surfaces
 

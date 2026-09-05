@@ -1,13 +1,10 @@
 /**
  * R8.1 (ticket Y2HCNJ, slice D) — DISCOVERY.md Phase 0 documents an
- * "Author Jobs To Be Done" sub-step positioned after "Load project
- * glossary" and before "Understanding", in BOTH the canonical template
- * and this repo's dogfood copy (canonical-first discipline; dogfood-parity
- * keeps them in sync).
+ * "Jobs To Be Done" section inside the full Product Plan, after glossary
+ * loading and before "Understanding", in BOTH the canonical template
+ * and this repo's dogfood copy. Separate parity checks own byte equality.
  *
- * Doc-presence test: the agent reads DISCOVERY.md at intake start, so the
- * authoring instruction living in the file IS the shipped behavior. Run
- * from packages/cli (cwd), per the project's vitest convention.
+ * Doc-presence test only: this does not prove packaging or model compliance.
  */
 
 import { readFileSync } from 'node:fs';
@@ -29,21 +26,29 @@ describe.each([
 ])('DISCOVERY.md JTBD sub-step — %s', (_label, filePath) => {
   const content = readFileSync(filePath, 'utf8');
 
-  it('has an "Author Jobs To Be Done" sub-step between glossary loading and Understanding', () => {
+  it('places Jobs To Be Done inside the full Product Plan after glossary loading', () => {
     const glossaryAt = content.indexOf('## Load project glossary');
-    const jtbdAt = content.indexOf('## Author Jobs To Be Done');
+    const planAt = content.indexOf('## Full Product Plan');
+    const jtbdAt = content.indexOf('### Jobs To Be Done');
+    const shapeAt = content.indexOf('### Shape');
     const understandingAt = content.indexOf('## Understanding');
-    expect(jtbdAt).toBeGreaterThan(-1);
-    expect(jtbdAt).toBeGreaterThan(glossaryAt);
-    expect(jtbdAt).toBeLessThan(understandingAt);
+    expect(glossaryAt).toBeGreaterThan(-1);
+    expect(planAt).toBeGreaterThan(glossaryAt);
+    expect(jtbdAt).toBeGreaterThan(planAt);
+    expect(shapeAt).toBeGreaterThan(jtbdAt);
+    expect(understandingAt).toBeGreaterThan(shapeAt);
   });
 
   it('references the one-persona-per-JTBD rule and the pause-and-confirm step', () => {
-    const jtbdSection = content.slice(
-      content.indexOf('## Author Jobs To Be Done'),
-      content.indexOf('## Understanding'),
-    );
-    expect(jtbdSection).toMatch(/one persona/i);
-    expect(jtbdSection).toMatch(/pause|confirm/i);
+    const start = content.indexOf('### Jobs To Be Done');
+    const end = content.indexOf('### Shape');
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    // Matched by shape, not by sentence: the surrounding prose is edited often
+    // (#3688 reworded this very line to "pause once ... as a set"), and an exact
+    // string here turns every wording change into a spurious failure.
+    const jtbdSection = content.slice(start, end);
+    expect(jtbdSection).toMatch(/one persona/iu);
+    expect(jtbdSection).toMatch(/pause|confirm/iu);
   });
 });
