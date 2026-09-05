@@ -59438,6 +59438,10 @@ function claimPublicRetroRequest(built, dependencies) {
   if (dependencies.route === "server-v3") {
     return claimServerPublicRetroRequest(built, dependencies);
   }
+  const prepared = claimDirectPublicRetroRequest(built, dependencies);
+  return prepared === undefined ? { kind: "unavailable" } : { kind: "prepared", prepared };
+}
+function claimDirectPublicRetroRequest(built, dependencies) {
   if (built.bytes.byteLength > MAX_ENVELOPE_BYTES)
     return;
   const requestId = dependencies.randomUUID().toLowerCase();
@@ -59468,7 +59472,7 @@ function readServerAttempt(markerPath2, built) {
       return { kind: "blocked" };
     }
     if (record2.state === "accepted")
-      return { kind: "blocked" };
+      return { kind: "accepted" };
     if (record2.state !== "pending" || typeof record2.requestId !== "string" || typeof record2.bodyBase64 !== "string") {
       return { kind: "blocked" };
     }
@@ -59492,7 +59496,7 @@ function readServerAttempt(markerPath2, built) {
 }
 function claimServerPublicRetroRequest(built, dependencies) {
   if (built.bytes.byteLength > MAX_ENVELOPE_BYTES)
-    return;
+    return { kind: "unavailable" };
   let markerPath2 = path5.join(dependencies.attemptsDirectory, `${built.sessionScope}.json`);
   let existing = readServerAttempt(markerPath2, built);
   if (existing.kind === "conflict") {
@@ -59501,7 +59505,7 @@ function claimServerPublicRetroRequest(built, dependencies) {
     existing = readServerAttempt(markerPath2, built);
   }
   if (existing.kind !== "absent") {
-    return existing.kind === "pending" ? existing.prepared : undefined;
+    return existingServerClaim(existing);
   }
   mkdirSync19(dependencies.attemptsDirectory, { recursive: true });
   const requestId = dependencies.randomUUID().toLowerCase();
@@ -59509,14 +59513,21 @@ function claimServerPublicRetroRequest(built, dependencies) {
     throw new Error("Invalid public retrospective request identity");
   try {
     createServerAttempt(markerPath2, built, requestId, dependencies);
-    return { ...built, markerPath: markerPath2, requestId };
+    return { kind: "prepared", prepared: { ...built, markerPath: markerPath2, requestId } };
   } catch (error2) {
     if (error2.code === "EEXIST") {
       const raced = readServerAttempt(markerPath2, built);
-      return raced.kind === "pending" ? raced.prepared : undefined;
+      return existingServerClaim(raced);
     }
     throw error2;
   }
+}
+function existingServerClaim(existing) {
+  if (existing.kind === "accepted")
+    return { kind: "already-owned" };
+  if (existing.kind === "pending")
+    return { kind: "prepared", prepared: existing.prepared };
+  return { kind: "unavailable" };
 }
 function createServerAttempt(markerPath2, built, requestId, dependencies) {
   writeFileSync25(markerPath2, JSON.stringify({
@@ -59577,9 +59588,10 @@ async function deliverPreparedInput(input, dependencies, preparationDeadline) {
     if (!serverRoute && dependencies.now() >= preparationDeadline)
       return "abandoned";
     const built = buildPublicRetroEnvelope(input, serverRoute ? "v3" : "v2");
-    const prepared = claimPublicRetroRequest(built, dependencies);
-    if (!prepared)
-      return "abandoned";
+    const claim = claimPublicRetroRequest(built, dependencies);
+    if (claim.kind !== "prepared")
+      return claimOutcome(claim);
+    const prepared = claim.prepared;
     claimedMarkerPath = preparedMarkerPath(prepared, dependencies.attemptsDirectory);
     const timing = handoffTiming(dependencies, preparationDeadline);
     if (timing === undefined)
@@ -59614,6 +59626,9 @@ async function deliverPreparedInput(input, dependencies, preparationDeadline) {
   } finally {
     releaseLegacyClaim(claimedMarkerPath, accepted, dependencies.route);
   }
+}
+function claimOutcome(claim) {
+  return claim.kind === "already-owned" ? "already-owned" : "abandoned";
 }
 function preserveServerRejectionDiagnosis(route, markerPath2, error2) {
   if (route === "server-v3" && markerPath2 !== undefined && error2 instanceof PublicRetroRejection) {
@@ -62517,7 +62532,7 @@ function relayPersistenceErrorMessage(persistence, spoolFailed) {
   return `retro relay could not durably persist ${spoolFailed} ${noun}; request ${requestId} is corrupt. Inspect it with \`safeword retro-relay-retry\`; only if intentionally abandoning it, run \`safeword retro-relay-discard ${requestId} --confirm\`.`;
 }
 function serverRecoveryNeeded(findingCount, outcome) {
-  return findingCount > 0 && outcome !== "preserved";
+  return findingCount > 0 && (outcome === undefined || outcome === "abandoned");
 }
 async function runRetro(options, dependencies) {
   if (!options.transcript) {
@@ -62576,7 +62591,7 @@ async function runRetro(options, dependencies) {
   };
   const publicOutcome = await deliverPublic();
   if (publicRetro?.route === "server-v3") {
-    if (publicOutcome === "preserved" && projectDirectory !== undefined) {
+    if ((publicOutcome === "preserved" || publicOutcome === "already-owned") && projectDirectory !== undefined) {
       markDraftsAcceptedByServer(projectDirectory, sessionId, encounters.map((encounter) => encounter.draft.signature));
     }
     return {

@@ -314,7 +314,7 @@ function serverRecoveryNeeded(
   findingCount: number,
   outcome: PublicRetroDeliveryOutcome | undefined,
 ): boolean {
-  return findingCount > 0 && outcome !== 'preserved';
+  return findingCount > 0 && (outcome === undefined || outcome === 'abandoned');
 }
 
 /**
@@ -404,7 +404,10 @@ export async function runRetro(
   };
   const publicOutcome = await deliverPublic();
   if (publicRetro?.route === 'server-v3') {
-    if (publicOutcome === 'preserved' && projectDirectory !== undefined) {
+    if (
+      (publicOutcome === 'preserved' || publicOutcome === 'already-owned') &&
+      projectDirectory !== undefined
+    ) {
       markDraftsAcceptedByServer(
         projectDirectory,
         sessionId,

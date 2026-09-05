@@ -84,7 +84,11 @@ export interface PublicRetroDeliveryDependencies extends PublicRetroPreparationD
   transport: PublicRetroTransport;
 }
 
-export type PublicRetroDeliveryOutcome = 'preserved' | 'abandoned';
+export type PublicRetroDeliveryOutcome = 'preserved' | 'already-owned' | 'abandoned';
+
+type PublicRetroClaim =
+  | { kind: 'prepared'; prepared: PreparedPublicRetroRequest }
+  | { kind: 'already-owned' | 'unavailable' };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -206,16 +210,25 @@ export function preparePublicRetroRequest(
   dependencies: PublicRetroPreparationDependencies,
 ): PreparedPublicRetroRequest | undefined {
   const built = buildPublicRetroEnvelope(input, dependencies.route === 'server-v3' ? 'v3' : 'v2');
-  return claimPublicRetroRequest(built, dependencies);
+  const claimed = claimPublicRetroRequest(built, dependencies);
+  return claimed.kind === 'prepared' ? claimed.prepared : undefined;
 }
 
 function claimPublicRetroRequest(
   built: BuiltPublicRetroEnvelope,
   dependencies: PublicRetroPreparationDependencies,
-): PreparedPublicRetroRequest | undefined {
+): PublicRetroClaim {
   if (dependencies.route === 'server-v3') {
     return claimServerPublicRetroRequest(built, dependencies);
   }
+  const prepared = claimDirectPublicRetroRequest(built, dependencies);
+  return prepared === undefined ? { kind: 'unavailable' } : { kind: 'prepared', prepared };
+}
+
+function claimDirectPublicRetroRequest(
+  built: BuiltPublicRetroEnvelope,
+  dependencies: PublicRetroPreparationDependencies,
+): PreparedPublicRetroRequest | undefined {
   if (built.bytes.byteLength > MAX_ENVELOPE_BYTES) return undefined;
   const requestId = dependencies.randomUUID().toLowerCase();
   if (!UUID.test(requestId)) throw new Error('Invalid public retrospective request identity');
@@ -245,14 +258,14 @@ function readServerAttempt(
   markerPath: string,
   built: BuiltPublicRetroEnvelope,
 ):
-  | { kind: 'absent' | 'blocked' | 'conflict' }
+  | { kind: 'absent' | 'accepted' | 'blocked' | 'conflict' }
   | { kind: 'pending'; prepared: PreparedPublicRetroRequest } {
   try {
     const record = JSON.parse(readFileSync(markerPath, 'utf8')) as Record<string, unknown>;
     if (record.route !== 'server-v3' || record.sessionScope !== built.sessionScope) {
       return { kind: 'blocked' };
     }
-    if (record.state === 'accepted') return { kind: 'blocked' };
+    if (record.state === 'accepted') return { kind: 'accepted' };
     if (
       record.state !== 'pending' ||
       typeof record.requestId !== 'string' ||
@@ -280,8 +293,8 @@ function readServerAttempt(
 function claimServerPublicRetroRequest(
   built: BuiltPublicRetroEnvelope,
   dependencies: PublicRetroPreparationDependencies,
-): PreparedPublicRetroRequest | undefined {
-  if (built.bytes.byteLength > MAX_ENVELOPE_BYTES) return undefined;
+): PublicRetroClaim {
+  if (built.bytes.byteLength > MAX_ENVELOPE_BYTES) return { kind: 'unavailable' };
   let markerPath = path.join(dependencies.attemptsDirectory, `${built.sessionScope}.json`);
   let existing = readServerAttempt(markerPath, built);
   if (existing.kind === 'conflict') {
@@ -290,21 +303,27 @@ function claimServerPublicRetroRequest(
     existing = readServerAttempt(markerPath, built);
   }
   if (existing.kind !== 'absent') {
-    return existing.kind === 'pending' ? existing.prepared : undefined;
+    return existingServerClaim(existing);
   }
   mkdirSync(dependencies.attemptsDirectory, { recursive: true });
   const requestId = dependencies.randomUUID().toLowerCase();
   if (!UUID_V4.test(requestId)) throw new Error('Invalid public retrospective request identity');
   try {
     createServerAttempt(markerPath, built, requestId, dependencies);
-    return { ...built, markerPath, requestId };
+    return { kind: 'prepared', prepared: { ...built, markerPath, requestId } };
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
       const raced = readServerAttempt(markerPath, built);
-      return raced.kind === 'pending' ? raced.prepared : undefined;
+      return existingServerClaim(raced);
     }
     throw error;
   }
+}
+
+function existingServerClaim(existing: ReturnType<typeof readServerAttempt>): PublicRetroClaim {
+  if (existing.kind === 'accepted') return { kind: 'already-owned' };
+  if (existing.kind === 'pending') return { kind: 'prepared', prepared: existing.prepared };
+  return { kind: 'unavailable' };
 }
 
 function createServerAttempt(
@@ -398,8 +417,9 @@ async function deliverPreparedInput(
     const serverRoute = dependencies.route === 'server-v3';
     if (!serverRoute && dependencies.now() >= preparationDeadline) return 'abandoned';
     const built = buildPublicRetroEnvelope(input, serverRoute ? 'v3' : 'v2');
-    const prepared = claimPublicRetroRequest(built, dependencies);
-    if (!prepared) return 'abandoned';
+    const claim = claimPublicRetroRequest(built, dependencies);
+    if (claim.kind !== 'prepared') return claimOutcome(claim);
+    const prepared = claim.prepared;
     claimedMarkerPath = preparedMarkerPath(prepared, dependencies.attemptsDirectory);
     const timing = handoffTiming(dependencies, preparationDeadline);
     if (timing === undefined) return 'abandoned';
@@ -433,6 +453,12 @@ async function deliverPreparedInput(
   } finally {
     releaseLegacyClaim(claimedMarkerPath, accepted, dependencies.route);
   }
+}
+
+function claimOutcome(
+  claim: Exclude<PublicRetroClaim, { kind: 'prepared' }>,
+): PublicRetroDeliveryOutcome {
+  return claim.kind === 'already-owned' ? 'already-owned' : 'abandoned';
 }
 
 function preserveServerRejectionDiagnosis(

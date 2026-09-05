@@ -782,7 +782,9 @@ describe('buildPublicRetroEnvelope', () => {
     };
     try {
       expect(await deliverSanitizedPublicRetroFindings(input, dependencies, 750)).toBe('preserved');
-      expect(await deliverSanitizedPublicRetroFindings(input, dependencies, 750)).toBe('abandoned');
+      expect(await deliverSanitizedPublicRetroFindings(input, dependencies, 750)).toBe(
+        'already-owned',
+      );
       const [filename] = readdirSync(attemptsDirectory);
       const record = JSON.parse(
         readFileSync(path.join(attemptsDirectory, filename ?? ''), 'utf8'),

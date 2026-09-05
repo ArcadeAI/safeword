@@ -1411,6 +1411,55 @@ describe('retro command configuration, extraction, egress, and relay execution',
     },
   );
 
+  it('keeps an accepted server-v3 window collector-owned when the same window runs again', async () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-server-route-'));
+    const sessionId = 'server-repeat-session';
+    const publicTransport = vi.fn(request =>
+      Promise.resolve({
+        receipt: 'server-receipt',
+        requestId: request.headers['x-safeword-request-id'],
+      }),
+    );
+    const privateTransport = new FakeGitHub();
+    const repeatedDependencies = {
+      projectDirectory,
+      publicRetro: {
+        attemptsDirectory: nodePath.join(projectDirectory, '.safeword/public-retro-attempts'),
+        now: () => 0,
+        randomUUID: () => '11111111-2222-4333-8444-555555555555',
+        route: 'server-v3' as const,
+        source: {
+          harness: 'codex' as const,
+          hostClass: 'local' as const,
+          projectUUID: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+          safewordCliVersion: '0.82.1',
+        },
+        transport: publicTransport,
+      },
+      sessionId,
+      transport: privateTransport,
+    };
+
+    try {
+      const first = await runRetro(
+        { transcript: '/tmp/t.jsonl', windowStart: 42 },
+        dependencies(repeatedDependencies),
+      );
+      const second = await runRetro(
+        { transcript: '/tmp/t.jsonl', windowStart: 42 },
+        dependencies(repeatedDependencies),
+      );
+
+      expect(first.agentFilingNeeded).toBe(false);
+      expect(second.agentFilingNeeded).toBe(false);
+      expect(publicTransport).toHaveBeenCalledOnce();
+      expect(privateTransport.issues).toHaveLength(0);
+      expect(readServerSpooledDrafts(projectDirectory, sessionId)).toEqual([]);
+    } finally {
+      rmSync(projectDirectory, { force: true, recursive: true });
+    }
+  });
+
   it('excludes extraction but includes finding preparation in the shared delivery budget', async () => {
     const attemptsDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-attempts-'));
     let nowCalls = 0;
