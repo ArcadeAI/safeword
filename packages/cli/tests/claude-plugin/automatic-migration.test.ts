@@ -19,7 +19,11 @@ import {
   historicalCatalogueDigest,
   historicalHookEntry,
 } from '../../src/claude-plugin/historical-ownership.js';
-import { readClaudePluginMode } from '../../src/claude-plugin/migration-state.js';
+import {
+  claudeProjectStatePath,
+  readClaudePluginMode,
+} from '../../src/claude-plugin/migration-state.js';
+import { useIsolatedClaudePluginState } from '../helpers/claude-plugin-state.js';
 import { readHistoricalTemplate, requireHistoricalReleaseTags } from '../helpers/git-history.js';
 import { blockWrites } from '../helpers/io-failure.js';
 
@@ -63,6 +67,8 @@ afterEach(() => {
 
 /** Releases this suite reads real bytes from; shared with the history preflight. */
 const FIXTURE_VERSIONS = ['0.68.0', '0.69.0', '0.72.0'];
+
+useIsolatedClaudePluginState();
 
 describe('automatic Claude migration', () => {
   beforeAll(() => {
@@ -127,9 +133,7 @@ describe('automatic Claude migration', () => {
     const result = migrate(root, () => (reads++ === 0 ? 0 : 10));
     expect(result.state).toBe('deferred');
     expect(existsSync(nodePath.join(root, installedPath))).toBe(true);
-    expect(
-      existsSync(nodePath.join(root, '.safeword/claude-plugin/cleanup-transaction-v1.json')),
-    ).toBe(true);
+    expect(existsSync(claudeProjectStatePath(root, 'transaction'))).toBe(true);
 
     expect(migrate(root).state).toBe('complete');
     expect(existsSync(nodePath.join(root, installedPath))).toBe(false);
@@ -176,10 +180,7 @@ describe('automatic Claude migration', () => {
     let reads = 0;
     expect(migrate(root, () => (reads++ === 0 ? 0 : 10)).state).toBe('deferred');
     const transaction = JSON.parse(
-      readFileSync(
-        nodePath.join(root, '.safeword/claude-plugin/cleanup-transaction-v1.json'),
-        'utf8',
-      ),
+      readFileSync(claudeProjectStatePath(root, 'transaction'), 'utf8'),
     ) as { entries: { path: string; after_base64: string | null }[] };
     const after = transaction.entries.find(
       entry => entry.path === '.claude/settings.json',
@@ -225,10 +226,7 @@ describe('automatic Claude migration', () => {
     });
 
     expect(result.state).toBe('attention');
-    const transactionPath = nodePath.join(
-      root,
-      '.safeword/claude-plugin/cleanup-transaction-v1.json',
-    );
+    const transactionPath = claudeProjectStatePath(root, 'transaction');
     const transaction = JSON.parse(readFileSync(transactionPath, 'utf8')) as {
       entries: { quarantine_path?: string }[];
     };
@@ -298,7 +296,7 @@ describe('automatic Claude migration', () => {
     const { root, installedPath } = fixture();
     const target = nodePath.join(root, installedPath);
     const before = readFileSync(target);
-    blockWrites(nodePath.join(root, '.safeword/claude-plugin/cleanup-transaction-v1.json'));
+    blockWrites(claudeProjectStatePath(root, 'transaction'));
 
     const result = migrate(root);
 

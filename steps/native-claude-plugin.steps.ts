@@ -121,6 +121,23 @@ function snapshotDirectory(directory: string): string {
   );
 }
 
+/**
+ * Claude's user config directory, minus Safeword's own per-project plugin state.
+ *
+ * That state is the subject of these scenarios, not the "unrelated state" they
+ * assert stays byte-identical: since #3787 it lives in the plugin data
+ * directory, so snapshotting it verbatim would make every prompt that enters
+ * plugin mode read as collateral damage. Execution proofs stay in the snapshot.
+ */
+function snapshotClaudeConfig(directory: string): string {
+  if (!existsSync(directory)) return '[]';
+  return JSON.stringify(
+    filesBeneath(directory)
+      .filter(path => !path.split('/').includes('project-state-v1'))
+      .map(path => [path, readFileSync(nodePath.join(directory, path)).toString('base64')]),
+  );
+}
+
 function snapshotDirectoryExcept(directory: string, excludedPath: string): string {
   if (!existsSync(directory)) return '[]';
   return JSON.stringify(
@@ -874,7 +891,7 @@ function createExactScopedFixture(world: NativeClaudePluginWorld, scope: 'projec
   );
   world.lifecycle.profileSnapshot = readFileSync(world.lifecycle.statePath, 'utf8');
   world.lifecycle.projectTreeSnapshot = snapshotDirectory(world.lifecycle.project);
-  world.lifecycle.configTreeSnapshot = snapshotDirectory(world.lifecycle.configRoot ?? '');
+  world.lifecycle.configTreeSnapshot = snapshotClaudeConfig(world.lifecycle.configRoot ?? '');
 }
 
 function writeCanonicalLegacy(project: string): string {
@@ -883,6 +900,22 @@ function writeCanonicalLegacy(project: string): string {
   mkdirSync(nodePath.dirname(target), { recursive: true });
   cpSync(nodePath.join(REPO_ROOT, 'packages/cli/templates/skills/debug/SKILL.md'), target);
   return target;
+}
+
+/**
+ * Per-project plugin state inside a fixture's Claude config directory.
+ *
+ * Mirrors what the CLI and the hook runtime both resolve: the plugin's data
+ * directory, keyed by the digest of the canonical project root (#3787).
+ */
+function lifecycleStatePath(configRoot: string, project: string, name: string): string {
+  const projectDigest = createHash('sha256').update(realpathSync(project)).digest('hex');
+  return nodePath.join(
+    configRoot,
+    'plugins/data/safeword-safeword/project-state-v1',
+    projectDigest,
+    name,
+  );
 }
 
 function writeStatusProofV2(
@@ -953,9 +986,10 @@ function createStatusFixture(
   }
 
   if (stateDescription.includes('incomplete transaction')) {
-    const transaction = nodePath.join(
+    const transaction = lifecycleStatePath(
+      configRoot,
       fixture.project,
-      '.safeword/claude-plugin/cleanup-transaction-v1.json',
+      'cleanup-transaction-v1.json',
     );
     mkdirSync(nodePath.dirname(transaction), { recursive: true });
     writeFileSync(transaction, '{"schema_version":1}\n');
@@ -1002,7 +1036,7 @@ function createStatusFixture(
   }
 
   if (stateDescription.includes('durable plugin-mode marker')) {
-    const marker = nodePath.join(fixture.project, '.safeword/claude-plugin/plugin-mode-v2.json');
+    const marker = lifecycleStatePath(configRoot, fixture.project, 'plugin-mode-v2.json');
     mkdirSync(nodePath.dirname(marker), { recursive: true });
     writeFileSync(
       marker,
@@ -1023,7 +1057,7 @@ function createStatusFixture(
   }
   fixture.profileSnapshot = readFileSync(fixture.statePath, 'utf8');
   fixture.projectTreeSnapshot = snapshotDirectory(fixture.project);
-  fixture.configTreeSnapshot = snapshotDirectory(configRoot);
+  fixture.configTreeSnapshot = snapshotClaudeConfig(configRoot);
 }
 
 Given(
@@ -1114,7 +1148,7 @@ Then(
     assert.equal(readFileSync(this.lifecycle.statePath, 'utf8'), this.lifecycle.profileSnapshot);
     assert.equal(snapshotDirectory(this.lifecycle.project), this.lifecycle.projectTreeSnapshot);
     assert.equal(
-      snapshotDirectory(this.lifecycle.configRoot ?? ''),
+      snapshotClaudeConfig(this.lifecycle.configRoot ?? ''),
       this.lifecycle.configTreeSnapshot,
     );
   },
@@ -1212,19 +1246,15 @@ Then(
       existsSync(nodePath.join(this.lifecycle.project, '.claude/skills/debug/SKILL.md')),
       false,
     );
+    const configRoot = this.lifecycle.configRoot ?? '';
     assert.equal(
       existsSync(
-        nodePath.join(
-          this.lifecycle.project,
-          '.safeword/claude-plugin/cleanup-transaction-v1.json',
-        ),
+        lifecycleStatePath(configRoot, this.lifecycle.project, 'cleanup-transaction-v1.json'),
       ),
       false,
     );
     assert.ok(
-      existsSync(
-        nodePath.join(this.lifecycle.project, '.safeword/claude-plugin/plugin-mode-v2.json'),
-      ),
+      existsSync(lifecycleStatePath(configRoot, this.lifecycle.project, 'plugin-mode-v2.json')),
     );
     assert.equal(readFileSync(this.lifecycle.statePath, 'utf8'), this.lifecycle.profileSnapshot);
   },
@@ -1392,7 +1422,7 @@ Then(
     assert.ok(this.lifecycle);
     assert.equal(readFileSync(this.lifecycle.statePath, 'utf8'), this.lifecycle.profileSnapshot);
     assert.equal(
-      snapshotDirectory(this.lifecycle.configRoot ?? ''),
+      snapshotClaudeConfig(this.lifecycle.configRoot ?? ''),
       this.lifecycle.configTreeSnapshot,
     );
   },
@@ -1414,7 +1444,7 @@ Then('every profile and project file is byte-identical', function (this: NativeC
   assert.equal(readFileSync(this.lifecycle.statePath, 'utf8'), this.lifecycle.profileSnapshot);
   assert.equal(snapshotDirectory(this.lifecycle.project), this.lifecycle.projectTreeSnapshot);
   assert.equal(
-    snapshotDirectory(this.lifecycle.configRoot ?? ''),
+    snapshotClaudeConfig(this.lifecycle.configRoot ?? ''),
     this.lifecycle.configTreeSnapshot,
   );
 });
@@ -1684,7 +1714,7 @@ Then(
     assert.equal(readFileSync(this.lifecycle.statePath, 'utf8'), this.lifecycle.profileSnapshot);
     assert.equal(snapshotDirectory(this.lifecycle.project), this.lifecycle.projectTreeSnapshot);
     assert.equal(
-      snapshotDirectory(this.lifecycle.configRoot ?? ''),
+      snapshotClaudeConfig(this.lifecycle.configRoot ?? ''),
       this.lifecycle.configTreeSnapshot,
     );
   },
@@ -1774,7 +1804,7 @@ Given(
     this.lifecycle.terminalClassification = resultClassification(this.lifecycle.result.output);
     this.lifecycle.completedSnapshot = JSON.stringify({
       project: snapshotDirectory(this.lifecycle.project),
-      config: snapshotDirectory(this.lifecycle.configRoot ?? ''),
+      config: snapshotClaudeConfig(this.lifecycle.configRoot ?? ''),
       profile: readFileSync(this.lifecycle.statePath, 'utf8'),
     });
   },
@@ -1794,7 +1824,7 @@ Then(
     assert.equal(
       JSON.stringify({
         project: snapshotDirectory(this.lifecycle.project),
-        config: snapshotDirectory(this.lifecycle.configRoot ?? ''),
+        config: snapshotClaudeConfig(this.lifecycle.configRoot ?? ''),
         profile: readFileSync(this.lifecycle.statePath, 'utf8'),
       }),
       this.lifecycle.completedSnapshot,
@@ -2392,7 +2422,7 @@ Given(
       writeFileSync(this.lifecycle.statePath, `${JSON.stringify(state, undefined, 2)}\n`);
       this.lifecycle.profileSnapshot = readFileSync(this.lifecycle.statePath, 'utf8');
       this.lifecycle.projectTreeSnapshot = snapshotDirectory(this.lifecycle.project);
-      this.lifecycle.configTreeSnapshot = snapshotDirectory(this.lifecycle.configRoot ?? '');
+      this.lifecycle.configTreeSnapshot = snapshotClaudeConfig(this.lifecycle.configRoot ?? '');
     }
   },
 );
@@ -2403,7 +2433,7 @@ Given(
     createLifecycleFixture(this, {});
     assert.ok(this.lifecycle);
     this.lifecycle.projectTreeSnapshot = snapshotDirectory(this.lifecycle.project);
-    this.lifecycle.configTreeSnapshot = snapshotDirectory(this.lifecycle.configRoot ?? '');
+    this.lifecycle.configTreeSnapshot = snapshotClaudeConfig(this.lifecycle.configRoot ?? '');
   },
 );
 
@@ -2447,7 +2477,7 @@ Given(
     this.lifecycle.overlapHealthSnapshot = { project: 'current', user: userHealth };
     this.lifecycle.profileSnapshot = readFileSync(this.lifecycle.statePath, 'utf8');
     this.lifecycle.projectTreeSnapshot = snapshotDirectory(this.lifecycle.project);
-    this.lifecycle.configTreeSnapshot = snapshotDirectory(this.lifecycle.configRoot ?? '');
+    this.lifecycle.configTreeSnapshot = snapshotClaudeConfig(this.lifecycle.configRoot ?? '');
   },
 );
 
@@ -2485,7 +2515,7 @@ Given(
     writeCanonicalLegacy(this.lifecycle.project);
     this.lifecycle.profileSnapshot = readFileSync(this.lifecycle.statePath, 'utf8');
     this.lifecycle.projectTreeSnapshot = snapshotDirectory(this.lifecycle.project);
-    this.lifecycle.configTreeSnapshot = snapshotDirectory(this.lifecycle.configRoot ?? '');
+    this.lifecycle.configTreeSnapshot = snapshotClaudeConfig(this.lifecycle.configRoot ?? '');
   },
 );
 
@@ -2495,7 +2525,7 @@ Given('exact plugin execution proof exists', function (this: NativeClaudePluginW
     installPath: string;
   };
   writeStatusProofV2(this.lifecycle.configRoot ?? '', this.lifecycle.project, state.installPath);
-  this.lifecycle.configTreeSnapshot = snapshotDirectory(this.lifecycle.configRoot ?? '');
+  this.lifecycle.configTreeSnapshot = snapshotClaudeConfig(this.lifecycle.configRoot ?? '');
 });
 
 Given(
@@ -2507,7 +2537,7 @@ Given(
       installPath: string;
     };
     writeStatusProofV2(this.lifecycle.configRoot ?? '', this.lifecycle.project, state.installPath);
-    this.lifecycle.configTreeSnapshot = snapshotDirectory(this.lifecycle.configRoot ?? '');
+    this.lifecycle.configTreeSnapshot = snapshotClaudeConfig(this.lifecycle.configRoot ?? '');
   },
 );
 
@@ -2573,7 +2603,7 @@ Given(
         state.installPath,
       );
     }
-    this.lifecycle.configTreeSnapshot = snapshotDirectory(this.lifecycle.configRoot ?? '');
+    this.lifecycle.configTreeSnapshot = snapshotClaudeConfig(this.lifecycle.configRoot ?? '');
   },
 );
 
@@ -2898,7 +2928,7 @@ Then(
     assert.ok(this.lifecycle);
     assert.equal(snapshotDirectory(this.lifecycle.project), this.lifecycle.projectTreeSnapshot);
     assert.equal(
-      snapshotDirectory(this.lifecycle.configRoot ?? ''),
+      snapshotClaudeConfig(this.lifecycle.configRoot ?? ''),
       this.lifecycle.configTreeSnapshot,
     );
   },
@@ -3295,7 +3325,7 @@ Then(
     assert.ok(this.lifecycle);
     assert.equal(readFileSync(this.lifecycle.statePath, 'utf8'), this.lifecycle.profileSnapshot);
     assert.equal(
-      snapshotDirectory(this.lifecycle.configRoot ?? ''),
+      snapshotClaudeConfig(this.lifecycle.configRoot ?? ''),
       this.lifecycle.configTreeSnapshot,
     );
   },

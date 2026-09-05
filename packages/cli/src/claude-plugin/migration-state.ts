@@ -1,10 +1,10 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
-import { homedir } from 'node:os';
+import { cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { writeDurableFile, writeDurableFileExclusive } from '../codex-plugin/durable-write.js';
-import { CLAUDE_MIGRATION_SCHEMA } from './inventory.js';
+import { CLAUDE_ADOPTED_LEGACY_STATE, CLAUDE_MIGRATION_SCHEMA } from './inventory.js';
+import { claudeConfigDirectory, claudeProjectStateDirectory } from './plugin-data.js';
 
 export interface ClaudePluginModeV2 {
   readonly schema_version: 2;
@@ -60,8 +60,70 @@ function digest(value: Buffer | string): string {
   return createHash('sha256').update(value).digest('hex');
 }
 
+/**
+ * Project roots whose legacy working-tree state has already been considered in
+ * this process. Adoption is idempotent on disk; the set only keeps a hook from
+ * re-walking four paths on every accessor call.
+ */
+const adopted = new Set<string>();
+
+/** Move legacy state across a filesystem boundary when rename cannot. */
+function relocate(from: string, to: string): void {
+  try {
+    renameSync(from, to);
+    return;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'EXDEV') throw error;
+  }
+  cpSync(from, to, { recursive: true, errorOnExist: true, force: false });
+  rmSync(from, { recursive: true, force: true });
+}
+
+/**
+ * Adopts the state releases up to 0.83.1 wrote into the working tree (#3787).
+ *
+ * The durable cleanup transaction lives here, so skipping a repository that
+ * still holds one would strand a half-finished cleanup with no record to
+ * recover from. Anything already present in the plugin data directory wins —
+ * that is the newer writer — and the stale working-tree copy is discarded.
+ */
+function adoptLegacyProjectState(cwd: string, directory: string): void {
+  if (adopted.has(directory)) return;
+  adopted.add(directory);
+  for (const key of CLAUDE_ADOPTED_LEGACY_STATE) {
+    const legacy = nodePath.join(cwd, CLAUDE_MIGRATION_SCHEMA.legacy[key]);
+    if (!existsSync(legacy)) continue;
+    const destination = nodePath.join(directory, CLAUDE_MIGRATION_SCHEMA.state[key]);
+    try {
+      if (existsSync(destination)) rmSync(legacy, { recursive: true, force: true });
+      else {
+        mkdirSync(directory, { recursive: true, mode: 0o700 });
+        relocate(legacy, destination);
+      }
+    } catch {
+      // A repository we cannot write to must not fail the session. The legacy
+      // copy stays put and the next run tries again.
+    }
+  }
+}
+
+/** Resolved per-project state directory, with legacy working-tree state adopted. */
+function stateDirectory(cwd: string): string {
+  const directory = claudeProjectStateDirectory(cwd);
+  adoptLegacyProjectState(cwd, directory);
+  return directory;
+}
+
+/** Path of one per-project state entry. */
+export function claudeProjectStatePath(
+  cwd: string,
+  key: keyof typeof CLAUDE_MIGRATION_SCHEMA.state,
+): string {
+  return nodePath.join(stateDirectory(cwd), CLAUDE_MIGRATION_SCHEMA.state[key]);
+}
+
 function attemptsPath(cwd: string): string {
-  return nodePath.join(cwd, CLAUDE_MIGRATION_SCHEMA.paths.attemptsDirectory);
+  return claudeProjectStatePath(cwd, 'attemptsDirectory');
 }
 
 function exclusiveRecord(path: string, value: unknown): boolean {
@@ -141,18 +203,6 @@ export function advisoryStateDigest(advisory: string): string {
   return digest(advisory);
 }
 
-/**
- * Resolves the Claude user-scope configuration directory. An empty or
- * whitespace-only `CLAUDE_CONFIG_DIR` falls back to the default, so every
- * caller watches and reads the same user settings file.
- */
-export function claudeConfigDirectory(
-  environment: Readonly<Record<string, string | undefined>> = process.env,
-): string {
-  const configured = (environment.CLAUDE_CONFIG_DIR ?? '').trim();
-  return configured === '' ? nodePath.join(homedir(), '.claude') : configured;
-}
-
 export function claudeWatchedSettingsDigest(cwd: string): string {
   const configDirectory = claudeConfigDirectory();
   const paths = [
@@ -170,7 +220,7 @@ export function claudeWatchedSettingsDigest(cwd: string): string {
 }
 
 function markerPath(cwd: string): string {
-  return nodePath.join(cwd, CLAUDE_MIGRATION_SCHEMA.paths.pluginMarkerV2);
+  return claudeProjectStatePath(cwd, 'pluginMarkerV2');
 }
 
 function validDigest(value: unknown): value is string {
@@ -195,9 +245,8 @@ function validPluginMode(value: Partial<ClaudePluginModeV2>): value is ClaudePlu
 }
 
 export function readClaudePluginMode(cwd: string): ClaudePluginModeV2 | undefined {
-  const path = markerPath(cwd);
-  if (!existsSync(path)) return undefined;
   try {
+    const path = markerPath(cwd);
     const value = JSON.parse(readFileSync(path, 'utf8')) as Partial<ClaudePluginModeV2>;
     return validPluginMode(value) ? value : undefined;
   } catch {
@@ -239,16 +288,16 @@ export function writeClaudeMigrationAttention(
   attention: ClaudeMigrationAttentionV1,
 ): void {
   writeDurableFile(
-    nodePath.join(cwd, CLAUDE_MIGRATION_SCHEMA.paths.attention),
+    claudeProjectStatePath(cwd, 'attention'),
     `${JSON.stringify(attention, undefined, 2)}\n`,
     { mode: 0o600 },
   );
 }
 
 export function hasLegacyClaudePluginMode(cwd: string): boolean {
-  return existsSync(nodePath.join(cwd, CLAUDE_MIGRATION_SCHEMA.paths.pluginMarker));
+  return existsSync(nodePath.join(cwd, CLAUDE_MIGRATION_SCHEMA.legacy.pluginMarker));
 }
 
 export function removeLegacyClaudePluginMode(cwd: string): void {
-  rmSync(nodePath.join(cwd, CLAUDE_MIGRATION_SCHEMA.paths.pluginMarker), { force: true });
+  rmSync(nodePath.join(cwd, CLAUDE_MIGRATION_SCHEMA.legacy.pluginMarker), { force: true });
 }
