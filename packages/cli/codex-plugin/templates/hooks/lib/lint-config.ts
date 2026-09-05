@@ -11,6 +11,8 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
+import { BIOME_CONFIG_FILES } from './host-toolchain.ts';
+
 const ESLINT_FLAT_EXTENSIONS = ['js', 'mjs', 'cjs', 'ts', 'mts', 'cts'];
 const ESLINT_RC_EXTENSIONS = ['js', 'cjs', 'yaml', 'yml', 'json'];
 const PRETTIER_RC_EXTENSIONS = [
@@ -93,25 +95,19 @@ export function projectOwnsAlternativeFormatter(projectDirectory: string): boole
 }
 
 /**
- * Biome config filenames `host-toolchain.ts` resolves a lint owner from
- * (`BIOME_CONFIG_FILES` there — kept in sync by hand, like
- * ALTERNATIVE_FORMATTER_FILES, because templates cannot import from src).
+ * Whether a host toolchain owns this project's LINTING, not just its formatting.
  *
- * Deliberately NOT the alternative-formatter set (#3792): dprint, oxfmt and
- * deno format but do not lint through safeword's host toolchain, so an ESLint
- * fallback still runs there and warning about a missing ESLint stays true. Only
- * Biome/ultracite make the warning false.
+ * Reads `host-toolchain.ts`'s own list rather than restating it. The nearby
+ * ALTERNATIVE_FORMATTER_FILES pair is hand-synced only because its twin lives in
+ * `src/`, which templates may not import; this twin is a sibling template, so
+ * copying it would create drift for no reason (#3792).
+ *
+ * Deliberately not the alternative-formatter set: dprint, oxfmt and deno format
+ * but do not lint through the host toolchain, so ESLint is still the linter
+ * safeword falls back to there and warning about its absence stays true.
  */
-const HOST_LINT_CONFIG_FILES = new Set<string>([
-  'biome.json',
-  'biome.jsonc',
-  '.biome.json',
-  '.biome.jsonc',
-]);
-
-/** Whether a host toolchain owns this project's LINTING, not just its formatting. */
 export function detectHostLintToolchain(entries: readonly string[]): boolean {
-  return entries.some(name => HOST_LINT_CONFIG_FILES.has(name));
+  return entries.some(name => (BIOME_CONFIG_FILES as readonly string[]).includes(name));
 }
 
 /**
