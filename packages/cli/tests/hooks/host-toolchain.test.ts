@@ -298,6 +298,42 @@ describe('host JavaScript toolchain resolution', () => {
     ]);
   });
 
+  it('returns instead of deadlocking when the toolchain floods its output pipe', async () => {
+    // `runCommand` pipes stdout and stderr, then awaits exit before reading
+    // either — the shape that deadlocks under Node's child_process once a child
+    // fills the pipe buffer. An independent Codex review flagged it as a hang;
+    // this test was written to reproduce that and does not, because Bun.spawn
+    // buffers piped output rather than blocking the writer. Kept as the pin on
+    // that assumption: it fails the day this moves to a runtime or API where
+    // awaiting exit before draining really does hang the lint hook.
+    // 512KB clears any platform pipe buffer.
+    const projectRoot = mkdtempSync(path.join(tmpdir(), 'host-toolchain-flood-'));
+    directories.push(projectRoot);
+    const file = path.join(projectRoot, 'source.ts');
+    const executable = path.join(projectRoot, 'node_modules', '.bin', 'biome');
+    mkdirSync(path.dirname(executable), { recursive: true });
+    writeFileSync(file, 'export const flooded = 1;\n');
+    // Exit non-zero so the failure path — the one that reads the streams — runs.
+    writeFileSync(
+      executable,
+      `#!/bin/sh\nawk 'BEGIN{for(i=0;i<8192;i++)printf "%64s\\n", "diagnostic"}'\nexit 1\n`,
+    );
+    chmodSync(executable, 0o755);
+    const script = `
+      const { runHostToolchain } = await import(${JSON.stringify(HOST_TOOLCHAIN_MODULE)});
+      const result = await runHostToolchain({
+        kind: 'biome', cwd: ${JSON.stringify(projectRoot)}, executable: ${JSON.stringify(executable)}, relativeFile: 'source.ts',
+      });
+      console.log(JSON.stringify({ length: (result.errors ?? '').length }));
+    `;
+
+    const { stdout } = await execFileAsync('bun', ['-e', script], { timeout: 20_000 });
+
+    // Reaching an assertion at all is the proof; the payload confirms the whole
+    // stream was drained rather than truncated at the buffer boundary.
+    expect(JSON.parse(stdout.trim()).length).toBeGreaterThan(64 * 1024);
+  });
+
   it('routes a direct-Biome edit through lintFile instead of Safeword ESLint', async () => {
     const projectRoot = mkdtempSync(path.join(tmpdir(), 'host-toolchain-lint-'));
     directories.push(projectRoot);
