@@ -21421,13 +21421,21 @@ function leaseMarkerPid(name) {
     return;
   return pid;
 }
+function vanishedDuringScan(path3) {
+  try {
+    lstatSync3(path3);
+    return false;
+  } catch (error2) {
+    return error2.code === "ENOENT";
+  }
+}
 function isClaudeLeaseMarker(path3, name) {
   const pid = leaseMarkerPid(name);
   if (pid === undefined)
     return false;
   const content = readSmallMetadataFile(path3);
   if (content === undefined)
-    return false;
+    return name.includes(LEASE_TEMP_INFIX) && vanishedDuringScan(path3);
   try {
     return isLeaseRecord(JSON.parse(content), Number(pid));
   } catch {
