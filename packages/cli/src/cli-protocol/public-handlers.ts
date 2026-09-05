@@ -1,4 +1,4 @@
-import { existsSync, lstatSync, readFileSync, readlinkSync, type Stats } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import type {
@@ -13,6 +13,7 @@ import type { RetroCliOptions, RetroCommandExecution } from '../commands/retro.j
 import type { ReviewKind } from '../review/contract.js';
 import { isWouldChangeAction, type SelfHealAction } from '../utils/architecture-document.js';
 import { type AgentSelectionError, parseAgentSelection } from './agent-selection.js';
+import { observedFileEffect, observeFile } from './file-snapshot.js';
 import type { CommandHandler, CommandInvocation } from './handler.js';
 import { onlineRequired } from './online-required.js';
 import { numericOption, stringOption } from './option-values.js';
@@ -2239,49 +2240,6 @@ function retroRunResult(
       agent_filing_needed: execution.outcome.agentFilingNeeded ?? false,
     },
   });
-}
-
-interface FileSnapshot {
-  readonly kind: 'file' | 'symlink' | 'directory' | 'other';
-  readonly mode: number;
-  readonly bytes?: string;
-}
-
-function snapshotKind(stats: Stats): FileSnapshot['kind'] {
-  if (stats.isFile()) return 'file';
-  if (stats.isSymbolicLink()) return 'symlink';
-  if (stats.isDirectory()) return 'directory';
-  return 'other';
-}
-
-function snapshotBytes(path: string, stats: Stats): string | undefined {
-  if (stats.isFile()) return readFileSync(path).toString('base64');
-  if (stats.isSymbolicLink()) return Buffer.from(readlinkSync(path)).toString('base64');
-  return undefined;
-}
-
-function observeFile(path: string): FileSnapshot | undefined {
-  try {
-    const stats = lstatSync(path);
-    const kind = snapshotKind(stats);
-    const bytes = snapshotBytes(path, stats);
-    return { kind, mode: stats.mode & 0o777, ...(bytes !== undefined && { bytes }) };
-  } catch {
-    return undefined;
-  }
-}
-
-function observedFileEffect(
-  cwd: string,
-  path: string,
-  before: FileSnapshot | undefined,
-): CliResult['effects']['files'] {
-  const after = observeFile(path);
-  if (JSON.stringify(before) === JSON.stringify(after)) return [];
-  const target = nodePath.relative(cwd, path).split(nodePath.sep).join('/');
-  if (before === undefined) return [{ kind: 'create', target }];
-  if (after === undefined) return [{ kind: 'delete', target }];
-  return [{ kind: 'update', target }];
 }
 
 async function retroRunHandler(invocation: CommandInvocation): Promise<CliResult> {
