@@ -569,6 +569,53 @@ exit ${status}`,
     }
   });
 
+  it('finds the project CLI when the hook runs from a subdirectory', () => {
+    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-subdir-'));
+    try {
+      mkdirSync(nodePath.join(fixture, 'packages/cli/src'), { recursive: true });
+      writeFileSync(nodePath.join(fixture, 'packages/cli/src/cli.ts'), '');
+      writeFileSync(nodePath.join(fixture, 'packages/cli/package.json'), '{"name":"safeword"}');
+      const nested = nodePath.join(fixture, 'packages/cli');
+
+      expect(reviewCandidates(nested, {})).toContainEqual([
+        'bun',
+        [nodePath.join(fixture, 'packages/cli/src/cli.ts')],
+      ]);
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
+  it('anchors discovery on the host project directory over an unrelated cwd', () => {
+    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-anchor-'));
+    const elsewhere = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-elsewhere-'));
+    try {
+      mkdirSync(nodePath.join(fixture, '.safeword'), { recursive: true });
+      writeFileSync(nodePath.join(fixture, '.safeword/version'), '1.2.3\n');
+
+      expect(reviewCandidates(elsewhere, { CLAUDE_PROJECT_DIR: fixture })).toContainEqual([
+        'bunx',
+        ['safeword@1.2.3'],
+      ]);
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+      rmSync(elsewhere, { recursive: true, force: true });
+    }
+  });
+
+  it('still rejects a lookalike checkout found by walking up from a subdirectory', () => {
+    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-walkfake-'));
+    try {
+      mkdirSync(nodePath.join(fixture, 'packages/cli/src'), { recursive: true });
+      writeFileSync(nodePath.join(fixture, 'packages/cli/src/cli.ts'), '');
+      writeFileSync(nodePath.join(fixture, 'packages/cli/package.json'), '{"name":"other-cli"}');
+
+      expect(reviewCandidates(nodePath.join(fixture, 'packages/cli'), {})).toHaveLength(0);
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
   it('keeps every tracked wrapper copy byte-identical to the source template', () => {
     const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
     const canonical = readFileSync(nodePath.join(templates, 'hooks/run-review.ts'), 'utf8');
