@@ -50191,8 +50191,10 @@ __export(exports_retro_draft_spool, {
   spoolDrafts: () => spoolDrafts,
   recordFiledAck: () => recordFiledAck,
   readSpooledDrafts: () => readSpooledDrafts,
+  readServerSpooledDrafts: () => readServerSpooledDrafts,
   readAcks: () => readAcks,
   markDraftsFiled: () => markDraftsFiled,
+  markDraftsAcceptedByServer: () => markDraftsAcceptedByServer,
   fileSpooledDrafts: () => fileSpooledDrafts,
   drainAcknowledgedDrafts: () => drainAcknowledgedDrafts,
   draftSpoolPath: () => draftSpoolPath,
@@ -50216,7 +50218,7 @@ function toDraft(value) {
   if (typeof value !== "object" || value === null)
     return;
   const record2 = value;
-  const { signature, canonicalSignature, title, body, labels, bodyDigest } = record2;
+  const { signature, canonicalSignature, title, body, labels, bodyDigest, route } = record2;
   if (typeof signature !== "string" || typeof title !== "string" || typeof body !== "string" || !Array.isArray(labels) || !labels.every((label) => typeof label === "string")) {
     return;
   }
@@ -50224,17 +50226,26 @@ function toDraft(value) {
     return;
   if (canonicalSignature !== undefined && typeof canonicalSignature !== "string")
     return;
+  if (route !== undefined && route !== "direct-v2" && route !== "server-v3")
+    return;
   return {
     signature,
     ...canonicalSignature === undefined ? {} : { canonicalSignature },
     title,
     body,
     labels,
-    ...bodyDigest === undefined ? {} : { bodyDigest }
+    ...bodyDigest === undefined ? {} : { bodyDigest },
+    ...route === undefined ? {} : { route }
   };
 }
-function readSpooledDrafts(projectDirectory, sessionId) {
+function readAllSpooledDrafts(projectDirectory, sessionId) {
   return readJsonlRecords(draftSpoolPath(projectDirectory, sessionId), toDraft);
+}
+function readSpooledDrafts(projectDirectory, sessionId) {
+  return readAllSpooledDrafts(projectDirectory, sessionId).filter((draft) => draft.route !== "server-v3");
+}
+function readServerSpooledDrafts(projectDirectory, sessionId) {
+  return readAllSpooledDrafts(projectDirectory, sessionId).filter((draft) => draft.route === "server-v3");
 }
 function draftLine(draft) {
   return JSON.stringify({
@@ -50243,7 +50254,8 @@ function draftLine(draft) {
     title: draft.title,
     body: draft.body,
     labels: draft.labels,
-    bodyDigest: draft.bodyDigest
+    bodyDigest: draft.bodyDigest,
+    route: draft.route
   });
 }
 function canonicalSignatureForDraft(draft) {
@@ -50264,15 +50276,21 @@ function verifyDraftBody(draft) {
     return true;
   return createHash28("sha256").update(draft.body).digest("hex").slice(0, 12) === draft.bodyDigest;
 }
-function markDraftsFiled(projectDirectory, sessionId, filedSignatures) {
+function removeDrafts(projectDirectory, sessionId, removedSignatures, routeMatches) {
   try {
-    const filed = new Set(filedSignatures);
-    const remaining = readSpooledDrafts(projectDirectory, sessionId).filter((draft) => !filed.has(draft.signature));
+    const removed = new Set(removedSignatures);
+    const remaining = readAllSpooledDrafts(projectDirectory, sessionId).filter((draft) => !removed.has(draft.signature) || !routeMatches(draft));
     const body = remaining.length > 0 ? `${remaining.map((draft) => draftLine(draft)).join(`
 `)}
 ` : "";
     atomicWriteFile(draftSpoolPath(projectDirectory, sessionId), body);
   } catch {}
+}
+function markDraftsFiled(projectDirectory, sessionId, filedSignatures) {
+  removeDrafts(projectDirectory, sessionId, filedSignatures, (draft) => draft.route !== "server-v3");
+}
+function markDraftsAcceptedByServer(projectDirectory, sessionId, acceptedSignatures) {
+  removeDrafts(projectDirectory, sessionId, acceptedSignatures, (draft) => draft.route === "server-v3");
 }
 function ackFilePath(projectDirectory, sessionId) {
   return spoolSiblingPath(projectDirectory, sessionId, ".acks.jsonl");
@@ -53512,6 +53530,94 @@ var init_ledger = __esm(() => {
   PROVENANCE_SHA = /^[0-9a-f]{7,40}$/i;
   PROVENANCE_VERSION = /^\w[\w.-]{0,31}$/;
   PROVENANCE_AT_CHARS = /^[\d.:TZ-]{20,24}$/;
+});
+
+// src/retro/local-retro-readiness-manifest.json
+var local_retro_readiness_manifest_default;
+var init_local_retro_readiness_manifest = __esm(() => {
+  local_retro_readiness_manifest_default = {
+    enabled: false,
+    version: 1
+  };
+});
+
+// src/retro/local-retro-readiness.ts
+import { createHash as createHash29 } from "crypto";
+function hasAuthoritativeProductionEvidence() {
+  return false;
+}
+function harnessBuildIsCurrent(buildCommit, manifest, input) {
+  return COMMIT.test(buildCommit) && (buildCommit === manifest.evidenceCommit || input.ancestorPairs.some((pair) => pair.ancestor === buildCommit && pair.descendant === manifest.evidenceCommit));
+}
+function receiptPairIsValid(evidence) {
+  return UUID2.test(evidence.collectorReceipt) && UUID2.test(evidence.relayReceipt) && evidence.collectorReceipt !== evidence.relayReceipt;
+}
+function validHarnessEvidence(harness, evidence, manifest, input) {
+  const expectedArtifactDigest = createHash29("sha256").update([
+    "local-retro-canary:v1",
+    harness,
+    evidence.buildCommit,
+    evidence.requestId,
+    evidence.sessionScope,
+    evidence.collectorReceipt,
+    evidence.relayReceipt,
+    evidence.terminal
+  ].join("\x00")).digest("hex");
+  const requestIdentityIsValid = UUID2.test(evidence.requestId) && DIGEST.test(evidence.sessionScope);
+  return evidence.hostClass === "local" && harnessBuildIsCurrent(evidence.buildCommit, manifest, input) && receiptPairIsValid(evidence) && requestIdentityIsValid && evidence.artifactDigest === expectedArtifactDigest && ["duplicate", "filed"].includes(evidence.terminal);
+}
+function allUnique(values) {
+  return new Set(values).size === values.length;
+}
+function validHarnesses(manifest, input) {
+  const harnesses = Object.entries(manifest.harnesses);
+  if (harnesses.some(([harness, evidence]) => !validHarnessEvidence(harness, evidence, manifest, input))) {
+    return false;
+  }
+  const evidenceValues = harnesses.map(([, evidence]) => evidence);
+  return allUnique(evidenceValues.map((evidence) => evidence.requestId)) && allUnique(evidenceValues.map((evidence) => evidence.sessionScope)) && allUnique(evidenceValues.map((evidence) => evidence.artifactDigest));
+}
+function manifestBuildIsAncestor(manifest, input) {
+  return manifest.evidenceCommit === input.buildCommit || input.ancestorPairs.some((pair) => pair.ancestor === manifest.evidenceCommit && pair.descendant === input.buildCommit);
+}
+function validReviewWindow(manifest, now) {
+  const reviewedAt = new Date(manifest.reviewedAt);
+  return COMMIT.test(manifest.evidenceCommit) && !Number.isNaN(reviewedAt.getTime()) && reviewedAt <= now && now.getTime() - reviewedAt.getTime() <= 30 * 86400000;
+}
+function hasEvidenceCollections(manifest) {
+  return typeof manifest.harnesses === "object" && manifest.harnesses !== null && typeof manifest.recoveredFaults === "object" && manifest.recoveredFaults !== null;
+}
+function readinessPrerequisites(manifest, input) {
+  return manifest.enabled && input.relayReady && COMMIT.test(input.buildCommit) && hasAuthoritativeProductionEvidence();
+}
+function validateLocalRetroReadiness(manifest, input) {
+  if (!readinessPrerequisites(manifest, input))
+    return false;
+  if (!validReviewWindow(manifest, input.now) || !manifestBuildIsAncestor(manifest, input))
+    return false;
+  if (!hasEvidenceCollections(manifest))
+    return false;
+  const harnessKeys = Object.keys(manifest.harnesses).toSorted((left, right) => left.localeCompare(right));
+  if (harnessKeys.join("\x00") !== ["claude-code", "codex", "cursor"].join("\x00"))
+    return false;
+  if (!validHarnesses(manifest, input))
+    return false;
+  const faultKeys = Object.keys(manifest.recoveredFaults).toSorted((left, right) => left.localeCompare(right));
+  return faultKeys.join("\x00") === [
+    "ambiguousCreateMatch",
+    "ambiguousCreateNoMatch",
+    "claimCrash",
+    "retryExhaustion",
+    "workerOutage"
+  ].join("\x00") && Object.values(manifest.recoveredFaults).every((value) => DIGEST.test(value));
+}
+var CHECKED_IN_LOCAL_RETRO_READINESS, COMMIT, DIGEST, UUID2;
+var init_local_retro_readiness = __esm(() => {
+  init_local_retro_readiness_manifest();
+  CHECKED_IN_LOCAL_RETRO_READINESS = local_retro_readiness_manifest_default;
+  COMMIT = /^[\da-f]{40}$/u;
+  DIGEST = /^[\da-f]{64}$/u;
+  UUID2 = /^[\da-f]{8}-[\da-f]{4}-[1-5][\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/u;
 });
 
 // ../../node_modules/.bun/boundary@2.0.0/node_modules/boundary/lib/index.js
@@ -59212,9 +59318,9 @@ var init_finding = __esm(() => {
 });
 
 // src/retro/hash.ts
-import { createHash as createHash29 } from "crypto";
+import { createHash as createHash30 } from "crypto";
 function shortHash(material) {
-  return createHash29("sha256").update(material).digest("hex").slice(0, 12);
+  return createHash30("sha256").update(material).digest("hex").slice(0, 12);
 }
 var init_hash = () => {};
 
@@ -59314,8 +59420,8 @@ var init_pipeline = __esm(() => {
 });
 
 // src/retro/public-delivery.ts
-import { createHash as createHash30 } from "crypto";
-import { mkdirSync as mkdirSync19, renameSync as renameSync12, unlinkSync as unlinkSync6, writeFileSync as writeFileSync25 } from "fs";
+import { createHash as createHash31 } from "crypto";
+import { mkdirSync as mkdirSync19, readFileSync as readFileSync69, renameSync as renameSync12, unlinkSync as unlinkSync6, writeFileSync as writeFileSync25 } from "fs";
 import path5 from "path";
 function containsControlCharacter(value) {
   for (const character of value) {
@@ -59333,22 +59439,22 @@ function normalizePublicRetroOptionalValue(value) {
   return normalized;
 }
 function validSourceRoute(source) {
-  return source.hostClass === "unknown" || source.harness !== "cursor";
+  return source.hostClass === "local" || source.hostClass === "unknown";
 }
-function isValidEnvelopeInput(input, projectUUID) {
+function isValidEnvelopeInput(input, projectUUID, version2) {
   const { source } = input;
-  return UUID2.test(projectUUID) && input.findings.length > 0 && input.findings.every((finding) => finding.trim() !== "") && input.sessionId.trim() !== "" && (input.windowStart === undefined || Number.isSafeInteger(input.windowStart) && input.windowStart >= 0) && validSourceRoute(source);
+  return UUID3.test(projectUUID) && input.findings.length > 0 && input.findings.every((finding) => finding.trim() !== "") && input.sessionId.trim() !== "" && (input.windowStart === undefined || Number.isSafeInteger(input.windowStart) && input.windowStart >= 0) && (version2 === "v3" ? source.hostClass === "local" : validSourceRoute(source));
 }
 function deriveSessionScope(harness, projectUUID, sessionId, windowStart) {
-  const hash = createHash30("sha256").update("safeword-retro-session-scope:v1\x00").update(harness).update("\x00").update(projectUUID).update("\x00").update(sessionId);
+  const hash = createHash31("sha256").update("safeword-retro-session-scope:v1\x00").update(harness).update("\x00").update(projectUUID).update("\x00").update(sessionId);
   if (windowStart > 0)
     hash.update("\x00window\x00").update(String(windowStart));
   return hash.digest("hex");
 }
-function buildPublicRetroEnvelope(input) {
+function buildPublicRetroEnvelope(input, version2 = "v2") {
   const projectUUID = input.source.projectUUID.toLowerCase();
   const cliVersion = normalizePublicRetroOptionalValue(input.source.safewordCliVersion);
-  if (cliVersion === undefined || !isValidEnvelopeInput(input, projectUUID)) {
+  if (cliVersion === undefined || !isValidEnvelopeInput(input, projectUUID, version2)) {
     throw new Error("Invalid public retrospective input");
   }
   const normalizedOptional = {
@@ -59380,14 +59486,17 @@ function buildPublicRetroEnvelope(input) {
     }
   };
   const scope = deriveSessionScope(source.harness, projectUUID, input.sessionId, input.windowStart ?? 0);
-  const bytes = new TextEncoder().encode(JSON.stringify({ version: "v2", findings: input.findings, source, sessionScope: scope }));
+  const bytes = new TextEncoder().encode(JSON.stringify({ version: version2, findings: input.findings, source, sessionScope: scope }));
   return { bytes, sessionScope: scope };
 }
 function claimPublicRetroRequest(built, dependencies) {
-  if (built.bytes.byteLength > MAX_ENVELOPE_BYTES)
+  if (dependencies.route === "server-v3") {
+    return claimServerPublicRetroRequest(built, dependencies);
+  }
+  if (built.bytes.byteLength > LEGACY_MAX_ENVELOPE_BYTES)
     return;
   const requestId = dependencies.randomUUID().toLowerCase();
-  if (!UUID2.test(requestId))
+  if (!UUID3.test(requestId))
     throw new Error("Invalid public retrospective request identity");
   const markerPath2 = path5.join(dependencies.attemptsDirectory, `${built.sessionScope}.json`);
   try {
@@ -59407,6 +59516,63 @@ function claimPublicRetroRequest(built, dependencies) {
   }
   return { ...built, requestId };
 }
+function readServerAttempt(markerPath2, built) {
+  try {
+    const record2 = JSON.parse(readFileSync69(markerPath2, "utf8"));
+    if (record2.route !== "server-v3" || record2.sessionScope !== built.sessionScope) {
+      return { kind: "blocked" };
+    }
+    if (record2.state === "accepted")
+      return { kind: "blocked" };
+    if (record2.state !== "pending" || typeof record2.requestId !== "string" || typeof record2.bodyBase64 !== "string") {
+      return { kind: "blocked" };
+    }
+    const bytes = Buffer.from(record2.bodyBase64, "base64");
+    if (!bytes.equals(built.bytes))
+      return { kind: "blocked" };
+    return {
+      kind: "pending",
+      prepared: {
+        bytes: new Uint8Array(bytes),
+        requestId: record2.requestId,
+        sessionScope: built.sessionScope
+      }
+    };
+  } catch (error2) {
+    if (error2.code === "ENOENT")
+      return { kind: "absent" };
+    throw error2;
+  }
+}
+function claimServerPublicRetroRequest(built, dependencies) {
+  if (built.bytes.byteLength > SERVER_MAX_ENVELOPE_BYTES)
+    return;
+  const markerPath2 = path5.join(dependencies.attemptsDirectory, `${built.sessionScope}.json`);
+  const existing = readServerAttempt(markerPath2, built);
+  if (existing.kind !== "absent") {
+    return existing.kind === "pending" ? existing.prepared : undefined;
+  }
+  mkdirSync19(dependencies.attemptsDirectory, { recursive: true });
+  const requestId = dependencies.randomUUID().toLowerCase();
+  if (!UUID_V4.test(requestId))
+    throw new Error("Invalid public retrospective request identity");
+  try {
+    writeFileSync25(markerPath2, JSON.stringify({
+      bodyBase64: Buffer.from(built.bytes).toString("base64"),
+      requestId,
+      route: "server-v3",
+      sessionScope: built.sessionScope,
+      state: "pending"
+    }), { encoding: "utf8", flag: "wx", flush: true });
+    return { ...built, requestId };
+  } catch (error2) {
+    if (error2.code === "EEXIST") {
+      const raced = readServerAttempt(markerPath2, built);
+      return raced.kind === "pending" ? raced.prepared : undefined;
+    }
+    throw error2;
+  }
+}
 async function submitPublicRetroRequest(prepared, transport, signal) {
   const result = await transport({
     method: "POST",
@@ -59423,24 +59589,31 @@ async function submitPublicRetroRequest(prepared, transport, signal) {
   }
   return result;
 }
+function handoffTiming(dependencies, preparationDeadline) {
+  const now = dependencies.now();
+  if (now >= preparationDeadline)
+    return;
+  return { deadline: preparationDeadline, timeoutMs: preparationDeadline - now };
+}
 async function deliverPreparedInput(input, dependencies, preparationDeadline) {
   let claimedMarkerPath;
   let accepted = false;
   try {
-    if (dependencies.now() >= preparationDeadline)
+    const serverRoute = dependencies.route === "server-v3";
+    if (!serverRoute && dependencies.now() >= preparationDeadline)
       return "abandoned";
-    const built = buildPublicRetroEnvelope(input);
+    const built = buildPublicRetroEnvelope(input, serverRoute ? "v3" : "v2");
     const prepared = claimPublicRetroRequest(built, dependencies);
     if (!prepared)
       return "abandoned";
     claimedMarkerPath = path5.join(dependencies.attemptsDirectory, `${prepared.sessionScope}.json`);
-    if (dependencies.now() >= preparationDeadline)
+    const timing = handoffTiming(dependencies, preparationDeadline);
+    if (timing === undefined)
       return "abandoned";
-    const handoffDeadline = dependencies.now() + 2000;
     const controller = new AbortController;
     const timeout = setTimeout(() => {
       controller.abort();
-    }, 2000);
+    }, timing.timeoutMs);
     timeout.unref();
     let result;
     try {
@@ -59449,25 +59622,42 @@ async function deliverPreparedInput(input, dependencies, preparationDeadline) {
     } finally {
       clearTimeout(timeout);
     }
-    if (dependencies.now() >= handoffDeadline)
+    if (dependencies.now() >= timing.deadline)
       return "abandoned";
-    const preserved = preservePublicRetroReceipt(prepared, result, claimedMarkerPath, dependencies.now, handoffDeadline);
+    const preserved = preservePublicRetroReceipt({
+      handoffDeadline: timing.deadline,
+      markerPath: claimedMarkerPath,
+      now: dependencies.now,
+      prepared,
+      result,
+      route: dependencies.route ?? "direct-v2"
+    });
     return preserved ? "preserved" : "abandoned";
   } catch {
     return "abandoned";
   } finally {
-    if (claimedMarkerPath !== undefined && !accepted) {
-      try {
-        unlinkSync6(claimedMarkerPath);
-      } catch {}
-    }
+    releaseLegacyClaim(claimedMarkerPath, accepted, dependencies.route);
   }
 }
-function preservePublicRetroReceipt(prepared, result, markerPath2, now, handoffDeadline) {
+function releaseLegacyClaim(markerPath2, accepted, route) {
+  if (markerPath2 === undefined || accepted || route === "server-v3")
+    return;
+  try {
+    unlinkSync6(markerPath2);
+  } catch {}
+}
+function preservePublicRetroReceipt(input) {
+  const { handoffDeadline, markerPath: markerPath2, now, prepared, result, route } = input;
   const temporaryPath = `${markerPath2}.${prepared.requestId}.tmp`;
   let committed = false;
   try {
-    writeFileSync25(temporaryPath, JSON.stringify({ sessionScope: prepared.sessionScope, receipt: result.receipt }), { encoding: "utf8", flag: "wx", flush: true });
+    writeFileSync25(temporaryPath, JSON.stringify(route === "server-v3" ? {
+      receipt: result.receipt,
+      requestId: prepared.requestId,
+      route,
+      sessionScope: prepared.sessionScope,
+      state: "accepted"
+    } : { sessionScope: prepared.sessionScope, receipt: result.receipt }), { encoding: "utf8", flag: "wx", flush: true });
     if (now() >= handoffDeadline)
       return false;
     renameSync12(temporaryPath, markerPath2);
@@ -59493,14 +59683,15 @@ function deliverSanitizedPublicRetroFindings(input, dependencies, preparationDea
     return Promise.resolve("abandoned");
   }
 }
-var UUID2, MAX_ENVELOPE_BYTES = 65536, MAX_OPTIONAL_VALUE_BYTES = 256;
+var UUID3, UUID_V4, LEGACY_MAX_ENVELOPE_BYTES = 65536, SERVER_MAX_ENVELOPE_BYTES = 262144, MAX_OPTIONAL_VALUE_BYTES = 256;
 var init_public_delivery = __esm(() => {
   init_finding();
-  UUID2 = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+  UUID3 = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+  UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 });
 
 // src/retro/public-source.ts
-import { lstatSync as lstatSync24, readFileSync as readFileSync69, realpathSync as realpathSync15 } from "fs";
+import { lstatSync as lstatSync24, readFileSync as readFileSync70, realpathSync as realpathSync15 } from "fs";
 import nodePath108 from "path";
 function repoIdentity(hostname, rawPath) {
   const path6 = normalizedRepoPath(rawPath);
@@ -59581,16 +59772,16 @@ function repoGitConfigPath(cwd) {
     throw new Error("Untrusted Git directory pointer");
   if (dotGitEntry.isDirectory())
     return trustedConfigFile(nodePath108.join(dotGit, "config"));
-  const pointer = readFileSync69(dotGit, "utf8").trim();
+  const pointer = readFileSync70(dotGit, "utf8").trim();
   if (!pointer.toLowerCase().startsWith("gitdir:"))
     throw new Error("Invalid Git directory pointer");
   const gitDirectory = nodePath108.resolve(projectDirectory, pointer.slice("gitdir:".length).trim());
   let commonDirectory;
   let backlink;
   try {
-    const common = readFileSync69(nodePath108.join(gitDirectory, "commondir"), "utf8").trim();
+    const common = readFileSync70(nodePath108.join(gitDirectory, "commondir"), "utf8").trim();
     commonDirectory = nodePath108.resolve(gitDirectory, common);
-    backlink = readFileSync69(nodePath108.join(gitDirectory, "gitdir"), "utf8").trim();
+    backlink = readFileSync70(nodePath108.join(gitDirectory, "gitdir"), "utf8").trim();
   } catch {
     throw new Error("Untrusted Git directory pointer");
   }
@@ -59683,7 +59874,7 @@ function stripGitComment(value) {
 }
 function collectPublicGitContext(cwd) {
   try {
-    const config = parseRepoGitConfig(readFileSync69(repoGitConfigPath(cwd), "utf8"));
+    const config = parseRepoGitConfig(readFileSync70(repoGitConfigPath(cwd), "utf8"));
     if (config.delegatesConfig)
       return {};
     const repo = config.remote === undefined ? undefined : normalizeRepoRemote(config.remote);
@@ -59923,7 +60114,7 @@ var init_durable_fs = __esm(() => {
 });
 
 // src/retro/relay-delivery.ts
-import { createHash as createHash31, randomUUID as randomUUID12 } from "crypto";
+import { createHash as createHash32, randomUUID as randomUUID12 } from "crypto";
 import { access, readdir, readFile as readFile2, stat as stat2, unlink as unlink2 } from "fs/promises";
 import path7 from "path";
 function normalizeRelayOrigin(value) {
@@ -59960,10 +60151,10 @@ function relaySourcePayloadDigest(request) {
     repository: request.repository,
     title: request.title
   };
-  return createHash31("sha256").update(JSON.stringify(payload)).digest("hex");
+  return createHash32("sha256").update(JSON.stringify(payload)).digest("hex");
 }
 function relayRequestDigest(request) {
-  return createHash31("sha256").update(JSON.stringify(request)).digest("hex");
+  return createHash32("sha256").update(JSON.stringify(request)).digest("hex");
 }
 function createRelayRequest(input, dependencies) {
   const createdAt = (dependencies?.now ?? Date.now)();
@@ -59975,7 +60166,7 @@ function createRelayRequest(input, dependencies) {
   };
 }
 function relaySourceKey(sessionIdentity, windowStart, payload) {
-  return createHash31("sha256").update(`relay-source-v3\x00${sessionIdentity}\x00${windowStart}\x00${relaySourcePayloadDigest(payload)}`).digest("hex");
+  return createHash32("sha256").update(`relay-source-v3\x00${sessionIdentity}\x00${windowStart}\x00${relaySourcePayloadDigest(payload)}`).digest("hex");
 }
 function relayDirectory(projectDirectory) {
   return path7.join(projectDirectory, ".safeword", "retro-drafts", "relay");
@@ -60015,7 +60206,7 @@ function discardIntentTokenPath(projectDirectory, requestId, token) {
   return path7.join(relayDirectory(projectDirectory), `${requestId}.discarding.${token}.json`);
 }
 function sourcePath(projectDirectory, sourceKey, suffix) {
-  const key = createHash31("sha256").update(sourceKey).digest("hex");
+  const key = createHash32("sha256").update(sourceKey).digest("hex");
   return path7.join(relayDirectory(projectDirectory), `source-${key}${suffix}.json`);
 }
 function sourceReservationPath(projectDirectory, sourceKey) {
@@ -61690,7 +61881,7 @@ var init_relay_readiness_manifest = __esm(() => {
 });
 
 // src/retro/relay-readiness.ts
-import { createHash as createHash32 } from "crypto";
+import { createHash as createHash33 } from "crypto";
 function validDate(value) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) || date.toISOString() !== value ? undefined : date;
@@ -61822,7 +62013,7 @@ function matchesAttestedManifest(manifest, attestation) {
   try {
     const bytes = Buffer.from(attestation.manifestBase64, "base64");
     const parsed2 = JSON.parse(bytes.toString("utf8"));
-    return createHash32("sha256").update(bytes).digest("hex") === attestation.manifestSha256 && JSON.stringify(parsed2) === JSON.stringify(manifest);
+    return createHash33("sha256").update(bytes).digest("hex") === attestation.manifestSha256 && JSON.stringify(parsed2) === JSON.stringify(manifest);
   } catch {
     return false;
   }
@@ -61842,7 +62033,7 @@ function validateBuildAttestedRelayReadiness(manifest, attestation, now) {
         return Promise.resolve(undefined);
       }
       const bytes = Buffer.from(artifact.contentBase64, "base64");
-      const sha2567 = createHash32("sha256").update(bytes).digest("hex");
+      const sha2567 = createHash33("sha256").update(bytes).digest("hex");
       return Promise.resolve(sha2567 === artifact.sha256 ? { content: bytes.toString("utf8"), sha256: sha2567 } : undefined);
     }
   });
@@ -62166,6 +62357,8 @@ __export(exports_retro, {
   resolveRelayConfig: () => resolveRelayConfig,
   resolvePublicRetroRoute: () => resolvePublicRetroRoute,
   reportRetroCommandOutcome: () => reportRetroCommandOutcome,
+  localServerRouteEnabled: () => localServerRouteEnabled,
+  localRetroHostClass: () => localRetroHostClass,
   executeRetroReconcile: () => executeRetroReconcile,
   executeRetroCommand: () => executeRetroCommand,
   discardRelaySpoolCommand: () => discardRelaySpoolCommand,
@@ -62177,7 +62370,7 @@ import { randomUUID as randomUUID13 } from "crypto";
 import {
   mkdirSync as mkdirSync20,
   mkdtempSync as mkdtempSync8,
-  readFileSync as readFileSync70,
+  readFileSync as readFileSync71,
   realpathSync as realpathSync16,
   statSync as statSync12,
   writeFileSync as writeFileSync26
@@ -62309,7 +62502,8 @@ async function runRetro(options, dependencies) {
       errorMessage: "safeword retro requires --transcript <path>; it never guesses the session path."
     };
   }
-  const read = dependencies.readFile ?? ((path8) => readFileSync70(path8, "utf8"));
+  const publicRetroDeadline = dependencies.publicRetro === undefined ? undefined : dependencies.publicRetro.now() + 750;
+  const read = dependencies.readFile ?? ((path8) => readFileSync71(path8, "utf8"));
   let transcript;
   try {
     transcript = read(options.transcript);
@@ -62323,7 +62517,8 @@ async function runRetro(options, dependencies) {
   const relay = dependencies.relay;
   const sourceSession = sessionId.trim().length === 0 || sessionId === "unknown" ? options.transcript : sessionId;
   if (projectDirectory !== undefined && relay?.readiness.enabled !== true) {
-    const drafts = encounters.map((encounter) => encounter.draft);
+    const route = publicRetro?.route ?? "direct-v2";
+    const drafts = encounters.map((encounter) => ({ ...encounter.draft, route }));
     recordRetroDebugEvent({
       event: "retro_cli_spool",
       sessionId,
@@ -62333,26 +62528,48 @@ async function runRetro(options, dependencies) {
     });
     spoolDrafts(projectDirectory, sessionId, drafts);
   }
-  const deliverPublic = async () => {
-    if (publicRetro === undefined || findings.length === 0) {
-      return;
-    }
-    await deliverSanitizedPublicRetroFindings({
-      findings,
-      sessionId: sourceSession,
-      source: publicRetro.source,
-      windowStart: options.windowStart ?? 0
-    }, publicRetro, publicRetro.now() + 1000);
-  };
   if (relay?.readiness.enabled === true && projectDirectory !== undefined) {
     return runRelayRetro(encounters, drops, {
-      afterPersistence: deliverPublic,
+      afterPersistence: () => Promise.resolve(),
       projectDirectory,
       relay,
       source: { session: sourceSession, windowStart: options.windowStart ?? 0 }
     });
   }
-  await deliverPublic();
+  if (relay?.readiness.enabled === true) {
+    return { ok: false, errorMessage: "relay delivery requires a project directory" };
+  }
+  const deliverPublic = async () => {
+    if (publicRetro === undefined || publicRetroDeadline === undefined || findings.length === 0) {
+      return;
+    }
+    return deliverSanitizedPublicRetroFindings({
+      findings,
+      sessionId: sourceSession,
+      source: publicRetro.source,
+      windowStart: options.windowStart ?? 0
+    }, publicRetro, publicRetroDeadline);
+  };
+  const publicOutcome = await deliverPublic();
+  if (publicRetro?.route === "server-v3") {
+    if (publicOutcome === "preserved" && projectDirectory !== undefined) {
+      markDraftsAcceptedByServer(projectDirectory, sessionId, encounters.map((encounter) => encounter.draft.signature));
+    }
+    return {
+      ok: true,
+      result: {
+        created: [],
+        bumped: [],
+        commented: [],
+        deferred: [],
+        failed: [],
+        filedSignatures: [],
+        filedDestinations: []
+      },
+      agentFilingNeeded: publicOutcome !== "preserved",
+      drops
+    };
+  }
   const provenance = dependencies.resolveProvenance?.();
   const result = await triage(dependencies.transport, encounters, {
     sessionId,
@@ -62461,7 +62678,7 @@ async function buildAutoExtractor(projectDirectory, dependencies = {}) {
         writeFile: (path8, content) => {
           writeFileSync26(path8, content);
         },
-        readFile: (path8) => readFileSync70(path8, "utf8"),
+        readFile: (path8) => readFileSync71(path8, "utf8"),
         env: headlessEnvironment(process17.env, "codex"),
         cwd: workDirectory,
         model,
@@ -62714,7 +62931,7 @@ async function executeRetroWithDependencies(options, dependencies) {
     extract: dependencies.extract,
     harness: dependencies.harness,
     projectDirectory: dependencies.projectDirectory,
-    readFile: (path8) => readFileSync70(path8, "utf8"),
+    readFile: (path8) => readFileSync71(path8, "utf8"),
     ...relay !== undefined && { relay },
     ...dependencies.publicRetro !== undefined && { publicRetro: dependencies.publicRetro },
     resolveProvenance: dependencies.resolveProvenance,
@@ -62889,25 +63106,59 @@ function publicHarness(agent) {
     return "codex";
   return agent === "cursor" ? "cursor" : undefined;
 }
-function resolvePublicRetroRoute(input) {
-  if (!input.enabled || input.agent === "cursor" && !cursorPublicBindingMatches(input) || input.agent === "claude" && input.environment.CLAUDE_CODE_REMOTE_SESSION_ID !== undefined) {
-    return;
+function localRetroHostClass(agent, environment, socketStatus = statSync12) {
+  if (agent !== "cursor")
+    return "local";
+  const configuredSocket = environment.CURSOR_AGENT_SOCKET?.trim() || undefined;
+  const socketPath = configuredSocket || "/run/cursor/api.sock";
+  try {
+    socketStatus(socketPath);
+    return "unknown";
+  } catch (error_) {
+    const error2 = error_;
+    return error2.code === "ENOENT" && configuredSocket === undefined ? "local" : "unknown";
   }
+}
+function localServerRouteEnabled(source, readiness) {
+  return readiness && source.hostClass === "local";
+}
+function publicRetroEligible(input) {
+  if (!input.enabled)
+    return false;
+  if (input.agent === "cursor" && !cursorPublicBindingMatches(input))
+    return false;
+  return input.agent !== "claude" || input.environment.CLAUDE_CODE_REMOTE_SESSION_ID === undefined;
+}
+function resolvePublicRetroRoute(input) {
+  if (!publicRetroEligible(input))
+    return;
   const harness = publicHarness(input.agent);
   if (harness === undefined)
     return;
-  const source = buildPublicRetroSource(input.projectDirectory, {
+  const builtSource = buildPublicRetroSource(input.projectDirectory, {
     cliVersion: VERSION,
     harness,
     osFamily: platform()
   });
-  if (source === undefined)
+  if (builtSource === undefined)
     return;
+  const localSource = {
+    ...builtSource,
+    hostClass: localRetroHostClass(input.agent, input.environment)
+  };
+  const serverReady = input.serverReady ?? validateLocalRetroReadiness(CHECKED_IN_LOCAL_RETRO_READINESS, {
+    ancestorPairs: SAFEWORD_RELAY_BUILD_ATTESTATION.ancestorPairs,
+    buildCommit: SAFEWORD_BUILD_COMMIT,
+    now: new Date,
+    relayReady: CHECKED_IN_RELAY_READINESS.enabled && SAFEWORD_RELAY_BUILD_ATTESTATION.enabled
+  });
+  const useServerRoute = localServerRouteEnabled(localSource, serverReady);
   return {
     attemptsDirectory: nodePath109.join(input.projectDirectory, ".safeword", "retro-attempts"),
     now: () => performance.now(),
     randomUUID: randomUUID13,
-    source,
+    ...useServerRoute && { route: "server-v3" },
+    source: useServerRoute ? localSource : builtSource,
     transport: createPublicRetroTransport()
   };
 }
@@ -62918,7 +63169,7 @@ function cursorPublicBindingMatches(input) {
     return false;
   const state = { conversation_id: sessionId };
   try {
-    return readFileSync70(cursorConversationStashPath(state), "utf8") === sessionId && readFileSync70(cursorTranscriptStashPath(state), "utf8") === transcript && realpathSync16(readFileSync70(cursorProjectStashPath(state), "utf8")) === realpathSync16(input.projectDirectory);
+    return readFileSync71(cursorConversationStashPath(state), "utf8") === sessionId && readFileSync71(cursorTranscriptStashPath(state), "utf8") === transcript && realpathSync16(readFileSync71(cursorProjectStashPath(state), "utf8")) === realpathSync16(input.projectDirectory);
   } catch {
     return false;
   }
@@ -62984,7 +63235,7 @@ async function retroCommand(options) {
 }
 function readFindings(path8) {
   try {
-    const parsed2 = JSON.parse(readFileSync70(path8, "utf8"));
+    const parsed2 = JSON.parse(readFileSync71(path8, "utf8"));
     return Array.isArray(parsed2) ? parsed2 : [];
   } catch {
     return [];
@@ -63022,6 +63273,7 @@ var init_retro = __esm(() => {
   init_retro_extract();
   init_self_report();
   init_ledger();
+  init_local_retro_readiness();
   init_pipeline();
   init_public_delivery();
   init_public_source();
@@ -63756,7 +64008,7 @@ import {
   mkdirSync as mkdirSync22,
   mkdtempSync as mkdtempSync9,
   readdirSync as readdirSync35,
-  readFileSync as readFileSync72,
+  readFileSync as readFileSync73,
   renameSync as renameSync13,
   rmSync as rmSync15,
   writeFileSync as writeFileSync27
@@ -63955,7 +64207,7 @@ function readPackagedSafewordInstructions() {
   const instructionsPath = findPackagedTemplate("SAFEWORD.md");
   if (!instructionsPath)
     return;
-  if (!readFileSync72(instructionsPath, "utf8").trim())
+  if (!readFileSync73(instructionsPath, "utf8").trim())
     return;
   return [
     "Current Safeword authority: tickets and their user stories/test definitions live under `.project/` (or the configured namespace root), and current workflow guides live under `.safeword/guides/`.",
@@ -64038,7 +64290,7 @@ function rewriteSnapshotImportsForNode(directory) {
     }
     if (!entry2.isFile() || !entry2.name.endsWith(".ts"))
       continue;
-    const source = readFileSync72(path8, "utf8");
+    const source = readFileSync73(path8, "utf8");
     const rewritten = source.replaceAll(/(from\s+['"]|import\s*\(\s*['"])(\.{1,2}\/[^'"]+)\.js(['"])/gu, "$1$2.ts$3").replace("return JSON.parse(await Bun.stdin.text()) as CodexHookInput;", `const raw = (await import('node:fs')).readFileSync(0, 'utf8');
     return JSON.parse(raw) as CodexHookInput;`).replace("return spawnSync('bun', [claudeHookPath], {", "return spawnSync(process.execPath, [claudeHookPath], {").replace("SAFEWORD_AGENT_RUNTIME: 'codex',", "SAFEWORD_AGENT_RUNTIME: 'opencode',").replace("input = await Bun.stdin.json();", `const raw = (await import('node:fs')).readFileSync(0, 'utf8');
   input = JSON.parse(raw) as HookInput;`);
@@ -64098,7 +64350,7 @@ function emitPackagedPreToolResult(result) {
 }
 function readProjectTextFile(projectDirectory, relativePath) {
   const filePath = nodePath113.join(projectDirectory, relativePath);
-  return existsSync53(filePath) ? readFileSync72(filePath, "utf8") : undefined;
+  return existsSync53(filePath) ? readFileSync73(filePath, "utf8") : undefined;
 }
 function emitAdditionalContext(output) {
   process21.stdout.write(`${JSON.stringify(output)}
@@ -64146,7 +64398,7 @@ function maybeDenyTestDefinitionsWrite(projectDirectory, targetPath) {
   if (!ticketFolder)
     return false;
   const ticketPath = nodePath113.join(resolveNamespaceRoot(projectDirectory), "tickets", ticketFolder, "ticket.md");
-  const ticketContent = existsSync53(ticketPath) ? readFileSync72(ticketPath, "utf8") : "";
+  const ticketContent = existsSync53(ticketPath) ? readFileSync73(ticketPath, "utf8") : "";
   const missing = missingIntakeFields(ticketContent);
   if (missing.length === 0)
     return false;
@@ -66449,7 +66701,7 @@ init_migration_error();
 init_architecture_document();
 init_agent_selection();
 init_online_required();
-import { existsSync as existsSync51, lstatSync as lstatSync25, readFileSync as readFileSync71, readlinkSync as readlinkSync4 } from "fs";
+import { existsSync as existsSync51, lstatSync as lstatSync25, readFileSync as readFileSync72, readlinkSync as readlinkSync4 } from "fs";
 import nodePath110 from "path";
 
 // src/cli-protocol/option-values.ts
@@ -67955,7 +68207,7 @@ async function codexBootstrapHandler(invocation) {
   const { bootstrapCodexPlugin: bootstrapCodexPlugin2 } = await Promise.resolve().then(() => (init_codex_bootstrap(), exports_codex_bootstrap));
   let rawInput = "";
   try {
-    rawInput = readFileSync71(0, "utf8");
+    rawInput = readFileSync72(0, "utf8");
   } catch {}
   return bootstrapCodexPlugin2(invocation.cwd, rawInput, { offline: invocation.offline });
 }
@@ -68506,7 +68758,7 @@ function snapshotKind(stats) {
 }
 function snapshotBytes(path8, stats) {
   if (stats.isFile())
-    return readFileSync71(path8).toString("base64");
+    return readFileSync72(path8).toString("base64");
   if (stats.isSymbolicLink())
     return Buffer.from(readlinkSync4(path8)).toString("base64");
   return;
