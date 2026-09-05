@@ -49,6 +49,7 @@ export interface DurableRequest {
 }
 
 export interface AcceptInput {
+  acceptedAt?: string;
   envelope: PayloadEnvelope;
   payloadHash: string;
   requestMarker: string;
@@ -471,10 +472,10 @@ export class RelayStore {
   }
 
   accept(input: AcceptInput): { inserted: boolean; record: DurableRequest } {
-    const acceptedAtDate = this.#now();
-    const acceptedAt = acceptedAtDate.toISOString();
+    const relayAcceptedAt = this.#now();
+    const acceptedAt = input.acceptedAt ?? relayAcceptedAt.toISOString();
     const suppliedDeadline = new Date(input.retryDeadlineAt);
-    const maximumDeadline = new Date(acceptedAtDate.getTime() + DAY_MS);
+    const maximumDeadline = new Date(relayAcceptedAt.getTime() + DAY_MS);
     const retryDeadlineAt = new Date(
       Math.min(suppliedDeadline.getTime(), maximumDeadline.getTime()),
     ).toISOString();

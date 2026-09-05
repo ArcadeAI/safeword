@@ -51,9 +51,9 @@
         "accepts the %s/%s source compatibility row"
       ]
     ],
-    "Cursor cannot claim the released-client local classification": [
+    "Cursor local classification remains accepted during cutover": [
       "packages/retro-collector/tests/public-retro.integration.test.ts",
-      "rejects the %s compatibility row"
+      "accepts a local Cursor source while the legacy compatibility route remains active"
     ],
     "Cursor cannot claim released legacy user identity": [
       "packages/retro-collector/tests/public-retro.integration.test.ts",

@@ -59,7 +59,7 @@
     },
     {
       "path": "resources/guides/retro.md",
-      "sha256": "33b58e29befdcca89a9c705c83183f2c2ef84e8189cf8940fa89f01a8d86071d"
+      "sha256": "b0ebf3b8971c52e107f7ea9c656316f31594f2cafc601813dc3f850a8eccc09b"
     },
     {
       "path": "resources/guides/self-report-filing.md",
@@ -143,7 +143,7 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "e1c5dd8310305a4adb164afe35ec335686989a2817a69d1b20226cfda3ac578d"
+      "sha256": "d4159347e9583258c31ac7bb541458d82f4bc14390246add3c9ab8fb6f8b6301"
     },
     {
       "path": "runtime/dispatch.js",
@@ -351,7 +351,7 @@
     },
     {
       "path": "runtime/hooks/lib/retro-draft-spool.ts",
-      "sha256": "c39b894596d0ec79b0ca6eef761d387bd96b3539d6d6ebadf6a2ceace1da9fb1"
+      "sha256": "50e61ff9981cd7e41511ba9c61eacbc89cd13fd574ff74223637a8131fbfe5e0"
     },
     {
       "path": "runtime/hooks/lib/retro-extract.ts",
