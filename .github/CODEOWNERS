@@ -1,4 +1,9 @@
-# PRs into this repo require approval from one of the listed code owners.
-# Branch protection on main restricts push/merge to these same users, so
-# @TheMostlyGreat is the only person who can land changes.
+# Default owner for the whole repo. GitHub auto-requests review from the
+# owner on PRs they did not author.
+#
+# This file does not gate merges. The "main branch protection" ruleset is
+# what enforces landing rules (1 approval + required checks, org admins may
+# bypass); it has require_code_owner_review turned off. Do not turn that on
+# while a single owner is listed — a sole code owner cannot approve their own
+# PR, so every PR would deadlock on admin bypass.
 * @TheMostlyGreat
