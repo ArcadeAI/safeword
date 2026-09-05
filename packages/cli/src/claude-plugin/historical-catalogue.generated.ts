@@ -10,7 +10,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/audit/SKILL.md':
         '64afc92c419a8354c015f18ffe0cc581cfce48cb3fee3db8e3c39d75844fb2d3',
       '.claude/skills/bdd/DISCOVERY.md':
-        'eaa9ce3b440f40e1908076b7afe5b2db19d2fc54474cb404853f794c3a22a841',
+        'c88ae677ac877afca87745f13403f06e7c2dab86efc7934979d430e03837bf76',
       '.claude/skills/bdd/DONE.md':
         'e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60',
       '.claude/skills/bdd/PLAN_IMPLEMENTATION.md':
@@ -70,7 +70,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/ticket-system/SKILL.md':
         '97595a9875cdca30ea26c809a26e5be7df338a42034d6122b559e70275f2477e',
       '.claude/skills/verify/SKILL.md':
-        '5b62944599be519ca06158c078702df9dfadc11a99f27ed19ede4bdcfc5cc0c8',
+        'ed87e2c098a87fa224af8e18a17bac4a84806f6963b6703375fe749f3dd408e4',
     },
     hook_files: {
       '.safeword/hooks/post-tool-bypass-warn.ts':

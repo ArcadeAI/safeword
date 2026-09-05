@@ -191,6 +191,12 @@ function canonicalValue(value: unknown, cwd: string): unknown {
   );
 }
 
+// Scoped to one agent's own schema, so the three integrations drift independently.
+// Editing a skill template moves only the codex and cursor digests: Claude loads skills
+// from its native plugin cache, so `schemaForClaudeDelivery` drops `.claude/**` and the
+// `.safeword/skills/**` copies belong to Cursor's delivery surface. Unchanged `claude-*`
+// fixtures beside changed `codex-*`/`cursor-*` ones are therefore expected, not stale —
+// Claude's skill delivery is covered by the plugin catalogue freshness check instead.
 function treeDigest(root: string, agent: Integration): string {
   const hash = createHash('sha256');
   const token = (value: string): void => {
