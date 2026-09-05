@@ -154,6 +154,16 @@ describe('NMSD94 Tier 2 phase-advance gate (wired)', () => {
     expectHookAllow(runGateWrite('scenario-gate'));
   });
 
+  it('allows phase advancement with ABSENT demand after the required review', () => {
+    writeFileSync(
+      nodePath.join(ticketDirectory, 'spec.md'),
+      '# Spec\n\n## Product Bet\n\n**Problem / Why now:** Demand: ABSENT. Validate with a manual pilot.\n\n**Success threshold:** Three teams complete the pilot.\n\n## Jobs To Be Done\n\nskip: phase-review fixture\n',
+    );
+    expectHookDeny(runGateWrite('scenario-gate'), 'define-behavior');
+    stampPhase('define-behavior');
+    expectHookAllow(runGateWrite('scenario-gate'));
+  });
+
   it('end to end: write-review-stamp --phase earns a stamp the gate accepts', () => {
     expectHookDeny(runGateWrite('scenario-gate'), 'define-behavior');
     stampPhase('define-behavior');

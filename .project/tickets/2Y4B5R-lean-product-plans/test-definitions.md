@@ -2,6 +2,10 @@
 
 Feature source: `features/lean-product-plans.feature`
 
+Semantic demo scenarios: `features/killer-demo-quality.feature` (manual reviewer
+evaluation). Procedure and evidence: `experiments/killer-demo-eval/README.md`
+and `results.md` in that directory. Template-shape tests are not semantic proof.
+
 ## Rule: lean-product-plans.NTB1.R1 — Every feature epic and standalone feature has one decision-ready Product Plan
 
 ### Scenario: Creating a feature epic creates one compact Product Plan
@@ -148,17 +152,34 @@ Feature source: `features/lean-product-plans.feature`
 
 ## Rule: lean-product-plans.NTB1.R4 — A Product Plan identifies the shortest credible demo of its product payoff
 
+All four scenarios below have bounded smoke evidence only: one shared-reviewer
+run per case, not full host coverage or automatic workflow execution. GREEN
+records that smoke checkpoint, not completion of every tagged surface.
+
 ### Scenario: Each Product Plan owner captures a credible Killer Demo
 
-- [x] RED skip: behavior test and implementation share the recorded delivery checkpoint
-- [x] GREEN a578d4269
-- [x] REFACTOR skip: no scenario-local cleanup remained after the delivery checkpoint
+- [x] RED skip: PR #3630 review exposed non-discriminating proof, not a failing runtime test
+- [x] GREEN 32eff0e2c
+- [x] REFACTOR skip: manual-lane move shipped with the smoke evidence; no separate refactor
+- Limitation: shared owner context evaluated once, not separate host/owner paths
 
 ### Scenario: Boilerplate does not qualify as a Killer Demo
 
-- [x] RED skip: behavior test and implementation share the recorded delivery checkpoint
-- [x] GREEN a578d4269
-- [x] REFACTOR skip: no scenario-local cleanup remained after the delivery checkpoint
+- [x] RED skip: the prior string assertion did not exercise reviewer judgment
+- [x] GREEN 32eff0e2c
+- [x] REFACTOR skip: manual-lane move shipped with the smoke evidence; no separate refactor
+
+### Scenario: A working interaction without the promised payoff does not qualify
+
+- [x] RED skip: new fixed negative case, not a claimed behavior regression
+- [x] GREEN 32eff0e2c
+- [x] REFACTOR skip: no additional runner or grading framework needed
+
+### Scenario: An impressive claim without supporting evidence does not qualify
+
+- [x] RED skip: new fixed negative case, not a claimed behavior regression
+- [x] GREEN 32eff0e2c
+- [x] REFACTOR skip: no additional runner or grading framework needed
 
 ## Rule: lean-product-plans.NTB1.R5 — Inapplicable planning sections create no placeholder or skip work
 

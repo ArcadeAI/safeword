@@ -143,11 +143,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "9a0ce02f9ff95744ea462588cbe7ae6edbe6b94af0074dc72428a17d4f16a596"
+      "sha256": "ad069511d8a105a00bea96fe688f6b9b3538107376d1d537f1f49146ec14eff6"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "5f777b739620d8743885dbca99fec6098943a6faee0e11ad6732220fb6a1b450"
+      "sha256": "ac5ab8b2843b67fbef35d9f52138dccdd8e33d0d3837417354674d45804fb580"
     },
     {
       "path": "runtime/event-groups.json",
@@ -599,7 +599,7 @@
     },
     {
       "path": "skills/bdd/DISCOVERY.md",
-      "sha256": "0e4644722ff34bf9da50f175939d13410df2cda943e669e21391c437abf6feb6"
+      "sha256": "8fb02b4fe72f82ef48c862a4e08a59da84a17205b8ff105209be37efbaab0a67"
     },
     {
       "path": "skills/bdd/DONE.md",
@@ -647,7 +647,7 @@
     },
     {
       "path": "skills/demand-research/SKILL.md",
-      "sha256": "9271c21513cdb7048cf72c6343af17fed76a381569211eba24b31ba71c79381a"
+      "sha256": "5912afe5c717c634455ec88b050df6af80ffb994ddd26c55811b2977522a72fc"
     },
     {
       "path": "skills/elicit/SKILL.md",
@@ -699,7 +699,7 @@
     },
     {
       "path": "skills/self-review/SKILL.md",
-      "sha256": "c16967353e3836feee2cfdcafc2d1b276c346bcf7f4cc99b303f21b36e40baec"
+      "sha256": "f85fcfcfc7e10c833390f3166bc7447a67c7f0a216d297492d96fc54c6e628c5"
     },
     {
       "path": "skills/spike/SKILL.md",
