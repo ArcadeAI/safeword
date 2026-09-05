@@ -217,7 +217,9 @@ Builds dynamic configuration and legacy-cleanup content consumed by reconciliati
 
 `src/test-execution`
 
-No description yet — awaiting prose.
+<!-- seeded-purpose: adb4a0800f07492701f258275f7c107d407e1c2d8d2a3b56c0d7d6c55ffd531c -->
+
+Resolves Safeword's local versus remote-preferred test-execution choice, including private worktree configuration and its fail-closed validation.
 
 ### test-plan
 
