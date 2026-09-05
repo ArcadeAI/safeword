@@ -341,6 +341,7 @@ export class PublicRetroStore {
   }
 
   listLifecycle(): PublicRetroLifecycle[] {
+    const now = this.#now();
     const rows = this.#database
       .prepare(
         `SELECT request_id, receipt, accepted_at, attempts, lease_token, lease_expires_at,
@@ -362,7 +363,13 @@ export class PublicRetroStore {
       let state: PublicRetroLifecycle['state'] = 'queued';
       if (row.completed_at !== null) state = 'completed';
       else if (row.dead_lettered_at !== null) state = 'dead-lettered';
-      else if (row.lease_token !== null) state = 'leased';
+      else if (
+        row.lease_token !== null &&
+        row.lease_expires_at !== null &&
+        row.lease_expires_at > now
+      ) {
+        state = 'leased';
+      }
       return {
         acceptedAt: row.accepted_at,
         attempts: row.attempts,
