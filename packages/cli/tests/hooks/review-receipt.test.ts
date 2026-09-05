@@ -115,6 +115,32 @@ describe('receiptGateVerdict — a real review of the wrong work', () => {
     expect(!verdict.ok && verdict.reason).toMatch(/T1-slug/u);
   });
 
+  it.each([
+    `.project/tickets/T2-other/../T1-slug/impl-plan.md`,
+    '.project/tickets/T1-slug/../T2-other/impl-plan.md',
+    '.project/tickets/T1-slug/nested/impl-plan.md',
+    String.raw`.project\tickets\T2-other\impl-plan.md`,
+  ])('resolves traversal and nesting before binding an artifact: %j', target => {
+    // The first row names T1 only after a `..` that leaves it; the third is a
+    // real T1 path but not the ticket's own copy. Text matching admits both.
+    const verdict = receiptGateVerdict(claimFor({ artifact: 'impl-plan' }), {
+      ...approved,
+      targets: [target],
+    });
+
+    expect(verdict.ok).toBe(target === `.project/tickets/T2-other/../T1-slug/impl-plan.md`);
+  });
+
+  it('resolves traversal before binding a phase stamp to its ticket', () => {
+    expect(
+      receiptGateVerdict(claimFor({ phase: 'scenario-gate' }), {
+        ...approved,
+        kind: 'scenario-gate',
+        targets: ['.project/tickets/T1-slug/../T2-other/feature.feature'],
+      }).ok,
+    ).toBe(false);
+  });
+
   it('does not let a similarly-named ticket folder satisfy the binding', () => {
     expect(
       receiptGateVerdict(claimFor({ artifact: 'impl-plan' }), {
