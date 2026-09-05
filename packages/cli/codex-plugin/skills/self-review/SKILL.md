@@ -45,7 +45,7 @@ installed helper — report it to the user and resolve before retrying.
 ## Review the spec (do this now, with the stamp written)
 
 The stamp records that a review was invoked; the actual scrutiny is yours. At
-review time, run `bunx --bun safeword@0.82.2 project review-knowledge --json` and use its
+review time, run `bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.1/runtime/cli.js" project review-knowledge --json` and use its
 current `principles`, `personas`, and `surfaces` source paths and content—not
 labels remembered from intake. These resolve from `paths.principles`,
 `paths.personas`, and `paths.surfaces` when configured. Read those sources with the active ticket's
@@ -62,6 +62,10 @@ I…, I want…, so I can…`), not a restated feature.
   configured surface silently renamed in `spec.md`.
 - **Nothing leaks implementation** (file names, function names, libraries) into
   spec-level prose.
+- **A Product Plan owner's Killer Demo earns its payoff**, using the
+  [intake standard](../bdd/DISCOVERY.md#killer-demo): check the value and its
+  visible proof, not just filled fields. A child contribution does not need a
+  second demo.
 
 If the review surfaces a fix, **edit `spec.md` and re-invoke `$safeword:self-review`** — the
 content-bound stamp goes stale on any edit, so the gate correctly re-blocks

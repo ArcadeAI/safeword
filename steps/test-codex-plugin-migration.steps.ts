@@ -1688,12 +1688,13 @@ When(
     );
     const markerPath = nodePath.join(runtime.codexHome, 'safeword/activation-pending-v2.json');
     const marker = JSON.parse(readFileSync(markerPath, 'utf8')) as { activation_id: string };
-    writeCodexActivationMarker(environment, new Date(Date.now() - 1000), {
+    const now = Date.now();
+    writeCodexActivationMarker(environment, new Date(now - 1000), {
       activationId: marker.activation_id,
-      activeHosts: [{ pid: 100, started_at: '2026-08-14T08:00:00.000Z' }],
+      activeHosts: [{ pid: 100, started_at: new Date(now - 2000).toISOString() }],
     });
-    recordCodexHookProof('session-start', environment, new Date(), {
-      currentHost: { pid: 200, started_at: '2026-08-14T09:00:00.000Z' },
+    recordCodexHookProof('session-start', environment, new Date(now), {
+      currentHost: { pid: 200, started_at: new Date(now - 500).toISOString() },
     });
     for (const event of CODEX_PLUGIN_HOOK_EVENTS) {
       if (event === 'session-start') continue;
@@ -1796,7 +1797,7 @@ Then(
     const commands = this.codexPluginHookCommands ?? [];
     assert.ok(commands.length > 0, 'no hook commands were found');
     for (const command of commands) {
-      assert.match(command, /\bbunx\s+--bun\s+safeword@[^\s]+\b/u);
+      assert.match(command, /^bun "\$\{PLUGIN_ROOT\}\/runtime\/cli\.js"\s+/u);
       assert.match(command, /\bhook\s+codex\b/u);
     }
   },
@@ -2070,8 +2071,10 @@ Then(
 
     assert.ok(commands.length > 0, 'package hook manifest did not contain commands');
     for (const command of commands) {
-      assert.match(command, /\bsafeword@[^\s]+\s+hook\s+codex\b/u);
+      assert.match(command, /^bun "\$\{PLUGIN_ROOT\}\/runtime\/cli\.js"\s+hook\s+codex\b/u);
     }
+    assert.ok(files.includes('package/codex-plugin/runtime/cli.js'));
+    assert.ok(files.includes('package/codex-plugin/package.json'));
     assert.ok(files.includes('package/dist/cli.js'));
     assert.ok(files.some(file => /^package\/dist\/codex-hook-[A-Z0-9]+\.js$/u.test(file)));
   },

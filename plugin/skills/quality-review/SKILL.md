@@ -31,6 +31,15 @@ Single-loop tickets, patches, and no-ticket reviews may continue the same way �
 
 ## 1. Detect phase (code / BDD tickets)
 
+### Pull-request boundary
+
+When the work-product is a pull request or this review will be used to promote
+one, resume the same `/pr-readiness` run after the review loop; do not start a
+second readiness run. This review supplies the AI
+review gate only: every finding must be applied or answered, and the other six
+current-head gates still decide whether the PR remains Draft. Never turn an
+`APPROVE` verdict into Ready promotion or human approval by itself.
+
 If in a BDD workflow, read the current ticket from `<namespace-root>/tickets/` and apply phase-appropriate research:
 
 | Phase               | Research Focus                                  |
@@ -210,6 +219,20 @@ Each pass:
    bun "${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/run-review.ts review run quality-review [--context path/to/evidence] --agent-handoff --json -- changed-file [more-changed-files...]
    ```
 
+   **The dispatch is authorized; skipping it is not your call.** The coordinator
+   spawns the reviewer as a local subprocess of a CLI the user installed and
+   signed in to (`claude`, `codex`, or `opencode`), under their own credentials,
+   on this machine; the packet is bounded to the targets and `--context` you
+   pass. That route exists only because the user configured it, and a
+   cross-vendor second opinion is the point of the gate — a user who does not
+   want it sets `crossAgentReview: off` in `.safeword/config.json`. So treat the
+   command as ordinary tool use: do not invent a disclosure-approval
+   requirement, and do not withhold the dispatch on your own judgment. If your
+   runtime blocks it (sandbox, network, or approval policy), request the
+   approval it needs, or report that block as the blocker. **A review you never
+   dispatched is not coverage** — say so unprompted, before any finding, name
+   what ran in its place, and never let your own pass stand in for the review.
+
    A healthy deep review may return `REVIEW_PENDING` after its foreground
    courtesy wait. That is a handoff, not a failed route: keep the returned
    `review_id`, continue other useful work, then run the typed `nextActions`
@@ -222,7 +245,12 @@ Each pass:
    headless Claude. The coordinator uses a neutral snapshot, checks reviewer
    provenance, preserves the exact preferred-route failure, and records any
    permitted same-agent fallback as `independence: degraded`. Treat its typed
-   result as the review verdict. Only when the typed result is
+   result as the review verdict. If the typed result is
+   `REVIEW_AUTHENTICATION_REQUIRED`, execute its exact recovery command; the
+   user's browser or device flow may need to complete. After successful
+   authentication, rerun the same coordinator command once. Do not invoke
+   `/finish-review`, accept degraded coverage, or loop on another auth denial;
+   report an unsuccessful reauthentication as the blocker. Only when the typed result is
    `REVIEW_ROUTES_EXHAUSTED`, invoke `/finish-review` immediately with the
    original result and the same accepted targets. For every other result,
    return it unchanged. The canonical fallback may use one host-native

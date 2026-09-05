@@ -35,6 +35,7 @@ import {
   observeLegacyGlobalGuidance,
 } from './legacy-global-guidance.js';
 import {
+  CODEX_HOOK_ACTIVATION_FAILED_CONTEXT,
   CODEX_RESTART_CONTEXT,
   CODEX_REVIEW_THEN_RESTART_ACTION,
   codexMigrationExitCode,
@@ -48,7 +49,8 @@ import { CodexMigrationError } from './migration-error.js';
 import { acquireCodexProfileLock, releaseCodexProfileLock } from './profile-lock.js';
 import {
   codexActivationIsPending,
-  type CodexHookProofObservation,
+  codexActivationRestartIsProven,
+  codexActivationRestartWasObserved,
   observeCodexHookProof,
   writeCodexActivationMarker,
 } from './profile-proof.js';
@@ -426,6 +428,8 @@ export function observeCodexMigrationResult(
     finalized: codexFinalizationIsComplete(cwd),
     recoveryRequired,
     activationPending: codexActivationIsPending(environment),
+    activationRestartObserved: codexActivationRestartWasObserved(environment),
+    activationRestartProven: codexActivationRestartIsProven(environment),
   });
   if (pluginObservationError !== undefined) {
     result.errors.push({
@@ -447,6 +451,7 @@ export function observeCodexMigrationResult(
 const CODEX_MIGRATION_MESSAGES: Partial<Readonly<Record<CodexMigrationResultV2['state'], string>>> =
   {
     plugin_installed_app_restart_required: CODEX_RESTART_CONTEXT,
+    plugin_installed_hook_activation_failed: CODEX_HOOK_ACTIVATION_FAILED_CONTEXT,
     compatibility:
       'Codex is protected by the current profile plugin; verified legacy protection remains until explicit finalization.',
     plugin_enabled_hook_unproven:
@@ -455,12 +460,26 @@ const CODEX_MIGRATION_MESSAGES: Partial<Readonly<Record<CodexMigrationResultV2['
       'Codex migration state: recovery_required. Recovery is required before migration can continue.',
   };
 
-function codexMigrationMessage(
-  state: CodexMigrationResultV2['state'],
-  proof?: CodexHookProofObservation,
-): string {
-  if (state === 'plugin_enabled_hook_unproven' && proof !== undefined) {
+function codexMigrationMessage(result: CodexMigrationResultV2): string {
+  const { proof, state } = result;
+  const next = result.next_actions[0];
+  if (
+    state === 'plugin_enabled_hook_unproven' &&
+    proof.status === 'partial' &&
+    next !== undefined &&
+    'instruction' in next
+  ) {
+    return `Codex restarted and Safeword has partial current lifecycle hook proof. Missing proof: ${proof.missing_events.join(', ')}. ${next.instruction}`;
+  }
+  if (state === 'plugin_enabled_hook_unproven') {
     return `Codex migration state: plugin_enabled_hook_unproven. In the restarted Codex app, review /hooks and exercise these missing hooks: ${proof.missing_events.join(', ')}. Then run safeword codex migrate --finalize.`;
+  }
+  if (state === 'plugin_installed_hook_activation_failed') {
+    const protection =
+      result.protected === 'unprotected'
+        ? 'Safeword protection is unavailable in this Codex surface.'
+        : `Current plugin protection is unavailable; ${result.protected} legacy protection remains configured.`;
+    return `Codex restarted, but Safeword received no current lifecycle hook proof. Missing proof: ${proof.missing_events.join(', ')}. ${protection}`;
   }
   return CODEX_MIGRATION_MESSAGES[state] ?? `Codex migration state: ${state}.`;
 }
@@ -491,7 +510,7 @@ export function observeCodexMigration(
         : [
             {
               code: `CODEX_${legacyState.toUpperCase()}`,
-              message: codexMigrationMessage(result.state, result.proof),
+              message: codexMigrationMessage(result),
               severity: result.ok ? 'info' : 'warning',
               metadata: {
                 migration_schema_version: result.schema_version,

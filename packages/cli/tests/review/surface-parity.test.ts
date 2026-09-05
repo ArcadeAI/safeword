@@ -324,6 +324,100 @@ exit ${status}`,
     expect(content, relativePath).toContain('bun .safeword/hooks/run-review.ts');
   });
 
+  it.each(['skills/bdd/PLAN_IMPLEMENTATION.md', 'skills/bdd/TDD.md'])(
+    '%s reviews only impl-plan.md as plan work',
+    relativePath => {
+      const command = readTemplate(relativePath)
+        .split('\n')
+        .find(line => line.includes('run-review.ts review run plan-implementation'));
+
+      expect(command, relativePath).toMatch(/ --context .+ -- impl-plan\.md$/u);
+    },
+  );
+
+  it.each([
+    'skills/quality-review/SKILL.md',
+    'skills/review-spec/SKILL.md',
+    'skills/bdd/PLAN_IMPLEMENTATION.md',
+    'skills/bdd/TDD.md',
+  ])('%s processes a typed authentication handoff before review fallback', relativePath => {
+    const content = readTemplate(relativePath).replaceAll(/\s+/gu, ' ');
+
+    expect(content, relativePath).toContain('`REVIEW_AUTHENTICATION_REQUIRED`');
+    expect(content, relativePath).toMatch(/execute its exact recovery command/iu);
+    expect(content, relativePath).toMatch(/rerun the same coordinator command once/iu);
+    expect(content, relativePath).toMatch(/do not.*finish-review/iu);
+  });
+
+  // A Codex session skipped the coordinator entirely, reasoning that sending
+  // local spec files to a Claude reviewer needed an external-disclosure
+  // approval it did not have — then reported its own local pass as the review.
+  // Nothing in the dispatch protocol said who authorized the route, and every
+  // independence-disclosure rule keys off a returned typed result, so a review
+  // that was never dispatched produced no result and therefore no disclosure.
+  it.each([
+    'skills/quality-review/SKILL.md',
+    'skills/review-spec/SKILL.md',
+    'skills/bdd/PLAN_IMPLEMENTATION.md',
+    'skills/bdd/TDD.md',
+  ])('%s authorizes the dispatch and forbids an undisclosed skip', relativePath => {
+    const content = readTemplate(relativePath).replaceAll(/\s+/gu, ' ');
+
+    expect(content, relativePath).toContain(
+      '**The dispatch is authorized; skipping it is not your call.**',
+    );
+    expect(content, relativePath).toMatch(
+      /local subprocess of a CLI the user installed and signed in to/u,
+    );
+    expect(content, relativePath).toContain('`crossAgentReview: off`');
+    expect(content, relativePath).toMatch(/do not invent a disclosure-approval requirement/u);
+    expect(content, relativePath).toMatch(
+      /request the approval it needs, or report that block as the blocker/u,
+    );
+    expect(content, relativePath).toContain(
+      '**A review you never dispatched is not coverage** — say so unprompted, before any finding',
+    );
+  });
+
+  it('ships the dispatch-authorization contract on every generated review surface', () => {
+    const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
+    const generated = [
+      {
+        root: nodePath.join(repoRoot, 'plugin/skills'),
+        files: [
+          'quality-review/SKILL.md',
+          'review-spec/SKILL.md',
+          'bdd/PLAN_IMPLEMENTATION.md',
+          'bdd/TDD.md',
+        ],
+      },
+      {
+        root: nodePath.join(repoRoot, 'packages/cli/codex-plugin/skills'),
+        files: [
+          'quality-review/SKILL.md',
+          'review-spec/SKILL.md',
+          'bdd/references/PLAN_IMPLEMENTATION.md',
+          'bdd/references/TDD.md',
+        ],
+      },
+    ];
+
+    for (const { root, files } of generated) {
+      for (const relativePath of files) {
+        const content = readFileSync(nodePath.join(root, relativePath), 'utf8').replaceAll(
+          /\s+/gu,
+          ' ',
+        );
+        expect(content, `${root}/${relativePath}`).toContain(
+          '**The dispatch is authorized; skipping it is not your call.**',
+        );
+        expect(content, `${root}/${relativePath}`).toContain(
+          '**A review you never dispatched is not coverage**',
+        );
+      }
+    }
+  });
+
   it('keeps scenario-gate coordinator ownership in review-spec', () => {
     const bdd = readTemplate('skills/bdd/SKILL.md');
     expect(bdd).toContain('`review-spec` in Review mode');
@@ -347,13 +441,12 @@ exit ${status}`,
         ],
       },
       {
-        // Codex cannot: `PLUGIN_ROOT` is injected only into hook-command
-        // shells, so a vendored wrapper path would rest on the model resolving
-        // a relative path. It calls the pinned CLI directly instead, carrying
+        // Codex skills do not receive `PLUGIN_ROOT`, so they address the
+        // bundled CLI through Codex's stable versioned plugin-cache layout, carrying
         // the managed-progress signal the wrapper would otherwise have set —
         // without it a multi-minute review runs silent.
         root: nodePath.join(repoRoot, 'packages/cli/codex-plugin/skills'),
-        reviewEntrypoint: `SAFEWORD_REVIEW_PROGRESS=1 bunx --bun safeword@${VERSION} `,
+        reviewEntrypoint: `SAFEWORD_REVIEW_PROGRESS=1 bun "\${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/${VERSION}/runtime/cli.js" `,
         requiredReviewFiles: [
           'quality-review/SKILL.md',
           'review-spec/SKILL.md',

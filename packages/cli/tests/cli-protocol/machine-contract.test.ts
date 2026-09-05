@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { mkdirSync, rmSync } from 'node:fs';
 
 import { describe, expect, it } from 'vitest';
 
@@ -56,18 +57,19 @@ async function mapWithConcurrency<Input, Output>(
 describe('public command machine contract', () => {
   it('executes every catalog fixture as deterministic JSON without prompting', async () => {
     const executions = await mapWithConcurrency(publicCommands, 2, async definition => {
-      const invoke = async () => {
-        const directory = createTemporaryDirectory();
-        return runCliWithLiteralArguments(
+      const directory = createTemporaryDirectory();
+      const invoke = async () =>
+        runCliWithLiteralArguments(
           [...definition.fixture.argv, '--json', '--no-input', '--offline', '--cwd', directory],
           {
             cwd: directory,
-            env: definition.fixture.environment,
+            env: { ...definition.fixture.environment, XDG_CONFIG_HOME: directory },
             timeout: 30_000,
           },
         );
-      };
       const first = await invoke();
+      rmSync(directory, { force: true, recursive: true });
+      mkdirSync(directory, { recursive: true });
       const second = await invoke();
       return { definition, first, second };
     });
@@ -123,7 +125,7 @@ describe('public command machine contract', () => {
         [...fixture.argv, '--json', '--no-input', '--offline', '--cwd', directory],
         {
           cwd: directory,
-          env: fixture.environment,
+          env: { ...fixture.environment, XDG_CONFIG_HOME: directory },
           timeout: 30_000,
         },
       );

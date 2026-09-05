@@ -16,7 +16,7 @@ import process from 'node:process';
 import { After, Given, Then, When } from '@cucumber/cucumber';
 
 import {
-  assertPinnedBunxHookCommand,
+  assertBundledHookCommand,
   codexPluginHookCommands,
   type CodexPluginHookEntry,
 } from '../../src/codex-plugin/hooks.ts';
@@ -187,11 +187,6 @@ function latestCommandOutput(world: MigrationWorld): string {
 
 function codexConfigPath(world: MigrationWorld): string {
   return nodePath.join(worldDirectory(world), '.codex/config.toml');
-}
-
-function packageVersion(): string {
-  return JSON.parse(readFileSync(nodePath.join(CLI_ROOT, 'package.json'), 'utf8'))
-    .version as string;
 }
 
 function pluginHookCommands(packageDirectory: string): string[] {
@@ -371,10 +366,9 @@ When(
   },
 );
 
-Given('a plugin hook command is unpinned or uses npx', function (this: MigrationWorld) {
-  const version = packageVersion();
+Given('a plugin hook command installs a package at runtime', function (this: MigrationWorld) {
   this.releaseContract = () => {
-    assertPinnedBunxHookCommand(`npx safeword@${version} hook codex session-start`, version);
+    assertBundledHookCommand('npx safeword hook codex session-start');
   };
 });
 
@@ -407,12 +401,11 @@ Then('the release contract fails', function (this: MigrationWorld) {
   );
 });
 
-Then('the packed plugin dispatches the packaged CLI through Bunx', function (this: MigrationWorld) {
+Then('the packed plugin dispatches the bundled CLI directly', function (this: MigrationWorld) {
   assert.equal(this.releaseContractError, undefined);
   assert.ok(this.packedPackageDirectory !== undefined, 'packed plugin fixture was not initialized');
-  const version = packageVersion();
   for (const command of pluginHookCommands(this.packedPackageDirectory)) {
-    assertPinnedBunxHookCommand(command, version);
+    assertBundledHookCommand(command);
   }
 });
 

@@ -41,7 +41,12 @@ export interface CommandDefinition {
       readonly flags: string;
       readonly description: string;
       readonly defaultValue?: string;
-      readonly valueKind?: 'claude-plugin-scope' | 'execution-mode-list' | 'plan-identity';
+      readonly valueKind?:
+        | 'claude-plugin-scope'
+        | 'execution-mode-list'
+        | 'plan-identity'
+        | 'review-route-list'
+        | 'review-route-scope';
       readonly compatibilityReplacement?: string;
       readonly hidden?: boolean;
     }[];
@@ -164,6 +169,7 @@ function claudeScopeOption(): CommandDefinition['registration']['options'][numbe
 
 const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
   command('status', 'Report project health and the next action', 'observe', {
+    networkPolicy: 'declared',
     commandOptions: [agentSelectionOption()],
   }),
   command('conformance', 'Prove a selected agent integration against its real host', 'mutate', {
@@ -499,6 +505,8 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       { flags: '--goal <goal>', description: 'One-line goal' },
       { flags: '--why <why>', description: 'One-line rationale' },
       { flags: '--parent <epicId>', description: 'Link the ticket to an epic' },
+      { flags: '--milestone <id>', description: 'Select a parent Product Plan milestone' },
+      { flags: '--parent-job <id>', description: 'Select a parent Product Plan job' },
       { flags: '--issue <key>', description: 'Adopt an existing tracker issue key' },
     ],
     fixture: {
@@ -508,6 +516,12 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
         SAFEWORD_TICKET_ID_OVERRIDE: 'N80D28',
       },
     },
+  }),
+  command('ticket reconcile-parent', 'Record the current parent Product Plan contract', 'mutate', {
+    syntax: 'reconcile-parent <ticketId>',
+    commandOptions: [
+      { flags: '--accept', description: 'Accept a changed parent contract after intake' },
+    ],
   }),
   command('review run', 'Run an independent adversarial review', 'mutate', {
     networkPolicy: 'declared',
@@ -524,6 +538,7 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
       {
         flags: '--worker-job-id <id>',
         description: 'Internal detached-worker identity',
+        hidden: true,
       },
     ],
     exitPolicy: { actionRequiredAsSuccessOption: 'agentHandoff' },
@@ -543,6 +558,58 @@ const CANONICAL_COMMANDS: readonly CommandDefinition[] = [
     syntax: 'cancel [review-id]',
     fixture: {
       argv: ['review', 'cancel'],
+      environment: MACHINE_ENVIRONMENT,
+    },
+  }),
+  command('review routes set', 'Set ranked review routes', 'mutate', {
+    commandOptions: [
+      {
+        flags: '--scope <scope>',
+        description: 'user or project scope',
+        defaultValue: 'user',
+        valueKind: 'review-route-scope',
+      },
+      { flags: '--author <author>', description: 'claude, codex, or opencode' },
+      {
+        flags: '--route <reviewer[=model]>',
+        description: 'Ordered route; repeat for fallbacks',
+        valueKind: 'review-route-list',
+      },
+    ],
+    fixture: {
+      argv: [
+        'review',
+        'routes',
+        'set',
+        '--scope',
+        'project',
+        '--author',
+        'claude',
+        '--route',
+        'codex',
+      ],
+      environment: MACHINE_ENVIRONMENT,
+    },
+  }),
+  command('review routes list', 'List effective ranked review routes', 'observe', {
+    commandOptions: [{ flags: '--author <author>', description: 'claude, codex, or opencode' }],
+    fixture: {
+      argv: ['review', 'routes', 'list', '--author', 'claude'],
+      environment: MACHINE_ENVIRONMENT,
+    },
+  }),
+  command('review routes reset', 'Reset ranked review routes', 'mutate', {
+    commandOptions: [
+      {
+        flags: '--scope <scope>',
+        description: 'user or project scope',
+        defaultValue: 'user',
+        valueKind: 'review-route-scope',
+      },
+      { flags: '--author <author>', description: 'claude, codex, or opencode' },
+    ],
+    fixture: {
+      argv: ['review', 'routes', 'reset', '--scope', 'project', '--author', 'claude'],
       environment: MACHINE_ENVIRONMENT,
     },
   }),
@@ -801,6 +868,7 @@ export const commandFamilies = [
   { route: 'claude', description: 'Manage the Safeword Claude plugin', visibility: 'public' },
   { route: 'ticket', description: 'Manage project tickets', visibility: 'public' },
   { route: 'review', description: 'Run independent adversarial reviews', visibility: 'public' },
+  { route: 'review routes', description: 'Manage ranked review routes', visibility: 'public' },
   {
     route: 'review-pr',
     description: 'Inspect and publish pull request reviews',
@@ -914,8 +982,9 @@ function capability(definition: CommandDefinition): Record<string, unknown> {
     network_policy: definition.networkPolicy,
     schema_versions: definition.schemaVersions,
     fixture: definition.fixture,
-    options: definition.registration.options.map(
-      ({ flags, description, defaultValue, valueKind, compatibilityReplacement }) => ({
+    options: definition.registration.options
+      .filter(option => option.hidden !== true)
+      .map(({ flags, description, defaultValue, valueKind, compatibilityReplacement }) => ({
         flags,
         description,
         ...(defaultValue !== undefined && { default_value: defaultValue }),
@@ -926,8 +995,7 @@ function capability(definition: CommandDefinition): Record<string, unknown> {
             retention: 'indefinite',
           },
         }),
-      }),
-    ),
+      })),
     ...(definition.compatibility !== undefined && {
       compatibility: {
         introduced_in: definition.compatibility.introducedIn,

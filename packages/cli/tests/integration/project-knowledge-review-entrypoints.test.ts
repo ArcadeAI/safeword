@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -15,7 +15,16 @@ import {
 } from '../helpers/review-entrypoints.js';
 
 const RESOLVER_COMMAND = REVIEW_KNOWLEDGE_RESOLVER;
-const CLI_ENTRY = nodePath.resolve(import.meta.dirname, '../../src/cli.ts');
+const BUNDLED_CLI = nodePath.resolve(import.meta.dirname, '../../codex-plugin/runtime/cli.js');
+const BUNDLED_PACKAGE = nodePath.resolve(import.meta.dirname, '../../codex-plugin/package.json');
+const CODEX_MARKETPLACE = JSON.parse(
+  readFileSync(
+    nodePath.resolve(import.meta.dirname, '../../../../.agents/plugins/marketplace.json'),
+    'utf8',
+  ),
+) as { name: string; plugins: { name: string }[] };
+const BUNDLED_VERSION = (JSON.parse(readFileSync(BUNDLED_PACKAGE, 'utf8')) as { version: string })
+  .version;
 
 /** The resolver each host's shipped procedure is expected to name. */
 function resolverFor(host: string): string {
@@ -62,20 +71,35 @@ function readEntrypoint(root: string, path: string, resolver: string): string {
 
 /**
  * Run what the host is actually told to run. Codex's generated procedure names
- * the published `bunx --bun safeword@<version> project review-knowledge`; this
- * exercises the same subcommand through the local source entry point, so the
- * check stays behavioural without reaching the registry for an unpublished pin.
+ * the versioned bundled CLI followed by `project review-knowledge`; this
+ * materializes that exact cache layout and executes the generated command.
  */
 function followCodexResolverInstruction(projectDirectory: string, instructions: string) {
-  const command = /safeword@[\w.-]+\s+(project review-knowledge)\s+--json/u.exec(instructions)?.[1];
-  expect(command, 'Codex procedure must name the pinned review-knowledge subcommand').toBe(
-    CODEX_REVIEW_KNOWLEDGE_RESOLVER,
+  const pluginName = CODEX_MARKETPLACE.plugins[0]?.name ?? '';
+  const command = `bun "\${CODEX_HOME:-$HOME/.codex}/plugins/cache/${CODEX_MARKETPLACE.name}/${pluginName}/${BUNDLED_VERSION}/runtime/cli.js" ${CODEX_REVIEW_KNOWLEDGE_RESOLVER} --json`;
+  expect(instructions, 'Codex procedure must use the shipped marketplace cache identity').toContain(
+    command,
   );
-  return spawnSync(
-    'bun',
-    [CLI_ENTRY, 'project', 'review-knowledge', '--cwd', projectDirectory, '--json'],
-    { encoding: 'utf8' },
+
+  const codexHome = nodePath.join(projectDirectory, '.codex-home');
+  const runtime = nodePath.join(
+    codexHome,
+    'plugins/cache',
+    CODEX_MARKETPLACE.name,
+    pluginName,
+    BUNDLED_VERSION,
+    'runtime/cli.js',
   );
+  mkdirSync(nodePath.dirname(runtime), { recursive: true });
+  copyFileSync(BUNDLED_CLI, runtime);
+  copyFileSync(BUNDLED_PACKAGE, nodePath.join(nodePath.dirname(runtime), '../package.json'));
+
+  return spawnSync(command, {
+    cwd: projectDirectory,
+    encoding: 'utf8',
+    env: { ...process.env, CODEX_HOME: codexHome },
+    shell: true,
+  });
 }
 
 function followResolverInstruction(projectDirectory: string, instructions: string) {

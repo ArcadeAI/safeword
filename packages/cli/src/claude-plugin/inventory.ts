@@ -115,12 +115,60 @@ function isLeaseRecord(value: unknown, expectedPid: number): boolean {
   );
 }
 
-function isClaudeLeaseMarker(path: string, name: string): boolean {
-  if (!/^\d+$/u.test(name)) return false;
-  const content = readSmallMetadataFile(path);
-  if (content === undefined) return false;
+/**
+ * Claude Code writes an `.in_use/<pid>` lease by creating `<pid>.tmp.<hex>` and
+ * renaming it into place. A process that dies between the write and the rename
+ * leaves the temp name behind forever, so both forms are host-owned metadata.
+ * Rejecting the orphan made every Safeword hook fail closed until someone
+ * deleted it by hand (#3690).
+ */
+const LEASE_TEMP_INFIX = '.tmp.';
+const LEASE_PID = /^\d{1,10}$/u;
+const LEASE_TEMP_SUFFIX = /^[0-9a-f]{1,32}$/u;
+
+/** The PID a lease file name claims, or undefined when it is not a lease name. */
+function leaseMarkerPid(name: string): string | undefined {
+  const infix = name.indexOf(LEASE_TEMP_INFIX);
+  if (infix === -1) return LEASE_PID.test(name) ? name : undefined;
+  const pid = name.slice(0, infix);
+  const suffix = name.slice(infix + LEASE_TEMP_INFIX.length);
+  if (!LEASE_PID.test(pid) || !LEASE_TEMP_SUFFIX.test(suffix)) return undefined;
+  return pid;
+}
+
+/**
+ * True once the entry is gone from the directory we just listed. Claude completes
+ * the rename mid-traversal, so a lease temp routinely disappears between
+ * `readdirSync` and the read. Accepting that is safe because nothing loads a path
+ * that no longer exists; a file still present with the wrong content is a payload
+ * file and stays rejected below. Only ENOENT qualifies, so an entry we merely
+ * failed to stat keeps failing closed.
+ *
+ * The observation is point-in-time: a path that ENOENTs here and is recreated
+ * afterwards is absent from the list `validateNativePayload` compares against the
+ * inventory. That window already applies to an accepted `<pid>` lease and needs
+ * write access to the installed cache, so it bounds the claim rather than
+ * weakening it — this is not protection against an actor already inside the
+ * plugin cache.
+ */
+function vanishedDuringScan(path: string): boolean {
   try {
-    return isLeaseRecord(JSON.parse(content) as unknown, Number(name));
+    lstatSync(path);
+    return false;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === 'ENOENT';
+  }
+}
+
+function isClaudeLeaseMarker(path: string, name: string): boolean {
+  const pid = leaseMarkerPid(name);
+  if (pid === undefined) return false;
+  const content = readSmallMetadataFile(path);
+  // `leaseMarkerPid` already proved the whole `<pid>.tmp.<hex>` shape, so an
+  // unreadable temp name that is now absent was renamed onto its final `<pid>`.
+  if (content === undefined) return name.includes(LEASE_TEMP_INFIX) && vanishedDuringScan(path);
+  try {
+    return isLeaseRecord(JSON.parse(content) as unknown, Number(pid));
   } catch {
     return false;
   }

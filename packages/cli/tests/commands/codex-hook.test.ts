@@ -18,6 +18,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   CODEX_PLUGIN_HOOK_EVENTS,
+  codexProofPath,
   observeCodexHookProof,
   observeCodexSessionProof,
   writeCodexActivationMarker,
@@ -38,6 +39,9 @@ describe('packagedNamespaceRootLabel', () => {
     env?: NodeJS.ProcessEnv,
     pluginHook = false,
   ) {
+    const isolatedCodexHome =
+      env?.CODEX_HOME ?? mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-profile-'));
+    if (env?.CODEX_HOME === undefined) directories.push(isolatedCodexHome);
     return spawnSync(
       process.execPath,
       [CLI_PATH, 'hook', 'codex', event, ...(pluginHook ? ['--plugin-hook'] : [])],
@@ -45,7 +49,7 @@ describe('packagedNamespaceRootLabel', () => {
         cwd: projectDirectory,
         input: typeof input === 'string' ? input : JSON.stringify(input),
         encoding: 'utf8',
-        ...(env !== undefined && { env: { ...process.env, ...env } }),
+        env: { ...process.env, CODEX_HOME: isolatedCodexHome, ...env },
       },
     );
   }
@@ -167,10 +171,34 @@ describe('packagedNamespaceRootLabel', () => {
   }
 
   afterEach(() => {
+    vi.unstubAllEnvs();
     for (const directory of directories) {
       rmSync(directory, { recursive: true, force: true });
     }
     directories.length = 0;
+  });
+
+  it('does not let a packaged-hook test write proof into its runner profile', () => {
+    const projectDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-codex-hook-'));
+    const runnerCodexHome = mkdtempSync(nodePath.join(tmpdir(), 'safeword-test-runner-profile-'));
+    directories.push(projectDirectory, runnerCodexHome);
+    markSafewordProject(projectDirectory);
+    vi.stubEnv('CODEX_HOME', runnerCodexHome);
+
+    const result = runCodexHook(
+      projectDirectory,
+      'pre-tool-use',
+      {
+        session_id: 'isolated-test-session',
+        tool_name: 'Bash',
+        tool_input: { command: 'echo safe' },
+      },
+      undefined,
+      true,
+    );
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(existsSync(codexProofPath({ CODEX_HOME: runnerCodexHome }, 'pre-tool-use'))).toBe(false);
   });
 
   it('includes a custom project root in the generated ownership module', () => {

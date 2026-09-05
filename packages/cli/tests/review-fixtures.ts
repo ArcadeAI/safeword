@@ -45,7 +45,8 @@ export const REVIEWER_CAPABILITIES = {
     '--model',
     '--output-schema',
   ].join(' '),
-} as const satisfies Record<'claude' | 'codex', string>;
+  opencode: ['--format', '--pure', '--model'].join(' '),
+} as const satisfies Record<'claude' | 'codex' | 'opencode', string>;
 
 /**
  * Reviewer discovery deliberately rejects executables beneath writable

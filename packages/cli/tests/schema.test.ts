@@ -44,9 +44,7 @@ interface CodexHookEntry {
   hooks?: { command?: string }[];
 }
 
-// Version identity is asserted separately against package.json below; this parser
-// only identifies a version-pinned hook command, including SemVer prereleases.
-const CODEX_PLUGIN_HOOK_COMMAND = /safeword@[0-9A-Za-z.+-]+ hook codex ([a-z-]+)/u;
+const CODEX_PLUGIN_HOOK_COMMAND = /\$\{PLUGIN_ROOT\}\/runtime\/cli\.js" hook codex ([a-z-]+)/u;
 
 function commandMatcherByCodexEventFromPlugin(): Map<string, string | undefined> {
   const hooksPath = nodePath.join(import.meta.dirname, '../codex-plugin/hooks.json');
@@ -396,7 +394,7 @@ describe('Schema - Single Source of Truth', () => {
         for (const entry of entries) {
           const hookCommands = entry.hooks ?? [];
           for (const hook of hookCommands) {
-            expect(hook.command).toContain(`bunx --bun safeword@${packageVersion} hook codex`);
+            expect(hook.command).toContain('bun "${PLUGIN_ROOT}/runtime/cli.js" hook codex');
           }
         }
       }

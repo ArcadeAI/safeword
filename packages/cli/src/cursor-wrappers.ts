@@ -46,6 +46,12 @@ const REFACTOR_DESCRIPTION =
 
 export const CURSOR_COMMAND_WRAPPERS: readonly CursorCommandWrapper[] = [
   {
+    name: 'pr-readiness',
+    description:
+      'Prepare a pull request for human review and decide whether it may leave Draft. Use when creating or rewriting a PR description, marking a PR ready, responding to review, or checking mergeability.',
+    skillPath: 'pr-readiness/SKILL.md',
+  },
+  {
     name: 'bdd',
     description:
       "BDD orchestrator for feature-level work. Use when user says 'add', 'implement', 'build', 'feature', 'iteration', 'story', 'phase', 'resume', 'continue', or references a ticket/iteration/story. Also use when work touches 3+ files with new state/flows, or when user runs /bdd. Do NOT use for bug fixes, typos, config changes, or 1-2 file tasks.",
@@ -55,6 +61,12 @@ export const CURSOR_COMMAND_WRAPPERS: readonly CursorCommandWrapper[] = [
     name: 'debug',
     description: DEBUG_DESCRIPTION,
     skillPath: 'debug/SKILL.md',
+  },
+  {
+    name: 'demand-research',
+    description:
+      'Tests whether a proposed product bet has credible demand. Use when Why now depends on an unresolved, decision-critical demand claim or when the user explicitly asks for demand research. Do NOT use for child features, mandated work, parity work, or when a cheaper experiment can answer the question first.',
+    skillPath: 'demand-research/SKILL.md',
   },
   {
     name: 'quality-review',
@@ -125,6 +137,14 @@ export const CURSOR_RULE_WRAPPERS: readonly CursorRuleWrapper[] = [
     skill: 'debug',
   },
   {
+    name: 'safeword-demand-research',
+    alwaysApply: false,
+    description:
+      'Tests whether a proposed product bet has credible demand. Use when Why now depends on an unresolved, decision-critical demand claim or when the user explicitly asks for demand research. Do NOT use for child features, mandated work, parity work, or when a cheaper experiment can answer the question first.',
+    referencePath: '.safeword/skills/demand-research/SKILL.md',
+    skill: 'demand-research',
+  },
+  {
     name: 'safeword-elicitation',
     alwaysApply: false,
     description:
@@ -147,6 +167,14 @@ export const CURSOR_RULE_WRAPPERS: readonly CursorRuleWrapper[] = [
       "Internal fallback used only right after the shared review coordinator reports it's run out of reviewer routes. Not something a user invokes directly.",
     referencePath: '.safeword/skills/finish-review/SKILL.md',
     skill: 'finish-review',
+  },
+  {
+    name: 'safeword-pr-readiness',
+    alwaysApply: false,
+    description:
+      'Prepare a pull request for human review and decide whether it may leave Draft. Use when creating or rewriting a PR description, marking a PR ready, responding to review, or checking mergeability.',
+    referencePath: '.safeword/skills/pr-readiness/SKILL.md',
+    skill: 'pr-readiness',
   },
   {
     name: 'safeword-quality-reviewing',

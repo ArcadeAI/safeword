@@ -1,4 +1,4 @@
-import { chmodSync, mkdirSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
 import { afterAll, describe, expect, it } from 'vitest';
@@ -12,12 +12,8 @@ import {
 
 afterAll(cleanupTrustedReviewerDirectories);
 
-/**
- * Three routes, three different causes: the reviewer's default model never
- * answers, its alternate model is not signed in, and the author's own runtime
- * answers off-contract.
- */
-function installThreeFailures(host: string): string {
+/** The default model times out before the alternate exposes expired auth. */
+function installTimedOutPrimaryWithUnauthenticatedAlternate(host: string): string {
   const bin = nodePath.join(host, 'bin');
   mkdirSync(bin, { recursive: true });
 
@@ -26,6 +22,7 @@ function installThreeFailures(host: string): string {
     String.raw`#!/bin/sh
 set -eu
 if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then printf '%s\n' '${REVIEWER_CAPABILITIES.codex}'; exit 0; fi
+printf 'codex\n' >> "$SAFEWORD_REVIEW_ROUTE_LOG"
 if printf '%s' "$*" | /usr/bin/grep -q -- '--model'; then
   printf 'not logged in\n' >&2
   exit 1
@@ -41,6 +38,7 @@ exec /bin/sleep 3600
     String.raw`#!/bin/sh
 set -eu
 if printf '%s' "$*" | /usr/bin/grep -q -- '--help'; then printf '%s\n' '${REVIEWER_CAPABILITIES.claude}'; exit 0; fi
+printf 'claude\n' >> "$SAFEWORD_REVIEW_ROUTE_LOG"
 printf 'not-a-review\n'
 `,
     { mode: 0o755 },
@@ -49,17 +47,18 @@ printf 'not-a-review\n'
   return bin;
 }
 
-describe('when all three routes fail', () => {
-  it('keeps each route its own cause, including the alternate model', async () => {
+describe('when an alternate independent route exposes expired authentication', () => {
+  it('returns a reauthentication handoff without launching the author fallback', async () => {
     const directory = createTemporaryDirectory();
-    const host = createTrustedReviewerDirectory('safeword-three-route-');
+    const host = createTrustedReviewerDirectory('safeword-alternate-auth-');
+    const routeLog = nodePath.join(directory, 'routes.log');
     writeFileSync(nodePath.join(directory, 'review-input.md'), 'bounded review input\n');
     mkdirSync(nodePath.join(directory, '.safeword'), { recursive: true });
     writeFileSync(
       nodePath.join(directory, '.safeword', 'config.json'),
       JSON.stringify({ crossAgentReviewAlternateModel: { codex: 'vendor-model-2' } }),
     );
-    const bin = installThreeFailures(host);
+    const bin = installTimedOutPrimaryWithUnauthenticatedAlternate(host);
 
     const result = await runCli(
       [
@@ -77,6 +76,7 @@ describe('when all three routes fail', () => {
         env: {
           PATH: `${bin}:/usr/bin:/bin`,
           SAFEWORD_AGENT_RUNTIME: 'claude',
+          SAFEWORD_REVIEW_ROUTE_LOG: routeLog,
           SAFEWORD_REVIEW_TIMEOUT_MS: '800',
           SAFEWORD_REVIEW_RUN_BOUND_MS: '6000',
           SAFEWORD_NO_UPDATE_CHECK: '1',
@@ -85,23 +85,23 @@ describe('when all three routes fail', () => {
     );
 
     const payload = JSON.parse(result.stdout) as {
-      findings: { message: string }[];
+      findings: { code: string; message: string }[];
+      recovery: { command: string }[];
       data: Record<string, unknown>;
     };
     const explanation = payload.findings.map(finding => finding.message).join(' ');
 
-    // Three attempts, three distinct causes.
-    expect(explanation).toMatch(/ran out of time/i);
-    expect(explanation).toMatch(/not signed in/i);
-    expect(explanation).toMatch(/could not be accepted/i);
-    // The alternate-model attempt names the selected model so operators can
-    // distinguish a failed override from the primary route.
-    expect(explanation).toMatch(/alternate model/i);
-    expect(explanation).toContain('vendor-model-2');
+    expect(result.exitCode, result.stdout).toBe(2);
+    expect(payload.findings[0]?.code).toBe('REVIEW_AUTHENTICATION_REQUIRED');
+    expect(explanation).toMatch(/reauthenticate Codex/iu);
+    expect(payload.recovery).toEqual([expect.objectContaining({ command: 'codex login' })]);
     expect(payload.data).toMatchObject({
+      preferred_failure: 'timed_out',
       alternate_model: 'vendor-model-2',
       alternate_model_failure: 'not_authenticated',
     });
+    expect(payload.data).not.toHaveProperty('fallback_failure');
     expect(payload.data.independence).toBe('none');
+    expect(readFileSync(routeLog, 'utf8')).toBe('codex\ncodex\n');
   }, 30_000);
 });

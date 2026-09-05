@@ -812,8 +812,11 @@ Then(
     const commands = this.hookManifestCommands ?? [];
     assert.equal(commands.length, 5);
     for (const command of commands) {
-      assert.match(command, /bunx --bun safeword@[0-9A-Za-z.+-]+ hook codex [a-z-]+/u);
-      assert.doesNotMatch(command, /npx/u);
+      assert.match(
+        command,
+        /^bun "\$\{PLUGIN_ROOT\}\/runtime\/cli\.js" hook codex [a-z-]+ --plugin-hook$/u,
+      );
+      assert.doesNotMatch(command, /\b(?:bunx|npx)\b/u);
     }
   },
 );

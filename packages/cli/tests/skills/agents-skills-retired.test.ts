@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { SAFEWORD_SCHEMA } from '../../src/schema.js';
 
 const repoRoot = nodePath.resolve(import.meta.dirname, '../../../..');
+const PLUGIN_SETUP_BOOTSTRAP = '.agents/skills/safeword-plugin-setup/SKILL.md';
 
 /** Paths git currently tracks under `.agents/`, repo-relative. */
 function trackedAgentsPaths(): string[] {
@@ -24,9 +25,11 @@ function trackedAgentsPaths(): string[] {
  * third-party packs under `.agents/skills/` for Codex and Cursor, which is why
  * the schema's cleanup is file-scoped. This guards the files, not the folder.
  */
-describe('.agents/skills is retired for safeword-owned skills (V5V4YP)', () => {
-  it('tracks no safeword skill file under .agents/skills', () => {
-    expect(trackedAgentsPaths().filter(path => path.startsWith('.agents/skills/'))).toEqual([]);
+describe('.agents/skills retires legacy safeword-owned skills (V5V4YP)', () => {
+  it('tracks only the finalized profile-plugin bootstrap under .agents/skills', () => {
+    expect(trackedAgentsPaths().filter(path => path.startsWith('.agents/skills/'))).toEqual([
+      PLUGIN_SETUP_BOOTSTRAP,
+    ]);
   });
 
   it('keeps every retired path in the explicit Codex migration inventory', () => {

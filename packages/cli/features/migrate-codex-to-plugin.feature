@@ -68,21 +68,21 @@ Feature: Move Codex users to the Safeword plugin
       Then the custom Codex hook remains unchanged
 
   @migrate-codex-to-plugin.SM1.R1
-  Rule: migrate-codex-to-plugin.SM1.R1 - The shipped plugin uses exact version-pinned Bunx commands and no Codex npx command
+  Rule: migrate-codex-to-plugin.SM1.R1 - The shipped plugin uses its bundled CLI and no runtime package installation
 
     @rejection
-    Scenario: Plugin release contract rejects an unpinned or npx command
-      Given a plugin hook command is unpinned or uses npx
+    Scenario: Plugin release contract rejects runtime package installation
+      Given a plugin hook command installs a package at runtime
       When the release contract runs
       Then the release contract fails
 
   @migrate-codex-to-plugin.SM1.R2
   Rule: migrate-codex-to-plugin.SM1.R2 - The packed package and a real isolated Codex profile prove the release contract
 
-    Scenario: Packed plugin preserves the Bunx dispatch contract
+    Scenario: Packed plugin preserves the bundled-runtime dispatch contract
       Given the Safeword package is packed
       When the packed plugin release contract runs
-      Then the packed plugin dispatches the packaged CLI through Bunx
+      Then the packed plugin dispatches the bundled CLI directly
 
     @rejection
     Scenario: Release rejects a package missing plugin assets

@@ -154,6 +154,8 @@ module.exports = {
         ...generated.options.exclude.path,
         // Templates are copied to target projects, not imported
         'packages/cli/templates/',
+        // Generated Codex plugin mirrors canonical templates and runtime assets
+        'packages/cli/codex-plugin/',
         // Build/dev scripts, not production code
         'scripts/',
         // Astro generates this directory

@@ -88,6 +88,43 @@ describe('reviewer-scoped environment', () => {
     expect(environment).toEqual({ OPENAI_API_KEY: 'openai', CODEX_HOME: '/codex' });
   });
 
+  it('gives OpenCode only its vendor inputs and a deny-by-default execution profile', () => {
+    const environment = reviewerEnvironment('opencode', {
+      PATH: '/bin',
+      ANTHROPIC_API_KEY: 'anthropic',
+      OPENAI_API_KEY: 'openai',
+      OPENCODE_CONFIG_DIR: '/isolated/config',
+      CODEX_API_KEY: 'codex-only',
+      CLAUDE_CODE_OAUTH_TOKEN: 'claude-only',
+      DATABASE_URL: 'postgres://secret',
+    });
+
+    expect(environment).toEqual({
+      PATH: '/bin',
+      ANTHROPIC_API_KEY: 'anthropic',
+      OPENAI_API_KEY: 'openai',
+      OPENCODE_CONFIG_DIR: '/isolated/config',
+      OPENCODE_CONFIG_CONTENT: JSON.stringify({ permission: { '*': 'deny' } }),
+      OPENCODE_DISABLE_AUTOUPDATE: 'true',
+      OPENCODE_DISABLE_DEFAULT_PLUGINS: 'true',
+      OPENCODE_DISABLE_LSP_DOWNLOAD: 'true',
+    });
+  });
+
+  it('preserves an OpenCode inline provider while overriding its permissions', () => {
+    const environment = reviewerEnvironment('opencode', {
+      OPENCODE_CONFIG_CONTENT: JSON.stringify({
+        provider: { local: { name: 'Local' } },
+        permission: { bash: 'allow' },
+      }),
+    });
+
+    expect(JSON.parse(environment.OPENCODE_CONFIG_CONTENT ?? '{}')).toEqual({
+      provider: { local: { name: 'Local' } },
+      permission: { '*': 'deny' },
+    });
+  });
+
   it('matches Windows process keys without changing their original casing', () => {
     const environment = reviewerEnvironment(
       'codex',

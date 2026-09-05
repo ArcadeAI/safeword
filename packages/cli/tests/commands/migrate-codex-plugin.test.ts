@@ -167,12 +167,13 @@ describe('migrate codex-plugin command', () => {
     const activationPending = existsSync(markerPath);
     if (activationPending) {
       const marker = JSON.parse(readFileSync(markerPath, 'utf8')) as { activation_id: string };
-      writeCodexActivationMarker(environment, new Date(Date.now() - 1000), {
+      const now = Date.now();
+      writeCodexActivationMarker(environment, new Date(now - 1000), {
         activationId: marker.activation_id,
-        activeHosts: [{ pid: 100, started_at: '2026-08-14T08:00:00.000Z' }],
+        activeHosts: [{ pid: 100, started_at: new Date(now - 2000).toISOString() }],
       });
-      recordCodexHookProof('session-start', environment, new Date(), {
-        currentHost: { pid: 200, started_at: '2026-08-14T09:00:00.000Z' },
+      recordCodexHookProof('session-start', environment, new Date(now), {
+        currentHost: { pid: 200, started_at: new Date(now - 500).toISOString() },
       });
     }
     for (const event of CODEX_PLUGIN_HOOK_EVENTS) {
@@ -1302,14 +1303,17 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     expect(marker.manifest_sha256).toMatch(/^[\da-f]{64}$/u);
     expect(marker.activation_id).toEqual(expect.any(String));
     expect(marker.installed_at).toEqual(expect.any(String));
-    // Developer machines may have a live app-server while CI does not. The
-    // contract is the coherent pair: observed means at least one concrete
-    // host; unavailable means no host identities were trusted.
+    // Developer machines may have a live app-server while CI does not. An
+    // observed process table can legitimately contain no Codex hosts when the
+    // app was closed during installation; unavailable observations must not
+    // invent host identities.
     expect(['observed', 'unavailable']).toContain(marker.host_observation);
     expect(marker.active_hosts).toEqual(expect.any(Array));
-    if (marker.host_observation === 'observed') {
-      expect(marker.active_hosts).not.toHaveLength(0);
-    } else {
+    for (const host of marker.active_hosts as Record<string, unknown>[]) {
+      expect(host.pid).toEqual(expect.any(Number));
+      expect(host.started_at).toEqual(expect.any(String));
+    }
+    if (marker.host_observation === 'unavailable') {
       expect(marker.active_hosts).toHaveLength(0);
     }
   });
@@ -1949,6 +1953,46 @@ command = 'bun "$(git rev-parse --show-toplevel)/.safeword/hooks/codex/pre-tool-
     expect(readFileSync(markerPath, 'utf8')).toBe(marker);
     const calls = readFileSync(fixture.logPath, 'utf8');
     expect(calls).not.toContain('plugin marketplace add');
+  });
+
+  it('does not request another restart after the restart receipt has partial hook proof', async () => {
+    const fixture = createMigrationFixture('');
+    const environment = { CODEX_HOME: fixture.codexHome };
+    writeCodexActivationMarker(environment, new Date('2026-08-14T08:30:00.000Z'), {
+      activationId: 'activation-partial',
+      activeHosts: [{ pid: 100, started_at: '2026-08-14T08:00:00.000Z' }],
+    });
+    recordCodexHookProof('session-start', environment, new Date('2026-08-14T09:01:00.000Z'), {
+      currentHost: { pid: 200, started_at: '2026-08-14T09:00:00.000Z' },
+    });
+
+    const status = await runCodexCommand(fixture, ['codex', 'status', '--json']);
+
+    expect(status.exitCode, status.stderr).toBe(2);
+    expect(JSON.parse(status.stdout)).toMatchObject({
+      findings: [
+        {
+          message: expect.stringContaining(
+            'Continue in this Codex session. Safeword will confirm protection after the remaining lifecycle hooks run.',
+          ),
+        },
+      ],
+      next_actions: [
+        {
+          kind: 'human',
+          instruction:
+            'Continue in this Codex session. Safeword will confirm protection after the remaining lifecycle hooks run.',
+        },
+      ],
+      data: {
+        migration: {
+          state: 'plugin_enabled_hook_unproven',
+        },
+      },
+    });
+    expect(JSON.parse(status.stdout).findings[0].message).not.toContain(
+      'Then run safeword codex migrate --finalize.',
+    );
   });
 
   it('does not reinstall an enabled plugin whose hook proof is still unproven', async () => {

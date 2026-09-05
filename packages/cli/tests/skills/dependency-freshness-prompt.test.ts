@@ -18,9 +18,6 @@ const expectPromptTimestampSearch = (content: string): void => {
   expectNoHardcodedStableYear(content);
 };
 
-const CODEX_PLUGIN_USER_PROMPT_HOOK =
-  /bunx --bun safeword@[0-9A-Za-z.+-]+ hook codex user-prompt-submit/u;
-
 describe('dependency freshness instructions', () => {
   it.each([
     ['canonical SAFEWORD template', 'packages/cli/templates/SAFEWORD.md'],
@@ -65,11 +62,19 @@ describe('dependency freshness instructions', () => {
     expect(content).toContain('@.safeword/skills/quality-review/SKILL.md');
   });
 
-  it('the Codex plugin wires packaged UserPromptSubmit context through Bunx', () => {
+  it('the Codex plugin wires packaged UserPromptSubmit context through its bundled runtime', () => {
     const content = readRepoFile('packages/cli/codex-plugin/hooks.json');
+    const manifest = JSON.parse(content) as {
+      hooks: { UserPromptSubmit: { hooks: { command: string }[] }[] };
+    };
+    const commands = manifest.hooks.UserPromptSubmit.flatMap(entry =>
+      entry.hooks.map(hook => hook.command),
+    );
 
-    expect(content).toContain('"UserPromptSubmit"');
-    expect(content).toMatch(CODEX_PLUGIN_USER_PROMPT_HOOK);
+    expect(commands).toEqual([
+      'bun "${PLUGIN_ROOT}/runtime/cli.js" hook codex user-prompt-submit --plugin-hook',
+    ]);
+    expect(content).not.toContain('bunx');
     expect(content).not.toContain('npx');
     expect(content).not.toContain('.safeword/hooks/prompt-timestamp.ts');
   });

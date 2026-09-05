@@ -239,20 +239,12 @@ const VALID_PRODUCT_ROW =
   '| https://linear.app/docs/issue-templates | 2026-08-09 | n/a | Customers file faster issues | Default the good practice | Do not copy the UI | retained: evidence supports the direction |';
 
 describe('product inspiration evidence', () => {
-  it('accepts a reference row added to the shipped spec scaffold', () => {
+  it('keeps the retired inspiration table out of the shipped Product Plan scaffold', () => {
     const templatePath = nodePath.resolve(import.meta.dirname, '../../templates/spec-template.md');
     const lines = readFileSync(templatePath, 'utf8').split('\n');
     const headerLine = lines.indexOf(PRODUCT_HEADER);
-    expect(headerLine).toBeGreaterThan(-1);
-    lines.splice(headerLine + 2, 0, VALID_PRODUCT_ROW);
-
-    expect(
-      evaluateProductInspiration({
-        ticketContent: activatedTicket(),
-        specContent: lines.join('\n'),
-        evaluationDate: '2026-08-09',
-      }),
-    ).toEqual({ ok: true, path: 'reference' });
+    expect(headerLine).toBe(-1);
+    expect(lines.join('\n')).toContain('## Product Bet');
   });
 
   it('accepts a current complete product reference', () => {

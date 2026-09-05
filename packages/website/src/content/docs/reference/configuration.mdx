@@ -146,17 +146,56 @@ Adversarial reviews use `crossAgentReview` to choose their reviewer route:
 }
 ```
 
-- `prefer` (default) — Claude-authored work is sent to headless Codex and Codex-authored work to headless Claude. If the preferred reviewer fails, Safeword can retry that independent agent on its configured alternate model before running a same-agent headless fallback. A completed same-agent result is presented as standard coverage; requested details can suggest how to add independent coverage. If every CLI route fails, a foreground agent may add supplemental host-native or self-review findings; their actual verdict is preserved.
+Power users can replace the legacy fixed fallback chain with an exact per-author order:
+
+```json
+{
+  "crossAgentReview": "prefer",
+  "crossAgentReviewRoutes": {
+    "claude": [
+      { "reviewer": "codex", "model": "gpt-5-codex" },
+      { "reviewer": "opencode", "model": "openai/gpt-5" },
+      { "reviewer": "claude" }
+    ]
+  }
+}
+```
+
+Each route names `claude`, `codex`, or `opencode` and may name one model. Omitting `model` deliberately uses that runtime's authenticated default. When `crossAgentReviewRoutes` is present it is the complete authority: Safeword neither merges legacy primary/alternate settings nor reorders routes from cached health observations. Empty lists, unknown runtimes, and option-shaped or otherwise unsafe model identifiers reject the configuration without launching a reviewer. A same-author route is always reported as degraded, wherever it appears, and Safeword continues looking for a later independent success.
+
+Set personal routes once in the Safeword user profile, or commit a project override:
+
+```sh
+safeword review routes set --author claude \
+  --route codex=gpt-5-codex \
+  --route opencode=openai/gpt-5 \
+  --route claude
+safeword review routes set --scope project --author codex --route claude=opus
+safeword review routes list --author claude
+safeword review routes reset --author claude
+```
+
+The default scope for `set` and `reset` is `user`; pass `--scope project` explicitly for repository configuration. Each repeated `--route` is one fallback in order and uses `reviewer=model`; omit `=model` to use that reviewer's authenticated runtime default. `--author` selects whose authored work the chain applies to.
+
+On macOS and Linux the user profile is `$XDG_CONFIG_HOME/safeword/config.json`, falling back to `~/.config/safeword/config.json`. On Windows it uses `%XDG_CONFIG_HOME%\safeword\config.json` when set, then `%APPDATA%\Safeword\config.json`, then `%USERPROFILE%\.config\safeword\config.json`. For each author independently, a project entry replaces the user entry, which replaces the built-in chain; lists are never merged. Because project configuration is repository-controlled, it can replace a user's independent chain with degraded same-author routes, just as the existing project-level `crossAgentReview` setting can select `prefer` or `off`; review repository configuration before trusting its coverage policy. Reset removes only that author at the selected scope, preserving other Safeword settings and revealing the next scope.
+
+Only `crossAgentReviewRoutes` is user-scoped today; review policy and legacy primary/alternate model settings remain project-scoped. Effective route reads validate both files before applying precedence, so malformed JSON in either file fails visibly even when the other scope has a route. Fix or remove the named malformed file, then retry.
+
+- `prefer` (default) — Claude-authored work is sent to headless Codex and Codex-authored work to headless Claude. If the preferred reviewer and its eligible alternate-model route cannot complete, Safeword tries OpenCode once before running a same-agent headless fallback. OpenCode-authored work routes to Claude and then Codex; OpenCode self-review is never independent. A completed same-agent result is presented as standard coverage; requested details can suggest how to add independent coverage. If every CLI route fails, a foreground agent may add supplemental host-native or self-review findings; their actual verdict is preserved.
 - `require` — only an opposite-agent result satisfies the gate. A completed same-agent headless review returns the existing independence-required failure. If every CLI route fails, a foreground agent may still report useful host-native or self-review findings, but the result remains action required, recommends restoring an independent reviewer or explicitly choosing `prefer`, and never writes independent evidence.
 - `off` — retain the existing review route and do not create cross-agent evidence.
 
-Safeword selects Claude's `opus` alias for the primary independent review and `sonnet` for its alternate attempt. This keeps adversarial review on Anthropic's complex-coding model while reserving the faster coding model as a fallback, independent of the user's ambient Claude profile. Codex continues to use its authenticated profile unless configured. Override either route per agent with `crossAgentReviewPrimaryModel` or `crossAgentReviewAlternateModel`; environment variables `SAFEWORD_REVIEW_PRIMARY_MODEL_CLAUDE`, `SAFEWORD_REVIEW_PRIMARY_MODEL_CODEX`, `SAFEWORD_REVIEW_ALTERNATE_MODEL_CLAUDE`, and `SAFEWORD_REVIEW_ALTERNATE_MODEL_CODEX` take precedence. Model identifiers must be 1–200 characters using letters, digits, `.`, `_`, `:`, `/`, or `-`, and cannot begin with `-`. An unusable override falls through to the configured value and then the Safeword default where one exists.
+Authentication is recoverable reviewer state, not a failed route. If a preferred or alternate independent route is not signed in, Safeword returns `REVIEW_AUTHENTICATION_REQUIRED` with that reviewer's login command and does not start a same-agent fallback. Managed agent workflows run the command, allow any browser or device login to finish, and retry the same review once; another authentication denial remains an explicit blocker.
 
-Each review attempt defaults to five minutes, with reviewer work across all routes bounded to nine minutes. Packet preparation happens before that shared reviewer-work deadline; final synchronous integrity checks and bounded process cleanup may finish after it. `SAFEWORD_REVIEW_TIMEOUT_MS` and `SAFEWORD_REVIEW_RUN_BOUND_MS` accept positive millisecond values when a caller needs shorter limits; neither can raise the nine-minute reviewer-work ceiling.
+Without `crossAgentReviewRoutes`, Safeword retains the legacy chain and selects Claude's `opus` alias for the primary independent review and `sonnet` for its alternate attempt. Codex continues to use its authenticated profile unless configured. Override either legacy route per agent with `crossAgentReviewPrimaryModel` or `crossAgentReviewAlternateModel`; environment variables `SAFEWORD_REVIEW_PRIMARY_MODEL_CLAUDE`, `SAFEWORD_REVIEW_PRIMARY_MODEL_CODEX`, `SAFEWORD_REVIEW_ALTERNATE_MODEL_CLAUDE`, and `SAFEWORD_REVIEW_ALTERNATE_MODEL_CODEX` take precedence. Model identifiers must be 1–200 characters using letters, digits, `.`, `_`, `:`, `/`, or `-`, and cannot begin with `-`.
+
+For projects that opt into ranked routes, `safeword status` reports each configured route in order for the detected Claude, Codex, or OpenCode author runtime. A plain terminal with no detected author does not select an author-specific route list. Installation and compatibility come from bounded local inspection; OpenCode model routes also report whether the exact provider-qualified model appears in `opencode models --pure`. Catalogue presence is not proof that credentials or inference work. Only the most recent integrity-validated review job for the exact runtime plus explicit model—or the explicit runtime-default marker—reports `proven` or `known_failure`. Older records without that exact identity prove nothing. `--offline` skips this optional catalogue inspection while preserving the remaining local status checks.
+
+Foreground review attempts default to two minutes, with packet preparation and reviewer work across all routes bounded to four and a half minutes. Durable background review attempts default to ten minutes within a thirty-minute shared bound. Final synchronous integrity checks and bounded process cleanup may finish after the shared deadline. `SAFEWORD_REVIEW_TIMEOUT_MS` and `SAFEWORD_REVIEW_RUN_BOUND_MS` accept positive millisecond values when a caller needs shorter limits; neither can raise the applicable foreground or background ceiling.
 
 Keep each review packet to the smallest coherent set of artifacts that lets the reviewer judge the change: include the implementation together with directly coupled tests, contracts, and documentation, but split unrelated subsystems into separate reviews. This preserves enough context for a meaningful verdict without making the primary route consume the alternate route's reserved time.
 
-Desktop and managed cloud sessions reuse each CLI's existing authentication; Safeword does not copy API keys between vendors or expose credential values. Install and sign in to both headless CLIs when you want independent coverage. Human output calls a validated same-agent result standard coverage and a validated opposite-agent result independent coverage; machine results retain the author, assigned and actual reviewer, successful `reviewer_model`, failed `preferred_model` or `alternate_model`, each route's classified failure, and `cross-agent`, `degraded`, or `none` independence so stamps and automation can enforce the configured policy.
+Desktop and managed cloud sessions reuse each CLI's existing authentication; Safeword does not copy API keys between vendors or expose credential values. OpenCode is a multi-provider runtime, so selecting it as a route makes the provider credentials already present in the caller's environment available to that OpenCode reviewer process. Install and sign in to at least one independent headless CLI for independent coverage. A model-specific route requires the runtime to advertise model selection. Human output calls a validated same-agent result standard coverage and a validated different-agent result independent coverage; machine results retain exact ordered-route evidence and `cross-agent`, `degraded`, or `none` independence so stamps and automation can enforce the configured policy.
 
 ### Advisory pull request review
 

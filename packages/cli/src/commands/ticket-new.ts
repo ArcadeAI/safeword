@@ -24,6 +24,7 @@ import { buildWriterRegistry } from '../tracker-sync/clients.js';
 import { readTicketBridgeConfig } from '../tracker-sync/config.js';
 import { linkChildToEpic, validateEpicParent } from '../utils/epic-linker.js';
 import { cryptoIdMinter, type IdMinter } from '../utils/id-minter.js';
+import { resolveParentContract } from '../utils/product-plan-contract.js';
 import { normalizeSlug } from '../utils/slug.js';
 import { TicketIdCollisionError, type TicketType } from '../utils/ticket-writer.js';
 
@@ -36,6 +37,8 @@ export interface TicketNewOptions {
   goal?: string;
   why?: string;
   parent?: string;
+  milestone?: string;
+  parentJob?: string;
   /** Adopt an existing tracker issue key as identity (issue-first providers only). */
   issue?: string;
 }
@@ -74,6 +77,8 @@ export async function createTicketResult(
         goal: options.goal,
         why: options.why,
         parent: options.parent,
+        milestone: options.milestone,
+        parentJob: options.parentJob,
         issue: options.issue,
       },
       {
@@ -168,11 +173,27 @@ function validateOptions(
       '--why does not apply to features — their motivation lives in spec.md. Use --goal, or edit spec.md.',
     );
   }
-  if (options.parent !== undefined) {
-    const check = validateEpicParent(cwd, options.parent);
-    if (!check.ok) throw new Error(check.reason);
-  }
+  validateParentOptions(options, type, cwd);
   return type;
+}
+
+function validateParentOptions(
+  options: TicketNewOptions,
+  type: ParsedTicketType,
+  cwd: string,
+): void {
+  if (options.parent === undefined) {
+    if (options.milestone !== undefined || options.parentJob !== undefined) {
+      throw new Error('--milestone and --parent-job require --parent.');
+    }
+    return;
+  }
+  const check = validateEpicParent(cwd, options.parent);
+  if (!check.ok) throw new Error(check.reason);
+  if (type !== 'feature') throw new Error('--parent applies only to feature tickets.');
+  if (!options.milestone?.trim()) throw new Error('--milestone is required with --parent.');
+  if (!options.parentJob?.trim()) throw new Error('--parent-job is required with --parent.');
+  resolveParentContract(cwd, options.parent, options.parentJob, options.milestone);
 }
 
 function errorMessage(error: unknown): string {

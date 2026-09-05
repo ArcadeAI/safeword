@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "status": "finalized",
+  "transaction_id": "fe2e323e-6ac3-4ef2-908f-dd2a1b8d5ced",
+  "plan_sha256": "6472fde363c6b7caf7544b3e0bae7d7ef7d7c2655b1fb93b108fa257f4319f14",
+  "entries": [
+    {
+      "path": ".codex/agents/safeword-retro-filer.toml",
+      "before": {
+        "kind": "file",
+        "mode": 420,
+        "sha256": "be8b6d6f7a30fd2abf0979c73f633ea92862699ce98d12fd62364156f110d211",
+        "payload": "payloads/0.bin"
+      },
+      "after": {
+        "kind": "absent"
+      }
+    },
+    {
+      "path": ".safeword/hooks/session-codex-start.ts",
+      "before": {
+        "kind": "file",
+        "mode": 420,
+        "sha256": "8899e9ed506ca012b694f3193be29d68aa31bf0aca9dd3930b653bb93e74980f",
+        "payload": "payloads/1.bin"
+      },
+      "after": {
+        "kind": "absent"
+      }
+    },
+    {
+      "path": ".safeword/hooks/codex/pre-tool-quality.ts",
+      "before": {
+        "kind": "file",
+        "mode": 420,
+        "sha256": "a493c91ee667ed38dc04522fc48e859834c84ba520acbb413bfd9ca50ec0187e",
+        "payload": "payloads/2.bin"
+      },
+      "after": {
+        "kind": "absent"
+      }
+    },
+    {
+      "path": ".safeword/hooks/codex/stop.ts",
+      "before": {
+        "kind": "file",
+        "mode": 420,
+        "sha256": "d48612ffedec5ab8aa7a7524f5aacdce79d00b1504f75cf70e822d99e61d073a",
+        "payload": "payloads/3.bin"
+      },
+      "after": {
+        "kind": "absent"
+      }
+    },
+    {
+      "path": ".safeword/hooks/codex/post-tool-skill-nudge.ts",
+      "before": {
+        "kind": "file",
+        "mode": 420,
+        "sha256": "7d03b5821873daae52caa41a98ef499cae62b9c398f03855db2b938f5f5a5023",
+        "payload": "payloads/4.bin"
+      },
+      "after": {
+        "kind": "absent"
+      }
+    },
+    {
+      "path": ".safeword/hooks/codex/post-tool-quality.ts",
+      "before": {
+        "kind": "file",
+        "mode": 420,
+        "sha256": "605722bf47159cf4ea3c9f106d1c1aae5ca67e6441f46b0c6f0ab615a6e38e06",
+        "payload": "payloads/5.bin"
+      },
+      "after": {
+        "kind": "absent"
+      }
+    },
+    {
+      "path": ".safeword/codex-plugin.json",
+      "before": {
+        "kind": "absent"
+      },
+      "after": {
+        "kind": "file",
+        "mode": 420,
+        "sha256": "ac4de2f8cd495e718b8cae6bca6955b5151ce4cbffa62131426dbb6d9b3c4f3b"
+      }
+    },
+    {
+      "path": ".agents/skills/safeword-plugin-setup/SKILL.md",
+      "before": {
+        "kind": "absent"
+      },
+      "after": {
+        "kind": "file",
+        "mode": 420,
+        "sha256": "303b1c3f654c49dc618bd9e9ee3b043bbfef174b65c6ed8f91ea6c430a554439"
+      }
+    }
+  ]
+}

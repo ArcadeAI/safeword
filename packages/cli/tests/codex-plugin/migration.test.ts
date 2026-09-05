@@ -52,6 +52,8 @@ function facts(overrides: Partial<CodexMigrationFacts> = {}): CodexMigrationFact
     finalized: false,
     recoveryRequired: false,
     activationPending: false,
+    activationRestartObserved: false,
+    activationRestartProven: false,
     ...overrides,
   };
 }
@@ -102,6 +104,79 @@ describe('Codex migration result', () => {
     expect(result).toMatchObject({
       state: 'plugin_installed_app_restart_required',
       protected: 'unprotected',
+    });
+  });
+
+  it('reports a completed restart whose hooks did not activate without requesting another restart', () => {
+    const result = deriveCodexMigrationResult(
+      facts({
+        plugin: enabledPlugin,
+        activationPending: true,
+        activationRestartObserved: true,
+      }),
+    );
+
+    expect(result).toMatchObject({
+      state: 'plugin_installed_hook_activation_failed',
+      protected: 'unprotected',
+      next_actions: [
+        {
+          kind: 'human',
+          instruction:
+            'Review the installed hooks in Codex Desktop under Settings > Hooks (or with /hooks in the terminal TUI). If they are enabled and trusted, use a Codex surface that dispatches lifecycle hooks before relying on Safeword protection.',
+        },
+      ],
+    });
+    expect(renderCodexMigrationHuman(result)).toBe(
+      'Codex migration: plugin_installed_hook_activation_failed\nProtection: unprotected\nCodex restarted, but Safeword received no current lifecycle hook proof.\nNext: Review the installed hooks in Codex Desktop under Settings > Hooks (or with /hooks in the terminal TUI). If they are enabled and trusted, use a Codex surface that dispatches lifecycle hooks before relying on Safeword protection.\n',
+    );
+  });
+
+  it('does not request another restart while current hook proof is still partial', () => {
+    const result = deriveCodexMigrationResult(
+      facts({
+        plugin: enabledPlugin,
+        proof: {
+          ...missingProof,
+          status: 'partial',
+          activation_id: 'activation-rc2',
+          events: ['session-start'],
+          missing_events: ['pre-tool-use', 'post-tool-use', 'user-prompt-submit', 'stop'],
+        },
+        activationRestartProven: true,
+      }),
+    );
+
+    expect(result).toMatchObject({
+      state: 'plugin_enabled_hook_unproven',
+      protected: 'unprotected',
+      next_actions: [
+        {
+          kind: 'human',
+          instruction:
+            'Continue in this Codex session. Safeword will confirm protection after the remaining lifecycle hooks run.',
+        },
+      ],
+    });
+    expect(renderCodexMigrationHuman(result)).toBe(
+      'Codex migration: plugin_enabled_hook_unproven\nProtection: unprotected\nCodex restarted and Safeword has partial current lifecycle hook proof.\nNext: Continue in this Codex session. Safeword will confirm protection after the remaining lifecycle hooks run.\n',
+    );
+  });
+
+  it.each([
+    { name: 'restart receipt without partial proof', activationRestartProven: true },
+    { name: 'restart observation after the marker was retired', activationRestartObserved: true },
+  ])('keeps restart guidance for $name', overrides => {
+    const result = deriveCodexMigrationResult(facts({ plugin: enabledPlugin, ...overrides }));
+
+    expect(result).toMatchObject({
+      state: 'plugin_enabled_hook_unproven',
+      next_actions: [
+        {
+          instruction:
+            'Review the installed hooks in Codex Desktop under Settings > Hooks (or with /hooks in the terminal TUI). Fully restart Codex, then resume this task.',
+        },
+      ],
     });
   });
 
@@ -245,6 +320,15 @@ describe('Codex migration result', () => {
       facts({ plugin: enabledPlugin, activationPending: true }),
       2,
     ],
+    [
+      'plugin_installed_hook_activation_failed',
+      facts({
+        plugin: enabledPlugin,
+        activationPending: true,
+        activationRestartObserved: true,
+      }),
+      2,
+    ],
     ['plugin_enabled_hook_unproven', facts({ plugin: enabledPlugin }), 2],
     [
       'compatibility',
@@ -259,7 +343,7 @@ describe('Codex migration result', () => {
     ['plugin', facts({ plugin: enabledPlugin, proof: currentProof }), 0],
     ['legacy', facts({ legacyEvents: ['PreToolUse'], viableLegacyEvents: ['PreToolUse'] }), 2],
     ['not_configured', facts(), 2],
-  ] as const)('returns a complete schema-1 object for %s', (state, input, exitCode) => {
+  ] as const)('returns a complete schema-2 object for %s', (state, input, exitCode) => {
     const result = deriveCodexMigrationResult(input);
 
     expect(result.state).toBe(state);
@@ -288,7 +372,7 @@ describe('Codex migration result', () => {
         observation: expect.stringMatching(/^(observed|unknown)$/u),
       },
       proof: {
-        status: expect.stringMatching(/^(current|missing|stale|malformed)$/u),
+        status: expect.stringMatching(/^(current|missing|partial|stale|malformed)$/u),
       },
       legacy: {
         events: expect.any(Array),

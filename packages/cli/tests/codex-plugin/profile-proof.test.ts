@@ -18,9 +18,12 @@ import nodePath from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
+import type { CodexHostProcessObservation } from '../../src/codex-plugin/host-process.js';
 import {
   CODEX_PLUGIN_HOOK_EVENTS,
   codexActivationIsPending,
+  codexActivationRestartIsProven,
+  codexActivationRestartWasObserved,
   type CodexHostProcessIdentity,
   codexProofPath,
   codexSessionProofIsCurrent,
@@ -335,6 +338,42 @@ describe('Codex profile hook proof', () => {
     expect(observeCodexHookProof(environment).status).toBe('stale');
   });
 
+  it('observes a completed app restart without mutating the pending activation marker', () => {
+    const { codexHome, environment } = createProfileFixture();
+    writeCodexActivationMarker(environment, new Date('2026-08-02T08:52:42.000Z'), {
+      activationId: 'activation-completed',
+      activeHosts: [OLD_HOST],
+    });
+
+    expect(
+      codexActivationRestartWasObserved(environment, new Date('2026-08-02T09:01:00.000Z'), {
+        hostObservation: { available: true, current: RESTARTED_HOST, running: [RESTARTED_HOST] },
+      }),
+    ).toBe(true);
+    expect(existsSync(nodePath.join(codexHome, 'safeword/activation-pending-v2.json'))).toBe(true);
+  });
+
+  it.each<[string, CodexHostProcessObservation]>([
+    ['the installing host is current', { available: true, current: OLD_HOST, running: [OLD_HOST] }],
+    [
+      'an installing host is still running',
+      { available: true, current: RESTARTED_HOST, running: [OLD_HOST, RESTARTED_HOST] },
+    ],
+    ['process observation is unavailable', { available: false, current: null, running: [] }],
+  ])('does not report restart completion when %s', (_name, hostObservation) => {
+    const { environment } = createProfileFixture();
+    writeCodexActivationMarker(environment, new Date('2026-08-02T08:52:42.000Z'), {
+      activationId: 'activation-incomplete',
+      activeHosts: [OLD_HOST],
+    });
+
+    expect(
+      codexActivationRestartWasObserved(environment, new Date('2026-08-02T09:01:00.000Z'), {
+        hostObservation,
+      }),
+    ).toBe(false);
+  });
+
   it('retains the current Codex host when process discovery returns an empty running set', () => {
     const { codexHome, environment } = createProfileFixture();
     writeCodexActivationMarker(environment, new Date('2026-08-02T08:52:42.000Z'), {
@@ -355,7 +394,7 @@ describe('Codex profile hook proof', () => {
     expect(existsSync(markerPath)).toBe(true);
   });
 
-  it('treats an empty install-time host observation as unavailable', () => {
+  it('activates from a host started after an observed empty install-time host set', () => {
     const { codexHome, environment } = createProfileFixture();
     writeCodexActivationMarker(environment, new Date('2026-08-02T08:52:42.000Z'), {
       activationId: 'activation-no-host',
@@ -364,14 +403,49 @@ describe('Codex profile hook proof', () => {
 
     const markerPath = nodePath.join(codexHome, 'safeword/activation-pending-v2.json');
     expect(JSON.parse(readFileSync(markerPath, 'utf8'))).toMatchObject({
-      host_observation: 'unavailable',
+      host_observation: 'observed',
       active_hosts: [],
     });
     recordCodexHookProof('session-start', environment, new Date('2026-08-02T09:01:00.000Z'), {
       currentHost: RESTARTED_HOST,
     });
 
-    expect(existsSync(markerPath)).toBe(true);
+    expect(existsSync(markerPath)).toBe(false);
+    expect(existsSync(nodePath.join(codexHome, 'safeword/activation-current-v1.json'))).toBe(true);
+    expect(codexActivationRestartIsProven(environment)).toBe(true);
+  });
+
+  it('does not activate an observed empty host set from a host that predates installation', () => {
+    const { codexHome, environment } = createProfileFixture();
+    writeCodexActivationMarker(environment, new Date('2026-08-02T08:52:42.000Z'), {
+      activationId: 'activation-no-host',
+      hostObservation: { available: true, current: null, running: [] },
+    });
+
+    recordCodexHookProof('session-start', environment, new Date('2026-08-02T09:01:00.000Z'), {
+      currentHost: OLD_HOST,
+    });
+
+    expect(existsSync(nodePath.join(codexHome, 'safeword/activation-pending-v2.json'))).toBe(true);
+    expect(existsSync(nodePath.join(codexHome, 'safeword/activation-current-v1.json'))).toBe(false);
+  });
+
+  it('does not activate from an unobserved host that predates installation', () => {
+    const { codexHome, environment } = createProfileFixture();
+    writeCodexActivationMarker(environment, new Date('2026-08-02T08:52:42.000Z'), {
+      activationId: 'activation-racy-host-scan',
+      activeHosts: [OLD_HOST],
+    });
+
+    recordCodexHookProof('session-start', environment, new Date('2026-08-02T09:01:00.000Z'), {
+      hostObservation: {
+        available: true,
+        current: OTHER_OLD_HOST,
+        running: [OTHER_OLD_HOST],
+      },
+    });
+
+    expect(existsSync(nodePath.join(codexHome, 'safeword/activation-pending-v2.json'))).toBe(true);
     expect(existsSync(nodePath.join(codexHome, 'safeword/activation-current-v1.json'))).toBe(false);
   });
 
@@ -514,6 +588,7 @@ describe('Codex profile hook proof', () => {
 
     expect(existsSync(nodePath.join(codexHome, 'safeword/activation-pending-v2.json'))).toBe(false);
     expect(existsSync(nodePath.join(codexHome, 'safeword/activation-current-v1.json'))).toBe(true);
+    expect(codexActivationRestartIsProven(environment)).toBe(true);
     expect(observeCodexHookProof(environment)).toMatchObject({
       status: 'partial',
       activation_id: 'activation-rc2',

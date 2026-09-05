@@ -25,9 +25,7 @@ const BDD_GUIDANCE_PATHS = [
 ];
 const FEATURE_SPEC_TEMPLATE_PATHS = [
   'packages/cli/templates/spec-template.md',
-  'packages/cli/templates/doc-templates/feature-spec-template.md',
   '.safeword/templates/spec-template.md',
-  '.safeword/templates/feature-spec-template.md',
 ];
 
 function createCustomerProject(prefix: string): string {
@@ -306,7 +304,13 @@ Then(
       ]);
       assert.ok(content.includes('paths.surfaces'), content);
       assert.ok(content.includes('<namespace-root>/surfaces.md'), content);
-      assert.match(content, /surfaces\.md` is empty.*add surfaces now/is);
+      // An empty surfaces file must still reach the user. It no longer prompts
+      // on its own: every empty project-knowledge file is collected into one
+      // prompt before the first checkpoint, so the sub-step defers instead.
+      assert.match(
+        content,
+        /surfaces\.md`\)\. If empty, carry it into the.*single project-knowledge prompt/is,
+      );
     }
   },
 );
@@ -325,11 +329,21 @@ When('a feature spec is scaffolded', function () {
   );
 });
 
-Then('it includes a Surfaces section for affected runtime contexts', function () {
-  for (const content of readRepoFiles(FEATURE_SPEC_TEMPLATE_PATHS)) {
-    assert.ok(content.includes('## Surfaces'), content);
-    assert.match(content, /configured\s+surfaces file/, content);
-    assert.ok(content.includes('Affected:'), content);
-    assert.ok(content.includes('@surface.<slug>'), content);
-  }
-});
+Then(
+  'it relies on the project inventory and scenario tags for affected runtime contexts',
+  function () {
+    for (const content of readRepoFiles(FEATURE_SPEC_TEMPLATE_PATHS)) {
+      // The spec carries a Surfaces section — SCENARIOS, health and /verify all
+      // read it — but the lean intent that once banned it survives as a size
+      // bound: what made a fifth section costly was its bulk, not its presence.
+      const start = content.indexOf('## Surfaces');
+      assert.ok(start !== -1, content);
+      const next = content.indexOf('\n## ', start + 1);
+      const section = (next === -1 ? content.slice(start) : content.slice(start, next)).trimEnd();
+      assert.ok(section.includes('Affected:'), section);
+      assert.ok(section.split('\n').length <= 14, section);
+      assert.ok(content.includes('## Product Bet'), content);
+      assert.ok(content.includes('## Killer Demo'), content);
+    }
+  },
+);

@@ -229,12 +229,14 @@ const CURSOR_SHARED_SKILL_FILES = [
   'cleanup-zombies/SKILL.md',
   'closeout/SKILL.md',
   'debug/SKILL.md',
+  'demand-research/SKILL.md',
   'elicit/SKILL.md',
   'explain/SKILL.md',
   'figure-it-out/SKILL.md',
   'finish-review/SKILL.md',
   'finish-review/REVIEWER.md',
   'lint/SKILL.md',
+  'pr-readiness/SKILL.md',
   'quality-review/SKILL.md',
   'refactor/SKILL.md',
   'retro/SKILL.md',
@@ -484,6 +486,12 @@ function prReviewWorkflowFile(templatePath: string): ManagedFileDefinition {
     generator: (ctx: ProjectContext): string | undefined =>
       prReviewEnabled(ctx.cwd) ? workflowContent() : undefined,
     normalizeForUnmodifiedComparison: normalizePrReviewWorkflowVersionPins,
+    // The pin names the safeword these workflows fetch from npm. They carry write
+    // scopes under `pull_request_target` and check nothing out, so the version
+    // cannot come from the repo and has to be written into the file — which meant
+    // it froze at whichever release first installed it. Refresh it on upgrade,
+    // while the workflow is still safeword's own.
+    refreshWhileUnmodified: true,
     removeIfUnmodified: workflowContent,
     removeWhenGeneratorOmitted: true,
   };
@@ -818,6 +826,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/hooks/lib/project-knowledge.ts': { template: 'hooks/lib/project-knowledge.ts' },
     '.safeword/hooks/lib/principle-trace.ts': { template: 'hooks/lib/principle-trace.ts' },
     '.safeword/hooks/lib/plan-gate.ts': { template: 'hooks/lib/plan-gate.ts' },
+    '.safeword/hooks/lib/product-plan-contract.ts': {
+      template: 'hooks/lib/product-plan-contract.ts',
+    },
     '.safeword/hooks/lib/replan-relevance.ts': { template: 'hooks/lib/replan-relevance.ts' },
     '.safeword/hooks/lib/replan.ts': { template: 'hooks/lib/replan.ts' },
     '.safeword/hooks/lib/review-ledger.ts': { template: 'hooks/lib/review-ledger.ts' },
@@ -1066,6 +1077,9 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     '.safeword/templates/spec-template.md': {
       template: 'spec-template.md',
     },
+    '.safeword/templates/child-spec-template.md': {
+      template: 'child-spec-template.md',
+    },
 
     // Prompts
     '.safeword/prompts/architecture.md': {
@@ -1096,6 +1110,12 @@ export const SAFEWORD_SCHEMA: SafewordSchema = {
     },
     '.claude/skills/quality-review/SKILL.md': {
       template: 'skills/quality-review/SKILL.md',
+    },
+    '.claude/skills/pr-readiness/SKILL.md': {
+      template: 'skills/pr-readiness/SKILL.md',
+    },
+    '.claude/skills/demand-research/SKILL.md': {
+      template: 'skills/demand-research/SKILL.md',
     },
     '.claude/skills/finish-review/SKILL.md': {
       template: 'skills/finish-review/SKILL.md',

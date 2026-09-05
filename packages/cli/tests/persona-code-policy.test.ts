@@ -27,8 +27,8 @@ describe('persona-code authoring policy', () => {
   ])('%s carries the canonical persona code unchanged into JTBDs', relativePath => {
     const guidance = read(relativePath);
 
-    expect(guidance).toContain('Platform Operator (PLO)');
-    expect(guidance).toContain('**Persona:** Platform Operator (PLO)');
+    expect(guidance).toContain('<persona-code>');
+    expect(guidance).toContain('**Persona:** <canonical persona>');
   });
 
   it.each([
@@ -46,7 +46,7 @@ describe('persona-code authoring policy', () => {
     '%s uses canonical persona codes in new JTBD examples',
     relativePath => {
       const template = read(relativePath);
-      expect(template).toContain('Platform Operator (PLO)');
+      expect(template).toContain('<persona-code>');
       expect(template).not.toContain('Platform Operator (PO)');
     },
   );

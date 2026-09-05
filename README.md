@@ -104,7 +104,10 @@ already started — and starting a new task alone isn't enough either, since the
 app itself keeps the old plugin catalogue loaded. The bootstrap therefore
 prints a loud startup warning until you fully restart Codex and resume the
 task, which records native proof for that same task. It never intercepts or blocks
-edits or commands. If the already-open task previously observed an older
+edits or commands. If Safeword observes that the app restarted but receives no
+current lifecycle hook proof, status stops repeating the restart instruction
+and reports that protection is unavailable in that Codex surface. If the
+already-open task previously observed an older
 Safeword runtime, bootstrap reports that narrower fact instead of calling the
 task wholly unverified; the retained history never proves the installed update
 and never authorizes cleanup. On the first ordinary upgrade of an unmodified
@@ -354,8 +357,8 @@ Key directories created in your project:
 
 **Hooks** (in `.safeword/hooks/`): TypeScript and shell automation organized by lifecycle and host. Session hooks load standing context, heal generated architecture, check dependencies, and manage resumable state. Pre/post-tool hooks guard owned configuration, enforce ticket phases, lint edits, record evidence, and protect Git/process boundaries. Stop hooks run verification, review, retro, and re-entry flows. Claude Code and Cursor use project-local adapters; Codex dispatches equivalent events through the profile plugin. The installed hook manifests—not a hand-maintained README list—are the source of truth.
 
-Codex hooks live in the Safeword plugin and run from the package with
-`bunx --bun safeword@<plugin-version> hook codex <event>`. Install and verify
+Codex hooks live in the Safeword plugin and run through the CLI bundled with
+that exact plugin version, without a package-manager lookup at hook time. Install and verify
 the profile-scoped plugin immediately with `safeword install --agents=codex`; install also
 creates project-level SessionStart hooks for enrollment and dependency
 preparation, never an edit or shell-command interception hook. Startup remains
@@ -389,8 +392,10 @@ it never stages, commits, or opens a PR.
 
 **Skills** (in `.claude/skills/`): On-demand workflows for planning, BDD/TDD, debugging, elicitation, architecture exploration, review, refactoring, verification, retrospectives, linting, testing, ticket management, and safe session closeout. The directory is the source of truth; generated Codex equivalents use the `safeword:<skill>` namespace. Internal `finish-review` guidance is not a user command: class-1 review workflows (those requiring independent/cross-model review, as opposed to class-2's self-verifiable checks) invoke it only after the CLI coordinator returns typed route exhaustion.
 
-Review prefers every independent Claude/Codex CLI route, then same-agent
-headless review. If those routes cannot complete, a foreground agent makes one
+Review keeps the existing Claude↔Codex pairing first, then tries OpenCode as a
+second independent runtime before same-agent headless review. OpenCode-authored
+work routes to Claude and then Codex, so OpenCode self-review is never counted
+as independent. If those routes cannot complete, a foreground agent makes one
 best-effort fresh-context host review and then one bounded self-review. Those
 last two routes are useful feedback, not independent evidence; `require` stays
 blocked and no independent stamp is written. Both read the live worktree, so
@@ -775,11 +780,11 @@ The CLI installs matching workflow capabilities for Claude Code, Cursor, and Cod
 
 **Parity tests:** `packages/cli/tests/schema.test.ts`
 
-| Agent       | Workflow Surface                         | Commands / Hooks                                                                    |
-| ----------- | ---------------------------------------- | ----------------------------------------------------------------------------------- |
-| Claude Code | `.claude/skills/*`                       | Skills expose slash-command behavior                                                |
-| Cursor      | `.cursor/rules/{safeword-*,bdd-*}.mdc`   | `.cursor/commands/*.md`, `.cursor/hooks.json`                                       |
-| Codex       | Codex plugin skills (`safeword:<skill>`) | Plugin hooks call version-pinned `bunx --bun safeword@<version> hook codex <event>` |
+| Agent       | Workflow Surface                         | Commands / Hooks                                                    |
+| ----------- | ---------------------------------------- | ------------------------------------------------------------------- |
+| Claude Code | `.claude/skills/*`                       | Skills expose slash-command behavior                                |
+| Cursor      | `.cursor/rules/{safeword-*,bdd-*}.mdc`   | `.cursor/commands/*.md`, `.cursor/hooks.json`                       |
+| Codex       | Codex plugin skills (`safeword:<skill>`) | Plugin hooks call the CLI bundled with the installed plugin version |
 
 **Editing skills:**
 

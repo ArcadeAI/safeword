@@ -139,10 +139,10 @@ When bumping the CLI version, update all **five release-tracked artifacts**:
 1. `packages/cli/package.json` — source of truth for npm
 2. `.claude-plugin/marketplace.json` → `plugins[0].version` — source of truth for Claude Code plugin
 3. `packages/cli/codex-plugin/.codex-plugin/plugin.json` → `version` — source of truth for Codex plugin
-4. `packages/cli/codex-plugin/hooks.json` — all five `bunx` commands pin `safeword@<version>`
-5. `packages/cli/codex-plugin/skills/**` — **generated**, never hand-edited. Regenerate with `bun run generate:codex-plugin` from `packages/cli`
+4. `packages/cli/codex-plugin/package.json` — **generated** identity for the bundled Codex CLI runtime
+5. `packages/cli/codex-plugin/skills/**` and `runtime/cli.js` — **generated**, never hand-edited. Regenerate with `bun run generate:codex-plugin` from `packages/cli`
 
-Artifact 5 is easy to miss because it is generated rather than edited: Codex's skills have no project-local `.safeword/hooks` to call, so their review and helper invocations embed `bunx --bun safeword@<version>` directly (ticket V2AH4B). A bump that skips the regeneration ships skills pinned to the previous version. `test:release` fails loudly on the mismatch, so this is a checklist gap rather than a release risk.
+Artifacts 4 and 5 are easy to miss because they are generated rather than edited: Codex's skills have no project-local `.safeword/hooks` to call, so their review and helper invocations address the versioned bundled runtime in the Codex plugin cache. A bump that skips regeneration ships skills pointing at the previous version or a stale runtime identity. `test:release` fails loudly on the mismatch, so this is a checklist gap rather than a release risk.
 
 Do NOT add version to `plugin/.claude-plugin/plugin.json` — per Claude Code docs, relative-path plugins use the marketplace entry only. Pre-commit and release-contract tests block a mismatch between the CLI, plugin manifests, and Codex hook commands.
 

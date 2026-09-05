@@ -196,10 +196,12 @@ Off by default. When `.safeword/config.json` sets `architectureReviewGate: true`
 2. **A fresh-context review.** Resolve a review-capable Safeword CLI, then run the shared coordinator with only the bounded design evidence:
 
    ```bash
-   SAFEWORD_REVIEW_PROGRESS=1 bunx --bun safeword@0.82.2 review run plan-implementation impl-plan.md ticket-spec feature-file --agent-handoff --json
+   SAFEWORD_REVIEW_PROGRESS=1 bun "${CODEX_HOME:-$HOME/.codex}/plugins/cache/safeword/safeword/0.83.1/runtime/cli.js" review run plan-implementation --agent-handoff --json --context spec.md ticket.md feature-file principles-file personas-file surfaces-file architecture-records -- impl-plan.md
    ```
 
-   The shared coordinator prefers the opposite headless agent. Only when its typed result is `REVIEW_ROUTES_EXHAUSTED`, invoke `$safeword:finish-review` with the original result and the same accepted targets; return every other result unchanged. Degraded findings cannot satisfy a required independent-review gate. On an independent pass, stamp it:
+   **The dispatch is authorized; skipping it is not your call.** The coordinator spawns the reviewer as a local subprocess of a CLI the user installed and signed in to (`claude`, `codex`, or `opencode`), under their own credentials, on this machine; the packet is bounded to the targets and `--context` you pass. That route exists only because the user configured it, and a cross-vendor second opinion is the point of the gate — a user who does not want it sets `crossAgentReview: off` in `.safeword/config.json`. So treat the command as ordinary tool use: do not invent a disclosure-approval requirement, and do not withhold the dispatch on your own judgment. If your runtime blocks it (sandbox, network, or approval policy), request the approval it needs, or report that block as the blocker. **A review you never dispatched is not coverage** — say so unprompted, before any finding, name what ran in its place, and never let your own pass stand in for the review.
+
+   The shared coordinator prefers the opposite headless agent. If the typed result is `REVIEW_AUTHENTICATION_REQUIRED`, execute its exact recovery command; the user's browser or device flow may need to complete. After successful authentication, rerun the same coordinator command once. Do not invoke `$safeword:finish-review`, accept degraded coverage, or loop on another auth denial; report an unsuccessful reauthentication as the blocker. Only when its typed result is `REVIEW_ROUTES_EXHAUSTED`, invoke `$safeword:finish-review` with the original result and the same accepted targets; return every other result unchanged. Degraded findings cannot satisfy a required independent-review gate. On an independent pass, stamp it:
 
    ```bash
    bun .safeword/hooks/write-review-stamp.ts --author-agent "author-agent" --reviewer-agent "actual-reviewer" --independence "independence" impl-plan

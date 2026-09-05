@@ -9,8 +9,9 @@ import {
 import { renderJsonResult } from '../../src/cli-protocol/result.js';
 
 function publishedOptions(definition: (typeof publicCommands)[number]): Record<string, unknown>[] {
-  return definition.registration.options.map(
-    ({ flags, description, defaultValue, valueKind, compatibilityReplacement }) => ({
+  return definition.registration.options
+    .filter(option => option.hidden !== true)
+    .map(({ flags, description, defaultValue, valueKind, compatibilityReplacement }) => ({
       flags,
       description,
       ...(defaultValue !== undefined && { default_value: defaultValue }),
@@ -21,8 +22,7 @@ function publishedOptions(definition: (typeof publicCommands)[number]): Record<s
           retention: 'indefinite',
         },
       }),
-    }),
-  );
+    }));
 }
 
 function expectPublishedCommandShape(command: Record<string, unknown> | undefined): void {
@@ -40,6 +40,12 @@ function expectPublishedCommandShape(command: Record<string, unknown> | undefine
 }
 
 describe('CLI command catalog', () => {
+  it('declares the optional network used to inspect configured reviewer catalogues', () => {
+    expect(commandCatalog.find(command => command.name === 'status')?.networkPolicy).toBe(
+      'declared',
+    );
+  });
+
   it('describes every public command with executable policy and a fixture', () => {
     expect(publicCommands.length).toBeGreaterThan(0);
     for (const command of publicCommands) {
@@ -117,9 +123,13 @@ describe('CLI command catalog', () => {
       'codex recover',
       'ticket list',
       'ticket new',
+      'ticket reconcile-parent',
       'review run',
       'review status',
       'review cancel',
+      'review routes set',
+      'review routes list',
+      'review routes reset',
       'review-pr inspect',
       'review-pr invalidate',
       'review-pr publish',
