@@ -1398,7 +1398,7 @@ describe('retro command configuration, extraction, egress, and relay execution',
     },
   );
 
-  it('starts the shared public delivery budget after extraction', async () => {
+  it('excludes extraction but includes finding preparation in the shared delivery budget', async () => {
     const attemptsDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-attempts-'));
     let nowCalls = 0;
     const publicTransport = vi.fn(request =>

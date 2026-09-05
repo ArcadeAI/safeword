@@ -325,12 +325,6 @@ it('dead-letters and alerts work only after filing quota blocks it for 24 hours'
   now = 86_400_001;
   expect(store.claim()).toBeUndefined();
   expect(store.listLifecycle()).toEqual([
-    expect.objectContaining({ requestId: request.requestId, state: 'queued' }),
-  ]);
-
-  now += 86_400_001;
-  expect(store.claim()).toBeUndefined();
-  expect(store.listLifecycle()).toEqual([
     expect.objectContaining({ requestId: request.requestId, state: 'dead-lettered' }),
   ]);
   store.close();
@@ -339,6 +333,35 @@ it('dead-letters and alerts work only after filing quota blocks it for 24 hours'
   database.close();
 
   expect(alerts).toEqual([{ request_id: request.requestId, code: 'quota_exhausted' }]);
+});
+
+it('does not treat outage age as quota-block age when capacity fills after recovery', () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  let now = 0;
+  const store = new PublicRetroStore(path.join(directory, 'collector.sqlite'), {
+    filingLimitPerHour: 1,
+    now: () => now,
+    projectFilingLimitPerHour: 1,
+  });
+  const first = fixtureServerOwnedRequest();
+  const secondId = '22222222-3333-4444-8555-666666666666';
+  const secondBody = encoded({
+    ...(JSON.parse(new TextDecoder().decode(first.body)) as Record<string, unknown>),
+    findings: ['second outage finding'],
+    requestId: secondId,
+    sessionScope: 'a'.repeat(64),
+  });
+  store.accept(first.requestId, '9'.repeat(64), first.body, 'v3', 'project-a');
+  store.accept(secondId, 'a'.repeat(64), secondBody, 'v3', 'project-b');
+
+  now = 86_400_001;
+  expect(store.claim()?.requestId).toBe(first.requestId);
+  expect(store.claim()).toBeUndefined();
+  expect(store.listLifecycle()).toEqual(
+    expect.arrayContaining([expect.objectContaining({ requestId: secondId, state: 'queued' })]),
+  );
+  store.close();
 });
 
 it('keeps pre-relay work claimable after 24 hours and a failed attempt', () => {

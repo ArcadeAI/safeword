@@ -348,6 +348,9 @@ export async function runRetro(
   // behavior. The window flows through the UNCHANGED egress pipeline below.
   const window = windowFor(transcript, options.windowStart ?? 0);
   const rawFindings = await dependencies.extract(window);
+  // Extraction is analysis with its own host-runtime timeout, not transport.
+  // Start the stop-event delivery budget here so finding preparation and every
+  // public attempt share 750 ms without slow extraction suppressing delivery.
   const publicRetroDeadline =
     dependencies.publicRetro === undefined ? undefined : dependencies.publicRetro.now() + 750;
   const { encounters, drops, findings } = await prepareEncounters(rawFindings);
