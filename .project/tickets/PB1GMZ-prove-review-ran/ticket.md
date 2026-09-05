@@ -57,6 +57,13 @@ Receipt target binding normalized path segments but never anchored them to the
 configured namespace's `tickets` directory. A genuine approval of a decoy such
 as `docs/T1-slug/spec.md` therefore matched the real ticket by basename alone.
 
+The receipt reader also reused the launcher's development-friendly candidate
+list, which includes project-local and source CLIs. Those routes are appropriate
+for starting a review but not for witnessing one: reviewed code could rewrite a
+candidate and mint an approving envelope. Receipt reads now use only
+distribution-owned Claude/Codex plugin runtimes or the exact version-pinned
+package route.
+
 Ruled out: the coordinator's integrity signature and source-staleness check are
 not the cause; they correctly prove the reviewed decoy and correctly detect
 changes to it. The missing information is exact expected-ticket containment at

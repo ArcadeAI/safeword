@@ -18,13 +18,8 @@
 import { spawnSync } from 'node:child_process';
 
 import type { ReviewReceipt } from './review-receipt.js';
-import { reviewCandidates } from '../run-review.js';
+import { receiptReviewCandidates } from '../run-review.js';
 
-/**
- * What the coordinator reports about `id`, or undefined when no CLI route could
- * answer. Undefined is not "fine": callers treat an unanswerable claim as
- * unwitnessed, because that is exactly what it is.
- */
 /**
  * Per-route and total budgets. This runs inside blocking hooks (PreToolUse,
  * Stop), so an unresponsive route must not stall the user's tool call: a status
@@ -40,7 +35,7 @@ export function readReviewReceipt(
   projectDirectory: string,
   deadline = Date.now() + TOTAL_BUDGET_MS,
 ): ReviewReceipt | undefined {
-  for (const [command, argumentPrefix] of reviewCandidates(projectDirectory)) {
+  for (const [command, argumentPrefix] of receiptReviewCandidates(projectDirectory)) {
     const remaining = deadline - Date.now();
     if (remaining <= 0) return undefined;
 
@@ -68,7 +63,7 @@ export function readReviewReceipt(
 
     const text = (field: string): string | undefined =>
       typeof data[field] === 'string' ? (data[field] as string) : undefined;
-    return {
+    const receipt = {
       reviewId: id,
       status: text('status'),
       kind: text('review_kind'),
@@ -79,15 +74,24 @@ export function readReviewReceipt(
       authorAgent: text('author_agent'),
       actualReviewer: text('actual_reviewer'),
     };
+    // A legacy CLI may know the id but not expose the provenance fields this
+    // gate requires. Let a later current, distribution-owned route answer.
+    if (receipt.status === 'approved' && (!receipt.kind || receipt.targets.length === 0)) continue;
+    return receipt;
   }
   return undefined;
 }
 
-/** One memoized, deadline-bound receipt reader for a single blocking-hook invocation. */
+/**
+ * One memoized, deadline-bound receipt reader for a single blocking-hook invocation.
+ * `totalBudgetMs` is injectable so the shared-deadline behavior can be proved
+ * without making the test suite wait for the production twelve-second budget.
+ */
 export function createReviewReceiptReader(
   projectDirectory: string,
+  totalBudgetMs = TOTAL_BUDGET_MS,
 ): (id: string) => ReviewReceipt | undefined {
-  const deadline = Date.now() + TOTAL_BUDGET_MS;
+  const deadline = Date.now() + totalBudgetMs;
   const receipts = new Map<string, ReviewReceipt | undefined>();
   return id => {
     if (!receipts.has(id)) receipts.set(id, readReviewReceipt(id, projectDirectory, deadline));

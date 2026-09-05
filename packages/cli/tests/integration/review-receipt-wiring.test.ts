@@ -23,6 +23,10 @@ import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import {
+  createReviewReceiptReader,
+  readReviewReceipt,
+} from '../../templates/hooks/lib/read-receipt.js';
 import { hashArtifact, reviewScope } from '../../templates/hooks/lib/review-ledger.js';
 import { expectHookAllow, expectHookDeny, type HookResult } from '../helpers';
 
@@ -371,5 +375,58 @@ describe('review-receipt wiring (pre-tool-quality gate ↔ review status --json)
 
     expectHookAllow(runGate());
     expect(receiptLookups()).toEqual([REVIEW_ID]);
+  });
+});
+
+describe('review-receipt trust and aggregate budget', () => {
+  let projectRoot: string;
+  let pluginRoot: string;
+  let previousPluginRoot: string | undefined;
+
+  beforeEach(() => {
+    projectRoot = mkdtempSync(nodePath.join(tmpdir(), 'review-receipt-trust-'));
+    pluginRoot = mkdtempSync(nodePath.join(tmpdir(), 'review-receipt-trusted-cli-'));
+    previousPluginRoot = process.env.CLAUDE_PLUGIN_ROOT;
+  });
+
+  afterEach(() => {
+    if (previousPluginRoot === undefined) delete process.env.CLAUDE_PLUGIN_ROOT;
+    else process.env.CLAUDE_PLUGIN_ROOT = previousPluginRoot;
+    rmSync(projectRoot, { recursive: true, force: true });
+    rmSync(pluginRoot, { recursive: true, force: true });
+  });
+
+  it('never asks a project-controlled Safeword CLI to witness a receipt', () => {
+    delete process.env.CLAUDE_PLUGIN_ROOT;
+    const localBin = nodePath.join(projectRoot, 'node_modules', '.bin');
+    const marker = nodePath.join(projectRoot, 'forged-receipt-used');
+    mkdirSync(localBin, { recursive: true });
+    writeFileSync(
+      nodePath.join(localBin, 'safeword'),
+      `#!/bin/sh\ntouch ${JSON.stringify(marker)}\nprintf '%s' '${JSON.stringify({ data: approvedEnvelope })}'\n`,
+      { mode: 0o755 },
+    );
+
+    expect(readReviewReceipt(REVIEW_ID, projectRoot, Date.now() + 250)).toBeUndefined();
+    expect(existsSync(marker)).toBe(false);
+  });
+
+  it('shares one deadline across distinct matching review ids', () => {
+    process.env.CLAUDE_PLUGIN_ROOT = pluginRoot;
+    mkdirSync(nodePath.join(pluginRoot, 'runtime'), { recursive: true });
+    writeFileSync(
+      nodePath.join(pluginRoot, 'runtime', 'cli.js'),
+      [
+        'await Bun.sleep(180);',
+        'const id = process.argv[4];',
+        `process.stdout.write(JSON.stringify({ data: { ...${JSON.stringify(approvedEnvelope)}, review_id: id } }));`,
+      ].join('\n'),
+    );
+    const read = createReviewReceiptReader(projectRoot, 250);
+    const startedAt = Date.now();
+
+    expect(read('review-one')?.reviewId).toBe('review-one');
+    expect(read('review-two')).toBeUndefined();
+    expect(Date.now() - startedAt).toBeLessThan(330);
   });
 });

@@ -2,6 +2,7 @@
 
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import nodePath from 'node:path';
 
 type Candidate = readonly [command: string, prefix: readonly string[]];
@@ -131,6 +132,47 @@ export function reviewCandidates(
     const version = readFileSync(versionPath, 'utf8').trim();
     if (SEMVER.test(version)) candidates.push(['bunx', [`safeword@${version}`]]);
   }
+  return candidates;
+}
+
+/**
+ * Resolve only distribution-owned CLIs for receipt verification.
+ *
+ * The normal review launcher intentionally prefers project-local and source
+ * CLIs for development. A receipt is a trust-boundary check, though: accepting
+ * JSON from a CLI the reviewed project can rewrite would let that project mint
+ * its own approval. Keep those convenient routes out of the verifier.
+ */
+export function receiptReviewCandidates(
+  projectDirectory = process.cwd(),
+  environment: NodeJS.ProcessEnv = process.env,
+): Candidate[] {
+  const candidates: Candidate[] = [];
+  const pluginRoot = environment.CLAUDE_PLUGIN_ROOT;
+  if (pluginRoot) {
+    const bundledCli = nodePath.join(pluginRoot, 'runtime', 'cli.js');
+    if (existsSync(bundledCli)) candidates.push(['bun', [bundledCli]]);
+  }
+
+  const versionPath = nodePath.join(projectDirectory, '.safeword', 'version');
+  if (!existsSync(versionPath)) return candidates;
+  const version = readFileSync(versionPath, 'utf8').trim();
+  if (!SEMVER.test(version)) return candidates;
+
+  const codexHome = environment.CODEX_HOME || nodePath.join(homedir(), '.codex');
+  const codexPluginCli = nodePath.join(
+    codexHome,
+    'plugins',
+    'cache',
+    'safeword',
+    'safeword',
+    version,
+    'runtime',
+    'cli.js',
+  );
+  if (existsSync(codexPluginCli)) candidates.push(['bun', [codexPluginCli]]);
+
+  candidates.push(['bunx', [`safeword@${version}`]]);
   return candidates;
 }
 

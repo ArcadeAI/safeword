@@ -2,5 +2,5 @@
   "integration": "cursor",
   "operation": "upgrade",
   "result_sha256": "e9206dcd5541c42df9ef4548dea36082a34cd33603b53da6fb2b7e6961f8b229",
-  "tree_sha256": "ab7bd39a46df7e638bfd92b1d2ddd57ac76c4e5f6d62d9794764bc1363fff5b1"
+  "tree_sha256": "403ceff9e7c915fa1a1a2e080934e1b01d34b4157b8da05689a330aef130995d"
 }
