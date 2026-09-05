@@ -269,6 +269,17 @@ describe('review routes CLI wiring', () => {
     expect(human).toContain('opencode review routes');
   });
 
+  it('rejects an author that is not a review agent', async () => {
+    const root = createTemporaryDirectory();
+    directories.push(root);
+
+    const listed = await invoke(root, ['review', 'routes', 'list', '--author', 'gemini']);
+    expect(listed).toMatchObject({ state: 'failed' });
+    expect((listed.errors as { message: string }[])[0]?.message).toContain(
+      'Provide --author as claude, codex, or opencode.',
+    );
+  });
+
   it('names the configuration key and file that change the routes', async () => {
     const root = createTemporaryDirectory();
     directories.push(root);

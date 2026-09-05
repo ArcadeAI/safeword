@@ -106,8 +106,6 @@ function supportsReview(
 // The hook is launched from whatever directory the caller happened to be in.
 // Anchoring discovery on that directory hides a working CLI one level up and
 // reports it as missing, so resolve the project root before looking.
-const PROJECT_ROOT_VARIABLES = ['CLAUDE_PROJECT_DIR', 'CODEX_PROJECT_DIR'] as const;
-
 function looksLikeProjectRoot(directory: string): boolean {
   return (
     existsSync(nodePath.join(directory, '.safeword')) ||
@@ -115,22 +113,20 @@ function looksLikeProjectRoot(directory: string): boolean {
   );
 }
 
-export function reviewProjectRoot(
-  start: string,
-  environment: NodeJS.ProcessEnv = process.env,
-): string {
-  for (const name of PROJECT_ROOT_VARIABLES) {
-    const configured = environment[name];
-    if (configured !== undefined && configured !== '' && looksLikeProjectRoot(configured))
-      return nodePath.resolve(configured);
-  }
+function reviewProjectRoot(start: string, environment: NodeJS.ProcessEnv): string {
+  // Claude sets CLAUDE_PROJECT_DIR for hooks. Only trust it when it really
+  // points at a project; a stale or wrong value falls through to the walk.
+  const declared = environment.CLAUDE_PROJECT_DIR;
+  if (declared !== undefined && declared !== '' && looksLikeProjectRoot(declared))
+    return nodePath.resolve(declared);
   const from = nodePath.resolve(start);
   let directory = from;
   for (;;) {
     if (looksLikeProjectRoot(directory)) return directory;
     const parent = nodePath.dirname(directory);
-    // A project without either marker keeps the caller's directory, so the
-    // trust checks below stay the only thing that admits a candidate.
+    // No marker anywhere up to the filesystem root: keep the caller's own
+    // directory, so the trust checks below stay the only thing that admits
+    // a candidate rather than this walk widening what counts as a project.
     if (parent === directory) return from;
     directory = parent;
   }

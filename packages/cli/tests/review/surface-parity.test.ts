@@ -603,6 +603,36 @@ exit ${status}`,
     }
   });
 
+  it('ignores a project directory variable that does not point at a project', () => {
+    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-stale-'));
+    const bogus = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-bogus-'));
+    try {
+      mkdirSync(nodePath.join(fixture, '.safeword'), { recursive: true });
+      writeFileSync(nodePath.join(fixture, '.safeword/version'), '1.2.3\n');
+
+      // A stale CLAUDE_PROJECT_DIR must not win over the real project the
+      // caller is standing in, or the hook resolves someone else's checkout.
+      expect(reviewCandidates(fixture, { CLAUDE_PROJECT_DIR: bogus })).toContainEqual([
+        'bunx',
+        ['safeword@1.2.3'],
+      ]);
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+      rmSync(bogus, { recursive: true, force: true });
+    }
+  });
+
+  it('admits no candidate when no project marker exists up to the filesystem root', () => {
+    const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-rootless-'));
+    try {
+      mkdirSync(nodePath.join(fixture, 'deep/nested'), { recursive: true });
+
+      expect(reviewCandidates(nodePath.join(fixture, 'deep/nested'), {})).toHaveLength(0);
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
   it('still rejects a lookalike checkout found by walking up from a subdirectory', () => {
     const fixture = mkdtempSync(nodePath.join(tmpdir(), 'safeword-review-walkfake-'));
     try {
