@@ -127,6 +127,21 @@ export class PublicRetroStore {
     }
   }
 
+  private assertIntakeCapacity(now: number): void {
+    const admitted = this.#database
+      .prepare('SELECT COUNT(*) AS count FROM intake_events WHERE accepted_at_ms > ?')
+      .get(now - 60_000) as { count: number };
+    if (admitted.count >= this.#intakeLimitPerMinute) {
+      throw new PublicRetroQuotaExceeded('public intake quota exhausted');
+    }
+  }
+
+  private recordIntake(requestId: string, now: number): void {
+    this.#database
+      .prepare('INSERT INTO intake_events (request_id, accepted_at_ms) VALUES (?, ?)')
+      .run(requestId, now);
+  }
+
   private acceptServer(
     requestId: string,
     sessionScope: string,
@@ -146,12 +161,7 @@ export class PublicRetroStore {
         return { receipt: existing.receipt, requestId, status: 'duplicate' };
       }
       const now = this.#now();
-      const admitted = this.#database
-        .prepare('SELECT COUNT(*) AS count FROM intake_events WHERE accepted_at_ms > ?')
-        .get(now - 60_000) as { count: number };
-      if (admitted.count >= this.#intakeLimitPerMinute) {
-        throw new PublicRetroQuotaExceeded('public intake quota exhausted');
-      }
+      this.assertIntakeCapacity(now);
       const receipt = randomUUID();
       this.#database
         .prepare(
@@ -168,9 +178,7 @@ export class PublicRetroStore {
           createHash('sha256').update(rawBody).digest('hex'),
           projectUUID,
         );
-      this.#database
-        .prepare('INSERT INTO intake_events (request_id, accepted_at_ms) VALUES (?, ?)')
-        .run(requestId, now);
+      this.recordIntake(requestId, now);
       this.#database.exec('COMMIT;');
       return { receipt, requestId, status: 'accepted' };
     } catch (error) {
@@ -278,12 +286,15 @@ export class PublicRetroStore {
         return { receipt: scopeOwner.receipt, requestId, status: 'duplicate' };
       }
 
+      const now = this.#now();
+      this.assertIntakeCapacity(now);
       const receipt = randomUUID();
       this.#database
         .prepare(
           'INSERT INTO public_retros (request_id, session_scope, raw_body, receipt) VALUES (?, ?, ?, ?)',
         )
         .run(requestId, sessionScope, rawBody, receipt);
+      this.recordIntake(requestId, now);
       this.#database.exec('COMMIT;');
       return { receipt, requestId, status: 'accepted' };
     } catch (error) {
