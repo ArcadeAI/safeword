@@ -923,11 +923,6 @@ export function isRuffInstalled(): boolean {
   return isCommandAvailable('ruff');
 }
 
-/** Check if uv is installed (for Python package manager tests) */
-export function isUvInstalled(): boolean {
-  return isCommandAvailable('uv');
-}
-
 /** Check if Poetry is installed (for Python package manager tests) */
 export function isPoetryInstalled(): boolean {
   return isCommandAvailable('poetry');

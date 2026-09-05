@@ -185,8 +185,3 @@ export function readProjectTestConfig(cwd: string): ProjectTestConfig {
     return { path, error: 'cannot be read as project test configuration' };
   }
 }
-
-/** Compatibility accessor for callers that only need the shared execution preference. */
-export function readProjectExecutionPreference(cwd: string): ExecutionMode | undefined {
-  return readProjectTestConfig(cwd).mode;
-}
