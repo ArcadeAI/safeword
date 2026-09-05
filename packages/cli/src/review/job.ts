@@ -452,19 +452,14 @@ function isActiveJobPastDeadline(record: ReviewJobRecord): boolean {
   return Number.isFinite(deadline) && Date.now() >= deadline;
 }
 
-function failTimedOutJob(cwd: string, record: ReviewJobRecord): CliResult {
-  if (record.pid !== undefined && inspectReviewWorker(record.pid, record.id) === 'match') {
-    terminateReviewWorker(record.pid);
-  }
+function failActiveJob(
+  cwd: string,
+  record: ReviewJobRecord,
+  error: { readonly code: string; readonly message: string },
+): CliResult {
   const failed = createResult({
     state: 'failed',
-    errors: [
-      {
-        code: 'REVIEW_WORKER_TIMED_OUT',
-        message: 'The background review worker exceeded its deadline before recording a result.',
-        retryable: true,
-      },
-    ],
+    errors: [{ code: error.code, message: error.message, retryable: true }],
     data: { command: 'review status', status: 'failed', review_id: record.id },
   });
   const latest = updateActiveJob(cwd, record.id, current => ({
@@ -478,27 +473,21 @@ function failTimedOutJob(cwd: string, record: ReviewJobRecord): CliResult {
     : terminalResult(cwd, latest);
 }
 
-function failExitedJob(cwd: string, record: ReviewJobRecord): CliResult {
-  const failed = createResult({
-    state: 'failed',
-    errors: [
-      {
-        code: 'REVIEW_WORKER_EXITED',
-        message: 'The background review worker exited before recording a result.',
-        retryable: true,
-      },
-    ],
-    data: { command: 'review status', status: 'failed', review_id: record.id },
+function failTimedOutJob(cwd: string, record: ReviewJobRecord): CliResult {
+  if (record.pid !== undefined && inspectReviewWorker(record.pid, record.id) === 'match') {
+    terminateReviewWorker(record.pid);
+  }
+  return failActiveJob(cwd, record, {
+    code: 'REVIEW_WORKER_TIMED_OUT',
+    message: 'The background review worker exceeded its deadline before recording a result.',
   });
-  const latest = updateActiveJob(cwd, record.id, current => ({
-    ...current,
-    state: 'failed',
-    result: failed,
-    updated_at: new Date().toISOString(),
-  }));
-  return latest.state === 'failed' && latest.result === failed
-    ? failed
-    : terminalResult(cwd, latest);
+}
+
+function failExitedJob(cwd: string, record: ReviewJobRecord): CliResult {
+  return failActiveJob(cwd, record, {
+    code: 'REVIEW_WORKER_EXITED',
+    message: 'The background review worker exited before recording a result.',
+  });
 }
 
 function terminalResult(cwd: string, record: ReviewJobRecord): CliResult {
