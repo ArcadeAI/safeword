@@ -35,14 +35,20 @@ export function readReviewReceipt(
   projectDirectory: string,
   deadline = Date.now() + TOTAL_BUDGET_MS,
 ): ReviewReceipt | undefined {
-  for (const [command, argumentPrefix] of receiptReviewCandidates(projectDirectory)) {
+  for (const [command, argumentPrefix, workingDirectory] of receiptReviewCandidates(
+    projectDirectory,
+  )) {
     const remaining = deadline - Date.now();
     if (remaining <= 0) return undefined;
 
     const run = spawnSync(
       command,
       [...argumentPrefix, 'review', 'status', id, '--json', '--cwd', projectDirectory],
-      { encoding: 'utf8', timeout: Math.min(ROUTE_TIMEOUT_MS, remaining) },
+      {
+        cwd: workingDirectory,
+        encoding: 'utf8',
+        timeout: Math.min(ROUTE_TIMEOUT_MS, remaining),
+      },
     );
     // A route that could not run, said nothing, or answered unintelligibly has
     // not answered — try the next one. Only a parsed reply ends the search, so

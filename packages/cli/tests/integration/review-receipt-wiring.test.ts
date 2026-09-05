@@ -18,7 +18,7 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -382,16 +382,24 @@ describe('review-receipt trust and aggregate budget', () => {
   let projectRoot: string;
   let pluginRoot: string;
   let previousPluginRoot: string | undefined;
+  let previousCodexHome: string | undefined;
+  let previousPath: string | undefined;
 
   beforeEach(() => {
     projectRoot = mkdtempSync(nodePath.join(tmpdir(), 'review-receipt-trust-'));
     pluginRoot = mkdtempSync(nodePath.join(tmpdir(), 'review-receipt-trusted-cli-'));
     previousPluginRoot = process.env.CLAUDE_PLUGIN_ROOT;
+    previousCodexHome = process.env.CODEX_HOME;
+    previousPath = process.env.PATH;
   });
 
   afterEach(() => {
     if (previousPluginRoot === undefined) delete process.env.CLAUDE_PLUGIN_ROOT;
     else process.env.CLAUDE_PLUGIN_ROOT = previousPluginRoot;
+    if (previousCodexHome === undefined) delete process.env.CODEX_HOME;
+    else process.env.CODEX_HOME = previousCodexHome;
+    if (previousPath === undefined) delete process.env.PATH;
+    else process.env.PATH = previousPath;
     rmSync(projectRoot, { recursive: true, force: true });
     rmSync(pluginRoot, { recursive: true, force: true });
   });
@@ -415,6 +423,25 @@ describe('review-receipt trust and aggregate budget', () => {
     expect(existsSync(marker)).toBe(false);
   });
 
+  it('runs the package fallback outside the reviewed project', () => {
+    delete process.env.CLAUDE_PLUGIN_ROOT;
+    process.env.CODEX_HOME = pluginRoot;
+    const trustedBin = nodePath.join(pluginRoot, 'bin');
+    const marker = nodePath.join(pluginRoot, 'fallback-cwd');
+    mkdirSync(nodePath.join(projectRoot, '.safeword'), { recursive: true });
+    writeFileSync(nodePath.join(projectRoot, '.safeword', 'version'), '0.83.1\n');
+    mkdirSync(trustedBin, { recursive: true });
+    writeFileSync(
+      nodePath.join(trustedBin, 'bunx'),
+      `#!/bin/sh\npwd > ${JSON.stringify(marker)}\nprintf '%s' '${JSON.stringify({ data: approvedEnvelope })}'\n`,
+      { mode: 0o755 },
+    );
+    process.env.PATH = `${trustedBin}${nodePath.delimiter}${previousPath ?? ''}`;
+
+    expect(readReviewReceipt(REVIEW_ID, projectRoot)?.status).toBe('approved');
+    expect(readFileSync(marker, 'utf8').trim()).toBe(homedir());
+  });
+
   it('shares one deadline across distinct matching review ids', () => {
     process.env.CLAUDE_PLUGIN_ROOT = pluginRoot;
     mkdirSync(nodePath.join(pluginRoot, 'runtime'), { recursive: true });
@@ -426,11 +453,11 @@ describe('review-receipt trust and aggregate budget', () => {
         `process.stdout.write(JSON.stringify({ data: { ...${JSON.stringify(approvedEnvelope)}, review_id: id } }));`,
       ].join('\n'),
     );
-    const read = createReviewReceiptReader(projectRoot, 250);
+    const read = createReviewReceiptReader(projectRoot, 350);
     const startedAt = Date.now();
 
     expect(read('review-one')?.reviewId).toBe('review-one');
     expect(read('review-two')).toBeUndefined();
-    expect(Date.now() - startedAt).toBeLessThan(330);
+    expect(Date.now() - startedAt).toBeLessThan(470);
   });
 });

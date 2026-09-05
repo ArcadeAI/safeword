@@ -5,7 +5,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import nodePath from 'node:path';
 
-type Candidate = readonly [command: string, prefix: readonly string[]];
+type Candidate = readonly [command: string, prefix: readonly string[], workingDirectory?: string];
 
 const SEMVER =
   /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-(?:(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/u;
@@ -89,12 +89,13 @@ export function reviewChildEnvironment(
 }
 
 function supportsReview(
-  [command, prefix]: Candidate,
+  [command, prefix, workingDirectory]: Candidate,
   timeout: number,
   environment: NodeJS.ProcessEnv,
 ): boolean {
   const arguments_ = ['review', 'run', '--help'];
   const result = spawnSync(command, [...prefix, ...arguments_], {
+    cwd: workingDirectory,
     env: reviewChildEnvironment(environment, arguments_),
     stdio: 'ignore',
     timeout,
@@ -175,7 +176,7 @@ export function receiptReviewCandidates(
   // `bunx` searches the caller's project-local node_modules first. Run the
   // exact package from the user's home instead, so reviewed project contents
   // cannot shadow the distribution route.
-  candidates.push(['bun', ['--cwd', homedir(), 'x', `safeword@${version}`]]);
+  candidates.push(['bunx', [`safeword@${version}`], homedir()]);
   return candidates;
 }
 
@@ -189,6 +190,7 @@ export function runReview(arguments_: string[]): never {
     process.exit(1);
   }
   const result = spawnSync(candidate[0], [...candidate[1], ...arguments_], {
+    cwd: candidate[2],
     env: reviewChildEnvironment(process.env, arguments_),
     stdio: 'inherit',
   });

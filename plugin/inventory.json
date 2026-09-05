@@ -335,7 +335,7 @@
     },
     {
       "path": "runtime/hooks/lib/read-receipt.ts",
-      "sha256": "0fd60fb001720c3c328dbf3b80ca6388a244e60b234204de1887b6ded391b025"
+      "sha256": "5795a71bfd4f78c5ec33950f0b208199113080b812b3d1feb23fdfe05ccafb98"
     },
     {
       "path": "runtime/hooks/lib/readiness-pointer.ts",
@@ -519,7 +519,7 @@
     },
     {
       "path": "runtime/hooks/run-review.ts",
-      "sha256": "5bb039c79af073ea0fe7190e647ed32a390663c19ccc53363f71c1039b6be0f8"
+      "sha256": "5c60750f9ee2e2cd7ebc78472bfcaa145def9352c437041f1618ba349ef3b29f"
     },
     {
       "path": "runtime/hooks/session-architecture-heal.ts",
