@@ -169,6 +169,26 @@ it('applies the public intake quota across legacy and server-owned envelopes', a
   expect(await rejected.json()).toEqual({ error: 'intake_quota_exhausted' });
 });
 
+it('keeps legacy intake identities isolated from server-owned identities', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+    intakeLimitPerMinute: 2,
+  });
+  const legacy = fixtureRequest();
+  legacy.requestId = '41111111-2222-4333-8444-555555555555';
+  const serverOwned = fixtureServerOwnedRequest();
+  serverOwned.requestId = legacy.requestId;
+
+  const legacyResponse = await submit(runtime.url, legacy);
+  const serverResponse = await submit(runtime.url, serverOwned);
+  await runtime.close();
+
+  expect(legacyResponse.status).toBe(201);
+  expect(serverResponse.status).toBe(201);
+});
+
 it('persists global and per-project filing reservations across restarts', async () => {
   const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
   temporaryDirectories.push(directory);
