@@ -61,7 +61,11 @@ The LOC commit gate, the done gate, and the verify-artifact requirement behave u
 
 When the fork-resolution step errors or times out, the run halts and asks the builder instead of proceeding on a default. An advisory check may fail open because its absence costs nothing; this step *is* the decision procedure, so proceeding without it would be exactly the unexamined default TBU1.R2 forbids.
 
-#### afk-mode.TBU3.R4 — An active AFK run is impossible to mistake for an attended one
+#### afk-mode.TBU3.R4 — AFK requires a live independent reviewer, at the start and throughout
+
+AFK activates only when the review coordinator reports a genuinely independent route, and an AFK run that loses that route halts rather than continuing on a degraded one. Safeword's review ladder degrades deliberately — independent, then same-agent headless, then host-reported fresh context, then bounded self-review — because an attended session still has the builder as reviewer of last resort. AFK removes that backstop, so the fallback rungs become the wrong answer precisely when they are reached: an unattended run whose only remaining reviewer is the author is unreviewed work accumulating unread.
+
+#### afk-mode.TBU3.R5 — An active AFK run is impossible to mistake for an attended one
 
 Whenever AFK is active, the builder can tell from at least two independent places — the ticket's own state and an announcement at the start of the run. A mode that a saved preference can switch on without the builder choosing it this session is otherwise indistinguishable from an attended session until something irreversible is already underway.
 
@@ -79,8 +83,8 @@ Every shipped surface that describes unattended behavior names the same mode and
 
 ### M1 — The protective floor
 
-- **Outcome:** The denylist is enforced at a blockable lifecycle boundary and the hard gates are demonstrably intact under autonomy, before any switch exists to turn autonomy on.
-- **Non-goals:** Activation, classification, decision logging — nothing that lets a run go unattended yet.
+- **Outcome:** The denylist is enforced at a blockable lifecycle boundary, the hard gates are demonstrably intact under autonomy, and an independent review route is required to start and to continue — all before any switch exists to turn autonomy on.
+- **Non-goals:** Activation, classification, decision logging — nothing that lets a run go unattended yet. Environment-level capability reduction (credential scoping, sandboxing) stays out: Safeword is installed into the builder's project and does not own the runtime that would enforce it.
 
 ### M2 — Unattended runs with a decision trail
 
