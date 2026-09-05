@@ -1,4 +1,4 @@
 # PRs into this repo require approval from one of the listed code owners.
 # Branch protection on main restricts push/merge to these same users, so
-# @TheMostlyGreat and @nbarbettini are the only people who can land changes.
-* @TheMostlyGreat @nbarbettini
+# @TheMostlyGreat is the only person who can land changes.
+* @TheMostlyGreat
