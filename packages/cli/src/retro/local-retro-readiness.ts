@@ -9,6 +9,7 @@ export interface LocalRetroReadinessManifest {
     'claude-code' | 'codex' | 'cursor',
     {
       artifactDigest: string;
+      artifactPath: string;
       buildCommit: string;
       collectorReceipt: string;
       hostClass: 'local';
@@ -24,15 +25,30 @@ export interface LocalRetroReadinessManifest {
     | 'claimCrash'
     | 'retryExhaustion'
     | 'workerOutage',
-    string
+    { artifactDigest: string; artifactPath: string }
   >;
   reviewedAt: string;
   version: 1;
 }
 
-// This checked-in manifest is a maintainer attestation. Digests identify reviewed
-// production artifacts; the validator proves completeness, freshness, and ancestry,
-// while the release process owns the artifacts' substantive review.
+export interface LocalRetroBuildAttestation {
+  ancestorPairs: readonly { ancestor: string; descendant: string }[];
+  artifacts: Record<string, { contentBase64: string; sha256: string }>;
+  enabled: boolean;
+  manifestBase64: string;
+  manifestSha256: string;
+}
+
+declare const __SAFEWORD_LOCAL_RETRO_BUILD_ATTESTATION__: LocalRetroBuildAttestation | undefined;
+
+export const SAFEWORD_LOCAL_RETRO_BUILD_ATTESTATION: LocalRetroBuildAttestation =
+  typeof __SAFEWORD_LOCAL_RETRO_BUILD_ATTESTATION__ === 'object'
+    ? __SAFEWORD_LOCAL_RETRO_BUILD_ATTESTATION__
+    : { ancestorPairs: [], artifacts: {}, enabled: false, manifestBase64: '', manifestSha256: '' };
+
+// An enabled checked-in manifest is only a declaration. The production build reads
+// every referenced artifact from evidenceCommit and injects their bytes separately;
+// runtime readiness requires both sources to agree.
 
 type DisabledManifest = { enabled: false; version: 1 };
 export const CHECKED_IN_LOCAL_RETRO_READINESS = checkedInManifest as
@@ -50,7 +66,7 @@ function harnessBuildIsCurrent(
   return (
     COMMIT.test(buildCommit) &&
     (buildCommit === manifest.evidenceCommit ||
-      input.ancestorPairs.some(
+      input.buildAttestation.ancestorPairs.some(
         pair => pair.ancestor === buildCommit && pair.descendant === manifest.evidenceCommit,
       ))
   );
@@ -92,8 +108,48 @@ function validHarnessEvidence(
     receiptPairIsValid(evidence) &&
     requestIdentityIsValid &&
     evidence.artifactDigest === expectedArtifactDigest &&
+    validAttestedArtifact(evidence.artifactPath, evidence.artifactDigest, input) &&
     ['duplicate', 'filed'].includes(evidence.terminal)
   );
+}
+
+function validAttestedArtifact(
+  path: string,
+  digest: string,
+  input: Parameters<typeof validateLocalRetroReadiness>[1],
+): boolean {
+  const artifact = input.buildAttestation.artifacts[path];
+  if (artifact?.sha256 !== digest || !DIGEST.test(digest)) return false;
+  try {
+    return (
+      createHash('sha256').update(Buffer.from(artifact.contentBase64, 'base64')).digest('hex') ===
+      digest
+    );
+  } catch {
+    return false;
+  }
+}
+
+function manifestIsBuildAttested(
+  manifest: LocalRetroReadinessManifest,
+  input: Parameters<typeof validateLocalRetroReadiness>[1],
+): boolean {
+  const { buildAttestation } = input;
+  if (
+    !COMMIT.test(input.buildCommit) ||
+    !buildAttestation.enabled ||
+    !DIGEST.test(buildAttestation.manifestSha256)
+  )
+    return false;
+  try {
+    const bytes = Buffer.from(buildAttestation.manifestBase64, 'base64');
+    return (
+      createHash('sha256').update(bytes).digest('hex') === buildAttestation.manifestSha256 &&
+      JSON.stringify(JSON.parse(bytes.toString('utf8'))) === JSON.stringify(manifest)
+    );
+  } catch {
+    return false;
+  }
 }
 
 function allUnique(values: readonly string[]): boolean {
@@ -129,7 +185,7 @@ function manifestBuildIsAncestor(
 ): boolean {
   return (
     manifest.evidenceCommit === input.buildCommit ||
-    input.ancestorPairs.some(
+    input.buildAttestation.ancestorPairs.some(
       pair => pair.ancestor === manifest.evidenceCommit && pair.descendant === input.buildCommit,
     )
   );
@@ -157,13 +213,14 @@ function hasEvidenceCollections(manifest: LocalRetroReadinessManifest): boolean 
 export function validateLocalRetroReadiness(
   manifest: DisabledManifest | LocalRetroReadinessManifest,
   input: {
-    ancestorPairs: readonly { ancestor: string; descendant: string }[];
+    buildAttestation: LocalRetroBuildAttestation;
     buildCommit: string;
     now: Date;
     relayReady: boolean;
   },
 ): boolean {
-  if (!manifest.enabled || !input.relayReady || !COMMIT.test(input.buildCommit)) return false;
+  if (!manifest.enabled || !input.relayReady) return false;
+  if (!manifestIsBuildAttested(manifest, input)) return false;
   if (!validReviewWindow(manifest, input.now) || !manifestBuildIsAncestor(manifest, input))
     return false;
   if (!hasEvidenceCollections(manifest)) return false;
@@ -183,6 +240,9 @@ export function validateLocalRetroReadiness(
         'claimCrash',
         'retryExhaustion',
         'workerOutage',
-      ].join('\0') && Object.values(manifest.recoveredFaults).every(value => DIGEST.test(value))
+      ].join('\0') &&
+    Object.values(manifest.recoveredFaults).every(value =>
+      validAttestedArtifact(value.artifactPath, value.artifactDigest, input),
+    )
   );
 }

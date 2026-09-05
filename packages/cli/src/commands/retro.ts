@@ -48,6 +48,7 @@ import { captureRetroFilingFault } from '../../templates/hooks/lib/self-report.j
 import { type Provenance, PROVENANCE_SHA } from '../retro/ledger.js';
 import {
   CHECKED_IN_LOCAL_RETRO_READINESS,
+  SAFEWORD_LOCAL_RETRO_BUILD_ATTESTATION,
   validateLocalRetroReadiness,
 } from '../retro/local-retro-readiness.js';
 import { prepareEncounters } from '../retro/pipeline.js';
@@ -1322,7 +1323,7 @@ export function resolvePublicRetroRoute(input: {
   const serverReady =
     input.serverReady ??
     validateLocalRetroReadiness(CHECKED_IN_LOCAL_RETRO_READINESS, {
-      ancestorPairs: SAFEWORD_RELAY_BUILD_ATTESTATION.ancestorPairs,
+      buildAttestation: SAFEWORD_LOCAL_RETRO_BUILD_ATTESTATION,
       buildCommit: SAFEWORD_BUILD_COMMIT,
       now: new Date(),
       relayReady: CHECKED_IN_RELAY_READINESS.enabled && SAFEWORD_RELAY_BUILD_ATTESTATION.enabled,
