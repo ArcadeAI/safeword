@@ -67,7 +67,7 @@ Rule, design choice, or proof.
 
 ## Full Product Plan
 
-Keep the four template sections and no others.
+Keep the five template sections and no others.
 
 ### Product Bet
 
@@ -140,10 +140,24 @@ Demo by reference and never restates it; the parent contract carries the
 milestone and threshold, so resolve the demo itself from the parent `spec.md`
 named in `Parent References`.
 
+### Surfaces
+
+List the supported contexts this work must keep working in — agent, runtime,
+protocol, client, or deployment — under `Affected:`, drawing names from
+`paths.surfaces` where that inventory has them and keeping one-ticket contexts
+local. Record `Unaffected:` too: it is how a reviewer sees a boundary was
+considered rather than overlooked. Each affected surface later needs a scenario
+tagged `@surface.<slug>` or an inline `skip: <reason>`, and `/verify` records
+what actually ran against each one.
+
+Surfaces are confirmed with engineering scope, not as their own checkpoint — the
+four checkpoints stay four. A child declares the surfaces its own implementation
+reaches, which are not always the parent's.
+
 ## Child contribution
 
-Keep only `Parent References`, `Contribution`, and `Rules` in the child
-`spec.md`. Contribution states what this feature adds to the selected parent job
+Keep only `Parent References`, `Contribution`, `Rules`, and `Surfaces` in the
+child `spec.md`. Contribution states what this feature adds to the selected parent job
 and milestone. Feature Rules use collision-safe lineage:
 
 ```markdown

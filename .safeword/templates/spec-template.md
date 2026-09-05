@@ -29,3 +29,16 @@
 ## Killer Demo
 
 > For <audience> starting with <real pain>, <decisive action> produces <unmistakably better outcome>, visibly proven by <evidence>, within <boundary>.
+
+## Surfaces
+
+<!-- Contexts this must keep working in (see paths.surfaces). Each Affected entry
+needs a scenario tagged @surface.<slug> or an inline skip; Unaffected is
+informational. These comment lines declare nothing until you fill them in.
+
+Affected:
+- Claude Code
+- OpenAI Codex — skip: <why no scenario of its own>
+
+Unaffected:
+- Cursor — <why this work cannot reach it> -->

@@ -41,7 +41,7 @@ describe('lean Product Plan intake', () => {
     expect(spec).not.toContain('- **Audience:**');
   });
 
-  it('aligns the four plan sections and canonical persona code across instructions and template', () => {
+  it('aligns the five plan sections and canonical persona code across instructions and template', () => {
     const instructions = read('packages/cli/templates/skills/bdd/DISCOVERY.md');
     const spec = read('packages/cli/templates/spec-template.md');
     const plan = instructions
@@ -52,6 +52,7 @@ describe('lean Product Plan intake', () => {
       '### Jobs To Be Done',
       '### Shape',
       '### Killer Demo',
+      '### Surfaces',
     ]);
     expect(spec).toContain('**Persona:** <canonical persona> (`<persona-code>`)');
   });

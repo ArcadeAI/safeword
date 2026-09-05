@@ -242,7 +242,7 @@ Regression fixtures covered by `safeword project test-plan` and its tests:
 ### 3. Validate Test Definitions (skip if no ticket)
 
 1. Find matching file: `$NS_ROOT/tickets/{ID}-{slug}/test-definitions.md`
-2. Count scenarios: total `- [` lines
+2. Count scenarios: lines matching `- [ ]` or `- [x]` — a bare `- [` prefix also matches link list items and inflates the total
 3. Count completed: `- [x]` lines
 4. Report: "Scenarios: X/Y complete"
 
@@ -320,6 +320,7 @@ The Status section uses the existing Verify Checklist format. Format with these 
 **Gherkin:** ✅ Acceptance lane passes (or ❌ Failed, or ⚠️ Local environment limitation: <reason>, or ⏭️ Skipped — no acceptance lane detected)
 **Build:** ✅ Success (or ❌ Failed, or ⏭️ Skipped — no build step)
 **Lint:** ✅ Clean (or ❌ N errors)
+**Typecheck:** ✅ Clean (or ❌ N errors, or ⏭️ Skipped — no typed source changed)
 **Scenarios:** All N scenarios marked complete (or ❌ X/Y complete, or ⏭️ Skipped — no ticket)
 **Refactor:** ✅ Completed — <sha/summary> (or ✅ No change warranted — <reason>, or ⏭️ Skipped — <reason>)
 **PR Scope:** ✅ Diff matches ticket scope (or ❌ Piggybacked changes: <paths/behaviors>, or ⏭️ Skipped — no ticket/diff)
