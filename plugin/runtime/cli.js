@@ -47862,10 +47862,11 @@ function classifyRemoteWorkflow(root, bundled, filesystem = nodeRemoteWorkflowFs
   const observed = readRegularFile(destination, filesystem);
   if ("failure" in observed)
     return observed.failure;
-  if (workflowDigest(observed.content) === workflowDigest(bundled)) {
+  const observedDigest = workflowDigest(observed.content);
+  if (observedDigest === workflowDigest(bundled)) {
     return { state: "current", affectedPath: NO_ACTION, nextAction: NO_ACTION };
   }
-  if (HISTORICAL_MANAGED_DIGESTS.has(workflowDigest(observed.content))) {
+  if (HISTORICAL_MANAGED_DIGESTS.has(observedDigest)) {
     return {
       state: "managed_outdated",
       affectedPath: REMOTE_WORKFLOW_PATH,
