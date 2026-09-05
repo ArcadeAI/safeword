@@ -143,11 +143,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "1b3a3347758942d47bdb2526518d95f9a5df95557fd17de3dc7773c621c8caec"
+      "sha256": "9a0ce02f9ff95744ea462588cbe7ae6edbe6b94af0074dc72428a17d4f16a596"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "f67ca37127b97851566d35b3a19ba74714850630985a80ef98b2d288edcfc4af"
+      "sha256": "5f777b739620d8743885dbca99fec6098943a6faee0e11ad6732220fb6a1b450"
     },
     {
       "path": "runtime/event-groups.json",
@@ -374,6 +374,10 @@
       "sha256": "1f3724f92558ffbe4077c012573c1cb30660f67867a0b3682b8aeb18a2c69a6d"
     },
     {
+      "path": "runtime/hooks/lib/review-receipt.ts",
+      "sha256": "6cad8cc81f1988fb57544901c8c218d378f7a6851ae5211e70c70b31fb4b0f69"
+    },
+    {
       "path": "runtime/hooks/lib/review-trigger.ts",
       "sha256": "011854187601c7b5881b636518afa64ec3e9e3a9755a174d22f1b83c172da97d"
     },
@@ -587,7 +591,7 @@
     },
     {
       "path": "runtime/hooks/write-review-stamp.ts",
-      "sha256": "3a287df75eff8137ca7626c4b73bb1f08edcd4d187244d2c13136518fd40a42a"
+      "sha256": "464e2dd8a99fdd85145dca978f69630389c16b41d294cbacd470c3083a365ec1"
     },
     {
       "path": "skills/audit/SKILL.md",
@@ -603,7 +607,7 @@
     },
     {
       "path": "skills/bdd/PLAN_IMPLEMENTATION.md",
-      "sha256": "81e8b5df1328ab87154e7639e81c3b4d56ad3b1473b183f3d9284c35efa49193"
+      "sha256": "c8d3b3711080ce33f5161ed93ff00c1d61f4a6bf1542b9bcb2fa13c33aeb23ca"
     },
     {
       "path": "skills/bdd/SCENARIOS.md",
@@ -619,7 +623,7 @@
     },
     {
       "path": "skills/bdd/TDD.md",
-      "sha256": "16f6bb450aff9f896842f7e9d9f01c769e0c07cddd026c2d6a1697da07358932"
+      "sha256": "7ebc4d5494c17b2c6536c5eaaf154a08053fe3f5c3c7fd210e1ebe2b01bb0b08"
     },
     {
       "path": "skills/bdd/VERIFY.md",
@@ -691,7 +695,7 @@
     },
     {
       "path": "skills/review-spec/SKILL.md",
-      "sha256": "945c1bb549fca025bbed809759d57ca690aac6ca0a36a523ea9046a9c36ccd2a"
+      "sha256": "70deb22c46e7ac0cf51a648b02a05303a8e7f4f50b56b032ed17884654b82ff7"
     },
     {
       "path": "skills/self-review/SKILL.md",

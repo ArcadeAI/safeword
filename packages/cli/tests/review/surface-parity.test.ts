@@ -349,6 +349,23 @@ exit ${status}`,
     expect(content, relativePath).toMatch(/do not.*finish-review/iu);
   });
 
+  // A stamp claiming independence is a claim about a review the agent itself
+  // ran; write-review-stamp.ts now requires the coordinator's review id as the
+  // witness, so a skill that stamps without citing one cannot advance its gate.
+  it.each([
+    'skills/review-spec/SKILL.md',
+    'skills/bdd/PLAN_IMPLEMENTATION.md',
+    'skills/bdd/TDD.md',
+  ])('%s cites the review id when it stamps a coordinator verdict', relativePath => {
+    const content = readTemplate(relativePath).replaceAll(/\s+/gu, ' ');
+
+    const stampCommands = content.match(/write-review-stamp\.ts[^`\n]*/gu) ?? [];
+    for (const stamp of stampCommands) {
+      expect(stamp, relativePath).toContain('--review-id');
+    }
+    expect(content, relativePath).toMatch(/--review-id/u);
+  });
+
   // A Codex session skipped the coordinator entirely, reasoning that sending
   // local spec files to a Claude reviewer needed an external-disclosure
   // approval it did not have — then reported its own local pass as the review.

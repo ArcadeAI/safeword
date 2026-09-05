@@ -101,7 +101,11 @@ Fail closed: missing or unreadable required feature/spec inputs, dispatch
 failure, timeout, a pending/malformed result, `request_changes`, changed review
 inputs, or stamp-write failure all leave the ticket in `scenario-gate`. After an
 approval, record the returned author, actual reviewer, verified model when
-present, and independence with `write-review-stamp.ts --phase scenario-gate`.
+present, and independence with
+`write-review-stamp.ts --review-id "review_id" --phase scenario-gate`. The
+`--review-id` is the coordinator's `review_id` from the result you are stamping:
+it is what proves the review ran, so a stamp claiming independence without one
+is refused.
 Do not advance until that stamp succeeds.
 
 The headless reviewer receives the package-generated copy of the marked block

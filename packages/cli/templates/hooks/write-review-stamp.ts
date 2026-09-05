@@ -25,6 +25,7 @@
 // session binding exists and more than one ticket is in_progress, pass --ticket
 // to disambiguate rather than guessing a ticket the gate may not be checking.
 
+import { spawnSync } from 'node:child_process';
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
@@ -36,8 +37,10 @@ import {
 } from './lib/cursor-run-identity.ts';
 import { readSessionState } from './lib/quality-state.ts';
 import { formatReviewStamp, hashArtifact, reviewScope } from './lib/review-ledger.ts';
+import { receiptGateVerdict, type ReviewReceipt, type StampClaim } from './lib/review-receipt.ts';
 import { resolveNamespaceRoot } from './lib/namespace-root.ts';
 import { resolveRunIdentity, type RunIdentity } from './lib/run-identity.ts';
+import { reviewCandidates } from './run-review.ts';
 
 const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 const ticketsDirectory = nodePath.join(resolveNamespaceRoot(projectDirectory), 'tickets');
@@ -103,6 +106,7 @@ interface ParsedArguments {
   authorAgent: 'claude' | 'codex' | 'opencode' | undefined;
   reviewerAgent: 'claude' | 'codex' | 'opencode' | undefined;
   independence: 'cross-agent' | 'degraded' | 'none' | undefined;
+  reviewId: string | undefined;
   skipReason: string | undefined;
 }
 
@@ -119,8 +123,12 @@ const VALUE_FLAGS = new Set([
   '--author-agent',
   '--reviewer-agent',
   '--independence',
+  '--review-id',
   '--skip',
 ]);
+
+/** A coordinator review id: the uuid its job record is filed under. */
+const REVIEW_ID = /^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/iu;
 
 function parseArguments(argv: string[]): ParsedArguments {
   const positional: string[] = [];
@@ -129,6 +137,7 @@ function parseArguments(argv: string[]): ParsedArguments {
   let authorAgent: 'claude' | 'codex' | 'opencode' | undefined;
   let reviewerAgent: 'claude' | 'codex' | 'opencode' | undefined;
   let independence: 'cross-agent' | 'degraded' | 'none' | undefined;
+  let reviewId: string | undefined;
   let skipReason: string | undefined;
   const seen = new Set<string>();
 
@@ -165,6 +174,10 @@ function parseArguments(argv: string[]): ParsedArguments {
         fail('--independence must be cross-agent, degraded, or none');
       }
       independence = value as 'cross-agent' | 'degraded' | 'none';
+    } else if (flag === '--review-id') {
+      if (!REVIEW_ID.test(value))
+        fail('--review-id must be the review_id the coordinator returned');
+      reviewId = value;
     } else {
       if (value !== 'claude' && value !== 'codex' && value !== 'opencode') {
         fail(`${flag} must be claude, codex, or opencode`);
@@ -182,6 +195,7 @@ function parseArguments(argv: string[]): ParsedArguments {
     authorAgent,
     reviewerAgent,
     independence,
+    reviewId,
     skipReason,
   };
 }
@@ -193,6 +207,7 @@ const {
   authorAgent,
   reviewerAgent,
   independence,
+  reviewId,
   skipReason,
 } = parseArguments(process.argv);
 
@@ -254,12 +269,21 @@ if (trailing.length > 0) {
   );
 }
 
-function resolveScope(ticketFolder: string): { scope: string; label: string } {
+function resolveScope(ticketFolder: string): {
+  scope: string;
+  label: string;
+  claim: StampClaim;
+} {
+  const claimed = { independence, skip: skipReason !== undefined };
   if (isPhase) {
     const value = positional[1];
     if (value === undefined || value === '') fail('--phase requires a phase name');
     const phase = bareName(value, 'phase name');
-    return { scope: reviewScope(ticketFolder, 'phase', phase), label: `phase ${phase}` };
+    return {
+      scope: reviewScope(ticketFolder, 'phase', phase),
+      label: `phase ${phase}`,
+      claim: { ...claimed, phase },
+    };
   }
   const artifact = bareName(positional[0] ?? 'spec', 'artifact name');
   const artifactFile = nodePath.join(ticketsDirectory, ticketFolder, `${artifact}.md`);
@@ -267,10 +291,50 @@ function resolveScope(ticketFolder: string): { scope: string; label: string } {
   return {
     scope: reviewScope(ticketFolder, artifact, hashArtifact(readFileSync(artifactFile, 'utf8'))),
     label: `${artifact}.md`,
+    claim: { ...claimed, artifact },
   };
 }
 
-const { scope, label } = resolveScope(resolveTicketFolder());
+// Ask the coordinator about the cited review. `review status` revalidates the
+// job record's integrity and re-fingerprints the reviewed sources, so a forged
+// record reads as invalid and a review whose sources moved reads as stale —
+// this hook does not reimplement either check, it consults the one that exists.
+function readReceipt(id: string): ReviewReceipt {
+  for (const [command, argumentPrefix] of reviewCandidates(projectDirectory)) {
+    const run = spawnSync(
+      command,
+      [...argumentPrefix, 'review', 'status', id, '--json', '--cwd', projectDirectory],
+      { encoding: 'utf8', timeout: 60_000 },
+    );
+    if (run.error !== undefined || run.stdout === '') continue;
+    try {
+      const data = (JSON.parse(run.stdout) as { data?: Record<string, unknown> }).data ?? {};
+      // An id the coordinator does not know reports no review_id back.
+      if (typeof data.review_id !== 'string') break;
+      return {
+        reviewId: data.review_id,
+        status: typeof data.status === 'string' ? data.status : undefined,
+        kind: typeof data.review_kind === 'string' ? data.review_kind : undefined,
+        targets: Array.isArray(data.review_targets)
+          ? data.review_targets.filter(target => typeof target === 'string')
+          : [],
+      };
+    } catch {
+      break;
+    }
+  }
+  fail(
+    `could not verify review ${id} — no Safeword CLI could report its status, so the stamp's independence claim has no witness`,
+  );
+}
+
+const { scope, label, claim } = resolveScope(resolveTicketFolder());
+
+const receiptVerdict = receiptGateVerdict(
+  claim,
+  reviewId === undefined ? undefined : readReceipt(reviewId),
+);
+if (!receiptVerdict.ok) fail(receiptVerdict.reason);
 
 const logDirectory = nodePath.join(resolveNamespaceRoot(projectDirectory));
 const logFile = nodePath.join(logDirectory, 'skill-invocations.log');

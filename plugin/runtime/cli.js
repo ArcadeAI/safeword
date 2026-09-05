@@ -581,11 +581,11 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/audit/SKILL.md": "64afc92c419a8354c015f18ffe0cc581cfce48cb3fee3db8e3c39d75844fb2d3",
         ".claude/skills/bdd/DISCOVERY.md": "d6f2c76eba72315aee8ffee932dc3581f3728270efba396405d90a91e6198ad7",
         ".claude/skills/bdd/DONE.md": "e9f22430341cf225eaf58ef6335720c5033cb8f6779425d5740adc0ff80a5f60",
-        ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "be7df9e38c4c95392b3e054c3cb9898eef7478bd7ee6b8e80d3325dc1bdc4eb3",
+        ".claude/skills/bdd/PLAN_IMPLEMENTATION.md": "e22547fb86acd69c94ae0171fc0f82bd4a1f87f87196d430547fa6b50d6bb3a0",
         ".claude/skills/bdd/SCENARIOS.md": "a12f8574734678367dc91b0c84e5bc390e51ad6ceee00fcf890a5b4ac7572bc5",
         ".claude/skills/bdd/SKILL.md": "970d5af3af22e599126b5a15f75ec9c9478fd0ca810b31ec33d2dbd94ec83516",
         ".claude/skills/bdd/SPLITTING.md": "e232a37a4d76f0dfc51e65965c1e1b7f1572e0dedce0fb8c031e75bd6544a708",
-        ".claude/skills/bdd/TDD.md": "b92749565e2e89c4e9e5859605dcee905853a826771fa912cfb6aa986409b2f7",
+        ".claude/skills/bdd/TDD.md": "57985db169dd5dec836abe6de9fc80a6a680b679234652d91cd51922c7332e79",
         ".claude/skills/bdd/VERIFY.md": "85abadfe756a3f391779fe500cd5c66597a33e0cab7fcef55f6b633b30818f31",
         ".claude/skills/brainstorm/SKILL.md": "fe99638bd1621cbd5fe3780a8d39023d4b175e3be2aef2e60d0ebe7558848f2e",
         ".claude/skills/cleanup-zombies/SKILL.md": "e0af9635774767cf36eb69726e11c642ec1dad42839c11407ea8ef60f89fc289",
@@ -603,7 +603,7 @@ var init_historical_catalogue_generated = __esm(() => {
         ".claude/skills/refactor/SKILL.md": "a51a858fb13b50cbc86789edbde8a39e364b5cdd7d5d3b025d555d90b221760e",
         ".claude/skills/retro-filer/SKILL.md": "ea126f3805a2befefb4db2011439f075ebfd6eca31b78bd5f284ac11d667b4f0",
         ".claude/skills/retro/SKILL.md": "d01abb281a1c941024f304709c8727769383eb76d0ccc7da53f73776c4a0122d",
-        ".claude/skills/review-spec/SKILL.md": "c0bfb8fdc08c13764c93daf91b3807d04eb59984313cab3e424a5243eb1d8429",
+        ".claude/skills/review-spec/SKILL.md": "7201c34d5f69e836794da48a82b65f63ccd46c0d25ed985c4528a8692280d38d",
         ".claude/skills/self-review/SKILL.md": "e5ff994ec84573e6f129127bad89617f0a67b67c5cf792cedac558b6e419ac3b",
         ".claude/skills/spike/SKILL.md": "905aab56037ad5a258bafa91cb2ebf05cff1acffbc9e1fd6f7a1f27230672f37",
         ".claude/skills/tdd-review/SKILL.md": "4b945f122a90d23462845d7bdbbd0b736aa69d423a2d7e99ebf646bf118faa4f",
@@ -13552,6 +13552,7 @@ ${NAMESPACE_GITIGNORE_PATTERNS}
       ".safeword/hooks/lib/replan-relevance.ts": { template: "hooks/lib/replan-relevance.ts" },
       ".safeword/hooks/lib/replan.ts": { template: "hooks/lib/replan.ts" },
       ".safeword/hooks/lib/review-ledger.ts": { template: "hooks/lib/review-ledger.ts" },
+      ".safeword/hooks/lib/review-receipt.ts": { template: "hooks/lib/review-receipt.ts" },
       ".safeword/hooks/lib/lint-config.ts": { template: "hooks/lib/lint-config.ts" },
       ".safeword/hooks/lib/typecheck-gate.ts": { template: "hooks/lib/typecheck-gate.ts" },
       ".safeword/hooks/lib/checkbox-transitions.ts": {
@@ -36226,7 +36227,7 @@ function terminalResult(cwd, record) {
     return staleResult(record);
   }
   if (record.result !== undefined)
-    return record.result;
+    return withReviewProvenance(record, record.result);
   return createResult({
     state: "failed",
     errors: [
@@ -36234,6 +36235,18 @@ function terminalResult(cwd, record) {
     ],
     data: { command: "review status", status: "failed", review_id: record.id }
   });
+}
+function withReviewProvenance(record, result) {
+  const data = typeof result.data === "object" && result.data !== null && !Array.isArray(result.data) ? result.data : {};
+  return {
+    ...result,
+    data: {
+      ...data,
+      review_id: record.id,
+      review_kind: record.kind,
+      review_targets: record.targets
+    }
+  };
 }
 function invalidJobResult(id) {
   return createResult({
