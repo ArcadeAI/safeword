@@ -140,16 +140,36 @@ function findConfiguredKnowledgeAdvisories(cwd: string, key: ConfiguredKnowledge
   ];
 }
 
-function findPersonaIssues(cwd: string): string[] {
-  const configuredIssues = findConfiguredKnowledgeIssues(cwd, 'personas');
+/**
+ * Validate one user-authored knowledge document, routing through any
+ * configured `paths.<key>` override. Two failure modes, shared by every
+ * caller: an absent default is silent (the scaffold is optional), while a
+ * configured-but-missing path fails loudly.
+ */
+function findKnowledgeDocumentIssues<TParsed>(
+  cwd: string,
+  key: ConfiguredKnowledgeFileKey,
+  label: string,
+  parse: (content: string) => TParsed,
+  validate: (parsed: TParsed) => readonly { line: number; message: string }[],
+): string[] {
+  const configuredIssues = findConfiguredKnowledgeIssues(cwd, key);
   if (configuredIssues.length > 0) return configuredIssues;
-  const filePath = resolveConfiguredPath(cwd, 'personas');
-  const content = readFileSafe(filePath);
+  const content = readFileSafe(resolveConfiguredPath(cwd, key));
 
   if (content === undefined) return [];
 
-  const errors = validatePersonas(parsePersonas(content));
-  return errors.map(error => `personas.md:${error.line}: ${error.message}`);
+  return validate(parse(content)).map(error => `${label}:${error.line}: ${error.message}`);
+}
+
+function findPersonaIssues(cwd: string): string[] {
+  return findKnowledgeDocumentIssues(
+    cwd,
+    'personas',
+    'personas.md',
+    parsePersonas,
+    validatePersonas,
+  );
 }
 
 /**
@@ -171,23 +191,18 @@ function findNamespaceAdvisories(cwd: string): string[] {
 }
 
 /**
- * Validate glossary.md when present, routing through any configured
- * `paths.glossary` override. Returns one issue string per glossary
- * validation error, formatted as `glossary.md:LINE: MESSAGE`. Same two
- * failure modes as {@link findPersonaIssues} — absent default is silent
- * (scaffold is optional), configured-but-missing fails loudly (ticket
- * YR6C49, mirrors K7N2QM).
+ * Validate glossary.md when present (ticket YR6C49, mirrors K7N2QM).
+ * Returns one issue string per validation error, formatted as
+ * `glossary.md:LINE: MESSAGE`.
  */
 function findGlossaryIssues(cwd: string): string[] {
-  const configuredIssues = findConfiguredKnowledgeIssues(cwd, 'glossary');
-  if (configuredIssues.length > 0) return configuredIssues;
-  const filePath = resolveConfiguredPath(cwd, 'glossary');
-  const content = readFileSafe(filePath);
-
-  if (content === undefined) return [];
-
-  const errors = validateGlossary(parseGlossary(content));
-  return errors.map(error => `glossary.md:${error.line}: ${error.message}`);
+  return findKnowledgeDocumentIssues(
+    cwd,
+    'glossary',
+    'glossary.md',
+    parseGlossary,
+    validateGlossary,
+  );
 }
 
 /**
