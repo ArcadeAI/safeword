@@ -59,7 +59,7 @@
     },
     {
       "path": "resources/guides/retro.md",
-      "sha256": "33b58e29befdcca89a9c705c83183f2c2ef84e8189cf8940fa89f01a8d86071d"
+      "sha256": "b0ebf3b8971c52e107f7ea9c656316f31594f2cafc601813dc3f850a8eccc09b"
     },
     {
       "path": "resources/guides/self-report-filing.md",
@@ -143,11 +143,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "637c7c40ed0662a8af1f868f2bd985f43938a23fde673faeb5648bcac8d4ab55"
+      "sha256": "6460928327d906cd4af8b8004778f9d3d8d07e0e0064a29e898fadf73c6c8fba"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "39255ee0c868c2e10762811185c835cba48ba49f55cc5f2e942dedf745903b7c"
+      "sha256": "8aaccee618bdfd7ac2d677f2eb5e755fb29ddfe4c25e2d28080484e9e2e93891"
     },
     {
       "path": "runtime/event-groups.json",
@@ -335,7 +335,7 @@
     },
     {
       "path": "runtime/hooks/lib/read-receipt.ts",
-      "sha256": "5f25885a92dce7dbe433452a9a785bc2ae10dcfdc46f7220c83a8ac7af4ed837"
+      "sha256": "cef1e7101bcd12a00d140336b08eef325176c6371d5813b928232af1b87de902"
     },
     {
       "path": "runtime/hooks/lib/readiness-pointer.ts",
@@ -355,7 +355,7 @@
     },
     {
       "path": "runtime/hooks/lib/retro-draft-spool.ts",
-      "sha256": "c39b894596d0ec79b0ca6eef761d387bd96b3539d6d6ebadf6a2ceace1da9fb1"
+      "sha256": "50e61ff9981cd7e41511ba9c61eacbc89cd13fd574ff74223637a8131fbfe5e0"
     },
     {
       "path": "runtime/hooks/lib/retro-extract.ts",
@@ -379,7 +379,7 @@
     },
     {
       "path": "runtime/hooks/lib/review-receipt.ts",
-      "sha256": "091f8b7eef944b8ecc0e58f3243859d4bdb7a7df548e6eb5f68f799783c3a76e"
+      "sha256": "341cf1a980e86017afc15f0414806a7ace3820ad68b2a0f0fbe6777347a7ad95"
     },
     {
       "path": "runtime/hooks/lib/review-trigger.ts",

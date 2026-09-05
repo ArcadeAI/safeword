@@ -81,19 +81,45 @@ export function claimFromScope(
     : { ...provenance, ticketFolder, artifact };
 }
 
-/** Whether a reviewed path sits inside the ticket being stamped. */
-function withinTicket(target: string, ticketFolder: string): boolean {
-  return target.split('/').includes(ticketFolder);
+/**
+ * A reviewed path as real path segments. Traversal is resolved before anything
+ * is compared: matching the raw text would let `T1/../T2/impl-plan.md` — a
+ * review of T2 — satisfy a T1 stamp, because the literal segment `T1` appears
+ * in it. Both separators are split so a Windows-style path cannot smuggle a
+ * segment past the check either.
+ */
+function pathSegments(target: string): string[] {
+  const segments: string[] = [];
+  for (const segment of target.split(/[/\\]/u)) {
+    if (segment === '' || segment === '.') continue;
+    if (segment === '..') {
+      segments.pop();
+      continue;
+    }
+    segments.push(segment);
+  }
+  return segments;
 }
 
+/** Whether a reviewed path really sits inside the ticket being stamped. */
+function withinTicket(target: string, ticketFolder: string): boolean {
+  return pathSegments(target).includes(ticketFolder);
+}
+
+/**
+ * An artifact stamp needs the reviewed file to be THIS ticket's copy, so the
+ * ticket folder has to be the file's own parent directory — not merely present
+ * somewhere along the path.
+ */
 function coversArtifact(
   targets: readonly string[],
   ticketFolder: string,
   artifact: string,
 ): boolean {
-  return targets.some(
-    target => withinTicket(target, ticketFolder) && target.split('/').at(-1) === `${artifact}.md`,
-  );
+  return targets.some(target => {
+    const segments = pathSegments(target);
+    return segments.at(-1) === `${artifact}.md` && segments.at(-2) === ticketFolder;
+  });
 }
 
 /**

@@ -3965,11 +3965,19 @@ function leaseMarkerPid(name) {
   if (!LEASE_PID.test(pid) || !LEASE_TEMP_SUFFIX.test(suffix)) return void 0;
   return pid;
 }
+function vanishedDuringScan(path) {
+  try {
+    lstatSync2(path);
+    return false;
+  } catch (error) {
+    return error.code === 'ENOENT';
+  }
+}
 function isClaudeLeaseMarker(path, name) {
   const pid = leaseMarkerPid(name);
   if (pid === void 0) return false;
   const content = readSmallMetadataFile(path);
-  if (content === void 0) return false;
+  if (content === void 0) return name.includes(LEASE_TEMP_INFIX) && vanishedDuringScan(path);
   try {
     return isLeaseRecord(JSON.parse(content), Number(pid));
   } catch {

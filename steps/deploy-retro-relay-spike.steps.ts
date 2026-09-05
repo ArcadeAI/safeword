@@ -80,16 +80,23 @@ function productionEnvironment(directory: string): NodeJS.ProcessEnv {
   environment.RELAY_MODE = 'production';
   environment.RELAY_CREDENTIALS_BASE64 = Buffer.from(
     JSON.stringify(
-      (['claude', 'codex', 'cursor', 'operator'] as const).map((harness, index) => ({
-        credentialId: `bdd-${harness}`,
-        harness,
-        installationId: 1,
-        repository: 'arcadeai/safeword',
-        roles: harness === 'operator' ? ['reconcile', 'operate'] : ['file'],
-        secret: String(index + 1).repeat(64),
-        subject: `bdd-${harness}`,
-        tenantId: 'bdd',
-      })),
+      (['claude', 'codex', 'cursor', 'operator', 'collector-worker'] as const).map(
+        (harness, index) => ({
+          credentialId: `bdd-${harness}`,
+          harness,
+          installationId: 1,
+          repository: 'arcadeai/safeword',
+          roles:
+            harness === 'operator'
+              ? ['reconcile', 'operate']
+              : harness === 'collector-worker'
+                ? ['ingest']
+                : ['file'],
+          secret: String(index + 1).repeat(64),
+          subject: `bdd-${harness}`,
+          tenantId: 'bdd',
+        }),
+      ),
     ),
   ).toString('base64');
   return environment;

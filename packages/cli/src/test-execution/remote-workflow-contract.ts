@@ -206,7 +206,7 @@ function commandViolations(steps: Mapping[]): string[] {
     ...(stepById(steps, 'verify')?.run === VERIFY_COMMAND ? [] : ['fixed_revision_verification']),
   ];
   return testRun ===
-    'npx --yes safeword@0.78.6 project test --lane "$LANE" --execution local --prepare-remote'
+    'npx --yes safeword@0.83.1 project test --lane "$LANE" --execution local --prepare-remote'
     ? violations
     : [...violations, 'fixed_test_command'];
 }

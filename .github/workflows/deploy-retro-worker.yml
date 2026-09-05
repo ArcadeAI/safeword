@@ -1,0 +1,53 @@
+name: Deploy Retro Worker
+
+on: workflow_dispatch
+
+permissions:
+  contents: read
+
+concurrency:
+  group: retro-worker-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy Retro Worker
+    runs-on: ubuntu-latest
+    environment: retro-relay-production
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.18.1
+
+      - name: Install Railway CLI
+        run: npm install --global @railway/cli@5.30.3
+
+      - name: Validate deployment configuration
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_RETRO_RELAY_PROJECT_ID }}
+          RAILWAY_ENVIRONMENT: ${{ vars.RAILWAY_RETRO_RELAY_ENVIRONMENT }}
+          RAILWAY_SERVICE: ${{ vars.RAILWAY_RETRO_WORKER_SERVICE }}
+        run: |
+          if [ -z "$RAILWAY_TOKEN" ]; then
+            echo "::error::Missing RAILWAY_TOKEN environment secret. Add a project-scoped Railway token."
+            exit 1
+          fi
+          if [ -z "$RAILWAY_PROJECT_ID" ] || [ -z "$RAILWAY_ENVIRONMENT" ] || [ -z "$RAILWAY_SERVICE" ]; then
+            echo "::error::Missing Railway worker production configuration."
+            exit 1
+          fi
+
+      - name: Deploy through Railway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_RETRO_RELAY_PROJECT_ID }}
+          RAILWAY_ENVIRONMENT: ${{ vars.RAILWAY_RETRO_RELAY_ENVIRONMENT }}
+          RAILWAY_SERVICE: ${{ vars.RAILWAY_RETRO_WORKER_SERVICE }}
+        run: >-
+          railway up --ci
+          --project "$RAILWAY_PROJECT_ID"
+          --environment "$RAILWAY_ENVIRONMENT"
+          --service "$RAILWAY_SERVICE"

@@ -14,10 +14,10 @@ export interface RelayPrincipal {
   tenantId: string;
   credentialId: string;
   subject: string;
-  harness: 'claude' | 'codex' | 'cursor' | 'operator';
+  harness: 'claude' | 'codex' | 'cursor' | 'operator' | 'collector-worker';
   installationId: number;
   repository: string;
-  roles: ('file' | 'operate' | 'reconcile')[];
+  roles: ('file' | 'ingest' | 'operate' | 'reconcile')[];
 }
 
 export type ReceiptState =
