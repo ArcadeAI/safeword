@@ -64,7 +64,8 @@ Build the body from the ticket and diff. Keep only applicable sections and write
 - **Why:** job to be done in plain English.
 - **What changed:** concise approach, non-obvious decisions, scope, exclusions,
   and direct dependency when stacked.
-- **Verification:** commands, end-user steps, results, and yellow coverage gaps.
+- **Verification:** commands, end-user steps, results, and any patch coverage
+  below the repository's target, with the reason.
 - **Risks and review focus:** blast radius, rollback, open questions, and where
   human judgment is wanted.
 - **Readiness evidence:** use this exact durable handoff shape. Use `PASS` only
