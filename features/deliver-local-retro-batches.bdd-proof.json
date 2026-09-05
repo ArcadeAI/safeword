@@ -23,11 +23,11 @@
     ],
     "A request exactly at the shared byte limit is accepted whole": [
       "packages/cli/src/retro/public-delivery.test.ts",
-      "accepts a complete v2 batch at the 65536-byte limit"
+      "accepts a complete v2 batch at the 262144-byte limit"
     ],
     "An oversized request makes no partial public attempt": [
       "packages/cli/src/retro/public-delivery.test.ts",
-      "abandons a complete v2 batch above the 65536-byte limit"
+      "abandons a complete v2 batch above the 262144-byte limit"
     ],
     "Released v1 and exact v2 requests are both accepted": [
       [
