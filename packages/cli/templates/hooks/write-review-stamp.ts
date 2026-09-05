@@ -277,6 +277,8 @@ function resolveScope(ticketFolder: string): {
     independence,
     skip: skipReason !== undefined,
     ticketFolder,
+    projectDirectory,
+    ticketDirectory: nodePath.join(ticketsDirectory, ticketFolder),
     authorAgent,
     reviewerAgent,
   };

@@ -319,10 +319,10 @@ function checkArchitectureReviewGate(ticketInfo: TicketInfo): void {
 
   // Selection half: a satisfying design-review stamp for this ticket's plan at its current content.
   const logPath = `${resolveNamespaceRoot(projectDir)}/skill-invocations.log`;
-  const stamps = existsSync(logPath)
-    ? verifiedStamps(parseReviewStamps(readFileSync(logPath, 'utf8')), projectDir)
-    : [];
   const scope = reviewScope(ticketInfo.folder, 'impl-plan', hashArtifact(planContent));
+  const stamps = existsSync(logPath)
+    ? verifiedStamps(parseReviewStamps(readFileSync(logPath, 'utf8')), projectDir, scope)
+    : [];
   if (!reviewGateForNextAsset(scope, stamps, readCrossAgentReviewPolicy(rawConfig)).ok) {
     hardBlockDone(
       'Architecture review gate: the impl-plan design has no independent design review at its current content. Run `safeword review run plan-implementation ...`, then record its author_agent, actual_reviewer, and independence with `bun "\${CLAUDE_PLUGIN_ROOT}"/runtime/hooks/write-review-stamp.ts impl-plan`; add a model only when independently verified.',

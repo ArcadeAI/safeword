@@ -15,9 +15,12 @@
 // only for stamps that claim a coordinator verdict — self-review stamps and
 // skips never reach the coordinator at all.
 
-import { readReviewReceipt } from './read-receipt.js';
+import nodePath from 'node:path';
+
+import { createReviewReceiptReader } from './read-receipt.js';
 import { claimFromScope, claimsCoordinatorVerdict, receiptGateVerdict } from './review-receipt.js';
 import type { ReviewStamp } from './review-ledger.js';
+import { resolveNamespaceRoot } from './namespace-root.js';
 
 /**
  * The stamps that may be trusted, dropping any whose coordinator claim the
@@ -27,19 +30,29 @@ import type { ReviewStamp } from './review-ledger.js';
 export function verifiedStamps(
   stamps: readonly ReviewStamp[],
   projectDirectory: string,
+  scope: string,
 ): ReviewStamp[] {
-  return stamps.filter(stamp => {
-    if (stamp.skipReason !== undefined || !claimsCoordinatorVerdict(stamp.independence))
-      return true;
-    if (stamp.reviewId === undefined) return false;
+  const readReceipt = createReviewReceiptReader(projectDirectory);
+  return stamps
+    .filter(stamp => stamp.scope === scope)
+    .filter(stamp => {
+      if (stamp.skipReason !== undefined || !claimsCoordinatorVerdict(stamp.independence))
+        return true;
+      if (stamp.reviewId === undefined) return false;
 
-    const claim = claimFromScope(stamp.scope, {
-      independence: stamp.independence,
-      authorAgent: stamp.author,
-      reviewerAgent: stamp.reviewer,
+      const claim = claimFromScope(stamp.scope, {
+        projectDirectory,
+        ticketDirectory: nodePath.join(
+          resolveNamespaceRoot(projectDirectory),
+          'tickets',
+          stamp.scope.slice(0, stamp.scope.indexOf(':')),
+        ),
+        independence: stamp.independence,
+        authorAgent: stamp.author,
+        reviewerAgent: stamp.reviewer,
+      });
+      if (claim === undefined) return false;
+
+      return receiptGateVerdict(claim, readReceipt(stamp.reviewId)).ok;
     });
-    if (claim === undefined) return false;
-
-    return receiptGateVerdict(claim, readReviewReceipt(stamp.reviewId, projectDirectory)).ok;
-  });
 }

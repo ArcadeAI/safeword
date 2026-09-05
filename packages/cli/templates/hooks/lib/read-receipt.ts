@@ -35,8 +35,11 @@ import { reviewCandidates } from '../run-review.js';
 const ROUTE_TIMEOUT_MS = 5000;
 const TOTAL_BUDGET_MS = 12_000;
 
-export function readReviewReceipt(id: string, projectDirectory: string): ReviewReceipt | undefined {
-  const deadline = Date.now() + TOTAL_BUDGET_MS;
+export function readReviewReceipt(
+  id: string,
+  projectDirectory: string,
+  deadline = Date.now() + TOTAL_BUDGET_MS,
+): ReviewReceipt | undefined {
   for (const [command, argumentPrefix] of reviewCandidates(projectDirectory)) {
     const remaining = deadline - Date.now();
     if (remaining <= 0) return undefined;
@@ -78,4 +81,16 @@ export function readReviewReceipt(id: string, projectDirectory: string): ReviewR
     };
   }
   return undefined;
+}
+
+/** One memoized, deadline-bound receipt reader for a single blocking-hook invocation. */
+export function createReviewReceiptReader(
+  projectDirectory: string,
+): (id: string) => ReviewReceipt | undefined {
+  const deadline = Date.now() + TOTAL_BUDGET_MS;
+  const receipts = new Map<string, ReviewReceipt | undefined>();
+  return id => {
+    if (!receipts.has(id)) receipts.set(id, readReviewReceipt(id, projectDirectory, deadline));
+    return receipts.get(id);
+  };
 }

@@ -32,6 +32,8 @@ const approved = {
 const claimFor = (extra: Record<string, unknown>) => ({
   independence: 'cross-agent',
   ticketFolder: TICKET,
+  projectDirectory: '/repo',
+  ticketDirectory: `/repo/.project/tickets/${TICKET}`,
   ...extra,
 });
 
@@ -149,6 +151,19 @@ describe('receiptGateVerdict — a real review of the wrong work', () => {
       }).ok,
     ).toBe(false);
   });
+
+  it.each([
+    `/tmp/decoy/${TICKET}/impl-plan.md`,
+    `docs/${TICKET}/impl-plan.md`,
+    `../../${TICKET}/impl-plan.md`,
+  ])('rejects a reviewed decoy outside the configured tickets root: %j', target => {
+    expect(
+      receiptGateVerdict(claimFor({ artifact: 'impl-plan' }), {
+        ...approved,
+        targets: [target],
+      }).ok,
+    ).toBe(false);
+  });
 });
 
 describe('receiptGateVerdict — provenance the stamp claims', () => {
@@ -199,7 +214,14 @@ describe('receiptGateVerdict — provenance the stamp claims', () => {
 
 describe('receiptGateVerdict — stamps that claim nothing', () => {
   it('leaves self-review alone: no independence claim needs no receipt', () => {
-    expect(receiptGateVerdict({ artifact: 'spec', ticketFolder: TICKET })).toEqual({ ok: true });
+    expect(
+      receiptGateVerdict({
+        artifact: 'spec',
+        ticketFolder: TICKET,
+        projectDirectory: '/repo',
+        ticketDirectory: `/repo/.project/tickets/${TICKET}`,
+      }),
+    ).toEqual({ ok: true });
   });
 
   it('leaves a deliberate skip alone', () => {
@@ -209,22 +231,38 @@ describe('receiptGateVerdict — stamps that claim nothing', () => {
 
 describe('claimFromScope — rebuilding a written stamp’s claim', () => {
   it('reads an artifact scope back into its ticket and artifact', () => {
-    expect(claimFromScope('T1-slug:impl-plan@a1b2c3d4e5f6')).toEqual({
+    expect(
+      claimFromScope('T1-slug:impl-plan@a1b2c3d4e5f6', {
+        projectDirectory: '/repo',
+        ticketDirectory: `/repo/.project/tickets/${TICKET}`,
+      }),
+    ).toEqual({
       ticketFolder: 'T1-slug',
       artifact: 'impl-plan',
+      projectDirectory: '/repo',
+      ticketDirectory: `/repo/.project/tickets/${TICKET}`,
     });
   });
 
   it('reads a phase scope back into its ticket and phase', () => {
-    expect(claimFromScope('T1-slug:phase@scenario-gate')).toEqual({
+    expect(
+      claimFromScope('T1-slug:phase@scenario-gate', {
+        projectDirectory: '/repo',
+        ticketDirectory: `/repo/.project/tickets/${TICKET}`,
+      }),
+    ).toEqual({
       ticketFolder: 'T1-slug',
       phase: 'scenario-gate',
+      projectDirectory: '/repo',
+      ticketDirectory: `/repo/.project/tickets/${TICKET}`,
     });
   });
 
   it('carries the provenance the stamp recorded', () => {
     expect(
       claimFromScope('T1-slug:impl-plan@a1b2c3', {
+        projectDirectory: '/repo',
+        ticketDirectory: `/repo/.project/tickets/${TICKET}`,
         independence: 'cross-agent',
         authorAgent: 'codex',
         reviewerAgent: 'claude',
@@ -232,6 +270,8 @@ describe('claimFromScope — rebuilding a written stamp’s claim', () => {
     ).toEqual({
       ticketFolder: 'T1-slug',
       artifact: 'impl-plan',
+      projectDirectory: '/repo',
+      ticketDirectory: `/repo/.project/tickets/${TICKET}`,
       independence: 'cross-agent',
       authorAgent: 'codex',
       reviewerAgent: 'claude',
@@ -241,13 +281,22 @@ describe('claimFromScope — rebuilding a written stamp’s claim', () => {
   it.each(['', 'no-separators', 'T1-slug:impl-plan', ':impl-plan@hash', 'T1-slug:@hash'])(
     'refuses to read a malformed scope, so it cannot satisfy a gate: %j',
     scope => {
-      expect(claimFromScope(scope)).toBeUndefined();
+      expect(
+        claimFromScope(scope, {
+          projectDirectory: '/repo',
+          ticketDirectory: `/repo/.project/tickets/${TICKET}`,
+        }),
+      ).toBeUndefined();
     },
   );
 
   it('round-trips a scope the ledger built, and the receipt then witnesses it', () => {
     const scope = reviewScope(TICKET, 'impl-plan', hashArtifact('plan body'));
-    const claim = claimFromScope(scope, { independence: 'cross-agent' });
+    const claim = claimFromScope(scope, {
+      projectDirectory: '/repo',
+      ticketDirectory: `/repo/.project/tickets/${TICKET}`,
+      independence: 'cross-agent',
+    });
 
     expect(claim).toBeDefined();
     expect(claim === undefined ? undefined : receiptGateVerdict(claim, approved)).toEqual({

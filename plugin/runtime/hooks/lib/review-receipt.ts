@@ -13,6 +13,8 @@
 // `.js` specifier (bun resolves it to the .ts source) so tsc accepts this module
 // when the test suite pulls it into the typecheck graph — the tested-lib rule.
 
+import nodePath from 'node:path';
+
 import type { GateVerdict } from './review-ledger.js';
 
 /** What a stamp asserts, from the flags write-review-stamp.ts was given. */
@@ -31,6 +33,10 @@ export interface StampClaim {
    * approval for ticket A witnesses the same artifact name or phase on ticket B.
    */
   readonly ticketFolder: string;
+  /** Project root used to resolve the coordinator's repo-relative targets. */
+  readonly projectDirectory: string;
+  /** Exact configured ticket directory this stamp is about. */
+  readonly ticketDirectory: string;
   /** Author runtime the stamp reports, when it reports one. */
   readonly authorAgent?: string;
   /** Actual reviewer runtime the stamp reports, when it reports one. */
@@ -60,12 +66,13 @@ export function claimsCoordinatorVerdict(independence?: string): boolean {
  * Rebuild the claim a ledger stamp is making from its scope key, so the read
  * path can hold a written stamp to the same standard the write path applied.
  * `reviewScope` builds `<ticketFolder>:<artifact>@<hash>`, with `phase` as the
- * artifact and the phase name as the hash. Returns undefined for a scope that
+ * artifact and the phase name as the hash. The caller supplies the resolved
+ * project/ticket path alongside provenance. Returns undefined for a scope that
  * does not parse — an unreadable claim is not a satisfied one.
  */
 export function claimFromScope(
   scope: string,
-  provenance: Omit<StampClaim, 'ticketFolder' | 'artifact' | 'phase'> = {},
+  context: Omit<StampClaim, 'ticketFolder' | 'artifact' | 'phase'>,
 ): StampClaim | undefined {
   const separator = scope.indexOf(':');
   const at = scope.lastIndexOf('@');
@@ -77,33 +84,29 @@ export function claimFromScope(
   if (ticketFolder === '' || artifact === '' || tail === '') return undefined;
 
   return artifact === 'phase'
-    ? { ...provenance, ticketFolder, phase: tail }
-    : { ...provenance, ticketFolder, artifact };
+    ? { ...context, ticketFolder, phase: tail }
+    : { ...context, ticketFolder, artifact };
 }
 
-/**
- * A reviewed path as real path segments. Traversal is resolved before anything
- * is compared: matching the raw text would let `T1/../T2/impl-plan.md` — a
- * review of T2 — satisfy a T1 stamp, because the literal segment `T1` appears
- * in it. Both separators are split so a Windows-style path cannot smuggle a
- * segment past the check either.
- */
-function pathSegments(target: string): string[] {
-  const segments: string[] = [];
-  for (const segment of target.split(/[/\\]/u)) {
-    if (segment === '' || segment === '.') continue;
-    if (segment === '..') {
-      segments.pop();
-      continue;
-    }
-    segments.push(segment);
-  }
-  return segments;
+/** Resolve a recorded target using the separator style of the running host. */
+function resolveTarget(target: string, projectDirectory: string): string {
+  return nodePath.resolve(projectDirectory, target.replaceAll(/[\\/]/gu, nodePath.sep));
 }
 
-/** Whether a reviewed path really sits inside the ticket being stamped. */
-function withinTicket(target: string, ticketFolder: string): boolean {
-  return pathSegments(target).includes(ticketFolder);
+/** Whether a reviewed target is contained by this exact configured ticket directory. */
+function relativeTicketTarget(target: string, claim: StampClaim): string | undefined {
+  const relative = nodePath.relative(
+    claim.ticketDirectory,
+    resolveTarget(target, claim.projectDirectory),
+  );
+  if (
+    relative === '' ||
+    relative === '..' ||
+    relative.startsWith(`..${nodePath.sep}`) ||
+    nodePath.isAbsolute(relative)
+  )
+    return undefined;
+  return relative;
 }
 
 /**
@@ -111,15 +114,8 @@ function withinTicket(target: string, ticketFolder: string): boolean {
  * ticket folder has to be the file's own parent directory — not merely present
  * somewhere along the path.
  */
-function coversArtifact(
-  targets: readonly string[],
-  ticketFolder: string,
-  artifact: string,
-): boolean {
-  return targets.some(target => {
-    const segments = pathSegments(target);
-    return segments.at(-1) === `${artifact}.md` && segments.at(-2) === ticketFolder;
-  });
+function coversArtifact(targets: readonly string[], claim: StampClaim, artifact: string): boolean {
+  return targets.some(target => relativeTicketTarget(target, claim) === `${artifact}.md`);
 }
 
 /**
@@ -179,14 +175,14 @@ export function receiptGateVerdict(claim: StampClaim, receipt?: ReviewReceipt): 
         ok: false,
         reason: `review ${receipt.reviewId} is a "${receipt.kind ?? 'unknown'}" review, not the "${claim.phase}" exit being stamped`,
       };
-    if (!targets.some(target => withinTicket(target, claim.ticketFolder)))
+    if (!targets.some(target => relativeTicketTarget(target, claim) !== undefined))
       return {
         ok: false,
         reason: `review ${receipt.reviewId} reviewed nothing in ${claim.ticketFolder} — it covered ${targets.join(', ') || 'nothing'}`,
       };
   }
 
-  if (claim.artifact !== undefined && !coversArtifact(targets, claim.ticketFolder, claim.artifact))
+  if (claim.artifact !== undefined && !coversArtifact(targets, claim, claim.artifact))
     return {
       ok: false,
       reason: `review ${receipt.reviewId} did not review ${claim.ticketFolder}/${claim.artifact}.md — it covered ${targets.join(', ') || 'nothing'}`,

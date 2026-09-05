@@ -2,6 +2,7 @@
 id: PB1GMZ
 slug: prove-review-ran
 type: task
+subtype: bug-investigated
 phase: intake
 status: in_progress
 created: 2026-09-04T23:56:30.616Z
@@ -43,3 +44,21 @@ forging a signature, the same jump SLSA describes from L1 to L2.
 - 2026-09-04T23:56:30.616Z Started: Created ticket PB1GMZ
 - Receipt core + stamp wiring implemented; skills cite `--review-id`; parity and
   schema registration updated.
+
+## Root Cause
+
+Receipt verification ran before either gate selected the scope it needed, so
+every coordinator-claiming entry in the append-only ledger started a separate
+lookup with its own timeout budget. This was confirmed by tracing both
+PreToolUse and Stop through `verifiedStamps`, which iterated the complete parsed
+ledger and called `readReviewReceipt` once per matching claim.
+
+Receipt target binding normalized path segments but never anchored them to the
+configured namespace's `tickets` directory. A genuine approval of a decoy such
+as `docs/T1-slug/spec.md` therefore matched the real ticket by basename alone.
+
+Ruled out: the coordinator's integrity signature and source-staleness check are
+not the cause; they correctly prove the reviewed decoy and correctly detect
+changes to it. The missing information is exact expected-ticket containment at
+the gate. Also ruled out: the per-route timeout itself is not unbounded; the
+amplification comes from resetting its total deadline for every ledger entry.

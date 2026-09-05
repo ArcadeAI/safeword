@@ -195,10 +195,10 @@ function crossAgentReviewPolicy() {
 // Verified at the point of reading: the ledger is a plain text file, so a stamp
 // claiming a coordinator verdict is held to that claim here rather than trusted
 // because it is written down (ticket PB1GMZ).
-function readReviewStamps(): ReviewStamp[] {
+function readReviewStamps(scope: string): ReviewStamp[] {
   const logFile = nodePath.join(resolveNamespaceRoot(projectDirectory), 'skill-invocations.log');
   if (!existsSync(logFile)) return [];
-  return verifiedStamps(parseReviewStamps(readFileSync(logFile, 'utf8')), projectDirectory);
+  return verifiedStamps(parseReviewStamps(readFileSync(logFile, 'utf8')), projectDirectory, scope);
 }
 
 /**
@@ -476,12 +476,12 @@ if (
     // cross-ticket review doesn't satisfy it). Inert until enabled, so it can't
     // brick a workflow before the stamp-earning step ships.
     if (isReviewGateOn()) {
-      const stamps = readReviewStamps();
       const priorScope = reviewScope(
         nodePath.basename(ticketDirectory),
         'spec',
         hashArtifact(specContent),
       );
+      const stamps = readReviewStamps(priorScope);
       if (!reviewGateForNextAsset(priorScope, stamps, crossAgentReviewPolicy()).ok) {
         deny(
           'spec.md has not been reviewed at its current content. Review it (or log a skip with a reason) before writing scenarios.',
@@ -746,8 +746,8 @@ if (isCanonicalTicketEdit) {
     const exitedPhase = detectPhaseAdvance(context.priorContent, context.proposedContent);
     if (exitedPhase !== undefined) {
       const ticketDirectory = nodePath.dirname(editedFile);
-      const stamps = readReviewStamps();
       const phaseScope = reviewScope(nodePath.basename(ticketDirectory), 'phase', exitedPhase);
+      const stamps = readReviewStamps(phaseScope);
       if (!gatePhaseAdvance(phaseScope, stamps, crossAgentReviewPolicy()).ok) {
         deny(
           `Phase "${exitedPhase}" has no independent review stamp — advancing is blocked until a fork review of the phase is logged.`,

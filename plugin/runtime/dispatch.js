@@ -1850,7 +1850,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/pre-tool-git-bare-fix.sh':
         '0c75b7be01af1312cbbe86cf5964fb23520c8b9ef90f49075dd74e27ba58d414',
       '.safeword/hooks/pre-tool-quality.ts':
-        '327bd9eb4b803d27bb4551f6ae4cd4b824608b9c24c63de33c4d7dd70d6b0b4a',
+        '79198be1d29ebddc47bfa2854e2bfc7911f3586482203bdbc21bf5d22abfee5a',
       '.safeword/hooks/pre-tool-stale-main.ts':
         'cec806aeb0bfd132d45102eab631155da82b48869f4159cb49cf205d354c3e7e',
       '.safeword/hooks/prompt-questions.ts':
@@ -1884,7 +1884,7 @@ var CLAUDE_HISTORICAL_CATALOGUE = {
       '.safeword/hooks/session-version.ts':
         'c6160a3ea0ef65345c89b3c1dcf5a4177a408d94ab7efda82d86f9d455815c64',
       '.safeword/hooks/stop-quality.ts':
-        '2b8079c37f5cf8dfb468e08e020e5823fc5c51de42d3420da1cb43fc8aa9b7a6',
+        'a05663d018bbdfaace593942da04c8b9d52e7ab743c9820d6249fcec93df603b',
       '.safeword/hooks/stop-reentry.ts':
         'a84d34d0798c83177d6ccc733299e9632e8485b700ef92ec53f153d68a1cfba5',
       '.safeword/hooks/stop-retro-filing.ts':

@@ -9,7 +9,15 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 
@@ -53,9 +61,11 @@ function installStubCli(pluginRoot: string): void {
     nodePath.join(pluginRoot, 'runtime', 'cli.js'),
     [
       "import { readFileSync } from 'node:fs';",
+      "import { appendFileSync } from 'node:fs';",
       "import nodePath from 'node:path';",
       'const argv = process.argv.slice(2);',
       "if (argv[0] !== 'review' || argv[1] !== 'status') process.exit(1);",
+      "appendFileSync(nodePath.join(import.meta.dirname, '..', 'calls.log'), `${argv[2]}\\n`);",
       "process.stdout.write(readFileSync(nodePath.join(import.meta.dirname, '..', 'response.json'), 'utf8'));",
     ].join('\n'),
   );
@@ -215,12 +225,17 @@ describe('review-receipt wiring (pre-tool-quality gate ↔ review status --json)
   };
 
   /** Append a ledger line directly — the bypass the write hook cannot police. */
-  function handWriteStamp(reviewId: string): void {
-    const scope = reviewScope(TICKET, 'spec', hashArtifact(SPEC));
-    writeFileSync(
+  function handWriteStamp(reviewId: string, ticket = TICKET): void {
+    const scope = reviewScope(ticket, 'spec', hashArtifact(SPEC));
+    appendFileSync(
       nodePath.join(projectRoot, '.safeword-project', 'skill-invocations.log'),
       `2026-09-05T00:00:00Z sess-1 review:${scope} author:codex reviewer:claude independence:cross-agent review-id:${reviewId}\n`,
     );
+  }
+
+  function receiptLookups(): string[] {
+    const path = nodePath.join(pluginRoot, 'calls.log');
+    return existsSync(path) ? readFileSync(path, 'utf8').trim().split('\n').filter(Boolean) : [];
   }
 
   function runGate(): HookResult {
@@ -331,5 +346,30 @@ describe('review-receipt wiring (pre-tool-quality gate ↔ review status --json)
     handWriteStamp(REVIEW_ID);
 
     expectHookAllow(runGate());
+  });
+
+  it('does not verify coordinator claims from unrelated historical scopes', () => {
+    stubCoordinator({
+      ...approvedEnvelope,
+      review_targets: [`.safeword-project/tickets/${TICKET}/spec.md`],
+    });
+    for (let index = 0; index < 25; index += 1) {
+      handWriteStamp(`unrelated-${index}`, `OLD-${index}`);
+    }
+    handWriteStamp(REVIEW_ID);
+
+    expectHookAllow(runGate());
+    expect(receiptLookups()).toEqual([REVIEW_ID]);
+  });
+
+  it('looks up a repeated receipt only once within a gate invocation', () => {
+    stubCoordinator({
+      ...approvedEnvelope,
+      review_targets: [`.safeword-project/tickets/${TICKET}/spec.md`],
+    });
+    for (let index = 0; index < 25; index += 1) handWriteStamp(REVIEW_ID);
+
+    expectHookAllow(runGate());
+    expect(receiptLookups()).toEqual([REVIEW_ID]);
   });
 });
