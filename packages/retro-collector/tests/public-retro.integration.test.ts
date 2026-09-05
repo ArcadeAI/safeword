@@ -315,6 +315,39 @@ it('dead-letters and alerts work blocked by filing quota for 24 hours', () => {
   expect(alerts).toEqual([{ request_id: request.requestId, code: 'quota_exhausted' }]);
 });
 
+it('keeps pre-relay work claimable after 24 hours and a failed attempt', () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  let now = 0;
+  const store = new PublicRetroStore(path.join(directory, 'collector.sqlite'), {
+    now: () => now,
+  });
+  const request = fixtureServerOwnedRequest();
+  const envelope = JSON.parse(new TextDecoder().decode(request.body)) as {
+    sessionScope: string;
+    source: { projectUUID: string };
+  };
+  store.accept(
+    request.requestId,
+    envelope.sessionScope,
+    request.body,
+    'v3',
+    envelope.source.projectUUID,
+  );
+  const firstClaim = store.claim();
+  expect(firstClaim).toBeDefined();
+  expect(store.release(request.requestId, firstClaim?.leaseToken ?? '')).toBe(true);
+
+  now = 86_400_001;
+  const recovered = store.claim();
+
+  expect(recovered?.requestId).toBe(request.requestId);
+  expect(store.listLifecycle()).toEqual([
+    expect.objectContaining({ requestId: request.requestId, state: 'leased' }),
+  ]);
+  store.close();
+});
+
 it.each([
   ['authorization', 'Bearer fixture'],
   ['cookie', 'session=fixture'],
