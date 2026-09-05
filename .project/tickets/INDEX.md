@@ -6,6 +6,7 @@
 <!-- prettier-ignore-start -->
 
 ## Tickets (581)
+
 ## Tickets (572)
 
 ### 001
@@ -1563,9 +1564,9 @@
 - **Install missing @vitest/eslint-plugin peer-dep (G2BA7M)** (wontfix, epic: —)
   Make `@vitest/eslint-plugin` resolvable from `packages/cli` so both the DTS build and the full ESLint config load work again.
   → `.project/tickets/G2BA7M-vitest-eslint-plugin-peer-dep`
-- **YOLO mode: route user-feedback pauses through /figure-it-out (G2E72G)** (in_progress, epic: —)
-  Give safeword an autonomous mode that resolves ambiguity via `/figure-it-out` instead of pausing for the user, so a ticket can run end-to-end with minimal human turns.
-  → `.project/tickets/G2E72G-yolo-mode`
+- **AFK mode: finish a ticket unattended and leave a decision trail (G2E72G)** (in_progress, epic: —)
+  Let a builder hand off a bounded ticket and walk away — routine confirmations continue on their own, genuine forks get researched and recorded, and anything irreversible still stops for a human.
+  → `.project/tickets/G2E72G-afk-mode`
 - **Resolve knip false-positives from lazy-loaded ESLint plugins (G8PBE6)** (superseded, epic: —)
   Suppress the seven knip "unused dependency" false-positives caused by H150ZW's lazy-load pattern, without reverting the lazy-load itself or hiding the false-positives in a way the next person can't find.
   → `.project/tickets/G8PBE6-knip-dynamic-load-false-positives`
