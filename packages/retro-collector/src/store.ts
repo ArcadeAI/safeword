@@ -136,10 +136,10 @@ export class PublicRetroStore {
     }
   }
 
-  private recordIntake(requestId: string, now: number): void {
+  private recordIntake(envelopeFamily: 'legacy' | 'v3', requestId: string, now: number): void {
     this.#database
       .prepare('INSERT INTO intake_events (request_id, accepted_at_ms) VALUES (?, ?)')
-      .run(requestId, now);
+      .run(`${envelopeFamily}:${requestId}`, now);
   }
 
   private acceptServer(
@@ -178,7 +178,7 @@ export class PublicRetroStore {
           createHash('sha256').update(rawBody).digest('hex'),
           projectUUID,
         );
-      this.recordIntake(requestId, now);
+      this.recordIntake('v3', requestId, now);
       this.#database.exec('COMMIT;');
       return { receipt, requestId, status: 'accepted' };
     } catch (error) {
@@ -274,7 +274,7 @@ export class PublicRetroStore {
           'INSERT INTO public_retros (request_id, session_scope, raw_body, receipt) VALUES (?, ?, ?, ?)',
         )
         .run(requestId, sessionScope, rawBody, receipt);
-      this.recordIntake(requestId, now);
+      this.recordIntake('legacy', requestId, now);
       this.#database.exec('COMMIT;');
       return { receipt, requestId, status: 'accepted' };
     } catch (error) {
