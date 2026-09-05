@@ -54,7 +54,7 @@ jobs:
         id: tests
         env:
           LANE: ${{ inputs.lane }}
-        run: npx --yes safeword@0.83.1 project test --lane "$LANE" --execution local --prepare-remote
+        run: npx --yes safeword@0.78.6 project test --lane "$LANE" --execution local --prepare-remote
 
       - name: Write remote test result
         id: report

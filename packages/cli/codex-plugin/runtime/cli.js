@@ -47486,7 +47486,7 @@ function commandViolations(steps) {
     ...stepById(steps, "validate")?.run === VALIDATE_COMMAND ? [] : ["fixed_validation"],
     ...stepById(steps, "verify")?.run === VERIFY_COMMAND ? [] : ["fixed_revision_verification"]
   ];
-  return testRun === 'npx --yes safeword@0.78.6 project test --lane "$LANE" --execution local --prepare-remote' ? violations : [...violations, "fixed_test_command"];
+  return testRun === 'npx --yes safeword@0.83.1 project test --lane "$LANE" --execution local --prepare-remote' ? violations : [...violations, "fixed_test_command"];
 }
 function executionViolations(steps) {
   return [
@@ -47870,10 +47870,11 @@ function classifyRemoteWorkflow(root, bundled, filesystem = nodeRemoteWorkflowFs
   const observed = readRegularFile(destination, filesystem);
   if ("failure" in observed)
     return observed.failure;
-  if (workflowDigest(observed.content) === workflowDigest(bundled)) {
+  const observedDigest = workflowDigest(observed.content);
+  if (observedDigest === workflowDigest(bundled)) {
     return { state: "current", affectedPath: NO_ACTION, nextAction: NO_ACTION };
   }
-  if (HISTORICAL_MANAGED_DIGESTS.has(workflowDigest(observed.content))) {
+  if (HISTORICAL_MANAGED_DIGESTS.has(observedDigest)) {
     return {
       state: "managed_outdated",
       affectedPath: REMOTE_WORKFLOW_PATH,
@@ -47897,6 +47898,10 @@ var init_remote_workflow_state = __esm(() => {
     {
       version: 2,
       normalizedSha256: "f5898559f4d57c39a7887e7061d50ebaa2cbaf86159d7c93555a6c32c6d909d9"
+    },
+    {
+      version: 3,
+      normalizedSha256: "20846fed2fa9d655c2bba660cd5f7f2fd712c34ac92523d6c40846e9a8477baf"
     }
   ];
   HISTORICAL_MANAGED_DIGESTS = new Set(REMOTE_WORKFLOW_RELEASE_MANIFEST.slice(0, -1).map((release) => release.normalizedSha256));
