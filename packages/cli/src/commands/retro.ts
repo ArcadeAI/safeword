@@ -43,7 +43,11 @@ import {
   recordFiledAck,
   spoolDrafts,
 } from '../../templates/hooks/lib/retro-draft-spool.js';
-import { type RetroAgent, windowFor } from '../../templates/hooks/lib/retro-extract.js';
+import {
+  type CheckedExtractionResult,
+  type RetroAgent,
+  windowFor,
+} from '../../templates/hooks/lib/retro-extract.js';
 import { captureRetroFilingFault } from '../../templates/hooks/lib/self-report.js';
 import { type Provenance, PROVENANCE_SHA } from '../retro/ledger.js';
 import {
@@ -647,6 +651,28 @@ function prepareCursorExtractionDirectory(directory: string): void {
  * extraction success separately from a schema-valid empty result. The legacy
  * Stop-hook callers can remain silent, while closeout fails closed on errors.
  */
+/**
+ * Shared tail for every headless extractor: record the debug event, hand the
+ * checked result to the caller, and return just the findings. Only the agent
+ * label and the per-agent options above it differ.
+ */
+function completeExtraction(
+  agent: RetroAgent,
+  result: CheckedExtractionResult,
+  dependencies: AutoExtractDependencies,
+): unknown[] {
+  recordRetroDebugEvent({
+    event: 'retro_cli_extraction',
+    agent,
+    ok: result.ok,
+    findingsCount: result.findings.length,
+    failureReason: result.failureReason,
+    exitCode: result.exitCode,
+  });
+  dependencies.onExtractionResult?.(result);
+  return result.findings;
+}
+
 export async function buildAutoExtractor(
   projectDirectory: string,
   dependencies: AutoExtractDependencies = {},
@@ -679,16 +705,7 @@ export async function buildAutoExtractor(
         schemaPath: nodePath.join(workDirectory, 'schema.json'),
         outputPath: nodePath.join(workDirectory, 'output.json'),
       });
-      recordRetroDebugEvent({
-        event: 'retro_cli_extraction',
-        agent: 'codex',
-        ok: result.ok,
-        findingsCount: result.findings.length,
-        failureReason: result.failureReason,
-        exitCode: result.exitCode,
-      });
-      dependencies.onExtractionResult?.(result);
-      return result.findings;
+      return completeExtraction('codex', result, dependencies);
     };
   }
 
@@ -701,16 +718,7 @@ export async function buildAutoExtractor(
         cwd: workDirectory,
         model,
       });
-      recordRetroDebugEvent({
-        event: 'retro_cli_extraction',
-        agent: 'cursor',
-        ok: result.ok,
-        findingsCount: result.findings.length,
-        failureReason: result.failureReason,
-        exitCode: result.exitCode,
-      });
-      dependencies.onExtractionResult?.(result);
-      return result.findings;
+      return completeExtraction('cursor', result, dependencies);
     };
   }
 
@@ -726,16 +734,7 @@ export async function buildAutoExtractor(
       cwd: workDirectory, // neutral cwd — not the user's project
       model,
     });
-    recordRetroDebugEvent({
-      event: 'retro_cli_extraction',
-      agent: 'claude',
-      ok: result.ok,
-      findingsCount: result.findings.length,
-      failureReason: result.failureReason,
-      exitCode: result.exitCode,
-    });
-    dependencies.onExtractionResult?.(result);
-    return result.findings;
+    return completeExtraction('claude', result, dependencies);
   };
 }
 
