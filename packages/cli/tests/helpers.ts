@@ -918,6 +918,21 @@ function isCommandAvailable(command: string): boolean {
   }
 }
 
+/**
+ * Absolute path to the real bun binary.
+ *
+ * `which bun` can return a version-manager shim (mise, asdf). A shim needs its
+ * manager's environment and config to select a version, so it fails outright in
+ * a fixture that runs from a temp directory, strips PATH, or overrides HOME —
+ * and it fails by exiting non-zero with no output, which a fixture easily
+ * misreads as "the command produced nothing". Ask bun for its own execPath
+ * instead; that is a real binary and stays runnable under those conditions.
+ */
+export function realBunExecutable(): string {
+  const result = spawnSync('bun', ['-e', 'console.log(process.execPath)'], { encoding: 'utf8' });
+  return result.stdout?.trim() ?? '';
+}
+
 /** Check if Ruff is installed (for Python linting tests) */
 export function isRuffInstalled(): boolean {
   return isCommandAvailable('ruff');

@@ -32,6 +32,7 @@ import {
   INSTALL_DEPENDENCIES_ENV,
   isRuffInstalled,
   readTestFile,
+  realBunExecutable,
   removeTemporaryDirectory,
   setupOrThrow,
   TIMEOUT_SETUP_HOOK,
@@ -1411,9 +1412,7 @@ describe('E2E: Python Lint Hook', () => {
       // holding every other shimmed tool — ruff included, which would defeat
       // this test's whole premise. Ask bun itself for its real binary and
       // expose only that, via a directory containing nothing else.
-      const realBun = execSync('bun -e "console.log(process.execPath)"', {
-        encoding: 'utf8',
-      }).trim();
+      const realBun = realBunExecutable();
       const bunOnlyDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-bun-only-'));
       symlinkSync(realBun, nodePath.join(bunOnlyDirectory, 'bun'));
       const restrictedPath = `/bin:/usr/bin:${bunOnlyDirectory}`;
