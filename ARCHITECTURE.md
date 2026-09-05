@@ -89,7 +89,7 @@ quota-blocked work stays queued and reaches an alerted dead letter after 24 hour
 
 The single-replica Railway worker has no public route and no customer credential.
 It leases FIFO `v3` rows over private networking, forwards the original bytes,
-collector digest, acceptance time, and request UUID to the relay's dedicated
+collector digest and request UUID to the relay's dedicated
 `collector-worker` principal, and completes collector ownership only after relay
 acceptance. A failed handoff releases the lease; a crash is recovered by lease
 expiry. Collector SQLite remains mounted only by the collector service.
@@ -567,6 +567,20 @@ Published files: `dist/` + `schemas/` + `templates/` (bundled for setup converge
 ---
 
 ## Key Decisions
+
+### Collector-to-relay ownership transfer
+
+| Field         | Decision                                                                                                                                                                                                                                                                                                                                                                                                         |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Context       | Anonymous public intake must survive client exit without placing GitHub authority in the collector or consuming the relay retry window while work waits in the collector queue.                                                                                                                                                                                                                                  |
+| Decision      | The collector owns immutable accepted bytes until the private worker receives relay acceptance. Lease expiry returns work to the collector without a retry deadline. Relay acceptance starts a fresh relay-owned 24-hour retry window. Cutover remains disabled until per-harness canary records bind one request ID and session scope to distinct collector and relay receipts plus reviewed artifact evidence. |
+| Consequences  | Collector queue delay cannot expire filing recovery; collector and relay ownership never overlap after acknowledged handoff; production cutover requires correlated, build-attested evidence. The collector, worker, and relay remain separate deployable services and require an independently rotated `collector-worker` credential.                                                                           |
+| Alternatives  | Synchronous collector forwarding loses accepted work on handoff failure; a collector-owned filing deadline consumes recovery before relay acceptance; colocating intake and filing authority weakens the trust boundary; dual filing permits duplicates.                                                                                                                                                         |
+| Reassess when | The collector or worker needs more than one replica, Railway private networking changes, GitHub adds a trustworthy create-idempotency key, or the single-host SQLite queue misses its operational targets.                                                                                                                                                                                                       |
+
+**Status:** Accepted
+
+**Date:** 2026-09-05
 
 ### Settled Decisions (2025-12)
 

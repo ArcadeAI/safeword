@@ -1,6 +1,6 @@
 # Impl Plan: Route local retros through the durable server
 
-**Status:** planned
+**Status:** implemented
 **Planned on:** 2026-08-29
 
 ## Approach
@@ -63,7 +63,7 @@ Architecture decision to record: add a Context / Decision / Consequences / Alter
 
 ## Known deviations
 
-The relay's current client-supplied retry-deadline contract changes for collector-owned `v3`: collector acceptance time remains the relay creation time, but the relay owns a fresh 24-hour deadline from first relay acceptance. This is required so durable collector queue time cannot consume the filing retry window; the architecture decision and migration tests record the change. Existing direct relay clients retain their current contract.
+The relay's current client-supplied retry-deadline contract changes for collector-owned `v3`: collector acceptance remains collector-only queue metadata, while the relay records its own acceptance time and owns a fresh 24-hour deadline from first relay acceptance. This is required so durable collector queue time cannot consume the filing retry window; the architecture decision and migration tests record the change. Existing direct relay clients retain their current contract.
 
 ## Doc impact
 
