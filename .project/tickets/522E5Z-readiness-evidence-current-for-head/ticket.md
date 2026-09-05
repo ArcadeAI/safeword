@@ -50,3 +50,16 @@ done_when: |
 ## Work Log
 
 - 2026-09-05T22:02:16.936Z Started: Created ticket 522E5Z
+- 2026-09-05T22:20:00Z Verified the two load-bearing assumptions rather than
+  assuming them. `pull_request_target` grants a read/write token even on public
+  fork pull requests, so `statuses: write` reaches the fork head; and GitHub's
+  protected-branch docs state plainly that required status checks "can be checks
+  or commit statuses", so the cheap Statuses API is enough — no GitHub App and
+  no `checks: write`.
+- 2026-09-05T22:20:00Z Known limitation, accepted deliberately: the readiness
+  job lives in the workflow that `install` only generates when `prReview.enabled`
+  is true, so a repository that wants readiness discipline without an LLM
+  reviewer cannot get it yet. Decoupling means a second workflow template, a
+  second schema entry, and a second config key — new surface for a feature with
+  no demand evidence. Ship coupled, dogfood it, and split only if a customer
+  actually asks.
