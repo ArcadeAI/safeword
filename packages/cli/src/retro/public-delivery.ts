@@ -1,5 +1,14 @@
 import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
+import {
+  closeSync,
+  fsyncSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  renameSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import path from 'node:path';
 
 import { assemblePublicFinding, type Finding } from './finding.js';
@@ -67,6 +76,7 @@ export interface PublicRetroPreparationDependencies {
   attemptsDirectory: string;
   randomUUID: () => string;
   route?: 'direct-v2' | 'server-v3';
+  syncDirectory?: (directory: string) => void;
 }
 
 export interface PublicRetroDeliveryDependencies extends PublicRetroPreparationDependencies {
@@ -287,17 +297,7 @@ function claimServerPublicRetroRequest(
   const requestId = dependencies.randomUUID().toLowerCase();
   if (!UUID_V4.test(requestId)) throw new Error('Invalid public retrospective request identity');
   try {
-    writeFileSync(
-      markerPath,
-      JSON.stringify({
-        bodyBase64: Buffer.from(built.bytes).toString('base64'),
-        requestId,
-        route: 'server-v3',
-        sessionScope: built.sessionScope,
-        state: 'pending',
-      }),
-      { encoding: 'utf8', flag: 'wx', flush: true },
-    );
+    createServerAttempt(markerPath, built, requestId, dependencies);
     return { ...built, markerPath, requestId };
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
@@ -305,6 +305,40 @@ function claimServerPublicRetroRequest(
       return raced.kind === 'pending' ? raced.prepared : undefined;
     }
     throw error;
+  }
+}
+
+function createServerAttempt(
+  markerPath: string,
+  built: BuiltPublicRetroEnvelope,
+  requestId: string,
+  dependencies: PublicRetroPreparationDependencies,
+): void {
+  writeFileSync(
+    markerPath,
+    JSON.stringify({
+      bodyBase64: Buffer.from(built.bytes).toString('base64'),
+      requestId,
+      route: 'server-v3',
+      sessionScope: built.sessionScope,
+      state: 'pending',
+    }),
+    { encoding: 'utf8', flag: 'wx', flush: true },
+  );
+  try {
+    (dependencies.syncDirectory ?? syncDirectoryEntry)(dependencies.attemptsDirectory);
+  } catch (error) {
+    unlinkSync(markerPath);
+    throw error;
+  }
+}
+
+function syncDirectoryEntry(directory: string): void {
+  const descriptor = openSync(directory, 'r');
+  try {
+    fsyncSync(descriptor);
+  } finally {
+    closeSync(descriptor);
   }
 }
 

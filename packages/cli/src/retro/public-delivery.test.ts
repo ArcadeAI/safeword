@@ -575,6 +575,46 @@ describe('buildPublicRetroEnvelope', () => {
     }
   });
 
+  it('does not transmit server-v3 until the pending-record directory entry is durable', async () => {
+    const attemptsDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-public-retro-'));
+    const transport = vi.fn(() => Promise.reject(new Error('must not transmit')));
+    try {
+      const outcome = await deliverSanitizedPublicRetroFindings(
+        {
+          findings: [
+            {
+              category: 'bug',
+              title: 'Directory durability fixture',
+              safewordSurface: 'packages/cli/src/retro/public-delivery.ts',
+              whatHappened: 'The directory sync failed before handoff.',
+              whyFriction: 'An accepted request must never lose its local identity.',
+              repro: 'Inject a directory fsync failure.',
+            },
+          ],
+          source: requiredInput.source,
+          sessionId: requiredInput.sessionId,
+        },
+        {
+          attemptsDirectory,
+          now: () => 0,
+          randomUUID: () => '11111111-2222-4333-8444-555555555555',
+          route: 'server-v3',
+          syncDirectory: () => {
+            throw new Error('injected directory fsync failure');
+          },
+          transport,
+        },
+        750,
+      );
+
+      expect(outcome).toBe('abandoned');
+      expect(transport).not.toHaveBeenCalled();
+      expect(readdirSync(attemptsDirectory)).toEqual([]);
+    } finally {
+      rmSync(attemptsDirectory, { recursive: true, force: true });
+    }
+  });
+
   it('persists a typed collector rejection with the pending server-v3 recovery record', async () => {
     const attemptsDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-public-retro-'));
     try {

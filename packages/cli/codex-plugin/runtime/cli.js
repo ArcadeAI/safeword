@@ -59352,7 +59352,16 @@ var init_pipeline = __esm(() => {
 
 // src/retro/public-delivery.ts
 import { createHash as createHash30 } from "crypto";
-import { mkdirSync as mkdirSync19, readFileSync as readFileSync69, renameSync as renameSync12, unlinkSync as unlinkSync6, writeFileSync as writeFileSync25 } from "fs";
+import {
+  closeSync as closeSync13,
+  fsyncSync as fsyncSync4,
+  mkdirSync as mkdirSync19,
+  openSync as openSync13,
+  readFileSync as readFileSync69,
+  renameSync as renameSync12,
+  unlinkSync as unlinkSync6,
+  writeFileSync as writeFileSync25
+} from "fs";
 import path5 from "path";
 function containsControlCharacter(value) {
   for (const character of value) {
@@ -59494,13 +59503,7 @@ function claimServerPublicRetroRequest(built, dependencies) {
   if (!UUID_V4.test(requestId))
     throw new Error("Invalid public retrospective request identity");
   try {
-    writeFileSync25(markerPath2, JSON.stringify({
-      bodyBase64: Buffer.from(built.bytes).toString("base64"),
-      requestId,
-      route: "server-v3",
-      sessionScope: built.sessionScope,
-      state: "pending"
-    }), { encoding: "utf8", flag: "wx", flush: true });
+    createServerAttempt(markerPath2, built, requestId, dependencies);
     return { ...built, markerPath: markerPath2, requestId };
   } catch (error2) {
     if (error2.code === "EEXIST") {
@@ -59508,6 +59511,29 @@ function claimServerPublicRetroRequest(built, dependencies) {
       return raced.kind === "pending" ? raced.prepared : undefined;
     }
     throw error2;
+  }
+}
+function createServerAttempt(markerPath2, built, requestId, dependencies) {
+  writeFileSync25(markerPath2, JSON.stringify({
+    bodyBase64: Buffer.from(built.bytes).toString("base64"),
+    requestId,
+    route: "server-v3",
+    sessionScope: built.sessionScope,
+    state: "pending"
+  }), { encoding: "utf8", flag: "wx", flush: true });
+  try {
+    (dependencies.syncDirectory ?? syncDirectoryEntry)(dependencies.attemptsDirectory);
+  } catch (error2) {
+    unlinkSync6(markerPath2);
+    throw error2;
+  }
+}
+function syncDirectoryEntry(directory) {
+  const descriptor = openSync13(directory, "r");
+  try {
+    fsyncSync4(descriptor);
+  } finally {
+    closeSync13(descriptor);
   }
 }
 async function submitPublicRetroRequest(prepared, transport, signal) {
