@@ -1,6 +1,6 @@
 # Impl Plan: Route local retros through the durable server
 
-**Status:** implemented
+**Status:** implementation built; production cutover evidence incomplete
 **Planned on:** 2026-08-29
 
 ## Approach
