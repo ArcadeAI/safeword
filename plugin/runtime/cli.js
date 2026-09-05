@@ -63128,7 +63128,7 @@ function publicHarness(agent) {
 }
 function localRetroHostClass(agent, environment, socketStatus = statSync12) {
   if (agent !== "cursor")
-    return "local";
+    return nonCursorHostClass(agent, environment);
   const configuredSocket = environment.CURSOR_AGENT_SOCKET?.trim() || undefined;
   const socketPath = configuredSocket || "/run/cursor/api.sock";
   try {
@@ -63138,6 +63138,11 @@ function localRetroHostClass(agent, environment, socketStatus = statSync12) {
     const error2 = error_;
     return error2.code === "ENOENT" && configuredSocket === undefined ? "local" : "unknown";
   }
+}
+function nonCursorHostClass(agent, environment) {
+  if (agent === "codex")
+    return "unknown";
+  return environment.CLAUDE_CODE_REMOTE_SESSION_ID === undefined ? "local" : "unknown";
 }
 function localServerRouteEnabled(source, readiness) {
   return readiness && source.hostClass === "local";

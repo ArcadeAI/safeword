@@ -1279,7 +1279,7 @@ export function localRetroHostClass(
   environment: NodeJS.ProcessEnv,
   socketStatus: (path: string) => unknown = statSync,
 ): PublicRetroSource['hostClass'] {
-  if (agent !== 'cursor') return 'local';
+  if (agent !== 'cursor') return nonCursorHostClass(agent, environment);
   const configuredSocket = environment.CURSOR_AGENT_SOCKET?.trim() || undefined;
   const socketPath = configuredSocket || '/run/cursor/api.sock';
   try {
@@ -1289,6 +1289,14 @@ export function localRetroHostClass(
     const error = error_ as NodeJS.ErrnoException;
     return error.code === 'ENOENT' && configuredSocket === undefined ? 'local' : 'unknown';
   }
+}
+
+function nonCursorHostClass(
+  agent: RetroAgent,
+  environment: NodeJS.ProcessEnv,
+): PublicRetroSource['hostClass'] {
+  if (agent === 'codex') return 'unknown';
+  return environment.CLAUDE_CODE_REMOTE_SESSION_ID === undefined ? 'local' : 'unknown';
 }
 
 export function localServerRouteEnabled(source: PublicRetroSource, readiness: boolean): boolean {

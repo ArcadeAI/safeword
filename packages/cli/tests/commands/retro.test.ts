@@ -276,17 +276,30 @@ describe('retro command configuration, extraction, egress, and relay execution',
 
       expect(
         resolvePublicRetroRoute({
-          agent: 'codex',
+          agent: 'claude',
           enabled: true,
           environment: {},
           projectDirectory: project,
           serverReady: true,
           sessionId: 'session-fixture',
         }),
-      ).toMatchObject({ route: 'server-v3', source: { harness: 'codex', hostClass: 'local' } });
+      ).toMatchObject({
+        route: 'server-v3',
+        source: { harness: 'claude-code', hostClass: 'local' },
+      });
     } finally {
       rmSync(project, { force: true, recursive: true });
     }
+  });
+
+  it('fails closed when Codex locality cannot be proven', () => {
+    expect(localRetroHostClass('codex', {})).toBe('unknown');
+    expect(
+      localRetroHostClass('codex', {
+        CODEX_MODEL: 'gpt-fixture',
+        CODEX_SESSION_ID: 'managed-session-fixture',
+      }),
+    ).toBe('unknown');
   });
 
   it('classifies Cursor managed, local, and indeterminate runtime evidence conservatively', () => {
