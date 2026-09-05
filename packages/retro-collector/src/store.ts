@@ -225,26 +225,6 @@ export class PublicRetroStore {
     return true;
   }
 
-  private deadLetterRetryExpired(stored: StoredServerRetro, now: number): boolean {
-    if (stored.attempts === 0 || Date.parse(stored.accepted_at) > now - 86_400_000) return false;
-    const deadLetteredAt = new Date(now).toISOString();
-    this.#database
-      .prepare(
-        `UPDATE server_retros
-            SET dead_lettered_at = ?, terminal_reason = 'retry_exhausted'
-          WHERE request_id = ? AND completed_at IS NULL AND dead_lettered_at IS NULL`,
-      )
-      .run(deadLetteredAt, stored.request_id);
-    this.#database
-      .prepare(
-        `INSERT INTO operator_alerts (request_id, code, created_at)
-         VALUES (?, 'retry_exhausted', ?)
-         ON CONFLICT (request_id) DO NOTHING`,
-      )
-      .run(stored.request_id, deadLetteredAt);
-    return true;
-  }
-
   accept(
     requestId: string,
     sessionScope: string,
@@ -319,7 +299,6 @@ export class PublicRetroStore {
         )
         .all(now, now) as unknown as StoredServerRetro[];
       const stored = candidates.find(candidate => {
-        if (this.deadLetterRetryExpired(candidate, now)) return false;
         if (this.hasFilingCapacity(candidate, now)) return true;
         this.deadLetterQuotaBlocked(candidate, now);
         return false;
