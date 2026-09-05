@@ -226,9 +226,9 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 
 ### Scenario: A real harness canary proves terminal production filing
 
-- [x] CAPTURED
-- [x] VERIFIED
-- [x] LINKED IN READINESS MANIFEST
+- [ ] CAPTURED
+- [ ] VERIFIED
+- [ ] LINKED IN READINESS MANIFEST
 
 ## Rule: local-retro-cutover.SWM1.R2 — Readiness proves truthful runtime provenance
 
@@ -242,9 +242,9 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 
 ### Scenario: Server-owned work survives a filing fault
 
-- [x] CAPTURED
-- [x] VERIFIED
-- [x] LINKED IN READINESS MANIFEST
+- [ ] CAPTURED
+- [ ] VERIFIED
+- [ ] LINKED IN READINESS MANIFEST
 
 ## Rule: local-retro-cutover.SWM1.R4 — Intake and filing bounds contain anonymous volume
 

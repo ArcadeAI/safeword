@@ -2,8 +2,8 @@
 id: 4F5744
 slug: route-local-retros-through-server
 type: feature
-phase: done
-status: done
+phase: implement
+status: in_progress
 phase_anchors:
   - verify: .project/tickets/4F5744-route-local-retros-through-server/test-definitions.md
   - done: .project/tickets/4F5744-route-local-retros-through-server/verify.md
@@ -81,3 +81,4 @@ Production relay credentials must add the independently rotatable `collector-wor
 - 2026-08-30T09:20:00.000Z Reviewed: Rejected blank-title v3 envelopes before durable acceptance, proved the routine operator route cannot read v3 payloads, removed the unused collector timestamp header, and made relay mode fail closed without a project directory.
 - 2026-08-30T15:08:00.000Z Reopened: Test-quality review found the collector-to-worker-to-relay seam was proved only against a permissive relay stub, allowing the collector acceptance timestamp and authorization contracts to drift while all suites stayed green. Resumed implementation with a real-collaborator RED.
 - 2026-08-30T16:43:00.000Z Completed: Replaced the permissive relay stub with a real collector-to-worker-to-relay integration, anchored relay ownership at relay acceptance, pinned the exact 60 KB boundary, closed authorization/readiness/version/legacy-row proof gaps, clarified exact-request versus cross-session deduplication, restored collector-route observability, and removed the idle worker's abort-listener leak. Full package, acceptance, build, type, lint, and supply-chain lanes passed except the unchanged repository-wide Python duplicate-module baseline recorded in verify.md.
+- 2026-09-05T11:57:00.000Z Reopened: Independent Claude and Codex reviews found release blockers in the collector retry clock, shared stop budget, readiness correlation, public-intake quota, and production-evidence claim. Restored implementation status until those findings and the real production evidence gate are resolved.
