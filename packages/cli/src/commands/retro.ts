@@ -1332,9 +1332,6 @@ export function resolvePublicRetroRoute(input: {
     input.serverReady ??
     validateLocalRetroReadiness(CHECKED_IN_LOCAL_RETRO_READINESS, {
       ancestorPairs: SAFEWORD_RELAY_BUILD_ATTESTATION.ancestorPairs,
-      // No production authority verifier is wired yet. Committed hashes alone
-      // cannot authorize local cutover.
-      authoritativeEvidenceVerified: false,
       buildCommit: SAFEWORD_BUILD_COMMIT,
       now: new Date(),
       relayReady: CHECKED_IN_RELAY_READINESS.enabled && SAFEWORD_RELAY_BUILD_ATTESTATION.enabled,

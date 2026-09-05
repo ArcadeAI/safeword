@@ -53585,7 +53585,9 @@ function hasEvidenceCollections(manifest) {
   return typeof manifest.harnesses === "object" && manifest.harnesses !== null && typeof manifest.recoveredFaults === "object" && manifest.recoveredFaults !== null;
 }
 function readinessPrerequisites(manifest, input) {
-  return manifest.enabled && input.authoritativeEvidenceVerified && input.relayReady && COMMIT.test(input.buildCommit);
+  const authority = input.authoritativeEvidence;
+  const manifestDigest = createHash29("sha256").update(JSON.stringify(manifest)).digest("hex");
+  return manifest.enabled && authority?.manifestSha256 === manifestDigest && authority.evidenceCommit === manifest.evidenceCommit && authority.buildCommit === input.buildCommit && input.relayReady && COMMIT.test(input.buildCommit);
 }
 function validateLocalRetroReadiness(manifest, input) {
   if (!readinessPrerequisites(manifest, input))
@@ -63149,7 +63151,6 @@ function resolvePublicRetroRoute(input) {
   };
   const serverReady = input.serverReady ?? validateLocalRetroReadiness(CHECKED_IN_LOCAL_RETRO_READINESS, {
     ancestorPairs: SAFEWORD_RELAY_BUILD_ATTESTATION.ancestorPairs,
-    authoritativeEvidenceVerified: false,
     buildCommit: SAFEWORD_BUILD_COMMIT,
     now: new Date,
     relayReady: CHECKED_IN_RELAY_READINESS.enabled && SAFEWORD_RELAY_BUILD_ATTESTATION.enabled

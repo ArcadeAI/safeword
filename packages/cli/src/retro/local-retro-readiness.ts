@@ -162,9 +162,13 @@ function readinessPrerequisites(
   manifest: DisabledManifest | LocalRetroReadinessManifest,
   input: Parameters<typeof validateLocalRetroReadiness>[1],
 ): manifest is LocalRetroReadinessManifest {
+  const authority = input.authoritativeEvidence;
+  const manifestDigest = createHash('sha256').update(JSON.stringify(manifest)).digest('hex');
   return (
     manifest.enabled &&
-    input.authoritativeEvidenceVerified &&
+    authority?.manifestSha256 === manifestDigest &&
+    authority.evidenceCommit === manifest.evidenceCommit &&
+    authority.buildCommit === input.buildCommit &&
     input.relayReady &&
     COMMIT.test(input.buildCommit)
   );
@@ -174,7 +178,11 @@ export function validateLocalRetroReadiness(
   manifest: DisabledManifest | LocalRetroReadinessManifest,
   input: {
     ancestorPairs: readonly { ancestor: string; descendant: string }[];
-    authoritativeEvidenceVerified: boolean;
+    authoritativeEvidence?: {
+      buildCommit: string;
+      evidenceCommit: string;
+      manifestSha256: string;
+    };
     buildCommit: string;
     now: Date;
     relayReady: boolean;

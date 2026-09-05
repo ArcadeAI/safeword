@@ -40,28 +40,33 @@ function readinessFixture(): {
   input: Parameters<typeof validateLocalRetroReadiness>[1];
   manifest: LocalRetroReadinessManifest;
 } {
-  return {
-    manifest: {
-      enabled: true,
-      evidenceCommit,
-      harnesses: {
-        'claude-code': harnessEvidence('claude-code', 1),
-        codex: harnessEvidence('codex', 2),
-        cursor: harnessEvidence('cursor', 3),
-      },
-      recoveredFaults: {
-        ambiguousCreateMatch: '1'.repeat(64),
-        ambiguousCreateNoMatch: '2'.repeat(64),
-        claimCrash: '3'.repeat(64),
-        retryExhaustion: '4'.repeat(64),
-        workerOutage: '5'.repeat(64),
-      },
-      reviewedAt: '2026-08-29T00:00:00.000Z',
-      version: 1,
+  const manifest: LocalRetroReadinessManifest = {
+    enabled: true,
+    evidenceCommit,
+    harnesses: {
+      'claude-code': harnessEvidence('claude-code', 1),
+      codex: harnessEvidence('codex', 2),
+      cursor: harnessEvidence('cursor', 3),
     },
+    recoveredFaults: {
+      ambiguousCreateMatch: '1'.repeat(64),
+      ambiguousCreateNoMatch: '2'.repeat(64),
+      claimCrash: '3'.repeat(64),
+      retryExhaustion: '4'.repeat(64),
+      workerOutage: '5'.repeat(64),
+    },
+    reviewedAt: '2026-08-29T00:00:00.000Z',
+    version: 1,
+  };
+  return {
+    manifest,
     input: {
       ancestorPairs: [{ ancestor: evidenceCommit, descendant: buildCommit }],
-      authoritativeEvidenceVerified: true,
+      authoritativeEvidence: {
+        buildCommit,
+        evidenceCommit,
+        manifestSha256: createHash('sha256').update(JSON.stringify(manifest)).digest('hex'),
+      },
       buildCommit,
       now: new Date('2026-08-29T01:00:00.000Z'),
       relayReady: true,
@@ -78,11 +83,17 @@ describe('local retro readiness', () => {
 
   it('accepts a running build at the reviewed evidence commit', () => {
     const { input, manifest } = readinessFixture();
+    const authority = input.authoritativeEvidence;
+    if (!authority) throw new Error('readiness fixture must include authoritative evidence');
 
     expect(
       validateLocalRetroReadiness(manifest, {
         ...input,
         ancestorPairs: [],
+        authoritativeEvidence: {
+          ...authority,
+          buildCommit: evidenceCommit,
+        },
         buildCommit: evidenceCommit,
       }),
     ).toBe(true);
@@ -94,8 +105,16 @@ describe('local retro readiness', () => {
     expect(
       validateLocalRetroReadiness(manifest, {
         ...input,
-        authoritativeEvidenceVerified: false,
+        authoritativeEvidence: undefined,
       }),
+    ).toBe(false);
+  });
+
+  it('rejects evidence substitution after authority verification', () => {
+    const { input, manifest } = readinessFixture();
+
+    expect(
+      validateLocalRetroReadiness({ ...manifest, reviewedAt: '2026-08-28T00:00:00.000Z' }, input),
     ).toBe(false);
   });
 
