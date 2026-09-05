@@ -12,6 +12,7 @@ import {
 } from '../../src/claude-plugin/catalogue.js';
 import { schemaForClaudeDelivery } from '../../src/claude-plugin/delivery-schema.js';
 import { writeClaudePluginMode } from '../../src/claude-plugin/migration-state.js';
+import { useIsolatedClaudePluginState } from '../helpers/claude-plugin-state.js';
 
 const roots: string[] = [];
 const digest = 'a'.repeat(64);
@@ -74,6 +75,8 @@ afterEach(() => {
   for (const root of roots) rmSync(root, { recursive: true, force: true });
   roots.length = 0;
 });
+
+useIsolatedClaudePluginState();
 
 describe('Claude delivery schema', () => {
   it('generates and seals one canonical native plugin inventory', () => {
