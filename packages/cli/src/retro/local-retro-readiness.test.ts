@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -7,14 +9,32 @@ import {
 
 const evidenceCommit = 'a'.repeat(40);
 const buildCommit = 'b'.repeat(40);
-const receipt = '11111111-2222-4333-8444-555555555555';
-const harnessEvidence = {
-  buildCommit: evidenceCommit,
-  collectorReceipt: receipt,
-  hostClass: 'local' as const,
-  relayReceipt: receipt,
-  terminal: 'filed' as const,
-};
+function harnessEvidence(harness: 'claude-code' | 'codex' | 'cursor', index: number) {
+  const evidence = {
+    buildCommit: evidenceCommit,
+    collectorReceipt: `11111111-2222-4333-8444-55555555555${index}`,
+    hostClass: 'local' as const,
+    relayReceipt: `21111111-2222-4333-8444-55555555555${index}`,
+    requestId: `31111111-2222-4333-8444-55555555555${index}`,
+    sessionScope: String(index).repeat(64),
+    terminal: 'filed' as const,
+  };
+  const artifactDigest = createHash('sha256')
+    .update(
+      [
+        'local-retro-canary:v1',
+        harness,
+        evidence.buildCommit,
+        evidence.requestId,
+        evidence.sessionScope,
+        evidence.collectorReceipt,
+        evidence.relayReceipt,
+        evidence.terminal,
+      ].join('\0'),
+    )
+    .digest('hex');
+  return { ...evidence, artifactDigest };
+}
 
 function readinessFixture(): {
   input: Parameters<typeof validateLocalRetroReadiness>[1];
@@ -25,9 +45,9 @@ function readinessFixture(): {
       enabled: true,
       evidenceCommit,
       harnesses: {
-        'claude-code': harnessEvidence,
-        codex: harnessEvidence,
-        cursor: harnessEvidence,
+        'claude-code': harnessEvidence('claude-code', 1),
+        codex: harnessEvidence('codex', 2),
+        cursor: harnessEvidence('cursor', 3),
       },
       recoveredFaults: {
         ambiguousCreateMatch: '1'.repeat(64),
@@ -75,7 +95,7 @@ describe('local retro readiness', () => {
         ...manifest,
         harnesses: {
           ...manifest.harnesses,
-          cursor: { ...harnessEvidence, hostClass },
+          cursor: { ...manifest.harnesses.cursor, hostClass },
         },
       } as never;
 
@@ -93,7 +113,7 @@ describe('local retro readiness', () => {
     const { input, manifest } = readinessFixture();
     const malformed = {
       ...manifest,
-      harnesses: { codex: harnessEvidence, cursor: harnessEvidence },
+      harnesses: { codex: manifest.harnesses.codex, cursor: manifest.harnesses.cursor },
     } as never;
 
     expect(validateLocalRetroReadiness(malformed, input)).toBe(false);
@@ -105,11 +125,24 @@ describe('local retro readiness', () => {
       ...manifest,
       harnesses: {
         ...manifest.harnesses,
-        codex: { ...harnessEvidence, buildCommit: 'c'.repeat(40) },
+        codex: { ...manifest.harnesses.codex, buildCommit: 'c'.repeat(40) },
       },
     };
 
     expect(validateLocalRetroReadiness(mismatched, input)).toBe(false);
+  });
+
+  it('rejects a canary identity reused across different harnesses', () => {
+    const { input, manifest } = readinessFixture();
+    const reused = {
+      ...manifest,
+      harnesses: {
+        ...manifest.harnesses,
+        codex: manifest.harnesses['claude-code'],
+      },
+    };
+
+    expect(validateLocalRetroReadiness(reused, input)).toBe(false);
   });
 
   it.each(Object.keys(readinessFixture().manifest.recoveredFaults))(
