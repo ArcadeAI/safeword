@@ -211,10 +211,14 @@ export class PublicRetroStore {
     this.#database
       .prepare(
         `UPDATE server_retros
-            SET dead_lettered_at = ?, terminal_reason = 'quota_exhausted'
+            SET dead_lettered_at = ?, terminal_reason = 'quota_exhausted',
+                lease_token = NULL, lease_expires_at = NULL
           WHERE request_id = ? AND completed_at IS NULL AND dead_lettered_at IS NULL`,
       )
       .run(deadLetteredAt, stored.request_id);
+    this.#database
+      .prepare("DELETE FROM filing_reservations WHERE request_id = ? AND state = 'reserved'")
+      .run(stored.request_id);
     this.#database
       .prepare(
         `INSERT INTO operator_alerts (request_id, code, created_at)
@@ -406,14 +410,16 @@ export class PublicRetroStore {
   release(requestId: string, leaseToken: string): boolean {
     this.#database.exec('BEGIN IMMEDIATE;');
     try {
+      const now = this.#now();
       const result = this.#database
         .prepare(
           `UPDATE server_retros
             SET lease_token = NULL, lease_expires_at = NULL,
                 next_attempt_at = ?
-          WHERE request_id = ? AND lease_token = ? AND completed_at IS NULL`,
+          WHERE request_id = ? AND lease_token = ? AND lease_expires_at > ?
+            AND completed_at IS NULL AND dead_lettered_at IS NULL`,
         )
-        .run(this.#now() + 60_000, requestId, leaseToken);
+        .run(now + 60_000, requestId, leaseToken, now);
       if (result.changes === 1) {
         this.#database
           .prepare("DELETE FROM filing_reservations WHERE request_id = ? AND state = 'reserved'")
@@ -430,16 +436,17 @@ export class PublicRetroStore {
   reject(requestId: string, leaseToken: string): boolean {
     this.#database.exec('BEGIN IMMEDIATE;');
     try {
-      const rejectedAt = new Date(this.#now()).toISOString();
+      const now = this.#now();
+      const rejectedAt = new Date(now).toISOString();
       const result = this.#database
         .prepare(
           `UPDATE server_retros
               SET dead_lettered_at = ?, terminal_reason = 'relay_rejected',
                   lease_token = NULL, lease_expires_at = NULL
-            WHERE request_id = ? AND lease_token = ?
+            WHERE request_id = ? AND lease_token = ? AND lease_expires_at > ?
               AND completed_at IS NULL AND dead_lettered_at IS NULL`,
         )
-        .run(rejectedAt, requestId, leaseToken);
+        .run(rejectedAt, requestId, leaseToken, now);
       if (result.changes === 1) {
         this.#database
           .prepare("DELETE FROM filing_reservations WHERE request_id = ? AND state = 'reserved'")
@@ -462,13 +469,15 @@ export class PublicRetroStore {
   complete(requestId: string, leaseToken: string): boolean {
     this.#database.exec('BEGIN IMMEDIATE;');
     try {
+      const now = this.#now();
       const result = this.#database
         .prepare(
           `UPDATE server_retros
             SET completed_at = ?, lease_token = NULL, lease_expires_at = NULL
-          WHERE request_id = ? AND lease_token = ? AND completed_at IS NULL`,
+          WHERE request_id = ? AND lease_token = ? AND lease_expires_at > ?
+            AND completed_at IS NULL AND dead_lettered_at IS NULL`,
         )
-        .run(new Date(this.#now()).toISOString(), requestId, leaseToken);
+        .run(new Date(now).toISOString(), requestId, leaseToken, now);
       if (result.changes === 1) {
         this.#database
           .prepare(

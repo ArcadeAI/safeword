@@ -414,7 +414,7 @@ export async function runRetro(
         filedSignatures: [],
         filedDestinations: [],
       },
-      agentFilingNeeded: false,
+      agentFilingNeeded: publicOutcome !== 'preserved',
       drops,
     };
   }
