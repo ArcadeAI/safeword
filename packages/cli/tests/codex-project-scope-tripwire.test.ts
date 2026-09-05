@@ -50,7 +50,7 @@ import { describe, expect, test } from 'vitest';
 const repoRoot = nodePath.resolve(import.meta.dirname, '../../..');
 
 /** Newest @openai/codex known to still lack project-scoped plugin activation. */
-const PINNED_VERSION = '0.149.1';
+const PINNED_VERSION = '0.152.1';
 
 function codexPin(): unknown {
   const manifest = JSON.parse(readFileSync(nodePath.join(repoRoot, 'package.json'), 'utf8')) as {
