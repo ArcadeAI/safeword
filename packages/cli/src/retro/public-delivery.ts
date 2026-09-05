@@ -341,6 +341,12 @@ function syncDirectoryEntry(directory: string): void {
   }
 }
 
+function resolveSyncDirectory(
+  dependencies: PublicRetroPreparationDependencies,
+): (directory: string) => void {
+  return dependencies.syncDirectory ?? syncDirectoryEntry;
+}
+
 export async function submitPublicRetroRequest(
   prepared: PreparedPublicRetroRequest,
   transport: PublicRetroTransport,
@@ -418,6 +424,7 @@ async function deliverPreparedInput(
       prepared,
       result,
       route: dependencies.route ?? 'direct-v2',
+      syncDirectory: resolveSyncDirectory(dependencies),
     });
     return preserved ? 'preserved' : 'abandoned';
   } catch (error) {
@@ -487,8 +494,9 @@ function preservePublicRetroReceipt(input: {
   prepared: PreparedPublicRetroRequest;
   result: PublicRetroReceipt;
   route: 'direct-v2' | 'server-v3';
+  syncDirectory: (directory: string) => void;
 }): boolean {
-  const { handoffDeadline, markerPath, now, prepared, result, route } = input;
+  const { handoffDeadline, markerPath, now, prepared, result, route, syncDirectory } = input;
   const temporaryPath = `${markerPath}.${prepared.requestId}.tmp`;
   let committed = false;
   try {
@@ -509,6 +517,7 @@ function preservePublicRetroReceipt(input: {
     );
     if (now() >= handoffDeadline) return false;
     renameSync(temporaryPath, markerPath);
+    syncDirectory(path.dirname(markerPath));
     committed = true;
     return true;
   } finally {

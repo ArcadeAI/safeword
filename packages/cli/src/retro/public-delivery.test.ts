@@ -802,6 +802,54 @@ describe('buildPublicRetroEnvelope', () => {
     }
   });
 
+  it('does not report preserved until the accepted-record directory entry is durable', async () => {
+    const attemptsDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-public-retro-'));
+    let syncCalls = 0;
+    try {
+      const outcome = await deliverSanitizedPublicRetroFindings(
+        {
+          findings: [
+            {
+              category: 'bug',
+              title: 'Accepted-record durability fixture',
+              safewordSurface: 'packages/cli/src/retro/public-delivery.ts',
+              whatHappened: 'The directory sync failed after the accepted-state rename.',
+              whyFriction: 'Local recovery must remain until ownership transfer is durable.',
+              repro: 'Inject a failure on the second directory sync.',
+            },
+          ],
+          source: requiredInput.source,
+          sessionId: requiredInput.sessionId,
+        },
+        {
+          attemptsDirectory,
+          now: () => 0,
+          randomUUID: () => '11111111-2222-4333-8444-555555555555',
+          route: 'server-v3',
+          syncDirectory: () => {
+            syncCalls += 1;
+            if (syncCalls === 2) throw new Error('injected accepted-record fsync failure');
+          },
+          transport: request =>
+            Promise.resolve({
+              receipt: 'collector-receipt',
+              requestId: request.headers['x-safeword-request-id'],
+            }),
+        },
+        750,
+      );
+
+      expect(outcome).toBe('abandoned');
+      expect(syncCalls).toBe(2);
+      const [filename] = readdirSync(attemptsDirectory);
+      const markerPath = path.join(attemptsDirectory, filename ?? '');
+      const record = JSON.parse(readFileSync(markerPath, 'utf8'));
+      expect(record).toMatchObject({ route: 'server-v3', state: 'accepted' });
+    } finally {
+      rmSync(attemptsDirectory, { recursive: true, force: true });
+    }
+  });
+
   it('abandons a collector handoff at the existing deadline without retrying', async () => {
     vi.useFakeTimers();
     const attemptsDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-public-retro-'));

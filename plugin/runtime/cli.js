@@ -59536,6 +59536,9 @@ function syncDirectoryEntry(directory) {
     closeSync13(descriptor);
   }
 }
+function resolveSyncDirectory(dependencies) {
+  return dependencies.syncDirectory ?? syncDirectoryEntry;
+}
 async function submitPublicRetroRequest(prepared, transport, signal) {
   const result = await transport({
     method: "POST",
@@ -59596,7 +59599,8 @@ async function deliverPreparedInput(input, dependencies, preparationDeadline) {
       now: dependencies.now,
       prepared,
       result,
-      route: dependencies.route ?? "direct-v2"
+      route: dependencies.route ?? "direct-v2",
+      syncDirectory: resolveSyncDirectory(dependencies)
     });
     return preserved ? "preserved" : "abandoned";
   } catch (error2) {
@@ -59640,7 +59644,7 @@ function releaseLegacyClaim(markerPath2, accepted, route) {
   } catch {}
 }
 function preservePublicRetroReceipt(input) {
-  const { handoffDeadline, markerPath: markerPath2, now, prepared, result, route } = input;
+  const { handoffDeadline, markerPath: markerPath2, now, prepared, result, route, syncDirectory } = input;
   const temporaryPath = `${markerPath2}.${prepared.requestId}.tmp`;
   let committed = false;
   try {
@@ -59654,6 +59658,7 @@ function preservePublicRetroReceipt(input) {
     if (now() >= handoffDeadline)
       return false;
     renameSync12(temporaryPath, markerPath2);
+    syncDirectory(path5.dirname(markerPath2));
     committed = true;
     return true;
   } finally {
