@@ -69,13 +69,13 @@ function readinessFixture(): {
 }
 
 describe('local retro readiness', () => {
-  it('accepts complete local harness and recovered-fault evidence on a ready relay', () => {
+  it('keeps rollout disabled when committed evidence lacks authoritative provenance', () => {
     const { input, manifest } = readinessFixture();
 
-    expect(validateLocalRetroReadiness(manifest, input)).toBe(true);
+    expect(validateLocalRetroReadiness(manifest, input)).toBe(false);
   });
 
-  it('accepts a running build at the reviewed evidence commit', () => {
+  it('keeps rollout disabled at the reviewed evidence commit', () => {
     const { input, manifest } = readinessFixture();
 
     expect(
@@ -84,7 +84,7 @@ describe('local retro readiness', () => {
         ancestorPairs: [],
         buildCommit: evidenceCommit,
       }),
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it.each(['managed', 'unknown'] as const)(

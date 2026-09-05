@@ -42,6 +42,14 @@ const COMMIT = /^[\da-f]{40}$/u;
 const DIGEST = /^[\da-f]{64}$/u;
 const UUID = /^[\da-f]{8}-[\da-f]{4}-[1-5][\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/u;
 
+// Production canary and fault artifacts do not yet carry a collector/relay
+// signature or another independently verifiable provenance record. Keep this
+// rollout gate closed until that authority exists; committed digests alone are
+// not evidence of production behavior.
+function hasAuthoritativeProductionEvidence(): boolean {
+  return false;
+}
+
 function harnessBuildIsCurrent(
   buildCommit: string,
   manifest: LocalRetroReadinessManifest,
@@ -154,6 +162,18 @@ function hasEvidenceCollections(manifest: LocalRetroReadinessManifest): boolean 
   );
 }
 
+function readinessPrerequisites(
+  manifest: DisabledManifest | LocalRetroReadinessManifest,
+  input: Parameters<typeof validateLocalRetroReadiness>[1],
+): manifest is LocalRetroReadinessManifest {
+  return (
+    manifest.enabled &&
+    input.relayReady &&
+    COMMIT.test(input.buildCommit) &&
+    hasAuthoritativeProductionEvidence()
+  );
+}
+
 export function validateLocalRetroReadiness(
   manifest: DisabledManifest | LocalRetroReadinessManifest,
   input: {
@@ -163,7 +183,7 @@ export function validateLocalRetroReadiness(
     relayReady: boolean;
   },
 ): boolean {
-  if (!manifest.enabled || !input.relayReady || !COMMIT.test(input.buildCommit)) return false;
+  if (!readinessPrerequisites(manifest, input)) return false;
   if (!validReviewWindow(manifest, input.now) || !manifestBuildIsAncestor(manifest, input))
     return false;
   if (!hasEvidenceCollections(manifest)) return false;
