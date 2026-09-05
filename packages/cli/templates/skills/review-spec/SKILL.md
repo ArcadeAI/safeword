@@ -102,10 +102,13 @@ failure, timeout, a pending/malformed result, `request_changes`, changed review
 inputs, or stamp-write failure all leave the ticket in `scenario-gate`. After an
 approval, record the returned author, actual reviewer, verified model when
 present, and independence with
-`write-review-stamp.ts --review-id "review_id" --phase scenario-gate`. The
-`--review-id` is the coordinator's `review_id` from the result you are stamping:
-it is what proves the review ran, so a stamp claiming independence without one
-is refused.
+`write-review-stamp.ts --review-id "review_id" --independence "independence" --author-agent "author_agent" --reviewer-agent "actual_reviewer" --model "reviewer_model" --phase scenario-gate`.
+Every value comes from the result you are stamping; drop `--model` when the
+result reports no verified model. The `--review-id` is that result's
+`review_id`: it is what proves the review ran, so a stamp claiming independence
+without one is refused. The other flags are checked against the same review, so
+reporting an independence, author, or reviewer the coordinator did not record is
+refused too — copy them, do not restate them from memory.
 Do not advance until that stamp succeeds.
 
 The headless reviewer receives the package-generated copy of the marked block

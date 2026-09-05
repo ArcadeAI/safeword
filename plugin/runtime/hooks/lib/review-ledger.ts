@@ -27,6 +27,12 @@ export interface ReviewStamp {
   reviewer?: 'claude' | 'codex' | 'opencode';
   /** Independence earned by the validated route. */
   independence?: 'cross-agent' | 'degraded' | 'none';
+  /**
+   * The coordinator review this stamp cites (ticket PB1GMZ). Recorded so the
+   * claim stays checkable after the fact: `review status <id>` still reports
+   * whether that review approved and whether its sources have moved since.
+   */
+  reviewId?: string;
 }
 
 export type CrossAgentReviewPolicy = 'prefer' | 'require' | 'off';
@@ -118,7 +124,7 @@ export function gatePhaseAdvance(
 // fork review). The content-hash binding in <scope> at least defeats accidental
 // stale-after-edit passes, not deliberate spoofing.
 const REVIEW_LINE =
-  /(?:^|\s)review:(\S+)(?:\s+model:(\S+))?(?:\s+author:(claude|codex|opencode))?(?:\s+reviewer:(claude|codex|opencode))?(?:\s+independence:(cross-agent|degraded|none))?(?:\s+skip:(.+))?$/;
+  /(?:^|\s)review:(\S+)(?:\s+model:(\S+))?(?:\s+author:(claude|codex|opencode))?(?:\s+reviewer:(claude|codex|opencode))?(?:\s+independence:(cross-agent|degraded|none))?(?:\s+review-id:(\S+))?(?:\s+skip:(.+))?$/;
 
 /**
  * Rollout guard: the review gate is OFF unless `.safeword/config.json` sets
@@ -231,13 +237,15 @@ export function formatReviewStamp(
   author?: ReviewStamp['author'],
   reviewer?: ReviewStamp['reviewer'],
   independence?: ReviewStamp['independence'],
+  reviewId?: string,
 ): string {
   const modelSegment = model === undefined ? '' : ` model:${model}`;
   const authorSegment = author === undefined ? '' : ` author:${author}`;
   const reviewerSegment = reviewer === undefined ? '' : ` reviewer:${reviewer}`;
   const independenceSegment = independence === undefined ? '' : ` independence:${independence}`;
+  const reviewIdSegment = reviewId === undefined ? '' : ` review-id:${reviewId}`;
   const skipSegment = skipReason === undefined ? '' : ` skip:${skipReason}`;
-  return `review:${scope}${modelSegment}${authorSegment}${reviewerSegment}${independenceSegment}${skipSegment}`;
+  return `review:${scope}${modelSegment}${authorSegment}${reviewerSegment}${independenceSegment}${reviewIdSegment}${skipSegment}`;
 }
 
 /** Read review stamps from skill-invocation-log content (non-review lines ignored). */
@@ -250,12 +258,14 @@ export function parseReviewStamps(logContent: string): ReviewStamp[] {
     const author = match[3] as ReviewStamp['author'];
     const reviewer = match[4] as ReviewStamp['reviewer'];
     const independence = match[5] as ReviewStamp['independence'];
-    const skipReason = match[6];
+    const reviewId = match[6];
+    const skipReason = match[7];
     const stamp: ReviewStamp = { scope: match[1] };
     if (model !== undefined) stamp.model = model;
     if (author !== undefined) stamp.author = author;
     if (reviewer !== undefined) stamp.reviewer = reviewer;
     if (independence !== undefined) stamp.independence = independence;
+    if (reviewId !== undefined) stamp.reviewId = reviewId;
     if (skipReason !== undefined) stamp.skipReason = skipReason;
     stamps.push(stamp);
   }

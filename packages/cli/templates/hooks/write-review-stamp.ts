@@ -274,7 +274,13 @@ function resolveScope(ticketFolder: string): {
   label: string;
   claim: StampClaim;
 } {
-  const claimed = { independence, skip: skipReason !== undefined };
+  const claimed = {
+    independence,
+    skip: skipReason !== undefined,
+    ticketFolder,
+    authorAgent,
+    reviewerAgent,
+  };
   if (isPhase) {
     const value = positional[1];
     if (value === undefined || value === '') fail('--phase requires a phase name');
@@ -309,15 +315,22 @@ function readReceipt(id: string): ReviewReceipt {
     if (run.error !== undefined || run.stdout === '') continue;
     try {
       const data = (JSON.parse(run.stdout) as { data?: Record<string, unknown> }).data ?? {};
-      // An id the coordinator does not know reports no review_id back.
-      if (typeof data.review_id !== 'string') break;
+      // An id the coordinator does not know reports no review_id back, and a
+      // record that answers about a *different* review is no witness for this
+      // one — so the reported id has to be the one that was asked about.
+      if (data.review_id !== id) break;
+      const text = (field: string): string | undefined =>
+        typeof data[field] === 'string' ? (data[field] as string) : undefined;
       return {
-        reviewId: data.review_id,
-        status: typeof data.status === 'string' ? data.status : undefined,
-        kind: typeof data.review_kind === 'string' ? data.review_kind : undefined,
+        reviewId: id,
+        status: text('status'),
+        kind: text('review_kind'),
         targets: Array.isArray(data.review_targets)
           ? data.review_targets.filter(target => typeof target === 'string')
           : [],
+        independence: text('independence'),
+        authorAgent: text('author_agent'),
+        actualReviewer: text('actual_reviewer'),
       };
     } catch {
       break;
@@ -341,7 +354,7 @@ const logFile = nodePath.join(logDirectory, 'skill-invocations.log');
 mkdirSync(logDirectory, { recursive: true });
 appendFileSync(
   logFile,
-  `${new Date().toISOString()} ${sessionId} ${formatReviewStamp(scope, skipReason, reviewerModel, authorAgent, reviewerAgent, independence)}\n`,
+  `${new Date().toISOString()} ${sessionId} ${formatReviewStamp(scope, skipReason, reviewerModel, authorAgent, reviewerAgent, independence, reviewId)}\n`,
 );
 
 const kind = skipReason === undefined ? 'review' : `skip (${skipReason})`;

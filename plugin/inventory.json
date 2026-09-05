@@ -143,11 +143,11 @@
     },
     {
       "path": "runtime/cli.js",
-      "sha256": "1b703d0e2ababd03d6e31da5645fcdf2d441f3bad7c5a568081181637d40fff2"
+      "sha256": "c8d94606dc4b56545c5d81cd896883a7ae1545c665ccba9eacb54323799ee0ba"
     },
     {
       "path": "runtime/dispatch.js",
-      "sha256": "4068906a9089cfc120c2cce3807cef3f33bd07137ea49e36c06d831d9da571d0"
+      "sha256": "8afaf265b235aae0614dd45070332e72c6cfb1e2a6452d5ae03fe4fa440d78d1"
     },
     {
       "path": "runtime/event-groups.json",
@@ -371,11 +371,11 @@
     },
     {
       "path": "runtime/hooks/lib/review-ledger.ts",
-      "sha256": "1f3724f92558ffbe4077c012573c1cb30660f67867a0b3682b8aeb18a2c69a6d"
+      "sha256": "c18fef83fab5639cc485426508e87ce9c944c958ed48a25a96338fe96b1bfef7"
     },
     {
       "path": "runtime/hooks/lib/review-receipt.ts",
-      "sha256": "6cad8cc81f1988fb57544901c8c218d378f7a6851ae5211e70c70b31fb4b0f69"
+      "sha256": "427a0333e8ea1836514ef3644a35f56ee8fca7ef9c5c31ddb3a8177893e4060e"
     },
     {
       "path": "runtime/hooks/lib/review-trigger.ts",
@@ -591,7 +591,7 @@
     },
     {
       "path": "runtime/hooks/write-review-stamp.ts",
-      "sha256": "464e2dd8a99fdd85145dca978f69630389c16b41d294cbacd470c3083a365ec1"
+      "sha256": "095eda64137bb740cbdbe45da94638f9a6ec8db2ba16c78ee086e7959b27dce6"
     },
     {
       "path": "skills/audit/SKILL.md",
@@ -607,7 +607,7 @@
     },
     {
       "path": "skills/bdd/PLAN_IMPLEMENTATION.md",
-      "sha256": "c8d3b3711080ce33f5161ed93ff00c1d61f4a6bf1542b9bcb2fa13c33aeb23ca"
+      "sha256": "76a20577409fb9d514b06f84a8c3e37ef4f2bf3d2d30f42300713cc1cde80d9e"
     },
     {
       "path": "skills/bdd/SCENARIOS.md",
@@ -695,7 +695,7 @@
     },
     {
       "path": "skills/review-spec/SKILL.md",
-      "sha256": "70deb22c46e7ac0cf51a648b02a05303a8e7f4f50b56b032ed17884654b82ff7"
+      "sha256": "6f7db49984af9e3aaa48d3ae54a92b9547ea5af6c552fee7b8d85d866a0f8898"
     },
     {
       "path": "skills/self-review/SKILL.md",

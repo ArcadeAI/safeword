@@ -25,6 +25,16 @@ export interface StampClaim {
   readonly artifact?: string;
   /** Phase stamps name the exited phase, which matches the review kind. */
   readonly phase?: string;
+  /**
+   * The ticket the stamp is being written for. Every stamp is ticket-scoped, so
+   * the cited review has to have covered THIS ticket: without it, a fresh
+   * approval for ticket A witnesses the same artifact name or phase on ticket B.
+   */
+  readonly ticketFolder: string;
+  /** Author runtime the stamp reports, when it reports one. */
+  readonly authorAgent?: string;
+  /** Actual reviewer runtime the stamp reports, when it reports one. */
+  readonly reviewerAgent?: string;
 }
 
 /** The fields `review status <id> --json` reports about a review. */
@@ -33,13 +43,27 @@ export interface ReviewReceipt {
   readonly status?: string;
   readonly kind?: string;
   readonly targets?: readonly string[];
+  readonly independence?: string;
+  readonly authorAgent?: string;
+  readonly actualReviewer?: string;
 }
 
 /** Levels that assert a coordinator ran and returned a verdict. */
 const COORDINATOR_CLAIMS = new Set(['cross-agent', 'degraded']);
 
-function coversArtifact(targets: readonly string[], artifact: string): boolean {
-  return targets.some(target => target === `${artifact}.md` || target.endsWith(`/${artifact}.md`));
+/** Whether a reviewed path sits inside the ticket being stamped. */
+function withinTicket(target: string, ticketFolder: string): boolean {
+  return target.split('/').includes(ticketFolder);
+}
+
+function coversArtifact(
+  targets: readonly string[],
+  ticketFolder: string,
+  artifact: string,
+): boolean {
+  return targets.some(
+    target => withinTicket(target, ticketFolder) && target.split('/').at(-1) === `${artifact}.md`,
+  );
 }
 
 /**
@@ -69,16 +93,47 @@ export function receiptGateVerdict(claim: StampClaim, receipt?: ReviewReceipt): 
           : `review ${receipt.reviewId} did not approve (status: ${receipt.status ?? 'unknown'})`,
     };
 
-  if (claim.phase !== undefined && receipt.kind !== claim.phase)
+  // A stamp reports the coordinator's provenance verdict; the receipt is where
+  // that verdict actually lives. Compared here, a degraded same-agent review
+  // cannot be written up as cross-agent. Absent fields fail closed: an
+  // unwitnessed claim is exactly what this gate exists to refuse.
+  if (receipt.independence !== claim.independence)
     return {
       ok: false,
-      reason: `review ${receipt.reviewId} is a "${receipt.kind ?? 'unknown'}" review, not the "${claim.phase}" exit being stamped`,
+      reason: `review ${receipt.reviewId} recorded "independence: ${receipt.independence ?? 'none recorded'}", not the "${claim.independence}" the stamp claims`,
     };
 
-  if (claim.artifact !== undefined && !coversArtifact(receipt.targets ?? [], claim.artifact))
+  const provenance = [
+    ['author', claim.authorAgent, receipt.authorAgent],
+    ['reviewer', claim.reviewerAgent, receipt.actualReviewer],
+  ] as const;
+  for (const [field, claimed, recorded] of provenance) {
+    if (claimed !== undefined && recorded !== claimed)
+      return {
+        ok: false,
+        reason: `review ${receipt.reviewId} recorded "${field}: ${recorded ?? 'none recorded'}", not the "${claimed}" the stamp claims`,
+      };
+  }
+
+  const targets = receipt.targets ?? [];
+
+  if (claim.phase !== undefined) {
+    if (receipt.kind !== claim.phase)
+      return {
+        ok: false,
+        reason: `review ${receipt.reviewId} is a "${receipt.kind ?? 'unknown'}" review, not the "${claim.phase}" exit being stamped`,
+      };
+    if (!targets.some(target => withinTicket(target, claim.ticketFolder)))
+      return {
+        ok: false,
+        reason: `review ${receipt.reviewId} reviewed nothing in ${claim.ticketFolder} — it covered ${targets.join(', ') || 'nothing'}`,
+      };
+  }
+
+  if (claim.artifact !== undefined && !coversArtifact(targets, claim.ticketFolder, claim.artifact))
     return {
       ok: false,
-      reason: `review ${receipt.reviewId} did not review ${claim.artifact}.md — it covered ${(receipt.targets ?? []).join(', ') || 'nothing'}`,
+      reason: `review ${receipt.reviewId} did not review ${claim.ticketFolder}/${claim.artifact}.md — it covered ${targets.join(', ') || 'nothing'}`,
     };
 
   return { ok: true };
