@@ -154,6 +154,35 @@ export function isReviewGateEnabled(rawConfig?: string): boolean {
   return configFlagIsTrue(rawConfig, 'reviewGate');
 }
 
+/**
+ * Whether the Tier 2 phase-exit review gate applies to the phase being left.
+ *
+ * `reviewGate: true` enforces at every exit (the original all-or-nothing flag).
+ * `reviewGate: ["define-behavior", "scenario-gate"]` enforces only at the listed
+ * exits — the selective posture ticket 2VCSZY sketched as "option c", so a
+ * project can buy independent review where judgment is load-bearing without
+ * paying a fork review at exits that machine evidence already gates
+ * (implement -> verify has tests; verify -> done has the done gate).
+ *
+ * A list leaves Tier 1 (the per-asset inline stamp) off: that gate is per-asset,
+ * not per-phase, so it has no phase to select on and stays all-or-nothing under
+ * {@link isReviewGateEnabled}. Fail-safe to off on missing/malformed config, and
+ * non-string entries are ignored rather than voiding the whole list.
+ */
+export function reviewGateAppliesToPhase(rawConfig: string | undefined, phase: string): boolean {
+  if (isReviewGateEnabled(rawConfig)) return true;
+  if (rawConfig === undefined) return false;
+  try {
+    const config: unknown = JSON.parse(rawConfig);
+    if (typeof config !== 'object' || config === null) return false;
+    const value = (config as Record<string, unknown>).reviewGate;
+    // Strict `includes` is the non-string filter: a numeric 7 never equals "7".
+    return Array.isArray(value) && value.includes(phase);
+  } catch {
+    return false;
+  }
+}
+
 const PHASE_FIELD = /^phase:\s*(\S+)/m;
 
 /**

@@ -129,6 +129,7 @@ To disable a specific hook, remove the safeword hook entry from that agent's con
 Two opt-in review gates (both default off) add independent-review requirements on top of the always-on gates:
 
 - `reviewGate: true` — every ticket phase advance requires an independent phase-exit review stamp (a fresh-context reviewer, logged via `write-review-stamp.ts --phase <phase>`), or an explicitly logged skip reason. Built for autonomous runs where user checkpoints auto-confirm.
+- `reviewGate: ["define-behavior", "scenario-gate"]` — the same gate at named exits only. Buys independent review where judgment carries the phase, without paying a fork review at exits machine evidence already guards (implement → verify has tests; verify → done has the done gate). A list enables the phase-exit gate only; the per-asset inline stamp stays off, since it has no phase to select on and remains all-or-nothing under `reviewGate: true`.
 - `architectureReviewGate: true` — a new-flow feature can't reach verify/done until its `impl-plan.md` design has been independently reviewed: the Decisions section must cite evidence (URL or `[n]` marker), and the review stamp binds to the plan's content hash — editing the design after review invalidates it. Add `crossModelReview: true` to require the reviewer run on a different model than the author.
 
 Adversarial reviews use `crossAgentReview` to choose their reviewer route:

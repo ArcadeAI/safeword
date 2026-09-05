@@ -14,6 +14,7 @@ import {
   isReviewGateEnabled,
   parseReviewStamps,
   readCrossAgentReviewPolicy,
+  reviewGateAppliesToPhase,
   reviewGateForNextAsset,
   reviewScope,
   type ReviewStamp,
@@ -326,6 +327,39 @@ describe('isReviewGateEnabled (default-off rollout guard)', () => {
 
   it('is off on malformed config (fail-safe)', () => {
     expect(isReviewGateEnabled('not json {')).toBe(false);
+  });
+
+  it('stays off for a phase list — Tier 1 is all-or-nothing', () => {
+    expect(isReviewGateEnabled('{"reviewGate": ["scenario-gate"]}')).toBe(false);
+  });
+});
+
+describe('reviewGateAppliesToPhase (selective per-phase enforcement)', () => {
+  it('applies to every phase when reviewGate is true', () => {
+    expect(reviewGateAppliesToPhase('{"reviewGate": true}', 'implement')).toBe(true);
+    expect(reviewGateAppliesToPhase('{"reviewGate": true}', 'scenario-gate')).toBe(true);
+  });
+
+  it('applies only to the listed phases when reviewGate is a list', () => {
+    const config = '{"reviewGate": ["define-behavior", "scenario-gate"]}';
+    expect(reviewGateAppliesToPhase(config, 'define-behavior')).toBe(true);
+    expect(reviewGateAppliesToPhase(config, 'scenario-gate')).toBe(true);
+    expect(reviewGateAppliesToPhase(config, 'implement')).toBe(false);
+    expect(reviewGateAppliesToPhase(config, 'done')).toBe(false);
+  });
+
+  it('ignores non-string entries rather than failing open on the whole list', () => {
+    const config = '{"reviewGate": [7, "scenario-gate", null]}';
+    expect(reviewGateAppliesToPhase(config, 'scenario-gate')).toBe(true);
+    expect(reviewGateAppliesToPhase(config, '7')).toBe(false);
+  });
+
+  it('is off for an empty list, false, absent, and malformed config', () => {
+    expect(reviewGateAppliesToPhase('{"reviewGate": []}', 'scenario-gate')).toBe(false);
+    expect(reviewGateAppliesToPhase('{"reviewGate": false}', 'scenario-gate')).toBe(false);
+    expect(reviewGateAppliesToPhase('{}', 'scenario-gate')).toBe(false);
+    expect(reviewGateAppliesToPhase(undefined, 'scenario-gate')).toBe(false);
+    expect(reviewGateAppliesToPhase('not json {', 'scenario-gate')).toBe(false);
   });
 });
 
