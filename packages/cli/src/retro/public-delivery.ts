@@ -53,6 +53,15 @@ export type PublicRetroTransport = (
   signal?: AbortSignal,
 ) => Promise<PublicRetroReceipt>;
 
+export class PublicRetroRejection extends Error {
+  constructor(
+    readonly status: number,
+    readonly code: string,
+  ) {
+    super(`Public retrospective submission failed (${status})`);
+  }
+}
+
 export interface PublicRetroPreparationDependencies {
   attemptsDirectory: string;
   randomUUID: () => string;
@@ -362,10 +371,50 @@ async function deliverPreparedInput(
       route: dependencies.route ?? 'direct-v2',
     });
     return preserved ? 'preserved' : 'abandoned';
-  } catch {
+  } catch (error) {
+    preserveServerRejectionDiagnosis(dependencies.route, claimedMarkerPath, error);
     return 'abandoned';
   } finally {
     releaseLegacyClaim(claimedMarkerPath, accepted, dependencies.route);
+  }
+}
+
+function preserveServerRejectionDiagnosis(
+  route: PublicRetroPreparationDependencies['route'],
+  markerPath: string | undefined,
+  error: unknown,
+): void {
+  if (route === 'server-v3' && markerPath !== undefined && error instanceof PublicRetroRejection) {
+    preserveServerRejection(markerPath, error);
+  }
+}
+
+function preserveServerRejection(markerPath: string, rejection: PublicRetroRejection): void {
+  const temporaryPath = `${markerPath}.rejection.tmp`;
+  let renamed = false;
+  try {
+    const record = JSON.parse(readFileSync(markerPath, 'utf8')) as Record<string, unknown>;
+    if (record.route !== 'server-v3' || record.state !== 'pending') return;
+    writeFileSync(
+      temporaryPath,
+      JSON.stringify({
+        ...record,
+        lastRejection: { code: rejection.code, status: rejection.status },
+      }),
+      { encoding: 'utf8', flag: 'wx', flush: true },
+    );
+    renameSync(temporaryPath, markerPath);
+    renamed = true;
+  } catch {
+    // Recovery remains valid without optional diagnosis persistence.
+  } finally {
+    if (!renamed) {
+      try {
+        unlinkSync(temporaryPath);
+      } catch {
+        // The temporary record was never created or has already been moved.
+      }
+    }
   }
 }
 

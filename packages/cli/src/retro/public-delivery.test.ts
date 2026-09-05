@@ -13,6 +13,7 @@ import {
   type PublicRetroHttpRequest,
   submitPublicRetroRequest,
 } from './public-delivery.js';
+import { createPublicRetroTransport } from './public-transport.js';
 
 const requiredInput = {
   findings: ['fixture finding'],
@@ -514,6 +515,53 @@ describe('buildPublicRetroEnvelope', () => {
         state: 'pending',
       });
       expect(record.bodyBase64).toEqual(expect.any(String));
+    } finally {
+      rmSync(attemptsDirectory, { recursive: true, force: true });
+    }
+  });
+
+  it('persists a typed collector rejection with the pending server-v3 recovery record', async () => {
+    const attemptsDirectory = mkdtempSync(path.join(tmpdir(), 'safeword-public-retro-'));
+    try {
+      const outcome = await deliverSanitizedPublicRetroFindings(
+        {
+          findings: [
+            {
+              category: 'bug',
+              title: 'Typed rejection fixture',
+              safewordSurface: 'packages/cli/src/retro/public-delivery.ts',
+              whatHappened: 'The collector rejected the request with a typed response.',
+              whyFriction: 'Local recovery needs the reason for operator diagnosis.',
+              repro: 'Return an intake quota response.',
+            },
+          ],
+          source: requiredInput.source,
+          sessionId: requiredInput.sessionId,
+        },
+        {
+          attemptsDirectory,
+          now: () => 0,
+          randomUUID: () => '11111111-2222-4333-8444-555555555555',
+          route: 'server-v3',
+          transport: createPublicRetroTransport({
+            fetch: () =>
+              Promise.resolve(Response.json({ error: 'intake_quota_exhausted' }, { status: 429 })),
+            origin: 'http://127.0.0.1:43179',
+          }),
+        },
+        750,
+      );
+      const [filename] = readdirSync(attemptsDirectory);
+      const record = JSON.parse(
+        readFileSync(path.join(attemptsDirectory, filename ?? ''), 'utf8'),
+      ) as Record<string, unknown>;
+
+      expect(outcome).toBe('abandoned');
+      expect(record).toMatchObject({
+        lastRejection: { code: 'intake_quota_exhausted', status: 429 },
+        route: 'server-v3',
+        state: 'pending',
+      });
     } finally {
       rmSync(attemptsDirectory, { recursive: true, force: true });
     }

@@ -59564,10 +59564,37 @@ async function deliverPreparedInput(input, dependencies, preparationDeadline) {
       route: dependencies.route ?? "direct-v2"
     });
     return preserved ? "preserved" : "abandoned";
-  } catch {
+  } catch (error2) {
+    preserveServerRejectionDiagnosis(dependencies.route, claimedMarkerPath, error2);
     return "abandoned";
   } finally {
     releaseLegacyClaim(claimedMarkerPath, accepted, dependencies.route);
+  }
+}
+function preserveServerRejectionDiagnosis(route, markerPath2, error2) {
+  if (route === "server-v3" && markerPath2 !== undefined && error2 instanceof PublicRetroRejection) {
+    preserveServerRejection(markerPath2, error2);
+  }
+}
+function preserveServerRejection(markerPath2, rejection) {
+  const temporaryPath = `${markerPath2}.rejection.tmp`;
+  let renamed = false;
+  try {
+    const record2 = JSON.parse(readFileSync69(markerPath2, "utf8"));
+    if (record2.route !== "server-v3" || record2.state !== "pending")
+      return;
+    writeFileSync25(temporaryPath, JSON.stringify({
+      ...record2,
+      lastRejection: { code: rejection.code, status: rejection.status }
+    }), { encoding: "utf8", flag: "wx", flush: true });
+    renameSync12(temporaryPath, markerPath2);
+    renamed = true;
+  } catch {} finally {
+    if (!renamed) {
+      try {
+        unlinkSync6(temporaryPath);
+      } catch {}
+    }
   }
 }
 function releaseLegacyClaim(markerPath2, accepted, route) {
@@ -59614,9 +59641,18 @@ function deliverSanitizedPublicRetroFindings(input, dependencies, preparationDea
     return Promise.resolve("abandoned");
   }
 }
-var UUID2, UUID_V4, LEGACY_MAX_ENVELOPE_BYTES = 65536, SERVER_MAX_ENVELOPE_BYTES = 262144, MAX_OPTIONAL_VALUE_BYTES = 256;
+var PublicRetroRejection, UUID2, UUID_V4, LEGACY_MAX_ENVELOPE_BYTES = 65536, SERVER_MAX_ENVELOPE_BYTES = 262144, MAX_OPTIONAL_VALUE_BYTES = 256;
 var init_public_delivery = __esm(() => {
   init_finding();
+  PublicRetroRejection = class PublicRetroRejection extends Error {
+    status;
+    code;
+    constructor(status, code) {
+      super(`Public retrospective submission failed (${status})`);
+      this.status = status;
+      this.code = code;
+    }
+  };
   UUID2 = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
   UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 });
@@ -59847,8 +59883,16 @@ function createPublicRetroTransport(options) {
       redirect: "error",
       signal
     });
-    if (!response.ok)
-      throw new Error(`Public retrospective submission failed (${response.status})`);
+    if (!response.ok) {
+      let code = "unknown";
+      try {
+        const rejection = await response.json();
+        if (typeof rejection.error === "string" && /^[a-z_]{1,64}$/u.test(rejection.error)) {
+          code = rejection.error;
+        }
+      } catch {}
+      throw new PublicRetroRejection(response.status, code);
+    }
     let result;
     try {
       result = await response.json();
@@ -59863,6 +59907,7 @@ function createPublicRetroTransport(options) {
 }
 var PUBLIC_RETRO_ORIGIN, LOOPBACK_HOSTS;
 var init_public_transport = __esm(() => {
+  init_public_delivery();
   PUBLIC_RETRO_ORIGIN = typeof __SAFEWORD_PUBLIC_RETRO_ORIGIN__ === "string" ? __SAFEWORD_PUBLIC_RETRO_ORIGIN__ : "https://retro-collector-production.up.railway.app";
   LOOPBACK_HOSTS = new Set(["127.0.0.1", "[::1]", "localhost"]);
 });
