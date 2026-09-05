@@ -70,7 +70,7 @@ export const CLAUDE_HISTORICAL_CATALOGUE = {
       '.claude/skills/ticket-system/SKILL.md':
         '97595a9875cdca30ea26c809a26e5be7df338a42034d6122b559e70275f2477e',
       '.claude/skills/verify/SKILL.md':
-        '5b62944599be519ca06158c078702df9dfadc11a99f27ed19ede4bdcfc5cc0c8',
+        'ed87e2c098a87fa224af8e18a17bac4a84806f6963b6703375fe749f3dd408e4',
     },
     hook_files: {
       '.safeword/hooks/post-tool-bypass-warn.ts':
