@@ -15,6 +15,7 @@ import { isWouldChangeAction, type SelfHealAction } from '../utils/architecture-
 import { type AgentSelectionError, parseAgentSelection } from './agent-selection.js';
 import { observedFileEffect, observeFile } from './file-snapshot.js';
 import type { CommandHandler, CommandInvocation } from './handler.js';
+import { withLegacyRawJsonGuidance } from './legacy-raw-json.js';
 import { onlineRequired } from './online-required.js';
 import { numericOption, stringOption } from './option-values.js';
 import {
@@ -669,26 +670,6 @@ async function retroDrainHandler(invocation: CommandInvocation): Promise<CliResu
     return invalidOperand('project retro-drain', 'retro-drain spool must be text.');
   }
   return runRetroDrain(invocation.cwd, spool, invocation.options);
-}
-
-function withLegacyRawJsonGuidance(
-  result: CliResult,
-  options: Readonly<Record<string, unknown>>,
-  command: string,
-): CliResult {
-  if (options.format !== 'json') return result;
-  return {
-    ...result,
-    findings: [
-      ...result.findings,
-      {
-        code: 'CLI_RAW_JSON_DEPRECATED',
-        message: `The legacy raw JSON format for \`${command}\` remains available; use global \`--json\` for the canonical versioned envelope.`,
-        severity: 'warning',
-        metadata: { replacement: '--json', retention: 'indefinite' },
-      },
-    ],
-  };
 }
 
 async function testExecutionStatusHandler(invocation: CommandInvocation): Promise<CliResult> {
