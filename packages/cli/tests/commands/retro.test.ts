@@ -1397,7 +1397,7 @@ describe('retro command configuration, extraction, egress, and relay execution',
     },
   );
 
-  it('starts the public preparation budget after finding preparation', async () => {
+  it('starts the shared public delivery budget before finding preparation', async () => {
     const attemptsDirectory = mkdtempSync(nodePath.join(tmpdir(), 'retro-public-attempts-'));
     let nowCalls = 0;
     const publicTransport = vi.fn(request =>
@@ -1412,7 +1412,7 @@ describe('retro command configuration, extraction, egress, and relay execution',
         { transcript: '/tmp/t.jsonl' },
         dependencies({
           extract: () => {
-            expect(nowCalls).toBe(0);
+            expect(nowCalls).toBe(1);
             return Promise.resolve([rawFinding(), rawFinding({ title: 'Second finding' })]);
           },
           publicRetro: {
