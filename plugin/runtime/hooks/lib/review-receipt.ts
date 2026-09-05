@@ -51,6 +51,36 @@ export interface ReviewReceipt {
 /** Levels that assert a coordinator ran and returned a verdict. */
 const COORDINATOR_CLAIMS = new Set(['cross-agent', 'degraded']);
 
+/** Whether a stamp asserts a coordinator ran — the claims that need a witness. */
+export function claimsCoordinatorVerdict(independence?: string): boolean {
+  return independence !== undefined && COORDINATOR_CLAIMS.has(independence);
+}
+
+/**
+ * Rebuild the claim a ledger stamp is making from its scope key, so the read
+ * path can hold a written stamp to the same standard the write path applied.
+ * `reviewScope` builds `<ticketFolder>:<artifact>@<hash>`, with `phase` as the
+ * artifact and the phase name as the hash. Returns undefined for a scope that
+ * does not parse — an unreadable claim is not a satisfied one.
+ */
+export function claimFromScope(
+  scope: string,
+  provenance: Omit<StampClaim, 'ticketFolder' | 'artifact' | 'phase'> = {},
+): StampClaim | undefined {
+  const separator = scope.indexOf(':');
+  const at = scope.lastIndexOf('@');
+  if (separator <= 0 || at <= separator + 1) return undefined;
+
+  const ticketFolder = scope.slice(0, separator);
+  const artifact = scope.slice(separator + 1, at);
+  const tail = scope.slice(at + 1);
+  if (ticketFolder === '' || artifact === '' || tail === '') return undefined;
+
+  return artifact === 'phase'
+    ? { ...provenance, ticketFolder, phase: tail }
+    : { ...provenance, ticketFolder, artifact };
+}
+
 /** Whether a reviewed path sits inside the ticket being stamped. */
 function withinTicket(target: string, ticketFolder: string): boolean {
   return target.split('/').includes(ticketFolder);

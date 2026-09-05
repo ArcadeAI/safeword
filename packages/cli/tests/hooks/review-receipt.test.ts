@@ -14,7 +14,8 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { receiptGateVerdict } from '../../templates/hooks/lib/review-receipt.js';
+import { hashArtifact, reviewScope } from '../../templates/hooks/lib/review-ledger.js';
+import { claimFromScope, receiptGateVerdict } from '../../templates/hooks/lib/review-receipt.js';
 
 const TICKET = 'T1-slug';
 
@@ -177,5 +178,54 @@ describe('receiptGateVerdict — stamps that claim nothing', () => {
 
   it('leaves a deliberate skip alone', () => {
     expect(receiptGateVerdict(claimFor({ artifact: 'spec', skip: true }))).toEqual({ ok: true });
+  });
+});
+
+describe('claimFromScope — rebuilding a written stamp’s claim', () => {
+  it('reads an artifact scope back into its ticket and artifact', () => {
+    expect(claimFromScope('T1-slug:impl-plan@a1b2c3d4e5f6')).toEqual({
+      ticketFolder: 'T1-slug',
+      artifact: 'impl-plan',
+    });
+  });
+
+  it('reads a phase scope back into its ticket and phase', () => {
+    expect(claimFromScope('T1-slug:phase@scenario-gate')).toEqual({
+      ticketFolder: 'T1-slug',
+      phase: 'scenario-gate',
+    });
+  });
+
+  it('carries the provenance the stamp recorded', () => {
+    expect(
+      claimFromScope('T1-slug:impl-plan@a1b2c3', {
+        independence: 'cross-agent',
+        authorAgent: 'codex',
+        reviewerAgent: 'claude',
+      }),
+    ).toEqual({
+      ticketFolder: 'T1-slug',
+      artifact: 'impl-plan',
+      independence: 'cross-agent',
+      authorAgent: 'codex',
+      reviewerAgent: 'claude',
+    });
+  });
+
+  it.each(['', 'no-separators', 'T1-slug:impl-plan', ':impl-plan@hash', 'T1-slug:@hash'])(
+    'refuses to read a malformed scope, so it cannot satisfy a gate: %j',
+    scope => {
+      expect(claimFromScope(scope)).toBeUndefined();
+    },
+  );
+
+  it('round-trips a scope the ledger built, and the receipt then witnesses it', () => {
+    const scope = reviewScope(TICKET, 'impl-plan', hashArtifact('plan body'));
+    const claim = claimFromScope(scope, { independence: 'cross-agent' });
+
+    expect(claim).toBeDefined();
+    expect(claim === undefined ? undefined : receiptGateVerdict(claim, approved)).toEqual({
+      ok: true,
+    });
   });
 });

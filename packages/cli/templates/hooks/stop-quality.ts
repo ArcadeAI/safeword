@@ -50,6 +50,7 @@ import { checkSkillInvocations, requiredSkillsForDone } from './lib/skill-invoca
 import { runTests } from './lib/test-runner.ts';
 import { changedFilesSinceHead, evaluateImplementStopTypecheck } from './lib/typecheck-gate.ts';
 import { resolveNamespaceRoot } from './lib/namespace-root.ts';
+import { verifiedStamps } from './lib/verify-stamp-claims.ts';
 import { architectureDocumentNudgeForProject } from './lib/architecture-document-nudge.ts';
 import { evaluateParentContract } from './lib/product-plan-contract.ts';
 import { installCrashCapture } from './lib/self-report.ts';
@@ -318,7 +319,9 @@ function checkArchitectureReviewGate(ticketInfo: TicketInfo): void {
 
   // Selection half: a satisfying design-review stamp for this ticket's plan at its current content.
   const logPath = `${resolveNamespaceRoot(projectDir)}/skill-invocations.log`;
-  const stamps = existsSync(logPath) ? parseReviewStamps(readFileSync(logPath, 'utf8')) : [];
+  const stamps = existsSync(logPath)
+    ? verifiedStamps(parseReviewStamps(readFileSync(logPath, 'utf8')), projectDir)
+    : [];
   const scope = reviewScope(ticketInfo.folder, 'impl-plan', hashArtifact(planContent));
   if (!reviewGateForNextAsset(scope, stamps, readCrossAgentReviewPolicy(rawConfig)).ok) {
     hardBlockDone(

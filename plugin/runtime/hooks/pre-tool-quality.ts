@@ -45,6 +45,7 @@ import {
   recordFailure,
 } from './lib/quality-state.ts';
 import { isNamespacePath, resolveNamespaceRoot } from './lib/namespace-root.ts';
+import { verifiedStamps } from './lib/verify-stamp-claims.ts';
 import { evaluateTicketWrite } from './lib/phase-provenance.ts';
 import { evaluateImplementEntry } from './lib/plan-gate.ts';
 import { evaluateParentContract } from './lib/product-plan-contract.ts';
@@ -191,9 +192,13 @@ function crossAgentReviewPolicy() {
 
 // The review stamps both gates read from the shared skill-invocation-log
 // (write-review-stamp.ts appends to the same file).
+// Verified at the point of reading: the ledger is a plain text file, so a stamp
+// claiming a coordinator verdict is held to that claim here rather than trusted
+// because it is written down (ticket PB1GMZ).
 function readReviewStamps(): ReviewStamp[] {
   const logFile = nodePath.join(resolveNamespaceRoot(projectDirectory), 'skill-invocations.log');
-  return existsSync(logFile) ? parseReviewStamps(readFileSync(logFile, 'utf8')) : [];
+  if (!existsSync(logFile)) return [];
+  return verifiedStamps(parseReviewStamps(readFileSync(logFile, 'utf8')), projectDirectory);
 }
 
 /**

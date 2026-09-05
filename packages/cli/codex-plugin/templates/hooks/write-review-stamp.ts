@@ -25,7 +25,6 @@
 // session binding exists and more than one ticket is in_progress, pass --ticket
 // to disambiguate rather than guessing a ticket the gate may not be checking.
 
-import { spawnSync } from 'node:child_process';
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import nodePath from 'node:path';
 import process from 'node:process';
@@ -37,10 +36,10 @@ import {
 } from './lib/cursor-run-identity.ts';
 import { readSessionState } from './lib/quality-state.ts';
 import { formatReviewStamp, hashArtifact, reviewScope } from './lib/review-ledger.ts';
-import { receiptGateVerdict, type ReviewReceipt, type StampClaim } from './lib/review-receipt.ts';
+import { readReviewReceipt } from './lib/read-receipt.ts';
+import { receiptGateVerdict, type StampClaim } from './lib/review-receipt.ts';
 import { resolveNamespaceRoot } from './lib/namespace-root.ts';
 import { resolveRunIdentity, type RunIdentity } from './lib/run-identity.ts';
-import { reviewCandidates } from './run-review.ts';
 
 const projectDirectory = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 const ticketsDirectory = nodePath.join(resolveNamespaceRoot(projectDirectory), 'tickets');
@@ -301,53 +300,20 @@ function resolveScope(ticketFolder: string): {
   };
 }
 
-// Ask the coordinator about the cited review. `review status` revalidates the
-// job record's integrity and re-fingerprints the reviewed sources, so a forged
-// record reads as invalid and a review whose sources moved reads as stale —
-// this hook does not reimplement either check, it consults the one that exists.
-function readReceipt(id: string): ReviewReceipt {
-  for (const [command, argumentPrefix] of reviewCandidates(projectDirectory)) {
-    const run = spawnSync(
-      command,
-      [...argumentPrefix, 'review', 'status', id, '--json', '--cwd', projectDirectory],
-      { encoding: 'utf8', timeout: 60_000 },
-    );
-    if (run.error !== undefined || run.stdout === '') continue;
-    try {
-      const data = (JSON.parse(run.stdout) as { data?: Record<string, unknown> }).data ?? {};
-      // An id the coordinator does not know reports no review_id back, and a
-      // record that answers about a *different* review is no witness for this
-      // one — so the reported id has to be the one that was asked about.
-      if (data.review_id !== id) break;
-      const text = (field: string): string | undefined =>
-        typeof data[field] === 'string' ? (data[field] as string) : undefined;
-      return {
-        reviewId: id,
-        status: text('status'),
-        kind: text('review_kind'),
-        targets: Array.isArray(data.review_targets)
-          ? data.review_targets.filter(target => typeof target === 'string')
-          : [],
-        independence: text('independence'),
-        authorAgent: text('author_agent'),
-        actualReviewer: text('actual_reviewer'),
-      };
-    } catch {
-      break;
-    }
-  }
-  fail(
-    `could not verify review ${id} — no Safeword CLI could report its status, so the stamp's independence claim has no witness`,
-  );
-}
-
 const { scope, label, claim } = resolveScope(resolveTicketFolder());
 
-const receiptVerdict = receiptGateVerdict(
-  claim,
-  reviewId === undefined ? undefined : readReceipt(reviewId),
-);
-if (!receiptVerdict.ok) fail(receiptVerdict.reason);
+if (reviewId !== undefined) {
+  const receipt = readReviewReceipt(reviewId, projectDirectory);
+  if (receipt === undefined)
+    fail(
+      `could not verify review ${reviewId} — no Safeword CLI could report its status, so the stamp's independence claim has no witness`,
+    );
+  const receiptVerdict = receiptGateVerdict(claim, receipt);
+  if (!receiptVerdict.ok) fail(receiptVerdict.reason);
+} else {
+  const receiptVerdict = receiptGateVerdict(claim);
+  if (!receiptVerdict.ok) fail(receiptVerdict.reason);
+}
 
 const logDirectory = nodePath.join(resolveNamespaceRoot(projectDirectory));
 const logFile = nodePath.join(logDirectory, 'skill-invocations.log');
