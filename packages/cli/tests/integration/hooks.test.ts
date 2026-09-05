@@ -11,7 +11,7 @@
  */
 
 import { execSync, spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import process from 'node:process';
@@ -39,6 +39,13 @@ import {
 } from '../helpers';
 
 const IS_RUFF_AVAILABLE = isRuffInstalled();
+/**
+ * Whether ruff is reachable from the bare system PATH. When it is, the
+ * "ruff is missing" test below cannot establish its premise and is skipped.
+ */
+const IS_RUFF_ON_SYSTEM_PATH =
+  spawnSync('bash', ['-c', 'PATH=/bin:/usr/bin command -v ruff'], { encoding: 'utf8' }).status ===
+  0;
 const VERIFIED_AT = '2026-04-15T18:00:00Z';
 const PR_SCOPE_OK_LINE = '**PR Scope:** ✅ Diff matches ticket scope';
 const TEMPLATE_CODEX_SESSION_START = nodePath.resolve(
@@ -1395,29 +1402,41 @@ describe('E2E: Python Lint Hook', () => {
   });
 
   describe('Test 2.3: Skips Ruff gracefully if not installed', () => {
-    it('should not error when Ruff is missing from PATH', () => {
+    it.skipIf(IS_RUFF_ON_SYSTEM_PATH)('should not error when Ruff is missing from PATH', () => {
       writeTestFile(shared.projectDirectory, 'test.py', 'print("hello")\n');
 
-      // Find actual bun path (process.execPath gives node when running via vitest)
-      const bunPath = execSync('which bun', { encoding: 'utf8' }).trim();
-      const bunDirectory = nodePath.dirname(bunPath);
+      // `which bun` can resolve to a version-manager shim (mise, asdf). Such a
+      // shim needs its manager's environment to pick a version, so it fails
+      // outright under the stripped PATH below, and it lives in a directory
+      // holding every other shimmed tool — ruff included, which would defeat
+      // this test's whole premise. Ask bun itself for its real binary and
+      // expose only that, via a directory containing nothing else.
+      const realBun = execSync('bun -e "console.log(process.execPath)"', {
+        encoding: 'utf8',
+      }).trim();
+      const bunOnlyDirectory = mkdtempSync(nodePath.join(tmpdir(), 'safeword-bun-only-'));
+      symlinkSync(realBun, nodePath.join(bunOnlyDirectory, 'bun'));
+      const restrictedPath = `/bin:/usr/bin:${bunOnlyDirectory}`;
 
-      // Run with PATH that has bun but likely not ruff
-      const result = spawnSync(
-        'bash',
-        [
-          '-c',
-          `PATH=/bin:/usr/bin:${bunDirectory} bun .safeword/hooks/lib/lint.ts "${shared.projectDirectory}/test.py"`,
-        ],
-        {
-          cwd: shared.projectDirectory,
-          env: { ...process.env, CLAUDE_PROJECT_DIR: shared.projectDirectory },
-          encoding: 'utf8',
-        },
-      );
+      try {
+        const result = spawnSync(
+          'bash',
+          [
+            '-c',
+            `PATH=${restrictedPath} bun .safeword/hooks/lib/lint.ts "${shared.projectDirectory}/test.py"`,
+          ],
+          {
+            cwd: shared.projectDirectory,
+            env: { ...process.env, CLAUDE_PROJECT_DIR: shared.projectDirectory },
+            encoding: 'utf8',
+          },
+        );
 
-      // Should exit 0 (graceful skip via .nothrow())
-      expect(result.status).toBe(0);
+        // Should exit 0 (graceful skip via .nothrow())
+        expect(result.status).toBe(0);
+      } finally {
+        rmSync(bunOnlyDirectory, { force: true, recursive: true });
+      }
     });
   });
 
