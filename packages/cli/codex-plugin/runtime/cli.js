@@ -53543,9 +53543,6 @@ var init_local_retro_readiness_manifest = __esm(() => {
 
 // src/retro/local-retro-readiness.ts
 import { createHash as createHash29 } from "crypto";
-function hasAuthoritativeProductionEvidence() {
-  return false;
-}
 function harnessBuildIsCurrent(buildCommit, manifest, input) {
   return COMMIT.test(buildCommit) && (buildCommit === manifest.evidenceCommit || input.ancestorPairs.some((pair) => pair.ancestor === buildCommit && pair.descendant === manifest.evidenceCommit));
 }
@@ -53588,7 +53585,7 @@ function hasEvidenceCollections(manifest) {
   return typeof manifest.harnesses === "object" && manifest.harnesses !== null && typeof manifest.recoveredFaults === "object" && manifest.recoveredFaults !== null;
 }
 function readinessPrerequisites(manifest, input) {
-  return manifest.enabled && input.relayReady && COMMIT.test(input.buildCommit) && hasAuthoritativeProductionEvidence();
+  return manifest.enabled && input.authoritativeEvidenceVerified && input.relayReady && COMMIT.test(input.buildCommit);
 }
 function validateLocalRetroReadiness(manifest, input) {
   if (!readinessPrerequisites(manifest, input))
@@ -62495,6 +62492,9 @@ function relayPersistenceErrorMessage(persistence, spoolFailed) {
     return fallback;
   return `retro relay could not durably persist ${spoolFailed} ${noun}; request ${requestId} is corrupt. Inspect it with \`safeword retro-relay-retry\`; only if intentionally abandoning it, run \`safeword retro-relay-discard ${requestId} --confirm\`.`;
 }
+function serverRecoveryNeeded(findingCount, outcome) {
+  return findingCount > 0 && outcome !== "preserved";
+}
 async function runRetro(options, dependencies) {
   if (!options.transcript) {
     return {
@@ -62566,7 +62566,7 @@ async function runRetro(options, dependencies) {
         filedSignatures: [],
         filedDestinations: []
       },
-      agentFilingNeeded: publicOutcome !== "preserved",
+      agentFilingNeeded: serverRecoveryNeeded(findings.length, publicOutcome),
       drops
     };
   }
@@ -62960,8 +62960,8 @@ function renderDropReport(drops) {
 }
 function reportRetroCommandOutcome(outcome, options) {
   const { error: error2, info: info2, success: success2 } = options.output;
-  reportRelayOutcome(outcome, options.output, outcome.ok);
   if (!outcome.ok) {
+    reportRelayOutcome(outcome, options.output, false);
     error2(outcome.errorMessage ?? "safeword retro failed");
     process17.exitCode = 1;
     return;
@@ -62971,6 +62971,7 @@ function reportRetroCommandOutcome(outcome, options) {
     process17.exitCode = 1;
     return;
   }
+  reportRelayOutcome(outcome, options.output, true);
   if (outcome.relay !== undefined)
     return;
   const r = outcome.result;
@@ -63148,6 +63149,7 @@ function resolvePublicRetroRoute(input) {
   };
   const serverReady = input.serverReady ?? validateLocalRetroReadiness(CHECKED_IN_LOCAL_RETRO_READINESS, {
     ancestorPairs: SAFEWORD_RELAY_BUILD_ATTESTATION.ancestorPairs,
+    authoritativeEvidenceVerified: false,
     buildCommit: SAFEWORD_BUILD_COMMIT,
     now: new Date,
     relayReady: CHECKED_IN_RELAY_READINESS.enabled && SAFEWORD_RELAY_BUILD_ATTESTATION.enabled
