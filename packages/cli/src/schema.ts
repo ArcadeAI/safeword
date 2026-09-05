@@ -486,6 +486,12 @@ function prReviewWorkflowFile(templatePath: string): ManagedFileDefinition {
     generator: (ctx: ProjectContext): string | undefined =>
       prReviewEnabled(ctx.cwd) ? workflowContent() : undefined,
     normalizeForUnmodifiedComparison: normalizePrReviewWorkflowVersionPins,
+    // The pin names the safeword these workflows fetch from npm. They carry write
+    // scopes under `pull_request_target` and check nothing out, so the version
+    // cannot come from the repo and has to be written into the file — which meant
+    // it froze at whichever release first installed it. Refresh it on upgrade,
+    // while the workflow is still safeword's own.
+    refreshWhileUnmodified: true,
     removeIfUnmodified: workflowContent,
     removeWhenGeneratorOmitted: true,
   };

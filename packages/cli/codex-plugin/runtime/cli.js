@@ -13129,6 +13129,7 @@ function prReviewWorkflowFile(templatePath) {
     template: templatePath,
     generator: (ctx) => prReviewEnabled(ctx.cwd) ? workflowContent() : undefined,
     normalizeForUnmodifiedComparison: normalizePrReviewWorkflowVersionPins,
+    refreshWhileUnmodified: true,
     removeIfUnmodified: workflowContent,
     removeWhenGeneratorOmitted: true
   };
@@ -22481,9 +22482,18 @@ function isConfigOverridden(definition, cwd) {
     return false;
   return readConfiguredPath(cwd, definition.configKey) !== undefined;
 }
+function shouldRefreshManagedFile(definition, ctx, fullPath, newContent) {
+  if (definition.refreshWhileUnmodified !== true)
+    return false;
+  const installed = readFileSafe(fullPath);
+  if (installed === undefined || installed === newContent)
+    return false;
+  return matchesManagedScaffold(definition, ctx, installed);
+}
 function planManagedFilesActions(managedFiles, ctx) {
   const actions = [];
   const created = [];
+  const updated = [];
   for (const [filePath, definition] of Object.entries(managedFiles)) {
     if (isConfigOverridden(definition, ctx.cwd))
       continue;
@@ -22491,12 +22501,14 @@ function planManagedFilesActions(managedFiles, ctx) {
     const newContent = resolveFileContent(definition, ctx);
     if (newContent === undefined)
       continue;
-    if (exists(fullPath))
+    const installedAlready = exists(fullPath);
+    if (installedAlready && !shouldRefreshManagedFile(definition, ctx, fullPath, newContent)) {
       continue;
+    }
     actions.push({ type: "write", path: filePath, content: newContent });
-    created.push(filePath);
+    (installedAlready ? updated : created).push(filePath);
   }
-  return { actions, created, updated: [] };
+  return { actions, created, updated };
 }
 function computeUpgradePlan(schema, ctx) {
   const actions = [];
@@ -52360,6 +52372,11 @@ function renderCoverage(entry2) {
   const reason = entry2.skipReason === "non_text" ? "non-text" : "unknown";
   return `${entry2.path}: skipped (${reason})`;
 }
+function incompleteFindingsCaveat(runState) {
+  if (runState === "complete" || runState === "stale")
+    return "";
+  return ` (${runState} \u2014 the review did not finish, so no findings is not a clean result)`;
+}
 function renderReceipt(receipt) {
   const checks = receipt.checks.map((check) => `${check.name}: ${check.status ?? "unknown"}`);
   const inputTokens = receipt.tokenUsage.input ?? "unknown";
@@ -52378,7 +52395,7 @@ function renderReceipt(receipt) {
     `Reviewable text artifacts: ${receipt.reviewableTextArtifacts ?? "unknown"}`,
     `Unknowns: ${listOrNone(receipt.unknowns)}`,
     `Token usage: ${inputTokens} input, ${outputTokens} output`,
-    `Findings: ${receipt.findingCounts.consequential} consequential, ${receipt.findingCounts.nonConsequential} non-consequential`
+    `Findings: ${receipt.findingCounts.consequential} consequential, ${receipt.findingCounts.nonConsequential} non-consequential${incompleteFindingsCaveat(receipt.runState)}`
   ];
   const findings = (receipt.findings ?? []).flatMap((finding) => renderFinding(finding));
   return [...summary, ...findings].join(`

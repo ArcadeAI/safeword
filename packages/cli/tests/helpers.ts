@@ -613,6 +613,26 @@ export function readRepoFile(relativePath: string): string {
 }
 
 /**
+ * The parent spec's `## ` sections, in canonical order.
+ *
+ * Deliberately a literal rather than something read out of the template: it is the
+ * independent oracle the template, the scaffolder's output, and DISCOVERY.md's
+ * walkthrough are each checked against. Deriving it from one of them would leave
+ * those checks agreeing with themselves.
+ *
+ * Adding or reordering a section is one edit here plus the artifacts; every lane
+ * that disagrees then fails at once, rather than one per round the way `Surfaces`
+ * was found (#3717).
+ */
+export const PRODUCT_PLAN_SECTIONS = [
+  'Product Bet',
+  'Jobs To Be Done',
+  'Shape',
+  'Killer Demo',
+  'Surfaces',
+] as const;
+
+/**
  * Writes a file to the test directory
  * @param dir
  * @param relativePath
