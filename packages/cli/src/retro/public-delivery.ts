@@ -88,8 +88,7 @@ export type PublicRetroDeliveryOutcome = 'preserved' | 'abandoned';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-const LEGACY_MAX_ENVELOPE_BYTES = 65_536;
-const SERVER_MAX_ENVELOPE_BYTES = 262_144;
+const MAX_ENVELOPE_BYTES = 262_144;
 const MAX_OPTIONAL_VALUE_BYTES = 256;
 
 function containsControlCharacter(value: string): boolean {
@@ -217,7 +216,7 @@ function claimPublicRetroRequest(
   if (dependencies.route === 'server-v3') {
     return claimServerPublicRetroRequest(built, dependencies);
   }
-  if (built.bytes.byteLength > LEGACY_MAX_ENVELOPE_BYTES) return undefined;
+  if (built.bytes.byteLength > MAX_ENVELOPE_BYTES) return undefined;
   const requestId = dependencies.randomUUID().toLowerCase();
   if (!UUID.test(requestId)) throw new Error('Invalid public retrospective request identity');
 
@@ -282,7 +281,7 @@ function claimServerPublicRetroRequest(
   built: BuiltPublicRetroEnvelope,
   dependencies: PublicRetroPreparationDependencies,
 ): PreparedPublicRetroRequest | undefined {
-  if (built.bytes.byteLength > SERVER_MAX_ENVELOPE_BYTES) return undefined;
+  if (built.bytes.byteLength > MAX_ENVELOPE_BYTES) return undefined;
   let markerPath = path.join(dependencies.attemptsDirectory, `${built.sessionScope}.json`);
   let existing = readServerAttempt(markerPath, built);
   if (existing.kind === 'conflict') {

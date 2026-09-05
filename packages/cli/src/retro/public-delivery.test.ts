@@ -240,7 +240,7 @@ describe('buildPublicRetroEnvelope', () => {
 
     try {
       const prepared = preparePublicRetroRequest(
-        { ...requiredInput, findings: ['🚀'.repeat(16_384)] },
+        { ...requiredInput, findings: ['🚀'.repeat(65_536)] },
         {
           attemptsDirectory,
           randomUUID: () => {
@@ -279,12 +279,12 @@ describe('buildPublicRetroEnvelope', () => {
     }
   }
 
-  it('accepts a complete v2 batch at the 65536-byte limit', () => {
-    expect(prepareSizedBatch(65_536)?.bytes.byteLength).toBe(65_536);
+  it('accepts a complete v2 batch at the 262144-byte limit', () => {
+    expect(prepareSizedBatch(262_144)?.bytes.byteLength).toBe(262_144);
   });
 
-  it('abandons a complete v2 batch above the 65536-byte limit', () => {
-    expect(prepareSizedBatch(65_537)).toBeUndefined();
+  it('abandons a complete v2 batch above the 262144-byte limit', () => {
+    expect(prepareSizedBatch(262_145)).toBeUndefined();
   });
 
   it('hands the same prepared identity and bytes to either harness transport', async () => {

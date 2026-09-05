@@ -59433,7 +59433,7 @@ function claimPublicRetroRequest(built, dependencies) {
   if (dependencies.route === "server-v3") {
     return claimServerPublicRetroRequest(built, dependencies);
   }
-  if (built.bytes.byteLength > LEGACY_MAX_ENVELOPE_BYTES)
+  if (built.bytes.byteLength > MAX_ENVELOPE_BYTES)
     return;
   const requestId = dependencies.randomUUID().toLowerCase();
   if (!UUID2.test(requestId))
@@ -59486,7 +59486,7 @@ function readServerAttempt(markerPath2, built) {
   }
 }
 function claimServerPublicRetroRequest(built, dependencies) {
-  if (built.bytes.byteLength > SERVER_MAX_ENVELOPE_BYTES)
+  if (built.bytes.byteLength > MAX_ENVELOPE_BYTES)
     return;
   let markerPath2 = path5.join(dependencies.attemptsDirectory, `${built.sessionScope}.json`);
   let existing = readServerAttempt(markerPath2, built);
@@ -59676,7 +59676,7 @@ function deliverSanitizedPublicRetroFindings(input, dependencies, preparationDea
     return Promise.resolve("abandoned");
   }
 }
-var PublicRetroRejection, UUID2, UUID_V4, LEGACY_MAX_ENVELOPE_BYTES = 65536, SERVER_MAX_ENVELOPE_BYTES = 262144, MAX_OPTIONAL_VALUE_BYTES = 256;
+var PublicRetroRejection, UUID2, UUID_V4, MAX_ENVELOPE_BYTES = 262144, MAX_OPTIONAL_VALUE_BYTES = 256;
 var init_public_delivery = __esm(() => {
   init_finding();
   PublicRetroRejection = class PublicRetroRejection extends Error {
