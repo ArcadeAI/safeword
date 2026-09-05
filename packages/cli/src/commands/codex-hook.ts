@@ -747,6 +747,18 @@ async function runUserPromptSubmit(projectDirectory: string): Promise<void> {
   });
 }
 
+/**
+ * The packaged stop hook's stdout carries three distinct meanings:
+ * `block` (a real continuation to pass through), `noop` (a literal `{}`,
+ * meaning "nothing to say" — project-owned continuations still apply), and
+ * `absent` (no output at all).
+ */
+function classifyPackagedStopOutput(stdout: string): 'absent' | 'block' | 'noop' {
+  const trimmed = stdout.trim();
+  if (trimmed === '') return 'absent';
+  return trimmed === '{}' ? 'noop' : 'block';
+}
+
 async function runStop(projectDirectory: string): Promise<void> {
   const rawInput = await readStdin();
   if (!hasSafewordProjectMarker(projectDirectory)) {
@@ -754,20 +766,21 @@ async function runStop(projectDirectory: string): Promise<void> {
     return;
   }
   const packagedResult = runPackagedHook('codex/stop.ts', rawInput, projectDirectory);
-  const trimmedPackagedOutput = packagedResult.stdout.trim();
-  if (trimmedPackagedOutput !== '' && trimmedPackagedOutput !== '{}') {
+  const packaged = classifyPackagedStopOutput(packagedResult.stdout);
+  if (packaged === 'block') {
     process.stdout.write(packagedResult.stdout);
     return;
   }
 
-  // `{}` is an intentional packaged no-op, so project-owned continuations still apply.
+  // A packaged no-op does not suppress project-owned continuations.
   const reason = readProjectTextFile(projectDirectory, STOP_CONTINUATION_PATH)?.trim();
   if (reason) {
     emitStopContinuation({ decision: 'block', reason });
     return;
   }
 
-  if (trimmedPackagedOutput !== '') {
+  // Pass the packaged no-op through verbatim rather than re-emitting `{}\n`.
+  if (packaged === 'noop') {
     process.stdout.write(packagedResult.stdout);
     return;
   }
