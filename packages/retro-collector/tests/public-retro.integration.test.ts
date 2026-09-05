@@ -387,10 +387,14 @@ it('reports an expired collector lease as queued before it is reclaimed', () => 
     'v3',
     envelope.source.projectUUID,
   );
-  expect(store.claim(now, 1000)).toBeDefined();
+  const claim = store.claim(now, 1000);
+  expect(claim).toBeDefined();
 
   now = 1001;
 
+  expect(store.release(request.requestId, claim?.leaseToken ?? '')).toBe(false);
+  expect(store.reject(request.requestId, claim?.leaseToken ?? '')).toBe(false);
+  expect(store.complete(request.requestId, claim?.leaseToken ?? '')).toBe(false);
   expect(store.listLifecycle()).toEqual([
     expect.objectContaining({ requestId: request.requestId, state: 'queued' }),
   ]);

@@ -1387,6 +1387,7 @@ describe('retro command configuration, extraction, egress, and relay execution',
         expect(readServerSpooledDrafts(projectDirectory, 'server-route-session')).toHaveLength(
           recoveryRetained ? 1 : 0,
         );
+        expect(outcome.agentFilingNeeded).toBe(recoveryRetained);
         if (recoveryRetained) {
           expect(existsSync(draftSpoolPath(projectDirectory, 'server-route-session'))).toBe(true);
         }
