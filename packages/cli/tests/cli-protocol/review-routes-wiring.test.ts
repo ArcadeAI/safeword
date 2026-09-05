@@ -254,6 +254,35 @@ describe('review routes CLI wiring', () => {
     });
   });
 
+  it('lists every author when no author is given', async () => {
+    const root = createTemporaryDirectory();
+    directories.push(root);
+
+    const listed = await invoke(root, ['review', 'routes', 'list']);
+    expect(listed).toMatchObject({ state: 'healthy', data: { command: 'review routes list' } });
+    const authors = (listed.data as { authors: { author: string }[] }).authors;
+    expect(authors.map(entry => entry.author)).toEqual(['claude', 'codex', 'opencode']);
+
+    const human = await invokeHuman(root, ['review', 'routes', 'list']);
+    expect(human).toContain('claude review routes');
+    expect(human).toContain('codex review routes');
+    expect(human).toContain('opencode review routes');
+  });
+
+  it('names the configuration key and file that change the routes', async () => {
+    const root = createTemporaryDirectory();
+    directories.push(root);
+
+    const human = await invokeHuman(root, ['review', 'routes', 'list', '--author', 'claude']);
+    expect(human).toContain('crossAgentReviewRoutes');
+    expect(human).toContain(nodePath.join('.safeword', 'config.json'));
+
+    const listed = await invoke(root, ['review', 'routes', 'list', '--author', 'claude']);
+    expect(listed).toMatchObject({
+      data: { config_key: 'crossAgentReviewRoutes' },
+    });
+  });
+
   it('reports route-list read failures as read failures', async () => {
     const root = createTemporaryDirectory();
     directories.push(root);
