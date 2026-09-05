@@ -76,6 +76,18 @@ done_when: |
 - 2026-09-05T22:55:00Z BLOCKED on refreshing those baselines
   (`SAFEWORD_UPDATE_ORIGIN_MAIN_FIXTURES=1`). Standing instruction is never to
   update a baseline without explicit human approval.
+- 2026-09-05T23:20:00Z Baselines re-pinned with the user's explicit approval.
+  The applied diff was exactly the predicted blast radius: six `tree_sha256`
+  values plus their manifest entries, no `result_sha256` moved, no Claude
+  fixture touched, no file added or removed.
+- 2026-09-05T23:20:00Z Caught a miss in my own sequencing: the dash/case fix
+  changed bundled source, so the Codex and Claude plugin runtimes still shipped
+  the previous evaluator until `check:cli-contract` flagged it. Regenerating a
+  plugin has to follow every bundled-source edit, not just template edits.
+- 2026-09-05T23:20:00Z Verified green: full suite 555 files / 9101 passed /
+  0 failed; lint, typecheck, parity (260 pairs), actionlint, and
+  `check:cli-contract` all clean; focused re-run after the plugin rebuild
+  45 files / 499 passed.
 - 2026-09-05T22:20:00Z Known limitation, accepted deliberately: the readiness
   job lives in the workflow that `install` only generates when `prReview.enabled`
   is true, so a repository that wants readiness discipline without an LLM
