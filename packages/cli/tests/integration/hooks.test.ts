@@ -400,13 +400,17 @@ describe('E2E: SessionStart Hooks', () => {
         }
       });
 
-      // Login shells read different files; a bash host told to edit ~/.zprofile
-      // restarts into the same broken session.
+      // Login shells read different files, so a bash host told to edit
+      // ~/.zprofile restarts into the same broken session. Run the emitted
+      // command rather than matching its text: advice that doesn't survive
+      // being pasted — into a home directory containing a space, say — leaves
+      // the host exactly as unguarded as before.
       it.each([
         ['/bin/zsh', '.zprofile'],
         ['/bin/bash', '.bash_profile'],
-      ])('names the login file %s actually reads', (shell, profile) => {
-        const home = createTemporaryDirectory();
+      ])('emits a login-PATH command %s can actually run', (shell, profile) => {
+        const enclosing = createTemporaryDirectory();
+        const home = nodePath.join(enclosing, 'home dir');
         try {
           const shims = nodePath.join(home, '.local/share/mise/shims');
           mkdirSync(shims, { recursive: true });
@@ -414,10 +418,21 @@ describe('E2E: SessionStart Hooks', () => {
           chmodSync(nodePath.join(shims, 'bun'), 0o755);
 
           const result = runWithoutBun(home, { SHELL: shell });
+          const command = result.stderr
+            .split('\n')
+            .map(line => line.trim())
+            .find(line => line.startsWith('echo '));
+          expect(command).toContain(shims);
 
-          expect(result.stderr).toContain(nodePath.join(home, profile));
+          const applied = spawnSync('bash', ['-c', command ?? ''], {
+            env: { ...process.env, HOME: home },
+            encoding: 'utf8',
+          });
+
+          expect(applied.status).toBe(0);
+          expect(readTestFile(home, profile)).toContain(shims);
         } finally {
-          removeTemporaryDirectory(home);
+          removeTemporaryDirectory(enclosing);
         }
       });
 

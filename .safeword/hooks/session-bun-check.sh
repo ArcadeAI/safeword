@@ -39,9 +39,12 @@ print_path_repair() {
   case ":$PATH:" in
     *":$MISE_SHIMS:"*) return 0 ;;
   esac
+  # Emit the tilde form: the host's shell expands it, and it stays correct for a
+  # home directory containing spaces, which an absolute path would not.
+  # shellcheck disable=SC2088 # printed for the user to paste, never used as a path here
   case "${SHELL##*/}" in
-    zsh) profile="$HOME/.zprofile" ;;
-    bash) profile="$HOME/.bash_profile" ;;
+    zsh) profile="~/.zprofile" ;;
+    bash) profile="~/.bash_profile" ;;
     *) profile="" ;;
   esac
   if [ -n "$profile" ]; then
