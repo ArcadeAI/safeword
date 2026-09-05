@@ -322,6 +322,10 @@ it('dead-letters and alerts work only after filing quota blocks it for 24 hours'
     envelope.source.projectUUID,
   );
 
+  expect(store.claim()).toBeUndefined();
+  expect(store.listLifecycle()).toEqual([
+    expect.objectContaining({ requestId: request.requestId, state: 'queued' }),
+  ]);
   now = 86_400_001;
   expect(store.claim()).toBeUndefined();
   expect(store.listLifecycle()).toEqual([

@@ -186,11 +186,6 @@ export class PublicRetroStore {
           createHash('sha256').update(rawBody).digest('hex'),
           projectUUID,
         );
-      if (!this.hasFilingCapacity({ project_uuid: projectUUID, request_id: requestId }, now)) {
-        this.#database
-          .prepare('UPDATE server_retros SET quota_blocked_at = ? WHERE request_id = ?')
-          .run(now, requestId);
-      }
       this.recordIntake('v3', requestId, now);
       this.#database.exec('COMMIT;');
       return { receipt, requestId, status: 'accepted' };
