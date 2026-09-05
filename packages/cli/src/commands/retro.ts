@@ -327,6 +327,9 @@ export async function runRetro(
     };
   }
 
+  const publicRetroDeadline =
+    dependencies.publicRetro === undefined ? undefined : dependencies.publicRetro.now() + 750;
+
   const read = dependencies.readFile ?? ((path: string) => readFileSync(path, 'utf8'));
   let transcript: string;
   try {
@@ -376,7 +379,9 @@ export async function runRetro(
     return { ok: false, errorMessage: 'relay delivery requires a project directory' };
   }
   const deliverPublic = async (): Promise<PublicRetroDeliveryOutcome | undefined> => {
-    if (publicRetro === undefined || findings.length === 0) return undefined;
+    if (publicRetro === undefined || publicRetroDeadline === undefined || findings.length === 0) {
+      return undefined;
+    }
     return deliverSanitizedPublicRetroFindings(
       {
         findings,
@@ -385,7 +390,7 @@ export async function runRetro(
         windowStart: options.windowStart ?? 0,
       },
       publicRetro,
-      publicRetro.now() + 750,
+      publicRetroDeadline,
     );
   };
   const publicOutcome = await deliverPublic();
