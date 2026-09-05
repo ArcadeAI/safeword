@@ -1,10 +1,35 @@
 import { linkSync, mkdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { claudeNativePayloadFiles } from '../../src/claude-plugin/inventory.js';
 import { createTemporaryDirectory } from '../helpers.js';
+
+// Claude renames `<pid>.tmp.<hex>` onto `<pid>` while Safeword walks the cache.
+// Deleting the entry the moment the walk lists it reproduces that window without
+// depending on timing.
+const vanishAfterListing = vi.hoisted(() => ({ path: undefined as string | undefined }));
+
+vi.mock(import('node:fs'), async importOriginal => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    readdirSync: ((...args: Parameters<typeof actual.readdirSync>) => {
+      const entries = actual.readdirSync(...args);
+      const doomed = vanishAfterListing.path;
+      if (doomed !== undefined && nodePath.dirname(doomed) === String(args[0])) {
+        vanishAfterListing.path = undefined;
+        actual.rmSync(doomed, { force: true });
+      }
+      return entries;
+    }) as typeof actual.readdirSync,
+  };
+});
+
+afterEach(() => {
+  vanishAfterListing.path = undefined;
+});
 
 function cacheFixture(): string {
   const root = createTemporaryDirectory();
@@ -33,6 +58,27 @@ describe('Claude cache metadata inventory', () => {
     );
 
     expect(claudeNativePayloadFiles(root)).toEqual(['identity.json']);
+  });
+
+  it('excludes a lease temp file renamed away while the cache is walked', () => {
+    const root = cacheFixture();
+    const temporaryLease = nodePath.join(root, '.in_use/82289.tmp.faa7241e');
+    writeFileSync(
+      temporaryLease,
+      JSON.stringify({ pid: 82_289, procStart: 'Fri Sep  4 22:57:03 2026' }),
+    );
+    vanishAfterListing.path = temporaryLease;
+
+    expect(claudeNativePayloadFiles(root)).toEqual(['identity.json']);
+  });
+
+  it('reports a vanished entry that never carried a lease temp name', () => {
+    const root = cacheFixture();
+    const doomed = nodePath.join(root, '.in_use/unexpected-runtime.js');
+    writeFileSync(doomed, 'payload');
+    vanishAfterListing.path = doomed;
+
+    expect(claudeNativePayloadFiles(root)).toContain('.in_use/unexpected-runtime.js');
   });
 
   it.each([

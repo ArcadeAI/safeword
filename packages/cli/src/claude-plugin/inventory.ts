@@ -136,11 +136,30 @@ function leaseMarkerPid(name: string): string | undefined {
   return pid;
 }
 
+/**
+ * True once the entry is gone from the directory we just listed. Claude completes
+ * the rename mid-traversal, so a lease temp routinely disappears between
+ * `readdirSync` and the read. Accepting that is safe because nothing loads a path
+ * that no longer exists; a file still present with the wrong content is a payload
+ * file and stays rejected below. Only ENOENT qualifies, so an entry we merely
+ * failed to stat keeps failing closed.
+ */
+function vanishedDuringScan(path: string): boolean {
+  try {
+    lstatSync(path);
+    return false;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === 'ENOENT';
+  }
+}
+
 function isClaudeLeaseMarker(path: string, name: string): boolean {
   const pid = leaseMarkerPid(name);
   if (pid === undefined) return false;
   const content = readSmallMetadataFile(path);
-  if (content === undefined) return false;
+  // `leaseMarkerPid` already proved the whole `<pid>.tmp.<hex>` shape, so an
+  // unreadable temp name that is now absent was renamed onto its final `<pid>`.
+  if (content === undefined) return name.includes(LEASE_TEMP_INFIX) && vanishedDuringScan(path);
   try {
     return isLeaseRecord(JSON.parse(content) as unknown, Number(pid));
   } catch {
