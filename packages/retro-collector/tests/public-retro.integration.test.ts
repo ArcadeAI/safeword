@@ -152,6 +152,23 @@ it('persists the public intake quota across collector restarts', async () => {
   expect(duplicate.status).toBe(200);
 });
 
+it('applies the public intake quota across legacy and server-owned envelopes', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
+  temporaryDirectories.push(directory);
+  const runtime = await startPublicRetroCollector({
+    databasePath: path.join(directory, 'collector.sqlite'),
+    intakeLimitPerMinute: 1,
+  });
+
+  const accepted = await submit(runtime.url, fixtureRequest());
+  const rejected = await submit(runtime.url, fixtureBatchRequest());
+  await runtime.close();
+
+  expect(accepted.status).toBe(201);
+  expect(rejected.status).toBe(429);
+  expect(await rejected.json()).toEqual({ error: 'intake_quota_exhausted' });
+});
+
 it('persists global and per-project filing reservations across restarts', async () => {
   const directory = mkdtempSync(path.join(tmpdir(), 'safeword-retro-collector-'));
   temporaryDirectories.push(directory);
