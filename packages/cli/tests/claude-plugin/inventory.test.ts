@@ -10,6 +10,8 @@ import { createTemporaryDirectory } from '../helpers.js';
 // Deleting the entry the moment the walk lists it reproduces that window without
 // depending on timing.
 const vanishAfterListing = vi.hoisted(() => ({ path: undefined as string | undefined }));
+// Arms a non-ENOENT lstat failure so the ENOENT narrowing can be proven, not just asserted in prose.
+const denyStatFor = vi.hoisted(() => ({ path: undefined as string | undefined }));
 
 vi.mock(import('node:fs'), async importOriginal => {
   const actual = await importOriginal();
@@ -24,11 +26,18 @@ vi.mock(import('node:fs'), async importOriginal => {
       }
       return entries;
     }) as typeof actual.readdirSync,
+    lstatSync: ((...args: Parameters<typeof actual.lstatSync>) => {
+      if (denyStatFor.path !== undefined && String(args[0]) === denyStatFor.path) {
+        throw Object.assign(new Error('EACCES: permission denied'), { code: 'EACCES' });
+      }
+      return actual.lstatSync(...args);
+    }) as typeof actual.lstatSync,
   };
 });
 
 afterEach(() => {
   vanishAfterListing.path = undefined;
+  denyStatFor.path = undefined;
 });
 
 function cacheFixture(): string {
@@ -79,6 +88,38 @@ describe('Claude cache metadata inventory', () => {
     vanishAfterListing.path = doomed;
 
     expect(claudeNativePayloadFiles(root)).toContain('.in_use/unexpected-runtime.js');
+  });
+
+  // Kills the mutant that drops `vanishedDuringScan` entirely: this file is never
+  // absent, it is merely too large for readSmallMetadataFile, so only the stat
+  // check distinguishes it from a lease being renamed into place.
+  it('reports a present lease temp file too large to read as metadata', () => {
+    const root = cacheFixture();
+    writeFileSync(nodePath.join(root, '.in_use/12345.tmp.d9f968fe'), 'x'.repeat(2048));
+
+    expect(claudeNativePayloadFiles(root)).toContain('.in_use/12345.tmp.d9f968fe');
+  });
+
+  // Kills the mutant that widens `vanishedDuringScan` to `return true`: the entry is
+  // present, so failing to stat it must not excuse it.
+  it('reports a present lease temp file whose stat fails with a non-ENOENT error', () => {
+    const root = cacheFixture();
+    const denied = nodePath.join(root, '.in_use/12345.tmp.d9f968fe');
+    writeFileSync(denied, JSON.stringify({ pid: 12_345, procStart: 'now' }));
+    denyStatFor.path = denied;
+
+    expect(claudeNativePayloadFiles(root)).toContain('.in_use/12345.tmp.d9f968fe');
+  });
+
+  // Kills the mutant that drops the `.tmp.` infix guard: only a temp name is
+  // mid-rename, so a vanished final `<pid>` lease must still be reported.
+  it('reports a vanished final lease name that carries no temp infix', () => {
+    const root = cacheFixture();
+    const doomed = nodePath.join(root, '.in_use/12345');
+    writeFileSync(doomed, JSON.stringify({ pid: 12_345, procStart: 'now' }));
+    vanishAfterListing.path = doomed;
+
+    expect(claudeNativePayloadFiles(root)).toContain('.in_use/12345');
   });
 
   it.each([
