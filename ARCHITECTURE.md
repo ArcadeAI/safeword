@@ -80,9 +80,10 @@ lease state, quota reservation, and terminal metadata in SQLite.
 The collector validates each version's closed envelope and source schema and stores
 the accepted raw body unchanged in SQLite. Legacy duplicate rules remain unchanged;
 `v3` retries reuse a receipt only when the request UUID and exact bytes agree.
-Routine operator inspection is payload-free. Worker and break-glass payload reads
-use separate credentials and append audit records. Public fields grant no read or
-filing authority. Rolling intake and filing quota windows persist across restarts;
+Routine inspection of the `v3` queue is payload-free. Its worker and break-glass
+payload reads use separate credentials and append audit records; the inert legacy
+quarantine retains its pre-existing operator-read compatibility route. Public
+fields grant no read or filing authority. Rolling intake and filing quota windows persist across restarts;
 quota-blocked work stays queued and reaches an alerted dead letter after 24 hours.
 
 ### Collector transfer worker boundary

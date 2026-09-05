@@ -276,36 +276,42 @@ This file is the RED / GREEN / REFACTOR ledger for automated scenarios. Producti
 
 ### Scenario: Complete truthful evidence enables global cutover
 
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
+
+### Scenario: Unavailable production authority keeps global cutover disabled
+
 - [x] RED
 - [x] GREEN
 - [x] REFACTOR
 
 ### Scenario: Managed Cursor evidence cannot satisfy local readiness
 
-- [x] RED
-- [x] GREEN
-- [x] REFACTOR
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
 
 ### Scenario: Missing harness evidence keeps the global cutover disabled
 
-- [x] RED
-- [x] GREEN
-- [x] REFACTOR
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
 
 ### Scenario: Indeterminate Cursor provenance cannot satisfy local readiness
 
-- [x] RED
-- [x] GREEN
-- [x] REFACTOR
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
 
 ### Scenario: Mismatched build ancestry cannot satisfy readiness
 
-- [x] RED
-- [x] GREEN
-- [x] REFACTOR
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
 
 ### Scenario: A fault artifact without recovery evidence cannot enable cutover
 
-- [x] RED
-- [x] GREEN
-- [x] REFACTOR
+- [ ] RED
+- [ ] GREEN
+- [ ] REFACTOR
