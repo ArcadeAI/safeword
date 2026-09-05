@@ -52366,6 +52366,125 @@ var init_review_pr = __esm(() => {
   ]);
 });
 
+// src/pr-review/github-request.ts
+import process13 from "process";
+function requiredEnvironment(name) {
+  const value = process13.env[name];
+  if (!value)
+    throw new Error(`review-pr: ${name} is required`);
+  return value;
+}
+async function githubRequest(path4, init) {
+  const token = requiredEnvironment("GITHUB_TOKEN");
+  const response = await fetch(`https://api.github.com${path4}`, {
+    ...init,
+    headers: {
+      accept: "application/vnd.github+json",
+      authorization: `Bearer ${token}`,
+      "content-type": "application/json",
+      "x-github-api-version": "2022-11-28"
+    }
+  });
+  if (!response.ok)
+    throw new Error(`review-pr: GitHub request failed (${response.status})`);
+  return response.status === 204 ? undefined : response.json();
+}
+function requiredPullNumber() {
+  const pull = Number(requiredEnvironment("SAFEWORD_PR_NUMBER"));
+  if (!Number.isSafeInteger(pull) || pull <= 0)
+    throw new Error("review-pr: invalid pull number");
+  return pull;
+}
+var init_github_request = () => {};
+
+// src/pr-review/readiness.ts
+function report(verdict, evidenceSha) {
+  return {
+    description: DESCRIPTIONS[verdict],
+    ...evidenceSha !== undefined && { evidenceSha },
+    state: FAILING.has(verdict) ? "failure" : "success",
+    verdict
+  };
+}
+function evaluateReadinessEvidence(input) {
+  if (input.draft)
+    return report("draft");
+  const evidenceSha = EVIDENCE_HEAD.exec(input.body ?? "")?.[1];
+  if (evidenceSha === undefined)
+    return report("missing");
+  if (!input.headSha.startsWith(evidenceSha))
+    return report("stale", evidenceSha);
+  if (BLOCKED_GATE.test(input.body ?? ""))
+    return report("blocked", evidenceSha);
+  return report("current", evidenceSha);
+}
+var DESCRIPTIONS, FAILING, EVIDENCE_HEAD, BLOCKED_GATE;
+var init_readiness = __esm(() => {
+  DESCRIPTIONS = {
+    blocked: "Readiness evidence records a blocked gate.",
+    current: "Readiness evidence is current for this head.",
+    draft: "Draft \u2014 readiness evidence is not required yet.",
+    missing: "No readiness evidence block in the pull request body.",
+    stale: "Readiness evidence is for an earlier revision."
+  };
+  FAILING = new Set([
+    "blocked",
+    "missing",
+    "stale"
+  ]);
+  EVIDENCE_HEAD = /^[ \t]*Head:[ \t]*([0-9a-f]{7,64})[ \t]*$/mu;
+  BLOCKED_GATE = /^[ \t]*\d+\.[^\n]*\u2014[ \t]*BLOCKED\b/mu;
+});
+
+// src/commands/review-pr-readiness.ts
+var exports_review_pr_readiness = {};
+__export(exports_review_pr_readiness, {
+  reportReadinessCommand: () => reportReadinessCommand,
+  createGitHubReadinessBoundary: () => createGitHubReadinessBoundary,
+  READINESS_STATUS_CONTEXT: () => READINESS_STATUS_CONTEXT
+});
+function isRecord8(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+async function reportReadinessCommand(github) {
+  const pullRequest = await github.readPullRequest();
+  const report2 = evaluateReadinessEvidence(pullRequest);
+  await github.publishStatus(pullRequest.headSha, report2);
+  return { ...report2, headSha: pullRequest.headSha };
+}
+function createGitHubReadinessBoundary() {
+  const root = `/repos/${requiredEnvironment("GITHUB_REPOSITORY")}`;
+  const pull = requiredPullNumber();
+  return {
+    publishStatus: async (headSha, report2) => {
+      await githubRequest(`${root}/statuses/${headSha}`, {
+        body: JSON.stringify({
+          context: READINESS_STATUS_CONTEXT,
+          description: report2.description,
+          state: report2.state
+        }),
+        method: "POST"
+      });
+    },
+    readPullRequest: async () => {
+      const payload = await githubRequest(`${root}/pulls/${pull}`);
+      if (!isRecord8(payload) || !isRecord8(payload.head) || typeof payload.head.sha !== "string") {
+        throw new Error("review-pr: invalid GitHub pull response");
+      }
+      return {
+        body: typeof payload.body === "string" ? payload.body : undefined,
+        draft: payload.draft === true,
+        headSha: payload.head.sha
+      };
+    }
+  };
+}
+var READINESS_STATUS_CONTEXT = "safeword/pr-readiness";
+var init_review_pr_readiness = __esm(() => {
+  init_github_request();
+  init_readiness();
+});
+
 // src/pr-review/publish.ts
 function hasExactReceiptMarker(body) {
   return body.split(/\r?\n/u).includes(RECEIPT_MARKER);
@@ -52461,8 +52580,7 @@ __export(exports_review_pr_publication, {
   createGitHubReviewBoundary: () => createGitHubReviewBoundary
 });
 import { readFileSync as readFileSync66 } from "fs";
-import process13 from "process";
-function isRecord8(value) {
+function isRecord9(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function isReviewRunState(value) {
@@ -52473,23 +52591,23 @@ function hasExactKeys3(value, expected) {
   return actual.length === expected.length && actual.every((key, index) => key === expected[index]);
 }
 function isSerializedFinding(value) {
-  return isRecord8(value) && typeof value.consequential === "boolean" && typeof value.consequence === "string" && typeof value.evidence === "string" && (value.line === undefined || typeof value.line === "number") && typeof value.nextAction === "string" && typeof value.path === "string";
+  return isRecord9(value) && typeof value.consequential === "boolean" && typeof value.consequence === "string" && typeof value.evidence === "string" && (value.line === undefined || typeof value.line === "number") && typeof value.nextAction === "string" && typeof value.path === "string";
 }
 function isSerializedCheck(value) {
-  return isRecord8(value) && hasExactKeys3(value, ["name", "status"]) && typeof value.name === "string" && RECEIPT_CHECK_STATUSES.has(String(value.status));
+  return isRecord9(value) && hasExactKeys3(value, ["name", "status"]) && typeof value.name === "string" && RECEIPT_CHECK_STATUSES.has(String(value.status));
 }
 function isSerializedCoverage(value) {
-  if (!isRecord8(value) || typeof value.path !== "string")
+  if (!isRecord9(value) || typeof value.path !== "string")
     return false;
   if (value.status === "integrity_reviewed")
     return hasExactKeys3(value, ["path", "status"]);
   return value.status === "skipped" && value.skipReason === "non_text" && hasExactKeys3(value, ["path", "skipReason", "status"]);
 }
 function isTokenUsage(value) {
-  if (isRecord8(value) && Object.keys(value).some((key) => key !== "input" && key !== "output")) {
+  if (isRecord9(value) && Object.keys(value).some((key) => key !== "input" && key !== "output")) {
     return false;
   }
-  if (!isRecord8(value)) {
+  if (!isRecord9(value)) {
     return false;
   }
   return Object.values(value).every((tokens) => Number.isSafeInteger(tokens) && Number(tokens) >= 0);
@@ -52545,12 +52663,12 @@ function hasConsistentRoute(receipt) {
   const findings = receipt.findings;
   const unknowns = receipt.unknowns;
   const missingEvidence = receipt.missingEvidence;
-  const mayLookReady = receipt.runState === "complete" && unknowns.length === 0 && missingEvidence.length === 0 && Number(receipt.reviewableTextArtifacts) > 0 && findings.every((finding) => isRecord8(finding) && finding.consequential === false);
+  const mayLookReady = receipt.runState === "complete" && unknowns.length === 0 && missingEvidence.length === 0 && Number(receipt.reviewableTextArtifacts) > 0 && findings.every((finding) => isRecord9(finding) && finding.consequential === false);
   return receipt.route === "looks_ready" === mayLookReady;
 }
 function parseHandoffEnvelope(path4) {
   const value = JSON.parse(readFileSync66(path4, "utf8"));
-  if (!isRecord8(value) || value.schemaVersion !== 1 || value.kind !== "noop" && value.kind !== "receipt") {
+  if (!isRecord9(value) || value.schemaVersion !== 1 || value.kind !== "noop" && value.kind !== "receipt") {
     throw new Error("review-pr: invalid advisory result artifact");
   }
   return value;
@@ -52563,7 +52681,7 @@ function parseReviewedReceipt(path4) {
     }
     return { inspectionAudit: value.inspectionAudit };
   }
-  if (!hasExactKeys3(value, ["inspectionAudit", "kind", "receipt", "schemaVersion"]) || !isRecord8(value.receipt)) {
+  if (!hasExactKeys3(value, ["inspectionAudit", "kind", "receipt", "schemaVersion"]) || !isRecord9(value.receipt)) {
     throw new Error("review-pr: invalid advisory result artifact");
   }
   const receipt = value.receipt;
@@ -52667,33 +52785,9 @@ async function publishPullRequestCommand(github, resultPath) {
     reason
   };
 }
-function requiredEnvironment(name) {
-  const value = process13.env[name];
-  if (!value)
-    throw new Error(`review-pr: ${name} is required`);
-  return value;
-}
-async function githubRequest(path4, init) {
-  const token = requiredEnvironment("GITHUB_TOKEN");
-  const response = await fetch(`https://api.github.com${path4}`, {
-    ...init,
-    headers: {
-      accept: "application/vnd.github+json",
-      authorization: `Bearer ${token}`,
-      "content-type": "application/json",
-      "x-github-api-version": "2022-11-28"
-    }
-  });
-  if (!response.ok)
-    throw new Error(`review-pr: GitHub request failed (${response.status})`);
-  return response.status === 204 ? undefined : response.json();
-}
 function createGitHubReviewBoundary() {
-  const repoSlug = requiredEnvironment("GITHUB_REPOSITORY");
-  const pull = Number(requiredEnvironment("SAFEWORD_PR_NUMBER"));
-  if (!Number.isSafeInteger(pull) || pull <= 0)
-    throw new Error("review-pr: invalid pull number");
-  const root = `/repos/${repoSlug}`;
+  const root = `/repos/${requiredEnvironment("GITHUB_REPOSITORY")}`;
+  const pull = requiredPullNumber();
   return {
     publisher: {
       createComment: async (body) => {
@@ -52710,7 +52804,7 @@ function createGitHubReviewBoundary() {
         if (!Array.isArray(payload))
           throw new Error("review-pr: invalid GitHub comments response");
         return payload.map((comment) => {
-          if (!isRecord8(comment) || !isRecord8(comment.user)) {
+          if (!isRecord9(comment) || !isRecord9(comment.user)) {
             throw new Error("review-pr: invalid GitHub comment");
           }
           if (typeof comment.body !== "string" || typeof comment.created_at !== "string" || typeof comment.id !== "number") {
@@ -52733,7 +52827,7 @@ function createGitHubReviewBoundary() {
     },
     readPullRequest: async () => {
       const payload = await githubRequest(`${root}/pulls/${pull}`);
-      if (!isRecord8(payload) || !isRecord8(payload.head) || typeof payload.head.sha !== "string") {
+      if (!isRecord9(payload) || !isRecord9(payload.head) || typeof payload.head.sha !== "string") {
         throw new Error("review-pr: invalid GitHub pull response");
       }
       let state = "ready";
@@ -52749,6 +52843,7 @@ function createGitHubReviewBoundary() {
 }
 var REVIEW_RUN_STATES, RECEIPT_CHECK_STATUSES, NON_RUN_STATUSES;
 var init_review_pr_publication = __esm(() => {
+  init_github_request();
   REVIEW_RUN_STATES = new Set(["complete", "failed", "incomplete", "stale"]);
   RECEIPT_CHECK_STATUSES = new Set(["failed", "pending", "success", "unknown"]);
   NON_RUN_STATUSES = new Set([
@@ -67902,6 +67997,33 @@ async function reviewPrInspectHandler(invocation) {
     data: { command: "review-pr inspect", receipt }
   });
 }
+async function reviewPrReadinessHandler(invocation) {
+  if (invocation.offline)
+    return onlineRequired("review-pr readiness");
+  try {
+    const { createGitHubReadinessBoundary: createGitHubReadinessBoundary2, reportReadinessCommand: reportReadinessCommand2 } = await Promise.resolve().then(() => (init_review_pr_readiness(), exports_review_pr_readiness));
+    const outcome = await reportReadinessCommand2(createGitHubReadinessBoundary2());
+    return createResult({
+      state: outcome.state === "success" ? "healthy" : "action_required",
+      changed: true,
+      effects: {
+        network: [{ kind: "commit-status", target: "GitHub", operation: "read-write" }]
+      },
+      data: { command: "review-pr readiness", outcome }
+    });
+  } catch (error2) {
+    return createResult({
+      state: "failed",
+      errors: [
+        {
+          code: "PR_REVIEW_READINESS_FAILED",
+          message: `Pull-request readiness reporting failed: ${error2 instanceof Error ? error2.message : String(error2)}`,
+          retryable: false
+        }
+      ]
+    });
+  }
+}
 async function reviewPrPublicationHandler(stage, invocation) {
   if (invocation.offline)
     return onlineRequired(`review-pr ${stage}`);
@@ -68926,6 +69048,7 @@ var HANDLERS = {
   "review-pr inspect": reviewPrInspectHandler,
   "review-pr invalidate": (invocation) => reviewPrPublicationHandler("invalidate", invocation),
   "review-pr publish": (invocation) => reviewPrPublicationHandler("publish", invocation),
+  "review-pr readiness": reviewPrReadinessHandler,
   "retro run": retroRunHandler,
   "retro signals": retroSignalsHandler,
   "retro reconcile": retroReconcileHandler,
@@ -69424,6 +69547,10 @@ var CANONICAL_COMMANDS = [
   command("review-pr invalidate", "Remove an obsolete advisory route", "mutate", {
     networkPolicy: "declared",
     fixture: { argv: ["review-pr", "invalidate", "--offline"], environment: MACHINE_ENVIRONMENT }
+  }),
+  command("review-pr readiness", "Report whether readiness evidence matches the head", "mutate", {
+    networkPolicy: "declared",
+    fixture: { argv: ["review-pr", "readiness"], environment: MACHINE_ENVIRONMENT }
   }),
   command("review-pr publish", "Publish a validated advisory result", "mutate", {
     networkPolicy: "declared",

@@ -1129,6 +1129,34 @@ async function reviewPrInspectHandler(invocation: CommandInvocation): Promise<Cl
   });
 }
 
+async function reviewPrReadinessHandler(invocation: CommandInvocation): Promise<CliResult> {
+  if (invocation.offline) return onlineRequired('review-pr readiness');
+  try {
+    const { createGitHubReadinessBoundary, reportReadinessCommand } =
+      await import('../commands/review-pr-readiness.js');
+    const outcome = await reportReadinessCommand(createGitHubReadinessBoundary());
+    return createResult({
+      state: outcome.state === 'success' ? 'healthy' : 'action_required',
+      changed: true,
+      effects: {
+        network: [{ kind: 'commit-status', target: 'GitHub', operation: 'read-write' }],
+      },
+      data: { command: 'review-pr readiness', outcome },
+    });
+  } catch (error: unknown) {
+    return createResult({
+      state: 'failed',
+      errors: [
+        {
+          code: 'PR_REVIEW_READINESS_FAILED',
+          message: `Pull-request readiness reporting failed: ${error instanceof Error ? error.message : String(error)}`,
+          retryable: false,
+        },
+      ],
+    });
+  }
+}
+
 async function reviewPrPublicationHandler(
   stage: 'invalidate' | 'publish',
   invocation: CommandInvocation,
@@ -2380,6 +2408,7 @@ const HANDLERS: Readonly<Record<string, CommandHandler>> = {
   'review-pr inspect': reviewPrInspectHandler,
   'review-pr invalidate': invocation => reviewPrPublicationHandler('invalidate', invocation),
   'review-pr publish': invocation => reviewPrPublicationHandler('publish', invocation),
+  'review-pr readiness': reviewPrReadinessHandler,
   'retro run': retroRunHandler,
   'retro signals': retroSignalsHandler,
   'retro reconcile': retroReconcileHandler,
