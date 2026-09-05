@@ -695,23 +695,30 @@ function collectPostToolLintContexts(lintInputs: string[], projectDirectory: str
   return contexts;
 }
 
+/**
+ * Packaged PostToolUse hooks contributing plain additional context, applied
+ * in order. The lint hooks are not listed here: they carry a stdout fallback
+ * that {@link collectPostToolLintContexts} handles separately.
+ */
+const POST_TOOL_CONTEXT_HOOKS = [
+  'codex/post-tool-quality.ts',
+  'codex/post-tool-skill-nudge.ts',
+] as const;
+
 async function runPostToolUse(projectDirectory: string): Promise<void> {
   const rawInput = await readStdin();
   if (!hasSafewordProjectMarker(projectDirectory)) return;
   const input = parseCodexHookInput(rawInput);
   const lintInputs = postToolLintInputs(input, rawInput, projectDirectory);
   const contexts = collectPostToolLintContexts(lintInputs, projectDirectory);
-  const qualityResult = runPackagedHook('codex/post-tool-quality.ts', rawInput, projectDirectory);
-  const qualityContext = packagedAdditionalContext(qualityResult, 'PostToolUse');
-  if (qualityContext) contexts.push(qualityContext);
 
-  const skillNudgeResult = runPackagedHook(
-    'codex/post-tool-skill-nudge.ts',
-    rawInput,
-    projectDirectory,
-  );
-  const skillContext = packagedAdditionalContext(skillNudgeResult, 'PostToolUse');
-  if (skillContext) contexts.push(skillContext);
+  for (const hook of POST_TOOL_CONTEXT_HOOKS) {
+    const context = packagedAdditionalContext(
+      runPackagedHook(hook, rawInput, projectDirectory),
+      'PostToolUse',
+    );
+    if (context) contexts.push(context);
+  }
 
   const additionalContext = readProjectTextFile(projectDirectory, POST_TOOL_GUIDANCE_PATH)?.trim();
   if (additionalContext) contexts.push(additionalContext);
