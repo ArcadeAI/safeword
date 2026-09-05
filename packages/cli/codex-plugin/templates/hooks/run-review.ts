@@ -172,7 +172,10 @@ export function receiptReviewCandidates(
   );
   if (existsSync(codexPluginCli)) candidates.push(['bun', [codexPluginCli]]);
 
-  candidates.push(['bunx', [`safeword@${version}`]]);
+  // `bunx` searches the caller's project-local node_modules first. Run the
+  // exact package from the user's home instead, so reviewed project contents
+  // cannot shadow the distribution route.
+  candidates.push(['bun', ['--cwd', homedir(), 'x', `safeword@${version}`]]);
   return candidates;
 }
 

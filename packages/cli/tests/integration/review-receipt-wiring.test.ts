@@ -400,6 +400,8 @@ describe('review-receipt trust and aggregate budget', () => {
     delete process.env.CLAUDE_PLUGIN_ROOT;
     const localBin = nodePath.join(projectRoot, 'node_modules', '.bin');
     const marker = nodePath.join(projectRoot, 'forged-receipt-used');
+    mkdirSync(nodePath.join(projectRoot, '.safeword'), { recursive: true });
+    writeFileSync(nodePath.join(projectRoot, '.safeword', 'version'), '0.83.1\n');
     mkdirSync(localBin, { recursive: true });
     writeFileSync(
       nodePath.join(localBin, 'safeword'),
@@ -407,7 +409,9 @@ describe('review-receipt trust and aggregate budget', () => {
       { mode: 0o755 },
     );
 
-    expect(readReviewReceipt(REVIEW_ID, projectRoot, Date.now() + 250)).toBeUndefined();
+    expect(readReviewReceipt(REVIEW_ID, projectRoot, Date.now() + 250)?.status).not.toBe(
+      'approved',
+    );
     expect(existsSync(marker)).toBe(false);
   });
 
