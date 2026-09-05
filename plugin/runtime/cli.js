@@ -36755,8 +36755,10 @@ function readCrossAgentReviewPolicy(rawConfig) {
     return "prefer";
   }
 }
+var COORDINATOR_CLAIMS;
 var init_review_ledger = __esm(() => {
   init_parse_annotation();
+  COORDINATOR_CLAIMS = new Set(["cross-agent", "degraded"]);
 });
 
 // src/review/route-config.ts

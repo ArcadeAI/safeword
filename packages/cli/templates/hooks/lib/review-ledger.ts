@@ -54,11 +54,29 @@ export function reviewScope(ticketId: string, artifact: string, contentHash: str
 
 export type GateVerdict = { ok: true } | { ok: false; reason: string };
 
+/** Levels that assert a coordinator ran and returned a verdict. */
+const COORDINATOR_CLAIMS = new Set(['cross-agent', 'degraded']);
+
 /** A stamp satisfies a gate when it's a real review, or a skip with a non-empty reason. */
 function isSatisfyingStamp(stamp: ReviewStamp, policy: CrossAgentReviewPolicy = 'prefer'): boolean {
   const ordinarilySatisfying =
     stamp.skipReason === undefined || isValidSkipReason(stamp.skipReason);
-  if (!ordinarilySatisfying || policy !== 'require') return ordinarilySatisfying;
+  if (!ordinarilySatisfying) return false;
+
+  // A stamp claiming a coordinator verdict must cite the review that produced
+  // it — the same rule write-review-stamp.ts applies when writing one. Checked
+  // again on the reading side because the ledger is a plain text file: a line
+  // appended directly never passed through that hook, and an uncited claim of
+  // independence is exactly what this gate exists to refuse.
+  if (
+    stamp.skipReason === undefined &&
+    stamp.independence !== undefined &&
+    COORDINATOR_CLAIMS.has(stamp.independence) &&
+    stamp.reviewId === undefined
+  )
+    return false;
+
+  if (policy !== 'require') return true;
   return (
     stamp.skipReason === undefined &&
     stamp.independence === 'cross-agent' &&
