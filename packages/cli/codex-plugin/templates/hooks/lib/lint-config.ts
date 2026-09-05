@@ -93,6 +93,40 @@ export function projectOwnsAlternativeFormatter(projectDirectory: string): boole
 }
 
 /**
+ * Biome config filenames `host-toolchain.ts` resolves a lint owner from
+ * (`BIOME_CONFIG_FILES` there — kept in sync by hand, like
+ * ALTERNATIVE_FORMATTER_FILES, because templates cannot import from src).
+ *
+ * Deliberately NOT the alternative-formatter set (#3792): dprint, oxfmt and
+ * deno format but do not lint through safeword's host toolchain, so an ESLint
+ * fallback still runs there and warning about a missing ESLint stays true. Only
+ * Biome/ultracite make the warning false.
+ */
+const HOST_LINT_CONFIG_FILES = new Set<string>([
+  'biome.json',
+  'biome.jsonc',
+  '.biome.json',
+  '.biome.jsonc',
+]);
+
+/** Whether a host toolchain owns this project's LINTING, not just its formatting. */
+export function detectHostLintToolchain(entries: readonly string[]): boolean {
+  return entries.some(name => HOST_LINT_CONFIG_FILES.has(name));
+}
+
+/**
+ * Whether the session lint check should warn that ESLint is missing.
+ *
+ * The Prettier warning next to it has been gated on its owner since V7GGJZ; the
+ * ESLint one was not, so a Biome shop that safeword lints successfully through
+ * the host toolchain was told at every session start to install ESLint (#3792).
+ * ESLint is the fallback for repos with no host toolchain — not a requirement.
+ */
+export function shouldWarnMissingEslint(entries: readonly string[]): boolean {
+  return !detectHostLintToolchain(entries) && !detectEslintConfig(entries);
+}
+
+/**
  * Whether the session lint check should warn that Prettier is missing. It must
  * not nag a repo that deliberately uses a non-Prettier formatter — those shops
  * don't want Prettier installed (ticket V7GGJZ).

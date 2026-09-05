@@ -6,7 +6,8 @@ import { existsSync, readdirSync } from 'node:fs';
 
 import {
   detectAlternativeFormatter,
-  detectEslintConfig,
+  detectHostLintToolchain,
+  shouldWarnMissingEslint,
   shouldWarnMissingPrettier,
 } from './lib/lint-config.ts';
 
@@ -31,8 +32,12 @@ const entries = (() => {
 })();
 
 const ownsAlternativeFormatter = detectAlternativeFormatter(entries);
+// Biome/ultracite lint through the host toolchain, so ESLint is the fallback
+// for repos without one — not a requirement (#3792). Formatting and linting
+// have separate owners: dprint/oxfmt/deno format only, and still want ESLint.
+const ownsHostLinting = detectHostLintToolchain(entries);
 
-if (!detectEslintConfig(entries)) {
+if (shouldWarnMissingEslint(entries)) {
   warnings.push("ESLint config not found - run 'bun run lint' may fail");
 }
 
@@ -47,7 +52,7 @@ const pkgJsonFile = Bun.file(`${projectDir}/package.json`);
 if (await pkgJsonFile.exists()) {
   try {
     const pkgJson = await pkgJsonFile.text();
-    if (!pkgJson.includes('"eslint"')) {
+    if (!ownsHostLinting && !pkgJson.includes('"eslint"')) {
       warnings.push("ESLint not in package.json - run 'bun add -D eslint'");
     }
     if (!ownsAlternativeFormatter && !pkgJson.includes('"prettier"')) {
