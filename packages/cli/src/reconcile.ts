@@ -713,12 +713,34 @@ function isConfigOverridden(definition: ManagedFileDefinition, cwd: string): boo
  * safeword to read from elsewhere, so the default location is no longer
  * safeword's concern (ticket K7N2QM).
  */
+/**
+ * Whether an already-installed managed file should be rewritten on upgrade.
+ *
+ * Managed files are create-only so an upgrade never clobbers a customized one.
+ * Entries opting into `refreshWhileUnmodified` carry a value that has to follow
+ * the CLI — the advisory workflows' `npx safeword@<version>` pin — and are
+ * rewritten only while the file is still safeword's own scaffold, judged by the
+ * same comparison that authorizes removal. A customized file fails it and stays.
+ */
+function shouldRefreshManagedFile(
+  definition: ManagedFileDefinition,
+  ctx: ProjectContext,
+  fullPath: string,
+  newContent: string,
+): boolean {
+  if (definition.refreshWhileUnmodified !== true) return false;
+  const installed = readFileSafe(fullPath);
+  if (installed === undefined || installed === newContent) return false;
+  return matchesManagedScaffold(definition, ctx, installed);
+}
+
 function planManagedFilesActions(
   managedFiles: Record<string, ManagedFileDefinition>,
   ctx: ProjectContext,
 ): FileActionResult {
   const actions: Action[] = [];
   const created: string[] = [];
+  const updated: string[] = [];
 
   for (const [filePath, definition] of Object.entries(managedFiles)) {
     if (isConfigOverridden(definition, ctx.cwd)) continue;
@@ -727,13 +749,17 @@ function planManagedFilesActions(
     const newContent = resolveFileContent(definition, ctx);
 
     if (newContent === undefined) continue;
-    if (exists(fullPath)) continue; // Don't update during upgrade
+
+    const installedAlready = exists(fullPath);
+    if (installedAlready && !shouldRefreshManagedFile(definition, ctx, fullPath, newContent)) {
+      continue;
+    }
 
     actions.push({ type: 'write', path: filePath, content: newContent });
-    created.push(filePath);
+    (installedAlready ? updated : created).push(filePath);
   }
 
-  return { actions, created, updated: [] };
+  return { actions, created, updated };
 }
 
 function computeUpgradePlan(schema: SafewordSchema, ctx: ProjectContext): ReconcilePlan {
