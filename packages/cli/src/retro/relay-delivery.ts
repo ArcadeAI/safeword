@@ -495,11 +495,19 @@ async function hasDiscardIntent(projectDirectory: string, requestId: string): Pr
   return filenames.some(filename => parseDiscardIntent(filename)?.requestId === requestId);
 }
 
-async function discardBlocksRequest(projectDirectory: string, requestId: string): Promise<boolean> {
-  return (
-    (await exists(discardedPath(projectDirectory, requestId))) ||
-    (await hasDiscardIntent(projectDirectory, requestId))
-  );
+/**
+ * Is this request discarded? Reads discard intent live, or from `snapshot`
+ * when the caller already captured one.
+ */
+async function discardBlocks(
+  projectDirectory: string,
+  requestId: string,
+  snapshot?: RelayStateSnapshot,
+): Promise<boolean> {
+  if (await exists(discardedPath(projectDirectory, requestId))) return true;
+  return snapshot === undefined
+    ? hasDiscardIntent(projectDirectory, requestId)
+    : discardIntentInSnapshot(snapshot, requestId);
 }
 
 function parseRecoveryClaim(
@@ -524,7 +532,7 @@ export async function persistRelayRequest(
   await ensureRelayDirectory(projectDirectory, {
     beforeDirectorySync: faults.beforeDirectorySync,
   });
-  if (await discardBlocksRequest(projectDirectory, request.requestId)) {
+  if (await discardBlocks(projectDirectory, request.requestId)) {
     throw new Error('relay request identity was discarded');
   }
   await faults.afterDiscardCheck?.();
@@ -877,7 +885,7 @@ async function materializeReservedRequest(
   snapshot: RelayStateSnapshot,
 ): Promise<RelayDraftRequest | undefined> {
   const requestId = reservation.request.requestId;
-  if (await discardBlocksRequestAtSnapshot(projectDirectory, snapshot, requestId)) {
+  if (await discardBlocks(projectDirectory, requestId, snapshot)) {
     return undefined;
   }
   const currentReservation = await loadSourceReservation(projectDirectory, draft);
@@ -893,7 +901,7 @@ async function materializeReservedRequest(
   if (!(await writeAtomic(materializing, bytes))) {
     await validateReservedPrimary(projectDirectory, currentReservation.request, materializing);
   }
-  if (!(await discardBlocksRequest(projectDirectory, requestId))) {
+  if (!(await discardBlocks(projectDirectory, requestId))) {
     return currentReservation.request;
   }
   await removeIfPresent(materializing);
@@ -914,16 +922,6 @@ async function captureRelayStateSnapshot(
   };
 }
 
-async function discardBlocksReservation(
-  projectDirectory: string,
-  requestId: string,
-  snapshot?: RelayStateSnapshot,
-): Promise<boolean> {
-  return snapshot === undefined
-    ? discardBlocksRequest(projectDirectory, requestId)
-    : discardBlocksRequestAtSnapshot(projectDirectory, snapshot, requestId);
-}
-
 async function resolveSourceReservation(
   projectDirectory: string,
   draft: RelayDraftInput,
@@ -934,13 +932,7 @@ async function resolveSourceReservation(
 ): Promise<RelayDraftRequest | undefined> {
   validateSourceReservation(reservation, draft);
   if (reservation.state !== 'active') return undefined;
-  if (
-    await discardBlocksReservation(
-      projectDirectory,
-      reservation.request.requestId,
-      options.stateSnapshot,
-    )
-  ) {
+  if (await discardBlocks(projectDirectory, reservation.request.requestId, options.stateSnapshot)) {
     return undefined;
   }
   if (await compactIfAcknowledged(projectDirectory, reservation.request)) return undefined;
@@ -976,17 +968,6 @@ async function discardIntentInSnapshot(
     matchingIntents.map(filename => exists(path.join(snapshot.directory, filename))),
   );
   return live.includes(true);
-}
-
-async function discardBlocksRequestAtSnapshot(
-  projectDirectory: string,
-  snapshot: RelayStateSnapshot,
-  requestId: string,
-): Promise<boolean> {
-  return (
-    (await exists(discardedPath(projectDirectory, requestId))) ||
-    (await discardIntentInSnapshot(snapshot, requestId))
-  );
 }
 
 async function acquireSourceReservation(
@@ -1262,7 +1243,7 @@ export async function claimRelayRequest(
       requestId === undefined ||
       options.excludeRequestIds?.has(requestId) === true ||
       (await exists(ackPath(projectDirectory, requestId))) ||
-      (await discardBlocksRequestAtSnapshot(projectDirectory, stateSnapshot, requestId))
+      (await discardBlocks(projectDirectory, requestId, stateSnapshot))
     ) {
       continue;
     }
@@ -1370,7 +1351,7 @@ async function claimSpecificRelayRequest(
   const expiresAt = relayClaimExpiry(options.now, options.leaseMs);
   if (
     (await exists(ackPath(projectDirectory, requestId))) ||
-    (await discardBlocksReservation(projectDirectory, requestId, options.stateSnapshot))
+    (await discardBlocks(projectDirectory, requestId, options.stateSnapshot))
   ) {
     return undefined;
   }
@@ -2117,7 +2098,7 @@ async function rearmClaim(
   claim: RelayClaim,
   stateSnapshot?: RelayStateSnapshot,
 ): Promise<void> {
-  if (await discardBlocksReservation(projectDirectory, claim.requestId, stateSnapshot)) return;
+  if (await discardBlocks(projectDirectory, claim.requestId, stateSnapshot)) return;
   if (
     (await exists(ackPath(projectDirectory, claim.requestId))) ||
     (await exists(discardedPath(projectDirectory, claim.requestId)))
@@ -2138,8 +2119,7 @@ async function deadLetterClaim(
   claim: RelayClaim,
   stateSnapshot?: RelayStateSnapshot,
 ): Promise<boolean> {
-  if (await discardBlocksReservation(projectDirectory, claim.requestId, stateSnapshot))
-    return false;
+  if (await discardBlocks(projectDirectory, claim.requestId, stateSnapshot)) return false;
   if (await exists(discardedPath(projectDirectory, claim.requestId))) {
     await removeIfPresent(claim.path);
     return false;
@@ -2163,7 +2143,7 @@ async function claimRelayDeadLetter(
   now = Date.now(),
 ): Promise<RelayClaim | undefined> {
   if (!CLAIM_ID_PATTERN.test(claimId)) throw new Error('invalid relay claim identity');
-  if (await discardBlocksRequest(projectDirectory, requestId)) return undefined;
+  if (await discardBlocks(projectDirectory, requestId)) return undefined;
   const expiresAt = relayClaimExpiry(now, RECOVERY_CLAIM_LEASE_MS);
   const claimed = path.join(
     relayDirectory(projectDirectory),
